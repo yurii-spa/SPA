@@ -690,6 +690,10 @@ class StrategyAllocator:
         # declaration (committed-constant TVL) — is "static". Fail-closed: an
         # undeclared numeric TVL is never presented as observed.
         self._tvl_sources: dict[str, str] = {}
+        # MP-011: TVL magnitude per protocol — the number ``_filter_by_tvl``
+        # applies the $5M floor to. Recorded (not decided on) so every reader of
+        # "may this pool take fresh capital" answers it from ONE source.
+        self._tvl_used: dict[str, float] = {}
         # Pools whose TVL-floor pass rests on a static (unverified) TVL — they
         # are ranked, but the floor is NOT evidence-verified for them.
         self._tvl_floor_unverified: list[str] = []
@@ -824,6 +828,7 @@ class StrategyAllocator:
         self._apy_used = {}
         self._as_of = {}
         self._tvl_sources = {}
+        self._tvl_used = {}
         self._tvl_floor_unverified = []
         self._blocked = {}
         live_apy = self._get_live_apy_map()
@@ -943,6 +948,7 @@ class StrategyAllocator:
                 self._apy_used[protocol] = apy_pct
                 self._as_of[protocol] = a.get("last_updated", now_iso)
                 self._tvl_sources[protocol] = tvl_source
+                self._tvl_used[protocol] = _row["tvl_usd"]
 
         # MP-REGISTRY: merge active adapters from adapter_registry.json that are
         # absent from the orchestrator snapshot.
@@ -1030,6 +1036,7 @@ class StrategyAllocator:
                     self._apy_used[name] = apy_pct
                     self._as_of[name] = as_of
                     self._tvl_sources[name] = reg_tvl_source
+                    self._tvl_used[name] = tvl
                     log.info(
                         "WS1.1: adapter %s apy=%.2f%% source=%s tier=%s tvl=$%.0fM",
                         name, apy_pct, apy_source, tier_str, tvl / 1_000_000,
@@ -1072,6 +1079,12 @@ class StrategyAllocator:
                 p for p, s in self._tvl_sources.items() if s == "static"
             ),
             "tvl_floor_unverified": list(self._tvl_floor_unverified),
+            # MP-011 (карточка 07.08): РАЗМЕР TVL, ровно тот, на котором сам
+            # аллокатор применяет порог $5M (``_filter_by_tvl``). Провенанс
+            # отвечает «наблюдали ли», порог — «сколько»; атрибуция кэша знала
+            # только первое и записывала пул ниже порога в «пригодную комнату».
+            # Только запись отчёта: ни одно решение аллокатора это поле не читает.
+            "tvl_usd": dict(self._tvl_used),
             # ADR-061: was funding restricted to OBSERVED APYs this run, and who
             # was blocked (advisory / not_eligible / unevidenced) and why.
             "evidence_gate_applied": self._evidence_gate_applied,

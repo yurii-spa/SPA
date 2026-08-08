@@ -1836,6 +1836,10 @@ def run_cycle(
             # ADR-053 (allocator side): reuse the allocator's TVL provenance
             # rather than deriving a second definition of "live TVL".
             tvl_sources=(getattr(alloc, "feed_coverage", {}) or {}).get("tvl_sources"),
+            # MP-011 (карточка 07.08): и РАЗМЕР TVL — тот самый, на котором
+            # аллокатор применяет порог $5M. Провенанс без размера позволял
+            # атрибуции звать пул ниже порога «пригодным сегодня».
+            tvl_usd=(getattr(alloc, "feed_coverage", {}) or {}).get("tvl_usd"),
             capital_usd=capital_usd,
             cycle_date=today,
             run_ts=run_ts,

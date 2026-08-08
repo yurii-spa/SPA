@@ -171,7 +171,7 @@ def _resolve_attribution_policy(protocols) -> dict:
     :func:`attribute_cash` reports as UNCHECKED — never a silent zero.
     """
     out: dict = {"tier_caps": None, "tiers": None, "t2_total_cap": None,
-                 "t3_total_cap": None, "min_apy_pct": None}
+                 "t3_total_cap": None, "min_apy_pct": None, "min_tvl_usd": None}
     try:
         from spa_core.risk.policy import RiskConfig
         cfg = RiskConfig()
@@ -202,6 +202,11 @@ def _resolve_attribution_policy(protocols) -> dict:
         "t2_total_cap": float(cfg.max_total_t2_allocation),
         "t3_total_cap": float(getattr(cfg, "max_total_t3_allocation", 0.15)),
         "min_apy_pct": float(cfg.min_apy_for_new_position),
+        # MP-011 TVL floor — RiskPolicy's own number, the same one the allocator
+        # filters on. Absent attribute ⇒ stays None ⇒ attribution says UNCHECKED
+        # rather than inventing a literal (a third copy of the rule).
+        "min_tvl_usd": (float(cfg.min_tvl_usd)
+                        if getattr(cfg, "min_tvl_usd", None) is not None else None),
     })
     return out
 
@@ -280,6 +285,7 @@ def write_shadow_rationale(
     apy_pct: Dict[str, float],
     apy_sources: Dict[str, str],
     tvl_sources: Optional[Dict[str, str]] = None,
+    tvl_usd: Optional[Dict[str, float]] = None,
     capital_usd: float,
     cycle_date: str,
     run_ts: str,
@@ -341,6 +347,25 @@ def write_shadow_rationale(
             except Exception as exc:  # noqa: BLE001
                 log.warning("ADR-060 shadow: TVL provenance unavailable (%s)", exc)
 
+        # TVL MAGNITUDE (карточка 07.08). Провенанс говорит «наблюдали», порог
+        # спрашивает «сколько» — это два разных вопроса, и до 08.08 атрибуция
+        # задавала только первый. Источник тот же, что у аллокатора: его
+        # собственная карта фидов. Снимок читается лишь как запасной вариант и
+        # только когда аллокатор карту не дал — иначе это было бы второе
+        # определение (ровно тот дрейф, от которого предостерегает комментарий выше).
+        tvl_magnitudes: Optional[Dict[str, float]] = None
+        if tvl_usd is not None:   # пустая-но-данная карта — ответ, а не молчание
+            tvl_magnitudes = {str(k): v for k, v in tvl_usd.items()}
+        else:
+            try:
+                orch = json.loads((Path(data_dir) / "adapter_orchestrator_status.json")
+                                  .read_text(encoding="utf-8"))
+                tvl_magnitudes = {str(a["protocol"]): a.get("tvl_usd")
+                                  for a in (orch.get("adapters") or [])
+                                  if isinstance(a, dict) and a.get("protocol")}
+            except Exception as exc:  # noqa: BLE001 — None ⇒ UNCHECKED, not a guess
+                log.warning("ADR-055 attribution: TVL magnitudes unavailable (%s)", exc)
+
         hist = _history_from_trades(trades or [], now)
         ages = _position_ages(trades or [], current_positions or {}, now)
 
@@ -379,6 +404,11 @@ def write_shadow_rationale(
             t2_total_cap=_pol["t2_total_cap"],
             t3_total_cap=_pol["t3_total_cap"],
             min_apy_pct=_pol["min_apy_pct"],
+            # MP-011: размер TVL и порог RiskPolicy — та же проверка, что у
+            # аллокатора (spa_core/risk/tvl_floor.py). Без них пул ниже порога
+            # числился «пригодным сегодня» и его комнату вменяли аллокатору.
+            tvl_usd=tvl_magnitudes,
+            min_tvl_usd=_pol["min_tvl_usd"],
             blocked=blocked_protocols,
             external_binders=cash_binders,
             # ADR-053/ADR-055: what the RiskPolicy gate removed from the target

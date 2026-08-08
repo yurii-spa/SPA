@@ -49,3 +49,28 @@ live_apy = None      tvl_usd = 0.0      tvl_source = "static"
 не молчаливое удаление.
 
 Родитель: [ADR-076](../../docs/decisions/ADR-076-live-feeds-outside-ethereum.md).
+
+---
+
+## Половина сделана (цикл #165, 2026-08-08) — карточка остаётся `new`
+
+Замер карточки подтверждён на артефактах 12:33Z дословно: `live_apy = null`, `tvl_usd = 0.0`,
+`tvl_source = "static"`, а 8.5 % — это `fallback_apy`, литерал.
+
+**Сделано:** `aerodrome_usdc_lp` больше не появляется в `headroom_contributors`
+(`data/capital_efficiency.json`) — не отдельным исключением по имени, а потому что проверка
+пригодности теперь спрашивает про размер пула: ненаблюдённый TVL ⇒ пул не пригоден
+(`spa_core/risk/tvl_floor.py`, карточка `inbox-atributsiya-kesha-i-geit-riskpolicy-po-r`).
+Ушёл НЕ молча: печатается в новом поле `headroom_excluded` строкой
+`aerodrome_usdc_lp(+20% @ 8.5%): tvl_unmeasured`. Тест краснеет, если ненаблюдаемый адаптер
+снова попадёт в headroom (`test_dead_feed_and_below_floor_leave_headroom_with_the_reason_named`).
+
+**НЕ сделано, поэтому карточка не закрыта:**
+
+1. **список возможностей офиса** (`data/investment_os/chief_investment.json`) по-прежнему печатает
+   `aerodrome_usdc_lp 8.5% (evidence L3)` — это другой модуль, и оркестратор читает его каждый
+   цикл (я прочитал сегодня);
+2. **сам выбор** из карточки — оживить фид (Base, образец рядом: `morpho_blue_base`,
+   `moonwell_base`, `extra_finance_base`) ИЛИ честно ретайрить с уведомлением — не сделан.
+   Вариант «оживить» прямо совпадает с решением владельца 08.08 по ADR-076 (фиды вне Ethereum),
+   поэтому по умолчанию берётся он, а не ретайр.

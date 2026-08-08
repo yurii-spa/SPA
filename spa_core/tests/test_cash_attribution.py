@@ -46,6 +46,27 @@ CAPS_0408 = {p: (0.40 if t == "T1" else 0.20) for p, t in TIERS_0408.items()}
 BLOCKED_0408 = {"susde": "advisory", "spark_susds": "gsm_not_confirmed"}
 
 
+class _FarAboveFloor(dict):
+    """Каждый пул этого файла заведомо ВЫШЕ порога TVL ($5M).
+
+    Порог — новое (08.08) измерение пригодности: до него атрибуция знала только
+    ПРОИСХОЖДЕНИЕ TVL и записывала пул ниже порога в «пригодную комнату»
+    (карточка `inbox-atributsiya-kesha-i-geit-riskpolicy-po-r`). Здесь он
+    намеренно НЕ предмет проверки — эти тесты про капы, блоки и водопад, и их
+    числа обязаны остаться прежними до цента. Сам порог проверяется отдельно, в
+    обе стороны: `test_tvl_floor_one_definition.py`.
+    """
+
+    def get(self, key, default=None):  # noqa: D102 — «любой пул велик»
+        return 1_000_000_000.0
+
+
+# сентинел-ключ нужен, чтобы карта была НЕ ПУСТОЙ: пустая карта над непустой
+# вселенной означает «посмотреть не смогли» и честно даёт UNCHECKED.
+TVL_FAR_ABOVE_FLOOR = _FarAboveFloor({"__any_pool__": 1_000_000_000.0})
+MIN_TVL_USD = 5_000_000.0
+
+
 def _attr(**kw):
     kw.setdefault("positions", BOOK_0408)
     kw.setdefault("capital_usd", CAP)
@@ -58,6 +79,8 @@ def _attr(**kw):
     kw.setdefault("t2_total_cap", 0.50)
     kw.setdefault("t3_total_cap", 0.15)
     kw.setdefault("min_apy_pct", 1.0)
+    kw.setdefault("tvl_usd", TVL_FAR_ABOVE_FLOOR)
+    kw.setdefault("min_tvl_usd", MIN_TVL_USD)
     kw.setdefault("blocked", BLOCKED_0408)
     return attribute_cash(**kw)
 
@@ -237,7 +260,13 @@ def _ce(monkeypatch, tmp_path: Path, *, cash_pct: float = 0.15):
     pos = {"capital_usd": CAP, "cash_usd": cash_pct * CAP,
            "deployed_usd": (1 - cash_pct) * CAP,
            "positions": [{"protocol": "aave_v3", "usd": 40_000}]}
-    apy = {"by_apy": [{"protocol": "compound_v3", "tier": "T1", "apy_pct": 3.3}]}
+    # tvl_usd — новое (08.08) измерение пригодности: комната годится, только если
+    # размер пула наблюдён и он выше порога RiskPolicy ($5M). Здесь пул заведомо
+    # крупный, чтобы эти тесты остались про то, про что были — про то, что
+    # неполная/протухшая атрибуция НЕ гасит тревогу. Отсутствие размера — отдельный
+    # случай, он проверяется ниже (test_headroom_without_measured_tvl_is_unknown).
+    apy = {"by_apy": [{"protocol": "compound_v3", "tier": "T1", "apy_pct": 3.3,
+                       "tvl_usd": 1_500_000_000.0}]}
     real_load = ce._load
 
     def fake_load(p):

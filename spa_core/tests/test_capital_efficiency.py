@@ -14,7 +14,16 @@ def _pos(cap, cash, positions):
 
 
 def _apy(rows):
-    return {"by_apy": rows}
+    """Строки ранжирования + наблюдённый размер пула.
+
+    С 08.08 комната считается пригодной, только если размер НАБЛЮДЁН и он выше
+    порога RiskPolicy ($5M): раньше сюда попадали мёртвый `aerodrome_usdc_lp`
+    (TVL 0, доходность-литерал 8.5 %) и `moonwell_base` ($1.41M). Здесь размер
+    проставляется крупным по умолчанию — эти тесты не про порог; сам порог, в
+    обе стороны, живёт в `test_tvl_floor_one_definition.py`. Явно указанный в
+    строке `tvl_usd` НЕ перетирается.
+    """
+    return {"by_apy": [{"tvl_usd": 1_000_000_000.0, **r} for r in rows]}
 
 
 def _patch(monkeypatch, pos, apy):

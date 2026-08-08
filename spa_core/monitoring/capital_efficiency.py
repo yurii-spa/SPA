@@ -33,6 +33,7 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from spa_core.utils.atomic import atomic_save  # noqa: E402
+from spa_core.risk.tvl_floor import floor_is_resolved, floor_reason  # noqa: E402
 
 _POS = _ROOT / "data" / "current_positions.json"
 _APY = _ROOT / "data" / "apy_ranking.json"
@@ -67,9 +68,15 @@ def _config():
             "t1_cap": float(c.max_concentration_t1),
             "t2_cap": float(c.max_concentration_t2),
             "min_apy": float(c.min_apy_for_new_position),
+            # MP-011 floor. NOT defaulted to a literal below: an unresolved floor
+            # is an UNMEASURED dimension of "may this pool take money", and a
+            # literal here would be a second copy of RiskPolicy's number.
+            "min_tvl_usd": (float(c.min_tvl_usd)
+                            if getattr(c, "min_tvl_usd", None) is not None else None),
         }
     except Exception:  # noqa: BLE001
-        return {"min_cash_pct": 0.05, "t1_cap": 0.4, "t2_cap": 0.2, "min_apy": 1.0}
+        return {"min_cash_pct": 0.05, "t1_cap": 0.4, "t2_cap": 0.2, "min_apy": 1.0,
+                "min_tvl_usd": None}
 
 
 def _tier_of(proto: str) -> str:
@@ -107,8 +114,13 @@ def _current_weights(pos: dict) -> dict[str, float]:
     return out
 
 
-def _live_apys(apy_doc) -> dict[str, tuple[float, str]]:
-    """protocol → (apy_pct, tier). Reads apy_ranking's `by_apy` rows (field `apy_pct`, plus `tier`)."""
+def _live_apys(apy_doc) -> dict[str, tuple[float, str, object]]:
+    """protocol → (apy_pct, tier, tvl_raw) from apy_ranking's `by_apy` rows.
+
+    ``tvl_raw`` is passed through VERBATIM (including ``None``): "we did not
+    measure the size" and "the size is zero" are different states of the book and
+    only the floor rule (:mod:`spa_core.risk.tvl_floor`) may collapse them.
+    """
     if not isinstance(apy_doc, dict):
         return {}
     rows = apy_doc.get("by_apy") or apy_doc.get("by_risk_adjusted") or []
@@ -117,13 +129,16 @@ def _live_apys(apy_doc) -> dict[str, tuple[float, str]]:
             if isinstance(apy_doc[k], list):
                 rows = apy_doc[k]
                 break
-    out: dict[str, tuple[float, str]] = {}
+    out: dict[str, tuple[float, str, object]] = {}
     for r in rows or []:
         if isinstance(r, dict):
             n = r.get("protocol") or r.get("name")
             tier = str(r.get("tier") or "").upper()
+            tvl = r.get("tvl_usd") if "tvl_usd" in r else r.get("tvl")
             try:
-                out[str(n)] = (float(r.get("apy_pct") if r.get("apy_pct") is not None else r.get("apy")), tier)
+                out[str(n)] = (
+                    float(r.get("apy_pct") if r.get("apy_pct") is not None else r.get("apy")),
+                    tier, tvl)
             except Exception:  # noqa: BLE001
                 pass
     return out
@@ -178,7 +193,15 @@ def assess() -> dict:
     headroom = 0.0
     best_apy = 0.0
     contributors: list[str] = []
-    for proto, (apy, feed_tier) in apys.items():
+    # MP-011 (карточка 07.08, замер 08.08): «пригодная комната» обязана значить то
+    # же, что у аллокатора. Раньше здесь спрашивали только про APY и тир, поэтому
+    # в headroom стояли aerodrome_usdc_lp (TVL 0.0, доходность — статический
+    # литерал 8.5 %) и moonwell_base (TVL $1.41M против порога $5M) — комната,
+    # которую финансировать НЕЛЬЗЯ, вменялась аллокатору как лень.
+    excluded: list[str] = []
+    unmeasured_rooms: list[str] = []
+    floor = cfg.get("min_tvl_usd")
+    for proto, (apy, feed_tier, tvl_raw) in apys.items():
         if apy < cfg["min_apy"]:
             continue
         tier = feed_tier or _tier_of(proto)
@@ -189,19 +212,39 @@ def assess() -> dict:
         else:
             continue  # T3/unknown: don't count as "safe deployable headroom"
         room = max(0.0, cap_p - weights.get(proto, 0.0))
-        if room > 1e-6:
-            headroom += room
-            if apy > best_apy:
-                best_apy = apy
-            if len(contributors) < 6:
-                contributors.append(f"{proto}(+{room*100:.0f}% @ {apy:.1f}%)")
+        if room <= 1e-6:
+            continue
+        floor_ok, floor_why = floor_reason(tvl_raw, floor)
+        if not floor_ok:
+            if len(excluded) < 8:
+                excluded.append(f"{proto}(+{room*100:.0f}% @ {apy:.1f}%): {floor_why}")
+            # "измерили и мал" ≠ "не измеряли". Первое — структурная причина
+            # (кэш держать правильно), второе — дыра в наблюдении, и выдать её
+            # за структурность значит погасить тревогу потерей входа.
+            if not floor_why.startswith("tvl_below_floor"):
+                unmeasured_rooms.append(proto)
+            continue
+        headroom += room
+        if apy > best_apy:
+            best_apy = apy
+        if len(contributors) < 6:
+            contributors.append(f"{proto}(+{room*100:.0f}% @ {apy:.1f}%)")
 
     deployable_now = min(headroom, idle_excess)  # how much of the idle cash could actually be placed
     lazy = idle_excess > _IDLE_TOLERANCE and deployable_now > _IDLE_TOLERANCE
     # Fail-CLOSED: an idle book we CANNOT prove is structural (empty/unreadable APY feed → headroom
     # undetermined) must NOT be declared OK. Idle over tolerance + no usable feed ⇒ UNKNOWN, not OK.
     feed_ok = len(apys) > 0
-    if idle_excess > _IDLE_TOLERANCE and not feed_ok:
+    # Same fail-CLOSED shape for the floor: without RiskPolicy's threshold we
+    # cannot tell "no qualifying headroom" from "did not check", and the second
+    # must never be printed as the first (that is how an alarm goes quiet by
+    # losing an input rather than by the book improving).
+    floor_ok = floor_is_resolved(floor)
+    # …и то же самое, когда порог есть, но мерить было нечего: комнаты остались
+    # только у пулов с ненаблюдённым размером. Молчаливое "headroom=0 ⇒ OK"
+    # объявило бы дыру в наблюдении структурной причиной.
+    size_blind = headroom <= 1e-6 and bool(unmeasured_rooms)
+    if idle_excess > _IDLE_TOLERANCE and (not (feed_ok and floor_ok) or size_blind):
         verdict = "UNKNOWN"
     else:
         verdict = "WARNING" if lazy else "OK"
@@ -211,7 +254,13 @@ def assess() -> dict:
         .format(deployable_now * 100)
         if lazy else
         ("structural: idle within tolerance or no qualifying headroom (caps exhausted) — holding cash is correct"
-         if verdict == "OK" else "unknown")
+         if verdict == "OK" else
+         ("unknown: TVL floor unresolved — eligibility not measured (fail-closed)"
+          if not floor_ok else
+          ("unknown: headroom exists only in pools whose SIZE was never observed "
+           "({}) — not measured is not the same as structural (fail-closed)".format(
+               ", ".join(sorted(unmeasured_rooms)[:5]))
+           if size_blind else "unknown")))
     )
 
     # ── Y2 (ADR-055): the cycle's own cash attribution outranks the heuristic ──
@@ -280,6 +329,11 @@ def assess() -> dict:
         "best_qualifying_apy_pct": round(best_apy, 4),
         "forgone_yield_bps_est": forgone_bps,
         "headroom_contributors": contributors,
+        # Rooms that exist but may NOT take money, with the reason named. An
+        # excluded pool is a fact about the book, not a silent deletion.
+        "headroom_excluded": excluded,
+        "headroom_size_unmeasured": sorted(unmeasured_rooms),
+        "min_tvl_usd": floor,
         "verdict": verdict,
         "reason": reason,
         "tolerance_pct": _IDLE_TOLERANCE,

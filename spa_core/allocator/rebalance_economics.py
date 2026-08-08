@@ -20,6 +20,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Optional, Tuple
 
+from spa_core.risk.tvl_floor import floor_is_resolved, floor_reason
+
 # Per-move cost inputs are REUSED from the existing Tier-1 cost model rather than
 # re-invented, so a gas/slippage assumption exists in exactly one place.
 try:
@@ -374,6 +376,8 @@ def attribute_cash(
     t2_total_cap: Optional[float],
     t3_total_cap: Optional[float],
     min_apy_pct: Optional[float],
+    tvl_usd: Optional[Dict[str, float]] = None,
+    min_tvl_usd: Optional[float] = None,
     blocked: Optional[Dict[str, str]] = None,
     external_binders: Optional[List[dict]] = None,
     policy_refusals: Optional[List[dict]] = None,
@@ -391,7 +395,9 @@ def attribute_cash(
           T2-total / T3-total caps;
       (г) ``insufficient_eligible_live`` — room that exists only in protocols we
           may not fund: blocked (advisory/GSM), stale APY feed, no live TVL
-          (ADR-053 freeze), or APY below the entry floor;
+          (ADR-053 freeze), TVL below the RiskPolicy floor / unmeasured
+          (``min_tvl_usd``, MP-011 — the SAME rule the allocator applies, see
+          :mod:`spa_core.risk.tvl_floor`), or APY below the entry floor;
       (б) ``per_protocol_cap``           — what remains when every fundable
           protocol is (or in the counterfactual max-fill becomes) pinned at its
           40 %/20 % tier cap.
@@ -420,6 +426,19 @@ def attribute_cash(
     to prevent. So the number stays honest and the CAUSE stops being anonymous:
     ``unexplained_deployable`` carries ``caused_by`` and the artifact carries
     ``policy_refusals``.
+
+    ``tvl_usd`` / ``min_tvl_usd`` — the pool's observed TVL and the RiskPolicy
+    floor (both INPUTS, resolved by the caller from the allocator's own feed map
+    and ``RiskConfig``). Until 08.08 the eligibility check knew only the
+    PROVENANCE of TVL (``proto in tvl_live``) and nothing about its SIZE, while
+    the allocator applies the floor (``_filter_by_tvl``, MP-011) — so a pool the
+    allocator had filtered out (measured: ``moonwell_base``, TVL $1.41M vs the
+    $5M floor) still stood in "fundable headroom" and its room was charged to the
+    allocator as laziness. Two definitions of one thing; the fail-CLOSED one wins.
+    Missing floor / missing TVL map ⇒ ``tvl_floor_unresolved`` in ``unchecked``
+    (attribution_incomplete) — never a silent pass, and never a silent *fail*
+    either: a per-protocol-only rule would let a missing map empty the fundable
+    set and mute the LAZY alarm, which is the failure this project keeps paying for.
 
     Pure and deterministic: reads nothing, writes nothing, changes no cap.
     RiskPolicy values are INPUTS here, resolved by the caller from RiskConfig.
@@ -502,6 +521,16 @@ def attribute_cash(
         unchecked.append("apy_provenance_unavailable")
     if tvl_live is None:
         unchecked.append("tvl_provenance_unavailable")
+    # The floor is a dimension of eligibility like any other: unresolvable ⇒ the
+    # split is UNCHECKED, not "everything qualifies" (old behaviour) and not
+    # "nothing qualifies" (which would silence the alarm by losing an input).
+    # An EMPTY map over a non-empty universe is the same "could not look": left
+    # alone it would make every pool ineligible, the cash "explained", and the
+    # LAZY alarm quiet — silence bought by losing an input, not by a better book.
+    _tvl_map = tvl_usd if tvl_usd is not None else {}
+    _candidates = set(apy_sources or {}) | set(positions) | set(blocked or {})
+    if tvl_usd is None or (not _tvl_map and _candidates) or not floor_is_resolved(min_tvl_usd):
+        unchecked.append("tvl_floor_unresolved")
     if unchecked:
         components.append(_comp(
             "unattributed", remaining, status="UNCHECKED",
@@ -547,6 +576,10 @@ def attribute_cash(
                 float(apy_pct.get(proto, 0.0) or 0.0), float(min_apy_pct)))
         if proto not in tvl_live:
             why.append("tvl_not_live")
+        # MP-011 floor — the allocator's rule, not a second copy of it.
+        _floor_ok, _floor_why = floor_reason(_tvl_map.get(proto), min_tvl_usd)
+        if not _floor_ok:
+            why.append(_floor_why)
         if why:
             non_eligible[proto] = (room, why)
         else:
@@ -654,6 +687,17 @@ def attribute_cash(
                 protocols=[]))
             remaining = 0.0
 
+    # ПРОВЕНАНС непригодности (карточка 07.08). Водопад распределяет ДОЛЛАРЫ, и
+    # бакет (г) появляется только если до него дошли деньги: при достаточной
+    # пригодной комнате пул ниже порога исчезал из отчёта МОЛЧА. Ретайр молчанием —
+    # ровно то, что карточка запрещает. Поэтому причина публикуется всегда,
+    # отдельно от долларов: ни один компонент от этого не меняется на цент.
+    ineligible_rooms = [
+        {"protocol": p_, "room_usd": round(room, 2),
+         "pct_of_capital": round(100.0 * room / capital_usd, 4), "why": list(why_)}
+        for p_, (room, why_) in sorted(non_eligible.items())
+    ]
+
     explained_usd = cash_usd - unexplained_usd
     if unchecked:
         status = "attribution_incomplete"
@@ -670,6 +714,7 @@ def attribute_cash(
         "unchecked": unchecked,
         "status": status,
         "policy_refusals": refusals,
+        "ineligible_rooms": ineligible_rooms,
     }
 
 

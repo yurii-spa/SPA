@@ -33,6 +33,11 @@ def _write(tmp_path: Path, **kw):
     kw.setdefault("target_positions", BOOK)
     kw.setdefault("apy_pct", APY)
     kw.setdefault("apy_sources", SRC)
+    # РАЗМЕР TVL (08.08) — второй обязательный вход пригодности после провенанса
+    # (тот добавили в Y2 2026-08-05 ровно так же). Пулы здесь заведомо крупные:
+    # эти тесты про водопад и про идею «простой обязан быть назван», а не про
+    # порог $5M — он проверяется в обе стороны в test_tvl_floor_one_definition.py.
+    kw.setdefault("tvl_usd", {k: 1_000_000_000.0 for k in APY})
     kw.setdefault("capital_usd", 100_000.0)
     kw.setdefault("cycle_date", "2026-08-02")
     kw.setdefault("run_ts", NOW.isoformat())

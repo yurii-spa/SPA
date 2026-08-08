@@ -67,6 +67,27 @@ REFUSAL = [{"protocol": "morpho_blue_base",
             "usd_removed_from_target": 10_000.0}]
 
 
+class _FarAboveFloor(dict):
+    """Каждый пул этого файла заведомо ВЫШЕ порога TVL ($5M).
+
+    Порог — новое (08.08) измерение пригодности: до него атрибуция знала только
+    ПРОИСХОЖДЕНИЕ TVL и записывала пул ниже порога в «пригодную комнату»
+    (карточка `inbox-atributsiya-kesha-i-geit-riskpolicy-po-r`). Здесь он
+    намеренно НЕ предмет проверки — эти тесты про капы, блоки и водопад, и их
+    числа обязаны остаться прежними до цента. Сам порог проверяется отдельно, в
+    обе стороны: `test_tvl_floor_one_definition.py`.
+    """
+
+    def get(self, key, default=None):  # noqa: D102 — «любой пул велик»
+        return 1_000_000_000.0
+
+
+# сентинел-ключ нужен, чтобы карта была НЕ ПУСТОЙ: пустая карта над непустой
+# вселенной означает «посмотреть не смогли» и честно даёт UNCHECKED.
+TVL_FAR_ABOVE_FLOOR = _FarAboveFloor({"__any_pool__": 1_000_000_000.0})
+MIN_TVL_USD = 5_000_000.0
+
+
 def _attr(**kw):
     kw.setdefault("positions", BOOK)
     kw.setdefault("capital_usd", CAP)
@@ -79,6 +100,8 @@ def _attr(**kw):
     kw.setdefault("t2_total_cap", 0.50)
     kw.setdefault("t3_total_cap", 0.15)
     kw.setdefault("min_apy_pct", 1.0)
+    kw.setdefault("tvl_usd", TVL_FAR_ABOVE_FLOOR)
+    kw.setdefault("min_tvl_usd", MIN_TVL_USD)
     return attribute_cash(**kw)
 
 
@@ -311,6 +334,11 @@ def test_write_shadow_rationale_persists_the_refusal(tmp_path):
         apy_pct=APY,
         apy_sources=SRC,
         tvl_sources={p: "live" for p in APY},
+        # MP-011 (08.08): провенанс отвечает «наблюдали ли», порог — «сколько».
+        # Прод передаёт сюда карту размеров из feed_coverage аллокатора; без неё
+        # атрибуция честно уходит в attribution_incomplete (fail-CLOSED), что
+        # отдельно закреплено в test_tvl_floor_one_definition.py.
+        tvl_usd={p: 1_000_000_000.0 for p in APY},
         capital_usd=CAP,
         cycle_date="2026-08-06",   # FROZEN-DATE-OK: replays a specific incident cycle
         run_ts=ts(hours_ago=0.0),
