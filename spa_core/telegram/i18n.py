@@ -24,6 +24,7 @@ _STRINGS: Dict[str, Dict[str, str]] = {
     "btn.health": {"en": "🩺 Health", "ru": "🩺 Здоровье"},
     "btn.reports": {"en": "📅 Reports", "ru": "📅 Отчёты"},
     "btn.warnings": {"en": "⚠️ Warnings", "ru": "⚠️ Предупреждения"},
+    "btn.decisions": {"en": "🧑‍⚖️ My decisions", "ru": "🧑‍⚖️ Мои решения"},
     "btn.settings": {"en": "⚙️ Settings", "ru": "⚙️ Настройки"},
     "btn.refresh": {"en": "🔄 Refresh", "ru": "🔄 Обновить"},
     "btn.back": {"en": "◀ Back", "ru": "◀ Назад"},
@@ -88,6 +89,8 @@ _STRINGS: Dict[str, Dict[str, str]] = {
     "crumb.warnings": {"en": "Warnings", "ru": "Предупреждения"},
     "crumb.problems": {"en": "Problems", "ru": "Проблемы"},
     "crumb.problem": {"en": "Problem", "ru": "Проблема"},
+    "crumb.decisions": {"en": "My decisions", "ru": "Мои решения"},
+    "crumb.decision": {"en": "Decision", "ru": "Решение"},
     "crumb.recent": {"en": "Recent", "ru": "Недавние"},
     "crumb.settings": {"en": "Settings", "ru": "Настройки"},
     # ── Honest labels ──────────────────────────────────────────────────────

@@ -14,6 +14,7 @@ from __future__ import annotations
 from typing import Callable, Dict, Tuple
 
 from spa_core.telegram.views import (
+    decisions,
     home,
     portfolio,
     golive,
@@ -29,6 +30,9 @@ Builder = Callable[..., Tuple[str, Dict]]
 
 VIEW_REGISTRY: Dict[str, Builder] = {
     "home": home.render,
+
+    "decisions": decisions.render_list,
+    "decisions.item": decisions.render_item,
 
     "portfolio": portfolio.render_menu,
     "portfolio.track": portfolio.render_track,

@@ -27,8 +27,14 @@ HOME = "home"
 TREE: Dict[str, Dict] = {
     "home": {"crumb": "crumb.home", "children": [
         "portfolio", "golive", "strategies", "health",
-        "reports", "warnings", "settings",
+        "reports", "warnings", "decisions", "settings",
     ]},
+
+    # Решения владельца (задание 2026-08-08): открыть список самому, не дожидаясь пуша.
+    # `decisions.item` — динамический лист: в `children` родителя его НЕТ (адресуется
+    # только `nav:decisions.item|<pid>`), но узел нужен, чтобы «Назад» вело в список.
+    "decisions": {"crumb": "crumb.decisions", "children": []},
+    "decisions.item": {"crumb": "crumb.decision", "children": [], "dynamic": True},
 
     "portfolio": {"crumb": "crumb.portfolio", "children": [
         "portfolio.track", "portfolio.positions", "portfolio.equity",
@@ -90,6 +96,7 @@ _CHILD_LABEL: Dict[str, str] = {
     "health": "btn.health",
     "reports": "btn.reports",
     "warnings": "btn.warnings",
+    "decisions": "btn.decisions",
     "settings": "btn.settings",
     "portfolio.track": "btn.track",
     "portfolio.positions": "btn.positions",

@@ -29,6 +29,7 @@ import time
 from typing import Any, Dict, Optional, Tuple
 
 from spa_core.telegram import alert_actions
+from spa_core.telegram import owner_decisions
 from spa_core.telegram import prefs as prefs_store
 from spa_core.telegram.i18n import normalize_lang, t
 from spa_core.telegram.views import get_builder
@@ -143,6 +144,13 @@ class Router:
         if data.startswith(alert_actions.CALLBACK_PREFIX):
             return self.handle_alert_action(data, chat_id)
 
+        # Ответ владельца на карточку решения (`act:od:<pid>:<выбор>`). Как и у алертов —
+        # НОВЫМ сообщением: сам вопрос обязан остаться в переписке, чтобы через неделю было
+        # видно, на что владелец отвечал. Проверка `is_owner` выше уже отсекла чужих; внутри
+        # писателя стоит вторая, независимая — защита не должна держаться на одном звене.
+        if data.startswith(owner_decisions.CALLBACK_PREFIX):
+            return self.handle_owner_decision(data, chat_id)
+
         path, arg, page = self.parse_callback(data, chat_id)
         lang = prefs_store.get_lang(chat_id)
         body, kb = self.render_view(path, arg, lang, page, chat_id)
@@ -172,6 +180,35 @@ class Router:
         body = alert_actions.confirmation_text(result, lang)
         kb = {"inline_keyboard": [[{"text": t("btn.home", lang),
                                     "callback_data": "nav:home"}]]}
+        sent = self.transport.send_message(chat_id, html_safe(body), kb)
+        return sent if isinstance(sent, dict) else None
+
+    # Длинная карточка не влезает в одно сообщение Telegram (лимит 4096).
+    DETAILS_MAX = 3500
+
+    def handle_owner_decision(self, data: str, chat_id: str) -> Optional[Dict]:
+        """Нажатие на вариант решения → запись в карточку и человеческий ответ.
+
+        Никогда не бросает: молчащая кнопка неотличима от сломанной, а владелец в отпуске
+        не может посмотреть логи. Любой исход — внятная фраза в чат.
+        """
+        parsed = owner_decisions.parse_callback(data)
+        if parsed is None:
+            return None
+        pid, choice = parsed
+        kb = {"inline_keyboard": [[{"text": "🧑‍⚖️ Мои решения",
+                                    "callback_data": "nav:decisions"}]]}
+
+        if choice == owner_decisions.MORE_CHOICE:
+            body = owner_decisions.card_details(pid, limit=self.DETAILS_MAX)
+            sent = self.transport.send_message(chat_id, html_safe(body), kb)
+            return sent if isinstance(sent, dict) else None
+
+        try:
+            result = owner_decisions.record_choice(pid, choice, chat_id)
+        except Exception as exc:  # noqa: BLE001 — защита сверх защиты в record_choice
+            result = {"ok": False, "reason": "crash:{}".format(type(exc).__name__)}
+        body = owner_decisions.confirmation_text(result)
         sent = self.transport.send_message(chat_id, html_safe(body), kb)
         return sent if isinstance(sent, dict) else None
 

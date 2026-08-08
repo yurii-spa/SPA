@@ -20,7 +20,12 @@ log = logging.getLogger(__name__)
 
 
 def build_message(card: Card) -> str:
-    """Title + first instruction line + repo-relative card path (HTML-safe)."""
+    """Запасной вид уведомления: заголовок, первая строка задания, путь к карточке.
+
+    Используется, когда варианты ответа из карточки разобрать не удалось (fail-CLOSED —
+    выдумывать выбор владельцу нельзя). Основной, человеческий вид строит
+    ``spa_core.telegram.owner_decisions``.
+    """
     try:
         rel = card.path.resolve().relative_to(Path(__file__).resolve().parents[2])
         rel_str = str(rel)
@@ -39,18 +44,49 @@ def build_message(card: Card) -> str:
 
 
 def notify_needs_owner(path: str | Path, *, dry_run: bool = False) -> str:
-    """Send a Telegram notice for a needs-owner card. Returns the message text.
+    """Отправить владельцу карточку решения — с вариантами ответа и рекомендацией.
 
-    ``dry_run=True`` builds the message but does not send (used by tests / --check).
+    Задание владельца 2026-08-08: решение должно приходить простым языком, с вариантами
+    и пометкой «рекомендую», чтобы отвечать можно было прямо с телефона.
+
+    Fail-CLOSED в две стороны, и обе намеренные:
+
+    * варианты не разобрались ⇒ уходит СТАРЫЙ вид уведомления (кнопок нет, но владелец
+      узнаёт о решении) — выдумывать варианты нельзя;
+    * бот не умеет обработать нажатие (маячок ADR-069) ⇒ текст уходит без кнопок.
+
+    ``dry_run=True`` собирает сообщение, но не отправляет (тесты / ``--check``).
     """
     card = load_card(path)
-    msg = build_message(card)
+    keyboard = None
+    try:
+        from spa_core.telegram import owner_decisions
+
+        prep = owner_decisions.register_push(card.path, card.title or card.id, card.body)
+        msg = prep.text if prep.options else build_message(card)
+        keyboard = prep.keyboard
+    except Exception as exc:  # noqa: BLE001 — красивый вид не важнее самого уведомления
+        log.warning("notify_needs_owner: rich build failed for %s: %s", path, exc)
+        msg = build_message(card)
+
     if dry_run:
         return msg
     try:
         from spa_core.telegram.bot import TelegramBot
 
-        ok = TelegramBot().send_message(msg, parse_mode="HTML")
+        bot = TelegramBot()
+        # `reply_markup` передаём ТОЛЬКО когда кнопки есть: путь без кнопок обязан остаться
+        # байт-в-байт прежним. И даже с кнопками — откатываемся на отправку без них, если
+        # отправитель этого параметра не знает. Потерять оформление можно; потерять само
+        # уведомление о решении владельца — нет.
+        try:
+            ok = (bot.send_message(msg, parse_mode="HTML", reply_markup=keyboard)
+                  if keyboard is not None
+                  else bot.send_message(msg, parse_mode="HTML"))
+        except TypeError as exc:
+            log.warning("notify_needs_owner: sender rejected reply_markup (%s) — "
+                        "отправляю без кнопок", exc)
+            ok = bot.send_message(msg, parse_mode="HTML")
         if not ok:
             log.warning("notify_needs_owner: send returned falsy for %s", path)
     except Exception as exc:  # noqa: BLE001 — notification must never crash the orchestrator
