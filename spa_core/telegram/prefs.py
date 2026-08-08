@@ -29,8 +29,12 @@ from spa_core.utils.atomic import atomic_save
 BASE_DIR = Path(__file__).resolve().parents[2]
 PREFS_FILE = BASE_DIR / "data" / "telegram" / "user_prefs.json"
 
+# Язык по умолчанию — РУССКИЙ. У бота один адресат, и он русскоязычный (директива владельца
+# «писать мне в чат простым языком»). Английское умолчание было не нейтральным выбором, а
+# дефектом: chat_id владельца в файле настроек отсутствовал, поэтому весь интерфейс приходил
+# ему по-английски — при том, что все тексты давно переведены. Замер 2026-08-08.
 DEFAULTS: Dict[str, Any] = {
-    "lang": "en",
+    "lang": "ru",
     "daily": True,
     "weekly": True,
     "warnings": "critical",  # all | critical | off
@@ -62,8 +66,12 @@ def get_prefs(chat_id: str, path: Path = None) -> Dict[str, Any]:
 
 
 def get_lang(chat_id: str, path: Path = None) -> str:
-    lang = get_prefs(chat_id, path).get("lang", "en")
-    return lang if lang in ("en", "ru") else "en"
+    """Язык чата. Умолчание берётся из ``DEFAULTS``, а НЕ дублируется литералом здесь:
+    вторая копия умолчания — это способ сменить его в одном месте и не заметить, что в
+    другом оно осталось прежним."""
+    default = DEFAULTS["lang"]
+    lang = get_prefs(chat_id, path).get("lang", default)
+    return lang if lang in ("en", "ru") else default
 
 
 def set_pref(chat_id: str, key: str, value: Any, path: Path = None) -> Dict[str, Any]:

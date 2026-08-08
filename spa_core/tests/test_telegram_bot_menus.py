@@ -171,6 +171,9 @@ def test_home_has_refresh_not_back():
 
 def test_full_flow_home_strategies_rates_sleeve_back(router):
     # Home (command) → Strategies → Rates Desk → sleeve → Back → Strategies
+    # Язык задан ЯВНО: тест про НАВИГАЦИЮ, и он не должен краснеть от смены умолчания
+    # языка (инв. #16, изменено намеренно 2026-08-08 вместе с умолчанием en → ru).
+    prefs_store.set_pref(OWNER, "lang", "en")
     router.handle_command("/start", OWNER)
     for cb in ("nav:strategies", "nav:strategies.rates",
                "nav:strategies.rates|rates_desk_fixed_carry"):
@@ -245,12 +248,30 @@ def test_view_never_raises_returns_keyboard(router, monkeypatch):
 
 
 def test_lang_toggle_persists(router, isolated_prefs):
+    """Переключатель языка работает В ОБЕ стороны.
+
+    ИЗМЕНЕНО НАМЕРЕННО 2026-08-08 (инв. #16): тест начинался с
+    `assert get_lang(OWNER) == "en"`, то есть молча зависел от умолчания. Умолчание сменено
+    на русский (у бота один адресат, и он русскоязычный — владелец видел английский
+    интерфейс именно из-за этого). Проверка не ослаблена, а УСИЛЕНА: язык задаётся явно,
+    и переключение проверяется в обе стороны, чего прежний тест не делал.
+    """
+    prefs_store.set_pref(OWNER, "lang", "en")
     assert prefs_store.get_lang(OWNER) == "en"
     router.handle_callback("act:togglelang:1", OWNER, 1, "c")
     assert prefs_store.get_lang(OWNER) == "ru"
-    # next render is in RU
-    text = router.transport.edits[-1][2]
-    assert "НАСТРОЙКИ" in text
+    assert "НАСТРОЙКИ" in router.transport.edits[-1][2]
+    router.handle_callback("act:togglelang:1", OWNER, 1, "c")
+    assert prefs_store.get_lang(OWNER) == "en"
+    assert "SETTINGS" in router.transport.edits[-1][2]
+
+
+def test_a_chat_with_no_saved_prefs_speaks_russian(isolated_prefs):
+    """Положительный контроль дефекта 2026-08-08: chat_id владельца в файле настроек
+    отсутствовал, умолчание было `en`, и весь интерфейс приходил ему по-английски — при
+    том, что все тексты давно переведены. Незнакомый чат обязан получать русский."""
+    assert prefs_store.get_lang("chat-bez-nastroek") == "ru"
+    assert prefs_store.DEFAULTS["lang"] == "ru"
 
 
 def test_lang_is_per_chat(isolated_prefs):
