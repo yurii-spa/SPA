@@ -38,11 +38,12 @@ def manifest(agents=(), artifacts=()):
             "designed_architectures": []}
 
 
-def run(m, fleet, ts_map=None, receipts=None, prev=None, drift=None, measured=True):
+def run(m, fleet, ts_map=None, receipts=None, prev=None, drift=None, measured=True,
+        curation=None):
     ts_map = ts_map or {}
     return ac.run_checks(m, fleet, lambda p: ts_map.get(p), receipts or {}, NOW,
                          prev_first_seen=prev, drift_problems=drift,
-                         drift_measured=measured)
+                         drift_measured=measured, curation=curation)
 
 
 def keys(report):
@@ -89,6 +90,142 @@ class B1Fleet(unittest.TestCase):
         self.assertEqual(len(f), 1)
         self.assertEqual(f[0]["severity"], "WARN")
         self.assertEqual(f[0]["class"], "weak")
+
+
+class B6CurationFromOrigin(unittest.TestCase):
+    """Замер 08.08 (карточка `inbox-storozh-arhitektury-krichit-critical-o-c`):
+    прод-дерево `architecture/` не получает НИКОГДА, перегенерировало манифест из
+    своей стёртой памяти и выдало 4 CRITICAL про агентов, которых владелец
+    разрешил поставить 08.08 (`own-31`). Локально `intent=retired` / записи нет,
+    на `origin/main` — `active`. Каждый тест ниже — либо реплей этой аварии, либо
+    контроль в обратную сторону: сторож не смеет становиться зеленее."""
+
+    def reconcile(self, local_agents, origin_agents):
+        return ac.reconcile_curation(manifest(local_agents), manifest(origin_agents))
+
+    # ── реплей аварии 08.08 ──────────────────────────────────────────────────
+    def test_local_retired_origin_active_is_not_zombie(self):
+        """digest_weekly / tier1_digest / weekly_backup: локально retired,
+        на origin active, во флоте загружены ⇒ ни одного зомби."""
+        labels = ["com.spa.digest_weekly", "com.spa.tier1_digest",
+                  "com.spa.weekly_backup"]
+        m, cur = self.reconcile([agent(l, intent="retired") for l in labels],
+                                [agent(l, intent="active") for l in labels])
+        r = run(m, set(labels), curation=cur)
+        self.assertEqual([k for k in keys(r) if k.startswith("B1:zombie")], [])
+        self.assertEqual(r["counts"]["critical"], 0)
+        self.assertEqual(r["curation"]["source"], ac.CURATION_REF)
+
+    def test_agent_known_only_to_origin_is_not_unknown(self):
+        """telegram_health: загружен, локальный манифест о нём не знает, origin
+        знает и говорит active ⇒ не «в манифесте ОТСУТСТВУЕТ» (класс swarm_dwell
+        не должен срабатывать на стёртую память)."""
+        m, cur = self.reconcile([agent("com.spa.a")],
+                                [agent("com.spa.a"), agent("com.spa.telegram_health")])
+        r = run(m, {"com.spa.a", "com.spa.telegram_health"}, curation=cur)
+        self.assertEqual(keys(r) & {"B1:unknown:com.spa.telegram_health"}, set())
+        self.assertEqual(cur["added_from_origin"], ["com.spa.telegram_health"])
+
+    # ── контроль в обратную сторону: настоящая авария обязана остаться ───────
+    def test_real_zombie_survives_reconciliation(self):
+        """ОБЯЗАТЕЛЬНЫЙ второй тест карточки: origin ТОЖЕ говорит retired, агент
+        загружен ⇒ CRITICAL. Без него это была бы глушилка, а не починка."""
+        m, cur = self.reconcile([agent("com.spa.z", intent="retired")],
+                                [agent("com.spa.z", intent="retired")])
+        r = run(m, {"com.spa.z"}, curation=cur)
+        self.assertIn("B1:zombie:com.spa.z", keys(r))
+        self.assertEqual(r["overall"], "CRITICAL")
+
+    def test_origin_says_retired_local_says_active_becomes_zombie(self):
+        """Сверка работает в ОБЕ стороны: решение «вывести», записанное в git,
+        краснит агента, который локально всё ещё числится живым."""
+        m, cur = self.reconcile([agent("com.spa.z", intent="active")],
+                                [agent("com.spa.z", intent="retired")])
+        r = run(m, {"com.spa.z"}, curation=cur)
+        self.assertIn("B1:zombie:com.spa.z", keys(r))
+
+    def test_origin_only_active_agent_not_loaded_is_dead_critical(self):
+        """Добавленный с origin агент не приносит поблажки: intent=active и не
+        загружен ⇒ B1:dead, как и любой другой."""
+        m, cur = self.reconcile([agent("com.spa.a")],
+                                [agent("com.spa.a"), agent("com.spa.gone")])
+        r = run(m, {"com.spa.a"}, curation=cur)
+        self.assertIn("B1:dead:com.spa.gone", keys(r))
+        self.assertEqual(r["overall"], "CRITICAL")
+
+    # ── границы приёма курации ──────────────────────────────────────────────
+    def test_local_only_agent_keeps_local_curation(self):
+        """Агента, которого origin не знает, локальная курация — единственное,
+        что о нём известно; отбирать её нельзя."""
+        m, cur = self.reconcile([agent("com.spa.new", intent="retired")],
+                                [agent("com.spa.a")])
+        r = run(m, {"com.spa.new"}, curation=cur)
+        self.assertIn("B1:zombie:com.spa.new", keys(r))
+        self.assertEqual(cur["local_only"], ["com.spa.new"])
+
+    def test_mechanical_fields_stay_local(self):
+        """С origin берётся КУРАЦИЯ, факты хоста — нет: `reboot_safe` origin'а
+        не должен гасить находку «не переживёт ребут» на этом хосте."""
+        loc = agent("com.spa.af", reboot_safe=False)
+        org = agent("com.spa.af", reboot_safe=True)
+        m, cur = self.reconcile([loc], [org])
+        self.assertFalse(m["agents"][0]["reboot_safe"])
+        r = run(m, {"com.spa.af"}, curation=cur)
+        self.assertIn("B1:reboot_unsafe:com.spa.af", keys(r))
+
+    def test_curated_fields_match_builder(self):
+        """Новое курируемое поле в генераторе обязано попасть и сюда — иначе оно
+        молча продолжит читаться с устаревшей локальной копии."""
+        import importlib.util
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(ac.__file__)))), "scripts", "build_architecture_manifest.py")
+        spec = importlib.util.spec_from_file_location("bam_probe", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        self.assertEqual(set(ac.CURATED_FIELDS), set(mod.CURATED_DEFAULTS))
+
+    # ── расхождение НАЗЫВАЕТСЯ, а не проглатывается ─────────────────────────
+    def test_drift_is_named_as_warn_finding(self):
+        m, cur = self.reconcile([agent("com.spa.z", intent="retired")],
+                                [agent("com.spa.z", intent="active")])
+        r = run(m, {"com.spa.z"}, curation=cur)
+        f = [x for x in r["findings"] if x["key"] == "B6:curation_drift"]
+        self.assertEqual(len(f), 1)
+        self.assertEqual((f[0]["severity"], f[0]["class"]), ("WARN", "strong"))
+        self.assertIn("com.spa.z", f[0]["message"])
+        self.assertEqual(r["overall"], "WARN")
+
+    def test_identical_curation_is_silent_and_ok(self):
+        """Обратная сторона: расхождения нет ⇒ ни находки, ни шума."""
+        m, cur = self.reconcile([agent("com.spa.a")], [agent("com.spa.a")])
+        r = run(m, {"com.spa.a"}, curation=cur)
+        self.assertEqual(r["findings"], [])
+        self.assertEqual(r["overall"], "OK")
+
+    def test_unreachable_origin_is_unchecked_not_silent_fallback(self):
+        """Класс fail-OPEN: не смогли сверить ⇒ НЕ «всё хорошо». Локальная копия
+        используется (иначе слепота), но вердикт честно не OK."""
+        m, cur = ac.reconcile_curation(manifest([agent("com.spa.a")]), None,
+                                       reason="нет origin/main")
+        self.assertFalse(cur["measured"])
+        r = run(m, {"com.spa.a"}, curation=cur)
+        self.assertTrue(any(u["check"] == "B6_curation" for u in r["unchecked"]))
+        self.assertEqual(r["overall"], "UNCHECKED")
+
+    def test_curation_not_requested_changes_nothing(self):
+        """curation=None — «сверка не запрашивалась»: чистая функция остаётся
+        прежней для всех остальных вызовов."""
+        r = run(manifest([agent("com.spa.a")]), {"com.spa.a"})
+        self.assertEqual(r["overall"], "OK")
+        self.assertIsNone(r["curation"])
+
+    def test_origin_manifest_refuses_outside_a_repo(self):
+        """`git show` вне репозитория — не исключение и не молчание, а причина."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            data, why = ac.origin_manifest(root=td)
+            self.assertIsNone(data)
+            self.assertTrue(why)
 
 
 class B2Freshness(unittest.TestCase):

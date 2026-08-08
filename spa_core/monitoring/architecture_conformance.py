@@ -21,6 +21,22 @@
         ресит в data/consumption_receipts.jsonl → WARN (ядро аудита: 12 io_* в никуда)
   B5  манифест сам соответствует фактам plist'ов (перегенерация без дрейфа;
         на хосте без ~/Library/LaunchAgents/com.spa.* — честный UNCHECKED)
+  B6  локальная курация ↔ `origin/main` (замер 2026-08-08, цикл #168/#169)
+
+Откуда берётся КУРАЦИЯ (`intent` и родня) — отдельный вопрос от «какие plist'ы
+лежат на диске». Механика (`plist_source`/`reboot_safe`/`schedule`/`program`)
+перегенерируется из фактов локально; курация — durable-запись принятых решений,
+и живёт она в git (`CLAUDE.md` инв. 13). Но прод-дерево `architecture/` не
+получает НИКОГДА (`code_sync_from_origin.sh` возит только `spa_core/ scripts/
+tests/`), поэтому прод перегенерировал манифест из своей стёртой памяти и выдал
+4 CRITICAL про агентов, которых владелец разрешил поставить 08.08: локально
+`intent=retired`, на origin `active`. Приём тот же, что принят для карточек в
+цикле #147: **курация читается с `origin/main`, и это НАЗЫВАЕТСЯ вслух**
+(блок `curation` в отчёте + находка B6 о самом расхождении). Порог: сторож не
+смеет становиться зеленее — он смеет только перестать врать о том, что
+доказуемо доставлено. Настоящий зомби (origin ТОЖЕ говорит `retired`, агент
+загружен) остаётся CRITICAL; origin недостижим ⇒ честный UNCHECKED, а не
+молчаливый откат на локальную копию.
 
 Семантика вердикта (инвариант 2, refusal-first): `OK` ТОЛЬКО когда всё вычислено
 и прошло. Невычисленное — UNCHECKED, не «прошло». Слабые (weak) находки СТАРЕЮТ:
@@ -51,6 +67,15 @@ RECEIPTS_PATH = os.path.join(REPO_ROOT, "data", "consumption_receipts.jsonl")
 WEAK_AGE_DAYS = 14
 SUBPROC_TIMEOUT = 20
 _TS_FIELDS = ("generated_at", "updated_at", "timestamp", "last_updated")
+
+MANIFEST_REL = os.path.join("architecture", "manifest.json")
+CURATION_REF = "origin/main"
+# Ровно ключи build_architecture_manifest.CURATED_DEFAULTS — то, что генератор
+# НЕ выводит из фактов, а сохраняет как решение. Расхождение двух списков ловит
+# test_curated_fields_match_builder (иначе новое курируемое поле молча осталось
+# бы читаться с устаревшей локальной копии).
+CURATED_FIELDS = ("layer", "role", "intent", "produces", "consumes",
+                  "consumer_required", "governed_by", "curation", "notes")
 
 EXIT_BY_OVERALL = {"OK": 0, "UNCHECKED": 1, "WARN": 1, "CRITICAL": 2}
 
@@ -151,6 +176,76 @@ def _manifest_drift_problems() -> list[str] | None:
         return [f"B5 упал: {e}"]
 
 
+def origin_manifest(root: str = REPO_ROOT, ref: str = CURATION_REF,
+                    rel: str = MANIFEST_REL) -> tuple[dict | None, str]:
+    """Манифест из git (`<ref>:<rel>`) — конституция. Сети не требует: читается
+    локальный ref. Возвращает (манифест|None, причина-если-None)."""
+    try:
+        out = subprocess.run(["git", "show", f"{ref}:{rel}"], cwd=root,
+                             capture_output=True, text=True, timeout=SUBPROC_TIMEOUT)
+    except Exception as e:  # noqa: BLE001
+        return None, f"git недоступен: {e}"
+    if out.returncode != 0:
+        return None, f"нет `{ref}:{rel}` (git show rc={out.returncode})"
+    try:
+        data = json.loads(out.stdout)
+    except json.JSONDecodeError as e:
+        return None, f"`{ref}:{rel}` не разбирается как JSON: {e}"
+    if not isinstance(data, dict) or not isinstance(data.get("agents"), list):
+        return None, f"`{ref}:{rel}` не похож на манифест"
+    return data, ""
+
+
+def reconcile_curation(local: dict, origin: dict | None,
+                       reason: str = "", ref: str = CURATION_REF) -> tuple[dict, dict]:
+    """Манифест-для-проверок + провенанс курации.
+
+    Механика остаётся ЛОКАЛЬНОЙ (она и есть факты этого хоста), курация —
+    с `origin`. Агент, которого origin знает, а локальная копия нет,
+    ДОБАВЛЯЕТСЯ (иначе загруженный `telegram_health` вечно ловил бы ложное
+    «в манифесте ОТСУТСТВУЕТ»). Агент, которого нет на origin, живёт со своей
+    локальной курацией — она единственная, что о нём известно.
+    """
+    if origin is None:
+        return local, {"source": "local", "ref": ref, "measured": False,
+                       "reason": reason or "курация НЕ сверена с origin",
+                       "overridden": [], "added_from_origin": [], "local_only": []}
+
+    by_origin = {a["label"]: a for a in origin.get("agents", []) if a.get("label")}
+    merged: list[dict] = []
+    overridden: list[dict] = []
+    for a in local.get("agents", []):
+        entry = dict(a)
+        src = by_origin.get(entry.get("label"))
+        if src is not None:
+            for field in CURATED_FIELDS:
+                if field not in src:
+                    continue
+                if entry.get(field) != src[field]:
+                    overridden.append({"label": entry["label"], "field": field,
+                                       "local": entry.get(field), "origin": src[field]})
+                entry[field] = src[field]
+        merged.append(entry)
+
+    local_labels = {a.get("label") for a in local.get("agents", [])}
+    added = []
+    for label in sorted(set(by_origin) - local_labels):
+        entry = dict(by_origin[label])
+        entry.setdefault("intent", "unresolved")
+        entry["curation_from"] = ref
+        merged.append(entry)
+        added.append(label)
+
+    result = dict(local)
+    result["agents"] = merged
+    return result, {
+        "source": ref, "ref": ref, "measured": True, "reason": "",
+        "overridden": overridden,
+        "added_from_origin": added,
+        "local_only": sorted(local_labels - set(by_origin)),
+    }
+
+
 # ── ядро (чистое: все входы — параметры) ─────────────────────────────────────
 
 def _finding(key: str, check: str, severity: str, cls: str, message: str) -> dict:
@@ -165,7 +260,8 @@ def run_checks(manifest: dict,
                now: dt.datetime,
                prev_first_seen: dict[str, str] | None = None,
                drift_problems: list[str] | None = None,
-               drift_measured: bool = False) -> dict:
+               drift_measured: bool = False,
+               curation: dict | None = None) -> dict:
     findings: list[dict] = []
     unchecked: list[dict] = []
     agents = manifest.get("agents", [])
@@ -253,6 +349,27 @@ def run_checks(manifest: dict,
             findings.append(_finding(f"B5:drift:{p[:80]}", "B5", "WARN", "strong",
                                      f"манифест ↔ факты: {p}"))
 
+    # B6 — локальная курация ↔ origin (см. шапку модуля)
+    if curation is not None:
+        if not curation.get("measured"):
+            unchecked.append({
+                "check": "B6_curation",
+                "reason": f"курация НЕ сверена с {curation.get('ref')}: "
+                          f"{curation.get('reason')} — локальный `intent` мог "
+                          f"устареть, вердикты B1 не доказаны"})
+        else:
+            over = curation.get("overridden") or []
+            added = curation.get("added_from_origin") or []
+            if over or added:
+                labels = sorted({o["label"] for o in over} | set(added))
+                findings.append(_finding(
+                    "B6:curation_drift", "B6", "WARN", "strong",
+                    f"локальная копия {MANIFEST_REL} разошлась с {curation['ref']} "
+                    f"по курации: {len(over)} пол(я/ей) у {len(labels)} агент(ов) "
+                    f"({', '.join(labels)}); курация взята с {curation['ref']} "
+                    f"(решения живут в git), но прод-дерево `architecture/` при "
+                    f"синхронизации не получает — стёртая память вернётся"))
+
     # первое появление + старение слабых
     prev_first_seen = prev_first_seen or {}
     now_iso = now.isoformat()
@@ -287,6 +404,7 @@ def run_checks(manifest: dict,
                    "aged": len(aged), "unchecked": len(unchecked)},
         "fleet_size": (len(fleet) if fleet is not None else None),
         "manifest_agents": len(agents),
+        "curation": curation,
         "findings": kept,
         "aged": aged,
         "unchecked": unchecked,
@@ -322,14 +440,17 @@ def main(argv=None) -> int:
         ap.print_help()
         return 0
 
-    manifest = json.load(open(MANIFEST_PATH))
+    local = json.load(open(MANIFEST_PATH))
+    origin, why = origin_manifest()
+    manifest, curation = reconcile_curation(local, origin, reason=why)
     fleet = gather_fleet()
     receipts = load_receipts()
     drift = _manifest_drift_problems()
     now = dt.datetime.now(dt.timezone.utc)
     report = run_checks(manifest, fleet, artifact_timestamp, receipts, now,
                         prev_first_seen=_prev_first_seen(args.report),
-                        drift_problems=drift, drift_measured=drift is not None)
+                        drift_problems=drift, drift_measured=drift is not None,
+                        curation=curation)
 
     from spa_core.utils.atomic import atomic_save
     atomic_save(report, args.report)
@@ -337,7 +458,8 @@ def main(argv=None) -> int:
     c = report["counts"]
     print(f"architecture_conformance: {report['overall']} — critical={c['critical']} "
           f"warn={c['warn']} aged={c['aged']} unchecked={c['unchecked']} "
-          f"(флот {report['fleet_size']}, манифест {report['manifest_agents']})")
+          f"(флот {report['fleet_size']}, манифест {report['manifest_agents']}, "
+          f"курация {curation['source']})")
     for f in report["findings"][:30]:
         print(f"  [{f['severity']}] {f['message']}")
     return 0 if args.exit_zero else report["exit_code"]
