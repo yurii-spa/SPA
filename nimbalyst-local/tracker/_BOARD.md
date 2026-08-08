@@ -2,12 +2,14 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **307** · ждёт владельца: **5** · занято сессиями: **2**.
+> Всего карточек: **309** · ждёт владельца: **7** · занято сессиями: **2**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
+- **Десять агентов заявлены в реестре и не работают — четыре готовы к установке, шесть на вывод** · _high_  ·  `own-31-desyat-agentov-v-reestre-bez-flota.md`
 - **own-rnd-duty-is-concentration-adr055** · _medium_  ·  `own-rnd-duty-is-concentration-adr055.md`
 - **own-rnd-xsd-rank-demotion-allocator** · _medium_  ·  `own-rnd-xsd-rank-demotion-allocator.md`
+- **own-rnd-xvd-vol-rank-second-arm** · _medium_  ·  `own-rnd-xvd-vol-rank-second-arm.md`
 - **Морфо — 40% книги — при пропаже данных подставляет выдуманные 6.5% вместо честного отказа** · _high_  ·  `owner-decision-morfo-40-knigi-pri-propazhe-dannyh-podst.md`
 - **После страховки деньги остаются сиротами: 20 % капитала ($20 000) лежат в кэше, потому что освободившийся бюджет никто не перекладывает (было 10 % — простой ВЫРОС)**  ·  `owner-decision-posle-strahovki-dengi-ostayutsya-sirotam.md`
 - **Запасной ключ к защите сайта не работает — починить или убрать из инструкции?**  ·  `owner-decision-zapasnoi-klyuch-k-zaschite-saita-ne-rabo.md`
@@ -19,11 +21,13 @@
 - **Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать** — держит `cycle-28258` · с 2026-08-05T12:28:28Z  ·  `agent-fleet-parity-guard-never-scheduled.md`
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (76)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (78)
 
 ### · needs-owner
+- Десять агентов заявлены в реестре и не работают — четыре готовы к установке, шесть на вывод  ·  `own-31-desyat-agentov-v-reestre-bez-flota.md` · 2026-08-08
 - own-rnd-duty-is-concentration-adr055  ·  `own-rnd-duty-is-concentration-adr055.md` · 2026-08-07
 - own-rnd-xsd-rank-demotion-allocator  ·  `own-rnd-xsd-rank-demotion-allocator.md` · 2026-08-07
+- own-rnd-xvd-vol-rank-second-arm  ·  `own-rnd-xvd-vol-rank-second-arm.md` · 2026-08-08
 - Морфо — 40% книги — при пропаже данных подставляет выдуманные 6.5% вместо честного отказа  ·  `owner-decision-morfo-40-knigi-pri-propazhe-dannyh-podst.md` · 2026-08-02
 - После страховки деньги остаются сиротами: 20 % капитала ($20 000) лежат в кэше, потому что освободившийся бюджет никто не перекладывает (было 10 % — простой ВЫРОС)  ·  `owner-decision-posle-strahovki-dengi-ostayutsya-sirotam.md` · 2026-08-07
 - Запасной ключ к защите сайта не работает — починить или убрать из инструкции?  ·  `owner-decision-zapasnoi-klyuch-k-zaschite-saita-ne-rabo.md` · 2026-08-07
