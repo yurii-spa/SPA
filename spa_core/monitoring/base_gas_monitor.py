@@ -297,7 +297,13 @@ class BaseGasMonitor:
         # connect/read can stall and wedge cycle-based CI tests (they reach this via
         # cycle_gates.apply_base_gas_kill_switch). None → the caller's existing
         # non-live fallback. Production (SPA_ENV != ci) is unaffected.
-        if os.environ.get("SPA_ENV") == "ci":
+        # Признак прогона тестов, а не окружения. Сторож существовал и раньше, но
+        # смотрел только на SPA_ENV=="ci" — то есть срабатывал в CI и НЕ срабатывал
+        # на машине разработчика, где тесты и запускают. Измерено 2026-08-08
+        # трассировкой сторожа живой сети: ровно 800 отказов в одном
+        # test_nav_conservation_property приходили сюда. PYTEST_CURRENT_TEST ставит
+        # сам pytest в любом прогоне; в проде переменной нет, поведение не меняется.
+        if os.environ.get("SPA_ENV") == "ci" or os.environ.get("PYTEST_CURRENT_TEST"):
             return None
         req = urllib.request.Request(
             url,
