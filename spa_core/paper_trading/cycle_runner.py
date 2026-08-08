@@ -815,13 +815,30 @@ def run_cycle(
         # stusd/wusdm не индексируются DeFiLlama вовсе, поэтому это ЕДИНСТВЕННЫЙ путь
         # к их наблюдению. Ставка выводится из двух собственных замеров, значит первый
         # прогон честно не даёт числа — оно появляется со второй точкой.
+        # Под тестом наблюдение НЕ снимается: цикл вызывается из набора сотни
+        # раз, и каждый вызов уходил бы в сеть за ценой доли.
+        #
+        # Замер 2026-08-08: мой вчерашний вызов УТРОИЛ обращения к живой сети в
+        # тестах — 3600 отказов против 1200 без него в одном только
+        # test_nav_conservation_property, то есть ~2/3 от 9268 по всему набору.
+        # Сторож держит и наружу ничего не уходит, но отказы маскируют сигнал,
+        # ради которого сторож существует, и замедляют прогон.
+        #
+        # Подключая производителя, я закрыл настоящую проблему («расписания
+        # нет») и не подумал, во что это обходится набору. Образец был рядом:
+        # аллокатор так же не читает живые данные под pytest. Герметичность ПО
+        # ПОСТРОЕНИЮ, а не за счёт правки 222 тестов.
         try:
-            from spa_core.data_pipeline.erc4626_rate_monitor import observe as _erc_observe
-            _erc = _erc_observe()
-            _rates = sum(1 for v in (_erc.get("vaults") or {}).values()
-                         if v.get("apy_pct") is not None)
-            log.info("erc4626_rate_monitor: %d хранилищ опрошено, ставок выведено %d",
-                     len(_erc.get("vaults") or {}), _rates)
+            if os.environ.get("PYTEST_CURRENT_TEST"):
+                log.debug("erc4626_rate_monitor пропущен: прогон под pytest")
+            else:
+                from spa_core.data_pipeline.erc4626_rate_monitor import observe as _erc_observe
+
+                _erc = _erc_observe()
+                _rates = sum(1 for v in (_erc.get("vaults") or {}).values()
+                             if v.get("apy_pct") is not None)
+                log.info("erc4626_rate_monitor: %d хранилищ опрошено, ставок выведено %d",
+                         len(_erc.get("vaults") or {}), _rates)
         except Exception as _erc_exc:  # сеть не должна ронять цикл
             log.warning("erc4626_rate_monitor пропущен (%s) — цикл продолжается", _erc_exc)
 

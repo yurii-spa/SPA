@@ -82,3 +82,46 @@ class TestProducerContract(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestHermeticUnderPytest(unittest.TestCase):
+    """Под тестом наблюдение не снимается — иначе набор ходит в живую сеть.
+
+    Замер 2026-08-08: вызов производителя в цикле УТРОИЛ обращения к живой сети
+    в тестах — 3600 отказов против 1200 без него в одном только
+    ``test_nav_conservation_property``, то есть примерно две трети от 9268 по
+    всему набору. Сторож живой сети держит и наружу ничего не уходит, но отказы
+    маскируют сигнал, ради которого сторож существует, и замедляют прогон.
+
+    Герметичность здесь достигается ПО ПОСТРОЕНИЮ — одной проверкой окружения, —
+    а не правкой 222 тестов по одному.
+    """
+
+    def test_the_cycle_skips_the_producer_under_pytest(self):
+        src = inspect.getsource(cycle_runner)
+        i = src.index("erc4626_rate_monitor")
+        block = src[max(0, i - 1400):i + 400]
+        self.assertIn("PYTEST_CURRENT_TEST", block,
+                      "под pytest производитель обязан пропускаться — иначе набор идёт в сеть")
+
+    def test_the_guard_precedes_the_import(self):
+        """Порядок важен: импорт модуля сам по себе безвреден, но вызов — нет.
+
+        Проверка обязана стоять ДО обращения, а не после.
+        """
+        src = inspect.getsource(cycle_runner)
+        guard = src.index("PYTEST_CURRENT_TEST")
+        call = src.index("_erc_observe()")
+        self.assertLess(guard, call)
+
+    def test_production_path_is_unchanged(self):
+        """Обратная сторона: без pytest вызов обязан остаться.
+
+        Иначе «починка» превратила бы производителя обратно в неработающий —
+        ровно тот класс, который он и закрывал.
+        """
+        src = inspect.getsource(cycle_runner)
+        i = src.index("PYTEST_CURRENT_TEST")
+        tail = src[i:i + 900]
+        self.assertIn("else:", tail)
+        self.assertIn("_erc_observe()", tail)
