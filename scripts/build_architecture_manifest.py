@@ -140,7 +140,21 @@ def _load_registry(path: str) -> dict[str, dict]:
         data = json.load(open(path))
     except Exception:
         return {}
-    return {a["label"]: a for a in data.get("agents", []) if a.get("label")}
+    # 2026-08-08, решение владельца «шесть — выводить» (карточка
+    # `own-31-desyat-agentov-v-reestre-bez-flota`): ВЫВЕДЕННЫЙ агент — это не
+    # факт о работающем флоте, и манифест не обязан держать под него запись.
+    #
+    # Раньше запись с `retired: true` продолжала считаться фактом, поэтому
+    # реестр «обещал больше, чем есть»: пять записей (bot_commands,
+    # daily-paper-report, httpserver, telegram_daily, telegram_weekly) не имели
+    # ни plist, ни программы, ни строки в launchctl — только собственную запись
+    # о том, что они выведены.
+    #
+    # Отдельно: если у выведенного агента ВСЁ ЕЩЁ есть plist, он остаётся
+    # фактом. Тогда расхождение настоящее — «объявлен выведенным, но
+    # разворачивается» — и его гасить нельзя.
+    return {a["label"]: a for a in data.get("agents", [])
+            if a.get("label") and not a.get("retired")}
 
 
 def _load_manifest(path: str) -> dict:
