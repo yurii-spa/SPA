@@ -1,0 +1,38 @@
+{
+  "_readme": [
+    "ХРАПОВИК подстановок APY (owner-decision 2026-08-08, вариант 1).",
+    "Здесь перечислены адаптеры, у которых get_apy() БЕЗ НАБЛЮДЕНИЯ до сих пор",
+    "возвращает зашитый литерал вместо None — то есть нарушают ADR-063 п.3 и",
+    "правило .claude/rules/adapters.md («нет данных ⇒ None»).",
+    "",
+    "СПИСОК МОЖЕТ ТОЛЬКО СОКРАЩАТЬСЯ. Добавлять сюда адаптер, чтобы погасить",
+    "красный тест, ЗАПРЕЩЕНО (тот же запрет, что у test_frozen_date_ratchet).",
+    "Появился новый нарушитель ⇒ чинить адаптер, а не список.",
+    "",
+    "Полный запрет одним махом не ставится сознательно: это 15 money-path",
+    "адаптеров, и одновременная правка всех — не то решение, которое владелец",
+    "принимал 2026-08-08. Он принимал решение по morpho_steakhouse; остальные",
+    "вынесены отдельной карточкой с замером."
+  ],
+  "_measured_at": "2026-08-08",
+  "_measured_on_commit": "785d8104d",
+  "_card": "owner-decision-morfo-40-knigi-pri-propazhe-dannyh-podst.md",
+  "_followup_card": "agent-fake-fallback-v-15-adapterah.md",
+  "known_violators": [
+    "aave_arbitrum",
+    "aave_v3_base",
+    "aerodrome_base",
+    "dolomite_arbitrum",
+    "ethena_susde",
+    "extra_finance_base",
+    "fluid_arbitrum",
+    "fluid_usdc",
+    "moonwell_base",
+    "morpho_blue_base",
+    "pendle_pt_susde",
+    "pendle_pt_usdc",
+    "silo_arbitrum",
+    "usual_usd0pp",
+    "velodrome_optimism"
+  ]
+}

@@ -155,3 +155,142 @@ class PositiveControl(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ADR-073 · 2026-08-08, решение владельца (вариант 1 карточки
+# `owner-decision-posle-strahovki-dengi-ostayutsya-sirotam`).
+#
+# Дополняет ADR-072.1 (лимит одной цепочки), приземлённый параллельной сессией
+# в тот же день: суммарный L2, потолки из RiskConfig, ЧАСТИЧНЫЙ неразмещённый
+# остаток, учёт тиров у заблокированных пулов и приёмка через настоящий гейт.
+# ═══════════════════════════════════════════════════════════════════════════
+
+class ChainLimitsFullSet(unittest.TestCase):
+
+    def test_partial_unplaceable_remainder_is_named(self):
+        """cap_bound ловит только «не разместили НИЧЕГО».
+
+        Сегодняшний случай другой и он же самый частый: $20 000 ушли,
+        $5 000 остались. Без этой проверки частичный остаток тонул молча —
+        ровно то, что ADR-055 запрещает.
+        """
+        pre, post, adapters, gate = incident()
+        r = redistribute_freed_budget(post, pre, CAP, adapters, gate)
+        self.assertTrue(r["added"], "часть обязана разместиться")
+        self.assertAlmostEqual(r["unplaceable_usd"], 5_000.0, delta=1.0)
+        self.assertTrue(any("разместить НЕ УДАЛОСЬ" in n for n in r["notes"]))
+
+    def test_l2_total_cap_is_respected(self):
+        """Суммарный L2 ≤ 50 % — второй потолок сети, который проверит гейт."""
+        pre = {"aave_v3": 40_000.0, "maple": 55_000.0}
+        post = {"aave_v3": 40_000.0, "maple": 0.0}
+        adapters = [
+            adapter("aave_v3", "T1", 5.01),
+            {"protocol": "moonwell_base", "tier": "T2", "apy_pct": 9.9,
+             "tvl_source": "live", "tvl_usd": 5e7, "chain": "base"},
+            {"protocol": "silo_arbitrum", "tier": "T2", "apy_pct": 9.8,
+             "tvl_source": "live", "tvl_usd": 5e7, "chain": "arbitrum"},
+        ]
+        gate = {"tvl_unverified": [], "approved": True}
+        r = redistribute_freed_budget(post, pre, CAP, adapters, gate)
+        l2 = sum(v for p, v in r["target_usd"].items()
+                 if p in {"moonwell_base", "silo_arbitrum"})
+        self.assertLessEqual(l2, CAP * 0.50 + 1.0)
+
+    def test_blocked_pool_tier_is_not_defaulted_to_t2(self):
+        """T1-позиция, срезанная гейтом, не смеет съедать суммарный лимит T2.
+
+        Карты тира строились только по НЕзаблокированным адаптерам, поэтому
+        ``tier_of.get(p, "T2")`` записывал morpho_steakhouse (T1, $5 000) в
+        лимит T2 — и живой base-кандидат в освободившееся место не проходил.
+        """
+        pre, post, adapters, gate = incident()
+        adapters = adapters + [
+            {"protocol": "moonwell_base", "tier": "T2", "apy_pct": 6.6,
+             "tvl_source": "live", "tvl_usd": 5e7, "chain": "base"},
+        ]
+        r = redistribute_freed_budget(post, pre, CAP, adapters, gate)
+        self.assertIn("moonwell_base", r["added"])
+        self.assertAlmostEqual(sum(r["added"].values()), 25_000.0, delta=1.0)
+        self.assertEqual(r.get("unplaceable_usd", 0.0), 0.0)
+
+    def test_caps_come_from_riskconfig_not_from_local_literals(self):
+        """Потолок берётся из RiskConfig — иначе он однажды разъедется с гейтом."""
+        from spa_core.risk.policy import RiskConfig
+
+        cfg = RiskConfig()
+        pre, post, adapters, gate = incident()
+        auto = redistribute_freed_budget(post, pre, CAP, adapters, gate)
+        pinned = redistribute_freed_budget(
+            post, pre, CAP, adapters, gate,
+            max_single_chain_pct=float(cfg.max_single_chain_allocation),
+            max_l2_total_pct=float(cfg.max_l2_total_allocation),
+        )
+        self.assertEqual(auto["added"], pinned["added"])
+
+    def test_unknown_chain_counts_as_ethereum_not_a_free_bucket(self):
+        """Fail-CLOSED: отсутствие поля chain не открывает обход лимита сети."""
+        pre, post, adapters, gate = incident()
+        adapters = adapters + [
+            {"protocol": "protocol_bez_seti", "tier": "T2", "apy_pct": 99.0,
+             "tvl_source": "live", "tvl_usd": 5e7},  # поля chain НЕТ
+        ]
+        r = redistribute_freed_budget(post, pre, CAP, adapters, gate)
+        self.assertAlmostEqual(sum(r["added"].values()), 20_000.0, delta=1.0)
+
+
+class SurvivesTheRealGate(unittest.TestCase):
+    """Приёмка, которой не было: цель обязана ПРОЙТИ настоящий гейт.
+
+    Прежние тесты проверяли, ЧТО ФУНКЦИЯ ВЕРНУЛА. Но в проде она возвращала
+    прекрасную раскладку, которую гейт отвергал ЦЕЛИКОМ, — и все тесты
+    оставались зелёными, пока деньги лежали в кэше. Класс «проверяй проводку,
+    а не части» (цикл #144).
+    """
+
+    @staticmethod
+    def _incident_with_chains():
+        """Та же авария, но у адаптеров ЕСТЬ поле chain — как в проде.
+
+        Без него гейт кладёт каждый протокол в собственную корзину
+        ``unknown:<pool>``, лимит одной сети не срабатывает НИ НА ЧЁМ, и
+        приёмка зеленеет даже на сломанном коде. Замерено: первая версия
+        этого теста была именно такой и пропускала аварию.
+        """
+        pre, post, adapters, gate = incident()
+        return pre, post, [dict(a, chain="ethereum") for a in adapters], gate
+
+    def test_gate_really_rejects_a_chain_heavy_target(self):
+        """Сначала докажем, что стенд ВООБЩЕ способен поймать нарушение."""
+        from spa_core.paper_trading.risk_gate import _apply_risk_policy_gate
+
+        _pre, _post, adapters, _gate = self._incident_with_chains()
+        chain_heavy = {"aave_v3": 40_000.0, "pendle": 20_000.0, "maple": 10_000.0,
+                       "morpho_steakhouse": 5_000.0, "compound_v3": 20_000.0}
+        g = _apply_risk_policy_gate(chain_heavy, CAP, adapters)
+        self.assertTrue(
+            [v for v in (g.get("violations") or []) if "Chain concentration" in v],
+            "стенд не ловит нарушение лимита сети — тест ниже был бы пустышкой",
+        )
+
+    def test_redistributed_target_is_approved_by_the_gate(self):
+        """Положительный контроль настоящей аварии прода 2026-08-08 09:50 UTC.
+
+        На версии до починки краснеет сообщением БАЙТ-В-БАЙТ тем же, что
+        записал прод: «Chain concentration on ethereum after trade 95.0%
+        exceeds single-chain limit 90.0%».
+        """
+        from spa_core.paper_trading.risk_gate import _apply_risk_policy_gate
+
+        pre, post, adapters, gate = self._incident_with_chains()
+        r = redistribute_freed_budget(post, pre, CAP, adapters, gate)
+        self.assertTrue(r["added"], "перераздача обязана что-то разместить")
+
+        g2 = _apply_risk_policy_gate(r["target_usd"], CAP, adapters)
+        chain_violations = [v for v in (g2.get("violations") or [])
+                            if "Chain concentration" in v]
+        self.assertEqual(
+            chain_violations, [],
+            f"снова предлагается непроходная по сети цель: {chain_violations}")
+        self.assertTrue(g2.get("approved"), f"гейт не принял: {g2.get('violations')}")

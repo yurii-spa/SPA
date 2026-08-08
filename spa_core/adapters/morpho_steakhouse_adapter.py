@@ -12,9 +12,10 @@ own-29 (2026-08-05): добавлен ЖИВОЙ путь TVL/APY через DeF
 
 Ключевые характеристики:
 - Tier T1 — лимит 40% портфеля
-- APY (legacy-поверхность ``get_apy_pct``): живой фид → data/adapter_status.json
-  (поле morpho_steakhouse.apy) → fallback 6.5% (только для advisory-потребителей;
-  в YieldInfo fallback НЕ попадает)
+- APY (``get_apy_pct`` / ``get_apy``): живой фид → data/adapter_status.json
+  (поле morpho_steakhouse.apy) → **None**. Подстановка 6.5 % удалена 2026-08-08
+  решением владельца (ADR-063 п.3 доведён до конца); ``switch_recommended()``
+  без наблюдения отвечает False (fail-CLOSED)
 - Quick Win #1: +200 bps vs Aave mainnet (3.2%) → рекомендует switch при
   превышении порога 50 bps над Aave
 - Модуль строго read-only / advisory: никогда не трогает живой капитал
@@ -47,9 +48,9 @@ _DEFAULT_DATA_DIR = _REPO_ROOT / "data"
 class MorphoSteakhouseAdapter(BaseAdapter):
     """Read-only advisory адаптер для Morpho Blue Steakhouse USDC vault (T1).
 
-    APY берётся из ``data/adapter_status.json`` → ``morpho_steakhouse.apy``
-    (значение в процентах, например 6.5). При отсутствии поля или ошибке
-    чтения используется ``FALLBACK_APY_PCT = 6.5``.
+    APY берётся из живого DeFiLlama-фида, затем из ``data/adapter_status.json``
+    → ``morpho_steakhouse.apy`` (значение в процентах). При отсутствии обоих
+    источников возвращается ``None`` — подстановки НЕТ (ADR-063 п.3).
 
     Метод ``switch_recommended()`` возвращает True, если
     ``morpho_apy_pct > aave_apy_pct + SWITCH_THRESHOLD_BPS / 100``.
@@ -70,7 +71,10 @@ class MorphoSteakhouseAdapter(BaseAdapter):
     EXIT_LATENCY_HOURS = 0.0
 
     # ── APY параметры ────────────────────────────────────────────────────
-    FALLBACK_APY_PCT: float = 6.5        # % (используется при отсутствии данных в JSON)
+    # FALLBACK_APY_PCT УДАЛЁН 2026-08-08 (решение владельца, вариант 1 карточки
+    # owner-decision-morfo-40-knigi-pri-propazhe-dannyh-podst). Атрибута больше
+    # НЕТ намеренно: пока он существует, его легко «вернуть на минутку».
+    # Нет наблюдения ⇒ None (ADR-063 п.3).
     AAVE_MAINNET_APY_PCT: float = 3.2   # % (benchmark для switch-рекомендации)
     SWITCH_THRESHOLD_BPS: int = 50      # минимальный отрыв (bps) для рекомендации switch
 
@@ -78,9 +82,13 @@ class MorphoSteakhouseAdapter(BaseAdapter):
     QUICK_WIN: bool = True
     BPS_GAIN: int = 200    # vs Aave mainnet 3.2%
 
+    # ВНИМАНИЕ: это ИСТОРИЧЕСКАЯ заметка от 2026-06, а не текущее утверждение.
+    # Её «6.5 %» — тот же самый удалённый литерал. Новое число сюда НЕ вписано
+    # намеренно: живой APY читается методами адаптера, а не константой в тексте.
     STRATEGY_NOTE: str = (
-        "Quick Win #1: switch $50K from Aave mainnet (3.2%) to Morpho Steakhouse (6.5%)"
-        " = +$1,650/yr on $50K"
+        "Quick Win #1 (историческая заметка 2026-06, НЕ живое число): switch $50K"
+        " from Aave mainnet (3.2%) to Morpho Steakhouse (тогда 6.5%) = +$1,650/yr"
+        " on $50K. Актуальную доходность брать из get_apy_pct(), не отсюда."
     )
 
     # ── DeFiLlama пул (own-29: живая интеграция) ─────────────────────────
@@ -182,28 +190,35 @@ class MorphoSteakhouseAdapter(BaseAdapter):
 
     # ── публичный APY API ────────────────────────────────────────────────
 
-    def get_apy_pct(self) -> float:
-        """Возвращает APY в процентах (6.5, а не 0.065).
+    def get_apy_pct(self) -> Optional[float]:
+        """Возвращает APY в процентах (3.47, а не 0.0347) либо ``None``.
 
         Приоритет источников (own-29):
           1. живой DeFiLlama-фид (STEAKUSDC vault);
           2. data/adapter_status.json → morpho_steakhouse.apy;
-          3. FALLBACK_APY_PCT (6.5%) — legacy advisory-fallback, в YieldInfo
-             НЕ попадает (см. get_yield_info).
+          3. **ничего** — наблюдения нет ⇒ ``None``.
+
+        ADR-063 п.3 / `.claude/rules/adapters.md`: «нет данных ⇒ None».
+        Прежняя подстановка ``FALLBACK_APY_PCT = 6.5`` УДАЛЕНА решением
+        владельца 2026-08-08 (вариант 1 карточки
+        `owner-decision-morfo-40-knigi-pri-propazhe-dannyh-podst`): выдуманное
+        число почти вдвое превышало живое (6.5 % против наблюдённых 3.47 %) и
+        вытекало наружу через ``switch_recommended()`` и ``allocate()``.
         """
         live = self.fetch_live()
         live_apy = live.get("apy")
         if isinstance(live_apy, (int, float)):
             return float(live_apy) * 100.0
-        apy = self._read_apy_from_status()
-        return apy if apy is not None else self.FALLBACK_APY_PCT
+        return self._read_apy_from_status()
 
-    def get_apy(self) -> float:
-        """Возвращает APY как десятичную дробь (0.065 = 6.5%).
+    def get_apy(self) -> Optional[float]:
+        """Возвращает APY как десятичную дробь (0.0347 = 3.47 %) либо ``None``.
 
-        Реализует контракт BaseAdapter.get_apy().
+        Реализует контракт ``BaseAdapter.get_apy() -> Optional[float]``:
+        наблюдения нет ⇒ ``None``, НИКОГДА не константа.
         """
-        return self.get_apy_pct() / 100.0
+        apy_pct = self.get_apy_pct()
+        return None if apy_pct is None else apy_pct / 100.0
 
     def get_yield_info(self) -> YieldInfo:
         """Возвращает нормализованный YieldInfo для оркестратора.
@@ -234,23 +249,35 @@ class MorphoSteakhouseAdapter(BaseAdapter):
     def switch_recommended(self, aave_apy_pct: Optional[float] = None) -> bool:
         """True если Morpho APY > Aave APY + SWITCH_THRESHOLD_BPS / 100.
 
+        **Fail-CLOSED:** наблюдения APY нет ⇒ ``False``. Рекомендация
+        переложиться — это утверждение о превосходстве доходности; без
+        наблюдения такого утверждения не существует. До 2026-08-08 здесь
+        сравнивалась подставная константа 6.5 %, и метод отвечал ``True``
+        РОВНО ТОГДА, когда данных не было.
+
         Args:
             aave_apy_pct: Текущий Aave APY в процентах. Если None — используется
                           AAVE_MAINNET_APY_PCT (3.2%).
         """
+        apy_pct = self.get_apy_pct()
+        if apy_pct is None:
+            return False
         aave = aave_apy_pct if aave_apy_pct is not None else self.AAVE_MAINNET_APY_PCT
         threshold = aave + self.SWITCH_THRESHOLD_BPS / 100.0
-        return self.get_apy_pct() > threshold
+        return apy_pct > threshold
 
-    def switch_gain_pct(self, aave_apy_pct: Optional[float] = None) -> float:
-        """Разница APY в процентах (Morpho - Aave).
+    def switch_gain_pct(self, aave_apy_pct: Optional[float] = None) -> Optional[float]:
+        """Разница APY в процентах (Morpho - Aave), либо ``None`` без наблюдения.
 
         Args:
             aave_apy_pct: Текущий Aave APY в процентах. Если None — используется
                           AAVE_MAINNET_APY_PCT (3.2%).
         """
+        apy_pct = self.get_apy_pct()
+        if apy_pct is None:
+            return None
         aave = aave_apy_pct if aave_apy_pct is not None else self.AAVE_MAINNET_APY_PCT
-        return round(self.get_apy_pct() - aave, 10)
+        return round(apy_pct - aave, 10)
 
     # ── виртуальный paper trading API ────────────────────────────────────
 
@@ -330,7 +357,10 @@ class MorphoSteakhouseAdapter(BaseAdapter):
             "vault": self.VAULT_ADDRESS,
             "tier": self.tier,
             "apy_pct": apy_pct,
-            "fallback_used": self._read_apy_from_status() is None,
+            # 2026-08-08: подстановки больше нет, поэтому ключ означает ровно
+            # «наблюдения нет» (раньше — «в status-файле пусто, взял 6.5 %»).
+            "apy_observed": apy_pct is not None,
+            "fallback_used": apy_pct is None,
             "quick_win": self.QUICK_WIN,
             "switch_recommended": self.switch_recommended(),
             "ts": time.time(),

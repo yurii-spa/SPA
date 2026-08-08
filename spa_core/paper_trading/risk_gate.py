@@ -463,7 +463,8 @@ def redistribute_freed_budget(
     t2_cap_pct: float = 0.20,
     t2_total_cap_pct: float = 0.35,
     max_protocols: int = 8,
-    max_single_chain_pct: float = 0.90,
+    max_single_chain_pct: "float | None" = None,
+    max_l2_total_pct: "float | None" = None,
 ) -> dict:
     """Перераздаёт бюджет, СРЕЗАННЫЙ гейтом, в оставшихся честных кандидатов.
 
@@ -491,6 +492,26 @@ def redistribute_freed_budget(
     Возвращает ``{"target_usd", "added": {proto: usd}, "freed_usd", "notes"}``;
     при freed ≤ эпсилон — вход без изменений. Пороги RiskPolicy не меняются.
     """
+    # 2026-08-08 (решение владельца, вариант 1 карточки
+    # `owner-decision-posle-strahovki-dengi-ostayutsya-sirotam`): потолки сети
+    # берутся из RiskConfig — того же источника, по которому судит повторный
+    # гейт. Собственная копия порога здесь — это будущий разъезд, а он уже раз
+    # стоил 20 % капитала.
+    if max_single_chain_pct is None or max_l2_total_pct is None:
+        _chain_cap, _l2_cap = 0.90, 0.50
+        try:
+            from spa_core.risk.policy import RiskConfig
+
+            _cfg = RiskConfig()
+            _chain_cap = float(_cfg.max_single_chain_allocation)
+            _l2_cap = float(_cfg.max_l2_total_allocation)
+        except Exception:  # noqa: BLE001 — RiskConfig недоступен ⇒ консервативно
+            log.warning("ADR-073: RiskConfig недоступен — потолки сети по умолчанию")
+        if max_single_chain_pct is None:
+            max_single_chain_pct = _chain_cap
+        if max_l2_total_pct is None:
+            max_l2_total_pct = _l2_cap
+
     out = {"target_usd": dict(gate_target), "added": {}, "freed_usd": 0.0,
            "notes": []}
     try:
@@ -538,11 +559,19 @@ def redistribute_freed_budget(
             if not isinstance(a, dict):
                 continue
             p = a.get("protocol")
-            if not p or p in blocked:
+            if not p:
                 continue
+            # ADR-073: карты тира и сети строятся по ВСЕМ адаптерам, включая
+            # заблокированные. Раньше блокированные сюда не попадали, и
+            # ``tier_of.get(p, "T2")`` записывал T1-позицию в СУММАРНЫЙ лимит
+            # T2 — потолок «съедался» деньгами, которых в нём нет. Замер на
+            # фикстуре инцидента: morpho_steakhouse (T1, $5 000) один занимал
+            # 5 п.п. чужого лимита и не пускал туда live-кандидата.
             tier = str(a.get("tier", "T2")).upper()
             tier_of[p] = tier
             chain_of[str(p)] = _chain_of(str(p), a)
+            if p in blocked:
+                continue          # в КАНДИДАТЫ не идёт — слово гейта свято
             apy = a.get("apy_pct")
             tvl_live = (a.get("tvl_source") == "live")
             if (tvl_live and isinstance(apy, (int, float))
@@ -559,6 +588,10 @@ def redistribute_freed_budget(
         for p, v in new_target.items():
             c = chain_of.get(p) or _chain_of(str(p))
             chain_usd[c] = chain_usd.get(c, 0.0) + float(v)
+        # ADR-073: суммарный L2 (50 %) — второй потолок сети, который проверит
+        # повторный гейт; без него перераздача снова предложит непроходное.
+        _L2_CHAINS = {"arbitrum", "base"}
+        l2_usd = sum(v for c, v in chain_usd.items() if c in _L2_CHAINS)
         funded = {p for p, v in new_target.items() if float(v) > 1e-6}
 
         for _neg_apy, p in candidates:
@@ -574,6 +607,8 @@ def redistribute_freed_budget(
             chain = chain_of.get(p, "ethereum")
             headroom = min(headroom,
                            cap * max_single_chain_pct - chain_usd.get(chain, 0.0))
+            if chain in _L2_CHAINS:
+                headroom = min(headroom, cap * max_l2_total_pct - l2_usd)
             if headroom <= 1e-6:
                 continue
             if p not in funded and len(funded) >= max_protocols:
@@ -584,11 +619,24 @@ def redistribute_freed_budget(
             if tier != "T1":
                 t2_deployed += add
             chain_usd[chain] = chain_usd.get(chain, 0.0) + add
+            if chain in _L2_CHAINS:
+                l2_usd += add
             funded.add(p)
             freed -= add
             out["notes"].append(
                 f"ADR-072: +${add:,.0f} → {p} ({tier}, {-_neg_apy:.2f}% live) — "
                 f"срезанный гейтом бюджет вместо кэша под 0%")
+
+        if freed > cap * 0.005:
+            # ADR-073: cap_bound ниже ловит только «не разместили НИЧЕГО».
+            # Сегодняшний случай — частичный: $20 000 ушли, $5 000 остались.
+            # Молчаливый частичный остаток запрещён так же, как полный (ADR-055).
+            out["unplaceable_usd"] = round(freed, 2)
+            out["notes"].append(
+                f"ADR-072/073: ${freed:,.0f} разместить НЕ УДАЛОСЬ — свободной ёмкости "
+                f"под потолками (тир / суммарный T2 / одна сеть "
+                f"{max_single_chain_pct:.0%} / L2 {max_l2_total_pct:.0%} / "
+                "ALLOC-002) не осталось")
 
         if out["added"]:
             out["target_usd"] = new_target

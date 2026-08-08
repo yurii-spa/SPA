@@ -55,7 +55,11 @@ def _default() -> MorphoSteakhouseAdapter:
 
 
 def _fallback() -> MorphoSteakhouseAdapter:
-    """Адаптер без поля apy в JSON → должен отдать fallback 6.5%."""
+    """Адаптер без поля apy в JSON → наблюдения НЕТ ⇒ get_apy_pct() = None.
+
+    Имя ``_fallback`` сохранено, чтобы диф был читаемым; никакого fallback
+    больше нет (решение владельца 2026-08-08).
+    """
     return _adapter(apy=None)
 
 
@@ -153,64 +157,84 @@ class TestApySource(unittest.TestCase):
         adapter = _adapter(apy=7.2)
         self.assertAlmostEqual(adapter.get_apy_pct(), 7.2)
 
-    def test_apy_fallback_when_field_missing(self):
-        """Без поля apy в JSON — используется FALLBACK_APY_PCT."""
-        adapter = _fallback()
-        self.assertAlmostEqual(adapter.get_apy_pct(), MorphoSteakhouseAdapter.FALLBACK_APY_PCT)
+    def test_apy_is_none_when_field_missing(self):
+        """Без поля apy в JSON — наблюдения нет ⇒ None.
 
-    def test_apy_fallback_value_is_6_5(self):
-        """Fallback точно равен 6.5%."""
-        self.assertAlmostEqual(MorphoSteakhouseAdapter.FALLBACK_APY_PCT, 6.5)
-        self.assertAlmostEqual(_fallback().get_apy_pct(), 6.5)
+        ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16). Раньше тест закреплял
+        подстановку ``FALLBACK_APY_PCT``. Владелец выбрал вариант 1 карточки
+        ``owner-decision-morfo-40-knigi-pri-propazhe-dannyh-podst``: нет данных
+        ⇒ «не знаю». Тест не ослаблен: та же ветка кода проверяется, изменилось
+        ожидаемое значение — с выдуманного на честное.
+        """
+        self.assertIsNone(_fallback().get_apy_pct())
 
-    def test_apy_fallback_when_json_missing(self):
-        """Файл adapter_status.json отсутствует → fallback."""
-        self.assertAlmostEqual(_no_file().get_apy_pct(), 6.5)
+    def test_fallback_constant_no_longer_exists(self):
+        """Атрибута FALLBACK_APY_PCT больше нет — на его месте ничего.
+
+        ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16): бывший
+        ``test_apy_fallback_value_is_6_5`` утверждал ровно то поведение,
+        которое владелец приказал убрать. Проверка УСИЛЕНА: раньше пиналось
+        значение константы, теперь — её отсутствие как класса.
+        """
+        self.assertFalse(hasattr(MorphoSteakhouseAdapter, "FALLBACK_APY_PCT"))
+
+    def test_apy_is_none_when_json_missing(self):
+        """Файл adapter_status.json отсутствует → None (было 6.5)."""
+        self.assertIsNone(_no_file().get_apy_pct())
 
     def test_apy_fallback_when_json_corrupt(self):
         """Битый JSON → fallback, без исключения."""
         tmp = tempfile.mkdtemp()
         (Path(tmp) / "adapter_status.json").write_text("NOT JSON{{", encoding="utf-8")
         adapter = MorphoSteakhouseAdapter(data_dir=tmp)
-        # Не должно бросать исключение
-        result = adapter.get_apy_pct()
-        self.assertAlmostEqual(result, 6.5)
+        # Не должно бросать исключение — но и подставлять число тоже нельзя
+        self.assertIsNone(adapter.get_apy_pct())
 
-    def test_apy_fallback_when_section_missing(self):
-        """Секция morpho_steakhouse отсутствует → fallback."""
+    def test_apy_is_none_when_section_missing(self):
+        """Секция morpho_steakhouse отсутствует → None (было 6.5)."""
         adapter = _adapter(apy=None, missing_field=True)
-        self.assertAlmostEqual(adapter.get_apy_pct(), 6.5)
+        self.assertIsNone(adapter.get_apy_pct())
 
-    def test_apy_fallback_when_field_not_numeric_string(self):
-        """Поле apy='garbage' → fallback."""
+    def test_apy_is_none_when_field_not_numeric_string(self):
+        """Поле apy='garbage' → None (было 6.5)."""
         tmp = tempfile.mkdtemp()
         content = {"morpho_steakhouse": {"apy": "garbage"}}
         (Path(tmp) / "adapter_status.json").write_text(json.dumps(content), encoding="utf-8")
         adapter = MorphoSteakhouseAdapter(data_dir=tmp)
-        self.assertAlmostEqual(adapter.get_apy_pct(), 6.5)
+        self.assertIsNone(adapter.get_apy_pct())
 
-    def test_apy_fallback_when_field_is_null(self):
-        """Поле apy=null → fallback."""
+    def test_apy_is_none_when_field_is_null(self):
+        """Поле apy=null → None (было 6.5)."""
         tmp = tempfile.mkdtemp()
         content = {"morpho_steakhouse": {"apy": None}}
         (Path(tmp) / "adapter_status.json").write_text(json.dumps(content), encoding="utf-8")
         adapter = MorphoSteakhouseAdapter(data_dir=tmp)
-        self.assertAlmostEqual(adapter.get_apy_pct(), 6.5)
+        self.assertIsNone(adapter.get_apy_pct())
 
     def test_get_apy_decimal_from_pct(self):
         """get_apy() возвращает десятичную дробь (pct / 100)."""
         adapter = _adapter(apy=6.5)
         self.assertAlmostEqual(adapter.get_apy(), 0.065)
 
-    def test_get_apy_decimal_fallback(self):
-        """get_apy() fallback = 0.065."""
-        self.assertAlmostEqual(_fallback().get_apy(), 0.065)
+    def test_get_apy_decimal_is_none_without_observation(self):
+        """get_apy() без наблюдения = None (было 0.065).
 
-    def test_get_apy_pct_returns_float(self):
-        """get_apy_pct() всегда возвращает float."""
+        Это ровно то утверждение, которое ADR-063 п.3 объявлял выполненным
+        для всех двенадцати адаптеров, а у Морфо оно не выполнялось.
+        """
+        self.assertIsNone(_fallback().get_apy())
+
+    def test_get_apy_pct_returns_float_when_observed_and_none_otherwise(self):
+        """float при наблюдении, None без него.
+
+        ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16). Прежнее «ВСЕГДА float» было
+        не свойством типа, а обещанием никогда не признаваться в незнании —
+        именно это обещание и держало подстановку. Контроль сохранён в обе
+        стороны: наблюдение по-прежнему обязано быть float.
+        """
         self.assertIsInstance(_default().get_apy_pct(), float)
-        self.assertIsInstance(_fallback().get_apy_pct(), float)
-        self.assertIsInstance(_no_file().get_apy_pct(), float)
+        self.assertIsNone(_fallback().get_apy_pct())
+        self.assertIsNone(_no_file().get_apy_pct())
 
     def test_custom_apy_from_json(self):
         """Кастомное значение APY (5.0) читается корректно."""
@@ -618,16 +642,17 @@ class TestLiveFeed(unittest.TestCase):
         adapter.feed = _FakeLiveFeed(apy_decimal=0.0351, tvl_usd=1.0)
         self.assertAlmostEqual(adapter.get_apy_pct(), 3.51)
 
-    def test_get_apy_pct_falls_back_to_file_then_constant(self):
-        # Живого фида нет → файл; файла нет → константа 6.5 (advisory-легаси,
-        # поведение существующих потребителей не менялось).
+    def test_get_apy_pct_falls_back_to_file_then_to_nothing(self):
+        # ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16): третьей ступенью была
+        # константа 6.5. Владелец выбрал вариант 1 — третьей ступени нет.
+        # Живого фида нет → файл; файла нет → None.
         file_adapter = _adapter(apy=4.2)
         file_adapter.feed = _FakeLiveFeed(apy_decimal=None)
         self.assertAlmostEqual(file_adapter.get_apy_pct(), 4.2)
 
         none_adapter = _no_file()
         none_adapter.feed = _FakeLiveFeed(apy_decimal=None)
-        self.assertAlmostEqual(none_adapter.get_apy_pct(), 6.5)
+        self.assertIsNone(none_adapter.get_apy_pct())
 
     # ── дефолтный фид под pytest не ходит в сеть ─────────────────────────
     def test_default_feed_disabled_under_pytest(self):
