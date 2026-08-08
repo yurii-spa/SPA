@@ -1602,6 +1602,31 @@ class StrategyAllocator:
         # _apply_caps перераспределит на них excess, а _fill_remainder — остаток.
         weights_for_alloc = {p: w for p, w in raw_weights.items() if p not in excluded}
 
+        # ── ALLOC-002-ОСОЗНАННЫЙ ОТБОР (мандат владельца 2026-08-08) ────────
+        # Замер: модель `risk_adjusted` отдавала 17 протоколов при лимите 8, и
+        # ALLOC-002-collapse срабатывал КАЖДЫЙ цикл — книгу собирал не
+        # аллокатор, а детерминированный safe fallback. Следствие: добавление
+        # живого кандидата (morpho_blue_base, Base, 4.95%) роняло ожидаемую
+        # доходность 6.03% → 3.51%, потому что pendle (17.92%) ВЫПАДАЛ из
+        # fallback-книги. То есть «больше кандидатов» = хуже книга.
+        # Лечение: отбирать ЛУЧШИЕ ≤MAX_PROTOCOLS по весу модели (вес
+        # пропорционален risk-adjusted APY) ДО применения потолков — тогда
+        # расширение множества кандидатов УЛУЧШАЕТ книгу, а collapse остаётся
+        # аварийной страховкой, а не штатным путём. Ни один порог RiskPolicy
+        # здесь не меняется: MAX_PROTOCOLS читается из RiskConfig (ALLOC-002).
+        if len(weights_for_alloc) > self.MAX_PROTOCOLS:
+            _ranked = sorted(weights_for_alloc.items(),
+                             key=lambda kv: (-float(kv[1]), kv[0]))
+            _kept = dict(_ranked[:self.MAX_PROTOCOLS])
+            _dropped = [p for p, _ in _ranked[self.MAX_PROTOCOLS:]]
+            _total = sum(_kept.values())
+            if _total > 0:
+                weights_for_alloc = {p: v / _total for p, v in _kept.items()}
+                notes.append(
+                    f"ALLOC-002: отобраны лучшие {self.MAX_PROTOCOLS} по "
+                    f"risk-adjusted весу; не вошли: {_dropped}"
+                )
+
         capped, was_capped = self._apply_caps(weights_for_alloc, tier_map)
         if was_capped:
             notes.append("Веса ограничены cap'ами по тирам (T1≤40%, T2≤20%).")
