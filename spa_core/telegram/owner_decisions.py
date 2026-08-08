@@ -164,6 +164,19 @@ _MULTISELECT_RE = re.compile(
 
 _RECOMMEND_RE = re.compile(r"рекоменд|recommend", re.IGNORECASE)
 
+# Рекомендация, называющая СВОЙ номер: «Рекомендация агента — вариант 1», «рекомендую
+# вариант 2», «вариант 3 — рекомендую». Такая фраза живёт отдельным абзацем ПОСЛЕ перечня,
+# то есть в хвосте последнего варианта; вывод по расположению абзаца её переворачивает.
+_RECOMMEND_NAMED_RE = re.compile(
+    r"(?:рекоменд\w*|recommend\w*)[^.\n]{0,60}?вариант\w*\s*[—–:-]?\s*(\d{1,2})"
+    r"|вариант\w*\s*(\d{1,2})[^.\n]{0,60}?(?:рекоменд\w*|recommend\w*)",
+    re.IGNORECASE,
+)
+
+# «не рекомендую» / «not recommended» — та же фраза с обратным знаком.
+_RECOMMEND_NEGATED_RE = re.compile(
+    r"\bне\s+рекоменд\w*|\bне\s+совет\w*|\bnot\s+recommend\w*", re.IGNORECASE)
+
 # «(рекомендую)» внутри подписи — пометка, а не часть сути: на кнопке её заменяет ⭐.
 _RECOMMEND_PAREN_RE = re.compile(r"\s*\((?:[^)]*(?:рекоменд|recommend)[^)]*)\)\s*", re.IGNORECASE)
 
@@ -227,6 +240,33 @@ def allows_multiple(body: str) -> bool:
     return any(_MULTISELECT_RE.search(ln) for ln in _section_lines(body))
 
 
+def _named_recommendation(
+    section: List[str], valid: set,
+) -> Tuple[Optional[str], bool]:
+    """Номер варианта, НАЗВАННЫЙ рекомендацией. Возвращает ``(номер, спорно)``.
+
+    Спорно (звезды не будет ни у кого) — когда мы не можем ручаться за подсказку:
+    названо несколько РАЗНЫХ номеров · назван номер, которого в перечне нет ·
+    рекомендация отрицательная («не рекомендую вариант 2») — читать её как совет ЗА
+    этот вариант значит подсказать владельцу ровно наоборот.
+
+    Ничего не названо ⇒ ``(None, False)`` — прежнее поведение (звезда по расположению).
+    """
+    if _RECOMMEND_NEGATED_RE.search("\n".join(section)):
+        return None, True
+    found: List[str] = []
+    for ln in section:
+        for m in _RECOMMEND_NAMED_RE.finditer(ln):
+            num = (m.group(1) or m.group(2) or "").strip().lower()
+            if num and num not in found:
+                found.append(num)
+    if not found:
+        return None, False
+    if len(found) > 1 or found[0] not in valid:
+        return None, True
+    return found[0], False
+
+
 def parse_options(body: str) -> List[ParsedOption]:
     """Варианты ответа из тела карточки. Пусто ⇒ кнопок не будет (fail-CLOSED).
 
@@ -283,8 +323,22 @@ def parse_options(body: str) -> List[ParsedOption]:
         seen.add(key)
         options.append(ParsedOption(num=num, label=label, recommended=recommended))
 
+    # Рекомендация, НАЗЫВАЮЩАЯ свой номер, сильнее любого вывода по расположению абзаца.
+    # Замер 08.08 (`owner-decision-geit-i-allokator-schitayut-zhivoi-tvl-po`): фраза
+    # «**Рекомендация агента — вариант 1.**» стоит ОТДЕЛЬНЫМ абзацем после перечня, то есть
+    # физически в хвосте ПОСЛЕДНЕГО варианта — и звезда уезжала на вариант 3, ровно на тот,
+    # который автор не советовал. Владелец отвечает кнопкой, значит перевёрнутая
+    # рекомендация — это не оформление, а подсказка в обратную сторону.
+    named, ambiguous = _named_recommendation(section, {o.num.lower() for o in options})
+    if ambiguous:
+        # Спорная или отрицающая формулировка ⇒ звезды нет НИ У КОГО. Кнопки остаются:
+        # выбор владельца никуда не девается, исчезает только наша подсказка, за которую
+        # мы не можем ручаться. Ложная звезда хуже отсутствующей.
+        options = [ParsedOption(o.num, o.label, False) for o in options]
+    elif named is not None:
+        options = [ParsedOption(o.num, o.label, o.num.lower() == named) for o in options]
     # Звёздочка могла стоять в ПРОДОЛЖЕНИИ абзаца, а не в заголовке варианта.
-    if not any(o.recommended for o in options):
+    elif not any(o.recommended for o in options):
         options = [
             ParsedOption(o.num, o.label,
                          any(_RECOMMEND_INLINE_RE.search(t)
