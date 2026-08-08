@@ -37,7 +37,8 @@ python3 scripts/orchestrator_cycle_lock.py status      # 0 — свободно 
 `python3 scripts/consume_office_reports.py` — выводит в контекст house_view офиса
 (постура/конфликты/возможности), здоровье аналитиков, находки сторожа
 `architecture_conformance`, **расхождения офис↔книга (`data/house_view_gap.json`,
-Контур C1)** и **отчёт моста находка→карточка (`data/findings_bridge.json`, C2)**,
+Контур C1)** и **отчёт моста находка→карточка (`data/findings_bridge_report.json`, C2 —
+включая `deferred` и статус доставки карточек на origin)**,
 и пишет квитанции потребления (по ним сторож проверяет, что офис ЧИТАЮТ, — B3).
 **Прочитанное обязывает:** RED-постура, расхождение офиса с фактической аллокацией,
 CRITICAL-находка сторожа → карточка (needs-owner при capital-релевантности, иначе

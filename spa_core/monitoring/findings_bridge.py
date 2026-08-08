@@ -213,8 +213,31 @@ def _reconcile_with_tracker(root: str, st_findings: dict) -> int:
     return restored
 
 
+def _deliver_touched(root: str, created: list, closed: list,
+                     now: dt.datetime, deliver=None) -> dict:
+    """Довезти до origin карточки, которых мост за прогон КОСНУЛСЯ.
+
+    Закрытые везём наравне с созданными: карточка, закрытая только в прод-дереве,
+    остаётся на origin открытой — очередь показывает работу, которой нет
+    (тот же класс, что #147).
+    """
+    paths = [c["card"] for c in created if c.get("card")]
+    paths += [c["card"] for c in closed if c.get("card")]
+    try:
+        fn = deliver
+        if fn is None:
+            from spa_core.monitoring.card_delivery import deliver as fn
+        return fn(paths, root=root, now=now)
+    except Exception as e:  # noqa: BLE001 — доставка не смеет уронить мост,
+        # но «не измерено» обязано быть НАЗВАНО, а не выглядеть успехом.
+        return {"status": "UNCHECKED", "attempted": paths, "delivered": [],
+                "reason": f"доставка не измерена: {type(e).__name__}: {e}",
+                "generated_at": now.isoformat()}
+
+
 def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
-               create=create_card, close=close_card, notify=notify_card) -> dict:
+               create=create_card, close=close_card, notify=notify_card,
+               deliver=None) -> dict:
     now = now or dt.datetime.now(dt.timezone.utc)
     today = now.date().isoformat()
     state = _load_state(root)
@@ -281,7 +304,13 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
             del st_findings[key]  # мигнула и исчезла — гистерезис отработал
 
     daily[today] = created_today
+    # Последний метр: карточка, рождённая в прод-дереве, на origin не попадает
+    # НИКОГДА (замер цикла #170: из рождённых в рантайме доставлено 0 из 4), а
+    # `needs-owner` вне origin для очереди владельца не существует. Доставка —
+    # отдельный модуль, исключений не бросает и о своём исходе не молчит.
+    delivery = _deliver_touched(root, created, closed, now, deliver)
     report = {"generated_at": now.isoformat(), "adr": "ADR-066",
+              "delivery": delivery,
               "created": created, "deferred": deferred, "closed": closed,
               "waiting_hysteresis": waiting, "escalated": escalated,
               "sources_unread": unread, "reconciled_from_tracker": reconciled,
@@ -354,6 +383,11 @@ def main(argv=None) -> int:
         print(f"  + [{c['severity']}] {os.path.basename(c['card'])}")
     for c in r["closed"]:
         print(f"  ✓ закрыта {os.path.basename(c['card'])}")
+    try:
+        from spa_core.monitoring.card_delivery import render as render_delivery
+        print("  " + render_delivery(r.get("delivery") or {}))
+    except Exception as e:  # noqa: BLE001
+        print(f"  card_delivery: ⚠️ квитанция не прочитана ({e})")
     if r["deferred"]:
         print(f"  ⚠️ ОТЛОЖЕНО rate-limit'ом ({MAX_CARDS_PER_DAY}/сутки): {r['deferred']}")
     return 0

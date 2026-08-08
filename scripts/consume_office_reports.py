@@ -70,18 +70,39 @@ def _summarize_json(path: str, data) -> list[str]:
             out.append(f"   … ещё {len(data['findings']) - 8} расхожден(ий) в отчёте")
         for u in (data.get("unchecked") or [])[:4]:
             out.append(f"   [НЕ ИЗМЕРЕНО] {u.get('check')}: {u.get('reason')}")
-    elif name == "findings_bridge.json":
-        c = data.get("counts") or {}
-        out.append(f"   мост находка→карточка: открыто {c.get('opened')} · закрыто "
-                   f"{c.get('closed')} · отложено {c.get('deferred')} · ждут подтверждения "
-                   f"{c.get('pending')}")
-        for f in (data.get("opened") or [])[:5]:
-            out.append(f"   + карточка {f.get('card_path') or f.get('error')}")
-        for f in (data.get("deferred") or [])[:5]:
-            out.append(f"   … отложено: {f.get('key')}")
-        for src, st in (data.get("sources") or {}).items():
-            if not st.get("readable"):
-                out.append(f"   [ИСТОЧНИК НЕ ПРОЧИТАН] {src}: {st.get('reason')}")
+    elif name == "findings_bridge_report.json":
+        # Имя и схема ВЫМЕРЕНЫ по производителю (`findings_bridge.REPORT_REL`),
+        # а не по памяти: ветка звалась `findings_bridge.json` и читала поля
+        # `counts.opened/pending` — такого файла нет ни у одного производителя,
+        # такой схемы нет ни в одном отчёте. Ветка была мёртвой, и обязательный
+        # шаг 0-офис печатал по мосту одну строку `generated_at`, хотя манифест
+        # требует «deferred читать ОБЯЗАТЕЛЬНО». Тот же класс, что #144: правка
+        # детали при мёртвой проводке зелёная и бесполезная.
+        out.append(f"   мост находка→карточка: создано {len(data.get('created') or [])} · "
+                   f"закрыто {len(data.get('closed') or [])} · отложено "
+                   f"{len(data.get('deferred') or [])} · ждут гистерезиса "
+                   f"{len(data.get('waiting_hysteresis') or [])} · "
+                   f"открытых карточек {data.get('open_cards')}")
+        for f in (data.get("created") or [])[:5]:
+            out.append(f"   + [{f.get('severity')}] карточка {f.get('card')}")
+        for k in (data.get("deferred") or [])[:5]:
+            out.append(f"   ⚠️ ОТЛОЖЕНО rate-limit'ом (карточки НЕТ): {k}")
+        for k in (data.get("escalated") or [])[:5]:
+            out.append(f"   ⬆️ эскалация WARN→CRITICAL: {k}")
+        for src in (data.get("sources_unread") or []):
+            out.append(f"   [ИСТОЧНИК НЕ ПРОЧИТАН] {src}")
+        # Доставка карточек на origin: `needs-owner` вне origin для очереди
+        # владельца не существует, поэтому провал доставки — находка, а не деталь.
+        d = data.get("delivery") or {}
+        if d:
+            st = d.get("status")
+            if st in ("DELIVERED", "IDLE"):
+                out.append(f"   доставка карточек: {st} ({len(d.get('delivered') or [])} на origin)")
+            else:
+                out.append(f"   ⚠️ ДОСТАВКА КАРТОЧЕК {st}: {d.get('reason')} "
+                           f"(пыталось {len(d.get('attempted') or [])})")
+        else:
+            out.append("   ⚠️ доставка карточек НЕ ИЗМЕРЕНА: в отчёте нет блока delivery")
     else:
         status = data.get("status") or data.get("overall") or data.get("posture")
         if status is not None:
