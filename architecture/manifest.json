@@ -1499,6 +1499,28 @@
    "notes": ""
   },
   {
+   "label": "com.spa.telegram_health",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:300s",
+   "program": "agent_telegram_health.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [
+    "data/telegram_health.json"
+   ],
+   "consumes": [
+    "data/telegram_bot_capabilities.json"
+   ],
+   "consumer_required": false,
+   "governed_by": [
+    "ADR-077"
+   ],
+   "curation": "none",
+   "notes": "сторож связи с владельцем: ловит «процесс жив, но исполняет код старше себя», дубль поллеров, зависший цикл; чинит одним kickstart с предохранителем"
+  },
+  {
    "label": "com.spa.telegram_milestone",
    "plist_source": "launch_agents",
    "reboot_safe": true,
