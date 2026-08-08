@@ -63,7 +63,12 @@ def notify_needs_owner(path: str | Path, *, dry_run: bool = False) -> str:
         from spa_core.telegram import owner_decisions
 
         prep = owner_decisions.register_push(card.path, card.title or card.id, card.body)
-        msg = prep.text if prep.options else build_message(card)
+        # Берём подготовленный текст ВСЕГДА, а не только когда есть варианты.
+        # Раньше при пустом списке уходил старый служебный вид — и многовыборная карточка
+        # («можно взять несколько», вариантов намеренно ноль) теряла ЧЕСТНОЕ объяснение
+        # «кнопок нет, ответь номерами», получая вместо него «переведи статус в Nimbalyst».
+        # Запасной вид остаётся только на случай, когда подготовка вообще не удалась.
+        msg = prep.text
         keyboard = prep.keyboard
     except Exception as exc:  # noqa: BLE001 — красивый вид не важнее самого уведомления
         log.warning("notify_needs_owner: rich build failed for %s: %s", path, exc)

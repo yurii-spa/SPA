@@ -179,3 +179,24 @@ def test_notify_sends_with_html_parse_mode(tmp_path, monkeypatch):
     assert captured["parse_mode"] == "HTML"
     assert captured["msg"] == msg
     assert "Site push blocked" in captured["msg"]
+
+
+def test_multiselect_card_keeps_its_honest_explanation(tmp_path, monkeypatch):
+    """Карточка «можно взять несколько» вариантов НЕ отдаёт (одна кнопка исказила бы вопрос),
+    но объяснение обязано доехать.
+
+    Замер 08.08: такая карточка падала в старый служебный вид и вместо «кнопок нет, ответь
+    номерами» получала «переведи статус в Nimbalyst» — совет, который владельцу из телефона
+    не исполнить.
+    """
+    card = tmp_path / "own-multi.md"
+    card.write_text(
+        "---\ntrackerStatus:\n  type: owner-decision\ntitle: \"Многовыборная\"\n"
+        "status: needs-owner\n---\n\n## Что от тебя нужно\n\n"
+        "Выбери, как поступаем — можно взять несколько:\n\n"
+        "1. **Первый путь** — текст.\n2. **Второй путь** — текст.\n",
+        encoding="utf-8")
+    _install_fake_bot(monkeypatch, factory=lambda *a, **k: None)
+    msg = notify_needs_owner(card, dry_run=True)
+    assert "НЕСКОЛЬКО пунктов" in msg
+    assert "переведи карточку" not in msg
