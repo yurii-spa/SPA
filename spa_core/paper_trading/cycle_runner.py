@@ -64,7 +64,7 @@ import json
 import time
 import os
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 
@@ -674,40 +674,160 @@ CYCLE_LOCK_FILE = "daily_cycle.lock"
 
 # Цикл занимает минуты. Два часа — с большим запасом на медленный фид и на сон
 # хоста посреди прогона (2026-08-05 прогон растянулся с 03:30 до 08:43).
+#
+# ВНИМАНИЕ: с 2026-08-08 возраст — ЗАПАСНОЙ критерий, а не основной. Основной —
+# жив ли держатель (см. `_holder_state`).
 CYCLE_LOCK_STALE_SECONDS = 2 * 3600
+
+# Трёхзначная семантика живости — та же, что у замка очереди оркестратора
+# (ADR-070 п.9) и у `check_undelivered_work.session_state`. Одна семантика на
+# репозиторий: «не измерено» — это НЕ «мёртв» и НЕ «жив».
+_HOLDER_ALIVE = "alive"
+_HOLDER_DEAD = "dead"
+_HOLDER_UNKNOWN = "unknown"
+
+# Часы хоста и вывод `ps` могут разъехаться на секунды; допуск, чтобы не читать
+# собственный процесс как «стартовавший после замка».
+_LOCK_CLOCK_SKEW_SECONDS = 120
+
+
+def _ps_start(pid: int):
+    """(rc, время старта процесса строкой) по `ps`. Никогда не бросает.
+
+    rc: 0 — процесс есть, 1 — процесса нет, иное — измерить не смогли.
+    """
+    import subprocess  # stdlib; локальный импорт — модуль грузится в каждом агенте
+    try:
+        p = subprocess.run(["ps", "-p", str(pid), "-o", "lstart="],
+                           capture_output=True, text=True, timeout=10)
+    except Exception as exc:  # noqa: BLE001 — измерение не смеет валить цикл
+        log.warning("cycle lock: `ps -p %s` не отработал (%s)", pid, exc)
+        return 2, ""
+    return p.returncode, (p.stdout or "").strip()
+
+
+def _holder_state(path: Path):
+    """Жив ли держатель замка. Возвращает (состояние, объяснение словами).
+
+    Решение владельца 2026-08-08 (вариант 1 карточки
+    `owner-decision-zamok-dnevnogo-tsikla-ne-sprashivaet-zhi`): замок обязан
+    спрашивать про держателя, а не только про возраст файла.
+
+    Замеренная авария: 2026-08-08 03:34 UTC цикл взял замок и умер, не отпустив
+    (pid 99899 мёртв). За полтора часа цикл звали 20 раз и **18 раз он получил
+    отказ**, при том что держателя не было в живых, а его номер лежал В САМОМ
+    ФАЙЛЕ ЗАМКА. День трека спасли 26 минут запаса до планового прогона.
+    Пропущенный день не лечится (два таких висят навсегда).
+
+    Три состояния, а не два — намеренно. «Не измерено» не имеет права ни ломать
+    замок (тогда защита от одновременных циклов исчезает при первом же сбое
+    `ps`), ни блокировать навсегда (это класс «необратимое не-измерено», уже
+    стоивший очереди). При UNKNOWN решает прежнее правило возраста.
+    """
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8") or "{}")
+    except Exception:  # noqa: BLE001 — битый/пустой файл замка
+        return _HOLDER_UNKNOWN, "файл замка не разобран — живость держателя не измерена"
+    try:
+        pid = int(raw.get("pid"))
+    except (TypeError, ValueError):
+        return _HOLDER_UNKNOWN, "в файле замка нет номера процесса — живость не измерена"
+
+    rc, started = _ps_start(pid)
+    if rc == 1 or (rc == 0 and not started):
+        return _HOLDER_DEAD, f"процесса pid{pid} нет — держатель мёртв"
+    if rc != 0:
+        return _HOLDER_UNKNOWN, f"`ps -p {pid}` не отработал (rc={rc}) — живость не измерена"
+
+    # Процесс с таким номером есть. Но ОС переиспользует номера: держателем может
+    # оказаться совсем другой процесс, занявший освободившийся pid.
+    recorded = str(raw.get("pid_start") or "").strip()
+    if recorded:
+        if recorded != started:
+            return _HOLDER_DEAD, (f"pid{pid} занят ДРУГИМ процессом (старт {started!r} "
+                                  f"≠ записанный {recorded!r}) — держатель мёртв")
+        return _HOLDER_ALIVE, f"pid{pid} жив (старт совпал) — цикл действительно идёт"
+
+    # Замок старого формата (без времени старта): сверяем со временем взятия.
+    ts = raw.get("ts")
+    try:
+        taken = datetime.fromisoformat(str(ts))
+        if taken.tzinfo is None:
+            taken = taken.replace(tzinfo=timezone.utc)
+    except Exception:  # noqa: BLE001
+        return _HOLDER_UNKNOWN, "время взятия замка не разобрано — живость не измерена"
+    proc_started = _parse_ps_lstart(started)
+    if proc_started is None:
+        return _HOLDER_UNKNOWN, (f"pid{pid} существует, но время старта не разобрано "
+                                 f"({started!r}) — живость не измерена")
+    if proc_started > taken + timedelta(seconds=_LOCK_CLOCK_SKEW_SECONDS):
+        return _HOLDER_DEAD, (f"pid{pid} стартовал ПОСЛЕ взятия замка "
+                              f"({proc_started.isoformat()} > {taken.isoformat()}) — "
+                              "номер переиспользован, держатель мёртв")
+    return _HOLDER_ALIVE, f"pid{pid} жив — цикл действительно идёт"
+
+
+def _parse_ps_lstart(text: str):
+    """`ps -o lstart` → aware datetime (UTC), либо None. Никогда не бросает."""
+    for fmt in ("%a %b %d %H:%M:%S %Y", "%a %d %b %H:%M:%S %Y"):
+        try:
+            return datetime.strptime(text.strip(), fmt).astimezone(timezone.utc)
+        except (ValueError, TypeError):
+            continue
+    return None
 
 
 def _acquire_cycle_lock(data_dir: Path):
-    """Эксклюзивный замок цикла. ``None`` ⇒ другой цикл уже идёт.
+    """Эксклюзивный замок цикла. ``None`` ⇒ другой цикл ДЕЙСТВИТЕЛЬНО идёт.
 
-    Протухший замок (процесс умер, не сняв) снимается и берётся заново — иначе
-    одна смерть процесса заблокировала бы трек навсегда, а пропущенные дни мы
-    сегодня уже разбирали и восстановить их нечем.
+    Порядок проверки (решение владельца 2026-08-08, вариант 1):
+      1. **жив ли держатель** — основной критерий;
+      2. возраст файла — ЗАПАСНОЙ, только когда живость измерить не удалось.
 
     Ошибка самой машинерии замка (нет прав, файловая система) НЕ останавливает
     цикл: сторож, убивающий то, что охраняет, вреднее отсутствия сторожа. Такой
     случай логируется как WARNING и цикл идёт дальше.
     """
     path = Path(data_dir) / CYCLE_LOCK_FILE
-    for _ in range(2):
+    for _ in range(3):
         try:
             fd = os.open(str(path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            os.write(fd, json.dumps({"pid": os.getpid(),
-                                     "ts": datetime.now(timezone.utc).isoformat()}).encode())
+            _rc, _started = _ps_start(os.getpid())
+            os.write(fd, json.dumps({
+                "pid": os.getpid(),
+                # Время старта СВОЕГО процесса пишется рядом с номером, чтобы
+                # переиспользованный ОС pid не читался как живой держатель.
+                "pid_start": _started if _rc == 0 else "",
+                "ts": datetime.now(timezone.utc).isoformat(),
+            }).encode())
             return fd
         except FileExistsError:
-            try:
-                age = time.time() - path.stat().st_mtime
-            except OSError:
-                continue                      # замок исчез между проверками
-            if age > CYCLE_LOCK_STALE_SECONDS:
-                log.warning("cycle lock протух (%.0f мин) — снимаю и беру заново", age / 60.0)
+            state, why = _holder_state(path)
+            if state == _HOLDER_DEAD:
+                log.warning("cycle lock: %s — снимаю замок и беру заново", why)
                 try:
                     path.unlink()
                 except OSError:
                     pass
                 continue
-            return None                       # живой замок: другой цикл идёт
+            if state == _HOLDER_ALIVE:
+                log.info("cycle lock занят: %s", why)
+                return None
+            # UNKNOWN — живость не измерена: работает прежнее правило возраста.
+            try:
+                age = time.time() - path.stat().st_mtime
+            except OSError:
+                continue                      # замок исчез между проверками
+            if age > CYCLE_LOCK_STALE_SECONDS:
+                log.warning("cycle lock: %s; замок протух (%.0f мин) — снимаю и беру заново",
+                            why, age / 60.0)
+                try:
+                    path.unlink()
+                except OSError:
+                    pass
+                continue
+            log.info("cycle lock занят: %s; возраст %.0f мин — держу отказ", why, age / 60.0)
+            return None
         except OSError as exc:
             log.warning("cycle lock недоступен (%s) — цикл продолжается БЕЗ защиты", exc)
             return False                      # False ≠ None: «не проверено», не «занято»
