@@ -348,3 +348,31 @@ def test_an_unhealed_break_is_still_shouted():
     rep.actions += ["перезапуск ЗАБЛОКИРОВАН: сначала руками устранить — их два"]
     text = TH.alert_text(rep)
     assert "🚨" in text and "починил сам" not in text
+
+
+def test_the_push_title_agrees_with_the_body(monkeypatch):
+    """Замер 08.08 15:41: шапка кричала «🚨 сломан» НАД телом «починил сам».
+
+    Шапку ставит `push_policy`, тело — сторож; знать про самоизлечение обязаны ОБА, иначе
+    владелец видит противоречие в одном сообщении.
+    """
+    calls = []
+    monkeypatch.setattr("spa_core.telegram.push_policy.push_critical",
+                        lambda k, sev, title, body="", **kw: calls.append((title, body)) or True)
+    rep = TH.Report(status=TH.CRITICAL, checked_at="")
+    rep.add(TH.Finding("свежесть кода", TH.CRITICAL, "процесс старше кода"))
+    rep.actions += ["перезапущен", "починка подтверждена: маячок вернулся"]
+    TH.notify(rep)
+
+    (title, body) = calls[0]
+    assert "починил сам" in title
+    assert "сломан" not in title.replace("было сломано", "")
+    # тело не повторяет шапку
+    assert "🔧 <b>" not in body
+
+
+def test_body_has_no_duplicate_head_when_push_policy_supplies_one():
+    """Две шапки подряд — неряшливость на глазах у владельца, а не подробность."""
+    rep = TH.Report(status=TH.OK, checked_at="")
+    assert "Телеграм-бот работает" not in TH.alert_text(rep, with_head=False)
+    assert "Телеграм-бот работает" in TH.alert_text(rep)

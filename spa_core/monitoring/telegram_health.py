@@ -495,7 +495,7 @@ def healed_and_confirmed(report: Report) -> bool:
     return any(HEALED_MARK in a for a in report.actions)
 
 
-def alert_text(report: Report) -> str:
+def alert_text(report: Report, *, with_head: bool = True) -> str:
     """Человеческий текст тревоги. Строится ТОЛЬКО из измеренного.
 
     Самоизлечившийся инцидент НЕ подаётся как «🚨 сломан»: к моменту, когда владелец читает
@@ -505,7 +505,9 @@ def alert_text(report: Report) -> str:
     """
     head = ("🔧 <b>Телеграм-бот: было сломано, починил сам</b>"
             if healed_and_confirmed(report) else _HEAD_BY_STATUS[report.status])
-    lines = [head, ""]
+    # `with_head=False` — когда шапку ставит `push_policy`: две шапки подряд владелец
+    # читает как сбой оформления, а не как подробность.
+    lines = [head, ""] if with_head else []
     for f in report.findings:
         if f.status == OK:
             continue
@@ -549,14 +551,16 @@ def notify(report: Report, *, now: Optional[datetime] = None) -> bool:
             return bool(push_policy.resolve(
                 "telegram_down",
                 "Телеграм-бот снова работает",
-                alert_text(report),
+                alert_text(report, with_head=False),
                 now=now,
             ))
+        title = ("Телеграм-бот: было сломано, починил сам"
+                 if healed_and_confirmed(report) else "Телеграм-бот сломан")
         return bool(push_policy.push_critical(
             "telegram_down",
             report.status,
-            "Телеграм-бот сломан",
-            alert_text(report),
+            title,
+            alert_text(report, with_head=False),
             dedup_key=incident_fingerprint(report),
             now=now,
         ))
