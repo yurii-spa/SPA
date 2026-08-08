@@ -138,10 +138,24 @@ def load_json(path: Path) -> dict | list | None:
 
 # ─── Check 1: Gap check ──────────────────────────────────────────────────────
 
-def check_gaps(data_dir: Path = DATA) -> dict[str, Any]:
+def check_gaps(data_dir: Path = DATA, *, window_days: int = 7,
+               today: date | None = None) -> dict[str, Any]:
     """
     Читает gap_monitor.json и paper_evidence.json.
-    Проверяет: нет пробелов за последние 7 дней.
+    Проверяет: нет пробелов за последние `window_days` дней.
+
+    Окно — часть контракта, а не украшение. Раньше описание обещало «за последние
+    7 дней», а код проверял ВСЮ историю и падал на первой найденной дыре. Дыры
+    2026-06-21 → 2026-06-30 восстановить нечем (цикл умер, дорисовывать запрещено),
+    поэтому проверка не могла быть закрыта НИКАКИМ действием: вечный замок, который
+    каждую неделю рождал владельцу карточку.
+
+    Тот же класс, что решён владельцем в ADR-067 для гейта go-live: блокируют
+    АКТИВНЫЕ дыры, историческая остаётся видимой в отчёте. Здесь решение применено
+    ко второму потребителю — недельной проверке.
+
+    `today` инъектируется: иначе тест про окно начнёт падать просто оттого, что
+    сдвинулся календарь (`.claude/rules/deployment.md`).
     """
     result = {
         "name": "gap_check",
@@ -149,15 +163,33 @@ def check_gaps(data_dir: Path = DATA) -> dict[str, Any]:
         "days_tracked": 0,
         "gap_detected": False,
         "detail": "",
+        "historic_gaps": [],
     }
 
     # Читаем gap_monitor.json
     gm = load_json(data_dir / "gap_monitor.json")
     if gm is not None:
-        if gm.get("gap_detected", False):
+        # ADR-067: блокируют АКТИВНЫЕ дыры. `gap_detected` истинно и для
+        # исторических, восстановить которые нечем, — на нём проверка вставала
+        # намертво. Отсутствие поля `active_gaps` ⇒ старый производитель ⇒
+        # прежнее поведение (fail-CLOSED): неизвестное не считается чистым.
+        _active = gm.get("active_gaps")
+        _stale_producer = "active_gaps" not in gm
+        if _stale_producer and gm.get("gap_detected", False):
             result["status"] = "fail"
             result["gap_detected"] = True
-            result["detail"] = f"Gap detected: {gm.get('message', 'unknown')}"
+            result["detail"] = (
+                f"Gap detected (fail-CLOSED: производитель не пишет active_gaps): "
+                f"{gm.get('message', 'unknown')}")
+        elif _active:
+            result["status"] = "fail"
+            result["gap_detected"] = True
+            result["detail"] = f"Активная дыра в треке: {_active}"
+        elif not isinstance(_active, list) and not _stale_producer:
+            # Мусор в поле не должен читаться как «активных нет».
+            result["status"] = "fail"
+            result["gap_detected"] = True
+            result["detail"] = f"active_gaps испорчено ({_active!r}) — fail-CLOSED"
         else:
             hours = gm.get("hours_since_last_entry", 999)
             if hours > 26:  # допуск 26 часов (дневной цикл + буфер)
@@ -180,15 +212,28 @@ def check_gaps(data_dir: Path = DATA) -> dict[str, Any]:
             try:
                 sorted_days = sorted(days, key=lambda d: d.get("date", ""))
                 dates = [date.fromisoformat(d["date"]) for d in sorted_days if "date" in d]
+                _today = today or date.today()
+                _edge = _today - timedelta(days=window_days)
                 for i in range(1, len(dates)):
                     delta = (dates[i] - dates[i - 1]).days
-                    if delta > 1:
+                    if delta <= 1:
+                        continue
+                    span = f"{dates[i-1]} → {dates[i]} ({delta} days)"
+                    if dates[i] >= _edge:
+                        # Дыра внутри окна — восстановимая и потому блокирующая.
                         result["status"] = "fail"
                         result["gap_detected"] = True
-                        result["detail"] = (
-                            f"Gap in paper_evidence: {dates[i-1]} → {dates[i]} ({delta} days)"
-                        )
+                        result["detail"] = f"Gap in paper_evidence: {span}"
                         break
+                    # Старше окна: показываем, но не блокируем — восстановить нечем,
+                    # а вечный отказ перестаёт быть сигналом и становится шумом.
+                    result["historic_gaps"].append(span)
+                if result["status"] != "fail" and result["historic_gaps"]:
+                    hist = "; ".join(result["historic_gaps"])
+                    result["detail"] = (
+                        (result["detail"] + " · " if result["detail"] else "")
+                        + f"историческая дыра вне окна {window_days}д (не блокирует): {hist}"
+                    )
             except Exception as exc:
                 result["detail"] += f"; date parse error: {exc}"
     else:
