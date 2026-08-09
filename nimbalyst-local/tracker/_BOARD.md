@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **385** · ждёт владельца: **1** · занято сессиями: **3**.
+> Всего карточек: **386** · ждёт владельца: **1** · занято сессиями: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -116,7 +116,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (133)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (134)
 
 ### · in-progress
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
@@ -166,6 +166,7 @@
 - Находка петли: com.spa.swarm_dwell работает, но plist не персистентен (repo:launchd/c  ·  `inbox-nahodka-petli-com-spa-swarm-dwell-rabota.md` · 2026-08-05
 - Находка петли: data/agent_registry.json: возраст 477.2ч > SLO 26ч (класс agent_regist  ·  `inbox-nahodka-petli-data-agent-registry-json-v.md` · 2026-08-05
 - Находка петли: hit-rate аналитиков не вычислим: proof.jsonl хранит только хэши, содер  ·  `inbox-nahodka-petli-hit-rate-analitikov-ne-vyc.md` · 2026-08-05
+- Нечёткое совпадение отдаёт APY ЧУЖОГО актива: USDC.e ранжирует капитал как USDC — и платит БОЛЬШЕ настоящего  ·  `inbox-nechetkoe-sovpadenie-otdaet-apy-chuzhogo.md` · 2026-08-09
 - Номера ADR сталкиваются: два раза за день, у нумерации нет распределителя  ·  `inbox-nomera-adr-stalkivayutsya-dva-raza-za-de.md` · 2026-08-08
 - Обход owner-gate по трейлеру Owner-Approved не работал никогда: опечатка в имени аргумента, спрятанная слепым except  ·  `inbox-obhod-owner-gate-po-treileru-owner-appro.md` · 2026-08-07
 - Очередь теряет карточки: читать обе формы frontmatter + сторож (решение владельца 09.08)  ·  `inbox-ochered-teryaet-kartochki-chitat-obe-for.md` · 2026-08-09
@@ -237,8 +238,8 @@
 - Долгоживущие агенты не подхватывают доставленный код — и никто об этом не говорит  ·  `inbox-dolgozhivuschie-agenty-ne-podhvatyvayut.md` · 2026-08-08
 - Крупнейшая позиция книги стоит на константе: у aave_v3 (Ethereum, 40%) TVL «не измерено», а пул в фиде есть  ·  `inbox-krupneishaya-pozitsiya-knigi-stoit-na-ko.md` · 2026-08-09
 - Модуль #39: третьей рукой обязана быть ПРИЧИННАЯ статика, иначе через 30 дней форвард снова не отличит тайминг от недовеса  ·  `inbox-modul-39-tretei-rukoi-obyazana-byt-prich.md` · 2026-08-09
+- morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
 - Наблюдённый ноль подменяется литералом: stusd печатается 6.0% вместо замеренных 0.0%  ·  `inbox-nablyudennyi-nol-podmenyaetsya-literalom.md` · 2026-08-09
-- Нечёткое совпадение отдаёт APY ЧУЖОГО актива: USDC.e ранжирует капитал как USDC — и платит БОЛЬШЕ настоящего  ·  `inbox-nechetkoe-sovpadenie-otdaet-apy-chuzhogo.md` · 2026-08-09
 - Номер ADR-067 занят ДВУМЯ разными решениями — реестр показывает две строки  ·  `inbox-nomer-adr-067-zanyat-dvumya-raznymi-resh.md` · 2026-08-07
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08
 - Отказ замка цикла неотличим от аварии: last_exit=2 означает и 'защитил трек', и 'сломался'  ·  `inbox-otkaz-zamka-tsikla-neotlichim-ot-avarii.md` · 2026-08-08

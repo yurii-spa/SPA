@@ -49,6 +49,52 @@ DEFILLAMA_TIMEOUT = 5  # seconds
 # ── DeFiLlama project / symbol / chain lookup hints ─────────────────────────
 # Each value is (project_substring, symbol_substring, chain) — all
 # case-insensitive substring matches against the DeFiLlama pools response.
+# The asset each hint is allowed to resolve to, as a token ADDRESS.
+#
+# Why an address and not the symbol already in the hint: the hint matches symbol
+# by SUBSTRING, so a pool of a DIFFERENT asset on the same chain/project matches
+# too, and "best TVL wins" then hands its APY over as if it were ours. Measured
+# on the live feed 2026-08-09/10, the near-misses that a substring match accepts:
+#
+#   aave_v3      6f00d46b… "USDC" $64.8M @ 4.79%  underlying 0xD4fa…D23E — NOT Circle USDC
+#   morpho_blue  44d88566… "SYRUPUSDC" $78.8M     underlying 0x80ac…Cc0b — a different asset
+#   aave_arbitrum 7aab7b0f… "USDC" $0.15M @ 4.17% underlying 0xFF97…5CC8 — bridged USDC.e
+#   aave_v3_polygon 37b04faa… "USDC" $0.53M @ 3.18% underlying 0x2791…4174 — legacy USDC.e
+#   spark_susds  d3694b72… "SUSDS"                 underlying 0xa393…7fbD — the wrapper, not USDS
+#
+# Note the direction of the error: three of those pay MORE than the real pool.
+# The substitution does not look like a fault, it looks like luck — and today the
+# right pool wins only because it happens to be the largest. That is a property
+# of this week's numbers, not of the rule.
+#
+# APY is not merely cosmetic: the ranking, the office house_view, the reports and
+# the ADR-060 yield-improvement trigger all read ``live_apy``. A foreign asset may
+# not take fresh capital directly (the TVL gate keeps a hint at ``static``), but it
+# can move the decision about where capital is taken FROM.
+#
+# Keyed by (chain, symbol) of the hint itself rather than by adapter key, so a new
+# hint inherits the check instead of having to opt in — an opt-in guard is the
+# fail-OPEN shape where the next key added is silently unprotected. No entry for a
+# (chain, symbol) ⇒ the hint resolves to NOTHING and says why (fail-CLOSED,
+# ``.claude/rules/adapters.md``: no data ⇒ ``None``, never an invention).
+#
+# Every address below was read off the live feed, lower-cased: the feed itself is
+# inconsistent about case (yearn-v3 records report lower-case, aave-v3 mixed), so
+# comparison MUST be case-insensitive — a case-sensitive check would have refused
+# every yearn pool while looking like a working guard.
+_CANONICAL_UNDERLYING: dict[tuple[str, str], str] = {
+    # Native Circle USDC per chain — the four non-Ethereum entries are the same
+    # addresses the ADR-076.1 pins were verified against.
+    ("ethereum",   "USDC"): "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    ("base",       "USDC"): "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+    ("arbitrum",   "USDC"): "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+    ("op mainnet", "USDC"): "0x0b2c639c533813f4aa9d7837caf62653d097ff85",
+    ("polygon",    "USDC"): "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
+    # Sky USDS on Ethereum — the ``spark_susds`` hint. Its own near-miss is the
+    # SUSDS wrapper, whose symbol CONTAINS "USDS".
+    ("ethereum",   "USDS"): "0xdc035d45d973e3ec169d2276ddab16f1e407384f",
+}
+
 _DEFILLAMA_HINTS: dict[str, tuple[str, str, str]] = {
     "aave_v3":           ("aave-v3",     "USDC",   "Ethereum"),
     "compound_v3":       ("compound-v3", "USDC",   "Ethereum"),
@@ -393,6 +439,97 @@ def _lookup_pendle_pt(
     return best
 
 
+def _pool_underlying(pool: dict) -> Optional[str]:
+    """The single underlying token of *pool*, lower-cased — else ``None``.
+
+    ``None`` covers both "the record does not say" and "more than one token".
+    Multi-token exposure is a different instrument (an LP position, not the
+    single-asset lending pool every hint here models), so it is refused rather
+    than approximated by taking the first entry: ``CRVUSDCWBTCWETH`` lists USDC
+    first and is a three-asset Curve pool.
+    """
+    tokens = pool.get("underlyingTokens")
+    if not isinstance(tokens, (list, tuple)) or len(tokens) != 1:
+        return None
+    token = tokens[0]
+    if not isinstance(token, str) or not token.strip():
+        return None
+    return token.strip().lower()
+
+
+def _hint_pool(
+    adapter_key: str,
+    by_pcs: dict[tuple[str, str, str], list[dict]],
+) -> tuple[Optional[dict], Optional[str]]:
+    """Resolve *adapter_key* by fuzzy hint — return ``(pool, refusal_reason)``.
+
+    Exactly one of the two is set. The reason exists because a silent ``None`` is
+    indistinguishable from "the feed was empty", and the difference decides
+    whether anyone goes and looks.
+
+    The hint narrows on three strings (project / chain / symbol), all by
+    substring, and then takes the largest TVL. That is not an identity: the
+    symbol "USDC" matches ``SYRUPUSDC``, ``STEAKUSDC`` and bridged ``USDC.e``
+    alike, and whichever of them is biggest this week wins. So a fourth,
+    non-string condition is applied here — the pool's ``underlyingTokens`` must
+    be the one asset the hint is declared to mean (``_CANONICAL_UNDERLYING``).
+    The data was already sitting in every feed record; it simply was not read.
+
+    Fail-CLOSED in both of its branches: an undeclared (chain, symbol) refuses
+    the whole hint, and a declared one that nothing matches returns ``None``
+    rather than the nearest pool.
+    """
+    hints = _DEFILLAMA_HINTS.get(adapter_key)
+    if not hints:
+        return None, None
+    proj_hint, sym_hint, chain_hint = hints
+    proj_l = proj_hint.lower()
+    chain_l = chain_hint.lower()
+    sym_u = sym_hint.upper()
+
+    expected = _CANONICAL_UNDERLYING.get((chain_l, sym_u))
+    if expected is None:
+        # Not a gap to paper over: without a declared asset address the match
+        # rests on a substring, which is exactly the defect this guard exists for.
+        return None, (
+            f"no canonical underlying declared for ({chain_hint}, {sym_hint}) — "
+            f"hint refused rather than resolved by symbol substring"
+        )
+
+    candidates: list[dict] = []
+    for (proj, chain, sym), pool_list in by_pcs.items():
+        if proj_l not in proj and proj not in proj_l:
+            continue
+        if chain_l not in chain and chain not in chain_l:
+            continue
+        if sym_u not in sym and sym not in sym_u:
+            continue
+        candidates.extend(pool_list)
+
+    best: Optional[dict] = None
+    best_tvl = -1.0
+    rejected_foreign = 0
+    for cand in candidates:
+        if _valid_apy(cand) is None:
+            continue
+        if _pool_underlying(cand) != expected:
+            rejected_foreign += 1
+            continue
+        tvl = float(cand.get("tvlUsd", 0) or 0)
+        if tvl > best_tvl:
+            best_tvl = tvl
+            best = cand
+
+    if best is not None:
+        return best, None
+    if rejected_foreign:
+        return None, (
+            f"{rejected_foreign} pool(s) matched the hint strings but none carried "
+            f"underlying {expected} — a foreign asset is refused, not ranked"
+        )
+    return None, "no pool matched the hint"
+
+
 def _lookup_live_pool(
     adapter_key: str,
     by_id: dict[str, dict],
@@ -431,33 +568,8 @@ def _lookup_live_pool(
                 return pool, "pinned"
 
     # 2. Hint-based lookup
-    hints = _DEFILLAMA_HINTS.get(adapter_key)
-    if not hints:
-        return None
-    proj_hint, sym_hint, chain_hint = hints
-    proj_l = proj_hint.lower()
-    chain_l = chain_hint.lower()
-    sym_u = sym_hint.upper()
-
-    candidates: list[dict] = []
-    for (proj, chain, sym), pool_list in by_pcs.items():
-        if proj_l not in proj and proj not in proj_l:
-            continue
-        if chain_l not in chain and chain not in chain_l:
-            continue
-        if sym_u not in sym and sym not in sym_u:
-            continue
-        candidates.extend(pool_list)
-
-    best: Optional[dict] = None
-    best_tvl = -1.0
-    for cand in candidates:
-        tvl = float(cand.get("tvlUsd", 0) or 0)
-        if _valid_apy(cand) is not None and tvl > best_tvl:
-            best_tvl = tvl
-            best = cand
-
-    if best is not None and _valid_apy(best) is not None:
+    best, _reason = _hint_pool(adapter_key, by_pcs)
+    if best is not None:
         log.debug("DeFiLlama hint hit: %s", adapter_key)
         return best, "hint"
     return None
@@ -663,11 +775,17 @@ def generate(
         live_apy: Optional[float] = None
         live_pool: Optional[dict] = None
         match_kind: Optional[str] = None
+        match_refused: Optional[str] = None
         if pools:
             _match = _lookup_live_pool(key, by_id, by_pcs)
             if _match is not None:
                 live_pool, match_kind = _match
                 live_apy = _valid_apy(live_pool)
+            else:
+                # Say WHY nothing resolved. "Unobserved" and "refused because the
+                # only candidates were a different asset" are different facts, and
+                # a null alone reports them identically.
+                _, match_refused = _hint_pool(key, by_pcs)
             if live_apy is not None:
                 live_count += 1
 
@@ -719,6 +837,9 @@ def generate(
             "tvl_pool_id":      tvl_pool_id,
             # How the pool was resolved: "pinned" (UUID), "hint" (fuzzy), None.
             "pool_match":       match_kind,
+            # Why it resolved to nothing, when a hint existed and refused. None
+            # whenever a pool WAS matched, or when the key has no hint at all.
+            "pool_match_refused": match_refused,
             "tier":             tier_raw,
             "chain":            chain,
             "per_protocol_cap": per_cap,

@@ -104,14 +104,28 @@ _SAMPLE_REGISTRY: dict[str, Any] = {
     },
 }
 
+# Native Circle USDC, the asset every "USDC" fixture below is meant to BE.
+# Resolution checks identity by ``underlyingTokens``, not by the symbol string,
+# because a symbol matches by substring and SYRUPUSDC/USDC.e match it too.
+_USDC_ETHEREUM = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+_USDC_ARBITRUM = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
+
 _SAMPLE_POOLS: list[dict[str, Any]] = [
     {
-        "pool": "BEEF01735c132Ada46AA9aA4c54623cAA92A64CB",
+        # The ACTUAL pinned UUID for morpho_steakhouse. It used to read
+        # "BEEF01735c132Ada46AA9aA4c54623cAA92A64CB" — an Ethereum contract
+        # ADDRESS, not a DeFiLlama pool UUID, left over from the pin that was
+        # corrected on 2026-08-05. It never matched ``by_id``, so the two tests
+        # below named "exact UUID match" were in fact resolving through the fuzzy
+        # HINT and asserting a pin they never exercised. Corrected, not relaxed:
+        # both now exercise the path their names claim.
+        "pool": "931ea9be-5f4d-428e-beaf-205fc5b4e2b5",
         "project": "morpho",
         "chain": "Ethereum",
         "symbol": "USDC",
         "apy": 6.7,
         "tvlUsd": 850_000_000,
+        "underlyingTokens": [_USDC_ETHEREUM],
     },
     {
         "pool": "compound-eth-usdc-001",
@@ -120,6 +134,7 @@ _SAMPLE_POOLS: list[dict[str, Any]] = [
         "symbol": "USDC",
         "apy": 5.4,
         "tvlUsd": 3_200_000_000,
+        "underlyingTokens": [_USDC_ETHEREUM],
     },
     {
         "pool": "aave-arb-usdc-001",
@@ -128,6 +143,7 @@ _SAMPLE_POOLS: list[dict[str, Any]] = [
         "symbol": "USDC",
         "apy": 4.3,
         "tvlUsd": 1_250_000_000,
+        "underlyingTokens": [_USDC_ARBITRUM],
     },
     {
         "pool": "bad-pool-001",
@@ -136,6 +152,7 @@ _SAMPLE_POOLS: list[dict[str, Any]] = [
         "symbol": "USDC",
         "apy": -1.0,   # invalid
         "tvlUsd": 50_000_000,
+        "underlyingTokens": [_USDC_ETHEREUM],
     },
     {
         "pool": "crazy-pool",
@@ -144,6 +161,7 @@ _SAMPLE_POOLS: list[dict[str, Any]] = [
         "symbol": "USDC",
         "apy": 999.0,  # invalid (>200)
         "tvlUsd": 10_000,
+        "underlyingTokens": [_USDC_ETHEREUM],
     },
 ]
 
@@ -260,7 +278,7 @@ class TestGenerateWithLiveData(unittest.TestCase):
     @patch("spa_core.monitoring.adapter_status_generator._fetch_defillama",
            return_value=_SAMPLE_POOLS)
     def test_morpho_pool_uuid_exact_match(self, _mock: MagicMock) -> None:
-        """T06 — morpho_steakhouse uses exact pool UUID BEEF01… → 6.7%."""
+        """T06 — morpho_steakhouse uses its exact pinned pool UUID → 6.7%."""
         doc = generate(registry_path=self._reg)
         ms = doc["adapters"]["morpho_steakhouse"]
         self.assertAlmostEqual(ms["live_apy"], 6.7, places=1)
@@ -412,9 +430,14 @@ class TestBuildPoolIndexes(unittest.TestCase):
     """T17 — _build_pool_indexes() creates correct indexes."""
 
     def test_by_id_index(self) -> None:
-        """T17 — pool UUID index has correct entry."""
+        """T17 — pool UUID index has correct entry, keyed lower-case.
+
+        The id is read from the fixture rather than restated, so this test says
+        "the indexer keys by pool id" and cannot go stale the next time a fixture
+        UUID is corrected — which is exactly what happened to it.
+        """
         by_id, by_pcs = _build_pool_indexes(_SAMPLE_POOLS)
-        pid = "beef01735c132ada46aa9aa4c54623caa92a64cb"
+        pid = _SAMPLE_POOLS[0]["pool"].lower()
         self.assertIn(pid, by_id)
         self.assertAlmostEqual(by_id[pid]["apy"], 6.7)
 

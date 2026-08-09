@@ -202,16 +202,21 @@ class TestPinnedObservation(_GenBase):
                 self.assertEqual(row["tvl_pool_id"], pool["pool"])
 
     def test_a_near_miss_can_never_supply_gate_grade_tvl(self):
-        """Feed the decoys ALONE: the pins are gone, so the TVL must not be live.
+        """Feed the decoys ALONE: the pins are gone, so nothing may be observed.
 
         This is where the pin earns its keep. The decoys are the SAME project on
-        the SAME chain with a symbol that contains "USDC", so the fuzzy hint
-        still resolves them and still hands over an APY — 4.17% off a $146k
-        bridged USDC.e pool, 3.18% off a $532k legacy pool. That APY is labelled
-        ``pool_match: "hint"`` and only ranks (ADR-061 evidence gate guards it);
-        the number that faces the $5M floor stays ``static``, with no UUID to
-        pretend it was seen. If a hint match ever earned ``tvl_source: "live"``,
-        a $146k pool of a different asset would clear a policy gate.
+        the SAME chain with a symbol that contains "USDC", so the fuzzy hint used
+        to resolve them and hand over an APY — 4.17% off a $146k bridged USDC.e
+        pool, 3.18% off a $532k legacy pool.
+
+        Two independent conditions must hold, and both are asserted:
+
+        * the TVL facing the $5M floor stays ``static`` with no UUID, because only
+          a pin may be called observed (ADR-053/064);
+        * the APY is refused outright, because these pools are a DIFFERENT ASSET
+          (``test_feed_hint_asset_identity``). Until 2026-08-10 only the first
+          condition held: the decoys' yields were published and went on to rank
+          capital, and two of the three paid MORE than the pool they impersonated.
         """
         doc = self._generate([_ARBITRUM_BRIDGED, _POLYGON_LEGACY, _BASE_SYRUP])
         for key in ("aave_arbitrum", "aave_v3_polygon", "aave_v3_base"):
@@ -220,6 +225,9 @@ class TestPinnedObservation(_GenBase):
                 self.assertNotEqual(row["pool_match"], "pinned")
                 self.assertEqual(row["tvl_source"], "static")
                 self.assertIsNone(row["tvl_pool_id"])
+                # A foreign asset supplies no number at all — not even a ranking one.
+                self.assertIsNone(row["live_apy"])
+                self.assertIsNone(row["pool_match"])
 
     def test_pin_wins_even_when_a_decoy_is_bigger(self):
         """"Best TVL wins" must not survive next to a pin.
