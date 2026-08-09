@@ -180,3 +180,58 @@ def test_a_broken_lookup_creates_the_card_rather_than_swallowing_it(ssp, monkeyp
     monkeypatch.setattr(ssp.subprocess, "run", lambda *a, **k: None)
     ssp._route_to_owner_card(["a.astro"], {"violations": [{"file": "a", "rule": "r"}]}, "m")
     assert len(created) == 1
+
+
+# ── заголовок обязан РАЗЛИЧАТЬ два разных вопроса владельцу ──────────────────
+#
+# Замер 09.08 (карточка `inbox-statusy-kartochek-vladeltsa-perepisalis`): три карточки
+# owner-gate с дословно одинаковым заголовком — и живой вопрос владельцу закрылся сам,
+# пока ответ по такому же заголовку лежал в соседней карточке. Неотличимые заголовки
+# и есть условие ошибки; ниже — обе стороны, различие и НЕразличие.
+
+
+def _title(ssp, monkeypatch, files: list[str]) -> str:
+    captured = {}
+    monkeypatch.setattr("spa_core.owner_queue.queue.create_card",
+                        lambda **kw: captured.update(kw) or Path("/tmp/own-title-probe.md"))
+    monkeypatch.setattr(ssp.subprocess, "run", lambda *a, **k: None)
+    monkeypatch.setattr(ssp, "_open_card_with_fingerprint", lambda fp: None)
+    ssp._route_to_owner_card(
+        files,
+        {"violations": [{"klass": "E", "file": f, "rule": "honesty.token.removed",
+                         "matched_text": "RESEARCH"} for f in files]},
+        "правка",
+    )
+    assert captured, "генератор обязан был создать карточку"
+    return captured["title"]
+
+
+def test_two_different_blocked_files_get_different_titles(ssp, monkeypatch):
+    """Положительный контроль аварии 09.08: разные правки — различимые заголовки."""
+    one = _title(ssp, monkeypatch, ["landing/src/pages/packages.astro"])
+    two = _title(ssp, monkeypatch, ["landing/src/pages/dashboard.astro"])
+    assert one != two
+    assert "packages.astro" in one and "dashboard.astro" in two
+
+
+def test_the_same_blocked_file_keeps_the_same_title(ssp, monkeypatch):
+    """Различать надо ВОПРОСЫ, а не попытки: тот же файл — тот же заголовок.
+
+    Иначе дедуп `create_card` (заголовок+тело) перестанет работать и владелец снова
+    получит поток одинаковых уведомлений — авария, вылеченная 08.08.
+    """
+    assert (_title(ssp, monkeypatch, ["landing/src/pages/packages.astro"])
+            == _title(ssp, monkeypatch, ["landing/src/pages/packages.astro"]))
+
+
+def test_the_title_still_says_what_happened(ssp, monkeypatch):
+    """Имя файла добавлено, а не подменило суть: владелец видит, что это owner-gate."""
+    title = _title(ssp, monkeypatch, ["landing/src/pages/packages.astro"])
+    assert "owner-gated" in title and "решение" in title
+
+
+def test_many_blocked_files_are_counted_not_swallowed(ssp, monkeypatch):
+    """Правило «no silent caps»: остальные файлы названы числом, а не молчанием."""
+    title = _title(ssp, monkeypatch,
+                   ["landing/a.astro", "landing/b.astro", "landing/c.astro"])
+    assert "и ещё 2" in title

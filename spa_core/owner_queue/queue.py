@@ -28,6 +28,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
+from spa_core.owner_queue.status_audit import record_status_write
 from spa_core.utils.atomic import atomic_save_text
 
 # Repo-root-relative canonical location of the files-first queue.
@@ -285,6 +286,11 @@ def set_status(path: str | Path, new_status: str) -> None:
     if not fm_lines:
         raise ValueError(f"{p}: no frontmatter to update")
 
+    # Статус ДО записи — половина ответа на вопрос «кто закрыл вопрос владельца»;
+    # прочитать его после записи уже негде.
+    _old_status = _parse_frontmatter(fm_lines).get("status")
+    _old_status = str(_old_status).strip() if isinstance(_old_status, str) else None
+
     lines = text.splitlines(keepends=True)
     # Locate frontmatter bounds in the raw (keepends) line list.
     start = None
@@ -316,6 +322,10 @@ def set_status(path: str | Path, new_status: str) -> None:
         lines.insert(end, f"status: {new_status}\n")
 
     atomic_save_text("".join(lines), str(p))
+    # Кто перевёл карточку — в журнал. Импорт наверху, а не здесь: аудит держится
+    # на одной stdlib и кольца не создаёт, а «на всякий случай локальный» импорт —
+    # это молчаливая своя копия правила, за которую проект уже платил (#144).
+    record_status_write(p, old=_old_status, new=new_status, source="queue.set_status")
 
 
 def first_instruction_line(card: Card) -> str:

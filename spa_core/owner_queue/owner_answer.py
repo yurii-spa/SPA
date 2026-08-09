@@ -36,6 +36,7 @@ from spa_core.owner_queue.queue import (
     _parse_frontmatter,
     _split_frontmatter,
 )
+from spa_core.owner_queue.status_audit import record_status_write
 from spa_core.utils.atomic import atomic_save_text
 
 
@@ -114,6 +115,12 @@ def record_owner_answer(
     if not fm_lines:
         raise ValueError(f"{p}: no frontmatter to update")
 
+    # Статус ДО ответа: закрытие карточки владельцем — тоже запись `status:`, и в
+    # журнале переходов она обязана стоять рядом с остальными, иначе сторож назовёт
+    # законный ответ владельца неатрибутированным.
+    old_status = _parse_frontmatter(fm_lines).get("status")
+    old_status = str(old_status).strip() if isinstance(old_status, str) else None
+
     stamp = (now or datetime.now(timezone.utc)).isoformat()
 
     # Уже отвечено тем же вариантом — выходим, ничего не трогая.
@@ -151,6 +158,8 @@ def record_owner_answer(
     )
     out = "".join(lines).rstrip("\n") + body_addition
     atomic_save_text(out, str(p))
+    record_status_write(p, old=old_status, new=OWNER_ONLY_STATUS,
+                        source="owner_answer.record_owner_answer", now=now)
     return {"path": str(p), "choice": choice_num, "already": False, "answered_at": stamp}
 
 

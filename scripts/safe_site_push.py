@@ -99,6 +99,25 @@ def _rel(path: str) -> str:
         return str(path).replace("\\", "/")
 
 
+def _card_title(blocked: list[str]) -> str:
+    """Заголовок карточки, РАЗЛИЧАЮЩИЙ два разных вопроса владельцу.
+
+    Раньше заголовок был одной константой на все случаи. Цена этого замерена 09.08
+    (карточка `inbox-statusy-kartochek-vladeltsa-perepisalis`): три карточки owner-gate
+    с ДОСЛОВНО одинаковым заголовком, и живой вопрос владельцу закрылся сам, пока ответ
+    по такому же заголовку лежал в соседней. Неотличимые заголовки — это условие ошибки:
+    и человек в очереди, и любой сопоставитель обязаны видеть, о какой правке речь.
+
+    Различает файл, а не время: два вопроса про ОДНУ правку обязаны остаться одним
+    вопросом (дедуп `create_card` по заголовку+телу), иначе владелец снова получит
+    поток одинаковых уведомлений.
+    """
+    head = Path(blocked[0]).name if blocked else "правка"
+    more = f" и ещё {len(blocked) - 1}" if len(blocked) > 1 else ""
+    return (f"Сайт: {head}{more} — автономная правка задела owner-gated область, "
+            f"нужно решение")
+
+
 def _route_to_owner_card(site_files: list[str], report: dict, message: str) -> None:
     """Create a needs-owner card for the blocked change and notify (best-effort).
 
@@ -180,7 +199,7 @@ def _route_to_owner_card(site_files: list[str], report: dict, message: str) -> N
         # load_card would FileNotFoundError, silently dropping the owner notification.
         card_path = create_card(
             tracker_type="owner-decision",
-            title="Сайт: автономная правка задела owner-gated область — нужно решение",
+            title=_card_title(approves),
             body=body,
             source="orchestrator",
             # Запятая, а НЕ YAML-список: frontmatter-парсер очереди плоский и

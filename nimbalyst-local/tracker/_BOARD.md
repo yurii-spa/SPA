@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **384** · ждёт владельца: **1** · занято сессиями: **3**.
+> Всего карточек: **385** · ждёт владельца: **1** · занято сессиями: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -116,7 +116,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (132)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (133)
 
 ### · in-progress
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
@@ -181,6 +181,7 @@
 - Ряд дней offsite-бэкапа ключуется ЛОКАЛЬНОЙ датой, а читается по UTC — между 00 и 02 UTC серия рвётся  ·  `inbox-ryad-dnei-offsite-bekapa-klyuchuetsya-lo.md` · 2026-08-09
 - Шаг 0-офис печатает не то, что в файлах: вердикт house_view_gap мёртв (None вместо расхождений), house_view едет без возраста (19.4 ч)  ·  `inbox-shag-0-ofis-pechataet-ne-to-chto-v-faila.md` · 2026-08-09
 - Шаг 0a из worktree даёт 18 строк «не измерено» на пустом месте: 16 мёртвых регистраций рабочих деревьев  ·  `inbox-shag-0a-iz-worktree-daet-18-strok-ne-izm.md` · 2026-08-06
+- Статусы карточек владельца переписались сами: три карточки с одним заголовком, ответ уехал не в ту  ·  `inbox-statusy-kartochek-vladeltsa-perepisalis.md` · 2026-08-08
 - Сторож архитектуры кричит CRITICAL о четырёх агентах — и все четыре обвинения ложные: прод читает манифест, который доставка никогда не обновляет  ·  `inbox-storozh-arhitektury-krichit-critical-o-c.md` · 2026-08-08
 - Страж ADR-номеров ложно краснеет: не видит INDEX среди доставляемых файлов  ·  `inbox-strazh-adr-nomerov-lozhno-krasneet-ne-vi.md` · 2026-08-09
 - Страж перезаписи считает переименование заголовка потерей записи — и его список «что пропадёт» неполон  ·  `inbox-strazh-perezapisi-schitaet-pereimenovani.md` · 2026-08-07
@@ -246,7 +247,7 @@
 - Подготовить ADR: пересмотр лимита одной цепочки 90% (решение владельца — за ним)  ·  `inbox-podgotovit-adr-peresmotr-limita-odnoi-ts.md` · 2026-08-08
 - Прод-сторож архитектуры читает файл, который синхронизация не обновляет  ·  `inbox-prod-storozh-arhitektury-chitaet-fail-ko.md` · 2026-08-08
 - Сбалансированный трек: ноль профинансированных дней из 40 при 920 отработанных циклах  ·  `inbox-sbalansirovannyi-trek-nol-profinansirova.md` · 2026-08-08
-- Статусы карточек владельца переписались сами: три карточки с одним заголовком, ответ уехал не в ту  ·  `inbox-statusy-kartochek-vladeltsa-perepisalis.md` · 2026-08-08
+- Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
 - Сухой прогон уведомления (--check) пишет в живой реестр решений владельца  ·  `inbox-suhoi-progon-uvedomleniya-check-pishet-v.md` · 2026-08-09
 - Свести две реализации перезаполнения бюджета в одну (ADR-072 vs версия параллельной сессии)  ·  `inbox-svesti-dve-realizatsii-perezapolneniya-b.md` · 2026-08-08
 - Табличка честности: дать ей дорогу на сайт (решение владельца 09.08)  ·  `inbox-tablichka-chestnosti-dat-ei-dorogu-na-sa.md` · 2026-08-08
