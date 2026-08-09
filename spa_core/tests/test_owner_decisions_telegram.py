@@ -302,6 +302,46 @@ def test_tap_records_the_choice_end_to_end(tmp_path):
     assert rec["choice"] == "1"
 
 
+def test_tap_after_the_question_was_withdrawn_records_nothing(tmp_path):
+    """Цикл #172: мост научился закрывать ложную тревогу сам — значит появилась
+    кнопка под вопросом, которого больше нет. Нажатие через три дня НЕ смеет
+    записать «решение владельца» в закрытую карточку, и обязано это объяснить."""
+    card = _write_card(tmp_path)
+    state = tmp_path / "state.json"
+    prep = od.register_push(card, "t", CARD, now=NOW, state_path=state,
+                            beacon_path=_beacon(tmp_path))
+    assert od.mark_withdrawn(card, now=NOW, state_path=state) is True
+    res = od.record_choice(prep.pid, "1", OWNER, owner_chat_id=OWNER, now=NOW,
+                           state_path=state)
+    assert res == {"ok": False, "reason": "card_withdrawn", "card": str(card)}
+    assert "owner_choice" not in card.read_text(encoding="utf-8")
+    # Отказ — это ответ, а не молчание: у владельца должна быть внятная фраза.
+    assert "снят" in od.confirmation_text(res)
+
+
+def test_an_already_answered_question_cannot_be_withdrawn(tmp_path):
+    """Обратный контроль: ответ владельца сильнее авто-закрытия. Если решение
+    записано, снимать вопрос задним числом нельзя — это стёрло бы ответ."""
+    card = _write_card(tmp_path)
+    state = tmp_path / "state.json"
+    prep = od.register_push(card, "t", CARD, now=NOW, state_path=state,
+                            beacon_path=_beacon(tmp_path))
+    od.record_choice(prep.pid, "1", OWNER, owner_chat_id=OWNER, now=NOW, state_path=state)
+    assert od.mark_withdrawn(card, now=NOW, state_path=state) is False
+    assert od.find_push(prep.pid, state_path=state)["choice"] == "1"
+
+
+def test_withdrawal_message_says_the_question_is_gone_and_names_the_card(tmp_path):
+    """Текст отзыва: владелец должен понять, что отвечать не нужно, и на что именно."""
+    from spa_core.owner_queue.notify import notify_card_withdrawn
+
+    card = _write_card(tmp_path)
+    msg = notify_card_withdrawn(card, dry_run=True)   # dry_run: сети и записи нет
+    assert "Вопрос снят" in msg and "отвечать не нужно" in msg
+    assert "Деньги лежат в кэше" in msg
+    assert "нужно решение" not in msg
+
+
 def test_tap_on_an_option_that_was_never_offered_is_refused(tmp_path):
     """Кнопка «Вариант 7» из ниоткуда (подделанный callback) ничего не записывает."""
     card = _write_card(tmp_path)

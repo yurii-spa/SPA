@@ -10,7 +10,11 @@
   rate-limit   ≤ MAX_CARDS_PER_DAY карточек/сутки; излишек — в отчёт с
                пометкой deferred, ГРОМКО, не молча (правило «no silent caps»);
   авто-закрытие исчезнувшая находка закрывает свою карточку, но ТОЛЬКО если
-               карточка нетронута (status=new); взятую в работу не трогаем;
+               карточка НЕТРОНУТА: `new` для inbox, `needs-owner` без следа
+               владельца для owner-decision (цикл #172 — раньше правило знало
+               лишь `new`, и вопрос владельца не закрывался никогда); взятую
+               в работу не трогаем. Закрытие уведомлённой карточки уходит
+               владельцу ОТЗЫВОМ — снимать вопрос молча нельзя;
   эскалация    WARN→CRITICAL по тому же ключу = новая карточка needs-owner.
 
 Маршрутизация: CRITICAL → owner-decision (формат §2.4, 4 секции, по-русски)
@@ -40,6 +44,15 @@ REPORT_REL = os.path.join("data", "findings_bridge_report.json")
 REQUIRED_SIGHTINGS = 2
 MAX_CARDS_PER_DAY = 5
 SUBPROC_TIMEOUT = 60
+
+# След владельца во frontmatter (кнопки ADR-069). Есть хоть один ⇒ карточку
+# владелец уже видел и ответил — авто-закрытие к ней не применяется.
+OWNER_TRACE_FIELDS = ("owner_choice", "owner_answered_at", "owner_answered_by")
+
+# Статусы, в которых карточка моста считается ОТКРЫТОЙ (её находка — carded).
+# `needs-owner` здесь обязателен: без него потеря состояния приводила бы к
+# ДУБЛЮ вопроса владельцу — зеркало того же дефекта, что в авто-закрытии.
+OPEN_CARD_STATUSES = ("new", "in-progress", "needs-owner")
 
 
 # ── сбор находок из источников ───────────────────────────────────────────────
@@ -139,24 +152,83 @@ def notify_card(root: str, card_path: str) -> bool:
         return False
 
 
-def card_status(card_path: str) -> str | None:
+def _frontmatter(card_path: str) -> dict:
+    """Поля frontmatter карточки (только внутри ограды `---`, без вложенных блоков).
+
+    Читаем именно ограду, а не «первую строку с двоеточием»: тело карточки моста
+    заканчивается строкой `_finding_key: ...`, и наивный разбор принял бы её за поле.
+    """
+    fields: dict = {}
     try:
         with open(card_path, encoding="utf-8") as f:
+            if f.readline().strip() != "---":
+                return fields
             for line in f:
-                if line.startswith("status:"):
-                    return line.split(":", 1)[1].strip()
+                if line.strip() == "---":
+                    break
+                if line.startswith((" ", "\t", "-")):  # вложенный блок (trackerStatus)
+                    continue
+                if ":" in line:
+                    k, v = line.split(":", 1)
+                    fields[k.strip()] = v.strip().strip("`'\"")
     except Exception:
         pass
-    return None
+    return fields
+
+
+def card_status(card_path: str) -> str | None:
+    return _frontmatter(card_path).get("status")
+
+
+def card_is_untouched(card_path: str) -> bool:
+    """Карточку моста никто не брал ⇒ исчезнувшая находка вправе её закрыть.
+
+    Два типа карточек — два разных «нетронута», и знать надо ОБА (цикл #172):
+
+    * `inbox` рождается `new` — нетронута, пока `new`;
+    * `owner-decision` рождается `needs-owner` — то есть под старым правилом
+      («закрываем только `new`») CRITICAL-карточка не закрывалась НИКОГДА, хотя
+      её собственный текст обещает владельцу «мост закроет сам». Ложная тревога
+      оставалась вечным вопросом в очереди владельца.
+
+    След владельца во frontmatter (кнопки ADR-069: `owner_choice` /
+    `owner_answered_at` / `owner_answered_by`) = вопрос УЖЕ увидели и ответили —
+    такую не трогаем, как и любую взятую в работу (`in-progress`/`ingested`/
+    `owner-done`/`done`). Инвариант #14 не задет: закрытие идёт в `done`,
+    отвечать за владельца мост по-прежнему не смеет.
+    """
+    fm = _frontmatter(card_path)
+    status = fm.get("status")
+    if status == "new":
+        return True
+    if status == "needs-owner":
+        return not any(fm.get(k) for k in OWNER_TRACE_FIELDS)
+    return False
 
 
 def close_card(root: str, card_path: str) -> bool:
-    """Закрыть ТОЛЬКО нетронутую (new) карточку моста. Взятую в работу не трогаем."""
-    if card_status(card_path) != "new":
+    """Закрыть ТОЛЬКО нетронутую карточку моста. Взятую в работу не трогаем."""
+    if not card_is_untouched(card_path):
         return False
     try:
         return _queue(root, "set-status", card_path, "done").returncode == 0
     except Exception:
+        return False
+
+
+def retract_card(root: str, card_path: str) -> bool:
+    """Дописать владельцу, что вопрос снят: находка исчезла, тревога была ложной.
+
+    Молчаливое снятие вопроса, о котором владельцу УЖЕ написали, — отдельный дефект,
+    а не решение: в чате остаётся висеть «нужно решение», на которое нельзя ответить.
+    Заодно гасим кнопки этой карточки (ADR-069), чтобы нажатие через три дня не
+    записало «ответ владельца» в уже закрытую карточку.
+    """
+    try:
+        from spa_core.owner_queue.notify import notify_card_withdrawn
+        notify_card_withdrawn(card_path)
+        return True
+    except Exception:  # noqa: BLE001 — отзыв не смеет уронить мост
         return False
 
 
@@ -196,15 +268,25 @@ def _reconcile_with_tracker(root: str, st_findings: dict) -> int:
                         break
         except Exception:
             continue
-        if not fk or status not in ("new", "in-progress"):
+        if not fk or status not in OPEN_CARD_STATUSES:
             continue
         entry = st_findings.get(fk)
         if entry is None or (entry.get("status") != "carded"):
             now_iso = dt.datetime.now(dt.timezone.utc).isoformat()
             prev = entry or {}
+            # Тяжесть восстанавливаем ИЗ ТИПА карточки, а не из умолчания «WARN»:
+            # `needs-owner` рождает только CRITICAL, а запись с чужой тяжестью на
+            # следующем же прогоне сработала бы как эскалация WARN→CRITICAL и
+            # создала второй вопрос владельцу — тот самый дубль, от которого
+            # это восстановление и защищает.
+            owner_card = status == "needs-owner"
+            severity = "CRITICAL" if owner_card else prev.get("severity", "WARN")
             st_findings[fk] = {"first_seen": prev.get("first_seen", now_iso),
                                "seen_count": int(prev.get("seen_count", 0)),
-                               "severity": prev.get("severity", "WARN"),
+                               "severity": severity,
+                               # уведомление уже ушло вместе с рождением карточки —
+                               # значит и отзыв при закрытии обязан уйти
+                               "notified": bool(prev.get("notified", owner_card)),
                                "card": path, "status": "carded",
                                "carded_at": prev.get("carded_at", now_iso),
                                "recurrences": int(prev.get("recurrences", 0)),
@@ -237,7 +319,7 @@ def _deliver_touched(root: str, created: list, closed: list,
 
 def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
                create=create_card, close=close_card, notify=notify_card,
-               deliver=None) -> dict:
+               deliver=None, retract=retract_card) -> dict:
     now = now or dt.datetime.now(dt.timezone.utc)
     today = now.date().isoformat()
     state = _load_state(root)
@@ -249,6 +331,7 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
     created_today = int(daily.get(today, 0))
 
     created, deferred, closed, waiting, escalated = [], [], [], [], []
+    withdrawn: list[dict] = []
 
     for key, f in sorted(current.items()):
         entry = st_findings.get(key)
@@ -288,7 +371,10 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
             if esc:
                 escalated.append(key)
             if f["severity"] == "CRITICAL":
-                notify(root, path)
+                # Запоминаем сам ФАКТ уведомления: без него закрытие карточки
+                # оставит владельца с вопросом в чате, на который уже никто
+                # не ждёт ответа (см. retract_card).
+                entry["notified"] = bool(notify(root, path))
 
     for key in sorted(set(st_findings) - set(current)):
         entry = st_findings[key]
@@ -297,6 +383,10 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
                 entry["status"] = "closed"
                 entry["closed_at"] = now.isoformat()
                 closed.append({"key": key, "card": entry["card"]})
+                if entry.get("notified"):
+                    ok = bool(retract(root, entry["card"]))
+                    entry["withdrawn"] = ok
+                    withdrawn.append({"key": key, "card": entry["card"], "sent": ok})
             else:
                 entry["status"] = "resolved_untouched"  # взята в работу — решит человек
                 entry["resolved_at"] = now.isoformat()
@@ -312,6 +402,7 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
     report = {"generated_at": now.isoformat(), "adr": "ADR-066",
               "delivery": delivery,
               "created": created, "deferred": deferred, "closed": closed,
+              "withdrawn": withdrawn,
               "waiting_hysteresis": waiting, "escalated": escalated,
               "sources_unread": unread, "reconciled_from_tracker": reconciled,
               "open_cards": sum(1 for e in st_findings.values() if e.get("status") == "carded"),
@@ -383,6 +474,9 @@ def main(argv=None) -> int:
         print(f"  + [{c['severity']}] {os.path.basename(c['card'])}")
     for c in r["closed"]:
         print(f"  ✓ закрыта {os.path.basename(c['card'])}")
+    for c in r.get("withdrawn") or []:
+        mark = "отзыв отправлен" if c["sent"] else "⚠️ ОТЗЫВ НЕ УШЁЛ (вопрос висит в чате)"
+        print(f"  ↩︎ {os.path.basename(c['card'])}: {mark}")
     try:
         from spa_core.monitoring.card_delivery import render as render_delivery
         print("  " + render_delivery(r.get("delivery") or {}))

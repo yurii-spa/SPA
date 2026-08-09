@@ -633,6 +633,35 @@ def register_push(
     return prep
 
 
+def mark_withdrawn(
+    card_path: str | Path,
+    *,
+    now: Optional[datetime] = None,
+    state_path: Optional[str | Path] = None,
+) -> bool:
+    """Погасить кнопки карточки: вопрос снят, нажимать больше нечего (цикл #172).
+
+    Кнопка живёт в чате столько же, сколько сообщение, — то есть вечно. Без этой
+    отметки нажатие через три дня записало бы «ответ владельца» в карточку, которую
+    мост уже закрыл как ложную тревогу, и бот бодро ответил бы «записал». Отметку
+    ставим на журнальной записи, а не на карточке: карточка к этому моменту `done`,
+    и переписывать её ещё раз незачем.
+    """
+    p = Path(card_path)
+    path_obj = _state_path(state_path)
+    doc = _load(path_obj)
+    stamp = (now or datetime.now(timezone.utc)).isoformat()
+    hit = False
+    for rec in doc["pushes"]:
+        if rec.get("card") == str(p) or rec.get("card_id") == p.stem:
+            if not rec.get("choice"):  # ответ уже дан ⇒ вопрос не снимается
+                rec["withdrawn_at"] = stamp
+                hit = True
+    if hit:
+        _save(doc, path_obj)
+    return hit
+
+
 def record_choice(
     pid: str,
     choice: str,
@@ -658,6 +687,10 @@ def record_choice(
             break
     if rec is None:
         return {"ok": False, "reason": "unknown_card"}
+    if rec.get("withdrawn_at") and not rec.get("choice"):
+        # Вопрос сняли до нажатия (находка исчезла) — записывать «решение владельца»
+        # в закрытую карточку нельзя, но и молчать нельзя: ответ ниже это объясняет.
+        return {"ok": False, "reason": "card_withdrawn", "card": rec.get("card")}
 
     opt = None
     for o in rec.get("options") or []:
@@ -702,6 +735,8 @@ _REASON_RU: Dict[str, str] = {
                      "Открой актуальный список кнопкой ниже."),
     "unknown_option": "Такого варианта в этой карточке нет — ничего не записал.",
     "card_gone": "Карточка исчезла из трекера — ничего не записал.",
+    "card_withdrawn": ("Этот вопрос уже снят: находка исчезла сама, тревога оказалась "
+                       "ложной. Ничего не записал — отвечать не нужно."),
     "not_owner": "Это решение может принять только владелец — ничего не записал.",
     "write_failed": "Не смог записать решение. В карточке ничего не изменилось.",
 }

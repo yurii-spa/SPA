@@ -97,3 +97,53 @@ def notify_needs_owner(path: str | Path, *, dry_run: bool = False) -> str:
     except Exception as exc:  # noqa: BLE001 — notification must never crash the orchestrator
         log.warning("notify_needs_owner: send failed for %s: %s", path, exc)
     return msg
+
+
+WITHDRAWN_REASON = ("находка исчезла при следующем прогоне сторожа — "
+                    "тревога оказалась ложной")
+
+
+def build_withdrawn_message(card: Card, reason: str = WITHDRAWN_REASON) -> str:
+    try:
+        rel = str(card.path.resolve().relative_to(Path(__file__).resolve().parents[2]))
+    except Exception:
+        rel = card.path.name
+    return (
+        f"🟩 <b>Вопрос снят — отвечать не нужно</b>\n"
+        f"<b>{html.escape(card.title or card.id)}</b>\n"
+        f"➡️ {html.escape(reason)}\n"
+        f"📄 <code>{html.escape(rel)}</code>\n"
+        f"Карточка закрыта автоматически. Считаешь, что вопрос остался — верни ей статус."
+    )
+
+
+def notify_card_withdrawn(path: str | Path, *, reason: str = WITHDRAWN_REASON,
+                          dry_run: bool = False) -> str:
+    """Сообщить владельцу, что заданный ему вопрос отпал (цикл #172).
+
+    Пара к :func:`notify_needs_owner`. Без неё авто-закрытие карточки означало бы,
+    что в чате навсегда висит «нужно решение» по вопросу, которого больше нет:
+    владелец видит требование, а карточка за ним уже `done`. Снять вопрос молча —
+    отдельный дефект, а не экономия сообщения.
+
+    Заодно гасим кнопки этой карточки: нажатие по старому сообщению не должно
+    записывать «ответ владельца» в закрытую карточку (см. ``owner_decisions``).
+    """
+    card = load_card(path)
+    msg = build_withdrawn_message(card, reason)
+    if dry_run:
+        return msg
+    try:
+        from spa_core.telegram import owner_decisions
+
+        owner_decisions.mark_withdrawn(card.path)
+    except Exception as exc:  # noqa: BLE001 — кнопки важны, но отзыв важнее
+        log.warning("notify_card_withdrawn: mark_withdrawn failed for %s: %s", path, exc)
+    try:
+        from spa_core.telegram.bot import TelegramBot
+
+        if not TelegramBot().send_message(msg, parse_mode="HTML"):
+            log.warning("notify_card_withdrawn: send returned falsy for %s", path)
+    except Exception as exc:  # noqa: BLE001 — уведомление не роняет оркестратор
+        log.warning("notify_card_withdrawn: send failed for %s: %s", path, exc)
+    return msg
