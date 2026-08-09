@@ -336,6 +336,46 @@ def _alert(report):
           file=sys.stderr)
 
 
+def _deploy_snapshot(message: str, what: str) -> bool:
+    """Отправить снимок и ЧЕСТНО сказать, уехал он или нет.
+
+    Дефект, измеренный 09.08: обе ветки ниже звали пушер и НЕ читали код возврата,
+    а затем печатали «+ pushed» безусловно. Пуш упирался в стража перезаписи,
+    возвращал отказ — и отказ не читал никто. На публичном сайте оставалось 5.2 %
+    там, где живой расчёт давал 4.83 %, а у нас на диске лежало `degraded: true`,
+    то есть система считала сайт уже помеченным.
+
+    Это ровно тот класс, который проект закрывает годами: сторож честно отвечает на
+    свой вопрос («я записал флаг»), а читают его как ответ на нужный («табличка на
+    сайте»). Лечится не эскалацией, а тем, что провал перестаёт быть тихим.
+
+    Возвращает True только при коде 0. Ничего не решает про owner-gate — пропуск
+    таблички через гейт остаётся решением владельца.
+    """
+    try:
+        rc = subprocess.run(
+            [sys.executable, str(_ROOT / "push_to_github_batch.py"),
+             "--files", str(_SNAP), "--message", message],
+            timeout=180).returncode
+    except Exception as e:  # noqa: BLE001
+        print(f"site_freshness_monitor: КРИТИЧНО — {what}: пушер не запустился ({e})",
+              file=sys.stderr)
+        return False
+    if rc != 0:
+        print(f"site_freshness_monitor: КРИТИЧНО — {what}: доставка ОТКАЗАНА (код {rc}). "
+              f"Локальный снимок изменён, публичный сайт — НЕТ. Правило честности "
+              f"не исполнено.", file=sys.stderr)
+        try:
+            _alert({"severity": "FAIL", "failures": [{
+                "code": "HONESTY_PLAQUE_UNDELIVERED",
+                "detail": f"{what}: push rc={rc} — сайт не обновлён, расхождение остаётся видимым публично",
+            }]})
+        except Exception:  # noqa: BLE001
+            pass
+        return False
+    return True
+
+
 def _apply_degrade():
     """Kill-rule: flip the snapshot to degraded:true + deploy it (refusal-first showcase)."""
     try:
@@ -344,10 +384,11 @@ def _apply_degrade():
             return
         snap["degraded"] = True
         _atomic_write(_SNAP, snap)
-        subprocess.run([sys.executable, str(_ROOT / "push_to_github_batch.py"), "--files", str(_SNAP),
-                        "--message", "chore(site-custodian): KILL-RULE degrade site (stale/overstated metric)"],
-                       timeout=180)
-        print("site_freshness_monitor: DEGRADED flag set + pushed")
+        ok = _deploy_snapshot(
+            "chore(site-custodian): KILL-RULE degrade site (stale/overstated metric)",
+            "постановка таблички честности")
+        print(f"site_freshness_monitor: DEGRADED flag set + "
+              f"{'pushed' if ok else 'НЕ ДОСТАВЛЕНО'}")
     except Exception as e:
         print(f"site_freshness_monitor: degrade apply failed ({e})", file=sys.stderr)
 
@@ -360,10 +401,11 @@ def _clear_degrade():
             return
         snap["degraded"] = False
         _atomic_write(_SNAP, snap)
-        subprocess.run([sys.executable, str(_ROOT / "push_to_github_batch.py"), "--files", str(_SNAP),
-                        "--message", "chore(site-custodian): recover — checks pass, lift degraded plaque"],
-                       timeout=180)
-        print("site_freshness_monitor: recovered — degraded cleared + pushed")
+        ok = _deploy_snapshot(
+            "chore(site-custodian): recover — checks pass, lift degraded plaque",
+            "снятие таблички честности")
+        print(f"site_freshness_monitor: recovered — degraded cleared + "
+              f"{'pushed' if ok else 'НЕ ДОСТАВЛЕНО'}")
     except Exception as e:
         print(f"site_freshness_monitor: clear-degrade failed ({e})", file=sys.stderr)
 
