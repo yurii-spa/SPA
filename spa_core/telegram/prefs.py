@@ -20,6 +20,8 @@ Shape::
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 import time
 from pathlib import Path
 from typing import Any, Dict
@@ -28,6 +30,53 @@ from spa_core.utils.atomic import atomic_save
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 PREFS_FILE = BASE_DIR / "data" / "telegram" / "user_prefs.json"
+
+#: Куда уходят записи под pytest, когда путь не задан явно (см. :func:`_prefs_path`).
+PYTEST_PREFS_FILE = Path(tempfile.gettempdir()) / "spa_telegram_prefs_pytest.json"
+
+#: Аварийный выход: тест, которому нужен ИМЕННО живой путь по умолчанию, ставит эту
+#: переменную окружения. По умолчанию — нет: умолчание обязано быть безопасным.
+LIVE_ENV_FLAG = "SPA_TELEGRAM_PREFS_LIVE"
+
+
+def _live_path() -> Path:
+    """Живой путь по умолчанию, вычисляемый ИЗ ``BASE_DIR`` (а не из константы).
+
+    Так подмена ``BASE_DIR`` в тесте остаётся «умолчанием этого дерева», а не читается
+    как осознанное перенаправление — иначе тест, воспроизводящий аварию, невозможно
+    отличить от теста, который сам себе задал путь.
+    """
+    return BASE_DIR / "data" / "telegram" / "user_prefs.json"
+
+
+def _prefs_path(override: Path = None) -> Path:
+    """Файл настроек. Под pytest — ВСЕГДА временный, если путь не задан явно.
+
+    Урок инцидента «тесты пишут в живое состояние» (тот же, из-за которого
+    :func:`spa_core.telegram.alert_actions._state_path` уводит журнал в tempdir):
+    в живом ``data/telegram/user_prefs.json`` 26.06 осели chat_id ``424242`` и
+    ``999999`` — константы ``OWNER`` и ``STRANGER`` из тест-файлов, причём у одного
+    из них проставлен ``mute_until``, то есть прогон тестов ЗАГЛУШИЛ чат в живых
+    настройках. Раньше это ловилось только тем, что автор теста вспомнит про
+    подмену пути; теперь безопасен сам модуль.
+
+    Порядок разрешения:
+
+    1. явный ``override`` — сильнее всего (аргумент ``path=`` у всех функций);
+    2. ``PREFS_FILE``, отличающийся от умолчания дерева, — осознанное
+       перенаправление (``monkeypatch.setattr(prefs, "PREFS_FILE", …)``), уважается;
+    3. под pytest — ``PYTEST_PREFS_FILE`` (кроме случая, когда выставлен
+       :data:`LIVE_ENV_FLAG`);
+    4. иначе — живой путь.
+    """
+    if override is not None:
+        return Path(override)
+    live = _live_path()
+    if Path(PREFS_FILE) != live:
+        return Path(PREFS_FILE)
+    if os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get(LIVE_ENV_FLAG):
+        return PYTEST_PREFS_FILE
+    return live
 
 # Язык по умолчанию — РУССКИЙ. У бота один адресат, и он русскоязычный (директива владельца
 # «писать мне в чат простым языком»). Английское умолчание было не нейтральным выбором, а
@@ -44,7 +93,7 @@ DEFAULTS: Dict[str, Any] = {
 
 def _read_all(path: Path = None) -> Dict[str, Any]:
     """Read the whole prefs map. Returns {} on any error (fail-closed)."""
-    path = path or PREFS_FILE  # resolve at call time (monkeypatch-friendly)
+    path = _prefs_path(path)  # resolve at call time (monkeypatch-friendly)
     try:
         if not path.exists():
             return {}
@@ -79,7 +128,7 @@ def set_pref(chat_id: str, key: str, value: Any, path: Path = None) -> Dict[str,
 
     Returns the updated merged prefs for that chat. Never raises.
     """
-    path = path or PREFS_FILE  # resolve at call time (monkeypatch-friendly)
+    path = _prefs_path(path)  # resolve at call time (monkeypatch-friendly)
     if key not in DEFAULTS:
         return get_prefs(chat_id, path)
     allp = _read_all(path)

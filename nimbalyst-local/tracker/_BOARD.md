@@ -182,6 +182,7 @@ _Пусто — открытых решений на владельце нет._
 - Доделать ВНУТРИ дашборда — полный DeBank-вид на широкую сетку (preview)  ·  `inbox-task-dashboard-debank-inside.md` · 2026-07-15
 - Сделать названия/ID карточек человекочитаемыми (убрать нечитаемые цифры-буквы)  ·  `inbox-task-readable-card-ids.md` · 2026-07-15
 - Команда /status в Telegram-боте — сводка системы простым языком  ·  `inbox-task-status-command.md` · 2026-07-15
+- Тестовые chat_id попали в живые настройки Телеграм-бота  ·  `inbox-testovye-chat-id-popali-v-zhivye-nastroi.md` · 2026-08-08
 - Tier-B: 19 модулей числятся работающими, но различают протоколы побочными полями — предметных данных у них нет  ·  `inbox-tier-b-19-modulei-chislyatsya-rabotayusc.md` · 2026-08-06
 - Tier-C аналитики (180 модулей) остался протокол-слепым: фаза 2 чинила только A и B  ·  `inbox-tier-c-analitiki-180-modulei-ostalsya-pr.md` · 2026-08-06
 - Вердикт WIRABLE подделываем: 22 из 23 «пригодных» модулей читают РОВНО ОДИН ключ  ·  `inbox-verdikt-wirable-poddelyvaem-22-iz-23-pri.md` · 2026-08-06
@@ -245,7 +246,6 @@ _Пусто — открытых решений на владельце нет._
 - Свести две реализации перезаполнения бюджета в одну (ADR-072 vs версия параллельной сессии)  ·  `inbox-svesti-dve-realizatsii-perezapolneniya-b.md` · 2026-08-08
 - Табличка честности: дать ей дорогу на сайт (решение владельца 09.08)  ·  `inbox-tablichka-chestnosti-dat-ei-dorogu-na-sa.md` · 2026-08-08
 - Тест GSM Sky приколочен к до-ADR-065 состоянию  ·  `inbox-test-gsm-sky-prikolochen-k-do-adr-065-so.md` · 2026-08-07
-- Тестовые chat_id попали в живые настройки Телеграм-бота  ·  `inbox-testovye-chat-id-popali-v-zhivye-nastroi.md` · 2026-08-08
 - Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md` · 2026-08-06 · 🔒 `cycle-87477`
 - Замер обмена «доходность ↔ концентрация» на T2 (20/25/30%) — решение владельца A, задачи не было  ·  `inbox-zamer-obmena-dohodnost-kontsentratsiya-n.md` · 2026-08-08
 - Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07 · 🔒 `cycle-81141`
