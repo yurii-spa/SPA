@@ -19,19 +19,31 @@ def _dt(day=17):
 
 
 def _ranking(tmp_path):
+    # ФИКСТУРА обновлена (цикл #174, карточка ADR-076.2): у строк появилось поле
+    # `apy_source` — провенанс числа. Ни одно УТВЕРЖДЕНИЕ этих тестов не тронуто:
+    # порядок, тир-фильтр, метки доказанности, счётчик T3 проверяются дословно как
+    # раньше. Изменена только фикстура, и в честную сторону: она называет себя
+    # «живым рейтингом», а с 09.08 это надо заявить полем, а не подразумевать —
+    # иначе строка неотличима от литерала `fallback_apy` (ровно так офис
+    # публиковал aerodrome 8.5 % как наблюдение). Отказ потребителя от строк без
+    # провенанса закреплён отдельно: test_office_opportunities_are_observations.py.
     p = tmp_path / "apy_ranking.json"
     p.write_text(json.dumps({
         "generated_at": "2026-07-16T07:43:58Z",
         "count": 4,
         "by_risk_adjusted": [
             {"protocol": "aave_usdc", "tier": "T1", "apy_pct": 4.2, "risk_adjusted_apy": 3.9,
-             "network": "ethereum", "tvl_usd": 5e8, "risk_score": 0.2, "last_updated": "2026-07-16T07:00:00Z"},
+             "network": "ethereum", "tvl_usd": 5e8, "risk_score": 0.2, "last_updated": "2026-07-16T07:00:00Z",
+             "apy_source": "live", "observed_apy_pct": 4.2, "tvl_source": "live"},
             {"protocol": "morpho_usdc", "tier": "T2", "apy_pct": 6.1, "risk_adjusted_apy": 4.5,
-             "network": "base", "tvl_usd": 1e8, "risk_score": 0.4, "last_updated": "2026-07-16T07:00:00Z"},
+             "network": "base", "tvl_usd": 1e8, "risk_score": 0.4, "last_updated": "2026-07-16T07:00:00Z",
+             "apy_source": "live", "observed_apy_pct": 6.1, "tvl_source": "live"},
             {"protocol": "pendle_yt_susde", "tier": "T3", "apy_pct": 14.0, "risk_adjusted_apy": 7.0,
-             "network": "ethereum", "tvl_usd": 0.0, "risk_score": 0.9, "last_updated": "2026-07-16T07:00:00Z"},
+             "network": "ethereum", "tvl_usd": 0.0, "risk_score": 0.9, "last_updated": "2026-07-16T07:00:00Z",
+             "apy_source": "live", "observed_apy_pct": 14.0, "tvl_source": "static"},
             {"protocol": "sky_susds", "tier": "T2", "apy_pct": 5.0, "risk_adjusted_apy": 4.0,
-             "network": "ethereum", "tvl_usd": 2e8, "risk_score": 0.5, "last_updated": "2026-07-16T07:00:00Z"},
+             "network": "ethereum", "tvl_usd": 2e8, "risk_score": 0.5, "last_updated": "2026-07-16T07:00:00Z",
+             "apy_source": "live", "observed_apy_pct": 5.0, "tvl_source": "live"},
         ],
     }), encoding="utf-8")
     return p

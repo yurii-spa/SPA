@@ -58,6 +58,31 @@ _TIER_RISK_SCORE: dict[str, float] = {
 # когда TVL известен в снимке.
 MIN_TVL_USD: float = 100_000_000.0
 
+# ---------------------------------------------------------------------------
+# Провенанс APY (ADR-063 / карточка ADR-076.2)
+# ---------------------------------------------------------------------------
+#
+# Рейтинг ЧИТАЮТ как список наблюдений: офис (`investment_os`) печатает верхние
+# строки как «возможности» с меткой доказанности L3/L4 и источником
+# «live cycle · DeFiLlama-derived». Но число в строке собиралось цепочкой
+# ``apy or fallback_apy or 0.0`` — ровно то, что `status_reader` документирует
+# как невозможное к различению: при ``live_apy: null`` поле ``apy`` лишь
+# повторяет литерал ``fallback_apy``. Замер 2026-08-09: все ТРИ верхние
+# «возможности» офиса были литералами (aerodrome 8.5 %, pendle 8.0 %,
+# pendle-pt 8.0 %), а 22 адаптера с настоящими наблюдениями стояли ниже.
+#
+# Значение ``apy_pct`` эти метки НЕ меняют (его читают paper-книги и отчёты —
+# смена значения была бы другой задачей с другими последствиями). Они отвечают
+# на отдельный вопрос: «откуда это число», — чтобы потребитель, которому нужно
+# наблюдение, мог сам отказаться от литерала, а не принимать его за замер.
+APY_SOURCE_LIVE = "live"                    # напечатанное число И ЕСТЬ наблюдение
+APY_SOURCE_FALLBACK = "fallback"            # наблюдения нет вовсе — число литеральное
+APY_SOURCE_FALLBACK_OVER_OBSERVED = "fallback_over_observed"  # наблюдение ЕСТЬ, а напечатан литерал
+APY_SOURCE_UNCHECKED = "unchecked"          # провенанс на этом слое не измерить (fail-CLOSED)
+
+# Что считается наблюдением для потребителя, которому нужен именно замер.
+OBSERVED_APY_SOURCES = frozenset({APY_SOURCE_LIVE})
+
 
 # ---------------------------------------------------------------------------
 # Вспомогательные функции (приватные)
@@ -116,6 +141,36 @@ def _risk_weight(tier: str) -> float:
     return RISK_WEIGHTS.get(tier, RISK_WEIGHTS["T3"])
 
 
+def _apy_provenance(entry: dict, printed_apy_pct: float) -> tuple[str, Optional[float]]:
+    """Откуда взялось напечатанное ``printed_apy_pct`` в строке v2-секции.
+
+    Возвращает ``(метка, наблюдённое_значение_или_None)``. Определение
+    наблюдения — одно на всю систему (`status_reader.observed_apy_pct_from_block`,
+    ADR-063): ``live_apy`` и только он.
+
+    Три исхода, и третий — не теория:
+      * наблюдения нет                     → ``fallback`` (число литеральное);
+      * напечатано ровно наблюдённое       → ``live``;
+      * наблюдение есть, напечатан литерал → ``fallback_over_observed``.
+
+    Третий случай даёт цепочка ``apy or fallback_apy``: наблюдённый **ноль**
+    ложен в булевом смысле, поэтому ``or`` проглатывает его и подставляет
+    литерал. Замер 2026-08-09: ``stusd`` и ``wusdm`` наблюдены по 0.0 %, а в
+    рейтинге стоят 6.0 % и 5.0 % — свои ``fallback_apy``, выше настоящих 4.83 %
+    у maple. Значение здесь НЕ исправляется (его читают paper-книги, это отдельная
+    задача — карточка `inbox-nablyudennyi-nol-podmenyaetsya-literalom`), но
+    молчать о подмене нельзя: она называется меткой и наблюдённым значением рядом.
+    """
+    from spa_core.adapters.status_reader import observed_apy_pct_from_block
+
+    observed = observed_apy_pct_from_block(entry)
+    if observed is None:
+        return APY_SOURCE_FALLBACK, None
+    if abs(float(printed_apy_pct) - float(observed)) <= 1e-9:
+        return APY_SOURCE_LIVE, observed
+    return APY_SOURCE_FALLBACK_OVER_OBSERVED, observed
+
+
 # ---------------------------------------------------------------------------
 # AdapterSnapshot — нормализованный снимок одного адаптера
 # ---------------------------------------------------------------------------
@@ -132,6 +187,16 @@ class AdapterSnapshot:
         tvl_usd       — TVL в USD (0.0 если неизвестно)
         last_updated  — ISO-строка времени обновления данных
         risk_score    — числовой балл риска (меньше = безопаснее)
+        apy_source    — откуда взялось apy_pct: live / fallback /
+                        fallback_over_observed / unchecked (см. константы выше)
+        observed_apy_pct — наблюдённый APY, если наблюдение было (иначе None);
+                        рядом с fallback_over_observed показывает подмену
+        tvl_source    — откуда взялся tvl_usd: «live» / «static» / «unknown»
+
+    Три последних поля ДОБАВЛЕНЫ (значения по умолчанию), ничего не заменяют:
+    старые конструкторы на семь позиционных аргументов работают как раньше.
+    По умолчанию — ``unchecked``, а не ``live``: неизмеренный провенанс не должен
+    выглядеть как наблюдение (fail-CLOSED).
     """
 
     protocol: str
@@ -141,6 +206,9 @@ class AdapterSnapshot:
     tvl_usd: float
     last_updated: str
     risk_score: float
+    apy_source: str = APY_SOURCE_UNCHECKED
+    observed_apy_pct: Optional[float] = None
+    tvl_source: str = "unknown"
 
 
 # ---------------------------------------------------------------------------
@@ -226,6 +294,7 @@ class APYAggregator:
                 chain_v2: str = str(entry.get("chain", "ethereum"))
                 tvl_v2: float = float(entry.get("tvl_usd", 0.0) or 0.0)
                 updated_v2: str = str(entry.get("last_updated", generated_at))
+                apy_src_v2, observed_v2 = _apy_provenance(entry, apy_pct_v2)
                 if proto_key not in seen_protocols:
                     snap = AdapterSnapshot(
                         protocol=proto_key,
@@ -235,6 +304,9 @@ class APYAggregator:
                         tvl_usd=tvl_v2,
                         last_updated=updated_v2,
                         risk_score=_TIER_RISK_SCORE.get(tier_str, 1.0),
+                        apy_source=apy_src_v2,
+                        observed_apy_pct=observed_v2,
+                        tvl_source=str(entry.get("tvl_source") or "unknown"),
                     )
                     snapshots.append(snap)
                     seen_protocols.add(proto_key)
@@ -264,9 +336,22 @@ class APYAggregator:
                     tvl_usd=0.0,  # TVL не хранится в этой секции
                     last_updated=generated_at,
                     risk_score=_TIER_RISK_SCORE.get(tier, 1.0),
+                    # секция mock_apy — таблица констант по построению, не замер
+                    apy_source=APY_SOURCE_FALLBACK,
                 )
                 snapshots.append(snap)
                 seen_protocols.add(protocol_key)
+
+        # ── Провенанс верхнеуровневых (legacy) блоков ─────────────────────
+        # У блоков 2–4 нет поля ``live_apy``: различить в них замер и литерал на
+        # этом слое НЕЧЕМ. `status_reader` разрешает читать их ``apy`` как замер
+        # ТОЛЬКО когда современной секции для протокола нет — а здесь она есть
+        # (`morpho_steakhouse`, `aave_arbitrum`, `pendle_pt` лежат и в ``adapters``,
+        # просто под другим написанием ключа, поэтому дедуп их и не схлопывает).
+        # Честный ответ — «не измерено», а не «наблюдение»: строка `pendle-pt`
+        # с её ``float(pendle.get("apy", 8.0))`` уезжала в возможности офиса как
+        # живой замер. Значение строки не трогаем — снимаем только ложную метку.
+        _LEGACY_SRC = APY_SOURCE_UNCHECKED
 
         # ── 2. Morpho Blue Steakhouse vault ───────────────────────────────
         # Специальный T1-vault с фиксированным APY; не входит в основной массив
@@ -292,6 +377,7 @@ class APYAggregator:
                     tvl_usd=0.0,
                     last_updated=generated_at,
                     risk_score=_TIER_RISK_SCORE.get("T1", 0.20),
+                    apy_source=_LEGACY_SRC,
                 )
                 snapshots.append(snap)
                 seen_protocols.add(morpho_key)
@@ -311,6 +397,7 @@ class APYAggregator:
                     tvl_usd=float(arb.get("tvl_usd", 0.0)),
                     last_updated=str(arb.get("added_at", generated_at)),
                     risk_score=_TIER_RISK_SCORE.get(tier, 0.20),
+                    apy_source=_LEGACY_SRC,
                 )
                 snapshots.append(snap)
                 seen_protocols.add(arb_key)
@@ -331,6 +418,7 @@ class APYAggregator:
                     tvl_usd=0.0,
                     last_updated=str(pendle.get("updated_at", generated_at)),
                     risk_score=_TIER_RISK_SCORE.get(tier, 0.50),
+                    apy_source=_LEGACY_SRC,
                 )
                 snapshots.append(snap)
                 seen_protocols.add(pendle_key)
@@ -522,6 +610,11 @@ class APYAggregator:
                 "tvl_usd":           s.tvl_usd,
                 "last_updated":      s.last_updated,
                 "risk_score":        s.risk_score,
+                # провенанс — рядом с числом, а не в отдельном файле: строку
+                # читают как наблюдение, значит и опровержение обязано ехать с ней
+                "apy_source":        s.apy_source,
+                "observed_apy_pct":  s.observed_apy_pct,
+                "tvl_source":        s.tvl_source,
             }
 
         payload = {

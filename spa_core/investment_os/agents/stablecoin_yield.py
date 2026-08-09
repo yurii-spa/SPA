@@ -6,6 +6,13 @@ whitelisted adapters/DeFiLlama) and produces an ADVISORY artifact: the top conse
 yields, ranked by RISK-ADJUSTED APY, each evidence-tagged. Fail-CLOSED: a missing/stale feed → UNKNOWN,
 never a fabricated number.
 
+Only OBSERVED APYs qualify as an opportunity (card ADR-076.2). A ranking row carries its provenance
+(``apy_source``, written by ``apy_aggregator``); a row whose number is the adapter's literal
+``fallback_apy`` is listed in ``excluded_unobserved`` WITH its reason and never as a pick. Measured
+2026-08-09: all three opportunities the office published — aerodrome_usdc_lp 8.5 %, pendle 8.0 %,
+pendle-pt 8.0 % — were literals, while 22 adapters with real observations ranked below them. Absent
+provenance is treated as unchecked (refuse), not as live: this list is read as "what we could buy".
+
 Boundaries (harness contract): IS_ADVISORY — never allocates, never touches RiskPolicy/kill/live track;
 writes only data/investment_os/stablecoin_yield.json. Deterministic; the honest job is to SURFACE and
 evidence-tag opportunities (and note what the desk refuses), not to chase a headline number.
@@ -22,6 +29,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from spa_core.adapters.apy_aggregator import (
+    APY_SOURCE_FALLBACK,
+    APY_SOURCE_FALLBACK_OVER_OBSERVED,
+    APY_SOURCE_LIVE,
+)
 from spa_core.investment_os.harness import ProductAgent, UNKNOWN
 
 log = logging.getLogger("spa.investment_os.stablecoin_yield")
@@ -34,6 +46,32 @@ _DEFAULT_RANKING = _REPO_ROOT / "data" / "apy_ranking.json"
 _CONSERVATIVE_TIERS = frozenset({"T1", "T2"})
 # feed is considered stale beyond this age (the cycle refreshes ~daily; give generous slack).
 _MAX_FEED_AGE_S = 3 * 86400
+
+
+def _unobserved_reason(row: dict) -> Optional[str]:
+    """``None`` если строка рейтинга — наблюдение; иначе ПРИЧИНА отказа словами.
+
+    Провенанс проставляет производитель рейтинга
+    (`apy_aggregator`, поле ``apy_source``). Здесь только решение потребителя:
+    что печатать как возможность.
+
+    Отсутствие поля — это НЕ «наверное живое»: рейтинг мог быть собран версией
+    до провенанса. Такой строке отвечаем «не измерено» и не берём её (fail-CLOSED
+    в сторону честности: цена ошибки здесь — выдуманная возможность, по которой
+    читают). Файл рейтинга переписывается каждым циклом, так что состояние
+    самолечится за один цикл и остаётся названным.
+    """
+    src = row.get("apy_source")
+    if src == APY_SOURCE_LIVE:
+        return None
+    if src == APY_SOURCE_FALLBACK:
+        return "apy_not_observed (number is the adapter's literal fallback)"
+    if src == APY_SOURCE_FALLBACK_OVER_OBSERVED:
+        return (f"literal_printed_over_observed "
+                f"(observed {row.get('observed_apy_pct')}%)")
+    if src is None:
+        return "apy_provenance_unchecked (ranking row predates provenance)"
+    return f"apy_provenance_unchecked ({src})"
 
 
 def _evidence_level_for_tier(tier: str) -> str:
@@ -72,8 +110,23 @@ class StablecoinYieldAgent(ProductAgent):
                       and isinstance(r.get("risk_adjusted_apy"), (int, float))]
         considered.sort(key=lambda r: float(r.get("risk_adjusted_apy") or 0.0), reverse=True)
 
+        # ── только НАБЛЮДЕНИЯ становятся возможностью ────────────────────────
+        # Строку этого списка читают как «что можно купить» (оркестратор видит её
+        # каждый цикл в house_view офиса, с меткой доказанности и словами
+        # «live cycle · DeFiLlama-derived»). Значит литералу здесь не место —
+        # каким бы привлекательным ни было число. Отброшенное НЕ исчезает молча:
+        # каждый отказ назван вместе с причиной, иначе тишина читается как
+        # «таких пулов нет».
+        observed, excluded = [], []
+        for r in considered:
+            reason = _unobserved_reason(r)
+            if reason is None:
+                observed.append(r)
+            else:
+                excluded.append(f"{r.get('protocol')}({r.get('apy_pct')}%): {reason}")
+
         picks = []
-        for r in considered[: self.top_n]:
+        for r in observed[: self.top_n]:
             tier = str(r.get("tier"))
             picks.append(self.evidence(
                 {
@@ -96,12 +149,16 @@ class StablecoinYieldAgent(ProductAgent):
             "status": "ok" if picks else UNKNOWN,
             "as_of": ranking.get("generated_at"),
             "n_considered_conservative": len(considered),
+            "n_observed_conservative": len(observed),
             "top_stablecoin_yields": picks,
+            "excluded_unobserved": excluded,
             "refused_exotic_t3_count": refused_t3,
             "note": ("Advisory. Top conservative-tier (T1/T2) stablecoin yields by RISK-ADJUSTED APY from "
-                     "the live ranking. T3 exotic (PT/YT/points) excluded — refused for live, shown WITH "
-                     "tail in the Aggressive Lab. Not a recommendation; the desk's live book is the "
-                     "conservative track (~3.3% realized)."),
+                     "the live ranking. Only OBSERVED APYs qualify (apy_source=live): a ranking row whose "
+                     "number is the adapter's literal fallback is listed in `excluded_unobserved` with its "
+                     "reason, never as an opportunity. T3 exotic (PT/YT/points) excluded — refused for live, "
+                     "shown WITH tail in the Aggressive Lab. Not a recommendation; the desk's live book is "
+                     "the conservative track (~3.3% realized)."),
         }
 
 

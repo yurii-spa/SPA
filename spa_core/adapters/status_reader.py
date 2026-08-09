@@ -111,6 +111,24 @@ def read_status_block(protocol: str, data_dir: Optional[Path] = None) -> dict:
     return {}
 
 
+def observed_apy_pct_from_block(block: object) -> Optional[float]:
+    """Observed APY in PERCENT from an ALREADY-LOADED modern ``adapters[<p>]`` block.
+
+    Same contract as :func:`read_live_apy_pct`, exposed for callers that already
+    hold the block — the ranking aggregator walks the whole ``adapters`` dict once
+    and must not re-open the file per protocol. Keeping it here means "what counts
+    as an observation" has ONE definition; a second caller re-deriving it from
+    ``apy`` is exactly how the ADR-063 defect spread in the first place.
+
+    ``live_apy`` is the only field that proves observation. ``apy`` is never
+    consulted: it echoes ``fallback_apy`` when the producer observed nothing, so
+    it cannot distinguish a reading from a literal.
+    """
+    if not isinstance(block, dict):
+        return None
+    return _valid_pct(block.get("live_apy"))
+
+
 def read_live_apy_pct(protocol: str, data_dir: Optional[Path] = None) -> Optional[float]:
     """Observed APY in PERCENT for ``protocol``, or ``None`` when not observed.
 
@@ -124,7 +142,7 @@ def read_live_apy_pct(protocol: str, data_dir: Optional[Path] = None) -> Optiona
         block = adapters.get(protocol)
         if isinstance(block, dict):
             # Modern schema: live_apy is the ONLY field that proves observation.
-            return _valid_pct(block.get("live_apy"))
+            return observed_apy_pct_from_block(block)
 
     # Legacy top-level block: no live_apy field exists there; the block is written
     # by a live producer, so its own ``apy`` is the reading.
