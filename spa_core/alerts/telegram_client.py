@@ -40,15 +40,28 @@ RETRIES = 1  # one retry on network error → two attempts total
 # counter lives in a state file: the cap bounds TOTAL Telegram volume no matter how many
 # agents (or one runaway loop) try to send. Excess is dropped + logged so a flooder is
 # visible in the log without spamming the chat. Fail-open (a guard error never blocks sends).
-_RATE_STATE = Path(__file__).resolve().parents[2] / "data" / ".telegram_rate.json"
+# Флуд-защита обязана быть ОБЩЕЙ на всю машину, а не на дерево.
+# Замер 09.08: поток одинаковых сообщений владельцу шёл из сессии, работавшей в своём
+# worktree. Файл состояния считался от каталога ОТПРАВИТЕЛЯ, поэтому у каждого дерева
+# был СВОЙ бюджет 12 сообщений в минуту: «общий межпроцессный лимит» из докстринга
+from spa_core.utils.live_paths import live_data_dir
+
+# существовал только на словах, а на деле умножался на число деревьев.
+_RATE_STATE = live_data_dir(Path(__file__).resolve().parents[2]) / ".telegram_rate.json"
 MAX_MSGS_PER_MIN = 12
+
+#: Сколько символов текста кладём в историю как «превью». ОДНА константа на модуль:
+#: по ней же сравнивается повтор, и разъедься они — дедуп молча перестал бы срабатывать.
+_PREVIEW_LEN = 80
 
 # ── Alert history (append-only audit trail) ──────────────────────────────────
 # Every send outcome is recorded here for observability: {ts, type, ok, message_id|error}.
 # Ring-buffer capped at HISTORY_MAX so the file never grows unbounded. Atomic write via
 # os.replace. Fail-open: a history error NEVER blocks or fails a send. Disabled under
 # pytest unless SPA_ALERT_HISTORY_TEST is set (so tests don't pollute the live file).
-_HISTORY_STATE = Path(__file__).resolve().parents[2] / "data" / "alert_history.json"
+# История — туда же: пока она была по-дереву, поток из чужого дерева НЕ ВИДЕН в проде,
+# и разбор «кто это шлёт» упирался в пустоту (потрачено два круга 08–09.08).
+_HISTORY_STATE = live_data_dir(Path(__file__).resolve().parents[2]) / "alert_history.json"
 HISTORY_MAX = 500
 
 
@@ -82,7 +95,7 @@ def _record_history(text: str, ok: bool, message_id=None, error: str | None = No
             "ts": datetime.now(timezone.utc).isoformat(),
             "type": _classify(text),
             "ok": bool(ok),
-            "preview": (text or "")[:80],
+            "preview": (text or "")[:_PREVIEW_LEN],
         }
         if message_id is not None:
             entry["message_id"] = message_id
@@ -193,6 +206,50 @@ def get_chat_id() -> str:
     return _read_keychain(CHAT_ID_SERVICE)
 
 
+#: Окно, в котором ПОБУКВЕННО одинаковое сообщение считается повтором и не уходит.
+#: Полчаса выбрано так: одинаковый текст за это время не несёт НИ ОДНОГО нового факта —
+#: изменилось бы состояние, изменился бы и текст. Значение переопределяется
+#: ``SPA_TELEGRAM_DUP_WINDOW_S`` (0 — выключить, для отладки).
+DUPLICATE_WINDOW_S = 1800.0
+
+
+def _duplicate_recently(text: str) -> bool:
+    """Уходил ли ПОБУКВЕННО такой же текст недавно. Сомнение → False (лучше послать).
+
+    Зачем поверх дедупа `push_policy`: тот знает только своих отправителей, а мимо него
+    шлют скрипты и сессии из чужих деревьев. Замер 09.08: владелец получал одно и то же
+    сообщение каждые несколько минут всё утро — «с этим невозможно работать».
+
+    Это НЕ глушилка: гасится только БУКВАЛЬНО тот же текст. Любое изменение — новая
+    цифра, другой агент, эскалация — проходит немедленно.
+    """
+    if os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get("SPA_TELEGRAM_DUP_TEST"):
+        return False
+    try:
+        window = float(os.environ.get("SPA_TELEGRAM_DUP_WINDOW_S", DUPLICATE_WINDOW_S))
+        if window <= 0:
+            return False
+        doc = json.loads(_HISTORY_STATE.read_text())
+        entries = doc if isinstance(doc, list) else doc.get("entries") or []
+        now = datetime.now(timezone.utc)
+        for rec in reversed(entries[-60:]):
+            if not rec.get("ok"):
+                continue           # неудачная отправка повтором не считается
+            if (rec.get("preview") or "") != (text or "")[:_PREVIEW_LEN]:
+                continue
+            try:
+                ts = datetime.fromisoformat(str(rec.get("ts")))
+            except Exception:  # noqa: BLE001
+                continue
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            if 0 <= (now - ts).total_seconds() <= window:
+                return True
+        return False
+    except Exception:  # noqa: BLE001 — не смогли проверить ⇒ НЕ подавляем
+        return False
+
+
 def _post_message(payload_dict: dict) -> bool:
     """Internal: POST a sendMessage payload. Shared by send_message and
     send_message_with_keyboard. Fail-safe: any failure → WARNING + False."""
@@ -201,6 +258,13 @@ def _post_message(payload_dict: dict) -> bool:
     # Telegram. Excess messages are DROPPED + logged with a preview (identifies the flooder).
     if not _rate_limit_ok(text):
         _record_history(text, ok=False, error="flood_guard_dropped")
+        return False
+    # ПОВТОР: побуквенно тот же текст в окне не несёт новых фактов. Гасим и ГОВОРИМ об
+    # этом в лог с превью — молчаливое подавление неотличимо от поломки канала.
+    if _duplicate_recently(text):
+        log.warning("Telegram DUPLICATE dropped (same text within %.0fs). preview=%r",
+                    DUPLICATE_WINDOW_S, (text or "")[:100])
+        _record_history(text, ok=False, error="duplicate_dropped")
         return False
     try:
         token = get_bot_token()
