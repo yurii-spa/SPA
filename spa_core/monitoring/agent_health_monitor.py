@@ -44,7 +44,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 from spa_core.monitoring.agent_registry_refresh import refresh_if_stale
 from spa_core.monitoring.cycle_lock_watch import check_cycle_lock
@@ -656,7 +656,9 @@ def _load_json(data_dir: Path, *names: str) -> Optional[dict]:
 
 
 def check_system(data_dir: Path, now: datetime,
-                 autopush_log: str = _AUTOPUSH_LOG) -> Tuple[dict, str, List[str]]:
+                 autopush_log: str = _AUTOPUSH_LOG,
+                 code_freshness: Optional[Callable[[], dict]] = None,
+                 ) -> Tuple[dict, str, List[str]]:
     """Run system-state checks. Returns (system_checks, status, issue_lines)."""
     checks: dict = {
         "cycle_freshness_h": None,
@@ -948,6 +950,43 @@ def check_system(data_dir: Path, now: datetime,
     if lock_verdict.issue:
         issues.append(lock_verdict.issue)
         status = _worst(status, lock_verdict.severity)
+
+    # --- исполняет ли живой долгожитель код из дерева (цикл #177) ------------
+    # ЧЕТВЁРТЫЙ вопрос доставки. Соседи его не закрывают и не могут:
+    # `deployment_drift` смотрит на ДЕРЕВО, `deployment_acceptance` — на
+    # способность СТАРТОВАТЬ, а этот монитор двумя строками выше — на то, что
+    # агент жив. Процесс с `KeepAlive` живёт неделями и держит в памяти код,
+    # набранный при старте: 08.08 владелец видел старый Телеграм через сутки
+    # после доставки кнопок, и ни один сторож этого не сказал.
+    #
+    # ПОЧЕМУ ТОЛЬКО ДЛЯ СВОЕГО data_dir. Проверка меряет ХОСТ (launchd + ps), а
+    # не каталог: спрошенная про песочницу, она всё равно отвечала бы про
+    # рабочий Mac — ровно та ошибка «сужу не то дерево, о котором спросили»,
+    # которую закрывал цикл #173. Поэтому хост меряется, только когда спросили
+    # про хостовый `data/`; иначе поле остаётся `None` = НЕ ИЗМЕРЕНО (не ноль:
+    # ноль читался бы как «несвежих нет»).
+    checks["stale_code_agents"] = None
+    _asked_about_host = False
+    try:
+        _asked_about_host = Path(data_dir).resolve() == _DEFAULT_DATA_DIR.resolve()
+    except OSError:
+        _asked_about_host = False
+    if code_freshness is not None or _asked_about_host:
+        try:
+            from spa_core.monitoring.agent_code_freshness import (
+                check_agent_code_freshness,
+            )
+            doc = (code_freshness or check_agent_code_freshness)()
+            checks["stale_code_agents"] = doc.get("stale_count")
+            for line in doc.get("issues", []) or []:
+                issues.append(line)
+            status = _worst(status, doc.get("status", OK))
+        except Exception as exc:  # noqa: BLE001 — fail-CLOSED, не тихий пропуск
+            log.warning("agent_code_freshness check failed: %s", exc)
+            issues.append(
+                "agent_code_freshness UNCHECKED: проверка свежести исполняемого "
+                "кода упала ({}) — это не «код свежий»".format(type(exc).__name__))
+            status = _worst(status, WARNING)
 
     return checks, status, issues
 
