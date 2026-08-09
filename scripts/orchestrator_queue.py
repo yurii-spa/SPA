@@ -88,8 +88,25 @@ def _rebuild_board(tracker_dir=None) -> None:
         pass
 
 
-def _card_dict(c) -> dict:
-    return {
+# ── вердикт сверки с origin, который ЕДЕТ В JSON ─────────────────────────────
+# stdout — машинный контракт, и шаг 2 протокола читает именно его
+# (`list --type owner-decision --status owner-done --json`). Пока вердикт жил
+# только в stderr-прозе, сессия с `| jq` его не видела ВООБЩЕ. Замер 09.08:
+# хост-дерево выдало 2 карточки `owner-done`, обе на origin уже `ingested`.
+VERDICT_AGREES = "agrees"                     # дерево и origin совпали
+VERDICT_STALE = "stale_read_from_origin"      # карточка перечитана с origin
+VERDICT_UNDELIVERED = "undelivered_not_on_origin"
+VERDICT_DIVERGED = "diverged_unmeasured"      # своя правка, кто новее не измерено
+VERDICT_MAYBE_INGESTED = "answer_may_be_already_ingested"
+VERDICT_UNMEASURED = "unmeasured"             # сторож не отработал — НЕ «ок»
+
+# Статусы, из которых следует, что ответ владельца по этой карточке агент уже
+# разобрал и доставил на origin.
+_TERMINAL_ON_ORIGIN = ("ingested", "done", "owner-done-archived")
+
+
+def _card_dict(c, verdict: dict | None = None) -> dict:
+    d = {
         "id": c.id,
         "path": str(c.path),
         "type": c.tracker_type,
@@ -99,10 +116,16 @@ def _card_dict(c) -> dict:
         "owner": c.owner,
         "legacy_id": c.legacy_id,
         "first_instruction": first_instruction_line(c),
+        # Всегда присутствует: отсутствие поля читалось бы как «сверено и ок».
+        "origin_check": VERDICT_UNMEASURED,
     }
+    if verdict:
+        d.update(verdict)
+    return d
 
 
-def _origin_read_through(cards: list, tracker_dir=None, ref: str | None = None) -> list:
+def _origin_read_through(cards: list, tracker_dir=None,
+                         ref: str | None = None) -> tuple[list, dict[str, dict]]:
     """Сверить читаемый трекер с `origin/main` и ГРОМКО назвать расхождение (шаг 1-пред).
 
     **Зачем.** Список карточек читается из трекера ТОГО дерева, чья копия этого скрипта
@@ -121,23 +144,43 @@ def _origin_read_through(cards: list, tracker_dir=None, ref: str | None = None) 
     `set-status`. Обе называются в stderr поимённо. Массовый `checkout origin/main -- трекер`
     запрещён по построению: он стёр бы карточки, живущие только в рабочем дереве.
 
-    stdout не трогается: он машинный контракт. Всё, что говорит сторож, идёт в stderr.
+    **Вердикт едет и в stdout (09.08).** Раньше всё сказанное сторожем жило только в
+    stderr-прозе, а шаг 2 протокола читает JSON: `list --type owner-decision --status
+    owner-done --json`. Сессия, разбирающая stdout, о расхождении не узнавала НИКОГДА.
+    Замер на живом входе: хост-дерево выдало 2 карточки `owner-done`
+    (`own-rnd-duty-is-concentration-adr055`, `owner-decision-morfo-40-knigi-…`), обе на
+    origin давно `ingested` — то есть обязательный шаг «инжест решений владельца» получал
+    два уже разобранных решения как свежие. Причина устойчива и сама не пройдёт: ответ
+    владельца пишет Telegram-бот в ХОСТ-дерево, а инжест делает цикл в worktree и пушит на
+    origin — хост-карточка остаётся `owner-done` навсегда.
+
+    Теперь у КАЖДОЙ карточки в JSON есть поле `origin_check`; отсутствие сверки — это
+    `unmeasured`, а не молчаливое «ок». Для `diverged`-карточки в статусе `owner-done`
+    вердикт ДОИЗМЕРЯЕТСЯ по статусу той же карточки на origin: терминальный статус там
+    означает, что ответ уже разобран и доставлен. Карточка при этом НЕ выбрасывается из
+    списка — сторож называет, а решает сессия (fail-CLOSED к прежнему поведению).
+
+    stdout не трогается ПО ФОРМЕ: он машинный контракт. Всё, что говорит сторож, идёт в stderr.
     Не измерилось — говорим «НЕ ИЗМЕРЕНО» и причину, а не молчим.
     """
+    verdicts: dict[str, dict] = {}
     try:
         import check_tracker_drift as drift
     except Exception as exc:  # noqa: BLE001 — сторож не должен ломать саму очередь
         print(f"❓ сверка с origin НЕ ИЗМЕРЕНА: сторож не импортировался ({exc})", file=sys.stderr)
-        return cards
+        return cards, verdicts
     try:
         report = drift.analyze(tracker_dir, ref or drift.DEFAULT_REF)
     except drift.Unmeasured as exc:
         print(f"❓ сверка трекера с origin/main НЕ ИЗМЕРЕНА — {exc}\n"
               f"    список ниже НЕ подтверждён: он может показывать закрытое и прятать новое.",
               file=sys.stderr)
-        return cards
+        return cards, verdicts
+    # Сверка состоялась ⇒ у всех карточек вердикт по умолчанию «совпало»; ниже он
+    # уточняется поимённо для тех, у кого есть находка.
+    verdicts = {c.id: {"origin_check": VERDICT_AGREES} for c in cards}
     if not report.findings:
-        return cards
+        return cards, verdicts
 
     try:
         root = drift.repo_root_of(Path(report.tracker_dir))
@@ -145,7 +188,8 @@ def _origin_read_through(cards: list, tracker_dir=None, ref: str | None = None) 
     except (drift.Unmeasured, ValueError) as exc:
         # Сторож не имеет права уронить саму очередь: сверка — довесок к списку, а не его условие.
         print(f"❓ расхождение найдено, но версию с origin взять неоткуда ({exc})", file=sys.stderr)
-        return cards
+        # Расхождение ЕСТЬ, а разобрать его нечем ⇒ «совпало» здесь было бы враньём.
+        return cards, {c.id: {"origin_check": VERDICT_UNMEASURED} for c in cards}
     by_id = {c.id: c for c in cards}
     for f in report.of_kind(drift.KIND_STALE):
         local = by_id.get(f.card_id)
@@ -156,9 +200,42 @@ def _origin_read_through(cards: list, tracker_dir=None, ref: str | None = None) 
         except drift.Unmeasured as exc:
             print(f"❓ {f.card_id}: устарела, но версию с origin прочитать не удалось ({exc})",
                   file=sys.stderr)
+            verdicts[f.card_id] = {"origin_check": VERDICT_UNMEASURED}
             continue
         fresh.path = local.path  # путь остаётся местный: по нему работает set-status
         by_id[f.card_id] = fresh
+        verdicts[f.card_id] = {"origin_check": VERDICT_STALE}
+
+    for f in report.of_kind(drift.KIND_UNDELIVERED):
+        if f.card_id in verdicts:
+            verdicts[f.card_id] = {"origin_check": VERDICT_UNDELIVERED}
+
+    # `diverged` — единственная группа, где прежде стояло глухое «кто новее НЕ измерено».
+    # Для карточки в статусе `owner-done` это доизмеримо: если на origin та же карточка
+    # уже в терминальном статусе, ответ владельца разобран и доставлен, а хост-копия —
+    # остаток, который бот больше никогда не перепишет.
+    already_ingested: list[str] = []
+    for f in report.of_kind(drift.KIND_DIVERGED):
+        local = by_id.get(f.card_id)
+        if local is None:
+            continue
+        verdict = {"origin_check": VERDICT_DIVERGED}
+        try:
+            origin_card = drift.read_origin_card(root, report.ref, f"{rel}/{f.card_id}.md")
+        except drift.Unmeasured as exc:
+            verdict["origin_check_note"] = f"версию с origin прочитать не удалось: {exc}"
+            verdicts[f.card_id] = verdict
+            continue
+        verdict["origin_status"] = origin_card.status
+        if local.status == "owner-done" and origin_card.status in _TERMINAL_ON_ORIGIN:
+            verdict["origin_check"] = VERDICT_MAYBE_INGESTED
+            verdict["origin_check_note"] = (
+                f"в дереве `owner-done`, а на {report.ref} эта же карточка уже "
+                f"`{origin_card.status}` — ответ владельца, скорее всего, УЖЕ разобран; "
+                f"проверьте, прежде чем инжестить повторно"
+            )
+            already_ingested.append(f.card_id)
+        verdicts[f.card_id] = verdict
 
     def _ids(kind):
         return ", ".join(sorted(x.card_id for x in report.of_kind(kind))) or "—"
@@ -176,17 +253,28 @@ def _origin_read_through(cards: list, tracker_dir=None, ref: str | None = None) 
     if diverged:
         print(f"    · своя правка в дереве ({len(diverged)}) — кто новее НЕ измерено, сверьте "
               f"руками: {_ids(drift.KIND_DIVERGED)}", file=sys.stderr)
+    if already_ingested:
+        print(f"    · из них ОТВЕТ ВЛАДЕЛЬЦА УЖЕ РАЗОБРАН ({len(already_ingested)}): "
+              f"{', '.join(sorted(already_ingested))} — в дереве `owner-done`, на "
+              f"{report.ref} терминальный статус. Повторный инжест наплодит дубли; "
+              f"в JSON это поле `origin_check`.", file=sys.stderr)
     if undelivered:
         print(f"    · есть в дереве, на {report.ref} нет ({len(undelivered)}) — не доставлены: "
               f"{_ids(drift.KIND_UNDELIVERED)}", file=sys.stderr)
-    return [by_id[c.id] for c in cards]
+    return [by_id[c.id] for c in cards], verdicts
 
 
 def cmd_list(args) -> int:
     cards = list_cards(tracker_dir=getattr(args, "tracker_dir", None))
+    verdicts: dict[str, dict] = {}
     if getattr(args, "origin_check", True):
-        cards = _origin_read_through(cards, getattr(args, "tracker_dir", None),
-                                     getattr(args, "ref", None))
+        cards, verdicts = _origin_read_through(cards, getattr(args, "tracker_dir", None),
+                                               getattr(args, "ref", None))
+    else:
+        # Сверку выключили явным флагом. Это НЕ «совпало» — это «не измерено»,
+        # и в машинном контракте оно обязано выглядеть именно так.
+        print("❓ сверка с origin ОТКЛЮЧЕНА флагом --no-origin-check: список не подтверждён",
+              file=sys.stderr)
     # Фильтры применяются ПОСЛЕ сверки с origin — иначе карточка, закрытая на origin, отсеялась
     # бы по устаревшему статусу дерева и снова выдавалась как новая (ровно чинимый дефект).
     if args.type is not None:
@@ -194,12 +282,16 @@ def cmd_list(args) -> int:
     if args.status is not None:
         cards = [c for c in cards if c.status == args.status]
     if args.json:
-        print(json.dumps([_card_dict(c) for c in cards], ensure_ascii=False, indent=2))
+        print(json.dumps([_card_dict(c, verdicts.get(c.id)) for c in cards],
+                         ensure_ascii=False, indent=2))
     else:
         if not cards:
             print("(no matching cards)")
         for c in cards:
-            print(f"[{c.status:<11}] {c.tracker_type:<14} {c.id}  —  {c.title}")
+            # Человек, читающий список глазами, обязан видеть тот же вердикт, что и `| jq`.
+            v = (verdicts.get(c.id) or {}).get("origin_check", VERDICT_UNMEASURED)
+            mark = "" if v == VERDICT_AGREES else f"  ⚠️ origin_check={v}"
+            print(f"[{c.status:<11}] {c.tracker_type:<14} {c.id}  —  {c.title}{mark}")
     return 0
 
 
