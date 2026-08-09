@@ -39,6 +39,16 @@
 #     `launchctl kickstart -k` are wrapped in a bash background+watchdog timeout
 #     so a KeepAlive server (apiserver/uvicorn) or a throttled agent can never
 #     wedge the gate.
+#  4. NEVER START A NEVER-EXITING AGENT (2026-08-08) — for a long-lived agent
+#     (KeepAlive without a schedule) the run-once is not a check, it is a second
+#     production instance: the gate started a second telegram_bot on the SAME
+#     token and it ran beside the live one for the full RUN_TIMEOUT (~3 min),
+#     splitting the owner's commands between two pollers (409 getUpdates). Such
+#     agents now take a STATIC PROBE (scripts/agent_static_probe.sh): entrypoint
+#     executable, wrapper parses, python imports in a SEPARATE process, launchd
+#     log paths writable — no process started, seconds instead of minutes. Also
+#     fixed here: KeepAlive was read as a KEY, so `<false/>` counted as true and
+#     a genuine hang in a scheduled agent was accepted as "server started OK".
 #  3. ACTUAL LOG PATH — custom-bash agents (daily_cycle/daily_backup/
 #     mass_tournament/tier1_governance) log to their own dated files
 #     (logs/daily_cycle_YYYYMMDD.log, ...), not /tmp/spa_<name>.log. The gate
@@ -53,9 +63,6 @@
 set -uo pipefail
 
 REPO_ROOT="/Users/yuriikulieshov/Documents/SPA_Claude"
-GUI="gui/$(id -u)"
-CANONICAL_DATA_DIR="$REPO_ROOT/data"
-CANONICAL_TRACK="$CANONICAL_DATA_DIR/equity_curve_daily.json"
 
 # Hard timeouts (seconds) so the gate can never hang (fix #2).
 RUN_TIMEOUT="${RUN_TIMEOUT:-180}"
@@ -63,6 +70,32 @@ KICKSTART_TIMEOUT="${KICKSTART_TIMEOUT:-20}"
 
 fail() { echo "❌ FAIL: $*" >&2; exit 1; }
 info() { echo "   $*"; }
+
+# ── VALIDATION-ONLY root override (SPA_GATE_REPO_ROOT) ──────────────────────
+# The root is a hardcoded constant on purpose: the canonical-track hash guard
+# must never be pointable at a decoy tree, and the plist that gets LOADED must
+# come from the canonical checkout. But a gate whose own behaviour can only be
+# tested by deploying to the production host is a gate nobody tests — the
+# fixture tests for its refusals skip outside this one directory.
+# So the override exists and is REFUSED unless CHECK_ONLY=1, i.e. unless this
+# run provably never reaches launchctl. Validation is testable; deployment is
+# not overridable. Fail-CLOSED, and the refusal itself is pinned by a test.
+if [ -n "${SPA_GATE_REPO_ROOT:-}" ]; then
+    if [ "${CHECK_ONLY:-0}" != "1" ]; then
+        fail "SPA_GATE_REPO_ROOT is set but CHECK_ONLY!=1 — the root override is VALIDATION-ONLY (it must never decide what gets loaded). Re-run with CHECK_ONLY=1, or unset SPA_GATE_REPO_ROOT."
+    fi
+    REPO_ROOT="$SPA_GATE_REPO_ROOT"
+    info "VALIDATION-ONLY root override: $REPO_ROOT (CHECK_ONLY=1, nothing will be loaded)"
+fi
+
+GUI="gui/$(id -u)"
+CANONICAL_DATA_DIR="$REPO_ROOT/data"
+CANONICAL_TRACK="$CANONICAL_DATA_DIR/equity_curve_daily.json"
+
+# The static probe travels WITH this gate (sibling file), not with REPO_ROOT —
+# the tool that decides must not be swappable by pointing the gate elsewhere.
+GATE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
+STATIC_PROBE="$GATE_DIR/agent_static_probe.sh"
 
 [ "$#" -ge 1 ] || fail "usage: check_agent_before_deploy.sh <agent_name>"
 NAME="$1"
@@ -174,9 +207,42 @@ done
 # the run-once never returns on its own and may collide with the already-running
 # production instance (e.g. a fixed listen port). Detect this once so both the
 # timeout handling (fix #2) and the exit-code interpretation can treat them right.
+#
+# fix #4 (2026-08-09): read the VALUE, not the presence of the key. The old
+# `grep -q "<key>KeepAlive</key>"` answered "true" for `<key>KeepAlive</key>
+# <false/>` — cpa_daily / digest_daily / digest_weekly / telegram_milestone all
+# declare it false. For them a run-once that WEDGED for the full RUN_TIMEOUT was
+# then read as "expected for a KeepAlive server (started OK)": a hang got a pass.
+# Existence, not the x-bit: the probe is always invoked as `bash <path>`, and a gate that
+# refused every deploy because a sync dropped a bit nobody needs would be a false refusal —
+# the class that made the ADR-number guard get bypassed with a flag (#179).
+[ -f "$STATIC_PROBE" ] || fail "static probe tool missing: $STATIC_PROBE (it ships beside this gate). Refusing — the long-lived path cannot be validated without it."
 IS_KEEPALIVE=0
-grep -q "<key>KeepAlive</key>" "$PLIST" 2>/dev/null && IS_KEEPALIVE=1
+[ "$(bash "$STATIC_PROBE" --plist-bool KeepAlive "$PLIST" 2>/dev/null)" = "true" ] && IS_KEEPALIVE=1
+[ "$(bash "$STATIC_PROBE" --plist-bool KeepAlive "$PLIST" 2>/dev/null)" = "dict" ] && IS_KEEPALIVE=1
 [ "$IS_KEEPALIVE" -eq 1 ] && info "agent is KeepAlive (long-lived server) — run-once is start-probe only"
+
+# ── LONG-LIVED AGENTS: STATIC PROBE INSTEAD OF THE RUN-ONCE (fix #4) ─────────
+# WHY (measured 2026-08-08): running a never-exiting agent "just once" puts a
+# SECOND live instance beside production. For telegram_bot that is two pollers
+# on ONE token → 409-conflicts on getUpdates → the owner's taps and commands are
+# split between them and part are LOST. The second bot (pid 90696) lived for the
+# gate's whole RUN_TIMEOUT while the gate printed nothing — the check looked
+# wedged rather than harmful. The gate was more dangerous than what it guards.
+#
+# A long-lived agent is therefore validated WITHOUT being started: entrypoint
+# really executable (the 2026-08-04 exit-126 class), wrapper parses, its python
+# really imports in a SEPARATE process, launchd's log paths writable. Everything
+# else on this path — the exit-78 antipattern refusals above, the canonical-track
+# guard, the launchctl load and its exit!=78 assertion below — is unchanged.
+LONG_LIVED=0
+if bash "$STATIC_PROBE" --is-long-lived "$PLIST"; then LONG_LIVED=1; fi
+
+# ┌─ RUN-ONCE PATH (agents that exit on their own) ───────────────────────────┐
+# │ Sections 2b–5 below are the original run-once validation, unchanged. They  │
+# │ are SKIPPED for long-lived agents, which take the static-probe branch at   │
+# │ the matching `else` after section 5.                                       │
+if [ "$LONG_LIVED" -eq 0 ]; then
 
 # ── 2b. SANDBOX the command (fix #1): strip --live so the run-once can never
 #        opt into a canonical-track write. Wrappers that bury --live internally
@@ -370,6 +436,27 @@ rm -rf "$SANDBOX_DIR" 2>/dev/null || true
 rm -f "$RUN_SENTINEL" 2>/dev/null || true
 
 echo "✅ manual run OK (exit 0, log written, canonical track untouched) — proceeding to load."
+
+else
+# └─ LONG-LIVED PATH (never-exiting agents: telegram_bot, apiserver, …) ──────┘
+echo "--- long-lived agent: STATIC PROBE instead of the run-once ---"
+info "why: starting a never-exiting agent 'once' puts a SECOND live instance beside"
+info "production (measured 2026-08-08: a second telegram_bot on the same token, ~3 min,"
+info "409-conflicts on getUpdates, the owner's commands split between two pollers)."
+
+# The probe imports modules; an import that writes state would still be caught
+# by the same fail-CLOSED guard the run-once path uses.
+TRACK_HASH_BEFORE="$(hash_file "$CANONICAL_TRACK")"
+bash "$STATIC_PROBE" --probe "$PLIST" "$REPO_ROOT" || \
+    fail "static probe failed for ${LABEL}. NOT loading."
+TRACK_HASH_AFTER="$(hash_file "$CANONICAL_TRACK")"
+if [ "$TRACK_HASH_BEFORE" != "$TRACK_HASH_AFTER" ]; then
+    fail "SANDBOX VIOLATION: the static probe MUTATED the canonical track $CANONICAL_TRACK (hash changed). NOT loading ${LABEL}."
+fi
+info "✅ canonical track UNCHANGED by the static probe (hash identical)"
+
+echo "✅ static probe OK (entrypoint executable, python imports, no process started) — proceeding to load."
+fi
 
 # CHECK_ONLY mode: validate the agent without touching launchctl (useful in CI
 # / on hosts where you only want the run-once + log + sandbox proof).
