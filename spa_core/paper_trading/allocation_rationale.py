@@ -341,7 +341,17 @@ def write_shadow_rationale(
                 orch = json.loads((Path(data_dir) / "adapter_orchestrator_status.json")
                                   .read_text(encoding="utf-8"))
                 for a in orch.get("adapters", []) or []:
-                    if isinstance(a, dict) and a.get("protocol") and a.get("tvl_usd") is not None:
+                    # ТО ЖЕ определение, что у аллокатора (ADR-053): наблюдением
+                    # считается ОБЪЯВЛЕННЫЙ живой провенанс, а не наличие числа.
+                    # Раньше здесь засчитывался любой непустой `tvl_usd` — а 11
+                    # адаптеров отдают захардкоженный литерал `TVL_USD`. Ветка
+                    # включается только при пустой карте провенанса, поэтому дефект
+                    # СПАЛ: он проснулся бы в тот день, когда данных меньше всего,
+                    # то есть когда осторожность нужнее всего.
+                    # Правило: «live» никогда не ставится на константу.
+                    if (isinstance(a, dict) and a.get("protocol")
+                            and a.get("tvl_usd") is not None
+                            and a.get("tvl_source") == "live"):
                         tvl_evidenced.add(str(a["protocol"]))
                 tvl_known = True
             except Exception as exc:  # noqa: BLE001
