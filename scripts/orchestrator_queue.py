@@ -43,12 +43,22 @@ from spa_core.owner_queue.queue import (
     OwnerDoneForbidden,
     create_card,
     ingest_notes,
+    load_card,
     scan_promotions,
     first_instruction_line,
     list_cards,
     set_status,
 )
 from spa_core.owner_queue.notify import notify_needs_owner
+from spa_core.owner_queue.owner_answer import (
+    AnswerConflict,
+    CARRY_ALREADY_PRESENT,
+    CARRY_CARRIED,
+    CARRY_NO_ANSWER,
+    CARRY_UNMEASURED,
+    _IDENTITY_FIELDS,
+    carry_owner_answer,
+)
 
 
 def _rebuild_board(tracker_dir=None) -> None:
@@ -98,11 +108,31 @@ VERDICT_STALE = "stale_read_from_origin"      # карточка перечит�
 VERDICT_UNDELIVERED = "undelivered_not_on_origin"
 VERDICT_DIVERGED = "diverged_unmeasured"      # своя правка, кто новее не измерено
 VERDICT_MAYBE_INGESTED = "answer_may_be_already_ingested"
+# ДОКАЗАНО, а не «скорее всего»: на origin у карточки терминальный статус И тот же самый
+# след решения владельца (`owner_choice` + `owner_answered_at`), что в дереве. Это возможно
+# ровно в одном случае — ответ прошёл через инжест с переносом следа (`carry_owner_answer`).
+# Совпадение выбора И момента подделать нечем: их пишет бот в момент нажатия.
+VERDICT_ANSWER_INGESTED_PROVEN = "answer_ingested_proven"
 VERDICT_UNMEASURED = "unmeasured"             # сторож не отработал — НЕ «ок»
 
 # Статусы, из которых следует, что ответ владельца по этой карточке агент уже
 # разобрал и доставил на origin.
 _TERMINAL_ON_ORIGIN = ("ingested", "done", "owner-done-archived")
+
+
+def _same_owner_answer(tree_card, origin_card) -> bool:
+    """Обе копии несут ОДИН И ТОТ ЖЕ след решения владельца — и он непустой.
+
+    Пустой след с обеих сторон совпадением НЕ считается: «полей нет ни там, ни там» — это
+    ровно то состояние, ради которого перенос и написан, и объявлять его доказательством
+    значило бы гасить карточки, у которых ответа в git как не было, так и нет.
+    """
+    for key in _IDENTITY_FIELDS:
+        mine = str((tree_card.fields or {}).get(key, "") or "").strip()
+        theirs = str((origin_card.fields or {}).get(key, "") or "").strip()
+        if not mine or mine != theirs:
+            return False
+    return True
 
 
 def _card_dict(c, verdict: dict | None = None) -> dict:
@@ -215,6 +245,7 @@ def _origin_read_through(cards: list, tracker_dir=None,
     # уже в терминальном статусе, ответ владельца разобран и доставлен, а хост-копия —
     # остаток, который бот больше никогда не перепишет.
     already_ingested: list[str] = []
+    proven_ingested: list[str] = []
     for f in report.of_kind(drift.KIND_DIVERGED):
         local = by_id.get(f.card_id)
         if local is None:
@@ -228,13 +259,30 @@ def _origin_read_through(cards: list, tracker_dir=None,
             continue
         verdict["origin_status"] = origin_card.status
         if local.status == "owner-done" and origin_card.status in _TERMINAL_ON_ORIGIN:
-            verdict["origin_check"] = VERDICT_MAYBE_INGESTED
-            verdict["origin_check_note"] = (
-                f"в дереве `owner-done`, а на {report.ref} эта же карточка уже "
-                f"`{origin_card.status}` — ответ владельца, скорее всего, УЖЕ разобран; "
-                f"проверьте, прежде чем инжестить повторно"
-            )
-            already_ingested.append(f.card_id)
+            if _same_owner_answer(local, origin_card):
+                # След решения владельца ДОЕХАЛ до git и совпал с деревом ⇒ это не догадка,
+                # а доказательство: ответ разобран и доставлен. Карточка читается с origin
+                # (как `stale`), и обязательный шаг 2 больше не выдаёт её как свежую —
+                # именно за этим переносится след. Без совпадения полей всё остаётся как
+                # было: «скорее всего» и решает сессия.
+                origin_card.path = local.path
+                by_id[f.card_id] = origin_card
+                verdict["origin_check"] = VERDICT_ANSWER_INGESTED_PROVEN
+                verdict["origin_check_note"] = (
+                    f"на {report.ref} карточка `{origin_card.status}` И несёт ТОТ ЖЕ след "
+                    f"решения владельца, что копия в дереве "
+                    f"({', '.join(_IDENTITY_FIELDS)}) — ответ доказанно разобран; "
+                    f"статус прочитан с {report.ref}"
+                )
+                proven_ingested.append(f.card_id)
+            else:
+                verdict["origin_check"] = VERDICT_MAYBE_INGESTED
+                verdict["origin_check_note"] = (
+                    f"в дереве `owner-done`, а на {report.ref} эта же карточка уже "
+                    f"`{origin_card.status}` — ответ владельца, скорее всего, УЖЕ разобран; "
+                    f"проверьте, прежде чем инжестить повторно"
+                )
+                already_ingested.append(f.card_id)
         verdicts[f.card_id] = verdict
 
     def _ids(kind):
@@ -258,6 +306,11 @@ def _origin_read_through(cards: list, tracker_dir=None,
               f"{', '.join(sorted(already_ingested))} — в дереве `owner-done`, на "
               f"{report.ref} терминальный статус. Повторный инжест наплодит дубли; "
               f"в JSON это поле `origin_check`.", file=sys.stderr)
+    if proven_ingested:
+        print(f"    · из них ОТВЕТ ДОКАЗАННО РАЗОБРАН ({len(proven_ingested)}): "
+              f"{', '.join(sorted(proven_ingested))} — на {report.ref} терминальный статус "
+              f"И тот же след решения владельца; статус прочитан с {report.ref}, "
+              f"как свежие они больше не выдаются.", file=sys.stderr)
     if undelivered:
         print(f"    · есть в дереве, на {report.ref} нет ({len(undelivered)}) — не доставлены: "
               f"{_ids(drift.KIND_UNDELIVERED)}", file=sys.stderr)
@@ -295,7 +348,70 @@ def cmd_list(args) -> int:
     return 0
 
 
+#: Статус, которым сессия закрывает разобранное решение владельца. Ровно перед ним след
+#: ответа обязан оказаться в той копии карточки, которая уедет в git.
+_INGESTED = "ingested"
+
+
+def _carry_answer_before_closing(args) -> int | None:
+    """Перенести след решения владельца в закрываемую карточку. None — можно закрывать.
+
+    **Зачем это стоит ЗДЕСЬ, а не в вызывающей сессии.** Инжест делает человекоподобный
+    исполнитель в изолированном worktree от `origin/main`, где полей ответа нет вообще:
+    их писал бот в ХОСТ-дерево. Полагаться на то, что каждая следующая сессия вспомнит
+    перенести их руками, — это и есть механизм, который уже потерял след двух решений
+    (`own-rnd-duty-is-concentration-adr055`, `owner-decision-morfo-40-knigi-…`: на origin
+    у обеих нет ни `owner_choice`, ни `owner_answered_at`). Проверка живёт внутри
+    ЕДИНСТВЕННОЙ двери, через которую карточка решения закрывается, — как и проверка
+    личности владельца живёт внутри писателя (`record_owner_answer`), а не на стороне вызова.
+
+    Молчаливого «ок» здесь нет: любой исход называется вслух. Отказ ровно один — два
+    РАЗНЫХ ответа владельца в разных копиях: тогда закрывать нельзя, пока не сверят руками.
+    """
+    try:
+        card = load_card(args.path)
+    except Exception as exc:  # noqa: BLE001 — карточку разберёт и назовёт сам set_status
+        print(f"❓ перенос следа решения НЕ ИЗМЕРЕН: карточка не разобрана ({exc})",
+              file=sys.stderr)
+        return None
+    if card.tracker_type != "owner-decision":
+        return None
+
+    try:
+        report = carry_owner_answer(args.path, extra_dirs=getattr(args, "answer_from", None) or ())
+    except AnswerConflict as exc:
+        print(f"REFUSED: {exc}\n"
+              f"    статус НЕ изменён: закрыть карточку, не зная, какой ответ владельца "
+              f"верен, значит потерять решение.", file=sys.stderr)
+        return 2
+    except Exception as exc:  # noqa: BLE001 — перенос не имеет права уронить саму очередь
+        print(f"❓ перенос следа решения НЕ ИЗМЕРЕН ({exc}) — карточка закрывается без него",
+              file=sys.stderr)
+        return None
+
+    verdict = report.get("verdict")
+    if verdict == CARRY_CARRIED:
+        print(f"✅ след решения владельца перенесён в карточку перед закрытием: "
+              f"{', '.join(sorted(report.get('added') or {}))} (источник: {report.get('source')})",
+              file=sys.stderr)
+    elif verdict == CARRY_ALREADY_PRESENT:
+        print("✅ след решения владельца уже в этой копии карточки — переносить нечего",
+              file=sys.stderr)
+    elif verdict == CARRY_NO_ANSWER:
+        print(f"⚠️  следа ответа владельца ({', '.join(_IDENTITY_FIELDS)}) нет НИ В ОДНОЙ "
+              f"копии карточки — в git уедет закрытая карточка без машинно проверяемого "
+              f"следа решения. Так бывает, когда владелец ответил правкой статуса руками, "
+              f"а не кнопкой; но молчать об этом нельзя.", file=sys.stderr)
+    elif verdict == CARRY_UNMEASURED:
+        print(f"❓ перенос следа решения НЕ ИЗМЕРЕН: {report.get('detail')}", file=sys.stderr)
+    return None
+
+
 def cmd_set_status(args) -> int:
+    if args.status == _INGESTED:
+        refused = _carry_answer_before_closing(args)
+        if refused is not None:
+            return refused
     try:
         set_status(args.path, args.status)
     except OwnerDoneForbidden as exc:
@@ -426,6 +542,10 @@ def build_parser() -> argparse.ArgumentParser:
     ps = sub.add_parser("set-status", help="atomically set a card's status (owner-done FORBIDDEN)")
     ps.add_argument("path")
     ps.add_argument("status")
+    ps.add_argument("--answer-from", action="append", default=None,
+                    help="каталог трекера, где искать след ответа владельца перед `ingested` "
+                         "(повторяемый). По умолчанию — рабочие деревья этого репозитория, "
+                         "главное первым: бот пишет ответ именно туда")
     ps.set_defaults(func=cmd_set_status)
 
     pc = sub.add_parser("create", help="create a new card (used by Telegram/Obsidian intake)")
