@@ -8,8 +8,16 @@
 # "delivered to origin" == "running in prod" again before every cycle.
 #
 # RULES (hard-learned, see memory git-push-api-drift):
-#   * CODE ONLY, whole directories: spa_core/ scripts/ tests/ + the two root pushers.
+#   * CODE ONLY, whole directories: spa_core/ scripts/ tests/ + the two root pushers,
+#     PLUS architecture/ — see next rule.
 #     NEVER data/ (live track), docs/, nimbalyst-local/, .claude/, KANBAN.json.
+#   * architecture/ is the ONE non-code exception, added on the owner's decision
+#     2026-08-09. It carries the owner's per-agent curation (manifest.json), which
+#     the hourly watchdog compares against what actually runs. It never arrived
+#     here, so the machine rebuilt the constitution from its own stale copy: on
+#     2026-08-08 four agents the owner had just approved were reported as four
+#     CRITICALs and spawned four false cards. It is git-tracked config, not runtime
+#     state — the data/ ban is untouched and stays absolute.
 #   * Whole dirs, never single files — a point-copied file with a new dependency broke
 #     the entire adapters package import on 2026-08-03.
 #   * Exec-bit safety net after checkout — origin stored agent scripts 100644 once and
@@ -25,7 +33,7 @@
 main() {
     PYTHON=/Users/yuriikulieshov/miniconda3/bin/python3
     REPO="$HOME/Documents/SPA_Claude"
-    CODE_PATHS=(spa_core scripts tests push_to_github.py push_to_github_batch.py)
+    CODE_PATHS=(spa_core scripts tests architecture push_to_github.py push_to_github_batch.py)
     LOG=/tmp/spa_code_sync.log
     cd "$REPO" || exit 1
 
