@@ -37,19 +37,65 @@ def _names(orch: dict) -> list:
     return [a["protocol"] for a in orch["adapters"]]
 
 
-# ПОЧЕМУ ЗДЕСЬ НЕТ ПОВЕДЕНЧЕСКОГО ТЕСТА (долг, карточка agent-rationale-fallback-behavioural-test)
-#
-# Множество наблюдённых протоколов наружу не выводится: оно питает атрибуцию кэша
-# внутри `decision_shadow`/`cash`, и в самом документе отдельного поля нет. Проверять
-# его «поиском имени протокола по всему блобу» бесполезно — протокол попадает в
-# документ и по другим поводам, так что такой тест зеленел бы при ЛЮБОЙ реализации
-# и отвечал бы не на тот вопрос. Это ровно тот класс проверок, который проект и так
-# закрывает годами, поэтому писать его ради галочки нельзя.
-#
-# Тест ниже проверяет НЕ поведение, а наличие условия в коде — он слабее, и это
-# сказано прямо, а не спрятано. Полноценная проверка требует либо вывести множество
-# в документ, либо тестировать `attribute_cash` напрямую с подготовленным входом;
-# и то и другое — отдельная задача, а не довесок к однострочной правке.
+class TestFallbackBehaviour(unittest.TestCase):
+    """Поведенческая проверка — долг, закрытый 2026-08-09 следующим витком.
+
+    Имена протоколов НАСТОЯЩИЕ (`aave_v3`, `maple`) намеренно: с выдуманными
+    fail-CLOSED срабатывал по причине `tier_unknown`, и тест зеленел бы, ничего
+    не доказывая о провенансе TVL. Проверка обязана падать на своём предмете,
+    а не на соседнем.
+
+    Виток назад я объявил её невозможной: искал множество наблюдённых как отдельное
+    поле документа, не нашёл и записал долг карточкой. Наблюдаемое поле всё это время
+    было рядом — `decision_shadow.evidence.tvl_unevidenced_in_target`, тот самый
+    список, которым пользуется соседний `test_allocation_rationale_shadow`.
+
+    Вывод не про этот тест: «я не нашёл» было записано как «этого нет». Формулировка
+    честнее — «не нашёл, где смотреть», и она бы не остановила работу.
+    """
+
+    def _doc(self, *rows: dict) -> dict:
+        names = [r["protocol"] for r in rows]
+        with TemporaryDirectory() as t:
+            d = Path(t)
+            (d / "adapter_orchestrator_status.json").write_text(
+                json.dumps({"adapters": list(rows)}), encoding="utf-8")
+            write_shadow_rationale(
+                data_dir=d,
+                current_positions={},
+                target_positions={p: 10_000.0 for p in names},
+                apy_pct={p: 4.0 for p in names},
+                apy_sources={p: "live" for p in names},
+                capital_usd=100_000.0,
+                cycle_date="2026-08-09",
+                run_ts="2026-08-09T12:00:00Z",
+                tvl_sources=None,          # ← карты нет: работает запасная ветка
+            )
+            return json.loads((d / "allocation_rationale.json").read_text(encoding="utf-8"))
+
+    def _unevidenced(self, *rows: dict) -> list:
+        return self._doc(*rows)["decision_shadow"]["evidence"]["tvl_unevidenced_in_target"]
+
+    def test_a_declared_live_tvl_counts_as_evidence(self):
+        got = self._unevidenced(
+            {"protocol": "aave_v3", "tvl_usd": 9_000_000.0, "tvl_source": "live"})
+        self.assertNotIn("aave_v3", got,
+                         "объявленный живой провенанс — настоящее наблюдение")
+
+    # Проверок «снимок только из литералов» здесь НЕТ намеренно. При нулевом числе
+    # наблюдений атрибуция уходит в fail-CLOSED целиком, и статус становится
+    # `attribution_incomplete` — но по причине, которую этот файл не проверяет.
+    # Тест, зеленеющий по соседнему поводу, доказывает не то, что заявляет; эта
+    # ветка закреплена отдельно в `test_allocation_rationale_shadow`.
+
+    def test_both_kinds_in_one_snapshot_are_separated(self):
+        """Проверка не «пропускает всё» и не «режет всё»."""
+        got = self._unevidenced(
+            {"protocol": "aave_v3", "tvl_usd": 9_000_000.0, "tvl_source": "live"},
+            {"protocol": "maple", "tvl_usd": 20_000_000.0, "tvl_source": "static"})
+        self.assertNotIn("aave_v3", got)
+        self.assertIn("maple", got)
+
 
 class TestTheDefinitionMatchesTheAllocator(unittest.TestCase):
     """Одно определение на всех — иначе копии разойдутся при первой правке."""
