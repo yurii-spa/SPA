@@ -139,6 +139,39 @@ _POOL_ID_LOOKUP: dict[str, str] = {
     # pool. The observation is the fact; the live TVL honestly fails the $5M
     # floor and the T3/advisory class gate (invariant 9) stays shut regardless.
     "extra_finance_base": "bc6b7193-da3c-43e3-8c7b-4c9508eec893",
+    # ── ADR-076.1: the four Aave pools OUTSIDE Ethereum (2026-08-09 live scan) ─
+    # Owner decision 2026-08-08: the book sits at the 90% single-chain limit, so
+    # idle cash has nowhere to go until a protocol on another chain can PROVE its
+    # size. These four already report a live APY; the only missing measurement was
+    # the pool size, and a constant can never supply it (ADR-053: the $5M floor is
+    # a gate, and a literal clears it tautologically).
+    #
+    # Each pin was read off the live feed on 2026-08-09 and verified by
+    # ``underlyingTokens`` == the native Circle USDC of that chain — not a bridged
+    # variant, not an LP, not a wrapper. The static estimate each one replaces is
+    # recorded next to it: the overstatements run 11x to 230x, the same class the
+    # moonwell 190x pin exposed.
+    #
+    # Base / aave-v3 / USDC — $21.9M @ 3.45% (underlying 0x8335…2913, native USDC).
+    # Estimate said $250M — 11x. Pinned also because the hint "USDC" matches
+    # SYRUPUSDC ($12.4M) on the same chain/project: today the bigger pool wins by
+    # TVL, but "best TVL wins" is exactly the identity that can move silently.
+    "aave_v3_base":      "7e0661bf-8cf3-45e6-9424-31916d4c7b84",
+    # Arbitrum / aave-v3 / USDC — $39.5M @ 2.36% (underlying 0xaf88…5831, native
+    # USDC). Estimate said $1.2B — 30x. The bridged USDC.e pool
+    # (0xFF97…5CC8, $0.15M @ 4.17%) is a DIFFERENT asset with a higher headline
+    # yield — the near-miss a fuzzy match would eventually take.
+    "aave_arbitrum":     "d9fa8e14-0447-4207-9ae8-7810199dfa1f",
+    # OP Mainnet / aave-v3 / USDC — $1.74M @ 2.88% (underlying 0x0b2C…Ff85, native
+    # USDC). Estimate said $400M — a 230x overstatement, the largest in the table.
+    # This pin makes the pool honestly FAIL the $5M floor. That is the correct
+    # outcome, not a problem to fix: the negative result is the measurement
+    # (ADR-076: "отрицательный исход допустим и его надо назвать").
+    "aave_v3_optimism":  "0758c3b8-4ffb-4176-b0a9-f446e367db46",
+    # Polygon / aave-v3 / USDC — $12.0M @ 2.92% (underlying 0x3c49…3359, native
+    # USDC). Estimate said $600M — 50x. The legacy USDC.e pool (0x2791…4174,
+    # $0.53M @ 3.18%) is again the higher-yield near-miss.
+    "aave_v3_polygon":   "1b8b4cdb-0728-42a8-bf13-2c8fea7427ee",
     # ── NOT wired, with evidence (2026-08-05 live /pools scan) ───────────────
     # frax  — the adapter models the FraxLend v2 USDC/FRAX pair
     #         (0x3835a58CA93Cdb5f912519ad366826aC9a752510). No such pool is in
