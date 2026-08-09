@@ -1499,6 +1499,32 @@ def batch_push(pat: str, file_args: list, message: str, repo: str, branch: str,
             "skipped_files": [p for p, _, _ in unchanged]}
 
 
+def adr_interlock_payload(all_files):
+    """Что именно ПОКАЗАТЬ сторожу номеров ADR: ВЕСЬ набор доставки, а не одни решения.
+
+    Отбор `docs/decisions/ADR-*` — это ТРИГГЕР («есть ли в наборе решения»), и он остаётся
+    узким: пуш без решений интерлок не трогает. А вот ПОРЦИЯ, отдаваемая сторожу, обязана
+    быть полной, потому что вопрос сторожа — «что будет на origin ПОСЛЕ этого пуша», и
+    ответ на него зависит от файлов, решениями не являющихся. Прежде всего от
+    `docs/decisions/INDEX.md`: он уезжает тем же пушем, но под фильтр не подходил, сторож
+    его не видел и читал реестр С ORIGIN — где строки нового решения ещё нет по построению.
+
+    Замер 09.08 (карточка `inbox-strazh-adr-nomerov-lozhno-krasneet-ne-vi`): честная пара
+    (ADR-078 + INDEX.md) получала «в INDEX.md нет ни одной строки ADR-078» и rc=7, хотя
+    строка есть; ПРЯМОЙ вызов сторожа с той же парой давал 0 находок. Сессия обошла отказ
+    флагом — а сторож, который краснеет на верную работу, обходят каждый раз, и тогда он не
+    поймает настоящее столкновение (`.claude/rules/deployment.md`).
+
+    Гипотеза карточки (сторожу передают АБСОЛЮТНЫЕ пути, и сравнение с `INDEX_REL` не
+    срабатывает) замером ОПРОВЕРГНУТА: `check_push` приводит пути к relpath от корня, и с
+    абсолютной парой он зелёный. Дефект был не в сторо́же, а в проводке к нему.
+
+    Сам сторож к лишним файлам готов: набор без решений он возвращает пустым (`check_push`
+    → `([], [])`), поэтому полная порция ничего не расширяет — она лишь перестаёт скрывать.
+    """
+    return [str(f) for f in all_files]
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Пуш файлов в GitHub без hardcoded PAT",
@@ -1578,7 +1604,8 @@ def main():
                   f"НЕ измерено, а решения в наборе есть (fail-CLOSED). "
                   f"Осознанно продолжить: --allow-adr-collision.", file=sys.stderr)
             sys.exit(7)
-        _rc = subprocess.run([sys.executable, _adr_guard, "check", "--files", *_adr]).returncode
+        _rc = subprocess.run([sys.executable, _adr_guard, "check",
+                              "--files", *adr_interlock_payload(all_files)]).returncode
         if _rc != 0:
             print(f"ОТКАЗ (номера ADR, rc={_rc}): набор не доставлен. Свободный номер — "
                   f"`python3 scripts/adr_number.py next`; осознанно продолжить — "

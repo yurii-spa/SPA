@@ -38,6 +38,9 @@ def _load(name, rel):
 
 
 adr = _load("adr_number_under_test", "scripts/adr_number.py")
+# Пушер импортируется как модуль (весь исполняемый код у него под `if __name__`), чтобы
+# порцию для сторожа строил САМ пушер, а не её копия в тесте.
+pusher = _load("push_to_github_under_test", "push_to_github.py")
 
 BASELINE = Path(__file__).parent / "adr_duplicate_baseline.json"
 
@@ -383,6 +386,64 @@ def test_pusher_interlock_is_scoped_to_decisions_only():
     assert not selects("spa_core/risk/policy.py")
     assert not selects("docs/decisions/INDEX.md"), "реестр сам по себе решением не является"
     assert selects("docs/decisions/ADR-078-x.md")
+
+
+def test_pusher_shows_the_guard_the_whole_delivery_set(repo):
+    """АВАРИЯ 09.08 дословно: честная пара (решение + реестр) получала отказ rc=7.
+
+    Это тест ПРОВОДКИ, а не детали, и он собран из ДВУХ настоящих частей: порцию строит
+    сам пушер (`adr_interlock_payload`), судит её настоящий сторож (`check_push`). Соседний
+    `test_index_delivered_in_the_same_push_counts` проверяет ту же ситуацию и остаётся
+    зелёным при мёртвой проводке — потому что зовёт сторожа напрямую, минуя пушер, который
+    как раз и вырезал `INDEX.md` из набора (урок #144: мутировать надо проводку, а не части).
+
+    Отрицательный контроль внизу воспроизводит ровно ту порцию, что уходила сторожу ДО
+    починки, и обязан остаться красным: он и есть доказательство, что тест видел аварию.
+    """
+    _origin_with_073(repo)
+    new = repo / "docs" / "decisions" / "ADR-078-brand-new.md"
+    new.write_text("x", encoding="utf-8")
+    index = repo / "docs" / "decisions" / "INDEX.md"
+    index.write_text(index.read_text(encoding="utf-8")
+                     + _row("078", fname="ADR-078-brand-new.md"), encoding="utf-8")
+    # Набор доставки реальной сессии: решение, реестр и посторонние файлы рядом.
+    delivered = [str(new), str(index), "docs/STATE.md", "docs/journal/2026-W32.md"]
+
+    payload = pusher.adr_interlock_payload(delivered)
+    assert str(index) in payload, "реестр уезжает этим же пушем, а сторож его не увидит"
+    assert adr.check_push(repo, payload) == ([], []), (
+        "честная пара (решение + строка реестра) отказана — сторож судит реестр с origin")
+
+    # ДО починки пушер отдавал сторожу только это — и получал ложную находку.
+    narrowed = [f for f in delivered if "docs/decisions/ADR-" in f]
+    findings, _ = adr.check_push(repo, narrowed)
+    assert any("нет ни одной строки" in f for f in findings), (
+        "отрицательный контроль зелёный ⇒ тест не воспроизводит аварию 09.08")
+
+
+def test_pusher_trigger_stays_narrow_while_the_payload_is_full(repo):
+    """Обратная сторона: расширяется ПОРЦИЯ, а не ТРИГГЕР — иначе интерлок начнёт краснеть
+    на пушах без решений, и его снимут первым.
+
+    `test_pusher_interlock_is_scoped_to_decisions_only` стережёт предикат-триггер, здесь —
+    что полная порция сама по себе ничего не запирает: сторож на наборе без решений молчит.
+    """
+    _origin_with_073(repo)
+    payload = pusher.adr_interlock_payload(["docs/STATE.md", "docs/decisions/INDEX.md",
+                                            "spa_core/risk/policy.py"])
+    assert adr.check_push(repo, payload) == ([], []), (
+        "набор без решений обязан быть сторожу безразличен")
+
+
+def test_pusher_actually_calls_the_payload_builder():
+    """Функция не должна стать мёртвым кодом рядом с прежним узким `*_adr`.
+
+    Без этого ассерта починку можно откатить в одну строку, а оба теста выше останутся
+    зелёными: они зовут `adr_interlock_payload` сами.
+    """
+    src = (ROOT / "push_to_github.py").read_text(encoding="utf-8")
+    assert "*adr_interlock_payload(all_files)" in src, (
+        "интерлок снова получает не весь набор доставки — сверь, видит ли сторож INDEX.md")
 
 
 def test_pusher_declares_the_conscious_bypass():
