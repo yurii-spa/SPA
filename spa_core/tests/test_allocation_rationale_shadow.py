@@ -124,9 +124,26 @@ def test_unverifiable_tvl_makes_attribution_incomplete_not_explained(tmp_path: P
 
 
 def test_tvl_that_cleared_the_floor_on_a_literal_is_surfaced(tmp_path: Path) -> None:
-    """Only the orchestrator snapshot carries a real TVL; the rest is a literal."""
+    """Only a DECLARED live TVL counts; a bare number is a literal.
+
+    Фикстура правлена 2026-08-09 (обоснование обязательно, `CLAUDE.md` §16;
+    запись — `docs/journal/2026-W32.md`). Смысл теста не изменился: у `maple`
+    настоящий замер, у `morpho_steakhouse` — литерал. Изменилось то, ЧЕМ этот
+    замер объявляется.
+
+    Прежняя фикстура опиралась на посылку «всё, что лежит в снимке оркестратора,
+    — настоящий TVL». Посылка неверна, и это записано в самом аллокаторе
+    (`allocator.py:920`): «оркестратор отдаёт то, что дал адаптер, а 11 адаптеров
+    отдают захардкоженную константу `TVL_USD`». То есть старая фикстура выражала
+    ровно тот дефект, который закрыт 09.08: число без объявления засчитывалось
+    наблюдением.
+
+    Проверка НЕ ослаблена — она стала точнее: теперь `maple` проходит потому, что
+    провенанс объявлен, а не потому, что запись просто существует.
+    """
     (tmp_path / "adapter_orchestrator_status.json").write_text(json.dumps(
-        {"adapters": [{"protocol": "maple", "tvl_usd": 2_554_487_183.0}]}), encoding="utf-8")
+        {"adapters": [{"protocol": "maple", "tvl_usd": 2_554_487_183.0,
+                       "tvl_source": "live"}]}), encoding="utf-8")
     doc = _write(tmp_path)
     unsound = doc["decision_shadow"]["evidence"]["tvl_unevidenced_in_target"]
     assert "morpho_steakhouse" in unsound and "maple" not in unsound
