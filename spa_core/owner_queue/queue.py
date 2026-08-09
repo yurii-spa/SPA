@@ -168,6 +168,47 @@ def resolve_tracker_type(fm: dict, filename: str = "") -> str:
     return ""
 
 
+def resolve_card_title(fm: dict, body: str = "") -> str:
+    """Человеческое НАЗВАНИЕ карточки — второй общий резолвер рядом с ``resolve_tracker_type``.
+
+    Название карточки объявляют двумя формами, и обе легитимны ровно так же, как две формы
+    типа: ``title:`` во frontmatter (его пишет ``create_card``) и заголовок ``# …`` первой
+    строкой тела (так пишут R&D-сессии руками, вместе с плоским ``type:``).
+
+    Почему функция появилась (замер цикла #183 на живом трекере): из 381 карточки 9 объявляют
+    себя плоской формой, и **ни у одной из них название не доезжает до владельца**. Тип для
+    них починен (#145) — карточка находится в очереди, — но везде, где печатается имя, вместо
+    русского предложения стоит слаг файла. На доске это выглядит так::
+
+        - **Наша крупнейшая позиция ($40k в morpho) держится без живого подтверждения…**
+        - own-rnd-xsd-rank-demotion-allocator          ← та же секция, живой вопрос владельцу
+
+    То же в Telegram-уведомлении: заголовок сообщения «own-32-evidence-vs-curve-diverge»
+    вместо «Две записи о деньгах расходятся каждый день». Это прямое нарушение инварианта
+    #15 (**название карточки — по-русски**), причём название в файле ЕСТЬ — его просто никто
+    не читает. Тот же класс, что и с типом: читатель честно отвечает на свой вопрос
+    («что лежит в поле ``title``?»), а читают его как ответ на нужный («как называется
+    карточка?»). Заодно слаг вместо названия получал и семантический дедуп
+    (``history_check`` / ``ask_router`` кормят LLM именно этой строкой).
+
+    Порядок — объявление раньше догадки: frontmatter → первый ``#``-заголовок тела → пусто
+    (читатели и сегодня подставляют id/имя файла, это поведение не меняется).
+    """
+    declared = fm.get("title")
+    if isinstance(declared, str) and declared.strip():
+        return declared.strip()
+    for raw in (body or "").splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        if line.startswith("# "):
+            return line[2:].strip()
+        # Первый непустой НЕ-заголовок означает, что тело началось с текста: названия нет.
+        if not line.startswith("#"):
+            break
+    return ""
+
+
 def load_card_text(text: str, name: str = "", path: str | Path | None = None) -> Card:
     """Разобрать карточку из ТЕКСТА — тот же и единственный парсер, что и для файла на диске.
 
@@ -187,7 +228,7 @@ def load_card_text(text: str, name: str = "", path: str | Path | None = None) ->
     return Card(
         path=Path(path) if path is not None else Path(name),
         tracker_type=tracker_type,
-        title=str(top.get("title", "")),
+        title=resolve_card_title(top, body),
         status=str(top.get("status", "")),
         priority=str(top.get("priority", "")),
         owner=str(top.get("owner", "")),

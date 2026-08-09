@@ -28,7 +28,7 @@ OUT = TRACKER / "_BOARD.md"
 # владельцу были невидимы в его же очереди). Сломанный импорт обязан быть слышен.
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
-from spa_core.owner_queue.queue import resolve_tracker_type  # noqa: E402
+from spa_core.owner_queue.queue import load_card_text, resolve_tracker_type  # noqa: E402
 
 # порядок и человекочитаемые имена типов
 TYPE_ORDER = ["owner-decision", "inbox", "agent-task"]
@@ -88,6 +88,14 @@ def card_type(meta: dict, name: str) -> str:
     return resolve_tracker_type(meta, name) or "other"
 
 
+def card_title(text: str, path: Path) -> str:
+    """Название карточки — общим с CLI разбором; имя файла только как последний рубеж."""
+    try:
+        return load_card_text(text, path.name, path=path).title or path.stem
+    except Exception:  # noqa: BLE001 — битая карточка не имеет права уронить всю доску
+        return path.stem
+
+
 def status_rank(s: str) -> int:
     try:
         return STATUS_ORDER.index(s)
@@ -122,7 +130,12 @@ def main() -> int:
         cards.append({
             "file": p.name,
             "type": card_type(meta, p.name),
-            "title": meta.get("title", p.stem),
+            # Название — через ОБЩИЙ с CLI разбор (`load_card_text` → `resolve_card_title`):
+            # у карточек, объявленных плоской формой, названия во frontmatter нет — оно стоит
+            # `#`-заголовком тела, и доска печатала слаг файла (замер #183). Отдельной копии
+            # «где лежит название» здесь намеренно НЕТ: вторая копия правила разбора — это и
+            # есть дефект, за который проект уже платил вопросами владельца (#143–#145).
+            "title": card_title(text, p),
             "status": status,
             "created": meta.get("created", ""),
             "priority": meta.get("priority", ""),
@@ -195,7 +208,14 @@ def main() -> int:
 
     content = "\n".join(lines) + "\n"
     atomic_write(OUT, content)
-    print(f"wrote {OUT.relative_to(REPO)} — {len(cards)} cards, "
+    # Доска может быть перенацелена на другой каталог (`--tracker-dir`, песочница теста) —
+    # тогда её пути нет внутри репозитория. Статусная СТРОКА не имеет права ронять сборку:
+    # файл уже записан, и падение здесь выглядело бы как «доска не собралась».
+    try:
+        where = OUT.relative_to(REPO)
+    except ValueError:
+        where = OUT
+    print(f"wrote {where} — {len(cards)} cards, "
           f"{len(waiting)} waiting-owner, {len(claimed)} claimed")
     return 0
 
