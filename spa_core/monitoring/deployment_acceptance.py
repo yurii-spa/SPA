@@ -238,24 +238,55 @@ def check_imports(
     return failed
 
 
+def _data_dir_for(data_dir: Optional[Path], repo_root: Optional[Path]) -> Path:
+    """Каталог, О КОТОРОМ выносится вердикт. Решается ОДИН раз, для всех проверок.
+
+    Иначе половины отчёта расходятся в том, какое дерево судят: признак worktree
+    брался у `repo_root`, а свежесть мерилась у `_REPO_ROOT` — дерева, из которого
+    ИМПОРТИРОВАН этот модуль. Когда приёмку зовут из worktree про прод (а правило
+    доставки требует гонять её ровно так — до и после изменения дерева), это давало
+    уверенное «просроченных артефактов нет», посчитанное по git-checkout'у, который
+    свеж ПО ПОСТРОЕНИЮ: mtime у него — момент создания worktree.
+
+    Зеркало аварии 2026-08-08 из шапки `test_acceptance_knows_its_tree`: там
+    неверное дерево дало ложную ТРЕВОГУ, здесь — ложную ТИШИНУ. Тишина хуже:
+    ложную тревогу идут проверять, а «чистый счёт» закрывают не читая.
+    """
+    if data_dir is not None:
+        return Path(data_dir)          # явное указание вызывающего — не угадываем
+    if repo_root is not None:
+        return Path(repo_root) / "data"  # спросили про ЭТО дерево — про него и отвечаем
+    return _REPO_ROOT / "data"
+
+
 def check_scheduled_artifacts(
     data_dir: Optional[Path] = None,
     table: Optional[Dict[str, float]] = None,
     now: Optional[float] = None,
+    repo_root: Optional[Path] = None,
 ) -> List[dict]:
     """Artifacts a scheduled job should have refreshed, but did not.
 
     A missing file is overdue by definition — "never produced" is the worst
     version of "not fresh", not an exemption from the check.
+
+    ``repo_root`` называет дерево, о котором спрашивают (см. ``_data_dir_for``):
+    без него прямой вызов получил бы вердикт о дереве, из которого импортирован
+    модуль, а не о том, про которое спросили.
     """
-    ddir = Path(data_dir) if data_dir else (_REPO_ROOT / "data")
+    ddir = _data_dir_for(data_dir, repo_root)
     now = now if now is not None else time.time()
     overdue: List[dict] = []
+    # Каталога нет вовсе — это тоже вердикт, а не повод вернуть пустой список.
+    # Причину называем отдельно: «работа не запускалась» и «мерить негде» лечатся
+    # по-разному, а слить их в одну строку — значит спрятать вторую.
+    dir_missing = not ddir.is_dir()
     for name, max_age_h in (table or SCHEDULED_ARTIFACTS).items():
         f = ddir / name
         if not f.is_file():
             overdue.append({"artifact": name, "age_hours": None, "max_hours": max_age_h,
-                            "problem": "never produced"})
+                            "problem": ("no data/ directory at {} — nothing to measure".format(ddir)
+                                        if dir_missing else "never produced")})
             continue
         age_h = (now - f.stat().st_mtime) / 3600.0
         if age_h > max_age_h:
@@ -290,7 +321,8 @@ def run_acceptance(
                 "состояние прода. Свежесть артефактов НЕ ПРОВЕРЕНА. Запусти приёмку "
                 "из рабочего дерева прода.")
         else:
-            rep.artifacts_overdue = check_scheduled_artifacts(data_dir, artifacts)
+            rep.artifacts_overdue = check_scheduled_artifacts(
+                data_dir, artifacts, repo_root=repo_root)
 
         if rep.entrypoints_broken:
             rep.reasons.append(
@@ -335,8 +367,9 @@ def run_acceptance(
                    "(agent_health) — three different questions, none replaces another.")
     if write:
         try:
-            ddir = Path(data_dir) if data_dir else (_REPO_ROOT / "data")
-            atomic_save(doc, str(ddir / STATE_FILENAME))
+            # Квитанция ложится в ТО ЖЕ дерево, о котором вердикт: иначе отчёт о
+            # проде приземляется в data/ worktree, где его никто не читает.
+            atomic_save(doc, str(_data_dir_for(data_dir, repo_root) / STATE_FILENAME))
         except Exception as exc:  # noqa: BLE001
             log.warning("acceptance: could not persist state (%s)", exc)
 
