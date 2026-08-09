@@ -154,10 +154,18 @@ def test_create_card_readable_slug_no_timestamp(tmp_path):
 
 
 def test_create_card_collision_gets_readable_suffix(tmp_path):
-    # Same title twice → base name, then '-2', '-3' (readable, not a timestamp).
-    p1 = create_card("inbox", "Починить график", tracker_dir=tmp_path)
-    p2 = create_card("inbox", "Починить график", tracker_dir=tmp_path)
-    p3 = create_card("inbox", "Починить график", tracker_dir=tmp_path)
+    # Same title, РАЗНОЕ содержание → base name, then '-2', '-3' (readable, not a timestamp).
+    #
+    # ИЗМЕНЕНО НАМЕРЕННО 2026-08-09 (инв. #16): раньше три карточки создавались с ПУСТЫМ
+    # телом, то есть были неотличимы. Теперь `create_card` идемпотентен по паре
+    # (заголовок, тело) для ОТКРЫТЫХ карточек — это защита от потока одинаковых
+    # уведомлений владельцу (замер 08–09.08: авторы плодили `-2`, `-3`… и каждая слала
+    # своё сообщение). Смысл теста сохранён и УСИЛЕН: он по-прежнему пиннит читаемый
+    # суффикс вместо таймстампа, но теперь на РЕАЛЬНОМ случае — разные карточки с
+    # совпавшим заголовком, а не на трёх копиях одного вопроса.
+    p1 = create_card("inbox", "Починить график", "первая находка", tracker_dir=tmp_path)
+    p2 = create_card("inbox", "Починить график", "вторая находка", tracker_dir=tmp_path)
+    p3 = create_card("inbox", "Починить график", "третья находка", tracker_dir=tmp_path)
     assert p1.name == "inbox-pochinit-grafik.md"
     assert p2.name == "inbox-pochinit-grafik-2.md"
     assert p3.name == "inbox-pochinit-grafik-3.md"

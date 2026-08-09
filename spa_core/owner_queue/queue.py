@@ -20,6 +20,7 @@ Card frontmatter shape (see .nimbalyst/trackers/owner-decision.yaml)::
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 from dataclasses import dataclass, field
@@ -30,6 +31,8 @@ from typing import Iterable
 from spa_core.utils.atomic import atomic_save_text
 
 # Repo-root-relative canonical location of the files-first queue.
+log = logging.getLogger(__name__)
+
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 TRACKER_DIR = Path(os.environ.get("SPA_TRACKER_DIR", _REPO_ROOT / "nimbalyst-local" / "tracker"))
 
@@ -337,6 +340,41 @@ def _yaml_escape(value: str) -> str:
     return v
 
 
+#: Статусы, в которых вопрос ВСЁ ЕЩЁ ждёт ответа. Закрытая карточка идемпотентность не
+#: даёт: если вопрос вернулся после закрытия — это новый вопрос, и о нём надо сказать.
+_OPEN_STATUSES = frozenset({"needs-owner", "new", "in-progress", "blocked"})
+
+
+def _open_twin(d: Path, base: str, tracker_type: str, body: str) -> Path | None:
+    """Уже открытая карточка с ТЕМ ЖЕ вопросом, если она есть.
+
+    Тип карточки отдельно НЕ сверяется: он входит в ``base`` (``inbox-…`` против
+    ``owner-decision-…``), поэтому карточки разных типов физически не могут совпасть
+    именем. Лишняя проверка выглядела бы защитой, которой нечего защищать.
+
+    Никогда не бросает: сбой поиска не имеет права ПОДАВИТЬ карточку — в сомнении
+    возвращаем ``None`` и карточка создаётся. Лишняя карточка — неприятность, потерянный
+    вопрос владельцу — потеря контроля.
+    """
+    try:
+        wanted = (body or "").strip()
+        candidates = [d / f"{base}.md"] + sorted(d.glob(f"{base}-[0-9]*.md"))
+        for cand in candidates:
+            if not cand.exists():
+                continue
+            try:
+                card = load_card(cand)
+            except Exception:  # noqa: BLE001 — битую карточку близнецом не считаем
+                continue
+            if (card.status or "") not in _OPEN_STATUSES:
+                continue
+            if (card.body or "").strip() == wanted:
+                return cand
+    except Exception:  # noqa: BLE001
+        return None
+    return None
+
+
 def create_card(
     tracker_type: str,
     title: str,
@@ -367,6 +405,25 @@ def create_card(
 
     base = f"{tracker_type}-{_slug(title)}"
     path = d / f"{base}.md"
+
+    # ИДЕМПОТЕНТНОСТЬ. Тот же вопрос, заданный второй раз, — это НЕ вторая карточка.
+    #
+    # Замер 08–09.08: автоматические авторы (owner-gate сайта и другие) при каждом повторе
+    # своей проверки заводили НОВУЮ карточку `-2`, `-3`… и КАЖДАЯ слала владельцу отдельное
+    # уведомление. Владелец получал одно и то же «нужно решение» каждые несколько минут —
+    # «с этим невозможно работать». Чинить это у каждого автора по очереди бессмысленно:
+    # авторов много, и завтра появится новый. Поэтому защита стоит здесь — в ЕДИНСТВЕННОЙ
+    # точке, через которую карточки рождаются.
+    #
+    # Условие узкое и проверяемое: тот же заголовок (⇒ то же имя файла), то же тело И
+    # карточка всё ещё ОТКРЫТА. Изменилось тело — вопрос другой, заводим новую с суффиксом.
+    # Карточка закрыта — вопрос вернулся, тоже новая.
+    existing = _open_twin(d, base, tracker_type, body)
+    if existing is not None:
+        log.info("create_card: открытая карточка с тем же вопросом уже есть (%s) — "
+                 "не плодим дубль", existing.name)
+        return existing
+
     n = 2
     while path.exists():  # collision guard → readable numeric suffix (-2, -3, …)
         path = d / f"{base}-{n}.md"
