@@ -282,7 +282,8 @@ def _http_get(url: str, timeout: int = NET_TIMEOUT, want_headers: bool = False,
 # ===========================================================================
 class SystemHealthMonitor:
     def __init__(self, data_dir: str | os.PathLike | None = None,
-                 project_root: str | os.PathLike | None = None):
+                 project_root: str | os.PathLike | None = None,
+                 now: Optional[datetime] = None):
         self.project_root = Path(project_root) if project_root else Path(__file__).resolve().parents[2]
         self.data_dir = Path(data_dir) if data_dir else self.project_root / "data"
         self.src: dict[str, Any] = {}     # loaded sources, populated by _prelude
@@ -290,6 +291,18 @@ class SystemHealthMonitor:
         self._prev_cache: Optional[dict] = None
         # Off-site backup day series; None until d1 computes it this run.
         self._offsite_backup_days: Optional[dict] = None
+        # Injected clock for the off-site backup check. ``None`` (production)
+        # means the real clock, so this is inert outside tests.
+        #
+        # Why it exists: the off-site check is the one judgement here that both
+        # spans calendar DAYS and is asserted on by day key. A test that cannot
+        # choose the instant can only ask "is it today?" — and "today" is a
+        # different day from the snapshot's own day for one hour after UTC
+        # midnight, which is exactly how two tests here went red at 00:28 UTC on
+        # 2026-08-09 (card `inbox-ryad-dnei-offsite-bekapa-klyuchuetsya-lo`).
+        # Time is an INPUT, not the environment (`.claude/rules/deployment.md`,
+        # preference #1).
+        self._now_override: Optional[datetime] = now
 
     # -- source loading -----------------------------------------------------
     def _load_json(self, name: str) -> tuple[Any, Optional[str]]:
@@ -540,7 +553,8 @@ class SystemHealthMonitor:
         prev = getattr(self, "_prev_cache", None) or {}
         try:
             verdict, history = _offsite.assess(
-                self.data_dir, prev.get("offsite_backup_days"))
+                self.data_dir, prev.get("offsite_backup_days"),
+                now=self._now_override)
         except Exception as exc:               # noqa: BLE001 — health check must never raise
             # Fail-CLOSED: an unexpected failure of the check is "not measured",
             # never a quiet pass.

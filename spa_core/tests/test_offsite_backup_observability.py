@@ -14,11 +14,22 @@ check exists there at all), and each module test reproduces one concrete way
 the signal could lie — stale green, unknown value, invented streak, silent
 carry-over loss.
 
-Times are derived from an INJECTED ``now`` (``_BASE``) for the pure module and
-from ``_freshness.ts`` for the monitor, which reads the real clock — both sides
-pinned, so the calendar can never turn these red (``.claude/rules/deployment.md``,
-"Время в тестах"). ``_BASE`` is CONSTRUCTED rather than quoted, so no fixture
-here holds a literal date string.
+Times are derived from an INJECTED ``now`` (``_BASE``) on BOTH sides — the pure
+module and the monitor — so the calendar can never turn these red
+(``.claude/rules/deployment.md``, "Время в тестах"). ``_BASE`` is CONSTRUCTED
+rather than quoted, so no fixture here holds a literal date string.
+
+The monitor side used to read the real clock (``_freshness.ts``) instead, and
+that was not merely stylistic: two tests below asked "is the snapshot's day
+TODAY?", which is false for one hour after UTC midnight, and they duly went red
+at 00:28 UTC on 2026-08-09 (card
+``inbox-ryad-dnei-offsite-bekapa-klyuchuetsya-lo``). Measured on the unpatched
+tree by replaying that instant: the series held ``2026-08-08`` while the
+assertion asked for ``2026-08-09``. **The monitor was right and the tests were
+wrong** — days are keyed by the snapshot's OWN day on purpose (module docstring,
+"Day history"), because the monitor runs twice a day and may skip runs. The
+fix therefore pins the assertions to the fixture's own day and adds the midnight
+crossing as a positive control, rather than moving the production key.
 
 The one exception is ``test_a_domain_that_never_ran_cannot_erase_a_running_streak``,
 whose subject is carry-over of an opaque day key and not freshness at all: any
@@ -36,12 +47,17 @@ import pytest
 
 from spa_core.monitoring import offsite_backup_observability as ob
 from spa_core.monitoring import system_health_monitor as shm
-from spa_core.tests._freshness import ts
 
 # Injected clock for the pure-module tests. Constructed, never quoted, so the
 # fixtures below carry no literal date string at all.
 _BASE = datetime(2026, 8, 5, 12, 0, 0, tzinfo=timezone.utc)
 _D0 = _BASE.date()
+
+# The night window that broke the two monitor tests: 28 minutes past UTC
+# midnight, derived from ``_BASE`` so it stays a construction and not a quoted
+# date. At this instant a snapshot one hour old belongs to the PREVIOUS
+# calendar day — the whole subject of the midnight controls below.
+_MIDNIGHT = _BASE + timedelta(hours=12, minutes=28)
 
 CHECK_ID = "d1.track_backup.offsite"
 
@@ -286,8 +302,15 @@ def test_history_is_bounded(tmp_path):
 # ===========================================================================
 # 6. The monitor actually reads it — positive controls against the pre-fix tree
 # ===========================================================================
-def _monitor(tmp_path) -> shm.SystemHealthMonitor:
-    return shm.SystemHealthMonitor(data_dir=tmp_path, project_root=tmp_path)
+def _monitor(tmp_path, now: datetime = _BASE) -> shm.SystemHealthMonitor:
+    """The monitor with its clock INJECTED — never the ambient one.
+
+    ``now`` reaches only the off-site check (``SystemHealthMonitor.__init__``);
+    everything else in d1 keeps the real clock, which is fine because nothing
+    below asserts on it.
+    """
+    return shm.SystemHealthMonitor(data_dir=tmp_path, project_root=tmp_path,
+                                   now=now)
 
 
 def _d1(mon):
@@ -296,11 +319,24 @@ def _d1(mon):
     return {c.id: c for c in mon.check_d1_data_pipeline()}
 
 
-def live_snapshot(status="ok", errors=None, hours_ago=1.0):
-    """Same shape, but on the REAL clock — the monitor does not take a ``now``."""
+def live_snapshot(status="ok", errors=None, hours_ago=1.0, now: datetime = _BASE):
+    """A snapshot ``hours_ago`` before the instant the monitor will be given.
+
+    Both sides come from the same ``now``, so the age is pinned and so is the
+    day the snapshot describes (``snapshot_day`` below reads it back).
+    """
     return {"track_persist_ok": True, "mirror_ok": True, "reason": "ok",
-            "ts": ts(hours_ago=hours_ago), "backup_status": status,
-            "backup_errors": errors or []}
+            "ts": (now - timedelta(hours=hours_ago)).isoformat(),
+            "backup_status": status, "backup_errors": errors or []}
+
+
+def snapshot_day(hours_ago: float = 1.0, now: datetime = _BASE) -> str:
+    """The day ``live_snapshot`` just wrote — DERIVED from the same instant.
+
+    Asking instead for "today" is the defect this file was red on: for one hour
+    after UTC midnight the snapshot's day and the run day are different days.
+    """
+    return (now - timedelta(hours=hours_ago)).date().isoformat()
 
 
 def test_monitor_publishes_a_failed_offsite_backup(tmp_path):
@@ -314,23 +350,32 @@ def test_monitor_publishes_a_failed_offsite_backup(tmp_path):
     assert reason in checks[CHECK_ID].title
 
 
+def _seed_two_failed_days_before(tmp_path, day_key: str) -> None:
+    """Carry-over of the two days preceding ``day_key`` — anchored to the
+    SNAPSHOT's day, not to "today". Anchoring to the run day is what made this
+    test unsatisfiable in the hour after UTC midnight: the seeded days sat one
+    day away from the day the snapshot actually lands on, so the walk stopped
+    at a hole and the streak never reached three."""
+    d = datetime.fromisoformat(day_key).date()
+    (tmp_path / "system_health.json").write_text(json.dumps({
+        "offsite_backup_days": {
+            (d - timedelta(days=2)).isoformat(): {"state": "failed"},
+            (d - timedelta(days=1)).isoformat(): {"state": "failed"},
+        }}), encoding="utf-8")
+
+
 def test_monitor_escalates_a_three_day_streak_to_critical(tmp_path):
     """POSITIVE CONTROL for the series criterion, through the real report
     carry-over (previous system_health.json), not a hand-fed dict."""
-    today = datetime.now(timezone.utc).date()
-    prev_report = {"offsite_backup_days": {
-        (today - timedelta(days=2)).isoformat(): {"state": "failed"},
-        (today - timedelta(days=1)).isoformat(): {"state": "failed"},
-    }}
-    (tmp_path / "system_health.json").write_text(json.dumps(prev_report),
-                                                 encoding="utf-8")
+    _seed_two_failed_days_before(tmp_path, snapshot_day())
     write_status(tmp_path, live_snapshot("error", ["stalled"]))
     checks = _d1(_monitor(tmp_path))
     assert checks[CHECK_ID].status == shm.CRITICAL
 
 
 def test_monitor_reports_unchecked_when_the_key_is_absent(tmp_path):
-    write_status(tmp_path, {"track_persist_ok": True, "ts": ts(hours_ago=1)})
+    write_status(tmp_path, {"track_persist_ok": True,
+                            "ts": (_BASE - timedelta(hours=1)).isoformat()})
     checks = _d1(_monitor(tmp_path))
     assert checks[CHECK_ID].status == shm.WARNING
     assert "UNCHECKED" in checks[CHECK_ID].title
@@ -360,8 +405,8 @@ def test_the_day_series_is_published_in_the_report(tmp_path, monkeypatch):
         monkeypatch.setattr(shm.SystemHealthMonitor, dom, lambda self: [])
     write_status(tmp_path, live_snapshot("error", ["stalled"]))
     report = _monitor(tmp_path).collect()
-    today = datetime.now(timezone.utc).date().isoformat()
-    assert report["offsite_backup_days"].get(today, {}).get("state") == "failed"
+    published = report["offsite_backup_days"]
+    assert published.get(snapshot_day(), {}).get("state") == "failed"
 
 
 def test_a_domain_that_never_ran_cannot_erase_a_running_streak(tmp_path):
@@ -389,6 +434,81 @@ def test_the_check_never_raises_and_carries_history_forward(tmp_path, monkeypatc
     assert res.status == shm.WARNING and "UNCHECKED" in res.title
     assert "exploded" in (res.error or "")
     assert mon._offsite_backup_days_for_report() == {day(-1): {"state": "failed"}}
+
+
+# ===========================================================================
+# 6b. UTC midnight — the hour the card was measured in
+#
+# The card feared the day series itself tore every night, making "three days in
+# a row" unreachable forever: an alarm that cannot fire while the console stays
+# green. Measurement said otherwise — the tear was in the ASSERTIONS, and the
+# two controls below pin both halves of that answer so neither can regress.
+# ===========================================================================
+def test_the_series_keys_the_snapshots_day_not_the_run_day_after_midnight(tmp_path):
+    """POSITIVE CONTROL replaying 00:28 UTC 2026-08-09 exactly.
+
+    The snapshot is an hour old, so it belongs to YESTERDAY while the monitor
+    runs today. Keying by the run day would file the observation under a day
+    nobody measured — inventing history in one direction and leaving a hole in
+    the other. Re-keying by ``now`` turns this red.
+    """
+    write_status(tmp_path, live_snapshot("error", ["stalled"], now=_MIDNIGHT))
+    mon = _monitor(tmp_path, now=_MIDNIGHT)
+    checks = _d1(mon)
+
+    yesterday = snapshot_day(now=_MIDNIGHT)
+    assert yesterday != _MIDNIGHT.date().isoformat(), "fixture must straddle midnight"
+    series = mon._offsite_backup_days_for_report()
+    assert series.get(yesterday, {}).get("state") == "failed"
+    assert _MIDNIGHT.date().isoformat() not in series      # no day was invented
+    # An hour-old snapshot is still fresh — the calendar turning is not staleness.
+    assert checks[CHECK_ID].status == shm.WARNING
+    assert "UNCHECKED" not in checks[CHECK_ID].title
+
+
+def test_a_three_day_streak_still_escalates_across_midnight(tmp_path):
+    """POSITIVE CONTROL for the card's actual fear: CRITICAL must remain
+    REACHABLE in the night window, not only in daylight hours."""
+    _seed_two_failed_days_before(tmp_path, snapshot_day(now=_MIDNIGHT))
+    write_status(tmp_path, live_snapshot("error", ["stalled"], now=_MIDNIGHT))
+    checks = _d1(_monitor(tmp_path, now=_MIDNIGHT))
+    assert checks[CHECK_ID].status == shm.CRITICAL
+    assert checks[CHECK_ID].evidence["streak_days"] == ob.FAIL_STREAK_CRITICAL_DAYS
+
+
+def test_three_consecutive_daily_cycles_reach_critical(tmp_path, monkeypatch):
+    """The claim "three in a row NEVER happens" — measured end to end instead
+    of argued.
+
+    Three consecutive daily cycles at 06:00 UTC, each failing, with the monitor
+    running TWICE a day (its real cadence) and carrying its own report forward
+    exactly as production does. The second run of a day must re-file the same
+    day rather than open a new one, or the streak would count runs instead of
+    days and reach three a day and a half early.
+    """
+    for dom in ("check_d2_connectivity", "check_d4_external"):
+        monkeypatch.setattr(shm.SystemHealthMonitor, dom, lambda self: [])
+
+    cycle_hour = _BASE.replace(hour=6, minute=0)          # daily_cycle, 06:00 UTC
+    statuses = []
+    for d in range(3):
+        cycle_at = cycle_hour + timedelta(days=d)
+        write_status(tmp_path, {
+            "track_persist_ok": True, "mirror_ok": True, "reason": "ok",
+            "ts": cycle_at.isoformat(),
+            "backup_status": "error", "backup_errors": ["stalled"]})
+        for run_offset in (2, 10):                        # 08:00 and 16:00 UTC
+            mon = _monitor(tmp_path, now=cycle_at + timedelta(hours=run_offset))
+            report = mon.collect()
+            (tmp_path / "system_health.json").write_text(
+                json.dumps(report), encoding="utf-8")     # the real carry-over
+            statuses.append(
+                {c["id"]: c for c in report["checks"]}[CHECK_ID]["status"])
+
+    assert len(mon._offsite_backup_days_for_report()) == 3   # days, not runs
+    assert statuses[-1] == shm.CRITICAL
+    # ...and not one run sooner: the fourth run is still day 2 of the streak.
+    assert statuses[:4] == [shm.WARNING] * 4
 
 
 # ===========================================================================
