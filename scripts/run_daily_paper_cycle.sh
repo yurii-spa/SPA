@@ -36,6 +36,23 @@ LOG_FILE="$LOG_DIR/daily_cycle_$(date +%Y%m%d).log"
 
 echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Starting daily paper cycle (cycle_runner)" | tee -a "$LOG_FILE"
 
+# ── Кто нас позвал (решение владельца 2026-08-09, вариант 1) ───────────────
+# 08.08 цикл отработал 8 раз не по расписанию, и КТО его звал — система не записывала.
+# Разбор дважды упёрся в догадки. Риск не теоретический: сессия, умершая в пределах двух
+# часов до 08:00, может стоить дня трека, а без имени вызывающего чинить нечего.
+#
+# Это ИЗМЕРЕНИЕ, а не изменение поведения: ни один прогон отсюда не начнётся и не
+# прекратится. Всё в подоболочке с подавлением ошибок — учёт не имеет права уронить цикл
+# (лечение не должно быть опаснее болезни).
+CALLER_NAME=$(ps -o comm= -p "$PPID" 2>/dev/null | tr -d ' ' || true)
+CALLER_ARGS=$(ps -o args= -p "$PPID" 2>/dev/null | head -c 160 || true)
+case "${CALLER_NAME##*/}" in
+    launchd) CALLER_KIND="scheduled" ;;
+    "")      CALLER_KIND="unknown" ;;
+    *)       CALLER_KIND="ad-hoc" ;;
+esac
+echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] CYCLE_CALLER kind=$CALLER_KIND ppid=$PPID name=${CALLER_NAME:-?} args=${CALLER_ARGS:-?}" | tee -a "$LOG_FILE"
+
 # ── Step 0: code sync from origin/main (agent-prod-clean-checkout-variant2) ─
 # Pushes land on origin via API and never touch this tree; without this step the cycle
 # executes stale code (2026-08-03: prod ran July-15 code for weeks). Whole-dir sync of
