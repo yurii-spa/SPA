@@ -28,6 +28,7 @@ import unittest
 
 from spa_core.monitoring import card_delivery as cd
 from spa_core.monitoring import findings_bridge as fb
+from spa_core.tests._freshness import ts
 
 NOW = dt.datetime(2030, 3, 1, 12, 0, tzinfo=dt.timezone.utc)  # FROZEN-DATE-OK: injected-clock — часы инъектируются
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -336,7 +337,18 @@ class OfficeStepSeesTheBridge(unittest.TestCase):
         self.assertIn("НЕ ИЗМЕРЕНА", out)
 
     def test_successful_delivery_is_quiet_but_present(self):
-        out = self.summarize({"created": [], "closed": [], "deferred": [],
+        # Фикстура приведена к ФОРМЕ ПРОИЗВОДИТЕЛЯ (`findings_bridge.py` строит
+        # отчёт одним литералом, все ключи безусловны) — намеренно, цикл #176.
+        # Прежний вариант перечислял три ключа из десяти, и утверждение «тихо»
+        # делалось о документе, которого не пишет никто: с появлением строки
+        # «СХЕМА РАЗОШЛАСЬ» (сторож ветки, читающей несуществующие поля) такой
+        # обрезок честно объявлялся дрейфом. Проверка УСИЛЕНА, а не ослаблена:
+        # «успешная доставка молчит» теперь утверждается о настоящей форме, и
+        # ⚠️ по-прежнему запрещено — включая ⚠️ о возрасте и о схеме.
+        out = self.summarize({"generated_at": ts(hours_ago=0.1),
+                              "created": [], "closed": [], "deferred": [],
+                              "waiting_hysteresis": [], "escalated": [],
+                              "sources_unread": [], "open_cards": 0,
                               "delivery": {"status": cd.DELIVERED, "attempted": ["a.md"],
                                            "delivered": ["a.md"]}})
         self.assertIn("DELIVERED", out)

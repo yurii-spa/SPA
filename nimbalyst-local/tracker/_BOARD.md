@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **370** · ждёт владельца: **0** · занято сессиями: **3**.
+> Всего карточек: **371** · ждёт владельца: **0** · занято сессиями: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -171,6 +171,7 @@ _Пусто — открытых решений на владельце нет._
 - PYTHONPATH=/home/user/SPA pytest spa_core/tests/test_s{76,41,73,77,22}*.py -q →…  ·  `inbox-pythonpath-home-user-spa-pytest-spa-core.md` · 2026-08-05
 - Рецидив: сетевой страж снова краснеет ТОЛЬКО в полном прогоне (3 теста, чистый origin)  ·  `inbox-retsidiv-setevoi-strazh-snova-krasneet-t.md` · 2026-08-08
 - Ряд дней offsite-бэкапа ключуется ЛОКАЛЬНОЙ датой, а читается по UTC — между 00 и 02 UTC серия рвётся  ·  `inbox-ryad-dnei-offsite-bekapa-klyuchuetsya-lo.md` · 2026-08-09
+- Шаг 0-офис печатает не то, что в файлах: вердикт house_view_gap мёртв (None вместо расхождений), house_view едет без возраста (19.4 ч)  ·  `inbox-shag-0-ofis-pechataet-ne-to-chto-v-faila.md` · 2026-08-09
 - Шаг 0a из worktree даёт 18 строк «не измерено» на пустом месте: 16 мёртвых регистраций рабочих деревьев  ·  `inbox-shag-0a-iz-worktree-daet-18-strok-ne-izm.md` · 2026-08-06
 - Сторож архитектуры кричит CRITICAL о четырёх агентах — и все четыре обвинения ложные: прод читает манифест, который доставка никогда не обновляет  ·  `inbox-storozh-arhitektury-krichit-critical-o-c.md` · 2026-08-08
 - Страж перезаписи считает переименование заголовка потерей записи — и его список «что пропадёт» неполон  ·  `inbox-strazh-perezapisi-schitaet-pereimenovani.md` · 2026-08-07
@@ -233,7 +234,6 @@ _Пусто — открытых решений на владельце нет._
 - Подготовить ADR: пересмотр лимита одной цепочки 90% (решение владельца — за ним)  ·  `inbox-podgotovit-adr-peresmotr-limita-odnoi-ts.md` · 2026-08-08
 - Прод-сторож архитектуры читает файл, который синхронизация не обновляет  ·  `inbox-prod-storozh-arhitektury-chitaet-fail-ko.md` · 2026-08-08
 - Сбалансированный трек: ноль профинансированных дней из 40 при 920 отработанных циклах  ·  `inbox-sbalansirovannyi-trek-nol-profinansirova.md` · 2026-08-08
-- Шаг 0-офис печатает не то, что в файлах: вердикт house_view_gap мёртв (None вместо расхождений), house_view едет без возраста (19.4 ч)  ·  `inbox-shag-0-ofis-pechataet-ne-to-chto-v-faila.md` · 2026-08-09
 - Статусы карточек владельца переписались сами: три карточки с одним заголовком, ответ уехал не в ту  ·  `inbox-statusy-kartochek-vladeltsa-perepisalis.md` · 2026-08-08
 - Свести две реализации перезаполнения бюджета в одну (ADR-072 vs версия параллельной сессии)  ·  `inbox-svesti-dve-realizatsii-perezapolneniya-b.md` · 2026-08-08
 - Табличка честности: дать ей дорогу на сайт (решение владельца 09.08)  ·  `inbox-tablichka-chestnosti-dat-ei-dorogu-na-sa.md` · 2026-08-08
@@ -243,7 +243,7 @@ _Пусто — открытых решений на владельце нет._
 - Замер обмена «доходность ↔ концентрация» на T2 (20/25/30%) — решение владельца A, задачи не было  ·  `inbox-zamer-obmena-dohodnost-kontsentratsiya-n.md` · 2026-08-08
 - Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07 · 🔒 `cycle-81141`
 
-## 🤖 Agent Tasks (что делает агент)  (96)
+## 🤖 Agent Tasks (что делает агент)  (97)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -263,6 +263,7 @@ _Пусто — открытых решений на владельце нет._
 - Цель аллокатора ДО гейта нигде не сохраняется — ни один вопрос «а что он просил?» не проверяем задним числом  ·  `agent-predgateovaya-tsel-ne-sohranyaetsya.md` · 2026-08-08
 - Относительный путь в пушере читает ХОСТ-дерево, а не дерево отправки — набор уезжает как «OK, pushed=0»  ·  `agent-pusher-relative-path-silently-reads-the-host-tree.md` · 2026-08-04
 - Построить advisory paper-модуль под ранговое правило демоушена (вариант C владельца 2026-08-08)  ·  `agent-rank-demotion-paper-module.md` · 2026-08-08
+- agent-rationale-fallback-behavioural-test  ·  `agent-rationale-fallback-behavioural-test.md` · 2026-08-09
 - Одно число — два вердикта: portfolio health 69.4 это CRITICAL у системного сторожа и WARNING у агентного  ·  `agent-task-odno-chislo-dva-verdikta-portfolio-healt.md` · 2026-08-07
 - Права на origin нечем починить: пушер по построению сохраняет режим remote, а правило требует чинить режим на origin  ·  `agent-task-prava-na-origin-nechem-pochinit-pusher-p.md` · 2026-08-07
 - Прогон тестов пачкает git-tracked фикстуры — «чистое дерево» перестало быть сигналом  ·  `agent-test-run-dirties-tracked-fixtures.md` · 2026-08-04

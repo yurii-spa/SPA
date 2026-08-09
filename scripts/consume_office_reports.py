@@ -9,6 +9,11 @@
 Честность:
   - отсутствующий/нечитаемый файл печатается как «❌ НЕ ПРОЧИТАН» и квитанцию
     НЕ получает;
+  - отсутствующее поле печатается как «НЕ ИЗМЕРЕНО», НИКОГДА как `None`:
+    `None` в выводе читается глазом как «пусто, всё в порядке» — это ровно
+    fail-OPEN, сторож молчит утвердительно;
+  - у КАЖДОГО артефакта печатается возраст: рекомендация 19-часовой давности
+    и рекомендация свежая — разные вещи, и решает это читатель, а не выжимка;
   - скрипт информационный: exit 0 всегда, когда сам скрипт отработал —
     красные строки в выводе это сигналы ОРКЕСТРАТОРУ действовать (карточки),
     а не коды выхода;
@@ -21,8 +26,10 @@ LLM_FORBIDDEN (детерминированный экстрактор; выво
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import os
+import re
 import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -31,13 +38,114 @@ sys.path.insert(0, REPO_ROOT)
 
 CONSUMER = "orchestrator_protocol"
 
+# Порог, с которого возраст артефакта проговаривается вслух. Это МЕТКА ПЕЧАТИ,
+# а не гейт: политика свежести офиса живёт в `investment_os/health.py` и здесь
+# не дублируется. Смысл метки — 19.4 ч и 0.2 ч не должны выглядеть одинаково.
+STALE_HOURS = 24.0
 
-def _summarize_json(path: str, data) -> list[str]:
+_UNMEASURED = "НЕ ИЗМЕРЕНО"
+
+# ЧТО каждая именованная ветка читает у производителя — объявлено ДАННЫМИ, а не
+# спрятано в теле ветки, и сверяется с настоящим артефактом на каждом прогоне.
+#
+# Почему так, а не «проверить ветки глазами». Класс «ветка читает поля, которых
+# производитель не пишет» рецидивировал в ЭТОМ файле трижды подряд:
+#   * `findings_bridge` — читала файл `findings_bridge.json` и `counts.opened/
+#     pending`, которых нет ни у одного производителя (починено циклом #170);
+#   * `house_view_gap` — читала `overall` / `counts.critical` / `findings`, а
+#     производитель пишет `gaps` / `counts.warn|info|unchecked`, и обязательный
+#     шаг печатал «вердикт: None» при ДВУХ реальных расхождениях (#176);
+#   * `_health` — читала `stale` / `failing` / `unknown` на верхнем уровне, где
+#     их нет: протухший аналитик не был бы назван вовсе (найдено тем же замером).
+# Каждый раз это находили вручную и по одной ветке. Объявленная схема + строка
+# «СХЕМА РАЗОШЛАСЬ» переводят проверку из «посмотреть внимательно» в измерение,
+# которое само краснеет на живых файлах в тот цикл, когда производитель уехал.
+#
+# Путь с точкой — вложенное поле (`house_view.overall_posture`): у house_view
+# всё интересное лежит на втором уровне, и проверка только верхнего уровня
+# пропустила бы ровно тот дрейф, ради которого она заведена.
+_READ_SCHEMA: dict[str, tuple[str, ...]] = {
+    "chief_investment.json": ("house_view.overall_posture", "house_view.conflicts",
+                              "house_view.top_opportunities"),
+    "_health.json": ("overall", "counts.total", "counts.healthy", "counts.stale",
+                     "counts.missing", "counts.unknown_or_corrupt", "analysts"),
+    "architecture_conformance.json": ("overall", "counts.critical", "counts.warn",
+                                      "counts.aged", "counts.unchecked", "findings"),
+    "house_view_gap.json": ("gaps", "unchecked", "counts.warn", "counts.info",
+                            "counts.unchecked"),
+    "findings_bridge_report.json": ("created", "closed", "deferred", "waiting_hysteresis",
+                                    "escalated", "sources_unread", "open_cards", "delivery"),
+}
+
+# Отметка времени в шапке md-артефакта: `Auto-updated: **2026-08-09 05:44 UTC**`.
+_MD_TS_RE = re.compile(r"(20\d\d-\d\d-\d\d)[ T](\d\d:\d\d)(?::\d\d)?\s*UTC")
+
+
+def _has_path(data, path: str) -> bool:
+    """Есть ли (возможно вложенное) поле `a.b.c` — именно ЕСТЬ, а не истинно."""
+    cur = data
+    for part in path.split("."):
+        if not isinstance(cur, dict) or part not in cur:
+            return False
+        cur = cur[part]
+    return True
+
+
+def _schema_drift(name: str, data) -> list[str]:
+    """Поля, которые ветка читает, а производитель не пишет — вслух."""
+    missing = [p for p in _READ_SCHEMA.get(name, ()) if not _has_path(data, p)]
+    if not missing:
+        return []
+    return ["   ⚠️ СХЕМА РАЗОШЛАСЬ: производитель не пишет " + ", ".join(missing)
+            + " — выжимка ниже читает НЕ ТОТ файл. Это находка (карточка), а не деталь."]
+
+
+def _num(container, key):
+    """Счётчик или явное «НЕ ИЗМЕРЕНО».
+
+    Отсутствующий счётчик — это НЕ ноль, а неизмеренная величина (fail-CLOSED).
+    """
+    if not isinstance(container, dict) or key not in container:
+        return _UNMEASURED
+    v = container.get(key)
+    return _UNMEASURED if v is None else v
+
+
+def _parse_ts(value):
+    try:
+        parsed = dt.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except Exception:  # noqa: BLE001
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=dt.timezone.utc)
+
+
+def _age_line(ts_value, now: dt.datetime) -> str:
+    """Возраст артефакта — безусловно, для КАЖДОГО артефакта.
+
+    Отдельная строка, а не свойство generic-ветки: до #176 возраст печатался
+    только тем артефактам, у которых не нашлось именованной ветки, и самый
+    важный из них — house_view — ехал в контекст оркестратора без единого
+    признака возраста (замер: 19.4 ч, и три «возможности» в нём были дофиксовые).
+    """
+    if ts_value is None:
+        return "   ⚠️ возраст НЕ ИЗМЕРЕН: производитель не пишет generated_at"
+    parsed = _parse_ts(ts_value)
+    if parsed is None:
+        return f"   ⚠️ возраст НЕ ИЗМЕРЕН: generated_at не разобран ({ts_value!r})"
+    hours = (now - parsed).total_seconds() / 3600.0
+    mark = "  ⚠️ старше суток" if hours >= STALE_HOURS else ""
+    return f"   generated_at: {ts_value} (возраст {hours:.1f}ч){mark}"
+
+
+def _summarize_json(path: str, data, *, now: dt.datetime | None = None) -> list[str]:
     """Компактная выжимка известных офисных файлов; generic — для остальных."""
     name = os.path.basename(path)
-    out: list[str] = []
     if not isinstance(data, dict):
         return [f"   (не-dict JSON, {type(data).__name__})"]
+    now = now or dt.datetime.now(dt.timezone.utc)
+    head: list[str] = _schema_drift(name, data)
+    head.append(_age_line(data.get("generated_at"), now))
+    out: list[str] = []
     if name == "chief_investment.json":
         hv = data.get("house_view") or {}
         out.append(f"   постура: {hv.get('overall_posture')}")
@@ -48,26 +156,49 @@ def _summarize_json(path: str, data) -> list[str]:
             out.append(f"   возможность: {v.get('protocol')} {v.get('apy_pct')}% "
                        f"(evidence {o.get('evidence_level')})")
     elif name == "_health.json":
-        out.append(f"   статус офиса: {data.get('status') or data.get('overall')}")
-        for k in ("stale", "failing", "unknown"):
-            if data.get(k):
-                out.append(f"   {k}: {data[k]}")
+        # Схема ВЫМЕРЕНА по производителю (`investment_os/health.py`): счётчики
+        # лежат в `counts`, а строки аналитиков — в `analysts`. Прежняя ветка
+        # читала `stale`/`failing`/`unknown` на верхнем уровне: ни одного такого
+        # поля нет, поэтому «протух аналитик» шаг 0-офис не сказал бы НИКОГДА —
+        # печаталась одна строка «статус офиса», и она читалась как весь ответ.
+        c = data.get("counts") or {}
+        out.append(f"   статус офиса: {data.get('overall') or data.get('status')}")
+        out.append(f"   аналитики: всего {_num(c, 'total')} · здоровы {_num(c, 'healthy')} · "
+                   f"протухли {_num(c, 'stale')} · нет файла {_num(c, 'missing')} · "
+                   f"нечитаемы {_num(c, 'unknown_or_corrupt')}")
+        for a in (data.get("analysts") or []):
+            if not isinstance(a, dict):
+                continue
+            if a.get("present") and a.get("fresh") and a.get("status") == "ok":
+                continue
+            out.append(f"   ⚠️ аналитик {a.get('agent')}: present={a.get('present')} "
+                       f"fresh={a.get('fresh')} status={a.get('status')}")
     elif name == "architecture_conformance.json":
         c = data.get("counts") or {}
-        out.append(f"   вердикт: {data.get('overall')} (critical={c.get('critical')} "
-                   f"warn={c.get('warn')} aged={c.get('aged')} unchecked={c.get('unchecked')})")
+        out.append(f"   вердикт: {data.get('overall') or _UNMEASURED} "
+                   f"(critical={_num(c, 'critical')} warn={_num(c, 'warn')} "
+                   f"aged={_num(c, 'aged')} unchecked={_num(c, 'unchecked')})")
         for f in (data.get("findings") or [])[:8]:
             out.append(f"   [{f.get('severity')}] {f.get('message')}")
         if (data.get("findings") or [])[8:]:
             out.append(f"   … ещё {len(data['findings']) - 8} наход(ок) в отчёте")
     elif name == "house_view_gap.json":
+        # Схема ВЫМЕРЕНА по производителю (`monitoring/house_view_gap.py`):
+        # расхождения лежат в `gaps`, счётчики — `warn`/`info`/`unchecked`.
+        # Прежняя ветка читала `overall`/`counts.critical`/`findings` — ни одного
+        # такого поля производитель не пишет, и обязательный шаг печатал
+        # «вердикт: None (critical=None …)» при ДВУХ реальных расхождениях.
+        # «None» глазом читается как «пусто, всё в порядке» — тот же fail-OPEN,
+        # что уже разбирали соседней веткой в этом же файле.
         c = data.get("counts") or {}
-        out.append(f"   вердикт: {data.get('overall')} (critical={c.get('critical')} "
-                   f"warn={c.get('warn')} aged={c.get('aged')} unchecked={c.get('unchecked')})")
-        for f in (data.get("findings") or [])[:8]:
-            out.append(f"   [{f.get('severity')}] {f.get('message')}")
-        if (data.get("findings") or [])[8:]:
-            out.append(f"   … ещё {len(data['findings']) - 8} расхожден(ий) в отчёте")
+        gaps = data.get("gaps") or []
+        out.append(f"   расхождений house_view↔факт: {len(gaps)} "
+                   f"(warn={_num(c, 'warn')} info={_num(c, 'info')} "
+                   f"unchecked={_num(c, 'unchecked')})")
+        for g in gaps[:8]:
+            out.append(f"   [{g.get('severity')}] {g.get('message')}")
+        if gaps[8:]:
+            out.append(f"   … ещё {len(gaps) - 8} расхожден(ий) в отчёте")
         for u in (data.get("unchecked") or [])[:4]:
             out.append(f"   [НЕ ИЗМЕРЕНО] {u.get('check')}: {u.get('reason')}")
     elif name == "findings_bridge_report.json":
@@ -82,7 +213,7 @@ def _summarize_json(path: str, data) -> list[str]:
                    f"закрыто {len(data.get('closed') or [])} · отложено "
                    f"{len(data.get('deferred') or [])} · ждут гистерезиса "
                    f"{len(data.get('waiting_hysteresis') or [])} · "
-                   f"открытых карточек {data.get('open_cards')}")
+                   f"открытых карточек {_num(data, 'open_cards')}")
         for f in (data.get("created") or [])[:5]:
             out.append(f"   + [{f.get('severity')}] карточка {f.get('card')}")
         for k in (data.get("deferred") or [])[:5]:
@@ -110,28 +241,34 @@ def _summarize_json(path: str, data) -> list[str]:
         reason = data.get("reason") or data.get("summary")
         if reason:
             out.append(f"   {str(reason)[:160]}")
-        ts = data.get("generated_at")
-        if ts:
-            out.append(f"   generated_at: {ts}")
-    return out or ["   (пусто)"]
+    return head + (out or ["   (пусто)"])
 
 
-def _summarize_md(full: str) -> list[str]:
+def _summarize_md(full: str, *, now: dt.datetime | None = None) -> list[str]:
+    now = now or dt.datetime.now(dt.timezone.utc)
     try:
         with open(full, encoding="utf-8") as f:
             head = [ln.rstrip() for _, ln in zip(range(12), f)]
-        return ["   " + ln for ln in head if ln.strip()][:6]
     except Exception as e:  # noqa: BLE001
         return [f"   (md не прочитан: {e})"]
+    stamp = None
+    for ln in head:
+        m = _MD_TS_RE.search(ln)
+        if m:
+            stamp = f"{m.group(1)}T{m.group(2)}:00+00:00"
+            break
+    body = ["   " + ln for ln in head if ln.strip()][:6]
+    return [_age_line(stamp, now)] + body
 
 
-def main(argv=None) -> int:
+def main(argv=None, *, now: dt.datetime | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--root", default=REPO_ROOT)
     ap.add_argument("--consumer", default=CONSUMER)
     ap.add_argument("--no-receipts", action="store_true",
                     help="только чтение/печать, без квитанций (для проверок)")
     args = ap.parse_args(argv)
+    now = now or dt.datetime.now(dt.timezone.utc)
 
     from spa_core.monitoring.consumption_receipts import write_receipt
 
@@ -159,13 +296,14 @@ def main(argv=None) -> int:
             lines = ["   файла нет на диске"]
         elif rel.endswith(".json"):
             try:
-                lines = _summarize_json(rel, json.load(open(full)))
+                lines = _summarize_json(rel, json.load(open(full)), now=now)
                 ok = True
             except Exception as e:  # noqa: BLE001
                 lines = [f"   JSON не прочитан: {e}"]
         else:
-            lines = _summarize_md(full)
-            ok = bool(lines) and not lines[0].startswith("   (md не прочитан")
+            lines = _summarize_md(full, now=now)
+            ok = bool(lines) and not any(
+                ln.startswith("   (md не прочитан") for ln in lines)
         if ok:
             receipted = True if args.no_receipts else write_receipt(
                 rel, args.consumer, root=args.root)
