@@ -516,10 +516,17 @@ def overall_pass(checks: list[dict]) -> tuple[bool, list[str]]:
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
-def run_checkpoint(data_dir: Path = DATA) -> int:
+def run_checkpoint(data_dir: Path = DATA, *, notify: bool = True) -> int:
     """
     Запускает все проверки, выводит summary, шлёт Telegram.
     Возвращает exit code (0 = pass, 1 = fail).
+
+    `notify=False` — единственный поддерживаемый способ НЕ трогать канал (флаг
+    `--no-telegram`). До 2026-08-10 флаг был пустышкой: он переопределял
+    `notify_telegram`, которую `run_checkpoint` не вызывает с тех пор, как отправка
+    уехала в `_notify_via_push_policy` — то есть «выключенное» уведомление уходило
+    владельцу как ни в чём не бывало. Подавление ВСЕГДА объявляется вслух: молчание
+    канала не имеет права выглядеть как «сообщать было нечего».
     """
     today = date.today()
 
@@ -565,6 +572,11 @@ def run_checkpoint(data_dir: Path = DATA) -> int:
     # `dedup_key` — отпечаток КОНКРЕТНОГО набора провалов. Тот же набор молчит; ДРУГОЙ
     # набор (появилась новая дыра, отвалилась ещё проверка) — звучит. Это дедуп, а не
     # подавление: ни одна проверка не ослаблена, изменился только повтор одного и того же.
+    if not notify:
+        print("\n[Telegram] Уведомление ПОДАВЛЕНО флагом --no-telegram "
+              "(канал не тронут; результат проверок от этого не изменился).")
+        return 0 if passed else 1
+
     ok = _notify_via_push_policy(passed, failures, tg_msg)
     if not ok and not passed:
         print("\n[Telegram] Уведомление не ушло (либо дедуп: тот же набор провалов уже сообщён).")
@@ -616,9 +628,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # Переопределяем notify если --no-telegram
-    if args.no_telegram:
-        def notify_telegram(msg: str) -> bool:   # noqa: F811
-            return True
-
-    sys.exit(run_checkpoint(data_dir=args.data_dir))
+    # Флаг передаётся В функцию, а не «переопределяет» имя, которого она не зовёт:
+    # прежняя форма (подмена notify_telegram) не подавляла ничего — см. docstring
+    # run_checkpoint.
+    sys.exit(run_checkpoint(data_dir=args.data_dir, notify=not args.no_telegram))

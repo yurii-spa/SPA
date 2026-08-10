@@ -140,8 +140,8 @@ python3 -m spa_core.paper_trading.golive_checker
 python3 -m spa_core.monitoring.system_health_monitor
 # Обновить SYSTEM_BRIEFING сейчас:
 python3 scripts/update_system_briefing.py
-# Все тесты:
-python3 -m pytest spa_core/tests/ -v
+# Все тесты — РОВНО ТО, ЧТО ГЕЙТИТ CI (иначе «у меня зелено» при красном main):
+python3 -m pytest spa_core/tests/ tests/ scripts/tests/ spa_core/analytics/gross_of/ research/cards/ -q
 # Статус агентов:
 launchctl list | grep spa    ·    bash scripts/verify_fleet_after_reboot.sh
 # Переустановить агентов:

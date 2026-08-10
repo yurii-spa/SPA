@@ -26,6 +26,7 @@ import json
 import sys
 import unittest
 import tempfile
+from contextlib import contextmanager
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -45,6 +46,56 @@ from scripts.checkpoint_7day import (
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
+
+@contextmanager
+def stub_notification_authority():
+    """Подменить ТОТ путь уведомления, которым `run_checkpoint` реально ходит.
+
+    **Намеренная правка теста (инвариант #16, цикл #189, журнал 2026-W33).** До
+    2026-08-10 эти тесты подменяли ``scripts.checkpoint_7day.notify_telegram`` —
+    функцию, которую `run_checkpoint` НЕ вызывает с тех пор, как отправка уехала в
+    ``_notify_via_push_policy`` → ``spa_core.telegram.push_policy``. Заглушка висела в
+    пустоте, и это не «просто устаревший тест», а два вреда сразу:
+
+    * проверка «сообщение ушло» была ЛОЖНОЙ — она измеряла собственную заглушку;
+    * настоящий отправитель исполнялся по-настоящему: прогон `tests/` бил в **боевой
+      Telegram API** (страж `telegram_guard` фиксировал по 2 попытки на тест) и писал в
+      ЖИВОЕ состояние дедупа — то самое, которым потом гасится настоящая тревога.
+
+    Проверка не ослаблена, а усилена: теперь она видит и текст сообщения, и КЛЮЧ события,
+    под которым он ушёл, и держит инвариант «путь уведомления ровно один» — попытка
+    позвать `notify_telegram` из `run_checkpoint` роняет тест.
+
+    Отдаёт список ``[(вид, event_key, текст), …]``: ``push`` — тревога, ``resolve`` —
+    выход из неё.
+    """
+    from spa_core.telegram import push_policy
+    import scripts.checkpoint_7day as mod
+
+    recorded: list[tuple[str, str, str]] = []
+
+    def _fake_push(event_key, severity, title, body, *args, **kwargs):
+        recorded.append(("push", event_key, body))
+        return True
+
+    def _fake_resolve(event_key, title, body, *args, **kwargs):
+        recorded.append(("resolve", event_key, body))
+        return True
+
+    def _forbidden(msg: str) -> bool:
+        raise AssertionError(
+            "run_checkpoint позвал notify_telegram напрямую: путей уведомления снова два, "
+            "а значит один из них — без дедупа и вне push_policy"
+        )
+
+    saved = (push_policy.push_critical, push_policy.resolve, mod.notify_telegram)
+    push_policy.push_critical, push_policy.resolve = _fake_push, _fake_resolve
+    mod.notify_telegram = _forbidden
+    try:
+        yield recorded
+    finally:
+        push_policy.push_critical, push_policy.resolve, mod.notify_telegram = saved
+
 
 def write_json(path: Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -151,17 +202,49 @@ class TestGapCheck(SpaTestCase):
         self.assertIn("30.0h", result["detail"])
 
     def test_gap_in_paper_evidence_dates(self):
-        """Пробел в датах paper_evidence (пропуск 2 дней) → fail."""
+        """СВЕЖИЙ пробел (внутри окна 7 дней) → fail.
+
+        **Намеренная правка теста (инвариант #16, цикл #189, журнал 2026-W33).** Тест
+        падал не по существу, а от календаря: даты 2026-06-12/15 приколочены литералом, а
+        `check_gaps` считает окно от `date.today()` — к августу дыра уехала в
+        «историческую» и перестала блокировать. Это ровно та бомба замедленного действия,
+        про которую написано в `.claude/rules/deployment.md`, и её штатное лекарство №1:
+        часы — ВХОД функции (`check_gaps(..., today=)`), обе стороны закреплены.
+        Поведение продукта НЕ менялось; проверка усилена — теперь их две, и вторая
+        (историческая дыра не блокирует, но видна) раньше не проверялась вовсе.
+        """
         make_gap_monitor(self.data_dir, gap=False, hours=5.0)
         make_paper_evidence(self.data_dir, [
             {"date": "2026-06-12", "equity_value": 100_010, "apy_pct": 7.0},
             {"date": "2026-06-15", "equity_value": 100_030, "apy_pct": 7.0},  # пропуск
         ])
 
-        result = check_gaps(self.data_dir)
+        # Окно 7 дней отсчитывается от инъектированного «сегодня»: дыра свежая.
+        result = check_gaps(self.data_dir, today=date(2026, 6, 16))
 
         self.assertEqual(result["status"], "fail")
         self.assertTrue(result["gap_detected"])
+        self.assertIn("2026-06-12", result["detail"])
+
+    def test_historic_gap_outside_window_is_visible_but_does_not_block(self):
+        """Обратная сторона: дыра СТАРШЕ окна не валит проверку, но названа в отчёте.
+
+        ADR-067 применён ко второму потребителю: блокируют АКТИВНЫЕ дыры. Восстановить
+        2026-06-21 → 2026-06-30 нечем, а вечный отказ перестаёт быть сигналом. Молчать о
+        ней при этом нельзя — иначе «не блокирует» превратится в «не существует».
+        """
+        make_gap_monitor(self.data_dir, gap=False, hours=5.0)
+        make_paper_evidence(self.data_dir, [
+            {"date": "2026-06-12", "equity_value": 100_010, "apy_pct": 7.0},
+            {"date": "2026-06-15", "equity_value": 100_030, "apy_pct": 7.0},  # пропуск
+        ])
+
+        result = check_gaps(self.data_dir, today=date(2026, 8, 10))
+
+        self.assertEqual(result["status"], "pass")
+        self.assertFalse(result["gap_detected"])
+        self.assertTrue(result["historic_gaps"], "историческая дыра обязана остаться видимой")
+        self.assertIn("2026-06-12", result["detail"])
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -331,44 +414,57 @@ class TestTelegramOnFail(SpaTestCase):
         ])
 
     def test_telegram_send_on_fail(self):
-        """При fail run_checkpoint() вызывает notify с 'FAILED'."""
+        """При fail run_checkpoint() поднимает тревогу через push_policy с 'FAILED'."""
         self._prepare_data(equity=50_000.0)  # ниже floor → fail
 
-        sent: list[str] = []
-        import scripts.checkpoint_7day as mod
-        original = mod.notify_telegram
-        mod.notify_telegram = lambda msg: (sent.append(msg), True)[1]
-        try:
+        with stub_notification_authority() as recorded:
             code = run_checkpoint(data_dir=self.data_dir)
-        finally:
-            mod.notify_telegram = original
 
         self.assertEqual(code, 1)
-        self.assertEqual(len(sent), 1)
+        self.assertEqual(len(recorded), 1, f"ожидалась одна отправка, получено: {recorded}")
+        kind, event_key, body = recorded[0]
+        self.assertEqual(kind, "push")
+        self.assertEqual(event_key, "checkpoint_failed")
         self.assertTrue(
-            "FAILED" in sent[0] or "⚠️" in sent[0],
-            f"Expected FAILED/⚠️ in message, got: {sent[0][:100]}"
+            "FAILED" in body or "⚠️" in body,
+            f"Expected FAILED/⚠️ in message, got: {body[:100]}"
         )
 
     def test_telegram_send_on_pass(self):
-        """При pass run_checkpoint() шлёт 'PASSED' сообщение."""
+        """При pass run_checkpoint() СНИМАЕТ тревогу через push_policy с 'PASSED'."""
         self._prepare_data(equity=100_500.0)
 
-        sent: list[str] = []
-        import scripts.checkpoint_7day as mod
-        original = mod.notify_telegram
-        mod.notify_telegram = lambda msg: (sent.append(msg), True)[1]
-        try:
+        with stub_notification_authority() as recorded:
             code = run_checkpoint(data_dir=self.data_dir)
-        finally:
-            mod.notify_telegram = original
 
         self.assertEqual(code, 0)
-        self.assertEqual(len(sent), 1)
-        self.assertTrue(
-            "PASSED" in sent[0] or "✅" in sent[0],
-            f"Expected PASSED/✅ in message, got: {sent[0][:100]}"
+        self.assertEqual(len(recorded), 1, f"ожидалась одна отправка, получено: {recorded}")
+        kind, event_key, body = recorded[0]
+        self.assertEqual(
+            kind, "resolve",
+            "выход из тревоги обязателен: без него следующий провал был бы беззвучным "
+            "(ADR-070 п.4)",
         )
+        self.assertEqual(event_key, "checkpoint_failed")
+        self.assertTrue(
+            "PASSED" in body or "✅" in body,
+            f"Expected PASSED/✅ in message, got: {body[:100]}"
+        )
+
+    def test_no_telegram_flag_actually_suppresses_the_channel(self):
+        """`--no-telegram` (notify=False) обязан НЕ трогать канал — и не менять вердикт.
+
+        Положительный контроль настоящей поломки: до 2026-08-10 флаг подменял
+        `notify_telegram`, которую `run_checkpoint` не зовёт, — «выключенное»
+        уведомление уходило владельцу.
+        """
+        self._prepare_data(equity=50_000.0)  # ниже floor → fail
+
+        with stub_notification_authority() as recorded:
+            code = run_checkpoint(data_dir=self.data_dir, notify=False)
+
+        self.assertEqual(code, 1, "подавление канала не имеет права красить провал в pass")
+        self.assertEqual(recorded, [], "канал был тронут вопреки --no-telegram")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -472,13 +568,8 @@ class TestExitCode(SpaTestCase):
         """Все проверки pass → exit code 0."""
         self._prepare(equity=100_500.0)
 
-        import scripts.checkpoint_7day as mod
-        original = mod.notify_telegram
-        mod.notify_telegram = lambda msg: True
-        try:
+        with stub_notification_authority():
             code = run_checkpoint(data_dir=self.data_dir)
-        finally:
-            mod.notify_telegram = original
 
         self.assertEqual(code, 0)
 
@@ -486,13 +577,8 @@ class TestExitCode(SpaTestCase):
         """Equity ниже floor ($80k) → exit code 1."""
         self._prepare(equity=80_000.0)
 
-        import scripts.checkpoint_7day as mod
-        original = mod.notify_telegram
-        mod.notify_telegram = lambda msg: True
-        try:
+        with stub_notification_authority():
             code = run_checkpoint(data_dir=self.data_dir)
-        finally:
-            mod.notify_telegram = original
 
         self.assertEqual(code, 1)
 
