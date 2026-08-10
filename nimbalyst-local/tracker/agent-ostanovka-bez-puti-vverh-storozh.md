@@ -2,13 +2,11 @@
 trackerStatus:
   type: agent-task
 title: "У остановки должен быть ЖИВОЙ вопрос владельцу — сторож «путь вверх»"
-status: in-progress
+status: done
 source: cycle-195
 created: 2026-08-10
 priority: high
 tags: [monitoring, owner-queue, kill-switch-observability, adr-066, adr-078]
-claimed_by: pid8215
-claimed_at: 2026-08-10T13:33:34Z
 ---
 
 ## Что измерено (цикл #195, 2026-08-10)
