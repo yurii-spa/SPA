@@ -665,6 +665,14 @@ def check_system(data_dir: Path, now: datetime,
         "equity_last_update_h": None,
         "portfolio_health_score": None,
         "critical_flags": 0,
+        # Состояние стоп-крана (добавлено 10.08). Замер: он был включён 13 часов,
+        # торговля стояла, а сторож показывал critical_flags=0 — молчал ровно о самом
+        # серьёзном событии в системе. Путь уведомления чинили 07.08, но только для
+        # срабатывания ВНУТРИ цикла; здесь защёлку поставил другой агент, и этот путь
+        # остался немым.
+        "kill_switch_active": None,
+        "kill_switch_reason": None,
+        "kill_switch_age_h": None,
         "autopush_lag_h": None,
         "track_fresh": None,
         "track_age_h": None,
@@ -1013,6 +1021,33 @@ def check_system(data_dir: Path, now: datetime,
             "owner_decision_pending UNCHECKED: проверка «есть ли у остановки путь "
             "вверх» упала ({}) — это не «путь есть»".format(type(exc).__name__))
         status = _worst(status, WARNING)
+
+    # Стоп-кран — ФАКТ С ДИСКА, а не мнение других проверок. Файл-защёлка существует
+    # ⇒ капитал не размещается, и это критично независимо от остального.
+    # Считается последним, чтобы не зависеть от порядка предыдущих проверок.
+    try:
+        _ks = Path(data_dir) / "kill_switch_active.json"
+        if _ks.is_file():
+            try:
+                _kd = json.loads(_ks.read_text(encoding="utf-8"))
+            except (ValueError, OSError):
+                _kd = {}
+            checks["kill_switch_active"] = True
+            checks["kill_switch_reason"] = str(_kd.get("reason") or "причина не записана")
+            # Время — ВХОД, а не окружение (`.claude/rules/deployment.md`): берём `now`,
+            # который функция уже принимает, иначе тест про возраст стал бы бомбой.
+            _age = now - datetime.fromtimestamp(_ks.stat().st_mtime, timezone.utc)
+            checks["kill_switch_age_h"] = round(_age.total_seconds() / 3600.0, 2)
+            checks["critical_flags"] = int(checks.get("critical_flags") or 0) + 1
+            issues.append(
+                f"СТОП-КРАН ВКЛЮЧЁН {checks['kill_switch_age_h']}ч назад — торговля "
+                f"остановлена: {checks['kill_switch_reason']}")
+            status = "CRITICAL"
+        else:
+            checks["kill_switch_active"] = False
+    except Exception as exc:  # noqa: BLE001
+        # «Не смогли посмотреть» ≠ «выключен»: остаётся None (UNCHECKED).
+        log.warning("kill-switch state unreadable (%s)", exc)
 
     return checks, status, issues
 
