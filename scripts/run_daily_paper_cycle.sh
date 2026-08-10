@@ -46,12 +46,26 @@ echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Starting daily paper cycle (cycle_runner)
 # (лечение не должно быть опаснее болезни).
 CALLER_NAME=$(ps -o comm= -p "$PPID" 2>/dev/null | tr -d ' ' || true)
 CALLER_ARGS=$(ps -o args= -p "$PPID" 2>/dev/null | head -c 160 || true)
-case "${CALLER_NAME##*/}" in
-    launchd) CALLER_KIND="scheduled" ;;
-    "")      CALLER_KIND="unknown" ;;
-    *)       CALLER_KIND="ad-hoc" ;;
-esac
-echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] CYCLE_CALLER kind=$CALLER_KIND ppid=$PPID name=${CALLER_NAME:-?} args=${CALLER_ARGS:-?}" | tee -a "$LOG_FILE"
+# Признак — метка ОКРУЖЕНИЯ, а не родитель. Замер 10.08 показал, почему: за сутки
+# 51 запись, все с ppid=1 и name=launchd, и вывод «значит расписание» ОКАЗАЛСЯ ЛОЖНЫМ.
+# `ppid=1` так же выглядит у ОСИРОТЕВШЕГО процесса: родитель умер, ядро переподвесило
+# потомка к pid 1. Сессия, запустившая цикл и завершившаяся, неотличима от расписания.
+# Проверка отвечала на «кто мой родитель СЕЙЧАС», а читалась как «кто меня запустил».
+#
+# XPC_SERVICE_NAME ставит сам launchd запускаемому агенту; в сессии её нет и подделать
+# её случайно нельзя. ppid остаётся в строке как СПРАВОЧНОЕ поле.
+# Второй признак — SPA_LAUNCHD=1 из EnvironmentVariables плиста. Нужен потому, что
+# XPC_SERVICE_NAME проверить в тесте НЕЛЬЗЯ: подмена этой переменной роняет процесс
+# (SIGABRT, замерено 10.08). Признак, который невозможно проверить, — это признак,
+# которому нельзя доверять; поэтому рядом стоит тот, что проверяется безопасно.
+if [ "${SPA_LAUNCHD:-}" = "1" ] || [ -n "${XPC_SERVICE_NAME:-}" ]; then
+    CALLER_KIND="scheduled"
+    CALLER_SVC="${XPC_SERVICE_NAME:-${SPA_LAUNCHD:+plist}}"
+else
+    CALLER_KIND="ad-hoc"
+    CALLER_SVC="-"
+fi
+echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] CYCLE_CALLER kind=$CALLER_KIND svc=${CALLER_SVC} ppid=$PPID name=${CALLER_NAME:-?} args=${CALLER_ARGS:-?}" | tee -a "$LOG_FILE"
 
 # ── Step 0: code sync from origin/main (agent-prod-clean-checkout-variant2) ─
 # Pushes land on origin via API and never touch this tree; without this step the cycle
