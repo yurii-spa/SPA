@@ -2,9 +2,13 @@
 trackerStatus:
   type: owner-decision
 title: "Решение ADR-070 п.6 исполнить нельзя: «один вольт — один риск» упирается в тир morpho_steakhouse (40% → 20%)"
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-10
+owner_choice: A
+owner_answered_at: 2026-08-10T13:46:19.480906+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно

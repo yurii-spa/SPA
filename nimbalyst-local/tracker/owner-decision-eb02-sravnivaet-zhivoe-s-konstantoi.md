@@ -1,9 +1,13 @@
 ---
 type: owner-decision
-status: needs-owner
+status: ingested
 priority: high
 created: 2026-08-10
 tags: [kill-switch, emergency-breakers, eb-02, adr-030, risk]
+owner_choice: 3
+owner_answered_at: 2026-08-10T13:46:30.727144+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 # Аварийный выключатель EB-02 сравнивает живой рынок с одиннадцатью числами, вписанными в код

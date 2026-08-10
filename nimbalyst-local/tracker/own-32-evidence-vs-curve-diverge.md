@@ -1,7 +1,11 @@
 ---
 type: owner-decision
-status: needs-owner
+status: ingested
 created: 2026-08-09
+owner_choice: 1
+owner_answered_at: 2026-08-10T13:46:36.349642+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 # Две записи о деньгах расходятся каждый день — и починка есть, но её никто не запускает

@@ -25,11 +25,19 @@ class TestTierOf(unittest.TestCase):
 
     def test_defillama_hyphen_slug_resolves(self) -> None:
         self.assertEqual(tier_of("aave-v3-arbitrum"), "T1")
-        self.assertEqual(tier_of("morpho-blue-steakhouse"), "T1")
+        # `morpho_steakhouse`: T1 → T2 решением владельца 2026-08-10 (вариант A карточки
+        # `owner-decision-reshenie-adr-070-p-6-ispolnit-nelzya-odi`, ответ 13:46:19Z;
+        # ADR-070 п.6 «один вольт — один риск»). Ожидание `T1` закрепляло состояние ДО
+        # решения — оно и было тем, из-за чего с цикла #189 осознанно краснел
+        # `test_risk_scoring_completeness`. Проверка НЕ ослаблена: это то же точное
+        # равенство, только с числом, которое назвал владелец. Записано в
+        # `docs/journal/2026-W33.md`, цикл #197 (инв. #16).
+        self.assertEqual(tier_of("morpho-blue-steakhouse"), "T2")
         self.assertEqual(tier_of("pendle-pt"), "T2")
 
     def test_variant_keys_resolve(self) -> None:
-        self.assertEqual(tier_of("morpho_steakhouse"), "T1")
+        # Тот же протокол вариантным ключом — см. обоснование выше.
+        self.assertEqual(tier_of("morpho_steakhouse"), "T2")
         self.assertEqual(tier_of("ondo_usdy"), "T2")
         self.assertEqual(tier_of("aerodrome_usdc_lp"), "T2")
         self.assertEqual(tier_of("aave_v3_wsteth"), "T2")
@@ -39,7 +47,7 @@ class TestTierOf(unittest.TestCase):
 
     def test_case_insensitive(self) -> None:
         self.assertEqual(tier_of("AAVE_V3"), "T1")
-        self.assertEqual(tier_of("  Morpho_Steakhouse  "), "T1")
+        self.assertEqual(tier_of("  Morpho_Steakhouse  "), "T2")  # тир изменён владельцем, см. выше
 
     def test_unknown_returns_none_not_t2(self) -> None:
         # The whole point: an unclassified protocol must NOT silently become T2.

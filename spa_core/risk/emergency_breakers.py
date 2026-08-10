@@ -6,7 +6,7 @@ check hierarchy.  They detect catastrophic scenarios that DL-01..DL-05 are not
 designed to catch:
 
     EB-01  Protocol Exploit Alert    — HALT if any T1 adapter APY > 100 %
-    EB-02  Oracle Divergence Cascade — HALT if ≥3 adapters diverge >500 bps from static
+    EB-02  Oracle Divergence Cascade — HALT if ≥4 adapters diverge >500 bps from static
     EB-03  Gas Crisis                — PAUSE if base gas > 50 Gwei
     EB-04  Equity Flash Crash        — HALT if equity drops >15 % in one cycle
     EB-05  Data Corruption           — HALT if equity_history has NaN/negative/non-monotonic
@@ -87,7 +87,7 @@ class EmergencyBreakers:
         Default 500 bps (5 percentage points).
     oracle_cascade_min_adapters:
         Minimum number of adapters that must diverge simultaneously for EB-02.
-        Default 3.
+        Default 4 (was 3 until 2026-08-10 — see ADR-079 / ORACLE_CASCADE_MIN_ADAPTERS).
     gas_crisis_gwei:
         Base gas price (Gwei) above which EB-03 triggers.  Default 50.0.
     equity_flash_crash_pct:
@@ -97,7 +97,22 @@ class EmergencyBreakers:
     # ── Default thresholds ────────────────────────────────────────────────────
     APY_EXPLOIT_THRESHOLD_PCT:       float = 100.0
     ORACLE_DIVERGENCE_CASCADE_BPS:   float = 500.0
-    ORACLE_CASCADE_MIN_ADAPTERS:     int   = 3
+    # Кворум EB-02: 3 → 4 (решение владельца 2026-08-10, вариант 3, ADR-079).
+    #
+    # 10.08 в 00:52 UTC EB-02 остановил систему на РОВНО трёх протоколах —
+    # минимально возможном кворуме, — и остановка простояла 15 часов, хотя сам
+    # сторож стал CLEAR через полтора часа. Ни одно из трёх расхождений не было
+    # аварией фида: два — устаревшая константа против живого рынка
+    # (extra_finance_base 8.0 → 1.60 реально), третий — протокол вообще без
+    # живого замера в том цикле (дозаполнение MP-413).
+    #
+    # ЧЕСТНО О ЦЕНЕ: это НЕ починка причины. Сравнение живого APY с литералом
+    # (_static_apy в cycle_runner.py) остаётся, константы продолжают стареть, и
+    # кворум 4 будет достигнут тем же дрейфом — позже, но неизбежно. Владельцу
+    # это названо в карточке и в ADR-079: вариант 1 (сравнивать с собственной
+    # историей) чинил причину, выбран вариант 3. Настоящая цена — сторож теперь
+    # слеп к аварии фида, задевшей ровно 3 протокола.
+    ORACLE_CASCADE_MIN_ADAPTERS:     int   = 4
     GAS_CRISIS_GWEI:                 float = 50.0
     EQUITY_FLASH_CRASH_PCT:          float = 15.0
 
@@ -336,11 +351,18 @@ class EmergencyBreakers:
                 "message":  msg,
             }
 
+        # `diverged` печатается и на ЧИСТОМ вердикте (ADR-079). Раньше здесь был
+        # только счётчик, и недобор кворума выглядел как «всё хорошо»: какие
+        # именно протоколы разошлись, не мог узнать никто. С кворумом 4 это
+        # перестало быть мелочью — расхождение трёх протоколов теперь ЗАКОННО
+        # не останавливает систему, и единственный ранний сигнал о стареющих
+        # константах — вот этот список. Вердикт не меняется, счётчик сохранён.
         return {
             **base,
             "status":         CHECK_PASS,
             "verdict":        STATUS_CLEAR,
             "diverged_count": len(diverged),
+            "diverged":       diverged,
             "message":        (
                 f"{len(diverged)} adapter(s) diverged (need ≥ "
                 f"{self.oracle_cascade_min_adapters} for cascade)"

@@ -2,9 +2,13 @@
 trackerStatus:
   type: owner-decision
 title: "Система остановлена аварийным выключателем: он сравнивает живую доходность с числами, вписанными в код"
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-10
+owner_choice: 1
+owner_answered_at: 2026-08-10T13:45:48.571692+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно

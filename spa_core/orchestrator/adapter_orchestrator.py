@@ -84,7 +84,10 @@ ADAPTER_REGISTRY: list[tuple[str, str, type]] = [
     # tvl_source="static") — TVL-floor по ADR-053 не был evidence-verified.
     # Теперь адаптер опрашивается оркестратором и декларирует живой TVL
     # (YieldInfo.tvl_source="live") из DeFiLlama-пула STEAKUSDC.
-    ("morpho_steakhouse", "T1", MorphoSteakhouseAdapter),
+    # T1 → T2 — решение владельца 10.08 (вариант A, ADR-070 п.6); тир обязан
+    # совпадать с каноном `spa_core/adapters/__init__.py`, иначе о риске одного
+    # протокола два источника правды (test_orchestrator_registry_coverage).
+    ("morpho_steakhouse", "T2", MorphoSteakhouseAdapter),
     ("yearn_v3", "T2", YearnV3Adapter),
     ("euler_v2", "T2", EulerV2Adapter),
     ("maple", "T2", MapleAdapter),

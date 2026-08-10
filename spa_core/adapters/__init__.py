@@ -141,9 +141,15 @@ ADAPTER_REGISTRY = [
     ("aave_arbitrum", "T1", AaveArbitrumAdapter),
     ("morpho_blue",   "T2", MorphoBlueAdapter),
     # own-29 (2026-08-05): Steakhouse USDC vault (наша позиция $40k) получил
-    # живой DeFiLlama-путь и вошёл в реестр оркестратора (T1); пакетный реестр
+    # живой DeFiLlama-путь и вошёл в реестр оркестратора; пакетный реестр
     # обязан оставаться надмножеством оркестраторного (test_risk_scores_regen).
-    ("morpho_steakhouse", "T1", MorphoSteakhouseAdapter),
+    #
+    # T1 → T2 (решение владельца 2026-08-10, вариант A карточки
+    # `owner-decision-reshenie-adr-070-p-6-ispolnit-nelzya-odi`; исполнение
+    # ADR-070 п.6 «один вольт — один риск»). Тир связан с оценкой риска
+    # контрактом T1 < 0.25 / T2 ∈ [0.25, 0.60]: приравнять оценку к
+    # `morpho_blue` (0.30) можно ТОЛЬКО вместе с переводом в T2.
+    ("morpho_steakhouse", "T2", MorphoSteakhouseAdapter),
     ("yearn_v3",      "T2", YearnV3Adapter),
     ("euler_v2",      "T2", EulerV2Adapter),
     ("maple",         "T2", MapleAdapter),

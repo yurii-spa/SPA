@@ -204,29 +204,52 @@ class TestEB02OracleCascade:
         assert r["verdict"] == STATUS_CLEAR
 
     def test_cascade_not_enough_adapters(self):
-        """Only 2 adapters diverge > 500 bps — need ≥ 3 → should not trigger."""
+        """Only 2 adapters diverge > 500 bps — below quorum → should not trigger."""
         live   = {"a": 10.0, "b": 12.0, "c": 5.0}
         static = {"a": 3.5,  "b": 4.0,  "c": 5.0}  # a diverges 650 bps, b 800 bps
         eb = EmergencyBreakers()
         r = eb.check_eb02_oracle_cascade(live, static)
         assert r["verdict"] == STATUS_CLEAR
 
-    def test_cascade_3_adapters_halts(self):
-        """Exactly 3 adapters diverge > 500 bps → HALT."""
+    def test_cascade_3_adapters_no_longer_halts(self):
+        """Ровно 3 разошедшихся протокола БОЛЬШЕ НЕ останавливают систему.
+
+        НАМЕРЕННОЕ ИЗМЕНЕНИЕ ТЕСТА (инвариант #16 CLAUDE.md, обоснование здесь и
+        в docs/journal/2026-W33.md). Раньше этот тест назывался
+        `test_cascade_3_adapters_halts` и требовал HALT на трёх протоколах.
+        Кворум поднят 3 → 4 решением ВЛАДЕЛЬЦА от 2026-08-10 (вариант 3 карточки
+        `owner-decision-eb02-sravnivaet-zhivoe-s-konstantoi`, ADR-079) после
+        аварии 10.08: остановка на ровно трёх протоколах, ни один из которых не
+        был аварией фида, стоила 15 часов простоя.
+
+        Тест не ослаблен, а ПЕРЕЦЕЛЕН: он по-прежнему проверяет границу кворума,
+        только с другой стороны — и краснеет, если кворум молча вернут к 3.
+        Верхняя граница закреплена соседним `test_cascade_4_adapters_halts`.
+        """
         live   = {"a": 10.0, "b": 12.0, "c": 14.0}
         static = {"a": 3.5,  "b": 4.0,  "c": 4.0}
         eb = EmergencyBreakers()
         r = eb.check_eb02_oracle_cascade(live, static)
-        assert r["verdict"] == STATUS_HALT
+        assert r["verdict"] == STATUS_CLEAR
+        # Расхождения ВИДНЫ и посчитаны — сторож не ослеп, изменился только порог.
         assert len(r["diverged"]) == 3
 
-    def test_cascade_more_than_3_halts(self):
-        """4 adapters diverge → still HALT."""
+    def test_cascade_4_adapters_halts(self):
+        """4 разошедшихся протокола → HALT (новая граница кворума)."""
         live   = {"a": 10.0, "b": 12.0, "c": 14.0, "d": 16.0}
         static = {"a": 3.5,  "b": 4.0,  "c": 4.0,  "d": 4.0}
         eb = EmergencyBreakers()
         r = eb.check_eb02_oracle_cascade(live, static)
         assert r["verdict"] == STATUS_HALT
+        assert len(r["diverged"]) == 4
+
+    def test_default_quorum_is_four(self):
+        """Кворум по умолчанию = 4. Возврат к 3 молча — краснит этот тест."""
+        assert EmergencyBreakers.ORACLE_CASCADE_MIN_ADAPTERS == 4
+        assert EmergencyBreakers().check_eb02_oracle_cascade(
+            {"a": 10.0, "b": 12.0, "c": 14.0},
+            {"a": 3.5, "b": 4.0, "c": 4.0},
+        )["min_adapters"] == 4
 
     def test_empty_apy_map_skipped(self):
         eb = EmergencyBreakers()
@@ -262,6 +285,86 @@ class TestEB02OracleCascade:
         r = eb.check_eb02_oracle_cascade(live, static)
         # 500 bps not > 500 bps → none diverged → CLEAR
         assert r["verdict"] == STATUS_CLEAR
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Section 3a: ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ — реальная авария 10.08.2026, 00:52 UTC
+#
+# «Проверка, никогда не видевшая настоящей поломки, — украшение»
+# (.claude/rules/deployment.md). Здесь воспроизведён РОВНО тот вход, на котором
+# EB-02 остановил прод на 15 часов, и закреплён в ОБЕ стороны: со старым
+# кворумом 3 он краснеет (авария воспроизводится), с новым 4 — нет.
+#
+# Решение владельца 2026-08-10 (вариант 3), ADR-079.
+# ═════════════════════════════════════════════════════════════════════════════
+
+# Живые значения и константы того цикла — из карточки
+# `owner-decision-eb02-sravnivaet-zhivoe-s-konstantoi` (замер 10.08 00:52 UTC).
+# Константы совпадают с `_static_apy` в spa_core/paper_trading/cycle_runner.py.
+INCIDENT_2026_08_10_LIVE = {
+    "aave_v3":            14.05,   # против 3.5  → 1055 бп
+    "pendle":             14.01,   # против 8.5  →  551 бп
+    "extra_finance_base":  1.60,   # против 8.0  →  640 бп
+    "compound_v3":         4.10,   # против 4.0  — не расходится
+    "maple":               6.40,   # против 6.5  — не расходится
+}
+INCIDENT_2026_08_10_STATIC = {
+    "aave_v3": 3.5, "compound_v3": 4.0, "morpho_blue": 4.8,
+    "spark_susds": 4.6, "yearn_v3": 5.5, "euler_v2": 5.2,
+    "maple": 6.5, "pendle": 8.5, "aave_v3_base": 3.8,
+    "morpho_blue_base": 5.0, "extra_finance_base": 8.0,
+}
+
+
+class TestEB02Incident20260810:
+    def test_incident_input_no_longer_halts(self):
+        """ГЛАВНОЕ: тот же вход, что остановил прод 10.08, больше не останавливает."""
+        eb = EmergencyBreakers()
+        r = eb.check_eb02_oracle_cascade(
+            INCIDENT_2026_08_10_LIVE, INCIDENT_2026_08_10_STATIC
+        )
+        assert r["verdict"] == STATUS_CLEAR, (
+            "авария 10.08 воспроизвелась заново — кворум не поднят"
+        )
+
+    def test_incident_input_halted_under_old_quorum(self):
+        """Положительный контроль: со СТАРЫМ кворумом 3 этот вход даёт HALT.
+
+        Если этот тест зеленеет «сам по себе» — значит, вход перестал быть
+        аварийным, и первый тест ничего не доказывает.
+        """
+        eb = EmergencyBreakers(oracle_cascade_min_adapters=3)
+        r = eb.check_eb02_oracle_cascade(
+            INCIDENT_2026_08_10_LIVE, INCIDENT_2026_08_10_STATIC
+        )
+        assert r["verdict"] == STATUS_HALT
+        assert len(r["diverged"]) == 3
+
+    def test_incident_diverged_set_is_exactly_the_three(self):
+        """Расходятся РОВНО те три протокола, что названы в карточке владельца."""
+        eb = EmergencyBreakers()
+        r = eb.check_eb02_oracle_cascade(
+            INCIDENT_2026_08_10_LIVE, INCIDENT_2026_08_10_STATIC
+        )
+        assert {d["adapter"] for d in r["diverged"]} == {
+            "aave_v3", "pendle", "extra_finance_base",
+        }
+        by_adapter = {d["adapter"]: d["deviation_bps"] for d in r["diverged"]}
+        assert by_adapter["aave_v3"] == pytest.approx(1055.0, abs=1.0)
+        assert by_adapter["pendle"] == pytest.approx(551.0, abs=1.0)
+        assert by_adapter["extra_finance_base"] == pytest.approx(640.0, abs=1.0)
+
+    def test_real_cascade_of_four_still_halts(self):
+        """Сторож НЕ выключен: добавь четвёртый разошедшийся протокол — HALT.
+
+        Это ответ на честную цену решения: кворум поднят, а не снят.
+        """
+        live = dict(INCIDENT_2026_08_10_LIVE)
+        live["euler_v2"] = 12.0          # против 5.2 → 680 бп, четвёртый
+        eb = EmergencyBreakers()
+        r = eb.check_eb02_oracle_cascade(live, INCIDENT_2026_08_10_STATIC)
+        assert r["verdict"] == STATUS_HALT
+        assert len(r["diverged"]) == 4
 
 
 # ═════════════════════════════════════════════════════════════════════════════

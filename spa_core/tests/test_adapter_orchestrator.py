@@ -234,7 +234,15 @@ class TestOrchestratorRun(unittest.TestCase):
         # только через registry-merge, где TVL всегда "static" и $5M-floor
         # по ADR-053 не evidence-verified).
         self.assertIn("MorphoSteakhouseAdapter", names)
-        self.assertEqual(tiers["MorphoSteakhouseAdapter"], "T1")
+        # T1 → T2 решением ВЛАДЕЛЬЦА 2026-08-10 (вариант A карточки
+        # `owner-decision-reshenie-adr-070-p-6-ispolnit-nelzya-odi`, ответ 13:46:19Z;
+        # ADR-070 п.6 «один вольт — один риск»: та же основа Morpho Blue ⇒ та же
+        # оценка 0.30, а она по контракту тиров обязывает T2). Проверка НЕ ослаблена
+        # — то же точное равенство с числом, которое назвал владелец; ослаблением было
+        # бы убрать её вовсе. Обоснование — `docs/journal/2026-W33.md`, цикл #197
+        # (инв. #16). Требование ОПРАШИВАТЬСЯ оркестратором (строка выше) — в силе:
+        # тир меняет потолок концентрации, а не право на живой замер TVL.
+        self.assertEqual(tiers["MorphoSteakhouseAdapter"], "T2")
         keys = [k for (k, _, _) in orch.ADAPTER_REGISTRY]
         self.assertIn("morpho_steakhouse", keys)
 

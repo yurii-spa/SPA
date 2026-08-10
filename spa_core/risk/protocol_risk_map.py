@@ -91,6 +91,10 @@ PROTOCOL_RISK_SCORES: dict[str, dict[str, Any]] = {
     "aave_v3_base":     {"tier": "T2", "risk_score": 0.28, "note": "Aave V3 Base — Aave code, Base L2 + bridge risk"},
     "sfrax":            {"tier": "T2", "risk_score": 0.30, "note": "Frax sFRAX — Frax savings, peg-gated"},
     "morpho_blue":      {"tier": "T2", "risk_score": 0.30, "note": "Morpho Blue — isolated lending markets, curator risk"},
+    # ADR-070 п.6 «один вольт — один риск» (решение владельца 10.08, вариант A):
+    # в основе тот же контракт Morpho Blue, значит и оценка та же — 0.30, а с ней
+    # обязателен тир T2 (контракт T1 < 0.25 / T2 ∈ [0.25, 0.60]).
+    "morpho_steakhouse": {"tier": "T2", "risk_score": 0.30, "note": "Morpho Steakhouse USDC — куратор поверх Morpho Blue, тот же контракт ⇒ та же оценка (ADR-070 п.6)"},
     "yearn_v3":         {"tier": "T2", "risk_score": 0.32, "note": "Yearn V3 — ERC-4626 strategy vaults, strategy migration risk"},
     "scrvusd":          {"tier": "T2", "risk_score": 0.32, "note": "Curve scrvUSD — savings crvUSD, soft-peg gate"},
     "fluid_fusdc":      {"tier": "T2", "risk_score": 0.35, "note": "Fluid fUSDC — ERC-4626 vault, GSM gate"},

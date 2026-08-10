@@ -34,10 +34,15 @@ _ALIASES: dict[str, tuple[str, str]] = {
     "aave-v3-optimism": ("aave_v3_optimism", "T1"),
     "aave-v3-base": ("aave_v3_base", "T2"),
     "aave-v3-polygon": ("aave_v3_polygon", "T1"),
-    "morpho-blue-steakhouse": ("morpho_steakhouse", "T1"),
+    "morpho-blue-steakhouse": ("morpho_steakhouse", "T2"),
     "pendle-pt": ("pendle_pt_susde", "T2"),
     # variant / sub-market keys not separately registered
-    "morpho_steakhouse": ("morpho_steakhouse", "T1"),   # Morpho Steakhouse USDC vault (T1)
+    # T1 → T2 (решение владельца 10.08, вариант A; ADR-070 п.6 «один вольт — один
+    # риск»): в основе тот же контракт Morpho Blue ⇒ та же оценка 0.30, а она по
+    # контракту тиров (T1 < 0.25) обязывает T2. Ключей ДВА — канонический
+    # DeFiLlama-слаг выше и вариантный ниже; поправить один значит развести
+    # два источника правды об одном протоколе.
+    "morpho_steakhouse": ("morpho_steakhouse", "T2"),   # Morpho Steakhouse USDC vault
     "aave_v3_wsteth": ("aave_v3_wsteth", "T2"),          # wstETH collateral market → ETH-exposed, T2
     "aerodrome_usdc_lp": ("aerodrome_usdc_lp", "T2"),    # tight-range USDC/USDT LP on Base (s76)
     "aerodrome_base": ("aerodrome_base", "T2"),
