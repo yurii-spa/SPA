@@ -709,14 +709,40 @@ def main(argv: list[str] | None = None) -> int:
             if ks.get("triggered"):
                 reason = str(ks.get("reason") or "")
                 print(f"  [CRITICAL] intraday kill-switch: {reason}")
+                # ── ЗАМЕР 2026-08-10: этот путь тоже был холостым ───────────
+                #
+                # Здесь стоял `TelegramManager(category="p0")`, а он отставлен
+                # (Phase-1 Telegram rebuild): `_send_raw` ВСЕГДА возвращает
+                # False и уводит текст в суточный дайджест. У дневного цикла
+                # была хотя бы дублёрка в лице `threat_reactor`; у ЭТОЙ ветки
+                # дублёрки нет — она и есть весь смысл ADR-068 (узнать за
+                # 5 минут, а не за сутки). То есть внутридневная просадка
+                # доезжала до владельца в лучшем случае суточной сводкой,
+                # ровно потеряв то, ради чего проверку и делали.
+                #
+                # Канонический путь — `push_policy` (ключ `kill_switch` первый
+                # в Tier-1 whitelist). Edge-триггер здесь особенно к месту:
+                # проверка идёт каждые 5 минут, и без него одна просадка дала
+                # бы 288 сообщений в сутки.
+                #
+                # Пороги стоп-крана не трогаются: чинится доставка (инв. 1).
                 try:
-                    from spa_core.alerts.telegram_manager import TelegramManager
+                    from spa_core.alerts.kill_switch_alert import notify_kill_switch
 
-                    TelegramManager().send(
-                        f"🚨 KILL SWITCH (внутридневная проверка): {reason}",
-                        title="kill_switch",
-                        category="p0",
+                    # data_dir — тот же, по которому судили о стоп-кране выше:
+                    # состояние тревоги обязано следовать за каталогом проверки,
+                    # иначе прогон над песочницей пишет в ЖИВОЕ edge-состояние и
+                    # глушит следующую настоящую тревогу (замер #193).
+                    _sent = notify_kill_switch(
+                        reason,
+                        source="внутридневная проверка",
+                        data_dir=data_dir,
                     )
+                    if not _sent:
+                        print(
+                            "  [CRITICAL] стоп-кран сработал, тревога НЕ УШЛА "
+                            "сейчас (дедуп того же отпечатка либо отказ канала)"
+                        )
                 except Exception as _alert_exc:  # noqa: BLE001
                     # Молчать нельзя: несработавшая тревога обязана быть видна
                     # отдельным событием, иначе мы заменим одну тишину другой.

@@ -2,11 +2,12 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **396** · ждёт владельца: **5** · занято сессиями: **3**.
+> Всего карточек: **399** · ждёт владельца: **6** · занято сессиями: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Две записи о деньгах расходятся каждый день — и починка есть, но её никто не запускает**  ·  `own-32-evidence-vs-curve-diverge.md`
+- **Добавить одну строку в настройку агента — иначе не узнаем, кто гоняет цикл 52 раза в сутки**  ·  `own-33-plist-marker-for-cycle-origin.md`
 - **Наш аварийный тормоз ни разу не срабатывал за всю историю — и мы впервые посчитали, во что он обойдётся, когда сработает** · _high_  ·  `own-rnd-killswitch-rearm-policy-missing.md`
 - **Аварийный выключатель EB-02 сравнивает живой рынок с одиннадцатью числами, вписанными в код** · _high_  ·  `owner-decision-eb02-sravnivaet-zhivoe-s-konstantoi.md`
 - **Решение ADR-070 п.6 исполнить нельзя: «один вольт — один риск» упирается в тир morpho_steakhouse (40% → 20%)**  ·  `owner-decision-reshenie-adr-070-p-6-ispolnit-nelzya-odi.md`
@@ -20,10 +21,11 @@
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (99)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (101)
 
 ### · needs-owner
 - Две записи о деньгах расходятся каждый день — и починка есть, но её никто не запускает  ·  `own-32-evidence-vs-curve-diverge.md` · 2026-08-09
+- Добавить одну строку в настройку агента — иначе не узнаем, кто гоняет цикл 52 раза в сутки  ·  `own-33-plist-marker-for-cycle-origin.md` · 2026-08-10
 - Наш аварийный тормоз ни разу не срабатывал за всю историю — и мы впервые посчитали, во что он обойдётся, когда сработает  ·  `own-rnd-killswitch-rearm-policy-missing.md` · 2026-08-10
 - Аварийный выключатель EB-02 сравнивает живой рынок с одиннадцатью числами, вписанными в код  ·  `owner-decision-eb02-sravnivaet-zhivoe-s-konstantoi.md` · 2026-08-10
 - Решение ADR-070 п.6 исполнить нельзя: «один вольт — один риск» упирается в тир morpho_steakhouse (40% → 20%)  ·  `owner-decision-reshenie-adr-070-p-6-ispolnit-nelzya-odi.md` · 2026-08-10
@@ -65,6 +67,7 @@
 - Программа аудита системы + архитектурной памяти («швейцарские часы») — утвердить приоритет  ·  `owner-decision-20260716-084859-note.md` · 2026-07-16
 - Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда  ·  `owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira.md` · 2026-08-01
 - Аллокатор ранжирует пулы на невыверенном TVL ($50M-литерал) — исключать ли их из свежих целей?  ·  `owner-decision-allokator-ranzhiruet-puly-na-vydumannom-tvl.md` · 2026-08-02
+- ДУБЛЬ (отвечать не нужно) — Аварийный тормоз стоит с ночи — книга девять часов в кэше, снимать может только ты  ·  `owner-decision-avariinyi-tormoz-stoit-s-nochi-kniga-dev.md` · 2026-08-10
 - Безопасность: admin-панель /admin без пароля — закрыть за Cloudflare Access  ·  `owner-decision-bezopasnost-admin-panel-admin-bez-paroly.md` · 2026-07-16
 - Бумажный тест закончен — выбери, как двигаемся дальше (5 решений)  ·  `owner-decision-bumazhnyi-test-zakonchen-vyberi-kak-dvig.md` · 2026-07-29
 - Часовые агенты до суток крутят старый код — защита от столкновения сессий выложена, но в проде её нет  ·  `owner-decision-chasovye-agenty-do-sutok-krutyat-staryi.md` · 2026-08-08
@@ -124,7 +127,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (139)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (140)
 
 ### · in-progress
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
@@ -247,6 +250,7 @@
 - Демоушен книг Aggressive по ОТНОСИТЕЛЬНОМУ рангу (решение владельца 09.08, вариант A)  ·  `inbox-demoushen-knig-aggressive-po-otnositelno.md` · 2026-08-09
 - Долгоживущие агенты не подхватывают доставленный код — и никто об этом не говорит  ·  `inbox-dolgozhivuschie-agenty-ne-podhvatyvayut.md` · 2026-08-08
 - Храповик неподключённых скриптов не отличает мёртвый код от ручного R&D — и краснеет на честной работе  ·  `inbox-hrapovik-nepodklyuchennyh-skriptov-ne-ot.md` · 2026-08-10
+- Критическая тревога о здоровье системы уходит в никуда: третий вызов отставленного менеджера, а оператору печатают «cooldown active»  ·  `inbox-kriticheskaya-trevoga-o-zdorove-sistemy.md` · 2026-08-10
 - Крупнейшая позиция книги стоит на константе: у aave_v3 (Ethereum, 40%) TVL «не измерено», а пул в фиде есть  ·  `inbox-krupneishaya-pozitsiya-knigi-stoit-na-ko.md` · 2026-08-09
 - Модуль #39: третьей рукой обязана быть ПРИЧИННАЯ статика, иначе через 30 дней форвард снова не отличит тайминг от недовеса  ·  `inbox-modul-39-tretei-rukoi-obyazana-byt-prich.md` · 2026-08-09
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
@@ -404,7 +408,6 @@
 - Завести производителя gsm_hours (on-chain GSM Pause Delay) — чтобы GSM-гейт перестал быть вечным замком  ·  `agent-gsm-hours-producer.md` · 2026-08-02
 - Guard — стратегия не должна молча падать на mock, если заявленный живой адаптер не грузится  ·  `agent-guard-no-silent-mock-in-tournament.md` · 2026-07-23
 - Построить слой инвест-агентов «Head of Investment» (кураторы тиров + капитал-по-тирам + максимизаторы + решающий)  ·  `agent-head-of-investment-layer.md` · 2026-07-23
-- Тревога о стоп-кране обязана доходить — чинить сейчас, пока запас есть (СТАРТ после утреннего апдейта)  ·  `agent-killswitch-alert-path.md` · 2026-08-06
 - Манифест архитектуры не знает об агенте morning_digest — тест красный на origin  ·  `agent-manifest-drift-morning-digest.md` · 2026-08-06
 - Кэп на протокол не видит общего куратора — Steakhouse держится и на Ethereum, и на Base  ·  `agent-morpho-curator-concentration.md` · 2026-08-05
 - Линия время-рядов для 18 форкастеров (поток 3 own-27)  ·  `agent-relocate-forecasters-to-timeseries-lane.md` · 2026-08-04
@@ -433,6 +436,7 @@
 - Храповик литеральных дат КРАСНЫЙ на main — два новых тест-файла волны 1 (A1) вошли в закрытый класс  ·  `agent-frozen-date-ratchet-red-on-main.md` · 2026-08-05
 - Простой 15 % капитала объяснён — блокировки покрывают его полностью, с разбивкой по протоколам  ·  `agent-idle-cash-quantified.md` · 2026-08-05
 - Красный тест: страховой скоринг не отказывает при отсутствующем TVL  ·  `agent-insurance-scorer-missing-tvl.md` · 2026-08-05
+- Тревога о стоп-кране обязана доходить — чинить сейчас, пока запас есть (СТАРТ после утреннего апдейта)  ·  `agent-killswitch-alert-path.md` · 2026-08-06
 - Оживить живой TVL/фид morpho-семейства (own-29 вариант 1, дедлайн 2026-08-08)  ·  `agent-morpho-feed-revival.md` · 2026-08-05
 - НЕ ВОСПРОИЗВОДИТСЯ — два offsite-падения оказались разовыми, моё утверждение о порядке снято  ·  `agent-offsite-tests-order-dependent.md` · 2026-08-06
 - У реестра агентов нет продюсера — он протух на 475 часов и никто не заметил  ·  `agent-registry-has-no-producer.md` · 2026-08-05

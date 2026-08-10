@@ -19,6 +19,7 @@ import inspect
 import unittest
 
 from spa_core.monitoring import cycle_health_monitor as chm
+from spa_core.tests.test_killswitch_alert_reaches_owner import _code_only
 
 
 class TestIntradayCheckIsWired(unittest.TestCase):
@@ -32,13 +33,31 @@ class TestIntradayCheckIsWired(unittest.TestCase):
         self.assertIn("run_kill_switch_check", self.tail,
                       "частый агент обязан вычислять вердикт стоп-крана")
 
-    def test_it_notifies_through_the_p0_channel(self):
-        self.assertIn('category="p0"', self.tail)
-        self.assertIn('title="kill_switch"', self.tail)
+    def test_it_notifies_through_the_canonical_critical_channel(self):
+        """НАМЕРЕННОЕ изменение проверки 2026-08-10 (инвариант #16).
+
+        Здесь стояло `assertIn('category="p0"', self.tail)`. Строка в исходнике
+        присутствовала — а канал был мёртв: `TelegramManager` отставлен в ходе
+        Phase-1 Telegram rebuild, его `_send_raw` ВСЕГДА возвращает False и
+        уводит текст в суточный дайджест. Тест был зелёным ровно всё то время,
+        пока внутридневная тревога (весь смысл ADR-068 — узнать за 5 минут)
+        никуда не уходила. Проверялось написание вызова, а обещалась доставка.
+
+        Проверка не ослаблена, а УСИЛЕНА: вместо подстроки требуется
+        канонический путь, а сам ФАКТ доставки измеряется отдельно в
+        `test_killswitch_alert_reaches_owner.py` (подменённый транспорт +
+        положительный контроль на отставленном пути). Обоснование — в
+        `docs/journal/2026-W33.md`.
+        """
+        self.assertIn("notify_kill_switch", self.tail)
+        self.assertNotIn("TelegramManager", _code_only(self.tail),
+                         "отставленный путь ничего не отправляет")
 
     def test_a_failed_alert_is_announced_not_swallowed(self):
         """Несработавшая тревога обязана быть видна отдельным событием."""
         self.assertIn("ТРЕВОГА НЕ ОТПРАВЛЕНА", self.tail)
+        self.assertIn("тревога НЕ УШЛА", self.tail,
+                      "возврат «не ушло» тоже обязан быть слышен, а не только исключение")
 
     def test_the_check_cannot_break_the_monitor_it_lives_in(self):
         """Сторож не имеет права ронять то, что охраняет."""

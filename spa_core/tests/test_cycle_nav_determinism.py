@@ -70,6 +70,28 @@ _UNIVERSE = [
 ]
 
 
+@pytest.fixture(autouse=True)
+def _stub_the_owner_alert(monkeypatch):
+    """Транспорт тревоги — заглушка. Добавлено циклом #193, вот почему.
+
+    До #193 ветка стоп-крана в `cycle_runner` слала через ОТСТАВЛЕННЫЙ
+    `TelegramManager`, который никогда никуда не ходил, — поэтому этот файл
+    гонял `run_cycle` с включённым стоп-краном и молчал. После перевода тревоги
+    на живой канон (`push_policy`) тот же прогон дал **52 попытки** достучаться
+    до боевого чата владельца в одном тесте, и сторож `_no_live_telegram`
+    честно покраснел (перехват на `urlopen` — наружу не ушло ничего).
+
+    Проверки файла НЕ ослаблены: заглушается только сетевой транспорт, как и
+    предписывает сообщение самого сторожа. Состояние тревоги при этом пишется
+    в песочный `data_dir` цикла (тоже #193) и живого не касается — иначе
+    прогон пометил бы `kill_switch` отправленным и заглушил бы СЛЕДУЮЩУЮ
+    настоящую тревогу.
+    """
+    from spa_core.telegram import push_policy
+
+    monkeypatch.setattr(push_policy, "_send", lambda text: True)
+
+
 def _make_orch(apy_by_proto: dict[str, float]):
     """Build a network-free orchestrator fake exposing live adapter records."""
 
