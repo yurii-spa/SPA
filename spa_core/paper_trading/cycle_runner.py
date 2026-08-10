@@ -2401,8 +2401,22 @@ def _main_inner(argv: list[str] | None = None) -> int:
     # network-bound, hence here in the CLI and not inside run_cycle()).
     if not args.dry_run:
         alerts = _run_cycle_alerts(_eff_data_dir, date=result.date)
+        # Три исхода, а не два. `send_*` возвращает False и при подавлении («уже
+        # отправлено сегодня»), и при настоящем провале — печатать оба как FAILED
+        # значит топить реальный отказ среди штатных повторов. Замер 10.08: четыре
+        # FAILED подряд были повторами, а не поломкой.
+        try:
+            from spa_core.alerts.alert_manager import already_sent_today as _sent_today
+        except Exception:  # noqa: BLE001
+            _sent_today = None
         for name, ok in alerts.items():
-            print(f"  alert   {name:<12}: {'sent' if ok else 'FAILED'}")
+            if ok:
+                label = "sent"
+            elif _sent_today is not None and _sent_today(name):
+                label = "skipped (already sent today)"
+            else:
+                label = "FAILED"
+            print(f"  alert   {name:<12}: {label}")
 
     # MP-016b: periodic reports — weekly (Monday) and monthly (1st of month).
     if not args.dry_run:
