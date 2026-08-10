@@ -653,12 +653,23 @@ class TestRunAllChecks(unittest.TestCase):
         self.assertIsNotNone(parsed)
 
     # T47
-    def test_run_all_checks_dict_has_three_keys(self):
+    def test_run_all_checks_dict_has_the_exact_check_set(self):
+        """Набор проверок закреплён ТОЧНЫМ равенством — и новая проверка обязана быть названа.
+
+        НАМЕРЕННОЕ изменение теста (инв. #16, обоснование здесь + запись в
+        `docs/journal/2026-W33.md`, цикл #191). Коммит 28732dce4 добавил в `run_all_checks`
+        четвёртую проверку `evidence_vs_curve` и не тронул это ожидание — тест покраснел
+        на ЧЕСТНОЙ работе и оставался красным на чистом `origin/main`. Это не ослабление:
+        сравнение остаётся ТОЧНЫМ (`assertSetEqual`), в него добавлено реально
+        существующее имя. Ослаблением было бы `assertLessEqual`/подмножество — тогда любая
+        следующая проверка появилась бы молча, а именно этого тест и не должен допускать.
+        Имя функции исправлено: «три ключа» перестало быть правдой ещё до этой правки.
+        """
         tmpdir = self._make_temp_data_dir()
         result = self.monitor.run_all_checks(data_dir=tmpdir)
         self.assertSetEqual(
             set(result["checks"].keys()),
-            {"cycle_gap", "equity_anomaly", "data_freshness"},
+            {"cycle_gap", "equity_anomaly", "data_freshness", "evidence_vs_curve"},
         )
 
     # T48

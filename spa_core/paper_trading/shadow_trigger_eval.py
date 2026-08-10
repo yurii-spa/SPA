@@ -31,7 +31,6 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import date as _date
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple

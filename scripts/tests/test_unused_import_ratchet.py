@@ -30,6 +30,23 @@ actually moves capital (cycle/allocator/risk/api-routers/strategy-lab/alerts).
     finally bites; recurrence of the class is gated by
     ``spa_core/tests/test_ci_covers_every_test_dir.py``.
     Карточка: ``agent-ci-never-runs-scripts-tests-dir``.
+  * 2026-08-10 (цикл #190): count had drifted to **38** and this test was RED on clean
+    ``origin/main`` — the first recurrence AFTER the dir became CI-covered, so this time
+    the ratchet is what reported it (цикл #189 found it red, not a human). Both extras were
+    genuinely dead names, and in BOTH the module stays imported via other names on the SAME
+    statement — so removal cannot change any import-time side effect, which is the one
+    hazard this cleanup has to rule out:
+      - ``spa_core/paper_trading/shadow_trigger_eval.py`` — ``from datetime import date as
+        _date``; ``_date`` occurred exactly ONCE in the file (its own import line) and no
+        importer pulls it. Arrived with d1faaf6f5 (Y3 shadow-trigger reconciliation).
+      - ``spa_core/strategy_lab/swarm/rank_demotion_forward.py`` — ``EXPECTED_BOOKS``
+        re-imported from ``dwell_hysteresis_forward``; not in this module's ``__all__``, and
+        every reader in the repo reaches it through ``dwell_hysteresis_forward`` directly
+        (``dh.EXPECTED_BOOKS``), never through ``rank_demotion_forward``. Arrived with
+        c7daaa257 (paper-модуль рангового демоушена).
+    Back to **36** — the count this docstring already promised. CEILING NOT touched
+    (инв. #16: the observed count came down to the pin, the pin did not come up to it).
+    Карточка: ``inbox-hrapovik-neispolzuemyh-importov-krasnyi``.
 
 Why the floor is 36 and not 0 — every remaining warning is a DELIBERATE,
 documented re-export / back-compat surface that MUST stay (removing it would

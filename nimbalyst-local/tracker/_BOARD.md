@@ -2,12 +2,15 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **391** · ждёт владельца: **2** · занято сессиями: **3**.
+> Всего карточек: **394** · ждёт владельца: **5** · занято сессиями: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Две записи о деньгах расходятся каждый день — и починка есть, но её никто не запускает**  ·  `own-32-evidence-vs-curve-diverge.md`
+- **Наш аварийный тормоз ни разу не срабатывал за всю историю — и мы впервые посчитали, во что он обойдётся, когда сработает** · _high_  ·  `own-rnd-killswitch-rearm-policy-missing.md`
+- **Аварийный выключатель EB-02 сравнивает живой рынок с одиннадцатью числами, вписанными в код** · _high_  ·  `owner-decision-eb02-sravnivaet-zhivoe-s-konstantoi.md`
 - **Решение ADR-070 п.6 исполнить нельзя: «один вольт — один риск» упирается в тир morpho_steakhouse (40% → 20%)**  ·  `owner-decision-reshenie-adr-070-p-6-ispolnit-nelzya-odi.md`
+- **Система остановлена аварийным выключателем: он сравнивает живую доходность с числами, вписанными в код**  ·  `owner-decision-sistema-ostanovlena-avariinym-vyklyuchat.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
@@ -17,11 +20,14 @@
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (96)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (99)
 
 ### · needs-owner
 - Две записи о деньгах расходятся каждый день — и починка есть, но её никто не запускает  ·  `own-32-evidence-vs-curve-diverge.md` · 2026-08-09
+- Наш аварийный тормоз ни разу не срабатывал за всю историю — и мы впервые посчитали, во что он обойдётся, когда сработает  ·  `own-rnd-killswitch-rearm-policy-missing.md` · 2026-08-10
+- Аварийный выключатель EB-02 сравнивает живой рынок с одиннадцатью числами, вписанными в код  ·  `owner-decision-eb02-sravnivaet-zhivoe-s-konstantoi.md` · 2026-08-10
 - Решение ADR-070 п.6 исполнить нельзя: «один вольт — один риск» упирается в тир morpho_steakhouse (40% → 20%)  ·  `owner-decision-reshenie-adr-070-p-6-ispolnit-nelzya-odi.md` · 2026-08-10
+- Система остановлена аварийным выключателем: он сравнивает живую доходность с числами, вписанными в код  ·  `owner-decision-sistema-ostanovlena-avariinym-vyklyuchat.md` · 2026-08-10
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -156,6 +162,7 @@
 - Гейт перед деплоем поднимает второго Telegram-бота на том же токене  ·  `inbox-geit-pered-deploem-podnimaet-vtorogo-tel.md` · 2026-08-08
 - Храповик литеральных дат метит ОБРАЗЦОВЫЙ паттерн: тест по преференции №1 правила (инъекция часов) не проходит сторожа  ·  `inbox-hrapovik-literalnyh-dat-metit-obraztsovy.md` · 2026-08-06
 - Храповик литеральных дат не видит даты, записанные конструктором — половина класса вне поля зрения  ·  `inbox-hrapovik-literalnyh-dat-ne-vidit-daty-za.md` · 2026-08-06
+- Храповик неиспользуемых импортов красный на чистом origin: 38 при потолке 36  ·  `inbox-hrapovik-neispolzuemyh-importov-krasnyi.md` · 2026-08-10
 - Из алерта: ⚠️ SPA 7-Day Checkpoint FAILED: 1 check(s)  ·  `inbox-iz-alerta-spa-7-day-checkpoint-failed-1-2.md` · 2026-08-08
 - Из алерта: ⚠️ SPA 7-Day Checkpoint FAILED: 1 check(s)  ·  `inbox-iz-alerta-spa-7-day-checkpoint-failed-1.md` · 2026-08-08
 - Карточка, созданная посреди цикла, не доезжает: create пишет в ХОСТ-дерево, а пуш идёт из worktree  ·  `inbox-kartochka-sozdannaya-posredi-tsikla-ne-d.md` · 2026-08-06
@@ -239,7 +246,6 @@
 - ALLOC-002-отбор: топ-8 по весу беднит книгу — отбирать ПОСЛЕ evidence/TVL-гейта  ·  `inbox-alloc-002-otbor-top-8-po-vesu-bednit-kni.md` · 2026-08-08
 - Демоушен книг Aggressive по ОТНОСИТЕЛЬНОМУ рангу (решение владельца 09.08, вариант A)  ·  `inbox-demoushen-knig-aggressive-po-otnositelno.md` · 2026-08-09
 - Долгоживущие агенты не подхватывают доставленный код — и никто об этом не говорит  ·  `inbox-dolgozhivuschie-agenty-ne-podhvatyvayut.md` · 2026-08-08
-- Храповик неиспользуемых импортов красный на чистом origin: 38 при потолке 36  ·  `inbox-hrapovik-neispolzuemyh-importov-krasnyi.md` · 2026-08-10
 - Крупнейшая позиция книги стоит на константе: у aave_v3 (Ethereum, 40%) TVL «не измерено», а пул в фиде есть  ·  `inbox-krupneishaya-pozitsiya-knigi-stoit-na-ko.md` · 2026-08-09
 - Модуль #39: третьей рукой обязана быть ПРИЧИННАЯ статика, иначе через 30 дней форвард снова не отличит тайминг от недовеса  ·  `inbox-modul-39-tretei-rukoi-obyazana-byt-prich.md` · 2026-08-09
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09

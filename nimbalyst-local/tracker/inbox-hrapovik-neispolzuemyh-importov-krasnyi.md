@@ -2,9 +2,11 @@
 trackerStatus:
   type: inbox
 title: "Храповик неиспользуемых импортов красный на чистом origin: 38 при потолке 36"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-10
+claimed_by: cycle-190
+claimed_at: 2026-08-10T02:17:00Z
 ---
 
 ## Что измерено (цикл #189, 2026-08-10)
@@ -44,3 +46,30 @@ AssertionError: Unused-import count on money-path dirs rose to 38 (ceiling 36).
 импорты, а не про поведение.
 
 Родитель: `inbox-ci-spa-tests-krasnyi-minimum-8-kommitov` (цикл #189).
+
+## Сделано (цикл #190, 2026-08-10)
+
+Долг оказался **ровно два имени**, а документированная база из 36 цела и не тронута:
+`risk_monitor` 24 · `cycle_runner` 10 · `alerts/__init__` 1 · `scoring_engine` 1 = 36.
+
+| файл | мёртвое имя | откуда пришло |
+|---|---|---|
+| `spa_core/paper_trading/shadow_trigger_eval.py:34` | `from datetime import date as _date` | d1faaf6f5 (Y3, сверка тени) |
+| `spa_core/strategy_lab/swarm/rank_demotion_forward.py:60` | `EXPECTED_BOOKS` | c7daaa257 (paper-модуль рангового демоушена) |
+
+**Опасность, которую пункт 2 просил проверить глазами, здесь исключена структурно:** в ОБОИХ
+случаях модуль остаётся импортированным другими именами В ТОМ ЖЕ операторе (`datetime` — через
+`datetime, timezone`; `dwell_hysteresis_forward` — через `NOTIONAL_USD, CASH_DAILY_RETURN,
+load_panel, …`). Значит удаление имени не может изменить НИ ОДНОГО импорт-тайм побочного
+эффекта — менять там просто нечего.
+
+Проверено, что это не re-export: `_date` встречается в файле ровно ОДИН раз (собственная строка
+импорта), `EXPECTED_BOOKS` нет в `__all__` модуля, и все читатели в репозитории берут его прямо
+из `dwell_hysteresis_forward` (`dh.EXPECTED_BOOKS`), ни один — через `rank_demotion_forward`.
+После правки `hasattr(rd, "EXPECTED_BOOKS")` и `hasattr(s, "_date")` = False, и никто этого
+не заметил: 61 тест трёх затронутых модулей зелёный.
+
+Потолок **НЕ трогал** — счёт опущен к пину (36), а не пин поднят к счёту (инв. #16). В шапку
+храповика дописана датированная запись по его же конвенции.
+
+**Статус: done.** Пункты 1–3 карточки закрыты.

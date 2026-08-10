@@ -57,7 +57,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 from spa_core.strategy_lab.swarm.common import append_daily_proof, apy_pct, max_drawdown_pct
 from spa_core.strategy_lab.swarm.dwell_hysteresis_forward import (
-    EXPECTED_BOOKS, NOTIONAL_USD, CASH_DAILY_RETURN, load_panel,
+    NOTIONAL_USD, CASH_DAILY_RETURN, load_panel,
     _duty_out_pct, _largest_position_pct,
 )
 from spa_core.utils.atomic import atomic_save

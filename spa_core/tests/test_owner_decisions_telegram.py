@@ -571,3 +571,162 @@ def test_single_choice_card_is_not_mistaken_for_multiselect():
     """Контроль в обратную сторону: обычная карточка кнопки получает."""
     assert od.allows_multiple(CARD_PLAIN_AND_INLINE_STAR) is False
     assert len(od.parse_options(CARD_PLAIN_AND_INLINE_STAR)) == 3
+
+
+# ── авария 10.08: десять карточек уехали владельцу БЕЗ КНОПОК ────────────────
+#
+# Замер по журналу отправок `data/telegram_owner_decisions.json` (21 карточка): десять ушли
+# с `options: []`, и НИ НА ОДНУ из этих десяти владелец не ответил — при том что среди
+# карточек с кнопками отвеченные есть. Владелец в отъезде и отвечает именно кнопкой.
+# Две из десяти — не «карточка без выбора», а наш непрочитанный выбор. Каждый тест ниже
+# воспроизводит КОНКРЕТНУЮ живую карточку того дня.
+
+# Живая карточка `owner-decision-sistema-ostanovlena-avariinym-vyklyuchat`: суть отделена
+# ДВОЕТОЧИЕМ, а не тире. Ею система стояла остановленной, пока владелец не мог ответить.
+CARD_COLON_SEPARATOR = """---
+trackerStatus:
+  type: owner-decision
+title: "Система остановлена аварийным выключателем"
+status: needs-owner
+---
+
+## Что от тебя нужно
+
+Что сделать с остановкой прямо сейчас.
+
+- **Вариант А (⭐ рекомендую): снять выключатель вручную и дать циклу идти.**
+  Основание: ни одно расхождение не является аварией фида.
+- **Вариант Б: оставить остановку до починки EB-02.** Честнее «по букве», но каждый день
+  стоит дня трека.
+"""
+
+# Живая карточка `owner-decision-reshenie-adr-070-p-6-ispolnit-nelzya-odi`: вариант написан
+# отдельным АБЗАЦЕМ, без `- ` в начале строки. Ждёт владельца с того же дня.
+CARD_BOLD_WITHOUT_BULLET = """---
+trackerStatus:
+  type: owner-decision
+title: "Решение ADR-070 п.6 исполнить нельзя"
+status: needs-owner
+---
+
+## Что от тебя нужно
+
+Выбрать тир.
+
+**Вариант A (рекомендую) — перевести `morpho_steakhouse` в T2, оценка 0.30.**
+
+**Вариант B — оставить `morpho_steakhouse` в T1 и дать ему собственную оценку ниже 0.25.**
+
+**Вариант C — признать `morpho_blue` дублем и вывести его из книги.**
+"""
+
+# Та же карточка про остановку в ИСХОДНОМ виде: ДВА решения, и в каждом свой «Вариант А».
+CARD_TWO_DECISIONS_SAME_NUMBERS = """---
+trackerStatus:
+  type: owner-decision
+title: "Два решения в одной карточке"
+status: needs-owner
+---
+
+## Что от тебя нужно
+
+Два разных решения — их лучше не смешивать.
+
+**Решение 1 — что сделать с остановкой ПРЯМО СЕЙЧАС:**
+
+- **Вариант А (⭐ рекомендую): снять выключатель вручную.** Основание такое-то.
+- **Вариант Б: оставить остановку до починки.** Честнее по букве.
+
+**Решение 2 — что делать с самим EB-02:**
+
+- **Вариант А (⭐ рекомендую): сравнивать живое с живым.** Базой брать историю протокола.
+- **Вариант Б: обновить константы сегодняшними числами.** Дёшево, но повторится.
+- **Вариант В: поднять порог и кворум.** Не рекомендую — глушит сторожа.
+"""
+
+# Карточка-поручение: выбора не предлагает вовсе. Контроль в обратную сторону.
+CARD_NO_CHOICE_AT_ALL = """---
+trackerStatus:
+  type: owner-decision
+title: "Добавить ключ на сервер"
+status: needs-owner
+---
+
+## Что от тебя нужно
+
+Зайти в панель Railway и добавить переменную `ETHERSCAN_API_KEY`. Без неё не работает
+проверка кошельков.
+"""
+
+
+def test_option_separated_by_a_colon_is_read():
+    """Положительный контроль аварии 10.08: `**Вариант А (⭐ рекомендую): снять…**`.
+
+    Разбор ждал только тире, и карточка, которой система стояла ОСТАНОВЛЕННОЙ, уехала
+    владельцу без кнопок. Разделитель — оформление; выбор владельца от него не зависит.
+    """
+    opts = od.parse_options(CARD_COLON_SEPARATOR)
+    assert [o.num for o in opts] == ["А", "Б"]
+    assert opts[0].label.startswith("снять выключатель")
+    assert [o.recommended for o in opts] == [True, False]
+
+
+def test_option_written_as_a_plain_paragraph_is_read():
+    """Второй положительный контроль того же дня: вариант БЕЗ маркера списка.
+
+    `**Вариант A (рекомендую) — перевести…**` отдельным абзацем. Якорь `^\\s*[*\\-+]\\s+`
+    такую строку не видел, и карточка про тир `morpho_steakhouse` тоже ушла без кнопок.
+    """
+    opts = od.parse_options(CARD_BOLD_WITHOUT_BULLET)
+    assert [o.num for o in opts] == ["A", "B", "C"]
+    assert opts[0].label.startswith("перевести")
+    assert [o.recommended for o in opts] == [True, False, False]
+
+
+def test_two_decisions_in_one_card_get_no_buttons_instead_of_a_mixture(tmp_path):
+    """Дубль номера значит, что карточка задаёт НЕ ОДИН вопрос.
+
+    Раньше здесь молча брался первый «Вариант А», а НЕсовпавший номер второго перечня
+    («Вариант В») попадал в кнопки наравне с первым: владелец получал ряд из ДВУХ РАЗНЫХ
+    вопросов и увидеть этого не мог. Смешать два вопроса хуже, чем не показать кнопок.
+    """
+    opts = od.parse_options(CARD_TWO_DECISIONS_SAME_NUMBERS)
+    assert opts == []
+    prep = od.prepare("Два решения", CARD_TWO_DECISIONS_SAME_NUMBERS, "own-2d", now=NOW,
+                      beacon_path=_beacon(tmp_path))
+    assert prep.keyboard is None
+    # Ровно тот вариант, который протекал из ВТОРОГО перечня в кнопки первого:
+    # «В» не дублировал ни «А», ни «Б», поэтому молчаливый пропуск дублей его не ловил.
+    assert [o.num.lower() for o in prep.options] == []
+
+
+def test_a_card_with_unreadable_options_says_so_instead_of_denying_them(tmp_path):
+    """Кнопок нет по РАЗНЫМ причинам, и владельцу они звучали одинаково.
+
+    «Вариантов в карточке не нашёл» верно для карточки-поручения и ЛОЖНО для карточки, где
+    вариантов пять. Владелец читает второе как «выбора и не предлагали» — и не отвечает.
+    Это ровно то молчание, которым система простояла остановленной.
+    """
+    assert od.has_unparsed_options(CARD_TWO_DECISIONS_SAME_NUMBERS) is True
+    prep = od.prepare("Два решения", CARD_TWO_DECISIONS_SAME_NUMBERS, "own-2d", now=NOW,
+                      beacon_path=_beacon(tmp_path))
+    assert "Варианты в карточке есть" in prep.text
+    assert "Вариантов в карточке не нашёл" not in prep.text
+
+
+def test_a_card_that_really_offers_no_choice_keeps_the_old_honest_wording(tmp_path):
+    """Контроль в обратную сторону: поручение без выбора НЕ должно выглядеть неполадкой."""
+    assert od.parse_options(CARD_NO_CHOICE_AT_ALL) == []
+    assert od.has_unparsed_options(CARD_NO_CHOICE_AT_ALL) is False
+    prep = od.prepare("Ключ", CARD_NO_CHOICE_AT_ALL, "own-key", now=NOW,
+                      beacon_path=_beacon(tmp_path))
+    assert "Вариантов в карточке не нашёл" in prep.text
+    assert "Варианты в карточке есть" not in prep.text
+
+
+def test_multiselect_card_keeps_its_own_reason_not_the_defect_wording(tmp_path):
+    """У «можно взять несколько» причина СВОЯ и она не неполадка — порядок веток важен."""
+    prep = od.prepare("Табличка", CARD_MULTISELECT, "own-x", now=NOW,
+                      beacon_path=_beacon(tmp_path))
+    assert "НЕСКОЛЬКО пунктов" in prep.text
+    assert "Варианты в карточке есть" not in prep.text
