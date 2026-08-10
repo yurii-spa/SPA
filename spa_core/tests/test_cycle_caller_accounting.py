@@ -69,10 +69,21 @@ class TestAccountingCannotBreakTheCycle(unittest.TestCase):
                          "оба вызова ps обязаны глушить ошибку")
         self.assertIn("|| true", block)
 
-    def test_an_unknown_caller_is_recorded_not_fatal(self):
-        """Пустой ответ — это «unknown», а не падение и не пустая строка."""
-        self.assertIn('"")      CALLER_KIND="unknown"', self.text)
+    def test_an_unmeasurable_caller_is_recorded_not_fatal(self):
+        """Пустой ответ `ps` не ломает строку и не роняет цикл.
+
+        Правлено 10.08 (обоснование обязательно, `CLAUDE.md` §16; журнал W32).
+        Состояния «unknown» больше НЕТ, и это не ослабление, а следствие починки
+        самого признака: он перестал зависеть от `ps`. Раньше вердикт выводился из
+        родителя, и «`ps` промолчал» было третьим исходом. Теперь вердикт — метка
+        окружения: она либо есть (расписание), либо нет (ручной запуск), и третьего
+        состояния тут быть не может.
+
+        Проверяемое свойство сохранено полностью: имя родителя по-прежнему остаётся
+        справочным полем и по-прежнему не роняет строку, когда `ps` промолчал.
+        """
         self.assertIn("${CALLER_NAME:-?}", self.text)
+        self.assertIn("ppid=$PPID", self.text)
 
     def test_no_set_e_was_introduced(self):
         """Обёртка намеренно без `set -e` — учёт не смеет это менять.
