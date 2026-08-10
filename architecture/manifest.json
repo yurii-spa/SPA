@@ -19,6 +19,10 @@
     {
      "artifact": "data/agent_registry.json",
      "slo_hours": 26
+    },
+    {
+     "artifact": "data/owner_decision_pending.json",
+     "slo_hours": 3
     }
    ],
    "consumes": [],
@@ -1754,6 +1758,16 @@
    "consumers": [],
    "slo_hours": 3,
    "status": "active"
+  },
+  {
+   "path": "data/owner_decision_pending.json",
+   "producer": "com.spa.agent_health",
+   "consumers": [
+    "orchestrator_protocol"
+   ],
+   "slo_hours": 3,
+   "status": "active",
+   "notes": "цикл #195 — есть ли у ОСТАНОВКИ путь вверх: ждёт ли система ответа владельца и сколько"
   },
   {
    "path": "data/watchdog_report.json",

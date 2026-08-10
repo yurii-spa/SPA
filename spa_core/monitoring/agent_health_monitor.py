@@ -988,6 +988,32 @@ def check_system(data_dir: Path, now: datetime,
                 "кода упала ({}) — это не «код свежий»".format(type(exc).__name__))
             status = _worst(status, WARNING)
 
+    # --- есть ли у ОСТАНОВКИ путь вверх (цикл #195) -------------------------
+    # ПЯТЫЙ вопрос, и снова ничей: соседи меряют, живы ли агенты, сходил ли цикл
+    # и способен ли флот стартовать, — но не то, ЖДЁТ ЛИ система человека. 10.08
+    # прод встал в 00:52 UTC, а вопрос владельцу, без которого его не поднять,
+    # ушёл в 12:23 — одиннадцать с половиной часов простоя, которых не измерял
+    # никто. Проверка привязана к data_dir (а не к хосту), поэтому безопасна и
+    # для песочницы: карточки она ищет рядом с тем же деревом.
+    checks["owner_pending_count"] = None
+    checks["owner_pending_oldest_h"] = None
+    try:
+        from spa_core.monitoring.owner_decision_pending import (
+            check_pending_owner_decisions,
+        )
+        pending_doc = check_pending_owner_decisions(now=now, data_dir=data_dir)
+        checks["owner_pending_count"] = pending_doc.get("pending_count")
+        checks["owner_pending_oldest_h"] = pending_doc.get("oldest_pending_age_h")
+        for line in pending_doc.get("issues", []) or []:
+            issues.append(line)
+        status = _worst(status, pending_doc.get("status", OK))
+    except Exception as exc:  # noqa: BLE001 — fail-CLOSED, не тихий пропуск
+        log.warning("owner_decision_pending check failed: %s", exc)
+        issues.append(
+            "owner_decision_pending UNCHECKED: проверка «есть ли у остановки путь "
+            "вверх» упала ({}) — это не «путь есть»".format(type(exc).__name__))
+        status = _worst(status, WARNING)
+
     return checks, status, issues
 
 
@@ -1358,6 +1384,16 @@ class AgentHealthMonitor:
     def _write(self, report: dict) -> None:
         from spa_core.utils.atomic import atomic_save
         atomic_save(report, str(self.data_dir / _OUTPUT_FILENAME))
+        # Отчёт «путь вверх» — отдельным артефактом, а не только строкой внутри
+        # пульса: его обязан читать шаг 0-офис оркестратора (манифест ADR-066),
+        # а тот читает ФАЙЛЫ. Пишется здесь, а не в collect(): collect() по
+        # контракту без побочных эффектов. Падение записи не должно ронять пульс
+        # флота — он важнее собственной свежести этого артефакта.
+        try:
+            from spa_core.monitoring.owner_decision_pending import run as _pending_run
+            _pending_run(now=self.now, data_dir=self.data_dir)
+        except Exception as exc:  # noqa: BLE001 — пульс важнее
+            log.warning("owner_decision_pending artifact write failed: %s", exc)
 
 
 # ===========================================================================
