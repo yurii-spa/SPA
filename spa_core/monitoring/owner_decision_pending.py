@@ -45,6 +45,35 @@ breaker: HALT»). Снять остановку может ТОЛЬКО влад
   H3  WARNING   ждущий ответа вопрос ушёл БЕЗ КНОПОК — владелец не может ответить
                 с телефона вовсе. Непрерывная версия разового замера карточки
                 `inbox-vosem-kartochek-vse-esche-zhdut-vladelts` (цикл #191).
+  H4  WARNING   вопрос ЕСТЬ В ОЧЕРЕДИ, а доставки нет: владельцу его не отправляли
+      CRITICAL  ни разу. Во время остановки — CRITICAL: путь вверх существует
+                только на бумаге, нажимать владельцу физически нечего.
+  H5  WARNING   ответ нажатием получен, а карточка всё ещё `needs-owner` — ответ
+                не доехал до очереди (инжест не сделан либо запись потерялась).
+
+Источник списка — ОЧЕРЕДЬ, а не журнал отправок (цикл #199)
+------------------------------------------------------------------------------
+До #199 весь список `pending` строился ОБХОДОМ ЖУРНАЛА ОТПРАВОК: карточка попадала
+в поле зрения сторожа, только если её однажды отправили. Вопрос, рождённый в очереди
+и не доехавший до Телеграма, для сторожа не существовал НИ В ОДНУ сторону — ни в
+`pending`, ни в `unchecked`; молчание выглядело как порядок. Замер 10.08 (#198):
+очередь держала ПЯТЬ карточек `needs-owner`, сторож называл три — `own-33` и `own-34`
+владелец не получал НИКОГДА. Потеря самоподдерживающаяся: не отправлено ⇒ не в
+журнале ⇒ не в `pending` ⇒ никто не заметил ⇒ не отправлено.
+
+Тот же класс, что #146–#198: сторож называется «ждут ли вопросы владельца ответа»
+и читается ИМЕННО так (шаг 0-офис оркестратора, `agent_health_monitor`), а отвечал
+на более узкий вопрос — «ждут ли ответа ОТПРАВЛЕННЫЕ вопросы»; разница между этими
+двумя вопросами и есть потерянный вопрос владельцу. Поэтому теперь:
+
+  * список `pending` — карточки типа `owner-decision` со статусом `needs-owner`
+    в живом дереве: ровно то множество, которое владельцу показывают `_BOARD.md`
+    и `orchestrator_queue.py list --type owner-decision --status needs-owner`;
+  * журнал отправок — АТРИБУТ записи (`delivered`, `pushed_at`, `buttons`), а не
+    источник списка. Статус карточки главнее журнала в ОБЕ стороны: закрыта —
+    вопрос снят; открыта при отвеченном пуше — ответ не доехал (H5);
+  * обратную сторону (пуш есть, а карточки в дереве нет) по-прежнему ловит обход
+    журнала — сторожу она видна только оттуда.
 
 **Без остановки ждущие вопросы тревогой НЕ являются** — только полями отчёта. Владелец
 бывает в отъезде (сейчас — до ~19.08), и WARN, который не может погаснуть девять дней, —
@@ -146,6 +175,65 @@ def _card_status(tracker_dir: Path, card_id: str) -> tuple[Optional[str], Option
         return _UNREADABLE, None
 
 
+#: Тип карточки, которая ЕСТЬ вопрос владельцу. Резолвится тем же общим
+#: `resolve_tracker_type` (вложенный `trackerStatus.type` → плоский `type:` →
+#: префикс имени), что и CLI с доской: два читателя одного каталога не должны
+#: расходиться — на этом уже теряли три карточки `own-rnd-*` (#143–#145).
+_QUEUE_CARD_TYPE = "owner-decision"
+
+
+def _scan_queue(tracker_dir: Path) -> tuple[list[dict], list[dict], bool]:
+    """Очередь вопросов владельцу из ЖИВОГО дерева. → (карточки, unchecked, есть_ли_каталог).
+
+    Каталога нет ⇒ очереди нет: это законное состояние песочницы/чистой установки,
+    и объявлять его «не измерено» значило бы жечь предупреждение там, где мерить
+    нечего (та же развилка, что с отсутствующим журналом отправок). Каталог ЕСТЬ,
+    а карточка в нём не разобралась или лишена статуса ⇒ вот это находка: карточка
+    без `status:` невидима ЛЮБОМУ фильтру, включая очередь владельца.
+    """
+    queue: list[dict] = []
+    unchecked: list[dict] = []
+    if not tracker_dir.is_dir():
+        return queue, unchecked, False
+
+    from spa_core.owner_queue.queue import load_card
+
+    for path in sorted(tracker_dir.glob("*.md")):
+        card_id = path.stem
+        try:
+            card = load_card(path)
+        except Exception:  # noqa: BLE001 — нечитаемая карточка = НЕ измерено
+            # Только для файлов, которые ПО ИМЕНИ являются вопросом владельцу:
+            # иначе любой посторонний .md в каталоге (доска, заметка) навсегда
+            # поселился бы в «не измерено», а нестираемое «не измерено» морит
+            # очередь голодом ровно так же, как молчание.
+            if card_id.startswith(("own-", "owner-decision-")):
+                unchecked.append({
+                    "check": f"queue_card_unreadable:{card_id}",
+                    "reason": "карточка вопроса владельцу не разобрана — ждёт ли она "
+                              "ответа, НЕ ИЗМЕРЕНО",
+                })
+            continue
+        if (card.tracker_type or "") != _QUEUE_CARD_TYPE:
+            continue
+        status = (card.status or "").strip()
+        if not status:
+            unchecked.append({
+                "check": f"queue_card_status_missing:{card_id}",
+                "reason": "карточка вопроса владельцу без статуса — она невидима "
+                          "любому фильтру очереди, ждёт ли она ответа, НЕ ИЗМЕРЕНО",
+            })
+            continue
+        if status != _OPEN_CARD_STATUS:
+            continue
+        queue.append({
+            "card_id": card_id,
+            "title": card.title or card_id,
+            "created": card.fields.get("created"),
+        })
+    return queue, unchecked, True
+
+
 def check_pending_owner_decisions(*,
                                   now: Optional[dt.datetime] = None,
                                   data_dir: Optional[str | Path] = None,
@@ -199,18 +287,23 @@ def check_pending_owner_decisions(*,
                           f"ждут ли вопросы ответа, НЕ ИЗМЕРЕНО",
             })
 
-    pending: list[dict] = []
+    # --- обход журнала: ТОЛЬКО обратная сторона (пуш есть, карточки нет) -----
+    # Список ждущих вопросов строится НЕ здесь (см. «Источник списка» в шапке):
+    # вопрос, которого нет в журнале, отсюда невидим — ровно то слепое пятно,
+    # которое стоило владельцу двух неотправленных карточек 10.08.
+    pushes_by_card: dict[str, list[dict]] = {}
     for push in (pushes or []):
         if not isinstance(push, dict):
             continue
-        if push.get("choice") is not None:
-            continue                       # ответ нажатием получен
         card_id = str(push.get("card_id") or "").strip()
         if not card_id:
             unchecked.append({"check": "push_without_card_id",
                               "reason": "запись журнала без card_id — карточку не найти"})
             continue
-        card_status, card_title = _card_status(tdir, card_id)
+        pushes_by_card.setdefault(card_id, []).append(push)
+        if push.get("choice") is not None:
+            continue                       # ответ нажатием получен
+        card_status, _card_title = _card_status(tdir, card_id)
         if card_status is None:
             unchecked.append({
                 "check": f"card_missing:{card_id}",
@@ -220,30 +313,55 @@ def check_pending_owner_decisions(*,
                           "вердикта здесь нет ни в одну сторону; нажатие по такой "
                           "карточке владельцу отвечает «карточка исчезла»",
             })
-            continue
-        if card_status == _UNREADABLE:
+        elif card_status == _UNREADABLE:
             unchecked.append({
                 "check": f"card_unreadable:{card_id}",
                 "reason": "карточка есть, но не разобрана — открыт ли вопрос, НЕ ИЗМЕРЕНО "
                           "(пустой статус читался бы как «закрыт» — это fail-OPEN)",
             })
-            continue
-        if card_status != _OPEN_CARD_STATUS:
-            continue                       # вопрос закрыт не кнопкой, а иначе
-        age_h = _hours_since(push.get("pushed_at"), now)
+
+    # --- очередь: ИСТОЧНИК списка ждущих вопросов ---------------------------
+    queue_cards, queue_unchecked, queue_present = _scan_queue(tdir)
+    unchecked.extend(queue_unchecked)
+
+    pending: list[dict] = []
+    for card in queue_cards:
+        card_id = card["card_id"]
+        card_pushes = pushes_by_card.get(card_id) or []
+        # Свежайшая отправка — по ней считается ВСЁ: и ожидание, и кнопки, и
+        # ответ. Карточку могли переотправить, починив кнопки (так #198 чинил
+        # `own-33`) или переспросив после ответа, — и тогда судить по старой
+        # записи значило бы жаловаться на уже починенное. Порядок — по времени,
+        # а не по строке: отметки с разным смещением сравнились бы как текст.
+        last = max(card_pushes,
+                   key=lambda p: (_parse_ts(p.get("pushed_at"))
+                                  or dt.datetime.min.replace(tzinfo=dt.timezone.utc)),
+                   default=None)
+        age_h = _hours_since((last or {}).get("pushed_at"), now)
         pending.append({
             "card_id": card_id,
-            "title": card_title or push.get("title") or card_id,
-            "pushed_at": push.get("pushed_at"),
+            "title": card["title"],
+            "created": card.get("created"),
+            "delivered": bool(card_pushes),
+            "pushed_at": (last or {}).get("pushed_at"),
             "age_h": None if age_h is None else round(age_h, 2),
-            "buttons": bool(push.get("buttons")),
+            "buttons": bool((last or {}).get("buttons")),
+            "answered_but_open": (last or {}).get("choice") is not None,
         })
 
     pending.sort(key=lambda p: (p["age_h"] is None, -(p["age_h"] or 0.0)))
-    oldest = pending[0] if pending else None
+
+    delivered = [p for p in pending if p["delivered"]]
+    undelivered = [p for p in pending if not p["delivered"]]
+    answered_open = [p for p in pending if p["answered_but_open"]]
+
+    # Возраст ожидания есть только у ДОСТАВЛЕННОГО вопроса: у неотправленного
+    # ждать нечего — его никто не видел. Смешивать их одним числом значило бы
+    # выдавать неотправленный вопрос за молчание владельца.
+    oldest = delivered[0] if delivered else None
     oldest_age_h = oldest["age_h"] if oldest else None
 
-    buttonless = [p for p in pending if not p["buttons"]]
+    buttonless = [p for p in delivered if not p["buttons"]]
 
     # --- H1/H2: путь вверх во время остановки -------------------------------
     # Идут ПЕРВЫМИ: `reason` отчёта — это issues[0], и первой строкой обязана
@@ -251,7 +369,7 @@ def check_pending_owner_decisions(*,
     if halted:
         halt_age_txt = ("возраст НЕ ИЗМЕРЕН" if halt_age_h is None
                         else f"{halt_age_h:.1f}ч")
-        if pending:
+        if delivered:
             age_txt = ("возраст НЕ ИЗМЕРЕН" if oldest_age_h is None
                        else f"{oldest_age_h:.1f}ч")
             # Часы считает ПРОСТОЙ, а не возраст вопроса. Стоит системе именно
@@ -265,9 +383,21 @@ def check_pending_owner_decisions(*,
             issues.append(
                 f"owner_decision_pending: система ОСТАНОВЛЕНА ({halt_age_txt}, "
                 f"{halt_reason or 'причина НЕ ИЗМЕРЕНА'}) и ждёт ЧЕЛОВЕКА: снять может "
-                f"только владелец, ему отправлено {len(pending)} вопрос(ов), старейший "
+                f"только владелец, ему отправлено {len(delivered)} вопрос(ов), старейший "
                 f"без ответа {age_txt} — «{oldest['title']}»")
             status = _worst(status, sev)
+        elif undelivered:
+            # ТУПИК НА ДЕЛЕ: вопрос в очереди есть, но владелец его не видел ни
+            # разу — нажимать ему нечего. От «вопроса не задано» отличается только
+            # тем, где именно оборвался путь вверх, и это различие обязано звучать.
+            names = ", ".join(p["card_id"] for p in undelivered[:3])
+            more = f" (и ещё {len(undelivered) - 3})" if len(undelivered) > 3 else ""
+            issues.append(
+                f"owner_decision_pending: система ОСТАНОВЛЕНА ({halt_age_txt}, "
+                f"{halt_reason or 'причина НЕ ИЗМЕРЕНА'}), вопрос(ов) в очереди "
+                f"{len(undelivered)} — и НИ ОДИН НЕ ОТПРАВЛЕН владельцу: путь вверх "
+                f"есть только на бумаге, нажать нечего ({names}{more})")
+            status = _worst(status, CRITICAL)
         elif unchecked:
             issues.append(
                 f"owner_decision_pending: система ОСТАНОВЛЕНА ({halt_age_txt}), а есть ли "
@@ -282,6 +412,34 @@ def check_pending_owner_decisions(*,
             status = _worst(status, CRITICAL)
     elif unchecked:
         # Без остановки неизмеримость очереди — предупреждение, не тревога.
+        status = _worst(status, WARNING)
+
+    # --- H4: вопрос есть, доставки нет --------------------------------------
+    # Во время остановки без единого доставленного вопроса это уже сказано выше
+    # первой строкой — повторять не надо. Во всех остальных случаях говорится
+    # здесь, И БЕЗ ОСТАНОВКИ ТОЖЕ: это не «владелец молчит девять дней» (шум,
+    # который не может погаснуть), а НАШЕ упущение, которое гасится одной
+    # отправкой — `orchestrator_queue.py notify <карточка>`.
+    if undelivered and not (halted and not delivered):
+        names = ", ".join(p["card_id"] for p in undelivered[:3])
+        more = f" (и ещё {len(undelivered) - 3})" if len(undelivered) > 3 else ""
+        issues.append(
+            f"owner_decision_pending: {len(undelivered)} из {len(pending)} вопрос(ов) "
+            f"владельцу НЕ ОТПРАВЛЕНЫ НИ РАЗУ — он о них не знает и ответить не может: "
+            f"{names}{more}")
+        status = _worst(status, CRITICAL if halted else WARNING)
+
+    # --- H5: ответ нажатием есть, а вопрос в очереди всё ещё открыт ---------
+    # Статус карточки главнее журнала (инв. #14 — закрыть может только владелец),
+    # поэтому вопрос остаётся ждущим; но расхождение двух источников называется,
+    # а не сглаживается: 10.08 ответы владельца лежали неинжестированными.
+    if answered_open:
+        names = ", ".join(p["card_id"] for p in answered_open[:3])
+        more = f" (и ещё {len(answered_open) - 3})" if len(answered_open) > 3 else ""
+        issues.append(
+            f"owner_decision_pending: {len(answered_open)} вопрос(ов) ОТВЕЧЕНЫ нажатием, "
+            f"а карточка всё ещё ждёт владельца — ответ не доехал до очереди "
+            f"(инжест не сделан): {names}{more}")
         status = _worst(status, WARNING)
 
     # --- H3: вопрос, на который владелец физически не может ответить --------
@@ -301,12 +459,22 @@ def check_pending_owner_decisions(*,
         "halt_age_h": None if halt_age_h is None else round(halt_age_h, 2),
         "halt_reason": halt_reason,
         "journal_present": journal_present,
+        "queue_present": queue_present,
+        # ВСЯ очередь `needs-owner`, а не только отправленное: до #199 здесь
+        # стояло число из журнала отправок, и оно расходилось с очередью
+        # (5 против 3) в пользу молчания.
         "pending_count": len(pending),
+        "delivered_count": len(delivered),
+        "undelivered_count": len(undelivered),
+        "answered_but_open_count": len(answered_open),
         "oldest_pending_age_h": oldest_age_h,
         "buttonless_count": len(buttonless),
         "pending": pending,
         "issues": issues,
         "unchecked": unchecked,
+        # `reason` — первая строка находок; когда находок нет, потерянных
+        # доставок не бывает по построению (H4 срабатывает всегда), поэтому
+        # приписки «из них не отправлено» здесь нет: она была бы мёртвой веткой.
         "reason": (issues[0] if issues else
                    ("остановки нет; вопросов владельцу без ответа: "
                     f"{len(pending)}")),

@@ -179,18 +179,68 @@ def test_the_clock_is_the_standstill_not_the_freshness_of_the_question(tree):
 # ===========================================================================
 # Что НЕ является находкой (контроль в обратную сторону)
 # ===========================================================================
-def test_answered_question_is_not_pending(tree):
+def test_a_card_closed_after_the_button_is_not_pending(tree):
+    """Ответ получен И доехал до очереди ⇒ ждущих вопросов нет.
+
+    Это ПРЕЖНИЙ `test_answered_question_is_not_pending`, приведённый к тому, как
+    ответ выглядит в жизни: нажатие владельца закрывает карточку (ADR-069/075),
+    поэтому «отвечено» видно в очереди, а не только в журнале. Прежняя фикстура
+    держала карточку в `needs-owner` и одновременно объявляла вопрос отвеченным —
+    в проде такого состояния не бывает, а если оно случится, то это НАХОДКА
+    (ответ не доехал), и её проверяет соседний тест ниже. Изменение теста
+    намеренное (инв. #16): проверка не ослаблена, а разделена надвое —
+    зафиксированы ОБА исхода, и «не ждём» теперь якорится на очереди, которая
+    и есть источник правды с цикла #199.
+    """
     data, tracker = tree
     _halt(data)
-    _card(tracker)
+    _card(tracker, status="ingested")
     _journal(data, [_push(choice="1")])
 
     doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
 
     assert doc["pending_count"] == 0
-    # Ответ получен ⇒ ждущих вопросов нет ⇒ это ТУПИК, а не «ждёт человека»:
-    # выключатель всё ещё активен, а спросить больше нечего.
+    # Спросить больше нечего, а выключатель активен ⇒ ТУПИК, а не «ждёт человека».
     assert "ТУПИК" in doc["issues"][0]
+
+
+def test_an_answer_that_never_reached_the_queue_is_named_not_dropped(tree):
+    """Нажатие есть, а карточка всё ещё ждёт владельца — расхождение НАЗЫВАЕТСЯ.
+
+    Мутация, которую тест ловит: считать журнал главнее очереди («есть choice ⇒
+    не ждём»). Тогда неинжестированный ответ гасит вопрос молча — ровно так
+    10.08 четыре ответа владельца лежали, не доехав до очереди.
+    """
+    data, tracker = tree
+    _card(tracker)                                   # карточка ВСЁ ЕЩЁ needs-owner
+    _journal(data, [_push(choice="1")])
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert doc["pending_count"] == 1                 # очередь главнее журнала
+    assert doc["answered_but_open_count"] == 1
+    assert doc["status"] == WARNING
+    assert any("не доехал до очереди" in line for line in doc["issues"])
+
+
+def test_a_question_re_asked_after_an_answer_is_waiting_not_an_anomaly(tree):
+    """Судим по СВЕЖЕЙ отправке, а не по любой из бывших.
+
+    Переспросить владельца — законный ход (#198 так переотправлял `own-33`,
+    починив кнопки). Если считать «ответ был когда-то» вечной находкой, каждый
+    переспрос порождал бы жалобу на уже сделанное — шум, который учат пролистывать.
+    """
+    data, tracker = tree
+    _card(tracker)
+    _journal(data, [_push(choice="1", pushed_at="2026-08-10T09:00:00+00:00"),
+                    _push(pushed_at="2026-08-10T12:23:04+00:00")])
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert doc["pending_count"] == 1 and doc["delivered_count"] == 1
+    assert doc["answered_but_open_count"] == 0
+    assert doc["oldest_pending_age_h"] == pytest.approx(1.12, abs=0.02)   # по свежей
+    assert doc["status"] == OK
 
 
 def test_card_closed_outside_the_button_is_not_pending(tree):
@@ -322,6 +372,183 @@ def test_a_halt_with_no_journal_at_all_is_still_a_dead_end(tree):
 
 
 # ===========================================================================
+# H4 — вопрос ЕСТЬ В ОЧЕРЕДИ, а доставки нет (замер 10.08, цикл #198)
+#
+# Каждый тест ниже — положительный контроль второго замера того же дня:
+#     очередь на origin/main держит ПЯТЬ карточек `needs-owner`,
+#     сторож называет ТРИ, а `own-33`/`own-34` владелец не получал НИКОГДА.
+# На модуле до #199 (список строился обходом журнала отправок) все они краснеют.
+# ===========================================================================
+QUEUE_5 = [
+    "own-rnd-killswitch-rearm-policy-missing",
+    "own-rnd-killswitch-soft-tier-meaning",
+    "owner-decision-dva-dnya-treka-pomecheny-dokazannymi-hot",
+    "own-33-plist-marker-for-cycle-origin",          # отправлена не была
+    "own-34-kill-switch-active-13h-unnoticed",       # отправлена не была
+]
+DELIVERED_3 = QUEUE_5[:3]
+
+
+def _queue_of_five(tracker: Path, data: Path) -> None:
+    for card_id in QUEUE_5:
+        _card(tracker, card_id=card_id)
+    _journal(data, [_push(card_id=c, pushed_at="2026-08-10T12:23:04+00:00")
+                    for c in DELIVERED_3])
+
+
+def test_the_queue_is_the_source_not_the_journal_10_08(tree):
+    """Пять в очереди — пять и в отчёте; трое отправлены, двое НЕТ."""
+    data, tracker = tree
+    _queue_of_five(tracker, data)
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert doc["pending_count"] == 5          # до #199 здесь стояло 3
+    assert doc["delivered_count"] == 3
+    assert doc["undelivered_count"] == 2
+    lost = {p["card_id"] for p in doc["pending"] if not p["delivered"]}
+    assert lost == {"own-33-plist-marker-for-cycle-origin",
+                    "own-34-kill-switch-active-13h-unnoticed"}
+
+
+def test_an_undelivered_question_is_named_out_loud_even_without_a_halt(tree):
+    """Не «владелец молчит» (шум на 9 дней отъезда), а НАШЕ упущение.
+
+    Гасится одной отправкой, поэтому предупреждение здесь честное и стираемое —
+    в отличие от вечного WARN, который учат пролистывать.
+    """
+    data, tracker = tree
+    _queue_of_five(tracker, data)
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert doc["halted"] is False
+    assert doc["status"] == WARNING
+    line = next(l for l in doc["issues"] if "НЕ ОТПРАВЛЕНЫ" in l)
+    assert "2 из 5" in line
+    # Имена названы: без них находка нечитаема — искать в 5 карточках вручную.
+    assert "own-33-plist-marker-for-cycle-origin" in line
+    # И в `reason` — это его печатает шаг 0-офис — потеря видна БЕЗ раскрытия
+    # отчёта: до #199 там стояло «остановки нет; вопросов без ответа: 3».
+    assert "НЕ ОТПРАВЛЕНЫ" in doc["reason"] and "2 из 5" in doc["reason"]
+
+
+def test_a_halt_whose_only_question_was_never_sent_is_a_dead_end_in_practice(tree):
+    """Худший случай: стоим, вопрос заведён — и владелец о нём не знает.
+
+    От «вопроса не задано» (ТУПИК) отличается тем, ГДЕ оборвался путь вверх,
+    и это различие обязано звучать: иначе чинить будут не то место.
+    """
+    data, tracker = tree
+    _halt(data)
+    _card(tracker)                                   # в очереди есть
+    _journal(data, [])                               # отправок нет ни одной
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert doc["status"] == CRITICAL
+    assert doc["pending_count"] == 1 and doc["undelivered_count"] == 1
+    first = doc["issues"][0]
+    assert "ОСТАНОВЛЕНА" in first and "НИ ОДИН НЕ ОТПРАВЛЕН" in first
+    assert "только на бумаге" in first
+    # Поклёпа «вопроса не задано» нет — вопрос-то есть.
+    assert "НЕ ЗАДАНО НИ ОДНОГО" not in first
+    # И это ОДНА строка, а не две про одно и то же.
+    assert sum("НЕ ОТПРАВЛЕН" in l.upper() for l in doc["issues"]) == 1
+
+
+def test_during_a_halt_an_undelivered_question_outranks_a_warning(tree):
+    """Есть и доставленный вопрос, и потерянный: строка про остановку первая,
+    потеря названа отдельно, степень — CRITICAL (владелец физически заперт)."""
+    data, tracker = tree
+    _halt(data, at="2026-08-10T13:00:00+00:00")      # простой 0.5ч ⇒ сам по себе WARN
+    _card(tracker)
+    _card(tracker, card_id="own-34-kill-switch-active-13h-unnoticed")
+    _journal(data, [_push(pushed_at="2026-08-10T13:05:00+00:00")])
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert "ОСТАНОВЛЕНА" in doc["issues"][0] and "ждёт ЧЕЛОВЕКА" in doc["issues"][0]
+    # Отправлен ОДИН из двух — число в строке про остановку это ЗНАЕТ.
+    assert "отправлено 1 вопрос" in doc["issues"][0]
+    assert any("НЕ ОТПРАВЛЕНЫ" in l for l in doc["issues"])
+    assert doc["status"] == CRITICAL
+
+
+def test_an_undelivered_question_is_neither_buttonless_nor_aged(tree):
+    """Неотправленный вопрос не выдаётся ни за «ушёл без кнопок», ни за молчание
+    владельца: у него нет ни отправки, ни возраста ожидания — и придумывать их
+    нельзя (иначе одна потеря считается трижды и тонет в шуме)."""
+    data, tracker = tree
+    _card(tracker)                                   # только очередь, журнала нет
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert doc["buttonless_count"] == 0
+    assert doc["oldest_pending_age_h"] is None
+    assert doc["pending"][0]["age_h"] is None and doc["pending"][0]["delivered"] is False
+    assert sum(1 for l in doc["issues"] if "own-" in l or "owner-decision-" in l) == 1
+
+
+# ===========================================================================
+# Fail-CLOSED и НЕ-находки на стороне очереди
+# ===========================================================================
+def test_an_owner_card_without_a_status_is_unchecked_not_invisible(tree):
+    """Карточка без `status:` невидима ЛЮБОМУ фильтру — в т.ч. очереди владельца.
+
+    Молча пропустить её значило бы вернуть то самое слепое пятно, только с
+    другой стороны.
+    """
+    data, tracker = tree
+    (tracker / "own-35-bez-statusa.md").write_text(
+        "---\ntrackerStatus:\n  type: owner-decision\ntitle: \"Вопрос\"\n---\n\nтело\n",
+        encoding="utf-8")
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert doc["pending_count"] == 0
+    assert any(u["check"] == "queue_card_status_missing:own-35-bez-statusa"
+               for u in doc["unchecked"])
+    assert doc["status"] == WARNING
+
+
+def test_foreign_files_in_the_tracker_are_not_dragged_into_unchecked(tree):
+    """Контроль в обратную сторону: доска и чужие карточки — не вопросы владельцу.
+
+    Нестираемое «не измерено» морит очередь голодом ровно так же, как молчание,
+    поэтому чужие файлы в находки не тянем.
+    """
+    data, tracker = tree
+    (tracker / "_BOARD.md").write_text("# доска\n\nне карточка вовсе\n", encoding="utf-8")
+    (tracker / "inbox-kakaya-to-zadacha.md").write_text(
+        "---\ntrackerStatus:\n  type: inbox\ntitle: \"Задача\"\nstatus: new\n---\n\nтело\n",
+        encoding="utf-8")
+    _card(tracker)
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert doc["pending_count"] == 1
+    assert doc["unchecked"] == []
+
+
+def test_an_absent_tracker_dir_is_not_a_finding(tree):
+    """Песочница/чистая установка без очереди — законное состояние, а не авария.
+
+    Тревога об остановке при этом НЕ гаснет (контроль ниже).
+    """
+    data, _tracker = tree
+    absent = data.parent / "net-takogo-kataloga"
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=absent)
+    assert doc["status"] == OK
+    assert doc["queue_present"] is False and doc["unchecked"] == []
+
+    _halt(data)
+    halted = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=absent)
+    assert halted["status"] == CRITICAL and "ТУПИК" in halted["issues"][0]
+
+
+# ===========================================================================
 # Артефакт: без файла обязательного читателя (шаг 0-офис) не существует
 # ===========================================================================
 def test_run_writes_the_artifact_next_to_the_data_dir(tree):
@@ -360,6 +587,25 @@ def test_agent_health_carries_the_finding(tree, monkeypatch):
     assert checks["owner_pending_oldest_h"] == pytest.approx(1.12, abs=0.02)
     assert status == ahm.CRITICAL
     assert any("ждёт ЧЕЛОВЕКА" in line for line in issues)
+
+
+def test_agent_health_carries_the_lost_question_too(tree, monkeypatch):
+    """Пульс флота обязан нести И потерю доставки, а не только ожидание ответа.
+
+    `checks["owner_pending_count"]` читают как «сколько вопросов ждут владельца»;
+    до #199 там стояло число из журнала отправок, и потерянный вопрос не попадал
+    ни в счётчик, ни в строки. Мутация «вернуть источником журнал» краснит здесь.
+    """
+    from spa_core.monitoring import agent_health_monitor as ahm
+
+    data, tracker = tree
+    _queue_of_five(tracker, data)
+
+    checks, status, issues = ahm.check_system(data, NOW_1330)
+
+    assert checks["owner_pending_count"] == 5
+    assert status in (ahm.WARNING, ahm.CRITICAL)
+    assert any("НЕ ОТПРАВЛЕНЫ" in line for line in issues)
 
 
 def test_agent_health_reports_unchecked_when_the_probe_itself_fails(tree, monkeypatch):
