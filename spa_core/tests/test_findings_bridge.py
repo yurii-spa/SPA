@@ -81,6 +81,68 @@ class HouseViewGap(unittest.TestCase):
                              {"red_team": {"posture": "RED"}}, NOW)
         self.assertEqual([g["type"] for g in r["gaps"]], ["analyst_red"])
 
+    # ── ПРИЧИНА красной постуры в тексте находки (цикл #198) ─────────────────
+    #
+    # Положительные контроли к карточке «red_team: CRITICAL — это ЭХО нашей же остановки».
+    # Живой снимок прода 10.08 09:11Z: разведка не наблюдала НИЧЕГО (n_threats=0,
+    # critical_count=0), красил её единственный факт — что мы сами остановлены. Читатель
+    # получал слово CRITICAL от РАЗВЕДКИ и понимал его как «нашли врага». Все тесты ниже
+    # краснеют на модуле без починки: причины в тексте не было вовсе.
+
+    def test_analyst_red_names_the_cause_in_the_message(self):
+        r = hvg.compute_gaps(chief(), positions(), {}, set(),
+                             {"red_team": {"posture": "CRITICAL",
+                                           "posture_reason": ["kill_switch_already_active"]}}, NOW)
+        g = r["gaps"][0]
+        self.assertIn("остановка УЖЕ активна", g["message"])
+        self.assertIn("эхо нашего же выключателя", g["message"])
+        self.assertEqual(g["posture_reason"], ["kill_switch_already_active"])
+        # степень НЕ ослаблена — называние причины не есть её прощение
+        self.assertEqual(g["severity"], "WARN")
+        self.assertIn("требует реакции", g["message"])
+
+    def test_finding_key_is_unchanged_so_the_bridge_makes_no_duplicate(self):
+        """Ключ — тождество находки: сменив его, мы завели бы вторую карточку на то же самое."""
+        r = hvg.compute_gaps(chief(), positions(), {}, set(),
+                             {"red_team": {"posture": "CRITICAL",
+                                           "posture_reason": ["kill_switch_already_active"]}}, NOW)
+        self.assertEqual(r["gaps"][0]["key"], "gap:analyst_red:red_team")
+
+    def test_silent_analyst_is_called_out_not_glossed_over(self):
+        """Аналитик покраснел и промолчал о причине — это ГОВОРИТСЯ, а не опускается."""
+        r = hvg.compute_gaps(chief(), positions(), {}, set(),
+                             {"red_team": {"posture": "RED"}}, NOW)
+        self.assertIn(hvg.NO_REASON_RU, r["gaps"][0]["message"])
+        self.assertEqual(r["gaps"][0]["posture_reason"], [])
+
+    def test_unknown_reason_code_passes_through_verbatim(self):
+        """Сверка ШИРЕ подопечного: код, о котором она не знает, обязан дойти до читателя."""
+        r = hvg.compute_gaps(chief(), positions(), {}, set(),
+                             {"quant": {"status": "RED",
+                                        "posture_reason": ["some_future_cause"]}}, NOW)
+        self.assertIn("some_future_cause", r["gaps"][0]["message"])
+
+    def test_every_cause_reaches_the_reader_not_just_the_first(self):
+        r = hvg.compute_gaps(chief(), positions(), {}, set(),
+                             {"red_team": {"posture": "CRITICAL",
+                                           "posture_reason": ["kill_switch_already_active",
+                                                              "attack_surface_critical"]}}, NOW)
+        self.assertIn("остановка УЖЕ активна", r["gaps"][0]["message"])
+        self.assertIn("критические находки в симуляции атак", r["gaps"][0]["message"])
+
+    def test_malformed_reason_never_crashes_the_check(self):
+        """Мусор во входе не смеет ронять сверку — она бы онемела целиком (fail-loud, не fail-dead)."""
+        for junk in ({"a": 1}, 7, None, "kill_switch_already_active"):
+            r = hvg.compute_gaps(chief(), positions(), {}, set(),
+                                 {"red_team": {"posture": "RED", "posture_reason": junk}}, NOW)
+            self.assertEqual(len(r["gaps"]), 1)
+            self.assertIn("причина", r["gaps"][0]["message"])
+        # строка — законная форма одной причины, её надо ПОНЯТЬ, а не выбросить
+        r = hvg.compute_gaps(chief(), positions(), {}, set(),
+                             {"red_team": {"posture": "RED",
+                                           "posture_reason": "kill_switch_already_active"}}, NOW)
+        self.assertIn("остановка УЖЕ активна", r["gaps"][0]["message"])
+
     def test_missing_inputs_go_to_unchecked_not_gaps(self):
         r = hvg.compute_gaps(None, None, None, None, {}, NOW)
         self.assertEqual(r["gaps"], [])

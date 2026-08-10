@@ -16,7 +16,12 @@ findings_bridge (карточки) и Шаг 0-офис оркестратора
                           простой возможности — нарушение духа ADR-055)
   posture_vs_book     постура офиса RED, книга развёрнута (cash < 50%) → WARN
                       (YELLOW — информационно, гэпом не является)
-  analyst_red         аналитик с posture/status RED|CRITICAL → WARN
+  analyst_red         аналитик с posture/status RED|CRITICAL → WARN. В тексте находки
+                      НАЗЫВАЕТСЯ ПРИЧИНА (`posture_reason` аналитика): без неё слово
+                      CRITICAL от разведки читается как «нашли врага», хотя единственной
+                      причиной может быть наша же остановка (замер цикла #195). Степень
+                      НЕ ослабляется — WARN остаётся WARN; добавляется только имя причины.
+                      Причины аналитик не назвал ⇒ это ГОВОРИТСЯ вслух, а не опускается.
 
 Честность: недоступный вход ⇒ запись в unchecked, гэпы НЕ выдумываются
 (refusal-first). Реестр недоступен ⇒ классификация возможностей честно
@@ -37,6 +42,46 @@ from spa_core.monitoring.architecture_conformance import REPO_ROOT
 GAP_PATH = os.path.join(REPO_ROOT, "data", "house_view_gap.json")
 
 _RED_TOKENS = ("RED", "CRITICAL")
+
+#: Машинные коды причин красной постуры → человеческий русский. Незнакомый код НЕ выбрасывается,
+#: а печатается ВЕРБАТИМ: сверка обязана быть ШИРЕ подопечного, иначе она его эхо (#197). Аналитик
+#: волен назвать причину, о которой сверка не знает, — и читатель обязан её увидеть.
+_REASON_RU = {
+    "kill_switch_already_active": "остановка УЖЕ активна — это эхо нашего же выключателя, "
+                                  "а не наблюдение разведки",
+    "attack_surface_critical": "критические находки в симуляции атак",
+    "threats_present": "наблюдаются угрозы",
+    "threat_data_inconclusive": "данные об угрозах неполны — осторожный вердикт",
+    "threat_data_missing_or_stale": "данных об угрозах нет / протухли — fail-closed",
+}
+
+#: Аналитик покраснел, но причину не назвал. Молчание НАЗЫВАЕТСЯ, а не опускается: «CRITICAL без
+#: причины» — это отдельная находка (читателю нечем отличить врага в периметре от нашей же остановки).
+NO_REASON_RU = "причина НЕ НАЗВАНА аналитиком"
+
+
+def red_reasons(data) -> list[str]:
+    """Машинные коды причин красной постуры аналитика (пустой список — причин не названо)."""
+    if not isinstance(data, dict):
+        return []
+    raw = data.get("posture_reason")
+    if isinstance(raw, str):
+        raw = [raw]
+    if not isinstance(raw, (list, tuple)):
+        return []
+    return [str(r).strip() for r in raw if str(r).strip()]
+
+
+def humanize_reasons(reasons) -> str:
+    """Причины → одна русская строка. Незнакомый код проходит ВЕРБАТИМ, пустой список → NO_REASON_RU."""
+    parts = [_REASON_RU.get(r, r) for r in (reasons or [])]
+    return "; ".join(parts) if parts else NO_REASON_RU
+
+
+def cause_phrase(reasons) -> str:
+    """Готовая вставка в текст находки: «причина: …» либо честное «причина НЕ НАЗВАНА аналитиком»."""
+    codes = list(reasons or [])
+    return f"причина: {humanize_reasons(codes)}" if codes else NO_REASON_RU
 
 
 def _norm(p) -> str:
@@ -128,9 +173,14 @@ def compute_gaps(chief: dict | None,
     for name, data in sorted(analysts.items()):
         tokens = {str(data.get(k) or "").upper() for k in ("posture", "status", "combined_posture")}
         if tokens & set(_RED_TOKENS):
+            # Ключ НЕ трогать: `gap:analyst_red:<name>` — тот же, что вчера, иначе мост заведёт
+            # карточку-дубль на ту же находку. Меняется только ТЕКСТ: в нём теперь названа ПРИЧИНА.
+            reasons = red_reasons(data)
             gaps.append({"key": f"gap:analyst_red:{name}",
                          "type": "analyst_red", "severity": "WARN",
+                         "posture_reason": reasons,
                          "message": f"аналитик {name}: {' / '.join(sorted(tokens & set(_RED_TOKENS)))} "
+                                    f"({cause_phrase(reasons)}) "
                                     f"— требует реакции (карточка/решение), не пролистывания"})
 
     return {"generated_at": now.isoformat(), "adr": "ADR-066",

@@ -52,6 +52,7 @@ class RedTeamAgent(ProductAgent):
         if threat is UNKNOWN or not isinstance(threat, dict):
             # fail-CLOSED: no trustworthy threat data → cautious UNKNOWN, NEVER a default all-clear.
             return {"status": UNKNOWN, "posture": "UNKNOWN_CAUTIOUS",
+                    "posture_reason": ["threat_data_missing_or_stale"],
                     "reason": "threat-reactor status missing/stale — cannot assert all-clear (fail-closed)"}
 
         threats = threat.get("threats") or []
@@ -70,6 +71,20 @@ class RedTeamAgent(ProductAgent):
                 avg_security = latest.get("average_security_score")
                 most_vulnerable = latest.get("most_vulnerable")
 
+        # WHY the ladder escalated — collected BEFORE the ladder so every contributing cause is
+        # named, not just the first one that matched. The ladder itself is untouched: CRITICAL
+        # stays CRITICAL, nothing is downgraded. Cycle #195 measured the cost of the silence — a
+        # reader gets the word CRITICAL from RECON and reasonably reads it as "an enemy was found",
+        # while the single cause can be that WE are stopped (kill_switch_already_active), a fact
+        # already known, already in STATE and already carrying an owner card.
+        reasons: list[str] = []
+        if kill_active:
+            reasons.append("kill_switch_already_active")
+        if isinstance(critical_count, (int, float)) and critical_count > 0:
+            reasons.append("attack_surface_critical")
+        if threats:
+            reasons.append("threats_present")
+
         # posture ladder — the analyst can only escalate concern; it never emits "approved".
         if kill_active or (isinstance(critical_count, (int, float)) and critical_count > 0):
             posture = "CRITICAL"
@@ -79,10 +94,12 @@ class RedTeamAgent(ProductAgent):
             posture = "NO_THREAT_OBSERVED"   # an observation, NOT an approval to allocate
         else:
             posture = "UNKNOWN_CAUTIOUS"
+            reasons.append("threat_data_inconclusive")
 
         return {
             "status": "ok",
             "posture": posture,
+            "posture_reason": reasons,
             "threat_posture": self.evidence(
                 {"clear": clear, "n_threats": len(threats), "threats": threats,
                  "kill_switch_already_active": kill_active},
@@ -96,7 +113,10 @@ class RedTeamAgent(ProductAgent):
             ),
             "note": ("Advisory. Red-team posture — this analyst can only RAISE concerns; it NEVER approves "
                      "or signals 'safe to allocate'. NO_THREAT_OBSERVED is an observation, not a green "
-                     "light. Missing/stale threat data → UNKNOWN_CAUTIOUS (fail-closed)."),
+                     "light. Missing/stale threat data → UNKNOWN_CAUTIOUS (fail-closed). "
+                     "posture_reason NAMES what escalated the posture — read it before reacting: "
+                     "kill_switch_already_active means WE are stopped (an echo of our own switch), "
+                     "NOT that recon observed an adversary."),
         }
 
 
