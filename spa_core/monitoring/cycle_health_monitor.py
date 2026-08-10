@@ -336,6 +336,61 @@ class CycleHealthMonitor:
     # 4. Run all checks
     # ------------------------------------------------------------------ #
 
+    def check_evidence_matches_curve(self, data_dir: str = "data") -> dict[str, Any]:
+        """Доказательная база и кривая обязаны говорить об одних деньгах одно число.
+
+        Две записи об одном и том же расходятся (own-32, замер 09.08: 16 дат из 51,
+        и число растёт). Механизм: кривую пишут ДВА пути, и в день остановки они
+        берут «вчера» из разных источников.
+
+        Проверка живёт здесь, а не в тестах, по осознанной причине: тест-храповик
+        требует живого трека и потому не запускается ни в CI, ни агентом — то есть
+        сторож существовал бы, но молчал. Этот монитор ходит по живому дереву сам.
+
+        Результат — ЧИСЛО в состоянии монитора, а не строка в логе: вывод, который
+        никто не читает, уже был отдельным дефектом (правило честности, 09.08).
+
+        Возвращает UNCHECKED, если файлов нет: «не смогли посмотреть» — не то же
+        самое, что «посмотрели, и всё сходится».
+        """
+        ddir = Path(data_dir)
+        ev_path, cu_path = ddir / "paper_evidence.json", ddir / "equity_curve_daily.json"
+        if not (ev_path.is_file() and cu_path.is_file()):
+            return {"status": UNCHECKED, "divergent_days": None,
+                    "detail": "нет paper_evidence.json или equity_curve_daily.json"}
+        try:
+            ev = json.loads(ev_path.read_text(encoding="utf-8"))
+            cu = json.loads(cu_path.read_text(encoding="utf-8"))
+        except (ValueError, OSError) as exc:
+            return {"status": UNCHECKED, "divergent_days": None,
+                    "detail": f"не прочитать: {exc}"}
+
+        a = {x["date"]: x.get("equity_value") for x in ev.get("days", []) if "date" in x}
+        b = {x["date"]: x.get("close_equity")
+             for x in (cu.get("daily") or []) if "date" in x}
+        common = set(a) & set(b)
+        if not common:
+            return {"status": UNCHECKED, "divergent_days": None,
+                    "detail": "нет общих дат — сравнивать нечего"}
+        # Округляем ДО сравнения: в плавающей арифметике разница ровно в цент даёт
+        # 0.010000000000005 и проходила бы порог, поднимая тревогу на округлении.
+        # Обе записи и так хранят суммы с точностью до цента.
+        bad = sorted(d for d in common
+                     if a[d] and b[d] and round(abs(float(a[d]) - float(b[d])), 2) > 0.01)
+        worst = max((abs(float(a[d]) - float(b[d])) for d in bad), default=0.0)
+        return {
+            # WARNING, а не CRITICAL: суммы копеечные и капитал виртуальный. Но и не
+            # HEALTHY — go-live проверки читают именно доказательную базу.
+            "status": "WARNING" if bad else "HEALTHY",
+            "divergent_days": len(bad),
+            "compared_days": len(common),
+            "max_delta_usd": round(worst, 2),
+            "latest_divergent": bad[-1] if bad else None,
+            "detail": (f"{len(bad)} из {len(common)} дат расходятся (own-32), "
+                       f"максимум ${worst:.2f}") if bad
+                      else f"все {len(common)} общих дат сходятся",
+        }
+
     def run_all_checks(self, data_dir: str = "data") -> dict[str, Any]:
         """
         Run all three health checks and combine the results.
@@ -379,11 +434,19 @@ class CycleHealthMonitor:
             "cycle_gap": cycle_gap,
             "equity_anomaly": equity_anomaly,
             "data_freshness": data_freshness,
+            "evidence_vs_curve": self.check_evidence_matches_curve(data_dir),
         }
 
         # Collect the checks that could NOT be computed, with their reason.
         unchecked: list[dict[str, str]] = []
+        # `evidence_vs_curve` — СОВЕТУЮЩИЙ сигнал о согласованности двух записей
+        # (own-32), а не проверка здоровья цикла. Его число видно в `checks`, но в
+        # вердикт и в список «не измерено» он не входит: у большинства вызывающих
+        # (тесты, песочницы) файла доказательной базы нет по построению, и его
+        # отсутствие — не пробел в наблюдении, а другой предмет.
         for name, chk in checks.items():
+            if name == "evidence_vs_curve":
+                continue
             if chk.get("status") == UNCHECKED:
                 unchecked.append(
                     {"check": name, "reason": str(chk.get("detail") or "not measured")}
