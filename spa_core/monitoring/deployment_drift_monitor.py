@@ -361,11 +361,26 @@ def check_deployment_drift(
                 rep.money_path_files[:10] + (["…"] if len(rep.money_path_files) > 10 else []))
         )
     if rep.other_files:
-        rep.reasons.append(
-            "{} other file(s) differ from {} — delivered work is not running "
-            "here; no money-path file and no launchd entrypoint among them".format(
-                len(rep.other_files), remote_ref)
-        )
+        # Разделяем ПО СИНХРОНИЗИРУЕМОСТИ. Замер 10.08: из 303 расхождений 294 лежали
+        # в каталогах, которые синхронизация НЕ ВОЗИТ по правилу доставки (`data/` —
+        # живой трек, `nimbalyst-local/` — очередь карточек, `docs/`, `archive/`).
+        # Их расхождение — норма, и оно растёт каждый день. Общее число в заголовке
+        # почти целиком состояло из нормы, поэтому сигнал приучал себя не читать:
+        # за пять витков подряд он докладывался как риск, ни разу не разобранный.
+        # Усталость от тревоги опаснее молчания — она создаёт уверенность, что за
+        # областью следят.
+        _synced = ("spa_core/", "scripts/", "tests/", "architecture/")
+        _code = [f for f in rep.other_files if str(f).startswith(_synced)]
+        _by_design = len(rep.other_files) - len(_code)
+        if _code:
+            rep.reasons.append(
+                "{} file(s) in SYNCED dirs differ from {} — delivered code is not "
+                "running here: {}".format(len(_code), remote_ref, _code[:10]))
+        if _by_design:
+            rep.reasons.append(
+                "{} file(s) differ outside synced dirs (data/, nimbalyst-local/, docs/, "
+                "archive/) — expected: the sync carries only {}. Reference only.".format(
+                    _by_design, ", ".join(_synced)))
 
     # Drift we could not classify is stated, never absorbed into "other". The
     # bucket being empty because nobody looked reads exactly like the bucket
