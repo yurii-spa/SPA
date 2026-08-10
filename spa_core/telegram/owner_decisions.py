@@ -54,7 +54,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from spa_core.utils.atomic import atomic_save
+from spa_core.utils.atomic import atomic_save, atomic_save_text
 from spa_core.utils.live_paths import live_data_dir
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -647,6 +647,56 @@ def prepare(
     return Prepared(pid=pid, text=text, keyboard=keyboard, options=options)
 
 
+def _live_tracker_dir(override: Optional[str | Path] = None) -> Optional[Path]:
+    """Каталог карточек ЖИВОГО дерева. ``None`` — писать туда сейчас нельзя.
+
+    Под pytest — всегда ``None``, если корень не задан явно: правило «модуль с состоянием
+    сам уводит тесты в сторону» (инцидент «тесты пишут в живое состояние алертов»)
+    относится к карточкам ровно так же, как к журналу.
+    """
+    if override is not None:
+        return Path(override) / "nimbalyst-local" / "tracker"
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return None
+    from spa_core.utils.live_paths import live_root
+
+    return live_root(_REPO_ROOT) / "nimbalyst-local" / "tracker"
+
+
+def materialize_card(card_path: Path,
+                     *, live_root: Optional[str | Path] = None) -> Path:
+    """Карточка в том дереве, где нажатие будет обработано. Никогда не бросает.
+
+    Нажатие обрабатывает бот из ПРОД-дерева, а карточку почти всегда создаёт сессия в
+    своём ``/tmp``-worktree и пушит на origin. Автосинк прод-дерева возит только
+    ``spa_core/``·``scripts/``·``tests/`` — карточки не возит НИКТО.
+
+    Замер 10.08: все четыре открытых решения владельца (в т.ч. «прод остановлен») есть на
+    origin и нет в прод-дереве. Нажатие по такой кнопке возвращает «Карточка исчезла из
+    трекера — ничего не записал», то есть кнопка декоративна. Журнал по этой же причине
+    давно живёт в ЖИВОМ ``data/`` — карточку просто забыли перенести следом.
+
+    Копируем ТОЛЬКО когда живой копии нет: существующая может нести ответ владельца
+    (его оттуда забирает ``carry_owner_answer``, #178), и затирать её запрещено.
+    """
+    try:
+        target_dir = _live_tracker_dir(live_root)
+        if target_dir is None:
+            return card_path
+        target = target_dir / card_path.name
+        if card_path.resolve() == target.resolve():
+            return card_path
+        if target.is_file():
+            return target
+        if not card_path.is_file():
+            return card_path
+        target_dir.mkdir(parents=True, exist_ok=True)
+        atomic_save_text(card_path.read_text(encoding="utf-8"), str(target))
+        return target
+    except Exception:  # noqa: BLE001 — перенос не важнее самого уведомления
+        return card_path
+
+
 def register_push(
     card_path: str | Path,
     title: str,
@@ -655,12 +705,14 @@ def register_push(
     now: Optional[datetime] = None,
     state_path: Optional[str | Path] = None,
     beacon_path: Optional[str | Path] = None,
+    live_root: Optional[str | Path] = None,
 ) -> Prepared:
     """Подготовить сообщение и запомнить карточку под её ``pid``.
 
     Журнал нужен, чтобы в момент нажатия (через час, через три дня) знать, ЧТО именно
     предлагалось: ``callback_data`` несёт только номер варианта, а текст варианта обязан
-    попасть в карточку дословно.
+    попасть в карточку дословно. По той же причине в журнал уходит путь к карточке в
+    ЖИВОМ дереве (см. :func:`materialize_card`): нажимать будет бот, а не мы.
     """
     p = Path(card_path)
     prep = prepare(title, body, p.stem, card_name=p.name, now=now,
@@ -668,15 +720,22 @@ def register_push(
     dt = now or datetime.now(timezone.utc)
     path_obj = _state_path(state_path)
     doc = _load(path_obj)
+    live_card = materialize_card(p, live_root=live_root)
     doc["pushes"] = [r for r in doc["pushes"] if r.get("pid") != prep.pid]
     doc["pushes"].append({
         "pid": prep.pid,
-        "card": str(p),
+        "card": str(live_card),
         "card_id": p.stem,
         "title": title,
         "pushed_at": dt.isoformat(),
         "options": [{"num": o.num, "label": o.label, "recommended": o.recommended}
                     for o in prep.options],
+        # ИЗМЕРЕНО, а не предположено: уехали ли кнопки вместе с этим решением.
+        # Без этой отметки вопрос «получил ли владелец кнопки?» неотвечаем задним числом.
+        # 10.08 это и вышло: четыре решения (в т.ч. «прод остановлен») ушли в 04:13Z,
+        # ближайший старт бота в логе — 04:22Z, а когда умер предыдущий экземпляр, не
+        # записано нигде. Был ли маячок жив в момент отправки — установить УЖЕ НЕЧЕМ.
+        "buttons": prep.keyboard is not None,
         "choice": None,
     })
     _save(doc, path_obj)
@@ -710,6 +769,141 @@ def mark_withdrawn(
     if hit:
         _save(doc, path_obj)
     return hit
+
+
+# ── до-доставка кнопок: решение уехало, пока бот лежал ───────────────────────
+#
+# Интерлок ADR-069 честен, но односторонен: маячок протух ⇒ кнопок нет, и на этом
+# история заканчивается НАВСЕГДА. Сообщение уже в чате, второго шанса ему никто не
+# даёт, а бот через несколько минут поднимается и молча умеет всё, чего не умел.
+# Замер 10.08: четыре открытых решения владельца, включая «прод остановлен», отправлены
+# в 04:13:56Z; ближайший START бота в логе — 04:22:19Z. Владелец в тот же день прислал
+# в чат жалобу с приложенным текстом «⚠️ Кнопки сейчас недоступны — бот не подтвердил,
+# что готов их обработать»: этот путь в проде срабатывает, и не по разу.
+#
+# Лечение поручено ТОМУ, кто и есть недостающее условие: бот, оживая, добирает кнопки
+# к решениям, уехавшим без них. Fail-CLOSED в обе стороны:
+#   * чиним только записи, где отсутствие кнопок ИЗМЕРЕНО (``buttons is False``);
+#     «не измерено» (записи старее этой починки) не трогаем — молчание лучше дубля;
+#   * отметку «починено» ставим ТОЛЬКО после успешной отправки — сорвавшаяся посылка
+#     не имеет права сжечь единственный шанс.
+
+HEAL_MAX_PER_RUN = 5  # подъём бота не должен превращаться в очередь из сообщений
+
+HEAL_PREFIX = ("🔘 <b>Кнопки подъехали.</b> Это решение уже приходило текстом — тогда бот "
+               "не мог обработать нажатие. Теперь может, жми кнопку.")
+
+
+@dataclass(frozen=True)
+class Heal:
+    """Решение, которому не хватило кнопок, и готовое к отправке исправление."""
+
+    pid: str
+    card: str
+    text: str
+    keyboard: Dict
+
+
+def buttonless_pushes(
+    *,
+    now: Optional[datetime] = None,
+    state_path: Optional[str | Path] = None,
+    beacon_path: Optional[str | Path] = None,
+    limit: int = HEAL_MAX_PER_RUN,
+) -> List[Heal]:
+    """Решения, уехавшие БЕЗ кнопок и всё ещё ждущие владельца. Никогда не бросает.
+
+    Пусто — нормальный ответ (и обычный): либо всё уехало с кнопками, либо обработчика
+    по-прежнему нет, либо владелец уже ответил.
+    """
+    from spa_core.owner_queue.queue import load_card
+
+    out: List[Heal] = []
+    try:
+        doc = _load(_state_path(state_path))
+    except Exception:  # noqa: BLE001 — битый журнал не роняет бота
+        return out
+    for rec in doc.get("pushes", []):
+        if len(out) >= max(0, limit):
+            break
+        if not isinstance(rec, dict):
+            continue
+        if rec.get("buttons") is not False:
+            continue  # кнопки были ИЛИ не измерено — оба случая не трогаем
+        if rec.get("choice") or rec.get("withdrawn_at") or rec.get("buttons_fixed_at"):
+            continue  # ответ дан / вопрос снят / уже чинили — нажимать нечего
+        if not (rec.get("options") or []):
+            continue  # вариантов нет — кнопкам неоткуда взяться (fail-CLOSED)
+        path = Path(str(rec.get("card") or ""))
+        try:
+            card = load_card(path)
+        except Exception:  # noqa: BLE001 — карточку могли переместить/удалить
+            continue
+        if card.status != "needs-owner":
+            continue  # вопрос уже не на владельце
+        try:
+            prep = prepare(card.title or path.stem, card.body, path.stem,
+                           card_name=path.name, now=now, beacon_path=beacon_path)
+        except Exception:  # noqa: BLE001
+            continue
+        if prep.keyboard is None:
+            continue  # обработчика всё ещё нет — чинить нечем, молчим
+        out.append(Heal(pid=prep.pid, card=str(path),
+                        text=HEAL_PREFIX + "\n\n" + prep.text,
+                        keyboard=prep.keyboard))
+    return out
+
+
+def mark_buttons_delivered(
+    pid: str,
+    *,
+    now: Optional[datetime] = None,
+    state_path: Optional[str | Path] = None,
+) -> bool:
+    """Записать, что кнопки к решению ``pid`` всё-таки доставлены. Идемпотентно."""
+    path_obj = _state_path(state_path)
+    doc = _load(path_obj)
+    stamp = (now or datetime.now(timezone.utc)).isoformat()
+    hit = False
+    for rec in doc.get("pushes", []):
+        if isinstance(rec, dict) and rec.get("pid") == pid:
+            rec["buttons"] = True
+            rec["buttons_fixed_at"] = stamp
+            hit = True
+    if hit:
+        _save(doc, path_obj)
+    return hit
+
+
+def heal_buttonless(
+    send,
+    *,
+    now: Optional[datetime] = None,
+    state_path: Optional[str | Path] = None,
+    beacon_path: Optional[str | Path] = None,
+    limit: int = HEAL_MAX_PER_RUN,
+) -> List[str]:
+    """Дослать кнопки к решениям, уехавшим без них. Возвращает pid'ы починенных.
+
+    ``send(text, keyboard)`` — отправитель вызывающего (бот остаётся единственной
+    инстанцией, которая ходит в сеть); truthy — отправлено. Никогда не бросает:
+    украшение не имеет права уронить бота.
+    """
+    fixed: List[str] = []
+    try:
+        for heal in buttonless_pushes(now=now, state_path=state_path,
+                                      beacon_path=beacon_path, limit=limit):
+            try:
+                ok = send(heal.text, heal.keyboard)
+            except Exception:  # noqa: BLE001 — одна неудача не прячет остальные
+                ok = None
+            if not ok:
+                continue  # не отправилось ⇒ отметку не ставим, попробуем в следующий раз
+            if mark_buttons_delivered(heal.pid, now=now, state_path=state_path):
+                fixed.append(heal.pid)
+    except Exception:  # noqa: BLE001
+        pass
+    return fixed
 
 
 def record_choice(

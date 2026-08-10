@@ -1138,9 +1138,35 @@ class TelegramBot:
         except Exception:  # noqa: BLE001 — the beacon must never disturb the bot
             pass
 
+    def heal_buttonless_decisions(self) -> int:
+        """Дослать кнопки к решениям, уехавшим владельцу, пока бота не было.
+
+        Обратная сторона интерлока ADR-069: маячок протух ⇒ решение уезжает текстом, и
+        второго шанса у него нет — сообщение уже в чате. Недостающее условие — это мы
+        сами, поэтому чинит тот, кто оживает. Замер 10.08: четыре решения (в т.ч. «прод
+        остановлен») отправлены в 04:13Z, ближайший START бота — 04:22Z.
+
+        Чинятся только записи, где отсутствие кнопок ИЗМЕРЕНО, и только пока владелец не
+        ответил; отметка ставится после успешной отправки. Никогда не бросает."""
+        try:
+            from spa_core.telegram.owner_decisions import heal_buttonless
+
+            fixed = heal_buttonless(
+                lambda text, keyboard: self.send_message(
+                    text, parse_mode="HTML", reply_markup=keyboard)
+            )
+            if fixed:
+                log.warning("дослал кнопки к %d решению(ям) владельца: %s",
+                            len(fixed), ", ".join(fixed))
+            return len(fixed)
+        except Exception as exc:  # noqa: BLE001 — починка не важнее работы бота
+            log.warning("heal_buttonless_decisions failed: %s", exc)
+            return 0
+
     def run_once(self) -> int:
         """Drain pending updates once, dispatch, return count processed."""
         self.refresh_capability_beacon()
+        self.heal_buttonless_decisions()
         updates = self.get_updates()
         for upd in updates:
             self.handle_update(upd)
@@ -1158,6 +1184,10 @@ class TelegramBot:
         self.settle_startup()
         # Register commands in Telegram ☰ menu once at startup.
         self.register_commands()
+        # Маячок ПЕРЕД починкой, а не после: отправитель кнопок проверяет именно его, и
+        # без свежей отметки бот не признал бы способным даже сам себя.
+        self.refresh_capability_beacon()
+        self.heal_buttonless_decisions()
         # Liveness watchdog: stamp a heartbeat each loop iteration + after each handled
         # update; a daemon thread force-restarts the process if it goes stale (see the
         # module constants above). Self-heals ANY silent hang without an external agent.
