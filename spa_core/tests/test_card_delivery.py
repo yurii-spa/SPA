@@ -42,8 +42,12 @@ class Pusher:
         self.rc, self.out, self.boom = rc, out, boom
         self.calls = []
 
-    def __call__(self, root, paths, message):
-        self.calls.append({"root": root, "paths": list(paths), "message": message})
+    def __call__(self, root, paths, message, allow_overwrite=False):
+        # `allow_overwrite` записываем, а не игнорируем: осознанная перезапись —
+        # это то, чем перенос правки на свежий origin отличается от слепого
+        # затирания, и тест обязан видеть разницу (цикл #200).
+        self.calls.append({"root": root, "paths": list(paths), "message": message,
+                           "allow_overwrite": allow_overwrite})
         if self.boom:
             raise self.boom
         return self.rc, self.out
@@ -358,6 +362,318 @@ class OfficeStepSeesTheBridge(unittest.TestCase):
         out = self.summarize({"created": [], "closed": [], "deferred": [],
                               "sources_unread": ["data/house_view_gap.json"]})
         self.assertIn("ИСТОЧНИК НЕ ПРОЧИТАН", out)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# АВАРИЯ 2026-08-12 (цикл #200): доставка умела только РОЖДАТЬ карточку
+#
+# `delivery.status=FAILED, returncode=4, attempted 3, delivered 0`. Пушер судит
+# по базе РАБОЧЕЙ КОПИИ (`HEAD:<путь>`), а карточка, рождённая мостом в
+# прод-дереве, в HEAD этого дерева не попадает никогда ⇒ создание проходит
+# (`absent_in_base` + нет на remote), а любое ОБНОВЛЕНИЕ — `absent_in_base` +
+# файл на remote ЕСТЬ ⇒ `DIVERGED` ⇒ отказ. Навсегда.
+#
+# Каждый тест ниже — воспроизведение конкретной половины той аварии; на
+# непочиненном модуле все они красные (`plan_batch`/`rebase_card` там нет).
+# ══════════════════════════════════════════════════════════════════════════════
+
+def card(status: str = "new", extra: str = "", body: str = "\n# карточка\n") -> bytes:
+    """Карточка в той же форме, что пишет `orchestrator_queue create`."""
+    return (f"---\ntrackerStatus:\n  type: inbox\nstatus: {status}\n"
+            f"finding_key: \"B3:k\"\n{extra}---\n{body}").encode("utf-8")
+
+
+class Remote:
+    """Инъектируемое чтение origin. Ключ — ИМЯ файла (пути в тестах временные).
+
+    Значение: ``bytes`` — есть на origin · ``None`` — нет (создание) ·
+    строка — «не измерено» с этой причиной. Три исхода, а не два: схлопывание
+    «нет файла» и «не смогли посмотреть» и есть тот fail-OPEN, из-за которого
+    слепота выглядела бы чистым созданием.
+    """
+
+    def __init__(self, table=None):
+        self.table = table or {}
+        self.reads = []
+
+    def __call__(self, root, repo_path):
+        self.reads.append(repo_path)
+        v = self.table.get(os.path.basename(repo_path))
+        if v is None:
+            return cd.REMOTE_ABSENT, None, "на origin файла нет"
+        if isinstance(v, str):
+            return cd.REMOTE_UNMEASURED, None, v
+        return cd.REMOTE_PRESENT, v, ""
+
+
+def write(root, name, blob: bytes) -> str:
+    p = os.path.join(root, cd.TRACKER_REL, name)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "wb") as f:
+        f.write(blob)
+    return os.path.realpath(p)
+
+
+class UpdateOfALiveCardIsDelivered(unittest.TestCase):
+    def test_closure_of_a_card_already_on_origin_reaches_origin(self):
+        """ГЛАВНЫЙ положительный контроль: раньше здесь был вечный код 4."""
+        with tempfile.TemporaryDirectory() as td:
+            root, _ = mkroot(td, ())
+            p = write(root, "inbox-nahodka.md", card("done"))
+            pusher = Pusher()
+            r = cd.deliver([p], root=root, now=NOW, pusher=pusher,
+                           reader=Remote({"inbox-nahodka.md": card("new")}))
+            self.assertEqual(r["status"], cd.DELIVERED)
+            self.assertEqual(pusher.calls[0]["paths"], [p])
+            self.assertEqual(len(r["rebased"]), 1)
+            self.assertIn("status: done", r["rebased"][0]["status_line"])
+
+    def test_overwrite_is_conscious_and_only_after_reading_remote(self):
+        """Флаг перезаписи — следствие ПРОЧИТАННОГО remote, а не привычка."""
+        with tempfile.TemporaryDirectory() as td:
+            root, _ = mkroot(td, ())
+            p = write(root, "inbox-nahodka.md", card("done"))
+            pusher = Pusher()
+            reader = Remote({"inbox-nahodka.md": card("new")})
+            cd.deliver([p], root=root, now=NOW, pusher=pusher, reader=reader)
+            self.assertTrue(pusher.calls[0]["allow_overwrite"])
+            self.assertEqual(reader.reads, ["nimbalyst-local/tracker/inbox-nahodka.md"])
+
+    def test_creation_never_asks_for_overwrite(self):
+        """Рождение карточки ничего не перезаписывает — флага быть не должно."""
+        with tempfile.TemporaryDirectory() as td:
+            root, _ = mkroot(td, ())
+            p = write(root, "inbox-new.md", card("new"))
+            pusher = Pusher()
+            r = cd.deliver([p], root=root, now=NOW, pusher=pusher, reader=Remote())
+            self.assertEqual(r["status"], cd.DELIVERED)
+            self.assertFalse(pusher.calls[0]["allow_overwrite"])
+            self.assertEqual(r["rebased"], [])
+
+    def test_identical_remote_is_not_pushed_again(self):
+        """Наша версия и есть версия origin — пушить нечего, и это не «успех»."""
+        with tempfile.TemporaryDirectory() as td:
+            root, _ = mkroot(td, ())
+            p = write(root, "inbox-same.md", card("done"))
+            pusher = Pusher()
+            r = cd.deliver([p], root=root, now=NOW, pusher=pusher,
+                           reader=Remote({"inbox-same.md": card("done")}))
+            self.assertEqual(r["status"], cd.IDLE)
+            self.assertEqual(pusher.calls, [])
+            self.assertEqual(r["already_on_origin"],
+                             ["nimbalyst-local/tracker/inbox-same.md"])
+
+    def test_receipt_records_the_remote_sha(self):
+        """Окно между чтением и пушем есть — потеря обязана быть вычислимой."""
+        with tempfile.TemporaryDirectory() as td:
+            root, _ = mkroot(td, ())
+            p = write(root, "inbox-nahodka.md", card("done"))
+            remote = card("new")
+            r = cd.deliver([p], root=root, now=NOW, pusher=Pusher(),
+                           reader=Remote({"inbox-nahodka.md": remote}))
+            self.assertEqual(r["rebased"][0]["remote_sha"], cd.blob_sha(remote)[:8])
+
+
+class BlindCopyMayNotStompWhatItNeverSaw(unittest.TestCase):
+    """Второй дефект того же корня: мост судит «карточку никто не трогал» по
+    СВОЕЙ стухшей копии, которая не видит ни ответа владельца, ни захвата."""
+
+    def _refusal(self, extra_on_origin):
+        with tempfile.TemporaryDirectory() as td:
+            root, _ = mkroot(td, ())
+            p = write(root, "inbox-nahodka.md", card("done"))
+            pusher = Pusher()
+            r = cd.deliver([p], root=root, now=NOW, pusher=pusher,
+                           reader=Remote({"inbox-nahodka.md": card("needs-owner",
+                                                                  extra=extra_on_origin)}))
+            return r, pusher
+
+    def test_owner_answer_on_origin_cancels_the_closure(self):
+        r, pusher = self._refusal("owner_choice: variant_2\n")
+        self.assertEqual(r["status"], cd.REFUSED)
+        self.assertEqual(pusher.calls, [])
+        self.assertIn("owner_choice", r["rebase_refused"][0]["reason"])
+        self.assertIn("origin", r["rebase_refused"][0]["reason"])
+
+    def test_card_claimed_by_a_session_is_not_closed_behind_its_back(self):
+        r, pusher = self._refusal("claimed_by: pid4242\n")
+        self.assertEqual(r["status"], cd.REFUSED)
+        self.assertEqual(pusher.calls, [])
+        self.assertIn("claimed_by", r["rebase_refused"][0]["reason"])
+
+    def test_body_changed_on_origin_is_refused_not_overwritten(self):
+        with tempfile.TemporaryDirectory() as td:
+            root, _ = mkroot(td, ())
+            p = write(root, "inbox-nahodka.md", card("done"))
+            r = cd.deliver([p], root=root, now=NOW, pusher=Pusher(),
+                           reader=Remote({"inbox-nahodka.md":
+                                          card("new", body="\n# карточка\n\nдописано на origin\n")}))
+            self.assertEqual(r["status"], cd.REFUSED)
+            self.assertIn("status:", r["rebase_refused"][0]["reason"])
+            self.assertIn("вручную", r["rebase_refused"][0]["reason"])
+
+
+class OneStuckCardNoLongerDropsTheOthers(unittest.TestCase):
+    def test_the_real_batch_of_2026_08_12(self):
+        """Форма аварии дословно: два застрявших обновления + одно создание.
+
+        Раньше пачка была атомарной ⇒ создание НЕ доехало из-за чужих отказов
+        (`…docs-system-briefing-md-po` не попало на origin вовсе).
+        """
+        with tempfile.TemporaryDirectory() as td:
+            root, _ = mkroot(td, ())
+            stuck1 = write(root, "inbox-health.md", card("done"))
+            stuck2 = write(root, "inbox-postura.md", card("done"))
+            fresh = write(root, "inbox-briefing.md", card("new"))
+            pusher = Pusher()
+            r = cd.deliver([stuck1, stuck2, fresh], root=root, now=NOW, pusher=pusher,
+                           reader=Remote({
+                               "inbox-health.md": card("new", extra="claimed_by: pid1\n"),
+                               "inbox-postura.md": card("new", extra="owner_choice: yes\n"),
+                           }))
+            self.assertEqual(r["status"], cd.PARTIAL)
+            self.assertEqual(pusher.calls[0]["paths"], [fresh])
+            self.assertEqual(len(r["rebase_refused"]), 2)
+
+    def test_partial_never_reads_as_success(self):
+        self.assertIn(cd.PARTIAL, cd.NOT_DELIVERED)
+        line = cd.render({"status": cd.PARTIAL, "attempted": ["a", "b"],
+                          "rebased": [], "reason": "ЗАСТРЯЛО 1"})
+        self.assertIn("⚠️", line)
+        self.assertIn("ЗАСТРЯЛО 1", line)
+
+
+class UnmeasuredRemoteIsNamedNotAssumed(unittest.TestCase):
+    def test_unreadable_origin_is_left_to_the_pusher_and_named(self):
+        """«Не смогли посмотреть» ≠ «там ничего нет». Решает пушер (он fail-CLOSED),
+        а квитанция обязана сказать, что перенос НЕ проверялся."""
+        with tempfile.TemporaryDirectory() as td:
+            root, _ = mkroot(td, ())
+            p = write(root, "inbox-nahodka.md", card("done"))
+            pusher = Pusher()
+            r = cd.deliver([p], root=root, now=NOW, pusher=pusher,
+                           reader=Remote({"inbox-nahodka.md": "сеть недоступна"}))
+            self.assertEqual(pusher.calls[0]["paths"], [p])
+            self.assertFalse(pusher.calls[0]["allow_overwrite"])
+            self.assertEqual(r["rebase_unmeasured"][0]["reason"], "сеть недоступна")
+
+    def test_default_reader_without_pusher_tool_is_unmeasured_not_absent(self):
+        with tempfile.TemporaryDirectory() as td:
+            root, _ = mkroot(td, ())
+            state, blob, why = cd._default_remote_reader(root, "nimbalyst-local/tracker/a.md")
+            self.assertEqual(state, cd.REMOTE_UNMEASURED)
+            self.assertIsNone(blob)
+            self.assertIn(cd.PUSHER_REL, why)
+
+
+class RebaseIsProvableNotHeuristic(unittest.TestCase):
+    def test_only_the_status_line_may_differ(self):
+        merged, why = cd.rebase_card(card("done"), card("new"))
+        self.assertEqual(merged, card("done"))
+        self.assertEqual(why, "")
+
+    def test_result_is_built_from_remote_bytes(self):
+        """Результат строится ИЗ remote — иначе «перенос» был бы просто нашей копией."""
+        remote = card("new")
+        merged, _ = cd.rebase_card(card("done"), remote)
+        self.assertIn(b"finding_key", merged)
+        self.assertEqual(merged.replace(b"status: done", b"status: new"), remote)
+
+    def test_not_a_card_is_refused_on_both_sides(self):
+        self.assertIsNone(cd.rebase_card(b"just text\n", card("new"))[0])
+        self.assertIsNone(cd.rebase_card(card("done"), b"just text\n")[0])
+
+    def test_missing_status_line_is_refused(self):
+        no_status = b"---\ntrackerStatus:\n  type: inbox\n---\n\n# x\n"
+        self.assertIsNone(cd.rebase_card(no_status, card("new"))[0])
+        self.assertIsNone(cd.rebase_card(card("done"), no_status)[0])
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ДЫРА В САМОЙ ПОЧИНКЕ (цикл #201, найдена при подъёме работы #200)
+#
+# `--allow-overwrite` — флаг КОМАНДЫ, а не файла: `push_to_github.guard_overwrite`
+# при нём отдаёт DIVERGED в перезапись молча и снимает стража общей памяти. Значит
+# один доказанный перенос в пачке разоружал стража для ВСЕХ её путей — в том числе
+# для того, чей origin прочитать не удалось и у которого пушер был единственной
+# защитой. Обещание «не измерено ⇒ решает пушер, он fail-CLOSED» держалось только
+# в пачке из ОДНОЙ карточки — ровно в той, где оно не могло сломаться, и ровно её
+# проверял тест `test_unreadable_origin_is_left_to_the_pusher_and_named`.
+#
+# Цена: ответ владельца (`owner_choice`, кнопки ADR-069), появившийся на origin,
+# стирается слепой копией — то самое, что запрещает п.3 ADR-080 и инвариант #14.
+# ══════════════════════════════════════════════════════════════════════════════
+
+class UnmeasuredCardDoesNotRideUnderSomeoneElsesOverwrite(unittest.TestCase):
+    def _mixed(self, td):
+        """Пачка 12.08 в самом опасном составе: перенос + непрочитанный origin."""
+        root, _ = mkroot(td, ())
+        rebased = write(root, "inbox-perenos.md", card("done"))
+        blind = write(root, "inbox-slepaya.md", card("done"))
+        reader = Remote({"inbox-perenos.md": card("new"),
+                         "inbox-slepaya.md": "сеть недоступна"})
+        return root, rebased, blind, reader
+
+    def test_unmeasured_card_is_held_out_of_the_overwrite_batch(self):
+        """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ: до починки слепой путь уезжал под чужим флагом."""
+        with tempfile.TemporaryDirectory() as td:
+            root, rebased, blind, reader = self._mixed(td)
+            pusher = Pusher()
+            r = cd.deliver([rebased, blind], root=root, now=NOW,
+                           pusher=pusher, reader=reader)
+            self.assertEqual(pusher.calls[0]["paths"], [rebased])
+            self.assertNotIn(blind, pusher.calls[0]["paths"])
+            self.assertTrue(pusher.calls[0]["allow_overwrite"])
+            self.assertEqual([h["path"] for h in r["held"]],
+                             ["nimbalyst-local/tracker/inbox-slepaya.md"])
+            self.assertIn("ПРИДЕРЖАНА", r["held"][0]["reason"])
+
+    def test_held_card_is_not_counted_as_delivered(self):
+        """Придержанное не смеет попасть в `delivered`: это и есть тихая потеря."""
+        with tempfile.TemporaryDirectory() as td:
+            root, rebased, blind, reader = self._mixed(td)
+            r = cd.deliver([rebased, blind], root=root, now=NOW,
+                           pusher=Pusher(), reader=reader)
+            self.assertNotIn("nimbalyst-local/tracker/inbox-slepaya.md", r["delivered"])
+
+    def test_a_batch_with_a_held_card_never_reads_as_success(self):
+        """Пушер вернул 0, но пачка НЕ доставлена целиком — статус обязан это сказать."""
+        with tempfile.TemporaryDirectory() as td:
+            root, rebased, blind, reader = self._mixed(td)
+            r = cd.deliver([rebased, blind], root=root, now=NOW,
+                           pusher=Pusher(rc=0), reader=reader)
+            self.assertEqual(r["status"], cd.PARTIAL)
+            self.assertIn(r["status"], cd.NOT_DELIVERED)
+            self.assertIn("inbox-slepaya.md", r["reason"])
+            self.assertIn("⚠️", cd.render(r))
+
+    def test_owner_answer_we_could_not_read_is_never_overwritten(self):
+        """Суть аварии, а не её форма: под чужим флагом пушер молча перезаписал бы
+        карточку, на которой владелец УЖЕ нажал кнопку, — а мы этого не видели."""
+        with tempfile.TemporaryDirectory() as td:
+            root, _ = mkroot(td, ())
+            rebased = write(root, "inbox-perenos.md", card("done"))
+            blind = write(root, "own-vopros.md", card("done"))
+            # На origin у неё ответ владельца. Прочитать мы его не смогли —
+            # значит и права затирать у нас нет НИКАКОГО.
+            pusher = Pusher()
+            cd.deliver([rebased, blind], root=root, now=NOW, pusher=pusher,
+                       reader=Remote({"inbox-perenos.md": card("new"),
+                                      "own-vopros.md": "HTTP 502 при чтении origin"}))
+            self.assertNotIn(blind, pusher.calls[0]["paths"])
+
+    def test_without_a_rebase_the_unmeasured_card_still_rides(self):
+        """Контроль в ОБРАТНУЮ сторону: чинили состав пачки, а не саму доставку.
+        Нет переноса ⇒ нет флага ⇒ пушер сам fail-CLOSED, и путь едет как раньше."""
+        with tempfile.TemporaryDirectory() as td:
+            root, _ = mkroot(td, ())
+            blind = write(root, "inbox-slepaya.md", card("done"))
+            pusher = Pusher()
+            r = cd.deliver([blind], root=root, now=NOW, pusher=pusher,
+                           reader=Remote({"inbox-slepaya.md": "сеть недоступна"}))
+            self.assertEqual(pusher.calls[0]["paths"], [blind])
+            self.assertFalse(pusher.calls[0]["allow_overwrite"])
+            self.assertEqual(r["held"], [])
 
 
 if __name__ == "__main__":
