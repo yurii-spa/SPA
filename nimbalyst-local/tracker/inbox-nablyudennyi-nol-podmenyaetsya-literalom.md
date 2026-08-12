@@ -2,9 +2,11 @@
 trackerStatus:
   type: inbox
 title: "Наблюдённый ноль подменяется литералом: stusd печатается 6.0% вместо замеренных 0.0%"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-09
+claimed_by: pid50976
+claimed_at: 2026-08-12T21:56:39Z
 ---
 
 ## Что случилось
