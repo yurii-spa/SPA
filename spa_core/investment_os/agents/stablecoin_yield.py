@@ -63,6 +63,19 @@ def _unobserved_reason(row: dict) -> Optional[str]:
     """
     src = row.get("apy_source")
     if src == APY_SOURCE_LIVE:
+        # Наблюдение — ещё не возможность. Пул, про который ЗАМЕРЕНО, что он не
+        # платит (0 % и ниже), — это честный сигнал, но печатать его в списке
+        # «что можно купить» нельзя: список читают как предложение.
+        #
+        # Ветка ожила вместе с починкой производителя (карточка
+        # `inbox-nablyudennyi-nol-podmenyaetsya-literalom`): пока наблюдённый ноль
+        # подменялся литералом, такие строки приходили сюда с чужими 6.0 % и
+        # отсеивались как ``fallback_over_observed``. Теперь они приходят со своим
+        # честным нулём — и обязаны уйти по СВОЕЙ причине, названной вслух, иначе
+        # «ничего не исчезает молча» перестало бы быть правдой.
+        apy = row.get("apy_pct")
+        if isinstance(apy, (int, float)) and not isinstance(apy, bool) and apy <= 0.0:
+            return f"observed_non_positive (pool pays {float(apy)}%)"
         return None
     if src == APY_SOURCE_FALLBACK:
         return "apy_not_observed (number is the adapter's literal fallback)"

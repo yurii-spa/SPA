@@ -119,16 +119,55 @@ def test_real_observation_is_labelled_live(tmp_path):
 
 
 def test_observed_zero_is_not_laundered_into_its_literal(tmp_path):
-    """`apy or fallback_apy` глотает наблюдённый ноль — подмена обязана быть НАЗВАНА.
+    """Наблюдённый ноль доезжает до строки СВОИМ значением, а не литералом.
 
-    Значение строки здесь намеренно НЕ чинится (его читают paper-книги — отдельная
-    задача, карточка `inbox-nablyudennyi-nol-podmenyaetsya-literalom`), но метка и
-    наблюдённое значение едут рядом, поэтому потребитель больше не обманут.
+    ИЗМЕНЕНО НАМЕРЕННО (карточка `inbox-nablyudennyi-nol-podmenyaetsya-literalom`,
+    инв. #16 — обоснование здесь, запись в `docs/journal/2026-W33.md`).
+
+    Прежняя редакция закрепляла ПРОМЕЖУТОЧНОЕ состояние: подмена лишь называлась
+    меткой (``apy_pct == 6.0`` + ``fallback_over_observed``), а само значение
+    намеренно не чинилось — цикл #174 отложил это в отдельную задачу, потому что
+    число читают paper-книги. Эта карточка и есть та задача; замер по каждому
+    потребителю сделан (журнал W33), поэтому контракт усилён, а не ослаблен:
+    теперь проверяется, что ноль доезжает ЗНАЧЕНИЕМ.
+
+    Положительный контроль: вернуть цепочку ``apy or fallback_apy or 0.0`` —
+    тест краснеет на первой же строке.
     """
     row = _row(_ranking(tmp_path), "stusd")
-    assert row["apy_pct"] == 6.0                                   # напечатан литерал
-    assert row["apy_source"] == APY_SOURCE_FALLBACK_OVER_OBSERVED  # и это сказано вслух
-    assert row["observed_apy_pct"] == 0.0                          # вместе с замером
+    assert row["apy_pct"] == 0.0                   # наблюдение, а не литерал 6.0
+    assert row["apy_source"] == APY_SOURCE_LIVE    # и это честно названо
+    assert row["observed_apy_pct"] == 0.0
+    # Литерал не «спрятался» в производную величину: risk-adjusted тоже нулевой.
+    assert row["risk_adjusted_apy"] == 0.0
+
+
+def test_the_literal_wins_only_where_there_is_no_observation(tmp_path):
+    """Обратная сторона: без наблюдения литерал остаётся — и остаётся НАЗВАННЫМ.
+
+    Починка обязана быть узкой. Если бы «наблюдение побеждает литерал» задело
+    строку, где наблюдения нет вовсе, мы бы обнулили живой рейтинг целиком —
+    ошибка дороже исходной. aerodrome: ``live_apy: null`` ⇒ 8.5 остаётся.
+    """
+    row = _row(_ranking(tmp_path), "aerodrome_usdc_lp")
+    assert row["apy_pct"] == 8.5
+    assert row["apy_source"] == APY_SOURCE_FALLBACK
+    assert row["observed_apy_pct"] is None
+
+
+def test_the_substitution_class_still_has_a_judge(tmp_path):
+    """Наш производитель подмену больше не порождает — но классификатор ЖИВ.
+
+    Сторож, потерявший единственный известный источник улова, не становится
+    ненужным: файл рейтинга на диске мог быть собран версией ДО этой починки
+    (самолечится за один цикл), и всё это время подмена обязана называться, а не
+    приниматься за наблюдение. Судим напрямую, минуя производителя.
+    """
+    from spa_core.adapters.apy_aggregator import _apy_provenance
+
+    stale_row = {"live_apy": 0.0, "apy": 0.0, "fallback_apy": 6.0}
+    assert _apy_provenance(stale_row, 6.0) == (APY_SOURCE_FALLBACK_OVER_OBSERVED, 0.0)
+    assert _apy_provenance(stale_row, 0.0) == (APY_SOURCE_LIVE, 0.0)
 
 
 def test_legacy_toplevel_block_is_unchecked_not_live(tmp_path):
@@ -137,21 +176,31 @@ def test_legacy_toplevel_block_is_unchecked_not_live(tmp_path):
     assert row["apy_source"] == APY_SOURCE_UNCHECKED
 
 
-def test_provenance_does_not_move_a_single_number(tmp_path):
-    """Money-path не двинулся: значения ровно те же, поля только ДОБАВИЛИСЬ.
+def test_only_the_laundered_number_moves(tmp_path):
+    """Двинулось РОВНО одно число — то, которое было подменено. Остальные нетронуты.
 
-    Провенанс отвечает на вопрос «откуда число», а не «какое оно». Если этот тест
-    покраснеет — изменение перестало быть аддитивным и трогает paper-книги,
-    отчёты и capital_efficiency, которые читают тот же файл.
+    ИЗМЕНЕНО НАМЕРЕННО (инв. #16; было `test_provenance_does_not_move_a_single_number`,
+    обоснование — в журнале `docs/journal/2026-W33.md`).
+
+    Прежняя редакция закрепляла аддитивность цикла #174 («ни одно число не
+    двинулось») — верное свойство ДЛЯ ТОЙ правки, которая только расставляла метки.
+    Эта карточка двигает число намеренно и ровно одно. Проверка не снята, а
+    ПЕРЕНАЦЕЛЕНА: она по-прежнему ловит расползание правки на чужие строки —
+    ровно тот риск, ради которого писалась (paper-книги, отчёты, capital_efficiency
+    читают этот же файл). Ослаблением это не является: множество «что не должно
+    двигаться» уменьшилось на один заведомо ложный элемент, а требование к
+    остальным трём осталось точным до знака.
     """
     doc = json.loads(_ranking(tmp_path).read_text())
     assert {r["protocol"]: r["apy_pct"] for r in doc["by_risk_adjusted"]} == {
         "aerodrome_usdc_lp": 8.5, "moonwell_base": 8.4035,
-        "stusd": 6.0, "pendle-pt": 8.0,
+        "stusd": 0.0,            # ← единственное изменение: было 6.0 (литерал)
+        "pendle-pt": 8.0,
     }
     assert {r["protocol"]: r["risk_adjusted_apy"] for r in doc["by_risk_adjusted"]} == {
         "aerodrome_usdc_lp": 6.5385, "moonwell_base": 6.4642,
-        "stusd": 4.6154, "pendle-pt": 6.1538,
+        "stusd": 0.0,            # ← было 4.6154, производная от того же литерала
+        "pendle-pt": 6.1538,
     }
 
 
@@ -167,7 +216,11 @@ def test_office_refuses_to_publish_a_literal_as_an_opportunity(tmp_path):
     # ушло НЕ молча — причина каждого отказа названа
     excluded = " | ".join(out["excluded_unobserved"])
     assert "aerodrome_usdc_lp(8.5%): apy_not_observed" in excluded
-    assert "stusd(6.0%): literal_printed_over_observed (observed 0.0%)" in excluded
+    # stusd уходит по СВОЕЙ причине: раньше его отсеивала подмена (чужие 6.0 %),
+    # теперь он приходит с честным нулём и отсеивается за то, что не платит.
+    # Причина сменилась вместе с починкой производителя — молчаливо он не исчез
+    # ни на секунду, и это ровно то, что здесь проверяется.
+    assert "stusd(0.0%): observed_non_positive (pool pays 0.0%)" in excluded
     assert "pendle-pt(8.0%): apy_provenance_unchecked" in excluded
 
 
