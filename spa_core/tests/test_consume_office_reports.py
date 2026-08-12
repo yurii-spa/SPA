@@ -326,3 +326,61 @@ def test_old_positional_call_still_works() -> None:
     }))
     assert "мост находка→карточка" in out, out
     assert "доставка карточек: IDLE" in out, out
+
+
+# ── долг доставки виден там, где оркестратор обязан смотреть (ADR-081) ────────
+#
+# Авария 12.08: прогон 13:03Z оставил три карточки не на origin (`FAILED`,
+# rc 4). Все три уже помечены `closed` в состоянии моста, поэтому следующий
+# прогон 19:03Z вёз бы пустой список, `deliver([])` вернул бы `IDLE`, и ЭТОТ
+# шаг напечатал бы зелёную строку «доставка карточек: IDLE (0 на origin)» —
+# при трёх недоставленных. Статус про ОДИН прогон и долг про «чего нет на
+# origin до сих пор» — разные вопросы, и схлопывание их в один и есть потеря.
+
+def _bridge(delivery: dict) -> str:
+    return _text(MOD._summarize_json("data/findings_bridge_report.json", {
+        "generated_at": "2026-08-12T19:03:13.159157+00:00",
+        "created": [], "closed": [], "deferred": [], "waiting_hysteresis": [],
+        "escalated": [], "sources_unread": [], "open_cards": 0,
+        "delivery": delivery,
+    }))
+
+
+def test_idle_run_with_open_debt_is_not_a_green_line() -> None:
+    """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ аварии: раньше здесь было только «IDLE (0 на origin)»."""
+    out = _bridge({"status": "IDLE", "delivered": [], "attempted": [],
+                   "debt": {"count": 3, "oldest_hours": 6.0, "stale": [],
+                            "stale_after": 5, "dropped": [],
+                            "paths": ["nimbalyst-local/tracker/inbox-nahodka-petli-"
+                                      "data-investment-os-health.md"]}})
+    assert "ДОЛГ ДОСТАВКИ: 3" in out, out
+    assert "старшему 6.0ч" in out, out
+
+
+def test_zero_debt_leaves_the_line_clean() -> None:
+    """Контроль в обратную сторону: измеренный ноль не смеет краснить прогон."""
+    out = _bridge({"status": "DELIVERED", "delivered": ["a"], "attempted": ["a"],
+                   "debt": {"count": 0, "oldest_hours": None, "stale": [],
+                            "stale_after": 5, "dropped": [], "paths": []}})
+    assert "ДОЛГ ДОСТАВКИ" not in out, out
+    assert "НЕ ИЗМЕРЕН" not in out, out
+
+
+def test_receipt_without_debt_block_says_unmeasured_not_zero() -> None:
+    """Квитанция старого образца — «НЕ ИЗМЕРЕН», а не молчаливое «долга нет»."""
+    out = _bridge({"status": "IDLE", "delivered": [], "attempted": []})
+    assert "долг доставки НЕ ИЗМЕРЕН" in out, out
+
+
+def test_debt_that_repeats_forever_asks_for_a_human() -> None:
+    """Повтор лечит сеть, но не отказ переноса: застрявшее обязано быть названо."""
+    out = _bridge({"status": "DEBT", "delivered": [], "attempted": [],
+                   "reason": "везти за прогон было нечего, но НЕ ДОСТАВЛЕНО 1",
+                   "debt": {"count": 1, "oldest_hours": 72.0, "stale_after": 5,
+                            "stale": ["nimbalyst-local/tracker/own-33.md"],
+                            "dropped": [{"path": "nimbalyst-local/tracker/x.md",
+                                         "reason": "снят с долга — файла нет на диске"}],
+                            "paths": ["nimbalyst-local/tracker/own-33.md"]}})
+    assert "не рассасывается повтором (≥5 попыток)" in out, out
+    assert "own-33.md" in out, out
+    assert "снято с долга" in out, out

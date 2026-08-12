@@ -232,6 +232,29 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None) -> list[
             else:
                 out.append(f"   ⚠️ ДОСТАВКА КАРТОЧЕК {st}: {d.get('reason')} "
                            f"(пыталось {len(d.get('attempted') or [])})")
+            # Долг доставки (ADR-081) — ОТДЕЛЬНАЯ строка, а не хвост статуса.
+            # Статус говорит про ЭТОТ прогон, долг — про то, чего на origin нет
+            # до сих пор; 12.08 схлопывание этих двух вопросов в один означало,
+            # что через два часа `IDLE` покажет зелёную строку при трёх
+            # недоставленных карточках, и потеря исчезнет из поля зрения.
+            debt = d.get("debt")
+            if debt is None:
+                out.append("   ⚠️ долг доставки НЕ ИЗМЕРЕН: в квитанции нет блока debt "
+                           "(отчёт старого образца — до ADR-081)")
+            elif debt.get("unmeasured"):
+                out.append(f"   ⚠️ долг доставки НЕ ИЗМЕРЕН: {debt['unmeasured']}")
+            elif debt.get("count"):
+                age = debt.get("oldest_hours")
+                age_s = f"старшему {age}ч" if age is not None else "возраст не датируется"
+                out.append(f"   ⚠️ ДОЛГ ДОСТАВКИ: {debt['count']} карточк(и) НЕ на origin "
+                           f"({age_s}) — поедут следующим прогоном")
+                after = debt.get("stale_after")
+                for p in (debt.get("stale") or [])[:5]:
+                    out.append(f"   ⛔ не рассасывается повтором "
+                               f"(≥{after if after is not None else '?'} попыток), "
+                               f"нужен человек: {p}")
+                for dr in (debt.get("dropped") or [])[:5]:
+                    out.append(f"   ⚠️ снято с долга: {dr.get('path')} — {dr.get('reason')}")
         else:
             out.append("   ⚠️ доставка карточек НЕ ИЗМЕРЕНА: в отчёте нет блока delivery")
     else:

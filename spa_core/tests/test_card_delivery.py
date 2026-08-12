@@ -349,12 +349,27 @@ class OfficeStepSeesTheBridge(unittest.TestCase):
         # обрезок честно объявлялся дрейфом. Проверка УСИЛЕНА, а не ослаблена:
         # «успешная доставка молчит» теперь утверждается о настоящей форме, и
         # ⚠️ по-прежнему запрещено — включая ⚠️ о возрасте и о схеме.
+        # ИЗМЕНЕНО НАМЕРЕННО (цикл #204, ADR-081, инвариант #16 — обоснование
+        # здесь и в `docs/journal/2026-W33.md`): в квитанцию добавлен блок
+        # `debt`, и производитель пишет его БЕЗУСЛОВНО. Утверждение теста —
+        # «успешная доставка молчит» — оставлено ДОСЛОВНО, включая запрет ⚠️;
+        # правится ровно фикстура, и правится в ту сторону, которую требует
+        # комментарий выше: «форма ПРОИЗВОДИТЕЛЯ, а не обрезок». Квитанция без
+        # блока долга — это отчёт СТАРОГО образца, и ⚠️ «долг НЕ ИЗМЕРЕН» на
+        # него честна: молчание там означало бы «долга нет», чего никто не
+        # мерил. Проверка усилена: успех обязан молчать при ИЗМЕРЕННОМ нуле, а
+        # неизмеренный долг обязан быть слышен (`test_consume_office_reports.py`
+        # ::test_receipt_without_debt_block_says_unmeasured_not_zero).
         out = self.summarize({"generated_at": ts(hours_ago=0.1),
                               "created": [], "closed": [], "deferred": [],
                               "waiting_hysteresis": [], "escalated": [],
                               "sources_unread": [], "open_cards": 0,
                               "delivery": {"status": cd.DELIVERED, "attempted": ["a.md"],
-                                           "delivered": ["a.md"]}})
+                                           "delivered": ["a.md"],
+                                           "debt": {"count": 0, "paths": [],
+                                                    "oldest_hours": None, "stale": [],
+                                                    "stale_after": cd.DEBT_STALE_ATTEMPTS,
+                                                    "dropped": [], "retried": []}}})
         self.assertIn("DELIVERED", out)
         self.assertNotIn("⚠️", out)
 

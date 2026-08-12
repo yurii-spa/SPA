@@ -109,6 +109,10 @@ import sys
 from spa_core.monitoring.architecture_conformance import REPO_ROOT
 
 STATUS_REL = os.path.join("data", "card_delivery_status.json")
+#: Долг доставки: пути, которые доставку НЕ прошли и обязаны поехать снова.
+#: Отдельный файл, а не поле квитанции: квитанция — рассказ об ОДНОМ прогоне,
+#: долг переживает прогоны (в этом вся суть, см. ADR-081).
+DEBT_REL = os.path.join("data", "card_delivery_debt.json")
 TRACKER_REL = os.path.join("nimbalyst-local", "tracker")
 PUSHER_REL = "push_to_github.py"
 PUSH_TIMEOUT = 300
@@ -129,10 +133,19 @@ IDLE = "IDLE"
 #: Часть пачки уехала, часть — нет. Читается как ОТКАЗ, а не как успех: «сколько
 #: получилось» в этом проекте всегда было формой тихой потери.
 PARTIAL = "PARTIAL"
+#: Своего груза у прогона не было, но долг доставки НЕ ПУСТ. Отдельный вид, а не
+#: `IDLE`: «мне нечего везти» и «я кое-что должен» — разные утверждения, и
+#: схлопывание их в одно и есть та авария, ради которой заведён долг.
+DEBT = "DEBT"
 
 #: Исходы, которые НЕ означают «карточки на origin». Читателю квитанции не надо
 #: помнить список статусов, чтобы не принять отказ за успех.
-NOT_DELIVERED = (FAILED, REFUSED, UNCHECKED, DISABLED, PARTIAL)
+NOT_DELIVERED = (FAILED, REFUSED, UNCHECKED, DISABLED, PARTIAL, DEBT)
+
+#: Сколько прогонов подряд путь может не доезжать, прежде чем его назовут
+#: «сам не рассосётся». Не снимает долг (снять может только origin) — поднимает
+#: голос: транзиентная сеть лечится повтором, отказ переноса ждёт человека.
+DEBT_STALE_ATTEMPTS = 5
 
 #: Состояния версии карточки на origin. ``UNMEASURED`` — отдельный вид, а не
 #: «файла нет»: `get_file_sha`/`get_file_content` пушера схлопывают 404 и обрыв
@@ -367,6 +380,142 @@ def plan_batch(root: str, paths: list, reader=_default_remote_reader) -> dict:
     return plan
 
 
+# ── долг доставки: провал обязан поехать снова ───────────────────────────────
+#
+# До ADR-081 список доставки строился ТОЛЬКО из карточек, которых вызывающий
+# коснулся В ЭТОМ прогоне (`findings_bridge._deliver_touched`: created + closed).
+# Провалившаяся доставка не запоминалась нигде. Замер 12.08: прогон 13:03Z —
+# `FAILED, attempted 3, delivered 0`; все три уже помечены `closed` в состоянии
+# моста ⇒ следующий прогон 19:03Z вёз бы ПУСТОЙ список, `deliver([])` вернул бы
+# `IDLE`, а шаг 0-офис напечатал бы это ЗЕЛЁНОЙ строкой — при трёх карточках,
+# которых на origin нет. Провал не просто не лечился: он сам себя заметал.
+#
+# Долг живёт в ДВУХ источниках, и это не дублирование, а страховка от того же
+# класса: файл долга (переживает прогоны) и ПОСЛЕДНЯЯ КВИТАНЦИЯ (переживает
+# потерю файла долга и восстанавливает долг задним числом — включая аварию,
+# случившуюся до появления самого механизма).
+
+def owed_from_receipt(receipt: dict) -> list:
+    """Что осталось должным по квитанции ОДНОГО прогона → список repo-путей.
+
+    Должно всё, что пытались везти и что на origin не оказалось. `delivered`
+    заполняется только при нулевом коде возврата, `already_on_origin` — это
+    доказанное совпадение с origin; остальное — долг.
+    """
+    if not isinstance(receipt, dict):
+        return []
+    attempted = [p for p in (receipt.get("attempted") or []) if p]
+    if not attempted:
+        return []
+    arrived = set(receipt.get("delivered") or []) | set(receipt.get("already_on_origin") or [])
+    return [p for p in attempted if p not in arrived]
+
+
+def _read_json(path: str):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:  # noqa: BLE001 — нет файла/битый JSON: долг просто пуст
+        return None
+
+
+def load_debt(root: str) -> dict:
+    """``{repo_path: {since, attempts, last_status, last_reason}}``.
+
+    Объединяет сохранённый долг с долгом ПОСЛЕДНЕЙ квитанции. Второе слагаемое
+    нужно ровно для случая, который эту функцию и породил: авария уже случилась,
+    файла долга ещё нет — и без восстановления из квитанции три застрявшие
+    карточки не поехали бы никогда.
+    """
+    debt: dict = {}
+    stored = _read_json(os.path.join(root, DEBT_REL)) or {}
+    for path, entry in (stored.get("debt") or {}).items():
+        if isinstance(entry, dict) and path:
+            debt[path] = dict(entry)
+    receipt = _read_json(os.path.join(root, STATUS_REL)) or {}
+    for path in owed_from_receipt(receipt):
+        if path not in debt:
+            debt[path] = {"since": receipt.get("generated_at") or "",
+                          "attempts": 1,
+                          "last_status": receipt.get("status"),
+                          "last_reason": receipt.get("reason") or "",
+                          "recovered_from_receipt": True}
+    return debt
+
+
+def save_debt(root: str, debt: dict, now: dt.datetime) -> None:
+    """Записать долг атомарно. Провал записи НЕ роняет доставку, но и не молчит."""
+    from spa_core.utils.atomic import atomic_save
+    target = os.path.join(root, DEBT_REL)
+    os.makedirs(os.path.dirname(target), exist_ok=True)
+    atomic_save({"generated_at": now.isoformat(), "adr": "ADR-081", "debt": debt}, target)
+
+
+def _age_hours(since: str, now: dt.datetime):
+    """Возраст долга в часах или ``None`` — «не датируется» ≠ «свежий»."""
+    try:
+        stamp = dt.datetime.fromisoformat(str(since))
+    except Exception:  # noqa: BLE001
+        return None
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=dt.timezone.utc)
+    return round((now - stamp).total_seconds() / 3600.0, 2)
+
+
+def debt_block(debt: dict, now: dt.datetime, dropped=None, retried=None) -> dict:
+    """Блок долга для квитанции: сколько должны, сколько это длится, что застряло."""
+    ages = [a for a in (_age_hours(e.get("since", ""), now) for e in debt.values())
+            if a is not None]
+    stale = sorted(p for p, e in debt.items()
+                   if int(e.get("attempts", 0)) >= DEBT_STALE_ATTEMPTS)
+    return {"count": len(debt),
+            # Порог едет В блоке, а не копируется читателю: две копии одного
+            # числа расходятся молча (урок «пакетная правка по имени не видит
+            # вписанный цифрой литерал»).
+            "stale_after": DEBT_STALE_ATTEMPTS,
+            "paths": sorted(debt),
+            "oldest_hours": max(ages) if ages else None,
+            "undated": sum(1 for e in debt.values()
+                           if _age_hours(e.get("since", ""), now) is None),
+            "max_attempts": max((int(e.get("attempts", 0)) for e in debt.values()), default=0),
+            "stale": stale,
+            "retried": sorted(retried or []),
+            "dropped": list(dropped or [])}
+
+
+def _debt_paths(root: str, debt: dict) -> tuple:
+    """``(годные абсолютные пути долга, [{path, reason} …] снятых)``.
+
+    Долг проверяется ОТДЕЛЬНО от заказанной пачки. Иначе один исчезнувший с
+    диска должник отклонял бы пачку ЦЕЛИКОМ (`validate` отклоняет всю пачку) —
+    и долг, заведённый ради доставки, останавливал бы доставку навсегда.
+
+    Снимаем ровно то, что доставить нельзя НИКОГДА (файла нет, путь не карточка),
+    и НАЗЫВАЕМ снятое: «не измерено» навсегда — тоже потеря (урок #199).
+    """
+    if not debt:
+        return [], []
+    ok, bad = validate(sorted(debt), root)
+    dropped = [{"path": b["path"],
+                "reason": f"снят с долга — доставить нечем: {b['reason']}"} for b in bad]
+    return ok, dropped
+
+
+def enforce_debt_status(receipt: dict, debt: dict) -> dict:
+    """`IDLE` при непустом долге ЗАПРЕЩЁН (страховка, не основной путь).
+
+    Основной путь — долг попадает в пачку и статус получается из её судьбы.
+    Но обещание «зелёная строка достижима только пустым долгом» не должно
+    зависеть от того, что все ветки выше отработали как задумано: ровно на
+    таких «оно и так не случится» этот проект терял находки.
+    """
+    if debt and receipt.get("status") == IDLE:
+        receipt["status"] = DEBT
+        receipt["reason"] = (f"везти за прогон было нечего, но НЕ ДОСТАВЛЕНО {len(debt)} "
+                             f"карточк(и) прошлых прогонов — долг: {', '.join(sorted(debt))}")
+    return receipt
+
+
 def build_message(root: str, paths: list) -> str:
     names = [os.path.basename(p) for p in paths]
     head = ", ".join(names[:3]) + (f" (+{len(names) - 3})" if len(names) > 3 else "")
@@ -401,11 +550,17 @@ def _tail(text: str, limit: int = 1200) -> str:
 
 def deliver(paths, root: str = REPO_ROOT, now: dt.datetime | None = None,
             pusher=_default_pusher, env=None, write_status: bool = True,
-            message: str | None = None, reader=_default_remote_reader) -> dict:
+            message: str | None = None, reader=_default_remote_reader,
+            use_debt: bool = True) -> dict:
     """Довезти карточки до `origin/main`. Возвращает квитанцию (и пишет её на диск).
 
     Исключений НЕ бросает: доставка не смеет уронить сторожа, который её позвал.
     Но и не смеет промолчать — любой исход попадает в ``status``.
+
+    К заказанным путям ВСЕГДА добавляется долг прошлых прогонов (ADR-081):
+    повтор живёт здесь, а не у вызывающего, — иначе его пришлось бы завести
+    каждому вызывающему по отдельности, и забывший остался бы с той же тихой
+    потерей. ``use_debt=False`` — только для тестов, измеряющих один прогон.
     """
     ts = _now(now)
     receipt = {"generated_at": ts.isoformat(), "adr": "ADR-066",
@@ -413,7 +568,19 @@ def deliver(paths, root: str = REPO_ROOT, now: dt.datetime | None = None,
                "rebased": [], "rebase_refused": [], "already_on_origin": [],
                "rebase_unmeasured": [], "held": [],
                "status": UNCHECKED, "reason": "", "returncode": None, "output": ""}
+    debt: dict = {}
+    dropped: list = []
+    retried: list = []
     try:
+        if use_debt:
+            debt = load_debt(root)
+            debt_abs, dropped = _debt_paths(root, debt)
+            for d in dropped:
+                debt.pop(d["path"], None)
+            asked = {os.path.realpath(os.path.join(root, str(p))) for p in (paths or []) if p}
+            extra = [p for p in debt_abs if p not in asked]
+            retried = [_rel(root, p) for p in extra]
+            paths = list(paths or []) + extra
         ok, bad = validate(paths, root)
         receipt["attempted"] = [_rel(root, p) for p in ok]
         receipt["refused"] = bad
@@ -473,6 +640,27 @@ def deliver(paths, root: str = REPO_ROOT, now: dt.datetime | None = None,
         receipt["status"] = UNCHECKED
         receipt["reason"] = f"доставка не измерена: {type(e).__name__}: {e}"
 
+    # ── долг после прогона: что пытались везти и что на origin так и не попало ──
+    if use_debt:
+        try:
+            arrived = set(receipt.get("delivered") or []) | set(receipt.get("already_on_origin") or [])
+            for path in arrived:
+                debt.pop(path, None)
+            for path in owed_from_receipt(receipt):
+                entry = debt.get(path) or {"since": receipt["generated_at"], "attempts": 0}
+                entry["attempts"] = int(entry.get("attempts", 0)) + 1
+                entry["last_status"] = receipt["status"]
+                entry["last_reason"] = receipt.get("reason") or ""
+                debt[path] = entry
+            receipt["debt"] = debt_block(debt, ts, dropped=dropped, retried=retried)
+            enforce_debt_status(receipt, debt)
+            if write_status:
+                save_debt(root, debt, ts)
+        except Exception as e:  # noqa: BLE001 — долг не смеет уронить доставку,
+            # но «долг не измерен» обязано быть видно, а не выглядеть пустым долгом.
+            receipt["debt"] = {"count": None, "paths": [],
+                               "unmeasured": f"{type(e).__name__}: {e}"}
+
     if write_status:
         try:
             from spa_core.utils.atomic import atomic_save
@@ -484,12 +672,31 @@ def deliver(paths, root: str = REPO_ROOT, now: dt.datetime | None = None,
     return receipt
 
 
+def render_debt(receipt: dict) -> str:
+    """Хвост строки про долг. Пустой ТОЛЬКО когда долг измерен и равен нулю."""
+    d = receipt.get("debt")
+    if d is None:
+        return " · долг доставки НЕ ИЗМЕРЕН (квитанция старого образца)"
+    if d.get("unmeasured"):
+        return f" · долг доставки НЕ ИЗМЕРЕН: {d['unmeasured']}"
+    n = d.get("count")
+    if n is None:
+        return " · долг доставки НЕ ИЗМЕРЕН"
+    if not n:
+        return ""
+    age = d.get("oldest_hours")
+    age_s = f", старшему {age}ч" if age is not None else ", возраст не датируется"
+    stale = f", НЕ РАССАСЫВАЕТСЯ: {len(d['stale'])}" if d.get("stale") else ""
+    return f" · ДОЛГ {n} карточк(и){age_s}{stale}"
+
+
 def render(receipt: dict) -> str:
     """Одна строка для лога/отчёта. Отказ виден без чтения JSON."""
     st = receipt.get("status")
     n_try = len(receipt.get("attempted") or [])
     n_reb = len(receipt.get("rebased") or [])
     tail = f" · перенесено на свежий origin: {n_reb}" if n_reb else ""
+    tail += render_debt(receipt)
     if st == DELIVERED:
         return f"card_delivery: ✅ DELIVERED {n_try} карточк(и) → origin/main{tail}"
     if st == IDLE:
