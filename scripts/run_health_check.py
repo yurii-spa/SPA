@@ -26,12 +26,7 @@ Rules:
 from __future__ import annotations
 
 import json
-import os
-import subprocess
 import sys
-import urllib.error
-import urllib.parse
-import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -42,60 +37,151 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 # ---------------------------------------------------------------------------
-# Telegram helpers (stdlib only, reads from macOS Keychain)
+# Доставка тревоги — ТОЛЬКО через единственную инстанцию (push_policy)
 # ---------------------------------------------------------------------------
+#
+# ── ЗАМЕР 2026-08-12 (цикл #205): третий экземпляр одного класса ────────────
+#
+# Здесь стоял `TelegramManager(category="p0")`. Менеджер отставлен в ходе
+# Phase-1 Telegram rebuild: его `_send_raw` ВСЕГДА возвращает False и уводит
+# текст в суточный дайджест. То есть CRITICAL-вердикт о здоровье системы
+# push'ем не уходил — ровно как у стоп-крана (10.08) и у внутридневной
+# проверки.
+#
+# Хуже самой потери был ДИАГНОЗ. Ниже стоял запасной путь `except: ok =
+# _send_telegram(...)`, но `mgr.send()` не БРОСАЕТ — он возвращает False.
+# Значит `except` не срабатывал НИКОГДА, запасной путь был мёртв вместе с
+# основным, а оператору печаталось «suppressed (cooldown active)»: никакого
+# остывания не было, канал был отставлен насовсем. Благополучное,
+# самоустраняющееся объяснение вечной тишины — та же ложь, что «отправлен
+# владельцу» в логе цикла, только в другом костюме.
+#
+# ЧЕСТНАЯ ГРАНИЦА НАХОДКИ (измерено, а не предположено). Живой тревоги этот
+# дефект НЕ съел: у `scripts/run_health_check.py` единственный вызывающий —
+# скрипт `run_daily_simulation`, который сам лежит в базе неподключённых
+# (`agent-unwired-baseline-triage`), и ни один plist/шелл/CI его не зовёт.
+# Живой 300-секундный `cycle_health_monitor` уходит в CRITICAL ровно по
+# `cycle_gap`, а его закрывает живой `com.spa.cycle_gap_monitor` ключом
+# `cycle_gap`. То есть чинится ЛОВУШКА (сработает, когда корень подключат),
+# а не восстанавливается потерянная тревога. Заявлять второе было бы враньём.
+#
+# ПОЧЕМУ ИМЯ ВЫШЕ БЕЗ РАСШИРЕНИЯ — и это не косметика. Храповик неподключённых
+# скриптов (`spa_core/tests/_unwired.py`) ищет имя файла ПОДСТРОКОЙ по коду, не
+# отличая вызов от УПОМИНАНИЯ В КОММЕНТАРИИ. Первая редакция этого разбора
+# написала имя целиком — и храповик счёл скрипт подключённым, то есть мой
+# комментарий молча снял бы его с учёта. Написать имя без `.py` — осознанный
+# выбор: запись доказательства сохранена (полная, с путями, — в карточке и в
+# журнале W33), а с учёта никто не снят. Сам дефект храповика измерен и заведён
+# карточкой (`inbox-hrapovik-schitaet-upominanie-v-kommenta`): слепота стоит
+# ЕЩЁ двух скриптов, `daily_paper_report` и `guardian_backtest`, — их сегодня
+# держит «подключёнными» ровно комментарий. Чинить его здесь нельзя: починка
+# добавляет три скрипта к неподключённым, а гасить это дописыванием в базу
+# храповик запрещает своим же правилом.
+#
+# Заодно убран сырой отправитель `_send_telegram`/`_keychain_get`: после
+# перевода на `push_policy` его никто не звал, а обход единственной инстанции
+# push'а — это ровно тот путь, которым дефект возвращается.
 
-_TELEGRAM_API = "https://api.telegram.org/bot{token}/sendMessage"
-_KEYCHAIN_TOKEN_KEY = "TELEGRAM_BOT_TOKEN_SPA"
-_KEYCHAIN_CHAT_KEY = "TELEGRAM_CHAT_ID_SPA"
+# Ключ закрытого Tier-1 whitelist (docs/TELEGRAM_BOT_ARCHITECTURE.md §2).
+HEALTH_EVENT_KEY = "system_critical"
 
 
-def _keychain_get(key: str) -> str | None:
+def _critical_checks(report: dict) -> list[str]:
+    """Имена проверок с вердиктом CRITICAL — отпечаток КОНКРЕТНОЙ аварии.
+
+    Он же `dedup_key`: пока авария та же, владельцу говорят один раз; ДРУГОЙ
+    набор упавших проверок — другое происшествие, и оно обязано прозвучать.
     """
-    Read a secret from macOS Keychain via the `security` CLI.
-    Returns None if not found or on any error.
+    checks = report.get("checks") or {}
+    if not isinstance(checks, dict):
+        return []
+    return sorted(
+        name
+        for name, res in checks.items()
+        if isinstance(res, dict) and res.get("status") == "CRITICAL"
+    )
+
+
+def _incident_fingerprint(report: dict) -> str:
+    """Отпечаток происшествия. Без имён проверок — по первой рекомендации.
+
+    Аварийный отчёт (`run_all_checks` бросил) не содержит ни одной проверки;
+    схлопнуть все такие падения в один отпечаток значило бы промолчать о
+    втором, ДРУГОМ падении.
     """
+    names = _critical_checks(report)
+    if names:
+        return "health:" + ",".join(names)
+    recs = report.get("recommendations") or []
+    if recs:
+        return "health:" + str(recs[0])[:120]
+    return "health:critical-unnamed"
+
+
+def dispatch_health_alert(
+    report: dict,
+    *,
+    data_dir: str | Path | None = None,
+    send: bool = True,
+) -> tuple[bool, str]:
+    """Доставить вердикт здоровья. Возврат: `(ушло?, ИЗМЕРЕННАЯ причина)`.
+
+    - `CRITICAL` → Tier-1 push через `push_policy` (ключ `system_critical`);
+    - всё прочее не-`HEALTHY` → суточный дайджест: это и есть замысел отставки,
+      WARNING не будит владельца;
+    - `HEALTHY` → молчание.
+
+    `data_dir` инъектируется: состояние push'а обязано следовать за каталогом
+    проверки, иначе прогон над песочницей пишет в ЖИВОЕ edge-состояние и глушит
+    следующую НАСТОЯЩУЮ тревогу (замер #193).
+
+    Причина возвращается измеренная. Утверждать «cooldown», не измерив
+    остывания, запрещено: неверный диагноз хуже молчания — он объясняет тишину
+    и тем закрывает вопрос.
+    """
+    overall = str(report.get("overall", "UNKNOWN"))
+    text = _build_alert_text(report)
+
+    if overall == "HEALTHY":
+        return False, "здоров — сообщать не о чем"
+
     try:
-        result = subprocess.run(
-            ["security", "find-generic-password", "-s", key, "-w"],
-            capture_output=True,
-            text=True,
-            timeout=10,
+        from spa_core.telegram import push_policy
+
+        if overall != "CRITICAL":
+            push_policy.enqueue_digest(
+                HEALTH_EVENT_KEY,
+                f"SPA Health — {overall}",
+                text,
+                severity=overall,
+                reason="не Tier-1: здоровье ниже CRITICAL не будит владельца",
+                data_dir=data_dir,
+            )
+            return False, (
+                f"{overall} — не Tier-1: уведено в суточный дайджест (замысел отставки)"
+            )
+
+        sent = bool(
+            push_policy.push_critical(
+                HEALTH_EVENT_KEY,
+                "CRITICAL",
+                "SPA System Health — CRITICAL",
+                text,
+                data_dir=data_dir,
+                dedup_key=_incident_fingerprint(report),
+                send=send,
+            )
         )
-        if result.returncode == 0:
-            return result.stdout.strip()
-    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
-        pass
-    return None
+    except Exception as exc:  # noqa: BLE001 — тревога не смеет уронить проверку
+        return False, f"канал отказал: {exc}"
 
-
-def _send_telegram(text: str) -> bool:
-    """
-    Send a Telegram message using credentials from macOS Keychain.
-    Returns True on success, False on any error (non-fatal).
-    Credentials are NEVER logged or stored.
-    """
-    token = _keychain_get(_KEYCHAIN_TOKEN_KEY)
-    chat_id = _keychain_get(_KEYCHAIN_CHAT_KEY)
-
-    if not token or not chat_id:
-        print(
-            "  [Telegram] credentials not found in Keychain "
-            f"(keys: {_KEYCHAIN_TOKEN_KEY}, {_KEYCHAIN_CHAT_KEY}). "
-            "Skipping alert.",
-            file=sys.stderr,
-        )
-        return False
-
-    # FLOOD-GUARD: route through the canonical rate-limited client so health-check
-    # alerts share the cross-process flood guard. Transport only — same Markdown
-    # message. (ROOT is already on sys.path; creds re-resolved by the client.)
-    try:
-        from spa_core.alerts.telegram_client import send_message
-        return send_message(text, parse_mode="Markdown")
-    except Exception as exc:
-        print(f"  [Telegram] send failed: {exc}", file=sys.stderr)
-        return False
+    if sent:
+        return True, "Tier-1 push отправлен владельцу"
+    return False, (
+        "Tier-1 push НЕ ушёл сейчас — гейт политики (тот же отпечаток уже "
+        "звучал / суточный потолок / отказ канала); причина в "
+        "data/telegram/push_state.json"
+    )
 
 
 def _build_alert_text(report: dict) -> str:
@@ -197,32 +283,13 @@ def run_health_check(data_dir: str = "data", send_telegram: bool = True) -> dict
         )
 
     # --- Telegram alert ------------------------------------------------------
-    # BUG FIX (TELEGRAM_AUDIT 2026-06-18): the old code sent Telegram on every
-    # non-HEALTHY check with no cooldown.  run_health_check may be called from
-    # external scripts; we apply a 1h cooldown per severity level so it fires
-    # at most once per hour for WARNING, and bypasses cooldown for CRITICAL.
+    # Единственная инстанция push'а — `push_policy` (разбор в шапке файла).
+    # Печатаем ИЗМЕРЕННУЮ причину: и «ушло», и «не ушло, потому что …».
     overall = report.get("overall", "UNKNOWN")
     if overall != "HEALTHY" and send_telegram:
-        alert_text = _build_alert_text(report)
-        category = "p0" if overall == "CRITICAL" else "alert"
-        # Try TelegramManager for disk-persisted cooldown; fall back to raw send.
-        try:
-            sys.path.insert(0, str(ROOT))
-            from spa_core.alerts.telegram_manager import TelegramManager
-            mgr = TelegramManager(data_dir=ROOT / "data")
-            ok = mgr.send(
-                alert_text,
-                title=f"health_{overall.lower()}",
-                category=category,
-                parse_mode="Markdown",
-            )
-        except Exception:
-            # Fallback: direct send (always fires — legacy behaviour)
-            ok = _send_telegram(alert_text)
-        if ok:
-            print("  [Telegram] health alert sent.", file=sys.stderr)
-        else:
-            print("  [Telegram] health alert suppressed (cooldown active).", file=sys.stderr)
+        ok, why = dispatch_health_alert(report, data_dir=data_dir_abs)
+        mark = "sent" if ok else "NOT sent"
+        print(f"  [Telegram] health alert {mark}: {why}", file=sys.stderr)
 
     return report
 
@@ -239,7 +306,8 @@ def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Exit code 0 = HEALTHY, 1 = WARNING/CRITICAL.\n"
-            "Credentials are read from macOS Keychain; never stored in files."
+            "CRITICAL is delivered through push_policy (Tier-1 key "
+            "'system_critical'); anything lower goes to the daily digest."
         ),
     )
     parser.add_argument(

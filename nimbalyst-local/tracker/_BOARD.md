@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **423** · ждёт владельца: **5** · занято сессиями: **3**.
+> Всего карточек: **425** · ждёт владельца: **5** · занято сессиями: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -129,7 +129,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (157)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (159)
 
 ### · in-progress
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
@@ -173,6 +173,7 @@
 - Карточка, созданная посреди цикла, не доезжает: create пишет в ХОСТ-дерево, а пуш идёт из worktree  ·  `inbox-kartochka-sozdannaya-posredi-tsikla-ne-d.md` · 2026-08-06
 - Карточки моста находок рождаются в прод-дереве и не доезжают до origin — четыре needs-owner потеряны на последнем метре  ·  `inbox-kartochki-mosta-nahodok-rozhdayutsya-v-p.md` · 2026-08-08
 - Кнопки действий: вторая половина задания — те же варианты внутри меню бота  ·  `inbox-knopki-deistvii-vtoraya-polovina-zadaniy.md` · 2026-08-07
+- Критическая тревога о здоровье системы уходит в никуда: третий вызов отставленного менеджера, а оператору печатают «cooldown active»  ·  `inbox-kriticheskaya-trevoga-o-zdorove-sistemy.md` · 2026-08-10
 - Манифест архитектуры отстал от РЕАЛЬНОСТИ: три агента стали reboot-safe, тест красный на чистом origin  ·  `inbox-manifest-arhitektury-otstal-ot-realnosti.md` · 2026-08-06
 - Мост находок может РОДИТЬ карточку на origin, но не может её ОБНОВИТЬ — закрытия не доезжают никогда  ·  `inbox-most-nahodok-mozhet-rodit-kartochku-na-o.md` · 2026-08-12
 - Мост не может закрыть собственную CRITICAL-карточку: close_card закрывает только status=new, а CRITICAL рождается needs-owner  ·  `inbox-most-ne-mozhet-zakryt-sobstvennuyu-criti.md` · 2026-08-08
@@ -264,8 +265,9 @@
 - Демоушен книг Aggressive по ОТНОСИТЕЛЬНОМУ рангу (решение владельца 09.08, вариант A)  ·  `inbox-demoushen-knig-aggressive-po-otnositelno.md` · 2026-08-09
 - Долгоживущие агенты не подхватывают доставленный код — и никто об этом не говорит  ·  `inbox-dolgozhivuschie-agenty-ne-podhvatyvayut.md` · 2026-08-08
 - Две записи о деньгах расходятся каждый день — найти и починить ПРИЧИНУ (решение владельца 10.08, вариант 1)  ·  `inbox-dve-zapisi-o-dengah-rashodyatsya-kazhdyi.md` · 2026-08-10
+- Гэп-анализ офиса сравнивает имена протоколов с КОРТЕЖАМИ — обе ветки мертвы, реальные возможности объявлены недостижимыми  ·  `inbox-gep-analiz-ofisa-sravnivaet-imena-protok.md` · 2026-08-12
 - Храповик неподключённых скриптов не отличает мёртвый код от ручного R&D — и краснеет на честной работе  ·  `inbox-hrapovik-nepodklyuchennyh-skriptov-ne-ot.md` · 2026-08-10
-- Критическая тревога о здоровье системы уходит в никуда: третий вызов отставленного менеджера, а оператору печатают «cooldown active»  ·  `inbox-kriticheskaya-trevoga-o-zdorove-sistemy.md` · 2026-08-10
+- Храповик неподключённых скриптов считает УПОМИНАНИЕ В КОММЕНТАРИИ за проводку — слепота стоит трёх скриптов  ·  `inbox-hrapovik-nepodklyuchennyh-skriptov-schit.md` · 2026-08-12
 - Крупнейшая позиция книги стоит на константе: у aave_v3 (Ethereum, 40%) TVL «не измерено», а пул в фиде есть  ·  `inbox-krupneishaya-pozitsiya-knigi-stoit-na-ko.md` · 2026-08-09
 - Маячок бота объявляет ОДНУ способность, а решает за ДВЕ — найдено #194, не чинил  ·  `inbox-mayachok-obyavlyaet-odnu-sposobnost-gejtit-dve.md` · 2026-08-10
 - Модуль #39: третьей рукой обязана быть ПРИЧИННАЯ статика, иначе через 30 дней форвард снова не отличит тайминг от недовеса  ·  `inbox-modul-39-tretei-rukoi-obyazana-byt-prich.md` · 2026-08-09
