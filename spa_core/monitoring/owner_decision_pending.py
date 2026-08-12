@@ -181,6 +181,38 @@ def _card_status(tracker_dir: Path, card_id: str) -> tuple[Optional[str], Option
 #: расходиться — на этом уже теряли три карточки `own-rnd-*` (#143–#145).
 _QUEUE_CARD_TYPE = "owner-decision"
 
+# ── Карточка-ФАНТОМ: вопрос, которого никто не задавал (авария 11.08.2026) ────
+#
+# `ask_router` отдавал падение headless `claude` как обычный на вид вердикт
+# `("unclear", …)`, интейк исполнял его как вердикт — и за день выпустил 44 карточки
+# «Уточнение по заметке: …», у которых на месте вопроса стоит служебный текст упавшего
+# классификатора. Для ЭТОГО сторожа они выглядели полноценной очередью: он честно
+# доложил «44 из 48 вопросов владельцу не отправлены», и это была правда о карточках —
+# но не о владельце, которому НИ ОДИН из этих 44 вопросов не был нужен.
+#
+# Причина закрыта в коде (`ask_router.UNAVAILABLE`), но сторож обязан узнавать этот класс
+# сам: иначе следующая такая пачка снова растворится среди настоящих вопросов, и найдут
+# её опять руками. Признак — СОВОКУПНОСТЬ; при любом несовпадении карточка считается
+# НАСТОЯЩИМ вопросом (fail-CLOSED: занизить очередь владельца опаснее, чем завысить).
+_PHANTOM_TITLE_PREFIX = "Уточнение по заметке: "
+_PHANTOM_SOURCE = "intake"
+_PHANTOM_SIGNATURES = (
+    "Не смог обработать сообщение. Переформулируй или пришли как /task <текст>.",
+    "Пустой ответ. Переформулируй или пришли как /task <текст>.",
+)
+#: Чем лечится — называем в самой находке, чтобы не искать инструмент по журналам.
+_PHANTOM_REMEDY = "scripts/repair_phantom_intake_cards.py"
+
+
+def _is_phantom(card) -> bool:
+    """Карточка — след упавшего классификатора, а не вопрос владельцу."""
+    if (card.fields.get("source") or "").strip() != _PHANTOM_SOURCE:
+        return False
+    if not (card.title or "").startswith(_PHANTOM_TITLE_PREFIX):
+        return False
+    body = card.body or ""
+    return any(sig in body for sig in _PHANTOM_SIGNATURES)
+
 
 def _scan_queue(tracker_dir: Path) -> tuple[list[dict], list[dict], bool]:
     """Очередь вопросов владельцу из ЖИВОГО дерева. → (карточки, unchecked, есть_ли_каталог).
@@ -230,6 +262,7 @@ def _scan_queue(tracker_dir: Path) -> tuple[list[dict], list[dict], bool]:
             "card_id": card_id,
             "title": card.title or card_id,
             "created": card.fields.get("created"),
+            "phantom": _is_phantom(card),
         })
     return queue, unchecked, True
 
@@ -323,6 +356,11 @@ def check_pending_owner_decisions(*,
     # --- очередь: ИСТОЧНИК списка ждущих вопросов ---------------------------
     queue_cards, queue_unchecked, queue_present = _scan_queue(tdir)
     unchecked.extend(queue_unchecked)
+
+    # Фантомы вынимаем ДО подсчёта очереди: это не вопросы, и складывать их с
+    # настоящими — значит показывать владельцу очередь, которой у него нет.
+    phantom_cards = [c for c in queue_cards if c.get("phantom")]
+    queue_cards = [c for c in queue_cards if not c.get("phantom")]
 
     pending: list[dict] = []
     for card in queue_cards:
@@ -451,9 +489,24 @@ def check_pending_owner_decisions(*,
             f"БЕЗ КНОПОК — ответить с телефона нельзя: {names}{more}")
         status = _worst(status, WARNING)
 
+    # --- H6: очередь засорена карточками, которых никто не спрашивал ---------
+    # Не вопрос владельцу и не «не измерено»: измерено ТОЧНО — это след аварии
+    # классификатора. Молчать нельзя (11.08 такие 44 штуки выдавали себя за очередь
+    # владельца), но и в счёт вопросов их брать нельзя — поэтому отдельная строка,
+    # сразу с лекарством.
+    if phantom_cards:
+        names = ", ".join(c["card_id"] for c in phantom_cards[:3])
+        more = f" (и ещё {len(phantom_cards) - 3})" if len(phantom_cards) > 3 else ""
+        issues.append(
+            f"owner_decision_pending: {len(phantom_cards)} карточк(и) в очереди — НЕ вопросы, "
+            f"а след упавшего классификатора (на месте вопроса его служебный текст). В счёт "
+            f"вопросов владельцу не берутся; лечится `{_PHANTOM_REMEDY}`: {names}{more}")
+        status = _worst(status, WARNING)
+
     return {
         "generated_at": now.isoformat(),
         "status": status,
+        "phantom_count": len(phantom_cards),
         "halted": halted,
         "halt_since": halt_since,
         "halt_age_h": None if halt_age_h is None else round(halt_age_h, 2),

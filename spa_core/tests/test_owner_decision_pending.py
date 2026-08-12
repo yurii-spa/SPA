@@ -623,3 +623,95 @@ def test_agent_health_reports_unchecked_when_the_probe_itself_fails(tree, monkey
 
     assert status in (ahm.WARNING, ahm.CRITICAL)
     assert any("owner_decision_pending UNCHECKED" in line for line in issues)
+
+
+# ===========================================================================
+# H6 — ФАНТОМ: карточка в очереди, которую владельцу никто не задавал
+# ===========================================================================
+# Положительный контроль аварии 11.08.2026: `ask_router` отдавал падение headless
+# `claude` как обычный вердикт `("unclear", …)`, интейк исполнял его как вердикт и
+# выпустил 44 карточки «Уточнение по заметке: …». ЭТОТ сторож тогда доложил «44 из 48
+# вопросов владельцу не отправлены» — правду о карточках и неправду о владельце,
+# которому ни один из 44 вопросов не был нужен. Теперь класс узнаётся по подписи.
+
+_OUTAGE_TEXT = "Не смог обработать сообщение. Переформулируй или пришли как /task <текст>."
+
+
+def _phantom(tracker: Path, card_id: str, *, asked: str = _OUTAGE_TEXT,
+             source: str = "intake", title: str = "Уточнение по заметке: ADR-070.2") -> None:
+    (tracker / f"{card_id}.md").write_text(
+        "---\n"
+        "trackerStatus:\n  type: owner-decision\n"
+        f'title: "{title}"\n'
+        "status: needs-owner\n"
+        f"source: {source}\n"
+        "created: 2026-08-11\n"
+        "---\n\n"
+        "## Что случилось и почему это важно\nПришло сообщение, непонятно.\n\n"
+        f"## Что от тебя нужно\n{asked}\n",
+        encoding="utf-8")
+
+
+def test_phantom_cards_are_not_counted_as_owner_questions(tree):
+    """44 следа упавшего классификатора — это НЕ очередь владельца."""
+    data, tracker = tree
+    for i in range(3):
+        _phantom(tracker, f"owner-decision-utochnenie-po-zametke-{i}")
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert doc["pending_count"] == 0, "фантомы попали в счёт вопросов владельцу"
+    assert doc["undelivered_count"] == 0, (
+        "фантомы выданы за неотправленные вопросы — ровно эта строка и обманула 11.08")
+    assert doc["phantom_count"] == 3
+
+
+def test_phantom_cards_are_named_with_their_remedy(tree):
+    """Молчать о них тоже нельзя: очередь засорена, и лекарство должно быть названо."""
+    data, tracker = tree
+    _phantom(tracker, "owner-decision-utochnenie-po-zametke-0")
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    joined = "\n".join(doc["issues"])
+    assert "упавшего классификатора" in joined
+    assert "scripts/repair_phantom_intake_cards.py" in joined
+    assert doc["status"] == WARNING
+
+
+def test_a_real_question_next_to_phantoms_is_still_counted(tree):
+    """Главный риск починки: заодно потерять НАСТОЯЩИЙ вопрос владельца."""
+    data, tracker = tree
+    _card(tracker)                                   # настоящий вопрос
+    for i in range(5):
+        _phantom(tracker, f"owner-decision-utochnenie-po-zametke-{i}")
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert doc["pending_count"] == 1
+    assert [p["card_id"] for p in doc["pending"]] == [CARD_ID]
+    assert doc["phantom_count"] == 5
+
+
+def test_an_intake_card_with_a_real_question_is_not_a_phantom(tree):
+    """Живой классификатор, сказавший UNCLEAR, задаёт НАСТОЯЩИЙ вопрос — он не фантом."""
+    data, tracker = tree
+    _phantom(tracker, "owner-decision-utochnenie-po-zametke-0",
+             asked="Это про сайт или про агентов?")
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert doc["phantom_count"] == 0
+    assert doc["pending_count"] == 1
+
+
+def test_a_handwritten_card_quoting_the_outage_text_is_not_a_phantom(tree):
+    """Признак — СОВОКУПНОСТЬ: карточка не от интейка не становится фантомом от цитаты."""
+    data, tracker = tree
+    _phantom(tracker, "own-40-pro-avariyu", source="nimbalyst",
+             title="Что делать с упавшим классификатором")
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert doc["phantom_count"] == 0
+    assert doc["pending_count"] == 1

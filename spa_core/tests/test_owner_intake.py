@@ -149,3 +149,171 @@ def test_new_verdict_adds_no_partial_hint(tmp_path, monkeypatch):
 
     assert "похоже на" not in path.read_text(encoding="utf-8").lower()
     assert not any("похоже на" in n.lower() for n in notes)
+
+
+# ── ПОЛОЖИТЕЛЬНЫЕ КОНТРОЛИ: авария 11.08.2026 (упавший классификатор) ─────────
+#
+# Каждый тест ниже — воспроизведение НАСТОЯЩЕЙ аварии, а не гипотезы. 11.08 headless
+# `claude` был недоступен; `classify_and_answer` вернул на вид обычный вердикт
+# ("unclear", "Не смог обработать сообщение…"), интейк честно его исполнил и за день
+# выпустил 44 карточки-вопроса владельцу (настоящих вопросов — 0), закрыв 44 исходных
+# задания как `done` (28 из них на origin по сей день `new`).
+#
+# ВАЖНО — здесь ломается ПРОВОДКА, а не деталь: подменяется `subprocess.run` (то, что
+# реально упало), а `classify_and_answer` работает НАСТОЯЩИЙ. Тест, подменяющий сам
+# классификатор, зеленел бы и на дефекте — ровно так дефект и прожил два месяца.
+
+def _wire_live_router(monkeypatch, tmp_path, cards, *, subprocess_run):
+    """Как _wire, но БЕЗ подмены классификатора: падает нижний слой (subprocess)."""
+    import subprocess as _sp
+
+    notes: list[str] = []
+    monkeypatch.setattr(I, "_REPO", tmp_path)
+    monkeypatch.setattr(Q, "TRACKER_DIR", tmp_path / "tracker")
+    monkeypatch.setattr(I, "_notify", lambda text, *a, **k: notes.append(text))
+    monkeypatch.setattr(Q, "ingest_notes", lambda *a, **k: None)
+    monkeypatch.setattr(Q, "list_cards", lambda **k: list(cards))
+    monkeypatch.setattr(H, "history_check", lambda body: {"verdict": "NEW", "response": ""})
+    monkeypatch.setattr(_sp, "run", subprocess_run)
+    return notes
+
+
+def _boom(*a, **k):
+    raise OSError("no claude (авария 11.08)")
+
+
+def _exit_nonzero(*a, **k):
+    import types
+    return types.SimpleNamespace(returncode=1, stdout="", stderr="rate limited")
+
+
+def test_classifier_outage_creates_no_owner_question(tmp_path, monkeypatch):
+    """Классификатор упал ⇒ вопрос владельцу НЕ рождается, исходник НЕ закрывается."""
+    path = Q.create_card(
+        "inbox", "ADR-070.2: канон трека коммитится циклом",
+        body="ADR-070.2: канон трека коммитится циклом", status="new",
+        tracker_dir=tmp_path / "tracker",
+    )
+    card = Q.load_card(path)
+    notes = _wire_live_router(monkeypatch, tmp_path, [card], subprocess_run=_boom)
+
+    res = I.run_note_intake()
+
+    owner_cards = list((tmp_path / "tracker").glob("owner-decision-*.md"))
+    assert owner_cards == [], f"упавший классификатор породил вопрос владельцу: {owner_cards}"
+    assert Q.load_card(path).status == "new", "исходное задание закрыто/сдвинуто при недоступном классификаторе"
+    assert card.id in res["unavailable"]
+    assert card.id not in res["processed"], "карточка не обработана — её нельзя считать обработанной"
+    assert not any("Уточнение по заметке" in n for n in notes)
+
+
+def test_classifier_nonzero_exit_creates_no_owner_question(tmp_path, monkeypatch):
+    """Ненулевой код выхода `claude` (rate-limit) — тот же класс, тот же запрет."""
+    path = Q.create_card(
+        "inbox", "Tier-C: пять настоящих отказов агрегатора",
+        body="Tier-C: пять настоящих отказов агрегатора", status="new",
+        tracker_dir=tmp_path / "tracker",
+    )
+    card = Q.load_card(path)
+    _wire_live_router(monkeypatch, tmp_path, [card], subprocess_run=_exit_nonzero)
+
+    res = I.run_note_intake()
+
+    assert list((tmp_path / "tracker").glob("owner-decision-*.md")) == []
+    assert Q.load_card(path).status == "new"
+    assert res["unavailable"] == [card.id]
+
+
+def test_classifier_outage_does_not_mass_produce_owner_questions(tmp_path, monkeypatch):
+    """Массовый прогон 11.08 в миниатюре: N входящих ⇒ 0 вопросов, 0 закрытий, 1 сообщение."""
+    paths = [
+        Q.create_card("inbox", f"Задание {i}", body=f"Задание {i}", status="new",
+                      tracker_dir=tmp_path / "tracker")
+        for i in range(5)
+    ]
+    cards = [Q.load_card(p) for p in paths]
+    notes = _wire_live_router(monkeypatch, tmp_path, cards, subprocess_run=_boom)
+
+    res = I.run_note_intake()
+
+    assert list((tmp_path / "tracker").glob("owner-decision-*.md")) == [], \
+        "повторилась авария 11.08: недоступность классификатора превратилась в вопросы владельцу"
+    assert [Q.load_card(p).status for p in paths] == ["new"] * 5
+    assert len(res["unavailable"]) == 5
+    # ровно ОДНО уведомление на прогон, а не по штуке на карточку (иначе это флуд)
+    assert len(notes) == 1, f"ожидалось одно сводное сообщение, получено {len(notes)}: {notes}"
+    assert "недоступен" in notes[0].lower()
+
+
+def test_live_router_unclear_still_reaches_owner(tmp_path, monkeypatch):
+    """Обратный контроль: ЖИВОЙ классификатор, сказавший UNCLEAR, по-прежнему спрашивает владельца.
+
+    Без этого теста починку можно было бы «сдать», просто перестав создавать карточки
+    вообще — то есть заглушив законный путь переспроса.
+    """
+    import types
+
+    def _unclear(*a, **k):
+        return types.SimpleNamespace(
+            returncode=0, stdout="UNCLEAR\nЭто про сайт или про агентов?", stderr="")
+
+    path = Q.create_card(
+        "inbox", "Непонятное сообщение", body="ы", status="new",
+        tracker_dir=tmp_path / "tracker",
+    )
+    card = Q.load_card(path)
+    notes = _wire_live_router(monkeypatch, tmp_path, [card], subprocess_run=_unclear)
+
+    res = I.run_note_intake()
+
+    owner_cards = list((tmp_path / "tracker").glob("owner-decision-*.md"))
+    assert len(owner_cards) == 1, "настоящее «непонятно» обязано дойти до владельца"
+    assert "Это про сайт или про агентов?" in owner_cards[0].read_text(encoding="utf-8")
+    assert Q.load_card(path).status == "done"
+    assert res["unavailable"] == []
+    assert any("вопрос" in n.lower() for n in notes)
+
+
+# ── Флуд-предохранитель: большая очередь = ОДНА сводка, а не лента ────────────
+#
+# Побочный эффект починки аварии 11.08: в очередь честно вернулись 46 заданий, ранее
+# закрытых упавшим классификатором. Прежний код отправил бы владельцу 46 сообщений
+# подряд. Это не «много информации» — это потеря сигнала: среди 46 «создал задачу»
+# тревогу о стоп-кране никто не прочитает. Штатные 1–2 входящих приходят как прежде.
+
+def test_small_batch_still_sends_individual_replies(tmp_path, monkeypatch):
+    """Регресс-страховка: обычный прогон (1 карточка) — прежний отдельный ответ."""
+    path = Q.create_card("inbox", "Одна задача", body="Одна задача", status="new",
+                         tracker_dir=tmp_path / "tracker")
+    card = Q.load_card(path)
+    notes = _wire(monkeypatch, tmp_path, card=card, kind="task")
+
+    I.run_note_intake()
+
+    assert len(notes) == 1
+    assert "Одна задача" in notes[0]
+    assert "сводкой" not in notes[0]
+
+
+def test_large_batch_collapses_into_one_summary(tmp_path, monkeypatch):
+    """Разбор накопившейся очереди уходит владельцу ОДНИМ сообщением."""
+    paths = [Q.create_card("inbox", f"Задача {i}", body=f"Задача {i}", status="new",
+                           tracker_dir=tmp_path / "tracker") for i in range(12)]
+    cards = [Q.load_card(p) for p in paths]
+    notes: list[str] = []
+    monkeypatch.setattr(I, "_REPO", tmp_path)
+    monkeypatch.setattr(Q, "TRACKER_DIR", tmp_path / "tracker")
+    monkeypatch.setattr(I, "_notify", lambda text, *a, **k: notes.append(text))
+    monkeypatch.setattr(Q, "ingest_notes", lambda *a, **k: None)
+    monkeypatch.setattr(Q, "list_cards", lambda **k: list(cards))
+    monkeypatch.setattr(H, "history_check", lambda body: {"verdict": "NEW", "response": ""})
+    monkeypatch.setattr(ask_router, "classify_and_answer", lambda body: ("task", ""))
+
+    res = I.run_note_intake()
+
+    assert len(notes) == 1, f"владелец получил {len(notes)} сообщений вместо одной сводки"
+    assert "12" in notes[0], "сводка обязана назвать ЧИСЛО разобранных, иначе она бесполезна"
+    assert "Задача 0" in notes[0], "в сводке должны быть видны первые заголовки"
+    assert "Задача 11" not in notes[0], "сводка не должна выродиться в ту же ленту"
+    assert len(res["processed"]) == 12, "сводка не должна отменять саму обработку"
+    assert all(Q.load_card(p).status == "in-progress" for p in paths)

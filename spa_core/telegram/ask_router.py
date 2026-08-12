@@ -8,7 +8,17 @@
 
 Классификация/ответ делает локальный headless `claude -p` (LLM нужен для NL-ответа;
 это НЕ risk/execution/monitoring, поэтому LLM тут допустим). Весь контекст передаётся
-в промпте (модель отвечает из него). Fail-safe: любая ошибка → ("unclear", <просьба переформулировать>).
+в промпте (модель отвечает из него).
+
+**Недоступность классификатора — НЕ вердикт (11.08.2026).** Раньше падение `claude`
+(исключение / ненулевой код выхода / пустой ответ) возвращалось как `("unclear", …)` —
+на вид обычный вердикт «текст непонятен». Вызывающие честно исполняли его как вердикт:
+интейк за один день выпустил **44 карточки-вопроса владельцу** (все 44 из 44 — с этим самым
+fallback-текстом, настоящих вопросов ноль) и закрыл 44 исходных задания как `done`. Его
+собственная ветка fail-safe («оставить карточку `new`») была НЕДОСТИЖИМА: исключение до
+неё не доходило. Поэтому у «классификатор не ответил» теперь ОТДЕЛЬНЫЙ вид `UNAVAILABLE`:
+это утверждение о классификаторе, а не о тексте владельца. Вызывающий ОБЯЗАН не выносить
+по нему решения — сохранить вход и повторить позже.
 """
 
 from __future__ import annotations
@@ -22,6 +32,15 @@ log = logging.getLogger(__name__)
 
 _REPO = Path(__file__).resolve().parents[2]
 _CLAUDE = os.environ.get("SPA_CLAUDE_BIN") or "/Users/yuriikulieshov/.local/bin/claude"
+
+#: Вид «классификатор не ответил» — утверждение о ТУЛЕ, не о тексте владельца.
+#: Вызывающий не имеет права выносить по нему решение (создать вопрос владельцу,
+#: закрыть исходную карточку): вход сохраняется, попытка повторяется позже.
+UNAVAILABLE = "unavailable"
+
+#: Человеку показываем ровно тот же текст, что и раньше, — регресса для владельца нет.
+_UNAVAILABLE_MSG = "Не смог обработать сообщение. Переформулируй или пришли как /task <текст>."
+_EMPTY_MSG = "Пустой ответ. Переформулируй или пришли как /task <текст>."
 
 
 def _build_context(max_chars: int = 6000) -> str:
@@ -73,10 +92,16 @@ Telegram. Определи ТИП сообщения и ответь СТРОГ�
 
 
 def classify_and_answer(text: str, *, timeout: int = 120) -> tuple[str, str]:
-    """Return (kind, response): kind ∈ {'question','task','unclear'}.
+    """Return (kind, response): kind ∈ {'question','task','unclear','unavailable'}.
 
     'question' → response is the answer; 'unclear' → response is the clarifying
     question; 'task' → response is ''.
+
+    'unavailable' (:data:`UNAVAILABLE`) → классификатор НЕ ВЫНОСИЛ вердикта: упал,
+    вышел с ненулевым кодом или отдал пустоту. Это НЕ 'unclear': 'unclear' говорит
+    «текст владельца неоднозначен» (по нему законно переспросить), 'unavailable'
+    говорит «спросить было не у кого». Смешение этих двух и породило 44 фантомных
+    вопроса владельцу 11.08 — см. модульный docstring.
     """
     prompt = _PROMPT.format(msg=text.strip(), ctx=_build_context())
     env = dict(os.environ)
@@ -88,13 +113,14 @@ def classify_and_answer(text: str, *, timeout: int = 120) -> tuple[str, str]:
         )
     except Exception as exc:  # noqa: BLE001
         log.warning("ask_router: claude call failed: %s", exc)
-        return ("unclear", "Не смог обработать сообщение. Переформулируй или пришли как /task <текст>.")
+        return (UNAVAILABLE, _UNAVAILABLE_MSG)
     if proc.returncode != 0:
         log.warning("ask_router: claude exit %s: %s", proc.returncode, proc.stderr[-200:])
-        return ("unclear", "Не смог обработать сообщение. Переформулируй или пришли как /task <текст>.")
+        return (UNAVAILABLE, _UNAVAILABLE_MSG)
     out = (proc.stdout or "").strip()
     if not out:
-        return ("unclear", "Пустой ответ. Переформулируй или пришли как /task <текст>.")
+        log.warning("ask_router: claude returned empty output")
+        return (UNAVAILABLE, _EMPTY_MSG)
 
     first, _, rest = out.partition("\n")
     head = first.strip().upper()

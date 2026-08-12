@@ -40,7 +40,8 @@ def test_claude_failure_is_failsafe(monkeypatch):
         raise OSError("no claude")
     monkeypatch.setattr(subprocess, "run", _boom)
     kind, resp = ask_router.classify_and_answer("что нового?")
-    assert kind == "unclear"
+    assert kind == ask_router.UNAVAILABLE
+    assert kind != "unclear"
     assert resp  # friendly fallback message
 
 
@@ -51,18 +52,27 @@ def test_malformed_output_falls_back_to_answer(monkeypatch):
     assert "какой-то ответ" in resp
 
 
-# ── Fail-safe branches (documented contract: any error → 'unclear') ────────────
-# Regression cover for the live owner-message classifier: a claude non-zero exit,
-# an empty/whitespace answer, and a subprocess timeout must NEVER crash the bot or
-# misclassify as task/question — they must all degrade to a friendly 'unclear'.
+# ── Классификатор не ответил → вид UNAVAILABLE, а НЕ вердикт 'unclear' ────────
+#
+# ИЗМЕНЕНИЕ ТЕСТОВ НАМЕРЕННОЕ (инв. #16), обоснование — авария 11.08.2026.
+# Эти четыре теста существовали и БЫЛИ ЗЕЛЁНЫМИ всё время, пока дефект работал: они
+# проверяли, что падение `claude` не роняет бота и даёт дружелюбный текст, — и ни один
+# не спрашивал, во что этот текст превратится у ВЫЗЫВАЮЩЕГО. А превращался он в карточку-
+# вопрос владельцу: 11.08 их родилось 44 при нуле настоящих вопросов, и 44 задания были
+# закрыты как `done`. Тесты не ослаблены, а УСИЛЕНЫ: к прежним утверждениям добавлено
+# главное — вид отличается от 'unclear' (вердикта о тексте владельца), поэтому вызывающий
+# больше не может принять «не у кого спросить» за «спросили, ответили непонятно».
+# Проверка ЭФФЕКТА (карточек не рождается, исходник не закрывается) — в
+# test_owner_intake.py::test_classifier_outage_* и test_bot_classify_route.py.
 
 
 def test_nonzero_exit_is_failsafe(monkeypatch):
     # claude exits non-zero (rate-limit / auth / crash) even with some stdout →
-    # must fail-safe to 'unclear', not treat the stray stdout as an answer.
+    # must report UNAVAILABLE, not treat the stray stdout as an answer.
     monkeypatch.setattr(subprocess, "run", _fake_claude("QUESTION\nстарый кэш", rc=1))
     kind, resp = ask_router.classify_and_answer("что нового?")
-    assert kind == "unclear"
+    assert kind == ask_router.UNAVAILABLE
+    assert kind != "unclear"
     assert resp  # friendly fallback message, not the stale stdout
     assert "старый кэш" not in resp
 
@@ -70,28 +80,49 @@ def test_nonzero_exit_is_failsafe(monkeypatch):
 def test_empty_output_is_failsafe(monkeypatch):
     monkeypatch.setattr(subprocess, "run", _fake_claude(""))
     kind, resp = ask_router.classify_and_answer("что по агентам?")
-    assert kind == "unclear"
+    assert kind == ask_router.UNAVAILABLE
+    assert kind != "unclear"
     assert resp  # non-empty friendly fallback
 
 
 def test_whitespace_only_output_is_failsafe(monkeypatch):
-    # stdout that strips to empty must be treated as empty (fail-safe), not as a
+    # stdout that strips to empty must be treated as empty (UNAVAILABLE), not as a
     # blank 'question' answer.
     monkeypatch.setattr(subprocess, "run", _fake_claude("   \n \t "))
     kind, resp = ask_router.classify_and_answer("?")
-    assert kind == "unclear"
+    assert kind == ask_router.UNAVAILABLE
+    assert kind != "unclear"
     assert resp
 
 
 def test_timeout_is_failsafe(monkeypatch):
     # The single most likely real-world failure (a slow headless claude) is a
-    # TimeoutExpired — the generic except must catch it → friendly 'unclear'.
+    # TimeoutExpired — the generic except must catch it → UNAVAILABLE.
     def _timeout(*a, **k):
         raise subprocess.TimeoutExpired(cmd="claude", timeout=120)
     monkeypatch.setattr(subprocess, "run", _timeout)
     kind, resp = ask_router.classify_and_answer("расскажи статус")
-    assert kind == "unclear"
+    assert kind == ask_router.UNAVAILABLE
+    assert kind != "unclear"
     assert resp
+
+
+def test_model_unclear_verdict_is_not_unavailable(monkeypatch):
+    """Обратный контроль: НАСТОЯЩЕЕ «непонятно» от модели должно остаться 'unclear'.
+
+    Иначе починка выродилась бы в другую крайность — переспросить владельца стало бы
+    нельзя вообще. Живой классификатор, сказавший UNCLEAR, — это вердикт о тексте.
+    """
+    monkeypatch.setattr(subprocess, "run", _fake_claude("UNCLEAR\nЭто про сайт или про агентов?"))
+    kind, resp = ask_router.classify_and_answer("дашборд")
+    assert kind == "unclear"
+    assert kind != ask_router.UNAVAILABLE
+    assert "?" in resp
+
+
+def test_unavailable_kind_is_distinct_constant():
+    """Вид недоступности не должен случайно совпасть ни с одним вердиктом о тексте."""
+    assert ask_router.UNAVAILABLE not in {"question", "task", "unclear"}
 
 
 def test_unclear_without_second_line_uses_default_question(monkeypatch):

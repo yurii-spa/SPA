@@ -968,6 +968,8 @@ class TelegramBot:
         import html
         from spa_core.telegram.ask_router import classify_and_answer
 
+        from spa_core.telegram import ask_router
+
         kind, resp = classify_and_answer(message)
         if kind == "question":
             self.send_message(html.escape(resp) or "(пустой ответ)", chat_id)
@@ -977,7 +979,18 @@ class TelegramBot:
             _p, title = save_inbox_task(message, source=source)
             self.send_message(
                 f"📥 Понял как задачу, добавил в inbox: <b>{html.escape(title)}</b>", chat_id)
-        else:  # unclear
+        elif kind == ask_router.UNAVAILABLE:
+            # Классификатор лежит — разобрать сообщение НЕЧЕМ. Раньше владелец получал «🤔»
+            # (как будто его не поняли), а сообщение НИГДЕ не сохранялось: поручение,
+            # присланное в такую минуту, исчезало молча. Сохраняем вход и говорим правду.
+            from spa_core.telegram.inbox_intake import save_inbox_task
+
+            _p, title = save_inbox_task(message, source=source)
+            self.send_message(
+                f"⚠️ Разборщик сейчас недоступен — не понял, вопрос это или задача, но "
+                f"сообщение НЕ потерял: сохранил в inbox как <b>{html.escape(title)}</b> "
+                f"и разберу обычным циклом.", chat_id)
+        else:  # unclear — вердикт модели о ТЕКСТЕ: законно переспросить
             self.send_message(f"🤔 {html.escape(resp)}", chat_id)
 
     def _handle_inbox_intake(self, msg: Dict, text: str, chat_id: str) -> bool:
