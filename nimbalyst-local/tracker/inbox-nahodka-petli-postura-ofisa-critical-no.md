@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Находка петли: постура офиса CRITICAL, но книга развёрнута (cash 10.0% < 50%) — офис "
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-11
 finding_key: "gap:posture_vs_book"

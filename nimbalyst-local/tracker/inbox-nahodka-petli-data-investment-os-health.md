@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Находка петли: data/investment_os/_health.json: последний ресит старше SLO 14ч — потр"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-12
 finding_key: "B3:consumption_stale:data/investment_os/_health.json"
