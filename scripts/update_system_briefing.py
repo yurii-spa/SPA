@@ -37,6 +37,15 @@ OUTPUT = os.path.join(DOCS_DIR, "SYSTEM_BRIEFING.md")
 # anything materially past one extra 30-min briefing tick is suspect.
 AGENT_SNAPSHOT_STALE_MIN = 35
 
+# data/cycle_health.json is written by com.spa.cycle_health every 300 s. The
+# briefing CONSUMES its evidence-vs-curve number (see build_track_integrity_section);
+# it must NOT re-derive the comparison itself — a second implementation of "do the
+# two money records agree?" would be a second answer to the same question, and the
+# rule from cycle #146 onwards is one question → one source. A snapshot older than
+# this means the 5-minute producer has missed ~6 runs, so its numbers describe a
+# past the briefing must not present as the present.
+TRACK_SNAPSHOT_STALE_MIN = 30
+
 # Hard fallback list mirroring agent_health_monitor.RETIRED_LABELS, used ONLY if
 # that module cannot be imported (e.g. a stripped sandbox). The live import below
 # is the source of truth; this keeps the briefing honest about retired agents
@@ -422,6 +431,132 @@ def build_system_health_section() -> str:
     return "\n".join(lines) + "\n"
 
 
+def track_integrity_state(d: dict, *, now: datetime | None = None) -> dict:
+    """Classify the evidence-vs-curve number from a ``data/cycle_health.json`` snapshot.
+
+    ``cycle_health_monitor.check_evidence_matches_curve`` answers a question no
+    other guard asks: do the two records of the SAME money — ``paper_evidence.json``
+    (what the go-live checks read) and ``equity_curve_daily.json`` (the curve) —
+    say the same number? Measured 2026-08-12: **18 of 54 dates disagree, worst
+    $215.99, latest one today** — and 16 of 51 three days earlier, so the defect
+    (own-32, two writers of the curve) is live and growing.
+
+    That number had no reader. It was written into monitor state every 300 s and
+    consumed by nothing but its own unit tests — the exact class the card that
+    produced it warned against ("иначе повторим дефект правила честности, где
+    вывод записывался, но никем не читался"). This function is the reader; the
+    briefing is the one file CLAUDE.md obliges every session to open.
+
+    Returns ``{"state": …, …}`` where state is one of:
+
+      * ``missing``   — no snapshot at all
+      * ``no_check``  — snapshot present but has no ``evidence_vs_curve`` key.
+        This is NOT the same as "agrees": prod running a pre-2026-08-10 monitor
+        produces exactly this shape, and omitting the line would let an absent
+        check read as a clean one.
+      * ``unchecked`` — the monitor itself could not compare (files absent, no
+        common dates); its ``detail`` is carried through verbatim
+      * ``stale``     — numbers are real but older than TRACK_SNAPSHOT_STALE_MIN
+      * ``fresh``     — measured, recent, usable
+
+    ``now`` is an input, not the environment, so tests pin both sides of the
+    freshness question (rule `.claude/rules/deployment.md`, "время — вход").
+    """
+    if not d:
+        return {"state": "missing", "detail": "data/cycle_health.json отсутствует или не читается"}
+
+    checks = d.get("checks")
+    if not isinstance(checks, dict) or "evidence_vs_curve" not in checks:
+        return {"state": "no_check",
+                "detail": "в снимке нет проверки evidence_vs_curve — монитор старой версии"}
+
+    chk = checks.get("evidence_vs_curve") or {}
+    age_min = _age_minutes(d.get("checked_at", ""))
+    out = {
+        "divergent_days": chk.get("divergent_days"),
+        "compared_days": chk.get("compared_days"),
+        "max_delta_usd": chk.get("max_delta_usd"),
+        "latest_divergent": chk.get("latest_divergent"),
+        "detail": str(chk.get("detail") or ""),
+        "age_min": age_min,
+    }
+
+    if chk.get("status") == "UNCHECKED" or out["divergent_days"] is None:
+        out["state"] = "unchecked"
+        out["detail"] = out["detail"] or "монитор не смог сравнить записи"
+        return out
+
+    # Unparseable/absent checked_at cannot prove freshness → stale, never fresh.
+    if age_min is None or age_min > TRACK_SNAPSHOT_STALE_MIN:
+        out["state"] = "stale"
+        return out
+
+    out["state"] = "fresh"
+    ref = (now or datetime.now(timezone.utc)).strftime("%Y-%m-%d")
+    out["live_today"] = bool(out["latest_divergent"]) and str(out["latest_divergent"]) == ref
+    return out
+
+
+def track_integrity_cell(st: dict) -> str:
+    """One-line at-a-glance cell. Never claims agreement it did not measure."""
+    state = st.get("state")
+    if state in ("missing", "no_check"):
+        return f"❓ НЕ ИЗМЕРЕНО — {st.get('detail', '')}"
+    if state == "unchecked":
+        return f"❓ НЕ ИЗМЕРЕНО — {st.get('detail', '')}"
+
+    div, cmp_ = st.get("divergent_days"), st.get("compared_days")
+    if state == "stale":
+        age = st.get("age_min")
+        age_txt = f"{age:.0f}m" if age is not None else "unknown age"
+        return (f"⚠️ СНИМОК ПРОТУХ ({age_txt} > {TRACK_SNAPSHOT_STALE_MIN}m) — "
+                f"last-known {div}/{cmp_} дат расходятся")
+    if not div:
+        return f"✅ доказательная база = кривая ({cmp_} дат сходятся)"
+    worst = st.get("max_delta_usd")
+    worst_txt = f", максимум ${worst:,.2f}" if isinstance(worst, (int, float)) else ""
+    live = "  ·  🔴 ЖИВОЕ (разошёлся и сегодняшний день)" if st.get("live_today") else ""
+    return f"⚠️ {div}/{cmp_} дат расходятся{worst_txt}{live}"
+
+
+def build_track_integrity_section() -> str:
+    """Do the two records of the same money agree? (own-32)
+
+    Renders the monitor's numbers — it does not recompute them. The section
+    exists so the count cannot keep growing unread: between 2026-08-09 and
+    2026-08-12 it went 16 → 18 with nobody looking.
+    """
+    st = track_integrity_state(read_json("cycle_health.json"))
+    state = st.get("state")
+    lines = ["## 🧾 Track integrity (доказательная база vs кривая)",
+             track_integrity_cell(st)]
+
+    if state in ("missing", "no_check", "unchecked"):
+        lines.append(
+            "\n_Источник — `data/cycle_health.json` → `checks.evidence_vs_curve` "
+            "(пишет `com.spa.cycle_health`, каждые 300 с). Пустая строка здесь означала бы "
+            "«сходится», поэтому её тут нет._")
+        return "\n".join(lines) + "\n"
+
+    div = st.get("divergent_days")
+    if div:
+        lines.append("")
+        lines.append(f"- расходящихся дат: **{div}** из {st.get('compared_days')}")
+        worst = st.get("max_delta_usd")
+        if isinstance(worst, (int, float)):
+            lines.append(f"- худшее расхождение: **${worst:,.2f}**")
+        if st.get("latest_divergent"):
+            lines.append(f"- последняя расходящаяся дата: **{st['latest_divergent']}**")
+        lines.append(
+            "- механизм — `own-32`: кривую пишут ДВА пути, и в день остановки они берут "
+            "«вчера» из разных источников. Починка — money-path, ждёт владельца.")
+    if state == "stale":
+        lines.append(
+            "- ⚠️ числа выше — ПОСЛЕДНИЕ ИЗВЕСТНЫЕ, а не текущие: снимок протух "
+            "(проверь `com.spa.cycle_health`).")
+    return "\n".join(lines) + "\n"
+
+
 def build_resilience_section() -> str:
     """Resilience posture — mirrors the T1 snapshot-age / fail-honest style.
 
@@ -598,6 +733,11 @@ def main() -> None:
         n_notes = len(resil.get("notes", []))
         resil_cell = f"{r_icon} {r_overall}" + (f" ({n_notes} note{'s' if n_notes != 1 else ''})" if n_notes else "")
 
+    # Track-integrity header cell — same snapshot the detailed section renders, so
+    # the two surfaces cannot disagree (the failure mode of #197: a guard narrower
+    # than its ward is its echo, and two surfaces with two sources are worse still).
+    track_cell = track_integrity_cell(track_integrity_state(read_json("cycle_health.json")))
+
     golive_icon = "✅" if golive_ready else "⛔"
     if agent_state == "missing":
         agent_icon = "❓"
@@ -624,6 +764,7 @@ def main() -> None:
 | Agents | {agent_cell} |
 | Portfolio | ${eq_end:,.2f} ({eq_ret:+.2f}% over {eq_days}d evidenced) |
 | Track days (evidenced) | {eq_days}/30 (anchor {track_anchor}) |
+| Track integrity | {track_cell} |
 | Go-live target | {golive_target} (30 honest track days) |
 | Resilience (DR) | {resil_cell} |
 | Sprint | see KANBAN section |
@@ -636,6 +777,7 @@ def main() -> None:
         build_agents_section() + "\n",
         build_launchd_section() + "\n",
         build_portfolio_section() + "\n",
+        build_track_integrity_section() + "\n",
         build_system_health_section() + "\n",
         build_resilience_section() + "\n",
         build_sprint_section() + "\n",
