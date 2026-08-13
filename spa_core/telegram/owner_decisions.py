@@ -794,6 +794,32 @@ def materialize_card(card_path: Path,
         return card_path
 
 
+def prepare_push(
+    card_path: str | Path,
+    title: str,
+    body: str,
+    *,
+    now: Optional[datetime] = None,
+    beacon_path: Optional[str | Path] = None,
+) -> Prepared:
+    """То же сообщение, что уйдёт владельцу, но БЕЗ единой записи в живое состояние.
+
+    Пара к :func:`register_push` и причина её существования: сухому прогону
+    (``notify … --check``, тесты) нужен ровно текст, а регистрация ему не нужна —
+    нажимать нечего, сообщение не ушло. До цикла #216 такой пары не было, поэтому
+    ``--check`` шёл через ``register_push`` и оставлял в живом реестре решений
+    владельца запись о карточке, которую никто не отправлял (замер #183: запись про
+    карточку песочницы `/tmp/c183_probe/…`, которой больше не существует).
+
+    Знание «как собрать сообщение ПО КАРТОЧКЕ» (``pid`` из имени файла, ``card_name``
+    из него же) живёт здесь в одном экземпляре — иначе два вызова разошлись бы, и
+    сухой прогон начал бы показывать не то, что уедет по-настоящему.
+    """
+    p = Path(card_path)
+    return prepare(title, body, p.stem, card_name=p.name, now=now,
+                   beacon_path=beacon_path)
+
+
 def register_push(
     card_path: str | Path,
     title: str,
@@ -810,10 +836,13 @@ def register_push(
     предлагалось: ``callback_data`` несёт только номер варианта, а текст варианта обязан
     попасть в карточку дословно. По той же причине в журнал уходит путь к карточке в
     ЖИВОМ дереве (см. :func:`materialize_card`): нажимать будет бот, а не мы.
+
+    **Функция ПИШЕТ в живое состояние** (журнал + копия карточки в живой трекер) —
+    звать её можно только тогда, когда сообщение действительно уходит. Сухому прогону
+    предназначена :func:`prepare_push`.
     """
     p = Path(card_path)
-    prep = prepare(title, body, p.stem, card_name=p.name, now=now,
-                   beacon_path=beacon_path)
+    prep = prepare_push(card_path, title, body, now=now, beacon_path=beacon_path)
     dt = now or datetime.now(timezone.utc)
     path_obj = _state_path(state_path)
     doc = _load(path_obj)

@@ -62,7 +62,17 @@ def notify_needs_owner(path: str | Path, *, dry_run: bool = False) -> str:
     try:
         from spa_core.telegram import owner_decisions
 
-        prep = owner_decisions.register_push(card.path, card.title or card.id, card.body)
+        # Сухой прогон НЕ регистрирует. Регистрация нужна кнопке (в момент нажатия надо
+        # знать, что предлагалось), а при `--check` нажимать нечего: сообщение не ушло.
+        # До #216 порядок был обратный — `register_push` стоял ДО `if dry_run`, и сухой
+        # прогон оставлял в живом `data/telegram_owner_decisions.json` запись о карточке,
+        # которую никто не отправлял (замер #183, дважды). Тот же класс, что «прогон
+        # тестов ЗАГЛУШИЛ живой чат» (#180): сухая проверка меняет живое состояние.
+        # ТЕКСТ при этом обязан остаться тем же самым — иначе сухой прогон показывал бы
+        # не то, что уедет; за это отвечает общий `prepare_push`.
+        prep = (owner_decisions.prepare_push(card.path, card.title or card.id, card.body)
+                if dry_run else
+                owner_decisions.register_push(card.path, card.title or card.id, card.body))
         # Берём подготовленный текст ВСЕГДА, а не только когда есть варианты.
         # Раньше при пустом списке уходил старый служебный вид — и многовыборная карточка
         # («можно взять несколько», вариантов намеренно ноль) теряла ЧЕСТНОЕ объяснение
