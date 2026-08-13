@@ -215,7 +215,13 @@ if [ "$1" = "-f" ]; then
   done
   exit $rc
 fi
-if [ "$1" = "-c" ] && [ "$2" = "%Y" ]; then exec /usr/bin/stat -f %m "$3"; fi
+if [ "$1" = "-c" ] && [ "$2" = "%Y" ]; then
+  # Настоящий mtime — обеими формами: заглушка обязана работать И на Маке, И на
+  # ubuntu-раннере. Первая редакция звала здесь только BSD-форму, и тест честно
+  # покраснел в CI (`троттлинг мёртв`): на Linux /usr/bin/stat — это GNU.
+  /usr/bin/stat -c %Y "$3" 2>/dev/null || /usr/bin/stat -f %m "$3"
+  exit $?
+fi
 exec /usr/bin/stat "$@"
 """
 
