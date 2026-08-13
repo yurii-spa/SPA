@@ -88,6 +88,46 @@ def _norm(p) -> str:
     return str(p or "").strip().lower()
 
 
+def registry_protocol_keys() -> set[str] | None:
+    """ИМЕНА протоколов из реестра адаптеров — либо `None` (не измерено), но НИКОГДА мусор.
+
+    Авария #206: здесь стояло `{_norm(k) for k in ADAPTER_REGISTRY}`, а
+    `spa_core.adapters.ADAPTER_REGISTRY` — это список КОРТЕЖЕЙ `(имя, тир, класс)`.
+    `_norm` превращал в строку весь кортеж целиком, и множество наполнялось ключами вида
+    `("moonwell_base", "t2", <class ...>)`. Ни одно имя протокола не совпадало с таким
+    ключом НИКОГДА ⇒ обе ветки классификации возможности были мертвы, а офис
+    систематически докладывал принимающему решение, что достижимые возможности
+    недостижимы: `moonwell_base` 8.33 % и `fluid_fusdc` 4.85 % объявлялись «вне реестра
+    адаптеров — входа технически нет», хотя адаптеры у обоих ЕСТЬ.
+
+    Форма реестра НЕ фиксирована по построению: под именем `ADAPTER_REGISTRY` в репо живут
+    два разных объекта — список кортежей (`spa_core.adapters`, 36 записей, ключи `aave_v3`)
+    и dict метаданных (`spa_core.adapters.registry`, 22 записи, ключи `aave_usdc`).
+    Поэтому читаем форму, а не предполагаем её; тот же приём, что в
+    `governance_watcher.whitelisted_protocol_keys`.
+
+    Fail-CLOSED: нечитаемый ИЛИ пустой результат ⇒ `None` = «не измерено» (ветка
+    `opportunity_unclassified`). Пустое множество вернуть нельзя — оно означало бы
+    «ни у одного протокола нет адаптера», то есть ту же ложь, только тише.
+    """
+    try:
+        from spa_core.adapters import ADAPTER_REGISTRY
+    except Exception:
+        return None
+    try:
+        entries = ADAPTER_REGISTRY.keys() if isinstance(ADAPTER_REGISTRY, dict) else ADAPTER_REGISTRY
+        keys: set[str] = set()
+        for entry in entries:
+            if isinstance(entry, str):
+                keys.add(_norm(entry))
+            elif isinstance(entry, (tuple, list)) and entry:
+                keys.add(_norm(entry[0]))
+        keys.discard("")
+        return keys or None
+    except Exception:
+        return None
+
+
 def compute_gaps(chief: dict | None,
                  positions: dict | None,
                  rationale: dict | None,
@@ -203,11 +243,7 @@ def run(root: str = REPO_ROOT, now: dt.datetime | None = None,
     chief = _load("data/investment_os/chief_investment.json", root)
     positions = _load("data/current_positions.json", root)
     rationale = _load("data/allocation_rationale.json", root)
-    try:
-        from spa_core.adapters import ADAPTER_REGISTRY
-        registry_keys = {_norm(k) for k in ADAPTER_REGISTRY}
-    except Exception:
-        registry_keys = None
+    registry_keys = registry_protocol_keys()
     analysts = {}
     io_dir = os.path.join(root, "data", "investment_os")
     if os.path.isdir(io_dir):
