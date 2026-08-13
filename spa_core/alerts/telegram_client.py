@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import subprocess
 import tempfile
 import time
@@ -53,6 +54,32 @@ MAX_MSGS_PER_MIN = 12
 #: Сколько символов текста кладём в историю как «превью». ОДНА константа на модуль:
 #: по ней же сравнивается повтор, и разъедься они — дедуп молча перестал бы срабатывать.
 _PREVIEW_LEN = 80
+
+#: Хвостовая строка `<i>2026-08-13T13:31:35.522152+00:00</i>`, которую `push_policy`
+#: приписывает КАЖДОМУ сообщению (`_format_message`). Для дедупа она — шум.
+_TRAILING_STAMP = re.compile(
+    r"\s*<i>\s*\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:[+-]\d\d:\d\d|Z)?\s*</i>\s*$"
+)
+
+
+def _dedup_preview(text: str) -> str:
+    """Ключ повтора: тот же текст, но БЕЗ нашей же отметки времени в хвосте.
+
+    Замер 13.08 — почему дедуп не срабатывал НИ РАЗУ на коротких тревогах. Сравнивались
+    первые 80 символов ГОТОВОГО сообщения, а `push_policy._format_message` дописывает в
+    конец `<i>{now}</i>` с точностью до микросекунд. У короткой тревоги эта отметка
+    попадает ВНУТРЬ восьмидесяти символов, поэтому два побуквенно одинаковых сообщения
+    давали РАЗНЫЕ ключи и совпасть не могли в принципе:
+
+        '✅ <b>Телеграм-бот снова работает</b>\\n\\n<i>2026-08-12T11:12:11.424298+00:00</i>'
+        '✅ <b>Телеграм-бот снова работает</b>\\n\\n<i>2026-08-13T04:11:06.923583+00:00</i>'
+
+    Окно в полчаса при этом честно существовало и honest-но не ловило ничего — сторож
+    отвечал на свой вопрос, а не на нужный. Снимаем ТОЛЬКО собственный штамп в хвосте:
+    любая содержательная разница (другая цифра, другой агент, эскалация) остаётся в ключе
+    и проходит немедленно, как и обещает докстринг `_duplicate_recently`.
+    """
+    return _TRAILING_STAMP.sub("", text or "")[:_PREVIEW_LEN]
 
 # ── Alert history (append-only audit trail) ──────────────────────────────────
 # Every send outcome is recorded here for observability: {ts, type, ok, message_id|error}.
@@ -102,6 +129,9 @@ def _record_history(text: str, ok: bool, message_id=None, error: str | None = No
             "type": _classify(text),
             "ok": bool(ok),
             "preview": (text or "")[:_PREVIEW_LEN],
+            # Ключ повтора хранится ОТДЕЛЬНО от превью: превью — для человека, который
+            # разбирает «кто это шлёт», и урезать его до неузнаваемости нельзя.
+            "dkey": _dedup_preview(text),
         }
         if solicited:
             entry["solicited"] = True
@@ -247,8 +277,12 @@ def _duplicate_recently(text: str) -> bool:
         # Поэтому отбор — сначала по признаку (успешные и НЕ солиситированные), и только
         # потом срез: болтовня бота больше не вымывает пуши из поля зрения.
         candidates = [r for r in entries if r.get("ok") and not r.get("solicited")]
+        key = _dedup_preview(text)
         for rec in reversed(candidates[-60:]):
-            if (rec.get("preview") or "") != (text or "")[:_PREVIEW_LEN]:
+            # У записей ДО этой правки поля `dkey` нет — сравниваем с сырым превью.
+            # Не совпадёт (в нём остался штамп) ⇒ отправим: сомнение → False, как и
+            # обещает докстринг. Через полчаса история обновится и дедуп заработает.
+            if (rec.get("dkey") or rec.get("preview") or "") != key:
                 continue
             try:
                 ts = datetime.fromisoformat(str(rec.get("ts")))
