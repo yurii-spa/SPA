@@ -287,13 +287,136 @@ def _humanize_body(msg):
         return msg
 
 
+#: Хвост, который дописывается к тревоге, когда отправка идёт МИМО журнала канала.
+#: Владелец обязан видеть это в самом сообщении: иначе следующий разбор «кто это шлёт»
+#: снова упрётся в пустую историю и потратит круг (08–09.08 потрачено два).
+OFF_JOURNAL_NOTE = ("\n⚠️ отправлено из CI мимо журнала канала "
+                    "(живого дерева нет — эта отправка в истории не сохранится)")
+
+
+def _live_journal():
+    """Канонический заслон+журнал (`telegram_client`) — или ``(None, причина)``.
+
+    Почему проверка идёт по ЖИВОМУ ДЕРЕВУ, а не по импортируемости модуля
+    ------------------------------------------------------------------------------
+    Модуль в CI загрузить можно (репозиторий выкачан), но `alert_history.json` и файл
+    лимита потока он разрешает через `live_data_dir` — то есть в `data/` того дерева,
+    из которого запущен. В GitHub Actions это каталог раннера: запись туда умирает
+    вместе с job'ом. Это был бы не журнал, а его ИМИТАЦИЯ — ровно тот класс, который
+    проект закрывает годами («сторож честно отвечает на свой вопрос, а читают его как
+    ответ на нужный»). Поэтому: нет живого дерева ⇒ журнала нет, и мы говорим это
+    вслух, а не делаем вид.
+
+    sys.path НЕ трогаем (см. `_humanize_body`): загрузка идёт по пути к файлу, а его
+    единственная пакетная зависимость (`spa_core.utils.live_paths`, чистый stdlib)
+    подкладывается в `sys.modules` вручную. Достижимым становится РОВНО один модуль —
+    канал доставки тревоги не меняется.
+    """
+    import os
+    # Порядок разрешения — тот же, что в `spa_core/utils/live_paths.py`. Проверяем именно
+    # СУЩЕСТВОВАНИЕ каталога, а не наличие переменной: `live_data_dir` вернёт указанный
+    # путь как есть, а `_record_history` создаёт каталоги — то есть при указателе в пустоту
+    # журнал был бы «создан» на пустом месте и опять оказался бы имитацией.
+    sandbox = os.environ.get("SPA_DATA_DIR")
+    explicit_root = os.environ.get("SPA_LIVE_ROOT")
+    if sandbox:
+        live = Path(sandbox).is_dir()
+    elif explicit_root:
+        live = Path(explicit_root).is_dir()
+    else:
+        live = (Path.home() / "Documents" / "SPA_Claude").is_dir()
+    if not live:
+        return None, "live_tree_absent"
+    try:  # обычный путь: корень репозитория уже на sys.path (Мак, тесты)
+        from spa_core.alerts import telegram_client
+        return telegram_client, ""
+    except Exception:  # noqa: BLE001 — ниже загрузка по файлу
+        pass
+    try:
+        import importlib.machinery
+        import importlib.util
+        import types
+
+        def _stub_pkg(name: str, directory: Path) -> None:
+            """Пакет-заглушка с НАСТОЯЩИМ ``__path__``.
+
+            Без ``__path__``/``__spec__`` заглушка ломала бы обычный
+            ``import spa_core.<что-угодно>`` дальше в этом же процессе (а `_humanize_body`
+            им и пользуется) и роняла бы ``importlib.util.find_spec``. Поэтому пакет
+            остаётся полноценным: машинерия импорта продолжит искать подмодули на диске.
+            """
+            if name in sys.modules:
+                return
+            mod = types.ModuleType(name)
+            mod.__path__ = [str(directory)]  # type: ignore[attr-defined]
+            mod.__spec__ = importlib.machinery.ModuleSpec(
+                name, None, is_package=True)
+            mod.__spec__.submodule_search_locations = [str(directory)]  # type: ignore[union-attr]
+            sys.modules[name] = mod
+
+        def _by_path(name, path):
+            spec = importlib.util.spec_from_file_location(name, path)
+            if spec is None or spec.loader is None:
+                raise ImportError(name)
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules[name] = mod
+            spec.loader.exec_module(mod)
+            return mod
+
+        _stub_pkg("spa_core", _ROOT / "spa_core")
+        _stub_pkg("spa_core.utils", _ROOT / "spa_core" / "utils")
+        _stub_pkg("spa_core.alerts", _ROOT / "spa_core" / "alerts")
+        if "spa_core.utils.live_paths" not in sys.modules:
+            _by_path("spa_core.utils.live_paths", _ROOT / "spa_core" / "utils" / "live_paths.py")
+        if "spa_core.alerts.telegram_client" not in sys.modules:
+            _by_path("spa_core.alerts.telegram_client",
+                     _ROOT / "spa_core" / "alerts" / "telegram_client.py")
+        return sys.modules["spa_core.alerts.telegram_client"], ""
+    except Exception as exc:  # noqa: BLE001 — доставка тревоги важнее наблюдения
+        return None, f"client_unavailable: {type(exc).__name__}"
+
+
 def _alert(report):
-    """Alert via SPA's Telegram channel (token from Keychain — never in code). Best-effort."""
+    """Тревога Site Custodian владельцу — через ЕДИНСТВЕННЫЙ заслон канала.
+
+    Что здесь изменено 13.08 (цикл #218) и почему
+    ------------------------------------------------------------------------------
+    Эта дверь была третьей и последней, которая шла в чат владельца сырым POST: ни
+    лимита потока, ни дедупа, ни записи в историю. Запускается она из GitHub Actions
+    каждые 6 часов боевыми секретами — то есть её сообщения не попадали в
+    `alert_history.json` НИКОГДА, и вопрос владельца «кто это шлёт» был неотвечаем по
+    построению (13.08, дословно: «параллельная история, которую ты не видишь»).
+
+    Отдельно снят `telegram_manager.send(...)`, стоявший первой ступенью: менеджер
+    ВЫВЕДЕН ИЗ СТРОЯ (`_send_raw` кладёт текст в дайджест и ВСЕГДА возвращает False),
+    поэтому управление всегда проваливалось в сырой POST ниже — подавление там
+    выглядело существующим и не работало ни разу, а на Маке владелец получал ещё и
+    копию в дайджесте. Тот же класс, что и починенный 13.08 ключ дедупа.
+
+    Порядок теперь: спросить заслон (он же и запишет отказ) → доставить → записать
+    исход. Доставка НЕ ослаблена: лестница «env-секреты → Keychain → сырой POST»
+    осталась ровно та же, а когда заслон недоступен, сообщение всё равно уходит —
+    молчащая тревога хуже неучтённой. Возвращает словарь исхода (он же уезжает в
+    отчёт, а тот — в артефакт CI).
+    """
     if report.get("ok"):
-        return
-    lines = [f"🛡️ SITE CUSTODIAN — {report['n_fails']} FAIL(s) @ {report['ts']}"]
-    for f in report["fails"][:8]:
-        lines.append(f"  [{f['severity']}] {f['code']}: {f['detail']}")
+        return {"attempted": False, "reason": "report_ok"}
+    # Форма отчёта у двух звонящих РАЗНАЯ, и вторая никогда не доезжала (замер #218).
+    # `_deploy_snapshot` зовёт нас со словарём `{"severity", "failures"}`, а тело читало
+    # `report['n_fails']` и `report['fails']` ⇒ KeyError, который call-site глотал бы
+    # `except Exception: pass`. То есть тревога «табличка честности НЕ уехала на сайт»
+    # (публично видно завышенное число) не уходила владельцу НИ РАЗУ.
+    # Тест 09.08 этого не видел: он подменял сам `_alert` и проверял, что его ПОЗВАЛИ, —
+    # тот же класс «сторож отвечает не на тот вопрос», только уровнем ниже.
+    fails = report.get("fails")
+    if not isinstance(fails, list):
+        fails = report.get("failures") or []
+    n_fails = report.get("n_fails", len(fails))
+    ts = report.get("ts") or datetime.datetime.now(datetime.timezone.utc).isoformat()
+    lines = [f"🛡️ SITE CUSTODIAN — {n_fails} FAIL(s) @ {ts}"]
+    for f in fails[:8]:
+        lines.append(f"  [{f.get('severity', report.get('severity', 'FAIL'))}] "
+                     f"{f.get('code', '?')}: {f.get('detail', '')}")
     if report.get("degrade_triggered"):
         lines.append(f"  ⛔ KILL-RULE: site set to DEGRADED ({report['degrade_reason']})")
     msg = "\n".join(lines)
@@ -302,16 +425,21 @@ def _alert(report):
     # detail сохраняется, сбой перевода отдаёт исходный текст (алерт обязан дойти).
     # Загрузчик — `_humanize_body`: в CI пакета `spa_core` нет на sys.path (см. там).
     msg = _humanize_body(msg)
-    # 1. SPA telegram_manager (dedup/cooldown-aware). Only treat as delivered if it RETURNS truthy —
-    #    it returns False (not raises) when its cooldown/creds gate suppresses the send.
-    try:
-        from spa_core.alerts import telegram_manager
-        if telegram_manager.send(msg, title="🛡️ Site Custodian", category="site_custodian"):
-            return
-    except Exception:
-        pass
-    # 2. Raw Telegram API — reliable fallback (telegram_manager can silently suppress). Creds from env
-    #    (CI secrets) or macOS Keychain (Mac). Never hardcoded.
+
+    # 1. ЕДИНСТВЕННЫЙ заслон канала: лимит потока + дедуп. Отказ он пишет в историю САМ —
+    #    «подавлено» и «канал сломан» не имеют права выглядеть одинаково.
+    client, why = _live_journal()
+    if client is None:
+        # Журнала нет — говорим об этом ВСЛУХ, в самом сообщении и в отчёте.
+        msg += OFF_JOURNAL_NOTE
+        print(f"site_freshness_monitor: отправка МИМО журнала канала ({why})", file=sys.stderr)
+    else:
+        reason = client.guard_outbound(msg)
+        if reason is not None:
+            print(f"site_freshness_monitor: тревога подавлена заслоном ({reason})", file=sys.stderr)
+            return {"attempted": False, "journaled": True, "reason": reason}
+
+    # 2. Доставка. Секреты — из env (CI) или Keychain (Мак). Никогда не в коде.
     import os
     tok = os.environ.get("TELEGRAM_BOT_TOKEN_SPA")
     chat = os.environ.get("TELEGRAM_CHAT_ID_SPA")
@@ -323,17 +451,41 @@ def _alert(report):
                                           capture_output=True, text=True, timeout=5).stdout.strip()
         except Exception:
             pass
+
+    def _journal(ok, message_id=None, error=None):
+        """Записать исход в общий журнал канала. Наблюдение не роняет доставку."""
+        if client is None:
+            return False
+        try:
+            client._record_history(msg, ok=ok, message_id=message_id, error=error)
+            return True
+        except Exception:  # noqa: BLE001
+            return False
+
     if tok and chat:
         try:
             data = json.dumps({"chat_id": chat, "text": msg}).encode()
             req = urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage",
                                          data=data, headers={"Content-Type": "application/json"})
-            urllib.request.urlopen(req, timeout=15)
-            return
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                message_id = None
+                try:
+                    message_id = (json.loads(resp.read().decode()).get("result") or {}).get("message_id")
+                except Exception:  # noqa: BLE001 — разбор тела best-effort
+                    pass
+            journaled = _journal(True, message_id=message_id)
+            return {"attempted": True, "sent": True, "journaled": journaled,
+                    "message_id": message_id, "off_journal_note": client is None}
         except Exception as e:
             print(f"site_freshness_monitor: raw telegram alert failed ({e})", file=sys.stderr)
+            _journal(False, error=str(e))
+            return {"attempted": True, "sent": False, "journaled": client is not None,
+                    "error": str(e)[:200]}
     print("site_freshness_monitor: no alert channel available; report written (CI failure = the alert)",
           file=sys.stderr)
+    _journal(False, error="no_alert_channel")
+    return {"attempted": True, "sent": False, "journaled": client is not None,
+            "error": "no_alert_channel"}
 
 
 def _deploy_snapshot(message: str, what: str) -> bool:
@@ -445,7 +597,10 @@ def run():
     _atomic_write(_REPORT, report)
     print(json.dumps({k: report[k] for k in ("ok", "n_fails", "degrade_triggered", "snapshot_age_h")}, indent=2))
     if not report["ok"]:
-        _alert(report)
+        # Исход доставки — В ОТЧЁТ: из CI живого журнала канала не видно, а отчёт
+        # уезжает артефактом job'а. Иначе следы отправки не остаётся вообще нигде.
+        report["alert_delivery"] = _alert(report)
+        _atomic_write(_REPORT, report)
     if report["degrade_triggered"]:
         _apply_degrade()
     elif snapshot.get("degraded") is True:

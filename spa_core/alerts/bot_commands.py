@@ -112,20 +112,31 @@ def _atomic_write_json(path: Path, obj) -> None:
 def _api_post(token: str, method: str, payload: dict) -> dict:
     """POST to Telegram Bot API. Returns parsed JSON. Raises on network/HTTP error.
 
-    FLOOD GUARD: chat-bound ``sendMessage`` calls are routed through the canonical
-    shared cross-process rate limit (spa_core.alerts.telegram_client._rate_limit_ok)
-    so this legacy callback bot can never flood the chat (e.g. a runaway /start or
-    callback loop). Control calls (getUpdates/answerCallbackQuery) are not limited.
-    Excess sends are DROPPED + logged; the caller sees an ``{"ok": False}`` stub
-    instead of an exception (matches the fail-safe contract of the call sites).
+    ОБЩИЙ ЗАСЛОН (цикл #218). Раньше эта дверь брала у заслона РОВНО ПОЛОВИНУ —
+    лимит потока (``_rate_limit_ok``) и ничего больше: ни записи в журнал канала, ни
+    даже отметки о том, что сообщение подавлено. Докстринг ``guard_outbound`` про эту
+    половину и написан: «третий отправитель унаследует проверку целиком или не получит
+    ничего». Теперь ``sendMessage`` идёт через ``guard_outbound`` — он же сам пишет в
+    историю причину отказа, — а исход успешной отправки записывается ниже.
+
+    ``dedup=False``: все ``sendMessage`` этого модуля — ОТВЕТЫ на нажатие кнопки или
+    команду владельца (``_send_with_keyboard`` из обработчика callback/message).
+    Солиситированное не глушим: нажал дважды — ответить обязаны дважды. В журнале
+    такая запись помечается ``solicited`` и повтором не считается.
+
+    Control calls (getUpdates/answerCallbackQuery) are not guarded. Excess sends are
+    DROPPED + logged; the caller sees an ``{"ok": False}`` stub instead of an exception
+    (matches the fail-safe contract of the call sites).
     """
+    text = str(payload.get("text", ""))
     if method == "sendMessage":
         try:
-            from spa_core.alerts.telegram_client import _rate_limit_ok
-            if not _rate_limit_ok(str(payload.get("text", ""))):
-                log.warning("bot_commands send dropped by flood guard. preview=%r",
-                            str(payload.get("text", ""))[:80])
-                return {"ok": False, "dropped_by_flood_guard": True}
+            from spa_core.alerts.telegram_client import guard_outbound
+            reason = guard_outbound(text, dedup=False)
+            if reason is not None:
+                log.warning("bot_commands send dropped by guard (%s). preview=%r",
+                            reason, text[:80])
+                return {"ok": False, "dropped_by_guard": reason}
         except Exception:
             pass  # guard import/error must never block a legitimate send (fail-open)
     url = f"https://api.telegram.org/bot{token}/{method}"
@@ -137,7 +148,22 @@ def _api_post(token: str, method: str, payload: dict) -> dict:
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT_S) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+        result = json.loads(resp.read().decode("utf-8"))
+    if method == "sendMessage":
+        # Журнал — часть отправки, а не украшение: пока эта дверь молчала, вопрос
+        # «кто это шлёт владельцу» упирался в пустоту. Наблюдение не роняет отправку.
+        try:
+            from spa_core.alerts.telegram_client import _record_history
+            _record_history(
+                text,
+                ok=bool((result or {}).get("ok")),
+                message_id=((result or {}).get("result") or {}).get("message_id"),
+                error=None if (result or {}).get("ok") else "bot_commands_api_not_ok",
+                solicited=True,
+            )
+        except Exception:  # noqa: BLE001
+            log.debug("bot_commands history record failed", exc_info=True)
+    return result
 
 
 def _api_get(token: str, method: str, params: dict) -> dict:

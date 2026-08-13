@@ -307,15 +307,25 @@ class TelegramBot:
                           parse_mode: str = "HTML") -> Optional[Dict]:
         """editMessageText — drives the single evolving panel (in-place nav).
 
-        Fail-safe + flood-guarded. Telegram no-ops an identical edit, so
-        double-taps are free.
+        Fail-safe + ОБЩИЙ заслон ``guard_outbound``. Telegram no-ops an identical
+        edit, so double-taps are free.
+
+        Замер #218: правка текста — это тоже событие канала, но в журнал она не
+        попадала. Текст в чате владельца МЕНЯЛСЯ без следа, а `send_message`
+        соседней строкой пишет каждую отправку — то есть история канала была
+        заведомо неполной ровно на drill-down'ы (`router.py`), которых у владельца
+        больше всего. Дверь брала у заслона половину — только лимит потока.
+
+        ``dedup=False``: правка панели — прямой ответ на нажатие владельца. Глушить
+        её нельзя: он увидит зависшую панель и справедливо прочтёт это как поломку.
         """
         if not chat_id or message_id in (None, ""):
             return None
         try:
-            from spa_core.alerts.telegram_client import _rate_limit_ok
-            if not _rate_limit_ok(text):
-                log.warning("bot edit dropped by flood guard")
+            from spa_core.alerts.telegram_client import guard_outbound
+            reason = guard_outbound(text, dedup=False)
+            if reason is not None:
+                log.warning("bot edit dropped by guard (%s)", reason)
                 return None
         except Exception:
             pass
@@ -328,7 +338,19 @@ class TelegramBot:
         }
         if reply_markup is not None:
             params["reply_markup"] = json.dumps(reply_markup)
-        return self._api_call("editMessageText", params)
+        result = self._api_call("editMessageText", params)
+        try:
+            from spa_core.alerts.telegram_client import _record_history
+            _record_history(
+                text,
+                ok=bool(result),
+                message_id=message_id,
+                error=None if result else "bot_edit_failed",
+                solicited=True,
+            )
+        except Exception:  # noqa: BLE001 — наблюдение не имеет права уронить правку
+            log.debug("bot edit history record failed", exc_info=True)
+        return result
 
     # ── Offset persistence ────────────────────────────────────────────────
 
