@@ -3,7 +3,7 @@
   "generator": "scripts/generate_track_snapshot.py",
   "note": "Build-time static fallback for the public pages. Live values come from api.earn-defi.com and override these client-side; this is the last honest snapshot for offline / crawlers. real_track_days = EVIDENCED bars only. Missing value => 'data unavailable', never a stale number.",
   "as_of": "2026-08-13",
-  "generated_at": "2026-08-13T03:40:25Z",
+  "generated_at": "2026-08-13T05:14:37Z",
   "degraded": true,
   "real_track_days": 51,
   "go_live_target": "2026-07-21",
@@ -18,7 +18,7 @@
   "total_return_pct": 0.8674,
   "packages": {
     "conservative": {
-      "apy_pct": 4.3,
+      "apy_pct": 5.0,
       "dd_pct": 0.0
     },
     "balanced": {
@@ -2068,12 +2068,12 @@
       "high_equity": 100867.37,
       "low_equity": 100848.33,
       "snapshots": 1,
-      "daily_return_pct": 0.018882,
-      "cumulative_return_pct": 0.867372,
+      "daily_return_pct": 0.018883,
+      "cumulative_return_pct": 0.867374,
       "drawdown_pct": 0.0,
       "equity": 100867.37,
-      "apy_today": 6.8907,
-      "daily_yield_usd": 19.0424,
+      "apy_today": 6.8912,
+      "daily_yield_usd": 19.0437,
       "positions": {
         "pendle": 20000.0,
         "aave_v3": 40000.0,
