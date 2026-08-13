@@ -193,6 +193,7 @@
 - Находка петли: постура офиса CRITICAL, но книга развёрнута (cash 10.0% < 50%) — офис  ·  `inbox-nahodka-petli-postura-ofisa-critical-no.md` · 2026-08-11
 - Нечёткое совпадение отдаёт APY ЧУЖОГО актива: USDC.e ранжирует капитал как USDC — и платит БОЛЬШЕ настоящего  ·  `inbox-nechetkoe-sovpadenie-otdaet-apy-chuzhogo.md` · 2026-08-09
 - Номера ADR сталкиваются: два раза за день, у нумерации нет распределителя  ·  `inbox-nomera-adr-stalkivayutsya-dva-raza-za-de.md` · 2026-08-08
+- новая задача которую нужно решить мне сейчас в telegram пишется спамится одно и…  ·  `inbox-novaya-zadacha-kotoruyu-nuzhno-reshit-mn.md` · 2026-08-13
 - Обход owner-gate по трейлеру Owner-Approved не работал никогда: опечатка в имени аргумента, спрятанная слепым except  ·  `inbox-obhod-owner-gate-po-treileru-owner-appro.md` · 2026-08-07
 - Очередь теряет карточки: читать обе формы frontmatter + сторож (решение владельца 09.08)  ·  `inbox-ochered-teryaet-kartochki-chitat-obe-for.md` · 2026-08-09
 - Осиротевший сторож свежести кода агентов (цикл #177) — 1136 строк лежат в /tmp, не проверены  ·  `inbox-osirotevshii-storozh-svezhesti-koda-agentov.md` · 2026-08-09
@@ -280,7 +281,6 @@
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
 - Находка петли: аналитик red_team: CRITICAL — требует реакции (карточка/решение), не п  ·  `inbox-nahodka-petli-analitik-red-team-critical.md` · 2026-08-10
 - Номер ADR-067 занят ДВУМЯ разными решениями — реестр показывает две строки  ·  `inbox-nomer-adr-067-zanyat-dvumya-raznymi-resh.md` · 2026-08-07
-- новая задача которую нужно решить мне сейчас в telegram пишется спамится одно и…  ·  `inbox-novaya-zadacha-kotoruyu-nuzhno-reshit-mn.md` · 2026-08-13
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08
 - Отказ замка цикла неотличим от аварии: last_exit=2 означает и 'защитил трек', и 'сломался'  ·  `inbox-otkaz-zamka-tsikla-neotlichim-ot-avarii.md` · 2026-08-08
 - Оживить фиды вне Ethereum — путь к снятию остатка кэша (решение владельца 08.08)  ·  `inbox-ozhivit-fidy-vne-ethereum-put-k-snyatiyu.md` · 2026-08-08
