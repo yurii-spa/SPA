@@ -5,8 +5,6 @@ title: Код выхода цикла не отличает штатный от�
 status: done
 source: nimbalyst
 created: 2026-08-13
-claimed_by: cycle-53690
-claimed_at: 2026-08-13T18:02:26Z
 ---
 
 ## Что случилось и почему это важно
