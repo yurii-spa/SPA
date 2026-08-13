@@ -457,8 +457,17 @@ def test_agent_to_dict_shape(tmp_path):
     _touch(logp, 5)
     plist = {"StartInterval": 300, "StandardOutPath": str(logp)}
     d = ahm.check_agent("com.spa.x", plist, True, _lc("com.spa.x"), NOW).to_dict()
+    # НАМЕРЕННОЕ ИЗМЕНЕНИЕ 2026-08-13, цикл #219 (инв. #16, журнал W33): к форме
+    # добавлено поле `note` — ШТАТНЫЙ исход, о котором надо сказать, но который
+    # не является проблемой (дневной цикл: «политика отказала как положено»).
+    # Это РАСШИРЕНИЕ контракта, а не ослабление: равенство множеств сохранено,
+    # ни один ключ не убран, и новое поле закреплено с обеих сторон в
+    # spa_core/tests/test_cycle_exit_taxonomy.py (`test_note_reaches_the_report_file`).
+    # Класть штатный отказ в `issue` было нельзя — он снова стал бы проблемой,
+    # ровно тем, от чего цикл #219 уходит.
     assert set(d.keys()) == {"label", "status", "pid", "last_exit",
-                             "log_age_min", "category", "loaded", "issue"}
+                             "log_age_min", "category", "loaded", "issue", "note"}
+    assert d["note"] == ""  # обычному агенту сказать нечего
 
 
 # ===========================================================================

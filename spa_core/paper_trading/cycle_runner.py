@@ -109,6 +109,11 @@ from spa_core.paper_trading.risk_gate import (  # noqa: F401 — re-exported
     _compliant_target,
     _record_policy_block,
 )
+from spa_core.paper_trading.cycle_exit import (  # noqa: F401 — re-exported
+    EXIT_LOCK_REFUSED as _EXIT_LOCK_REFUSED,
+    describe_exit as _describe_exit,
+    exit_code_for_status as _exit_code_for_status,
+)
 from spa_core.paper_trading.cycle_gates import (  # noqa: F401 — re-exported
     apply_analytics_blocking_gate,
     apply_base_gas_kill_switch,
@@ -2493,7 +2498,14 @@ def _main_inner(argv: list[str] | None = None) -> int:
 
     if args.dry_run:
         print("(dry-run: no files written)")
-    return 0 if result.status == "ok" else 1
+    # Исход цикла — РАЗНЫМИ кодами (цикл #219, карточка
+    # `inbox-kod-vyhoda-tsikla-ne-otlichaet-shtatnyi`). Раньше здесь стояло
+    # `0 if ok else 1`, и штатный отказ политики был снаружи неотличим от
+    # аварии: 13.08 цикл возвращал 1 на каждом прогоне при исправной работе.
+    # Словарь — `cycle_exit`, fail-CLOSED: неизвестный статус = авария.
+    _exit_code = _exit_code_for_status(result.status)
+    print(f"  исход       : exit={_exit_code} — {_describe_exit(_exit_code)}")
+    return _exit_code
 
 
 def _run_smart_modules(data_dir=None, send_telegram: bool = True) -> None:
@@ -2781,7 +2793,10 @@ def main(argv: list[str] | None = None) -> int:
         log.error("ОТКАЗ: цикл уже идёт (замок %s свежий). Два прогона пишут в один трек, "
                   "и победит записавший последним — это не «слегка неточно», это трек, "
                   "которому нельзя верить.", CYCLE_LOCK_FILE)
-        return 2
+        # Значение кода не меняется (2 — с самого появления замка): по нему
+        # считает отказы `cycle_lock_watch.count_refusals`. Здесь — имя вместо
+        # цифры, чтобы словарь исходов был один на весь модуль.
+        return _EXIT_LOCK_REFUSED
     try:
         return _main_inner(argv)
     finally:

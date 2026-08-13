@@ -48,6 +48,15 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 from spa_core.monitoring.agent_registry_refresh import refresh_if_stale
 from spa_core.monitoring.cycle_lock_watch import check_cycle_lock
+# Словарь исходов дневного цикла. Импорт безопасен: `cycle_exit` — чистый
+# stdlib без единой зависимости (пакет `spa_core.paper_trading` пуст), money-path
+# в read-only слой не тянется. Именно поэтому здесь ОДИН источник правды, а не
+# вторая копия констант с parity-тестом, как в `cycle_lock_watch`.
+from spa_core.paper_trading.cycle_exit import (
+    CYCLE_AGENT_LABEL,
+    describe_exit as describe_cycle_exit,
+    is_by_design as cycle_exit_by_design,
+)
 
 log = logging.getLogger("spa.monitoring.agent_health_monitor")
 
@@ -254,6 +263,11 @@ class AgentHealth:
     category: str = CAT_ON_DEMAND
     loaded: bool = False
     issue: str = ""
+    # ШТАТНЫЙ исход, о котором надо сказать, но который НЕ является проблемой
+    # (цикл #219). Отдельное поле, а не `issue`: «политика отказала как положено»
+    # не должно попадать в список проблем — иначе мы вернёмся ровно к тому, от
+    # чего уходим. Пусто ⇒ говорить нечего.
+    note: str = ""
 
     def to_dict(self) -> dict:
         return {
@@ -266,6 +280,7 @@ class AgentHealth:
             "category": self.category,
             "loaded": self.loaded,
             "issue": self.issue,
+            "note": self.note,
         }
 
 
@@ -569,17 +584,42 @@ def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
         and isinstance(health.last_exit, int)
         and health.last_exit < 0
     )
-    if health.last_exit not in (None, 0) and not _clean_signal_restart:
+    # 3a) Дневной цикл сообщает исход РАЗНЫМИ кодами (цикл #219). Одна цифра
+    # `1` означала сразу «политика отказала как положено» и «цикл сломался»:
+    # 13.08 агент висел в WARNING круглые сутки на исправной работе, и настоящая
+    # авария в этом шуме была бы неотличима от нормы. Теперь код читается
+    # словарём `cycle_exit` — ОДИН исход считается штатным (отказ политики), он
+    # называется вслух в `note` и НЕ красит здоровье; все прочие ненулевые коды
+    # краснят как прежде, но своими словами вместо голого `last_exit=N`.
+    # Fail-CLOSED: словарь применяется ТОЛЬКО к метке дневного цикла — у другого
+    # агента тройка означает что угодно, и молчать о ней нельзя.
+    _cycle_exit_meaning = (
+        describe_cycle_exit(health.last_exit)
+        if label == CYCLE_AGENT_LABEL and isinstance(health.last_exit, int)
+        else None
+    )
+    if (
+        label == CYCLE_AGENT_LABEL
+        and cycle_exit_by_design(health.last_exit)
+        and not _clean_signal_restart
+    ):
+        health.note = f"last_exit={health.last_exit} — {_cycle_exit_meaning}"
+    elif health.last_exit not in (None, 0) and not _clean_signal_restart:
+        _exit_text = (
+            f"last_exit={health.last_exit}"
+            if _cycle_exit_meaning is None
+            else f"last_exit={health.last_exit} ({_cycle_exit_meaning})"
+        )
         if _server_alive:
             # crashed previously, KeepAlive brought it back → visible, not OK
-            issues.append(f"last_exit={health.last_exit} (prior crash; restarted)")
+            issues.append(f"{_exit_text} (prior crash; restarted)")
             sev = WARNING
         elif cat == CAT_ALWAYS_ON:
             # always-on server NOT running with a nonzero exit → crash → CRITICAL
-            issues.append(f"last_exit={health.last_exit}")
+            issues.append(_exit_text)
             sev = CRITICAL
         else:
-            issues.append(f"last_exit={health.last_exit}")
+            issues.append(_exit_text)
             sev = WARNING
         health.status = _worst(health.status, sev)
 
