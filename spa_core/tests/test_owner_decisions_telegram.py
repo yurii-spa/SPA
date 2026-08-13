@@ -148,6 +148,59 @@ def test_options_survive_letter_numbering_and_dash_variants():
     assert len(opts) == 1 and opts[0].num == "Б"
 
 
+# Живая карточка цикла #208 (`owner-decision-sbalansirovannyi-tir-na-saite-idet-paper`):
+# жирный первого варианта перенесён по ширине строки — ровно так карточки и пишутся.
+CARD_WRAPPED_BOLD = """---
+trackerStatus:
+  type: owner-decision
+title: "Сбалансированный тир"
+status: needs-owner
+---
+
+## Что от тебя нужно
+
+Выбери, что делать с формулировкой на сайте.
+
+* **Вариант 1 (рекомендую) — убрать «идёт paper-трек» из статуса Сбалансированного, пока в
+  книге не появятся позиции.** Останется «ИССЛЕДОВАНИЕ · без live-аллокации».
+* **Вариант 2 — оставить формулировку, но дописать честную оговорку.** Читателю видно ровно
+  то, что есть.
+* **Вариант 3 — оставить как есть.** Тогда запишу это решение в ADR.
+"""
+
+
+def test_option_whose_bold_wraps_to_the_next_line_is_not_lost():
+    """Перенос строки внутри `**…**` съедал вариант МОЛЧА — и первым съел рекомендуемый.
+
+    Замер 13.08 на живой карточке: три варианта в тексте, две кнопки владельцу, исчез
+    именно тот, что помечен «рекомендую». Владелец увидел бы «Варианты: 2, 3» — и решил бы,
+    что первого не предлагали. Перенос по ширине — норма письма, а не порча карточки.
+    """
+    opts = od.parse_options(CARD_WRAPPED_BOLD)
+    assert [o.num for o in opts] == ["1", "2", "3"]
+    assert [o.recommended for o in opts] == [True, False, False]
+    assert opts[0].label.startswith("убрать")
+
+
+def test_the_owner_sees_every_option_the_card_lists():
+    """Сообщение владельцу и текст карточки обязаны предлагать ОДНО и то же."""
+    msg = od.build_message("Сбалансированный тир", CARD_WRAPPED_BOLD,
+                           od.parse_options(CARD_WRAPPED_BOLD), has_buttons=True)
+    for num in ("1.", "2.", "3."):
+        assert f"<b>{num}</b>" in msg
+    assert "рекомендую" in msg
+
+
+def test_an_unclosed_bold_does_not_swallow_the_whole_section():
+    """Опечатка автора (жирный не закрыт НИГДЕ) не имеет права склеить секцию в один пункт."""
+    body = ("## Что от тебя нужно\n\n"
+            "* **Вариант 1 — забыл закрыть жирный.\n"
+            "* **Вариант 2 — оставить как есть.** Текст.\n")
+    opts = od.parse_options(body)
+    assert [o.num for o in opts] == ["1"] or [o.num for o in opts] == ["1", "2"], \
+        "склейка не должна терять оба варианта разом"
+
+
 # ── callback_data ────────────────────────────────────────────────────────────
 
 

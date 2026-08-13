@@ -248,6 +248,46 @@ class ParsedOption:
         return self.num.lower()
 
 
+#: Сколько строк переноса склеиваем максимум. Незакрытая `**` — это опечатка автора
+#: карточки, и она не должна съесть всю секцию в одну строку.
+_WRAP_MAX_LINES = 4
+
+
+def _fold_wrapped_bold(lines: List[str]) -> List[str]:
+    """Склеить пункт, у которого жирный `**…**` перенесён на следующую строку.
+
+    Разбор построчный, а карточки пишутся с переносом по ширине — и пункт вида::
+
+        * **Вариант 1 (рекомендую) — убрать «идёт paper-трек» из статуса, пока в
+          книге не появятся позиции.** Останется «ИССЛЕДОВАНИЕ · без live-аллокации».
+
+    не совпадал ни с одним шаблоном и пропадал МОЛЧА. Замер 13.08 на живой карточке
+    `owner-decision-sbalansirovannyi-tir-na-saite-idet-paper`: три варианта в тексте,
+    две кнопки владельцу, и исчез именно **рекомендуемый** — владелец увидел бы
+    «Варианты: 2, 3». ``has_unparsed_options`` при этом молчал (варианты-то разобрались,
+    просто не все), то есть ни один сторож не назвал потерю.
+
+    Склеиваем ТОЛЬКО по доказуемому признаку — нечётное число `**` в строке, то есть
+    жирный буквально не закрыт. Всё остальное (в т.ч. хвост абзаца с «⭐ Рекомендация
+    агента», который разбор нарочно относит к последнему варианту) не трогаем.
+    """
+    out: List[str] = []
+    i = 0
+    while i < len(lines):
+        cur = lines[i]
+        joined = 0
+        while cur.count("**") % 2 == 1 and joined < _WRAP_MAX_LINES and i + 1 < len(lines):
+            nxt = lines[i + 1]
+            if not nxt.strip():  # пустая строка закрывает пункт вернее любой звёздочки
+                break
+            cur = cur.rstrip() + " " + nxt.strip()
+            i += 1
+            joined += 1
+        out.append(cur)
+        i += 1
+    return out
+
+
 def _section_lines(body: str) -> List[str]:
     """Строки секции «Что от тебя нужно». Пустой список — секции нет."""
     out: List[str] = []
@@ -262,7 +302,7 @@ def _section_lines(body: str) -> List[str]:
             continue
         if inside:
             out.append(ln)
-    return out
+    return _fold_wrapped_bold(out)
 
 
 def _capitalize(text: str) -> str:
@@ -1057,6 +1097,253 @@ def confirmation_text(result: Dict) -> str:
     if reason.startswith("crash:"):
         return "⚠️ Сбой при записи решения. В карточке ничего не изменилось."
     return "⚠️ " + _REASON_RU.get(reason, "Не смог записать решение — ничего не изменилось.")
+
+
+# ── ответ владельца ТЕКСТОМ («Ответ 1») ──────────────────────────────────────
+#
+# Обещание даёт сам этот модуль: когда кнопок нет, ``build_message`` пишет владельцу
+# «⚠️ Кнопки сейчас недоступны — бот не подтвердил, что готов их обработать. **Ответь
+# номером варианта в чат, я разберу.**» Разбирать было НЕЧЕМ: ни одна строка кода не
+# читала текстовый ответ, и сообщение уходило в общий классификатор — то есть решение
+# владельца превращалось в обычную inbox-задачу и не исполнялось ничем.
+#
+# Замер в проде (журнал отправок + карточки инбокса): владелец сделал ровно то, что ему
+# велели, ДВАЖДЫ — 10.08 (пожаловался, приложив этот самый текст) и 12.08 (прислал
+# процитированную тревогу и строку «Ответ 1»). Оба раза родилась inbox-карточка
+# `inbox-zadacha-*`, и оба раза никто не записал выбор. Это тот же класс, что #172:
+# «у одобрения владельца нет исполнителя» — обещание, у которого нет кода.
+#
+# Инвариант #14 НЕ ослаблен. ``queue.set_status`` по-прежнему отказывает агенту, а запись
+# идёт единственным owner-путём ``owner_answer.record_owner_answer``, который сверяет
+# личность ВНУТРИ писателя. Сообщение в личном чате владельца — такое же его действие,
+# как нажатие кнопки; канал другой, решение то же.
+#
+# Fail-CLOSED во всех сомнительных случаях: не угадываем ни карточку, ни вариант. Отказ
+# ВСЕГДА называется вслух владельцу — молчаливый отказ здесь неотличим от поломки, а
+# именно на этом мы уже теряли его ответы.
+
+#: Номер варианта, как его пишут карточки: «1», «12», «А1», «Б2», «B1».
+_OPT_TOKEN = r"[0-9]{1,2}|[A-Za-zА-Яа-яЁё][0-9]{1,2}"
+_OPT_LIST = rf"(?:{_OPT_TOKEN})(?:\s*(?:и|,|\+|/)\s*(?:{_OPT_TOKEN}))*"
+
+# «Ответ 1» / «вариант: Б2» / «выбираю 1 и 3» — ОТДЕЛЬНОЙ строкой. Требование строки
+# целиком (а не вхождения) — защита от захвата обычной речи: «сделай 2 отчёта» и
+# «вариант 2 мне не нравится, поясни» ответом не являются и разбираться должны как всегда.
+_ANSWER_LINE_RE = re.compile(
+    rf"^[\s>*_]*(?:мой\s+)?(?:ответ|отвечаю|вариант|варианты|выбираю|беру|решение)"
+    rf"\s*[:\-—–]?\s*({_OPT_LIST})[\s.!)]*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+# Сообщение, которое целиком есть номер варианта: «1», «1 и 3», «Б2».
+_BARE_ANSWER_RE = re.compile(rf"^\s*({_OPT_LIST})[\s.!)]*$", re.IGNORECASE)
+# Имя карточки из процитированной тревоги: «📄 owner-decision-….md».
+_CARD_NAME_RE = re.compile(r"([a-z0-9][a-z0-9._-]{6,})\.md", re.IGNORECASE)
+_OPT_SPLIT_RE = re.compile(r"\s*(?:и|,|\+|/)\s*", re.IGNORECASE)
+
+
+@dataclass(frozen=True)
+class ParsedTextAnswer:
+    """Что удалось ВЫЧИТАТЬ из сообщения владельца. Ничего не додумано."""
+
+    nums: Tuple[str, ...]           # номера вариантов, как написал владелец
+    card_id: Optional[str]          # карточка, если владелец процитировал её имя
+    raw: str                        # строка, распознанная как ответ (для отчёта)
+
+
+def parse_text_answer(text: str) -> Optional[ParsedTextAnswer]:
+    """Ответ ли это на карточку решения. ``None`` — не ответ (разбирает обычный путь).
+
+    Распознаём ДВЕ формы, обе — строка целиком, а не вхождение в речь:
+
+    * явную — «Ответ 1», «вариант: Б2», «выбираю 1 и 3»;
+    * голую — сообщение состоит ровно из номера («1»).
+
+    Имя карточки берём из процитированной тревоги («📄 <имя>.md»), если оно есть:
+    владелец часто отвечает, переслав сообщение целиком, и тогда адресат ответа известен
+    точно, а не угадан по «последнему открытому».
+    """
+    raw = str(text or "").replace(" ", " ")
+    if not raw.strip():
+        return None
+    hit = None
+    for m in _ANSWER_LINE_RE.finditer(raw):
+        hit = m  # последняя строка-ответ: владелец мог процитировать тревогу с «Варианты:»
+    if hit is None:
+        m = _BARE_ANSWER_RE.match(raw)
+        if m is None:
+            return None
+        hit = m
+    nums = tuple(p for p in _OPT_SPLIT_RE.split(hit.group(1).strip()) if p)
+    if not nums:
+        return None
+    card = None
+    for cm in _CARD_NAME_RE.finditer(raw):
+        card = cm.group(1)  # последнее упоминание — имя карточки печатается в конце тревоги
+    return ParsedTextAnswer(nums=nums, card_id=card, raw=hit.group(0).strip())
+
+
+def open_pushes(*, state_path: Optional[str | Path] = None) -> List[Dict]:
+    """Отправленные решения, которые ещё ждут владельца. Свежие — первыми.
+
+    «Ждут» = ответа нет, вопрос не снят, и карточка на диске ЕСТЬ. Последнее важно:
+    отвечать на исчезнувшую карточку нечем, и такой ответ обязан быть отказан, а не
+    записан в соседнюю.
+    """
+    doc = _load(_state_path(state_path))
+    out: List[Dict] = []
+    for rec in reversed(doc.get("pushes") or []):
+        if rec.get("choice") or rec.get("withdrawn_at"):
+            continue
+        card = rec.get("card")
+        if not card or not Path(card).exists():
+            continue
+        out.append(rec)
+    return out
+
+
+def _push_by_card_id(card_id: str, *, state_path: Optional[str | Path] = None) -> Optional[Dict]:
+    """Запись журнала по имени карточки (с ``.md`` или без). Последняя — свежая."""
+    stem = str(card_id or "").strip()
+    if stem.lower().endswith(".md"):
+        stem = stem[:-3]
+    if not stem:
+        return None
+    doc = _load(_state_path(state_path))
+    for rec in reversed(doc.get("pushes") or []):
+        if str(rec.get("card_id") or "") == stem:
+            return rec
+    return None
+
+
+def _last_answered_push(*, state_path: Optional[str | Path] = None) -> Optional[Dict]:
+    """Последнее решение, на которое владелец УЖЕ ответил. ``None`` — таких нет."""
+    doc = _load(_state_path(state_path))
+    for rec in reversed(doc.get("pushes") or []):
+        if rec.get("choice"):
+            return rec
+    return None
+
+
+def resolve_text_answer(
+    text: str,
+    actor_chat_id,
+    *,
+    owner_chat_id: Optional[str] = None,
+    state_path: Optional[str | Path] = None,
+    now: Optional[datetime] = None,
+) -> Optional[Dict]:
+    """Текстовый ответ владельца → запись решения в карточку. Никогда не бросает.
+
+    ``None`` — сообщение ответом не является; обычный разбор (вопрос/задача/непонятно)
+    работает как работал. Словарь — сообщение РАЗОБРАНО как ответ: либо решение записано
+    (``ok=True``), либо честно отказано с названной причиной (``ok=False``).
+
+    Ничего не угадываем: нет однозначного адресата — отказ, а не «похоже, это про неё».
+    """
+    try:
+        parsed = parse_text_answer(text)
+    except Exception:  # noqa: BLE001 — разбор не имеет права уронить бота
+        return None
+    if parsed is None:
+        return None
+
+    if len(parsed.nums) > 1:
+        # «1 и 3» — карточка могла и правда разрешать несколько, но записать можно
+        # ровно один вариант. Выбрать за владельца первый значило бы решить за него.
+        return {"ok": False, "reason": "multiple_choices",
+                "nums": list(parsed.nums), "card_id": parsed.card_id}
+    num = parsed.nums[0]
+
+    if parsed.card_id:
+        rec = _push_by_card_id(parsed.card_id, state_path=state_path)
+        if rec is None:
+            # Ровно случай 12.08: владелец процитировал тревогу и ответил «1», а карточки
+            # `owner-decision-sait-packages-astro-…` нет ни в трекере, ни в журнале —
+            # ответ применять НЕ К ЧЕМУ. Молчать нельзя: владелец считает, что ответил.
+            return {"ok": False, "reason": "card_unknown", "card_id": parsed.card_id}
+    else:
+        candidates = open_pushes(state_path=state_path)
+        if not candidates:
+            # Владелец мог просто повторить свой ответ (из другого чата, после
+            # переотправки). Открытых вопросов нет — но сказать ему «не понял, к чему
+            # это» значит соврать: понял, и записано. Сверяем с последним ОТВЕЧЕННЫМ
+            # и только при совпадении номера — угадывать по одному лишь порядку нельзя.
+            last = _last_answered_push(state_path=state_path)
+            if last is not None and str(last.get("choice") or "").lower() == num.lower():
+                return {"ok": False, "reason": "already_answered",
+                        "card_id": last.get("card_id"), "choice": last.get("choice"),
+                        "label": last.get("choice_label"), "title": last.get("title")}
+            return {"ok": False, "reason": "no_open_decision"}
+        if len(candidates) > 1:
+            return {"ok": False, "reason": "ambiguous",
+                    "candidates": [{"card_id": c.get("card_id"), "title": c.get("title")}
+                                   for c in candidates[:5]],
+                    "candidates_total": len(candidates)}
+        rec = candidates[0]
+
+    if rec.get("choice"):
+        return {"ok": False, "reason": "already_answered", "card_id": rec.get("card_id"),
+                "choice": rec.get("choice"), "label": rec.get("choice_label"),
+                "title": rec.get("title")}
+
+    result = record_choice(rec["pid"], num, actor_chat_id,
+                           owner_chat_id=owner_chat_id, now=now, state_path=state_path)
+    result.setdefault("card_id", rec.get("card_id"))
+    result.setdefault("title", rec.get("title"))
+    result["via"] = "text"
+    if not result.get("ok"):
+        result.setdefault("nums", [num])
+    return result
+
+
+#: Отказы, после которых слова владельца обязаны быть СОХРАНЕНЫ (вопрос остался открыт).
+#: «Уже отвечено» сюда не входит: там ничего не теряется.
+PRESERVE_ON_REFUSAL = frozenset({
+    "card_unknown", "ambiguous", "no_open_decision", "multiple_choices",
+    "unknown_option", "unknown_card", "card_gone", "card_withdrawn", "write_failed",
+})
+
+_TEXT_REASON_RU: Dict[str, str] = {
+    "no_open_decision": ("Сейчас у меня нет ни одного открытого вопроса к тебе — не понял, "
+                         "к чему относится ответ. Ничего не записал."),
+    "multiple_choices": ("В ответе несколько номеров, а записать я могу ровно один вариант — "
+                         "выбирать за тебя не буду. Ответь одним номером. Сообщение сохранил."),
+}
+
+
+def text_answer_reply(result: Dict) -> str:
+    """Человеческий ответ на текстовый ответ владельца. Любой исход — внятная фраза."""
+    if result.get("ok"):
+        return confirmation_text(result)
+    reason = str(result.get("reason") or "")
+    if reason == "card_unknown":
+        name = html.escape(str(result.get("card_id") or ""))
+        return ("⚠️ Ответ принял, но применить его НЕ К ЧЕМУ: карточки "
+                f"<code>{name}</code> нет ни в трекере, ни в журнале отправок — "
+                "сообщение старое, а карточка не сохранилась.\n"
+                "Ничего не записал. Сообщение сохранил, разберу циклом и вернусь с "
+                "актуальным вопросом.")
+    if reason == "ambiguous":
+        cands = result.get("candidates") or []
+        lines = ["⚠️ Открытых вопросов сейчас несколько — не понял, к какому относится "
+                 "ответ, и угадывать не стал. Ничего не записал.", ""]
+        for c in cands:
+            lines.append(f"• <code>{html.escape(str(c.get('card_id') or ''))}</code> — "
+                         f"{html.escape(_shorten(str(c.get('title') or ''), 70))}")
+        total = int(result.get("candidates_total") or len(cands))
+        if total > len(cands):
+            lines.append(f"…и ещё {total - len(cands)}")
+        lines += ["", "Ответь кнопкой под нужным решением или пришли имя карточки вместе "
+                      "с номером."]
+        return "\n".join(lines)
+    if reason == "already_answered":
+        num = html.escape(str(result.get("choice") or ""))
+        label = html.escape(_capitalize(str(result.get("label") or "")))
+        return (f"👌 На эту карточку ответ уже записан: <b>вариант {num}</b> — {label}.\n"
+                f"Повторно ничего не менял.")
+    if reason in _TEXT_REASON_RU:
+        return "⚠️ " + _TEXT_REASON_RU[reason]
+    return confirmation_text(result)
 
 
 def pending_decisions(

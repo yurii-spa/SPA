@@ -993,6 +993,35 @@ class TelegramBot:
         else:  # unclear — вердикт модели о ТЕКСТЕ: законно переспросить
             self.send_message(f"🤔 {html.escape(resp)}", chat_id)
 
+    def _handle_owner_text_answer(self, text: str, chat_id: str) -> bool:
+        """«Ответ 1» в чат → выбор записан в карточку owner-путём (инв. #14 не ослаблен).
+
+        Возвращает True, если сообщение РАЗОБРАНО как ответ владельца — записан он или
+        честно отказан. False — это не ответ, дальше работает обычный классификатор.
+
+        При отказе слова владельца НЕ ТЕРЯЮТСЯ: сообщение сохраняется inbox-карточкой,
+        как и раньше, — но теперь владелец слышит ПРИЧИНУ, а не молчание. Именно
+        молчание и стоило нам двух его ответов.
+        """
+        from spa_core.telegram import owner_decisions as od
+
+        try:
+            result = od.resolve_text_answer(text, chat_id)
+        except Exception as exc:  # noqa: BLE001 — разбор не имеет права съесть сообщение
+            log.warning("_handle_owner_text_answer failed: %s", exc)
+            return False
+        if result is None:
+            return False
+        if str(result.get("reason") or "") in od.PRESERVE_ON_REFUSAL:
+            try:
+                from spa_core.telegram.inbox_intake import save_inbox_task
+
+                save_inbox_task(text, source="telegram")
+            except Exception as exc:  # noqa: BLE001 — не сохранили ⇒ скажем правду ниже
+                log.warning("save_inbox_task after refused answer failed: %s", exc)
+        self.send_message(od.text_answer_reply(result), chat_id)
+        return True
+
     def _handle_inbox_intake(self, msg: Dict, text: str, chat_id: str) -> bool:
         """Owner-only intake. ``/task`` → всегда задача; ``/status`` → сводка; свободный текст/голос →
         классификатор ВОПРОС/ЗАДАЧА/НЕПОНЯТНО (бот отвечает, а не только принимает задачи).
@@ -1038,7 +1067,13 @@ class TelegramBot:
                     return True
                 self._classify_route(transcript, chat_id, source="voice")
                 return True
-            # свободный текст → классифицировать
+            # Свободный текст. СНАЧАЛА — не ОТВЕТ ли это на карточку решения: когда кнопок
+            # нет, мы сами написали владельцу «Ответь номером варианта в чат, я разберу»
+            # (owner_decisions.build_message). Разбирать было нечем, и его «Ответ 1»
+            # уходил в классификатор — то есть решение становилось обычной задачей и не
+            # исполнялось ничем (замерено дважды: 10.08 и 12.08). Не ответ → всё как было.
+            if self._handle_owner_text_answer(stripped, chat_id):
+                return True
             self._classify_route(stripped, chat_id, source="telegram")
             return True
         except Exception as exc:  # noqa: BLE001 — never crash the poll loop
