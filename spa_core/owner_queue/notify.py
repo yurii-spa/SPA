@@ -80,18 +80,32 @@ def notify_needs_owner(path: str | Path, *, dry_run: bool = False) -> str:
         from spa_core.telegram.bot import TelegramBot
 
         bot = TelegramBot()
+        # Лестница деградации, и порядок ступеней — это ПРИОРИТЕТ, а не стиль:
+        #   кнопки + дедуп  →  дедуп  →  голая отправка.
         # `reply_markup` передаём ТОЛЬКО когда кнопки есть: путь без кнопок обязан остаться
-        # байт-в-байт прежним. И даже с кнопками — откатываемся на отправку без них, если
-        # отправитель этого параметра не знает. Потерять оформление можно; потерять само
-        # уведомление о решении владельца — нет.
+        # байт-в-байт прежним. `dedup=True` — вопрос владельцу НЕ солиситирован, он его не
+        # просил; побуквенно тот же вопрос в окне 30 минут не несёт ни одного нового факта,
+        # а именно им владельца и заваливало (жалоба 09.08, повтор 13.08).
+        # Но НИЖНЯЯ ступень намеренно без обоих: отправитель, который не знает новых
+        # параметров, обязан всё равно доставить. Потерять оформление можно, потерять дедуп
+        # можно (лишний повтор владелец переживёт), потерять само уведомление о решении —
+        # нет. Ровно это проверяет `test_notification_reaches_a_sender_that_knows_nothing_
+        # about_buttons`, и цикл #215 на нём и покраснел, добавив `dedup` в нижнюю ступень.
+        def _send(**extra):
+            return bot.send_message(msg, parse_mode="HTML", **extra)
+
         try:
-            ok = (bot.send_message(msg, parse_mode="HTML", reply_markup=keyboard)
-                  if keyboard is not None
-                  else bot.send_message(msg, parse_mode="HTML"))
+            ok = (_send(reply_markup=keyboard, dedup=True) if keyboard is not None
+                  else _send(dedup=True))
         except TypeError as exc:
             log.warning("notify_needs_owner: sender rejected reply_markup (%s) — "
                         "отправляю без кнопок", exc)
-            ok = bot.send_message(msg, parse_mode="HTML")
+            try:
+                ok = _send(dedup=True)
+            except TypeError as exc2:
+                log.warning("notify_needs_owner: sender rejected dedup (%s) — шлю без "
+                            "него; лишний повтор лучше потерянного вопроса", exc2)
+                ok = _send()
         if not ok:
             log.warning("notify_needs_owner: send returned falsy for %s", path)
     except Exception as exc:  # noqa: BLE001 — notification must never crash the orchestrator
@@ -142,7 +156,8 @@ def notify_card_withdrawn(path: str | Path, *, reason: str = WITHDRAWN_REASON,
     try:
         from spa_core.telegram.bot import TelegramBot
 
-        if not TelegramBot().send_message(msg, parse_mode="HTML"):
+        # dedup=True — отзыв карточки владелец тоже не просил (см. notify_needs_owner).
+        if not TelegramBot().send_message(msg, parse_mode="HTML", dedup=True):
             log.warning("notify_card_withdrawn: send returned falsy for %s", path)
     except Exception as exc:  # noqa: BLE001 — уведомление не роняет оркестратор
         log.warning("notify_card_withdrawn: send failed for %s: %s", path, exc)

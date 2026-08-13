@@ -84,8 +84,14 @@ def _classify(text: str) -> str:
     return "other"
 
 
-def _record_history(text: str, ok: bool, message_id=None, error: str | None = None) -> None:
-    """Append one send outcome to the ring-buffered alert_history.json. Never raises."""
+def _record_history(text: str, ok: bool, message_id=None, error: str | None = None,
+                    solicited: bool = False) -> None:
+    """Append one send outcome to the ring-buffered alert_history.json. Never raises.
+
+    ``solicited`` — владелец САМ это вызвал (ответ на его команду, кнопку, голосовое).
+    Такая запись нужна, чтобы вопрос «кто это шлёт» имел ответ, но повтором она НЕ
+    считается: иначе ответ на `/status` заглушил бы настоящую тревогу с тем же текстом.
+    """
     if os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get(
         "SPA_ALERT_HISTORY_TEST"
     ):
@@ -97,6 +103,8 @@ def _record_history(text: str, ok: bool, message_id=None, error: str | None = No
             "ok": bool(ok),
             "preview": (text or "")[:_PREVIEW_LEN],
         }
+        if solicited:
+            entry["solicited"] = True
         if message_id is not None:
             entry["message_id"] = message_id
         if error:
@@ -232,9 +240,14 @@ def _duplicate_recently(text: str) -> bool:
         doc = json.loads(_HISTORY_STATE.read_text())
         entries = doc if isinstance(doc, list) else doc.get("entries") or []
         now = datetime.now(timezone.utc)
-        for rec in reversed(entries[-60:]):
-            if not rec.get("ok"):
-                continue           # неудачная отправка повтором не считается
+        # Окно считаем по ТЕМ ЖЕ записям, среди которых ищем повтор. С #215 в историю
+        # пишет и бот, включая ответы на команды владельца, — а он разговорчив: полсотни
+        # его нажатий вытолкнули бы настоящий пуш из «последних 60» за считанные минуты, и
+        # дедуп ослабило бы ровно то наблюдение, которое я добавил, чтобы его усилить.
+        # Поэтому отбор — сначала по признаку (успешные и НЕ солиситированные), и только
+        # потом срез: болтовня бота больше не вымывает пуши из поля зрения.
+        candidates = [r for r in entries if r.get("ok") and not r.get("solicited")]
+        for rec in reversed(candidates[-60:]):
             if (rec.get("preview") or "") != (text or "")[:_PREVIEW_LEN]:
                 continue
             try:
@@ -250,21 +263,52 @@ def _duplicate_recently(text: str) -> bool:
         return False
 
 
-def _post_message(payload_dict: dict) -> bool:
-    """Internal: POST a sendMessage payload. Shared by send_message and
-    send_message_with_keyboard. Fail-safe: any failure → WARNING + False."""
-    text = payload_dict.get("text", "")
+def guard_outbound(text: str, *, dedup: bool = True) -> str | None:
+    """ЕДИНСТВЕННАЯ проверка перед отправкой владельцу. ``None`` — можно слать.
+
+    Возвращает причину отказа (``"flood_guard_dropped"`` / ``"duplicate_dropped"``) и САМ
+    пишет её в историю — чтобы «подавлено» и «канал сломан» никогда не выглядели одинаково.
+
+    Зачем функция, а не два вызова на месте (замер 13.08, цикл #215)
+    ------------------------------------------------------------------------------
+    Дверей в Телеграм у нас две, и защиту они разобрали ПОПОЛАМ:
+
+    * ``_post_message``            — лимит потока (17.07) И дедуп (09.08);
+    * ``TelegramBot.send_message`` — только лимит потока, дедупа нет, и историю она не
+      писала ВОВСЕ.
+
+    Владелец жаловался на поток одинаковых сообщений 09.08 — починили ту дверь, в которую
+    он не ходит: `notify_needs_owner` и все пуши бота идут второй. 13.08 он пожаловался
+    снова, теми же словами. А поскольку вторая дверь не вела журнал, в истории за день
+    стояло 3 записи против десятков полученных — вопрос «кто это шлёт» был неотвечаем
+    ПО ПОСТРОЕНИЮ.
+
+    Теперь проверка одна на обе двери: третий отправитель унаследует её целиком или не
+    получит ничего — половину взять нельзя.
+
+    ``dedup=False`` — сообщение СОЛИЦИТИРОВАНО (ответ на команду/кнопку/голосовое
+    владельца). Такое не глушим: спросил дважды — ответить обязаны дважды.
+    """
     # FLOOD GUARD: a shared cross-process rate limit so NO sender (any agent) can flood
     # Telegram. Excess messages are DROPPED + logged with a preview (identifies the flooder).
     if not _rate_limit_ok(text):
         _record_history(text, ok=False, error="flood_guard_dropped")
-        return False
+        return "flood_guard_dropped"
     # ПОВТОР: побуквенно тот же текст в окне не несёт новых фактов. Гасим и ГОВОРИМ об
     # этом в лог с превью — молчаливое подавление неотличимо от поломки канала.
-    if _duplicate_recently(text):
+    if dedup and _duplicate_recently(text):
         log.warning("Telegram DUPLICATE dropped (same text within %.0fs). preview=%r",
                     DUPLICATE_WINDOW_S, (text or "")[:100])
         _record_history(text, ok=False, error="duplicate_dropped")
+        return "duplicate_dropped"
+    return None
+
+
+def _post_message(payload_dict: dict) -> bool:
+    """Internal: POST a sendMessage payload. Shared by send_message and
+    send_message_with_keyboard. Fail-safe: any failure → WARNING + False."""
+    text = payload_dict.get("text", "")
+    if guard_outbound(text) is not None:
         return False
     try:
         token = get_bot_token()

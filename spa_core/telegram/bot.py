@@ -242,17 +242,33 @@ class TelegramBot:
 
     def send_message(self, text: str, chat_id: Optional[str] = None,
                      parse_mode: str = "HTML",
-                     reply_markup: Optional[Dict] = None) -> Optional[Dict]:
-        """Send a message. Fail-safe + FLOOD-GUARDED (shared cross-process rate limit so a
-        reply/callback loop can never flood the chat)."""
+                     reply_markup: Optional[Dict] = None,
+                     dedup: bool = False) -> Optional[Dict]:
+        """Send a message. Fail-safe + ОБЩИЙ заслон ``telegram_client.guard_outbound``.
+
+        ``dedup`` — сообщение НЕ солиситировано владельцем (пуш, уведомление о карточке):
+        побуквенно тот же текст в окне 30 минут не уходит. По умолчанию ``False``, потому
+        что подавляющее большинство вызовов здесь — ОТВЕТЫ на команду/кнопку/голосовое:
+        владелец нажал `/status` дважды — обязан получить ответ дважды, молчание он
+        справедливо прочтёт как поломку.
+
+        Замер 13.08 (цикл #215): раньше эта дверь брала у заслона только лимит потока —
+        дедупа не было, и историю она не писала ВОВСЕ. Из-за этого (а) владелец получал
+        один и тот же вопрос десятками раз, хотя дедуп в проекте уже четыре дня как есть,
+        и (б) в журнале за день стояло 3 записи против десятков — «кто это шлёт» нельзя
+        было даже спросить. Теперь пишется КАЖДАЯ отправка, включая солиситированные
+        (они помечаются и повтором не считаются).
+        """
         target = chat_id or self.chat_id
         if not target:
             log.warning("send_message: no chat_id available")
             return None
         try:
-            from spa_core.alerts.telegram_client import _rate_limit_ok
-            if not _rate_limit_ok(text):
-                log.warning("bot send dropped by flood guard (>rate). preview=%r", (text or "")[:80])
+            from spa_core.alerts.telegram_client import guard_outbound
+            reason = guard_outbound(text, dedup=dedup)
+            if reason is not None:
+                log.warning("bot send dropped by guard (%s). preview=%r",
+                            reason, (text or "")[:80])
                 return None
         except Exception:
             pass  # guard import failure must never block a legitimate reply
@@ -264,7 +280,22 @@ class TelegramBot:
         }
         if reply_markup is not None:
             params["reply_markup"] = json.dumps(reply_markup)
-        return self._api_call("sendMessage", params)
+        result = self._api_call("sendMessage", params)
+        # Журнал — часть отправки, а не украшение: пока эта дверь молчала, вопрос «кто
+        # шлёт владельцу одно и то же» упирался в пустоту. Наблюдение не имеет права
+        # уронить отправку, поэтому всё в try.
+        try:
+            from spa_core.alerts.telegram_client import _record_history
+            _record_history(
+                text,
+                ok=bool(result),
+                message_id=((result or {}).get("result") or {}).get("message_id"),
+                error=None if result else "bot_api_call_failed",
+                solicited=not dedup,
+            )
+        except Exception:  # noqa: BLE001
+            log.debug("bot send history record failed", exc_info=True)
+        return result
 
     def _answer_callback(self, callback_query_id: str) -> None:
         if not callback_query_id:
