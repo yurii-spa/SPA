@@ -27,6 +27,21 @@ findings_bridge (карточки) и Шаг 0-офис оркестратора
 (refusal-first). Реестр недоступен ⇒ классификация возможностей честно
 опускается до INFO/unclassified — карточек из неизмеримого не рождается.
 LLM_FORBIDDEN. Только stdlib. Время — вход (now=).
+
+ВОЗРАСТ ВХОДА — часть находки (#222, карточка «сторож расхождений судит по СТАРОМУ
+снимку постуры»). Сверка пересчитывается РАЗ В 6 ЧАСОВ (`com.spa.decision_loop` →
+`findings_bridge --run`, `StartInterval 21600`; в дневном цикле она НЕ дублируется),
+а `chief_investment.json` пишется РАЗ В СУТКИ в 09:11 UTC. Замер #222 (14.08 22:5x UTC):
+постура 13.7 ч, книга 1.6 ч, разрыв тактов 12.1 ч; замер #212 суткой раньше — 22.9 ч
+против 1.2 ч. До этого обе стороны сравнивались молча и вердикт печатался в НАСТОЯЩЕМ
+времени («постура офиса CRITICAL, но книга развёрнута»), поэтому строка в контексте
+оркестратора могла быть неверна уже в момент чтения. Теперь:
+  • возраст КАЖДОГО входа назван в самой находке и лежит в отчёте (`inputs`) машинно;
+  • старше потолка офиса (`investment_os.health.FRESH_AGE_S`, 48 ч) ⇒ сверка
+    ОТКАЗЫВАЕТСЯ судить (запись в unchecked), а не утверждает в настоящем времени;
+  • возраст не измерен ⇒ это НАЗЫВАЕТСЯ в тексте, а не подразумевается свежим.
+Потолок не изобретён здесь: он взят у монитора здоровья самого офиса — сверка не имеет
+права быть увереннее в артефакте, чем его собственный сторож.
 """
 # LLM_FORBIDDEN
 from __future__ import annotations
@@ -84,8 +99,87 @@ def cause_phrase(reasons) -> str:
     return f"причина: {humanize_reasons(codes)}" if codes else NO_REASON_RU
 
 
+#: Потолок возраста входа. Берётся у монитора здоровья САМОГО офиса — одна константа на репо.
+#: Импорт защищён: `health` тянет `atomic_save`/`swarm.common`, и падение соседа не имеет права
+#: обесточить сверку. Провал импорта ⇒ ceiling `None` ⇒ отказа по возрасту нет, но возраст всё
+#: равно НАЗЫВАЕТСЯ (и сам факт «потолок не прочитан» уезжает в unchecked).
+try:
+    from spa_core.investment_os.health import FRESH_AGE_S as MAX_INPUT_AGE_S
+except Exception:  # pragma: no cover - защита от каскада импортов
+    MAX_INPUT_AGE_S = None
+
+#: Человеческие имена входов для текста находки.
+_INPUT_RU = {
+    "chief_investment": "постура",
+    "current_positions": "книга",
+    "allocation_rationale": "rationale",
+}
+
+AGE_UNMEASURED_RU = "возраст НЕ ИЗМЕРЕН"
+
+
 def _norm(p) -> str:
     return str(p or "").strip().lower()
+
+
+def _parse_iso(raw) -> dt.datetime | None:
+    """ISO-строка → aware datetime (UTC). Ничего не угадывать: не разобралось ⇒ None."""
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    text = raw.strip().replace("Z", "+00:00")
+    try:
+        parsed = dt.datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=dt.timezone.utc)
+
+
+def snapshot_age(data, path: str, now: dt.datetime) -> dict:
+    """Возраст входа: сперва ЗАЯВЛЕННЫЙ артефактом `generated_at`, иначе mtime файла.
+
+    Почему в таком порядке: `generated_at` — время, на которое артефакт РАССУЖДАЛ, а mtime —
+    время, когда его положили на диск. Совпадают они не всегда (перезапись без пересчёта,
+    копирование дерева), и врёт в нашу пользу именно mtime — он молодит устаревшее содержимое.
+    Ни одного источника нет ⇒ `age_s: None` = «не измерено», а не ноль.
+    """
+    meta: dict = {"input": os.path.basename(path)[:-5] if path.endswith(".json") else path,
+                  "generated_at": None, "age_s": None, "age_source": None}
+    stamp = _parse_iso((data or {}).get("generated_at") if isinstance(data, dict) else None)
+    if stamp is not None:
+        meta["age_source"] = "generated_at"
+    else:
+        try:
+            stamp = dt.datetime.fromtimestamp(os.path.getmtime(path), dt.timezone.utc)
+            meta["age_source"] = "mtime"
+        except OSError:
+            return meta
+    meta["generated_at"] = stamp.isoformat()
+    meta["age_s"] = round((now - stamp).total_seconds(), 1)
+    return meta
+
+
+def bare_age(meta) -> str:
+    """«1.2 ч назад» либо честное «возраст НЕ ИЗМЕРЕН» (ноль вместо неизвестного не подставляем)."""
+    age_s = meta.get("age_s") if isinstance(meta, dict) else None
+    return AGE_UNMEASURED_RU if age_s is None else f"{age_s / 3600.0:.1f} ч назад"
+
+
+def age_phrase(meta) -> str:
+    """«книга 1.2 ч назад» / «постура возраст НЕ ИЗМЕРЕН» — вставка в текст находки."""
+    if not isinstance(meta, dict):
+        return AGE_UNMEASURED_RU
+    name = _INPUT_RU.get(meta.get("input"), meta.get("input") or "вход")
+    return f"{name} {bare_age(meta)}"
+
+
+def is_too_old(meta, ceiling_s=MAX_INPUT_AGE_S) -> bool:
+    """Старше потолка? Неизмеренный возраст НЕ считается протухшим — иначе «не измерено»
+    становится вечной остановкой сверки (урок: необратимое «не измерено» морит очередь).
+    Оно НАЗЫВАЕТСЯ текстом находки, и этого достаточно."""
+    if ceiling_s is None or not isinstance(meta, dict):
+        return False
+    age_s = meta.get("age_s")
+    return age_s is not None and age_s > ceiling_s
 
 
 def registry_protocol_keys() -> set[str] | None:
@@ -133,9 +227,18 @@ def compute_gaps(chief: dict | None,
                  rationale: dict | None,
                  registry_keys: set[str] | None,
                  analysts: dict[str, dict],
-                 now: dt.datetime) -> dict:
+                 now: dt.datetime,
+                 ages: dict[str, dict] | None = None) -> dict:
     gaps: list[dict] = []
     unchecked: list[dict] = []
+
+    # Возраст входов (#212/#222). `ages=None` — путь без замера: судим как раньше, но КАЖДАЯ находка
+    # честно говорит «возраст НЕ ИЗМЕРЕН» вместо молчаливого настоящего времени. Прод сюда не
+    # попадает — `run()` всегда передаёт замер.
+    ages = ages or {}
+    chief_age = ages.get("chief_investment")
+    book_age = ages.get("current_positions")
+    chief_stale = is_too_old(chief_age)
 
     held: set[str] = set()
     cash_pct = None
@@ -157,16 +260,30 @@ def compute_gaps(chief: dict | None,
         blob = ""
         unchecked.append({"input": "allocation_rationale", "reason": "нет данных — именованные отказы не видны"})
 
-    if chief:
+    if chief and chief_stale:
+        # ОТКАЗ, а не вердикт: снимок старше потолка офиса ⇒ утверждать по нему в настоящем
+        # времени нельзя ни о постуре, ни о возможностях. Отказ НАЗВАН — молчания здесь нет.
+        unchecked.append({
+            "input": "chief_investment",
+            "reason": f"снимок протух ({age_phrase(chief_age)}, потолок офиса "
+                      f"{(MAX_INPUT_AGE_S or 0) / 3600.0:.0f} ч) — сверка ОТКАЗЫВАЕТСЯ судить о "
+                      f"постуре и возможностях в настоящем времени",
+        })
+    elif chief:
         hv = chief.get("house_view") or {}
         posture = str(hv.get("overall_posture") or "").upper()
+        # Такты входов НАЗВАНЫ в каждой находке: сверка идёт раз в 6 ч, house_view суточный, и до #222
+        # 22-часовая разница молчала. Читатель обязан видеть, ЧТО с ЧЕМ сравнили и когда.
+        ticks = f"{age_phrase(chief_age)} · {age_phrase(book_age)}"
         if posture in _RED_TOKENS:
             if positions and cash_pct is not None and cash_pct < 50.0:
                 gaps.append({
                     "key": "gap:posture_vs_book",
                     "type": "posture_vs_book", "severity": "WARN",
+                    "input_ages": {"chief_investment": chief_age, "current_positions": book_age},
                     "message": f"постура офиса {posture}, но книга развёрнута "
-                               f"(cash {cash_pct:.1f}% < 50%) — офис кричит, книга не слышит",
+                               f"(cash {cash_pct:.1f}% < 50%) — офис кричит, книга не слышит "
+                               f"[{ticks}]",
                 })
             elif positions is None:
                 unchecked.append({"input": "posture_vs_book",
@@ -182,7 +299,9 @@ def compute_gaps(chief: dict | None,
                 continue
             base = {"protocol": proto, "apy_pct": v.get("apy_pct"),
                     "evidence_level": opp.get("evidence_level"),
-                    "source": opp.get("source")}
+                    "source": opp.get("source"),
+                    "input_ages": {"chief_investment": chief_age,
+                                   "current_positions": book_age}}
             if proto in explained_protocols or proto in blob:
                 gaps.append({"key": f"gap:opportunity_explained:{proto}",
                              "type": "opportunity_unheld", "severity": "INFO",
@@ -206,7 +325,7 @@ def compute_gaps(chief: dict | None,
                              "message": f"возможность {proto} {v.get('apy_pct')}% "
                                         f"(evidence {opp.get('evidence_level')}) доступна книге, "
                                         f"не держится и отказ НЕ назван — безымянный простой "
-                                        f"(дух ADR-055)", **base})
+                                        f"(дух ADR-055) [{ticks}]", **base})
     else:
         unchecked.append({"input": "chief_investment", "reason": "house_view недоступен — сверка невозможна"})
 
@@ -214,16 +333,34 @@ def compute_gaps(chief: dict | None,
         tokens = {str(data.get(k) or "").upper() for k in ("posture", "status", "combined_posture")}
         if tokens & set(_RED_TOKENS):
             # Ключ НЕ трогать: `gap:analyst_red:<name>` — тот же, что вчера, иначе мост заведёт
-            # карточку-дубль на ту же находку. Меняется только ТЕКСТ: в нём теперь названа ПРИЧИНА.
+            # карточку-дубль на ту же находку. Меняется только ТЕКСТ: в нём названа ПРИЧИНА (#197)
+            # и — с #222 — ВОЗРАСТ снимка: «аналитик кричит CRITICAL» суточной давности читается
+            # как сегодняшняя разведка ровно так же, как читалась постура.
+            analyst_age = ages.get(f"analyst:{name}")
             reasons = red_reasons(data)
+            if is_too_old(analyst_age):
+                unchecked.append({
+                    "input": f"analyst:{name}",
+                    "reason": f"снимок протух ({age_phrase(analyst_age)}, потолок офиса "
+                              f"{(MAX_INPUT_AGE_S or 0) / 3600.0:.0f} ч) — сверка ОТКАЗЫВАЕТСЯ "
+                              f"объявлять красноту аналитика в настоящем времени",
+                })
+                continue
             gaps.append({"key": f"gap:analyst_red:{name}",
                          "type": "analyst_red", "severity": "WARN",
                          "posture_reason": reasons,
+                         "input_ages": {f"analyst:{name}": analyst_age},
                          "message": f"аналитик {name}: {' / '.join(sorted(tokens & set(_RED_TOKENS)))} "
                                     f"({cause_phrase(reasons)}) "
-                                    f"— требует реакции (карточка/решение), не пролистывания"})
+                                    f"— требует реакции (карточка/решение), не пролистывания "
+                                    f"[снимок {bare_age(analyst_age)}]"})
 
     return {"generated_at": now.isoformat(), "adr": "ADR-066",
+            # Возраст входов — машинно, рядом с вердиктом: отчёт живёт дольше своих входов
+            # (пересчёт раз в 6 ч, читают его позже — живой замер #222: отчёт 3.8 ч), и потребитель
+            # обязан иметь чем это увидеть.
+            "inputs": {k: v for k, v in sorted(ages.items()) if v},
+            "input_age_ceiling_s": MAX_INPUT_AGE_S,
             "gaps": gaps, "unchecked": unchecked,
             "counts": {"warn": sum(1 for g in gaps if g["severity"] == "WARN"),
                        "info": sum(1 for g in gaps if g["severity"] == "INFO"),
@@ -240,9 +377,18 @@ def _load(rel: str, root: str):
 def run(root: str = REPO_ROOT, now: dt.datetime | None = None,
         write: bool = True, receipts: bool = True) -> dict:
     now = now or dt.datetime.now(dt.timezone.utc)
-    chief = _load("data/investment_os/chief_investment.json", root)
-    positions = _load("data/current_positions.json", root)
-    rationale = _load("data/allocation_rationale.json", root)
+    ages: dict[str, dict] = {}
+
+    def _load_aged(rel: str, key: str):
+        data = _load(rel, root)
+        # Возраст меряем и у ОТСУТСТВУЮЩЕГО входа: `snapshot_age` вернёт `age_s: None`, и это
+        # честнее, чем пропуск ключа (пропуск читается как «вход был свежий»).
+        ages[key] = snapshot_age(data, os.path.join(root, rel), now)
+        return data
+
+    chief = _load_aged("data/investment_os/chief_investment.json", "chief_investment")
+    positions = _load_aged("data/current_positions.json", "current_positions")
+    rationale = _load_aged("data/allocation_rationale.json", "allocation_rationale")
     registry_keys = registry_protocol_keys()
     analysts = {}
     io_dir = os.path.join(root, "data", "investment_os")
@@ -251,9 +397,12 @@ def run(root: str = REPO_ROOT, now: dt.datetime | None = None,
             if fn.endswith(".json") and not fn.startswith("_") and fn != "chief_investment.json":
                 d = _load(f"data/investment_os/{fn}", root)
                 if isinstance(d, dict):
-                    analysts[fn[:-5]] = d
+                    name = fn[:-5]
+                    analysts[name] = d
+                    ages[f"analyst:{name}"] = snapshot_age(
+                        d, os.path.join(io_dir, fn), now)
 
-    report = compute_gaps(chief, positions, rationale, registry_keys, analysts, now)
+    report = compute_gaps(chief, positions, rationale, registry_keys, analysts, now, ages=ages)
 
     if write:
         from spa_core.utils.atomic import atomic_save

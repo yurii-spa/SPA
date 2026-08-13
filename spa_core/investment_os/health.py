@@ -35,6 +35,12 @@ ANALYSTS: tuple[str, ...] = (
 )
 _FRESH_AGE_S = 2 * 86400   # an analyst artifact older than this is STALE (daily agents)
 
+#: Public name for the SAME ceiling, for other checks that judge office artifacts (#212/#222).
+#: A check must not be more confident about an office artifact than the office's own health
+#: monitor: `house_view_gap` refuses to assert a posture in the present tense past this age.
+#: One definition, one place — a second literal would drift from this one silently.
+FRESH_AGE_S: int = _FRESH_AGE_S
+
 
 def _now(now: Optional[datetime] = None) -> datetime:
     return now or datetime.now(timezone.utc)
