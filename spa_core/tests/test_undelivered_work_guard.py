@@ -218,6 +218,101 @@ class TestLiveSessionsNeverReported:
         assert rep["exit_code"] == 1
 
 
+# ── 2a. личность САМОЙ проверки: молчать вправе только ДОВЕРЕННАЯ ────────────
+
+class TestUntrustedSelfIdentity:
+    """Положительный контроль аварии 14.08 (цикл #223) — но уже в ПРОДЕ, а не в тесте.
+
+    `main()` без `SPA_SESSION_ID` называет себя `pid<os.getpid()>` — pid ОДНОКРАТНОЙ
+    CLI-команды. Совпади он с чужим идентификатором — чужое объявление молча выпало бы из
+    отчёта: fail-OPEN внутри сторожа, который весь построен как fail-CLOSED. Это не
+    гипотеза: на Linux-раннере прогон получил pid **4242**, совпавший с фикстурой
+    `pid4242`, и проверка вернула «всё измерено» вместо «не измерено». Тогда починили ТЕСТ
+    (личность в `TestCli` задаётся явно), прод остался — вот он.
+    """
+
+    def _rep(self, guard, repo, entries, *, trusted, session="pid4242", ps=None, now=_NOW):
+        return guard.build_report(
+            entries=entries, root=repo, base_ref="base", self_session=session,
+            self_session_trusted=trusted, ps=ps if ps is not None else fake_ps({}),
+            now=now, grace_hours=3.0,
+        )
+
+    def test_untrusted_collision_does_not_hide_foreign_work(self, guard, repo):
+        """Ядро починки: pid проверки совпал с чужим id ⇒ работа всё равно находка."""
+        (repo / "orphan.py").write_text("orphan\n", encoding="utf-8")
+        rep = self._rep(guard, repo, [entry("pid4242", [repo / "orphan.py"])], trusted=False)
+        assert [f["path"] for f in rep["findings"]] == ["orphan.py"]
+        assert rep["exit_code"] == 1
+
+    def test_trusted_identity_still_skips_own_record(self, guard, repo):
+        """Контроль в ОБРАТНУЮ сторону: при явной личности своя запись по-прежнему молчит."""
+        (repo / "wip.py").write_text("wip\n", encoding="utf-8")
+        rep = self._rep(guard, repo, [entry("pid4242", [repo / "wip.py"])], trusted=True)
+        assert rep["findings"] == []
+        assert rep["unmeasured"] == []
+        assert rep["exit_code"] == 0
+
+    def test_collision_is_named_aloud_not_measured_silently(self, guard, repo):
+        """Недоверенная личность — не молчание и не тайна: совпадение сказано словами."""
+        (repo / "orphan.py").write_text("orphan\n", encoding="utf-8")
+        rep = self._rep(guard, repo, [entry("pid4242", [repo / "orphan.py"])], trusted=False)
+        why = rep["findings"][0]["session_state"]
+        assert "доверенной не является" in why and "pid4242" in why
+
+    def test_untrusted_collision_obeys_grace_window_not_auto_finding(self, guard, repo):
+        """Починка не должна стать шумом (п.2 карточки): свежее объявление — не находка,
+        оно уходит в окно ожидания по ОБЫЧНЫМ правилам."""
+        (repo / "in_flight.py").write_text("работа идёт\n", encoding="utf-8")
+        rep = self._rep(guard, repo, [entry("pid4242", [repo / "in_flight.py"])], trusted=False,
+                        now=datetime(2026, 1, 15, 13, 0, tzinfo=timezone.utc))   # +1ч
+        assert rep["findings"] == []
+        assert [f["session"] for f in rep["fresh"]] == ["pid4242"]
+        assert rep["exit_code"] == 0
+
+    def test_untrusted_collision_with_a_live_process_is_still_active(self, guard, repo):
+        """Не «всё подряд в находки»: живой процесс, стартовавший ДО объявления, —
+        подтверждённая активность, даже когда id совпал с личностью проверки."""
+        (repo / "wip.py").write_text("wip\n", encoding="utf-8")
+        rep = self._rep(guard, repo, [entry("pid4242", [repo / "wip.py"])], trusted=False,
+                        ps=fake_ps({4242: (0, _LSTART_OLD + "\n")}))
+        assert rep["findings"] == []
+        assert rep["sessions_active"] == 1
+        assert rep["exit_code"] == 0
+
+    def test_untrusted_collision_keeps_fail_closed_on_unmeasurable(self, guard, repo):
+        """`ps` не отработал ⇒ «не измерено», а не «это мы сами»."""
+        rep = self._rep(guard, repo, [entry("pid4242", [repo / "scripts" / "kept.py"])],
+                        trusted=False, ps=fake_ps({4242: (0, "не-дата\n")}))
+        assert rep["exit_code"] == 2
+        assert [u["session"] for u in rep["unmeasured"]] == ["pid4242"]
+
+    def test_cli_without_env_identity_is_untrusted(self, guard, repo, tmp_path, monkeypatch, capsys):
+        """Эффект через `main()`: БЕЗ `SPA_SESSION_ID` личность выведена из pid прогона.
+        Подставляем ровно ту коллизию, что случилась на раннере, — находка обязана выжить."""
+        monkeypatch.delenv("SPA_SESSION_ID", raising=False)
+        monkeypatch.setattr(guard.os, "getpid", lambda: 4242)
+        monkeypatch.setattr(guard, "_ps_lstart", fake_ps({}))
+        (repo / "orphan.py").write_text("orphan\n", encoding="utf-8")
+        log = tmp_path / "log.jsonl"
+        log.write_text(json.dumps(entry("pid4242", [repo / "orphan.py"]),
+                                  ensure_ascii=False) + "\n", encoding="utf-8")
+        rc = guard.main(["--root", str(repo), "--base", "base", "--log", str(log)])
+        assert rc == 1
+        assert "orphan.py" in capsys.readouterr().out
+
+    def test_cli_with_env_identity_is_trusted(self, guard, repo, tmp_path, monkeypatch):
+        """Та же коллизия, но личность названа ЯВНО — своя запись по-прежнему пропускается."""
+        monkeypatch.setenv("SPA_SESSION_ID", "pid4242")
+        monkeypatch.setattr(guard.os, "getpid", lambda: 4242)
+        monkeypatch.setattr(guard, "_ps_lstart", fake_ps({}))
+        (repo / "orphan.py").write_text("orphan\n", encoding="utf-8")
+        log = tmp_path / "log.jsonl"
+        log.write_text(json.dumps(entry("pid4242", [repo / "orphan.py"]),
+                                  ensure_ascii=False) + "\n", encoding="utf-8")
+        assert guard.main(["--root", str(repo), "--base", "base", "--log", str(log)]) == 0
+
+
 # ── 2b. окно ожидания: работа «в полёте» — не находка ────────────────────────
 
 class TestGraceWindow:

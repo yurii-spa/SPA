@@ -42,6 +42,12 @@
 проверка личности процесса (переиспользованный pid не читается как живая сессия). Окно
 ожидания остаётся запасным критерием для записей без этих полей — а их большинство.
 
+**Молчать о записи вправе только ДОВЕРЕННАЯ личность проверки** — названная сессией явно
+(`SPA_SESSION_ID`). Личность `pid<os.getpid()>` выведена из pid однократной CLI-команды, и по
+ней пропуск «это мы сами» был бы fail-OPEN: совпадение с чужим идентификатором молча выронило
+бы чужое объявление. Так уже случилось на Linux-раннере (pid 4242 = фикстура `pid4242`, `rc 0`
+вместо `2`; цикл #223 починил тест, цикл #224 — прод). См. `session_state`.
+
 **fail-CLOSED (инв. #2).** «Не смог измерить» никогда не сворачивается в «всё доставлено»:
 нет `git` / нет базового ref / `ps` не отработал / путь вне репозитория / битая метка времени →
 раздел «НЕ ИЗМЕРЕНО» и код возврата 2. Коды: **0** — всё измерено и всё доставлено; **1** —
@@ -228,7 +234,7 @@ def _durable_state(entry, ts, ps):
                     f"(старт {started.isoformat()})")
 
 
-def session_state(entry, self_session, ps=_ps_lstart):
+def session_state(entry, self_session, ps=_ps_lstart, self_session_trusted=True):
     """(ACTIVE|NOT_CONFIRMED|UNKNOWN, измерение словами).
 
     ACTIVE — активность ПОДТВЕРЖДЕНА (это мы сами; объявленный сессией долгоживущий процесс
@@ -239,11 +245,32 @@ def session_state(entry, self_session, ps=_ps_lstart):
     Порядок: своя сессия → долгоживущий процесс записи (**основной критерий**) → pid из
     идентификатора (как раньше, для записей без новых полей). Окно ожидания у вызывающих
     остаётся запасным критерием и не трогается.
+
+    **`self_session_trusted` — доверенная ли личность проверки.** Пропуск «это мы сами»
+    имеет право молчать о записи, поэтому он допустим ТОЛЬКО по личности, которую сессия
+    назвала явно (`SPA_SESSION_ID`). Личность вида `pid<os.getpid()>` выведена из pid
+    ОДНОКРАТНОЙ CLI-команды и доверенной не является: совпадение такого pid'а с чужим
+    идентификатором молча выронило бы чужое объявление из отчёта — fail-OPEN внутри
+    сторожа, который весь построен как fail-CLOSED. Это не гипотеза: на Linux-раннере
+    прогон получил pid **4242**, совпавший с фикстурой `pid4242`, и проверка вернула
+    «всё измерено» вместо «не измерено» (цикл #223; тест починили тогда же, прод — нет).
+    При недоверенной личности запись меряется ОБЫЧНЫМИ правилами, а совпадение
+    называется вслух; находкой она становится по возрасту объявления, а не автоматически.
     """
     session = str(entry.get("session") or "")
     if session and session == self_session:
-        return ACTIVE, "это текущая сессия"
+        if self_session_trusted:
+            return ACTIVE, "это текущая сессия"
+        state, why = _measured_session_state(entry, session, ps)
+        return state, (f"идентификатор совпал с личностью этой проверки ({self_session}), но "
+                       f"она выведена из pid однократного процесса и доверенной не является "
+                       f"(нет SPA_SESSION_ID) — меряем запись как чужую: {why}")
 
+    return _measured_session_state(entry, session, ps)
+
+
+def _measured_session_state(entry, session, ps=_ps_lstart):
+    """Измерение активности записи без ветки «это мы сами» (см. `session_state`)."""
     ts = _parse_ts(entry.get("ts"))
     if ts is None:
         return UNKNOWN, (f"метка времени записи не разобрана: {entry.get('ts')!r} — "
@@ -657,7 +684,7 @@ def undelivered_cards(root, base_ref, checkouts, git=_git):
 
 def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                  malformed_lines=0, log_path=None, now=None,
-                 grace_hours=DEFAULT_GRACE_HOURS):
+                 grace_hours=DEFAULT_GRACE_HOURS, self_session_trusted=True):
     root = Path(root)
     now = now or datetime.now(timezone.utc)
     grace = timedelta(hours=grace_hours)
@@ -726,7 +753,8 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
     unmeasured.extend(cu)
 
     for entry in entries:
-        state, why = session_state(entry, self_session, ps=ps)
+        state, why = session_state(entry, self_session, ps=ps,
+                                   self_session_trusted=self_session_trusted)
         if state == ACTIVE:
             report["sessions_active"] += 1
             continue
@@ -896,11 +924,15 @@ def main(argv=None) -> int:
         return 2
 
     entries, malformed = read_entries(log_path, None if args.all else args.last)
-    self_session = os.environ.get("SPA_SESSION_ID") or f"pid{os.getpid()}"
+    # Доверенная личность — только явно названная сессией. `pid<os.getpid()>` — pid
+    # ОДНОКРАТНОЙ CLI-команды: по нему пропускать чужие объявления нельзя (см. session_state).
+    env_session = os.environ.get("SPA_SESSION_ID")
+    self_session = env_session or f"pid{os.getpid()}"
     report = build_report(entries=entries, root=root, base_ref=args.base,
                           self_session=self_session, ps=_ps_lstart, git=_git,
                           malformed_lines=malformed, log_path=log_path,
-                          grace_hours=args.grace_hours)
+                          grace_hours=args.grace_hours,
+                          self_session_trusted=bool(env_session))
     print(json.dumps(report, ensure_ascii=False, indent=2) if args.json else render(report))
     return int(report["exit_code"])
 
