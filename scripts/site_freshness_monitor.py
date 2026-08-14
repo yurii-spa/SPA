@@ -457,7 +457,12 @@ def _alert(report):
         if client is None:
             return False
         try:
-            client._record_history(msg, ok=ok, message_id=message_id, error=error)
+            # `buttons=False` — измерение, а не украшение: этот путь шлёт СЫРОЙ POST
+            # (свои токены, свой urllib) и клавиатуру не прикрепляет никогда. Именно на
+            # такие сообщения указывает первая гипотеза карточки «кнопок нету» (#229):
+            # владелец не обязан отличать отправителей, а скан обязан их назвать.
+            client._record_history(msg, ok=ok, message_id=message_id, error=error,
+                                   buttons=False)
             return True
         except Exception:  # noqa: BLE001
             return False

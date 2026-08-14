@@ -112,12 +112,20 @@ def _classify(text: str) -> str:
 
 
 def _record_history(text: str, ok: bool, message_id=None, error: str | None = None,
-                    solicited: bool = False) -> None:
+                    solicited: bool = False, buttons: bool | None = None) -> None:
     """Append one send outcome to the ring-buffered alert_history.json. Never raises.
 
     ``solicited`` — владелец САМ это вызвал (ответ на его команду, кнопку, голосовое).
     Такая запись нужна, чтобы вопрос «кто это шлёт» имел ответ, но повтором она НЕ
     считается: иначе ответ на `/status` заглушил бы настоящую тревогу с тем же текстом.
+
+    ``buttons`` — приехала ли с сообщением клавиатура (жалоба владельца 14.08: «пишет
+    варианты ответов — кнопок нету»). Мерить это можно ТОЛЬКО здесь, в дверях: `preview`
+    в журнале — 80 символов, и блок «Варианты:» в него не помещается по построению, а
+    клавиатуры в тексте нет вовсе. ``None`` — дверь не сказала; тогда поля не будет
+    совсем, и скан назовёт запись «не измерено», а не «кнопок не было» (fail-CLOSED).
+    ``offers_choice`` считается ЗДЕСЬ по полному тексту — чтобы ни один отправитель не
+    мог забыть его передать (цикл #229).
     """
     if os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get(
         "SPA_ALERT_HISTORY_TEST"
@@ -133,6 +141,12 @@ def _record_history(text: str, ok: bool, message_id=None, error: str | None = No
             # разбирает «кто это шлёт», и урезать его до неузнаваемости нельзя.
             "dkey": _dedup_preview(text),
         }
+        try:
+            from spa_core.telegram.buttonless_audit import history_fields
+
+            entry.update(history_fields(text, buttons))
+        except Exception:  # noqa: BLE001 — наблюдение не имеет права уронить журнал
+            pass
         if solicited:
             entry["solicited"] = True
         if message_id is not None:
@@ -376,7 +390,8 @@ def _post_message(payload_dict: dict) -> bool:
                         msg_id = (body.get("result") or {}).get("message_id")
                     except Exception:  # noqa: BLE001 — body parse is best-effort
                         pass
-                    _record_history(text, ok=True, message_id=msg_id)
+                    _record_history(text, ok=True, message_id=msg_id,
+                                    buttons="reply_markup" in payload_dict)
                     return True
                 last_err = RuntimeError(f"HTTP status {resp.status}")
         except urllib.error.HTTPError as exc:

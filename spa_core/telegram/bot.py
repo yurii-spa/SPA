@@ -292,6 +292,11 @@ class TelegramBot:
                 message_id=((result or {}).get("result") or {}).get("message_id"),
                 error=None if result else "bot_api_call_failed",
                 solicited=not dedup,
+                # Жалоба владельца 14.08: «пишет варианты ответов — кнопок нету».
+                # Дверь — единственное место, где ещё видно И полный текст, И
+                # клавиатуру: в журнале превью 80 символов, блок «Варианты:» в него
+                # не влезает. Не сказать здесь = сделать класс неизмеримым (#229).
+                buttons=reply_markup is not None,
             )
         except Exception:  # noqa: BLE001
             log.debug("bot send history record failed", exc_info=True)
@@ -347,6 +352,7 @@ class TelegramBot:
                 message_id=message_id,
                 error=None if result else "bot_edit_failed",
                 solicited=True,
+                buttons=reply_markup is not None,
             )
         except Exception:  # noqa: BLE001 — наблюдение не имеет права уронить правку
             log.debug("bot edit history record failed", exc_info=True)

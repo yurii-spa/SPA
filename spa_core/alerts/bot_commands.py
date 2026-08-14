@@ -160,6 +160,7 @@ def _api_post(token: str, method: str, payload: dict) -> dict:
                 message_id=((result or {}).get("result") or {}).get("message_id"),
                 error=None if (result or {}).get("ok") else "bot_commands_api_not_ok",
                 solicited=True,
+                buttons="reply_markup" in payload,
             )
         except Exception:  # noqa: BLE001
             log.debug("bot_commands history record failed", exc_info=True)

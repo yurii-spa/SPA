@@ -257,6 +257,29 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None) -> list[
                     out.append(f"   ⚠️ снято с долга: {dr.get('path')} — {dr.get('reason')}")
         else:
             out.append("   ⚠️ доставка карточек НЕ ИЗМЕРЕНА: в отчёте нет блока delivery")
+    elif name == "owner_decision_pending.json":
+        out.append(f"   статус: {data.get('status')}")
+        if data.get("reason"):
+            out.append(f"   {str(data['reason'])[:160]}")
+        # Канал: уезжали ли владельцу сообщения с вариантами БЕЗ кнопок (жалоба 14.08).
+        # Печатаем ОТДЕЛЬНОЙ строкой и всегда: молчание про этот вопрос читалось бы как
+        # «кнопки в порядке», а до цикла #229 он был неизмерим по построению.
+        ch = data.get("channel_buttons")
+        if not isinstance(ch, dict):
+            out.append("   ⚠️ кнопки в канале НЕ ИЗМЕРЕНЫ: в отчёте нет блока "
+                       "channel_buttons (отчёт старого образца)")
+        elif not ch.get("measured"):
+            out.append(f"   ⚠️ кнопки в канале НЕ ИЗМЕРЕНЫ: {ch.get('reason')}")
+        else:
+            # Импорт локальный и защищённый: обязательный шаг 0-офис не имеет права
+            # упасть из-за строчки оформления — упавший шаг это НЕ прочитанный офис.
+            try:
+                from spa_core.telegram.buttonless_audit import summary_line
+
+                line = summary_line(ch)
+            except Exception as exc:  # noqa: BLE001
+                line = (f"⚠️ кнопки в канале НЕ ИЗМЕРЕНЫ: строку не собрать ({exc})")
+            out.append(f"   {line}")
     else:
         status = data.get("status") or data.get("overall") or data.get("posture")
         if status is not None:
