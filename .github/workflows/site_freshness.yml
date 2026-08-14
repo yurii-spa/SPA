@@ -33,6 +33,12 @@ jobs:
         run: |
           python scripts/site_freshness_monitor.py
       - name: Funnel link-integrity tripwire (advisory)
+        # if: always() — иначе красный шаг выше СНИМАЕТ эту проверку с прогона. С 14.08
+        # (цикл #228) монитор краснеет и на недоставке таблички честности: для ветки
+        # восстановления это единственный оставшийся канал (звонить владельцу ей запрещено),
+        # и он не имеет права заодно выключать соседнюю проверку. Два независимых сторожа в
+        # одном job'е обязаны отвечать каждый за себя.
+        if: always()
         # Activates the previously-orphaned scripts/funnel_link_check.py: crawls the live
         # conversion path (entry -> checkup -> packages -> pilot, both domains) and fails ONLY on a
         # real broken link (exit 1). A transient network failure (exit 2) is a warning, never a red

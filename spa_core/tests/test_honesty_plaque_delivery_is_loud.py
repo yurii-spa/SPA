@@ -45,11 +45,26 @@ class TestFailureIsLoud(unittest.TestCase):
         self.mod = _load()
 
     def _run(self, rc: int, fn: str, snap: dict):
+        """Прогон ветки доставки при условии «доставить ОТСЮДА можно».
+
+        Почему условие теперь названо вслух (цикл #228, 14.08; инвариант #16 —
+        изменение теста намеренное и обоснованное). Все четыре проверки ниже — про
+        одно: пушер ОТРАБОТАЛ и вернул код. Раньше это подразумевалось молча, а
+        снимок жил во временном каталоге — то есть тест описывал среду, в которой
+        доставка невозможна в принципе, и при этом требовал поведения «пушер
+        сходил». Пока веток было две, разницы не было; с 14.08 она есть и стоит
+        владельцу четырёх одинаковых тревог в сутки (см.
+        ``test_site_freshness_delivery_route.py``). Предусловие зафиксировано
+        явно — проверки при этом НЕ ослаблены: ни один ассерт не изменён и не снят,
+        добавилась только среда, в которой они осмысленны.
+        """
         alerts = []
         with TemporaryDirectory() as t:
             path = Path(t) / "track_snapshot.json"
             path.write_text(json.dumps(snap), encoding="utf-8")
             with mock.patch.object(self.mod, "_SNAP", path), \
+                 mock.patch.object(self.mod, "_delivery_possible",
+                                   lambda *a, **k: (True, "")), \
                  mock.patch.object(self.mod, "_alert", lambda r: alerts.append(r)), \
                  mock.patch.object(self.mod.subprocess, "run",
                                    return_value=mock.Mock(returncode=rc)):

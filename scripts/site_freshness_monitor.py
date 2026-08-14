@@ -488,7 +488,58 @@ def _alert(report):
             "error": "no_alert_channel"}
 
 
-def _deploy_snapshot(message: str, what: str) -> bool:
+#: Заметки о доставке за этот прогон — уезжают в отчёт (он же артефакт job'а).
+#: Список, а не одно значение: веток доставки за прогон может быть больше одной.
+_DELIVERY_NOTES: list = []
+
+
+def _delivery_possible(path=None):
+    """Может ли пушер вообще доставить ЭТОТ файл ОТСЮДА. ``(bool, причина)``.
+
+    Спрашиваем не «есть ли сеть» и не «есть ли токен», а САМ КОНТРАКТ инструмента
+    доставки: ``push_to_github.repo_relative_path`` отдаёт путь внутри репозитория
+    только для файла из живого дерева Мака или его worktree (fail-CLOSED, иначе
+    файл уехал бы в КОРЕНЬ репо). В GitHub Actions дерево лежит по
+    ``/home/runner/work/SPA/SPA`` — контракт не выполняется НИКОГДА, ни при какой
+    погоде. Это свойство среды, а не поломка, и разница между «сломалось» и
+    «отсюда нечем» решает, будить ли человека.
+
+    Замер 14.08 (жалоба владельца «опять спамит одним и тем же»): этого вопроса не
+    задавал никто. ``_clear_degrade`` в CI каждые 6 часов правил ЭФЕМЕРНЫЙ снимок
+    раннера, звал пушер, получал ``rc=1`` — и рапортовал это КРИТИЧЕСКОЙ тревогой в
+    чат владельца. Мимо дедупа и мимо журнала (``live_tree_absent``): в CI живого
+    дерева нет по построению, подавить повтор НЕЧЕМ ⇒ 4 побуквенно одинаковых
+    сообщения в сутки, бессрочно, и ни одного следа в ``alert_history.json`` —
+    поэтому три разбора подряд («кто это шлёт») упирались в пустоту.
+
+    Загрузка пушера — по пути к файлу, ``sys.path`` не трогаем (та же причина, что у
+    ``_humanize_body``): достижимым не должен становиться никакой другой модуль.
+    Не смогли измерить ⇒ считаем, что доставить можем: ошибиться в сторону попытки
+    безопаснее, чем молча её не сделать.
+    """
+    target = Path(path) if path is not None else _SNAP
+    mod = None
+    try:
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "_spa_pusher_probe", str(_ROOT / "push_to_github.py"))
+        if spec is None or spec.loader is None:
+            return True, ""
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mod.repo_relative_path(target)
+        return True, ""
+    except Exception as exc:  # noqa: BLE001
+        if type(exc).__name__ == "RepoPathError":
+            root = getattr(mod, "PROJECT_ROOT", "живого дерева")
+            return False, (f"пушер работает только из {root} или его worktree, "
+                           f"а файл лежит по {target}")
+        # Любая другая беда (пушера нет, импорт, синтаксис) — это НЕ «среда не та».
+        return True, ""
+
+
+def _deploy_snapshot(message: str, what: str, *, page_owner: bool = True) -> bool:
     """Отправить снимок и ЧЕСТНО сказать, уехал он или нет.
 
     Дефект, измеренный 09.08: обе ветки ниже звали пушер и НЕ читали код возврата,
@@ -501,9 +552,41 @@ def _deploy_snapshot(message: str, what: str) -> bool:
     свой вопрос («я записал флаг»), а читают его как ответ на нужный («табличка на
     сайте»). Лечится не эскалацией, а тем, что провал перестаёт быть тихим.
 
+    ``page_owner`` — звонить ли владельцу, когда доставить ОТСЮДА нечем (14.08).
+    Решает НАПРАВЛЕНИЕ таблички, и это не вкусовщина, а инвариант #8:
+
+    * не уехала ПОСТАНОВКА (``_apply_degrade``) ⇒ публика прямо сейчас видит
+      завышенное число, и мы знаем, что оно завышено — звонить, даже без дедупа;
+    * не уехало СНЯТИЕ (``_clear_degrade``) ⇒ публика видит осторожную табличку
+      там, где проверки уже проходят. Хуже реальности мы не выглядим ни на йоту, и
+      будить человека раз в 6 часов бессрочно тут не за что: находка уезжает в
+      отчёт, в stderr и в КРАСНЫЙ job — второй канал ADR-YL-011 никуда не делся.
+
+    Проверка НЕ ослаблена ни в одну сторону: сторож, пороги и вывод те же, отчёт
+    остаётся не-``ok``, `rc != 0` по-прежнему поднимает тревогу в ОБЕИХ ветках.
+    Меняется МАРШРУТ одного класса сообщений — ровно как в ADR-084, где штатная
+    самопочинка перестала звонить владельцу.
+
     Возвращает True только при коде 0. Ничего не решает про owner-gate — пропуск
     таблички через гейт остаётся решением владельца.
     """
+    can, why = _delivery_possible(_SNAP)
+    if not can:
+        _DELIVERY_NOTES.append({"what": what, "attempted": False, "delivered": False,
+                                "reason": "delivery_impossible_here", "detail": why,
+                                "owner_paged": bool(page_owner)})
+        print(f"site_freshness_monitor: {what}: доставить ОТСЮДА нечем — {why}",
+              file=sys.stderr)
+        if page_owner:
+            try:
+                _alert({"severity": "FAIL", "failures": [{
+                    "code": "HONESTY_PLAQUE_UNDELIVERED",
+                    "detail": f"{what}: доставить отсюда нечем ({why}) — завышенное "
+                              f"число остаётся видимым публично",
+                }]})
+            except Exception:  # noqa: BLE001
+                pass
+        return False
     try:
         rc = subprocess.run(
             [sys.executable, str(_ROOT / "push_to_github_batch.py"),
@@ -512,11 +595,15 @@ def _deploy_snapshot(message: str, what: str) -> bool:
     except Exception as e:  # noqa: BLE001
         print(f"site_freshness_monitor: КРИТИЧНО — {what}: пушер не запустился ({e})",
               file=sys.stderr)
+        _DELIVERY_NOTES.append({"what": what, "attempted": True, "delivered": False,
+                                "reason": "pusher_did_not_start", "detail": str(e)[:200]})
         return False
     if rc != 0:
         print(f"site_freshness_monitor: КРИТИЧНО — {what}: доставка ОТКАЗАНА (код {rc}). "
               f"Локальный снимок изменён, публичный сайт — НЕТ. Правило честности "
               f"не исполнено.", file=sys.stderr)
+        _DELIVERY_NOTES.append({"what": what, "attempted": True, "delivered": False,
+                                "reason": "push_refused", "rc": rc})
         try:
             _alert({"severity": "FAIL", "failures": [{
                 "code": "HONESTY_PLAQUE_UNDELIVERED",
@@ -525,6 +612,7 @@ def _deploy_snapshot(message: str, what: str) -> bool:
         except Exception:  # noqa: BLE001
             pass
         return False
+    _DELIVERY_NOTES.append({"what": what, "attempted": True, "delivered": True})
     return True
 
 
@@ -534,11 +622,20 @@ def _apply_degrade():
         snap = json.loads(_SNAP.read_text())
         if snap.get("degraded") is True:
             return
+        if not _delivery_possible(_SNAP)[0]:
+            # Флаг НЕ ставим: в раннере он живёт до конца job'а и не значит ничего.
+            # А вот звонок обязан произойти — публика видит завышенное число.
+            _deploy_snapshot(
+                "chore(site-custodian): KILL-RULE degrade site (stale/overstated metric)",
+                "постановка таблички честности", page_owner=True)
+            print("site_freshness_monitor: DEGRADED — доставить отсюда нечем, флаг "
+                  "не ставлю (был бы эфемерным); владелец извещён")
+            return
         snap["degraded"] = True
         _atomic_write(_SNAP, snap)
         ok = _deploy_snapshot(
             "chore(site-custodian): KILL-RULE degrade site (stale/overstated metric)",
-            "постановка таблички честности")
+            "постановка таблички честности", page_owner=True)
         print(f"site_freshness_monitor: DEGRADED flag set + "
               f"{'pushed' if ok else 'НЕ ДОСТАВЛЕНО'}")
     except Exception as e:
@@ -551,15 +648,36 @@ def _clear_degrade():
         snap = json.loads(_SNAP.read_text())
         if snap.get("degraded") is not True:
             return
+        if not _delivery_possible(_SNAP)[0]:
+            # Правка эфемерного снимка раннера + звонок владельцу = петля 14.08.
+            # Ни того, ни другого: причина уезжает в отчёт, job остаётся красным.
+            _deploy_snapshot(
+                "chore(site-custodian): recover — checks pass, lift degraded plaque",
+                "снятие таблички честности", page_owner=False)
+            print("site_freshness_monitor: recovered — снять табличку отсюда нечем, "
+                  "снимок не трогаю (см. delivery в отчёте)")
+            return
         snap["degraded"] = False
         _atomic_write(_SNAP, snap)
         ok = _deploy_snapshot(
             "chore(site-custodian): recover — checks pass, lift degraded plaque",
-            "снятие таблички честности")
+            "снятие таблички честности", page_owner=False)
         print(f"site_freshness_monitor: recovered — degraded cleared + "
               f"{'pushed' if ok else 'НЕ ДОСТАВЛЕНО'}")
     except Exception as e:
         print(f"site_freshness_monitor: clear-degrade failed ({e})", file=sys.stderr)
+
+
+def exit_code(report_ok: bool, notes) -> int:
+    """Код возврата прогона: 0 — и проверки прошли, И всё, что решили доставить, уехало.
+
+    Вынесено отдельной функцией, потому что это единственный канал, оставшийся у
+    ветки восстановления: звонить владельцу ей запрещено (см. `_deploy_snapshot`),
+    а пока недоставка жила только в stderr, «снять табличку отсюда нечем»
+    выглядело как чистый прогон — отчёт `ok`, код 0, красного job'а нет, и
+    публичная табличка не снималась НИКОГДА.
+    """
+    return 0 if (report_ok and not [n for n in notes if not n.get("delivered")]) else 1
 
 
 def run():
@@ -601,6 +719,7 @@ def run():
         # уезжает артефактом job'а. Иначе следы отправки не остаётся вообще нигде.
         report["alert_delivery"] = _alert(report)
         _atomic_write(_REPORT, report)
+    del _DELIVERY_NOTES[:]
     if report["degrade_triggered"]:
         _apply_degrade()
     elif snapshot.get("degraded") is True:
@@ -608,7 +727,19 @@ def run():
         # plaque even if other non-degrading fails remain (e.g. deploy-lag OVERSTATED alerts, which must
         # NOT keep a correct snapshot degraded).
         _clear_degrade()
-    return 0 if report["ok"] else 1
+    # Исход доставки — в отчёт (артефакт job'а) и в КОД ВОЗВРАТА. Пока недоставка
+    # жила только в stderr, «снять табличку отсюда нечем» выглядело как чистый
+    # прогон: отчёт `ok`, код 0, а публичная табличка не снималась никогда.
+    # Тревога владельцу для этого направления — запрещена (см. `_deploy_snapshot`),
+    # поэтому красный job здесь и есть второй канал ADR-YL-011.
+    undelivered = [n for n in _DELIVERY_NOTES if not n.get("delivered")]
+    if _DELIVERY_NOTES:
+        report["delivery"] = list(_DELIVERY_NOTES)
+        _atomic_write(_REPORT, report)
+    for n in undelivered:
+        print(f"::error::site-custodian: {n['what']} НЕ ДОСТАВЛЕНО "
+              f"({n.get('reason')}) — {n.get('detail', '')}")
+    return exit_code(report["ok"], _DELIVERY_NOTES)
 
 
 if __name__ == "__main__":
