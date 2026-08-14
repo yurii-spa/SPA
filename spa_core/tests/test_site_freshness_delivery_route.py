@@ -182,10 +182,27 @@ class TestTheProbeMeasuresTheRealContract(unittest.TestCase):
     def setUp(self):
         self.mod = _load()
 
-    def test_a_file_of_this_repo_is_deliverable(self):
-        ok, why = self.mod._delivery_possible(_REPO / "landing" / "src" / "data" /
-                                              "track_snapshot.json")
-        self.assertTrue(ok, why)
+    def test_the_probe_answers_for_the_environment_it_runs_in(self):
+        """Оба ответа — настоящие, и какой из них верен, решает СРЕДА.
+
+        Первая редакция этого теста требовала «файл репозитория доставляем» безусловно
+        и покраснела в CI (прогон `SPA CI` на b6356691) — на раннере доставляем НИ ОДИН
+        файл, ровно из-за свойства, которое тест и проверяет. Тот же класс, о котором
+        предупреждает `.claude/rules/deployment.md` («фикстура, зашитая под одну среду»),
+        только вместо даты — путь. Пропускать тест нельзя (инв. #16): в обеих средах
+        есть что утверждать, и утверждения разные.
+        """
+        pusher_root = self.mod.Path("/Users/yuriikulieshov/Documents/SPA_Claude")
+        target = _REPO / "landing" / "src" / "data" / "track_snapshot.json"
+        ok, why = self.mod._delivery_possible(target)
+        if _REPO.resolve() == pusher_root.resolve() or pusher_root.is_dir():
+            # Живое дерево Мака (или его worktree) — доставка обязана быть возможна,
+            # иначе сторож молчал бы там, где обязан звонить.
+            self.assertTrue(ok, why)
+        else:
+            # Раннер: доставить нельзя НИЧЕГО — и это ровно то, что гасит спам.
+            self.assertFalse(ok, "на раннере пушер не примет ни один путь")
+            self.assertIn(str(pusher_root), why)
 
     def test_a_runner_shaped_path_is_not(self):
         """Форма GitHub Actions: файл вне любого worktree этого репозитория."""
