@@ -15,7 +15,11 @@ origin» ровно потому, что цикл #228 переписал фай
 
 **Правило снятия (все условия — И, иначе дерево ОСТАЁТСЯ):**
 
-1. Это **линкованное** дерево, а не главное. Главное рабочее дерево не снимается никогда.
+1. Это **линкованное** дерево, а не главное. Главное рабочее дерево не снимается никогда —
+   и «главное» здесь берётся из порядка `git worktree list --porcelain` (главное первым),
+   а НЕ из `--root`. До #234 щит сравнивал с `--root`, то есть с деревом, ОТКУДА запущен
+   прогон: из worktree щит доставался одноразовому дереву сессии, а прод шёл в кандидаты
+   на общих основаниях. Дерево самого прогона тоже не снимается — это второй, отдельный щит.
 2. **Сессия молчит:** ни одного объявления в `data/session_changes.jsonl` про пути внутри
    этого дерева за окно ожидания, И ни одного файла в дереве, изменённого за то же окно
    (`--grace-hours`, по умолчанию 24). Не удалось прочитать журнал/файлы ⇒ дерево остаётся.
@@ -36,6 +40,13 @@ origin» ровно потому, что цикл #228 переписал фай
 5. **Перед снятием — архив.** Правка (`git diff <база>`) и копии неотслеживаемых файлов
    уезжают в `~/SPA_backups/worktree_reap/<имя>-<штамп>/` вместе с `manifest.json`. Работа не
    уничтожается, а перестаёт числиться рабочим деревом; восстановление — `git apply`.
+
+**Общее состояние сессий живёт в ГЛАВНОМ дереве (#234).** Журнал объявлений и квитанция
+снятия лежат в `data/`, а `data/` в `.gitignore` ⇒ в worktree их нет и не будет. Без `--root`
+корнем берётся главное дерево (`git worktree list`), поэтому инструмент работает оттуда,
+откуда его зовут по протоколу §3.4 — из изолированного worktree. Явный `--root`/`--log`
+остаётся главнее. Отказ «журнал не прочитан» НЕ ослаблен: он по-прежнему отменяет снятие
+целиком (fail-CLOSED), просто перестал срабатывать на пустом месте.
 
 **`data/` из вопроса исключён — явно и вслух.** Живой цикл переписывает десятки `data/*.json`
 в КАЖДОМ чекауте, где его запускали; это не работа сессии, а её след, и `CLAUDE.md` запрещает
@@ -68,6 +79,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
+
+# Одно определение на репозиторий: «где живёт общее состояние сессий». Свою копию этого
+# ответа заводить нельзя — два определения разойдутся, а вопрос буквально один и тот же
+# (цикл #54 решил его для шага 0a, цикл #234 переносит сюда ИМПОРТОМ, не копией).
+from check_undelivered_work import main_worktree  # noqa: E402
 
 DEFAULT_BASE = "origin/main"
 DEFAULT_GRACE_HOURS = 24.0
@@ -130,7 +146,11 @@ def list_registrations(root, git=_git):
         regs.append({"path": str(path),
                      "prunable": prunable is not None,
                      "reason": (prunable or "").strip() or None,
-                     "exists": path.is_dir()})
+                     "exists": path.is_dir(),
+                     # `git worktree list --porcelain` перечисляет ГЛАВНОЕ дерево первым
+                     # (документированный порядок) и делает это одинаково, откуда бы его ни
+                     # звали. Признак берётся отсюда, а не из `--root`: см. `inspect`.
+                     "main": not regs})
 
     for line in out.splitlines():
         if line.startswith("worktree "):
@@ -296,9 +316,21 @@ def inspect(root, reg, base_ref, fresh_files, grace_hours, git=_git, now_ts=None
         out["reasons"].append(reg["reason"] or "каталога нет, регистрация осталась")
         return out
 
-    if Path(wt).resolve() == Path(root).resolve():
+    # ДВА щита, а не один, и оба измеряются независимо от `--root`.
+    #
+    # До #234 щит был один и звучал как «главное рабочее дерево», а сравнивал с `--root` —
+    # деревом, ОТКУДА запущен прогон. Из worktree (а §3.4 велит работать именно там) это
+    # выдавало щит одноразовому дереву сессии, тогда как ПРОД шёл в кандидаты на общих
+    # основаниях: замер 14.08 — прод уцелел только благодаря случайному свежему объявлению,
+    # то есть по совпадению, а не по правилу. Классический «сторож отвечает не на тот вопрос».
+    if reg.get("main"):
         out["verdict"] = KEEP
         out["reasons"].append("главное рабочее дерево — не снимается никогда")
+        return out
+
+    if Path(wt).resolve() == Path(root).resolve():
+        out["verdict"] = KEEP
+        out["reasons"].append("дерево этого прогона — не снимается (пилить сук под собой)")
         return out
 
     declared = _declared_inside(wt, fresh_files)
@@ -485,7 +517,9 @@ def exit_code(report) -> int:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Снятие мёртвых рабочих деревьев по правилу (причина осадка шага 0a)")
-    ap.add_argument("--root", default=str(ROOT))
+    ap.add_argument("--root", default=None,
+                    help="рабочее дерево прогона (по умолчанию — ГЛАВНОЕ дерево репозитория, "
+                         "потому что общее состояние сессий живёт только там)")
     ap.add_argument("--base", default=DEFAULT_BASE)
     ap.add_argument("--log", default=None, help="журнал объявлений (по умолчанию data/session_changes.jsonl в --root)")
     ap.add_argument("--grace-hours", type=float, default=DEFAULT_GRACE_HOURS)
@@ -493,9 +527,27 @@ def main(argv=None) -> int:
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
 
-    root = Path(args.root)
+    # `data/` в `.gitignore` ⇒ внутри worktree ни журнала объявлений, ни квитанции снятия НЕТ
+    # и не будет: чтение даёт честный отказ (fail-CLOSED), а запись квитанции легла бы в
+    # одноразовое дерево и исчезла вместе с ним — то самое «шило на мыло», от которого
+    # квитанция и защищает. Поэтому по умолчанию корнем берётся ГЛАВНОЕ дерево. Явный
+    # `--root` остаётся главнее: он и есть способ спросить про другое дерево.
+    root_note = None
+    if args.root:
+        root = Path(args.root)
+    else:
+        resolved, why = main_worktree(ROOT)
+        root = resolved or ROOT
+        if resolved is None:
+            # Не разрешилось ⇒ прежнее поведение (путь относительно этого файла). Молчаливым
+            # «всё в порядке» это не станет: из worktree журнал не прочитается и снятие
+            # не выполнится — отказ, а не пустой список кандидатов.
+            root_note = f"главное рабочее дерево не определено ({why}) — корнем взят {ROOT}"
+
     log_path = args.log or (root / "data" / "session_changes.jsonl")
     report = build_report(root, args.base, log_path, args.grace_hours)
+    if root_note:
+        report["unmeasured_reasons"].append(root_note)
 
     if args.apply:
         for t in report["trees"]:

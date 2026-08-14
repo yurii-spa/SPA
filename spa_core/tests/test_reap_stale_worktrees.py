@@ -411,3 +411,122 @@ def test_receipt_failure_cancels_removal(repo, monkeypatch, tmp_path):
 
     rc = R.main(["--root", str(root), "--apply", "--json"])
     assert removed == [] and rc == 2 and wt.is_dir()
+
+
+# ── #234: инструмент обязан работать оттуда, где по §3.4 работают сессии ─────────
+#
+# Замер 14.08 из worktree: без `--root` уборщик отказывал целиком («журнал объявлений
+# не прочитан» — `data/` в `.gitignore`, в worktree журнала нет и не будет), а щит
+# «главное рабочее дерево не снимается» доставался одноразовому дереву ПРОГОНА, тогда
+# как ПРОД шёл в кандидаты на общих основаниях и уцелел лишь по случайному свежему
+# объявлению. Каждый тест ниже краснеет на неисправленном файле.
+
+
+def test_shield_belongs_to_the_main_tree_not_to_the_run_root(repo):
+    """Прогон ИЗ worktree: щит остаётся у главного дерева, а не переезжает на `--root`.
+
+    Положительный контроль ровно того, что случилось бы с прод-деревом: журнал пуст,
+    файлы состарены, правки объяснены ⇒ по старому коду главное дерево получало REAP."""
+    root, _ = repo
+    wt = _worktree(root, "spa_wt_c234")
+    _age(wt)
+    _age(root)
+    _log(root, [])
+
+    report = R.build_report(wt, "origin/main", root / "data" / "session_changes.jsonl",
+                            24.0, now=NOW, now_ts=NOW_TS)
+    main_tree = _verdict(report, root)
+    assert main_tree["verdict"] == R.KEEP, "главное дерево ушло в кандидаты на снятие"
+    assert "главное" in main_tree["reasons"][0]
+
+
+def test_run_own_tree_is_never_reaped_either(repo):
+    """Второй щит: дерево, ОТКУДА идёт прогон, тоже не снимается — но это другая причина."""
+    root, _ = repo
+    wt = _worktree(root, "spa_wt_self")
+    _age(wt)
+    _log(root, [])
+
+    t = _verdict(R.build_report(wt, "origin/main", root / "data" / "session_changes.jsonl",
+                                24.0, now=NOW, now_ts=NOW_TS), wt)
+    assert t["verdict"] == R.KEEP
+    assert "прогона" in t["reasons"][0], t["reasons"]
+
+
+def test_default_root_is_the_main_tree_so_the_journal_is_found(repo, monkeypatch):
+    """Без `--root` корень берётся из `git worktree list`, а не из каталога этого файла.
+
+    Иначе журнал ищется в дереве прогона, где его нет: отказ fail-CLOSED честен, но
+    инструмент неработоспособен ровно там, где протокол велит работать."""
+    root, _ = repo
+    _worktree(root, "spa_wt_default")
+    _log(root, [])
+    monkeypatch.setattr(R, "main_worktree", lambda *a, **k: (root, None), raising=False)
+
+    seen, real = {}, R.build_report
+    monkeypatch.setattr(R, "build_report", lambda r, b, lp, g, **kw:
+                        (seen.update(root=Path(r), log=Path(lp)), real(r, b, lp, g, **kw))[1])
+    R.main(["--json"])
+
+    assert seen["root"] == root
+    assert seen["log"] == root / "data" / "session_changes.jsonl"
+
+
+def test_explicit_root_stays_authoritative(repo, monkeypatch):
+    """`--root` — это и есть способ спросить про ДРУГОЕ дерево; догадка его не перебивает."""
+    root, _ = repo
+    other = _worktree(root, "spa_wt_asked")
+    _log(root, [])
+    monkeypatch.setattr(R, "main_worktree", lambda *a, **k: (root, None), raising=False)
+
+    seen, real = {}, R.build_report
+    monkeypatch.setattr(R, "build_report", lambda r, b, lp, g, **kw:
+                        (seen.update(root=Path(r), log=Path(lp)), real(r, b, lp, g, **kw))[1])
+    R.main(["--root", str(other), "--json"])
+
+    assert seen["root"] == other
+    assert seen["log"] == other / "data" / "session_changes.jsonl"
+
+
+def test_unresolved_main_tree_is_said_aloud_not_guessed(repo, monkeypatch):
+    """Не определилось главное дерево — это НАЗЫВАЕТСЯ (код 2), а не молча гадается."""
+    root, _ = repo
+    _log(root, [])
+    monkeypatch.setattr(R, "main_worktree", lambda *a, **k: (None, "git не ответил"),
+                        raising=False)
+    monkeypatch.setattr(R, "build_report", lambda r, b, lp, g, **kw:
+                        {"root": str(r), "base": b, "grace_hours": g,
+                         "trees": [], "unmeasured_reasons": []})
+
+    rc = R.main(["--json"])
+    assert rc == 2, "необъяснённый корень прошёл как чистый прогон"
+
+
+def test_missing_journal_still_blocks_every_reap(repo, monkeypatch):
+    """Fail-CLOSED НЕ ослаблен: нечитаемый журнал по-прежнему отменяет снятие целиком."""
+    root, _ = repo
+    wt = _worktree(root, "spa_wt_nolog")
+    _age(wt)
+    monkeypatch.setattr(R, "main_worktree", lambda *a, **k: (root, None), raising=False)
+    removed = []
+    monkeypatch.setattr(R, "reap", lambda *a, **k: (removed.append(a) or (True, "снято")))
+
+    rc = R.main(["--log", str(root / "data" / "no_such.jsonl"), "--apply", "--json"])
+    assert rc == 2 and removed == [] and wt.is_dir()
+
+
+def test_receipt_lands_in_the_main_tree_not_in_a_doomed_one(repo, monkeypatch, tmp_path):
+    """Квитанция обязана пережить снятие: в дереве прогона она исчезнет вместе с ним."""
+    root, _ = repo
+    wt = _worktree(root, "spa_wt_receipt")
+    _age(wt)
+    _log(root, [])
+    monkeypatch.setattr(R, "main_worktree", lambda *a, **k: (root, None), raising=False)
+    monkeypatch.setattr(R, "archive", lambda *a, **k: (str(tmp_path / "arch"), None))
+
+    R.main(["--apply", "--json"])
+
+    ledger = root / "data" / "worktree_reap_log.jsonl"
+    assert ledger.exists(), "квитанции нет в главном дереве"
+    row = json.loads(ledger.read_text(encoding="utf-8").strip().splitlines()[-1])
+    assert row["worktree"] == str(wt)

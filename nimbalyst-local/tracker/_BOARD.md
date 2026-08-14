@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **463** · ждёт владельца: **7** · занято сессиями: **4**.
+> Всего карточек: **464** · ждёт владельца: **7** · занято сессиями: **4**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -135,7 +135,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (193)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (194)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -223,6 +223,7 @@
 - Шаг 0-офис печатает не то, что в файлах: вердикт house_view_gap мёртв (None вместо расхождений), house_view едет без возраста (19.4 ч)  ·  `inbox-shag-0-ofis-pechataet-ne-to-chto-v-faila.md` · 2026-08-09
 - Шаг 0a из worktree даёт 18 строк «не измерено» на пустом месте: 16 мёртвых регистраций рабочих деревьев  ·  `inbox-shag-0a-iz-worktree-daet-18-strok-ne-izm.md` · 2026-08-06
 - Шаг 0a повторяет одни и те же 6 находок каждый цикл: осадок из мёртвых /tmp-worktree'ов  ·  `inbox-shag-0a-povtoryaet-odni-i-te-zhe-6-nahod.md` · 2026-08-14
+- Шаг 0a: свежее объявление МЁРТВОЙ сессии печатается как «работа может идти»  ·  `inbox-shag-0a-svezhee-obyavlenie-mertvoi-sessi.md` · 2026-08-14
 - SPA CI красный 12 прогонов: 17 тестов судят о ХОСТЕ (нет launchctl на Linux, cwd=spa_core), не о коде  ·  `inbox-spa-ci-krasnyi-12-progonov-17-testov-sud.md` · 2026-08-13
 - Статусы карточек владельца переписались сами: три карточки с одним заголовком, ответ уехал не в ту  ·  `inbox-statusy-kartochek-vladeltsa-perepisalis.md` · 2026-08-08
 - Сторож архитектуры кричит CRITICAL о четырёх агентах — и все четыре обвинения ложные: прод читает манифест, который доставка никогда не обновляет  ·  `inbox-storozh-arhitektury-krichit-critical-o-c.md` · 2026-08-08
@@ -241,6 +242,7 @@
 - Тестовые chat_id попали в живые настройки Телеграм-бота  ·  `inbox-testovye-chat-id-popali-v-zhivye-nastroi.md` · 2026-08-08
 - Tier-B: 19 модулей числятся работающими, но различают протоколы побочными полями — предметных данных у них нет  ·  `inbox-tier-b-19-modulei-chislyatsya-rabotayusc.md` · 2026-08-06
 - Tier-C аналитики (180 модулей) остался протокол-слепым: фаза 2 чинила только A и B  ·  `inbox-tier-c-analitiki-180-modulei-ostalsya-pr.md` · 2026-08-06
+- Уборщик мёртвых деревьев не запускается из worktree — а по протоколу сессии работают только там  ·  `inbox-uborschik-mertvyh-derevev-ne-zapuskaetsy.md` · 2026-08-14
 - Упавший классификатор превратился в 44 вопроса владельцу, а 44 задания — в done  ·  `inbox-upavshii-klassifikator-prevratilsya-v-44.md` · 2026-08-12
 - Вердикт WIRABLE подделываем: 22 из 23 «пригодных» модулей читают РОВНО ОДИН ключ  ·  `inbox-verdikt-wirable-poddelyvaem-22-iz-23-pri.md` · 2026-08-06
 - Восемь карточек всё ещё ждут владельца БЕЗ КНОПОК — разобрать остаток  ·  `inbox-vosem-kartochek-vse-esche-zhdut-vladelts.md` · 2026-08-10
@@ -317,7 +319,6 @@
 - Прод-сторож архитектуры читает файл, который синхронизация не обновляет  ·  `inbox-prod-storozh-arhitektury-chitaet-fail-ko.md` · 2026-08-08
 - Сбалансированный трек: ноль профинансированных дней из 40 при 920 отработанных циклах  ·  `inbox-sbalansirovannyi-trek-nol-profinansirova.md` · 2026-08-08
 - Шаг 0-офис из worktree докладывает «не прочитано 20» — и это выглядит как настоящая находка  ·  `inbox-shag-0-ofis-iz-worktree-dokladyvaet-ne-p.md` · 2026-08-12
-- Шаг 0a: свежее объявление МЁРТВОЙ сессии печатается как «работа может идти»  ·  `inbox-shag-0a-svezhee-obyavlenie-mertvoi-sessi.md` · 2026-08-14
 - Шаг 2 из worktree на origin НЕ ВИДИТ ответ владельца: два цикла прошли мимо живого решения  ·  `inbox-shag-2-iz-worktree-na-origin-ne-vidit-ot.md` · 2026-08-14
 - Снятая остановка живёт в git: восстановление из резерва поднимет прод уже остановленным  ·  `inbox-snyataya-ostanovka-zhivet-v-git-vosstano.md` · 2026-08-10
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
