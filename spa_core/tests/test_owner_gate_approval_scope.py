@@ -136,6 +136,48 @@ def test_approves_round_trips_through_queue_parser(tracker):
     assert parsed == [_FLAGGED], f"scope прочитан как {parsed!r}"
 
 
+def test_scope_is_the_same_from_any_working_directory(tracker, tmp_path, monkeypatch):
+    """Положительный контроль аварии CI 14.08: scope не имеет права зависеть от cwd.
+
+    Нарушения приходят от гейта УЖЕ repo-relative. Пока относительный путь домножался
+    на текущий каталог, прогон из `spa_core/` писал в карточку
+    `spa_core/landing/src/pages/packages.astro` — путь, не совпадающий ни с одним
+    нарушением. Одобрение владельца при этом снова разрешало бы НОЛЬ файлов, молча:
+    третий рецидив одного и того же класса (2026-08-08 опечатка, разбор списка, и вот
+    форма пути). У автономной сессии рабочий каталог произвольный, значит это не только
+    про CI.
+
+    Мерим ЭФФЕКТ: одна и та же правка из ДВУХ разных каталогов даёт один scope.
+    """
+    ssp = _load_safe_site_push()
+    gate = _load_owner_gate()
+    from spa_core.owner_queue.queue import load_card  # type: ignore
+
+    elsewhere = tmp_path / "совсем-другой-каталог"
+    elsewhere.mkdir()
+
+    def _scope_from(cwd: Path, slot: str) -> list[str]:
+        # СВОЙ трекер на каждый замер: `create_card` дедуплицирует по заголовку+телу,
+        # и три вызова подряд вернули бы ОДНУ карточку — тест сравнивал бы её саму с
+        # собой и зеленел бы при любой поломке (проверено мутацией).
+        d = tmp_path / f"tracker-{slot}"
+        d.mkdir()
+        monkeypatch.setattr(ownq, "TRACKER_DIR", d)
+        monkeypatch.chdir(cwd)
+        # нарушение repo-relative — ровно в той форме, в какой его отдаёт гейт
+        ssp._route_to_owner_card([str(_REPO_ROOT / _FLAGGED)], _report(), "msg")
+        card = load_card(str(_created_card(d)))
+        return gate._parse_approves((card.fields or {}).get("approves"))
+
+    from_root = _scope_from(_REPO_ROOT, "root")
+    from_subdir = _scope_from(_REPO_ROOT / "spa_core", "subdir")
+    from_outside = _scope_from(elsewhere, "outside")
+
+    assert from_root == [_FLAGGED]
+    assert from_subdir == from_root, f"scope уехал вместе с cwd: {from_subdir!r}"
+    assert from_outside == from_root, f"scope уехал вместе с cwd: {from_outside!r}"
+
+
 # ── 4. сквозной путь: обход открывается ТОЛЬКО на owner-done ────────────────
 def _rewrite_status(card: Path, status: str) -> None:
     text = card.read_text(encoding="utf-8")

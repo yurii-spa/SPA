@@ -68,6 +68,45 @@ def test_falls_back_to_the_caller_when_there_is_no_live_tree(monkeypatch, tmp_pa
     assert LP.live_data_dir(caller) == caller / "data"
 
 
+def test_without_a_fallback_the_answer_does_not_depend_on_cwd(monkeypatch, tmp_path):
+    """Положительный контроль аварии CI 14.08: ответ не имеет права зависеть от cwd.
+
+    Job гонял тесты как `cd spa_core && pytest tests/`, и `live_data_dir(None)` отдавал
+    `<репо>/spa_core/data` — каталог, которого нет. Агенты стартуют из разных каталогов;
+    путь, который меняется от рабочего каталога, — ровно тот класс, ради которого написан
+    этот модуль. Меряем ЭФФЕКТ: два вызова из РАЗНЫХ cwd обязаны совпасть.
+    """
+    monkeypatch.setattr(LP, "DEFAULT_LIVE_ROOT", tmp_path / "нет-живого-дерева")
+
+    here = tmp_path / "откуда-то"
+    here.mkdir()
+    monkeypatch.chdir(here)
+    first = LP.live_data_dir(None)
+
+    there = tmp_path / "и-отсюда-тоже"
+    there.mkdir()
+    monkeypatch.chdir(there)
+    second = LP.live_data_dir(None)
+
+    assert first == second, "ответ уехал вместе с рабочим каталогом"
+    assert first == LP.OWN_TREE / "data"
+    # контроль в обратную сторону: cwd действительно менялся, тест не вхолостую
+    assert here.resolve() != there.resolve()
+    assert first != here / "data" and first != there / "data"
+
+
+def test_an_explicit_caller_tree_still_wins_over_our_own(monkeypatch, tmp_path):
+    """Обратная сторона: назвал дерево — берётся ОНО, а не дерево модуля.
+
+    Иначе починка cwd превратилась бы в «всегда своё дерево» и сломала вызывающих,
+    которые честно передают свой корень.
+    """
+    monkeypatch.setattr(LP, "DEFAULT_LIVE_ROOT", tmp_path / "нет-такого")
+    caller = tmp_path / "чужое-дерево"
+    assert LP.live_data_dir(caller) == caller / "data"
+    assert LP.live_data_dir(caller) != LP.OWN_TREE / "data"
+
+
 def test_the_beacon_and_the_journal_agree_on_one_tree():
     """Маячок и журнал обязаны жить в ОДНОМ дереве.
 

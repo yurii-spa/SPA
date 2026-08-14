@@ -16,6 +16,11 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
+
+#: Дерево этого чекаута. Путь от cwd краснел в CI (`cd spa_core && pytest tests/`) —
+#: тест судил бы о рабочем каталоге прогона, а не о боевом модуле (замер 14.08).
+_REPO = Path(__file__).resolve().parents[2]
 
 
 def _seed_decision(state: dict) -> bool:
@@ -54,7 +59,9 @@ class SeedingLock(unittest.TestCase):
     def test_live_modules_use_this_condition(self):
         """Условие в бою и в тесте — одно и то же (иначе тест охраняет фантом)."""
         for mod in ("hy_cycle", "lp_cycle"):
-            src = open(f"spa_core/paper_trading/{mod}.py", encoding="utf-8").read()
+            path = _REPO / "spa_core" / "paper_trading" / f"{mod}.py"
+            self.assertTrue(path.is_file(), f"{mod}: боевого модуля нет в этом чекауте — {path}")
+            src = path.read_text(encoding="utf-8")
             self.assertIn("_ever_funded", src, f"{mod}: боевое условие не обновлено")
             self.assertNotIn('and not state.get("daily_history")', src,
                              f"{mod}: старый вечный замок вернулся")

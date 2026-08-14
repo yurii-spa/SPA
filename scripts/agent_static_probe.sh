@@ -249,6 +249,34 @@ collect_from_wrapper() {
     esac
 }
 
+# --targets ONLY: find the same file inside the tree we were asked about.
+#
+# A plist names its entrypoint by ABSOLUTE path (that is what launchd execs), so on any
+# tree other than the canonical one — a worktree, a CI checkout, a restored backup — that
+# path does not exist. `collect_from_wrapper` then reads nothing and the agent is reported
+# as `python_agent: 0`: a python agent silently described as "runs no python". Measured
+# 2026-08-14 on the Linux CI runner, where it made the "every long-lived agent resolves a
+# target" check pass VACUOUSLY — the worst possible outcome for a fail-CLOSED guard.
+#
+# The import probe already runs with `cd $ROOT` / `PYTHONPATH=$ROOT`, i.e. the modules are
+# taken from ROOT while the entrypoint came from the plist's tree — one probe, two trees.
+# Here that is made consistent for reporting only. `--probe` is NOT touched: the file
+# launchd will exec must exist and be executable AT ITS REAL PATH, and that refusal stays.
+#
+# Tries the longest matching tail first (…/scripts/agent_x.sh before …/agent_x.sh), so a
+# same-named file elsewhere in the tree cannot quietly win. Prints the path, or fails.
+rebase_into_root() {
+    local cand="${1#/}" root="$2"
+    while [ -n "$cand" ]; do
+        if [ -e "$root/$cand" ]; then echo "$root/$cand"; return 0; fi
+        case "$cand" in
+            */*) cand="${cand#*/}" ;;
+            *)   break ;;
+        esac
+    done
+    return 1
+}
+
 # The file launchd actually execs: the bash wrapper if there is one, else argv[0].
 resolve_entrypoint() {
     local first="$1"; shift
@@ -304,11 +332,26 @@ done < <(plist_progargs "$PLIST")
 [ "${#PROGARGS[@]}" -ge 1 ] || die "could not parse ProgramArguments from $PLIST"
 
 ENTRY="$(resolve_entrypoint ${PROGARGS[@]+"${PROGARGS[@]}"})"
+
+# Reporting mode only — see rebase_into_root. The probe path below is untouched.
+ENTRY_SOURCE="plist"
+if [ "$MODE" = "--targets" ] && [ ! -e "$ENTRY" ]; then
+    if _rebased="$(rebase_into_root "$ENTRY" "$ROOT")"; then
+        ENTRY="$_rebased"
+        ENTRY_SOURCE="rebased-to-root"
+    else
+        ENTRY_SOURCE="missing"
+    fi
+fi
+
 collect_from_tokens ${PROGARGS[@]+"${PROGARGS[@]}"}
 collect_from_wrapper "$ENTRY"
 
 if [ "$MODE" = "--targets" ]; then
     echo "entrypoint: $ENTRY"
+    # Said OUT LOUD: "the entrypoint is not in this tree" must never be readable as
+    # "this agent runs no python" (fail-CLOSED in the reporting layer too).
+    echo "entrypoint_source: $ENTRY_SOURCE"
     echo "python_agent: $PY_SEEN"
     for m in ${MODULES[@]+"${MODULES[@]}"}; do echo "module: $m"; done
     for s in ${SCRIPTS[@]+"${SCRIPTS[@]}"}; do echo "script: $s"; done

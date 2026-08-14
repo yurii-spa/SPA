@@ -92,9 +92,20 @@ def _rel(path: str) -> str:
     """Repo-relative POSIX path. The gate reports violations by repo-relative path
     (`landing/src/pages/x.astro`), while `--files` may arrive absolute; an `approves:`
     scope written in absolute form would never match a single violation and the
-    owner's approval would silently authorise NOTHING (fail-OPEN by form)."""
+    owner's approval would silently authorise NOTHING (fail-OPEN by form).
+
+    Относительный путь разрешается ОТ КОРНЯ РЕПО, а не от cwd. Замер 14.08 (CI гоняет
+    тесты как `cd spa_core && pytest tests/`): вход `landing/src/pages/packages.astro`
+    уже repo-relative, `os.path.abspath` домножал его на текущий каталог, и в карточку
+    уезжал scope `spa_core/landing/…` — не совпадающий НИ С ОДНИМ нарушением. То есть
+    ровно тот отказ, от которого эта функция и написана, только с другой стороны:
+    одобрение владельца снова разрешало бы НОЛЬ файлов, и снова молча. Рабочий каталог
+    у автономной сессии произвольный (worktree, каталог агента), так что в проде это
+    не гипотетика."""
     try:
-        return os.path.relpath(os.path.abspath(path), str(_REPO_ROOT)).replace("\\", "/")
+        raw = os.fspath(path)
+        absolute = raw if os.path.isabs(raw) else os.path.join(str(_REPO_ROOT), raw)
+        return os.path.relpath(os.path.normpath(absolute), str(_REPO_ROOT)).replace("\\", "/")
     except Exception:  # noqa: BLE001 — вне дерева: отдаём как есть, совпадения не будет
         return str(path).replace("\\", "/")
 

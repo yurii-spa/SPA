@@ -46,10 +46,19 @@ def test_the_rate_limit_state_lives_in_the_live_tree():
     Пока он считался от дерева отправителя, каждая параллельная сессия получала СВОЙ
     бюджет 12/мин — и «общий» лимит существовал только в докстринге.
     """
+    from pathlib import Path
+
     from spa_core.utils.live_paths import live_data_dir
 
-    assert tc._RATE_STATE.parent == live_data_dir(None)
-    assert tc._HISTORY_STATE.parent == live_data_dir(None)
+    # Якорь — дерево САМОГО модуля-отправителя, а не рабочий каталог процесса: 14.08 этот
+    # тест краснел в CI (`cd spa_core && pytest tests/`) не потому, что лимит уехал, а
+    # потому, что ожидание считалось от cwd. Ожидание, зависящее от cwd, проверяет
+    # не то, что написано в его имени.
+    live = live_data_dir(Path(tc.__file__).resolve().parents[2])
+    assert tc._RATE_STATE.parent == live
+    assert tc._HISTORY_STATE.parent == live
+    # и то же самое без явного якоря — разрешение обязано быть cwd-независимым
+    assert live_data_dir(None) == live
 
 
 def test_history_and_rate_state_share_one_tree():

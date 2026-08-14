@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 import time
 import unittest
 from pathlib import Path
@@ -108,6 +109,18 @@ class _Fixture:
         )
 
 
+def _cleanup_mode(platform: str | None = None) -> str:
+    """Умеет ли ЭТА машина держать launchd-задание — и, значит, нужно ли его снимать.
+
+    Критерий — ПЛАТФОРМА, а не «нашёлся ли launchctl на PATH». Разница существенна:
+    launchd есть только на macOS, и там его отсутствие — авария хоста, о которой надо
+    падать, а не тихо пропускать уборку. Поймать `FileNotFoundError` без разбора значило
+    бы именно это: на Маке со сломанным PATH уборка молча перестала бы выполняться, а
+    тест, который СПОСОБЕН установить задание в launchd, обязан быть тем, кто его снимает.
+    """
+    return "launchd-host" if (platform or sys.platform) == "darwin" else "no-launchd-here"
+
+
 def _wrapper_marks_then_exits(marker: Path, module: str = "json") -> str:
     """A wrapper that RECORDS it was executed and exits 0 (the detector for 'was it run?')."""
     return (
@@ -142,9 +155,17 @@ class TestGateNeverStartsALongLivedAgent(unittest.TestCase):
         # fixture agent into the host launchd (KeepAlive → it respawns forever). Under the
         # correct code that path is refused, so this loop is a no-op — but a test that can
         # ever install a launchd job must be the thing that removes it.
+        #
+        # Уборка идёт ровно там, где задание в принципе могло появиться: launchd живёт
+        # только на macOS. На Linux (CI) вызов `launchctl` — FileNotFoundError В tearDown,
+        # то есть ВСЕ 12 проверок этого класса падали, ни разу не дойдя до утверждения:
+        # красный CI 12 прогонов подряд 13–14.08 не сказал о коде ничего (замеряно —
+        # все ассерты на Linux проходили). Ни одна проверка здесь не выключена; условие —
+        # платформа, и оно закреплено тестом в обе стороны (см. TestCleanupIsPlatformBound).
         for label in self._labels:
-            subprocess.run(["launchctl", "bootout", f"gui/{os.getuid()}/{label}"],
-                           capture_output=True, text=True)
+            if _cleanup_mode() == "launchd-host":
+                subprocess.run(["launchctl", "bootout", f"gui/{os.getuid()}/{label}"],
+                               capture_output=True, text=True)
             plist = Path.home() / "Library" / "LaunchAgents" / f"{label}.plist"
             if plist.exists():
                 plist.unlink()
@@ -369,6 +390,11 @@ class TestLivePlistsTakeTheSafePath(unittest.TestCase):
         )
         self.assertEqual(res.returncode, 0, res.stderr)
         self.assertIn("module: spa_core.telegram.bot", res.stdout)
+        # …и мы знаем, ИЗ КАКОГО дерева прочитана обёртка. Без этого «цель не нашлась»
+        # и «цели нет» неразличимы (2026-08-14: на CI plist указывает на хост-путь,
+        # обёртки там нет, и агент выглядел как «не python» вовсе).
+        self.assertIn("entrypoint_source: ", res.stdout)
+        self.assertNotIn("entrypoint_source: missing", res.stdout)
 
     def test_every_long_lived_plist_resolves_a_target_or_is_openly_non_python(self):
         """No live long-lived agent may land in the fail-CLOSED 'python, target unknown' hole.
@@ -376,7 +402,7 @@ class TestLivePlistsTakeTheSafePath(unittest.TestCase):
         Left unchecked this would turn the fix into a deploy blocker the first time someone
         needed to redeploy apiserver / familyfund / rtmr_sense.
         """
-        unresolved = []
+        unresolved, missing, resolved = [], [], []
         for p in self._plists():
             ll = subprocess.run(
                 ["/bin/bash", str(_PROBE), "--is-long-lived", str(p)],
@@ -390,9 +416,133 @@ class TestLivePlistsTakeTheSafePath(unittest.TestCase):
             )
             has_target = ("module: " in res.stdout) or ("script: " in res.stdout)
             is_python = "python_agent: 1" in res.stdout
+            if "entrypoint_source: missing" in res.stdout:
+                missing.append(p.name)
             if is_python and not has_target:
                 unresolved.append(p.name)
+            if has_target:
+                resolved.append(p.name)
         self.assertEqual(unresolved, [], f"long-lived python agents with no resolvable target: {unresolved}")
+        # Контроль ВХОЛОСТУЮ. До 14.08 этот тест зеленел на Linux по причине, не имеющей
+        # отношения к делу: обёртки нет в чекауте ⇒ `python_agent: 0` ⇒ условие
+        # `is_python and not has_target` не выполняется НИ РАЗУ. Пустой перечень нарушений
+        # обязан означать «проверено и чисто», а не «проверять было нечего».
+        self.assertEqual(missing, [], f"entrypoint не найден ни по plist, ни в дереве: {missing}")
+        self.assertTrue(resolved, "ни одна цель не разрешилась — проверка прошла вхолостую")
+
+
+class TestCleanupIsPlatformBound(unittest.TestCase):
+    """Уборка launchd-задания решается ПЛАТФОРМОЙ, а не «нашёлся ли launchctl».
+
+    Авария 13–14.08: `launchctl` в `tearDown` на Linux — FileNotFoundError, и все 12
+    проверок класса выше падали, не дойдя до утверждения. Дешёвая «починка» — обернуть
+    вызов в `except FileNotFoundError` — стоила бы дороже: на Маке со сломанным PATH
+    уборка молча перестала бы работать, а этот файл СПОСОБЕН установить задание в живой
+    launchd (что и случилось при мутационном прогоне). Поэтому критерий назван явно и
+    закреплён в обе стороны.
+    """
+
+    def test_on_macos_the_cleanup_runs(self):
+        self.assertEqual(_cleanup_mode("darwin"), "launchd-host")
+
+    def test_elsewhere_there_is_nothing_to_clean(self):
+        for platform in ("linux", "win32"):
+            self.assertEqual(_cleanup_mode(platform), "no-launchd-here", platform)
+
+    def test_this_host_is_judged_by_its_platform(self):
+        """Контроль в обратную сторону: критерий — sys.platform, а не наличие бинаря."""
+        expected = "launchd-host" if sys.platform == "darwin" else "no-launchd-here"
+        self.assertEqual(_cleanup_mode(), expected)
+
+
+class TestTargetsReportNamesTheTree(unittest.TestCase):
+    """`--targets` обязан отличать «цели нет» от «обёртки нет в ЭТОМ дереве».
+
+    plist называет entrypoint абсолютным путём (его исполняет launchd), поэтому в любом
+    НЕ каноническом дереве — worktree, чекаут CI, распакованный резерв — файла по этому
+    пути нет. Разбор обёртки тогда читает пустоту, и python-агент отчитывается как
+    `python_agent: 0`, то есть «питона не запускает». Так проверка «у каждого долгожителя
+    разрешается цель» проходила ВХОЛОСТУЮ на Linux (замер 2026-08-14).
+
+    `--probe` этим не затронут: файл, который исполнит launchd, обязан существовать и быть
+    исполняемым ПО СВОЕМУ НАСТОЯЩЕМУ пути — этот отказ остаётся как был (пиннится ниже).
+    """
+
+    def setUp(self):
+        import tempfile
+        self.tmp = Path(tempfile.mkdtemp(prefix="spa_targets_fx_"))
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _tree_with_plist_pointing_elsewhere(self, *, put_wrapper: bool) -> Path:
+        """Дерево ROOT + plist, чей entrypoint лежит по НЕсуществующему абсолютному пути."""
+        root = self.tmp / "checkout"
+        (root / "scripts").mkdir(parents=True)
+        if put_wrapper:
+            w = root / "scripts" / "agent_faraway.sh"
+            w.write_text('#!/bin/bash\nMODULE="json"\nexec python3 -m "$MODULE"\n', encoding="utf-8")
+            w.chmod(0o755)
+        plist = root / "com.spa.faraway.plist"
+        plist.write_text(
+            '<?xml version="1.0" encoding="UTF-8"?>\n<plist version="1.0"><dict>\n'
+            "  <key>Label</key><string>com.spa.faraway</string>\n"
+            "  <key>KeepAlive</key><true/>\n"
+            "  <key>ProgramArguments</key><array>\n"
+            "    <string>/bin/bash</string>"
+            "<string>/no/such/tree/scripts/agent_faraway.sh</string>\n"
+            "  </array>\n</dict></plist>\n",
+            encoding="utf-8",
+        )
+        return root
+
+    def _targets(self, root: Path) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            ["/bin/bash", str(_PROBE), "--targets",
+             str(root / "com.spa.faraway.plist"), str(root)],
+            capture_output=True, text=True, timeout=30,
+        )
+
+    def test_the_wrapper_is_found_in_the_tree_we_were_asked_about(self):
+        """Тот же файл есть в ROOT — цель обязана разрешиться, и это названо вслух."""
+        root = self._tree_with_plist_pointing_elsewhere(put_wrapper=True)
+        res = self._targets(root)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertIn("entrypoint_source: rebased-to-root", res.stdout)
+        self.assertIn("python_agent: 1", res.stdout)
+        self.assertIn("module: json", res.stdout)
+
+    def test_a_wrapper_that_is_nowhere_is_NAMED_not_passed_off_as_non_python(self):
+        """Положительный контроль: нет нигде ⇒ `missing`, а не тихий `python_agent: 0`."""
+        root = self._tree_with_plist_pointing_elsewhere(put_wrapper=False)
+        res = self._targets(root)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertIn("entrypoint_source: missing", res.stdout)
+
+    def test_the_longest_matching_tail_wins(self):
+        """Однофамилец в другом каталоге не имеет права тихо подменить цель."""
+        root = self._tree_with_plist_pointing_elsewhere(put_wrapper=True)
+        decoy = root / "agent_faraway.sh"   # тот же basename, но НЕ …/scripts/…
+        decoy.write_text('#!/bin/bash\nMODULE="этого.модуля.нет"\n', encoding="utf-8")
+        res = self._targets(root)
+        self.assertIn("module: json", res.stdout)
+        self.assertNotIn("этого.модуля.нет", res.stdout)
+
+    def test_the_probe_itself_still_REFUSES_a_missing_entrypoint(self):
+        """Контроль границы: послабление живёт ТОЛЬКО в отчёте, не в приёмке.
+
+        Снимите это условие — и гейт начнёт пропускать агента, чей entrypoint launchd
+        не найдёт: ровно та авария 2026-08-04, ради которой шаг 1 пробника написан.
+        """
+        root = self._tree_with_plist_pointing_elsewhere(put_wrapper=True)
+        res = subprocess.run(
+            ["/bin/bash", str(_PROBE), "--probe",
+             str(root / "com.spa.faraway.plist"), str(root)],
+            capture_output=True, text=True, timeout=60,
+        )
+        self.assertNotEqual(res.returncode, 0, f"пробник принял отсутствующий entrypoint:\n{res.stdout}")
+        self.assertIn("/no/such/tree/scripts/agent_faraway.sh", res.stdout + res.stderr)
 
 
 if __name__ == "__main__":
