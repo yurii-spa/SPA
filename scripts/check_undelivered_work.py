@@ -355,6 +355,79 @@ def shared_log(start=ROOT, git=_git):
     return root / "data" / "session_changes.jsonl", None
 
 
+REAP_LEDGER_NAME = "worktree_reap_log.jsonl"
+# Вердикты, при которых снятое дерево не уносило с собой работу (см. reap_stale_worktrees.py).
+REAP_EXPLAINED = {"delivered", "superseded"}
+
+
+def read_reap_ledger(root):
+    """({путь снятого дерева: запись}, причина-если-не-прочитано).
+
+    **Зачем.** Уборка мёртвых деревьев (`scripts/reap_stale_worktrees.py`) убирает осадок
+    находок — и на её месте появился бы худший класс: объявленный путь внутри снятого дерева
+    даёт «измерить нечем» и код 2 НАВСЕГДА. Квитанция — измерение, сделанное тогда, когда
+    дерево ещё было: пофайловый вердикт плюс путь архива.
+
+    Ослабления нет: пропуск получает только путь, названный в квитанции `delivered` или
+    `superseded`. Нет квитанции · нет пути в ней · вердикт другой — прежнее «не измерено» /
+    находка. Отсутствие журнала — норма (уборку могли ни разу не запускать), причиной оно не
+    становится."""
+    path = Path(root) / "data" / REAP_LEDGER_NAME
+    if not path.exists():
+        return {}, None
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        return {}, f"журнал снятых рабочих деревьев не прочитан ({path}): {exc}"
+    rows, bad = {}, 0
+    for line in raw.splitlines():
+        if not line.strip():
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            bad += 1
+            continue
+        wt = obj.get("worktree")
+        if wt:
+            rows[str(Path(wt))] = obj          # последняя запись о дереве главнее
+    return rows, (f"битых строк в журнале снятых деревьев: {bad}" if bad else None)
+
+
+def reaped_state(path_str, ledger, root, base_ref, git=_git):
+    """(вердикт, объяснение) для объявленного пути внутри СНЯТОГО дерева, либо (None, None).
+
+    Вердикты: ``delivered`` — снятие было измерено и работа объяснена; ``absent`` — путь в
+    квитанции не назван, а на базе такого файла нет вовсе (это находка, а не тишина);
+    ``unmeasured`` — квитанция называет путь недоставленным (снятия такого дерева быть не
+    должно, но если оно случилось — молчать нельзя)."""
+    p = Path(str(path_str))
+    if not p.is_absolute():
+        return None, None
+    for wt, row in ledger.items():
+        prefix = wt.rstrip("/") + os.sep
+        variants = {str(p), str(p).replace("/private/tmp/", "/tmp/", 1),
+                    str(p).replace("/tmp/", "/private/tmp/", 1)}
+        hit = next((v for v in variants if v.startswith(prefix)), None)
+        if hit is None:
+            continue
+        rel = hit[len(prefix):]
+        state = (row.get("paths") or {}).get(rel)
+        where = f"дерево снято {row.get('ts')} по правилу уборки, архив: {row.get('archive')}"
+        if state in REAP_EXPLAINED:
+            return DELIVERED, f"{where}; содержимое пути объяснено при снятии ({state})"
+        if state is not None:
+            return UNMEASURED, (f"{where}, НО путь помечен при снятии как {state!r} — "
+                                "снятие такого дерева правилом не предусмотрено")
+        rc, _, _ = git(root, "cat-file", "-e", f"{base_ref}:{rel}")
+        if rc != 0:
+            return ABSENT, (f"{where}, путь в квитанции не назван, и на {base_ref} такого "
+                            f"файла нет вовсе")
+        return DELIVERED, (f"{where}; путь при снятии не расходился с {base_ref} "
+                           "(правки в дереве не было)")
+    return None, None
+
+
 def resolve_rel(path_str, root, git=_git):
     """(repo-relative POSIX-путь, None) либо (None, причина). Тот же принцип, что в пушере:
     принадлежность ТОМУ ЖЕ репозиторию определяется по общему git-каталогу."""
@@ -689,7 +762,9 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
     now = now or datetime.now(timezone.utc)
     grace = timedelta(hours=grace_hours)
     findings, unmeasured, fresh, stale_copies, card_findings = [], [], [], [], []
+    reaped = []
     seen, hist_cache = {}, {}
+    reap_ledger, ledger_error = read_reap_ledger(root)
     report = {
         "base_ref": base_ref,
         "base_sha": None,
@@ -702,10 +777,15 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
         "card_findings": card_findings,
         "fresh": fresh,
         "stale_copies": stale_copies,
+        "reaped": reaped,
         "unmeasured": unmeasured,
         "dead_worktrees": [],
         "exit_code": 0,
     }
+
+    if ledger_error:
+        unmeasured.append({"session": None, "path": None,
+                           "reason": f"{ledger_error} — измерения снятых деревьев НЕ прочитаны"})
 
     if malformed_lines:
         unmeasured.append({"session": None, "path": None,
@@ -777,6 +857,25 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
         for raw in entry.get("files") or []:
             rel, err = resolve_rel(raw, root, git=git)
             if rel is None:
+                # Дерева нет — но, возможно, его СНИМАЛИ по правилу, и тогда измерение
+                # осталось в квитанции (read_reap_ledger). Пропуск даётся только пути,
+                # названному объяснённым; всё остальное идёт прежним путём.
+                st, detail = reaped_state(raw, reap_ledger, root, base_ref, git=git)
+                if st == DELIVERED:
+                    reaped.append({"session": entry.get("session"), "path": str(raw),
+                                   "reason": detail})
+                    continue
+                if st is not None:
+                    if st == ABSENT:
+                        findings.append({"session": entry.get("session"), "ts": entry.get("ts"),
+                                         "path": str(raw), "state": ABSENT, "detail": detail,
+                                         "session_state": why,
+                                         "summary": (entry.get("summary") or "")[:160],
+                                         "also_declared_by": []})
+                    else:
+                        unmeasured.append({"session": entry.get("session"), "path": str(raw),
+                                           "reason": detail})
+                    continue
                 unmeasured.append({"session": entry.get("session"), "path": str(raw),
                                    "reason": err})
                 continue
@@ -876,6 +975,13 @@ def render(report) -> str:
                    "(лечится осознанным `git worktree prune`):")
         for d in report["dead_worktrees"]:
             out.append(f"  - {d['path']}: {d['reason']}")
+
+    if report.get("reaped"):
+        out.append("")
+        out.append(f"🧾 снятые деревья с квитанцией ({len(report['reaped'])}) — дерева нет, но "
+                   "измерение сделано ДО снятия, и работа объяснена:")
+        for r in report["reaped"]:
+            out.append(f"  - {r.get('session') or '-'} · {r['path']}: {r['reason']}")
 
     if report.get("fresh"):
         out.append("")

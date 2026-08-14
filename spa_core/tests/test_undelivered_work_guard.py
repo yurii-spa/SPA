@@ -752,3 +752,78 @@ class TestDeletedWorktreeIsNamedTruthfully:
         rep = report(guard, repo, [entry("pid31439", [other / "scripts" / "f.py"])])
         assert rep["exit_code"] == 2
         assert "не принадлежит этому репозиторию" in rep["unmeasured"][0]["reason"]
+
+
+class TestReapedTreeCarriesItsMeasurement:
+    """Квитанция снятого дерева (`data/worktree_reap_log.jsonl`, цикл #230).
+
+    Уборка мёртвых деревьев (`scripts/reap_stale_worktrees.py`) убирает осадок находок, но
+    сама превращала бы каждый объявленный путь внутри снятого дерева в НЕОБРАТИМОЕ «измерить
+    нечем» (код 2) — тот самый класс, которым уже морили очередь. Квитанция несёт измерение,
+    сделанное ДО снятия. Здесь проверяется, что пропуск даётся ровно объяснённым путям и
+    никому больше."""
+
+    @staticmethod
+    def _ledger(repo, rows):
+        (repo / "data").mkdir(exist_ok=True)
+        (repo / "data" / "worktree_reap_log.jsonl").write_text(
+            "\n".join(json.dumps(r, ensure_ascii=False) for r in rows) + "\n", encoding="utf-8")
+
+    def test_explained_path_is_measured_not_unmeasured(self, guard, repo, tmp_path):
+        wt = tmp_path / "spa_wt_c191"
+        self._ledger(repo, [{"ts": "2026-08-14T16:00:00Z", "worktree": str(wt), "base": "base",
+                             "archive": "/arch/spa_wt_c191-STAMP",
+                             "paths": {"docs/STATE.md": "superseded"}}])
+        rep = report(guard, repo, [entry("pid31439", [wt / "docs" / "STATE.md"])])
+        assert rep["unmeasured"] == [], rep["unmeasured"]
+        assert rep["findings"] == []
+        assert len(rep["reaped"]) == 1
+        assert "архив" in rep["reaped"][0]["reason"]
+        assert rep["exit_code"] == 0
+
+    def test_path_marked_undelivered_at_reap_is_never_silent(self, guard, repo, tmp_path):
+        """Правило такие деревья не снимает; если снятие всё же случилось — молчать нельзя."""
+        wt = tmp_path / "spa_wt_rnd49"
+        self._ledger(repo, [{"ts": "2026-08-14T16:00:00Z", "worktree": str(wt), "base": "base",
+                             "archive": "/arch/x",
+                             "paths": {"scripts/edge_criterion_consensus.py": "unique"}}])
+        rep = report(guard, repo, [entry("pid31439", [wt / "scripts" / "edge_criterion_consensus.py"])])
+        assert rep["exit_code"] == 2
+        assert "'unique'" in rep["unmeasured"][0]["reason"]
+
+    def test_path_absent_from_ledger_and_from_base_is_a_finding(self, guard, repo, tmp_path):
+        """Файл, которого нет ни в квитанции, ни на базе, — потерянная работа, а не тишина."""
+        wt = tmp_path / "spa_wt_c191"
+        self._ledger(repo, [{"ts": "2026-08-14T16:00:00Z", "worktree": str(wt), "base": "base",
+                             "archive": "/arch/x", "paths": {"docs/STATE.md": "delivered"}}])
+        rep = report(guard, repo, [entry("pid31439", [wt / "scripts" / "brand_new.py"])])
+        assert rep["exit_code"] == 1
+        assert rep["findings"][0]["state"] == guard.ABSENT
+
+    def test_path_absent_from_ledger_but_present_on_base_is_explained(self, guard, repo, tmp_path):
+        """В квитанции только расходившиеся пути: объявленный, но не тронутый файл терять нечем."""
+        wt = tmp_path / "spa_wt_c191"
+        self._ledger(repo, [{"ts": "2026-08-14T16:00:00Z", "worktree": str(wt), "base": "base",
+                             "archive": "/arch/x", "paths": {"docs/STATE.md": "delivered"}}])
+        rep = report(guard, repo, [entry("pid31439", [wt / "scripts" / "kept.py"])])
+        assert rep["exit_code"] == 0 and len(rep["reaped"]) == 1
+
+    def test_tree_without_a_receipt_stays_unmeasured(self, guard, repo, tmp_path):
+        """Контроль в обратную сторону: пропуск даёт КВИТАНЦИЯ, а не сам факт пропажи дерева."""
+        self._ledger(repo, [{"ts": "2026-08-14T16:00:00Z", "worktree": str(tmp_path / "other"),
+                             "base": "base", "archive": "/arch/x", "paths": {}}])
+        rep = report(guard, repo, [entry("pid31439", [tmp_path / "spa_wt_gone" / "docs" / "STATE.md"])])
+        assert rep["exit_code"] == 2
+        assert "рабочее дерево удалено" in rep["unmeasured"][0]["reason"]
+
+    def test_broken_ledger_is_named_not_swallowed(self, guard, repo, tmp_path):
+        (repo / "data").mkdir(exist_ok=True)
+        (repo / "data" / "worktree_reap_log.jsonl").write_text("{битое\n", encoding="utf-8")
+        rep = report(guard, repo, [])
+        assert rep["exit_code"] == 2
+        assert any("снятых деревьев" in u["reason"] for u in rep["unmeasured"])
+
+    def test_no_ledger_at_all_is_normal(self, guard, repo):
+        """Уборку могли ни разу не запускать — отсутствие журнала не находка."""
+        rep = report(guard, repo, [])
+        assert rep["exit_code"] == 0 and rep["reaped"] == []
