@@ -2,11 +2,9 @@
 trackerStatus:
   type: inbox
 title: "«Кнопок нету» — вторая половина жалобы 14.08: какое сообщение приходит с вариантами, но без кнопок"
-status: new
+status: done
 source: orchestrator
 created: 2026-08-14
-claimed_by: cycle-72282
-claimed_at: 2026-08-14T14:08:41Z
 ---
 
 ## Откуда взялось
