@@ -354,6 +354,149 @@ class TestGraceWindow:
         assert "мертв" not in why.lower()
 
 
+# ── 2c. окно ждёт ЖИВУЮ сессию, а не любую свежую запись ─────────────────────
+
+_IN_WINDOW = datetime(2026, 1, 15, 13, 18, tzinfo=timezone.utc)   # +1.3ч к объявлению
+
+
+def durable_entry(session, files, pid, start=_LSTART_OLD, ts="2026-01-15T12:00:00Z",
+                  summary="работа"):
+    """Объявление сессии, назвавшей СВОЙ долгоживящий процесс (`SPA_SESSION_PID`)."""
+    e = entry(session, files, ts=ts, summary=summary)
+    e["session_pid"], e["session_pid_start"] = pid, start
+    return e
+
+
+class TestOrphanInsideGraceWindow:
+    """Замер 14.08 (карточка `inbox-shag-0a-svezhee-obyavlenie-mertvoi-sessi`).
+
+    Цикл #232 увидел объявление цикла #231 возрастом 1.34 ч в разделе «свежие — работа может
+    идти» и прошёл бы мимо: в `/tmp`-дереве лежало готовое исполнение решения владельца
+    (ADR-085, агент, 16 тестов), которого на `origin/main` не было вовсе. Инструмент ЗНАЛ —
+    он тут же печатал «долгоживущий процесс сессии pid71512 завершился», — и всё равно
+    относил запись к «работа может идти».
+
+    Находкой делает только СОЧЕТАНИЕ трёх условий: свежее объявление + измеренно завершившийся
+    ДОЛГОЖИВУЩИЙ процесс + путь, которого на базе нет. Каждое по отдельности — не находка,
+    и на это ниже стоят обратные контроли: иначе вернётся класс «две сессии взяли одну
+    карточку» (#230, шаг 0b), ради которого окно и существует.
+    """
+
+    def test_dead_durable_session_inside_window_is_a_finding(self, guard, repo):
+        """Положительный контроль #231: 1.3 ч назад, процесс мёртв, файла на базе нет."""
+        (repo / "scripts" / "adr085_agent.py").write_text("готовая работа\n", encoding="utf-8")
+        rep = report(guard, repo,
+                     [durable_entry("cycle231", [repo / "scripts" / "adr085_agent.py"], 71512)],
+                     ps=fake_ps({}), now=_IN_WINDOW)          # 71512 не в таблице ⇒ процесса нет
+        assert [f["state"] for f in rep["findings"]] == [guard.ABSENT]
+        assert rep["findings"][0]["path"] == "scripts/adr085_agent.py"
+        assert rep["findings"][0]["within_grace"] is True
+        assert rep["fresh"] == []
+        assert rep["exit_code"] == 1
+
+    def test_finding_says_the_window_has_not_expired_but_nobody_is_coming_back(self, guard, repo):
+        """Формулировка обязана называть ОБА измерения — иначе читается как обычный просрочек."""
+        (repo / "scripts" / "adr085_agent.py").write_text("готовая работа\n", encoding="utf-8")
+        rep = report(guard, repo,
+                     [durable_entry("cycle231", [repo / "scripts" / "adr085_agent.py"], 71512)],
+                     ps=fake_ps({}), now=_IN_WINDOW)
+        why = rep["findings"][0]["session_state"]
+        assert "долгоживущий процесс сессии pid71512 завершился" in why
+        assert "окно ожидания" in why and "ждать некого" in why
+
+    def test_render_puts_orphans_in_their_own_section(self, guard, repo):
+        """Дерево названо вслух и отдельным разделом — сирота не тонет в общем списке."""
+        (repo / "scripts" / "adr085_agent.py").write_text("готовая работа\n", encoding="utf-8")
+        (repo / "scripts" / "old_orphan.py").write_text("давняя сирота\n", encoding="utf-8")
+        rep = report(guard, repo,
+                     [durable_entry("cycle231", [repo / "scripts" / "adr085_agent.py"], 71512),
+                      entry("pid31439", [repo / "scripts" / "old_orphan.py"],
+                            ts="2026-01-15T00:00:00Z")],
+                     ps=fake_ps({}), now=_IN_WINDOW)
+        text = guard.render(rep)
+        assert "ОСИРОТЕЛО, НО ОКНО НЕ ИСТЕКЛО (1)" in text
+        assert "НЕ ДОСТАВЛЕНО (1)" in text                   # просроченная — своим разделом
+        assert "scripts/adr085_agent.py" in text and "scripts/old_orphan.py" in text
+        assert text.index("ОСИРОТЕЛО") < text.index("НЕ ДОСТАВЛЕНО")   # свежую поднять дешевле
+
+    # ── обратные контроли: окно НЕ снимается ни на чём, кроме измеренной смерти ──
+
+    def test_live_durable_session_inside_window_is_never_a_finding(self, guard, repo):
+        """Живая сессия в том же окне — не находка (класс «две сессии на одной карточке»)."""
+        (repo / "scripts" / "in_flight.py").write_text("работа идёт\n", encoding="utf-8")
+        rep = report(guard, repo,
+                     [durable_entry("cycle231", [repo / "scripts" / "in_flight.py"], 71512)],
+                     ps=fake_ps({71512: (0, _LSTART_OLD)}), now=_IN_WINDOW)
+        assert rep["findings"] == [] and rep["unmeasured"] == []
+        assert rep["sessions_active"] == 1
+        assert rep["exit_code"] == 0
+
+    def test_bare_pid_identifier_inside_window_still_waits(self, guard, repo):
+        """Ключевой нюанс карточки: `pid<N>` — pid ОДНОКРАТНОЙ CLI-команды, он мёртв всегда.
+
+        Если бы «`ps` не нашёл процесс» снимало окно, находкой стала бы работа КАЖДОЙ живой
+        сессии, включая текущую, — ровно то, ради чего окно и заводили."""
+        (repo / "scripts" / "in_flight.py").write_text("работа идёт\n", encoding="utf-8")
+        rep = report(guard, repo, [entry("pid31439", [repo / "scripts" / "in_flight.py"])],
+                     ps=fake_ps({}), now=_IN_WINDOW)
+        assert rep["findings"] == []
+        assert [f["session"] for f in rep["fresh"]] == ["pid31439"]
+        assert rep["exit_code"] == 0
+
+    def test_unmeasurable_durable_process_is_never_read_as_death(self, guard, repo):
+        """«Не измерено» смертью не объявляется: `ps` не отработал ⇒ находки нет.
+
+        Запись при этом уходит не в окно, а в «НЕ ИЗМЕРЕНО» (код 2) — это давняя fail-CLOSED
+        ветка `session_state`, она срабатывает РАНЬШЕ окна и правкой не тронута. Пиннится
+        главное: неизмеренная активность не открывает досрочный подъём в находки."""
+        (repo / "scripts" / "in_flight.py").write_text("работа идёт\n", encoding="utf-8")
+        e = durable_entry("cycle231", [repo / "scripts" / "in_flight.py"], 71512)
+        assert guard.durable_process_gone(e, ps=fake_ps({71512: (2, "")})) is False
+        rep = report(guard, repo, [e], ps=fake_ps({71512: (2, "")}), now=_IN_WINDOW)
+        assert rep["findings"] == []
+        assert len(rep["unmeasured"]) == 1
+        assert "не отработал" in rep["unmeasured"][0]["reason"]
+        assert rep["exit_code"] == 2
+
+    def test_reused_pid_counts_as_gone(self, guard, repo):
+        """pid занят ДРУГИМ процессом — тот же измеренный факт «объявленного процесса нет»."""
+        (repo / "scripts" / "adr085_agent.py").write_text("готовая работа\n", encoding="utf-8")
+        rep = report(guard, repo,
+                     [durable_entry("cycle231", [repo / "scripts" / "adr085_agent.py"], 71512)],
+                     ps=fake_ps({71512: (0, _LSTART_NEW)}), now=_IN_WINDOW)
+        assert [f["state"] for f in rep["findings"]] == [guard.ABSENT]
+        assert rep["findings"][0]["within_grace"] is True
+
+    def test_dead_durable_session_with_everything_delivered_is_not_a_finding(self, guard, repo):
+        """Смерть сессии сама по себе — не находка: доставленное объявление остаётся тишиной."""
+        rep = report(guard, repo,
+                     [durable_entry("cycle231", [repo / "scripts" / "kept.py"], 71512)],
+                     ps=fake_ps({}), now=_IN_WINDOW)
+        assert rep["findings"] == [] and rep["unmeasured"] == []
+        assert len(rep["fresh"]) == 1                          # но и в тишину не роняется
+        assert "находки нет" in rep["fresh"][0]["reason"]
+        assert rep["exit_code"] == 0
+
+    def test_unmeasured_path_of_a_dead_session_fails_closed_inside_window(self, guard, repo):
+        """Запись, которую мы взялись мерить, меряется до конца — включая fail-CLOSED."""
+        rep = report(guard, repo,
+                     [durable_entry("cycle231", [Path("/вне/репозитория/x.py")], 71512)],
+                     ps=fake_ps({}), now=_IN_WINDOW)
+        assert rep["findings"] == []
+        assert len(rep["unmeasured"]) == 1
+        assert rep["exit_code"] == 2
+
+    def test_orphan_and_expired_findings_do_not_collapse_into_one(self, guard, repo):
+        """Один и тот же файл от сироты-в-окне и от просроченной — разной срочности."""
+        (repo / "scripts" / "kept.py").write_text("общая правка\n", encoding="utf-8")
+        rep = report(guard, repo,
+                     [durable_entry("cycle231", [repo / "scripts" / "kept.py"], 71512),
+                      entry("pid31439", [repo / "scripts" / "kept.py"],
+                            ts="2026-01-15T00:00:00Z")],
+                     ps=fake_ps({}), now=_IN_WINDOW)
+        assert sorted(f["within_grace"] for f in rep["findings"]) == [False, True]
+
+
 # ── 3. fail-CLOSED: «не смог измерить» ≠ «всё доставлено» ────────────────────
 
 class TestFailClosed:

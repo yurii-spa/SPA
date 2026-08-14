@@ -42,6 +42,19 @@
 проверка личности процесса (переиспользованный pid не читается как живая сессия). Окно
 ожидания остаётся запасным критерием для записей без этих полей — а их большинство.
 
+**Окно ждёт ЖИВУЮ сессию — а не любую свежую запись** (карточка
+`inbox-shag-0a-svezhee-obyavlenie-mertvoi-sessi`, замер 14.08). Цикл #232 увидел объявление
+цикла #231 возрастом 1.3 ч в разделе «свежие — работа может идти» и прошёл бы мимо, хотя тут же
+было напечатано «долгоживущий процесс сессии pid71512 завершился»: в `/tmp`-дереве лежало
+полностью готовое исполнение решения владельца (ADR-085), которого на `origin/main` не было
+вовсе. Инструмент ЗНАЛ и молчал. Поэтому окно снимается — но **только** там, где смерть
+измерена сильным критерием: сессия сама объявила долгоживущий процесс, и его больше нет
+(`durable_process_gone`). Ждать оставшиеся часы незачем — ждать некого, и такие находки
+печатаются отдельным разделом «осиротело, но окно не истекло» (`within_grace`).
+Само окно НЕ уменьшается и на записях без `session_pid` не снимается никогда: «процесса
+`pid<N>` нет» бессодержательно (см. абзац выше), а поспешная находка вернула бы класс «две
+сессии взяли одну карточку» (#230, шаг 0b).
+
 **Молчать о записи вправе только ДОВЕРЕННАЯ личность проверки** — названная сессией явно
 (`SPA_SESSION_ID`). Личность `pid<os.getpid()>` выведена из pid однократной CLI-команды, и по
 ней пропуск «это мы сами» был бы fail-OPEN: совпадение с чужим идентификатором молча выронило
@@ -232,6 +245,32 @@ def _durable_state(entry, ts, ps):
                                f"вместо записанного {recorded.isoformat()}")
     return ACTIVE, (f"долгоживущий процесс сессии pid{pid} жив — тот же процесс "
                     f"(старт {started.isoformat()})")
+
+
+def durable_process_gone(entry, ps=_ps_lstart):
+    """True — сессия ОБЪЯВЛЯЛА долгоживущий процесс, и его измеренно больше нет.
+
+    Единственное основание снять окно ожидания досрочно (см. докстринг модуля). Условие
+    намеренно узкое — это НЕ «`ps` не нашёл pid»:
+
+    - запись без `session_pid` (таких большинство) → False. `session` там — pid ОДНОКРАТНОЙ
+      CLI-команды `log_session_change.py`, он мёртв ВСЕГДА, и живая сессия ничем не отличалась
+      бы от осиротевшей. Ровно на этом окно и стоит;
+    - `session_pid` есть, но `ps` не отработал / не разобран старт → False (`UNKNOWN`).
+      «Не измерено» смертью не объявляем; запись доживёт в окне и будет измерена обычным
+      порядком, когда окно истечёт — потери сигнала здесь нет, есть отсрочка;
+    - `session_pid` есть, процесса нет ЛИБО pid занят другим процессом (`NOT_CONFIRMED`) →
+      True. `log_session_change.durable_process` пишет эту пару только когда процесс
+      подтверждён в момент записи, поэтому его исчезновение — измеренный факт, а не догадка.
+
+    Смерть сессии сама по себе находкой НЕ является: она лишь снимает ожидание, а находкой
+    делает недоставленный файл (`absent`/`differs`) — все три условия карточки вместе.
+    """
+    ts = _parse_ts(entry.get("ts"))
+    if ts is None:
+        return False                       # метка времени не разобрана → это UNKNOWN, не смерть
+    durable = _durable_state(entry, ts, ps)
+    return durable is not None and durable[0] == NOT_CONFIRMED
 
 
 def session_state(entry, self_session, ps=_ps_lstart, self_session_trusted=True):
@@ -844,15 +883,24 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
 
         ts = _parse_ts(entry.get("ts"))          # разобрана: иначе был бы UNKNOWN выше
         age = now - ts
-        if age < grace:
-            fresh.append({"session": entry.get("session"), "ts": entry.get("ts"),
-                          "age_hours": round(age.total_seconds() / 3600, 2),
-                          "files": len(entry.get("files") or []),
-                          "reason": f"{why}; объявлено {round(age.total_seconds()/3600, 2)}ч "
-                                    f"назад — окно ожидания {grace_hours}ч ещё не истекло"})
-            continue
+        age_h = round(age.total_seconds() / 3600, 2)
+        within_grace = age < grace
+        if within_grace:
+            # Окно ждёт ЖИВУЮ сессию. Если объявленный сессией долгоживущий процесс измеренно
+            # завершился — ждать некого, и запись меряется сейчас же (карточка
+            # `inbox-shag-0a-svezhee-obyavlenie-mertvoi-sessi`, замер 14.08 / цикл #231).
+            if not durable_process_gone(entry, ps=ps):
+                fresh.append({"session": entry.get("session"), "ts": entry.get("ts"),
+                              "age_hours": age_h,
+                              "files": len(entry.get("files") or []),
+                              "reason": f"{why}; объявлено {age_h}ч "
+                                        f"назад — окно ожидания {grace_hours}ч ещё не истекло"})
+                continue
+            why = (f"{why} — окно ожидания {grace_hours}ч ещё не истекло, но ждать некого: "
+                   "объявленный долгоживущий процесс завершился")
+            produced_before = (len(findings), len(unmeasured), len(stale_copies), len(reaped))
 
-        why = f"{why}; объявлено {round(age.total_seconds()/3600, 2)}ч назад"
+        why = f"{why}; объявлено {age_h}ч назад"
         report["sessions_checked"] += 1
         for raw in entry.get("files") or []:
             rel, err = resolve_rel(raw, root, git=git)
@@ -869,7 +917,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                     if st == ABSENT:
                         findings.append({"session": entry.get("session"), "ts": entry.get("ts"),
                                          "path": str(raw), "state": ABSENT, "detail": detail,
-                                         "session_state": why,
+                                         "session_state": why, "within_grace": within_grace,
                                          "summary": (entry.get("summary") or "")[:160],
                                          "also_declared_by": []})
                     else:
@@ -909,15 +957,27 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
             # Один и тот же файл объявляют почти все сессии (STATE, журнал) — находка одна,
             # а объявившие перечисляются: кому принадлежит содержимое рабочего дерева,
             # измерить нельзя, и выдавать это за атрибуцию нечестно.
-            key = (rel, st, detail)
+            # `within_grace` входит в ключ намеренно: осиротевшее-в-окне и давно просроченное —
+            # разной срочности (и печатаются разными разделами), схлопывать их значило бы
+            # спрятать свежую сироту в хвосте старой находки.
+            key = (rel, st, detail, within_grace)
             if key in seen:
                 findings[seen[key]]["also_declared_by"].append(entry.get("session"))
                 continue
             seen[key] = len(findings)
             findings.append({"session": entry.get("session"), "ts": entry.get("ts"),
                              "path": rel, "state": st, "detail": detail, "session_state": why,
+                             "within_grace": within_grace,
                              "summary": (entry.get("summary") or "")[:160],
                              "also_declared_by": []})
+
+        # Сирота, у которой всё объявленное УЖЕ на базе: находки нет, но и в тишину такую
+        # запись ронять нечестно — она остаётся в счётчике «свежих» со своим измерением.
+        if within_grace and (len(findings), len(unmeasured),
+                             len(stale_copies), len(reaped)) == produced_before:
+            fresh.append({"session": entry.get("session"), "ts": entry.get("ts"),
+                          "age_hours": age_h, "files": len(entry.get("files") or []),
+                          "reason": f"{why} — объявленное на {base_ref} есть, находки нет"})
 
     report["exit_code"] = 2 if unmeasured else (1 if (findings or card_findings) else 0)
     return report
@@ -935,11 +995,8 @@ def render(report) -> str:
                f"свежих (окно {report.get('grace_hours')}ч): {len(report.get('fresh') or [])}, "
                f"проверено: {report['sessions_checked']}")
 
-    if report["findings"]:
-        out.append("")
-        out.append(f"⚠️  НЕ ДОСТАВЛЕНО ({len(report['findings'])}) — объявлено давно, "
-                   f"активность не подтверждена, а объявленного на {base} нет:")
-        for f in report["findings"]:
+    def _findings_block(items):
+        for f in items:
             mark = "отсутствует" if f["state"] == ABSENT else "отличается"
             out.append(f"  [{mark}] {f['path']}")
             out.append(f"      сессия {f['session']} ({f['ts']}): {f['session_state']}")
@@ -948,6 +1005,23 @@ def render(report) -> str:
                 out.append(f"      тот же файл объявляли ещё: {', '.join(f['also_declared_by'])}")
             if f["summary"]:
                 out.append(f"      объявляла: {f['summary']}")
+
+    # Сироты в окне — первыми: работа свежая, дерево ещё на диске, поднять её дешевле всего.
+    orphans = [f for f in report["findings"] if f.get("within_grace")]
+    expired = [f for f in report["findings"] if not f.get("within_grace")]
+
+    if orphans:
+        out.append("")
+        out.append(f"🕳  ОСИРОТЕЛО, НО ОКНО НЕ ИСТЕКЛО ({len(orphans)}) — объявлено недавно, "
+                   f"объявленный долгоживущий процесс сессии завершился, а на {base} этого нет "
+                   "(ждать больше некого — сверить руками и поднять):")
+        _findings_block(orphans)
+
+    if expired:
+        out.append("")
+        out.append(f"⚠️  НЕ ДОСТАВЛЕНО ({len(expired)}) — объявлено давно, "
+                   f"активность не подтверждена, а объявленного на {base} нет:")
+        _findings_block(expired)
 
     if report.get("card_findings"):
         out.append("")
