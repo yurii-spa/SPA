@@ -434,6 +434,22 @@ class TestWorktreePaths:
 # ── 6. CLI: коды возврата и вывод ────────────────────────────────────────────
 
 class TestCli:
+    @pytest.fixture(autouse=True)
+    def _identity_is_not_the_runner(self, monkeypatch):
+        """Личность сессии задаётся ЯВНО, иначе исход теста решает pid прогона.
+
+        `main()` берёт `SPA_SESSION_ID` либо, за его отсутствием, `pid<os.getpid()>`, а запись
+        своей сессии по построению пропускается. Фикстуры ниже объявлены от `pid4242`/`pid31439`,
+        и на Linux-раннере (pid'ы малые и последовательные) прогон получил ровно **4242**: своя
+        запись пропущена ⇒ «не измерено» исчезло ⇒ `rc 0` вместо `2`. Замерено, а не выведено:
+        `SPA_SESSION_ID=pid4242 pytest -k TestCli` роняет ровно тот же ассерт, что и CI 14.08.
+
+        Сам пропуск своей записи проверяется отдельно и явно
+        (`TestLiveSessionsNeverReported::test_self_session_is_never_reported`, личность передаётся
+        аргументом) — здесь ничего не ослаблено.
+        """
+        monkeypatch.setenv("SPA_SESSION_ID", "pid-этой-сессии-нет-ни-в-одной-фикстуре")
+
     def _log(self, tmp_path, entries):
         log = tmp_path / "log.jsonl"
         log.write_text("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in entries),
