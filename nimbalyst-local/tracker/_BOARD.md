@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **452** · ждёт владельца: **6** · занято сессиями: **3**.
+> Всего карточек: **454** · ждёт владельца: **6** · занято сессиями: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -131,7 +131,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (184)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (186)
 
 ### · in-progress
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
@@ -174,6 +174,7 @@
 - Храповик литеральных дат не видит даты, записанные конструктором — половина класса вне поля зрения  ·  `inbox-hrapovik-literalnyh-dat-ne-vidit-daty-za.md` · 2026-08-06
 - Храповик неиспользуемых импортов красный на чистом origin: 38 при потолке 36  ·  `inbox-hrapovik-neispolzuemyh-importov-krasnyi.md` · 2026-08-10
 - Храповик неподключённых скриптов не отличает мёртвый код от ручного R&D — и краснеет на честной работе  ·  `inbox-hrapovik-nepodklyuchennyh-skriptov-ne-ot.md` · 2026-08-10
+- Храповик неподключённых скриптов считает УПОМИНАНИЕ В КОММЕНТАРИИ за проводку — слепота стоит трёх скриптов  ·  `inbox-hrapovik-nepodklyuchennyh-skriptov-schit.md` · 2026-08-12
 - Из алерта: ⚠️ SPA 7-Day Checkpoint FAILED: 1 check(s)  ·  `inbox-iz-alerta-spa-7-day-checkpoint-failed-1-2.md` · 2026-08-08
 - Из алерта: ⚠️ SPA 7-Day Checkpoint FAILED: 1 check(s)  ·  `inbox-iz-alerta-spa-7-day-checkpoint-failed-1.md` · 2026-08-08
 - Карточка, созданная посреди цикла, не доезжает: create пишет в ХОСТ-дерево, а пуш идёт из worktree  ·  `inbox-kartochka-sozdannaya-posredi-tsikla-ne-d.md` · 2026-08-06
@@ -290,7 +291,7 @@
 - Два разных реестра адаптеров носят ОДНО имя ADAPTER_REGISTRY: 36 кортежей против 22-dict, пересечение 13, aave_v3 против aave_usdc  ·  `inbox-dva-raznyh-reestra-adapterov-nosyat-odno.md` · 2026-08-12
 - Две записи о деньгах расходятся каждый день — найти и починить ПРИЧИНУ (решение владельца 10.08, вариант 1)  ·  `inbox-dve-zapisi-o-dengah-rashodyatsya-kazhdyi.md` · 2026-08-10
 - если тот же target можно приблизить простым:  ·  `inbox-esli-tot-zhe-target-mozhno-priblizit-pro.md` · 2026-08-13
-- Храповик неподключённых скриптов считает УПОМИНАНИЕ В КОММЕНТАРИИ за проводку — слепота стоит трёх скриптов  ·  `inbox-hrapovik-nepodklyuchennyh-skriptov-schit.md` · 2026-08-12
+- Храповик считает упоминание в докстринге за проводку — и это лишь одна из трёх слепот  ·  `inbox-hrapovik-schitaet-upominanie-v-dokstring.md` · 2026-08-14
 - Крупнейшая позиция книги стоит на константе: у aave_v3 (Ethereum, 40%) TVL «не измерено», а пул в фиде есть  ·  `inbox-krupneishaya-pozitsiya-knigi-stoit-na-ko.md` · 2026-08-09
 - Маячок бота объявляет ОДНУ способность, а решает за ДВЕ — найдено #194, не чинил  ·  `inbox-mayachok-obyavlyaet-odnu-sposobnost-gejtit-dve.md` · 2026-08-10
 - Модуль #39: третьей рукой обязана быть ПРИЧИННАЯ статика, иначе через 30 дней форвард снова не отличит тайминг от недовеса  ·  `inbox-modul-39-tretei-rukoi-obyazana-byt-prich.md` · 2026-08-09
@@ -311,6 +312,7 @@
 - Шаг 0a повторяет одни и те же 6 находок каждый цикл: осадок из мёртвых /tmp-worktree'ов  ·  `inbox-shag-0a-povtoryaet-odni-i-te-zhe-6-nahod.md` · 2026-08-14
 - Снятая остановка живёт в git: восстановление из резерва поднимет прод уже остановленным  ·  `inbox-snyataya-ostanovka-zhivet-v-git-vosstano.md` · 2026-08-10
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
+- Строка Risk Gate дневного лимита убытка жила только в отключённом скрипте — в отчёт владельцу она не переехала  ·  `inbox-stroka-risk-gate-dnevnogo-limita-ubytka.md` · 2026-08-14
 - Свести две реализации перезаполнения бюджета в одну (ADR-072 vs версия параллельной сессии)  ·  `inbox-svesti-dve-realizatsii-perezapolneniya-b.md` · 2026-08-08
 - Табличка честности: дать ей дорогу на сайт (решение владельца 09.08)  ·  `inbox-tablichka-chestnosti-dat-ei-dorogu-na-sa.md` · 2026-08-08
 - TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13
