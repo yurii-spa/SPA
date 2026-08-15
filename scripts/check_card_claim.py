@@ -420,6 +420,14 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
         rec["age_hours"] = round(age, 2) if age is not None else None
         fresh = age is not None and age <= grace.total_seconds() / 3600.0
         rec["fresh"] = fresh
+        # Ждать НЕКОГО: сессия САМА объявила долгоживущий процесс, и его измеренно больше нет.
+        # Тогда окно свежести отвечает не на тот вопрос — оно меряет ВРЕМЯ («может, она ещё
+        # работает»), а здесь работать уже нечему. См. `durable_process_gone`: условие узкое
+        # намеренно, «`ps` не нашёл pid» смертью НЕ считается (в журнале лежит pid ОДНОКРАТНОЙ
+        # CLI-команды, он мёртв всегда), «не измерено» — тоже не смерть.
+        orphaned = bool(sibling.durable_process_gone({"ts": rec["ts"], **(process or {})},
+                                                     ps=ps))
+        rec["orphaned"] = orphaned
         # Блокирует: подтверждённо ЖИВАЯ сессия (любой признак) либо свежий СИЛЬНЫЙ признак.
         # Свежий СЛАБЫЙ признак сам по себе больше НЕ блокирует — карточка
         # `agent-fresh-weak-mention-deadlocks-queue`. Причина измерена, а не предположена:
@@ -433,7 +441,24 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
         # сильный признак (`claim_card` → `announce_claim` пишет поле `card:`, не смог
         # объявить ⇒ карточка не взята, fail-CLOSED, цикл #54). Свежесть не добавляет прозе
         # доказательной силы — она лишь откладывала разблокировку.
-        if state == sibling.ACTIVE or (fresh and strength == STRONG):
+        #
+        # `not orphaned` — починка ВТОРОГО близнеца (цикл #238, карточка
+        # `agent-dead-pid-still-holds-files-for-3h`). Шаг 0a получил это основание циклом #233
+        # (`durable_process_gone`), шаг 0b переиспользовал у соседа `session_state` и
+        # `durable_process_gone` не звал НИ РАЗУ ⇒ знание о смерти доезжало до ТЕКСТА отчёта
+        # («активность: долгоживущий процесс сессии pidN завершился») и не доезжало до
+        # ВЕРДИКТА («⛔ ЗАНЯТА»). Обе строки печатались в одном отчёте, и про ту же сессию в ту
+        # же минуту шаг 0a говорил противоположное. Цена измерена: подъём осиротевшей работы
+        # запрещался ЧЕТЫРЕ цикла подряд (#231→#232, #236, #237, #238 — замер 04:0xZ 15.08:
+        # три захвата, все три `durable_process_gone`), и каждый раз запрет перебивали руками.
+        # Сторож, который блокирует верное действие, учит себя игнорировать.
+        #
+        # Ослаблением это НЕ является: ACTIVE (подтверждённая жизнь) проверяется ПЕРВЫМ и
+        # сильнее прежнего, старый сильный захват по-прежнему `stale`, «не измерено» —
+        # по-прежнему код 2. Меняется ровно один исход: свежий сильный захват сессии, чья
+        # смерть ИЗМЕРЕНА, становится `stale` — «кандидат на ручной подъём», а не «свободна»
+        # и не «занята». Авто-захвата тут нет и не появляется.
+        if state == sibling.ACTIVE or (fresh and strength == STRONG and not orphaned):
             rec["state"] = "fresh"
             report["claims"].append(rec)
             return
@@ -541,8 +566,15 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
                                           f"считается: сессия объявила `card_state: done` "
                                           f"в {_fmt_ts(done_at)} — работа закрыта"})
                         else:
+                            # Тот же вопрос, что и у захвата: ждать ли конца окна. Пересечение
+                            # по файлам мерило ТОЛЬКО возраст, поэтому мёртвая сессия держала
+                            # чужие файлы ровно три часа и блокировала подъём собственной же
+                            # недоставленной работы. Осиротевшее пересечение не исчезает из
+                            # отчёта — оно НАЗЫВАЕТСЯ отдельно (это домен шага 0a), но
+                            # вердикта «ЗАНЯТА» больше не даёт.
                             report["overlaps"].append({
                                 "session": session, "ts": _fmt_ts(ts), "files": shared,
+                                "orphaned": bool(sibling.durable_process_gone(entry, ps=ps)),
                                 "summary": str(entry.get("summary") or "")[:160]})
         for session, ts, strength, detail, process in latest.values():
             if report["card_status"] in TERMINAL_STATUSES:
@@ -561,9 +593,15 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
 
     # 3. вердикт ─────────────────────────────────────────────────────────────
     verdict = FREE
-    if any(c["state"] == "stale" for c in report["claims"]):
+    # Осиротевшее пересечение (сессия объявила долгоживущий процесс, и его нет) — это НЕ
+    # «свободна»: где-то может лежать недоставленная работа по этим же файлам, и порядок
+    # ровно тот же, что у старого захвата — ручная сверка по шагу 0a. Поэтому STALE, а не
+    # тишина; блокировать оно перестало, исчезнуть из отчёта — не имеет права.
+    live_overlaps = [o for o in report["overlaps"] if not o.get("orphaned")]
+    orphaned_overlaps = [o for o in report["overlaps"] if o.get("orphaned")]
+    if any(c["state"] == "stale" for c in report["claims"]) or orphaned_overlaps:
         verdict = STALE
-    if any(c["state"] == "fresh" for c in report["claims"]) or report["overlaps"]:
+    if any(c["state"] == "fresh" for c in report["claims"]) or live_overlaps:
         verdict = CLAIMED
     if report["unmeasured"]:
         verdict = UNCHECKED
@@ -599,17 +637,31 @@ def render(report) -> str:
         out.append("")
         out.append(f"🔒 захваты ({len(report['claims'])}):")
         for c in report["claims"]:
-            mark = "свежий" if c["state"] == "fresh" else "старый"
+            mark = ("осиротел" if c.get("orphaned") and c["state"] == "stale"
+                    else "свежий" if c["state"] == "fresh" else "старый")
             age = f", {c['age_hours']}ч назад" if c.get("age_hours") is not None else ""
             out.append(f"  - [{mark}] {c['session']} ({c['ts']}{age}) — {c['detail']} "
                        f"[{'сильный' if c['strength'] == STRONG else 'слабый'} признак]")
             out.append(f"      активность: {c['session_state']}")
+            if c.get("orphaned") and c.get("fresh"):
+                out.append("      окно свежести не действует: ждать некого — объявленный "
+                           "долгоживущий процесс завершился (порядок подъёма — шаг 0a)")
 
-    if report["overlaps"]:
+    live = [o for o in report["overlaps"] if not o.get("orphaned")]
+    orphaned = [o for o in report["overlaps"] if o.get("orphaned")]
+    if live:
         out.append("")
-        out.append(f"⚠️  пересечение по объявленным файлам ({len(report['overlaps'])}) — "
+        out.append(f"⚠️  пересечение по объявленным файлам ({len(live)}) — "
                    f"свежие объявления других сессий держат те же файлы:")
-        for o in report["overlaps"]:
+        for o in live:
+            out.append(f"  - {o['session']} ({o['ts']}): {', '.join(o['files'])}")
+            out.append(f"      объявляла: {o['summary']}")
+    if orphaned:
+        out.append("")
+        out.append(f"🕳 пересечение по файлам, но ждать некого ({len(orphaned)}) — сессия "
+                   f"объявила долгоживущий процесс, и его больше нет; это НЕ занятость, а "
+                   f"кандидат на ручную сверку по шагу 0a:")
+        for o in orphaned:
             out.append(f"  - {o['session']} ({o['ts']}): {', '.join(o['files'])}")
             out.append(f"      объявляла: {o['summary']}")
 
