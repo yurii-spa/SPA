@@ -8,6 +8,10 @@
 поэтому ни один тест не может покраснеть просто оттого, что сдвинулся календарь
 (правило доставки, «время в тестах»).
 """
+# FROZEN-DATE-OK: injected-clock — все даты здесь ВХОД, а не окружение: снимок
+# несёт свой `generated_at`, а построитель отчёта получает `now=` из теста. Обе
+# стороны сравнения закреплены одним якорем, поэтому сдвиг календаря не может
+# изменить ни один вердикт (преференция №1 .claude/rules/deployment.md).
 from __future__ import annotations
 
 import json
@@ -406,3 +410,70 @@ def test_non_advisory_snapshot_is_refused(tmp_path):
     _write(tmp_path, "portfolio_cio.json", _cio_doc(is_advisory=False))
     now = datetime(2026, 8, 15, 6, 0, tzinfo=timezone.utc)
     assert build_report_data("2026-08-15", data_dir=tmp_path, now=now)["portfolio_cio"] is None
+
+
+# ── Step 2h: снимок производит ЦИКЛ, а не человек ────────────────────────────
+#
+# Скрипт `portfolio_cio_shadow.py` остаётся ручным инструментом замера (реестр R&D
+# #53), а ежедневный снимок для отчёта обязан появляться сам — иначе секция в
+# отчёте живёт ровно до тех пор, пока кто-то помнит запустить команду.
+
+def _cycle_sandbox(tmp_path, monkeypatch=None):
+    """Тот же песочный запуск цикла, что и у среза блокировок — без живых фидов."""
+    from datetime import datetime, timezone
+    from types import SimpleNamespace
+
+    from spa_core.paper_trading import cycle_runner as cr
+
+    now = datetime(2026, 8, 15, 6, 0, tzinfo=timezone.utc)
+
+    def orch(*_a, **_k):
+        adapters = [
+            {"protocol": "aave_v3", "id": "aave_v3", "apy_pct": 4.0, "tvl_usd": 1e8,
+             "tvl_source": "live", "tier": "T1", "status": "ok"},
+            {"protocol": "compound_v3", "id": "compound_v3", "apy_pct": 4.2, "tvl_usd": 1e8,
+             "tvl_source": "live", "tier": "T2", "status": "ok"},
+        ]
+        return SimpleNamespace(adapters=adapters, status="ok", data_freshness="live")
+
+    class _Alloc:
+        def allocate(self):
+            target = {"aave_v3": 30_000.0, "compound_v3": 20_000.0}
+            return SimpleNamespace(
+                target_usd=dict(target),
+                target_weights={p: v / 100_000.0 for p, v in target.items()},
+                expected_apy_pct=4.0, model_used="risk_adjusted",
+                strategy_loop_active=False,
+            )
+
+    ddir = tmp_path / "data"
+    result = cr.run_cycle(
+        data_dir=str(ddir), now=now, orchestrator_fn=orch, allocator=_Alloc(),
+        risk_scorer_fn=lambda d: None, track_persister_fn=lambda d: None,
+        write=True, allow_live_write=False,
+    )
+    return ddir, result
+
+
+def test_cycle_produces_the_cio_snapshot_itself(tmp_path):
+    """После цикла снимок есть, он advisory и несёт время цикла, а не «сейчас»."""
+    ddir, _ = _cycle_sandbox(tmp_path)
+    snap = ddir / "portfolio_cio.json"
+    assert snap.exists(), "снимок обязан появляться сам, а не по памяти человека"
+    doc = json.loads(snap.read_text(encoding="utf-8"))
+    assert doc["is_advisory"] is True
+    assert doc["decision"] in (KEEP, REBALANCE, DEFER)
+    assert doc["generated_at"].startswith("2026-08-15")
+
+
+def test_broken_cio_never_breaks_the_cycle(tmp_path, monkeypatch):
+    """Слой отчётности не имеет права уронить цикл, который кормит трек."""
+    import spa_core.allocator.portfolio_cio as cio
+
+    def boom(**_k):
+        raise RuntimeError("CIO упал намеренно")
+
+    monkeypatch.setattr(cio, "decide", boom)
+    ddir, result = _cycle_sandbox(tmp_path)
+    assert result is not None, "цикл обязан пережить падение advisory-слоя"
+    assert not (ddir / "portfolio_cio.json").exists()

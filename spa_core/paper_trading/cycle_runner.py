@@ -1928,6 +1928,34 @@ def run_cycle(
     except Exception as _shadow_exc:  # noqa: BLE001 — advisory only
         log.warning("ADR-060 SHADOW skipped (%s) — cycle continues", _shadow_exc)
 
+    # ── Step 2h (ADR-088): Portfolio CIO — снимок решения, ADVISORY ──────────
+    # Тот же вход, что у Step 2f, но отвечает на другой вопрос: сколько доходности
+    # теряет текущая раскладка (Yield Gap) и что мешает — цена перехода или сама
+    # возможность. Пишет ТОЛЬКО артефакт data/portfolio_cio.json, из которого
+    # дневной отчёт берёт секцию владельцу; ни одной позиции не двигает.
+    # Fail-open по той же причине, что и Step 2f: слой отчётности не имеет права
+    # уронить цикл, который кормит трек.
+    try:
+        from spa_core.allocator.portfolio_cio import decide as _cio_decide
+        from spa_core.allocator.portfolio_cio import save_snapshot as _cio_save
+
+        _cov = getattr(alloc, "feed_coverage", {}) or {}
+        _tvl_src = _cov.get("tvl_sources") or {}
+        _cio = _cio_decide(
+            current_positions=current_positions,
+            target_positions=target_usd,
+            displayed_apy_pct=getattr(alloc, "apy_used", {}) or apy_map,
+            apy_sources=getattr(alloc, "apy_sources", {}) or {},
+            tvl_usd=_cov.get("tvl_usd") or {},
+            # ADR-053/064: живым TVL считается только то, что назвал сам аллокатор.
+            # Второго определения «живого TVL» здесь не заводится.
+            tvl_evidenced={p for p, s in _tvl_src.items() if str(s) == "live"},
+            capital_usd=capital_usd,
+        )
+        _cio_save(_cio, str(ddir / "portfolio_cio.json"), generated_at=run_ts)
+    except Exception as _cio_exc:  # noqa: BLE001 — advisory only
+        log.warning("ADR-088 CIO snapshot skipped (%s) — cycle continues", _cio_exc)
+
     # ── Step 2g (Y3 tooling): shadow-vs-fact reconciliation ──────────────────
     # write_shadow_rationale above just appended today's verdict to the
     # append-only history; re-score the whole window now so the owner's
