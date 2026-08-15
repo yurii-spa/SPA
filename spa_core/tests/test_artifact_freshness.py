@@ -97,3 +97,26 @@ def test_write_report_atomic(tmp_path):
     reg = (af.Artifact("old", "old.json", "p", 24.0),)
     rep = af.summarize(af.check_freshness(tmp_path, now=NOW, registry=reg))
     assert rep["any_stale"] is True
+
+
+# ── #235: главный артефакт офиса обрёл срок годности ──────────────────────────────────
+# Положительный контроль: на неисправленном модуле записи в реестре НЕТ вовсе, поэтому
+# первый ассерт краснеет — «дом-вью не зарегистрирован» и есть та самая авария.
+
+def test_house_view_is_registered_with_a_measured_budget():
+    """chief_investment.json обязан быть в реестре: из него оркестратор судит каждый цикл."""
+    art = next((a for a in af.ARTIFACT_REGISTRY
+                if a.path == "investment_os/chief_investment.json"), None)
+    assert art is not None, "у ГЛАВНОГО артефакта офиса не было срока годности вовсе"
+    # такт ИЗМЕРЕН по launchd: StartInterval=86400 ⇒ бюджет обязан вмещать сутки + запас
+    assert art.max_age_hours > 24.0, "бюджет меньше такта = ложная тревога на верном состоянии"
+    assert art.max_age_hours == 30.0
+    assert art.producer == "com.spa.io_chief_investment"
+
+
+def test_house_view_budget_agrees_with_the_office_health_monitor():
+    """Два определения одного срока годности разошлись бы молча — сверяем их вслух."""
+    from spa_core.investment_os import health as H
+    art = next(a for a in af.ARTIFACT_REGISTRY
+               if a.path == "investment_os/chief_investment.json")
+    assert art.max_age_hours * 3600 == H.budget_s(H.HOUSE_VIEW)

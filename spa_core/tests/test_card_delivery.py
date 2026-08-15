@@ -360,7 +360,23 @@ class OfficeStepSeesTheBridge(unittest.TestCase):
         # мерил. Проверка усилена: успех обязан молчать при ИЗМЕРЕННОМ нуле, а
         # неизмеренный долг обязан быть слышен (`test_consume_office_reports.py`
         # ::test_receipt_without_debt_block_says_unmeasured_not_zero).
+        # ИЗМЕНЕНО НАМЕРЕННО ВТОРОЙ РАЗ (цикл #247, ADR-086, инвариант #16 —
+        # обоснование здесь и в `docs/journal/2026-W33.md`), и ровно по тому же
+        # правилу, что записано абзацем выше: производитель получил ещё один
+        # БЕЗУСЛОВНЫЙ ключ `owner_answer_delivery` (доставка следа решения
+        # владельца), поэтому к форме производителя приводится ФИКСТУРА.
+        # Утверждение теста — «успешная доставка молчит», включая запрет ⚠️ —
+        # оставлено ДОСЛОВНО, не ослаблено ни на символ. Отчёт БЕЗ этого блока
+        # по-прежнему обязан быть слышен, и это закреплено отдельно
+        # (`test_owner_answer_delivery.py::OfficeStepReaderTest
+        # ::test_missing_block_is_printed_as_unmeasured_not_silence`), поэтому
+        # правка фикстуры ничего не гасит: она лишь перестаёт утверждать «тихо»
+        # о документе, которого не пишет никто.
         out = self.summarize({"generated_at": ts(hours_ago=0.1),
+                              "owner_answer_delivery": {
+                                  "status": "IDLE", "delivered": [],
+                                  "already_on_origin": ["own-x.md"], "pending": [],
+                                  "conflicts": [], "unmeasured": []},
                               "created": [], "closed": [], "deferred": [],
                               "waiting_hysteresis": [], "escalated": [],
                               "sources_unread": [], "open_cards": 0,

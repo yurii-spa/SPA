@@ -267,6 +267,37 @@ def _scan_queue(tracker_dir: Path) -> tuple[list[dict], list[dict], bool]:
     return queue, unchecked, True
 
 
+CHANNEL_HISTORY = "alert_history.json"
+
+
+def _scan_channel_buttons(ddir: Path) -> dict:
+    """Сообщения с вариантами, уехавшие БЕЗ кнопок — по общему журналу канала.
+
+    Fail-CLOSED и никогда не бросает: журнала нет ⇒ ``measured=False`` и причина
+    словами; «нет журнала» не имеет права выглядеть как «всё с кнопками».
+    """
+    path = ddir / CHANNEL_HISTORY
+    if not path.is_file():
+        return {"measured": False,
+                "reason": f"{CHANNEL_HISTORY} отсутствует — канал не измерен"}
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        entries = doc.get("entries") if isinstance(doc, dict) else None
+        if not isinstance(entries, list):
+            raise ValueError("нет списка entries")
+    except (OSError, ValueError) as exc:
+        return {"measured": False,
+                "reason": f"{CHANNEL_HISTORY} не читается ({exc}) — канал не измерен"}
+    try:
+        from spa_core.telegram.buttonless_audit import scan
+
+        out = scan(entries)
+    except Exception as exc:  # noqa: BLE001 — сторож не роняет отчёт
+        return {"measured": False, "reason": f"скан не выполнен: {exc}"}
+    out["measured"] = True
+    return out
+
+
 def check_pending_owner_decisions(*,
                                   now: Optional[dt.datetime] = None,
                                   data_dir: Optional[str | Path] = None,
@@ -503,6 +534,21 @@ def check_pending_owner_decisions(*,
             f"вопросов владельцу не берутся; лечится `{_PHANTOM_REMEDY}`: {names}{more}")
         status = _worst(status, WARNING)
 
+    # --- H7: тот же вопрос, измеренный СО СТОРОНЫ КАНАЛА --------------------
+    # H3 выше судит по журналу пушей — а он знает ровно один путь отправки
+    # (`owner_decisions.register_push`). Жалоба владельца 14.08 («пишет варианты
+    # ответов — кнопок нету») по этому журналу не воспроизводится: после 10.08 там
+    # всё с кнопками. Значит либо жаловались на ДРУГОГО отправителя (сырой POST из
+    # GitHub Actions — у него кнопок нет и быть не может), либо мы этого не видим.
+    # Скан по общему журналу канала отвечает про ВСЕХ отправителей сразу.
+    #
+    # Статус НЕ трогаем СОЗНАТЕЛЬНО. Этот отчёт ежечасно читает `agent_health_monitor`,
+    # а тот умеет звонить владельцу; поднять из-за оформления сообщений WARNING —
+    # значит ответить на жалобу о спаме новым спамом. Направление таблички решает
+    # (прецедент ADR-084): находка едет в отчёт и в обязательный шаг 0-офис, где её
+    # читает оркестратор, а не в чат. Закреплено тестом в обе стороны.
+    channel = _scan_channel_buttons(ddir)
+
     return {
         "generated_at": now.isoformat(),
         "status": status,
@@ -522,6 +568,7 @@ def check_pending_owner_decisions(*,
         "answered_but_open_count": len(answered_open),
         "oldest_pending_age_h": oldest_age_h,
         "buttonless_count": len(buttonless),
+        "channel_buttons": channel,
         "pending": pending,
         "issues": issues,
         "unchecked": unchecked,

@@ -157,4 +157,4 @@ weighted_apy = sum(usd * apy_map[p] for p, usd in positions.items()) / prev_equi
    а не попутно с advisory-слоем.
 3. **Расхождение двух путей APY (4.80 против 2.36)** — открытая карточка, money-path.
 4. **Полный replay по всей вселенной** — в репозитории пять исторических рядов
-   (`data/historical_apy/`), поэтому замер честно назван узким (см. ADR-086).
+   (`data/historical_apy/`), поэтому замер честно назван узким (см. ADR-088).

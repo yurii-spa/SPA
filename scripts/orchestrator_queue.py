@@ -41,6 +41,7 @@ if _SCRIPTS_DIR not in sys.path:
 
 from spa_core.owner_queue.queue import (
     OwnerDoneForbidden,
+    TRACKER_DIR,
     create_card,
     ingest_notes,
     load_card,
@@ -56,8 +57,11 @@ from spa_core.owner_queue.owner_answer import (
     CARRY_CARRIED,
     CARRY_NO_ANSWER,
     CARRY_UNMEASURED,
+    CROSS_FOUND,
+    CROSS_UNMEASURED,
     _IDENTITY_FIELDS,
     carry_owner_answer,
+    scan_owner_answers_elsewhere,
 )
 
 
@@ -317,6 +321,56 @@ def _origin_read_through(cards: list, tracker_dir=None,
     return [by_id[c.id] for c in cards], verdicts
 
 
+def _cross_tree_owner_answers(tracker_dir, now=None):
+    """(вердикт, карточки-из-главного-дерева, довесок-полей) — ответ владельца из ЛЮБОГО дерева.
+
+    **Зачем.** Шаг 2 протокола (`list --type owner-decision --status owner-done`) читает трекер
+    ТОГО дерева, чья копия этого скрипта запущена. Ответ владельца туда не попадает: его пишет
+    Telegram-бот в ПРОД-дерево, а на `origin/main` он не уезжает ничем (мост ADR-081 везёт только
+    своё, `IDLE`). §3.4 при этом ОБЯЗЫВАЕТ работать из изолированного worktree — то есть шаг 2
+    предписано исполнять ровно оттуда, откуда живого ответа не видно.
+
+    Замер 14.08: владелец ответил в 12:26:56Z, два прогона цикла #230 (16:15Z и 17:01Z) прошли
+    мимо. Нашёл ответ цикл #231 не шагом 2, а шагом 1-пред, где расхождение теряется среди
+    десятков однотипных строк «своя правка».
+
+    **Зеркало уже закрытого — и опаснее его.** #182 лечил ЛОЖНОЕ «есть решение» (стоит времени
+    сессии). Здесь ЛОЖНОЕ «решений нет»: оно теряет РЕШЕНИЕ ВЛАДЕЛЬЦА, а пустой список неотличим
+    от честной пустой очереди. Поэтому найденное не только называется в stderr, но и ЕДЕТ В
+    stdout — машинный контракт шага 2 (урок #178: всё, что живёт только в stderr-прозе, сессия
+    с `| jq` не видит НИКОГДА).
+
+    **Инвариант #14 цел.** Здесь ничего не пишется: чужая копия только читается и называется.
+    Карточка главного дерева едет ОТДЕЛЬНОЙ записью, а не подменяет местную: обе копии реально
+    существуют, и врать про их число — значит чинить видимость враньём. `path` каждой записи
+    указывает на ту копию, из которой она прочитана.
+    """
+    try:
+        verdict, findings, reason = scan_owner_answers_elsewhere(tracker_dir, now=now)
+    except Exception as exc:  # noqa: BLE001 — сторож не имеет права уронить саму очередь
+        return CROSS_UNMEASURED, [], f"опрос главного дерева упал: {exc}"
+    if verdict == CROSS_UNMEASURED:
+        return verdict, [], reason
+    out = []
+    for f in findings:
+        try:
+            card = load_card(f.path)
+        except Exception as exc:  # noqa: BLE001 — нечитаемая копия остаётся находкой
+            print(f"❓ {f.card_id}: ответ владельца в главном дереве найден, но карточка не "
+                  f"разобрана ({exc})", file=sys.stderr)
+            continue
+        extra = f.as_dict()
+        extra.pop("id", None)
+        extra["cross_tree_check"] = CROSS_FOUND
+        extra["cross_tree_note"] = (
+            "эта запись прочитана из ГЛАВНОГО дерева, а не из читаемого. Разбирать — свою "
+            "копию, а след ответа перенести (`set-status … ingested` делает это сам через "
+            "`carry_owner_answer`); статус `owner-done` не ставить (инв. #14)."
+        )
+        out.append((card, extra))
+    return verdict, out, None
+
+
 def cmd_list(args) -> int:
     cards = list_cards(tracker_dir=getattr(args, "tracker_dir", None))
     verdicts: dict[str, dict] = {}
@@ -328,23 +382,62 @@ def cmd_list(args) -> int:
         # и в машинном контракте оно обязано выглядеть именно так.
         print("❓ сверка с origin ОТКЛЮЧЕНА флагом --no-origin-check: список не подтверждён",
               file=sys.stderr)
+
+    cross_verdict, foreign, cross_reason = _cross_tree_owner_answers(
+        getattr(args, "tracker_dir", None) or TRACKER_DIR, now=getattr(args, "now", None))
+    if cross_verdict == CROSS_FOUND:
+        print(f"🔴 ОТВЕТ ВЛАДЕЛЬЦА ЕСТЬ В ГЛАВНОМ ДЕРЕВЕ, А ЗДЕСЬ ЕГО НЕТ ({len(foreign)}) — "
+              f"бот пишет ответ в прод-дерево, на origin он не уезжает ничем:", file=sys.stderr)
+        for card, extra in foreign:
+            age = extra.get("age_hours")
+            waited = f"ждёт {age} ч" if age is not None else "момент ответа НЕ записан"
+            print(f"    · {card.id}: здесь `{extra['local_status']}`, в главном дереве "
+                  f"`{card.status}` ({waited}) — {extra['source_path']}", file=sys.stderr)
+    elif cross_verdict == CROSS_UNMEASURED:
+        print(f"❓ ответ владельца в главном дереве НЕ ИЗМЕРЕН — {cross_reason}\n"
+              f"    пустой список ниже НЕ означает «решений нет»: живой ответ мог остаться "
+              f"в дереве, куда пишет бот.", file=sys.stderr)
+
     # Фильтры применяются ПОСЛЕ сверки с origin — иначе карточка, закрытая на origin, отсеялась
     # бы по устаревшему статусу дерева и снова выдавалась как новая (ровно чинимый дефект).
-    if args.type is not None:
-        cards = [c for c in cards if c.tracker_type == args.type]
-    if args.status is not None:
-        cards = [c for c in cards if c.status == args.status]
+    def _keep(c) -> bool:
+        if args.type is not None and c.tracker_type != args.type:
+            return False
+        if args.status is not None and c.status != args.status:
+            return False
+        return True
+
+    cards = [c for c in cards if _keep(c)]
+    foreign = [(c, e) for c, e in foreign if _keep(c)]
+
+    rows = [(c, dict(verdicts.get(c.id) or {})) for c in cards]
+    rows += [(c, e) for c, e in foreign]
+    if cross_verdict == CROSS_UNMEASURED:
+        # Отсутствие поля читалось бы как «сверено и ок» — ровно то, чем этот класс и живёт.
+        for _c, extra in rows:
+            extra.setdefault("cross_tree_check", CROSS_UNMEASURED)
+
     if args.json:
-        print(json.dumps([_card_dict(c, verdicts.get(c.id)) for c in cards],
+        print(json.dumps([_card_dict(c, extra) for c, extra in rows],
                          ensure_ascii=False, indent=2))
     else:
-        if not cards:
+        if not rows:
             print("(no matching cards)")
-        for c in cards:
+        for c, extra in rows:
             # Человек, читающий список глазами, обязан видеть тот же вердикт, что и `| jq`.
-            v = (verdicts.get(c.id) or {}).get("origin_check", VERDICT_UNMEASURED)
+            v = extra.get("origin_check", VERDICT_UNMEASURED)
             mark = "" if v == VERDICT_AGREES else f"  ⚠️ origin_check={v}"
+            if extra.get("cross_tree_check") == CROSS_FOUND:
+                mark += f"  🔴 {CROSS_FOUND} ({extra.get('source_tree')})"
             print(f"[{c.status:<11}] {c.tracker_type:<14} {c.id}  —  {c.title}{mark}")
+
+    # ПУСТОЙ и НЕ ИЗМЕРЕННЫЙ список — это не «решений нет». Единственный оставшийся канал,
+    # когда карточки нет ни одной: ненулевой код возврата (после ADR-084 он и есть канал
+    # недоставки). Измеренная пустота по-прежнему даёт 0.
+    if cross_verdict == CROSS_UNMEASURED and not rows:
+        print("❓ список ПУСТ и НЕ ПОДТВЕРЖДЁН: «решений нет» здесь не измерено (код 2).",
+              file=sys.stderr)
+        return 2
     return 0
 
 

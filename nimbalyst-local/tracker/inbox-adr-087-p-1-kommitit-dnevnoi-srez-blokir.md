@@ -1,7 +1,7 @@
 ---
 trackerStatus:
   type: inbox
-title: "ADR-087 п.1: коммитить дневной срез блокировок риск-гейта в git"
+title: "ADR-089 п.1: коммитить дневной срез блокировок риск-гейта в git"
 status: new
 created: 2026-08-15
 ---

@@ -31,19 +31,37 @@ OUTPUT = os.path.join(DOCS_DIR, "SYSTEM_BRIEFING.md")
 # (every 30 min) CONSUMES it as the single source of truth for the agent fleet —
 # it must NOT independently re-derive agent freshness (that was the chronic
 # "log missing (never ran?)" detector bug: the briefing read raw logs/<name>.log
-# while agents migrated to /tmp/spa_<name>.*). If the snapshot is older than this
-# threshold the briefing marks it STALE (fail-honest) rather than presenting a
-# possibly-contradictory number. 35 min = the hourly writer's cadence is 60 min;
-# anything materially past one extra 30-min briefing tick is suspect.
+# while agents migrated to /tmp/spa_<name>.*). If the snapshot is older than its
+# freshness budget the briefing marks it STALE (fail-honest) rather than presenting
+# a possibly-contradictory number.
+#
+# The budget belongs to the PRODUCER, not to us: agent_health.json declares its own
+# `stale_after_minutes` (90) next to its `cadence_minutes` (60), and
+# snapshot_budget_min() reads it. The literal below is ONLY the fallback for a
+# snapshot that declares nothing — and a fallback is NAMED out loud, never
+# silently substituted (a budget the producer never agreed to is a guess).
+#
+# Cycle #242: this literal used to be the whole rule, and 35 < 60 = the writer's
+# own cadence, so a fully healthy fleet flew "SNAPSHOT STALE" for ~25 minutes of
+# every hour BY CONSTRUCTION. Same class as #235 (one artifact, two budgets,
+# decided by the side that does not produce it) with the sign flipped: there the
+# budget could never fire, here it fired almost always. Either way the guard
+# teaches its readers to ignore it, and the real lag it exists to catch goes with it.
 AGENT_SNAPSHOT_STALE_MIN = 35
 
-# data/cycle_health.json is written by com.spa.cycle_health every 300 s. The
-# briefing CONSUMES its evidence-vs-curve number (see build_track_integrity_section);
-# it must NOT re-derive the comparison itself — a second implementation of "do the
-# two money records agree?" would be a second answer to the same question, and the
-# rule from cycle #146 onwards is one question → one source. A snapshot older than
-# this means the 5-minute producer has missed ~6 runs, so its numbers describe a
-# past the briefing must not present as the present.
+# data/cycle_health.json is written by com.spa.cycle_health every 300 s (MEASURED
+# #242: com.spa.cycle_health.plist StartInterval=300). The briefing CONSUMES its
+# evidence-vs-curve number (see build_track_integrity_section); it must NOT re-derive
+# the comparison itself — a second implementation of "do the two money records
+# agree?" would be a second answer to the same question, and the rule from cycle
+# #146 onwards is one question → one source. A snapshot older than this means the
+# 5-minute producer has missed ~6 runs, so its numbers describe a past the briefing
+# must not present as the present.
+#
+# 30 min ≫ 5 min cadence, so unlike the agent budget above this one is NOT red by
+# construction — measured, not assumed (card item 3). cycle_health.json declares no
+# budget of its own today, so this literal is the fallback and the briefing says so;
+# if the producer ever starts declaring one, snapshot_budget_min() will prefer it.
 TRACK_SNAPSHOT_STALE_MIN = 30
 
 # Hard fallback list mirroring agent_health_monitor.RETIRED_LABELS, used ONLY if
@@ -126,12 +144,48 @@ def _age_minutes(ts: str):
         return None
 
 
+def snapshot_budget_min(d: dict, fallback: float):
+    """Freshness budget for someone else's artifact — ASK THE PRODUCER.
+
+    Returns ``(budget_minutes, source)`` where ``source`` is:
+      * ``"declared"`` — the snapshot carries its own ``stale_after_minutes``
+        and that number decides;
+      * ``"fallback"`` — it declares nothing, so the consumer's literal is used
+        and the caller is OBLIGED to name it out loud (see budget_txt).
+
+    Why this exists (#242): the briefing judged the hourly agent_health.json by a
+    35-minute literal of its own invention, below the writer's own 60-minute
+    cadence, so "SNAPSHOT STALE" was the normal state of a healthy fleet. A
+    consumer that invents a budget for a producer is measuring its own guess.
+    """
+    if isinstance(d, dict):
+        raw = d.get("stale_after_minutes")
+        if isinstance(raw, (int, float)) and not isinstance(raw, bool) and raw > 0:
+            return (float(raw), "declared")
+    return (float(fallback), "fallback")
+
+
+def budget_txt(budget_min: float, source: str, lang: str = "en") -> str:
+    """Render a budget so the reader can tell WHOSE number it is.
+
+    A silent fallback reads exactly like a producer-declared budget, which is how
+    an invented threshold survives review. Naming it costs one word.
+    """
+    if lang == "ru":
+        return (f"{budget_min:.0f}m объявленных писателем" if source == "declared"
+                else f"{budget_min:.0f}m — запасной бюджет брифинга, снимок своего не объявляет")
+    return (f"{budget_min:.0f} min declared by the writer" if source == "declared"
+            else f"{budget_min:.0f} min — briefing fallback, snapshot declares no budget")
+
+
 def agent_snapshot_state(d: dict):
     """Classify the agent_health.json snapshot for the briefing.
 
     Returns one of:
       * ("missing", None)  — file absent/empty/unreadable → fail-honest
-      * ("stale", age_min) — present but older than AGENT_SNAPSHOT_STALE_MIN
+      * ("stale", age_min) — present but older than its freshness budget
+        (``stale_after_minutes`` from the snapshot itself; AGENT_SNAPSHOT_STALE_MIN
+        only when it declares none — see snapshot_budget_min)
       * ("fresh", age_min) — present and recent (or unknown age but present)
 
     The briefing reflects agent_health.json VERBATIM when fresh, and refuses to
@@ -144,7 +198,8 @@ def agent_snapshot_state(d: dict):
         # Present but timestamp unparseable — cannot prove freshness → treat as
         # stale (fail-CLOSED: don't vouch for a snapshot we can't date).
         return ("stale", None)
-    if age > AGENT_SNAPSHOT_STALE_MIN:
+    budget, _src = snapshot_budget_min(d, AGENT_SNAPSHOT_STALE_MIN)
+    if age > budget:
         return ("stale", age)
     return ("fresh", age)
 
@@ -190,7 +245,8 @@ def build_agents_section() -> str:
     reading /tmp/spa_<name>.* + the plist streams). Counts and per-agent verdicts
     here equal agent_health.json's ±0.
 
-    Fail-honest: if the snapshot is missing or stale (> AGENT_SNAPSHOT_STALE_MIN),
+    Fail-honest: if the snapshot is missing or stale (older than the budget the
+    snapshot itself declares — see snapshot_budget_min),
     the briefing SAYS SO instead of presenting a number that may no longer reflect
     the live fleet.
 
@@ -223,9 +279,10 @@ def build_agents_section() -> str:
 
     if state == "stale":
         age_txt = f"{age_min:.0f} min" if age_min is not None else "unknown age"
+        budget, src = snapshot_budget_min(d, AGENT_SNAPSHOT_STALE_MIN)
         return ("## 🤖 Agent Health\n"
                 f"⚠️ **SNAPSHOT STALE** — `agent_health.json` is {age_txt} old "
-                f"(> {AGENT_SNAPSHOT_STALE_MIN} min); the com.spa.agent_health writer may be lagging. "
+                f"(> {budget_txt(budget, src)}); the com.spa.agent_health writer may be lagging. "
                 "Counts below are LAST-KNOWN, not live — verify with "
                 "`launchctl list | grep spa`.\n"
                 f"_Last-known: {ok} OK / {warn} WARN / {crit} CRIT (of {total}), "
@@ -456,7 +513,9 @@ def track_integrity_state(d: dict, *, now: datetime | None = None) -> dict:
         check read as a clean one.
       * ``unchecked`` — the monitor itself could not compare (files absent, no
         common dates); its ``detail`` is carried through verbatim
-      * ``stale``     — numbers are real but older than TRACK_SNAPSHOT_STALE_MIN
+      * ``stale``     — numbers are real but older than the freshness budget
+        (declared by the snapshot if it carries one, else TRACK_SNAPSHOT_STALE_MIN,
+        and ``budget_source`` in the result says which)
       * ``fresh``     — measured, recent, usable
 
     ``now`` is an input, not the environment, so tests pin both sides of the
@@ -472,7 +531,10 @@ def track_integrity_state(d: dict, *, now: datetime | None = None) -> dict:
 
     chk = checks.get("evidence_vs_curve") or {}
     age_min = _age_minutes(d.get("checked_at", ""))
+    budget_min, budget_src = snapshot_budget_min(d, TRACK_SNAPSHOT_STALE_MIN)
     out = {
+        "budget_min": budget_min,
+        "budget_source": budget_src,
         "divergent_days": chk.get("divergent_days"),
         "compared_days": chk.get("compared_days"),
         "max_delta_usd": chk.get("max_delta_usd"),
@@ -487,7 +549,7 @@ def track_integrity_state(d: dict, *, now: datetime | None = None) -> dict:
         return out
 
     # Unparseable/absent checked_at cannot prove freshness → stale, never fresh.
-    if age_min is None or age_min > TRACK_SNAPSHOT_STALE_MIN:
+    if age_min is None or age_min > budget_min:
         out["state"] = "stale"
         return out
 
@@ -509,7 +571,9 @@ def track_integrity_cell(st: dict) -> str:
     if state == "stale":
         age = st.get("age_min")
         age_txt = f"{age:.0f}m" if age is not None else "unknown age"
-        return (f"⚠️ СНИМОК ПРОТУХ ({age_txt} > {TRACK_SNAPSHOT_STALE_MIN}m) — "
+        b_txt = budget_txt(st.get("budget_min", TRACK_SNAPSHOT_STALE_MIN),
+                           st.get("budget_source", "fallback"), lang="ru")
+        return (f"⚠️ СНИМОК ПРОТУХ ({age_txt} > {b_txt}) — "
                 f"last-known {div}/{cmp_} дат расходятся")
     if not div:
         return f"✅ доказательная база = кривая ({cmp_} дат сходятся)"
@@ -745,7 +809,10 @@ def main() -> None:
     elif agent_state == "stale":
         agent_icon = "⚠️"
         age_txt = f"{agent_age_min:.0f}m" if agent_age_min is not None else "unknown age"
-        agent_cell = (f"⚠️ SNAPSHOT STALE ({age_txt} > {AGENT_SNAPSHOT_STALE_MIN}m) — "
+        a_budget, a_src = snapshot_budget_min(agent_h, AGENT_SNAPSHOT_STALE_MIN)
+        a_budget_txt = (f"{a_budget:.0f}m declared" if a_src == "declared"
+                        else f"{a_budget:.0f}m fallback")
+        agent_cell = (f"⚠️ SNAPSHOT STALE ({age_txt} > {a_budget_txt}) — "
                       f"last-known {agent_ok}/{agent_total}")
     else:
         agent_icon = {"OK": "✅", "WARNING": "⚠️", "CRITICAL": "🔴"}.get(agent_status, "❓")

@@ -143,11 +143,23 @@ class TestAbsentOnBase:
         assert rep["unmeasured"] == []
         assert rep["exit_code"] == 0
 
-    def test_declared_file_missing_everywhere_says_so_verbatim(self, guard, repo):
-        """Объявлено авансом и не создано — это находка, но человеку видно, что локально файла тоже нет."""
+    def test_declared_file_missing_everywhere_is_judged_nowhere_not_undelivered(self, guard, repo):
+        """ИНВ. #16 — тест изменён НАМЕРЕННО (цикл #243, карточка
+        `inbox-shag-0a-vechno-dokladyvaet-o-faile-kotor`). Вход не изменился ни на байт;
+        изменился ожидаемый ВЕРДИКТ: объявленное авансом и не созданное имя больше не
+        зачисляется в «НЕ ДОСТАВЛЕНО» (что читается как «есть потерянная работа, подними её»),
+        а получает собственное суждение «поднимать нечего». Прежняя редакция утверждала ровно
+        то поведение, которое карточка называет дефектом, и проверяла его слабо — по подстроке
+        «локально» в тексте. Проверка УСИЛЕНА: утверждается место записи, вердикт, ненулевой
+        код возврата И отсутствие записи в findings — то есть что находка не исчезла в тишину.
+        Обратная сторона (файл ЛЕЖИТ в дереве ⇒ по-прежнему находка) закреплена отдельным
+        положительным контролем в `TestDeclaredNameThatNeverExisted`."""
         rep = report(guard, repo, [entry("pid31439", [repo / "scripts" / "never_written.py"])])
-        assert rep["findings"][0]["state"] == guard.ABSENT
-        assert "локально" in rep["findings"][0]["detail"]
+        assert rep["findings"] == []
+        assert [f["path"] for f in rep["nowhere"]] == ["scripts/never_written.py"]
+        assert rep["nowhere"][0]["state"] == guard.NOWHERE
+        assert "НИГДЕ" in rep["nowhere"][0]["detail"]
+        assert rep["exit_code"] == 1                      # молчанием это не покупается
 
     def test_same_file_declared_by_many_sessions_is_one_finding(self, guard, repo):
         """STATE и журнал объявляет почти каждая сессия — иначе одна находка размножается
@@ -352,6 +364,149 @@ class TestGraceWindow:
         why = rep["findings"][0]["session_state"]
         assert "объявлено" in why and "ч назад" in why
         assert "мертв" not in why.lower()
+
+
+# ── 2c. окно ждёт ЖИВУЮ сессию, а не любую свежую запись ─────────────────────
+
+_IN_WINDOW = datetime(2026, 1, 15, 13, 18, tzinfo=timezone.utc)   # +1.3ч к объявлению
+
+
+def durable_entry(session, files, pid, start=_LSTART_OLD, ts="2026-01-15T12:00:00Z",
+                  summary="работа"):
+    """Объявление сессии, назвавшей СВОЙ долгоживящий процесс (`SPA_SESSION_PID`)."""
+    e = entry(session, files, ts=ts, summary=summary)
+    e["session_pid"], e["session_pid_start"] = pid, start
+    return e
+
+
+class TestOrphanInsideGraceWindow:
+    """Замер 14.08 (карточка `inbox-shag-0a-svezhee-obyavlenie-mertvoi-sessi`).
+
+    Цикл #232 увидел объявление цикла #231 возрастом 1.34 ч в разделе «свежие — работа может
+    идти» и прошёл бы мимо: в `/tmp`-дереве лежало готовое исполнение решения владельца
+    (ADR-085, агент, 16 тестов), которого на `origin/main` не было вовсе. Инструмент ЗНАЛ —
+    он тут же печатал «долгоживущий процесс сессии pid71512 завершился», — и всё равно
+    относил запись к «работа может идти».
+
+    Находкой делает только СОЧЕТАНИЕ трёх условий: свежее объявление + измеренно завершившийся
+    ДОЛГОЖИВУЩИЙ процесс + путь, которого на базе нет. Каждое по отдельности — не находка,
+    и на это ниже стоят обратные контроли: иначе вернётся класс «две сессии взяли одну
+    карточку» (#230, шаг 0b), ради которого окно и существует.
+    """
+
+    def test_dead_durable_session_inside_window_is_a_finding(self, guard, repo):
+        """Положительный контроль #231: 1.3 ч назад, процесс мёртв, файла на базе нет."""
+        (repo / "scripts" / "adr085_agent.py").write_text("готовая работа\n", encoding="utf-8")
+        rep = report(guard, repo,
+                     [durable_entry("cycle231", [repo / "scripts" / "adr085_agent.py"], 71512)],
+                     ps=fake_ps({}), now=_IN_WINDOW)          # 71512 не в таблице ⇒ процесса нет
+        assert [f["state"] for f in rep["findings"]] == [guard.ABSENT]
+        assert rep["findings"][0]["path"] == "scripts/adr085_agent.py"
+        assert rep["findings"][0]["within_grace"] is True
+        assert rep["fresh"] == []
+        assert rep["exit_code"] == 1
+
+    def test_finding_says_the_window_has_not_expired_but_nobody_is_coming_back(self, guard, repo):
+        """Формулировка обязана называть ОБА измерения — иначе читается как обычный просрочек."""
+        (repo / "scripts" / "adr085_agent.py").write_text("готовая работа\n", encoding="utf-8")
+        rep = report(guard, repo,
+                     [durable_entry("cycle231", [repo / "scripts" / "adr085_agent.py"], 71512)],
+                     ps=fake_ps({}), now=_IN_WINDOW)
+        why = rep["findings"][0]["session_state"]
+        assert "долгоживущий процесс сессии pid71512 завершился" in why
+        assert "окно ожидания" in why and "ждать некого" in why
+
+    def test_render_puts_orphans_in_their_own_section(self, guard, repo):
+        """Дерево названо вслух и отдельным разделом — сирота не тонет в общем списке."""
+        (repo / "scripts" / "adr085_agent.py").write_text("готовая работа\n", encoding="utf-8")
+        (repo / "scripts" / "old_orphan.py").write_text("давняя сирота\n", encoding="utf-8")
+        rep = report(guard, repo,
+                     [durable_entry("cycle231", [repo / "scripts" / "adr085_agent.py"], 71512),
+                      entry("pid31439", [repo / "scripts" / "old_orphan.py"],
+                            ts="2026-01-15T00:00:00Z")],
+                     ps=fake_ps({}), now=_IN_WINDOW)
+        text = guard.render(rep)
+        assert "ОСИРОТЕЛО, НО ОКНО НЕ ИСТЕКЛО (1)" in text
+        assert "НЕ ДОСТАВЛЕНО (1)" in text                   # просроченная — своим разделом
+        assert "scripts/adr085_agent.py" in text and "scripts/old_orphan.py" in text
+        assert text.index("ОСИРОТЕЛО") < text.index("НЕ ДОСТАВЛЕНО")   # свежую поднять дешевле
+
+    # ── обратные контроли: окно НЕ снимается ни на чём, кроме измеренной смерти ──
+
+    def test_live_durable_session_inside_window_is_never_a_finding(self, guard, repo):
+        """Живая сессия в том же окне — не находка (класс «две сессии на одной карточке»)."""
+        (repo / "scripts" / "in_flight.py").write_text("работа идёт\n", encoding="utf-8")
+        rep = report(guard, repo,
+                     [durable_entry("cycle231", [repo / "scripts" / "in_flight.py"], 71512)],
+                     ps=fake_ps({71512: (0, _LSTART_OLD)}), now=_IN_WINDOW)
+        assert rep["findings"] == [] and rep["unmeasured"] == []
+        assert rep["sessions_active"] == 1
+        assert rep["exit_code"] == 0
+
+    def test_bare_pid_identifier_inside_window_still_waits(self, guard, repo):
+        """Ключевой нюанс карточки: `pid<N>` — pid ОДНОКРАТНОЙ CLI-команды, он мёртв всегда.
+
+        Если бы «`ps` не нашёл процесс» снимало окно, находкой стала бы работа КАЖДОЙ живой
+        сессии, включая текущую, — ровно то, ради чего окно и заводили."""
+        (repo / "scripts" / "in_flight.py").write_text("работа идёт\n", encoding="utf-8")
+        rep = report(guard, repo, [entry("pid31439", [repo / "scripts" / "in_flight.py"])],
+                     ps=fake_ps({}), now=_IN_WINDOW)
+        assert rep["findings"] == []
+        assert [f["session"] for f in rep["fresh"]] == ["pid31439"]
+        assert rep["exit_code"] == 0
+
+    def test_unmeasurable_durable_process_is_never_read_as_death(self, guard, repo):
+        """«Не измерено» смертью не объявляется: `ps` не отработал ⇒ находки нет.
+
+        Запись при этом уходит не в окно, а в «НЕ ИЗМЕРЕНО» (код 2) — это давняя fail-CLOSED
+        ветка `session_state`, она срабатывает РАНЬШЕ окна и правкой не тронута. Пиннится
+        главное: неизмеренная активность не открывает досрочный подъём в находки."""
+        (repo / "scripts" / "in_flight.py").write_text("работа идёт\n", encoding="utf-8")
+        e = durable_entry("cycle231", [repo / "scripts" / "in_flight.py"], 71512)
+        assert guard.durable_process_gone(e, ps=fake_ps({71512: (2, "")})) is False
+        rep = report(guard, repo, [e], ps=fake_ps({71512: (2, "")}), now=_IN_WINDOW)
+        assert rep["findings"] == []
+        assert len(rep["unmeasured"]) == 1
+        assert "не отработал" in rep["unmeasured"][0]["reason"]
+        assert rep["exit_code"] == 2
+
+    def test_reused_pid_counts_as_gone(self, guard, repo):
+        """pid занят ДРУГИМ процессом — тот же измеренный факт «объявленного процесса нет»."""
+        (repo / "scripts" / "adr085_agent.py").write_text("готовая работа\n", encoding="utf-8")
+        rep = report(guard, repo,
+                     [durable_entry("cycle231", [repo / "scripts" / "adr085_agent.py"], 71512)],
+                     ps=fake_ps({71512: (0, _LSTART_NEW)}), now=_IN_WINDOW)
+        assert [f["state"] for f in rep["findings"]] == [guard.ABSENT]
+        assert rep["findings"][0]["within_grace"] is True
+
+    def test_dead_durable_session_with_everything_delivered_is_not_a_finding(self, guard, repo):
+        """Смерть сессии сама по себе — не находка: доставленное объявление остаётся тишиной."""
+        rep = report(guard, repo,
+                     [durable_entry("cycle231", [repo / "scripts" / "kept.py"], 71512)],
+                     ps=fake_ps({}), now=_IN_WINDOW)
+        assert rep["findings"] == [] and rep["unmeasured"] == []
+        assert len(rep["fresh"]) == 1                          # но и в тишину не роняется
+        assert "находки нет" in rep["fresh"][0]["reason"]
+        assert rep["exit_code"] == 0
+
+    def test_unmeasured_path_of_a_dead_session_fails_closed_inside_window(self, guard, repo):
+        """Запись, которую мы взялись мерить, меряется до конца — включая fail-CLOSED."""
+        rep = report(guard, repo,
+                     [durable_entry("cycle231", [Path("/вне/репозитория/x.py")], 71512)],
+                     ps=fake_ps({}), now=_IN_WINDOW)
+        assert rep["findings"] == []
+        assert len(rep["unmeasured"]) == 1
+        assert rep["exit_code"] == 2
+
+    def test_orphan_and_expired_findings_do_not_collapse_into_one(self, guard, repo):
+        """Один и тот же файл от сироты-в-окне и от просроченной — разной срочности."""
+        (repo / "scripts" / "kept.py").write_text("общая правка\n", encoding="utf-8")
+        rep = report(guard, repo,
+                     [durable_entry("cycle231", [repo / "scripts" / "kept.py"], 71512),
+                      entry("pid31439", [repo / "scripts" / "kept.py"],
+                            ts="2026-01-15T00:00:00Z")],
+                     ps=fake_ps({}), now=_IN_WINDOW)
+        assert sorted(f["within_grace"] for f in rep["findings"]) == [False, True]
 
 
 # ── 3. fail-CLOSED: «не смог измерить» ≠ «всё доставлено» ────────────────────
@@ -752,3 +907,228 @@ class TestDeletedWorktreeIsNamedTruthfully:
         rep = report(guard, repo, [entry("pid31439", [other / "scripts" / "f.py"])])
         assert rep["exit_code"] == 2
         assert "не принадлежит этому репозиторию" in rep["unmeasured"][0]["reason"]
+
+
+class TestReapedTreeCarriesItsMeasurement:
+    """Квитанция снятого дерева (`data/worktree_reap_log.jsonl`, цикл #230).
+
+    Уборка мёртвых деревьев (`scripts/reap_stale_worktrees.py`) убирает осадок находок, но
+    сама превращала бы каждый объявленный путь внутри снятого дерева в НЕОБРАТИМОЕ «измерить
+    нечем» (код 2) — тот самый класс, которым уже морили очередь. Квитанция несёт измерение,
+    сделанное ДО снятия. Здесь проверяется, что пропуск даётся ровно объяснённым путям и
+    никому больше."""
+
+    @staticmethod
+    def _ledger(repo, rows):
+        (repo / "data").mkdir(exist_ok=True)
+        (repo / "data" / "worktree_reap_log.jsonl").write_text(
+            "\n".join(json.dumps(r, ensure_ascii=False) for r in rows) + "\n", encoding="utf-8")
+
+    def test_explained_path_is_measured_not_unmeasured(self, guard, repo, tmp_path):
+        wt = tmp_path / "spa_wt_c191"
+        self._ledger(repo, [{"ts": "2026-08-14T16:00:00Z", "worktree": str(wt), "base": "base",
+                             "archive": "/arch/spa_wt_c191-STAMP",
+                             "paths": {"docs/STATE.md": "superseded"}}])
+        rep = report(guard, repo, [entry("pid31439", [wt / "docs" / "STATE.md"])])
+        assert rep["unmeasured"] == [], rep["unmeasured"]
+        assert rep["findings"] == []
+        assert len(rep["reaped"]) == 1
+        assert "архив" in rep["reaped"][0]["reason"]
+        assert rep["exit_code"] == 0
+
+    def test_path_marked_undelivered_at_reap_is_never_silent(self, guard, repo, tmp_path):
+        """Правило такие деревья не снимает; если снятие всё же случилось — молчать нельзя."""
+        wt = tmp_path / "spa_wt_rnd49"
+        self._ledger(repo, [{"ts": "2026-08-14T16:00:00Z", "worktree": str(wt), "base": "base",
+                             "archive": "/arch/x",
+                             "paths": {"scripts/edge_criterion_consensus.py": "unique"}}])
+        rep = report(guard, repo, [entry("pid31439", [wt / "scripts" / "edge_criterion_consensus.py"])])
+        assert rep["exit_code"] == 2
+        assert "'unique'" in rep["unmeasured"][0]["reason"]
+
+    def test_path_absent_from_ledger_and_from_base_is_a_finding(self, guard, repo, tmp_path):
+        """Файл, которого нет ни в квитанции, ни на базе, — потерянная работа, а не тишина."""
+        wt = tmp_path / "spa_wt_c191"
+        self._ledger(repo, [{"ts": "2026-08-14T16:00:00Z", "worktree": str(wt), "base": "base",
+                             "archive": "/arch/x", "paths": {"docs/STATE.md": "delivered"}}])
+        rep = report(guard, repo, [entry("pid31439", [wt / "scripts" / "brand_new.py"])])
+        assert rep["exit_code"] == 1
+        assert rep["findings"][0]["state"] == guard.ABSENT
+
+    def test_path_absent_from_ledger_but_present_on_base_is_explained(self, guard, repo, tmp_path):
+        """В квитанции только расходившиеся пути: объявленный, но не тронутый файл терять нечем."""
+        wt = tmp_path / "spa_wt_c191"
+        self._ledger(repo, [{"ts": "2026-08-14T16:00:00Z", "worktree": str(wt), "base": "base",
+                             "archive": "/arch/x", "paths": {"docs/STATE.md": "delivered"}}])
+        rep = report(guard, repo, [entry("pid31439", [wt / "scripts" / "kept.py"])])
+        assert rep["exit_code"] == 0 and len(rep["reaped"]) == 1
+
+    def test_tree_without_a_receipt_stays_unmeasured(self, guard, repo, tmp_path):
+        """Контроль в обратную сторону: пропуск даёт КВИТАНЦИЯ, а не сам факт пропажи дерева."""
+        self._ledger(repo, [{"ts": "2026-08-14T16:00:00Z", "worktree": str(tmp_path / "other"),
+                             "base": "base", "archive": "/arch/x", "paths": {}}])
+        rep = report(guard, repo, [entry("pid31439", [tmp_path / "spa_wt_gone" / "docs" / "STATE.md"])])
+        assert rep["exit_code"] == 2
+        assert "рабочее дерево удалено" in rep["unmeasured"][0]["reason"]
+
+    def test_broken_ledger_is_named_not_swallowed(self, guard, repo, tmp_path):
+        (repo / "data").mkdir(exist_ok=True)
+        (repo / "data" / "worktree_reap_log.jsonl").write_text("{битое\n", encoding="utf-8")
+        rep = report(guard, repo, [])
+        assert rep["exit_code"] == 2
+        assert any("снятых деревьев" in u["reason"] for u in rep["unmeasured"])
+
+    def test_no_ledger_at_all_is_normal(self, guard, repo):
+        """Уборку могли ни разу не запускать — отсутствие журнала не находка."""
+        rep = report(guard, repo, [])
+        assert rep["exit_code"] == 0 and rep["reaped"] == []
+
+
+# ── 12. объявленное ИМЯ, которого не существовало нигде ──────────────────────
+#
+# Карточка `inbox-shag-0a-vechno-dokladyvaet-o-faile-kotor` (цикл #239, закрыта #243).
+# Объявление владения пишется АВАНСОМ, до того как ответ известен, и у исследовательского
+# слоя имя результата меняется на ходу: `pid16782` объявила `scripts/edge_risk_shape_budget.py`
+# (#55 RSB), доставила `scripts/edge_cash_sleeve_frontier.py` (#55 CSF) и умерла до пуша.
+# Находка про объявленное имя честна по контракту сторожа и при этом НЕ снимаема ничем, кроме
+# подлога (создать пустышку с нужным именем), — то есть вечна.
+#
+# Замер до правки (весь журнал, 852 записи, 15.08): 42 находки ABSENT, из них 38 — этот класс,
+# настоящей недоставленной работы 2. Девять десятых раздела «НЕ ДОСТАВЛЕНО» учили пролистывать
+# его целиком.
+#
+# Границы, названные в карточке заранее и соблюдённые здесь: горизонта по времени НЕ вводится
+# (возраст — не признак ложности, #233), права снять свою находку задним числом у сессии не
+# появилось (#226), код возврата не смягчён.
+
+class TestDeclaredNameThatNeverExisted:
+    def test_never_created_name_is_not_called_undelivered_work(self, guard, repo):
+        """Имени нет ни на базе, ни в её истории, ни в одном дереве ⇒ поднимать нечего."""
+        rep = report(guard, repo, [entry("pid16782", [repo / "scripts" / "edge_rsb.py"])])
+        assert rep["findings"] == []
+        assert [f["path"] for f in rep["nowhere"]] == ["scripts/edge_rsb.py"]
+        assert "НИГДЕ" in rep["nowhere"][0]["detail"]
+
+    def test_lost_work_lying_in_a_worktree_is_still_a_finding(self, guard, repo, tmp_path):
+        """ОБРАТНЫЙ КОНТРОЛЬ, зелёный на ОБОИХ деревьях НАМЕРЕННО — им и доказывается, что
+        настоящая потеря не переехала в «поднимать нечего».
+
+        Точная форма живого случая: `scripts/edge_criterion_consensus.py` лежит в
+        `/tmp/spa_wt_rnd49`, на origin его нет. Байты существуют ⇒ поднимать ЕСТЬ что."""
+        wt = tmp_path / "spa_wt_rnd49"
+        _git(repo, "worktree", "add", "-q", "--detach", str(wt), "base")
+        (wt / "scripts" / "edge_criterion_consensus.py").write_text("работа\n", encoding="utf-8")
+        rep = report(guard, repo,
+                     [entry("pid29046", [repo / "scripts" / "edge_criterion_consensus.py"])])
+        assert rep.get("nowhere", []) == []
+        assert [f["state"] for f in rep["findings"]] == [guard.ABSENT]
+        assert rep["exit_code"] == 1
+
+    def test_finding_names_the_tree_that_holds_the_bytes(self, guard, repo, tmp_path):
+        """Побочное усиление той же правки: раз деревья всё равно опрошены, находка называет
+        КОНКРЕТНОЕ дерево, где лежит работа, вместо «на базе нет; локально тоже нет»."""
+        wt = tmp_path / "spa_wt_rnd49"
+        _git(repo, "worktree", "add", "-q", "--detach", str(wt), "base")
+        (wt / "scripts" / "edge_criterion_consensus.py").write_text("работа\n", encoding="utf-8")
+        rep = report(guard, repo,
+                     [entry("pid29046", [repo / "scripts" / "edge_criterion_consensus.py"])])
+        assert str(wt) in rep["findings"][0]["detail"]        # дерево НАЗВАНО, а не «где-то»
+        assert "поднять" in rep["findings"][0]["detail"]
+
+    def test_path_that_lived_on_base_and_was_deleted_is_not_nowhere(self, guard, repo):
+        """Второй контроль: путь БЫЛ на базе и удалён — это не «имени не было»,
+        и сворачивать такое в «поднимать нечего» значило бы прятать удаление."""
+        (repo / "scripts" / "gone.py").write_text("жил на базе\n", encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-qm", "add gone.py")
+        _git(repo, "branch", "-f", "base", "HEAD")
+        _git(repo, "rm", "-q", "scripts/gone.py")
+        _git(repo, "commit", "-qm", "rm gone.py")
+        _git(repo, "branch", "-f", "base", "HEAD")
+        rep = report(guard, repo, [entry("pid31439", [repo / "scripts" / "gone.py"])])
+        assert rep.get("nowhere", []) == []
+        assert [f["state"] for f in rep["findings"]] == [guard.ABSENT]
+        assert "истории" in rep["findings"][0]["detail"]
+        assert rep["exit_code"] == 1
+
+    def test_unreadable_history_keeps_the_finding(self, guard, repo):
+        """fail-CLOSED: не смогли прочитать историю ⇒ вердикт «нигде» НЕ выносится,
+        запись остаётся находкой, а причина дописывается вслух."""
+        real = guard._git
+
+        def spy(cwd, *args):
+            if args[:1] == ("log",):
+                return 1, "", "boom"
+            return real(cwd, *args)
+
+        rep = report_with_git(guard, repo,
+                              [entry("pid31439", [repo / "scripts" / "never_written.py"])], spy)
+        assert rep.get("nowhere", []) == []
+        assert [f["state"] for f in rep["findings"]] == [guard.ABSENT]
+        assert "НЕ ИЗМЕРЕНО" in rep["findings"][0]["detail"]
+        assert rep["exit_code"] == 1
+
+    def test_nowhere_alone_never_yields_a_green_exit_code(self, guard, repo):
+        """Правка меняет ВЕРДИКТ и место в отчёте, а не видимость: пути к «✅ всё доставлено»
+        через этот класс нет (инв. #2)."""
+        rep = report(guard, repo, [entry("pid16782", [repo / "scripts" / "edge_rsb.py"])])
+        assert rep["exit_code"] == 1
+        text = guard.render(rep)
+        assert "НЕ СУЩЕСТВУЕТ НИГДЕ" in text
+        assert "ПОДНИМАТЬ НЕЧЕГО" in text
+        assert "✅ измерено полностью, всё доставлено" not in text
+
+    def test_nowhere_is_rendered_apart_from_undelivered(self, guard, repo, tmp_path):
+        """Обе строки в одном отчёте — и в РАЗНЫХ разделах: смысл правки в том, что глаз
+        перестаёт учиться пролистывать «НЕ ДОСТАВЛЕНО»."""
+        wt = tmp_path / "wt"
+        _git(repo, "worktree", "add", "-q", "--detach", str(wt), "base")
+        (wt / "scripts" / "real_loss.py").write_text("работа\n", encoding="utf-8")
+        rep = report(guard, repo, [entry("pid1", [repo / "scripts" / "real_loss.py"]),
+                                   entry("pid2", [repo / "scripts" / "phantom.py"])])
+        text = guard.render(rep)
+        assert text.index("НЕ ДОСТАВЛЕНО") < text.index("НЕ СУЩЕСТВУЕТ НИГДЕ")
+        loss = text.index("scripts/real_loss.py")
+        phantom = text.index("scripts/phantom.py")
+        assert loss < text.index("НЕ СУЩЕСТВУЕТ НИГДЕ") < phantom
+
+    def test_closing_announcement_names_what_was_delivered_instead(self, guard, repo):
+        """Гипотеза карточки, проверенная кодом: закрывающее объявление (`card_state: done`)
+        перечисляет фактически доставленное — по нему видно, что имя СМЕНИЛОСЬ, а не пропало.
+        Утверждения «это переименование» сторож не делает: доказать связь имён нечем."""
+        entries = [
+            entry("pid53284", [repo / "spa_core" / "tests" / "test_check_card_claim.py"]),
+            dict(entry("pid53284", [repo / "scripts" / "kept.py"]), card_state="done"),
+        ]
+        rep = report(guard, repo, entries)
+        assert [f["path"] for f in rep["nowhere"]] == ["spa_core/tests/test_check_card_claim.py"]
+        assert rep["nowhere"][0]["delivered_instead"] == ["scripts/kept.py"]
+        assert "ДОСТАВИЛА" in guard.render(rep)
+
+    def test_delivered_instead_is_empty_when_the_session_delivered_nothing(self, guard, repo):
+        """Контроль в обратную сторону: подсказка не выдумывается там, где доставки не было."""
+        rep = report(guard, repo, [entry("pid16782", [repo / "scripts" / "edge_rsb.py"])])
+        assert rep["nowhere"][0]["delivered_instead"] == []
+        assert "ДОСТАВИЛА" not in guard.render(rep)
+
+    def test_glued_declaration_is_named_as_such(self, guard, repo):
+        """5 из 38 живых случаев — объявление слепило несколько путей в ОДНУ строку; такого
+        файла не существует по построению, и это надо сказать, а не отправлять искать."""
+        rep = report(guard, repo, [entry("pid63921", ["scripts/a.py docs/B.md"])])
+        assert len(rep["nowhere"]) == 1
+        assert "слепило несколько путей" in rep["nowhere"][0]["detail"]
+
+    def test_same_phantom_name_declared_twice_is_one_line(self, guard, repo):
+        rep = report(guard, repo, [entry("pid1", [repo / "scripts" / "edge_rsb.py"]),
+                                   entry("pid2", [repo / "scripts" / "edge_rsb.py"])])
+        assert len(rep["nowhere"]) == 1
+        assert rep["nowhere"][0]["also_declared_by"] == ["pid2"]
+
+    def test_orphan_inside_grace_with_only_a_phantom_name_is_not_called_delivered(self, guard, repo):
+        """Сирота в окне, у которой ВСЁ объявленное — фантом: в «свежие, находки нет» она
+        уйти не должна, иначе класс вернулся бы через другую дверь."""
+        e = durable_entry("cycle-243", [repo / "scripts" / "edge_rsb.py"], pid=4242,
+                          ts="2026-01-20T11:00:00Z")
+        rep = report(guard, repo, [e], ps=fake_ps({}))
+        assert len(rep["nowhere"]) == 1 and rep["nowhere"][0]["within_grace"] is True
+        assert not any("находки нет" in f["reason"] for f in rep["fresh"])

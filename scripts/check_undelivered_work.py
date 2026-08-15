@@ -21,6 +21,22 @@
    рабочих деревьях репозитория (хост + линкованные worktree — работа сироты лежит именно
    там): нет на базе → ``absent``; есть незакоммиченная правка, которой нет ни в текущем
    `origin/main`, ни в его истории для этого пути → ``differs``;
+3a. **«на базе нет» ≠ «работа потеряна».** Объявление владения пишется АВАНСОМ, до того как
+   ответ известен, и у исследовательского слоя имя результата меняется на ходу: сессия
+   `pid16782` объявила `scripts/edge_risk_shape_budget.py` (идея реестра #55 RSB), а доставила
+   `scripts/edge_cash_sleeve_frontier.py` (#55 CSF) — файла под объявленным именем не
+   существовало НИ МИНУТЫ. Такая находка не снимается ничем, кроме подлога (создать пустышку с
+   нужным именем), и потому вечна: сканер читает весь журнал, верхнего горизонта у него нет.
+   Поэтому у ``ABSENT`` спрашивается третий вопрос — существовало ли имя хоть где-нибудь
+   (``never_existed``): история базового ref для этого пути · файловая система КАЖДОГО живого
+   рабочего дерева. Молчат оба ⇒ отдельный раздел «объявлено, но не существует нигде» с
+   вердиктом «поднимать нечего» и подсказкой, что эта же сессия доставила (закрывающее
+   объявление ``--card-state done`` первым). **Замер до правки** (весь журнал, 852 записи,
+   15.08, цикл #243): находок ``ABSENT`` 42, из них **38 — имя не существовало нигде**,
+   настоящей недоставленной работы **2** (`scripts/edge_criterion_consensus.py` + тест, лежат
+   в `/tmp/spa_wt_rnd49`), 1 — путь жил на origin и был удалён, 1 не измерен. То есть 90 %
+   раздела «НЕ ДОСТАВЛЕНО» учило пролистывать его целиком — ровно тот механизм, которым
+   сторожа глохнут. Код возврата НЕ смягчён: «нигде» по-прежнему даёт 1, а не 0.
 4. **отдельным вопросом** сверяет КАРТОЧКИ: карточка в НЕтерминальном статусе, лежащая в
    рабочем дереве и отсутствующая на базе, — находка (`card_findings`). Это не частный
    случай пункта 3: карточку, созданную посреди цикла, никто не объявляет, и разбор
@@ -41,6 +57,19 @@
 (`cycle49`, `cycle61`), которые до этого не измерялись НИКОГДА. Совпадение времени старта —
 проверка личности процесса (переиспользованный pid не читается как живая сессия). Окно
 ожидания остаётся запасным критерием для записей без этих полей — а их большинство.
+
+**Окно ждёт ЖИВУЮ сессию — а не любую свежую запись** (карточка
+`inbox-shag-0a-svezhee-obyavlenie-mertvoi-sessi`, замер 14.08). Цикл #232 увидел объявление
+цикла #231 возрастом 1.3 ч в разделе «свежие — работа может идти» и прошёл бы мимо, хотя тут же
+было напечатано «долгоживущий процесс сессии pid71512 завершился»: в `/tmp`-дереве лежало
+полностью готовое исполнение решения владельца (ADR-085), которого на `origin/main` не было
+вовсе. Инструмент ЗНАЛ и молчал. Поэтому окно снимается — но **только** там, где смерть
+измерена сильным критерием: сессия сама объявила долгоживущий процесс, и его больше нет
+(`durable_process_gone`). Ждать оставшиеся часы незачем — ждать некого, и такие находки
+печатаются отдельным разделом «осиротело, но окно не истекло» (`within_grace`).
+Само окно НЕ уменьшается и на записях без `session_pid` не снимается никогда: «процесса
+`pid<N>` нет» бессодержательно (см. абзац выше), а поспешная находка вернула бы класс «две
+сессии взяли одну карточку» (#230, шаг 0b).
 
 **Молчать о записи вправе только ДОВЕРЕННАЯ личность проверки** — названная сессией явно
 (`SPA_SESSION_ID`). Личность `pid<os.getpid()>` выведена из pid однократной CLI-команды, и по
@@ -98,6 +127,9 @@ DEFAULT_GRACE_HOURS = 3.0
 
 ACTIVE, NOT_CONFIRMED, UNKNOWN = "active", "not_confirmed", "unknown"
 DELIVERED, ABSENT, DIFFERS, UNMEASURED = "delivered", "absent", "differs", "unmeasured"
+# Пятое состояние: объявленного ИМЕНИ не существует нигде — ни на базе, ни в её истории,
+# ни в одном рабочем дереве. Это не «доставлено» и не «потеряно»: поднимать нечего.
+NOWHERE = "nowhere"
 
 _PID_RE = re.compile(r"^pid(\d+)$")
 
@@ -234,6 +266,32 @@ def _durable_state(entry, ts, ps):
                     f"(старт {started.isoformat()})")
 
 
+def durable_process_gone(entry, ps=_ps_lstart):
+    """True — сессия ОБЪЯВЛЯЛА долгоживущий процесс, и его измеренно больше нет.
+
+    Единственное основание снять окно ожидания досрочно (см. докстринг модуля). Условие
+    намеренно узкое — это НЕ «`ps` не нашёл pid»:
+
+    - запись без `session_pid` (таких большинство) → False. `session` там — pid ОДНОКРАТНОЙ
+      CLI-команды `log_session_change.py`, он мёртв ВСЕГДА, и живая сессия ничем не отличалась
+      бы от осиротевшей. Ровно на этом окно и стоит;
+    - `session_pid` есть, но `ps` не отработал / не разобран старт → False (`UNKNOWN`).
+      «Не измерено» смертью не объявляем; запись доживёт в окне и будет измерена обычным
+      порядком, когда окно истечёт — потери сигнала здесь нет, есть отсрочка;
+    - `session_pid` есть, процесса нет ЛИБО pid занят другим процессом (`NOT_CONFIRMED`) →
+      True. `log_session_change.durable_process` пишет эту пару только когда процесс
+      подтверждён в момент записи, поэтому его исчезновение — измеренный факт, а не догадка.
+
+    Смерть сессии сама по себе находкой НЕ является: она лишь снимает ожидание, а находкой
+    делает недоставленный файл (`absent`/`differs`) — все три условия карточки вместе.
+    """
+    ts = _parse_ts(entry.get("ts"))
+    if ts is None:
+        return False                       # метка времени не разобрана → это UNKNOWN, не смерть
+    durable = _durable_state(entry, ts, ps)
+    return durable is not None and durable[0] == NOT_CONFIRMED
+
+
 def session_state(entry, self_session, ps=_ps_lstart, self_session_trusted=True):
     """(ACTIVE|NOT_CONFIRMED|UNKNOWN, измерение словами).
 
@@ -353,6 +411,79 @@ def shared_log(start=ROOT, git=_git):
     if root is None:
         return DEFAULT_LOG, err
     return root / "data" / "session_changes.jsonl", None
+
+
+REAP_LEDGER_NAME = "worktree_reap_log.jsonl"
+# Вердикты, при которых снятое дерево не уносило с собой работу (см. reap_stale_worktrees.py).
+REAP_EXPLAINED = {"delivered", "superseded"}
+
+
+def read_reap_ledger(root):
+    """({путь снятого дерева: запись}, причина-если-не-прочитано).
+
+    **Зачем.** Уборка мёртвых деревьев (`scripts/reap_stale_worktrees.py`) убирает осадок
+    находок — и на её месте появился бы худший класс: объявленный путь внутри снятого дерева
+    даёт «измерить нечем» и код 2 НАВСЕГДА. Квитанция — измерение, сделанное тогда, когда
+    дерево ещё было: пофайловый вердикт плюс путь архива.
+
+    Ослабления нет: пропуск получает только путь, названный в квитанции `delivered` или
+    `superseded`. Нет квитанции · нет пути в ней · вердикт другой — прежнее «не измерено» /
+    находка. Отсутствие журнала — норма (уборку могли ни разу не запускать), причиной оно не
+    становится."""
+    path = Path(root) / "data" / REAP_LEDGER_NAME
+    if not path.exists():
+        return {}, None
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        return {}, f"журнал снятых рабочих деревьев не прочитан ({path}): {exc}"
+    rows, bad = {}, 0
+    for line in raw.splitlines():
+        if not line.strip():
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            bad += 1
+            continue
+        wt = obj.get("worktree")
+        if wt:
+            rows[str(Path(wt))] = obj          # последняя запись о дереве главнее
+    return rows, (f"битых строк в журнале снятых деревьев: {bad}" if bad else None)
+
+
+def reaped_state(path_str, ledger, root, base_ref, git=_git):
+    """(вердикт, объяснение) для объявленного пути внутри СНЯТОГО дерева, либо (None, None).
+
+    Вердикты: ``delivered`` — снятие было измерено и работа объяснена; ``absent`` — путь в
+    квитанции не назван, а на базе такого файла нет вовсе (это находка, а не тишина);
+    ``unmeasured`` — квитанция называет путь недоставленным (снятия такого дерева быть не
+    должно, но если оно случилось — молчать нельзя)."""
+    p = Path(str(path_str))
+    if not p.is_absolute():
+        return None, None
+    for wt, row in ledger.items():
+        prefix = wt.rstrip("/") + os.sep
+        variants = {str(p), str(p).replace("/private/tmp/", "/tmp/", 1),
+                    str(p).replace("/tmp/", "/private/tmp/", 1)}
+        hit = next((v for v in variants if v.startswith(prefix)), None)
+        if hit is None:
+            continue
+        rel = hit[len(prefix):]
+        state = (row.get("paths") or {}).get(rel)
+        where = f"дерево снято {row.get('ts')} по правилу уборки, архив: {row.get('archive')}"
+        if state in REAP_EXPLAINED:
+            return DELIVERED, f"{where}; содержимое пути объяснено при снятии ({state})"
+        if state is not None:
+            return UNMEASURED, (f"{where}, НО путь помечен при снятии как {state!r} — "
+                                "снятие такого дерева правилом не предусмотрено")
+        rc, _, _ = git(root, "cat-file", "-e", f"{base_ref}:{rel}")
+        if rc != 0:
+            return ABSENT, (f"{where}, путь в квитанции не назван, и на {base_ref} такого "
+                            f"файла нет вовсе")
+        return DELIVERED, (f"{where}; путь при снятии не расходился с {base_ref} "
+                           "(правки в дереве не было)")
+    return None, None
 
 
 def resolve_rel(path_str, root, git=_git):
@@ -523,6 +654,75 @@ def origin_blob_history(root, base_ref, rel, git=_git):
     return shas
 
 
+_SPLIT_HINT_RE = re.compile(r"[\s,;]")
+
+
+def never_existed(rel, root, base_ref, checkouts, git=_git, hist_cache=None):
+    """Существовало ли объявленное ИМЯ хоть где-нибудь: (True/False/None, объяснение).
+
+    Вызывается только для путей, которых на базе НЕТ (``ABSENT``). Три независимых источника,
+    и «нигде» — это когда молчат все три:
+
+    1. история базового ref для этого пути (``origin_blob_history``) — путь мог быть доставлен
+       и затем удалён/переименован уже НА origin; тогда это не пропажа работы;
+    2. файловая система КАЖДОГО живого рабочего дерева — там и лежит осиротевшая работа;
+    3. (только в объяснении) форма самой строки: пробел/запятая внутри «пути» означает, что
+       объявление слепило несколько файлов в одну строку, и такого файла не существует по
+       построению — измерено 5 случаев из 38.
+
+    ``None`` — измерить не удалось (``git log`` не отработал): вердикт не выносится, запись
+    идёт прежним путём и остаётся находкой. Ослабления тут нет: «нигде» УЖЕ означает, что
+    поднимать нечего физически — байтов не существует ни в одном дереве и никогда не было на
+    origin. Обратная сторона названа вслух: если сессия создала файл и её дерево УДАЛИЛИ, байты
+    и правда исчезли — но об удалённом дереве говорит отдельный, более строгий класс
+    «не измерено» (код 2, см. ``resolve_rel``), а сюда попадают пути живых деревьев.
+    """
+    hist = origin_blob_history(root, base_ref, rel, git=git) if hist_cache is None \
+        else hist_cache.setdefault(rel, origin_blob_history(root, base_ref, rel, git=git))
+    if hist is None:
+        return None, (f"историю {base_ref} для {rel} прочитать не удалось — "
+                      "существовало ли имя, НЕ ИЗМЕРЕНО")
+    if hist:
+        return False, (f"на {base_ref} сейчас нет, но в его истории путь встречался "
+                       f"({len(hist)} версий) — это удаление/переименование на origin, "
+                       "а не пропажа объявленной работы")
+    trees = sorted(str(c) for c in (checkouts or []) if (Path(c) / rel).exists())
+    if trees:
+        return False, (f"на {base_ref} файла нет, но он ЛЕЖИТ в: {', '.join(trees)} — "
+                       "это настоящая недоставленная работа, её надо поднять")
+    detail = (f"имени не существует НИГДЕ: на {base_ref} нет, в истории {base_ref} не было "
+              f"ни разу, ни в одном из {len(checkouts or [])} рабочих деревьев файла нет")
+    if _SPLIT_HINT_RE.search(rel):
+        detail += ("; в строке есть пробел/запятая — объявление слепило несколько путей в один, "
+                   "такого файла не существует по построению")
+    return True, detail
+
+
+def delivered_by_session(session, entries, root, base_ref, git=_git, diff_sets=None, limit=6):
+    """Что ЭТА ЖЕ сессия объявляла и что из объявленного лежит на базе — подсказка «переименовано?».
+
+    Закрывающее объявление (``card_state == "done"``) перечисляет фактически доставленное,
+    поэтому идёт первым. Утверждения «это переименование» здесь НЕ делается: доказать связь
+    имён нечем, и выдумывать её — тот же fail-OPEN, что чинили в #226. Печатается факт:
+    объявлено X, на базе лежит Y — сверьте.
+    """
+    mine = [e for e in entries if e.get("session") == session]
+    mine.sort(key=lambda e: 0 if (e.get("card_state") == "done") else 1)
+    found, seen = [], set()
+    for entry in mine:
+        for raw in entry.get("files") or []:
+            rel, err = resolve_rel(raw, root, git=git)
+            if rel is None or rel in seen:
+                continue
+            seen.add(rel)
+            st, _, _ = file_state(root, base_ref, rel, git=git, diff_sets=diff_sets)
+            if st == DELIVERED:
+                found.append(rel)
+                if len(found) >= limit:
+                    return found
+    return found
+
+
 def file_state(root, base_ref, rel, git=_git, diff_sets=None):
     """(состояние, объяснение, список рабочих деревьев с расхождением)."""
     rc, _, err = git(root, "cat-file", "-e", f"{base_ref}:{rel}")
@@ -689,7 +889,9 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
     now = now or datetime.now(timezone.utc)
     grace = timedelta(hours=grace_hours)
     findings, unmeasured, fresh, stale_copies, card_findings = [], [], [], [], []
+    reaped, nowhere = [], []
     seen, hist_cache = {}, {}
+    reap_ledger, ledger_error = read_reap_ledger(root)
     report = {
         "base_ref": base_ref,
         "base_sha": None,
@@ -702,10 +904,16 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
         "card_findings": card_findings,
         "fresh": fresh,
         "stale_copies": stale_copies,
+        "reaped": reaped,
+        "nowhere": nowhere,
         "unmeasured": unmeasured,
         "dead_worktrees": [],
         "exit_code": 0,
     }
+
+    if ledger_error:
+        unmeasured.append({"session": None, "path": None,
+                           "reason": f"{ledger_error} — измерения снятых деревьев НЕ прочитаны"})
 
     if malformed_lines:
         unmeasured.append({"session": None, "path": None,
@@ -764,25 +972,85 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
 
         ts = _parse_ts(entry.get("ts"))          # разобрана: иначе был бы UNKNOWN выше
         age = now - ts
-        if age < grace:
-            fresh.append({"session": entry.get("session"), "ts": entry.get("ts"),
-                          "age_hours": round(age.total_seconds() / 3600, 2),
-                          "files": len(entry.get("files") or []),
-                          "reason": f"{why}; объявлено {round(age.total_seconds()/3600, 2)}ч "
-                                    f"назад — окно ожидания {grace_hours}ч ещё не истекло"})
-            continue
+        age_h = round(age.total_seconds() / 3600, 2)
+        within_grace = age < grace
+        if within_grace:
+            # Окно ждёт ЖИВУЮ сессию. Если объявленный сессией долгоживущий процесс измеренно
+            # завершился — ждать некого, и запись меряется сейчас же (карточка
+            # `inbox-shag-0a-svezhee-obyavlenie-mertvoi-sessi`, замер 14.08 / цикл #231).
+            if not durable_process_gone(entry, ps=ps):
+                fresh.append({"session": entry.get("session"), "ts": entry.get("ts"),
+                              "age_hours": age_h,
+                              "files": len(entry.get("files") or []),
+                              "reason": f"{why}; объявлено {age_h}ч "
+                                        f"назад — окно ожидания {grace_hours}ч ещё не истекло"})
+                continue
+            why = (f"{why} — окно ожидания {grace_hours}ч ещё не истекло, но ждать некого: "
+                   "объявленный долгоживущий процесс завершился")
+            produced_before = (len(findings), len(unmeasured), len(stale_copies),
+                               len(reaped), len(nowhere))
 
-        why = f"{why}; объявлено {round(age.total_seconds()/3600, 2)}ч назад"
+        why = f"{why}; объявлено {age_h}ч назад"
         report["sessions_checked"] += 1
         for raw in entry.get("files") or []:
             rel, err = resolve_rel(raw, root, git=git)
             if rel is None:
+                # Дерева нет — но, возможно, его СНИМАЛИ по правилу, и тогда измерение
+                # осталось в квитанции (read_reap_ledger). Пропуск даётся только пути,
+                # названному объяснённым; всё остальное идёт прежним путём.
+                st, detail = reaped_state(raw, reap_ledger, root, base_ref, git=git)
+                if st == DELIVERED:
+                    reaped.append({"session": entry.get("session"), "path": str(raw),
+                                   "reason": detail})
+                    continue
+                if st is not None:
+                    if st == ABSENT:
+                        findings.append({"session": entry.get("session"), "ts": entry.get("ts"),
+                                         "path": str(raw), "state": ABSENT, "detail": detail,
+                                         "session_state": why, "within_grace": within_grace,
+                                         "summary": (entry.get("summary") or "")[:160],
+                                         "also_declared_by": []})
+                    else:
+                        unmeasured.append({"session": entry.get("session"), "path": str(raw),
+                                           "reason": detail})
+                    continue
                 unmeasured.append({"session": entry.get("session"), "path": str(raw),
                                    "reason": err})
                 continue
             st, detail, locs = file_state(root, base_ref, rel, git=git, diff_sets=diff_sets)
             if st == DELIVERED:
                 continue
+
+            if st == ABSENT:
+                # «На базе нет» — ещё не «работа потеряна». Объявление пишется АВАНСОМ, до того
+                # как ответ известен, и у исследовательского слоя имя результата меняется на
+                # ходу (#55 RSB → #55 CSF, цикл #239). Если байтов под этим именем нет ни в
+                # одном дереве и никогда не было на origin — поднимать нечего, и звать сессию
+                # «подними» значит тратить её цикл на выяснение того же самого. Замер по всему
+                # журналу (852 записи, 15.08): 38 из 42 находок ABSENT — именно этот класс,
+                # настоящей потерянной работы 2.
+                verdict, why_nowhere = never_existed(rel, root, base_ref, checkouts,
+                                                     git=git, hist_cache=hist_cache)
+                if verdict:
+                    key = (rel, NOWHERE)
+                    if key in seen:
+                        nowhere[seen[key]]["also_declared_by"].append(entry.get("session"))
+                        continue
+                    seen[key] = len(nowhere)
+                    nowhere.append({"session": entry.get("session"), "ts": entry.get("ts"),
+                                    "path": rel, "state": NOWHERE, "detail": why_nowhere,
+                                    "session_state": why, "within_grace": within_grace,
+                                    "summary": (entry.get("summary") or "")[:160],
+                                    "delivered_instead": delivered_by_session(
+                                        entry.get("session"), entries, root, base_ref,
+                                        git=git, diff_sets=diff_sets),
+                                    "also_declared_by": []})
+                    continue
+                # Не «нигде» — значит источник назван, и он делает находку ТОЧНЕЕ: либо байты
+                # лежат в конкретном дереве, либо путь жил на origin и был удалён. `None` —
+                # измерить не вышло: находка остаётся прежней, а причина дописывается (тишиной
+                # непонятность не покупается).
+                detail = why_nowhere if verdict is False else f"{detail}; {why_nowhere}"
 
             if st == DIFFERS:
                 # Локальная копия может быть просто СТАРОЙ: пуш идёт прямо в origin через API,
@@ -810,17 +1078,34 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
             # Один и тот же файл объявляют почти все сессии (STATE, журнал) — находка одна,
             # а объявившие перечисляются: кому принадлежит содержимое рабочего дерева,
             # измерить нельзя, и выдавать это за атрибуцию нечестно.
-            key = (rel, st, detail)
+            # `within_grace` входит в ключ намеренно: осиротевшее-в-окне и давно просроченное —
+            # разной срочности (и печатаются разными разделами), схлопывать их значило бы
+            # спрятать свежую сироту в хвосте старой находки.
+            key = (rel, st, detail, within_grace)
             if key in seen:
                 findings[seen[key]]["also_declared_by"].append(entry.get("session"))
                 continue
             seen[key] = len(findings)
             findings.append({"session": entry.get("session"), "ts": entry.get("ts"),
                              "path": rel, "state": st, "detail": detail, "session_state": why,
+                             "within_grace": within_grace,
                              "summary": (entry.get("summary") or "")[:160],
                              "also_declared_by": []})
 
-    report["exit_code"] = 2 if unmeasured else (1 if (findings or card_findings) else 0)
+        # Сирота, у которой всё объявленное УЖЕ на базе: находки нет, но и в тишину такую
+        # запись ронять нечестно — она остаётся в счётчике «свежих» со своим измерением.
+        if within_grace and (len(findings), len(unmeasured),
+                             len(stale_copies), len(reaped), len(nowhere)) == produced_before:
+            fresh.append({"session": entry.get("session"), "ts": entry.get("ts"),
+                          "age_hours": age_h, "files": len(entry.get("files") or []),
+                          "reason": f"{why} — объявленное на {base_ref} есть, находки нет"})
+
+    # `nowhere` СЧИТАЕТСЯ находкой (код 1), хотя поднимать по нему нечего: объявление, под
+    # которым никогда не появилось файла, — это дефект самого объявления, и путь, по которому
+    # находка сворачивается в «✅ всё доставлено», здесь не заводится намеренно (fail-CLOSED,
+    # инв. #2). Правка меняет ВЕРДИКТ и место в отчёте, а не видимость.
+    report["exit_code"] = (2 if unmeasured
+                           else (1 if (findings or card_findings or nowhere) else 0))
     return report
 
 
@@ -836,17 +1121,49 @@ def render(report) -> str:
                f"свежих (окно {report.get('grace_hours')}ч): {len(report.get('fresh') or [])}, "
                f"проверено: {report['sessions_checked']}")
 
-    if report["findings"]:
-        out.append("")
-        out.append(f"⚠️  НЕ ДОСТАВЛЕНО ({len(report['findings'])}) — объявлено давно, "
-                   f"активность не подтверждена, а объявленного на {base} нет:")
-        for f in report["findings"]:
+    def _findings_block(items):
+        for f in items:
             mark = "отсутствует" if f["state"] == ABSENT else "отличается"
             out.append(f"  [{mark}] {f['path']}")
             out.append(f"      сессия {f['session']} ({f['ts']}): {f['session_state']}")
             out.append(f"      {f['detail']}")
             if f.get("also_declared_by"):
                 out.append(f"      тот же файл объявляли ещё: {', '.join(f['also_declared_by'])}")
+            if f["summary"]:
+                out.append(f"      объявляла: {f['summary']}")
+
+    # Сироты в окне — первыми: работа свежая, дерево ещё на диске, поднять её дешевле всего.
+    orphans = [f for f in report["findings"] if f.get("within_grace")]
+    expired = [f for f in report["findings"] if not f.get("within_grace")]
+
+    if orphans:
+        out.append("")
+        out.append(f"🕳  ОСИРОТЕЛО, НО ОКНО НЕ ИСТЕКЛО ({len(orphans)}) — объявлено недавно, "
+                   f"объявленный долгоживущий процесс сессии завершился, а на {base} этого нет "
+                   "(ждать больше некого — сверить руками и поднять):")
+        _findings_block(orphans)
+
+    if expired:
+        out.append("")
+        out.append(f"⚠️  НЕ ДОСТАВЛЕНО ({len(expired)}) — объявлено давно, "
+                   f"активность не подтверждена, а объявленного на {base} нет:")
+        _findings_block(expired)
+
+    if report.get("nowhere"):
+        out.append("")
+        out.append(f"🏷  ОБЪЯВЛЕНО, НО НЕ СУЩЕСТВУЕТ НИГДЕ ({len(report['nowhere'])}) — "
+                   f"ни на {base}, ни в его истории, ни в одном рабочем дереве. "
+                   "ПОДНИМАТЬ НЕЧЕГО: имя объявлено авансом, файла под ним не было. "
+                   "Проверьте, не вышел ли результат под другим именем:")
+        for f in report["nowhere"]:
+            out.append(f"  [нигде] {f['path']}")
+            out.append(f"      сессия {f['session']} ({f['ts']}): {f['session_state']}")
+            out.append(f"      {f['detail']}")
+            if f.get("delivered_instead"):
+                out.append("      эта же сессия объявляла и ДОСТАВИЛА: "
+                           + ", ".join(f["delivered_instead"]))
+            if f.get("also_declared_by"):
+                out.append(f"      то же имя объявляли ещё: {', '.join(f['also_declared_by'])}")
             if f["summary"]:
                 out.append(f"      объявляла: {f['summary']}")
 
@@ -877,13 +1194,21 @@ def render(report) -> str:
         for d in report["dead_worktrees"]:
             out.append(f"  - {d['path']}: {d['reason']}")
 
+    if report.get("reaped"):
+        out.append("")
+        out.append(f"🧾 снятые деревья с квитанцией ({len(report['reaped'])}) — дерева нет, но "
+                   "измерение сделано ДО снятия, и работа объяснена:")
+        for r in report["reaped"]:
+            out.append(f"  - {r.get('session') or '-'} · {r['path']}: {r['reason']}")
+
     if report.get("fresh"):
         out.append("")
         out.append(f"⏳ свежие объявления ({len(report['fresh'])}) — не находки, работа может идти:")
         for f in report["fresh"]:
             out.append(f"  - {f['session']} ({f['ts']}, файлов: {f['files']}): {f['reason']}")
 
-    if not report["findings"] and not report["unmeasured"] and not report.get("card_findings"):
+    if (not report["findings"] and not report["unmeasured"]
+            and not report.get("card_findings") and not report.get("nowhere")):
         out.append("✅ измерено полностью, всё доставлено")
     return "\n".join(out)
 

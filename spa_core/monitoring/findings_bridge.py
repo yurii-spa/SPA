@@ -324,9 +324,34 @@ def _deliver_touched(root: str, created: list, closed: list,
                 "generated_at": now.isoformat()}
 
 
+def _deliver_owner_answers(root: str, now: dt.datetime, run_answers=None) -> dict:
+    """Довезти до origin СЛЕД решения владельца (ADR-086).
+
+    Почему это делает мост, а не отдельный агент: сторожу нужен регулярный
+    прогон из ПРОД-дерева (только туда бот пишет ответ) — а это ровно то, чем
+    мост уже является. Новый агент означал бы новую точку входа, новый plist и
+    новый класс «доставлен, но не включён» (капкан #232), тогда как здесь
+    проводка появляется одной строкой в уже работающем такте (6 ч).
+
+    Список сторож строит ЗАНОВО каждый прогон, поэтому долг ему не нужен:
+    не доехало — на следующем прогоне находка та же и поедет снова.
+    """
+    try:
+        fn = run_answers
+        if fn is None:
+            from spa_core.monitoring.owner_answer_delivery import run as fn
+        return fn(root=root, now=now)
+    except Exception as e:  # noqa: BLE001 — сторож не смеет уронить мост,
+        # но «не измерено» обязано быть НАЗВАНО, а не выглядеть успехом.
+        return {"status": "UNCHECKED", "delivered": [], "pending": [],
+                "reason": f"доставка следа решения владельца не измерена: "
+                          f"{type(e).__name__}: {e}",
+                "generated_at": now.isoformat()}
+
+
 def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
                create=create_card, close=close_card, notify=notify_card,
-               deliver=None, retract=retract_card) -> dict:
+               deliver=None, retract=retract_card, deliver_answers=None) -> dict:
     now = now or dt.datetime.now(dt.timezone.utc)
     today = now.date().isoformat()
     state = _load_state(root)
@@ -408,6 +433,7 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
     delivery = _deliver_touched(root, created, closed, now, deliver)
     report = {"generated_at": now.isoformat(), "adr": "ADR-066",
               "delivery": delivery,
+              "owner_answer_delivery": _deliver_owner_answers(root, now, deliver_answers),
               "created": created, "deferred": deferred, "closed": closed,
               "withdrawn": withdrawn,
               "waiting_hysteresis": waiting, "escalated": escalated,

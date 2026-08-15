@@ -1,7 +1,7 @@
 ---
 trackerStatus:
   type: inbox
-title: "ADR-087 п.3: свести два пути APY к одному определению (aave_v3 4.80 против 2.36)"
+title: "ADR-089 п.3: свести два пути APY к одному определению (aave_v3 4.80 против 2.36)"
 status: new
 created: 2026-08-15
 ---

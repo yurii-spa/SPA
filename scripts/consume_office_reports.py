@@ -14,9 +14,15 @@
     fail-OPEN, сторож молчит утвердительно;
   - у КАЖДОГО артефакта печатается возраст: рекомендация 19-часовой давности
     и рекомендация свежая — разные вещи, и решает это читатель, а не выжимка;
-  - скрипт информационный: exit 0 всегда, когда сам скрипт отработал —
-    красные строки в выводе это сигналы ОРКЕСТРАТОРУ действовать (карточки),
-    а не коды выхода;
+  - скрипт информационный: пока офис ИЗМЕРЕН, exit 0 — красные строки в выводе
+    это сигналы ОРКЕСТРАТОРУ действовать (карточки), а не коды выхода;
+  - исключение — exit 3 «офис НЕ ИЗМЕРЕН»: в этом дереве нет НИ ОДНОГО
+    артефакта офиса (типично — запуск из git-worktree, где они в `.gitignore`).
+    Это не состояние офиса, а невозможность его измерить, и печатается ОДНОЙ
+    строкой: прежний вывод давал двадцать «❌ НЕ ПРОЧИТАН» под подписью
+    «действовать (карточки)» и звал завести двадцать карточек о мёртвом
+    инвест-офисе, который жив (цикл #207). Читать чужие артефакты явно —
+    `--data-dir <прод>/data`, и вывод НАЗЫВАЕТ, чьи они;
   - ведом манифестом: новый consumer_required-продукт с потребителем
     "orchestrator_protocol" автоматически попадает в этот шаг без правки кода.
 
@@ -26,6 +32,7 @@ LLM_FORBIDDEN (детерминированный экстрактор; выво
 from __future__ import annotations
 
 import argparse
+import ast
 import datetime as dt
 import json
 import os
@@ -74,11 +81,36 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "house_view_gap.json": ("gaps", "unchecked", "counts.warn", "counts.info",
                             "counts.unchecked"),
     "findings_bridge_report.json": ("created", "closed", "deferred", "waiting_hysteresis",
-                                    "escalated", "sources_unread", "open_cards", "delivery"),
+                                    "escalated", "sources_unread", "open_cards", "delivery",
+                                    "owner_answer_delivery"),
 }
 
 # Отметка времени в шапке md-артефакта: `Auto-updated: **2026-08-09 05:44 UTC**`.
 _MD_TS_RE = re.compile(r"(20\d\d-\d\d-\d\d)[ T](\d\d:\d\d)(?::\d\d)?\s*UTC")
+
+
+# КТО пишет каждый артефакт — объявлено данными и СВЕРЕНО тестом с исходником
+# (`test_declared_schema_matches_the_live_producer`), а не взято на веру.
+#
+# Зачем производитель вообще нужен проверке схемы. До #248 «поля нет в файле»
+# печаталось как «производитель его не пишет» — два РАЗНЫХ утверждения:
+# артефакт, произведённый ДО доставки ключа, не может его содержать, и назвать
+# это расхождением значит позвать сессию завести карточку на ИСПРАВНОЕ
+# состояние. Живой замер 15.08 17:0xZ: `owner_answer_delivery` приехал с ADR-086
+# в 16:0xZ, отчёт моста на диске — от 13:03Z, и обязательный шаг напечатал
+# «СХЕМА РАЗОШЛАСЬ … читаем НЕ ТОТ файл» о полностью здоровом контуре. Ровно то
+# же было в #204/#205 с блоком `debt`; автор #235 капкан уже НАЗВАЛ и обошёл
+# руками (поле `house_view` сознательно не внесено в `_READ_SCHEMA`) — то есть
+# обход был, а проверки не было, и следующий добавленный ключ повторял аварию.
+# Вторая половина цены: настоящее расхождение печаталось ТЕМИ ЖЕ словами, что
+# ложное, — читатель учится игнорировать строку, и сигнал теряется.
+_PRODUCER: dict[str, str] = {
+    "chief_investment.json": "spa_core/investment_os/agents/chief_investment.py",
+    "_health.json": "spa_core/investment_os/health.py",
+    "architecture_conformance.json": "spa_core/monitoring/architecture_conformance.py",
+    "house_view_gap.json": "spa_core/monitoring/house_view_gap.py",
+    "findings_bridge_report.json": "spa_core/monitoring/findings_bridge.py",
+}
 
 
 def _has_path(data, path: str) -> bool:
@@ -91,13 +123,108 @@ def _has_path(data, path: str) -> bool:
     return True
 
 
-def _schema_drift(name: str, data) -> list[str]:
-    """Поля, которые ветка читает, а производитель не пишет — вслух."""
+def _source_keys(path: str):
+    """Строковые литералы исходника — или None, если измерить нечем.
+
+    Докстринги и голые строки-выражения ИСКЛЮЧЕНЫ намеренно: капкан #227 —
+    там сканер зачёл упоминание в комментарии за проводку, и комментарий,
+    объяснявший «этого тут нет», молча снимал вопрос навсегда. Здесь та же
+    ошибка дала бы «производитель ключ пишет» по одному лишь абзацу докстринга,
+    в котором ключ назван (а он назван — в `owner_answer_delivery.py` именно
+    так). None ⇒ «не измерено», НИКОГДА не «в порядке».
+    """
+    try:
+        tree = ast.parse(_read_text(path))
+    except (OSError, SyntaxError, ValueError):
+        return None
+    bare = {id(n.value) for n in ast.walk(tree)
+            if isinstance(n, ast.Expr) and isinstance(n.value, ast.Constant)}
+    return {n.value for n in ast.walk(tree)
+            if isinstance(n, ast.Constant) and isinstance(n.value, str)
+            and id(n) not in bare}
+
+
+def _read_text(path: str) -> str:
+    with open(path, encoding="utf-8") as fh:
+        return fh.read()
+
+
+def _schema_drift(name: str, data, *, root: str | None = None) -> list[str]:
+    """Поля, которые ветка читает, а производитель не пишет — вслух.
+
+    Три РАЗНЫХ ответа вместо одного (см. комментарий к `_PRODUCER`):
+      * ключа нет в исходнике производителя ⇒ РАСХОЖДЕНИЕ (находка, карточка);
+      * ключ есть, отчёт произведён ПОЗЖЕ кода ⇒ тоже РАСХОЖДЕНИЕ, и раньше
+        этот случай не отличался от следующего вовсе;
+      * ключ есть, отчёт произведён РАНЬШЕ кода ⇒ отчёт старого образца, ждём
+        такта производителя — печатается, но находкой НЕ объявляется;
+      * производитель не объявлен / не найден / не разобран / у отчёта нет
+        `generated_at` ⇒ «НЕ ИЗМЕРЕНО» громко, как и было (fail-CLOSED).
+    Обе стороны сравнения НАЗЫВАЮТСЯ в самой строке (#222): судить о возрасте
+    молча — то же самое, что не судить.
+    """
     missing = [p for p in _READ_SCHEMA.get(name, ()) if not _has_path(data, p)]
     if not missing:
         return []
-    return ["   ⚠️ СХЕМА РАЗОШЛАСЬ: производитель не пишет " + ", ".join(missing)
-            + " — выжимка ниже читает НЕ ТОТ файл. Это находка (карточка), а не деталь."]
+    root = root or REPO_ROOT
+    rel = _PRODUCER.get(name)
+    src = os.path.join(root, rel) if rel else None
+    keys = _source_keys(src) if src else None
+    try:
+        mtime = dt.datetime.fromtimestamp(os.path.getmtime(src), dt.timezone.utc) \
+            if src else None
+    except OSError:
+        mtime = None
+    art_ts = _parse_ts(data.get("generated_at"))
+
+    if rel is None:
+        why = "производитель не объявлен в _PRODUCER"
+    elif keys is None:
+        why = f"исходник производителя {rel} не прочитан/не разобран"
+    elif mtime is None:
+        why = f"у исходника производителя {rel} не измерено время правки"
+    else:
+        why = None
+
+    drift: list[str] = []
+    old: list[str] = []
+    unmeasured: list[str] = []
+    for p in missing:
+        leaf = p.split(".")[-1]
+        if why is not None:
+            unmeasured.append(p)
+        elif leaf not in keys:
+            drift.append(p)
+        elif art_ts is None:
+            unmeasured.append(p)
+        elif art_ts < mtime:
+            old.append(p)
+        else:
+            drift.append(p)
+
+    lines: list[str] = []
+    if drift:
+        bits = []
+        if rel:
+            bits.append(f"производитель {rel}")
+        if mtime is not None:
+            bits.append(f"правлен {mtime:%Y-%m-%d %H:%M}Z")
+        if art_ts is not None:
+            bits.append(f"отчёт {art_ts:%Y-%m-%d %H:%M}Z")
+        tail = f" ({' · '.join(bits)})" if bits else ""
+        lines.append("   ⚠️ СХЕМА РАЗОШЛАСЬ: производитель не пишет "
+                     + ", ".join(drift) + tail
+                     + " — выжимка ниже читает НЕ ТОТ файл. Это находка (карточка), а не деталь.")
+    if old:
+        lines.append("   ℹ️ отчёт СТАРОГО ОБРАЗЦА (не находка): " + ", ".join(old)
+                     + f" — производитель {rel} их пишет (правлен "
+                     + f"{mtime:%Y-%m-%d %H:%M}Z), а отчёт произведён РАНЬШЕ "
+                     + f"({art_ts:%Y-%m-%d %H:%M}Z); ждём следующего такта производителя.")
+    if unmeasured:
+        reason = why or "у отчёта нет разобранного generated_at"
+        lines.append(f"   ⚠️ расхождение схемы {_UNMEASURED}: " + ", ".join(unmeasured)
+                     + f" — {reason}; отличить старый образец от расхождения нечем.")
+    return lines
 
 
 def _num(container, key):
@@ -137,13 +264,14 @@ def _age_line(ts_value, now: dt.datetime) -> str:
     return f"   generated_at: {ts_value} (возраст {hours:.1f}ч){mark}"
 
 
-def _summarize_json(path: str, data, *, now: dt.datetime | None = None) -> list[str]:
+def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
+                    root: str | None = None) -> list[str]:
     """Компактная выжимка известных офисных файлов; generic — для остальных."""
     name = os.path.basename(path)
     if not isinstance(data, dict):
         return [f"   (не-dict JSON, {type(data).__name__})"]
     now = now or dt.datetime.now(dt.timezone.utc)
-    head: list[str] = _schema_drift(name, data)
+    head: list[str] = _schema_drift(name, data, root=root)
     head.append(_age_line(data.get("generated_at"), now))
     out: list[str] = []
     if name == "chief_investment.json":
@@ -166,6 +294,23 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None) -> list[
         out.append(f"   аналитики: всего {_num(c, 'total')} · здоровы {_num(c, 'healthy')} · "
                    f"протухли {_num(c, 'stale')} · нет файла {_num(c, 'missing')} · "
                    f"нечитаемы {_num(c, 'unknown_or_corrupt')}")
+        # ДОМ-ВЬЮ отдельной строкой (#235): «здоровы 11» читалось как ответ про офис
+        # целиком, тогда как судим мы каждый цикл именно по дом-вью. Поле НЕ внесено в
+        # `_READ_SCHEMA` СОЗНАТЕЛЬНО: производитель дневной, и до его следующего такта
+        # живой файл поля не имеет — требование обязательности выдало бы ложную находку
+        # «СХЕМА РАЗОШЛАСЬ» на верном состоянии. Нет поля ⇒ честное «не измерено».
+        hv = data.get("house_view")
+        if isinstance(hv, dict):
+            age_h = hv.get("age_s")
+            age_txt = f"{age_h / 3600:.1f}ч" if isinstance(age_h, (int, float)) else _UNMEASURED
+            max_h = hv.get("max_age_s")
+            max_txt = f"{max_h / 3600:.0f}ч" if isinstance(max_h, (int, float)) else _UNMEASURED
+            mark = "" if hv.get("status") == "FRESH" else "⚠️ "
+            out.append(f"   {mark}дом-вью ({hv.get('agent')}): {hv.get('status')} · "
+                       f"возраст {age_txt} при сроке годности {max_txt}")
+        else:
+            out.append(f"   дом-вью: {_UNMEASURED} (поля `house_view` нет — "
+                       f"производитель ещё не переписал файл)")
         for a in (data.get("analysts") or []):
             if not isinstance(a, dict):
                 continue
@@ -257,6 +402,54 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None) -> list[
                     out.append(f"   ⚠️ снято с долга: {dr.get('path')} — {dr.get('reason')}")
         else:
             out.append("   ⚠️ доставка карточек НЕ ИЗМЕРЕНА: в отчёте нет блока delivery")
+        # Доставка СЛЕДА решения владельца (ADR-086) — отдельный вопрос от доставки
+        # карточек: мост везёт то, что создал сам, а ответ владельца пишет БОТ, и
+        # мост его не создавал никогда. Замер #247: 2 из 9 ответов не были в git
+        # ни минуты (с 08.08). Молчание здесь читалось бы как «след на origin».
+        oad = data.get("owner_answer_delivery")
+        if oad is None:
+            out.append("   ⚠️ след решения владельца НЕ ИЗМЕРЕН: в отчёте нет блока "
+                       "owner_answer_delivery (отчёт старого образца — до ADR-086)")
+        else:
+            ost = oad.get("status")
+            if ost == "DELIVERED":
+                out.append(f"   след решения владельца: доставлен "
+                           f"{len(oad.get('delivered') or [])} → origin "
+                           f"(коммит {oad.get('commit')})")
+            elif ost == "IDLE":
+                out.append(f"   след решения владельца: весь на origin "
+                           f"({len(oad.get('already_on_origin') or [])} карточк(и))")
+            else:
+                out.append(f"   ⚠️ СЛЕД РЕШЕНИЯ ВЛАДЕЛЬЦА {ost}: {oad.get('reason')} "
+                           f"(недоставлено {len(oad.get('pending') or [])})")
+            for c in (oad.get("conflicts") or [])[:5]:
+                out.append(f"   ⛔ ДВА РАЗНЫХ ОТВЕТА ВЛАДЕЛЬЦА, нужен человек: "
+                           f"{c.get('card')} — {c.get('reason')}")
+            for u in (oad.get("unmeasured") or [])[:5]:
+                out.append(f"   ⚠️ след НЕ ИЗМЕРЕН: {u.get('card')} — {u.get('reason')}")
+    elif name == "owner_decision_pending.json":
+        out.append(f"   статус: {data.get('status')}")
+        if data.get("reason"):
+            out.append(f"   {str(data['reason'])[:160]}")
+        # Канал: уезжали ли владельцу сообщения с вариантами БЕЗ кнопок (жалоба 14.08).
+        # Печатаем ОТДЕЛЬНОЙ строкой и всегда: молчание про этот вопрос читалось бы как
+        # «кнопки в порядке», а до цикла #229 он был неизмерим по построению.
+        ch = data.get("channel_buttons")
+        if not isinstance(ch, dict):
+            out.append("   ⚠️ кнопки в канале НЕ ИЗМЕРЕНЫ: в отчёте нет блока "
+                       "channel_buttons (отчёт старого образца)")
+        elif not ch.get("measured"):
+            out.append(f"   ⚠️ кнопки в канале НЕ ИЗМЕРЕНЫ: {ch.get('reason')}")
+        else:
+            # Импорт локальный и защищённый: обязательный шаг 0-офис не имеет права
+            # упасть из-за строчки оформления — упавший шаг это НЕ прочитанный офис.
+            try:
+                from spa_core.telegram.buttonless_audit import summary_line
+
+                line = summary_line(ch)
+            except Exception as exc:  # noqa: BLE001
+                line = (f"⚠️ кнопки в канале НЕ ИЗМЕРЕНЫ: строку не собрать ({exc})")
+            out.append(f"   {line}")
     else:
         status = data.get("status") or data.get("overall") or data.get("posture")
         if status is not None:
@@ -284,9 +477,109 @@ def _summarize_md(full: str, *, now: dt.datetime | None = None) -> list[str]:
     return [_age_line(stamp, now)] + body
 
 
+def _resolve(rel: str, *, root: str, data_dir: str | None) -> str:
+    """Куда смотреть за артефактом `rel`.
+
+    Без `--data-dir` — как раньше, относительно `--root`.
+
+    С `--data-dir` читается офис ТОГО дерева — целиком, включая
+    `docs/SYSTEM_BRIEFING.md`. Первая редакция оставляла брифинг при своём
+    дереве («это разные вопросы»), и замер показал, чем это кончается: из
+    worktree выходило «прочитано 21, не прочитано 0», где 20 артефактов свежие
+    (прод, минуты-часы), а брифинг — git-копия возрастом **1047.7 ч**, и оба
+    слагаемых лежали под одним итогом. Смешанная свежесть под одним вердиктом —
+    ровно тот дефект, против которого заведена эта правка, только тише.
+
+    Манифест НЕ отсюда: конституция принадлежит дереву, которое проверяем
+    (`--root`), а не тому, чьи артефакты читаем.
+    """
+    if data_dir:
+        return os.path.join(os.path.dirname(data_dir), rel)
+    return os.path.join(root, rel)
+
+
+def _main_worktree(root: str) -> str | None:
+    """Главное рабочее дерево — ПЕРВАЯ запись `git worktree list` (правило #234).
+
+    Guard'ится целиком: обязательный шаг 0-офис не имеет права упасть из-за
+    подсказки в тексте ошибки. Нет git / не репозиторий / что угодно ⇒ None,
+    и вызывающий честно скажет «не измерено» вместо выдуманного пути.
+    """
+    try:
+        import subprocess
+
+        out = subprocess.run(["git", "-C", root, "worktree", "list"],
+                             capture_output=True, text=True, timeout=10)
+        if out.returncode != 0:
+            return None
+        first = (out.stdout.splitlines() or [""])[0].strip()
+        path = first.split(" ")[0] if first else ""
+        return path or None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _office_absent_wholesale(targets: list[str], *, root: str,
+                             data_dir: str | None) -> list[str] | None:
+    """НИ ОДНОГО артефакта офиса в этом дереве — это ОДНА находка, а не двадцать.
+
+    Почему это отдельная ветка, а не «пусть каждый файл скажет за себя».
+    Артефакты офиса пишет ЖИВОЙ флот в прод-дерево, и они в `.gitignore`;
+    в git-worktree их нет ПО ПОСТРОЕНИЮ. Прежний вывод давал оттуда двадцать
+    строк «❌ НЕ ПРОЧИТАН · файла нет на диске» и подпись «красные строки выше =
+    действовать (карточки)». Форма — полноценная находка, текст — прямое
+    требование действовать; добросовестная сессия, работающая по §3.4 в
+    изолированном worktree, заводит двадцать карточек о мёртвом инвест-офисе,
+    которого нет (замер цикла #207 — ровно этот вывод первым же прогоном).
+
+    Разделяющий признак ИЗМЕРЕН, а не угадан: в worktree каталог `data/` есть
+    (326 файлов, git-tracked), нет именно РАНТАЙМНЫХ артефактов офиса — поэтому
+    признак «нет каталога data/» не годится, а годится «ни один из целевых
+    артефактов под data/ не существует». Если хоть один есть — дерево
+    производящее, и пропажа соседа это НАСТОЯЩАЯ находка, её печатаем как
+    прежде, по одной строке на артефакт.
+
+    Возвращает строки вердикта либо None (обычный ход).
+    """
+    data_targets = [t for t in targets if t.startswith("data/")]
+    if not data_targets:
+        return None
+    present = [t for t in data_targets
+               if os.path.exists(_resolve(t, root=root, data_dir=data_dir))]
+    if present:
+        return None
+    where = data_dir or os.path.join(root, "data")
+    main_tree = _main_worktree(root)
+    # НЕ подставлять сюда REPO_ROOT: он вычисляется от расположения САМОГО
+    # скрипта, то есть из worktree указывает на worktree — совет «гоняйте из
+    # прод-дерева (<этот же worktree>)» это выдуманный путь. Либо называем
+    # главное дерево по правилу #234 (первая запись `git worktree list`), либо
+    # не называем никакого.
+    how = (f"гонять шаг 0-офис из ПРОД-дерева ({main_tree}) либо передать "
+           f"--data-dir {os.path.join(main_tree, 'data')}"
+           if main_tree else
+           "гонять шаг 0-офис из ПРОД-дерева (того, куда пишет флот) либо "
+           "передать --data-dir <прод>/data; какое дерево главное — здесь НЕ "
+           "измерено (`git worktree list` недоступен), путь не выдумываю")
+    return [
+        f"⚠️ ОФИС НЕ ИЗМЕРЕН: ни одного из {len(data_targets)} артефактов офиса нет "
+        f"в этом дереве ({where}).",
+        "   Это ОДНА находка, а не "
+        f"{len(data_targets)}: артефакты пишет живой флот в прод-дерево, они в "
+        "`.gitignore`, и в git-worktree их нет по построению.",
+        "   Карточек о «мёртвом инвест-офисе» по этому выводу заводить НЕЛЬЗЯ — "
+        "офис не опровергнут, он не измерен.",
+        f"   Что сделать: {how}.",
+    ]
+
+
 def main(argv=None, *, now: dt.datetime | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--root", default=REPO_ROOT)
+    ap.add_argument("--data-dir", default=None,
+                    help="читать артефакты офиса из ЧУЖОГО дерева (обычно прод): "
+                         "<прод>/data. Квитанции потребления уезжают туда же — "
+                         "иначе сторож B3 доложит «офис не читают» на прочитанный офис")
     ap.add_argument("--consumer", default=CONSUMER)
     ap.add_argument("--no-receipts", action="store_true",
                     help="только чтение/печать, без квитанций (для проверок)")
@@ -309,10 +602,29 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
               f"проверить конституцию")
         return 1
 
+    # Куда пишутся квитанции: они отвечают на вопрос «офис ЧИТАЮТ?» (B3), поэтому
+    # обязаны лечь в то дерево, чьи артефакты прочитаны. Квитанция о прод-офисе,
+    # осевшая в одноразовом worktree, исчезнет вместе с ним, и сторож честно
+    # доложит «не читают» про прочитанное — fail-OPEN наизнанку.
+    data_dir = os.path.abspath(args.data_dir) if args.data_dir else None
+    receipt_root = os.path.dirname(data_dir) if data_dir else args.root
+
     print(f"— офис и сторожа → контекст оркестратора ({len(targets)} артефактов) —")
+    if data_dir:
+        print(f"— артефакты офиса читаются ИЗ ЧУЖОГО ДЕРЕВА: {data_dir} "
+              f"(квитанции туда же: {receipt_root}) —")
+
+    absent = _office_absent_wholesale(targets, root=args.root, data_dir=data_dir)
+    if absent is not None:
+        for ln in absent:
+            print(ln)
+        print("— итог: офис НЕ ИЗМЕРЕН (0 прочитано). Это НЕ «всё хорошо» и НЕ "
+              "находка о состоянии офиса — измерять нечем из этого дерева. —")
+        return 3
+
     consumed = failed = 0
     for rel in sorted(targets):
-        full = os.path.join(args.root, rel)
+        full = _resolve(rel, root=args.root, data_dir=data_dir)
         lines: list[str]
         ok = False
         if not os.path.exists(full):
@@ -329,7 +641,7 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
                 ln.startswith("   (md не прочитан") for ln in lines)
         if ok:
             receipted = True if args.no_receipts else write_receipt(
-                rel, args.consumer, root=args.root)
+                rel, args.consumer, root=receipt_root)
             mark = "✅" if receipted else "⚠️ (ресит НЕ записан)"
             consumed += 1
         else:

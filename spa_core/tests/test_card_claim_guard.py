@@ -1403,7 +1403,18 @@ class TestSelfIdentityByDurableProcess:
                                           card="agent-x"), MY_ANCHOR)])
         r = run(guard, tracker, log, "agent-x", session="cycle72", ps=ps_dead,
                 sibling=sibling, self_anchor=None)
-        assert r["verdict"] == guard.CLAIMED and r["claims"]
+        # ПРАВЛЕНО ЦИКЛОМ #238 НАМЕРЕННО (инв. #16, обоснование — здесь и в журнале
+        # W33). Вход не менялся ни на байт; изменился ОЖИДАЕМЫЙ вердикт, потому что
+        # держатель здесь объявил долгоживущий процесс, а `ps` отвечает «его нет» —
+        # то есть смерть ИЗМЕРЕНА, и ждать конца окна свежести некого
+        # (`TestOrphanedClaimDoesNotBlockTheRescue`). CLAIMED → STALE: оба ненулевые,
+        # оба «молча не бери», разница — «занято» против «кандидат на ручной подъём».
+        # Проверка УСИЛЕНА, а не ослаблена: предмет этого теста — опознание личности,
+        # и он теперь утверждается прямо (захват чужой: `claims` непуст, `self_claims`
+        # пуст) плюс ненулевой код возврата, чего тест не проверял вовсе.
+        # Анти-тавтология цела и стала острее: с якорем — FREE (это я), без якоря — НЕ FREE.
+        assert r["verdict"] == guard.STALE and r["verdict"] != guard.FREE
+        assert r["claims"] and r["self_claims"] == [] and guard.exit_code(r) == 1
 
     def test_foreign_session_with_its_own_anchor_still_blocks(self, guard, sibling, tracker,
                                                               log, ps_dead):
@@ -1413,7 +1424,22 @@ class TestSelfIdentityByDurableProcess:
                                           card="agent-x"), (999, "Fri Jul 31 10:00:00 2026"))])
         r = run(guard, tracker, log, "agent-x", session="cycle72", ps=ps_dead,
                 sibling=sibling, self_anchor=MY_ANCHOR)
-        assert r["verdict"] == guard.CLAIMED and r["claims"]
+        # ПРАВЛЕНО ЦИКЛОМ #238 НАМЕРЕННО (инв. #16, обоснование — здесь и в журнале
+        # W33). Вход не менялся ни на байт; изменился ОЖИДАЕМЫЙ вердикт, потому что
+        # держатель здесь объявил долгоживущий процесс, а `ps` отвечает «его нет» —
+        # то есть смерть ИЗМЕРЕНА, и ждать конца окна свежести некого
+        # (`TestOrphanedClaimDoesNotBlockTheRescue`). CLAIMED → STALE: оба ненулевые,
+        # оба «молча не бери», разница — «занято» против «кандидат на ручной подъём».
+        # Проверка УСИЛЕНА, а не ослаблена: предмет этого теста — опознание личности,
+        # и он теперь утверждается прямо (захват чужой: `claims` непуст, `self_claims`
+        # пуст) плюс ненулевой код возврата, чего тест не проверял вовсе.
+        assert r["verdict"] == guard.STALE
+        assert r["claims"] and r["self_claims"] == [] and guard.exit_code(r) == 1
+        # Само же «чужой ЖИВОЙ держатель блокирует» (коллизия #46) — рядом, тем же входом:
+        alive = run(guard, tracker, log, "agent-x", session="cycle72",
+                    ps=lambda pid: (0, "Fri Jul 31 10:00:00 2026\n"),
+                    sibling=sibling, self_anchor=MY_ANCHOR)
+        assert alive["verdict"] == guard.CLAIMED and alive["self_claims"] == []
 
     def test_recycled_pid_is_not_me(self, guard, sibling, tracker, log, ps_dead):
         """Положительный контроль: ТОТ ЖЕ pid с другим временем старта — другой процесс.
@@ -1423,7 +1449,17 @@ class TestSelfIdentityByDurableProcess:
                                  (MY_ANCHOR[0], "Thu Jul 30 09:00:00 2026"))])
         r = run(guard, tracker, log, "agent-x", session="cycle72", ps=ps_dead,
                 sibling=sibling, self_anchor=MY_ANCHOR)
-        assert r["verdict"] == guard.CLAIMED and r["claims"]
+        # ПРАВЛЕНО ЦИКЛОМ #238 НАМЕРЕННО (инв. #16, обоснование — здесь и в журнале
+        # W33). Вход не менялся ни на байт; изменился ОЖИДАЕМЫЙ вердикт, потому что
+        # держатель здесь объявил долгоживущий процесс, а `ps` отвечает «его нет» —
+        # то есть смерть ИЗМЕРЕНА, и ждать конца окна свежести некого
+        # (`TestOrphanedClaimDoesNotBlockTheRescue`). CLAIMED → STALE: оба ненулевые,
+        # оба «молча не бери», разница — «занято» против «кандидат на ручной подъём».
+        # Проверка УСИЛЕНА, а не ослаблена: предмет этого теста — опознание личности,
+        # и он теперь утверждается прямо (захват чужой: `claims` непуст, `self_claims`
+        # пуст) плюс ненулевой код возврата, чего тест не проверял вовсе.
+        assert r["verdict"] == guard.STALE
+        assert r["claims"] and r["self_claims"] == [] and guard.exit_code(r) == 1
 
     def test_entry_without_an_anchor_is_never_absorbed(self, guard, sibling, tracker, log,
                                                        ps_dead):
@@ -1443,7 +1479,22 @@ class TestSelfIdentityByDurableProcess:
         write_log(log, [e])
         r = run(guard, tracker, log, "agent-x", session="cycle72", ps=ps_dead,
                 sibling=sibling, self_anchor=MY_ANCHOR)
-        assert r["verdict"] == guard.CLAIMED
+        # ПРАВЛЕНО ЦИКЛОМ #238 НАМЕРЕННО (инв. #16, обоснование — здесь и в журнале
+        # W33). Вход не менялся ни на байт; изменился ОЖИДАЕМЫЙ вердикт, потому что
+        # держатель здесь объявил долгоживущий процесс, а `ps` отвечает «его нет» —
+        # то есть смерть ИЗМЕРЕНА, и ждать конца окна свежести некого
+        # (`TestOrphanedClaimDoesNotBlockTheRescue`). CLAIMED → STALE: оба ненулевые,
+        # оба «молча не бери», разница — «занято» против «кандидат на ручной подъём».
+        # Проверка УСИЛЕНА, а не ослаблена: предмет этого теста — опознание личности,
+        # и он теперь утверждается прямо (захват чужой: `claims` непуст, `self_claims`
+        # пуст) плюс ненулевой код возврата, чего тест не проверял вовсе.
+        # Отдельно: половина якоря НЕ личность (предмет теста), но объявленным процессом
+        # она считается — `session_pid` есть, `ps` говорит «нет» ⇒ смерть измерена. Это не
+        # выбор шага 0b: определение смерти ОДНО на оба шага (`durable_process_gone` соседа),
+        # и заводить здесь своё означало бы ровно того третьего близнеца, из-за которого
+        # чинилось всё остальное.
+        assert r["verdict"] == guard.STALE
+        assert r["claims"] and r["self_claims"] == [] and guard.exit_code(r) == 1
 
     def test_frontmatter_claim_by_my_other_label_is_mine(self, guard, sibling, tracker, log,
                                                          ps_dead):
@@ -1478,7 +1529,20 @@ class TestSelfIdentityByDurableProcess:
                                  (999, "Fri Jul 31 10:00:00 2026"))])
         r = run(guard, tracker, log, "agent-x", session="cycle72", ps=ps_dead, sibling=sibling,
                 planned_files=["/repo/scripts/check_card_claim.py"], self_anchor=MY_ANCHOR)
-        assert r["verdict"] == guard.CLAIMED and r["overlaps"]
+        # ПРАВЛЕНО ЦИКЛОМ #238 НАМЕРЕННО (инв. #16, обоснование — здесь и в журнале W33). Вход
+        # не менялся; изменился ожидаемый вердикт: держатель файлов объявил долгоживущий
+        # процесс, и `ps` отвечает «его нет». Предмет теста — «чужое пересечение не считается
+        # моим» — проверяется прямо и остаётся в силе: пересечение НАЗВАНО, просто помечено
+        # осиротевшим (недоставленная работа мёртвой сессии лежит ровно в этих файлах — это
+        # домен шага 0a, а не «занято»).
+        assert r["verdict"] == guard.STALE and r["overlaps"]
+        assert r["overlaps"][0]["session"] == "cycle71" and r["overlaps"][0]["orphaned"] is True
+        # Живой держатель тех же файлов блокирует как прежде — контроль рядом, тем же входом:
+        alive = run(guard, tracker, log, "agent-x", session="cycle72",
+                    ps=lambda pid: (0, "Fri Jul 31 10:00:00 2026\n"), sibling=sibling,
+                    planned_files=["/repo/scripts/check_card_claim.py"],
+                    self_anchor=MY_ANCHOR)
+        assert alive["verdict"] == guard.CLAIMED and alive["overlaps"]
 
     # ── claim / release одной и той же сессией ───────────────────────────────
     def test_claim_takes_over_from_my_other_label(self, guard, sibling, tracker, log):
@@ -1574,3 +1638,176 @@ class TestSelfIdentityByDurableProcess:
         text = guard.render(run(guard, tracker, log, "agent-x", session="cycle72", ps=ps_dead,
                                 sibling=sibling, self_anchor=MY_ANCHOR))
         assert "pid100" in text and "долгоживущего процесса" in text
+
+
+# ── ждать некого: держатель объявил долгоживущий процесс, и его больше нет ────
+
+DEAD_ANCHOR = (31748, "Sat Aug 15 05:44:00 2026")
+
+
+@pytest.fixture()
+def ps_alive_matching():
+    """`ps` показывает ИМЕННО тот процесс, что записан в якоре ⇒ активность ПОДТВЕРЖДЕНА.
+
+    Нужен как положительный контроль к починке #238: «мёртвый держатель не блокирует» обязано
+    доказываться рядом с «живой держатель блокирует по-прежнему», иначе первое неотличимо от
+    общего ослабления сторожа.
+    """
+    return lambda pid: (0, DEAD_ANCHOR[1] + "\n")
+
+
+class TestOrphanedClaimDoesNotBlockTheRescue:
+    """Свежий сильный захват сессии, чья смерть ИЗМЕРЕНА, — не занятость, а кандидат на подъём.
+
+    **Дефект** (карточка `agent-dead-pid-still-holds-files-for-3h`, замер цикла #238 15.08
+    04:0xZ). Шаг 0a получил циклом #233 узкое основание не ждать — `durable_process_gone`:
+    сессия САМА объявила долгоживущий процесс (`session_pid` + `session_pid_start`), и его
+    больше нет. Шаг 0b переиспользует у соседа `session_state`, но `durable_process_gone` не
+    звал ни разу ⇒ знание о смерти доезжало до ТЕКСТА отчёта и не доезжало до ВЕРДИКТА:
+
+        ⛔ ЗАНЯТА — держит другая сессия. НЕ бери эту карточку, возьми следующую.
+          - [свежий] cycle-237 (2026-08-15T02:55:29Z, 1.08ч назад) — поле `card:`
+              активность: долгоживущий процесс сессии pid31748 завершился
+
+    Обе строки — один отчёт; про ту же сессию в ту же минуту шаг 0a говорил обратное
+    («🕳 осиротело, но окно не истекло»). Цена: подъём осиротевшей работы запрещался ЧЕТЫРЕ
+    цикла подряд (#231→#232, #236, #237, #238 — три захвата одной карточки, все три мертвы),
+    и каждый раз запрет перебивали руками. Сторож, блокирующий верное действие, учит себя
+    игнорировать.
+
+    Граница узкая намеренно и проверяется в ОБЕ стороны: живой процесс блокирует как прежде,
+    запись без объявленного процесса блокирует как прежде («`ps` не нашёл pid» смертью не
+    считается — в журнале лежит pid однократной CLI-команды), «не измерено» остаётся кодом 2.
+    """
+
+    def _log_with_claim(self, log, *, anchor, session="cycle-237", minutes=65):
+        write_log(log, [anchored(announce(session, NOW - timedelta(minutes=minutes),
+                                          card="agent-x", summary="работа осиротела"), anchor)])
+
+    def test_orphaned_fresh_claim_is_stale_not_claimed(self, guard, sibling, tracker, log,
+                                                       ps_dead):
+        """Главный случай: свежий захват + измеренная смерть ⇒ STALE (кандидат на подъём)."""
+        write_card(tracker, "agent-x")
+        self._log_with_claim(log, anchor=DEAD_ANCHOR)
+        r = run(guard, tracker, log, "agent-x", session="cycle-238", ps=ps_dead,
+                sibling=sibling)
+        assert r["verdict"] == guard.STALE, r["verdict"]
+        assert guard.exit_code(r) == 1          # не «свободна»: рc остаётся ненулевым
+        assert r["claims"] and r["claims"][0]["state"] == "stale"
+        assert r["claims"][0]["orphaned"] is True and r["claims"][0]["fresh"] is True
+
+    def test_the_same_claim_blocks_while_the_process_is_ALIVE(self, guard, sibling, tracker,
+                                                              log, ps_alive_matching):
+        """Положительный контроль: тот же вход, но процесс жив ⇒ ЗАНЯТА, как прежде."""
+        write_card(tracker, "agent-x")
+        self._log_with_claim(log, anchor=DEAD_ANCHOR)
+        r = run(guard, tracker, log, "agent-x", session="cycle-238", ps=ps_alive_matching,
+                sibling=sibling)
+        assert r["verdict"] == guard.CLAIMED and guard.exit_code(r) == 1
+        # Поле читается через `.get`: этот тест — ОБРАТНЫЙ контроль, он обязан быть зелёным
+        # и на нечиненом коде, иначе «блокировка не ослаблена» доказывалась бы наличием
+        # нового ключа, а не поведением.
+        assert r["claims"][0]["state"] == "fresh"
+        assert r["claims"][0].get("orphaned", False) is False
+
+    def test_entry_without_a_declared_process_blocks_as_before(self, guard, sibling, tracker,
+                                                               log, ps_dead):
+        """Контроль на весь СУЩЕСТВУЮЩИЙ журнал: нет объявленного процесса ⇒ поведение прежнее.
+
+        `ps` здесь отвечает «процесса нет», и это НЕ смерть: `session` в журнале — pid
+        однократной CLI-команды, мёртвый всегда. Расширь условие сюда — и сторож перестанет
+        блокировать вообще что-либо.
+        """
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("cycle-237", NOW - timedelta(minutes=65), card="agent-x")])
+        r = run(guard, tracker, log, "agent-x", session="cycle-238", ps=ps_dead,
+                sibling=sibling)
+        assert r["verdict"] == guard.CLAIMED
+        assert r["claims"][0].get("orphaned", False) is False
+
+    def test_unmeasurable_process_is_not_death(self, guard, sibling, tracker, log, ps_broken):
+        """`ps` не отработал ⇒ UNKNOWN ⇒ не осиротело. «Не измерено» смертью не объявляем."""
+        write_card(tracker, "agent-x")
+        self._log_with_claim(log, anchor=DEAD_ANCHOR)
+        r = run(guard, tracker, log, "agent-x", session="cycle-238", ps=ps_broken,
+                sibling=sibling)
+        assert r["verdict"] == guard.CLAIMED
+        assert r["claims"][0].get("orphaned", False) is False
+
+    def test_frontmatter_holder_measured_dead_is_stale(self, guard, sibling, tracker, log,
+                                                       ps_dead):
+        """Личность держателя карточки берётся из журнала (`durable_by_session`) — и смерть тоже."""
+        write_card(tracker, "agent-x", claimed_by="cycle-237",
+                   claimed_at=_fmt(NOW - timedelta(minutes=40)))
+        self._log_with_claim(log, anchor=DEAD_ANCHOR)
+        r = run(guard, tracker, log, "agent-x", session="cycle-238", ps=ps_dead,
+                sibling=sibling)
+        assert r["verdict"] == guard.STALE
+        assert {c["source"] for c in r["claims"]} == {"frontmatter", "announce-log"}
+        assert all(c["orphaned"] for c in r["claims"])
+
+    def test_orphaned_file_overlap_does_not_block_but_is_NAMED(self, guard, sibling, tracker,
+                                                              log, ps_dead):
+        """Второй путь блокировки — пересечение по файлам — мерил ТОЛЬКО возраст.
+
+        Он же и запирал подъём: недоставленная работа мёртвой сессии лежит ровно в тех файлах,
+        которые собирается править спасатель. Исчезать из отчёта пересечение не имеет права —
+        меняется вердикт, а не видимость.
+        """
+        write_card(tracker, "agent-x")
+        write_log(log, [anchored(announce("cycle-237", NOW - timedelta(minutes=65),
+                                          files=["/repo/scripts/consume_office_reports.py"],
+                                          summary="работа осиротела"), DEAD_ANCHOR)])
+        r = run(guard, tracker, log, "agent-x", session="cycle-238", ps=ps_dead,
+                sibling=sibling,
+                planned_files=["/repo/scripts/consume_office_reports.py"])
+        assert r["verdict"] == guard.STALE
+        assert len(r["overlaps"]) == 1 and r["overlaps"][0]["orphaned"] is True
+        text = guard.render(r)
+        assert "ждать некого" in text and "шаг 0a" in text
+
+    def test_live_file_overlap_still_blocks(self, guard, sibling, tracker, log,
+                                            ps_alive_matching):
+        """Положительный контроль к предыдущему: живая сессия держит файлы как прежде."""
+        write_card(tracker, "agent-x")
+        write_log(log, [anchored(announce("cycle-237", NOW - timedelta(minutes=65),
+                                          files=["/repo/scripts/consume_office_reports.py"],
+                                          summary="работа идёт"), DEAD_ANCHOR)])
+        r = run(guard, tracker, log, "agent-x", session="cycle-238", ps=ps_alive_matching,
+                sibling=sibling,
+                planned_files=["/repo/scripts/consume_office_reports.py"])
+        assert r["verdict"] == guard.CLAIMED
+        assert r["overlaps"][0].get("orphaned", False) is False
+        assert "ждать некого" not in guard.render(r)
+
+    def test_report_says_why_the_freshness_window_stopped_applying(self, guard, sibling,
+                                                                   tracker, log, ps_dead):
+        """Вердикт без основания — это «поверь на слово»: причина печатается словами."""
+        write_card(tracker, "agent-x")
+        self._log_with_claim(log, anchor=DEAD_ANCHOR)
+        text = guard.render(run(guard, tracker, log, "agent-x", session="cycle-238",
+                                ps=ps_dead, sibling=sibling))
+        assert "[осиротел]" in text
+        assert "окно свежести не действует: ждать некого" in text
+        assert "вручную" in text.lower()      # порядок подъёма прежний, авто-захвата нет
+
+    def test_the_real_15_08_case_three_dead_holders(self, guard, sibling, tracker, log,
+                                                    ps_dead):
+        """Положительный контроль-репортаж: ровно тот вход, что измерен в проде 15.08.
+
+        Три захвата одной карточки (`cycle-74937` 52ч, `cycle-8889` 2.5ч, `cycle-237` 1.1ч),
+        у всех трёх объявленный долгоживущий процесс завершился. Старый код: ⛔ ЗАНЯТА.
+        """
+        write_card(tracker, "inbox-shag-0-ofis", status="new")
+        write_log(log, [
+            anchored(announce("cycle-74937", NOW - timedelta(hours=52),
+                              card="inbox-shag-0-ofis"), (74937, "Wed Aug 12 20:00:00 2026")),
+            anchored(announce("cycle-8889", NOW - timedelta(hours=2, minutes=28),
+                              card="inbox-shag-0-ofis"), (8875, "Sat Aug 15 03:00:00 2026")),
+            anchored(announce("cycle-237", NOW - timedelta(hours=1, minutes=5),
+                              card="inbox-shag-0-ofis"), DEAD_ANCHOR)])
+        r = run(guard, tracker, log, "inbox-shag-0-ofis", session="cycle-238", ps=ps_dead,
+                sibling=sibling)
+        assert r["verdict"] == guard.STALE
+        assert len(r["claims"]) == 3 and all(c["state"] == "stale" for c in r["claims"])
+        assert "НЕ бери эту карточку" not in guard.render(r)

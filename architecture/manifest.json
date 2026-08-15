@@ -1240,6 +1240,32 @@
    "notes": ""
   },
   {
+   "label": "com.spa.site_freshness",
+   "plist_source": "repo:launchd/com.spa.site_freshness.plist",
+   "reboot_safe": false,
+   "schedule": "interval:21600s",
+   "program": "agent_site_freshness.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "designed",
+   "produces": [
+    {
+     "artifact": "data/site_freshness_report.json",
+     "slo_hours": 13
+    }
+   ],
+   "consumes": [
+    "landing/src/data/track_snapshot.json"
+   ],
+   "consumer_required": false,
+   "governed_by": [
+    "ADR-085",
+    "ADR-YL-011"
+   ],
+   "curation": "complete",
+   "notes": "ADR-085 (решение владельца 14.08, вариант 1). intent=designed СОЗНАТЕЛЬНО: код доставлен, агент ещё НЕ загружен — launchctl это решение владельца (карточка owner-decision-vklyuchit-novogo-storozha-saita-na-make). ПРИ ЗАГРУЗКЕ перевести intent в active ТЕМ ЖЕ шагом, иначе сторож даст CRITICAL «активация мимо ADR» на верное действие владельца. produces начнёт наполняться только после загрузки."
+  },
+  {
    "label": "com.spa.sky_monitor",
    "plist_source": "launch_agents",
    "reboot_safe": true,
