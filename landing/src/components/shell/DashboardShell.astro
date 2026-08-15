@@ -7,6 +7,10 @@
 // `below` (full-width). On <900px the sidebar becomes a horizontal scroll strip and the grid
 // collapses to one column (rail stacks under main). Sidebar collapse (256⇄64) persists in
 // localStorage. This is static chrome only — no feed logic, no fabricated data.
+// The topbar CTA points at checkup.earn-defi.com, which 404s on every route (cycle #228).
+// ONE switch: src/lib/checkup.js — the CTA is not rendered until it answers again.
+import { CHECKUP_ENABLED, checkupUrl } from '../../lib/checkup.js';
+
 interface Props { title?: string; titleRu?: string; }
 const { title = 'Dashboard', titleRu } = Astro.props;
 const path = Astro.url.pathname;
@@ -38,8 +42,10 @@ const nav = [
     <header class="shell-topbar">
       <h1 class="shell-title" data-ru={titleRu}>{title}</h1>
       <div class="shell-actions">
-        <a href="https://checkup.earn-defi.com/check?utm_source=dashboard" class="shell-cta"
-           data-ru="Проверить кошелёк →">Check your wallet →</a>
+        {CHECKUP_ENABLED && (
+          <a href={checkupUrl('/check', '?utm_source=dashboard')} class="shell-cta"
+             data-ru="Проверить кошелёк →">Check your wallet →</a>
+        )}
       </div>
     </header>
 

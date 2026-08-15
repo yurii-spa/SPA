@@ -4,6 +4,9 @@
 import Layout from '../layouts/Layout.astro';
 import snap from '../data/track_snapshot.json';
 import WalletCheck from '../components/WalletCheck.jsx';
+// ONE switch for every checkup.earn-defi.com link — the subdomain 404s on every route
+// (cycle #228, 14.08), so its CTAs are not rendered until it answers again.
+import { CHECKUP_ENABLED, checkupUrl } from '../lib/checkup.js';
 
 // Build-time honest static fallback (last evidenced snapshot) — mirrors the pattern
 // track-record.astro uses. Live values from api.earn-defi.com override these client-side;
@@ -75,7 +78,9 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
       <div style="margin-top:14px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
         <!-- J5 (customer-journey-map): a first-timer with no wallet can preview the analysis instantly,
              right at the entry — answers "how do I see an example" without hunting for the URL. -->
-        <a class="btn btn-ghost" href="https://checkup.earn-defi.com/sample-report" data-track="hero_sample_report" data-ru="Посмотреть пример анализа →">See a sample analysis →</a>
+        {CHECKUP_ENABLED && (
+          <a class="btn btn-ghost" href={checkupUrl('/sample-report')} data-track="hero_sample_report" data-ru="Посмотреть пример анализа →">See a sample analysis →</a>
+        )}
         <a class="btn btn-ghost" href="/track-record" data-track="hero_see_live_track" data-ru="Смотреть живой трек →">See the live track →</a>
       </div>
 
@@ -281,7 +286,9 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
       </div>
       <div class="final-cta" style="margin-top:26px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
         <a class="btn btn-primary" href="/#analyze" data-track="analyze_wallet" data-ru="Проверить кошелёк">Analyze wallet</a>
-        <a class="btn btn-ghost" href="https://checkup.earn-defi.com/sample-report" data-track="view_sample_report" data-ru="Посмотреть пример отчёта →">See a sample report →</a>
+        {CHECKUP_ENABLED && (
+          <a class="btn btn-ghost" href={checkupUrl('/sample-report')} data-track="view_sample_report" data-ru="Посмотреть пример отчёта →">See a sample report →</a>
+        )}
       </div>
     </div>
   </section>

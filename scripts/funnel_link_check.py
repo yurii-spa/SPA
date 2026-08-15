@@ -25,9 +25,40 @@ import re
 import sys
 import urllib.request
 import urllib.error
+from pathlib import Path
 
 LANDING = "https://earn-defi.com"
 CHECKUP = "https://checkup.earn-defi.com"
+
+# ── is the checkup subdomain part of the funnel right now? ──────────────────────────────
+# The site and this checker must never disagree about that. The SITE decides, in ONE place
+# (landing/src/lib/checkup.js: CHECKUP_ENABLED); this checker READS that same file. So the
+# funnel definition here is not an opinion — it is whatever the shipped site links to.
+#
+# Why it can be off (cycle #228, 2026-08-14): the whole checkup subdomain answered 404 on
+# every route while the landing still linked into it. Both problems are the same problem;
+# when the links come back, the flag flips and these probes return with them. This is NOT
+# "muting a red check" — a checkup link left in the markup while the flag is off would STILL
+# be crawled from the landing pages below and STILL fail the run.
+_FLAG_FILE = Path(__file__).resolve().parents[1] / "landing" / "src" / "lib" / "checkup.js"
+
+
+def checkup_enabled(flag_file: Path = _FLAG_FILE) -> bool:
+    """True ⇔ the site currently ships links into checkup.earn-defi.com.
+
+    Fail-CLOSED on the SAFE side for a link checker: if the flag file is missing or
+    unreadable we assume the checkup IS part of the funnel (i.e. keep probing it), so a
+    lost/renamed flag file can never silently shrink the funnel being verified.
+    """
+    try:
+        src = flag_file.read_text(encoding="utf-8")
+    except OSError:
+        return True
+    m = re.search(r"CHECKUP_ENABLED\s*=\s*(true|false)\b", src)
+    return m.group(1) == "true" if m else True
+
+
+_CHECKUP_ON = checkup_enabled()
 
 # The conversion-critical pages whose outbound links must never 404. Kept small + explicit so the
 # check is fast and its intent is legible (this IS the funnel).
@@ -39,16 +70,14 @@ FUNNEL_PAGES = [
     f"{LANDING}/pilot/",
     f"{LANDING}/fundability/",
     f"{LANDING}/protocols/steth/",
-    f"{CHECKUP}/",
-]
+] + ([f"{CHECKUP}/"] if _CHECKUP_ON else [])
 
 # Terminal routes that MUST exist even if a page fails to parse — the conversion dead-ends.
 CRITICAL_ROUTES = [
     f"{LANDING}/snapshot/",
     f"{LANDING}/packages/",
     f"{LANDING}/pilot/",
-    f"{CHECKUP}/check",
-]
+] + ([f"{CHECKUP}/check"] if _CHECKUP_ON else [])
 
 _UA = "spa-funnel-link-check/1.0 (advisory)"
 _HREF = re.compile(r'href="(/[a-zA-Z0-9\-/]*|https://(?:checkup\.)?earn-defi\.com/[a-zA-Z0-9\-/?=_.]*)"')
@@ -130,6 +159,7 @@ def run() -> dict:
     ok = not broken and not unreachable_pages
     return {
         "check": "funnel_link_integrity",
+        "checkup_in_funnel": _CHECKUP_ON,  # stated out loud: a shrunken funnel is never silent
         "pages_crawled": len(FUNNEL_PAGES),
         "links_checked": len(checked),
         "broken": broken,
@@ -150,6 +180,10 @@ def main() -> int:
     else:
         print(f"[funnel_link_check] crawled {res['pages_crawled']} funnel pages, "
               f"checked {res['links_checked']} unique links")
+        if not res["checkup_in_funnel"]:
+            print("  note: checkup.earn-defi.com is OUT of the funnel "
+                  "(landing/src/lib/checkup.js: CHECKUP_ENABLED=false) — the site links no "
+                  "visitor there, so it is not probed. Flip the flag when the service returns.")
         if res["broken"]:
             print("  BROKEN (conversion-path 404s):")
             for b in res["broken"]:

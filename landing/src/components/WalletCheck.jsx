@@ -6,7 +6,9 @@ import { useState, useEffect } from 'react';
  * NO email. Client-side pre-check only (real resolver runs on the checkup side). Bilingual: follows
  * <html lang> like the other islands (localStorage spa_lang / html.lang + MutationObserver).
  */
-const CHECKUP = 'https://checkup.earn-defi.com/check?address=';
+import { CHECKUP_ENABLED, checkupUrl } from '../lib/checkup.js';
+
+const CHECKUP = checkupUrl('/check', '?address=');
 
 const getLang = () => {
   try {
@@ -30,6 +32,10 @@ const T = {
   button: { ru: 'Проверить кошелёк →', en: 'Check my wallet →' },
   hint: { ru: 'Введите корректный адрес (0x…) или ENS-имя (name.eth).', en: 'Enter a valid address (0x…) or ENS name (name.eth).' },
   micro: { ru: 'Только чтение · публичные ончейн-данные · без подключения кошелька · открывает checkup.earn-defi.com', en: 'Read-only · public onchain data · no wallet connection · opens checkup.earn-defi.com' },
+  // Shown INSTEAD of the form while checkup.earn-defi.com is down (see lib/checkup.js).
+  // Honest absence beats a button that lands the visitor on a 404.
+  offline: { ru: 'Бесплатная проверка кошелька сейчас недоступна — сервис проверки на техработах. Мы не отправляем сюда, пока он не вернётся.', en: 'The free wallet check is temporarily unavailable — the checkup service is down. We would rather say so than send you to a dead page.' },
+  offlineAlt: { ru: 'Пройдите 60-секундный снимок безопасности →', en: 'Take the 60-second safety snapshot →' },
 };
 const tr = (k, lang) => (T[k] ? (T[k][lang] || T[k].en) : k);
 
@@ -64,6 +70,19 @@ export default function WalletCheck() {
     const debank = s.match(/debank\.com\/profile\/(0x[a-fA-F0-9]{40})/i);
     const target = debank ? debank[1] : s;
     window.location.href = CHECKUP + encodeURIComponent(target);
+  }
+
+  // checkup.earn-defi.com answers 404 on every route (cycle #228). Render the honest
+  // unavailable state instead of a form whose submit navigates the visitor into a 404.
+  if (!CHECKUP_ENABLED) {
+    return (
+      <div className="walletcheck">
+        <p className="wc-sub">{tr('offline', lang)}</p>
+        <p className="wc-micro">
+          <a href="/snapshot" data-track="walletcheck_offline_snapshot">{tr('offlineAlt', lang)}</a>
+        </p>
+      </div>
+    );
   }
 
   return (
