@@ -32,6 +32,7 @@ LLM_FORBIDDEN (детерминированный экстрактор; выво
 from __future__ import annotations
 
 import argparse
+import ast
 import datetime as dt
 import json
 import os
@@ -88,6 +89,30 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
 _MD_TS_RE = re.compile(r"(20\d\d-\d\d-\d\d)[ T](\d\d:\d\d)(?::\d\d)?\s*UTC")
 
 
+# КТО пишет каждый артефакт — объявлено данными и СВЕРЕНО тестом с исходником
+# (`test_declared_schema_matches_the_live_producer`), а не взято на веру.
+#
+# Зачем производитель вообще нужен проверке схемы. До #248 «поля нет в файле»
+# печаталось как «производитель его не пишет» — два РАЗНЫХ утверждения:
+# артефакт, произведённый ДО доставки ключа, не может его содержать, и назвать
+# это расхождением значит позвать сессию завести карточку на ИСПРАВНОЕ
+# состояние. Живой замер 15.08 17:0xZ: `owner_answer_delivery` приехал с ADR-086
+# в 16:0xZ, отчёт моста на диске — от 13:03Z, и обязательный шаг напечатал
+# «СХЕМА РАЗОШЛАСЬ … читаем НЕ ТОТ файл» о полностью здоровом контуре. Ровно то
+# же было в #204/#205 с блоком `debt`; автор #235 капкан уже НАЗВАЛ и обошёл
+# руками (поле `house_view` сознательно не внесено в `_READ_SCHEMA`) — то есть
+# обход был, а проверки не было, и следующий добавленный ключ повторял аварию.
+# Вторая половина цены: настоящее расхождение печаталось ТЕМИ ЖЕ словами, что
+# ложное, — читатель учится игнорировать строку, и сигнал теряется.
+_PRODUCER: dict[str, str] = {
+    "chief_investment.json": "spa_core/investment_os/agents/chief_investment.py",
+    "_health.json": "spa_core/investment_os/health.py",
+    "architecture_conformance.json": "spa_core/monitoring/architecture_conformance.py",
+    "house_view_gap.json": "spa_core/monitoring/house_view_gap.py",
+    "findings_bridge_report.json": "spa_core/monitoring/findings_bridge.py",
+}
+
+
 def _has_path(data, path: str) -> bool:
     """Есть ли (возможно вложенное) поле `a.b.c` — именно ЕСТЬ, а не истинно."""
     cur = data
@@ -98,13 +123,108 @@ def _has_path(data, path: str) -> bool:
     return True
 
 
-def _schema_drift(name: str, data) -> list[str]:
-    """Поля, которые ветка читает, а производитель не пишет — вслух."""
+def _source_keys(path: str):
+    """Строковые литералы исходника — или None, если измерить нечем.
+
+    Докстринги и голые строки-выражения ИСКЛЮЧЕНЫ намеренно: капкан #227 —
+    там сканер зачёл упоминание в комментарии за проводку, и комментарий,
+    объяснявший «этого тут нет», молча снимал вопрос навсегда. Здесь та же
+    ошибка дала бы «производитель ключ пишет» по одному лишь абзацу докстринга,
+    в котором ключ назван (а он назван — в `owner_answer_delivery.py` именно
+    так). None ⇒ «не измерено», НИКОГДА не «в порядке».
+    """
+    try:
+        tree = ast.parse(_read_text(path))
+    except (OSError, SyntaxError, ValueError):
+        return None
+    bare = {id(n.value) for n in ast.walk(tree)
+            if isinstance(n, ast.Expr) and isinstance(n.value, ast.Constant)}
+    return {n.value for n in ast.walk(tree)
+            if isinstance(n, ast.Constant) and isinstance(n.value, str)
+            and id(n) not in bare}
+
+
+def _read_text(path: str) -> str:
+    with open(path, encoding="utf-8") as fh:
+        return fh.read()
+
+
+def _schema_drift(name: str, data, *, root: str | None = None) -> list[str]:
+    """Поля, которые ветка читает, а производитель не пишет — вслух.
+
+    Три РАЗНЫХ ответа вместо одного (см. комментарий к `_PRODUCER`):
+      * ключа нет в исходнике производителя ⇒ РАСХОЖДЕНИЕ (находка, карточка);
+      * ключ есть, отчёт произведён ПОЗЖЕ кода ⇒ тоже РАСХОЖДЕНИЕ, и раньше
+        этот случай не отличался от следующего вовсе;
+      * ключ есть, отчёт произведён РАНЬШЕ кода ⇒ отчёт старого образца, ждём
+        такта производителя — печатается, но находкой НЕ объявляется;
+      * производитель не объявлен / не найден / не разобран / у отчёта нет
+        `generated_at` ⇒ «НЕ ИЗМЕРЕНО» громко, как и было (fail-CLOSED).
+    Обе стороны сравнения НАЗЫВАЮТСЯ в самой строке (#222): судить о возрасте
+    молча — то же самое, что не судить.
+    """
     missing = [p for p in _READ_SCHEMA.get(name, ()) if not _has_path(data, p)]
     if not missing:
         return []
-    return ["   ⚠️ СХЕМА РАЗОШЛАСЬ: производитель не пишет " + ", ".join(missing)
-            + " — выжимка ниже читает НЕ ТОТ файл. Это находка (карточка), а не деталь."]
+    root = root or REPO_ROOT
+    rel = _PRODUCER.get(name)
+    src = os.path.join(root, rel) if rel else None
+    keys = _source_keys(src) if src else None
+    try:
+        mtime = dt.datetime.fromtimestamp(os.path.getmtime(src), dt.timezone.utc) \
+            if src else None
+    except OSError:
+        mtime = None
+    art_ts = _parse_ts(data.get("generated_at"))
+
+    if rel is None:
+        why = "производитель не объявлен в _PRODUCER"
+    elif keys is None:
+        why = f"исходник производителя {rel} не прочитан/не разобран"
+    elif mtime is None:
+        why = f"у исходника производителя {rel} не измерено время правки"
+    else:
+        why = None
+
+    drift: list[str] = []
+    old: list[str] = []
+    unmeasured: list[str] = []
+    for p in missing:
+        leaf = p.split(".")[-1]
+        if why is not None:
+            unmeasured.append(p)
+        elif leaf not in keys:
+            drift.append(p)
+        elif art_ts is None:
+            unmeasured.append(p)
+        elif art_ts < mtime:
+            old.append(p)
+        else:
+            drift.append(p)
+
+    lines: list[str] = []
+    if drift:
+        bits = []
+        if rel:
+            bits.append(f"производитель {rel}")
+        if mtime is not None:
+            bits.append(f"правлен {mtime:%Y-%m-%d %H:%M}Z")
+        if art_ts is not None:
+            bits.append(f"отчёт {art_ts:%Y-%m-%d %H:%M}Z")
+        tail = f" ({' · '.join(bits)})" if bits else ""
+        lines.append("   ⚠️ СХЕМА РАЗОШЛАСЬ: производитель не пишет "
+                     + ", ".join(drift) + tail
+                     + " — выжимка ниже читает НЕ ТОТ файл. Это находка (карточка), а не деталь.")
+    if old:
+        lines.append("   ℹ️ отчёт СТАРОГО ОБРАЗЦА (не находка): " + ", ".join(old)
+                     + f" — производитель {rel} их пишет (правлен "
+                     + f"{mtime:%Y-%m-%d %H:%M}Z), а отчёт произведён РАНЬШЕ "
+                     + f"({art_ts:%Y-%m-%d %H:%M}Z); ждём следующего такта производителя.")
+    if unmeasured:
+        reason = why or "у отчёта нет разобранного generated_at"
+        lines.append(f"   ⚠️ расхождение схемы {_UNMEASURED}: " + ", ".join(unmeasured)
+                     + f" — {reason}; отличить старый образец от расхождения нечем.")
+    return lines
 
 
 def _num(container, key):
@@ -144,13 +264,14 @@ def _age_line(ts_value, now: dt.datetime) -> str:
     return f"   generated_at: {ts_value} (возраст {hours:.1f}ч){mark}"
 
 
-def _summarize_json(path: str, data, *, now: dt.datetime | None = None) -> list[str]:
+def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
+                    root: str | None = None) -> list[str]:
     """Компактная выжимка известных офисных файлов; generic — для остальных."""
     name = os.path.basename(path)
     if not isinstance(data, dict):
         return [f"   (не-dict JSON, {type(data).__name__})"]
     now = now or dt.datetime.now(dt.timezone.utc)
-    head: list[str] = _schema_drift(name, data)
+    head: list[str] = _schema_drift(name, data, root=root)
     head.append(_age_line(data.get("generated_at"), now))
     out: list[str] = []
     if name == "chief_investment.json":

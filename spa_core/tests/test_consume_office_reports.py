@@ -26,6 +26,7 @@
 # `.claude/rules/deployment.md`), и число возраста можно проверять точно.
 from __future__ import annotations
 
+import datetime as dt
 import importlib.util
 import io
 import json
@@ -207,24 +208,49 @@ def test_health_names_a_stale_analyst() -> None:
 
 # ── 4. сторож сторожа: расхождение схемы измеряется, а не выглядывается ──────
 
-def test_schema_drift_is_measured_and_spoken() -> None:
+def test_schema_drift_is_measured_and_spoken(tmp_path) -> None:
     """Класс проверяется не веткой, а ФАЙЛОМ: ушло поле — сказано вслух.
 
     Именно этого не было три раза подряд: производитель уезжал, ветка молча
     печатала пустоту, и находили это глазами месяцы спустя.
+
+    ИЗМЕНЁН НАМЕРЕННО, цикл #248 (инв. #16; обоснование здесь и в журнале W33):
+    утверждения оставлены ДОСЛОВНО, изменён только СЦЕНАРИЙ — производитель
+    теперь настоящий участник проверки и объявлен явно. Раньше сценарий был
+    двусмысленным: у фикстуры отметка 2026-08-09, а сравнивать её было не с чем,
+    поэтому «поля нет в снимке» и «производитель уехал» были одним и тем же
+    выводом. Теперь обе стороны — вход теста (файл производителя + его время
+    правки), тест бессмертен к календарю, а проверяет он ровно то, ради чего
+    заведён: производитель `gaps` не пишет ⇒ сказано вслух.
     """
+    src = _tree_with_producer(tmp_path, 'REPORT = {"counts": {"warn": 0}}\n',
+                              rel="spa_core/monitoring/house_view_gap.py")
+    _stamp(src, "2026-08-09T00:00:00+00:00")
     drifted = {k: v for k, v in HOUSE_VIEW_GAP_REAL.items() if k != "gaps"}
-    out = _text(MOD._summarize_json("data/house_view_gap.json", drifted, now=NOW))
+    out = _text(MOD._summarize_json("data/house_view_gap.json", drifted,
+                                    now=NOW, root=str(tmp_path)))
     assert "СХЕМА РАЗОШЛАСЬ" in out, out
     assert "gaps" in out, out
 
 
-def test_schema_drift_sees_nested_fields() -> None:
-    """У house_view всё интересное на втором уровне — проверка верхнего слепа."""
+def test_schema_drift_sees_nested_fields(tmp_path) -> None:
+    """У house_view всё интересное на втором уровне — проверка верхнего слепа.
+
+    ИЗМЕНЁН НАМЕРЕННО, цикл #248 — по той же причине и тем же способом, что и
+    тест выше. Проверяемое свойство усилено, а не ослаблено: производитель
+    ПИШЕТ `house_view` и `overall_posture` и не пишет `top_opportunities`, то
+    есть проверка обязана дойти до ВТОРОГО уровня, чтобы вообще что-то найти —
+    ровно тот дрейф (#176), ради которого вложенные пути и заведены.
+    """
+    src = _tree_with_producer(
+        tmp_path,
+        'REPORT = {"house_view": {"overall_posture": "GREEN", "conflicts": []}}\n',
+        rel="spa_core/investment_os/agents/chief_investment.py")
+    _stamp(src, "2026-08-08T00:00:00+00:00")
     drifted = json.loads(json.dumps(CHIEF_REAL))
     del drifted["house_view"]["top_opportunities"]
     out = _text(MOD._summarize_json("data/investment_os/chief_investment.json",
-                                    drifted, now=NOW))
+                                    drifted, now=NOW, root=str(tmp_path)))
     assert "СХЕМА РАЗОШЛАСЬ" in out, out
     assert "house_view.top_opportunities" in out, out
 
@@ -240,25 +266,233 @@ def test_no_schema_drift_on_the_real_artifacts() -> None:
 
 @pytest.mark.parametrize("name", sorted(MOD._READ_SCHEMA))
 def test_declared_schema_matches_the_live_producer(name: str) -> None:
-    """Объявленная схема сверяется с ЖИВЫМ артефактом, если он на диске.
+    """Объявленная схема сверяется с ИСХОДНИКОМ производителя — как и обещает имя.
 
-    Фикстуры выше — снимки; этот тест ловит дрейф производителя, случившийся
-    ПОСЛЕ снимка. Файла нет (`data/` частично вне git) ⇒ skip, а не молчаливый
-    зелёный: пропуск назван.
+    ИЗМЕНЁН НАМЕРЕННО, цикл #248 (инвариант #16, обоснование здесь и в журнале
+    W33). Тест назывался «matches_the_live_producer», а сверялся с ЖИВЫМ
+    АРТЕФАКТОМ на диске — это разные утверждения, и разошлись они не в теории:
+    15.08 в прод-дереве он краснел на ПОЛНОСТЬЮ здоровом контуре, потому что
+    `owner_answer_delivery` приехал с ADR-086 в 16:0xZ, а отчёт моста на диске
+    был произведён в 13:03Z — кодом, который ключа ещё не знал. Артефакт,
+    произведённый до доставки ключа, не может его содержать.
+
+    Проверка при этом СТАЛА СИЛЬНЕЕ, а не слабее, и это главное:
+      * раньше на CI (Linux) тест не выполнялся ВООБЩЕ — `data/` вне git, файла
+        нет, всякий раз `skip`; настоящее расхождение производителя ловилось бы
+        только на Маке и только через протухший артефакт;
+      * теперь исходник производителя есть в любом дереве, и расхождение
+        «потребитель читает ключ, которого производитель не пишет» краснеет
+        в CI сразу, до всякого артефакта;
+      * живой артефакт из проверки НЕ выброшен — он остаётся доказательством,
+        но только когда произведён ПОЗЖЕ кода производителя (иначе он говорит
+        о прошлом, а не о схеме).
+    Ни одно утверждение не ослаблено: «выжимка читает поле, которого нет у
+    производителя» по-прежнему красит тест.
     """
+    rel = MOD._PRODUCER.get(name)
+    assert rel, (f"у {name} не объявлен производитель в _PRODUCER — отличить "
+                 f"«отчёт старого образца» от расхождения схемы будет нечем")
+    src = _REPO / rel
+    assert src.is_file(), f"объявленный производитель {rel} не найден в дереве"
+    keys = MOD._source_keys(str(src))
+    assert keys is not None, f"исходник производителя {rel} не разобран"
+    missing = [p for p in MOD._READ_SCHEMA[name]
+               if p.split(".")[-1] not in keys]
+    assert not missing, (
+        f"выжимка шага 0-офис читает поля, которых производитель {rel} не "
+        f"пишет: {missing} — ветка мертва, как уже бывало трижды")
+
+    # Живой артефакт — доказательство, но только если он НОВЕЕ кода.
     data_dir = _REPO / "data"
     live = next((p for p in sorted(data_dir.rglob(name)) if p.is_file()), None) \
         if data_dir.is_dir() else None
     if live is None:
-        pytest.skip(f"{name} нет на диске в этом дереве — сверять нечего")
+        return
     try:
         doc = json.loads(live.read_text(encoding="utf-8"))
     except Exception as e:  # noqa: BLE001
         pytest.skip(f"{live} не разобран как JSON ({e}) — не предмет этого теста")
-    missing = [p for p in MOD._READ_SCHEMA[name] if not MOD._has_path(doc, p)]
-    assert not missing, (
-        f"выжимка шага 0-офис читает у {live} поля, которых производитель не "
-        f"пишет: {missing} — ветка мертва, как уже бывало трижды")
+    art_ts = MOD._parse_ts(doc.get("generated_at"))
+    prod_mtime = dt.datetime.fromtimestamp(src.stat().st_mtime, dt.timezone.utc)
+    if art_ts is None or art_ts < prod_mtime:
+        return  # отчёт старого образца — он о прошлом, а не о схеме
+    absent = [p for p in MOD._READ_SCHEMA[name] if not MOD._has_path(doc, p)]
+    assert not absent, (
+        f"{live} произведён ПОЗЖЕ кода производителя ({art_ts} > {prod_mtime}), "
+        f"а полей {absent} в нём нет — производитель их не написал")
+
+
+# ── 4b. отчёт СТАРОГО ОБРАЗЦА ≠ расхождение схемы (авария 15.08, цикл #248) ──
+#
+# Каждый тест ниже воспроизводит живой замер обязательного шага 0-офис
+# 2026-08-15 17:0xZ: `owner_answer_delivery` приехал в 16:0xZ вместе с ADR-086,
+# отчёт моста на диске — от 13:03Z, и шаг напечатал «СХЕМА РАЗОШЛАСЬ …
+# читаем НЕ ТОТ файл. Это находка (карточка)» о здоровом контуре.
+
+_BRIDGE_KEYS = ("created", "closed", "deferred", "waiting_hysteresis",
+                "escalated", "sources_unread", "open_cards", "delivery")
+
+# Снимок прода data/findings_bridge_report.json, 2026-08-15T13:03:30Z: все
+# ключи ДО ADR-086 на месте, `owner_answer_delivery` нет — его не мог написать
+# код, которого в тот момент не существовало.
+BRIDGE_OLD_SAMPLE = dict({k: 0 for k in _BRIDGE_KEYS},
+                         generated_at="2026-08-15T13:03:30.164070+00:00",
+                         delivery={"status": "IDLE"})
+
+
+def _tree_with_producer(root: Path, body: str, *, rel: str) -> Path:
+    src = root / rel
+    src.parent.mkdir(parents=True, exist_ok=True)
+    src.write_text(body, encoding="utf-8")
+    return src
+
+
+def _stamp(path: Path, iso: str) -> None:
+    """Время правки исходника — ВХОД проверки, поэтому задаётся явно."""
+    ts = at(iso).timestamp()
+    os.utime(path, (ts, ts))
+
+
+def test_old_sample_report_is_not_called_schema_drift(tmp_path) -> None:
+    """Авария 15.08 дословно: отчёт 13:03Z + код 16:0xZ = НЕ находка.
+
+    Краснеет на неисправленном файле: там любое отсутствующее поле печаталось
+    как «СХЕМА РАЗОШЛАСЬ … Это находка (карточка)», и следующая сессия честно
+    заводила карточку на исправное состояние.
+    """
+    src = _tree_with_producer(
+        tmp_path, 'REPORT = {"owner_answer_delivery": {}}\n',
+        rel="spa_core/monitoring/findings_bridge.py")
+    _stamp(src, "2026-08-15T16:06:00+00:00")
+
+    out = _text(MOD._schema_drift("findings_bridge_report.json",
+                                  BRIDGE_OLD_SAMPLE, root=str(tmp_path)))
+    assert "СХЕМА РАЗОШЛАСЬ" not in out, out
+    assert "СТАРОГО ОБРАЗЦА" in out, out
+    assert "owner_answer_delivery" in out, out
+    # Обе стороны сравнения названы в самой строке (#222).
+    assert "13:03" in out and "16:06" in out, out
+
+
+def test_producer_without_the_key_is_still_a_finding(tmp_path) -> None:
+    """Обратный контроль: производитель ключа не пишет ⇒ находка, как и была."""
+    src = _tree_with_producer(
+        tmp_path, 'REPORT = {"created": 0}\n',
+        rel="spa_core/monitoring/findings_bridge.py")
+    _stamp(src, "2026-08-15T16:06:00+00:00")
+
+    out = _text(MOD._schema_drift("findings_bridge_report.json",
+                                  BRIDGE_OLD_SAMPLE, root=str(tmp_path)))
+    assert "СХЕМА РАЗОШЛАСЬ" in out, out
+    assert "owner_answer_delivery" in out, out
+
+
+def test_report_newer_than_the_code_is_a_finding(tmp_path) -> None:
+    """Новый случай, которого раньше не было ВОВСЕ: код умеет, отчёт молчит.
+
+    До #248 он не отличался от «старого образца» ничем — оба выглядели как
+    отсутствие поля, и оба печатались одинаково.
+    """
+    src = _tree_with_producer(
+        tmp_path, 'REPORT = {"owner_answer_delivery": {}}\n',
+        rel="spa_core/monitoring/findings_bridge.py")
+    _stamp(src, "2026-08-15T10:00:00+00:00")          # код СТАРШЕ отчёта
+
+    out = _text(MOD._schema_drift("findings_bridge_report.json",
+                                  BRIDGE_OLD_SAMPLE, root=str(tmp_path)))
+    assert "СХЕМА РАЗОШЛАСЬ" in out, out
+    assert "СТАРОГО ОБРАЗЦА" not in out, out
+
+
+def test_key_only_described_never_written_does_not_count(tmp_path) -> None:
+    """Капкан #227: описание ключа — не его запись.
+
+    ИЗМЕРЕНО, а не предположено (мутация M1): фразу «Пишет блок
+    owner_answer_delivery …» в докстринге проверка не зачла бы и БЕЗ отдельного
+    исключения — литералы сверяются ЦЕЛИКОМ, а не подстрокой, и предложение
+    ключом не является. Поэтому тест бьёт в единственную щель, которая
+    исключение и оправдывает: голая строка-выражение, равная ключу ДОСЛОВНО.
+    Такой «производитель» ничего не пишет, а сканер без исключения зачёл бы его
+    — и находка погасла бы текстом, ровно как в #227.
+    """
+    src = _tree_with_producer(
+        tmp_path,
+        '"""owner_answer_delivery"""\n'
+        'REPORT = {"created": 0}\n',
+        rel="spa_core/monitoring/findings_bridge.py")
+    _stamp(src, "2026-08-15T16:06:00+00:00")
+
+    out = _text(MOD._schema_drift("findings_bridge_report.json",
+                                  BRIDGE_OLD_SAMPLE, root=str(tmp_path)))
+    assert "СХЕМА РАЗОШЛАСЬ" in out, out
+
+
+def test_prose_mention_of_the_key_is_not_a_write_either(tmp_path) -> None:
+    """Вторая сторона того же: литерал сверяется целиком, не подстрокой."""
+    src = _tree_with_producer(
+        tmp_path,
+        'HELP = "мост пишет блок owner_answer_delivery в отчёт"\n'
+        'REPORT = {"created": 0}\n',
+        rel="spa_core/monitoring/findings_bridge.py")
+    _stamp(src, "2026-08-15T16:06:00+00:00")
+
+    out = _text(MOD._schema_drift("findings_bridge_report.json",
+                                  BRIDGE_OLD_SAMPLE, root=str(tmp_path)))
+    assert "СХЕМА РАЗОШЛАСЬ" in out, out
+
+
+def test_missing_producer_file_is_unmeasured_not_silence(tmp_path) -> None:
+    """Производителя нет на диске ⇒ громкое «НЕ ИЗМЕРЕНО», не тишина."""
+    out = _text(MOD._schema_drift("findings_bridge_report.json",
+                                  BRIDGE_OLD_SAMPLE, root=str(tmp_path)))
+    assert MOD._UNMEASURED in out, out
+    assert "owner_answer_delivery" in out, out
+
+
+def test_unparsable_producer_is_unmeasured(tmp_path) -> None:
+    """Исходник не разобрался ⇒ «не измерено», а не «в порядке» (fail-CLOSED)."""
+    src = _tree_with_producer(tmp_path, "def (((\n",
+                              rel="spa_core/monitoring/findings_bridge.py")
+    _stamp(src, "2026-08-15T16:06:00+00:00")
+    out = _text(MOD._schema_drift("findings_bridge_report.json",
+                                  BRIDGE_OLD_SAMPLE, root=str(tmp_path)))
+    assert MOD._UNMEASURED in out, out
+    assert "не разобран" in out, out
+
+
+def test_report_without_generated_at_is_unmeasured(tmp_path) -> None:
+    """Нечем сравнить возраст ⇒ «не измерено»: угадывать в пользу тишины нельзя."""
+    src = _tree_with_producer(
+        tmp_path, 'REPORT = {"owner_answer_delivery": {}}\n',
+        rel="spa_core/monitoring/findings_bridge.py")
+    _stamp(src, "2026-08-15T16:06:00+00:00")
+    doc = {k: 0 for k in _BRIDGE_KEYS}                # без generated_at
+    doc["delivery"] = {}
+    out = _text(MOD._schema_drift("findings_bridge_report.json", doc,
+                                  root=str(tmp_path)))
+    assert MOD._UNMEASURED in out, out
+
+
+def test_undeclared_producer_keeps_the_loud_answer(monkeypatch, tmp_path) -> None:
+    """Артефакт без объявленного производителя не становится тихим.
+
+    Молчание здесь было бы худшим исходом правки #248: новый артефакт в
+    `_READ_SCHEMA` без строки в `_PRODUCER` перестал бы проверяться вовсе.
+    """
+    monkeypatch.setitem(MOD._READ_SCHEMA, "brand_new.json", ("must_be_here",))
+    out = _text(MOD._schema_drift("brand_new.json",
+                                  {"generated_at": "2026-08-15T13:03:30+00:00"},
+                                  root=str(tmp_path)))
+    assert MOD._UNMEASURED in out, out
+    assert "не объявлен" in out, out
+
+
+def test_every_declared_reader_has_a_declared_producer() -> None:
+    """Храповик: у каждой строки `_READ_SCHEMA` есть производитель в `_PRODUCER`."""
+    orphan = sorted(set(MOD._READ_SCHEMA) - set(MOD._PRODUCER))
+    assert not orphan, (
+        f"артефакты без объявленного производителя: {orphan} — «отчёт старого "
+        f"образца» будет неотличим от расхождения схемы")
 
 
 # ── 5. проводка целиком: не деталь, а весь обязательный шаг ──────────────────
