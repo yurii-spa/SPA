@@ -166,6 +166,23 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None) -> list[
         out.append(f"   аналитики: всего {_num(c, 'total')} · здоровы {_num(c, 'healthy')} · "
                    f"протухли {_num(c, 'stale')} · нет файла {_num(c, 'missing')} · "
                    f"нечитаемы {_num(c, 'unknown_or_corrupt')}")
+        # ДОМ-ВЬЮ отдельной строкой (#235): «здоровы 11» читалось как ответ про офис
+        # целиком, тогда как судим мы каждый цикл именно по дом-вью. Поле НЕ внесено в
+        # `_READ_SCHEMA` СОЗНАТЕЛЬНО: производитель дневной, и до его следующего такта
+        # живой файл поля не имеет — требование обязательности выдало бы ложную находку
+        # «СХЕМА РАЗОШЛАСЬ» на верном состоянии. Нет поля ⇒ честное «не измерено».
+        hv = data.get("house_view")
+        if isinstance(hv, dict):
+            age_h = hv.get("age_s")
+            age_txt = f"{age_h / 3600:.1f}ч" if isinstance(age_h, (int, float)) else _UNMEASURED
+            max_h = hv.get("max_age_s")
+            max_txt = f"{max_h / 3600:.0f}ч" if isinstance(max_h, (int, float)) else _UNMEASURED
+            mark = "" if hv.get("status") == "FRESH" else "⚠️ "
+            out.append(f"   {mark}дом-вью ({hv.get('agent')}): {hv.get('status')} · "
+                       f"возраст {age_txt} при сроке годности {max_txt}")
+        else:
+            out.append(f"   дом-вью: {_UNMEASURED} (поля `house_view` нет — "
+                       f"производитель ещё не переписал файл)")
         for a in (data.get("analysts") or []):
             if not isinstance(a, dict):
                 continue

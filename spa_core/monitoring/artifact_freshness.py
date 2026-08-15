@@ -61,6 +61,12 @@ ARTIFACT_REGISTRY: tuple = (
     # daily producers with slack
     Artifact("dfb_pools", "dfb/pools.json", "dfb_capture", 30.0),
     Artifact("strategy_tournament", "strategy_tournament.json", "tournament_engine", 30.0),
+    # 2026-08-15 (#235): the office's MAIN artifact had no expiry at all. The orchestrator's
+    # mandatory step 0-office takes the house-view posture and the opportunity list from this
+    # file every cycle, yet no watchdog judged whether it was still alive. Budget is MEASURED,
+    # not guessed: com.spa.io_chief_investment runs StartInterval=86400 (daily) → 24h + grace.
+    Artifact("investment_os_chief", "investment_os/chief_investment.json",
+             "com.spa.io_chief_investment", 30.0),
     # KNOWN-STALE 2026-07-23 (producer without schedule) — registry makes them RED, not silent:
     Artifact("riskwire_measurements", "riskwire/measurements.json", "riskwire_facade(NEW)", 30.0, public=True),
     Artifact("rates_desk_rate_surface", "rates_desk/rate_surface.json", "rates_desk", 30.0, public=True),
