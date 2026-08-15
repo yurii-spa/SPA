@@ -353,3 +353,187 @@ def carry_owner_answer(card_path: str | Path,
     return {"verdict": CARRY_CARRIED, "path": str(p), "fields": merged,
             "added": added, "source": str(source),
             "detail": f"след решения перенесён из {source}"}
+
+
+# ── ВИДИМОСТЬ ответа владельца из ЛЮБОГО дерева (шаг 2 протокола) ────────────
+#
+# **Авария 14.08, замеренная целиком.** Владелец ответил на карточку
+# `owner-decision-stranitsa-treka-chetvertyi-den-pryachet` в 12:26:56Z (Телеграм, вариант 1);
+# след записан честно — `data/tracker_status_audit.jsonl` строка 155, писатель
+# `spa_core/telegram/bot.py`. Шаг 2 протокола, ДОСЛОВНО предписанный работать из
+# изолированного worktree (§3.4), вернул оттуда **пустой список**: бот пишет ответ в
+# ПРОД-дерево, а на `origin/main` он не уезжает ничем — мост доставки везёт только то, что
+# создал или закрыл сам за прогон (`IDLE`, ADR-081), а ответа владельца он не создавал.
+# Два прогона цикла #230 (16:15Z и 17:01Z) прошли мимо живого решения.
+#
+# **Почему это опаснее уже закрытого зеркала.** `inbox-otvet-vladeltsa-zhivet-tolko-v-host-dereve`
+# (#182) — про ЛОЖНОЕ «есть решение»: оно стоит времени сессии. Здесь ЛОЖНОЕ «решений нет»:
+# оно теряет РЕШЕНИЕ ВЛАДЕЛЬЦА, и заметить нечем — пустой список выглядит ровно как честная
+# пустая очередь. `carry_owner_answer` тут не помогает по построению: он переносит след,
+# когда сессия УЖЕ разбирает карточку, а сюда сессия не доходит вовсе.
+#
+# **Почему опрашивается ТОЛЬКО главное дерево, а не все 37.** Ответ владельца пишет бот, а бот
+# запущен в прод-дереве — это маршрут, а не предположение (тот же довод, что у `_worktree_dirs`).
+# Опрос всех рабочих деревьев дал бы `owner-done` из десятков брошенных `/tmp`-worktree, где
+# решение давно разобрано и доставлено, — то есть ровно ту находку-пустышку, которая приучает
+# пролистывать раздел целиком (урок #243: девять десятых раздела учили не читать его).
+#
+# **Инвариант #14 не ослаблен ни на строку.** Здесь ничего не записывается: модуль только
+# ЧИТАЕТ чужую копию и НАЗЫВАЕТ её. `owner-done` по-прежнему ставит только владелец внутри
+# `record_owner_answer` со сверкой личности.
+
+#: Вердикты сверки «а нет ли ответа владельца в другом дереве».
+CROSS_SAME_TREE = "same_tree"          # читаем прод-дерево — вопроса о втором дереве нет
+CROSS_AGREES = "agrees"                # главное дерево опрошено, невидимых ответов нет
+CROSS_FOUND = "owner_answer_only_in_main_tree"
+CROSS_UNMEASURED = "unmeasured"        # опросить не удалось — это НЕ «ок»
+
+#: Статусы, из которых следует, что ответ по этой карточке в ЧИТАЕМОМ дереве уже разобран.
+#: Такая карточка находкой не считается — граница осознанная: если владелец ответил ПОВТОРНО
+#: уже после инжеста, доказать это здесь нечем, и доказательство живёт там, где ему место —
+#: в сверке следа (`_same_owner_answer` + `carry_owner_answer`, вердикт `answer_ingested_proven`).
+_LOCAL_HANDLED = frozenset({OWNER_ONLY_STATUS, "ingested", "done", "owner-done-archived"})
+
+
+class ForeignOwnerAnswer:
+    """Ответ владельца, лежащий в ГЛАВНОМ дереве и невидимый читаемому."""
+
+    __slots__ = ("card_id", "path", "tree", "title", "local_status", "local_path",
+                 "answer_fields", "age_hours")
+
+    def __init__(self, card_id, path, tree, title, local_status, local_path,
+                 answer_fields, age_hours):
+        self.card_id = card_id
+        self.path = path                  # копия в главном дереве (её и читаем)
+        self.tree = tree                  # корень главного дерева
+        self.title = title
+        self.local_status = local_status  # "" — файла в читаемом дереве нет вовсе
+        self.local_path = local_path
+        self.answer_fields = answer_fields
+        self.age_hours = age_hours        # None — момент ответа не записан/не разобран
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.card_id,
+            "source_tree": str(self.tree),
+            "source_path": str(self.path),
+            "local_status": self.local_status or "(файла нет)",
+            "local_path": str(self.local_path),
+            "owner_answer": dict(self.answer_fields),
+            "age_hours": self.age_hours,
+        }
+
+
+def _age_hours(fields: dict, now: datetime) -> Optional[float]:
+    """Сколько часов ответ владельца лежит без разбора. None — момент не разобран.
+
+    Время — ВХОД (`now`), а не окружение: фикстура с литеральной датой начинает падать от
+    одного сдвига календаря по причине, не имеющей отношения к проверяемому поведению
+    (`.claude/rules/deployment.md`).
+    """
+    stamp = str(fields.get("owner_answered_at", "") or "").strip()
+    if not stamp:
+        return None
+    try:
+        dt = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return round((now - dt).total_seconds() / 3600.0, 2)
+
+
+def scan_owner_answers_elsewhere(tracker_dir, *, now: datetime | None = None):
+    """(вердикт, находки, причина-если-не-измерено) для трекера ``tracker_dir``.
+
+    Отвечает ровно на один вопрос: **есть ли в ГЛАВНОМ рабочем дереве карточка со статусом
+    ``owner-done``, которой читаемое дерево не покажет.** Ничего не пишет и не «синхронизирует»:
+    массовый перенос стёр бы карточки, живущие только в одном дереве (тот же довод, что у
+    `check_tracker_drift`).
+
+    Fail-CLOSED: не удалось определить деревья / читаемый трекер не внутри рабочего дерева ⇒
+    ``CROSS_UNMEASURED`` с причиной. Молчаливого «всё в порядке» здесь нет.
+    """
+    now = now or datetime.now(timezone.utc)
+    try:
+        d = Path(tracker_dir).resolve()
+    except OSError as exc:                                    # noqa: BLE001
+        return CROSS_UNMEASURED, [], f"путь трекера не разрешился: {exc}"
+    if not d.is_dir():
+        return CROSS_UNMEASURED, [], f"каталога трекера нет: {d}"
+
+    trees = _worktree_dirs(d)
+    if not trees:
+        return (CROSS_UNMEASURED, [],
+                "`git worktree list` не назвал ни одного дерева — какое дерево главное, "
+                "здесь НЕ измерено; путь не выдумываю")
+    try:
+        main_tree = trees[0].resolve()
+    except OSError as exc:                                    # noqa: BLE001
+        return CROSS_UNMEASURED, [], f"главное дерево не разрешилось: {exc}"
+
+    # Какому дереву принадлежит ЧИТАЕМЫЙ трекер. Определяем по вложенности, а не по cwd:
+    # cwd на выбор трекера не влияет (измерено #140), а трекер могли указать флагом.
+    own_tree = None
+    for wt in trees:
+        try:
+            wt_r = wt.resolve()
+        except OSError:                                       # noqa: BLE001
+            continue
+        if d == wt_r or wt_r in d.parents:
+            # Самое ГЛУБОКОЕ совпадение: главное дерево может быть родителем линкованного
+            # (`.claude/worktrees/...` лежит внутри прод-дерева), и первое же совпадение
+            # объявило бы своим чужое дерево.
+            if own_tree is None or len(wt_r.parts) > len(own_tree.parts):
+                own_tree = wt_r
+    if own_tree is None:
+        return (CROSS_UNMEASURED, [],
+                f"трекер {d} не лежит ни в одном рабочем дереве этого репозитория")
+    if own_tree == main_tree:
+        # Читаем прод-дерево — то самое, куда пишет бот. Второго дерева спрашивать не о чем,
+        # и печатать здесь находку значило бы будить сессию на верном действии.
+        return CROSS_SAME_TREE, [], None
+
+    try:
+        rel = d.relative_to(own_tree)
+    except ValueError as exc:                                 # noqa: BLE001
+        return CROSS_UNMEASURED, [], f"трекер вне своего дерева: {exc}"
+    foreign_dir = main_tree / rel
+    if not foreign_dir.is_dir():
+        return (CROSS_UNMEASURED, [],
+                f"в главном дереве нет каталога трекера {foreign_dir} — ответ владельца "
+                f"мог быть записан туда, и проверить это нечем")
+
+    findings: list[ForeignOwnerAnswer] = []
+    try:
+        candidates = sorted(foreign_dir.glob("*.md"))
+    except OSError as exc:                                    # noqa: BLE001
+        return CROSS_UNMEASURED, [], f"каталог главного дерева нечитаем: {exc}"
+
+    for p in candidates:
+        try:
+            text = p.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue          # битая копия — не находка и не доказательство (fail-open по файлу)
+        fm = _parse_frontmatter(_split_frontmatter(text)[0])
+        if str(fm.get("status", "") or "").strip() != OWNER_ONLY_STATUS:
+            continue
+        local = d / p.name
+        local_status = ""
+        if local.is_file():
+            try:
+                local_fm = _parse_frontmatter(_split_frontmatter(
+                    local.read_text(encoding="utf-8"))[0])
+                local_status = str(local_fm.get("status", "") or "").strip()
+            except (OSError, UnicodeDecodeError):
+                local_status = ""
+        if local_status in _LOCAL_HANDLED:
+            continue          # здесь ответ уже виден или уже разобран — не находка
+        fields = read_answer_fields(text)
+        findings.append(ForeignOwnerAnswer(
+            card_id=p.stem, path=p, tree=main_tree,
+            title=str(fm.get("title", "") or "").strip() or p.stem,
+            local_status=local_status, local_path=local,
+            answer_fields=fields, age_hours=_age_hours(fields, now),
+        ))
+    return (CROSS_FOUND if findings else CROSS_AGREES), findings, None
