@@ -171,6 +171,7 @@
 - Атрибуция кэша и гейт RiskPolicy по-разному определяют «живой TVL» — и атрибуция не знает про порог $5M  ·  `inbox-atributsiya-kesha-i-geit-riskpolicy-po-r.md` · 2026-08-07
 - Аудит пригодности не видел 186 модулей Tier-B из 479: форма входа dict не пробовалась ни разу  ·  `inbox-audit-prigodnosti-ne-videl-186-modulei-t.md` · 2026-08-06
 - автономный аркестратор должен был быть раз в 1 час а не раз в 3 часа  ·  `inbox-avtonomnyi-arkestrator-dolzhen-byl-byt-r.md` · 2026-07-16
+- Брифинг считает снимок флота протухшим раньше, чем писатель его переписывает (35 мин против такта 60)  ·  `inbox-brifing-schitaet-snimok-flota-protuhshim.md` · 2026-08-15
 - CI 'SPA Tests' красный минимум 8 коммитов подряд, и этого никто не видит: цикл прогоняет только spa_core/tests  ·  `inbox-ci-spa-tests-krasnyi-minimum-8-kommitov.md` · 2026-08-09
 - Давай так и сделаем  ·  `inbox-davai-tak-i-sdelaem.md` · 2026-07-20
 - docs/STATE.md разросся до 1647 строк при собственном пределе ~150 — а его читает каждая сессия  ·  `inbox-docs-state-md-razrossya-do-1647-strok-pr.md` · 2026-08-06
@@ -296,7 +297,6 @@
 - ADR-076.3: атрибуция кэша обязана назвать лимит цепочки вместо UNEXPLAINED  ·  `inbox-adr-076-3-atributsiya-kesha-obyazana-naz.md` · 2026-08-08
 - ALLOC-002-отбор: топ-8 по весу беднит книгу — отбирать ПОСЛЕ evidence/TVL-гейта  ·  `inbox-alloc-002-otbor-top-8-po-vesu-bednit-kni.md` · 2026-08-08
 - APY Persistence / Confidence  ·  `inbox-apy-persistence-confidence.md` · 2026-08-13
-- Брифинг считает снимок флота протухшим раньше, чем писатель его переписывает (35 мин против такта 60)  ·  `inbox-brifing-schitaet-snimok-flota-protuhshim.md` · 2026-08-15
 - Демоушен книг Aggressive по ОТНОСИТЕЛЬНОМУ рангу (решение владельца 09.08, вариант A)  ·  `inbox-demoushen-knig-aggressive-po-otnositelno.md` · 2026-08-09
 - Длинный документ владельца приехал СЕМЬЮ карточками, и шесть из них — не задачи, а куски предложений  ·  `inbox-dlinnyi-dokument-vladeltsa-priehal-semyu.md` · 2026-08-13
 - Для каждого этапа показать:  ·  `inbox-dlya-kazhdogo-etapa-pokazat.md` · 2026-08-13
