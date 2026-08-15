@@ -1,5 +1,9 @@
 # Portfolio CIO — план работы (до кода)
 
+> **СТАТУС 15.08: этапы 0–9 выполнены** (ADR-086). Диагностика — `PORTFOLIO_CIO_DIAGNOSIS.md`,
+> код — `spa_core/allocator/portfolio_cio.py`, замер — `scripts/portfolio_cio_shadow.py`.
+> Этап 10 (взвод ступеней) и три money-path остатка — за владельцем, список в конце ADR-086.
+
 > Источник задания — `nimbalyst-local/tracker/inbox-task-portfolio-cio-dynamic-capital-alloc`
 > (документ владельца 13.08, §1…§52; склеен из семи карточек 15.08).
 > **Статус: план, ни строки кода по нему не написано.** Владелец видит этапы до начала работы —
