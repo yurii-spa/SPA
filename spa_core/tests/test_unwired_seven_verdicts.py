@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import json
 import unittest
+
+from spa_core.tests._freshness import ts
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[2]
@@ -99,7 +101,7 @@ class TestRunStressTestsWasHarmful(unittest.TestCase):
 
     def test_the_deleted_scripts_shape_is_NOT_readable(self):
         """Положительный контроль: форма списанного скрипта у читателя не проходит."""
-        script_shape = {"generated_at": "2026-08-15T00:00:00Z", "scenarios": {
+        script_shape = {"generated_at": ts(hours_ago=0), "scenarios": {
             "LUNA_2022": {"scenario_id": "LUNA_2022", "final_value": 1.0},
         }, "summary": "..."}
         with self.assertRaises(AttributeError):
