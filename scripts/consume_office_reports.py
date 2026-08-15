@@ -14,9 +14,15 @@
     fail-OPEN, сторож молчит утвердительно;
   - у КАЖДОГО артефакта печатается возраст: рекомендация 19-часовой давности
     и рекомендация свежая — разные вещи, и решает это читатель, а не выжимка;
-  - скрипт информационный: exit 0 всегда, когда сам скрипт отработал —
-    красные строки в выводе это сигналы ОРКЕСТРАТОРУ действовать (карточки),
-    а не коды выхода;
+  - скрипт информационный: пока офис ИЗМЕРЕН, exit 0 — красные строки в выводе
+    это сигналы ОРКЕСТРАТОРУ действовать (карточки), а не коды выхода;
+  - исключение — exit 3 «офис НЕ ИЗМЕРЕН»: в этом дереве нет НИ ОДНОГО
+    артефакта офиса (типично — запуск из git-worktree, где они в `.gitignore`).
+    Это не состояние офиса, а невозможность его измерить, и печатается ОДНОЙ
+    строкой: прежний вывод давал двадцать «❌ НЕ ПРОЧИТАН» под подписью
+    «действовать (карточки)» и звал завести двадцать карточек о мёртвом
+    инвест-офисе, который жив (цикл #207). Читать чужие артефакты явно —
+    `--data-dir <прод>/data`, и вывод НАЗЫВАЕТ, чьи они;
   - ведом манифестом: новый consumer_required-продукт с потребителем
     "orchestrator_protocol" автоматически попадает в этот шаг без правки кода.
 
@@ -324,9 +330,109 @@ def _summarize_md(full: str, *, now: dt.datetime | None = None) -> list[str]:
     return [_age_line(stamp, now)] + body
 
 
+def _resolve(rel: str, *, root: str, data_dir: str | None) -> str:
+    """Куда смотреть за артефактом `rel`.
+
+    Без `--data-dir` — как раньше, относительно `--root`.
+
+    С `--data-dir` читается офис ТОГО дерева — целиком, включая
+    `docs/SYSTEM_BRIEFING.md`. Первая редакция оставляла брифинг при своём
+    дереве («это разные вопросы»), и замер показал, чем это кончается: из
+    worktree выходило «прочитано 21, не прочитано 0», где 20 артефактов свежие
+    (прод, минуты-часы), а брифинг — git-копия возрастом **1047.7 ч**, и оба
+    слагаемых лежали под одним итогом. Смешанная свежесть под одним вердиктом —
+    ровно тот дефект, против которого заведена эта правка, только тише.
+
+    Манифест НЕ отсюда: конституция принадлежит дереву, которое проверяем
+    (`--root`), а не тому, чьи артефакты читаем.
+    """
+    if data_dir:
+        return os.path.join(os.path.dirname(data_dir), rel)
+    return os.path.join(root, rel)
+
+
+def _main_worktree(root: str) -> str | None:
+    """Главное рабочее дерево — ПЕРВАЯ запись `git worktree list` (правило #234).
+
+    Guard'ится целиком: обязательный шаг 0-офис не имеет права упасть из-за
+    подсказки в тексте ошибки. Нет git / не репозиторий / что угодно ⇒ None,
+    и вызывающий честно скажет «не измерено» вместо выдуманного пути.
+    """
+    try:
+        import subprocess
+
+        out = subprocess.run(["git", "-C", root, "worktree", "list"],
+                             capture_output=True, text=True, timeout=10)
+        if out.returncode != 0:
+            return None
+        first = (out.stdout.splitlines() or [""])[0].strip()
+        path = first.split(" ")[0] if first else ""
+        return path or None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _office_absent_wholesale(targets: list[str], *, root: str,
+                             data_dir: str | None) -> list[str] | None:
+    """НИ ОДНОГО артефакта офиса в этом дереве — это ОДНА находка, а не двадцать.
+
+    Почему это отдельная ветка, а не «пусть каждый файл скажет за себя».
+    Артефакты офиса пишет ЖИВОЙ флот в прод-дерево, и они в `.gitignore`;
+    в git-worktree их нет ПО ПОСТРОЕНИЮ. Прежний вывод давал оттуда двадцать
+    строк «❌ НЕ ПРОЧИТАН · файла нет на диске» и подпись «красные строки выше =
+    действовать (карточки)». Форма — полноценная находка, текст — прямое
+    требование действовать; добросовестная сессия, работающая по §3.4 в
+    изолированном worktree, заводит двадцать карточек о мёртвом инвест-офисе,
+    которого нет (замер цикла #207 — ровно этот вывод первым же прогоном).
+
+    Разделяющий признак ИЗМЕРЕН, а не угадан: в worktree каталог `data/` есть
+    (326 файлов, git-tracked), нет именно РАНТАЙМНЫХ артефактов офиса — поэтому
+    признак «нет каталога data/» не годится, а годится «ни один из целевых
+    артефактов под data/ не существует». Если хоть один есть — дерево
+    производящее, и пропажа соседа это НАСТОЯЩАЯ находка, её печатаем как
+    прежде, по одной строке на артефакт.
+
+    Возвращает строки вердикта либо None (обычный ход).
+    """
+    data_targets = [t for t in targets if t.startswith("data/")]
+    if not data_targets:
+        return None
+    present = [t for t in data_targets
+               if os.path.exists(_resolve(t, root=root, data_dir=data_dir))]
+    if present:
+        return None
+    where = data_dir or os.path.join(root, "data")
+    main_tree = _main_worktree(root)
+    # НЕ подставлять сюда REPO_ROOT: он вычисляется от расположения САМОГО
+    # скрипта, то есть из worktree указывает на worktree — совет «гоняйте из
+    # прод-дерева (<этот же worktree>)» это выдуманный путь. Либо называем
+    # главное дерево по правилу #234 (первая запись `git worktree list`), либо
+    # не называем никакого.
+    how = (f"гонять шаг 0-офис из ПРОД-дерева ({main_tree}) либо передать "
+           f"--data-dir {os.path.join(main_tree, 'data')}"
+           if main_tree else
+           "гонять шаг 0-офис из ПРОД-дерева (того, куда пишет флот) либо "
+           "передать --data-dir <прод>/data; какое дерево главное — здесь НЕ "
+           "измерено (`git worktree list` недоступен), путь не выдумываю")
+    return [
+        f"⚠️ ОФИС НЕ ИЗМЕРЕН: ни одного из {len(data_targets)} артефактов офиса нет "
+        f"в этом дереве ({where}).",
+        "   Это ОДНА находка, а не "
+        f"{len(data_targets)}: артефакты пишет живой флот в прод-дерево, они в "
+        "`.gitignore`, и в git-worktree их нет по построению.",
+        "   Карточек о «мёртвом инвест-офисе» по этому выводу заводить НЕЛЬЗЯ — "
+        "офис не опровергнут, он не измерен.",
+        f"   Что сделать: {how}.",
+    ]
+
+
 def main(argv=None, *, now: dt.datetime | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--root", default=REPO_ROOT)
+    ap.add_argument("--data-dir", default=None,
+                    help="читать артефакты офиса из ЧУЖОГО дерева (обычно прод): "
+                         "<прод>/data. Квитанции потребления уезжают туда же — "
+                         "иначе сторож B3 доложит «офис не читают» на прочитанный офис")
     ap.add_argument("--consumer", default=CONSUMER)
     ap.add_argument("--no-receipts", action="store_true",
                     help="только чтение/печать, без квитанций (для проверок)")
@@ -349,10 +455,29 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
               f"проверить конституцию")
         return 1
 
+    # Куда пишутся квитанции: они отвечают на вопрос «офис ЧИТАЮТ?» (B3), поэтому
+    # обязаны лечь в то дерево, чьи артефакты прочитаны. Квитанция о прод-офисе,
+    # осевшая в одноразовом worktree, исчезнет вместе с ним, и сторож честно
+    # доложит «не читают» про прочитанное — fail-OPEN наизнанку.
+    data_dir = os.path.abspath(args.data_dir) if args.data_dir else None
+    receipt_root = os.path.dirname(data_dir) if data_dir else args.root
+
     print(f"— офис и сторожа → контекст оркестратора ({len(targets)} артефактов) —")
+    if data_dir:
+        print(f"— артефакты офиса читаются ИЗ ЧУЖОГО ДЕРЕВА: {data_dir} "
+              f"(квитанции туда же: {receipt_root}) —")
+
+    absent = _office_absent_wholesale(targets, root=args.root, data_dir=data_dir)
+    if absent is not None:
+        for ln in absent:
+            print(ln)
+        print("— итог: офис НЕ ИЗМЕРЕН (0 прочитано). Это НЕ «всё хорошо» и НЕ "
+              "находка о состоянии офиса — измерять нечем из этого дерева. —")
+        return 3
+
     consumed = failed = 0
     for rel in sorted(targets):
-        full = os.path.join(args.root, rel)
+        full = _resolve(rel, root=args.root, data_dir=data_dir)
         lines: list[str]
         ok = False
         if not os.path.exists(full):
@@ -369,7 +494,7 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
                 ln.startswith("   (md не прочитан") for ln in lines)
         if ok:
             receipted = True if args.no_receipts else write_receipt(
-                rel, args.consumer, root=args.root)
+                rel, args.consumer, root=receipt_root)
             mark = "✅" if receipted else "⚠️ (ресит НЕ записан)"
             consumed += 1
         else:
