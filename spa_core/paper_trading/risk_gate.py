@@ -18,6 +18,7 @@ from pathlib import Path
 from spa_core.paper_trading._cycle_io import (
     MAX_POLICY_BLOCKS,
     POSITIONS_FILENAME,
+    RISK_BLOCKS_DAILY_DIRNAME,
     RISK_BLOCKS_FILENAME,
     _atomic_write_json,
     _read_json,
@@ -437,6 +438,77 @@ def _record_policy_block(
     )
     blocks = blocks[-MAX_POLICY_BLOCKS:]  # ring-buffer
     _atomic_write_json(ddir / RISK_BLOCKS_FILENAME, blocks)
+
+
+def write_daily_block_slice(
+    ddir: Path | str,
+    *,
+    date: str,
+    blocks: list | None = None,
+) -> Path:
+    """Положить ДНЕВНОЙ СРЕЗ блокировок риск-гейта в git-tracked файл.
+
+    ADR-089 п.1 (решение владельца 2026-08-15). Прецедент — ADR-070.2 («канон
+    трека коммитится циклом»): артефакт, на который ссылается отчёт владельцу,
+    обязан существовать не только на рабочей машине. `risk_policy_blocks.json`
+    — кольцевой буфер на 100 записей, целиком под `.gitignore`; дневной отчёт
+    при этом писал «see risk_policy_blocks.json», то есть ссылался на файл,
+    которого нет ни у следующей сессии, ни в репозитории. Срез закрывает
+    ровно эту дыру.
+
+    НИЧЕГО НЕ РЕШАЕТ И НЕ СЧИТАЕТ. Функция только СОХРАНЯЕТ уже вычисленное
+    гейтом: RiskPolicy, пороги, kill-switch и логика блокировок не затронуты.
+
+    Параметры
+    ---------
+    ddir   : каталог данных цикла (песочница в тестах, `data/` в проде).
+    date   : ``YYYY-MM-DD`` — ВХОД, а не окружение. Внутри нет ни одного
+             обращения к часам, поэтому и срез, и тест на него не зависят от
+             календаря (`.claude/rules/deployment.md`, «время — вход»).
+    blocks : список записей аудита; по умолчанию читается кольцевой буфер
+             ``risk_policy_blocks.json`` того же каталога.
+
+    Пустой день пишется ЧЕСТНО: файл создаётся с ``block_count: 0``. Отсутствие
+    файла неотличимо от «цикл не отработал», а молчание — худший из отчётов.
+
+    Идемпотентно: выход — чистая функция от (``date``, записи), никаких
+    временных меток генерации, поэтому повторный прогон даёт байт-в-байт тот
+    же файл. Запись атомарна (`atomic_save`: tmp рядом + ``os.replace``).
+
+    Возвращает путь записанного среза.
+    """
+    ddir = Path(ddir)
+    if blocks is None:
+        blocks = _read_json(ddir / RISK_BLOCKS_FILENAME, [])
+    if not isinstance(blocks, list):
+        blocks = []
+
+    def _rec_date(rec: dict) -> str:
+        # `date` — канонический ключ `_record_policy_block`; ISO-`ts` служит
+        # запасным ключом для старых записей, где даты ещё не было.
+        d = rec.get("date")
+        if isinstance(d, str) and d:
+            return d
+        ts = rec.get("ts")
+        return ts[:10] if isinstance(ts, str) else ""
+
+    todays = [
+        rec for rec in blocks
+        if isinstance(rec, dict) and _rec_date(rec) == date
+    ]
+
+    out_path = ddir / RISK_BLOCKS_DAILY_DIRNAME / f"{date}.json"
+    _atomic_write_json(
+        out_path,
+        {
+            "date": date,
+            "source": RISK_BLOCKS_FILENAME,
+            "policy_version": _policy_version(),
+            "block_count": len(todays),
+            "blocks": todays,
+        },
+    )
+    return out_path
 
 
 def _policy_version() -> str:

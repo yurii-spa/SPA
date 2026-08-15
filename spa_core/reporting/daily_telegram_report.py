@@ -533,7 +533,10 @@ def format_daily_message(data: dict) -> str:
     blocks = data.get("risk_blocks_today", 0)
     approved = data.get("risk_policy_approved")
     if blocks:
-        lines.append(f"🔒 Risk gate: {blocks} block event(s) today — see risk_policy_blocks.json")
+        lines.append(
+            f"🔒 Risk gate: {blocks} block event(s) today — "
+            f"see data/risk_blocks_daily/{_esc(date_str)}.json"
+        )
     elif approved is True:
         lines.append("🔒 Risk gate: all positions within limits")
 

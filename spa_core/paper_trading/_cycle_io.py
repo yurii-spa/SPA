@@ -47,6 +47,12 @@ POSITIONS_FILENAME = "current_positions.json"
 STATUS_FILENAME = "paper_trading_status.json"
 ORCH_STATUS_FILENAME = "adapter_orchestrator_status.json"
 RISK_BLOCKS_FILENAME = "risk_policy_blocks.json"
+# ADR-087 п.1 (решение владельца 2026-08-15, прецедент ADR-070.2 «канон трека
+# коммитится циклом»): дневной СРЕЗ блокировок риск-гейта — git-tracked каталог
+# `data/risk_blocks_daily/<YYYY-MM-DD>.json`. Кольцевой буфер выше остаётся
+# runtime-only (100 записей, только на рабочей машине); срез — то, что видит
+# любая сессия и на что честно ссылается дневной отчёт владельцу.
+RISK_BLOCKS_DAILY_DIRNAME = "risk_blocks_daily"
 # MP-012: risk-score snapshot regenerated each cycle BEFORE allocation.
 RISK_SCORES_FILENAME = "risk_scores.json"
 # MP-108: kill-switch status file.

@@ -164,6 +164,7 @@
 - ADR-070.9: общий замок цикла оркестратора  ·  `inbox-adr-070-9-obschii-zamok-tsikla-orkestrat.md` · 2026-08-07
 - ADR-076.1: живой TVL для четырёх Aave вне Ethereum — единственное, чего не хватает кэшу  ·  `inbox-adr-076-1-zhivoi-tvl-dlya-chetyreh-aave.md` · 2026-08-08
 - ADR-076.2: aerodrome_usdc_lp — фид мёртв целиком, а 8.5% печатается как возможность  ·  `inbox-adr-076-2-aerodrome-usdc-lp-fid-mertv-ts.md` · 2026-08-08
+- ADR-089 п.1: коммитить дневной срез блокировок риск-гейта в git  ·  `inbox-adr-087-p-1-kommitit-dnevnoi-srez-blokir.md` · 2026-08-15
 - APY Persistence / Confidence  ·  `inbox-apy-persistence-confidence.md` · 2026-08-13
 - Атрибуция кэша и гейт RiskPolicy по-разному определяют «живой TVL» — и атрибуция не знает про порог $5M  ·  `inbox-atributsiya-kesha-i-geit-riskpolicy-po-r.md` · 2026-08-07
 - Аудит пригодности не видел 186 модулей Tier-B из 479: форма входа dict не пробовалась ни разу  ·  `inbox-audit-prigodnosti-ne-videl-186-modulei-t.md` · 2026-08-06
@@ -297,7 +298,6 @@
 - ADR-070.6: morpho_steakhouse = оценка morpho_blue  ·  `inbox-adr-070-6-morpho-steakhouse-otsenka-morp.md` · 2026-08-07
 - ADR-072 не сработал: трим происходит в АЛЛОКАТОРЕ, не в гейте — кэш всё ещё 25%  ·  `inbox-adr-072-ne-srabotal-trim-proishodit-v-al.md` · 2026-08-08
 - ADR-076.3: атрибуция кэша обязана назвать лимит цепочки вместо UNEXPLAINED  ·  `inbox-adr-076-3-atributsiya-kesha-obyazana-naz.md` · 2026-08-08
-- ADR-089 п.1: коммитить дневной срез блокировок риск-гейта в git  ·  `inbox-adr-087-p-1-kommitit-dnevnoi-srez-blokir.md` · 2026-08-15
 - ADR-089 п.2: применить правило ADR-055 (ниже медианы — не максить потолок) в расчёте весов, сначала в shadow  ·  `inbox-adr-087-p-2-primenit-pravilo-adr-055-niz.md` · 2026-08-15
 - ADR-089 п.3: свести два пути APY к одному определению (aave_v3 4.80 против 2.36)  ·  `inbox-adr-087-p-3-svesti-dva-puti-apy-k-odnomu.md` · 2026-08-15
 - ALLOC-002-отбор: топ-8 по весу беднит книгу — отбирать ПОСЛЕ evidence/TVL-гейта  ·  `inbox-alloc-002-otbor-top-8-po-vesu-bednit-kni.md` · 2026-08-08

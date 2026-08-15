@@ -108,6 +108,7 @@ from spa_core.paper_trading.risk_gate import (  # noqa: F401 — re-exported
     _apply_risk_policy_gate,
     _compliant_target,
     _record_policy_block,
+    write_daily_block_slice,
 )
 from spa_core.paper_trading.cycle_exit import (  # noqa: F401 — re-exported
     EXIT_LOCK_REFUSED as _EXIT_LOCK_REFUSED,
@@ -911,6 +912,30 @@ def run_cycle(
     today = now_dt.strftime("%Y-%m-%d")
     notes: list[str] = []
 
+    def _persist_daily_block_slice() -> None:
+        """ADR-089 п.1: дневной срез блокировок риск-гейта → git-tracked файл.
+
+        Кольцевой буфер `risk_policy_blocks.json` живёт только на рабочей машине
+        (весь `data/*.json` под .gitignore), а дневной отчёт владельцу ссылается
+        именно на него — на артефакт, которого нет ни у следующей сессии, ни в
+        репозитории. Срез за СЕГОДНЯ кладётся в `data/risk_blocks_daily/<дата>.json`
+        (прецедент ADR-070.2 «канон трека коммитится циклом»).
+
+        Пишется на КАЖДОМ пути выхода цикла, включая ранние отказы и чистый день
+        (файл с `block_count: 0`): отсутствие файла неотличимо от «цикл не
+        отработал». Дата — тот же инъектированный `today`, что и у записи
+        блокировки, обращений к часам внутри нет. Ничего не решает и не считает —
+        только сохраняет уже вычисленное гейтом. Fail-safe: отчётность не гейт и
+        не смеет уронить цикл.
+        """
+        try:
+            write_daily_block_slice(ddir, date=today)
+        except Exception as _slice_exc:  # noqa: BLE001 — отчётность не гейт
+            log.warning(
+                "ADR-087: дневной срез блокировок не записан (%s) — цикл продолжает",
+                _slice_exc,
+            )
+
     orchestrator_fn = orchestrator_fn or _default_orchestrator
 
     # ── MP-310: begin audit trail chain for this cycle (fail-safe) ────────
@@ -1240,6 +1265,7 @@ def run_cycle(
         )
         if write:
             _write_status(ddir, result, paper_start_date, capital_usd, run_ts)
+            _persist_daily_block_slice()  # ADR-089 п.1
             # MP-102: daily report after all steps (fail-safe, advisory).
             _run_daily_report(ddir, today)
             # SPA-V434: dashboard metrics snapshot (fail-safe, advisory).
@@ -1565,6 +1591,7 @@ def run_cycle(
             )
             _write_equity(ddir, equity_doc, prev_equity, today, 0.0, {}, 0.0)
             _write_status(ddir, result, paper_start_date, capital_usd, run_ts)
+            _persist_daily_block_slice()  # ADR-089 п.1
             return result
         if _dl_result["gate"] == "WARN":
             log.warning(
@@ -2274,6 +2301,7 @@ def run_cycle(
             },
         )
         _write_status(ddir, result, paper_start_date, capital_usd, run_ts)
+        _persist_daily_block_slice()  # ADR-089 п.1
 
         # ── Post-cycle advisory / analytics / shadow / reporting tail ──────
         # Extracted verbatim to cycle_reporting.run_post_cycle_advisory (N12).
