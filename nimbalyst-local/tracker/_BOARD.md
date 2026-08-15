@@ -2,34 +2,23 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **454** · ждёт владельца: **6** · занято сессиями: **3**.
+> Всего карточек: **458** · ждёт владельца: **0** · занято сессиями: **4**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
-- **Добавить одну строку в настройку агента — иначе не узнаем, кто гоняет цикл 52 раза в сутки**  ·  `own-33-plist-marker-for-cycle-origin.md`
-- **🛑 Стоп-кран включён 13 часов назад — торговля остановлена, и никто не сообщил**  ·  `own-34-kill-switch-active-13h-unnoticed.md`
-- **Наш аварийный тормоз ни разу не срабатывал за всю историю — и мы впервые посчитали, во что он обойдётся, когда сработает** · _high_  ·  `own-rnd-killswitch-rearm-policy-missing.md`
-- **Мягкая ступень аварийного тормоза (просадка 5 %) в её нынешней формулировке не делает НИЧЕГО — что она должна значить?** · _high_  ·  `own-rnd-killswitch-soft-tier-meaning.md`
-- **Два дня трека помечены доказанными, хотя в эти дни система не держала ничего**  ·  `owner-decision-dva-dnya-treka-pomecheny-dokazannymi-hot.md`
-- **Сбалансированный тир: на сайте «идёт paper-трек», а в книге ноль позиций**  ·  `owner-decision-sbalansirovannyi-tir-na-saite-idet-paper.md`
+_Пусто — открытых решений на владельце нет._
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
 > Ставится `scripts/check_card_claim.py claim`, снимается `release` (и не действует после `done`/`ingested`). Перед взятием карточки — `check_card_claim.py check <карточка>`.
 
 - **Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать** — держит `cycle-28258` · с 2026-08-05T12:28:28Z  ·  `agent-fleet-parity-guard-never-scheduled.md`
+- **а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…** — держит `pid43119` · с 2026-08-14T11:52:34Z  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md`
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (105)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (106)
 
-### · needs-owner
-- Добавить одну строку в настройку агента — иначе не узнаем, кто гоняет цикл 52 раза в сутки  ·  `own-33-plist-marker-for-cycle-origin.md` · 2026-08-10
-- 🛑 Стоп-кран включён 13 часов назад — торговля остановлена, и никто не сообщил  ·  `own-34-kill-switch-active-13h-unnoticed.md` · 2026-08-10
-- Наш аварийный тормоз ни разу не срабатывал за всю историю — и мы впервые посчитали, во что он обойдётся, когда сработает  ·  `own-rnd-killswitch-rearm-policy-missing.md` · 2026-08-10
-- Мягкая ступень аварийного тормоза (просадка 5 %) в её нынешней формулировке не делает НИЧЕГО — что она должна значить?  ·  `own-rnd-killswitch-soft-tier-meaning.md` · 2026-08-10
-- Два дня трека помечены доказанными, хотя в эти дни система не держала ничего  ·  `owner-decision-dva-dnya-treka-pomecheny-dokazannymi-hot.md` · 2026-08-10
-- Сбалансированный тир: на сайте «идёт paper-трек», а в книге ноль позиций  ·  `owner-decision-sbalansirovannyi-tir-na-saite-idet-paper.md` · 2026-08-13
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -55,10 +44,14 @@
 - Разбор очереди — 16 вопросов одним списком, по каждому есть рекомендация  ·  `own-30-razbor-ocheredi-vladeltsa.md` · 2026-08-05
 - Десять агентов заявлены в реестре и не работают — четыре готовы к установке, шесть на вывод  ·  `own-31-desyat-agentov-v-reestre-bez-flota.md` · 2026-08-08
 - Две записи о деньгах расходятся каждый день — и починка есть, но её никто не запускает  ·  `own-32-evidence-vs-curve-diverge.md` · 2026-08-09
+- Добавить одну строку в настройку агента — иначе не узнаем, кто гоняет цикл 52 раза в сутки  ·  `own-33-plist-marker-for-cycle-origin.md` · 2026-08-10
+- 🛑 Стоп-кран включён 13 часов назад — торговля остановлена, и никто не сообщил  ·  `own-34-kill-switch-active-13h-unnoticed.md` · 2026-08-10
 - Вторая задача из твоего сообщения (волатильный ETH-пул с доходностью «79%») — сам её не беру, нужно твоё решение  ·  `own-aud19-volatile-clmm-vvodim-li-klass.md` · 2026-08-05
 - Нашлось правило, которое впервые даёт И доход выше, И просадку меньше — строить ли под него paper-модуль  ·  `own-rnd-cdr-demotion-readmission-paper-module.md` · 2026-08-06
 - Все семь правил «выключать слабую книгу» на самом деле крутят ОДНУ ручку — концентрацию. И наш же лимит 20% срезает её ровно там, где она начинает платить  ·  `own-rnd-duty-is-concentration-adr055.md` · 2026-08-07
 - Нашлась первая защита от просадки, которая выдержала честную проверку — строить ли под неё paper-модуль  ·  `own-rnd-dwell-hysteresis-paper-module.md` · 2026-08-04
+- Наш аварийный тормоз ни разу не срабатывал за всю историю — и мы впервые посчитали, во что он обойдётся, когда сработает  ·  `own-rnd-killswitch-rearm-policy-missing.md` · 2026-08-10
+- Мягкая ступень аварийного тормоза (просадка 5 %) в её нынешней формулировке не делает НИЧЕГО — что она должна значить?  ·  `own-rnd-killswitch-soft-tier-meaning.md` · 2026-08-10
 - Правило «выключать худшую книгу, а не убыточную» дало лучшие числа за весь реестр — менять ли под это правило отбора тиров  ·  `own-rnd-xsd-rank-demotion-allocator.md` · 2026-08-07
 - Нашлось правило, которое снижает просадку почти бесплатно — но менять его на живом ничего не надо, вопрос только «куда его записать»  ·  `own-rnd-xvd-vol-rank-second-arm.md` · 2026-08-08
 - 10% денег стоят без работы: причина найдена — 11 протоколов закрыты из-за отсутствия живого фида, нужен твой выбор  ·  `owner-decision-10-deneg-stoyat-bez-raboty-prichina-naid.md` · 2026-08-05
@@ -81,6 +74,7 @@
 - Девять агентов висят нерешёнными: закрыть или включить  ·  `owner-decision-devyat-agentov-visyat-nereshennymi-zakry.md` · 2026-08-05
 - Дневной цикл сегодня запускали 8 раз не по расписанию — и кто именно, система не записывает  ·  `owner-decision-dnevnoi-tsikl-segodnya-zapuskali-8-raz-n.md` · 2026-08-08
 - Два агента не переживут перезагрузку — разрешить доустановить их в системную папку  ·  `owner-decision-dva-agenta-ne-perezhivut-perezagruzku-ra.md` · 2026-08-06
+- Два дня трека помечены доказанными, хотя в эти дни система не держала ничего  ·  `owner-decision-dva-dnya-treka-pomecheny-dokazannymi-hot.md` · 2026-08-10
 - Два цикла оркестратора работали одновременно — карточки защищены, сам цикл нет  ·  `owner-decision-dva-tsikla-orkestratora-rabotali-odnovre.md` · 2026-08-01
 - Аварийный выключатель EB-02 сравнивает живой рынок с одиннадцатью числами, вписанными в код  ·  `owner-decision-eb02-sravnivaet-zhivoe-s-konstantoi.md` · 2026-08-10
 - Флот: 7 агентов не переживут reboot (swarm+DR) — разрешить сделать reboot-safe  ·  `owner-decision-flot-7-agentov-ne-perezhivut-reboot-swar.md` · 2026-07-16
@@ -109,12 +103,14 @@
 - Сайт: автономная правка задела owner-gated область — нужно решение  ·  `owner-decision-sait-avtonomnaya-pravka-zadela-owner-gat-2.md` · 2026-08-08
 - Сайт: автономная правка задела owner-gated область — нужно решение  ·  `owner-decision-sait-avtonomnaya-pravka-zadela-owner-gat-3.md` · 2026-08-08
 - Сайт: автономная правка задела owner-gated область — нужно решение  ·  `owner-decision-sait-avtonomnaya-pravka-zadela-owner-gat.md` · 2026-08-08
+- Сбалансированный тир: на сайте «идёт paper-трек», а в книге ноль позиций  ·  `owner-decision-sbalansirovannyi-tir-na-saite-idet-paper.md` · 2026-08-13
 - Система остановлена аварийным выключателем: он сравнивает живую доходность с числами, вписанными в код  ·  `owner-decision-sistema-ostanovlena-avariinym-vyklyuchat.md` · 2026-08-10
 - Сторож базисной сделки ожил и хочет слать тебе «отличная возможность» — включаем эти сообщения или нет  ·  `owner-decision-storozh-bazisnoi-sdelki-ozhil-i-hochet-s.md` · 2026-08-01
 - Сторож голосований следит за чужими протоколами, а за нашими — нет: выбери, добавлять источники или убрать лишние  ·  `owner-decision-storozh-golosovanii-sledit-za-chuzhimi-p.md` · 2026-08-01
 - Сторож правил не видит стоп-кран — смотрит в файл, которого нет (выбери, как чинить)  ·  `owner-decision-storozh-pravil-ne-vidit-stop-kran-smotri.md` · 2026-07-29
 - Сторож пропущенного цикла молчит до 10:00 UTC, хотя цикл стартует в 06:00 UTC — опустить порог?  ·  `owner-decision-storozh-propuschennogo-tsikla-molchit-do.md` · 2026-07-30
 - Сторож расхождения флота не запускался 21 день — его никто не зовёт  ·  `owner-decision-storozh-rashozhdeniya-flota-ne-zapuskals.md` · 2026-08-01
+- Страница трека четвёртый день прячет цифры — снять табличку честности некому  ·  `owner-decision-stranitsa-treka-chetvertyi-den-pryachet.md` · 2026-08-14
 - Стратегия S23 никогда не видит живой Pendle — адаптер «похоронен», ошибка глотается молча (выбери, как чинить)  ·  `owner-decision-strategiya-s23-nikogda-ne-vidit-zhivoi-p.md` · 2026-07-30
 - Табличка честности не доезжает до сайта — публично видно 5.2% там, где живой расчёт даёт 4.8%  ·  `owner-decision-tablichka-chestnosti-ne-doezzhaet-do-sai.md` · 2026-08-08
 - Третья проверка кода сломалась и 8 часов этого никто не видел — нужен сторож за всеми проверками  ·  `owner-decision-tretya-proverka-koda-slomalas-i-8-chasov.md` · 2026-08-03
@@ -131,9 +127,10 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (186)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (189)
 
 ### · in-progress
+- а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 ### · ingested
 - Очередь владельца показывает 20 карточек из 23: три вопроса не доезжают до него из-за формы frontmatter  ·  `inbox-ochered-vladeltsa-pokazyvaet-20-kartoche.md` · 2026-08-07
@@ -261,6 +258,7 @@
 - Записи журнала за 16 циклов стёрты — и восстановимы из git-истории (кран #139 закрыл, лужу нет)  ·  `inbox-zapisi-zhurnala-za-16-tsiklov-sterty-i-v.md` · 2026-08-07
 - Журнал циклов молча теряет записи при конкурентной доставке — за неделю пропало 9 (восстановлены)  ·  `inbox-zhurnal-tsiklov-molcha-teryaet-zapisi-pr.md` · 2026-08-06
 ### · new
+- «Кнопок нету» — вторая половина жалобы 14.08: какое сообщение приходит с вариантами, но без кнопок  ·  `agent-knopki-pod-resheniem-vtoraya-polovina.md` · 2026-08-14
 - На карточку-поручение владелец не может ответить НИЧЕМ, кроме слов — пять висят с 08.08  ·  `agent-porucheniya-bez-vybora-nechem-otvetit.md` · 2026-08-10
 - 100 запусков на одном snapshot.  ·  `inbox-100-zapuskov-na-odnom-snapshot.md` · 2026-08-13
 - 25 модулей получили вечный вердикт «покрытие не измерено» — контекст-путь нечем мерить  ·  `inbox-25-modulei-poluchili-vechnyi-verdikt-pok.md` · 2026-08-06
@@ -320,6 +318,7 @@
 - Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md` · 2026-08-06 · 🔒 `cycle-87477`
 - У ГЛАВНОГО артефакта офиса нет срока годности: house_view 17 ч, и ни один сторож этого не судит  ·  `inbox-u-glavnogo-artefakta-ofisa-net-sroka-god.md` · 2026-08-13
 - У own-34 остался ЖИВОЙ вопрос владельцу, и он не доехал: измерить остаток и отправить по §2.4  ·  `inbox-u-own-34-ostalsya-zhivoi-vopros-vladelts.md` · 2026-08-10
+- Весь поддомен checkup.earn-defi.com отдаёт 404 — с главной публично ведут битые ссылки, и job site-freshness красный всегда  ·  `inbox-ves-poddomen-checkup-earn-defi-com-otdae.md` · 2026-08-14
 - WHY IT EXISTS  ·  `inbox-why-it-exists.md` · 2026-08-13
 - Замер обмена «доходность ↔ концентрация» на T2 (20/25/30%) — решение владельца A, задачи не было  ·  `inbox-zamer-obmena-dohodnost-kontsentratsiya-n.md` · 2026-08-08
 - Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07 · 🔒 `cycle-81141`

@@ -1,6 +1,9 @@
 ---
 type: owner-decision
-status: needs-owner
+status: ingested
+owner_choice: А1
+owner_answered_at: 2026-08-15T00:00:00+00:00
+owner_answer_via: claude-code-session
 priority: high
 created: 2026-08-10
 tags: [rnd, kill-switch, adr-034, adr-048, risk, paper, advisory]
@@ -73,3 +76,11 @@ tags: [rnd, kill-switch, adr-034, adr-048, risk, paper, advisory]
 kill-switch на нём **не проверялся ни разу**, чтобы это не читалось как «проверен и работает».
 Полный замер с таблицами — запись **#48** в `docs/DYNAMIC_LEVERAGE_GUARDIAN.md`, скрипт —
 `scripts/edge_exposure_depth.py`.
+
+## Решение владельца (2026-08-15)
+
+**Вариант А1 — снятие за владельцем, но с обязательным сроком.**
+
+Если владелец не ответил за N дней, а рынок восстановился, система напоминает каждые сутки
+и держит кэш. Возврат в рынок НИКОГДА не происходит сам — это по-прежнему рубильник владельца.
+Цена решения названа и принята: каждый день ожидания стоит примерно день доходности.
