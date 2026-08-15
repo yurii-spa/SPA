@@ -120,3 +120,8 @@ inbox/.ingested/
 
 # ENV_SETUP v3 §7.4 — Obsidian per-device vault config (not canonical, device-local)
 .obsidian/
+
+# Изолированные рабочие деревья параллельных агентов (создаются на время задачи
+# и удаляются сами). Это ЧУЖИЕ чекауты того же репозитория — коммитить их значит
+# положить репозиторий внутрь самого себя.
+.claude/worktrees/
