@@ -4,6 +4,10 @@ status: ingested
 priority: medium
 created: 2026-08-07
 tags: [rnd, aggressive-tier, allocator, adr-055, concentration, advisory, paper]
+owner_choice: A
+owner_answered_at: 2026-08-08T18:33:12.851664+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 # Все семь правил «выключать слабую книгу» на самом деле крутят ОДНУ ручку — концентрацию. И наш же лимит 20% срезает её ровно там, где она начинает платить
