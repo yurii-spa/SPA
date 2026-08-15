@@ -1282,6 +1282,25 @@
    "notes": ""
   },
   {
+   "label": "com.spa.smoke_flagship",
+   "plist_source": "repo:launchd/com.spa.smoke_flagship.plist",
+   "reboot_safe": false,
+   "schedule": "interval:604800s",
+   "program": "agent_smoke_flagship.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "designed",
+   "produces": [],
+   "consumes": [
+    "data/rates_desk/decision_log.jsonl",
+    "data/rates_desk/exit_nav.json"
+   ],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "complete",
+   "notes": "Цикл #248 (храповик неподключённых скриптов): scripts/smoke_test_flagship.py называл себя «единственной командой, которую запускает владелец или CI», и не запускался НИКЕМ — до #228 он числился подключённым по докстрингу соседнего smoke.py. intent=designed СОЗНАТЕЛЬНО: код доставлен, агент ещё НЕ загружен — launchctl это решение владельца (карточка own-tyazhelyi-smouk-flagmana-nikto-ne-zapuskal). Почему агент, а не workflow: замер 15.08 — в чистом чекауте 5 отказов из 5, потому что data/rates_desk не в git и нет landing/node_modules; живые данные и сборка лендинга есть только на Маке. produces пуст: смоук ничего не записывает, его продукт — код возврата и лог /tmp/spa_smoke_flagship.log. ПРИ ЗАГРУЗКЕ перевести intent в active тем же шагом."
+  },
+  {
    "label": "com.spa.strategy_lab_paper",
    "plist_source": "launch_agents",
    "reboot_safe": true,

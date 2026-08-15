@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: Семь скриптов остались без вызывающего, когда сканер перестал верить докстрингам — разбор поштучно
-status: new
+status: done
 source: agent
 created: 2026-08-15
 ---

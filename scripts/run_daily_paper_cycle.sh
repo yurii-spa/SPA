@@ -124,6 +124,23 @@ print(CPACycleWithEvidence(base_dir='.').run())
 "$PYTHON" scripts/fleet_parity_check.py >> "$LOG_FILE" 2>&1 \
   || echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] fleet parity: DRIFT or check failed (non-fatal, see data/fleet_parity.json)" >> "$LOG_FILE"
 
+# ── Step 5: external timestamp anchoring (ADR-YL-010) — stamp the FRESH chain head into the
+# OpenTimestamps calendars (Bitcoin) and upgrade whatever is still pending.
+# WHY IT IS HERE AND NOT IN ITS OWN AGENT: the ADR promised "Daily agent runs
+# `python3 scripts/ots_anchor.py both`" on 2026-07-03 and that agent was never created. Measured
+# 2026-08-15: proofs/ots/ots_anchors.jsonl held exactly ONE line — the adoption stamp of
+# 2026-07-02T22:46Z, still `pending`, never upgraded. 43 days of a provenance claim that the
+# public /verify page already makes. The whole subsystem was unreachable: the only importer of
+# spa_core/audit/ots_anchor.py was scripts/ots_anchor.py, which nothing called
+# (unwired-scripts ratchet, cycle #248). Same reasoning as Step 4: the fleet must not grow by one
+# just to stamp a hash, and a step inside the cycle cannot be forgotten by the installer.
+# ORDER: strictly after Step 1 — anchoring must stamp TODAY's head, not yesterday's.
+# NON-FATAL by construction (the script itself exits 0 when the `ots` client is absent, writing a
+# `client_unavailable` ledger line): audit provenance never blocks the track. No keys, no signing,
+# no fund movement — it reads a hash and writes proof files (ADR-YL-010, invariant 1).
+"$PYTHON" scripts/ots_anchor.py both >> "$LOG_FILE" 2>&1 \
+  || echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ots anchoring failed (non-fatal, see proofs/ots/ots_anchors.jsonl)" >> "$LOG_FILE"
+
 # ── Шагов сверки офис↔книга и моста находок здесь НЕТ намеренно (цикл #125, 2026-08-06).
 # Эту работу выполняет РАЗВЁРНУТЫЙ агент `com.spa.decision_loop` (каждые 6ч,
 # `spa_core.monitoring.findings_bridge --run`, ADR-066 Фаза 3). Дублировать его шагом

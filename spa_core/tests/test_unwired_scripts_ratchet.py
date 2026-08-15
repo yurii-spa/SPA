@@ -110,12 +110,26 @@ class TestTheDetectorItself(unittest.TestCase):
         Если однажды `unwired_scripts` вернётся к смыслу «нет вызывающего», база
         мгновенно разойдётся с проверкой — и обе половины храповика начнут врать в
         разные стороны. Здесь это названо вслух.
+
+        Инв. #16, НАМЕРЕННАЯ правка (цикл #248): вычитаемых классов стало три, а не
+        один — добавлены `protocol_commanded_scripts` (команда обязательного протокола
+        цикла, исполняемая агентом-оркестратором) и `generated_artifact_scripts`
+        (генератор, чей продукт импортирует живой код). Проверка НЕ ослаблена: она
+        по-прежнему требует ТОЧНОГО равенства «под храповиком = сырое минус
+        вычитаемое», просто вычитаемое теперь названо целиком; любой новый класс,
+        добавленный мимо этой строки, немедленно её красит. Цена каждого класса
+        измерена и закреплена в `test_unwired_two_new_classes.py` (2 из 61 и 1 из 61).
+        Обоснование — в журнале `docs/journal/2026-W33.md`.
         """
-        from spa_core.tests._unwired import (registry_recorded_scripts,
+        from spa_core.tests._unwired import (generated_artifact_scripts,
+                                             protocol_commanded_scripts,
+                                             registry_recorded_scripts,
                                              scripts_without_caller)
         raw, watched = set(scripts_without_caller()), set(unwired_scripts())
-        self.assertEqual(watched, raw - registry_recorded_scripts())
-        self.assertFalse(watched & registry_recorded_scripts())
+        exempt = (registry_recorded_scripts() | protocol_commanded_scripts()
+                  | generated_artifact_scripts())
+        self.assertEqual(watched, raw - exempt)
+        self.assertFalse(watched & exempt)
 
 
 if __name__ == "__main__":

@@ -50,6 +50,9 @@ _HAY_SUFFIXES = (".sh", ".plist", ".py", ".yml", ".yaml")
 #: Реестр R&D-идей: единственный документ, запись в котором считается проводкой.
 _RND_REGISTRY = pathlib.Path("docs") / "DYNAMIC_LEVERAGE_GUARDIAN.md"
 
+#: Протокол цикла: единственный документ, КОМАНДА в котором считается вызовом.
+_PROTOCOL_DOC = pathlib.Path("docs") / "ORCHESTRATOR_PROTOCOL.md"
+
 #: XML-комментарий plist'а: `<!-- ... -->` (в plist'ах он многострочный).
 _XML_COMMENT = re.compile(r"<!--.*?-->", re.S)
 
@@ -350,11 +353,16 @@ def registry_recorded_scripts(root: Optional[pathlib.Path] = None) -> Set[str]:
 
 
 #: Кэш разобранного дерева: ключ — отпечаток (путь, mtime, размер) всех файлов.
-_HAY_CACHE: Dict[tuple, List[Tuple[pathlib.Path, Set[str], Set[str]]]] = {}
+_HAY_CACHE: Dict[tuple, List[Tuple[pathlib.Path, Set[str], Set[str], Set[str]]]] = {}
 
 
-def _haystack(base: pathlib.Path) -> List[Tuple[pathlib.Path, Set[str], Set[str]]]:
-    """`(файл, названные им скрипты, названные ПОЛНЫМ именем)` — по всем вызывающим."""
+def _haystack(base: pathlib.Path) -> List[Tuple[pathlib.Path, Set[str], Set[str], Set[str]]]:
+    """`(файл, названные им скрипты, названные ПОЛНЫМ именем, импортируемые модули)`.
+
+    Четвёртое поле — полные dotted-имена импортов файла. Оно нужно правилу
+    «продукт скрипта импортирует живой код» (`generated_artifact_scripts`) и
+    берётся из уже сделанного разбора, а не вторым проходом по дереву.
+    """
     files = []
     for d in _HAY_DIRS:
         d_base = base / d
@@ -377,7 +385,7 @@ def _haystack(base: pathlib.Path) -> List[Tuple[pathlib.Path, Set[str], Set[str]
             continue
         mods = imported_modules(raw) if p.suffix == ".py" else set()
         plain, qualified = file_references(code_without_comments(p, raw), mods)
-        hay.append((p, plain, qualified))
+        hay.append((p, plain, qualified, mods))
     if key is not None:
         _HAY_CACHE.clear()
         _HAY_CACHE[key] = hay
@@ -405,17 +413,176 @@ def scripts_without_caller(root: Optional[pathlib.Path] = None) -> List[str]:
         stem = m.stem
         wired = any(
             stem in (qualified if p.stem == stem else plain)
-            for p, plain, qualified in hay if p != m
+            for p, plain, qualified, _mods in hay if p != m
         )
         if not wired:
             orphans.append(stem)
     return sorted(orphans)
 
 
+#: `python3 scripts/<имя>.py` / `python3 -m scripts.<имя>` — КОМАНДА, а не упоминание.
+_PROTOCOL_CMD = re.compile(rf"python3\s+(?:-m\s+)?scripts[/.]({_NAME}+)(?:\.py)?(?!{_NAME})")
+
+
+def protocol_executor(root: Optional[pathlib.Path] = None) -> Optional[pathlib.Path]:
+    """Файл-ИСПОЛНИТЕЛЬ протокола цикла, или `None` — исполнителя нет.
+
+    Правило `protocol_commanded_scripts` держится не на документе, а на ЦЕПОЧКЕ:
+    `launchd/com.spa.orchestrator.plist` → `scripts/agent_orchestrator.sh` → строка
+    «Исполни ПОЛНОСТЬЮ docs/ORCHESTRATOR_PROTOCOL.md за один цикл». Исполнитель
+    называет протокол В КОДЕ (не в комментарии) — то есть команда из протокола
+    исполняется агентом так же, как строка из обёртки.
+
+    Исполнителя не нашли ⇒ **None**, и класс не вычитается ВОВСЕ (fail-CLOSED):
+    протокол без исполнителя — обычный документ, а весь `docs/` проводкой не
+    считается (замер #214: снял бы с учёта 62 из 88).
+    """
+    base = pathlib.Path(root or _ROOT)
+    needle = _PROTOCOL_DOC.as_posix()
+    for d in ("scripts", "launchd"):
+        d_base = base / d
+        if not d_base.exists():
+            continue
+        for p in sorted(d_base.rglob("*")):
+            if not (p.is_file() and p.suffix in (".sh", ".plist", ".py")):
+                continue
+            if "/tests/" in str(p):
+                continue
+            try:
+                raw = p.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            if needle in code_without_comments(p, raw):
+                return p
+    return None
+
+
+def protocol_commanded_scripts(root: Optional[pathlib.Path] = None) -> Set[str]:
+    """Скрипты, которые ОБЯЗАТЕЛЬНЫЙ протокол цикла велит запускать КОМАНДОЙ.
+
+    Вызывающий здесь — не программа, а агент-оркестратор, исполняющий
+    `docs/ORCHESTRATOR_PROTOCOL.md` каждый цикл (см. `protocol_executor`).
+    Поэтому класс ВЫЧИТАЕТСЯ (как реестр R&D), а не считается вызовом: сырое
+    измерение `scripts_without_caller` продолжает честно говорить «ни одна
+    программа его не зовёт».
+
+    **Засчитывается только КОМАНДНАЯ форма** `python3 scripts/<имя>.py`, не
+    упоминание имени. Разница измерена 15.08 на живом дереве: командная форма
+    снимает с учёта **2** скрипта из 61 (`adr_number`, `reap_stale_worktrees`),
+    свободное упоминание — 3 (добавился бы `smoke`, названный в протоколе прозой
+    и никем не запускаемый). Ровно за такую подмену прозы вызовом цикл #228 и
+    снял три слепоты, поэтому здесь она закрыта заранее.
+    """
+    base = pathlib.Path(root or _ROOT)
+    if protocol_executor(base) is None:
+        return set()
+    try:
+        text = (base / _PROTOCOL_DOC).read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return set()
+    commanded = set(_PROTOCOL_CMD.findall(text))
+    return {p.stem for p in entrypoint_scripts(base) if p.stem in commanded}
+
+
+#: Литерал вида `<имя>.py` — кандидат в ПРОДУКТ скрипта-генератора.
+_ARTIFACT_LITERAL = re.compile(rf"^{_NAME}+\.py$")
+
+
+def _code_string_literals(text: str) -> Set[str]:
+    """Строковые литералы файла БЕЗ докстрингов (докстринг — проза, капкан #227)."""
+    try:
+        tree = ast.parse(text)
+    except (SyntaxError, ValueError):
+        return set()
+    docs = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            d = ast.get_docstring(node, clean=False)
+            if d:
+                docs.add(d)
+    return {n.value for n in ast.walk(tree)
+            if isinstance(n, ast.Constant) and isinstance(n.value, str)} - docs
+
+
+def generated_artifact_scripts(root: Optional[pathlib.Path] = None) -> Set[str]:
+    """Скрипты-ГЕНЕРАТОРЫ, чей продукт лежит в дереве и импортируется живым кодом.
+
+    Такой скрипт не «доставлен и мёртв»: мёртв только его вход, а продукт
+    исполняется каждый день внутри чужого модуля. Пример на 15.08 —
+    `audit_tier_c_wiring_feasibility` → `spa_core/analytics/_protocol_key_coverage.py`
+    → `signal_aggregator.run_tier_b` (разметка решает, какие Tier-B модули
+    исключить из composite).
+
+    **Требуются ОБЕ стороны, и ни одна из них не является одиночной прозой:**
+
+    1. скрипт называет путь продукта **в коде** (не в докстринге) — здесь это
+       аргумент записи `emit_markup(report, ROOT / … / "_protocol_key_coverage.py")`;
+    2. продукт называет скрипт у себя (шапка «СГЕНЕРИРОВАНО …»);
+    3. продукт — отслеживаемый модуль вне `scripts/` и вне тестов, который
+       **импортирует** живой (не тестовый) код.
+
+    Цена правила измерена 15.08 на живом дереве: одностороннее «скрипт назвал путь
+    модуля» снимает с учёта **6** подопечных храповика из 61, и пять из них не
+    генераторы вовсе — они просто упоминают чужой модуль (`verify_infrastructure`
+    → `cycle_runner.py`). Встречное требование срезает эти пять и оставляет **1**
+    (`audit_tier_c_wiring_feasibility`). Правилу отвечают ещё два скрипта
+    (`audit_protocol_blindness`, `site_freshness_monitor`), но они подключены
+    обычным вызовом и под храповиком не числятся — на список подопечных правило
+    влияет ровно на одно имя. Узость измерена, а не заявлена.
+    """
+    base = pathlib.Path(root or _ROOT)
+    hay = _haystack(base)
+    imported_dotted: Set[str] = set()
+    for _p, _plain, _qual, mods in hay:
+        imported_dotted |= mods
+
+    # продукт-кандидат: модуль вне scripts/ и вне тестов
+    artifacts: Dict[str, List[pathlib.Path]] = {}
+    for p, _plain, _qual, _mods in hay:
+        rel = p.relative_to(base)
+        if rel.suffix != ".py" or rel.parts[0] == "scripts":
+            continue
+        artifacts.setdefault(rel.name, []).append(p)
+
+    out: Set[str] = set()
+    for m in entrypoint_scripts(base):
+        try:
+            lits = _code_string_literals(m.read_text(encoding="utf-8", errors="ignore"))
+        except OSError:
+            continue
+        names = {pathlib.PurePath(s).name for s in lits
+                 if _ARTIFACT_LITERAL.match(pathlib.PurePath(s).name or "")}
+        for name in names:
+            for art in artifacts.get(name, []):
+                dotted = ".".join(art.relative_to(base).with_suffix("").parts)
+                if dotted not in imported_dotted:
+                    continue
+                try:
+                    art_text = art.read_text(encoding="utf-8", errors="ignore")
+                except OSError:
+                    continue
+                if m.stem in art_text:
+                    out.add(m.stem)
+    return out
+
+
 def unwired_scripts(root: Optional[pathlib.Path] = None) -> List[str]:
-    """«Доставлен и мёртв»: вызывающего нет И записи в реестре R&D тоже нет.
+    """«Доставлен и мёртв»: вызывающего нет И ни одно вычитаемое плечо не сработало.
+
+    Вычитаются три класса, у каждого вызывающего нет ПО УСТРОЙСТВУ, и у каждого
+    цена правила измерена на живом дереве (иначе это не класс, а поблажка):
+
+    - `registry_recorded_scripts` — исследовательский замер, продукт которого —
+      запись в реестре R&D (#214);
+    - `protocol_commanded_scripts` — команда обязательного протокола цикла,
+      которую исполняет агент-оркестратор (#248, цена 2 из 61);
+    - `generated_artifact_scripts` — генератор, чей продукт импортирует живой код
+      (#248, цена 1 из 61).
 
     Ровно этот список сторожит храповик `test_unwired_scripts_ratchet`.
     """
     base = pathlib.Path(root or _ROOT)
-    return sorted(set(scripts_without_caller(base)) - registry_recorded_scripts(base))
+    return sorted(set(scripts_without_caller(base))
+                  - registry_recorded_scripts(base)
+                  - protocol_commanded_scripts(base)
+                  - generated_artifact_scripts(base))
