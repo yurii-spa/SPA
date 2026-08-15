@@ -361,12 +361,23 @@ def test_old_positional_call_still_works() -> None:
 # при трёх недоставленных. Статус про ОДИН прогон и долг про «чего нет на
 # origin до сих пор» — разные вопросы, и схлопывание их в один и есть потеря.
 
-def _bridge(delivery: dict) -> str:
+def _bridge(delivery: dict, owner_answers: dict | None = None) -> str:
+    # ИЗМЕНЕНО НАМЕРЕННО (цикл #247, ADR-086, инвариант #16 — обоснование здесь и
+    # в `docs/journal/2026-W33.md`): производитель (`findings_bridge.run_bridge`)
+    # получил ещё один БЕЗУСЛОВНЫЙ ключ `owner_answer_delivery`, и фикстура без
+    # него — отчёт, которого не пишет никто. Приводится к форме ПРОИЗВОДИТЕЛЯ,
+    # как уже делалось для блока `debt` в #204. Ни одно утверждение тестов ниже
+    # не тронуто; отсутствие блока по-прежнему обязано быть СЛЫШНО, и это
+    # проверяется отдельно (`test_owner_answer_delivery.py::OfficeStepReaderTest`),
+    # то есть здешняя правка ничего не заглушает.
     return _text(MOD._summarize_json("data/findings_bridge_report.json", {
         "generated_at": "2026-08-12T19:03:13.159157+00:00",
         "created": [], "closed": [], "deferred": [], "waiting_hysteresis": [],
         "escalated": [], "sources_unread": [], "open_cards": 0,
         "delivery": delivery,
+        "owner_answer_delivery": owner_answers if owner_answers is not None else {
+            "status": "IDLE", "delivered": [], "already_on_origin": [],
+            "pending": [], "conflicts": [], "unmeasured": []},
     }))
 
 

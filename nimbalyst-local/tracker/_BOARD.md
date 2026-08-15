@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **469** · ждёт владельца: **8** · занято сессиями: **4**.
+> Всего карточек: **470** · ждёт владельца: **8** · занято сессиями: **4**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -137,7 +137,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (198)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (199)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -249,6 +249,7 @@
 - Tier-B: 19 модулей числятся работающими, но различают протоколы побочными полями — предметных данных у них нет  ·  `inbox-tier-b-19-modulei-chislyatsya-rabotayusc.md` · 2026-08-06
 - Tier-C аналитики (180 модулей) остался протокол-слепым: фаза 2 чинила только A и B  ·  `inbox-tier-c-analitiki-180-modulei-ostalsya-pr.md` · 2026-08-06
 - У ГЛАВНОГО артефакта офиса нет срока годности: house_view 17 ч, и ни один сторож этого не судит  ·  `inbox-u-glavnogo-artefakta-ofisa-net-sroka-god.md` · 2026-08-13
+- У ответа владельца НЕТ своего пути на origin: видим его теперь из любого дерева, но не доставляем  ·  `inbox-u-otveta-vladeltsa-net-svoego-puti-na-or.md` · 2026-08-15
 - Уборщик мёртвых деревьев не запускается из worktree — а по протоколу сессии работают только там  ·  `inbox-uborschik-mertvyh-derevev-ne-zapuskaetsy.md` · 2026-08-14
 - Упавший классификатор превратился в 44 вопроса владельцу, а 44 задания — в done  ·  `inbox-upavshii-klassifikator-prevratilsya-v-44.md` · 2026-08-12
 - Вердикт WIRABLE подделываем: 22 из 23 «пригодных» модулей читают РОВНО ОДИН ключ  ·  `inbox-verdikt-wirable-poddelyvaem-22-iz-23-pri.md` · 2026-08-06
@@ -318,6 +319,7 @@
 - Находка петли: возможность fluid_fusdc 5.03% (evidence L3) доступна книге, не держитс  ·  `inbox-nahodka-petli-vozmozhnost-fluid-fusdc-5.md` · 2026-08-13
 - Находка петли: возможность moonwell_base 10.7382% (evidence L3) доступна книге, не де  ·  `inbox-nahodka-petli-vozmozhnost-moonwell-base.md` · 2026-08-14
 - Номер ADR-067 занят ДВУМЯ разными решениями — реестр показывает две строки  ·  `inbox-nomer-adr-067-zanyat-dvumya-raznymi-resh.md` · 2026-08-07
+- Окно до 6 часов: ответ владельца между нажатием кнопки и прогоном моста живёт в одном экземпляре  ·  `inbox-okno-do-6-chasov-otvet-vladeltsa-mezhdu.md` · 2026-08-15
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08
 - Отказ замка цикла неотличим от аварии: last_exit=2 означает и 'защитил трек', и 'сломался'  ·  `inbox-otkaz-zamka-tsikla-neotlichim-ot-avarii.md` · 2026-08-08
 - owner-gate краснеет на СВОЕЙ ежедневной автоматике: сдвиг снимка трека на один цент = owner-gated  ·  `inbox-owner-gate-krasneet-na-svoei-ezhednevnoi.md` · 2026-08-13
@@ -335,7 +337,6 @@
 - Тест GSM Sky приколочен к до-ADR-065 состоянию  ·  `inbox-test-gsm-sky-prikolochen-k-do-adr-065-so.md` · 2026-08-07
 - Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md` · 2026-08-06 · 🔒 `cycle-87477`
 - Три рабочих дерева держат недоставленную работу — поднять или осознанно списать  ·  `inbox-tri-rabochih-dereva-derzhat-nedostavlenn.md` · 2026-08-14
-- У ответа владельца НЕТ своего пути на origin: видим его теперь из любого дерева, но не доставляем  ·  `inbox-u-otveta-vladeltsa-net-svoego-puti-na-or.md` · 2026-08-15
 - У own-34 остался ЖИВОЙ вопрос владельцу, и он не доехал: измерить остаток и отправить по §2.4  ·  `inbox-u-own-34-ostalsya-zhivoi-vopros-vladelts.md` · 2026-08-10
 - Весь поддомен checkup.earn-defi.com отдаёт 404 — с главной публично ведут битые ссылки, и job site-freshness красный всегда  ·  `inbox-ves-poddomen-checkup-earn-defi-com-otdae.md` · 2026-08-14
 - WHY IT EXISTS  ·  `inbox-why-it-exists.md` · 2026-08-13

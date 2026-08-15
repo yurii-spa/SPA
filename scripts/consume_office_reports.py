@@ -80,7 +80,8 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "house_view_gap.json": ("gaps", "unchecked", "counts.warn", "counts.info",
                             "counts.unchecked"),
     "findings_bridge_report.json": ("created", "closed", "deferred", "waiting_hysteresis",
-                                    "escalated", "sources_unread", "open_cards", "delivery"),
+                                    "escalated", "sources_unread", "open_cards", "delivery",
+                                    "owner_answer_delivery"),
 }
 
 # Отметка времени в шапке md-артефакта: `Auto-updated: **2026-08-09 05:44 UTC**`.
@@ -280,6 +281,31 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None) -> list[
                     out.append(f"   ⚠️ снято с долга: {dr.get('path')} — {dr.get('reason')}")
         else:
             out.append("   ⚠️ доставка карточек НЕ ИЗМЕРЕНА: в отчёте нет блока delivery")
+        # Доставка СЛЕДА решения владельца (ADR-086) — отдельный вопрос от доставки
+        # карточек: мост везёт то, что создал сам, а ответ владельца пишет БОТ, и
+        # мост его не создавал никогда. Замер #247: 2 из 9 ответов не были в git
+        # ни минуты (с 08.08). Молчание здесь читалось бы как «след на origin».
+        oad = data.get("owner_answer_delivery")
+        if oad is None:
+            out.append("   ⚠️ след решения владельца НЕ ИЗМЕРЕН: в отчёте нет блока "
+                       "owner_answer_delivery (отчёт старого образца — до ADR-086)")
+        else:
+            ost = oad.get("status")
+            if ost == "DELIVERED":
+                out.append(f"   след решения владельца: доставлен "
+                           f"{len(oad.get('delivered') or [])} → origin "
+                           f"(коммит {oad.get('commit')})")
+            elif ost == "IDLE":
+                out.append(f"   след решения владельца: весь на origin "
+                           f"({len(oad.get('already_on_origin') or [])} карточк(и))")
+            else:
+                out.append(f"   ⚠️ СЛЕД РЕШЕНИЯ ВЛАДЕЛЬЦА {ost}: {oad.get('reason')} "
+                           f"(недоставлено {len(oad.get('pending') or [])})")
+            for c in (oad.get("conflicts") or [])[:5]:
+                out.append(f"   ⛔ ДВА РАЗНЫХ ОТВЕТА ВЛАДЕЛЬЦА, нужен человек: "
+                           f"{c.get('card')} — {c.get('reason')}")
+            for u in (oad.get("unmeasured") or [])[:5]:
+                out.append(f"   ⚠️ след НЕ ИЗМЕРЕН: {u.get('card')} — {u.get('reason')}")
     elif name == "owner_decision_pending.json":
         out.append(f"   статус: {data.get('status')}")
         if data.get("reason"):
