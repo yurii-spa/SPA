@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Находка петли: возможность fluid_fusdc 5.03% (evidence L3) доступна книге, не держитс"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-13
 finding_key: "gap:opportunity_unnamed:fluid_fusdc"
@@ -15,3 +15,14 @@ finding_key: "gap:opportunity_unnamed:fluid_fusdc"
 Сделано = находка исчезает из отчёта источника при следующем прогоне (мост закроет карточку сам).
 
 _finding_key: `gap:opportunity_unnamed:fluid_fusdc` · ADR-066_
+
+## Закрыто 16.08
+
+**Схлопнуто 16.08 в `inbox-adr-076-3-atributsiya-kesha-obyazana-naz`: то же самое другими
+словами** (кластер К9 триажа `docs/BACKLOG_TRIAGE_2026-08-16.md`).
+
+Это находка петли ADR-066 класса «безымянный простой»: возможность доступна книге, не держится,
+и отказ НЕ НАЗВАН. Ровно это и чинит корневая карточка — атрибуция обязана назвать
+связывающий лимит вместо `UNEXPLAINED_CASH`. Когда причина называется, находка гаснет сама.
+
+**Корневая карточка остаётся ОТКРЫТОЙ.**

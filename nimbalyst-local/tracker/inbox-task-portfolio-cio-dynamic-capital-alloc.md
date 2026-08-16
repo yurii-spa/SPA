@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing"
-status: new
+status: done
 source: telegram
 created: 2026-08-13
 ---
@@ -1626,3 +1626,23 @@ Money-path не тронут: взвод, применение ADR-055 в вес
 
 ---
 _Оркестратор: классифицируй (задача/идея/непонятно), при исполнении закрой карточку со ссылкой на порождённую работу (§6.4)._
+
+## Закрыто 16.08
+
+**Схлопнуто 16.08 в `agent-head-of-investment-layer`: то же самое другими словами**
+(кластер К14 триажа `docs/BACKLOG_TRIAGE_2026-08-16.md`) — эта карточка есть подробная
+СПЕЦИФИКАЦИЯ ВЛАДЕЛЬCA к слою из корневой (максимизаторы доходности + решающий «куда/сколько/
+почему», net expected return вместо raw APY, стоимость ребаланса, устойчивость APY,
+концентрация, ликвидность, влияние размера позиции).
+
+Спецификация не теряется — она целиком остаётся в теле этой карточки и адресуется из корневой.
+На неё же ссылаются шесть мусорных карточек интейка (`inbox-why-it-exists`, `inbox-actual-costs`,
+`inbox-apy-persistence-confidence`, `inbox-100-zapuskov-na-odnom-snapshot`,
+`inbox-dlya-kazhdogo-etapa-pokazat`, `inbox-esli-tot-zhe-target-mozhno-priblizit-pro`) —
+куски ЭТОГО документа, разорванные интейком; цепочка ссылок ведёт через эту карточку в корневую.
+
+Уже принятое по теме: `docs/decisions/ADR-088-portfolio-cio-advisory-layer.md` и
+`ADR-089-portfolio-cio-followups-2026-08-15.md` (Portfolio CIO остаётся на ступени SHADOW
+до эвиденса на живых данных).
+
+**Корневая карточка остаётся ОТКРЫТОЙ** (корзина B: money-path).

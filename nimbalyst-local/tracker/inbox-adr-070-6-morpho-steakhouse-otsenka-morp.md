@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "ADR-070.6: morpho_steakhouse = оценка morpho_blue"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-07
 adr: ADR-070
@@ -52,3 +52,14 @@ adr: ADR-070
 Карточка владельцу с тремя вариантами и рекомендацией:
 `owner-decision-reshenie-adr-070-p-6-ispolnit-nelzya-odi`.
 Эта карточка остаётся `new` — задача жива, ждёт буквы варианта.
+
+## Закрыто 16.08
+
+**Схлопнуто 16.08 в `agent-morpho-steakhouse-bez-risk-score`: то же самое другими словами**
+(кластер К1 триажа `docs/BACKLOG_TRIAGE_2026-08-16.md`) — обе карточки просят одну запись
+в карте рисков по ADR-070 п.6.
+
+Посылка перепроверена на этом дереве: `spa_core/risk/protocol_risk_map.py:97` содержит
+`morpho_steakhouse` (tier T2, risk_score 0.30), ключ есть и в `data/protocol_risk_map.json`;
+`python3 -m pytest tests/test_risk_scoring_completeness.py -q` → **10 passed**. Три падения,
+перечисленные в теле этой карточки, на дереве не воспроизводятся.

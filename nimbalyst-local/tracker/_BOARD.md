@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **477** · ждёт владельца: **0** · занято сессиями: **4**.
+> Всего карточек: **477** · ждёт владельца: **0** · занято сессиями: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -15,7 +15,6 @@ _Пусто — открытых решений на владельце нет._
 - **Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать** — держит `cycle-28258` · с 2026-08-05T12:28:28Z  ·  `agent-fleet-parity-guard-never-scheduled.md`
 - **а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…** — держит `pid43119` · с 2026-08-14T11:52:34Z  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md`
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
-- **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (109)
 
@@ -159,12 +158,18 @@ _Пусто — открытых решений на владельце нет._
 - ADR-066 Фаза 4: loop_health + hit-rate аналитиков + weekly retro + храповик  ·  `inbox-adr-066-faza-4-loop-health-hit-rate-anal.md` · 2026-08-05
 - ADR-070.11: честный exit digest-обёртки  ·  `inbox-adr-070-11-chestnyi-exit-digest-obertki.md` · 2026-08-07
 - ADR-070.15: казна 2% TVL — отказ вместо выдумки  ·  `inbox-adr-070-15-kazna-2-tvl-otkaz-vmesto-vydu.md` · 2026-08-07
+- ADR-070.16: go-live блокируют только активные дыры  ·  `inbox-adr-070-16-go-live-blokiruyut-tolko-akti.md` · 2026-08-07
+- ADR-070.21: paper-модуль CDR #39 (демоушен+отложенный возврат)  ·  `inbox-adr-070-21-paper-modul-cdr-39-demoushen.md` · 2026-08-07
+- ADR-070.22: paper-модуль dwell-защёлки  ·  `inbox-adr-070-22-paper-modul-dwell-zaschelki.md` · 2026-08-07
+- ADR-070.3: owner-gate класс «ежедневный снимок трека»  ·  `inbox-adr-070-3-owner-gate-klass-ezhednevnyi-s.md` · 2026-08-07
 - ADR-070.4: resolve застрявшим стоп-кран событиям  ·  `inbox-adr-070-4-resolve-zastryavshim-stop-kran.md` · 2026-08-07
+- ADR-070.6: morpho_steakhouse = оценка morpho_blue  ·  `inbox-adr-070-6-morpho-steakhouse-otsenka-morp.md` · 2026-08-07
 - ADR-070.7: точечный fail-CLOSED памяти в пушере  ·  `inbox-adr-070-7-tochechnyi-fail-closed-pamyati.md` · 2026-08-07
 - ADR-070.9: общий замок цикла оркестратора  ·  `inbox-adr-070-9-obschii-zamok-tsikla-orkestrat.md` · 2026-08-07
 - ADR-076.1: живой TVL для четырёх Aave вне Ethereum — единственное, чего не хватает кэшу  ·  `inbox-adr-076-1-zhivoi-tvl-dlya-chetyreh-aave.md` · 2026-08-08
 - ADR-076.2: aerodrome_usdc_lp — фид мёртв целиком, а 8.5% печатается как возможность  ·  `inbox-adr-076-2-aerodrome-usdc-lp-fid-mertv-ts.md` · 2026-08-08
 - ADR-089 п.1: коммитить дневной срез блокировок риск-гейта в git  ·  `inbox-adr-087-p-1-kommitit-dnevnoi-srez-blokir.md` · 2026-08-15
+- ALLOC-002-отбор: топ-8 по весу беднит книгу — отбирать ПОСЛЕ evidence/TVL-гейта  ·  `inbox-alloc-002-otbor-top-8-po-vesu-bednit-kni.md` · 2026-08-08
 - APY Persistence / Confidence  ·  `inbox-apy-persistence-confidence.md` · 2026-08-13
 - Атрибуция кэша и гейт RiskPolicy по-разному определяют «живой TVL» — и атрибуция не знает про порог $5M  ·  `inbox-atributsiya-kesha-i-geit-riskpolicy-po-r.md` · 2026-08-07
 - Аудит пригодности не видел 186 модулей Tier-B из 479: форма входа dict не пробовалась ни разу  ·  `inbox-audit-prigodnosti-ne-videl-186-modulei-t.md` · 2026-08-06
@@ -172,8 +177,10 @@ _Пусто — открытых решений на владельце нет._
 - Брифинг считает снимок флота протухшим раньше, чем писатель его переписывает (35 мин против такта 60)  ·  `inbox-brifing-schitaet-snimok-flota-protuhshim.md` · 2026-08-15
 - CI 'SPA Tests' красный минимум 8 коммитов подряд, и этого никто не видит: цикл прогоняет только spa_core/tests  ·  `inbox-ci-spa-tests-krasnyi-minimum-8-kommitov.md` · 2026-08-09
 - Давай так и сделаем  ·  `inbox-davai-tak-i-sdelaem.md` · 2026-07-20
+- Демоушен книг Aggressive по ОТНОСИТЕЛЬНОМУ рангу (решение владельца 09.08, вариант A)  ·  `inbox-demoushen-knig-aggressive-po-otnositelno.md` · 2026-08-09
 - Для каждого этапа показать:  ·  `inbox-dlya-kazhdogo-etapa-pokazat.md` · 2026-08-13
 - docs/STATE.md разросся до 1647 строк при собственном пределе ~150 — а его читает каждая сессия  ·  `inbox-docs-state-md-razrossya-do-1647-strok-pr.md` · 2026-08-06
+- Долгоживущие агенты не подхватывают доставленный код — и никто об этом не говорит  ·  `inbox-dolgozhivuschie-agenty-ne-podhvatyvayut.md` · 2026-08-08
 - Ещё три двери в чат владельца шлют мимо дедупа и журнала (site_freshness из CI — самая существенная)  ·  `inbox-esche-tri-dveri-v-chat-vladeltsa-shlyut.md` · 2026-08-13
 - если тот же target можно приблизить простым:  ·  `inbox-esli-tot-zhe-target-mozhno-priblizit-pro.md` · 2026-08-13
 - Это почини - 🛡️ Сайт-сторож: нашёл проблем — 2 (2026-08-08T13:09:51Z)  ·  `inbox-eto-pochini-sait-storozh-nashel-problem.md` · 2026-08-08
@@ -203,7 +210,10 @@ _Пусто — открытых решений на владельце нет._
 - Находка петли: data/investment_os/_health.json: последний ресит старше SLO 14ч — потр  ·  `inbox-nahodka-petli-data-investment-os-health.md` · 2026-08-12
 - Находка петли: docs/SYSTEM_BRIEFING.md: последний ресит старше SLO 2ч — потребитель з  ·  `inbox-nahodka-petli-docs-system-briefing-md-po.md` · 2026-08-11
 - Находка петли: hit-rate аналитиков не вычислим: proof.jsonl хранит только хэши, содер  ·  `inbox-nahodka-petli-hit-rate-analitikov-ne-vyc.md` · 2026-08-05
+- Находка петли: манифест ↔ факты: manifest --check вернул дрейф (см. build_architectur  ·  `inbox-nahodka-petli-manifest-fakty-manifest-ch.md` · 2026-08-15
 - Находка петли: постура офиса CRITICAL, но книга развёрнута (cash 10.0% < 50%) — офис  ·  `inbox-nahodka-petli-postura-ofisa-critical-no.md` · 2026-08-11
+- Находка петли: возможность fluid_fusdc 5.03% (evidence L3) доступна книге, не держитс  ·  `inbox-nahodka-petli-vozmozhnost-fluid-fusdc-5.md` · 2026-08-13
+- Находка петли: возможность moonwell_base 10.7382% (evidence L3) доступна книге, не де  ·  `inbox-nahodka-petli-vozmozhnost-moonwell-base.md` · 2026-08-14
 - Нечёткое совпадение отдаёт APY ЧУЖОГО актива: USDC.e ранжирует капитал как USDC — и платит БОЛЬШЕ настоящего  ·  `inbox-nechetkoe-sovpadenie-otdaet-apy-chuzhogo.md` · 2026-08-09
 - Номера ADR сталкиваются: два раза за день, у нумерации нет распределителя  ·  `inbox-nomera-adr-stalkivayutsya-dva-raza-za-de.md` · 2026-08-08
 - новая задача которую нужно решить мне сейчас в telegram пишется спамится одно и…  ·  `inbox-novaya-zadacha-kotoruyu-nuzhno-reshit-mn.md` · 2026-08-13
@@ -213,6 +223,7 @@ _Пусто — открытых решений на владельце нет._
 - Ответ владельца живёт только в хост-дереве: бот пишет туда, инжест пушит на origin, копии расходятся навсегда  ·  `inbox-otvet-vladeltsa-zhivet-tolko-v-host-dereve.md` · 2026-08-09
 - Owner-gate заводит дубль карточки на каждый заблокированный пуш одних и тех же файлов  ·  `inbox-owner-gate-zavodit-dubl-kartochki-na-kaz.md` · 2026-08-08
 - Понял, бери все в работу  ·  `inbox-ponyal-beri-vse-v-rabotu.md` · 2026-08-12
+- Прод-сторож архитектуры читает файл, который синхронизация не обновляет  ·  `inbox-prod-storozh-arhitektury-chitaet-fail-ko.md` · 2026-08-08
 - Прогон тестов ПЕРЕПИСЫВАЕТ три git-фикстуры сегодняшней датой: самообновляющаяся фикстура протухнуть не может  ·  `inbox-progon-testov-perepisyvaet-tri-git-fikst.md` · 2026-08-13
 - Простой капитала снова НЕ объяснён: 10% при закрытой карточке «объяснён полностью» — нарушение действующего правила ADR-055  ·  `inbox-prostoi-kapitala-snova-ne-obyasnen-10-pr.md` · 2026-08-07
 - Провал доставки карточек некому повторить — и через два часа он сам станет зелёным  ·  `inbox-proval-dostavki-kartochek-nekomu-povtori.md` · 2026-08-12
@@ -241,9 +252,11 @@ _Пусто — открытых решений на владельце нет._
 - Страж ADR-номеров ложно краснеет: не видит INDEX среди доставляемых файлов  ·  `inbox-strazh-adr-nomerov-lozhno-krasneet-ne-vi.md` · 2026-08-09
 - Страж перезаписи считает переименование заголовка потерей записи — и его список «что пропадёт» неполон  ·  `inbox-strazh-perezapisi-schitaet-pereimenovani.md` · 2026-08-07
 - Сухой прогон уведомления (--check) пишет в живой реестр решений владельца  ·  `inbox-suhoi-progon-uvedomleniya-check-pishet-v.md` · 2026-08-09
+- Свести две реализации перезаполнения бюджета в одну (ADR-072 vs версия параллельной сессии)  ·  `inbox-svesti-dve-realizatsii-perezapolneniya-b.md` · 2026-08-08
 - Свежесть артефактов молчит там, где обязана краснеть: пустое дерево получает artifacts_overdue=[] вместо вердикта  ·  `inbox-svezhest-artefaktov-molchit-tam-gde-obya.md` · 2026-08-09
 - Так почини  ·  `inbox-tak-pochini.md` · 2026-08-08
 - Доделать ВНУТРИ дашборда — полный DeBank-вид на широкую сетку (preview)  ·  `inbox-task-dashboard-debank-inside.md` · 2026-07-15
+- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13
 - Сделать названия/ID карточек человекочитаемыми (убрать нечитаемые цифры-буквы)  ·  `inbox-task-readable-card-ids.md` · 2026-07-15
 - Команда /status в Telegram-боте — сводка системы простым языком  ·  `inbox-task-status-command.md` · 2026-07-15
 - test_agent_template_code_sync краснеет ТОЛЬКО в CI — причина не измерена  ·  `inbox-test-agent-template-code-sync-krasneet-t.md` · 2026-08-10
@@ -278,6 +291,7 @@ _Пусто — открытых решений на владельце нет._
 - задача - сделать проверку агентов и поствить в расписание и разобраться почему…  ·  `inbox-zadacha-sdelat-proverku-agentov-i-postvi.md` · 2026-08-05
 - Задача, смотри, после того, как ты починил Telegram-бот и перестала мне слать,  ·  `inbox-zadacha-smotri-posle-togo-kak-ty-pochini.md` · 2026-08-13
 - Задча • 10% денег стоят без работы под 0% — это money-path, карточка «agent-all…  ·  `inbox-zadcha-10-deneg-stoyat-bez-raboty-pod-0.md` · 2026-08-05
+- Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07
 - Записи журнала за 16 циклов стёрты — и восстановимы из git-истории (кран #139 закрыл, лужу нет)  ·  `inbox-zapisi-zhurnala-za-16-tsiklov-sterty-i-v.md` · 2026-08-07
 - Журнал циклов молча теряет записи при конкурентной доставке — за неделю пропало 9 (восстановлены)  ·  `inbox-zhurnal-tsiklov-molcha-teryaet-zapisi-pr.md` · 2026-08-06
 ### · new
@@ -288,23 +302,15 @@ _Пусто — открытых решений на владельце нет._
 - ADR-070.12: BTS честный порог, затем включить TG  ·  `inbox-adr-070-12-bts-chestnyi-porog-zatem-vkly.md` · 2026-08-07
 - ADR-070.13: тревогу core-agent-down гасит agent_health  ·  `inbox-adr-070-13-trevogu-core-agent-down-gasit.md` · 2026-08-07
 - ADR-070.14: governance watchlist = наш вайтлист  ·  `inbox-adr-070-14-governance-watchlist-nash-vai.md` · 2026-08-07
-- ADR-070.16: go-live блокируют только активные дыры  ·  `inbox-adr-070-16-go-live-blokiruyut-tolko-akti.md` · 2026-08-07
 - ADR-070.17-18: frax удалить, notional_v3 вывести  ·  `inbox-adr-070-17-18-frax-udalit-notional-v3-vy.md` · 2026-08-07
 - ADR-070.2: канон трека коммитится циклом  ·  `inbox-adr-070-2-kanon-treka-kommititsya-tsiklo.md` · 2026-08-07
 - ADR-070.20: CLMM research + хедж-форма (ADR risk-слоя)  ·  `inbox-adr-070-20-clmm-research-hedzh-forma-adr.md` · 2026-08-07
-- ADR-070.21: paper-модуль CDR #39 (демоушен+отложенный возврат)  ·  `inbox-adr-070-21-paper-modul-cdr-39-demoushen.md` · 2026-08-07
-- ADR-070.22: paper-модуль dwell-защёлки  ·  `inbox-adr-070-22-paper-modul-dwell-zaschelki.md` · 2026-08-07
-- ADR-070.3: owner-gate класс «ежедневный снимок трека»  ·  `inbox-adr-070-3-owner-gate-klass-ezhednevnyi-s.md` · 2026-08-07
 - ADR-070.5: перенести 3 гарантии дубля в живой мост  ·  `inbox-adr-070-5-perenesti-3-garantii-dublya-v.md` · 2026-08-07
-- ADR-070.6: morpho_steakhouse = оценка morpho_blue  ·  `inbox-adr-070-6-morpho-steakhouse-otsenka-morp.md` · 2026-08-07
 - ADR-072 не сработал: трим происходит в АЛЛОКАТОРЕ, не в гейте — кэш всё ещё 25%  ·  `inbox-adr-072-ne-srabotal-trim-proishodit-v-al.md` · 2026-08-08
 - ADR-076.3: атрибуция кэша обязана назвать лимит цепочки вместо UNEXPLAINED  ·  `inbox-adr-076-3-atributsiya-kesha-obyazana-naz.md` · 2026-08-08
 - ADR-089 п.2: применить правило ADR-055 (ниже медианы — не максить потолок) в расчёте весов, сначала в shadow  ·  `inbox-adr-087-p-2-primenit-pravilo-adr-055-niz.md` · 2026-08-15
 - ADR-089 п.3: свести два пути APY к одному определению (aave_v3 4.80 против 2.36)  ·  `inbox-adr-087-p-3-svesti-dva-puti-apy-k-odnomu.md` · 2026-08-15
-- ALLOC-002-отбор: топ-8 по весу беднит книгу — отбирать ПОСЛЕ evidence/TVL-гейта  ·  `inbox-alloc-002-otbor-top-8-po-vesu-bednit-kni.md` · 2026-08-08
-- Демоушен книг Aggressive по ОТНОСИТЕЛЬНОМУ рангу (решение владельца 09.08, вариант A)  ·  `inbox-demoushen-knig-aggressive-po-otnositelno.md` · 2026-08-09
 - Длинный документ владельца приехал СЕМЬЮ карточками, и шесть из них — не задачи, а куски предложений  ·  `inbox-dlinnyi-dokument-vladeltsa-priehal-semyu.md` · 2026-08-13
-- Долгоживущие агенты не подхватывают доставленный код — и никто об этом не говорит  ·  `inbox-dolgozhivuschie-agenty-ne-podhvatyvayut.md` · 2026-08-08
 - Два предписанных прогона рядом морят друг друга: приёмка «мой vs контроль» параллельно почти не движется  ·  `inbox-dva-predpisannyh-progona-ryadom-drug-druga-morya.md` · 2026-08-14
 - Два разных реестра адаптеров носят ОДНО имя ADAPTER_REGISTRY: 36 кортежей против 22-dict, пересечение 13, aave_v3 против aave_usdc  ·  `inbox-dva-raznyh-reestra-adapterov-nosyat-odno.md` · 2026-08-12
 - Две записи о деньгах расходятся каждый день — найти и починить ПРИЧИНУ (решение владельца 10.08, вариант 1)  ·  `inbox-dve-zapisi-o-dengah-rashodyatsya-kazhdyi.md` · 2026-08-10
@@ -315,9 +321,6 @@ _Пусто — открытых решений на владельце нет._
 - Модуль bot_commands заменён, но жив: свой getUpdates-поллер и свои двери в чат  ·  `inbox-modul-bot-commands-zamenen-no-zhiv-svoi.md` · 2026-08-13
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
 - Находка петли: аналитик red_team: CRITICAL — требует реакции (карточка/решение), не п  ·  `inbox-nahodka-petli-analitik-red-team-critical.md` · 2026-08-10
-- Находка петли: манифест ↔ факты: manifest --check вернул дрейф (см. build_architectur  ·  `inbox-nahodka-petli-manifest-fakty-manifest-ch.md` · 2026-08-15
-- Находка петли: возможность fluid_fusdc 5.03% (evidence L3) доступна книге, не держитс  ·  `inbox-nahodka-petli-vozmozhnost-fluid-fusdc-5.md` · 2026-08-13
-- Находка петли: возможность moonwell_base 10.7382% (evidence L3) доступна книге, не де  ·  `inbox-nahodka-petli-vozmozhnost-moonwell-base.md` · 2026-08-14
 - Номер ADR-067 занят ДВУМЯ разными решениями — реестр показывает две строки  ·  `inbox-nomer-adr-067-zanyat-dvumya-raznymi-resh.md` · 2026-08-07
 - Окно до 6 часов: ответ владельца между нажатием кнопки и прогоном моста живёт в одном экземпляре  ·  `inbox-okno-do-6-chasov-otvet-vladeltsa-mezhdu.md` · 2026-08-15
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08
@@ -326,28 +329,23 @@ _Пусто — открытых решений на владельце нет._
 - Оживить фиды вне Ethereum — путь к снятию остатка кэша (решение владельца 08.08)  ·  `inbox-ozhivit-fidy-vne-ethereum-put-k-snyatiyu.md` · 2026-08-08
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
 - Подготовить ADR: пересмотр лимита одной цепочки 90% (решение владельца — за ним)  ·  `inbox-podgotovit-adr-peresmotr-limita-odnoi-ts.md` · 2026-08-08
-- Прод-сторож архитектуры читает файл, который синхронизация не обновляет  ·  `inbox-prod-storozh-arhitektury-chitaet-fail-ko.md` · 2026-08-08
 - Сбалансированный трек: ноль профинансированных дней из 40 при 920 отработанных циклах  ·  `inbox-sbalansirovannyi-trek-nol-profinansirova.md` · 2026-08-08
 - Снятая остановка живёт в git: восстановление из резерва поднимет прод уже остановленным  ·  `inbox-snyataya-ostanovka-zhivet-v-git-vosstano.md` · 2026-08-10
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
 - Строка Risk Gate дневного лимита убытка жила только в отключённом скрипте — в отчёт владельцу она не переехала  ·  `inbox-stroka-risk-gate-dnevnogo-limita-ubytka.md` · 2026-08-14
-- Свести две реализации перезаполнения бюджета в одну (ADR-072 vs версия параллельной сессии)  ·  `inbox-svesti-dve-realizatsii-perezapolneniya-b.md` · 2026-08-08
 - Табличка честности: дать ей дорогу на сайт (решение владельца 09.08)  ·  `inbox-tablichka-chestnosti-dat-ei-dorogu-na-sa.md` · 2026-08-08
-- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13
 - Тест GSM Sky приколочен к до-ADR-065 состоянию  ·  `inbox-test-gsm-sky-prikolochen-k-do-adr-065-so.md` · 2026-08-07
 - Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md` · 2026-08-06 · 🔒 `cycle-87477`
 - Три рабочих дерева держат недоставленную работу — поднять или осознанно списать  ·  `inbox-tri-rabochih-dereva-derzhat-nedostavlenn.md` · 2026-08-14
 - У own-34 остался ЖИВОЙ вопрос владельцу, и он не доехал: измерить остаток и отправить по §2.4  ·  `inbox-u-own-34-ostalsya-zhivoi-vopros-vladelts.md` · 2026-08-10
 - Весь поддомен checkup.earn-defi.com отдаёт 404 — с главной публично ведут битые ссылки, и job site-freshness красный всегда  ·  `inbox-ves-poddomen-checkup-earn-defi-com-otdae.md` · 2026-08-14
 - Замер обмена «доходность ↔ концентрация» на T2 (20/25/30%) — решение владельца A, задачи не было  ·  `inbox-zamer-obmena-dohodnost-kontsentratsiya-n.md` · 2026-08-08
-- Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07 · 🔒 `cycle-81141`
 
 ## 🤖 Agent Tasks (что делает агент)  (105)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
 - Чистка репо (мёртвый код) фазами  ·  `agent-cleanup.md` · 2026-07-16
-- Q&A бэклог (12 ответов) + видимость задач  ·  `agent-qa-backlog.md` · 2026-07-16
 ### · backlog
 - Аллокатор слеп к лимиту сети — предлагает 95 % на Ethereum, и гейт блокирует ВСЮ раскладку  ·  `agent-allocator-slep-k-limitu-seti.md` · 2026-08-08
 - Правка чужой карточки запирает её на 3 часа — даже когда сессия прямо назвала в объявлении ДРУГУЮ карточку  ·  `agent-card-file-in-ownership-locks-a-card-it-doesnt-claim.md` · 2026-08-01
@@ -359,10 +357,8 @@ _Пусто — открытых решений на владельце нет._
 - Подстановка выдуманного APY живёт ещё в 15 адаптерах — у 14 она доходит до оркестратора  ·  `agent-fake-fallback-v-15-adapterah.md` · 2026-08-08
 - Панель идеи #17 на 6 книгах из 10 состоит из неподвижных марок — кросс-секцию на ней измерить нельзя  ·  `agent-idea17-needs-a-panel-with-daily-marks.md` · 2026-08-02
 - protocol_insurance_scorer выбрасывает ИЗВЕСТНОЕ страховое покрытие и объявляет его нулём  ·  `agent-insurance-scorer-otbrasyvaet-izvestnoe-pokrytie.md` · 2026-08-08
-- morpho_steakhouse — 40 % книги — отсутствует в реестре риск-скоров, и три теста краснеют на main из-за этого  ·  `agent-morpho-steakhouse-bez-risk-score.md` · 2026-08-08
 - Осиротевшая работа вернулась после закрытия своей карточки — циклы #97 и #98 умерли не доставив, второй прямо на подъёме работы первого  ·  `agent-orphaned-work-recurred-after-its-card-was-closed.md` · 2026-08-03
 - Цель аллокатора ДО гейта нигде не сохраняется — ни один вопрос «а что он просил?» не проверяем задним числом  ·  `agent-predgateovaya-tsel-ne-sohranyaetsya.md` · 2026-08-08
-- Построить advisory paper-модуль под ранговое правило демоушена (вариант C владельца 2026-08-08)  ·  `agent-rank-demotion-paper-module.md` · 2026-08-08
 - Одно число — два вердикта: portfolio health 69.4 это CRITICAL у системного сторожа и WARNING у агентного  ·  `agent-task-odno-chislo-dva-verdikta-portfolio-healt.md` · 2026-08-07
 - Права на origin нечем починить: пушер по построению сохраняет режим remote, а правило требует чинить режим на origin  ·  `agent-task-prava-na-origin-nechem-pochinit-pusher-p.md` · 2026-08-07
 - Прогон тестов пачкает git-tracked фикстуры — «чистое дерево» перестало быть сигналом  ·  `agent-test-run-dirties-tracked-fixtures.md` · 2026-08-04
@@ -408,6 +404,7 @@ _Пусто — открытых решений на владельце нет._
 - Q6: уведомления о заявках  ·  `agent-lead-pings.md` · 2026-07-16
 - Утренний дайджест отчитывается «отправлено» о сообщении, которое не ушло — и называет «тихим» день, чьи источники не смог прочитать  ·  `agent-morning-digest-claims-delivery-it-never-made.md` · 2026-08-01
 - Утренний дайджест 9:00  ·  `agent-morning-digest.md` · 2026-07-16
+- morpho_steakhouse — 40 % книги — отсутствует в реестре риск-скоров, и три теста краснеют на main из-за этого  ·  `agent-morpho-steakhouse-bez-risk-score.md` · 2026-08-08
 - Список сетевого стража копится за весь прогон — краснит охранный тест только в полной сюите  ·  `agent-network-guard-attempts-never-reset.md` · 2026-08-04
 - Офлайн-набор всё равно платит полный retry-backoff — 26 из 28 секунд теста уходят в sleep между попытками, которые не могут удаться  ·  `agent-offline-suite-still-pays-full-retry-backoff.md` · 2026-08-03
 - Отказ off-site бэкапа живого трека записывается — и не читается НИКЕМ; последний рубеж восстановления может отказывать молча  ·  `agent-offsite-backup-refusal-is-recorded-and-unread.md` · 2026-08-05
@@ -419,6 +416,8 @@ _Пусто — открытых решений на владельце нет._
 - push_to_github.py молча роняет worktree-пути в basename → файлы уезжают в корень репо  ·  `agent-push-worktree-path-collapse.md` · 2026-07-30
 - Пушер печатает OK о доставке, которую не сверял — побайтовую проверку делает только дисциплина вызывающего  ·  `agent-pusher-does-not-verify-what-it-delivered.md` · 2026-08-03
 - Относительный путь в пушере читает ХОСТ-дерево, а не дерево отправки — набор уезжает как «OK, pushed=0»  ·  `agent-pusher-relative-path-silently-reads-the-host-tree.md` · 2026-08-04
+- Q&A бэклог (12 ответов) + видимость задач  ·  `agent-qa-backlog.md` · 2026-07-16
+- Построить advisory paper-модуль под ранговое правило демоушена (вариант C владельца 2026-08-08)  ·  `agent-rank-demotion-paper-module.md` · 2026-08-08
 - Поведенческий тест на запасную ветку провенанса (долг)  ·  `agent-rationale-fallback-behavioural-test.md` · 2026-08-09
 - RTMR-сервис отчитывается «alive» после первой из трёх стадий, а сообщения об отказе двух остальных теряются в буфере навсегда  ·  `agent-rtmr-tick-failures-are-invisible.md` · 2026-08-02
 - Сессия не может взять СВОЮ карточку, если объявилась под двумя идентификаторами — каждый блокирует другой  ·  `agent-self-claim-blocked-by-own-second-identity.md` · 2026-08-01
@@ -463,20 +462,15 @@ _Пусто — открытых решений на владельце нет._
 - Аллокатор ранжирует капитал по зашитым константам, помеченным как «live» — честный провенанс APY (D1+D2)  ·  `agent-apy-evidence-provenance.md` · 2026-08-02
 - Аудит всего проекта 2026-08-02 — три параллельных трека починки (координация, НЕ дублировать)  ·  `agent-audit-2026-08-02-fix-tracks.md` · 2026-08-02
 - Портфель нарушает два инварианта прямо сейчас — 15% в advisory-протоколах и 5% в Sky/spark при запрете (D3+D4)  ·  `agent-book-violations-advisory-and-sky.md` · 2026-08-02
-- Закрыть дыры покрытия policy_enforcer — добавить проверки T2-per-protocol + chain-caps (зеркало policy.py)  ·  `agent-enforcer-coverage-gaps.md` · 2026-07-23
-- Разрыв «origin → рантайм»: фиксы уезжают на GitHub, но флот исполняет старое дерево  ·  `agent-origin-runtime-sync-gap.md` · 2026-08-03
 - БОЛЬШОЙ ПЛАН — доходность · стабильность · аналитика→9 (директива владельца 05.08)  ·  `agent-plan-yield-stability-90pct.md` · 2026-08-05
 - Вариант 2 — перевести прод на чистый чекаут origin/main (закрыть дрейф навсегда)  ·  `agent-prod-clean-checkout-variant2.md` · 2026-08-03
 ### · backlog
 - Advisory / сигнальный трек (вариант C) — отложен владельцем, держать в бэклоге  ·  `agent-advisory-signals-track-c.md` · 2026-07-23
 - 11 протоколов закрыты для капитала из-за отсутствия живого фида — вселенная выбора сужена, 10% кэша стоят под 0%  ·  `agent-blocked-protocols-need-live-feeds.md` · 2026-08-05
 - Подписка checkup отвечает ok:true, даже если письмо не отправилось — поломка жила незамеченной с июля  ·  `agent-checkup-waitlist-fail-open-ok-true.md` · 2026-08-02
-- Сверка цикла 04.08 — первый прогон на новом коде даст БОЛЬШОЙ ребаланс, это ожидаемо (не чинить)  ·  `agent-cycle-reconciliation-2026-08-04.md` · 2026-08-03
-- Найти источники данных для семи протоколов без фида (владелец выбрал «искать дальше»)  ·  `agent-find-feeds-for-seven-protocols.md` · 2026-08-05
 - Свежая полная инвентаризация флота (73 агента) — что делает / жив ли / нужен ли / расход  ·  `agent-fleet-inventory-73.md` · 2026-07-23
 - Fluid гейтится по чужому параметру — нужен собственный таймлок, а не задержка Maker  ·  `agent-fluid-timelock-source.md` · 2026-08-05
 - Нет сторожа «профинансирован протокол, которого нет в реестре» — остаточная дыра кэпов по цепочкам  ·  `agent-funded-protocol-not-in-registry.md` · 2026-08-02
-- Критерий go-live: блокируют только АКТИВНЫЕ дыры, историческая остаётся в отчёте (СТАРТ после утреннего апдейта)  ·  `agent-golive-gap-criterion.md` · 2026-08-06
 - GO-LIVE — внутридневной контроль просадки (частый, не раз в сутки)  ·  `agent-golive-intraday-drawdown-monitor.md` · 2026-07-23
 - Завести производителя gsm_hours (on-chain GSM Pause Delay) — чтобы GSM-гейт перестал быть вечным замком  ·  `agent-gsm-hours-producer.md` · 2026-08-02
 - Guard — стратегия не должна молча падать на mock, если заявленный живой адаптер не грузится  ·  `agent-guard-no-silent-mock-in-tournament.md` · 2026-07-23
@@ -492,7 +486,6 @@ _Пусто — открытых решений на владельце нет._
 - Числа на сайте и обход owner-гейта — одна причина, чинить вместе (СТАРТ после утреннего апдейта)  ·  `agent-site-numbers-and-gate.md` · 2026-08-06
 - spark_susds наблюдает чужой инструмент (sparklend lending vs sUSDS vault) — развести идентичности до допуска Sky  ·  `agent-spark-susds-identity-split.md` · 2026-08-05
 - Тесты ходят в живую сеть (Telegram + аналитика) — полный набор не проходит целиком, когда сеть медленная  ·  `agent-tests-do-live-network-io.md` · 2026-08-02
-- 222 теста дёргают живой фид — 9 268 отказов за прогон; набор зелёный по неверной причине  ·  `agent-tests-reach-live-feed-222.md` · 2026-08-08
 - Сделать турнир стратегий ДОВЕРЯЕМЫМ — ранжировать по net-of-cost APY на реальных исторических данных (не Sharpe на mock)  ·  `agent-tournament-trustworthy-real-apy.md` · 2026-07-23
 - Guard — track-данные в git не должны молча протухать / молча пропускаться в CI  ·  `agent-track-data-git-durability-guard.md` · 2026-07-23
 - Constraints тюнера не зеркалят RiskPolicy + расхождение фидов по pendle (D5+D6)  ·  `agent-tuner-constraints-drift-and-feed-divergence.md` · 2026-08-02
@@ -504,17 +497,23 @@ _Пусто — открытых решений на владельце нет._
 - AUD-18 — пять доходных стратегий турнира без собственных тестов (замер показал другой пробел, чем в задании)  ·  `agent-aud18-strategy-unit-tests.md` · 2026-08-05
 - Проверка целостности резерва гонится с перегенерацией артефактов — «порча», которой нет  ·  `agent-backup-integrity-races-the-cycle.md` · 2026-08-05
 - Буфер обмена подсунул текст, замаскированный под системные инструкции — разбор и правило  ·  `agent-clipboard-injection-incident-2026-08-02.md` · 2026-08-02
+- Сверка цикла 04.08 — первый прогон на новом коде даст БОЛЬШОЙ ребаланс, это ожидаемо (не чинить)  ·  `agent-cycle-reconciliation-2026-08-04.md` · 2026-08-03
 - Прод крутит код на 409 коммитов старше origin — разрыв «запушено → выполняется» никто не проверял  ·  `agent-deployment-drift-guard.md` · 2026-08-03
+- Закрыть дыры покрытия policy_enforcer — добавить проверки T2-per-protocol + chain-caps (зеркало policy.py)  ·  `agent-enforcer-coverage-gaps.md` · 2026-07-23
 - Сетевая икота фида может эвакуировать книгу в кэш — нужна политика устаревания вместо «есть/нет»  ·  `agent-feed-staleness-policy.md` · 2026-08-04
+- Найти источники данных для семи протоколов без фида (владелец выбрал «искать дальше»)  ·  `agent-find-feeds-for-seven-protocols.md` · 2026-08-05
 - Храповик литеральных дат КРАСНЫЙ на main — два новых тест-файла волны 1 (A1) вошли в закрытый класс  ·  `agent-frozen-date-ratchet-red-on-main.md` · 2026-08-05
+- Критерий go-live: блокируют только АКТИВНЫЕ дыры, историческая остаётся в отчёте (СТАРТ после утреннего апдейта)  ·  `agent-golive-gap-criterion.md` · 2026-08-06
 - Простой 15 % капитала объяснён — блокировки покрывают его полностью, с разбивкой по протоколам  ·  `agent-idle-cash-quantified.md` · 2026-08-05
 - Красный тест: страховой скоринг не отказывает при отсутствующем TVL  ·  `agent-insurance-scorer-missing-tvl.md` · 2026-08-05
 - Тревога о стоп-кране обязана доходить — чинить сейчас, пока запас есть (СТАРТ после утреннего апдейта)  ·  `agent-killswitch-alert-path.md` · 2026-08-06
 - Решения владельца приходили без кнопок, а кнопка вела в никуда — обе половины починены  ·  `agent-knopki-resheniy-ne-doehali-i-ne-nazhimayutsya.md` · 2026-08-10
 - Оживить живой TVL/фид morpho-семейства (own-29 вариант 1, дедлайн 2026-08-08)  ·  `agent-morpho-feed-revival.md` · 2026-08-05
 - НЕ ВОСПРОИЗВОДИТСЯ — два offsite-падения оказались разовыми, моё утверждение о порядке снято  ·  `agent-offsite-tests-order-dependent.md` · 2026-08-06
+- Разрыв «origin → рантайм»: фиксы уезжают на GitHub, но флот исполняет старое дерево  ·  `agent-origin-runtime-sync-gap.md` · 2026-08-03
 - У реестра агентов нет продюсера — он протух на 475 часов и никто не заметил  ·  `agent-registry-has-no-producer.md` · 2026-08-05
 - Учение по восстановлению проверяет ОДИН архив из двух серий — умерший производитель бэкапов останется невидим за зелёным all_ok  ·  `agent-restore-drill-single-series-blind.md` · 2026-08-05
+- 222 теста дёргают живой фид — 9 268 отказов за прогон; набор зелёный по неверной причине  ·  `agent-tests-reach-live-feed-222.md` · 2026-08-08
 - Дыра в треке разобрана — не 14 дней, а 2; сторож дыр был слеп по построению  ·  `agent-track-hole-rootcause.md` · 2026-08-05
 - Проверка порога TVL в 11 адаптерах тождественно истинна — считается от зашитой константы  ·  `agent-tvl-floor-constant-true.md` · 2026-08-05
 - TVL-floor проходят по литералу $50M — правило «только живой TVL» ссылается на поле, которого никто не пишет  ·  `agent-tvl-floor-passes-on-literals.md` · 2026-08-02

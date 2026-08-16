@@ -27,36 +27,6 @@
     "best_supply_market": "Aave:USDC",
     "cheapest_borrow_market": "Aave:USDC",
     "average_spread_pct": 2.0,
-    "timestamp": 1785833223.2140546
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 65,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
     "timestamp": 1785833223.2209692
   },
   {
@@ -3102,6 +3072,31 @@
       "inefficient_count": 0,
       "wide_spread_count": 0,
       "tight_count": 0,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1786872549.3335302,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
       "high_utilization_risk_count": 0
     }
   }

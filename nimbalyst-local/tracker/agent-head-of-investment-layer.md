@@ -35,3 +35,29 @@ ADR принят; первый кирпич (yield-триггер) в проде
 ## Что будет после
 
 Разбивка на подзадачи по 4 ролям после промоушена. Блокирует полноценную «умную» аллокацию к go-live.
+
+---
+
+## Волна 0 триажа, 16.08 — что эта карточка теперь покрывает
+
+Схлопнута сюда (кластер К14 `docs/BACKLOG_TRIAGE_2026-08-16.md`, переведена в `done`, с диска
+не удалена):
+
+- **`inbox-task-portfolio-cio-dynamic-capital-alloc`** — «TASK — Portfolio CIO: Dynamic
+  Capital Allocation & Rebalancing», подробная спецификация владельца из Телеграма к ролям
+  3 и 4 этой карточки (максимизаторы доходности + решающий). Требует: net expected return
+  вместо raw APY, учёт стоимости ребаланса / gas / slippage / exit cost, устойчивость APY
+  (transient spikes не вызывают сделок), влияние размера позиции, невозможность обойти
+  Risk Policy, детерминизм. Полный текст задания — в теле схлопнутой карточки.
+
+**Цепочка ссылок интейка ведёт сюда.** Шесть мусорных карточек, на которые интейк разорвал
+тот же документ владельца (`inbox-why-it-exists`, `inbox-actual-costs`,
+`inbox-apy-persistence-confidence`, `inbox-100-zapuskov-na-odnom-snapshot`,
+`inbox-dlya-kazhdogo-etapa-pokazat`, `inbox-esli-tot-zhe-target-mozhno-priblizit-pro`),
+уже закрыты; они адресуются к `inbox-task-portfolio-cio-dynamic-capital-alloc`, а та — сюда.
+
+**Уже принятое по теме, чтобы не переделывать:**
+`docs/decisions/ADR-088-portfolio-cio-advisory-layer.md` и
+`ADR-089-portfolio-cio-followups-2026-08-15.md` — Portfolio CIO остаётся на ступени SHADOW
+до эвиденса на живых данных; правило ADR-055 «ниже медианы — не максить потолок» применяется
+в расчёте весов СНАЧАЛА в shadow и зависит от сведения двух путей APY.

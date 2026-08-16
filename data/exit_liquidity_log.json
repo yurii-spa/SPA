@@ -2,1430 +2,6 @@
   {
     "positions": [
       {
-        "protocol": "AaveV3",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 200.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 200% of position."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 100.0,
-    "timestamp": 1785661891.5240254
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Queue",
-        "position_usd": 30000.0,
-        "exit_fee_usd": 150.0,
-        "net_exit_value_usd": 29850.0,
-        "estimated_exit_days": 8.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 30,
-        "exit_label": "SLOW",
-        "market_depth_coverage_pct": 16.666666666666664,
-        "bottleneck": "DAILY_LIMIT",
-        "recommendation": "Exit takes 8d (>target 7d). Reduce position or wait."
-      }
-    ],
-    "instantly_exitable_usd": 0,
-    "total_position_usd": 30000.0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": "Queue",
-    "average_exit_liquidity_score": 30.0,
-    "timestamp": 1785661891.5273824
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Queue",
-        "position_usd": 30000.0,
-        "exit_fee_usd": 150.0,
-        "net_exit_value_usd": 29850.0,
-        "estimated_exit_days": 8.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 30,
-        "exit_label": "SLOW",
-        "market_depth_coverage_pct": 16.666666666666664,
-        "bottleneck": "DAILY_LIMIT",
-        "recommendation": "Exit takes 8d (>target 7d). Reduce position or wait."
-      }
-    ],
-    "instantly_exitable_usd": 0,
-    "total_position_usd": 30000.0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": "Queue",
-    "average_exit_liquidity_score": 30.0,
-    "timestamp": 1785661891.530659
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Queue",
-        "position_usd": 30000.0,
-        "exit_fee_usd": 150.0,
-        "net_exit_value_usd": 29850.0,
-        "estimated_exit_days": 8.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 30,
-        "exit_label": "SLOW",
-        "market_depth_coverage_pct": 16.666666666666664,
-        "bottleneck": "DAILY_LIMIT",
-        "recommendation": "Exit takes 8d (>target 7d). Reduce position or wait."
-      }
-    ],
-    "instantly_exitable_usd": 0,
-    "total_position_usd": 30000.0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": "Queue",
-    "average_exit_liquidity_score": 30.0,
-    "timestamp": 1785661891.5339866
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Queue",
-        "position_usd": 30000.0,
-        "exit_fee_usd": 150.0,
-        "net_exit_value_usd": 29850.0,
-        "estimated_exit_days": 8.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 30,
-        "exit_label": "SLOW",
-        "market_depth_coverage_pct": 16.666666666666664,
-        "bottleneck": "DAILY_LIMIT",
-        "recommendation": "Exit takes 8d (>target 7d). Reduce position or wait."
-      }
-    ],
-    "instantly_exitable_usd": 0,
-    "total_position_usd": 30000.0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": "Queue",
-    "average_exit_liquidity_score": 30.0,
-    "timestamp": 1785661891.5372422
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Queue",
-        "position_usd": 30000.0,
-        "exit_fee_usd": 150.0,
-        "net_exit_value_usd": 29850.0,
-        "estimated_exit_days": 8.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 30,
-        "exit_label": "SLOW",
-        "market_depth_coverage_pct": 16.666666666666664,
-        "bottleneck": "DAILY_LIMIT",
-        "recommendation": "Exit takes 8d (>target 7d). Reduce position or wait."
-      }
-    ],
-    "instantly_exitable_usd": 0,
-    "total_position_usd": 30000.0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": "Queue",
-    "average_exit_liquidity_score": 30.0,
-    "timestamp": 1785661891.5404725
-  },
-  {
-    "positions": [
-      {
-        "protocol": "X",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 1.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 90,
-        "exit_label": "FAST",
-        "market_depth_coverage_pct": 200.0,
-        "bottleneck": "QUEUE",
-        "recommendation": "Exit available quickly. Monitor queue size."
-      }
-    ],
-    "instantly_exitable_usd": 0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": "X",
-    "average_exit_liquidity_score": 90.0,
-    "timestamp": 1785661891.54282
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Aave",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 400.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 400% of position."
-      },
-      {
-        "protocol": "Maple",
-        "position_usd": 30000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 30000.0,
-        "estimated_exit_days": 90.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 17,
-        "exit_label": "LOCKED",
-        "market_depth_coverage_pct": 33.33333333333333,
-        "bottleneck": "LOCK_UP",
-        "recommendation": "Locked for 90d. Plan around lock expiry."
-      },
-      {
-        "protocol": "Queue",
-        "position_usd": 30000.0,
-        "exit_fee_usd": 150.0,
-        "net_exit_value_usd": 29850.0,
-        "estimated_exit_days": 8.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 30,
-        "exit_label": "SLOW",
-        "market_depth_coverage_pct": 16.666666666666664,
-        "bottleneck": "DAILY_LIMIT",
-        "recommendation": "Exit takes 8d (>target 7d). Reduce position or wait."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 110000.0,
-    "liquidity_ratio_pct": 45.45454545454545,
-    "most_locked": "Maple",
-    "average_exit_liquidity_score": 49.0,
-    "timestamp": 1785661891.546168
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Aave",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 400.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 400% of position."
-      },
-      {
-        "protocol": "Maple",
-        "position_usd": 30000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 30000.0,
-        "estimated_exit_days": 90.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 17,
-        "exit_label": "LOCKED",
-        "market_depth_coverage_pct": 33.33333333333333,
-        "bottleneck": "LOCK_UP",
-        "recommendation": "Locked for 90d. Plan around lock expiry."
-      },
-      {
-        "protocol": "Queue",
-        "position_usd": 30000.0,
-        "exit_fee_usd": 150.0,
-        "net_exit_value_usd": 29850.0,
-        "estimated_exit_days": 8.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 30,
-        "exit_label": "SLOW",
-        "market_depth_coverage_pct": 16.666666666666664,
-        "bottleneck": "DAILY_LIMIT",
-        "recommendation": "Exit takes 8d (>target 7d). Reduce position or wait."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 110000.0,
-    "liquidity_ratio_pct": 45.45454545454545,
-    "most_locked": "Maple",
-    "average_exit_liquidity_score": 49.0,
-    "timestamp": 1785661891.5495813
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Aave",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 400.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 400% of position."
-      },
-      {
-        "protocol": "Maple",
-        "position_usd": 30000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 30000.0,
-        "estimated_exit_days": 90.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 17,
-        "exit_label": "LOCKED",
-        "market_depth_coverage_pct": 33.33333333333333,
-        "bottleneck": "LOCK_UP",
-        "recommendation": "Locked for 90d. Plan around lock expiry."
-      },
-      {
-        "protocol": "Queue",
-        "position_usd": 30000.0,
-        "exit_fee_usd": 150.0,
-        "net_exit_value_usd": 29850.0,
-        "estimated_exit_days": 8.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 30,
-        "exit_label": "SLOW",
-        "market_depth_coverage_pct": 16.666666666666664,
-        "bottleneck": "DAILY_LIMIT",
-        "recommendation": "Exit takes 8d (>target 7d). Reduce position or wait."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 110000.0,
-    "liquidity_ratio_pct": 45.45454545454545,
-    "most_locked": "Maple",
-    "average_exit_liquidity_score": 49.0,
-    "timestamp": 1785661891.5529597
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Aave",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 400.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 400% of position."
-      },
-      {
-        "protocol": "Maple",
-        "position_usd": 30000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 30000.0,
-        "estimated_exit_days": 90.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 17,
-        "exit_label": "LOCKED",
-        "market_depth_coverage_pct": 33.33333333333333,
-        "bottleneck": "LOCK_UP",
-        "recommendation": "Locked for 90d. Plan around lock expiry."
-      },
-      {
-        "protocol": "Queue",
-        "position_usd": 30000.0,
-        "exit_fee_usd": 150.0,
-        "net_exit_value_usd": 29850.0,
-        "estimated_exit_days": 8.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 30,
-        "exit_label": "SLOW",
-        "market_depth_coverage_pct": 16.666666666666664,
-        "bottleneck": "DAILY_LIMIT",
-        "recommendation": "Exit takes 8d (>target 7d). Reduce position or wait."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 110000.0,
-    "liquidity_ratio_pct": 45.45454545454545,
-    "most_locked": "Maple",
-    "average_exit_liquidity_score": 49.0,
-    "timestamp": 1785661891.5563262
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Aave",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 400.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 400% of position."
-      },
-      {
-        "protocol": "Maple",
-        "position_usd": 30000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 30000.0,
-        "estimated_exit_days": 90.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 17,
-        "exit_label": "LOCKED",
-        "market_depth_coverage_pct": 33.33333333333333,
-        "bottleneck": "LOCK_UP",
-        "recommendation": "Locked for 90d. Plan around lock expiry."
-      },
-      {
-        "protocol": "Queue",
-        "position_usd": 30000.0,
-        "exit_fee_usd": 150.0,
-        "net_exit_value_usd": 29850.0,
-        "estimated_exit_days": 8.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 30,
-        "exit_label": "SLOW",
-        "market_depth_coverage_pct": 16.666666666666664,
-        "bottleneck": "DAILY_LIMIT",
-        "recommendation": "Exit takes 8d (>target 7d). Reduce position or wait."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 110000.0,
-    "liquidity_ratio_pct": 45.45454545454545,
-    "most_locked": "Maple",
-    "average_exit_liquidity_score": 49.0,
-    "timestamp": 1785661891.5596912
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Aave",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 400.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 400% of position."
-      },
-      {
-        "protocol": "Maple",
-        "position_usd": 30000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 30000.0,
-        "estimated_exit_days": 90.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 17,
-        "exit_label": "LOCKED",
-        "market_depth_coverage_pct": 33.33333333333333,
-        "bottleneck": "LOCK_UP",
-        "recommendation": "Locked for 90d. Plan around lock expiry."
-      },
-      {
-        "protocol": "Queue",
-        "position_usd": 30000.0,
-        "exit_fee_usd": 150.0,
-        "net_exit_value_usd": 29850.0,
-        "estimated_exit_days": 8.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 30,
-        "exit_label": "SLOW",
-        "market_depth_coverage_pct": 16.666666666666664,
-        "bottleneck": "DAILY_LIMIT",
-        "recommendation": "Exit takes 8d (>target 7d). Reduce position or wait."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 110000.0,
-    "liquidity_ratio_pct": 45.45454545454545,
-    "most_locked": "Maple",
-    "average_exit_liquidity_score": 49.0,
-    "timestamp": 1785661891.5631485
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Aave",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 400.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 400% of position."
-      },
-      {
-        "protocol": "Maple",
-        "position_usd": 30000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 30000.0,
-        "estimated_exit_days": 90.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 17,
-        "exit_label": "LOCKED",
-        "market_depth_coverage_pct": 33.33333333333333,
-        "bottleneck": "LOCK_UP",
-        "recommendation": "Locked for 90d. Plan around lock expiry."
-      },
-      {
-        "protocol": "Queue",
-        "position_usd": 30000.0,
-        "exit_fee_usd": 150.0,
-        "net_exit_value_usd": 29850.0,
-        "estimated_exit_days": 8.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 30,
-        "exit_label": "SLOW",
-        "market_depth_coverage_pct": 16.666666666666664,
-        "bottleneck": "DAILY_LIMIT",
-        "recommendation": "Exit takes 8d (>target 7d). Reduce position or wait."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 110000.0,
-    "liquidity_ratio_pct": 45.45454545454545,
-    "most_locked": "Maple",
-    "average_exit_liquidity_score": 49.0,
-    "timestamp": 1785661891.5665603
-  },
-  {
-    "positions": [
-      {
-        "protocol": "AaveV3",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 200.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 200% of position."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 100.0,
-    "timestamp": 1785661891.5700903
-  },
-  {
-    "positions": [
-      {
-        "protocol": "AaveV3",
-        "position_usd": 100000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 100000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 80,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 10.0,
-        "bottleneck": "MARKET_DEPTH",
-        "recommendation": "Immediate exit available. Depth covers 10% of position."
-      }
-    ],
-    "instantly_exitable_usd": 100000.0,
-    "total_position_usd": 100000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 80.0,
-    "timestamp": 1785661891.5735486
-  },
-  {
-    "positions": [
-      {
-        "protocol": "AaveV3",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 95,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 100.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 100% of position."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 95.0,
-    "timestamp": 1785661891.5770614
-  },
-  {
-    "positions": [
-      {
-        "protocol": "AaveV3",
-        "position_usd": 0.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 0.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 80,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 0.0,
-        "bottleneck": "MARKET_DEPTH",
-        "recommendation": "Immediate exit available. Depth covers 0% of position."
-      }
-    ],
-    "instantly_exitable_usd": 0.0,
-    "total_position_usd": 0.0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 80.0,
-    "timestamp": 1785661891.5805135
-  },
-  {
-    "positions": [
-      {
-        "protocol": "X",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 10.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 50,
-        "exit_label": "SLOW",
-        "market_depth_coverage_pct": 200.0,
-        "bottleneck": "DAILY_LIMIT",
-        "recommendation": "Exit takes 10d (>target 3d). Reduce position or wait."
-      }
-    ],
-    "instantly_exitable_usd": 0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": "X",
-    "average_exit_liquidity_score": 50.0,
-    "timestamp": 1785661891.5840755
-  },
-  {
-    "positions": [
-      {
-        "protocol": "X",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 10.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 75,
-        "exit_label": "MODERATE",
-        "market_depth_coverage_pct": 200.0,
-        "bottleneck": "DAILY_LIMIT",
-        "recommendation": "1-15d exit window. Queue: 50000 USD ahead."
-      }
-    ],
-    "instantly_exitable_usd": 0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": "X",
-    "average_exit_liquidity_score": 75.0,
-    "timestamp": 1785661891.586635
-  },
-  {
-    "positions": [
-      {
-        "protocol": "X",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 10.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 50,
-        "exit_label": "SLOW",
-        "market_depth_coverage_pct": 200.0,
-        "bottleneck": "DAILY_LIMIT",
-        "recommendation": "Exit takes 10d (>target 7d). Reduce position or wait."
-      }
-    ],
-    "instantly_exitable_usd": 0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": "X",
-    "average_exit_liquidity_score": 50.0,
-    "timestamp": 1785661891.5901048
-  },
-  {
-    "positions": [
-      {
-        "protocol": "AaveV3",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 200.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 200% of position."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 100.0,
-    "timestamp": 1785661891.5936766
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Aave",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 400.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 400% of position."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 100.0,
-    "timestamp": 1785661891.5972636
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Aave",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 400.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 400% of position."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 100.0,
-    "timestamp": 1785661891.6007514
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Aave",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 400.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 400% of position."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 100.0,
-    "timestamp": 1785661891.6042228
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Aave",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 400.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 400% of position."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 100.0,
-    "timestamp": 1785661891.6077
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Aave",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 400.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 400% of position."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 100.0,
-    "timestamp": 1785661891.611234
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Aave",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 400.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 400% of position."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 100.0,
-    "timestamp": 1785661891.6147537
-  },
-  {
-    "positions": [
-      {
-        "protocol": "A",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 30.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 40,
-        "exit_label": "LOCKED",
-        "market_depth_coverage_pct": 200.0,
-        "bottleneck": "LOCK_UP",
-        "recommendation": "Locked for 30d. Plan around lock expiry."
-      },
-      {
-        "protocol": "B",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 60.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 32,
-        "exit_label": "LOCKED",
-        "market_depth_coverage_pct": 200.0,
-        "bottleneck": "LOCK_UP",
-        "recommendation": "Locked for 60d. Plan around lock expiry."
-      }
-    ],
-    "instantly_exitable_usd": 0,
-    "total_position_usd": 100000.0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": "B",
-    "average_exit_liquidity_score": 36.0,
-    "timestamp": 1785661891.6685107
-  },
-  {
-    "positions": [
-      {
-        "protocol": "X",
-        "position_usd": 10000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 10000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 80,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 0.0,
-        "bottleneck": "MARKET_DEPTH",
-        "recommendation": "Immediate exit available. Depth covers 0% of position."
-      }
-    ],
-    "instantly_exitable_usd": 10000.0,
-    "total_position_usd": 10000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 80.0,
-    "timestamp": 1785661891.6720457
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Short",
-        "position_usd": 10000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 10000.0,
-        "estimated_exit_days": 10.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 40,
-        "exit_label": "LOCKED",
-        "market_depth_coverage_pct": 1000.0,
-        "bottleneck": "LOCK_UP",
-        "recommendation": "Locked for 10d. Plan around lock expiry."
-      },
-      {
-        "protocol": "Long",
-        "position_usd": 10000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 10000.0,
-        "estimated_exit_days": 180.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 28,
-        "exit_label": "LOCKED",
-        "market_depth_coverage_pct": 1000.0,
-        "bottleneck": "LOCK_UP",
-        "recommendation": "Locked for 180d. Plan around lock expiry."
-      }
-    ],
-    "instantly_exitable_usd": 0,
-    "total_position_usd": 20000.0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": "Long",
-    "average_exit_liquidity_score": 34.0,
-    "timestamp": 1785661891.6756794
-  },
-  {
-    "positions": [
-      {
-        "protocol": "A",
-        "position_usd": 30000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 30000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 333.33333333333337,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 333% of position."
-      },
-      {
-        "protocol": "B",
-        "position_usd": 70000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 70000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 95,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 142.85714285714286,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 143% of position."
-      }
-    ],
-    "instantly_exitable_usd": 100000.0,
-    "total_position_usd": 100000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 97.5,
-    "timestamp": 1785661891.6792593
-  },
-  {
-    "positions": [
-      {
-        "protocol": "AaveV3",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 200.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 200% of position."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 100.0,
-    "timestamp": 1785661891.6828322
-  },
-  {
-    "positions": [
-      {
-        "protocol": "A",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 365.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 25,
-        "exit_label": "LOCKED",
-        "market_depth_coverage_pct": 200.0,
-        "bottleneck": "LOCK_UP",
-        "recommendation": "Locked for 365d. Plan around lock expiry."
-      },
-      {
-        "protocol": "B",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 200.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 200% of position."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 100000.0,
-    "liquidity_ratio_pct": 50.0,
-    "most_locked": "A",
-    "average_exit_liquidity_score": 62.5,
-    "timestamp": 1785661891.6864452
-  },
-  {
-    "positions": [
-      {
-        "protocol": "X",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 1.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 90,
-        "exit_label": "FAST",
-        "market_depth_coverage_pct": 200.0,
-        "bottleneck": "QUEUE",
-        "recommendation": "Exit available quickly. Monitor queue size."
-      }
-    ],
-    "instantly_exitable_usd": 0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": "X",
-    "average_exit_liquidity_score": 90.0,
-    "timestamp": 1785661891.6900663
-  },
-  {
-    "positions": [
-      {
-        "protocol": "AaveV3",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 200.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 200% of position."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 100.0,
-    "timestamp": 1785661891.6936004
-  },
-  {
-    "positions": [
-      {
-        "protocol": "AaveV3",
-        "position_usd": 0.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 0.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 80,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 0.0,
-        "bottleneck": "MARKET_DEPTH",
-        "recommendation": "Immediate exit available. Depth covers 0% of position."
-      }
-    ],
-    "instantly_exitable_usd": 0.0,
-    "total_position_usd": 0.0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 80.0,
-    "timestamp": 1785661891.6971986
-  },
-  {
-    "positions": [],
-    "instantly_exitable_usd": 0,
-    "total_position_usd": 0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 0.0,
-    "timestamp": 1785833475.0457819
-  },
-  {
-    "positions": [],
-    "instantly_exitable_usd": 0,
-    "total_position_usd": 0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 0.0,
-    "timestamp": 1785833475.0527718
-  },
-  {
-    "positions": [],
-    "instantly_exitable_usd": 0,
-    "total_position_usd": 0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 0.0,
-    "timestamp": 1785833475.0580544
-  },
-  {
-    "positions": [],
-    "instantly_exitable_usd": 0,
-    "total_position_usd": 0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 0.0,
-    "timestamp": 1785833475.063248
-  },
-  {
-    "positions": [],
-    "instantly_exitable_usd": 0,
-    "total_position_usd": 0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 0.0,
-    "timestamp": 1785833475.068313
-  },
-  {
-    "positions": [],
-    "instantly_exitable_usd": 0,
-    "total_position_usd": 0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 0.0,
-    "timestamp": 1785833475.073335
-  },
-  {
-    "positions": [],
-    "instantly_exitable_usd": 0,
-    "total_position_usd": 0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 0.0,
-    "timestamp": 1785833475.0787504
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Aave",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 400.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 400% of position."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 100.0,
-    "timestamp": 1785833475.084662
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Aave",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 400.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 400% of position."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 100.0,
-    "timestamp": 1785833475.0897918
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Aave",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 400.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 400% of position."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 100.0,
-    "timestamp": 1785833475.0948784
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Aave",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 400.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 400% of position."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 100.0,
-    "timestamp": 1785833475.1014545
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Aave",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 400.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 400% of position."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 100.0,
-    "timestamp": 1785833475.1065016
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Aave",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 400.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 400% of position."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 100.0,
-    "timestamp": 1785833475.1116378
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Aave",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 400.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 400% of position."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 100.0,
-    "timestamp": 1785833475.1165438
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Aave",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 400.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 400% of position."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 100.0,
-    "timestamp": 1785833475.12163
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Aave",
-        "position_usd": 50000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 50000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 400.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 400% of position."
-      }
-    ],
-    "instantly_exitable_usd": 50000.0,
-    "total_position_usd": 50000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 100.0,
-    "timestamp": 1785833475.1267378
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Maple",
-        "position_usd": 30000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 30000.0,
-        "estimated_exit_days": 90.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 17,
-        "exit_label": "LOCKED",
-        "market_depth_coverage_pct": 33.33333333333333,
-        "bottleneck": "LOCK_UP",
-        "recommendation": "Locked for 90d. Plan around lock expiry."
-      }
-    ],
-    "instantly_exitable_usd": 0,
-    "total_position_usd": 30000.0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": "Maple",
-    "average_exit_liquidity_score": 17.0,
-    "timestamp": 1785833475.1316447
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Maple",
-        "position_usd": 30000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 30000.0,
-        "estimated_exit_days": 90.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 17,
-        "exit_label": "LOCKED",
-        "market_depth_coverage_pct": 33.33333333333333,
-        "bottleneck": "LOCK_UP",
-        "recommendation": "Locked for 90d. Plan around lock expiry."
-      }
-    ],
-    "instantly_exitable_usd": 0,
-    "total_position_usd": 30000.0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": "Maple",
-    "average_exit_liquidity_score": 17.0,
-    "timestamp": 1785833475.1366174
-  },
-  {
-    "positions": [
-      {
-        "protocol": "Maple",
-        "position_usd": 30000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 30000.0,
-        "estimated_exit_days": 90.0,
-        "can_exit_in_target": false,
-        "exit_liquidity_score": 17,
-        "exit_label": "LOCKED",
-        "market_depth_coverage_pct": 33.33333333333333,
-        "bottleneck": "LOCK_UP",
-        "recommendation": "Locked for 90d. Plan around lock expiry."
-      }
-    ],
-    "instantly_exitable_usd": 0,
-    "total_position_usd": 30000.0,
-    "liquidity_ratio_pct": 0.0,
-    "most_locked": "Maple",
-    "average_exit_liquidity_score": 17.0,
-    "timestamp": 1785833475.1414783
-  },
-  {
-    "positions": [
-      {
         "protocol": "Maple",
         "position_usd": 30000.0,
         "exit_fee_usd": 0.0,
@@ -2668,5 +1244,1293 @@
     "most_locked": null,
     "average_exit_liquidity_score": 80.0,
     "timestamp": 1785833475.4482803
+  },
+  {
+    "positions": [
+      {
+        "protocol": "aave_v3",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 8000000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 8000000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872533.4763625
+  },
+  {
+    "positions": [
+      {
+        "protocol": "compound_v3",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 1600000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 1600000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872533.7623644
+  },
+  {
+    "positions": [
+      {
+        "protocol": "morpho_blue",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 2000000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 2000000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872534.0819805
+  },
+  {
+    "positions": [
+      {
+        "protocol": "yearn_v3",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 240000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 240000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872534.4104748
+  },
+  {
+    "positions": [
+      {
+        "protocol": "euler_v2",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 600000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 600000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872534.704094
+  },
+  {
+    "positions": [
+      {
+        "protocol": "maple",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 14.0,
+        "can_exit_in_target": false,
+        "exit_liquidity_score": 40,
+        "exit_label": "LOCKED",
+        "market_depth_coverage_pct": 160000.0,
+        "bottleneck": "LOCK_UP",
+        "recommendation": "Locked for 14d. Plan around lock expiry."
+      }
+    ],
+    "instantly_exitable_usd": 0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 0.0,
+    "most_locked": "maple",
+    "average_exit_liquidity_score": 40.0,
+    "timestamp": 1786872534.9676545
+  },
+  {
+    "positions": [
+      {
+        "protocol": "pendle",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 25.0,
+        "net_exit_value_usd": 24975.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 600000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 600000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872535.2095673
+  },
+  {
+    "positions": [
+      {
+        "protocol": "spark_susds",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 2000000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 2000000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872535.4289465
+  },
+  {
+    "positions": [
+      {
+        "protocol": "aave_v3",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 8000000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 8000000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872539.954818
+  },
+  {
+    "positions": [
+      {
+        "protocol": "compound_v3",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 1600000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 1600000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872540.1905162
+  },
+  {
+    "positions": [
+      {
+        "protocol": "morpho_blue",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 2000000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 2000000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872540.4714625
+  },
+  {
+    "positions": [
+      {
+        "protocol": "yearn_v3",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 240000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 240000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872540.7647574
+  },
+  {
+    "positions": [
+      {
+        "protocol": "euler_v2",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 600000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 600000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872541.0420957
+  },
+  {
+    "positions": [
+      {
+        "protocol": "maple",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 14.0,
+        "can_exit_in_target": false,
+        "exit_liquidity_score": 40,
+        "exit_label": "LOCKED",
+        "market_depth_coverage_pct": 160000.0,
+        "bottleneck": "LOCK_UP",
+        "recommendation": "Locked for 14d. Plan around lock expiry."
+      }
+    ],
+    "instantly_exitable_usd": 0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 0.0,
+    "most_locked": "maple",
+    "average_exit_liquidity_score": 40.0,
+    "timestamp": 1786872541.3036833
+  },
+  {
+    "positions": [
+      {
+        "protocol": "pendle",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 25.0,
+        "net_exit_value_usd": 24975.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 600000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 600000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872541.5577967
+  },
+  {
+    "positions": [
+      {
+        "protocol": "spark_susds",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 2000000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 2000000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872541.8515456
+  },
+  {
+    "positions": [
+      {
+        "protocol": "aave_v3",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 8000000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 8000000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872542.350192
+  },
+  {
+    "positions": [
+      {
+        "protocol": "compound_v3",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 1600000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 1600000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872542.6112962
+  },
+  {
+    "positions": [
+      {
+        "protocol": "morpho_blue",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 2000000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 2000000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872542.9078302
+  },
+  {
+    "positions": [
+      {
+        "protocol": "yearn_v3",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 240000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 240000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872543.2185986
+  },
+  {
+    "positions": [
+      {
+        "protocol": "euler_v2",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 600000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 600000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872543.551863
+  },
+  {
+    "positions": [
+      {
+        "protocol": "maple",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 14.0,
+        "can_exit_in_target": false,
+        "exit_liquidity_score": 40,
+        "exit_label": "LOCKED",
+        "market_depth_coverage_pct": 160000.0,
+        "bottleneck": "LOCK_UP",
+        "recommendation": "Locked for 14d. Plan around lock expiry."
+      }
+    ],
+    "instantly_exitable_usd": 0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 0.0,
+    "most_locked": "maple",
+    "average_exit_liquidity_score": 40.0,
+    "timestamp": 1786872543.828105
+  },
+  {
+    "positions": [
+      {
+        "protocol": "pendle",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 25.0,
+        "net_exit_value_usd": 24975.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 600000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 600000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872544.1057835
+  },
+  {
+    "positions": [
+      {
+        "protocol": "spark_susds",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 2000000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 2000000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872544.381605
+  },
+  {
+    "positions": [
+      {
+        "protocol": "aave_v3",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 8000000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 8000000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872544.803371
+  },
+  {
+    "positions": [
+      {
+        "protocol": "compound_v3",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 1600000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 1600000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872545.0846307
+  },
+  {
+    "positions": [
+      {
+        "protocol": "morpho_blue",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 2000000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 2000000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872545.3657725
+  },
+  {
+    "positions": [
+      {
+        "protocol": "yearn_v3",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 240000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 240000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872545.6796951
+  },
+  {
+    "positions": [
+      {
+        "protocol": "euler_v2",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 600000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 600000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872545.992505
+  },
+  {
+    "positions": [
+      {
+        "protocol": "maple",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 14.0,
+        "can_exit_in_target": false,
+        "exit_liquidity_score": 40,
+        "exit_label": "LOCKED",
+        "market_depth_coverage_pct": 160000.0,
+        "bottleneck": "LOCK_UP",
+        "recommendation": "Locked for 14d. Plan around lock expiry."
+      }
+    ],
+    "instantly_exitable_usd": 0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 0.0,
+    "most_locked": "maple",
+    "average_exit_liquidity_score": 40.0,
+    "timestamp": 1786872546.2806754
+  },
+  {
+    "positions": [
+      {
+        "protocol": "pendle",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 25.0,
+        "net_exit_value_usd": 24975.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 600000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 600000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872546.475157
+  },
+  {
+    "positions": [
+      {
+        "protocol": "spark_susds",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 2000000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 2000000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872546.702231
+  },
+  {
+    "positions": [
+      {
+        "protocol": "aave_v3",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 8000000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 8000000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872561.1871078
+  },
+  {
+    "positions": [
+      {
+        "protocol": "compound_v3",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 1600000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 1600000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872561.472047
+  },
+  {
+    "positions": [
+      {
+        "protocol": "morpho_blue",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 2000000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 2000000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872561.7284303
+  },
+  {
+    "positions": [
+      {
+        "protocol": "yearn_v3",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 240000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 240000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872562.0401204
+  },
+  {
+    "positions": [
+      {
+        "protocol": "euler_v2",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 600000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 600000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872562.3289568
+  },
+  {
+    "positions": [
+      {
+        "protocol": "maple",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 14.0,
+        "can_exit_in_target": false,
+        "exit_liquidity_score": 40,
+        "exit_label": "LOCKED",
+        "market_depth_coverage_pct": 160000.0,
+        "bottleneck": "LOCK_UP",
+        "recommendation": "Locked for 14d. Plan around lock expiry."
+      }
+    ],
+    "instantly_exitable_usd": 0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 0.0,
+    "most_locked": "maple",
+    "average_exit_liquidity_score": 40.0,
+    "timestamp": 1786872562.6450703
+  },
+  {
+    "positions": [
+      {
+        "protocol": "pendle",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 25.0,
+        "net_exit_value_usd": 24975.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 600000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 600000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872562.9298592
+  },
+  {
+    "positions": [
+      {
+        "protocol": "spark_susds",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 2000000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 2000000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872563.1299167
+  },
+  {
+    "positions": [
+      {
+        "protocol": "aave_v3",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 8000000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 8000000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872633.818894
+  },
+  {
+    "positions": [
+      {
+        "protocol": "compound_v3",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 1600000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 1600000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872634.2015164
+  },
+  {
+    "positions": [
+      {
+        "protocol": "morpho_blue",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 2000000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 2000000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872634.5473025
+  },
+  {
+    "positions": [
+      {
+        "protocol": "yearn_v3",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 240000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 240000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872634.9093003
+  },
+  {
+    "positions": [
+      {
+        "protocol": "euler_v2",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 600000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 600000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872635.2689393
+  },
+  {
+    "positions": [
+      {
+        "protocol": "maple",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 14.0,
+        "can_exit_in_target": false,
+        "exit_liquidity_score": 40,
+        "exit_label": "LOCKED",
+        "market_depth_coverage_pct": 160000.0,
+        "bottleneck": "LOCK_UP",
+        "recommendation": "Locked for 14d. Plan around lock expiry."
+      }
+    ],
+    "instantly_exitable_usd": 0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 0.0,
+    "most_locked": "maple",
+    "average_exit_liquidity_score": 40.0,
+    "timestamp": 1786872635.5890071
+  },
+  {
+    "positions": [
+      {
+        "protocol": "pendle",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 25.0,
+        "net_exit_value_usd": 24975.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 600000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 600000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872635.861551
+  },
+  {
+    "positions": [
+      {
+        "protocol": "spark_susds",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 2000000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 2000000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872636.1490474
+  },
+  {
+    "positions": [
+      {
+        "protocol": "aave_v3",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 8000000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 8000000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872704.1211233
+  },
+  {
+    "positions": [
+      {
+        "protocol": "compound_v3",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 1600000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 1600000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872704.346306
+  },
+  {
+    "positions": [
+      {
+        "protocol": "morpho_blue",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 2000000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 2000000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872704.5912318
+  },
+  {
+    "positions": [
+      {
+        "protocol": "yearn_v3",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 240000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 240000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872704.8164423
+  },
+  {
+    "positions": [
+      {
+        "protocol": "euler_v2",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 600000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 600000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872705.041667
+  },
+  {
+    "positions": [
+      {
+        "protocol": "maple",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 14.0,
+        "can_exit_in_target": false,
+        "exit_liquidity_score": 40,
+        "exit_label": "LOCKED",
+        "market_depth_coverage_pct": 160000.0,
+        "bottleneck": "LOCK_UP",
+        "recommendation": "Locked for 14d. Plan around lock expiry."
+      }
+    ],
+    "instantly_exitable_usd": 0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 0.0,
+    "most_locked": "maple",
+    "average_exit_liquidity_score": 40.0,
+    "timestamp": 1786872705.2404754
+  },
+  {
+    "positions": [
+      {
+        "protocol": "pendle",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 25.0,
+        "net_exit_value_usd": 24975.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 600000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 600000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872705.433098
+  },
+  {
+    "positions": [
+      {
+        "protocol": "spark_susds",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 2000000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 2000000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786872705.6356452
   }
 ]
