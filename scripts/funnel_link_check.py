@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Funnel / cross-repo link-integrity check (UX-13 durable guard).
 
-A broken link ANYWHERE in the conversion path (entry → snapshot/checkup → packages → pilot) silently
+A broken link ANYWHERE in the conversion path (entry → snapshot → packages → pilot) silently
 kills conversion — the page still returns 200, the CTA just 404s. This script crawls the funnel-critical
-pages on BOTH domains (earn-defi.com landing + checkup.earn-defi.com), resolves every internal and
-cross-domain href they emit, and fails if any lands on a non-2xx/3xx.
+pages of the landing site, resolves every internal and cross-domain href they emit, and fails if any
+lands on a non-2xx/3xx — including a link into a host we decommissioned on purpose
+(DECOMMISSIONED_HOSTS), which is broken by construction and reported with its reason.
 
   * stdlib-only (urllib), deterministic, advisory/read-only — hits live URLs, mutates nothing.
   * Exit 0 ⇔ every funnel link resolves; exit 1 ⇔ a real broken link (named). Network/timeout errors
@@ -29,6 +30,22 @@ import urllib.error
 LANDING = "https://earn-defi.com"
 CHECKUP = "https://checkup.earn-defi.com"
 
+# Hosts that were once part of the funnel and are NOT deployed any more. A link into one of them is
+# a broken link BY CONSTRUCTION — no probe needed, and the finding names the cause instead of leaving
+# the reader with a bare 404. Measured 2026-08-16: every route of checkup.earn-defi.com answers 404
+# with `x-railway-fallback: true`, i.e. no service is bound to the domain at all (the app is gone, it
+# is not a routing bug inside it). Its links were removed from landing/ the same day.
+#
+# WHY this list and not silence: the domain leaves FUNNEL_PAGES/CRITICAL_ROUTES below (asserting a
+# surface we deliberately took down would keep this check red forever — and a check that is always
+# red stops being a signal; ADR-YL-011 leans on this job as the second alarm channel when Telegram
+# must stay quiet). But dropping it from the funnel must NOT buy silence: if any funnel page links
+# there again, that is still a public 404 and still fails. Removing an entry from this dict is only
+# honest when the service is genuinely back — the reachability probe then covers it as usual.
+DECOMMISSIONED_HOSTS = {
+    CHECKUP: "checkup service is not deployed — every route answers 404 (Railway edge fallback, measured 2026-08-16)",
+}
+
 # The conversion-critical pages whose outbound links must never 404. Kept small + explicit so the
 # check is fast and its intent is legible (this IS the funnel).
 FUNNEL_PAGES = [
@@ -39,7 +56,6 @@ FUNNEL_PAGES = [
     f"{LANDING}/pilot/",
     f"{LANDING}/fundability/",
     f"{LANDING}/protocols/steth/",
-    f"{CHECKUP}/",
 ]
 
 # Terminal routes that MUST exist even if a page fails to parse — the conversion dead-ends.
@@ -47,7 +63,6 @@ CRITICAL_ROUTES = [
     f"{LANDING}/snapshot/",
     f"{LANDING}/packages/",
     f"{LANDING}/pilot/",
-    f"{CHECKUP}/check",
 ]
 
 _UA = "spa-funnel-link-check/1.0 (advisory)"
@@ -87,6 +102,14 @@ def _norm(href: str, base: str = LANDING) -> str:
     return full
 
 
+def _decommissioned_reason(url: str) -> str:
+    """Non-empty ⇔ the URL points at a host we took down on purpose (see DECOMMISSIONED_HOSTS)."""
+    for host, reason in DECOMMISSIONED_HOSTS.items():
+        if url == host or url.startswith(host + "/"):
+            return reason
+    return ""
+
+
 def run() -> dict:
     broken: list[dict] = []
     network_errors: list[dict] = []
@@ -96,6 +119,13 @@ def run() -> dict:
         if url in checked:
             return
         checked.add(url)
+        gone = _decommissioned_reason(url)
+        if gone:
+            # A link into a decommissioned service is broken without asking the network: the answer
+            # is known and the reason is worth more than the status code.
+            broken.append({"url": url, "from": source, "code": None,
+                           "decommissioned": True, "reason": gone})
+            return
         code, body = _fetch(url)
         if code is None:
             network_errors.append({"url": url, "from": source})
@@ -153,7 +183,10 @@ def main() -> int:
         if res["broken"]:
             print("  BROKEN (conversion-path 404s):")
             for b in res["broken"]:
-                print(f"    [{b['code']}] {b['url']}  (from {b['from']})")
+                if b.get("decommissioned"):
+                    print(f"    [gone] {b['url']}  (from {b['from']}) — {b['reason']}")
+                else:
+                    print(f"    [{b['code']}] {b['url']}  (from {b['from']})")
         if res["unreachable_pages"]:
             print(f"  UNREACHABLE funnel pages (network?): {res['unreachable_pages']}")
         if res["network_errors"]:
