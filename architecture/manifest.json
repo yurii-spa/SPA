@@ -389,6 +389,10 @@
     {
      "artifact": "data/shadow_trigger_evaluation.json",
      "slo_hours": 26
+    },
+    {
+     "artifact": "landing/src/data/changelog_status.json",
+     "slo_hours": 26
     }
    ],
    "consumes": [],
@@ -460,7 +464,7 @@
     },
     {
      "artifact": "data/investment_os/outcomes.jsonl",
-     "slo_hours": 26
+     "slo_hours": 31
     }
    ],
    "consumes": [
@@ -1282,25 +1286,6 @@
    "notes": ""
   },
   {
-   "label": "com.spa.smoke_flagship",
-   "plist_source": "repo:launchd/com.spa.smoke_flagship.plist",
-   "reboot_safe": false,
-   "schedule": "interval:604800s",
-   "program": "agent_smoke_flagship.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "designed",
-   "produces": [],
-   "consumes": [
-    "data/rates_desk/decision_log.jsonl",
-    "data/rates_desk/exit_nav.json"
-   ],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "complete",
-   "notes": "Цикл #248 (храповик неподключённых скриптов): scripts/smoke_test_flagship.py называл себя «единственной командой, которую запускает владелец или CI», и не запускался НИКЕМ — до #228 он числился подключённым по докстрингу соседнего smoke.py. intent=designed СОЗНАТЕЛЬНО: код доставлен, агент ещё НЕ загружен — launchctl это решение владельца (карточка own-tyazhelyi-smouk-flagmana-nikto-ne-zapuskal). Почему агент, а не workflow: замер 15.08 — в чистом чекауте 5 отказов из 5, потому что data/rates_desk не в git и нет landing/node_modules; живые данные и сборка лендинга есть только на Маке. produces пуст: смоук ничего не записывает, его продукт — код возврата и лог /tmp/spa_smoke_flagship.log. ПРИ ЗАГРУЗКЕ перевести intent в active тем же шагом."
-  },
-  {
    "label": "com.spa.strategy_lab_paper",
    "plist_source": "launch_agents",
    "reboot_safe": true,
@@ -1895,6 +1880,16 @@
    "notes": "ADR-060/067: arming-evidence (критерий 30д+net>0+hit≥60%); оркестратор читает ежедневно"
   },
   {
+   "path": "landing/src/data/changelog_status.json",
+   "producer": "com.spa.daily_cycle",
+   "consumers": [
+    "landing/src/pages/changelog.astro"
+   ],
+   "slo_hours": 26,
+   "status": "active",
+   "notes": "Публичный /changelog: дата последней ПРОВЕРКИ раздела. Объявлен именно он, а не changelog.json: сам дайджест меняется только при новых данных и по SLO протухал бы на исправной системе. Молчание производителя (23 дня, карточка agent-changelog-generator-never-called) теперь красит B2 и видно на самой странице"
+  },
+  {
    "path": "data/allocation_rationale_history.jsonl",
    "producer": "com.spa.daily_cycle",
    "consumers": [
@@ -1920,7 +1915,8 @@
    "consumers": [
     "loop_retro"
    ],
-   "slo_hours": 26,
+   "period_hours": 24,
+   "slo_hours": 31,
    "status": "active",
    "notes": "цикл 3 ADR-067: правая половина hit-rate — исходы по дням (идемпотентно по дате)"
   }

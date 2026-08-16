@@ -24,7 +24,13 @@ def wired(tmp_path, monkeypatch):
     monkeypatch.setattr(rcg, "_LEDGER", ledger)
     monkeypatch.setattr(rcg, "_DECISIONS", decisions)
     monkeypatch.setattr(rcg, "_OUT", out)
-    return {"ledger": ledger, "decisions": decisions, "out": out}
+    # ДОПИСАНО 2026-08-16 вместе со вторым продуктом генератора (статус проверки). Без этой
+    # строки фикстура писала бы РАБОЧИЙ `landing/src/data/changelog_status.json` живого репозитория:
+    # поймано первым же прогоном — файл в дереве оказался перезаписан прогоном тестов. Ослабления
+    # здесь нет, проверок не убавилось: изолируется ещё один путь записи.
+    monkeypatch.setattr(rcg, "_STATUS", tmp_path / "changelog_status.json")
+    return {"ledger": ledger, "decisions": decisions, "out": out,
+            "status": tmp_path / "changelog_status.json"}
 
 
 def test_digest_has_real_numbers(wired):
@@ -63,6 +69,10 @@ def test_fail_closed_no_data(tmp_path, monkeypatch):
     monkeypatch.setattr(rcg, "_LEDGER", tmp_path / "missing.json")
     monkeypatch.setattr(rcg, "_DECISIONS", tmp_path / "missing.jsonl")
     monkeypatch.setattr(rcg, "_OUT", tmp_path / "out.json")
+    # Как и в фикстуре `wired`: второй продукт генератора тоже обязан быть изолирован, иначе
+    # отказной прогон теста ПЕРЕЗАПИСЫВАЕТ рабочий landing/src/data/changelog_status.json
+    # живого репозитория (замерено 2026-08-16 — файл в дереве оказался затёрт прогоном тестов).
+    monkeypatch.setattr(rcg, "_STATUS", tmp_path / "status.json")
     r = rcg.generate(date="2026-07-11")
     assert r["created"] is False
     assert "no live data" in r["reason"]

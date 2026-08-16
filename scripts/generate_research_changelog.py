@@ -11,6 +11,13 @@ and honestly labelled (evidenced track days, refusal count from the hash-chained
 Idempotent: an entry is keyed by its data signature (last evidenced date + day-count + refusal count);
 re-running with unchanged data does NOT create a duplicate. stdlib-only, fail-CLOSED (missing source →
 skip that field / emit nothing rather than a fabricated number). Advisory / read-only on the live data.
+
+Второй продукт — `landing/src/data/changelog_status.json` (2026-08-16, карточка
+`agent-changelog-generator-never-called`). Он существует потому, что "новой записи нет" и "генератор
+не звали" на странице выглядели ОДИНАКОВО: раздел стоял на 11 июля 23 дня, и по самой странице
+отличить "данные не менялись" от "производителя нет" было нельзя. Статус называет дату ПОСЛЕДНЕЙ
+ПРОВЕРКИ рядом с датой последней записи, поэтому молчание производителя видно снаружи, а не только
+в манифесте. Дата берётся из аргумента `--date` (вход, а не часы) — файл детерминирован по входу.
 """
 from __future__ import annotations
 
@@ -23,7 +30,15 @@ ROOT = Path(__file__).resolve().parent.parent
 _LEDGER = ROOT / "data" / "track_ledger.json"
 _DECISIONS = ROOT / "data" / "rates_desk" / "decision_log.jsonl"
 _OUT = ROOT / "landing" / "src" / "data" / "changelog.json"
+#: Честный признак жизни раздела: когда проверяли в последний раз и что при этом нашли.
+_STATUS = ROOT / "landing" / "src" / "data" / "changelog_status.json"
 _MAX_ENTRIES = 52  # keep ~a year of weekly digests
+
+#: Три состояния, в которых бывает раздел. Больше их быть не должно: каждое читается
+#: страницей как отдельная человеческая фраза (см. landing/src/pages/changelog.astro).
+STATE_NEW = "new_digest"      # в этот прогон появилась запись
+STATE_UNCHANGED = "unchanged"  # проверили, данные те же — публиковать нечего
+STATE_NO_DATA = "no_data"      # живых данных нет вовсе (fail-CLOSED, ничего не выдумываем)
 
 
 def _load_json(p: Path) -> dict:
@@ -94,6 +109,31 @@ def build_entry(*, date: str) -> Optional[dict]:
     }
 
 
+def _atomic_write(path: Path, payload) -> None:
+    """tmp в той же директории + os.replace (инвариант #5). Только stdlib."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+    tmp.replace(path)
+
+
+def _status_payload(*, date: str, state: str, entries: list) -> dict:
+    """Статус раздела: КОГДА проверяли и что нашли.
+
+    Пишется в КАЖДОМ прогоне, включая отказной: именно отсутствие такой записи и делало
+    молчание производителя неотличимым от «данные не менялись». Никаких часов — только
+    переданная дата, поэтому файл детерминирован и тест его закрепляет с обеих сторон.
+    """
+    dates = [e.get("date") for e in entries if isinstance(e, dict) and e.get("date")]
+    status = {
+        "checked_date": date,
+        "state": state,
+        "last_entry_date": max(dates) if dates else None,
+        "n_entries": len(entries),
+    }
+    return status
+
+
 def generate(*, date: str, write: bool = True) -> dict:
     try:
         existing = json.loads(_OUT.read_text())
@@ -106,23 +146,28 @@ def generate(*, date: str, write: bool = True) -> dict:
     result = {"created": False, "reason": "", "n_entries": len(existing)}
     if entry is None:
         result["reason"] = "no live data (fail-closed)"
+        result["status"] = _status_payload(date=date, state=STATE_NO_DATA, entries=existing)
+        if write:
+            _atomic_write(_STATUS, result["status"])
         return result
 
     # idempotent: skip if an entry with the SAME data signature already exists
     if any(e.get("_sig") == entry["_sig"] for e in existing):
         result["reason"] = "unchanged data — no duplicate digest"
+        result["status"] = _status_payload(date=date, state=STATE_UNCHANGED, entries=existing)
+        if write:
+            _atomic_write(_STATUS, result["status"])
         return result
     # also replace a same-date entry (re-run on the same day with newer data)
     existing = [e for e in existing if e.get("slug") != entry["slug"]]
     existing.insert(0, entry)
     existing = existing[:_MAX_ENTRIES]
     result.update(created=True, n_entries=len(existing), entry=entry)
+    result["status"] = _status_payload(date=date, state=STATE_NEW, entries=existing)
 
     if write:
-        _OUT.parent.mkdir(parents=True, exist_ok=True)
-        tmp = _OUT.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(existing, indent=2, ensure_ascii=False) + "\n")
-        tmp.replace(_OUT)  # atomic same-dir rename
+        _atomic_write(_OUT, existing)
+        _atomic_write(_STATUS, result["status"])
     return result
 
 
@@ -135,6 +180,11 @@ def main() -> int:
         print(f"[changelog] added digest {args.date} → {r['n_entries']} entries · {r['entry']['summary'][:80]}…")
     else:
         print(f"[changelog] no new entry: {r['reason']}")
+    # Статус печатается ВСЕГДА, включая отказ: в логе цикла «нечего публиковать» обязано
+    # отличаться от «производитель не отработал» — ради этого различия статус и заведён.
+    st = r.get("status") or {}
+    print(f"[changelog] status: state={st.get('state')} checked={st.get('checked_date')} "
+          f"last_entry={st.get('last_entry_date')} n={st.get('n_entries')}")
     return 0
 
 
