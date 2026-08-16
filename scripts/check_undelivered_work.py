@@ -37,6 +37,22 @@
    в `/tmp/spa_wt_rnd49`), 1 — путь жил на origin и был удалён, 1 не измерен. То есть 90 %
    раздела «НЕ ДОСТАВЛЕНО» учило пролистывать его целиком — ровно тот механизм, которым
    сторожа глохнут. Код возврата НЕ смягчён: «нигде» по-прежнему даёт 1, а не 0.
+3b. **«расходится хоть в одном дереве» ≠ «ЭТА сессия не доставила».** ``differs`` считался по
+   ОБЪЕДИНЕНИЮ всех рабочих деревьев: достаточно одного дерева, чьё содержимое не встречалось в
+   истории `origin`, чтобы находка жила — и приписывалась КАЖДОЙ сессии, объявлявшей этот путь,
+   включая ту, чьё собственное дерево совпадает с `origin` побайтно. Дерево при этом названо в
+   самой записи (`log_session_change.py` требует абсолютных путей), то есть «кому принадлежит
+   содержимое» измеримо, а не гадательно. **Замер до правки** (весь журнал, 872 записи, 46 живых
+   деревьев, 16.08, цикл #252): находок 49, из них **12 — ложная атрибуция** (своё дерево сессии
+   совпадает с `origin` или его историей), 11 настоящих, 26 — дерево объявления не определяется.
+   Самовоспроизводится: `docs/STATE.md` расходится в 25 деревьях, `docs/journal/<неделя>.md` — в
+   24, `_BOARD.md` — в 24, то есть у трёх файлов, которые правит КАЖДЫЙ цикл, источник
+   расхождения вечен (прод-дерево не снимается по щиту #234, а `docs/` и `nimbalyst-local/` туда
+   не синкаются вовсе). Теперь объявление судится по СВОЕМУ дереву. **Видимость при этом НЕ
+   уменьшена** (прецедент #243): расхождение чужих деревьев остаётся находкой с прежним кодом
+   возврата, но печатается отдельным разделом и НАЗЫВАЕТ, что владелец байтов не измерен —
+   меняется вердикт и место в отчёте, а не факт. Дерево объявления не определяется
+   (относительный путь / каталога нет) ⇒ поведение прежнее, fail-CLOSED.
 4. **отдельным вопросом** сверяет КАРТОЧКИ: карточка в НЕтерминальном статусе, лежащая в
    рабочем дереве и отсутствующая на базе, — находка (`card_findings`). Это не частный
    случай пункта 3: карточку, созданную посреди цикла, никто не объявляет, и разбор
@@ -530,6 +546,62 @@ def resolve_rel(path_str, root, git=_git):
         return None, f"путь вне найденного корня worktree: {path_str}"
 
 
+def declaring_tree(path_str, root, git=_git):
+    """Рабочее дерево, ИЗ КОТОРОГО объявлен путь: (str-корень, None) либо (None, причина).
+
+    Дерево не угадывается и не выводится из совпадения имён — его называет САМА запись
+    журнала: `log_session_change.py` принимает абсолютные пути, и сессия объявляет пути
+    своего дерева (протокол §3.4 обязывает работать в worktree). Разрешение — тем же
+    принципом, что в `resolve_rel`: принадлежность репозиторию по общему git-каталогу,
+    корень — `rev-parse --show-toplevel`.
+
+    ``None`` — судить по «своему дереву» нечем, и это НЕ повод считать работу доставленной:
+    вызывающий обязан оставить прежнее (более строгое) поведение. Две причины:
+    относительный путь (дерева в записи нет вовсе) и удалённый каталог.
+    """
+    p = Path(str(path_str))
+    if not p.is_absolute():
+        return None, "путь объявлен относительным — рабочее дерево в записи не названо"
+
+    try:
+        p.resolve().relative_to(Path(root).resolve())
+        return _real(root), None
+    except ValueError:
+        pass
+
+    probe = p if p.is_dir() else p.parent
+    climbed = not probe.is_dir()           # каталогов уже нет — лезем вверх за уцелевшим предком
+    while not probe.is_dir() and probe != probe.parent:
+        probe = probe.parent
+    if not probe.is_dir() or probe == probe.parent:
+        return None, "каталогов объявленного пути больше нет — дерево объявления не определить"
+
+    ours = _git_common_dir(root, git)
+    theirs = _git_common_dir(probe, git)
+    if ours is None or theirs is None or ours != theirs:
+        # Различие то же, что в `resolve_rel`: «чужой репозиторий» и «дерево удалено вместе с
+        # работой» дают один исход и НЕ одну причину. Соседнее дерево с тем же путём под
+        # удалённое НЕ подставляется — это была бы выдуманная атрибуция, ровно та, что чинится.
+        if climbed:
+            return None, "каталогов объявленного пути больше нет — дерево объявления не определить"
+        return None, "объявленный путь не из этого репозитория"
+
+    rc, top, _ = git(probe, "rev-parse", "--show-toplevel")
+    if rc != 0 or not top.strip():
+        return None, "корень рабочего дерева объявления не определяется"
+    return _real(top.strip()), None
+
+
+def _real(path) -> str:
+    """Канонический путь. На macOS `/tmp` — симлинк на `/private/tmp`, и объявления пишут обе
+    формы; сравнивать деревья по строке без этого нельзя (совпадение молча не найдётся)."""
+    return os.path.realpath(str(path))
+
+
+def _same_tree(a, b) -> bool:
+    return _real(a) == _real(b)
+
+
 # ── файл: есть ли он на базе и тот ли он ─────────────────────────────────────
 
 def list_checkouts(root, git=_git):
@@ -993,6 +1065,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
         why = f"{why}; объявлено {age_h}ч назад"
         report["sessions_checked"] += 1
         for raw in entry.get("files") or []:
+            foreign_only = False           # расхождение живёт только в ЧУЖИХ деревьях
             rel, err = resolve_rel(raw, root, git=git)
             if rel is None:
                 # Дерева нет — но, возможно, его СНИМАЛИ по правилу, и тогда измерение
@@ -1068,8 +1141,27 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                                                        f"истории {base_ref} — устаревшая копия, "
                                                        "не потерянная работа"})
                         continue
-                    detail = (f"есть на {base_ref}, но содержимого из {', '.join(unseen)} "
-                              f"НЕТ в истории {base_ref} для этого файла")
+                    # Чьё это содержимое — измеримо: дерево названо в самой записи. Если своё
+                    # дерево сессии среди расходящихся НЕ значится, она свою работу доставила,
+                    # и находка «сессия X не доставила» — ложное обвинение (замер #252: 12 из
+                    # 49). Видимость расхождения при этом сохраняется полностью: находка
+                    # остаётся, меняются вердикт и раздел (прецедент #243).
+                    own, why_own = declaring_tree(raw, root, git=git)
+                    if own is not None and not any(_same_tree(l, own) for l in unseen):
+                        foreign_only = True
+                        detail = (f"в СВОЁМ дереве объявившей сессии ({own}) этот путь "
+                                  f"совпадает с {base_ref} либо его содержимое уже в истории "
+                                  "этого пути — недоставленного у объявившего нет; расходятся "
+                                  f"ЧУЖИЕ рабочие деревья: {', '.join(unseen)} — чья это работа, "
+                                  "НЕ ИЗМЕРЕНО (объявления из этих деревьев проверяются на "
+                                  "заходе своих сессий)")
+                    else:
+                        detail = (f"есть на {base_ref}, но содержимого из {', '.join(unseen)} "
+                                  f"НЕТ в истории {base_ref} для этого файла")
+                        if own is None:
+                            # Молчанием непонятность не покупается: сказано, ПОЧЕМУ судить по
+                            # своему дереву не вышло, и находка осталась прежней (fail-CLOSED).
+                            detail = f"{detail}; своё дерево сессии не определено — {why_own}"
             if st == UNMEASURED:
                 unmeasured.append({"session": entry.get("session"), "path": rel,
                                    "reason": detail})
@@ -1088,7 +1180,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
             seen[key] = len(findings)
             findings.append({"session": entry.get("session"), "ts": entry.get("ts"),
                              "path": rel, "state": st, "detail": detail, "session_state": why,
-                             "within_grace": within_grace,
+                             "within_grace": within_grace, "foreign_only": foreign_only,
                              "summary": (entry.get("summary") or "")[:160],
                              "also_declared_by": []})
 
@@ -1099,6 +1191,14 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
             fresh.append({"session": entry.get("session"), "ts": entry.get("ts"),
                           "age_hours": age_h, "files": len(entry.get("files") or []),
                           "reason": f"{why} — объявленное на {base_ref} есть, находки нет"})
+
+    # Один и тот же путь объявляют десятки сессий, и часть из них своё доставила, часть — нет.
+    # Если по этому пути есть хоть одна НАСТОЯЩАЯ находка (чьё-то своё дерево расходится), то
+    # строка «расходятся чужие деревья» о том же пути — её тень: те же байты, названные дважды.
+    # Убирается тень, а не находка; при отсутствии настоящей строка остаётся и держит код 1.
+    real_paths = {f["path"] for f in findings if not f.get("foreign_only")}
+    findings[:] = [f for f in findings
+                   if not (f.get("foreign_only") and f["path"] in real_paths)]
 
     # `nowhere` СЧИТАЕТСЯ находкой (код 1), хотя поднимать по нему нечего: объявление, под
     # которым никогда не появилось файла, — это дефект самого объявления, и путь, по которому
@@ -1133,8 +1233,13 @@ def render(report) -> str:
                 out.append(f"      объявляла: {f['summary']}")
 
     # Сироты в окне — первыми: работа свежая, дерево ещё на диске, поднять её дешевле всего.
-    orphans = [f for f in report["findings"] if f.get("within_grace")]
-    expired = [f for f in report["findings"] if not f.get("within_grace")]
+    # «Только чужие деревья» выведено из обоих разделов в свой: это НЕ потерянная работа
+    # объявившей сессии, и держать её среди «подними руками» значит учить пролистывать раздел.
+    foreign = [f for f in report["findings"] if f.get("foreign_only")]
+    orphans = [f for f in report["findings"]
+               if f.get("within_grace") and not f.get("foreign_only")]
+    expired = [f for f in report["findings"]
+               if not f.get("within_grace") and not f.get("foreign_only")]
 
     if orphans:
         out.append("")
@@ -1148,6 +1253,14 @@ def render(report) -> str:
         out.append(f"⚠️  НЕ ДОСТАВЛЕНО ({len(expired)}) — объявлено давно, "
                    f"активность не подтверждена, а объявленного на {base} нет:")
         _findings_block(expired)
+
+    if foreign:
+        out.append("")
+        out.append(f"🌲 РАСХОЖДЕНИЕ ТОЛЬКО В ЧУЖИХ ДЕРЕВЬЯХ ({len(foreign)}) — объявившая сессия "
+                   f"своё доставила (её дерево совпадает с {base} или его историей), а байты, "
+                   f"которых на {base} не было, лежат в деревьях ДРУГИХ сессий. Это не потерянная "
+                   "работа объявившего; чья она — не измерено, и находкой остаётся:")
+        _findings_block(foreign)
 
     if report.get("nowhere"):
         out.append("")

@@ -1132,3 +1132,140 @@ class TestDeclaredNameThatNeverExisted:
         rep = report(guard, repo, [e], ps=fake_ps({}))
         assert len(rep["nowhere"]) == 1 and rep["nowhere"][0]["within_grace"] is True
         assert not any("находки нет" in f["reason"] for f in rep["fresh"])
+
+
+# ── 13. чьё это расхождение: своё дерево сессии против чужих ─────────────────
+#
+# Класс, измеренный циклом #252 на живом журнале (872 записи, 46 рабочих деревьев): из 49
+# находок 12 были ложным обвинением — сессия объявила путь из своего дерева, доставила его
+# (коммит на origin проверен руками), её дерево совпадает с origin побайтно, а находка жила,
+# потому что ТОТ ЖЕ путь расходится в чужих деревьях. `docs/STATE.md` расходится в 25
+# деревьях, `docs/journal/<неделя>.md` — в 24, `_BOARD.md` — в 24: у трёх файлов, которые
+# правит каждый цикл, источник расхождения вечен (прод-дерево не снимается по щиту #234).
+#
+# Каждый тест ниже — положительный контроль: воспроизводит форму реальной находки 16.08.
+
+class TestWhoseDivergenceIsIt:
+    def _two_trees(self, repo, tmp_path):
+        """Своё дерево сессии (доставила) и чужое (держит недоставленное)."""
+        mine = tmp_path / "spa_c250"
+        theirs = tmp_path / "spa_c249"
+        _git(repo, "worktree", "add", "-q", "--detach", str(mine), "base")
+        _git(repo, "worktree", "add", "-q", "--detach", str(theirs), "base")
+        return mine, theirs
+
+    def test_delivered_session_is_not_accused_for_a_foreign_tree(self, guard, repo, tmp_path):
+        """Форма находки cycle-250 / `docs/DYNAMIC_LEVERAGE_GUARDIAN.md` (коммит d0bf9d843):
+        своё дерево чистое, расходится чужое ⇒ обвинения этой сессии быть не должно."""
+        mine, theirs = self._two_trees(repo, tmp_path)
+        (theirs / "scripts" / "kept.py").write_text("чужая правка\n", encoding="utf-8")
+        rep = report(guard, repo, [entry("pid45250", [mine / "scripts" / "kept.py"])])
+        # Контроль на неисправленном origin обязан краснеть на ПОВЕДЕНИИ, а не на отсутствии
+        # ключа: там эта же запись печатается в разделе «подними руками».
+        assert "НЕ ДОСТАВЛЕНО" not in guard.render(rep)
+        assert [f.get("foreign_only") for f in rep["findings"]] == [True]
+        assert str(theirs) in rep["findings"][0]["detail"]
+        assert str(mine) in rep["findings"][0]["detail"]
+        assert "НЕ ИЗМЕРЕНО" in rep["findings"][0]["detail"]
+
+    def test_the_finding_itself_never_disappears(self, guard, repo, tmp_path):
+        """ПОКРЫТИЕ НЕ СУЖЕНО (прецедент #243: меняется вердикт и раздел, не видимость).
+        Байты, которых нет в истории origin, остаются названными, а код возврата — прежним."""
+        mine, theirs = self._two_trees(repo, tmp_path)
+        (theirs / "scripts" / "kept.py").write_text("чужая правка\n", encoding="utf-8")
+        rep = report(guard, repo, [entry("pid45250", [mine / "scripts" / "kept.py"])])
+        assert len(rep["findings"]) == 1 and rep["exit_code"] == 1
+        text = guard.render(rep)
+        assert "ЧУЖИХ ДЕРЕВЬЯХ" in text
+        assert "✅ измерено полностью, всё доставлено" not in text
+        assert "НЕ ДОСТАВЛЕНО" not in text          # из раздела «подними руками» — выведено
+
+    def test_own_tree_divergence_is_still_a_plain_finding(self, guard, repo, tmp_path):
+        """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ: своё дерево расходится ⇒ прежняя находка, прежний раздел.
+        Настоящая потеря (11 из 49 в замере #252) правкой не задета."""
+        mine, _theirs = self._two_trees(repo, tmp_path)
+        (mine / "scripts" / "kept.py").write_text("моя недоставленная правка\n", encoding="utf-8")
+        rep = report(guard, repo, [entry("pid45244", [mine / "scripts" / "kept.py"])])
+        assert [f.get("foreign_only") for f in rep["findings"]] in ([False], [None])
+        assert rep["exit_code"] == 1
+        text = guard.render(rep)
+        assert "НЕ ДОСТАВЛЕНО" in text and "ЧУЖИХ ДЕРЕВЬЯХ" not in text
+
+    def test_only_the_session_that_kept_the_work_is_accused(self, guard, repo, tmp_path):
+        """Два объявителя одного пути — ровно живой случай `docs/STATE.md`: одна доставила,
+        вторая нет. Находка обязана остаться ОДНА и принадлежать второй."""
+        mine, theirs = self._two_trees(repo, tmp_path)
+        (theirs / "scripts" / "kept.py").write_text("недоставленное\n", encoding="utf-8")
+        rep = report(guard, repo, [entry("pid45250", [mine / "scripts" / "kept.py"]),
+                                   entry("pid45249", [theirs / "scripts" / "kept.py"])])
+        assert len(rep["findings"]) == 1
+        assert rep["findings"][0]["session"] == "pid45249"
+        assert rep["findings"][0].get("foreign_only") is not True
+
+    def test_shadow_line_is_dropped_only_when_a_real_finding_exists(self, guard, repo, tmp_path):
+        """Обратная сторона предыдущего: тень снимается ТОЛЬКО при живой находке по тому же
+        пути. Мутация «снимать всегда» здесь и краснеет."""
+        mine, theirs = self._two_trees(repo, tmp_path)
+        (theirs / "scripts" / "kept.py").write_text("ничьё\n", encoding="utf-8")
+        rep = report(guard, repo, [entry("pid45250", [mine / "scripts" / "kept.py"])])
+        assert [f["path"] for f in rep["findings"]] == ["scripts/kept.py"]
+        assert rep["exit_code"] == 1
+
+    def test_relative_declaration_keeps_the_strict_verdict(self, guard, repo, tmp_path):
+        """fail-CLOSED: путь объявлен относительным ⇒ своего дерева в записи нет ⇒ судить по
+        нему нечем ⇒ прежняя, более строгая находка. «Не измерено» не даёт послаблений."""
+        _mine, theirs = self._two_trees(repo, tmp_path)
+        (theirs / "scripts" / "kept.py").write_text("чужая правка\n", encoding="utf-8")
+        rep = report(guard, repo, [entry("pid45250", ["scripts/kept.py"])])
+        assert [f.get("foreign_only") for f in rep["findings"]] in ([False], [None])
+        assert "своё дерево сессии не определено" in rep["findings"][0]["detail"]
+        assert "относительным" in rep["findings"][0]["detail"]
+        assert rep["exit_code"] == 1
+
+    def test_main_tree_declaration_is_judged_by_the_main_tree(self, guard, repo, tmp_path):
+        """Объявление из ГЛАВНОГО дерева — тоже названное дерево, а не «неизвестно»."""
+        _mine, theirs = self._two_trees(repo, tmp_path)
+        (theirs / "scripts" / "kept.py").write_text("чужая правка\n", encoding="utf-8")
+        rep = report(guard, repo, [entry("pid45250", [repo / "scripts" / "kept.py"])])
+        assert "ЧУЖИХ ДЕРЕВЬЯХ" in guard.render(rep)
+        assert [f.get("foreign_only") for f in rep["findings"]] == [True]
+
+    def test_stale_copy_everywhere_is_still_not_a_finding(self, guard, repo, tmp_path):
+        """Обратный контроль к прежнему поведению (#230): содержимое ВСЕХ деревьев уже в
+        истории origin ⇒ находки нет вовсе, и новый раздел её не воскрешает."""
+        (repo / "scripts" / "kept.py").write_text("следующая версия\n", encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-qm", "base ушла вперёд")
+        _git(repo, "branch", "-f", "base", "HEAD")
+        mine, _theirs = self._two_trees(repo, tmp_path)     # деревья уже на НОВОЙ базе
+        (mine / "scripts" / "kept.py").write_text("base content\n", encoding="utf-8")
+        rep = report(guard, repo, [entry("pid45250", [mine / "scripts" / "kept.py"])])
+        assert rep["findings"] == []
+        assert rep["stale_copies"] and rep["exit_code"] == 0
+
+    def test_declaring_tree_of_a_deleted_worktree_is_not_guessed(self, guard, repo, tmp_path):
+        """Дерево сессии УДАЛЕНО ⇒ оно не выдумывается и НЕ подменяется соседним деревом, где
+        лежит тот же путь: подстановка и была бы той самой чужой атрибуцией. Причина названа
+        своим именем (различие «удалено» / «чужой репозиторий» — как в `resolve_rel`)."""
+        mine, theirs = self._two_trees(repo, tmp_path)
+        declared = mine / "scripts" / "kept.py"
+        shutil.rmtree(mine)
+        tree, why = guard.declaring_tree(str(declared), repo)
+        assert tree is None
+        assert not guard._same_tree(tree or "/", theirs)
+        assert "больше нет" in why
+
+    def test_declaration_through_a_symlink_still_names_the_tree(self, guard, repo, tmp_path):
+        """`/tmp` на macOS — симлинк на `/private/tmp`, и объявления пишут ОБЕ формы: дерево
+        обязано опознаваться через любую.
+
+        ГРАНИЦА НАЗВАНА ЧЕСТНО: мутация «сравнивать деревья сырой строкой, без `realpath`»
+        этот тест НЕ красит — `git rev-parse --show-toplevel` отдаёт канонический путь сам, а
+        `list_checkouts` вдобавок вносит корень в той форме, в какой его передал вызывающий,
+        так что обе формы обычно присутствуют разом. `_real` оставлен как страховка от смены
+        этого поведения, и он НЕ доказан мутацией — это измерено, а не предположено."""
+        mine, _theirs = self._two_trees(repo, tmp_path)
+        link = tmp_path / "link_to_mine"
+        link.symlink_to(mine)
+        tree, why = guard.declaring_tree(str(link / "scripts" / "kept.py"), repo)
+        assert why is None and guard._same_tree(tree, mine)
