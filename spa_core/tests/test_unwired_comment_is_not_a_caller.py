@@ -125,19 +125,23 @@ class TestTheStripperItself(unittest.TestCase):
         text = "# scripts/drop.py"
         self.assertEqual(code_without_comments(pathlib.Path("x.md"), text), text)
 
-    def test_a_docstring_mention_still_counts_KNOWN_GAP(self):
-        """Названный пробел, а не недосмотр — иначе он повторится молча.
+    def test_a_docstring_mention_no_longer_counts(self):
+        """Пробел закрыт циклом #255 — тест перевёрнут ПО ПРЕДПИСАНИЮ, не молча.
 
-        Докстринг по последствиям равен комментарию, но литерал сохранён
-        намеренно: в литерале живёт настоящий вызов. Слепота к докстрингам стоит
-        8 скриптов (замер 14.08), их разбор — отдельная работа, карточка
-        `inbox-hrapovik-schitaet-upominanie-v-dokstring`. Когда пробел закроют,
-        ЭТОТ тест обязан покраснеть — и его надо будет снять вместе с правкой.
+        **Инвариант #16, намеренная правка.** Здесь стоял
+        `test_a_docstring_mention_still_counts_KNOWN_GAP`, закреплявший слепоту к
+        докстрингам как названный пробел. Его собственный докстринг предписывал:
+        «когда пробел закроют, ЭТОТ тест обязан покраснеть — и его надо будет снять
+        вместе с правкой». Пробел закрыт (`_python_without_docstrings`), поэтому
+        проверка не удалена и не ослаблена, а РАЗВЁРНУТА в противоположную сторону:
+        теперь она требует того же поведения с обратным знаком и краснеет на возврате
+        слепоты. Покрытие не сузилось — прибавилось; обоснование в журнале
+        `docs/journal/2026-W33.md`, карточка
+        `inbox-hrapovik-schitaet-upominanie-v-dokstring`.
         """
         out = code_without_comments(pathlib.Path("x.py"), '"""см. scripts/drop.py"""\n')
-        self.assertIn("scripts/drop.py", out,
-                      "докстринги перестали считаться проводкой — сними этот тест "
-                      "и разбери 8 скриптов из карточки")
+        self.assertNotIn("scripts/drop.py", out,
+                         "докстринг снова считается проводкой — вернулась слепота #227")
 
 
 if __name__ == "__main__":

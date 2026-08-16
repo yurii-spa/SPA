@@ -24,6 +24,18 @@ erc4626, который никто не звал; производитель `gs
 мёртвого кода, и цикл #192 оставил проверку красной осознанно: гасить её дописыванием
 в базу запрещает сам этот файл. Границы правила измерены, а не выбраны: весь `docs/`
 проводкой не считается (сняло бы с учёта 62 из 88).
+
+**16.08 (цикл #255) база выросла 54 → 61 — и это ЕДИНСТВЕННЫЙ допустимый вид роста:
+измерение стало вернее.** Сканер научился видеть форму проводки, которой не видел
+(голый `import <имя>`), и перестал считать проводкой три доказательства слабее
+вызова — докстринг, самоупоминание однофамильца, подстрочную коллизию. Семь имён не
+стали мёртвыми в этот день: они были неподключены всегда, а числились подключёнными
+по ошибке измерения. Чтобы такой рост нельзя было ни спрятать, ни повторить ради
+настоящего мёртвого кода, вскрытые имена лежат ОТДЕЛЬНЫМ разделом
+`revealed_by_stricter_detector`, у каждого назван файл, который его держал, и раздел
+проверяется теми же тремя проверками. Дописать имя в любой из разделов, чтобы
+погасить падение, по-прежнему запрещено: падение храповика означает новый мёртвый
+скрипт, а не неудобную базу.
 """
 from __future__ import annotations
 
@@ -36,8 +48,20 @@ from spa_core.tests._unwired import entrypoint_scripts, unwired_scripts
 _BASELINE = Path(__file__).resolve().parent / "unwired_scripts_baseline.json"
 
 
+def _sections() -> tuple:
+    """Два раздела базы: исторический и вскрытый строгим сканером (цикл #255)."""
+    d = json.loads(_BASELINE.read_text(encoding="utf-8"))
+    return set(d["scripts"]), set(d.get("revealed_by_stricter_detector", {}))
+
+
 def _baseline() -> set:
-    return set(json.loads(_BASELINE.read_text(encoding="utf-8"))["scripts"])
+    """Всё, за чем храповик следит: разделы сторожатся ВМЕСТЕ.
+
+    Раздельно они бы разошлись: скрипт, подключённый после 16.08, обязан уйти из
+    базы, а из какого именно раздела — вопрос бухгалтерии, не сторожа.
+    """
+    historic, revealed = _sections()
+    return historic | revealed
 
 
 class TestRatchet(unittest.TestCase):
@@ -67,6 +91,31 @@ class TestRatchet(unittest.TestCase):
         known = {p.stem for p in entrypoint_scripts()}
         ghosts = sorted(_baseline() - known)
         self.assertEqual(ghosts, [], f"в базе имена, которых нет в scripts/: {ghosts}")
+
+    def test_the_two_sections_do_not_overlap(self):
+        """Имя в обоих разделах = рост базы, спрятанный за арифметикой множеств.
+
+        Объединение от дубля не растёт, поэтому дубль мог бы протащить восьмое
+        имя незаметно: раздел «вскрытых» вырос бы на единицу, а сумма — нет.
+        """
+        historic, revealed = _sections()
+        both = sorted(historic & revealed)
+        self.assertEqual(both, [], f"имя числится в обоих разделах базы: {both}")
+
+    def test_every_revealed_name_says_WHAT_used_to_hide_it(self):
+        """Раздел «вскрытых» — не список имён, а список причин.
+
+        Имя без причины — это дописывание в базу под видом измерения: ровно то,
+        что база запрещает. Причина обязана называть файл, который держал скрипт
+        «подключённым», иначе проверить её нечем.
+        """
+        d = json.loads(_BASELINE.read_text(encoding="utf-8"))
+        revealed = d.get("revealed_by_stricter_detector", {})
+        self.assertTrue(revealed, "раздел «вскрытых» пуст — проверка ничего не значит")
+        for name, reason in sorted(revealed.items()):
+            self.assertTrue(reason.strip(), f"{name}: причина не названа")
+            self.assertIn(".py", reason,
+                          f"{name}: причина не называет файл, который держал скрипт")
 
 
 class TestTheDetectorItself(unittest.TestCase):
