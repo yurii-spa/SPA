@@ -1811,3 +1811,202 @@ class TestOrphanedClaimDoesNotBlockTheRescue:
         assert r["verdict"] == guard.STALE
         assert len(r["claims"]) == 3 and all(c["state"] == "stale" for c in r["claims"])
         assert "НЕ бери эту карточку" not in guard.render(r)
+
+
+# ── явное поле `card:` главнее косвенного признака (цикл #262) ────────────────
+#
+# Карточка `agent-card-file-in-ownership-locks-a-card-it-doesnt-claim`. Протокол ОБЯЗЫВАЕТ
+# дописывать в чужие карточки (подъём осиротевшей работы, «независимое подтверждение»,
+# ссылки §6.4), а каждая дописка делала файл карточки СИЛЬНЫМ признаком её захвата.
+
+class TestExplicitCardFieldBeatsTheCardFile:
+    def test_card_file_does_not_claim_when_the_entry_names_another_card(
+            self, guard, sibling, tracker, log, ps_dead):
+        """Ядро правки: запись машинно называет ДРУГУЮ карточку ⇒ моя не захвачена."""
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("pid999", NOW - timedelta(minutes=30),
+                                 card="agent-other",
+                                 files=["/repo/nimbalyst-local/tracker/agent-x.md"])])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
+        assert r["verdict"] == guard.FREE
+        assert not r["claims"]
+
+    def test_the_signal_is_named_not_erased(self, guard, sibling, tracker, log, ps_dead):
+        """Находка не имеет права ИСЧЕЗНУТЬ: она уходит в историю и называет причину."""
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("pid999", NOW - timedelta(minutes=30),
+                                 card="agent-other",
+                                 files=["/repo/nimbalyst-local/tracker/agent-x.md"])])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
+        hist = [h for h in r["history"] if h["session"] == "pid999"]
+        assert hist and hist[0]["strength"] == guard.WEAK
+        assert "agent-other" in hist[0]["detail"]
+        assert "файл карточки объявлен во владении" in hist[0]["detail"]
+
+    def test_entry_without_card_field_still_blocks(self, guard, sibling, tracker, log, ps_dead):
+        """Обратный контроль №1: записи БЕЗ поля `card:` правка не касается вовсе."""
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("pid999", NOW - timedelta(minutes=30),
+                                 files=["/repo/nimbalyst-local/tracker/agent-x.md"])])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
+        assert r["verdict"] == guard.CLAIMED         # свежий СИЛЬНЫЙ захват — как и раньше
+        assert r["claims"][0]["strength"] == guard.STRONG
+
+    def test_card_field_naming_this_card_still_blocks(self, guard, sibling, tracker, log,
+                                                      ps_dead):
+        """Обратный контроль №2: `card:` на ЭТУ карточку — сильнее прежнего не стало, но и
+        слабее не стало."""
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("pid999", NOW - timedelta(minutes=30), card="agent-x",
+                                 files=["/repo/nimbalyst-local/tracker/agent-x.md"])])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
+        assert r["verdict"] == guard.CLAIMED
+        assert r["claims"][0]["strength"] == guard.STRONG
+
+    def test_a_live_session_editing_my_card_file_still_blocks(self, guard, sibling, tracker,
+                                                              log, ps_alive):
+        """Сужение НЕ распространяется на живую сессию: сосед, который прямо сейчас правит
+        файл моей карточки, — настоящий конфликт по файлу. Та же политика, что у слабого
+        упоминания в тексте (`test_text_mention_blocks_only_while_the_session_is_alive`)."""
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("pid999", NOW - timedelta(minutes=30), card="agent-other",
+                                 files=["/repo/nimbalyst-local/tracker/agent-x.md"])])
+        r = run(guard, tracker, log, "agent-x", ps=ps_alive, sibling=sibling)
+        assert r["verdict"] == guard.CLAIMED
+
+    def test_declared_files_overlap_still_blocks(self, guard, sibling, tracker, log, ps_alive):
+        """Обратный контроль №3: главная защита от двойной работы — пересечение по `--files`
+        — не затронута; файл карточки в ней участвует наравне с любым другим."""
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("pid999", NOW - timedelta(minutes=30), card="agent-other",
+                                 files=["/repo/nimbalyst-local/tracker/agent-x.md"])])
+        r = run(guard, tracker, log, "agent-x", ps=ps_alive, sibling=sibling,
+                planned_files=["/repo/nimbalyst-local/tracker/agent-x.md"])
+        assert r["verdict"] == guard.CLAIMED and r["overlaps"]
+
+    def test_the_real_329h_lock_of_cycle91(self, guard, sibling, tracker, log, ps_dead):
+        """Положительный контроль-репортаж: ровно тот вход, что измерен в проде 16.08.
+
+        Цикл #91 взял `agent-signal-aggregator-…`, а в мою карточку лишь дописал раздел —
+        и она читалась как захваченная 329 часов. Снятие (`card_state: done`) ушло по полю
+        `card:` на ТУ ЖЕ другую карточку, поэтому замок не снимался никогда: старый код
+        отвечал `stale` (код 1) о карточке, которую никто не держит.
+        """
+        cid = "agent-card-file-in-ownership-locks-a-card-it-doesnt-claim"
+        other = "agent-signal-aggregator-tier-tests-red-after-blindness-fix"
+        write_card(tracker, cid)
+        files = [f"/tmp/spa_wt_c91/nimbalyst-local/tracker/{other}.md",
+                 f"/tmp/spa_wt_c91/nimbalyst-local/tracker/{cid}.md",
+                 "/tmp/spa_wt_c91/docs/STATE.md"]
+        write_log(log, [
+            announce("pid64251", NOW - timedelta(hours=329), card=other, files=files),
+            announce("pid24392", NOW - timedelta(hours=329) + timedelta(minutes=16),
+                     card=other, card_state="done", files=files)])
+        r = run(guard, tracker, log, cid, ps=ps_dead, sibling=sibling)
+        assert r["verdict"] == guard.FREE
+        assert guard.exit_code(r) == 0
+
+
+# ── хвост «каталог/имя» больше не путает два каталога тестов (цикл #262) ──────
+
+class TestRepoRelativeOverlap:
+    def test_two_test_dirs_are_not_the_same_file(self, guard, tmp_path):
+        """Замер #91: `tests/x.py` и `spa_core/tests/x.py` — РАЗНЫЕ файлы, а хвост у них один.
+        В репо 35 таких хвостов на 72 файла (замер 16.08), это правило, а не исключение."""
+        for rel in ("tests/test_signal_aggregator.py", "spa_core/tests/test_signal_aggregator.py"):
+            p = tmp_path / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text("x", encoding="utf-8")
+        assert not guard.paths_overlap("/tmp/wt_a/tests/test_signal_aggregator.py",
+                                       "/tmp/wt_b/spa_core/tests/test_signal_aggregator.py",
+                                       tmp_path)
+
+    def test_same_file_from_two_worktrees_still_overlaps(self, guard, tmp_path):
+        """Обратный контроль: ровно ради этого случая хвост и вводился."""
+        p = tmp_path / "spa_core/tests/test_x.py"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("x", encoding="utf-8")
+        assert guard.paths_overlap("/tmp/wt_a/spa_core/tests/test_x.py",
+                                   "/tmp/wt_b/spa_core/tests/test_x.py", tmp_path)
+
+    def test_unresolvable_path_keeps_the_old_behaviour(self, guard, tmp_path):
+        """Обратный контроль: если хоть один путь в репо не разрешается — прежнее правило
+        (вплоть до хвоста). Непонятность не покупается тишиной."""
+        assert guard.paths_overlap("/tmp/wt_a/workflows/ci.yml",
+                                   "/tmp/wt_b/workflows/ci.yml", tmp_path)
+        assert not guard.paths_overlap("/a/one/__init__.py", "/b/two/__init__.py", tmp_path)
+
+    def test_longest_existing_tail_wins(self, guard, tmp_path):
+        """У `…/spa_core/tests/x.py` существуют ОБА хвоста — берётся длинный, иначе файл
+        разрешился бы в своего однофамильца из другого каталога."""
+        for rel in ("tests/x.py", "spa_core/tests/x.py"):
+            p = tmp_path / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text("x", encoding="utf-8")
+        assert guard.repo_relative("/tmp/wt/spa_core/tests/x.py", tmp_path) == "spa_core/tests/x.py"
+        assert guard.repo_relative("/tmp/wt/tests/x.py", tmp_path) == "tests/x.py"
+        assert guard.repo_relative("/tmp/wt/nope/y.py", tmp_path) is None
+
+    def test_overlap_of_namesakes_does_not_block_the_report(self, guard, sibling, tracker,
+                                                            log, ps_alive, tmp_path):
+        """Сквозная проверка ЭФФЕКТА: сессия объявила `tests/x.py`, я планирую
+        `spa_core/tests/x.py` — карточка остаётся свободной."""
+        for rel in ("tests/x.py", "spa_core/tests/x.py"):
+            p = tmp_path / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text("x", encoding="utf-8")
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("pid999", NOW - timedelta(minutes=20),
+                                 files=["/tmp/wt_a/tests/x.py"])])
+        r = guard.gather("agent-x", log=log, tracker_dir=tracker, sibling=sibling,
+                         self_session="pid1", now=NOW, grace_hours=3.0,
+                         planned_files=["/tmp/wt_b/spa_core/tests/x.py"], ps=ps_alive,
+                         self_anchor=None, repo_root=tmp_path)
+        assert r["verdict"] == guard.FREE and not r["overlaps"]
+
+    def test_the_same_file_from_two_roots_still_blocks_end_to_end(self, guard, sibling, tracker,
+                                                                  log, ps_alive, tmp_path):
+        """Обратный контроль к предыдущему: тот же файл из двух корней по-прежнему ЗАНЯТА."""
+        p = tmp_path / "spa_core/tests/x.py"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("x", encoding="utf-8")
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("pid999", NOW - timedelta(minutes=20),
+                                 files=["/tmp/wt_a/spa_core/tests/x.py"])])
+        r = guard.gather("agent-x", log=log, tracker_dir=tracker, sibling=sibling,
+                         self_session="pid1", now=NOW, grace_hours=3.0,
+                         planned_files=["/tmp/wt_b/spa_core/tests/x.py"], ps=ps_alive,
+                         self_anchor=None, repo_root=tmp_path)
+        assert r["verdict"] == guard.CLAIMED and r["overlaps"]
+
+    def test_namesake_collision_on_the_REAL_repo(self, guard, sibling, tracker, log, ps_alive):
+        """Якорь на ПОВЕДЕНИИ, а не на сигнатуре: тот же вход через умолчание `repo_root`.
+
+        Оба файла реально лежат в репозитории и это РАЗНЫЕ файлы. На неисправленном коде хвост
+        «каталог/имя» объявляет их одним, и карточка читается как ⛔ ЗАНЯТА; после правки —
+        ✅ СВОБОДНА. Если один из файлов когда-нибудь исчезнет, тест скажет об этом вслух,
+        а не позеленеет молча."""
+        root = Path(guard.ROOT)
+        a, b = root / "tests/conftest.py", root / "spa_core/tests/conftest.py"
+        assert a.is_file() and b.is_file(), (
+            f"условие замера пропало: {a} / {b} — тест не про них, а про КОЛЛИЗИЮ хвоста; "
+            "выбрать другую живую пару одноимённых файлов из двух каталогов")
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("pid999", NOW - timedelta(minutes=20),
+                                 files=[f"/tmp/wt_a/{a.relative_to(root).as_posix()}"])])
+        r = run(guard, tracker, log, "agent-x", ps=ps_alive, sibling=sibling,
+                planned_files=[f"/tmp/wt_b/{b.relative_to(root).as_posix()}"])
+        assert r["verdict"] == guard.FREE and not r["overlaps"]
+
+    def test_the_same_real_file_from_two_roots_still_blocks(self, guard, sibling, tracker, log,
+                                                            ps_alive):
+        """Обратный контроль к нему же, тоже на умолчании: ОДИН и тот же файл из двух корней
+        по-прежнему ⛔ ЗАНЯТА. Зелёный и до правки, и после — это и есть его роль."""
+        rel = "spa_core/tests/conftest.py"
+        assert (Path(guard.ROOT) / rel).is_file()
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("pid999", NOW - timedelta(minutes=20),
+                                 files=[f"/tmp/wt_a/{rel}"])])
+        r = run(guard, tracker, log, "agent-x", ps=ps_alive, sibling=sibling,
+                planned_files=[f"/tmp/wt_b/{rel}"])
+        assert r["verdict"] == guard.CLAIMED and r["overlaps"]

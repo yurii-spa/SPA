@@ -286,15 +286,64 @@ def _tail2(value) -> str:
     return (Path(p.parent.name) / p.name).as_posix()
 
 
-def paths_overlap(a, b) -> bool:
+def repo_relative(value, root=ROOT, cache=None):
+    """Путь объявления → путь ОТНОСИТЕЛЬНО репозитория, либо None, если не разрешается.
+
+    Берётся САМЫЙ ДЛИННЫЙ хвост компонентов, существующий в текущем репо. Объявления пишут
+    абсолютные пути из разных корней (`/tmp/spa_wt_c91/spa_core/tests/x.py`,
+    `/Users/…/SPA_Claude/spa_core/tests/x.py`), и после снятия дерева от чужого корня не
+    остаётся ничего — но хвост `spa_core/tests/x.py` в репо есть, и он ОДНОЗНАЧЕН.
+    Самый длинный: у `…/spa_core/tests/x.py` существуют И `tests/x.py` (другой файл!), И
+    `spa_core/tests/x.py` — правильный ответ второй.
+
+    Хвост из ОДНОГО компонента (голое имя файла) разрешением не считается — это граница
+    исходного правила («слишком много `__init__.py`»), и снимать её нельзя: в корне репо
+    лежит свой `__init__.py`, поэтому `/a/one/__init__.py` и `/b/two/__init__.py` иначе
+    разрешились бы в ОДИН файл. Поймано собственным обратным контролем
+    `test_same_basename_alone_is_not_overlap` — правился код, не тест."""
+    key = _norm_path(value)
+    if cache is not None and key in cache:
+        return cache[key]
+    parts = Path(key).parts
+    found = None
+    for i in range(len(parts) - 1):                # от самого ДЛИННОГО хвоста к «каталог/имя»
+        rel = Path(*parts[i:])
+        if rel.is_absolute():
+            continue
+        if (Path(root) / rel).exists():
+            found = rel.as_posix()
+            break
+    if cache is not None:
+        cache[key] = found
+    return found
+
+
+def paths_overlap(a, b, root=ROOT, cache=None) -> bool:
     """Один и тот же файл в двух объявлениях.
 
-    Сравниваются нормализованный путь целиком И хвост «каталог/имя» — объявления пишут
-    абсолютные host-пути, но одна и та же работа может объявляться из разных корней
-    (хост-репо / worktree). Совпадение только по имени файла намеренно НЕ считается
-    совпадением (слишком много `__init__.py`)."""
+    Порядок: полный нормализованный путь → путь относительно репо (`repo_relative`) → хвост
+    «каталог/имя». Объявления пишут абсолютные host-пути, но одна и та же работа может
+    объявляться из разных корней (хост-репо / worktree), поэтому хвост нужен. Совпадение
+    только по имени файла намеренно НЕ считается совпадением (слишком много `__init__.py`).
+
+    **Почему хвоста мало (замер цикла #91, воспроизведён #262).** В репозитории ДВА каталога
+    тестов, и одноимённые файлы в них — норма, а не исключение: замер 16.08 даёт **35
+    сталкивающихся хвостов на 72 файла** (`tests/test_signal_aggregator.py` против
+    `spa_core/tests/test_signal_aggregator.py` — разные файлы с разным содержимым; тот же
+    класс у `api/auth.py`, `routes/admin.py`, `adapters/__init__.py`). Хвост объявлял их
+    ОДНИМ файлом, и сессия, объявившая один, запирала работу по другому на все 3 часа.
+    Комментарий выше показывает, что риск осознавали, но границу провели на уровень короче.
+
+    Сужение узкое: путь относительно репо решает исход ТОЛЬКО когда разрешились ОБА пути —
+    тогда мы знаем оба файла поимённо и вправе сказать, что это разные файлы. Если хоть один
+    не разрешается (файла в репо уже нет, объявлен относительный путь, чужая структура) —
+    поведение прежнее, вплоть до хвоста: непонятность не покупается тишиной."""
     if _norm_path(a) == _norm_path(b):
         return True
+    ra = repo_relative(a, root, cache)
+    rb = repo_relative(b, root, cache)
+    if ra is not None and rb is not None:
+        return ra == rb
     return _tail2(a) == _tail2(b)
 
 
@@ -327,15 +376,43 @@ def releases_by_session(entries, parse_ts) -> dict:
 
 
 def entry_hit(entry, cid) -> tuple:
-    """(сила, чем именно) — относится ли объявление к этой карточке. ("", "") — нет."""
+    """(сила, чем именно) — относится ли объявление к этой карточке. ("", "") — нет.
+
+    **Явное поле главнее косвенного признака.** Настоящий захват ВСЕГДА несёт поле `card:`
+    (`claim_card` → `announce_claim` его пишет; не смог объявить ⇒ карточка не взята,
+    fail-CLOSED). Поэтому запись, которая машинно называет ДРУГУЮ карточку, захватом ЭТОЙ не
+    является — что бы ни лежало в её списке файлов.
+
+    Почему это не косметика: протокол ОБЯЗЫВАЕТ дописывать в чужие карточки (подъём
+    осиротевшей работы, «независимое подтверждение», ссылки §6.4), и каждая такая дописка
+    делала файл карточки СИЛЬНЫМ признаком её захвата. Живой замер (цикл #262): карточка
+    `agent-card-file-in-ownership-locks-a-card-it-doesnt-claim` читалась как захваченная
+    **329 часов подряд** из записи цикла #91, у которой `card:` указывает на
+    `agent-signal-aggregator-tier-tests-red-after-blindness-fix`; снятие (`card_state: done`)
+    ушло по тому же полю на ТУ ЖЕ другую карточку, поэтому замок не снимался НИКОГДА, а не
+    «до конца окна». Обходили его вручную — то есть обесценивали сторожа.
+
+    Ослаблением это не является, и граница проведена узко:
+    - запись БЕЗ поля `card:` — не тронута вовсе (прежний СИЛЬНЫЙ признак);
+    - запись с `card:` на ЭТУ карточку — прежний СИЛЬНЫЙ признак;
+    - запись с `card:` на другую — признак становится СЛАБЫМ: он не исчезает из отчёта, и у
+      сессии, чья жизнь ПОДТВЕРЖДЕНА, по-прежнему даёт `claimed` (слабые признаки блокируют,
+      пока сессия жива — та же политика, что у упоминания в тексте: правящий файл моей
+      карточки живой сосед — это настоящий конфликт по файлу, а не фантом);
+    - пересечение по `--files` — независимое измерение, оно не затронуто.
+    """
     card_field = str(entry.get("card") or "").strip()
+    named_other = ""
     if card_field:
         if card_id(card_field) == cid:
             return STRONG, "поле `card:` в объявлении"
-        # Явно названа ДРУГАЯ карточка — файлы/текст ниже всё равно проверяем: сессия могла
-        # объявить владение файлом карточки, работая над соседней.
+        named_other = card_id(card_field)
     for f in entry.get("files") or []:
         if Path(str(f)).name == f"{cid}.md":
+            if named_other:
+                return WEAK, ("файл карточки объявлен во владении, но запись машинно называет "
+                              f"ДРУГУЮ карточку (`card: {named_other}`) — захватом ЭТОЙ "
+                              "не считается")
             return STRONG, "файл карточки объявлен во владении"
     if cid and cid in str(entry.get("summary") or ""):
         return WEAK, "упоминание идентификатора в тексте объявления"
@@ -351,7 +428,7 @@ def _fmt_ts(dt: datetime) -> str:
 def build_report(cid, path, entries, self_session, sibling, *, now=None,
                  grace_hours=DEFAULT_GRACE_HOURS, ps=None, planned_files=(),
                  log_path=None, log_error=None, malformed_lines=0, card_meta=None,
-                 card_error=None, self_anchor=None, card_source=None):
+                 card_error=None, self_anchor=None, card_source=None, repo_root=ROOT):
     """Полный отчёт о занятости карточки. Чистая функция: ни git, ни файлов — всё на входе.
 
     `self_anchor` — пара (`session_pid`, `session_pid_start`) МОЕГО долгоживящего процесса или
@@ -526,6 +603,7 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
                         f"{malformed_lines} нечитаемых строк журнала — часть объявлений "
                         f"не разобрана")
         latest = {}          # сессия → последний захват этой карточки
+        rel_cache = {}       # путь → путь относительно репо (одна проверка ФС на путь)
         # Сессия, объявившая `card_state: done`, работу закончила — её файлы больше не
         # «держатся» до конца окна свежести (карточка agent-card-claim-file-overlap-ignores-done).
         released_at = releases_by_session(rows, sibling._parse_ts)
@@ -552,7 +630,8 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
             if planned_files and session and session not in selves and ts is not None:
                 if (now - ts) <= grace:
                     shared = sorted({str(f) for f in (entry.get("files") or [])
-                                     for mine in planned_files if paths_overlap(f, mine)})
+                                     for mine in planned_files
+                                     if paths_overlap(f, mine, repo_root, rel_cache)})
                     if shared:
                         done_at = released_at.get(session)
                         if done_at is not None and done_at >= ts:
@@ -843,7 +922,7 @@ def _log_entries(log, sibling=None, last=None):
 def gather(card, *, log=DEFAULT_LOG, tracker_dir=DEFAULT_TRACKER, sibling=None,
            self_session=None, now=None, grace_hours=DEFAULT_GRACE_HOURS,
            planned_files=(), last=None, ps=None, self_anchor=_ENV_ANCHOR,
-           base_ref=DEFAULT_BASE_REF):
+           base_ref=DEFAULT_BASE_REF, repo_root=ROOT):
     """Прочитать карточку + журнал и собрать отчёт (файловый слой над `build_report`).
 
     `self_anchor` — мой долгоживущий процесс (`anchor_of`-пара) для опознания собственных
@@ -873,7 +952,7 @@ def gather(card, *, log=DEFAULT_LOG, tracker_dir=DEFAULT_TRACKER, sibling=None,
                         planned_files=planned_files, log_path=log_path,
                         log_error=log_error, malformed_lines=malformed,
                         card_meta=meta, card_error=card_error, self_anchor=self_anchor,
-                        card_source=card_source)
+                        card_source=card_source, repo_root=repo_root)
 
 
 # ── взятие / освобождение карточки ───────────────────────────────────────────
