@@ -34,10 +34,12 @@ import Layout from '../layouts/Layout.astro';
          data-ru="Тарифы">Packages</a>
     </div>
 
+    {/* The wallet-scan link here pointed at the checkup service, which is not deployed: a 404 page
+         sending the visitor to another 404. Replaced with the live track (2026-08-16). */}
     <p class="text-sm text-slate-500">
-      <span data-ru="Есть ончейн-кошелёк? ">Have an on-chain wallet? </span>
-      <a href="https://checkup.earn-defi.com/check?utm_source=404" data-track="404_to_checkup"
-         class="text-accent-400 underline" data-ru="Проверьте его — только публичный адрес →">Check it — public address only →</a>
+      <span data-ru="Хотите увидеть, как деск работает на самом деле? ">Want to see how the desk actually runs? </span>
+      <a href="/track-record" data-track="404_to_track"
+         class="text-accent-400 underline" data-ru="Смотреть живой трек →">See the live track →</a>
     </p>
   </main>
 </Layout>
