@@ -78,6 +78,29 @@ MAX_RETRIES: int = 3
 #: Base backoff delay in seconds; actual delays are 1s, 2s, 4s (2^attempt).
 BACKOFF_BASE: float = 1.0
 
+#: Module-wide "this feed may go out" switch, read at CALL time.  ``True`` in
+#: production — nothing in the runtime ever sets it.
+#:
+#: Why it exists (2026-08-16, card ``agent-tests-reach-live-feed-222``)
+#: --------------------------------------------------------------------
+#: The repo has TWO DeFiLlama clients, and shutting the adapters' one
+#: (``spa_core.adapters.config.DEFILLAMA_ENABLED``) left this one wide open:
+#: measured on the fixed door slice, 616 of the 823 remaining refusals came
+#: through here — ``yields.llama.fi/pools`` plus the CoinGecko
+#: ``/coins/markets`` fallback — reached from the DFB pool-universe surface.
+#:
+#: Read at CALL time rather than folded into ``__init__``'s ``enabled``
+#: DELIBERATELY: this module keeps a process-wide ``_SINGLETON`` (and the
+#: adapters build their own long-lived feed objects), so a constructor-time
+#: decision would be frozen by whichever test happened to build it first and
+#: would then leak across every later test — including one that explicitly
+#: asked for the transport back.
+#:
+#: Not a new refusal path: ``False`` takes the module's OWN documented
+#: "disabled" branch, the same ``return None`` the network-failure branch
+#: reaches, so no caller observes anything new.
+ENABLED: bool = True
+
 #: User-Agents rotated on successive retries.  DeFiLlama CDN occasionally
 #: blocks bot-like UAs with a 403; rotating helps bypass the filter.
 _USER_AGENTS: list[str] = [
@@ -281,7 +304,7 @@ class DefiLlamaFeed:
         when disabled, on persistent network error, or on unexpected payload.
         Never raises.
         """
-        if not self.enabled:
+        if not (self.enabled and ENABLED):
             return None
 
         now = time.monotonic()
@@ -411,7 +434,7 @@ class DefiLlamaFeed:
         Args:
             project: DeFiLlama project slug (e.g. ``"aave-v3"``).
         """
-        if not self.enabled:
+        if not (self.enabled and ENABLED):
             return None
 
         coin_id = COINGECKO_COIN_IDS.get(project.lower())

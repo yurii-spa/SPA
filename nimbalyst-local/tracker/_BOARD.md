@@ -489,6 +489,7 @@
 - Числа на сайте и обход owner-гейта — одна причина, чинить вместе (СТАРТ после утреннего апдейта)  ·  `agent-site-numbers-and-gate.md` · 2026-08-06
 - spark_susds наблюдает чужой инструмент (sparklend lending vs sUSDS vault) — развести идентичности до допуска Sky  ·  `agent-spark-susds-identity-split.md` · 2026-08-05
 - Тесты ходят в живую сеть (Telegram + аналитика) — полный набор не проходит целиком, когда сеть медленная  ·  `agent-tests-do-live-network-io.md` · 2026-08-02
+- 222 теста дёргают живой фид — 9 268 отказов за прогон; набор зелёный по неверной причине  ·  `agent-tests-reach-live-feed-222.md` · 2026-08-08
 - Сделать турнир стратегий ДОВЕРЯЕМЫМ — ранжировать по net-of-cost APY на реальных исторических данных (не Sharpe на mock)  ·  `agent-tournament-trustworthy-real-apy.md` · 2026-07-23
 - Guard — track-данные в git не должны молча протухать / молча пропускаться в CI  ·  `agent-track-data-git-durability-guard.md` · 2026-07-23
 - Constraints тюнера не зеркалят RiskPolicy + расхождение фидов по pendle (D5+D6)  ·  `agent-tuner-constraints-drift-and-feed-divergence.md` · 2026-08-02
@@ -516,7 +517,6 @@
 - Разрыв «origin → рантайм»: фиксы уезжают на GitHub, но флот исполняет старое дерево  ·  `agent-origin-runtime-sync-gap.md` · 2026-08-03
 - У реестра агентов нет продюсера — он протух на 475 часов и никто не заметил  ·  `agent-registry-has-no-producer.md` · 2026-08-05
 - Учение по восстановлению проверяет ОДИН архив из двух серий — умерший производитель бэкапов останется невидим за зелёным all_ok  ·  `agent-restore-drill-single-series-blind.md` · 2026-08-05
-- 222 теста дёргают живой фид — 9 268 отказов за прогон; набор зелёный по неверной причине  ·  `agent-tests-reach-live-feed-222.md` · 2026-08-08
 - Дыра в треке разобрана — не 14 дней, а 2; сторож дыр был слеп по построению  ·  `agent-track-hole-rootcause.md` · 2026-08-05
 - Проверка порога TVL в 11 адаптерах тождественно истинна — считается от зашитой константы  ·  `agent-tvl-floor-constant-true.md` · 2026-08-05
 - TVL-floor проходят по литералу $50M — правило «только живой TVL» ссылается на поле, которого никто не пишет  ·  `agent-tvl-floor-passes-on-literals.md` · 2026-08-02

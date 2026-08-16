@@ -242,3 +242,35 @@ def _no_live_backup_dir():
     backup_dir_guard.install()
     yield
     backup_dir_guard.restore()
+
+
+# ---------------------------------------------------------------------------
+# Shut the shared live-feed DOORS (2026-08-16, card
+# `agent-tests-reach-live-feed-222`).
+#
+# Same doors as spa_core/tests/conftest.py, installed from BOTH roots for the
+# same reason the three guards above are, and loaded by absolute path from the
+# single source of truth so the roots cannot drift. Rationale + the argument
+# that this changes no observable result: spa_core/tests/live_feed_doors.py.
+# ---------------------------------------------------------------------------
+_DOORS_PATH = _ROOT / "spa_core" / "tests" / "live_feed_doors.py"
+live_feed_doors = sys.modules.get("spa_live_feed_doors")
+if live_feed_doors is None:
+    _doors_spec = _ilu.spec_from_file_location("spa_live_feed_doors", _DOORS_PATH)
+    live_feed_doors = _ilu.module_from_spec(_doors_spec)     # type: ignore[arg-type]
+    _doors_spec.loader.exec_module(live_feed_doors)          # type: ignore[union-attr]
+    sys.modules["spa_live_feed_doors"] = live_feed_doors
+
+
+@_pytest.fixture(autouse=True)
+def _shut_the_shared_live_feed_doors(request):
+    """Close DeFiLlama + the strategy-lab HTTP door for every test that did not
+    ask for them, and put them back exactly as they were afterwards."""
+    if request.node.get_closest_marker(live_feed_doors.MARKER):
+        yield
+        return
+    previous = live_feed_doors.close()
+    try:
+        yield
+    finally:
+        live_feed_doors.restore(previous)

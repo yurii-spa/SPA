@@ -17,6 +17,22 @@ Covers:
 All tests are offline — urllib.request.urlopen / time.sleep are patched throughout.
 No real network is touched.
 
+MARKED ``live_feed_transport`` (2026-08-16, card ``agent-tests-reach-live-feed-222``)
+------------------------------------------------------------------------------------
+This whole module's SUBJECT is the transport: it patches ``urlopen`` and then
+asserts on what the client does with the response — TTL caching, retry/backoff,
+UA rotation, the CoinGecko fallback, payload parsing.  The suite now shuts the
+shared live-feed doors for every test that did not ask for them, and a shut
+``feeds.defi_llama_feed.ENABLED`` short-circuits before the patched transport is
+ever consulted — which is right for a test that only wants the feed's *result*
+and wrong here: measured, 36 of these tests went red because their injected
+payload was never read.
+
+They went red rather than vacuous, which is the point — none of them is relaxed,
+and none of their assertions is touched (invariant #16).  The mark restores this
+module's previous behaviour verbatim.  It does NOT put the network back:
+``network_guard`` still refuses any call that escapes a patch.
+
 Run:
     python3 -m pytest spa_core/tests/test_defi_llama_feed.py -v
     # or
@@ -54,6 +70,10 @@ from spa_core.adapters.maple import MapleAdapter            # noqa: E402
 
 import pytest  # noqa: E402
 import spa_core.feeds.defi_llama_feed as _dlf  # noqa: E402
+
+#: The transport is this module's subject — see the module docstring. Applies to
+#: the unittest.TestCase classes below as well.
+pytestmark = pytest.mark.live_feed_transport
 
 # Canonical (production) retry constants. The root tests/conftest.py mutates the
 # live module-level MAX_RETRIES/BACKOFF_BASE for speed in the *adapter* tests
