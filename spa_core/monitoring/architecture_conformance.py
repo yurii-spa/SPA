@@ -223,8 +223,43 @@ def load_receipts(path: str = RECEIPTS_PATH) -> dict[str, dt.datetime]:
     return latest
 
 
-def _manifest_drift_problems() -> list[str] | None:
-    """B5: перегенерировать манифест из фактов plist'ов. None = НЕ ИЗМЕРИМО здесь."""
+def group_drift_by_agent(problems: list[str]) -> list[dict]:
+    """Строки замера → находки, ключ которых — ЛИЧНОСТЬ агента, а не текст поля.
+
+    Одна пропавшая точка входа даёт ТРИ строки (`plist_source`/`schedule`/`program`):
+    ключ по тексту завёл бы три карточки об одной причине, а любая правка
+    формулировки завела бы их заново. Строка без префикса `com.spa.<…>: ` живёт
+    своим ключом — выдумывать ей владельца нельзя.
+    """
+    order: list[str] = []
+    groups: dict[str, list[str]] = {}
+    for p in problems:
+        label = p.split(": ", 1)[0] if (p.startswith("com.spa.") and ": " in p) else None
+        gid = label or p
+        if gid not in groups:
+            groups[gid] = []
+            order.append(gid)
+        groups[gid].append(p.split(": ", 1)[1] if label else p)
+    out: list[dict] = []
+    for gid in order:
+        if gid.startswith("com.spa."):
+            out.append({"key": gid, "message": f"{gid}: " + "; ".join(groups[gid])})
+        else:
+            out.append({"key": gid[:80], "message": gid})
+    return out
+
+
+def _manifest_drift_problems() -> list[dict] | None:
+    """B5: перегенерировать манифест из фактов plist'ов. None = НЕ ИЗМЕРИМО здесь.
+
+    Отдаёт САМ диагноз, а не указатель на него. До цикла #264 здесь стоял
+    `gen.main([])`, из которого брался ОДИН код возврата, а находка звучала
+    «manifest --check вернул дрейф (см. build_architecture_manifest.py)»: ни
+    агента, ни поля, ни направления — и флага `--check` у скрипта нет вовсе
+    (`argparse: unrecognized arguments: --check`), так что читатель находки
+    не мог даже повторить замер по её же инструкции. Живой замер 16.08:
+    три строки про `com.spa.site_freshness` печатались в stdout и пропадали.
+    """
     try:
         import glob
         import importlib.util
@@ -234,10 +269,12 @@ def _manifest_drift_problems() -> list[str] | None:
         spec.loader.exec_module(gen)
         if not glob.glob(os.path.join(gen.LAUNCH_AGENTS_DIR, "com.spa.*.plist")):
             return None  # не прод-хост
-        rc = gen.main([])  # --check (дефолт), молча в stdout
-        return [] if rc == 0 else ["manifest --check вернул дрейф (см. build_architecture_manifest.py)"]
+        m = gen.measure()  # тот же вердикт, что у CLI без флагов: пусто ⇔ rc 0
+        return group_drift_by_agent(m["problems"] + m["drift"])
     except Exception as e:  # noqa: BLE001
-        return [f"B5 упал: {e}"]
+        # Ключ БЕЗ текста исключения: путь/номер строки в ключе плодили бы новую
+        # находку (и новую карточку) на каждый чих окружения.
+        return [{"key": "measure_failed", "message": f"B5 упал: {e}"}]
 
 
 def origin_manifest(root: str = REPO_ROOT, ref: str = CURATION_REF,
@@ -323,7 +360,7 @@ def run_checks(manifest: dict,
                receipts: dict[str, dt.datetime],
                now: dt.datetime,
                prev_first_seen: dict[str, str] | None = None,
-               drift_problems: list[str] | None = None,
+               drift_problems: list[str | dict] | None = None,
                drift_measured: bool = False,
                curation: dict | None = None) -> dict:
     findings: list[dict] = []
@@ -439,8 +476,12 @@ def run_checks(manifest: dict,
                           "reason": "хост без ~/Library/LaunchAgents/com.spa.* — дрейф НЕ ИЗМЕРЕН"})
     else:
         for p in (drift_problems or []):
-            findings.append(_finding(f"B5:drift:{p[:80]}", "B5", "WARN", "strong",
-                                     f"манифест ↔ факты: {p}"))
+            # dict — сгруппированная находка (ключ = агент, см. group_drift_by_agent);
+            # строка — прежняя форма, ключом остаётся сам текст.
+            key, msg = ((p["key"], p["message"]) if isinstance(p, dict)
+                        else (p[:80], p))
+            findings.append(_finding(f"B5:drift:{key}", "B5", "WARN", "strong",
+                                     f"манифест ↔ факты: {msg}"))
 
     # B6 — локальная курация ↔ origin (см. шапку модуля)
     if curation is not None:

@@ -301,6 +301,88 @@ class UncheckedHonesty(unittest.TestCase):
         self.assertTrue(any(f["check"] == "B5" for f in r["findings"]))
 
 
+class B5DriftIsActionable(unittest.TestCase):
+    """Цикл #264: находка B5 держала диагноз в руках и выбрасывала его.
+
+    Живой замер 2026-08-16: прод-дерево не получает `launchd/` при автосинке,
+    поэтому `com.spa.site_freshness` пропал из фактов, и генератор печатал ТРИ
+    строки DRIFT. Сторож брал от него один код возврата и писал владельцу
+    «манифест ↔ факты: manifest --check вернул дрейф (см. build_architecture_
+    manifest.py)» — ни агента, ни поля, ни направления; вдобавок флага `--check`
+    у скрипта нет вовсе, то есть повторить замер по инструкции самой находки
+    было НЕЛЬЗЯ. Карточка моста из такой находки нечитаема по построению.
+    """
+
+    # ровно то, что напечатал генератор в проде 16.08 (скопировано с прогона)
+    REAL = ["com.spa.site_freshness: plist_source 'repo:launchd/com.spa.site_freshness.plist' → None",
+            "com.spa.site_freshness: schedule 'interval:21600s' → None",
+            "com.spa.site_freshness: program 'agent_site_freshness.sh' → None"]
+
+    def test_finding_names_agent_field_and_direction(self):
+        """Положительный контроль: на неисправленном сторо́же текст находки не
+        содержал ни имени агента, ни поля — краснеет именно на поведении."""
+        r = run(manifest([]), set(), drift=ac.group_drift_by_agent(self.REAL))
+        msgs = [f["message"] for f in r["findings"] if f["check"] == "B5"]
+        self.assertEqual(len(msgs), 1, msgs)
+        self.assertIn("com.spa.site_freshness", msgs[0])
+        for field in ("plist_source", "schedule", "program"):
+            self.assertIn(field, msgs[0])
+        self.assertIn("agent_site_freshness.sh", msgs[0])
+
+    def test_one_agent_gives_one_card_not_three(self):
+        """Ключ находки = ЛИЧНОСТЬ агента: три поля одной причины не имеют права
+        стать тремя карточками (мост заводит карточку на ключ)."""
+        r = run(manifest([]), set(), drift=ac.group_drift_by_agent(self.REAL))
+        self.assertEqual([f["key"] for f in r["findings"] if f["check"] == "B5"],
+                         ["B5:drift:com.spa.site_freshness"])
+
+    def test_key_survives_wording_change_of_a_field(self):
+        """Ключ не заводится заново от правки формулировки одного поля —
+        иначе карточка воскресала бы при каждом косметическом изменении."""
+        other = list(self.REAL)
+        other[1] = "com.spa.site_freshness: schedule 'interval:900s' → None"
+        a = ac.group_drift_by_agent(self.REAL)[0]["key"]
+        b = ac.group_drift_by_agent(other)[0]["key"]
+        self.assertEqual(a, b)
+
+    def test_two_agents_stay_two_findings(self):
+        drift = ac.group_drift_by_agent(
+            self.REAL + ["com.spa.daily_cycle: program 'a.sh' → 'b.sh'"])
+        r = run(manifest([]), set(), drift=drift)
+        self.assertEqual(sorted(f["key"] for f in r["findings"] if f["check"] == "B5"),
+                         ["B5:drift:com.spa.daily_cycle",
+                          "B5:drift:com.spa.site_freshness"])
+
+    def test_line_without_agent_keeps_its_own_key(self):
+        """Схемная строка про артефакт владельца не имеет — выдумывать его нельзя."""
+        got = ac.group_drift_by_agent(
+            ["artifact data/x.json: active без положительного slo_hours"])
+        self.assertEqual(len(got), 1)
+        self.assertNotIn("com.spa.", got[0]["key"])
+        self.assertIn("slo_hours", got[0]["message"])
+
+    def test_legacy_string_form_still_supported(self):
+        """Обратный контроль: прежняя форма (просто строка) не сломана."""
+        r = run(manifest([]), set(), drift=["com.spa.x: schedule изменился"])
+        f = [f for f in r["findings"] if f["check"] == "B5"]
+        self.assertEqual(len(f), 1)
+        self.assertIn("com.spa.x: schedule изменился", f[0]["message"])
+
+    def test_no_drift_no_finding(self):
+        """Обратный контроль: исправное состояние остаётся зелёным."""
+        r = run(manifest([]), set(), drift=ac.group_drift_by_agent([]))
+        self.assertEqual([f for f in r["findings"] if f["check"] == "B5"], [])
+
+    def test_measure_failure_key_has_no_exception_text(self):
+        """Ключ падения не тащит текст исключения: иначе смена пути/строки
+        рождала бы новую находку и новую карточку на каждый чих окружения."""
+        import unittest.mock as mock
+        with mock.patch.object(ac, "REPO_ROOT", "/nonexistent/spa-root"):
+            got = ac._manifest_drift_problems()
+        self.assertIsNotNone(got)
+        self.assertEqual([g["key"] for g in got], ["measure_failed"])
+
+
 class Aging(unittest.TestCase):
     def test_weak_ages_out_strong_does_not(self):
         """Слабый сигнал старше горизонта не голодит очередь; сильный — вечен."""

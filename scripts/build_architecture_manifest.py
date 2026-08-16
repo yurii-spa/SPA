@@ -28,8 +28,13 @@
     notes          — свободный текст
 
 Режимы:
-  --check (дефолт)  сверить манифест с фактами; расхождение → отчёт + exit 2
-  --write           обновить механические поля / посеять новых агентов (курация не трогается)
+  без флагов  сверить манифест с фактами; расхождение → отчёт + exit 2
+              (флага `--check` НЕТ: argparse ответит `unrecognized arguments`;
+               до цикла #264 так было написано и здесь, и в находке B5)
+  --write     обновить механические поля / посеять новых агентов (курация не трогается)
+
+Замер отдан наружу функцией `measure()`: сторож `architecture_conformance` (B5) читает
+диагноз строками, а не кодом возврата (цикл #264 — находка, не сообщавшая НИЧЕГО).
 
 Идемпотентность: --write без изменения фактов даёт байт-в-байт тот же файл (timestamp'ов
 в манифесте нет намеренно). LLM_FORBIDDEN. Только stdlib. Атомарная запись.
@@ -251,6 +256,62 @@ def dumps(manifest: dict) -> str:
     return json.dumps(manifest, ensure_ascii=False, indent=1, sort_keys=False) + "\n"
 
 
+def default_plist_dirs() -> list[str]:
+    """~/Library/LaunchAgents, затем repo launchd/ и scripts/ (страховка от сирот)."""
+    return [LAUNCH_AGENTS_DIR,
+            os.path.join(REPO_ROOT, "launchd"),
+            os.path.join(REPO_ROOT, "scripts")]
+
+
+def compute_drift(current: dict, rebuilt: dict, manifest_path: str) -> list[str]:
+    """Чем манифест на диске расходится с перегенерацией из фактов.
+
+    Отдельной функцией — потому что диагноз нужен НЕ только человеку у терминала.
+    `architecture_conformance` (B5) до цикла #264 видел от этого скрипта ровно код
+    возврата и подставлял в находку текст «manifest --check вернул дрейф», в котором
+    не было ни агента, ни поля, ни направления, а названный флаг вообще не
+    существует. Три готовые строки печатались в stdout и пропадали.
+    """
+    drift: list[str] = []
+    if not os.path.exists(manifest_path):
+        drift.append("манифест отсутствует — запустить --write")
+        return drift
+    if dumps(current) == dumps(rebuilt):
+        return drift
+    cur = {a["label"]: a for a in current.get("agents", [])}
+    new = {a["label"]: a for a in rebuilt["agents"]}
+    for label in sorted(set(cur) | set(new)):
+        if label not in cur:
+            drift.append(f"{label}: агент есть в фактах, нет в манифесте")
+        elif label not in new:
+            drift.append(f"{label}: агент в манифесте, в фактах не найден")
+        else:
+            for k in MECHANICAL_FIELDS:
+                if cur[label].get(k) != new[label].get(k):
+                    drift.append(f"{label}: {k} {cur[label].get(k)!r} → {new[label].get(k)!r}")
+    if not drift:
+        drift.append("недиагностированное расхождение сериализации — запустить --write")
+    return drift
+
+
+def measure(manifest_path: str = DEFAULT_MANIFEST,
+            registry_path: str = DEFAULT_REGISTRY,
+            plist_dirs: list[str] | None = None) -> dict:
+    """Один замер «манифест ↔ факты»: без stdout, без записи, без sys.exit.
+
+    Возвращает `{plists, current, rebuilt, problems, drift}`. Пусты `problems` и
+    `drift` ⇔ `main()` в режиме сверки вернул бы 0 — это ОДИН источник вердикта
+    для CLI и для сторожа.
+    """
+    plists = _scan_plists(plist_dirs or default_plist_dirs())
+    registry = _load_registry(registry_path)
+    current = _load_manifest(manifest_path)
+    rebuilt = build(current, plists, registry)
+    return {"plists": plists, "current": current, "rebuilt": rebuilt,
+            "problems": validate(rebuilt, plists),
+            "drift": compute_drift(current, rebuilt, manifest_path)}
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--manifest", default=DEFAULT_MANIFEST)
@@ -261,14 +322,8 @@ def main(argv=None) -> int:
     ap.add_argument("--write", action="store_true")
     args = ap.parse_args(argv)
 
-    dirs = args.plist_dir or [LAUNCH_AGENTS_DIR,
-                              os.path.join(REPO_ROOT, "launchd"),
-                              os.path.join(REPO_ROOT, "scripts")]
-    plists = _scan_plists(dirs)
-    registry = _load_registry(args.registry)
-    current = _load_manifest(args.manifest)
-    rebuilt = build(current, plists, registry)
-    problems = validate(rebuilt, plists)
+    m = measure(args.manifest, args.registry, args.plist_dir)
+    rebuilt, problems = m["rebuilt"], m["problems"]
 
     if args.write:
         text = dumps(rebuilt)
@@ -282,24 +337,8 @@ def main(argv=None) -> int:
             print(f"  ПРОБЛЕМА: {p}")
         return 2 if problems else 0
 
-    # --check: манифест обязан совпадать с перегенерацией и быть валидным
-    drift = []
-    if not os.path.exists(args.manifest):
-        drift.append("манифест отсутствует — запустить --write")
-    elif dumps(current) != dumps(rebuilt):
-        cur = {a["label"]: a for a in current.get("agents", [])}
-        new = {a["label"]: a for a in rebuilt["agents"]}
-        for label in sorted(set(cur) | set(new)):
-            if label not in cur:
-                drift.append(f"{label}: агент есть в фактах, нет в манифесте")
-            elif label not in new:
-                drift.append(f"{label}: агент в манифесте, в фактах не найден")
-            else:
-                for k in MECHANICAL_FIELDS:
-                    if cur[label].get(k) != new[label].get(k):
-                        drift.append(f"{label}: {k} {cur[label].get(k)!r} → {new[label].get(k)!r}")
-        if not drift:
-            drift.append("недиагностированное расхождение сериализации — запустить --write")
+    # режим сверки (без флагов): манифест обязан совпадать с перегенерацией и быть валидным
+    drift = m["drift"]
     for p in problems + drift:
         print(f"DRIFT: {p}")
     if problems or drift:

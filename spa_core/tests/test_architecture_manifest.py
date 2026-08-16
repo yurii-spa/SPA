@@ -247,6 +247,102 @@ class ScanAndSeed(unittest.TestCase):
         self.assertEqual(a["produces"], [{"artifact": "data/x.json", "slo_hours": 5}])
 
 
+class DriftIsReadableByMachine(unittest.TestCase):
+    """Цикл #264: диагноз обязан быть ДОСТУПЕН, а не только напечатан.
+
+    Авария 16.08: прод-дерево не получает `launchd/` при автосинке (правило
+    code_sync возит `spa_core/`·`scripts/`·`tests/`), из фактов пропал
+    `com.spa.site_freshness`, генератор напечатал три строки DRIFT — а сторож
+    `architecture_conformance` (B5) брал от него ОДИН код возврата и слал
+    владельцу находку без единого факта, со ссылкой на несуществующий флаг.
+    """
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.TemporaryDirectory()
+        self.la = os.path.join(self.tmp.name, "LaunchAgents")
+        self.repo = os.path.join(self.tmp.name, "repo_launchd")
+        os.makedirs(self.la)
+        os.makedirs(self.repo)
+        self._orig_la = gen.LAUNCH_AGENTS_DIR
+        gen.LAUNCH_AGENTS_DIR = self.la
+        self.manifest_path = os.path.join(self.tmp.name, "manifest.json")
+
+    def tearDown(self):
+        gen.LAUNCH_AGENTS_DIR = self._orig_la
+        self.tmp.cleanup()
+
+    def _seed(self, labels):
+        """Записать манифест, ровно соответствующий фактам этих plist'ов."""
+        for lb in labels:
+            _write_plist(self.la, lb)
+        plists = gen._scan_plists([self.la, self.repo])
+        m = gen.build({"schema_version": 1, "adr": "ADR-066", "agents": [],
+                       "artifacts": [], "designed_architectures": []}, plists, {})
+        with open(self.manifest_path, "w", encoding="utf-8") as f:
+            f.write(gen.dumps(m))
+        return m
+
+    def _measure(self):
+        return gen.measure(self.manifest_path, os.path.join(self.tmp.name, "no_registry.json"),
+                           [self.la, self.repo])
+
+    def test_agent_vanished_from_facts_names_agent_and_fields(self):
+        """Ровно авария site_freshness: plist пропал из дерева."""
+        self._seed(["com.spa.keeper", "com.spa.site_freshness"])
+        os.remove(os.path.join(self.la, "com.spa.site_freshness.plist"))
+        drift = self._measure()["drift"]
+        own = [d for d in drift if d.startswith("com.spa.site_freshness:")]
+        self.assertTrue(own, drift)
+        joined = " ".join(own)
+        for field in ("plist_source", "schedule", "program"):
+            self.assertIn(field, joined)
+        self.assertIn("None", joined)
+        self.assertFalse([d for d in drift if d.startswith("com.spa.keeper:")], drift)
+
+    def test_measure_agrees_with_cli_verdict_both_ways(self):
+        """ОДИН источник вердикта: пусто ⇔ CLI в режиме сверки вернул бы 0."""
+        self._seed(["com.spa.keeper"])
+        m = self._measure()
+        self.assertEqual((m["problems"], m["drift"]), ([], []))
+        self.assertEqual(self._cli(), 0)
+        os.remove(os.path.join(self.la, "com.spa.keeper.plist"))
+        m = self._measure()
+        self.assertTrue(m["problems"] or m["drift"])
+        self.assertEqual(self._cli(), 2)
+
+    def _cli(self):
+        return gen.main(["--manifest", self.manifest_path,
+                         "--registry", os.path.join(self.tmp.name, "no_registry.json"),
+                         "--plist-dir", self.la, "--plist-dir", self.repo])
+
+    def test_missing_manifest_is_named_not_swallowed(self):
+        self._seed(["com.spa.keeper"])
+        os.remove(self.manifest_path)
+        self.assertIn("манифест отсутствует — запустить --write", self._measure()["drift"])
+
+    def test_measure_has_no_side_effects(self):
+        """Замер не пишет и не печатает — иначе сторож не смог бы им пользоваться."""
+        import io
+        import contextlib
+        self._seed(["com.spa.keeper"])
+        before = open(self.manifest_path, encoding="utf-8").read()
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            self._measure()
+        self.assertEqual(buf.getvalue(), "")
+        self.assertEqual(open(self.manifest_path, encoding="utf-8").read(), before)
+
+    def test_check_flag_does_not_exist(self):
+        """Находка B5 три месяца советовала `--check`. Его НЕТ — и текст находки
+        обязан был это учитывать. Если флаг когда-нибудь появится, тест краснеет
+        и заставит перечитать формулировки, а не оставит их врать молча."""
+        with self.assertRaises(SystemExit) as cm:
+            gen.main(["--check"])
+        self.assertEqual(cm.exception.code, 2)
+        self.assertNotIn("--check (дефолт)", gen.__doc__)
+
+
 class RealManifest(unittest.TestCase):
     """Машинонезависимые инварианты чекнутого architecture/manifest.json."""
 
