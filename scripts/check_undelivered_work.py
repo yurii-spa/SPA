@@ -429,6 +429,11 @@ def shared_log(start=ROOT, git=_git):
     return root / "data" / "session_changes.jsonl", None
 
 
+# Одно определение текста — и признак, и сообщение. Строка используется как КЛЮЧ класса
+# (`resolve_rel` её ставит, отчёт по ней группирует), поэтому копии заводить нельзя: разойдутся
+# — и группировка молча перестанет срабатывать, а раздел выродится обратно в N строк на путь.
+TREE_GONE = "рабочее дерево удалено вместе с объявленным путём"
+
 REAP_LEDGER_NAME = "worktree_reap_log.jsonl"
 # Вердикты, при которых снятое дерево не уносило с собой работу (см. reap_stale_worktrees.py).
 REAP_EXPLAINED = {"delivered", "superseded"}
@@ -502,6 +507,42 @@ def reaped_state(path_str, ledger, root, base_ref, git=_git):
     return None, None
 
 
+def group_tree_gone(unmeasured):
+    """[{session, common_root, count, sample, paths}] — записи «дерево снято» одной на дерево.
+
+    **Зачем группировка, а не строка на путь.** Одно снятое руками дерево даёт СТОЛЬКО строк,
+    сколько путей объявила сессия (замер 16.08: `/tmp/spa_c256` — 12 строк), и все они об
+    одном и том же событии с одним и тем же действием читателя: никаким. Это тот самый
+    механизм, которым сторожа глохнут, — и модуль уже решал его так же для мёртвых
+    регистраций: «НАЗЫВАЕТСЯ одной строкой на каталог».
+
+    **Что НЕ меняется:** записи остаются в `report["unmeasured"]` все до одной (счёт в
+    заголовке раздела и код возврата 2 считаются по ним), в JSON-выводе они тоже все. Сжат
+    ровно ЧЕЛОВЕЧЕСКИЙ вывод. Ослабления нет: ни одна запись не исчезает и не меняет вердикт.
+
+    Корень дерева не угадывается: берётся общий префикс объявленных путей (`commonpath`) и
+    называется тем, что он есть, — общим корнем объявленного, а не «тем самым деревом»."""
+    groups, order = {}, []
+    for u in unmeasured:
+        if not u.get("tree_gone") or not u.get("path"):
+            continue
+        key = u.get("session")
+        if key not in groups:
+            groups[key] = {"session": key, "paths": []}
+            order.append(key)
+        groups[key]["paths"].append(str(u["path"]))
+    out = []
+    for key in order:
+        paths = groups[key]["paths"]
+        try:
+            common = os.path.commonpath(paths) if len(paths) > 1 else str(Path(paths[0]).parent)
+        except ValueError:                     # разные корни — общего пути нет, и это честно
+            common = "общего корня у объявленных путей нет"
+        out.append({"session": key, "common_root": common, "count": len(paths),
+                    "sample": [Path(p).name for p in paths[:3]], "paths": paths})
+    return out
+
+
 def resolve_rel(path_str, root, git=_git):
     """(repo-relative POSIX-путь, None) либо (None, причина). Тот же принцип, что в пушере:
     принадлежность ТОМУ ЖЕ репозиторию определяется по общему git-каталогу."""
@@ -533,8 +574,7 @@ def resolve_rel(path_str, root, git=_git):
         # Вердикт не меняется — по-прежнему «не измерено» (код 2): доехала ли работа, из
         # удалённого дерева не узнать. Меняется только то, что сессия об этом прочитает.
         if climbed:
-            return None, (f"рабочее дерево удалено вместе с объявленным путём — доставку "
-                          f"измерить нечем: {path_str}")
+            return None, (f"{TREE_GONE} — доставку измерить нечем: {path_str}")
         return None, f"путь не принадлежит этому репозиторию: {path_str}"
 
     rc, top, _ = git(probe, "rev-parse", "--show-toplevel")
@@ -1088,7 +1128,8 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                                            "reason": detail})
                     continue
                 unmeasured.append({"session": entry.get("session"), "path": str(raw),
-                                   "reason": err})
+                                   "reason": err,
+                                   "tree_gone": err.startswith(TREE_GONE)})
                 continue
             st, detail, locs = file_state(root, base_ref, rel, git=git, diff_sets=diff_sets)
             if st == DELIVERED:
@@ -1296,8 +1337,30 @@ def render(report) -> str:
         out.append(f"❓ НЕ ИЗМЕРЕНО ({len(report['unmeasured'])}) — молчаливого «всё в порядке» "
                    "здесь не будет:")
         for u in report["unmeasured"]:
+            if u.get("tree_gone"):
+                continue                      # свой раздел ниже: одной строкой на дерево
             where = f" · {u['path']}" if u.get("path") else ""
             out.append(f"  - {u.get('session') or '-'}{where}: {u['reason']}")
+        for g in group_tree_gone(report["unmeasured"]):
+            out.append(f"  - {g['session'] or '-'} · {g['common_root']}: снятое БЕЗ квитанции "
+                       f"рабочее дерево, объявленных путей {g['count']} "
+                       f"({', '.join(g['sample'])}{'…' if g['count'] > len(g['sample']) else ''})")
+            out.append("      измерить нечем и уже не станет: байтов нет ни в дереве, ни в "
+                       "архиве — ПОДНИМАТЬ НЕЧЕГО, разбирать эти строки следующим циклом "
+                       "бессмысленно. Вердикт остаётся «не измерено» (код 2): доставили ли "
+                       "работу, из снятого дерева не узнать.")
+            # Имя инструмента без расширения — НАМЕРЕННО, и это не украшение. Храповик
+            # неподключённых скриптов (`spa_core/tests/_unwired.py`) считает проводкой любую
+            # подстроку `<имя>.py` в файле каталога `scripts/`, не отличая ВЫЗОВ от УПОМИНАНИЯ
+            # в тексте сообщения. Написав здесь полное имя файла, мы объявили бы уборщик
+            # «подключённым», хотя его по-прежнему никто не зовёт, — и храповик перестал бы
+            # следить за настоящей сиротой. Слепота названа карточкой, гасить её здесь нечем;
+            # полный путь стоит в `docs/ORCHESTRATOR_PROTOCOL.md` §3.4, а `docs/` храповик
+            # проводкой не считает по измеренному решению цикла #214.
+            out.append("      Дефект здесь — САМО снятие: убирать за собой обязан "
+                       "`reap_stale_worktrees --worktree <путь> --apply` из `scripts/` "
+                       "(меряет, архивирует, оставляет квитанцию; протокол §3.4). "
+                       "Снятое руками неизмеримо навсегда.")
 
     if report.get("dead_worktrees"):
         out.append("")

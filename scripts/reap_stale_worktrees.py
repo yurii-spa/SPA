@@ -57,12 +57,30 @@ origin» ровно потому, что цикл #228 переписал фай
 
 По умолчанию — сухой прогон (ничего не удаляется). Снятие — только `--apply`.
 
+**`--worktree <путь>` — «я закончил, сними МОЁ дерево» (цикл #257).** Правило выше отвечает на
+вопрос «дерево мёртвое?» — и для сессии, которая только что доставила работу и убирает за
+собой, ответ ВСЕГДА «нет»: её объявление свежее, файлы изменены минуту назад (п. 2). То есть
+измеренного способа убрать за собой не существовало, а `git worktree remove` руками оставляет
+объявленные пути БЕЗ квитанции — и шаг 0a пишет о них «доставку измерить нечем» с кодом 2
+НАВСЕГДА. Живой замер 16.08: дерево `/tmp/spa_c256` снято своей же сессией, работа лежит на
+`origin/main` (HEAD `2adf5de8a`), а шаг 0a выдал **12 строк «НЕ ИЗМЕРЕНО» и код 2** — ровно тот
+класс «необратимое „не измерено“ морит очередь», против которого писалась квитанция.
+
+Явный режим снимает ТОЛЬКО п. 2 — признаки «сессия молчит». Их заменяет прямое утверждение
+владельца дерева: он назвал дерево сам, и «жив ли тут кто-то» больше не гипотеза. Всё
+остальное — щиты п. 1, ответ git п. 3, пофайловый вердикт п. 4 и архив+квитанция п. 5 — те же
+самые, тем же кодом: **недоставленное по-прежнему ОТМЕНЯЕТ снятие**. Проверка «сессия молчит»
+не ослабляется и не переписывается — обычный (подметающий) прогон её выполняет байт-в-байт как
+раньше; появился второй вход, а не поблажка в старом.
+
 Коды возврата: **0** — всё измерено; **1** — есть деревья, которые остаются с недоставленным
 (`unique`); **2** — что-то измерить не удалось (перебивает 1).
 
     python3 scripts/reap_stale_worktrees.py                  # что снялось бы и почему
     python3 scripts/reap_stale_worktrees.py --json
     python3 scripts/reap_stale_worktrees.py --apply          # архив + снятие
+    python3 scripts/reap_stale_worktrees.py --worktree /tmp/spa_cNNN           # сухой прогон
+    python3 scripts/reap_stale_worktrees.py --worktree /tmp/spa_cNNN --apply   # убрать за собой
 """
 from __future__ import annotations
 
@@ -306,10 +324,19 @@ def work_paths(wt_path, base_ref, git=_git):
     return sorted(paths - churn), len(churn), None
 
 
-def inspect(root, reg, base_ref, fresh_files, grace_hours, git=_git, now_ts=None):
-    """Вердикт по одной регистрации: reap / keep / unmeasured / prunable + причины."""
+def inspect(root, reg, base_ref, fresh_files, grace_hours, git=_git, now_ts=None,
+            explicit=False):
+    """Вердикт по одной регистрации: reap / keep / unmeasured / prunable + причины.
+
+    ``explicit=True`` — дерево названо владельцем поимённо (`--worktree`, «я закончил»).
+    Снимаются РОВНО признаки «сессия молчит» (свежее объявление и свежий mtime): они отвечают
+    на вопрос «жив ли тут кто-то», а в явном режиме на него ответила сама сессия. Оба признака
+    всё равно ИЗМЕРЯЮТСЯ и печатаются — чтобы в отчёте было видно, что именно перевесило
+    прямое указание. Гарантия «недоставленное не будет похоронено» держится не ими, а
+    пофайловым вердиктом ниже, и он в явном режиме тот же самый."""
     wt = reg["path"]
-    out = {"path": wt, "verdict": None, "reasons": [], "paths": [], "churn": 0, "head": None}
+    out = {"path": wt, "verdict": None, "reasons": [], "paths": [], "churn": 0, "head": None,
+           "explicit": bool(explicit)}
 
     if reg["prunable"] or not reg["exists"]:
         out["verdict"] = PRUNABLE
@@ -334,20 +361,29 @@ def inspect(root, reg, base_ref, fresh_files, grace_hours, git=_git, now_ts=None
         return out
 
     declared = _declared_inside(wt, fresh_files)
-    if declared:
+    if declared and not explicit:
         out["verdict"] = KEEP
         out["reasons"].append(f"свежее объявление владения ({len(declared)} путей, окно {grace_hours:g}ч)")
         return out
 
     recent, why = newest_mtime(wt, grace_hours, now_ts=now_ts)
     if recent is None:
+        # «Обход дерева не удался» — это НЕ признак занятости, а неизмеримость, и явный режим
+        # её не отменяет: снимать дерево, которое не читается, нельзя ни по чьей просьбе.
         out["verdict"] = UNMEASURED
         out["reasons"].append(why)
         return out
-    if recent:
+    if recent and not explicit:
         out["verdict"] = KEEP
         out["reasons"].append(f"в дереве есть файл, изменённый за последние {grace_hours:g}ч")
         return out
+
+    if explicit:
+        # Измерено и НАЗВАНО, а не пропущено молча: читатель отчёта видит, что перевесило.
+        out["reasons"].append(
+            "явное снятие своего дерева: признаки занятости измерены и перекрыты указанием "
+            f"владельца дерева (свежих объявлений внутри: {len(declared)}; файл свежее "
+            f"{grace_hours:g}ч: {'да' if recent else 'нет'}). Вердикт по путям — обычный")
 
     rc, head, err = git(wt, "rev-parse", "HEAD")
     if rc != 0:
@@ -478,9 +514,87 @@ def build_report(root, base_ref, log_path, grace_hours, git=_git, now=None, now_
     return report
 
 
+def _same_path(a, b) -> bool:
+    """`/tmp` и `/private/tmp` на macOS — один каталог; сравниваем разрешённые пути."""
+    try:
+        return os.path.realpath(str(a)) == os.path.realpath(str(b))
+    except OSError:
+        return str(a) == str(b)
+
+
+def build_self_report(root, base_ref, target, log_path, grace_hours, git=_git, now=None,
+                      now_ts=None, cwd=None):
+    """Отчёт по ОДНОМУ дереву, названному владельцем (`--worktree`).
+
+    Не «ещё один уборщик», а тот же самый: регистрация ищется в `git worktree list`, вердикт
+    выносит та же `inspect`. Отдельны здесь ровно два отказа, которых у подметающего прогона
+    быть не может по построению:
+
+    - **дерево не зарегистрировано** — просьба про каталог, которого git рабочим деревом не
+      считает. Мерить нечего, снимать нечего, молчать нельзя ⇒ `unmeasured` (код 2);
+    - **прогон идёт ИЗНУТРИ снимаемого дерева** — `git worktree remove` вынет каталог из-под
+      собственного `cwd`, и всё, что сессия сделает следующей командой, произойдёт в
+      несуществующем месте. Отказ с указанием, откуда звать (главное дерево).
+
+    Журнал объявлений читается и здесь: он не решает исход (п. 2 снят), но число свежих
+    объявлений внутри дерева печатается — «что перевесило» обязано быть видно."""
+    report = {"root": str(root), "base": base_ref, "grace_hours": grace_hours,
+              "trees": [], "unmeasured_reasons": [], "explicit_target": str(target)}
+
+    regs, why = list_registrations(root, git=git)
+    if regs is None:
+        report["unmeasured_reasons"].append(why)
+        return report
+
+    reg = next((r for r in regs if _same_path(r["path"], target)), None)
+    if reg is None:
+        report["unmeasured_reasons"].append(
+            f"{target} — git не считает этот каталог рабочим деревом этого репозитория "
+            f"(`git worktree list` его не называет); снятие не выполняется (fail-CLOSED)")
+        return report
+
+    if reg.get("main"):
+        # Щит «главное дерево не снимается никогда» (#234) не зависит ни от режима, ни от
+        # того, откуда запущен прогон: прод — это не тот случай, где важно, где твой `cwd`.
+        # Проверка «изнутри» стоит ПОСЛЕ него намеренно: иначе просьба про прод из самого
+        # прода отвечала бы «перезапустись оттуда-то» вместо «этого не будет никогда».
+        report["trees"].append(inspect(root, reg, base_ref, [], grace_hours, git=git,
+                                       now_ts=now_ts, explicit=True))
+        return report
+
+    here = Path(cwd) if cwd is not None else Path.cwd()
+    try:
+        inside = _same_path(here, reg["path"]) or str(here.resolve()).startswith(
+            os.path.realpath(reg["path"]).rstrip("/") + os.sep)
+    except OSError:
+        inside = False
+    if inside:
+        report["unmeasured_reasons"].append(
+            f"прогон идёт изнутри снимаемого дерева ({here}) — снятие вынуло бы каталог "
+            f"из-под собственного cwd; запусти из главного дерева: cd {root}")
+        return report
+
+    fresh, why = recent_declarations(log_path, grace_hours, now=now)
+    if fresh is None:
+        # Журнал не читается ⇒ печатать «что перевесило» нечем. Исход это не решает (п. 2 в
+        # явном режиме снят), но неизмеренность называется вслух, как везде.
+        report["unmeasured_reasons"].append(why + " — число свежих объявлений внутри дерева "
+                                                  "не измерено (на вердикт не влияет)")
+        fresh = []
+
+    report["trees"].append(inspect(root, reg, base_ref, fresh, grace_hours, git=git,
+                                   now_ts=now_ts, explicit=True))
+    return report
+
+
 def render(report) -> str:
-    lines = [f"Уборка рабочих деревьев (база {report['base']}, окно {report['grace_hours']:g}ч); "
-             f"регистраций: {len(report['trees'])}"]
+    if report.get("explicit_target"):
+        lines = [f"Явное снятие своего дерева {report['explicit_target']} "
+                 f"(база {report['base']}); признаки «сессия молчит» сняты запросом, "
+                 f"вердикт по путям — обычный"]
+    else:
+        lines = [f"Уборка рабочих деревьев (база {report['base']}, окно {report['grace_hours']:g}ч); "
+                 f"регистраций: {len(report['trees'])}"]
     by = {}
     for t in report["trees"]:
         by.setdefault(t["verdict"], []).append(t)
@@ -524,6 +638,10 @@ def main(argv=None) -> int:
     ap.add_argument("--log", default=None, help="журнал объявлений (по умолчанию data/session_changes.jsonl в --root)")
     ap.add_argument("--grace-hours", type=float, default=DEFAULT_GRACE_HOURS)
     ap.add_argument("--apply", action="store_true", help="архивировать и снять (по умолчанию — сухой прогон)")
+    ap.add_argument("--worktree", default=None,
+                    help="«я закончил, сними МОЁ дерево»: измерить и снять ОДНО названное "
+                         "дерево. Снимает только признаки «сессия молчит» (её называет сам "
+                         "запрос); недоставленное по-прежнему отменяет снятие")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
 
@@ -545,7 +663,10 @@ def main(argv=None) -> int:
             root_note = f"главное рабочее дерево не определено ({why}) — корнем взят {ROOT}"
 
     log_path = args.log or (root / "data" / "session_changes.jsonl")
-    report = build_report(root, args.base, log_path, args.grace_hours)
+    if args.worktree:
+        report = build_self_report(root, args.base, args.worktree, log_path, args.grace_hours)
+    else:
+        report = build_report(root, args.base, log_path, args.grace_hours)
     if root_note:
         report["unmeasured_reasons"].append(root_note)
 
