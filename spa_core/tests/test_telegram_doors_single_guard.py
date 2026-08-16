@@ -44,9 +44,16 @@ _REPO = Path(__file__).resolve().parents[2]
 #: украшение: класс прячется именно тем, что проверка перестаёт видеть дверь
 #: (переименовали транспорт — и разбор молча вернул пустоту, которую легко
 #: прочитать как «всё чисто»).
+#:
+#: Дверь 2 (`spa_core/alerts/bot_commands.py::_api_post`) СНЯТА 16.08 вместе с
+#: модулем (цикл #258): у него не осталось ни одного вызывающего в боевом коде,
+#: агента нет с 27.06, а собственный `getUpdates` и собственный `__main__`
+#: делали его вторым поллером в одну строку. Дверей стало 4 — это уменьшение
+#: класса, а не ослабление проверки: храповик `test_no_unguarded_door_anywhere`
+#: не тронут, а новый сторож `test_one_telegram_poller.py` запрещает двери без
+#: владельца (никто не импортирует и не запускает) — именно такой она и была.
 KNOWN_DOORS = {
     "spa_core/alerts/telegram_client.py": {"_post_message"},
-    "spa_core/alerts/bot_commands.py": {"_api_post"},
     "spa_core/telegram/bot.py": {"send_message", "edit_message_text"},
     "scripts/site_freshness_monitor.py": {"_alert"},
     "spa_core/devtools/auto_fixer.py": {"_tg_request"},
@@ -362,67 +369,39 @@ class TestClientLoadsWithoutThePackageOnPath(unittest.TestCase):
                          "в CI журнала нет — это обязано быть НАЗВАНО, а не сымитировано")
 
 
-class TestBotCommandsDoor(unittest.TestCase):
-    """Дверь 2 — брала у заслона только лимит потока, журнала не вела."""
+# Дверь 2 (`spa_core/alerts/bot_commands._api_post`) СНЯТА вместе с модулем
+# 16.08 (цикл #258) — списан целиком: ни одного вызывающего в боевом коде,
+# агента нет с 27.06, свой `getUpdates` и свой `__main__` = второй поллер на том
+# же токене в одну строку. Три её вопроса (инв. #16 — правка намеренная,
+# обоснование здесь и в `docs/journal/2026-W33.md`):
+#   * «заслон спрошен и отправка записана в журнал» — уже задан живой двери
+#     ниже (`TestEditMessageDoor.test_edit_asks_the_guard_and_is_journaled`);
+#   * «подавленная отправка не доходит до сети» — там же
+#     (`test_a_suppressed_edit_never_reaches_the_api`);
+#   * «служебные вызовы заслона не требуют» — на живом пути его не задавал
+#     НИКТО, поэтому он не удалён, а переставлен: `TestControlCallsStayUnguarded`
+#     ниже спрашивает то же самое у `spa_core/telegram/bot.py`.
+# Проверка не ослаблена — она переехала с мёртвого кода на исполняемый.
 
-    def test_guard_is_asked_and_the_send_is_journaled(self):
-        from spa_core.alerts import bot_commands
 
-        class _Resp:
-            def __enter__(self_inner):
-                return self_inner
+class TestControlCallsStayUnguarded(unittest.TestCase):
+    """`answerCallbackQuery` чата не трогает — заслон здесь был бы шумом.
 
-            def __exit__(self_inner, *a):
-                return False
+    Обратная сторона храповика дверей: если ПОД заслон уедет служебный вызов,
+    лимит потока начнёт глушить снятие «часиков» на кнопке, и владелец увидит
+    вечный спиннер вместо ответа.
+    """
 
-            def read(self_inner):
-                return json.dumps({"ok": True, "result": {"message_id": 42}}).encode()
+    def test_answer_callback_does_not_ask_the_guard(self):
+        from spa_core.telegram.bot import TelegramBot
 
-        with mock.patch("spa_core.alerts.telegram_client.guard_outbound",
-                        return_value=None) as guard, \
-             mock.patch("spa_core.alerts.telegram_client._record_history") as hist, \
-             mock.patch.object(bot_commands.urllib.request, "urlopen",
-                               lambda *a, **kw: _Resp()):
-            res = bot_commands._api_post("tok", "sendMessage", {"chat_id": "1", "text": "привет"})
-        guard.assert_called_once()
-        self.assertFalse(guard.call_args.kwargs["dedup"],
-                         "ответ на нажатие владельца глушить нельзя")
-        hist.assert_called_once()
-        self.assertTrue(hist.call_args.kwargs["solicited"])
-        self.assertEqual(hist.call_args.kwargs["message_id"], 42)
-        self.assertTrue(res["ok"])
-
-    def test_a_suppressed_send_never_reaches_the_network(self):
-        from spa_core.alerts import bot_commands
-        calls = []
-        with mock.patch("spa_core.alerts.telegram_client.guard_outbound",
-                        return_value="flood_guard_dropped"), \
-             mock.patch.object(bot_commands.urllib.request, "urlopen",
-                               lambda *a, **kw: calls.append(1)):
-            res = bot_commands._api_post("tok", "sendMessage", {"chat_id": "1", "text": "x"})
-        self.assertEqual(calls, [])
-        self.assertFalse(res["ok"])
-        self.assertEqual(res["dropped_by_guard"], "flood_guard_dropped")
-
-    def test_control_calls_stay_unguarded(self):
-        """answerCallbackQuery чата не трогает — заслон здесь был бы шумом."""
-        from spa_core.alerts import bot_commands
-
-        class _Resp:
-            def __enter__(self_inner):
-                return self_inner
-
-            def __exit__(self_inner, *a):
-                return False
-
-            def read(self_inner):
-                return b'{"ok": true}'
-
+        bot = TelegramBot(token="tok", chat_id="1")
         with mock.patch("spa_core.alerts.telegram_client.guard_outbound") as guard, \
-             mock.patch.object(bot_commands.urllib.request, "urlopen",
-                               lambda *a, **kw: _Resp()):
-            bot_commands._api_post("tok", "answerCallbackQuery", {"callback_query_id": "1"})
+             mock.patch.object(bot, "_api_call", return_value={"ok": True}) as api:
+            bot._answer_callback("cb-1")
         guard.assert_not_called()
+        api.assert_called_once()
+        self.assertEqual(api.call_args.args[0], "answerCallbackQuery")
 
 
 class TestEditMessageDoor(unittest.TestCase):

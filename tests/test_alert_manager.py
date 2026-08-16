@@ -209,6 +209,44 @@ class TestCalcPeriodReturns(unittest.TestCase):
         result = _am._calc_period_returns([])
         self.assertIsInstance(result, dict)
 
+    # ── C4–C5: перенесены с мёртвого близнеца (цикл #257) ──────────────────
+    #
+    # Те же два вопроса задавал `spa_core/tests/test_bot_commands.py` модулю
+    # `bot_commands.calculate_period_returns`, который списан вместе с модулем:
+    # у него не осталось ни одного вызывающего в боевом коде. Логика в
+    # `_calc_period_returns` — та же (докстринг говорит «duplicated here to
+    # avoid a circular import»), но ЭТА копия исполняется: её зовут
+    # `send_daily_summary` и `send_weekly_report`. Инв. #16 — правка намеренная,
+    # обоснование здесь и в `docs/journal/2026-W33.md`: проверка не удалена,
+    # она переставлена с мёртвого кода на живой.
+    #
+    # Даты относительные намеренно (правило «время в тестах»): окна 7/30 дней
+    # отсчитываются от ПОСЛЕДНЕГО бара, литеральная дата тут стала бы бомбой.
+
+    def _relative_curve(self, n: int, daily_pct: float) -> list:
+        from datetime import datetime, timedelta
+        last = datetime.now()
+        equity, bars = 100_000.0, []
+        for i in range(n):
+            equity = round(equity * (1 + daily_pct / 100.0), 2)
+            bars.append({
+                "date": (last - timedelta(days=n - 1 - i)).strftime("%Y-%m-%d"),
+                "equity": equity,
+            })
+        return bars
+
+    def test_C4_week_window_is_shorter_than_all_time(self):
+        """10 баров роста: неделя положительна и МЕНЬШЕ всей истории."""
+        result = _am._calc_period_returns(self._relative_curve(10, 0.1))
+        self.assertGreater(result["week_pct"], 0.0)
+        self.assertGreater(result["alltime_pct"], result["week_pct"])
+
+    def test_C5_month_window_is_shorter_than_all_time(self):
+        """35 баров роста: месяц положителен и МЕНЬШЕ всей истории."""
+        result = _am._calc_period_returns(self._relative_curve(35, 0.05))
+        self.assertGreater(result["month_pct"], 0.0)
+        self.assertGreater(result["alltime_pct"], result["month_pct"])
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Group D — _top_protocols

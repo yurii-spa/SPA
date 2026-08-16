@@ -162,6 +162,12 @@ _RESIDENCY_REQUIRED_CATS = frozenset({CAT_ALWAYS_ON, CAT_HIGH_FREQ, CAT_MID_FREQ
 #     IDENTICAL module (spa_core.telegram.bot). Running both would open two
 #     getUpdates long-polls → Telegram 409 conflict. The .plist may linger on a
 #     host; treat it as retired so it is neither false-flagged nor bootstrapped.
+#     The label stays here on purpose (a lingering host plist must still be
+#     recognised as retired) even though the ORIGINAL module it was named after,
+#     spa_core/alerts/bot_commands.py, was written off on 2026-08-16 (cycle
+#     #258): it had no caller in production code, yet carried its own getUpdates
+#     loop, its own offset file and its own __main__ — a second poller one line
+#     away. Guard: spa_core/tests/test_one_telegram_poller.py.
 #   * com.spa.httpserver — retired (owner decision 2026-06-27): its module bound
 #     :8765, the same port the apiserver (FastAPI/uvicorn) owns → EADDRINUSE
 #     crash-loop. apiserver fully covers the HTTP-API surface, so httpserver is
