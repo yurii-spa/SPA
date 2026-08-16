@@ -1,0 +1,37 @@
+{
+  "_doc": [
+    "PINNED DeFiLlama pool identities for the aggressive research panel (ADR-064).",
+    "",
+    "A pin is what makes a yield AUDITABLE. Without it a key is resolved by fuzzy",
+    "project/chain/symbol hints with 'best TVL wins', and the identity behind the number can",
+    "change between two runs with nothing in the record to show it changed. ADR-064 already paid",
+    "for that lesson twice: four STEAKUSDC vaults on Base alone, and a 'pinned' entry that held an",
+    "Ethereum contract ADDRESS instead of a DeFiLlama pool UUID and therefore silently resolved by",
+    "hint anyway.",
+    "",
+    "HOW TO FILL A NULL pool_id (this is the Mac-side operation — no code change needed):",
+    "  1. curl -s https://yields.llama.fi/pools > /tmp/pools.json      (keyless, no paid API)",
+    "  2. find the row: project == <project>, chain == <chain>, symbol == <symbol>",
+    "  3. copy its \"pool\" field (a UUID) into pool_id below,",
+    "  4. record tvl_usd / apy_pct / observed_at AS OBSERVED that day — the pin is a receipt,",
+    "  5. re-run: python3 -m spa_core.strategy_lab.aggressive_lab.feeds --verify",
+    "",
+    "A null pool_id is NOT a bug and NOT a placeholder to be guessed. It means nobody in this",
+    "repository has ever seen the live payload (egress is blocked in the build environment), so",
+    "writing a UUID here from memory would fabricate the very identity the pin exists to prove.",
+    "The feed FAILS CLOSED on a null pin: the key is absent from the snapshot, the book fails",
+    "closed on it, and the panel says so out loud."
+  ],
+  "pools": {
+    "aave_v3_wsteth": {
+      "pool_id": null,
+      "project": "aave-v3",
+      "chain": "Ethereum",
+      "symbol": "WSTETH",
+      "tvl_usd": null,
+      "apy_pct": null,
+      "observed_at": null,
+      "note": "wstETH supply APY on Aave v3. Used as the FALLBACK accrual source for levered_restaking / leverage_loop when restaking_apy['steth'] has a hole (roster.py). The key existed only in a docstring until 2026-08-16 — the fallback never fired."
+    }
+  }
+}
