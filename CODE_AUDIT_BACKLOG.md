@@ -47,6 +47,8 @@
 | AUD-15 | ✅ MEDIUM | ~80 предсущ. падений почин.; **системный atomic_save(str(self))-баг в ~23 модулях** | DONE |
 | AUD-16 | 🔜 LOW | Registry-sync: пакетный реестр на 26 адаптеров > оркестраторного | READY |
 | AUD-14 | 🔜 LOW | Near-duplicate подпакеты (backtest/backtesting, monitor/monitoring, …) | READY |
+| AUD-18 | 🔨 MEDIUM | Unit-тесты на непокрытые стратегии s76/s41/s73/s77/s22 | IN PROGRESS |
+| AUD-19 | 🟠 MEDIUM | Volatile CLMM (ETH/stable) как класс T3-SPEC: research + гейт policy_lp | DECISION |
 
 ---
 
@@ -255,6 +257,38 @@ arbitrum не поддержан) — предсуществующее паде�
 `monitoring`, `reports` vs `reporting`, `adapters` vs `adapter_sdk`.
 `cycle_health_monitor.py` существует в 3 местах. Требует per-pair анализа графа
 импортов перед консолидацией — не bulk-delete.
+
+### AUD-18 — Unit-тесты на непокрытые высокодоходные стратегии 🔨 IN PROGRESS
+Из «доходных» стратегий турнира по-штучные тесты есть только у s2 и s7.
+Без тестов: **s76** (Concentrated LP stable, T2, режимный свитч по порогу 6%),
+**s41** (AMM Stable Yield, T2, suspend+renorm), **s73** (Leverage Loop, T3,
+effective_apy/is_eligible), **s77** (Points Farming, T3, points-adjusted APY),
+**s22** (Ethena Yield Max, депег-гейт, адаптеры — мокать, offline).
+
+Scope: 5 файлов `spa_core/tests/test_s{76,41,73,77,22}*.py` по конвенции
+`test_s2_lp_stable.py` (unittest, stdlib, без сети/записи). Инварианты в каждом:
+сумма весов == 1.0, детерминизм, IS_ADVISORY/read-only, approved=False не
+переопределяется, cash-buffer. Acceptance: все зелёные offline, ноль регрессий
+(stash-diff), compileall чисто.
+
+### AUD-19 — Volatile CLMM (ETH/stable) как класс дохода 🟠 DECISION (Owner)
+Триггер: позиция Revert Uniswap V4 ETH/USDG 0.05% (fee APR ~79%, направленная,
+divergence loss). Наш Engine C (`risk/policy_lp.py`) принимает только
+delta-neutral стейбл-CLMM → прогон числами скриншота даёт `approved:False`
+(не DN; при неизвестном TVL — fail-closed). Волатильного CLMM нет ни адаптером,
+ни стратегией, ни в турнире; USDG вне whitelist.
+
+Scope (после решения Owner): (A) research `docs/research/RS-volatile-clmm.md`
+(декомпозиция fee−IL−газ, range-exit, честный net-APY; IL-модель переиспользовать
+из `s21_cashflow_research`); (B) классификация T3-SPEC advisory (аналог ADR-021),
+`protocol_risk_map` + `yield_classifier_agent`; (C) детерминированный гейт
+directional-CLMM в `policy_lp` (новый ADR-027 + snapshot, LLM_FORBIDDEN,
+fail-closed): approve только при is_delta_neutral=True (хедж ETH-ноги, паттерн
+S8/s71) либо advisory-only; (D, опц.) скелет `s78_dn_volatile_clmm`; (E) тесты
+`test_policy_lp_directional.py`.
+
+**Блокеры-решения Owner:** вводим ли класс вообще (конфликт с мандатом
+стейбл-капитала); делит T3 cap 15% с Pendle/Ethena/points; USDG due-diligence.
 
 ---
 
