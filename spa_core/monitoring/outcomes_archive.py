@@ -139,6 +139,84 @@ def build_outcome_line(root: str, day: str) -> dict:
             "posture_office": posture, "sources": sources}
 
 
+COMPLETENESS_SCHEMA = 1
+
+
+def analyze_completeness(root: str = REPO_ROOT,
+                         now: dt.datetime | None = None) -> dict:
+    """Полнота архива по ЗАКРЫТЫМ дням — вопрос, на который возраст не отвечает.
+
+    Возрастной бюджет B2 сторожа архитектуры судит о `outcomes.jsonl` по mtime, и
+    для ЭТОГО артефакта это не тот вопрос: он не снимок, а append-only архив, где
+    день без evidenced-бара НЕ занимается сознательно (`append_daily_outcome`:
+    «дату не занимаем, догоним позже»). Значит возрастной бюджет обязан терпеть
+    сутки ожидания + такт производителя (31ч) — и ровно столько же он терпит
+    настоящую ОСТАНОВКУ записи. Здесь спрашивается другое: есть ли строка за
+    каждый закрытый день, у которого был evidenced-бар. Такая проверка молчит на
+    исправном ожидании (сегодняшний день ещё не закрыт; день без evidenced-бара
+    строки не ждёт — 07-19/07-27 fail-closed by design) и краснеет в первые же
+    часы после настоящего сбоя записи. Обе проверки остаются: зелёный ответ на
+    свой вопрос не есть ответ на нужный.
+
+    Время — ВХОД (`now=`), а не окружение: от него зависит, какой день закрыт.
+
+    Якорь — ПЕРВЫЙ день архива: до него производителя не было, и требовать от
+    него июньские дни значило бы сочинить находку. Цена якоря названа вслух и не
+    замаскирована: усечение архива с головы двигает якорь вперёд и такую дыру
+    скрывает — append-only-файл этого делать не должен, но проверка полноты
+    сама по себе от усечения не защищает (`archived_days` печатается, чтобы
+    сжавшийся архив был виден глазом).
+
+    Вердикты: `measured: False` — мерить не от чего (пустой архив / кривая не
+    прочитана), НИКОГДА не «полно». Молчаливого «всё в порядке» здесь нет.
+    """
+    now = now or dt.datetime.now(dt.timezone.utc)
+    today = now.astimezone(dt.timezone.utc).date()
+    base = {"schema": COMPLETENESS_SCHEMA, "today": today.isoformat()}
+
+    have = sorted({str(r.get("date")) for r in load_outcomes(root) if r.get("date")})
+    if not have:
+        return {**base, "measured": False, "archived_days": 0,
+                "reason": "архив исходов пуст или отсутствует — якоря нет, полноту "
+                          "мерить не от чего (на вопрос «файл вообще есть?» отвечает "
+                          "возрастной бюджет B2, и это его вопрос)"}
+
+    curve = _load("data/equity_curve_daily.json", root)
+    if not curve or not isinstance(curve.get("daily"), list):
+        return {**base, "measured": False, "archived_days": len(have),
+                "anchor_date": have[0],
+                "reason": "equity_curve_daily не прочитан — какие дни ОБЯЗАНЫ иметь "
+                          "строку, неизвестно; «нет источника правды» это не «полно»"}
+
+    try:
+        from spa_core.paper_trading.track_evidence import is_evidenced_bar
+        evidenced = sorted({str(b.get("date")) for b in curve["daily"]
+                            if isinstance(b, dict) and b.get("date")
+                            and is_evidenced_bar(b, today=today)})
+    except Exception as e:  # noqa: BLE001
+        return {**base, "measured": False, "archived_days": len(have),
+                "anchor_date": have[0],
+                "reason": f"evidenced-бары не измерены: {e}"}
+
+    anchor = have[0]
+    today_s = today.isoformat()
+    # Закрытый день — строго РАНЬШЕ сегодняшнего: сегодняшний ещё может быть
+    # дописан своим же тактом, и требовать его — та самая ложная тревога, из-за
+    # которой возрастной бюджет пришлось растягивать до 31ч.
+    expected = [d for d in evidenced if anchor <= d < today_s]
+    present = set(have)
+    missing = [d for d in expected if d not in present]
+    return {**base, "measured": True, "anchor_date": anchor,
+            "archived_days": len(have), "expected_days": len(expected),
+            "present_days": len(expected) - len(missing),
+            "missing_days": missing, "complete": not missing,
+            "reason": ("за каждый закрытый evidenced-день с якоря архива есть строка"
+                       if not missing else
+                       f"строк нет за {len(missing)} закрыт(ых) evidenced-дн(я/ей): "
+                       + ", ".join(missing[:10])
+                       + (" …" if len(missing) > 10 else ""))}
+
+
 def append_daily_outcome(root: str = REPO_ROOT,
                          now: dt.datetime | None = None) -> dict:
     """Дописать строку за СЕГОДНЯ, если её ещё нет. Идемпотентно по дате.

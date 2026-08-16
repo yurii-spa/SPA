@@ -83,6 +83,7 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "findings_bridge_report.json": ("created", "closed", "deferred", "waiting_hysteresis",
                                     "escalated", "sources_unread", "open_cards", "delivery",
                                     "owner_answer_delivery"),
+    "loop_retro.json": ("findings", "outcomes_completeness"),
 }
 
 # Отметка времени в шапке md-артефакта: `Auto-updated: **2026-08-09 05:44 UTC**`.
@@ -110,6 +111,7 @@ _PRODUCER: dict[str, str] = {
     "architecture_conformance.json": "spa_core/monitoring/architecture_conformance.py",
     "house_view_gap.json": "spa_core/monitoring/house_view_gap.py",
     "findings_bridge_report.json": "spa_core/monitoring/findings_bridge.py",
+    "loop_retro.json": "spa_core/monitoring/loop_retro.py",
 }
 
 
@@ -427,6 +429,36 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                            f"{c.get('card')} — {c.get('reason')}")
             for u in (oad.get("unmeasured") or [])[:5]:
                 out.append(f"   ⚠️ след НЕ ИЗМЕРЕН: {u.get('card')} — {u.get('reason')}")
+    elif name == "loop_retro.json":
+        # До этой ветки ретро печаталось как «(пусто)»: generic-ветка ищет
+        # status/reason, а у ретро их нет — и ЕГО НАХОДКИ не показывались вовсе.
+        # Мост их читает, но обязательный шаг цикла молчал о них, то есть
+        # артефакт числился прочитанным, а прочитанного в нём не было ничего.
+        fnd = data.get("findings")
+        if not isinstance(fnd, list):
+            out.append(f"   ⚠️ находки ретро {_UNMEASURED}: в отчёте нет списка findings")
+        else:
+            out.append(f"   находок ретро: {len(fnd)}")
+            for f in fnd[:5]:
+                if isinstance(f, dict):
+                    out.append(f"   [{f.get('severity') or _UNMEASURED}] "
+                               f"{str(f.get('message') or f.get('key'))[:160]}")
+            if len(fnd) > 5:
+                out.append(f"   … ещё {len(fnd) - 5} (полный список — data/loop_retro.json)")
+        # Полнота архива исходов — СУЖДЕНИЕ, а не возраст (#235: возраст решает
+        # читатель, а суждение обязан вынести производитель). Возрастной бюджет
+        # того же файла живёт в architecture_conformance и отвечает на свой вопрос.
+        comp = data.get("outcomes_completeness")
+        if not isinstance(comp, dict):
+            out.append(f"   ⚠️ полнота архива исходов {_UNMEASURED}: в отчёте нет "
+                       "блока outcomes_completeness (отчёт старого образца)")
+        elif not comp.get("measured"):
+            out.append(f"   ⚠️ полнота архива исходов {_UNMEASURED}: {comp.get('reason')}")
+        elif comp.get("missing_days"):
+            out.append(f"   🔴 архив исходов НЕПОЛОН: {comp.get('reason')}")
+        else:
+            out.append(f"   архив исходов полон: {_num(comp, 'expected_days')} закрыт(ых) "
+                       f"evidenced-дн(я/ей) с якоря {comp.get('anchor_date')}, дыр нет")
     elif name == "owner_decision_pending.json":
         out.append(f"   статус: {data.get('status')}")
         if data.get("reason"):
