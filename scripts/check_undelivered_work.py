@@ -149,6 +149,10 @@ NOWHERE = "nowhere"
 # Шестое: путь есть в дереве, но САМ РЕПОЗИТОРИЙ его не берёт (`.gitignore`). Доставки не
 # было не потому, что её потеряли, а потому, что доставлять этот путь нечем по правилу репо.
 BY_DESIGN = "by_design"
+# Седьмое: объявление названо карточкой, и эта карточка НА БАЗЕ уже закрыта. Работу довели —
+# чаще всего ПОДЪЁМОМ другой сессией (протокол §3.4), — а в дереве объявившего осталась
+# промежуточная копия, которая на origin не попадёт уже никогда. Поднимать нечего.
+CARD_CLOSED = "card_closed"
 
 _PID_RE = re.compile(r"^pid(\d+)$")
 
@@ -1032,6 +1036,99 @@ def undelivered_cards(root, base_ref, checkouts, git=_git):
     return findings, unmeasured
 
 
+# ── карточка объявления: «эту работу уже довели?» ────────────────────────────
+#
+# Третий вопрос, и прямой ответ на него лежит в тех же данных, что сторож уже читает.
+# Живая авария 2026-08-16 (цикл #263, база `origin/main` 0614d1cbb): из пяти находок
+# «НЕ ДОСТАВЛЕНО» четыре — пути цикла #258, чья работа ДОСТАВЛЕНА подъёмом цикла #259
+# (коммит `de281d8a4`, в теле дословно «ПОДЪЁМ работы цикла #258»). Сторож был прав по
+# своему контракту — содержимого дерева #258 в истории origin нет и не будет, потому что
+# подъёмщик перемерил работу и уехала ЕГО версия, — и ложен по вопросу, который читает
+# оркестратор: «есть ли потерянная работа?».
+#
+# Снять такую находку нельзя ничем, кроме подлога: она будет повторяться каждый цикл до
+# конца жизни журнала (класс #224 / #239 / #252). При этом запись объявления называет
+# карточку МАШИННЫМ полем `card:`, а карточка на базе стоит в терминальном статусе —
+# то есть ответ «работу довели» был доступен без единой догадки.
+#
+# Тот же признак файл уже использует в соседней проверке (`CARD_TERMINAL_STATUSES` выше)
+# с прямо записанным обоснованием: «карточку, осознанно закрытую без доставки, находкой
+# звать не за что». Здесь он спрашивается ещё и у ОБЪЯВЛЕНИЯ.
+
+def base_card_state(card, root, base_ref, git=_git, cache=None):
+    """(статус карточки НА БАЗЕ, время её последнего коммита, причина неизмеримости).
+
+    Обе величины меряются у базы, а не в рабочем дереве: закрытость, живущая только в чьей-то
+    копии, ничего не доказывает — её саму ещё надо доставить (ровно этим и занят весь сторож).
+    Неизмеримое возвращается как `None` с названной причиной: молчанием непонятность здесь
+    не покупается (fail-CLOSED, класс #226).
+    """
+    name = str(card or "").strip().replace("\\", "/").rsplit("/", 1)[-1]
+    if not name:
+        return None, None, "объявление не называет карточку"
+    if not name.endswith(".md"):
+        name += ".md"
+    rel = f"{TRACKER_REL}/{name}"
+    if cache is not None and rel in cache:
+        return cache[rel]
+
+    rc, out, err = git(root, "show", f"{base_ref}:{rel}")
+    if rc != 0:
+        result = (None, None, f"карточки `{name}` на {base_ref} нет "
+                             f"(git show rc={rc} {err.strip()[:120]!r})")
+    else:
+        rc2, ts_out, err2 = git(root, "log", "-1", "--format=%cI", base_ref, "--", rel)
+        when = None
+        if rc2 == 0 and ts_out.strip():
+            try:
+                when = datetime.fromisoformat(ts_out.strip())
+            except ValueError:
+                when = None
+        if when is None:
+            result = (None, None, f"когда карточка `{name}` попала на {base_ref}, НЕ ИЗМЕРЕНО "
+                                 f"(git log rc={rc2} {err2.strip()[:120]!r})")
+        else:
+            result = ((card_status(out) or "").strip().lower(), when, "")
+    if cache is not None:
+        cache[rel] = result
+    return result
+
+
+def card_closes_announcement(entry, root, base_ref, git=_git, cache=None):
+    """(закрывает ли карточка объявления эту работу, причина словами).
+
+    ЧЕТЫРЕ сужения, каждое измеримо, и любое несработавшее оставляет находку как была:
+
+    1. запись называет карточку полем `card:` — **без него ветка не достижима вовсе**;
+    2. карточка есть НА БАЗЕ и её статус терминален (`CARD_TERMINAL_STATUSES`);
+    3. закрытие карточки не СТАРШЕ объявления. Протокол §6.4 обязывает дописывать в чужие
+       карточки, и работа под давно закрытой карточкой — это, наоборот, кандидат в потерянные;
+    4. (у вызывающего) объявленный путь ЕСТЬ на базе — `DIFFERS`, а не `ABSENT`: если файла
+       на origin нет вовсе, закрытая карточка его не оправдывает.
+    """
+    card = entry.get("card")
+    if not card:
+        return False, ""
+    status, closed_at, why = base_card_state(card, root, base_ref, git=git, cache=cache)
+    if status is None:
+        return False, why
+    if status not in CARD_TERMINAL_STATUSES:
+        return False, (f"карточка объявления `{card}` на {base_ref} в статусе "
+                       f"`{status or '(нет status:)'}` — не терминальный")
+    announced = _parse_ts(entry.get("ts"))
+    if announced is None:
+        return False, f"время объявления не разобрано — закрытость карточки `{card}` не применяется"
+    if closed_at + CLOCK_SKEW < announced:
+        return False, (f"карточка `{card}` закрыта на {base_ref} РАНЬШЕ объявления "
+                       f"({closed_at.isoformat()} против {entry.get('ts')}) — работа шла после "
+                       "закрытия, и закрытием она не объясняется")
+    return True, (f"карточка объявления `{card}` закрыта на {base_ref} статусом `{status}` "
+                  f"({closed_at.isoformat()}) — работу этого объявления довели (чаще всего "
+                  "ПОДЪЁМОМ другой сессией, протокол §3.4), а в рабочем дереве объявившего "
+                  "осталась промежуточная копия: она на базу не попадёт уже никогда. "
+                  "ПОДНИМАТЬ НЕЧЕГО")
+
+
 # ── сборка отчёта ────────────────────────────────────────────────────────────
 
 def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
@@ -1041,8 +1138,8 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
     now = now or datetime.now(timezone.utc)
     grace = timedelta(hours=grace_hours)
     findings, unmeasured, fresh, stale_copies, card_findings = [], [], [], [], []
-    reaped, nowhere, by_design = [], [], []
-    seen, hist_cache = {}, {}
+    reaped, nowhere, by_design, card_closed = [], [], [], []
+    seen, hist_cache, card_cache = {}, {}, {}
     reap_ledger, ledger_error = read_reap_ledger(root)
     report = {
         "base_ref": base_ref,
@@ -1059,6 +1156,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
         "reaped": reaped,
         "nowhere": nowhere,
         "by_design": by_design,
+        "card_closed": card_closed,
         "unmeasured": unmeasured,
         "dead_worktrees": [],
         "exit_code": 0,
@@ -1141,7 +1239,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
             why = (f"{why} — окно ожидания {grace_hours}ч ещё не истекло, но ждать некого: "
                    "объявленный долгоживущий процесс завершился")
             produced_before = (len(findings), len(unmeasured), len(stale_copies),
-                               len(reaped), len(nowhere), len(by_design))
+                               len(reaped), len(nowhere), len(by_design), len(card_closed))
 
         why = f"{why}; объявлено {age_h}ч назад"
         report["sessions_checked"] += 1
@@ -1270,6 +1368,35 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                             # Молчанием непонятность не покупается: сказано, ПОЧЕМУ судить по
                             # своему дереву не вышло, и находка осталась прежней (fail-CLOSED).
                             detail = f"{detail}; своё дерево сессии не определено — {why_own}"
+
+                # Прямой ответ в тех же данных: работу этого объявления уже довели, и
+                # закрытие УЖЕ на базе. Ветка стоит ПОСЛЕ разбора DIFFERS намеренно — сначала
+                # снимаются дешёвые и точные объяснения (устаревшая копия, чужие деревья), и
+                # только потом спрашивается карточка; иначе она перебивала бы более точный
+                # вердикт. Для ABSENT ветка недостижима вовсе (4-е сужение): файла на базе
+                # нет, и закрытая карточка этого не оправдывает.
+                if not foreign_only:
+                    closes, why_card = card_closes_announcement(
+                        entry, root, base_ref, git=git, cache=card_cache)
+                    if closes:
+                        key = (rel, CARD_CLOSED)
+                        if key in seen:
+                            card_closed[seen[key]]["also_declared_by"].append(
+                                entry.get("session"))
+                            continue
+                        seen[key] = len(card_closed)
+                        card_closed.append({"session": entry.get("session"),
+                                            "ts": entry.get("ts"), "path": rel,
+                                            "state": CARD_CLOSED, "detail": why_card,
+                                            "session_state": why, "within_grace": within_grace,
+                                            "card": entry.get("card"),
+                                            "summary": (entry.get("summary") or "")[:160],
+                                            "also_declared_by": []})
+                        continue
+                    if why_card:
+                        # Не сработало — сказать вслух ПОЧЕМУ. Находка остаётся прежней; это
+                        # та же дисциплина, что у `repo_refuses` выше (#261).
+                        detail = f"{detail}; {why_card}"
             if st == UNMEASURED:
                 unmeasured.append({"session": entry.get("session"), "path": rel,
                                    "reason": detail})
@@ -1295,7 +1422,8 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
         # Сирота, у которой всё объявленное УЖЕ на базе: находки нет, но и в тишину такую
         # запись ронять нечестно — она остаётся в счётчике «свежих» со своим измерением.
         if within_grace and (len(findings), len(unmeasured), len(stale_copies),
-                             len(reaped), len(nowhere), len(by_design)) == produced_before:
+                             len(reaped), len(nowhere), len(by_design),
+                             len(card_closed)) == produced_before:
             fresh.append({"session": entry.get("session"), "ts": entry.get("ts"),
                           "age_hours": age_h, "files": len(entry.get("files") or []),
                           "reason": f"{why} — объявленное на {base_ref} есть, находки нет"})
@@ -1450,6 +1578,23 @@ def render(report) -> str:
             if f.get("also_declared_by"):
                 out.append(f"      тот же путь объявляли ещё: {', '.join(f['also_declared_by'])}")
 
+    if report.get("card_closed"):
+        out.append("")
+        out.append(f"🗃  КАРТОЧКА ОБЪЯВЛЕНИЯ ЗАКРЫТА НА {base} ({len(report['card_closed'])}) — "
+                   "работу довели, и закрытие уже доставлено (обычно ПОДЪЁМ другой сессией, "
+                   "протокол §3.4); в дереве объявившего осталась промежуточная копия, которой "
+                   "на базу не попасть уже никогда. ПОДНИМАТЬ НЕЧЕГО — дерево снимается "
+                   "квитанцией. Карточка названа в каждой строке: если она закрыта неверно, "
+                   "менять надо СТАТУС КАРТОЧКИ, а не отчёт:")
+        for f in report["card_closed"]:
+            out.append(f"  [карточка закрыта] {f['path']}")
+            out.append(f"      сессия {f['session']} ({f['ts']}): {f['session_state']}")
+            out.append(f"      {f['detail']}")
+            if f.get("also_declared_by"):
+                out.append(f"      тот же путь объявляли ещё: {', '.join(f['also_declared_by'])}")
+            if f["summary"]:
+                out.append(f"      объявляла: {f['summary']}")
+
     if report.get("reaped"):
         out.append("")
         out.append(f"🧾 снятые деревья с квитанцией ({len(report['reaped'])}) — дерева нет, но "
@@ -1467,10 +1612,16 @@ def render(report) -> str:
             and not report.get("card_findings") and not report.get("nowhere")):
         # «Всё доставлено» при непустом разделе выше было бы неправдой в собственном отчёте:
         # эти пути не доставлены и доставлены не будут. Утверждается ровно то, что измерено —
-        # потерянной работы нет, а недоставленное названо и объяснено правилом.
-        out.append("✅ измерено полностью, всё доставлено" if not report.get("by_design")
-                   else "✅ измерено полностью, потерянной работы нет "
-                        "(недоставленное — по правилу репозитория, раздел выше)")
+        # потерянной работы нет, а недоставленное названо и объяснено (правилом репозитория
+        # либо закрытой на базе карточкой объявления).
+        explained = []
+        if report.get("by_design"):
+            explained.append("по правилу репозитория")
+        if report.get("card_closed"):
+            explained.append("карточка объявления закрыта на базе")
+        out.append("✅ измерено полностью, всё доставлено" if not explained
+                   else "✅ измерено полностью, потерянной работы нет (недоставленное — "
+                        + "; ".join(explained) + ", разделы выше)")
     return "\n".join(out)
 
 

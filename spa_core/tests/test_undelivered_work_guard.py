@@ -1453,3 +1453,257 @@ class TestPathTheRepoRefusesToTake:
         assert rep["findings"] == []
         assert [f["path"] for f in rep["by_design"]] == ["data/worktree_reap_log.jsonl"]
         assert rep["exit_code"] == 0
+
+
+# ── 16. работу уже подняла ДРУГАЯ сессия (авария цикла #263) ─────────────────
+
+class TestWorkAlreadyRaisedByAnotherSession:
+    """Шаг 0a звал «поднять» работу, которую другая сессия уже подняла и доставила.
+
+    Живой замер 2026-08-16 (цикл #263, база `origin/main` 0614d1cbb): из ПЯТИ находок
+    «НЕ ДОСТАВЛЕНО» четыре — пути цикла #258:
+
+        [отличается] nimbalyst-local/tracker/inbox-u-outcomes-jsonl-sprashivayut-vozrast-fa.md
+            сессия cycle-258: долгоживущий процесс сессии pid73796 завершился
+            есть на origin/main, но содержимого из /private/tmp/spa_c258 НЕТ в истории
+
+    Работа при этом ДОСТАВЛЕНА: её поднял цикл #259 коммитом `de281d8a4` (в теле дословно
+    «ПОДЪЁМ работы цикла #258»). Сторож прав по своему контракту — содержимого дерева #258
+    в истории origin нет и не будет, потому что подъёмщик перемерил работу и уехала ЕГО
+    версия, — и ложен по вопросу, который читает оркестратор: «есть ли потерянная работа?».
+
+    Снять находку нечем, кроме подлога: она повторялась бы каждый цикл до конца жизни
+    журнала (тот же класс, что #224 / #239 / #252). При этом прямой ответ лежал в тех же
+    данных, машинно: запись #258 называет полем `card:` карточку, а карточка НА БАЗЕ стоит
+    в статусе `done`.
+
+    Каждый тест ниже — либо положительный контроль на этой аварии, либо обратный контроль
+    к одному из ЧЕТЫРЁХ сужений (есть `card:` · терминальна на базе · закрыта не раньше
+    объявления · путь есть на базе).
+    """
+
+    CARD = "inbox-u-outcomes-jsonl-sprashivayut-vozrast-fa"
+
+    @classmethod
+    def _card_on_base(cls, repo, status="done", name=None):
+        """Карточка объявления в трекере НА БАЗЕ, в заданном статусе."""
+        name = name or cls.CARD
+        d = repo / "nimbalyst-local" / "tracker"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / f"{name}.md").write_text(
+            "---\ntrackerStatus:\n  type: inbox\n"
+            f"title: карточка объявления\nstatus: {status}\n---\n\nтело\n",
+            encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-qm", f"карточка {name}: {status}")
+        _git(repo, "branch", "-f", "base", "HEAD")
+
+    @staticmethod
+    def _stale_copy(repo, rel="scripts/kept.py"):
+        """Путь ЕСТЬ на базе, а в рабочем дереве лежит промежуточная копия (DIFFERS).
+
+        Содержимое обязано отличаться от базы при КАЖДОМ вызове: `_card_on_base` коммитит
+        дерево целиком (`git add -A`), и повторная запись того же текста дала бы `DELIVERED`
+        вместо `DIFFERS` — тест молча проверял бы не то. Поймано своим падением."""
+        p = repo / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        prev = p.read_text(encoding="utf-8") if p.exists() else ""
+        p.write_text(prev + "промежуточная копия умершей сессии\n", encoding="utf-8")
+        return p
+
+    @classmethod
+    def _entry(cls, files, card=CARD, ts="2026-01-15T12:00:00Z", session="cycle-258"):
+        e = durable_entry(session, files, pid=73796, ts=ts,
+                          summary="цикл #258: у outcomes.jsonl спрашивают ВОЗРАСТ ФАЙЛА")
+        if card is not None:
+            e["card"], e["card_state"] = card, "claim"
+        return e
+
+    # ── положительные контроли: точная форма аварии ──────────────────────────
+
+    def test_path_whose_card_is_closed_on_base_is_not_called_lost_work(self, guard, repo):
+        """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ: точная форма аварии — «поднять» о работе, которую подняли.
+
+        На неисправленном стороже это находка `DIFFERS` с кодом 1."""
+        self._card_on_base(repo)
+        stale = self._stale_copy(repo)
+        rep = report(guard, repo, [self._entry([stale])])
+        assert rep["findings"] == []
+        assert [f["path"] for f in rep["card_closed"]] == ["scripts/kept.py"]
+        assert rep["card_closed"][0]["state"] == guard.CARD_CLOSED
+        assert rep["exit_code"] == 0
+
+    def test_verdict_names_the_card_its_status_and_that_there_is_nothing_to_raise(self, guard, repo):
+        """Вердикт НАЗЫВАЕТ карточку и её статус: если карточка закрыта неверно, менять надо
+        статус карточки, а не отчёт. Вердикт без основания был бы ещё одним «поверь мне»."""
+        self._card_on_base(repo)
+        rep = report(guard, repo, [self._entry([self._stale_copy(repo)])])
+        detail = rep["card_closed"][0]["detail"]
+        assert self.CARD in detail
+        assert "`done`" in detail
+        assert "ПОДНИМАТЬ НЕЧЕГО" in detail
+        assert rep["card_closed"][0]["card"] == self.CARD
+
+    def test_it_is_printed_not_swallowed(self, guard, repo):
+        """Находка не исчезает в тишину: свой раздел, свой путь, своя карточка в тексте.
+        И отчёт НЕ утверждает «всё доставлено» — потому что не всё, просто поднимать нечего."""
+        self._card_on_base(repo)
+        text = guard.render(report(guard, repo, [self._entry([self._stale_copy(repo)])]))
+        assert "КАРТОЧКА ОБЪЯВЛЕНИЯ ЗАКРЫТА" in text
+        assert "scripts/kept.py" in text
+        assert self.CARD in text
+        assert "✅ измерено полностью, всё доставлено" not in text
+        assert "потерянной работы нет" in text
+
+    def test_orphan_inside_the_grace_window_is_excused_too(self, guard, repo):
+        """Закрытость карточки не зависит от того, сколько прошло времени: в живом замере
+        тот же класс стоял бы и в разделе «🕳 осиротело, окно не истекло»."""
+        self._card_on_base(repo)
+        rep = report(guard, repo,
+                     [self._entry([self._stale_copy(repo)], ts="2026-01-20T11:00:00Z")],
+                     ps=fake_ps({}))
+        assert rep["findings"] == []
+        assert [f["path"] for f in rep["card_closed"]] == ["scripts/kept.py"]
+        assert rep["exit_code"] == 0
+
+    def test_same_path_from_many_cycles_is_one_line(self, guard, repo):
+        """`docs/STATE.md` и журнал объявляют десятки сессий — строка одна, объявившие
+        перечислены. Иначе новый раздел растёт ровно так же, как рос раздел находок,
+        и глаз снова учится его пролистывать."""
+        self._card_on_base(repo)
+        stale = self._stale_copy(repo)
+        rep = report(guard, repo, [self._entry([stale]),
+                                   self._entry([stale], session="cycle-15316")])
+        assert len(rep["card_closed"]) == 1
+        assert rep["card_closed"][0]["also_declared_by"] == ["cycle-15316"]
+
+    # ── обратные контроли: по одному на каждое сужение ───────────────────────
+
+    def test_announcement_without_a_card_is_untouched(self, guard, repo):
+        """СУЖЕНИЕ 1. Запись без поля `card:` не трогается вовсе — ветка недостижима.
+        Большинство R&D-объявлений карточки не называют, и молчать о них нечем."""
+        self._card_on_base(repo)
+        rep = report(guard, repo, [self._entry([self._stale_copy(repo)], card=None)])
+        assert rep.get("card_closed", []) == []
+        assert [f["state"] for f in rep["findings"]] == [guard.DIFFERS]
+        assert rep["exit_code"] == 1
+
+    def test_card_in_nonterminal_status_keeps_the_finding(self, guard, repo):
+        """СУЖЕНИЕ 2. Карточка на базе есть, но открыта — работа НЕ доведена, находка стоит.
+        Это главный обратный контроль: без него правка гасила бы любую работу под карточкой."""
+        self._card_on_base(repo, status="in-progress")
+        rep = report(guard, repo, [self._entry([self._stale_copy(repo)])])
+        assert rep.get("card_closed", []) == []
+        assert [f["state"] for f in rep["findings"]] == [guard.DIFFERS]
+        assert rep["exit_code"] == 1
+
+    def test_card_closed_only_in_a_worktree_keeps_the_finding(self, guard, repo):
+        """СУЖЕНИЕ 2, вторая половина: закрытость меряется У БАЗЫ. Карточка, закрытая только
+        в чьём-то рабочем дереве, ничего не доказывает — её саму ещё надо доставить, и ровно
+        этим занят весь сторож. Иначе умершая сессия сама себе выписывала бы индульгенцию:
+        закрыть карточку в своём `/tmp`-дереве и не доставить ни её, ни работу.
+
+        ФОРМА ВЫБРАНА МУТАЦИЕЙ, А НЕ РАССУЖДЕНИЕМ. Первая версия клала карточку ТОЛЬКО в
+        дерево — и мутация «читать статус из рабочего дерева» её не покрасила: прощение всё
+        равно не выдавалось, но по другой причине (времени попадания на базу у некоммиченной
+        карточки нет). То есть источник статуса тест не мерил вовсе. Здесь карточка НА БАЗЕ
+        открыта, а в дереве закрыта: время у базы есть, и исход решает ровно источник."""
+        self._card_on_base(repo, status="in-progress")
+        (repo / "nimbalyst-local" / "tracker" / f"{self.CARD}.md").write_text(
+            "---\ntrackerStatus:\n  type: inbox\nstatus: done\n---\n",  # НЕ коммитится
+            encoding="utf-8")
+        rep = report(guard, repo, [self._entry([self._stale_copy(repo)])])
+        assert rep.get("card_closed", []) == []
+        assert [f["state"] for f in rep["findings"]] == [guard.DIFFERS]
+        assert rep["unmeasured"] == []
+        assert rep["exit_code"] == 1
+
+    def test_card_closed_before_the_announcement_keeps_the_finding(self, guard, repo):
+        """СУЖЕНИЕ 3. Протокол §6.4 обязывает дописывать в ЧУЖИЕ карточки, в том числе давно
+        закрытые. Работа, объявленная ПОСЛЕ закрытия, закрытием не объясняется — наоборот,
+        это кандидат в потерянную. Без этого сужения любая закрытая карточка становилась бы
+        вечной индульгенцией на всё, что под ней когда-либо объявят."""
+        self._card_on_base(repo)                     # закрыта «сейчас» (время коммита)
+        rep = report(guard, repo,
+                     [self._entry([self._stale_copy(repo)], ts="2036-01-15T12:00:00Z")],
+                     now=datetime(2036, 1, 20, 12, tzinfo=timezone.utc))
+        assert rep.get("card_closed", []) == []
+        assert [f["state"] for f in rep["findings"]] == [guard.DIFFERS]
+        assert rep["exit_code"] == 1
+
+    def test_absent_path_is_not_excused_by_a_closed_card(self, guard, repo):
+        """СУЖЕНИЕ 4. Файла на базе НЕТ вовсе — закрытая карточка этого не оправдывает:
+        именно так выглядит работа, поднятая ЧАСТИЧНО (подъёмщик взял не все файлы и закрыл
+        карточку). Мутация «применять прощение и к ABSENT» красит ровно этот тест."""
+        self._card_on_base(repo)
+        never = repo / "scripts" / "brand_new.py"
+        never.write_text("работа, которой на базе нет\n", encoding="utf-8")
+        rep = report(guard, repo, [self._entry([never])])
+        assert rep.get("card_closed", []) == []
+        assert [f["state"] for f in rep["findings"]] == [guard.ABSENT]
+        assert "поднять" in rep["findings"][0]["detail"]
+        assert rep["exit_code"] == 1
+
+    def test_unmeasurable_card_state_keeps_the_finding(self, guard, repo):
+        """fail-CLOSED: время попадания карточки на базу не измерилось ⇒ прощение НЕ выносится,
+        находка остаётся, причина дописывается вслух. Молчание при неизмеримости — тот самый
+        fail-OPEN внутри fail-CLOSED-сторожа, который чинили в #226."""
+        self._card_on_base(repo)
+        real = guard._git
+
+        def spy(cwd, *args):
+            if args[:2] == ("log", "-1"):
+                return 128, "", "fatal: boom"
+            return real(cwd, *args)
+
+        rep = report_with_git(guard, repo, [self._entry([self._stale_copy(repo)])], spy)
+        assert rep.get("card_closed", []) == []
+        assert [f["state"] for f in rep["findings"]] == [guard.DIFFERS]
+        assert rep["exit_code"] == 1
+
+    def test_real_lost_work_next_to_it_still_holds_exit_code_1(self, guard, repo):
+        """Зелени правка не покупает: рядом с прощённым путём настоящая находка держит код 1.
+        Живой замер #263 устроен именно так — 5 находок стали 1, а код возврата не сдвинулся."""
+        self._card_on_base(repo)
+        lost = repo / "scripts" / "brand_new.py"
+        lost.write_text("настоящая потерянная работа\n", encoding="utf-8")
+        rep = report(guard, repo, [self._entry([self._stale_copy(repo)]),
+                                   self._entry([lost], card=None, session="cycle-15316")])
+        assert rep["exit_code"] == 1
+        assert [f["path"] for f in rep["findings"]] == ["scripts/brand_new.py"]
+        assert [f["path"] for f in rep.get("card_closed", [])] == ["scripts/kept.py"]
+
+    def test_every_refusal_names_its_reason_out_loud(self, guard, repo):
+        """Все ЧЕТЫРЕ отказа прощать говорят ПОЧЕМУ — иначе следующий цикл снова разбирает
+        руками ровно то, что инструмент уже измерил (тот же дефект, что чинит вся правка).
+
+        Обратные контроли выше нарочно проверяют только ПОВЕДЕНИЕ и потому зелены и на
+        неисправленном стороже; формулировки собраны здесь одним тестом, чтобы «зелёное»
+        нигде не означало «текст совпал»."""
+        # Порядок важен: `_card_on_base` коммитит дерево целиком (`git add -A`), поэтому
+        # промежуточная копия создаётся ПОСЛЕ него — иначе она уедет на базу и перестанет
+        # быть `DIFFERS`. Поймано собственным падением, а не рассуждением.
+        self._card_on_base(repo, status="in-progress")
+        rep = report(guard, repo, [self._entry([self._stale_copy(repo)])])
+        assert "не терминальный" in rep["findings"][0]["detail"]
+
+        self._card_on_base(repo, name="own-postoronnyaya-kartochka")
+        rep = report(guard, repo, [self._entry([self._stale_copy(repo)],
+                                               card="own-net-eyo-na-baze")])
+        assert "на base нет" in rep["findings"][0]["detail"]
+
+        self._card_on_base(repo)
+        rep = report(guard, repo, [self._entry([self._stale_copy(repo)],
+                                               ts="2036-01-15T12:00:00Z")],
+                     now=datetime(2036, 1, 20, 12, tzinfo=timezone.utc))
+        assert "РАНЬШЕ объявления" in rep["findings"][0]["detail"]
+
+        self._card_on_base(repo)
+        stale = self._stale_copy(repo)
+        real = guard._git
+
+        def spy(cwd, *args):
+            return (128, "", "fatal: boom") if args[:2] == ("log", "-1") else real(cwd, *args)
+
+        rep = report_with_git(guard, repo, [self._entry([stale])], spy)
+        assert "НЕ ИЗМЕРЕНО" in rep["findings"][0]["detail"]
