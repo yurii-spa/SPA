@@ -47,7 +47,7 @@
 | AUD-15 | ✅ MEDIUM | ~80 предсущ. падений почин.; **системный atomic_save(str(self))-баг в ~23 модулях** | DONE |
 | AUD-16 | 🔜 LOW | Registry-sync: пакетный реестр на 26 адаптеров > оркестраторного | READY |
 | AUD-14 | 🔜 LOW | Near-duplicate подпакеты (backtest/backtesting, monitor/monitoring, …) | READY |
-| AUD-18 | 🔨 MEDIUM | Unit-тесты на непокрытые стратегии s76/s41/s73/s77/s22 | IN PROGRESS |
+| AUD-18 | ✅ MEDIUM | Unit-тесты на непокрытые стратегии s76/s41/s73/s77/s22 — 132 теста, ноль регрессий | DONE |
 | AUD-19 | 🟠 MEDIUM | Volatile CLMM (ETH/stable) как класс T3-SPEC: research + гейт policy_lp | DECISION |
 
 ---
@@ -258,18 +258,22 @@ arbitrum не поддержан) — предсуществующее паде�
 `cycle_health_monitor.py` существует в 3 местах. Требует per-pair анализа графа
 импортов перед консолидацией — не bulk-delete.
 
-### AUD-18 — Unit-тесты на непокрытые высокодоходные стратегии 🔨 IN PROGRESS
-Из «доходных» стратегий турнира по-штучные тесты есть только у s2 и s7.
-Без тестов: **s76** (Concentrated LP stable, T2, режимный свитч по порогу 6%),
-**s41** (AMM Stable Yield, T2, suspend+renorm), **s73** (Leverage Loop, T3,
-effective_apy/is_eligible), **s77** (Points Farming, T3, points-adjusted APY),
-**s22** (Ethena Yield Max, депег-гейт, адаптеры — мокать, offline).
+### AUD-18 — Unit-тесты на непокрытые высокодоходные стратегии ✅ DONE
+Было: по-штучные тесты только у s2 и s7. Сделано: **132 теста в 5 файлах**
+`spa_core/tests/test_s{76,41,73,77,22}*.py` (конвенция `test_s2_lp_stable`,
+unittest, stdlib, offline — адаптеры S22 замоканы, сеть не трогается).
 
-Scope: 5 файлов `spa_core/tests/test_s{76,41,73,77,22}*.py` по конвенции
-`test_s2_lp_stable.py` (unittest, stdlib, без сети/записи). Инварианты в каждом:
-сумма весов == 1.0, детерминизм, IS_ADVISORY/read-only, approved=False не
-переопределяется, cash-buffer. Acceptance: все зелёные offline, ноль регрессий
-(stash-diff), compileall чисто.
+Покрыто: режимный свитч S76 + граница порога 6% (строгое `>`); ADR-050
+thin-pool срезка веса Aerodrome 15%→5% + suspend/renorm (S41); формула
+плеча S73 (отрицательный спред, breakeven); points-adjusted APY и деградация
+к базе при premium=0 (S77); депег-kill-switch S22 (ротация 40% sUSDe → T1
+safe harbor 50/50, fail-safe при падении адаптера, _norm_apy_pct
+decimal/percent/NaN/bool). Общие инварианты в каждом файле: сумма весов 1.0,
+cash-buffer, детерминизм, IS_ADVISORY, отсутствие execution-импортов,
+регистрация в турнирном реестре.
+
+Верификация: набор strategies/tournament даёт идентичные 51 предсущ. падение
+с новыми файлами и без них → ноль регрессий.
 
 ### AUD-19 — Volatile CLMM (ETH/stable) как класс дохода 🟠 DECISION (Owner)
 Триггер: позиция Revert Uniswap V4 ETH/USDG 0.05% (fee APR ~79%, направленная,
