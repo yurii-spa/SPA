@@ -236,6 +236,99 @@ def durable_fields(entry):
     return {k: entry[k] for k in DURABLE_KEYS if isinstance(entry, dict) and k in entry}
 
 
+def anchor_of(entry):
+    """``(pid, «старт verbatim»)`` или None — ИЗМЕРЕННАЯ личность процесса, написавшего запись.
+
+    Требуются ОБА поля. `session_pid` без `session_pid_start` личностью не считается: pid
+    переиспользуется операционной системой, поэтому «тот же номер» без времени старта — не
+    «тот же процесс», а совпадение числа.
+
+    **Одно определение на оба шага протокола.** Раньше эта функция жила в `check_card_claim`
+    (шаг 0b), а шаг 0a знал только `_durable_state`; здесь она стоит потому, что зависимость
+    между модулями односторонняя (`check_card_claim` грузит этот файл как `sibling`, не
+    наоборот), и копия в двух файлах разошлась бы молча."""
+    if not isinstance(entry, dict):
+        return None
+    raw, start = entry.get("session_pid"), entry.get("session_pid_start")
+    if raw is None or start is None:
+        return None
+    pid = raw if isinstance(raw, int) and not isinstance(raw, bool) else None
+    if pid is None and isinstance(raw, str) and raw.strip().isdigit():
+        pid = int(raw.strip())
+    if pid is None or pid <= 1:
+        return None
+    start = str(start).strip()
+    return (pid, start) if start else None
+
+
+def durable_by_session(entries):
+    """ярлык сессии → её поля долгоживущего процесса, ТОЛЬКО когда они однозначны.
+
+    Ярлык — не идентификатор процесса, и один и тот же ярлык в принципе может нести разные
+    якоря (перезапуск цикла под тем же `SPA_SESSION_ID`). Разные пары ⇒ ключа нет ⇒ у
+    вызывающего поведение остаётся побайтово прежним (fail-CLOSED): угадывать, который из
+    процессов написал запись, инструмент не станет."""
+    found, ambiguous = {}, set()
+    for entry in entries or ():
+        label = str((entry or {}).get("session") or "").strip()
+        if not label or label in ambiguous:
+            continue
+        anchor = anchor_of(entry)
+        if anchor is None:
+            continue
+        if label in found and found[label][0] != anchor:
+            del found[label]
+            ambiguous.add(label)
+            continue
+        found[label] = (anchor, durable_fields(entry))
+    return {label: fields for label, (_anchor, fields) in found.items()}
+
+
+def borrow_durable(entry, anchors):
+    """``(запись, пояснение)`` — запись как есть, либо её копия с личностью ИЗ ЖУРНАЛА.
+
+    **Дефект, который это закрывает** (догфуд цикла #265). Шаг 0a мерил каждую запись в
+    ОДИНОЧКУ: нет своей пары (`session_pid`, `session_pid_start`) ⇒ `_measured_session_state`
+    падал на разбор ЯРЛЫКА (`_PID_RE`), а ярлык вида `cycle-264-pid80387` под него не подходит
+    ⇒ `UNKNOWN` ⇒ вся запись уходит в «НЕ ИЗМЕРЕНО» (код 2), и её объявленные файлы не
+    разбираются ВОВСЕ — ни квитанция снятого дерева, ни закрытая на базе карточка до них уже
+    не доезжают. Живой замер 16.08: 3 строки «не измерено» из 20 записей, все три — записи
+    `[check_card_claim] захват карточки`, то есть наша СОБСТВЕННАЯ автоматика; из 908 записей
+    журнала таких 12.
+
+    **Личность при этом БЫЛА** — соседней записью того же журнала, который инструмент уже
+    прочитал: `claim` пишет запись без якоря (его даёт окружение `SPA_SESSION_PID`, и у
+    однократной CLI-команды его может не быть), а объявление владения секундой позже несёт
+    якорь под ТЕМ ЖЕ ярлыком. Ровно этот вопрос уже задаёт шаг 0b (`durable_by_session`,
+    карточка `agent-frontmatter-claim-locks-card-forever`) — здесь тот же класс с другого
+    входа: необратимое «не измерено» над познаваемым фактом.
+
+    **Два сужения, каждое измеримо** (несработавшее оставляет `UNKNOWN` как было):
+
+    1. ярлык несёт в журнале ОДНОЗНАЧНЫЙ якорь (`durable_by_session`);
+    2. процесс якоря стартовал НЕ ПОЗЖЕ самой записи (допуск `CLOCK_SKEW`). Процесс,
+       родившийся после объявления, написать его не мог: это переиспользованный ярлык, и
+       заимствование дало бы ложный `ACTIVE` — fail-OPEN внутри fail-CLOSED-сторожа.
+
+    Заимствование НАЗЫВАЕТСЯ вслух: измерение уходит читателю с пояснением, откуда взята
+    личность, — иначе отчёт утверждал бы про запись то, чего в ней не написано."""
+    if not isinstance(entry, dict) or not anchors:
+        return entry, ""
+    if anchor_of(entry) is not None:
+        return entry, ""
+    label = str(entry.get("session") or "").strip()
+    fields = anchors.get(label)
+    if not fields:
+        return entry, ""
+    ts = _parse_ts(entry.get("ts"))
+    started = _parse_lstart(str(fields.get("session_pid_start") or ""))
+    if ts is None or started is None or started > ts + CLOCK_SKEW:
+        return entry, ""
+    return {**entry, **fields}, (f"личность взята из журнала по ярлыку {label!r} "
+                                 f"(pid{fields.get('session_pid')}, старт "
+                                 f"{fields.get('session_pid_start')}): в самой записи её нет")
+
+
 def _durable_state(entry, ts, ps):
     """None — сессия долгоживущего процесса не объявляла; иначе (state, измерение словами).
 
@@ -1211,9 +1304,17 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
     card_findings.extend(cf)
     unmeasured.extend(cu)
 
+    # Личность сессии, которой нет в самой записи, но которая есть в журнале под тем же
+    # ярлыком (см. `borrow_durable`). Строится ОДИН раз по тем же записям, что и отчёт:
+    # шире окна чтения инструмент не смотрит и здесь.
+    anchors = durable_by_session(entries)
+
     for entry in entries:
+        entry, borrowed = borrow_durable(entry, anchors)
         state, why = session_state(entry, self_session, ps=ps,
                                    self_session_trusted=self_session_trusted)
+        if borrowed:
+            why = f"{why} [{borrowed}]"
         if state == ACTIVE:
             report["sessions_active"] += 1
             continue

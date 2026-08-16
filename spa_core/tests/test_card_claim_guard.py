@@ -2010,3 +2010,101 @@ class TestRepoRelativeOverlap:
         r = run(guard, tracker, log, "agent-x", ps=ps_alive, sibling=sibling,
                 planned_files=[f"/tmp/wt_b/{rel}"])
         assert r["verdict"] == guard.CLAIMED and r["overlaps"]
+
+
+# ── одно определение личности на оба шага протокола (цикл #265) ──────────────
+
+class TestIdentityHasOneDefinition:
+    """`anchor_of` / `durable_by_session` переехали к шагу 0a — здесь только делегирование.
+
+    **Зачем переезд** (карточка `inbox-shag-0a-ne-sprashivaet-zhurnal-o-lichnos`). Тот же
+    вопрос — «чей это процесс и жив ли он» — понадобился шагу 0a: запись без своей пары
+    (`session_pid`, `session_pid_start`) уходила у него в необратимое «не измерено», хотя
+    личность лежала соседней записью того же журнала. Копировать разбор во второй файл было
+    нельзя (копии расходятся молча), а зависимость односторонняя: `check_card_claim` грузит
+    соседа, не наоборот, — значит определение обязано жить у соседа.
+
+    Тесты ниже — гейт против возврата второй копии: они краснеют, если делегирование заменят
+    собственным разбором, который разойдётся с соседним хотя бы на одном входе.
+    """
+
+    _CASES = (
+        {"session_pid": 7, "session_pid_start": "S"},
+        {"session_pid": "7", "session_pid_start": "S"},
+        {"session_pid": 7},
+        {"session_pid_start": "S"},
+        {"session_pid": 7, "session_pid_start": "   "},
+        {"session_pid": True, "session_pid_start": "S"},
+        {"session_pid": 1, "session_pid_start": "S"},
+        {"session_pid": "не число", "session_pid_start": "S"},
+        "не запись",
+    )
+
+    def test_anchor_of_answers_exactly_what_the_sibling_answers(self, guard, sibling):
+        mine = [guard.anchor_of(c) for c in self._CASES]
+        theirs = [sibling.anchor_of(c) for c in self._CASES]
+        assert mine == theirs
+        assert mine[0] == (7, "S") and mine[2] is None     # ответ не «оба None на всём»
+
+    def test_durable_by_session_answers_exactly_what_the_sibling_answers(self, guard, sibling):
+        rows = [{"session": "a", "session_pid": 5, "session_pid_start": "S"},
+                {"session": "b", "session_pid": 6, "session_pid_start": "S"},
+                {"session": "b", "session_pid": 7, "session_pid_start": "S"},   # неоднозначно
+                {"session": "c"}]
+        assert guard.durable_by_session(rows, sibling) == sibling.durable_by_session(rows)
+        assert set(guard.durable_by_session(rows, sibling)) == {"a"}
+
+    def test_the_parser_is_not_duplicated_in_this_file(self, guard):
+        """Проводка, а не вкус: разбор `session_pid` не должен вернуться сюда второй копией."""
+        src = (Path(guard.__file__).read_text(encoding="utf-8")
+               if getattr(guard, "__file__", None)
+               else (ROOT / "scripts/check_card_claim.py").read_text(encoding="utf-8"))
+        assert "isinstance(raw, str) and raw.strip().isdigit()" not in src
+
+
+class TestClaimSaysWhenItHasNoIdentity:
+    """Причина, а не только следствие: захват без личности процесса неизмерим НАВСЕГДА.
+
+    Заимствование личности на стороне читателя (`check_undelivered_work.borrow_durable`)
+    спасает запись лишь тогда, когда якорь у ЯРЛЫКА есть хоть где-то в журнале. Живой замер
+    16.08: у ярлыка `cycle-263` его нет нигде — такой захват шаг 0a не измерит никогда, и
+    узнает об этом СЛЕДУЮЩИЙ цикл, а не та сессия, которая может это исправить одной
+    переменной окружения. Поэтому `claim` говорит об этом сразу и вслух.
+    """
+
+    def test_claim_reports_that_it_had_no_anchor(self, guard, sibling, tracker, log):
+        write_card(tracker, "agent-x")
+        res = guard.claim_card("agent-x", session="pid1", tracker_dir=tracker, now=NOW,
+                               sibling=sibling, log=log, ps=lambda pid: (1, ""),
+                               self_anchor=None)
+        assert res["anchored"] is False
+
+    def test_claim_reports_a_measured_anchor(self, guard, sibling, tracker, log):
+        """Обратный контроль: якорь назван ⇒ предупреждения быть не должно."""
+        write_card(tracker, "agent-x")
+        res = guard.claim_card("agent-x", session="pid1", tracker_dir=tracker, now=NOW,
+                               sibling=sibling, log=log, ps=lambda pid: (1, ""),
+                               self_anchor=(4242, "Wed Jan 14 10:00:00 2026"))
+        assert res["anchored"] is True
+
+    def test_cli_warns_on_stderr_when_the_claim_carries_no_identity(self, guard, tracker, log,
+                                                                    capsys, monkeypatch):
+        monkeypatch.delenv("SPA_SESSION_PID", raising=False)
+        write_card(tracker, "agent-x")
+        rc = guard.main(["--tracker-dir", str(tracker), "--log", str(log),
+                         "claim", "agent-x", "--session", "cycle-263"])
+        captured = capsys.readouterr()
+        assert rc == 0 and "взята: agent-x" in captured.out
+        assert "БЕЗ личности процесса" in captured.err
+        assert "SPA_SESSION_PID" in captured.err and "'cycle-263'" in captured.err
+
+    def test_cli_is_silent_when_the_anchor_is_there(self, guard, tracker, log, capsys,
+                                                    monkeypatch):
+        """Обратный контроль: под выставленным `SPA_SESSION_PID` предупреждения нет."""
+        import os as _os
+        monkeypatch.setenv("SPA_SESSION_PID", str(_os.getpid()))
+        write_card(tracker, "agent-y")
+        rc = guard.main(["--tracker-dir", str(tracker), "--log", str(log),
+                         "claim", "agent-y", "--session", "cycle-265"])
+        captured = capsys.readouterr()
+        assert rc == 0 and "БЕЗ личности процесса" not in captured.err

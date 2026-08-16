@@ -440,7 +440,7 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
     # Считается ОДИН раз и по ВСЕМУ журналу: и захваты, и пересечение по файлам должны отвечать
     # на «моё ли это?» одинаково — иначе собственное второе объявление, не блокируя как захват,
     # блокировало бы как пересечение по файлам (один дефект, починенный наполовину).
-    selves = self_identities(entries, self_session, self_anchor)
+    selves = self_identities(entries, self_session, self_anchor, sibling)
     # Личность держателя карточки берётся из ТОГО ЖЕ журнала: `claim` объявляет захват, и в
     # записи лежит долгоживущий процесс. Без этого захват из frontmatter под ярлыком без pid
     # уходил в «не измерено» навсегда — см. `durable_by_session`.
@@ -780,26 +780,35 @@ def self_session_id() -> str:
     return os.environ.get("SPA_SESSION_ID") or f"pid{os.getpid()}"
 
 
-def anchor_of(entry):
+_SIBLING_CACHE = []          # список-на-один-элемент: загруженный модуль шага 0a
+
+
+def _sibling_cached(loader=None):
+    """Соседний модуль шага 0a, загруженный ОДИН раз на процесс.
+
+    `load_sibling` исполняет файл заново при каждом вызове (это не `import` — `scripts/` не
+    пакет), а `anchor_of` зовётся по записи журнала: без кэша разбор 908 записей означал бы
+    908 исполнений 1700-строчного модуля. Ошибку загрузки не глотаем — она и раньше означала
+    «не измерено», а не «свободна»."""
+    if not _SIBLING_CACHE:
+        _SIBLING_CACHE.append((loader or load_sibling)())
+    return _SIBLING_CACHE[0]
+
+
+def anchor_of(entry, sibling=None):
     """``(pid, «старт verbatim»)`` или None — ИЗМЕРЕННАЯ личность процесса, написавшего запись.
 
-    Требуются ОБА поля. `session_pid` без `session_pid_start` личностью не считается: pid
-    переиспользуется операционной системой, поэтому «тот же номер» без времени старта — не
-    «тот же процесс», а совпадение числа. Той же парой шаг 0a (`_durable_state`) отличает живую
-    сессию от чужого процесса, занявшего её pid; здесь она отвечает на другой вопрос — «эта
-    запись моя?» — но тем же измерением, а не новой эвристикой."""
-    if not isinstance(entry, dict):
-        return None
-    raw, start = entry.get("session_pid"), entry.get("session_pid_start")
-    if raw is None or start is None:
-        return None
-    pid = raw if isinstance(raw, int) and not isinstance(raw, bool) else None
-    if pid is None and isinstance(raw, str) and raw.strip().isdigit():
-        pid = int(raw.strip())
-    if pid is None or pid <= 1:
-        return None
-    start = str(start).strip()
-    return (pid, start) if start else None
+    **Определение ОДНО и живёт у шага 0a** (`check_undelivered_work.anchor_of`); здесь —
+    делегирование. Раньше пара `anchor_of`/`durable_by_session` жила только тут, а шаг 0a
+    задать тот же вопрос не мог и уводил запись без якоря в необратимое «не измерено»
+    (цикл #265). Копировать разбор во второй файл было нельзя: копии расходятся молча, а
+    зависимость между модулями односторонняя — `check_card_claim` грузит соседа, не наоборот.
+
+    Смысл измерения не изменился: требуются ОБА поля, `session_pid` без `session_pid_start`
+    личностью не считается (pid переиспользуется ОС, «тот же номер» без времени старта — не
+    «тот же процесс»). Здесь пара отвечает на вопрос «эта запись моя?», у соседа — «жива ли
+    сессия»; измерение одно."""
+    return (sibling or _sibling_cached()).anchor_of(entry)
 
 
 def measure_self_anchor(announcer=None, env=None):
@@ -817,7 +826,7 @@ def measure_self_anchor(announcer=None, env=None):
     return anchor_of(proc)
 
 
-def self_identities(entries, self_session, anchor):
+def self_identities(entries, self_session, anchor, sibling=None):
     """Все идентификаторы, под которыми объявлялась ЭТА ЖЕ сессия (множество, ≥1 элемент).
 
     **Дефект, который это закрывает** (карточка `agent-self-claim-blocked-by-own-second-identity`,
@@ -854,8 +863,9 @@ def self_identities(entries, self_session, anchor):
     selves = {str(self_session)} if self_session else set()
     if not anchor:
         return selves
+    sibling = sibling or _sibling_cached()          # один разбор на прогон, см. `anchor_of`
     for entry in entries or ():
-        if anchor_of(entry) == anchor:
+        if anchor_of(entry, sibling) == anchor:
             label = str((entry or {}).get("session") or "").strip()
             if label:
                 selves.add(label)
@@ -864,6 +874,10 @@ def self_identities(entries, self_session, anchor):
 
 def durable_by_session(entries, sibling):
     """сессия → её поля долгоживущего процесса, ТОЛЬКО когда они однозначны. Иначе ключа нет.
+
+    **Определение ОДНО и живёт у шага 0a** (`check_undelivered_work.durable_by_session`,
+    перенесено циклом #265 — тому же вопросу понадобился и сосед); здесь — делегирование,
+    сигнатура не тронута ради вызывающих.
 
     **Дефект, который это закрывает** (найден догфудом цикла #146). Захват из frontmatter
     классифицировался с `process=None`, а `session_state` для ярлыка без pid (`cycle-20906`,
@@ -886,20 +900,7 @@ def durable_by_session(entries, sibling):
     в принципе может нести разные якоря (перезапуск цикла под тем же `SPA_SESSION_ID`).
     Разные пары ⇒ ключа нет ⇒ поведение побайтово прежнее (fail-CLOSED): угадывать, который
     из процессов держит карточку, инструмент не станет."""
-    found, ambiguous = {}, set()
-    for entry in entries or ():
-        label = str((entry or {}).get("session") or "").strip()
-        if not label or label in ambiguous:
-            continue
-        anchor = anchor_of(entry)
-        if anchor is None:
-            continue
-        if label in found and found[label][0] != anchor:
-            del found[label]
-            ambiguous.add(label)
-            continue
-        found[label] = (anchor, sibling.durable_fields(entry))
-    return {label: fields for label, (_anchor, fields) in found.items()}
+    return sibling.durable_by_session(entries)
 
 
 def _log_entries(log, sibling=None, last=None):
@@ -1102,6 +1103,8 @@ def claim_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, now=None
                 f"  git show {DEFAULT_BASE_REF}:nimbalyst-local/tracker/{path.name} > {path}")
         raise ClaimError(f"карточки нет: {path}")
 
+    if self_anchor is _ENV_ANCHOR:
+        self_anchor = measure_self_anchor()
     report = gather(card, log=log, tracker_dir=tracker_dir, sibling=sibling,
                     self_session=session, now=now, grace_hours=grace_hours, ps=ps,
                     self_anchor=self_anchor)
@@ -1141,7 +1144,7 @@ def claim_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, now=None
     finally:
         _release_lock(fd, lock)
     return {"card": card_id(path), "path": str(path), "claimed_by": session,
-            "claimed_at": _fmt_ts(now)}
+            "claimed_at": _fmt_ts(now), "anchored": bool(self_anchor)}
 
 
 def release_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, force=False,
@@ -1322,6 +1325,18 @@ def main(argv=None) -> int:
                              grace_hours=args.grace_hours, sibling=sibling, log=log)
             print(json.dumps(res, ensure_ascii=False) if args.json
                   else f"взята: {res['card']} → {res['claimed_by']} ({res['claimed_at']})")
+            if not res.get("anchored"):
+                # Причина, а не только следствие: заимствование личности на стороне читателя
+                # (`check_undelivered_work.borrow_durable`) спасает запись лишь тогда, когда
+                # якорь у ЯРЛЫКА есть хоть где-то в журнале. Захват под ярлыком, который якоря
+                # не несёт нигде, шаг 0a не измерит НИКОГДА — и узнает об этом следующий цикл,
+                # а не эта сессия. Поэтому говорим здесь и сразу (замер 16.08: 'cycle-263').
+                print(f"⚠️  захват объявлен БЕЗ личности процесса: SPA_SESSION_PID не назван "
+                      f"(или названный процесс не подтверждён), поэтому запись журнала уйдёт "
+                      f"без пары (session_pid, session_pid_start). Шаг 0a измерит её только "
+                      f"если тот же ярлык {res['claimed_by']!r} несёт якорь в другой записи. "
+                      f"Лечится до первого объявления: export SPA_SESSION_ID / SPA_SESSION_PID "
+                      f"(это делает scripts/agent_orchestrator.sh).", file=sys.stderr)
         else:
             res = release_card(args.card, session=args.session,
                                tracker_dir=args.tracker_dir, force=args.force, log=log)

@@ -1707,3 +1707,143 @@ class TestWorkAlreadyRaisedByAnotherSession:
 
         rep = report_with_git(guard, repo, [self._entry([stale])], spy)
         assert "НЕ ИЗМЕРЕНО" in rep["findings"][0]["detail"]
+
+
+# ── 16. личность сессии лежит СОСЕДНЕЙ записью того же журнала ────────────────
+
+class TestIdentityBorrowedFromTheJournal:
+    """Замер 16.08, догфуд цикла #265 (карточка `inbox-shag-0a-ne-sprashivaet-zhurnal-o-lichnos`).
+
+    Шаг 0a мерил КАЖДУЮ запись в одиночку: нет своей пары (`session_pid`,
+    `session_pid_start`) ⇒ разбор ЯРЛЫКА (`_PID_RE`, форма `pid<N>`) ⇒ ярлык
+    `cycle-264-pid80387` под неё не подходит ⇒ `UNKNOWN` ⇒ вся запись уходит в «НЕ ИЗМЕРЕНО»,
+    и объявленные ею файлы не разбираются ВОВСЕ: ни квитанция снятого дерева, ни закрытая на
+    базе карточка до них уже не доезжают.
+
+    Записи без якоря пишет НАША СОБСТВЕННАЯ автоматика: `check_card_claim.py claim`
+    объявляет захват из однократной CLI-команды, и якорь у неё есть только когда назван
+    `SPA_SESSION_PID`. Живой замер: 3 строки «не измерено» из 20 записей — все три вида
+    `[check_card_claim] захват карточки`; по всему журналу (908 записей) таких 12.
+
+    Личность при этом БЫЛА — соседней записью ТОГО ЖЕ ярлыка, в журнале, который инструмент
+    уже прочитал. Ровно этот вопрос давно задаёт шаг 0b (`durable_by_session`, карточка
+    `agent-frontmatter-claim-locks-card-forever`); здесь тот же класс с другого входа —
+    необратимое «не измерено» над познаваемым фактом.
+
+    Обратные контроли ниже держат fail-CLOSED: заимствование узкое (однозначный якорь +
+    процесс старше записи), и любое несработавшее сужение оставляет `UNKNOWN` как было.
+    """
+
+    _CLAIM = "[check_card_claim] захват карточки inbox-x"
+
+    def _pair(self, repo, pid, *, label="cycle-264-pid80387", start=_LSTART_OLD,
+              claim_ts="2026-01-15T12:00:00Z", anchor_ts="2026-01-15T12:00:08Z"):
+        """Живая форма: запись захвата БЕЗ якоря + объявление владения С якорем, один ярлык.
+
+        Объявленные пути намеренно ОБЫЧНЫЕ, не карточки трекера: сверка карточек — второй,
+        независимый вопрос того же отчёта, и её строки заглушили бы измеряемое здесь."""
+        claimed = repo / "scripts" / "c265_claimed.py"
+        claimed.write_text("путь из записи захвата\n", encoding="utf-8")
+        work = repo / "scripts" / "c265_work.py"
+        work.write_text("работа цикла\n", encoding="utf-8")
+        return [entry(label, [claimed], ts=claim_ts, summary=self._CLAIM),
+                durable_entry(label, [work], pid, start=start, ts=anchor_ts)]
+
+    # ── положительные контроли: авария 16.08 ──
+
+    def test_claim_record_without_anchor_is_no_longer_unmeasured(self, guard, repo):
+        """Ядро аварии: запись захвата уходила в «не измерено» при живом ответе рядом."""
+        entries = self._pair(repo, 80373)
+        rep = report(guard, repo, entries, ps=fake_ps({}))     # процесса нет ⇒ сессия мертва
+        assert [u["session"] for u in rep["unmeasured"]] == []
+        assert rep["sessions_checked"] == 2                    # разобраны ОБЕ записи, не одна
+
+    def test_files_of_the_borrowed_record_are_examined_at_all(self, guard, repo):
+        """Цена «не измерено» — не строка отчёта, а НЕразобранные файлы записи."""
+        entries = self._pair(repo, 80373)
+        rep = report(guard, repo, entries, ps=fake_ps({}))
+        paths = sorted(f["path"] for f in rep["findings"])
+        assert paths == ["scripts/c265_claimed.py", "scripts/c265_work.py"]
+
+    def test_borrowed_identity_is_named_out_loud(self, guard, repo):
+        """Отчёт не вправе утверждать про запись то, чего в ней не написано."""
+        entries = self._pair(repo, 80373)
+        rep = report(guard, repo, entries, ps=fake_ps({}))
+        why = [f["session_state"] for f in rep["findings"]
+               if f["path"].endswith("c265_claimed.py")][0]
+        assert "личность взята из журнала по ярлыку 'cycle-264-pid80387'" in why
+        assert "pid80373" in why and "в самой записи её нет" in why
+
+    def test_live_borrowed_process_makes_the_record_active(self, guard, repo):
+        """Живой якорь блокирует СИЛЬНЕЕ прежнего: раньше живой держатель был «не измерен»."""
+        entries = self._pair(repo, 80373)
+        rep = report(guard, repo, entries, ps=fake_ps({80373: (0, _LSTART_OLD + "\n")}))
+        assert rep["sessions_active"] == 2
+        assert rep["findings"] == [] and rep["unmeasured"] == []
+        assert rep["exit_code"] == 0
+
+    # ── обратные контроли: сужения, без которых это было бы fail-OPEN ──
+
+    def test_ambiguous_label_is_not_borrowed(self, guard, repo):
+        """Два разных якоря под одним ярлыком (перезапуск цикла) ⇒ угадывать нельзя."""
+        entries = self._pair(repo, 80373)
+        entries.append(durable_entry("cycle-264-pid80387", [], 99999,
+                                     ts="2026-01-15T12:00:09Z"))
+        rep = report(guard, repo, entries, ps=fake_ps({}))
+        assert any("не содержит pid" in u["reason"] for u in rep["unmeasured"])
+
+    def test_anchor_started_after_the_record_is_not_borrowed(self, guard, repo):
+        """Процесс, родившийся ПОСЛЕ объявления, написать его не мог — иначе ложный ACTIVE."""
+        entries = self._pair(repo, 80373, start=_LSTART_NEW)
+        rep = report(guard, repo, entries, ps=fake_ps({80373: (0, _LSTART_NEW + "\n")}))
+        assert any("не содержит pid" in u["reason"] for u in rep["unmeasured"])
+        # Активна ровно ОДНА запись — та, у которой якорь СВОЙ. Заимствования не было:
+        # иначе живой pid80373 сделал бы активной и запись захвата (ложный ACTIVE).
+        assert rep["sessions_active"] == 1
+
+    def test_label_without_any_anchor_stays_unmeasured(self, guard, repo):
+        """Осадок назван, а не спрятан: ярлык `cycle-263` не несёт якоря НИГДЕ (замер 16.08)."""
+        lone = repo / "scripts" / "c263_claimed.py"
+        lone.write_text("захват без личности нигде\n", encoding="utf-8")
+        rep = report(guard, repo, [entry("cycle-263", [lone], summary=self._CLAIM)],
+                     ps=fake_ps({}))
+        assert [u["session"] for u in rep["unmeasured"]] == ["cycle-263"]
+        assert rep["exit_code"] == 2                           # fail-CLOSED не ослаблен
+
+    def test_record_with_its_own_anchor_is_never_overwritten(self, guard, repo):
+        """Своя личность главнее: заимствование — только там, где своей НЕТ."""
+        work = repo / "scripts" / "own.py"
+        work.write_text("своя работа\n", encoding="utf-8")
+        own = durable_entry("cycle-1", [work], 111)
+        rep = report(guard, repo, [own, durable_entry("cycle-1", [], 222)], ps=fake_ps({}))
+        assert all("личность взята из журнала" not in f["session_state"]
+                   for f in rep["findings"])
+
+    # ── единицы измерения ──
+
+    def test_durable_by_session_drops_ambiguous_labels(self, guard):
+        one = {"session": "a", "session_pid": 5, "session_pid_start": "S"}
+        two = {"session": "a", "session_pid": 6, "session_pid_start": "S"}
+        assert guard.durable_by_session([one]) == {"a": {"session_pid": 5,
+                                                         "session_pid_start": "S"}}
+        assert guard.durable_by_session([one, two]) == {}
+        assert guard.durable_by_session([{"session": "b"}]) == {}
+        assert guard.durable_by_session([]) == {}
+
+    def test_borrow_does_not_mutate_the_original_record(self, guard):
+        """Запись журнала — общий вход отчёта; правка на месте протекла бы в чужие разделы."""
+        anchors = {"a": {"session_pid": 7, "session_pid_start": _LSTART_OLD}}
+        raw = {"ts": "2026-01-15T12:00:00Z", "session": "a"}
+        borrowed, note = guard.borrow_durable(raw, anchors)
+        assert raw == {"ts": "2026-01-15T12:00:00Z", "session": "a"}
+        assert borrowed["session_pid"] == 7 and note
+        assert guard.borrow_durable(raw, {}) == (raw, "")
+
+    def test_anchor_of_requires_both_fields_and_a_real_pid(self, guard):
+        assert guard.anchor_of({"session_pid": 7, "session_pid_start": "S"}) == (7, "S")
+        assert guard.anchor_of({"session_pid": "7", "session_pid_start": "S"}) == (7, "S")
+        assert guard.anchor_of({"session_pid": 7}) is None
+        assert guard.anchor_of({"session_pid": 7, "session_pid_start": "  "}) is None
+        assert guard.anchor_of({"session_pid": True, "session_pid_start": "S"}) is None
+        assert guard.anchor_of({"session_pid": 1, "session_pid_start": "S"}) is None
+        assert guard.anchor_of("не запись") is None
