@@ -145,6 +145,24 @@ class PriceFeed:
         self._fetch = fetcher or http_fetch
         self._page_delay = page_delay_s
         self._max_pages = max_pages
+        # {symbol: reason} — why a token is ABSENT from the last tolerant history() call. A skipped
+        # token is never silent: the caller can name the cause (invariant 2). Empty after a call in
+        # which every requested token delivered.
+        self.last_history_errors: Dict[str, str] = {}
+
+    # ── which tokens to fetch ───────────────────────────────────────────────────────────────────
+    def _resolve_symbols(self, symbols) -> Dict[str, str]:
+        """{sym: addr} for the requested symbols (None → every token). An unknown symbol is a
+        fail-CLOSED error, never a silently-dropped request."""
+        if symbols is None:
+            return dict(TOKENS)
+        wanted = list(symbols)
+        unknown = [s for s in wanted if s not in TOKENS]
+        if unknown:
+            raise InvalidDataError(f"price history: unknown token symbol(s) {unknown}")
+        if not wanted:
+            raise InvalidDataError("price history: empty symbol selection")
+        return {s: TOKENS[s] for s in wanted}
 
     # ── current (live) ──────────────────────────────────────────────────────────────────
     def current(self) -> Dict[str, object]:
@@ -162,6 +180,9 @@ class PriceFeed:
         span: int = 90,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
+        *,
+        symbols=None,
+        tolerate_missing_tokens: bool = False,
     ) -> Dict[str, Dict[str, float]]:
         """Return {sym: {date(ISO): usd_price}} for each token.
 
@@ -169,27 +190,53 @@ class PriceFeed:
         With start_date/end_date (ISO): page each token forward from `start` in ≤MAX_SPAN-day
         chunks (the API 400s on huge spans) until the window is covered, merging by date (last
         wins). Schema-validates each page; a token with no usable price points raises
-        InvalidDataError (fail-closed)."""
+        InvalidDataError (fail-closed).
+
+        `symbols` restricts the fetch to the tokens the caller actually reads — a caller should not
+        pay for, nor be taken down by, a token it never looks at.
+
+        `tolerate_missing_tokens=True` changes ONE thing: a token that yields no usable points is
+        omitted from the result and its cause recorded in `last_history_errors`, instead of aborting
+        the whole selection. Fail-CLOSED is kept where it means something — if NOT ONE requested
+        token delivered, this still raises, naming every cause. (Defect 3, 2026-08-16: a wrapped-BTC
+        token that did not exist yet in the replay window blacked out the ETH price and every ratio
+        for the research panel, which reads no BTC token at all.)"""
+        want = self._resolve_symbols(symbols)
+        self.last_history_errors = {}
+
         if start_date is None and end_date is None:
-            out: Dict[str, Dict[str, float]] = {}
-            for sym, addr in TOKENS.items():
-                payload = self._fetch(CHART_URL.format(id=_coin_id(addr), span=span))
-                out[sym] = _parse_chart(payload, addr, sym)
-            return out
+            def _load(sym: str, addr: str) -> Dict[str, float]:
+                return _parse_chart(self._fetch(CHART_URL.format(id=_coin_id(addr), span=span)),
+                                    addr, sym)
+        else:
+            if start_date is None or end_date is None:
+                raise InvalidDataError("price history: provide BOTH start_date and end_date")
+            try:
+                d0 = datetime.date.fromisoformat(start_date)
+                d1 = datetime.date.fromisoformat(end_date)
+            except ValueError as exc:
+                raise InvalidDataError(
+                    f"price history: bad date(s) {start_date!r}..{end_date!r}") from exc
+            if d1 < d0:
+                raise InvalidDataError(f"price history: end {end_date} before start {start_date}")
 
-        if start_date is None or end_date is None:
-            raise InvalidDataError("price history: provide BOTH start_date and end_date")
-        try:
-            d0 = datetime.date.fromisoformat(start_date)
-            d1 = datetime.date.fromisoformat(end_date)
-        except ValueError as exc:
-            raise InvalidDataError(f"price history: bad date(s) {start_date!r}..{end_date!r}") from exc
-        if d1 < d0:
-            raise InvalidDataError(f"price history: end {end_date} before start {start_date}")
+            def _load(sym: str, addr: str) -> Dict[str, float]:
+                return self._paginate_chart(addr, sym, d0, d1, start_date, end_date)
 
-        out = {}
-        for sym, addr in TOKENS.items():
-            out[sym] = self._paginate_chart(addr, sym, d0, d1, start_date, end_date)
+        out: Dict[str, Dict[str, float]] = {}
+        for sym, addr in want.items():
+            if not tolerate_missing_tokens:
+                out[sym] = _load(sym, addr)
+                continue
+            try:
+                out[sym] = _load(sym, addr)
+            except InvalidDataError as exc:
+                self.last_history_errors[sym] = str(exc)
+        if tolerate_missing_tokens and not out:
+            raise InvalidDataError(
+                "price history: no usable points for ANY requested token — "
+                + "; ".join(f"{s}: {r}" for s, r in sorted(self.last_history_errors.items()))
+            )
         return out
 
     def _paginate_chart(
@@ -230,9 +277,16 @@ class PriceFeed:
         span: int = 90,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
+        *,
+        hist: Optional[Dict[str, Dict[str, float]]] = None,
     ) -> Dict[str, Dict[str, float]]:
-        """Return {lrt_sym: {date: lrt/eth ratio}} aligned on shared dates with eth."""
-        hist = self.history(span=span, start_date=start_date, end_date=end_date)
+        """Return {lrt_sym: {date: lrt/eth ratio}} aligned on shared dates with eth.
+
+        Pass `hist` (an already-fetched history()) to compute the ratios off it instead of paging
+        every token a SECOND time — a caller that needs both prices and ratios was doing the full
+        multi-page walk twice per run."""
+        if hist is None:
+            hist = self.history(span=span, start_date=start_date, end_date=end_date)
         eth = hist.get("eth", {})
         ratios: Dict[str, Dict[str, float]] = {}
         for sym in RATIO_SYMBOLS:

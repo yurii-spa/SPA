@@ -61,6 +61,39 @@ _DAYS_PER_YEAR = 365.0
 _PT_MTM_TENOR_YEARS = 90.0 / 365.0
 
 
+# ── gap-aware mark helpers (defect 2, docs/AGGRESSIVE_PANEL_FEEDS.md 2026-08-16) ───────────────────
+# A hole in a price/ratio series is NOT a violent day. Before these helpers, `_ratio_mtm` compared the
+# two nearest PRESENT prints and handed the difference to the levered books as if it were one day's
+# move; multiplied by 2×/3× leverage it breached the maintenance buffer and the book liquidated
+# itself. Measured thresholds: the 3× book dies on a single −5.6% print, the 2× book on −12.5%; a
+# 30-day hole with a 6% drift was enough to kill the 3× book. A change observed across N missing days
+# must be judged as a change across N days — that is arithmetic, not a threshold change (the
+# liquidation buffers themselves are untouched).
+def _elapsed_days(prev_date: Optional[str], date: Optional[str]) -> int:
+    """Calendar days between two ISO dates, ≥1. Unknown/unparseable/non-forward dates → 1, i.e. the
+    conservative pre-existing reading (never a number invented to soften a move)."""
+    if not prev_date or not date:
+        return 1
+    import datetime as _dt
+    try:
+        delta = (_dt.date.fromisoformat(date) - _dt.date.fromisoformat(prev_date)).days
+    except ValueError:
+        return 1
+    return delta if delta >= 1 else 1
+
+
+def _per_day(move: float, days: int) -> float:
+    """A fractional move spread geometrically over `days` days: (1+move)^(1/days) − 1, so `days` of
+    the result compound back to exactly `move`. Degenerate (total wipeout, 1+move ≤ 0) → return the
+    move unchanged, i.e. fail-CLOSED toward the harsher reading."""
+    if days <= 1:
+        return move
+    base = 1.0 + float(move)
+    if base <= 0.0:
+        return move
+    return base ** (1.0 / float(days)) - 1.0
+
+
 def _pt_price_from_iy(implied_yield: float, tenor_years: float = _PT_MTM_TENOR_YEARS) -> float:
     """PT discount price (face units) for a market implied yield. price = 1/(1+iy)^τ.
     Higher implied yield (stress) → lower price (mark-down). fail-CLOSED on a degenerate input."""
@@ -109,6 +142,10 @@ class _AggressiveBase(Strategy):
         self._kill_reason = ""
         self._cum_cost = 0.0      # cumulative modelled cost (slippage/funding paid/gas)
         self._cum_funding = 0.0   # cumulative funding P&L (+received / −paid), where modelled
+        # WHY the book is standing still today, in words. A pause must never be silent (invariant 2):
+        # "no data" is a NAMED refusal to judge, not an unexplained flat line. Cleared on any tick the
+        # book can evaluate normally. This is a hold, not a kill — `_kill_reason` stays empty.
+        self._hold_reason = ""
         # honest off-code flag: a basis/hedge leg whose CEX side is not buildable in-code.
         self.hedge_leg_buildable = True
         self._initialised = False
@@ -125,6 +162,12 @@ class _AggressiveBase(Strategy):
         # previous-mark anchors for day-over-day MTM (set on first real datapoint seen)
         self._prev_pt_price: Optional[float] = None
         self._prev_ratio: Optional[float] = None
+        # DATE of the previous ratio print + how many calendar days the last ratio move spanned.
+        # Without these the mark layer cannot tell "the ratio fell 6% overnight" from "the ratio fell
+        # 6% while the feed was dark for a month" — and the levered books read the second as the
+        # first, at leverage, and liquidated themselves on a hole in the data (defect 2, 2026-08-16).
+        self._prev_ratio_date: Optional[str] = None
+        self._ratio_mtm_days: int = 1
 
     # ── lifecycle ───────────────────────────────────────────────────────────────────────────────
     def init(self, capital: float, config: dict) -> None:
@@ -134,6 +177,7 @@ class _AggressiveBase(Strategy):
         self._days = 0
         self._killed = False
         self._kill_reason = ""
+        self._hold_reason = ""
         self._cum_cost = 0.0
         self._cum_funding = 0.0
         self._mtm = 0.0
@@ -141,6 +185,8 @@ class _AggressiveBase(Strategy):
         self._cum_mtm = 0.0
         self._prev_pt_price = None
         self._prev_ratio = None
+        self._prev_ratio_date = None
+        self._ratio_mtm_days = 1
         self._initialised = True
 
     # ── the per-tick advance ──────────────────────────────────────────────────────────────────────
@@ -152,12 +198,14 @@ class _AggressiveBase(Strategy):
         # reset today's mark provenance — set by _mark_to_market_pct ONLY when a real path drove it.
         self._mtm = 0.0
         self._mtm_source = None
+        self._hold_reason = ""
         try:
             daily_accrual = self._daily_yield_pct(market)   # REAL-data yield-accrual fraction
         except InvalidDataError as exc:
             if self.accrual_gap_is_safe_hold:
                 # honest GAP: this book's real feed legitimately hasn't started / is sparse for this
                 # tick → safe-hold (no advance, no fabricated accrual), resume when the data returns.
+                self._hold_reason = f"accrual feed gap: {exc}"
                 return
             # fail-CLOSED on the ACCRUAL feed: a book whose yield source is missing/stale cannot
             # honestly mark a return → it is KILLED (the documented contract; no fabricated accrual).
@@ -166,7 +214,8 @@ class _AggressiveBase(Strategy):
             return
         try:
             daily_mtm = self._mark_to_market_pct(market)    # REAL-path price/ratio mark-to-market
-        except InvalidDataError:
+        except InvalidDataError as exc:
+            self._hold_reason = f"mark feed gap: {exc}"
             # fail-CLOSED on the MARK feed (a price/ratio path absent for THIS tick, e.g. before the
             # series starts or a hole): we do NOT advance the equity on a day we cannot mark — an
             # honest GAP (no fabricated accrual, no smooth-fake), NOT a permanent kill. The book
@@ -208,16 +257,30 @@ class _AggressiveBase(Strategy):
         self._mtm_source = "realized_backtest_series"   # driven by the REAL implied-yield series
         return move
 
-    def _ratio_mtm(self, ratio: float) -> float:
+    def _ratio_mtm(self, ratio: float, date: Optional[str] = None) -> float:
         """Day-over-day fractional mark from a REAL collateral/ETH (or LRT/ETH) ratio path. This is
-        the depeg residual the perp hedge does NOT cover. First datapoint anchors (0 move)."""
+        the depeg residual the perp hedge does NOT cover. First datapoint anchors (0 move).
+
+        The returned move is the FULL move since the previous print — that P&L really happened and is
+        not discarded. What the caller must NOT do is read it as a ONE-DAY print: `date` lets the book
+        learn how many calendar days that move actually spans (see `_ratio_mtm_days`), so a levered
+        book can judge its liquidation cliff per DAY rather than per PRINT."""
+        self._ratio_mtm_days = 1
         if self._prev_ratio is None:
             self._prev_ratio = float(ratio)
+            self._prev_ratio_date = date
             return 0.0
         move = (float(ratio) - self._prev_ratio) / self._prev_ratio if self._prev_ratio else 0.0
+        self._ratio_mtm_days = _elapsed_days(self._prev_ratio_date, date)
         self._prev_ratio = float(ratio)
+        self._prev_ratio_date = date
         self._mtm_source = "realized_backtest_series"   # driven by the REAL price/ratio series
         return move
+
+    def _per_day_move(self, move: float) -> float:
+        """The move of the LAST `_ratio_mtm` call expressed as ONE day of it (geometric, so N days of
+        it compound back to the same total). Identical to `move` when the prints are consecutive."""
+        return _per_day(move, getattr(self, "_ratio_mtm_days", 1))
 
     # ── inspection ──────────────────────────────────────────────────────────────────────────────
     def positions(self) -> List[Position]:
@@ -242,6 +305,10 @@ class _AggressiveBase(Strategy):
                 "cum_mtm_pct": round(self._cum_mtm * 100.0, 6),
                 "killed": self._killed,
                 "kill_reason": self._kill_reason,
+                # WHY the book stood still today (a data gap), in words — empty on a normal tick.
+                # A pause is a decision and must be readable; silence is what let a dead book look
+                # like "a calm strategy with no losses" for weeks.
+                "hold_reason": self._hold_reason,
                 "risk_class": self.risk_class,
                 "risk_shape": self.risk_shape,
                 "yield_source": self.yield_source,
@@ -259,6 +326,19 @@ class _AggressiveBase(Strategy):
         try:
             killed, reason = self._kill(market)
         except InvalidDataError as exc:
+            # THE KILL COULD NOT BE EVALUATED — that is NOT the same as the kill having FIRED.
+            # (2026-08-16, docs/AGGRESSIVE_PANEL_FEEDS.md defect 1: `lp_eth_stable` died permanently
+            # on the first replay day without an ETH price, because this branch turned "the feed for
+            # the kill CONDITION is missing" into an irreversible kill — contradicting the book's own
+            # `accrual_gap_is_safe_hold=True`, under which `step` had already safe-held the very same
+            # gap.) The absence of an observation is not an observation of a catastrophe: for a book
+            # that declares its feeds legitimately sparse, a gap is a NAMED PAUSE and the book resumes
+            # when the data returns. A book that does NOT declare safe-hold keeps the documented
+            # fail-CLOSED kill unchanged. A GENUINE risk event still kills through the `killed` branch
+            # below — this touches only the "cannot judge" case, never a judged one.
+            if self.accrual_gap_is_safe_hold:
+                self._hold_reason = f"kill not evaluable (data gap): {exc}"
+                return KillResult(triggered=False, reason="", ts=ts)
             self._killed = True
             self._kill_reason = f"fail-closed: {exc}"
             return KillResult(triggered=True, reason=self._kill_reason, ts=ts)
@@ -484,7 +564,7 @@ class LrtNeutral(_AggressiveBase):
         self._cum_funding += self._equity * funding_day
         self._mtm_source = "realized_backtest_series"
         ratio = market.require("lrt_ratio", self._lrt)            # REAL LRT/ETH ratio path
-        depeg_move = self._ratio_mtm(ratio)                       # residual the hedge can't cover
+        depeg_move = self._ratio_mtm(ratio, market.date)          # residual the hedge can't cover
         return funding_day + depeg_move
 
     def _kill(self, market: MarketSnapshot) -> tuple:
@@ -589,10 +669,14 @@ class LeverageLoop(_AggressiveBase):
         except InvalidDataError:
             return 0.0    # no real mark path this tick → pure-accrual day
         lev = float(self._cfg.get("leverage", 2.0))
-        ratio_move = self._ratio_mtm(ratio)                       # real day-over-day (sets source)
+        ratio_move = self._ratio_mtm(ratio, market.date)          # real move since the last print
         levered_move = ratio_move * lev
+        # The maintenance-margin cliff is a PER-DAY event: a position is marked every day it is held,
+        # so a drift accumulated across a dark feed is not the overnight breach the buffer describes.
+        # We judge the cliff on one day of the move (identical when the prints are consecutive) and
+        # still book the full realized move into equity — no invented number in either direction.
         liq_buffer = float(self._cfg.get("liq_buffer_frac", -0.5 / lev))
-        if levered_move <= liq_buffer:
+        if self._per_day_move(ratio_move) * lev <= liq_buffer:
             self._liquidated = True
         return levered_move
 
@@ -671,7 +755,15 @@ class EthStableLP(_AggressiveBase):
     def _kill(self, market: MarketSnapshot) -> tuple:
         # Tail kill: a deep LP-value drawdown from entry (ETH crash → LP bleed). Config-sourced,
         # no hardcode. LP value ratio = √(P/P_entry); a −25% default is a hostile directional/IL move.
-        eth = market.require("eth_price")
+        #
+        # A missing ETH price on this tick is a GAP, not a kill trigger: we cannot EVALUATE the
+        # drawdown without the price, and a book that has not started (no entry price yet) must never
+        # die in warmup. Guarded exactly like LrtNeutral._kill above — before 2026-08-16 this call was
+        # bare, and the first replay day without a price killed this book PERMANENTLY.
+        try:
+            eth = market.require("eth_price")
+        except InvalidDataError:
+            return (False, "")
         entry = self._entry_eth or eth
         lp_dd_pct = ((eth / entry) ** 0.5 - 1.0) * 100.0 if (entry and entry > 0) else 0.0
         thr = float(self._cfg.get("lp_drawdown_kill_pct", -25.0))
@@ -721,9 +813,11 @@ class LeveredRestaking(_AggressiveBase):
         except InvalidDataError:
             return 0.0
         lev = float(self._cfg.get("leverage", 3.0))
-        levered_move = self._ratio_mtm(ratio) * lev
+        ratio_move = self._ratio_mtm(ratio, market.date)          # real move since the last print
+        levered_move = ratio_move * lev
+        # per-DAY cliff, full realized move into equity — see LeverageLoop._mark_to_market_pct.
         liq_buffer = float(self._cfg.get("liq_buffer_frac", -0.5 / lev))
-        if levered_move <= liq_buffer:
+        if self._per_day_move(ratio_move) * lev <= liq_buffer:
             self._liquidated = True
         return levered_move
 
