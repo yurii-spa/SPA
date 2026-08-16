@@ -17,6 +17,13 @@
         intent=unresolved                    → WARN weak (дрейф без решения; стареет)
   B2  свежесть активных артефактов по SLO (generated_at из содержимого, иначе mtime)
         → WARN (инцидент agent_registry: 19 дней протухания никто не заметил)
+        + ВЫПОЛНИМОСТЬ самого SLO: литерал `slo_hours` сверяется с физическим
+        минимумом `period_hours + такт производителя`; объявить свежесть строже,
+        чем производитель способен дать, — дефект МАНИФЕСТА, а не производителя
+        (замер #256: `outcomes.jsonl` — строка в сутки от 6-часового агента,
+        честный максимум разрыва 30ч против объявленных 26ч). Бюджет и его
+        слагаемые лежат машинно в `slo_budgets` (урок #235: бюджет обязан быть
+        показательным, иначе спорить не с чем).
   B3  замыкание потребления: продукт агента с consumer_required обязан иметь СВЕЖИЙ
         ресит в data/consumption_receipts.jsonl → WARN (ядро аудита: 12 io_* в никуда)
   B5  манифест сам соответствует фактам plist'ов (перегенерация без дрейфа;
@@ -133,6 +140,63 @@ def artifact_timestamp(rel_path: str, root: str = REPO_ROOT) -> dt.datetime | No
         except Exception:
             pass  # нечитаемый JSON — честно падаем на mtime
     return dt.datetime.fromtimestamp(os.path.getmtime(full), tz=dt.timezone.utc)
+
+
+def producer_tick_hours(schedule) -> float | None:
+    """Такт производителя из машинного `schedule` манифеста. None = НЕ ИЗМЕРИМ.
+
+    Словарь задаёт `build_architecture_manifest.py`: `interval:Ns` ·
+    `calendar:HH:MM` (раз в сутки) · `calendar:wdN·HH:MM` (раз в неделю) ·
+    `daemon` (непрерывно ⇒ квантования нет, 0) · `manual`/`event:*`/нет — такт
+    не определён расписанием, и это НЕ ноль.
+    """
+    if not isinstance(schedule, str) or not schedule:
+        return None
+    if schedule == "daemon":
+        return 0.0
+    if schedule.startswith("interval:"):
+        raw = schedule.split(":", 1)[1].rstrip("s")
+        try:
+            return int(raw) / 3600.0
+        except ValueError:
+            return None
+    if schedule.startswith("calendar:"):
+        return 168.0 if "wd" in schedule.split(":", 1)[1] else 24.0
+    return None
+
+
+def freshness_floor(art: dict, by_label: dict) -> dict:
+    """Физический минимум бюджета свежести артефакта — из ФАКТОВ, не из литерала.
+
+    Разрыв между двумя записями артефакта не может быть меньше, чем
+    `period_hours` (как часто у артефакта ВООБЩЕ появляется новое содержимое;
+    отсутствует ⇒ 0 = пишется каждый такт) плюс такт производителя (запись
+    случается только на такте, поэтому такт — это КВАНТОВАНИЕ, а не запас).
+
+    Замер 2026-08-16 (цикл #256), из-за которого это появилось:
+    `outcomes.jsonl` — строка на календарный день (`period_hours: 24`) от
+    производителя с тактом 6ч ⇒ честный максимум разрыва 30ч; объявлено 26ч,
+    и сторож полгода краснел на ИСПРАВНОМ refusal-first производителе
+    (наблюдённая последовательность разрывов по логу: 18ч · 24ч · 30ч).
+    Возвращает {"floor_h", "period_h", "tick_h", "reason"}; floor_h=None —
+    такт производителя не определён расписанием (НЕ повод считать бюджет нулём).
+    """
+    period_h = float(art.get("period_hours") or 0.0)
+    producer = art.get("producer")
+    if not producer:
+        return {"floor_h": None, "period_h": period_h, "tick_h": None,
+                "reason": "продюсер не объявлен — такт неизвестен"}
+    agent = by_label.get(producer)
+    if agent is None:
+        return {"floor_h": None, "period_h": period_h, "tick_h": None,
+                "reason": f"продюсера {producer} нет в манифесте"}
+    tick_h = producer_tick_hours(agent.get("schedule"))
+    if tick_h is None:
+        return {"floor_h": None, "period_h": period_h, "tick_h": None,
+                "reason": f"расписание {producer} не задаёт такт "
+                          f"({agent.get('schedule')!r})"}
+    return {"floor_h": period_h + tick_h, "period_h": period_h,
+            "tick_h": tick_h, "reason": ""}
 
 
 def load_receipts(path: str = RECEIPTS_PATH) -> dict[str, dt.datetime]:
@@ -302,11 +366,37 @@ def run_checks(manifest: dict,
                     f"{a['label']} работает, но plist не персистентен "
                     f"({a.get('plist_source')}) — не переживёт ребут"))
 
-    # B2 — свежесть активных артефактов
+    # B2 — свежесть активных артефактов + выполнимость самого SLO
+    slo_budgets: list[dict] = []
     for art in manifest.get("artifacts", []):
         if art.get("status") != "active":
             continue
         path = art["path"]
+        declared = float(art.get("slo_hours") or 0)
+        floor = freshness_floor(art, by_label)
+        floor_h = floor["floor_h"]
+
+        # Бюджет ПОКАЗАТЕЛЬНЫЙ (урок #235): не литерал, а литерал против фактов.
+        # Объявить свежесть строже, чем производитель физически способен дать,
+        # нельзя — такой SLO краснеет на ИСПРАВНОЙ системе и учит не верить B2.
+        unsatisfiable = bool(declared and floor_h is not None and declared < floor_h)
+        budget = max(declared, floor_h) if unsatisfiable else declared
+        slo_budgets.append({"path": path, "declared_h": declared or None,
+                            "floor_h": floor_h, "period_h": floor["period_h"],
+                            "tick_h": floor["tick_h"], "budget_h": budget or None,
+                            "satisfiable": (None if floor_h is None
+                                            else not unsatisfiable),
+                            "reason": floor["reason"]})
+        if unsatisfiable:
+            findings.append(_finding(
+                f"B2:slo_unsatisfiable:{path}", "B2", "WARN", "strong",
+                f"{path}: объявленный SLO {declared:g}ч МЕНЬШЕ физического минимума "
+                f"{floor_h:g}ч (период артефакта {floor['period_h']:g}ч + такт "
+                f"производителя {floor['tick_h']:g}ч) — производитель не может его "
+                f"обеспечить, протухание считается по {budget:g}ч. Чинить литерал в "
+                f"манифесте, а не производителя (класс #256: сторож краснел на "
+                f"исправном refusal-first производителе)"))
+
         ts = ts_of(path)
         if ts is None:
             findings.append(_finding(
@@ -314,11 +404,14 @@ def run_checks(manifest: dict,
                 f"{path}: активный артефакт отсутствует на диске"))
             continue
         age_h = (now - ts).total_seconds() / 3600.0
-        slo = art.get("slo_hours") or 0
-        if slo and age_h > slo:
+        if budget and age_h > budget:
+            how = (f"SLO {declared:g}ч" if not unsatisfiable else
+                   f"бюджет {budget:g}ч = период {floor['period_h']:g}ч + такт "
+                   f"производителя {floor['tick_h']:g}ч (объявленный SLO "
+                   f"{declared:g}ч невыполним)")
             findings.append(_finding(
                 f"B2:stale:{path}", "B2", "WARN", "strong",
-                f"{path}: возраст {age_h:.1f}ч > SLO {slo}ч "
+                f"{path}: возраст {age_h:.1f}ч > {how} "
                 f"(класс agent_registry: 19 дней молчаливого протухания)"))
 
     # B3 — замыкание потребления
@@ -405,6 +498,7 @@ def run_checks(manifest: dict,
         "fleet_size": (len(fleet) if fleet is not None else None),
         "manifest_agents": len(agents),
         "curation": curation,
+        "slo_budgets": slo_budgets,
         "findings": kept,
         "aged": aged,
         "unchecked": unchecked,

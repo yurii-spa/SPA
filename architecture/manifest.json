@@ -460,7 +460,7 @@
     },
     {
      "artifact": "data/investment_os/outcomes.jsonl",
-     "slo_hours": 26
+     "slo_hours": 31
     }
    ],
    "consumes": [
@@ -1901,7 +1901,8 @@
    "consumers": [
     "loop_retro"
    ],
-   "slo_hours": 26,
+   "period_hours": 24,
+   "slo_hours": 31,
    "status": "active",
    "notes": "цикл 3 ADR-067: правая половина hit-rate — исходы по дням (идемпотентно по дате)"
   }
