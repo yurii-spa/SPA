@@ -58,6 +58,16 @@ _spec.loader.exec_module(_root_push)
 repo_relative_path = _root_push.repo_relative_path
 RepoPathError = _root_push.RepoPathError
 
+# Источник ФАЙЛА (а не пути внутри репо) — тоже ОДНА реализация: относительный
+# путь читается из ДЕРЕВА ОТПРАВКИ, а не из хост-чекаута PROJECT_ROOT (карточка
+# `agent-pusher-relative-path-silently-reads-the-host-tree`, цикл #109). Под этим
+# CLI стоит safe_site_push — «файл взят из чужого дерева» нельзя починить в одном
+# пушере и забыть в другом.
+resolve_local_path = _root_push.resolve_local_path
+delivery_tree = _root_push.delivery_tree
+tree_divergence_note = _root_push.tree_divergence_note
+DeliveryTreeError = _root_push.DeliveryTreeError
+
 
 # ── Реализация доставки — ОДНА, живёт в каноническом push_to_github.py ─────────
 # Здесь были СВОИ копии get_pat / _api / get_base_ref / resolve_files /

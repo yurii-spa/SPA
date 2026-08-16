@@ -186,6 +186,98 @@ def _tree_top(path) -> Optional[Path]:
     return Path(top).resolve() if top else None
 
 
+class DeliveryTreeError(RuntimeError):
+    """Дерево ОТПРАВКИ не определяется — относительный путь резолвить не от чего.
+
+    Fail-CLOSED (инвариант #2): лучше отказать с названной причиной, чем взять
+    файл «откуда-нибудь». Абсолютные пути этим отказом НЕ затрагиваются.
+    """
+
+
+def _cwd_tree(cwd=None) -> Path:
+    """Рабочее дерево текущего каталога (или сам каталог, если это не репо)."""
+    here = Path(cwd) if cwd is not None else Path.cwd()
+    top = _git_out(["rev-parse", "--show-toplevel"], here)
+    try:
+        return Path(top).resolve() if top else here.resolve()
+    except OSError:
+        return here
+
+
+def delivery_tree(runner_file: Optional[str] = None) -> Path:
+    """Дерево ОТПРАВКИ — рабочая копия, из которой запущен инструмент доставки.
+
+    Это ровно то дерево, которое сессия собрала и протестировала: протокол
+    оркестратора (§3.4) обязывает работать в изолированном worktree, а
+    `CLAUDE.md` — звать пушер ИЗ ЭТОГО ЖЕ дерева. Значит источник относительных
+    путей — оно, а не хост-чекаут :data:`PROJECT_ROOT` и не текущий каталог.
+
+    Не определяется (git недоступен / инструмент лежит вне рабочей копии) →
+    :class:`DeliveryTreeError`, а не молчаливый откат на хост-дерево.
+    """
+    runner = Path(runner_file or __file__)
+    top = _tree_top(runner)
+    if top is None:
+        raise DeliveryTreeError(
+            f"дерево ОТПРАВКИ не определяется: инструмент доставки запущен из "
+            f"{runner}, и это не рабочая копия репозитория (или git недоступен). "
+            f"Относительный путь резолвить не от чего — пуш отменён (fail-CLOSED, "
+            f"инвариант #2). Что делать: звать пушер из своего дерева "
+            f"(`python3 /abs/path/<твоё-дерево>/push_to_github.py ...`) либо "
+            f"передать АБСОЛЮТНЫЕ пути файлов."
+        )
+    return top
+
+
+def tree_divergence_note(file_arg, tree: Path, cwd=None) -> Optional[str]:
+    """Строка «файл взят НЕ из того дерева, где ты стоишь» — или None, если деревья те же.
+
+    Почему это печатается, а не молчит: `skip` читался как «уже на origin»,
+    хотя означал «я смотрел в ДРУГОЕ дерево» (цикл #109).
+    """
+    here = _cwd_tree(cwd)
+    if here == tree:
+        return None
+    mine, theirs = tree / file_arg, here / file_arg
+    return (
+        f"относительный путь {file_arg}: беру из ДЕРЕВА ОТПРАВКИ {tree} "
+        f"(инструмент доставки работает оттуда), а НЕ из текущего каталога "
+        f"{here} — деревья РАЗНЫЕ. "
+        f"есть в дереве отправки: {'да' if mine.exists() else 'НЕТ'}; "
+        f"есть в текущем: {'да' if theirs.exists() else 'нет'}. "
+        f"Хост-чекаут дрейфует от origin по построению (31.07 копия пушера там "
+        f"отставала на 574 строки), поэтому файл оттуда совпал бы с origin и "
+        f"уехал вердиктом `skip` — успех при НУЛЕВОЙ доставке."
+    )
+
+
+def resolve_local_path(file_arg, runner_file: Optional[str] = None, cwd=None) -> Path:
+    """Локальный файл, который поедет: источник — ДЕРЕВО ОТПРАВКИ.
+
+    Дефект (карточка `agent-pusher-relative-path-silently-reads-the-host-tree`,
+    цикл #109): здесь стояло ``local = PROJECT_ROOT / local`` — относительный
+    путь читал ХОСТ-чекаут. Тот дрейфует от origin по построению, поэтому
+    изменённый в worktree файл выглядел совпадающим с origin (**`skip`**), а
+    новый — отсутствующим (`FAIL`). Набор из одних изменённых файлов проезжал
+    целиком как ``OK (pushed=0, skipped=N)``: зелёный отчёт при нулевой доставке.
+
+    Абсолютный путь — ровно тот файл, что назвали (правило `CLAUDE.md` в силе).
+    """
+    local = Path(file_arg)
+    if local.is_absolute():
+        return local
+    try:
+        tree = delivery_tree(runner_file)      # fail-CLOSED, см. DeliveryTreeError
+    except DeliveryTreeError as e:
+        # Причина обязана называть И файл, и место запуска: «файл не найден»
+        # отправило бы следующую сессию искать пропавший файл вместо дерева.
+        raise DeliveryTreeError(f"относительный путь {file_arg}: {e}") from None
+    note = tree_divergence_note(local, tree, cwd=cwd)
+    if note:
+        print(note, file=sys.stderr)
+    return tree / local
+
+
 def toolchain_verdict(runner_file, file_args: list) -> dict:
     """Сверить инструмент доставки, который РАБОТАЕТ, с копией в дереве файлов.
 
@@ -216,6 +308,13 @@ def toolchain_verdict(runner_file, file_args: list) -> dict:
 
     tops: list = []
     for f in file_args:
+        if not Path(f).is_absolute():
+            # Относительный путь берётся из ДЕРЕВА ОТПРАВКИ (resolve_local_path),
+            # значит его дерево = runner_top ПО ПОСТРОЕНИЮ — сверять не с чем, как
+            # и для любого файла из своего дерева. Без этой строки сверка смотрела
+            # бы на дерево ТЕКУЩЕГО каталога — то самое чужое дерево, из которого
+            # файлы больше не берутся, и отказ был бы про несуществующий набор.
+            continue
         top = _tree_top(f)
         if top is None:
             out["unchecked"].append(f"дерево файла не определяется: {f}")
@@ -1033,10 +1132,13 @@ def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool 
     import urllib.request
     import urllib.error
 
-    local = Path(local_path)
-    # Resolve relative to PROJECT_ROOT if not absolute
-    if not local.is_absolute():
-        local = PROJECT_ROOT / local
+    # Источник файла — ДЕРЕВО ОТПРАВКИ (см. resolve_local_path). Было
+    # `PROJECT_ROOT / local` — относительный путь читал ХОСТ-дерево, и набор
+    # изменённых файлов уезжал как `OK (pushed=0, skipped=N)`.
+    try:
+        local = resolve_local_path(local_path)
+    except DeliveryTreeError as e:
+        return {"ok": False, "error": str(e), "path": local_path}
     if not local.exists():
         return {"ok": False, "error": f"Файл не найден: {local_path}", "path": local_path}
 
@@ -1236,9 +1338,10 @@ def resolve_files(file_args: list) -> list:
     """Преобразовать пути в [(repo_relative_path, abs_path)]. Бросает на отсутствующий файл."""
     resolved = []
     for fa in file_args:
-        local = Path(fa)
-        if not local.is_absolute():
-            local = PROJECT_ROOT / local
+        # Тот же источник, что и у одиночного пути: дерево ОТПРАВКИ.
+        # `DeliveryTreeError` — подкласс RuntimeError, поэтому неопределимое
+        # дерево отменяет ВЕСЬ батч (fail-CLOSED), а не один файл.
+        local = resolve_local_path(fa)
         if not local.exists():
             raise RuntimeError(f"Файл не найден: {fa}")
         if not local.is_file():
