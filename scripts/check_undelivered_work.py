@@ -146,6 +146,9 @@ DELIVERED, ABSENT, DIFFERS, UNMEASURED = "delivered", "absent", "differs", "unme
 # Пятое состояние: объявленного ИМЕНИ не существует нигде — ни на базе, ни в её истории,
 # ни в одном рабочем дереве. Это не «доставлено» и не «потеряно»: поднимать нечего.
 NOWHERE = "nowhere"
+# Шестое: путь есть в дереве, но САМ РЕПОЗИТОРИЙ его не берёт (`.gitignore`). Доставки не
+# было не потому, что её потеряли, а потому, что доставлять этот путь нечем по правилу репо.
+BY_DESIGN = "by_design"
 
 _PID_RE = re.compile(r"^pid(\d+)$")
 
@@ -810,6 +813,43 @@ def never_existed(rel, root, base_ref, checkouts, git=_git, hist_cache=None):
     return True, detail
 
 
+def repo_refuses(rel, root, git=_git):
+    """Берёт ли репозиторий этот путь ВООБЩЕ: (True/False/None, объяснение с ПРАВИЛОМ).
+
+    Спрашивается САМ git (`check-ignore`), а не наш список каталогов: правило живёт в
+    `.gitignore`, менять его будут без оглядки на этот сторож, и зашитая сюда копия правила
+    разошлась бы молча.
+
+    Семантика `git check-ignore` ровно та, что нужна, и это ИЗМЕРЕНО, а не вычитано:
+    - rc 0 — путь игнорируется, в stdout лежит правило (`.gitignore:48:data/**/*.jsonl`);
+    - rc 1 — не игнорируется, **включая ОТСЛЕЖИВАЕМЫЕ файлы**: `data/audit_trail.jsonl`
+      подходит под тот же самый шаблон `data/**/*.jsonl`, но лежит в индексе, и git отвечает
+      «не игнорируется». То есть однажды доставленный файл этой веткой прощён не будет —
+      проверка сужена индексом, а не нашим мнением;
+    - иное (128, git недоступен) — `None`: вердикта нет.
+
+    `None` НЕ гасит находку: непонятность в fail-CLOSED-стороже обязана оставаться находкой,
+    а не превращаться в тишину (класс #226 — fail-OPEN внутри fail-CLOSED).
+
+    ГРАНИЦА НАЗВАНА ЗАРАНЕЕ, а не найдена потом: спрашивается индекс ГЛАВНОГО дерева (`root`),
+    как и вся остальная сверка. Если сессия внесла игнорируемый путь силой в индекс СВОЕГО
+    `/tmp`-дерева и умерла до пуша, здесь он всё равно будет прощён. Ловить это правильно не
+    здесь (у сторожа один `root` по построению), а тем, что доставку такого пути объявляют
+    явно; случая в живом журнале нет, и выдумывать под него ветку — значит усложнять сторож
+    ради ненаблюдавшейся аварии.
+    """
+    rc, out, err = git(root, "check-ignore", "--verbose", "--", rel)
+    if rc == 0:
+        rule = (out.splitlines() or [""])[0].split("\t")[0].strip()
+        return True, ("этот путь НЕ БЕРЁТ САМ РЕПОЗИТОРИЙ по своему правилу "
+                      f"[{rule or '.gitignore'}] — доставлять его нечем и не требуется: "
+                      "это рабочее состояние, а не потерянная работа")
+    if rc == 1:
+        return False, ""
+    return None, (f"берёт ли репозиторий этот путь, НЕ ИЗМЕРЕНО: git check-ignore rc={rc} "
+                  f"{err.strip()[:120]!r}")
+
+
 def delivered_by_session(session, entries, root, base_ref, git=_git, diff_sets=None, limit=6):
     """Что ЭТА ЖЕ сессия объявляла и что из объявленного лежит на базе — подсказка «переименовано?».
 
@@ -1001,7 +1041,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
     now = now or datetime.now(timezone.utc)
     grace = timedelta(hours=grace_hours)
     findings, unmeasured, fresh, stale_copies, card_findings = [], [], [], [], []
-    reaped, nowhere = [], []
+    reaped, nowhere, by_design = [], [], []
     seen, hist_cache = {}, {}
     reap_ledger, ledger_error = read_reap_ledger(root)
     report = {
@@ -1018,6 +1058,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
         "stale_copies": stale_copies,
         "reaped": reaped,
         "nowhere": nowhere,
+        "by_design": by_design,
         "unmeasured": unmeasured,
         "dead_worktrees": [],
         "exit_code": 0,
@@ -1100,7 +1141,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
             why = (f"{why} — окно ожидания {grace_hours}ч ещё не истекло, но ждать некого: "
                    "объявленный долгоживущий процесс завершился")
             produced_before = (len(findings), len(unmeasured), len(stale_copies),
-                               len(reaped), len(nowhere))
+                               len(reaped), len(nowhere), len(by_design))
 
         why = f"{why}; объявлено {age_h}ч назад"
         report["sessions_checked"] += 1
@@ -1160,6 +1201,32 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                                         git=git, diff_sets=diff_sets),
                                     "also_declared_by": []})
                     continue
+                # Путь лежит в дереве и НИКОГДА не был на базе (история пуста) — прежде чем
+                # звать «подними», спрашиваем сам репозиторий, берёт ли он такой путь вообще.
+                # Наш же обязательный уборщик деревьев пишет квитанцию в `data/*.jsonl`, а
+                # `data/` в `.gitignore`: объявление честное, доставка невозможна ПО ПРАВИЛУ,
+                # и снять такую находку нечем — она будет копиться каждый цикл до конца жизни
+                # журнала. Ровно эту сверку сессия #230 уже делала РУКАМИ, пофайлово
+                # («не доставляется by design: .gitignore:116»), и её вывод нигде не закреплён.
+                # Условие узкое намеренно: история базы пуста (иначе это удаление на origin,
+                # см. ветку выше) И индекс не держит путь (см. repo_refuses).
+                if verdict is False and hist_cache.get(rel) == set():
+                    refused, why_refused = repo_refuses(rel, root, git=git)
+                    if refused:
+                        key = (rel, BY_DESIGN)
+                        if key in seen:
+                            by_design[seen[key]]["also_declared_by"].append(entry.get("session"))
+                            continue
+                        seen[key] = len(by_design)
+                        by_design.append({"session": entry.get("session"), "ts": entry.get("ts"),
+                                          "path": rel, "state": BY_DESIGN,
+                                          "detail": why_refused, "session_state": why,
+                                          "within_grace": within_grace,
+                                          "summary": (entry.get("summary") or "")[:160],
+                                          "also_declared_by": []})
+                        continue
+                    if refused is None:
+                        why_nowhere = f"{why_nowhere}; {why_refused}"
                 # Не «нигде» — значит источник назван, и он делает находку ТОЧНЕЕ: либо байты
                 # лежат в конкретном дереве, либо путь жил на origin и был удалён. `None` —
                 # измерить не вышло: находка остаётся прежней, а причина дописывается (тишиной
@@ -1227,8 +1294,8 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
 
         # Сирота, у которой всё объявленное УЖЕ на базе: находки нет, но и в тишину такую
         # запись ронять нечестно — она остаётся в счётчике «свежих» со своим измерением.
-        if within_grace and (len(findings), len(unmeasured),
-                             len(stale_copies), len(reaped), len(nowhere)) == produced_before:
+        if within_grace and (len(findings), len(unmeasured), len(stale_copies),
+                             len(reaped), len(nowhere), len(by_design)) == produced_before:
             fresh.append({"session": entry.get("session"), "ts": entry.get("ts"),
                           "age_hours": age_h, "files": len(entry.get("files") or []),
                           "reason": f"{why} — объявленное на {base_ref} есть, находки нет"})
@@ -1370,6 +1437,19 @@ def render(report) -> str:
         for d in report["dead_worktrees"]:
             out.append(f"  - {d['path']}: {d['reason']}")
 
+    if report.get("by_design"):
+        out.append("")
+        out.append(f"📛 НЕ ДОСТАВЛЯЕТСЯ ПО ПРАВИЛУ РЕПОЗИТОРИЯ ({len(report['by_design'])}) — "
+                   f"объявлено честно, в дереве лежит, на {base} никогда не было и не будет: "
+                   "путь под `.gitignore`. Правило названо в каждой строке — если оно неверно, "
+                   "менять надо ПРАВИЛО, а не отчёт:")
+        for f in report["by_design"]:
+            out.append(f"  [по правилу] {f['path']}")
+            out.append(f"      сессия {f['session']} ({f['ts']}): {f['session_state']}")
+            out.append(f"      {f['detail']}")
+            if f.get("also_declared_by"):
+                out.append(f"      тот же путь объявляли ещё: {', '.join(f['also_declared_by'])}")
+
     if report.get("reaped"):
         out.append("")
         out.append(f"🧾 снятые деревья с квитанцией ({len(report['reaped'])}) — дерева нет, но "
@@ -1385,7 +1465,12 @@ def render(report) -> str:
 
     if (not report["findings"] and not report["unmeasured"]
             and not report.get("card_findings") and not report.get("nowhere")):
-        out.append("✅ измерено полностью, всё доставлено")
+        # «Всё доставлено» при непустом разделе выше было бы неправдой в собственном отчёте:
+        # эти пути не доставлены и доставлены не будут. Утверждается ровно то, что измерено —
+        # потерянной работы нет, а недоставленное названо и объяснено правилом.
+        out.append("✅ измерено полностью, всё доставлено" if not report.get("by_design")
+                   else "✅ измерено полностью, потерянной работы нет "
+                        "(недоставленное — по правилу репозитория, раздел выше)")
     return "\n".join(out)
 
 

@@ -1269,3 +1269,187 @@ class TestWhoseDivergenceIsIt:
         link.symlink_to(mine)
         tree, why = guard.declaring_tree(str(link / "scripts" / "kept.py"), repo)
         assert why is None and guard._same_tree(tree, mine)
+
+
+# ── 15. путь, который сам репозиторий не берёт (авария цикла #261) ───────────
+
+class TestPathTheRepoRefusesToTake:
+    """Шаг 0a звал «поднять» путь, доставить который НЕЛЬЗЯ по правилу самого репозитория.
+
+    Живой замер 2026-08-16 (цикл #261, отчёт шага 0a из прод-дерева):
+
+        [отсутствует] data/worktree_reap_log.jsonl
+            на origin/main файла нет, но он ЛЕЖИТ в: /Users/…/SPA_Claude —
+            это настоящая недоставленная работа, её надо поднять
+
+    Файл пишет `reap_stale_worktrees` — обязательный по протоколу §3.4 уборщик рабочих
+    деревьев, — а `data/**/*.jsonl` стоит в `.gitignore:48`. То есть находка рождается из
+    НАШЕЙ ЖЕ штатной уборки, снять её нечем (кроме подлога — коммита игнорируемого файла),
+    и каждый следующий цикл добавляет ещё одну такую строку навсегда. Ровно эту сверку
+    сессия #230 уже делала руками, пофайлово («не доставляется by design: `.gitignore:116`»).
+
+    Каждый тест ниже — положительный контроль на этой аварии либо обратный контроль к ней.
+    """
+
+    @staticmethod
+    def _ignore_data(repo):
+        """`.gitignore` в точности как в проде: `data/**/*.jsonl` (строка 48 живого файла)."""
+        (repo / ".gitignore").write_text("data/**/*.jsonl\n", encoding="utf-8")
+        (repo / "data").mkdir(exist_ok=True)
+
+    def test_ignored_path_is_not_called_undelivered_work(self, guard, repo):
+        """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ: точная форма аварии — «надо поднять» об игнорируемом пути."""
+        self._ignore_data(repo)
+        (repo / "data" / "worktree_reap_log.jsonl").write_text("{}\n", encoding="utf-8")
+        rep = report(guard, repo,
+                     [durable_entry("cycle-257", [repo / "data" / "worktree_reap_log.jsonl"],
+                                    pid=22392,
+                                    summary="цикл #257 ЗАКРЫТ, дерево снято с квитанцией")])
+        assert rep["findings"] == []
+        assert rep.get("nowhere", []) == []
+        assert [f["path"] for f in rep["by_design"]] == ["data/worktree_reap_log.jsonl"]
+        assert rep["by_design"][0]["state"] == guard.BY_DESIGN
+        assert rep["exit_code"] == 0
+
+    def test_verdict_names_the_rule_not_just_the_verdict(self, guard, repo):
+        """Правило ЦИТИРУЕТСЯ (файл:строка:шаблон): если оно неверно — менять надо правило,
+        а не отчёт. Вердикт без правила был бы просто ещё одним «поверь мне»."""
+        self._ignore_data(repo)
+        (repo / "data" / "worktree_reap_log.jsonl").write_text("{}\n", encoding="utf-8")
+        rep = report(guard, repo,
+                     [durable_entry("cycle-257",
+                                    [repo / "data" / "worktree_reap_log.jsonl"], pid=22392)])
+        detail = rep["by_design"][0]["detail"]
+        assert ".gitignore:1:data/**/*.jsonl" in detail
+        assert "не потерянная работа" in detail
+
+    def test_it_is_printed_not_swallowed(self, guard, repo):
+        """Находка не исчезает в тишину: свой раздел, свой путь, своё правило в тексте.
+        И отчёт не утверждает «всё доставлено» — потому что не всё, просто поднимать нечего."""
+        self._ignore_data(repo)
+        (repo / "data" / "worktree_reap_log.jsonl").write_text("{}\n", encoding="utf-8")
+        text = guard.render(report(guard, repo,
+                                   [durable_entry("cycle-257",
+                                                  [repo / "data" / "worktree_reap_log.jsonl"],
+                                                  pid=22392)]))
+        assert "ПО ПРАВИЛУ РЕПОЗИТОРИЯ" in text
+        assert "data/worktree_reap_log.jsonl" in text
+        assert ".gitignore:1:data/**/*.jsonl" in text
+        assert "✅ измерено полностью, всё доставлено" not in text
+        assert "потерянной работы нет" in text
+
+    def test_ordinary_lost_work_is_still_a_finding(self, guard, repo):
+        """ОБРАТНЫЙ КОНТРОЛЬ: обычный неигнорируемый путь в дереве — по-прежнему «поднять».
+        Им доказывается, что правка не купила тишину вообще для всех ABSENT-путей."""
+        self._ignore_data(repo)
+        (repo / "scripts" / "brand_new.py").write_text("работа\n", encoding="utf-8")
+        rep = report(guard, repo, [entry("pid31439", [repo / "scripts" / "brand_new.py"])])
+        assert rep.get("by_design", []) == []
+        assert [f["state"] for f in rep["findings"]] == [guard.ABSENT]
+        assert "поднять" in rep["findings"][0]["detail"]
+        assert rep["exit_code"] == 1
+
+    def test_delivered_file_matching_the_pattern_is_not_excused(self, guard, repo):
+        """ОБРАТНЫЙ КОНТРОЛЬ. `data/audit_trail.jsonl` в живом репо подходит под ТОТ ЖЕ шаблон
+        `data/**/*.jsonl`, но однажды доставлен и потому отслеживается: его правка обязана
+        остаться находкой.
+
+        ГРАНИЦА НАЗВАНА ЧЕСТНО (измерено мутацией, а не предположено): этот тест НЕ доказывает
+        чувствительность к индексу git — путь, который есть на базе, до ветки `by_design` не
+        доходит вовсе, он `DIFFERS`. Мутация «спрашивать check-ignore с `--no-index`» его не
+        красит. То, что прощение сужает именно ИНДЕКС, доказывает следующий тест."""
+        self._ignore_data(repo)
+        tracked = repo / "data" / "audit_trail.jsonl"
+        tracked.write_text("на базе\n", encoding="utf-8")
+        _git(repo, "add", "-f", "data/audit_trail.jsonl", ".gitignore")
+        _git(repo, "commit", "-qm", "audit_trail отслеживается вопреки шаблону")
+        _git(repo, "branch", "-f", "base", "HEAD")
+        tracked.write_text("правка сессии\n", encoding="utf-8")
+        rep = report(guard, repo, [entry("pid31439", [tracked])])
+        assert rep.get("by_design", []) == []
+        assert [f["state"] for f in rep["findings"]] == [guard.DIFFERS]
+        assert rep["exit_code"] == 1
+
+    def test_path_already_in_the_index_is_not_excused(self, guard, repo):
+        """ОБРАТНЫЙ КОНТРОЛЬ, ключевой — тот, что и меряет индекс. Путь под шаблоном, на базе
+        его НЕТ (значит ветка `by_design` достижима), но сессия уже внесла его в git силой
+        (`add -f`, save-point-коммит). Тогда «репозиторий его не берёт» — неправда: взял, и
+        недоставка настоящая. `git check-ignore` отвечает rc=1 для путей в индексе, поэтому
+        вердикт не выносится; мутация `--no-index` красит ровно этот тест."""
+        self._ignore_data(repo)
+        forced = repo / "data" / "forced.jsonl"
+        forced.write_text("внесён в индекс силой\n", encoding="utf-8")
+        _git(repo, "add", "-f", "data/forced.jsonl")
+        _git(repo, "commit", "-qm", "save-point вне base")     # base остаётся позади
+        rep = report(guard, repo, [durable_entry("pid31439", [forced], pid=31439)])
+        assert rep.get("by_design", []) == []
+        assert [f["state"] for f in rep["findings"]] == [guard.ABSENT]
+        assert "поднять" in rep["findings"][0]["detail"]
+        assert rep["exit_code"] == 1
+
+    def test_path_that_lived_on_base_is_not_excused_by_a_later_ignore_rule(self, guard, repo):
+        """ОБРАТНЫЙ КОНТРОЛЬ: путь БЫЛ на базе и удалён там, а `.gitignore` дописан позже.
+        Порядок веток защищает именно это: строкой в `.gitignore` нельзя задним числом
+        стереть настоящую находку об удалённом с базы файле."""
+        (repo / "data").mkdir(exist_ok=True)
+        (repo / "data" / "history.jsonl").write_text("жил на базе\n", encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-qm", "add history.jsonl")
+        _git(repo, "branch", "-f", "base", "HEAD")
+        _git(repo, "rm", "-q", "data/history.jsonl")
+        _git(repo, "commit", "-qm", "rm history.jsonl")
+        _git(repo, "branch", "-f", "base", "HEAD")
+        self._ignore_data(repo)                       # правило появилось ПОСЛЕ
+        (repo / "data" / "history.jsonl").write_text("жил на базе\n", encoding="utf-8")
+        rep = report(guard, repo, [entry("pid31439", [repo / "data" / "history.jsonl"])])
+        assert rep.get("by_design", []) == []
+        assert [f["state"] for f in rep["findings"]] == [guard.ABSENT]
+        assert "истории" in rep["findings"][0]["detail"]
+        assert rep["exit_code"] == 1
+
+    def test_unmeasurable_ignore_status_keeps_the_finding(self, guard, repo):
+        """fail-CLOSED: `git check-ignore` не отработал ⇒ вердикт НЕ выносится, находка
+        остаётся, причина дописывается вслух. Молчание при неизмеримости — это тот самый
+        fail-OPEN внутри fail-CLOSED-сторожа, который чинили в #226."""
+        self._ignore_data(repo)
+        (repo / "data" / "worktree_reap_log.jsonl").write_text("{}\n", encoding="utf-8")
+        real = guard._git
+
+        def spy(cwd, *args):
+            if args[:1] == ("check-ignore",):
+                return 128, "", "fatal: boom"
+            return real(cwd, *args)
+
+        rep = report_with_git(guard, repo,
+                              [entry("pid31439", [repo / "data" / "worktree_reap_log.jsonl"])],
+                              spy)
+        assert rep.get("by_design", []) == []
+        assert [f["state"] for f in rep["findings"]] == [guard.ABSENT]
+        assert "НЕ ИЗМЕРЕНО" in rep["findings"][0]["detail"]
+        assert rep["exit_code"] == 1
+
+    def test_same_path_from_many_cycles_is_one_line(self, guard, repo):
+        """Квитанцию уборки объявляет КАЖДЫЙ цикл (в живом замере — #257 и #260 разом):
+        строка одна, объявившие перечислены. Иначе раздел растёт ровно так же, как рос
+        раздел находок, и глаз снова учится его пролистывать."""
+        self._ignore_data(repo)
+        (repo / "data" / "worktree_reap_log.jsonl").write_text("{}\n", encoding="utf-8")
+        path = repo / "data" / "worktree_reap_log.jsonl"
+        rep = report(guard, repo, [durable_entry("cycle-257", [path], pid=22392),
+                                   durable_entry("cycle-15316", [path], pid=15316)])
+        assert len(rep["by_design"]) == 1
+        assert rep["by_design"][0]["also_declared_by"] == ["cycle-15316"]
+
+    def test_orphan_inside_the_grace_window_is_excused_too(self, guard, repo):
+        """В живом замере тот же путь стоял и в разделе «🕳 осиротело, окно не истекло»
+        (цикл #260, объявленный процесс завершился). Правило репозитория не зависит от
+        того, сколько времени прошло, — вердикт обязан быть одним и тем же."""
+        self._ignore_data(repo)
+        (repo / "data" / "worktree_reap_log.jsonl").write_text("{}\n", encoding="utf-8")
+        rep = report(guard, repo,
+                     [durable_entry("cycle-15316", [repo / "data" / "worktree_reap_log.jsonl"],
+                                    pid=15316, ts="2026-01-20T11:00:00Z")],
+                     ps=fake_ps({}))
+        assert rep["findings"] == []
+        assert [f["path"] for f in rep["by_design"]] == ["data/worktree_reap_log.jsonl"]
+        assert rep["exit_code"] == 0
