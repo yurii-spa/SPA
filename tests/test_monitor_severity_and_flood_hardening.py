@@ -154,9 +154,16 @@ def test_shm_portfolio_health_reads_health_score_key(tmp_path):
     mon = SystemHealthMonitor(data_dir=str(data), project_root=str(tmp_path))
     mon._prelude()
     res = mon._check_portfolio_health("d6_risk_gates")
-    # 50 < floor(70) -> CRITICAL, and the score was actually READ (value set).
+    # 50 < floor(70) -> non-OK, and the score was actually READ (value set).
+    # The subject of THIS test is the KEY ("health_score" is read, not skipped) —
+    # that assertion is untouched. The expected LEVEL changed CRITICAL -> WARNING
+    # (card `agent-task-odno-chislo-dva-verdikta-portfolio-healt`, inv. #16):
+    # both health monitors now take this verdict from the one shared classifier
+    # `spa_core.alerts.severity.classify_portfolio_health` instead of each owning
+    # a private ladder that disagreed on the same number. Floor unchanged (70.0).
     assert res.value == 50.0
-    assert res.status == CRITICAL
+    assert res.status == "WARNING"
+    assert res.status != "OK"
 
 
 def test_agent_health_portfolio_reads_health_score_key(tmp_path):

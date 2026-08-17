@@ -13,6 +13,7 @@ bare-репозиторий. Дат в фикстурах нет — время 
 """
 from __future__ import annotations
 
+import importlib
 import json
 import os
 import subprocess
@@ -530,3 +531,171 @@ def test_receipt_lands_in_the_main_tree_not_in_a_doomed_one(repo, monkeypatch, t
     assert ledger.exists(), "квитанции нет в главном дереве"
     row = json.loads(ledger.read_text(encoding="utf-8").strip().splitlines()[-1])
     assert row["worktree"] == str(wt)
+
+
+# ── второй реестр того же осадка: ЗАХВАТЫ КАРТОЧЕК мёртвых сессий ────────────
+
+def _tracker(tmp_path, cards):
+    """Каталог карточек. `cards` — (идентификатор, статус, держатель, claimed_at)."""
+    d = tmp_path / "tracker"
+    d.mkdir(exist_ok=True)
+    for cid, status, holder, at in cards:
+        fm = ["---", "trackerStatus:", "  type: agent-task", f"title: {cid}",
+              f"status: {status}"]
+        if holder:
+            fm += [f"claimed_by: {holder}", f"claimed_at: {at}"]
+        fm.append("---")
+        (d / f"{cid}.md").write_text("\n".join(fm) + "\n\nтело\n", encoding="utf-8")
+    return d
+
+
+def _fmt(dt):
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+@pytest.fixture
+def ps_dead():
+    """`ps` отвечает «процесса нет» — активность держателя не подтверждена."""
+    return lambda pid: (1, "")
+
+
+@pytest.fixture
+def ps_alive():
+    """`ps` показывает процесс, стартовавший ДО захвата ⇒ активность ПОДТВЕРЖДЕНА."""
+    started = (NOW - timedelta(hours=400)).astimezone().strftime("%a %b %d %H:%M:%S %Y")
+    return lambda pid: (0, started + "\n")
+
+
+class TestStaleCardClaimsAreNamed:
+    """Мёртвая сессия оставляет после себя не только `/tmp`-дерево, но и ЗАХВАТ КАРТОЧКИ.
+
+    Замер трекера 16.08 (карточка `agent-orphaned-work-recurred-after-its-card-was-closed`):
+    `agent-fleet-parity-guard-never-scheduled` держит `cycle-28258` с 05.08 — одиннадцать
+    суток, — а `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat` держит `cycle-87477` с 06.08.
+    Обе сессии мертвы, обе строки `claimed_by` лежат в git и не истекают НИКОГДА, и шаг 0b по
+    ним отвечает «занятость не измерена» (ярлык без pid ⇒ `session_state` = UNKNOWN
+    детерминированно и необратимо) — то есть взять карточку нельзя, и рассосаться это не может.
+    Ровно тот механизм, которым защита от коллизий работает как защита от ПОДЪЁМА.
+
+    Уборщик их **НАЗЫВАЕТ** и ничего не снимает: снятие чужого захвата остаётся ручным
+    действием после сверки по шагу 0a (вопрос «блокировать ли подъём» открыт у владельца).
+    Ниже — и находка, и обратные контроли: свежий захват, живой держатель, закрытая карточка.
+    Время и `ps` подаются ВХОДОМ, дат в фикстурах нет.
+    """
+
+    def _rows(self, tracker, tmp_path, ps, grace_hours=24.0, log=None):
+        rows, notes = R.stale_claims(tracker, log or (tmp_path / "no_log.jsonl"),
+                                     grace_hours, now=NOW, ps=ps)
+        return {r["card"]: r for r in rows}, notes
+
+    def test_the_16_08_measurement_is_named(self, tmp_path, ps_dead):
+        tracker = _tracker(tmp_path, [
+            ("agent-fleet-parity-guard-never-scheduled", "blocked", "cycle-28258",
+             _fmt(NOW - timedelta(hours=264))),
+            ("inbox-tier-c-pyat-nastoyaschih-otkazov-agregat", "new", "cycle-87477",
+             _fmt(NOW - timedelta(hours=233))),
+        ])
+        rows, _ = self._rows(tracker, tmp_path, ps_dead)
+        assert {c: r["state"] for c, r in rows.items()} == {
+            "agent-fleet-parity-guard-never-scheduled": R.STALE_CLAIM,
+            "inbox-tier-c-pyat-nastoyaschih-otkazov-agregat": R.STALE_CLAIM}
+        assert rows["agent-fleet-parity-guard-never-scheduled"]["holder"] == "cycle-28258"
+        assert rows["agent-fleet-parity-guard-never-scheduled"]["age_hours"] == 264.0
+
+    def test_a_fresh_claim_is_not_a_finding(self, tmp_path, ps_dead):
+        """Обратный контроль: сессия могла умереть, а могла работать — окно на то и окно."""
+        tracker = _tracker(tmp_path, [("agent-x", "in-progress", "cycle-1",
+                                       _fmt(NOW - timedelta(hours=2)))])
+        rows, _ = self._rows(tracker, tmp_path, ps_dead)
+        assert rows["agent-x"]["state"] == R.HELD
+
+    def test_a_live_holder_is_not_a_finding_at_any_age(self, tmp_path, ps_alive):
+        """Обратный контроль: держатель ЖИВ и измеренно жив — карточка занята по делу."""
+        tracker = _tracker(tmp_path, [("agent-x", "in-progress", "pid4242",
+                                       _fmt(NOW - timedelta(hours=200)))])
+        rows, _ = self._rows(tracker, tmp_path, ps_alive)
+        assert rows["agent-x"]["state"] == R.HELD and "ЖИВ" in rows["agent-x"]["why"]
+
+    def test_a_closed_card_is_not_a_finding(self, tmp_path, ps_dead):
+        """Обратный контроль: на карточке в терминальном статусе захват не действует —
+        это уже действующее правило шага 0b (`TERMINAL_STATUSES`), а не поблажка уборщика."""
+        tracker = _tracker(tmp_path, [("agent-x", "done", "cycle-1",
+                                       _fmt(NOW - timedelta(hours=300)))])
+        rows, _ = self._rows(tracker, tmp_path, ps_dead)
+        assert rows == {}
+
+    def test_an_unparsable_claim_time_is_unmeasured_not_free(self, tmp_path, ps_dead):
+        tracker = _tracker(tmp_path, [("agent-x", "new", "cycle-1", "позавчера")])
+        rows, _ = self._rows(tracker, tmp_path, ps_dead)
+        assert rows["agent-x"]["state"] == R.CLAIM_UNMEASURED
+        report = {"grace_hours": 24.0, "base": "origin/main", "trees": [],
+                  "unmeasured_reasons": [], "claims": list(rows.values()), "claim_notes": []}
+        assert R.exit_code(report) == 2
+
+    def test_a_missing_tracker_is_said_out_loud(self, tmp_path, ps_dead):
+        rows, notes = self._rows(tmp_path / "нет-такого", tmp_path, ps_dead)
+        assert rows == {} and notes and "НЕ измерены" in notes[0]
+
+    def test_the_reaper_does_not_touch_the_card(self, tmp_path, ps_dead):
+        """Уборщик НАЗЫВАЕТ, а не снимает: файл карточки обязан остаться байт-в-байт."""
+        tracker = _tracker(tmp_path, [("agent-x", "new", "cycle-28258",
+                                       _fmt(NOW - timedelta(hours=264)))])
+        card = tracker / "agent-x.md"
+        before = card.read_bytes()
+        self._rows(tracker, tmp_path, ps_dead)
+        assert card.read_bytes() == before
+
+    def test_the_verdict_names_the_manual_order(self, tmp_path, ps_dead):
+        """Находка без порядка действий превращается в шум, который учатся пролистывать."""
+        tracker = _tracker(tmp_path, [("agent-x", "new", "cycle-28258",
+                                       _fmt(NOW - timedelta(hours=264)))])
+        rows, notes = self._rows(tracker, tmp_path, ps_dead)
+        report = {"grace_hours": 24.0, "base": "origin/main", "trees": [],
+                  "unmeasured_reasons": [], "claims": list(rows.values()),
+                  "claim_notes": notes}
+        text = R.render(report)
+        assert "ПРОТУХШИЕ ЗАХВАТЫ КАРТОЧЕК" in text
+        assert "cycle-28258" in text and "264.0ч" in text
+        assert "РУЧНОЕ действие" in text and "шаг" in text
+        assert R.exit_code(report) == 1
+
+    def test_the_sweep_is_wired_to_the_tracker(self, repo, tmp_path, monkeypatch, capsys):
+        """Проводка: подметающий прогон обязан спрашивать про захваты САМ.
+
+        Без этого теста «механизм есть» означало бы «функция написана и никем не зовётся» —
+        ровно тот класс, который в этом репозитории уже ловил храповик неподключённых скриптов.
+        """
+        root, _ = repo
+        _log(root, [])
+        tracker = _tracker(tmp_path, [("agent-fleet-parity-guard-never-scheduled", "blocked",
+                                       "cycle-28258", _fmt(NOW - timedelta(hours=264)))])
+        monkeypatch.setattr(R, "main_worktree", lambda *a, **k: (root, None), raising=False)
+        rc = R.main(["--tracker-dir", str(tracker)])
+        out = capsys.readouterr().out
+        assert "ПРОТУХШИЕ ЗАХВАТЫ КАРТОЧЕК" in out and "cycle-28258" in out
+        assert rc == 1
+
+    def test_the_orphan_pickup_scenario_97_98_is_reproduced(self, tmp_path, ps_dead):
+        """Сценарий #97→#98 проверкой, а не пересказом (acceptance карточки).
+
+        Цикл #97 умер не доставив, #98 адоптировал работу и умер тоже; #99 получил по шагу 0b
+        запрет и прошёл мимо — при красном `main` и готовом лежащем фиксе. Здесь измеряются
+        ОБА конца: шаг 0b по-прежнему не пускает (эта граница owner-gated и не тронута), а
+        уборщик тот же захват НАЗЫВАЕТ — молчаливого осадка больше нет.
+        """
+        claim = importlib.import_module("check_card_claim")
+        tracker = _tracker(tmp_path, [("agent-telegram-guard-outermost-fails-only-in-full-run",
+                                       "in-progress", "cycle-98",
+                                       _fmt(NOW - timedelta(hours=264)))])
+        log = tmp_path / "session_changes.jsonl"
+        log.write_text("", encoding="utf-8")
+
+        report = claim.gather("agent-telegram-guard-outermost-fails-only-in-full-run",
+                              log=log, tracker_dir=tracker, self_session="cycle-99",
+                              now=NOW, ps=ps_dead, self_anchor=None)
+        assert report["verdict"] in (claim.UNCHECKED, claim.CLAIMED, claim.STALE)
+        assert claim.exit_code(report) != 0, "шаг 0b пускать не должен — эта граница не тронута"
+
+        rows, _ = self._rows(tracker, tmp_path, ps_dead, log=log)
+        named = rows["agent-telegram-guard-outermost-fails-only-in-full-run"]
+        assert named["state"] == R.STALE_CLAIM and named["holder"] == "cycle-98"

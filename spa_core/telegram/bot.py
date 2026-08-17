@@ -1112,7 +1112,9 @@ class TelegramBot:
                         "Или пришли голосовое — расшифрую и добавлю в inbox.", chat_id)
                     return True
                 from spa_core.telegram.inbox_intake import save_inbox_task
-                _path, title = save_inbox_task(task_text, source="telegram")
+                # Явный /task — владелец объявил НОВОЕ задание: к предыдущему не клеим.
+                _path, title = save_inbox_task(task_text, source="telegram",
+                                               allow_continuation=False)
                 self.send_message(
                     f"📥 Добавил в inbox: <b>{html.escape(title)}</b>\n"
                     "Оркестратор разберёт в следующем цикле.", chat_id)
@@ -1132,6 +1134,19 @@ class TelegramBot:
             # уходил в классификатор — то есть решение становилось обычной задачей и не
             # исполнялось ничем (замерено дважды: 10.08 и 12.08). Не ответ → всё как было.
             if self._handle_owner_text_answer(stripped, chat_id):
+                return True
+            # ЗАТЕМ — не ПРОДОЛЖЕНИЕ ли это только что принятого длинного сообщения.
+            # Telegram рубит документ длиннее ~4096 символов на куски и шлёт их подряд;
+            # 13.08 спецификация владельца приехала семью «заданиями» за 21 секунду,
+            # шесть из них — обрывки на полуслове. Проверка стоит ДО классификатора:
+            # спрашивать модель «вопрос это или задача?» про полпредложения бессмысленно.
+            from spa_core.telegram.inbox_intake import continue_open_task
+            cont = continue_open_task(stripped, source="telegram")
+            if cont is not None:
+                _p, cont_title, part_no = cont
+                self.send_message(
+                    f"📎 Это продолжение — дописал частью {part_no} в карточку "
+                    f"<b>{html.escape(cont_title)}</b> (новую не завожу).", chat_id)
                 return True
             self._classify_route(stripped, chat_id, source="telegram")
             return True

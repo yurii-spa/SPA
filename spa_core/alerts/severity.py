@@ -24,6 +24,7 @@ stdlib-only, deterministic, no I/O, LLM-FORBIDDEN.
 # LLM_FORBIDDEN
 from __future__ import annotations
 
+import math
 from typing import Any
 
 # ─── Canonical severity literals (what the writer emits today) ────────────────
@@ -107,3 +108,70 @@ def read_portfolio_health_score(doc: Any) -> float | None:
         if isinstance(v, (int, float)) and not isinstance(v, bool):
             return float(v)
     return None
+
+
+# ─── portfolio_health VERDICT unification ────────────────────────────────────
+# Reading the same key was only half the job. Both monitors then classified the
+# number INDEPENDENTLY, against the same floor, and disagreed about what the
+# result MEANS:
+#
+#   * system_health_monitor  (d6.health, domain d6_risk_gates): score < 70 -> CRITICAL
+#     — and, being the worst check in the domain, it turned the whole SYSTEM
+#       verdict CRITICAL;
+#   * agent_health_monitor:  the identical score < 70 -> WARNING.
+#
+# Measured 2026-08-07 on live data: health_score = 69.43 produced "System Health
+# 🔴 CRITICAL" next to "Agents ⚠️ WARNING" in SYSTEM_BRIEFING from ONE number,
+# with RiskPolicy policy_compliant=true and no gate having refused anything.
+# By 08:00 the same score had drifted back to 72.62 on its own (journal W32) —
+# i.e. the loudest level in the system was being spent on a flapping composite
+# quality score, which is how CRITICAL stops being read literally.
+#
+# WHY THE AGREED LEVEL IS **WARNING** AND NOT CRITICAL (this is not "painting it
+# green" — the floor of 70.0 is UNCHANGED and the score is still reported):
+#   1. The number is a COMPOSITE QUALITY SCORE (APY component + risk component +
+#      diversification), not a gate refusal. A real d6_risk_gates CRITICAL —
+#      concentration-cap breach, T2-cap breach (ADR-019), RiskPolicy refusal,
+#      kill-switch — is unaffected by this helper and still CRITICAL.
+#   2. Escalating the OTHER way is structurally impossible: agent_health_monitor
+#      documents the invariant `critical_count == 0 ⟺ overall_status != CRITICAL`
+#      (build_report), and critical_count counts agent-level criticals plus
+#      red-flag criticals. A CRITICAL driven by portfolio_health would report
+#      overall CRITICAL with critical_count == 0 and break that invariant.
+#   Therefore WARNING is the only verdict BOTH monitors can carry consistently.
+#
+# One number -> one verdict: both monitors call classify_portfolio_health().
+PORTFOLIO_HEALTH_FLOOR: float = 70.0
+
+# Status literals used by the classifier. Deliberately plain strings: both
+# monitors already use this exact vocabulary ("OK" / "WARNING"), and importing a
+# monitor's enum here would invert the dependency direction.
+_PH_OK = "OK"
+_PH_WARNING = "WARNING"
+
+
+def classify_portfolio_health(
+    score: Any,
+    floor: float = PORTFOLIO_HEALTH_FLOOR,
+) -> tuple[str, str]:
+    """
+    Classify a portfolio-health score into the ONE agreed (status, reason).
+
+    Returns
+    -------
+    (status, reason)
+        status is ``"OK"`` or ``"WARNING"`` — never CRITICAL (see the module
+        comment above: a composite quality score is not a gate refusal).
+
+    Fail-CLOSED on unusable input: a missing / non-numeric / NaN / infinite
+    score yields WARNING, never OK — absence of a reading is never evidence of
+    health. It is also not a breach, so it is not escalated beyond WARNING.
+    """
+    if isinstance(score, bool) or not isinstance(score, (int, float)):
+        return _PH_WARNING, "portfolio health score absent or not numeric (absence != breach)"
+    val = float(score)
+    if not math.isfinite(val):
+        return _PH_WARNING, "portfolio health score not finite (absence != breach)"
+    if val < float(floor):
+        return _PH_WARNING, f"portfolio health {val:g} < {float(floor):g} (composite quality score)"
+    return _PH_OK, f"portfolio health {val:g} >= {float(floor):g}"

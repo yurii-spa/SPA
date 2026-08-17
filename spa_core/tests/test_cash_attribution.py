@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from spa_core.allocator.rebalance_economics import attribute_cash
+from spa_core.tests._freshness import ts
 
 CAP = 100_000.0
 
@@ -265,8 +266,18 @@ def _ce(monkeypatch, tmp_path: Path, *, cash_pct: float = 0.15):
     # крупный, чтобы эти тесты остались про то, про что были — про то, что
     # неполная/протухшая атрибуция НЕ гасит тревогу. Отсутствие размера — отдельный
     # случай, он проверяется ниже (test_headroom_without_measured_tvl_is_unknown).
-    apy = {"by_apy": [{"protocol": "compound_v3", "tier": "T1", "apy_pct": 3.3,
-                       "tvl_usd": 1_500_000_000.0}]}
+    # `apy_source`/`last_updated`/`generated_at` — с 16.08 обязательные поля строки
+    # рейтинга: доходность, по которой считают цену простоя, обязана быть
+    # наблюдением ЭТОГО цикла (карточка «два артефакта одного цикла расходятся
+    # втрое»). Здесь они проставлены свежими намеренно — эти тесты про то, что
+    # неполная/протухшая АТРИБУЦИЯ не гасит тревогу, и их числа обязаны остаться
+    # прежними; провенанс доходности проверяется в
+    # `test_apy_one_observation_per_cycle.py`.
+    _stamp = ts(hours_ago=0.5)
+    apy = {"generated_at": _stamp,
+           "by_apy": [{"protocol": "compound_v3", "tier": "T1", "apy_pct": 3.3,
+                       "tvl_usd": 1_500_000_000.0, "apy_source": "live",
+                       "last_updated": _stamp}]}
     real_load = ce._load
 
     def fake_load(p):

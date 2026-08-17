@@ -212,7 +212,13 @@ def _rationale(*, with_refusals: bool) -> dict:
 def _patch_ce(monkeypatch, *, with_refusals: bool):
     pos = {"capital_usd": CAP, "cash_usd": 15_000.0, "deployed_usd": 85_000.0,
            "positions": BOOK}
-    apy = {"by_apy": [{"protocol": p, "apy_pct": a,
+    # Провенанс и отметка времени строки (обязательны с 16.08): цена простоя
+    # считается только по наблюдению ЭТОГО цикла. Здесь они свежие намеренно —
+    # файл про то, ЧТО НАЗЫВАЕТ причину простоя, и его числа не должны сдвинуться.
+    _stamp = ts(hours_ago=0.5)
+    apy = {"generated_at": _stamp,
+           "by_apy": [{"protocol": p, "apy_pct": a, "apy_source": "live",
+                       "last_updated": _stamp,
                        "tier": TIERS.get(p, "T2")} for p, a in APY.items()]}
     rat = _rationale(with_refusals=with_refusals)
 

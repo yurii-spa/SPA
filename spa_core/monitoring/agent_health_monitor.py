@@ -104,8 +104,17 @@ try:
     from spa_core.alerts.severity import (
         read_portfolio_health_score as _read_portfolio_health_score,
     )
+    # ONE number -> ONE verdict (see spa_core/alerts/severity.py): the portfolio
+    # health severity is decided in ONE place for both health monitors.
+    from spa_core.alerts.severity import (
+        classify_portfolio_health as _classify_portfolio_health,
+    )
+    from spa_core.alerts.severity import (
+        PORTFOLIO_HEALTH_FLOOR as _SHARED_PORTFOLIO_HEALTH_FLOOR,
+    )
 except Exception:                          # noqa: BLE001 — never let an import gap blind the monitor
     _FALLBACK_CRIT = frozenset({"CRITICAL", "CRIT", "FATAL", "SEVERE", "EMERGENCY"})
+    _SHARED_PORTFOLIO_HEALTH_FLOOR = 70.0
 
     def _is_critical_severity(sev) -> bool:  # type: ignore[no-redef]
         return isinstance(sev, str) and sev.strip().upper() in _FALLBACK_CRIT
@@ -118,6 +127,17 @@ except Exception:                          # noqa: BLE001 — never let an impor
             if isinstance(v, (int, float)) and not isinstance(v, bool):
                 return float(v)
         return None
+
+    def _classify_portfolio_health(score, floor=_SHARED_PORTFOLIO_HEALTH_FLOOR):  # type: ignore[no-redef]
+        import math as _math
+        if isinstance(score, bool) or not isinstance(score, (int, float)):
+            return "WARNING", "portfolio health score absent or not numeric (absence != breach)"
+        v = float(score)
+        if not _math.isfinite(v):
+            return "WARNING", "portfolio health score not finite (absence != breach)"
+        if v < float(floor):
+            return "WARNING", f"portfolio health {v:g} < {float(floor):g} (composite quality score)"
+        return "OK", f"portfolio health {v:g} >= {float(floor):g}"
 
 
 def _worst(*statuses: str) -> str:
@@ -162,12 +182,6 @@ _RESIDENCY_REQUIRED_CATS = frozenset({CAT_ALWAYS_ON, CAT_HIGH_FREQ, CAT_MID_FREQ
 #     IDENTICAL module (spa_core.telegram.bot). Running both would open two
 #     getUpdates long-polls → Telegram 409 conflict. The .plist may linger on a
 #     host; treat it as retired so it is neither false-flagged nor bootstrapped.
-#     The label stays here on purpose (a lingering host plist must still be
-#     recognised as retired) even though the ORIGINAL module it was named after,
-#     spa_core/alerts/bot_commands.py, was written off on 2026-08-16 (cycle
-#     #258): it had no caller in production code, yet carried its own getUpdates
-#     loop, its own offset file and its own __main__ — a second poller one line
-#     away. Guard: spa_core/tests/test_one_telegram_poller.py.
 #   * com.spa.httpserver — retired (owner decision 2026-06-27): its module bound
 #     :8765, the same port the apiserver (FastAPI/uvicorn) owns → EADDRINUSE
 #     crash-loop. apiserver fully covers the HTTP-API surface, so httpserver is
@@ -242,7 +256,9 @@ def requires_residency(category: str, plist: Optional[dict]) -> bool:
 # System-check thresholds
 EQUITY_STALE_H = 30.0
 CYCLE_STALE_H = 26.0
-PORTFOLIO_HEALTH_FLOOR = 70.0
+# Floor and verdict both live with the shared classifier (spa_core/alerts/severity.py):
+# two modules restating the same literal is how they drifted to two verdicts.
+PORTFOLIO_HEALTH_FLOOR = _SHARED_PORTFOLIO_HEALTH_FLOOR
 AUTOPUSH_LAG_H = 2.0
 # Track-accrual SLA: daily cadence (24h) + 6h buffer = one fully-missed cycle.
 TRACK_SLA_H = 30.0
@@ -811,9 +827,13 @@ def check_system(data_dir: Path, now: datetime,
         score = _read_portfolio_health_score(ph)
         if isinstance(score, (int, float)):
             checks["portfolio_health_score"] = round(float(score), 1)
-            if score < PORTFOLIO_HEALTH_FLOOR:
+            # ONE number -> ONE verdict: severity comes from the shared
+            # classifier, the same call system_health_monitor makes, so the two
+            # monitors can no longer disagree about what this score MEANS.
+            ph_status, _reason = _classify_portfolio_health(score, PORTFOLIO_HEALTH_FLOOR)
+            if ph_status != OK:
                 issues.append(f"portfolio_health {score:.1f}/100 (<{PORTFOLIO_HEALTH_FLOOR:.0f})")
-                status = _worst(status, WARNING)
+                status = _worst(status, ph_status)
 
     # --- red flags (market intel — advisory unless a HELD protocol is hit) ---
     # A red flag concerns an EXTERNAL protocol's market conditions, not the health

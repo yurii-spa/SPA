@@ -329,6 +329,10 @@ def test_cycle_carries_the_tvl_size_all_the_way_into_the_artifact(tmp_path) -> N
 # (tvl_usd 0.0, tvl_source "static", live_apy null — фид мёртв целиком, а 8.5 %
 # печатается как возможность) и moonwell_base (TVL $1.41M против порога $5M).
 
+def _stamp() -> str:
+    return ts(hours_ago=0.5)
+
+
 def _ce(monkeypatch, rows, *, cash_pct=0.25, positions=None):
     import spa_core.monitoring.capital_efficiency as ce
     pos = {"capital_usd": 100_000.0, "cash_usd": cash_pct * 100_000.0,
@@ -340,7 +344,14 @@ def _ce(monkeypatch, rows, *, cash_pct=0.25, positions=None):
         if s_.endswith("current_positions.json"):
             return pos
         if s_.endswith("apy_ranking.json"):
-            return {"by_apy": rows}
+            # `apy_source`/`last_updated`/`generated_at` — обязательные поля
+            # настоящего рейтинга (с 16.08 их спрашивает и потребитель: цена
+            # простоя считается только по наблюдению этого цикла). Здесь они
+            # свежие намеренно: файл про ПОРОГ TVL, и он обязан продолжать
+            # ловить порог, а не проваливаться в «доходность не наблюдение».
+            return {"generated_at": _stamp(),
+                    "by_apy": [{"apy_source": "live", "last_updated": _stamp(), **r}
+                               for r in rows]}
         return None   # нет свежей атрибуции ⇒ работает легаси-эвристика
 
     monkeypatch.setattr(ce, "_load", fake_load)

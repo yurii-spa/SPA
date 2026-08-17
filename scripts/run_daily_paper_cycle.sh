@@ -94,7 +94,39 @@ export SPA_ALLOCATOR_MODEL="optimized_yield"
 # Without --live the daily track would silently freeze (writes go to a sandbox).
 "$PYTHON" -m spa_core.paper_trading.cycle_runner --verbose --live >> "$LOG_FILE" 2>&1
 CYCLE_EXIT=$?
-echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] cycle_runner exit=$CYCLE_EXIT" | tee -a "$LOG_FILE"
+
+# ── Исход НАЗЫВАЕТСЯ словами, а не только цифрой ───────────────────────────
+# Голая цифра — ровно то, на чём стоит карточка «отказ замка неотличим от аварии»:
+# `exit=2` одинаково читалось и как «защита сработала по делу», и как «цикл сломан».
+# Слова берутся из ЕДИНСТВЕННОГО словаря (`spa_core/paper_trading/cycle_exit.py`),
+# а не переписываются здесь второй копией: обёртка не имеет права разойтись с
+# читателем. Ошибка перевода не имеет права стоить строки лога — отсюда `|| true`
+# и пустой запас: без слов строка всё равно печатается и по-прежнему разбирается.
+#
+# ФОРМА СТРОКИ НЕПРИКОСНОВЕННА до числа включительно: по ней считает отказы
+# `cycle_lock_watch.count_refusals` (regex `cycle_runner exit=(\d+)`). Слова
+# дописываются ПОСЛЕ числа — счётчик их не видит.
+CYCLE_WORDS=$("$PYTHON" -c "from spa_core.paper_trading.cycle_exit import describe_exit; print(describe_exit($CYCLE_EXIT))" 2>/dev/null || true)
+echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] cycle_runner exit=$CYCLE_EXIT${CYCLE_WORDS:+ — $CYCLE_WORDS}" | tee -a "$LOG_FILE"
+
+# ── Отказ замка — это НЕ прогон, и дальше идти нельзя ──────────────────────
+# Код 2 означает ровно одно: замок занят, цикл В ЭТУ СЕКУНДУ идёт в другом процессе.
+# Шаги 2-4 ниже читают состояние, которое держатель замка ПРЯМО СЕЙЧАС переписывает,
+# а шаг 3 ещё и публикует его на сайт. То есть отказавшийся прогон, ничего не
+# посчитав, мог опубликовать полузаписанный срез — второй писатель ровно там, откуда
+# его выгнал замок. Их выполнит держатель, когда закончит.
+#
+# Литерал 2 — вторая копия `cycle_exit.EXIT_LOCK_REFUSED` (bash не импортирует
+# Python). Копия не свободна: расхождение краснит parity-тест
+# `test_cycle_refusal_is_not_a_run.py::test_wrapper_literal_matches_the_taxonomy`.
+EXIT_LOCK_REFUSED=2
+if [ "$CYCLE_EXIT" -eq "$EXIT_LOCK_REFUSED" ]; then
+    # Строка-терминатор обязательна и здесь. Признак УБИТОГО держателя — прогон
+    # вообще без завершающей строки (замер 08.08: 10:04:57Z — единственная такая);
+    # если бы отказ тоже обрывался молча, этот признак перестал бы различать.
+    echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Cycle REFUSED (замок занят: цикл уже идёт) — шаги отчётности пропущены, их выполнит держатель замка" | tee -a "$LOG_FILE"
+    exit $CYCLE_EXIT
+fi
 
 # ── Step 2: evidence report on top of the fresh state (non-fatal) ──────────
 "$PYTHON" -c "
@@ -124,16 +156,20 @@ print(CPACycleWithEvidence(base_dir='.').run())
 "$PYTHON" scripts/fleet_parity_check.py >> "$LOG_FILE" 2>&1 \
   || echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] fleet parity: DRIFT or check failed (non-fatal, see data/fleet_parity.json)" >> "$LOG_FILE"
 
-# ── Step 5: публичный research-changelog (карточка agent-changelog-generator-never-called).
-# Генератор `generate_research_changelog.py` был доставлен и НЕ ИМЕЛ вызывающего — ни агента, ни
-# шага цикла; раздел /changelog стоял на 2026-07-11 двадцать три дня. Здесь, а не отдельным
-# LaunchAgent'ом, по той же причине, что и шаг 4: флот не должен расти ради одного файла, а шаг
-# цикла нельзя забыть в инсталляторе. Доставка — тем же путём, что и снимок трека
-# (safe_site_push.py → owner-гейт + ресит), второго механизма не заведено.
-# NON-FATAL: сайт не имеет права ронять трек. Молчание при этом видно СНАРУЖИ — генератор
-# каждый прогон пишет дату проверки в changelog_status.json, и страница её показывает.
-"$PYTHON" scripts/deploy_research_changelog.py >> "$LOG_FILE" 2>&1 \
-  || echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] research changelog deploy failed (non-fatal)" >> "$LOG_FILE"
+# ── Шаг 5: покрывает ли реестр адаптеров профинансированные протоколы ──────
+# Остаточная дыра ADR-062, названная им же самим: кэпы по цепочкам берут цепочку из
+# `data/adapter_registry.json`, и протокол, которого там нет, честно помечается UNCHECKED —
+# то есть незарегистрированный протокол может раздуть реальную экспозицию, а правило этого
+# не увидит. Догадываться внутри кэп-правила запрещено (ADR-062 §5: отсутствие данных не
+# должно превращаться в вердикт и вечный замок), поэтому вопрос задаётся отдельно и вслух.
+# ЗДЕСЬ, а не своим LaunchAgent'ом — по той же причине, что и шаг 4 выше: флот не растёт на
+# одного ради взгляда на себя, а сторожа внутри цикла нельзя забыть при установке. Момент
+# выбран не случайно: книга меняется ровно этим циклом, и спрашивать надо сразу после.
+# НЕ ФАТАЛЬНО намеренно: код 1 означает НАХОДКУ (деньги под незарегистрированным
+# протоколом), код 2 — «измерить не удалось»; ни то ни другое не поломка цикла.
+# Сторож ничего не пишет в data/ и ничего не гейтит — блокировка осталась за RiskPolicy.
+"$PYTHON" scripts/registry_coverage_check.py >> "$LOG_FILE" 2>&1 \
+  || echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] registry coverage: НАХОДКА или измерить не удалось (non-fatal, см. лог выше)" | tee -a "$LOG_FILE"
 
 # ── Шагов сверки офис↔книга и моста находок здесь НЕТ намеренно (цикл #125, 2026-08-06).
 # Эту работу выполняет РАЗВЁРНУТЫЙ агент `com.spa.decision_loop` (каждые 6ч,
@@ -142,5 +178,5 @@ print(CPACycleWithEvidence(base_dir='.').run())
 # замолчит, это увидит `agent_health` (свежесть по plist) и B2 сторожа архитектуры
 # (SLO артефакта) — молчание алармится, а не проходит незамеченным.
 
-echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Cycle completed (cycle_runner exit $CYCLE_EXIT)" | tee -a "$LOG_FILE"
+echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Cycle completed (cycle_runner exit $CYCLE_EXIT${CYCLE_WORDS:+ — $CYCLE_WORDS})" | tee -a "$LOG_FILE"
 exit $CYCLE_EXIT
