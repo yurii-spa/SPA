@@ -94,6 +94,29 @@ _SEVERITY = {OK: 0, WARNING: 1, CRITICAL: 2}
 SNAPSHOT_CADENCE_MIN = 60.0
 SNAPSHOT_STALE_MIN = 90.0
 
+# ── Гашение тревоги «core agent down» (ADR-070 п.13) ────────────────────────
+# Класс тревоги `core_agent_down` общий: ПОДНИМАЮТ его `watchdog` и `self_heal`.
+# ГАСИТ — решением владельца 2026-08-07 — ЭТОТ монитор, и только по ДВУМ ЧИСТЫМ
+# СНИМКАМ ПОДРЯД («консервативнее рекомендации — выбор владельца»).
+#
+# ЧЕМ ТРЕВОГА ГАСИЛАСЬ ДО ЭТОГО. Право гасить принадлежало `self_heal` (own-28)
+# и срабатывало по ОДНОЙ чистой проверке, а ходит он раз в 300 с
+# (`scripts/com.spa.self_heal.plist`). То есть инцидент закрывал тот самый
+# компонент, который агента и реанимировал, через пять минут после реанимации —
+# раньше, чем его успевал увидеть хоть один часовой снимок пульса. Хуже формы
+# была цена: `push_policy` в ветке `resolved` смотрит только на `state == "bad"`
+# и НЕ смотрит на `entry_pushed`, поэтому недоставленная тревога (транспорт упал
+# или выбран дневной потолок — состояние, ЗАМЕРЕННОЕ в проде на `kill_switch`
+# с 04.07) не дожидалась своей повторной попытки: её накрывало
+# «✅ восстановлено». Владелец получал сообщение о выздоровлении от болезни,
+# о которой ему не сказали, — уверенность без тревоги.
+#
+# Здесь снимок раз в час, и нужно два подряд ⇒ тишина покупается не меньше чем
+# часом доказанной жизни флота; а если тревога так и не дошла, гасящее сообщение
+# ГОВОРИТ ОБ ЭТОМ вслух (тот же приём, что в ADR-070 п.4 для `kill_switch`).
+CORE_AGENT_DOWN_KEY = "core_agent_down"
+CORE_AGENT_DOWN_CLEAN_SNAPSHOTS = 2
+
 # WAKE_STORM: N agents carrying a nonzero last exit at the same time = a mass
 # simultaneous failure (host wake / broken deploy / exec-bit strip), a distinct
 # CRITICAL signal even when each individual agent would only be WARNING.
@@ -1276,6 +1299,151 @@ def detect_wake_storm(agents: List[AgentHealth],
 
 
 # ===========================================================================
+# Гашение тревоги «core agent down» — два чистых снимка подряд (ADR-070 п.13)
+# ===========================================================================
+def core_agent_snapshot_clean(report: dict) -> Tuple[bool, str]:
+    """ЧИСТ ли ЭТОТ снимок с точки зрения класса «core agent down»?
+
+    Возвращает (чисто?, причина словами). Fail-CLOSED тремя разными способами —
+    «не смогли посмотреть» НИКОГДА не равно «чисто»:
+
+      * снимок без агентов (плисты не видны / каталог LaunchAgents недоступен)
+        — НЕ ИЗМЕРЕНО, а не «все живы»;
+      * ни одного `loaded` агента — значит `launchctl` не ответил (или ответил
+        пусто); ровно этот вход `self_heal` тоже отказывается считать
+        доказательством жизни, и по той же причине;
+      * хоть один агент в CRITICAL — не чисто, и агенты названы поимённо.
+
+    CRITICAL взят намеренно шире, чем «не загружен / PID=0»: в него попадает и
+    протухший больше двойного порога лог. Направление ошибки безопасное — гасить
+    труднее, а не легче, что и есть выбор владельца.
+    """
+    agents = report.get("agents")
+    if not isinstance(agents, list) or not agents:
+        return False, "НЕ ИЗМЕРЕНО: в снимке нет ни одного агента (плисты не видны?)"
+    rows = [a for a in agents if isinstance(a, dict)]
+    if not rows:
+        return False, "НЕ ИЗМЕРЕНО: записи агентов нечитаемы"
+    if not any(bool(a.get("loaded")) for a in rows):
+        return False, "НЕ ИЗМЕРЕНО: launchctl не назвал ни одного загруженного агента"
+    down = sorted(str(a.get("label") or "?") for a in rows if a.get("status") == CRITICAL)
+    if down:
+        return False, "агенты в CRITICAL: " + ", ".join(down)
+    return True, f"ни одного CRITICAL среди {len(rows)} агентов"
+
+
+def core_agent_clean_streak(report: dict,
+                            previous: Optional[dict],
+                            now: datetime) -> Tuple[int, bool, str]:
+    """Сколько чистых снимков ПОДРЯД включая этот. Возвращает (счёт, чисто?, причина).
+
+    «Подряд» проверяется по часам, а не по факту существования предыдущего файла:
+    если прошлый снимок старше собственного контракта свежести, между ними был
+    пропуск (в аварии 2026-08-05 умер сам монитор), и цепочка обязана начаться
+    заново. Иначе «два снимка подряд» вырождались бы в «два снимка когда-нибудь».
+    """
+    clean, reason = core_agent_snapshot_clean(report)
+    if not clean:
+        return 0, False, reason
+
+    prev_streak = 0
+    if isinstance(previous, dict):
+        prev_ts = _parse_iso(previous.get("timestamp"))
+        try:
+            stale_after = float(previous.get("stale_after_minutes") or SNAPSHOT_STALE_MIN)
+        except (TypeError, ValueError):
+            stale_after = SNAPSHOT_STALE_MIN
+        if prev_ts is None:
+            reason += "; у предыдущего снимка нет читаемой отметки времени — счёт заново"
+        else:
+            gap_min = (now - prev_ts).total_seconds() / 60.0
+            if gap_min < 0 or gap_min > stale_after:
+                reason += (
+                    f"; предыдущий снимок не «подряд» (разрыв {_fmt_age(abs(gap_min))} "
+                    f"при контракте {stale_after:.0f}min) — счёт заново"
+                )
+            else:
+                raw = previous.get("core_agent_clean_streak")
+                if isinstance(raw, int) and not isinstance(raw, bool) and raw > 0:
+                    prev_streak = raw
+    return prev_streak + 1, True, reason
+
+
+def maybe_resolve_core_agent_down(
+    report: dict,
+    *,
+    data_dir: Optional[Path] = None,
+    min_clean_snapshots: int = CORE_AGENT_DOWN_CLEAN_SNAPSHOTS,
+) -> Optional[dict]:
+    """Погасить `core_agent_down`, если чистых снимков подряд набралось довольно.
+
+    Возвращает ``None``, когда гасить НЕ пытались (снимков мало, снимок не чист,
+    в `push_policy` нечего гасить, состояние прочитать не удалось) — тогда в
+    отчёте не появляется никакого поля, и никакой записи состояния не делается.
+    Иначе — словарь с исходом попытки, включая `sent` (дошло ли сообщение).
+
+    Fail-CLOSED: нечитаемое состояние `push_policy` НЕ считается «нечего гасить
+    и всё хорошо» — мы просто не гасим (тревога остаётся звучать). Никогда не
+    бросает: пульс флота важнее собственного уведомления.
+    """
+    streak = report.get("core_agent_clean_streak")
+    if not isinstance(streak, int) or isinstance(streak, bool):
+        return None
+    if streak < max(1, int(min_clean_snapshots)):
+        return None
+
+    try:
+        from spa_core.telegram import push_policy
+    except Exception as exc:  # noqa: BLE001 — сломанный импорт не смеет ронять монитор
+        log.warning("core_agent_down resolve: push_policy import failed: %s", exc)
+        return None
+
+    try:
+        rec = push_policy.current_record(CORE_AGENT_DOWN_KEY, data_dir=data_dir)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("core_agent_down resolve: state unreadable (%s) — не гасим", exc)
+        return None
+    if not isinstance(rec, dict) or rec.get("state") != "bad":
+        return None
+
+    was = str(rec.get("fingerprint") or "").replace("|", ", ")
+    entry_delivered = bool(rec.get("entry_pushed", True))
+    lines = [
+        f"Чистых снимков подряд: {streak} (порог {min_clean_snapshots}, "
+        f"снимок раз в {SNAPSHOT_CADENCE_MIN:.0f} мин). "
+        f"{report.get('healthy_count')} агентов, ни одного CRITICAL.",
+        f"Что было: {was or 'инцидент без записанных деталей'}",
+    ]
+    if not entry_delivered:
+        # ЧЕСТНОСТЬ вместо тишины (тот же приём, что ADR-070 п.4 для kill_switch):
+        # у этого инцидента запись говорит `entry_pushed: false` — сама тревога до
+        # владельца не дошла. Гасить молча значило бы прислать выздоровление от
+        # болезни, о которой ему не сказали.
+        lines.append(
+            "ЧЕСТНО: сама тревога об этом инциденте до тебя тогда НЕ ДОШЛА "
+            "(push_policy: entry_pushed=false) — это первое сообщение о нём."
+        )
+
+    try:
+        sent = bool(push_policy.resolve(
+            CORE_AGENT_DOWN_KEY,
+            "SPA Agent Health — агенты восстановлены",
+            "\n".join(lines),
+            data_dir=data_dir,
+        ))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("core_agent_down resolve: push failed (%s)", exc)
+        return None
+
+    return {
+        "sent": sent,
+        "clean_snapshots": streak,
+        "was": was,
+        "entry_delivered": entry_delivered,
+    }
+
+
+# ===========================================================================
 # Canonical fail-CLOSED reader for consumers of data/agent_health.json
 # ===========================================================================
 def load_report(data_dir: Path | str = _DEFAULT_DATA_DIR,
@@ -1544,6 +1712,15 @@ class AgentHealthMonitor:
             previous = self._previous()
             report = self.collect()
             report["registry_refresh"] = registry_refresh
+            # ── ADR-070 п.13: счёт чистых снимков подряд ────────────────────
+            # Считается ВСЕГДА (и на `--check`), потому что это бухгалтерия
+            # снимка, а не отправка: иначе прогон без Telegram рвал бы цепочку.
+            # Гасить — только в ветке `send`, ниже.
+            streak, clean, clean_reason = core_agent_clean_streak(
+                report, previous, self.now)
+            report["core_agent_clean"] = clean
+            report["core_agent_clean_reason"] = clean_reason
+            report["core_agent_clean_streak"] = streak
             # should_alert() is retained for observability (new_issues), but the
             # SEND decision is now owned entirely by push_policy's edge-trigger:
             # CRITICAL → one push on entry (silent while it persists), recovery →
@@ -1554,6 +1731,14 @@ class AgentHealthMonitor:
             if send:
                 ok = _push_via_policy(report)
                 report["alert_sent"] = bool(ok)
+                # Гашение общего класса `core_agent_down` — ПОСЛЕ собственного
+                # пуша и по своему ключу: это разные тревоги, и агрегатное
+                # `agent_health_critical` тут ничего не решает (снимок может
+                # быть CRITICAL из-за стоп-крана, оставаясь чистым по агентам).
+                resolved = maybe_resolve_core_agent_down(
+                    report, data_dir=self.data_dir)
+                if resolved is not None:
+                    report["core_agent_down_resolved"] = resolved
             self._write(report)
             return report
         except Exception as exc:  # noqa: BLE001 — never raise out of run()

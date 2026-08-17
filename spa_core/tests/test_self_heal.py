@@ -91,16 +91,17 @@ def heal(monkeypatch):
     # stub mirrors the new signature. Recording/assertions are unchanged.
     monkeypatch.setattr(self_heal, "_send_telegram",
                         lambda msg, dedup_key=None: h.telegrams.append(msg))
-    # own-28 resolve seams (hermetic: never touch the live push_state.json).
-    # Default: NOTHING pending → no resolve. raising=False on purpose: on
-    # UNFIXED code (seams absent) the attributes are injected but never called,
-    # so the positive-control test fails on ITS OWN assertion (resolve did not
-    # happen) instead of erroring every unrelated test in this file.
-    monkeypatch.setattr(self_heal, "_pending_core_incident",
-                        lambda: None, raising=False)
+    # ADR-070 п.13: у self_heal БОЛЬШЕ НЕТ прав гасить `core_agent_down`, поэтому
+    # own-28-овых сим (`_pending_core_incident` / `_resolve_core_agent_down`)
+    # здесь больше нет. Вместо них — ЛОВУШКА на настоящий канал гашения: любой
+    # вызов `push_policy.resolve` из self_heal записывается в `h.resolves`, и
+    # каждый тест этого файла молча проверяет, что список пуст (см.
+    # `test_self_heal_never_resolves_in_any_scenario`). Ловушка герметична —
+    # живой push_state.json не трогается ни в одном сценарии.
+    from spa_core.telegram import push_policy as _pp
     monkeypatch.setattr(
-        self_heal, "_resolve_core_agent_down",
-        lambda msg: (h.resolves.append(msg), True)[1], raising=False,
+        _pp, "resolve",
+        lambda key, title, body="", **kw: (h.resolves.append((key, body)), True)[1],
     )
 
     # --- read seams: safe hermetic defaults (overridden per-test) ----------
@@ -505,17 +506,30 @@ def test_incident_fingerprint_reaches_push_policy(heal, monkeypatch):
 
 
 # ===========================================================================
-# own-28 (вариант 1, 2026-08-05) — финальное «✅ восстановлено» по
-# core_agent_down даёт ТОЛЬКО self_heal, и ТОЛЬКО когда его собственная
-# проверка флота этим прогоном доказывает «все агенты снова живы».
-# До фикса resolve('core_agent_down') не вызывался НИКЕМ — recovered-сообщение
-# не приходило вовсе (S2, measured in prod).
-# POSITIVE CONTROL: первый тест красный на нефиксенном коде (resolve нет).
+# ADR-070 п.13 (решение владельца 2026-08-07) — self_heal БОЛЬШЕ НЕ ГАСИТ
+# `core_agent_down`.
+# ---------------------------------------------------------------------------
+# ЧТО ИЗМЕНИЛОСЬ И ПОЧЕМУ (инвариант 16 CLAUDE.md — обоснование в теле правки).
+# Раньше здесь стоял блок own-28: «финальное ✅ восстановлено даёт ТОЛЬКО
+# self_heal, по одной своей чистой проверке». Владелец это решение ЗАМЕНИЛ:
+# гаситель — `agent_health`, и ему нужны ДВА ЧИСТЫХ СНИМКА ПОДРЯД
+# («консервативнее рекомендации — выбор владельца», ADR-070 п.13).
+#
+# Замер, объясняющий выбор: self_heal ходит раз в 300 с
+# (`scripts/com.spa.self_heal.plist`), agent_health — раз в 3600 с. Гашение по
+# одной чистой проверке закрывало инцидент через пять минут ТЕМ ЖЕ агентом,
+# который его и чинил, — раньше, чем это видел хоть один часовой снимок пульса,
+# и раньше, чем `push_policy` успевал ПОВТОРИТЬ недоставленную входную тревогу
+# (ветка `resolved` в `_push_critical_impl` смотрит только на `state == "bad"` и
+# НЕ смотрит на `entry_pushed`).
+#
+# Поэтому семь тестов own-28 «в таком-то сценарии self_heal НЕ гасит» здесь
+# не удалены, а СХЛОПНУТЫ в одно более сильное утверждение: self_heal не гасит
+# НИ В ОДНОМ сценарии, включая тот единственный, в котором он раньше гасил.
+# Первый тест — ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ: на нефикшеном коде он красный (там
+# resolve происходит). Права на ВХОД остались и проверяются ниже — иначе мы
+# заменили бы «гасит слишком рано» на «не тревожит вовсе».
 # ===========================================================================
-_PENDING = {"state": "bad", "fingerprint": "uptime:com.spa.daily_cycle",
-            "entry_pushed": True}
-
-
 def _alive_fleet(monkeypatch):
     """One residency-required agent, loaded and alive; cycle fresh."""
     monkeypatch.setattr(self_heal, "_expected_labels",
@@ -525,31 +539,16 @@ def _alive_fleet(monkeypatch):
     monkeypatch.setattr(self_heal, "_must_be_resident", lambda l: True)
 
 
-def test_all_alive_with_pending_incident_resolves(heal, monkeypatch):
-    # (а) все живы + push_policy держит 'bad' → ровно один «восстановлено»,
-    # и он НАЗЫВАЕТ, что было (fingerprint инцидента) и что проверено.
+def test_clean_run_no_longer_resolves_core_agent_down(heal, monkeypatch):
+    """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ: ровно тот сценарий, в котором own-28 гасил.
+
+    Все резиденты живы, цикл свежий, прогон ничего не чинил — до ADR-070 п.13
+    здесь уходило «✅ восстановлено» и в отчёт писалось
+    `core_agent_down_resolved`. Теперь — ни того, ни другого: право гасить
+    принадлежит agent_health.
+    """
     _guard_no_real_io(monkeypatch)
     _alive_fleet(monkeypatch)
-    monkeypatch.setattr(self_heal, "_pending_core_incident", lambda: dict(_PENDING))
-
-    report = self_heal.run_self_heal(dry_run=False)
-
-    assert len(heal.resolves) == 1
-    assert "com.spa.daily_cycle" in heal.resolves[0]     # что было
-    assert "снова живы" in heal.resolves[0]              # что восстановлено
-    assert report["core_agent_down_resolved"] is True
-    assert heal.telegrams == []                          # никакого entry-пуша
-
-
-def test_agent_down_does_not_resolve(heal, monkeypatch):
-    # (б) хоть один резидент лежит → resolve НЕ вызван (прогон чинил, снимок
-    # доказывает лишь что агент БЫЛ мёртв; резолвит следующий чистый прогон).
-    _guard_no_real_io(monkeypatch)
-    monkeypatch.setattr(self_heal, "_expected_labels",
-                        lambda: ["com.spa.rules_watchdog"])
-    monkeypatch.setattr(self_heal, "_loaded_labels", lambda: {})     # лежит
-    monkeypatch.setattr(self_heal, "_must_be_resident", lambda l: True)
-    monkeypatch.setattr(self_heal, "_pending_core_incident", lambda: dict(_PENDING))
 
     report = self_heal.run_self_heal(dry_run=False)
 
@@ -557,98 +556,50 @@ def test_agent_down_does_not_resolve(heal, monkeypatch):
     assert "core_agent_down_resolved" not in report
 
 
-def test_bootstrap_failure_does_not_resolve(heal, monkeypatch):
-    # (б') реанимация ПРОВАЛИЛАСЬ → тем более не гасим.
+@pytest.mark.parametrize("scenario", [
+    "alive_fleet",          # (а) всё хорошо — единственный случай, где гасили
+    "agent_down",           # (б) резидент лежит
+    "bootstrap_failed",     # (б') реанимация провалилась
+    "empty_launchctl",      # (в) launchctl промолчал
+    "no_plists",            # (в') плисты не видны
+    "unreadable_cycle_age",  # (в'') возраст цикла нечитаем
+    "stale_cycle",          # (в''') цикл протух
+])
+def test_self_heal_never_resolves_in_any_scenario(heal, monkeypatch, scenario):
+    """Ни один сценарий self_heal не зовёт `push_policy.resolve`.
+
+    Сильнее семи прежних отдельных «не гасит»: утверждение теперь не «в этом
+    состоянии не гасим», а «канала гашения у этого модуля нет вовсе».
+    """
     _guard_no_real_io(monkeypatch)
-    monkeypatch.setattr(self_heal, "_expected_labels",
-                        lambda: ["com.spa.rules_watchdog"])
-    monkeypatch.setattr(self_heal, "_loaded_labels", lambda: {})
-    monkeypatch.setattr(self_heal, "_must_be_resident", lambda l: True)
-    monkeypatch.setattr(self_heal, "_bootstrap", lambda label: False)
-    monkeypatch.setattr(self_heal, "_pending_core_incident", lambda: dict(_PENDING))
-
-    self_heal.run_self_heal(dry_run=False)
-
-    assert heal.resolves == []
-
-
-def test_open_circuit_breaker_does_not_resolve(heal, monkeypatch):
-    # (б'') crash-looper под брейкером = флот НЕ здоров → не гасим.
-    _guard_no_real_io(monkeypatch)
-    label = "com.spa.flapper"
-    monkeypatch.setattr(self_heal, "_expected_labels", lambda: [label])
-    monkeypatch.setattr(self_heal, "_loaded_labels", lambda: {})
-    monkeypatch.setattr(self_heal, "_must_be_resident", lambda l: True)
-    now = time.time()
-    monkeypatch.setattr(
-        self_heal, "_revival_history",
-        lambda: {label: [now - i for i in range(self_heal.MAX_REVIVALS_PER_HOUR)]},
-    )
-    monkeypatch.setattr(self_heal, "_pending_core_incident", lambda: dict(_PENDING))
-
-    self_heal.run_self_heal(dry_run=False)
-
-    assert heal.resolves == []
-
-
-def test_empty_launchctl_snapshot_does_not_resolve(heal, monkeypatch):
-    # (в) launchctl ничего не ответил (loaded пуст) — «все живы» недоказуемо,
-    # даже если по плистам никто не обязан быть резидентом → fail-CLOSED.
-    _guard_no_real_io(monkeypatch)
-    monkeypatch.setattr(self_heal, "_expected_labels",
-                        lambda: ["com.spa.daily_cycle"])
-    monkeypatch.setattr(self_heal, "_loaded_labels", lambda: {})     # пусто
-    monkeypatch.setattr(self_heal, "_must_be_resident", lambda l: False)  # calendar
-    monkeypatch.setattr(self_heal, "_pending_core_incident", lambda: dict(_PENDING))
-
-    report = self_heal.run_self_heal(dry_run=False)
-
-    assert report["healthy"] is True      # idle-calendar сам по себе не болезнь…
-    assert heal.resolves == []            # …но доказательства жизни НЕТ → не гасим
-
-
-def test_no_expected_plists_does_not_resolve(heal, monkeypatch):
-    # (в') плисты не видны (expected пуст — ~/Library недоступна?) → не гасим.
-    _guard_no_real_io(monkeypatch)
-    monkeypatch.setattr(self_heal, "_expected_labels", lambda: [])
-    monkeypatch.setattr(self_heal, "_loaded_labels",
-                        lambda: {"com.spa.apiserver": 111})
-    monkeypatch.setattr(self_heal, "_pending_core_incident", lambda: dict(_PENDING))
-
-    self_heal.run_self_heal(dry_run=False)
-
-    assert heal.resolves == []
-
-
-def test_unreadable_cycle_age_does_not_resolve(heal, monkeypatch):
-    # (в'') возраст цикла нечитаем (None) → свежесть недоказуема → не гасим.
-    _guard_no_real_io(monkeypatch)
-    _alive_fleet(monkeypatch)
-    monkeypatch.setattr(self_heal, "_last_cycle_age_hours", lambda: None)
-    monkeypatch.setattr(self_heal, "_pending_core_incident", lambda: dict(_PENDING))
-
-    self_heal.run_self_heal(dry_run=False)
-
-    assert heal.resolves == []
-
-
-def test_stale_cycle_within_act_window_does_not_resolve(heal, monkeypatch):
-    # (в''') цикл 27ч — SLA (26ч) пробит, ACT (28ч) ещё нет: не здоров → не гасим.
-    _guard_no_real_io(monkeypatch)
-    _alive_fleet(monkeypatch)
-    monkeypatch.setattr(self_heal, "_last_cycle_age_hours", lambda: 27.05)
-    monkeypatch.setattr(self_heal, "_pending_core_incident", lambda: dict(_PENDING))
-
-    self_heal.run_self_heal(dry_run=False)
-
-    assert heal.resolves == []
-
-
-def test_no_pending_incident_stays_silent(heal, monkeypatch):
-    # Нечего гасить (push_policy не в 'bad') → ни resolve-пуша, ни записи.
-    _guard_no_real_io(monkeypatch)
-    _alive_fleet(monkeypatch)
-    # fixture default: _pending_core_incident → None
+    if scenario == "alive_fleet":
+        _alive_fleet(monkeypatch)
+    elif scenario == "agent_down":
+        monkeypatch.setattr(self_heal, "_expected_labels",
+                            lambda: ["com.spa.rules_watchdog"])
+        monkeypatch.setattr(self_heal, "_loaded_labels", lambda: {})
+        monkeypatch.setattr(self_heal, "_must_be_resident", lambda l: True)
+    elif scenario == "bootstrap_failed":
+        monkeypatch.setattr(self_heal, "_expected_labels",
+                            lambda: ["com.spa.rules_watchdog"])
+        monkeypatch.setattr(self_heal, "_loaded_labels", lambda: {})
+        monkeypatch.setattr(self_heal, "_must_be_resident", lambda l: True)
+        monkeypatch.setattr(self_heal, "_bootstrap", lambda label: False)
+    elif scenario == "empty_launchctl":
+        monkeypatch.setattr(self_heal, "_expected_labels",
+                            lambda: ["com.spa.daily_cycle"])
+        monkeypatch.setattr(self_heal, "_loaded_labels", lambda: {})
+        monkeypatch.setattr(self_heal, "_must_be_resident", lambda l: False)
+    elif scenario == "no_plists":
+        monkeypatch.setattr(self_heal, "_expected_labels", lambda: [])
+        monkeypatch.setattr(self_heal, "_loaded_labels",
+                            lambda: {"com.spa.apiserver": 111})
+    elif scenario == "unreadable_cycle_age":
+        _alive_fleet(monkeypatch)
+        monkeypatch.setattr(self_heal, "_last_cycle_age_hours", lambda: None)
+    elif scenario == "stale_cycle":
+        _alive_fleet(monkeypatch)
+        monkeypatch.setattr(self_heal, "_last_cycle_age_hours", lambda: 27.05)
 
     report = self_heal.run_self_heal(dry_run=False)
 
@@ -656,27 +607,31 @@ def test_no_pending_incident_stays_silent(heal, monkeypatch):
     assert "core_agent_down_resolved" not in report
 
 
-def test_dry_run_never_resolves(heal, monkeypatch):
+def test_self_heal_module_has_no_resolve_seam():
+    """Храповик: сами симы гашения из модуля убраны, а не оставлены спящими.
+
+    Оставленный «на всякий случай» `_resolve_core_agent_down` — это одна строка
+    вызова до возврата аварии; отсутствие имени делает возврат заметным в диффе.
+    """
+    assert not hasattr(self_heal, "_resolve_core_agent_down")
+    assert not hasattr(self_heal, "_pending_core_incident")
+
+
+def test_entry_rights_survive_the_authority_move(heal, monkeypatch):
+    """Обратный контроль: отобрано ПРАВО ГАСИТЬ, а не право ТРЕВОЖИТЬ.
+
+    Иначе «починка» превратила бы раннее гашение в вечное молчание.
+    """
     _guard_no_real_io(monkeypatch)
-    _alive_fleet(monkeypatch)
-    monkeypatch.setattr(self_heal, "_pending_core_incident", lambda: dict(_PENDING))
+    monkeypatch.setattr(self_heal, "_expected_labels",
+                        lambda: ["com.spa.rtmr_sense"])
+    monkeypatch.setattr(self_heal, "_loaded_labels", lambda: {})
+    monkeypatch.setattr(self_heal, "_must_be_resident", lambda l: True)
 
-    self_heal.run_self_heal(dry_run=True)
+    self_heal.run_self_heal(dry_run=False)
 
+    assert heal.telegrams and "com.spa.rtmr_sense" in heal.telegrams[0]
     assert heal.resolves == []
-
-
-def test_resolve_seam_targets_core_agent_down(monkeypatch):
-    # Сим напрямую: _resolve_core_agent_down зовёт push_policy.resolve
-    # ИМЕННО по ключу core_agent_down (не какой-то другой класс).
-    from spa_core.telegram import push_policy
-    calls: list[tuple] = []
-    monkeypatch.setattr(
-        push_policy, "resolve",
-        lambda key, title, body="", **k: (calls.append((key, title, body)), True)[1],
-    )
-    assert self_heal._resolve_core_agent_down("msg") is True
-    assert calls == [("core_agent_down", "SPA Self-Heal — агенты восстановлены", "msg")]
 
 
 def test_watchdog_and_uptime_monitor_never_resolve(monkeypatch):

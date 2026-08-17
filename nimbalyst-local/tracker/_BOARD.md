@@ -170,6 +170,7 @@
 - ADR-066 Фаза 3: house_view_gap + мост находка→карточка  ·  `inbox-adr-066-faza-3-house-view-gap-most-nahod.md` · 2026-08-05
 - ADR-066 Фаза 4: loop_health + hit-rate аналитиков + weekly retro + храповик  ·  `inbox-adr-066-faza-4-loop-health-hit-rate-anal.md` · 2026-08-05
 - ADR-070.11: честный exit digest-обёртки  ·  `inbox-adr-070-11-chestnyi-exit-digest-obertki.md` · 2026-08-07
+- ADR-070.13: тревогу core-agent-down гасит agent_health  ·  `inbox-adr-070-13-trevogu-core-agent-down-gasit.md` · 2026-08-07
 - ADR-070.15: казна 2% TVL — отказ вместо выдумки  ·  `inbox-adr-070-15-kazna-2-tvl-otkaz-vmesto-vydu.md` · 2026-08-07
 - ADR-070.16: go-live блокируют только активные дыры  ·  `inbox-adr-070-16-go-live-blokiruyut-tolko-akti.md` · 2026-08-07
 - ADR-070.21: paper-модуль CDR #39 (демоушен+отложенный возврат)  ·  `inbox-adr-070-21-paper-modul-cdr-39-demoushen.md` · 2026-08-07
@@ -329,7 +330,6 @@
 - 25 модулей получили вечный вердикт «покрытие не измерено» — контекст-путь нечем мерить  ·  `inbox-25-modulei-poluchili-vechnyi-verdikt-pok.md` · 2026-08-06
 - 3 трека параллельно: Conservative + Balanced + Aggressive (мандат владельца)  ·  `inbox-3-treka-parallelno-conservative-balanced.md` · 2026-08-08
 - ADR-070.12: BTS честный порог, затем включить TG  ·  `inbox-adr-070-12-bts-chestnyi-porog-zatem-vkly.md` · 2026-08-07
-- ADR-070.13: тревогу core-agent-down гасит agent_health  ·  `inbox-adr-070-13-trevogu-core-agent-down-gasit.md` · 2026-08-07
 - ADR-070.14: governance watchlist = наш вайтлист  ·  `inbox-adr-070-14-governance-watchlist-nash-vai.md` · 2026-08-07
 - ADR-070.17-18: frax удалить, notional_v3 вывести  ·  `inbox-adr-070-17-18-frax-udalit-notional-v3-vy.md` · 2026-08-07
 - ADR-070.2: канон трека коммитится циклом  ·  `inbox-adr-070-2-kanon-treka-kommititsya-tsiklo.md` · 2026-08-07

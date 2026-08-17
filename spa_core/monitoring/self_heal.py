@@ -20,10 +20,16 @@ Self-healing rules (deterministic, stdlib only, LLM FORBIDDEN):
      kickstart com.spa.daily_cycle.
   4. Every action is logged to data/self_heal_status.json and (on action or repeated
      failure) sent to Telegram. Fail-safe: a heal attempt never crashes the watchdog.
-  5. own-28 (вариант 1): the final «✅ восстановлено» for the ``core_agent_down``
-     alert class is emitted HERE and only here — after a clean run whose own fleet
-     check proves every residency-required agent is alive again (fail-CLOSED on
-     empty/unreadable observations). watchdog/uptime_monitor keep entry-only rights.
+  5. ГАШЕНИЕ тревоги ``core_agent_down`` здесь БОЛЬШЕ НЕ ЖИВЁТ (ADR-070 п.13,
+     решение владельца 2026-08-07 — оно ЗАМЕНЯЕТ own-28 вариант 1). Право гасить
+     передано ``agent_health_monitor`` и обусловлено ДВУМЯ ЧИСТЫМИ СНИМКАМИ
+     ПОДРЯД. Почему отобрано: этот агент ходит раз в 300 с и гасил по ОДНОЙ
+     чистой проверке — то есть инцидент закрывал через пять минут тот самый
+     компонент, который агента и реанимировал, раньше, чем его видел хоть один
+     часовой снимок пульса, и раньше, чем ``push_policy`` успевал ПОВТОРИТЬ
+     недоставленную входную тревогу (ветка ``resolved`` не смотрит на
+     ``entry_pushed``). Здесь остаются только права на ВХОД — как у
+     watchdog/uptime_monitor.
 
 Atomic writes (tmp + os.replace). Idempotent — safe to run every 5 min.
 
@@ -297,39 +303,13 @@ def _send_telegram(msg: str, dedup_key: str | None = None) -> None:
         pass
 
 
-def _pending_core_incident() -> dict | None:
-    """The push_policy edge-record for ``core_agent_down`` IFF it is 'bad'.
-
-    Returns None when nothing is pending OR the state cannot be read (a state
-    read error must never produce a resolve — fail-CLOSED). Never raises.
-    """
-    try:
-        from spa_core.telegram import push_policy
-        rec = push_policy.current_record("core_agent_down")
-        if rec.get("state") == "bad":
-            return rec
-    except Exception:  # noqa: BLE001
-        pass
-    return None
-
-
-def _resolve_core_agent_down(msg: str) -> bool:
-    """Emit the ONE ``bad → ok`` "✅ восстановлено" push for ``core_agent_down``.
-
-    Owner decision own-28 (вариант 1): the FINAL word on the core_agent_down
-    alert class belongs to self_heal alone — the only sender that VERIFIES the
-    fleet is actually alive again (watchdog/uptime_monitor only detect DOWN and
-    keep entry-only rights). Callers gate this on that verification. Never raises.
-    """
-    try:
-        from spa_core.telegram import push_policy
-        return bool(push_policy.resolve(
-            "core_agent_down",
-            "SPA Self-Heal — агенты восстановлены",
-            msg,
-        ))
-    except Exception:  # noqa: BLE001
-        return False
+# ПРАВА ГАСИТЬ `core_agent_down` У ЭТОГО МОДУЛЯ ОТОБРАНЫ (ADR-070 п.13).
+# Здесь СОЗНАТЕЛЬНО нет ни `_pending_core_incident`, ни `_resolve_core_agent_down`,
+# ни любого другого вызова `push_policy.resolve` — вернуть их значит вернуть
+# гашение через пять минут одной чистой проверкой. Гаситель ровно один:
+# `spa_core.monitoring.agent_health_monitor.maybe_resolve_core_agent_down`
+# (два чистых часовых снимка подряд). Закреплено храповиком
+# `spa_core/tests/test_core_agent_down_resolve_authority.py`.
 
 
 def _save(report: dict) -> bool:
@@ -563,44 +543,13 @@ def run_self_heal(dry_run: bool = False) -> dict:
         "LLM_FORBIDDEN": True,
     }
     if not dry_run:
-        # ── own-28 (вариант 1): финальное «✅ восстановлено» по core_agent_down ──
-        # Гасит ТОЛЬКО self_heal, и ТОЛЬКО когда его СОБСТВЕННАЯ проверка флота
-        # этим прогоном доказывает «все агенты снова живы» (те же критерии
-        # живости, что и выше — residency + cycle SLA). Fail-CLOSED:
-        #   * прогон НИЧЕГО не чинил (actions/failures/breakers пусты) — прогон,
-        #     только что реанимировавший агента, доказывает лишь что тот был
-        #     мёртв на снимке `loaded`; резолвит СЛЕДУЮЩИЙ чистый прогон;
-        #   * данные наблюдения РЕАЛЬНЫ: launchctl ответил (loaded непуст),
-        #     плисты видны (expected/resident_expected непусты), возраст цикла
-        #     читается (age is not None). Пустой/нечитаемый вход недоказуем →
-        #     НЕ гасим (см. `_expected_labels()==[]` при недоступном ~/Library);
-        #   * push_policy реально держит 'bad' по core_agent_down — иначе тишина
-        #     (и никакой записи состояния каждые 5 минут).
-        # watchdog / uptime_monitor прав гасить НЕ получили — их entry-пути
-        # не тронуты (закреплено тестом в test_self_heal.py).
-        if not (actions or failures or breakers):
-            fleet_verified = (
-                bool(expected)
-                and bool(loaded)
-                and bool(resident_expected)
-                and not resident_missing
-                and age is not None
-                and not cycle_stale
-            )
-            if fleet_verified:
-                pending = _pending_core_incident()
-                if pending is not None:
-                    was = str(pending.get("fingerprint") or "").replace("|", ", ")
-                    msg = (
-                        f"Все резидентные агенты снова живы "
-                        f"({resident_loaded}/{len(resident_expected)}), "
-                        f"дневной цикл свежий ({age:.1f} ч назад, "
-                        f"порог {CYCLE_STALE_H:.0f} ч).\n"
-                        f"Что было: {was or 'инцидент без записанных деталей'}"
-                    )
-                    report["core_agent_down_resolved"] = bool(
-                        _resolve_core_agent_down(msg)
-                    )
+        # ── ADR-070 п.13: ГАШЕНИЯ `core_agent_down` ЗДЕСЬ НЕТ И БЫТЬ НЕ ДОЛЖНО ──
+        # Раньше на этом месте стоял own-28: чистый прогон + pending-инцидент →
+        # `push_policy.resolve("core_agent_down", …)`. Владелец 2026-08-07 выбрал
+        # консервативнее — гаситель один, `agent_health`, и ему нужны ДВА чистых
+        # снимка ПОДРЯД (час против пяти минут). Причина в тексте докстринга
+        # модуля, п.5. Права на ВХОД (`_send_telegram` → push_critical) не
+        # тронуты: обнаруживать поломку этот агент по-прежнему обязан.
         # `published` is added to the RETURNED report only: the file cannot describe its own
         # absence, so the signal that matters travels by exit code (see __main__).
         report["published"] = bool(_save(report))
