@@ -95,3 +95,29 @@ domain: CI integrity / track auditability
 
 `owner-decision-dannye-treka-v-git-...`, `agent-ci-data-dependent-red-tests`,
 `owner-decision-v-zhurnalah-dohodnosti...` (выдуманные записи — фикс ДО синхронизации).
+
+---
+
+## 🔎 СВЕРКА 2026-08-17 — статус НЕ меняю (`backlog`): сделан 1 пункт из 3
+
+**Проверено прогоном (сделано):**
+
+* пункт 1 — `spa_core/monitoring/artifact_freshness.py`: свежесть серии читается из ПОСЛЕДНЕЙ
+  записи (`series_field="days"`, строки 58–65, 92, 127–129, 174) и этот маркер авторитетнее
+  mtime; git-копия судится отдельной областью `check_committed_freshness()` (строка 268,
+  `committed=True`, чтение через `git show <ref>:data/...`), отсутствие блоба = `MISSING`, не «скип».
+  Прогон: `python3 -m pytest spa_core/tests/test_artifact_freshness.py
+  spa_core/tests/test_artifact_freshness_digest_route.py -q` → `33 passed in 0.60s`.
+
+**НЕ сделано (почему карточка остаётся открытой):**
+
+1. **пункт 2 — presence-guard вместо skip в CI** не тронут: файлы, от которых зависят
+   backtest-gate и родственные проверки, по-прежнему могут отсутствовать без КРАСНОГО.
+2. **пункт 3 — дневной цикл не коммитит/не пушит** `paper_evidence.json`: в
+   `scripts/run_daily_paper_cycle.sh` такого шага нет, то есть git-копия по-прежнему может
+   отставать от локальной (исходная авария 21.06).
+3. **Owner-gated остаток Wave 1** — сторож свежести не поставлен на расписание (в
+   `run_daily_paper_cycle.sh` и в `launchd/` вызова `artifact_freshness` нет, проверено `grep`),
+   Telegram-алерт на `any_stale` не заведён, в `system_health` как advisory-домен не вписан.
+   То есть сам реестр свежести пока — «производитель без расписания», ровно класс пункта 3 карточки.
+4. Критерий «прогон Actions подтверждает, что 20 проверок РЕАЛЬНО выполняются» не проверен ничем.

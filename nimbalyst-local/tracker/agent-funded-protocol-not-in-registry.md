@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent
 title: Нет сторожа «профинансирован протокол, которого нет в реестре» — остаточная дыра кэпов по цепочкам
-status: backlog
+status: done
 source: session-2026-08-02 (ADR-062, заявлено как остаточная дыра)
 created: 2026-08-02
 priority: medium
@@ -33,3 +33,30 @@ ADR-062 добавил в защитный слой кэпы по цепочка
 
 Появление в книге протокола без записи в реестре обнаруживается автоматически, а не только при
 ручном разборе.
+
+---
+
+## 🔎 СВЕРКА 2026-08-17 (код + прогон) → `done`
+
+Критерий карточки — «появление в книге протокола без записи в реестре обнаруживается
+АВТОМАТИЧЕСКИ» — выполнен: сторож есть, он вызывается расписанием и он проверен в обе стороны.
+
+| Что требовала карточка | Чем закрыто (файл · функция) | Чем доказано |
+|---|---|---|
+| 1. сигнал CRITICAL, но НЕ блок книги | `spa_core/monitoring/registry_coverage_watch.py::check_registry_coverage` (модуль ничего не пишет и ничего не гейтит — закреплено `test_the_watch_writes_nothing`) | прогон тестов ниже |
+| 2. читать реальный источник | сторож читает ЖИВУЮ книгу (`paper_trading_status.json`) + живой `adapter_registry.json`, а НЕ `chain_unresolved`: `test_the_cheap_route_is_blind_to_this` показывает, почему дешёвый путь слеп (резервная `chain_limits.get_default_chain_map()` знает `aave_v3_arbitrum` / `compound_v3_base`, которых в реестре нет ⇒ цепочка «разрешается», а записи нет) | `test_the_cheap_route_is_blind_to_this` |
+| 3. тест в обе стороны | `test_a_funded_unregistered_protocol_is_critical_and_named` (краснеет) ↔ `test_a_fully_registered_book_is_silent` (молчит); плюс fail-CLOSED: нечитаемый/отсутствующий реестр и нечитаемая книга ⇒ `unchecked`, а не «покрыто» | те же тесты |
+| «автоматически, а не при ручном разборе» | шаг 5 дневного цикла: `scripts/run_daily_paper_cycle.sh:171` вызывает `scripts/registry_coverage_check.py`, non-fatal по построению; закреплено `test_the_daily_cycle_actually_calls_it` и `test_the_step_cannot_break_the_cycle` | те же тесты |
+
+Прогоны сверки:
+
+```
+$ python3 -m pytest spa_core/tests/test_registry_coverage_watch.py -q
+24 passed in 0.85s
+
+$ python3 scripts/registry_coverage_check.py ; echo EXIT=$?
+[registry-coverage] OK: реестр покрывает все 7 профинансированных протоколов (запись есть, цепочка названа)
+EXIT=0
+```
+
+Кода не менял; сторож при прогоне ничего не записал (это же закреплено тестом).

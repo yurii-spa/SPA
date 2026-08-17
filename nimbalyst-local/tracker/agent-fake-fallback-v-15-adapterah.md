@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent-task
 title: "Подстановка выдуманного APY живёт ещё в 15 адаптерах — у 14 она доходит до оркестратора"
-status: backlog
+status: done
 source: session-2026-08-08-owner-answers
 created: 2026-08-08
 priority: high
@@ -165,3 +165,31 @@ get_apy подставляет литерал : 0
 `test_susde_fallback_apy_when_feed_unavailable`, `test_usdc_fallback_apy_is_8pct`,
 `test_apy_clamped_to_max`. Ни одна ветка кода не перестала проверяться — менялось ожидаемое
 значение с выдуманного на честное.
+
+---
+
+## 🔎 СВЕРКА 2026-08-17 (независимый прогон, не пересказ) → `done`
+
+Проверено кодом и прогоном, не по журналу и не по коммит-сообщению.
+
+1. **Храповик пуст в файле:** `spa_core/tests/adapter_fake_fallback_baseline.json` →
+   `"known_violators": []`.
+2. **Сторож зелёный и он не холостой:**
+   `python3 -m pytest spa_core/tests/test_adapter_no_fake_fallback.py -q` → `17 passed in 8.31s`.
+   Среди них `test_sweep_actually_probed_every_adapter` (замер состоялся: опрошены все 36 из 36),
+   `test_module_level_get_apy_twin_does_not_substitute`, `test_get_yield_info_carries_no_literal_in_any_shape`.
+3. **Свой независимый свип** (сеть физически убита — `urlopen`/`socket.socket`/`create_connection`
+   подменены на `OSError`, `data_dir` = пустой tmp, `feed.enabled = False`), по всем 36 адаптерам
+   `ADAPTER_REGISTRY`, поля `apy`/`apy_pct`/`apy_percent`/`current_apy`/`net_apy` у `get_yield_info()`:
+
+   ```
+   registry size 36
+   failures: []
+   apy leaks: []
+   ```
+
+   `failures: []` закрывает и п.2 карточки: `extra_finance_base.get_yield_info()` больше не падает
+   `AttributeError` (ни один адаптер не упал ни при конструировании, ни в `get_yield_info`).
+
+Пункт 3 карточки («не окажется ли кто-то полностью без наблюдения») — вопрос производителя данных,
+он вынесен отдельно (ADR-063) и предметом этой карточки не является. Кода не менял.

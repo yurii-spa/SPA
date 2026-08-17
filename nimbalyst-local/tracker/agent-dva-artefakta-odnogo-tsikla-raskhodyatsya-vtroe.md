@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent-task
 title: "Два артефакта одного цикла втрое расходятся в оценке потерь: 451 б.п. против 132 б.п."
-status: backlog
+status: done
 source: session-2026-08-08-owner-answers
 created: 2026-08-08
 priority: medium
@@ -41,3 +41,34 @@ tags: [observability, capital-efficiency, apy-honesty, adr-055]
 3. Закрепить тестом: два артефакта одного цикла обязаны сходиться по APY одного и того же пула.
 
 Капитал не двигается, поведение не меняется — это честность отчётности.
+
+---
+
+## 🔎 СВЕРКА 2026-08-17 (код + прогон) → `done`
+
+**Все три пункта «что сделать» закрыты в коде, проверено прогоном, не по журналу.**
+
+1. **Источник сведён к одному, и он назван.** `spa_core/monitoring/capital_efficiency.py`:
+   `_live_apys()` (строки 187–233) вместо голого числа возвращает четвёртым полем ВЕРДИКТ строки —
+   `observed` либо названную причину (`apy_unobserved:<source>` / `apy_row_stale:<age>h` /
+   `apy_row_undated`); признак наблюдения берётся из `OBSERVED_APY_SOURCES`
+   (`spa_core.adapters.apy_aggregator`), а не выдумывается локально. `_cycle_evidenced_apys()`
+   (строки 243–276) делает очную ставку с `apy_evidenced_pct` последней записи
+   `allocation_rationale_history.jsonl` — то есть ровно с тем артефактом, чьи числа разошлись.
+2. **Ответ на «не подмешивается ли reward-APY» — нет, подмешивался ЛИТЕРАЛ.** 22.5558 % у
+   `moonwell_base` пришли строкой рейтинга с меткой `fallback` (число, помеченное самим
+   производителем как НЕ наблюдение). Это зафиксировано положительным контролем
+   `test_a_literal_apy_may_not_price_idle_capital`: после починки `best_qualifying_apy_pct`
+   = 3.3051 (живой `aave_v3`), а литеральная комната названа
+   (`headroom_apy_unobserved` + `apy_unobserved:fallback` в `headroom_excluded`),
+   `0 < forgone_yield_bps_est < 100` вместо 451.
+3. **Храповик стоит:** `spa_core/tests/test_apy_one_observation_per_cycle.py` —
+   `test_two_artifacts_of_one_cycle_must_agree_about_a_pool` (дословные 4.77 % vs 3.31 %
+   ⇒ `apy_diverging_from_cycle == ["aave_v3"]`, `verdict == "UNKNOWN"`),
+   `test_end_to_end_one_snapshot_gives_both_artifacts_the_same_number` (сквозная проводка
+   `adapter_status` → рейтинг → тревога) + контроли в обратную сторону
+   (`test_agreement_within_rounding_noise_is_not_a_divergence`,
+   `test_a_stale_history_line_does_not_veto_a_fresh_ranking` — иначе «починкой» было бы вечное UNKNOWN).
+
+Прогон сверки: `python3 -m pytest spa_core/tests/test_apy_one_observation_per_cycle.py -q`
+→ `19 passed in 0.50s`. Кода не менял.

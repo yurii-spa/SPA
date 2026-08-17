@@ -1,6 +1,6 @@
 ---
 type: agent-task
-status: backlog
+status: done
 created: 2026-08-10
 ---
 
@@ -113,3 +113,36 @@ elif rep.entrypoint_files or rep.other_files:   # ← общее число, а 
 (в т.ч. «один синхронизируемый файл среди 303 → `WARNING` и назван»).
 Два существующих теста намеренно перенацелены — обоснование в теле и в
 `docs/journal/2026-W33.md` (инвариант #16). Не коммичено и не пушено.
+
+---
+
+## 🔎 СВЕРКА 2026-08-17 (код + прогон) → `done`
+
+Критерий карточки — «заголовок сторожа показывает `0` в нормальном состоянии, а не 303» —
+теперь выполняется ВЕРДИКТОМ, а не только текстом причин (именно на этом карточку закрыли рано 10.08).
+
+**Код.** `spa_core/monitoring/deployment_drift_monitor.py`:
+
+* `SYNCED_PREFIXES` — один именованный список синхронизируемых каталогов (строка 86),
+  `_is_synced()` (строка 95);
+* `rep.synced_other_files` / `rep.by_design_files` считаются раздельно (строки 349–350);
+* **вердикт** взят от значимого числа: `elif rep.entrypoint_files or rep.synced_other_files:
+  rep.status = WARNING` (строка 428) — прежняя редакция считала здесь `rep.other_files`, то есть
+  общее число, и на 303 нормальных расхождениях давала жёлтое навсегда;
+* норма не потеряна: она НАЗВАНА отдельной строкой причин (строки 396–405).
+
+**Прогон.** `python3 -m pytest spa_core/tests/test_drift_headline_separates_synced.py -q`
+→ `11 passed in 0.40s`. Ключевое — класс `TestTheVerdictItself`, который вызывает НАСТОЯЩИЙ
+`check_deployment_drift` (а не копию логики отбора, из-за чего старый тест зеленел на жёлтом сторо́же):
+
+* `test_drift_that_is_entirely_by_design_reads_green` — 303 расхождения (`data/` 166 +
+  `nimbalyst-local/` 117 + `docs/` 20) ⇒ `status == OK`, `by_design_files == 303`,
+  `synced_other_files == []`, и норма всё равно названа в `reasons`;
+* `test_one_synced_file_among_the_noise_turns_the_verdict` — те же 303 + один
+  `spa_core/monitoring/x.py` ⇒ `WARNING`, и файл НАЗВАН в причинах (ноль значит ноль, единица требует внимания);
+* `test_money_path_still_outranks_everything` — `spa_core/risk/policy.py` ⇒ `CRITICAL`
+  (правка заголовка не смягчила главный класс);
+* `test_synced_prefixes_are_a_single_named_constant` — две копии списка разошлись бы молча.
+
+Вторая половина карточки (четыре `launchd/*.plist`) разобрана 10.08 и дефектом не является.
+Кода не менял.
