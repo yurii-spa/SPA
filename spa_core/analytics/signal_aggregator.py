@@ -130,6 +130,28 @@ _SCORE_KEYS = (
     "capital_efficiency_score",
 )
 
+# Общий словарь «ярлык риска → score 0-100» (выше = опаснее). Был локальной
+# переменной внутри ``_ModuleAdapter._coerce_score``; поднят на уровень модуля
+# без изменения значений (цикл #143), чтобы у словаря было ОДНО имя и один
+# владелец: модуль, переводящий собственный вердикт в общий ярлык, обязан
+# читать те же якоря, а не заводить рядом свою копию (класс «одно имя — один
+# объект», .claude/rules/adapters.md). Ветка label_map в ``_coerce_score``
+# использует ИМЕННО этот словарь.
+LABEL_SCORE_MAP: Dict[str, float] = {
+    "NEGLIGIBLE": 5.0, "LOW": 20.0, "MODERATE": 45.0,
+    "MEDIUM": 50.0, "ELEVATED": 60.0, "HIGH": 78.0,
+    "SEVERE": 88.0, "CRITICAL": 95.0,
+    # Tier-C метки
+    "AVOID": 10.0, "STRONG_AVOID": 5.0, "STRONG AVOID": 5.0,
+    "NEUTRAL": 50.0, "ACCEPTABLE": 30.0, "GOOD": 25.0,
+    "STRONG": 20.0, "EXCELLENT": 10.0,
+    "HEALTHY_ZONE": 15.0, "HEALTHY": 15.0,
+    "MINIMAL_OVERHANG": 10.0, "MODERATE_OVERHANG": 50.0,
+    "HIGH_OVERHANG": 75.0, "EXTREME_OVERHANG": 90.0,
+    "SAFE": 10.0, "UNSAFE": 75.0, "BORDERLINE": 55.0,
+    "PASS": 10.0, "FAIL": 80.0, "WARNING": 60.0,
+}
+
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -288,24 +310,19 @@ class _ModuleAdapter:
                 if 0.0 <= v <= 1.0 and key == "risk":
                     return max(0.0, min(100.0, v * 100.0))
                 return max(0.0, min(100.0, v))
-            # risk_label → числовая шкала (расширена для Tier-C меток, fix MP-1305)
+            # risk_label → числовая шкала (расширена для Tier-C меток, fix MP-1305).
+            #
+            # ВНИМАНИЕ (замер #143): эта ветка возвращает номер ЯРЛЫКА и тем
+            # самым выбрасывает измерение, если модуль его сделал. Ярлык грубый
+            # (SAFE один на все протоколы), поэтому модуль, который РАЗЛИЧИЛ
+            # протоколы своей собственной величиной, снаружи выглядит
+            # константой и попадает в разметку слепоты. Лечится НЕ здесь:
+            # семантику своей величины знает только модуль, и он обязан отдать
+            # число сам (ключ ``risk_score`` — он проверяется выше). Агрегатор
+            # придумать его не может и не пытается: см. ``_label_band.py``.
             label = str(result.get("risk_label") or result.get("label") or "").upper()
-            label_map = {
-                "NEGLIGIBLE": 5.0, "LOW": 20.0, "MODERATE": 45.0,
-                "MEDIUM": 50.0, "ELEVATED": 60.0, "HIGH": 78.0,
-                "SEVERE": 88.0, "CRITICAL": 95.0,
-                # Tier-C метки
-                "AVOID": 10.0, "STRONG_AVOID": 5.0, "STRONG AVOID": 5.0,
-                "NEUTRAL": 50.0, "ACCEPTABLE": 30.0, "GOOD": 25.0,
-                "STRONG": 20.0, "EXCELLENT": 10.0,
-                "HEALTHY_ZONE": 15.0, "HEALTHY": 15.0,
-                "MINIMAL_OVERHANG": 10.0, "MODERATE_OVERHANG": 50.0,
-                "HIGH_OVERHANG": 75.0, "EXTREME_OVERHANG": 90.0,
-                "SAFE": 10.0, "UNSAFE": 75.0, "BORDERLINE": 55.0,
-                "PASS": 10.0, "FAIL": 80.0, "WARNING": 60.0,
-            }
-            if label in label_map:
-                return label_map[label]
+            if label in LABEL_SCORE_MAP:
+                return LABEL_SCORE_MAP[label]
             # Fallback: сканируем dict на любой ключ вида *_score (fix MP-1305).
             # Tier-C модули возвращают разнородные score-поля — берём первый найденный.
             for k, v in result.items():

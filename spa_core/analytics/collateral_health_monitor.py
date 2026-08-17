@@ -167,9 +167,40 @@ def analyze(positions: list, config: dict | None = None) -> dict:
                        str(_row.get("status", "")).upper())
         if _shared is None:
             return None
-        return {"risk_label": _shared, "protocol": _ctx_profile["name"],
+        # Замер #143: одного ярлыка НЕ ХВАТАЕТ. Движок различил протоколы
+        # (buffer_pct 56.25 у заёмных против 100.0 у беззаёмных), но все они
+        # получают вердикт "SAFE", а ветка label_map агрегатора возвращает
+        # якорь ярлыка — 10.0 на всех. Измерение доезжало до `detail` и там
+        # умирало, а модуль снаружи выглядел протокол-слепым.
+        #
+        # Отдаём число САМИ: смысл `buffer_pct` (сколько головы до порога
+        # ликвидации, больше = безопаснее) знает только этот модуль. Число
+        # кладётся ВНУТРЬ полосы собственного вердикта, поэтому со «SAFE»
+        # оно разойтись не может; пороги берём те же, что у движка.
+        _out = {"risk_label": _shared, "protocol": _ctx_profile["name"],
                 "detail": _row, "facts_source": _pf.FACTS_SOURCE,
                 "facts_as_of": _pf.FACTS_AS_OF}
+        _buf = float(_row.get("buffer_pct", 0.0))
+        _warn = DEFAULT_WARNING_BUFFER_PCT
+        _danger = DEFAULT_DANGER_BUFFER_PCT
+        if _shared == "SAFE":            # buffer ∈ [_warn, 100]
+            _pos = ((100.0 - _buf) / (100.0 - _warn)
+                    if 100.0 > _warn else 1.0)
+        elif _shared == "WARNING":       # buffer ∈ [_danger, _warn)
+            _pos = ((_warn - _buf) / (_warn - _danger)
+                    if _warn > _danger else 1.0)
+        elif _shared == "SEVERE":        # buffer ∈ [0, _danger)
+            _pos = (_danger - _buf) / _danger if _danger > 0 else 1.0
+        else:                            # CRITICAL — buffer уже 0
+            _pos = 1.0
+        from spa_core.analytics._label_band import band_score
+        _score = band_score(_shared, _pos,
+                            ("SAFE", "WARNING", "SEVERE", "CRITICAL"))
+        # Не посчиталось → остаёмся на одном ярлыке, как раньше: пустого
+        # места вместо числа быть не должно, выдуманного числа — тоже.
+        if _score is not None:
+            _out["risk_score"] = _score
+        return _out
     cfg = _resolve_config(config)
     warn_pct = cfg["warning_buffer_pct"]
     danger_pct = cfg["danger_buffer_pct"]

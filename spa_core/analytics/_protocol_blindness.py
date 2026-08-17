@@ -5,7 +5,7 @@ _protocol_blindness.py — эмпирическая разметка прото�
 перегенерация: python3 scripts/audit_protocol_blindness.py --emit-markup
 (в sandbox-чекауте, не в живом репо — модули пишут data/*-логи).
 
-Дифференциальный аудит 2026-08-17T18:31:22.641178Z: каждый Tier-B модуль прогнан для
+Дифференциальный аудит 2026-08-17T19:20:18.403861Z: каждый Tier-B модуль прогнан для
 ['aave_v3', 'maple', 'pendle'] + повтор aave_v3 (недетерминизм) + контрольный
 несуществующий протокол; trio-слепые дополнительно прогнаны по ВСЕЙ
 вселенной _protocol_facts (волна 2, задача A2). Модули PROTOCOL_BLIND_DETAIL
@@ -20,11 +20,10 @@ WIDE_OK_MODULES — модули, равные на аудиторской тр�
 """
 from typing import Dict, FrozenSet
 
-AUDIT_GENERATED_AT = "2026-08-17T18:31:22.641178Z"
+AUDIT_GENERATED_AT = "2026-08-17T19:20:18.403861Z"
 
 # module_name -> подтип (blind_constant | blind_equal | nondeterministic)
 PROTOCOL_BLIND_DETAIL: Dict[str, str] = {
-    "collateral_health_monitor": "blind_equal",
     "defi_correlation_risk_analyzer": "blind_equal",
     "defi_cross_chain_yield_comparator": "blind_equal",
     "defi_governance_token_utility_scorer": "blind_equal",
@@ -198,7 +197,6 @@ PROTOCOL_BLIND_MODULES: FrozenSet[str] = frozenset(PROTOCOL_BLIND_DETAIL)
 WIDE_OK_MODULES: FrozenSet[str] = frozenset({
     "bridge_risk_assessor",
     "chain_concentration",
-    "defi_collateral_health_monitor",
     "defi_protocol_vault_gas_breakeven_analyzer",
     "defi_protocol_vault_management_fee_accrual_analyzer",
     "defi_protocol_vault_performance_fee_gross_of_early_withdrawal_penalty_base_gap_analyzer",

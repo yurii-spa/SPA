@@ -166,9 +166,39 @@ def analyze(positions: list, config: dict = None) -> dict:
                        str(_row.get("health_status", "")).upper())
         if _shared is None:
             return None
-        return {"risk_label": _shared, "protocol": _ctx_profile["name"],
+        # Замер #143 (этот модуль — ЖИВОЙ, в разметке слепоты его нет):
+        # health_factor различается по протоколам (2.29 у заёмных против inf
+        # у беззаёмных), но вердикт у всех "SAFE", и ветка label_map отдавала
+        # 10.0 на все восемь протоколов. То есть в composite Tier-B каждый
+        # час уходила константа, названная измерением.
+        #
+        # Число отдаём сами: смысл health_factor (больше = безопаснее) знает
+        # этот модуль. Внутри полосы своего вердикта — противоречить "SAFE"
+        # оно не может. Пороги — те же, что у _health_status.
+        _out = {"risk_label": _shared, "protocol": _ctx_profile["name"],
                 "detail": _row, "facts_source": _pf.FACTS_SOURCE,
                 "facts_as_of": _pf.FACTS_AS_OF}
+        _hf = float(_row.get("health_factor", 0.0))
+        _safe_hf = _DEFAULT_SAFE_HF
+        if _shared == "SAFE":
+            # hf > safe_hf, сверху не ограничен (нет долга → inf). Нормируем
+            # ограниченным отношением safe_hf/hf: hf=safe_hf → опасный край
+            # полосы, hf→inf → безопасный. Ни одной подобранной константы.
+            _pos = (0.0 if (math.isinf(_hf) or _hf <= 0.0)
+                    else min(1.0, _safe_hf / _hf))
+        elif _shared == "WARNING":       # 1.25 < hf <= safe_hf
+            _pos = ((_safe_hf - _hf) / (_safe_hf - 1.25)
+                    if _safe_hf > 1.25 else 1.0)
+        elif _shared == "SEVERE":        # 1.1 < hf <= 1.25
+            _pos = (1.25 - _hf) / (1.25 - 1.1)
+        else:                            # CRITICAL / LIQUIDATABLE — hf <= 1.1
+            _pos = 1.0
+        from spa_core.analytics._label_band import band_score
+        _score = band_score(_shared, _pos,
+                            ("SAFE", "WARNING", "SEVERE", "CRITICAL"))
+        if _score is not None:
+            _out["risk_score"] = _score
+        return _out
     cfg = config or {}
     safe_hf = float(cfg.get("safe_health_factor", _DEFAULT_SAFE_HF))
 
