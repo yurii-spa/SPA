@@ -514,7 +514,13 @@ def cmd_set_status(args) -> int:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
     print(f"OK: {args.path} -> status: {args.status}")
-    _rebuild_board()
+    # Пересобирать доску ТОГО трекера, в котором лежит изменённая карточка, а не трекер
+    # своего дерева. `set-status` принимает ПУТЬ к карточке — он может указывать в соседнее
+    # дерево (worktree-протокол §3.4, ровно та же ловушка, что закрыта в `cmd_create`
+    # предупреждением `_warn_if_foreign_tree`). Без этого статус менялся в одном дереве, а
+    # доска пересобиралась в другом: карточка становилась `done`, а доска продолжала звать
+    # её `new` — замер 17.08, три расхождения на 508 карточек, дважды взята закрытая работа.
+    _rebuild_board(tracker_dir=Path(args.path).resolve().parent)
     return 0
 
 

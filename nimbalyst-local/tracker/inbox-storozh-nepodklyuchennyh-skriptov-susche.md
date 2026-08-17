@@ -2,10 +2,24 @@
 trackerStatus:
   type: inbox
 title: Сторож неподключённых скриптов существует в двух реализациях — свести, ничего не потеряв
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-17
 ---
+
+> **ЗАКРЫТО 2026-08-17 — посылка мертва, сведение уже сделано (коммит `d3043e474`).**
+> Проверено ЧТЕНИЕМ КОДА и ПРОГОНОМ, не журналом. В одном `spa_core/tests/_unwired.py` живут
+> обе стороны: `wiring_patterns` (пять форм с границами слова с обеих сторон) · `is_wiring`
+> (строгий суд однофамильца + дешёвая отсечка первой строкой) · `imported_modules` (разбор
+> `ast`) · `file_references` (четыре формы) · `protocol_commanded_scripts` ·
+> `generated_artifact_scripts` · `_docstring_spans` с пересчётом байтовых колонок в
+> символьные. Припаркованный `spa_core/tests/test_unwired_wiring_forms.py` в дереве и зелён.
+> Оба движка стоят рядом, их согласие закреплено тестом (`scripts_without_caller` против
+> `scripts_without_caller_by_patterns`). Приёмка — все восемь файлов набора разом:
+> **117 passed in 229.82s**. База только уменьшалась (`unwired_scripts_baseline.json`:
+> 54 → 51 + отдельный раздел `revealed_by_stricter_detector` из 7 имён; 17.08 ушли
+> `adr_number` и `dfb_perf_budget` как ИЗМЕРЕННО подключённые).
+> Не тронуто ничего: карточка закрыта доказательством, а не работой.
 
 ## Что случилось
 

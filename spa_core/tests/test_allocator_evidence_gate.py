@@ -144,9 +144,46 @@ def test_advisory_adapter_cannot_be_funded() -> None:
 
 
 def test_sky_susds_gsm_gate_is_consulted() -> None:
-    """Invariant 10 — Sky/sUSDS stays at 0 % until the GSM delay is confirmed."""
+    """D4 — an adapter whose own GSM gate says False must not be funded.
+
+    The subject is ``spark_susds`` and ONLY it: that adapter's
+    ``is_gsm_compliant()`` reads its own observation file and is False today.
+
+    NOT a statement about ADR-065 (Sky/sUSDS promoted to T1 after the 48 h GSM
+    Pause Delay was observed on-chain): ``sky_susds`` is a DIFFERENT name and it
+    has no class in ``ADAPTER_REGISTRY`` at all, so this gate never even looks at
+    it — ``_adapter_class_gate("sky_susds")`` is allowed by the "no class" branch,
+    not by a confirmed delay. Reading this test as "Sky is pinned to 0 %" is what
+    produced the false report `inbox-test-gsm-sky-prikolochen-k-do-adr-065-so`.
+    The confirmed-delay half of the ladder is pinned by the test below, on an
+    injected class, because no registered adapter reports True today.
+    """
     allowed, reason = _adapter_class_gate("spark_susds")
     assert allowed is False and reason == "gsm_not_confirmed"
+
+
+def test_confirmed_gsm_delay_does_not_block_funding(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """The other side of the same ladder: gate consulted ⇒ True must PASS.
+
+    Without this, ``gsm_not_confirmed`` could be returned unconditionally and the
+    suite would stay green — the gate would be a permanent lock rather than a
+    threshold, which is exactly the failure ADR-065 described for the producer
+    that wrote ``gsm_hours: null`` on every run.
+
+    Injected class, not a live adapter: pinning the True side on real data would
+    make the test a reader of ``data/`` and it would flip with the feed.
+    """
+    class _Confirmed:
+        IS_ADVISORY = False
+
+        def is_gsm_compliant(self) -> bool:
+            return True
+
+    import spa_core.adapters as adapters_pkg
+    monkeypatch.setattr(adapters_pkg, "ADAPTER_REGISTRY",
+                        [("confirmed", "T1", _Confirmed)], raising=True)
+    assert _adapter_class_gate("confirmed") == (True, None)
 
 
 def test_generic_apy_band_is_not_a_funding_gate() -> None:

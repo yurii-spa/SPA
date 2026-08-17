@@ -2,12 +2,32 @@
 trackerStatus:
   type: inbox
 title: Маячок бота объявляет ОДНУ способность, а решает за ДВЕ — найдено #194, не чинил
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-10
 priority: low
 domain: телеграм / интерлок ADR-069
 ---
+
+> **ЗАКРЫТО 2026-08-17 — посылка мертва: предложенный переходный порядок уже стоит в коде.**
+> Проверено чтением кода и прогоном. `spa_core/telegram/alert_actions.py`: рядом с
+> `CAPABILITY = "alert_actions"` объявлена вторая способность
+> `CAPABILITY_OWNER_DECISIONS = "owner_decisions"`, маячок публикует ОБЕ
+> (`CAPABILITIES = (CAPABILITY, CAPABILITY_OWNER_DECISIONS)` → поле `capabilities` в
+> `data/telegram_bot_capabilities.json`), а отправитель решений принимает «или»:
+> `OWNER_DECISIONS_ACCEPTED = (CAPABILITY_OWNER_DECISIONS, CAPABILITY)` и
+> `spa_core/telegram/owner_decisions.py:722-725` зовёт `handler_available(...,
+> accepted=OWNER_DECISIONS_ACCEPTED)`. То есть окна без кнопок не возникает — ровно то,
+> что карточка предлагала.
+> Вторая половина «или» СНЯТА БЫТЬ ЕЩЁ НЕ МОЖЕТ (прод-бот — долгожитель и объявляет старый
+> набор до перезапуска владельцем), и это держится тестом:
+> `spa_core/tests/test_owner_decisions_beacon.py:120` — `assert aa.CAPABILITY in
+> aa.OWNER_DECISIONS_ACCEPTED, "вторая половина «или» ещё нужна"`.
+> Приёмка: `pytest spa_core/tests/test_owner_decisions_beacon.py -q` → **8 passed in 0.27s**.
+> Остаток — не код: перезапуск долгоживущего бота и снятие «или» после него. Это действие
+> владельца (правило доставки, п. 6) и живёт в карточке
+> `agent-dolgozhivuschie-agenty-krutyat-staryi-kod`; новой карточки не завожу, чтобы не
+> плодить дубль.
 
 ## Что нашёл
 
