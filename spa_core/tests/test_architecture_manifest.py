@@ -21,12 +21,15 @@ from __future__ import annotations
 
 import glob
 import importlib.util
+import inspect
 import json
 import os
 import plistlib
 import subprocess
 import sys
+import tempfile
 import unittest
+from unittest import mock
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 GEN_PATH = os.path.join(REPO_ROOT, "scripts", "build_architecture_manifest.py")
@@ -374,6 +377,20 @@ class RepoPlistNotDeliveredHere(unittest.TestCase):
         os.makedirs(os.path.dirname(self.manifest_path))
         self.registry_path = os.path.join(self.root, "no_registry.json")
 
+        # ПУСТОЙ git-конфиг — СВОЙ файл, а не `os.devnull`.
+        # Цикл #278: в облачном контейнере `/dev/null` — ОБЫЧНЫЙ файл, и любое
+        # постороннее `команда >/dev/null` в него ДОПИСЫВАЕТ. Тогда
+        # `GIT_CONFIG_GLOBAL=os.devnull` отдаёт git мусор, и он падает на
+        # `fatal: bad config line 1 in file /dev/null` — десять тестов этого
+        # класса краснели по причине, не имеющей отношения к манифесту.
+        # Герметичность обязана обеспечиваться СВОИМ файлом; лежит вне
+        # `self.root`, иначе `git add -A` внёс бы его в измеряемое дерево.
+        cfgdir = tempfile.TemporaryDirectory()
+        self.addCleanup(cfgdir.cleanup)
+        self.empty_gitconfig = os.path.join(cfgdir.name, "empty.gitconfig")
+        with open(self.empty_gitconfig, "w", encoding="utf-8"):
+            pass
+
         # `_scan_plists` строит `repo:<путь>` относительно gen.REPO_ROOT — чтобы
         # получить ровно ту форму, что в проде, корень на время теста наш.
         self._orig_root, self._orig_la = gen.REPO_ROOT, gen.LAUNCH_AGENTS_DIR
@@ -396,8 +413,8 @@ class RepoPlistNotDeliveredHere(unittest.TestCase):
         return m
 
     def _git(self, *args):
-        env = dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull,
-                   GIT_CONFIG_SYSTEM=os.devnull,
+        env = dict(os.environ, GIT_CONFIG_GLOBAL=self.empty_gitconfig,
+                   GIT_CONFIG_SYSTEM=self.empty_gitconfig,
                    GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@example.com",
                    GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@example.com")
         return subprocess.run(["git", *args], cwd=self.root, env=env,
@@ -561,6 +578,69 @@ class RepoPlistNotDeliveredHere(unittest.TestCase):
         self.assertEqual(gen.main(argv), 1)
         self._commit_all("удалили по-настоящему")
         self.assertEqual(gen.main(argv), 2)
+
+
+class DevNullMayBeAnOrdinaryFile(unittest.TestCase):
+    """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ к аварии 17.08 (цикл #278).
+
+    В облачном контейнере `/dev/null` — обычный файл, а не устройство:
+
+        python3 -c "import os,stat; m=os.stat('/dev/null'); \
+                    print(stat.S_ISCHR(m.st_mode), m.st_size)"
+        # False 48   ← обычный файл с накопленным мусором
+
+    Поэтому любое постороннее `команда >/dev/null` в него ДОПИСЫВАЕТ, а
+    `GIT_CONFIG_GLOBAL=os.devnull` перестаёт означать «пустой конфиг»: git
+    падает на `fatal: bad config line 1 in file /dev/null`, и десять тестов
+    `RepoPlistNotDeliveredHere` краснеют по причине, не имеющей отношения к
+    манифесту (замер 17.08: 10 падений, после `: > /dev/null` — 40 passed).
+
+    Контроль НЕ трогает настоящий `/dev/null`: он подменяет `os.devnull`
+    файлом-мусором и прогоняет самый инцидентный тест класса. На коде до
+    починки (`GIT_CONFIG_GLOBAL=os.devnull`) он КРАСНЫЙ, после — зелёный.
+    """
+
+    JUNK = "/bin/bash: line 1: unalias: unsetenv: not found\n"
+
+    def _run_one(self, name):
+        res = unittest.TestResult()
+        RepoPlistNotDeliveredHere(name).run(res)
+        return res
+
+    def test_polluted_devnull_does_not_break_the_manifest_tests(self):
+        with tempfile.TemporaryDirectory() as d:
+            junk = os.path.join(d, "not-really-devnull")
+            with open(junk, "w", encoding="utf-8") as f:
+                f.write(self.JUNK)
+            with mock.patch.object(os, "devnull", junk):
+                res = self._run_one("test_missing_here_but_present_on_ref_is_not_drift")
+        self.assertEqual(
+            (len(res.errors), len(res.failures)), (0, 0),
+            "герметичность класса обязана держаться СВОИМ пустым конфигом, а не "
+            "os.devnull: " + "".join(t for _, t in res.errors + res.failures))
+
+    def test_control_the_junk_really_breaks_git(self):
+        """Обратный контроль: мусор в конфиге git ДЕЙСТВИТЕЛЬНО валит git.
+
+        Без него предыдущий тест мог бы быть зелёным потому, что подмена
+        безобидна, а не потому, что починка работает.
+        """
+        with tempfile.TemporaryDirectory() as d:
+            junk = os.path.join(d, "junk.gitconfig")
+            with open(junk, "w", encoding="utf-8") as f:
+                f.write(self.JUNK)
+            repo = os.path.join(d, "repo")
+            os.makedirs(repo)
+            r = subprocess.run(
+                ["git", "init", "-q"], cwd=repo, capture_output=True, text=True,
+                env=dict(os.environ, GIT_CONFIG_GLOBAL=junk, GIT_CONFIG_SYSTEM=junk))
+        self.assertNotEqual(r.returncode, 0, "мусорный git-конфиг обязан валить git")
+        self.assertIn("bad config", (r.stderr or "").lower())
+
+    def test_helper_does_not_reach_for_os_devnull(self):
+        """Структурный дубль: `_git` не смеет брать конфиг из `os.devnull`."""
+        src = inspect.getsource(RepoPlistNotDeliveredHere._git)
+        self.assertNotIn("devnull", src)
 
 
 class RealManifest(unittest.TestCase):

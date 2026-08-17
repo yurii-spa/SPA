@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent
 title: Манифест архитектуры не знает об агенте morning_digest — тест красный на origin
-status: backlog
+status: done
 source: session-2026-08-06 (найдено при полном прогоне)
 created: 2026-08-06
 priority: medium
@@ -83,3 +83,35 @@ DRIFT: com.spa.morning_digest: program     None → 'agent_morning_digest.sh'
 **Теперь эта карточка покрывает также** схлопнутую в неё (кластер К4):
 `inbox-nahodka-petli-manifest-fakty-manifest-ch` — находка петли ADR-066 того же дрейфа
 (`B5:drift:manifest --check вернул дрейф`).
+
+---
+
+## Разбор цикла #278 (2026-08-17) — посылка МЕРТВА, закрыто доказательством
+
+Проверено чтением артефакта и прогоном генератора, не по журналу.
+
+1. **Запись в манифесте ЕСТЬ.** `architecture/manifest.json` содержит
+   `com.spa.morning_digest` (`intent: retired`, `layer: product`, `curation: partial`,
+   механические поля `null`). Невидимости, о которой карточка, больше нет.
+2. **Механические поля `null` здесь ЗАКОННЫ, а не дрейф.**Плиста
+   `com.spa.morning_digest.plist` в репозитории НЕТ ни в `launchd/`, ни в `scripts/`
+   (есть только `scripts/agent_morning_digest.sh`). То есть источника, из которого
+   карточка ждала `repo:launchd/com.spa.morning_digest.plist`, `calendar:09:00`,
+   `agent_morning_digest.sh`, в дереве не существует — подставить их было бы
+   выдумкой, а не починкой.
+3. **Замер генератором** (`build_architecture_manifest.measure` по `launchd/` +
+   `scripts/`): в `drift` **ни одной** строки `com.spa.morning_digest`
+   (`[x for x in drift if 'morning_digest' in x] == []`). Прочие 162 строки дрейфа —
+   известный шум Linux-хоста: `~/Library/LaunchAgents` здесь не существует, поэтому
+   каждый `plist_source launch_agents → repo:…` ложен по построению; к этой карточке
+   он отношения не имеет.
+4. `spa_core/tests/test_architecture_manifest.py` — **43 passed, 1 skipped**;
+   единственный skip — `test_generator_check_passes_on_this_machine_or_skips`
+   («не прод-хост»), тот самый тест, который карточка называла красным. На Linux он
+   по устройству пропускается, поэтому вердикт выше опирается на ПРЯМОЙ замер
+   генератора (п. 3), а не на его молчание.
+
+Чего НЕ сделано и почему: замер #150 в этой же карточке («манифест 92 агента против
+флота 77») — ДРУГАЯ находка, про причину записи манифеста, и она требует прод-хоста.
+Сегодня агентов в манифесте 89. Если этот класс нужен как задача — он заслуживает
+своей карточки, а не хвоста у закрытой.

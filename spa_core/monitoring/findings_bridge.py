@@ -20,7 +20,13 @@
                лишь `new`, и вопрос владельца не закрывался никогда); взятую
                в работу не трогаем. Закрытие уведомлённой карточки уходит
                владельцу ОТЗЫВОМ — снимать вопрос молча нельзя;
-  эскалация    WARN→CRITICAL по тому же ключу = новая карточка needs-owner.
+  эскалация    WARN→CRITICAL по тому же ключу = новая карточка needs-owner;
+  карточку закрыли РУКАМИ  запись состояния перестаёт врать, что карточка открыта:
+               `open_cards` её не считает, а сама запись НАЗВАНА отдельным разделом
+               отчёта (`cards_closed_outside_bridge`). Что делать дальше — принять
+               «человек взял на себя», сбросить гистерезис или гибрид со сроком —
+               РЕШЕНИЕ ВЛАДЕЛЬЦА (карточка `inbox-kartochku-mosta-zakryli-rukami-zhivaya-n`),
+               и мост его не подменяет: он молчать перестал, воскрешать не начал.
 
 Маршрутизация: CRITICAL → owner-decision (формат §2.4, 4 секции, по-русски)
 + Telegram-notify; WARN → inbox (agent-backlog). Всё — ТОЛЬКО через
@@ -354,6 +360,38 @@ def card_is_untouched(card_path: str) -> bool:
     return False
 
 
+def card_liveness(card_path: str | None) -> tuple[str, str]:
+    """Жива ли карточка, на которую ссылается запись состояния: `(вердикт, причина)`.
+
+    Мост закрывает карточку только САМ (`close_card`), и до цикла #278 из этого молча
+    следовало, что иначе она закрыться не может. Может: карточку закрывают РУКАМИ —
+    так 16.08 три находки петли схлопнули в корневые. После этого запись состояния
+    остаётся `carded` НАВСЕГДА (`_reconcile_with_tracker` умеет только восстанавливать
+    запись по ОТКРЫТОЙ карточке, а `needs_card` требует `observed`): находка живёт в
+    отчёте источника каждый такт, карточки нет, новая не родится никогда, а
+    `open_cards` считает работу, которой не существует. Направление ошибки — в сторону
+    ТИШИНЫ, тот же класс, что fail-OPEN #29.
+
+    Три вердикта, потому что «не измерено» — не то же самое, что «закрыта»:
+
+    * `open` — файл на диске и статус открытый (`OPEN_CARD_STATUSES`);
+    * `gone` — файла НЕТ либо статус закрытый: карточку закрыли мимо моста;
+    * `unmeasured` — путь не назван, файла не прочесть или статуса нет. Судить нечем,
+      и по fail-CLOSED такая запись продолжает считаться ОТКРЫТОЙ: занизить
+      `open_cards` по нечитаемому файлу значило бы заменить одну тихую неправду другой.
+    """
+    if not card_path:
+        return "unmeasured", "запись состояния не называет файл карточки — судить не о чем"
+    if not os.path.exists(card_path):
+        return "gone", "файла карточки нет на диске — её закрыли мимо моста (удалили/схлопнули)"
+    status = card_status(card_path)
+    if status is None:
+        return "unmeasured", "frontmatter карточки не разобран — статус НЕ ИЗМЕРЕН"
+    if status in OPEN_CARD_STATUSES:
+        return "open", f"карточка открыта (status: {status})"
+    return "gone", f"карточку закрыли мимо моста (status: {status})"
+
+
 def close_card(root: str, card_path: str) -> bool:
     """Закрыть ТОЛЬКО нетронутую карточку моста. Взятую в работу не трогаем."""
     if not card_is_untouched(card_path):
@@ -597,6 +635,41 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
         elif entry.get("status") == "observed":
             del st_findings[key]  # мигнула и исчезла — гистерезис отработал
 
+    # Карточка могла закрыться МИМО моста (человек схлопнул её в корневую или удалил).
+    # Запись состояния об этом не узнаёт никогда, поэтому проверяем реальность здесь —
+    # ПОСЛЕ обоих циклов, чтобы карточки, закрытые самим мостом в этом же прогоне, уже
+    # не числились `carded` и не попали сюда вторым именем.
+    orphaned: list[dict] = []
+    liveness_unmeasured: list[dict] = []
+    for key in sorted(st_findings):
+        entry = st_findings[key]
+        if entry.get("status") != "carded":
+            entry.pop("card_gone_at", None)
+            entry.pop("card_gone_reason", None)
+            continue
+        verdict, reason = card_liveness(entry.get("card"))
+        if verdict == "open":
+            entry.pop("card_gone_at", None)
+            entry.pop("card_gone_reason", None)
+            continue
+        row = {"key": key, "card": entry.get("card"), "source": entry.get("source"),
+               "severity": entry.get("severity"),
+               # Главное для читателя отчёта: находка ВСЁ ЕЩЁ в отчёте источника,
+               # а карточки под неё больше нет — и новая не родится.
+               "finding_still_reported": key in current, "reason": reason}
+        if verdict == "unmeasured":
+            liveness_unmeasured.append(row)
+            continue
+        entry["card_gone_at"] = entry.get("card_gone_at") or now.isoformat()
+        entry["card_gone_reason"] = reason
+        row["card_gone_at"] = entry["card_gone_at"]
+        orphaned.append(row)
+    # Запись НЕ двигается ни в `observed`, ни в терминальный статус: воскрешать
+    # схлопнутую человеком карточку или считать её закрытой навсегда — это ПОЛИТИКА,
+    # и выбирать её за владельца мост не смеет. Здесь закрыт только тот дефект,
+    # который неверен при ЛЮБОМ прочтении: механизм молчал о собственной слепоте.
+    gone_keys = {r["key"] for r in orphaned}
+
     daily[today] = created_today
     # Последний метр: карточка, рождённая в прод-дереве, на origin не попадает
     # НИКОГДА (замер цикла #170: из рождённых в рантайме доставлено 0 из 4), а
@@ -614,7 +687,13 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
               # которого не видно в отчёте, ничем не отличается от бага.
               "closing_held_open": held_open, "source_states": source_states,
               "sources_unread": unread, "reconciled_from_tracker": reconciled,
-              "open_cards": sum(1 for e in st_findings.values() if e.get("status") == "carded"),
+              # Записи, чья карточка закрылась МИМО моста, названы поимённо, а не
+              # растворены в счётчике: невидимое расхождение с реальностью — тот же
+              # дефект, что молчаливое воздержание выше.
+              "cards_closed_outside_bridge": orphaned,
+              "cards_liveness_unmeasured": liveness_unmeasured,
+              "open_cards": sum(1 for k, e in st_findings.items()
+                                if e.get("status") == "carded" and k not in gone_keys),
               "rate_limit": {"max_per_day": MAX_CARDS_PER_DAY, "used_today": created_today}}
 
     from spa_core.utils.atomic import atomic_save
@@ -688,6 +767,16 @@ def main(argv=None) -> int:
     for h in r.get("closing_held_open") or []:
         name = os.path.basename(h["card"]) if h.get("card") else h["key"]
         print(f"  ⏸ НЕ закрыта {name}: {h['reason']}")
+    for h in r.get("cards_closed_outside_bridge") or []:
+        name = os.path.basename(h["card"]) if h.get("card") else "(файл не назван)"
+        alive = ("находка ЖИВА в отчёте источника" if h.get("finding_still_reported")
+                 else "находки в отчёте источника сейчас нет")
+        print(f"  🪧 карточки НЕТ, а запись держит «оформлена»: {h['key']} ({name}) — "
+              f"{h['reason']}; {alive}. Новая карточка НЕ родится; как правильно — "
+              f"решение владельца (inbox-kartochku-mosta-zakryli-rukami-zhivaya-n)")
+    for h in r.get("cards_liveness_unmeasured") or []:
+        print(f"  ❓ судьба карточки НЕ ИЗМЕРЕНА: {h['key']} — {h['reason']}; "
+              f"считаем её открытой (fail-CLOSED)")
     for src, st in sorted((r.get("source_states") or {}).items()):
         if not st.get("closing"):
             print(f"  🔇 источник {src} не закрывает карточки: {st.get('reason')}")
