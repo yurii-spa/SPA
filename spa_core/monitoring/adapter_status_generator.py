@@ -97,6 +97,64 @@ _CANONICAL_UNDERLYING: dict[tuple[str, str], str] = {
     ("ethereum",   "USDS"): "0xdc035d45d973e3ec169d2276ddab16f1e407384f",
 }
 
+# ── Заявленная личность инструмента (agent-spark-susds-identity-split) ──────
+#
+# Ключ реестра называет ПРОТОКОЛ; адаптер под ним называет КОНТРАКТ. Пока эти
+# два уровня нигде не сводились, два разных ключа могли молча описывать один и
+# тот же инструмент — а совпадение по нечёткой подсказке уводило один из них на
+# ТРЕТИЙ, чужой продукт.
+#
+# Замеренный случай (второй проход фидов 2026-08-05, карточка
+# agent-spark-susds-identity-split):
+#
+#   • адаптер ``spark_susds`` объявляет VAULT_ADDRESS = 0xa393…7fbD — это токен
+#     sUSDS, сберегательное хранилище Sky;
+#   • тот же инструмент уже закреплён по UUID под ключом ``sky_susds``
+#     (пул d8c4eff5…, Ethereum / sky-lending / SUSDS);
+#   • а подсказка ``spark_susds`` = (spark, USDS, Ethereum) резолвится в
+#     СОВЕРШЕННО другой продукт — кредитный рынок SparkLend USDS
+#     (пул 54e9b138…, $543M @ 3.11 %), у которого свой риск и своя доходность.
+#
+# То есть один ключ дублировал инструмент соседа и при этом публиковал число
+# третьего рынка. Гейт `_CANONICAL_UNDERLYING` этого не ловит и поймать не мог:
+# базовый актив кредитного рынка USDS — тот самый USDS, который подсказка и
+# объявляет. Различает их не актив, а ПРОДУКТ.
+#
+# Таблица ниже — то, что адаптер САМ о себе заявляет: (сеть, адрес) инструмента,
+# лежащего в основе позиции. Адрес взят из константы ``VAULT_ADDRESS`` /
+# ``POOL_ADDRESS`` соответствующего адаптера; ратчет
+# ``test_spark_susds_identity_split.py`` сканирует ``spa_core/adapters/*.py`` и
+# краснеет, если адаптер с таким объявлением сюда не попал — новый ключ
+# наследует проверку, а не «подключается» к ней (opt-in — это форма fail-OPEN).
+#
+# Сеть входит в личность намеренно: контракт Aave V3 Pool имеет ОДИН адрес на
+# Arbitrum, OP Mainnet и Polygon, но это три разных инструмента. Сравнение по
+# одному адресу объявило бы их дубликатами.
+_MODELED_INSTRUMENT: dict[str, tuple[str, str]] = {
+    # ── ключи с собственной адресной константой в адаптере ──────────────────
+    "fluid_fusdc":       ("ethereum",   "0x9fb7b4477576fe5b32be4c1843afb1e55f251b33"),
+    "frax":              ("ethereum",   "0x3835a58ca93cdb5f912519ad366826ac9a752510"),
+    "morpho_steakhouse": ("ethereum",   "0xbeef01735c132ada46aa9aa4c54623caa92a64cb"),
+    "scrvusd":           ("ethereum",   "0x0655977feb2f289a4ab78af67bab0d17aab84367"),
+    "sdai":              ("ethereum",   "0x83f20f44975d03b1b09e64809b757c47f942beea"),
+    "sfrax":             ("ethereum",   "0xa663b02cf0a4b149d2ad41910cb81e23e1c41c32"),
+    "spark_susds":       ("ethereum",   "0xa3931d71877c0e7a3148cb7eb4463524fec27fbd"),
+    "stusd":             ("ethereum",   "0x0022228a2cc5e7ef0274a2c3d1e5e306d3ef0a17"),
+    "susde":             ("ethereum",   "0x9d39a5de30e57443bff2a8307a4256c8797a3497"),
+    "wusdm":             ("ethereum",   "0x57f5e098cad7a3d1eed53991d4d66c45c9af7812"),
+    # Один и тот же адрес Aave V3 Pool на трёх сетях — три РАЗНЫХ инструмента.
+    "aave_arbitrum":     ("arbitrum",   "0x794a61358d6845594f94dc1db02a252b5b4814ad"),
+    "aave_v3_optimism":  ("op mainnet", "0x794a61358d6845594f94dc1db02a252b5b4814ad"),
+    "aave_v3_polygon":   ("polygon",    "0x794a61358d6845594f94dc1db02a252b5b4814ad"),
+    # ── ключ без адаптер-класса: личность взята из ЗАКРЕПЛЁННОГО пула ────────
+    # ``sky_susds`` обслуживается фидом (``adapters/sky_susds_feed.py``), а не
+    # адаптер-классом, поэтому адресной константы у него нет. Пин d8c4eff5…
+    # (Ethereum / sky-lending / SUSDS) — это и есть хранилище sUSDS, чей токен
+    # 0xa393…7fbD. Объявление обязательно: без него коллизия с ``spark_susds``
+    # осталась бы невидимой, а именно она и есть предмет разбирательства.
+    "sky_susds":         ("ethereum",   "0xa3931d71877c0e7a3148cb7eb4463524fec27fbd"),
+}
+
 _DEFILLAMA_HINTS: dict[str, tuple[str, str, str]] = {
     "aave_v3":           ("aave-v3",     "USDC",   "Ethereum"),
     "compound_v3":       ("compound-v3", "USDC",   "Ethereum"),
@@ -234,6 +292,72 @@ _POOL_ID_LOOKUP: dict[str, str] = {
     #         WUSDM pool; USDM hits are unrelated tokens on Cardano/MegaETH/
     #         Celo. No honest source → stays unobserved (None, never a mock).
 }
+
+def _instrument_collisions(
+    modeled: Optional[dict[str, tuple[str, str]]] = None,
+) -> dict[tuple[str, str], list[str]]:
+    """(сеть, адрес) → список ключей, заявивших ОДИН И ТОТ ЖЕ инструмент.
+
+    Возвращаются только настоящие коллизии (два ключа и больше). Вычисляется из
+    таблицы, а не ведётся руками: список, который надо пополнять вручную, — это
+    ровно та форма, при которой следующий дубликат окажется незамеченным.
+    """
+    table = _MODELED_INSTRUMENT if modeled is None else modeled
+    seen: dict[tuple[str, str], list[str]] = {}
+    for key, ident in table.items():
+        seen.setdefault((ident[0].lower(), ident[1].lower()), []).append(key)
+    return {ident: keys for ident, keys in seen.items() if len(keys) > 1}
+
+
+def _disputed_identity(
+    adapter_key: str,
+    modeled: Optional[dict[str, tuple[str, str]]] = None,
+    pins: Optional[dict[str, str]] = None,
+) -> Optional[str]:
+    """Причина отказа, если личность ключа оспорена; иначе ``None``.
+
+    Два ключа на одном инструменте — скрытая концентрация того же класса, что и
+    два ключа на одном пуле (``test_no_two_keys_share_a_pool``), только на уровень
+    ниже: кэп на протокол считает их независимыми позициями. Разница в том, что
+    здесь нельзя просто «выбрать больший TVL» — вопрос не в размере, а в том,
+    ЧЕЙ это инструмент.
+
+    Разрешение асимметрично и повторяет ADR-064: **закрепление — личность
+    гейт-класса, подсказка — нет.**
+
+    * ровно один из спорящих ключей закреплён по UUID ⇒ он сохраняет наблюдение,
+      остальные ГАСНУТ с названной причиной;
+    * закреплённых ноль или больше одного ⇒ гаснут ВСЕ спорящие: система не знает,
+      чей это инструмент, и не имеет права угадать (инвариант 2, fail-CLOSED).
+
+    Отказ именно НАЗЫВАЕТСЯ, а не молчит: пустой ``live_apy`` неотличим от
+    «фид не ответил», и по молчанию никто не пойдёт смотреть.
+    """
+    table = _MODELED_INSTRUMENT if modeled is None else modeled
+    pin_table = _POOL_ID_LOOKUP if pins is None else pins
+    ident = table.get(adapter_key)
+    if ident is None:
+        return None
+    rivals = _instrument_collisions(table).get((ident[0].lower(), ident[1].lower()))
+    if not rivals:
+        return None
+    pinned = sorted(k for k in rivals if pin_table.get(k))
+    others = sorted(k for k in rivals if k != adapter_key)
+    if len(pinned) == 1 and pinned[0] == adapter_key:
+        return None
+    if len(pinned) == 1:
+        return (
+            f"identity disputed: {adapter_key} declares the same instrument "
+            f"({ident[1]} on {ident[0]}) as {', '.join(others)}; only {pinned[0]} "
+            f"pins that pool by UUID, so this key is refused rather than resolved "
+            f"to a different product"
+        )
+    return (
+        f"identity disputed: {adapter_key} declares the same instrument "
+        f"({ident[1]} on {ident[0]}) as {', '.join(others)} and no single key pins "
+        f"it by UUID — all claimants are refused (fail-CLOSED)"
+    )
+
 
 # TVL estimates (USD) used when DeFiLlama is unavailable
 _TVL_ESTIMATES: dict[str, float] = {
@@ -481,6 +605,13 @@ def _hint_pool(
     the whole hint, and a declared one that nothing matches returns ``None``
     rather than the nearest pool.
     """
+    # Личность важнее подсказки: спорный ключ не резолвится вообще. Проверка
+    # стоит ПЕРВОЙ, потому что подсказка ``spark_susds`` даёт валидный по всем
+    # прочим признакам пул — просто чужого продукта.
+    disputed = _disputed_identity(adapter_key)
+    if disputed:
+        return None, disputed
+
     hints = _DEFILLAMA_HINTS.get(adapter_key)
     if not hints:
         return None, None
@@ -553,6 +684,12 @@ def _lookup_live_pool(
     2. Best-TVL pool matching project / chain / symbol hints
        (``_DEFILLAMA_HINTS``), using substring matching on each dimension.
     """
+    # 0a. Оспоренная личность — отказ до любого сопоставления. Ни пин, ни
+    #     подсказка не спасают ключ, чей инструмент уже заявлен соседом:
+    #     резолвить его значило бы выдать число другого продукта за своё.
+    if _disputed_identity(adapter_key):
+        return None
+
     # 0. Pendle PT — рынок закреплён, выпуск выбирается по сроку.
     if adapter_key in _PENDLE_PT_MARKETS:
         pt = _lookup_pendle_pt(adapter_key, list(by_id.values()))

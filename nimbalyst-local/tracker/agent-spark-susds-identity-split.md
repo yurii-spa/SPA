@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent
 title: spark_susds наблюдает чужой инструмент (sparklend lending vs sUSDS vault) — развести идентичности до допуска Sky
-status: backlog
+status: blocked
 source: feeds-second-pass-2026-08-05
 created: 2026-08-05
 priority: medium
@@ -20,3 +20,26 @@ spark_susds = sparklend-рынок как отдельный протокол с
 
 ## Как понять, что готово
 Каждый ключ реестра наблюдает ровно свой инструмент; тест закрепляет пары ключ↔пул.
+
+## Сделано 2026-08-17 — разведение личности (код+тесты), дубль остался владельцу
+
+Находка подтверждена на коде и **перестала быть безобидной**: оговорка карточки «допуск Sky
+owner-gated» истекла с ADR-065 (06.08, условие инварианта 10 подтверждено on-chain), а
+`_GSM_INHERITS_SKY = ("spark_susds",)` переносит это подтверждение именно на спорный ключ.
+
+- `spa_core/monitoring/adapter_status_generator.py` — слой личности: `_MODELED_INSTRUMENT`
+  (ключ → (сеть, адрес)), `_instrument_collisions()` (вычисляется, не ведётся руками),
+  `_disputed_identity()` гасит спорный ключ ДО сопоставления — и по подсказке, и по пину.
+  Разрешение асимметрично по ADR-064: наблюдение остаётся у закреплённого по UUID ключа,
+  закреплённых ноль или >1 ⇒ гаснут все (fail-CLOSED). Сеть входит в личность: адрес Aave V3
+  Pool один на Arbitrum / OP / Polygon.
+- `spa_core/tests/test_spark_susds_identity_split.py` — 18 тестов, положительный контроль
+  (пустая таблица личностей ⇒ 3.1114 SparkLend воспроизводится) + ратчет по `spa_core/adapters/*.py`
+  через `ast`, включая косвенную форму `POOL_ADDRESS = _POOL_ADDRESS`.
+- `spa_core/tests/test_feed_hint_asset_identity.py` — `test_all_five_hint_keys_still_resolve`
+  сужен до четырёх и переименован (п. 16, обоснование в теле + `docs/journal/2026-W34.md`):
+  пятый ключ был не проверкой, а записанным дефектом. Ожидание переехало, не исчезло.
+
+**Заблокировано владельцем:** удаление/переименование самого дубликата — состав реестра это
+money-path. Карточка `own-2026-08-17-spark-susds-dublikat.md`. До ответа `spark_susds` не
+производит числа вообще (честный ноль вместо чужого).

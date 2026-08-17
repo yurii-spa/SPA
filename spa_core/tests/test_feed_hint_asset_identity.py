@@ -188,11 +188,27 @@ class TestForeignAssetIsRefused(_GenBase):
 class TestRealAssetStillResolves(_GenBase):
     """The other direction: tightening must not silence the honest pools."""
 
-    def test_all_five_hint_keys_still_resolve(self):
-        """Measured: the fix nullifies NOTHING on the live feed of 2026-08-10.
+    def test_the_four_asset_hint_keys_still_resolve(self):
+        """Measured: the asset guard nullifies NOTHING on the live feed of 2026-08-10.
 
         Worth stating plainly — the guard buys no yield today. It buys the
         guarantee that tomorrow's ranking still describes the asset we hold.
+
+        NARROWED 2026-08-17 (agent-spark-susds-identity-split), deliberately and
+        not to green a red CI. This test used to assert a FIFTH key,
+        ``spark_susds`` → 3.1114 off ``_SPARK_REAL``, and that assertion was the
+        defect written down: ``_SPARK_REAL`` is the SparkLend USDS **lending
+        market**, while the ``spark_susds`` adapter models the **sUSDS savings
+        vault** (``VAULT_ADDRESS`` 0xa393…7fbD) — a different product, already
+        pinned by UUID under the ``sky_susds`` key. The asset guard this file
+        pins cannot see it: the lending market's underlying really is USDS, so
+        every check here passed on a foreign product.
+
+        The key is now refused by the instrument-identity layer, and the
+        expectation moved rather than disappeared — see
+        ``test_spark_susds_identity_split.py`` (positive control reproduces the
+        3.1114 substitution) and the sibling test below, which keeps the refusal
+        under this file's own eye. Recorded in docs/journal/2026-W34.md.
         """
         doc = self._generate([
             _AAVE_V3_REAL, _COMPOUND_REAL, _MORPHO_REAL, _SPARK_REAL, _YEARN_REAL,
@@ -200,7 +216,7 @@ class TestRealAssetStillResolves(_GenBase):
         ])
         expected = {
             "aave_v3": 3.2934, "compound_v3": 3.2921, "morpho_blue": 3.2555,
-            "spark_susds": 3.1114, "yearn_v3": 3.3083,
+            "yearn_v3": 3.3083,
         }
         for key, apy in expected.items():
             with self.subTest(key=key):
@@ -208,6 +224,19 @@ class TestRealAssetStillResolves(_GenBase):
                 self.assertEqual(row["pool_match"], "hint")
                 self.assertAlmostEqual(row["live_apy"], apy, places=3)
                 self.assertIsNone(row["pool_match_refused"])
+
+    def test_spark_susds_takes_no_number_from_the_lending_market(self):
+        """The fifth key: its hint matches, its ASSET matches — and it is still wrong.
+
+        Kept here rather than only in the identity file so that anyone widening
+        ``_CANONICAL_UNDERLYING`` sees immediately that asset identity is not
+        product identity.
+        """
+        doc = self._generate([_SPARK_REAL, _SPARK_WRAPPER])
+        row = doc["adapters"]["spark_susds"]
+        self.assertIsNone(row["live_apy"])
+        self.assertIsNone(row["pool_match"])
+        self.assertIn("identity disputed", row["pool_match_refused"] or "")
 
     def test_lower_case_feed_addresses_still_match(self):
         """yearn-finance reports lower-case; aave-v3 reports mixed.
