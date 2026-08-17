@@ -264,6 +264,17 @@ RETIRED_LABELS = frozenset({
     # Unloaded + plist moved to data/retired_plists_backup/. REVERSIBLE: remove this line + re-add to
     # install_all_agents.sh + restore plist to revive.
     "com.spa.checkpoint-7day",
+    # ADR-093 п.2 (owner decision 2026-08-17, card own-55, ВАРИАНТ 1): the watcher
+    # polled getUpdates WITH offset every 5 min — it CONFIRMED the queue, and a
+    # confirmed update Telegram hands to nobody else, so an owner command could go
+    # to the watcher and never reach the bot ("pressed and nothing happened").
+    # Module, plist, tests and manifest entry are gone from the tree; this label is
+    # what stops a lingering plist on the prod host from being re-bootstrapped by
+    # self_heal / verify_fleet_after_reboot.sh — the tree guard
+    # (spa_core/tests/test_one_telegram_poller.py) can only see repo files, not the
+    # host. NOT REVERSIBLE without a new owner decision: reviving it re-introduces
+    # the lost-command defect. OWNER: `launchctl bootout gui/$(id -u)/com.spa.telegram_watcher`.
+    "com.spa.telegram_watcher",
 })
 
 

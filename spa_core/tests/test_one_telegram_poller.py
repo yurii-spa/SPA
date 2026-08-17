@@ -80,6 +80,11 @@ RETIRED_INSTALLER = "scripts/install_bot_commands.sh"
 RETIRED_WATCHER = "spa_core/monitoring/telegram_watcher.py"
 RETIRED_WATCHER_PLIST = "launchd/com.spa.telegram_watcher.plist"
 RETIRED_WATCHER_TEST = "tests/test_telegram_watcher.py"
+#: Имя задания launchd. Файлов в дереве больше нет, но копия plist'а могла
+#: уцелеть на Маке — и тогда её воскрешает не репозиторий, а установщик/сторож
+#: самолечения. Держится это ТОЛЬКО именем в списках ретированных (см.
+#: `test_the_host_cannot_re_bootstrap_the_retired_watcher`).
+RETIRED_LABEL = "com.spa.telegram_watcher"
 
 #: ОТКРЫТОЕ состояние, названное вслух, а не одобренное. `auto_fixer` — вторая
 #: половина той же петли: watcher её ЗАПУСКАЛ (`run_auto_fix`), она просит
@@ -167,6 +172,40 @@ class TestOnePoller(unittest.TestCase):
                 (_REPO / rel).exists(),
                 f"{rel} вернулся в дерево — {why}. Списан решением владельца "
                 "17.08 по карточке own-55-vtoroi-chitatel-komand-v-telegram.")
+
+    def test_the_host_cannot_re_bootstrap_the_retired_watcher(self):
+        """Дерево чистое — а на Маке plist мог УЦЕЛЕТЬ, и его подняли бы обратно.
+
+        Все проверки выше смотрят на файлы репозитория и по построению НЕ видят
+        `~/Library/LaunchAgents`. Между тем и `self_heal._expected_labels`, и
+        `scripts/verify_fleet_after_reboot.sh` перебирают именно то, что лежит на
+        хосте: любой `com.spa.*.plist`, не названный ретированным, они
+        BOOTSTRAP'ят обратно. То есть удаление plist'а из репозитория само по
+        себе НЕ мешает уцелевшей копии воскреснуть после перезагрузки — воскресший
+        watcher снова начал бы подтверждать очередь и красть команды владельца.
+
+        Единственное, что это закрывает, — имя в списке ретированных, поэтому
+        оно проверяется в ОБОИХ местах (Python-набор и shell-скрипт живут
+        отдельно и уже расходились).
+        """
+        from spa_core.monitoring.agent_health_monitor import RETIRED_LABELS
+
+        self.assertIn(
+            RETIRED_LABEL, RETIRED_LABELS,
+            f"{RETIRED_LABEL} пропал из RETIRED_LABELS: self_heal снова считает "
+            "уцелевший на хосте plist «ожидаемым» и поднимает второго читателя "
+            "очереди (ADR-093 п.2).")
+
+        verifier = (_REPO / "scripts" / "verify_fleet_after_reboot.sh").read_text(
+            encoding="utf-8")
+        retired_line = [
+            ln for ln in verifier.splitlines() if ln.startswith("RETIRED=")]
+        self.assertEqual(len(retired_line), 1, "разбор не нашёл строку RETIRED=")
+        self.assertIn(
+            RETIRED_LABEL, retired_line[0],
+            f"{RETIRED_LABEL} пропал из RETIRED в verify_fleet_after_reboot.sh: "
+            "проверка после перезагрузки сделает `launchctl bootstrap` уцелевшему "
+            "plist'у вместо `bootout`.")
 
 
 class TestScanIsNotBlind(unittest.TestCase):

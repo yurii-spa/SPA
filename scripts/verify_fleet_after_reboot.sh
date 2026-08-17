@@ -25,7 +25,12 @@ GUI="gui/$UID_N"
 # (bot_commands→telegram_bot, httpserver→apiserver, the legacy daily/weekly
 #  senders→digest_daily/digest_weekly.) Booting these would re-introduce a
 # Telegram 409 / duplicate-flood regression.
-RETIRED="com.spa.bot_commands com.spa.httpserver com.spa.telegram_daily com.spa.telegram_weekly com.spa.morning_digest com.spa.daily-paper-report"
+# telegram_watcher: retired 2026-08-17 by owner decision (ADR-093 п.2, card own-55).
+# It confirmed the getUpdates queue every 5 min, so an owner command could go to it
+# and never reach the bot. Its plist is gone from the repo — this entry exists so a
+# STALE copy still sitting in ~/Library/LaunchAgents gets booted out here instead of
+# bootstrapped back into a second reader.
+RETIRED="com.spa.bot_commands com.spa.httpserver com.spa.telegram_daily com.spa.telegram_weekly com.spa.morning_digest com.spa.daily-paper-report com.spa.telegram_watcher"
 is_retired() { case " $RETIRED " in *" $1 "*) return 0;; *) return 1;; esac; }
 
 echo "── SPA fleet post-reboot check ── $(date -u '+%Y-%m-%d %H:%M UTC')"
