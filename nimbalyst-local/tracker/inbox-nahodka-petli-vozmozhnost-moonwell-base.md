@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Находка петли: возможность moonwell_base 10.7382% (evidence L3) доступна книге, не де"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-14
 finding_key: "gap:opportunity_unnamed:moonwell_base"
