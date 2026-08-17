@@ -76,6 +76,17 @@ class _DeployHarness(unittest.TestCase):
         patcher = mock.patch.object(self.mod, "_SNAP", self.snap)
         patcher.start()
         self.addCleanup(patcher.stop)
+        # Канон (ADR-070 п.2) — тоже в темпе: доставка проверяет его наличие и
+        # неизменность, и делать это ПРОТИВ ЖИВОГО `data/` репозитория тест не имеет
+        # права (герметичность; правило `.claude/rules/deployment.md` — data/ не трогаем).
+        self.root = Path(self._tmp.name) / "root"
+        for rel in self.mod._CANON:
+            p = self.root / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(json.dumps({"fixture": rel}))
+        root_patcher = mock.patch.object(self.mod, "_ROOT", self.root)
+        root_patcher.start()
+        self.addCleanup(root_patcher.stop)
         self.calls: list[list[str]] = []
 
     def _run_main(self, *, push=None, gen=None, origin=_ORIGIN_STALE, on_origin_read=None):
@@ -141,10 +152,27 @@ class TestSanctionedDeliveryPath(_DeployHarness):
             "прямой вызов batch-пушера для landing/** запрещён протоколом §3.4",
         )
 
-    def test_pushes_only_the_snapshot(self):
-        """Один файл — иначе деплой сайта тянет за собой чужие изменения."""
+    def test_pushes_the_snapshot_and_only_its_canon(self):
+        """Закрытый набор: снимок + РОВНО три файла канона, ничего сверх.
+
+        ИЗМЕНЕНИЕ ТЕСТА (инвариант #16, обоснование). Раньше здесь стояло
+        `pushed_files == [snapshot]` — «один файл, иначе деплой тянет чужие изменения».
+        Проверяемое свойство — «в коммит сайта не попадает лишнее» — сохранено дословно;
+        изменилось ЧТО считается лишним. По решению владельца 2026-08-16 (карточка
+        `owner-decision-storozh-saita-ne-kladet-v-git-dannye-iz`, вариант 1 = ADR-070 п.2)
+        канон трека едет в ТОМ ЖЕ коммите: без него owner-gate не может пересчитать
+        изменившееся число и заворачивает честную ночную доставку, а числа сайта нельзя
+        проверить из репозитория. Прежняя форма запрещала бы ровно исполнение решения.
+        Ослабления нет: набор по-прежнему закрыт и сверяется поимённо, а «ничего лишнего
+        из data/» отдельно держит `test_site_custodian_commits_canon.py`.
+        """
         self._run_main()
-        self.assertEqual(self.pushed_files, [str(self.snap)])
+        self.assertEqual(self.pushed_files[0], str(self.snap))
+        self.assertEqual(
+            [Path(p).name for p in self.pushed_files[1:]],
+            [Path(rel).name for rel in self.mod._CANON],
+            "в коммит сайта едут снимок и только его канон",
+        )
 
 
 class TestOverwriteIsDeclaredNotSilenced(_DeployHarness):
@@ -173,9 +201,17 @@ class TestOverwriteIsDeclaredNotSilenced(_DeployHarness):
         self.assertIn("changed after generation", out)
 
     def test_overwrite_flag_is_not_a_blanket_permission(self):
-        """Флаг сопровождает ровно один файл — тот, что пересобран в этом же прогоне."""
+        """Флаг сопровождает ЗАКРЫТЫЙ набор: снимок + его канон, и ничего больше.
+
+        ИЗМЕНЕНИЕ ТЕСТА (инвариант #16, обоснование). Было `len(pushed_files) == 1`.
+        Смысл проверки — «осознанная перезапись не превращается в разрешение затирать
+        что угодно» — сохранён: набор фиксирован (1 снимок + `_CANON`) и растёт только
+        решением владельца. Число 1 стало неверным после ADR-070 п.2 (канон едет тем же
+        коммитом); ровно на этих файлах перезапись остаётся осознанной, потому что их
+        целиком производит тот же дневной цикл на той же машине.
+        """
         self._run_main()
-        self.assertEqual(len(self.pushed_files), 1)
+        self.assertEqual(len(self.pushed_files), 1 + len(self.mod._CANON))
 
 
 class TestFailureReasonSurvives(_DeployHarness):

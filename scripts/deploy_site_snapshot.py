@@ -26,6 +26,30 @@ never in code). Called from scripts/run_daily_paper_cycle.sh after the cycle. Sa
    (он идёт в stderr) не печатался никогда. В логе оставалось «push FAILED» без причины —
    а шаг помечен non-fatal, поэтому цикл рапортовал успех. Сторож сайта был единственным,
    кто сказал правду, и то владельцу в Telegram.
+
+Дефект 4 — КАНОН НЕ ЕХАЛ ВМЕСТЕ СО СНИМКОМ (ADR-070 п.2; решение владельца по карточке
+`owner-decision-storozh-saita-ne-kladet-v-git-dannye-iz`, вариант 1, 2026-08-16).
+
+Кастодиан пушил РОВНО один файл — готовый снимок, — а исходники, из которых он посчитан,
+оставались только на Маке. Замер: шесть последних коммитов кастодиана содержат НОЛЬ файлов
+из `data/`; сайт публиковал `real_track_days: 53` и `gates_passed: 29/29`, а свежайший канон
+в git был от 04.07 с `real_track_days: 13` и `passed: 27/29`. Две беды из одной причины:
+
+* **Числа сайта нельзя проверить из репозитория** — ровно тот ответ «поверьте на слово»,
+  ради отказа от которого честный трек и затевался.
+* **Owner-gate краснел каждую ночь на верной работе.** Он умеет пересчитать изменившееся
+  число из канона того же коммита и пропустить только совпавшее
+  (`check_owner_gate._canon_reproduced_fields`, ADR-070 п.3) — но пересчитывать было
+  НЕ ИЗ ЧЕГО, и по fail-CLOSED он заворачивал честную ночную доставку. Сторож, ежедневно
+  краснеющий на честной работе, будет отключён людьми ровно до первого настоящего нарушения.
+
+Поэтому доставка идёт ОДНИМ коммитом: снимок + три файла канона, из которых `build_snapshot`
+его и считает. Список закрыт и обязан совпадать с `check_owner_gate._TS_CANON_FILES` — лишние
+файлы из `data/` (живой трек целиком) сюда не возят. `--allow-overwrite` распространяется на
+весь набор осознанно: канон, как и снимок, целиком производит дневной цикл на этой же машине,
+его remote-версия — прошлое поколение того же цикла, а не чужая правка (дефект 2 выше). Канон
+отсутствует на диске ⇒ доставки нет вовсе (fail-CLOSED): публиковать число, которое нечем
+подтвердить, — это и есть исходная авария.
 """
 # LLM_FORBIDDEN
 import hashlib
@@ -40,6 +64,18 @@ _GEN = _ROOT / "scripts" / "generate_track_snapshot.py"
 # доставки. Прямой batch-пушер отсюда не вызывается: см. дефект 1 в шапке модуля.
 _PUSH = _ROOT / "scripts" / "safe_site_push.py"
 _PY = sys.executable
+
+# КАНОН ТРЕКА — ровно те файлы, которые читает `generate_track_snapshot.build_snapshot`
+# (её параметры `golive_path` / `equity_path` / `pts_path`). Едут в ТОТ ЖЕ коммит, что и
+# снимок: без них owner-gate не может пересчитать изменившееся число, а человек — сойтись
+# с сайтом из репозитория (ADR-070 п.2, дефект 4 в шапке модуля). Список ЗАКРЫТ: остальной
+# `data/` — живой трек, его сюда не возят. Совпадение с `check_owner_gate._TS_CANON_FILES`
+# держит тест `spa_core/tests/test_site_custodian_commits_canon.py`.
+_CANON = (
+    "data/golive_status.json",
+    "data/equity_curve_daily.json",
+    "data/paper_trading_status.json",
+)
 
 
 def _sha(p: Path):
@@ -112,6 +148,16 @@ def main() -> int:
     # (шаг 3) разрешена только для него: если файл на диске после генерации кто-то тронул,
     # мы больше не знаем, что именно перезаписываем, и отказываем (fail-CLOSED).
     generated_sha = _sha(_SNAP)
+    # Канон обязан быть НА ДИСКЕ и обязан остаться тем же до момента доставки: снимок и
+    # исходники едут одним коммитом, и разъехавшаяся пара хуже отсутствующей — она
+    # выглядит проверяемой, не будучи ею. Нет файла ⇒ не публикуем (fail-CLOSED).
+    canon_paths = [_ROOT / rel for rel in _CANON]
+    missing = [rel for rel, pth in zip(_CANON, canon_paths) if not pth.is_file()]
+    if missing:
+        print(f"deploy_site_snapshot: канона нет на диске ({', '.join(missing)}) — "
+              f"снимок нечем подтвердить, не деплоим", file=sys.stderr)
+        return 1
+    canon_shas = [_sha(p) for p in canon_paths]
     # 2. deploy only if the MEANINGFUL content differs from ORIGIN (deploy truth), ignoring the
     #    volatile generated_at stamp — and NOT vs the previous local copy (local drifts from origin).
     local = json.loads(_SNAP.read_text())
@@ -127,9 +173,17 @@ def main() -> int:
         print("deploy_site_snapshot: snapshot changed after generation — refusing to overwrite blindly",
               file=sys.stderr)
         return 1
+    if [_sha(pth) for pth in canon_paths] != canon_shas:
+        # Канон сдвинулся между генерацией и пушем ⇒ снимок посчитан НЕ ИЗ ТОГО, что уедет
+        # рядом. Такой коммит гейт честно завернёт, а сайту достанется непроверяемое число.
+        print("deploy_site_snapshot: канон изменился после генерации снимка — пара «снимок ↔ канон» "
+              "разъехалась, не деплоим (следующий цикл соберёт согласованную)", file=sys.stderr)
+        return 1
     p = subprocess.run(
-        [_PY, str(_PUSH), "--files", str(_SNAP), "--allow-overwrite",
-         "--message", "chore(site-custodian): auto-deploy fresh track_snapshot after daily cycle"],
+        [_PY, str(_PUSH), "--files", str(_SNAP), *[str(c) for c in canon_paths],
+         "--allow-overwrite",
+         "--message", "chore(site-custodian): auto-deploy fresh track_snapshot after daily cycle "
+                      "(+ канон трека, ADR-070 п.2)"],
         capture_output=True, text=True, timeout=180,
     )
     print(_both(p))
