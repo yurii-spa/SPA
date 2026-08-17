@@ -1022,3 +1022,175 @@ def test_an_old_report_without_the_block_is_not_read_as_a_full_queue():
 
     assert "полнота очереди НЕ ИЗМЕРЕНА" in text
     assert "отчёт старого образца" in text
+
+
+# ===========================================================================
+# Пропавшая карточка: три исхода вместо одного «не измерено» (цикл #273)
+# ===========================================================================
+# Положительный контроль здесь — ДОСЛОВНАЯ тройка из прода 17.08.2026: сторож
+# держал WARNING с тремя строками `[НЕ ИЗМЕРЕНО]`, из которых две были
+# доброкачественным дрейфом (`ingested` на origin), а третья — честным пробелом.
+# На неисправленном модуле каждый тест ниже краснеет.
+
+# FROZEN-DATE-OK: injected-clock — `now=` передаётся в каждом вызове, отметки
+# фикстур фиксированы (см. шапку файла); календарь на вердикт не влияет.
+_DRIFT_CLOSED_1 = "owner-decision-geit-i-allokator-schitayut-zhivoi-tvl-po"
+_DRIFT_CLOSED_2 = "owner-decision-vozit-li-katalog-reshenii-ob-agentah-na"
+_NOT_ON_ORIGIN = "owner-decision-dolgozhivuschie-agenty-krutyat-kod-mnogo"
+
+
+def _commit_all_and_hide(root: Path, tracker: Path, card_ids) -> None:
+    """Зафиксировать карточки на ref и убрать их файлы — состояние прод-дерева."""
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "queue")
+    for card_id in card_ids:
+        (tracker / f"{card_id}.md").unlink()
+
+
+def test_the_real_triple_of_17_08_keeps_only_the_honest_gap(git_tree, monkeypatch):
+    """Две строки объяснены дрейфом и уходят, третья ОСТАЁТСЯ не измеренной.
+
+    Ровно то, чем сторож был занят неделю. Ложно погасить третью нельзя: её нет
+    и на origin, и «не смогли найти» — это не «вопрос закрыт».
+    """
+    root, data, tracker = git_tree
+    _card(tracker, card_id=_DRIFT_CLOSED_1, status="ingested")
+    _card(tracker, card_id=_DRIFT_CLOSED_2, status="ingested")
+    _commit_all_and_hide(root, tracker, [_DRIFT_CLOSED_1, _DRIFT_CLOSED_2])
+    _journal(data, [_push(card_id=_DRIFT_CLOSED_1), _push(card_id=_DRIFT_CLOSED_2),
+                    _push(card_id=_NOT_ON_ORIGIN)])   # третьей нет и на ref
+    monkeypatch.setattr("spa_core.monitoring.owner_decision_pending.ORIGIN_REF", _REF)
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    missing = [u["check"] for u in doc["unchecked"] if u["check"].startswith("card_missing:")]
+    assert missing == [f"card_missing:{_NOT_ON_ORIGIN}"], (
+        "закрытые на origin карточки обязаны уйти из «не измерено», "
+        "а отсутствующая там — остаться")
+    assert {c["card_id"] for c in doc["closed_on_origin"]} == {_DRIFT_CLOSED_1, _DRIFT_CLOSED_2}
+    assert all(c["origin_status"] == "ingested" for c in doc["closed_on_origin"])
+    # Причина третьей строки названа СЛОВАМИ, а не сведена к «не измерено».
+    assert "карточки тоже нет" in next(
+        u["reason"] for u in doc["unchecked"] if u["check"].endswith(_NOT_ON_ORIGIN))
+    # Дрейф — не находка: ни одна строка issues про закрытые карточки не заведена.
+    assert not any(_DRIFT_CLOSED_1 in line for line in doc["issues"])
+
+
+def test_a_closed_card_on_origin_stops_holding_the_warning(git_tree, monkeypatch):
+    """Обратная сторона: ЕДИНСТВЕННАЯ причина WARNING объяснена ⇒ статус чистый."""
+    root, data, tracker = git_tree
+    _card(tracker, card_id=_DRIFT_CLOSED_1, status="ingested")
+    _commit_all_and_hide(root, tracker, [_DRIFT_CLOSED_1])
+    _journal(data, [_push(card_id=_DRIFT_CLOSED_1)])
+    monkeypatch.setattr("spa_core.monitoring.owner_decision_pending.ORIGIN_REF", _REF)
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert doc["unchecked"] == []
+    assert doc["status"] == OK
+    assert doc["closed_on_origin"] == [{"card_id": _DRIFT_CLOSED_1, "origin_status": "ingested"}]
+
+
+def test_a_question_open_on_origin_becomes_a_finding_not_an_unchecked_line(git_tree,
+                                                                          monkeypatch):
+    """`needs-owner` на origin — находка СИЛЬНЕЕ прежней, а не «не измерено».
+
+    Вопрос владельцу отправлен, он его видит, а нажатие отвечает «карточка
+    исчезла»: ответить ему физически нечем.
+    """
+    root, data, tracker = git_tree
+    _card(tracker, card_id=CARD_ID, status="needs-owner")
+    _commit_all_and_hide(root, tracker, [CARD_ID])
+    _journal(data, [_push(card_id=CARD_ID)])
+    monkeypatch.setattr("spa_core.monitoring.owner_decision_pending.ORIGIN_REF", _REF)
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert not [u for u in doc["unchecked"] if u["check"].startswith("card_missing:")]
+    assert doc["open_on_origin"] == [{"card_id": CARD_ID, "origin_status": "needs-owner"}]
+    assert any("«карточка исчезла»" in line for line in doc["issues"])
+    assert doc["status"] == WARNING
+    # А во время остановки живой потерянный вопрос обязан быть CRITICAL.
+    _halt(data)
+    doc2 = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+    assert doc2["status"] == CRITICAL
+
+
+def test_an_unknown_status_on_origin_stays_unmeasured(git_tree, monkeypatch):
+    """Не `needs-owner` ⇒ ещё не «закрыт». Список закрывающих статусов — закрытый.
+
+    Иначе опечатка в статусе (или новый промежуточный статус) молча погасила бы
+    живой вопрос — ровно тот fail-OPEN, ради которого модуль и написан.
+    """
+    root, data, tracker = git_tree
+    _card(tracker, card_id=CARD_ID, status="in-progres")      # опечатка, не статус
+    _commit_all_and_hide(root, tracker, [CARD_ID])
+    _journal(data, [_push(card_id=CARD_ID)])
+    monkeypatch.setattr("spa_core.monitoring.owner_decision_pending.ORIGIN_REF", _REF)
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    line = next(u for u in doc["unchecked"] if u["check"] == f"card_missing:{CARD_ID}")
+    assert "in-progres" in line["reason"], "незнакомый статус обязан быть НАЗВАН"
+    assert doc["closed_on_origin"] == [] and doc["open_on_origin"] == []
+    assert doc["status"] == WARNING
+
+
+def test_without_a_ref_the_line_stays_unmeasured_never_closed(tree):
+    """Fail-CLOSED: «не смогли посмотреть» ≠ «вопрос закрыт».
+
+    Дерево-песочница (CI, чистая установка) — не git-репозиторий, сверять не с
+    чем. Молчаливое «закрыто» здесь и было бы ценой этой правки.
+    """
+    data, tracker = tree
+    _journal(data, [_push()])
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert doc["unchecked"][0]["check"] == f"card_missing:{CARD_ID}"
+    assert "сверка с" in doc["unchecked"][0]["reason"]
+    assert doc["missing_cards"]["measured"] is False
+    assert doc["closed_on_origin"] == [] and doc["open_on_origin"] == []
+    assert doc["status"] == WARNING
+
+
+def test_one_card_resent_three_times_gives_one_line_not_three(tree):
+    """Дедуп по карточке: три записи журнала об ОДНОЙ карточке — один факт.
+
+    Карточку переотправляют (так #198 чинил кнопки `own-33`), и трижды повторённая
+    строка «не измерено» об одном и том же — тот же шум, что и молчание.
+    """
+    data, tracker = tree
+    _journal(data, [_push(pushed_at=PUSHED_AT), _push(pushed_at="2026-08-10T12:30:00+00:00"),
+                    _push(pushed_at="2026-08-10T12:40:00+00:00")])
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert [u["check"] for u in doc["unchecked"]] == [f"card_missing:{CARD_ID}"]
+
+
+def test_the_office_step_prints_the_drift_fact_it_stopped_warning_about(git_tree,
+                                                                        monkeypatch):
+    """Объяснение, которого не видно, ничего не стоит.
+
+    Строка ушла из WARNING именно потому, что мы её объяснили — и объяснение
+    обязано доехать до обязательного шага 0-офис, иначе факт исчез молча.
+    """
+    import sys
+
+    root, data, tracker = git_tree
+    _card(tracker, card_id=_DRIFT_CLOSED_1, status="ingested")
+    _commit_all_and_hide(root, tracker, [_DRIFT_CLOSED_1])
+    _journal(data, [_push(card_id=_DRIFT_CLOSED_1)])
+    monkeypatch.setattr("spa_core.monitoring.owner_decision_pending.ORIGIN_REF", _REF)
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    scripts = str(Path(__file__).resolve().parents[2] / "scripts")
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    import consume_office_reports as office
+
+    text = "\n".join(office._summarize_json("owner_decision_pending.json", doc))  # noqa: SLF001
+
+    assert "дрейф прод↔origin" in text
+    assert _DRIFT_CLOSED_1 in text and "ingested" in text

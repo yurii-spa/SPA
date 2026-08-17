@@ -25,6 +25,7 @@ from spa_core.owner_queue import origin_view
 from spa_core.owner_queue.origin_view import (
     OriginCard,
     Unmeasured,
+    cards_by_id,
     hidden_cards,
     read_cards,
     repo_root_of,
@@ -258,3 +259,67 @@ def test_an_origin_card_is_a_plain_value(repo):
     assert (card.card_id, card.status) == ("own-34", "needs-owner")
     with pytest.raises(Exception):
         card.status = "owner-done"  # type: ignore[misc]
+
+
+# ===========================================================================
+# Статус НАЗВАННОЙ карточки на ref — `cards_by_id` (цикл #273)
+# ===========================================================================
+# Вопрос другой, чем у `hidden_cards`: не «чего дерево не видит», а «чем на самом
+# деле кончилась ВОТ ЭТА карточка, которой в дереве нет». 17.08 сторож
+# `owner_decision_pending` держал WARNING на трёх таких строках, и две из них
+# были закрыты на origin неделю назад.
+def test_a_named_card_returns_its_status_on_the_ref(repo):
+    _write(repo, "own-42", _card(title="закрытый вопрос", status="ingested"))
+    _commit(repo)
+    (_tracker(repo) / "own-42.md").unlink()
+
+    cards, sha = cards_by_id(_tracker(repo), ["own-42"], ref=REF)
+
+    assert cards["own-42"].status == "ingested"
+    assert cards["own-42"].title == "закрытый вопрос"
+    assert len(sha) == 40, "sha локальной копии ref обязан быть назван"
+
+
+def test_a_card_absent_on_the_ref_is_a_missing_key_not_an_error(repo):
+    """«Нет и на ref» — ФАКТ, и он обязан отличаться от «не смогли посмотреть»."""
+    _write(repo, "own-42", _card())
+    _commit(repo)
+
+    cards, _sha = cards_by_id(_tracker(repo), ["own-42", "own-never-existed"], ref=REF)
+
+    assert "own-42" in cards
+    assert "own-never-existed" not in cards
+
+
+def test_an_unresolvable_ref_is_unmeasured_not_an_empty_answer(repo):
+    """Пустой ответ здесь читался бы как «карточек на origin нет» — fail-OPEN."""
+    _write(repo, "own-42", _card())
+    _commit(repo)
+
+    with pytest.raises(Unmeasured):
+        cards_by_id(_tracker(repo), ["own-42"], ref="origin/nonexistent")
+
+
+def test_an_empty_request_still_names_the_ref_sha(repo):
+    """«Спрашивать было нечего» ≠ «сверка не состоялась»: sha называется всегда."""
+    _write(repo, "own-42", _card())
+    _commit(repo)
+
+    cards, sha = cards_by_id(_tracker(repo), [], ref=REF)
+
+    assert cards == {} and len(sha) == 40
+
+
+def test_cards_by_id_never_touches_the_network(repo, monkeypatch):
+    """Тот же страж, что у остальных запросов модуля: `fetch` отсюда не зовут."""
+    _write(repo, "own-42", _card())
+    _commit(repo)
+    seen = []
+    real = origin_view._git  # noqa: SLF001
+    monkeypatch.setattr(origin_view, "_git",
+                        lambda root, args, stdin_text=None: (seen.append(args), real(root, args, stdin_text))[1])
+
+    cards_by_id(_tracker(repo), ["own-42"], ref=REF)
+
+    assert seen, "вызовы git обязаны быть видны стражу"
+    assert not any("fetch" in a for args in seen for a in args)

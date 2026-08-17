@@ -53,6 +53,10 @@ breaker: HALT»). Снять остановку может ТОЛЬКО влад
   H8  WARNING   очередь ЭТОГО дерева НЕПОЛНА: вопрос владельцу `needs-owner`
       CRITICAL  живёт на `origin/main`, а файла в дереве нет. Во время остановки —
                 CRITICAL: невидимый путь вверх не лучше отсутствующего.
+  H9  WARNING   ОТПРАВЛЕННЫЙ вопрос жив на `origin/main` (`needs-owner`), а файла в
+      CRITICAL  дереве нет: владелец его ВИДИТ, а нажатие отвечает «карточка
+                исчезла». Найдено со стороны журнала отправок, поэтому не сводится
+                к H8 (тот фильтрует тип и считает в хвосте НЕотправленные).
 
 Очередь дерева ≠ очередь владельца (цикл #270, 17.08.2026)
 ------------------------------------------------------------------------------
@@ -74,6 +78,30 @@ breaker: HALT»). Снять остановку может ТОЛЬКО влад
 `spa_core/owner_queue/origin_view.py` читает версию очереди на `origin/main`
 локальным git, без сети, и невидимые дереву вопросы `needs-owner` попадают в отчёт
 отдельным полем и отдельной находкой.
+
+Пропавшая карточка: три исхода вместо одного «не измерено» (цикл #273)
+------------------------------------------------------------------------------
+Обход журнала отправок находит карточки, которых в дереве НЕТ, и до #273 все они
+одинаково ложились в `unchecked`. Формулировка была честная — «вопрос закрыт, а
+карточка не доехала» и «вопрос открыт и потерян» с диска действительно неразличимы,
+— но ответ лежал в одном запросе от нас. Замер 17.08: из трёх таких строк ДВЕ были
+доброкачественным дрейфом (`ingested` на origin) и держали сторожа в WARNING неделю.
+
+Постоянное предупреждение по доброкачественной причине — тот же класс «сторож
+отвечает не на тот вопрос»: настоящая находка того же ранга тонет в строках,
+которые все привыкли пролистывать. Теперь `origin_view.cards_by_id` спрашивает ту
+же локальную копию `origin/main`, и исходов ТРИ, каждый назван отдельно:
+
+  * статус на origin ЗАКРЫВАЮЩИЙ (`_TERMINAL_CARD_STATUS`) ⇒ не находка, а факт
+    дрейфа: строка уходит из `unchecked`, но остаётся в `closed_on_origin` и
+    ПЕЧАТАЕТСЯ (объяснение, которого не видно, ничего не стоит);
+  * статус на origin `needs-owner` ⇒ находка H9, СИЛЬНЕЕ прежней;
+  * карточки нет и на origin, статус незнакомый, либо сверка не выполнилась
+    (не git-дерево, ref не разрешается) ⇒ честное `НЕ ИЗМЕРЕНО` с причиной.
+
+Карточки с origin в `pending_count` НЕ подмешиваются — граница #270 сохраняется
+намеренно: это очередь ЭТОГО дерева, и число, которого нет ни у одного читателя,
+хуже отсутствующего.
 
 Источник списка — ОЧЕРЕДЬ, а не журнал отправок (цикл #199)
 ------------------------------------------------------------------------------
@@ -152,6 +180,12 @@ PENDING_CRITICAL_H = 12.0
 
 #: Статус карточки, означающий «вопрос владельцу ещё открыт».
 _OPEN_CARD_STATUS = "needs-owner"
+
+#: Статусы, означающие «вопрос ЗАКРЫТ и ответа больше не ждёт». Список ЗАКРЫТЫЙ и
+#: перечислен поимённо СОЗНАТЕЛЬНО: «всё, что не `needs-owner`, — закрыто» было бы
+#: fail-OPEN (опечатка в статусе, новый промежуточный статус или пустая строка
+#: молча погасили бы живой вопрос). Незнакомый статус остаётся НЕ ИЗМЕРЕНО.
+_TERMINAL_CARD_STATUS = frozenset({"ingested", "done", "owner-done"})
 
 
 def _worst(*statuses: str) -> str:
@@ -333,6 +367,48 @@ def _scan_origin_gap(tracker_dir: Path, pushes_by_card: dict[str, list[dict]]) -
     }
 
 
+def _resolve_missing_on_origin(tracker_dir: Path, card_ids: list[str]) -> dict:
+    """Чем на самом деле кончились карточки, которых нет в ЖИВОМ дереве.
+
+    Отвечает на вопрос, который сам по себе с диска неразрешим. Дрейф прод↔origin
+    возит только `spa_core/`·`scripts/`·`tests/` (урок #193), поэтому «вопрос
+    закрыт, а карточка просто не доехала в прод» и «вопрос открыт и потерян»
+    снаружи одинаковы — и до цикла #273 обе ветки честно висели в `unchecked`.
+    Замер 17.08: из трёх таких строк ДВЕ были доброкачественным дрейфом
+    (`ingested` на origin) и держали сторожа в WARNING неделю, приучая
+    пролистывать блок, в котором однажды окажется настоящая находка.
+
+    Fail-CLOSED и никогда не бросает наружу — ровно как `_scan_origin_gap`:
+    «сверять не с чем» (не git-дерево, ref не разрешается) ⇒ ``measured=False`` и
+    причина СЛОВАМИ, а строка остаётся НЕ ИЗМЕРЕНО. «Не смогли посмотреть» не
+    имеет права выглядеть как «вопрос закрыт».
+    """
+    out: dict = {"asked": len(card_ids), "ref": ORIGIN_REF, "found": {}}
+    if not card_ids:
+        # Спрашивать было нечего — и это НЕ «измерено, расхождений нет»: сверка не
+        # выполнялась вовсе. Ноль и «не мерили» обязаны различаться и здесь.
+        out.update({"measured": False, "reason": "пропавших карточек нет — сверка не требовалась"})
+        return out
+    try:
+        from spa_core.owner_queue.origin_view import Unmeasured, cards_by_id
+    except Exception as exc:  # noqa: BLE001 — сторож не роняет отчёт из-за импорта
+        out.update({"measured": False, "reason": f"сверка с {ORIGIN_REF} недоступна: {exc}"})
+        return out
+    try:
+        cards, sha = cards_by_id(Path(tracker_dir), card_ids, ref=ORIGIN_REF)
+    except Unmeasured as exc:
+        out.update({"measured": False,
+                    "reason": f"очередь на {ORIGIN_REF} не прочитана: {exc}"})
+        return out
+    except Exception as exc:  # noqa: BLE001 — неожиданное тоже «не измерено», не «чисто»
+        out.update({"measured": False,
+                    "reason": f"сверка с {ORIGIN_REF} не выполнена: {exc}"})
+        return out
+    out.update({"measured": True, "ref_sha": sha,
+                "found": {cid: card.status for cid, card in cards.items()}})
+    return out
+
+
 CHANNEL_HISTORY = "alert_history.json"
 
 
@@ -422,6 +498,12 @@ def check_pending_owner_decisions(*,
     # вопрос, которого нет в журнале, отсюда невидим — ровно то слепое пятно,
     # которое стоило владельцу двух неотправленных карточек 10.08.
     pushes_by_card: dict[str, list[dict]] = {}
+    #: Пропавшие карточки собираются, а не судятся на месте: вердикт по ним даёт
+    #: сверка с `origin/main` НИЖЕ, и спросить её лучше одним пакетом на все
+    #: карточки сразу. Ключи `dict` — заодно и дедуп: карточку могли переотправить
+    #: (так #198 чинил кнопки `own-33`), и три записи журнала об ОДНОЙ карточке
+    #: давали три одинаковые строки «не измерено» об одном и том же факте.
+    missing_ids: dict[str, None] = {}
     for push in (pushes or []):
         if not isinstance(push, dict):
             continue
@@ -435,20 +517,57 @@ def check_pending_owner_decisions(*,
             continue                       # ответ нажатием получен
         card_status, _card_title = _card_status(tdir, card_id)
         if card_status is None:
-            unchecked.append({
-                "check": f"card_missing:{card_id}",
-                "reason": "карточки нет в живом дереве — открыт ли вопрос, НЕ ИЗМЕРЕНО. "
-                          "Отсюда «вопрос закрыт, а карточка просто не доехала в прод» "
-                          "и «вопрос открыт и потерян» выглядят ОДИНАКОВО, поэтому "
-                          "вердикта здесь нет ни в одну сторону; нажатие по такой "
-                          "карточке владельцу отвечает «карточка исчезла»",
-            })
+            missing_ids.setdefault(card_id, None)
         elif card_status == _UNREADABLE:
             unchecked.append({
                 "check": f"card_unreadable:{card_id}",
                 "reason": "карточка есть, но не разобрана — открыт ли вопрос, НЕ ИЗМЕРЕНО "
                           "(пустой статус читался бы как «закрыт» — это fail-OPEN)",
             })
+
+    # --- пропавшая карточка: чем она кончилась на origin? -------------------
+    # H8 считается ЗДЕСЬ, а не перед своей строкой: он называет поимённо часть тех
+    # же карточек (открытый вопрос, которого нет в дереве), и без его списка новая
+    # находка ниже удвоила бы уже сказанное. Порядок строк отчёта от этого не
+    # меняется — issues здесь не дописываются.
+    origin_gap = _scan_origin_gap(tdir, pushes_by_card)
+    gap_ids = {str(c.get("card_id")) for c in (origin_gap.get("hidden") or [])}
+
+    missing_on_origin = _resolve_missing_on_origin(tdir, list(missing_ids))
+    origin_status_by_card = missing_on_origin.get("found") or {}
+    closed_on_origin: list[dict] = []
+    open_on_origin: list[dict] = []
+    for card_id in missing_ids:
+        origin_status = origin_status_by_card.get(card_id)
+        if origin_status in _TERMINAL_CARD_STATUS:
+            # Доброкачественная ветка: вопрос закрыт, а файл просто не доехал в
+            # прод. Не находка — но и не молчание: факт дрейфа остаётся в отчёте
+            # и печатается отдельной строкой (иначе он «исчезнет молча», а прод
+            # так и будет отвечать «карточка исчезла» на нажатие).
+            closed_on_origin.append({"card_id": card_id, "origin_status": origin_status})
+            continue
+        if origin_status == _OPEN_CARD_STATUS:
+            # Находка СИЛЬНЕЕ прежней «не измерено»: вопрос ЖИВОЙ, владельцу его
+            # отправляли, а нажать он не может — файла в дереве нет.
+            open_on_origin.append({"card_id": card_id, "origin_status": origin_status})
+            continue
+        if not missing_on_origin.get("measured"):
+            why = (f"сверка с {ORIGIN_REF} не выполнена — "
+                   f"{missing_on_origin.get('reason', 'причина не названа')}")
+        elif origin_status is None:
+            why = (f"на {ORIGIN_REF} ({str(missing_on_origin.get('ref_sha'))[:9]}) "
+                   f"карточки тоже нет")
+        else:
+            why = (f"на {ORIGIN_REF} у неё статус `{origin_status}` — ни `"
+                   f"{_OPEN_CARD_STATUS}`, ни один из закрывающих")
+        unchecked.append({
+            "check": f"card_missing:{card_id}",
+            "reason": f"карточки нет в живом дереве и {why} — открыт ли вопрос, "
+                      "НЕ ИЗМЕРЕНО. Отсюда «вопрос закрыт, а карточка просто не "
+                      "доехала в прод» и «вопрос открыт и потерян» выглядят "
+                      "ОДИНАКОВО, поэтому вердикта здесь нет ни в одну сторону; "
+                      "нажатие по такой карточке владельцу отвечает «карточка исчезла»",
+        })
 
     # --- очередь: ИСТОЧНИК списка ждущих вопросов ---------------------------
     queue_cards, queue_unchecked, queue_present = _scan_queue(tdir)
@@ -570,7 +689,6 @@ def check_pending_owner_decisions(*,
     # такие карточки в `pending` нельзя (это очередь дерева, и подмешивать в неё
     # чужое множество значило бы показывать число, которого нет ни у одного
     # читателя), но и молчать нельзя — молчанием и был потерян `own-34`.
-    origin_gap = _scan_origin_gap(tdir, pushes_by_card)
     gap_cards = origin_gap.get("hidden") or []
     if origin_gap.get("measured") and gap_cards:
         names = ", ".join(c["card_id"] for c in gap_cards[:3])
@@ -583,6 +701,27 @@ def check_pending_owner_decisions(*,
             f"{len(gap_cards)} вопрос(ов) владельцу `{_OPEN_CARD_STATUS}` живут на "
             f"{origin_gap['ref']} ({origin_gap['ref_sha'][:9]}), а файла в дереве нет: "
             f"здешние счётчики про них не знают ВООБЩЕ{tail}: {names}{more}")
+        status = _worst(status, CRITICAL if halted else WARNING)
+
+    # --- H9: ОТПРАВЛЕННЫЙ вопрос жив на origin, а файла в дереве нет ---------
+    # До #273 такая карточка молча лежала в `unchecked` вместе с доброкачественным
+    # дрейфом. Пересечение с H8 не подавляется СОЗНАТЕЛЬНО: утверждения разные и
+    # ни одно не следует из другого. H8 говорит «очередь дерева неполна» и считает
+    # в хвосте НЕотправленные; H9 говорит ровно обратное про те же файлы — вопрос
+    # владельцу ОТПРАВЛЕН, он его видит, и нажатие отвечает «карточка исчезла».
+    # Плюс H9 не ограничен типом `owner-decision`: фильтр H8 такую карточку
+    # пропустил бы вовсе.
+    if open_on_origin:
+        names = ", ".join(c["card_id"] for c in open_on_origin[:3])
+        more = f" (и ещё {len(open_on_origin) - 3})" if len(open_on_origin) > 3 else ""
+        also = (f"; из них уже названы выше как неполнота очереди: "
+                f"{len([c for c in open_on_origin if c['card_id'] in gap_ids])}"
+                if gap_ids & {c["card_id"] for c in open_on_origin} else "")
+        issues.append(
+            f"owner_decision_pending: {len(open_on_origin)} вопрос(ов) владельцу ЖИВЫ на "
+            f"{ORIGIN_REF} (`{_OPEN_CARD_STATUS}`) и владельцу ОТПРАВЛЕНЫ, а файла в "
+            f"дереве нет — нажатие отвечает «карточка исчезла», ответить нечем{also}: "
+            f"{names}{more}")
         status = _worst(status, CRITICAL if halted else WARNING)
 
     # --- H5: ответ нажатием есть, а вопрос в очереди всё ещё открыт ---------
@@ -660,6 +799,13 @@ def check_pending_owner_decisions(*,
         # обязаны быть различимы, иначе сломанная сверка выглядит как порядок.
         "queue_gap_count": (len(gap_cards) if origin_gap.get("measured") else None),
         "origin_queue": origin_gap,
+        # Пропавшие карточки, разложенные по трём исходам (#273). `closed_on_origin`
+        # — НЕ находка, а факт дрейфа прод↔origin: вопрос закрыт, файл не доехал.
+        # Он остаётся в отчёте и печатается, потому что молча исчезнувший факт
+        # означал бы, что прод и дальше отвечает «карточка исчезла» на нажатие.
+        "missing_cards": missing_on_origin,
+        "closed_on_origin": closed_on_origin,
+        "open_on_origin": open_on_origin,
         "channel_buttons": channel,
         "pending": pending,
         "issues": issues,
@@ -712,6 +858,12 @@ def main(argv=None) -> int:
             print(f"  · {line}")
         for u in doc["unchecked"]:
             print(f"  [НЕ ИЗМЕРЕНО] {u['check']}: {u['reason']}")
+        # Факт дрейфа, а не находка — но печатается всегда, когда есть: строка
+        # ушла из «не измерено» именно потому, что мы её ОБЪЯСНИЛИ, и объяснение
+        # обязано быть видно. Молча исчезнувшая строка — та же слепота.
+        for c in doc.get("closed_on_origin") or []:
+            print(f"  [дрейф прод↔origin] {c['card_id']}: вопрос закрыт на "
+                  f"{ORIGIN_REF} (`{c['origin_status']}`), файл в прод-дерево не доехал")
     return {OK: 0, WARNING: 1, CRITICAL: 2}[doc["status"]]
 
 

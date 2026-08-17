@@ -183,6 +183,51 @@ def read_cards(root: Path, blobs: dict[str, str]) -> list[OriginCard]:
     return cards
 
 
+def _locate(tracker_dir: Path, ref: str) -> tuple[Path, str, str]:
+    """(корень репозитория, путь очереди внутри него, sha ref) — или Unmeasured.
+
+    Общая преамбула обоих публичных запросов. Вынесена не ради краткости, а
+    потому что это ОДНО решение «с чем мы вообще сверяемся»: две копии этой
+    цепочки разошлись бы в том, какой случай считать неизмеримым, и один из
+    двух читателей однажды получил бы молчание вместо причины.
+    """
+    tdir = Path(tracker_dir)
+    if not tdir.is_dir():
+        raise Unmeasured(f"каталог очереди не существует или не каталог: {tdir}")
+    root = repo_root_of(tdir)
+    try:
+        rel = tdir.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError as exc:
+        raise Unmeasured(f"каталог очереди вне своего репозитория: {tdir}") from exc
+    return root, rel, ref_sha(root, ref)
+
+
+def cards_by_id(tracker_dir: Path, card_ids, *,
+                ref: str = DEFAULT_REF) -> tuple[dict[str, OriginCard], str]:
+    """Версии НАЗВАННЫХ карточек на ref. → ({card_id: карточка}, sha ref).
+
+    Отвечает на вопрос, который `hidden_cards` не задаёт: «чем на самом деле
+    кончилась ВОТ ЭТА карточка, которой в дереве нет». Дрейф прод↔origin возит
+    только `spa_core/`·`scripts/`·`tests/`, поэтому «вопрос закрыт, а карточка
+    просто не доехала» и «вопрос открыт и потерян» с диска выглядят одинаково —
+    различает их ровно эта сверка.
+
+    **Три исхода, и все три различимы:** карточка есть на ref ⇒ ключ в ответе со
+    статусом · карточки нет и на ref ⇒ ключа НЕТ (это факт, а не сбой) · сверка
+    не выполнилась ⇒ `Unmeasured` с причиной. Пустой ответ никогда не означает
+    «всё хорошо».
+    """
+    root, rel, sha = _locate(Path(tracker_dir), ref)
+    wanted = {str(c) for c in card_ids}
+    if not wanted:
+        # Спрашивать нечего — но sha назван всё равно: вызывающий обязан уметь
+        # отличить «вопросов не было» от «сверка не состоялась».
+        return {}, sha
+    origin = snapshot(root, ref, rel)
+    blobs = {cid: blob for cid, blob in origin.items() if cid in wanted}
+    return {c.card_id: c for c in read_cards(root, blobs)}, sha
+
+
 def hidden_cards(tracker_dir: Path, *, ref: str = DEFAULT_REF,
                  tracker_type: str | None = None,
                  status: str | None = None) -> tuple[list[OriginCard], str]:
@@ -195,15 +240,7 @@ def hidden_cards(tracker_dir: Path, *, ref: str = DEFAULT_REF,
     видно всё», а это ровно наоборот.
     """
     tdir = Path(tracker_dir)
-    if not tdir.is_dir():
-        raise Unmeasured(f"каталог очереди не существует или не каталог: {tdir}")
-    root = repo_root_of(tdir)
-    try:
-        rel = tdir.resolve().relative_to(root.resolve()).as_posix()
-    except ValueError as exc:
-        raise Unmeasured(f"каталог очереди вне своего репозитория: {tdir}") from exc
-
-    sha = ref_sha(root, ref)
+    root, rel, sha = _locate(tdir, ref)
     origin = snapshot(root, ref, rel)
     in_tree = {p.stem for p in tdir.glob("*.md")} | _NOT_CARDS
     missing = {cid: blob for cid, blob in origin.items() if cid not in in_tree}
