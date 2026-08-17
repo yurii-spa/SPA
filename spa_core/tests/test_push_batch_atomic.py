@@ -393,9 +393,14 @@ def test_cli_dry_run_writes_nothing(ptg, repo, monkeypatch):
 # ═════════════════════════════════════════════════════════════════════════════
 # 6. Одна реализация на оба CLI (близнец = класс дефектов #37/#40)
 # ═════════════════════════════════════════════════════════════════════════════
+# Список РАСШИРЕН (ничего не убрано): `resolve_exec_paths` / `promote_mode_only` —
+# явный подъём x-бита на origin (карточка
+# `agent-task-prava-na-origin-nechem-pochinit-pusher-p`). Умение чинить режим НА ORIGIN
+# нельзя иметь в одном пушере и не иметь в другом — тот же класс дефектов #37/#40.
 _SHARED = ["batch_push", "resolve_files", "create_blob", "create_tree",
            "create_commit", "update_ref", "get_base_ref", "remote_tree_modes",
-           "tree_entry_mode", "split_unchanged", "get_pat"]
+           "tree_entry_mode", "split_unchanged", "get_pat",
+           "resolve_exec_paths", "promote_mode_only"]
 
 
 @pytest.mark.parametrize("name", _SHARED)

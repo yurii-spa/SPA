@@ -92,6 +92,13 @@ batch_push = _root_push.batch_push
 TreeModeError = _root_push.TreeModeError
 BLOB_MODE = _root_push.BLOB_MODE
 EXEC_MODE = _root_push.EXEC_MODE
+# Явный подъём x-бита (`--exec`) — тоже ОДНА реализация: под этим CLI стоят
+# safe_site_push / кастодиан, и «починить режим на origin» нельзя уметь в одном
+# пушере и не уметь в другом (карточка
+# `agent-task-prava-na-origin-nechem-pochinit-pusher-p`).
+resolve_exec_paths = _root_push.resolve_exec_paths
+promote_mode_only = _root_push.promote_mode_only
+ExecModeRefused = _root_push.ExecModeRefused
 
 # Страж перезаписи — тоже ОДНА реализация на оба CLI (карточка
 # `agent-shared-doc-whole-file-push-overwrites`): под этим файлом стоит
@@ -151,6 +158,9 @@ def main():
     parser.add_argument("--allow-toolchain-mismatch", action="store_true",
                         help="ОСОЗНАННО пушить инструментом, который разошёлся с копией в дереве "
                              "отправляемых файлов")
+    parser.add_argument("--exec", nargs="+", default=None, dest="exec_paths", metavar="FILE",
+                        help="ПОДНЯТЬ x-бит (режим 100755) названным файлам набора "
+                             "(.claude/rules/deployment.md п.3). Снять x-бит нельзя")
     args = parser.parse_args()
 
     allow_overwrite = bool(args.allow_overwrite) or \
@@ -213,7 +223,11 @@ def main():
 
     try:
         result = batch_push(pat, all_files, message, args.repo, args.branch,
-                            dry_run=args.dry_run, allow_overwrite=allow_overwrite)
+                            dry_run=args.dry_run, allow_overwrite=allow_overwrite,
+                            exec_files=args.exec_paths)
+    except ExecModeRefused as e:
+        print(f"\nОТКАЗ (--exec): {e}", file=sys.stderr)
+        sys.exit(8)
     except urllib.error.HTTPError as e:
         body = e.read().decode(errors="replace")
         print(f"\nFAIL HTTP {e.code}: {body[:500]}")
