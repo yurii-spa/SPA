@@ -7,9 +7,18 @@ previously HAND-maintained and drifted stale (frozen at 5 evidenced days while t
 real track advanced) — fixed by deriving it from the source of truth every run, so
 the offline fallback can never again lie by more than one cycle.
 
-Source of truth (read-only):
+Source of truth (read-only) — ВЕСЬ канон снимка, ровно четыре файла. Список обязан быть
+полным: сторож сайта возит в коммит РОВНО его (`deploy_site_snapshot._CANON`), и по нему
+же owner-gate пересчитывает опубликованное число. Пропущенный здесь вход = число на
+сайте, которое нечем проверить из репозитория (ADR-093 п.3):
+
   data/golive_status.json       — real_track_days, gates passed/total, anchor, target
   data/equity_curve_daily.json  — the evidenced bars (source/evidenced flags), equity
+  data/paper_trading_status.json— current_equity (PoR-NAV, та же власть, что и у API)
+  data/tier1_packages.json      — net-APY / worst-DD карточек тиров (`packages.*`)
+
+Каждый вход — ПАРАМЕТР `build_snapshot`, а не модульная константа: пересчёт «из канона
+того же коммита» обязан читать коммит, а не рабочее дерево проверяющей машины.
 
 HONEST rules:
   - real_track_days = count of EVIDENCED bars (source-of-truth: track_evidence), never
@@ -31,6 +40,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 GOLIVE = ROOT / "data" / "golive_status.json"
 EQUITY = ROOT / "data" / "equity_curve_daily.json"
+PTS = ROOT / "data" / "paper_trading_status.json"
+PACKAGES = ROOT / "data" / "tier1_packages.json"
 OUT = ROOT / "landing" / "src" / "data" / "track_snapshot.json"
 
 # Purely time-gated go-live blockers — failing ONLY because the 30-day track has not
@@ -74,11 +85,19 @@ def _max_drawdown_pct(bars: list):
     return round(worst, 4)
 
 
-def _tier_packages() -> dict:
+def _tier_packages(packages_path: Path | None = None) -> dict:
     """Static fallback for the homepage tier cards (Preserve/Core/Max-Yield net-APY + DD), sourced from
     data/tier1_packages.json — the SAME field the live /api/tier1/packages fills. A tier whose backend
-    value is not yet computed stays null -> the card honestly shows '—' (never a hardcoded number)."""
-    pk = _load(ROOT / "data" / "tier1_packages.json")
+    value is not yet computed stays null -> the card honestly shows '—' (never a hardcoded number).
+
+    `packages_path` — ЧЕТВЁРТЫЙ вход канона, и его пришлось сделать параметром по той же
+    причине, что и три остальных (ADR-070 п.2 / ADR-093 п.3). Раньше путь был зашит на
+    модульный `ROOT`, поэтому пересчёт снимка «из канона того же коммита»
+    (`check_owner_gate._canon_reproduced_fields`) читал эти числа НЕ из коммита, а из
+    рабочего дерева проверяющей машины: воспроизведение выглядело герметичным, не будучи им.
+    None ⇒ путь по умолчанию (поведение генератора в проде не меняется).
+    """
+    pk = _load(packages_path if packages_path is not None else PACKAGES)
     pk = pk.get("packages", pk) if isinstance(pk, dict) else {}
     out = {}
     for key in ("conservative", "balanced", "aggressive"):
@@ -92,7 +111,12 @@ def _tier_packages() -> dict:
     return out
 
 
-def build_snapshot(golive_path: Path = GOLIVE, equity_path: Path = EQUITY, pts_path=None) -> dict:
+def build_snapshot(
+    golive_path: Path = GOLIVE,
+    equity_path: Path = EQUITY,
+    pts_path=None,
+    packages_path: Path | None = None,
+) -> dict:
     """Assemble the build-time static snapshot from the committed data files.
 
     ONE source per number (FIX-2): live equity / paper APY / PoR-NAV come from
@@ -102,7 +126,7 @@ def build_snapshot(golive_path: Path = GOLIVE, equity_path: Path = EQUITY, pts_p
     """
     golive = _load(golive_path)
     equity = _load(equity_path)
-    pts = _load(pts_path if pts_path is not None else (ROOT / "data" / "paper_trading_status.json"))
+    pts = _load(pts_path if pts_path is not None else PTS)
 
     bars = equity.get("bars") or equity.get("curve") or equity.get("daily") or []
     evidenced = [b for b in bars if b.get("evidenced") is True]
@@ -161,7 +185,7 @@ def build_snapshot(golive_path: Path = GOLIVE, equity_path: Path = EQUITY, pts_p
         "paper_apy_pct": round(float(paper_apy), 4) if paper_apy is not None else None,
         "max_drawdown_pct": _max_drawdown_pct(evidenced or bars),
         "total_return_pct": round((end_equity / 100000.0 - 1.0) * 100.0, 4),
-        "packages": _tier_packages(),   # tier-card net-APY static fallback (Preserve/Core/Max), null if uncomputed
+        "packages": _tier_packages(packages_path),   # tier-card net-APY static fallback (Preserve/Core/Max), null if uncomputed
         "bars": bars,
     }
     return snap

@@ -124,7 +124,15 @@ _TS_CANON_FILES = (
     ("golive_path", "data/golive_status.json"),
     ("equity_path", "data/equity_curve_daily.json"),
     ("pts_path", "data/paper_trading_status.json"),
+    ("packages_path", "data/tier1_packages.json"),
 )
+
+# Вход, чьё ОТСУТСТВИЕ не публикует чисел (`packages.*` становятся null ⇒ карточки тиров
+# показывают «—»). Его нехватка не отменяет дневное разрешение для остальных пяти полей,
+# но и не подставляет рабочее дерево: пересчёт получает заведомо несуществующий путь и
+# честно считает по null'ам — ровно то, что произвёл бы генератор без этого файла.
+# Все прочие входы обязательны: нет канона ⇒ разрешения нет (fail-CLOSED, как раньше).
+_TS_CANON_OPTIONAL = frozenset({"data/tier1_packages.json"})
 
 # ── regexes (compiled once) ─────────────────────────────────────────────────
 # Class A — solicitation (active-offer phrasing). EN + RU.
@@ -392,10 +400,16 @@ def _canon_reproduced_fields(
                     txt = src.read_text(encoding="utf-8") if src.is_file() else None
                 else:
                     txt = _blob(ref, rel, repo)
+                dst = Path(td) / Path(rel).name
                 if txt is None:
+                    if rel in _TS_CANON_OPTIONAL:
+                        # Файла нет ⇒ он не давал чисел. Путь всё равно передаём (на
+                        # несуществующий файл), иначе генератор молча возьмёт значение из
+                        # рабочего дерева проверяющей машины вместо коммита.
+                        kwargs[kw] = dst
+                        continue
                     log.info("owner-gate: канон %s недоступен — дневного разрешения нет", rel)
                     return frozenset()
-                dst = Path(td) / Path(rel).name
                 dst.write_text(txt, encoding="utf-8")
                 kwargs[kw] = dst
             regenerated = mod.build_snapshot(**kwargs)

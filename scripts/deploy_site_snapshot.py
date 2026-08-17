@@ -43,13 +43,28 @@ never in code). Called from scripts/run_daily_paper_cycle.sh after the cycle. Sa
   НЕ ИЗ ЧЕГО, и по fail-CLOSED он заворачивал честную ночную доставку. Сторож, ежедневно
   краснеющий на честной работе, будет отключён людьми ровно до первого настоящего нарушения.
 
-Поэтому доставка идёт ОДНИМ коммитом: снимок + три файла канона, из которых `build_snapshot`
+Поэтому доставка идёт ОДНИМ коммитом: снимок + файлы канона, из которых `build_snapshot`
 его и считает. Список закрыт и обязан совпадать с `check_owner_gate._TS_CANON_FILES` — лишние
 файлы из `data/` (живой трек целиком) сюда не возят. `--allow-overwrite` распространяется на
 весь набор осознанно: канон, как и снимок, целиком производит дневной цикл на этой же машине,
 его remote-версия — прошлое поколение того же цикла, а не чужая правка (дефект 2 выше). Канон
 отсутствует на диске ⇒ доставки нет вовсе (fail-CLOSED): публиковать число, которое нечем
 подтвердить, — это и есть исходная авария.
+
+Дефект 5 — СПИСОК КАНОНА БЫЛ НЕПОЛОН (ADR-093 п.3, замер 2026-08-17). Первая доставка
+дефекта 4 перечислила канон ПО ШАПКЕ генератора («Source of truth» — два файла) и по
+сигнатуре `build_snapshot`, а не по фактическим чтениям. Инструментальный замер (перехват
+`open`/`read_text` на живом вызове) показал ЧЕТЫРЕ входа из `data/`: четвёртым идёт
+`data/tier1_packages.json` — из него собирается `packages.*`, то есть net-APY и worst-DD
+карточек тиров на главной. Он не возился в коммит, не значился в `_TS_CANON_FILES` и не
+имел негации в `.gitignore`; вдобавок `_tier_packages` читал модульный `ROOT`, поэтому
+пересчёт «из канона того же коммита» брал эти числа из рабочего дерева проверяющей машины —
+воспроизведение выглядело герметичным, не будучи им. Именно этот класс чисел (доходность
+на публичной странице) прямо назван owner-gated в `.claude/rules/site-copy.md`.
+
+Отсюда правило на будущее: состав канона определяется ЗАМЕРОМ, а не чтением документации —
+храповик `test_canon_list_covers_measured_reads` перехватывает чтения `build_snapshot` и
+краснеет на любом новом входе из `data/`, не попавшем в `_CANON`.
 """
 # LLM_FORBIDDEN
 import hashlib
@@ -66,7 +81,8 @@ _PUSH = _ROOT / "scripts" / "safe_site_push.py"
 _PY = sys.executable
 
 # КАНОН ТРЕКА — ровно те файлы, которые читает `generate_track_snapshot.build_snapshot`
-# (её параметры `golive_path` / `equity_path` / `pts_path`). Едут в ТОТ ЖЕ коммит, что и
+# (её параметры `golive_path` / `equity_path` / `pts_path` / `packages_path`; состав
+# подтверждён ЗАМЕРОМ чтений, а не сигнатурой — см. дефект 5). Едут в ТОТ ЖЕ коммит, что и
 # снимок: без них owner-gate не может пересчитать изменившееся число, а человек — сойтись
 # с сайтом из репозитория (ADR-070 п.2, дефект 4 в шапке модуля). Список ЗАКРЫТ: остальной
 # `data/` — живой трек, его сюда не возят. Совпадение с `check_owner_gate._TS_CANON_FILES`
@@ -75,7 +91,17 @@ _CANON = (
     "data/golive_status.json",
     "data/equity_curve_daily.json",
     "data/paper_trading_status.json",
+    "data/tier1_packages.json",
 )
+
+# Вход, отсутствие которого НЕ публикует числа. `data/tier1_packages.json` даёт
+# `packages.*` — net-APY и worst-DD карточек тиров; нет файла ⇒ `_tier_packages`
+# детерминированно отдаёт null'ы ⇒ карточки честно показывают «—». Проверять нечего,
+# и требовать файл значило бы глушить доставку остальных чисел там, где tier-1
+# пайплайн ещё не отработал. Присутствует — едет в коммит как всё остальное.
+# Ослаблением это не является: контроль ниже (шаг 2b) отказывает, если файла нет,
+# А ЧИСЛО В СНИМКЕ ВСЁ-ТАКИ ЕСТЬ, — то есть ровно в случае непроверяемого числа.
+_CANON_OPTIONAL = frozenset({"data/tier1_packages.json"})
 
 
 def _sha(p: Path):
@@ -151,16 +177,34 @@ def main() -> int:
     # Канон обязан быть НА ДИСКЕ и обязан остаться тем же до момента доставки: снимок и
     # исходники едут одним коммитом, и разъехавшаяся пара хуже отсутствующей — она
     # выглядит проверяемой, не будучи ею. Нет файла ⇒ не публикуем (fail-CLOSED).
-    canon_paths = [_ROOT / rel for rel in _CANON]
-    missing = [rel for rel, pth in zip(_CANON, canon_paths) if not pth.is_file()]
-    if missing:
-        print(f"deploy_site_snapshot: канона нет на диске ({', '.join(missing)}) — "
+    present = [rel for rel in _CANON if (_ROOT / rel).is_file()]
+    missing = [rel for rel in _CANON if rel not in present]
+    hard_missing = [rel for rel in missing if rel not in _CANON_OPTIONAL]
+    if hard_missing:
+        print(f"deploy_site_snapshot: канона нет на диске ({', '.join(hard_missing)}) — "
               f"снимок нечем подтвердить, не деплоим", file=sys.stderr)
         return 1
+    canon_paths = [_ROOT / rel for rel in present]
     canon_shas = [_sha(p) for p in canon_paths]
     # 2. deploy only if the MEANINGFUL content differs from ORIGIN (deploy truth), ignoring the
     #    volatile generated_at stamp — and NOT vs the previous local copy (local drifts from origin).
     local = json.loads(_SNAP.read_text())
+    # 2b. Отсутствующий необязательный вход разрешён РОВНО потому, что он не публикует
+    #     числа. Если число всё-таки в снимке — посылка неверна, и мы бы опубликовали
+    #     ровно то, ради чего затевался ADR-070 п.2: цифру, которую нечем подтвердить.
+    if "data/tier1_packages.json" in missing:
+        baked = sorted(
+            f"packages.{tier}.{field}"
+            for tier, card in (local.get("packages") or {}).items()
+            if isinstance(card, dict)
+            for field, value in card.items()
+            if value is not None
+        )
+        if baked:
+            print(f"deploy_site_snapshot: канона data/tier1_packages.json нет на диске, "
+                  f"а числа в снимке есть ({', '.join(baked)}) — подтвердить их нечем, "
+                  f"не деплоим", file=sys.stderr)
+            return 1
     origin = _origin_snapshot()
     if origin is not None and _meaningful(origin) == _meaningful(local):
         print("deploy_site_snapshot: snapshot matches origin/main (data identical) — no deploy needed")

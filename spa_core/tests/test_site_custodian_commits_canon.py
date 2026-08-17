@@ -82,6 +82,13 @@ def _canon(days: int, step_usd: float) -> dict[str, dict]:
         },
         "data/equity_curve_daily.json": {"bars": bars},
         "data/paper_trading_status.json": {"current_equity": bars[-1]["equity"]},
+        # Четвёртый вход (ADR-093 п.3): из него собираются `packages.*` — net-APY и
+        # worst-DD карточек тиров на главной, owner-gated класс «числа доходности».
+        "data/tier1_packages.json": {"packages": {
+            "conservative": {"blended_net_apy_pct": 4.1, "worst_dd_pct": -0.3},
+            "balanced": {"blended_net_apy_pct": 6.2, "worst_dd_pct": -1.4},
+            "aggressive": {"blended_net_apy_pct": 9.3, "worst_dd_pct": -4.5},
+        }},
     }
 
 
@@ -195,8 +202,110 @@ def test_canon_list_matches_the_generator_inputs():
     import inspect
 
     params = set(inspect.signature(gen.build_snapshot).parameters)
-    assert {"golive_path", "equity_path", "pts_path"} <= params
+    assert {"golive_path", "equity_path", "pts_path", "packages_path"} <= params
     assert tuple(DEPLOY._CANON) == tuple(rel for _, rel in GATE._TS_CANON_FILES)
+    assert DEPLOY._CANON_OPTIONAL == GATE._TS_CANON_OPTIONAL
+
+
+def _measure_data_reads(gen, root: Path) -> list[str]:
+    """Фактические чтения `build_snapshot` из `data/` — перехватом, а не чтением шапки."""
+    import builtins
+
+    seen: list[str] = []
+    orig_open, orig_rt = builtins.open, Path.read_text
+
+    def rec(target) -> None:
+        try:
+            rel = Path(target).resolve().relative_to(root)
+        except (ValueError, OSError, TypeError):
+            return
+        if str(rel).startswith("data/") and str(rel) not in seen:
+            seen.append(str(rel))
+
+    def open_hook(file, mode="r", *a, **k):
+        if "r" in mode and "+" not in mode:
+            rec(file)
+        return orig_open(file, mode, *a, **k)
+
+    def rt_hook(self, *a, **k):
+        rec(self)
+        return orig_rt(self, *a, **k)
+
+    try:
+        builtins.open, Path.read_text = open_hook, rt_hook
+        gen.build_snapshot()
+    finally:
+        builtins.open, Path.read_text = orig_open, orig_rt
+    return seen
+
+
+def test_canon_list_covers_measured_reads(tmp_path: Path):
+    """ХРАПОВИК: состав канона определяется ЗАМЕРОМ чтений, а не документацией.
+
+    Ровно на этом сломалась первая доставка ADR-070 п.2: список канона переписали из
+    шапки генератора («Source of truth» — два файла) и из сигнатуры `build_snapshot`,
+    а фактических чтений никто не замерил. Мимо прошёл `data/tier1_packages.json` —
+    из него собираются `packages.*`, net-APY и worst-DD карточек тиров на главной,
+    то есть прямо owner-gated класс «числа доходности». Итог тот же, что и до починки:
+    число опубликовано, подтвердить его из репозитория нечем.
+
+    Тест ловит ЛЮБОЙ новый вход из `data/`, не попавший в `_CANON`, — включая
+    прочитанный из вложенной функции, мимо параметров `build_snapshot`.
+    """
+    gen = _load("generate_track_snapshot_measured_mod", _GEN)
+    root = tmp_path / "measured"
+    for rel, payload in _canon(days=3, step_usd=10.0).items():
+        _write(root, rel, payload)
+    _write(root, _TRACK_SNAPSHOT, {"degraded": False})
+    # Генератор считает пути от собственного ROOT — переселяем его в одноразовое дерево,
+    # чтобы замер видел относительные пути и не трогал живой `data/` репозитория.
+    for name, value in (("ROOT", root), ("GOLIVE", root / "data" / "golive_status.json"),
+                        ("EQUITY", root / "data" / "equity_curve_daily.json"),
+                        ("PTS", root / "data" / "paper_trading_status.json"),
+                        ("PACKAGES", root / "data" / "tier1_packages.json"),
+                        ("OUT", root / _TRACK_SNAPSHOT)):
+        setattr(gen, name, value)
+
+    measured = _measure_data_reads(gen, root)
+    assert measured, "замер не увидел ни одного чтения — сломан сам перехват, а не канон"
+    missed = [rel for rel in measured if rel not in DEPLOY._CANON]
+    assert missed == [], (
+        f"`build_snapshot` читает из data/ файлы, которых нет в `_CANON`: {missed}. "
+        f"Их числа уедут на сайт непроверяемыми — добавить в `_CANON`, "
+        f"`check_owner_gate._TS_CANON_FILES` и негацию в `.gitignore`."
+    )
+
+
+def test_measurement_ratchet_catches_a_new_unlisted_input(tmp_path: Path):
+    """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ самого храповика: подсовываем пятый вход — обязан покраснеть.
+
+    Без этого предыдущий тест — украшение: он бы одинаково молчал и на здоровом
+    генераторе, и на сломанном перехвате.
+    """
+    gen = _load("generate_track_snapshot_regress_mod", _GEN)
+    root = tmp_path / "regress"
+    for rel, payload in _canon(days=3, step_usd=10.0).items():
+        _write(root, rel, payload)
+    _write(root, "data/some_new_feed.json", {"apy_pct": 12.5})
+    _write(root, _TRACK_SNAPSHOT, {"degraded": False})
+    for name, value in (("ROOT", root), ("GOLIVE", root / "data" / "golive_status.json"),
+                        ("EQUITY", root / "data" / "equity_curve_daily.json"),
+                        ("PTS", root / "data" / "paper_trading_status.json"),
+                        ("PACKAGES", root / "data" / "tier1_packages.json"),
+                        ("OUT", root / _TRACK_SNAPSHOT)):
+        setattr(gen, name, value)
+    # ровно то, что сделал бы автор нового поля: тихо дочитать ещё один файл из data/
+    original = gen.build_snapshot
+
+    def build_with_new_input(*a, **k):
+        snap = original(*a, **k)
+        snap["shiny_apy"] = gen._load(root / "data" / "some_new_feed.json").get("apy_pct")
+        return snap
+
+    gen.build_snapshot = build_with_new_input
+    measured = _measure_data_reads(gen, root)
+    assert "data/some_new_feed.json" in measured
+    assert [rel for rel in measured if rel not in DEPLOY._CANON] == ["data/some_new_feed.json"]
 
 
 def test_missing_canon_refuses_delivery(tree: Path):
@@ -220,6 +329,46 @@ def test_canon_changed_after_generation_refuses(tree: Path):
     assert "канон изменился" in d.log
 
 
+def test_tier_packages_canon_travels_too(tree: Path):
+    """Четвёртый вход едет тем же коммитом — иначе числа карточек тиров непроверяемы."""
+    d = _Deploy(tree)
+    assert d.run() == 0
+    assert "data/tier1_packages.json" in DEPLOY._CANON
+    assert any(p.endswith("tier1_packages.json") for p in d.pushed), \
+        "packages.* (net-APY карточек тиров) опубликованы без канона в том же коммите"
+
+
+def test_absent_optional_canon_still_delivers(tree: Path):
+    """ПРОПУСК: файла нет ⇒ чисел он не давал (карточки показывают «—») ⇒ везём остальное.
+
+    Требовать его безусловно значило бы глушить публикацию честных чисел трека там, где
+    tier-1 пайплайн ещё не отработал, — а выключенный сторож не защищает ни от чего.
+    """
+    (tree / "data" / "tier1_packages.json").unlink()
+    _write(tree, _TRACK_SNAPSHOT, {"real_track_days": 3, "packages": {
+        "conservative": {"apy_pct": None, "dd_pct": None}}})
+    d = _Deploy(tree)
+    assert d.run() == 0, d.log
+    assert not any(p.endswith("tier1_packages.json") for p in d.pushed)
+    assert any(p.endswith("golive_status.json") for p in d.pushed)
+
+
+def test_absent_optional_canon_with_a_baked_number_refuses(tree: Path):
+    """ЗАВОРОТ: канона нет, а число в снимке ЕСТЬ — ровно непроверяемая цифра, не везём.
+
+    Это контроль на то, что послабление выше не превратилось в дыру: разрешено не
+    «отсутствие файла», а «отсутствие числа».
+    """
+    (tree / "data" / "tier1_packages.json").unlink()
+    _write(tree, _TRACK_SNAPSHOT, {"real_track_days": 3, "packages": {
+        "aggressive": {"apy_pct": 9.3, "dd_pct": -4.5}}})
+    d = _Deploy(tree)
+    assert d.run() == 1
+    assert d.push_cmd == []
+    assert "подтвердить их нечем" in d.log
+    assert "packages.aggressive.apy_pct" in d.log
+
+
 def test_canon_is_not_gitignored():
     """`data/` игнорируется целиком — канону нужна явная негация, иначе он не доедет."""
     for rel in DEPLOY._CANON:
@@ -238,10 +387,13 @@ def _git(repo: Path, *args: str) -> None:
 
 def _build_snapshot_for(repo: Path) -> dict:
     mod = _load(f"_gen_ts_{repo.name}", repo / "scripts" / "generate_track_snapshot.py")
+    # Каждый вход — явным путём в ЭТОТ репозиторий: иначе генератор возьмёт значение из
+    # рабочего дерева настоящего SPA, и тест будет проверять не то, что думает.
     return mod.build_snapshot(
         golive_path=repo / "data" / "golive_status.json",
         equity_path=repo / "data" / "equity_curve_daily.json",
         pts_path=repo / "data" / "paper_trading_status.json",
+        packages_path=repo / "data" / "tier1_packages.json",
     )
 
 
@@ -329,6 +481,36 @@ def test_forgery_hidden_inside_an_honest_nightly_commit_is_gated(repo: Path):
     assert "paper_apy_pct" in gated
     assert "end_equity" not in gated, "честные поля коммита разрешение получают"
     assert report["ok"] is False
+
+
+def test_reproduction_reads_the_commit_not_the_working_tree(repo: Path):
+    """Пересчёт обязан брать канон ИЗ КОММИТА, а не из дерева проверяющей машины.
+
+    До ADR-093 п.3 `_tier_packages` читала модульный `ROOT`, поэтому `packages.*`
+    приходили из рабочего дерева независимо от проверяемого коммита: воспроизведение
+    ВЫГЛЯДЕЛО герметичным, не будучи им. Здесь канон коммита и дерева расходятся
+    намеренно — пересчёт обязан согласиться с коммитом.
+    """
+    _nightly(repo, days=4, step_usd=11.0, commit_canon=True)
+    committed = _build_snapshot_for(repo)
+    # дерево уезжает в сторону ПОСЛЕ коммита — на результат пересчёта влиять не должно
+    _write(repo, "data/tier1_packages.json", {"packages": {
+        "aggressive": {"blended_net_apy_pct": 99.0, "worst_dd_pct": -0.1}}})
+
+    gen = _load("_gen_ts_hermetic", repo / "scripts" / "generate_track_snapshot.py")
+    from_commit = GATE._canon_reproduced_fields(repo, "HEAD", committed)
+    assert {"end_equity", "nav_usd"} <= set(from_commit)
+
+    forged = dict(committed)
+    forged["packages"] = {"aggressive": {"apy_pct": 99.0, "dd_pct": -0.1}}
+    rebuilt = gen.build_snapshot(
+        golive_path=repo / "data" / "golive_status.json",
+        equity_path=repo / "data" / "equity_curve_daily.json",
+        pts_path=repo / "data" / "paper_trading_status.json",
+        packages_path=repo / "data" / "nonexistent_packages.json",
+    )
+    assert rebuilt["packages"]["aggressive"] == {"apy_pct": None, "dd_pct": None}, \
+        "нет файла ⇒ обязаны быть null'ы, а не подхваченное из дерева число"
 
 
 def test_delivery_without_canon_is_gated_as_before(repo: Path):
