@@ -65,6 +65,47 @@ _real_urlopen = None  # set by install(): the callable the guard delegates to
 #: even after another conftest reassigned urllib.request.urlopen.
 _MARKER = "_spa_telegram_guard"
 
+#: How a wrapper points at the callable it delegates to.  Both guards set it,
+#: which is what makes the delegation chain walkable instead of guessable.
+_WRAPPED_ATTR = "__wrapped__"
+
+#: Per-wrapper mutable state, stamped on the wrapper itself (never a module
+#: global — see the closure note in :func:`install`).  Holds ``retired``: a
+#: wrapper that has been superseded by a newer copy of this guard stops
+#: inspecting and becomes a pure pass-through.
+_STATE_ATTR = "_spa_telegram_guard_state"
+
+#: How deep to follow ``__wrapped__`` before declaring the chain pathological.
+#: A cycle would otherwise hang the walk; the healthy chain is 2-3 links.
+_MAX_CHAIN_DEPTH = 32
+
+
+def urlopen_chain() -> List[Any]:
+    """The ``urlopen`` delegation chain, outermost first.
+
+    Each guard's wrapper records what it delegates to in ``__wrapped__``, so
+    the chain can be *walked* rather than guessed at from whatever sits on top.
+    Cycle-safe: identity-seen set plus a depth cap.
+    """
+    chain: List[Any] = []
+    current = urllib.request.urlopen
+    seen = set()
+    for _ in range(_MAX_CHAIN_DEPTH):
+        if current is None or id(current) in seen:
+            break
+        seen.add(id(current))
+        chain.append(current)
+        current = getattr(current, _WRAPPED_ATTR, None)
+    return chain
+
+
+def _is_live_layer(link: Any) -> bool:
+    """``True`` when ``link`` is a wrapper of THIS guard that still inspects."""
+    if not getattr(link, _MARKER, False):
+        return False
+    state = getattr(link, _STATE_ATTR, None)
+    return not (isinstance(state, dict) and state.get("retired"))
+
 
 def _url_of(req: Any) -> str:
     """Best-effort URL of a urlopen argument (``Request`` object or ``str``)."""
@@ -102,24 +143,82 @@ def reset() -> None:
 
 
 def is_installed() -> bool:
-    """``True`` when the guard is the ``urllib.request.urlopen`` in effect."""
-    return getattr(urllib.request.urlopen, _MARKER, False)
+    """``True`` when this guard's wrapper is SOMEWHERE in the ``urlopen`` chain.
+
+    Why this walks the chain instead of reading the top marker (2026-08-17,
+    card ``inbox-storozh-telegram-dverei-vybivaet-storozh``)
+    ---------------------------------------------------------------------
+    It used to read the marker off ``urllib.request.urlopen`` only, i.e. off
+    the OUTERMOST callable.  That answers "am I on top", which is a different
+    question from "am I installed" — and :mod:`network_guard` legitimately ends
+    up on top whenever ``conftest`` repairs it (``ensure_installed`` wraps
+    whatever is current).  Measured on the shipped code::
+
+        tg.install(); ng.install()  ->  tg.is_installed() == False
+
+    …while the tg wrapper was demonstrably still in the chain.  ``install()``
+    read that ``False`` as "not installed" and wrapped a SECOND time, building
+    ``tg -> ng -> tg -> real`` with TWO live Telegram layers in it —
+    the very shape cycle #163 closed after it produced ``RecursionError``.
+    ``spa_core/tests/conftest.py`` reaches that state on every network-guard
+    repair, because repairing wraps whatever is current and so puts
+    :mod:`network_guard` on top of an already-installed Telegram guard.
+
+    Measured honestly: through the real conftest path the pile settles at four
+    links and stops (the clobber that triggers a repair destroys the chain
+    first).  Driving ``network_guard`` to re-wrap without that reset grew it
+    two links per cycle — 3, 5, 7, 9, 11, 13.  The damage reachable in every
+    run is the duplicate live layer and this function denying its own
+    presence; the unbounded version is the same defect without its brake.
+
+    Retired wrappers (superseded by a newer copy of this guard, see
+    :func:`install`) do not count: they no longer inspect anything.
+    """
+    return any(_is_live_layer(link) for link in urlopen_chain())
+
+
+def is_outermost() -> bool:
+    """``True`` when this guard's live wrapper is the ``urlopen`` in effect.
+
+    The separate, stricter question :func:`is_installed` used to be misread as
+    answering.  It is load-bearing on its own: only the outermost layer sees a
+    call first, so only then does ``api.telegram.org`` get this guard's
+    specific, token-redacting report instead of the network guard's generic
+    refusal (pinned by ``test_telegram_guard_stays_outermost``).
+    """
+    return _is_live_layer(urllib.request.urlopen)
 
 
 def install() -> None:
-    """Wrap ``urllib.request.urlopen`` with the guard.
+    """Wrap ``urllib.request.urlopen`` with the guard, staying OUTERMOST.
 
-    Idempotent against ITSELF but **not** blind: it re-wraps whenever the
-    current ``urlopen`` is not the guard.  That matters because
+    Idempotent against ITSELF but **not** blind: it re-wraps whenever this
+    guard is not the callable in effect.  That matters because
     ``tests/conftest.py`` installs a blanket offline block by plain assignment
     (``urllib.request.urlopen = _blocked_urlopen``) — which silently threw the
     guard away when it happened to be imported second.  Wrapping whatever is
     current preserves both: Telegram URLs are caught here, everything else is
     handed to the offline block (or the real transport) exactly as before.
+
+    Two distinct states, two distinct answers (2026-08-17):
+
+    * already outermost  -> nothing to do;
+    * present but buried under :mod:`network_guard` (the state ``conftest``
+      leaves behind after repairing that guard) -> wrap again so Telegram keeps
+      its specific message, and **retire the buried copy** so exactly ONE live
+      Telegram layer exists and the chain stops accumulating.  A retired wrapper stays
+      physically in the chain — its delegate is captured in another module's
+      closure and cannot be re-pointed from here without risking the
+      ``tg -> ng -> tg`` cycle of #163 — but it is inert: it inspects nothing
+      and delegates straight through.
     """
     global _real_urlopen
-    if is_installed():
+    if is_outermost():
         return
+    for link in urlopen_chain():
+        state = getattr(link, _STATE_ATTR, None)
+        if getattr(link, _MARKER, False) and isinstance(state, dict):
+            state["retired"] = True
     _real_urlopen = urllib.request.urlopen
     # Bound HERE and read from the closure, never from the module global
     # (cycle #163). install() rebinds that global, so a wrapper reading it would
@@ -128,8 +227,17 @@ def install() -> None:
     # `telegram_guard -> network_guard -> telegram_guard -> …` and the next real
     # call died with RecursionError.
     _base_urlopen = _real_urlopen
+    # Per-wrapper, bound in the closure for the same reason as the delegate:
+    # a module global would be shared by every copy, so retiring one would
+    # blind them all.
+    _state = {"retired": False}
 
     def _guarded_urlopen(req, *args, **kwargs):  # type: ignore[no-untyped-def]
+        if _state["retired"]:
+            # Superseded by a newer copy of this guard sitting above us; that
+            # one owns the report. Pass straight through — inspecting here
+            # would double-record the same attempt.
+            return _base_urlopen(req, *args, **kwargs)  # type: ignore[misc]
         url = _url_of(req)
         if TELEGRAM_HOST in url:
             redacted = _redact(url)
@@ -143,6 +251,7 @@ def install() -> None:
         return _base_urlopen(req, *args, **kwargs)  # type: ignore[misc]
 
     setattr(_guarded_urlopen, _MARKER, True)
+    setattr(_guarded_urlopen, _STATE_ATTR, _state)
     # Point at what this wrapper delegates to, so the chain can be WALKED.
     # network_guard.is_installed() used to read only the outermost marker and
     # therefore mistook this guard's presence for its own (cycle #163); it now

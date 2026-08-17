@@ -75,3 +75,65 @@ created: 2026-08-17
 а `telegram_guard.is_installed()` — сделать его таким же обходчиком цепочки, каким уже
 стал `network_guard._urlopen_layer_present()`, и закрепить обоими порядками установки
 в положительном контроле. Потолком приёмки оставить полный прогон.
+
+---
+
+## Цикл #279 (2026-08-17) — асимметрия закрыта, положительные контроли на месте
+
+**Замер до починки** (`spa_core/tests/telegram_guard.py` @ FETCH_HEAD):
+
+    ng.install(); tg.install()  ->  tg.is_installed()=True   tg outermost=—   chain=3
+    tg.install(); ng.install()  ->  tg.is_installed()=False  (слой tg В ЦЕПОЧКЕ ЕСТЬ)  chain=3
+    затем tg.install() (что делает conftest:550)  ->  chain=4:
+        telegram_guard -> network_guard -> telegram_guard -> urllib.request.urlopen
+    оба слоя tg ЖИВЫЕ; если гнать network_guard на переустановку без сброса цепочки —
+    3, 5, 7, 9, 11, 13 … (тот же класс, на котором #163 ловил RecursionError)
+
+**Что изменено** — `spa_core/tests/telegram_guard.py`:
+
+* `is_installed()` теперь обходит цепочку по `__wrapped__` (как
+  `network_guard._urlopen_layer_present()`) и видит свой маркер на ЛЮБОЙ глубине;
+* появился отдельный `is_outermost()` — второй, более строгий вопрос («мой слой видит
+  вызов первым»), от которого зависит специфичное сообщение про `api.telegram.org`
+  (его пинит `test_telegram_guard_stays_outermost`);
+* `install()` при «слой есть, но погребён» **выводит копию наверх и ОТСТАВЛЯЕТ погребённую**
+  (`retired` → сквозной проход, ничего не инспектирует). Живой слой tg ровно один,
+  цепочка перестаёт накапливать.
+
+**Положительные контроли** — новый файл
+`spa_core/tests/test_guard_install_order_is_symmetric.py` (8 тестов, герметичные копии
+обоих сторожей, инертный транспорт, часы не читаются). На НЕпочиненном модуле: `4 failed,
+4 passed`; после починки `8 passed`. Оба порядка (`ng;tg` и `tg;ng`) закреплены: в каждом
+телеграм-URL ловится ДВЕРЬЮ TELEGRAM (`LiveTelegramSendAttempted`, токен отредактирован),
+живой фид — ДВЕРЬЮ СЕТИ (`LiveNetworkAccessAttempted`), сокет-бэкстоп жив; повторная
+установка цепочку не наращивает.
+
+**Ни один сторож не ослаблен**: изменений в `network_guard.py` нет, ни один существующий
+тест не отключён и не сужен.
+
+**Прогон** `pytest spa_core/tests/ -q -k "guard or telegram or network or urlopen"`
+(2183 passed, 9 failed): сообщение **«network guard was RE-INSTALLED mid-run» НЕ
+напечаталось**. Девять падений — `test_one_telegram_poller.py` и
+`test_push_relative_path_tree.py` — краснеют ОДИНАКОВО до и после правки
+(22 failed / 7 passed в изолированном прогоне обоих файлов и на старом, и на новом
+модуле), к сторожам отношения не имеют.
+
+**Чего НЕ сделано (карточку не закрываю):** критерий требует полного
+`pytest spa_core/tests/ tests/`. Второй корень (`tests/conftest.py:87`) до сих пор
+**плоским присваиванием** ставит `_blocked_urlopen` и рушит цепочку, а на строке 171
+переустанавливает ТОЛЬКО telegram_guard — поэтому в совместном прогоне двух корней
+network_guard всё равно будет однократно «RE-INSTALLED» и сообщение напечатается.
+Это ОТДЕЛЬНАЯ причина, эта правка её не трогает.
+
+Последовательность промерена (симуляция двух conftest'ов, после починки):
+
+    после spa_core/tests/conftest   : chain 3, tg.is_installed=True
+    после tests/conftest (строка 87): chain 2, ng.is_installed=False  ← ng ВЫБИТ ЗДЕСЬ
+    первый тест, ремонт фикстурой   : chain 4, tg.is_outermost=True, clobbers=[('first_test','urlopen')]
+    ещё 20 тестов                   : chain 4, clobbers=1  (не растёт)
+
+То есть сообщение печатается РОВНО ОДИН РАЗ и указывает на первый тест — виновник же
+`tests/conftest.py:87`. Чтобы оно исчезло совсем, второй корень должен ставить сетевого
+сторожа, а не плоско присваивать `_blocked_urlopen`; это изменение семантики второго
+корня (у `_blocked_urlopen` блокируется и loopback, у `network_guard` — нет), поэтому
+отдельной карточкой/решением, а не походя.
