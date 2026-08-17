@@ -41,6 +41,19 @@ _RND_REGISTRY = pathlib.Path("docs") / "DYNAMIC_LEVERAGE_GUARDIAN.md"
 #: XML-комментарий plist'а: `<!-- ... -->` (в plist'ах он многострочный).
 _XML_COMMENT = re.compile(r"<!--.*?-->", re.S)
 
+#: Пробел любого вида: им отличается цельный путь-токен от текста для человека.
+_WHITESPACE = re.compile(r"\s")
+
+#: Вызовы, внутри аргументов которых строка — КОМАНДА, а не текст для человека.
+#: Имя сравнивается последним сегментом (`subprocess.run` → `run`).
+_LAUNCHER_FUNCS = frozenset({
+    "run", "Popen", "call", "check_call", "check_output",
+    "getoutput", "getstatusoutput", "system", "popen",
+    "execv", "execve", "execvp", "execvpe", "spawnv", "spawnve", "spawnl",
+    "run_path", "run_module", "spec_from_file_location",
+    "create_subprocess_shell", "create_subprocess_exec",
+})
+
 
 def _cut_at_hash(text: str) -> str:
     """Отрезать `#`-комментарии, не трогая `#` внутри кавычек.
@@ -143,27 +156,62 @@ def _blank_spans(text: str, spans: Iterable[Tuple[int, int, int, int]]) -> str:
     return "".join(out)
 
 
-def _python_without_docstrings(text: str) -> str:
-    """Питон без ДОКСТРИНГОВ модуля/класса/функции; прочие литералы СОХРАНЕНЫ.
+def _parent_map(tree: ast.AST) -> Dict[int, ast.AST]:
+    """`id(узел) -> родитель`. Контекст литерала иначе не восстановить: у `ast`
+    ссылки идут только вниз."""
+    out: Dict[int, ast.AST] = {}
+    for node in ast.walk(tree):
+        for child in ast.iter_child_nodes(node):
+            out[id(child)] = node
+    return out
 
-    Докстринг — проза о коде, и по последствиям он равен комментарию: цикл
-    #227 сделал сканер комментарио-слепым, но упоминание `scripts/<имя>.py`
-    в `\"\"\"…\"\"\"` продолжало числиться вызовом и держало «подключёнными»
-    пять скриптов (замер 14.08, карточка `inbox-hrapovik-schitaet-upominanie-v-dokstring`).
 
-    Вырезается ТОЛЬКО первый строковый литерал тела `Module`/`ClassDef`/
-    `FunctionDef`/`AsyncFunctionDef` — то есть ровно докстринг. Любой другой
-    литерал остаётся: в нём живёт настоящий вызов
-    (`subprocess.run(["python3", "scripts/x.py"])`).
+def _inside_launcher_call(node: ast.AST, parents: Dict[int, ast.AST]) -> bool:
+    """Литерал лежит в АРГУМЕНТАХ вызова, который запускает программу.
 
-    Файл не разобрался (битый синтаксис) — возвращаем как есть: это СЛАБЕЕ,
-    и потому названо вслух, а не спрятано. Комментарии с такого файла всё
-    равно снимаются запасным путём `_cut_at_hash`.
+    Только здесь строка с пробелами имеет право быть командой:
+    `subprocess.run(f"python3 scripts/x.py --once", shell=True)`. Тот же текст в
+    `print(...)` — сообщение человеку.
+
+    Имя вызова берётся ПОСЛЕДНИМ сегментом (`subprocess.run` → `run`), потому что
+    модуль зовут и `import subprocess`, и `from subprocess import run`. Набор
+    заведомо ШИРЕ нужного (`run`/`call` носят и невинные вызовы) — и это
+    осознанное направление ошибки: лишний запускатель СОХРАНЯЕТ доказательство
+    проводки, то есть скрипт остаётся «подключённым». Ошибиться в другую сторону
+    значит объявить живой скрипт сиротой, а этот исход в проекте признан хуже
+    пропуска (#183, #255).
     """
-    try:
-        tree = ast.parse(text)
-    except (SyntaxError, ValueError):
-        return text
+    cur = node
+    while True:
+        parent = parents.get(id(cur))
+        if parent is None:
+            return False
+        if isinstance(parent, ast.Call) and cur is not parent.func:
+            func = parent.func
+            name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", "")
+            if name in _LAUNCHER_FUNCS:
+                return True
+        cur = parent
+
+
+def _joined_str_text(node: ast.JoinedStr) -> str:
+    """Постоянные куски f-строки, склеенные: то, что в ней написано БУКВАЛЬНО.
+
+    f-строка судится ЦЕЛИКОМ (и затирается целиком), а не по кускам: у вложенных
+    узлов координаты зависят от версии интерпретатора, а у самого `JoinedStr` —
+    нет. Одно сообщение — одно решение.
+    """
+    return "".join(v.value for v in node.values
+                   if isinstance(v, ast.Constant) and isinstance(v.value, str))
+
+
+def _docstring_spans(tree: ast.AST) -> List[Tuple[int, int, int, int]]:
+    """Докстринги модуля/класса/функции — проза о коде, вызова в ней быть не может.
+
+    Проверяется отдельно от общего правила о прозе: докстринг вида `\"\"\"x.py\"\"\"`
+    пробелов не содержит и под «текст для человека» по форме не попадает,
+    а вызовом от этого не становится.
+    """
     spans = []
     for node in ast.walk(tree):
         if not isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef,
@@ -177,26 +225,89 @@ def _python_without_docstrings(text: str) -> str:
                 and isinstance(first.value.value, str)):
             v = first.value
             spans.append((v.lineno, v.col_offset, v.end_lineno, v.end_col_offset))
+    return spans
+
+
+def _prose_spans(tree: ast.AST) -> List[Tuple[int, int, int, int]]:
+    """Строковые литералы, которые являются ТЕКСТОМ ДЛЯ ЧЕЛОВЕКА, а не запуском.
+
+    Признак — форма самого литерала, а не догадка о смысле:
+
+    * **цельный токен** (`"scripts/x.py"`, `"x.py"`, `str(ROOT / "x.py")`) — путь и
+      ничего кроме пути. Так выглядит подавляющая часть настоящих ссылок, и такой
+      литерал СОХРАНЯЕТСЯ независимо от того, где он лежит;
+    * **строка с пробелами** (`"Протестируй: python3 scripts/x.py --dry-run"`) —
+      сообщение, ЕСЛИ она не лежит в аргументах запускателя. Команда с флагами
+      внутри `subprocess.run(...)` — тоже строка с пробелами, и её сохраняет
+      `_inside_launcher_call`.
+
+    Почему не «литерал вообще не доказательство»: `subprocess.run(["python3",
+    "scripts/x.py"])` — настоящий вызов, и живёт он именно в литерале (#255 снял
+    докстринг только потому, что докстринг отличим структурно). Почему не
+    «литерал в `print` не доказательство»: сообщение собирают и `out.append(f"…")`,
+    и `lines.append(...)`, и `return "…"` — перечислить писателей нельзя, а
+    перечислить запускателей можно.
+    """
+    parents = _parent_map(tree)
+    in_fstring = {id(c) for node in ast.walk(tree) if isinstance(node, ast.JoinedStr)
+                  for c in ast.walk(node) if c is not node}
+    spans = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.JoinedStr):
+            literal = _joined_str_text(node)
+        elif (isinstance(node, ast.Constant) and isinstance(node.value, str)
+                and id(node) not in in_fstring):
+            literal = node.value
+        else:
+            continue
+        if not _WHITESPACE.search(literal.strip()):
+            continue
+        if _inside_launcher_call(node, parents):
+            continue
+        spans.append((node.lineno, node.col_offset, node.end_lineno, node.end_col_offset))
+    return spans
+
+
+def _python_without_prose(text: str) -> str:
+    """Питон без докстрингов и без строк-сообщений; литералы-запуски СОХРАНЕНЫ.
+
+    Три формы прозы сняты в трёх циклах и все — в одну сторону, убирая
+    доказательство слабее вызова: комментарий (#227), докстринг (#255), текст
+    сообщения (#278). Четвёртая была опаснее прочих: чтобы навсегда снять
+    НАСТОЯЩИЙ мёртвый скрипт с учёта, хватало один раз назвать его имя в тексте
+    любой подсказки — молча и без злого умысла (карточка
+    `inbox-hrapovik-nepodklyuchennyh-skriptov-schit-2`, найдено падением #257 на
+    строке-подсказке шага 0a про `scripts/reap_stale_worktrees.py`).
+
+    Файл не разобрался (битый синтаксис) — возвращаем как есть: это СЛАБЕЕ,
+    и потому названо вслух, а не спрятано. Комментарии с такого файла всё
+    равно снимаются запасным путём `_cut_at_hash`.
+    """
+    try:
+        tree = ast.parse(text)
+    except (SyntaxError, ValueError):
+        return text
+    spans = _docstring_spans(tree) + _prose_spans(tree)
     return _blank_spans(text, spans) if spans else text
 
 
 def code_without_comments(path: pathlib.Path, text: str) -> str:
-    """Текст файла без комментариев И докстрингов — то, где может жить ВЫЗОВ.
+    """Текст файла без комментариев, докстрингов и сообщений — где может жить ВЫЗОВ.
 
     Замер 14.08 (цикл #227): сырой текстовый поиск не отличал вызов от
     упоминания, и `daily_paper_report` числился «подключённым» ровно потому,
     что его имя стояло в комментарии, объяснявшем, что он НЕ подключён.
 
-    Докстринги закрыты циклом #255 — но ТОЛЬКО ПОСЛЕ того, как сканер научился
-    видеть все формы проводки (`wiring_patterns`). Порядок здесь не украшение:
-    `check_tracker_drift` держится докстрингами, а зовут его голым
-    `import check_tracker_drift` — снять докстринги первыми значило объявить
+    Докстринги закрыты циклом #255, текст сообщений — #278, но ТОЛЬКО ПОСЛЕ того,
+    как сканер научился видеть все формы проводки (`wiring_patterns`). Порядок
+    здесь не украшение: `check_tracker_drift` держится докстрингами, а зовут его
+    голым `import check_tracker_drift` — снять докстринги первыми значило объявить
     живой, ежедневно исполняемый скрипт сиротой, то есть покрасить храповика
     на честной работе (исход, который в этом проекте признан хуже пропуска).
     """
     suffix = path.suffix
     if suffix == ".py":
-        return _python_without_docstrings(_python_without_comments(text))
+        return _python_without_prose(_python_without_comments(text))
     if suffix in (".sh", ".yml", ".yaml"):
         return _cut_at_hash(text)
     if suffix == ".plist":
