@@ -14,6 +14,9 @@ from pathlib import Path
 from spa_core.agents.alpha_agent import (
     AlphaScore,
     _compute_risk_flags,
+    _diversification,
+    coverage_set,
+    polled_protocols,
     _score_apy,
     _score_exit,
     _score_tier_bonus,
@@ -452,6 +455,232 @@ class TestGetTopCandidates(unittest.TestCase):
         result = get_top_candidates(n=2, data_dir=self.data_dir)
         if len(result) >= 2:
             self.assertGreaterEqual(result[0].score, result[1].score)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Множество покрытия: «не смогли посмотреть» ≠ «активных ноль» (цикл #277).
+#
+# Каждый тест ниже — ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ на замеренный дефект: до починки
+# `_load_active_protocols` отдавал `[]` и при отсутствующем, и при битом
+# артефакте, а `[]` стоит +15 баллов из 100 каждому кандидату — то есть
+# непрочитанный артефакт систематически поднимал в ранге те протоколы, которые
+# мы УЖЕ держим. Обратные контроли (бонус на месте при измеренном множестве)
+# идут рядом: иначе «починка» вида «никогда не начислять» прошла бы незаметно.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestPolledProtocolsHonesty(unittest.TestCase):
+    """Опрошенное оркестратором: измеренный ноль отделён от «не измерено»."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.data_dir = Path(self._tmp.name)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_missing_artifact_is_unmeasured_not_zero(self):
+        out = polled_protocols(self.data_dir)
+        self.assertFalse(out["measured"])
+        self.assertIn("не найден", out["reason"])
+
+    def test_corrupt_artifact_is_unmeasured(self):
+        (self.data_dir / "adapter_orchestrator_status.json").write_text(
+            "{ это не json", encoding="utf-8")
+        out = polled_protocols(self.data_dir)
+        self.assertFalse(out["measured"])
+        self.assertIn("нечитаем", out["reason"])
+
+    def test_wrong_shape_is_unmeasured(self):
+        # Список вместо объекта — форма другая, значит НЕ измерено (не «ноль»).
+        (self.data_dir / "adapter_orchestrator_status.json").write_text(
+            json.dumps([{"protocol": "aave_v3"}]), encoding="utf-8")
+        out = polled_protocols(self.data_dir)
+        self.assertFalse(out["measured"])
+        self.assertIn("не объект", out["reason"])
+
+    def test_missing_adapters_key_is_unmeasured(self):
+        # Предмет теста — ОТСУТСТВИЕ ключа `adapters`, а не дата: литеральной
+        # отметки здесь нет намеренно (храповик `test_frozen_date_ratchet`
+        # поймал её первой редакции — календарь двигался бы, поведение нет).
+        (self.data_dir / "adapter_orchestrator_status.json").write_text(
+            json.dumps({"source": "orchestrator"}), encoding="utf-8")
+        out = polled_protocols(self.data_dir)
+        self.assertFalse(out["measured"])
+        self.assertIn("нет ключа adapters", out["reason"])
+
+    def test_empty_adapters_list_is_a_MEASURED_zero(self):
+        # Обратный контроль: артефакт на месте и говорит «опросили ноль» —
+        # это ИЗМЕРЕНО, и путать его с непрочитанным файлом нельзя.
+        (self.data_dir / "adapter_orchestrator_status.json").write_text(
+            json.dumps({"adapters": []}), encoding="utf-8")
+        out = polled_protocols(self.data_dir)
+        self.assertTrue(out["measured"])
+        self.assertEqual(out["ids"], [])
+        self.assertEqual(out["reason"], "")
+
+    def test_names_are_read_when_present(self):
+        (self.data_dir / "adapter_orchestrator_status.json").write_text(
+            json.dumps({"adapters": [{"protocol": "aave_v3"}, {"protocol": "maple"},
+                                     {"no_protocol": 1}, "мусор"]}), encoding="utf-8")
+        out = polled_protocols(self.data_dir)
+        self.assertTrue(out["measured"])
+        self.assertEqual(out["ids"], ["aave_v3", "maple"])
+
+
+class TestCoverageSet(unittest.TestCase):
+    """«Это уже наше?» отвечает КАНОН, а не восьмёрка опрошенного."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.data_dir = Path(self._tmp.name)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_canon_is_wider_than_polled(self):
+        # Ровно жалоба карточки: артефакт опроса знает 8 имён, канон — десятки,
+        # и на вопрос «не изобретаем ли мы имеющееся» верен канон.
+        (self.data_dir / "adapter_orchestrator_status.json").write_text(
+            json.dumps({"adapters": [{"protocol": p} for p in (
+                "aave_v3", "compound_v3", "morpho_blue", "morpho_steakhouse",
+                "yearn_v3", "euler_v2", "maple", "pendle")]}), encoding="utf-8")
+        cov = coverage_set(self.data_dir)
+        self.assertTrue(cov["measured"], cov["reason"])
+        self.assertEqual(len(cov["polled_ids"]), 8)
+        self.assertGreater(len(cov["ids"]), 8)
+        # Канон включает то, чего в опросе нет вовсе.
+        self.assertIn("moonwell_base", cov["ids"])
+        self.assertNotIn("moonwell_base", cov["polled_ids"])
+
+    def test_unmeasured_polled_half_is_named(self):
+        cov = coverage_set(self.data_dir)   # артефакта опроса нет
+        self.assertFalse(cov["measured"])
+        self.assertIn("опрос оркестратора", cov["reason"])
+        self.assertIsNone(cov["polled_ids"])
+        # Канон при этом измерен — и ЭТО названо отдельно от опроса.
+        self.assertIsNotNone(cov["canon_ids"])
+        self.assertNotIn("канон покрытия", cov["reason"])
+
+    def test_canon_survives_unmeasured_polled(self):
+        # Даже без артефакта опроса множество имён НЕ пустое: канон на месте.
+        cov = coverage_set(self.data_dir)
+        self.assertGreater(len(cov["ids"]), 8)
+
+
+class TestDiversificationFailClosed(unittest.TestCase):
+    """При НЕ измеренном покрытии бонус не начисляется — и это видно."""
+
+    @staticmethod
+    def _cand(protocol="aave-v3"):
+        return {"protocol": protocol, "symbol": "USDC", "chain": "ethereum",
+                "apy_pct": 7.0, "tvl_usd": 200_000_000}
+
+    def test_unmeasured_coverage_pays_no_bonus(self):
+        unmeasured = {"ids": [], "measured": False, "reason": "артефакт опроса не найден"}
+        bonus, basis = _diversification("aave-v3", unmeasured)
+        self.assertEqual(bonus, 0)
+        self.assertIn("не измерено", basis)
+
+    def test_measured_empty_coverage_still_pays_bonus(self):
+        # Обратный контроль: ИЗМЕРЕННЫЙ ноль — законное «мы ничего не держим»,
+        # и бонус за диверсификацию обязан начисляться.
+        measured_zero = {"ids": [], "measured": True, "reason": ""}
+        bonus, basis = _diversification("aave-v3", measured_zero)
+        self.assertEqual(bonus, 15)
+        self.assertEqual(basis, "")
+
+    def test_basis_names_the_match(self):
+        bonus, basis = _diversification("morpho-blue", {"ids": ["morpho_blue"],
+                                                        "measured": True, "reason": ""})
+        self.assertEqual(bonus, 0)
+        self.assertEqual(basis, "morpho_blue")
+
+    def test_plain_list_is_treated_as_measured(self):
+        # Совместимость: список от вызывающего — его собственное множество,
+        # значит измеренное; иначе старые вызовы молча потеряли бы бонус.
+        self.assertEqual(_diversification("any-protocol", [])[0], 15)
+        self.assertEqual(_score_diversification("any-protocol", []), 15)
+
+    def test_score_candidate_accepts_unmeasured_dict(self):
+        unmeasured = {"ids": [], "measured": False, "reason": "нечитаем"}
+        s = score_candidate(self._cand(), unmeasured)
+        self.assertEqual(s.diversification_bonus, 0)
+        self.assertIn("не измерено", s.diversification_basis)
+        # И ровно на 15 баллов ниже, чем при измеренном пустом множестве.
+        s_measured = score_candidate(self._cand(), {"ids": [], "measured": True, "reason": ""})
+        self.assertEqual(s_measured.score - s.score, 15)
+
+
+class TestAlphaScanCoverageOutput(unittest.TestCase):
+    """`alpha_candidates.json` не выдаёт непрочитанный артефакт за пустой."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.data_dir = Path(self._tmp.name)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def _registry(self, *protocols):
+        return {"status": "ok", "candidates": [
+            {"protocol": p, "symbol": "USDC", "chain": "ethereum",
+             "apy_pct": 7.0, "tvl_usd": 200_000_000} for p in protocols]}
+
+    def _write(self, name, obj):
+        (self.data_dir / name).write_text(json.dumps(obj), encoding="utf-8")
+
+    def test_already_active_is_None_when_unmeasured(self):
+        # Ключевое поведение: None (не измерено) вместо [] (пусто) — иначе
+        # «мы ничего не держим» и «мы не смогли посмотреть» читаются одинаково.
+        self._write("candidate_registry.json", self._registry("brand-new-proto"))
+        doc = run_alpha_scan(data_dir=self.data_dir)
+        self.assertIsNone(doc["already_active"])
+        self.assertFalse(doc["coverage"]["measured"])
+        self.assertIn("опрос оркестратора", doc["coverage"]["reason"])
+
+    def test_already_active_is_list_when_measured(self):
+        self._write("candidate_registry.json", self._registry("brand-new-proto"))
+        self._write("adapter_orchestrator_status.json", {"adapters": [{"protocol": "maple"}]})
+        doc = run_alpha_scan(data_dir=self.data_dir)
+        self.assertEqual(doc["already_active"], ["maple"])
+        self.assertTrue(doc["coverage"]["measured"], doc["coverage"]["reason"])
+
+    def test_held_protocol_gets_no_diversification_bonus_from_canon(self):
+        # Именно та надбавка, которой платили дублям: aave_v3 мы держим, в
+        # артефакте опроса его может не быть, а канон о нём знает.
+        self._write("candidate_registry.json", self._registry("aave_v3"))
+        self._write("adapter_orchestrator_status.json", {"adapters": []})
+        doc = run_alpha_scan(data_dir=self.data_dir)
+        cand = doc["candidates"][0]
+        self.assertEqual(cand["protocol_id"], "aave_v3")
+        self.assertEqual(cand["diversification_bonus"], 0)
+        self.assertTrue(cand["diversification_basis"],
+                        "основание снятия бонуса обязано быть названо")
+
+    def test_unmeasured_coverage_zeroes_bonus_in_the_file(self):
+        self._write("candidate_registry.json", self._registry("brand-new-proto"))
+        doc = run_alpha_scan(data_dir=self.data_dir)   # артефакта опроса нет
+        cand = doc["candidates"][0]
+        self.assertEqual(cand["diversification_bonus"], 0)
+        self.assertIn("не измерено", cand["diversification_basis"])
+
+    def test_new_protocol_keeps_bonus_when_coverage_measured(self):
+        # Обратный контроль: при измеренном покрытии НОВЫЙ кандидат бонус получает.
+        self._write("candidate_registry.json", self._registry("brand-new-proto"))
+        self._write("adapter_orchestrator_status.json", {"adapters": [{"protocol": "maple"}]})
+        doc = run_alpha_scan(data_dir=self.data_dir)
+        cand = doc["candidates"][0]
+        self.assertEqual(cand["diversification_bonus"], 15)
+        self.assertEqual(cand["diversification_basis"], "")
+
+    def test_coverage_block_separates_the_two_questions(self):
+        self._write("adapter_orchestrator_status.json", {"adapters": [{"protocol": "maple"}]})
+        doc = run_alpha_scan(data_dir=self.data_dir)
+        cov = doc["coverage"]
+        self.assertEqual(cov["polled_count"], 1)
+        self.assertGreater(cov["canon_count"], cov["polled_count"])
+        self.assertIn("coverage.ids", doc["already_active_note"])
 
 
 if __name__ == "__main__":

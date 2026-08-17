@@ -1,8 +1,11 @@
 """Alpha Agent — еженедельный скан кандидатов на whitelist (MP-304).
 
-ИСТОЧНИКИ (все fail-safe, пустой список если файл не найден):
+ИСТОЧНИКИ:
   data/candidate_registry.json — кандидаты от discovery (adapter_sdk/discovery.py)
-  data/adapter_orchestrator_status.json — текущие активные протоколы (для сравнения)
+  канон покрытия — protocol_research_agent.known_protocols() (реестр адаптеров +
+    манифесты SDK); отвечает на «это уже наше?»
+  data/adapter_orchestrator_status.json — что оркестратор ОПРОСИЛ (другой вопрос,
+    отдельное поле); нечитаемый артефакт = measured=False, а НЕ «активных ноль»
   data/analytics_summary.json — текущая аналитика портфеля
 
 СКОРИНГ КАНДИДАТОВ (детерминированный, без LLM):
@@ -13,7 +16,10 @@ score = взвешенная сумма (0-100):
   apy_score: 5-10% → 20, 3-5% → 10, >10% → 5 (sanity cap), else 0
   exit_score: instant (0h) → 20, <24h → 15, <168h → 5, else 0
   tier_bonus: T2 → 15, T3 → 10 (diversity)
-  diversification_bonus: если протокол не пересекается с уже активными → 15
+  diversification_bonus: если протокол не пересекается с множеством покрытия → 15;
+    при НЕ измеренном множестве покрытия → 0 (fail-CLOSED: «не смогли посмотреть»
+    не оплачивается баллами в пользу дубля), основание видно в
+    diversification_basis
 
 risk_flags:
   "credit_risk" если "credit" в имени протокола
@@ -40,6 +46,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
 from spa_core.utils.atomic import atomic_save
+# Канон «что мы уже охватываем» живёт ОДИН раз — у соседнего исследовательского
+# агента (цикл #276). Здесь его только читают: пятое определение того же
+# множества и есть та авария, из-за которой это исправление понадобилось.
+from spa_core.agents.protocol_research_agent import known_protocols
 
 log = logging.getLogger("spa.agents.alpha_agent")
 
@@ -81,6 +91,11 @@ class AlphaScore:
     exit_score: int = 0
     tier_bonus: int = 0
     diversification_bonus: int = 0
+    # Почему бонус за диверсификацию именно такой: "" — пересечений нет (бонус
+    # начислен) · имя из множества покрытия — совпало с ним (бонус снят) ·
+    # "не измерено: <причина>" — множество покрытия не прочитано, бонус снят
+    # fail-CLOSED. Без этого поля ложное совпадение по подстроке невидимо.
+    diversification_basis: str = ""
     rationale: str = ""
     risk_flags: list[str] = field(default_factory=list)
     suggested_tier: str = "candidate"       # always "candidate" — never T1/T2/T3
@@ -115,6 +130,110 @@ def _read_json(path: Path, default: Any) -> Any:
 def _atomic_write_json(path: Path, obj: Any) -> None:
     """Atomic JSON write via centralized atomic_save (MP-1453)."""
     atomic_save(obj, str(path))
+
+
+# ─── «Это уже наше?» — множество покрытия вместе с честностью замера ───────────
+#
+# У вопроса «охватываем ли мы уже этот протокол» в репозитории жили ЧЕТЫРЕ
+# разных ответа: канон реестра (36) · ``ADAPTER_METADATA`` (22) · опрошенное
+# оркестратором (8) · манифесты (21). Здесь читался САМЫЙ УЗКИЙ из них —
+# артефакт последнего опроса, — и выдавался за «вот всё, что у нас есть».
+# Пятого определения не заводим: канон берём у соседа
+# (``protocol_research_agent.known_protocols``, цикл #276), опрос читаем сами и
+# держим ОТДЕЛЬНЫМ полем, потому что это ответ на другой вопрос («что реально
+# опрашивается»), а не на «не изобретаем ли мы уже имеющееся».
+#
+# Главное: «не смогли посмотреть» ≠ «активных ноль». Раньше пустой список
+# означал оба состояния сразу, а бонус за диверсификацию платит за него +15
+# баллов из 100 — то есть непрочитанный артефакт СИСТЕМАТИЧЕСКИ поднимал в
+# ранге кандидатов, которых мы уже держим. Теперь при ``measured=False`` бонус
+# не начисляется вовсе.
+
+
+def _norm(s: str) -> str:
+    """Нормализация имени протокола: регистр, дефисы/пробелы → подчёркивания."""
+    return str(s).strip().lower().replace("-", "_").replace(" ", "_")
+
+
+def polled_protocols(data_dir: str | os.PathLike | None = None) -> dict:
+    """Что оркестратор ОПРОСИЛ в последний раз — вместе с честностью замера.
+
+    Ключи
+    -----
+    ``ids``      — имена протоколов из артефакта опроса;
+    ``measured`` — False, если артефакт не прочитан (нет файла / нечитаем /
+                   не та форма). Это НЕ «активных ноль»;
+    ``reason``   — почему не измерен, словами (пусто при ``measured=True``).
+
+    Присутствующий артефакт с пустым списком адаптеров — ИЗМЕРЕННЫЙ ноль
+    (``measured=True``, ``ids=[]``), и это другое состояние.
+    """
+    ddir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
+    path = ddir / "adapter_orchestrator_status.json"
+
+    if not path.exists():
+        return {"ids": [], "measured": False,
+                "reason": f"артефакт опроса не найден ({path.name})"}
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (ValueError, OSError) as exc:
+        return {"ids": [], "measured": False,
+                "reason": f"артефакт опроса нечитаем ({path.name}: {type(exc).__name__})"}
+    if not isinstance(doc, dict):
+        return {"ids": [], "measured": False,
+                "reason": f"артефакт опроса не объект ({path.name}: {type(doc).__name__})"}
+
+    adapters = doc.get("adapters")
+    if adapters is None:
+        return {"ids": [], "measured": False,
+                "reason": f"в артефакте опроса нет ключа adapters ({path.name})"}
+    if not isinstance(adapters, list):
+        return {"ids": [], "measured": False,
+                "reason": (f"ключ adapters не список ({path.name}: "
+                           f"{type(adapters).__name__})")}
+
+    ids = [str(a["protocol"]) for a in adapters
+           if isinstance(a, dict) and a.get("protocol")]
+    return {"ids": ids, "measured": True, "reason": ""}
+
+
+def coverage_set(data_dir: str | os.PathLike | None = None) -> dict:
+    """Ответ на «это уже наше?»: КАНОН покрытия ∪ опрошенное, с честностью замера.
+
+    Канон (реестр адаптеров + манифесты SDK) — правильный ответ на вопрос «не
+    изобретаем ли мы то, что уже есть»; опрошенное оркестратором отвечает на
+    другой вопрос и лежит здесь отдельным полем, а не вместо канона.
+
+    Ключи
+    -----
+    ``ids``      — нормализованное объединение;
+    ``measured`` — False, если хотя бы одна половина НЕ измерена;
+    ``reason``   — какая именно половина и почему, словами;
+    ``canon_ids`` / ``polled_ids`` — сырые списки либо ``None`` (не измерено).
+
+    Потребитель ОБЯЗАН читать ``measured``: при False фильтр «это уже наше»
+    ненадёжен, и уже охваченный протокол приедет как новый кандидат.
+    """
+    canon = known_protocols()
+    polled = polled_protocols(data_dir)
+
+    reasons: list[str] = []
+    if not canon.get("measured", False):
+        reasons.append("канон покрытия: " + (canon.get("reason") or "причина не названа"))
+    if not polled["measured"]:
+        reasons.append("опрос оркестратора: " + polled["reason"])
+
+    canon_ids = list(canon.get("ids") or [])
+    ids = sorted({_norm(i) for i in canon_ids + polled["ids"] if str(i).strip()})
+    return {
+        "ids": ids,
+        "measured": not reasons,
+        "reason": " · ".join(reasons),
+        "canon_ids": canon_ids if canon.get("measured", False) else None,
+        "polled_ids": polled["ids"] if polled["measured"] else None,
+        "canon_count": len(canon_ids) if canon.get("measured", False) else None,
+        "polled_count": len(polled["ids"]) if polled["measured"] else None,
+    }
 def _score_tvl(tvl_usd: float) -> int:
     """TVL score component (0–30)."""
     if tvl_usd > _TVL_TIER1:
@@ -161,21 +280,44 @@ def _score_tier_bonus(suggested_tier: str) -> int:
     return 10
 
 
+def _diversification(protocol: str, coverage: Any) -> tuple[int, str]:
+    """Бонус за диверсификацию (0–15) ВМЕСТЕ с основанием.
+
+    ``coverage`` — либо словарь замера (:func:`coverage_set`), либо готовый
+    список имён (тогда он считается измеренным: множество задал сам вызывающий).
+
+    Возврат: ``(бонус, основание)``. Основание — "" (пересечений нет), имя из
+    множества покрытия (совпало) либо "не измерено: <причина>".
+
+    При ``measured=False`` бонус НЕ начисляется: «не смогли посмотреть» не
+    должно оплачиваться баллами в пользу дубля (fail-CLOSED).
+    """
+    if isinstance(coverage, dict):
+        if not coverage.get("measured", False):
+            return 0, "не измерено: " + (coverage.get("reason") or "причина не названа")
+        names = coverage.get("ids") or []
+    else:
+        names = coverage or []
+
+    prot_n = _norm(protocol)
+    for active in names:
+        active_n = _norm(active)
+        if prot_n and active_n and (prot_n in active_n or active_n in prot_n):
+            return 0, str(active)
+    return 15, ""
+
+
 def _score_diversification(protocol: str, active_protocols: list[str]) -> int:
     """Diversification bonus if protocol not in active protocols (0–15).
 
     Normalises dashes/underscores so "morpho-blue" == "morpho_blue",
     then uses substring match to handle prefix slugs ("spark" ⊆ "sparklend").
-    """
-    def _norm(s: str) -> str:
-        return str(s).strip().lower().replace("-", "_")
 
-    prot_n = _norm(protocol)
-    for active in active_protocols:
-        active_n = _norm(active)
-        if prot_n in active_n or active_n in prot_n:
-            return 0
-    return 15
+    Совместимая обёртка над :func:`_diversification`: отдаёт только число.
+    Кто должен знать, ИЗМЕРЕНО ли множество покрытия, обязан передавать словарь
+    замера — иначе «не смогли посмотреть» снова станет неотличимо от «ноль».
+    """
+    return _diversification(protocol, active_protocols)[0]
 
 
 def _compute_risk_flags(
@@ -246,13 +388,16 @@ def generate_rationale_with_llm(
 # ─── Core scoring function ─────────────────────────────────────────────────────
 
 
-def score_candidate(candidate: dict, active_protocols: list[str]) -> AlphaScore:
+def score_candidate(candidate: dict, active_protocols: Any) -> AlphaScore:
     """Score a single candidate dict → AlphaScore.
 
     Parameters
     ----------
     candidate        : dict from candidate_registry.json (discovery output).
-    active_protocols : list of protocol keys currently active (from orchestrator).
+    active_protocols : множество покрытия — либо словарь замера
+                       (:func:`coverage_set`, тогда читается ``measured``),
+                       либо готовый список имён (тогда он считается измеренным:
+                       его задал сам вызывающий).
 
     Returns
     -------
@@ -279,7 +424,7 @@ def score_candidate(candidate: dict, active_protocols: list[str]) -> AlphaScore:
     apy_score = _score_apy(apy_pct)
     exit_score = _score_exit(exit_latency_hours)
     tier_bonus = _score_tier_bonus(raw_tier)
-    div_bonus = _score_diversification(protocol, active_protocols)
+    div_bonus, div_basis = _diversification(protocol, active_protocols)
 
     total = tvl_score + apy_score + exit_score + tier_bonus + div_bonus
     # Clamp to 0–100
@@ -296,6 +441,7 @@ def score_candidate(candidate: dict, active_protocols: list[str]) -> AlphaScore:
         exit_score=exit_score,
         tier_bonus=tier_bonus,
         diversification_bonus=div_bonus,
+        diversification_basis=div_basis,
         risk_flags=risk_flags,
         suggested_tier="candidate",  # always candidate — never promote directly
         tvl_usd=tvl_usd,
@@ -323,18 +469,14 @@ def _load_candidates(data_dir: Path) -> list[dict]:
 
 
 def _load_active_protocols(data_dir: Path) -> list[str]:
-    """Load adapter_orchestrator_status.json → list of active protocol keys."""
-    doc = _read_json(data_dir / "adapter_orchestrator_status.json", {})
-    if not isinstance(doc, dict):
-        return []
-    adapters = doc.get("adapters") or []
-    protocols = []
-    for a in adapters:
-        if isinstance(a, dict):
-            p = a.get("protocol")
-            if p:
-                protocols.append(str(p))
-    return protocols
+    """Load adapter_orchestrator_status.json → list of active protocol keys.
+
+    Совместимая обёртка: отдаёт только имена опрошенного. Кто должен знать,
+    ИЗМЕРЕНО ли множество, обязан звать :func:`polled_protocols` /
+    :func:`coverage_set` — здесь пустой список по-прежнему означает и «опросили
+    ноль», и «артефакт не прочитан», и различить их нечем.
+    """
+    return polled_protocols(data_dir)["ids"]
 
 
 def _load_analytics(data_dir: Path) -> dict:
@@ -362,12 +504,12 @@ def run_alpha_scan(
     ddir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
 
     candidates_raw = _load_candidates(ddir)
-    active_protocols = _load_active_protocols(ddir)
+    coverage = coverage_set(ddir)
 
     scored: list[AlphaScore] = []
     for raw in candidates_raw:
         try:
-            s = score_candidate(raw, active_protocols)
+            s = score_candidate(raw, coverage)
             scored.append(s)
         except Exception as exc:
             log.warning("score_candidate failed for %s (%s) — skipped", raw, exc)
@@ -376,12 +518,29 @@ def run_alpha_scan(
     scored.sort(key=lambda s: (-s.score, s.protocol_id))
     top = scored[:top_n]
 
+    if not coverage["measured"]:
+        log.warning(
+            "множество покрытия НЕ измерено (%s) — бонус за диверсификацию не "
+            "начисляется никому (fail-CLOSED)", coverage["reason"],
+        )
+
     now_ts = datetime.now(timezone.utc).isoformat()
     doc: dict = {
         "generated_at": now_ts,
-        "scan_basis": "candidate_registry + active_adapters",
+        "scan_basis": (
+            "candidate_registry + канон покрытия (адаптеры+манифесты) "
+            "+ опрос оркестратора"
+        ),
         "candidates": [s.to_dict() for s in top],
-        "already_active": active_protocols,
+        # None = НЕ ИЗМЕРЕНО (артефакт опроса не прочитан), [] = опросили ноль.
+        # Раньше здесь стояли оба состояния сразу, и восемь опрошенных имён
+        # читались как «вот всё, что у нас есть».
+        "already_active": coverage["polled_ids"],
+        "already_active_note": (
+            "опрошенное оркестратором в последний раз; на вопрос «это уже наше?» "
+            "отвечает coverage.ids (канон покрытия), а не это поле"
+        ),
+        "coverage": coverage,
         "note": (
             "candidates require ADR/human review before whitelisting — "
             "do not auto-promote"
@@ -421,12 +580,12 @@ def get_top_candidates(
     """
     ddir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
     candidates_raw = _load_candidates(ddir)
-    active_protocols = _load_active_protocols(ddir)
+    coverage = coverage_set(ddir)
 
     scored: list[AlphaScore] = []
     for raw in candidates_raw:
         try:
-            s = score_candidate(raw, active_protocols)
+            s = score_candidate(raw, coverage)
             scored.append(s)
         except Exception as exc:
             log.warning("score_candidate failed for %s (%s) — skipped", raw, exc)
