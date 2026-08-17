@@ -202,10 +202,16 @@ class TestMoonwellBaseGetApy(unittest.TestCase):
             result = self.adapter.get_apy()
         self.assertIsNone(result)  # 2026-08-08 (инв. №16): подстановки нет, наблюдения нет ⇒ None
 
-    def test_module_get_apy_returns_float(self):
-        """Standalone функция get_apy() из модуля."""
+    def test_module_get_apy_refuses_without_observation(self):
+        """Standalone get_apy() из модуля: нет наблюдения ⇒ None.
+
+        ПЕРЕНАЦЕЛЕН 2026-08-17 (инв. №16), был `test_module_get_apy_returns_float`.
+        Прямое продолжение пометки 08.08 двумя тестами выше: тогда починили метод
+        КЛАССА и перенацелили его тест, а одноимённый двойник уровня модуля
+        остался — он отдавал 5.5 при заблокированной сети. Правку делали по имени
+        метода, а не по всем формам."""
         result = get_apy()
-        self.assertIsInstance(result, float)
+        self.assertIsNone(result)
 
 
 # ---------------------------------------------------------------------------

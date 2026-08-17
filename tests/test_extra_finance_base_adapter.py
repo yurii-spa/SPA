@@ -257,16 +257,32 @@ class TestExtraFinanceBaseGetApy(unittest.TestCase):
             result = self.adapter.get_apy()
         self.assertIsNone(result)  # 2026-08-08 (инв. №16): подстановки нет, наблюдения нет ⇒ None (решение владельца «делать все 15»)
 
-    def test_module_get_apy_returns_float(self):
-        """Standalone get_apy() из модуля возвращает float."""
-        result = get_apy()
-        self.assertIsInstance(result, float)
+    def test_module_get_apy_refuses_without_observation(self):
+        """Standalone get_apy() из модуля: НЕТ наблюдения ⇒ None, а не литерал.
 
-    def test_module_get_apy_fallback_param(self):
-        """Standalone get_apy(fallback=5.0) — кастомный fallback."""
+        ПЕРЕНАЦЕЛЕН 2026-08-17 (инв. №16), был `test_module_get_apy_returns_float`.
+        Тест требовал float безусловно — то есть закреплял подстановку как контракт.
+        Метод КЛАССА починили 08.08 (см. соседний
+        `test_fallback_on_generic_exception` в moonwell с той же пометкой), а
+        одноимённый двойник УРОВНЯ МОДУЛЯ пережил ту починку и прожил ещё девять
+        дней: правку делали по имени метода, а не по всем формам возврата.
+        Замер 17.08: этот двойник отдавал 8.0 при заблокированной сети.
+        Инвариант 2 — нет фида, нет числа."""
+        result = get_apy()
+        self.assertIsNone(result)
+
+    def test_module_get_apy_has_no_fallback_parameter(self):
+        """У standalone get_apy() БОЛЬШЕ НЕТ параметра подстановки.
+
+        ПЕРЕНАЦЕЛЕН 2026-08-17 (инв. №16), был `test_module_get_apy_fallback_param`.
+        Прежний тест проверял, что вызывающий может ПОДСТАВИТЬ своё число при
+        сетевой ошибке. Параметр удалён вместе с подстановкой: пока он существует,
+        любой потребитель может вернуть выдуманный APY, и отказ перестанет быть
+        отказом. Проверка сохранена в усиленном виде — параметра нет в сигнатуре."""
+        import inspect as _inspect
+        self.assertNotIn("fallback", _inspect.signature(get_apy).parameters)
         with _patch_urlopen_error(urllib.error.URLError("no network")):
-            result = get_apy(fallback=5.0)
-        self.assertIsInstance(result, float)
+            self.assertIsNone(get_apy())
 
 
 # ---------------------------------------------------------------------------
@@ -477,11 +493,17 @@ class TestExtraFinanceBaseYieldInfo(unittest.TestCase):
         for key in required:
             self.assertIn(key, yi, f"Ключ '{key}' отсутствует в get_yield_info()")
 
-    def test_get_yield_info_fallback(self):
-        """При сетевой ошибке get_yield_info() использует fallback APY."""
+    def test_get_yield_info_refuses_instead_of_substituting(self):
+        """При сетевой ошибке get_yield_info() НЕ подставляет литерал.
+
+        ПЕРЕНАЦЕЛЕН 2026-08-17 (инв. №16), был `test_get_yield_info_fallback`.
+        Это была САМАЯ ДОРОГАЯ из четырёх подстановок: она доходила до поверхности
+        оркестратора, а сторож её не видел — он смотрел атрибут `.apy`, тогда как
+        этот метод возвращает dict, и `getattr` по нему молча даёт None. То есть
+        проверка докладывала «чисто» ровно там, где смотреть и надо было."""
         with _patch_urlopen_error(urllib.error.URLError("timeout")):
             yi = self.adapter.get_yield_info()
-        self.assertAlmostEqual(yi["apy_pct"], APY_FALLBACK, places=5)
+        self.assertIsNone(yi["apy_pct"])
 
     def test_get_yield_info_audits(self):
         """audits содержит 3 аудита."""
