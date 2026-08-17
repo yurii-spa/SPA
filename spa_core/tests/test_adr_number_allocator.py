@@ -324,6 +324,237 @@ def test_push_without_decisions_is_silent(repo):
     assert adr.check_push(repo, ["docs/STATE.md", "spa_core/risk/policy.py"]) == ([], [])
 
 
+# ── РЕЗЕРВ НОМЕРА: две ветки, одна база ──────────────────────────────────────
+#
+# Карточка `inbox-nomera-adr-stalkivayutsya-po-ustroistvu` (17.08): столкновения 067, 091, 087
+# случились не по невнимательности, а ПО УСТРОЙСТВУ — `next` меряет занятость и НИЧЕГО не
+# занимает, поэтому две ветки, спросившие номер в разное время суток, обе получают верный
+# ответ и обе правы. Тесты ниже воспроизводят ровно эту форму: один origin, две рабочие копии.
+
+
+@pytest.fixture()
+def two_branches(tmp_path):
+    """(origin, ветка-облако, ветка-Мак) — форма аварии 087 дословно.
+
+    Общий bare-origin играет роль GitHub: только он видит обе стороны, и только на нём резерв
+    может быть атомарным. На origin уже лежит ADR-091, то есть «следующий свободный» для обеих
+    веток — 092, как и было 15.08.
+    """
+    origin = tmp_path / "origin.git"
+    _run(tmp_path, "git", "init", "-q", "--bare", "-b", "main", str(origin))
+
+    seed = tmp_path / "seed"
+    (seed / "docs" / "decisions").mkdir(parents=True)
+    _run(seed, "git", "init", "-q", "-b", "main")
+    _run(seed, "git", "config", "user.email", "t@t")
+    _run(seed, "git", "config", "user.name", "t")
+    (seed / "docs" / "decisions" / "ADR-091-a.md").write_text("x", encoding="utf-8")
+    (seed / "docs" / "decisions" / "INDEX.md").write_text(
+        INDEX_HEAD + _row("091", fname="ADR-091-a.md"), encoding="utf-8")
+    _run(seed, "git", "add", "-A")
+    _run(seed, "git", "commit", "-qm", "seed")
+    _run(seed, "git", "push", "-q", str(origin), "main")
+
+    clones = []
+    for name in ("cloud", "mac"):
+        path = tmp_path / name
+        _run(tmp_path, "git", "clone", "-q", str(origin), str(path))
+        _run(path, "git", "config", "user.email", "t@t")
+        _run(path, "git", "config", "user.name", "t")
+        clones.append(path)
+    return (origin, *clones)
+
+
+def test_two_branches_asking_at_once_get_different_numbers(two_branches):
+    """КРИТЕРИЙ ГОТОВНОСТИ карточки: две ветки, одна база — РАЗНЫЕ номера.
+
+    Отрицательный контроль вверху — это сегодняшнее поведение: `next_number` обеим честно
+    отвечает «092», и обе правы. Он обязан остаться зелёным (совет и есть совет), а вот
+    `allocate` обязан развести ветки, потому что номер он не советует, а ЗАБИРАЕТ.
+    """
+    _origin, cloud, mac = two_branches
+
+    # Как было: обе ветки спрашивают и получают ОДИН И ТОТ ЖЕ номер — авария 087 целиком.
+    assert adr.next_number(cloud)[0] == 92
+    assert adr.next_number(mac)[0] == 92
+
+    first, races_a, unchecked_a = adr.allocate(cloud, transport="git")
+    second, races_b, unchecked_b = adr.allocate(mac, transport="git")
+
+    assert (unchecked_a, unchecked_b) == ([], []), (unchecked_a, unchecked_b)
+    assert first != second, "обе ветки снова получили один номер — резерв не работает"
+    assert {first, second} == {92, 93}, (first, second, races_a, races_b)
+
+
+def _blind_first_ls_remote(real):
+    """git, у которого ПЕРВОЕ чтение резервов ещё не видит чужого — окно аварии 087.
+
+    Обе ветки меряют занятость ДО того, как соперник записал свой резерв: измерение честное,
+    ответ одинаковый. Разводит их не чтение, а запись — compare-and-swap на сервере.
+    """
+    seen = {"blind": True}
+
+    def git(cwd, *args):
+        rc, out, err = real(cwd, *args)
+        if args and args[0] == "ls-remote" and seen["blind"]:
+            seen["blind"] = False
+            return rc, "", err
+        return rc, out, err
+
+    return git
+
+
+def test_the_race_window_itself_is_closed_by_the_write_not_the_read(two_branches):
+    """Сценарий 087 в самой жёсткой форме: соперник застолбил номер ПОСЛЕ нашего измерения.
+
+    Проверка того, что резерв держится записью, а не удачным чтением: даже когда ветка-Мак
+    смотрит на устаревшую картину и уверенно идёт за 092, сервер её отвергает, и она берёт 093
+    сама — без разбора «кто приземлился раньше» и без правки чужих ссылок.
+    """
+    _origin, cloud, mac = two_branches
+    assert adr.reserve_number(cloud, 92, transport="git")[0] == adr.RESERVED
+
+    number, races, unchecked = adr.allocate(mac, transport="git",
+                                            git=_blind_first_ls_remote(adr._git))
+    assert unchecked == [], unchecked
+    assert races, "гонка не воспроизведена: ветка-Мак не пыталась взять чужой номер"
+    assert number == 93, (number, races)
+
+
+def test_a_reservation_alone_occupies_the_number(two_branches):
+    """Резерв — самая ранняя претензия: ни файла, ни строки реестра ещё нет.
+
+    Соседние тесты стерегут два прежних источника (файл на origin, строка INDEX). Этот —
+    третий, и он единственный существует в НАЧАЛЕ чужой работы, то есть в том самом окне,
+    где и жили все четыре столкновения.
+    """
+    _origin, cloud, mac = two_branches
+    assert adr.reserve_number(cloud, 92, transport="git")[0] == adr.RESERVED
+
+    keys, unchecked = adr.reserved_keys(mac, remote="origin")
+    assert (keys, unchecked) == ({"092"}, [])
+    assert adr.next_number(mac, remote="origin")[0] == 93, "чужой резерв обязан занимать номер"
+
+
+def test_next_number_is_still_max_plus_one_over_reservations(two_branches):
+    """Дыры не свободны и с резервами: резерв 095 двигает следующий номер на 096, а не на 092.
+
+    Тонкость закреплена соседним `…skips_gaps…` (ADR-071 назван в STATE раньше, чем написан
+    файл). Резерв — ещё один источник «дыры»: между 091 и 095 номера остаются НЕ выданными.
+    """
+    _origin, cloud, mac = two_branches
+    assert adr.reserve_number(cloud, 95, transport="git")[0] == adr.RESERVED
+    assert adr.next_number(mac, remote="origin")[0] == 96
+
+
+def test_reservation_survives_a_rival_whose_commit_is_an_ancestor(two_branches):
+    """Замер: без лизинга чужой резерв был бы ТИХО перезаписан fast-forward'ом.
+
+    Ветка-Мак ушла вперёд от общей базы, поэтому её коммит — потомок того, на который смотрит
+    чужой резерв. Обычный `git push` счёл бы это законным продвижением ref'а и «зарезервировал»
+    бы уже занятый номер молча — то есть авария вернулась бы, а сторож остался бы зелёным.
+    """
+    _origin, cloud, mac = two_branches
+    assert adr.reserve_number(cloud, 92, transport="git")[0] == adr.RESERVED
+
+    (mac / "docs" / "decisions" / "ADR-092-mine.md").write_text("x", encoding="utf-8")
+    _run(mac, "git", "add", "-A")
+    _run(mac, "git", "commit", "-qm", "работа ветки-Мака")
+
+    status, detail = adr.reserve_number(mac, 92, transport="git")
+    assert status == adr.TAKEN, (status, detail)
+
+
+def test_release_frees_an_abandoned_reservation(two_branches):
+    """Цена варианта 1 — висящие резервы у брошенных работ; они видны и подметаются."""
+    _origin, cloud, mac = two_branches
+    adr.reserve_number(cloud, 92, transport="git")
+    assert adr.next_number(mac, remote="origin")[0] == 93
+
+    ok, detail = adr.release_number(cloud, 92)
+    assert ok, detail
+    assert adr.next_number(mac, remote="origin")[0] == 92
+
+
+# ── fail-CLOSED резерва: не смог занять ⇒ не выдал ───────────────────────────
+
+def test_unreachable_remote_refuses_to_hand_out_a_number(repo):
+    """Резервы соперника не прочитаны ⇒ номер НЕ выдаётся. «По дереву свободно» — авария."""
+    _commit_origin(repo, {
+        "docs/decisions/ADR-091-a.md": "x",
+        "docs/decisions/INDEX.md": INDEX_HEAD + _row("091", fname="ADR-091-a.md"),
+    })
+    number, _races, unchecked = adr.allocate(repo, remote="origin")  # remote не настроен
+    assert number is None
+    assert any("резервы номеров" in u for u in unchecked), unchecked
+
+
+def test_transport_failure_never_degrades_into_an_unreserved_number(two_branches):
+    """Измерение прошло, а ЗАНЯТЬ не вышло ни одним транспортом ⇒ номер не выдаётся.
+
+    Самый соблазнительный обход — «зарезервировать не смог, но номер-то свободен, бери» —
+    возвращает ровно то устройство, из-за которого столкновения и происходили.
+    """
+    _origin, cloud, _mac = two_branches
+
+    class _NoPat:
+        def get_pat(self):
+            raise RuntimeError("PAT не найден в Keychain")
+
+    number, _races, unchecked = adr.allocate(cloud, remote="origin", transport="api",
+                                             pusher=_NoPat())
+    assert number is None
+    assert any("fail-CLOSED" in u for u in unchecked), unchecked
+
+
+# ── второй транспорт: контекст Мака (PAT + GitHub API) ───────────────────────
+
+class _FakeGitHub:
+    """GitHub API в объёме, который трогает резерв: `POST /git/refs` = compare-and-swap."""
+
+    def __init__(self):
+        self.refs = set()
+
+    def get_pat(self):
+        return "pat"
+
+    def get_base_ref(self, pat, repo, branch):
+        return ("d" * 40, "t" * 40)
+
+    def _api(self, pat, method, path, payload=None):
+        assert (method, path) == ("POST", "/repos/yurii-spa/SPA/git/refs"), (method, path)
+        ref = payload["ref"]
+        if ref in self.refs:
+            import io
+            import urllib.error
+            raise urllib.error.HTTPError(
+                "https://api.github.com" + path, 422, "Unprocessable Entity", {},
+                io.BytesIO(b'{"message":"Reference already exists"}'))
+        self.refs.add(ref)
+        return {"ref": ref}
+
+
+def test_api_transport_reserves_and_sees_a_taken_number(two_branches):
+    """Мак пушит не git'ом, а API с PAT из Keychain — резерв обязан работать И ТАМ.
+
+    Иначе механизм закрывает ровно одну из двух сторон столкновения, а сталкиваются они
+    как раз попарно: облачная сессия против автономного цикла.
+    """
+    _origin, cloud, mac = two_branches
+    api = _FakeGitHub()
+
+    assert adr.reserve_number(cloud, 92, transport="api", pusher=api) == (
+        adr.RESERVED, "refs/adr-reserved/092")
+    status, detail = adr.reserve_number(mac, 92, transport="api", pusher=api)
+    assert status == adr.TAKEN, (status, detail)
+    assert api.refs == {"refs/adr-reserved/092"}
+
+
+def test_number_is_normalised_so_92_and_092_are_one_number():
+    """`92` и `092` обязаны быть ОДНИМ ref'ом — иначе два резерва на один номер."""
+    assert adr._reserve_ref(92) == adr._reserve_ref("092") == "refs/adr-reserved/092"
+
+
 # ── разбор реестра ───────────────────────────────────────────────────────────
 
 def test_status_is_read_from_the_end_not_the_third_column():
