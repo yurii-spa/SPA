@@ -176,6 +176,29 @@ INITIAL_PROTOCOLS = [
 
 
 def get_db_path() -> Path:
+    """Путь к SQLite-файлу — РЕЗОЛВИТСЯ НА ВЫЗОВЕ, через единственный резолвер.
+
+    Почему не `return DB_PATH` (замер 2026-08-17, карточка
+    `agent-test-run-dirties-tracked-fixtures`). `DB_PATH` вычисляется из
+    `__file__` на ИМПОРТЕ, поэтому обходил `db_url.get_db_url()` — тот самый
+    единственный резолвер, у которого уже есть вход (`$SPA_DATABASE_URL`).
+    Следствие: восемь потребителей (`api/_shared.py`, `export_data.py`,
+    `paper_trading/engine.py`, `message_bus/bus.py`, `orchestrator/graph.py`,
+    `agents/decision_logger.py`, `monitoring/health_check.py`,
+    `api/routers/misc.py`) писали в git-tracked `spa_core/database/spa.db`
+    мимо любого редиректа, и сторож набора, пинующий переменную окружения, их
+    не видел: пять тестов `test_api.py` пачкали файл при ЗЕЛЁНОМ прогоне.
+
+    Теперь путь берётся у резолвера. Не-SQLite URL (PostgreSQL) файла не имеет —
+    для него возвращается прежняя константа, потому что вызывающие ждут `Path`,
+    а соединение в этом случае всё равно идёт не через файл (`connection.py`).
+    В проде, где переменная не выставлена, значение совпадает с `DB_PATH`
+    байт в байт — поведение не менялось.
+    """
+    url = get_db_url()
+    prefix = "sqlite:///"
+    if url.startswith(prefix):
+        return Path(url[len(prefix):])
     return DB_PATH
 
 

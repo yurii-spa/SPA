@@ -715,3 +715,37 @@ def _no_live_backup_dir():
     backup_dir_guard.install()
     yield
     backup_dir_guard.restore()
+
+
+# ---------------------------------------------------------------------------
+# No test may write the git-tracked SQLite file (2026-08-17, cycle #274,
+# card `agent-test-run-dirties-tracked-fixtures`).
+#
+# The three guards above cover Telegram, the alert state and the off-site
+# backup. None covers `spa_core/database/spa.db`, which db_url.py resolves from
+# its own __file__ and which is git-tracked: five test_api.py tests reach
+# sqlite3.connect on it through get_status → get_live_portfolio →
+# init_database, and `git status` came back dirty after every run.
+# Rationale + the measured call chain: spa_core/tests/tracked_db_guard.py.
+# ---------------------------------------------------------------------------
+_DB_GUARD_PATH = Path(__file__).resolve().parent / "tracked_db_guard.py"
+tracked_db_guard = sys.modules.get("spa_tracked_db_guard")
+if tracked_db_guard is None:
+    _db_spec = _ilu.spec_from_file_location("spa_tracked_db_guard", _DB_GUARD_PATH)
+    tracked_db_guard = _ilu.module_from_spec(_db_spec)       # type: ignore[arg-type]
+    _db_spec.loader.exec_module(tracked_db_guard)            # type: ignore[union-attr]
+    sys.modules["spa_tracked_db_guard"] = tracked_db_guard
+tracked_db_guard.install()
+
+
+@pytest.fixture(autouse=True)
+def _no_live_tracked_db():
+    """Pin $SPA_DATABASE_URL into a sandbox for every test, then restore it.
+
+    Redirection, not a mock: schema creation and every query still run, against
+    a file the suite owns. Per-test because test_db_url.py sets and deletes the
+    variable itself, and that must not leak into the next test.
+    """
+    tracked_db_guard.install()
+    yield
+    tracked_db_guard.restore()

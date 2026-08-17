@@ -36,6 +36,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from spa_core.utils.live_paths import sandboxed_state_path
+
 log = logging.getLogger(__name__)
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -926,6 +928,13 @@ def write(
     Raises on I/O errors (cleans up the temp file).
     """
     output_path = Path(output_path)
+    # Умолчание (_STATUS_FILE = git-tracked data/adapter_status.json) под тестами
+    # уводится в песочницу. Явно переданный путь не трогаем — им владеет
+    # вызывающий. Замер цикла #274: run_cycle() из
+    # test_cash_attribution_policy_refusals звал run_and_write() без output_path
+    # и ПАЧКАЛ живой adapter_status.json, хотя тест передал data_dir=tmp_path.
+    if output_path == Path(_STATUS_FILE):
+        output_path = Path(sandboxed_state_path(output_path))
     output_path.parent.mkdir(parents=True, exist_ok=True)
     tmp_fd, tmp_path = tempfile.mkstemp(
         dir=output_path.parent,

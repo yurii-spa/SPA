@@ -42,6 +42,7 @@ from message_bus.bus import MessageBus
 from agents.decision_logger import DecisionLogger
 from spa_core.utils.errors import SourceError
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_state_dir
 
 log = logging.getLogger("spa.export")
 
@@ -84,6 +85,27 @@ def _push_thought(
     threading.Thread(target=_send, daemon=True).start()
 
 
+#: Умолчание, зафиксированное на импорте — отличает «константу никто не трогал»
+#: от «тест осознанно её перенаправил» (test_export_sections.py и
+#: test_integration_e2e.py присваивают ``OUTPUT_DIR`` напрямую).
+_DEFAULT_OUTPUT_DIR = OUTPUT_DIR
+
+
+def _output_dir() -> Path:
+    """Каталог выгрузки, разрешаемый НА ВЫЗОВЕ (порядок как в telegram/prefs.py).
+
+    1. ``OUTPUT_DIR`` отличается от умолчания дерева → осознанное
+       перенаправление теста, уважается;
+    2. под pytest → песочница. Здесь чокпоинт ВСЕЙ выгрузки: через
+       ``write_json`` уходят десятки git-tracked артефактов (``chains_status.json``
+       и другие), и прогон их ПАЧКАЛ (цикл #274);
+    3. иначе (прод) → ровно ``OUTPUT_DIR``.
+    """
+    if OUTPUT_DIR != _DEFAULT_OUTPUT_DIR:
+        return Path(OUTPUT_DIR)
+    return sandboxed_state_dir(OUTPUT_DIR)
+
+
 def write_json(filename: str, data) -> None:
     """Atomically write `data` as pretty JSON to OUTPUT_DIR/filename.
 
@@ -92,10 +114,11 @@ def write_json(filename: str, data) -> None:
     are byte-identical to the previous direct `write_text` path:
     `json.dumps(data, indent=2, default=str)`.
     """
-    path = OUTPUT_DIR / filename
+    out_dir = _output_dir()
+    path = out_dir / filename
     payload = json.dumps(data, indent=2, default=str)
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(OUTPUT_DIR), suffix=".tmp")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=str(out_dir), suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(payload)

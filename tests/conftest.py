@@ -274,3 +274,28 @@ def _shut_the_shared_live_feed_doors(request):
         yield
     finally:
         live_feed_doors.restore(previous)
+# No test may write the git-tracked SQLite file (2026-08-17, cycle #274).
+#
+# Same guard as spa_core/tests/conftest.py, installed from BOTH roots for the
+# same reason the three above are, and loaded by absolute path from the single
+# source of truth so the roots cannot drift. What it protects:
+# spa_core/database/spa.db, resolved by db_url.py from its own __file__ and
+# therefore NOT covered by the _isolate_data_dir fixture above.
+# Rationale: spa_core/tests/tracked_db_guard.py.
+# ---------------------------------------------------------------------------
+_DB_GUARD_PATH = _ROOT / "spa_core" / "tests" / "tracked_db_guard.py"
+tracked_db_guard = sys.modules.get("spa_tracked_db_guard")
+if tracked_db_guard is None:
+    _db_spec = _ilu.spec_from_file_location("spa_tracked_db_guard", _DB_GUARD_PATH)
+    tracked_db_guard = _ilu.module_from_spec(_db_spec)       # type: ignore[arg-type]
+    _db_spec.loader.exec_module(tracked_db_guard)            # type: ignore[union-attr]
+    sys.modules["spa_tracked_db_guard"] = tracked_db_guard
+tracked_db_guard.install()
+
+
+@_pytest.fixture(autouse=True)
+def _no_live_tracked_db():
+    """Pin $SPA_DATABASE_URL into a sandbox for every test, then restore it."""
+    tracked_db_guard.install()
+    yield
+    tracked_db_guard.restore()

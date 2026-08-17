@@ -17,6 +17,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from spa_core.utils import clock
+from spa_core.utils.live_paths import sandboxed_state_path
 
 # ─── Конфигурация ───────────────────────────────────────────────────────────────
 
@@ -637,9 +638,16 @@ class DeFiLlamaFetcher:
                 "total_pools_skipped": len(skipped),
                 "chains": chain_stats,
             }
-            output_dir = Path(__file__).parent.parent.parent / "data"
+            # Путь разрешается НА ВЫЗОВЕ и под тестами уводится в песочницу:
+            # data/chains_status.json git-tracked, и прогон его ПАЧКАЛ
+            # (цикл #274). Здесь вход для пути отсутствовал вовсе — каталог
+            # собирался из __file__, — поэтому увод обязан жить в самой строке.
+            # В проде путь не меняется.
+            out_file = sandboxed_state_path(
+                Path(__file__).parent.parent.parent / "data" / "chains_status.json")
+            output_dir = out_file.parent
             output_dir.mkdir(parents=True, exist_ok=True)
-            (output_dir / "chains_status.json").write_text(
+            out_file.write_text(
                 __import__("json").dumps(chains_status, indent=2), encoding="utf-8"
             )
             log.info(f"fetch_pools: chains_status.json written ({len(chain_stats)} chains)")
