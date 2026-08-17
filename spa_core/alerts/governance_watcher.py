@@ -4,9 +4,26 @@ Governance Watcher — FEAT-MON-002 (Sprint v3.18).
 Monitors active governance proposals for the protocols that have a governance
 source **configured below** (``SNAPSHOT_SPACES`` / ``TALLY_GOVERNORS``).
 
+Watchlist = OUR protocols (ADR-070 п.14, owner decision 2026-08-07)
+-------------------------------------------------------------------
+The configured set used to contain six protocols we do not and cannot invest in
+(``balancer``, ``curve``, ``lido``, ``maker``, ``uniswap-v3``, ``yearn``) while
+the protocols we actually hold had no source at all: measured coverage was
+**2 of 36** whitelisted protocols, and the held set was almost entirely
+unchecked.  Every 30 minutes the watcher then reported eight healthy spaces —
+a true statement about strangers.  The strangers are gone by name.
+
+Protocols the owner named to ADD (``pendle``, ``maple``, ``morpho*``) are listed
+in :data:`GOVERNANCE_SOURCE_UNCONFIRMED` instead of being wired in with a guessed
+Snapshot slug.  A guessed slug is a fake source: it either 404s every scan (noise
+that gets ignored) or silently resolves to a stranger's space and is published as
+OUR coverage.  So the gap is **named with a verbatim reason and a candidate to
+verify**, never filled by invention (invariant #2, `.claude/rules/adapters.md`
+"никаких fake-fallback'ов").
+
 .. warning::
 
-   That set is **not** the SPA whitelist and never has been.  This docstring
+   The configured set is **not** the SPA whitelist.  This docstring
    used to claim "monitors ... for SPA whitelist protocols", which was false:
    the configured spaces and ``ADAPTER_REGISTRY`` overlap only partly, so a
    whitelisted protocol can have **no governance source at all** and this
@@ -16,6 +33,10 @@ source **configured below** (``SNAPSHOT_SPACES`` / ``TALLY_GOVERNORS``).
    Coverage is therefore accounted for explicitly and published in the output
    under ``coverage`` — see :func:`coverage_report`.  A protocol with no
    source is reported as **unchecked**, never as "no active proposals".
+   Coverage is reported over two sets: the investable whitelist
+   (``ADAPTER_REGISTRY``) and the protocols we are **holding right now**
+   (``data/paper_trading_status.json`` → ``current_positions``).  An unchecked
+   HELD protocol is the expensive kind of gap and is named separately.
    When coverage itself cannot be measured (registry unreadable), the report
    says so instead of claiming full coverage (fail-CLOSED, invariant #2).
 
@@ -121,22 +142,73 @@ _BACKOFF_BASE = 2      # exponential backoff base (sleep = base ** attempt)
 # key Tally is skipped gracefully and only Snapshot is used.  Set via env.
 TALLY_API_KEY = os.environ.get("TALLY_API_KEY", "").strip()
 
-# Snapshot space slugs for whitelisted protocols
+# Snapshot space slugs — ONLY for protocols in our own investable registry
+# (ADR-070 п.14).  Key spelling is folded onto the registry by
+# `_normalise_protocol_key`, so "aave-v3" and "aave_v3" are the same protocol.
 SNAPSHOT_SPACES: dict[str, str] = {
     "aave-v3":      "aave.eth",
     "compound-v3":  "comp-vote.eth",
-    "uniswap-v3":   "uniswap",
-    "curve":        "curve.eth",
-    "lido":         "lido-snapshot.eth",
-    "maker":        "makerdao.eth",
-    "balancer":     "balancer.eth",
-    "yearn":        "ybaby.eth",
 }
 
-# Tally governor addresses for on-chain voters
+# Protocols removed from the watchlist by name, owner decision 2026-08-07
+# (ADR-070 п.14): watched, answered every scan, and not investable for us.
+# Kept as data — a test asserts they never creep back in, which a deleted
+# comment could not do.
+REMOVED_NOT_INVESTABLE: tuple[str, ...] = (
+    "balancer",
+    "curve",
+    "lido",
+    "maker",
+    "uniswap-v3",
+    "yearn",
+)
+
+# Protocols we HOLD or whitelist whose governance channel is NOT configured, with
+# the verbatim reason.  This is the "далее вайтлист по мере наличия каналов" half
+# of ADR-070 п.14: the candidate slug is written down so verifying it is a
+# one-line curl, and it is deliberately NOT used for fetching until verified.
+#
+# Why not just wire the candidates in: this session could not reach
+# hub.snapshot.org (egress proxy answered 403 to the space-existence query), so
+# every slug below is UNVERIFIED.  A wrong slug fails silently into
+# `snapshot_spaces_failed` noise; a slug that happens to resolve to somebody
+# else's space gets published as OUR coverage.  Either way the report would stop
+# being true, which is the exact defect ADR-070 п.14 closes.
+GOVERNANCE_SOURCE_UNCONFIRMED: dict[str, dict[str, str]] = {
+    "pendle": {
+        "candidate_space": "pendle.eth",
+        "reason": (
+            "held/whitelisted; Snapshot space UNVERIFIED — vePENDLE voting runs on "
+            "Pendle's own app, so a Snapshot space may not exist at all"
+        ),
+    },
+    "maple": {
+        "candidate_space": "maplefinance.eth",
+        "reason": "held/whitelisted; Snapshot space UNVERIFIED (slug not confirmed against hub.snapshot.org)",
+    },
+    "morpho_blue": {
+        "candidate_space": "morpho.eth",
+        "reason": "held/whitelisted; Snapshot space UNVERIFIED (slug not confirmed against hub.snapshot.org)",
+    },
+    "morpho_steakhouse": {
+        "candidate_space": "morpho.eth",
+        "reason": (
+            "held via a MetaMorpho vault; vault-curator decisions are not DAO proposals — "
+            "the channel to watch is UNDECIDED, not merely unverified"
+        ),
+    },
+    "spark_susds": {
+        "candidate_space": "",
+        "reason": (
+            "held; Sky/Spark governance channel deliberately NOT configured — "
+            "sUSDS stays at 0% until GSM Pause Delay >= 48h is confirmed on-chain (invariant #10)"
+        ),
+    },
+}
+
+# Tally governor addresses for on-chain voters (our protocols only).
 TALLY_GOVERNORS: dict[str, str] = {
     "compound-v3":  "0xc0Da02939E1441F497fd74F78cE7Decb17B66529",  # Compound Governor Bravo
-    "uniswap-v3":   "0x408ED6354d4973f66138C91495F2f2FCbd8724C3",  # Uniswap Governor
 }
 
 # Keywords for category classification
@@ -216,7 +288,89 @@ def whitelisted_protocol_keys() -> Optional[list[str]]:
         return None
 
 
-def coverage_report(*, scan_status: Optional[dict[str, str]] = None) -> dict:
+PORTFOLIO_STATUS_PATH = (
+    Path(__file__).resolve().parents[2] / "data" / "paper_trading_status.json"
+)
+HELD_POSITIONS_KEY = "current_positions"
+
+
+def read_held_protocol_keys(status_payload: object) -> Tuple[Optional[list[str]], Optional[str]]:
+    """Protocols we are holding RIGHT NOW, from a loaded paper-trading status payload.
+
+    Returns ``(keys, unchecked_reason)``.  ``keys`` is ``None`` whenever the held set
+    could not be read — the caller MUST NOT read that as "we hold nothing" (that would
+    publish full held-coverage on an unreadable file, fail-CLOSED, invariant #2).
+
+    A position map that is PRESENT but empty is a measurement (all cash) and comes back
+    as ``([], None)``.  NEVER raises.
+    """
+    if not isinstance(status_payload, dict):
+        return None, (
+            f"portfolio status payload is {type(status_payload).__name__}, not a mapping"
+        )
+    if HELD_POSITIONS_KEY not in status_payload:
+        return None, (
+            f"portfolio status has no {HELD_POSITIONS_KEY!r} key; top-level keys: "
+            f"{sorted(str(k) for k in status_payload.keys())!r}"
+        )
+    positions = status_payload[HELD_POSITIONS_KEY]
+    if isinstance(positions, dict):
+        keys = sorted({str(k) for k in positions.keys() if str(k)})
+        return keys, None
+    if isinstance(positions, list):
+        keys = []
+        for entry in positions:
+            if isinstance(entry, dict):
+                name = entry.get("protocol") or entry.get("adapter") or entry.get("name")
+                if name:
+                    keys.append(str(name))
+            elif isinstance(entry, str) and entry:
+                keys.append(entry)
+        return sorted(set(keys)), None
+    return None, (
+        f"portfolio status key {HELD_POSITIONS_KEY!r} is {type(positions).__name__}, "
+        "neither mapping nor list"
+    )
+
+
+def load_held_protocol_keys(
+    path: Optional[Path] = None,
+) -> Tuple[Optional[list[str]], Optional[str]]:
+    """Read the held set from disk.  ``(None, reason)`` on any failure.  NEVER raises."""
+    target = Path(path) if path else PORTFOLIO_STATUS_PATH
+    try:
+        from spa_core.utils.atomic import atomic_load
+        payload = atomic_load(str(target), default=None)
+    except Exception as exc:  # pragma: no cover - exercised via monkeypatch
+        return None, f"portfolio status unreadable ({target.name}): {exc}"
+    if payload is None:
+        return None, f"portfolio status missing or unreadable at {target.name}"
+    return read_held_protocol_keys(payload)
+
+
+def unconfirmed_source_report() -> list[dict[str, str]]:
+    """The named half of the gap: protocols with NO configured channel, and why.
+
+    Published in the output so "unchecked" carries a cause the owner can act on
+    instead of being an anonymous absence.
+    """
+    return [
+        {
+            "protocol": key,
+            "candidate_space": str(entry.get("candidate_space", "")),
+            "reason": str(entry.get("reason", "")),
+            "verified": "no",
+        }
+        for key, entry in sorted(GOVERNANCE_SOURCE_UNCONFIRMED.items())
+    ]
+
+
+def coverage_report(
+    *,
+    scan_status: Optional[dict[str, str]] = None,
+    held: Optional[list[str]] = None,
+    held_unchecked: Optional[str] = None,
+) -> dict:
     """
     Answer "which investable protocols does this watcher not look at?".
 
@@ -234,6 +388,17 @@ def coverage_report(*, scan_status: Optional[dict[str, str]] = None) -> dict:
     ``unchecked_protocols``       — whitelisted with NO usable source this run
     ``monitored_not_whitelisted`` — a source exists, but it is not investable
     ``failed_this_scan``          — configured, but the source errored this run
+    ``held_measured``             — False when the held set could not be read
+    ``held_reason``               — verbatim cause when ``held_measured`` is False
+    ``held_protocols``            — protocols we are holding right now
+    ``held_covered`` / ``held_unchecked``
+                                  — the same split restricted to what we HOLD
+    ``unconfirmed_sources``       — held/whitelisted protocols with NO channel, and why
+
+    ``held`` / ``held_unchecked`` are inputs on purpose: the held set is a
+    different file's business, and a function that goes and reads it cannot be
+    tested hermetically.  Omitting both means the held set was not supplied —
+    reported as ``held_measured: False``, never as "we hold nothing".
 
     Matching is **normalised key equality**, nothing cleverer.  Where the two
     sides spell a protocol differently (space ``yearn`` vs registry
@@ -247,9 +412,36 @@ def coverage_report(*, scan_status: Optional[dict[str, str]] = None) -> dict:
     """
     monitored = monitored_protocol_keys()
     failed = sorted(k for k, v in (scan_status or {}).items() if v != "ok")
+    mon_norm_all = {_normalise_protocol_key(k): k for k in monitored}
+    failed_norm_all = {_normalise_protocol_key(k) for k in failed}
+
+    # ── held accounting (independent of whether the registry reads) ──
+    held_reason = held_unchecked
+    held_keys: Optional[list[str]] = None
+    if held is not None:
+        held_keys = sorted({str(k) for k in held if str(k)})
+    elif held_reason is None:
+        held_reason = "held set NOT SUPPLIED — held coverage NOT MEASURED"
+    held_block: dict = {
+        "held_measured": held_keys is not None,
+        "held_reason": held_reason if held_keys is None else None,
+        "held_protocols": held_keys or [],
+        "held_covered": [],
+        "held_unchecked": [],
+        "unconfirmed_sources": unconfirmed_source_report(),
+    }
+    if held_keys is not None:
+        for key in held_keys:
+            n = _normalise_protocol_key(key)
+            if n in mon_norm_all and n not in failed_norm_all:
+                held_block["held_covered"].append(key)
+            else:
+                held_block["held_unchecked"].append(key)
+
     base = {
         "monitored_protocols": sorted(monitored),
         "failed_this_scan": failed,
+        **held_block,
     }
     try:
         whitelist = whitelisted_protocol_keys()
@@ -380,36 +572,11 @@ BOOTSTRAP_PROPOSALS: list[GovernanceProposal] = [
         votes_against=12_000,
         quorum_met=True,
     ),
-    GovernanceProposal(
-        id="snapshot:bootstrap-003",
-        protocol="curve",
-        title="Curve Fee Switch: Increase admin fee to 50%",
-        category="treasury",
-        severity="MEDIUM",
-        state="active",
-        source="bootstrap",
-        start_at="2026-05-26T00:00:00Z",
-        end_at="2026-05-30T00:00:00Z",
-        url="https://snapshot.org/#/curve.eth/proposal/bootstrap-003",
-        votes_for=3_100_000,
-        votes_against=220_000,
-        quorum_met=True,
-    ),
-    GovernanceProposal(
-        id="snapshot:bootstrap-004",
-        protocol="lido",
-        title="Emergency: Pause stETH withdrawals pending security review",
-        category="emergency",
-        severity="HIGH",
-        state="closed",
-        source="bootstrap",
-        start_at="2026-05-15T00:00:00Z",
-        end_at="2026-05-15T12:00:00Z",
-        url="https://snapshot.org/#/lido-snapshot.eth/proposal/bootstrap-004",
-        votes_for=5_500_000,
-        votes_against=0,
-        quorum_met=True,
-    ),
+    # bootstrap-003 (curve) and bootstrap-004 (lido) removed with their spaces —
+    # ADR-070 п.14.  `test_protocols_are_whitelisted` in
+    # spa_core/tests/test_governance_watcher.py enforces exactly this: seed data may
+    # only name protocols the watcher is configured for, so a stranger cannot survive
+    # in the fallback payload after its space is gone.
     GovernanceProposal(
         id="snapshot:bootstrap-005",
         protocol="aave-v3",
@@ -425,21 +592,7 @@ BOOTSTRAP_PROPOSALS: list[GovernanceProposal] = [
         votes_against=95_000,
         quorum_met=False,
     ),
-    GovernanceProposal(
-        id="snapshot:bootstrap-006",
-        protocol="uniswap-v3",
-        title="Deploy Uniswap V3 on zkSync Era",
-        category="upgrade",
-        severity="MEDIUM",
-        state="closed",
-        source="bootstrap",
-        start_at="2026-05-10T00:00:00Z",
-        end_at="2026-05-14T00:00:00Z",
-        url="https://snapshot.org/#/uniswap/proposal/bootstrap-006",
-        votes_for=42_000_000,
-        votes_against=1_200_000,
-        quorum_met=True,
-    ),
+    # bootstrap-006 (uniswap-v3) removed with its space — ADR-070 п.14.
 ]
 
 
@@ -795,9 +948,14 @@ class GovernanceWatcher:
         self,
         output_file: str | Path = DEFAULT_OUTPUT_PATH,
         risk_scores_file: str | Path | None = None,
+        portfolio_status_file: str | Path | None = None,
     ) -> None:
         self.output_file = Path(output_file)
         self._risk_scores_file = Path(risk_scores_file) if risk_scores_file else None
+        # Injectable so held-coverage can be tested hermetically (no live data/).
+        self._portfolio_status_file = (
+            Path(portfolio_status_file) if portfolio_status_file else PORTFOLIO_STATUS_PATH
+        )
         self._fallback_used: bool = False
         # ── health-check state (populated by scan_all) ──
         self._snapshot_ok: bool = False
@@ -926,6 +1084,10 @@ class GovernanceWatcher:
             log.error("GovernanceWatcher.scan_all failed: %s", exc)
             return list(BOOTSTRAP_PROPOSALS)
 
+    def _held_protocols(self) -> Tuple[Optional[list[str]], Optional[str]]:
+        """The protocols we hold right now, or a verbatim reason we do not know."""
+        return load_held_protocol_keys(self._portfolio_status_file)
+
     def export(self, *, dry_run: bool = True, offline: bool = False) -> dict:
         """
         Scan proposals, build the output dict, and optionally write it to
@@ -959,8 +1121,11 @@ class GovernanceWatcher:
             # Coverage is about WHAT WE LOOKED AT, not whether the transport
             # answered.  In fallback/offline mode nothing live was measured at
             # all, so no protocol counts as covered.
+            held_keys, held_reason = self._held_protocols()
             coverage = coverage_report(
-                scan_status=None if self._fallback_used else self._scan_status
+                scan_status=None if self._fallback_used else self._scan_status,
+                held=held_keys,
+                held_unchecked=held_reason,
             )
             if self._fallback_used and coverage.get("measured"):
                 coverage["covered_protocols"] = []
@@ -971,6 +1136,11 @@ class GovernanceWatcher:
                     "bootstrap fallback — no live governance source responded; "
                     "nothing was measured this run"
                 )
+            if self._fallback_used and coverage.get("held_measured"):
+                # Same rule for the held set: a fallback run measured nothing, so
+                # nothing we hold may be published as covered.
+                coverage["held_covered"] = []
+                coverage["held_unchecked"] = list(coverage.get("held_protocols") or [])
 
             result = {
                 "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -995,6 +1165,13 @@ class GovernanceWatcher:
                     "unchecked_protocol_count": (
                         len(coverage["unchecked_protocols"])
                         if coverage.get("measured") else None
+                    ),
+                    # The expensive gap: a protocol holding real (paper) capital whose
+                    # governance nobody watched. None (not 0) when the held set itself
+                    # could not be read.
+                    "unchecked_held_count": (
+                        len(coverage["held_unchecked"])
+                        if coverage.get("held_measured") else None
                     ),
                     "active_count":    sum(1 for p in proposals if p.state == "active"),
                     "by_category":     by_category,
@@ -1151,6 +1328,27 @@ def _print_report(result: dict) -> None:
         stray = cov.get("monitored_not_whitelisted") or []
         if stray:
             print(f"Watched but not investable: {', '.join(stray)}")
+
+    # Held coverage — the gap that costs money, printed separately from the
+    # whitelist gap and never collapsed into it.
+    if not cov.get("held_measured"):
+        print(
+            "Held coverage:    NOT MEASURED — "
+            f"{cov.get('held_reason', 'no reason recorded')}"
+        )
+    else:
+        held = cov.get("held_protocols") or []
+        held_cov = cov.get("held_covered") or []
+        held_gap = cov.get("held_unchecked") or []
+        print(f"Held coverage:    {len(held_cov)}/{len(held)} HELD protocols watched")
+        if held_gap:
+            print(f"HELD, NOT CHECKED ({len(held_gap)}): {', '.join(held_gap)}")
+    for entry in cov.get("unconfirmed_sources") or []:
+        candidate = entry.get("candidate_space") or "(none)"
+        print(
+            f"  no channel: {entry.get('protocol')} — {entry.get('reason')} "
+            f"[candidate: {candidate}, verified: {entry.get('verified')}]"
+        )
     print()
     print(f"{'Sev':<7} {'State':<8} {'Protocol':<16} {'Category':<18} Title")
     print("-" * 100)

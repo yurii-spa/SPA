@@ -164,10 +164,16 @@ class TestCoverageReport(unittest.TestCase):
         self.assertEqual(cov["failed_this_scan"], [])
 
     def test_watched_but_not_investable_sources_are_named(self):
+        # The mechanism (a configured source outside the whitelist must be NAMED) is
+        # unchanged; the example had to move.  It used to rely on `balancer` sitting
+        # in the production watchlist, and ADR-070 п.14 removed balancer/curve/lido/
+        # maker/uniswap-v3/yearn by name — after that there is deliberately no
+        # stranger left in the shipped config, so the stranger is now produced by the
+        # injected whitelist instead of by a defect in the config.  Same assertion,
+        # same guarantee; recorded in docs/journal/2026-W34.md (invariant #16).
         with _FakeWhitelist(["aave-v3"]):
             cov = coverage_report()
-        # balancer/curve/lido/... have spaces but are not in the registry.
-        self.assertIn("balancer", cov["monitored_not_whitelisted"])
+        self.assertIn("compound-v3", cov["monitored_not_whitelisted"])
         self.assertNotIn("aave-v3", cov["monitored_not_whitelisted"])
 
     def test_hyphen_underscore_spelling_does_not_create_a_false_gap(self):
