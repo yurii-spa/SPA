@@ -29,14 +29,23 @@ const groups = [
   {
     // J2 (customer-journey-map): the flagship free tool was hidden behind a single `/#analyze` scroll
     // anchor. Expose the real entries so a user can CHECK a wallet or SEE a sample without hunting.
+    // 2026-08-16: the two checkup.earn-defi.com entries were removed — that service is not deployed
+    // and every one of its routes answers 404, so both nav items were public dead ends. The group
+    // now points only at pages that exist on this domain.
     id: 'checkup', en: 'Checkup', ru: 'Чекап',
     items: [
+<<<<<<< HEAD
       ...(CHECKUP_ENABLED ? [
         { href: checkupUrl('/check'), en: 'Check my wallet', ru: 'Проверить кошелёк', desc: 'Public address — no wallet connection', descRu: 'Публичный адрес — без подключения кошелька', track: 'nav_checkup_check' },
         { href: checkupUrl('/sample-report'), en: 'See a sample analysis', ru: 'Пример анализа', desc: 'Preview the full report, no scan', descRu: 'Пример полного отчёта, без сканирования', track: 'nav_checkup_sample' },
       ] : []),
       { href: '/#analyze', en: 'Analyze on this page', ru: 'Анализ прямо здесь', desc: 'Start inline, right now', descRu: 'Начать сразу тут' },
       { href: '/snapshot', en: '60-second safety snapshot', ru: '60-секундный снимок безопасности', desc: 'No wallet needed', descRu: 'Кошелёк не нужен' },
+=======
+      { href: '/snapshot', en: '60-second safety snapshot', ru: '60-секундный снимок безопасности', desc: 'Four questions — no wallet, no email', descRu: 'Четыре вопроса — без кошелька и email', track: 'nav_checkup_snapshot' },
+      { href: '/#sample-report', en: 'See a sample analysis', ru: 'Пример анализа', desc: 'Illustrative report, no scan', descRu: 'Иллюстративный отчёт, без сканирования', track: 'nav_checkup_sample' },
+      { href: '/#analyze', en: 'Start on this page', ru: 'Начать прямо здесь', desc: 'Start inline, right now', descRu: 'Начать сразу тут' },
+>>>>>>> origin/main
     ],
   },
   {
@@ -126,7 +135,7 @@ const itemActive = (href) => (href === '/' ? path === '/' : path === href || pat
       <!-- J1 (customer-journey-map): the Dashboard was only reachable from the footer — a user couldn't
            find "show me the desk working". Persistent header link now, as the file's own comment promised. -->
       <a class="cta-outline cta-dash" href="/dashboard" data-track="header_dashboard" data-ru="Дашборд ↗">Dashboard ↗</a>
-      <a class="cta-outline cta-analyze" href="/#analyze" data-track="analyze_wallet" data-ru="Анализ кошелька">Analyze Wallet</a>
+      <a class="cta-outline cta-analyze" href="/snapshot" data-track="analyze_wallet" data-ru="60-секундный снимок">60-second check</a>
       <div id="spa-lang-toggle" class="lang-toggle" role="group" aria-label="Language">
         <button type="button" data-lang="en" aria-pressed="true">EN</button>
         <button type="button" data-lang="ru" aria-pressed="false">RU</button>
@@ -149,7 +158,7 @@ const itemActive = (href) => (href === '/' ? path === '/' : path === href || pat
       </details>
     )))}
     <a class="cta-outline cta-dash" href="/dashboard" data-track="header_dashboard" data-ru="Дашборд ↗">Dashboard ↗</a>
-    <a class="cta-outline cta-analyze" href="/#analyze" data-track="analyze_wallet" data-ru="Анализ кошелька">Analyze Wallet</a>
+    <a class="cta-outline cta-analyze" href="/snapshot" data-track="analyze_wallet" data-ru="60-секундный снимок">60-second check</a>
   </div>
 </header>
 

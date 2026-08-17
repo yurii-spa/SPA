@@ -1173,14 +1173,14 @@ class TestAdapterRegistryAPY(unittest.TestCase):
     """All registry adapters have valid fallback APY metadata."""
 
     def test_101_adapter_registry_not_empty(self):
-        """ADAPTER_REGISTRY from registry.py must have ≥15 entries."""
-        from spa_core.adapters.registry import ADAPTER_REGISTRY
-        self.assertGreaterEqual(len(ADAPTER_REGISTRY), 15)
+        """ADAPTER_METADATA from registry.py must have ≥15 entries."""
+        from spa_core.adapters.registry import ADAPTER_METADATA
+        self.assertGreaterEqual(len(ADAPTER_METADATA), 15)
 
     def test_102_all_adapters_have_fallback_apy(self):
-        """Every adapter in ADAPTER_REGISTRY must have a numeric fallback_apy."""
-        from spa_core.adapters.registry import ADAPTER_REGISTRY
-        for aid, meta in ADAPTER_REGISTRY.items():
+        """Every adapter in ADAPTER_METADATA must have a numeric fallback_apy."""
+        from spa_core.adapters.registry import ADAPTER_METADATA
+        for aid, meta in ADAPTER_METADATA.items():
             with self.subTest(adapter=aid):
                 self.assertIn("fallback_apy", meta, f"{aid} missing fallback_apy")
                 apy = meta["fallback_apy"]
@@ -1189,8 +1189,8 @@ class TestAdapterRegistryAPY(unittest.TestCase):
 
     def test_103_fallback_apy_in_reasonable_range(self):
         """Fallback APY values must be within 0.5%–50% (policy)."""
-        from spa_core.adapters.registry import ADAPTER_REGISTRY
-        for aid, meta in ADAPTER_REGISTRY.items():
+        from spa_core.adapters.registry import ADAPTER_METADATA
+        for aid, meta in ADAPTER_METADATA.items():
             with self.subTest(adapter=aid):
                 apy = meta.get("fallback_apy", 0)
                 self.assertGreaterEqual(apy, 0.5, f"{aid}: APY {apy} below policy floor 0.5%")
@@ -1198,9 +1198,9 @@ class TestAdapterRegistryAPY(unittest.TestCase):
 
     def test_104_all_adapters_have_tier(self):
         """Every adapter must declare a tier (T1/T2/T3)."""
-        from spa_core.adapters.registry import ADAPTER_REGISTRY
+        from spa_core.adapters.registry import ADAPTER_METADATA
         valid_tiers = {"T1", "T2", "T3"}
-        for aid, meta in ADAPTER_REGISTRY.items():
+        for aid, meta in ADAPTER_METADATA.items():
             with self.subTest(adapter=aid):
                 self.assertIn("tier", meta)
                 self.assertIn(meta["tier"], valid_tiers,
@@ -1208,8 +1208,8 @@ class TestAdapterRegistryAPY(unittest.TestCase):
 
     def test_105_t1_adapter_instance_has_get_apy(self):
         """T1 adapter instances must expose get_apy()."""
-        from spa_core.adapters.registry import ADAPTER_REGISTRY, get_adapter
-        t1_ids = [aid for aid, m in ADAPTER_REGISTRY.items() if m["tier"] == "T1"]
+        from spa_core.adapters.registry import ADAPTER_METADATA, get_adapter
+        t1_ids = [aid for aid, m in ADAPTER_METADATA.items() if m["tier"] == "T1"]
         self.assertTrue(t1_ids, "No T1 adapters found in registry")
         adapter = get_adapter(t1_ids[0])
         self.assertTrue(hasattr(adapter, "get_apy"), f"{t1_ids[0]} missing get_apy()")

@@ -27,7 +27,7 @@ from spa_core.adapters.base_migration import (
     check_all,
     report,
 )
-from spa_core.adapters.registry import ADAPTER_REGISTRY, list_by_tier, list_research_only
+from spa_core.adapters.registry import ADAPTER_METADATA, list_by_tier, list_research_only
 
 
 # ---------------------------------------------------------------------------
@@ -162,7 +162,7 @@ class TestCheckAll(unittest.TestCase):
 
     def test_check_all_has_all_registry_adapters(self):
         results = check_all()
-        for aid in ADAPTER_REGISTRY:
+        for aid in ADAPTER_METADATA:
             self.assertIn(aid, results, f"{aid} missing from check_all() output")
 
     def test_check_all_each_value_has_conforming(self):
@@ -183,7 +183,7 @@ class TestCheckAll(unittest.TestCase):
 
     def test_check_all_total_count_matches_registry(self):
         results = check_all()
-        self.assertEqual(len(results), len(ADAPTER_REGISTRY))
+        self.assertEqual(len(results), len(ADAPTER_METADATA))
 
 
 # ===========================================================================
@@ -193,7 +193,7 @@ class TestCheckAll(unittest.TestCase):
 class TestResearchOnlyFlag(unittest.TestCase):
 
     def _module_research_only(self, adapter_id: str) -> bool:
-        meta = ADAPTER_REGISTRY[adapter_id]
+        meta = ADAPTER_METADATA[adapter_id]
         mod = importlib.import_module(meta["module"])
         return getattr(mod, "RESEARCH_ONLY", False) is True
 
@@ -210,7 +210,7 @@ class TestResearchOnlyFlag(unittest.TestCase):
         for aid in list_by_tier("T1"):
             with self.subTest(adapter=aid):
                 self.assertFalse(
-                    ADAPTER_REGISTRY[aid].get("research_only"),
+                    ADAPTER_METADATA[aid].get("research_only"),
                     f"{aid} should not be research_only in registry",
                 )
 

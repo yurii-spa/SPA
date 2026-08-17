@@ -37,6 +37,22 @@
    в `/tmp/spa_wt_rnd49`), 1 — путь жил на origin и был удалён, 1 не измерен. То есть 90 %
    раздела «НЕ ДОСТАВЛЕНО» учило пролистывать его целиком — ровно тот механизм, которым
    сторожа глохнут. Код возврата НЕ смягчён: «нигде» по-прежнему даёт 1, а не 0.
+3b. **«расходится хоть в одном дереве» ≠ «ЭТА сессия не доставила».** ``differs`` считался по
+   ОБЪЕДИНЕНИЮ всех рабочих деревьев: достаточно одного дерева, чьё содержимое не встречалось в
+   истории `origin`, чтобы находка жила — и приписывалась КАЖДОЙ сессии, объявлявшей этот путь,
+   включая ту, чьё собственное дерево совпадает с `origin` побайтно. Дерево при этом названо в
+   самой записи (`log_session_change.py` требует абсолютных путей), то есть «кому принадлежит
+   содержимое» измеримо, а не гадательно. **Замер до правки** (весь журнал, 872 записи, 46 живых
+   деревьев, 16.08, цикл #252): находок 49, из них **12 — ложная атрибуция** (своё дерево сессии
+   совпадает с `origin` или его историей), 11 настоящих, 26 — дерево объявления не определяется.
+   Самовоспроизводится: `docs/STATE.md` расходится в 25 деревьях, `docs/journal/<неделя>.md` — в
+   24, `_BOARD.md` — в 24, то есть у трёх файлов, которые правит КАЖДЫЙ цикл, источник
+   расхождения вечен (прод-дерево не снимается по щиту #234, а `docs/` и `nimbalyst-local/` туда
+   не синкаются вовсе). Теперь объявление судится по СВОЕМУ дереву. **Видимость при этом НЕ
+   уменьшена** (прецедент #243): расхождение чужих деревьев остаётся находкой с прежним кодом
+   возврата, но печатается отдельным разделом и НАЗЫВАЕТ, что владелец байтов не измерен —
+   меняется вердикт и место в отчёте, а не факт. Дерево объявления не определяется
+   (относительный путь / каталога нет) ⇒ поведение прежнее, fail-CLOSED.
 4. **отдельным вопросом** сверяет КАРТОЧКИ: карточка в НЕтерминальном статусе, лежащая в
    рабочем дереве и отсутствующая на базе, — находка (`card_findings`). Это не частный
    случай пункта 3: карточку, созданную посреди цикла, никто не объявляет, и разбор
@@ -130,6 +146,13 @@ DELIVERED, ABSENT, DIFFERS, UNMEASURED = "delivered", "absent", "differs", "unme
 # Пятое состояние: объявленного ИМЕНИ не существует нигде — ни на базе, ни в её истории,
 # ни в одном рабочем дереве. Это не «доставлено» и не «потеряно»: поднимать нечего.
 NOWHERE = "nowhere"
+# Шестое: путь есть в дереве, но САМ РЕПОЗИТОРИЙ его не берёт (`.gitignore`). Доставки не
+# было не потому, что её потеряли, а потому, что доставлять этот путь нечем по правилу репо.
+BY_DESIGN = "by_design"
+# Седьмое: объявление названо карточкой, и эта карточка НА БАЗЕ уже закрыта. Работу довели —
+# чаще всего ПОДЪЁМОМ другой сессией (протокол §3.4), — а в дереве объявившего осталась
+# промежуточная копия, которая на origin не попадёт уже никогда. Поднимать нечего.
+CARD_CLOSED = "card_closed"
 
 _PID_RE = re.compile(r"^pid(\d+)$")
 
@@ -211,6 +234,99 @@ def durable_fields(entry):
     Нужно тем, кто строит СИНТЕТИЧЕСКУЮ запись для `session_state` (шаг 0b собирает её из
     (session, ts)): без этих полей улучшение до них просто не доезжает."""
     return {k: entry[k] for k in DURABLE_KEYS if isinstance(entry, dict) and k in entry}
+
+
+def anchor_of(entry):
+    """``(pid, «старт verbatim»)`` или None — ИЗМЕРЕННАЯ личность процесса, написавшего запись.
+
+    Требуются ОБА поля. `session_pid` без `session_pid_start` личностью не считается: pid
+    переиспользуется операционной системой, поэтому «тот же номер» без времени старта — не
+    «тот же процесс», а совпадение числа.
+
+    **Одно определение на оба шага протокола.** Раньше эта функция жила в `check_card_claim`
+    (шаг 0b), а шаг 0a знал только `_durable_state`; здесь она стоит потому, что зависимость
+    между модулями односторонняя (`check_card_claim` грузит этот файл как `sibling`, не
+    наоборот), и копия в двух файлах разошлась бы молча."""
+    if not isinstance(entry, dict):
+        return None
+    raw, start = entry.get("session_pid"), entry.get("session_pid_start")
+    if raw is None or start is None:
+        return None
+    pid = raw if isinstance(raw, int) and not isinstance(raw, bool) else None
+    if pid is None and isinstance(raw, str) and raw.strip().isdigit():
+        pid = int(raw.strip())
+    if pid is None or pid <= 1:
+        return None
+    start = str(start).strip()
+    return (pid, start) if start else None
+
+
+def durable_by_session(entries):
+    """ярлык сессии → её поля долгоживущего процесса, ТОЛЬКО когда они однозначны.
+
+    Ярлык — не идентификатор процесса, и один и тот же ярлык в принципе может нести разные
+    якоря (перезапуск цикла под тем же `SPA_SESSION_ID`). Разные пары ⇒ ключа нет ⇒ у
+    вызывающего поведение остаётся побайтово прежним (fail-CLOSED): угадывать, который из
+    процессов написал запись, инструмент не станет."""
+    found, ambiguous = {}, set()
+    for entry in entries or ():
+        label = str((entry or {}).get("session") or "").strip()
+        if not label or label in ambiguous:
+            continue
+        anchor = anchor_of(entry)
+        if anchor is None:
+            continue
+        if label in found and found[label][0] != anchor:
+            del found[label]
+            ambiguous.add(label)
+            continue
+        found[label] = (anchor, durable_fields(entry))
+    return {label: fields for label, (_anchor, fields) in found.items()}
+
+
+def borrow_durable(entry, anchors):
+    """``(запись, пояснение)`` — запись как есть, либо её копия с личностью ИЗ ЖУРНАЛА.
+
+    **Дефект, который это закрывает** (догфуд цикла #265). Шаг 0a мерил каждую запись в
+    ОДИНОЧКУ: нет своей пары (`session_pid`, `session_pid_start`) ⇒ `_measured_session_state`
+    падал на разбор ЯРЛЫКА (`_PID_RE`), а ярлык вида `cycle-264-pid80387` под него не подходит
+    ⇒ `UNKNOWN` ⇒ вся запись уходит в «НЕ ИЗМЕРЕНО» (код 2), и её объявленные файлы не
+    разбираются ВОВСЕ — ни квитанция снятого дерева, ни закрытая на базе карточка до них уже
+    не доезжают. Живой замер 16.08: 3 строки «не измерено» из 20 записей, все три — записи
+    `[check_card_claim] захват карточки`, то есть наша СОБСТВЕННАЯ автоматика; из 908 записей
+    журнала таких 12.
+
+    **Личность при этом БЫЛА** — соседней записью того же журнала, который инструмент уже
+    прочитал: `claim` пишет запись без якоря (его даёт окружение `SPA_SESSION_PID`, и у
+    однократной CLI-команды его может не быть), а объявление владения секундой позже несёт
+    якорь под ТЕМ ЖЕ ярлыком. Ровно этот вопрос уже задаёт шаг 0b (`durable_by_session`,
+    карточка `agent-frontmatter-claim-locks-card-forever`) — здесь тот же класс с другого
+    входа: необратимое «не измерено» над познаваемым фактом.
+
+    **Два сужения, каждое измеримо** (несработавшее оставляет `UNKNOWN` как было):
+
+    1. ярлык несёт в журнале ОДНОЗНАЧНЫЙ якорь (`durable_by_session`);
+    2. процесс якоря стартовал НЕ ПОЗЖЕ самой записи (допуск `CLOCK_SKEW`). Процесс,
+       родившийся после объявления, написать его не мог: это переиспользованный ярлык, и
+       заимствование дало бы ложный `ACTIVE` — fail-OPEN внутри fail-CLOSED-сторожа.
+
+    Заимствование НАЗЫВАЕТСЯ вслух: измерение уходит читателю с пояснением, откуда взята
+    личность, — иначе отчёт утверждал бы про запись то, чего в ней не написано."""
+    if not isinstance(entry, dict) or not anchors:
+        return entry, ""
+    if anchor_of(entry) is not None:
+        return entry, ""
+    label = str(entry.get("session") or "").strip()
+    fields = anchors.get(label)
+    if not fields:
+        return entry, ""
+    ts = _parse_ts(entry.get("ts"))
+    started = _parse_lstart(str(fields.get("session_pid_start") or ""))
+    if ts is None or started is None or started > ts + CLOCK_SKEW:
+        return entry, ""
+    return {**entry, **fields}, (f"личность взята из журнала по ярлыку {label!r} "
+                                 f"(pid{fields.get('session_pid')}, старт "
+                                 f"{fields.get('session_pid_start')}): в самой записи её нет")
 
 
 def _durable_state(entry, ts, ps):
@@ -413,6 +529,11 @@ def shared_log(start=ROOT, git=_git):
     return root / "data" / "session_changes.jsonl", None
 
 
+# Одно определение текста — и признак, и сообщение. Строка используется как КЛЮЧ класса
+# (`resolve_rel` её ставит, отчёт по ней группирует), поэтому копии заводить нельзя: разойдутся
+# — и группировка молча перестанет срабатывать, а раздел выродится обратно в N строк на путь.
+TREE_GONE = "рабочее дерево удалено вместе с объявленным путём"
+
 REAP_LEDGER_NAME = "worktree_reap_log.jsonl"
 # Вердикты, при которых снятое дерево не уносило с собой работу (см. reap_stale_worktrees.py).
 REAP_EXPLAINED = {"delivered", "superseded"}
@@ -486,6 +607,42 @@ def reaped_state(path_str, ledger, root, base_ref, git=_git):
     return None, None
 
 
+def group_tree_gone(unmeasured):
+    """[{session, common_root, count, sample, paths}] — записи «дерево снято» одной на дерево.
+
+    **Зачем группировка, а не строка на путь.** Одно снятое руками дерево даёт СТОЛЬКО строк,
+    сколько путей объявила сессия (замер 16.08: `/tmp/spa_c256` — 12 строк), и все они об
+    одном и том же событии с одним и тем же действием читателя: никаким. Это тот самый
+    механизм, которым сторожа глохнут, — и модуль уже решал его так же для мёртвых
+    регистраций: «НАЗЫВАЕТСЯ одной строкой на каталог».
+
+    **Что НЕ меняется:** записи остаются в `report["unmeasured"]` все до одной (счёт в
+    заголовке раздела и код возврата 2 считаются по ним), в JSON-выводе они тоже все. Сжат
+    ровно ЧЕЛОВЕЧЕСКИЙ вывод. Ослабления нет: ни одна запись не исчезает и не меняет вердикт.
+
+    Корень дерева не угадывается: берётся общий префикс объявленных путей (`commonpath`) и
+    называется тем, что он есть, — общим корнем объявленного, а не «тем самым деревом»."""
+    groups, order = {}, []
+    for u in unmeasured:
+        if not u.get("tree_gone") or not u.get("path"):
+            continue
+        key = u.get("session")
+        if key not in groups:
+            groups[key] = {"session": key, "paths": []}
+            order.append(key)
+        groups[key]["paths"].append(str(u["path"]))
+    out = []
+    for key in order:
+        paths = groups[key]["paths"]
+        try:
+            common = os.path.commonpath(paths) if len(paths) > 1 else str(Path(paths[0]).parent)
+        except ValueError:                     # разные корни — общего пути нет, и это честно
+            common = "общего корня у объявленных путей нет"
+        out.append({"session": key, "common_root": common, "count": len(paths),
+                    "sample": [Path(p).name for p in paths[:3]], "paths": paths})
+    return out
+
+
 def resolve_rel(path_str, root, git=_git):
     """(repo-relative POSIX-путь, None) либо (None, причина). Тот же принцип, что в пушере:
     принадлежность ТОМУ ЖЕ репозиторию определяется по общему git-каталогу."""
@@ -517,8 +674,7 @@ def resolve_rel(path_str, root, git=_git):
         # Вердикт не меняется — по-прежнему «не измерено» (код 2): доехала ли работа, из
         # удалённого дерева не узнать. Меняется только то, что сессия об этом прочитает.
         if climbed:
-            return None, (f"рабочее дерево удалено вместе с объявленным путём — доставку "
-                          f"измерить нечем: {path_str}")
+            return None, (f"{TREE_GONE} — доставку измерить нечем: {path_str}")
         return None, f"путь не принадлежит этому репозиторию: {path_str}"
 
     rc, top, _ = git(probe, "rev-parse", "--show-toplevel")
@@ -528,6 +684,62 @@ def resolve_rel(path_str, root, git=_git):
         return p.resolve().relative_to(Path(top.strip()).resolve()).as_posix(), None
     except ValueError:
         return None, f"путь вне найденного корня worktree: {path_str}"
+
+
+def declaring_tree(path_str, root, git=_git):
+    """Рабочее дерево, ИЗ КОТОРОГО объявлен путь: (str-корень, None) либо (None, причина).
+
+    Дерево не угадывается и не выводится из совпадения имён — его называет САМА запись
+    журнала: `log_session_change.py` принимает абсолютные пути, и сессия объявляет пути
+    своего дерева (протокол §3.4 обязывает работать в worktree). Разрешение — тем же
+    принципом, что в `resolve_rel`: принадлежность репозиторию по общему git-каталогу,
+    корень — `rev-parse --show-toplevel`.
+
+    ``None`` — судить по «своему дереву» нечем, и это НЕ повод считать работу доставленной:
+    вызывающий обязан оставить прежнее (более строгое) поведение. Две причины:
+    относительный путь (дерева в записи нет вовсе) и удалённый каталог.
+    """
+    p = Path(str(path_str))
+    if not p.is_absolute():
+        return None, "путь объявлен относительным — рабочее дерево в записи не названо"
+
+    try:
+        p.resolve().relative_to(Path(root).resolve())
+        return _real(root), None
+    except ValueError:
+        pass
+
+    probe = p if p.is_dir() else p.parent
+    climbed = not probe.is_dir()           # каталогов уже нет — лезем вверх за уцелевшим предком
+    while not probe.is_dir() and probe != probe.parent:
+        probe = probe.parent
+    if not probe.is_dir() or probe == probe.parent:
+        return None, "каталогов объявленного пути больше нет — дерево объявления не определить"
+
+    ours = _git_common_dir(root, git)
+    theirs = _git_common_dir(probe, git)
+    if ours is None or theirs is None or ours != theirs:
+        # Различие то же, что в `resolve_rel`: «чужой репозиторий» и «дерево удалено вместе с
+        # работой» дают один исход и НЕ одну причину. Соседнее дерево с тем же путём под
+        # удалённое НЕ подставляется — это была бы выдуманная атрибуция, ровно та, что чинится.
+        if climbed:
+            return None, "каталогов объявленного пути больше нет — дерево объявления не определить"
+        return None, "объявленный путь не из этого репозитория"
+
+    rc, top, _ = git(probe, "rev-parse", "--show-toplevel")
+    if rc != 0 or not top.strip():
+        return None, "корень рабочего дерева объявления не определяется"
+    return _real(top.strip()), None
+
+
+def _real(path) -> str:
+    """Канонический путь. На macOS `/tmp` — симлинк на `/private/tmp`, и объявления пишут обе
+    формы; сравнивать деревья по строке без этого нельзя (совпадение молча не найдётся)."""
+    return os.path.realpath(str(path))
+
+
+def _same_tree(a, b) -> bool:
+    return _real(a) == _real(b)
 
 
 # ── файл: есть ли он на базе и тот ли он ─────────────────────────────────────
@@ -696,6 +908,43 @@ def never_existed(rel, root, base_ref, checkouts, git=_git, hist_cache=None):
         detail += ("; в строке есть пробел/запятая — объявление слепило несколько путей в один, "
                    "такого файла не существует по построению")
     return True, detail
+
+
+def repo_refuses(rel, root, git=_git):
+    """Берёт ли репозиторий этот путь ВООБЩЕ: (True/False/None, объяснение с ПРАВИЛОМ).
+
+    Спрашивается САМ git (`check-ignore`), а не наш список каталогов: правило живёт в
+    `.gitignore`, менять его будут без оглядки на этот сторож, и зашитая сюда копия правила
+    разошлась бы молча.
+
+    Семантика `git check-ignore` ровно та, что нужна, и это ИЗМЕРЕНО, а не вычитано:
+    - rc 0 — путь игнорируется, в stdout лежит правило (`.gitignore:48:data/**/*.jsonl`);
+    - rc 1 — не игнорируется, **включая ОТСЛЕЖИВАЕМЫЕ файлы**: `data/audit_trail.jsonl`
+      подходит под тот же самый шаблон `data/**/*.jsonl`, но лежит в индексе, и git отвечает
+      «не игнорируется». То есть однажды доставленный файл этой веткой прощён не будет —
+      проверка сужена индексом, а не нашим мнением;
+    - иное (128, git недоступен) — `None`: вердикта нет.
+
+    `None` НЕ гасит находку: непонятность в fail-CLOSED-стороже обязана оставаться находкой,
+    а не превращаться в тишину (класс #226 — fail-OPEN внутри fail-CLOSED).
+
+    ГРАНИЦА НАЗВАНА ЗАРАНЕЕ, а не найдена потом: спрашивается индекс ГЛАВНОГО дерева (`root`),
+    как и вся остальная сверка. Если сессия внесла игнорируемый путь силой в индекс СВОЕГО
+    `/tmp`-дерева и умерла до пуша, здесь он всё равно будет прощён. Ловить это правильно не
+    здесь (у сторожа один `root` по построению), а тем, что доставку такого пути объявляют
+    явно; случая в живом журнале нет, и выдумывать под него ветку — значит усложнять сторож
+    ради ненаблюдавшейся аварии.
+    """
+    rc, out, err = git(root, "check-ignore", "--verbose", "--", rel)
+    if rc == 0:
+        rule = (out.splitlines() or [""])[0].split("\t")[0].strip()
+        return True, ("этот путь НЕ БЕРЁТ САМ РЕПОЗИТОРИЙ по своему правилу "
+                      f"[{rule or '.gitignore'}] — доставлять его нечем и не требуется: "
+                      "это рабочее состояние, а не потерянная работа")
+    if rc == 1:
+        return False, ""
+    return None, (f"берёт ли репозиторий этот путь, НЕ ИЗМЕРЕНО: git check-ignore rc={rc} "
+                  f"{err.strip()[:120]!r}")
 
 
 def delivered_by_session(session, entries, root, base_ref, git=_git, diff_sets=None, limit=6):
@@ -880,6 +1129,99 @@ def undelivered_cards(root, base_ref, checkouts, git=_git):
     return findings, unmeasured
 
 
+# ── карточка объявления: «эту работу уже довели?» ────────────────────────────
+#
+# Третий вопрос, и прямой ответ на него лежит в тех же данных, что сторож уже читает.
+# Живая авария 2026-08-16 (цикл #263, база `origin/main` 0614d1cbb): из пяти находок
+# «НЕ ДОСТАВЛЕНО» четыре — пути цикла #258, чья работа ДОСТАВЛЕНА подъёмом цикла #259
+# (коммит `de281d8a4`, в теле дословно «ПОДЪЁМ работы цикла #258»). Сторож был прав по
+# своему контракту — содержимого дерева #258 в истории origin нет и не будет, потому что
+# подъёмщик перемерил работу и уехала ЕГО версия, — и ложен по вопросу, который читает
+# оркестратор: «есть ли потерянная работа?».
+#
+# Снять такую находку нельзя ничем, кроме подлога: она будет повторяться каждый цикл до
+# конца жизни журнала (класс #224 / #239 / #252). При этом запись объявления называет
+# карточку МАШИННЫМ полем `card:`, а карточка на базе стоит в терминальном статусе —
+# то есть ответ «работу довели» был доступен без единой догадки.
+#
+# Тот же признак файл уже использует в соседней проверке (`CARD_TERMINAL_STATUSES` выше)
+# с прямо записанным обоснованием: «карточку, осознанно закрытую без доставки, находкой
+# звать не за что». Здесь он спрашивается ещё и у ОБЪЯВЛЕНИЯ.
+
+def base_card_state(card, root, base_ref, git=_git, cache=None):
+    """(статус карточки НА БАЗЕ, время её последнего коммита, причина неизмеримости).
+
+    Обе величины меряются у базы, а не в рабочем дереве: закрытость, живущая только в чьей-то
+    копии, ничего не доказывает — её саму ещё надо доставить (ровно этим и занят весь сторож).
+    Неизмеримое возвращается как `None` с названной причиной: молчанием непонятность здесь
+    не покупается (fail-CLOSED, класс #226).
+    """
+    name = str(card or "").strip().replace("\\", "/").rsplit("/", 1)[-1]
+    if not name:
+        return None, None, "объявление не называет карточку"
+    if not name.endswith(".md"):
+        name += ".md"
+    rel = f"{TRACKER_REL}/{name}"
+    if cache is not None and rel in cache:
+        return cache[rel]
+
+    rc, out, err = git(root, "show", f"{base_ref}:{rel}")
+    if rc != 0:
+        result = (None, None, f"карточки `{name}` на {base_ref} нет "
+                             f"(git show rc={rc} {err.strip()[:120]!r})")
+    else:
+        rc2, ts_out, err2 = git(root, "log", "-1", "--format=%cI", base_ref, "--", rel)
+        when = None
+        if rc2 == 0 and ts_out.strip():
+            try:
+                when = datetime.fromisoformat(ts_out.strip())
+            except ValueError:
+                when = None
+        if when is None:
+            result = (None, None, f"когда карточка `{name}` попала на {base_ref}, НЕ ИЗМЕРЕНО "
+                                 f"(git log rc={rc2} {err2.strip()[:120]!r})")
+        else:
+            result = ((card_status(out) or "").strip().lower(), when, "")
+    if cache is not None:
+        cache[rel] = result
+    return result
+
+
+def card_closes_announcement(entry, root, base_ref, git=_git, cache=None):
+    """(закрывает ли карточка объявления эту работу, причина словами).
+
+    ЧЕТЫРЕ сужения, каждое измеримо, и любое несработавшее оставляет находку как была:
+
+    1. запись называет карточку полем `card:` — **без него ветка не достижима вовсе**;
+    2. карточка есть НА БАЗЕ и её статус терминален (`CARD_TERMINAL_STATUSES`);
+    3. закрытие карточки не СТАРШЕ объявления. Протокол §6.4 обязывает дописывать в чужие
+       карточки, и работа под давно закрытой карточкой — это, наоборот, кандидат в потерянные;
+    4. (у вызывающего) объявленный путь ЕСТЬ на базе — `DIFFERS`, а не `ABSENT`: если файла
+       на origin нет вовсе, закрытая карточка его не оправдывает.
+    """
+    card = entry.get("card")
+    if not card:
+        return False, ""
+    status, closed_at, why = base_card_state(card, root, base_ref, git=git, cache=cache)
+    if status is None:
+        return False, why
+    if status not in CARD_TERMINAL_STATUSES:
+        return False, (f"карточка объявления `{card}` на {base_ref} в статусе "
+                       f"`{status or '(нет status:)'}` — не терминальный")
+    announced = _parse_ts(entry.get("ts"))
+    if announced is None:
+        return False, f"время объявления не разобрано — закрытость карточки `{card}` не применяется"
+    if closed_at + CLOCK_SKEW < announced:
+        return False, (f"карточка `{card}` закрыта на {base_ref} РАНЬШЕ объявления "
+                       f"({closed_at.isoformat()} против {entry.get('ts')}) — работа шла после "
+                       "закрытия, и закрытием она не объясняется")
+    return True, (f"карточка объявления `{card}` закрыта на {base_ref} статусом `{status}` "
+                  f"({closed_at.isoformat()}) — работу этого объявления довели (чаще всего "
+                  "ПОДЪЁМОМ другой сессией, протокол §3.4), а в рабочем дереве объявившего "
+                  "осталась промежуточная копия: она на базу не попадёт уже никогда. "
+                  "ПОДНИМАТЬ НЕЧЕГО")
+
+
 # ── сборка отчёта ────────────────────────────────────────────────────────────
 
 def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
@@ -889,8 +1231,8 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
     now = now or datetime.now(timezone.utc)
     grace = timedelta(hours=grace_hours)
     findings, unmeasured, fresh, stale_copies, card_findings = [], [], [], [], []
-    reaped, nowhere = [], []
-    seen, hist_cache = {}, {}
+    reaped, nowhere, by_design, card_closed = [], [], [], []
+    seen, hist_cache, card_cache = {}, {}, {}
     reap_ledger, ledger_error = read_reap_ledger(root)
     report = {
         "base_ref": base_ref,
@@ -906,6 +1248,8 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
         "stale_copies": stale_copies,
         "reaped": reaped,
         "nowhere": nowhere,
+        "by_design": by_design,
+        "card_closed": card_closed,
         "unmeasured": unmeasured,
         "dead_worktrees": [],
         "exit_code": 0,
@@ -960,9 +1304,17 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
     card_findings.extend(cf)
     unmeasured.extend(cu)
 
+    # Личность сессии, которой нет в самой записи, но которая есть в журнале под тем же
+    # ярлыком (см. `borrow_durable`). Строится ОДИН раз по тем же записям, что и отчёт:
+    # шире окна чтения инструмент не смотрит и здесь.
+    anchors = durable_by_session(entries)
+
     for entry in entries:
+        entry, borrowed = borrow_durable(entry, anchors)
         state, why = session_state(entry, self_session, ps=ps,
                                    self_session_trusted=self_session_trusted)
+        if borrowed:
+            why = f"{why} [{borrowed}]"
         if state == ACTIVE:
             report["sessions_active"] += 1
             continue
@@ -988,11 +1340,12 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
             why = (f"{why} — окно ожидания {grace_hours}ч ещё не истекло, но ждать некого: "
                    "объявленный долгоживущий процесс завершился")
             produced_before = (len(findings), len(unmeasured), len(stale_copies),
-                               len(reaped), len(nowhere))
+                               len(reaped), len(nowhere), len(by_design), len(card_closed))
 
         why = f"{why}; объявлено {age_h}ч назад"
         report["sessions_checked"] += 1
         for raw in entry.get("files") or []:
+            foreign_only = False           # расхождение живёт только в ЧУЖИХ деревьях
             rel, err = resolve_rel(raw, root, git=git)
             if rel is None:
                 # Дерева нет — но, возможно, его СНИМАЛИ по правилу, и тогда измерение
@@ -1015,7 +1368,8 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                                            "reason": detail})
                     continue
                 unmeasured.append({"session": entry.get("session"), "path": str(raw),
-                                   "reason": err})
+                                   "reason": err,
+                                   "tree_gone": err.startswith(TREE_GONE)})
                 continue
             st, detail, locs = file_state(root, base_ref, rel, git=git, diff_sets=diff_sets)
             if st == DELIVERED:
@@ -1046,6 +1400,32 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                                         git=git, diff_sets=diff_sets),
                                     "also_declared_by": []})
                     continue
+                # Путь лежит в дереве и НИКОГДА не был на базе (история пуста) — прежде чем
+                # звать «подними», спрашиваем сам репозиторий, берёт ли он такой путь вообще.
+                # Наш же обязательный уборщик деревьев пишет квитанцию в `data/*.jsonl`, а
+                # `data/` в `.gitignore`: объявление честное, доставка невозможна ПО ПРАВИЛУ,
+                # и снять такую находку нечем — она будет копиться каждый цикл до конца жизни
+                # журнала. Ровно эту сверку сессия #230 уже делала РУКАМИ, пофайлово
+                # («не доставляется by design: .gitignore:116»), и её вывод нигде не закреплён.
+                # Условие узкое намеренно: история базы пуста (иначе это удаление на origin,
+                # см. ветку выше) И индекс не держит путь (см. repo_refuses).
+                if verdict is False and hist_cache.get(rel) == set():
+                    refused, why_refused = repo_refuses(rel, root, git=git)
+                    if refused:
+                        key = (rel, BY_DESIGN)
+                        if key in seen:
+                            by_design[seen[key]]["also_declared_by"].append(entry.get("session"))
+                            continue
+                        seen[key] = len(by_design)
+                        by_design.append({"session": entry.get("session"), "ts": entry.get("ts"),
+                                          "path": rel, "state": BY_DESIGN,
+                                          "detail": why_refused, "session_state": why,
+                                          "within_grace": within_grace,
+                                          "summary": (entry.get("summary") or "")[:160],
+                                          "also_declared_by": []})
+                        continue
+                    if refused is None:
+                        why_nowhere = f"{why_nowhere}; {why_refused}"
                 # Не «нигде» — значит источник назван, и он делает находку ТОЧНЕЕ: либо байты
                 # лежат в конкретном дереве, либо путь жил на origin и был удалён. `None` —
                 # измерить не вышло: находка остаётся прежней, а причина дописывается (тишиной
@@ -1068,8 +1448,56 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                                                        f"истории {base_ref} — устаревшая копия, "
                                                        "не потерянная работа"})
                         continue
-                    detail = (f"есть на {base_ref}, но содержимого из {', '.join(unseen)} "
-                              f"НЕТ в истории {base_ref} для этого файла")
+                    # Чьё это содержимое — измеримо: дерево названо в самой записи. Если своё
+                    # дерево сессии среди расходящихся НЕ значится, она свою работу доставила,
+                    # и находка «сессия X не доставила» — ложное обвинение (замер #252: 12 из
+                    # 49). Видимость расхождения при этом сохраняется полностью: находка
+                    # остаётся, меняются вердикт и раздел (прецедент #243).
+                    own, why_own = declaring_tree(raw, root, git=git)
+                    if own is not None and not any(_same_tree(l, own) for l in unseen):
+                        foreign_only = True
+                        detail = (f"в СВОЁМ дереве объявившей сессии ({own}) этот путь "
+                                  f"совпадает с {base_ref} либо его содержимое уже в истории "
+                                  "этого пути — недоставленного у объявившего нет; расходятся "
+                                  f"ЧУЖИЕ рабочие деревья: {', '.join(unseen)} — чья это работа, "
+                                  "НЕ ИЗМЕРЕНО (объявления из этих деревьев проверяются на "
+                                  "заходе своих сессий)")
+                    else:
+                        detail = (f"есть на {base_ref}, но содержимого из {', '.join(unseen)} "
+                                  f"НЕТ в истории {base_ref} для этого файла")
+                        if own is None:
+                            # Молчанием непонятность не покупается: сказано, ПОЧЕМУ судить по
+                            # своему дереву не вышло, и находка осталась прежней (fail-CLOSED).
+                            detail = f"{detail}; своё дерево сессии не определено — {why_own}"
+
+                # Прямой ответ в тех же данных: работу этого объявления уже довели, и
+                # закрытие УЖЕ на базе. Ветка стоит ПОСЛЕ разбора DIFFERS намеренно — сначала
+                # снимаются дешёвые и точные объяснения (устаревшая копия, чужие деревья), и
+                # только потом спрашивается карточка; иначе она перебивала бы более точный
+                # вердикт. Для ABSENT ветка недостижима вовсе (4-е сужение): файла на базе
+                # нет, и закрытая карточка этого не оправдывает.
+                if not foreign_only:
+                    closes, why_card = card_closes_announcement(
+                        entry, root, base_ref, git=git, cache=card_cache)
+                    if closes:
+                        key = (rel, CARD_CLOSED)
+                        if key in seen:
+                            card_closed[seen[key]]["also_declared_by"].append(
+                                entry.get("session"))
+                            continue
+                        seen[key] = len(card_closed)
+                        card_closed.append({"session": entry.get("session"),
+                                            "ts": entry.get("ts"), "path": rel,
+                                            "state": CARD_CLOSED, "detail": why_card,
+                                            "session_state": why, "within_grace": within_grace,
+                                            "card": entry.get("card"),
+                                            "summary": (entry.get("summary") or "")[:160],
+                                            "also_declared_by": []})
+                        continue
+                    if why_card:
+                        # Не сработало — сказать вслух ПОЧЕМУ. Находка остаётся прежней; это
+                        # та же дисциплина, что у `repo_refuses` выше (#261).
+                        detail = f"{detail}; {why_card}"
             if st == UNMEASURED:
                 unmeasured.append({"session": entry.get("session"), "path": rel,
                                    "reason": detail})
@@ -1088,17 +1516,26 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
             seen[key] = len(findings)
             findings.append({"session": entry.get("session"), "ts": entry.get("ts"),
                              "path": rel, "state": st, "detail": detail, "session_state": why,
-                             "within_grace": within_grace,
+                             "within_grace": within_grace, "foreign_only": foreign_only,
                              "summary": (entry.get("summary") or "")[:160],
                              "also_declared_by": []})
 
         # Сирота, у которой всё объявленное УЖЕ на базе: находки нет, но и в тишину такую
         # запись ронять нечестно — она остаётся в счётчике «свежих» со своим измерением.
-        if within_grace and (len(findings), len(unmeasured),
-                             len(stale_copies), len(reaped), len(nowhere)) == produced_before:
+        if within_grace and (len(findings), len(unmeasured), len(stale_copies),
+                             len(reaped), len(nowhere), len(by_design),
+                             len(card_closed)) == produced_before:
             fresh.append({"session": entry.get("session"), "ts": entry.get("ts"),
                           "age_hours": age_h, "files": len(entry.get("files") or []),
                           "reason": f"{why} — объявленное на {base_ref} есть, находки нет"})
+
+    # Один и тот же путь объявляют десятки сессий, и часть из них своё доставила, часть — нет.
+    # Если по этому пути есть хоть одна НАСТОЯЩАЯ находка (чьё-то своё дерево расходится), то
+    # строка «расходятся чужие деревья» о том же пути — её тень: те же байты, названные дважды.
+    # Убирается тень, а не находка; при отсутствии настоящей строка остаётся и держит код 1.
+    real_paths = {f["path"] for f in findings if not f.get("foreign_only")}
+    findings[:] = [f for f in findings
+                   if not (f.get("foreign_only") and f["path"] in real_paths)]
 
     # `nowhere` СЧИТАЕТСЯ находкой (код 1), хотя поднимать по нему нечего: объявление, под
     # которым никогда не появилось файла, — это дефект самого объявления, и путь, по которому
@@ -1133,8 +1570,13 @@ def render(report) -> str:
                 out.append(f"      объявляла: {f['summary']}")
 
     # Сироты в окне — первыми: работа свежая, дерево ещё на диске, поднять её дешевле всего.
-    orphans = [f for f in report["findings"] if f.get("within_grace")]
-    expired = [f for f in report["findings"] if not f.get("within_grace")]
+    # «Только чужие деревья» выведено из обоих разделов в свой: это НЕ потерянная работа
+    # объявившей сессии, и держать её среди «подними руками» значит учить пролистывать раздел.
+    foreign = [f for f in report["findings"] if f.get("foreign_only")]
+    orphans = [f for f in report["findings"]
+               if f.get("within_grace") and not f.get("foreign_only")]
+    expired = [f for f in report["findings"]
+               if not f.get("within_grace") and not f.get("foreign_only")]
 
     if orphans:
         out.append("")
@@ -1148,6 +1590,14 @@ def render(report) -> str:
         out.append(f"⚠️  НЕ ДОСТАВЛЕНО ({len(expired)}) — объявлено давно, "
                    f"активность не подтверждена, а объявленного на {base} нет:")
         _findings_block(expired)
+
+    if foreign:
+        out.append("")
+        out.append(f"🌲 РАСХОЖДЕНИЕ ТОЛЬКО В ЧУЖИХ ДЕРЕВЬЯХ ({len(foreign)}) — объявившая сессия "
+                   f"своё доставила (её дерево совпадает с {base} или его историей), а байты, "
+                   f"которых на {base} не было, лежат в деревьях ДРУГИХ сессий. Это не потерянная "
+                   "работа объявившего; чья она — не измерено, и находкой остаётся:")
+        _findings_block(foreign)
 
     if report.get("nowhere"):
         out.append("")
@@ -1183,8 +1633,30 @@ def render(report) -> str:
         out.append(f"❓ НЕ ИЗМЕРЕНО ({len(report['unmeasured'])}) — молчаливого «всё в порядке» "
                    "здесь не будет:")
         for u in report["unmeasured"]:
+            if u.get("tree_gone"):
+                continue                      # свой раздел ниже: одной строкой на дерево
             where = f" · {u['path']}" if u.get("path") else ""
             out.append(f"  - {u.get('session') or '-'}{where}: {u['reason']}")
+        for g in group_tree_gone(report["unmeasured"]):
+            out.append(f"  - {g['session'] or '-'} · {g['common_root']}: снятое БЕЗ квитанции "
+                       f"рабочее дерево, объявленных путей {g['count']} "
+                       f"({', '.join(g['sample'])}{'…' if g['count'] > len(g['sample']) else ''})")
+            out.append("      измерить нечем и уже не станет: байтов нет ни в дереве, ни в "
+                       "архиве — ПОДНИМАТЬ НЕЧЕГО, разбирать эти строки следующим циклом "
+                       "бессмысленно. Вердикт остаётся «не измерено» (код 2): доставили ли "
+                       "работу, из снятого дерева не узнать.")
+            # Имя инструмента без расширения — НАМЕРЕННО, и это не украшение. Храповик
+            # неподключённых скриптов (`spa_core/tests/_unwired.py`) считает проводкой любую
+            # подстроку `<имя>.py` в файле каталога `scripts/`, не отличая ВЫЗОВ от УПОМИНАНИЯ
+            # в тексте сообщения. Написав здесь полное имя файла, мы объявили бы уборщик
+            # «подключённым», хотя его по-прежнему никто не зовёт, — и храповик перестал бы
+            # следить за настоящей сиротой. Слепота названа карточкой, гасить её здесь нечем;
+            # полный путь стоит в `docs/ORCHESTRATOR_PROTOCOL.md` §3.4, а `docs/` храповик
+            # проводкой не считает по измеренному решению цикла #214.
+            out.append("      Дефект здесь — САМО снятие: убирать за собой обязан "
+                       "`reap_stale_worktrees --worktree <путь> --apply` из `scripts/` "
+                       "(меряет, архивирует, оставляет квитанцию; протокол §3.4). "
+                       "Снятое руками неизмеримо навсегда.")
 
     if report.get("dead_worktrees"):
         out.append("")
@@ -1193,6 +1665,36 @@ def render(report) -> str:
                    "(лечится осознанным `git worktree prune`):")
         for d in report["dead_worktrees"]:
             out.append(f"  - {d['path']}: {d['reason']}")
+
+    if report.get("by_design"):
+        out.append("")
+        out.append(f"📛 НЕ ДОСТАВЛЯЕТСЯ ПО ПРАВИЛУ РЕПОЗИТОРИЯ ({len(report['by_design'])}) — "
+                   f"объявлено честно, в дереве лежит, на {base} никогда не было и не будет: "
+                   "путь под `.gitignore`. Правило названо в каждой строке — если оно неверно, "
+                   "менять надо ПРАВИЛО, а не отчёт:")
+        for f in report["by_design"]:
+            out.append(f"  [по правилу] {f['path']}")
+            out.append(f"      сессия {f['session']} ({f['ts']}): {f['session_state']}")
+            out.append(f"      {f['detail']}")
+            if f.get("also_declared_by"):
+                out.append(f"      тот же путь объявляли ещё: {', '.join(f['also_declared_by'])}")
+
+    if report.get("card_closed"):
+        out.append("")
+        out.append(f"🗃  КАРТОЧКА ОБЪЯВЛЕНИЯ ЗАКРЫТА НА {base} ({len(report['card_closed'])}) — "
+                   "работу довели, и закрытие уже доставлено (обычно ПОДЪЁМ другой сессией, "
+                   "протокол §3.4); в дереве объявившего осталась промежуточная копия, которой "
+                   "на базу не попасть уже никогда. ПОДНИМАТЬ НЕЧЕГО — дерево снимается "
+                   "квитанцией. Карточка названа в каждой строке: если она закрыта неверно, "
+                   "менять надо СТАТУС КАРТОЧКИ, а не отчёт:")
+        for f in report["card_closed"]:
+            out.append(f"  [карточка закрыта] {f['path']}")
+            out.append(f"      сессия {f['session']} ({f['ts']}): {f['session_state']}")
+            out.append(f"      {f['detail']}")
+            if f.get("also_declared_by"):
+                out.append(f"      тот же путь объявляли ещё: {', '.join(f['also_declared_by'])}")
+            if f["summary"]:
+                out.append(f"      объявляла: {f['summary']}")
 
     if report.get("reaped"):
         out.append("")
@@ -1209,7 +1711,18 @@ def render(report) -> str:
 
     if (not report["findings"] and not report["unmeasured"]
             and not report.get("card_findings") and not report.get("nowhere")):
-        out.append("✅ измерено полностью, всё доставлено")
+        # «Всё доставлено» при непустом разделе выше было бы неправдой в собственном отчёте:
+        # эти пути не доставлены и доставлены не будут. Утверждается ровно то, что измерено —
+        # потерянной работы нет, а недоставленное названо и объяснено (правилом репозитория
+        # либо закрытой на базе карточкой объявления).
+        explained = []
+        if report.get("by_design"):
+            explained.append("по правилу репозитория")
+        if report.get("card_closed"):
+            explained.append("карточка объявления закрыта на базе")
+        out.append("✅ измерено полностью, всё доставлено" if not explained
+                   else "✅ измерено полностью, потерянной работы нет (недоставленное — "
+                        + "; ".join(explained) + ", разделы выше)")
     return "\n".join(out)
 
 

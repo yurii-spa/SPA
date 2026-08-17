@@ -87,7 +87,7 @@ def test_compound_v3_in_orchestrator_registry_as_t1():
     from spa_core.adapters import CompoundV3Adapter as canonical_cls
     from spa_core.orchestrator import adapter_orchestrator as orch
 
-    entry = [r for r in orch.ADAPTER_REGISTRY if r[0] == "compound_v3"]
+    entry = [r for r in orch.POLLED_ADAPTERS if r[0] == "compound_v3"]
     assert len(entry) == 1
     assert entry[0][1] == "T1"
     # The class in the registry must be the same as what spa_core.adapters exports
@@ -103,7 +103,7 @@ def test_registries_tier_sync_and_two_t1_anchors():
     from spa_core.orchestrator import adapter_orchestrator as orch
 
     pkg = {key: (tier, cls) for key, tier, cls in pkg_registry}
-    orh = {key: (tier, cls) for key, tier, cls in orch.ADAPTER_REGISTRY}
+    orh = {key: (tier, cls) for key, tier, cls in orch.POLLED_ADAPTERS}
     # Every orchestrator entry must exist in the package with matching tier
     for key, (tier, cls) in orh.items():
         assert key in pkg, f"Orchestrator key '{key}' missing from package registry"

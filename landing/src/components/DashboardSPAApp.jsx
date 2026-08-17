@@ -399,12 +399,21 @@ export default function DashboardSPAApp({ initialFacts = null }) {
               <a href="/dashboard" style={{ display: 'block', fontSize: '.75rem', color: 'var(--text-faint)', textDecoration: 'none', padding: '3px 0' }}>
                 {tr('← Live dashboard', '← Живой дашборд')}
               </a>
+<<<<<<< HEAD
               {CHECKUP_ENABLED && (
                 <a href={checkupUrl('/check')} target="_blank" rel="noopener noreferrer"
                   style={{ display: 'block', fontSize: '.75rem', color: 'var(--accent)', textDecoration: 'none', padding: '3px 0', marginTop: 4 }}>
                   {tr('Check wallet →', 'Проверить кошелёк →')}
                 </a>
               )}
+=======
+              {/* was checkup.earn-defi.com/check — that service is not deployed (all routes 404,
+                  measured 2026-08-16); the live no-wallet entry is /snapshot on this domain. */}
+              <a href="/snapshot"
+                style={{ display: 'block', fontSize: '.75rem', color: 'var(--accent)', textDecoration: 'none', padding: '3px 0', marginTop: 4 }}>
+                {tr('60-second snapshot →', '60-секундный снимок →')}
+              </a>
+>>>>>>> origin/main
             </div>
           )}
         </aside>
@@ -418,6 +427,7 @@ export default function DashboardSPAApp({ initialFacts = null }) {
             </h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
               <FleetChip fl={fleet} />
+<<<<<<< HEAD
               {CHECKUP_ENABLED && (
                 <a
                   href={checkupUrl('/check', '?utm_source=dashboard-preview&utm_campaign=spa-topbar')}
@@ -437,6 +447,24 @@ export default function DashboardSPAApp({ initialFacts = null }) {
                   {tr('Check wallet →', 'Проверить кошелёк →')}
                 </a>
               )}
+=======
+              {/* was checkup.earn-defi.com/check — service not deployed, all routes 404 (2026-08-16) */}
+              <a
+                href={`/snapshot?utm_source=dashboard-preview&utm_campaign=spa-topbar`}
+                style={{
+                  padding: '7px 14px',
+                  borderRadius: 'var(--r-sm)',
+                  background: 'var(--accent)',
+                  color: '#fff',
+                  fontSize: '.8125rem',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {tr('60-second snapshot →', '60-секундный снимок →')}
+              </a>
+>>>>>>> origin/main
             </div>
           </header>
 

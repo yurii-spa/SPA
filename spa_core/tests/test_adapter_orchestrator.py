@@ -217,8 +217,8 @@ class TestOrchestratorRun(unittest.TestCase):
         # SPA-V405: добавлен T1-якорь AaveV3Adapter.
         # SPA-V411: добавлен второй T1-якорь CompoundV3Adapter.
         # Count may grow as new adapters are added — check ≥6 and key names present.
-        names = [cls.__name__ for (_, _, cls) in orch.ADAPTER_REGISTRY]
-        self.assertGreaterEqual(len(orch.ADAPTER_REGISTRY), 6)
+        names = [cls.__name__ for (_, _, cls) in orch.POLLED_ADAPTERS]
+        self.assertGreaterEqual(len(orch.POLLED_ADAPTERS), 6)
         self.assertIn("AaveV3Adapter", names)
         self.assertIn("CompoundV3Adapter", names)
         self.assertIn("MorphoBlueAdapter", names)
@@ -226,7 +226,7 @@ class TestOrchestratorRun(unittest.TestCase):
         self.assertIn("EulerV2Adapter", names)
         self.assertIn("MapleAdapter", names)
         # SPA-V411: Aave и Compound — два T1-якоря в реестре по умолчанию.
-        tiers = {cls.__name__: tier for (_, tier, cls) in orch.ADAPTER_REGISTRY}
+        tiers = {cls.__name__: tier for (_, tier, cls) in orch.POLLED_ADAPTERS}
         self.assertEqual(tiers["AaveV3Adapter"], "T1")
         self.assertEqual(tiers["CompoundV3Adapter"], "T1")
         # own-29 (2026-08-05): morpho_steakhouse — наша позиция $40k/40% —
@@ -243,7 +243,7 @@ class TestOrchestratorRun(unittest.TestCase):
         # (инв. #16). Требование ОПРАШИВАТЬСЯ оркестратором (строка выше) — в силе:
         # тир меняет потолок концентрации, а не право на живой замер TVL.
         self.assertEqual(tiers["MorphoSteakhouseAdapter"], "T2")
-        keys = [k for (k, _, _) in orch.ADAPTER_REGISTRY]
+        keys = [k for (k, _, _) in orch.POLLED_ADAPTERS]
         self.assertIn("morpho_steakhouse", keys)
 
 
@@ -495,7 +495,7 @@ class TestPatchedRegistry(unittest.TestCase):
             ("p1", "T1", make_adapter("p1", apy=0.05)),
             ("p2", "T2", make_adapter("p2", apy=0.08)),
         ]
-        with mock.patch.object(orch, "ADAPTER_REGISTRY", fake_reg):
+        with mock.patch.object(orch, "POLLED_ADAPTERS", fake_reg):
             res = run_orchestrator(write=False, now_fn=fixed_now)
         self.assertEqual(res.summary["total"], 2)
         self.assertEqual(res.summary["ok"], 2)

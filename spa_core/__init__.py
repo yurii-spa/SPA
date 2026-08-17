@@ -18,7 +18,8 @@ Utils
 Errors
     SPAError, GateError, SourceError
 Registry
-    ADAPTER_REGISTRY (see spa_core.adapters.registry)
+    ADAPTER_REGISTRY  — канонический реестр (spa_core.adapters), список кортежей
+    ADAPTER_METADATA  — метаданные адаптеров (spa_core.adapters.registry), dict
 Version
     VERSION, VERSION_TUPLE
 """
@@ -79,10 +80,19 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # Adapter registry
 # ---------------------------------------------------------------------------
+# Два РАЗНЫХ объекта — два РАЗНЫХ имени (цикл #274). До этого оба звались
+# ADAPTER_REGISTRY, и `spa_core.ADAPTER_REGISTRY` молча отдавал НЕ тот, который
+# называет инвариантом CLAUDE.md: dict из registry.py (22 записи, `aave_usdc`)
+# вместо канонического списка (36 записей, `aave_v3`).
 try:
-    from spa_core.adapters.registry import ADAPTER_REGISTRY  # noqa: F401
+    from spa_core.adapters import ADAPTER_REGISTRY  # noqa: F401
 except ImportError:
-    ADAPTER_REGISTRY = {}  # type: ignore[assignment]
+    ADAPTER_REGISTRY = []  # type: ignore[assignment]
+
+try:
+    from spa_core.adapters.registry import ADAPTER_METADATA  # noqa: F401
+except ImportError:
+    ADAPTER_METADATA = {}  # type: ignore[assignment]
 
 # ---------------------------------------------------------------------------
 # Public surface
@@ -109,4 +119,5 @@ __all__ = [
     "SourceError",
     # registry
     "ADAPTER_REGISTRY",
+    "ADAPTER_METADATA",
 ]

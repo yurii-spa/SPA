@@ -70,7 +70,7 @@ DEFAULT_MAX_RUNS = 30
 # Реестр read-only адаптеров: (protocol_key, tier, adapter_class).
 # Тир дублируется здесь как fallback на случай, если адаптер упадёт ещё при
 # инстанцировании (тогда get_yield_info().tier недоступен).
-ADAPTER_REGISTRY: list[tuple[str, str, type]] = [
+POLLED_ADAPTERS: list[tuple[str, str, type]] = [
     # SPA-V405: Aave V3 is the T1 anchor (40% cap) that lets the allocator fill
     # the structural remainder left by the four 20%-capped T2 adapters.
     ("aave_v3", "T1", AaveV3Adapter),
@@ -359,14 +359,14 @@ def run_orchestrator(
     Параметры
     ---------
     registry  : переопределяемый список (protocol_key, tier, adapter_class).
-                По умолчанию — ``ADAPTER_REGISTRY``.
+                По умолчанию — ``POLLED_ADAPTERS``.
     write     : если True — атомарно пишет status- и runs-файлы. Если False
                 (dry-run) — ничего не пишет на диск.
     data_dir  : каталог для data/*.json (по умолчанию <repo>/data).
     timeout   : пер-адаптерный таймаут (по умолчанию ADAPTER_TIMEOUT_SEC).
     now_fn    : источник текущего времени (для тестов).
     """
-    reg = registry if registry is not None else ADAPTER_REGISTRY
+    reg = registry if registry is not None else POLLED_ADAPTERS
     timeout = timeout if timeout is not None else ADAPTER_TIMEOUT_SEC
     now_fn = now_fn or (lambda: datetime.now(timezone.utc))
     ddir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR

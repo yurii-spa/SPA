@@ -234,8 +234,8 @@ class PaperDay1Checklist:
             if str(self._base) not in sys.path:
                 sys.path.insert(0, str(self._base))
             try:
-                from spa_core.adapters.registry import ADAPTER_REGISTRY, registry_summary
-                count = len(ADAPTER_REGISTRY)
+                from spa_core.adapters.registry import ADAPTER_METADATA, registry_summary
+                count = len(ADAPTER_METADATA)
                 summary = registry_summary()
             finally:
                 sys.path = sys_path_bak

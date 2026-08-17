@@ -42,10 +42,16 @@ const nav = [
     <header class="shell-topbar">
       <h1 class="shell-title" data-ru={titleRu}>{title}</h1>
       <div class="shell-actions">
+<<<<<<< HEAD
         {CHECKUP_ENABLED && (
           <a href={checkupUrl('/check', '?utm_source=dashboard')} class="shell-cta"
              data-ru="Проверить кошелёк →">Check your wallet →</a>
         )}
+=======
+        {/* was the checkup service's /check route — not deployed, every route 404s (2026-08-16). */}
+        <a href="/snapshot?utm_source=dashboard" class="shell-cta"
+           data-ru="60-секундный снимок →">60-second snapshot →</a>
+>>>>>>> origin/main
       </div>
     </header>
 

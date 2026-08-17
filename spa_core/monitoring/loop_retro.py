@@ -181,7 +181,8 @@ def analyze_proofs(proof_lines: dict[str, list[dict]], now: dt.datetime) -> list
 def build_report(analysts: list[dict], loop_health: dict | None,
                  unresolved_now: int | None, now: dt.datetime,
                  verdicts: dict | None = None,
-                 outcomes_stats: dict | None = None) -> dict:
+                 outcomes_stats: dict | None = None,
+                 outcomes_completeness: dict | None = None) -> dict:
     """`verdicts` — результат analyze_verdicts; None означает «архив не измеряли»
     и трактуется как его отсутствие (fail-CLOSED): молчание не считается за «есть»."""
     candidates, findings = [], []
@@ -216,6 +217,25 @@ def build_report(analysts: list[dict], loop_health: dict | None,
                        f"{', '.join(verdicts['lagging'])} выработали, а их вердикт за этот день "
                        "не записан — архив выглядит рабочим, но hit-rate считать не по чему"})
 
+    # ПОЛНОТА архива исходов — вопрос, отдельный от его ВОЗРАСТА (B2 сторожа
+    # архитектуры). Находка идёт отсюда, потому что здесь у неё уже есть
+    # читатель: findings_bridge берёт loop_retro.json третьим источником, то
+    # есть рекомендация не остаётся в файле, который никто не обязан открыть.
+    if outcomes_completeness is not None:
+        if outcomes_completeness.get("measured") and outcomes_completeness.get("missing_days"):
+            miss = outcomes_completeness["missing_days"]
+            findings.append({
+                "key": "retro:outcomes_incomplete", "severity": "WARN",
+                "message": f"архив исходов неполон: строки нет за {len(miss)} закрыт(ых) "
+                           f"evidenced-дн(я/ей) ({', '.join(miss[:5])}"
+                           f"{' …' if len(miss) > 5 else ''}) — это ОСТАНОВКА записи, "
+                           "а не ожидание бара; производитель (append_daily_outcome) "
+                           "пишет ТОЛЬКО сегодняшний день, поэтому сам он эти дни уже "
+                           "не догонит: нужен разбор причины, затем дозапись — "
+                           "`python3 -m spa_core.monitoring.outcomes_archive --backfill "
+                           "--since <дата> --until <дата>` (руками: автолечение стёрло "
+                           "бы эту находку раньше, чем её прочитают)"})
+
     # Динамическая честность (цикл 3 ADR-067): архив исходов снимает вечный
     # UNCHECKED «подтверждение RED» ровно в тот момент, когда пар достаточно;
     # до того причина называет, СКОЛЬКО уже собрано — прогресс виден, не туман.
@@ -235,6 +255,13 @@ def build_report(analysts: list[dict], loop_health: dict | None,
                                     f"пропротокольный join будет включён при покрытии "
                                     f"≥{OUTCOME_HORIZON_DAYS} дн."})
 
+    # Неизмеренная полнота — это НЕ «полно»: причина называется вслух, находкой
+    # не объявляется (пустой архив в свежем дереве — не поломка производителя).
+    if outcomes_completeness is not None and not outcomes_completeness.get("measured"):
+        unchecked.append({"metric": "полнота архива исходов по закрытым дням",
+                          "reason": str(outcomes_completeness.get("reason")
+                                        or "причина не названа производителем")})
+
     return {"generated_at": now.isoformat(), "adr": "ADR-066",
             "window_days": WINDOW_DAYS,
             "analysts": analysts,
@@ -242,6 +269,7 @@ def build_report(analysts: list[dict], loop_health: dict | None,
             "findings": findings,
             "verdict_archive": verdicts,
             "outcomes": outcomes_stats,
+            "outcomes_completeness": outcomes_completeness,
             "unchecked": unchecked,
             "loop_health_snapshot": {k: loop_health.get(k) for k in
                                      ("open_cards", "recurrences_total", "cards_fate")}
@@ -293,9 +321,18 @@ def run(root: str = REPO_ROOT, now: dt.datetime | None = None) -> dict:
         outcomes_stats = analyze_outcomes(chief_v, outc) if (outc or chief_v) else None
     except Exception:  # noqa: BLE001 — исходы не смеют валить ретро
         outcomes_stats = None
+    try:
+        from spa_core.monitoring.outcomes_archive import analyze_completeness
+        completeness = analyze_completeness(root, now)
+    except Exception as exc:  # noqa: BLE001 — падение проверки не смеет валить ретро
+        # …но и исчезнуть в тишине не смеет: упавшая проверка — это «не измерено»
+        # С ПРИЧИНОЙ, а не отсутствие вопроса (иначе fail-OPEN внутри fail-CLOSED).
+        completeness = {"measured": False,
+                        "reason": f"проверка полноты не выполнена: {exc}"}
     report = build_report(analysts, lh, unresolved, now,
                           verdicts=analyze_verdicts(verdicts, analysts),
-                          outcomes_stats=outcomes_stats)
+                          outcomes_stats=outcomes_stats,
+                          outcomes_completeness=completeness)
     from spa_core.utils.atomic import atomic_save
     atomic_save(report, os.path.join(root, RETRO_REL))
     return report

@@ -1,5 +1,12 @@
 # SITE UI/UX BACKLOG — deep architect audit (2026-07-11)
 
+> **⚠️ 2026-08-16 (цикл #260): компонента `landing/src/components/WalletCheck.jsx` больше НЕТ.**
+> Её единственным действием был переход на `checkup.earn-defi.com`, а этот сервис не развёрнут —
+> любой его маршрут отдаёт 404 (`x-railway-fallback: true`, к домену не привязано приложение).
+> Виджет снят с главной вместе с мёртвым CSS `.wc-*` и хелпером `focusAnalyze` (UX-09). Пункты
+> UX-02 / UX-06 / UX-09 ниже — ИСТОРИЯ: править по ним нечего. Судьба секций «бесплатный чекап» —
+> вопрос владельцу `owner-decision-glavnaya-reklamiruet-besplatnyi-chekap-k`.
+
 > **✅ SHIPPED (2026-07-11):** UX-01 funnels IIFE · UX-02 WalletCheck EN-first · UX-03 cockpit-kit noindex ·
 > UX-04 sitemap excludes internal · UX-06 single hero headline · UX-07 hero eyebrow benefit-first ·
 > UX-08 dashboard mock illustrative · UX-09 Analyze-CTA focuses hero input ·

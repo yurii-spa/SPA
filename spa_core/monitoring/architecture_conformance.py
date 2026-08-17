@@ -17,10 +17,21 @@
         intent=unresolved                    → WARN weak (дрейф без решения; стареет)
   B2  свежесть активных артефактов по SLO (generated_at из содержимого, иначе mtime)
         → WARN (инцидент agent_registry: 19 дней протухания никто не заметил)
+        + ВЫПОЛНИМОСТЬ самого SLO: литерал `slo_hours` сверяется с физическим
+        минимумом `period_hours + такт производителя`; объявить свежесть строже,
+        чем производитель способен дать, — дефект МАНИФЕСТА, а не производителя
+        (замер #256: `outcomes.jsonl` — строка в сутки от 6-часового агента,
+        честный максимум разрыва 30ч против объявленных 26ч). Бюджет и его
+        слагаемые лежат машинно в `slo_budgets` (урок #235: бюджет обязан быть
+        показательным, иначе спорить не с чем).
   B3  замыкание потребления: продукт агента с consumer_required обязан иметь СВЕЖИЙ
         ресит в data/consumption_receipts.jsonl → WARN (ядро аудита: 12 io_* в никуда)
   B5  манифест сам соответствует фактам plist'ов (перегенерация без дрейфа;
-        на хосте без ~/Library/LaunchAgents/com.spa.* — честный UNCHECKED)
+        на хосте без ~/Library/LaunchAgents/com.spa.* — честный UNCHECKED).
+        Отдельно: plist, объявленный манифестом путём В РЕПО, которого в этом
+        дереве нет, а на `origin/main` он ЕСТЬ, — это граница синхронизации,
+        а не дрейф механики ⇒ UNCHECKED с названной причиной, не находка
+        (цикл #267; доказательство — в `build_architecture_manifest`)
   B6  локальная курация ↔ `origin/main` (замер 2026-08-08, цикл #168/#169)
 
 Откуда берётся КУРАЦИЯ (`intent` и родня) — отдельный вопрос от «какие plist'ы
@@ -135,6 +146,63 @@ def artifact_timestamp(rel_path: str, root: str = REPO_ROOT) -> dt.datetime | No
     return dt.datetime.fromtimestamp(os.path.getmtime(full), tz=dt.timezone.utc)
 
 
+def producer_tick_hours(schedule) -> float | None:
+    """Такт производителя из машинного `schedule` манифеста. None = НЕ ИЗМЕРИМ.
+
+    Словарь задаёт `build_architecture_manifest.py`: `interval:Ns` ·
+    `calendar:HH:MM` (раз в сутки) · `calendar:wdN·HH:MM` (раз в неделю) ·
+    `daemon` (непрерывно ⇒ квантования нет, 0) · `manual`/`event:*`/нет — такт
+    не определён расписанием, и это НЕ ноль.
+    """
+    if not isinstance(schedule, str) or not schedule:
+        return None
+    if schedule == "daemon":
+        return 0.0
+    if schedule.startswith("interval:"):
+        raw = schedule.split(":", 1)[1].rstrip("s")
+        try:
+            return int(raw) / 3600.0
+        except ValueError:
+            return None
+    if schedule.startswith("calendar:"):
+        return 168.0 if "wd" in schedule.split(":", 1)[1] else 24.0
+    return None
+
+
+def freshness_floor(art: dict, by_label: dict) -> dict:
+    """Физический минимум бюджета свежести артефакта — из ФАКТОВ, не из литерала.
+
+    Разрыв между двумя записями артефакта не может быть меньше, чем
+    `period_hours` (как часто у артефакта ВООБЩЕ появляется новое содержимое;
+    отсутствует ⇒ 0 = пишется каждый такт) плюс такт производителя (запись
+    случается только на такте, поэтому такт — это КВАНТОВАНИЕ, а не запас).
+
+    Замер 2026-08-16 (цикл #256), из-за которого это появилось:
+    `outcomes.jsonl` — строка на календарный день (`period_hours: 24`) от
+    производителя с тактом 6ч ⇒ честный максимум разрыва 30ч; объявлено 26ч,
+    и сторож полгода краснел на ИСПРАВНОМ refusal-first производителе
+    (наблюдённая последовательность разрывов по логу: 18ч · 24ч · 30ч).
+    Возвращает {"floor_h", "period_h", "tick_h", "reason"}; floor_h=None —
+    такт производителя не определён расписанием (НЕ повод считать бюджет нулём).
+    """
+    period_h = float(art.get("period_hours") or 0.0)
+    producer = art.get("producer")
+    if not producer:
+        return {"floor_h": None, "period_h": period_h, "tick_h": None,
+                "reason": "продюсер не объявлен — такт неизвестен"}
+    agent = by_label.get(producer)
+    if agent is None:
+        return {"floor_h": None, "period_h": period_h, "tick_h": None,
+                "reason": f"продюсера {producer} нет в манифесте"}
+    tick_h = producer_tick_hours(agent.get("schedule"))
+    if tick_h is None:
+        return {"floor_h": None, "period_h": period_h, "tick_h": None,
+                "reason": f"расписание {producer} не задаёт такт "
+                          f"({agent.get('schedule')!r})"}
+    return {"floor_h": period_h + tick_h, "period_h": period_h,
+            "tick_h": tick_h, "reason": ""}
+
+
 def load_receipts(path: str = RECEIPTS_PATH) -> dict[str, dt.datetime]:
     """artifact → отметка САМОГО СВЕЖЕГО ресита потребления. Нет файла → {}."""
     latest: dict[str, dt.datetime] = {}
@@ -159,8 +227,52 @@ def load_receipts(path: str = RECEIPTS_PATH) -> dict[str, dt.datetime]:
     return latest
 
 
-def _manifest_drift_problems() -> list[str] | None:
-    """B5: перегенерировать манифест из фактов plist'ов. None = НЕ ИЗМЕРИМО здесь."""
+def group_drift_by_agent(problems: list[str]) -> list[dict]:
+    """Строки замера → находки, ключ которых — ЛИЧНОСТЬ агента, а не текст поля.
+
+    Одна пропавшая точка входа даёт ТРИ строки (`plist_source`/`schedule`/`program`):
+    ключ по тексту завёл бы три карточки об одной причине, а любая правка
+    формулировки завела бы их заново. Строка без префикса `com.spa.<…>: ` живёт
+    своим ключом — выдумывать ей владельца нельзя.
+    """
+    order: list[str] = []
+    groups: dict[str, list[str]] = {}
+    for p in problems:
+        label = p.split(": ", 1)[0] if (p.startswith("com.spa.") and ": " in p) else None
+        gid = label or p
+        if gid not in groups:
+            groups[gid] = []
+            order.append(gid)
+        groups[gid].append(p.split(": ", 1)[1] if label else p)
+    out: list[dict] = []
+    for gid in order:
+        if gid.startswith("com.spa."):
+            out.append({"key": gid, "message": f"{gid}: " + "; ".join(groups[gid])})
+        else:
+            out.append({"key": gid[:80], "message": gid})
+    return out
+
+
+def _manifest_drift_problems() -> dict | None:
+    """B5: перегенерировать манифест из фактов plist'ов. None = НЕ ИЗМЕРИМО здесь.
+
+    Возвращает `{"drift": [сгруппированные находки], "unmeasurable": [строки]}`.
+    Второй список — то, что в ЭТОМ дереве измерить нечем: он уезжает в `unchecked`,
+    а не в находки. Замер 16.08 (цикл #267): `com.spa.site_freshness` объявлен
+    манифестом как `repo:launchd/…`, на origin файл есть, в прод-дереве нет
+    (синхронизация возит только `spa_core/ scripts/ tests/`) — сторож печатал три
+    строки «→ None» и звучал как ДРЕЙФ МЕХАНИКИ, хотя мерил ГРАНИЦУ СИНХРОНИЗАЦИИ.
+    Находка кормит мост карточками владельцу; ложная — тратит его внимание
+    (карточка `inbox-prod-storozh-arhitektury-chitaet-fail-ko`).
+
+    Отдаёт САМ диагноз, а не указатель на него. До цикла #264 здесь стоял
+    `gen.main([])`, из которого брался ОДИН код возврата, а находка звучала
+    «manifest --check вернул дрейф (см. build_architecture_manifest.py)»: ни
+    агента, ни поля, ни направления — и флага `--check` у скрипта нет вовсе
+    (`argparse: unrecognized arguments: --check`), так что читатель находки
+    не мог даже повторить замер по её же инструкции. Живой замер 16.08:
+    три строки про `com.spa.site_freshness` печатались в stdout и пропадали.
+    """
     try:
         import glob
         import importlib.util
@@ -170,10 +282,14 @@ def _manifest_drift_problems() -> list[str] | None:
         spec.loader.exec_module(gen)
         if not glob.glob(os.path.join(gen.LAUNCH_AGENTS_DIR, "com.spa.*.plist")):
             return None  # не прод-хост
-        rc = gen.main([])  # --check (дефолт), молча в stdout
-        return [] if rc == 0 else ["manifest --check вернул дрейф (см. build_architecture_manifest.py)"]
+        m = gen.measure()  # тот же вердикт, что у CLI без флагов: пусто ⇔ rc 0
+        return {"drift": group_drift_by_agent(m["problems"] + m["drift"]),
+                "unmeasurable": list(m.get("unmeasurable") or [])}
     except Exception as e:  # noqa: BLE001
-        return [f"B5 упал: {e}"]
+        # Ключ БЕЗ текста исключения: путь/номер строки в ключе плодили бы новую
+        # находку (и новую карточку) на каждый чих окружения.
+        return {"drift": [{"key": "measure_failed", "message": f"B5 упал: {e}"}],
+                "unmeasurable": []}
 
 
 def origin_manifest(root: str = REPO_ROOT, ref: str = CURATION_REF,
@@ -259,9 +375,10 @@ def run_checks(manifest: dict,
                receipts: dict[str, dt.datetime],
                now: dt.datetime,
                prev_first_seen: dict[str, str] | None = None,
-               drift_problems: list[str] | None = None,
+               drift_problems: list[str | dict] | None = None,
                drift_measured: bool = False,
-               curation: dict | None = None) -> dict:
+               curation: dict | None = None,
+               drift_unmeasurable: list[str] | None = None) -> dict:
     findings: list[dict] = []
     unchecked: list[dict] = []
     agents = manifest.get("agents", [])
@@ -302,11 +419,37 @@ def run_checks(manifest: dict,
                     f"{a['label']} работает, но plist не персистентен "
                     f"({a.get('plist_source')}) — не переживёт ребут"))
 
-    # B2 — свежесть активных артефактов
+    # B2 — свежесть активных артефактов + выполнимость самого SLO
+    slo_budgets: list[dict] = []
     for art in manifest.get("artifacts", []):
         if art.get("status") != "active":
             continue
         path = art["path"]
+        declared = float(art.get("slo_hours") or 0)
+        floor = freshness_floor(art, by_label)
+        floor_h = floor["floor_h"]
+
+        # Бюджет ПОКАЗАТЕЛЬНЫЙ (урок #235): не литерал, а литерал против фактов.
+        # Объявить свежесть строже, чем производитель физически способен дать,
+        # нельзя — такой SLO краснеет на ИСПРАВНОЙ системе и учит не верить B2.
+        unsatisfiable = bool(declared and floor_h is not None and declared < floor_h)
+        budget = max(declared, floor_h) if unsatisfiable else declared
+        slo_budgets.append({"path": path, "declared_h": declared or None,
+                            "floor_h": floor_h, "period_h": floor["period_h"],
+                            "tick_h": floor["tick_h"], "budget_h": budget or None,
+                            "satisfiable": (None if floor_h is None
+                                            else not unsatisfiable),
+                            "reason": floor["reason"]})
+        if unsatisfiable:
+            findings.append(_finding(
+                f"B2:slo_unsatisfiable:{path}", "B2", "WARN", "strong",
+                f"{path}: объявленный SLO {declared:g}ч МЕНЬШЕ физического минимума "
+                f"{floor_h:g}ч (период артефакта {floor['period_h']:g}ч + такт "
+                f"производителя {floor['tick_h']:g}ч) — производитель не может его "
+                f"обеспечить, протухание считается по {budget:g}ч. Чинить литерал в "
+                f"манифесте, а не производителя (класс #256: сторож краснел на "
+                f"исправном refusal-first производителе)"))
+
         ts = ts_of(path)
         if ts is None:
             findings.append(_finding(
@@ -314,11 +457,14 @@ def run_checks(manifest: dict,
                 f"{path}: активный артефакт отсутствует на диске"))
             continue
         age_h = (now - ts).total_seconds() / 3600.0
-        slo = art.get("slo_hours") or 0
-        if slo and age_h > slo:
+        if budget and age_h > budget:
+            how = (f"SLO {declared:g}ч" if not unsatisfiable else
+                   f"бюджет {budget:g}ч = период {floor['period_h']:g}ч + такт "
+                   f"производителя {floor['tick_h']:g}ч (объявленный SLO "
+                   f"{declared:g}ч невыполним)")
             findings.append(_finding(
                 f"B2:stale:{path}", "B2", "WARN", "strong",
-                f"{path}: возраст {age_h:.1f}ч > SLO {slo}ч "
+                f"{path}: возраст {age_h:.1f}ч > {how} "
                 f"(класс agent_registry: 19 дней молчаливого протухания)"))
 
     # B3 — замыкание потребления
@@ -346,8 +492,19 @@ def run_checks(manifest: dict,
                           "reason": "хост без ~/Library/LaunchAgents/com.spa.* — дрейф НЕ ИЗМЕРЕН"})
     else:
         for p in (drift_problems or []):
-            findings.append(_finding(f"B5:drift:{p[:80]}", "B5", "WARN", "strong",
-                                     f"манифест ↔ факты: {p}"))
+            # dict — сгруппированная находка (ключ = агент, см. group_drift_by_agent);
+            # строка — прежняя форма, ключом остаётся сам текст.
+            key, msg = ((p["key"], p["message"]) if isinstance(p, dict)
+                        else (p[:80], p))
+            findings.append(_finding(f"B5:drift:{key}", "B5", "WARN", "strong",
+                                     f"манифест ↔ факты: {msg}"))
+        # Расхождение, которого в ЭТОМ дереве не измерить (plist объявлен путём
+        # в репо, каталог сюда не синкается) — не находка, но и не тишина.
+        # Вердикт от этого не зеленеет: непустой `unchecked` даёт overall
+        # UNCHECKED (exit 1), просто мост не заводит по нему карточку владельцу.
+        for u in (drift_unmeasurable or []):
+            unchecked.append({"check": "B5_manifest",
+                              "reason": f"манифест ↔ факты: {u}"})
 
     # B6 — локальная курация ↔ origin (см. шапку модуля)
     if curation is not None:
@@ -405,6 +562,7 @@ def run_checks(manifest: dict,
         "fleet_size": (len(fleet) if fleet is not None else None),
         "manifest_agents": len(agents),
         "curation": curation,
+        "slo_budgets": slo_budgets,
         "findings": kept,
         "aged": aged,
         "unchecked": unchecked,
@@ -445,11 +603,13 @@ def main(argv=None) -> int:
     manifest, curation = reconcile_curation(local, origin, reason=why)
     fleet = gather_fleet()
     receipts = load_receipts()
-    drift = _manifest_drift_problems()
+    b5 = _manifest_drift_problems()
     now = dt.datetime.now(dt.timezone.utc)
     report = run_checks(manifest, fleet, artifact_timestamp, receipts, now,
                         prev_first_seen=_prev_first_seen(args.report),
-                        drift_problems=drift, drift_measured=drift is not None,
+                        drift_problems=(b5 or {}).get("drift"),
+                        drift_measured=b5 is not None,
+                        drift_unmeasurable=(b5 or {}).get("unmeasurable"),
                         curation=curation)
 
     from spa_core.utils.atomic import atomic_save

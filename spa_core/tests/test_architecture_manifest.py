@@ -247,6 +247,322 @@ class ScanAndSeed(unittest.TestCase):
         self.assertEqual(a["produces"], [{"artifact": "data/x.json", "slo_hours": 5}])
 
 
+class DriftIsReadableByMachine(unittest.TestCase):
+    """Цикл #264: диагноз обязан быть ДОСТУПЕН, а не только напечатан.
+
+    Авария 16.08: прод-дерево не получает `launchd/` при автосинке (правило
+    code_sync возит `spa_core/`·`scripts/`·`tests/`), из фактов пропал
+    `com.spa.site_freshness`, генератор напечатал три строки DRIFT — а сторож
+    `architecture_conformance` (B5) брал от него ОДИН код возврата и слал
+    владельцу находку без единого факта, со ссылкой на несуществующий флаг.
+    """
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.TemporaryDirectory()
+        self.la = os.path.join(self.tmp.name, "LaunchAgents")
+        self.repo = os.path.join(self.tmp.name, "repo_launchd")
+        os.makedirs(self.la)
+        os.makedirs(self.repo)
+        self._orig_la = gen.LAUNCH_AGENTS_DIR
+        gen.LAUNCH_AGENTS_DIR = self.la
+        self.manifest_path = os.path.join(self.tmp.name, "manifest.json")
+
+    def tearDown(self):
+        gen.LAUNCH_AGENTS_DIR = self._orig_la
+        self.tmp.cleanup()
+
+    def _seed(self, labels):
+        """Записать манифест, ровно соответствующий фактам этих plist'ов."""
+        for lb in labels:
+            _write_plist(self.la, lb)
+        plists = gen._scan_plists([self.la, self.repo])
+        m = gen.build({"schema_version": 1, "adr": "ADR-066", "agents": [],
+                       "artifacts": [], "designed_architectures": []}, plists, {})
+        with open(self.manifest_path, "w", encoding="utf-8") as f:
+            f.write(gen.dumps(m))
+        return m
+
+    def _measure(self):
+        return gen.measure(self.manifest_path, os.path.join(self.tmp.name, "no_registry.json"),
+                           [self.la, self.repo])
+
+    def test_agent_vanished_from_facts_names_agent_and_fields(self):
+        """Ровно авария site_freshness: plist пропал из дерева."""
+        self._seed(["com.spa.keeper", "com.spa.site_freshness"])
+        os.remove(os.path.join(self.la, "com.spa.site_freshness.plist"))
+        drift = self._measure()["drift"]
+        own = [d for d in drift if d.startswith("com.spa.site_freshness:")]
+        self.assertTrue(own, drift)
+        joined = " ".join(own)
+        for field in ("plist_source", "schedule", "program"):
+            self.assertIn(field, joined)
+        self.assertIn("None", joined)
+        self.assertFalse([d for d in drift if d.startswith("com.spa.keeper:")], drift)
+
+    def test_measure_agrees_with_cli_verdict_both_ways(self):
+        """ОДИН источник вердикта: пусто ⇔ CLI в режиме сверки вернул бы 0."""
+        self._seed(["com.spa.keeper"])
+        m = self._measure()
+        self.assertEqual((m["problems"], m["drift"]), ([], []))
+        self.assertEqual(self._cli(), 0)
+        os.remove(os.path.join(self.la, "com.spa.keeper.plist"))
+        m = self._measure()
+        self.assertTrue(m["problems"] or m["drift"])
+        self.assertEqual(self._cli(), 2)
+
+    def _cli(self):
+        return gen.main(["--manifest", self.manifest_path,
+                         "--registry", os.path.join(self.tmp.name, "no_registry.json"),
+                         "--plist-dir", self.la, "--plist-dir", self.repo])
+
+    def test_missing_manifest_is_named_not_swallowed(self):
+        self._seed(["com.spa.keeper"])
+        os.remove(self.manifest_path)
+        self.assertIn("манифест отсутствует — запустить --write", self._measure()["drift"])
+
+    def test_measure_has_no_side_effects(self):
+        """Замер не пишет и не печатает — иначе сторож не смог бы им пользоваться."""
+        import io
+        import contextlib
+        self._seed(["com.spa.keeper"])
+        before = open(self.manifest_path, encoding="utf-8").read()
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            self._measure()
+        self.assertEqual(buf.getvalue(), "")
+        self.assertEqual(open(self.manifest_path, encoding="utf-8").read(), before)
+
+    def test_check_flag_does_not_exist(self):
+        """Находка B5 три месяца советовала `--check`. Его НЕТ — и текст находки
+        обязан был это учитывать. Если флаг когда-нибудь появится, тест краснеет
+        и заставит перечитать формулировки, а не оставит их врать молча."""
+        with self.assertRaises(SystemExit) as cm:
+            gen.main(["--check"])
+        self.assertEqual(cm.exception.code, 2)
+        self.assertNotIn("--check (дефолт)", gen.__doc__)
+
+
+class RepoPlistNotDeliveredHere(unittest.TestCase):
+    """Цикл #267 — авария 16.08 на ПРОДЕ, дословно.
+
+    Манифест объявляет `com.spa.site_freshness` как
+    `repo:launchd/com.spa.site_freshness.plist`. На `origin/main` файл ЕСТЬ,
+    в прод-дереве его нет — `code_sync_from_origin.sh` возит только
+    `spa_core/ scripts/ tests/`. Сторож печатал три строки «→ None» и звучал
+    как ДРЕЙФ МЕХАНИКИ, хотя мерил ГРАНИЦУ СИНХРОНИЗАЦИИ; находка кормит мост
+    карточками владельцу, а ложная — тратит его внимание.
+
+    Каждый тест ниже — либо этот инцидент, либо ОБРАТНЫЙ контроль: молчать
+    можно только по положительному доказательству, во всех остальных случаях
+    дрейф обязан остаться дрейфом.
+    """
+
+    LABELS = ("com.spa.keeper", "com.spa.site_freshness")
+    REL = os.path.join("launchd", "com.spa.site_freshness.plist")
+
+    def setUp(self):
+        import tempfile
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = os.path.realpath(tmp.name)
+        self.launchd = os.path.join(self.root, "launchd")
+        self.la = os.path.join(self.root, "LaunchAgents")   # пустой: герметичность
+        os.makedirs(self.launchd)
+        os.makedirs(self.la)
+        self.manifest_path = os.path.join(self.root, "architecture", "manifest.json")
+        os.makedirs(os.path.dirname(self.manifest_path))
+        self.registry_path = os.path.join(self.root, "no_registry.json")
+
+        # `_scan_plists` строит `repo:<путь>` относительно gen.REPO_ROOT — чтобы
+        # получить ровно ту форму, что в проде, корень на время теста наш.
+        self._orig_root, self._orig_la = gen.REPO_ROOT, gen.LAUNCH_AGENTS_DIR
+        gen.REPO_ROOT, gen.LAUNCH_AGENTS_DIR = self.root, self.la
+        self.addCleanup(self._restore)
+
+        for lb in self.LABELS:
+            _write_plist(self.launchd, lb)
+        self._seed_manifest()
+
+    def _restore(self):
+        gen.REPO_ROOT, gen.LAUNCH_AGENTS_DIR = self._orig_root, self._orig_la
+
+    def _seed_manifest(self):
+        plists = gen._scan_plists([self.la, self.launchd])
+        m = gen.build({"schema_version": 1, "adr": "ADR-066", "agents": [],
+                       "artifacts": [], "designed_architectures": []}, plists, {})
+        with open(self.manifest_path, "w", encoding="utf-8") as f:
+            f.write(gen.dumps(m))
+        return m
+
+    def _git(self, *args):
+        env = dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull,
+                   GIT_CONFIG_SYSTEM=os.devnull,
+                   GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@example.com",
+                   GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@example.com")
+        return subprocess.run(["git", *args], cwd=self.root, env=env,
+                              capture_output=True, text=True, check=True)
+
+    def _commit_all(self, msg="seed", publish=True):
+        self._git("add", "-A")
+        self._git("commit", "-q", "-m", msg)
+        if publish:
+            # ровно тот ref, которым живёт прод (`CURATION_REF`): remote-tracking,
+            # а не ветка с похожим именем — иначе тест мерил бы не то, что сторож
+            self._git("update-ref", "refs/remotes/origin/main", "HEAD")
+
+    def _init_repo(self):
+        self._git("init", "-q")
+        self._commit_all()
+
+    def _measure(self, ref=None):
+        # позднее связывание НАМЕРЕННО: `ref=gen.CURATION_REF` в сигнатуре
+        # вычисляется при СБОРКЕ модуля, и на дереве без правки это давало бы
+        # ошибку коллекции — она отравляет весь прогон, и контроль перестал бы
+        # мерить поведение (урок «collection error poisons the whole run»).
+        ref = gen.CURATION_REF if ref is None else ref
+        return gen.measure(self.manifest_path, self.registry_path,
+                           [self.la, self.launchd], self.root, ref)
+
+    def _own(self, lines):
+        return [x for x in lines if x.startswith("com.spa.site_freshness:")]
+
+    # ── сама авария ─────────────────────────────────────────────────────────
+
+    def test_missing_here_but_present_on_ref_is_not_drift(self):
+        """Файл есть на ref, нет в дереве ⇒ НЕ ИЗМЕРЕНО, а не дрейф механики."""
+        self._init_repo()
+        os.remove(os.path.join(self.root, self.REL))
+        m = self._measure()
+        self.assertEqual(m["drift"], [], "граница синхронизации выдана за дрейф")
+        own = self._own(m["unmeasurable"])
+        self.assertEqual(len(own), 1, m["unmeasurable"])
+        # причина обязана быть ПОВТОРЯЕМОЙ читателем: путь + ref + кто виноват
+        self.assertIn(self.REL.replace(os.sep, "/"), own[0])
+        self.assertIn(gen.CURATION_REF, own[0])
+        self.assertIn("НЕ ИЗМЕРЕНА", own[0])
+        # сосед по каталогу не задет
+        self.assertFalse([x for x in m["drift"] + m["unmeasurable"]
+                          if x.startswith("com.spa.keeper:")], m)
+
+    def test_three_fields_collapse_into_one_line(self):
+        """Три поля «→ None» имеют ОДНУ причину — и строка обязана быть одна,
+        иначе шум просто переехал из находок в `unchecked`."""
+        self._init_repo()
+        os.remove(os.path.join(self.root, self.REL))
+        self.assertEqual(len(self._measure()["unmeasurable"]), 1)
+
+    # ── обратные контроли: молчать только по доказательству ─────────────────
+
+    def test_deleted_on_ref_too_stays_drift(self):
+        """Файл удалён ВЕЗДЕ — это настоящая пропажа, и она обязана краснеть."""
+        self._init_repo()
+        os.remove(os.path.join(self.root, self.REL))
+        self._commit_all("удалили по-настоящему")
+        m = self._measure()
+        own = self._own(m["drift"])
+        self.assertTrue(own, m)
+        joined = " ".join(own)
+        for field in ("plist_source", "schedule", "program"):
+            self.assertIn(field, joined)
+        self.assertEqual(self._own(m["unmeasurable"]), [], m["unmeasurable"])
+
+    def test_vanished_from_launch_agents_stays_drift(self):
+        """Пропажа из ~/Library/LaunchAgents — факт о ФЛОТЕ, не о синхронизации:
+        такой plist сюда никто и не «возит», его сняли."""
+        self._init_repo()
+        _write_plist(self.la, "com.spa.loaded")
+        self._seed_manifest()
+        os.remove(os.path.join(self.la, "com.spa.loaded.plist"))
+        m = self._measure()
+        self.assertTrue([x for x in m["drift"] if x.startswith("com.spa.loaded:")], m)
+        self.assertEqual([x for x in m["unmeasurable"]
+                          if x.startswith("com.spa.loaded:")], [], m)
+
+    def test_bare_path_source_is_not_treated_as_repo_path(self):
+        """Префикс `repo:` — часть КОНТРАКТА манифеста, а не украшение.
+
+        Зонд условия 2 напрямую: источник без префикса, а путь на ref РАЗРЕШИМ.
+        Уберут проверку префикса — молчание достанется чему угодно похожему на
+        путь, включая `launch_agents` (пропажа из ~/Library = факт о ФЛОТЕ).
+        """
+        self._init_repo()
+        os.remove(os.path.join(self.root, self.REL))
+        bare = {"plist_source": self.REL.replace(os.sep, "/")}   # БЕЗ "repo:"
+        self.assertIsNone(
+            gen.unmeasurable_missing_plist(bare, {"plist_source": None},
+                                           self.root, gen.CURATION_REF))
+        # …а с префиксом тот же путь объясняется — контроль в другую сторону
+        self.assertIsNotNone(
+            gen.unmeasurable_missing_plist(
+                {"plist_source": "repo:" + self.REL.replace(os.sep, "/")},
+                {"plist_source": None}, self.root, gen.CURATION_REF))
+
+    def test_no_git_no_silence(self):
+        """Спросить не у кого (каталог не репозиторий) ⇒ дрейф остаётся.
+        Fail-CLOSED: сторож не смеет зеленеть от того, что ему нечем проверить."""
+        os.remove(os.path.join(self.root, self.REL))
+        m = self._measure()
+        self.assertTrue(self._own(m["drift"]), m)
+        self.assertEqual(m["unmeasurable"], [], m)
+
+    def test_unknown_ref_no_silence(self):
+        """Репозиторий есть, а ref не разрешается — тот же отказ молчать.
+        Без этого «нет ветки» стало бы неотличимо от «файл на месте»."""
+        self._init_repo()
+        os.remove(os.path.join(self.root, self.REL))
+        m = self._measure(ref="origin/net-takogo-ref")
+        self.assertTrue(self._own(m["drift"]), m)
+        self.assertEqual(m["unmeasurable"], [], m)
+
+    def test_file_in_place_but_field_edited_stays_drift(self):
+        """Путь на месте, а механика разошлась (переписали расписание) —
+        сужение не смеет глотать НАСТОЯЩЕЕ расхождение полей."""
+        self._init_repo()
+        m0 = json.load(open(self.manifest_path))
+        for a in m0["agents"]:
+            if a["label"] == "com.spa.site_freshness":
+                a["schedule"] = "interval:99999s"
+        with open(self.manifest_path, "w", encoding="utf-8") as f:
+            f.write(gen.dumps(m0))
+        m = self._measure()
+        self.assertTrue([x for x in self._own(m["drift"]) if "schedule" in x], m)
+        self.assertEqual(m["unmeasurable"], [], m)
+
+    def test_plist_found_elsewhere_stays_drift(self):
+        """Репо-plist доехал до LaunchAgents: факт НАЙДЕН, судить есть по чему —
+        `plist_source repo:… → launch_agents` обязано остаться дрейфом."""
+        self._init_repo()
+        os.replace(os.path.join(self.root, self.REL),
+                   os.path.join(self.la, "com.spa.site_freshness.plist"))
+        m = self._measure()
+        self.assertTrue([x for x in self._own(m["drift"]) if "plist_source" in x], m)
+        self.assertEqual(m["unmeasurable"], [], m)
+
+    # ── вердикт целиком ─────────────────────────────────────────────────────
+
+    def test_explained_difference_is_not_serialization_mystery(self):
+        """Когда ВСЁ расхождение объяснено, запасная строка «недиагностированное
+        расхождение сериализации» обязана молчать — иначе сторож выдумал бы
+        себе находку ровно там, где только что честно признался в незнании."""
+        self._init_repo()
+        os.remove(os.path.join(self.root, self.REL))
+        m = self._measure()
+        self.assertEqual(m["drift"], [], m)
+        self.assertFalse([x for x in m["unmeasurable"] if "сериализац" in x], m)
+
+    def test_cli_says_one_for_unmeasurable_neither_zero_nor_two(self):
+        """«Нечем измерить» — не «сошлось» (0) и не «расходится» (2)."""
+        self._init_repo()
+        argv = ["--manifest", self.manifest_path, "--registry", self.registry_path,
+                "--plist-dir", self.la, "--plist-dir", self.launchd]
+        self.assertEqual(gen.main(argv), 0)
+        os.remove(os.path.join(self.root, self.REL))
+        self.assertEqual(gen.main(argv), 1)
+        self._commit_all("удалили по-настоящему")
+        self.assertEqual(gen.main(argv), 2)
+
+
 class RealManifest(unittest.TestCase):
     """Машинонезависимые инварианты чекнутого architecture/manifest.json."""
 

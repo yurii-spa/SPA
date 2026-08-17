@@ -21,7 +21,7 @@ from __future__ import annotations
 import unittest
 
 from spa_core.adapters import ADAPTER_REGISTRY as CANONICAL
-from spa_core.orchestrator.adapter_orchestrator import ADAPTER_REGISTRY as ORCH
+from spa_core.orchestrator.adapter_orchestrator import POLLED_ADAPTERS as ORCH
 from spa_core.risk.chain_limits import get_default_chain_map
 
 

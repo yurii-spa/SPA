@@ -39,11 +39,15 @@ def manifest(agents=(), artifacts=()):
 
 
 def run(m, fleet, ts_map=None, receipts=None, prev=None, drift=None, measured=True,
-        curation=None):
+        curation=None, unmeasurable=None):
     ts_map = ts_map or {}
+    # `drift_unmeasurable` передаётся ТОЛЬКО когда о нём спрашивают: иначе один
+    # новый именованный аргумент красил бы на неисправленном дереве и те тесты,
+    # которые о нём не знают, и контроль перестал бы называть свою цель.
+    extra = {} if unmeasurable is None else {"drift_unmeasurable": unmeasurable}
     return ac.run_checks(m, fleet, lambda p: ts_map.get(p), receipts or {}, NOW,
                          prev_first_seen=prev, drift_problems=drift,
-                         drift_measured=measured, curation=curation)
+                         drift_measured=measured, curation=curation, **extra)
 
 
 def keys(report):
@@ -301,6 +305,159 @@ class UncheckedHonesty(unittest.TestCase):
         self.assertTrue(any(f["check"] == "B5" for f in r["findings"]))
 
 
+class B5DriftIsActionable(unittest.TestCase):
+    """Цикл #264: находка B5 держала диагноз в руках и выбрасывала его.
+
+    Живой замер 2026-08-16: прод-дерево не получает `launchd/` при автосинке,
+    поэтому `com.spa.site_freshness` пропал из фактов, и генератор печатал ТРИ
+    строки DRIFT. Сторож брал от него один код возврата и писал владельцу
+    «манифест ↔ факты: manifest --check вернул дрейф (см. build_architecture_
+    manifest.py)» — ни агента, ни поля, ни направления; вдобавок флага `--check`
+    у скрипта нет вовсе, то есть повторить замер по инструкции самой находки
+    было НЕЛЬЗЯ. Карточка моста из такой находки нечитаема по построению.
+    """
+
+    # ровно то, что напечатал генератор в проде 16.08 (скопировано с прогона)
+    REAL = ["com.spa.site_freshness: plist_source 'repo:launchd/com.spa.site_freshness.plist' → None",
+            "com.spa.site_freshness: schedule 'interval:21600s' → None",
+            "com.spa.site_freshness: program 'agent_site_freshness.sh' → None"]
+
+    def test_finding_names_agent_field_and_direction(self):
+        """Положительный контроль: на неисправленном сторо́же текст находки не
+        содержал ни имени агента, ни поля — краснеет именно на поведении."""
+        r = run(manifest([]), set(), drift=ac.group_drift_by_agent(self.REAL))
+        msgs = [f["message"] for f in r["findings"] if f["check"] == "B5"]
+        self.assertEqual(len(msgs), 1, msgs)
+        self.assertIn("com.spa.site_freshness", msgs[0])
+        for field in ("plist_source", "schedule", "program"):
+            self.assertIn(field, msgs[0])
+        self.assertIn("agent_site_freshness.sh", msgs[0])
+
+    def test_one_agent_gives_one_card_not_three(self):
+        """Ключ находки = ЛИЧНОСТЬ агента: три поля одной причины не имеют права
+        стать тремя карточками (мост заводит карточку на ключ)."""
+        r = run(manifest([]), set(), drift=ac.group_drift_by_agent(self.REAL))
+        self.assertEqual([f["key"] for f in r["findings"] if f["check"] == "B5"],
+                         ["B5:drift:com.spa.site_freshness"])
+
+    def test_key_survives_wording_change_of_a_field(self):
+        """Ключ не заводится заново от правки формулировки одного поля —
+        иначе карточка воскресала бы при каждом косметическом изменении."""
+        other = list(self.REAL)
+        other[1] = "com.spa.site_freshness: schedule 'interval:900s' → None"
+        a = ac.group_drift_by_agent(self.REAL)[0]["key"]
+        b = ac.group_drift_by_agent(other)[0]["key"]
+        self.assertEqual(a, b)
+
+    def test_two_agents_stay_two_findings(self):
+        drift = ac.group_drift_by_agent(
+            self.REAL + ["com.spa.daily_cycle: program 'a.sh' → 'b.sh'"])
+        r = run(manifest([]), set(), drift=drift)
+        self.assertEqual(sorted(f["key"] for f in r["findings"] if f["check"] == "B5"),
+                         ["B5:drift:com.spa.daily_cycle",
+                          "B5:drift:com.spa.site_freshness"])
+
+    def test_line_without_agent_keeps_its_own_key(self):
+        """Схемная строка про артефакт владельца не имеет — выдумывать его нельзя."""
+        got = ac.group_drift_by_agent(
+            ["artifact data/x.json: active без положительного slo_hours"])
+        self.assertEqual(len(got), 1)
+        self.assertNotIn("com.spa.", got[0]["key"])
+        self.assertIn("slo_hours", got[0]["message"])
+
+    def test_legacy_string_form_still_supported(self):
+        """Обратный контроль: прежняя форма (просто строка) не сломана."""
+        r = run(manifest([]), set(), drift=["com.spa.x: schedule изменился"])
+        f = [f for f in r["findings"] if f["check"] == "B5"]
+        self.assertEqual(len(f), 1)
+        self.assertIn("com.spa.x: schedule изменился", f[0]["message"])
+
+    def test_no_drift_no_finding(self):
+        """Обратный контроль: исправное состояние остаётся зелёным."""
+        r = run(manifest([]), set(), drift=ac.group_drift_by_agent([]))
+        self.assertEqual([f for f in r["findings"] if f["check"] == "B5"], [])
+
+    def test_measure_failure_key_has_no_exception_text(self):
+        """Ключ падения не тащит текст исключения: иначе смена пути/строки
+        рождала бы новую находку и новую карточку на каждый чих окружения."""
+        import unittest.mock as mock
+        with mock.patch.object(ac, "REPO_ROOT", "/nonexistent/spa-root"):
+            got = ac._manifest_drift_problems()
+        self.assertIsNotNone(got)
+        self.assertEqual([g["key"] for g in got["drift"]], ["measure_failed"])
+        # падение замера — это НЕ «не измерено по границе синка»: смешав их,
+        # сторож похоронил бы собственную поломку в тихом разделе
+        self.assertEqual(got["unmeasurable"], [])
+
+
+class B5SyncBoundaryIsNotDrift(unittest.TestCase):
+    """Цикл #267: сторож объявлял ДРЕЙФОМ то, что в этом дереве измерить нечем.
+
+    Живой замер 16.08 на проде: манифест объявляет `com.spa.site_freshness` как
+    `repo:launchd/com.spa.site_freshness.plist`; на `origin/main` файл ЕСТЬ,
+    в прод-дереве его нет — `code_sync_from_origin.sh` возит только
+    `spa_core/ scripts/ tests/`. Сторож печатал три строки «→ None» и звучал
+    как факт о ФЛОТЕ, хотя мерил ГРАНИЦУ СИНХРОНИЗАЦИИ. Цена ложной находки —
+    не строка в отчёте: мост находок заводит по ней карточку владельцу.
+
+    Порог тот же, что у B6: сторож не смеет становиться ЗЕЛЕНЕЕ — он смеет
+    только перестать врать. Поэтому «не измерено» уезжает в `unchecked`,
+    а `unchecked` вердикт не зеленит.
+    """
+
+    REASON = ("манифест ↔ факты: com.spa.site_freshness: "
+              "launchd/com.spa.site_freshness.plist есть на origin/main, но НЕТ "
+              "в этом рабочем дереве — механика НЕ ИЗМЕРЕНА")
+
+    def test_unmeasurable_is_not_a_finding(self):
+        r = run(manifest([]), set(), drift=[], unmeasurable=[self.REASON])
+        self.assertEqual([f for f in r["findings"] if f["check"] == "B5"], [],
+                         "граница синхронизации снова выдана за находку")
+
+    def test_unmeasurable_does_not_green_the_verdict(self):
+        """Главный порог: перестать врать ≠ замолчать."""
+        r = run(manifest([]), set(), drift=[], unmeasurable=[self.REASON])
+        self.assertEqual(r["overall"], "UNCHECKED")
+        self.assertEqual(r["exit_code"], 1)
+        self.assertEqual(r["counts"]["unchecked"], 1)
+
+    def test_unmeasurable_names_the_reason_verbatim(self):
+        """Читатель обязан уметь ПОВТОРИТЬ замер по тексту: агент, путь, ref."""
+        r = run(manifest([]), set(), drift=[], unmeasurable=[self.REASON])
+        u = [x for x in r["unchecked"] if x["check"] == "B5_manifest"]
+        self.assertEqual(len(u), 1, r["unchecked"])
+        self.assertIn("com.spa.site_freshness", u[0]["reason"])
+        self.assertIn("launchd/com.spa.site_freshness.plist", u[0]["reason"])
+        self.assertIn(ac.CURATION_REF, u[0]["reason"])
+
+    def test_real_drift_still_reds(self):
+        """Обратный контроль: настоящее расхождение по-прежнему находка."""
+        r = run(manifest([]), set(),
+                drift=ac.group_drift_by_agent(
+                    ["com.spa.x: schedule 'interval:300s' → 'daemon'"]),
+                unmeasurable=[self.REASON])
+        self.assertTrue([f for f in r["findings"] if f["check"] == "B5"], r["findings"])
+        self.assertEqual(r["overall"], "WARN")
+
+    def test_unmeasured_at_all_still_beats_partial(self):
+        """Обратный контроль: «хост не мерил B5 вовсе» (нет com.spa.* plist'ов)
+        не подменяется частным случаем границы синка — это разные причины."""
+        r = run(manifest([]), set(), measured=False, unmeasurable=None)
+        reasons = [u["reason"] for u in r["unchecked"] if u["check"] == "B5_manifest"]
+        self.assertEqual(len(reasons), 1, r["unchecked"])
+        self.assertIn("хост без", reasons[0])
+
+    def test_one_definition_of_the_curation_ref(self):
+        """Ref курации назван в ДВУХ модулях (сторож и генератор). Разъехавшись,
+        они молча начали бы мерить разные ветки — тест держит их вместе."""
+        import importlib.util
+        gen_path = os.path.join(ac.REPO_ROOT, "scripts", "build_architecture_manifest.py")
+        spec = importlib.util.spec_from_file_location("bam_ref", gen_path)
+        gen = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(gen)
+        self.assertEqual(gen.CURATION_REF, ac.CURATION_REF)
+
+
 class Aging(unittest.TestCase):
     def test_weak_ages_out_strong_does_not(self):
         """Слабый сигнал старше горизонта не голодит очередь; сильный — вечен."""
@@ -366,15 +523,31 @@ class LiveAcceptance(unittest.TestCase):
             self.skipTest("не прод-хост: launchctl без com.spa.*")
         m = json.load(open(ac.MANIFEST_PATH))
         now = dt.datetime.now(dt.timezone.utc)
-        drift = ac._manifest_drift_problems()
+        b5 = ac._manifest_drift_problems()
+        drift = (b5 or {}).get("drift")
+        unmeas = (b5 or {}).get("unmeasurable")
         r = ac.run_checks(m, fleet, ac.artifact_timestamp, ac.load_receipts(), now,
-                          drift_problems=drift, drift_measured=drift is not None)
-        self.assertEqual(r["unchecked"], [], "на проде всё должно быть измеримо")
+                          drift_problems=drift, drift_measured=b5 is not None,
+                          drift_unmeasurable=unmeas)
+        # ИЗМЕНЕНО ОСОЗНАННО (цикл #267, инв. #16 — обоснование здесь и в журнале
+        # W33). Было: `unchecked` обязан быть ПУСТ. Стало: пуст ИЛИ содержит
+        # только ОДИН названный класс — plist, объявленный манифестом путём в репо,
+        # который есть на origin/main и которого нет в прод-дереве (автосинк возит
+        # лишь `spa_core/ scripts/ tests/`). Это не ослабление, а сужение: раньше
+        # тот же случай проходил ЗДЕСЬ, но выдавал ЛОЖНУЮ находку B5 «дрейф
+        # механики» и кормил ею мост карточек владельцу. Любое ДРУГОЕ «не
+        # измерено» на проде по-прежнему краснит — включая падение самого замера
+        # (у него отдельный ключ, см. test_measure_failure_key_has_no_exception_text).
+        for u in r["unchecked"]:
+            self.assertEqual(u["check"], "B5_manifest", u)
+            self.assertIn(f"есть на {ac.CURATION_REF}, но НЕТ в этом рабочем дереве",
+                          u["reason"], u)
         for f in r["findings"] + r["aged"]:
             self.assertTrue(f["key"].startswith(("B1:", "B2:", "B3:", "B5:")), f["key"])
         # контрфактический позитивный контроль: реситы исчезли ⇒ B3 краснеет
         no_receipts = ac.run_checks(m, fleet, ac.artifact_timestamp, {}, now,
-                                    drift_problems=drift, drift_measured=drift is not None)
+                                    drift_problems=drift, drift_measured=b5 is not None,
+                                    drift_unmeasurable=unmeas)
         self.assertTrue(
             any(k.startswith("B3:no_consumption:data/investment_os/")
                 for k in keys(no_receipts)),

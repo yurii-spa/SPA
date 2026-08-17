@@ -37,6 +37,7 @@ import { CHECKUP_ENABLED, checkupUrl } from '../lib/checkup.js';
          data-ru="Тарифы">Packages</a>
     </div>
 
+<<<<<<< HEAD
     {CHECKUP_ENABLED && (
       <p class="text-sm text-slate-500">
         <span data-ru="Есть ончейн-кошелёк? ">Have an on-chain wallet? </span>
@@ -44,5 +45,14 @@ import { CHECKUP_ENABLED, checkupUrl } from '../lib/checkup.js';
            class="text-accent-400 underline" data-ru="Проверьте его — только публичный адрес →">Check it — public address only →</a>
       </p>
     )}
+=======
+    {/* The wallet-scan link here pointed at the checkup service, which is not deployed: a 404 page
+         sending the visitor to another 404. Replaced with the live track (2026-08-16). */}
+    <p class="text-sm text-slate-500">
+      <span data-ru="Хотите увидеть, как деск работает на самом деле? ">Want to see how the desk actually runs? </span>
+      <a href="/track-record" data-track="404_to_track"
+         class="text-accent-400 underline" data-ru="Смотреть живой трек →">See the live track →</a>
+    </p>
+>>>>>>> origin/main
   </main>
 </Layout>
