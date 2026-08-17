@@ -502,9 +502,21 @@ class MoonwellBaseAdapter(BaseAdapter):
 # Standalone функция get_apy() с кэшем (для обратной совместимости)
 # ---------------------------------------------------------------------------
 
-def get_apy() -> float:
-    """Возвращает APY для Moonwell USDC на Base. Использует module-level cache."""
-    now = time.time()
+def get_apy(now: Optional[float] = None) -> Optional[float]:
+    """Возвращает APY (%) для Moonwell USDC на Base или ``None``.
+
+    Использует module-level cache (TTL 1 час).
+
+    2026-08-17: возврат ``float(APY_FALLBACK)`` (5.5) УДАЛЁН. Это была вторая,
+    независимая точка возврата того же литерала: одноимённый метод класса
+    починили 08.08, а этот модульный двойник пережил починку — сторож ищет
+    подстановку только в ``cls.get_apy()`` и модульных функций не видит.
+    Нет наблюдения ⇒ ``None`` (ADR-063 п.3, `.claude/rules/adapters.md`).
+
+    ``now`` — точка отсчёта для TTL кэша (по умолчанию реальные часы), вход,
+    а не окружение: тест закрепляет обе стороны сравнения.
+    """
+    now = time.time() if now is None else now
     if _cache.get("ts", 0) + DEFILLAMA_CACHE_TTL_S > now:
         cached = _cache.get("apy")
         if cached is not None:
@@ -516,4 +528,4 @@ def get_apy() -> float:
         _cache["apy"] = result
         _cache["ts"] = now
         return result
-    return float(APY_FALLBACK)
+    return None

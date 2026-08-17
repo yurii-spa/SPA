@@ -342,10 +342,12 @@ class ExtraFinanceBaseAdapter(BaseAdapter):
             if best is not None and isinstance(best.get("tvlUsd"), (int, float))
             else None
         )
-        apy_pct = (
-            float(best.get("apy", 0.0)) if best is not None
-            else float(self.APY_FALLBACK)
-        )
+        # 2026-08-17: подстановка `float(self.APY_FALLBACK)` УДАЛЕНА и здесь.
+        # `get_apy()` починили 08.08, а этот второй, независимый источник того же
+        # литерала пережил починку: сторож смотрел только на `get_apy()`, а
+        # `get_yield_info()` здесь возвращает DICT (ключ `apy_pct`), а не объект
+        # с атрибутом `.apy` — замер его не видел. Нет наблюдения ⇒ None.
+        apy_pct = float(best.get("apy", 0.0)) if best is not None else None
         return {
             "adapter_id": ADAPTER_ID,
             "protocol_name": PROTOCOL_NAME,
@@ -460,13 +462,23 @@ class ExtraFinanceBaseAdapter(BaseAdapter):
 # Standalone функция get_apy() с кэшем (для обратной совместимости)
 # ---------------------------------------------------------------------------
 
-def get_apy(fallback: float = APY_FALLBACK) -> float:
-    """Возвращает APY для Extra Finance XLend USDC на Base.
+def get_apy(now: Optional[float] = None) -> Optional[float]:
+    """Возвращает APY (%) для Extra Finance XLend USDC на Base или ``None``.
 
     Использует module-level cache (TTL 1 час).
-    При недоступности сети возвращает fallback.
+
+    2026-08-17: параметр ``fallback: float = APY_FALLBACK`` и возврат
+    ``float(fallback)`` УДАЛЕНЫ. Это была вторая, независимая точка возврата
+    того же литерала 8.0: одноимённый метод класса починили 08.08, а этот
+    модульный двойник пережил починку — сторож ищет подстановку только в
+    ``cls.get_apy()`` и модульных функций не видит. Ровно тот же промах, из-за
+    которого ADR-063 прошёл мимо Морфо: правку делали по имени метода.
+    Нет наблюдения ⇒ ``None`` (ADR-063 п.3, `.claude/rules/adapters.md`).
+
+    ``now`` — точка отсчёта для TTL кэша (по умолчанию реальные часы), вход,
+    а не окружение: тест закрепляет обе стороны сравнения.
     """
-    now = time.time()
+    now = time.time() if now is None else now
     if _cache.get("ts", 0) + DEFILLAMA_CACHE_TTL_S > now:
         cached = _cache.get("apy")
         if cached is not None:
@@ -478,4 +490,4 @@ def get_apy(fallback: float = APY_FALLBACK) -> float:
         _cache["apy"] = result
         _cache["ts"] = now
         return result
-    return float(fallback)
+    return None
