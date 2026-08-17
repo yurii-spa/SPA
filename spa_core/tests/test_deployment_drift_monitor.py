@@ -97,14 +97,30 @@ def test_money_path_divergence_is_critical(tmp_path: Path) -> None:
     assert any("NOT the reviewed one" in r for r in rep.reasons)
 
 
-def test_non_money_path_divergence_is_only_a_warning(tmp_path: Path) -> None:
-    """Docs lagging is worth saying; it is not a risk-logic incident."""
+def test_non_money_path_divergence_is_reported_but_does_not_set_the_verdict(tmp_path: Path) -> None:
+    """Docs lagging is worth SAYING; it must not be the verdict.
+
+    DELIBERATE CHANGE (invariant #16, journal 2026-08-16): this test previously
+    asserted ``status == WARNING`` here. That assertion encoded the very defect
+    the drift card is about — `docs/` is not carried by the code sync (delivery
+    rule §2 carries spa_core/, scripts/, tests/, architecture/ only), so its
+    divergence is normal and permanent, and a verdict driven by it can never be
+    green. Measured 2026-08-16: 303 by-design divergences → WARNING + exit 1,
+    every day, which is why five cycles reported the number without opening it.
+
+    The coverage is NOT reduced — it is re-aimed: the drift must still be listed
+    and counted, only the headline stops being yellow about a correct state.
+    """
     rep = check_deployment_drift(
         repo_root=_tree(tmp_path, ["docs/STATE.md", "README.md"]),
         git_runner=_runner(remote="b" * 40, diff="docs/STATE.md\nREADME.md"))
-    assert rep.status == WARNING
+    assert rep.status == OK
     assert rep.money_path_files == []
     assert rep.other_files == ["README.md", "docs/STATE.md"]
+    # still SAID, just not shouted: named as reference, and counted.
+    assert rep.by_design_files == 2
+    assert rep.synced_other_files == []
+    assert any("Reference only" in r for r in rep.reasons)
 
 
 def test_wrong_branch_is_flagged_even_when_content_matches(tmp_path: Path) -> None:
@@ -387,7 +403,11 @@ def test_entrypoints_outside_this_checkout_are_ignored(tmp_path: Path) -> None:
         agent_dir=tmp_path,
         plist_reader=_plists(("com.spa.elsewhere", "/opt/other/agent.sh", HOURLY)))
 
-    assert rep.status == WARNING
+    # DELIBERATE CHANGE (invariant #16, journal 2026-08-16): was ``WARNING``.
+    # The subject of this test is the entrypoint bucket, not the verdict; the
+    # only divergent file here is `docs/STATE.md`, which the sync does not carry
+    # (see test_non_money_path_divergence_is_reported_but_does_not_set_the_verdict).
+    assert rep.status == OK
     assert rep.entrypoint_files == []
     assert rep.other_files == ["docs/STATE.md"]
 

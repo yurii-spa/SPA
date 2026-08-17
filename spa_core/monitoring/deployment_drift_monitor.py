@@ -78,6 +78,23 @@ def _is_money_path(path: str) -> bool:
     return any(path.startswith(prefix) for prefix in MONEY_PATH_PREFIXES)
 
 
+# Directories the code sync actually carries (source of truth: CODE_PATHS in
+# scripts/code_sync_from_origin.sh). Everything else diverges BY DESIGN — `data/`
+# holds the live track (delivery rule §4 forbids syncing it), `nimbalyst-local/`
+# is the card queue that lives on the machine, `docs/` and `archive/` are not
+# carried either.
+SYNCED_PREFIXES = (
+    "spa_core/",
+    "scripts/",
+    "tests/",
+    "architecture/",
+)
+
+
+def _is_synced(path: str) -> bool:
+    return str(path).startswith(SYNCED_PREFIXES)
+
+
 # How often the production tree pulls `scripts/`+`spa_core/` from origin: Step 0
 # of run_daily_paper_cycle.sh, once a day. An entrypoint that fires more often
 # than this CANNOT receive its delivered version before it next runs — the drift
@@ -207,6 +224,11 @@ class DriftReport:
     money_path_files: List[str] = field(default_factory=list)
     entrypoint_files: List[dict] = field(default_factory=list)
     other_files: List[str] = field(default_factory=list)
+    # `other_files` split by whether the sync carries the directory at all. Only
+    # the synced half can mean "delivered code is not running here"; the rest is
+    # normal and grows every day (see the verdict block for why this matters).
+    synced_other_files: List[str] = field(default_factory=list)
+    by_design_files: int = 0
     reasons: List[str] = field(default_factory=list)
     unchecked_reason: Optional[str] = None
     entrypoints_unchecked: Optional[str] = None
@@ -324,6 +346,8 @@ def check_deployment_drift(
         for p in sorted(rest) if p in entrypoints
     ]
     rep.other_files = sorted(p for p in rest if p not in entrypoints)
+    rep.synced_other_files = [p for p in rep.other_files if _is_synced(p)]
+    rep.by_design_files = len(rep.other_files) - len(rep.synced_other_files)
 
     # ── verdict ────────────────────────────────────────────────────────────
     if rep.branch and rep.branch != expected_branch and rep.branch != "HEAD":
@@ -369,18 +393,16 @@ def check_deployment_drift(
         # за пять витков подряд он докладывался как риск, ни разу не разобранный.
         # Усталость от тревоги опаснее молчания — она создаёт уверенность, что за
         # областью следят.
-        _synced = ("spa_core/", "scripts/", "tests/", "architecture/")
-        _code = [f for f in rep.other_files if str(f).startswith(_synced)]
-        _by_design = len(rep.other_files) - len(_code)
-        if _code:
+        if rep.synced_other_files:
             rep.reasons.append(
                 "{} file(s) in SYNCED dirs differ from {} — delivered code is not "
-                "running here: {}".format(len(_code), remote_ref, _code[:10]))
-        if _by_design:
+                "running here: {}".format(
+                    len(rep.synced_other_files), remote_ref, rep.synced_other_files[:10]))
+        if rep.by_design_files:
             rep.reasons.append(
                 "{} file(s) differ outside synced dirs (data/, nimbalyst-local/, docs/, "
                 "archive/) — expected: the sync carries only {}. Reference only.".format(
-                    _by_design, ", ".join(_synced)))
+                    rep.by_design_files, ", ".join(SYNCED_PREFIXES)))
 
     # Drift we could not classify is stated, never absorbed into "other". The
     # bucket being empty because nobody looked reads exactly like the bucket
@@ -392,16 +414,27 @@ def check_deployment_drift(
             "finding here means nothing".format(rep.entrypoints_unchecked, len(changed))
         )
 
+    # The VERDICT is the headline — the icon, the exit code, and the line a human
+    # actually reads. Splitting only the `reasons` (2026-08-10) left the verdict
+    # itself driven by the total count, so a checkout whose every divergence was
+    # by design still reported WARNING/exit 1, permanently and by construction:
+    # `data/` is the live track and the delivery rule forbids syncing it, so the
+    # count can never reach zero. A guard that is yellow on a correct state is a
+    # guard nobody reads — that is how five cycles reported 303 as a risk without
+    # once opening it. Only drift in dirs the sync CARRIES can mean "the delivered
+    # code is not running here"; the rest is reference, never the verdict.
     if rep.money_path_files or unhealed:
         rep.status = CRITICAL
-    elif rep.entrypoint_files or rep.other_files:
+    elif rep.entrypoint_files or rep.synced_other_files:
         rep.status = WARNING
     elif rep.branch and rep.branch != expected_branch and rep.branch != "HEAD":
         # Content matches today, but the branch guarantees future drift.
         rep.status = WARNING
     else:
         rep.status = OK
-        rep.reasons.append("checkout matches {} on every tracked file".format(remote_ref))
+        rep.reasons.append(
+            "checkout matches {} on every file the sync carries ({})".format(
+                remote_ref, ", ".join(SYNCED_PREFIXES)))
 
     return rep
 

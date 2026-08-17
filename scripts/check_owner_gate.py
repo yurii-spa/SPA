@@ -29,6 +29,25 @@ Custodian exemption (not forgeable)
   edited number will not match regeneration → GATED. (Only available where data/ is
   present, i.e. the pre-push self-check on the owner's machine — not in CI.)
 
+Class «ежедневный снимок трека» (ADR-070 п.3, решение владельца 2026-08-07)
+--------------------------------------------------------------------------
+  Дефект (замер цикла #221, коммит 575e504a7): собственная ежедневная автоматика
+  Site Custodian сдвинула `end_equity`/`nav_usd` на ОДИН ЦЕНТ — и гейт покраснел на
+  `main`. Байтовая custodian-проверка выше в CI не работает по построению: в режиме
+  `git-range` она была прибита к `False`, поэтому КАЖДЫЙ штатный дневной цикл красил
+  воркфлоу. Сторож, краснеющий ежедневно на честной работе, ничего не значит к моменту,
+  когда покраснеет на настоящем нарушении, — гасить надо МАРШРУТ, а не проверку.
+
+  Разрешение УЗКОЕ и держится на ДВУХ независимых условиях сразу (fail-CLOSED — оба):
+    1. поле входит в `_TS_DAILY_CYCLE_FIELDS` — ровно ПЯТЬ полей верхнего уровня,
+       которые двигает каждый дневной цикл (ADR-070 п.3 «строго 5 полей»);
+    2. новое значение ВОСПРОИЗВОДИТСЯ пересчётом из канона `data/*.json` того же
+       коммита (ADR-070 п.2: цикл коммитит канон вместе с сайтом). Не воспроизводится
+       — GATED, как раньше.
+  Всё остальное гейтится по-прежнему: тиры (`packages.*`), `gates_passed`,
+  `real_track_days`, вложенные поля, tier_bands, legal, solicitation, honesty-токены.
+  Ручная правка числа канон не воспроизводит → красный. Канона нет → красный.
+
 Owner-approval bypass
 ---------------------
   A change touching a gated class ships only if the push carries a commit trailer
@@ -88,6 +107,23 @@ _TB_EVIDENCE_FIELDS = ("evidence_en", "evidence_ru")  # Class E — honesty toke
 _TS_NUMBER_FIELDS = (
     "nav_usd", "end_equity", "paper_apy_pct", "max_drawdown_pct",
     "gates_passed", "gates_total", "real_track_days",
+)
+
+# ADR-070 п.3 — класс «ежедневный снимок трека»: СТРОГО пять полей ВЕРХНЕГО уровня,
+# которые двигает каждый дневной цикл и которые целиком выводятся из книги эквити.
+# Список закрыт: расширять его — решение владельца (новый ADR), не правка кода.
+# Умышленно НЕ входят: `gates_passed` / `gates_total` / `real_track_days` (вехи go-live,
+# а не дневной шум) и `packages.*` (числа карточек тиров — owner-gated по site-copy).
+_TS_DAILY_CYCLE_FIELDS = frozenset(
+    {"end_equity", "nav_usd", "paper_apy_pct", "max_drawdown_pct", "total_return_pct"}
+)
+
+# Канон, из которого пересчитывается снимок (ADR-070 п.2 — коммитится вместе с сайтом).
+# Ключи = имена параметров `generate_track_snapshot.build_snapshot`.
+_TS_CANON_FILES = (
+    ("golive_path", "data/golive_status.json"),
+    ("equity_path", "data/equity_curve_daily.json"),
+    ("pts_path", "data/paper_trading_status.json"),
 )
 
 # ── regexes (compiled once) ─────────────────────────────────────────────────
@@ -285,10 +321,19 @@ def _tier_bands_violations(old: Any, new: Any) -> list[dict[str, Any]]:
 
 
 def _track_snapshot_violations(
-    old: Any, new: Any, exempt: bool
+    old: Any, new: Any, exempt: bool, reproduced: Iterable[str] = (),
 ) -> list[dict[str, Any]]:
+    """Field-diff track_snapshot.json → Class-B violations.
+
+    ``exempt``      — байтовая custodian-эквивалентность всего файла (снимает всё).
+    ``reproduced``  — поля, чьё НОВОЕ значение пересчитывается из канона того же
+                      коммита. Снимает гейт ТОЛЬКО с пересечения этого набора с
+                      `_TS_DAILY_CYCLE_FIELDS` и ТОЛЬКО на верхнем уровне (ADR-070 п.3).
+                      Пустой набор ⇒ поведение ровно как до правки (fail-CLOSED).
+    """
     if exempt:
         return []
+    daily_ok = _TS_DAILY_CYCLE_FIELDS & frozenset(str(f) for f in reproduced)
     out: list[dict[str, Any]] = []
     if not isinstance(new, dict):
         return out
@@ -302,6 +347,11 @@ def _track_snapshot_violations(
                 base = k
                 if base in _TS_NUMBER_FIELDS or base.endswith(("_pct", "_usd")):
                     if ov != nv and not isinstance(nv, (dict, list)):
+                        # ADR-070 п.3: дневное поле, воспроизведённое из канона, — не
+                        # тревога. `not prefix` держит разрешение на ВЕРХНЕМ уровне:
+                        # `packages.conservative.apy_pct` под него не попадает никогда.
+                        if not prefix and base in daily_ok:
+                            continue
                         out.append(_v(_TRACK_SNAPSHOT, 0, "B", "snapshot.number",
                                       f"{key}: {ov!r} → {nv!r}"))
                 if isinstance(nv, (dict, list)):
@@ -309,6 +359,56 @@ def _track_snapshot_violations(
 
     _walk(old, new)
     return out
+
+
+def _canon_reproduced_fields(
+    repo: Path, ref: str | None, new: Any
+) -> frozenset[str]:
+    """Какие из `_TS_DAILY_CYCLE_FIELDS` снимка НОВОГО состояния пересчитываются
+    из канона `data/*.json` (на `ref`, либо из рабочего дерева при ``ref is None``).
+
+    Не подделывается: коммит-сообщению не верим, значение обязано СОВПАСТЬ с
+    детерминированным пересчётом `generate_track_snapshot.build_snapshot`. Любой сбой
+    (нет канона, нет генератора, исключение) → пустой набор, то есть гейт как раньше.
+    Работает и в CI: канон трека git-tracked (ADR-070 п.2).
+    """
+    if not isinstance(new, dict):
+        return frozenset()
+    import importlib.util
+    import tempfile
+
+    try:
+        gen_path = repo / "scripts" / "generate_track_snapshot.py"
+        spec = importlib.util.spec_from_file_location("_gen_ts_canon", gen_path)
+        if spec is None or spec.loader is None:
+            return frozenset()
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)  # type: ignore[union-attr]
+        with tempfile.TemporaryDirectory() as td:
+            kwargs: dict[str, Path] = {}
+            for kw, rel in _TS_CANON_FILES:
+                if ref is None:
+                    src = repo / rel
+                    txt = src.read_text(encoding="utf-8") if src.is_file() else None
+                else:
+                    txt = _blob(ref, rel, repo)
+                if txt is None:
+                    log.info("owner-gate: канон %s недоступен — дневного разрешения нет", rel)
+                    return frozenset()
+                dst = Path(td) / Path(rel).name
+                dst.write_text(txt, encoding="utf-8")
+                kwargs[kw] = dst
+            regenerated = mod.build_snapshot(**kwargs)
+    except Exception as exc:  # noqa: BLE001
+        # Немота прятала все предыдущие поломки этого файла — отказ обязан быть слышен.
+        log.warning("owner-gate: пересчёт снимка из канона упал (%s) — дневного разрешения нет", exc)
+        return frozenset()
+    if not isinstance(regenerated, dict):
+        return frozenset()
+    return frozenset(
+        f for f in _TS_DAILY_CYCLE_FIELDS
+        if f in regenerated and regenerated[f] == new.get(f)
+    )
 
 
 def _snapshot_is_custodian_equivalent(repo: Path) -> bool:
@@ -494,14 +594,25 @@ def check_owner_gate(
                 new = None
         violations.extend(_tier_bands_violations(old, new))
 
+    reproduced: frozenset[str] = frozenset()
     if _TRACK_SNAPSHOT in site_paths:
         exempt = _snapshot_is_custodian_equivalent(repo) if diff_mode != "git-range" else False
         old = _json_at(old_ref, _TRACK_SNAPSHOT, repo)
-        try:
-            new = json.loads((repo / _TRACK_SNAPSHOT).read_text(encoding="utf-8"))
-        except Exception:
-            new = _json_at(head or "HEAD", _TRACK_SNAPSHOT, repo)
-        violations.extend(_track_snapshot_violations(old, new, exempt))
+        # НОВАЯ сторона и канон обязаны браться из ОДНОГО состояния, иначе сравнение
+        # «воспроизводится ли число из канона» бессмысленно. В git-range это `head`
+        # (в CI рабочее дерево ему равно, а при разборе прошлого коммита — уже нет);
+        # в worktree/files — рабочее дерево.
+        canon_ref = (head or "HEAD") if diff_mode == "git-range" else None
+        if canon_ref is not None:
+            new = _json_at(canon_ref, _TRACK_SNAPSHOT, repo)
+        else:
+            try:
+                new = json.loads((repo / _TRACK_SNAPSHOT).read_text(encoding="utf-8"))
+            except Exception:
+                new = _json_at(head or "HEAD", _TRACK_SNAPSHOT, repo)
+        # ADR-070 п.3 — узкое разрешение на пять дневных полей, подтверждённых каноном.
+        reproduced = _canon_reproduced_fields(repo, canon_ref, new)
+        violations.extend(_track_snapshot_violations(old, new, exempt, reproduced))
 
     # Free-text scan (skip the two structured files — handled above).
     for p in site_paths:
@@ -534,6 +645,9 @@ def check_owner_gate(
         "ok": len(violations) == 0,
         "gated_count": len(violations),
         "site_paths": sorted(site_paths),
+        # ADR-070 п.3: какие дневные поля снимка гейт пропустил как воспроизводимые из
+        # канона. Разрешение обязано быть ВИДНЫМ, а не молчаливым.
+        "snapshot_daily_fields_reproduced": sorted(reproduced),
         "violations": violations,
         "approved_bypasses": bypassed,
         "approval": approval,
@@ -581,6 +695,9 @@ def _main(argv: list[str] | None = None) -> int:
 
     print("=== Owner-gate guard (auto-ship safety) ===")
     print(f"  diff-mode: {report['diff_mode']} · site paths: {len(report['site_paths'])}")
+    if report.get("snapshot_daily_fields_reproduced"):
+        print("  ADR-070 п.3 · дневной снимок трека (воспроизведён из канона, не тревога): "
+              + ", ".join(report["snapshot_daily_fields_reproduced"]))
     for v in report["violations"]:
         print(f"    [{v['klass']}] {v['file']}:{v['line']} {v['rule']} "
               f"({v['change']}) — {v['matched_text']}")
