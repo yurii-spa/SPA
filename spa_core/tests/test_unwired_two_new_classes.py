@@ -43,18 +43,32 @@ class TestProtocolCommandClass(unittest.TestCase):
         self.assertIn("agent_orchestrator.sh", plist,
                       "исполнитель протокола сам должен быть подключён launchd")
 
-    def test_the_price_of_the_rule_is_two_of_the_watched_set(self):
-        """Цена правила на живом дереве: ровно 2 имени (замер 15.08).
+    def test_the_price_of_the_rule_is_three_of_the_watched_set(self):
+        """Цена правила на живом дереве: ровно 3 имени (замер 17.08; было 2 — замер 15.08).
 
         Шесть остальных «командных» скриптов протокола (`check_undelivered_work`,
         `orchestrator_queue`, …) и без правила подключены обычным вызовом — их правило не
         спасает, и в цену они не входят. Считаем только тех, у кого вызывающего НЕТ.
+
+        **Почему цена выросла на единицу (17.08, карточка
+        `inbox-dva-predpisannyh-progona-ryadom-drug-druga-morya`).** В §3.4 протокола добавлена
+        команда `python3 scripts/measure_acceptance_contention.py` — замер того, морят ли два
+        предписанных прогона друг друга. Замер по устройству запускается руками на КОНКРЕТНОЙ
+        машине (ответ от машины зависит: Mac Mini 14.08 — `starves`, Linux-контейнер 17.08 —
+        `scales`), поэтому постоянного вызывающего у него нет и быть не может — ровно тот же
+        случай, что `adr_number` и `reap_stale_worktrees`.
+
+        Число здесь ПЕРЕСЧИТАНО, а не подогнано: правило не менялось ни на букву, изменился
+        живой вход. Обратная сторона — соседний `test_a_mere_MENTION_in_the_protocol_is_not_a_command`:
+        имя, названное в протоколе прозой, в этот список по-прежнему не попадает.
         """
         raw = set(scripts_without_caller())
         freed = sorted(protocol_commanded_scripts() & raw)
-        self.assertEqual(freed, ["adr_number", "reap_stale_worktrees"],
-                         "цена правила изменилась — пересчитай и запиши новый замер, "
-                         "а не подгоняй правило под удобный ответ")
+        self.assertEqual(
+            freed,
+            ["adr_number", "measure_acceptance_contention", "reap_stale_worktrees"],
+            "цена правила изменилась — пересчитай и запиши новый замер, "
+            "а не подгоняй правило под удобный ответ")
 
     def test_a_mere_MENTION_in_the_protocol_is_not_a_command(self):
         """Отрицательное плечо: `smoke` назван в протоколе прозой и остаётся сиротой.
