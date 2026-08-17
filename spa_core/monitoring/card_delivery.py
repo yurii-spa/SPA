@@ -236,6 +236,68 @@ def blob_sha(content: bytes) -> str:
     return h.hexdigest()
 
 
+def origin_covers_card(local: bytes, remote: bytes) -> tuple:
+    """Версия origin содержит ВСЁ наше и сверх того? → ``(да/нет, [лишние строки])``.
+
+    Отвечает на вопрос «наша правка УЖЕ доехала?», который до 17.08 подменялся
+    вопросом «файлы совпали побайтово?» (``plan_batch``: ``remote == local``).
+    Это разные вопросы, и расходятся они ровно там, где origin обгоняет нашу
+    слепую копию: ``claimed_by`` от шага 0b, ``owner_choice`` от кнопок ADR-069.
+    Прод-дерево ``nimbalyst-local/`` не синкает вовсе, значит наша копия эти
+    поля не получит НИКОГДА — побайтовое равенство переставало быть достижимым
+    навсегда, и закрытие, уже лежащее на origin, каждый прогон записывалось в
+    непогасимый долг (ADR-081 запрещает `IDLE` при непустом долге ⇒ красная
+    строка шага 0-офис каждый цикл; ложный долг топит настоящий).
+
+    Доказательство узкое и полное: строки нашего frontmatter обязаны лежать в
+    frontmatter origin ПОДПОСЛЕДОВАТЕЛЬНОСТЬЮ (порядок сохранён), а тело —
+    совпасть побайтово. Тогда содержимое нашего файла целиком содержится в
+    версии origin, и везти нечего — не «примерно то же», а буквально ничего.
+
+    Подпоследовательность ловит и подмену: если origin ИЗМЕНИЛ значение строки,
+    которая есть у нас (тот же ``status:``, другой статус), нашей строки в нём
+    не окажется — покрытия нет, и путь уходит в прежний отказ ``rebase_card``.
+    Поэтому ветка не смеет ничего перезаписать: она вообще ничего не пишет.
+    """
+    lp, rp = card_parts(local), card_parts(remote)
+    if lp is None or rp is None:
+        return False, []
+    l_fm, l_body = lp
+    r_fm, r_body = rp
+    # Frontmatter и тело сверяются ПОРОЗНЬ: иначе наша строка `status:` могла бы
+    # «найтись» в чужом теле (карточки цитируют frontmatter друг друга сплошь и
+    # рядом) — и покрытие доказывалось бы совпадением, к делу не относящимся.
+    fm_ok, fm_extra = _covered_lines(l_fm, r_fm)
+    if not fm_ok:
+        return False, []
+    body_ok, body_extra = _covered_lines(l_body, r_body)
+    if not body_ok:
+        return False, []
+    return True, fm_extra + ([f"+{len(body_extra)} строк(и) тела"] if body_extra else [])
+
+
+def _covered_lines(ours: bytes, theirs: bytes) -> tuple:
+    """Наши строки лежат в чужих ПОДПОСЛЕДОВАТЕЛЬНОСТЬЮ? → ``(да/нет, лишние)``.
+
+    Пропускает ровно один вид расхождения — ДОПИСАННОЕ на origin. Изменённая
+    строка (тот же ``status:``, другой статус) и удалённая строка нашей копии в
+    чужой последовательности не найдутся, и покрытия не будет: «origin ушёл
+    вперёд» и «origin разошёлся с нами» обязаны решаться по-разному.
+    """
+    them = theirs.splitlines(keepends=True)
+    extra: list = []
+    i = 0
+    for line in ours.splitlines(keepends=True):
+        while i < len(them) and them[i] != line:
+            extra.append(them[i].decode("utf-8", "replace").rstrip("\n"))
+            i += 1
+        if i >= len(them):
+            return False, []          # нашей строки на origin нет — покрытия нет
+        i += 1
+    extra.extend(ln.decode("utf-8", "replace").rstrip("\n") for ln in them[i:])
+    return True, [e for e in extra if e.strip()]
+
+
 def rebase_card(local: bytes, remote: bytes) -> tuple:
     """Перенести НАШУ правку карточки на версию с origin → ``(bytes|None, причина)``.
 
@@ -325,7 +387,8 @@ def plan_batch(root: str, paths: list, reader=_default_remote_reader) -> dict:
     один путь не исчезает молча: он либо в пачке, либо назван в одном из списков.
     """
     plan = {"to_push": [], "rebased": [], "refused": [],
-            "already_on_origin": [], "unmeasured": [], "held": []}
+            "already_on_origin": [], "covered_by_origin": [],
+            "unmeasured": [], "held": []}
     for absolute in paths:
         repo_path = _rel(root, absolute).replace(os.sep, "/")
         try:
@@ -344,6 +407,16 @@ def plan_batch(root: str, paths: list, reader=_default_remote_reader) -> dict:
             continue
         if remote == local:
             plan["already_on_origin"].append(repo_path)
+            continue
+        # «Наше уже на origin» — ОТДЕЛЬНОЕ ведро, а не побайтовое совпадение:
+        # схлопнуть их значило бы объявить файлы одинаковыми, когда они разные.
+        # Судьба общая (везти нечего, долга нет), утверждение — разное.
+        covered, extra = origin_covers_card(local, remote)
+        if covered:
+            plan["covered_by_origin"].append(
+                {"path": repo_path,
+                 "reason": ("наша правка УЖЕ на origin; версия origin содержит всё наше "
+                            "и сверх того" + (f" ({', '.join(extra)})" if extra else ""))})
             continue
         merged, reason = rebase_card(local, remote)
         if merged is None:
@@ -407,8 +480,22 @@ def owed_from_receipt(receipt: dict) -> list:
     attempted = [p for p in (receipt.get("attempted") or []) if p]
     if not attempted:
         return []
-    arrived = set(receipt.get("delivered") or []) | set(receipt.get("already_on_origin") or [])
-    return [p for p in attempted if p not in arrived]
+    return [p for p in attempted if p not in arrived_paths(receipt)]
+
+
+def arrived_paths(receipt: dict) -> set:
+    """Пути, о которых ДОКАЗАНО, что наше изменение на origin.
+
+    Одно определение на модуль: долг и квитанция обязаны считать «доехало»
+    одинаково. Две копии этого списка разошлись бы молча, а расхождение здесь
+    стоит либо потерянной карточки, либо вечного ложного долга.
+    """
+    if not isinstance(receipt, dict):
+        return set()
+    return (set(receipt.get("delivered") or [])
+            | set(receipt.get("already_on_origin") or [])
+            | {c.get("path") for c in (receipt.get("covered_by_origin") or [])
+               if isinstance(c, dict) and c.get("path")})
 
 
 def _read_json(path: str):
@@ -566,7 +653,7 @@ def deliver(paths, root: str = REPO_ROOT, now: dt.datetime | None = None,
     receipt = {"generated_at": ts.isoformat(), "adr": "ADR-066",
                "attempted": [], "delivered": [], "refused": [],
                "rebased": [], "rebase_refused": [], "already_on_origin": [],
-               "rebase_unmeasured": [], "held": [],
+               "covered_by_origin": [], "rebase_unmeasured": [], "held": [],
                "status": UNCHECKED, "reason": "", "returncode": None, "output": ""}
     debt: dict = {}
     dropped: list = []
@@ -600,6 +687,7 @@ def deliver(paths, root: str = REPO_ROOT, now: dt.datetime | None = None,
             receipt["rebased"] = plan["rebased"]
             receipt["rebase_refused"] = plan["refused"]
             receipt["already_on_origin"] = plan["already_on_origin"]
+            receipt["covered_by_origin"] = plan["covered_by_origin"]
             receipt["rebase_unmeasured"] = plan["unmeasured"]
             receipt["held"] = plan["held"]
             # Застряло = не переносится ЛИБО придержано под чужим `--allow-overwrite`.
@@ -612,8 +700,14 @@ def deliver(paths, root: str = REPO_ROOT, now: dt.datetime | None = None,
                     receipt["reason"] = f"переносить нечем, ни одна карточка не поехала — {stuck}"
                 else:
                     receipt["status"] = IDLE
-                    receipt["reason"] = ("везти нечего — версии на origin совпадают с нашими "
-                                         f"({len(plan['already_on_origin'])} карточк(и))")
+                    # Два основания «везти нечего» названы по отдельности: совпали
+                    # побайтово и «наше уже там, origin ушёл вперёд» — разные факты.
+                    same = len(plan["already_on_origin"])
+                    covered = len(plan["covered_by_origin"])
+                    receipt["reason"] = ("везти нечего — "
+                                         + f"совпадают с нашими: {same}"
+                                         + (f"; наша правка уже на origin (origin ушёл "
+                                            f"вперёд): {covered}" if covered else ""))
             else:
                 msg = message or build_message(root, plan["to_push"])
                 receipt["message"] = msg
@@ -643,8 +737,7 @@ def deliver(paths, root: str = REPO_ROOT, now: dt.datetime | None = None,
     # ── долг после прогона: что пытались везти и что на origin так и не попало ──
     if use_debt:
         try:
-            arrived = set(receipt.get("delivered") or []) | set(receipt.get("already_on_origin") or [])
-            for path in arrived:
+            for path in arrived_paths(receipt):
                 debt.pop(path, None)
             for path in owed_from_receipt(receipt):
                 entry = debt.get(path) or {"since": receipt["generated_at"], "attempts": 0}

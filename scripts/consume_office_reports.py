@@ -375,7 +375,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         if d:
             st = d.get("status")
             if st in ("DELIVERED", "IDLE"):
-                out.append(f"   доставка карточек: {st} ({len(d.get('delivered') or [])} на origin)")
+                # «Наша правка уже на origin» названо ОТДЕЛЬНО от «доставлено»:
+                # иначе прогон, где везти было нечего потому, что всё уже там,
+                # читается как прогон, где везти было нечего вообще (#268).
+                covered = len(d.get("covered_by_origin") or [])
+                out.append(f"   доставка карточек: {st} ({len(d.get('delivered') or [])} на origin"
+                           + (f"; уже на origin, origin ушёл вперёд: {covered}" if covered else "")
+                           + ")")
             else:
                 out.append(f"   ⚠️ ДОСТАВКА КАРТОЧЕК {st}: {d.get('reason')} "
                            f"(пыталось {len(d.get('attempted') or [])})")

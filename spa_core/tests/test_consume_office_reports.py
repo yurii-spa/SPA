@@ -586,6 +586,36 @@ def test_old_positional_call_still_works() -> None:
     assert "доставка карточек: IDLE" in out, out
 
 
+def test_cards_already_on_origin_are_named_not_swallowed() -> None:
+    """#268: «везти было нечего» и «всё уже там» — разные утверждения.
+
+    17.08 доставка объявляла НЕПОГАСИМЫЙ долг о закрытии, которое на origin уже
+    лежало (сойтись копии не могли: прод-дерево не синкает `nimbalyst-local/`).
+    Долг чинится в самой доставке, но исход обязан быть СЛЫШЕН и здесь — иначе
+    доказанное покрытие неотличимо от прогона, которому нечего было везти.
+    """
+    out = _text(MOD._summarize_json("data/findings_bridge_report.json", {
+        "generated_at": "2026-08-17T01:03:50.692720+00:00",
+        "created": [], "closed": [], "deferred": [], "waiting_hysteresis": [],
+        "escalated": [], "sources_unread": [], "open_cards": 0,
+        "delivery": {"status": "IDLE", "delivered": [], "covered_by_origin": [
+            {"path": "nimbalyst-local/tracker/inbox-nahodka.md", "reason": "…"}]},
+    }))
+    assert "origin ушёл вперёд: 1" in out, out
+
+
+def test_a_run_with_nothing_to_carry_gains_no_extra_words() -> None:
+    """ОБРАТНЫЙ КОНТРОЛЬ: без покрытия строка остаётся прежней."""
+    out = _text(MOD._summarize_json("data/findings_bridge_report.json", {
+        "generated_at": "2026-08-17T01:03:50.692720+00:00",
+        "created": [], "closed": [], "deferred": [], "waiting_hysteresis": [],
+        "escalated": [], "sources_unread": [], "open_cards": 0,
+        "delivery": {"status": "IDLE", "delivered": [], "covered_by_origin": []},
+    }))
+    assert "доставка карточек: IDLE (0 на origin)" in out, out
+    assert "origin ушёл вперёд" not in out, out
+
+
 # ── долг доставки виден там, где оркестратор обязан смотреть (ADR-081) ────────
 #
 # Авария 12.08: прогон 13:03Z оставил три карточки не на origin (`FAILED`,

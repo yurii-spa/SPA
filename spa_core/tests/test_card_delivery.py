@@ -707,5 +707,217 @@ class UnmeasuredCardDoesNotRideUnderSomeoneElsesOverwrite(unittest.TestCase):
             self.assertEqual(r["held"], [])
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# Цикл #268. «Доехало ли моё изменение?» решалось как «совпали ли файлы
+# побайтово?» — и на непогасимом долге это расходилось навсегда.
+#
+# Живой замер 2026-08-17 01:03Z (`data/findings_bridge_report.json`):
+#
+#     attempted: inbox-nahodka-petli-manifest-fakty-manifest-ch.md
+#     delivered: []   already_on_origin: []   rebase_refused: 1
+#     status: REFUSED · ДОЛГ ДОСТАВКИ: 1
+#
+# А на origin карточка УЖЕ несла `status: done` — ровно ту правку, которую
+# доставка везла (её закрыл цикл #264, он же дописал в тело раздел «Исполнено»
+# и захватил карточку полями `claimed_by`/`claimed_at`). Везти было нечего.
+#
+# Сойтись эти копии не могли НИКОГДА: прод-дерево не синкает `nimbalyst-local/`
+# (автосинк возит `spa_core/`·`scripts/`·`tests/`), значит побайтовое равенство
+# перестало быть достижимым — каждый прогон повторял ту же попытку и тот же
+# отказ, а по ADR-081 непустой долг запрещает `IDLE` ⇒ шаг 0-офис печатал
+# красную строку каждый цикл. Ложный долг топит настоящий — ровно та слепота,
+# ради защиты от которой ADR-081 и заведён.
+#
+# На неисправленном модуле красные все, кроме объявленных обратных контролей
+# (`origin_covers_card`/`covered_by_origin` там нет вовсе).
+# ══════════════════════════════════════════════════════════════════════════════
+
+def claimed(status: str = "done", tail: str = "") -> bytes:
+    """Версия origin, которую наша слепая копия увидеть не могла.
+
+    Форма взята с живой карточки: захват шага 0b в frontmatter плюс дописанный
+    в тело отчёт об исполнении.
+    """
+    return card(status,
+                extra="claimed_by: cycle-264-pid80387\nclaimed_at: 2026-08-16T18:49:54Z\n",
+                body="\n# карточка\n" + (tail or "\n## Исполнено — цикл #264\n\nотчёт\n"))
+
+
+class OurEditIsAlreadyOnOriginAndOwesNothing(unittest.TestCase):
+    """Главный класс аварии: доставка требовала побайтового равенства там, где
+    вопрос был «моя правка доехала?». Ответ «да» — при разных файлах."""
+
+    def test_closure_already_on_origin_is_not_owed(self):
+        """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ: раньше здесь был вечный REFUSED + долг 1."""
+        with tempfile.TemporaryDirectory() as td:
+            root, _ = mkroot(td, ())
+            p = write(root, "inbox-nahodka.md", card("done"))
+            pusher = Pusher()
+            r = cd.deliver([p], root=root, now=NOW, pusher=pusher,
+                           reader=Remote({"inbox-nahodka.md": claimed("done")}))
+            self.assertEqual(r["status"], cd.IDLE)
+            self.assertEqual(r["debt"]["count"], 0)
+            self.assertEqual([c["path"] for c in r["covered_by_origin"]],
+                             ["nimbalyst-local/tracker/inbox-nahodka.md"])
+            self.assertEqual(r["rebase_refused"], [])
+
+    def test_coverage_writes_nothing_to_origin(self):
+        """Ветка не смеет ничего перезаписать — она вообще не зовёт пушер.
+
+        Молчание пушера само по себе НЕ различает почин: на неисправленном
+        модуле он молчит тоже, только по отказу. Поэтому тест требует ОБА
+        факта разом — покрытие доказано И ни одной записи наружу.
+        """
+        with tempfile.TemporaryDirectory() as td:
+            root, _ = mkroot(td, ())
+            p = write(root, "inbox-nahodka.md", card("done"))
+            pusher = Pusher()
+            r = cd.deliver([p], root=root, now=NOW, pusher=pusher,
+                           reader=Remote({"inbox-nahodka.md": claimed("done")}))
+            self.assertEqual(len(r["covered_by_origin"]), 1)
+            self.assertEqual(pusher.calls, [])
+
+    def test_the_undying_debt_of_earlier_runs_is_cleared(self):
+        """Долг, который НЕ МОГ погаситься: копии не сойдутся никогда."""
+        with tempfile.TemporaryDirectory() as td:
+            root, _ = mkroot(td, ())
+            p = write(root, "inbox-nahodka.md", card("done"))
+            rel = "nimbalyst-local/tracker/inbox-nahodka.md"
+            with open(os.path.join(root, cd.DEBT_REL), "w", encoding="utf-8") as f:
+                json.dump({"debt": {rel: {"since": ts(hours_ago=99), "attempts": 7,
+                                          "last_status": cd.REFUSED}}}, f)
+            r = cd.deliver([], root=root, now=NOW, pusher=Pusher(),
+                           reader=Remote({"inbox-nahodka.md": claimed("done")}))
+            self.assertEqual(r["debt"]["count"], 0)
+            self.assertEqual(r["debt"]["stale"], [])
+            self.assertNotEqual(r["status"], cd.DEBT)
+
+    def test_reason_names_what_origin_added(self):
+        """«Везти нечего» обязано сказать, ЧЕМ origin нас обогнал."""
+        with tempfile.TemporaryDirectory() as td:
+            root, _ = mkroot(td, ())
+            p = write(root, "inbox-nahodka.md", card("done"))
+            r = cd.deliver([p], root=root, now=NOW, pusher=Pusher(),
+                           reader=Remote({"inbox-nahodka.md": claimed("done")}))
+            said = r["covered_by_origin"][0]["reason"]
+            self.assertIn("claimed_by: cycle-264-pid80387", said)
+            self.assertIn("claimed_at: 2026-08-16T18:49:54Z", said)
+            self.assertIn("тела", said)
+
+    def test_byte_identity_stays_its_own_bucket(self):
+        """ОБРАТНЫЙ КОНТРОЛЬ: совпавшие побайтово — не «origin ушёл вперёд».
+        Схлопывание двух вёдер объявило бы разные файлы одинаковыми."""
+        with tempfile.TemporaryDirectory() as td:
+            root, _ = mkroot(td, ())
+            p = write(root, "inbox-same.md", card("done"))
+            r = cd.deliver([p], root=root, now=NOW, pusher=Pusher(),
+                           reader=Remote({"inbox-same.md": card("done")}))
+            self.assertEqual(r["already_on_origin"],
+                             ["nimbalyst-local/tracker/inbox-same.md"])
+            self.assertEqual(r["covered_by_origin"], [])
+
+
+class CoverageIsProvedNotAssumed(unittest.TestCase):
+    """Ослабить отказ ADR-080 п.3 эта ветка не смеет: покрытие пропускает РОВНО
+    дописанное на origin. Каждый тест — попытка проскочить мимо доказательства."""
+
+    def test_origin_behind_on_status_is_still_refused(self):
+        """Наше закрытие на origin НЕ доехало ⇒ прежний отказ, слово в слово."""
+        with tempfile.TemporaryDirectory() as td:
+            root, _ = mkroot(td, ())
+            p = write(root, "inbox-nahodka.md", card("done"))
+            pusher = Pusher()
+            r = cd.deliver([p], root=root, now=NOW, pusher=pusher,
+                           reader=Remote({"inbox-nahodka.md": claimed("new")}))
+            self.assertEqual(r["status"], cd.REFUSED)
+            self.assertEqual(r["covered_by_origin"], [])
+            self.assertIn("claimed_by", r["rebase_refused"][0]["reason"])
+            self.assertEqual(pusher.calls, [])
+            self.assertEqual(r["debt"]["count"], 1)
+
+    def test_origin_that_changed_our_line_is_not_coverage(self):
+        """Изменение — не дописывание: нашей строки на origin нет."""
+        with tempfile.TemporaryDirectory() as td:
+            root, _ = mkroot(td, ())
+            p = write(root, "inbox-nahodka.md", card("done"))
+            remote = claimed("done").replace(b'finding_key: "B3:k"',
+                                             b'finding_key: "B3:other"')
+            r = cd.deliver([p], root=root, now=NOW, pusher=Pusher(),
+                           reader=Remote({"inbox-nahodka.md": remote}))
+            self.assertEqual(r["covered_by_origin"], [])
+            self.assertEqual(r["status"], cd.REFUSED)
+
+    def test_origin_that_dropped_our_line_is_not_coverage(self):
+        """Удалённое у нас поле — потеря, а не обгон."""
+        with tempfile.TemporaryDirectory() as td:
+            root, _ = mkroot(td, ())
+            p = write(root, "inbox-nahodka.md", card("done"))
+            remote = claimed("done").replace(b'finding_key: "B3:k"\n', b"")
+            r = cd.deliver([p], root=root, now=NOW, pusher=Pusher(),
+                           reader=Remote({"inbox-nahodka.md": remote}))
+            self.assertEqual(r["covered_by_origin"], [])
+
+    def test_our_own_undelivered_text_is_never_declared_arrived(self):
+        """Худшая ошибка ветки — объявить доехавшим то, чего на origin нет."""
+        with tempfile.TemporaryDirectory() as td:
+            root, _ = mkroot(td, ())
+            p = write(root, "inbox-nahodka.md",
+                      card("done", body="\n# карточка\n\nнаш абзац, которого нет на origin\n"))
+            r = cd.deliver([p], root=root, now=NOW, pusher=Pusher(),
+                           reader=Remote({"inbox-nahodka.md": claimed("done")}))
+            self.assertEqual(r["covered_by_origin"], [])
+
+    def test_status_quoted_in_the_body_cannot_prove_coverage(self):
+        """Frontmatter и тело сверяются ПОРОЗНЬ: карточки цитируют чужой
+        frontmatter сплошь, и такое совпадение к делу не относится."""
+        with tempfile.TemporaryDirectory() as td:
+            root, _ = mkroot(td, ())
+            p = write(root, "inbox-nahodka.md", card("done"))
+            remote = card("new", extra="claimed_by: cycle-264-pid80387\n",
+                          body="\n# карточка\nstatus: done\n")
+            ok, _ = cd.origin_covers_card(card("done"), remote)
+            self.assertFalse(ok)
+            r = cd.deliver([p], root=root, now=NOW, pusher=Pusher(),
+                           reader=Remote({"inbox-nahodka.md": remote}))
+            self.assertEqual(r["covered_by_origin"], [])
+
+    def test_a_non_card_is_never_covered(self):
+        """Без frontmatter покрытие не доказуемо — сравнивать не с чем."""
+        self.assertEqual(cd.origin_covers_card(b"not a card", claimed("done")), (False, []))
+        self.assertEqual(cd.origin_covers_card(card("done"), b"not a card"), (False, []))
+
+
+class ArrivalHasOneDefinition(unittest.TestCase):
+    """Долг и квитанция обязаны считать «доехало» одинаково: две копии одного
+    списка расходятся молча, и цена расхождения — потерянная карточка."""
+
+    def test_owed_from_receipt_honours_coverage(self):
+        receipt = {"attempted": ["a.md", "b.md", "c.md"],
+                   "delivered": ["a.md"],
+                   "already_on_origin": ["b.md"],
+                   "covered_by_origin": [{"path": "c.md", "reason": "…"}]}
+        self.assertEqual(cd.owed_from_receipt(receipt), [])
+        self.assertEqual(cd.arrived_paths(receipt), {"a.md", "b.md", "c.md"})
+
+    def test_old_receipt_without_the_bucket_still_reads(self):
+        """ОБРАТНЫЙ КОНТРОЛЬ: квитанция старого образца не обязана исчезать."""
+        receipt = {"attempted": ["a.md", "b.md"], "delivered": ["a.md"]}
+        self.assertEqual(cd.owed_from_receipt(receipt), ["b.md"])
+
+    def test_debt_recovered_from_an_old_receipt_is_dropped_by_coverage(self):
+        """Долг восстанавливается из квитанции — покрытие обязано его снять."""
+        with tempfile.TemporaryDirectory() as td:
+            root, _ = mkroot(td, ())
+            rel = "nimbalyst-local/tracker/inbox-nahodka.md"
+            write(root, "inbox-nahodka.md", card("done"))
+            with open(os.path.join(root, cd.STATUS_REL), "w", encoding="utf-8") as f:
+                json.dump({"generated_at": ts(hours_ago=48), "attempted": [rel],
+                           "delivered": [], "status": cd.REFUSED}, f)
+            self.assertEqual(sorted(cd.load_debt(root)), [rel])
+            r = cd.deliver([], root=root, now=NOW, pusher=Pusher(),
+                           reader=Remote({"inbox-nahodka.md": claimed("done")}))
+            self.assertEqual(r["debt"]["count"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()
