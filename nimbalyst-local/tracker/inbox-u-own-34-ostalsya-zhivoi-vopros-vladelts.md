@@ -5,8 +5,6 @@ title: "У own-34 остался ЖИВОЙ вопрос владельцу, и 
 status: done
 source: nimbalyst
 created: 2026-08-10
-claimed_by: cycle-272
-claimed_at: 2026-08-17T08:06:40Z
 ---
 
 ## Что измерено (цикл #199)
