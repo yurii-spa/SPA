@@ -10,6 +10,7 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_default
 
 LOG_CAP = 100
 DEFAULT_LOG_PATH = os.path.join(
@@ -17,6 +18,10 @@ DEFAULT_LOG_PATH = os.path.join(
     "data",
     "bridge_risk_log.json",
 )
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod.DEFAULT_LOG_PATH = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_DEFAULT_LOG_PATH = DEFAULT_LOG_PATH
 
 # Recognised bridge types
 BRIDGE_TYPES = frozenset(
@@ -35,6 +40,9 @@ _RISK_THRESHOLDS = [
 
 def _atomic_write(path: str, data: Any) -> None:
     """Write JSON atomically using tmp + os.replace."""
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+    path = sandboxed_default(path, _TREE_DEFAULT_DEFAULT_LOG_PATH)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     dir_ = os.path.dirname(path)
     atomic_save(data, str(path))

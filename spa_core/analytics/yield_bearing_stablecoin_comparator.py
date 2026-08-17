@@ -12,6 +12,7 @@ import os
 import time
 from typing import Any
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -19,6 +20,10 @@ from spa_core.utils.atomic import atomic_save
 _DEFAULT_MIN_TVL_USD = 50_000_000.0
 _DEFAULT_MAX_PEG_DEVIATION_PCT = 0.5
 _LOG_FILE = "data/yield_stablecoin_log.json"
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod._LOG_FILE = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_LOG_FILE = _LOG_FILE
 _RING_BUFFER_MAX = 100
 
 _REDEMPTION_SCORES = {
@@ -142,6 +147,9 @@ def _recommendation(
 
 def _append_log(entry: dict, log_path: str = _LOG_FILE) -> None:
     """Append entry to ring-buffer JSON log (max 100 entries), atomic write."""
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+    log_path = sandboxed_default(log_path, _TREE_DEFAULT_LOG_FILE)
     try:
         if os.path.exists(log_path):
             with open(log_path, "r") as f:

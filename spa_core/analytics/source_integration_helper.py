@@ -15,6 +15,7 @@ import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from spa_core.utils.live_paths import sandboxed_default
 from spa_core.utils.atomic import atomic_save
 
 # ---------------------------------------------------------------------------
@@ -41,8 +42,13 @@ class SourceIntegrationHelper:
     """
 
     def __init__(self, pipeline_path: Optional[str] = None) -> None:
-        self._pipeline_path = os.path.abspath(
-            pipeline_path if pipeline_path is not None else _DEFAULT_PIPELINE_PATH
+        # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+        # явный pipeline_path проходит насквозь (live_paths.sandboxed_default).
+        self._pipeline_path = sandboxed_default(
+            os.path.abspath(
+                pipeline_path if pipeline_path is not None else _DEFAULT_PIPELINE_PATH
+            ),
+            os.path.abspath(_DEFAULT_PIPELINE_PATH),
         )
 
     # ------------------------------------------------------------------

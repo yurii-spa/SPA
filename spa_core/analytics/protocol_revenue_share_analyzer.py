@@ -9,6 +9,7 @@ import os
 import time
 import tempfile
 from typing import Optional
+from spa_core.utils.live_paths import sandboxed_default
 
 # ── constants ──────────────────────────────────────────────────────────────────
 
@@ -16,6 +17,10 @@ _LOG_FILE = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "protocol_revenue_share_log.json"
 )
 _LOG_FILE = os.path.normpath(_LOG_FILE)
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod._LOG_FILE = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_LOG_FILE = _LOG_FILE
 _RING_CAP = 100
 
 DISTRIBUTION_HOLDER_FRIENDLY = "HOLDER_FRIENDLY"
@@ -32,6 +37,9 @@ def _clamp(value: float, lo: float = 0.0, hi: float = 100.0) -> float:
 
 def _atomic_write(path: str, data) -> None:
     """Write JSON atomically via tmp + os.replace."""
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+    path = sandboxed_default(path, _TREE_DEFAULT_LOG_FILE)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with tempfile.NamedTemporaryFile(
         mode="w", suffix=".tmp", dir=os.path.dirname(path), delete=False

@@ -14,12 +14,17 @@ import math
 import os
 import time
 from typing import Any
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
 _LOG_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "borrow_cost_log.json")
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod._LOG_PATH = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_LOG_PATH = _LOG_PATH
 _LOG_CAP = 100
 
 _DEFAULT_MIN_LIQUIDITY = 100_000.0
@@ -196,6 +201,9 @@ def _build_asset_summary(scored_markets: list) -> dict:
 def _log_result(result: dict) -> None:
     """Append result to ring-buffer log (cap 100), atomic write."""
     log_path = os.path.normpath(_LOG_PATH)
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+    log_path = sandboxed_default(log_path, _TREE_DEFAULT_LOG_PATH)
     try:
         if os.path.exists(log_path):
             with open(log_path, "r") as f:

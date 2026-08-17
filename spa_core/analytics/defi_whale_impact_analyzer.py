@@ -10,8 +10,13 @@ import json
 import os
 import time
 from pathlib import Path
+from spa_core.utils.live_paths import sandboxed_default
 
 DATA_FILE = Path("data/whale_impact_log.json")
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod.DATA_FILE = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_DATA_FILE = DATA_FILE
 MAX_ENTRIES = 100
 
 _DEFAULT_CONFIG = {
@@ -250,6 +255,9 @@ def analyze(pools: list, config: dict = None) -> dict:
 def _append_log(entry: dict) -> None:
     """Append entry to DATA_FILE, capped at MAX_ENTRIES. Atomic write."""
     data_path = DATA_FILE
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+    data_path = sandboxed_default(data_path, _TREE_DEFAULT_DATA_FILE)
     try:
         if data_path.exists():
             with open(data_path, "r") as f:
@@ -274,9 +282,12 @@ def _append_log(entry: dict) -> None:
 
 def init_log() -> None:
     """Initialize data/whale_impact_log.json as [] if absent."""
-    if not DATA_FILE.exists():
-        DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
-        tmp = str(DATA_FILE) + ".tmp"
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # подменённая в тесте константа проходит насквозь (live_paths.sandboxed_default).
+    data_file = sandboxed_default(DATA_FILE, _TREE_DEFAULT_DATA_FILE)
+    if not data_file.exists():
+        data_file.parent.mkdir(parents=True, exist_ok=True)
+        tmp = str(data_file) + ".tmp"
         with open(tmp, "w") as f:
             json.dump([], f)
-        os.replace(tmp, DATA_FILE)
+        os.replace(tmp, data_file)

@@ -15,8 +15,13 @@ import os
 import time
 from pathlib import Path
 from typing import Optional
+from spa_core.utils.live_paths import sandboxed_default
 
 DATA_FILE = Path("data/developer_activity_log.json")
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod.DATA_FILE = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_DATA_FILE = DATA_FILE
 MAX_ENTRIES = 100
 
 # ---------------------------------------------------------------------------
@@ -266,12 +271,15 @@ def analyze(protocols: list, config: dict = None) -> dict:
 
 def _append_log(entry: dict) -> None:
     """Atomically append entry to DATA_FILE, capped at MAX_ENTRIES."""
-    DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # подменённая в тесте константа проходит насквозь (live_paths.sandboxed_default).
+    data_file = sandboxed_default(DATA_FILE, _TREE_DEFAULT_DATA_FILE)
+    data_file.parent.mkdir(parents=True, exist_ok=True)
 
     existing: list = []
-    if DATA_FILE.exists():
+    if data_file.exists():
         try:
-            with open(DATA_FILE, "r", encoding="utf-8") as f:
+            with open(data_file, "r", encoding="utf-8") as f:
                 existing = json.load(f)
             if not isinstance(existing, list):
                 existing = []
@@ -282,10 +290,10 @@ def _append_log(entry: dict) -> None:
     if len(existing) > MAX_ENTRIES:
         existing = existing[-MAX_ENTRIES:]
 
-    tmp = DATA_FILE.with_suffix(".tmp")
+    tmp = data_file.with_suffix(".tmp")
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(existing, f, indent=2)
-    os.replace(tmp, DATA_FILE)
+    os.replace(tmp, data_file)
 
 
 # ---------------------------------------------------------------------------

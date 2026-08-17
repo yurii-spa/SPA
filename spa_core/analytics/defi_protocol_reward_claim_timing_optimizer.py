@@ -61,6 +61,7 @@ import os
 import time
 from typing import Any
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -70,6 +71,10 @@ _LOG_PATH = os.path.join(
     os.path.dirname(__file__), "..", "..", "data",
     "reward_claim_timing_log.json",
 )
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod._LOG_PATH = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_LOG_PATH = _LOG_PATH
 _LOG_CAP = 100
 
 # Small epsilon to guard divisions.
@@ -146,6 +151,9 @@ _PRICE_RISK_HAIRCUT_CAP_PCT = 200.0     # cap reported haircut (keep finite)
 
 def _atomic_log(log_path: str, entry: dict) -> None:
     """Append *entry* to ring-buffer JSON array (cap=100), atomic write."""
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+    log_path = sandboxed_default(log_path, _TREE_DEFAULT_LOG_PATH)
     abs_path = os.path.abspath(log_path)
     os.makedirs(os.path.dirname(abs_path), exist_ok=True)
     try:

@@ -19,6 +19,7 @@ import os
 import time
 from pathlib import Path
 from typing import Dict, List, Optional
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Paths & constants
@@ -26,6 +27,10 @@ from typing import Dict, List, Optional
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 DATA_FILE = _REPO_ROOT / "data" / "insider_activity_log.json"
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod.DATA_FILE = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_DATA_FILE = DATA_FILE
 MAX_ENTRIES = 100
 
 # ---------------------------------------------------------------------------
@@ -255,9 +260,12 @@ def _analyze_protocol(protocol: dict) -> dict:
 
 def _append_log(result: dict, log_file: Path = None) -> None:
     """Append result snapshot to ring-buffer log (atomic write, max 100 entries)."""
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
     if log_file is None:
         log_file = DATA_FILE
 
+    log_file = sandboxed_default(log_file, _TREE_DEFAULT_DATA_FILE)
     try:
         if log_file.exists():
             with open(log_file, "r") as fh:

@@ -12,8 +12,13 @@ import json
 import time
 import os
 from pathlib import Path
+from spa_core.utils.live_paths import sandboxed_default
 
 DATA_FILE = Path("data/bridge_risk_log.json")
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod.DATA_FILE = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_DATA_FILE = DATA_FILE
 MAX_ENTRIES = 100
 
 KNOWN_HACKED_BRIDGES = {
@@ -209,6 +214,9 @@ class CrossChainBridgeRiskAnalyzer:
     def save_results(self, reports: List[BridgeRiskReport],
                      data_file: Path = DATA_FILE) -> None:
         """Atomically append results to ring-buffer JSON (max MAX_ENTRIES)."""
+        # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+        # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+        data_file = sandboxed_default(data_file, _TREE_DEFAULT_DATA_FILE)
         data_file = Path(data_file)
         data_file.parent.mkdir(parents=True, exist_ok=True)
 

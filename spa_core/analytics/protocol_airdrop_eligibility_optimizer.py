@@ -36,6 +36,7 @@ import os
 import time
 from typing import Dict, List, Optional
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Paths & constants
@@ -44,6 +45,10 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.dirname(os.path.dirname(_HERE))
 
 LOG_PATH = os.path.join(_REPO_ROOT, "data", "airdrop_eligibility_log.json")
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod.LOG_PATH = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_LOG_PATH = LOG_PATH
 LOG_MAX_ENTRIES = 100
 
 # Flag thresholds
@@ -303,6 +308,9 @@ def _atomic_log(
     max_entries: int = LOG_MAX_ENTRIES,
 ) -> None:
     """Append *entry* to ring-buffer JSON log. Atomic: tmp + os.replace."""
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+    log_path = sandboxed_default(log_path, _TREE_DEFAULT_LOG_PATH)
     try:
         log_dir = os.path.dirname(log_path)
         if log_dir:

@@ -24,6 +24,7 @@ import os
 import time
 from typing import Dict, List, Optional
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -32,6 +33,10 @@ from spa_core.utils.atomic import atomic_save
 _DEFAULT_DATA_FILE = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "protocol_version_risk_log.json"
 )
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod._DEFAULT_DATA_FILE = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_DEFAULT_DATA_FILE = _DEFAULT_DATA_FILE
 
 RING_BUFFER_SIZE = 100
 
@@ -66,6 +71,9 @@ _ADOPTION_LOG_HIGH     = 9.0     # log10($1 B)   → 20 pts
 
 def _atomic_write_json(path: str, data) -> None:
     """Atomic JSON write via centralized atomic_save (MP-1453)."""
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+    path = sandboxed_default(path, _TREE_DEFAULT_DEFAULT_DATA_FILE)
     atomic_save(data, str(path))
 def _load_log(path: str) -> List:
     try:

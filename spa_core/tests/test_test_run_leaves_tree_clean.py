@@ -64,6 +64,14 @@ _CANARY = (
     # успел увидеть. Честная запись о границах замера — и повод, по которому
     # канареечный срез обязан расти вместе с находками.
     "spa_core/tests/test_engine_bridge.py",
+    # Семейство ``spa_core/analytics/*`` — 59+ путей ``data/<анализатор>_log.json``,
+    # которые всплывали только за 20 %-й отметкой полного прогона и потому не
+    # попали ни в карточку, ни в первый замер. Здесь — по одному представителю
+    # каждой формы писателя, измеренной при уводе (цикл #275):
+    "spa_core/tests/test_bridge_risk_assessor.py",        # Path-писатель, тип пути
+    "spa_core/tests/test_defi_impermanent_loss_hedging_analyzer.py",  # monkeypatch константы
+    "spa_core/tests/test_protocol_insider_activity_monitor.py",       # ``log_file=None``
+    "spa_core/tests/test_defi_protocol_depositor_concentration_analyzer.py",  # cfg-словарь
 )
 
 

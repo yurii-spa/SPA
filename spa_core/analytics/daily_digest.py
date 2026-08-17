@@ -56,12 +56,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
 DIGEST_FILENAME: str = "daily_digest.json"
+#: Умолчание ДЕРЕВА для дайджеста (git-tracked). С ним сверяется путь
+#: записи: явный ``data_dir`` проходит насквозь (live_paths.sandboxed_default).
+_TREE_DEFAULT_DIGEST_PATH = Path("data") / DIGEST_FILENAME
 RING_BUFFER_SIZE: int = 30          # keep last 30 daily digests
 
 # Source file names
@@ -351,8 +355,10 @@ class DailyDigest:
         -------
         str — absolute path of the written file.
         """
-        self.data_dir.mkdir(parents=True, exist_ok=True)
-        out_path = self.data_dir / DIGEST_FILENAME
+        out_path = sandboxed_default(
+            self.data_dir / DIGEST_FILENAME, _TREE_DEFAULT_DIGEST_PATH
+        )
+        out_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Load existing ring-buffer
         history: List[Dict[str, Any]] = []

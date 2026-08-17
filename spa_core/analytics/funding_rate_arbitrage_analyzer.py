@@ -13,6 +13,7 @@ import os
 from dataclasses import dataclass, asdict, field
 from typing import List, Optional
 from spa_core.utils import clock
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Path helpers
@@ -434,8 +435,13 @@ def _result_to_dict(result: FundingRateAnalysisResult) -> dict:
 
 def save_results(result: FundingRateAnalysisResult, data_dir: str = _DATA_DIR) -> str:
     """Append result to ring-buffer log (cap 100). Returns saved path. Atomic write."""
-    os.makedirs(data_dir, exist_ok=True)
-    log_file = os.path.join(data_dir, "funding_rate_arb_log.json")
+    # Умолчание дерева (git-tracked data/funding_rate_arb_log.json) уводится в
+    # песочницу под тестами; явно переданный data_dir проходит насквозь.
+    log_file = sandboxed_default(
+        os.path.join(data_dir, "funding_rate_arb_log.json"),
+        os.path.join(_DATA_DIR, "funding_rate_arb_log.json"),
+    )
+    os.makedirs(os.path.dirname(log_file) or ".", exist_ok=True)
 
     # Load existing
     if os.path.exists(log_file):

@@ -25,6 +25,7 @@ import os
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -52,6 +53,10 @@ _RECENT_WINDOW_SECONDS: float = 365.0 * 24.0 * 3600.0  # 1 year
 _USAGE_LOG_REF: float = 8.0  # log10(100_000_000)
 
 _DEFAULT_LOG_PATH = "data/bridge_risk_log.json"
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod._DEFAULT_LOG_PATH = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_DEFAULT_LOG_PATH = _DEFAULT_LOG_PATH
 _DEFAULT_MAX_ENTRIES = 100
 
 
@@ -285,6 +290,9 @@ class BridgeRiskAssessor:
 
     def _atomic_write(self, data: Any) -> None:
         path = Path(self.log_path)
+        # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+        # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+        path = sandboxed_default(path, _TREE_DEFAULT_DEFAULT_LOG_PATH)
         path.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = str(path) + ".tmp"
         try:

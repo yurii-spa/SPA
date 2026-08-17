@@ -13,6 +13,7 @@ import math
 import os
 import time
 from typing import Any
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -21,6 +22,10 @@ from typing import Any
 _LOG_PATH = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "lending_rate_spread_log.json"
 )
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod._LOG_PATH = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_LOG_PATH = _LOG_PATH
 _LOG_CAP = 100
 
 _DEFAULT_RISK_FREE_RATE = 4.5   # % — approximate T-bill / RWA benchmark
@@ -321,6 +326,9 @@ class DeFiProtocolLendingRateSpreadAnalyzer:
     def _append_log(self, output: dict) -> None:
         """Append compressed record to ring-buffer log (atomic write)."""
         log_path = os.path.abspath(_LOG_PATH)
+        # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+        # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+        log_path = sandboxed_default(log_path, _TREE_DEFAULT_LOG_PATH)
         os.makedirs(os.path.dirname(log_path), exist_ok=True)
 
         record = {

@@ -58,6 +58,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_default
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +66,10 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 _DEFAULT_LOG_FILE = "data/slippage_impact_log.json"
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod._DEFAULT_LOG_FILE = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_DEFAULT_LOG_FILE = _DEFAULT_LOG_FILE
 _RING_BUFFER_CAP = 100
 _DEFAULT_ACCEPTABLE_SLIPPAGE_PCT = 0.5
 
@@ -266,6 +271,9 @@ def _load_log(log_path: Path) -> List[Dict[str, Any]]:
 
 def _save_log(log_path: Path, entries: List[Dict[str, Any]]) -> None:
     """Atomically save ring-buffer log (capped at _RING_BUFFER_CAP)."""
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+    log_path = sandboxed_default(log_path, _TREE_DEFAULT_DEFAULT_LOG_FILE)
     entries = entries[-_RING_BUFFER_CAP:]
     log_path.parent.mkdir(parents=True, exist_ok=True)
     atomic_save(entries, str(log_path))

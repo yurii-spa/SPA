@@ -11,12 +11,17 @@ import os
 import time
 import tempfile
 from typing import Optional
+from spa_core.utils.live_paths import sandboxed_default
 
 # ─── constants ────────────────────────────────────────────────────────────────
 
 _LOG_PATH = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "community_sentiment_log.json"
 )
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod._LOG_PATH = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_LOG_PATH = _LOG_PATH
 _LOG_CAP = 100
 
 _NEVER_EXPLOITED = 9999  # sentinel value in input
@@ -136,6 +141,9 @@ def _recommendation(
 
 def _append_log(entry: dict, log_path: str = _LOG_PATH) -> None:
     """Append entry to ring-buffer JSON log (cap=100). Atomic write."""
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+    log_path = sandboxed_default(log_path, _TREE_DEFAULT_LOG_PATH)
     try:
         abs_path = os.path.abspath(log_path)
         os.makedirs(os.path.dirname(abs_path), exist_ok=True)

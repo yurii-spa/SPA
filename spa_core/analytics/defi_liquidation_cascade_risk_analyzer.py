@@ -10,10 +10,15 @@ import math
 import os
 import time
 from typing import Any
+from spa_core.utils.live_paths import sandboxed_default
 
 # ── constants ────────────────────────────────────────────────────────────────
 LOG_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data",
                         "liquidation_cascade_log.json")
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod.LOG_FILE = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_LOG_FILE = LOG_FILE
 LOG_CAP = 100
 
 LABEL_SAFE = "SAFE"
@@ -332,9 +337,15 @@ class DeFiLiquidationCascadeRiskAnalyzer:
     # ------------------------------------------------------------------
 
     def _append_log(self, result: dict, cfg: dict) -> None:
-        log_path = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "..", "data",
-                         "liquidation_cascade_log.json")
+        # Путь собирался здесь заново из ``__file__``, минуя модульный LOG_FILE —
+        # поэтому увод на константе его не касался, и прогон продолжал писать в
+        # git-tracked data/liquidation_cascade_log.json (замер партии #5).
+        log_path = sandboxed_default(
+            os.path.abspath(
+                os.path.join(os.path.dirname(__file__), "..", "..", "data",
+                             "liquidation_cascade_log.json")
+            ),
+            _TREE_DEFAULT_LOG_FILE,
         )
         try:
             if os.path.exists(log_path):

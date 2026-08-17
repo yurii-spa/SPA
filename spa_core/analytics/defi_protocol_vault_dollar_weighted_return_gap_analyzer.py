@@ -68,12 +68,17 @@ import os
 import statistics
 from datetime import datetime, timezone
 from typing import List, Optional, Tuple
+from spa_core.utils.live_paths import sandboxed_default
 
 # ── constants ─────────────────────────────────────────────────────────────────
 LOG_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
     "data", "vault_dollar_weighted_return_gap_log.json"
 )
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod.LOG_PATH = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_LOG_PATH = LOG_PATH
 LOG_CAP = 100
 
 # Minimum valid per-period return samples required to use the sample path.
@@ -819,6 +824,9 @@ class DeFiProtocolVaultDollarWeightedReturnGapAnalyzer:
 
     def _write_log(self, results: List[dict], agg: dict, cfg: dict) -> None:
         log_path = cfg["log_path"]
+        # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+        # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+        log_path = sandboxed_default(log_path, _TREE_DEFAULT_LOG_PATH)
         cap = cfg["log_cap"]
         os.makedirs(os.path.dirname(log_path), exist_ok=True)
 

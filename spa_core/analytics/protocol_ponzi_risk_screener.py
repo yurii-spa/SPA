@@ -15,6 +15,7 @@ import os
 import time
 from typing import Optional
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -24,6 +25,10 @@ LOG_PATH = os.path.join(
     "data",
     "ponzi_risk_log.json",
 )
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod.LOG_PATH = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_LOG_PATH = LOG_PATH
 LOG_MAX_ENTRIES = 100
 
 # Risk classification thresholds
@@ -356,13 +361,16 @@ def analyze(protocols: list, config: dict = None) -> dict:
 
 def _append_log(entry: dict) -> None:
     """Atomically append result entry to ring-buffer log (max 100)."""
-    log_dir = os.path.dirname(LOG_PATH)
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # подменённая в тесте константа проходит насквозь (live_paths.sandboxed_default).
+    log_path = sandboxed_default(LOG_PATH, _TREE_DEFAULT_LOG_PATH)
+    log_dir = os.path.dirname(log_path)
     os.makedirs(log_dir, exist_ok=True)
 
     existing = []
-    if os.path.exists(LOG_PATH):
+    if os.path.exists(log_path):
         try:
-            with open(LOG_PATH, "r") as fh:
+            with open(log_path, "r") as fh:
                 existing = json.load(fh)
             if not isinstance(existing, list):
                 existing = []
@@ -372,13 +380,15 @@ def _append_log(entry: dict) -> None:
     existing.append(entry)
     existing = existing[-LOG_MAX_ENTRIES:]
 
-    atomic_save(existing, str(LOG_PATH))
+    atomic_save(existing, str(log_path))
+
+
 def init_log() -> None:
     """Initialize the log file as an empty list if it doesn't exist."""
-    log_dir = os.path.dirname(LOG_PATH)
-    os.makedirs(log_dir, exist_ok=True)
-    if not os.path.exists(LOG_PATH):
-        atomic_save([], str(LOG_PATH))
+    log_path = sandboxed_default(LOG_PATH, _TREE_DEFAULT_LOG_PATH)
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    if not os.path.exists(log_path):
+        atomic_save([], str(log_path))
 
 
 # ---------------------------------------------------------------------------

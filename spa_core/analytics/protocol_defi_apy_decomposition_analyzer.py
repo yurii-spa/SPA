@@ -14,12 +14,17 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_default
 
 # ── constants ─────────────────────────────────────────────────────────────────
 LOG_FILE = os.path.join(
     os.path.dirname(__file__), "..", "..", "data",
     "apy_decomposition_log.json"
 )
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod.LOG_FILE = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_LOG_FILE = LOG_FILE
 LOG_CAP = 100
 
 # Sustainability label thresholds (sustainability_ratio)
@@ -95,6 +100,9 @@ def _incentive_decay_risk_pct(
 
 def _atomic_write(path: str, data: Any) -> None:
     """Write JSON atomically via tmp-file + os.replace."""
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+    path = sandboxed_default(path, _TREE_DEFAULT_LOG_FILE)
     dir_path = os.path.dirname(path)
     if dir_path:
         os.makedirs(dir_path, exist_ok=True)

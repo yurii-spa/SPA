@@ -14,6 +14,7 @@ import os
 from datetime import datetime, timezone
 from typing import List, Optional
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Data file
@@ -62,7 +63,11 @@ class DeFiProtocolExitLiquidityAnalyzer:
     """Analyze real exit liquidity from DeFi positions."""
 
     def __init__(self, data_file: Optional[str] = None):
-        self._data_file = data_file or _DEFAULT_DATA_FILE
+        # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+        # явно переданный data_file проходит насквозь (live_paths.sandboxed_default).
+        self._data_file = sandboxed_default(
+            data_file or _DEFAULT_DATA_FILE, _DEFAULT_DATA_FILE
+        )
 
     # ------------------------------------------------------------------
     # Public API

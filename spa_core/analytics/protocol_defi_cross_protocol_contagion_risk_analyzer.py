@@ -7,12 +7,17 @@ import json
 import os
 from typing import Optional
 from spa_core.utils import clock
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Defaults & constants
 # ---------------------------------------------------------------------------
 
 LOG_PATH_DEFAULT = "data/cross_protocol_contagion_risk_log.json"
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod.LOG_PATH_DEFAULT = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_LOG_PATH_DEFAULT = LOG_PATH_DEFAULT
 LOG_CAP_DEFAULT = 100
 
 # Contagion labels (ascending risk)
@@ -210,7 +215,9 @@ class ProtocolDeFiCrossProtocolContagionRiskAnalyzer:
     def _append_log(self, entry: dict) -> None:
         """Atomically append entry to ring-buffer log (capped at log_cap)."""
         entries: list = []
-        log_path = self._log_path
+        # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+        # путь, названный вызывающим, проходит насквозь (live_paths.sandboxed_default).
+        log_path = sandboxed_default(self._log_path, _TREE_DEFAULT_LOG_PATH_DEFAULT)
         if os.path.exists(log_path):
             try:
                 with open(log_path, "r") as fh:

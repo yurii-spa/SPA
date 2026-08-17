@@ -42,6 +42,7 @@ import os
 import time
 from typing import Optional
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -51,6 +52,10 @@ LOG_PATH = os.path.join(
     "data",
     "yield_farming_exit_timing_log.json",
 )
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod.LOG_PATH = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_LOG_PATH = LOG_PATH
 LOG_MAX_ENTRIES = 100
 
 # Baseline "best alternative" APY (T1 lending rate) used for opportunity cost
@@ -386,6 +391,9 @@ def _iso_now() -> str:
 
 def _atomic_write(path: str, data: object) -> None:
     """Write JSON atomically using tmp + os.replace."""
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+    path = sandboxed_default(path, _TREE_DEFAULT_LOG_PATH)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     dir_ = os.path.dirname(path)
     atomic_save(data, str(path))

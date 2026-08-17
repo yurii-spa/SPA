@@ -11,8 +11,13 @@ import os
 import time
 from pathlib import Path
 from typing import Optional
+from spa_core.utils.live_paths import sandboxed_default
 
 DATA_FILE = Path("data/regulatory_risk_log.json")
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod.DATA_FILE = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_DATA_FILE = DATA_FILE
 MAX_ENTRIES = 100
 
 # ---------------------------------------------------------------------------
@@ -243,6 +248,9 @@ def analyze(protocols: list, config: dict = None) -> dict:
 def _log_result(result: dict) -> None:
     """Append result to ring-buffer JSON log (max MAX_ENTRIES). Atomic write."""
     data_path = Path(DATA_FILE)
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+    data_path = sandboxed_default(data_path, _TREE_DEFAULT_DATA_FILE)
     data_path.parent.mkdir(parents=True, exist_ok=True)
 
     entries = []
@@ -272,6 +280,9 @@ def _log_result(result: dict) -> None:
 def _init_data_file() -> None:
     """Ensure data file exists as empty list."""
     p = Path(DATA_FILE)
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+    p = sandboxed_default(p, _TREE_DEFAULT_DATA_FILE)
     p.parent.mkdir(parents=True, exist_ok=True)
     if not p.exists():
         tmp = str(p) + ".tmp"

@@ -35,6 +35,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from spa_core.base import BaseAnalytics
+from spa_core.utils.live_paths import sandboxed_default
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -131,7 +132,11 @@ class EvidenceAutoCalculator(BaseAnalytics):
     def __init__(self, base_dir: str = ".") -> None:
         super().__init__(base_dir)
         self._base_dir = Path(base_dir)
-        self._data_file = self._base_dir / DEFAULT_DATA_FILE
+        # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+        # явный base_dir проходит насквозь (live_paths.sandboxed_default).
+        self._data_file = sandboxed_default(
+            self._base_dir / DEFAULT_DATA_FILE, Path(".") / DEFAULT_DATA_FILE
+        )
         self._history: List[EvidenceDay] = []
 
     def to_dict(self) -> dict:

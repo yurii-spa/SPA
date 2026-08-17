@@ -47,12 +47,17 @@ import os
 import time
 from pathlib import Path
 from typing import Any, Dict, List
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Module-level configuration
 # ---------------------------------------------------------------------------
 
 DATA_FILE = Path("data/protocol_maturity_log.json")
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod.DATA_FILE = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_DATA_FILE = DATA_FILE
 MAX_ENTRIES: int = 100
 
 # Tier thresholds
@@ -199,7 +204,9 @@ def _build_key_strengths(metrics: Dict[str, Any]) -> List[str]:
 def _append_log(entry: Dict[str, Any]) -> None:
     """Atomically append *entry* to the ring-buffer log (max MAX_ENTRIES)."""
     try:
-        data_file: Path = DATA_FILE
+        # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+        # подменённая в тесте константа проходит насквозь (live_paths.sandboxed_default).
+        data_file: Path = sandboxed_default(DATA_FILE, _TREE_DEFAULT_DATA_FILE)
         data_file.parent.mkdir(parents=True, exist_ok=True)
 
         if data_file.exists():

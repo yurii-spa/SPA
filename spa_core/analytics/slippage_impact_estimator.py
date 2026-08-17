@@ -19,6 +19,7 @@ import sys
 from dataclasses import dataclass, asdict
 from typing import List
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_default
 
 
 # ---------------------------------------------------------------------------
@@ -28,6 +29,10 @@ from spa_core.utils.atomic import atomic_save
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.abspath(os.path.join(_HERE, "..", ".."))
 DEFAULT_DATA_FILE = os.path.join(_REPO_ROOT, "data", "slippage_impact_log.json")
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod.DEFAULT_DATA_FILE = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_DEFAULT_DATA_FILE = DEFAULT_DATA_FILE
 RING_BUFFER_CAP = 100
 
 
@@ -283,6 +288,9 @@ def load_history(data_file: str = DEFAULT_DATA_FILE) -> list:
 
 def save_results(result: SlippageResult, data_file: str = DEFAULT_DATA_FILE) -> str:
     """Atomically append result to ring-buffer JSON file (cap 100)."""
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+    data_file = sandboxed_default(data_file, _TREE_DEFAULT_DEFAULT_DATA_FILE)
     history = load_history(data_file)
     history.append(_result_to_dict(result))
     if len(history) > RING_BUFFER_CAP:

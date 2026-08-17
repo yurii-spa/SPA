@@ -229,3 +229,130 @@ def test_under_test_survives_a_cleared_environment(monkeypatch):
     with mock.patch.dict(os.environ, {}, clear=True):
         assert not os.environ.get("PYTEST_CURRENT_TEST")
         assert live_paths.under_test() is True
+
+
+# ─── Контракт sandboxed_default: увести СВОЁ, не трогать ЧУЖОЕ ───────────────
+#
+# Отдельная функция появилась ради семейства ``spa_core/analytics/*`` (≈160
+# модулей), где путь лога приходит в писателя параметром и бывает двух природ:
+# умолчание модуля (git-tracked ``data/<имя>_log.json``) и путь, который назвал
+# сам вызывающий. Каждое свойство ниже — покрасневший замер, а не гипотеза:
+# убрать любое значит вернуть соответствующую аварию.
+
+
+def test_sandboxed_default_redirects_the_tree_default(monkeypatch, tmp_path):
+    """Своё умолчание уводится — иначе прогон снова пачкает дерево."""
+    monkeypatch.setenv(live_paths.TEST_STATE_DIR_ENV, str(tmp_path))
+    monkeypatch.delenv(live_paths.LIVE_STATE_IN_TESTS_ENV, raising=False)
+
+    tree_default = REPO_ROOT / "data" / "borrow_cost_log.json"
+    got = live_paths.sandboxed_default(tree_default, tree_default)
+
+    assert got != tree_default
+    assert Path(got).parent == tmp_path
+
+
+def test_sandboxed_default_respects_a_caller_owned_path(monkeypatch, tmp_path):
+    """Чужой путь проходит НАСКВОЗЬ.
+
+    Замер партии #1: безусловный увод покрасил тесты, которые подменяют
+    ``mod.LOG_PATH`` на ``tmp`` и требуют записи именно туда, — и они были ПРАВЫ.
+    Молча увести такой путь значило бы обессмыслить их проверку (инв. #16).
+    """
+    monkeypatch.setenv(live_paths.TEST_STATE_DIR_ENV, str(tmp_path / "sandbox"))
+    monkeypatch.delenv(live_paths.LIVE_STATE_IN_TESTS_ENV, raising=False)
+
+    caller_owned = tmp_path / "caller" / "log.json"
+    tree_default = REPO_ROOT / "data" / "borrow_cost_log.json"
+
+    assert live_paths.sandboxed_default(caller_owned, tree_default) == caller_owned
+
+
+def test_sandboxed_default_compares_normalised_paths(monkeypatch, tmp_path):
+    """``../..`` в умолчании — тот же файл, а не другой.
+
+    Замер партии #3: писатели резолвят путь по-разному
+    (``os.path.normpath`` / ``abspath`` / ``Path``), а замороженное умолчание
+    хранится «как объявлено». Сравнение сырых строк оставило ВОСЕМЬ
+    ``data/*_log.json`` писаться в дерево при формально стоящем уводе.
+    """
+    monkeypatch.setenv(live_paths.TEST_STATE_DIR_ENV, str(tmp_path))
+    monkeypatch.delenv(live_paths.LIVE_STATE_IN_TESTS_ENV, raising=False)
+
+    declared = os.path.join(
+        str(REPO_ROOT), "spa_core", "analytics", "..", "..", "data", "x_log.json"
+    )
+    resolved = os.path.normpath(declared)
+
+    assert live_paths.sandboxed_default(resolved, declared) != resolved
+    assert Path(live_paths.sandboxed_default(resolved, declared)).parent == tmp_path
+
+
+def test_sandboxed_default_keeps_the_callers_type(monkeypatch, tmp_path):
+    """``str`` остаётся ``str``, ``Path`` остаётся ``Path``.
+
+    Функция вставляется В СЕРЕДИНУ чужого писателя: следующая строка — то
+    ``path.parent.mkdir(...)``, то ``log_path + ".tmp"``. Замер партии #3:
+    подмена ``Path`` на ``str`` покрасила 30 тестов ``bridge_risk_assessor``
+    (``'str' object has no attribute 'parent'``). Увод меняет КАТАЛОГ, не тип.
+    """
+    monkeypatch.setenv(live_paths.TEST_STATE_DIR_ENV, str(tmp_path))
+    monkeypatch.delenv(live_paths.LIVE_STATE_IN_TESTS_ENV, raising=False)
+
+    tree_default = REPO_ROOT / "data" / "borrow_cost_log.json"
+    assert isinstance(live_paths.sandboxed_default(tree_default, tree_default), Path)
+    assert isinstance(
+        live_paths.sandboxed_default(str(tree_default), str(tree_default)), str
+    )
+
+
+def test_sandboxed_default_passes_none_through(monkeypatch, tmp_path):
+    """``None`` — не путь: уводить нечего, падать тоже нельзя.
+
+    Замер партии #4: писатель с сигнатурой ``log_file: Path = None`` сам
+    подставляет умолчание строкой ниже; увод, стоявший ДО подстановки, получал
+    ``None`` и ронял 21 тест ``protocol_insider_activity_monitor`` на ``Path(None)``.
+    """
+    monkeypatch.setenv(live_paths.TEST_STATE_DIR_ENV, str(tmp_path))
+    assert live_paths.sandboxed_default(None, REPO_ROOT / "data" / "x.json") is None
+
+
+def test_sandboxed_default_is_inert_without_pytest(tmp_path):
+    """Положительный контроль прод-ветки: БЕЗ pytest путь не меняется ни на байт.
+
+    Дочерний процесс, потому что изнутри прогона ``under_test()`` истинен по
+    построению — проверить прод-ветку «на месте» невозможно.
+    """
+    script = (
+        "import json, sys\n"
+        "sys.path.insert(0, sys.argv[1])\n"
+        "from spa_core.utils import live_paths\n"
+        "d = 'data/borrow_cost_log.json'\n"
+        "got = live_paths.sandboxed_default(d, d)\n"
+        "print(json.dumps({'under_test': live_paths.under_test(), 'same': got == d}))\n"
+    )
+    env = {
+        k: v
+        for k, v in os.environ.items()
+        if k
+        not in (
+            "PYTEST_CURRENT_TEST",
+            live_paths.TEST_STATE_DIR_ENV,
+            live_paths.LIVE_STATE_IN_TESTS_ENV,
+        )
+    }
+    proc = subprocess.run(
+        [sys.executable, "-c", script, str(REPO_ROOT)],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert proc.returncode == 0, proc.stderr
+
+    import json as _json
+
+    result = _json.loads(proc.stdout.strip().splitlines()[-1])
+    assert result["under_test"] is False
+    assert result["same"] is True, (
+        "БЕЗ pytest sandboxed_default изменил путь — увод протёк в прод"
+    )

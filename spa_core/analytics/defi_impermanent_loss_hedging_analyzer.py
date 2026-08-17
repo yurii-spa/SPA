@@ -9,11 +9,16 @@ import os
 import math
 import time
 from typing import Optional
+from spa_core.utils.live_paths import sandboxed_default
 
 # ── Constants ────────────────────────────────────────────────────────────────
 LOG_PATH = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "il_hedging_log.json"
 )
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod.LOG_PATH = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_LOG_PATH = LOG_PATH
 LOG_CAP = 100
 
 # Hedge labels
@@ -266,6 +271,9 @@ def _compute_aggregates(results: list, config: dict) -> dict:
 def _write_log(entry: dict) -> None:
     """Append entry to ring-buffer log (atomic write, cap LOG_CAP)."""
     log_path = os.path.normpath(LOG_PATH)
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+    log_path = sandboxed_default(log_path, _TREE_DEFAULT_LOG_PATH)
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
 
     existing: list = []

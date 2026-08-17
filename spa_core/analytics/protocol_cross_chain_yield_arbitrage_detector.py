@@ -8,11 +8,16 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_default
 
 LOG_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
     "data", "cross_chain_arbitrage_log.json"
 )
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod.LOG_PATH = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_LOG_PATH = LOG_PATH
 LOG_CAP = 100
 
 _OPPORTUNITY_THRESHOLDS = [
@@ -217,6 +222,9 @@ class ProtocolCrossChainYieldArbitrageDetector:
         }
         try:
             log_path = LOG_PATH
+            # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+            # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+            log_path = sandboxed_default(log_path, _TREE_DEFAULT_LOG_PATH)
             if os.path.exists(log_path):
                 with open(log_path, "r") as f:
                     buf = json.load(f)

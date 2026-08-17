@@ -111,6 +111,64 @@ track is never read or written» — и ОДИН этот тест пачкае�
 2. **5 путей от корня `tests/`**: `data/{hy_regime_log,market_regime,tear_sheet_summary,
    uptime_prev_state,uptime_status}.json`. Писатели не мерены.
 
+## Цикл #275 — семейство `spa_core/analytics/*` закрыто (194 модуля)
+
+**Замер переделан, потому что первый был неполон дважды.** (а) Импорт всех модулей в ОДНОМ
+процессе терял 115 из 745: чей-то импорт по дороге подменял `inspect`, и всё, что грузилось
+после, падало на ровном месте — «писателя не существует» вместо «замер сломался». Теперь по
+СВЕЖЕМУ процессу на модуль (`measure_one.py`). (б) Маска `spa_core/analytics/*.py`
+нерекурсивна, а CI гоняет ещё и `spa_core/analytics/gross_of/` — подпакет замерен отдельно:
+**ни один** из его 19 модулей не пишет в git-tracked путь, работы там нет.
+
+Итог замера: **194 модуля** с модульной константой, резолвящейся в git-tracked файл
+(182 различных пути) — вместо «94 модуля / 59 путей» в оценке выше.
+
+**Механизм — `live_paths.sandboxed_default(path, tree_default)`** (общая форма того, что уже
+было руками написано в `borrowing_cost_optimizer.py`). Ставится В ПИСАТЕЛЕ, а не на определении
+константы и не в сборке конфига: объявленное умолчание читают живые ассерты
+(`assertEqual(cfg["log_path"], LOG_PATH)`, `assertEqual(a.log_path, "data/...")`), и они
+остаются в силе — **отдушина под флаг НЕ понадобилась ни одному тесту** (оценка выше её
+предполагала). Уводится только путь, совпавший с умолчанием дерева; чужой проходит насквозь.
+
+Четыре свойства функции — четыре покрасневших замера, каждое закреплено тестом
+(`test_sandboxed_state_path.py`, +6 тестов, включая положительный контроль прод-ветки):
+
+| Свойство | Что было, если его нет |
+|---|---|
+| чужой путь — насквозь | партия #1: тесты подменяют `mod.LOG_PATH` на `tmp` и требуют записи туда — 7 красных, и они были ПРАВЫ |
+| сравнение нормализованных путей | партия #3: `normpath`/`abspath`/`Path` против «как объявлено» — ВОСЕМЬ `data/*_log.json` писались в дерево при формально стоящем уводе |
+| тип возврата = тип входа | партия #3: `Path`→`str` уронил 30 тестов `bridge_risk_assessor` на `'str' object has no attribute 'parent'` |
+| `None` проходит насквозь | партия #4: писатель с `log_file: Path = None` — 21 тест `protocol_insider_activity_monitor` на `Path(None)` |
+
+**Отдельно измерено: механическая правка обязана проверяться, а не предполагаться.**
+`verify_injections.py` нашёл СЕМЬ писателей, где увод сел не на ту переменную (на `log_dir`
+или на `tmp`-файл): увод формально стоит, а пишут по-прежнему по константе. Все семь исправлены
+руками.
+
+**Писатели пяти путей от корня `tests/` — ИЗМЕРЕНЫ** (инструментированный прогон `tests/`,
+обёртки вокруг `open(w/a)` / `os.replace` / `os.rename`, на каждое попадание — nodeid и кадр стека):
+
+| путь | тест | продовая строка |
+|---|---|---|
+| `data/hy_regime_log.json` | `tests/test_hy_cycle.py` (12 попаданий, `TestFailClosed` / `TestKillSwitch`) | `risk/regime_gate.py:212 log_regime_change` ← `paper_trading/hy_cycle.py:129 refresh_hy_regime` ← `:191 run_hy_cycle` |
+| `data/tear_sheet_summary.json` | `tests/test_tear_sheet.py:547,564 TestRealDataIntegration` | `reporting/tear_sheet_html.py:1152 _atomic_write_json` ← `:96 generate` |
+| `data/uptime_prev_state.json` | `tests/test_uptime_monitor.py::test_main_smoke_real_run` | `monitoring/uptime_monitor.py:594 _write_prev_state` ← `:720 _process_agent_alerts` ← `:845 run_all_checks` |
+| `data/uptime_status.json` | тот же тест | `monitoring/uptime_monitor.py:831 run_all_checks` ← `:916 main` |
+| `data/market_regime.json` | `tests/test_market_regime.py:387 TestCLI._run_cli` | **ПОДПРОЦЕСС** `python3 -m spa_core.analysis.market_regime` с `cwd=<корень>` → `analysis/market_regime.py:257 save_to_cache` |
+
+Последняя строка — отдельный класс: писатель живёт в ДОЧЕРНЕМ процессе, поэтому обёртка
+внутри pytest его не видит (её нашли сверкой `git status`, а не пробой). Увод там сработает
+через `PYTEST_CURRENT_TEST`, который дочерний процесс наследует, — ради этого признак и был
+оставлен вторым в `under_test()`.
+
+### Что ОСТАЛОСЬ (цикл #275 не закрывает карточку)
+
+1. **Пять путей от корня `tests/` — измерены, но НЕ уведены.** Три из пяти писателей лежат в
+   `spa_core/risk/` (`regime_gate.py`) и `spa_core/monitoring/` — это не аналитика, у них своя
+   зона и свои правила; правка требует отдельной итерации, а не довеска к этой.
+2. **Полный прогон `tests/` (13 020 тестов) не перепроверен ПОСЛЕ увода аналитики** — он шёл
+   8 минут ради замера писателей и повторно не гонялся.
+
 ## Acceptance criteria
 
 - после полного прогона `tests/` в чистом чекауте `origin/main` `git status --porcelain` пуст;

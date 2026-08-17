@@ -14,6 +14,7 @@ import tempfile
 import time
 from dataclasses import dataclass, field, asdict
 from typing import List, Optional
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Data path
@@ -21,6 +22,10 @@ from typing import List, Optional
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.dirname(os.path.dirname(_HERE))
 DATA_FILE = os.path.join(_REPO_ROOT, "data", "cross_chain_arbitrage_log.json")
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod.DATA_FILE = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_DATA_FILE = DATA_FILE
 
 RING_BUFFER_CAP = 100
 
@@ -247,6 +252,9 @@ def save_results(
     data_file: str = DATA_FILE,
 ) -> ArbitrageOpportunity:
     """Append to ring-buffer (cap 100), atomic write. Mutates opp.saved_to."""
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+    data_file = sandboxed_default(data_file, _TREE_DEFAULT_DATA_FILE)
     history = load_history(data_file)
     entry = _opportunity_to_dict(opp)
     history.append(entry)

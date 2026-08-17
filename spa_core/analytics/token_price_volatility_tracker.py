@@ -16,6 +16,7 @@ import os
 import time
 from typing import List, Optional
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_default
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 
@@ -23,6 +24,10 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.dirname(os.path.dirname(_HERE))
 _DATA_DIR = os.path.join(_REPO_ROOT, "data")
 _LOG_FILE = os.path.join(_DATA_DIR, "token_volatility_log.json")
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod._LOG_FILE = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_LOG_FILE = _LOG_FILE
 
 _RING_BUFFER_CAP = 100
 
@@ -245,4 +250,7 @@ def _append_log(entry: dict) -> None:
 
 
 def _atomic_write(path: str, obj) -> None:
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+    path = sandboxed_default(path, _TREE_DEFAULT_LOG_FILE)
     atomic_save(obj, str(path))

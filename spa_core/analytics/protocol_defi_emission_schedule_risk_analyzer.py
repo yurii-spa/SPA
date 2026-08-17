@@ -14,11 +14,16 @@ import json
 import os
 from typing import Any, Dict, List, Optional
 from spa_core.utils import clock
+from spa_core.utils.live_paths import sandboxed_default
 
 _LOG_CAP = 100
 _DEFAULT_LOG_PATH = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "emission_schedule_risk_log.json"
 )
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod._DEFAULT_LOG_PATH = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_DEFAULT_LOG_PATH = _DEFAULT_LOG_PATH
 
 _LABEL_SUSTAINABLE = "SUSTAINABLE_TOKENOMICS"
 _LABEL_MANAGEABLE  = "MANAGEABLE_INFLATION"
@@ -49,6 +54,9 @@ _UNLOCK_SHOCK_MAX     = 30.0   # % of circulating supply unlocking → saturates
 
 def _atomic_write_json(path: str, data: Any) -> None:
     """Write JSON atomically: write to .tmp then os.replace."""
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+    path = sandboxed_default(path, _TREE_DEFAULT_DEFAULT_LOG_PATH)
     directory = os.path.dirname(os.path.abspath(path))
     os.makedirs(directory, exist_ok=True)
     tmp = path + ".tmp"

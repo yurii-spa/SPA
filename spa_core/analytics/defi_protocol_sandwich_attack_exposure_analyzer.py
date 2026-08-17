@@ -33,13 +33,21 @@ import os
 import time
 from typing import Any
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 _LOG_FILENAME = "sandwich_attack_exposure_log.json"
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod._LOG_FILENAME = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_LOG_FILENAME = _LOG_FILENAME
 _LOG_CAP = 100
 _DEFAULT_DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data")
+#: Умолчание ДЕРЕВА, снятое на импорте: git-tracked data/<...>_log.json.
+#: Явно переданный ``data_dir`` проходит насквозь (live_paths.sandboxed_default).
+_TREE_DEFAULT_LOG_PATH = os.path.join(_DEFAULT_DATA_DIR, _LOG_FILENAME)
 
 # Scoring weights
 _MEMPOOL_FEASIBILITY_BONUS = 40.0
@@ -305,7 +313,9 @@ class DeFiProtocolSandwichAttackExposureAnalyzer:
         }
 
         if write_log:
-            log_path = os.path.join(self.data_dir, _LOG_FILENAME)
+            log_path = sandboxed_default(
+                os.path.join(self.data_dir, _TREE_DEFAULT_LOG_FILENAME), _TREE_DEFAULT_LOG_PATH
+            )
             entry = {
                 "timestamp": result["timestamp"],
                 "protocol_name": result["protocol_name"],
@@ -329,7 +339,9 @@ class DeFiProtocolSandwichAttackExposureAnalyzer:
         """
         results = [self.analyze(inp, write_log=False) for inp in inputs]
         if write_log and results:
-            log_path = os.path.join(self.data_dir, _LOG_FILENAME)
+            log_path = sandboxed_default(
+                os.path.join(self.data_dir, _TREE_DEFAULT_LOG_FILENAME), _TREE_DEFAULT_LOG_PATH
+            )
             entry = {
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 "batch_size": len(results),

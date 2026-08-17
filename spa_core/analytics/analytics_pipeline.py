@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Project root resolution
@@ -322,8 +323,11 @@ class AnalyticsPipeline:
     def __init__(self, data_dir: Optional[Path] = None,
                  report_file: Optional[Path] = None):
         self.data_dir = Path(data_dir) if data_dir else _DEFAULT_DATA_DIR
-        self.report_file = Path(report_file) if report_file else (
-            self.data_dir / "analytics_report.json"
+        # Умолчание дерева (git-tracked data/analytics_report.json) уводится в
+        # песочницу под тестами; явный report_file/data_dir — насквозь.
+        self.report_file = sandboxed_default(
+            Path(report_file) if report_file else (self.data_dir / "analytics_report.json"),
+            REPORT_FILE,
         )
         self._modules_run = 0
         self._modules_failed = 0

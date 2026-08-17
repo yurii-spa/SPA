@@ -8,11 +8,16 @@ import json
 import os
 import time
 from typing import Any
+from spa_core.utils.live_paths import sandboxed_default
 
 LOG_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
     "data", "yield_authenticity_log.json"
 )
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod.LOG_PATH = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_LOG_PATH = LOG_PATH
 LOG_CAP = 100
 
 
@@ -226,6 +231,9 @@ class ProtocolYieldSourceAuthenticityChecker:
     def _append_log(self, result: dict) -> None:
         """Ring-buffer append to yield_authenticity_log.json (cap 100)."""
         log_path = LOG_PATH
+        # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+        # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+        log_path = sandboxed_default(log_path, _TREE_DEFAULT_LOG_PATH)
         os.makedirs(os.path.dirname(log_path), exist_ok=True)
 
         existing = []

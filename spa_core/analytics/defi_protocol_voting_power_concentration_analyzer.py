@@ -47,6 +47,7 @@ import os
 import time
 from typing import Any
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -56,6 +57,10 @@ _LOG_FILENAME = "voting_power_concentration_log.json"
 _LOG_PATH = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", _LOG_FILENAME
 )
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod._LOG_PATH = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_LOG_PATH = _LOG_PATH
 _LOG_CAP = 100
 
 # Label thresholds on top5_voting_power_pct
@@ -175,6 +180,9 @@ def _governance_label(top5: float) -> str:
 
 def _atomic_log(log_path: str, entry: dict, log_cap: int = _LOG_CAP) -> None:
     """Append *entry* to ring-buffer JSON array (capped at log_cap), atomic write."""
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+    log_path = sandboxed_default(log_path, _TREE_DEFAULT_LOG_PATH)
     abs_path = os.path.abspath(log_path)
     os.makedirs(os.path.dirname(abs_path), exist_ok=True)
 

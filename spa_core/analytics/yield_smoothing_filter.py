@@ -15,8 +15,13 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Tuple
+from spa_core.utils.live_paths import sandboxed_default
 
 DATA_FILE = Path("data/yield_smoothing_log.json")
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod.DATA_FILE = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_DATA_FILE = DATA_FILE
 MAX_ENTRIES = 100
 
 
@@ -285,6 +290,9 @@ def save_results(
     data_file: Path = DATA_FILE,
 ) -> None:
     """Append result to ring-buffer JSON file (max MAX_ENTRIES). Atomic write."""
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+    data_file = sandboxed_default(data_file, _TREE_DEFAULT_DATA_FILE)
     data_file = Path(data_file)
     data_file.parent.mkdir(parents=True, exist_ok=True)
 

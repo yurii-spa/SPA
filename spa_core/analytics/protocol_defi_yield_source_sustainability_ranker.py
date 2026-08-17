@@ -13,6 +13,7 @@ import math
 import os
 import time
 from typing import Any
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -25,6 +26,10 @@ _LOG_PATH = os.path.join(
     "data",
     "yield_sustainability_rank_log.json",
 )
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod._LOG_PATH = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_LOG_PATH = _LOG_PATH
 _LOG_CAP = 100
 
 # Competitive advantage weights for sustainability scoring
@@ -435,6 +440,9 @@ class ProtocolDeFiYieldSourceSustainabilityRanker:
     def _append_log(self, output: dict) -> None:
         """Append compressed record to ring-buffer log (atomic write)."""
         log_path = os.path.abspath(_LOG_PATH)
+        # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+        # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+        log_path = sandboxed_default(log_path, _TREE_DEFAULT_LOG_PATH)
         os.makedirs(os.path.dirname(log_path), exist_ok=True)
 
         record = {

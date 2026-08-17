@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import os
+from spa_core.utils.live_paths import sandboxed_default
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -78,7 +79,12 @@ class FundingRateArbitrageDetector:
         log_filename: str = "funding_rate_arb_log.json",
     ) -> None:
         self._data_dir = data_dir or _default_data_dir()
-        self._log_file = os.path.join(self._data_dir, log_filename)
+        # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+        # явно переданный data_dir проходит насквозь (live_paths.sandboxed_default).
+        self._log_file = sandboxed_default(
+            os.path.join(self._data_dir, log_filename),
+            os.path.join(_default_data_dir(), log_filename),
+        )
         self._log: List[Dict[str, Any]] = self._load_log()
         self._last_results: List[Dict[str, Any]] = []
 

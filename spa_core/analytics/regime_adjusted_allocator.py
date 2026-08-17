@@ -44,6 +44,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 from spa_core.base import BaseAnalytics
+from spa_core.utils.live_paths import sandboxed_default
 
 # ── Regime constants ────────────────────────────────────────────────────────────
 
@@ -322,9 +323,12 @@ class RegimeAdjustedAllocator(BaseAnalytics):
             },
         }
 
-        out_dir = self.base_dir / "data"
-        out_dir.mkdir(parents=True, exist_ok=True)
-        out_path = out_dir / "current_allocation.json"
+        # Умолчание дерева (git-tracked data/current_allocation.json) уводится в
+        # песочницу под тестами; явный base_dir проходит насквозь.
+        out_path = sandboxed_default(
+            self.base_dir / "data" / "current_allocation.json", Path(self.OUTPUT_PATH)
+        )
+        out_path.parent.mkdir(parents=True, exist_ok=True)
 
         from spa_core.utils.atomic import atomic_save
         atomic_save(payload, str(out_path))

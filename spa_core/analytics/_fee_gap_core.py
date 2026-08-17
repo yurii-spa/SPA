@@ -40,6 +40,8 @@ import os
 from datetime import datetime, timezone
 from typing import List, Optional
 
+from spa_core.utils.live_paths import sandboxed_default
+
 # ── family-wide constants ─────────────────────────────────────────────────────
 LOG_CAP = 100
 
@@ -675,6 +677,11 @@ class _FeeGapAnalyzerBase:
 
     def _write_log(self, results: List[dict], agg: dict, cfg: dict) -> None:
         log_path = cfg["log_path"]
+        # Умолчание модуля (git-tracked ``data/<...>_log.json``) уводится в
+        # песочницу под тестами; путь, названный вызывающим, проходит насквозь.
+        # Один этот писатель обслуживает всё семейство ``*_gross_of_*`` — 24
+        # модуля объявляют только свой ``LOG_PATH`` и делят этот код.
+        log_path = sandboxed_default(log_path, self._SPEC["log_path"])
         cap = cfg["log_cap"]
         os.makedirs(os.path.dirname(log_path), exist_ok=True)
 

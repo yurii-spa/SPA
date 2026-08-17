@@ -10,6 +10,7 @@ import os
 import time
 from typing import Any
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_default
 
 # ── Risk labels ────────────────────────────────────────────────────────────
 LABEL_COMPLIANT      = "COMPLIANT"
@@ -29,6 +30,10 @@ FLAG_STABLECOIN_SYSTEMIC      = "STABLECOIN_SYSTEMIC"
 # ── Constants ──────────────────────────────────────────────────────────────
 _LOG_CAP          = 100
 _LOG_PATH_DEFAULT = "data/regulatory_risk_log.json"
+#: Умолчание ДЕРЕВА, снятое на импорте. Именно с ним сверяется путь записи:
+#: подмена константы выше (``mod._LOG_PATH_DEFAULT = tmp`` в тестах) обязана проходить
+#: насквозь, а не уводиться в песочницу. См. live_paths.sandboxed_default.
+_TREE_DEFAULT_LOG_PATH_DEFAULT = _LOG_PATH_DEFAULT
 
 # High-risk jurisdictions for regulatory exposure
 _HIGH_RISK_JURISDICTIONS = {"US", "USA", "United States"}
@@ -42,6 +47,9 @@ _SECURITIES_CATEGORY_RISK = {"derivatives": 20, "yield": 5, "lending": 5}
 
 def _atomic_write(path: str, obj: Any) -> None:
     """Write JSON atomically via tmp + os.replace."""
+    # Умолчание дерева (git-tracked) уводится в песочницу под тестами;
+    # явно переданный путь проходит насквозь (см. live_paths.sandboxed_default).
+    path = sandboxed_default(path, _TREE_DEFAULT_LOG_PATH_DEFAULT)
     dir_ = os.path.dirname(path) or "."
     os.makedirs(dir_, exist_ok=True)
     atomic_save(obj, str(path))
