@@ -111,6 +111,7 @@ from spa_core.paper_trading.risk_gate import (  # noqa: F401 — re-exported
     write_daily_block_slice,
 )
 from spa_core.paper_trading.cycle_exit import (  # noqa: F401 — re-exported
+    EXIT_ERROR as _EXIT_ERROR,
     EXIT_LOCK_REFUSED as _EXIT_LOCK_REFUSED,
     describe_exit as _describe_exit,
     exit_code_for_status as _exit_code_for_status,
@@ -2819,6 +2820,59 @@ def _run_fundability_pack(data_dir: "str | os.PathLike | None" = None) -> None:
 
 
 
+def _run_inner_owning_the_refusal_code(argv: list[str]) -> int:
+    """Прогон цикла, из которого код отказа замка выйти НЕ МОЖЕТ.
+
+    Карточка ``inbox-otkaz-zamka-tsikla-neotlichim-ot-avarii`` требует, чтобы
+    отказ замка был ОТЛИЧИМ от аварии. Коды развели (#219), читателя научили
+    покупать тишину доказательством живого держателя (``judge_lock_refusal``) —
+    и осталась дыра ровно посередине: **двойку производил не только замок.**
+
+    Замер 2026-08-17 на этом дереве::
+
+        $ python3 -m spa_core.paper_trading.cycle_runner --nonexistent-flag
+        cycle_runner: error: unrecognized arguments: --nonexistent-flag
+        exit = 2
+
+    ``argparse.ArgumentParser.error`` завершает процесс кодом ``2`` (POSIX-конвенция
+    «ошибка использования»), и это тот же байт, которым замок говорит «цикл уже
+    идёт». Последствие измерено сквозь настоящего читателя: авария, при которой
+    цикл ВООБЩЕ НЕ ЗАПУСКАЛСЯ, при живом держателе замка получала вердикт
+    ``OK — отказ ЗАКОНЕН: держатель pid=… ЖИВ, трек защищён``. То есть тишина,
+    купленная доказательством, доставалась исходу, к которому доказательство не
+    относится, — fail-OPEN, зеркальный тому, ради которого карточка заведена.
+    Обёртка при том же коде пишет «Cycle REFUSED (замок занят)» и пропускает
+    шаги отчётности, а ``cycle_lock_watch.count_refusals`` засчитывает аварию
+    в счётчик отказов.
+
+    Решение — на стороне ПРОИЗВОДИТЕЛЯ, и оно про владение кодом, а не про
+    argparse: код отказа выходит из программы РОВНО ИЗ ОДНОЙ ветки — той, где
+    замок действительно оказался занят (``main``). Всё, что вернулось или
+    вылетело из ``_main_inner``, кодом отказа притвориться не может: двойка
+    оттуда — авария и называется аварией (``EXIT_ERROR``). Fail-CLOSED: правило
+    держится не перечислением известных производителей двойки (argparse
+    сегодня, чужой ``sys.exit(2)`` завтра), а тем, что дверь одна.
+
+    ``SystemExit`` здесь перехватывается намеренно: argparse (и ``--help``)
+    выходят исключением, а не возвратом. Код сохраняется как есть — меняется
+    ровно один: ``2`` → ``1``.
+    """
+    try:
+        code = _main_inner(argv)
+    except SystemExit as exc:  # argparse: неверные аргументы / --help
+        code = exc.code
+        if code is None:
+            code = 0
+        elif not isinstance(code, int):  # сообщение вместо кода → ошибка
+            code = _EXIT_ERROR
+    if code == _EXIT_LOCK_REFUSED:
+        log.error("Цикл завершился кодом %s, НЕ взяв замок: это авария, а не отказ "
+                  "замка. Код заменён на %s, чтобы поломка не читалась как «цикл уже "
+                  "идёт».", _EXIT_LOCK_REFUSED, _EXIT_ERROR)
+        return _EXIT_ERROR
+    return code
+
+
 def main(argv: list[str] | None = None) -> int:
     """Точка входа с защитой от одновременных прогонов.
 
@@ -2833,7 +2887,9 @@ def main(argv: list[str] | None = None) -> int:
     import sys as _sys
     argv = list(argv if argv is not None else _sys.argv[1:])
     if "--dry-run" in argv:
-        return _main_inner(argv)
+        # Замок не берётся — значит и код отказа отсюда выйти не имеет права
+        # (см. `_run_inner_owning_the_refusal_code`).
+        return _run_inner_owning_the_refusal_code(argv)
 
     # Корень определяется так же, как в остальном модуле (см. _root ниже по файлу),
     # чтобы замок лёг ровно туда, куда цикл пишет.
@@ -2854,7 +2910,10 @@ def main(argv: list[str] | None = None) -> int:
         # цифры, чтобы словарь исходов был один на весь модуль.
         return _EXIT_LOCK_REFUSED
     try:
-        return _main_inner(argv)
+        # Замок ВЗЯТ — значит цикл идёт, и «цикл уже идёт» отсюда сказать нельзя:
+        # двойка, родившаяся внутри (argparse и всё будущее ей подобное), выйдет
+        # отсюда аварией. Единственный законный источник кода отказа — ветка выше.
+        return _run_inner_owning_the_refusal_code(argv)
     finally:
         _release_cycle_lock(lock, data_dir)
 

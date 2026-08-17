@@ -212,5 +212,53 @@ print(CPACycleWithEvidence(base_dir='.').run())
 # замолчит, это увидит `agent_health` (свежесть по plist) и B2 сторожа архитектуры
 # (SLO артефакта) — молчание алармится, а не проходит незамеченным.
 
+# ── Шаг 7: доказательство, что тормоза СРАБАТЫВАЮТ (Q2-1 + Q2-13) ─────────────
+# `spa_core/api/routers/readiness.py:65-66` ЧИТАЕТ `data/defenses_exercised.json` и
+# `data/defenses_exercised_rtmr.json` — это её главный довод «governance defenses FIRE».
+# Производителей у обоих файлов не было: оба скрипта доставлены и не вызывались никем
+# (замер храповика 17.08). То есть страница готовности обещала воспроизводимое
+# доказательство, а файла, на который она ссылается, в дереве не существовало.
+# Отчёт ДЕТЕРМИНИРОВАН и ИНЕРТЕН: гоняет НАСТОЯЩИЙ `kill_switch` / `cycle_gates` /
+# `monitoring.reaction` по синтетической матрице в одноразовой песочнице, живой трек
+# не трогает и капитал не двигает. Замер 17.08: 21/21 срабатываний, exit 0, доли секунды.
+# ЗДЕСЬ, а не своим LaunchAgent'ом — та же причина, что у шагов 4–6: флот не растёт ради
+# одного файла, а шаг цикла нельзя забыть при установке.
+# НЕ ФАТАЛЬНО: exit 1 означает НАХОДКУ (защита НЕ сработала) — её видно в артефакте и на
+# /api/readiness; ронять трек этим нельзя.
+"$PYTHON" scripts/defenses_exercised_report.py >> "$LOG_FILE" 2>&1 \
+  || echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] defenses_exercised: защита НЕ сработала или отчёт упал (non-fatal, см. data/defenses_exercised.json)" | tee -a "$LOG_FILE"
+"$PYTHON" scripts/defenses_exercised_rtmr.py >> "$LOG_FILE" 2>&1 \
+  || echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] defenses_exercised_rtmr: реакция RTMR НЕ сработала или отчёт упал (non-fatal, см. data/defenses_exercised_rtmr.json)" | tee -a "$LOG_FILE"
+
+# ── Шаг 8: A/B оптимизатора (WS-1.3) — число, которое владелец видит ДО решения ──
+# `GET /api/optimizer-ab` отдаёт `data/optimizer_ab.json`; при отсутствии файла роутер
+# честно отвечает «artifact not yet generated. Run scripts/optimizer_ab.py». Так и было —
+# у харнесса не было ни агента, ни шага цикла, и ручка отдавала отказ ВСЕГДА. Замер 17.08:
+# харнесс отрабатывает за 0.14 с и выдаёт +1.3541 pp risk-adjusted на 13 evidenced-днях.
+# Харнесс НЕ меняет умолчание цикла: `SPA_OPTIMIZER_CYCLE_DEFAULT` остаётся OFF, оптимизатор
+# живёт за флагом — это shadow-replay, а не переключение аллокатора. Живой трек читается
+# ТОЛЬКО на чтение, вся раскладка гоняется по песочнице, пишется единственный свой артефакт.
+# ПОРЯДОК ОБЯЗАТЕЛЕН: строго ПОСЛЕ cycle_runner — иначе реплей идёт по вчерашнему треку.
+# НЕ ФАТАЛЬНО: при пустом/битом окне харнесс сам fail-CLOSED'ится в `status:"unavailable"`.
+"$PYTHON" scripts/optimizer_ab.py >> "$LOG_FILE" 2>&1 \
+  || echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] optimizer_ab: реплей не удался (non-fatal, см. data/optimizer_ab.json)" >> "$LOG_FILE"
+
+# ── Шаг 9: «не верь нам, проверь нас» — своими же ОТДЕЛЬНОСТОЯЩИМИ верификаторами ──
+# У `verify_spa.py` вызывающий ЕСТЬ, и не один: `scripts/smoke.py` и `scripts/drill_restore.py`
+# грузят его через `spec_from_file_location` и гоняют по восстановленному/живому дереву, а
+# `refresh_published_proof.py` делает им же self-verify после каждого обновления пачки. То есть
+# правило дома такое: свой верификатор мы гоняем САМИ, иначе «проверьте нас» — обещание, которое
+# первым сломаем мы. У двух младших верификаторов (`verify_riskwire.py` — measurements +
+# day30_review, `verify_dfb_pool.py` — per-pool proof-chain) такого прогона не было ни одного,
+# хотя ОБА артефакта производятся у нас же: riskwire пишет `cycle_runner` (шаг riskwire facade +
+# day30_review), dfb — агент `com.spa.dfb_capture`. Публиковали и не перепроверяли.
+# ПОРЯДОК ОБЯЗАТЕЛЕН: строго ПОСЛЕ cycle_runner — сверяется СВЕЖЕопубликованное.
+# НЕ ФАТАЛЬНО намеренно: код 1 = расхождение (настоящая находка, читать в логе), код 2 = артефактов
+# нет (ещё не публиковались). Ни то ни другое не поломка трека, но молчанием это не проходит.
+"$PYTHON" scripts/verify_riskwire.py data/riskwire/ >> "$LOG_FILE" 2>&1 \
+  || echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] verify_riskwire: артефакты RISKWIRE не воспроизвелись или их нет (non-fatal, см. лог выше)" | tee -a "$LOG_FILE"
+"$PYTHON" scripts/verify_dfb_pool.py data/dfb/ >> "$LOG_FILE" 2>&1 \
+  || echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] verify_dfb_pool: пулы DFB не воспроизвелись или их нет (non-fatal, см. лог выше)" | tee -a "$LOG_FILE"
+
 echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Cycle completed (cycle_runner exit $CYCLE_EXIT${CYCLE_WORDS:+ — $CYCLE_WORDS})" | tee -a "$LOG_FILE"
 exit $CYCLE_EXIT

@@ -181,7 +181,7 @@ def refresh(data_dir: Optional[Path] = None, dd_pack_path: Optional[Path] = None
     fail-CLOSED: if the chain is broken/empty we refresh NOTHING and report it.
 
     Returns {ok, head, chain_length, anchor_appended, exit_nav_written, dd_pack_path,
-             dd_pack_head, self_verify_ok, errors}."""
+             dd_pack_head, self_verify_ok, dd_snapshot_ok, dd_snapshot_head, errors}."""
     from spa_core.strategy_lab.rates_desk import proof_chain
     from spa_core.strategy_lab.rates_desk import exit_nav as exit_nav_mod
 
@@ -196,7 +196,8 @@ def refresh(data_dir: Optional[Path] = None, dd_pack_path: Optional[Path] = None
     summary: dict = {
         "ok": False, "head": None, "chain_length": None, "anchor_appended": False,
         "exit_nav_written": False, "dd_pack_path": str(dd_pack_path), "dd_pack_head": None,
-        "self_verify_ok": False, "errors": [],
+        "self_verify_ok": False, "dd_snapshot_ok": False, "dd_snapshot_head": None,
+        "errors": [],
     }
 
     # ── 1. re-derive the CURRENT head, EXACTLY as a third party would (shared verifier) ──
@@ -295,6 +296,34 @@ def refresh(data_dir: Optional[Path] = None, dd_pack_path: Optional[Path] = None
             "post-refresh breadth self-verify FAILED — a WORKSTREAM 2 proof surface (tournament / "
             f"RWA-NAV / sleeve) does not reproduce after refresh: {breadth_report.get('errors')}")
         return summary
+
+    # ── 5c. FROZEN OFFLINE SNAPSHOT (Q2-10) — rebuild it with the bundle, never separately ──
+    #        DD_PACK step 7 tells the funder, in the published text, to build
+    #        `data/dd_snapshot/` + SNAPSHOT_MANIFEST.json and replay it with `--offline`.
+    #        Nothing ever built it: `scripts/build_dd_snapshot.py` had no caller at all
+    #        (ratchet measurement 17.08) — the pack promised a dataset that did not exist.
+    #        Its home is HERE and not a daily step, because the snapshot PINS a decision head
+    #        (`expected_decision_head`) and the rates-desk tick advances that head every hour.
+    #        A snapshot minted once a day would go stale within the hour — the EXACT own-goal
+    #        this whole script was written to fix for DD_PACK. Refreshed together, they are
+    #        mutually consistent at any instant a reviewer pulls them.
+    #        AFTER the self-verify on purpose: we never freeze an unverified head.
+    #        fail-soft (like exit_nav above): a snapshot failure is recorded, never a torn bundle.
+    try:
+        snap = _load_script("dd_snapshot", "build_dd_snapshot.py")
+        manifest = snap.build(out_dir=base_data / "dd_snapshot", root=base_data.parent)
+        summary["dd_snapshot_head"] = manifest.get("expected_decision_head")
+        summary["dd_snapshot_ok"] = bool(manifest.get("verifier_ok"))
+        if manifest.get("expected_decision_head") != head:
+            summary["errors"].append(
+                f"dd_snapshot pinned head {manifest.get('expected_decision_head')} != "
+                f"re-derived chain head {head}")
+        elif not manifest.get("verifier_ok"):
+            summary["errors"].append(
+                f"dd_snapshot does not self-verify offline: {manifest.get('verifier_errors')}")
+    except Exception as exc:  # noqa: BLE001 — the head-bearing bundle above already stands
+        summary["dd_snapshot_ok"] = False
+        summary["errors"].append(f"dd_snapshot rebuild failed: {exc}")
 
     summary["ok"] = True
     return summary

@@ -33,7 +33,17 @@ import sys
 import argparse
 import urllib.request
 from datetime import datetime, timezone
-from spa_core.utils.atomic import atomic_save
+
+# Инструмент запускают РУКАМИ и ровно так, как написано в usage выше:
+# `python3 scripts/find_defillama_sources.py`. При таком запуске sys.path[0] = scripts/,
+# и корня репозитория на пути НЕТ — импорт ниже падал `ModuleNotFoundError: spa_core`.
+# Замер 17.08: документированная команда не работала НИ РАЗУ (сирота храповика, у которой
+# и вызывающего нет, — значит некому было и заметить). Тесты этого не ловили: они
+# импортируют `scripts.find_defillama_sources` из корня, где путь уже верный.
+# Остальные скрипты дерева делают ровно такую же вставку — это принятая здесь форма.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from spa_core.utils.atomic import atomic_save  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Config

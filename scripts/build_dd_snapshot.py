@@ -46,14 +46,26 @@ def _sha256(b: bytes) -> str:
     return hashlib.sha256(b).hexdigest()
 
 
-def build(out_dir: Path = OUT_DIR, now: datetime | None = None) -> dict:
+def build(out_dir: Path = OUT_DIR, now: datetime | None = None,
+          root: Path | None = None) -> dict:
+    """Freeze the clean-reproducing surfaces of ``root`` (default: the live repo).
+
+    ``root`` is an INPUT, not a constant, because the snapshot is now rebuilt from
+    inside ``scripts/refresh_published_proof.py`` — and that refresher runs hermetically
+    under ``--data-dir <sandbox>`` in its own tests. With the source dir hard-wired to
+    the module-level ``ROOT`` a hermetic refresh would have frozen the LIVE track into a
+    sandbox manifest: the snapshot would claim to pin what the test built while actually
+    pinning production. ``out_dir`` was already a parameter; the read side simply owed
+    the same honesty.
+    """
     from scripts import verify_spa
+    src_root = Path(root) if root is not None else ROOT
     now = now or datetime.now(timezone.utc)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     files = []
     for rel, arc, letter, desc in _SURFACES:
-        src = ROOT / rel
+        src = src_root / rel
         dst = out_dir / arc
         if src.is_file():
             data = src.read_bytes()
@@ -102,11 +114,14 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Build the offline-verifiable SPA DD data snapshot")
     ap.add_argument("--out-dir", default=None)
     args = ap.parse_args()
-    m = build(out_dir=Path(args.out_dir) if args.out_dir else OUT_DIR)
+    out_dir = Path(args.out_dir) if args.out_dir else OUT_DIR
+    m = build(out_dir=out_dir)
     print(f"[build_dd_snapshot] verifier_ok={m['verifier_ok']} head={str(m['expected_decision_head'])[:16]} "
           f"surfaces={m['expected_surfaces']}")
     print(f"  replay: {m['replay_command']}")
-    print(f"  → wrote {OUT_DIR}/SNAPSHOT_MANIFEST.json")
+    # Печатать OUT_DIR при заданном --out-dir значило врать о месте записи (замер 17.08:
+    # снимок лёг в /tmp, а строка отчиталась про data/dd_snapshot).
+    print(f"  → wrote {out_dir}/SNAPSHOT_MANIFEST.json")
     return 0 if m["verifier_ok"] else 1
 
 

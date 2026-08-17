@@ -1819,7 +1819,7 @@
    "consumers": [
     "orchestrator_protocol",
     "digest_daily",
-    "findings_to_cards"
+    "findings_bridge"
    ],
    "status": "active",
    "notes": "ADR-066: отчёт сторожа; потребитель-мост — Фаза 3",
@@ -1838,7 +1838,7 @@
    "producer": "com.spa.decision_loop",
    "consumers": [
     "orchestrator_protocol",
-    "findings_to_cards"
+    "findings_bridge"
    ],
    "status": "active",
    "notes": "ADR-066 Фаза 3",
@@ -1869,7 +1869,7 @@
    "path": "data/loop_retro.json",
    "producer": "com.spa.decision_loop",
    "consumers": [
-    "findings_to_cards",
+    "findings_bridge",
     "orchestrator_protocol"
    ],
    "slo_hours": 192,
