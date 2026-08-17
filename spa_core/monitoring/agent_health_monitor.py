@@ -47,7 +47,11 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
 from spa_core.monitoring.agent_registry_refresh import refresh_if_stale
-from spa_core.monitoring.cycle_lock_watch import check_cycle_lock
+from spa_core.monitoring.cycle_lock_watch import (
+    CycleLockVerdict,
+    check_cycle_lock,
+    judge_lock_refusal,
+)
 # Словарь исходов дневного цикла. Импорт безопасен: `cycle_exit` — чистый
 # stdlib без единой зависимости (пакет `spa_core.paper_trading` пуст), money-path
 # в read-only слой не тянется. Именно поэтому здесь ОДИН источник правды, а не
@@ -96,6 +100,14 @@ SNAPSHOT_STALE_MIN = 90.0
 # 2026-08-05 07:00Z: 39 of 69 agents fell in the same minute.
 WAKE_STORM_MIN_AGENTS = 5
 
+# Вердикт атрибуции кэша, у которого причина НАЗВАНА (ADR-076.3): книга упёрлась
+# в потолок одной цепочки. ВТОРАЯ КОПИЯ значения — осознанно, тем же приёмом, что
+# пороги в `cycle_lock_watch`: импортировать `capital_efficiency` отсюда значило бы
+# затащить в read-only монитор `spa_core.risk.policy` + адаптеры (и его
+# `sys.path.insert`) ради одной строки. Копия не свободна — расхождение краснит
+# parity-тест, который импортирует производителя напрямую.
+_CAP_BOUND_CHAIN = "CAP_BOUND_CHAIN"
+
 # Shared red-flag severity vocabulary + portfolio_health field reader (single
 # source — N8). Matching the critical SET (not a hard-coded literal) means a
 # red_flag_monitor severity rename can only widen detection, never disable it.
@@ -104,8 +116,17 @@ try:
     from spa_core.alerts.severity import (
         read_portfolio_health_score as _read_portfolio_health_score,
     )
+    # ONE number -> ONE verdict (see spa_core/alerts/severity.py): the portfolio
+    # health severity is decided in ONE place for both health monitors.
+    from spa_core.alerts.severity import (
+        classify_portfolio_health as _classify_portfolio_health,
+    )
+    from spa_core.alerts.severity import (
+        PORTFOLIO_HEALTH_FLOOR as _SHARED_PORTFOLIO_HEALTH_FLOOR,
+    )
 except Exception:                          # noqa: BLE001 — never let an import gap blind the monitor
     _FALLBACK_CRIT = frozenset({"CRITICAL", "CRIT", "FATAL", "SEVERE", "EMERGENCY"})
+    _SHARED_PORTFOLIO_HEALTH_FLOOR = 70.0
 
     def _is_critical_severity(sev) -> bool:  # type: ignore[no-redef]
         return isinstance(sev, str) and sev.strip().upper() in _FALLBACK_CRIT
@@ -118,6 +139,17 @@ except Exception:                          # noqa: BLE001 — never let an impor
             if isinstance(v, (int, float)) and not isinstance(v, bool):
                 return float(v)
         return None
+
+    def _classify_portfolio_health(score, floor=_SHARED_PORTFOLIO_HEALTH_FLOOR):  # type: ignore[no-redef]
+        import math as _math
+        if isinstance(score, bool) or not isinstance(score, (int, float)):
+            return "WARNING", "portfolio health score absent or not numeric (absence != breach)"
+        v = float(score)
+        if not _math.isfinite(v):
+            return "WARNING", "portfolio health score not finite (absence != breach)"
+        if v < float(floor):
+            return "WARNING", f"portfolio health {v:g} < {float(floor):g} (composite quality score)"
+        return "OK", f"portfolio health {v:g} >= {float(floor):g}"
 
 
 def _worst(*statuses: str) -> str:
@@ -236,7 +268,9 @@ def requires_residency(category: str, plist: Optional[dict]) -> bool:
 # System-check thresholds
 EQUITY_STALE_H = 30.0
 CYCLE_STALE_H = 26.0
-PORTFOLIO_HEALTH_FLOOR = 70.0
+# Floor and verdict both live with the shared classifier (spa_core/alerts/severity.py):
+# two modules restating the same literal is how they drifted to two verdicts.
+PORTFOLIO_HEALTH_FLOOR = _SHARED_PORTFOLIO_HEALTH_FLOOR
 AUTOPUSH_LAG_H = 2.0
 # Track-accrual SLA: daily cadence (24h) + 6h buffer = one fully-missed cycle.
 TRACK_SLA_H = 30.0
@@ -535,8 +569,15 @@ def _hours_since(ts: Optional[str], now: datetime) -> Optional[float]:
 # ===========================================================================
 def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
                 launchctl: Dict[str, dict], now: datetime,
-                project_root: Path = _PROJECT_ROOT) -> AgentHealth:
-    """Classify the health of a single agent. Fail-safe."""
+                project_root: Path = _PROJECT_ROOT,
+                *, cycle_lock: Optional[CycleLockVerdict] = None) -> AgentHealth:
+    """Classify the health of a single agent. Fail-safe.
+
+    ``cycle_lock`` — уже прочитанный вердикт замка дневного цикла (тот же снимок,
+    который судит `check_system`). Нужен ровно для одного вывода: код отказа
+    замка законен ТОЛЬКО при живом держателе. Не передан ⇒ «НЕ ИЗМЕРЕНО», то
+    есть прежняя громкость (fail-CLOSED, см. `judge_lock_refusal`).
+    """
     cat = classify_agent(plist)
     health = AgentHealth(label=label, category=cat)
 
@@ -598,12 +639,41 @@ def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
         if label == CYCLE_AGENT_LABEL and isinstance(health.last_exit, int)
         else None
     )
+    # 3b) ОТКАЗ ЗАМКА — вторая половина карточки
+    # `inbox-otkaz-zamka-tsikla-neotlichim-ot-avarii`. Первую (развести коды:
+    # авария 1, отказ замка 2) закрыл цикл #219, и она сама по себе ничего не
+    # изменила — читатель по-прежнему красил двойку тем же жёлтым, что аварию,
+    # то есть «смена цифры без смены смысла». Замер 08.08: цикл звали 20 раз,
+    # 18 — отказ замка, ни одной аварии, и пульт светился ⚠️.
+    #
+    # ПОЧЕМУ НЕЛЬЗЯ ПРОСТО ПОГАСИТЬ КОД 2. У отказа две ПРОТИВОПОЛОЖНЫЕ причины,
+    # и код выхода их не различает: замок держит ЖИВОЙ цикл (отказ второго вызова
+    # есть работа защиты) либо ТРУП (дневной цикл встал — оба инцидента 08.08
+    # именно такие, pid 99899 и 98535). Погасить двойку огулом значило бы
+    # заглушить вторую причину вместе с первой. Различает их ФАЙЛ ЗАМКА, а не код,
+    # поэтому решение живёт в `cycle_lock_watch.judge_lock_refusal` (там же и его
+    # тесты), а здесь — место вызова: тишина покупается ТОЛЬКО доказательством
+    # живого держателя, всё остальное («не измерено» в том числе) громко, как было.
+    _lock_refusal = (
+        judge_lock_refusal(cycle_lock, health.last_exit)
+        if label == CYCLE_AGENT_LABEL and not _clean_signal_restart
+        else None
+    )
+    _lock_refusal_ok = _lock_refusal is not None and _lock_refusal[0] == OK
+
     if (
         label == CYCLE_AGENT_LABEL
         and cycle_exit_by_design(health.last_exit)
         and not _clean_signal_restart
     ):
         health.note = f"last_exit={health.last_exit} — {_cycle_exit_meaning}"
+    elif _lock_refusal_ok:
+        # By design ПО ДОКАЗАТЕЛЬСТВУ, а не по коду: здоровье не краснеет, но и
+        # молчания нет — причина названа вслух вместе с предъявленным держателем.
+        health.note = (
+            f"last_exit={health.last_exit} — {_cycle_exit_meaning}; "
+            f"{_lock_refusal[1]}"
+        )
     elif health.last_exit not in (None, 0) and not _clean_signal_restart:
         _exit_text = (
             f"last_exit={health.last_exit}"
@@ -698,8 +768,14 @@ def _load_json(data_dir: Path, *names: str) -> Optional[dict]:
 def check_system(data_dir: Path, now: datetime,
                  autopush_log: str = _AUTOPUSH_LOG,
                  code_freshness: Optional[Callable[[], dict]] = None,
+                 cycle_lock: Optional[CycleLockVerdict] = None,
                  ) -> Tuple[dict, str, List[str]]:
-    """Run system-state checks. Returns (system_checks, status, issue_lines)."""
+    """Run system-state checks. Returns (system_checks, status, issue_lines).
+
+    ``cycle_lock`` — вердикт замка, уже прочитанный вызывающим (`collect`), чтобы
+    обе половины отчёта судили ОДИН снимок. Не передан ⇒ читаем сами (прежнее
+    поведение для одиночных вызовов и тестов).
+    """
     checks: dict = {
         "cycle_freshness_h": None,
         "equity_last_update_h": None,
@@ -805,9 +881,13 @@ def check_system(data_dir: Path, now: datetime,
         score = _read_portfolio_health_score(ph)
         if isinstance(score, (int, float)):
             checks["portfolio_health_score"] = round(float(score), 1)
-            if score < PORTFOLIO_HEALTH_FLOOR:
+            # ONE number -> ONE verdict: severity comes from the shared
+            # classifier, the same call system_health_monitor makes, so the two
+            # monitors can no longer disagree about what this score MEANS.
+            ph_status, _reason = _classify_portfolio_health(score, PORTFOLIO_HEALTH_FLOOR)
+            if ph_status != OK:
                 issues.append(f"portfolio_health {score:.1f}/100 (<{PORTFOLIO_HEALTH_FLOOR:.0f})")
-                status = _worst(status, WARNING)
+                status = _worst(status, ph_status)
 
     # --- red flags (market intel — advisory unless a HELD protocol is hit) ---
     # A red flag concerns an EXTERNAL protocol's market conditions, not the health
@@ -961,7 +1041,27 @@ def check_system(data_dir: Path, now: datetime,
         if ce_verdict == "WARNING":
             fb = ce.get("forgone_yield_bps_est")
             unexpl = ce.get("cash_unexplained_pct")
-            if isinstance(unexpl, (int, float)):
+            _named_cause = ce.get("reason")
+            if (str(ce.get("attribution_status")) == _CAP_BOUND_CHAIN
+                    and isinstance(_named_cause, str) and _named_cause.strip()):
+                # ADR-076.3, вторая половина. Производитель уже НАЗЫВАЕТ причину
+                # («кэш связан потолком одной цепочки»), а потребитель склеивал
+                # свою общую строку и печатал «idle UNEXPLAINED after attribution»
+                # ПОВЕРХ измеренного объяснения — то есть ровно то утверждение,
+                # которое артефакт опровергал. Владелец читал в SYSTEM_BRIEFING
+                # «20 % капитала простаивает НЕПОНЯТНО ПОЧЕМУ», хотя причина была
+                # названа тремя ADR подряд.
+                # Строка отдаётся ДОСЛОВНО: переписывать её здесь значило бы
+                # снова завести второе мнение об одном факте. Вердикт и число НЕ
+                # трогаются — WARNING остаётся, это цена диверсификации, её надо
+                # видеть (тишину здесь никто не покупает).
+                issues.append(
+                    "capital-efficiency: {}{}".format(
+                        _named_cause.strip(),
+                        f" — ~{fb}bps/yr forgone" if fb else "",
+                    )
+                )
+            elif isinstance(unexpl, (int, float)):
                 issues.append(
                     "capital-efficiency LAZY: {:.1f}% of capital idle UNEXPLAINED "
                     "after attribution{} (fundable headroom left unused)".format(
@@ -992,7 +1092,10 @@ def check_system(data_dir: Path, now: datetime,
     # CRITICAL здесь безопасен: потребителей `system_issues` у kill-switch /
     # threat_reactor нет (проверено grep'ом), self_heal читает из этого модуля
     # только общие помощники, а не вердикт — эскалация отчётности, капитал не двигает.
-    lock_verdict = check_cycle_lock(data_dir, now)
+    # Снимок замка читается РОВНО ОДИН РАЗ за отчёт (см. `collect`): два чтения
+    # одного файла в разные моменты могут разойтись, и тогда пульт напечатает
+    # «держатель жив» рядом с «отказ не доказан» — про один и тот же замок.
+    lock_verdict = cycle_lock if cycle_lock is not None else check_cycle_lock(data_dir, now)
     checks["cycle_lock_state"] = lock_verdict.state
     checks["cycle_lock_refusals"] = lock_verdict.refusals_since_lock
     if lock_verdict.issue:
@@ -1380,6 +1483,10 @@ class AgentHealthMonitor:
     def collect(self) -> dict:
         """Build the report (no side effects beyond reading)."""
         launchctl = self._launchctl()
+        # ОДНО чтение замка на весь отчёт — обе половины (агент и система) судят
+        # один и тот же снимок. Два независимых чтения одного файла могут дать
+        # противоречащие строки в одном отчёте.
+        cycle_lock = check_cycle_lock(self.data_dir, self.now)
         agents: List[AgentHealth] = []
         for path in discover_plists(self.launch_agents_dir):
             label = label_from_path(path)
@@ -1388,10 +1495,11 @@ class AgentHealthMonitor:
             if label in RETIRED_LABELS:
                 continue
             plist, parse_ok = _load_plist(path)
-            agents.append(check_agent(label, plist, parse_ok, launchctl, self.now))
+            agents.append(check_agent(label, plist, parse_ok, launchctl, self.now,
+                                      cycle_lock=cycle_lock))
 
         sys_checks, sys_status, sys_issues = check_system(
-            self.data_dir, self.now, self.autopush_log)
+            self.data_dir, self.now, self.autopush_log, cycle_lock=cycle_lock)
 
         # WAKE_STORM: a mass simultaneous failure is a fleet-level CRITICAL,
         # even when each individual agent only rates WARNING (last_exit != 0).

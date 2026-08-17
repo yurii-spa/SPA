@@ -226,6 +226,13 @@ class TestBTSMonitorScan(unittest.TestCase):
 
     # ── Test 15: only single asset in rates ──
     def test_single_asset_scan(self):
+        # ADR-070 п.12 (2026-08-17): the spot leg is no longer allowed to fall back to
+        # the literal 5% when no adapter reports an APY — the scan refuses instead. This
+        # fixture never wrote adapter_status, so it was silently exercising that literal.
+        # The assertion (one asset in, one opportunity out) is unchanged; only the
+        # missing precondition was added. Recorded in docs/journal/2026-W34.md
+        # (invariant #16).
+        self._write_adapter_status(_make_adapter_status())
         rates = {
             "BTC": {
                 "asset": "BTC",
@@ -458,10 +465,19 @@ class TestBTSMonitorRun(unittest.TestCase):
 
     # ── Test 33: adapter status with invalid apy ──
     def test_adapter_status_invalid_apy(self):
+        # ADR-070 п.12 (2026-08-17): this used to assert that an unparseable APY still
+        # produced opportunities — i.e. that the monitor quietly priced the spot leg at
+        # the literal 5% and published spreads built on it. The behaviour under test
+        # ("garbage in adapter_status must not crash the monitor") is kept and
+        # strengthened: it now must REFUSE and say so verbatim, which is what the owner
+        # asked for when removing the invented baseline. Recorded in
+        # docs/journal/2026-W34.md (invariant #16).
         self._write_funding(_make_funding_data())
         self._write_adapter_status({"aave_v3": {"apy": "invalid"}})
-        opps = self.monitor.scan()
-        self.assertGreater(len(opps), 0)
+        scan = self.monitor.scan_with_reasons()
+        self.assertEqual(scan.opportunities, [])
+        self.assertTrue(any("spot-leg yield NOT MEASURED" in u for u in scan.unchecked))
+        self.assertTrue(any("scan NOT PERFORMED" in u for u in scan.unchecked))
 
     # ── Test 34: funding data with None value ──
     def test_funding_none_value(self):

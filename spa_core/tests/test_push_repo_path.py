@@ -176,12 +176,28 @@ def test_file_at_repo_root_still_maps_to_bare_name(pusher, repo):
     assert pusher.repo_relative_path(f, project_root=repo) == "push_to_github.py"
 
 
-def test_relative_path_still_resolves_against_project_root(batch, repo, monkeypatch):
+def test_relative_path_resolves_against_the_sending_tree(batch, repo, monkeypatch):
+    """НАМЕРЕННОЕ ИЗМЕНЕНИЕ ПРОВЕРКИ (инвариант #16; обоснование здесь и в
+    `docs/journal/2026-W33.md`). Было: `test_relative_path_still_resolves_against_
+    project_root` — тест ПИННИЛ сам дефект, ради которого заведена карточка
+    `agent-pusher-relative-path-silently-reads-the-host-tree`: относительный путь
+    резолвился от хост-константы `PROJECT_ROOT`, то есть из ДРУГОГО дерева, чем
+    то, которое сессия собрала и протестировала (цикл #109: изменённые файлы
+    получали вердикт `skip`, и набор уезжал как `OK (pushed=0, skipped=N)`).
+
+    Проверка не ослаблена, а переведена на верный источник: файл берётся из
+    ДЕРЕВА ОТПРАВКИ (`resolve_local_path`). Здесь хост-чекаут И есть дерево
+    отправки — то самое «нормальное» условие, которое обязано продолжать
+    работать; расхождение деревьев и отказ при неопределимом дереве проверяет
+    `test_push_relative_path_tree.py`.
+    """
     monkeypatch.setattr(batch, "PROJECT_ROOT", repo)
     monkeypatch.setattr(batch._root_push, "PROJECT_ROOT", repo)
-    _add_file(repo, "docs/STATE.md")
+    monkeypatch.setattr(batch._root_push, "__file__", str(repo / "push_to_github.py"))
+    f = _add_file(repo, "docs/STATE.md")
     resolved = batch.resolve_files(["docs/STATE.md"])
     assert [rp for rp, _ in resolved] == ["docs/STATE.md"]
+    assert [p for _, p in resolved] == [f]
 
 
 def test_push_file_dry_run_uses_nested_path(pusher, repo, monkeypatch):

@@ -80,5 +80,87 @@ class TestClassificationLogic(unittest.TestCase):
         self.assertEqual(by_design, 100)
 
 
+class TestTheVerdictItself(unittest.TestCase):
+    """Прогоняем НАСТОЯЩИЙ сторож, а не копию его логики.
+
+    Замер 2026-08-16 на коде после правки 10.08: разделение доехало только до
+    `reasons`, а ВЕРДИКТ (`status`, иконка и код возврата — то, что человек
+    реально читает) по-прежнему считал общее число. 303 расхождения, все до
+    единого по построению нормальные, давали `WARNING` и `exit 1` — каждый день
+    и навсегда: `data/` — живой трек, правило доставки §4 запрещает его возить,
+    поэтому счётчик физически не может стать нулём.
+
+    Классы выше проверяли СТРОКИ исходника и СВОЮ копию отбора (`_split`), а не
+    `check_deployment_drift`, — поэтому были зелёными всё это время, пока
+    заголовок оставался жёлтым на верном состоянии.
+    """
+
+    NOISE = (["data/f%d.json" % i for i in range(166)]
+             + ["nimbalyst-local/tracker/c%d.md" % i for i in range(117)]
+             + ["docs/d%d.md" % i for i in range(20)])
+
+    def _run(self, files, root):
+        for p in files:
+            (root / p).parent.mkdir(parents=True, exist_ok=True)
+            (root / p).write_text("on-disk", encoding="utf-8")
+
+        def runner(args, cwd, stdin=None):
+            if args[0] == "rev-parse" and args[1] == "HEAD":
+                return True, "a" * 40
+            if args[:2] == ["rev-parse", "--abbrev-ref"]:
+                return True, "main"
+            if args[0] == "rev-parse":
+                return True, "b" * 40
+            if args[0] == "rev-list":
+                return True, "0\t0"
+            if args[0] == "ls-tree":
+                return True, "\n".join("100644 blob %040d\t%s" % (i, p)
+                                       for i, p in enumerate(files))
+            if args[0] == "hash-object":   # every file differs from the delivered blob
+                return True, "\n".join("c" * 40 for _ in stdin.strip().splitlines())
+            return False, "unexpected {}".format(args)
+
+        return m.check_deployment_drift(repo_root=root, fetch=False, git_runner=runner,
+                                        plist_reader=lambda d: [])
+
+    def test_drift_that_is_entirely_by_design_reads_green(self):
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as td:
+            rep = self._run(list(self.NOISE), Path(td))
+        self.assertEqual(len(rep.other_files), 303)
+        self.assertEqual(rep.status, m.OK, "303 нормальных расхождения — не тревога")
+        self.assertEqual(rep.by_design_files, 303)
+        self.assertEqual(rep.synced_other_files, [])
+        # норма всё ещё НАЗВАНА — сигнал не потерян, он просто не в вердикте
+        self.assertTrue(any("Reference only" in r for r in rep.reasons))
+
+    def test_one_synced_file_among_the_noise_turns_the_verdict(self):
+        """Ноль обязан значить ноль, а единица — требовать внимания."""
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as td:
+            rep = self._run(list(self.NOISE) + ["spa_core/monitoring/x.py"], Path(td))
+        self.assertEqual(rep.status, m.WARNING)
+        self.assertEqual(rep.synced_other_files, ["spa_core/monitoring/x.py"])
+        self.assertEqual(rep.by_design_files, 303)
+        # и он НАЗВАН, а не утоплен в счётчике
+        self.assertTrue(any("spa_core/monitoring/x.py" in r for r in rep.reasons))
+
+    def test_money_path_still_outranks_everything(self):
+        """Правка заголовка не имеет права смягчить главный класс."""
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as td:
+            rep = self._run(list(self.NOISE) + ["spa_core/risk/policy.py"], Path(td))
+        self.assertEqual(rep.status, m.CRITICAL)
+        self.assertEqual(rep.money_path_files, ["spa_core/risk/policy.py"])
+
+    def test_synced_prefixes_are_a_single_named_constant(self):
+        """Один список на модуль: две копии разошлись бы молча."""
+        self.assertEqual(m.SYNCED_PREFIXES,
+                         ("spa_core/", "scripts/", "tests/", "architecture/"))
+
+
 if __name__ == "__main__":
     unittest.main()

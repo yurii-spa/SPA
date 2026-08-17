@@ -108,7 +108,26 @@ def _time_calls(fn, iterations: int, warmup: int = 2) -> tuple[float, float]:
 
 
 def _bench_cycle(iterations: int) -> tuple[float, float]:
+    """Замер ЦИКЛА без живой сети — иначе бюджет меряет интернет, а не наш код.
+
+    Профиль 15.08 (первый честный прогон этого гейта): 3738 мс при бюджете 1500,
+    и 3.2 с из них — ДЕВЯТЬ живых HTTPS-запросов: цена доли ERC-4626 по публичным
+    RPC (2.1 с), агрегатор пулов DeFiLlama (1.0 с), оракул газа Base (0.7 с).
+    Гейт объявлял «медленным» наш цикл, меряя чужую латентность.
+
+    Такая проверка краснеет от погоды в интернете и по построению учит себя
+    игнорировать. Правило репозитория однозначно: тесты не завязываются на живую
+    сеть (`.claude/rules/adapters.md`), а мешающая проверка ЧИНИТСЯ, а не гасится.
+
+    Поэтому на время замера все три двери в сеть заглушены, а после — возвращены.
+    Для цикла их отсутствие — штатная fail-CLOSED ветка, которую он обязан
+    проходить и в проде. **Бюджет НЕ поднят**: те же 1500 мс, но теперь они
+    относятся к тому, чем мы управляем (замер после починки — 860 мс).
+    """
     from spa_core.paper_trading import cycle_runner as cr
+    from spa_core.data_pipeline import erc4626_rate_monitor as _erc
+    from spa_core.adapters import defillama_feed as _llama
+    from spa_core.monitoring import base_gas_monitor as _gas
     sbx = Path(tempfile.mkdtemp(prefix="spa_perf_cycle_"))
     counter = {"n": 11}
 
@@ -128,9 +147,18 @@ def _bench_cycle(iterations: int) -> tuple[float, float]:
             allow_live_write=False,
         )
 
+    _saved_endpoints = _erc._RPC_ENDPOINTS
+    _saved_fetch = _llama.DeFiLlamaFeed._fetch_pools
+    _saved_gas = _gas.BaseGasMonitor._fetch_gas_gwei
+    _erc._RPC_ENDPOINTS = []
+    _llama.DeFiLlamaFeed._fetch_pools = lambda self: None
+    _gas.BaseGasMonitor._fetch_gas_gwei = lambda self, *a, **k: None
     try:
         return _time_calls(_one, iterations)
     finally:
+        _erc._RPC_ENDPOINTS = _saved_endpoints
+        _llama.DeFiLlamaFeed._fetch_pools = _saved_fetch
+        _gas.BaseGasMonitor._fetch_gas_gwei = _saved_gas
         import shutil
         shutil.rmtree(sbx, ignore_errors=True)
 

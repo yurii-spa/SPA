@@ -20,6 +20,8 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from spa_core.utils.live_paths import sandboxed_state_path
+
 # ---------------------------------------------------------------------------
 # Paths & constants
 # ---------------------------------------------------------------------------
@@ -186,7 +188,10 @@ def _analyze_farm(farm: dict, risk_free_rate_pct: float) -> dict:
 def _append_log(result: dict, log_file: Path = None) -> None:
     """Append result snapshot to ring-buffer log (atomic write, max 100 entries)."""
     if log_file is None:
-        log_file = DATA_FILE
+        # Явный log_file — сильнее всего. Дефолт под тестами уводится в
+        # песочницу: DATA_FILE это git-tracked data/yield_farming_roi_log.json,
+        # и прогон его ПАЧКАЛ (цикл #274). В проде путь не меняется.
+        log_file = sandboxed_state_path(DATA_FILE)
 
     try:
         if log_file.exists():

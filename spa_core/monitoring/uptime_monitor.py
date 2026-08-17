@@ -65,10 +65,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # periodic agent (StartInterval / StartCalendarInterval) that exits between
 # runs — for those, "loaded but no live PID" is the NORMAL idle state, not a
 # failure, so we judge liveness by the freshness of their output file instead.
+#
+# com.spa.bot_commands НЕ здесь (снят 16.08, цикл #258): агент списан ещё
+# 27.06 (`9ff165ee6`, его plist убран из репозитория), а с 14.06 его обёртка
+# запускала УЖЕ канонический `spa_core.telegram.bot`. Держать его в списке
+# долгожителей значило требовать живой PID от того, кого не должно быть, —
+# сторож спорил с реальностью и в лучшем случае молчал, в худшем звал чинить
+# несуществующее. Список ретированных — `agent_health_monitor.RETIRED_LABELS`.
 KEEPALIVE_SERVICES: set[str] = {
     "com.spa.httpserver",
     "com.spa.cloudflared",
-    "com.spa.bot_commands",
 }
 
 # Maps each launchd label to (output_file_relative_to_repo, max_age_seconds).
@@ -119,7 +125,9 @@ AGENT_OUTPUT_FILES: dict[str, tuple[str | None, int]] = {
     "com.spa.analytics_tier_b":    ("data/analytics_signals_advisory.json", 10800),  # hourly → 3h window (3× schedule)
     "com.spa.bts-feed":            ("data/perp_funding_rates.json", 3600),  # every 15 min → 1h window (4× schedule)
     "com.spa.bts-monitor":         ("data/basis_trade_opportunities.json", 3600),  # every 15 min → 1h window (4× schedule)
-    "com.spa.bot_commands":        (None, 0),  # KeepAlive long-poll → judged via launchctl
+    # com.spa.bot_commands — СНЯТ 16.08 (#258): агент ретирован 27.06, модуль
+    # `spa_core/alerts/bot_commands.py` списан. Ожидать его здесь = ждать пульс
+    # от того, кого нет.
 }
 
 # Port-checked daemons: label → TCP port. Used as a liveness signal for
@@ -736,7 +744,8 @@ LAUNCHD_SERVICES = [
     "com.spa.checkpoint-7day",
     "com.spa.weekly_backup",
     "com.spa.analytics_tier_c",  # daily 05:00 → data/analytics_report_full.json (36h window)
-    "com.spa.bot_commands",      # KeepAlive long-poll daemon (no output file; launchctl liveness)
+    # com.spa.bot_commands снят отсюда 16.08 (#258) — ретирован 27.06,
+    # заменён com.spa.telegram_bot; см. RETIRED_LABELS в agent_health_monitor.
 ]
 
 

@@ -33,9 +33,24 @@ Use :func:`canonical_apy_decimal` / :func:`canonical_apy_pct` instead of calling
 the value sits in a sane decimal band — a misconfigured adapter is caught and
 fails CLOSED (returns ``None`` / logs), never silently 100x-scaled.
 
+DECLARED UNITS — the only alternative to guessing (карточка agent-s76-apy-unit-guess)
+--------------------------------------------------------------------------------------
+Some consumers cannot use ``get_yield_info()`` and must read a raw number
+(``get_apy()``, a feed field, a config literal). For those, the unit is
+**DECLARED BY THE SOURCE**, never inferred from the magnitude of the number:
+a source declares ``APY_UNIT = "decimal"`` or ``APY_UNIT = "percent"``, and
+:func:`apy_decimal_from_declared` / :func:`raw_apy_decimal` convert exactly once
+against that declaration. **An undeclared unit is a REFUSAL** (``None``, logged)
+— never a default, never a magnitude guess. This is the whole point: ``0.8``
+meaning 0.8% and ``0.8`` meaning 80% are indistinguishable as numbers, so the
+only honest answer without a declaration is «не знаю» (invariant 2, fail-CLOSED).
+
+:func:`adapters_missing_apy_unit` names the sources that have not declared their
+unit yet, so the remaining migration is measurable instead of assumed.
+
 Rules (adapter domain):
   * stdlib only, deterministic, no LLM.
-  * fail-closed: out-of-band / non-numeric → ``None``, logged.
+  * fail-closed: out-of-band / non-numeric / undeclared unit → ``None``, logged.
 """
 from __future__ import annotations
 
@@ -149,6 +164,140 @@ def canonical_apy_decimal(adapter: Any) -> Optional[float]:
     if info is None:
         return None
     return validate_apy_decimal(getattr(info, "apy", None), protocol=str(protocol))
+
+
+# ---------------------------------------------------------------------------
+# Declared units (explicit contract at the SOURCE, refusal when undeclared)
+# ---------------------------------------------------------------------------
+APY_UNIT_DECIMAL: str = "decimal"      # 0.052 == 5.2%
+APY_UNIT_PERCENT: str = "percent"      # 5.2   == 5.2%
+APY_UNITS: tuple = (APY_UNIT_DECIMAL, APY_UNIT_PERCENT)
+
+#: Attribute name a source sets to declare its unit (class, instance or module).
+APY_UNIT_ATTR: str = "APY_UNIT"
+
+
+def declared_apy_unit(source: Any) -> Optional[str]:
+    """Return the unit DECLARED by ``source``, or ``None`` when undeclared.
+
+    A source (adapter class/instance, feed object, module) declares its unit as
+    ``APY_UNIT = "decimal"`` / ``APY_UNIT = "percent"``. Anything else — the
+    attribute missing, non-string, or an unrecognised string — is treated as
+    **undeclared** (``None``, logged): a typo must not silently become a unit.
+
+    Never inspects any APY value: the declaration is the only input.
+    """
+    if source is None:
+        return None
+    raw = getattr(source, APY_UNIT_ATTR, None)
+    if raw is None:
+        return None
+    if not isinstance(raw, str):
+        logger.warning(
+            "apy_contract: %s.%s is %r (not a string) — treated as UNDECLARED",
+            getattr(source, "PROTOCOL", type(source).__name__), APY_UNIT_ATTR, raw,
+        )
+        return None
+    unit = raw.strip().lower()
+    if unit not in APY_UNITS:
+        logger.warning(
+            "apy_contract: %s.%s=%r is not one of %s — treated as UNDECLARED "
+            "(fail-closed; a typo must not become a unit)",
+            getattr(source, "PROTOCOL", type(source).__name__), APY_UNIT_ATTR,
+            raw, APY_UNITS,
+        )
+        return None
+    return unit
+
+
+def apy_decimal_from_declared(
+    value: Any,
+    unit: Optional[str],
+    *,
+    protocol: str = "?",
+) -> Optional[float]:
+    """Convert ``value`` to a validated DECIMAL APY using its DECLARED ``unit``.
+
+    ``unit`` must be :data:`APY_UNIT_DECIMAL` or :data:`APY_UNIT_PERCENT`.
+    ``None`` / anything else ⇒ **refusal** (``None``, logged): the unit is not
+    inferred from the magnitude of ``value``, because 0.8 as «0.8%» and 0.8 as
+    «80%» are the same number (карточка agent-s76-apy-unit-guess — the exact
+    heuristic this replaces read a true 0.5% APY as 50%).
+
+    The percent→decimal division happens exactly ONCE here; the result then goes
+    through :func:`validate_apy_decimal`, so an out-of-band value still fails
+    CLOSED rather than being rescaled a second time.
+    """
+    if unit not in APY_UNITS:
+        logger.warning(
+            "apy_contract[%s]: APY %r has NO declared unit (%r) — refused. "
+            "Declare %s on the source; the unit is never guessed from the "
+            "magnitude of the number.",
+            protocol, value, unit, APY_UNIT_ATTR,
+        )
+        return None
+    if not _is_real_number(value):
+        logger.warning(
+            "apy_contract[%s]: non-numeric APY %r rejected (fail-closed)",
+            protocol, value,
+        )
+        return None
+    v = float(value)
+    if unit == APY_UNIT_PERCENT:
+        v = v / 100.0
+    return validate_apy_decimal(v, protocol=protocol)
+
+
+def raw_apy_decimal(source: Any) -> Optional[float]:
+    """Read the unit-ambiguous ``get_apy()`` SAFELY, via the source's declaration.
+
+    For consumers that cannot use the canonical ``get_yield_info().apy``
+    accessor. Returns a validated decimal, or ``None`` when the source has not
+    declared :data:`APY_UNIT_ATTR`, has no ``get_apy()``, the call fails, or the
+    value is out of band. Refusal is the answer to «unit unknown» — there is no
+    default unit and no magnitude heuristic.
+    """
+    if source is None:
+        return None
+    protocol = str(getattr(source, "PROTOCOL", None) or type(source).__name__)
+    unit = declared_apy_unit(source)
+    if unit is None:
+        logger.debug(
+            "apy_contract[%s]: no declared %s — raw get_apy() refused",
+            protocol, APY_UNIT_ATTR,
+        )
+        return None
+    get_apy = getattr(source, "get_apy", None)
+    if not callable(get_apy):
+        return None
+    try:
+        raw = get_apy()
+    except Exception as exc:  # noqa: BLE001 - fail-closed
+        logger.debug("apy_contract[%s]: get_apy() failed: %s", protocol, exc)
+        return None
+    return apy_decimal_from_declared(raw, unit, protocol=protocol)
+
+
+def adapters_missing_apy_unit(registry: Any = None) -> list:
+    """Names of ``ADAPTER_REGISTRY`` entries that have NOT declared their unit.
+
+    Measurement helper for the ongoing migration (the units really are
+    inconsistent: percent in newer adapters, decimal in aave/yearn/euler/maple —
+    `.claude/rules/adapters.md`). Read-only, no network, no instantiation: only
+    the class attribute is inspected. ``registry`` may be injected for tests;
+    by default ``spa_core.adapters.ADAPTER_REGISTRY`` is imported lazily so this
+    module stays importable from anywhere in the adapter package.
+    """
+    if registry is None:
+        from spa_core.adapters import ADAPTER_REGISTRY  # lazy: avoid import cycle
+        registry = ADAPTER_REGISTRY
+    missing = []
+    for entry in registry:
+        name, cls = (entry[0], entry[-1]) if isinstance(entry, tuple) else (
+            getattr(entry, "PROTOCOL", type(entry).__name__), entry)
+        if declared_apy_unit(cls) is None:
+            missing.append(str(name))
+    return sorted(missing)
 
 
 def canonical_apy_pct(adapter: Any) -> Optional[float]:

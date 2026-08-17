@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent-task
 title: "Одно число — два вердикта: portfolio health 69.4 это CRITICAL у системного сторожа и WARNING у агентного"
-status: backlog
+status: done
 created: 2026-08-07
 priority: medium
 domain: мониторинг / пороги
@@ -50,3 +50,34 @@ CRITICAL» и рядом «Agents ⚠️ WARNING» — при том, что и�
 То есть d6.health CRITICAL — не новая беда, а ТРЕТЬЕ имя уже известного простоя капитала
 (`capital-efficiency LAZY` + карточка владельца «После страховки деньги остаются сиротами»).
 Замер дописан в ту карточку, дубля намеренно не создаю.
+
+## Что сделано (2026-08-16)
+
+Посылка проверена замером на том же числе — дефект был живой, не устаревший:
+
+```
+system_health_monitor  d6.health : CRITICAL | portfolio health 69.43 < 70.0
+agent_health_monitor             : WARNING  | portfolio_health 69.4/100 (<70)
+```
+
+Взят **вариант 1** (согласовать уровень), потому что два других он закрывает сам:
+CRITICAL не может быть общим вердиктом — `agent_health_monitor.build_report` держит
+инвариант `critical_count == 0 ⟺ overall_status != CRITICAL`, а `critical_count`
+считает агентские криты и красные флаги; CRITICAL от portfolio_health дал бы
+overall CRITICAL при `critical_count == 0`. Значит WARNING — единственный уровень,
+который могут нести ОБА сторожа.
+
+Причина, а не симптом: вторая лестница убрана. `spa_core/alerts/severity.py` получил
+`classify_portfolio_health()` + `PORTFOLIO_HEALTH_FLOOR`; оба монитора зовут его, свои
+константы порога связаны с общей. **Порог 70.0 не тронут**, проверка срабатывает, число
+печатается — изменился только уровень, и теперь он один. Настоящие криты `d6_risk_gates`
+(потолки концентрации, T2-cap, отказ RiskPolicy, kill-switch) не тронуты.
+
+Приёмка: +18 тестов `spa_core/tests/test_portfolio_health_one_verdict.py`; положительный
+контроль на чистом коде — 12 красных / 6 зелёных, красное по поведению
+(`one number, two verdicts: system_health=CRITICAL vs agent_health=WARNING`).
+Два существующих теста изменены открыто (инв. #16, обоснование в теле каждого + запись
+в `docs/journal/2026-W33.md`).
+
+**Владельцу остаётся** подтвердить уровень: если 70 — осознанный аварийный порог (вариант 3),
+обратный ход = одна константа в `severity.py` + правка инварианта `critical_count`.

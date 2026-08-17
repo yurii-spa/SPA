@@ -15,6 +15,8 @@ import os
 import time
 from typing import Optional
 
+from spa_core.utils.live_paths import sandboxed_state_path
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -135,7 +137,10 @@ def _surface_label(protocol: str, asset: str, yield_cat: str,
 
 def _log_result(result: dict) -> None:
     """Append result to ring-buffer log (cap 100), atomic write."""
-    log_path = os.path.normpath(_LOG_PATH)
+    # Разрешается НА ВЫЗОВЕ: _LOG_PATH это git-tracked
+    # data/yield_volatility_surface_log.json, и прогон его ПАЧКАЛ (цикл #274).
+    # В проде (без pytest) путь ровно тот же, что и был.
+    log_path = str(sandboxed_state_path(os.path.normpath(_LOG_PATH)))
     try:
         if os.path.exists(log_path):
             with open(log_path, "r") as f:

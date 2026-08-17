@@ -7,6 +7,34 @@ import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 let entries = [];
 try { entries = (await import('../data/changelog.json')).default || []; } catch (e) { entries = []; }
+// Пустота — не ответ. Раздел 23 дня стоял на 2026-07-11, и по странице нельзя было отличить
+// «данные не менялись» от «производителя никто не звал»: и то и другое выглядело одинаково.
+// changelog_status.json пишется генератором в КАЖДОМ прогоне (в т.ч. отказном) и называет дату
+// последней проверки. Нет файла — так и говорим, а не делаем вид, что всё свежее.
+let status = null;
+try { status = (await import('../data/changelog_status.json')).default || null; } catch (e) { status = null; }
+const checked = status && status.checked_date ? status.checked_date : null;
+const lastEntry = (status && status.last_entry_date) || (entries[0] && entries[0].date) || null;
+// Ровно одна честная фраза на состояние. Ничего не выдумываем: если проверки не было, об этом
+// и написано — «когда обновляли в последний раз, неизвестно».
+let note = '';
+let noteRu = '';
+if (!checked) {
+  note = 'Automatic check status is unavailable — we cannot say when this section was last refreshed.';
+  noteRu = 'Статус автоматической проверки недоступен — когда раздел обновляли в последний раз, сказать нельзя.';
+} else if (status.state === 'no_data') {
+  note = `Checked ${checked}: no live source data, so no digest was published. We publish nothing rather than invent an entry.`;
+  noteRu = `Проверено ${checked}: живых исходных данных нет, дайджест не публиковался. Лучше ничего, чем выдуманная запись.`;
+} else if (entries.length === 0) {
+  note = `Checked ${checked}: no digests published yet.`;
+  noteRu = `Проверено ${checked}: опубликованных дайджестов пока нет.`;
+} else if (status.state === 'unchanged') {
+  note = `Checked ${checked}: nothing new — the underlying data has not changed since ${lastEntry}.`;
+  noteRu = `Проверено ${checked}: нового нет — исходные данные не менялись с ${lastEntry}.`;
+} else {
+  note = `Checked ${checked}: last digest ${lastEntry}.`;
+  noteRu = `Проверено ${checked}: последний дайджест ${lastEntry}.`;
+}
 ---
 
 <Layout
@@ -24,8 +52,10 @@ try { entries = (await import('../data/changelog.json')).default || []; } catch 
       </p>
     </section>
 
+    <p class="text-xs text-slate-500 font-mono mb-6" data-freshness data-ru={noteRu}>{note}</p>
+
     {entries.length === 0 ? (
-      <p class="text-sm text-slate-500" data-ru="Пока нет записей.">No entries yet.</p>
+      <p class="text-sm text-slate-500" data-ru="Записей нет.">No entries.</p>
     ) : (
       <section class="space-y-4">
         {entries.map((e) => (

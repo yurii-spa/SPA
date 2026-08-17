@@ -622,7 +622,8 @@ def summarize(body: str, limit: int = SUMMARY_MAX) -> str:
 
 
 def build_message(title: str, body: str, options: List[ParsedOption],
-                  *, has_buttons: bool = True, card_name: str = "") -> str:
+                  *, has_buttons: bool = True, card_name: str = "",
+                  ack_buttons: bool = False) -> str:
     """HTML-сообщение владельцу: заголовок, суть, перечень вариантов.
 
     HTML, а не Markdown: в карточках сплошь пути с подчёркиваниями (`agent_health`),
@@ -632,6 +633,10 @@ def build_message(title: str, body: str, options: List[ParsedOption],
     кнопку», и владелец получил решение с этой фразой и без единой кнопки (замер 08.08).
     Обещать несуществующее хуже, чем не обещать ничего: владелец решает, что сломан бот,
     и перестаёт верить всему каналу. Текст и клавиатура должны говорить ОДНО.
+
+    ``ack_buttons`` — приедут ли кнопки ПОДТВЕРЖДЕНИЯ (карточка выбора не предлагает, #274).
+    Тот же закон: раз кнопка «Принято» есть, текст обязан сказать, что она делает; раз её
+    нет — обещать её нельзя.
     """
     parts = [
         "🧑‍⚖️ <b>Нужно твоё решение</b>",
@@ -665,6 +670,14 @@ def build_message(title: str, body: str, options: List[ParsedOption],
         parts += ["", "⚠️ Варианты в карточке есть, но я не смог собрать из них кнопки "
                       "(так бывает, когда в одной карточке несколько разных решений). "
                       "Открой её целиком и ответь словами — и заведи мне это как дефект."]
+    elif ack_buttons:
+        # Карточка выбора не предлагает (поручение / сообщение о находке). Вариантов не
+        # выдумываем — но ответить с телефона обязано быть ЧЕМ: пять таких карточек 08.08
+        # висели двое суток без ответа именно потому, что ответить было нечем (#197).
+        parts += ["", "Выбора в этой карточке нет — это поручение.",
+                  f"«{ACK_BUTTON_RU}» — прочитал и согласен: запишу это как твоё решение и "
+                  f"закрою карточку. «{LATER_BUTTON_RU}» — оставлю вопрос открытым и напомню.",
+                  "Если ответ другой — напиши словами, разберу."]
     else:
         # Fail-CLOSED: вариантов не разобрали — не выдумываем их, честно зовём в карточку.
         tail = ("Вариантов в карточке не нашёл — открой её целиком кнопкой ниже."
@@ -699,6 +712,104 @@ def build_keyboard(pid: str, options: List[ParsedOption]) -> Dict:
 MORE_CHOICE = "more"  # не выбор варианта, а «покажи карточку целиком»
 
 
+def _handler_available(now, beacon_path) -> bool:
+    """Жив ли бот, умеющий обработать нажатие ПОД РЕШЕНИЕМ (своя способность, #274).
+
+    Одно место вызова на модуль: пока набор принимаемых отметок переходный
+    (``owner_decisions`` ИЛИ ``alert_actions``), вторая копия условия разъехалась бы молча —
+    ровно тот дефект, из-за которого маячок объявлял одну способность, а гейтил две.
+    """
+    from spa_core.telegram.alert_actions import OWNER_DECISIONS_ACCEPTED, handler_available
+
+    return handler_available(now=now, beacon_path=beacon_path,
+                             accepted=OWNER_DECISIONS_ACCEPTED)
+
+
+# ── карточка БЕЗ выбора: чем на неё вообще ответить с телефона ────────────────
+#
+# Замер #197 по журналу отправок: пять карточек, отправленных владельцу 08.08, за двое
+# суток не получили ни одного ответа. У всех пяти секция «Что от тебя нужно» вариантов не
+# предлагает — это поручения («сделай то-то») или сообщения о находке. Разбор вёл себя
+# правильно (кнопок нет, текст честно говорил «вариантов в карточке не нашёл»), но ответить
+# на такую карточку владелец мог ТОЛЬКО словами в чат — и молчание стало неотличимо от
+# «не увидел».
+#
+# Отсюда две кнопки, которых в карточке нет и быть не может:
+#   «✅ Принято» — подтверждение, что владелец прочитал и согласен. Это ЕГО решение, поэтому
+#                 записывается ТЕМ ЖЕ owner-путём (`owner_answer.record_owner_answer`) и так
+#                 же закрывает карточку.
+#   «⏳ Позже»   — НЕ решение: карточка остаётся `needs-owner`, отметка живёт только в журнале
+#                 отправок. Владелец сказал «видел, не сейчас» — и вопрос обязан остаться.
+#
+# **Инвариант #14 не ослаблен ни на строку.** `queue.set_status` по-прежнему ОТКАЗЫВАЕТ агенту
+# переход в `owner-done`; личность проверяется ВНУТРИ писателя. «Принято» — не новая сущность
+# рядом с `owner-done`, а тот же `owner-done`, поставленный САМИМ владельцем: отличается только
+# формулировка ответа (подтверждение вместо номера варианта). Агент нажать её не может.
+#
+# **ADR-075 («не предлагать того, чего в карточке нет») тоже не нарушен.** Запрет касается
+# ВАРИАНТОВ ОТВЕТА на вопрос карточки: выдуманный «Вариант 4» — это выбор, которого автор не
+# писал. «Принято» вариантом не является и вопроса не решает; поэтому она появляется ТОЛЬКО
+# там, где карточка выбора не предлагает вовсе (`offers_no_choice`), и НИКОГДА рядом с
+# вариантами или вместо них.
+
+ACK_CHOICE = "ack"      # «прочитал и согласен» — подтверждение, а не выбор варианта
+LATER_CHOICE = "later"  # «видел, не сейчас» — карточка остаётся открытой
+
+ACK_BUTTON_RU = "✅ Принято"
+LATER_BUTTON_RU = "⏳ Позже"
+
+#: Что попадёт в карточку и в журнал как формулировка ответа.
+ACK_ANSWER_LABEL = "Принято — прочитал и согласен"
+ACK_ANSWER_LINE = (
+    "**Принято** — владелец прочитал карточку и согласен.\n\n"
+    "_Вариантов карточка не предлагала (поручение / сообщение о находке), поэтому ответ — "
+    "подтверждение, а не номер варианта._"
+)
+
+#: Токены-подтверждения не имеют права столкнуться с номером варианта из карточки.
+#: Номера — цифра, буква или их пара («1», «12», «А», «А1»); `ack`/`later`/`more` под это
+#: описание не подходят, и тест держит это утверждение, а не комментарий.
+RESERVED_CHOICES = frozenset({ACK_CHOICE, LATER_CHOICE, MORE_CHOICE})
+
+
+def offers_no_choice(body: str) -> bool:
+    """Не предлагает ли карточка выбора ВООБЩЕ (поручение / сообщение о находке).
+
+    ``True`` — и только тогда — уместна кнопка-подтверждение. Условие намеренно СТРОЖЕ,
+    чем «варианты не разобрались»: у «кнопок нет» четыре разные причины, и подтверждением
+    можно закрывать лишь ОДНУ из них.
+
+    Отказываем (``False``), если:
+
+    * варианты разобраны — им и отвечать (``parse_options``);
+    * карточка разрешает несколько ответов (``allows_multiple``) — подтверждение съело бы выбор;
+    * варианты названы, а собрать кнопки мы не смогли (``has_unparsed_options``) — это наша
+      неполадка, и закрывать ею карточку значит потерять НАПИСАННЫЙ выбор владельца;
+    * в секции есть строки, ПОХОЖИЕ на перечень (нумерованный пункт, «Вариант N»), которые
+      разбор отбросил осознанно — два независимых вопроса, дубль номера, составная метка.
+      Живой пример: «Два решения: 1. Ставить ли четыре готовых? 2. Выводить ли шесть?» —
+      «Принято» закрыло бы карточку, не ответив ни на один вопрос;
+    * слово «вариант N» встречается в теле карточки где угодно — грубый последний рубеж на
+      случай нераспознанного заголовка секции (fail-CLOSED: сомнение ⇒ кнопки нет).
+    """
+    if allows_multiple(body) or parse_options(body) or has_unparsed_options(body):
+        return False
+    for ln in _section_lines(body):
+        if (_OPTION_RE.match(ln) or _OPTION_NUMBERED_RE.match(ln)
+                or _OPTION_PLAIN_RE.match(ln) or _OPTION_MENTION_RE.match(ln)):
+            return False
+    return not any(_OPTION_MENTION_RE.match(ln) for ln in (body or "").splitlines())
+
+
+def build_ack_keyboard(pid: str) -> Dict:
+    """Клавиатура карточки БЕЗ выбора: подтвердить · отложить · открыть целиком."""
+    return {"inline_keyboard": [
+        [{"text": ACK_BUTTON_RU, "callback_data": build_callback(pid, ACK_CHOICE)}],
+        [{"text": LATER_BUTTON_RU, "callback_data": build_callback(pid, LATER_CHOICE)}],
+        [{"text": "📖 Подробнее", "callback_data": build_callback(pid, MORE_CHOICE)}],
+    ]}
+
+
 @dataclass(frozen=True)
 class Prepared:
     """Готовое к отправке решение: текст всегда, клавиатура — если её есть кому обработать."""
@@ -707,6 +818,8 @@ class Prepared:
     text: str
     keyboard: Optional[Dict]
     options: List[ParsedOption]
+    #: Уехало ли ПОДТВЕРЖДЕНИЕ вместо вариантов (карточка выбора не предлагает).
+    ack: bool = False
 
 
 def prepare(
@@ -722,7 +835,8 @@ def prepare(
 
     Кнопок не будет, если:
 
-    * в карточке не разобрано ни одного варианта (fail-CLOSED — не выдумываем выбор);
+    * в карточке не разобрано ни одного варианта И она не годится под подтверждение
+      (fail-CLOSED — не выдумываем выбор; см. ``offers_no_choice``);
     * не жив бот, умеющий обработать нажатие (тот же маячок, что у алертов, ADR-069):
       нажатие по старому боту уходит в неизвестный ``act:``-глагол и ПЕРЕПИСЫВАЕТ
       сообщение панелью настроек, то есть стирает сам вопрос.
@@ -731,17 +845,18 @@ def prepare(
     """
     options = parse_options(body)
     pid = make_pid(card_id)
+    # Карточка-поручение получает подтверждение, а не варианты (#274). Проверяем ДО маячка:
+    # признак «чем на неё отвечать» от живости бота не зависит и обязан быть измерен всегда.
+    ack = not options and offers_no_choice(body)
     # Клавиатуру решаем ПЕРВОЙ: текст обязан знать, будет ли кнопка, иначе он пообещает
     # несуществующее (замер 08.08 — решение с «Нажми кнопку» и без кнопок).
     keyboard = None
-    if options:
-        from spa_core.telegram.alert_actions import handler_available
-
-        if handler_available(now=now, beacon_path=beacon_path):
-            keyboard = build_keyboard(pid, options)
+    if (options or ack) and _handler_available(now, beacon_path):
+        keyboard = build_keyboard(pid, options) if options else build_ack_keyboard(pid)
     text = build_message(title, body, options, has_buttons=keyboard is not None,
-                         card_name=card_name or card_id)
-    return Prepared(pid=pid, text=text, keyboard=keyboard, options=options)
+                         card_name=card_name or card_id,
+                         ack_buttons=ack and keyboard is not None)
+    return Prepared(pid=pid, text=text, keyboard=keyboard, options=options, ack=ack)
 
 
 def _live_tracker_dir(override: Optional[str | Path] = None) -> Optional[Path]:
@@ -862,6 +977,10 @@ def register_push(
         # ближайший старт бота в логе — 04:22Z, а когда умер предыдущий экземпляр, не
         # записано нигде. Был ли маячок жив в момент отправки — установить УЖЕ НЕЧЕМ.
         "buttons": prep.keyboard is not None,
+        # Тоже ИЗМЕРЕНО: уехало ли ПОДТВЕРЖДЕНИЕ вместо вариантов. Без этой отметки экран
+        # «Мои решения» не может отличить карточку-поручение от карточки, чей выбор мы не
+        # прочитали, — а показывать «Принято» во втором случае запрещено.
+        "ack": prep.ack,
         "choice": None,
     })
     _save(doc, path_obj)
@@ -958,8 +1077,8 @@ def buttonless_pushes(
             continue  # кнопки были ИЛИ не измерено — оба случая не трогаем
         if rec.get("choice") or rec.get("withdrawn_at") or rec.get("buttons_fixed_at"):
             continue  # ответ дан / вопрос снят / уже чинили — нажимать нечего
-        if not (rec.get("options") or []):
-            continue  # вариантов нет — кнопкам неоткуда взяться (fail-CLOSED)
+        if not (rec.get("options") or []) and not rec.get("ack"):
+            continue  # ни вариантов, ни подтверждения — кнопкам неоткуда взяться (fail-CLOSED)
         path = Path(str(rec.get("card") or ""))
         try:
             card = load_card(path)
@@ -1062,9 +1181,53 @@ def record_choice(
         # в закрытую карточку нельзя, но и молчать нельзя: ответ ниже это объясняет.
         return {"ok": False, "reason": "card_withdrawn", "card": rec.get("card")}
 
+    ch = str(choice).lower()
+    stamp = (now or datetime.now(timezone.utc)).isoformat()
+
+    if ch == LATER_CHOICE:
+        # «Позже» — НЕ решение: карточку не трогаем ни на байт, статус остаётся `needs-owner`,
+        # вопрос остаётся в очереди и напомнит о себе сам. Записываем только факт, что
+        # владелец его ВИДЕЛ: без этого «отложил» и «не заметил» неотличимы — та самая
+        # неразличимость, из-за которой пять карточек висели двое суток (#197).
+        rec["deferred_at"] = stamp
+        rec["deferred_count"] = int(rec.get("deferred_count") or 0) + 1
+        _save(doc, path_obj)
+        return {"ok": True, "deferred": True, "card": rec.get("card"),
+                "card_id": rec.get("card_id"), "title": rec.get("title")}
+
+    if ch == ACK_CHOICE:
+        # Подтверждение уместно ТОЛЬКО там, где карточка выбора не предлагала. Если варианты
+        # были — «Принято» подменило бы ответ на вопрос (нажатие из старого сообщения, чужой
+        # клавиатуры, ручной callback): fail-CLOSED, отказ с названной причиной.
+        if (rec.get("options") or []) or not rec.get("ack"):
+            return {"ok": False, "reason": "ack_not_allowed", "card": rec.get("card")}
+        card_path = Path(rec.get("card") or "")
+        if not card_path.exists():
+            return {"ok": False, "reason": "card_gone", "card": str(card_path)}
+        try:
+            res = record_owner_answer(
+                card_path,
+                choice_num=ACK_CHOICE,
+                choice_label=ACK_ANSWER_LABEL,
+                actor_chat_id=actor_chat_id,
+                owner_chat_id=owner_chat_id,
+                now=now,
+                answer_line=ACK_ANSWER_LINE,
+            )
+        except NotTheOwner:
+            return {"ok": False, "reason": "not_owner", "card": str(card_path)}
+        except Exception as exc:  # noqa: BLE001 — сбой записи не имеет права ронять бота
+            return {"ok": False, "reason": "write_failed", "detail": type(exc).__name__}
+        rec["choice"] = ACK_CHOICE
+        rec["choice_label"] = ACK_ANSWER_LABEL
+        rec["answered_at"] = res.get("answered_at")
+        _save(doc, path_obj)
+        return {"ok": True, "already": bool(res.get("already")), "ack": True,
+                "card": str(card_path), "choice": ACK_CHOICE, "label": ACK_ANSWER_LABEL}
+
     opt = None
     for o in rec.get("options") or []:
-        if str(o.get("num", "")).lower() == str(choice).lower():
+        if str(o.get("num", "")).lower() == ch:
             opt = o
             break
     if opt is None:
@@ -1109,11 +1272,23 @@ _REASON_RU: Dict[str, str] = {
                        "ложной. Ничего не записал — отвечать не нужно."),
     "not_owner": "Это решение может принять только владелец — ничего не записал.",
     "write_failed": "Не смог записать решение. В карточке ничего не изменилось.",
+    "ack_not_allowed": ("Эта карточка предлагает выбор варианта — подтверждением его не "
+                        "заменить. Ответь номером варианта, ничего не записал."),
 }
 
 
 def confirmation_text(result: Dict) -> str:
     """Человеческий ответ на нажатие. Любой исход — внятная фраза, без кодов ошибок."""
+    if result.get("deferred"):
+        # Ровно то, что произошло: карточка НЕ закрыта. Сказать «записал» здесь значило бы
+        # соврать в самую опасную сторону — владелец счёл бы вопрос закрытым.
+        return ("⏳ Понял, отложил. Карточку не закрывал — вопрос остался открытым, "
+                "напомню о нём.")
+    if result.get("ok") and result.get("ack"):
+        if result.get("already"):
+            return "👌 Это подтверждение уже записано. Повторно ничего не менял."
+        return ("✅ Записал: <b>принято</b>. Карточка закрыта твоим подтверждением, "
+                "беру в работу.")
     if result.get("ok"):
         num = html.escape(str(result.get("choice", "")))
         label = html.escape(_capitalize(str(result.get("label") or "")))

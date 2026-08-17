@@ -162,7 +162,8 @@ def _assess_with(monkeypatch, tmp_path):
         ce, "_load",
         lambda p: pos if str(p).endswith("current_positions.json") else ranking)
     # Атрибуция кэша здесь не предмет проверки — без неё работает legacy-вердикт.
-    monkeypatch.setattr(ce, "_cash_attribution", lambda: None)
+    # (`_cash_attribution` принимает часы — время теперь ВХОД, а не окружение.)
+    monkeypatch.setattr(ce, "_cash_attribution", lambda *_a, **_kw: None)
     return ce.assess()
 
 

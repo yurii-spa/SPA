@@ -101,7 +101,7 @@ Each row is one `CheckResult`. `id` is stable (used in the dedup fingerprint).
 | id | Condition → severity |
 |---|---|
 | `d6.t2.cap` | T2 concentration > **50%** cap → **CRITICAL** (ADR-019 breach) |
-| `d6.health` | portfolio health score < **70** → **CRITICAL** |
+| `d6.health` | portfolio health score < **70** → **WARNING** (2026-08-16, карточка `agent-task-odno-chislo-dva-verdikta-portfolio-healt`: композитная оценка качества классифицируется ОДНИМ общим хелпером `spa_core.alerts.severity.classify_portfolio_health` — тем же, что зовёт `agent_health_monitor`; порог 70 не менялся, CRITICAL в этом домене остаётся за настоящими отказами гейтов) |
 | `d6.red_flags` | any `red_flags[*].severity == CRITICAL` → **CRITICAL** |
 | `d6.killswitch` | kill-switch `--dry-run` does not respond correctly / errors → **CRITICAL** |
 

@@ -19,6 +19,7 @@ import json, os, time
 from datetime import datetime, timezone
 from pathlib import Path
 from spa_core.utils.atomic import atomic_save  # noqa: F401 — required by atomic migration policy
+from spa_core.utils.live_paths import sandboxed_state_path
 from spa_core.paper_trading.track_evidence import (
     is_evidenced_bar as _is_evidenced_bar,
     PAPER_REAL_START as _PAPER_REAL_START,
@@ -327,9 +328,37 @@ def check_gaps() -> dict:
 
     return _finalize(result)
 
+#: Умолчания дерева, зафиксированные на импорте. Нужны, чтобы отличить
+#: «константу никто не трогал» от «тест осознанно её перенаправил»
+#: (test_gap_monitor.py / test_gap_recovery.py присваивают их напрямую).
+_DEFAULT_GAP_STATUS_FILE = GAP_STATUS_FILE
+_DEFAULT_RISK_ALERTS_FILE = RISK_ALERTS_FILE
+
+
+def _gap_status_file() -> Path:
+    """Путь снапшота, разрешаемый НА ВЫЗОВЕ (порядок как в telegram/prefs.py).
+
+    1. константа отличается от умолчания дерева → осознанное перенаправление
+       теста, уважается;
+    2. под pytest → песочница (``data/gap_monitor.json`` git-tracked, и прогон
+       его ПАЧКАЛ — цикл #274);
+    3. иначе → живой путь, ровно как раньше.
+    """
+    if GAP_STATUS_FILE != _DEFAULT_GAP_STATUS_FILE:
+        return Path(GAP_STATUS_FILE)
+    return Path(sandboxed_state_path(GAP_STATUS_FILE))
+
+
+def _risk_alerts_file() -> Path:
+    """То же для ``data/risk_alerts.json`` (см. :func:`_gap_status_file`)."""
+    if RISK_ALERTS_FILE != _DEFAULT_RISK_ALERTS_FILE:
+        return Path(RISK_ALERTS_FILE)
+    return Path(sandboxed_state_path(RISK_ALERTS_FILE))
+
+
 def _write(data: dict):
     # LLM FORBIDDEN — deterministic atomic write
-    atomic_save(data, str(GAP_STATUS_FILE))
+    atomic_save(data, str(_gap_status_file()))
 
 def _finalize(result: dict) -> dict:
     """MP-101: сохранить результат детекции, перенеся recovery-историю из
@@ -374,7 +403,7 @@ def _finalize(result: dict) -> dict:
 def _read_status() -> dict:
     """Текущий gap_monitor.json (defensive: отсутствует/бит → {})."""
     try:
-        doc = json.loads(GAP_STATUS_FILE.read_text())
+        doc = json.loads(_gap_status_file().read_text())
         return doc if isinstance(doc, dict) else {}
     except Exception:
         return {}
@@ -386,7 +415,7 @@ def _atomic_write_json(path: Path, obj) -> None:
 def _load_alerts_doc() -> dict:
     """risk_alerts.json defensively; чужие алерты (export_data и др.) сохраняем."""
     try:
-        doc = json.loads(RISK_ALERTS_FILE.read_text())
+        doc = json.loads(_risk_alerts_file().read_text())
     except Exception:
         doc = {}
     if not isinstance(doc, dict):
@@ -398,7 +427,7 @@ def _load_alerts_doc() -> dict:
 def _save_alerts_doc(alerts: list) -> None:
     """Пересборка документа в схеме export_data.py: generated_at/count/status/alerts."""
     alerts = alerts[-MAX_ALERTS:]
-    _atomic_write_json(RISK_ALERTS_FILE, {
+    _atomic_write_json(_risk_alerts_file(), {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "count": len(alerts),
         "status": "critical" if any(a.get("severity") == "critical" for a in alerts)

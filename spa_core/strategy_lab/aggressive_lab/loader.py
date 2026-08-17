@@ -23,6 +23,9 @@ HONESTY / fail-CLOSED:
   • a missing file / empty file → an EMPTY track (INSUFFICIENT_DATA downstream), never a crash.
   • we TRUST Lane 1's proof-chain (prev_hash/hash) — we do NOT re-verify the crypto here (that is
     Lane 1's domain); OUR integrity gate is the continuity gate (track_integrity), applied later.
+  • LIVENESS IS CARRIED, NOT DROPPED: each point's ``killed`` flag is aggregated onto the Track
+    (killed_since / n_killed_points / killed_final). A dead book's flat line must never reach the
+    ranking layer looking like a calm one — see Track's docstring for the measured failure.
 
 stdlib-only, deterministic, fail-CLOSED. LLM FORBIDDEN.
 """
@@ -45,14 +48,36 @@ from spa_core.strategy_lab.aggressive_lab import (
 
 @dataclass
 class Track:
-    """One phase's series (forward OR backtest) as an ordered list of {date, equity_usd} points."""
+    """One phase's series (forward OR backtest) as an ordered list of {date, equity_usd} points,
+    PLUS the book's liveness on that track.
+
+    WHY LIVENESS LIVES HERE (docs/AGGRESSIVE_PANEL_FEEDS.md §5). Lane 1 stamps ``killed`` on every
+    point it writes (harness.py), and until 2026-08-16 nothing downstream read it: this file and
+    scorecard.py contained not one mention of the word. A liquidated book keeps emitting points at
+    a frozen equity, so it hands the ranking layer a perfectly flat line — zero volatility, zero
+    drawdown — and beats the books that are still trading. The flag was never missing; it was
+    simply dropped on the floor at the first consumer. It is carried on the Track, not stamped into
+    each point dict, so the point shape the metrics/integrity layers consume is unchanged.
+    """
 
     phase: str
     series: List[dict] = field(default_factory=list)
+    #: how many points on this track were written AFTER the book was killed
+    n_killed_points: int = 0
+    #: first date whose point reported killed=True (None if the book never died on this track)
+    killed_since: Optional[str] = None
+    #: the book's state at the LAST point of this track
+    killed_final: bool = False
 
     @property
     def n_points(self) -> int:
         return len(self.series)
+
+    @property
+    def final_equity_usd(self) -> Optional[float]:
+        """Last marked equity on this track (None on an empty track). This is the number that says
+        how much capital a DEAD book is sitting on."""
+        return float(self.series[-1]["equity_usd"]) if self.series else None
 
 
 @dataclass
@@ -65,6 +90,22 @@ class LoadedStrategy:
     forward: Track = field(default_factory=lambda: Track("forward"))
     backtest: Track = field(default_factory=lambda: Track("backtest"))
     n_malformed_lines: int = 0
+
+    @property
+    def killed(self) -> bool:
+        """Is this book dead? The FORWARD track is the book's current life when it has one; a book
+        with no forward points is judged by where its backtest ended."""
+        return self.forward.killed_final if self.forward.n_points else self.backtest.killed_final
+
+    @property
+    def killed_since(self) -> Optional[str]:
+        """Earliest date on either track at which the book reported itself killed."""
+        dates = [t.killed_since for t in (self.backtest, self.forward) if t.killed_since]
+        return min(dates) if dates else None
+
+    @property
+    def n_killed_points(self) -> int:
+        return self.backtest.n_killed_points + self.forward.n_killed_points
 
 
 def _coerce_point(obj: object) -> Optional[dict]:
@@ -139,6 +180,11 @@ def load_strategy(
 
     fwd: List[dict] = []
     bt: List[dict] = []
+    # liveness, tracked per phase alongside the points (see Track's docstring for why)
+    kills: Dict[str, dict] = {
+        "forward":  {"n": 0, "since": None, "last": False},
+        "backtest": {"n": 0, "since": None, "last": False},
+    }
     malformed = 0
     for line in raw.splitlines():
         line = line.strip()
@@ -155,10 +201,27 @@ def load_strategy(
             continue
         phase = pt.pop("phase")
         (bt if phase == "backtest" else fwd).append(pt)
+        # ``killed`` is Lane 1's own verdict on the book. A point that does not carry the field is
+        # NOT evidence of death (old points predate the flag) — absence means "no kill reported",
+        # and the panel-level summary is what tells a reader whether anyone reported one at all.
+        k = kills[phase]
+        if obj.get("killed") is True:
+            k["n"] += 1
+            if k["since"] is None:
+                k["since"] = pt["date"]
+            k["last"] = True
+        else:
+            # a book that reports itself alive again (restart / un-kill) stops being dead-final;
+            # the FIRST kill date is kept, so the history of the death is not erased.
+            k["last"] = False
 
     # also accept a risk_shape stamped inline on the first usable point if meta didn't set one
-    out.forward = Track("forward", fwd)
-    out.backtest = Track("backtest", bt)
+    out.forward = Track("forward", fwd, n_killed_points=kills["forward"]["n"],
+                        killed_since=kills["forward"]["since"],
+                        killed_final=kills["forward"]["last"])
+    out.backtest = Track("backtest", bt, n_killed_points=kills["backtest"]["n"],
+                         killed_since=kills["backtest"]["since"],
+                         killed_final=kills["backtest"]["last"])
     out.n_malformed_lines = malformed
     return out
 

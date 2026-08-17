@@ -58,6 +58,7 @@ from pathlib import Path
 from typing import Optional
 
 from spa_core.utils.errors import ValidationError
+from spa_core.utils.live_paths import sandboxed_state_path
 
 log = logging.getLogger("spa.engine_bridge")
 
@@ -190,9 +191,18 @@ class LiveExecutionBridge:
             log_path: Optional override for the audit-log path. Tests pass
                 a ``tmp_path`` here so they don't pollute the real
                 ``data/live_execution_log.json``. ``None`` uses the default
-                repo-root path.
+                repo-root path — под тестами уведённый в песочницу.
+
+        Про увод умолчания (цикл #274). Обещание «тесты передают tmp_path»
+        существовало ровно в этой строке докстринга — и НЕ держалось: замер
+        17.08 показал, что ``pytest spa_core/tests/test_engine_bridge.py``
+        оставляет ``M data/live_execution_log.json``, потому что часть
+        конструкций (в т.ч. модульный ``default_bridge`` ниже) идёт без
+        аргумента. Правило, которое некому проверить, не работает; теперь
+        безопасен сам умолчальный путь, а явный по-прежнему сильнее всего.
         """
-        self.log_path: Path = Path(log_path) if log_path else _DEFAULT_LOG_PATH
+        self.log_path: Path = (
+            Path(log_path) if log_path else sandboxed_state_path(_DEFAULT_LOG_PATH))
         # Adapter cache keyed by (family, chain). Adapters are constructed
         # lazily on first use — see _get_adapter().
         self._adapters: dict[tuple[str, str], object] = {}

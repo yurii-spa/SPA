@@ -57,15 +57,28 @@ def _real_history_feeds() -> AggressiveFeeds:
     # Best-effort over the Pendle window; a feed that raises is omitted → those books fail-close on a
     # missing mark path (honest gap), never a fabricated dip. The PT-driven marks (susde/PT/YT) need
     # no price feed (they mark off the real implied-yield series already wired above).
+    # The panel reads the ETH reference and the staked-ETH ratios — and NOTHING else. It asks only
+    # for those (defect 3, docs/AGGRESSIVE_PANEL_FEEDS.md): the default selection also walks
+    # btc/tBTC/cbBTC, no book here touches them, and a wrapper token that did not exist yet at the
+    # start of the replay window (cbBTC was deployed Sept-2024) has no points — which used to raise
+    # out of history() and blank the ETH price AND every ratio in one go. Tolerant now: a token
+    # without points costs that token and is NAMED, not the whole panel. One fetch, ratios derived
+    # from it (history_ratios used to redo the entire multi-page walk a second time).
     eth_price_series = None
     lrt_ratio_series = None
     try:
-        from spa_core.strategy_lab.data.price_feed import PriceFeed
+        from spa_core.strategy_lab.data.price_feed import PriceFeed, RATIO_SYMBOLS
         pf = PriceFeed()
-        hist = pf.history(start_date=start, end_date=end)        # {sym: {date: usd}}
+        hist = pf.history(start_date=start, end_date=end,       # {sym: {date: usd}}
+                          symbols=("eth",) + tuple(RATIO_SYMBOLS),
+                          tolerate_missing_tokens=True)
+        if getattr(pf, "last_history_errors", None):
+            # a pause with a named cause, never a silent hole (invariant 2)
+            print(f"aggressive_lab: price tokens skipped — {pf.last_history_errors}", file=sys.stderr)
         eth_price_series = hist.get("eth") or None
-        lrt_ratio_series = pf.history_ratios(start_date=start, end_date=end) or None
-    except Exception:  # noqa: BLE001 — price feed unavailable → those books fail-close (no fake dip)
+        lrt_ratio_series = pf.history_ratios(hist=hist) or None
+    except Exception as exc:  # noqa: BLE001 — feed unavailable → those books fail-close (no fake dip)
+        print(f"aggressive_lab: price history unavailable — {exc}", file=sys.stderr)
         eth_price_series = None
         lrt_ratio_series = None
 

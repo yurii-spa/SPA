@@ -17,6 +17,17 @@ Honesty core — distinguish:
                        protocol under its cap, live APY ≥ min) → verdict WARNING (we are silently
                        under-earning; the allocator left deployable capital idle).
 
+Two rules govern the NUMBERS this guard prints (both are honesty rules, not tuning):
+
+  * **Только наблюдение сегодняшнего цикла может оценивать простой.** A ranking row is used for
+    headroom/forgone-yield ONLY if it is stamped as an observation (``apy_source`` ∈
+    ``OBSERVED_APY_SOURCES``), is not stale, and does not contradict the same cycle's own
+    ``apy_evidenced_pct``. Otherwise the room is kept but NAMED as unpriceable (fail-closed).
+  * **Причина простоя называется, а не обобщается в «unexplained».** When the cycle's attribution
+    reports UNEXPLAINED_CASH and the book is measurably pinned by the single-chain cap, the status
+    becomes ``CAP_BOUND_CHAIN`` — a distinct verdict from both "unexplained" and "all fine". The
+    number does not move; only the name of the cause does (ADR-076.3).
+
 Emits ``data/capital_efficiency.json`` (atomic). ``agent_health`` reads it and escalates a WARNING
 (same pattern as Q1-10 resilience). Exit 0 ⇔ OK, 1 ⇔ WARNING, 2 ⇔ UNKNOWN (fail-closed).
 
@@ -26,6 +37,7 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[2]
@@ -34,10 +46,16 @@ if str(_ROOT) not in sys.path:
 
 from spa_core.utils.atomic import atomic_save  # noqa: E402
 from spa_core.risk.tvl_floor import floor_is_resolved, floor_reason  # noqa: E402
+# Что считается НАБЛЮДЕНИЕМ — одно определение на систему (ADR-063). Импортируем
+# его, а не переписываем: вторая копия правила — ровно тот дрейф, из-за которого
+# два артефакта одного цикла и разошлись.
+from spa_core.adapters.apy_aggregator import OBSERVED_APY_SOURCES  # noqa: E402
 
 _POS = _ROOT / "data" / "current_positions.json"
 _APY = _ROOT / "data" / "apy_ranking.json"
 _RATIONALE = _ROOT / "data" / "allocation_rationale.json"
+_HISTORY = _ROOT / "data" / "allocation_rationale_history.jsonl"
+_REGISTRY = _ROOT / "data" / "adapter_registry.json"
 _OUT = _ROOT / "data" / "capital_efficiency.json"
 
 # idle above (min_cash + this) is flagged. Small band so we don't cry wolf on normal drift.
@@ -50,12 +68,58 @@ _UNEXPLAINED_TOLERANCE_PCT = 2.0
 # 36h covers one missed run without letting a week-old story silence the alarm).
 _RATIONALE_MAX_AGE_H = 36.0
 
+# ── Карточка «два артефакта одного цикла расходятся втрое» (08.08) ───────────
+# Замер: `capital_efficiency.json` печатал `moonwell_base @ 22.56 %` и
+# `aave_v3 @ 4.77 %`, а `allocation_rationale.json` того же цикла — 6.62 % и
+# 3.31 %, совпадая со снимком адаптеров. Из завышенных чисел считался
+# `best_qualifying_apy_pct = 22.5558` и «упущено 451 б.п./год» — ЧИСЛО, ПО
+# КОТОРОМУ ВЛАДЕЛЕЦ РЕШАЕТ, насколько срочно чинить простой; оно было завышено
+# в 3.4 раза.
+#
+# Причина класса: рейтинг (`apy_ranking.json`) читался как список наблюдений —
+# бралось `apy_pct` ЛЮБОЙ строки, без единой проверки:
+#   * `apy_source` строки (рейтинг сам метит `fallback` / `unchecked` — литерал,
+#     а не замер; ADR-063) — метка была, и её никто не спрашивал;
+#   * возраст самого файла и возраст СТРОКИ (`last_updated`) — рейтинг мог быть
+#     собран другим прогоном, и тогда он описывает не сегодняшнюю книгу;
+#   * согласие со вторым артефактом того же цикла.
+# Аллокатор же берёт APY из снимка оркестратора с провенансом `"live"`. Один
+# цикл, два определения «доходности» — расхождение было неизбежным.
+#
+# Лечение — не подстройка числа, а отказ считать наблюдением то, что им не
+# помечено/протухло/расходится. Fail-CLOSED: пропала возможность измерить ⇒
+# UNKNOWN, не «структурно, кэш держим правильно».
+_FEED_MAX_AGE_H = 36.0
+# Две записи одного цикла об ОДНОМ пуле не могут разойтись сильнее этого.
+# 0.25 п.п. — шум округления/секундного лага фида; 451 vs 132 б.п. — не шум.
+_APY_DIVERGENCE_PP = 0.25
+
+# Вердикт атрибуции для случая «размещать некуда из-за лимита одной цепочки»
+# (ADR-076.3). Отличен и от `UNEXPLAINED_CASH`, и от «всё в порядке».
+CAP_BOUND_CHAIN = "CAP_BOUND_CHAIN"
+
 
 def _load(path: Path):
     try:
         return json.loads(path.read_text())
     except Exception:  # noqa: BLE001 — fail-closed: caller treats None as UNKNOWN
         return None
+
+
+def _parse_ts(value: object):
+    """ISO-8601 → aware datetime, иначе None (недатируемое = не ручается)."""
+    try:
+        dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except Exception:  # noqa: BLE001
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def _age_h(value: object, now: datetime):
+    dt = _parse_ts(value)
+    if dt is None:
+        return None
+    return (now - dt).total_seconds() / 3600.0
 
 
 def _config():
@@ -73,10 +137,16 @@ def _config():
             # literal here would be a second copy of RiskPolicy's number.
             "min_tvl_usd": (float(c.min_tvl_usd)
                             if getattr(c, "min_tvl_usd", None) is not None else None),
+            # ADR-062/076.3: тот же порог, который читает гейт
+            # (`risk_gate.redistribute_freed_budget`), из того же объекта. None ⇒
+            # «не измерили» — и тогда лимит цепочки НЕ называется причиной.
+            "max_single_chain_pct": (
+                float(c.max_single_chain_allocation)
+                if getattr(c, "max_single_chain_allocation", None) is not None else None),
         }
     except Exception:  # noqa: BLE001
         return {"min_cash_pct": 0.05, "t1_cap": 0.4, "t2_cap": 0.2, "min_apy": 1.0,
-                "min_tvl_usd": None}
+                "min_tvl_usd": None, "max_single_chain_pct": None}
 
 
 def _tier_of(proto: str) -> str:
@@ -114,12 +184,20 @@ def _current_weights(pos: dict) -> dict[str, float]:
     return out
 
 
-def _live_apys(apy_doc) -> dict[str, tuple[float, str, object]]:
-    """protocol → (apy_pct, tier, tvl_raw) from apy_ranking's `by_apy` rows.
+def _live_apys(apy_doc, now: datetime) -> dict[str, tuple[float, str, object, str]]:
+    """protocol → (apy_pct, tier, tvl_raw, apy_verdict) from apy_ranking's rows.
 
     ``tvl_raw`` is passed through VERBATIM (including ``None``): "we did not
     measure the size" and "the size is zero" are different states of the book and
     only the floor rule (:mod:`spa_core.risk.tvl_floor`) may collapse them.
+
+    ``apy_verdict`` is the fourth field this reader used to lack entirely: either
+    ``"observed"`` or a NAMED reason why the printed number is not an observation
+    of today (``apy_unobserved:<source>`` / ``apy_row_stale:<age>h`` /
+    ``apy_row_undated``). The number itself is never rewritten here — the caller
+    decides what a non-observation may be used for. Судить о цене простоя по
+    литералу нельзя; молча выкинуть строку — тоже нельзя (это гашение сигнала
+    потерей входа), поэтому причина едет вместе со строкой.
     """
     if not isinstance(apy_doc, dict):
         return {}
@@ -129,22 +207,77 @@ def _live_apys(apy_doc) -> dict[str, tuple[float, str, object]]:
             if isinstance(apy_doc[k], list):
                 rows = apy_doc[k]
                 break
-    out: dict[str, tuple[float, str, object]] = {}
+    out: dict[str, tuple[float, str, object, str]] = {}
     for r in rows or []:
-        if isinstance(r, dict):
-            n = r.get("protocol") or r.get("name")
-            tier = str(r.get("tier") or "").upper()
-            tvl = r.get("tvl_usd") if "tvl_usd" in r else r.get("tvl")
-            try:
-                out[str(n)] = (
-                    float(r.get("apy_pct") if r.get("apy_pct") is not None else r.get("apy")),
-                    tier, tvl)
-            except Exception:  # noqa: BLE001
-                pass
+        if not isinstance(r, dict):
+            continue
+        n = r.get("protocol") or r.get("name")
+        tier = str(r.get("tier") or "").upper()
+        tvl = r.get("tvl_usd") if "tvl_usd" in r else r.get("tvl")
+        try:
+            apy = float(r.get("apy_pct") if r.get("apy_pct") is not None else r.get("apy"))
+        except Exception:  # noqa: BLE001
+            continue
+        src = str(r.get("apy_source") or "").strip().lower()
+        if src not in OBSERVED_APY_SOURCES:
+            verdict = "apy_unobserved:{}".format(src or "provenance_missing")
+        else:
+            age = _age_h(r.get("last_updated"), now)
+            if age is None:
+                verdict = "apy_row_undated"
+            elif age > _FEED_MAX_AGE_H:
+                verdict = "apy_row_stale:{:.0f}h>{:.0f}h".format(age, _FEED_MAX_AGE_H)
+            else:
+                verdict = "observed"
+        out[str(n)] = (apy, tier, tvl, verdict)
     return out
 
 
-def _cash_attribution() -> dict | None:
+def _feed_age_h(apy_doc, now: datetime):
+    """Возраст рейтинга целиком. None ⇒ файл недатируем (не ручается за сегодня)."""
+    if not isinstance(apy_doc, dict):
+        return None
+    return _age_h(apy_doc.get("generated_at"), now)
+
+
+def _cycle_evidenced_apys(now: datetime) -> dict[str, float]:
+    """APY, которые ЭТОТ ЖЕ цикл записал как доказанные (`apy_evidenced_pct`).
+
+    Источник — последняя строка `allocation_rationale_history.jsonl`, то есть
+    ровно тот артефакт, чьи числа разошлись с нашими. Свежая строка даёт очную
+    ставку: если рейтинг говорит про пул иное число, чем цикл, — рейтинг не про
+    сегодняшнюю книгу, и считать по нему цену простоя нельзя.
+
+    Пусто ⇒ очной ставки нет (проверка молчит, а не выдумывает согласие).
+    """
+    try:
+        text = _HISTORY.read_text(encoding="utf-8")
+    except Exception:  # noqa: BLE001
+        return {}
+    rec = None
+    for raw in reversed(text.splitlines()):
+        if not raw.strip():
+            continue
+        try:
+            obj = json.loads(raw)
+        except ValueError:
+            continue
+        if isinstance(obj, dict) and obj.get("apy_evidenced_pct") is not None:
+            rec = obj
+            break
+    if not isinstance(rec, dict):
+        return {}
+    age = _age_h(rec.get("generated_at"), now)
+    if age is None or age > _RATIONALE_MAX_AGE_H:
+        return {}   # запись не про сегодняшний цикл — сравнивать нечего
+    out: dict[str, float] = {}
+    for p, v in (rec.get("apy_evidenced_pct") or {}).items():
+        if isinstance(v, (int, float)):
+            out[str(p)] = float(v)
+    return out
+
+
+def _cash_attribution(now: datetime | None = None) -> dict | None:
     """Fresh, complete Y2 cash attribution from allocation_rationale.json, or None.
 
     None ⇒ the caller falls back to the legacy headroom heuristic (fail-closed:
@@ -156,20 +289,92 @@ def _cash_attribution() -> dict | None:
     cash = doc.get("cash")
     if not isinstance(cash, dict) or "components" not in cash:
         return None  # pre-Y2 artifact shape — cannot vouch
-    try:
-        from datetime import datetime, timezone
-        gen = datetime.fromisoformat(str(doc.get("generated_at")).replace("Z", "+00:00"))
-        if gen.tzinfo is None:
-            gen = gen.replace(tzinfo=timezone.utc)
-        age_h = (datetime.now(timezone.utc) - gen).total_seconds() / 3600.0
-    except Exception:  # noqa: BLE001 — undatable artifact cannot vouch
+    age_h = _age_h(doc.get("generated_at"), now or datetime.now(timezone.utc))
+    if age_h is None:  # undatable artifact cannot vouch
         return None
     if age_h > _RATIONALE_MAX_AGE_H:
         return None
     return cash
 
 
-def assess() -> dict:
+def _chain_map() -> dict[str, str]:
+    """protocol → chain из `adapter_registry.json` — ТОТ ЖЕ источник, из которого
+    карту сетей берёт писатель rationale (`allocation_rationale.write_shadow_rationale`).
+    Пусто ⇒ карты нет ⇒ причину «лимит цепочки» назвать НЕЛЬЗЯ (fail-CLOSED)."""
+    reg = _load(_REGISTRY)
+    out: dict[str, str] = {}
+    if not isinstance(reg, dict):
+        return out
+    for name, entry in (reg.get("adapters") or {}).items():
+        if isinstance(entry, dict) and entry.get("chain"):
+            out[str(name)] = str(entry["chain"]).strip().lower()
+    return out
+
+
+def _component_protocols(comp: dict) -> list[str]:
+    """Имена протоколов из строк компонента вида ``proto(+$20,000 @ 6.62%)``."""
+    out: list[str] = []
+    for s in comp.get("protocols") or []:
+        name = str(s).split("(")[0].strip()
+        if name:
+            out.append(name)
+    return out
+
+
+def _chain_bound(*, comp: dict, weights: dict[str, float], chain_cap,
+                 chain_map: dict[str, str]) -> dict | None:
+    """Измерить, связан ли простой лимитом ОДНОЙ цепочки (ADR-062 / ADR-076.3).
+
+    Возвращает описание связывающего лимита или None — и None означает ровно
+    «не измерили / лимит не связывает», после чего вердикт остаётся
+    `UNEXPLAINED_CASH`. Fail-CLOSED здесь принципиален: «связан лимитом» — вывод
+    ИЗ ИЗМЕРЕНИЯ, а не мягкая формулировка по умолчанию (иначе это будет не
+    починка отчёта, а глушение сигнала — инвариант 16 по духу).
+
+    Условия, все обязательны:
+      1. порог `max_single_chain_allocation` прочитан (тот же объект, что у гейта);
+      2. кандидаты, которые атрибуция назвала фондируемыми, вообще названы;
+      3. цепочка известна для КАЖДОГО кандидата и КАЖДОЙ занятой позиции —
+         неизвестная цепочка means экспозицию считать нечем;
+      4. каждый кандидат стоит на цепочке, которая уже упёрлась в потолок.
+         Есть хоть один кандидат на НЕсвязанной цепочке ⇒ деньги разместить было
+         куда ⇒ это настоящий безымянный простой, и он обязан таковым остаться.
+    """
+    if chain_cap is None:
+        return None
+    candidates = _component_protocols(comp)
+    if not candidates:
+        return None
+    exposure: dict[str, float] = {}
+    for proto, w in weights.items():
+        chain = chain_map.get(proto)
+        if chain is None:
+            return None            # книга не разложена по сетям — не измерено
+        exposure[chain] = exposure.get(chain, 0.0) + float(w)
+    bound: list[str] = []
+    for proto in candidates:
+        chain = chain_map.get(proto)
+        if chain is None:
+            return None            # кандидат без сети — не измерено
+        if exposure.get(chain, 0.0) < float(chain_cap) - 1e-9:
+            return None            # есть куда поставить вне связанной сети
+        bound.append("{}({})".format(proto, chain))
+    saturated = sorted({chain_map[p] for p in candidates})
+    return {
+        "limit": "max_single_chain_allocation",
+        "chains_at_cap": saturated,
+        "chain_cap_pct": round(float(chain_cap) * 100.0, 2),
+        "chain_exposure_pct": {c: round(exposure.get(c, 0.0) * 100.0, 2)
+                               for c in saturated},
+        "bound_candidates": sorted(bound),
+    }
+
+
+def assess(now: datetime | None = None) -> dict:
+    # Время — ВХОД, а не окружение (.claude/rules/deployment.md): свежесть
+    # рейтинга/атрибуции судится по переданным часам, поэтому тест закрепляет обе
+    # стороны и не протухает от движения календаря.
+    now = now or datetime.now(timezone.utc)
     pos = _load(_POS)
     cfg = _config()
     if not isinstance(pos, dict):
@@ -186,7 +391,13 @@ def assess() -> dict:
     idle_excess = round(max(0.0, cash_pct - cfg["min_cash_pct"]), 6)
 
     weights = _current_weights(pos)
-    apys = _live_apys(_load(_APY))
+    apy_doc = _load(_APY)
+    apys = _live_apys(apy_doc, now)
+    feed_age_h = _feed_age_h(apy_doc, now)
+    # Рейтинг без даты или собранный не сегодня описывает НЕ сегодняшнюю книгу —
+    # именно так один цикл получал два разных ответа про один пул.
+    feed_fresh = feed_age_h is not None and feed_age_h <= _FEED_MAX_AGE_H
+    evidenced = _cycle_evidenced_apys(now)
 
     # Qualifying deployable headroom: whitelisted T1/T2 protocols with a live APY ≥ min, under their
     # per-protocol cap. Structural (caps exhausted) ⇒ no headroom ⇒ OK; headroom present ⇒ LAZY.
@@ -200,10 +411,13 @@ def assess() -> dict:
     # которую финансировать НЕЛЬЗЯ, вменялась аллокатору как лень.
     excluded: list[str] = []
     unmeasured_rooms: list[str] = []
+    # Комнаты, которые существуют, но их ДОХОДНОСТЬ не наблюдение сегодняшнего
+    # цикла (литерал / протухшая строка / расхождение со вторым артефактом).
+    # Считать по ним «упущенную доходность» — это и есть 451 б.п. из воздуха.
+    apy_unobserved_rooms: list[str] = []
+    diverging: list[str] = []
     floor = cfg.get("min_tvl_usd")
-    for proto, (apy, feed_tier, tvl_raw) in apys.items():
-        if apy < cfg["min_apy"]:
-            continue
+    for proto, (apy, feed_tier, tvl_raw, apy_verdict) in apys.items():
         tier = feed_tier or _tier_of(proto)
         if tier == "T1":
             cap_p = cfg["t1_cap"]
@@ -223,6 +437,25 @@ def assess() -> dict:
             # за структурность значит погасить тревогу потерей входа.
             if not floor_why.startswith("tvl_below_floor"):
                 unmeasured_rooms.append(proto)
+            continue
+        # ── доходность строки обязана быть НАБЛЮДЕНИЕМ сегодняшнего цикла ──
+        why_apy = apy_verdict if apy_verdict != "observed" else None
+        if why_apy is None:
+            ev = evidenced.get(proto)
+            if ev is not None and abs(ev - apy) > _APY_DIVERGENCE_PP:
+                # Очная ставка двух артефактов одного цикла. Расходятся — значит
+                # это разные снимки, и «упущенная доходность» по нашему числу
+                # была бы выдумкой (замер 08.08: 22.56 % против 6.62 %).
+                why_apy = "apy_diverges_from_cycle:{:.2f}%vs{:.2f}%".format(apy, ev)
+                diverging.append(proto)
+        if why_apy is not None:
+            apy_unobserved_rooms.append(proto)
+            if len(excluded) < 8:
+                excluded.append(f"{proto}(+{room*100:.0f}% @ {apy:.1f}%): {why_apy}")
+            continue
+        if apy < cfg["min_apy"]:
+            # Порог доходности применяем ТОЛЬКО к наблюдению: судить литерал по
+            # порогу значит молча выкинуть строку, о которой мы ничего не знаем.
             continue
         headroom += room
         if apy > best_apy:
@@ -244,24 +477,42 @@ def assess() -> dict:
     # только у пулов с ненаблюдённым размером. Молчаливое "headroom=0 ⇒ OK"
     # объявило бы дыру в наблюдении структурной причиной.
     size_blind = headroom <= 1e-6 and bool(unmeasured_rooms)
-    if idle_excess > _IDLE_TOLERANCE and (not (feed_ok and floor_ok) or size_blind):
+    # …и третий слепой случай того же рода: комната есть, но её ДОХОДНОСТЬ не
+    # наблюдение сегодняшнего цикла. Раньше такая строка молча становилась
+    # «лучшей доходностью» и надувала цену простоя; молча её выкинуть — так же
+    # неверно, это тоже потеря входа, а не улучшение книги.
+    apy_blind = headroom <= 1e-6 and bool(apy_unobserved_rooms)
+    if idle_excess > _IDLE_TOLERANCE and (
+            not (feed_ok and floor_ok and feed_fresh) or size_blind or apy_blind):
         verdict = "UNKNOWN"
     else:
         verdict = "WARNING" if lazy else "OK"
     forgone_bps = round(deployable_now * best_apy * 100) if lazy else 0  # deployable × APY, in bps
-    reason = (
-        "LAZY: {:.0f}% deployable capital idle at 0% while qualifying T1/T2 headroom exists"
-        .format(deployable_now * 100)
-        if lazy else
-        ("structural: idle within tolerance or no qualifying headroom (caps exhausted) — holding cash is correct"
-         if verdict == "OK" else
-         ("unknown: TVL floor unresolved — eligibility not measured (fail-closed)"
-          if not floor_ok else
-          ("unknown: headroom exists only in pools whose SIZE was never observed "
-           "({}) — not measured is not the same as structural (fail-closed)".format(
-               ", ".join(sorted(unmeasured_rooms)[:5]))
-           if size_blind else "unknown")))
-    )
+    if lazy:
+        reason = (
+            "LAZY: {:.0f}% deployable capital idle at 0% while qualifying T1/T2 headroom exists"
+            .format(deployable_now * 100))
+    elif verdict == "OK":
+        reason = ("structural: idle within tolerance or no qualifying headroom "
+                  "(caps exhausted) — holding cash is correct")
+    elif not floor_ok:
+        reason = "unknown: TVL floor unresolved — eligibility not measured (fail-closed)"
+    elif not feed_fresh and feed_ok:
+        reason = ("unknown: APY ranking is {} — it cannot describe today's book "
+                  "(fail-closed)".format(
+                      "undated" if feed_age_h is None
+                      else "{:.0f}h old (> {:.0f}h)".format(feed_age_h, _FEED_MAX_AGE_H)))
+    elif size_blind:
+        reason = ("unknown: headroom exists only in pools whose SIZE was never observed "
+                  "({}) — not measured is not the same as structural (fail-closed)".format(
+                      ", ".join(sorted(unmeasured_rooms)[:5])))
+    elif apy_blind:
+        reason = ("unknown: headroom exists only in pools whose APY is not an "
+                  "observation of this cycle ({}) — a literal/stale/diverging number "
+                  "may not price idle capital (fail-closed)".format(
+                      ", ".join(sorted(apy_unobserved_rooms)[:5])))
+    else:
+        reason = "unknown"
 
     # ── Y2 (ADR-055): the cycle's own cash attribution outranks the heuristic ──
     # The rationale writer decomposes the SAME cash into named binders with USD +
@@ -271,11 +522,14 @@ def assess() -> dict:
     #   * unexplained ≤ 2% of capital   → EXPLAINED (small remainder, named split shown);
     #   * unexplained > 2% of capital   → LAZY stands, now with the honest number;
     #   * incomplete / stale / missing  → this heuristic stays in force (fail-closed).
-    attribution = _cash_attribution()
+    attribution = _cash_attribution(now)
     attribution_status = None
+    attribution_status_source = None
     unexplained_pct = None
+    cash_bound_by = None
     if isinstance(attribution, dict):
         attribution_status = str(attribution.get("status") or "")
+        attribution_status_source = attribution_status
         if attribution_status in ("explained", "UNEXPLAINED_CASH"):
             raw_unexpl = attribution.get("unexplained_pct")
             unexplained_pct = float(raw_unexpl) if isinstance(raw_unexpl, (int, float)) else None
@@ -305,6 +559,35 @@ def assess() -> dict:
                 if _named:
                     reason += " — caused by: " + "; ".join(_named) + \
                               "; freed budget was not re-filled"
+                # ── ADR-076.3: «необъяснён» ≠ «объяснение есть, но другое» ──
+                # Замер 08.08 (цикл #164): одна строка одновременно утверждала
+                # «причина неизвестна» и перечисляла причину, и это дословно
+                # уезжало в `agent_health.system_issues` и `SYSTEM_BRIEFING` —
+                # владелец читал «20 % капитала простаивает НЕПОНЯТНО ПОЧЕМУ»,
+                # хотя причина была измерена и названа тремя ADR подряд: книга
+                # упёрлась в лимит одной цепочки, а свободных кандидатов вне неё
+                # нет. Меняется НАЗВАНИЕ причины — число (forgone_bps) и вердикт
+                # (WARNING) остаются: это цена диверсификации, её надо видеть.
+                cash_bound_by = _chain_bound(
+                    comp=comp, weights=weights,
+                    chain_cap=cfg.get("max_single_chain_pct"),
+                    chain_map=_chain_map())
+                if cash_bound_by:
+                    attribution_status = CAP_BOUND_CHAIN
+                    reason = (
+                        "cash is bound by the single-chain cap, not unexplained: "
+                        "{} already holds {} of capital against the {:.0f}% RiskPolicy "
+                        "limit, and every fundable candidate is on it ({}) — no "
+                        "candidate with proven numbers exists off that chain. "
+                        "{:.1f}% of capital idle; the forgone yield below is the "
+                        "PRICE OF DIVERSIFICATION, not laziness.".format(
+                            ", ".join(cash_bound_by["chains_at_cap"]),
+                            ", ".join("{:.1f}%".format(v) for v in
+                                      cash_bound_by["chain_exposure_pct"].values()),
+                            cash_bound_by["chain_cap_pct"],
+                            ", ".join(cash_bound_by["bound_candidates"][:6]),
+                            unexplained_pct)
+                    )
             else:
                 verdict = "EXPLAINED"
                 reason = (
@@ -333,12 +616,23 @@ def assess() -> dict:
         # excluded pool is a fact about the book, not a silent deletion.
         "headroom_excluded": excluded,
         "headroom_size_unmeasured": sorted(unmeasured_rooms),
+        # Комнаты, чью доходность нельзя выдать за наблюдение этого цикла, и
+        # отдельно — те, что прямо разошлись со вторым артефактом того же цикла.
+        "headroom_apy_unobserved": sorted(apy_unobserved_rooms),
+        "apy_diverging_from_cycle": sorted(diverging),
+        "apy_feed_age_h": (round(feed_age_h, 2) if feed_age_h is not None else None),
+        "apy_feed_fresh": feed_fresh,
         "min_tvl_usd": floor,
         "verdict": verdict,
         "reason": reason,
         "tolerance_pct": _IDLE_TOLERANCE,
         # Y2 (ADR-055) — the attribution this verdict leaned on (None ⇒ legacy heuristic).
         "attribution_status": attribution_status,
+        # Что сказал ПРОИЗВОДИТЕЛЬ атрибуции до переименования причины: вердикт
+        # мы называем точнее, но исходную запись цикла не затираем.
+        "attribution_status_source": attribution_status_source,
+        # ADR-076.3: измеренный связывающий лимит (None ⇒ не измерен / не связывает).
+        "cash_bound_by": cash_bound_by,
         "cash_unexplained_pct": unexplained_pct,
         "cash_attribution": (attribution.get("components") if isinstance(attribution, dict) else None),
         # ADR-053 refusals the cycle recorded (provenance of the freed budget).

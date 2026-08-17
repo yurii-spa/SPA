@@ -10,6 +10,22 @@ Fires Telegram alert on NEW EXCELLENT opportunity (transition from non-EXCELLENT
 Atomic writes: tmp-file + os.replace. stdlib only.
 Never raises exceptions outward (fail-safe).
 
+Honest threshold (ADR-070 п.12, owner decision 2026-08-07). Two invented numbers used to
+decide what the owner is told:
+
+  * a hardcoded **5% spot baseline** — EXCELLENT is ">=100bps net", so on a copy of live
+    data every asset cleared it at once (ETH 262 / BTC 1575 / SOL 987 bps) and the label
+    said nothing;
+  * a hardcoded **$20,000** of capital, which this sleeve does not have, turned into
+    "Annual PnL $3,150" in the owner-facing message.
+
+Now: the spot leg is taken from live adapter APY or the scan REFUSES (no literal
+fallback); the alert hurdle is OUR OWN measured portfolio yield from the evidenced track
+(`spa_core.monitoring.bts_baseline`), and an opportunity that does not beat it is not
+alert-worthy no matter what tier the analyzer assigned; and no dollar figure is published
+at all, because no capital is allocated here. The owner's order was explicit: honest
+threshold FIRST, arming (`SPA_BTS_ALERTS_ARMED`) only afterwards.
+
 Honesty contract (cycle #78). The funding payload is read through
 `spa_core.feeds.funding_schema`, which knows the shape the producer actually writes
 (`assets` / `fetched_at`) and still accepts the legacy shape (`rates` / `generated_at`).
@@ -28,7 +44,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 
 from spa_core.analytics.basis_trade_analyzer import (
     BasisTradeAnalyzer,
@@ -36,6 +52,7 @@ from spa_core.analytics.basis_trade_analyzer import (
     BasisTradeResult,
 )
 from spa_core.feeds.funding_schema import feed_age_seconds, read_rates
+from spa_core.monitoring.bts_baseline import OurYieldRead, read_our_yield
 from spa_core.utils.atomic import atomic_save, atomic_load
 
 log = logging.getLogger("spa.monitoring.bts_monitor")
@@ -47,12 +64,29 @@ OPP_FILENAME = "basis_trade_opportunities.json"
 STATUS_FILENAME = "bts_monitor_status.json"
 FUNDING_FILENAME = "perp_funding_rates.json"
 ADAPTER_STATUS_FILENAME = "adapter_status.json"
+EVIDENCE_FILENAME = "paper_evidence.json"
 
 TRACKED_ASSETS = ("ETH", "BTC", "SOL")
-DEFAULT_SPOT_YIELD = 0.05
+
+# ── The two invented numbers, kept OFF the scan path (ADR-070 п.12) ───────────
+# Neither of these is used to compute anything published any more. They stay defined
+# because `tests/test_bts_monitor.py` imports them and pins the LEGACY wrapper
+# `_get_spot_yield` — removing the names would rewrite a pre-existing test to go green,
+# which invariant #16 forbids. Read them as documentation of what was wrong, not as
+# configuration: the scan refuses when the spot leg cannot be measured, and it publishes
+# no dollar figure at all.
+DEFAULT_SPOT_YIELD = 0.05      # LEGACY literal — never substituted on the scan path
+DEFAULT_CAPITAL_USD = 20000.0  # LEGACY literal — this sleeve holds no capital
+
 DEFAULT_EXEC_COST_BPS = 20.0
-DEFAULT_CAPITAL_USD = 20000.0
 TOP_N = 5
+
+# The spread is computed against a spot leg with no capital behind it, so the dollar
+# question has no honest answer. This is the verbatim reason published in place of one.
+NO_CAPITAL_REASON = (
+    "no capital is allocated to the BTS sleeve — annual PnL NOT MEASURED "
+    "(the previous $-figures were computed off a literal $20,000; ADR-070 п.12)"
+)
 
 STALE_AFTER_S = 1800
 ALERT_COOLDOWN_S = 3600
@@ -115,6 +149,9 @@ class BTSScan:
     stale_feed: bool
     unchecked: List[str]
     refusal: Optional[str] = None
+    # Our own measured yield — the hurdle every owner-facing claim is judged against.
+    # None means the scan did not get far enough to look it up.
+    our_yield: Optional[OurYieldRead] = None
 
 
 @dataclass
@@ -125,9 +162,16 @@ class BTSOpportunity:
     net_spread_bps: float
     edge_quality: str
     recommended_action: str
-    annual_pnl_usd: float
+    # Optional, and None on the scan path: there is no capital in this sleeve, so a
+    # dollar figure would be an invention (ADR-070 п.12). Field order and position are
+    # unchanged — pre-existing tests construct this positionally.
+    annual_pnl_usd: Optional[float] = None
     gross_spread_bps: float = 0.0
-    capital_usd: float = DEFAULT_CAPITAL_USD
+    capital_usd: Optional[float] = None
+    # net_spread_bps minus OUR OWN measured yield in bps. None when our yield could not
+    # be measured — never 0.0, which would read as "exactly break-even".
+    excess_vs_our_yield_bps: Optional[float] = None
+    pnl_unchecked: Optional[str] = None
 
     def to_dict(self) -> dict:
         return {
@@ -138,8 +182,17 @@ class BTSOpportunity:
             "gross_spread_bps": round(self.gross_spread_bps, 1),
             "edge_quality": self.edge_quality,
             "recommended_action": self.recommended_action,
-            "annual_pnl_usd": round(self.annual_pnl_usd, 2),
-            "capital_usd": round(self.capital_usd, 2),
+            "annual_pnl_usd": (
+                round(self.annual_pnl_usd, 2) if self.annual_pnl_usd is not None else None
+            ),
+            "capital_usd": (
+                round(self.capital_usd, 2) if self.capital_usd is not None else None
+            ),
+            "excess_vs_our_yield_bps": (
+                round(self.excess_vs_our_yield_bps, 1)
+                if self.excess_vs_our_yield_bps is not None else None
+            ),
+            "pnl_unchecked": self.pnl_unchecked,
         }
 
 
@@ -162,6 +215,7 @@ class BTSMonitor:
         self._status_path = self._data_dir / STATUS_FILENAME
         self._funding_path = self._data_dir / FUNDING_FILENAME
         self._adapter_status_path = self._data_dir / ADAPTER_STATUS_FILENAME
+        self._evidence_path = self._data_dir / EVIDENCE_FILENAME
         self._use_alert_dispatcher = use_alert_dispatcher
         self._analyzer = analyzer or BasisTradeAnalyzer()
         self._dispatcher = None
@@ -237,7 +291,72 @@ class BTSMonitor:
         except Exception:
             return {}
 
+    def _load_our_yield(self, *, now: Optional[datetime] = None) -> OurYieldRead:
+        """OUR OWN yield — the hurdle. Refuses verbatim when it cannot be measured.
+
+        ``now`` is an argument so freshness can be tested at a fixed instant instead of
+        against the calendar (`.claude/rules/deployment.md`, "время — вход").
+        """
+        try:
+            payload = atomic_load(str(self._evidence_path), default=None)
+        except Exception as exc:
+            payload = None
+            log.debug("evidence unreadable: %s", exc)
+        if payload is None:
+            return read_our_yield(
+                {"days": None, "_": f"missing or unreadable {self._evidence_path.name}"},
+                now=now,
+            )
+        return read_our_yield(payload, now=now)
+
+    def _spot_yield_verdict(self, adapter_status: dict) -> Tuple[Optional[float], Optional[str]]:
+        """Best live spot-leg yield, or a verbatim reason there is none.
+
+        Fail-CLOSED: the caller gets ``None`` and refuses. The pre-ADR-070 code returned
+        a literal 5% here whenever no adapter answered, and that literal is what made
+        every asset "EXCELLENT" — a tier computed against a number nobody measured.
+        """
+        yield_keys = {
+            "aave_v3": "apy",
+            "aave_usdc": "apy",
+            "compound_v3": "apy",
+            "morpho_steakhouse": "apy",
+            "morpho_usdc": "apy",
+        }
+        best: Optional[float] = None
+        seen: List[str] = []
+        for key, apy_field in yield_keys.items():
+            entry = adapter_status.get(key, {}) if isinstance(adapter_status, dict) else {}
+            if not isinstance(entry, dict):
+                continue
+            seen.append(key)
+            apy = entry.get(apy_field)
+            if apy is None or isinstance(apy, bool):
+                continue
+            try:
+                apy_val = float(apy)
+            except (ValueError, TypeError):
+                continue
+            if apy_val > 1.0:  # percent vs decimal — the registry is inconsistent
+                apy_val = apy_val / 100.0
+            if best is None or apy_val > best:
+                best = apy_val
+        if best is None:
+            return None, (
+                "spot-leg yield NOT MEASURED — no live APY in "
+                f"{ADAPTER_STATUS_FILENAME} for any of {sorted(yield_keys)}; "
+                "refusing to substitute the legacy 5% literal (ADR-070 п.12)"
+            )
+        return best, None
+
     def _get_spot_yield(self, adapter_status: dict) -> float:
+        """LEGACY wrapper — NOT on the scan path since ADR-070 п.12.
+
+        Kept, with its documented behaviour intact (the literal 5% when nothing is
+        measurable), only because `tests/test_bts_monitor.py` pins it and invariant #16
+        forbids rewriting a pre-existing test to go green. The scan itself calls
+        :meth:`_spot_yield_verdict` and refuses instead of substituting.
+        """
         best_yield = DEFAULT_SPOT_YIELD
         yield_keys = {
             "aave_v3": "apy",
@@ -288,20 +407,28 @@ class BTSMonitor:
             return BTSScan([], load.stale, unchecked, refusal=reason)
 
         adapter_status = self._load_adapter_status()
-        spot_yield = self._get_spot_yield(adapter_status)
+        spot_yield, spot_unchecked = self._spot_yield_verdict(adapter_status)
+        if spot_yield is None:
+            # No measured spot leg ⇒ no spread. Publishing one built on a literal is
+            # exactly the "beautiful number" this monitor exists to stop.
+            unchecked.append(spot_unchecked or "spot-leg yield NOT MEASURED")
+            unchecked.append(f"scan NOT PERFORMED — {spot_unchecked}")
+            return BTSScan([], load.stale, unchecked, refusal=spot_unchecked)
+
+        our_yield = self._load_our_yield()
 
         rates_read = read_rates(funding_data)
         if not rates_read.measured:
             log.info("Funding rates NOT MEASURED: %s", rates_read.unchecked)
             unchecked.append(f"funding rates NOT MEASURED — {rates_read.unchecked}")
-            return BTSScan([], load.stale, unchecked)
+            return BTSScan([], load.stale, unchecked, our_yield=our_yield)
         rates = rates_read.rates
         if not rates:
             log.info(
                 "No rates in funding data (feed reported an empty %r map)",
                 rates_read.source_key,
             )
-            return BTSScan([], load.stale, unchecked)
+            return BTSScan([], load.stale, unchecked, our_yield=our_yield)
 
         inputs = []
         for asset in TRACKED_ASSETS:
@@ -320,7 +447,10 @@ class BTSMonitor:
                 spot_yield_annual=spot_yield,
                 perp_funding_annual=funding_annual,
                 execution_cost_bps=DEFAULT_EXEC_COST_BPS,
-                capital_usd=DEFAULT_CAPITAL_USD,
+                # Zero, not $20,000: the analyzer needs a number to multiply, and the
+                # only honest one is "none allocated". Its `annual_pnl_usd` output is
+                # discarded below and republished as NOT MEASURED with the reason.
+                capital_usd=0.0,
             ))
 
         if not inputs:
@@ -329,11 +459,12 @@ class BTSMonitor:
                 list(TRACKED_ASSETS),
                 sorted(str(k) for k in rates.keys()),
             )
-            return BTSScan([], load.stale, unchecked)
+            return BTSScan([], load.stale, unchecked, our_yield=our_yield)
 
         results = self._analyzer.analyze_batch(inputs)
         top = self._analyzer.top_opportunities(results, n=TOP_N)
 
+        our_bps = our_yield.bps if our_yield.measured else None
         opportunities = []
         for r in top:
             opportunities.append(BTSOpportunity(
@@ -344,11 +475,16 @@ class BTSMonitor:
                 gross_spread_bps=r.gross_spread_bps,
                 edge_quality=r.edge_quality,
                 recommended_action=r.recommended_action,
-                annual_pnl_usd=r.annual_pnl_usd,
-                capital_usd=r.capital_usd,
+                # No capital ⇒ no dollar claim, and the reason travels with the record.
+                annual_pnl_usd=None,
+                capital_usd=None,
+                pnl_unchecked=NO_CAPITAL_REASON,
+                excess_vs_our_yield_bps=(
+                    round(r.net_spread_bps - our_bps, 4) if our_bps is not None else None
+                ),
             ))
 
-        return BTSScan(opportunities, load.stale, unchecked)
+        return BTSScan(opportunities, load.stale, unchecked, our_yield=our_yield)
 
     def _load_previous_excellent(self) -> Set[str]:
         try:
@@ -374,21 +510,78 @@ class BTSMonitor:
                 new_excellent.append(opp)
         return new_excellent
 
-    def _create_alerts(self, new_excellent: List[BTSOpportunity]) -> int:
+    def _alert_gate(
+        self,
+        new_excellent: List[BTSOpportunity],
+        our_yield: Optional[OurYieldRead],
+    ) -> Tuple[List[BTSOpportunity], List[str]]:
+        """Split new-EXCELLENT into "worth telling the owner" and "not", with reasons.
+
+        The hurdle is OUR OWN measured yield: an opportunity that does not beat what the
+        same capital already earns is not news, whatever tier the analyzer assigned. When
+        our yield cannot be measured NOTHING passes — a hurdle nobody measured cannot be
+        cleared (fail-CLOSED, invariant #2). Every refusal comes back verbatim; nothing is
+        dropped silently.
+        """
+        if not new_excellent:
+            return [], []
+        if our_yield is None or not our_yield.measured:
+            reason = (
+                our_yield.unchecked if our_yield is not None
+                else "our own yield was never looked up"
+            )
+            assets = ", ".join(o.asset for o in new_excellent)
+            return [], [
+                f"{len(new_excellent)} new EXCELLENT ({assets}) NOT eligible for an "
+                f"owner alert: our own yield NOT MEASURED — {reason} "
+                f"(fail-CLOSED, ADR-070 п.12)"
+            ]
+
+        hurdle_bps = float(our_yield.bps or 0.0)
+        passed: List[BTSOpportunity] = []
+        notes: List[str] = []
+        for opp in new_excellent:
+            excess = opp.net_spread_bps - hurdle_bps
+            if excess > 0:
+                passed.append(opp)
+            else:
+                notes.append(
+                    f"{opp.asset} NOT alert-worthy: net {opp.net_spread_bps:.0f} bps does "
+                    f"not beat our own measured yield {hurdle_bps:.0f} bps "
+                    f"(excess {excess:+.0f} bps; {our_yield.source})"
+                )
+        return passed, notes
+
+    def _create_alerts(
+        self,
+        new_excellent: List[BTSOpportunity],
+        our_yield: Optional[OurYieldRead] = None,
+    ) -> int:
         if not new_excellent:
             return 0
 
         dispatcher = self._get_dispatcher()
         sent = 0
+        hurdle = (
+            f"{our_yield.bps:.0f} bps ({our_yield.source})"
+            if our_yield is not None and our_yield.measured and our_yield.bps is not None
+            else "NOT MEASURED"
+        )
         for opp in new_excellent:
             title = f"BTS EXCELLENT: {opp.asset}"
+            excess = (
+                f"{opp.excess_vs_our_yield_bps:+.0f} bps"
+                if opp.excess_vs_our_yield_bps is not None else "NOT MEASURED"
+            )
             msg = (
                 f"New EXCELLENT basis trade opportunity\n"
                 f"Asset: {opp.asset}\n"
                 f"Net spread: {opp.net_spread_bps:.0f} bps\n"
                 f"Perp funding: {opp.perp_funding_pct:.1f}%\n"
                 f"Spot yield: {opp.spot_yield_pct:.1f}%\n"
-                f"Annual PnL: ${opp.annual_pnl_usd:,.0f}"
+                f"Our own yield (hurdle): {hurdle}\n"
+                f"Excess over our own yield: {excess}\n"
+                f"{NO_CAPITAL_REASON}"
             )
             if dispatcher:
                 try:
@@ -412,6 +605,7 @@ class BTSMonitor:
         opps: List[BTSOpportunity],
         stale: bool,
         unchecked: Optional[List[str]] = None,
+        our_yield: Optional[OurYieldRead] = None,
     ) -> None:
         now_iso = datetime.now(timezone.utc).isoformat()
         excellent_count = sum(1 for o in opps if o.edge_quality == "EXCELLENT")
@@ -424,11 +618,23 @@ class BTSMonitor:
             "stale_feed": stale,
             "opportunities": [o.to_dict() for o in opps],
             "unchecked": unchecked,
+            # The hurdle every owner-facing claim is judged against, published in full
+            # (including its refusal) so a reader never has to guess what "EXCELLENT"
+            # was measured against.
+            "our_yield": (
+                our_yield.to_dict() if our_yield is not None
+                else {"measured": False, "unchecked": "our own yield was never looked up"}
+            ),
+            "capital": {"allocated_usd": None, "unchecked": NO_CAPITAL_REASON},
             "summary": {
                 "excellent_count": excellent_count,
                 "enter_count": enter_count,
                 "total_analyzed": len(opps),
                 "measured": not unchecked,
+                "alert_worthy_count": sum(
+                    1 for o in opps
+                    if o.excess_vs_our_yield_bps is not None and o.excess_vs_our_yield_bps > 0
+                ),
             },
         }
         try:
@@ -443,6 +649,8 @@ class BTSMonitor:
         errors: List[str],
         unchecked: Optional[List[str]] = None,
         suppressed: Optional[List[str]] = None,
+        our_yield: Optional[OurYieldRead] = None,
+        alert_worthy: Optional[int] = None,
     ) -> None:
         now_iso = datetime.now(timezone.utc).isoformat()
         unchecked = list(unchecked or [])
@@ -455,6 +663,18 @@ class BTSMonitor:
             "errors": errors,
             "unchecked": unchecked,
             "suppressed_alerts": suppressed,
+            # The alert gate is its OWN verdict. `status` answers "did the scan happen"
+            # (cycle #78 contract) and must not be repurposed: an unmeasured hurdle does
+            # not make the spread measurement untrue, it makes the alert impossible.
+            "alert_gate": {
+                "hurdle": (
+                    our_yield.to_dict() if our_yield is not None
+                    else {"measured": False,
+                          "unchecked": "our own yield was never looked up"}
+                ),
+                "alert_worthy": alert_worthy,
+                "armed": _alerts_armed(),
+            },
         }
         try:
             atomic_save(payload, str(self._status_path))
@@ -467,11 +687,14 @@ class BTSMonitor:
         suppressed: List[str] = []
         opps: List[BTSOpportunity] = []
         new_excellent_count = 0
+        our_yield: Optional[OurYieldRead] = None
+        alert_worthy: Optional[int] = None
 
         try:
             scan = self.scan_with_reasons()
             opps = scan.opportunities
             unchecked = list(scan.unchecked)
+            our_yield = scan.our_yield
             # `stale` describes the FEED. Before #78 it was `len(opps) == 0`, i.e. the
             # monitor published "the feed is stale" whenever nothing qualified — a claim
             # about a file, derived from something else entirely.
@@ -481,30 +704,46 @@ class BTSMonitor:
                 new_excellent = self._detect_new_excellent(opps)
                 new_excellent_count = len(new_excellent)
                 if new_excellent:
-                    if _alerts_armed():
-                        self._create_alerts(new_excellent)
+                    # Honest threshold FIRST (ADR-070 п.12): only what beats our own
+                    # measured yield may reach the owner, and only then does the
+                    # arming switch matter.
+                    alertable, gate_notes = self._alert_gate(new_excellent, our_yield)
+                    alert_worthy = len(alertable)
+                    for note in gate_notes:
+                        log.info(note)
+                    suppressed.extend(gate_notes)
+                    if alertable and _alerts_armed():
+                        self._create_alerts(alertable, our_yield)
                     else:
                         assets = ", ".join(o.asset for o in new_excellent)
                         note = (
                             f"{len(new_excellent)} new EXCELLENT ({assets}) NOT sent to "
                             f"Telegram: transport disarmed pending owner review "
                             f"(set {BTS_ALERTS_ARMED_ENV}=1 to arm)"
+                            if not _alerts_armed() else
+                            f"{len(new_excellent)} new EXCELLENT ({assets}) NOT sent to "
+                            f"Telegram: transport is armed "
+                            f"({BTS_ALERTS_ARMED_ENV}=1) but none cleared the hurdle"
                         )
                         log.info(note)
                         suppressed.append(note)
 
-            self._save_opportunities(opps, stale, unchecked)
+            self._save_opportunities(opps, stale, unchecked, our_yield)
 
         except Exception as exc:
             log.error("BTS monitor scan failed: %s", exc)
             errors.append(str(exc))
-            self._save_opportunities([], True, unchecked)
+            self._save_opportunities([], True, unchecked, our_yield)
 
-        self._save_status(opps, new_excellent_count, errors, unchecked, suppressed)
+        self._save_status(
+            opps, new_excellent_count, errors, unchecked, suppressed,
+            our_yield=our_yield, alert_worthy=alert_worthy,
+        )
 
         report = {
             "opportunities": len(opps),
             "new_excellent": new_excellent_count,
+            "alert_worthy": alert_worthy,
             "errors": errors,
             "unchecked": unchecked,
             "suppressed_alerts": suppressed,

@@ -108,6 +108,7 @@ from spa_core.paper_trading.risk_gate import (  # noqa: F401 — re-exported
     _apply_risk_policy_gate,
     _compliant_target,
     _record_policy_block,
+    write_daily_block_slice,
 )
 from spa_core.paper_trading.cycle_exit import (  # noqa: F401 — re-exported
     EXIT_LOCK_REFUSED as _EXIT_LOCK_REFUSED,
@@ -911,6 +912,30 @@ def run_cycle(
     today = now_dt.strftime("%Y-%m-%d")
     notes: list[str] = []
 
+    def _persist_daily_block_slice() -> None:
+        """ADR-089 п.1: дневной срез блокировок риск-гейта → git-tracked файл.
+
+        Кольцевой буфер `risk_policy_blocks.json` живёт только на рабочей машине
+        (весь `data/*.json` под .gitignore), а дневной отчёт владельцу ссылается
+        именно на него — на артефакт, которого нет ни у следующей сессии, ни в
+        репозитории. Срез за СЕГОДНЯ кладётся в `data/risk_blocks_daily/<дата>.json`
+        (прецедент ADR-070.2 «канон трека коммитится циклом»).
+
+        Пишется на КАЖДОМ пути выхода цикла, включая ранние отказы и чистый день
+        (файл с `block_count: 0`): отсутствие файла неотличимо от «цикл не
+        отработал». Дата — тот же инъектированный `today`, что и у записи
+        блокировки, обращений к часам внутри нет. Ничего не решает и не считает —
+        только сохраняет уже вычисленное гейтом. Fail-safe: отчётность не гейт и
+        не смеет уронить цикл.
+        """
+        try:
+            write_daily_block_slice(ddir, date=today)
+        except Exception as _slice_exc:  # noqa: BLE001 — отчётность не гейт
+            log.warning(
+                "ADR-087: дневной срез блокировок не записан (%s) — цикл продолжает",
+                _slice_exc,
+            )
+
     orchestrator_fn = orchestrator_fn or _default_orchestrator
 
     # ── MP-310: begin audit trail chain for this cycle (fail-safe) ────────
@@ -1240,6 +1265,7 @@ def run_cycle(
         )
         if write:
             _write_status(ddir, result, paper_start_date, capital_usd, run_ts)
+            _persist_daily_block_slice()  # ADR-089 п.1
             # MP-102: daily report after all steps (fail-safe, advisory).
             _run_daily_report(ddir, today)
             # SPA-V434: dashboard metrics snapshot (fail-safe, advisory).
@@ -1565,6 +1591,7 @@ def run_cycle(
             )
             _write_equity(ddir, equity_doc, prev_equity, today, 0.0, {}, 0.0)
             _write_status(ddir, result, paper_start_date, capital_usd, run_ts)
+            _persist_daily_block_slice()  # ADR-089 п.1
             return result
         if _dl_result["gate"] == "WARN":
             log.warning(
@@ -1900,6 +1927,34 @@ def run_cycle(
         )
     except Exception as _shadow_exc:  # noqa: BLE001 — advisory only
         log.warning("ADR-060 SHADOW skipped (%s) — cycle continues", _shadow_exc)
+
+    # ── Step 2h (ADR-088): Portfolio CIO — снимок решения, ADVISORY ──────────
+    # Тот же вход, что у Step 2f, но отвечает на другой вопрос: сколько доходности
+    # теряет текущая раскладка (Yield Gap) и что мешает — цена перехода или сама
+    # возможность. Пишет ТОЛЬКО артефакт data/portfolio_cio.json, из которого
+    # дневной отчёт берёт секцию владельцу; ни одной позиции не двигает.
+    # Fail-open по той же причине, что и Step 2f: слой отчётности не имеет права
+    # уронить цикл, который кормит трек.
+    try:
+        from spa_core.allocator.portfolio_cio import decide as _cio_decide
+        from spa_core.allocator.portfolio_cio import save_snapshot as _cio_save
+
+        _cov = getattr(alloc, "feed_coverage", {}) or {}
+        _tvl_src = _cov.get("tvl_sources") or {}
+        _cio = _cio_decide(
+            current_positions=current_positions,
+            target_positions=target_usd,
+            displayed_apy_pct=getattr(alloc, "apy_used", {}) or apy_map,
+            apy_sources=getattr(alloc, "apy_sources", {}) or {},
+            tvl_usd=_cov.get("tvl_usd") or {},
+            # ADR-053/064: живым TVL считается только то, что назвал сам аллокатор.
+            # Второго определения «живого TVL» здесь не заводится.
+            tvl_evidenced={p for p, s in _tvl_src.items() if str(s) == "live"},
+            capital_usd=capital_usd,
+        )
+        _cio_save(_cio, str(ddir / "portfolio_cio.json"), generated_at=run_ts)
+    except Exception as _cio_exc:  # noqa: BLE001 — advisory only
+        log.warning("ADR-088 CIO snapshot skipped (%s) — cycle continues", _cio_exc)
 
     # ── Step 2g (Y3 tooling): shadow-vs-fact reconciliation ──────────────────
     # write_shadow_rationale above just appended today's verdict to the
@@ -2274,6 +2329,7 @@ def run_cycle(
             },
         )
         _write_status(ddir, result, paper_start_date, capital_usd, run_ts)
+        _persist_daily_block_slice()  # ADR-089 п.1
 
         # ── Post-cycle advisory / analytics / shadow / reporting tail ──────
         # Extracted verbatim to cycle_reporting.run_post_cycle_advisory (N12).

@@ -476,6 +476,17 @@ if telegram_guard is None:
     sys.modules["spa_telegram_guard"] = telegram_guard
 telegram_guard.install()
 
+# The shared live-feed doors (see live_feed_doors.py). Loaded by absolute path
+# from a single source of truth so tests/conftest.py and this one can never
+# drift apart — the same discipline the two guards above already use.
+_DOORS_PATH = Path(__file__).resolve().parent / "live_feed_doors.py"
+live_feed_doors = sys.modules.get("spa_live_feed_doors")
+if live_feed_doors is None:
+    _doors_spec = _ilu.spec_from_file_location("spa_live_feed_doors", _DOORS_PATH)
+    live_feed_doors = _ilu.module_from_spec(_doors_spec)     # type: ignore[arg-type]
+    _doors_spec.loader.exec_module(live_feed_doors)          # type: ignore[union-attr]
+    sys.modules["spa_live_feed_doors"] = live_feed_doors
+
 
 # ---------------------------------------------------------------------------
 # The network guard's ledger belongs to ONE test (2026-08-04, cycle #115,
@@ -540,6 +551,36 @@ def _scope_network_guard_ledger(request):
     network_guard.reset()
     yield
     network_guard.archive(request.node.nodeid)
+
+
+# ---------------------------------------------------------------------------
+# Shut the shared live-feed DOORS (2026-08-16, card
+# `agent-tests-reach-live-feed-222`).
+#
+# network_guard answers "did anything reach the network" — no, it never did.
+# This fixture answers the different question the card is about: "did a test
+# that does not need a feed still walk up to one and get turned back".  Both
+# doors are shut at a seam whose result is IDENTICAL to the refusal the guard
+# already produced (rationale + the identity argument: live_feed_doors.py), so
+# no assertion is weakened; the attempt simply stops being made.
+#
+# Ordered AFTER the ledger fixture so a test marked `live_feed_transport` still
+# has its refusals recorded and attributed the same way.
+# ---------------------------------------------------------------------------
+@pytest.fixture(autouse=True)
+def _shut_the_shared_live_feed_doors(request):
+    """Close DeFiLlama + the strategy-lab HTTP door for every test that did not
+    ask for them, and put them back exactly as they were afterwards."""
+    if request.node.get_closest_marker(live_feed_doors.MARKER):
+        # The transport IS this test's subject — leave the doors open. The
+        # network guard still refuses it; only the attempt is allowed.
+        yield
+        return
+    previous = live_feed_doors.close()
+    try:
+        yield
+    finally:
+        live_feed_doors.restore(previous)
 
 
 def pytest_terminal_summary(terminalreporter, exitstatus, config):
@@ -674,3 +715,37 @@ def _no_live_backup_dir():
     backup_dir_guard.install()
     yield
     backup_dir_guard.restore()
+
+
+# ---------------------------------------------------------------------------
+# No test may write the git-tracked SQLite file (2026-08-17, cycle #274,
+# card `agent-test-run-dirties-tracked-fixtures`).
+#
+# The three guards above cover Telegram, the alert state and the off-site
+# backup. None covers `spa_core/database/spa.db`, which db_url.py resolves from
+# its own __file__ and which is git-tracked: five test_api.py tests reach
+# sqlite3.connect on it through get_status → get_live_portfolio →
+# init_database, and `git status` came back dirty after every run.
+# Rationale + the measured call chain: spa_core/tests/tracked_db_guard.py.
+# ---------------------------------------------------------------------------
+_DB_GUARD_PATH = Path(__file__).resolve().parent / "tracked_db_guard.py"
+tracked_db_guard = sys.modules.get("spa_tracked_db_guard")
+if tracked_db_guard is None:
+    _db_spec = _ilu.spec_from_file_location("spa_tracked_db_guard", _DB_GUARD_PATH)
+    tracked_db_guard = _ilu.module_from_spec(_db_spec)       # type: ignore[arg-type]
+    _db_spec.loader.exec_module(tracked_db_guard)            # type: ignore[union-attr]
+    sys.modules["spa_tracked_db_guard"] = tracked_db_guard
+tracked_db_guard.install()
+
+
+@pytest.fixture(autouse=True)
+def _no_live_tracked_db():
+    """Pin $SPA_DATABASE_URL into a sandbox for every test, then restore it.
+
+    Redirection, not a mock: schema creation and every query still run, against
+    a file the suite owns. Per-test because test_db_url.py sets and deletes the
+    variable itself, and that must not leak into the next test.
+    """
+    tracked_db_guard.install()
+    yield
+    tracked_db_guard.restore()

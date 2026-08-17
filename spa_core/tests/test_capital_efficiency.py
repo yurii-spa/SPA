@@ -7,6 +7,7 @@ Deterministic, no network (positions/apy passed as in-memory dicts via monkeypat
 from __future__ import annotations
 
 import spa_core.monitoring.capital_efficiency as ce
+from spa_core.tests._freshness import ts
 
 
 def _pos(cap, cash, positions):
@@ -14,7 +15,7 @@ def _pos(cap, cash, positions):
 
 
 def _apy(rows):
-    """Строки ранжирования + наблюдённый размер пула.
+    """Строки ранжирования + наблюдённый размер пула + ПРОВЕНАНС доходности.
 
     С 08.08 комната считается пригодной, только если размер НАБЛЮДЁН и он выше
     порога RiskPolicy ($5M): раньше сюда попадали мёртвый `aerodrome_usdc_lp`
@@ -22,8 +23,19 @@ def _apy(rows):
     проставляется крупным по умолчанию — эти тесты не про порог; сам порог, в
     обе стороны, живёт в `test_tvl_floor_one_definition.py`. Явно указанный в
     строке `tvl_usd` НЕ перетирается.
+
+    С 16.08 к тому же ряду добавлены `apy_source` / `last_updated` / `generated_at`:
+    цена простоя считается ТОЛЬКО по наблюдению сегодняшнего цикла (карточка
+    «два артефакта одного цикла расходятся втрое»). Это НЕ ослабление проверок —
+    фикстура стала такой же, как настоящий `apy_ranking.json`, который эти поля
+    пишет всегда; сама подмена наблюдения литералом проверяется отдельно, в обе
+    стороны, в `test_apy_one_observation_per_cycle.py`. Явно указанные значения
+    не перетираются.
     """
-    return {"by_apy": [{"tvl_usd": 1_000_000_000.0, **r} for r in rows]}
+    stamp = ts(hours_ago=0.5)
+    return {"generated_at": stamp,
+            "by_apy": [{"tvl_usd": 1_000_000_000.0, "apy_source": "live",
+                        "last_updated": stamp, **r} for r in rows]}
 
 
 def _patch(monkeypatch, pos, apy):

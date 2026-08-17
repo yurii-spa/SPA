@@ -19,1590 +19,6 @@
     "most_inflationary": "euler_v2",
     "most_sustainable": "euler_v2",
     "average_inflation_pct": 0.0,
-    "timestamp": 1785833664.7473423
-  },
-  {
-    "protocols": [
-      {
-        "name": "maple",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "maple",
-    "most_sustainable": "maple",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833665.051416
-  },
-  {
-    "protocols": [
-      {
-        "name": "pendle",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "pendle",
-    "most_sustainable": "pendle",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833665.3225167
-  },
-  {
-    "protocols": [
-      {
-        "name": "spark_susds",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "spark_susds",
-    "most_sustainable": "spark_susds",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833665.6001108
-  },
-  {
-    "protocols": [
-      {
-        "name": "aave_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "aave_v3",
-    "most_sustainable": "aave_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833665.9879951
-  },
-  {
-    "protocols": [
-      {
-        "name": "compound_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "compound_v3",
-    "most_sustainable": "compound_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833666.2646208
-  },
-  {
-    "protocols": [
-      {
-        "name": "morpho_blue",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "morpho_blue",
-    "most_sustainable": "morpho_blue",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833666.5407403
-  },
-  {
-    "protocols": [
-      {
-        "name": "yearn_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "yearn_v3",
-    "most_sustainable": "yearn_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833666.8166282
-  },
-  {
-    "protocols": [
-      {
-        "name": "euler_v2",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "euler_v2",
-    "most_sustainable": "euler_v2",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833667.1045063
-  },
-  {
-    "protocols": [
-      {
-        "name": "maple",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "maple",
-    "most_sustainable": "maple",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833667.3928792
-  },
-  {
-    "protocols": [
-      {
-        "name": "pendle",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "pendle",
-    "most_sustainable": "pendle",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833667.6630855
-  },
-  {
-    "protocols": [
-      {
-        "name": "spark_susds",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "spark_susds",
-    "most_sustainable": "spark_susds",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833667.978533
-  },
-  {
-    "protocols": [
-      {
-        "name": "aave_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "aave_v3",
-    "most_sustainable": "aave_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833668.3379767
-  },
-  {
-    "protocols": [
-      {
-        "name": "compound_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "compound_v3",
-    "most_sustainable": "compound_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833668.6181235
-  },
-  {
-    "protocols": [
-      {
-        "name": "morpho_blue",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "morpho_blue",
-    "most_sustainable": "morpho_blue",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833668.883815
-  },
-  {
-    "protocols": [
-      {
-        "name": "yearn_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "yearn_v3",
-    "most_sustainable": "yearn_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833669.166025
-  },
-  {
-    "protocols": [
-      {
-        "name": "euler_v2",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "euler_v2",
-    "most_sustainable": "euler_v2",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833669.4414036
-  },
-  {
-    "protocols": [
-      {
-        "name": "maple",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "maple",
-    "most_sustainable": "maple",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833669.7194436
-  },
-  {
-    "protocols": [
-      {
-        "name": "pendle",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "pendle",
-    "most_sustainable": "pendle",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833669.9899423
-  },
-  {
-    "protocols": [
-      {
-        "name": "spark_susds",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "spark_susds",
-    "most_sustainable": "spark_susds",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833670.2675474
-  },
-  {
-    "protocols": [
-      {
-        "name": "aave_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "aave_v3",
-    "most_sustainable": "aave_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833670.6446452
-  },
-  {
-    "protocols": [
-      {
-        "name": "compound_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "compound_v3",
-    "most_sustainable": "compound_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833670.9718919
-  },
-  {
-    "protocols": [
-      {
-        "name": "morpho_blue",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "morpho_blue",
-    "most_sustainable": "morpho_blue",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833671.2459931
-  },
-  {
-    "protocols": [
-      {
-        "name": "yearn_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "yearn_v3",
-    "most_sustainable": "yearn_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833671.5186572
-  },
-  {
-    "protocols": [
-      {
-        "name": "euler_v2",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "euler_v2",
-    "most_sustainable": "euler_v2",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833671.7934055
-  },
-  {
-    "protocols": [
-      {
-        "name": "maple",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "maple",
-    "most_sustainable": "maple",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833672.0560143
-  },
-  {
-    "protocols": [
-      {
-        "name": "pendle",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "pendle",
-    "most_sustainable": "pendle",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833672.333979
-  },
-  {
-    "protocols": [
-      {
-        "name": "spark_susds",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "spark_susds",
-    "most_sustainable": "spark_susds",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833672.6070902
-  },
-  {
-    "protocols": [
-      {
-        "name": "aave_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "aave_v3",
-    "most_sustainable": "aave_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833672.9526036
-  },
-  {
-    "protocols": [
-      {
-        "name": "compound_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "compound_v3",
-    "most_sustainable": "compound_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833673.216137
-  },
-  {
-    "protocols": [
-      {
-        "name": "morpho_blue",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "morpho_blue",
-    "most_sustainable": "morpho_blue",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833673.4756372
-  },
-  {
-    "protocols": [
-      {
-        "name": "yearn_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "yearn_v3",
-    "most_sustainable": "yearn_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833673.7379417
-  },
-  {
-    "protocols": [
-      {
-        "name": "euler_v2",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "euler_v2",
-    "most_sustainable": "euler_v2",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833674.00377
-  },
-  {
-    "protocols": [
-      {
-        "name": "maple",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "maple",
-    "most_sustainable": "maple",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833674.2499082
-  },
-  {
-    "protocols": [
-      {
-        "name": "pendle",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "pendle",
-    "most_sustainable": "pendle",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833674.522783
-  },
-  {
-    "protocols": [
-      {
-        "name": "spark_susds",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "spark_susds",
-    "most_sustainable": "spark_susds",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833674.7773943
-  },
-  {
-    "protocols": [
-      {
-        "name": "aave_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "aave_v3",
-    "most_sustainable": "aave_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833675.216458
-  },
-  {
-    "protocols": [
-      {
-        "name": "compound_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "compound_v3",
-    "most_sustainable": "compound_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833675.4701028
-  },
-  {
-    "protocols": [
-      {
-        "name": "morpho_blue",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "morpho_blue",
-    "most_sustainable": "morpho_blue",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833675.7609403
-  },
-  {
-    "protocols": [
-      {
-        "name": "yearn_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "yearn_v3",
-    "most_sustainable": "yearn_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833676.0467274
-  },
-  {
-    "protocols": [
-      {
-        "name": "euler_v2",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "euler_v2",
-    "most_sustainable": "euler_v2",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833676.3107486
-  },
-  {
-    "protocols": [
-      {
-        "name": "maple",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "maple",
-    "most_sustainable": "maple",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833676.581059
-  },
-  {
-    "protocols": [
-      {
-        "name": "pendle",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "pendle",
-    "most_sustainable": "pendle",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833676.870209
-  },
-  {
-    "protocols": [
-      {
-        "name": "spark_susds",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "spark_susds",
-    "most_sustainable": "spark_susds",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833677.1419423
-  },
-  {
-    "protocols": [
-      {
-        "name": "aave_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "aave_v3",
-    "most_sustainable": "aave_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833677.4203687
-  },
-  {
-    "protocols": [
-      {
-        "name": "compound_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "compound_v3",
-    "most_sustainable": "compound_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833677.675339
-  },
-  {
-    "protocols": [
-      {
-        "name": "morpho_blue",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "morpho_blue",
-    "most_sustainable": "morpho_blue",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833677.9479795
-  },
-  {
-    "protocols": [
-      {
-        "name": "yearn_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "yearn_v3",
-    "most_sustainable": "yearn_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833678.257523
-  },
-  {
-    "protocols": [
-      {
-        "name": "euler_v2",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "euler_v2",
-    "most_sustainable": "euler_v2",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833678.5764496
-  },
-  {
-    "protocols": [
-      {
-        "name": "maple",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "maple",
-    "most_sustainable": "maple",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833678.8422031
-  },
-  {
-    "protocols": [
-      {
-        "name": "pendle",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "pendle",
-    "most_sustainable": "pendle",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833679.1382256
-  },
-  {
-    "protocols": [
-      {
-        "name": "spark_susds",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "spark_susds",
-    "most_sustainable": "spark_susds",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833679.4335673
-  },
-  {
-    "protocols": [
-      {
-        "name": "aave_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "aave_v3",
-    "most_sustainable": "aave_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833679.7264962
-  },
-  {
-    "protocols": [
-      {
-        "name": "compound_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "compound_v3",
-    "most_sustainable": "compound_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833680.0138402
-  },
-  {
-    "protocols": [
-      {
-        "name": "morpho_blue",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "morpho_blue",
-    "most_sustainable": "morpho_blue",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833680.2888346
-  },
-  {
-    "protocols": [
-      {
-        "name": "yearn_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "yearn_v3",
-    "most_sustainable": "yearn_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833680.5703154
-  },
-  {
-    "protocols": [
-      {
-        "name": "euler_v2",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "euler_v2",
-    "most_sustainable": "euler_v2",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833680.8660076
-  },
-  {
-    "protocols": [
-      {
-        "name": "maple",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "maple",
-    "most_sustainable": "maple",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833681.1448035
-  },
-  {
-    "protocols": [
-      {
-        "name": "pendle",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "pendle",
-    "most_sustainable": "pendle",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833681.4148521
-  },
-  {
-    "protocols": [
-      {
-        "name": "spark_susds",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "spark_susds",
-    "most_sustainable": "spark_susds",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833681.6951904
-  },
-  {
-    "protocols": [
-      {
-        "name": "aave_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "aave_v3",
-    "most_sustainable": "aave_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833682.9375126
-  },
-  {
-    "protocols": [
-      {
-        "name": "compound_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "compound_v3",
-    "most_sustainable": "compound_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833683.2049093
-  },
-  {
-    "protocols": [
-      {
-        "name": "morpho_blue",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "morpho_blue",
-    "most_sustainable": "morpho_blue",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833683.467129
-  },
-  {
-    "protocols": [
-      {
-        "name": "yearn_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "yearn_v3",
-    "most_sustainable": "yearn_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833683.7340717
-  },
-  {
-    "protocols": [
-      {
-        "name": "euler_v2",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "euler_v2",
-    "most_sustainable": "euler_v2",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833684.0151331
-  },
-  {
-    "protocols": [
-      {
-        "name": "maple",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "maple",
-    "most_sustainable": "maple",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833684.3009586
-  },
-  {
-    "protocols": [
-      {
-        "name": "pendle",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "pendle",
-    "most_sustainable": "pendle",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833684.5935006
-  },
-  {
-    "protocols": [
-      {
-        "name": "spark_susds",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "spark_susds",
-    "most_sustainable": "spark_susds",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833684.897023
-  },
-  {
-    "protocols": [
-      {
-        "name": "aave_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "aave_v3",
-    "most_sustainable": "aave_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833686.198941
-  },
-  {
-    "protocols": [
-      {
-        "name": "compound_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "compound_v3",
-    "most_sustainable": "compound_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833686.5161216
-  },
-  {
-    "protocols": [
-      {
-        "name": "morpho_blue",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "morpho_blue",
-    "most_sustainable": "morpho_blue",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833686.8181353
-  },
-  {
-    "protocols": [
-      {
-        "name": "yearn_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "yearn_v3",
-    "most_sustainable": "yearn_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1785833687.1347373
-  },
-  {
-    "protocols": [
-      {
-        "name": "euler_v2",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "euler_v2",
-    "most_sustainable": "euler_v2",
-    "average_inflation_pct": 0.0,
     "timestamp": 1785833687.4375181
   },
   {
@@ -2198,5 +614,1589 @@
     "most_sustainable": "spark_susds",
     "average_inflation_pct": 0.0,
     "timestamp": 1785833695.4718385
+  },
+  {
+    "protocols": [
+      {
+        "name": "aave_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "aave_v3",
+    "most_sustainable": "aave_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872533.4947484
+  },
+  {
+    "protocols": [
+      {
+        "name": "compound_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "compound_v3",
+    "most_sustainable": "compound_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872533.7768826
+  },
+  {
+    "protocols": [
+      {
+        "name": "morpho_blue",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "morpho_blue",
+    "most_sustainable": "morpho_blue",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872534.1018505
+  },
+  {
+    "protocols": [
+      {
+        "name": "yearn_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "yearn_v3",
+    "most_sustainable": "yearn_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872534.4298785
+  },
+  {
+    "protocols": [
+      {
+        "name": "euler_v2",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "euler_v2",
+    "most_sustainable": "euler_v2",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872534.7192948
+  },
+  {
+    "protocols": [
+      {
+        "name": "maple",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "maple",
+    "most_sustainable": "maple",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872534.9908824
+  },
+  {
+    "protocols": [
+      {
+        "name": "pendle",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "pendle",
+    "most_sustainable": "pendle",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872535.2229629
+  },
+  {
+    "protocols": [
+      {
+        "name": "spark_susds",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "spark_susds",
+    "most_sustainable": "spark_susds",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872535.4493206
+  },
+  {
+    "protocols": [
+      {
+        "name": "aave_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "aave_v3",
+    "most_sustainable": "aave_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872539.972903
+  },
+  {
+    "protocols": [
+      {
+        "name": "compound_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "compound_v3",
+    "most_sustainable": "compound_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872540.2096677
+  },
+  {
+    "protocols": [
+      {
+        "name": "morpho_blue",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "morpho_blue",
+    "most_sustainable": "morpho_blue",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872540.4942646
+  },
+  {
+    "protocols": [
+      {
+        "name": "yearn_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "yearn_v3",
+    "most_sustainable": "yearn_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872540.784219
+  },
+  {
+    "protocols": [
+      {
+        "name": "euler_v2",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "euler_v2",
+    "most_sustainable": "euler_v2",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872541.059907
+  },
+  {
+    "protocols": [
+      {
+        "name": "maple",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "maple",
+    "most_sustainable": "maple",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872541.3182368
+  },
+  {
+    "protocols": [
+      {
+        "name": "pendle",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "pendle",
+    "most_sustainable": "pendle",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872541.5848398
+  },
+  {
+    "protocols": [
+      {
+        "name": "spark_susds",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "spark_susds",
+    "most_sustainable": "spark_susds",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872541.8668132
+  },
+  {
+    "protocols": [
+      {
+        "name": "aave_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "aave_v3",
+    "most_sustainable": "aave_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872542.3704708
+  },
+  {
+    "protocols": [
+      {
+        "name": "compound_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "compound_v3",
+    "most_sustainable": "compound_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872542.6302426
+  },
+  {
+    "protocols": [
+      {
+        "name": "morpho_blue",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "morpho_blue",
+    "most_sustainable": "morpho_blue",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872542.9342198
+  },
+  {
+    "protocols": [
+      {
+        "name": "yearn_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "yearn_v3",
+    "most_sustainable": "yearn_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872543.241044
+  },
+  {
+    "protocols": [
+      {
+        "name": "euler_v2",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "euler_v2",
+    "most_sustainable": "euler_v2",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872543.5764384
+  },
+  {
+    "protocols": [
+      {
+        "name": "maple",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "maple",
+    "most_sustainable": "maple",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872543.8485193
+  },
+  {
+    "protocols": [
+      {
+        "name": "pendle",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "pendle",
+    "most_sustainable": "pendle",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872544.1332319
+  },
+  {
+    "protocols": [
+      {
+        "name": "spark_susds",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "spark_susds",
+    "most_sustainable": "spark_susds",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872544.408
+  },
+  {
+    "protocols": [
+      {
+        "name": "aave_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "aave_v3",
+    "most_sustainable": "aave_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872544.8217392
+  },
+  {
+    "protocols": [
+      {
+        "name": "compound_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "compound_v3",
+    "most_sustainable": "compound_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872545.107276
+  },
+  {
+    "protocols": [
+      {
+        "name": "morpho_blue",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "morpho_blue",
+    "most_sustainable": "morpho_blue",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872545.388896
+  },
+  {
+    "protocols": [
+      {
+        "name": "yearn_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "yearn_v3",
+    "most_sustainable": "yearn_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872545.6946132
+  },
+  {
+    "protocols": [
+      {
+        "name": "euler_v2",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "euler_v2",
+    "most_sustainable": "euler_v2",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872546.0400906
+  },
+  {
+    "protocols": [
+      {
+        "name": "maple",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "maple",
+    "most_sustainable": "maple",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872546.3141482
+  },
+  {
+    "protocols": [
+      {
+        "name": "pendle",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "pendle",
+    "most_sustainable": "pendle",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872546.4901278
+  },
+  {
+    "protocols": [
+      {
+        "name": "spark_susds",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "spark_susds",
+    "most_sustainable": "spark_susds",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872546.7248073
+  },
+  {
+    "protocols": [
+      {
+        "name": "aave_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "aave_v3",
+    "most_sustainable": "aave_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872561.2118847
+  },
+  {
+    "protocols": [
+      {
+        "name": "compound_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "compound_v3",
+    "most_sustainable": "compound_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872561.4902174
+  },
+  {
+    "protocols": [
+      {
+        "name": "morpho_blue",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "morpho_blue",
+    "most_sustainable": "morpho_blue",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872561.748467
+  },
+  {
+    "protocols": [
+      {
+        "name": "yearn_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "yearn_v3",
+    "most_sustainable": "yearn_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872562.057556
+  },
+  {
+    "protocols": [
+      {
+        "name": "euler_v2",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "euler_v2",
+    "most_sustainable": "euler_v2",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872562.3437774
+  },
+  {
+    "protocols": [
+      {
+        "name": "maple",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "maple",
+    "most_sustainable": "maple",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872562.6633039
+  },
+  {
+    "protocols": [
+      {
+        "name": "pendle",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "pendle",
+    "most_sustainable": "pendle",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872562.939918
+  },
+  {
+    "protocols": [
+      {
+        "name": "spark_susds",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "spark_susds",
+    "most_sustainable": "spark_susds",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872563.1546366
+  },
+  {
+    "protocols": [
+      {
+        "name": "aave_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "aave_v3",
+    "most_sustainable": "aave_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872633.8521812
+  },
+  {
+    "protocols": [
+      {
+        "name": "compound_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "compound_v3",
+    "most_sustainable": "compound_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872634.217657
+  },
+  {
+    "protocols": [
+      {
+        "name": "morpho_blue",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "morpho_blue",
+    "most_sustainable": "morpho_blue",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872634.5789003
+  },
+  {
+    "protocols": [
+      {
+        "name": "yearn_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "yearn_v3",
+    "most_sustainable": "yearn_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872634.9667623
+  },
+  {
+    "protocols": [
+      {
+        "name": "euler_v2",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "euler_v2",
+    "most_sustainable": "euler_v2",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872635.3054345
+  },
+  {
+    "protocols": [
+      {
+        "name": "maple",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "maple",
+    "most_sustainable": "maple",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872635.6104093
+  },
+  {
+    "protocols": [
+      {
+        "name": "pendle",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "pendle",
+    "most_sustainable": "pendle",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872635.88045
+  },
+  {
+    "protocols": [
+      {
+        "name": "spark_susds",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "spark_susds",
+    "most_sustainable": "spark_susds",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872636.1666768
+  },
+  {
+    "protocols": [
+      {
+        "name": "aave_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "aave_v3",
+    "most_sustainable": "aave_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872704.1405828
+  },
+  {
+    "protocols": [
+      {
+        "name": "compound_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "compound_v3",
+    "most_sustainable": "compound_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872704.3713748
+  },
+  {
+    "protocols": [
+      {
+        "name": "morpho_blue",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "morpho_blue",
+    "most_sustainable": "morpho_blue",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872704.6047359
+  },
+  {
+    "protocols": [
+      {
+        "name": "yearn_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "yearn_v3",
+    "most_sustainable": "yearn_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872704.83497
+  },
+  {
+    "protocols": [
+      {
+        "name": "euler_v2",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "euler_v2",
+    "most_sustainable": "euler_v2",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872705.0600305
+  },
+  {
+    "protocols": [
+      {
+        "name": "maple",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "maple",
+    "most_sustainable": "maple",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872705.2601376
+  },
+  {
+    "protocols": [
+      {
+        "name": "pendle",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "pendle",
+    "most_sustainable": "pendle",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872705.4493055
+  },
+  {
+    "protocols": [
+      {
+        "name": "spark_susds",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "spark_susds",
+    "most_sustainable": "spark_susds",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786872705.6551216
+  },
+  {
+    "protocols": [
+      {
+        "name": "aave_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "aave_v3",
+    "most_sustainable": "aave_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786964851.6360323
+  },
+  {
+    "protocols": [
+      {
+        "name": "compound_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "compound_v3",
+    "most_sustainable": "compound_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786964851.8349469
+  },
+  {
+    "protocols": [
+      {
+        "name": "morpho_blue",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "morpho_blue",
+    "most_sustainable": "morpho_blue",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786964852.0277874
+  },
+  {
+    "protocols": [
+      {
+        "name": "yearn_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "yearn_v3",
+    "most_sustainable": "yearn_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786964852.2390885
+  },
+  {
+    "protocols": [
+      {
+        "name": "euler_v2",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "euler_v2",
+    "most_sustainable": "euler_v2",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786964852.4329236
+  },
+  {
+    "protocols": [
+      {
+        "name": "maple",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "maple",
+    "most_sustainable": "maple",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786964852.6175816
+  },
+  {
+    "protocols": [
+      {
+        "name": "pendle",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "pendle",
+    "most_sustainable": "pendle",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786964852.790739
+  },
+  {
+    "protocols": [
+      {
+        "name": "spark_susds",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "spark_susds",
+    "most_sustainable": "spark_susds",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786964852.9564083
+  },
+  {
+    "protocols": [
+      {
+        "name": "aave_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "aave_v3",
+    "most_sustainable": "aave_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786964853.2737334
+  },
+  {
+    "protocols": [
+      {
+        "name": "compound_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "compound_v3",
+    "most_sustainable": "compound_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786964853.6703193
+  },
+  {
+    "protocols": [
+      {
+        "name": "morpho_blue",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "morpho_blue",
+    "most_sustainable": "morpho_blue",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786964853.8508196
+  },
+  {
+    "protocols": [
+      {
+        "name": "yearn_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "yearn_v3",
+    "most_sustainable": "yearn_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786964854.0328295
+  },
+  {
+    "protocols": [
+      {
+        "name": "euler_v2",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "euler_v2",
+    "most_sustainable": "euler_v2",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786964854.2086232
+  },
+  {
+    "protocols": [
+      {
+        "name": "maple",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "maple",
+    "most_sustainable": "maple",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786964854.3785462
+  },
+  {
+    "protocols": [
+      {
+        "name": "pendle",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "pendle",
+    "most_sustainable": "pendle",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786964854.539939
+  },
+  {
+    "protocols": [
+      {
+        "name": "spark_susds",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "spark_susds",
+    "most_sustainable": "spark_susds",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786964854.7039988
   }
 ]

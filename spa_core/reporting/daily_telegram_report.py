@@ -18,6 +18,7 @@ Telegram message:
     🎯 GoLive: 25/26 (19 days to 30-day track ✅)
     ⚡ Cycle: ran 6x today, 0 errors
     🔒 Risk gate: all positions within limits
+    🚦 Daily limits (DL-01..05): PASS — daily loss 0.12% (limit 2.0%)
 
 Sources (all read-only, all optional — a missing/corrupt file degrades the
 corresponding fields gracefully, never raises):
@@ -29,6 +30,10 @@ corresponding fields gracefully, never raises):
                                         (execution-owned: READ ONLY, never write)
 * ``data/tournament_results.json``    — best active strategy by net APY
 * ``data/risk_policy_blocks.json``    — today's RiskPolicy gate blocks
+* ``data/risk_limits_check.json``     — DailyLimitsChecker verdict DL-01..DL-05
+                                        (cycle-written; read-only here, and a
+                                        missing/stale snapshot is reported as
+                                        UNKNOWN, never as PASS)
 
 Secrets policy (incident 2026-06-10): Telegram credentials are NEVER stored in
 files — ``telegram_client`` reads them from the macOS Keychain at runtime.
@@ -74,6 +79,15 @@ GOLIVE_FILENAME = "golive_status.json"
 ADAPTER_FILENAME = "adapter_status.json"
 TOURNAMENT_FILENAME = "tournament_results.json"
 RISK_BLOCKS_FILENAME = "risk_policy_blocks.json"
+CIO_FILENAME = "portfolio_cio.json"          # Portfolio CIO §34 (advisory, shadow)
+#: Снимок старше этого возраста в отчёт НЕ попадает: устаревшая рекомендация
+#: опаснее отсутствующей — владелец примет её за сегодняшнюю.
+CIO_MAX_AGE_HOURS = 26.0
+#: Вердикт DailyLimitsChecker (DL-01…DL-05), который цикл пишет каждый прогон
+#: (``cycle_runner`` → ``DailyLimitsChecker.save_result``). Отчёт его только ЧИТАЕТ.
+RISK_LIMITS_FILENAME = "risk_limits_check.json"
+#: Старше этого возраста вердикт не выдаётся за сегодняшний (цикл ходит ежедневно).
+DAILY_LIMITS_MAX_AGE_HOURS = 26.0
 
 # Real track started 2026-06-10 (everything before is demo/teardown-invalid).
 PAPER_START_FALLBACK = "2026-06-10"
@@ -196,6 +210,106 @@ def _best_strategy(tournament_doc: Any) -> dict | None:
     return best
 
 
+def _cio_section(cio_doc: Any, now_dt: datetime) -> dict | None:
+    """Секция Portfolio CIO для дневного отчёта (§34) — или None.
+
+    Fail-CLOSED тремя способами: нет снимка, снимок протух, снимок не advisory ⇒
+    секции нет вовсе. Отчёт при этом остаётся ровно таким, каким был: отсутствие
+    рекомендации не должно ломать доставку остальных чисел.
+    """
+    if not isinstance(cio_doc, dict) or not cio_doc:
+        return None
+    if cio_doc.get("is_advisory") is not True:
+        return None
+    stamp = cio_doc.get("generated_at")
+    try:
+        age_h = (now_dt - datetime.fromisoformat(str(stamp))).total_seconds() / 3600.0
+    except (TypeError, ValueError):
+        return None
+    if age_h > CIO_MAX_AGE_HOURS or age_h < -1.0:
+        return None
+    decision = str(cio_doc.get("decision") or "")
+    if decision not in ("KEEP", "REBALANCE", "DEFER"):
+        return None
+    return {
+        "decision": decision,
+        "current_apy_pp": cio_doc.get("current_expected_apy_pp"),
+        "optimal_apy_pp": cio_doc.get("optimal_expected_apy_pp"),
+        "yield_gap_pp": cio_doc.get("yield_gap_pp"),
+        "cost_usd": cio_doc.get("switching_cost_usd"),
+        "payback_days": cio_doc.get("payback_days"),
+        "reasons": [str(r) for r in (cio_doc.get("reasons") or [])][:2],
+        "age_hours": round(age_h, 2),
+    }
+
+
+def _daily_limits_section(limits_doc: Any, now_dt: datetime) -> dict:
+    """Вердикт дневных лимитов (DL-01…DL-05) для отчёта — ВСЕГДА словарь.
+
+    Отвечает на вопрос, которого в отчёте не было: «дневной лимит убытка сегодня
+    сработал?». Читает снимок, который цикл уже пишет сам
+    (``data/risk_limits_check.json``); порогов не знает и не считает — вердикт
+    вынесен гейтом, отчёт его только показывает.
+
+    Почему словарь, а не ``None`` как у CIO: тишина в строке про лимит убытка
+    читается владельцем как «лимит не сработал», то есть «не знаю» и «всё чисто»
+    стали бы неразличимы. Fail-CLOSED здесь = НАЗВАТЬ незнание
+    (``gate="UNKNOWN"`` + причина словами), а не промолчать и не показать
+    вчерашний PASS за сегодняшний.
+    """
+    unknown: dict[str, Any] = {
+        "gate": "UNKNOWN",
+        "unknown_reason": "no snapshot on disk",
+        "halt_reasons": [],
+        "warn_reasons": [],
+        "dl01": None,
+        "age_hours": None,
+    }
+    if not isinstance(limits_doc, dict) or not limits_doc:
+        return unknown
+
+    stamp = limits_doc.get("checked_at")
+    try:
+        age_h = (now_dt - datetime.fromisoformat(str(stamp))).total_seconds() / 3600.0
+    except (TypeError, ValueError):
+        return {**unknown, "unknown_reason": "snapshot has no readable timestamp"}
+    if age_h > DAILY_LIMITS_MAX_AGE_HOURS or age_h < -1.0:
+        return {
+            **unknown,
+            "unknown_reason": f"snapshot {age_h:.1f}h old",
+            "age_hours": round(age_h, 2),
+        }
+
+    gate = str(limits_doc.get("gate") or "")
+    if gate not in ("PASS", "WARN", "HALT"):
+        return {
+            **unknown,
+            "unknown_reason": "snapshot carries no known verdict",
+            "age_hours": round(age_h, 2),
+        }
+
+    dl01: dict | None = None
+    checks = limits_doc.get("checks")
+    if isinstance(checks, list):
+        for chk in checks:
+            if isinstance(chk, dict) and chk.get("id") == "DL-01":
+                dl01 = {
+                    "status": str(chk.get("status") or "?"),
+                    "value": chk.get("value"),
+                    "limit": chk.get("limit"),
+                }
+                break
+
+    return {
+        "gate": gate,
+        "unknown_reason": None,
+        "halt_reasons": [str(r) for r in (limits_doc.get("halt_reasons") or [])][:3],
+        "warn_reasons": [str(r) for r in (limits_doc.get("warn_reasons") or [])][:3],
+        "dl01": dl01,
+        "age_hours": round(age_h, 2),
+    }
+
+
 def _risk_blocks_today(blocks_doc: Any, date_str: str) -> int:
     """Number of RiskPolicy gate block events recorded on ``date_str``."""
     if not isinstance(blocks_doc, list):
@@ -308,8 +422,10 @@ def build_report_data(
     status_doc = _read_json(ddir / STATUS_FILENAME, {})
     golive_doc = _read_json(ddir / GOLIVE_FILENAME, {})
     adapter_doc = _read_json(ddir / ADAPTER_FILENAME, {})
+    cio_doc = _read_json(ddir / CIO_FILENAME, {})
     tournament_doc = _read_json(ddir / TOURNAMENT_FILENAME, {})
     blocks_doc = _read_json(ddir / RISK_BLOCKS_FILENAME, [])
+    limits_doc = _read_json(ddir / RISK_LIMITS_FILENAME, {})
 
     if not isinstance(status_doc, dict):
         status_doc = {}
@@ -395,6 +511,8 @@ def build_report_data(
         "last_cycle_status": last_cycle_status,
         "risk_policy_approved": risk_approved,
         "risk_blocks_today": risk_blocks,
+        "daily_limits": _daily_limits_section(limits_doc, now_dt),
+        "portfolio_cio": _cio_section(cio_doc, now_dt),
         "base_chain": base_chain,
     }
 
@@ -410,6 +528,25 @@ def _fmt_money(value: Any, signed: bool = False) -> str:
 
 def _fmt_pct(value: Any) -> str:
     return f"{value:.2f}%" if isinstance(value, (int, float)) else "—"
+
+
+def _fmt_dl01(dl01: Any) -> str:
+    """Хвост строки с ЧИСЛОМ дневного убытка — ради него карточка и заведена.
+
+    Нет числа (SKIP / чужой формат) — так и написано; выдумывать «0.00%» нельзя.
+    """
+    if not isinstance(dl01, dict):
+        return ""
+    status = dl01.get("status")
+    value = dl01.get("value")
+    limit = dl01.get("limit")
+    if status == "SKIP" or not isinstance(value, (int, float)):
+        return " — daily loss: not measured (SKIP)"
+    lim = f" (limit {limit:.1f}%)" if isinstance(limit, (int, float)) else ""
+    # Отрицательное «падение» — это прибыль дня; печатаем как есть, без знака-ловушки.
+    if value < 0:
+        return f" — daily change +{abs(value):.2f}%{lim}"
+    return f" — daily loss {value:.2f}%{lim}"
 
 
 def format_daily_message(data: dict) -> str:
@@ -494,9 +631,55 @@ def format_daily_message(data: dict) -> str:
     blocks = data.get("risk_blocks_today", 0)
     approved = data.get("risk_policy_approved")
     if blocks:
-        lines.append(f"🔒 Risk gate: {blocks} block event(s) today — see risk_policy_blocks.json")
+        lines.append(
+            f"🔒 Risk gate: {blocks} block event(s) today — "
+            f"see data/risk_blocks_daily/{_esc(date_str)}.json"
+        )
     elif approved is True:
         lines.append("🔒 Risk gate: all positions within limits")
+
+    # Daily risk limits (DL-01..DL-05, MP-375) — ДРУГОЙ сторож, другой вопрос:
+    # «сработал ли сегодня дневной лимит убытка». Строка есть ВСЕГДА, включая
+    # «вердикта нет» — иначе молчание читается как «лимит чист».
+    dl = data.get("daily_limits")
+    if isinstance(dl, dict):
+        gate = dl.get("gate")
+        if gate == "HALT":
+            lines.append("🛑 Daily limits: HALT — allocation blocked today")
+            for reason in dl.get("halt_reasons") or []:
+                lines.append(f"  • {_esc(reason)}")
+        elif gate == "WARN":
+            lines.append(f"⚠️ Daily limits: WARN{_fmt_dl01(dl.get('dl01'))}")
+            for reason in dl.get("warn_reasons") or []:
+                lines.append(f"  • {_esc(reason)}")
+        elif gate == "PASS":
+            lines.append(
+                f"🚦 Daily limits (DL-01..05): PASS{_fmt_dl01(dl.get('dl01'))}"
+            )
+        else:
+            lines.append(
+                "⚪ Daily limits: NO FRESH VERDICT "
+                f"({_esc(dl.get('unknown_reason') or 'unknown')}) — "
+                "daily-loss limit UNCONFIRMED for today"
+            )
+
+    # Portfolio CIO (§34) — только если снимок есть и свеж; иначе отчёт как был.
+    cio = data.get("portfolio_cio")
+    if isinstance(cio, dict):
+        _ru = {"KEEP": "ОСТАВЛЯЕМ", "REBALANCE": "ПЕРЕКЛАДЫВАЕМ", "DEFER": "ЖДЁМ УДЕШЕВЛЕНИЯ"}
+        lines.append("")
+        lines.append("🧠 <b>Portfolio CIO</b>")
+        lines.append("Сейчас ожидаем: {} · можно: {} · разрыв: {}".format(
+            _fmt_pct(cio.get("current_apy_pp")), _fmt_pct(cio.get("optimal_apy_pp")),
+            _fmt_pct(cio.get("yield_gap_pp"))))
+        lines.append("Решение: {}".format(_esc(_ru.get(cio.get("decision"), cio.get("decision")))))
+        if cio.get("decision") in ("REBALANCE", "DEFER"):
+            payback = cio.get("payback_days")
+            lines.append("Стоимость: {} · окупаемость: {}".format(
+                _fmt_money(cio.get("cost_usd")),
+                "—" if payback is None else "{:.0f} дн.".format(float(payback))))
+        for reason in cio.get("reasons") or []:
+            lines.append("  • {}".format(_esc(reason)))
 
     # Base chain monitoring (ADR-025 Phase 1 — merged from daily_paper_report).
     bc = data.get("base_chain")

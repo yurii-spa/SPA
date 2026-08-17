@@ -14,6 +14,7 @@ import os
 import time
 from typing import Any
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_state_path
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -302,7 +303,9 @@ def analyze(positions: list[dict], config: dict | None = None) -> dict:
     }
 
     try:
-        _atomic_log(_LOG_PATH, result)
+        # Разрешается НА ВЫЗОВЕ: _LOG_PATH это git-tracked
+        # data/exit_liquidity_log.json, и прогон его ПАЧКАЛ (цикл #274).
+        _atomic_log(str(sandboxed_state_path(_LOG_PATH)), result)
     except Exception:
         pass  # advisory: never crash caller
 

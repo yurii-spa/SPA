@@ -35,13 +35,17 @@
 
 Тесты сюда не попадают: модули состояния сами уводят прогон во временный файл под
 ``PYTEST_CURRENT_TEST`` — правило появилось после инцидента «тесты пишут в живое состояние
-алертов» и здесь не ослабляется.
+алертов» и здесь не ослабляется. Общая реализация этого увода —
+:func:`sandboxed_state_path` ниже (цикл #274): «сами уводят» существовало как ПРАВИЛО и
+десяток независимых копий, а у producer-логов копии не было вовсе.
 
 stdlib, без побочных эффектов: ни одного каталога этот модуль не создаёт.
 """
 from __future__ import annotations
 
 import os
+import sys
+import tempfile
 from pathlib import Path
 
 #: Каталог прод-дерева по умолчанию. Флот launchd исполняет ИМЕННО его.
@@ -79,3 +83,106 @@ def live_data_dir(fallback_root: Path | None = None) -> Path:
     if sandbox:
         return Path(sandbox)
     return live_root(fallback_root) / "data"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Увод ПРОИЗВОДНОГО состояния из дерева на время прогона тестов (цикл #274)
+# ──────────────────────────────────────────────────────────────────────────────
+#
+# Что измерено 2026-08-17 (карточка ``agent-test-run-dirties-tracked-fixtures``).
+# Прогон ``pytest spa_core/tests/`` оставлял ``git status`` с ТРИНАДЦАТЬЮ
+# изменёнными git-tracked файлами. Писатели названы поимённо (файл:строка) —
+# ни одного «теста, забывшего подменить путь» среди причин нет: каждый писатель
+# это ПРОДОВЫЙ модуль, который берёт путь лога из модульной константы, собранной
+# из своего ``__file__``, и потому пишет в дерево, что бы тест ни передал.
+#
+# Самый показательный случай — ``test_cash_attribution_policy_refusals.py::
+# test_run_cycle_wires_the_refusal_into_the_owner_facing_artifact``: тест
+# передаёт ``data_dir=str(tmp_path)`` и ``allow_live_write=False``, его докстринг
+# дословно обещает «the live track is never read or written», и при этом ОДИН
+# этот тест пачкает ДЕВЯТЬ трекаемых путей — ``run_cycle`` не протаскивает
+# ``data_dir`` в веер (adapter_status_generator, gap_monitor,
+# apy_milestone_tracker и аналитику, вызываемую через signal_aggregator), а те
+# резолвят свои пути сами. Починка «в тесте» тут невозможна по построению:
+# тест уже сделал всё правильно.
+#
+# Почему НЕ через ``SPA_DATA_DIR``. Во-первых, константы вычисляются на ИМПОРТЕ,
+# то есть до любой фикстуры. Во-вторых — измерено — ``test_alerts.py::
+# TestRunAlertsCli`` работает под ``mock.patch.dict(os.environ, {}, clear=True)``:
+# любой env-переменной там уже нет, включая ``PYTEST_CURRENT_TEST``. Поэтому
+# признак «мы под тестами» берётся из ``sys.modules`` (так же, как в
+# ``strategy_lab/rates_desk/proof_chain.py::_under_test``) И из env — первый
+# работает при вычищенном окружении, второй в дочернем процессе.
+#
+# Это РЕДИРЕКТ, не мок: весь код записи (ring-buffer, atomic_save, makedirs)
+# исполняется целиком, меняется только каталог назначения. Прод не задет:
+# без pytest в ``sys.modules`` функция возвращает ровно то, что ей дали.
+
+#: Осознанный обход: прод-ветка обязана оставаться проверяемой. Дочерний процесс
+#: (или тест, который МЕРЯЕТ прод-путь) выставляет флаг и получает живой путь.
+LIVE_STATE_IN_TESTS_ENV = "SPA_ALLOW_LIVE_STATE_IN_TESTS"
+
+#: Куда уводить. Обычно ставит фикстура ``_no_live_producer_logs``; если не
+#: выставлено — общий per-process каталог в tempdir (детерминированный, свой).
+TEST_STATE_DIR_ENV = "SPA_TEST_STATE_DIR"
+
+_TEST_STATE_ROOT: Path | None = None
+
+
+def under_test() -> bool:
+    """Исполняемся ли мы внутри прогона тестов.
+
+    ``sys.modules`` — основной признак: он не зависит от ``os.environ`` и потому
+    выживает ``mock.patch.dict(os.environ, {}, clear=True)`` (замер: именно так
+    устроен ``test_alerts.py::TestRunAlertsCli``, и env-признак там уже стёрт).
+    ``PYTEST_CURRENT_TEST`` оставлен вторым признаком — он есть в дочерних
+    процессах, которым pytest не импортирован.
+    """
+    return "pytest" in sys.modules or bool(os.environ.get("PYTEST_CURRENT_TEST"))
+
+
+def test_state_root() -> Path:
+    """Песочница для производного состояния (создаётся при первом обращении)."""
+    global _TEST_STATE_ROOT
+    env = os.environ.get(TEST_STATE_DIR_ENV)
+    if env:
+        return Path(env)
+    if _TEST_STATE_ROOT is None:
+        _TEST_STATE_ROOT = Path(tempfile.mkdtemp(prefix="spa_test_state_"))
+    return _TEST_STATE_ROOT
+
+
+def sandboxed_state_path(default_path) -> Path:
+    """Путь для ЗАПИСИ производного состояния: под тестами — в песочницу.
+
+    Порядок разрешения:
+
+    1. не под тестами (прод) → ``default_path`` без изменений;
+    2. выставлен :data:`LIVE_STATE_IN_TESTS_ENV` → ``default_path`` (осознанный
+       обход, чтобы прод-ветка оставалась измеримой);
+    3. иначе → ``<песочница>/<имя файла>``.
+
+    Имя файла сохраняется: тесты и отладка узнают артефакт по имени, а совпадений
+    имён среди уводимых логов нет (проверяется тестом-сторожем).
+    """
+    default = Path(default_path)
+    if not under_test():
+        return default
+    if os.environ.get(LIVE_STATE_IN_TESTS_ENV):
+        return default
+    return test_state_root() / default.name
+
+
+def sandboxed_state_dir(default_dir) -> Path:
+    """То же для КАТАЛОГА-приёмника (например ``OUTPUT_DIR`` выгрузки).
+
+    Отдельная функция, а не ``sandboxed_state_path(dir / "x").parent``: каталог
+    и файл — разные вещи, и склейка через фиктивное имя читалась бы как ошибка.
+    В проде возвращает ``default_dir`` без изменений.
+    """
+    default = Path(default_dir)
+    if not under_test():
+        return default
+    if os.environ.get(LIVE_STATE_IN_TESTS_ENV):
+        return default
+    return test_state_root()

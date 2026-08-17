@@ -34,6 +34,7 @@ from spa_core.feeds.funding_schema import (
 )
 from spa_core.monitoring.bts_monitor import (
     ADAPTER_STATUS_FILENAME,
+    EVIDENCE_FILENAME,
     FUNDING_FILENAME,
     OPP_FILENAME,
     STATUS_FILENAME,
@@ -73,6 +74,26 @@ def _legacy_shape(rates=None, generated_at=None):
 
 def _adapter_status():
     return {"aave_v3": {"apy": 4.5}, "morpho_steakhouse": {"apy": 5.2}}
+
+
+def _evidenced_track(days: int = 10, apy_pct: float = 5.9):
+    """An evidenced paper track ending today — the hurdle source (ADR-070 п.12).
+
+    Dates are relative to the current instant on purpose: a literal date would start
+    failing the freshness check the moment the calendar moved past it
+    (`.claude/rules/deployment.md`).
+    """
+    today = datetime.now(timezone.utc)
+    return {
+        "days": [
+            {
+                "date": (today - timedelta(days=offset)).strftime("%Y-%m-%d"),
+                "apy_pct": apy_pct,
+                "equity_value": 100_000.0,
+            }
+            for offset in range(days)
+        ]
+    }
 
 
 class TestFundingSchemaReader(unittest.TestCase):
@@ -270,13 +291,21 @@ class TestAlertTransportIsDisarmedButNotSilent(unittest.TestCase):
         class _Recording(BTSMonitor):
             outer = self
 
-            def _create_alerts(inner, new_excellent):  # noqa: N805
+            def _create_alerts(inner, new_excellent, our_yield=None):  # noqa: N805
                 inner.outer.sent.extend(o.asset for o in new_excellent)
                 return len(new_excellent)
 
         self.monitor = _Recording(data_dir=self.data_dir, use_alert_dispatcher=False)
         atomic_save(_live_shape(), str(self.data_dir / FUNDING_FILENAME))
         atomic_save(_adapter_status(), str(self.data_dir / ADAPTER_STATUS_FILENAME))
+        # ADR-070 п.12 (2026-08-17): an armed alert now also has to clear a hurdle —
+        # OUR OWN measured yield — and an unmeasured hurdle refuses everything
+        # (fail-CLOSED). The evidenced track below is the precondition that was
+        # previously implicit (the hurdle was a 5% literal, so it was always "met").
+        # All three assets clear it by ~1100 bps, so the assertions below are unchanged:
+        # armed transport really sends, disarmed transport really does not. Recorded in
+        # docs/journal/2026-W34.md (invariant #16).
+        atomic_save(_evidenced_track(), str(self.data_dir / EVIDENCE_FILENAME))
 
     def tearDown(self):
         shutil.rmtree(self.tmpdir, ignore_errors=True)

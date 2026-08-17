@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing"
-status: new
+status: done
 source: telegram
 created: 2026-08-13
 ---
@@ -137,5 +137,1512 @@ post-trade verification
 ↓
 reporting
 
+
+---
+
+## Продолжение документа (склеено 2026-08-15)
+
+> Интейк 13.08 разрезал ОДИН документ владельца на семь карточек на границах
+> сообщений Телеграма. Ниже — остальные шесть кусков в порядке разделов самого
+> документа (§1…§52), а не в порядке их создания. Исходные карточки закрыты
+> ссылкой сюда; текст владельца не редактировался ни в одном месте.
+
+### ← inbox-dlya-kazhdogo-etapa-pokazat.md  (§5 (продолжение) — §10)
+
+Для каждого этапа показать:
+какой компонент отвечает;
+какие данные получает;
+какие данные возвращает;
+какие policy применяются;
+каким образом передается решение следующему компоненту.
+Особенно ответить на следующие вопросы.
+Aave
+Почему Aave сейчас занимает:
+$40,000
+39.7% portfolio
+2.7% APY
+Кто и когда принял решение о размере $40,000?
+Является ли $40k:
+hardcoded allocation;
+Tier allocation;
+initial allocation;
+maximum allocation;
+target allocation;
+historical allocation, который никто не пересматривает;
+результатом optimizer;
+чем-то другим?
+Почему при падении APY до 2.7% позиция не уменьшается?
+Cash
+Почему Cash составляет:
+$10,867
+10.8%
+Является ли это:
+liquidity reserve;
+unallocated capital;
+failed deployment;
+policy reserve;
+intentional cash buffer?
+Какой target cash allocation установлен системой?
+Risk blocks
+Открыть и проанализировать:
+risk_policy_blocks.json
+для Day 65.
+Разобрать все 9 блокировок.
+Для каждой показать:
+timestamp
+proposed action
+source
+destination
+amount
+rule that blocked
+reason
+whether block was correct
+economic consequence
+Определить:
+блокирует ли Risk Policy потенциально разумные portfolio reallocations.
+Paper APY
+Проверить расчет:
+Paper APY: 6.89%
+Он выглядит потенциально несовместимым с displayed allocation/APY.
+Необходимо установить точную формулу Paper APY.
+Разделить:
+displayed APY
+weighted position APY
+gross portfolio APY
+net portfolio APY
+realized APY
+paper/model APY
+Не допускать использования одного названия APY для разных экономических показателей.
+
+
+⸻
+
+
+6. Deliverable после Investigation
+До реализации подготовить документ:
+PORTFOLIO_CIO_AS_IS.md
+Он должен содержать:
+Current architecture
+Как система работает сейчас.
+Root cause
+Почему возможно состояние:
+39.7% portfolio at 2.7% APY
+при наличии более доходных opportunities.
+Existing reusable components
+Что уже существует и не должно переписываться.
+Missing capability
+Какой конкретно capability отсутствует.
+Policy conflicts
+Какие existing policies препятствуют нормальной работе системы.
+Recommended architecture
+Минимально необходимое архитектурное изменение.
+Только после этого переходить к реализации.
+
+
+⸻
+
+
+7. Целевая модель
+Если investigation подтверждает отсутствие portfolio-level allocator/CIO либо недостаточность существующего механизма, реализовать следующий capability.
+Portfolio CIO должен видеть:
+100% portfolio
+а не принимать решения по отдельным протоколам независимо.
+Главная модель:
+CURRENT ALLOCATION
+        ↓
+AVAILABLE POLICY-COMPLIANT OPPORTUNITIES
+        ↓
+TARGET PORTFOLIO OPTIMIZATION
+        ↓
+TARGET ALLOCATION
+        ↓
+REBALANCING ECONOMICS
+        ↓
+KEEP / REBALANCE / DEFER / RISK ACTION
+        ↓
+RISK POLICY
+        ↓
+PRE-TRADE SIMULATION
+        ↓
+EXECUTION
+        ↓
+POST-TRADE MONITORING
+
+
+⸻
+
+
+8. Разделить Target Allocation и Rebalancing
+Это два разных решения.
+Target Allocation
+Отвечает:
+Если бы капитал распределялся заново сейчас, как должна выглядеть оптимальная policy-compliant структура портфеля?
+Например:
+Current
+
+Aave       39.7%
+Pendle     19.8%
+Maple      19.8%
+Morpho      9.9%
+Cash       10.8%
+Optimizer может рассчитать условный:
+Target
+
+Aave       20%
+Pendle     25%
+Maple      20%
+Morpho     20%
+Cash       15%
+Это только пример, не policy.
+Rebalancing Decision
+После этого система должна решить:
+Стоит ли сейчас платить за переход Current → Target?
+Возможный ответ:
+NO
+даже если Target отличается от Current.
+
+
+⸻
+
+
+9. Не использовать raw APY как главный показатель
+Текущий APY нельзя считать ожидаемой доходностью.
+Необходимо различать:
+current APY
+base APY
+reward/incentive APY
+historical APY
+expected APY
+conservative expected APY
+net expected APY
+marginal APY after our capital
+Высокий APY может оказаться:
+краткосрочным utilization spike;
+временным reward boost;
+результатом падения TVL;
+ошибкой источника;
+incentive, который заканчивается;
+доходностью reward token с плохой liquidity;
+доходностью, которая исчезнет после нашего большого deposit.
+
+
+⸻
+
+
+10. APY persistence
+Для каждого opportunity анализировать минимум:
+current
+1h
+6h
+24h
+7d
+а при наличии данных — более длинную историю.
+Необходим показатель:
+
+### ← inbox-apy-persistence-confidence.md  (§10 — §20)
+
+APY Persistence / Confidence
+Система должна определять, насколько вероятно, что преимущество сохранится.
+Первая версия должна быть прозрачной и детерминированной.
+Не использовать opaque ML как обязательный компонент v1.
+Можно использовать:
+rolling averages;
+weighted averages;
+volatility;
+duration above threshold;
+mean reversion;
+incentive expiry;
+utilization trend;
+TVL trend.
+
+
+⸻
+
+
+11. Conservative Expected APY
+Ввести понятие:
+Conservative Expected APY
+Возможная логика:
+Expected Base APY
++
+Expected Incentive APY × Persistence Factor
+-
+Uncertainty Haircut
+Формула может быть уточнена после анализа существующей системы.
+Главное требование:
+Displayed APY != Expected APY.
+
+
+⸻
+
+
+12. Marginal APY
+Обязательно учитывать влияние нашего капитала.
+Если vault показывает:
+8% APY
+это не означает, что $40k можно разместить под 8%.
+Нужно оценивать:
+APY at +$5k
+APY at +$10k
+APY at +$20k
+APY at +$40k
+если протокол позволяет получить такую оценку.
+Учитывать:
+TVL dilution;
+utilization;
+reward dilution;
+capacity;
+deposit caps;
+liquidity;
+withdrawal depth.
+Optimizer должен по возможности распределять капитал по marginal return curve.
+
+
+⸻
+
+
+13. Transaction economics
+Для каждого rebalance:
+source
+destination
+amount
+рассчитать полную стоимость.
+Включить:
+withdraw gas
+deposit gas
+claim gas
+swap fee
+protocol fee
+slippage
+market impact
+bridge cost
+future exit cost
+Рассчитать:
+Gross Incremental Yield
+
+Net Incremental Yield
+
+Expected Incremental Profit
+
+Break-even Time
+Базовая логика:
+Expected Incremental Profit
+=
+Capital Moved
+×
+(Expected Destination APY - Expected Source APY)
+×
+Expected Holding Period / 365
+-
+Total Switching Cost
+И:
+Break-even Days
+=
+Total Switching Cost
+/
+Daily Incremental Yield
+
+
+⸻
+
+
+14. Учитывать round trip
+Ошибка:
+A → B
+не должна оцениваться только по стоимости входа в B.
+Нужно оценивать:
+A exit
++
+B entry
++
+eventual B exit
+Если высока вероятность скорой новой ребалансировки, это должно снижать привлекательность операции.
+
+
+⸻
+
+
+15. Portfolio optimization objective
+Optimizer должен приблизительно решать:
+MAXIMIZE
+
+Expected Net Portfolio Yield
+
+MINUS
+
+transaction cost
+risk penalty
+concentration penalty
+uncertainty penalty
+turnover penalty
+liquidity penalty
+при constraints действующей Risk Policy.
+Необходим deterministic calculation layer.
+LLM не должен быть источником финансовой математики.
+
+
+⸻
+
+
+16. Risk
+Использовать существующую каноническую Risk Policy.
+Не создавать альтернативную.
+Portfolio CIO не имеет права обходить Risk Gate.
+Risk должен учитывать как минимум уже существующие ограничения, а если некоторые отсутствуют — вынести предложение отдельно:
+protocol concentration
+vault concentration
+Tier concentration
+chain concentration
+asset concentration
+strategy concentration
+liquidity
+withdrawal availability
+correlated dependencies
+
+
+⸻
+
+
+17. Correlated risk
+Несколько vault не всегда означают диверсификацию.
+По возможности учитывать общие зависимости:
+protocol
+chain
+oracle
+curator
+collateral
+stablecoin
+bridge
+smart-contract implementation
+reward token
+liquidity venue
+Если три vault зависят от одного и того же systemic component, они не должны автоматически считаться тремя независимыми risk buckets.
+
+
+⸻
+
+
+18. Asset allocation boundary
+Portfolio CIO не должен самостоятельно менять strategic underlying exposure.
+Пример:
+нельзя продавать BTC/ETH и переходить в USDC только потому, что USDC yield выше.
+Нужно разделить:
+Strategic Asset Allocation
+и
+Yield Optimization inside approved asset allocation
+В рамках этой задачи работать внутри уже разрешенной asset exposure.
+
+
+⸻
+
+
+19. Candidate и Tier
+Найти существующие canonical definitions.
+Не придумывать новые.
+По умолчанию Candidate должен:
+MONITOR
+SCORE
+COMPARE
+но не получать capital автоматически, если existing policy этого не разрешает.
+Tier должен влиять на допустимый risk/size, а не жестко фиксировать allocation.
+
+
+⸻
+
+
+20. New capital
+Новый incoming capital должен использоваться умнее, чем существующий капитал.
+Если поступает новый депозит, сначала направлять его в underallocated opportunities согласно Target Allocation.
+Не делать:
+withdraw A
+deposit B
+
+### ← inbox-esli-tot-zhe-target-mozhno-priblizit-pro.md  (§20 — §31)
+
+если тот же target можно приблизить простым:
+new money → B
+без лишнего turnover.
+
+
+⸻
+
+
+21. Частота работы
+Не связывать monitoring frequency и trading frequency.
+Monitoring
+Работает часто.
+Ориентир:
+5–10 min
+или event-driven, если такая архитектура уже существует.
+Target allocation recalculation
+Ориентир:
+hourly
+и event-driven при значимых изменениях.
+События:
+APY movement
+TVL movement
+utilization
+risk score change
+new capital
+withdrawal
+reward expiry
+gas regime change
+liquidity change
+Tier change
+security alert
+Trading
+Не происходит автоматически после каждого recalculation.
+
+
+⸻
+
+
+22. Anti-churn / hysteresis
+Обязательно реализовать защиту от:
+A → B → A → B
+из-за небольших колебаний APY.
+Использовать policy-configurable параметры:
+minimum yield edge
+minimum net gain
+minimum allocation delta
+minimum persistence
+minimum confidence
+cooldown
+maximum daily turnover
+rebalance cost budget
+decision expiry
+Все значения должны быть config/policy.
+Не hardcode.
+
+
+⸻
+
+
+23. Starting policy for Shadow Mode
+Для shadow testing можно использовать стартовые значения, но не считать их production policy.
+Пример:
+minimum 3 consecutive confirmations
+
+expected persistence
+>= 3 × break-even period
+
+expected net economic benefit
+>= 3 × switching cost
+
+target allocation difference
+>= 3–5 percentage points
+
+cooldown
+~6h
+
+maximum daily turnover
+20–25%
+После simulation/backtest значения должны быть откалиброваны.
+
+
+⸻
+
+
+24. Decision types
+Portfolio CIO должен выдавать строго типизированный результат:
+KEEP
+REBALANCE
+DEFER
+REDUCE_RISK
+EMERGENCY_EXIT
+REQUIRE_OWNER_APPROVAL
+Не использовать свободный текст как единственный machine-readable результат.
+
+
+⸻
+
+
+25. Decision payload
+Для каждого решения сохранять:
+timestamp
+
+current allocation
+
+target allocation
+
+recommended actionable allocation
+
+source
+
+destination
+
+amount
+
+portfolio percentage
+
+source expected APY
+
+destination displayed APY
+
+destination conservative APY
+
+destination marginal APY
+
+expected portfolio APY before
+
+expected portfolio APY after
+
+gross incremental profit
+
+transaction cost
+
+expected net profit
+
+break-even
+
+expected holding period
+
+risk change
+
+concentration change
+
+confidence
+
+decision type
+
+decision reason
+
+rejected alternatives
+
+policy checks
+
+data freshness
+
+decision expiry
+
+
+⸻
+
+
+26. Determinism
+При одинаковых:
+market snapshot
+portfolio state
+risk policy
+configuration
+Portfolio Optimizer должен выдавать одинаковый результат.
+LLM может:
+объяснять;
+summarise;
+формировать owner-facing recommendation.
+LLM не должен определять:
+арифметику;
+allocation constraints;
+финансовые расчеты;
+policy pass/fail.
+
+
+⸻
+
+
+27. Pre-trade check
+Между recommendation и execution обязательно выполнить повторную проверку.
+Проверить:
+fresh APY
+fresh gas
+fresh liquidity
+fresh slippage
+withdraw simulation
+deposit simulation
+position impact
+policy
+expected economics
+Если opportunity исчезла:
+CANCEL / DEFER
+а не исполнять устаревшее решение.
+
+
+⸻
+
+
+28. Decision expiry
+Каждое investment decision должно иметь TTL.
+Например:
+valid_until
+Если execution не произошел до TTL:
+решение нельзя выполнять без нового расчета.
+
+
+⸻
+
+
+29. Emergency mode
+Обычная yield optimization и emergency risk management — разные процессы.
+При:
+exploit
+depeg
+oracle failure
+withdrawal issue
+protocol suspension
+critical security alert
+сохранность капитала имеет приоритет над:
+gas
+APY
+break-even
+cooldown
+turnover
+Использовать существующую emergency policy либо спроектировать extension отдельно.
+
+
+⸻
+
+
+30. Shadow Mode — обязательный этап
+Не подключать реальный capital execution сразу.
+После реализации Portfolio CIO сначала работает:
+SHADOW MODE
+Он видит реальные данные и портфель, но не выполняет транзакции.
+Каждый cycle сохраняет:
+what current system did
+
+what Portfolio CIO recommended
+
+why
+
+estimated outcome
+
+what happened afterwards
+
+
+⸻
+
+
+31. Counterfactual tracking
+Для каждой неисполненной shadow recommendation отслеживать:
+Что было бы, если бы мы ее выполнили?
+Например:
+T0:
+Move $15k Aave → Morpho
+
+Expected break-even:
+1.8 days
+
+Expected holding:
+14 days
+После:
+1h
+6h
+24h
+3d
+7d
+пересчитывать:
+actual opportunity APY
+actual theoretical gain
+
+### ← inbox-actual-costs.md  (§31 — §37)
+
+actual costs
+whether recommendation was good
+
+
+⸻
+
+
+32. Ошибки, которые необходимо измерять
+Минимум:
+False Rebalance
+
+Missed Opportunity
+
+Late Rebalance
+
+Excessive Turnover
+
+Risk Violation
+
+APY Forecast Error
+
+Break-even Forecast Error
+
+
+⸻
+
+
+33. Portfolio KPIs
+Ввести измеримые метрики Portfolio CIO.
+Минимум:
+Gross Portfolio APY
+
+Net Portfolio APY
+
+Realized Portfolio Yield
+
+Optimal Policy-Compliant APY
+
+Yield Gap
+
+Transaction Cost Drag
+
+Portfolio Turnover
+
+False Rebalance Rate
+
+Missed Opportunity Cost
+
+Forecast Accuracy
+
+Average Break-even
+
+Risk Policy Violations
+Особенно важен:
+Yield Gap
+=
+Optimal Policy-Compliant Expected APY
+-
+Current Expected APY
+Это показывает, сколько доходности теряет текущая аллокация.
+
+
+⸻
+
+
+34. Daily Report
+Обновить SPA Daily Report.
+Сохранить существующие полезные части, но добавить CIO section.
+Пример:
+🧠 Portfolio CIO
+
+Current expected net APY: 4.1%
+Optimal policy-compliant APY: 5.3%
+Yield gap: 1.2 pp
+
+Target allocation:
+Aave: 22%
+Pendle: 24%
+Maple: 20%
+Morpho: 19%
+Cash: 15%
+
+Decision: REBALANCE
+
+Recommended:
+Move $12,000
+Aave → Morpho
+
+Expected incremental return:
+7d: +$X
+30d: +$X
+90d: +$X
+
+Switching cost: $X
+Break-even: X days
+Expected persistence: X days
+
+Risk:
+before X
+after X
+
+Confidence: HIGH
+Если ничего делать не надо:
+Decision: KEEP
+
+Reason:
+No available rebalance currently exceeds required net economic threshold.
+
+
+⸻
+
+
+35. Paper APY cleanup
+Отдельно исправить или документировать текущий Paper APY.
+Owner должен четко видеть различие:
+Current displayed weighted APY
+
+Expected Net APY
+
+Realized APY
+
+7-day realized/estimated APY
+
+Optimal policy-compliant APY
+Не использовать неочевидную метрику без понятного определения.
+
+
+⸻
+
+
+36. Owner UI
+Следовать owner-first принципу.
+Owner не должен видеть:
+optimizer internals
+JSON
+policy hashes
+technical IDs
+implementation paths
+internal states
+на основном экране.
+Основной вывод:
+Текущая доходность
+
+Потенциальная доходность
+
+Есть ли проблема
+
+Что система предлагает сделать
+
+Сколько это даст
+
+Сколько стоит
+
+Когда окупится
+
+Изменится ли риск
+
+Нужна ли моя реакция
+Technical details скрыть в:
+Подробнее
+
+
+⸻
+
+
+37. Testing scenarios
+Необходимо реализовать automated tests и scenario tests.
+Test 1 — очевидно плохая текущая аллокация
+Aave:
+40%
+3%
+
+Morpho:
+10%
+6%
+оба допустимы Risk Policy.
+Low switching cost.
+Stable destination APY.
+Expected:
+REBALANCE
+но не обязательно перемещение всех 40%.
+
+
+⸻
+
+
+Test 2 — transient spike
+Destination:
+3% → 12%
+на несколько минут, затем обратно.
+Expected:
+KEEP / DEFER
+
+
+⸻
+
+
+Test 3 — expensive transaction
+APY difference:
++2%
+Break-even:
+20 days
+Expected persistence:
+5 days
+Expected:
+KEEP
+
+
+⸻
+
+
+Test 4 — Candidate 20%
+Candidate показывает:
+20% APY
+Expected:
+не обходить Tier/Risk Policy.
+
+
+⸻
+
+
+Test 5 — marginal yield collapse
+Displayed:
+8%
+After our deposit:
+3.5%
+Expected:
+уменьшить position size или отказаться.
+
+
+⸻
+
+
+Test 6 — correlation
+Несколько vault используют одинаковые critical dependencies.
+Expected:
+применять concentration/correlation constraints.
+
+
+⸻
+
+
+Test 7 — stale data
+APY свежий.
+Liquidity stale.
+Expected:
+NO EXECUTION
+
+
+⸻
+
+
+Test 8 — high gas
+Economically good opportunity.
+Gas временно делает trade плохим.
+Expected:
+DEFER
+
+
+⸻
+
+
+Test 9 — gas falls
+Та же opportunity сохраняется.
+Gas падает.
+Expected:
+новый расчет может перейти:
+DEFER → REBALANCE
+
+
+⸻
+
+
+Test 10 — new capital
++$10k new cash.
+Portfolio underallocated в Morpho.
+Expected:
+использовать новый capital для приближения к Target, не делать лишний Aave withdrawal.
+
+
+⸻
+
+
+Test 11 — APY disappears before execution
+Recommendation создан.
+До execution APY падает.
+Expected:
+pre-trade validation отменяет execution.
+
+
+⸻
+
+
+Test 12 — oscillating APYs
+A и B постоянно меняются:
+5.0 / 5.3
+5.4 / 5.1
+5.0 / 5.3
+Expected:
+никакого churn.
+
+
+⸻
+
+
+Test 13 — concentration limit
+Лучший vault показывает отличный yield.
+Оптимальная математическая allocation:
+70%
+Risk policy max:
+25%
+Expected:
+25% max
+
+
+⸻
+
+
+Test 14 — emergency
+Current protocol получает critical security alert.
+Expected:
+Risk action имеет приоритет над normal yield optimization.
+
+
+⸻
+
+
+Test 15 — same snapshot determinism
+
+### ← inbox-100-zapuskov-na-odnom-snapshot.md  (§37 — §48)
+
+100 запусков на одном snapshot.
+Expected:
+идентичный calculation output.
+
+
+⸻
+
+
+38. Historical replay
+Если доступна historical data SPA:
+прогнать новый allocator на прошлом периоде без look-ahead bias.
+Минимум сравнить:
+Current Strategy
+
+vs
+
+Portfolio CIO Shadow Strategy
+По:
+Net APY
+
+Realized Return
+
+Gas
+
+Fees
+
+Turnover
+
+Risk Events
+
+Max Concentration
+
+False Rebalances
+
+Missed Opportunities
+Главная цель:
+не показать максимальный APY на бумаге.
+Главная цель:
+показать улучшение:
+risk-adjusted realized net return
+
+
+⸻
+
+
+39. Observation period
+Перед реальным capital execution Portfolio CIO должен пройти shadow observation.
+Duration определить на основании доступности данных и existing release process.
+Не использовать только количество дней как критерий.
+Нужен минимальный набор рыночных событий:
+APY spike;
+stable opportunity;
+high gas;
+low gas;
+opportunity disappearing;
+incoming capital;
+risk block;
+no-action period.
+
+
+⸻
+
+
+40. Release stages
+Использовать поэтапный запуск.
+Stage 0
+Diagnosis only
+Никаких изменений allocation.
+
+
+⸻
+
+
+Stage 1
+Shadow CIO
+Recommendations only.
+
+
+⸻
+
+
+Stage 2
+Owner-approved execution
+CIO предлагает.
+Owner подтверждает.
+
+
+⸻
+
+
+Stage 3
+Limited auto-execution
+Только внутри заранее утвержденных bands.
+
+
+⸻
+
+
+Stage 4
+Policy-bounded autonomous rebalancing
+Только после доказательства безопасности предыдущих стадий.
+
+
+⸻
+
+
+41. Auto-execution limits
+Если будет разрешен auto-execution, предусмотреть:
+max trade amount
+
+max % portfolio per rebalance
+
+max daily turnover
+
+allowed protocols
+
+allowed vaults
+
+allowed tiers
+
+allowed chains
+
+allowed assets
+
+minimum expected net gain
+
+minimum confidence
+
+minimum persistence
+
+maximum acceptable risk delta
+Все policy-configurable.
+
+
+⸻
+
+
+42. Kill switch
+Обязательно:
+PAUSE CIO
+PAUSE AUTO EXECUTION
+EMERGENCY STOP
+Owner должен иметь возможность остановить execution без остановки monitoring/reporting.
+
+
+⸻
+
+
+43. Audit trail
+Каждое решение должно быть воспроизводимо.
+Сохранять:
+market snapshot
+portfolio snapshot
+policy version
+configuration version
+optimizer version
+decision
+calculations
+execution result
+post-trade result
+Через месяц должно быть возможно ответить:
+Почему система 13 августа переместила $12,000 из Aave в Morpho?
+Не через память AI.
+Через данные.
+
+
+⸻
+
+
+44. Explainability
+Для каждой recommendation owner explanation должна быть простой.
+Плохой вариант:
+utility score 0.7234
+Хороший:
+Aave currently earns 2.7%.
+
+Morpho's conservative expected yield is 4.5%.
+
+After moving $12k the projected Morpho yield remains 4.3%.
+
+Estimated switching cost is $7.80.
+
+Expected break-even is 2.6 days.
+
+The yield advantage has persisted for 36 hours.
+
+Risk remains inside existing limits.
+
+Recommendation: move $12k.
+
+
+⸻
+
+
+45. Architecture constraints
+Не создавать одного огромного AI-agent, который:
+читает рынок;
+считает APY;
+считает gas;
+принимает risk decision;
+подписывает транзакцию.
+Разделить:
+Data
+↓
+Deterministic Portfolio Optimizer
+↓
+Risk Policy
+↓
+Execution Planner
+↓
+Execution
+↓
+Monitoring
+AI/LLM может быть orchestration/explanation layer, но не единственным финансовым control layer.
+
+
+⸻
+
+
+46. Минимальный proposed component map
+После исследования адаптировать к существующей архитектуре.
+Не создавать новые компоненты, если эквиваленты уже существуют.
+Концептуально:
+Opportunity Data
+        ↓
+Portfolio State
+        ↓
+Portfolio Optimizer
+        ↓
+Target Allocation
+        ↓
+Rebalance Evaluator
+        ↓
+Risk Gate
+        ↓
+Execution Planner
+        ↓
+Execution Agent
+        ↓
+Post-Trade Monitor
+        ↓
+Reporting
+Portfolio CIO является orchestration/business layer над этим flow.
+
+
+⸻
+
+
+47. Failure modes
+Система должна fail-safe.
+При:
+missing APY
+stale data
+conflicting sources
+missing liquidity
+simulation failure
+risk service unavailable
+unknown Tier
+unknown protocol
+unknown asset
+price uncertainty
+не выполнять automatic rebalance.
+Использовать:
+DEFER
+или соответствующее safe состояние.
+
+
+⸻
+
+
+48. Изменения Risk Policy
+Если investigation покажет, что существующая Risk Policy блокирует разумную работу allocator:
+не ослаблять policy молча.
+Сформировать отдельный proposal:
+CURRENT RULE
+
+### ← inbox-why-it-exists.md  (§48 — §52 (конец))
+
+WHY IT EXISTS
+
+WHAT IT BLOCKS
+
+ECONOMIC IMPACT
+
+PROPOSED CHANGE
+
+NEW RISK
+
+MITIGATION
+
+OWNER DECISION REQUIRED
+Без owner approval не менять существенные risk boundaries.
+
+
+⸻
+
+
+49. Acceptance criteria
+Работа считается выполненной только когда доказано следующее.
+Architecture
+Portfolio-level decision owner существует.
+Economics
+Решения используют net expected return, а не raw APY.
+Persistence
+Transient APY spikes не вызывают ненужные trades.
+Costs
+Gas/fees/slippage/exit cost учитываются.
+Marginal return
+Position size влияет на expected yield.
+Risk
+Risk Policy невозможно обойти.
+Determinism
+Calculations reproducible.
+Anti-churn
+Система не прыгает между одинаковыми opportunities.
+Pre-trade safety
+Каждый trade пересчитывается непосредственно перед execution.
+Auditability
+Каждое решение имеет snapshot и explanation.
+Owner visibility
+Owner видит current/optimal APY, Yield Gap и recommendation.
+Shadow verification
+Проведены shadow/replay tests.
+No regression
+Existing risk/security/architecture tests проходят.
+
+
+⸻
+
+
+50. Definition of Done
+Не считать задачу завершенной после:
+code implemented
+tests green
+agent exists
+Definition of Done:
+Выполнена диагностика текущей системы.
+Объяснено текущее состояние Day 65 и причины Aave 39.7%.
+Разобраны 9 risk_policy_blocks.
+Проверена формула Paper APY.
+Зафиксирован root cause.
+Target architecture утверждена и записана.
+Реализован deterministic portfolio optimization capability.
+Реализован rebalance economics layer.
+Реализованы persistence и anti-churn gates.
+Реализованы pre-trade checks.
+Сохранена совместимость с существующей Risk Policy.
+Все scenario tests проходят.
+Historical replay/shadow run выполнен.
+Новый CIO показывает понятный Yield Gap.
+Daily Report обновлен.
+Shadow recommendations имеют counterfactual tracking.
+Есть owner pause/kill switch.
+Есть audit trail.
+Нет автоматического real-money execution без прохождения release stages.
+Реальная работа Portfolio CIO доказана на нескольких market conditions.
+
+
+⸻
+
+
+51. Required final report from Claude
+После завершения работы не давать owner длинный список файлов.
+Подготовить owner-level итог:
+1. Что было неправильно
+
+2. Почему Aave мог держать 39.7% под 2.7%
+
+3. Что оказалось причиной blocked_by_policy
+
+4. Что изменено
+
+5. Как теперь принимается allocation decision
+
+6. Как система защищается от краткосрочных APY spikes
+
+7. Как учитываются gas и break-even
+
+8. Как выглядит новый Daily Report
+
+9. Результаты shadow/backtest
+
+10. Было:
+   Net APY
+   Turnover
+   Costs
+
+11. Стало:
+   Net APY
+   Turnover
+   Costs
+
+12. Какие риски остаются
+
+13. Что сейчас работает:
+   diagnosis / shadow / owner approval / auto
+
+14. Какой следующий рекомендуемый шаг
+Все технические подробности оставить в canonical engineering artifacts и приложить только как references.
+
+
+⸻
+
+
+52. Финальный принцип
+Portfolio CIO не является:
+APY chaser.
+Он является:
+управляющим капиталом всего портфеля.
+Правильное решение может быть:
+Переместить капитал.
+Но правильное решение также может быть:
+APY в другом vault выше, но преимущество недостаточно устойчиво, потенциальный доход не покрывает стоимость и риск переключения. Оставляем капитал на месте и пересчитываем ситуацию позже.
+Главный критерий качества системы:
+Не насколько высокий APY она нашла, а насколько хорошо она управляет risk-adjusted realized net return всего портфеля после всех расходов.
+
+
+---
+
+## Ход работы (агент)
+
+**15.08 — документ собран, план готов, кода нет.**
+
+1. Семь карточек склеены обратно в эту (порядок — по нумерации разделов §1…§52, а не по
+   времени создания: интейк резал по границам сообщений Телеграма). Шесть кусков закрыты
+   ссылкой сюда; текст владельца не редактировался.
+2. План этапов — **`docs/PORTFOLIO_CIO_PLAN.md`**, показан владельцу до начала работы
+   (требование §3 и §4 самого документа).
+3. Главная предварительная находка: слой управления капиталом **существует**
+   (`spa_core/allocator/allocator.py`, зовётся из `cycle_runner.py:434`;
+   `rebalance_economics.py` считает gas/slippage/break-even; `apy_persistence_scorer.py`;
+   ADR-055/060/061). Значит задача — не строить второй такой слой (§3 это прямо запрещает),
+   а связать существующее в один явный контур и ДОКАЗАТЬ работу.
+4. Симптом Day 65 частично объяснён уже сейчас: `policy_compliant: False` — это отказ политики,
+   а не авария (fail-CLOSED держит книгу), а у `aave_v3` (40 % книги) TVL «не измерено».
+   Гипотеза «40 % под 2.7 % — инерция старой цели» **не доказана** и проверяется Этапом 1.
+
+**Следующий шаг:** Этап 1 — четыре вопроса владельца фактами (почему Aave 39.7 %, почему кэш
+10.8 %, разбор всех 9 блокировок из `data/risk_policy_blocks.json`, проверка формулы Paper APY).
+
+**15.08 (вторая часть дня) — задача сделана, ADR-086.**
+
+Диагностика ответила на три вопроса из четырёх фактами; четвёртый (девять блокировок
+Day 65) ответить из облака НЕЛЬЗЯ — живого файла нет в git, и это само по себе находка:
+отчёт пишет владельцу «see risk_policy_blocks.json», а артефакт существует только на Маке.
+
+Root cause: **39.7 % в Aave — подпись greedy knapsack** (лидер рейтинга получает ВЕСЬ
+tier-cap), при этом **ранжирование шло по ~4.8 %, а показывали 2.7 %**. Правило ADR-055
+«ниже медианы — не максить потолок» измеряется, но в расчёт весов не входит.
+
+Построен тонкий advisory-слой (не второй аллокатор, §3): Conservative Expected APY ·
+Marginal APY · Yield Gap · вердикт DEFER · секция в дневном отчёте. 31 тест, 10 мутаций.
+Replay 363 дня: Ethereum 0 переходов, Base +0.35 pp/год чистыми.
+
+Money-path не тронут: взвод, применение ADR-055 в весах и расхождение APY 4.80/2.36
+вынесены отдельно и НЕ сделаны молча.
+
 ---
 _Оркестратор: классифицируй (задача/идея/непонятно), при исполнении закрой карточку со ссылкой на порождённую работу (§6.4)._
+
+## Закрыто 16.08
+
+**Схлопнуто 16.08 в `agent-head-of-investment-layer`: то же самое другими словами**
+(кластер К14 триажа `docs/BACKLOG_TRIAGE_2026-08-16.md`) — эта карточка есть подробная
+СПЕЦИФИКАЦИЯ ВЛАДЕЛЬCA к слою из корневой (максимизаторы доходности + решающий «куда/сколько/
+почему», net expected return вместо raw APY, стоимость ребаланса, устойчивость APY,
+концентрация, ликвидность, влияние размера позиции).
+
+Спецификация не теряется — она целиком остаётся в теле этой карточки и адресуется из корневой.
+На неё же ссылаются шесть мусорных карточек интейка (`inbox-why-it-exists`, `inbox-actual-costs`,
+`inbox-apy-persistence-confidence`, `inbox-100-zapuskov-na-odnom-snapshot`,
+`inbox-dlya-kazhdogo-etapa-pokazat`, `inbox-esli-tot-zhe-target-mozhno-priblizit-pro`) —
+куски ЭТОГО документа, разорванные интейком; цепочка ссылок ведёт через эту карточку в корневую.
+
+Уже принятое по теме: `docs/decisions/ADR-088-portfolio-cio-advisory-layer.md` и
+`ADR-089-portfolio-cio-followups-2026-08-15.md` (Portfolio CIO остаётся на ступени SHADOW
+до эвиденса на живых данных).
+
+**Корневая карточка остаётся ОТКРЫТОЙ** (корзина B: money-path).

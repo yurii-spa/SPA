@@ -151,11 +151,22 @@ def _legs(
     return legs, max(increases, decreases)
 
 
-def _move_cost_usd(legs: List[dict], turnover_usd: float, chains: Dict[str, str]) -> float:
+def _move_cost_usd(
+    legs: List[dict],
+    turnover_usd: float,
+    chains: Dict[str, str],
+    gas_multiplier: float = 1.0,
+) -> float:
     """USD cost of executing ``legs``: gas per touched position + slippage + bridge.
 
     Per-MOVE, not annualised — the benefit is a rate, the cost is paid once, and
     ``payback_days`` is what makes them comparable.
+
+    ``gas_multiplier`` scales the gas component only (slippage and bridge are
+    value-proportional, not gas-regime-dependent). Default 1.0 keeps the historic
+    numbers byte-identical; a caller that observes a gas spike passes >1 so the
+    same opportunity can be judged expensive NOW and re-judged when gas falls
+    (Portfolio CIO §37 tests 8–9). Никакого порога политики это не трогает.
     """
     gas = 0.0
     touched_chains = set()
@@ -166,7 +177,7 @@ def _move_cost_usd(legs: List[dict], turnover_usd: float, chains: Dict[str, str]
         touched_chains.add(chain)
     slippage = turnover_usd * (SLIPPAGE_BPS_STABLE / 10_000.0)
     bridge = (turnover_usd * (BRIDGE_BPS / 10_000.0)) if len(touched_chains) > 1 else 0.0
-    return gas + slippage + bridge
+    return gas * max(0.0, float(gas_multiplier)) + slippage + bridge
 
 
 def evaluate(
@@ -181,6 +192,7 @@ def evaluate(
     days_since_last_act: Optional[float] = None,
     position_age_days: Optional[Dict[str, float]] = None,
     turnover_last_week_usd: float = 0.0,
+    gas_multiplier: float = 1.0,
     last_move_legs: Optional[Dict[str, float]] = None,
     days_since_last_move: Optional[float] = None,
     tvl_evidenced: Optional[set] = None,
@@ -239,7 +251,7 @@ def evaluate(
         d.gates = {"has_legs": False}
         return d
 
-    d.cost_usd = round(_move_cost_usd(d.legs, d.turnover_usd, chains), 2)
+    d.cost_usd = round(_move_cost_usd(d.legs, d.turnover_usd, chains, gas_multiplier), 2)
     d.cost_pp = round(100.0 * d.cost_usd / capital_usd, 6)
     d.payback_days = (
         round(_DAYS_YEAR * d.cost_pp / d.gain_pp, 2)

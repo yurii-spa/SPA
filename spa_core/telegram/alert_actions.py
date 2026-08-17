@@ -270,7 +270,35 @@ def make_alert_id(text: str, ts: str) -> str:
 # не найти и молча снять кнопки со всех алертов, отправленных из worktree (замер 08.08).
 BEACON_PATH = live_data_dir(_REPO_ROOT) / "telegram_bot_capabilities.json"
 BEACON_MAX_AGE_S = 300  # маячок обновляется каждый виток long-poll (~30с)
-CAPABILITY = "alert_actions"
+
+# ── что ИМЕННО объявляет маячок (находка #194, закрыта #274) ──────────────────
+#
+# Способность в маячке была ОДНА — `alert_actions`, — а проверяли её ДВОЕ: кнопки под
+# тревогой (`act:aa:`) и кнопки под решением владельца (`act:od:`, `owner_decisions.prepare`).
+# То есть кнопки решений гейтились отметкой о способности, к решениям отношения не имеющей.
+# Вреда в тот день не было (оба обработчика живут в одном модуле и приезжают одним коммитом),
+# но это ровно наш родовой класс: сторож честно отвечает на СВОЙ вопрос, а читают его как
+# ответ на нужный. Разъедутся обработчики — отправитель этого не заметит, а нажатие уйдёт в
+# неизвестный `act:`-глагол и ПЕРЕПИШЕТ сообщение панелью настроек, стерев сам вопрос.
+#
+# Прямолинейная починка («требовать `owner_decisions`») сделала бы хуже ПРЯМО СЕЙЧАС: живой
+# бот в проде — долгожитель и объявляет только `alert_actions`, значит кнопки решений исчезли
+# бы до его перезапуска. Поэтому порядок ПЕРЕХОДНЫЙ и назван вслух:
+#   1. бот объявляет ОБЕ способности (`CAPABILITIES`);
+#   2. отправитель решений принимает `owner_decisions` ИЛИ `alert_actions`
+#      (`OWNER_DECISIONS_ACCEPTED`) — окна без кнопок не возникает;
+#   3. когда перезапущенный бот начнёт писать обе, вторую половину «или» снять
+#      (тест `test_owner_decisions_beacon.py` держит обе стороны).
+CAPABILITY = "alert_actions"                      # кнопки под тревогой (`act:aa:`)
+CAPABILITY_OWNER_DECISIONS = "owner_decisions"    # кнопки под решением (`act:od:`)
+
+#: Всё, что умеет обрабатывать ЭТОТ код бота. Маячок объявляет ровно этот набор — по одной
+#: отметке на вид кнопок, а не одну отметку за все.
+CAPABILITIES = (CAPABILITY, CAPABILITY_OWNER_DECISIONS)
+
+#: Переходный набор для отправителя решений: своя отметка ИЛИ старая общая. Порядок значим
+#: только для читателя — проверка «любая из перечисленных».
+OWNER_DECISIONS_ACCEPTED = (CAPABILITY_OWNER_DECISIONS, CAPABILITY)
 
 
 def _beacon_path(override: Optional[str | Path] = None) -> Path:
@@ -286,27 +314,42 @@ def _beacon_path(override: Optional[str | Path] = None) -> Path:
 def publish_handler_beacon(
     *, now: Optional[datetime] = None, beacon_path: Optional[str | Path] = None
 ) -> None:
-    """Бот объявляет: «я жив и умею обрабатывать нажатия». Никогда не бросает."""
+    """Бот объявляет: «я жив и умею обрабатывать нажатия». Никогда не бросает.
+
+    Объявляет ВСЕ способности этого кода (``CAPABILITIES``) — по отметке на каждый вид
+    кнопок. Одна отметка за два обработчика читалась бы как ответ на вопрос, который
+    никто не задавал (см. врез выше).
+    """
     try:
         dt = now or datetime.now(timezone.utc)
         path = _beacon_path(beacon_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         atomic_save({"schema_version": 1, "source": "telegram_bot",
                      "updated_at": dt.isoformat(), "pid": os.getpid(),
-                     "capabilities": [CAPABILITY]}, str(path))
+                     "capabilities": list(CAPABILITIES)}, str(path))
     except Exception:  # noqa: BLE001 — маячок не важнее работы бота
         pass
 
 
 def handler_available(
-    *, now: Optional[datetime] = None, beacon_path: Optional[str | Path] = None
+    *,
+    now: Optional[datetime] = None,
+    beacon_path: Optional[str | Path] = None,
+    accepted: Sequence[str] = (CAPABILITY,),
 ) -> bool:
-    """Есть ли ЖИВОЙ бот, умеющий обработать нажатие. Сомнение → False."""
+    """Есть ли ЖИВОЙ бот, умеющий обработать нажатие. Сомнение → False.
+
+    ``accepted`` — какие отметки о способности годятся для ЭТОГО вида кнопок; годится
+    любая из перечисленных. По умолчанию — только `alert_actions`: у кнопок под тревогой
+    своя способность, и подменять её чужой нельзя. Отправитель решений передаёт
+    ``OWNER_DECISIONS_ACCEPTED`` (переходный порядок, см. врез выше).
+    """
     try:
         import json
 
         doc = json.loads(_beacon_path(beacon_path).read_text())
-        if CAPABILITY not in (doc.get("capabilities") or []):
+        published = doc.get("capabilities") or []
+        if not any(cap in published for cap in (accepted or ())):
             return False
         stamped = datetime.fromisoformat(str(doc.get("updated_at")))
         if stamped.tzinfo is None:

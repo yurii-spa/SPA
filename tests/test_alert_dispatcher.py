@@ -454,9 +454,42 @@ class TestDispatcherInit(unittest.TestCase):
     """6 tests for AlertDispatcher.__init__()."""
 
     def test_default_log_path(self):
-        d = AlertDispatcher()
+        # ИЗМЕНЕНО ОСОЗНАННО (цикл #274, карточка
+        # `agent-test-run-dirties-tracked-fixtures`; обоснование — здесь,
+        # запись — в docs/journal/2026-W34.md, как требует инв. #16).
+        #
+        # Ни один ассерт НЕ ослаблен: обе проверки ниже дословно те же, что
+        # были. Изменилось только одно — они выполняются под флагом
+        # SPA_ALLOW_LIVE_STATE_IN_TESTS, то есть на ПРОДОВОЙ ветке
+        # разрешения пути.
+        #
+        # Почему так. Измерено: `AlertDispatcher()` без log_path писал в
+        # git-tracked data/alert_log.json прямо во время прогона, и `git status`
+        # после набора был грязный. Теперь умолчание под pytest уводится в
+        # песочницу, а флаг возвращает прод-поведение — специально для тех, кто
+        # прод-умолчание и ПРОВЕРЯЕТ. Без флага этот тест утверждал бы, что
+        # умолчание лежит в data/, ровно в той конфигурации, где оно там лежать
+        # не должно.
+        import os
+        from unittest import mock
+
+        with mock.patch.dict(os.environ,
+                             {"SPA_ALLOW_LIVE_STATE_IN_TESTS": "1"}):
+            d = AlertDispatcher()
         self.assertIn("data", str(d._log_path))
         self.assertIn("alert_log.json", str(d._log_path))
+
+    def test_default_log_path_is_sandboxed_under_pytest(self):
+        """Новое свойство, которого раньше не было: прогон не пишет в дерево.
+
+        Добавлено вместе с предыдущим, чтобы покрытие СТРОГО выросло: старый
+        ассерт сохранён (прод-ветка выше), а эта проверка держит саму починку —
+        иначе её можно было бы молча откатить, и тесты остались бы зелёными.
+        """
+        d = AlertDispatcher()
+        repo_data = Path(__file__).resolve().parents[1] / "data"
+        self.assertNotEqual(d._log_path.parent, repo_data)
+        self.assertEqual(d._log_path.name, "alert_log.json")
 
     def test_custom_log_path(self):
         p = Path("/tmp/custom_log.json")

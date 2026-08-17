@@ -39,6 +39,8 @@ import unittest
 import urllib.request
 from pathlib import Path
 
+import pytest
+
 _HERE = Path(__file__).resolve().parent
 
 #: The live guards installed by conftest (the ones that protect the real run).
@@ -272,11 +274,27 @@ class TestGuardRefusesLiveNetwork(unittest.TestCase):
         self.assertEqual(len(self.guard.attempts()), 1)
 
 
+@pytest.mark.live_feed_transport
 class TestGuardStopsTheRealFeedChain(unittest.TestCase):
     """End-to-end through PRODUCTION code — not a simulation of it.
 
     Runs the very call chain the stack dump named and proves the live guard
     installed by conftest stops it at the transport, fail-CLOSED, fast.
+
+    Marked ``live_feed_transport`` (2026-08-16, card
+    ``agent-tests-reach-live-feed-222``): the shared live-feed doors are shut for
+    every other test, and a shut ``_http`` door raises ``FetchError`` BEFORE the
+    transport — which is right for a test that only wants a feed's *result*, and
+    wrong here, because this class's subject IS the transport. Without the mark
+    ``test_http_fetch_cannot_reach_the_network`` still saw its ``FetchError`` and
+    still passed its first assertion, while the guard's ledger stayed empty — the
+    test would have gone on claiming "the guard stopped the call" without the
+    guard being involved at all. That is the exact fail-OPEN shape this file
+    exists to close, so the fix is to keep the door OPEN here, not to relax the
+    assertion (invariant #16 — nothing in this class is changed).
+
+    The mark does NOT put the network back: ``network_guard`` is untouched and
+    refuses the call exactly as before. It only says the *attempt* is the point.
     """
 
     def test_http_fetch_cannot_reach_the_network(self):

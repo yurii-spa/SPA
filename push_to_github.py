@@ -15,7 +15,10 @@ push_to_github.py — универсальный пуш файлов в GitHub.
     отказ; файлы НЕ дошлются по одному молча.
   * неизменённые файлы пропускаются на обоих путях (пустых коммитов нет);
   * режим (x-бит) существующего файла сохраняется — снятый x-бит с
-    bash-обёртки launchd = агент exit-78 (инвариант #12);
+    bash-обёртки launchd = агент exit-78 (инвариант #12); ПОДНЯТЬ x-бит на origin
+    можно только явным `--exec <path>` (`.claude/rules/deployment.md` п.3 требует
+    чинить режим НА ORIGIN, а нечем было: режим брался с remote, и `chmod +x` в
+    worktree на пуш не влиял). Снять x-бит флагом нельзя ни при каком значении;
   * СТРАЖ ПЕРЕЗАПИСИ: если на remote путь изменился после базы рабочей копии,
     пуш либо накладывает нашу добавку на свежий remote (чистое дописывание),
     либо ОТКАЗЫВАЕТ — чужая правка не стирается молча (карточка
@@ -186,6 +189,98 @@ def _tree_top(path) -> Optional[Path]:
     return Path(top).resolve() if top else None
 
 
+class DeliveryTreeError(RuntimeError):
+    """Дерево ОТПРАВКИ не определяется — относительный путь резолвить не от чего.
+
+    Fail-CLOSED (инвариант #2): лучше отказать с названной причиной, чем взять
+    файл «откуда-нибудь». Абсолютные пути этим отказом НЕ затрагиваются.
+    """
+
+
+def _cwd_tree(cwd=None) -> Path:
+    """Рабочее дерево текущего каталога (или сам каталог, если это не репо)."""
+    here = Path(cwd) if cwd is not None else Path.cwd()
+    top = _git_out(["rev-parse", "--show-toplevel"], here)
+    try:
+        return Path(top).resolve() if top else here.resolve()
+    except OSError:
+        return here
+
+
+def delivery_tree(runner_file: Optional[str] = None) -> Path:
+    """Дерево ОТПРАВКИ — рабочая копия, из которой запущен инструмент доставки.
+
+    Это ровно то дерево, которое сессия собрала и протестировала: протокол
+    оркестратора (§3.4) обязывает работать в изолированном worktree, а
+    `CLAUDE.md` — звать пушер ИЗ ЭТОГО ЖЕ дерева. Значит источник относительных
+    путей — оно, а не хост-чекаут :data:`PROJECT_ROOT` и не текущий каталог.
+
+    Не определяется (git недоступен / инструмент лежит вне рабочей копии) →
+    :class:`DeliveryTreeError`, а не молчаливый откат на хост-дерево.
+    """
+    runner = Path(runner_file or __file__)
+    top = _tree_top(runner)
+    if top is None:
+        raise DeliveryTreeError(
+            f"дерево ОТПРАВКИ не определяется: инструмент доставки запущен из "
+            f"{runner}, и это не рабочая копия репозитория (или git недоступен). "
+            f"Относительный путь резолвить не от чего — пуш отменён (fail-CLOSED, "
+            f"инвариант #2). Что делать: звать пушер из своего дерева "
+            f"(`python3 /abs/path/<твоё-дерево>/push_to_github.py ...`) либо "
+            f"передать АБСОЛЮТНЫЕ пути файлов."
+        )
+    return top
+
+
+def tree_divergence_note(file_arg, tree: Path, cwd=None) -> Optional[str]:
+    """Строка «файл взят НЕ из того дерева, где ты стоишь» — или None, если деревья те же.
+
+    Почему это печатается, а не молчит: `skip` читался как «уже на origin»,
+    хотя означал «я смотрел в ДРУГОЕ дерево» (цикл #109).
+    """
+    here = _cwd_tree(cwd)
+    if here == tree:
+        return None
+    mine, theirs = tree / file_arg, here / file_arg
+    return (
+        f"относительный путь {file_arg}: беру из ДЕРЕВА ОТПРАВКИ {tree} "
+        f"(инструмент доставки работает оттуда), а НЕ из текущего каталога "
+        f"{here} — деревья РАЗНЫЕ. "
+        f"есть в дереве отправки: {'да' if mine.exists() else 'НЕТ'}; "
+        f"есть в текущем: {'да' if theirs.exists() else 'нет'}. "
+        f"Хост-чекаут дрейфует от origin по построению (31.07 копия пушера там "
+        f"отставала на 574 строки), поэтому файл оттуда совпал бы с origin и "
+        f"уехал вердиктом `skip` — успех при НУЛЕВОЙ доставке."
+    )
+
+
+def resolve_local_path(file_arg, runner_file: Optional[str] = None, cwd=None) -> Path:
+    """Локальный файл, который поедет: источник — ДЕРЕВО ОТПРАВКИ.
+
+    Дефект (карточка `agent-pusher-relative-path-silently-reads-the-host-tree`,
+    цикл #109): здесь стояло ``local = PROJECT_ROOT / local`` — относительный
+    путь читал ХОСТ-чекаут. Тот дрейфует от origin по построению, поэтому
+    изменённый в worktree файл выглядел совпадающим с origin (**`skip`**), а
+    новый — отсутствующим (`FAIL`). Набор из одних изменённых файлов проезжал
+    целиком как ``OK (pushed=0, skipped=N)``: зелёный отчёт при нулевой доставке.
+
+    Абсолютный путь — ровно тот файл, что назвали (правило `CLAUDE.md` в силе).
+    """
+    local = Path(file_arg)
+    if local.is_absolute():
+        return local
+    try:
+        tree = delivery_tree(runner_file)      # fail-CLOSED, см. DeliveryTreeError
+    except DeliveryTreeError as e:
+        # Причина обязана называть И файл, и место запуска: «файл не найден»
+        # отправило бы следующую сессию искать пропавший файл вместо дерева.
+        raise DeliveryTreeError(f"относительный путь {file_arg}: {e}") from None
+    note = tree_divergence_note(local, tree, cwd=cwd)
+    if note:
+        print(note, file=sys.stderr)
+    return tree / local
+
+
 def toolchain_verdict(runner_file, file_args: list) -> dict:
     """Сверить инструмент доставки, который РАБОТАЕТ, с копией в дереве файлов.
 
@@ -216,6 +311,13 @@ def toolchain_verdict(runner_file, file_args: list) -> dict:
 
     tops: list = []
     for f in file_args:
+        if not Path(f).is_absolute():
+            # Относительный путь берётся из ДЕРЕВА ОТПРАВКИ (resolve_local_path),
+            # значит его дерево = runner_top ПО ПОСТРОЕНИЮ — сверять не с чем, как
+            # и для любого файла из своего дерева. Без этой строки сверка смотрела
+            # бы на дерево ТЕКУЩЕГО каталога — то самое чужое дерево, из которого
+            # файлы больше не берутся, и отказ был бы про несуществующий набор.
+            continue
         top = _tree_top(f)
         if top is None:
             out["unchecked"].append(f"дерево файла не определяется: {f}")
@@ -1033,10 +1135,13 @@ def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool 
     import urllib.request
     import urllib.error
 
-    local = Path(local_path)
-    # Resolve relative to PROJECT_ROOT if not absolute
-    if not local.is_absolute():
-        local = PROJECT_ROOT / local
+    # Источник файла — ДЕРЕВО ОТПРАВКИ (см. resolve_local_path). Было
+    # `PROJECT_ROOT / local` — относительный путь читал ХОСТ-дерево, и набор
+    # изменённых файлов уезжал как `OK (pushed=0, skipped=N)`.
+    try:
+        local = resolve_local_path(local_path)
+    except DeliveryTreeError as e:
+        return {"ok": False, "error": str(e), "path": local_path}
     if not local.exists():
         return {"ok": False, "error": f"Файл не найден: {local_path}", "path": local_path}
 
@@ -1161,6 +1266,61 @@ class TreeModeError(RuntimeError):
     """
 
 
+class ExecModeRefused(ValueError):
+    """`--exec <path>` указан, но какой именно файл набора имелся в виду — НЕ ЯСНО.
+
+    Fail-CLOSED: подъём x-бита — операция над деревом доставки, и «наверное, он имел
+    в виду вот этот файл» здесь недопустимо ровно по той же причине, по которой
+    :class:`RepoPathError` не подставляет basename (цикл #40 разослал так шесть
+    файлов в корень репо). Не совпало ни с одним путём набора либо совпало с
+    несколькими — отказ, а не догадка.
+    """
+
+
+def resolve_exec_paths(exec_args: Optional[list], files: list) -> frozenset:
+    """`--exec`-аргументы → множество repo-путей, которым ставится ``100755``.
+
+    ЗАЧЕМ ЭТО ВООБЩЕ ЕСТЬ (карточка `agent-task-prava-na-origin-nechem-pochinit-pusher-p`).
+    `.claude/rules/deployment.md` п.3 требует: «если на origin режим неверный — чинить НА
+    ORIGIN, а не выставлять бит руками после каждого деплоя». Инструмента для этого не
+    было: :func:`tree_entry_mode` для существующего на remote пути возвращает ЕГО
+    СОБСТВЕННЫЙ режим (чтобы пуш никогда молча не снял x-бит с bash-обёртки launchd), и
+    обратная сторона той же логики — пуш не мог x-бит и ДОБАВИТЬ. `chmod +x` в worktree
+    перед пушем не менял ничего: режим брался с remote, а не с диска.
+
+    Отбор идёт ТОЛЬКО по уже разрешённым путям набора (``files`` = вывод
+    :func:`resolve_files`), своей копии разрешения путей здесь нет — вторая копия
+    `repo_relative_path` однажды уже разослала файлы в корень репо. Сопоставление:
+    точный repo-путь, хвост repo-пути или абсолютный путь на диске.
+    """
+    if not exec_args:
+        return frozenset()
+    out = set()
+    for arg in exec_args:
+        raw = str(arg).replace("\\", "/").lstrip("./")
+        try:
+            abs_arg = str(Path(arg).expanduser().resolve())
+        except OSError:
+            abs_arg = None
+        matches = sorted({
+            repo_path for repo_path, abs_path in files
+            if repo_path == raw or repo_path.endswith("/" + raw)
+            or (abs_arg is not None and str(Path(abs_path).resolve()) == abs_arg)
+        })
+        if not matches:
+            raise ExecModeRefused(
+                f"--exec {arg}: этого файла нет в наборе доставки "
+                f"({', '.join(rp for rp, _ in files)}). Режим уезжает ТОЛЬКО вместе с "
+                f"файлом — добавь его в набор. Пуш отменён (fail-CLOSED).")
+        if len(matches) > 1:
+            raise ExecModeRefused(
+                f"--exec {arg}: под это указание подходит больше одного файла набора "
+                f"({', '.join(matches)}) — какому именно поднимать x-бит, НЕ ИЗМЕРЕНО. "
+                f"Укажи полный путь внутри репозитория. Пуш отменён (fail-CLOSED).")
+        out.add(matches[0])
+    return frozenset(out)
+
+
 def _api(pat: str, method: str, path: str, payload: Optional[dict] = None) -> dict:
     """Один вызов GitHub API. Бросает urllib.error.HTTPError (с телом) на ошибке."""
     url = f"{API_BASE}{path}"
@@ -1236,9 +1396,10 @@ def resolve_files(file_args: list) -> list:
     """Преобразовать пути в [(repo_relative_path, abs_path)]. Бросает на отсутствующий файл."""
     resolved = []
     for fa in file_args:
-        local = Path(fa)
-        if not local.is_absolute():
-            local = PROJECT_ROOT / local
+        # Тот же источник, что и у одиночного пути: дерево ОТПРАВКИ.
+        # `DeliveryTreeError` — подкласс RuntimeError, поэтому неопределимое
+        # дерево отменяет ВЕСЬ батч (fail-CLOSED), а не один файл.
+        local = resolve_local_path(fa)
         if not local.exists():
             raise RuntimeError(f"Файл не найден: {fa}")
         if not local.is_file():
@@ -1265,24 +1426,37 @@ def remote_tree_modes(pat: str, repo: str, tree_sha: str) -> tuple:
     return modes, bool(data.get("truncated"))
 
 
-def tree_entry_mode(repo_path: str, abs_path: Path, modes: dict, truncated: bool) -> str:
+def tree_entry_mode(repo_path: str, abs_path: Path, modes: dict, truncated: bool,
+                    exec_paths: Optional[frozenset] = None) -> str:
     """Режим записи дерева для файла.
 
-    - файл уже есть на remote → его СОБСТВЕННЫЙ режим (x-бит сохраняется);
-    - карта полная и пути в ней нет → файл новый, режим по правилу git:
-      исполняемый локально → ``100755``, иначе ``100644``;
     - карта усечена и пути в ней нет → существование НЕ ИЗМЕРЕНО →
-      :class:`TreeModeError` (fail-CLOSED, не догадка).
+      :class:`TreeModeError` (fail-CLOSED, не догадка). Проверяется ПЕРВЫМ, в том
+      числе для явного ``--exec``: «текущий режим не измерен» остаётся отказом, а не
+      превращается в тихую перезапись неизвестного состояния;
+    - путь назван в ``exec_paths`` (явный ``--exec``) → ``100755``. Это ЕДИНСТВЕННЫЙ
+      способ поднять x-бит на origin, и он всегда ЯВНЫЙ: по умолчанию (``exec_paths``
+      пусто) поведение прежнее до байта;
+    - иначе файл уже есть на remote → его СОБСТВЕННЫЙ режим (x-бит сохраняется);
+    - иначе файл новый → режим по правилу git: исполняемый локально → ``100755``,
+      иначе ``100644``.
+
+    x-бит НИКОГДА не снимается: ``--exec`` умеет только 644 → 755. Обратная операция
+    отсутствует намеренно — снятый бит у bash-обёртки launchd = мёртвый агент
+    (exit-78/126, инвариант #12), и такая правка обязана быть отдельным осознанным
+    решением, а не флагом пушера.
     """
     existing = modes.get(repo_path)
-    if existing:
-        return str(existing)
-    if truncated:
+    if not existing and truncated:
         raise TreeModeError(
             f"дерево ветки пришло усечённым (GitHub `truncated: true`), и для "
             f"{repo_path} режим файла не измерен: если файл на remote исполняемый, "
             f"пуш снял бы x-бит молча. Пуш отменён (fail-CLOSED)."
         )
+    if exec_paths and repo_path in exec_paths:
+        return EXEC_MODE
+    if existing:
+        return str(existing)
     return EXEC_MODE if os.access(abs_path, os.X_OK) else BLOB_MODE
 
 
@@ -1368,8 +1542,41 @@ def split_unchanged(pat: str, repo: str, branch: str, files: list) -> tuple:
     return changed, unchanged
 
 
+def promote_mode_only(exec_paths: frozenset, changed: list, unchanged: list,
+                      modes: dict, truncated: bool) -> tuple:
+    """Файл с явным ``--exec``, чьё СОДЕРЖИМОЕ совпадает с remote, обязан ехать за РЕЖИМОМ.
+
+    Без этого шага починка прав была бы невозможна ровно в том случае, из которого выросла
+    задача: `scripts/agent_morning_digest.sh` лежит на origin с режимом `100644`, а в
+    рабочем дереве — `755`, и РАСХОДЯТСЯ ТОЛЬКО ПРАВА, содержимое байт в байт. Такой файл
+    :func:`split_unchanged` честно относит к `unchanged` (по blob-sha он и правда не
+    изменился) — и пуш заканчивался бы «всё содержимое уже на remote», а режим остался бы
+    прежним. Молчаливый ноль-эффект на явное указание владельца хуже отказа.
+
+    Возвращает ``(changed, unchanged)``. Путь, чей режим на remote уже `100755`, НЕ
+    поднимается (нечего менять); путь, режим которого не измерен (усечённое дерево),
+    уезжает и упирается в :class:`TreeModeError` внутри :func:`tree_entry_mode` —
+    fail-CLOSED, а не «наверное, там 644».
+    """
+    if not exec_paths:
+        return changed, unchanged
+    keep, promoted = [], []
+    for item in unchanged:
+        if item[0] in exec_paths and modes.get(item[0]) != EXEC_MODE:
+            promoted.append(item)
+        else:
+            keep.append(item)
+    for repo_path, _, _ in promoted:
+        current = modes.get(repo_path) or (
+            "НЕ ИЗМЕРЕН (дерево усечено)" if truncated else "нет на remote")
+        print(f"  MODE-ONLY {repo_path}: содержимое совпадает, режим "
+              f"{current} → {EXEC_MODE}")
+    return changed + promoted, keep
+
+
 def build_entries(pat: str, repo: str, branch: str, changed: list,
-                  modes: dict, truncated: bool, allow_overwrite: bool = False) -> list:
+                  modes: dict, truncated: bool, allow_overwrite: bool = False,
+                  exec_paths: Optional[frozenset] = None) -> list:
     """``changed`` → записи дерева, каждая через стража перезаписи.
 
     Отдельной функцией, потому что на ретрае «база сдвинулась» (HTTP 409/422)
@@ -1412,7 +1619,18 @@ def build_entries(pat: str, repo: str, branch: str, changed: list,
 
     entries = []
     for repo_path, abs_path, content, note in guarded:
-        mode = tree_entry_mode(repo_path, abs_path, modes, truncated)
+        mode = tree_entry_mode(repo_path, abs_path, modes, truncated, exec_paths)
+        # Изменение режима ПЕЧАТАЕТСЯ всегда: правка прав на origin невидима в диффе
+        # содержимого, и «644 → 755» — единственное, по чему её вообще можно заметить
+        # в отчёте пуша (требование карточки).
+        if exec_paths and repo_path in exec_paths:
+            existing = modes.get(repo_path)
+            if existing and existing != mode:
+                print(f"  режим {existing} → {mode}  {repo_path} (явный --exec)")
+            elif existing == mode:
+                print(f"  режим {mode} уже стоит  {repo_path} (--exec ничего не меняет)")
+            else:
+                print(f"  режим {mode}  {repo_path} (новый файл, явный --exec)")
         if note:
             print(f"  {note}")
         blob_sha = create_blob_from_bytes(pat, repo, content)
@@ -1423,14 +1641,22 @@ def build_entries(pat: str, repo: str, branch: str, changed: list,
 
 
 def batch_push(pat: str, file_args: list, message: str, repo: str, branch: str,
-               dry_run: bool = False, allow_overwrite: bool = False) -> dict:
+               dry_run: bool = False, allow_overwrite: bool = False,
+               exec_files: Optional[list] = None) -> dict:
     """Собрать N файлов в ОДИН коммит через Git Data API.
 
-    Порядок: разрешить пути (fail-CLOSED) → отсеять неизменённые → страж
-    перезаписи → blobs → tree (с сохранением режимов) → commit → move ref.
-    Ничего не изменилось → коммита НЕТ вовсе (пустые коммиты не создаются).
+    Порядок: разрешить пути (fail-CLOSED) → отсеять неизменённые (кроме тех, чей режим
+    поднимается явно) → страж перезаписи → blobs → tree (режимы существующих файлов
+    сохраняются, названные в ``exec_files`` поднимаются до ``100755``) → commit → move ref.
+    Ничего не изменилось И режим менять не просили → коммита НЕТ вовсе.
+
+    ``exec_files`` — пути (из того же набора), которым ПО ЯВНОМУ указанию ставится x-бит.
+    Единственный способ починить режим НА ORIGIN, как требует
+    `.claude/rules/deployment.md` п.3; см. :func:`resolve_exec_paths`.
     """
     files = resolve_files(file_args)
+    # Раньше сети: ошибка в `--exec` не должна стоить ни одного запроса и ни одного blob'а.
+    exec_paths = resolve_exec_paths(exec_files, files)
 
     # Шаги 1-2: база
     base_commit_sha, base_tree_sha = get_base_ref(pat, repo, branch)
@@ -1439,11 +1665,23 @@ def batch_push(pat: str, file_args: list, message: str, repo: str, branch: str,
     if dry_run:
         print(f"DRY RUN — закоммитил бы {len(files)} файл(ов) ОДНИМ коммитом:")
         for repo_path, _ in files:
-            print(f"    + {repo_path}")
+            mark = "  (режим → 100755)" if repo_path in exec_paths else ""
+            print(f"    + {repo_path}{mark}")
         return {"ok": True, "dry_run": True, "count": len(files),
-                "base_commit": base_commit_sha}
+                "base_commit": base_commit_sha,
+                "exec_paths": sorted(exec_paths)}
 
     changed, unchanged = split_unchanged(pat, repo, branch, files)
+
+    # Режимы читаются РАНЬШЕ обычного, когда x-бит поднимают явно: решение «этот файл
+    # ехать не должен» зависит теперь не только от содержимого, но и от режима на remote.
+    modes: Optional[dict] = None
+    truncated = False
+    if exec_paths:
+        modes, truncated = remote_tree_modes(pat, repo, base_tree_sha)
+        changed, unchanged = promote_mode_only(exec_paths, changed, unchanged,
+                                               modes, truncated)
+
     for repo_path, _, remote_sha in unchanged:
         print(f"  SKIP {repo_path} (unchanged, sha: {remote_sha[:8]})")
     if not changed:
@@ -1451,11 +1689,13 @@ def batch_push(pat: str, file_args: list, message: str, repo: str, branch: str,
         return {"ok": True, "count": 0, "commit": None, "skipped": len(unchanged),
                 "files": [], "skipped_files": [p for p, _, _ in unchanged]}
 
-    modes, truncated = remote_tree_modes(pat, repo, base_tree_sha)
+    if modes is None:
+        modes, truncated = remote_tree_modes(pat, repo, base_tree_sha)
 
-    # Шаг 3: blobs (+ режим существующего файла сохраняется как есть,
-    # + страж перезаписи: чужая правка не стирается молча)
-    entries = build_entries(pat, repo, branch, changed, modes, truncated, allow_overwrite)
+    # Шаг 3: blobs (+ режим существующего файла сохраняется как есть, если его не
+    # поднимают явным --exec, + страж перезаписи: чужая правка не стирается молча)
+    entries = build_entries(pat, repo, branch, changed, modes, truncated, allow_overwrite,
+                            exec_paths)
 
     # Шаг 4: tree
     new_tree_sha = create_tree(pat, repo, base_tree_sha, entries)
@@ -1485,7 +1725,8 @@ def batch_push(pat: str, file_args: list, message: str, repo: str, branch: str,
             fresh_changed = [(rp, ap, get_file_sha(pat, repo, rp, branch))
                              for rp, ap, _ in changed]
             entries = build_entries(pat, repo, branch, fresh_changed,
-                                    fresh_modes, fresh_truncated, allow_overwrite)
+                                    fresh_modes, fresh_truncated, allow_overwrite,
+                                    exec_paths)
             new_tree_sha = create_tree(pat, repo, fresh_base_tree, entries)
             new_commit_sha = create_commit(pat, repo, message, new_tree_sha, fresh_base_commit)
             print(f"  recommit {new_commit_sha[:8]} (parent {fresh_base_commit[:8]})")
@@ -1496,7 +1737,8 @@ def batch_push(pat: str, file_args: list, message: str, repo: str, branch: str,
     return {"ok": True, "count": len(changed), "commit": new_commit_sha,
             "tree": new_tree_sha, "skipped": len(unchanged),
             "files": [p for p, _, _ in changed],
-            "skipped_files": [p for p, _, _ in unchanged]}
+            "skipped_files": [p for p, _, _ in unchanged],
+            "exec_paths": sorted(exec_paths)}
 
 
 def adr_interlock_payload(all_files):
@@ -1550,6 +1792,11 @@ def main():
     parser.add_argument("--allow-adr-collision", action="store_true",
                         help="ОСОЗНАННО доставить решение под номером, уже занятым на origin, "
                              "или вне реестра INDEX.md (по умолчанию такой пуш отклоняется)")
+    parser.add_argument("--exec", nargs="+", default=None, dest="exec_paths", metavar="FILE",
+                        help="ПОДНЯТЬ x-бит (режим 100755) названным файлам НАБОРА — "
+                             "единственный способ починить права НА ORIGIN "
+                             "(.claude/rules/deployment.md п.3). Снять x-бит нельзя: "
+                             "по умолчанию режим существующего файла сохраняется как есть")
     args = parser.parse_args()
 
     allow_overwrite = bool(args.allow_overwrite) or \
@@ -1645,6 +1892,8 @@ def main():
         print(f"DRY RUN — репо: {args.repo}, ветка: {args.branch}, файлов: {len(all_files)}")
         if len(all_files) > 1:
             print("  (реальный пуш уложил бы изменённые файлы в ОДИН коммит)")
+        if args.exec_paths:
+            print(f"  --exec: {', '.join(args.exec_paths)} → режим 100755")
     else:
         print(f"Пушу {len(all_files)} файл(ов) в {args.repo} ({args.branch})...")
 
@@ -1655,10 +1904,20 @@ def main():
     # Одиночный файл — прежним путём: один PUT = один коммит, менять нечего.
     # Отката «дошлю по одному» НЕТ по требованию карточки: Git Data API
     # недоступен → честный отказ, а не тихий возврат к рваной доставке.
-    if len(all_files) > 1 and not args.dry_run:
+    #
+    # `--exec` ВСЕГДА уходит этим же путём, даже для одного файла: Contents API
+    # (одиночный PUT) режима записи дерева не принимает вовсе, поэтому там просьбу о
+    # x-бите просто некуда положить — она молча пропала бы, а пушер напечатал бы `OK`.
+    # Молчаливый ноль-эффект на явное указание — тот самый класс, из которого выросла
+    # задача, поэтому маршрутизация тут, а не отказ.
+    if (len(all_files) > 1 or args.exec_paths) and not args.dry_run:
         try:
             result = batch_push(pat, all_files, message, args.repo, args.branch,
-                                allow_overwrite=allow_overwrite)
+                                allow_overwrite=allow_overwrite,
+                                exec_files=args.exec_paths)
+        except ExecModeRefused as e:
+            print(f"\nОТКАЗ (--exec): {e}", file=sys.stderr)
+            sys.exit(8)
         except urllib.error.HTTPError as e:
             body = e.read().decode(errors="replace")
             print(f"\nFAIL HTTP {e.code}: {body[:500]}")

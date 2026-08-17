@@ -258,5 +258,65 @@ class TestS76Info(unittest.TestCase):
         self.assertEqual(TARGET_APY_MAX, 18.0)
 
 
+class TestS76UnitIsDeclaredNotGuessed(unittest.TestCase):
+    """Единица объявлена МАШИНОЧИТАЕМО (`APY_UNIT`), а не только в докстринге.
+
+    Дополнение 2026-08-17 к той же карточке `agent-s76-apy-unit-guess`:
+    контракт из прозы стал константой модуля, и конверсия идёт через
+    `apy_decimal_from_declared` — необъявленная единица была бы отказом.
+    Положительный контроль на угадывание: подмена ОБЪЯВЛЕНИЯ (не числа)
+    меняет результат, значит решение принимает объявление. Функция,
+    угадывающая единицу по величине, этот тест не проходит.
+    """
+
+    def setUp(self):
+        self.s = S76ConcentratedLP()
+
+    def test_module_declares_decimal_unit(self):
+        from spa_core.adapters.apy_contract import (
+            APY_UNIT_DECIMAL, declared_apy_unit,
+        )
+        import spa_core.strategies.s76_concentrated_lp as mod
+
+        self.assertEqual(mod.APY_UNIT, APY_UNIT_DECIMAL)
+        self.assertEqual(declared_apy_unit(mod), APY_UNIT_DECIMAL)
+
+    def test_declared_unit_decides_the_conversion(self):
+        from spa_core.adapters.apy_contract import APY_UNIT_PERCENT
+        import spa_core.strategies.s76_concentrated_lp as mod
+
+        # При объявленном decimal 3.5 — процентная утечка ⇒ отказ в fallback.
+        as_decimal = self.s.compute_weighted_apy(_apy_data(0.09, aave_v3=3.5))
+        self.assertAlmostEqual(
+            as_decimal, (0.60 * 0.09 + 0.25 * 0.035) * 100.0, places=6)
+
+        # То же ЧИСЛО при объявленном percent — законные 3.5 %.
+        original = mod.APY_UNIT
+        mod.APY_UNIT = APY_UNIT_PERCENT
+        try:
+            as_percent = self.s.compute_weighted_apy(
+                _apy_data(9.0, aave_v3=3.5))
+        finally:
+            mod.APY_UNIT = original
+        self.assertAlmostEqual(
+            as_percent, (0.60 * 0.09 + 0.25 * 0.035) * 100.0, places=6)
+        self.assertEqual(mod.APY_UNIT, original)
+
+    def test_undeclared_unit_is_a_refusal_to_declared_fallback(self):
+        """Единица снята ⇒ значения отвергаются, а не угадываются."""
+        import spa_core.strategies.s76_concentrated_lp as mod
+
+        original = mod.APY_UNIT
+        mod.APY_UNIT = None
+        try:
+            got = mod.S76ConcentratedLP().compute_weighted_apy(
+                _apy_data(0.09, aave_v3=0.04))
+        finally:
+            mod.APY_UNIT = original
+        # Всё ушло в объявленные fallback'и: LP 0.085 (регламент выбран
+        # allocate() по сырому 0.09 > 0.06), aave 0.035 → тот же 5.975 %.
+        self.assertAlmostEqual(got, 5.975, places=6)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,9 @@
 ---
 type: owner-decision
-status: needs-owner
+status: ingested
+owner_choice: Б1
+owner_answered_at: 2026-08-15T00:00:00+00:00
+owner_answer_via: claude-code-session
 priority: high
 created: 2026-08-10
 tags: [rnd, kill-switch, adr-034, adr-048, risk, paper, advisory]
@@ -54,3 +57,11 @@ tags: [rnd, kill-switch, adr-034, adr-048, risk, paper, advisory]
 legal не трогаются, это не их класс); (3) если выбран Б2 — заведёт задачу на реализацию через
 `pre_cutover_gate` с тестами, money-path отдельным шагом. Полный замер с таблицами — запись **#48**
 в `docs/DYNAMIC_LEVERAGE_GUARDIAN.md`, скрипт — `scripts/edge_exposure_depth.py`.
+
+## Решение владельца (2026-08-15)
+
+**Вариант Б1 — формулировку оставить, но перестать считать её защитой.**
+
+Ноль изменений в money-path: ступень SOFT_DERISK остаётся ровно такой, как в ADR-034/048.
+Меняется только то, КАК мы о ней говорим: в отчётах и на публичных страницах она больше не
+подаётся как рубеж обороны, и планирование на неё не опирается.

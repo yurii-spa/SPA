@@ -2,7 +2,7 @@
   "_comment": "Files that already pin a literal date next to a freshness concept. The ratchet forbids ADDITIONS; this list may only shrink as files are fixed. Never add a file here to silence a failure — fix the fixture instead (spa_core/tests/_freshness.py).",
   "_reseed_2026-08-06": "ONE-TIME re-seed, +25 files, on WIDENING the detector — not on silencing anything. Until today the detector matched only a quoted ISO date, so the identical bomb written as a constructor (dt.datetime(2030, 1, 15, ...), _dt.date(2024, 1, 1)) was invisible: half the class sat outside the guard's field of view while the guard read as if it covered the class. Widening a detector necessarily re-seeds the snapshot once; from this snapshot the list only shrinks again. Card: inbox-hrapovik-literalnyh-dat-ne-vidit-daty-za, journal 2026-W32. None of the 25 was fixed to fit — they were measured first, then recorded honestly. +25, not the +24 measured while the widening was written: test_agent_registry_refresh.py landed in between, carrying the constructor spelling the old detector could not see. It is therefore part of what the widening REVEALS, not a new offender the baseline is being stretched around — and the re-seed is a snapshot taken when the detector changes, i.e. now. Re-measured on delivery rather than trusted from the earlier run, which is how the discrepancy was found at all.",
   "snapshot": "2026-08-06",
-  "count": 276,
+  "count": 275,
   "files": [
     "test_academy_onchain.py",
     "test_academy_siwe.py",
@@ -57,7 +57,6 @@
     "test_backup_completeness.py",
     "test_benchmark_tracker.py",
     "test_bias_ratio.py",
-    "test_bot_commands.py",
     "test_bull_cycle_detector.py",
     "test_calendar_returns.py",
     "test_capacity_limits.py",

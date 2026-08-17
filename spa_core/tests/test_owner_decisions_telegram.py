@@ -129,15 +129,27 @@ def test_variants_retold_in_a_later_section_are_not_offered_as_choices():
     assert all("распродать" not in o.label for o in opts)
 
 
-def test_card_without_options_yields_no_buttons(tmp_path):
-    """Fail-CLOSED: вариантов нет ⇒ кнопок нет, но САМО уведомление уходит.
+def test_card_without_options_yields_no_invented_choice_buttons(tmp_path):
+    """Fail-CLOSED: вариантов нет ⇒ ни одной кнопки ВЫБОРА, но САМО уведомление уходит.
 
     Выдуманная кнопка хуже её отсутствия: владелец нажмёт то, чего в карточке не писали.
+
+    **Проверка НАМЕРЕННО изменена (инвариант #16, цикл #274; журнал 2026-W34.)** Раньше она
+    требовала `keyboard is None`, то есть «никаких кнопок вообще». Замер #197 показал цену
+    этого прочтения: пять карточек-поручений, отправленных владельцу 08.08, не получили ни
+    одного ответа за двое суток — ответить на них можно было ТОЛЬКО словами в чат, и молчание
+    стало неотличимо от «не увидел». Теперь такая карточка получает кнопки ПОДТВЕРЖДЕНИЯ
+    (`ack`/`later`), которые вариантом ответа не являются и вопроса карточки не решают.
+    Утверждение, ради которого тест был написан, не ослаблено, а высказано точнее и проверено
+    ЖЁСТЧЕ: ни один `callback_data` не несёт номера варианта, все они — из закрытого списка
+    служебных токенов.
     """
     body = "## Что случилось и почему это важно\n\nВсё плохо.\n\n## Что от тебя нужно\n\nПозвони мне.\n"
     prep = od.prepare("Заголовок", body, "own-9", now=NOW, beacon_path=_beacon(tmp_path))
     assert prep.options == []
-    assert prep.keyboard is None
+    choices = [od.parse_callback(b[0]["callback_data"])[1]
+               for b in prep.keyboard["inline_keyboard"]]
+    assert set(choices) <= od.RESERVED_CHOICES, "кнопка выбора там, где выбора нет"
     assert "Нужно твоё решение" in prep.text  # уведомление НЕ подавлено
 
 
@@ -767,13 +779,24 @@ def test_a_card_with_unreadable_options_says_so_instead_of_denying_them(tmp_path
     assert "Вариантов в карточке не нашёл" not in prep.text
 
 
-def test_a_card_that_really_offers_no_choice_keeps_the_old_honest_wording(tmp_path):
-    """Контроль в обратную сторону: поручение без выбора НЕ должно выглядеть неполадкой."""
+def test_a_card_that_really_offers_no_choice_does_not_look_like_a_defect(tmp_path):
+    """Контроль в обратную сторону: поручение без выбора НЕ должно выглядеть неполадкой.
+
+    **Формулировка НАМЕРЕННО изменена (инвариант #16, цикл #274; журнал 2026-W34.)** Утверждение
+    теста — «у поручения СВОЯ причина, а не наша неполадка» — сохранено дословно (последняя
+    строка не тронута). Изменилось то, ЧТО владелец читает вместо «вариантов в карточке не
+    нашёл»: теперь текст называет карточку поручением и объясняет кнопку «Принято», потому что
+    у поручения появился способ ответить с телефона (#197: пять таких карточек висели двое
+    суток именно из-за его отсутствия). Проверять прежнюю фразу значило бы держать за руку
+    текст, который перестал быть правдой.
+    """
     assert od.parse_options(CARD_NO_CHOICE_AT_ALL) == []
     assert od.has_unparsed_options(CARD_NO_CHOICE_AT_ALL) is False
+    assert od.offers_no_choice(CARD_NO_CHOICE_AT_ALL) is True
     prep = od.prepare("Ключ", CARD_NO_CHOICE_AT_ALL, "own-key", now=NOW,
                       beacon_path=_beacon(tmp_path))
-    assert "Вариантов в карточке не нашёл" in prep.text
+    assert "это поручение" in prep.text
+    assert od.ACK_BUTTON_RU in prep.text
     assert "Варианты в карточке есть" not in prep.text
 
 

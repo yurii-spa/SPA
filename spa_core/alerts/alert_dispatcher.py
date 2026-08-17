@@ -35,6 +35,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from email.message import EmailMessage
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_state_path
 
 log = logging.getLogger("spa.alerts.dispatcher")
 
@@ -231,8 +232,11 @@ class AlertDispatcher:
         cooldown_seconds: int = 300,
         dedup_state_path: Optional[str | Path] = None,
     ) -> None:
+        # Явный log_path — сильнее всего. Дефолт под тестами уводится в
+        # песочницу: DEFAULT_LOG_PATH это git-tracked data/alert_log.json, и
+        # прогон его ПАЧКАЛ (цикл #274). В проде путь не меняется.
         self._log_path: Path = (
-            Path(log_path) if log_path else DEFAULT_LOG_PATH
+            Path(log_path) if log_path else sandboxed_state_path(DEFAULT_LOG_PATH)
         )
         self.suppress_duplicates: bool = suppress_duplicates
         self.cooldown_seconds: int = cooldown_seconds
@@ -556,7 +560,10 @@ try:
         Legacy V390 SMTP-based alert dispatch. Preserved for backwards compat.
         Persist alerts to ring buffer (100 entries) and optionally send via SMTP.
         """
-        path = Path(log_path) if log_path else DEFAULT_LOG_PATH
+        # См. выше: дефолт CLI-пути тоже уводится под тестами.
+        # TestRunAlertsCli работает под mock.patch.dict(os.environ, {}, clear=True),
+        # поэтому признак «под тестами» берётся из sys.modules, а не из env.
+        path = Path(log_path) if log_path else sandboxed_state_path(DEFAULT_LOG_PATH)
         counts = {"CRITICAL": 0, "WARNING": 0, "INFO": 0}
         for a in alerts:
             if a.severity in counts:

@@ -359,6 +359,11 @@ def _book_state(s) -> dict:
             out[attr.lstrip("_")] = getattr(s, attr)
     if hasattr(s, "_liquidated"):
         out["liquidated"] = bool(getattr(s, "_liquidated"))
+    # the DATE of the last ratio print (a string, not a float — hence its own line). Without it a
+    # restarted book forgets how wide its next ratio gap is and re-reads a multi-day drift as one
+    # day at leverage — the exact defect 2 failure, just after a restart instead of inside a replay.
+    if hasattr(s, "_prev_ratio_date"):
+        out["prev_ratio_date"] = getattr(s, "_prev_ratio_date")
     return out
 
 
@@ -373,6 +378,9 @@ def _restore_mtm(s, b: dict) -> None:
             setattr(s, attr, float(v) if isinstance(v, (int, float)) else None)
     if "liquidated" in b and hasattr(s, "_liquidated"):
         s._liquidated = bool(b.get("liquidated"))
+    if "prev_ratio_date" in b and hasattr(s, "_prev_ratio_date"):
+        v = b.get("prev_ratio_date")
+        s._prev_ratio_date = v if isinstance(v, str) and v else None
 
 
 def _safe_load_json(path: Path):

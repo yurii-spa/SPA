@@ -92,7 +92,18 @@ def render_item(arg: str = "", lang: str = "en", page: int = 0,
                  f" — {rec.get('choice_label') or ''}")
         return text, menus.standard_keyboard("decisions", lang)
 
-    extra = owner_decisions.build_keyboard(pid, options)["inline_keyboard"] if options else []
-    if not options:
+    if options:
+        extra = owner_decisions.build_keyboard(pid, options)["inline_keyboard"]
+    elif rec.get("ack"):
+        # Карточка-поручение: выбора в ней нет, но ответить с телефона обязано быть ЧЕМ
+        # (#274). Реестр кнопок не дублируется — клавиатура берётся у `owner_decisions`
+        # целиком, как и у вариантов. Признак `ack` берём из журнала (он ИЗМЕРЕН в момент
+        # отправки), а не пересчитываем здесь: два места счёта разъехались бы молча.
+        extra = owner_decisions.build_ack_keyboard(pid)["inline_keyboard"]
+        text += ("\n\n📌 Выбора в этой карточке нет — это поручение. "
+                 f"«{owner_decisions.ACK_BUTTON_RU}» закроет её твоим подтверждением, "
+                 f"«{owner_decisions.LATER_BUTTON_RU}» оставит открытой.")
+    else:
+        extra = []
         text += "\n\n⚠️ Вариантов в карточке не нашёл — реши её в трекере."
     return text, menus.standard_keyboard("decisions", lang, extra_rows=extra)

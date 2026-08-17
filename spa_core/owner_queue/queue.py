@@ -328,6 +328,51 @@ def set_status(path: str | Path, new_status: str) -> None:
     record_status_write(p, old=_old_status, new=new_status, source="queue.set_status")
 
 
+def set_fields(path: str | Path, fields: dict) -> None:
+    """Atomically upsert top-level frontmatter ``key: value`` pairs in a card.
+
+    Existing top-level keys are rewritten in place; missing ones are appended as the
+    last frontmatter entries (right before the closing ``---``). The body is preserved
+    byte-for-byte. ``status`` is NOT accepted here — status transitions go through
+    ``set_status`` so the owner-done guard (invariant #14) and the status audit trail
+    cannot be bypassed through a generic field writer.
+    """
+    if "status" in fields:
+        raise OwnerDoneForbidden(
+            "set_fields must not write 'status' — use set_status (owner-done guard + audit)."
+        )
+    p = Path(path)
+    text = p.read_text(encoding="utf-8")
+    lines = text.splitlines(keepends=True)
+    start = end = None
+    seen = 0
+    for i, ln in enumerate(lines):
+        if ln.strip() == "---":
+            seen += 1
+            if seen == 1:
+                start = i
+            elif seen == 2:
+                end = i
+                break
+    if start is None or end is None:
+        raise ValueError(f"{p}: no frontmatter to update")
+
+    for key, value in fields.items():
+        rendered = f"{key}: {_yaml_escape(str(value))}\n"
+        replaced = False
+        for i in range(start + 1, end):
+            if lines[i][:1].isspace():
+                continue  # nested line of a block (trackerStatus.type) — not top-level
+            if lines[i].strip().startswith(f"{key}:"):
+                lines[i] = rendered
+                replaced = True
+                break
+        if not replaced:
+            lines.insert(end, rendered)
+            end += 1
+    atomic_save_text("".join(lines), str(p))
+
+
 def first_instruction_line(card: Card) -> str:
     """First meaningful instruction line for a Telegram notification.
 

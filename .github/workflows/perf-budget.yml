@@ -1,0 +1,67 @@
+name: SPA Perf Budget
+
+# Два perf-гейта money-path, которые были НАПИСАНЫ И НИКОГДА НЕ ЗАПУСКАЛИСЬ.
+#
+# scripts/perf_budget.py (WS-6.5) числился подключённым только из-за подстрочной коллизии:
+# его имя — подстрока scripts/dfb_perf_budget.py. Цикл #228 коллизию закрыл, и оба гейта
+# оказались без единого вызывающего (dfb_perf_budget лежал в базе храповика ещё с #214).
+#
+# Первый честный прогон 2026-08-15 (Linux-контейнер, 3 итерации) сразу дал находку:
+#   surface `cycle` — median 3537 ms при бюджете 1500 ms (headroom -136%), остальные 20+
+#   поверхностей в бюджете с запасом 98-99%. dfb_perf_budget — PASS целиком.
+# Именно это и означает «гейт без вызывающего»: регрессия могла приехать в любой из
+# прошедших недель, и никто бы не узнал — измерять было некому.
+#
+# ГЕЙТ НЕ ГЛУШИТСЯ. Ни continue-on-error, ни `|| true`: красный шаг здесь — это находка,
+# а не помеха (.claude/rules/deployment.md — «гасить проверку, которая мешает, запрещено»).
+# Бюджеты НЕ подняты под замер: поднять потолок, чтобы стало зелено, — то же самое, что
+# дописать имя в базу храповика. Что делать с `cycle` — решение владельца
+# (карточка «Дневной цикл вдвое медленнее собственного бюджета…»).
+#
+# Отдельный workflow, а не шаг ci.yml: perf-замер длится минуты и не должен ни удлинять
+# основной прогон, ни блокировать его своим красным.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/perf_budget.py'
+      - 'scripts/dfb_perf_budget.py'
+      - 'spa_core/paper_trading/**'
+      - 'spa_core/allocator/**'
+      - 'spa_core/api/**'
+      - 'spa_core/dfb/**'
+      - '.github/workflows/perf-budget.yml'
+  pull_request:
+    branches: [main]
+  schedule:
+    # 04:20 UTC — до дневного цикла (08:00 local), чтобы находка успела попасть в разбор.
+    - cron: '20 4 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: perf-budget-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  perf-budget:
+    name: Perf budget (money path + DFB read paths)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # fastapi/pytest — только для api-строк харнесса; без них они честно скипаются,
+      # а не подставляют ноль (сам харнесс так устроен).
+      - name: Install test-only deps (runtime stays stdlib-only)
+        run: python3 -m pip install --quiet pytest fastapi httpx uvicorn || true
+
+      # Хермётичный харнесс: SANDBOX tmp data dir, живой data/ не читается и не пишется.
+      - name: Money-path perf budget (cycle / allocator / reconcile / API)
+        run: python3 scripts/perf_budget.py
+
+      - name: DFB read-path perf budget (snapshot is READ, never rebuilt)
+        run: python3 scripts/dfb_perf_budget.py

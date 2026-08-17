@@ -207,11 +207,26 @@ class ProtocolInsuranceScorer:
             _p = _pf.generic_profile_for(protocol_data["protocol"])
             if _p is None:
                 return None
+            # Страховое покрытие структурная база ЗНАЕТ: профиль несёт
+            # ``insurance_coverage_pct`` (= ``systemic["insurance_pct_of_tvl"]``,
+            # доля TVL, покрытая страховым фондом) и ``insurance_fund_usd``.
+            # До 17.08 здесь стояли литералы ``False`` / ``0.0`` — модуль брал
+            # ИЗМЕРЕННЫЙ факт и заменял его нулём. Это зеркало выдуманной казны
+            # (ниже): там утверждали число, которого нет, здесь утверждали ноль
+            # вместо числа, которое есть; и то и другое — утверждение о
+            # протоколе, ничем не подкреплённое (карточка
+            # agent-insurance-scorer-otbrasyvaet-izvestnoe-pokrytie).
+            # ``has_insurance`` — ФАКТ (покрытие > 0), не догадка: измеренный
+            # ноль (pendle, yearn_v3, aerodrome_base …) остаётся честным нулём.
+            _cov_pct = float(_p["insurance_coverage_pct"])
             _legacy = {
                 "protocol": _p["name"],
-                "has_insurance": False,
-                "insurance_coverage_pct": 0.0,
-                "insurance_provider": "none",
+                "has_insurance": _cov_pct > 0.0,
+                "insurance_coverage_pct": _cov_pct,
+                # Провайдера покрытия структурная база НЕ содержит — пустая
+                # строка означает «не названо» и в score не участвует. Литерал
+                # "none" читался бы как измеренное «провайдера нет».
+                "insurance_provider": "",
                 # Казна протокола в структурной базе _protocol_facts ОТСУТСТВУЕТ.
                 # До 08.08 здесь стояло ``_p["tvl_usd"] * 0.02`` — выдуманное
                 # число, одинаковое (ratio 0.02) для КАЖДОГО протокола: оно
@@ -302,6 +317,18 @@ class ProtocolInsuranceScorer:
             "timelock_score": tl_score,
             "total_insurance_score": total,
             "protection_tier": tier,
+            # ── Явный score с ОБЪЯВЛЕННОЙ полярностью ────────────────────────
+            # Шкала этого модуля: больше = ЛУЧШЕ защищён. Агрегатор
+            # (``_ModuleAdapter._coerce_score``) ждёт обратного: больше =
+            # ОПАСНЕЕ. Ни один ключ результата не входил в ``_SCORE_KEYS``,
+            # поэтому коэрция падала в fallback «первый попавшийся *_score» —
+            # по порядку вставки это ``coverage_score``, и он был константным
+            # нулём у КАЖДОГО протокола (см. литералы выше). Отсюда
+            # ``risk_score = 0.0`` для всех и разметка модуля ``blind_equal``.
+            # Полярность инвертируется здесь ОДИН раз и вслух, а не угадывается
+            # снаружи: 100 - защищённость. Диапазон тот же 0-100, шкала
+            # (доля от ИЗМЕРИМОГО максимума) — та же, что у total.
+            "risk_score": round(100.0 - total, 4),
             # Отказ обязан быть ВИДЕН в результате, иначе он неотличим от нуля.
             "unmeasured_components": list(unmeasured),
             "score_basis_max": round(basis_max, 4),

@@ -305,13 +305,23 @@ class TestGovernanceWatcherExportFile(unittest.TestCase):
 class TestGovernanceWatcherLiveMocked(unittest.TestCase):
 
     def _snapshot_response(self, protocol: str) -> dict:
-        """Build a fake Snapshot GraphQL response."""
+        """Build a fake Snapshot GraphQL response.
+
+        The protocol name is deliberately NOT interpolated into the title anymore
+        (ADR-070 п.14, 2026-08-17).  Every protocol left on the watchlist is one of
+        ours and spells itself "…-v3"; ``v3`` is an ``upgrade`` keyword, so the old
+        title classified as ``upgrade`` and this test's ``risk_param`` assertion went
+        red for a reason that has nothing to do with the behaviour under test.  The
+        classifier, its keywords and the assertion are unchanged — only the fixture
+        stopped feeding the protocol key into the text it classifies.  Recorded in
+        docs/journal/2026-W34.md (invariant #16).
+        """
         return {
             "data": {
                 "proposals": [
                     {
                         "id": f"0xfake{protocol}",
-                        "title": f"Risk Parameter Update for {protocol}",
+                        "title": "Risk Parameter Update: LTV to 85%",
                         "body": "Proposal to update LTV to 85%",
                         "state": "active",
                         "start": 1_716_000_000,

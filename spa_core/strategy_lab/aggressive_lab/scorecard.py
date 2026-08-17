@@ -12,6 +12,11 @@ Per strategy it shows:
   • THE TAIL — worst loss-in-stress + worst stressed drawdown across the canonical windows
     (the −X% that comes WITH the yield), and time-to-recover,
   • the RISK CLASS (A=alpha / B=beta / C=risk-compensation / D=incentive),
+  • LIVENESS — is the book still alive, and if its equity line is flat, WHY (see _liveness). A
+    killed book keeps emitting points at frozen equity: flat line, zero vol, zero drawdown. Until
+    2026-08-16 nothing here read Lane 1's `killed` flag, so dead books quietly out-ranked live ones
+    (31.7% of the panel measured as effectively cash). The ranking rule is UNCHANGED — the fix is
+    that the fact is stated, not that the order is quietly rewritten,
   • an honest VERDICT label (see _verdict below).
 
 THE TRUSTWORTHY GATE (reused WS1.4 fail-closed logic): a strategy on thin/degenerate data is flagged
@@ -55,6 +60,71 @@ SEVERE_TAIL_DD_PCT = 15.0
 
 def _utc_now_iso() -> str:
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+
+# A track is "flat" when its equity does not move at all across the window. Relative, so it does not
+# depend on the size of the book. This is deliberately STRICT (an exactly frozen line) — the whole
+# question is whether the flatness is a fact about the market or a fact about the book being dead.
+_FLAT_REL_TOL = 1e-9
+
+
+def _flat_run(vals: List[float]) -> int:
+    """Length of the TRAILING run of unchanged equity (1 if the last two points differ).
+
+    The trailing run is the right question, not "is the whole track flat". A book that slid into
+    liquidation and then froze has a violent first half and a dead-flat tail; it is the tail that
+    lends it the zero-volatility, zero-drawdown look once the window rolls forward past the slide.
+    """
+    if len(vals) < 2:
+        return len(vals)
+    n = 1
+    scale = max(max(abs(v) for v in vals), 1.0)
+    for i in range(len(vals) - 1, 0, -1):
+        if abs(vals[i] - vals[i - 1]) / scale > _FLAT_REL_TOL:
+            break
+        n += 1
+    return n
+
+
+def _equities(series: List[dict]) -> List[float]:
+    return [float(p["equity_usd"]) for p in series if "equity_usd" in p]
+
+
+def _liveness(s: ld.LoadedStrategy, primary_track: ld.Track) -> dict:
+    """Is this book ALIVE, and if its line is flat, WHY.
+
+    THE DEFECT THIS ANSWERS (docs/AGGRESSIVE_PANEL_FEEDS.md §5): a killed book keeps emitting
+    points at a frozen equity. Flat line ⇒ zero volatility ⇒ zero drawdown ⇒ a risk-adjusted read
+    that looks like the safest book on the panel. Measured: 31.7% of the panel was effectively
+    cash presenting itself as strategy, and it won the ranking.
+
+    We do NOT change the ranking rule here — the arithmetic is left exactly as it was, and the dead
+    book keeps its place in every sort order. What changes is that the fact is no longer invisible:
+    ``flatline_reason`` separates "flat because it died" from "flat because the market was calm",
+    which is precisely the distinction no metric on a bare equity series can make.
+    """
+    vals = _equities(primary_track.series)
+    n_pts = primary_track.n_points
+    run = _flat_run(vals)
+    has_flat_tail = len(vals) >= 2 and run >= 2
+    killed = bool(s.killed)
+    # THE distinction: a flat tail is either a dead book or a quiet market, and only the kill flag
+    # can tell them apart. No flat tail at all → no claim is made (None, not "calm_market").
+    reason = None if not has_flat_tail else ("killed" if killed else "calm_market")
+    return {
+        "killed": killed,
+        "killed_since": s.killed_since,
+        "n_killed_points": s.n_killed_points,
+        "dead_share_of_track": (round(primary_track.n_killed_points / n_pts, 6)
+                                if n_pts else 0.0),
+        "final_equity_usd": primary_track.final_equity_usd,
+        "flat_tail_points": run if has_flat_tail else 0,
+        "track_is_flat": bool(has_flat_tail and run == len(vals)),
+        "flatline_reason": reason,
+        # the one-field read for a consumer that only wants the honest caveat on a flat line
+        "flat_because_killed": bool(has_flat_tail and killed),
+        "liveness_source": primary_track.phase,
+    }
 
 
 def _verdict(
@@ -109,6 +179,10 @@ def score_strategy(s: ld.LoadedStrategy) -> dict:
                                                    if s.backtest.n_points >= 2 else fwd_m)
     trustworthy = bool(primary["trustworthy"])
 
+    # liveness on the SAME track the ratios were read off, so "flat" and "Sharpe" describe one series
+    primary_track = s.backtest if primary is bt_m else s.forward
+    liveness = _liveness(s, primary_track)
+
     verdict = _verdict(
         risk_class=s.risk_class,
         trustworthy=trustworthy,
@@ -151,6 +225,11 @@ def score_strategy(s: ld.LoadedStrategy) -> dict:
             "max_time_to_recover_days": tail["max_time_to_recover_days"],
             "windows": tail["windows"],
         },
+        # ── IS THE BOOK STILL ALIVE (and if its line is flat, why) ──
+        # Surfaced next to the ratios on purpose: a Sharpe computed on a dead book's frozen equity
+        # is arithmetic about a corpse. The ranking is unchanged; the caveat is now readable.
+        "is_alive": not liveness["killed"],
+        "liveness": liveness,
         # ── the honest verdict + guardrail stamps ──
         "verdict": verdict,
         "is_advisory": True,
@@ -230,6 +309,38 @@ def build_scorecard(
         e["tier_eligible"] = bool(tr["ok"]) if tr else None
         e["tier_violations"] = tr["violations"] if tr else []
 
+    # ── HOW MUCH OF THE PANEL IS DEAD ────────────────────────────────────────────────────────────
+    # The per-book flag answers "is this one alive"; this answers the question the owner actually
+    # asked — what share of the panel's capital is sitting in books that stopped trading. Without it
+    # a panel can look fully invested while a third of it is frozen equity from liquidated books.
+    dead_usd = 0.0
+    live_usd = 0.0
+    killed_ids: List[str] = []
+    for e in entries:
+        eq = e["liveness"].get("final_equity_usd")
+        if not isinstance(eq, (int, float)) or isinstance(eq, bool):
+            continue  # a book with no points contributes to neither side (never a made-up equity)
+        if e["liveness"]["killed"]:
+            dead_usd += float(eq)
+            killed_ids.append(e["strategy_id"])
+        else:
+            live_usd += float(eq)
+    total_usd = dead_usd + live_usd
+    liveness_summary = {
+        "n_books": len(entries),
+        "n_killed": len(killed_ids),
+        "killed_ids": killed_ids,
+        "dead_capital_usd": round(dead_usd, 2),
+        "live_capital_usd": round(live_usd, 2),
+        # fail-CLOSED on an empty panel: no capital measured ⇒ no share claimed, not "0% dead".
+        "dead_capital_frac": (dead_usd / total_usd) if total_usd > 0 else None,
+        "n_flat_because_killed": sum(1 for e in entries if e["liveness"]["flat_because_killed"]),
+        "note": ("A killed book keeps emitting points at frozen equity: flat line, zero volatility, "
+                 "zero drawdown. It is NOT excluded from any sort order here — the ranking rule is "
+                 "unchanged on purpose — but its death is now stated so a flat line can be read for "
+                 "what it is."),
+    }
+
     n_trustworthy = sum(1 for e in entries if e["trustworthy"])
     n_severe_tail = sum(1 for e in entries if e["verdict"] == "SEVERE_TAIL")
     n_insufficient = sum(1 for e in entries if e["verdict"] == "INSUFFICIENT_DATA")
@@ -258,6 +369,7 @@ def build_scorecard(
         "n_trustworthy": n_trustworthy,
         "n_severe_tail": n_severe_tail,
         "n_insufficient_data": n_insufficient,
+        "liveness_summary": liveness_summary,
         "risk_class_legend": dict(RISK_CLASS_LABEL),
         "tier_summary": tier_summary,
         "sort_orders": _sort_keys(entries) if entries else {},
@@ -288,7 +400,7 @@ def render_table(doc: dict) -> str:
     if doc.get("fixture_used"):
         lines.append("(fixture data — Lane 1 realized series not present yet)")
     lines.append("")
-    hdr = (f"{'strategy':16s} {'cls':>3s} {'shape':>14s} {'head%':>6s} {'realAPY%':>9s} "
+    hdr = (f"{'strategy':16s} {'alive':>6s} {'cls':>3s} {'shape':>14s} {'head%':>6s} {'realAPY%':>9s} "
            f"{'Sharpe':>8s} {'Calmar':>7s} {'maxDD%':>7s} {'TAIL_DD%':>9s} {'TTR':>12s} {'verdict':>18s}")
     lines.append(hdr)
     lines.append("-" * len(hdr))
@@ -299,12 +411,24 @@ def render_table(doc: dict) -> str:
         mdd = e["max_dd_pct"] if isinstance(e["max_dd_pct"], (int, float)) else "n/a"
         ttr = e["tail"]["max_time_to_recover_days"]
         head = e["headline_apy_pct"] if e["headline_apy_pct"] is not None else "?"
+        lv = e.get("liveness") or {}
+        alive = "yes" if e.get("is_alive", True) else "DEAD"
         lines.append(
-            f"{e['strategy_id']:16s} {e['risk_class']:>3s} {e['risk_shape']:>14s} "
+            f"{e['strategy_id']:16s} {alive:>6s} {e['risk_class']:>3s} {e['risk_shape']:>14s} "
             f"{str(head):>6s} {str(rapy):>9s} {str(sharpe):>8s} {str(calmar):>7s} "
             f"{str(mdd):>7s} {e['tail']['worst_tail_dd_pct']:>9.2f} {str(ttr):>12s} "
-            f"{e['verdict']:>18s}")
+            f"{e['verdict']:>18s}"
+            + ("   ← flat line is DEATH, not a calm market" if lv.get("flat_because_killed") else ""))
     lines.append("")
+    ls = doc.get("liveness_summary") or {}
+    if ls:
+        frac = ls.get("dead_capital_frac")
+        frac_s = "n/a" if frac is None else f"{frac * 100:.1f}%"
+        lines.append(
+            f"Liveness: {ls.get('n_books', 0) - ls.get('n_killed', 0)}/{ls.get('n_books', 0)} books "
+            f"alive · dead capital {frac_s} (${ls.get('dead_capital_usd', 0.0):,.0f} of "
+            f"${ls.get('dead_capital_usd', 0.0) + ls.get('live_capital_usd', 0.0):,.0f})"
+            + (f" · killed: {', '.join(ls['killed_ids'])}" if ls.get("killed_ids") else ""))
     lines.append("Sort orders available: " + ", ".join(doc.get("sort_orders", {}).keys()))
     return "\n".join(lines)
 
@@ -316,7 +440,10 @@ def main() -> int:
     print()
     print(json.dumps({"n_strategies": doc["n_strategies"], "n_trustworthy": doc["n_trustworthy"],
                       "n_severe_tail": doc["n_severe_tail"],
-                      "n_insufficient_data": doc["n_insufficient_data"]}, indent=2))
+                      "n_insufficient_data": doc["n_insufficient_data"],
+                      "liveness": {k: doc["liveness_summary"][k]
+                                   for k in ("n_killed", "killed_ids", "dead_capital_frac")}},
+                     indent=2))
     return 0
 
 

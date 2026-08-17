@@ -16,6 +16,7 @@ import os
 import time
 from typing import Dict, List, Optional
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_state_path
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 
@@ -190,11 +191,36 @@ def _most_flexible_protocol(viable_markets: List[Dict]) -> str:
 
 # ── Log persistence (ring-buffer, atomic) ────────────────────────────────────
 
+#: Умолчание, зафиксированное на импорте: отличает «константу никто не трогал»
+#: от «тест осознанно её перенаправил» (TestLogPersistence присваивает
+#: ``mod._LOG_FILE`` напрямую и потом читает файл обратно).
+_DEFAULT_LOG_FILE = _LOG_FILE
+
+
+def _log_file() -> str:
+    """Путь лога, разрешаемый НА КАЖДОМ вызове (а не на импорте).
+
+    Порядок (как в ``spa_core/telegram/prefs.py``):
+
+    1. ``_LOG_FILE`` отличается от умолчания дерева → осознанное
+       перенаправление теста, уважается;
+    2. под pytest → песочница: ``_LOG_FILE`` это git-tracked
+       ``data/borrowing_cost_log.json``, и 69 тестов
+       ``test_borrowing_cost_optimizer.py`` писали в него (замер цикла #274) —
+       у ``analyze()`` нет входа для пути, поэтому увод обязан жить здесь;
+    3. иначе (прод) → ровно ``_LOG_FILE``.
+    """
+    if _LOG_FILE != _DEFAULT_LOG_FILE:
+        return str(_LOG_FILE)
+    return str(sandboxed_state_path(_LOG_FILE))
+
+
 def _load_log() -> list:
-    if not os.path.exists(_LOG_FILE):
+    log_file = _log_file()
+    if not os.path.exists(log_file):
         return []
     try:
-        with open(_LOG_FILE, "r") as fh:
+        with open(log_file, "r") as fh:
             data = json.load(fh)
         return data if isinstance(data, list) else []
     except (json.JSONDecodeError, OSError):
@@ -203,7 +229,8 @@ def _load_log() -> list:
 
 def _append_log(entry: Dict) -> None:
     """Append *entry* to the ring-buffer log, capped at _RING_BUFFER_CAP."""
-    os.makedirs(_DATA_DIR, exist_ok=True)
+    log_file = _log_file()
+    os.makedirs(os.path.dirname(log_file) or ".", exist_ok=True)
     log = _load_log()
     # Keep a compact copy (skip large viable_markets list for log)
     compact = {k: v for k, v in entry.items() if k != "viable_markets"}
@@ -211,7 +238,7 @@ def _append_log(entry: Dict) -> None:
     log.append(compact)
     if len(log) > _RING_BUFFER_CAP:
         log = log[-_RING_BUFFER_CAP:]
-    _atomic_write(_LOG_FILE, log)
+    _atomic_write(log_file, log)
 
 
 def _atomic_write(path: str, obj) -> None:

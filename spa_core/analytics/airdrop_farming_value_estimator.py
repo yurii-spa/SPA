@@ -15,6 +15,7 @@ import os
 import time
 from typing import Any
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_state_path
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -191,7 +192,10 @@ def analyze(position: dict, config: dict | None = None) -> dict:
         Full airdrop farming value analysis result.
     """
     cfg = config or {}
-    log_path = cfg.get("log_path", _LOG_PATH)
+    # Явный cfg["log_path"] — сильнее всего. Дефолт под тестами уводится в
+    # песочницу: _LOG_PATH это git-tracked data/airdrop_farming_log.json, и
+    # TestAnalyzeConfig::test_none_config (он и обязан звать дефолт) его ПАЧКАЛ.
+    log_path = cfg.get("log_path") or str(sandboxed_state_path(_LOG_PATH))
 
     protocol = position.get("protocol", "UNKNOWN")
     position_usd = float(position.get("position_usd", 0.0))

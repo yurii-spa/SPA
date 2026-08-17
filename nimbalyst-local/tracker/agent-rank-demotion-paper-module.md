@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent-task
 title: "Построить advisory paper-модуль под ранговое правило демоушена (вариант C владельца 2026-08-08)"
-status: backlog
+status: done
 source: session-2026-08-08-owner-answers
 created: 2026-08-08
 priority: high
@@ -113,3 +113,19 @@ score(p, t) = среднее(доходность p на [t−L, t−1]),  L = 6
 
 **Деплой агента НЕ сделан и не предлагается** — по условию решения владельца это отдельная
 карточка. Модуль сейчас запускается только вручную.
+
+## Закрыто 16.08
+
+Посылка перепроверена на этом дереве (волна 0 триажа `docs/BACKLOG_TRIAGE_2026-08-16.md`):
+
+- `spa_core/strategy_lab/swarm/rank_demotion_forward.py` существует (19 419 байт) и реализует
+  **обе руки** варианта владельца: `drift` (#39/#40, скользящая средняя доходности) и
+  `vol` (#45, минус стандартное отклонение) — `ARMS = ("drift", "vol")`;
+- отложенный возврат на месте: «возврат — книга вне bottom-k **M дней ПОДРЯД**»
+  (строки 16, 135-136, счётчик `streak`);
+- `docs/decisions/ADR-074-rank-based-tier-demotion.md` — **Accepted** (владелец сказал «да»
+  2026-08-08), больше не DRAFT;
+- тесты есть: `spa_core/tests/test_rank_demotion_forward.py`.
+
+Покрывает также схлопнутые сюда (кластер К3):
+`inbox-demoushen-knig-aggressive-po-otnositelno` · `inbox-adr-070-21-paper-modul-cdr-39-demoushen`.

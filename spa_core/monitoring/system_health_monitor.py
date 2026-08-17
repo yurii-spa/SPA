@@ -72,8 +72,18 @@ try:
     from spa_core.alerts.severity import (
         read_portfolio_health_score as _read_portfolio_health_score,
     )
+    # ONE number -> ONE verdict. Both health monitors classify the portfolio
+    # health score through this shared helper; neither owns its own severity
+    # ladder for it any more (see spa_core/alerts/severity.py for the why).
+    from spa_core.alerts.severity import (
+        classify_portfolio_health as _classify_portfolio_health,
+    )
+    from spa_core.alerts.severity import (
+        PORTFOLIO_HEALTH_FLOOR as _SHARED_PORTFOLIO_HEALTH_FLOOR,
+    )
 except Exception:                          # noqa: BLE001 — never let an import gap blind the monitor
     _FALLBACK_CRIT = frozenset({"CRITICAL", "CRIT", "FATAL", "SEVERE", "EMERGENCY"})
+    _SHARED_PORTFOLIO_HEALTH_FLOOR = 70.0
 
     def _is_critical_severity(sev) -> bool:  # type: ignore[no-redef]
         return isinstance(sev, str) and sev.strip().upper() in _FALLBACK_CRIT
@@ -86,6 +96,17 @@ except Exception:                          # noqa: BLE001 — never let an impor
             if isinstance(v, (int, float)) and not isinstance(v, bool):
                 return float(v)
         return None
+
+    def _classify_portfolio_health(score, floor=_SHARED_PORTFOLIO_HEALTH_FLOOR):  # type: ignore[no-redef]
+        import math as _math
+        if isinstance(score, bool) or not isinstance(score, (int, float)):
+            return "WARNING", "portfolio health score absent or not numeric (absence != breach)"
+        v = float(score)
+        if not _math.isfinite(v):
+            return "WARNING", "portfolio health score not finite (absence != breach)"
+        if v < float(floor):
+            return "WARNING", f"portfolio health {v:g} < {float(floor):g} (composite quality score)"
+        return "OK", f"portfolio health {v:g} >= {float(floor):g}"
 
 
 def _worst(statuses) -> str:
@@ -136,7 +157,10 @@ ALLOC_CAP_T1_PCT = _RC.max_concentration_t1 * 100.0   # 40% of TOTAL capital
 ALLOC_CAP_T2_PCT = _RC.max_concentration_t2 * 100.0   # 20% of TOTAL capital
 ALLOC_CAP_APPROACH = 0.85                              # INFO above 85% of cap (mirrors policy.py)
 T2_CAP_PCT = _RC.max_total_t2_allocation * 100.0       # 50% of TOTAL capital (ADR-019)
-PORTFOLIO_HEALTH_FLOOR = 70.0
+# Single source of truth for the floor lives with the shared classifier
+# (spa_core/alerts/severity.py) — restating the literal here is exactly how the
+# two monitors drifted apart in the first place.
+PORTFOLIO_HEALTH_FLOOR = _SHARED_PORTFOLIO_HEALTH_FLOOR
 DEVIATION_PCT = 50.0                      # stored vs live APY deviation
 TREND_DECLINE_PCT = -1.0                 # 7-day decline tripwire
 KANBAN_STALE_DAYS = 7
@@ -1178,13 +1202,19 @@ class SystemHealthMonitor:
         # Read the ACTUAL key the writer emits (health_score) via the one shared
         # helper both monitors use — not a per-module key guess (N8).
         score = _read_portfolio_health_score(data)
+        # ONE number -> ONE verdict: the severity comes from the SHARED
+        # classifier, not from a ladder private to this module. Historically
+        # this check returned CRITICAL below the floor while agent_health_monitor
+        # returned WARNING for the identical score (measured 69.43, 2026-08-07),
+        # which spent the loudest level in the system on a composite quality
+        # score inside a domain named `d6_risk_gates` — while no gate had
+        # refused anything. The floor itself is UNCHANGED and the score is still
+        # reported (value=); real gate breaches in this domain (concentration
+        # caps, T2 cap, kill-switch) are untouched and still CRITICAL.
+        status, reason = _classify_portfolio_health(score, PORTFOLIO_HEALTH_FLOOR)
         if not _is_finite_number(score):
-            return CheckResult("d6.health", D, WARNING, "portfolio health score not numeric")
-        if score < PORTFOLIO_HEALTH_FLOOR:
-            return CheckResult("d6.health", D, CRITICAL,
-                               f"portfolio health {score} < {PORTFOLIO_HEALTH_FLOOR}",
-                               value=score, expected=PORTFOLIO_HEALTH_FLOOR)
-        return CheckResult("d6.health", D, OK, f"portfolio health {score}",
+            return CheckResult("d6.health", D, status, reason)
+        return CheckResult("d6.health", D, status, reason,
                            value=score, expected=PORTFOLIO_HEALTH_FLOOR)
 
     def _check_red_flags(self, D: str) -> CheckResult:

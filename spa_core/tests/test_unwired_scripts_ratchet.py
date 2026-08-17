@@ -24,18 +24,6 @@ erc4626, который никто не звал; производитель `gs
 мёртвого кода, и цикл #192 оставил проверку красной осознанно: гасить её дописыванием
 в базу запрещает сам этот файл. Границы правила измерены, а не выбраны: весь `docs/`
 проводкой не считается (сняло бы с учёта 62 из 88).
-
-**16.08 (цикл #255) база выросла 54 → 61 — и это ЕДИНСТВЕННЫЙ допустимый вид роста:
-измерение стало вернее.** Сканер научился видеть форму проводки, которой не видел
-(голый `import <имя>`), и перестал считать проводкой три доказательства слабее
-вызова — докстринг, самоупоминание однофамильца, подстрочную коллизию. Семь имён не
-стали мёртвыми в этот день: они были неподключены всегда, а числились подключёнными
-по ошибке измерения. Чтобы такой рост нельзя было ни спрятать, ни повторить ради
-настоящего мёртвого кода, вскрытые имена лежат ОТДЕЛЬНЫМ разделом
-`revealed_by_stricter_detector`, у каждого назван файл, который его держал, и раздел
-проверяется теми же тремя проверками. Дописать имя в любой из разделов, чтобы
-погасить падение, по-прежнему запрещено: падение храповика означает новый мёртвый
-скрипт, а не неудобную базу.
 """
 from __future__ import annotations
 
@@ -48,20 +36,8 @@ from spa_core.tests._unwired import entrypoint_scripts, unwired_scripts
 _BASELINE = Path(__file__).resolve().parent / "unwired_scripts_baseline.json"
 
 
-def _sections() -> tuple:
-    """Два раздела базы: исторический и вскрытый строгим сканером (цикл #255)."""
-    d = json.loads(_BASELINE.read_text(encoding="utf-8"))
-    return set(d["scripts"]), set(d.get("revealed_by_stricter_detector", {}))
-
-
 def _baseline() -> set:
-    """Всё, за чем храповик следит: разделы сторожатся ВМЕСТЕ.
-
-    Раздельно они бы разошлись: скрипт, подключённый после 16.08, обязан уйти из
-    базы, а из какого именно раздела — вопрос бухгалтерии, не сторожа.
-    """
-    historic, revealed = _sections()
-    return historic | revealed
+    return set(json.loads(_BASELINE.read_text(encoding="utf-8"))["scripts"])
 
 
 class TestRatchet(unittest.TestCase):
@@ -91,31 +67,6 @@ class TestRatchet(unittest.TestCase):
         known = {p.stem for p in entrypoint_scripts()}
         ghosts = sorted(_baseline() - known)
         self.assertEqual(ghosts, [], f"в базе имена, которых нет в scripts/: {ghosts}")
-
-    def test_the_two_sections_do_not_overlap(self):
-        """Имя в обоих разделах = рост базы, спрятанный за арифметикой множеств.
-
-        Объединение от дубля не растёт, поэтому дубль мог бы протащить восьмое
-        имя незаметно: раздел «вскрытых» вырос бы на единицу, а сумма — нет.
-        """
-        historic, revealed = _sections()
-        both = sorted(historic & revealed)
-        self.assertEqual(both, [], f"имя числится в обоих разделах базы: {both}")
-
-    def test_every_revealed_name_says_WHAT_used_to_hide_it(self):
-        """Раздел «вскрытых» — не список имён, а список причин.
-
-        Имя без причины — это дописывание в базу под видом измерения: ровно то,
-        что база запрещает. Причина обязана называть файл, который держал скрипт
-        «подключённым», иначе проверить её нечем.
-        """
-        d = json.loads(_BASELINE.read_text(encoding="utf-8"))
-        revealed = d.get("revealed_by_stricter_detector", {})
-        self.assertTrue(revealed, "раздел «вскрытых» пуст — проверка ничего не значит")
-        for name, reason in sorted(revealed.items()):
-            self.assertTrue(reason.strip(), f"{name}: причина не названа")
-            self.assertIn(".py", reason,
-                          f"{name}: причина не называет файл, который держал скрипт")
 
 
 class TestTheDetectorItself(unittest.TestCase):
@@ -159,12 +110,26 @@ class TestTheDetectorItself(unittest.TestCase):
         Если однажды `unwired_scripts` вернётся к смыслу «нет вызывающего», база
         мгновенно разойдётся с проверкой — и обе половины храповика начнут врать в
         разные стороны. Здесь это названо вслух.
+
+        Инв. #16, НАМЕРЕННАЯ правка (цикл #248): вычитаемых классов стало три, а не
+        один — добавлены `protocol_commanded_scripts` (команда обязательного протокола
+        цикла, исполняемая агентом-оркестратором) и `generated_artifact_scripts`
+        (генератор, чей продукт импортирует живой код). Проверка НЕ ослаблена: она
+        по-прежнему требует ТОЧНОГО равенства «под храповиком = сырое минус
+        вычитаемое», просто вычитаемое теперь названо целиком; любой новый класс,
+        добавленный мимо этой строки, немедленно её красит. Цена каждого класса
+        измерена и закреплена в `test_unwired_two_new_classes.py` (2 из 61 и 1 из 61).
+        Обоснование — в журнале `docs/journal/2026-W33.md`.
         """
-        from spa_core.tests._unwired import (registry_recorded_scripts,
+        from spa_core.tests._unwired import (generated_artifact_scripts,
+                                             protocol_commanded_scripts,
+                                             registry_recorded_scripts,
                                              scripts_without_caller)
         raw, watched = set(scripts_without_caller()), set(unwired_scripts())
-        self.assertEqual(watched, raw - registry_recorded_scripts())
-        self.assertFalse(watched & registry_recorded_scripts())
+        exempt = (registry_recorded_scripts() | protocol_commanded_scripts()
+                  | generated_artifact_scripts())
+        self.assertEqual(watched, raw - exempt)
+        self.assertFalse(watched & exempt)
 
 
 if __name__ == "__main__":

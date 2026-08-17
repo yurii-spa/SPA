@@ -776,13 +776,35 @@ def test_d6_health_missing_is_warning_not_critical(good_dir, monkeypatch):
     assert by_id(res, "d6.health").status == WARNING
 
 
-def test_d6_health_low_critical(good_dir, monkeypatch):
+def test_d6_health_low_is_warning_not_critical(good_dir, monkeypatch):
+    """CHANGED (card `agent-task-odno-chislo-dva-verdikta-portfolio-healt`,
+    inv. #16 — justification, not a silent weakening):
+
+    This test asserted CRITICAL. agent_health_monitor asserted WARNING for the
+    IDENTICAL number against the IDENTICAL floor (measured 69.43 on 2026-08-07:
+    "System Health 🔴 CRITICAL" beside "Agents ⚠️ WARNING" from one score).
+    Both monitors now classify through the single shared helper
+    `spa_core.alerts.severity.classify_portfolio_health`, whose agreed verdict is
+    WARNING — CRITICAL cannot be the shared verdict because agent_health's
+    `critical_count == 0 ⟺ overall != CRITICAL` invariant forbids it.
+
+    NOT weakened: the floor (70.0) is unchanged, the check still fires and still
+    reports the score, only the level it fires at moved — and it must now be the
+    SAME level in both monitors (guarded by
+    spa_core/tests/test_portfolio_health_one_verdict.py). Genuine d6_risk_gates
+    criticals (concentration caps, T2 cap, RiskPolicy refusal, kill-switch) are
+    untouched and still CRITICAL — see the neighbouring tests in this file.
+    """
     _write(good_dir / "data", "portfolio_health.json", {"score": 42})
     mon = make_mon(good_dir)
     prelude(mon)
     _patch_killswitch(mon, monkeypatch)
     res = mon.check_d6_risk_gates()
-    assert by_id(res, "d6.health").status == CRITICAL
+    check = by_id(res, "d6.health")
+    assert check.status == WARNING
+    # The reading itself is still made and still surfaced (not silenced).
+    assert check.value == 42
+    assert check.status != OK
 
 
 def test_d6_health_good_ok(good_dir, monkeypatch):

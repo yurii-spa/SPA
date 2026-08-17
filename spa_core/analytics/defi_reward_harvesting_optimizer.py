@@ -14,6 +14,7 @@ import os
 import time
 from typing import Optional
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_state_path
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -48,22 +49,26 @@ def _save_log(log_path: str, entries: list) -> None:
     os.makedirs(dir_name, exist_ok=True)
     atomic_save(entries, str(log_path))
 def _get_log_path(data_dir: Optional[str]) -> str:
+    # Явный data_dir — сильнее всего: каталогом владеет вызывающий.
     if data_dir:
         return os.path.join(data_dir, "reward_harvesting_log.json")
     # Walk up from this file to find project root containing data/
     here = os.path.dirname(os.path.abspath(__file__))
+    default = os.path.join("data", "reward_harvesting_log.json")  # fallback: cwd/data
     for _ in range(6):
         candidate = os.path.join(here, "data", "reward_harvesting_log.json")
         if os.path.isdir(os.path.join(here, "data")) or os.path.exists(
             os.path.join(here, "data")
         ):
-            return candidate
+            default = candidate
+            break
         parent = os.path.dirname(here)
         if parent == here:
             break
         here = parent
-    # Fallback: cwd/data
-    return os.path.join("data", "reward_harvesting_log.json")
+    # Под тестами дефолт уводится в песочницу: этот путь — git-tracked
+    # spa_core/data/reward_harvesting_log.json, и прогон его ПАЧКАЛ (цикл #274).
+    return str(sandboxed_state_path(default))
 
 
 # ---------------------------------------------------------------------------

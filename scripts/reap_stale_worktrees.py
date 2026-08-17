@@ -73,8 +73,22 @@ origin» ровно потому, что цикл #228 переписал фай
 не ослабляется и не переписывается — обычный (подметающий) прогон её выполняет байт-в-байт как
 раньше; появился второй вход, а не поблажка в старом.
 
+**Второй реестр того же осадка — ЗАХВАТЫ КАРТОЧЕК (карточка
+`agent-orphaned-work-recurred-after-its-card-was-closed`).** Мёртвая сессия оставляет не только
+`/tmp`-дерево, но и строку `claimed_by`/`claimed_at` во frontmatter карточки. Эта строка живёт
+в git и не истекает НИКОГДА, а шаг 0b по ней отвечает «занятость не измерена» (ярлык без pid —
+`session_state` отдаёт UNKNOWN необратимо) ⇒ карточку нельзя взять, и рассосаться это не может:
+держателя нет, спросить его личность не у кого. Замер трекера 16.08 — `cycle-28258` держит
+`agent-fleet-parity-guard-never-scheduled` с 05.08 (11 суток), `cycle-87477` держит
+`inbox-tier-c-pyat-nastoyaschih-otkazov-agregat` с 06.08. Подметающий прогон теперь их
+**НАЗЫВАЕТ** (раздел «🔒 ПРОТУХШИЕ ЗАХВАТЫ КАРТОЧЕК», код возврата 1) — и только называет:
+снятие чужого захвата остаётся ручным действием после сверки по шагу 0a, автоперехвата чужой
+работы здесь нет и не будет, а вопрос «должен ли мёртвый захват блокировать подъём» открыт у
+владельца (`owner-decision-otchet-o-zanyatosti-kartochki-bolshe-ne-sc`) и этой правкой не
+трогается.
+
 Коды возврата: **0** — всё измерено; **1** — есть деревья, которые остаются с недоставленным
-(`unique`); **2** — что-то измерить не удалось (перебивает 1).
+(`unique`), либо протухшие захваты карточек; **2** — что-то измерить не удалось (перебивает 1).
 
     python3 scripts/reap_stale_worktrees.py                  # что снялось бы и почему
     python3 scripts/reap_stale_worktrees.py --json
@@ -102,6 +116,9 @@ sys.path.insert(0, str(ROOT / "scripts"))
 # ответа заводить нельзя — два определения разойдутся, а вопрос буквально один и тот же
 # (цикл #54 решил его для шага 0a, цикл #234 переносит сюда ИМПОРТОМ, не копией).
 from check_undelivered_work import main_worktree  # noqa: E402
+# Захват карточки читает и меряет ровно один модуль — шаг 0b. Своей копии правил «кто держит
+# карточку» здесь нет и быть не может: два ответа на один вопрос — это и есть дефект.
+import check_card_claim as card_claim  # noqa: E402
 
 DEFAULT_BASE = "origin/main"
 DEFAULT_GRACE_HOURS = 24.0
@@ -120,6 +137,10 @@ ARCHIVE_ROOT = Path.home() / "SPA_backups" / "worktree_reap"
 
 DELIVERED, SUPERSEDED, UNIQUE, ABSENT = "delivered", "superseded", "unique", "absent"
 REAP, KEEP, UNMEASURED, PRUNABLE = "reap", "keep", "unmeasured", "prunable"
+
+# Захват карточки: держится (свежий либо держатель жив) · протух (старше окна, активность не
+# подтверждена) · не измерен (метка времени не разобрана — fail-CLOSED, а не «свободна»).
+HELD, STALE_CLAIM, CLAIM_UNMEASURED = "held", "stale", "unmeasured"
 
 
 def _git(cwd, *args: str):
@@ -489,10 +510,102 @@ def record_reap(root, wt, base_ref, verdicts, churn, archive_dest, ledger=None, 
     return str(ledger), None
 
 
-def build_report(root, base_ref, log_path, grace_hours, git=_git, now=None, now_ts=None):
+def stale_claims(tracker_dir, log_path, grace_hours, now=None, ps=None, sibling=None):
+    """([{card, holder, claimed_at, age_hours, state, why}], [причины-не-измеренного]).
+
+    **Тот же осадок, только в другом реестре.** Мёртвая сессия оставляет после себя не только
+    `/tmp`-дерево, но и **захват карточки**: строка `claimed_by`/`claimed_at` во frontmatter
+    живёт в git и не истекает никогда. Замер трекера 16.08:
+
+        agent-fleet-parity-guard-never-scheduled      — cycle-28258 с 2026-08-05T12:28:28Z (11 сут)
+        inbox-tier-c-pyat-nastoyaschih-otkazov-agregat — cycle-87477 с 2026-08-06T18:43:13Z (10 сут)
+
+    Обе сессии мертвы. Обе карточки шаг 0b читает как «занятость не измерена» (ярлык без pid —
+    `session_state` отдаёт UNKNOWN детерминированно и необратимо) ⇒ код 2, «брать нельзя», и
+    рассосаться это не может: держателя нет, а спросить его личность не у кого. Ровно тот
+    механизм, которым карточка `agent-orphaned-work-recurred-after-its-card-was-closed`
+    описывает рецидив: **защита от коллизий работает как защита от ПОДЪЁМА**.
+
+    **Этот механизм ничего не снимает — он НАЗЫВАЕТ.** Снятие чужого захвата остаётся ручным
+    действием (`check_card_claim.py release <карточка> --force`) и только после сверки по шагу
+    0a; автоматический перехват чужой работы здесь не появляется, а вопрос «блокировать ли
+    подъём мёртвым захватом» открыт у владельца
+    (`owner-decision-otchet-o-zanyatosti-kartochki-bolshe-ne-sc`). Разница между «сторож молчит»
+    и «сторож называет» и есть вся эта функция: молчащий осадок ждали одиннадцать суток.
+
+    Меряет чужим кодом, своего не заводит: список захватов — `check_card_claim.list_claimed`,
+    личность держателя — `durable_by_session` по журналу объявлений, активность —
+    `session_state` шага 0a. `now` и `ps` — ВХОДЫ (время в тестах не берётся из окружения)."""
+    now = now or datetime.now(timezone.utc)
+    notes = []
+    try:
+        sibling = sibling or card_claim.load_sibling()
+    except (ImportError, OSError, SyntaxError) as exc:
+        return [], [f"захваты карточек не измерены: не загрузился шаг 0a ({exc})"]
+
+    tracker = Path(tracker_dir)
+    if not tracker.is_dir():
+        return [], [f"каталог карточек не найден ({tracker}) — захваты карточек НЕ измерены"]
+
+    entries = []
+    log = Path(log_path) if log_path else None
+    if log is None or not log.exists():
+        notes.append(f"журнал объявлений не прочитан ({log}) — личность держателей захватов "
+                     f"не измерена; возраст захвата измеряется по самой карточке")
+    else:
+        try:
+            entries, _malformed = sibling.read_entries(log, None)
+        except OSError as exc:
+            notes.append(f"журнал объявлений нечитаем ({log}: {exc.__class__.__name__}) — "
+                         f"личность держателей захватов не измерена")
+
+    durables = card_claim.durable_by_session(entries, sibling)
+    ps = ps or getattr(sibling, "_ps_lstart")
+
+    rows = []
+    for row in card_claim.list_claimed(tracker):
+        if row["stale"]:
+            # Терминальный статус: захват не действует по действующему правилу шага 0b
+            # (`TERMINAL_STATUSES`). Это не находка и не осадок — работа закрыта.
+            continue
+        ts = sibling._parse_ts(row["claimed_at"])
+        rec = {"card": row["card"], "holder": row["claimed_by"],
+               "claimed_at": row["claimed_at"], "status": row["status"],
+               "age_hours": None, "state": None, "why": ""}
+        if ts is None:
+            rec["state"] = CLAIM_UNMEASURED
+            rec["why"] = (f"claimed_at не разобран ({row['claimed_at']!r}) — возраст захвата "
+                          f"не измерен")
+            rows.append(rec)
+            continue
+        state, why = sibling.session_state(
+            {"session": row["claimed_by"], "ts": row["claimed_at"],
+             **(durables.get(row["claimed_by"]) or {})}, None, ps=ps)
+        rec["age_hours"] = round((now - ts).total_seconds() / 3600.0, 2)
+        rec["why"] = why
+        if state == sibling.ACTIVE:
+            rec["state"] = HELD
+            rec["why"] = f"держатель ЖИВ: {why}"
+        elif rec["age_hours"] <= grace_hours:
+            rec["state"] = HELD
+            rec["why"] = f"захват свежее окна {grace_hours:g}ч: {why}"
+        else:
+            rec["state"] = STALE_CLAIM
+        rows.append(rec)
+    return rows, notes
+
+
+def build_report(root, base_ref, log_path, grace_hours, git=_git, now=None, now_ts=None,
+                 tracker_dir=None):
     regs, why = list_registrations(root, git=git)
     report = {"root": str(root), "base": base_ref, "grace_hours": grace_hours,
-              "trees": [], "unmeasured_reasons": []}
+              "trees": [], "unmeasured_reasons": [], "claims": [], "claim_notes": []}
+    # Захваты карточек считаются ДО разбора деревьев и переживают любой ранний выход: осадок
+    # в реестре карточек не зависит от того, ответил ли `git worktree list`. `tracker_dir=None`
+    # — «про карточки не спрашивали» (герметичные вызовы отчёта в тестах); CLI задаёт его всегда.
+    if tracker_dir is not None:
+        report["claims"], report["claim_notes"] = stale_claims(
+            tracker_dir, log_path, grace_hours, now=now)
     if regs is None:
         report["unmeasured_reasons"].append(why)
         return report
@@ -615,16 +728,45 @@ def render(report) -> str:
     block(KEEP, "🛑 ОСТАЁТСЯ")
     block(UNMEASURED, "❓ НЕ ИЗМЕРЕНО — молчаливого «всё в порядке» здесь не будет")
 
+    stale = [c for c in report.get("claims") or [] if c["state"] == STALE_CLAIM]
+    unmeasured_claims = [c for c in report.get("claims") or []
+                         if c["state"] == CLAIM_UNMEASURED]
+    if stale:
+        lines.append("")
+        lines.append(f"🔒 ПРОТУХШИЕ ЗАХВАТЫ КАРТОЧЕК ({len(stale)}) — держит сессия, чья "
+                     f"активность не подтверждена; захват старше окна "
+                     f"{report['grace_hours']:g}ч и сам не истечёт никогда:")
+        for c in sorted(stale, key=lambda x: -(x["age_hours"] or 0)):
+            lines.append(f"  {c['card']} [{c['status']}] — {c['holder']} "
+                         f"с {c['claimed_at']} ({c['age_hours']}ч)")
+            lines.append(f"      активность: {c['why']}")
+        lines.append("  → снятие захвата — РУЧНОЕ действие после сверки по шагу 0a "
+                     "(`check_card_claim.py release <карточка> --force`); уборщик захваты "
+                     "не снимает и работу не перехватывает")
+    if unmeasured_claims:
+        lines.append("")
+        lines.append(f"❓ ЗАХВАТЫ КАРТОЧЕК НЕ ИЗМЕРЕНЫ ({len(unmeasured_claims)}):")
+        for c in unmeasured_claims:
+            lines.append(f"  {c['card']} — {c['holder']}: {c['why']}")
+
     for r in report["unmeasured_reasons"]:
         lines.append(f"❓ {r}")
+    for r in report.get("claim_notes") or []:
+        lines.append(f"ℹ️  {r}")
     return "\n".join(lines)
 
 
 def exit_code(report) -> int:
     if report["unmeasured_reasons"] or any(t["verdict"] == UNMEASURED for t in report["trees"]):
         return 2
+    if any(c["state"] == CLAIM_UNMEASURED for c in report.get("claims") or []):
+        return 2
     if any(t["verdict"] == KEEP and any("НЕДОСТАВЛЕННАЯ" in r for r in t["reasons"])
            for t in report["trees"]):
+        return 1
+    # Протухший захват — находка того же ранга, что оставшееся дерево с недоставленным: он
+    # требует ручного разбора и сам не рассосётся. Молчаливого нуля здесь не будет.
+    if any(c["state"] == STALE_CLAIM for c in report.get("claims") or []):
         return 1
     return 0
 
@@ -637,6 +779,10 @@ def main(argv=None) -> int:
     ap.add_argument("--base", default=DEFAULT_BASE)
     ap.add_argument("--log", default=None, help="журнал объявлений (по умолчанию data/session_changes.jsonl в --root)")
     ap.add_argument("--grace-hours", type=float, default=DEFAULT_GRACE_HOURS)
+    ap.add_argument("--tracker-dir", default=None,
+                    help="каталог карточек (по умолчанию nimbalyst-local/tracker в --root) — "
+                         "в нём ищутся ПРОТУХШИЕ ЗАХВАТЫ мёртвых сессий; уборщик их только "
+                         "называет, снятие остаётся ручным")
     ap.add_argument("--apply", action="store_true", help="архивировать и снять (по умолчанию — сухой прогон)")
     ap.add_argument("--worktree", default=None,
                     help="«я закончил, сними МОЁ дерево»: измерить и снять ОДНО названное "
@@ -663,10 +809,15 @@ def main(argv=None) -> int:
             root_note = f"главное рабочее дерево не определено ({why}) — корнем взят {ROOT}"
 
     log_path = args.log or (root / "data" / "session_changes.jsonl")
+    tracker_dir = Path(args.tracker_dir) if args.tracker_dir else (
+        root / "nimbalyst-local" / "tracker")
     if args.worktree:
+        # Явный режим — «сними МОЁ дерево»; чужие захваты карточек тут не при чём, и мешать
+        # их в ответ на конкретную просьбу значит учить пролистывать ответ.
         report = build_self_report(root, args.base, args.worktree, log_path, args.grace_hours)
     else:
-        report = build_report(root, args.base, log_path, args.grace_hours)
+        report = build_report(root, args.base, log_path, args.grace_hours,
+                              tracker_dir=tracker_dir)
     if root_note:
         report["unmeasured_reasons"].append(root_note)
 

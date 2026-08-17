@@ -68,3 +68,19 @@ RiskPolicy по-разному определяют живой TVL, и атри�
 причины не двигается. Живой трек `data/equity_curve_daily.json` не трогать.
 
 Родитель: [ADR-076](../../docs/decisions/ADR-076-live-feeds-outside-ethereum.md).
+
+---
+
+## Волна 0 триажа, 16.08 — что эта карточка теперь покрывает
+
+Схлопнуты сюда две находки петли ADR-066 класса «безымянный простой» (кластер К9
+`docs/BACKLOG_TRIAGE_2026-08-16.md`; обе переведены в `done`, с диска не удалены):
+
+- **`inbox-nahodka-petli-vozmozhnost-fluid-fusdc-5`** — `fluid_fusdc` 5.03 % (evidence L3)
+  доступен книге, не держится, отказ НЕ назван (`gap:opportunity_unnamed:fluid_fusdc`);
+- **`inbox-nahodka-petli-vozmozhnost-moonwell-base`** — то же для `moonwell_base` 10.7382 %
+  (`gap:opportunity_unnamed:moonwell_base`).
+
+Обе гаснут сами, когда атрибуция перестаёт писать `UNEXPLAINED_CASH` и называет связывающий
+лимит: находка исчезает из отчёта источника, мост ADR-066 закрывает карточку. То есть это не
+две задачи про два протокола, а один дефект отчётности.
