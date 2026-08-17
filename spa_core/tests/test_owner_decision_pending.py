@@ -715,3 +715,310 @@ def test_a_handwritten_card_quoting_the_outage_text_is_not_a_phantom(tree):
 
     assert doc["phantom_count"] == 0
     assert doc["pending_count"] == 1
+
+
+# ===========================================================================
+# H8 — очередь ЭТОГО дерева неполна (авария 17.08.2026, цикл #270)
+#
+# Прод-дерево держало 416 карточек, `origin/main` — 481. Среди 109 невидимых
+# дереву карточек лежал живой вопрос владельцу `own-34` (`needs-owner`), и
+# сторож доложил `undelivered_count: 0` — правда про КАТАЛОГ и неправда про
+# ОЧЕРЕДЬ. Дальше — тот же самоподдерживающийся круг, что #199 закрыл этажом
+# ниже: не синкнуто ⇒ нет файла ⇒ не в очереди ⇒ никто не заметил.
+#
+# Фикстуры здесь — настоящие крошечные git-репозитории: проверяется ЭФФЕКТ,
+# а не подменённая заглушка. Дат в них нет — вердикт H8 от календаря не зависит.
+# ===========================================================================
+import subprocess  # noqa: E402 — рядом с тем, что его использует
+
+from spa_core.owner_queue.origin_view import TRACKER_REL  # noqa: E402
+
+_REF = "main"
+
+
+def _git(cwd, *args):
+    res = subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True)
+    assert res.returncode == 0, f"git {' '.join(args)} -> {res.returncode}: {res.stderr}"
+    return res.stdout
+
+
+@pytest.fixture()
+def git_tree(tmp_path: Path):
+    """Дерево-песочница ВНУТРИ репозитория: `data/` и очередь рядом, как в проде."""
+    root = tmp_path / "repo"
+    tracker = root / TRACKER_REL
+    data = root / "data"
+    tracker.mkdir(parents=True)
+    data.mkdir()
+    _git(tmp_path, "init", "-q", "-b", _REF, str(root))
+    _git(root, "config", "user.email", "t@example.com")
+    _git(root, "config", "user.name", "test")
+    return root, data, tracker
+
+
+def _commit_and_hide(root: Path, tracker: Path, card_id: str) -> None:
+    """Зафиксировать карточку на ref и убрать её файл — ровно состояние прода 17.08."""
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "queue")
+    (tracker / f"{card_id}.md").unlink()
+
+
+def test_a_question_living_only_on_the_ref_is_named_not_counted_as_absent(git_tree,
+                                                                          monkeypatch):
+    """Ядро аварии: `own-34` есть на ref, файла в дереве нет — молчать нельзя."""
+    root, data, tracker = git_tree
+    _card(tracker, card_id="own-34-kill-switch-active-13h-unnoticed")
+    _journal(data, [])
+    _commit_and_hide(root, tracker, "own-34-kill-switch-active-13h-unnoticed")
+    monkeypatch.setattr("spa_core.monitoring.owner_decision_pending.ORIGIN_REF", _REF)
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert doc["queue_gap_count"] == 1
+    assert doc["origin_queue"]["measured"] is True
+    assert doc["origin_queue"]["hidden"][0]["card_id"] == "own-34-kill-switch-active-13h-unnoticed"
+    assert doc["origin_queue"]["hidden"][0]["delivered"] is False
+    assert doc["status"] == WARNING
+    gap_line = next(i for i in doc["issues"] if "НЕПОЛНА" in i)
+    assert "own-34-kill-switch-active-13h-unnoticed" in gap_line
+    assert "НИ РАЗУ не отправлены владельцу: 1" in gap_line
+
+
+def test_the_defect_is_that_the_tree_counters_stay_green(git_tree, monkeypatch):
+    """То, что делало аварию невидимой: счётчики дерева на такую карточку не реагируют.
+
+    Это не жалоба на счётчики — они честны про свой каталог. Тест закрепляет, что
+    зелёное число теперь СОСЕДСТВУЕТ с находкой, а не заменяет её.
+    """
+    root, data, tracker = git_tree
+    _card(tracker, card_id="own-34-kill-switch-active-13h-unnoticed")
+    _journal(data, [])
+    _commit_and_hide(root, tracker, "own-34-kill-switch-active-13h-unnoticed")
+    monkeypatch.setattr("spa_core.monitoring.owner_decision_pending.ORIGIN_REF", _REF)
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert doc["pending_count"] == 0 and doc["undelivered_count"] == 0
+    assert doc["status"] != OK, "зелёный статус при потерянном вопросе и есть авария 17.08"
+    assert "НЕПОЛНА" in doc["reason"]
+
+
+#: Отправка ДО среза NOW_0100 — иначе возраст ожидания вышел бы отрицательным.
+PUSHED_0055 = "2026-08-10T00:55:00+00:00"
+
+
+def _halted_with_one_answered_question(root: Path, data: Path, tracker: Path) -> None:
+    """Остановка свежая (0.1ч) и вопрос владельцу ОТПРАВЛЕН ⇒ сама по себе WARNING.
+
+    Ровно та расстановка, в которой видно вклад H8 и ничей больше: не будь её,
+    остановка дала бы CRITICAL своей веткой «тупик», и тест закрепил бы не то,
+    что утверждает.
+    """
+    _halt(data)
+    _card(tracker)
+    _journal(data, [_push(pushed_at=PUSHED_0055)])
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "queue")
+
+
+def test_a_halt_with_an_answered_question_is_only_a_warning_by_itself(git_tree,
+                                                                      monkeypatch):
+    """Обратный контроль к следующему тесту: без невидимой карточки — WARNING."""
+    root, data, tracker = git_tree
+    _halted_with_one_answered_question(root, data, tracker)
+    monkeypatch.setattr("spa_core.monitoring.owner_decision_pending.ORIGIN_REF", _REF)
+
+    doc = check_pending_owner_decisions(now=NOW_0100, data_dir=data, tracker_dir=tracker)
+
+    assert doc["queue_gap_count"] == 0
+    assert doc["status"] == WARNING
+
+
+def test_the_lost_way_up_turns_that_halt_critical(git_tree, monkeypatch):
+    """Во время остановки невидимый путь вверх не лучше отсутствующего.
+
+    К расстановке выше добавлен ОДИН невидимый дереву вопрос — и только он
+    двигает вердикт WARNING → CRITICAL.
+    """
+    root, data, tracker = git_tree
+    _card(tracker, card_id="own-34-kill-switch-active-13h-unnoticed")
+    _halted_with_one_answered_question(root, data, tracker)
+    (tracker / "own-34-kill-switch-active-13h-unnoticed.md").unlink()
+    monkeypatch.setattr("spa_core.monitoring.owner_decision_pending.ORIGIN_REF", _REF)
+
+    doc = check_pending_owner_decisions(now=NOW_0100, data_dir=data, tracker_dir=tracker)
+
+    assert doc["queue_gap_count"] == 1
+    assert doc["status"] == CRITICAL
+    assert any("НЕПОЛНА" in i for i in doc["issues"])
+
+
+def test_the_lost_way_up_is_named_during_a_dead_end_halt_too(git_tree, monkeypatch):
+    """Тупик остаётся тупиком, но причина обрыва пути вверх обязана прозвучать."""
+    root, data, tracker = git_tree
+    _halt(data)
+    _card(tracker, card_id="own-34-kill-switch-active-13h-unnoticed")
+    _journal(data, [])
+    _commit_and_hide(root, tracker, "own-34-kill-switch-active-13h-unnoticed")
+    monkeypatch.setattr("spa_core.monitoring.owner_decision_pending.ORIGIN_REF", _REF)
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert doc["status"] == CRITICAL
+    assert "ТУПИК" in doc["issues"][0], "остановка обязана оставаться первой строкой"
+    assert any("НЕПОЛНА" in i for i in doc["issues"])
+
+
+def test_a_complete_queue_says_zero_and_stays_green(git_tree, monkeypatch):
+    """Обратный контроль: синхронное дерево не должно рождать вечную находку."""
+    root, data, tracker = git_tree
+    _card(tracker, card_id="own-40-otvechennyi", status="owner-done")
+    _journal(data, [])
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "queue")
+    monkeypatch.setattr("spa_core.monitoring.owner_decision_pending.ORIGIN_REF", _REF)
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert doc["queue_gap_count"] == 0
+    assert doc["origin_queue"]["measured"] is True
+    assert doc["status"] == OK
+    assert not any("НЕПОЛНА" in i for i in doc["issues"])
+
+
+def test_a_hidden_card_that_is_not_an_owner_question_is_not_dragged_in(git_tree,
+                                                                       monkeypatch):
+    """Задание и закрытый вопрос — не вопросы владельцу; завышать очередь тоже нельзя."""
+    root, data, tracker = git_tree
+    (tracker / "inbox-zadanie.md").write_text(
+        "---\ntrackerStatus:\n  type: inbox\ntitle: \"задание\"\nstatus: new\n---\n\nx\n",
+        encoding="utf-8")
+    _card(tracker, card_id="own-41-zakryt", status="owner-done")
+    _journal(data, [])
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "queue")
+    (tracker / "inbox-zadanie.md").unlink()
+    (tracker / "own-41-zakryt.md").unlink()
+    monkeypatch.setattr("spa_core.monitoring.owner_decision_pending.ORIGIN_REF", _REF)
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert doc["queue_gap_count"] == 0
+    assert doc["status"] == OK
+
+
+def test_a_hidden_question_that_was_sent_is_told_apart_from_one_never_sent(git_tree,
+                                                                           monkeypatch):
+    """Журнал отправок живёт в `data/` и с деревом не расходится — им и судим."""
+    root, data, tracker = git_tree
+    _card(tracker, card_id="own-34-kill-switch-active-13h-unnoticed")
+    _journal(data, [_push(card_id="own-34-kill-switch-active-13h-unnoticed")])
+    _commit_and_hide(root, tracker, "own-34-kill-switch-active-13h-unnoticed")
+    monkeypatch.setattr("spa_core.monitoring.owner_decision_pending.ORIGIN_REF", _REF)
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert doc["origin_queue"]["hidden"][0]["delivered"] is True
+    gap_line = next(i for i in doc["issues"] if "НЕПОЛНА" in i)
+    assert "НИ РАЗУ" not in gap_line, "отправленный вопрос нельзя объявлять неотправленным"
+
+
+def test_an_unmeasurable_ref_is_said_out_loud_not_treated_as_a_full_queue(tree):
+    """Песочница вне git: «сверять не с чем» ≠ «дереву видно всё».
+
+    Статус СОЗНАТЕЛЬНО не поднимается: нет репозитория — законное состояние CI,
+    песочницы и чистой установки, а нестираемое «не измерено» морит очередь
+    голодом ровно так же, как молчание. Зато оговорка попадает в `reason`,
+    который читает шаг 0-офис.
+    """
+    data, tracker = tree
+    _card(tracker)
+    _journal(data, [_push()])
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert doc["queue_gap_count"] is None, "None и 0 обязаны быть различимы"
+    assert doc["origin_queue"]["measured"] is False
+    assert doc["origin_queue"]["reason"]
+    assert "полнота очереди НЕ ИЗМЕРЕНА" in doc["reason"]
+    assert doc["status"] == OK
+
+
+def test_a_broken_ref_never_pretends_the_queue_is_complete(git_tree, monkeypatch):
+    """Ref не разрешается ⇒ «не измерено» с причиной, а не пустой список находок."""
+    root, data, tracker = git_tree
+    _card(tracker)
+    _journal(data, [])
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "queue")
+    monkeypatch.setattr("spa_core.monitoring.owner_decision_pending.ORIGIN_REF",
+                        "origin/never-fetched")
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert doc["queue_gap_count"] is None
+    assert doc["origin_queue"]["measured"] is False
+    assert "не разрешается" in doc["origin_queue"]["reason"]
+
+
+def test_the_office_step_prints_the_gap_rather_than_truncating_it(git_tree, monkeypatch):
+    """Читатель обязателен: находка без читателя — не находка.
+
+    `reason` в шаге 0-офис обрезается до 160 символов, а идентификаторы карточек
+    стоят в его хвосте. Поэтому у полноты очереди — своя строка.
+    """
+    import sys
+
+    root, data, tracker = git_tree
+    _card(tracker, card_id="own-34-kill-switch-active-13h-unnoticed")
+    _journal(data, [])
+    _commit_and_hide(root, tracker, "own-34-kill-switch-active-13h-unnoticed")
+    monkeypatch.setattr("spa_core.monitoring.owner_decision_pending.ORIGIN_REF", _REF)
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    scripts = str(Path(__file__).resolve().parents[2] / "scripts")
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    import consume_office_reports as office
+
+    lines = office._summarize_json("owner_decision_pending.json", doc)  # noqa: SLF001
+    text = "\n".join(lines)
+
+    assert "очередь дерева НЕПОЛНА" in text
+    assert "own-34-kill-switch-active-13h-unnoticed" in text
+
+
+def test_the_office_step_names_an_unmeasured_gap_too(tree):
+    """Обратная сторона: не измерено — тоже строка, а не пустота."""
+    import sys
+
+    data, tracker = tree
+    _card(tracker)
+    _journal(data, [])
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    scripts = str(Path(__file__).resolve().parents[2] / "scripts")
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    import consume_office_reports as office
+
+    text = "\n".join(office._summarize_json("owner_decision_pending.json", doc))  # noqa: SLF001
+
+    assert "полнота очереди НЕ ИЗМЕРЕНА" in text
+
+
+def test_an_old_report_without_the_block_is_not_read_as_a_full_queue():
+    """Отчёт, записанный ДО #270, не имеет права выглядеть измеренным."""
+    import sys
+
+    scripts = str(Path(__file__).resolve().parents[2] / "scripts")
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    import consume_office_reports as office
+
+    text = "\n".join(office._summarize_json(  # noqa: SLF001
+        "owner_decision_pending.json",
+        {"status": "OK", "reason": "остановки нет; вопросов владельцу без ответа: 8"}))
+
+    assert "полнота очереди НЕ ИЗМЕРЕНА" in text
+    assert "отчёт старого образца" in text

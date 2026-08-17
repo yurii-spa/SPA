@@ -50,6 +50,30 @@ breaker: HALT»). Снять остановку может ТОЛЬКО влад
                 только на бумаге, нажимать владельцу физически нечего.
   H5  WARNING   ответ нажатием получен, а карточка всё ещё `needs-owner` — ответ
                 не доехал до очереди (инжест не сделан либо запись потерялась).
+  H8  WARNING   очередь ЭТОГО дерева НЕПОЛНА: вопрос владельцу `needs-owner`
+      CRITICAL  живёт на `origin/main`, а файла в дереве нет. Во время остановки —
+                CRITICAL: невидимый путь вверх не лучше отсутствующего.
+
+Очередь дерева ≠ очередь владельца (цикл #270, 17.08.2026)
+------------------------------------------------------------------------------
+Тот же самоподдерживающийся класс, что #199 закрыл на журнале отправок, оказался
+этажом выше — **на самом дереве**. Карточки заводят сессии в изолированных worktree
+и пушат прямо на `origin`; автосинк прод-дерева возит `spa_core/` · `scripts/` ·
+`tests/` и НЕ возит `nimbalyst-local/tracker/`. Замер 17.08: в проде 416 карточек,
+на `origin/main` — 481, невидимых дереву — **109**.
+
+Среди них был живой вопрос владельцу `own-34` (`needs-owner` на origin), и сторож
+доложил `undelivered_count: 0`. Вопрос был невидим В ОБЕ СТОРОНЫ: в `pending` не
+попал (файла нет), в `unchecked` не попал (обход журнала видит только ОТПРАВЛЕННОЕ,
+а его не отправляли ни разу). Петля замкнулась ровно как в #199: не синкнуто ⇒ нет
+файла ⇒ не в очереди ⇒ никто не заметил ⇒ не синкнуто. Зелёное число было правдой
+про КАТАЛОГ и неправдой про ОЧЕРЕДЬ.
+
+Лечится не синхронизацией (массовый `checkout origin/main -- tracker` стёр бы
+карточки, живущие только в дереве), а тем, что расхождение НАЗЫВАЕТСЯ:
+`spa_core/owner_queue/origin_view.py` читает версию очереди на `origin/main`
+локальным git, без сети, и невидимые дереву вопросы `needs-owner` попадают в отчёт
+отдельным полем и отдельной находкой.
 
 Источник списка — ОЧЕРЕДЬ, а не журнал отправок (цикл #199)
 ------------------------------------------------------------------------------
@@ -265,6 +289,48 @@ def _scan_queue(tracker_dir: Path) -> tuple[list[dict], list[dict], bool]:
             "phantom": _is_phantom(card),
         })
     return queue, unchecked, True
+
+
+#: С какой копией очереди сверяемся. Локальный ref, `git fetch` НЕ вызывается:
+#: сторож в сеть не ходит, и sha этой копии печатается в отчёте — «сверено с origin»
+#: не должно читаться как «сверено со свежайшим origin».
+ORIGIN_REF = "origin/main"
+
+
+def _scan_origin_gap(tracker_dir: Path, pushes_by_card: dict[str, list[dict]]) -> dict:
+    """Вопросы владельцу, которые есть на `origin/main` и которых НЕТ в этом дереве.
+
+    Fail-CLOSED и никогда не бросает наружу. «Сверять не с чем» (нет git-репозитория,
+    ref не разрешается, каталога очереди нет) — законное состояние песочницы, CI и
+    чистой установки: тогда ``measured=False`` и причина СЛОВАМИ, ровно как у
+    ``_scan_channel_buttons``. Молчаливого «дереву видно всё» здесь не будет ни в
+    одном исходе — отсутствие поля и пустой список означают разные вещи.
+
+    `delivered` у найденной карточки считается по журналу отправок ЭТОГО дерева:
+    журнал живёт в `data/` и с деревом не расходится, а вопрос, которого нет ни в
+    дереве, ни в журнале, — это и есть потерянный вопрос (`own-34`, 10.08–17.08).
+    """
+    try:
+        from spa_core.owner_queue.origin_view import Unmeasured, hidden_cards
+    except Exception as exc:  # noqa: BLE001 — сторож не роняет отчёт из-за импорта
+        return {"measured": False, "reason": f"сверка с {ORIGIN_REF} недоступна: {exc}"}
+    try:
+        cards, sha = hidden_cards(Path(tracker_dir), ref=ORIGIN_REF,
+                                  tracker_type=_QUEUE_CARD_TYPE,
+                                  status=_OPEN_CARD_STATUS)
+    except Unmeasured as exc:
+        return {"measured": False, "reason": f"очередь на {ORIGIN_REF} не прочитана: {exc}"}
+    except Exception as exc:  # noqa: BLE001 — неожиданное тоже «не измерено», не «чисто»
+        return {"measured": False, "reason": f"сверка с {ORIGIN_REF} не выполнена: {exc}"}
+    return {
+        "measured": True,
+        "ref": ORIGIN_REF,
+        "ref_sha": sha,
+        "count": len(cards),
+        "hidden": [{"card_id": c.card_id, "title": c.title,
+                    "delivered": bool(pushes_by_card.get(c.card_id))}
+                   for c in cards],
+    }
 
 
 CHANNEL_HISTORY = "alert_history.json"
@@ -498,6 +564,27 @@ def check_pending_owner_decisions(*,
             f"{names}{more}")
         status = _worst(status, CRITICAL if halted else WARNING)
 
+    # --- H8: очередь ЭТОГО дерева неполна -----------------------------------
+    # Идёт СРАЗУ за H4: обе находки об одном — вопрос владельцу существует, а
+    # владелец его не видел; отличие лишь в том, где оборвался путь. Считать
+    # такие карточки в `pending` нельзя (это очередь дерева, и подмешивать в неё
+    # чужое множество значило бы показывать число, которого нет ни у одного
+    # читателя), но и молчать нельзя — молчанием и был потерян `own-34`.
+    origin_gap = _scan_origin_gap(tdir, pushes_by_card)
+    gap_cards = origin_gap.get("hidden") or []
+    if origin_gap.get("measured") and gap_cards:
+        names = ", ".join(c["card_id"] for c in gap_cards[:3])
+        more = f" (и ещё {len(gap_cards) - 3})" if len(gap_cards) > 3 else ""
+        never_sent = [c for c in gap_cards if not c["delivered"]]
+        tail = (f"; из них НИ РАЗУ не отправлены владельцу: {len(never_sent)}"
+                if never_sent else "")
+        issues.append(
+            f"owner_decision_pending: очередь этого дерева НЕПОЛНА — "
+            f"{len(gap_cards)} вопрос(ов) владельцу `{_OPEN_CARD_STATUS}` живут на "
+            f"{origin_gap['ref']} ({origin_gap['ref_sha'][:9]}), а файла в дереве нет: "
+            f"здешние счётчики про них не знают ВООБЩЕ{tail}: {names}{more}")
+        status = _worst(status, CRITICAL if halted else WARNING)
+
     # --- H5: ответ нажатием есть, а вопрос в очереди всё ещё открыт ---------
     # Статус карточки главнее журнала (инв. #14 — закрыть может только владелец),
     # поэтому вопрос остаётся ждущим; но расхождение двух источников называется,
@@ -568,6 +655,11 @@ def check_pending_owner_decisions(*,
         "answered_but_open_count": len(answered_open),
         "oldest_pending_age_h": oldest_age_h,
         "buttonless_count": len(buttonless),
+        # Число вопросов владельцу, которых очередь этого дерева не видит вовсе.
+        # `None` — не измерено (см. `origin_queue.reason`): ноль и «не мерили»
+        # обязаны быть различимы, иначе сломанная сверка выглядит как порядок.
+        "queue_gap_count": (len(gap_cards) if origin_gap.get("measured") else None),
+        "origin_queue": origin_gap,
         "channel_buttons": channel,
         "pending": pending,
         "issues": issues,
@@ -575,9 +667,15 @@ def check_pending_owner_decisions(*,
         # `reason` — первая строка находок; когда находок нет, потерянных
         # доставок не бывает по построению (H4 срабатывает всегда), поэтому
         # приписки «из них не отправлено» здесь нет: она была бы мёртвой веткой.
+        # Зато оговорка о полноте очереди нужна: когда находок нет, число вопросов
+        # печатается ВМЕСТЕ с оговоркой о полноте очереди: до #270 оно читалось
+        # как «вопросов ровно столько», хотя означало «столько в этом каталоге».
         "reason": (issues[0] if issues else
                    ("остановки нет; вопросов владельцу без ответа: "
-                    f"{len(pending)}")),
+                    f"{len(pending)}"
+                    + ("" if origin_gap.get("measured")
+                       else f" (полнота очереди НЕ ИЗМЕРЕНА: "
+                            f"{origin_gap.get('reason', 'причина не названа')})"))),
         "thresholds": {"pending_critical_h": PENDING_CRITICAL_H},
     }
 
