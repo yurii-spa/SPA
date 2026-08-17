@@ -55,6 +55,15 @@ __all__ = [
     "ECDR_FAST", "ECDR_SLOW", "DWELL_K", "EXPECTED_BOOKS",
 ]
 
+# Все три величины ниже — ЗАПИСЬ, а не поведение: они читаются из уже посчитанных весов и ни
+# одного решения модуля не меняют. Требование владельца 2026-08-08 (карточка
+# `own-rnd-duty-is-concentration-adr055`, вариант A) + задание по записи #48:
+#   concentration_pct  — доля самой крупной позиции в книге модуля,
+#   duty_out_pct       — доля книго-дней «выключено» за окно наблюдения,
+#   turnover_per_year  — фактический оборот по Σ|Δw|, приведённый к году.
+# Без них через 30 дней форварда результат неразличим: правило его дало, премия за размер
+# позиций или он уже съеден издержками оборота.
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PANEL_DIR = REPO_ROOT / "data" / "aggressive_lab"
 SWARM_DIR = REPO_ROOT / "data" / "swarm"
@@ -244,6 +253,22 @@ def _duty_out_pct(w: Dict[str, List[float]], books: Sequence[str],
     return round(100.0 * out / cells, 4)
 
 
+def _turnover_per_year(w: Dict[str, List[float]], books: Sequence[str],
+                       n_days: int) -> Optional[float]:
+    """Фактический оборот за год: Σ|Δw| по книгам и дням, приведённая к 365 дням.
+
+    По **|Δw|, а не по числу переключений** (задание по записи #48: у наклонных правил счёт
+    идёт по объёму переставленного капитала — именно он съел эдж #48, 13.49 оборота/год ≈
+    647 bps). Здесь веса бинарные, поэтому Σ|Δw| = число пересечений границы «в рынке /
+    вне рынка», и это ЖЕЛАЕМОЕ совпадение: одна и та же величина у двух модулей сравнима.
+    """
+    if n_days < 2:
+        return None
+    moved = sum(abs(float(w[b][i]) - float(w[b][i - 1]))
+                for b in books for i in range(1, n_days))
+    return round(moved * 365.0 / n_days, 4)
+
+
 def compute_arms(dates: Sequence[str], panel: Dict[str, Dict[str, float]]) -> dict:
     """raw / baseline (latch removed) / dwell (latch k=2) over the common forward dates."""
     books = sorted(panel)
@@ -267,6 +292,9 @@ def compute_arms(dates: Sequence[str], panel: Dict[str, Dict[str, float]]) -> di
             # посчитанных весов.
             "concentration_pct": _largest_position_pct(w, books, -1),
             "duty_out_pct": _duty_out_pct(w, books, len(dates)),
+            # Задание по записи #48: оборот по Σ|Δw|, а НЕ число переключений. Стоит рядом с
+            # доходностью, потому что без него нельзя сказать, не съеден ли эдж издержками.
+            "turnover_per_year": _turnover_per_year(w, books, len(dates)),
         }
 
     arms = {"raw": view(raw_w), "baseline": view(base_w), "dwell": view(dwell_w)}

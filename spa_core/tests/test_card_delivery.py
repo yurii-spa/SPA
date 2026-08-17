@@ -237,9 +237,21 @@ class BridgeHandsItsCardsToDelivery(unittest.TestCase):
     """Проводка, а не деталь: мост обязан ЗВАТЬ доставку (урок #144)."""
 
     def _findings(self, td, findings):
+        """Отчёт источника — С ОТМЕТКОЙ ВРЕМЕНИ, как в жизни.
+
+        ИЗМЕНЕНИЕ ФИКСТУРЫ 2026-08-17 (инвариант #16 — обоснование обязательно).
+        Гарантия 1 ADR-070 п.5 запретила закрывать карточки по молчанию источника,
+        и «молчание» включает отчёт без разбираемого `generated_at` (свежесть НЕ
+        ИЗМЕРЕНА ⇒ право закрывать не измерено). Фикстура писала отчёт БЕЗ отметки —
+        то есть изображала состояние, которого у живого сторожа не бывает: и
+        `architecture_conformance`, и `house_view_gap` кладут `generated_at` всегда.
+        Ослабления проверки здесь нет: ни одно `assert` не тронуто, предмет теста
+        (мост ОБЯЗАН звать доставку и отдавать ей ЗАКРЫТЫЕ карточки) проверяется
+        по-прежнему и краснеет, если проводку снять.
+        """
         os.makedirs(os.path.join(td, "data"), exist_ok=True)
-        json.dump({"findings": findings}, open(os.path.join(td, "data",
-                  "architecture_conformance.json"), "w"))
+        json.dump({"generated_at": NOW.isoformat(), "findings": findings},
+                  open(os.path.join(td, "data", "architecture_conformance.json"), "w"))
 
     def test_created_card_is_delivered(self):
         with tempfile.TemporaryDirectory() as td:
@@ -263,8 +275,13 @@ class BridgeHandsItsCardsToDelivery(unittest.TestCase):
         очередь показывает работу, которой нет (класс #147)."""
         with tempfile.TemporaryDirectory() as td:
             self._findings(td, [])
+            # `source` — то же изменение фикстуры и то же обоснование (см. `_findings`):
+            # без имени автора находки мост уходит на легаси-путь гарантии 1 и требует,
+            # чтобы молчащих источников не было ВОВСЕ. В жизни запись состояния автора
+            # называет; предмет теста — доставка, а не разбор безымянных записей.
             state = {"findings": {"gone": {"first_seen": NOW.isoformat(), "seen_count": 3,
                                            "severity": "WARN", "card": os.path.join(td, "old.md"),
+                                           "source": "architecture_conformance",
                                            "status": "carded"}}, "daily": {}}
             json.dump(state, open(os.path.join(td, fb.STATE_REL), "w"))
             seen = {}

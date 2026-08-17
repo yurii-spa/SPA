@@ -27,6 +27,12 @@ HONESTY (class #29/#31/#35–#38/#40 — never publish a verdict about a check t
     dropped without even reaching the digest) was booked as "the owner was warned" and the
     flood window was spent on it. Delivery is now tri-state: delivered / refused-by-policy /
     NOT MEASURED, and a push that was never attempted does not spend the flood window.
+  * The run does not look successful when its VERDICT was never published. `_save` swallowed
+    every write failure and `__main__` exited 0 regardless, so a broken/full disk left the
+    previous — possibly green — `watchdog_status.json` standing as the current verdict with a
+    clean exit code behind it. Nothing watches this guardian's own heartbeat (it is the last in
+    the chain), so that silence was permanent. Publication is now measured and exit code 2 says
+    the verdict never reached disk (card `agent-wake-storm-fail-open-monitors`).
 """
 # LLM_FORBIDDEN
 from __future__ import annotations
@@ -191,15 +197,22 @@ def _save_flood_history(hist: dict) -> None:
         pass
 
 
-def _save(report: dict) -> None:
+def _save(report: dict) -> bool:
+    """Publish the verdict atomically. Returns whether it actually reached disk.
+
+    Never raises (a failed write must not crash the guardian), but the failure is REPORTED.
+    Nothing in the fleet watches THIS guardian's heartbeat — it is the last one in the chain —
+    so a swallowed write leaves the previous, possibly green, `watchdog_status.json` standing
+    as the current verdict for as long as the disk stays broken."""
     try:
         _DATA.mkdir(parents=True, exist_ok=True)
         fd, tmp = tempfile.mkstemp(dir=_DATA, prefix=".watchdog_")
         with os.fdopen(fd, "w") as f:
             json.dump(report, f, indent=2)
         os.replace(tmp, _STATUS)
+        return True
     except Exception:
-        pass
+        return False
 
 
 def run_watchdog(dry_run: bool = False) -> dict:
@@ -350,13 +363,28 @@ def run_watchdog(dry_run: bool = False) -> dict:
     }
 
     if not dry_run:
-        _save(report)
+        # `published` lives in the RETURNED report only — a file cannot record its own absence.
+        # The durable signal is the exit code below, which agent_health reads as last-exit.
+        report["published"] = _save(report)
 
     return report
+
+
+def _exit_code(report: dict) -> int:
+    """Process exit code. 0 only for a run that found nothing broken AND published its verdict.
+
+    1 = measured failures (unchanged). 2 = the verdict could not be written: the previous,
+    possibly green, status file is still what everyone reads, and exiting 0 would present that
+    silence as a passed check — the fail-OPEN class this guardian exists to refuse."""
+    if report.get("published") is False:
+        return 2
+    return 1 if report.get("failures") else 0
 
 
 if __name__ == "__main__":
     import sys
     res = run_watchdog(dry_run="--dry-run" in sys.argv)
     print(json.dumps(res, indent=2, ensure_ascii=False))
-    raise SystemExit(0 if not res["failures"] else 1)
+    if res.get("published") is False:
+        print("[watchdog] ОТКАЗ: вердикт не записан в watchdog_status.json", file=sys.stderr)
+    raise SystemExit(_exit_code(res))

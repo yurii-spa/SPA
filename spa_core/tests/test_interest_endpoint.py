@@ -29,6 +29,29 @@ def test_records_opaque_signal(client):
     assert "t" in rec and "email" not in rec and "name" not in rec
 
 
+def test_unwritable_sink_is_not_reported_ok(tmp_path, monkeypatch):
+    """POSITIVE CONTROL (waitlist fail-OPEN card): the anonymous beacon answered ok:true even when
+    the append failed, so a broken sink was indistinguishable from a working one. RED on unfixed code.
+
+    The sink is made unwritable by pointing it at a DIRECTORY, not by chmod — this suite also runs as
+    root, where permission bits are ignored and a chmod-based test would pass for the wrong reason."""
+    broken = tmp_path / "sink_is_a_directory"
+    broken.mkdir()
+    monkeypatch.setattr(it, "_LOG", broken)
+    with TestClient(server.app) as c:
+        body = c.post("/api/interest", json={"tier": "balanced", "topic": "pilot"}).json()
+    assert body["ok"] is False           # the signal was NOT captured — say so
+    assert body["stored"] == "error"
+    assert body["pii_minimal"] is True   # honesty about the write never leaks PII
+
+
+def test_working_sink_reports_stored_ok(client):
+    """Control in the other direction: a healthy sink still reports a successful capture."""
+    c, _ = client
+    body = c.post("/api/interest", json={"tier": "balanced"}).json()
+    assert body["ok"] is True and body["stored"] == "ok"
+
+
 def test_pii_shaped_values_dropped(client):
     c, log = client
     c.post("/api/interest", json={"tier": "john@fund.com", "topic": "Acme Capital, LP!!!"})

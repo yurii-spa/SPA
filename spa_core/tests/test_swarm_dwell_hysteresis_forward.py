@@ -324,3 +324,27 @@ def test_duty_counts_book_days_not_days():
     """Доля считается по книго-дням: одна книга вне рынка из трёх = 33 %, не 100 %."""
     w = {"a": [0.0, 0.0], "b": [1.0, 1.0], "c": [1.0, 1.0]}
     assert dh._duty_out_pct(w, ["a", "b", "c"], 2) == pytest.approx(100.0 / 3, abs=0.01)
+
+
+# ── оборот рядом с доходностью (задание по записи #48) ────────────────────────
+
+def test_every_arm_reports_turnover_per_year():
+    """Без оборота нельзя сказать, не съеден ли эдж издержками — а у #36 он и так
+    net-of-cost НИЖЕ raw (17.62 % против 17.94 %)."""
+    for arm, view in _arms_fixture().items():
+        assert "turnover_per_year" in view, f"плечо {arm} не пишет оборот за год"
+
+
+def test_raw_arm_turns_over_nothing():
+    """Контроль в обратную сторону: у raw оборот обязан быть 0, а не отсутствовать."""
+    assert _arms_fixture()["raw"]["turnover_per_year"] == 0.0
+
+
+def test_turnover_counts_moved_capital_not_switches():
+    """Σ|Δw|, а НЕ число переключений: одна книга из двух, вышедшая один раз за 365 дней."""
+    w = {"a": [1.0] * 365, "b": [1.0] + [0.0] * 364}
+    assert dh._turnover_per_year(w, ["a", "b"], 365) == pytest.approx(1.0, abs=1e-6)
+
+
+def test_turnover_needs_two_days_to_exist():
+    assert dh._turnover_per_year({"a": [1.0]}, ["a"], 1) is None

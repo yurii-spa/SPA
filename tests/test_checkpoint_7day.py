@@ -168,7 +168,17 @@ class SpaTestCase(unittest.TestCase):
 class TestGapCheck(SpaTestCase):
 
     def test_gap_check_no_gaps(self):
-        """gap_monitor.json без пробела, paper_evidence с двумя последовательными днями → pass."""
+        """gap_monitor.json без пробела, paper_evidence с двумя последовательными днями → pass.
+
+        **Намеренная правка теста (инвариант #16, 2026-08-17, журнал 2026-W34.)**
+        `days_tracked` теперь означает ДОКАЗАННЫЕ дни, а не «сколько строк в файле»
+        (решение владельца 09.08, карточка `inbox-7-day-checkpoint-gap-check-schitat-ot-ev`).
+        На живых данных прежний смысл давал в отчёте «44/30» при 13 доказанных днях —
+        30-дневная норма выглядела взятой с двойным запасом там, где трек не добрал и
+        половины (инвариант #8). Утверждение не снято, а разделено на два: записанных
+        дней два (это и проверялось), доказанных — ноль, потому что честных меток в
+        фикстуре нет и подставлять их проверке запрещено (fail-CLOSED).
+        """
         make_gap_monitor(self.data_dir, gap=False, hours=14.0)
         make_paper_evidence(self.data_dir, [
             {"date": "2026-06-12", "equity_value": 100_020, "apy_pct": 7.5},
@@ -179,7 +189,9 @@ class TestGapCheck(SpaTestCase):
 
         self.assertEqual(result["status"], "pass", f"Expected pass, got: {result}")
         self.assertFalse(result["gap_detected"])
-        self.assertEqual(result["days_tracked"], 2)
+        self.assertEqual(result["days_recorded"], 2)
+        self.assertEqual(result["days_tracked"], 0,
+                         "дни без честных меток доказанности в счёт трека не идут")
 
     # ─── 2. test_gap_check_with_gap ──────────────────────────────────────────
 
@@ -226,25 +238,56 @@ class TestGapCheck(SpaTestCase):
         self.assertTrue(result["gap_detected"])
         self.assertIn("2026-06-12", result["detail"])
 
-    def test_historic_gap_outside_window_is_visible_but_does_not_block(self):
-        """Обратная сторона: дыра СТАРШЕ окна не валит проверку, но названа в отчёте.
+    def test_historic_gap_before_the_anchor_is_visible_but_does_not_block(self):
+        """Обратная сторона: дыра ДО ЯКОРЯ трека не валит проверку, но названа в отчёте.
 
-        ADR-067 применён ко второму потребителю: блокируют АКТИВНЫЕ дыры. Восстановить
-        2026-06-21 → 2026-06-30 нечем, а вечный отказ перестаёт быть сигналом. Молчать о
-        ней при этом нельзя — иначе «не блокирует» превратится в «не существует».
+        ADR-087 (выписан как ADR-067) применён ко второму потребителю: блокируют
+        АКТИВНЫЕ дыры. Восстановить 2026-06-21 → 2026-06-30 нечем, а вечный отказ
+        перестаёт быть сигналом. Молчать о ней при этом нельзя — иначе «не блокирует»
+        превратится в «не существует».
+
+        **Намеренная правка теста (инвариант #16, 2026-08-17, журнал 2026-W34.)**
+        Прежняя редакция выводила дыру из окна КАЛЕНДАРЁМ: та же фикстура при
+        `today=2026-08-10` проходила, при `today=2026-06-16` — падала. Владелец 09.08
+        решил считать окно доказанными днями именно потому, что это fail-OPEN по часам:
+        «подождать подольше» становилось способом закрыть проверку. Теперь дыру
+        выводит ЯКОРЬ (её начало — предыстория) либо `window_days` НОВЫХ доказанных
+        дней после неё. Утверждения сохранены полностью и усилены: якорь назван явно.
         """
         make_gap_monitor(self.data_dir, gap=False, hours=5.0)
         make_paper_evidence(self.data_dir, [
             {"date": "2026-06-12", "equity_value": 100_010, "apy_pct": 7.0},
             {"date": "2026-06-15", "equity_value": 100_030, "apy_pct": 7.0},  # пропуск
         ])
+        # Якорь честного трека — 22.06; вся эта фикстура лежит в предыстории.
+        write_json(self.data_dir / "golive_status.json",
+                   {"evidenced_anchor": "2026-06-22"})
 
         result = check_gaps(self.data_dir, today=date(2026, 8, 10))
 
-        self.assertEqual(result["status"], "pass")
+        self.assertEqual(result["status"], "pass", result)
         self.assertFalse(result["gap_detected"])
         self.assertTrue(result["historic_gaps"], "историческая дыра обязана остаться видимой")
         self.assertIn("2026-06-12", result["detail"])
+        self.assertIn("до якоря трека", result["detail"])
+
+    def test_the_same_pre_anchor_fixture_blocks_once_it_is_AFTER_the_anchor(self):
+        """Контроль вхолостую: та же дыра при якоре ПОЗАДИ неё обязана блокировать.
+
+        Без этого «не блокирует» проходило бы и на версии, не блокирующей ничего.
+        """
+        make_gap_monitor(self.data_dir, gap=False, hours=5.0)
+        make_paper_evidence(self.data_dir, [
+            {"date": "2026-06-12", "equity_value": 100_010, "apy_pct": 7.0},
+            {"date": "2026-06-15", "equity_value": 100_030, "apy_pct": 7.0},
+        ])
+        write_json(self.data_dir / "golive_status.json",
+                   {"evidenced_anchor": "2026-06-11"})
+
+        result = check_gaps(self.data_dir, today=date(2026, 8, 10))
+
+        self.assertEqual(result["status"], "fail", result)
+        self.assertTrue(result["gap_detected"])
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -420,7 +463,9 @@ class TestTelegramOnFail(SpaTestCase):
         with stub_notification_authority() as recorded:
             code = run_checkpoint(data_dir=self.data_dir)
 
-        self.assertEqual(code, 1)
+        # Код 0 = «отчёт построен» (см. TestExitCode ниже): предмет ЭТОГО теста —
+        # что вердикт при этом уходит владельцу, а не что он закодирован в exit code.
+        self.assertEqual(code, 0)
         self.assertEqual(len(recorded), 1, f"ожидалась одна отправка, получено: {recorded}")
         kind, event_key, body = recorded[0]
         self.assertEqual(kind, "push")
@@ -461,8 +506,12 @@ class TestTelegramOnFail(SpaTestCase):
         self._prepare_data(equity=50_000.0)  # ниже floor → fail
 
         with stub_notification_authority() as recorded:
-            code = run_checkpoint(data_dir=self.data_dir, notify=False)
+            code = run_checkpoint(data_dir=self.data_dir, notify=False,
+                                  verdict_exit_code=True)
 
+        # `verdict_exit_code=True` — чтобы предмет теста остался ТЕМ ЖЕ: подавление
+        # канала не имеет права красить провал в pass. Без флага код 0 означал бы
+        # «отчёт построен», и утверждение проверяло бы не то, для чего написано.
         self.assertEqual(code, 1, "подавление канала не имеет права красить провал в pass")
         self.assertEqual(recorded, [], "канал был тронут вопреки --no-telegram")
 
@@ -573,14 +622,41 @@ class TestExitCode(SpaTestCase):
 
         self.assertEqual(code, 0)
 
-    def test_exit_code_one_on_fail(self):
-        """Equity ниже floor ($80k) → exit code 1."""
+    def test_a_red_check_does_NOT_make_the_agent_look_broken(self):
+        """Equity ниже floor ($80k) → отчёт построен → код 0 (вердикт — в отчёте).
+
+        **Намеренная правка теста (инвариант #16, 2026-08-17, журнал 2026-W34.)**
+        Тест пиннил РОВНО ТОТ дефект, который закрывает карточка
+        `agent-checkpoint-7day-gate-conflict`: код 1 означал «в отчёте есть красное», а
+        launchd, `agent_health` и гейт деплоя читают его как «агент сломан». 08.08 гейт
+        по этой причине отказался ставить агента вовсе, а поставленный писал бы WARN
+        вечно. Проверка не снята, а разделена: код возврата отвечает за
+        работоспособность, вердикт проверяется там, где он живёт (напечатан + алерт), и
+        по-прежнему доступен кодом по флагу `--verdict-exit-code`. Полный разбор с
+        положительными контролями — `spa_core/tests/test_checkpoint_agent_exit_code.py`.
+        """
+        self._prepare(equity=80_000.0)
+
+        with stub_notification_authority() as recorded:
+            code = run_checkpoint(data_dir=self.data_dir)
+
+        self.assertEqual(code, 0, "отчёт построен ⇒ агент работоспособен")
+        self.assertEqual([r[0] for r in recorded], ["push"],
+                         "вердикт обязан уйти владельцу, иначе код 0 был бы молчанием")
+
+    def test_the_verdict_code_is_still_available_on_request(self):
+        """Обратная сторона: вердикт-код не потерян — он просто перестал быть дефолтом."""
         self._prepare(equity=80_000.0)
 
         with stub_notification_authority():
-            code = run_checkpoint(data_dir=self.data_dir)
+            code = run_checkpoint(data_dir=self.data_dir, verdict_exit_code=True)
 
         self.assertEqual(code, 1)
+
+    def test_a_genuine_breakage_is_still_non_zero(self):
+        """И контроль в третью сторону: сбой ≠ вердикт и обязан звучать иначе."""
+        code = run_checkpoint(data_dir=self.data_dir / "no_such_dir")
+        self.assertEqual(code, 2)
 
     def test_overall_pass_helper_all_pass(self):
         """overall_pass с пустыми fail → True, []."""

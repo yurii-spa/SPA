@@ -12,6 +12,11 @@ findings_bridge (карточки) и Шаг 0-офис оркестратора
                         - в below_median_cap / warnings rationale → explained (INFO)
                         - протокола нет в ADAPTER_REGISTRY        → explained (INFO:
                           входа технически нет — нужен адаптер + промоушен)
+                        - rationale НЕ ПРОЧИТАН                   → unchecked (ADR-070 п.5,
+                          гарантия 3: «непрочитанный файл ≠ отказ не назван». `None` —
+                          вопрос НЕ ИЗМЕРЕН; `{}` — файл прочитан и отказов в нём нет,
+                          это уже вердикт. Раньше оба склеивались `if rationale:`, и
+                          пропажа производителя rationale объявляла книгу виновной)
                         - иначе                                   → WARN (безымянный
                           простой возможности — нарушение духа ADR-055)
   posture_vs_book     постура офиса RED, книга развёрнута (cash < 50%) → WARN
@@ -251,14 +256,22 @@ def compute_gaps(chief: dict | None,
         unchecked.append({"input": "current_positions", "reason": "нет данных — гэпы по книге не измеримы"})
 
     explained_protocols: set[str] = set()
-    if rationale:
+    blob = ""
+    # ADR-070 п.5, гарантия 3: «непрочитанный файл ≠ отказ НЕ назван». `None` — файла нет
+    # или он не разобран, и тогда вопрос «назван ли отказ» НЕ ИЗМЕРЕН; `{}` — файл прочитан
+    # и отказов в нём не названо, это уже вердикт. До этой правки оба случая склеивались
+    # `if rationale:`, и МОЛЧАНИЕ ФАЙЛА становилось уликой: пропал производитель rationale —
+    # и каждая невзятая возможность объявлялась «безымянным простоем» (WARN → карточка).
+    refusals_measured = isinstance(rationale, dict)
+    if refusals_measured:
         for e in rationale.get("below_median_cap") or []:
             explained_protocols.add(_norm(e.get("protocol")))
         shadow = rationale.get("decision_shadow") or {}
         blob = json.dumps(shadow.get("warnings") or [], ensure_ascii=False).lower()
     else:
-        blob = ""
-        unchecked.append({"input": "allocation_rationale", "reason": "нет данных — именованные отказы не видны"})
+        unchecked.append({"input": "allocation_rationale",
+                          "reason": "файл не прочитан — «назван ли отказ» НЕ ИЗМЕРЕНО "
+                                    "(молчание файла ≠ отказ не назван)"})
 
     if chief and chief_stale:
         # ОТКАЗ, а не вердикт: снимок старше потолка офиса ⇒ утверждать по нему в настоящем
@@ -297,11 +310,16 @@ def compute_gaps(chief: dict | None,
                 continue  # уже в unchecked — не выдумывать
             if proto in held:
                 continue
+            # `allocation_rationale` НАЗВАН входом наравне с офисом и книгой: вердикт
+            # «отказ НЕ назван» держится на нём целиком, и мост (ADR-070 п.5, гарантия 1)
+            # читает именно эти имена, чтобы не закрыть карточку, когда находка исчезла
+            # из-за ОТКАЗА источника, а не из-за решения (класс #235).
             base = {"protocol": proto, "apy_pct": v.get("apy_pct"),
                     "evidence_level": opp.get("evidence_level"),
                     "source": opp.get("source"),
                     "input_ages": {"chief_investment": chief_age,
-                                   "current_positions": book_age}}
+                                   "current_positions": book_age,
+                                   "allocation_rationale": ages.get("allocation_rationale")}}
             if proto in explained_protocols or proto in blob:
                 gaps.append({"key": f"gap:opportunity_explained:{proto}",
                              "type": "opportunity_unheld", "severity": "INFO",
@@ -319,6 +337,16 @@ def compute_gaps(chief: dict | None,
                                         f"(evidence {opp.get('evidence_level')}) вне реестра "
                                         f"адаптеров — входа технически нет (адаптер + промоушен)",
                              **base})
+            elif not refusals_measured:
+                # Гарантия 3 ADR-070 п.5: возможность доступна и не в книге — но сказать
+                # «отказ НЕ назван» НЕЧЕМ, файла отказов нет. Это ОТКАЗ судить, не находка:
+                # обвинить книгу в безымянном простое по молчанию третьего файла значит
+                # завести карточку на исправную систему (ложная тревога опаснее пропуска, #183).
+                unchecked.append({
+                    "input": "allocation_rationale",
+                    "reason": f"возможность {proto} {v.get('apy_pct')}% доступна книге и не "
+                              f"держится, но data/allocation_rationale.json не прочитан — "
+                              f"«назван ли отказ» НЕ ИЗМЕРЕНО, находка не объявляется"})
             else:
                 gaps.append({"key": f"gap:opportunity_unnamed:{proto}",
                              "type": "opportunity_unheld", "severity": "WARN",

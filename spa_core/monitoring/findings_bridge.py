@@ -9,6 +9,11 @@
                подряд наблюдения (флаппинг не рождает мусор); CRITICAL — сразу;
   rate-limit   ≤ MAX_CARDS_PER_DAY карточек/сутки; излишек — в отчёт с
                пометкой deferred, ГРОМКО, не молча (правило «no silent caps»);
+  молчание≠починка  исчезновение находки закрывает карточку ТОЛЬКО если источник
+               ПРОЧИТАН, СВЕЖ и сам не отказался судить о входах этой находки
+               (ADR-070 п.5, гарантия 1 — перенесена из дубля #125). Иначе сломанный
+               или замолчавший сторож «чинил» бы очередь: замер #235 — ужми потолок
+               свежести у источника, находки исчезнут, и мост закроет их как решённые;
   авто-закрытие исчезнувшая находка закрывает свою карточку, но ТОЛЬКО если
                карточка НЕТРОНУТА: `new` для inbox, `needs-owner` без следа
                владельца для owner-decision (цикл #172 — раньше правило знало
@@ -36,7 +41,7 @@ import os
 import subprocess
 import sys
 
-from spa_core.monitoring.architecture_conformance import REPO_ROOT
+from spa_core.monitoring.architecture_conformance import REPO_ROOT, _parse_iso
 
 STATE_REL = os.path.join("data", "findings_bridge_state.json")
 REPORT_REL = os.path.join("data", "findings_bridge_report.json")
@@ -54,6 +59,29 @@ OWNER_TRACE_FIELDS = ("owner_choice", "owner_answered_at", "owner_answered_by")
 # ДУБЛЮ вопроса владельцу — зеркало того же дефекта, что в авто-закрытии.
 OPEN_CARD_STATUSES = ("new", "in-progress", "needs-owner")
 
+# Источник находок: имя (оно же `source` в записи состояния) → относительный путь отчёта.
+# Имена ОБЯЗАНЫ совпадать с теми, что ставит `collect_findings`, иначе гарантия 1 не найдёт
+# состояние источника и — по fail-CLOSED — не закроет ничего.
+SOURCES = {
+    "architecture_conformance": os.path.join("data", "architecture_conformance.json"),
+    "house_view_gap": os.path.join("data", "house_view_gap.json"),
+    "loop_retro": os.path.join("data", "loop_retro.json"),
+}
+
+# Отчёт старше этого мост считает МОЛЧАНИЕМ источника: его исчезнувшие находки НЕ
+# закрывают свои карточки. Потолок принадлежит ТОЛЬКО закрытию (см. `closing_gate`)
+# и ужимать его безопасно: ужатие делает мост осторожнее, а не смелее. Потолок
+# СВЕЖЕСТИ САМИХ ИСТОЧНИКОВ (`investment_os.health.FRESH_AGE_S`, 48 ч) — чужой и
+# трогать его запрещено: на нём висит отказ судить, и его ужатие ГАСИТ находки,
+# то есть рождает ровно тот fail-OPEN, от которого защищает эта гарантия (#235).
+SOURCE_MAX_AGE_H = 48.0
+
+# Ключи, под которыми источник называет ВХОД: находка — своей зависимостью,
+# `unchecked` — тем, о чём источник ОТКАЗАЛСЯ судить. Три источника — три словаря
+# (`input` у сверки офис↔книга, `check` у сторожа архитектуры, `metric` у ретро),
+# поэтому читаем все три имени, а не одно «правильное».
+INPUT_NAME_FIELDS = ("input", "check", "metric")
+
 
 # ── сбор находок из источников ───────────────────────────────────────────────
 
@@ -62,38 +90,158 @@ def collect_findings(root: str = REPO_ROOT) -> tuple[list[dict], list[str]]:
     findings: list[dict] = []
     unread: list[str] = []
 
-    conf_rel = os.path.join("data", "architecture_conformance.json")
+    conf_rel = SOURCES["architecture_conformance"]
     try:
         conf = json.load(open(os.path.join(root, conf_rel)))
         for f in (conf.get("findings") or []):
             findings.append({"key": f["key"], "severity": f["severity"],
-                             "message": f["message"], "source": "architecture_conformance"})
+                             "message": f["message"], "source": "architecture_conformance",
+                             "depends_on": dependency_names(f)})
     except Exception:
         unread.append(conf_rel)
 
-    gap_rel = os.path.join("data", "house_view_gap.json")
+    gap_rel = SOURCES["house_view_gap"]
     try:
         gap = json.load(open(os.path.join(root, gap_rel)))
         for g in (gap.get("gaps") or []):
             if g.get("severity") in ("WARN", "CRITICAL"):
                 findings.append({"key": g["key"], "severity": g["severity"],
-                                 "message": g["message"], "source": "house_view_gap"})
+                                 "message": g["message"], "source": "house_view_gap",
+                                 "depends_on": dependency_names(g)})
     except Exception:
         unread.append(gap_rel)
 
     # Фаза 4: выводы еженедельного ретро — третий источник. Рекомендация не
     # имеет права остаться в отчёте, который никто не обязан открыть.
-    retro_rel = os.path.join("data", "loop_retro.json")
+    retro_rel = SOURCES["loop_retro"]
     try:
         retro = json.load(open(os.path.join(root, retro_rel)))
         for f in (retro.get("findings") or []):
             if f.get("severity") in ("WARN", "CRITICAL"):
                 findings.append({"key": f["key"], "severity": f["severity"],
-                                 "message": f["message"], "source": "loop_retro"})
+                                 "message": f["message"], "source": "loop_retro",
+                                 "depends_on": dependency_names(f)})
     except Exception:
         unread.append(retro_rel)
 
     return findings, unread
+
+
+# ── гарантия 1 (ADR-070 п.5): молчащий источник НЕ закрывает карточки ─────────
+#
+# Мост закрывает карточку по ИСЧЕЗНОВЕНИЮ находки из отчёта источника. Обратная
+# сторона этого правила — fail-OPEN: находка исчезает не только когда проблему
+# ПОЧИНИЛИ, но и когда источник ЗАМОЛЧАЛ (файл пропал, отчёт протух, сторож
+# отказался судить о входе). Замер #235 назвал это дословно: ужми потолок свежести
+# у источника — сверка офис↔книга замолчит раньше, находки исчезнут, и мост закроет
+# их карточки как решённые. Поэтому закрытие проходит ДВА гейта:
+#
+#   уровень источника  отчёт не прочитан / без разбираемого generated_at / протух
+#                      ⇒ его карточки не закрываются вообще;
+#   уровень входа      отчёт свеж, но источник САМ написал в `unchecked`, что о
+#                      входе этой находки судить не может ⇒ исчезновение объясняется
+#                      ОТКАЗОМ, а не решением, и карточка остаётся открытой.
+#
+# Второй гейт точечный, а не «в отчёте есть unchecked ⇒ ничего не закрываем»:
+# у `loop_retro` строки `unchecked` постоянны по построению, и грубое правило
+# заклинило бы закрытие навсегда — то есть заменило бы fail-OPEN на вечную очередь.
+
+
+def dependency_names(finding: dict) -> list[str]:
+    """Имена входов, на которых находка ДЕРЖИТСЯ, — её собственными словами.
+
+    Берём то, что источник уже кладёт в находку: `input_ages` (сверка офис↔книга),
+    `check` (сторож архитектуры), `metric`/`input`. Ничего не выдумываем: находка
+    без названных входов даёт пустой список и судится только гейтом уровня источника.
+    """
+    names: set[str] = set()
+    for field in INPUT_NAME_FIELDS:
+        value = finding.get(field)
+        if isinstance(value, str) and value.strip():
+            names.add(value.strip())
+    ages = finding.get("input_ages")
+    if isinstance(ages, dict):
+        names |= {str(k) for k in ages}
+    return sorted(names)
+
+
+def refused_names(doc: dict) -> list[str]:
+    """Имена входов, о которых источник ОТКАЗАЛСЯ судить (его `unchecked`)."""
+    names: set[str] = set()
+    for item in (doc.get("unchecked") or []):
+        if not isinstance(item, dict):
+            continue
+        for field in INPUT_NAME_FIELDS:
+            value = item.get(field)
+            if isinstance(value, str) and value.strip():
+                names.add(value.strip())
+    return sorted(names)
+
+
+def read_source_states(root: str = REPO_ROOT, now: dt.datetime | None = None,
+                       max_age_h: float = SOURCE_MAX_AGE_H) -> dict:
+    """{источник: {closing, reason, refused, age_hours}} — вправе ли он закрывать.
+
+    `closing=False` НИКОГДА не значит «находок нет»: это «источник молчит», и
+    молчание не является доказательством починки.
+    """
+    now = now or dt.datetime.now(dt.timezone.utc)
+    states: dict[str, dict] = {}
+    for src, rel in SOURCES.items():
+        state = {"path": rel, "closing": False, "refused": []}
+        try:
+            doc = json.load(open(os.path.join(root, rel)))
+        except Exception:
+            doc = None
+        if not isinstance(doc, dict):
+            state["reason"] = ("отчёт отсутствует или не разобран — источник НЕ ПРОЧИТАН; "
+                               "отсутствие отчёта ≠ отсутствие находки")
+            states[src] = state
+            continue
+        state["refused"] = refused_names(doc)
+        generated = _parse_iso(doc.get("generated_at"))
+        if generated is None:
+            state["reason"] = ("в отчёте нет разбираемого generated_at — свежесть НЕ ИЗМЕРЕНА, "
+                               "источник не считается прочитанным")
+            states[src] = state
+            continue
+        age_h = (now - generated).total_seconds() / 3600.0
+        state["age_hours"] = round(age_h, 1)
+        if age_h > max_age_h:
+            state["reason"] = (f"отчёт протух ({age_h:.1f} ч > {max_age_h} ч) — сторож молчит, "
+                               f"и его молчание не закрывает карточки")
+            states[src] = state
+            continue
+        state["closing"] = True
+        states[src] = state
+    return states
+
+
+def closing_gate(entry: dict, source_states: dict) -> str | None:
+    """`None` — закрывать вправе; строка — ПРИЧИНА, по которой карточка остаётся открытой."""
+    src = entry.get("source")
+    if not src:
+        # Запись состояния без источника: сделана до этой гарантии либо восстановлена
+        # из трекера (`_reconcile_with_tracker` знает карточку, но не автора находки).
+        # Кто её обнулил — неизвестно, поэтому закрывать вправе только прогон, в котором
+        # МОЛЧАЩИХ источников нет вовсе.
+        mute = sorted(s for s, st in source_states.items() if not st.get("closing"))
+        if mute:
+            return (f"источник находки не назван (запись до гарантии ADR-070 п.5), "
+                    f"а молчат: {', '.join(mute)} — закрывать нечем")
+        return None
+    state = source_states.get(src)
+    if state is None:
+        return f"источник {src!r} мосту не известен — право на закрытие НЕ ИЗМЕРЕНО"
+    if not state.get("closing"):
+        return f"источник {src} молчит: {state.get('reason')}"
+    refused = set(state.get("refused") or ())
+    hit = [d for d in (entry.get("depends_on") or []) if d in refused]
+    if hit:
+        return (f"источник {src} прочитан и свеж, но САМ отказался судить о входах "
+                f"{', '.join(sorted(hit))} — исчезновение находки объясняется отказом, "
+                f"а не решением (класс #235)")
+    return None
 
 
 # ── карточки через единственный мутационный API ──────────────────────────────
@@ -357,6 +505,9 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
     state = _load_state(root)
     findings, unread = collect_findings(root)
     current = {f["key"]: f for f in findings}
+    # Гарантия 1 (ADR-070 п.5): право источника закрывать свои карточки читается
+    # ОТДЕЛЬНО от его находок — «находок нет» и «источник молчит» больше не одно и то же.
+    source_states = read_source_states(root, now)
     st_findings: dict = state.setdefault("findings", {})
     reconciled = _reconcile_with_tracker(root, st_findings)
     daily: dict = state.setdefault("daily", {})
@@ -364,6 +515,7 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
 
     created, deferred, closed, waiting, escalated = [], [], [], [], []
     withdrawn: list[dict] = []
+    held_open: list[dict] = []
 
     for key, f in sorted(current.items()):
         entry = st_findings.get(key)
@@ -380,6 +532,12 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
                          recurrences=int(entry.get("recurrences", 0)) + 1)
         entry["seen_count"] = int(entry.get("seen_count", 0)) + 1
         entry["last_seen"] = now.isoformat()
+        # Кто автор находки и на каких входах она держится — записывается ВСЕГДА,
+        # включая уже существующие записи: без этих двух полей гарантия 1 не сможет
+        # отличить «починили» от «источник замолчал» и уйдёт на легаси-путь.
+        if f.get("source"):
+            entry["source"] = f["source"]
+        entry["depends_on"] = list(f.get("depends_on") or ())
 
         esc = (f["severity"] == "CRITICAL" and entry.get("severity") != "CRITICAL"
                and entry.get("status") == "carded")
@@ -410,6 +568,20 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
 
     for key in sorted(set(st_findings) - set(current)):
         entry = st_findings[key]
+        gate = closing_gate(entry, source_states)
+        if gate is not None:
+            # Находка исчезла, но исчезновение НЕ является доказательством починки.
+            # Запись не двигаем вовсе: ни закрытия карточки, ни удаления наблюдения —
+            # вернётся источник, вернётся и разговор. ГРОМКО в отчёт (правило «no
+            # silent caps»): невидимое воздержание — это то же молчание, только наше.
+            entry["closing_held_at"] = now.isoformat()
+            entry["closing_held_reason"] = gate
+            held_open.append({"key": key, "card": entry.get("card"),
+                              "source": entry.get("source"), "status": entry.get("status"),
+                              "reason": gate})
+            continue
+        entry.pop("closing_held_at", None)
+        entry.pop("closing_held_reason", None)
         if entry.get("status") == "carded" and entry.get("card"):
             if close(root, entry["card"]):
                 entry["status"] = "closed"
@@ -437,6 +609,10 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
               "created": created, "deferred": deferred, "closed": closed,
               "withdrawn": withdrawn,
               "waiting_hysteresis": waiting, "escalated": escalated,
+              # Гарантия 1: карточки, которые НЕ закрыты, хотя находка исчезла, — с
+              # причиной у каждой, и состояние всех источников рядом. Воздержание,
+              # которого не видно в отчёте, ничем не отличается от бага.
+              "closing_held_open": held_open, "source_states": source_states,
               "sources_unread": unread, "reconciled_from_tracker": reconciled,
               "open_cards": sum(1 for e in st_findings.values() if e.get("status") == "carded"),
               "rate_limit": {"max_per_day": MAX_CARDS_PER_DAY, "used_today": created_today}}
@@ -477,7 +653,6 @@ def main(argv=None) -> int:
     # launchd-агента); loop_health — каждый прогон (дёшево).
     try:
         from spa_core.monitoring import loop_retro
-        from spa_core.monitoring.architecture_conformance import _parse_iso
         retro_path = os.path.join(args.root, loop_retro.RETRO_REL)
         prev_ts = None
         try:
@@ -510,6 +685,12 @@ def main(argv=None) -> int:
     for c in r.get("withdrawn") or []:
         mark = "отзыв отправлен" if c["sent"] else "⚠️ ОТЗЫВ НЕ УШЁЛ (вопрос висит в чате)"
         print(f"  ↩︎ {os.path.basename(c['card'])}: {mark}")
+    for h in r.get("closing_held_open") or []:
+        name = os.path.basename(h["card"]) if h.get("card") else h["key"]
+        print(f"  ⏸ НЕ закрыта {name}: {h['reason']}")
+    for src, st in sorted((r.get("source_states") or {}).items()):
+        if not st.get("closing"):
+            print(f"  🔇 источник {src} не закрывает карточки: {st.get('reason')}")
     try:
         from spa_core.monitoring.card_delivery import render as render_delivery
         print("  " + render_delivery(r.get("delivery") or {}))

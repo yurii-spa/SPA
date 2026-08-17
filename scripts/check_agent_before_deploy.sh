@@ -394,7 +394,26 @@ elif [ "$RC" -ne 0 ] && [ "$IS_KEEPALIVE" -eq 1 ]; then
         RC=0
     fi
 fi
-[ "$RC" -eq 0 ] || fail "manual run exited $RC (expected 0). NOT loading ${LABEL}."
+if [ "$RC" -ne 0 ]; then
+    # THE TWO CONVENTIONS (2026-08-08, card `agent-checkpoint-7day-gate-conflict`).
+    # The gate reads the exit code as the answer to "is this agent WORKABLE?" — the
+    # same question launchd's `last_exit` and `agent_health` answer. A REPORTER agent
+    # that exits non-zero because its REPORT contains something red is answering a
+    # DIFFERENT question with the same number, and it can never pass this gate:
+    # `checkpoint-7day` was refused with "manual run exited 1" while its report was
+    # built perfectly and exit 1 only meant "gap in the track".
+    # The gate does NOT get a list of reporter agents to trust (a list rots silently
+    # and would be a hole in a fail-CLOSED gate). The AGENT is what gets fixed: exit
+    # 0 when the report is built, non-zero only for a genuine breakage, and pass the
+    # verdict on in the report body + the alert. `scripts/checkpoint_7day.py` is the
+    # worked example (EXIT_OK / EXIT_VERDICT_FAIL / EXIT_BROKEN + --verdict-exit-code).
+    echo "   ── exit code $RC means 'this agent is BROKEN' to launchd, agent_health and this gate."
+    echo "   ── If $RC is really a VERDICT ('my report has something red'), the AGENT is wrong,"
+    echo "   ──   not the gate: exit 0 once the report is built, keep non-zero for genuine"
+    echo "   ──   failure, carry the verdict in the report + alert. Worked example:"
+    echo "   ──   scripts/checkpoint_7day.py (EXIT_OK / EXIT_BROKEN / --verdict-exit-code)."
+    fail "manual run exited $RC (expected 0). NOT loading ${LABEL}."
+fi
 
 # ── 4b. FAIL-CLOSED hash guard: the sandboxed run must NOT touch the track ───
 TRACK_HASH_AFTER="$(hash_file "$CANONICAL_TRACK")"

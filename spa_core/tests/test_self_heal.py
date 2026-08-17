@@ -456,6 +456,14 @@ def test_breached_cycle_staleness_cannot_be_healthy(heal, monkeypatch):
 def test_fresh_cycle_within_sla_is_healthy(heal, monkeypatch):
     # Control in the other direction: a fresh cycle stays healthy.
     _guard_no_real_io(monkeypatch)
+    # FIXTURE STRENGTHENED (wake-storm fail-OPEN card, 2026-08-17): the fleet observations are
+    # now pinned to MEASURED values. This test is about the cycle SLA, but it used to inherit
+    # the fixture defaults `_expected_labels() == []` (no plists visible) — which `healthy` now
+    # correctly refuses to call healthy, because nothing was measured. The subject of the test
+    # is unchanged; only the parts it never meant to leave unmeasured are now supplied.
+    monkeypatch.setattr(self_heal, "_expected_labels", lambda: ["com.spa.rules_watchdog"])
+    monkeypatch.setattr(self_heal, "_loaded_labels", lambda: {"com.spa.rules_watchdog": 4321})
+    monkeypatch.setattr(self_heal, "_must_be_resident", lambda l: True)
     monkeypatch.setattr(self_heal, "_last_cycle_age_hours", lambda: 25.9)
 
     report = self_heal.run_self_heal(dry_run=False)
@@ -694,3 +702,185 @@ def test_watchdog_and_uptime_monitor_never_resolve(monkeypatch):
     assert resolve_calls == []                        # никто не гасил
     assert len(push_kwargs) == 2                      # оба ушли entry-путём
     assert all(not k.get("resolved") for k in push_kwargs)
+
+
+# ===========================================================================
+# WAKE-STORM FAIL-OPEN (card `agent-wake-storm-fail-open-monitors`, замер 2026-08-04)
+# ---------------------------------------------------------------------------
+# On the 04.08 wake storm 39 agents died and the monitors reported «всё хорошо». The class is
+# always the same: a monitor publishes a verdict about a measurement it never made. The sibling
+# `watchdog.py` was hardened against exactly this (`_loaded_labels() -> None` for "unmeasured");
+# self_heal — which ACTS on the same reading and guards the money path — was left out of it.
+#
+# Every test below is a POSITIVE CONTROL: it REDS on the unfixed module, where `_loaded_labels()`
+# swallowed launchctl failures into `{}` and `healthy` was computed without ever asking whether
+# anything had been measured at all.
+#
+# No `chmod` anywhere: this suite also runs as root, where permission bits are ignored, so an
+# impossible write is built structurally (a destination directory that does not exist).
+# ===========================================================================
+# The production `_save`, captured at import time — the `heal` fixture replaces the module
+# attribute with a no-op, and the publication tests need the real one back.
+_SAVE = self_heal._save
+
+
+class _FakeProc:
+    def __init__(self, stdout: str = "", returncode: int = 0):
+        self.stdout = stdout
+        self.returncode = returncode
+
+
+def _raise(*_a, **_k):
+    raise OSError("launchctl could not be run")
+
+
+def test_loaded_labels_returns_none_when_launchctl_raises(monkeypatch):
+    monkeypatch.setattr(self_heal, "_run", _raise)
+    assert self_heal._loaded_labels() is None      # NOT {} — "unknown" is not "nothing loaded"
+
+
+def test_loaded_labels_returns_none_on_a_nonzero_exit(monkeypatch):
+    monkeypatch.setattr(self_heal, "_run", lambda a: _FakeProc("", 1))
+    assert self_heal._loaded_labels() is None
+
+
+def test_loaded_labels_returns_none_on_unparseable_output(monkeypatch):
+    monkeypatch.setattr(self_heal, "_run", lambda a: _FakeProc("Could not connect to launchd\n", 0))
+    assert self_heal._loaded_labels() is None
+
+
+def test_measured_launchd_without_our_agents_is_empty_not_unmeasured(monkeypatch):
+    # The other direction: a launchd that ANSWERED but holds nothing of ours is a real
+    # measurement ({}), so a real total outage stays actionable.
+    monkeypatch.setattr(
+        self_heal, "_run",
+        lambda a: _FakeProc("PID\tStatus\tLabel\n123\t0\tcom.apple.something\n", 0),
+    )
+    assert self_heal._loaded_labels() == {}
+
+
+def test_loaded_labels_parses_a_normal_listing(monkeypatch):
+    monkeypatch.setattr(
+        self_heal, "_run",
+        lambda a: _FakeProc("42\t0\tcom.spa.apiserver\n-\t0\tcom.spa.daily_cycle\n", 0),
+    )
+    assert self_heal._loaded_labels() == {"com.spa.apiserver": 42, "com.spa.daily_cycle": 0}
+
+
+def test_unmeasured_launchd_is_not_reported_healthy(heal, monkeypatch):
+    # THE fail-OPEN, minimal form: launchd unreadable AND ~/Library unreadable — the run measured
+    # NOTHING and still published healthy:true (agent_health.json said 69/69 the same morning).
+    _guard_no_real_io(monkeypatch)
+    monkeypatch.setattr(self_heal, "_loaded_labels", lambda: None)
+
+    report = self_heal.run_self_heal(dry_run=False)
+
+    assert report["healthy"] is False
+    assert report["launchctl_measured"] is False
+    assert report["loaded"] is None                        # never a fabricated count
+    assert any("launchctl" in u for u in report["unchecked"])
+
+
+def test_unmeasured_launchd_takes_no_launchd_action(heal, monkeypatch):
+    # A resident agent "missing" from an unmeasured launchd is not missing — it is unknown, and
+    # every remedy is a launchctl call against that same unmeasured launchd.
+    _guard_no_real_io(monkeypatch)
+    monkeypatch.setattr(self_heal, "_expected_labels", lambda: ["com.spa.rules_watchdog"])
+    monkeypatch.setattr(self_heal, "_loaded_labels", lambda: None)
+    monkeypatch.setattr(self_heal, "_must_be_resident", lambda l: True)
+
+    report = self_heal.run_self_heal(dry_run=False)
+
+    assert heal.bootstrapped == []                          # nothing acted on
+    assert report["actions"] == [] and report["failures"] == []
+    assert report["missing_resident"] == []                 # nor a "these are dead" claim
+    assert report["healthy"] is False                       # …and silence is not health
+
+
+def test_measured_empty_launchd_still_revives(heal, monkeypatch):
+    # Control: the honesty fix must not disarm the agent. A MEASURED-empty launchd is a real
+    # outage and the resident agent is still revived.
+    _guard_no_real_io(monkeypatch)
+    monkeypatch.setattr(self_heal, "_expected_labels", lambda: ["com.spa.rules_watchdog"])
+    monkeypatch.setattr(self_heal, "_loaded_labels", lambda: {})
+    monkeypatch.setattr(self_heal, "_must_be_resident", lambda l: True)
+
+    report = self_heal.run_self_heal(dry_run=False)
+
+    assert heal.bootstrapped == ["com.spa.rules_watchdog"]
+    assert report["launchctl_measured"] is True
+    assert report["missing_resident"] == ["com.spa.rules_watchdog"]
+
+
+def test_invisible_plists_cannot_be_healthy(heal, monkeypatch):
+    # `_expected_labels() == []` means BOTH "nothing installed" and "~/Library unreadable", so it
+    # is not evidence that there is nothing to guard. The module's own resolve path already
+    # refused to trust it; `healthy` did not.
+    _guard_no_real_io(monkeypatch)
+    monkeypatch.setattr(self_heal, "_expected_labels", lambda: [])
+    monkeypatch.setattr(self_heal, "_loaded_labels", lambda: {"com.spa.apiserver": 111})
+
+    report = self_heal.run_self_heal(dry_run=False)
+
+    assert report["healthy"] is False
+    assert any("плист" in u for u in report["unchecked"])
+
+
+def test_unreadable_cycle_age_cannot_be_healthy(heal, monkeypatch):
+    # `cycle_stale: false` next to `cycle_age_h: null` means "not measured", not "within SLA" —
+    # and the daily cycle is the money path this agent exists to guard.
+    _guard_no_real_io(monkeypatch)
+    monkeypatch.setattr(self_heal, "_expected_labels", lambda: ["com.spa.rules_watchdog"])
+    monkeypatch.setattr(self_heal, "_loaded_labels", lambda: {"com.spa.rules_watchdog": 1})
+    monkeypatch.setattr(self_heal, "_must_be_resident", lambda l: True)
+    monkeypatch.setattr(self_heal, "_last_cycle_age_hours", lambda: None)
+
+    report = self_heal.run_self_heal(dry_run=False)
+
+    assert report["cycle_age_h"] is None
+    assert report["cycle_stale"] is False        # unchanged: the THRESHOLD was not breached…
+    assert report["healthy"] is False            # …because it was never evaluated
+    assert any("цикл" in u for u in report["unchecked"])
+
+
+def test_a_fully_measured_clean_run_is_still_healthy(heal, monkeypatch):
+    # The indispensable other direction: every input measured and fine ⇒ healthy stays True.
+    # A permanently-red monitor is the same lie inverted, and would teach everyone to ignore it.
+    _guard_no_real_io(monkeypatch)
+    monkeypatch.setattr(self_heal, "_expected_labels", lambda: ["com.spa.rules_watchdog"])
+    monkeypatch.setattr(self_heal, "_loaded_labels", lambda: {"com.spa.rules_watchdog": 4321})
+    monkeypatch.setattr(self_heal, "_must_be_resident", lambda l: True)
+    monkeypatch.setattr(self_heal, "_last_cycle_age_hours", lambda: 2.0)
+
+    report = self_heal.run_self_heal(dry_run=False)
+
+    assert report["unchecked"] == []
+    assert report["healthy"] is True
+
+
+# ── a verdict that was never written must not look like a passed check ───────
+def test_unpublishable_verdict_is_reported_and_exits_nonzero(heal, monkeypatch, tmp_path):
+    """`_save` swallowed every write failure and the process exited 0 regardless, so a broken
+    disk left the PREVIOUS (possibly green) status file standing as the current verdict."""
+    _guard_no_real_io(monkeypatch)
+    monkeypatch.setattr(self_heal, "_DATA", tmp_path)                     # tmp only, never live data/
+    monkeypatch.setattr(self_heal, "_STATUS", tmp_path / "nonexistent_dir" / "self_heal_status.json")
+    monkeypatch.setattr(self_heal, "_save", _SAVE)                        # real save, impossible target
+
+    report = self_heal.run_self_heal(dry_run=False)
+
+    assert report["published"] is False
+    assert self_heal._exit_code(report) == 2      # launchd/agent_health can SEE the failure
+
+
+def test_a_published_verdict_exits_zero(heal, monkeypatch, tmp_path):
+    _guard_no_real_io(monkeypatch)
+    monkeypatch.setattr(self_heal, "_DATA", tmp_path)
+    monkeypatch.setattr(self_heal, "_STATUS", tmp_path / "self_heal_status.json")
+    monkeypatch.setattr(self_heal, "_save", _SAVE)
+
+    report = self_heal.run_self_heal(dry_run=False)
+
+    assert report["published"] is True
+    assert (tmp_path / "self_heal_status.json").exists()
+    assert self_heal._exit_code(report) == 0

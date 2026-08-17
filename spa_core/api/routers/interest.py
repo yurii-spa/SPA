@@ -9,6 +9,21 @@ day-granularity timestamp. NO email, NO name, NO contact, NO IP, NO cookies. The
 up) is an owner decision requiring a consent flow + legal review (E-18). This endpoint deliberately has
 NO contact field — it records anonymous intent the owner reads in /admin, and refuses PII-shaped input
 fail-closed. stdlib + FastAPI only; not a gate, not in any risk/exec path.
+
+HONESTY — `ok` never outruns the write (card `agent-checkup-waitlist-fail-open-ok-true`):
+  Both sinks here are best-effort by design ("a capture must never break a page"), and that was
+  implemented as a bare ``except: pass`` followed by an unconditional ``{"ok": True}``. The failure
+  mode is the one measured on the sibling DeFi Checkup waitlist between 15.07 and 02.08: the caller
+  is told the join succeeded while NOTHING was persisted, so "the sink is broken" is indistinguishable
+  from "everything works" — for weeks. Swallowing the exception is still right (a full disk must not
+  500 the page); publishing ``ok: true`` about it is not.
+  The fix separates the two facts instead of merging them into one optimistic flag:
+    * ``stored``: ``"ok" | "error"`` — did the record actually reach the JSONL sink;
+    * ``notified``: bool — did the owner-ping path report delivery (contact requests only);
+    * ``ok`` — true only when the lead survived on AT LEAST ONE durable path. Both paths failing
+      means the lead is LOST, and the endpoint says so (the /pilot form already renders ``error``).
+  A ``position`` is likewise never returned for a row that was not written: the number would be
+  re-issued to the next signup, i.e. fabricated.
 """
 from __future__ import annotations
 
@@ -41,23 +56,36 @@ def _clean(s: str) -> str:
     return s if _TOKEN_RE.match(s) else ""   # PII-shaped / illegal → dropped (fail-closed, never stored)
 
 
+def _append_jsonl(path: Path, rec: dict) -> bool:
+    """Append one record to an append-only JSONL sink. Returns True ONLY if it is on disk.
+
+    Never raises — a capture failure must not 500 a public page — but the outcome is RETURNED
+    instead of swallowed, so a caller can never report success for a write that did not happen
+    (the waitlist fail-OPEN class; see the module docstring)."""
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        return True
+    except Exception:  # noqa: BLE001 — reported, not hidden
+        return False
+
+
 @router.post("/api/interest")
 def record_interest(sig: InterestSignal) -> dict:
     """Record one anonymous interest signal. NO PII: opaque tier/topic/utm + a coarse timestamp only.
-    An '@' or over-long / free-form value is dropped, never persisted."""
+    An '@' or over-long / free-form value is dropped, never persisted.
+
+    ``ok`` tracks the WRITE: a sink that could not be appended to reports ``ok:false`` /
+    ``stored:"error"`` rather than a cosmetic success."""
     rec = {"t": int(time.time()), "tier": _clean(sig.tier), "topic": _clean(sig.topic)}
     src, camp = _clean(sig.utm_source), _clean(sig.utm_campaign)
     if src:
         rec["utm_source"] = src
     if camp:
         rec["utm_campaign"] = camp
-    try:
-        _LOG.parent.mkdir(parents=True, exist_ok=True)
-        with open(_LOG, "a", encoding="utf-8") as fh:
-            fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
-    except Exception:  # noqa: BLE001 — capture must never break a page
-        pass
-    return {"ok": True, "pii_minimal": True}
+    stored = _append_jsonl(_LOG, rec)
+    return {"ok": stored, "stored": "ok" if stored else "error", "pii_minimal": True}
 
 
 @router.get("/api/interest/summary")
@@ -208,7 +236,11 @@ def _notify_owner_telegram(email: str, message: str, tier: str, utm: str, source
 @router.post("/api/pilot/request")
 def pilot_request(req: PilotRequest) -> dict:
     """Record a pilot CONTACT request (opt-in). Validates a plausible email fail-closed, appends to
-    data/pilot_requests.jsonl, and pings the owner on Telegram. No email is ever surfaced on /admin."""
+    data/pilot_requests.jsonl, and pings the owner on Telegram. No email is ever surfaced on /admin.
+
+    Response carries the two facts SEPARATELY (see the module docstring): ``stored`` (did the row
+    reach the sink) and ``notified`` (did the owner ping report delivery). ``ok`` is true only when
+    at least one of them held — a lead lost by BOTH paths is reported as lost, never as ``ok``."""
     email = (req.email or "").strip()[:256]
     if not _EMAIL_RE.match(email):
         return {"ok": False, "error": "a valid email is required to request a conversation"}
@@ -224,19 +256,23 @@ def pilot_request(req: PilotRequest) -> dict:
             with open(_REQ_LOG, encoding="utf-8") as fh:
                 position = sum(1 for l in fh if '"source": "early_access"' in l) + 1
         except FileNotFoundError:
-            position = 1
+            position = 1          # no sink yet ⇒ this is genuinely the first signup
+        except OSError:
+            position = None       # sink present but unreadable ⇒ the place in the queue is
+            # NOT measurable. Fail-closed: withhold the number (guessing "1" would tell every
+            # signup they are first) and do not let a broken sink 500 the public form.
     rec = {"t": int(time.time()), "email": email, "message": message, "tier": tier,
            "source": source, "utm": utm}
-    try:
-        _REQ_LOG.parent.mkdir(parents=True, exist_ok=True)
-        with open(_REQ_LOG, "a", encoding="utf-8") as fh:
-            fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
-    except Exception:  # noqa: BLE001 — capture must never break the page
-        pass
+    stored = _append_jsonl(_REQ_LOG, rec)
     notified = _notify_owner_telegram(email, message, tier, utm, source)
-    out = {"ok": True, "notified": notified}
-    if position is not None:
+    # ok = the lead survived on at least one durable path (sink OR owner ping). Not "we tried".
+    out = {"ok": bool(stored or notified), "stored": "ok" if stored else "error",
+           "notified": notified}
+    if position is not None and stored:
+        # A position for an unwritten row would be handed out again to the next signup.
         out["position"] = position
+    if not out["ok"]:
+        out["error"] = "could not record the request — please try again"
     return out
 
 

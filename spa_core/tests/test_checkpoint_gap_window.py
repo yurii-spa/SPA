@@ -16,6 +16,21 @@
 
 Дата инъектируется: тест про окно, завязанный на реальный календарь, — бомба
 замедленного действия (`.claude/rules/deployment.md`).
+
+**НАМЕРЕННАЯ ПРАВКА ФИКСТУР (инвариант #16, 2026-08-17, журнал 2026-W34).**
+Владелец 09.08 решил считать окно ДОКАЗАННЫМИ днями, а не календарными
+(карточка `inbox-7-day-checkpoint-gap-check-schitat-ot-ev`), — потому что календарное
+окно принесло свой дефект, fail-OPEN ПО ЧАСАМ: дыра перестаёт блокировать просто оттого,
+что прошло время, даже если после неё трек не набрал ни одного доказанного дня.
+Фикстуры здесь состояли из ОДНИХ дат и никакого якоря/доказанности не несли, поэтому
+теперь попадают в fail-CLOSED («якорь неизвестен ⇒ ничего не прощаем»).
+
+Что изменено: фикстура достраивается до формы живых данных — доказанные бары
+(`equity_curve_daily.json` с честными метками) + якорь. Ни одно утверждение НЕ ослаблено:
+все шесть сохранены, а два, чьей предпосылкой был именно календарный край
+(`…window_edge…`), переформулированы в доказанных днях — там граница и живёт теперь.
+Полный разбор новой модели с положительными контролями —
+`spa_core/tests/test_checkpoint_evidenced_window.py`.
 """
 from __future__ import annotations
 
@@ -28,6 +43,9 @@ from tempfile import TemporaryDirectory
 
 _REPO = Path(__file__).resolve().parents[2]
 _TODAY = date(2026, 8, 9)
+# Якорь честного трека. Дни ДО него — предыстория: восстановить нечем, блокировать
+# ими нельзя (то же решение владельца, что ADR-087 для гейта go-live).
+_ANCHOR = date(2026, 6, 22)
 
 
 def _load():
@@ -43,11 +61,28 @@ class TestGapWindow(unittest.TestCase):
     def setUp(self):
         self.mod = _load()
 
-    def _check(self, dates: list[str]) -> dict:
+    def _check(self, dates: list[str], *, anchor: date = _ANCHOR) -> dict:
+        """Фикстура формы живых данных: журнал регистратора + доказанные бары + якорь.
+
+        Дни до якоря помечаются НЕдоказанными (`warmup`) — ровно так они и лежат в
+        `data/`, и именно поэтому живой якорь равен 2026-06-22, а не первой дате файла.
+        """
         with TemporaryDirectory() as t:
             d = Path(t)
             (d / "paper_evidence.json").write_text(
                 json.dumps({"days": [{"date": x} for x in dates]}), encoding="utf-8")
+            (d / "equity_curve_daily.json").write_text(json.dumps({"summary": {}, "daily": [
+                {
+                    "date": x,
+                    "open_equity": 100_000.0, "close_equity": 100_010.0,
+                    "equity": 100_010.0,
+                    "evidenced": date.fromisoformat(x) >= anchor,
+                    "source": "cycle" if date.fromisoformat(x) >= anchor else "warmup",
+                }
+                for x in dates
+            ]}), encoding="utf-8")
+            (d / "golive_status.json").write_text(
+                json.dumps({"evidenced_anchor": anchor.isoformat()}), encoding="utf-8")
             return self.mod.check_gaps(d, today=_TODAY)
 
     def test_the_real_incident_no_longer_fails_forever(self):
@@ -76,10 +111,27 @@ class TestGapWindow(unittest.TestCase):
         self.assertIn("2026-08-07", res["detail"])
 
     def test_a_gap_exactly_on_the_window_edge_still_fails(self):
-        """Граница принадлежит окну — иначе дыра проскочит на день раньше срока."""
+        """Граница принадлежит окну — иначе дыра проскочит на день раньше срока.
+
+        Переформулировано в ДОКАЗАННЫХ днях (см. заголовок файла): край окна — седьмой
+        доказанный день с конца. Здесь день возобновления (02.08) ровно им и является,
+        то есть ещё внутри окна ⇒ блокирует. Парный контроль — следующий тест.
+        """
+        dates = ["2026-07-30", "2026-08-02"] + [f"2026-08-{d:02d}" for d in range(3, 9)]
+        res = self._check(dates)
+        self.assertEqual(res["status"], "fail", res)
+        self.assertEqual(res["window_edge"], "2026-08-02")
+
+    def test_one_evidenced_day_past_the_edge_lets_the_gap_out(self):
+        """Обратная сторона границы: ещё один доказанный день — и дыра выходит из окна.
+
+        Без этой пары «граница принадлежит окну» проверялась бы только с той стороны,
+        где ответ «блокирует», и версия, блокирующая ВСЁ, прошла бы её тоже.
+        """
         dates = ["2026-07-30", "2026-08-02"] + [f"2026-08-{d:02d}" for d in range(3, 10)]
         res = self._check(dates)
-        self.assertEqual(res["status"], "fail")
+        self.assertEqual(res["status"], "pass", res)
+        self.assertTrue(res["historic_gaps"], "выведенная дыра обязана остаться видимой")
 
     def test_a_clean_track_passes_with_no_noise(self):
         res = self._check([f"2026-08-{d:02d}" for d in range(1, 10)])
@@ -87,11 +139,20 @@ class TestGapWindow(unittest.TestCase):
         self.assertEqual(res["historic_gaps"], [])
 
     def test_fresh_gap_wins_over_a_historic_one(self):
-        """Если есть обе — блокирует свежая, а не «первая найденная»."""
-        dates = ["2026-06-20", "2026-06-30"] + [f"2026-08-{d:02d}" for d in (1, 2, 7, 8, 9)]
+        """Если есть обе — блокирует свежая, а не «первая найденная».
+
+        Фикстура приведена к форме живых данных: старая дыра лежит ДО якоря (её и
+        нечем восстановить), свежая — после. Отчёт обязан назвать блокирующей свежую и
+        не остановиться на предыстории.
+        """
+        dates = ["2026-06-10", "2026-06-20"] \
+            + [f"2026-06-{d:02d}" for d in range(22, 28)] \
+            + ["2026-08-07", "2026-08-08", "2026-08-09"]
         res = self._check(dates)
-        self.assertEqual(res["status"], "fail")
+        self.assertEqual(res["status"], "fail", res)
         self.assertIn("2026-08-07", res["detail"])
+        self.assertTrue(any("до якоря" in g for g in res["historic_gaps"]),
+                        f"предыстория обязана остаться видимой: {res['historic_gaps']}")
 
 
 class TestGapMonitorBranch(unittest.TestCase):

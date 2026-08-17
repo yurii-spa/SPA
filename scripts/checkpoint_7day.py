@@ -11,7 +11,12 @@ Checks:
   5. Summary output  — форматированный вывод в консоль
   6. Telegram alert  — при FAIL (или PASS) через Keychain-токен
 
-Exit code: 0 = all pass, 1 = any fail
+Exit code — КОД ВОЗВРАТА ОТВЕЧАЕТ ЗА РАБОТОСПОСОБНОСТЬ, НЕ ЗА ВЕРДИКТ:
+  0 — отчёт ПОСТРОЕН (красные проверки живут в теле отчёта и в алерте);
+  1 — только по явной просьбе (`--verdict-exit-code`): в отчёте есть красное;
+  2 — отчёт построить НЕ УДАЛОСЬ (настоящий сбой: нечего читать, нечем считать).
+Почему так — см. docstring `run_checkpoint`.
+
 Stdlib only: json, subprocess, urllib.request, os, datetime, pathlib, sys
 """
 from __future__ import annotations
@@ -38,6 +43,16 @@ CHECKPOINT_DATE  = PAPER_START_DATE + timedelta(days=CHECKPOINT_DAY)  # 2026-06-
 EQUITY_FLOOR_USD  = 95_000.0
 BASE_CAPITAL      = 100_000.0
 APY_MIN_PCT       = 5.0
+
+# ─── Коды возврата (конвенция флота) ─────────────────────────────────────────
+# `last_exit` у launchd-агента читают сторожа флота (`agent_health`) как ответ на
+# вопрос «агент РАБОТАЕТ?». Агент-репортёр, выходящий 1 при красной проверке,
+# отвечает этим же кодом на ДРУГОЙ вопрос — «в отчёте есть красное?» — и потому
+# числится вечно сломанным: гейт деплоя его не пропускает, а пропущенный писал бы
+# WARN каждую неделю до конца времён (карточка `agent-checkpoint-7day-gate-conflict`).
+EXIT_OK           = 0   # отчёт построен (вердикт — в отчёте и в алерте)
+EXIT_VERDICT_FAIL = 1   # ТОЛЬКО по явному `--verdict-exit-code`
+EXIT_BROKEN       = 2   # отчёт построить не удалось — настоящий сбой
 
 # Sharpe thresholds
 SHARPE_S7_WARN    = 0.8   # S7 < this → warning
@@ -136,6 +151,153 @@ def load_json(path: Path) -> dict | list | None:
         return None
 
 
+# ─── Доказанный трек: якорь и окно (решение владельца 09.08) ─────────────────
+#
+# ПОЧЕМУ ОКНО СЧИТАЕТСЯ ДОКАЗАННЫМИ ДНЯМИ, А НЕ КАЛЕНДАРНЫМИ.
+# Первая правка этой проверки завела окно «последние 7 дней» от `date.today()`.
+# Она сняла вечный отказ, но принесла свой дефект — fail-OPEN ПО ЧАСАМ: дыра
+# перестаёт блокировать просто оттого, что сдвинулся календарь, даже если после неё
+# трек не набрал НИ ОДНОГО доказанного дня. Замер на этом дереве (17.08): дыры
+# 2026-07-18 → 2026-07-20 и 2026-07-26 → 2026-07-28 — настоящие, после якоря — уже
+# числились «историческими», потому что край окна уехал на 2026-08-10. Ждать
+# достаточно долго стало способом закрыть проверку.
+#
+# Трек считается ДОКАЗАННЫМИ БАРАМИ (`spa_core.paper_trading.track_evidence` —
+# единственный источник правды: он же решает, что бар с пустой книгой доказанным
+# не считается). Поэтому дыра уходит из окна только тогда, когда после неё
+# накопилось `window_days` НОВЫХ доказанных дней, — то есть трек доказал, что
+# восстановился. Календарь на это больше не влияет.
+#
+# Якорь трека (`evidenced_anchor`, 2026-06-22) отрезает предысторию: дыра, начавшаяся
+# ДО якоря (2026-06-21 → 2026-06-30 — цикл в те дни умер, дорисовывать запрещено),
+# видна в отчёте, но не блокирует — то самое решение владельца, что и ADR-087 для
+# гейта go-live.
+
+
+def _track_evidence_module():
+    """Канонический модуль доказанности трека. Бросает, если его нет (fail-CLOSED).
+
+    Собственного определения «доказанного дня» здесь НЕТ и быть не должно: правило
+    живёт в одном месте (`track_evidence`), и когда владелец закроет карточку про
+    день с пустой книгой, эта проверка получит новое правило без единой правки.
+    Дубликат правила означал бы, что чекпойнт и go-live-гейт считают разный трек.
+    """
+    try:
+        from spa_core.paper_trading import track_evidence  # noqa: PLC0415
+        return track_evidence
+    except Exception:
+        pass
+    # Скрипт запускают и из своего дерева, и обёрткой агента из прода — путь к
+    # пакету добываем от СЕБЯ, а не от константы.
+    for root in (Path(__file__).resolve().parents[1], BASE):
+        if str(root) not in sys.path:
+            sys.path.insert(0, str(root))
+    from spa_core.paper_trading import track_evidence  # noqa: PLC0415
+    return track_evidence
+
+
+def _iso_dates(raw: Any) -> list[date]:
+    """Отсортированные уникальные даты из списка ISO-строк. Мусор молча отбрасываем."""
+    out: set[date] = set()
+    for item in raw or []:
+        if not isinstance(item, str):
+            continue
+        try:
+            out.add(date.fromisoformat(item[:10]))
+        except ValueError:
+            continue
+    return sorted(out)
+
+
+def evidenced_series(data_dir: Path, *, today: date | None = None) -> list[date] | None:
+    """Доказанные дни трека, возрастающе. `None` ⇒ судить не по чему (fail-CLOSED).
+
+    Читается `equity_curve_daily.json` — файл, в котором бары НЕСУТ честные метки
+    (`evidenced` / `source`), и прогоняется через канонический предикат. Отсутствие
+    файла возвращает `None`, а не пустой список: «доказанных дней ноль» и «мы не
+    смогли посмотреть» — разные ответы, и второй не имеет права ничего погасить.
+    """
+    ec = load_json(data_dir / "equity_curve_daily.json")
+    if not isinstance(ec, dict) or not isinstance(ec.get("daily"), list):
+        return None
+    te = _track_evidence_module()
+    return _iso_dates(te.evidenced_dates(ec["daily"], today=today))
+
+
+def track_anchor(data_dir: Path, *, today: date | None = None) -> date | None:
+    """Якорь честного трека — первый доказанный день. `None` ⇒ неизвестен.
+
+    Порядок: пересчёт по барам (канонический) → записанный `evidenced_anchor`
+    (`equity_curve_daily.summary`, затем `golive_status.json`). Литерального
+    2026-06-22 здесь нет намеренно: якорь двигается вместе с треком, и вбитая дата
+    рано или поздно начала бы врать.
+    """
+    series = None
+    try:
+        series = evidenced_series(data_dir, today=today)
+    except Exception:
+        series = None
+    if series:
+        return series[0]
+
+    ec = load_json(data_dir / "equity_curve_daily.json")
+    if isinstance(ec, dict) and isinstance(ec.get("summary"), dict):
+        for key in ("evidenced_anchor", "first_real_date"):
+            got = _iso_dates([ec["summary"].get(key)])
+            if got:
+                return got[0]
+    gl = load_json(data_dir / "golive_status.json")
+    if isinstance(gl, dict):
+        got = _iso_dates([gl.get("evidenced_anchor")])
+        if got:
+            return got[0]
+    return None
+
+
+def evidenced_window_edge(series: list[date] | None, *, window_days: int,
+                          anchor: date | None) -> date | None:
+    """Левый край окна = `window_days`-й доказанный день с конца. `None` ⇒ неизвестен.
+
+    Доказанных дней меньше, чем длина окна ⇒ край = якорь: молодому треку нечего
+    выводить из окна, и «ещё не набрали» не должно читаться как «уже прощено».
+    """
+    if not series:
+        return anchor
+    edge = series[-window_days:][0] if window_days > 0 else series[0]
+    if anchor is not None and edge < anchor:
+        edge = anchor
+    return edge
+
+
+def classify_gaps(dates: list[date], *, anchor: date | None,
+                  window_edge: date | None) -> tuple[list[str], list[str]]:
+    """Разбор дыр в ряду дат на (блокирующие, исторические-но-видимые).
+
+    Дыра БЛОКИРУЕТ, когда выполнено И то, И другое:
+      * началась ПОСЛЕ якоря трека (иначе это предыстория — восстановить нечем);
+      * дотягивается до окна последних доказанных дней (иначе трек уже доказал,
+        что восстановился, `window_days` барами после неё).
+    Неизвестный якорь или неизвестный край окна ⇒ дыра блокирует (fail-CLOSED):
+    «мы не смогли посмотреть» не является прощением.
+    """
+    blocking: list[str] = []
+    historic: list[str] = []
+    for prev, cur in zip(dates, dates[1:]):
+        delta = (cur - prev).days
+        if delta <= 1:
+            continue
+        span = f"{prev} → {cur} ({delta} days)"
+        pre_anchor = anchor is not None and prev < anchor
+        aged_out = window_edge is not None and cur < window_edge
+        if pre_anchor:
+            historic.append(f"{span} — до якоря трека {anchor}")
+        elif aged_out:
+            historic.append(f"{span} — вне окна доказанных дней (край {window_edge})")
+        else:
+            blocking.append(span)
+    return blocking, historic
+
+
 # ─── Check 1: Gap check ──────────────────────────────────────────────────────
 
 def check_gaps(data_dir: Path = DATA, *, window_days: int = 7,
@@ -160,10 +322,16 @@ def check_gaps(data_dir: Path = DATA, *, window_days: int = 7,
     result = {
         "name": "gap_check",
         "status": "pass",
-        "days_tracked": 0,
+        "days_tracked": 0,        # ДОКАЗАННЫХ дней (не календарных, не «записанных»)
+        "days_recorded": 0,       # сколько дней записал регистратор — для сверки
         "gap_detected": False,
         "detail": "",
         "historic_gaps": [],
+        "blocking_gaps": [],
+        "window_days": window_days,
+        "anchor": None,
+        "window_edge": None,
+        "evidence_source": "unavailable",
     }
 
     # Читаем gap_monitor.json
@@ -201,47 +369,86 @@ def check_gaps(data_dir: Path = DATA, *, window_days: int = 7,
     else:
         result["detail"] = "gap_monitor.json not found — relying on paper_evidence"
 
-    # Читаем paper_evidence.json для подсчёта дней
-    pe = load_json(data_dir / "paper_evidence.json")
-    if pe is not None:
-        days = pe.get("days", [])
-        result["days_tracked"] = len(days)
+    # ── Доказанный трек: якорь + окно доказанными днями (не календарными) ────
+    series: list[date] | None = None
+    anchor: date | None = None
+    try:
+        series = evidenced_series(data_dir, today=today)
+        anchor = track_anchor(data_dir, today=today)
+    except Exception as exc:  # noqa: BLE001 — судить нечем ⇒ ничего не прощаем
+        result["status"] = "fail"
+        result["gap_detected"] = True
+        result["detail"] = (
+            (result["detail"] + " · " if result["detail"] else "")
+            + f"канонический счёт доказанных дней недоступен ({exc!r}) — fail-CLOSED: "
+              "без него ни одна дыра не выводится из окна"
+        )
 
-        if len(days) > 0:
-            # Проверяем пробелы в датах paper_evidence
-            try:
-                sorted_days = sorted(days, key=lambda d: d.get("date", ""))
-                dates = [date.fromisoformat(d["date"]) for d in sorted_days if "date" in d]
-                _today = today or date.today()
-                _edge = _today - timedelta(days=window_days)
-                for i in range(1, len(dates)):
-                    delta = (dates[i] - dates[i - 1]).days
-                    if delta <= 1:
-                        continue
-                    span = f"{dates[i-1]} → {dates[i]} ({delta} days)"
-                    if dates[i] >= _edge:
-                        # Дыра внутри окна — восстановимая и потому блокирующая.
-                        result["status"] = "fail"
-                        result["gap_detected"] = True
-                        result["detail"] = f"Gap in paper_evidence: {span}"
-                        break
-                    # Старше окна: показываем, но не блокируем — восстановить нечем,
-                    # а вечный отказ перестаёт быть сигналом и становится шумом.
-                    result["historic_gaps"].append(span)
-                if result["status"] != "fail" and result["historic_gaps"]:
-                    hist = "; ".join(result["historic_gaps"])
-                    result["detail"] = (
-                        (result["detail"] + " · " if result["detail"] else "")
-                        + f"историческая дыра вне окна {window_days}д (не блокирует): {hist}"
-                    )
-            except Exception as exc:
-                result["detail"] += f"; date parse error: {exc}"
+    edge = evidenced_window_edge(series, window_days=window_days, anchor=anchor)
+    result["anchor"] = anchor.isoformat() if anchor is not None else None
+    result["window_edge"] = edge.isoformat() if edge is not None else None
+    if series is not None:
+        result["days_tracked"] = len(series)
+        result["evidence_source"] = "equity_curve_daily (доказанные бары)"
+
+    # Регистратор трека: его дни — то, что ЗАПИСАНО, а доказано ли — решает
+    # `track_evidence`. Раньше здесь стоял `days_tracked = len(days)`, и отчёт
+    # объявлял «44/30» при 13 доказанных днях: 30-дневная норма выглядела взятой
+    # с запасом там, где трек не добрал и половины (инвариант #8).
+    pe = load_json(data_dir / "paper_evidence.json")
+    recorded: list[date] = []
+    if isinstance(pe, dict):
+        recorded = _iso_dates(
+            [d.get("date") for d in pe.get("days", []) if isinstance(d, dict)]
+        )
+        result["days_recorded"] = len(recorded)
+
+    # Что сканируем на дыры: доказанный ряд, если он есть. Дни регистратора без
+    # честных меток — только запасной вариант, и он объявляется вслух.
+    if series is not None:
+        scan, scanned_label = series, "доказанном треке"
     else:
-        # Если paper_evidence отсутствует, проверяем equity_curve
-        ec = load_json(data_dir / "equity_curve_daily.json")
-        if ec is not None:
-            daily = ec.get("daily", [])
-            result["days_tracked"] = len(daily)
+        scan, scanned_label = recorded, "paper_evidence (без честных меток)"
+        if recorded:
+            result["evidence_source"] = "paper_evidence (метки доказанности отсутствуют)"
+
+    blocking, historic = classify_gaps(scan, anchor=anchor, window_edge=edge)
+
+    # Дыры по РЕГИСТРАТОРУ — только видимость, никогда блокировка. Доказанный ряд
+    # начинается с якоря и про предысторию не знает вовсе, поэтому дыра
+    # 2026-06-21 → 2026-06-30 исчезла бы из отчёта совсем — а решение владельца
+    # требует ровно обратного: «остаётся ВИДИМОЙ, но не роняет чекпойнт вечно».
+    # Блокировать по дням без честных меток нельзя: авторитет — доказанный ряд.
+    if series is not None and recorded:
+        rec_block, rec_hist = classify_gaps(recorded, anchor=anchor, window_edge=edge)
+        for span in rec_block + rec_hist:
+            marked = f"{span} [по регистратору]"
+            if span not in blocking and marked not in historic:
+                historic.append(marked)
+
+    result["blocking_gaps"] = blocking
+    result["historic_gaps"] = historic
+
+    if blocking:
+        result["status"] = "fail"
+        result["gap_detected"] = True
+        result["detail"] = f"Gap in {scanned_label}: {blocking[0]}"
+    # Видимая история печатается ВСЕГДА, а не только когда всё остальное чисто:
+    # «не блокирует» не имеет права превращаться в «не существует».
+    if historic:
+        hist = "; ".join(historic)
+        result["detail"] = (
+            (result["detail"] + " · " if result["detail"] else "")
+            + f"историческая дыра вне окна {window_days} доказанных дней "
+              f"(не блокирует): {hist}"
+        )
+
+    if series is not None and result["days_recorded"] > result["days_tracked"]:
+        # Разбавление видно, а не спрятано: записанных дней больше, чем доказанных.
+        result["detail"] += (
+            f" · записано дней {result['days_recorded']}, доказано "
+            f"{result['days_tracked']}"
+        )
 
     return result
 
@@ -451,17 +658,21 @@ def format_summary(
     equity: dict,
     files: dict,
     today: date | None = None,
+    data_dir: Path = DATA,
 ) -> str:
-    """Форматирует итоговый вывод в консоль."""
+    """Форматирует итоговый вывод в консоль.
+
+    `data_dir` — вход, а не константа: до 2026-08-17 добор счёта дней читал
+    модульный `DATA` (канонический трек) даже когда весь прогон шёл против
+    песочницы, и отчёт по песочнице подмешивал живые числа.
+    """
     if today is None:
         today = date.today()
 
-    # Вычисляем days tracked
+    # Доказанных дней. Дополнять их «сколько всего баров в файле» ЗАПРЕЩЕНО —
+    # именно так в отчёт попадало 44/30 при 13 доказанных днях.
     days_tracked = gaps.get("days_tracked") or 0
-    if days_tracked == 0 and equity.get("current_equity"):
-        ec_data = load_json(DATA / "equity_curve_daily.json")
-        if ec_data:
-            days_tracked = len(ec_data.get("daily", []))
+    days_recorded = gaps.get("days_recorded") or 0
 
     gap_ok     = gaps["status"] == "pass"
     eq_val     = equity.get("current_equity") or 0
@@ -475,9 +686,15 @@ def format_summary(
 
     golive_ok  = files["status"] == "pass"
 
+    days_line = f"Days tracked:   {days_tracked}/30 evidenced"
+    if days_recorded and days_recorded != days_tracked:
+        days_line += f" (записано {days_recorded})"
+    if gaps.get("anchor"):
+        days_line += f" · якорь {gaps['anchor']}"
+
     lines = [
         f"=== SPA 7-Day Checkpoint ({CHECKPOINT_DATE.isoformat()}) ===",
-        f"Days tracked:   {days_tracked}/30",
+        days_line,
         f"Gap-free:       {'✅ YES' if gap_ok else '❌ NO — ' + gaps.get('detail', '')}",
         f"Equity:         ${eq_val:,.2f} ({ret_pct:+.3f}%)",
         f"APY (7d):       {f'{apy_val:.1f}%' if apy_val is not None else 'N/A'}",
@@ -516,10 +733,30 @@ def overall_pass(checks: list[dict]) -> tuple[bool, list[str]]:
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
-def run_checkpoint(data_dir: Path = DATA, *, notify: bool = True) -> int:
+def run_checkpoint(data_dir: Path = DATA, *, notify: bool = True,
+                   verdict_exit_code: bool = False,
+                   today: date | None = None) -> int:
     """
-    Запускает все проверки, выводит summary, шлёт Telegram.
-    Возвращает exit code (0 = pass, 1 = fail).
+    Запускает все проверки, выводит summary, шлёт Telegram. Возвращает код возврата.
+
+    КОД ВОЗВРАТА ОТВЕЧАЕТ НА ВОПРОС «АГЕНТ РАБОТАЕТ?», А НЕ «ВСЁ ЛИ ЗЕЛЕНО?»
+    ------------------------------------------------------------------------
+    * `EXIT_OK` (0) — отчёт ПОСТРОЕН. Красные проверки при этом никуда не деваются:
+      они печатаются в блоке FAILURES и уходят владельцу алертом через push_policy.
+    * `EXIT_BROKEN` (2) — отчёт построить НЕ УДАЛОСЬ (нечего читать, упало посреди
+      счёта). Это и есть «агент сломан».
+    * `EXIT_VERDICT_FAIL` (1) — только когда позвали с `verdict_exit_code=True`
+      (флаг `--verdict-exit-code`): человеку у терминала и внешнему CI код вердикта
+      по-прежнему доступен, но не по умолчанию.
+
+    ПОЧЕМУ. До 2026-08-17 функция возвращала 1 на любую красную проверку, и это
+    ломало ДВЕ вещи сразу (карточка `agent-checkpoint-7day-gate-conflict`):
+    гейт деплоя `check_agent_before_deploy.sh` читает код пробного прогона как
+    ответ на «агент работоспособен?» и отказывался ставить агента вовсе; а если бы
+    поставили — `agent_health` писал бы WARN вечно, потому что `last_exit=1` у
+    launchd означает «сломан», и настоящая поломка утонула бы в этом шуме.
+    Ни одна проверка при этом НЕ ослаблена: вердикт полностью сохранён в отчёте и
+    в алерте, изменился только смысл кода возврата — он приведён к конвенции флота.
 
     `notify=False` — единственный поддерживаемый способ НЕ трогать канал (флаг
     `--no-telegram`). До 2026-08-10 флаг был пустышкой: он переопределял
@@ -527,20 +764,38 @@ def run_checkpoint(data_dir: Path = DATA, *, notify: bool = True) -> int:
     уехала в `_notify_via_push_policy` — то есть «выключенное» уведомление уходило
     владельцу как ни в чём не бывало. Подавление ВСЕГДА объявляется вслух: молчание
     канала не имеет права выглядеть как «сообщать было нечего».
+
+    `today` — вход, а не окружение (`.claude/rules/deployment.md`, лекарство №1):
+    окно доказанных дней и якорь трека судят о свежести, и тест, завязанный на
+    настоящие часы, начал бы падать просто оттого, что сдвинулся календарь.
     """
-    today = date.today()
+    today = today or date.today()
+    data_dir = Path(data_dir)
+
+    # Нечего читать — отчёта не будет. Это НАСТОЯЩИЙ сбой, и он обязан звучать
+    # иначе, чем красная проверка: иначе «агент сломан» и «трек в дыре» слились бы
+    # в один код возврата, как это и было до сих пор.
+    if not data_dir.is_dir():
+        print(f"❌ BROKEN: каталог данных не читается: {data_dir} — "
+              f"отчёт построить нечем (код {EXIT_BROKEN}).")
+        return EXIT_BROKEN
 
     # Выполняем все 4 проверки
-    gaps   = check_gaps(data_dir)
-    sharpe = check_sharpe(data_dir)
-    equity = check_equity(data_dir)
-    files  = check_files(data_dir)
+    try:
+        gaps   = check_gaps(data_dir, today=today)
+        sharpe = check_sharpe(data_dir)
+        equity = check_equity(data_dir)
+        files  = check_files(data_dir)
+    except Exception as exc:  # noqa: BLE001 — сбой счёта ≠ вердикт «в треке дыра»
+        print(f"❌ BROKEN: проверки упали, отчёт не построен: {exc!r} "
+              f"(код {EXIT_BROKEN}).")
+        return EXIT_BROKEN
 
     checks = [gaps, sharpe, equity, files]
     passed, failures = overall_pass(checks)
 
     # Summary в консоль
-    summary = format_summary(gaps, sharpe, equity, files, today)
+    summary = format_summary(gaps, sharpe, equity, files, today, data_dir=data_dir)
     print(summary)
 
     if not passed:
@@ -575,13 +830,32 @@ def run_checkpoint(data_dir: Path = DATA, *, notify: bool = True) -> int:
     if not notify:
         print("\n[Telegram] Уведомление ПОДАВЛЕНО флагом --no-telegram "
               "(канал не тронут; результат проверок от этого не изменился).")
-        return 0 if passed else 1
+        return _exit_code(passed, verdict_exit_code=verdict_exit_code)
 
     ok = _notify_via_push_policy(passed, failures, tg_msg)
     if not ok and not passed:
         print("\n[Telegram] Уведомление не ушло (либо дедуп: тот же набор провалов уже сообщён).")
 
-    return 0 if passed else 1
+    return _exit_code(passed, verdict_exit_code=verdict_exit_code)
+
+
+def _exit_code(passed: bool, *, verdict_exit_code: bool) -> int:
+    """Код возврата отчётного агента. Отчёт построен ⇒ агент работоспособен.
+
+    Красный вердикт при коде 0 ОБЪЯВЛЯЕТСЯ вслух: иначе ноль читался бы как «всё
+    зелено» — ровно та подмена смысла, из-за которой этот код и переделали.
+    """
+    if passed:
+        return EXIT_OK
+    if verdict_exit_code:
+        print(f"\n[exit] В отчёте есть красное; по просьбе --verdict-exit-code "
+              f"выхожу кодом {EXIT_VERDICT_FAIL} (вердикт, НЕ поломка агента).")
+        return EXIT_VERDICT_FAIL
+    print(f"\n[exit] В отчёте ЕСТЬ КРАСНОЕ (см. FAILURES выше и алерт владельцу). "
+          f"Код возврата {EXIT_OK} означает «отчёт построен, агент работоспособен», "
+          f"а НЕ «всё зелено»: код {EXIT_VERDICT_FAIL} по флагу --verdict-exit-code, "
+          f"код {EXIT_BROKEN} — настоящий сбой.")
+    return EXIT_OK
 
 
 def _notify_via_push_policy(passed: bool, failures: list, tg_msg: str) -> bool:
@@ -626,9 +900,20 @@ if __name__ == "__main__":
         "--no-telegram", action="store_true",
         help="Skip Telegram notification"
     )
+    parser.add_argument(
+        "--verdict-exit-code", action="store_true",
+        help=(f"Выходить кодом {EXIT_VERDICT_FAIL}, когда в отчёте есть красное. "
+              f"По умолчанию код возврата отвечает за работоспособность агента "
+              f"({EXIT_OK} — отчёт построен, {EXIT_BROKEN} — построить не удалось): "
+              f"launchd и гейт деплоя читают его именно так.")
+    )
     args = parser.parse_args()
 
     # Флаг передаётся В функцию, а не «переопределяет» имя, которого она не зовёт:
     # прежняя форма (подмена notify_telegram) не подавляла ничего — см. docstring
     # run_checkpoint.
-    sys.exit(run_checkpoint(data_dir=args.data_dir, notify=not args.no_telegram))
+    sys.exit(run_checkpoint(
+        data_dir=args.data_dir,
+        notify=not args.no_telegram,
+        verdict_exit_code=args.verdict_exit_code,
+    ))

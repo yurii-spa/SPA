@@ -501,3 +501,54 @@ def test_status_file_records_the_delivery_verdict(sandbox):
         "com.spa.threat_reactor",
     ]
     assert saved["alerts_delivered"] == []
+
+
+# ── 7. a verdict that was never written must not look like a passed check ────
+# Card `agent-wake-storm-fail-open-monitors`. `_save` swallowed every write failure and
+# `__main__` exited 0 regardless — so a broken/full disk left the PREVIOUS, possibly green,
+# watchdog_status.json standing as the current verdict, with a clean exit code behind it.
+# Nothing watches this guardian's own heartbeat (it is the last one in the chain), so that
+# silence was permanent. POSITIVE CONTROLS: both red on the unfixed module (no `published`
+# key at all, and `_exit_code` did not exist).
+#
+# The write is made impossible structurally — a destination directory that does not exist —
+# because this suite also runs as root, where a chmod-based test would pass for the wrong reason.
+def test_an_unpublishable_verdict_is_reported_not_silently_dropped(sandbox):
+    _fresh_heartbeats(sandbox)
+    _stub_launchd(sandbox, _all_loaded(sandbox))
+    _stub_send(sandbox, True)
+    stale_but_green = {"healthy": True, "ts": _iso(600), "guardians": {}}
+    (sandbox["data"] / "watchdog_status.json").write_text(json.dumps(stale_but_green))
+    sandbox["monkeypatch"].setattr(
+        wd, "_STATUS", sandbox["data"] / "nonexistent_dir" / "watchdog_status.json")
+
+    rep = wd.run_watchdog()
+
+    assert rep["published"] is False
+    assert wd._exit_code(rep) == 2          # launchd/agent_health can SEE it, instead of exit 0
+    # and the run did NOT quietly adopt the old green file as its own verdict
+    assert json.loads((sandbox["data"] / "watchdog_status.json").read_text()) == stale_but_green
+
+
+def test_a_published_verdict_exits_zero(sandbox):
+    """Control in the other direction: a healthy, publishable run still exits 0."""
+    _fresh_heartbeats(sandbox)
+    _stub_launchd(sandbox, _all_loaded(sandbox))
+    _stub_send(sandbox, True)
+
+    rep = wd.run_watchdog()
+
+    assert rep["published"] is True and rep["healthy"] is True
+    assert wd._exit_code(rep) == 0
+
+
+def test_measured_failures_still_exit_one(sandbox):
+    """The pre-existing contract is untouched: measured failures keep exit code 1."""
+    _fresh_heartbeats(sandbox)
+    _stub_launchd(sandbox, {}, bootstrap=False)      # bootstrap of a missing guardian fails
+    _stub_send(sandbox, True)
+
+    rep = wd.run_watchdog()
+
+    assert rep["failures"] and rep["published"] is True
+    assert wd._exit_code(rep) == 1

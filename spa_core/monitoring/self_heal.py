@@ -26,6 +26,24 @@ Self-healing rules (deterministic, stdlib only, LLM FORBIDDEN):
      empty/unreadable observations). watchdog/uptime_monitor keep entry-only rights.
 
 Atomic writes (tmp + os.replace). Idempotent — safe to run every 5 min.
+
+HONESTY — "not measured" is never published as health (card `agent-wake-storm-fail-open-monitors`;
+the same class the sibling `watchdog.py` was hardened against, which this file was left out of):
+  * ``launchctl list`` that could not be MEASURED (raised / non-zero / unparseable) used to come back
+    as ``{}`` — indistinguishable from "measured, nothing of ours is loaded". Every remedy in step 1
+    is a launchctl operation against that same unmeasured launchd, so an unreadable launchd would
+    have triggered a blind mass-bootstrap while ``loaded: 0`` was published as a measured fact.
+    ``_loaded_labels()`` now returns ``None`` for "we do not know"; step 1 acts on nothing and the
+    run reports the gap in ``unchecked``.
+  * ``healthy`` now requires the observations it is a verdict about to EXIST: launchd measured,
+    plists visible (``~/Library`` unreadable ⇒ ``expected == []``) and the cycle age readable
+    (``age is None``). Measured 2026-08-04: this file reported ``healthy: true`` on a run that had
+    measured none of them — the wake-storm fail-OPEN. An empty/unreadable input is UNCHECKED, and
+    "unchecked" is not "healthy" (a MEASURED-empty launchd, by contrast, stays a real measurement).
+  * A run whose verdict could not be WRITTEN does not look like a successful run: ``_save`` returns
+    whether the status file was published, and the process exits non-zero when it was not. Otherwise
+    the previous (possibly green) file stays on disk as the current verdict while launchd records
+    exit 0 — a check that silently never published, reported as a check that passed.
 """
 # LLM_FORBIDDEN
 from __future__ import annotations
@@ -85,22 +103,38 @@ def _run(args: List[str]) -> subprocess.CompletedProcess:
     return subprocess.run(args, capture_output=True, text=True, timeout=SUBPROC_TIMEOUT)
 
 
-def _loaded_labels() -> Dict[str, int]:
-    """label -> pid (0 if not running) for every loaded com.spa.* job."""
-    out: Dict[str, int] = {}
+def _loaded_labels() -> Dict[str, int] | None:
+    """label -> pid (0 if not running) for every loaded com.spa.* job.
+
+    Returns ``None`` when launchd could not be MEASURED at all — the call raised, exited
+    non-zero, or produced output this parser does not recognise. ``None`` is not ``{}``:
+    an empty mapping means "measured, nothing of ours is loaded" (a real outage worth
+    acting on), while ``None`` means "we do not know", and the caller must never turn
+    "do not know" into "not loaded" — every remedy for "not loaded" is a launchctl
+    operation against that same unmeasured launchd. Mirrors ``watchdog._loaded_labels``.
+    """
     try:
         r = _run(["launchctl", "list"])
-        for line in r.stdout.splitlines():
-            parts = line.split("\t")
-            if len(parts) >= 3 and parts[2].startswith("com.spa."):
-                pid = 0
-                try:
-                    pid = int(parts[0])
-                except ValueError:
-                    pid = 0
-                out[parts[2]] = pid
     except Exception:
-        pass
+        return None
+    if r.returncode != 0:
+        return None
+    out: Dict[str, int] = {}
+    parsed_any = False
+    for line in r.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 3:
+            continue
+        parsed_any = True
+        if parts[2].startswith("com.spa."):
+            try:
+                pid = int(parts[0])
+            except ValueError:
+                pid = 0
+            out[parts[2]] = pid
+    if not parsed_any:
+        # Output we could not parse into a single row is not evidence of an empty launchd.
+        return None
     return out
 
 
@@ -298,15 +332,21 @@ def _resolve_core_agent_down(msg: str) -> bool:
         return False
 
 
-def _save(report: dict) -> None:
+def _save(report: dict) -> bool:
+    """Publish the verdict atomically. Returns whether it actually reached disk.
+
+    Never raises (a failed write must not crash the guardian), but the failure is REPORTED:
+    a swallowed write leaves the PREVIOUS — possibly green — status file standing as the
+    current verdict, and nothing else in the fleet would notice."""
     try:
         _DATA.mkdir(parents=True, exist_ok=True)
         fd, tmp = tempfile.mkstemp(dir=_DATA, prefix=".self_heal_")
         with os.fdopen(fd, "w") as f:
             json.dump(report, f, indent=2)
         os.replace(tmp, _STATUS)
+        return True
     except Exception:
-        pass
+        return False
 
 
 _REVIVAL_LOG = _DATA / "self_heal_revivals.json"
@@ -349,8 +389,20 @@ def run_self_heal(dry_run: bool = False) -> dict:
     # older one that shares the same event class.
     involved: set[str] = set()
 
-    loaded = _loaded_labels()
+    # What could not be MEASURED this run. Anything in here forbids a `healthy` verdict:
+    # an unchecked input is not a passed check (wake-storm fail-OPEN, 2026-08-04).
+    unchecked: List[str] = []
+
+    measured_loaded = _loaded_labels()          # None ⇒ launchd unmeasured (NOT "nothing loaded")
+    launchd_measured = measured_loaded is not None
+    loaded: Dict[str, int] = measured_loaded or {}
+    if not launchd_measured:
+        unchecked.append("launchctl list не измерен — какие агенты загружены, неизвестно")
     expected = _expected_labels()
+    if not expected:
+        # Empty means BOTH "no plists installed" and "~/Library unreadable" — indistinguishable,
+        # so it is not evidence that there is nothing to guard.
+        unchecked.append("плисты не видны (~/Library/LaunchAgents пуст или недоступен)")
     hist = _revival_history()
 
     # 1) Revive expected agents that are NOT loaded — but ONLY those that should be
@@ -360,9 +412,12 @@ def run_self_heal(dry_run: bool = False) -> dict:
     #    loop, so it is skipped (launchd fires it on schedule). CIRCUIT BREAKER: an
     #    agent revived > MAX_REVIVALS_PER_HOUR is crash-looping; reviving it again
     #    only makes things worse (e.g. a flooding bot) — stop and alert instead.
+    #    UNMEASURED launchd ⇒ this whole step is skipped: "missing from `loaded`" would be a claim
+    #    we cannot make, and bootstrapping the entire fleet against a launchd we could not even
+    #    query is the blind mass-action the honesty rule exists to prevent.
     resident_expected = [lbl for lbl in expected if _must_be_resident(lbl)]
     skipped_calendar = 0
-    for label in expected:
+    for label in (expected if launchd_measured else []):
         if label in loaded:
             continue
         if not _must_be_resident(label):
@@ -384,8 +439,9 @@ def run_self_heal(dry_run: bool = False) -> dict:
             failures.append(f"bootstrap failed {label}")
             involved.add(label)
 
-    # 2) Always-on servers loaded but with PID 0 → kickstart.
-    for label in _SERVERS:
+    # 2) Always-on servers loaded but with PID 0 → kickstart. (Unmeasured launchd ⇒ `loaded` is
+    #    empty and nothing here can fire; guarded explicitly so that stays true by intent.)
+    for label in (_SERVERS if launchd_measured else set()):
         if label in loaded and loaded[label] == 0:
             if dry_run:
                 actions.append(f"would kickstart down server {label}")
@@ -467,18 +523,26 @@ def run_self_heal(dry_run: bool = False) -> dict:
     # with live reality (no more "expected==loaded healthy:true" while a dry-run
     # shows 5 calendar agents "missing"). The meaningful invariant is over the
     # RESIDENCY-REQUIRED set: every agent that MUST be resident actually is.
-    resident_loaded = sum(1 for lbl in resident_expected if lbl in loaded)
-    resident_missing = sorted(lbl for lbl in resident_expected if lbl not in loaded)
+    # Only a MEASURED launchd can say who is missing; unmeasured is reported as unchecked above,
+    # never as a list of dead agents (nor as an empty one).
+    resident_loaded = sum(1 for lbl in resident_expected if lbl in loaded) if launchd_measured else None
+    resident_missing = (sorted(lbl for lbl in resident_expected if lbl not in loaded)
+                        if launchd_measured else [])
     # A cycle age past the system-wide staleness contract (CYCLE_STALE_H = 26h,
     # the SAME threshold agent_health CRITICALs on) can never report healthy —
     # even though ACTION (gap recovery) only fires past CYCLE_GAP_HOURS (28h).
     # 2026-08-05 fail-OPEN: cycle_age_h 27.05 sat in the 26..28 window and this
     # file said healthy:true — a breached threshold reported as health.
     cycle_stale = age is not None and age > CYCLE_STALE_H
+    if age is None:
+        # Unreadable paper_trading_status ⇒ the cycle SLA was not evaluated. `cycle_stale: false`
+        # here means "not measured", and must not be counted as "within SLA".
+        unchecked.append("возраст дневного цикла не прочитан — SLA цикла не проверен")
     report = {
         "ts": now,
         "expected": len(expected),               # all installed (non-retired)
-        "loaded": len(loaded),                    # raw launchctl residents
+        "launchctl_measured": launchd_measured,
+        "loaded": len(loaded) if launchd_measured else None,   # raw launchctl residents
         "expected_resident": len(resident_expected),
         "loaded_resident": resident_loaded,
         "missing_resident": resident_missing,     # genuinely-down residents (real outage)
@@ -489,11 +553,13 @@ def run_self_heal(dry_run: bool = False) -> dict:
         "cycle_age_h": round(age, 2) if age is not None else None,
         "cycle_stale": cycle_stale,
         "cycle_stale_threshold_h": CYCLE_STALE_H,
-        # Healthy = no failures/breakers AND every residency-required agent is
-        # resident AND the daily cycle is within its staleness SLA. Calendar
-        # agents being idle does NOT make us unhealthy.
-        "healthy": (not failures and not breakers and not resident_missing
-                    and not cycle_stale),
+        "unchecked": unchecked,       # inputs this run could NOT measure (never "fine")
+        # Healthy = every input was actually MEASURED AND no failures/breakers AND every
+        # residency-required agent is resident AND the daily cycle is within its staleness
+        # SLA. Calendar agents being idle does NOT make us unhealthy; an unmeasured input
+        # does — a verdict about a check that did not run is the fail-OPEN class itself.
+        "healthy": (not unchecked and not failures and not breakers
+                    and not resident_missing and not cycle_stale),
         "LLM_FORBIDDEN": True,
     }
     if not dry_run:
@@ -535,7 +601,9 @@ def run_self_heal(dry_run: bool = False) -> dict:
                     report["core_agent_down_resolved"] = bool(
                         _resolve_core_agent_down(msg)
                     )
-        _save(report)
+        # `published` is added to the RETURNED report only: the file cannot describe its own
+        # absence, so the signal that matters travels by exit code (see __main__).
+        report["published"] = bool(_save(report))
         if actions or failures or breakers:
             lines = ["🔧 <b>SPA Self-Heal</b>"]
             for a in actions:
@@ -549,8 +617,21 @@ def run_self_heal(dry_run: bool = False) -> dict:
     return report
 
 
+def _exit_code(report: dict) -> int:
+    """Process exit code. 0 only for a run that actually PUBLISHED its verdict.
+
+    A run whose status file could not be written leaves the previous (possibly green) file
+    standing while launchd books exit 0 — success for a check whose result nobody ever saw.
+    Code 2 says so out loud, where `agent_health` (which reads last-exit) can see it.
+    Detected faults keep exiting 0 as before: acting on them IS this agent's normal work."""
+    return 2 if report.get("published") is False else 0
+
+
 if __name__ == "__main__":
     import sys
     res = run_self_heal(dry_run="--dry-run" in sys.argv)
     print(json.dumps(res, indent=2, ensure_ascii=False))
+    if _exit_code(res):
+        print("[self_heal] ОТКАЗ: вердикт не записан в self_heal_status.json", file=sys.stderr)
+    raise SystemExit(_exit_code(res))
     raise SystemExit(0 if not res["failures"] else 1)
