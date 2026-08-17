@@ -11,7 +11,8 @@ UNIT CONTRACT (единый для ВСЕГО apy_data — карточка agen
 every value in `apy_data` is a DECIMAL fraction (0.085 == 8.5%), the same unit
 `allocate()` / `current_regime()` always required and the same unit the canonical
 adapter accessor `get_yield_info().apy` returns (spa_core/adapters/apy_contract.py).
-`compute_weighted_apy` validates each value through `validate_apy_decimal`
+Единица объявлена машиночитаемо — модульная константа `APY_UNIT = "decimal"`.
+`compute_weighted_apy` converts each value through `apy_decimal_from_declared`
 (fail-closed: a percent-looking value such as 3.5 is REJECTED → declared fallback,
 never magnitude-guessed) and converts decimal→percent exactly ONCE at return.
 
@@ -38,7 +39,16 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Dict, Optional
 
-from spa_core.adapters.apy_contract import validate_apy_decimal
+from spa_core.adapters.apy_contract import (
+    APY_UNIT_DECIMAL,
+    apy_decimal_from_declared,
+)
+
+# Единица входного apy_data ОБЪЯВЛЕНА здесь, машиночитаемо, а не выводится из
+# величины числа: 0.8 как «0.8 %» и 0.8 как «80 %» — одно и то же число, поэтому
+# без объявления честного ответа не существует (карточка
+# agent-s76-apy-unit-guess, инвариант 2 fail-CLOSED).
+APY_UNIT: str = APY_UNIT_DECIMAL      # 0.085 == 8.5%
 
 # ─── Module-level identity ────────────────────────────────────────────────────
 
@@ -150,7 +160,8 @@ class S76ConcentratedLP:
         heuristic turned a TRUE 0.5% APY into 50%; карточка
         agent-s76-apy-unit-guess).
 
-        Each supplied value is validated via `validate_apy_decimal`
+        Each supplied value is converted against the module's DECLARED unit
+        (`APY_UNIT`) via `apy_decimal_from_declared`
         (fail-closed): a percent value leaking in (e.g. 3.5 meaning 3.5%)
         exceeds the decimal sane-band, is REJECTED with a log, and the
         protocol's declared FALLBACK_APY is used instead — the S22 precedent
@@ -178,7 +189,10 @@ class S76ConcentratedLP:
                     candidate: Optional[float] = float(raw)
                 except (TypeError, ValueError):
                     candidate = None
-                validated = validate_apy_decimal(candidate, protocol=protocol)
+                # Конверсия — по ОБЪЯВЛЕННОЙ единице модуля (APY_UNIT), ровно
+                # одна; необъявленная единица была бы отказом, а не догадкой.
+                validated = apy_decimal_from_declared(
+                    candidate, APY_UNIT, protocol=protocol)
                 apy_dec = fallback if validated is None else validated
             total_decimal += weight * apy_dec
         return total_decimal * 100.0

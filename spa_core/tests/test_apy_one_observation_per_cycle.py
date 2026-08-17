@@ -366,11 +366,12 @@ def test_the_artifact_hands_the_owner_a_named_cause(monkeypatch):
     (`attribution_status` + `reason` из `data/capital_efficiency.json`), поэтому
     контракт закрепляется здесь, у производителя.
 
-    ОСТАЁТСЯ (не в этом заходе): `agent_health_monitor.check_system` пока
-    склеивает свою строку сам и на `CAP_BOUND_CHAIN` печатает общий текст
-    «idle UNEXPLAINED after attribution». Файл в этой волне закреплён за другим
-    агентом — нужна одна ветка, отдающая `reason` дословно; до неё владелец
-    видит названную причину в артефакте, но не в брифинге.
+    ПОТРЕБИТЕЛЬ ПОДКЛЮЧЁН: ветка в `agent_health_monitor.check_system` отдаёт
+    `reason` дословно — сквозной шов проверяет
+    `test_the_named_cause_reaches_the_owner_through_agent_health` ниже. (Прежняя
+    редакция этой строки помечала работу как ОСТАВШУЮСЯ: файл потребителя был
+    закреплён за другим агентом волны. Ни один ассерт при обновлении не тронут —
+    изменён только текст описания, ставший неверным.)
     """
     _wire(monkeypatch,
           ranking=_ranking([_row("frax", 7.5)]),
@@ -385,11 +386,83 @@ def test_the_artifact_hands_the_owner_a_named_cause(monkeypatch):
     assert r["forgone_yield_bps_est"] == 132
 
 
+def test_the_named_cause_reaches_the_owner_through_agent_health(monkeypatch, tmp_path):
+    """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ второй половины ADR-076.3 (краснел до правки читателя).
+
+    Шов сквозной, БЕЗ рукотворного артефакта: производитель считает вердикт сам,
+    он ложится на диск как в проде, и `check_system` читает ровно его. Иначе
+    проверялось бы согласие теста с тестом, а не производителя с потребителем.
+
+    Замер до правки: артефакт называл причину («кэш связан потолком одной
+    цепочки»), а `agent_health.system_issues` печатал ПОВЕРХ неё общее
+    «capital-efficiency LAZY: 5.0% of capital idle UNEXPLAINED after
+    attribution» — то самое утверждение, которое артефакт опровергал.
+    """
+    from spa_core.monitoring.agent_health_monitor import (
+        WARNING as AHM_WARNING,
+        check_system,
+    )
+
+    _wire(monkeypatch,
+          ranking=_ranking([_row("frax", 7.5)]),
+          book=BOUND_BOOK, cash_usd=10_000.0,
+          rationale=_rationale(candidates=["aave_v3", "maple"]),
+          registry=REGISTRY)
+    (tmp_path / "capital_efficiency.json").write_text(
+        json.dumps(ce.assess(now=NOW)), encoding="utf-8")
+
+    checks, status, issues = check_system(tmp_path, NOW, autopush_log="/nonexistent")
+
+    lines = [i for i in issues if i.startswith("capital-efficiency")]
+    assert len(lines) == 1, issues
+    # Причина НАЗВАНА — и ровно теми словами, что у производителя.
+    assert "single-chain cap" in lines[0] and "ethereum" in lines[0]
+    assert "PRICE OF DIVERSIFICATION" in lines[0]
+    assert "UNEXPLAINED" not in lines[0]
+    # Ни вердикт, ни ЧИСЛО не понижены: цена диверсификации остаётся видимой.
+    assert status == AHM_WARNING
+    assert "132bps/yr forgone" in lines[0]
+    assert checks["capital_efficiency"] == "WARNING"
+    assert checks["capital_cash_attribution"] == ce.CAP_BOUND_CHAIN
+
+
+def test_the_consumer_reads_the_producers_own_status_name():
+    """Parity: у потребителя копия строки статуса — расхождение красит ЗДЕСЬ.
+
+    Импортировать `capital_efficiency` в read-only монитор нельзя (затянул бы
+    `spa_core.risk.policy` и адаптеры ради одной строки), поэтому копия — но
+    несвободная.
+    """
+    from spa_core.monitoring import agent_health_monitor as ahm
+
+    assert ahm._CAP_BOUND_CHAIN == ce.CAP_BOUND_CHAIN
+
+
+def test_a_named_cause_without_the_words_falls_back_instead_of_printing_nothing(tmp_path):
+    """Fail-CLOSED: статус есть, а `reason` пуст ⇒ прежняя громкая строка.
+
+    Тишины на пустом объяснении быть не может — иначе поломка производителя
+    гасила бы тревогу у потребителя.
+    """
+    from spa_core.monitoring.agent_health_monitor import check_system
+
+    (tmp_path / "capital_efficiency.json").write_text(json.dumps({
+        "verdict": "WARNING", "attribution_status": ce.CAP_BOUND_CHAIN,
+        "cash_unexplained_pct": 20.0, "forgone_yield_bps_est": 451,
+        "deployable_now_pct": 0.2, "reason": "   ",
+    }), encoding="utf-8")
+    _checks, _status, issues = check_system(
+        tmp_path, NOW, autopush_log="/nonexistent")
+
+    assert any("UNEXPLAINED" in i for i in issues), issues
+
+
 def test_agent_health_still_shouts_when_the_cause_is_unnamed(tmp_path):
     """Контроль в обратную сторону: безымянный простой доезжает до владельца.
 
-    Проверяется существующее поведение потребителя (файл не менялся): тревога
-    про необъяснённый простой обязана остаться слышимой.
+    Проверяется поведение потребителя на статусе `UNEXPLAINED_CASH`: тревога про
+    НАСТОЯЩИЙ безымянный простой обязана остаться слышимой дословно — новая ветка
+    её не перехватывает.
     """
     from spa_core.monitoring.agent_health_monitor import check_system
 

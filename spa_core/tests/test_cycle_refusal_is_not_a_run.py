@@ -39,6 +39,41 @@ from spa_core.paper_trading import cycle_exit as ce
 _WRAPPER = Path(__file__).resolve().parents[2] / "scripts" / "run_daily_paper_cycle.sh"
 
 
+# Часы — ВХОД (`.claude/rules/deployment.md`): фиксированная точка в будущем плюс
+# отметки файлов, поставленные ОТНОСИТЕЛЬНО неё. Календарь сдвинется — тест нет.
+_NOW = datetime(2030, 1, 1, 12, 0, tzinfo=timezone.utc)
+
+
+def _cycle_plist(log_path) -> dict:
+    """Плист в той же форме, что живой `com.spa.daily_cycle`."""
+    return {"StartCalendarInterval": {"Hour": 8, "Minute": 0},
+            "StandardOutPath": str(log_path)}
+
+
+def _fresh_log(tmp_path, name: str = "cycle.log"):
+    p = tmp_path / name
+    p.write_text("x")
+    ts = (_NOW - timedelta(minutes=5)).timestamp()
+    os.utime(p, (ts, ts))
+    return p
+
+
+def _read_cycle_agent(tmp_path, exit_code, *, cycle_lock=None,
+                      label: str = None, pid: int = 0, name: str = None):
+    """Прогнать НАСТОЯЩЕГО читателя (`agent_health_monitor.check_agent`).
+
+    Свежий лог подставлен намеренно: иначе проверка свежести добавляла бы свой
+    жёлтый и тест мерил бы не тот вопрос.
+    """
+    from spa_core.monitoring import agent_health_monitor as ahm
+
+    label = label or ce.CYCLE_AGENT_LABEL
+    log = _fresh_log(tmp_path, name or f"c{exit_code}_{label[-6:]}.log")
+    return ahm.check_agent(label, _cycle_plist(log), True,
+                           {label: {"pid": pid, "exit": exit_code}}, _NOW,
+                           tmp_path, cycle_lock=cycle_lock)
+
+
 def _verdict(state: str, pid: int | None = 4242) -> clw.CycleLockVerdict:
     """Вердикт замка нужного состояния — ровно то, что возвращает `check_cycle_lock`."""
     dead = state == clw.STATE_HELD_DEAD
@@ -125,23 +160,39 @@ def test_the_two_outcomes_are_finally_distinguishable():
     assert crash is None, "авария обязана уйти к прежнему, громкому разбору"
 
 
-def test_the_unfixed_reader_reproduces_the_defect():
-    """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ на коде ДО правки: прежний читатель не различал.
+def test_the_reader_no_longer_reproduces_the_defect(tmp_path):
+    """ПЕРЕНАЦЕЛЕН ОСОЗНАННО (инвариант 16) — прежнее имя было
+    `test_the_unfixed_reader_reproduces_the_defect`, и он был ЗЕЛЁН ровно пока
+    место вызова в `agent_health_monitor` НЕ применено: он моделировал прежнего
+    читателя лямбдой и утверждал, что тот не различает исходы.
 
-    Воспроизводится дословно правило `agent_health_monitor` в его нынешнем
-    (незатронутом) виде: штатным считается ровно один исход — отказ политики,
-    а значит код 2 красит одинаково и при живом держателе, и при трупе.
-    Пока этот тест зелёный, вторая половина карточки в читателе НЕ применена.
+    Обоснование замены: тест выполнил свою роль (был положительным контролем на
+    коде до правки) и с применением второй половины карточки стал бы утверждать
+    ложное — «читатель по-прежнему не различает». Ни одна проверка не ослаблена и
+    не удалена: утверждение развёрнуто на НАСТОЯЩЕГО читателя
+    (`agent_health_monitor.check_agent`), а модель прежнего поведения оставлена
+    рядом как то, с чем сравниваем. Красный тест здесь по-прежнему означает
+    аварию 08.08, только теперь измеряется код, который поедет в прод, а не
+    лямбда в тесте. Запись — в `docs/journal/2026-W33.md`.
     """
+    from spa_core.monitoring import agent_health_monitor as ahm
     from spa_core.paper_trading.cycle_exit import is_by_design
 
+    # Код отказа замка НЕ штатный сам по себе — тишина покупается доказательством.
     assert is_by_design(ce.EXIT_LOCK_REFUSED) is False
-    # Прежняя логика читателя видит только код — и для живого, и для мёртвого
-    # держателя выдаёт один и тот же жёлтый.
+
+    # Прежняя логика читателя видела только код — и для живого, и для мёртвого
+    # держателя выдавала один и тот же жёлтый. Это и был дефект.
     old_reader = lambda code, verdict: "OK" if is_by_design(code) else "WARNING"  # noqa: E731
     assert (old_reader(ce.EXIT_LOCK_REFUSED, _verdict(clw.STATE_HELD_ALIVE))
             == old_reader(ce.EXIT_LOCK_REFUSED, _verdict(clw.STATE_HELD_DEAD)))
-    # А новый различает — ровно то, чего требовала карточка.
+
+    # А НАСТОЯЩИЙ читатель теперь различает — то, чего требовала карточка.
+    def _reader(lock):
+        return _read_cycle_agent(tmp_path, ce.EXIT_LOCK_REFUSED, cycle_lock=lock).status
+
+    assert _reader(_verdict(clw.STATE_HELD_ALIVE)) != _reader(_verdict(clw.STATE_HELD_DEAD))
+    # И вывод сторожа остался согласован с читателем.
     assert (clw.judge_lock_refusal(_verdict(clw.STATE_HELD_ALIVE))[0]
             != clw.judge_lock_refusal(_verdict(clw.STATE_HELD_DEAD))[0])
 
@@ -258,3 +309,181 @@ def test_every_invocation_still_ends_with_a_terminator_line():
     text = _wrapper_text()
     assert "Cycle REFUSED" in text
     assert "Cycle completed" in text
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 5. МЕСТО ВЫЗОВА: читатель (`agent_health_monitor`) применяет вердикт замка
+#    Вторая половина карточки. Логика жила в сторожа с прошлой волны, а пульт
+#    её не спрашивал — «смена цифры без смены смысла».
+# ════════════════════════════════════════════════════════════════════════════
+def test_a_live_holder_no_longer_reddens_the_cycle_agent(tmp_path):
+    """ЗАМЕР 08.08: 18 отказов из 20 вызовов при ЖИВОМ цикле — и жёлтый пульт.
+
+    ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ места вызова: до правки этот тест краснел, потому что
+    читатель видел только код 2 и красил его как аварию.
+    """
+    h = _read_cycle_agent(tmp_path, ce.EXIT_LOCK_REFUSED,
+                          cycle_lock=_verdict(clw.STATE_HELD_ALIVE, pid=98535))
+
+    assert h.status == ahm_ok()
+    assert h.issue == ""
+    # И НЕ молчит: исход назван вслух вместе с ДОКАЗАТЕЛЬСТВОМ.
+    assert f"last_exit={ce.EXIT_LOCK_REFUSED}" in h.note
+    assert "отказ замка" in h.note          # слова из словаря исходов
+    assert "ЗАКОНЕН" in h.note and "98535" in h.note
+
+
+def test_a_dead_holder_still_reddens_the_cycle_agent(tmp_path):
+    """Обратная сторона: тот же код 2 при ТРУПЕ = дневной цикл встал.
+
+    Оба инцидента 08.08 именно такие. Мутация «гасить код 2 всегда» красит этот
+    тест — и это его работа.
+    """
+    h = _read_cycle_agent(tmp_path, ce.EXIT_LOCK_REFUSED,
+                          cycle_lock=_verdict(clw.STATE_HELD_DEAD))
+
+    assert h.status == ahm_warning()
+    assert f"last_exit={ce.EXIT_LOCK_REFUSED}" in h.issue
+    assert "замка" in h.issue
+    assert h.note == ""
+
+
+@pytest.mark.parametrize("state", [clw.STATE_HELD_EXPIRED, clw.STATE_UNCHECKED,
+                                   clw.STATE_NO_LOCK])
+def test_anything_short_of_a_live_holder_keeps_the_previous_loudness(tmp_path, state):
+    """Fail-CLOSED: «не труп» ≠ «доказано законно» — прежнее поведение читателя."""
+    h = _read_cycle_agent(tmp_path, ce.EXIT_LOCK_REFUSED, cycle_lock=_verdict(state))
+
+    assert h.status == ahm_warning()
+    assert f"last_exit={ce.EXIT_LOCK_REFUSED}" in h.issue
+
+
+def test_an_unmeasured_lock_is_not_a_permission_for_the_reader_to_be_quiet(tmp_path):
+    """Замок не измерен вовсе (`cycle_lock=None`) — прежняя громкость.
+
+    Важно для одиночных вызовов `check_agent` из тестов и скриптов: отсутствие
+    снимка НИКОГДА не хранится как «в порядке».
+    """
+    h = _read_cycle_agent(tmp_path, ce.EXIT_LOCK_REFUSED, cycle_lock=None)
+
+    assert h.status == ahm_warning()
+    assert f"last_exit={ce.EXIT_LOCK_REFUSED}" in h.issue
+
+
+@pytest.mark.parametrize("code", [ce.EXIT_ERROR, ce.EXIT_NO_LIVE_DATA,
+                                  ce.EXIT_SAFETY_UNMEASURED,
+                                  ce.EXIT_PROTECTION_TRIGGERED])
+def test_a_live_lock_is_no_indulgence_for_a_foreign_outcome(tmp_path, code):
+    """Живой держатель НЕ гасит чужой исход: авария остаётся аварией."""
+    h = _read_cycle_agent(tmp_path, code, cycle_lock=_verdict(clw.STATE_HELD_ALIVE))
+
+    assert h.status == ahm_warning()
+    assert f"last_exit={code}" in h.issue
+
+
+def test_the_verdict_applies_only_to_the_cycle_agent(tmp_path):
+    """Fail-CLOSED: у ЧУЖОГО агента двойка означает что угодно — не молчать."""
+    h = _read_cycle_agent(tmp_path, ce.EXIT_LOCK_REFUSED,
+                          cycle_lock=_verdict(clw.STATE_HELD_ALIVE),
+                          label="com.spa.some_other_agent")
+
+    assert h.status == ahm_warning()
+    assert f"last_exit={ce.EXIT_LOCK_REFUSED}" in h.issue
+    assert "ЗАКОНЕН" not in h.note and h.note == ""
+
+
+def test_the_words_reach_the_report_file(tmp_path):
+    """Слова обязаны доехать до `data/agent_health.json` — иначе их не прочтут."""
+    h = _read_cycle_agent(tmp_path, ce.EXIT_LOCK_REFUSED,
+                          cycle_lock=_verdict(clw.STATE_HELD_ALIVE, pid=99899))
+    d = h.to_dict()
+
+    assert d["status"] == ahm_ok() and d["issue"] == ""
+    assert "ЗАКОНЕН" in d["note"] and "99899" in d["note"]
+
+
+def test_a_legitimate_refusal_does_not_feed_the_wake_storm(tmp_path):
+    """Побочно: законный отказ больше не считается за павшего агента."""
+    from spa_core.monitoring import agent_health_monitor as ahm
+
+    ok_cycle = _read_cycle_agent(tmp_path, ce.EXIT_LOCK_REFUSED,
+                                 cycle_lock=_verdict(clw.STATE_HELD_ALIVE))
+    assert ahm.detect_wake_storm([ok_cycle], min_agents=1) is None
+
+    dead = _read_cycle_agent(tmp_path, ce.EXIT_LOCK_REFUSED,
+                             cycle_lock=_verdict(clw.STATE_HELD_DEAD))
+    assert ahm.detect_wake_storm([dead], min_agents=1) is not None
+
+
+# ── Один снимок замка на весь отчёт ─────────────────────────────────────────
+def test_the_report_reads_the_lock_exactly_once(tmp_path, monkeypatch):
+    """Два чтения одного замка могут разойтись — и отчёт напечатает оба.
+
+    ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ на класс «две половины судят разные снимки»: до
+    правки `check_agent` замок вообще не видел, а `check_system` читал его сам,
+    так что появление второй половины без общего снимка дало бы ДВА чтения.
+    """
+    from spa_core.monitoring import agent_health_monitor as ahm
+
+    calls = []
+    snapshot = _verdict(clw.STATE_HELD_ALIVE, pid=98535)
+
+    def _spy(data_dir, now, **kw):
+        calls.append((Path(data_dir), now))
+        return snapshot
+
+    monkeypatch.setattr(ahm, "check_cycle_lock", _spy)
+    seen = []
+    _real_check_agent = ahm.check_agent
+    _real_check_system = ahm.check_system
+    monkeypatch.setattr(ahm, "check_agent", lambda *a, **kw: (
+        seen.append(("agent", kw.get("cycle_lock"))) or _real_check_agent(*a, **kw)))
+    monkeypatch.setattr(ahm, "check_system", lambda *a, **kw: (
+        seen.append(("system", kw.get("cycle_lock"))) or _real_check_system(*a, **kw)))
+
+    agents_dir = tmp_path / "LaunchAgents"
+    agents_dir.mkdir()
+    (agents_dir / f"{ce.CYCLE_AGENT_LABEL}.plist").write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" '
+        '"http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
+        '<plist version="1.0"><dict><key>StartCalendarInterval</key>'
+        '<dict><key>Hour</key><integer>8</integer></dict>'
+        f'<key>StandardOutPath</key><string>{_fresh_log(tmp_path)}</string>'
+        '</dict></plist>\n')
+
+    report = ahm.AgentHealthMonitor(
+        data_dir=tmp_path, launch_agents_dir=agents_dir,
+        launchctl_output=f"0\t{ce.EXIT_LOCK_REFUSED}\t{ce.CYCLE_AGENT_LABEL}",
+        autopush_log="/nonexistent", now=_NOW).collect()
+
+    assert len(calls) == 1, f"замок прочитан {len(calls)} раз(а) — снимки могут разойтись"
+    # И ОДИН И ТОТ ЖЕ объект доехал до обеих половин.
+    assert [k for k, _ in seen] == ["agent", "system"]
+    assert all(v is snapshot for _, v in seen), "половины получили разные снимки"
+    # Сквозной контроль: законный отказ доехал до отчёта зелёным и со словами.
+    cyc = [a for a in report["agents"] if a["label"] == ce.CYCLE_AGENT_LABEL][0]
+    assert cyc["status"] == ahm_ok() and "ЗАКОНЕН" in cyc["note"]
+
+
+def test_check_system_alone_still_reads_the_lock_itself(tmp_path):
+    """Обратная сторона фолбэка: одиночный вызов без снимка не ослеп."""
+    from spa_core.monitoring import agent_health_monitor as ahm
+
+    (tmp_path / clw.CYCLE_LOCK_FILE).write_text('{"pid": 1, "ts": "x"}')
+    checks, _status, _issues = ahm.check_system(
+        tmp_path, _NOW, autopush_log="/nonexistent")
+
+    assert checks["cycle_lock_state"] is not None
+
+
+def ahm_ok() -> str:
+    from spa_core.monitoring import agent_health_monitor as ahm
+
+    return ahm.OK
+
+
+def ahm_warning() -> str:
+    from spa_core.monitoring import agent_health_monitor as ahm
+
+    return ahm.WARNING

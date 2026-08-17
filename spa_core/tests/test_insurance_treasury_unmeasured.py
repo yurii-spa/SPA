@@ -32,14 +32,26 @@ _HELD = ("aave_v3", "pendle", "maple", "morpho_steakhouse")
 
 
 def _legacy_from_profile(protocol, treasury_usd):
-    """Тот же payload, который модуль строит из структурного профиля."""
+    """Тот же payload, который модуль строит из структурного профиля.
+
+    НАМЕРЕННОЕ ИЗМЕНЕНИЕ ФИКСТУРЫ (инв. 16, 2026-08-17, карточка
+    ``agent-insurance-scorer-otbrasyvaet-izvestnoe-pokrytie``): покрытие и
+    ``has_insurance`` берутся из профиля, потому что контекст-ветка модуля
+    перестала подставлять литералы ``False`` / ``0.0``. Ни одна проверка этого
+    файла не ослаблена — они все о КАЗНЕ и сформулированы относительно
+    компонент (``score_basis_max``, сумма earned, равенство тиров), поэтому
+    остаются в силе; фиксировать здесь старые литералы означало бы проверять
+    payload, которого модуль больше не строит. Обоснование в журнале:
+    ``docs/journal/2026-W34.md``.
+    """
     p = pf.generic_profile_for(protocol)
     assert p is not None, protocol
+    _cov = float(p["insurance_coverage_pct"])
     return {
         "protocol": p["name"],
-        "has_insurance": False,
-        "insurance_coverage_pct": 0.0,
-        "insurance_provider": "none",
+        "has_insurance": _cov > 0.0,
+        "insurance_coverage_pct": _cov,
+        "insurance_provider": "",
         "treasury_usd": treasury_usd,
         "tvl_usd": p["tvl_usd"],
         "bug_bounty_usd": p["bug_bounty_usd"],
@@ -231,22 +243,40 @@ class TestMeasuredPathUnchanged(unittest.TestCase):
 class TestUncheckedBlocksNobody(unittest.TestCase):
     """Вторая половина решения владельца: отказ не смеет никого блокировать.
 
-    Замер того, что видит агрегатор (два первых теста — стражи: на старом
-    модуле тоже зелёные, они и должны быть зелёными в ОБЕ стороны). Значение 0.0 —
-    не «безопасно» и не «опасно», а следствие того, что ``_coerce_score``
-    первым находит ``coverage_score`` (модуль размечен ``blind_equal`` и в
-    composite не входит). Тест закрепляет ИМЕННО НЕИЗМЕННОСТЬ этой величины:
-    отказ от выдуманной казны не сдвинул её ни на одном протоколе.
+    Замер того, что видит агрегатор.
+
+    НАМЕРЕННОЕ ИЗМЕНЕНИЕ ДВУХ ТЕСТОВ (инв. 16, 2026-08-17, карточка
+    ``agent-insurance-scorer-otbrasyvaet-izvestnoe-pokrytie``; обоснование —
+    ``docs/journal/2026-W34.md``). Оба теста закрепляли величину ``0.0``,
+    которую агрегатор видел ПОТОМУ ЧТО модуль был слеп: ``_coerce_score`` не
+    находил ни одного ключа из ``_SCORE_KEYS`` и падал в fallback «первый
+    попавшийся ``*_score``» — ``coverage_score``, а он был константным нулём
+    из-за выброшенного покрытия. Это ровно тот дефект, который закрыт
+    отдельной карточкой: у результата появился явный ``risk_score``
+    (= 100 − защищённость), и величина стала протокол-специфичной
+    (aave_v3 67.7143 · pendle 89.3734 · maple 90.2306 · morpho 89.0877).
+    Проверки НЕ ослаблены, а переписаны на то, что решение владельца
+    действительно гарантирует: известный протокол не глохнет, отказ от
+    выдуманной казны не двигает ТИР (``test_refusal_does_not_downgrade_the_tier``
+    выше), а число агрегатора — честная арифметика модуля, а не константа.
+    Старое равенство ``0.0 == 0.0`` держалось тождественно и не проверяло
+    ничего.
     """
 
-    def test_known_protocols_keep_their_aggregator_score(self):
+    def test_known_protocols_get_their_own_aggregator_score(self):
         sc = ProtocolInsuranceScorer()
+        seen = {}
         for proto in _HELD:
             with self.subTest(protocol=proto):
                 out = sc.score({"cycle_ts": "x", "protocol": proto},
                                write_log=False)
                 self.assertIsNotNone(out, "известный протокол не должен глохнуть")
-                self.assertEqual(out["risk_score"], 0.0)
+                self.assertIsInstance(out["risk_score"], float)
+                self.assertGreaterEqual(out["risk_score"], 0.0)
+                self.assertLessEqual(out["risk_score"], 100.0)
+                seen[proto] = out["risk_score"]
+        self.assertGreater(len(set(seen.values())), 1,
+                           f"score снова одинаков у всех протоколов: {seen}")
 
     def test_unknown_protocol_stays_dormant(self):
         out = ProtocolInsuranceScorer().score(
@@ -254,15 +284,26 @@ class TestUncheckedBlocksNobody(unittest.TestCase):
             write_log=False)
         self.assertIsNone(out)
 
-    def test_coerced_score_of_raw_result_is_unaffected_by_refusal(self):
+    def test_refusal_does_not_penalise_via_the_aggregator_number(self):
+        """Отказ от казны не двигает тир и остаётся ЧЕСТНОЙ арифметикой.
+
+        Раньше здесь стояло равенство коэрцированных величин — оно держалось
+        только потому, что обе были константным нулём слепого модуля. Теперь
+        проверяется то, что действительно обещано ADR-070 п.15: тир не падает,
+        а число агрегатора равно ``100 − total_insurance_score`` в обоих
+        случаях (никакой отдельной шкалы для «не измерено»).
+        """
         sc = ProtocolInsuranceScorer()
         fabricated = _legacy_from_profile("pendle", None)
         fabricated["treasury_usd"] = fabricated["tvl_usd"] * 0.02
         honest = _legacy_from_profile("pendle", None)
-        self.assertEqual(
-            _ModuleAdapter._coerce_score(sc.score(honest, write_log=False)),
-            _ModuleAdapter._coerce_score(sc.score(fabricated, write_log=False)),
-        )
+        res_honest = sc.score(honest, write_log=False)
+        res_fab = sc.score(fabricated, write_log=False)
+        self.assertEqual(res_honest["protection_tier"], res_fab["protection_tier"])
+        for res in (res_honest, res_fab):
+            self.assertAlmostEqual(
+                _ModuleAdapter._coerce_score(res),
+                100.0 - res["total_insurance_score"], places=4)
 
 
 if __name__ == "__main__":
