@@ -5,8 +5,6 @@ title: Храповик неподключённых скриптов счита
 status: done
 source: nimbalyst
 created: 2026-08-16
-claimed_by: pid4219
-claimed_at: 2026-08-17T22:54:44Z
 ---
 
 ## Что случилось
