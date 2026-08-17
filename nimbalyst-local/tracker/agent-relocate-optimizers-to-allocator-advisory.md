@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent
 title: Переселить 13 оптимизаторов в советники аллокатора (поток 1 own-27)
-status: backlog
+status: done
 source: own-27-decision-2026-08-04
 created: 2026-08-04
 priority: medium
