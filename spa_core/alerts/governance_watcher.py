@@ -260,6 +260,19 @@ def whitelisted_protocol_keys() -> Optional[list[str]]:
     (``spa_core.adapters.ADAPTER_REGISTRY``) rather than duplicated here — a
     second hand-maintained list is exactly the drift that produced this bug.
 
+    SET CHOICE IS DELIBERATE: the canonical ``ADAPTER_REGISTRY`` (36 tuples,
+    largest book position keyed ``aave_v3``) — the allocator's universe of
+    choice.  NOT ``spa_core.adapters.registry.ADAPTER_METADATA`` (22, dict),
+    which does not contain ``aave_v3`` at all (it is ``aave_usdc`` there), and
+    NOT ``adapter_orchestrator.POLLED_ADAPTERS`` (8, what the cycle actually
+    polls) — a whitelist narrowed to the polled set would silently mark 28
+    investable protocols as non-whitelisted.
+
+    Since cycle #274 the name ``ADAPTER_REGISTRY`` is defined exactly once in
+    the tree (ratchet: ``spa_core/tests/test_adapter_registry_single_name.py``),
+    so the shape is already guaranteed; the shape-tolerant parsing below is kept
+    deliberately as belt-and-braces — it reads the shape instead of assuming it.
+
     Returns ``None`` when the registry cannot be read or yields nothing.  The
     caller MUST treat ``None`` as *not measured*, never as "fully covered"
     (fail-CLOSED, invariant #2).  NEVER raises.

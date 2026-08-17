@@ -227,6 +227,29 @@ class PaperDay1Checklist:
         """
         CRITICAL: Adapter registry is present and populated.
         Expects at least 15 registered adapters (actual count depends on version).
+
+        КАКОЙ ИЗ НАБОРОВ — ЯВНО (цикл #274 развёл имена, но НЕ пересмотрел выбор).
+        Рядом живут три разных набора, и вопрос «сколько у нас адаптеров» имеет три
+        разных честных ответа:
+
+          * ``spa_core.adapters.ADAPTER_REGISTRY``  — 36, список кортежей: ВСЕЛЕННАЯ
+            ВЫБОРА аллокатора, ключ крупнейшей позиции книги ``aave_v3``;
+          * ``spa_core.adapters.registry.ADAPTER_METADATA`` — 22, dict метаданных;
+            ``aave_v3`` там НЕТ вовсе (она называется ``aave_usdc``);
+          * ``adapter_orchestrator.POLLED_ADAPTERS`` — 8, что цикл реально опрашивает.
+
+        Этот день-1 чек называется «adapter registry is populated» и его число читают
+        как размер вселенной выбора ⇒ гейтить обязан КАНОН. До этой правки он считал
+        ``len(ADAPTER_METADATA)`` и докладывал **22** — на 14 меньше канонических 36,
+        причём молча: 22 ≥ 15, поэтому чек был зелёным и выглядел правдой. Ровно та же
+        ошибка, что три месяца врала в ``house_view_gap`` (#206), только в отчёте дня-1:
+        переименование #274 сделало grep чистым, но потребителя не пересмотрело.
+
+        Метаданные остались в отчёте — но КАК ОПИСАНИЕ, под своим именем и со своим
+        числом, чтобы 22 нельзя было прочитать как размер вселенной выбора.
+
+        Fail-CLOSED: канон не читается ⇒ отказ (не «посчитаем по метаданным»).
+        Состав ни одного из наборов не меняется — правится только ВЫБОР набора.
         """
         MIN_ADAPTERS = 15
         try:
@@ -234,19 +257,24 @@ class PaperDay1Checklist:
             if str(self._base) not in sys.path:
                 sys.path.insert(0, str(self._base))
             try:
+                # КАНОН — вселенная выбора аллокатора (инвариант CLAUDE.md).
+                from spa_core.adapters import ADAPTER_REGISTRY
+                count = len(ADAPTER_REGISTRY)
+                # Метаданные — отдельный набор с ДРУГИМ составом; только описание.
                 from spa_core.adapters.registry import ADAPTER_METADATA, registry_summary
-                count = len(ADAPTER_METADATA)
+                meta_count = len(ADAPTER_METADATA)
                 summary = registry_summary()
             finally:
                 sys.path = sys_path_bak
 
             if count < MIN_ADAPTERS:
                 return _fail(
-                    f"Only {count} adapters registered (minimum {MIN_ADAPTERS}). "
-                    f"Summary: {summary}"
+                    f"Only {count} adapters in ADAPTER_REGISTRY (minimum "
+                    f"{MIN_ADAPTERS}). Summary: {summary}"
                 )
             return _ok(
-                f"{count} adapters registered. "
+                f"{count} adapters registered (ADAPTER_REGISTRY — canonical "
+                f"allocator universe). ADAPTER_METADATA: {meta_count} entries, "
                 f"T1={summary.get('t1_count',0)} "
                 f"T2={summary.get('t2_count',0)} "
                 f"T3={summary.get('t3_count',0)}"
