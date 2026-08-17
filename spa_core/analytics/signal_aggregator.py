@@ -65,6 +65,17 @@ try:
 except Exception:  # pragma: no cover — разметка ещё не сгенерирована
     PROTOCOL_BLIND_MODULES = frozenset()
 
+# Модули, чей ПОЛНЫЙ результат различается по протоколам, а коэрсированный
+# score — константа (волна 3 того же аудита). Различие теряет
+# ``_ModuleAdapter._coerce_score``, а не модуль: звать такой модуль слепым
+# значит утверждать «бесполезен» о том, кто измерение сделал. Численно они
+# ведут себя как слепые (в composite константу не пускаем), но статус называет
+# правду — "miscoerced". Отсутствие файла/набора = пустой набор.
+try:
+    from spa_core.analytics._protocol_blindness import MISCOERCED_MODULES
+except Exception:  # pragma: no cover — разметка старого формата
+    MISCOERCED_MODULES = frozenset()
+
 # Разметка покрытия ключей (scripts/audit_tier_c_wiring_feasibility.py --tier B
 # --emit-markup): модуль различает протоколы, но профиль не даёт части ключей,
 # которые его движок читает, — различие пришло из ПОБОЧНЫХ полей. Слепоту
@@ -488,6 +499,7 @@ class SignalAggregator:
             "ts": _utc_now_iso(),
             "module": module_name,
             # ok | unchecked | failed | timeout | dormant | blind | unsourced
+            # | miscoerced
             "status": status,
             "detail": detail,
         })
@@ -640,6 +652,16 @@ class SignalAggregator:
         громкий статус "unsourced", исключены из composite И из числителя
         confidence. Модуль в обоих наборах получает "blind" — вердикт старше и
         строже.
+
+        Волна 3 (цикл #144, 2026-08-17): вердикт «слеп» ставился по
+        коэрсированному score — по одному числу, выбранному лоссовой
+        проекцией результата. Модуль, различивший протоколы своей величиной
+        под ``detail`` под одним грубым ``risk_label``, снаружи выглядел
+        константой и получал ярлык, который читается как «бесполезен», плюс
+        отлучение от исполнения. Такие модули теперь размечены отдельно —
+        ``MISCOERCED_MODULES``, статус "miscoerced": численно так же (в
+        composite константу не пускаем), но ярлык называет, ЧТО чинить —
+        коэрсию/контракт модуля, а не «подключите модуль к фактам».
         """
         modules = registry.get_tier_modules("B")
         total_modules = max(1, len(modules))
@@ -655,6 +677,11 @@ class SignalAggregator:
                 if name in PROTOCOL_BLIND_MODULES:
                     self._record(m["module"], "blind",
                                  "protocol-blind constant (audit markup)")
+                elif name in MISCOERCED_MODULES:
+                    self._record(m["module"], "miscoerced",
+                                 "result differs per protocol, coerced score "
+                                 "constant — aggregator loses it, module is "
+                                 "not blind (audit markup)")
                 elif name in UNSOURCED_MODULES:
                     self._record(m["module"], "unsourced",
                                  "differentiates on side fields — profile "

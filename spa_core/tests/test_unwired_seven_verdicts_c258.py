@@ -33,6 +33,8 @@ import json
 import unittest
 from pathlib import Path
 
+from spa_core.tests._freshness import ts as _ts
+
 _ROOT = Path(__file__).resolve().parents[2]
 _CYCLE = _ROOT / "scripts" / "run_daily_paper_cycle.sh"
 
@@ -322,8 +324,14 @@ class TestDdSnapshotIsRefreshedWithTheBundle(unittest.TestCase):
             root = Path(td)
             rd = root / "data" / "rates_desk"
             rd.mkdir(parents=True)
+            # `as_of` — непрозрачная нагрузка записи: ни `refresh_published_proof`,
+            # ни `build_dd_snapshot` её не читают (проверено grep'ом), она лишь
+            # участвует в хеше цепочки. Литеральная дата здесь была бы бомбой
+            # замедленного действия рядом с понятием свежести, поэтому берётся
+            # ОТНОСИТЕЛЬНАЯ (шаблон 2 из `_freshness`).
             gen0, payload = "0" * 64, {"kind": "ENTRY", "approved": True,
-                                       "underlying": "susde", "as_of": "2026-06-28"}
+                                       "underlying": "susde",
+                                       "as_of": _ts(hours_ago=48)[:10]}
             canon = json.dumps({"seq": 0, "ts": "t", "event_type": "rates_desk_decision",
                                 "payload": payload, "prev_hash": gen0},
                                sort_keys=True, separators=(",", ":"), ensure_ascii=False)

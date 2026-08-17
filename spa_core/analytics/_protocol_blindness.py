@@ -5,7 +5,7 @@ _protocol_blindness.py — эмпирическая разметка прото�
 перегенерация: python3 scripts/audit_protocol_blindness.py --emit-markup
 (в sandbox-чекауте, не в живом репо — модули пишут data/*-логи).
 
-Дифференциальный аудит 2026-08-17T19:20:18.403861Z: каждый Tier-B модуль прогнан для
+Дифференциальный аудит 2026-08-17T22:25:14.689191Z: каждый Tier-B модуль прогнан для
 ['aave_v3', 'maple', 'pendle'] + повтор aave_v3 (недетерминизм) + контрольный
 несуществующий протокол; trio-слепые дополнительно прогнаны по ВСЕЙ
 вселенной _protocol_facts (волна 2, задача A2). Модули PROTOCOL_BLIND_DETAIL
@@ -17,15 +17,22 @@ advisory-слой; Tier-A не трогаем.
 WIDE_OK_MODULES — модули, равные на аудиторской тройке (весь ethereum), но
 РАЗЛИЧАЮЩИЕ протоколы на широкой вселенной (chain/kind/fee-структура):
 честные coarse-модули, НЕ слепые, из исполнения НЕ исключаются.
+
+MISCOERCED_DETAIL — модули, чей ПОЛНЫЙ результат различается по протоколам,
+а коэрсированный score константа (волна 3): различие теряет
+``_ModuleAdapter._coerce_score``, а не модуль. Слепыми они НЕ числятся —
+вердикт «слеп» читается как «модуль бесполезен» и отправлял бы чинить
+исправный код. Из composite они по-прежнему исключены (константа в composite
+— ровно тот фиктивный сигнал, ради которого заведена разметка), но статус
+честный: "miscoerced", и в нём названы различающиеся поля.
 """
 from typing import Dict, FrozenSet
 
-AUDIT_GENERATED_AT = "2026-08-17T19:20:18.403861Z"
+AUDIT_GENERATED_AT = "2026-08-17T22:25:14.689191Z"
 
 # module_name -> подтип (blind_constant | blind_equal | nondeterministic)
 PROTOCOL_BLIND_DETAIL: Dict[str, str] = {
     "defi_correlation_risk_analyzer": "blind_equal",
-    "defi_cross_chain_yield_comparator": "blind_equal",
     "defi_governance_token_utility_scorer": "blind_equal",
     "defi_insurance_protocol_scorer": "blind_equal",
     "defi_liquidity_concentration_risk_scorer": "blind_equal",
@@ -214,3 +221,11 @@ WIDE_OK_MODULES: FrozenSet[str] = frozenset({
     "protocol_defi_vault_fee_structure_breakeven_analyzer",
     "protocol_multi_chain_risk_assessor",
 })
+
+# module_name -> {"where": где найдено различие, "score": константа коэрсии,
+#                 "differing_paths": пути полного результата, которые различаются}
+MISCOERCED_DETAIL: Dict[str, Dict[str, object]] = {
+    "defi_cross_chain_yield_comparator": {"differing_paths": [".detail.gross_apy_pct", ".detail.gross_yield_usd", ".detail.net_apy_pct", ".detail.net_yield_usd", ".detail.recommendation"], "score": 10.0, "where": "trio"},
+}
+
+MISCOERCED_MODULES: FrozenSet[str] = frozenset(MISCOERCED_DETAIL)

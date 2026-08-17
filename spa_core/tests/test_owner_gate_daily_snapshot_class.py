@@ -258,6 +258,42 @@ def test_tier_package_numbers_still_gate(repo: Path):
     assert "packages.conservative.apy_pct" in gated
 
 
+def test_nested_field_named_like_a_daily_field_still_gates(repo: Path):
+    """Ограничитель `not prefix` — разрешение живёт ТОЛЬКО на верхнем уровне.
+
+    Зачем отдельный тест (замер 2026-08-17, мутационный прогон): существующий
+    `test_tier_package_numbers_still_gate` этот ограничитель НЕ держит — вложенные
+    поля там зовут `apy_pct`/`dd_pct`, а в пятёрке лежат `paper_apy_pct`/`nav_usd`,
+    имена не совпадают, и снятие `not prefix` в `_track_snapshot_violations` не
+    красило НИ ОДНОГО теста. То есть единственная преграда «разрешение не протекает
+    вглубь» стояла без положительного контроля: любое будущее вложенное поле,
+    названное как дневное (`packages.*.nav_usd`), уехало бы без владельца.
+
+    Здесь дневная пятёрка честно воспроизводится из канона (значит `daily_ok`
+    непустой — иначе тест ничего не проверял бы), а ВЛОЖЕННОЕ поле с тем же именем
+    обязано быть завёрнуто.
+    """
+    for rel, payload in _canon(days=3, step_usd=11.0).items():
+        _write(repo, rel, payload)
+    snap = _build_snapshot_for(repo)
+    snap["packages"]["conservative"]["nav_usd"] = 999_999.0   # ← вложенное, имя дневное
+    snap["packages"]["conservative"]["end_equity"] = 999_999.0
+    _write(repo, _TRACK_SNAPSHOT, snap)
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm",
+         "chore(site-custodian): auto-deploy fresh track_snapshot after daily cycle")
+
+    report = _run(repo)
+    # Предпосылка теста: разрешение на верхнем уровне ВЫДАНО (иначе проверка пустая).
+    assert {"end_equity", "nav_usd"} <= set(report["snapshot_daily_fields_reproduced"])
+    gated = {v["matched_text"].split(":")[0] for v in _snapshot_violations(report)}
+    assert {"packages.conservative.nav_usd",
+            "packages.conservative.end_equity"} <= gated
+    # …и при этом верхний уровень остался разрешённым — тест не «затыкает» пятёрку.
+    assert "end_equity" not in gated and "nav_usd" not in gated
+    assert report["ok"] is False
+
+
 # ── ЗАВОРОТ: канона нет → fail-CLOSED ───────────────────────────────────────
 def test_missing_canon_gates_as_before(repo: Path):
     """Канон удалён из коммита — разрешение не выдаётся (не «раз не знаем, значит можно»)."""
