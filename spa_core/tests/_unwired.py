@@ -33,6 +33,39 @@
 через `ast`), и только затем отнял три слабых доказательства.
 
 Опт-аут-флага в коде здесь намеренно НЕТ: флаг научил бы сторожа отключать.
+
+**Сведение двух реализаций (17.08).** Сторож три недели жил в ДВУХ независимых
+версиях: эта (разбор импортов `ast`, четыре формы ссылки, протокольные команды,
+класс «продукт — запись в реестре») и версия автономных циклов Мака
+(`wiring_patterns` — пять форм с границами слова с обеих сторон, голый импорт по
+`sys.path`, строгий суд однофамильца, дешёвая отсечка первой строкой). Свести их
+надо было, ничего не потеряв.
+
+Замер на живом дереве 17.08 показал главное: **сырые вердикты совпадают точно** —
+обе версии называют одни и те же 95 скриптов без вызывающего, множества
+идентичны (разность в обе стороны пуста). Расхождение в `unwired_scripts` (52
+против 55) — это ровно три имени, вычитаемые ЗДЕСЬ двумя классами, которых у той
+версии нет (`adr_number`, `reap_stale_worktrees` — команда протокола;
+`audit_tier_c_wiring_feasibility` — генератор). То есть по силе обнаружения эта
+версия — надмножество, и основой берётся она; замер приведён в отчёте цикла.
+
+Поэтому из версии Мака переносится не движок, а то, чего здесь не было **как
+названного и проверяемого понятия**: `wiring_patterns` — одно место, где пять форм
+подключения записаны с границами слова с ОБЕИХ сторон, и `is_wiring` — строгий
+суд однофамильца с дешёвой отсечкой первой строкой. Обе живут не украшением:
+`registry_recorded_scripts` судит реестр R&D именно ими (до сведения он искал имя
+ГОЛОЙ подстрокой — та самая подстрочная коллизия, от которой обход дерева уже был
+защищён, а вычитаемый класс ещё нет), а `scripts_without_caller_by_patterns` —
+второе, независимое мнение о том же дереве; их совпадение закреплено тестом.
+
+**Почему движком остался одиночный проход** (замер 17.08, живое дерево). Пять
+регулярок × 101 скрипт × ~1500 файлов — это O(скрипты × файлы); отсечка первой
+строкой делает такой перебор терпимым, но не дешёвым: 16.1 с за прогон, и КАЖДЫЙ
+прогон заново (повтор — 15.9 с, кэша нет). Одиночный проход извлекает имена из
+файла один раз (O(файлы)) и держит разобранное дерево в `_HAY_CACHE`: первый
+прогон 19.9–21.1 с, каждый следующий — 0.30 с, полный `unwired_scripts` — 1.8 с.
+Отсечка при этом сохранена там, где перебор действительно есть (`is_wiring`,
+`registry_recorded_scripts`), и её цена измерена отдельно, а не заявлена.
 """
 from __future__ import annotations
 
@@ -41,7 +74,7 @@ import io
 import pathlib
 import re
 import tokenize
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Pattern, Set, Tuple
 
 _ROOT = pathlib.Path(__file__).resolve().parents[2]
 _HAY_DIRS = ("launchd", "scripts", "spa_core", ".github")
@@ -105,7 +138,22 @@ def _char_col(line: str, byte_col: int) -> int:
     return len(raw[:byte_col].decode("utf-8", errors="ignore"))
 
 
-def _docstring_spans(text: str) -> List[Tuple[int, int, int]]:
+def _parse(text: str) -> Optional[ast.AST]:
+    """Разобрать питон или `None`. Один разбор на файл — см. `_analyze`.
+
+    Разбор `ast` — самая дорогая операция обхода, и до сведения он делался ДВАЖДЫ
+    на один и тот же файл (докстринги и импорты — независимо друг от друга). Замер
+    17.08 на живом дереве, два прогона каждой версии: два разбора — 23.4 / 24.9 с
+    холодного обхода, один — 21.1 / 19.9 с. Дешевизна здесь того же рода, что
+    дешёвая отсечка в `is_wiring`: сторож, который стоит минуты, перестают запускать.
+    """
+    try:
+        return ast.parse(text)
+    except (SyntaxError, ValueError):
+        return None
+
+
+def _docstring_spans(text: str, tree: Optional[ast.AST] = None) -> List[Tuple[int, int, int]]:
     """Координаты ДОКСТРИНГОВ: `(строка, начало, конец)` в символах, 1-based.
 
     Докстринг модуля / класса / функции — проза, и по последствиям он равен
@@ -114,9 +162,9 @@ def _docstring_spans(text: str) -> List[Tuple[int, int, int]]:
     модуля. Прочие строковые литералы НЕ трогаются: в них живёт настоящий вызов
     (`subprocess.run(["python3", "scripts/x.py"])`).
     """
-    try:
-        tree = ast.parse(text)
-    except (SyntaxError, ValueError):
+    if tree is None:
+        tree = _parse(text)
+    if tree is None:
         return []
     lines = text.splitlines()
     spans: List[Tuple[int, int, int]] = []
@@ -191,7 +239,7 @@ def _blank(text: str, spans: List[Tuple[int, int, int]]) -> str:
     return "".join(lines)
 
 
-def _python_without_prose(text: str) -> str:
+def _python_without_prose(text: str, tree: Optional[ast.AST] = None) -> str:
     """Питон без комментариев И без докстрингов; прочие литералы СОХРАНЕНЫ.
 
     Не разобралось (битый файл, чужой синтаксис) — запасной путь `_cut_at_hash`:
@@ -200,10 +248,11 @@ def _python_without_prose(text: str) -> str:
     comments = _comment_spans(text)
     if comments is None:
         return _cut_at_hash(text)
-    return _blank(text, comments + _docstring_spans(text))
+    return _blank(text, comments + _docstring_spans(text, tree))
 
 
-def code_without_comments(path: pathlib.Path, text: str) -> str:
+def code_without_comments(path: pathlib.Path, text: str,
+                          tree: Optional[ast.AST] = None) -> str:
     """Текст файла без ПРОЗЫ — то, в чём вообще может жить ВЫЗОВ.
 
     Замер 14.08 (цикл #227): сырой текстовый поиск не отличал вызов от
@@ -217,7 +266,7 @@ def code_without_comments(path: pathlib.Path, text: str) -> str:
     """
     suffix = path.suffix
     if suffix == ".py":
-        return _python_without_prose(text)
+        return _python_without_prose(text, tree)
     if suffix in (".sh", ".yml", ".yaml"):
         return _cut_at_hash(text)
     if suffix == ".plist":
@@ -229,7 +278,7 @@ def code_without_comments(path: pathlib.Path, text: str) -> str:
 # Формы вызова
 # ────────────────────────────────────────────────────────────────────────────────
 
-def imported_modules(text: str) -> Set[str]:
+def imported_modules(text: str, tree: Optional[ast.AST] = None) -> Set[str]:
     """Модули, которые файл ИМПОРТИРУЕТ, — полными путями.
 
     Разбор через `ast`, а не поиск подстроки, потому что различить надо две
@@ -247,9 +296,9 @@ def imported_modules(text: str) -> Set[str]:
     Относительные импорты (``from . import x``) пропущены: они внутрипакетные и
     до `scripts/` не дотягиваются.
     """
-    try:
-        tree = ast.parse(text)
-    except (SyntaxError, ValueError):
+    if tree is None:
+        tree = _parse(text)
+    if tree is None:
         return set()
     mods: Set[str] = set()
     for node in ast.walk(tree):
@@ -316,6 +365,81 @@ def file_references(text: str, modules: Set[str]) -> Tuple[Set[str], Set[str]]:
 
 
 # ────────────────────────────────────────────────────────────────────────────────
+# Формы подключения ОДНОГО скрипта — перенесено из версии Мака (циклы #255/#265)
+# ────────────────────────────────────────────────────────────────────────────────
+
+def wiring_patterns(stem: str) -> Dict[str, Pattern]:
+    """Формы, в которых скрипт `scripts/<stem>.py` бывает ПОДКЛЮЧЁН.
+
+    Одно место, где все пять форм записаны с границами слова с ОБЕИХ сторон.
+    До цикла #255 форм было две — подстрока `<stem>.py` и подстрока
+    `scripts.<stem>`, — и обе без границ. Отсюда два разных вранья:
+
+    * **подстрочная коллизия** — `perf_budget` числился подключённым, потому
+      что рядом лежит `dfb_perf_budget.py`; `scripts.run_backtest` находится
+      внутри `scripts.run_backtest_real`;
+    * **невидимая форма** — `import <stem>` по `sys.path` не виден вовсе, хотя
+      `scripts/orchestrator_queue.py` именно так зовёт `check_tracker_drift`.
+
+    Границы обязаны стоять с ОБЕИХ сторон: слева `(?<![\\w.\\-])`, чтобы имя не
+    ловилось хвостом другого имени, справа `(?![\\w])`, чтобы `scripts.x` не
+    ловилось началом `scripts.x_real`.
+
+    Обход дерева пользуется не этими шаблонами, а извлечением имён одним проходом
+    (`file_references`) — там та же строгость достигается жадным захватом имени
+    целиком. Шаблоны нужны там, где судится ОДИН документ против ОДНОГО скрипта:
+    реестр R&D (`registry_recorded_scripts`) и второе мнение о дереве
+    (`scripts_without_caller_by_patterns`).
+    """
+    s = re.escape(stem)
+    return {
+        # запуск/ссылка по файлу: plist, обёртка, subprocess, runpy.run_path
+        "file": re.compile(r"(?<![\w.\-])" + s + r"\.py(?![\w])"),
+        # то же, но обязательно из каталога scripts/ — для однофамильцев
+        "path": re.compile(r"(?<![\w.\-])scripts/" + s + r"\.py(?![\w])"),
+        # `python3 -m scripts.<stem>` и `from scripts.<stem> import …`
+        "module": re.compile(r"(?<![\w.])scripts\." + s + r"(?![\w])"),
+        # голый импорт по sys.path: `import <stem>` / `import <stem> as x`
+        "import": re.compile(r"^[ \t]*import[ \t]+" + s + r"(?![\w.])", re.M),
+        # голый импорт по sys.path: `from <stem> import …`
+        "from": re.compile(r"^[ \t]*from[ \t]+" + s + r"(?![\w.])[ \t]+import[ \t]", re.M),
+    }
+
+
+def is_wiring(hay_path: pathlib.Path, text: str, script: pathlib.Path,
+              pats: Dict[str, Pattern]) -> bool:
+    """Есть ли в ЭТОМ файле доказательство того, что скрипт ЗОВУТ.
+
+    **Однофамилец судится строже.** Файл с тем же именем в другом каталоге
+    (`spa_core/riskwire/day30_review.py`, `spa_core/audit/ots_anchor.py`)
+    упоминает сам себя — своё же имя в шапке, — и этого хватало, чтобы
+    одноимённый скрипт числился вызванным. Ни один из двух модулей скрипта не
+    зовёт. Поэтому у однофамильца засчитываются только формы, которые НЕЛЬЗЯ
+    написать про себя: путь `scripts/<stem>.py` и модуль `scripts.<stem>`.
+
+    Голый импорт по `sys.path` спрашивается только у `.py`: в обёртке и plist'е
+    строка `import x` — проза, а не проводка.
+
+    **Дешёвая отсечка первой строкой — не украшение.** Без неё пять регулярок
+    гоняются по каждой паре (101 скрипт × ~1500 файлов) и один замер стоил минуты,
+    то есть сторож становился слишком дорогим, чтобы его гоняли. Отсечка ТОЧНА по
+    построению: имя скрипта входит в КАЖДУЮ из пяти форм, значит файл без
+    подстроки имени не может содержать ни одной из них — отсечка не может ни
+    добавить сироту, ни отнять. Цена измерена на живом дереве 17.08:
+    с отсечкой 18.2 с, без неё 231.0 с — в 12.7 раза дороже при том же вердикте
+    (`scripts_without_caller_by_patterns(cheap_cutoff=False)`).
+    """
+    if script.stem not in text:
+        return False
+    if hay_path.stem == script.stem:
+        return bool(pats["path"].search(text) or pats["module"].search(text))
+    if pats["file"].search(text) or pats["module"].search(text):
+        return True
+    return hay_path.suffix == ".py" and bool(
+        pats["import"].search(text) or pats["from"].search(text))
+
+
+# ────────────────────────────────────────────────────────────────────────────────
 # Обход дерева
 # ────────────────────────────────────────────────────────────────────────────────
 
@@ -339,6 +463,13 @@ def registry_recorded_scripts(root: Optional[pathlib.Path] = None) -> Set[str]:
     руками, а результат уезжает в `docs/DYNAMIC_LEVERAGE_GUARDIAN.md`. Реестр —
     единственный документ с таким правом (см. модульный docstring: любой другой
     файл `docs/`, включая журнал, проводкой НЕ считается).
+
+    **Судится шаблонами `wiring_patterns`, а не голой подстрокой** (сведение 17.08).
+    Раньше здесь стояло `m.name in text` — ровно та подстрочная коллизия, от которой
+    обход дерева уже был защищён жадным захватом имени: запись про
+    `dfb_perf_budget.py` в реестре вывела бы из-под храповика ЧУЖОЙ `perf_budget`,
+    то есть вычитаемый класс был слабее самого измерения. Строгость обоих плеч
+    обязана быть одинаковой, иначе дыра переезжает из измерения в поблажку.
     """
     base = pathlib.Path(root or _ROOT)
     reg = base / _RND_REGISTRY
@@ -346,10 +477,14 @@ def registry_recorded_scripts(root: Optional[pathlib.Path] = None) -> Set[str]:
         text = reg.read_text(encoding="utf-8", errors="ignore")
     except OSError:
         return set()
-    return {
-        m.stem for m in entrypoint_scripts(base)
-        if m.name in text or f"scripts.{m.stem}" in text
-    }
+    out: Set[str] = set()
+    for m in entrypoint_scripts(base):
+        if m.stem not in text:          # дешёвая отсечка, см. `is_wiring`
+            continue
+        pats = wiring_patterns(m.stem)
+        if pats["file"].search(text) or pats["module"].search(text):
+            out.add(m.stem)
+    return out
 
 
 #: Кэш разобранного дерева: ключ — отпечаток (путь, mtime, размер) всех файлов.
@@ -383,8 +518,9 @@ def _haystack(base: pathlib.Path) -> List[Tuple[pathlib.Path, Set[str], Set[str]
             raw = p.read_text(encoding="utf-8", errors="ignore")
         except OSError:
             continue
-        mods = imported_modules(raw) if p.suffix == ".py" else set()
-        plain, qualified = file_references(code_without_comments(p, raw), mods)
+        tree = _parse(raw) if p.suffix == ".py" else None
+        mods = imported_modules(raw, tree) if p.suffix == ".py" else set()
+        plain, qualified = file_references(code_without_comments(p, raw, tree), mods)
         hay.append((p, plain, qualified, mods))
     if key is not None:
         _HAY_CACHE.clear()
@@ -418,6 +554,72 @@ def scripts_without_caller(root: Optional[pathlib.Path] = None) -> List[str]:
         if not wired:
             orphans.append(stem)
     return sorted(orphans)
+
+
+def scripts_without_caller_by_patterns(root: Optional[pathlib.Path] = None,
+                                       cheap_cutoff: bool = True) -> List[str]:
+    """То же измерение ВТОРЫМ движком: `wiring_patterns` × `is_wiring` по каждой паре.
+
+    Это не запасной путь и не украшение, а **второе мнение**. Две реализации
+    сторожа разошлись на три недели именно потому, что каждая знала свои формы;
+    здесь обе живут рядом, и их согласие проверяется тестом на живом дереве
+    (`test_unwired_wiring_forms.py::TestTwoEnginesAgree`). Разойдутся — тест
+    покраснеет и назовёт имена, вместо того чтобы одна из версий тихо победила.
+
+    Движком по умолчанию он НЕ является: перебор O(скрипты × файлы) стоит 16–18 с
+    за прогон и КАЖДЫЙ прогон заново, тогда как одиночный проход
+    `scripts_without_caller` стоит ~20 с холодным и 0.30 с на повторе (кэш дерева).
+
+    `cheap_cutoff=False` снимает отсечку первой строкой — только для того, чтобы
+    цену отсечки можно было ИЗМЕРИТЬ, а не заявить. Вердикт при этом обязан
+    остаться тем же (отсечка точна по построению), и это тоже закреплено тестом.
+    """
+    base = pathlib.Path(root or _ROOT)
+    hay: List[Tuple[pathlib.Path, str]] = []
+    for d in _HAY_DIRS:
+        d_base = base / d
+        if not d_base.exists():
+            continue
+        for p in sorted(d_base.rglob("*")):
+            if not (p.is_file() and p.suffix in _HAY_SUFFIXES and "/tests/" not in str(p)):
+                continue
+            try:
+                raw = p.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            hay.append((p, code_without_comments(p, raw)))
+    orphans = []
+    for m in entrypoint_scripts(base):
+        pats = wiring_patterns(m.stem)
+        wired = False
+        for p, t in hay:
+            if p == m:
+                continue
+            if cheap_cutoff:
+                if is_wiring(p, t, m, pats):
+                    wired = True
+                    break
+            elif _is_wiring_no_cutoff(p, t, m, pats):
+                wired = True
+                break
+        if not wired:
+            orphans.append(m.stem)
+    return sorted(orphans)
+
+
+def _is_wiring_no_cutoff(hay_path: pathlib.Path, text: str, script: pathlib.Path,
+                         pats: Dict[str, Pattern]) -> bool:
+    """`is_wiring` без дешёвой отсечки — существует РАДИ ЗАМЕРА её цены.
+
+    Вердикт обязан совпадать с `is_wiring` дословно: отсечка отбрасывает только
+    файлы, где имени скрипта нет ни одной буквой, а имя входит во все пять форм.
+    """
+    if hay_path.stem == script.stem:
+        return bool(pats["path"].search(text) or pats["module"].search(text))
+    if pats["file"].search(text) or pats["module"].search(text):
+        return True
+    return hay_path.suffix == ".py" and bool(
+        pats["import"].search(text) or pats["from"].search(text))
 
 
 #: `python3 scripts/<имя>.py` / `python3 -m scripts.<имя>` — КОМАНДА, а не упоминание.
@@ -490,9 +692,8 @@ _ARTIFACT_LITERAL = re.compile(rf"^{_NAME}+\.py$")
 
 def _code_string_literals(text: str) -> Set[str]:
     """Строковые литералы файла БЕЗ докстрингов (докстринг — проза, капкан #227)."""
-    try:
-        tree = ast.parse(text)
-    except (SyntaxError, ValueError):
+    tree = _parse(text)
+    if tree is None:
         return set()
     docs = set()
     for node in ast.walk(tree):
