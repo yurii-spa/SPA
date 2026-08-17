@@ -735,9 +735,24 @@ def prepare(
     # несуществующее (замер 08.08 — решение с «Нажми кнопку» и без кнопок).
     keyboard = None
     if options:
-        from spa_core.telegram.alert_actions import handler_available
+        from spa_core.telegram import alert_actions
 
-        if handler_available(now=now, beacon_path=beacon_path):
+        # Спрашиваем СВОЁ умение (`act:od:`), а не «умеет ли бот кнопки под тревогой»:
+        # до 17.08 решения гейтились отметкой `alert_actions`, которая к ним отношения
+        # не имеет — разъедься обработчики, отправитель бы этого не заметил (#194).
+        #
+        # ПЕРЕХОДНОЕ послабление (снять после первого перезапуска бота с этим кодом):
+        # работающий в проде долгожитель объявляет только `alert_actions`, а `act:od:`
+        # при этом обрабатывает — обработчики приезжают одним коммитом. Без послабления
+        # кнопки решений пропали бы до перезапуска, а перезапуск долгожителя — отдельный
+        # цикл с `deployment_acceptance` (правило доставки, п. 6). Послабление гаснет
+        # само: как только маячок объявит `owner_decisions`, вторая половина не нужна.
+        if alert_actions.handler_available(
+            now=now,
+            beacon_path=beacon_path,
+            capability=alert_actions.CAPABILITY_OWNER_DECISIONS,
+            also_accept=(alert_actions.CAPABILITY,),
+        ):
             keyboard = build_keyboard(pid, options)
     text = build_message(title, body, options, has_buttons=keyboard is not None,
                          card_name=card_name or card_id)

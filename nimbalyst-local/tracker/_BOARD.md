@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **487** · ждёт владельца: **9** · занято сессиями: **5**.
+> Всего карточек: **488** · ждёт владельца: **9** · занято сессиями: **5**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -140,7 +140,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (215)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (216)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -199,6 +199,7 @@
 - Код выхода цикла не отличает штатный отказ политики от аварии — 4 прогона подряд с exit=1  ·  `inbox-kod-vyhoda-tsikla-ne-otlichaet-shtatnyi.md` · 2026-08-13
 - Критическая тревога о здоровье системы уходит в никуда: третий вызов отставленного менеджера, а оператору печатают «cooldown active»  ·  `inbox-kriticheskaya-trevoga-o-zdorove-sistemy.md` · 2026-08-10
 - Манифест архитектуры отстал от РЕАЛЬНОСТИ: три агента стали reboot-safe, тест красный на чистом origin  ·  `inbox-manifest-arhitektury-otstal-ot-realnosti.md` · 2026-08-06
+- Маячок бота объявляет ОДНУ способность, а решает за ДВЕ — найдено #194, не чинил  ·  `inbox-mayachok-obyavlyaet-odnu-sposobnost-gejtit-dve.md` · 2026-08-10
 - Мост находок может РОДИТЬ карточку на origin, но не может её ОБНОВИТЬ — закрытия не доезжают никогда  ·  `inbox-most-nahodok-mozhet-rodit-kartochku-na-o.md` · 2026-08-12
 - Мост не может закрыть собственную CRITICAL-карточку: close_card закрывает только status=new, а CRITICAL рождается needs-owner  ·  `inbox-most-ne-mozhet-zakryt-sobstvennuyu-criti.md` · 2026-08-08
 - Наблюдённый ноль подменяется литералом: stusd печатается 6.0% вместо замеренных 0.0%  ·  `inbox-nablyudennyi-nol-podmenyaetsya-literalom.md` · 2026-08-09
@@ -334,7 +335,6 @@
 - Книги за прошлый день нет в архиве: дозапись исходов навсегда несёт null в позициях  ·  `inbox-knigi-za-proshlyi-den-net-v-arhive-dozap.md` · 2026-08-17
 - Корневой __init__.py не может доехать до прода НИ ОДНИМ механизмом — и после #275 он там не просто устарел, а противоречив  ·  `inbox-kornevoi-init-py-ne-mozhet-doehat-do-pro.md` · 2026-08-17
 - Крупнейшая позиция книги стоит на константе: у aave_v3 (Ethereum, 40%) TVL «не измерено», а пул в фиде есть  ·  `inbox-krupneishaya-pozitsiya-knigi-stoit-na-ko.md` · 2026-08-09
-- Маячок бота объявляет ОДНУ способность, а решает за ДВЕ — найдено #194, не чинил  ·  `inbox-mayachok-obyavlyaet-odnu-sposobnost-gejtit-dve.md` · 2026-08-10
 - Модуль #39: третьей рукой обязана быть ПРИЧИННАЯ статика, иначе через 30 дней форвард снова не отличит тайминг от недовеса  ·  `inbox-modul-39-tretei-rukoi-obyazana-byt-prich.md` · 2026-08-09
 - Модуль bot_commands заменён, но жив: свой getUpdates-поллер и свои двери в чат  ·  `inbox-modul-bot-commands-zamenen-no-zhiv-svoi.md` · 2026-08-13
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
@@ -350,6 +350,7 @@
 - Сбалансированный трек: ноль профинансированных дней из 40 при 920 отработанных циклах  ·  `inbox-sbalansirovannyi-trek-nol-profinansirova.md` · 2026-08-08
 - Семь скриптов, вскрытых строгим сканером: разобрать поштучно (подключить / списать / вывести класс правилом)  ·  `inbox-sem-skriptov-vskrytyh-strogim-skanerom-r.md` · 2026-08-16
 - Сличение имён протоколов ПОДСТРОКОЙ выросло с 8 имён до 56: ложный отказ в бонусе стал в семь раз вероятнее  ·  `inbox-slichenie-imen-protokolov-podstrokoi-vyr.md` · 2026-08-17
+- Снять переходное послабление маячка: решения обязаны гейтиться СВОИМ умением  ·  `inbox-snyat-perehodnoe-poslablenie-mayachka-re.md` · 2026-08-17
 - Снятая остановка живёт в git: восстановление из резерва поднимет прод уже остановленным  ·  `inbox-snyataya-ostanovka-zhivet-v-git-vosstano.md` · 2026-08-10
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
 - Строка Risk Gate дневного лимита убытка жила только в отключённом скрипте — в отчёт владельцу она не переехала  ·  `inbox-stroka-risk-gate-dnevnogo-limita-ubytka.md` · 2026-08-14

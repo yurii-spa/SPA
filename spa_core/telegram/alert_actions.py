@@ -271,6 +271,52 @@ def make_alert_id(text: str, ts: str) -> str:
 BEACON_PATH = live_data_dir(_REPO_ROOT) / "telegram_bot_capabilities.json"
 BEACON_MAX_AGE_S = 300  # маячок обновляется каждый виток long-poll (~30с)
 CAPABILITY = "alert_actions"
+#: Кнопки под КАРТОЧКОЙ РЕШЕНИЯ владельца (`act:od:`, ADR-075) — отдельное умение.
+#: До 17.08 их гейтила отметка `alert_actions`, к решениям отношения не имеющая: сторож
+#: честно отвечал на СВОЙ вопрос, а читали его как ответ на нужный (находка цикла #194).
+CAPABILITY_OWNER_DECISIONS = "owner_decisions"
+
+#: Способность → чем её ИЗМЕРИТЬ у живого процесса: (модуль с префиксом callback,
+#: имя константы-префикса, метод роутера, который этот префикс разбирает).
+#:
+#: Маячок обязан быть ЗАМЕРОМ работающего бота, а не литералом в исходнике: литерал
+#: говорит «я умею», даже если обработчик из процесса исчез. Обе половины спрашиваются
+#: вместе намеренно — префикс без обработчика молча уводит нажатие в неизвестный
+#: `act:`-глагол (тот самый, что ПЕРЕПИСЫВАЕТ сообщение панелью настроек).
+_CAPABILITY_PROBES: Dict[str, Tuple[str, str, str]] = {
+    CAPABILITY: ("spa_core.telegram.alert_actions", "CALLBACK_PREFIX",
+                 "handle_alert_action"),
+    CAPABILITY_OWNER_DECISIONS: ("spa_core.telegram.owner_decisions", "CALLBACK_PREFIX",
+                                 "handle_owner_decision"),
+}
+
+
+def measure_capabilities() -> List[str]:
+    """Что ЭТОТ процесс на самом деле умеет разобрать. Никогда не бросает.
+
+    Умение засчитывается, только если у роутера есть метод-обработчик И у модуля есть
+    префикс, по которому нажатие до него доедет. Не смогли измерить умение — его в
+    списке нет (fail-CLOSED: отправитель тогда шлёт текст без кнопок, а не кнопку,
+    которую некому обработать).
+    """
+    import importlib
+
+    found: List[str] = []
+    try:
+        router_cls = importlib.import_module("spa_core.telegram.router").Router
+    except Exception:  # noqa: BLE001 — нет роутера ⇒ нечем обрабатывать вовсе
+        return found
+    for name, (module_path, prefix_attr, handler_attr) in _CAPABILITY_PROBES.items():
+        try:
+            module = importlib.import_module(module_path)
+            if not getattr(module, prefix_attr, None):
+                continue
+            if not callable(getattr(router_cls, handler_attr, None)):
+                continue
+            found.append(name)
+        except Exception:  # noqa: BLE001 — одно неизмеримое умение не гасит остальные
+            continue
+    return found
 
 
 def _beacon_path(override: Optional[str | Path] = None) -> Path:
@@ -286,27 +332,45 @@ def _beacon_path(override: Optional[str | Path] = None) -> Path:
 def publish_handler_beacon(
     *, now: Optional[datetime] = None, beacon_path: Optional[str | Path] = None
 ) -> None:
-    """Бот объявляет: «я жив и умею обрабатывать нажатия». Никогда не бросает."""
+    """Бот объявляет, ЧТО ИМЕННО он умеет обработать. Никогда не бросает.
+
+    Список умений — замер этого самого процесса (``measure_capabilities``), а не
+    константа: старый бот объявит ровно то, что у него есть.
+    """
     try:
         dt = now or datetime.now(timezone.utc)
         path = _beacon_path(beacon_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         atomic_save({"schema_version": 1, "source": "telegram_bot",
                      "updated_at": dt.isoformat(), "pid": os.getpid(),
-                     "capabilities": [CAPABILITY]}, str(path))
+                     "capabilities": measure_capabilities()}, str(path))
     except Exception:  # noqa: BLE001 — маячок не важнее работы бота
         pass
 
 
 def handler_available(
-    *, now: Optional[datetime] = None, beacon_path: Optional[str | Path] = None
+    *,
+    now: Optional[datetime] = None,
+    beacon_path: Optional[str | Path] = None,
+    capability: str = CAPABILITY,
+    also_accept: Sequence[str] = (),
 ) -> bool:
-    """Есть ли ЖИВОЙ бот, умеющий обработать нажатие. Сомнение → False."""
+    """Есть ли ЖИВОЙ бот, умеющий обработать ИМЕННО ЭТО нажатие. Сомнение → False.
+
+    ``capability`` — умение, которое нужно спрашивающему; по умолчанию кнопки под
+    тревогой, то есть поведение вызывающих не меняется.
+
+    ``also_accept`` — ПЕРЕХОДНОЕ послабление, задаётся вызывающим поимённо и никогда
+    не действует по умолчанию: новое умение обязано гейтиться собой, иначе мы снова
+    получим отметку, отвечающую не на тот вопрос. Каждое послабление живёт со сроком
+    и с объяснением в точке вызова.
+    """
     try:
         import json
 
         doc = json.loads(_beacon_path(beacon_path).read_text())
-        if CAPABILITY not in (doc.get("capabilities") or []):
+        declared = doc.get("capabilities") or []
+        if not any(c in declared for c in (capability, *also_accept)):
             return False
         stamped = datetime.fromisoformat(str(doc.get("updated_at")))
         if stamped.tzinfo is None:
