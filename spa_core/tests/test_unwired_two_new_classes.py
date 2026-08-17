@@ -108,10 +108,44 @@ class TestGeneratedArtifactClass(unittest.TestCase):
         self.assertTrue(false_positives <= watched,
                         "фикстура устарела: эти скрипты больше не под храповиком")
 
+    #: Все продукты генератора `audit_tier_c_wiring_feasibility`. Список ЯВНЫЙ:
+    #: появится третий артефакт — мутация ниже перестанет быть полной, и тест
+    #: обязан покраснеть на этом факте, а не молча ослабнуть.
+    _MARKUP_ARTIFACTS = ("_protocol_key_coverage.py", "_tier_c_key_coverage.py")
+
+    def test_the_generator_has_exactly_the_artifacts_we_think_it_has(self):
+        """Положительный контроль к фикстуре мутации: продуктов ровно два.
+
+        Пока продукт был один, «убрать встречную ссылку» и «убрать её у
+        артефакта X» совпадали. С двумя продуктами это разные действия, и
+        неполная мутация тихо доказывала бы не то, что заявлено.
+        """
+        tool = (_ROOT / "scripts" / "audit_tier_c_wiring_feasibility.py").read_text(
+            encoding="utf-8")
+        analytics = _ROOT / "spa_core" / "analytics"
+        found = sorted(p.name for p in analytics.glob("_*key_coverage.py")
+                       if "audit_tier_c_wiring_feasibility" in
+                       p.read_text(encoding="utf-8"))
+        self.assertEqual(found, sorted(self._MARKUP_ARTIFACTS),
+                         "набор продуктов генератора изменился — обнови мутацию, "
+                         "а не ослабляй правило")
+        for name in self._MARKUP_ARTIFACTS:
+            self.assertIn(name, tool, "генератор не называет свой продукт в коде")
+
     def test_both_sides_are_required(self):
         """Мутация: убери встречное упоминание — и генератор возвращается в сироты.
 
         Проверяется на КОПИИ дерева, живой файл не трогается.
+
+        **НАМЕРЕННОЕ изменение фикстуры (инв. #16, цикл #143, запись в журнале
+        `docs/journal/2026-W34.md`).** Мутация чистила встречную ссылку у ОДНОГО
+        артефакта (`_protocol_key_coverage.py`) — этого хватало ровно до тех пор,
+        пока продукт у генератора был один. С появлением второго
+        (`_tier_c_key_coverage.py`, разметка Tier-C) неполная мутация оставляла
+        вторую встречную ссылку живой, и тест краснел на СВОЕЙ неполноте, а не
+        на правиле. Правило не тронуто ни на букву; мутация доведена до полной,
+        а её полнота закреплена соседним тестом
+        `test_the_generator_has_exactly_the_artifacts_we_think_it_has`.
         """
         import shutil
         import tempfile
@@ -125,12 +159,37 @@ class TestGeneratedArtifactClass(unittest.TestCase):
                                     ignore=shutil.ignore_patterns("__pycache__"))
             self.assertIn("audit_tier_c_wiring_feasibility", generated_artifact_scripts(dst))
 
+            for name in self._MARKUP_ARTIFACTS:
+                art = dst / "spa_core" / "analytics" / name
+                art.write_text(art.read_text(encoding="utf-8")
+                               .replace("audit_tier_c_wiring_feasibility", "какой-то-скрипт"),
+                               encoding="utf-8")
+            self.assertNotIn("audit_tier_c_wiring_feasibility", generated_artifact_scripts(dst),
+                             "правилу хватило ОДНОЙ стороны — значит это снова просто упоминание")
+
+    def test_removing_only_one_back_reference_is_NOT_enough_anymore(self):
+        """Обратное плечо той же правки: неполная мутация обязана НЕ орфанить.
+
+        Это и есть доказательство, что мутация была расширена по делу, а не
+        «чтобы стало зелено»: одна оставшаяся встречная ссылка держит генератор
+        подключённым — ровно так правило и устроено.
+        """
+        import shutil
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as td:
+            dst = Path(td) / "tree"
+            for d in ("scripts", "spa_core", "launchd", ".github", "docs"):
+                src = _ROOT / d
+                if src.exists():
+                    shutil.copytree(src, dst / d, symlinks=True,
+                                    ignore=shutil.ignore_patterns("__pycache__"))
             art = dst / "spa_core" / "analytics" / "_protocol_key_coverage.py"
             art.write_text(art.read_text(encoding="utf-8")
                            .replace("audit_tier_c_wiring_feasibility", "какой-то-скрипт"),
                            encoding="utf-8")
-            self.assertNotIn("audit_tier_c_wiring_feasibility", generated_artifact_scripts(dst),
-                             "правилу хватило ОДНОЙ стороны — значит это снова просто упоминание")
+            self.assertIn("audit_tier_c_wiring_feasibility", generated_artifact_scripts(dst),
+                          "второй продукт перестал держать встречную сторону")
 
     def test_the_artifact_must_be_imported_by_LIVE_code(self):
         """Третье условие: продукт, который никто не импортирует, ничего не доказывает."""

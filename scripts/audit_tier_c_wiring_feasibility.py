@@ -126,6 +126,22 @@ RAISES, 1 UNCOVERED, 1 NO_SCORE) — вывод цикла #133 «Tier-C wirable
 
     python3 scripts/audit_tier_c_wiring_feasibility.py --tier B \\
         --out /tmp/feas_b.json --emit-markup
+
+**`--emit-markup --tier C` (цикл #143).** До него разметки Tier-C не
+существовало вовсе, и пять модулей карточки
+`inbox-tier-c-pyat-nastoyaschih-otkazov-agregat` числились `failed` — ярлык,
+отправляющий следующего исполнителя чинить код, в котором чинить нечего.
+Пишет `spa_core/analytics/_tier_c_key_coverage.py`, и требует ВТОРОГО отчёта
+(`--blindness`), потому что ни один из двух аудитов сам по себе не отвечает на
+нужный вопрос: пригодность говорит «чего не хватает», слепота — «даёт ли
+агрегатор от модуля число сегодня». Потребляемый набор = пересечение
+(«числа нет» И «недостающее названо») — узко и НАМЕРЕННО: широкое правило
+(«все BLIND») погасило бы девять модулей, дающих публикуемый `avg_score`, то
+есть разметка молча изменила бы опубликованное число под видом починки ярлыка.
+
+    python3 scripts/audit_protocol_blindness.py --tier C --out /tmp/blind_c.json
+    python3 scripts/audit_tier_c_wiring_feasibility.py --tier C \\
+        --out /tmp/feas_c.json --emit-markup --blindness /tmp/blind_c.json
 """
 # LLM_FORBIDDEN
 from __future__ import annotations
@@ -135,6 +151,7 @@ import collections
 import contextlib
 import inspect
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -639,6 +656,194 @@ def emit_markup(report: Dict[str, Any], path: Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+_TIER_C_MARKUP_TEMPLATE = '''"""
+_tier_c_key_coverage.py — разметка Tier-C: что известно про КАЖДЫЙ из {module_count}
+модулей тира и какие из них помечены «нечем сорсить».
+
+СГЕНЕРИРОВАНО scripts/audit_tier_c_wiring_feasibility.py — НЕ редактировать
+вручную; перегенерация (в sandbox-чекауте, не в живом репо — модули пишут
+`data/*`-логи относительно корня репо):
+
+    python3 scripts/audit_protocol_blindness.py --tier C --out /tmp/blind_c.json
+    python3 scripts/audit_tier_c_wiring_feasibility.py --tier C \\
+        --out /tmp/feas_c.json --emit-markup --blindness /tmp/blind_c.json
+
+Разметка сшита из ДВУХ замеров, потому что ни один из них по отдельности не
+отвечает на нужный вопрос (класс #29/#31/#35–#40 — сторож честно отвечает на
+свой вопрос и читается как ответ на другой):
+
+* **аудит слепоты** ({blindness_generated_at}) отвечает «даёт ли агрегатор от
+  модуля число СЕГОДНЯ» — `blindness` в каждой записи;
+* **аудит пригодности** ({generated_at}) отвечает «можно ли НАЗВАТЬ, каких
+  фактов не хватает» — `verdict` / `coverage` / `missing_keys`.
+
+## TIER_C_DISPOSITION — запись, а не удаление
+
+Требование родительской карточки `inbox-tier-c-171-iz-180-modulei-ne-otvechayut`
+(пункт 4): списание фиксируется ЗАПИСЬЮ, реестр обязан продолжать знать, что
+модуль есть и почему он не считается. `TIER_C_DISPOSITION` — эта запись: по
+строке на каждый из {module_count} модулей тира, ничего не удалено.
+
+Читать её как приговор нельзя: строка `unchecked` означает «мы НЕ ЗНАЕМ»
+(агрегатору нечем построить вход движка), а не «измерен ноль». Решение о
+списании — за владельцем, карточка
+`own-tier-c-spisat-180-modulei-ili-priznat-chto-ne-znaem`.
+
+## UNSOURCED_MODULES — потребляемый набор, численно инертный
+
+Модуль попадает сюда, только если ОБА условия выполнены:
+
+1. `blindness == "failed"` — агрегатор зовёт его сегодня, и он падает, то есть
+   числа от него нет ⇒ не звать его численно ИНЕРТНО (ни `modules_ok`, ни
+   `avg_score` не меняются; закреплено тестом в обе стороны);
+2. недостающие факты можно НАЗВАТЬ поимённо (замер покрытия либо список полей
+   из текста исключения).
+
+Оба условия обязательны — fail-CLOSED. Не смогли назвать, чего не хватает ⇒
+модуль остаётся громким `failed`, а не получает успокаивающий ярлык. И
+наоборот: модуль, который сегодня ДАЁТ число, сюда не попадает никогда, каким
+бы плохим ни было его покрытие, — иначе разметка тихо погасила бы работающий
+код (урок цикла #136: аннотация не гарантия, первая версия разделения погасила
+рабочий модуль Tier-A).
+
+`signal_aggregator._tier_c_pass` не исполняет помеченный модуль и записывает
+статус `"unsourced"` с поимённым списком недостающего — вместо `failed`,
+который отправлял следующего исполнителя чинить код, в котором чинить нечего.
+
+Снятие пометки — не правка этого файла (он производный), а появление источника
+факта либо решение владельца о списании.
+
+Advisory-слой: Tier-C не влияет на аллокацию, RiskPolicy эту разметку не видит.
+"""
+from typing import Dict, FrozenSet, Tuple
+
+AUDIT_GENERATED_AT = "{generated_at}"
+BLINDNESS_GENERATED_AT = "{blindness_generated_at}"
+MIN_COVERAGE = {min_coverage}
+MODULE_COUNT = {module_count}
+
+#: Сводка по вердиктам слепоты: {blindness_counts}
+#: Сводка по вердиктам пригодности: {feasibility_counts}
+
+#: module_name -> {{"blindness": что даёт агрегатор сегодня,
+#:                 "verdict": вердикт пригодности,
+#:                 "coverage": доля отданных ключей (None = не измерено),
+#:                 "missing_keys": поимённо, чего не хватает}}
+TIER_C_DISPOSITION: Dict[str, Dict[str, object]] = {{
+{disposition_lines}
+}}
+
+#: Потребляемый набор (см. докстринг): агрегатор их НЕ исполняет и пишет
+#: honest-статус "unsourced" с поимённым списком недостающих фактов.
+UNSOURCED_DETAIL: Dict[str, Dict[str, object]] = {{
+{unsourced_lines}
+}}
+
+UNSOURCED_MODULES: FrozenSet[str] = frozenset(UNSOURCED_DETAIL)
+
+__all__: Tuple[str, ...] = (
+    "AUDIT_GENERATED_AT", "BLINDNESS_GENERATED_AT", "MIN_COVERAGE",
+    "MODULE_COUNT", "TIER_C_DISPOSITION", "UNSOURCED_DETAIL",
+    "UNSOURCED_MODULES",
+)
+'''
+
+
+def named_missing_keys(result: Dict[str, Any]) -> Tuple[str, ...]:
+    """Поимённый список недостающих фактов, или пустой кортеж.
+
+    Три источника, в порядке убывания надёжности: измеренное покрытие на
+    контекст-пути (`effective_missing_keys`), измеренное на переданной записи
+    (`missing_keys`), и — только если движок вообще не дошёл до чтения ключей —
+    список полей, который он сам назвал в тексте исключения
+    (``ValueError: Missing required fields: ['audit_count', …]``).
+
+    Обрезанный многоточием список НЕ принимается: назвать «и ещё что-то» —
+    это не назвать. fail-CLOSED, пустой кортеж означает «сказать нечем».
+    """
+    for key in ("effective_missing_keys", "missing_keys"):
+        val = result.get(key)
+        if val:
+            return tuple(sorted(str(k) for k in val))
+    detail = result.get("detail") or ""
+    match = re.search(r"\[([^\]]*)\]", detail)
+    if not match or not match.group(1).strip():
+        return ()
+    raw = [p.strip().strip("'\"") for p in match.group(1).split(",")]
+    keys = [p for p in raw if p]
+    if not keys or any(p in {"...", "…"} for p in keys):
+        return ()
+    return tuple(sorted(keys))
+
+
+def _fmt_keys(keys: Tuple[str, ...]) -> str:
+    inner = ", ".join('"%s"' % k for k in keys)
+    return "(%s%s)" % (inner, "," if len(keys) == 1 else "")
+
+
+def emit_tier_c_markup(report: Dict[str, Any], blindness: Dict[str, Any],
+                       path: Path) -> None:
+    """Записать разметку Tier-C: полную диспозицию + потребляемый набор.
+
+    Потребляемый набор строится по правилу «сегодня числа нет И недостающее
+    можно назвать» (см. докстринг шаблона). Правило намеренно узкое: широкое
+    (например «все BLIND») погасило бы девять модулей, которые СЕГОДНЯ дают
+    публикуемый `avg_score`, — то есть разметка молча изменила бы
+    опубликованное число под видом починки ярлыка. Такое решение принимает
+    владелец, а не генератор.
+    """
+    blind_by_module = {r["module"]: r for r in blindness.get("results", [])}
+    feas = {r["module"]: r for r in report["results"]}
+    missing_from_blindness = sorted(set(feas) - set(blind_by_module))
+    if missing_from_blindness:
+        raise AssertionError(
+            "аудит слепоты не знает %d модулей из реестра (%s…) — отчёты сняты "
+            "с разных деревьев, сшивать их нельзя"
+            % (len(missing_from_blindness), missing_from_blindness[0]))
+    if blindness.get("tier") != report["tier"]:
+        raise AssertionError(
+            "тиры отчётов не совпадают: слепота=%r пригодность=%r"
+            % (blindness.get("tier"), report["tier"]))
+
+    disposition_lines: List[str] = []
+    unsourced_lines: List[str] = []
+    for name in sorted(feas):
+        r = feas[name]
+        b = blind_by_module[name]
+        keys = named_missing_keys(r)
+        cov = r.get("effective_coverage")
+        if cov is None:
+            cov = r.get("coverage")
+        disposition_lines.append(
+            '    "%s": {\n'
+            '        "blindness": "%s",\n'
+            '        "verdict": "%s",\n'
+            '        "coverage": %s,\n'
+            '        "missing_keys": %s,\n'
+            '    },' % (name, b["classification"], r["verdict"], cov,
+                        _fmt_keys(keys))
+        )
+        if b["classification"] == "failed" and keys:
+            unsourced_lines.append(
+                '    "%s": {\n'
+                '        "coverage": %s,\n'
+                '        "missing_keys": %s,\n'
+                '    },' % (name, cov, _fmt_keys(keys))
+            )
+
+    text = _TIER_C_MARKUP_TEMPLATE.format(
+        generated_at=report["generated_at"],
+        blindness_generated_at=blindness.get("generated_at", "?"),
+        min_coverage=report["min_coverage"],
+        module_count=report["module_count"],
+        blindness_counts=blindness.get("counts", {}),
+        feasibility_counts=report["counts"],
+        disposition_lines="\n".join(disposition_lines),
+        unsourced_lines="\n".join(unsourced_lines),
+    )
+    path.write_text(text, encoding="utf-8")
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     ap.add_argument("--out", required=True, help="куда положить JSON-отчёт")
@@ -649,7 +854,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--only", nargs="*", default=None,
                     help="ограничить набор модулей (имена как в реестре)")
     ap.add_argument("--emit-markup", action="store_true",
-                    help="перегенерировать spa_core/analytics/_protocol_key_coverage.py")
+                    help="перегенерировать разметку тира: Tier B → "
+                         "spa_core/analytics/_protocol_key_coverage.py, "
+                         "Tier C → spa_core/analytics/_tier_c_key_coverage.py "
+                         "(для Tier C обязателен --blindness)")
+    ap.add_argument("--blindness", default=None,
+                    help="JSON-отчёт audit_protocol_blindness.py --tier C; "
+                         "нужен для --emit-markup на Tier C: потребляемый "
+                         "набор строится по «сегодня числа нет И недостающее "
+                         "можно назвать»")
     args = ap.parse_args(argv)
 
     report = run_audit(args.tier, only_modules=args.only,
@@ -658,10 +871,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
 
     if args.emit_markup:
-        # Tier-B-only по той же причине, что у аудита слепоты: разметку
-        # потребляет run_tier_b, и только он.
-        if args.tier != "B":
-            print("--emit-markup поддержан только для Tier B", file=sys.stderr)
+        # Tier-A разметки не потребляет (worst-wins, не weighted) — писать
+        # её было бы созданием файла без читателя.
+        if args.tier not in ("B", "C"):
+            print("--emit-markup поддержан только для Tier B и Tier C",
+                  file=sys.stderr)
             return 2
         # Частичный скан не вправе переписывать разметку целиком: не
         # упомянутый модуль молча потерял бы пометку.
@@ -669,8 +883,27 @@ def main(argv: Optional[List[str]] = None) -> int:
             print("--emit-markup несовместим с --only: частичный скан стёр бы "
                   "пометки у неизмеренных модулей", file=sys.stderr)
             return 2
-        emit_markup(report, ROOT / "spa_core" / "analytics"
-                    / "_protocol_key_coverage.py")
+        if args.tier == "B":
+            if args.blindness:
+                print("--blindness применим только к Tier C", file=sys.stderr)
+                return 2
+            emit_markup(report, ROOT / "spa_core" / "analytics"
+                        / "_protocol_key_coverage.py")
+        else:
+            # fail-CLOSED: без ответа на «даёт ли модуль число сегодня»
+            # потребляемый набор построить нельзя, а построить его на одном
+            # лишь покрытии значило бы погасить работающие модули.
+            if not args.blindness:
+                print("--emit-markup на Tier C требует --blindness "
+                      "<отчёт audit_protocol_blindness.py --tier C>: без него "
+                      "нечем доказать, что пометка численно инертна",
+                      file=sys.stderr)
+                return 2
+            blindness = json.loads(
+                Path(args.blindness).read_text(encoding="utf-8"))
+            emit_tier_c_markup(report, blindness,
+                               ROOT / "spa_core" / "analytics"
+                               / "_tier_c_key_coverage.py")
 
     print(f"modules={report['module_count']} counts={report['counts']}")
     print(f"wirable={len(report['wirable'])}"

@@ -376,18 +376,30 @@ def test_emit_markup_refuses_partial_scan(tmp_path, monkeypatch, capsys):
     assert "стёр бы пометки" in capsys.readouterr().err
 
 
-def test_emit_markup_refuses_other_tiers(tmp_path, monkeypatch, capsys):
-    """Разметку потребляет только run_tier_b — генерировать её для A/C нельзя."""
+def test_emit_markup_refuses_tier_a(tmp_path, monkeypatch, capsys):
+    """Tier-A разметку не потребляет (worst-wins, не weighted) — генерировать
+    её для него значит создать файл без читателя.
+
+    НАМЕРЕННОЕ изменение теста (инв. #16, цикл #143, запись в журнале
+    `docs/journal/2026-W34.md`). Он назывался `..._refuses_other_tiers` и
+    утверждал отказ для A **и C** — верно ровно до тех пор, пока разметки
+    Tier-C не существовало. Теперь она есть (`_tier_c_key_coverage.py`,
+    карточка `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat`), и прежний
+    текст запрещал бы её генерацию. Проверка не ослаблена, а разделена:
+    отказ для A остался здесь дословно, а отказ для C — не «нельзя вообще», а
+    «нельзя без отчёта слепоты» — держит
+    `test_tier_c_unsourced_markup.py::test_cli_refuses_tier_c_markup_without_the_blindness_report`.
+    """
     tool = _load_audit_tool()
     monkeypatch.setattr(tool, "run_audit", lambda *a, **k: {
-        "generated_at": "x", "tier": "C", "min_coverage": 1.0,
+        "generated_at": "x", "tier": "A", "min_coverage": 1.0,
         "probe_protocols": [], "module_count": 1, "counts": {},
         "wirable": [], "results": [], "method": "",
     })
-    rc = tool.main(["--tier", "C", "--out", str(tmp_path / "r.json"),
+    rc = tool.main(["--tier", "A", "--out", str(tmp_path / "r.json"),
                     "--emit-markup"])
     assert rc == 2
-    assert "только для Tier B" in capsys.readouterr().err
+    assert "только для Tier B и Tier C" in capsys.readouterr().err
 
 
 def test_uncovered_verdict_reproduces_on_a_synthetic_module():

@@ -74,6 +74,21 @@ try:
 except Exception:  # pragma: no cover — разметка ещё не сгенерирована
     UNSOURCED_MODULES = frozenset()
 
+# Разметка Tier-C (scripts/audit_tier_c_wiring_feasibility.py --tier C
+# --emit-markup --blindness ...): модули, от которых агрегатор СЕГОДНЯ не
+# получает числа (падают) И у которых недостающие факты названы поимённо.
+# Их не исполняют — численно инертно (см. _tier_c_pass), зато ярлык перестаёт
+# врать: "unsourced: чего не хватает" вместо "failed", отправлявшего чинить
+# код, в котором чинить нечего. Отсутствие файла = пустой набор.
+try:
+    from spa_core.analytics._tier_c_key_coverage import (
+        UNSOURCED_DETAIL as TIER_C_UNSOURCED_DETAIL,
+        UNSOURCED_MODULES as TIER_C_UNSOURCED_MODULES,
+    )
+except Exception:  # pragma: no cover — разметка ещё не сгенерирована
+    TIER_C_UNSOURCED_DETAIL = {}
+    TIER_C_UNSOURCED_MODULES = frozenset()
+
 log = logging.getLogger("spa.analytics.signal_aggregator")
 
 # ─── Configuration ────────────────────────────────────────────────────────────
@@ -702,14 +717,41 @@ class SignalAggregator:
     def _tier_c_pass(self, modules: List[Dict[str, Any]], protocol: str,
                      context: Dict[str, Any], silent: bool = False
                      ) -> Dict[str, Any]:
-        """Один прогон всех Tier-C модулей для протокола → {modules_ok, avg_score}."""
+        """Один прогон всех Tier-C модулей для протокола → {modules_ok, avg_score}.
+
+        Модули из ``TIER_C_UNSOURCED_MODULES`` не исполняются и получают
+        статус ``"unsourced"`` с поимённым списком недостающих фактов
+        (карточка ``inbox-tier-c-pyat-nastoyaschih-otkazov-agregat``). Разметка
+        строится по правилу «сегодня числа нет И недостающее можно назвать»,
+        поэтому пропуск численно ИНЕРТЕН: ``modules_ok`` и ``avg_score``
+        обязаны совпадать байт-в-байт с прогоном без разметки — это проверка в
+        обе стороны, а не пожелание (``test_tier_c_unsourced_markup.py``).
+        Меняется ЯРЛЫК: ``failed`` отправлял следующего исполнителя чинить код,
+        в котором чинить нечего (урок циклов #136/#137).
+
+        Статус пишется только в неслепом прогоне: контрольный (``silent``)
+        описывает несуществующий протокол и в ``module_status`` попадать не
+        вправе.
+        """
         runner = self._run_module_silent if silent else self._run_module
         ok_count = 0
         scores: List[float] = []
+        runnable: List[Dict[str, Any]] = []
+        for m in modules:
+            if m.get("module") in TIER_C_UNSOURCED_MODULES:
+                if not silent:
+                    detail = TIER_C_UNSOURCED_DETAIL.get(m["module"]) or {}
+                    missing = ", ".join(detail.get("missing_keys") or ())
+                    self._record(
+                        m["module"], "unsourced",
+                        "no source for its facts (Tier-C coverage markup); "
+                        "missing: %s" % (missing or "не названо"))
+                continue
+            runnable.append(m)
         with ThreadPoolExecutor(max_workers=self.max_workers) as ex:
             futs = {
                 ex.submit(runner, m, protocol, context): m
-                for m in modules
+                for m in runnable
             }
             for fut in futs:
                 try:
@@ -828,6 +870,14 @@ class SignalAggregator:
         краснеет сам. Каждая запись ``protocols[...]`` несёт
         ``protocol_specific`` (true/false/None) — чтобы потребитель, читающий
         только число, не был введён в заблуждение его формой.
+
+        ``module_count`` остаётся полным (180): разметка Tier-C
+        (``_tier_c_key_coverage.py``) ничего из тира не удаляет, она меняет
+        ЯРЛЫК у тех, от кого числа и так не было — см. ``_tier_c_pass``.
+        Судьба остальных (9 константных, 162 «не проверено») — решение
+        владельца, карточка
+        ``owner-decision-spisat-180-fonovyh-modulei-tier-c-ili-ch``; до ответа
+        они исполняются как прежде.
         """
         modules = registry.get_tier_modules("C")
         per_proto: Dict[str, Any] = {}
