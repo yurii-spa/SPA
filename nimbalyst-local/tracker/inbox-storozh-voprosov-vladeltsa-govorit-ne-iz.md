@@ -5,8 +5,6 @@ title: Сторож вопросов владельца говорит «не и
 status: done
 source: nimbalyst
 created: 2026-08-17
-claimed_by: cycle-273
-claimed_at: 2026-08-17T09:20:33Z
 ---
 
 ## Что измерено (цикл #272)
