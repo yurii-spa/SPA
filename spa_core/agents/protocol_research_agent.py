@@ -29,6 +29,7 @@ Stdlib only. Atomic writes (tmpfile + os.replace). No imports from execution/ris
 """
 from __future__ import annotations
 
+import ast
 import json
 import logging
 import os
@@ -89,62 +90,224 @@ def _normalise(name: str) -> str:
 
 
 # ─── Active adapters discovery ────────────────────────────────────────────────
+#
+# Здесь «ничего не нашли» и «не смогли посмотреть» — РАЗНЫЕ ответы, и путать их
+# нельзя. Прежний разбор был текстовым и требовал `{` в строке определения, то
+# есть был написан под dict-форму реестра, а нацелен на файл, где реестр —
+# СПИСОК кортежей: `in_registry` не становился True никогда, функция молча
+# отдавала `[]`, и потребитель читал это как «активных адаптеров нет»
+# (замер 2026-08-17: 0 вместо 36, `aave_v3` — крупнейшая позиция книги — терялся).
+# Отсюда два правила этого блока:
+#   1) форму читает AST, а не регулярка (список кортежей / список строк / dict);
+#   2) НЕ ИЗМЕРЕНО возвращается как None и НАЗЫВАЕТСЯ вслух, а `[]` означает
+#      ровно одно: файл прочитан, реестр разобран и он действительно пуст.
+# Путь/каталог — ВХОД функции (по умолчанию реальные), чтобы тест закреплял обе
+# стороны и не зависел от окружения.
 
 
-def _read_active_adapters_from_init() -> list[str]:
-    """Parse ADAPTER_REGISTRY from spa_core/adapters/__init__.py (text scan).
+def _names_from_registry_literal(node: ast.AST) -> tuple[Optional[list[str]], str]:
+    """Извлечь имена протоколов из литерала реестра. None = НЕ ИЗМЕРЕНО.
 
-    Returns list of protocol id strings. Fail-safe: any parse error → [].
-    This avoids importing the adapters module (possible network/side-effects).
+    Поддержанные формы (все три живут в репозитории под похожими именами):
+      * список/кортеж кортежей — имя это первый элемент: ``[("aave_v3", ...), ...]``
+      * список/кортеж строк — имя это сам элемент: ``["aave_v3", ...]``
+      * dict — имена это ключи: ``{"aave_usdc": {...}, ...}``
     """
-    if not _ADAPTERS_INIT.exists():
-        return []
-    try:
-        text = _ADAPTERS_INIT.read_text(encoding="utf-8")
-        protocols: list[str] = []
-        # Look for ADAPTER_REGISTRY = { ... }; grab string keys
-        in_registry = False
-        for line in text.splitlines():
-            stripped = line.strip()
-            if "ADAPTER_REGISTRY" in stripped and "=" in stripped and "{" in stripped:
-                in_registry = True
-            if in_registry:
-                # Match lines like: "aave_v3": ... or 'compound_v3': ...
-                import re
-                m = re.search(r'["\']([a-zA-Z0-9_\-]+)["\']\s*:', stripped)
-                if m:
-                    protocols.append(m.group(1))
-                if "}" in stripped and in_registry:
-                    break
-        return protocols
-    except Exception as exc:
-        log.warning("_read_active_adapters_from_init failed (%s)", exc)
-        return []
+    if isinstance(node, ast.Dict):
+        names = [k.value for k in node.keys
+                 if isinstance(k, ast.Constant) and isinstance(k.value, str)]
+        if not node.keys:
+            return [], ""
+        if not names:
+            return None, f"dict-реестр из {len(node.keys)} записей не дал ни одного строкового ключа"
+        return names, ""
+
+    if isinstance(node, (ast.List, ast.Tuple)):
+        if not node.elts:
+            return [], ""
+        names = []
+        for elt in node.elts:
+            if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
+                names.append(elt.value)
+            elif isinstance(elt, (ast.Tuple, ast.List)) and elt.elts:
+                first = elt.elts[0]
+                if isinstance(first, ast.Constant) and isinstance(first.value, str):
+                    names.append(first.value)
+        if not names:
+            return None, (
+                f"списочный реестр из {len(node.elts)} записей не дал ни одного имени "
+                "(ни строк, ни кортежей со строкой первым элементом)"
+            )
+        return names, ""
+
+    return None, f"форма реестра не список/кортеж/dict, а {type(node).__name__}"
 
 
-def _read_manifest_protocols() -> list[str]:
-    """List protocol ids from spa_core/adapter_sdk/manifests/ (YAML/JSON filenames).
+def _registry_names_from_source(
+    source: str, var: str = "ADAPTER_REGISTRY"
+) -> tuple[Optional[list[str]], str]:
+    """Имена протоколов из исходника по AST. None = НЕ ИЗМЕРЕНО + причина словами.
 
-    Uses filename stem as the protocol id (e.g. aave_v3.yaml → aave_v3).
-    Fail-safe: returns [] if directory missing or unreadable.
+    Считается присваивание на уровне модуля ПЛЮС последующие мутации того же
+    имени (``.append(...)`` / ``.extend([...])`` / ``+= [...]``), в том числе
+    внутри ``if``/``try``: восемь адаптеров (`moonwell_base`, `aerodrome_base`,
+    `silo_arbitrum`, …) добавляются в реестр именно так, под условием успешного
+    импорта. Чтение ОДНОГО литерала дало бы 28 имён из 36 — ту же аварию в новой
+    одежде: «нашли 28» читалось бы как «всего 28», и уже охваченный протокол
+    приехал бы новым кандидатом.
+
+    Упоминание имени в докстринге или комментарии определением НЕ является
+    (класс #227 — «упоминание засчитано за проводку»).
+
+    Остаток названного, но не покрытого: если однажды имена начнут собираться
+    циклом или из переменной, AST их не увидит — на это стоит тест-паритет
+    ``AST ⊇ импортированный ADAPTER_REGISTRY``, он покраснеет, а не промолчит.
     """
-    if not _MANIFESTS_DIR.exists():
-        return []
     try:
-        stems: list[str] = []
-        for f in _MANIFESTS_DIR.iterdir():
-            if f.suffix in (".yaml", ".yml", ".json"):
-                stems.append(f.stem)
-        return stems
-    except Exception as exc:
-        log.warning("_read_manifest_protocols failed (%s)", exc)
-        return []
+        tree = ast.parse(source)
+    except SyntaxError as exc:
+        return None, f"исходник не разбирается как Python ({exc})"
+
+    value: Optional[ast.AST] = None
+    for stmt in tree.body:  # уровень модуля, не вложенные области
+        targets: list[ast.AST] = []
+        if isinstance(stmt, ast.Assign):
+            targets = list(stmt.targets)
+        elif isinstance(stmt, ast.AnnAssign):
+            targets = [stmt.target]
+        for target in targets:
+            if isinstance(target, ast.Name) and target.id == var:
+                value = stmt.value  # последнее присваивание побеждает, как в Python
+    if value is None:
+        return None, f"присваивания {var} на уровне модуля нет"
+
+    names, reason = _names_from_registry_literal(value)
+    if names is None:
+        return None, reason
+    return list(names) + _names_from_registry_mutations(tree, var), ""
+
+
+def _names_from_registry_mutations(tree: ast.AST, var: str) -> list[str]:
+    """Имена, доехавшие до реестра мутацией имени (``append``/``extend``/``+=``).
+
+    Обходится всё дерево: такие строки живут под ``if``/``try``, то есть вне
+    ``tree.body``. Нестроковые/вычисляемые аргументы молча пропускаются — их
+    ловит тест-паритет с импортированным реестром, а не догадка здесь.
+    """
+    extra: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+            owner = node.func.value
+            if not (isinstance(owner, ast.Name) and owner.id == var):
+                continue
+            if node.func.attr == "append" and node.args:
+                got, _ = _names_from_registry_literal(ast.List(elts=[node.args[0]], ctx=ast.Load()))
+                extra.extend(got or [])
+            elif node.func.attr == "extend" and node.args:
+                got, _ = _names_from_registry_literal(node.args[0])
+                extra.extend(got or [])
+        elif isinstance(node, ast.AugAssign) and isinstance(node.op, ast.Add):
+            if isinstance(node.target, ast.Name) and node.target.id == var:
+                got, _ = _names_from_registry_literal(node.value)
+                extra.extend(got or [])
+    return extra
+
+
+def _read_active_adapters_from_init(path: Optional[Path] = None) -> Optional[list[str]]:
+    """Имена активных адаптеров из ``spa_core/adapters/__init__.py`` (AST, без импорта).
+
+    Возвращает список имён; **None означает НЕ ИЗМЕРЕНО** (файла нет, не читается,
+    не разбирается, присваивания нет, форма незнакома) — и это НЕ то же самое, что
+    пустой реестр. Никогда не поднимает исключение. Импорт модуля по-прежнему
+    не делается намеренно (побочные эффекты), AST его и не требует.
+    """
+    init_path = Path(path) if path is not None else _ADAPTERS_INIT
+    if not init_path.exists():
+        log.warning(
+            "активные адаптеры НЕ ИЗМЕРЕНЫ: файла %s нет (не путать с «адаптеров нет»)",
+            init_path,
+        )
+        return None
+    try:
+        source = init_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        log.warning("активные адаптеры НЕ ИЗМЕРЕНЫ: %s не читается (%s)", init_path, exc)
+        return None
+    names, reason = _registry_names_from_source(source)
+    if names is None:
+        log.warning("активные адаптеры НЕ ИЗМЕРЕНЫ по %s: %s", init_path.name, reason)
+        return None
+    return [str(n) for n in names]
+
+
+def _read_manifest_protocols(directory: Optional[Path] = None) -> Optional[list[str]]:
+    """Имена протоколов из ``spa_core/adapter_sdk/manifests/`` (по именам файлов).
+
+    Имя = stem файла (``aave_v3.yaml`` → ``aave_v3``). **None = НЕ ИЗМЕРЕНО**
+    (каталога нет или он не читается); ``[]`` = каталог прочитан и манифестов в
+    нём нет. Никогда не поднимает исключение.
+    """
+    manifests_dir = Path(directory) if directory is not None else _MANIFESTS_DIR
+    if not manifests_dir.exists():
+        log.warning(
+            "манифесты НЕ ИЗМЕРЕНЫ: каталога %s нет (не путать с «манифестов нет»)",
+            manifests_dir,
+        )
+        return None
+    try:
+        return [
+            f.stem for f in manifests_dir.iterdir()
+            if f.suffix in (".yaml", ".yml", ".json")
+        ]
+    except OSError as exc:
+        log.warning("манифесты НЕ ИЗМЕРЕНЫ: %s не читается (%s)", manifests_dir, exc)
+        return None
+
+
+def known_protocols(
+    *, init_path: Optional[Path] = None, manifests_dir: Optional[Path] = None
+) -> dict:
+    """Множество уже охваченных протоколов ВМЕСТЕ с честностью замера.
+
+    Ключи
+    -----
+    ``ids``        — нормализованные имена (объединение измеренных источников);
+    ``measured``   — False, если хотя бы один источник НЕ ИЗМЕРЕН;
+    ``reason``     — почему не измерен, словами (пусто при ``measured=True``);
+    ``adapters`` / ``manifests`` — сырые списки либо None (не измерено).
+
+    Потребитель ОБЯЗАН читать ``measured``: при False фильтр «это уже наше»
+    ненадёжен, и уже охваченный протокол может приехать как новый кандидат.
+    """
+    adapters = _read_active_adapters_from_init(init_path)
+    manifests = _read_manifest_protocols(manifests_dir)
+
+    reasons: list[str] = []
+    if adapters is None:
+        reasons.append("активные адаптеры не измерены")
+    if manifests is None:
+        reasons.append("манифесты не измерены")
+
+    ids = sorted({_normalise(i) for i in (adapters or []) + (manifests or []) if str(i).strip()})
+    return {
+        "ids": ids,
+        "measured": not reasons,
+        "reason": " · ".join(reasons),
+        "adapters": adapters,
+        "manifests": manifests,
+        "adapters_count": None if adapters is None else len(adapters),
+        "manifests_count": None if manifests is None else len(manifests),
+    }
 
 
 def _existing_protocol_ids() -> list[str]:
-    """Combined list of protocol ids already covered (adapters + manifests)."""
-    ids = _read_active_adapters_from_init() + _read_manifest_protocols()
-    return list({_normalise(i) for i in ids})
+    """Combined list of protocol ids already covered (adapters + manifests).
+
+    Совместимая обёртка: отдаёт только имена. Кто должен знать, ИЗМЕРЕНО ли
+    множество, обязан звать :func:`known_protocols` — иначе «не смогли
+    посмотреть» снова станет неотличимо от «ничего нет».
+    """
+    return known_protocols()["ids"]
 
 
 # ─── Core public functions ────────────────────────────────────────────────────
@@ -371,8 +534,18 @@ def run_research_cycle(
         # Step 1: fetch candidates
         all_candidates = fetch_defi_candidates(ddir)
 
-        # Step 2: filter out already-known protocols
-        existing = _existing_protocol_ids()
+        # Step 2: filter out already-known protocols.
+        # Множество известного берётся ВМЕСТЕ с честностью замера: если источник
+        # не измерен, фильтр ненадёжен, и молчать об этом нельзя — уже охваченный
+        # протокол приедет как «новый кандидат» (fail-OPEN, класс #274/#276).
+        known = known_protocols()
+        existing = known["ids"]
+        if not known["measured"]:
+            log.warning(
+                "множество известных протоколов НЕ ИЗМЕРЕНО (%s) — фильтр «это уже наше» "
+                "НЕНАДЁЖЕН: уже охваченный протокол может приехать как новый кандидат",
+                known["reason"],
+            )
         new_candidates = filter_new_protocols(all_candidates, existing)
 
         # Step 3: research each candidate
@@ -427,6 +600,15 @@ def run_research_cycle(
             "whitelist_candidates_count": len(whitelist_candidates),
             "existing_adapters_skipped": len(existing),
             "total_candidates_in_registry": len(all_candidates),
+            # Честность замера множества известного — машинно, не только в логе:
+            # measured=False означает «фильтру верить нельзя», а не «всё чисто».
+            "known_set": {
+                "measured": known["measured"],
+                "reason": known["reason"],
+                "adapters_count": known["adapters_count"],
+                "manifests_count": known["manifests_count"],
+                "total": len(existing),
+            },
         }
         try:
             _atomic_write_json(ddir / RESEARCH_STATUS_FILENAME, status_doc)

@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **485** · ждёт владельца: **9** · занято сессиями: **5**.
+> Всего карточек: **486** · ждёт владельца: **9** · занято сессиями: **5**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -140,7 +140,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (213)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (214)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -190,6 +190,7 @@
 - Храповик неиспользуемых импортов красный на чистом origin: 38 при потолке 36  ·  `inbox-hrapovik-neispolzuemyh-importov-krasnyi.md` · 2026-08-10
 - Храповик неподключённых скриптов не отличает мёртвый код от ручного R&D — и краснеет на честной работе  ·  `inbox-hrapovik-nepodklyuchennyh-skriptov-ne-ot.md` · 2026-08-10
 - Храповик неподключённых скриптов считает УПОМИНАНИЕ В КОММЕНТАРИИ за проводку — слепота стоит трёх скриптов  ·  `inbox-hrapovik-nepodklyuchennyh-skriptov-schit.md` · 2026-08-12
+- Исследователь кандидатов считает, что активных адаптеров НОЛЬ: парсер написан под dict, а реестр — список  ·  `inbox-issledovatel-kandidatov-schitaet-chto-ak.md` · 2026-08-17
 - Из алерта: ⚠️ SPA 7-Day Checkpoint FAILED: 1 check(s)  ·  `inbox-iz-alerta-spa-7-day-checkpoint-failed-1-2.md` · 2026-08-08
 - Из алерта: ⚠️ SPA 7-Day Checkpoint FAILED: 1 check(s)  ·  `inbox-iz-alerta-spa-7-day-checkpoint-failed-1.md` · 2026-08-08
 - Карточка, созданная посреди цикла, не доезжает: create пишет в ХОСТ-дерево, а пуш идёт из worktree  ·  `inbox-kartochka-sozdannaya-posredi-tsikla-ne-d.md` · 2026-08-06
@@ -211,6 +212,7 @@
 - Находка петли: hit-rate аналитиков не вычислим: proof.jsonl хранит только хэши, содер  ·  `inbox-nahodka-petli-hit-rate-analitikov-ne-vyc.md` · 2026-08-05
 - Находка петли: манифест ↔ факты: manifest --check вернул дрейф (см. build_architectur  ·  `inbox-nahodka-petli-manifest-fakty-manifest-ch.md` · 2026-08-15
 - Находка петли: постура офиса CRITICAL, но книга развёрнута (cash 10.0% < 50%) — офис  ·  `inbox-nahodka-petli-postura-ofisa-critical-no.md` · 2026-08-11
+- Находка петли: возможность moonwell_base 10.7382% (evidence L3) доступна книге, не де  ·  `inbox-nahodka-petli-vozmozhnost-moonwell-base.md` · 2026-08-14
 - Нечёткое совпадение отдаёт APY ЧУЖОГО актива: USDC.e ранжирует капитал как USDC — и платит БОЛЬШЕ настоящего  ·  `inbox-nechetkoe-sovpadenie-otdaet-apy-chuzhogo.md` · 2026-08-09
 - Номер ADR-067 занят ДВУМЯ разными решениями — реестр показывает две строки  ·  `inbox-nomer-adr-067-zanyat-dvumya-raznymi-resh.md` · 2026-08-07
 - Номер записи реестра берётся АВАНСОМ и протухает вместе с недоставленной работой — дубля ловить нечем  ·  `inbox-nomer-zapisi-reestra-beretsya-avansom-i.md` · 2026-08-15
@@ -328,7 +330,6 @@
 - Две записи о деньгах расходятся каждый день — найти и починить ПРИЧИНУ (решение владельца 10.08, вариант 1)  ·  `inbox-dve-zapisi-o-dengah-rashodyatsya-kazhdyi.md` · 2026-08-10
 - если тот же target можно приблизить простым:  ·  `inbox-esli-tot-zhe-target-mozhno-priblizit-pro.md` · 2026-08-13
 - Храповик неподключённых скриптов считает проводкой упоминание имени в тексте сообщения  ·  `inbox-hrapovik-nepodklyuchennyh-skriptov-schit-2.md` · 2026-08-16
-- Исследователь кандидатов считает, что активных адаптеров НОЛЬ: парсер написан под dict, а реестр — список  ·  `inbox-issledovatel-kandidatov-schitaet-chto-ak.md` · 2026-08-17
 - Книги за прошлый день нет в архиве: дозапись исходов навсегда несёт null в позициях  ·  `inbox-knigi-za-proshlyi-den-net-v-arhive-dozap.md` · 2026-08-17
 - Корневой __init__.py не может доехать до прода НИ ОДНИМ механизмом — и после #275 он там не просто устарел, а противоречив  ·  `inbox-kornevoi-init-py-ne-mozhet-doehat-do-pro.md` · 2026-08-17
 - Крупнейшая позиция книги стоит на константе: у aave_v3 (Ethereum, 40%) TVL «не измерено», а пул в фиде есть  ·  `inbox-krupneishaya-pozitsiya-knigi-stoit-na-ko.md` · 2026-08-09
@@ -338,7 +339,6 @@
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
 - Находка петли: аналитик red_team: CRITICAL — требует реакции (карточка/решение), не п  ·  `inbox-nahodka-petli-analitik-red-team-critical.md` · 2026-08-10
 - Находка петли: возможность fluid_fusdc 5.03% (evidence L3) доступна книге, не держитс  ·  `inbox-nahodka-petli-vozmozhnost-fluid-fusdc-5.md` · 2026-08-13
-- Находка петли: возможность moonwell_base 10.7382% (evidence L3) доступна книге, не де  ·  `inbox-nahodka-petli-vozmozhnost-moonwell-base.md` · 2026-08-14
 - Окно до 6 часов: ответ владельца между нажатием кнопки и прогоном моста живёт в одном экземпляре  ·  `inbox-okno-do-6-chasov-otvet-vladeltsa-mezhdu.md` · 2026-08-15
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08
 - Отказ замка цикла неотличим от аварии: last_exit=2 означает и 'защитил трек', и 'сломался'  ·  `inbox-otkaz-zamka-tsikla-neotlichim-ot-avarii.md` · 2026-08-08
@@ -356,6 +356,7 @@
 - TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13
 - Тест GSM Sky приколочен к до-ADR-065 состоянию  ·  `inbox-test-gsm-sky-prikolochen-k-do-adr-065-so.md` · 2026-08-07
 - Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md` · 2026-08-06 · 🔒 `cycle-87477`
+- Второй исследовательский агент считает охваченным то, что оркестратор ОПРОСИЛ: 8 имён вместо 36, и пустой список платит +15 баллов дублям  ·  `inbox-vtoroi-issledovatelskii-agent-schitaet-o.md` · 2026-08-17
 - WHY IT EXISTS  ·  `inbox-why-it-exists.md` · 2026-08-13
 - Замер обмена «доходность ↔ концентрация» на T2 (20/25/30%) — решение владельца A, задачи не было  ·  `inbox-zamer-obmena-dohodnost-kontsentratsiya-n.md` · 2026-08-08
 - Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07 · 🔒 `cycle-81141`

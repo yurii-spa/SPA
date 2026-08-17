@@ -2,9 +2,11 @@
 trackerStatus:
   type: inbox
 title: "Исследователь кандидатов считает, что активных адаптеров НОЛЬ: парсер написан под dict, а реестр — список"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-17
+claimed_by: cycle-61373
+claimed_at: 2026-08-17T13:59:35Z
 ---
 
 ## Что измерено (цикл #274, не гипотеза)

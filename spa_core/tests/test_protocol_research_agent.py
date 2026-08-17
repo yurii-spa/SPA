@@ -22,10 +22,13 @@ from spa_core.agents.protocol_research_agent import (
     _deterministic_notes,
     _existing_protocol_ids,
     _normalise,
+    _read_active_adapters_from_init,
+    _read_manifest_protocols,
     _recommendation,
     _suggested_tier,
     fetch_defi_candidates,
     filter_new_protocols,
+    known_protocols,
     research_protocol,
     run_research_cycle,
 )
@@ -522,3 +525,230 @@ def test_run_cycle_returns_dict_always(tmp_path):
     result = run_research_cycle(data_dir=tmp_path)
     assert isinstance(result, dict)
     assert "status" in result
+
+
+# ─── Множество известного: «не нашли» ≠ «не смотрели» (цикл #276) ─────────────
+#
+# Каждый тест ниже — ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ реальной аварии 2026-08-17:
+# `_read_active_adapters_from_init()` отдавал `[]`, потому что текстовый разбор
+# требовал `{` в строке определения (был написан под dict), а реестр в
+# `spa_core/adapters/__init__.py` — СПИСОК кортежей. Молчаливый `[]` читался
+# потребителем как «активных адаптеров нет» ⇒ уже охваченный протокол мог
+# приехать «новым кандидатом» (fail-OPEN в исследовательском слое).
+# Замер до починки: 0 имён вместо 36, `aave_v3` (40 % книги) отсутствовал.
+
+
+def _write_module(path: Path, source: str) -> Path:
+    path.write_text(source, encoding="utf-8")
+    return path
+
+
+def test_active_adapters_real_init_contains_aave_v3():
+    """Авария дословно: на СЕГОДНЯШНЕМ файле разбор обязан дать aave_v3.
+
+    Краснеет на неисправленном коде: там результат `[]`.
+    """
+    names = _read_active_adapters_from_init()
+    assert names is not None, "реальный adapters/__init__.py обязан быть ИЗМЕРИМ"
+    assert names, "пустой набор на существующем реестре — это и была авария"
+    assert "aave_v3" in names
+
+
+def test_active_adapters_parity_with_imported_registry():
+    """AST-чтение ⊇ импортированный ADAPTER_REGISTRY — сторож шире подопечного.
+
+    Если однажды имена начнут собираться способом, которого AST не видит (цикл,
+    переменная), тест ПОКРАСНЕЕТ, а не промолчит.
+    """
+    from spa_core.adapters import ADAPTER_REGISTRY
+
+    live = {entry[0] for entry in ADAPTER_REGISTRY}
+    names = _read_active_adapters_from_init()
+    assert names is not None
+    missing = live - set(names)
+    assert not missing, f"AST не увидел имён живого реестра: {sorted(missing)}"
+
+
+def test_active_adapters_sees_conditional_appends():
+    """Восемь адаптеров доезжают через `.append(...)` под `if` — их нельзя терять.
+
+    Контроль на МОЮ собственную слепоту: чтение одного литерала дало бы 28 из 36
+    и «28» читалось бы как «всего 28». `moonwell_base` тут не случаен — офис
+    ровно его называет доступной возможностью.
+    """
+    names = _read_active_adapters_from_init()
+    assert names is not None
+    for late in ("moonwell_base", "aerodrome_base", "silo_arbitrum", "aave_v3_base"):
+        assert late in names, f"{late} добавляется append-ом и потерян разбором"
+
+
+def test_active_adapters_list_of_tuples_form(tmp_path):
+    """Списочная форма — та самая, на которой старый разбор молчал."""
+    src = _write_module(
+        tmp_path / "list_form.py",
+        'ADAPTER_REGISTRY = [\n    ("aave_v3", "T1", object),\n    ("maple", "T2", object),\n]\n',
+    )
+    assert _read_active_adapters_from_init(src) == ["aave_v3", "maple"]
+
+
+def test_active_adapters_dict_form_still_parsed(tmp_path):
+    """Обратный контроль: dict-форма, под которую был написан старый разбор, жива."""
+    src = _write_module(
+        tmp_path / "dict_form.py",
+        'ADAPTER_REGISTRY = {"aave_usdc": {"tier": "T1"}, "maple": {}}\n',
+    )
+    assert _read_active_adapters_from_init(src) == ["aave_usdc", "maple"]
+
+
+def test_active_adapters_list_of_strings_form(tmp_path):
+    """Третья форма — список строк."""
+    src = _write_module(
+        tmp_path / "str_form.py", 'ADAPTER_REGISTRY = ["aave_v3", "maple"]\n'
+    )
+    assert _read_active_adapters_from_init(src) == ["aave_v3", "maple"]
+
+
+def test_active_adapters_missing_file_is_not_measured(tmp_path):
+    """Файла нет ⇒ НЕ ИЗМЕРЕНО (None), а не «адаптеров нет» ([])."""
+    assert _read_active_adapters_from_init(tmp_path / "нет-такого.py") is None
+
+
+def test_active_adapters_mention_only_is_not_measured(tmp_path):
+    """Упоминание имени в докстринге определением НЕ является (класс #227)."""
+    src = _write_module(
+        tmp_path / "mention.py",
+        '"""Здесь ADAPTER_REGISTRY = {\'aave_v3\': 1} только в тексте."""\nX = 1\n',
+    )
+    assert _read_active_adapters_from_init(src) is None
+
+
+def test_active_adapters_syntax_error_is_not_measured(tmp_path):
+    """Файл не разбирается ⇒ НЕ ИЗМЕРЕНО, без исключения наружу."""
+    src = _write_module(tmp_path / "broken.py", "ADAPTER_REGISTRY = [(\n")
+    assert _read_active_adapters_from_init(src) is None
+
+
+def test_active_adapters_empty_registry_is_measured_zero(tmp_path):
+    """Разобранный ПУСТОЙ реестр — это `[]` (измеренный ноль), не None.
+
+    Ровно то различение, которого не было: «ничего нет» и «не смотрели» —
+    разные ответы.
+    """
+    src = _write_module(tmp_path / "empty.py", "ADAPTER_REGISTRY = []\n")
+    assert _read_active_adapters_from_init(src) == []
+
+
+def test_active_adapters_unknown_shape_is_not_measured(tmp_path):
+    """Незнакомая форма (не контейнер) ⇒ НЕ ИЗМЕРЕНО."""
+    src = _write_module(tmp_path / "weird.py", "ADAPTER_REGISTRY = build_it()\n")
+    assert _read_active_adapters_from_init(src) is None
+
+
+def test_manifests_missing_dir_is_not_measured(tmp_path):
+    """Каталога манифестов нет ⇒ None, не пустой список."""
+    assert _read_manifest_protocols(tmp_path / "нет-каталога") is None
+
+
+def test_manifests_empty_dir_is_measured_zero(tmp_path):
+    """Каталог прочитан и пуст ⇒ измеренный ноль."""
+    assert _read_manifest_protocols(tmp_path) == []
+
+
+def test_known_protocols_measured_on_real_repo():
+    """На реальном дереве множество известного ИЗМЕРЕНО и содержит обе половины."""
+    known = known_protocols()
+    assert known["measured"] is True
+    assert known["reason"] == ""
+    assert "aave_v3" in known["ids"]            # из реестра адаптеров
+    assert known["adapters_count"] and known["adapters_count"] > 0
+    assert known["manifests_count"] and known["manifests_count"] > 0
+
+
+def test_known_protocols_not_measured_names_both_sources(tmp_path):
+    """Оба источника недоступны ⇒ measured=False и причина НАЗВАНА словами."""
+    known = known_protocols(
+        init_path=tmp_path / "нет.py", manifests_dir=tmp_path / "нет-каталога"
+    )
+    assert known["measured"] is False
+    assert "адаптеры" in known["reason"] and "манифесты" in known["reason"]
+    assert known["adapters_count"] is None
+    assert known["manifests_count"] is None
+
+
+def test_known_protocols_partial_is_not_measured(tmp_path):
+    """Половина источников — всё ещё НЕ ИЗМЕРЕНО, хотя имена есть.
+
+    Непустой `ids` не даёт права называть множество полным.
+    """
+    src = _write_module(tmp_path / "half.py", 'ADAPTER_REGISTRY = ["aave_v3"]\n')
+    known = known_protocols(init_path=src, manifests_dir=tmp_path / "нет-каталога")
+    assert known["ids"] == ["aave_v3"]
+    assert known["measured"] is False
+    assert "манифесты" in known["reason"]
+
+
+def test_existing_protocol_ids_covers_adapters_and_manifests():
+    """`_existing_protocol_ids()` — обёртка, которую тесты ИМПОРТИРОВАЛИ, но не проверяли.
+
+    Именно поэтому дефект и жил: ноль утверждений о поведении.
+    """
+    ids = _existing_protocol_ids()
+    assert "aave_v3" in ids               # реестр адаптеров
+    assert "ethena_susde" in ids          # манифест
+    assert len(ids) > 21, "21 = только манифесты, адаптеры снова потеряны"
+
+
+def test_covered_protocol_is_not_offered_as_new_candidate():
+    """Эффект у ПОТРЕБИТЕЛЯ: протокол, адаптер которого у нас есть, не «новый».
+
+    Замер на неисправленном origin: `existing` состоял из ОДНИХ манифестов, и
+    **26 из 36** охваченных протоколов проходили фильтр как новые кандидаты —
+    включая ВСЕ живые позиции книги. Имена здесь выбраны не наугад: `moonwell_base`
+    контролем НЕ является (манифест `moonwell` ловит его подстрокой и на сломанном
+    коде), а `aave_v3` и `morpho_steakhouse` не покрыты ни одним манифестом.
+    """
+    for pid in ("aave_v3", "morpho_steakhouse", "pendle"):
+        candidates = [_make_candidate(protocol_id=pid, name=pid)]
+        fresh = filter_new_protocols(candidates, _existing_protocol_ids())
+        assert fresh == [], f"уже охваченный {pid} приехал как новый кандидат"
+
+
+def test_status_doc_carries_known_set_block(tmp_path):
+    """Честность замера лежит МАШИННО в статусе агента, не только в логе."""
+    _write_registry(tmp_path, [])
+    run_research_cycle(data_dir=tmp_path)
+    doc = json.loads((tmp_path / "protocol_research_status.json").read_text())
+    assert "known_set" in doc
+    assert doc["known_set"]["measured"] is True
+    assert doc["known_set"]["total"] > 0
+    assert doc["known_set"]["adapters_count"] > 0
+
+
+def test_status_doc_names_unmeasured_known_set(tmp_path, monkeypatch):
+    """Источник недоступен ⇒ в статусе measured=False с причиной, цикл не падает."""
+    import spa_core.agents.protocol_research_agent as mod
+
+    monkeypatch.setattr(mod, "_ADAPTERS_INIT", tmp_path / "нет.py")
+    monkeypatch.setattr(mod, "_MANIFESTS_DIR", tmp_path / "нет-каталога")
+    _write_registry(tmp_path, [])
+    result = run_research_cycle(data_dir=tmp_path)
+    assert isinstance(result, dict)
+    doc = json.loads((tmp_path / "protocol_research_status.json").read_text())
+    assert doc["known_set"]["measured"] is False
+    assert doc["known_set"]["reason"]
+    assert doc["known_set"]["adapters_count"] is None
+
+
+def test_unmeasured_known_set_is_spoken_aloud(tmp_path, monkeypatch, caplog):
+    """Не измерено ⇒ сказано ВСЛУХ: тихий отказ и был дефектом."""
+    import logging
+
+    import spa_core.agents.protocol_research_agent as mod
+
+    monkeypatch.setattr(mod, "_ADAPTERS_INIT", tmp_path / "нет.py")
+    monkeypatch.setattr(mod, "_MANIFESTS_DIR", tmp_path / "нет-каталога")
+    _write_registry(tmp_path, [])
+    with caplog.at_level(logging.WARNING, logger="spa.agents.protocol_research_agent"):
+        run_research_cycle(data_dir=tmp_path)
+    assert any("НЕ ИЗМЕРЕНО" in rec.message or "НЕ ИЗМЕРЕНЫ" in rec.message
+               for rec in caplog.records), "молчаливое «не измерено» — та же авария"
