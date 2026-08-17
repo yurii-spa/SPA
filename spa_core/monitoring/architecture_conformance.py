@@ -27,7 +27,11 @@
   B3  замыкание потребления: продукт агента с consumer_required обязан иметь СВЕЖИЙ
         ресит в data/consumption_receipts.jsonl → WARN (ядро аудита: 12 io_* в никуда)
   B5  манифест сам соответствует фактам plist'ов (перегенерация без дрейфа;
-        на хосте без ~/Library/LaunchAgents/com.spa.* — честный UNCHECKED)
+        на хосте без ~/Library/LaunchAgents/com.spa.* — честный UNCHECKED).
+        Отдельно: plist, объявленный манифестом путём В РЕПО, которого в этом
+        дереве нет, а на `origin/main` он ЕСТЬ, — это граница синхронизации,
+        а не дрейф механики ⇒ UNCHECKED с названной причиной, не находка
+        (цикл #267; доказательство — в `build_architecture_manifest`)
   B6  локальная курация ↔ `origin/main` (замер 2026-08-08, цикл #168/#169)
 
 Откуда берётся КУРАЦИЯ (`intent` и родня) — отдельный вопрос от «какие plist'ы
@@ -249,8 +253,17 @@ def group_drift_by_agent(problems: list[str]) -> list[dict]:
     return out
 
 
-def _manifest_drift_problems() -> list[dict] | None:
+def _manifest_drift_problems() -> dict | None:
     """B5: перегенерировать манифест из фактов plist'ов. None = НЕ ИЗМЕРИМО здесь.
+
+    Возвращает `{"drift": [сгруппированные находки], "unmeasurable": [строки]}`.
+    Второй список — то, что в ЭТОМ дереве измерить нечем: он уезжает в `unchecked`,
+    а не в находки. Замер 16.08 (цикл #267): `com.spa.site_freshness` объявлен
+    манифестом как `repo:launchd/…`, на origin файл есть, в прод-дереве нет
+    (синхронизация возит только `spa_core/ scripts/ tests/`) — сторож печатал три
+    строки «→ None» и звучал как ДРЕЙФ МЕХАНИКИ, хотя мерил ГРАНИЦУ СИНХРОНИЗАЦИИ.
+    Находка кормит мост карточками владельцу; ложная — тратит его внимание
+    (карточка `inbox-prod-storozh-arhitektury-chitaet-fail-ko`).
 
     Отдаёт САМ диагноз, а не указатель на него. До цикла #264 здесь стоял
     `gen.main([])`, из которого брался ОДИН код возврата, а находка звучала
@@ -270,11 +283,13 @@ def _manifest_drift_problems() -> list[dict] | None:
         if not glob.glob(os.path.join(gen.LAUNCH_AGENTS_DIR, "com.spa.*.plist")):
             return None  # не прод-хост
         m = gen.measure()  # тот же вердикт, что у CLI без флагов: пусто ⇔ rc 0
-        return group_drift_by_agent(m["problems"] + m["drift"])
+        return {"drift": group_drift_by_agent(m["problems"] + m["drift"]),
+                "unmeasurable": list(m.get("unmeasurable") or [])}
     except Exception as e:  # noqa: BLE001
         # Ключ БЕЗ текста исключения: путь/номер строки в ключе плодили бы новую
         # находку (и новую карточку) на каждый чих окружения.
-        return [{"key": "measure_failed", "message": f"B5 упал: {e}"}]
+        return {"drift": [{"key": "measure_failed", "message": f"B5 упал: {e}"}],
+                "unmeasurable": []}
 
 
 def origin_manifest(root: str = REPO_ROOT, ref: str = CURATION_REF,
@@ -362,7 +377,8 @@ def run_checks(manifest: dict,
                prev_first_seen: dict[str, str] | None = None,
                drift_problems: list[str | dict] | None = None,
                drift_measured: bool = False,
-               curation: dict | None = None) -> dict:
+               curation: dict | None = None,
+               drift_unmeasurable: list[str] | None = None) -> dict:
     findings: list[dict] = []
     unchecked: list[dict] = []
     agents = manifest.get("agents", [])
@@ -482,6 +498,13 @@ def run_checks(manifest: dict,
                         else (p[:80], p))
             findings.append(_finding(f"B5:drift:{key}", "B5", "WARN", "strong",
                                      f"манифест ↔ факты: {msg}"))
+        # Расхождение, которого в ЭТОМ дереве не измерить (plist объявлен путём
+        # в репо, каталог сюда не синкается) — не находка, но и не тишина.
+        # Вердикт от этого не зеленеет: непустой `unchecked` даёт overall
+        # UNCHECKED (exit 1), просто мост не заводит по нему карточку владельцу.
+        for u in (drift_unmeasurable or []):
+            unchecked.append({"check": "B5_manifest",
+                              "reason": f"манифест ↔ факты: {u}"})
 
     # B6 — локальная курация ↔ origin (см. шапку модуля)
     if curation is not None:
@@ -580,11 +603,13 @@ def main(argv=None) -> int:
     manifest, curation = reconcile_curation(local, origin, reason=why)
     fleet = gather_fleet()
     receipts = load_receipts()
-    drift = _manifest_drift_problems()
+    b5 = _manifest_drift_problems()
     now = dt.datetime.now(dt.timezone.utc)
     report = run_checks(manifest, fleet, artifact_timestamp, receipts, now,
                         prev_first_seen=_prev_first_seen(args.report),
-                        drift_problems=drift, drift_measured=drift is not None,
+                        drift_problems=(b5 or {}).get("drift"),
+                        drift_measured=b5 is not None,
+                        drift_unmeasurable=(b5 or {}).get("unmeasurable"),
                         curation=curation)
 
     from spa_core.utils.atomic import atomic_save

@@ -28,7 +28,9 @@
     notes          — свободный текст
 
 Режимы:
-  без флагов  сверить манифест с фактами; расхождение → отчёт + exit 2
+  без флагов  сверить манифест с фактами; расхождение → отчёт + exit 2;
+              измерить нечем (plist объявлен в репо, но каталог сюда не
+              синкается) → exit 1, а НЕ 0 и не 2 — см. `compute_drift`
               (флага `--check` НЕТ: argparse ответит `unrecognized arguments`;
                до цикла #264 так было написано и здесь, и в находке B5)
   --write     обновить механические поля / посеять новых агентов (курация не трогается)
@@ -54,12 +56,18 @@ import glob
 import json
 import os
 import plistlib
+import subprocess
 import sys
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_MANIFEST = os.path.join(REPO_ROOT, "architecture", "manifest.json")
 DEFAULT_REGISTRY = os.path.join(REPO_ROOT, "data", "agent_registry.json")
 LAUNCH_AGENTS_DIR = os.path.expanduser("~/Library/LaunchAgents")
+# Префикс `plist_source` для plist'а, лежащего В РЕПО (см. _scan_plists).
+REPO_SRC_PREFIX = "repo:"
+# Ветка-конституция: тот же ref, что у курации в architecture_conformance (B6).
+CURATION_REF = "origin/main"
+GIT_TIMEOUT = 10
 
 INTENTS = ("active", "designed", "retired", "unresolved")
 LAYERS = ("product", "dev", "infra")
@@ -263,8 +271,73 @@ def default_plist_dirs() -> list[str]:
             os.path.join(REPO_ROOT, "scripts")]
 
 
-def compute_drift(current: dict, rebuilt: dict, manifest_path: str) -> list[str]:
+def _path_on_ref(root: str, ref: str, rel: str) -> bool:
+    """Есть ли `rel` в дереве `ref`. False — и «файла нет», и «спросить не у кого»
+    (не репозиторий, нет ветки, git недоступен): для ЕДИНСТВЕННОГО читателя этой
+    функции оба ответа значат одно — доказательства нет, значит молчать нельзя.
+    Отдельная проверка разрешимости ref здесь стояла и была снята как мёртвая:
+    мутация «убрать её» не покрасила ни одного теста — `git cat-file` на
+    неразрешимом ref отвечает тем же отказом (замер цикла #267)."""
+    try:
+        out = subprocess.run(["git", "cat-file", "-e", f"{ref}:{rel}"], cwd=root,
+                             capture_output=True, text=True, timeout=GIT_TIMEOUT)
+    except Exception:  # noqa: BLE001
+        return False
+    return out.returncode == 0
+
+
+def unmeasurable_missing_plist(cur_entry: dict, new_entry: dict,
+                               root: str | None = None,
+                               ref: str | None = None) -> str | None:
+    """Факта нет — потому что plist СТЁРЛИ, или потому что это дерево его не получает?
+
+    Возвращает причину (str), если ДОКАЗАНО второе; иначе None ⇒ строка остаётся
+    дрейфом, как была. Доказательство требует всех четырёх условий сразу, и каждое
+    сужает в сторону молчания только там, где судить не по чему:
+
+    1. перегенерация не нашла plist НИГДЕ (`plist_source is None`) — иначе факт
+       есть, и расхождение настоящее (например, репо-plist доехал до LaunchAgents);
+    2. манифест сам объявляет источником путь В РЕПО (`repo:<rel>`) — пропажа из
+       `~/Library/LaunchAgents` остаётся фактом о ФЛОТЕ и молчания не заслуживает;
+    3. этого пути нет в рабочем дереве;
+    4. на `ref` он ЕСТЬ — то есть файл не удалён, а не доехал сюда (и «спросить
+       не у кого» здесь тоже значит «нет доказательства», см. `_path_on_ref`).
+
+    Замер 2026-08-16 (прод, цикл #267): `com.spa.site_freshness` объявлен как
+    `repo:launchd/com.spa.site_freshness.plist`; на origin файл есть, в прод-дереве
+    нет — `code_sync_from_origin.sh` возит только `spa_core/ scripts/ tests/`.
+    Сторож печатал три строки «→ None» и звучал как дрейф механики, хотя мерил
+    ГРАНИЦУ СИНХРОНИЗАЦИИ. Ложная находка кормит мост карточками владельцу.
+
+    Fail-CLOSED: git недоступен, ref не разрешается или файла нет и на `ref` —
+    остаётся дрейф. Замолчать можно только по положительному доказательству.
+    """
+    root = root or REPO_ROOT
+    ref = ref or CURATION_REF
+    if new_entry.get("plist_source") is not None:
+        return None
+    src = cur_entry.get("plist_source")
+    if not isinstance(src, str) or not src.startswith(REPO_SRC_PREFIX):
+        return None
+    rel = src[len(REPO_SRC_PREFIX):]
+    if not rel or os.path.exists(os.path.join(root, rel)):
+        return None
+    if not _path_on_ref(root, ref, rel):
+        return None
+    return (f"{rel} есть на {ref}, но НЕТ в этом рабочем дереве — механика "
+            f"НЕ ИЗМЕРЕНА (синхронизация возит только spa_core/ scripts/ tests/). "
+            f"Это свойство дерева, а не факт о флоте")
+
+
+def compute_drift(current: dict, rebuilt: dict, manifest_path: str,
+                  root: str | None = None,
+                  ref: str | None = None) -> tuple[list[str], list[str]]:
     """Чем манифест на диске расходится с перегенерацией из фактов.
+
+    Возвращает `(drift, unmeasurable)`: первое — расхождение, второе — то, что
+    в ЭТОМ дереве измерить нечем (см. `unmeasurable_missing_plist`). Разделение
+    нужно потому, что читатель у них разный: дрейф — находка сторожа (и карточка
+    от моста), «не измерено» — раздел `unchecked`, который вердикт не зеленит.
 
     Отдельной функцией — потому что диагноз нужен НЕ только человеку у терминала.
     `architecture_conformance` (B5) до цикла #264 видел от этого скрипта ровно код
@@ -273,11 +346,11 @@ def compute_drift(current: dict, rebuilt: dict, manifest_path: str) -> list[str]
     существует. Три готовые строки печатались в stdout и пропадали.
     """
     drift: list[str] = []
+    unmeasurable: list[str] = []
     if not os.path.exists(manifest_path):
-        drift.append("манифест отсутствует — запустить --write")
-        return drift
+        return ["манифест отсутствует — запустить --write"], unmeasurable
     if dumps(current) == dumps(rebuilt):
-        return drift
+        return drift, unmeasurable
     cur = {a["label"]: a for a in current.get("agents", [])}
     new = {a["label"]: a for a in rebuilt["agents"]}
     for label in sorted(set(cur) | set(new)):
@@ -286,30 +359,44 @@ def compute_drift(current: dict, rebuilt: dict, manifest_path: str) -> list[str]
         elif label not in new:
             drift.append(f"{label}: агент в манифесте, в фактах не найден")
         else:
-            for k in MECHANICAL_FIELDS:
-                if cur[label].get(k) != new[label].get(k):
-                    drift.append(f"{label}: {k} {cur[label].get(k)!r} → {new[label].get(k)!r}")
-    if not drift:
+            diffs = [k for k in MECHANICAL_FIELDS
+                     if cur[label].get(k) != new[label].get(k)]
+            if not diffs:
+                continue
+            why = unmeasurable_missing_plist(cur[label], new[label], root, ref)
+            if why:
+                # ОДНА строка на агента: три поля «→ None» имеют одну причину,
+                # и три строки «не измерено» об одном и том же — тот же шум,
+                # от которого лечимся (ключ находки уже группируется по агенту).
+                unmeasurable.append(f"{label}: {why}")
+                continue
+            for k in diffs:
+                drift.append(f"{label}: {k} {cur[label].get(k)!r} → {new[label].get(k)!r}")
+    if not drift and not unmeasurable:
         drift.append("недиагностированное расхождение сериализации — запустить --write")
-    return drift
+    return drift, unmeasurable
 
 
 def measure(manifest_path: str = DEFAULT_MANIFEST,
             registry_path: str = DEFAULT_REGISTRY,
-            plist_dirs: list[str] | None = None) -> dict:
+            plist_dirs: list[str] | None = None,
+            root: str | None = None,
+            ref: str | None = None) -> dict:
     """Один замер «манифест ↔ факты»: без stdout, без записи, без sys.exit.
 
-    Возвращает `{plists, current, rebuilt, problems, drift}`. Пусты `problems` и
-    `drift` ⇔ `main()` в режиме сверки вернул бы 0 — это ОДИН источник вердикта
-    для CLI и для сторожа.
+    Возвращает `{plists, current, rebuilt, problems, drift, unmeasurable}`.
+    Пусты `problems` и `drift` ⇔ `main()` в режиме сверки вернул бы 0 — это ОДИН
+    источник вердикта для CLI и для сторожа. `unmeasurable` вердикт НЕ зеленит:
+    у CLI это код 1 (предупреждение), у сторожа — раздел `unchecked`.
     """
     plists = _scan_plists(plist_dirs or default_plist_dirs())
     registry = _load_registry(registry_path)
     current = _load_manifest(manifest_path)
     rebuilt = build(current, plists, registry)
+    drift, unmeasurable = compute_drift(current, rebuilt, manifest_path, root, ref)
     return {"plists": plists, "current": current, "rebuilt": rebuilt,
             "problems": validate(rebuilt, plists),
-            "drift": compute_drift(current, rebuilt, manifest_path)}
+            "drift": drift, "unmeasurable": unmeasurable}
 
 
 def main(argv=None) -> int:
@@ -338,13 +425,23 @@ def main(argv=None) -> int:
         return 2 if problems else 0
 
     # режим сверки (без флагов): манифест обязан совпадать с перегенерацией и быть валидным
-    drift = m["drift"]
+    drift, unmeasurable = m["drift"], m["unmeasurable"]
     for p in problems + drift:
         print(f"DRIFT: {p}")
+    for u in unmeasurable:
+        print(f"НЕ ИЗМЕРЕНО: {u}")
     if problems or drift:
         print(f"ИТОГ: манифест НЕ соответствует фактам "
-              f"({len(problems)} схемных, {len(drift)} дрейфовых)")
+              f"({len(problems)} схемных, {len(drift)} дрейфовых, "
+              f"{len(unmeasurable)} не измерено)")
         return 2
+    if unmeasurable:
+        # Не 0: «нечем измерить» — это не «сошлось». И не 2: расхождения не
+        # доказано, а ложная тревога стоит внимания владельца (карточка
+        # `inbox-prod-storozh-arhitektury-chitaet-fail-ko`).
+        print(f"НЕ ИЗМЕРЕНО ПОЛНОСТЬЮ: {len(unmeasurable)} агент(ов) — "
+              f"остальное соответствует фактам ({len(rebuilt['agents'])} агентов)")
+        return 1
     print(f"OK: манифест соответствует фактам ({len(rebuilt['agents'])} агентов)")
     return 0
 
