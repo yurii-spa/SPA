@@ -189,7 +189,8 @@ or `strategy_registry.py`.
 
 **Remediation:**
 ```bash
-python3 -c "from spa_core.adapters.registry import ADAPTER_REGISTRY; print(list(ADAPTER_REGISTRY))"
+python3 -c "from spa_core.adapters.registry import ADAPTER_METADATA; print(list(ADAPTER_METADATA))"   # 22 ключа метаданных
+python3 -c "from spa_core.adapters import ADAPTER_REGISTRY; print([e[0] for e in ADAPTER_REGISTRY])"  # 36 канонических имён
 ```
 
 ```python

@@ -18,7 +18,7 @@ if _REPO not in sys.path:
 from spa_core.adapters.fluid_adapter import FluidUSDCAdapter, FluidUSDTAdapter
 from spa_core.adapters.notional_v3_adapter import NotionalV3Adapter
 from spa_core.adapters.base_adapter import BaseAdapter, YieldInfo
-from spa_core.adapters.registry import ADAPTER_REGISTRY, registry_summary
+from spa_core.adapters.registry import ADAPTER_METADATA, registry_summary
 
 
 # ---------------------------------------------------------------------------
@@ -213,26 +213,26 @@ class TestNotionalV3Adapter(unittest.TestCase):
 class TestRegistryNewEntries(unittest.TestCase):
 
     def test_fluid_usdc_in_registry(self):
-        self.assertIn("fluid_usdc", ADAPTER_REGISTRY)
+        self.assertIn("fluid_usdc", ADAPTER_METADATA)
 
     def test_fluid_usdt_in_registry(self):
-        self.assertIn("fluid_usdt", ADAPTER_REGISTRY)
+        self.assertIn("fluid_usdt", ADAPTER_METADATA)
 
     def test_notional_v3_in_registry(self):
-        self.assertIn("notional_v3", ADAPTER_REGISTRY)
+        self.assertIn("notional_v3", ADAPTER_METADATA)
 
     def test_registry_has_22_entries(self):
-        self.assertEqual(len(ADAPTER_REGISTRY), 22)
+        self.assertEqual(len(ADAPTER_METADATA), 22)
 
     def test_new_adapters_are_research_only(self):
         for key in ("fluid_usdc", "fluid_usdt", "notional_v3"):
             with self.subTest(adapter=key):
-                self.assertTrue(ADAPTER_REGISTRY[key]["research_only"])
+                self.assertTrue(ADAPTER_METADATA[key]["research_only"])
 
     def test_new_adapters_tier_t2(self):
         for key in ("fluid_usdc", "fluid_usdt", "notional_v3"):
             with self.subTest(adapter=key):
-                self.assertEqual(ADAPTER_REGISTRY[key]["tier"], "T2")
+                self.assertEqual(ADAPTER_METADATA[key]["tier"], "T2")
 
     def test_registry_summary_total(self):
         s = registry_summary()

@@ -47,8 +47,8 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 def _get_registry() -> Dict[str, Any]:
-    from spa_core.adapters.registry import ADAPTER_REGISTRY
-    return ADAPTER_REGISTRY
+    from spa_core.adapters.registry import ADAPTER_METADATA
+    return ADAPTER_METADATA
 
 
 def _get_adapter_safe(adapter_id: str) -> Optional[Any]:
@@ -113,7 +113,7 @@ def check_adapter_interface(adapter_id: str) -> dict:
     Parameters
     ----------
     adapter_id:
-        Key in ADAPTER_REGISTRY (e.g. ``"aave_usdc"``).
+        Key in ADAPTER_METADATA (e.g. ``"aave_usdc"``).
 
     Returns
     -------
@@ -133,7 +133,7 @@ def check_adapter_interface(adapter_id: str) -> dict:
             "adapter_id": adapter_id,
             "conforming": False,
             "missing": ["registry"],
-            "note": f"'{adapter_id}' not found in ADAPTER_REGISTRY",
+            "note": f"'{adapter_id}' not found in ADAPTER_METADATA",
         }
 
     meta = registry[adapter_id]

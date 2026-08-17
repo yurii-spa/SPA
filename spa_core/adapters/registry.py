@@ -1,20 +1,32 @@
 """
 spa_core/adapters/registry.py
 
-Central registry of all SPA protocol adapters.
-Single source of truth for adapter discovery and routing.
+Per-adapter METADATA (module, class, tier, chain, asset) keyed by adapter id.
 
-MP-1380 (v9.96): Replaces the scattered ADAPTER_REGISTRY list in __init__.py
-with a rich dict-based registry that carries per-adapter metadata.
+MP-1380 (v9.96) introduced this dict alongside the canonical list in
+``spa_core/adapters/__init__.py`` — and for three years BOTH objects were called
+``ADAPTER_REGISTRY``.  Цикл #274 развёл имена: под одним именем не могут жить два
+разных ответа на вопрос «есть ли у протокола адаптер?».
+
+    ``spa_core.adapters.ADAPTER_REGISTRY``          — КАНОНИЧЕСКИЙ реестр
+                                                      (список кортежей, 36 записей;
+                                                      `aave_v3`), инвариант CLAUDE.md;
+    ``spa_core.adapters.registry.ADAPTER_METADATA`` — ЭТОТ объект: метаданные,
+                                                      22 записи, СВОИ имена
+                                                      (`aave_usdc`, не `aave_v3`);
+    ``…adapter_orchestrator.POLLED_ADAPTERS``       — что цикл реально опрашивает (8).
+
+Составы НЕ совпадают и совпадать не обязаны — но и путать их молча больше нельзя.
+Храповик: ``spa_core/tests/test_adapter_registry_single_name.py``.
 
 Stdlib only — no third-party imports.  Never write to execution or monitoring
 domain from this module (read-only / advisory).
 
 Usage:
-    from spa_core.adapters.registry import ADAPTER_REGISTRY, get_adapter
+    from spa_core.adapters.registry import ADAPTER_METADATA, get_adapter
 
     # Get all T1 adapters
-    t1 = [a for a in ADAPTER_REGISTRY.values() if a["tier"] == "T1"]
+    t1 = [a for a in ADAPTER_METADATA.values() if a["tier"] == "T1"]
 
     # Get adapter instance
     adapter = get_adapter("aave_usdc")
@@ -36,7 +48,7 @@ logger = logging.getLogger(__name__)
 # Central registry  {adapter_id: metadata_dict}
 # ---------------------------------------------------------------------------
 
-ADAPTER_REGISTRY: Dict[str, Dict[str, Any]] = {
+ADAPTER_METADATA: Dict[str, Dict[str, Any]] = {
     # ------------------------------------------------------------------
     # T1 — Production adapters (CLEAN data, live trading eligible)
     # ------------------------------------------------------------------
@@ -268,14 +280,14 @@ def get_adapter(adapter_id: str) -> Any:
     Raises
     ------
     KeyError
-        If *adapter_id* is not in ADAPTER_REGISTRY.
+        If *adapter_id* is not in ADAPTER_METADATA.
     ImportError
         If the adapter module cannot be imported.
     """
-    if adapter_id not in ADAPTER_REGISTRY:
-        raise KeyError(f"Adapter '{adapter_id}' not found in ADAPTER_REGISTRY")
+    if adapter_id not in ADAPTER_METADATA:
+        raise KeyError(f"Adapter '{adapter_id}' not found in ADAPTER_METADATA")
 
-    meta = ADAPTER_REGISTRY[adapter_id]
+    meta = ADAPTER_METADATA[adapter_id]
     module_path: str = meta["module"]
     class_name: str = meta["class"]
 
@@ -288,7 +300,7 @@ def list_by_tier(tier: str) -> List[str]:
     """Return adapter IDs whose tier matches *tier* (e.g. ``"T1"``)."""
     return [
         adapter_id
-        for adapter_id, meta in ADAPTER_REGISTRY.items()
+        for adapter_id, meta in ADAPTER_METADATA.items()
         if meta.get("tier") == tier
     ]
 
@@ -297,7 +309,7 @@ def list_research_only() -> List[str]:
     """Return adapter IDs where ``research_only=True``."""
     return [
         adapter_id
-        for adapter_id, meta in ADAPTER_REGISTRY.items()
+        for adapter_id, meta in ADAPTER_METADATA.items()
         if meta.get("research_only") is True
     ]
 
@@ -310,7 +322,7 @@ def registry_summary() -> Dict[str, int]:
     dict
         ``{total, t1_count, t2_count, t3_count, research_only_count}``
     """
-    total = len(ADAPTER_REGISTRY)
+    total = len(ADAPTER_METADATA)
     t1_count = len(list_by_tier("T1"))
     t2_count = len(list_by_tier("T2"))
     t3_count = len(list_by_tier("T3"))
@@ -325,7 +337,7 @@ def registry_summary() -> Dict[str, int]:
 
 
 def validate_registry() -> List[str]:
-    """Validate every entry in ADAPTER_REGISTRY.
+    """Validate every entry in ADAPTER_METADATA.
 
     Checks:
     * All required keys are present.
@@ -341,7 +353,7 @@ def validate_registry() -> List[str]:
     """
     errors: List[str] = []
 
-    for adapter_id, meta in ADAPTER_REGISTRY.items():
+    for adapter_id, meta in ADAPTER_METADATA.items():
         prefix = f"[{adapter_id}]"
 
         # 1. Required keys

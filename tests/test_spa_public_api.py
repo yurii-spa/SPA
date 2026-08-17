@@ -147,11 +147,28 @@ class TestSpaErrors(unittest.TestCase):
 
 
 class TestSpaAdapterRegistry(unittest.TestCase):
-    """T-022  ADAPTER_REGISTRY is a dict"""
+    """T-022  публичная поверхность реестров адаптеров.
 
-    def test_adapter_registry_is_dict(self):
+    ИЗМЕНЁН НАМЕРЕННО (инв. #16, цикл #274, журнал W34): проверка «`ADAPTER_REGISTRY`
+    это dict» закрепляла САМ дефект карточки
+    `inbox-dva-raznyh-reestra-adapterov-nosyat-odno` — `spa_core.ADAPTER_REGISTRY`
+    отдавал dict из `registry.py` (22 записи, `aave_usdc`), тогда как инвариантом
+    `CLAUDE.md` и `.claude/rules/adapters.md` назван КАНОНИЧЕСКИЙ реестр из
+    `spa_core/adapters/__init__.py` (36 записей, `aave_v3`). Проверка НЕ ослаблена,
+    а расширена: теперь публичны ОБА имени, и каждое проверяется на свою форму —
+    раньше про второй объект не утверждалось ничего.
+    """
+
+    def test_adapter_registry_is_the_canonical_list(self):
         import spa_core
-        self.assertIsInstance(spa_core.ADAPTER_REGISTRY, dict)
+        from spa_core.adapters import ADAPTER_REGISTRY as canonical
+        self.assertIsInstance(spa_core.ADAPTER_REGISTRY, list)
+        self.assertIs(spa_core.ADAPTER_REGISTRY, canonical)
+
+    def test_adapter_metadata_is_a_dict_and_public(self):
+        import spa_core
+        self.assertIsInstance(spa_core.ADAPTER_METADATA, dict)
+        self.assertIn("ADAPTER_METADATA", spa_core.__all__)
 
 
 class TestSpaBacktestGate(unittest.TestCase):

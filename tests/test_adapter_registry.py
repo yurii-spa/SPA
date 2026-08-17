@@ -4,7 +4,7 @@ tests/test_adapter_registry.py
 35 unit tests for spa_core.adapters.registry.
 MP-1380 (v9.96): Unified adapter registry.
 
-Tests cover ADAPTER_REGISTRY structure, list_by_tier(), list_research_only(),
+Tests cover ADAPTER_METADATA structure, list_by_tier(), list_research_only(),
 registry_summary(), validate_registry(), and get_adapter() error handling.
 No real adapter imports are exercised — get_adapter() failures are simulated
 without instantiating live protocol clients.
@@ -15,7 +15,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from spa_core.adapters.registry import (
-    ADAPTER_REGISTRY,
+    ADAPTER_METADATA,
     get_adapter,
     list_by_tier,
     list_research_only,
@@ -25,24 +25,24 @@ from spa_core.adapters.registry import (
 
 
 # ---------------------------------------------------------------------------
-# 1. ADAPTER_REGISTRY structure
+# 1. ADAPTER_METADATA structure
 # ---------------------------------------------------------------------------
 
 class TestAdapterRegistryStructure(unittest.TestCase):
 
     def test_01_registry_is_not_empty(self):
-        """ADAPTER_REGISTRY must contain at least one entry."""
-        self.assertGreater(len(ADAPTER_REGISTRY), 0)
+        """ADAPTER_METADATA must contain at least one entry."""
+        self.assertGreater(len(ADAPTER_METADATA), 0)
 
     def test_02_all_entries_have_tier(self):
         """Every entry must have a 'tier' key."""
-        for aid, meta in ADAPTER_REGISTRY.items():
+        for aid, meta in ADAPTER_METADATA.items():
             with self.subTest(adapter=aid):
                 self.assertIn("tier", meta, f"{aid} missing 'tier'")
 
     def test_03_all_entries_have_module(self):
         """Every entry must have a non-empty 'module' key."""
-        for aid, meta in ADAPTER_REGISTRY.items():
+        for aid, meta in ADAPTER_METADATA.items():
             with self.subTest(adapter=aid):
                 self.assertIn("module", meta)
                 self.assertIsInstance(meta["module"], str)
@@ -50,7 +50,7 @@ class TestAdapterRegistryStructure(unittest.TestCase):
 
     def test_04_all_entries_have_class(self):
         """Every entry must have a non-empty 'class' key."""
-        for aid, meta in ADAPTER_REGISTRY.items():
+        for aid, meta in ADAPTER_METADATA.items():
             with self.subTest(adapter=aid):
                 self.assertIn("class", meta)
                 self.assertIsInstance(meta["class"], str)
@@ -58,26 +58,26 @@ class TestAdapterRegistryStructure(unittest.TestCase):
 
     def test_05_all_entries_have_research_only(self):
         """Every entry must have a boolean 'research_only' key."""
-        for aid, meta in ADAPTER_REGISTRY.items():
+        for aid, meta in ADAPTER_METADATA.items():
             with self.subTest(adapter=aid):
                 self.assertIn("research_only", meta)
                 self.assertIsInstance(meta["research_only"], bool)
 
     def test_06_all_entries_have_chain(self):
         """Every entry must have a 'chain' key."""
-        for aid, meta in ADAPTER_REGISTRY.items():
+        for aid, meta in ADAPTER_METADATA.items():
             with self.subTest(adapter=aid):
                 self.assertIn("chain", meta)
 
     def test_07_all_entries_have_asset(self):
         """Every entry must have an 'asset' key."""
-        for aid, meta in ADAPTER_REGISTRY.items():
+        for aid, meta in ADAPTER_METADATA.items():
             with self.subTest(adapter=aid):
                 self.assertIn("asset", meta)
 
     def test_08_all_entries_have_fallback_apy(self):
         """Every entry must have a numeric 'fallback_apy' >= 0."""
-        for aid, meta in ADAPTER_REGISTRY.items():
+        for aid, meta in ADAPTER_METADATA.items():
             with self.subTest(adapter=aid):
                 self.assertIn("fallback_apy", meta)
                 self.assertIsInstance(meta["fallback_apy"], (int, float))
@@ -86,28 +86,28 @@ class TestAdapterRegistryStructure(unittest.TestCase):
     def test_09_all_tiers_are_valid(self):
         """Every 'tier' value must be T1, T2, or T3."""
         valid = {"T1", "T2", "T3"}
-        for aid, meta in ADAPTER_REGISTRY.items():
+        for aid, meta in ADAPTER_METADATA.items():
             with self.subTest(adapter=aid):
                 self.assertIn(meta["tier"], valid)
 
     def test_10_registry_is_dict(self):
-        """ADAPTER_REGISTRY must be a dict (not a list or other type)."""
-        self.assertIsInstance(ADAPTER_REGISTRY, dict)
+        """ADAPTER_METADATA must be a dict (not a list or other type)."""
+        self.assertIsInstance(ADAPTER_METADATA, dict)
 
     def test_11_adapter_ids_are_strings(self):
         """All registry keys (adapter IDs) must be non-empty strings."""
-        for aid in ADAPTER_REGISTRY:
+        for aid in ADAPTER_METADATA:
             self.assertIsInstance(aid, str)
             self.assertTrue(aid.strip())
 
     def test_12_at_least_one_t1_adapter(self):
         """Registry must contain at least one T1 adapter."""
-        t1 = [a for a in ADAPTER_REGISTRY.values() if a["tier"] == "T1"]
+        t1 = [a for a in ADAPTER_METADATA.values() if a["tier"] == "T1"]
         self.assertGreater(len(t1), 0)
 
     def test_13_at_least_one_t2_adapter(self):
         """Registry must contain at least one T2 adapter."""
-        t2 = [a for a in ADAPTER_REGISTRY.values() if a["tier"] == "T2"]
+        t2 = [a for a in ADAPTER_METADATA.values() if a["tier"] == "T2"]
         self.assertGreater(len(t2), 0)
 
 
@@ -121,13 +121,13 @@ class TestListByTier(unittest.TestCase):
         """list_by_tier('T1') returns only T1 adapter IDs."""
         ids = list_by_tier("T1")
         for aid in ids:
-            self.assertEqual(ADAPTER_REGISTRY[aid]["tier"], "T1")
+            self.assertEqual(ADAPTER_METADATA[aid]["tier"], "T1")
 
     def test_15_list_by_tier_t2_returns_only_t2(self):
         """list_by_tier('T2') returns only T2 adapter IDs."""
         ids = list_by_tier("T2")
         for aid in ids:
-            self.assertEqual(ADAPTER_REGISTRY[aid]["tier"], "T2")
+            self.assertEqual(ADAPTER_METADATA[aid]["tier"], "T2")
 
     def test_16_list_by_tier_returns_list(self):
         """list_by_tier() return type must be a list."""
@@ -149,7 +149,7 @@ class TestListByTier(unittest.TestCase):
 
     def test_20_list_by_tier_covers_all_known(self):
         """Union of T1 + T2 + T3 covers the whole registry."""
-        all_ids = set(ADAPTER_REGISTRY.keys())
+        all_ids = set(ADAPTER_METADATA.keys())
         t1 = set(list_by_tier("T1"))
         t2 = set(list_by_tier("T2"))
         t3 = set(list_by_tier("T3"))
@@ -181,13 +181,13 @@ class TestListResearchOnly(unittest.TestCase):
     def test_25_all_research_only_have_flag_true(self):
         """Every ID returned by list_research_only() must have research_only=True."""
         for aid in list_research_only():
-            self.assertTrue(ADAPTER_REGISTRY[aid]["research_only"])
+            self.assertTrue(ADAPTER_METADATA[aid]["research_only"])
 
     def test_26_t1_adapters_are_not_research_only(self):
         """All T1 adapters must have research_only=False."""
         for aid in list_by_tier("T1"):
             self.assertFalse(
-                ADAPTER_REGISTRY[aid]["research_only"],
+                ADAPTER_METADATA[aid]["research_only"],
                 msg=f"T1 adapter '{aid}' must not be research_only",
             )
 
@@ -206,9 +206,9 @@ class TestRegistrySummary(unittest.TestCase):
         self.assertIsInstance(self.summary, dict)
 
     def test_28_summary_has_total(self):
-        """summary contains 'total' key equal to len(ADAPTER_REGISTRY)."""
+        """summary contains 'total' key equal to len(ADAPTER_METADATA)."""
         self.assertIn("total", self.summary)
-        self.assertEqual(self.summary["total"], len(ADAPTER_REGISTRY))
+        self.assertEqual(self.summary["total"], len(ADAPTER_METADATA))
 
     def test_29_summary_has_t1_count(self):
         """summary contains 't1_count' matching list_by_tier('T1')."""
@@ -258,13 +258,13 @@ class TestValidateRegistry(unittest.TestCase):
             "asset": "USDC",
             "fallback_apy": 5.0,
         }
-        ADAPTER_REGISTRY["__test_bad__"] = bad_entry
+        ADAPTER_METADATA["__test_bad__"] = bad_entry
         try:
             errors = validate_registry()
             found = any("__test_bad__" in e for e in errors)
             self.assertTrue(found, "Expected validation error for missing key not raised")
         finally:
-            del ADAPTER_REGISTRY["__test_bad__"]
+            del ADAPTER_METADATA["__test_bad__"]
 
     def test_35_validate_registry_catches_invalid_tier(self):
         """validate_registry() reports error for an invalid tier string."""
@@ -277,13 +277,13 @@ class TestValidateRegistry(unittest.TestCase):
             "asset": "USDC",
             "fallback_apy": 5.0,
         }
-        ADAPTER_REGISTRY["__test_tier__"] = bad_entry
+        ADAPTER_METADATA["__test_tier__"] = bad_entry
         try:
             errors = validate_registry()
             found = any("__test_tier__" in e for e in errors)
             self.assertTrue(found, "Expected tier validation error not raised")
         finally:
-            del ADAPTER_REGISTRY["__test_tier__"]
+            del ADAPTER_METADATA["__test_tier__"]
 
 
 # ---------------------------------------------------------------------------
@@ -303,8 +303,8 @@ class TestGetAdapter(unittest.TestCase):
         mock_cls = MagicMock(return_value=MagicMock())
         mock_module = MagicMock()
         # The class name on the module must match what's in the registry
-        adapter_id = list(ADAPTER_REGISTRY.keys())[0]
-        class_name = ADAPTER_REGISTRY[adapter_id]["class"]
+        adapter_id = list(ADAPTER_METADATA.keys())[0]
+        class_name = ADAPTER_METADATA[adapter_id]["class"]
         setattr(mock_module, class_name, mock_cls)
         mock_import.return_value = mock_module
 

@@ -212,8 +212,9 @@ class TestCollectChainData(unittest.TestCase):
         comp = CrossChainYieldComparator()
         mock_adapter = _make_adapter(5.0)
 
-        # Patch the registry at its source so the module-level getattr picks it up
-        with patch("spa_core.adapters.registry.ADAPTER_REGISTRY", fake_registry):
+        # Патчим метаданные в их источнике — module-level getattr подхватит
+        # (имя ADAPTER_METADATA, цикл #274: одно имя = один объект)
+        with patch("spa_core.adapters.registry.ADAPTER_METADATA", fake_registry):
             with patch("spa_core.analytics.cross_chain_yield._instantiate", return_value=mock_adapter):
                 result = comp.collect_chain_data("ethereum")
 
@@ -247,7 +248,7 @@ class TestCollectChainData(unittest.TestCase):
             }
         }
         comp = CrossChainYieldComparator()
-        with patch("spa_core.adapters.registry.ADAPTER_REGISTRY", fake_registry):
+        with patch("spa_core.adapters.registry.ADAPTER_METADATA", fake_registry):
             result = comp.collect_chain_data("ethereum")
 
         self.assertIn("broken_eth", result)
@@ -266,7 +267,7 @@ class TestCollectChainData(unittest.TestCase):
             }
         }
         comp = CrossChainYieldComparator()
-        with patch("spa_core.adapters.registry.ADAPTER_REGISTRY", fake_registry):
+        with patch("spa_core.adapters.registry.ADAPTER_METADATA", fake_registry):
             with patch("spa_core.analytics.cross_chain_yield._instantiate", return_value=_make_adapter(5.0)):
                 result = comp.collect_chain_data("ethereum")
 

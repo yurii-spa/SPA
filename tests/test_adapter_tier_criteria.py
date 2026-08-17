@@ -19,7 +19,7 @@ _REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if _REPO not in sys.path:
     sys.path.insert(0, _REPO)
 
-from spa_core.adapters.registry import ADAPTER_REGISTRY, list_by_tier, list_research_only, registry_summary
+from spa_core.adapters.registry import ADAPTER_METADATA, list_by_tier, list_research_only, registry_summary
 
 ADR_PATH = os.path.join(_REPO, "docs", "adr", "ADR-041-adapter-tier-promotion.md")
 
@@ -28,7 +28,7 @@ ADR_PATH = os.path.join(_REPO, "docs", "adr", "ADR-041-adapter-tier-promotion.md
 # ---------------------------------------------------------------------------
 
 def _by_tier(tier: str) -> dict:
-    return {k: v for k, v in ADAPTER_REGISTRY.items() if v.get("tier") == tier}
+    return {k: v for k, v in ADAPTER_METADATA.items() if v.get("tier") == tier}
 
 
 # ===========================================================================
@@ -104,7 +104,7 @@ class TestT1AdapterRules(unittest.TestCase):
         """ADR-041: T1 adapters must be production-eligible (research_only=False)."""
         for adapter_id in list_by_tier("T1"):
             with self.subTest(adapter=adapter_id):
-                meta = ADAPTER_REGISTRY[adapter_id]
+                meta = ADAPTER_METADATA[adapter_id]
                 self.assertFalse(
                     meta.get("research_only"),
                     f"T1 adapter '{adapter_id}' must have research_only=False"
@@ -114,7 +114,7 @@ class TestT1AdapterRules(unittest.TestCase):
         """T1 adapters must declare a chain."""
         for adapter_id in list_by_tier("T1"):
             with self.subTest(adapter=adapter_id):
-                meta = ADAPTER_REGISTRY[adapter_id]
+                meta = ADAPTER_METADATA[adapter_id]
                 self.assertIn("chain", meta)
                 self.assertTrue(meta["chain"])
 
@@ -132,26 +132,26 @@ class TestNewT2AdapterCriteria(unittest.TestCase):
         """New T2 adapters start as research_only per ADR-041."""
         for adapter_id in self._NEW_T2:
             with self.subTest(adapter=adapter_id):
-                self.assertTrue(ADAPTER_REGISTRY[adapter_id]["research_only"])
+                self.assertTrue(ADAPTER_METADATA[adapter_id]["research_only"])
 
     def test_new_t2_chain_ethereum(self):
         for adapter_id in self._NEW_T2:
             with self.subTest(adapter=adapter_id):
                 self.assertEqual(
-                    ADAPTER_REGISTRY[adapter_id]["chain"].lower(), "ethereum"
+                    ADAPTER_METADATA[adapter_id]["chain"].lower(), "ethereum"
                 )
 
     def test_new_t2_asset_usdc_or_usdt(self):
         for adapter_id in self._NEW_T2:
             with self.subTest(adapter=adapter_id):
-                asset = ADAPTER_REGISTRY[adapter_id]["asset"]
+                asset = ADAPTER_METADATA[adapter_id]["asset"]
                 self.assertIn(asset, ("USDC", "USDT"))
 
     def test_new_t2_fallback_apy_in_range(self):
         """ADR-041: T2 APY target 4–10% in normal conditions."""
         for adapter_id in self._NEW_T2:
             with self.subTest(adapter=adapter_id):
-                fap = ADAPTER_REGISTRY[adapter_id]["fallback_apy"]
+                fap = ADAPTER_METADATA[adapter_id]["fallback_apy"]
                 self.assertGreater(fap, 0.0)
                 self.assertLessEqual(fap, 20.0)
 
@@ -165,7 +165,7 @@ class TestT3AdapterRules(unittest.TestCase):
     def test_t3_fallback_apy_positive(self):
         for adapter_id in list_by_tier("T3"):
             with self.subTest(adapter=adapter_id):
-                fap = ADAPTER_REGISTRY[adapter_id].get("fallback_apy", 0)
+                fap = ADAPTER_METADATA[adapter_id].get("fallback_apy", 0)
                 self.assertGreater(fap, 0)
 
     def test_research_only_list_not_empty(self):

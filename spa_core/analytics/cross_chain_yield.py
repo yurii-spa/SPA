@@ -30,11 +30,11 @@ from typing import Any, Dict, List, Optional
 from spa_core.base import BaseAnalytics
 from spa_core.utils.errors import SPAError
 
-# Module-level import so tests can patch spa_core.adapters.registry.ADAPTER_REGISTRY
+# Module-level import so tests can patch spa_core.adapters.registry.ADAPTER_METADATA
 try:
-    from spa_core.adapters.registry import ADAPTER_REGISTRY as _ADAPTER_REGISTRY
+    from spa_core.adapters.registry import ADAPTER_METADATA as _ADAPTER_METADATA
 except ImportError:
-    _ADAPTER_REGISTRY = {}
+    _ADAPTER_METADATA = {}
 
 logger = logging.getLogger(__name__)
 
@@ -46,14 +46,14 @@ OUTPUT_PATH = "data/cross_chain_yield.json"
 
 SUPPORTED_CHAINS = ["ethereum", "base"]
 
-# Canonical chain names as stored in ADAPTER_REGISTRY["chain"] field.
+# Canonical chain names as stored in ADAPTER_METADATA["chain"] field.
 # Registry uses title-case: "Ethereum", "Base", etc.
 _CHAIN_CANONICAL: Dict[str, str] = {
     "ethereum": "Ethereum",
     "base":     "Base",
 }
 
-# Base-chain adapters are not yet in the main ADAPTER_REGISTRY.
+# Base-chain adapters are not yet in the main ADAPTER_METADATA.
 # This supplementary map defines them so they can still be compared.
 # Format: {adapter_id: {module, class, tier, chain, fallback_apy}}
 _BASE_CHAIN_SUPPLEMENTARY: Dict[str, Dict[str, Any]] = {
@@ -167,7 +167,7 @@ class CrossChainYieldComparator(BaseAnalytics):
     def collect_chain_data(self, chain: str) -> Dict[str, Any]:
         """Collect all adapter APYs for *chain*.
 
-        Iterates the main ADAPTER_REGISTRY filtered by canonical chain name,
+        Iterates the main ADAPTER_METADATA filtered by canonical chain name,
         then supplements with ``_BASE_CHAIN_SUPPLEMENTARY`` for Base.
 
         Args:
@@ -190,9 +190,9 @@ class CrossChainYieldComparator(BaseAnalytics):
         results: Dict[str, Any] = {}
 
         # --- Main registry (covers Ethereum + future chains added there) ---
-        # Uses module-level _ADAPTER_REGISTRY (patchable via spa_core.adapters.registry.ADAPTER_REGISTRY).
+        # Uses module-level _ADAPTER_METADATA (patchable via spa_core.adapters.registry.ADAPTER_METADATA).
         from spa_core.adapters import registry as _reg_module
-        registry_snapshot = getattr(_reg_module, "ADAPTER_REGISTRY", _ADAPTER_REGISTRY)
+        registry_snapshot = getattr(_reg_module, "ADAPTER_METADATA", _ADAPTER_METADATA)
 
         for adapter_id, meta in registry_snapshot.items():
             reg_chain = meta.get("chain", "")

@@ -38,7 +38,11 @@ from spa_core.utils.atomic import atomic_save, atomic_load  # noqa: F401
 from spa_core.utils.kanban import increment_done  # noqa: F401
 
 # ── Adapter registry ──────────────────────────────────────────────────────────
-from spa_core.adapters.registry import ADAPTER_REGISTRY  # noqa: F401
+# ADAPTER_REGISTRY = канонический список кортежей (spa_core/adapters/__init__.py);
+# ADAPTER_METADATA = dict метаданных (spa_core/adapters/registry.py). Одно имя на
+# один объект — цикл #274, храповик test_adapter_registry_single_name.py.
+from spa_core.adapters import ADAPTER_REGISTRY  # noqa: F401
+from spa_core.adapters.registry import ADAPTER_METADATA  # noqa: F401
 
 # ── Safety / live-trading gate ────────────────────────────────────────────────
 from spa_core.safety.live_trading_gate import LiveTradingGate  # noqa: F401
@@ -93,6 +97,7 @@ __all__ = [
     "increment_done",
     # adapter registry
     "ADAPTER_REGISTRY",
+    "ADAPTER_METADATA",
     # safety
     "LiveTradingGate",
     "live_trading_forbidden",
