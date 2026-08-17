@@ -15,9 +15,6 @@ const path = Astro.url.pathname;
 // Conservative 6–8% / Balanced 10–12% / Max ≤20%, which diverged from /packages 2–6% / 6–12% / 12%+). Now they
 // can't drift. The Conservative/Balanced/Max alt-names are the owner's #6 name choice; bands are #8-owner-tunable.
 import TIER_BANDS from '../lib/tier_bands.json';
-// Nav items pointing at checkup.earn-defi.com are filtered out while the subdomain is
-// down (it 404s on every route — cycle #228). ONE switch: lib/checkup.js.
-import { CHECKUP_ENABLED, checkupUrl } from '../lib/checkup.js';
 
 // PUBLIC nav (Phase 1 — public/admin split). Six user-centric items; DeFi Checkup first.
 // Operator-depth pages (cockpit, board, tournament, structural/rates/rwa desks, exit-nav,
@@ -34,18 +31,9 @@ const groups = [
     // now points only at pages that exist on this domain.
     id: 'checkup', en: 'Checkup', ru: 'Чекап',
     items: [
-<<<<<<< HEAD
-      ...(CHECKUP_ENABLED ? [
-        { href: checkupUrl('/check'), en: 'Check my wallet', ru: 'Проверить кошелёк', desc: 'Public address — no wallet connection', descRu: 'Публичный адрес — без подключения кошелька', track: 'nav_checkup_check' },
-        { href: checkupUrl('/sample-report'), en: 'See a sample analysis', ru: 'Пример анализа', desc: 'Preview the full report, no scan', descRu: 'Пример полного отчёта, без сканирования', track: 'nav_checkup_sample' },
-      ] : []),
-      { href: '/#analyze', en: 'Analyze on this page', ru: 'Анализ прямо здесь', desc: 'Start inline, right now', descRu: 'Начать сразу тут' },
-      { href: '/snapshot', en: '60-second safety snapshot', ru: '60-секундный снимок безопасности', desc: 'No wallet needed', descRu: 'Кошелёк не нужен' },
-=======
       { href: '/snapshot', en: '60-second safety snapshot', ru: '60-секундный снимок безопасности', desc: 'Four questions — no wallet, no email', descRu: 'Четыре вопроса — без кошелька и email', track: 'nav_checkup_snapshot' },
       { href: '/#sample-report', en: 'See a sample analysis', ru: 'Пример анализа', desc: 'Illustrative report, no scan', descRu: 'Иллюстративный отчёт, без сканирования', track: 'nav_checkup_sample' },
       { href: '/#analyze', en: 'Start on this page', ru: 'Начать прямо здесь', desc: 'Start inline, right now', descRu: 'Начать сразу тут' },
->>>>>>> origin/main
     ],
   },
   {

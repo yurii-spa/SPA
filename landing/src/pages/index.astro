@@ -3,18 +3,11 @@
 // strip, footer) comes from Layout; this page is just the Console body + sections.
 import Layout from '../layouts/Layout.astro';
 import snap from '../data/track_snapshot.json';
-<<<<<<< HEAD
-import WalletCheck from '../components/WalletCheck.jsx';
-// ONE switch for every checkup.earn-defi.com link — the subdomain 404s on every route
-// (cycle #228, 14.08), so its CTAs are not rendered until it answers again.
-import { CHECKUP_ENABLED, checkupUrl } from '../lib/checkup.js';
-=======
 // WalletCheck (the paste-an-address hero widget) is NOT imported any more: it cross-navigated to
 // checkup.earn-defi.com, and that service is gone — every route of the domain answers 404 (Railway
 // edge fallback, measured 2026-08-16). An entry form that leads to a 404 is worse than no form.
 // Entry now goes to /snapshot (live, no wallet needed). Component file kept for the day the service
 // returns; scripts/funnel_link_check.py fails if anything links to the dead host again.
->>>>>>> origin/main
 
 // Build-time honest static fallback (last evidenced snapshot) — mirrors the pattern
 // track-record.astro uses. Live values from api.earn-defi.com override these client-side;
@@ -81,26 +74,11 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
         safety snapshot.
       </p>
 
-<<<<<<< HEAD
-      <!-- Top-of-funnel: free wallet checkup → checkup.earn-defi.com (read-only, no email). -->
-      <WalletCheck client:visible />
-
-      <p class="hero-trust" data-ru="Без подключения кошелька. Без email. Только публичные адреса.">No wallet connection. No email required. Public addresses only.</p>
-      <!-- C2 (redesign): the "no wallet to scan" path — a 60-second snapshot for non-technical holders. -->
-      <p style="margin-top:12px"><a href="/snapshot" data-track="hero_snapshot" style="color:var(--accent-400);text-decoration:underline;font-size:14px;font-weight:600" data-ru="Нет кошелька для скана? Пройдите 60-секундный снимок безопасности →">No wallet to scan? Take the 60-second safety snapshot →</a></p>
-      <div style="margin-top:14px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-        <!-- J5 (customer-journey-map): a first-timer with no wallet can preview the analysis instantly,
-             right at the entry — answers "how do I see an example" without hunting for the URL. -->
-        {CHECKUP_ENABLED && (
-          <a class="btn btn-ghost" href={checkupUrl('/sample-report')} data-track="hero_sample_report" data-ru="Посмотреть пример анализа →">See a sample analysis →</a>
-        )}
-=======
       {/* Top-of-funnel. Was the paste-an-address widget to the checkup service; that service is
            gone (whole domain 404s, measured 2026-08-16), so the entry is now the live 60-second
            snapshot on this domain. C2 (redesign): the "no wallet to scan" path. */}
       <div style="margin-top:18px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
         <a class="btn btn-primary" href="/snapshot" data-track="hero_snapshot" data-ru="Пройти 60-секундный снимок безопасности →">Take the 60-second safety snapshot →</a>
->>>>>>> origin/main
         <a class="btn btn-ghost" href="/track-record" data-track="hero_see_live_track" data-ru="Смотреть живой трек →">See the live track →</a>
       </div>
 
@@ -315,15 +293,8 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
         <p style="text-align:center;margin:14px 0 0;font-size:12px;color:var(--text-dim)" data-ru="Иллюстративный пример — вымышленный кошелёк и цифры. Ваш отчёт строится из реальных ончейн-данных.">Illustrative example — a made-up wallet and numbers. Your report is built from real on-chain data.</p>
       </div>
       <div class="final-cta" style="margin-top:26px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-<<<<<<< HEAD
-        <a class="btn btn-primary" href="/#analyze" data-track="analyze_wallet" data-ru="Проверить кошелёк">Analyze wallet</a>
-        {CHECKUP_ENABLED && (
-          <a class="btn btn-ghost" href={checkupUrl('/sample-report')} data-track="view_sample_report" data-ru="Посмотреть пример отчёта →">See a sample report →</a>
-        )}
-=======
         <a class="btn btn-primary" href="/snapshot" data-track="analyze_wallet" data-ru="Пройти 60-секундный снимок">Take the 60-second snapshot</a>
         <a class="btn btn-ghost" href="/track-record" data-track="view_live_track" data-ru="Смотреть живой трек →">See the live track →</a>
->>>>>>> origin/main
       </div>
     </div>
   </section>

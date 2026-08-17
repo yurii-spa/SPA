@@ -1643,6 +1643,29 @@
    "governed_by": [],
    "curation": "partial",
    "notes": ""
+  },
+  {
+   "label": "com.spa.smoke_flagship",
+   "plist_source": "repo:launchd/com.spa.smoke_flagship.plist",
+   "reboot_safe": false,
+   "schedule": "interval:604800s",
+   "program": "agent_smoke_flagship.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "designed",
+   "produces": [
+    {
+     "artifact": "data/smoke_flagship_report.json",
+     "slo_hours": 186
+    }
+   ],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [
+    "ADR-090"
+   ],
+   "curation": "complete",
+   "notes": "ADR-090 п.3 (решение владельца 15.08). intent=designed СОЗНАТЕЛЬНО и это не забывчивость: владелец постановил СНАЧАЛА ручной прогон (`npm install` в landing/, один запуск), и только потом установку агентом. Ставить непроверенную тяжёлую сквозную проверку на расписание — прямой путь к еженедельному ложному красному, который научат игнорировать. ПРИ ЗАГРУЗКЕ перевести intent в active ТЕМ ЖЕ шагом (иначе сторож соответствия объявит верное действие владельца КРИТИЧНОЙ находкой «активация мимо ADR» — ровно капкан ADR-090 п.1). Запись добавлена 17.08 потому, что плист уехал в репозиторий без неё и сторож механики честно покраснел в CI; produces наполнится только после загрузки."
   }
  ],
  "artifacts": [

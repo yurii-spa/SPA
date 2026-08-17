@@ -6,9 +6,6 @@
 // visitor into the funnel with the real journey links (home / snapshot / packages / checkup). noindex
 // belt-and-suspenders (a 404-status page is not indexed anyway). Bilingual, uses the canonical Layout.
 import Layout from '../layouts/Layout.astro';
-// A 404 page must not recover the visitor INTO another 404: checkup.earn-defi.com answers
-// 404 on every route (cycle #228), so its link is gated on the lib/checkup.js flag.
-import { CHECKUP_ENABLED, checkupUrl } from '../lib/checkup.js';
 ---
 <Layout
   title="Page not found (404) | earn-defi.com"
@@ -37,15 +34,6 @@ import { CHECKUP_ENABLED, checkupUrl } from '../lib/checkup.js';
          data-ru="Тарифы">Packages</a>
     </div>
 
-<<<<<<< HEAD
-    {CHECKUP_ENABLED && (
-      <p class="text-sm text-slate-500">
-        <span data-ru="Есть ончейн-кошелёк? ">Have an on-chain wallet? </span>
-        <a href={checkupUrl('/check', '?utm_source=404')} data-track="404_to_checkup"
-           class="text-accent-400 underline" data-ru="Проверьте его — только публичный адрес →">Check it — public address only →</a>
-      </p>
-    )}
-=======
     {/* The wallet-scan link here pointed at the checkup service, which is not deployed: a 404 page
          sending the visitor to another 404. Replaced with the live track (2026-08-16). */}
     <p class="text-sm text-slate-500">
@@ -53,6 +41,5 @@ import { CHECKUP_ENABLED, checkupUrl } from '../lib/checkup.js';
       <a href="/track-record" data-track="404_to_track"
          class="text-accent-400 underline" data-ru="Смотреть живой трек →">See the live track →</a>
     </p>
->>>>>>> origin/main
   </main>
 </Layout>
