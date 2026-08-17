@@ -8,7 +8,7 @@ _protocol_key_coverage.py — эмпирическая разметка Tier-B �
         --out /tmp/feas_b.json --emit-markup
 (в sandbox-чекауте, не в живом репо — модули пишут data/*-логи).
 
-Замер 2026-08-06T18:46:04.014316Z: каждый Tier-B модуль прогнан на
+Замер 2026-08-17T18:31:09.392423Z: каждый Tier-B модуль прогнан на
 `_protocol_facts.generic_profile_for` для ['aave_v3', 'maple', 'pendle', 'morpho', 'spark', 'compound_v3'];
 запись подменена на `RecordingProfile`, который помнит, какие ключи у неё
 спрашивали. Модуль попадает сюда, если его score РАЗЛИЧАЕТСЯ между
@@ -34,7 +34,7 @@ RiskPolicy её не видит.
 """
 from typing import Dict, FrozenSet, Tuple
 
-AUDIT_GENERATED_AT = "2026-08-06T18:46:04.014316Z"
+AUDIT_GENERATED_AT = "2026-08-17T18:31:09.392423Z"
 MIN_COVERAGE = 1.0
 
 #: module_name -> {"coverage": доля отданных ключей, "missing_keys": чего нет}
@@ -174,6 +174,10 @@ UNSOURCED_DETAIL: Dict[str, Dict[str, object]] = {
     "protocol_security_audit_tracker": {
         "coverage": 0.4,
         "missing_keys": ("audits", "days_since_major_change", "formal_verification"),
+    },
+    "protocol_tvl_filter": {
+        "coverage": 0.6667,
+        "missing_keys": ("tvl_trend_7d_pct",),
     },
     "yield_bearing_stablecoin_comparator": {
         "coverage": 0.2,

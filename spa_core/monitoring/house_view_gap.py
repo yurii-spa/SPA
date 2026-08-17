@@ -98,6 +98,21 @@ def humanize_reasons(reasons) -> str:
     return "; ".join(parts) if parts else NO_REASON_RU
 
 
+#: Постуры/статусы, которыми аналитик говорит «судить не могу» (fail-closed внутри него,
+#: `investment_os.harness.UNKNOWN` и его родня). Это НЕ спокойствие: `NO_THREAT_OBSERVED`
+#: — наблюдение, `UNKNOWN_CAUTIOUS` — отказ, и путать их сверке запрещено.
+_REFUSAL_TOKENS = ("UNKNOWN", "UNKNOWN_CAUTIOUS", "UNMEASURED", "STALE")
+
+
+def refused_himself(data) -> bool:
+    """Аналитик САМ отказался судить (а не наблюдал спокойствие)."""
+    if not isinstance(data, dict):
+        return False
+    tokens = {str(data.get(k) or "").upper()
+              for k in ("posture", "status", "combined_posture")}
+    return bool(tokens & set(_REFUSAL_TOKENS))
+
+
 def cause_phrase(reasons) -> str:
     """Готовая вставка в текст находки: «причина: …» либо честное «причина НЕ НАЗВАНА аналитиком»."""
     codes = list(reasons or [])
@@ -365,6 +380,24 @@ def compute_gaps(chief: dict | None,
 
     for name, data in sorted(analysts.items()):
         tokens = {str(data.get(k) or "").upper() for k in ("posture", "status", "combined_posture")}
+        if not (tokens & set(_RED_TOKENS)) and refused_himself(data):
+            # Аналитик НЕ красный не потому, что наблюдал спокойствие, а потому, что САМ
+            # отказался судить (fail-closed внутри него: его вход пропал/протух). Для сверки
+            # эти два состояния до сих пор выглядели ОДИНАКОВО — пустой список находок, — и
+            # это ровно fail-OPEN #29: карточка `gap:analyst_red:<name>` закрывалась мостом
+            # как «починили», хотя разведка просто ослепла. Замер 17.08 на живом коде:
+            # убрать `data/threat_reactor_status.json` ⇒ red_team отдаёт UNKNOWN_CAUTIOUS
+            # `threat_data_missing_or_stale`, отчёт сверки становится БАЙТ-В-БАЙТ таким же,
+            # как при честном NO_THREAT_OBSERVED.
+            # Отказ называется ТЕМ ЖЕ именем входа (`analyst:<name>`), которым находка зовёт
+            # свой вход, — на совпадении имён держится уровень 2 гарантии 1 моста (ADR-070 п.5).
+            unchecked.append({
+                "input": f"analyst:{name}",
+                "reason": f"аналитик {name} САМ отказался судить "
+                          f"({cause_phrase(red_reasons(data))}) — «красноты нет» НЕ ИЗМЕРЕНО, "
+                          f"молчание ослепшей разведки не является наблюдением спокойствия",
+            })
+            continue
         if tokens & set(_RED_TOKENS):
             # Ключ НЕ трогать: `gap:analyst_red:<name>` — тот же, что вчера, иначе мост заведёт
             # карточку-дубль на ту же находку. Меняется только ТЕКСТ: в нём названа ПРИЧИНА (#197)

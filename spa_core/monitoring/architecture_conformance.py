@@ -369,6 +369,27 @@ def _finding(key: str, check: str, severity: str, cls: str, message: str) -> dic
             "message": message}
 
 
+def _refusal(check: str, reason: str, subject: str | None = None) -> dict:
+    """Строка `unchecked` — ОТКАЗ судить, названный ТЕМ ЖЕ именем, что и находка.
+
+    Второй уровень гарантии 1 моста (`findings_bridge.closing_gate`, ADR-070 п.5)
+    сличает `dependency_names(находка)` с `refused_names(отчёт)` — и обе стороны
+    читает из полей `input`/`check`/`metric`. У сторожа архитектуры эти два
+    множества лежали в РАЗНЫХ пространствах имён и не пересекались НИКОГДА:
+    находки несут `check` ∈ {B1,B2,B3,B5,B6}, а отказы — `check` ∈
+    {B1_fleet,B5_manifest,B6_curation}. Пересечение пусто ⇒ уровень 2 на этом
+    источнике был мёртвым кодом, и ослепший сторож закрывал свои же карточки:
+    нет launchctl ⇒ B1-находок нет ⇒ мост читает это как «починили».
+
+    Поэтому отказ несёт ОБА имени: `check` — прежнее, широкое (его читают тесты
+    и человек), `input` — то самое, которым находка называет свой вход. Ужать
+    область отказа до конкретного подопечного (агента) можно передав `subject`:
+    отказ про `com.spa.X` не обязан держать открытой карточку про `com.spa.Y`.
+    """
+    out = {"check": check, "input": subject or check.split("_", 1)[0], "reason": reason}
+    return out
+
+
 def run_checks(manifest: dict,
                fleet: set[str] | None,
                ts_of,                      # rel_path -> datetime|None
@@ -386,7 +407,7 @@ def run_checks(manifest: dict,
 
     # B1 — флот ↔ манифест
     if fleet is None:
-        unchecked.append({"check": "B1_fleet", "reason": "launchctl недоступен — флот НЕ ИЗМЕРЕН"})
+        unchecked.append(_refusal("B1_fleet", "launchctl недоступен — флот НЕ ИЗМЕРЕН"))
     else:
         for label in sorted(fleet):
             a = by_label.get(label)
@@ -488,32 +509,41 @@ def run_checks(manifest: dict,
 
     # B5 — манифест соответствует фактам plist'ов
     if not drift_measured:
-        unchecked.append({"check": "B5_manifest",
-                          "reason": "хост без ~/Library/LaunchAgents/com.spa.* — дрейф НЕ ИЗМЕРЕН"})
+        # Дрейф не мерили ВООБЩЕ: отказ широкий, он обязан держать открытой ЛЮБУЮ
+        # B5-карточку — иначе перенос сторожа на хост без LaunchAgents читался бы
+        # мостом как «дрейф починили».
+        unchecked.append(_refusal(
+            "B5_manifest", "хост без ~/Library/LaunchAgents/com.spa.* — дрейф НЕ ИЗМЕРЕН"))
     else:
         for p in (drift_problems or []):
             # dict — сгруппированная находка (ключ = агент, см. group_drift_by_agent);
             # строка — прежняя форма, ключом остаётся сам текст.
             key, msg = ((p["key"], p["message"]) if isinstance(p, dict)
                         else (p[:80], p))
-            findings.append(_finding(f"B5:drift:{key}", "B5", "WARN", "strong",
-                                     f"манифест ↔ факты: {msg}"))
+            f = _finding(f"B5:drift:{key}", "B5", "WARN", "strong",
+                         f"манифест ↔ факты: {msg}")
+            # Находка называет ВТОРОЕ имя своего входа — подопечного, о котором она
+            # судит. Без него отказ про конкретного агента пришлось бы делать широким
+            # (держать все B5-карточки разом), а точечность — половина гарантии.
+            f["input"] = key
+            findings.append(f)
         # Расхождение, которого в ЭТОМ дереве не измерить (plist объявлен путём
         # в репо, каталог сюда не синкается) — не находка, но и не тишина.
         # Вердикт от этого не зеленеет: непустой `unchecked` даёт overall
         # UNCHECKED (exit 1), просто мост не заводит по нему карточку владельцу.
         for u in (drift_unmeasurable or []):
-            unchecked.append({"check": "B5_manifest",
-                              "reason": f"манифест ↔ факты: {u}"})
+            # Строка вида `com.spa.X: причина` — отказ ИМЕННО про X (см. compute_drift).
+            label = u.split(": ", 1)[0] if (u.startswith("com.spa.") and ": " in u) else None
+            unchecked.append(_refusal("B5_manifest", f"манифест ↔ факты: {u}", subject=label))
 
     # B6 — локальная курация ↔ origin (см. шапку модуля)
     if curation is not None:
         if not curation.get("measured"):
-            unchecked.append({
-                "check": "B6_curation",
-                "reason": f"курация НЕ сверена с {curation.get('ref')}: "
-                          f"{curation.get('reason')} — локальный `intent` мог "
-                          f"устареть, вердикты B1 не доказаны"})
+            unchecked.append(_refusal(
+                "B6_curation",
+                f"курация НЕ сверена с {curation.get('ref')}: "
+                f"{curation.get('reason')} — локальный `intent` мог "
+                f"устареть, вердикты B1 не доказаны"))
         else:
             over = curation.get("overridden") or []
             added = curation.get("added_from_origin") or []
