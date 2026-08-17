@@ -1,3 +1,8 @@
+# FROZEN-DATE-OK: injected-clock — TestClockMaskWithInjectedNow передаёт
+# фиксированный NOW в _fingerprint(now=) И отметки, выведенные из того же
+# якоря (NOW ± CLOCK_WINDOW_S); доменные даты 2021/2022/2023 — предмет
+# отрицательного контроля «дата аудита не есть показание часов». Обе стороны
+# сравнения закреплены, сдвиг календаря тест не трогает.
 """Положительный контроль В ОБЕ СТОРОНЫ для аудита протокол-слепоты.
 
 Авария (цикл #142/#144, карточка `inbox-slepota-mozhet-byt-poteryannoi-koerciei`):
@@ -21,6 +26,7 @@ import importlib.util
 import sys
 import types
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -73,6 +79,50 @@ def _blind_with_clock(context):
     return {"risk_label": "SAFE",
             "ts": datetime.now(timezone.utc).isoformat(),
             "detail": {"current_ltv": 0.5}}
+
+
+_COARSE_OFFSET_S = {"aave_v3": 0, "maple": 7, "pendle": 13}
+
+
+def _blind_with_coarse_clock(context):
+    """Константа + отметка времени СЕКУНДНОЙ точности.
+
+    Воспроизводит `defi_protocol_sandwich_attack_exposure_analyzer` (замер
+    2026-08-17): весь результат — константа, кроме `timestamp` вида
+    `2026-08-17T22:43:34Z`. Повтор ОДНОГО протокола внутри той же секунды даёт
+    ТУ ЖЕ строку, поэтому отсев дрожи повтором её не ловит, а прогоны разных
+    протоколов разнесены секундами — и путь читается как измерение.
+
+    Смещение здесь детерминировано по протоколу (а не «как повезёт с часами»),
+    чтобы тест воспроизводил аварию каждый раз, а не в те прогоны, которые
+    удачно легли на границу секунды. Каждая отметка остаётся честным «сейчас»:
+    секунды, а не месяцы.
+    """
+    from datetime import datetime, timedelta, timezone
+    proto = context.get("protocol", "")
+    stamp = (datetime.now(timezone.utc).replace(microsecond=0)
+             + timedelta(seconds=_COARSE_OFFSET_S.get(proto, 21)))
+    return {"risk_label": "SAFE",
+            "timestamp": stamp.isoformat().replace("+00:00", "Z"),
+            "detail": {"current_ltv": 0.5}}
+
+
+_LAST_AUDIT = {"aave_v3": "2021-03-04T00:00:00Z",
+               "maple": "2022-11-19T00:00:00Z",
+               "pendle": "2023-06-01T00:00:00Z"}
+
+
+def _seeing_via_domain_date(context):
+    """Различает протоколы ДОМЕННОЙ датой (когда был аудит) под одним ярлыком.
+
+    Отрицательный контроль к маске часов: дата — тоже ISO-строка, но она не
+    «сейчас», и заглушить её значит ослепить аудит.
+    """
+    proto = context.get("protocol", "")
+    return {"risk_label": "SAFE",
+            "detail": {"current_ltv": 0.5,
+                       "last_audit_at": _LAST_AUDIT.get(proto,
+                                                        "2020-01-01T00:00:00Z")}}
 
 
 def _blind_echoing_input(context):
@@ -137,6 +187,33 @@ class TestAuditSeesThroughCoercion(unittest.TestCase):
         self.assertIn(res["classification"], audit.BLIND_EQUIVALENT,
                       "различие только в отметке времени — не зрение")
 
+    def test_coarse_clock_field_is_not_a_measurement(self):
+        """Авария 2026-08-17: секундная отметка проходила отсев дрожи.
+
+        До починки этот модуль получал `miscoerced` — «зряч, чините коэрсию» о
+        модуле, не измерившем ничего; вердикт зависел от секунды прогона.
+        """
+        audit = _load_audit()
+        res = self._classify("coarse_clock", _blind_with_coarse_clock)
+        self.assertIn(res["classification"], audit.BLIND_EQUIVALENT,
+                      "различие только в собственной отметке времени — "
+                      "не зрение: %s" % res.get("miscoerced"))
+        self.assertNotIn("miscoerced", res)
+
+    def test_domain_date_stays_a_measurement(self):
+        """Обратная сторона той же починки: доменная дата — ИЗМЕРЕНИЕ.
+
+        Краснеет, если маску часов расширить до «любой ISO-строки»: аудит
+        протокола отстоит от «сейчас» на годы, и глушить его нельзя.
+        """
+        audit = _load_audit()
+        res = self._classify("domain_date", _seeing_via_domain_date)
+        self.assertEqual(res["classification"], "miscoerced",
+                         "модуль различил протоколы датой аудита")
+        self.assertNotIn(res["classification"], audit.BLIND_EQUIVALENT)
+        self.assertIn(".detail.last_audit_at",
+                      res["miscoerced"]["differing_paths"])
+
     def test_echo_of_input_is_not_a_measurement(self):
         audit = _load_audit()
         res = self._classify("echo", _blind_echoing_input)
@@ -155,6 +232,80 @@ class TestAuditSeesThroughCoercion(unittest.TestCase):
         name = _FAKE_PREFIX + "blind2"
         self.assertIn(name, ns["PROTOCOL_BLIND_MODULES"])
         self.assertNotIn(name, ns["MISCOERCED_MODULES"])
+
+
+class TestClockMaskWithInjectedNow(unittest.TestCase):
+    """Часы — ВХОД, а не окружение: обе стороны сравнения закреплены.
+
+    `.claude/rules/deployment.md`: функция, судящая о свежести, принимает
+    `now`; тест передаёт фиксированный момент И фиксированные отметки, поэтому
+    он не протухает от сдвига календаря.
+    """
+
+    NOW = datetime(2026, 8, 17, 22, 43, 34, tzinfo=timezone.utc)
+
+    def test_own_stamp_is_masked_and_domain_date_is_not(self):
+        audit = _load_audit()
+        fp_a = audit._fingerprint(
+            {"timestamp": "2026-08-17T22:43:34Z",
+             "last_audit_at": "2021-03-04T00:00:00Z"},
+            "aave_v3", now=self.NOW)
+        fp_b = audit._fingerprint(
+            {"timestamp": "2026-08-17T22:43:41Z",     # +7 с — те же часы
+             "last_audit_at": "2022-11-19T00:00:00Z"},  # доменная дата
+            "maple", now=self.NOW)
+        self.assertEqual(fp_a[".timestamp"], fp_b[".timestamp"],
+                         "две отметки собственных часов — одно и то же")
+        self.assertEqual(fp_a[".timestamp"], audit._CLOCK)
+        self.assertNotEqual(fp_a[".last_audit_at"], fp_b[".last_audit_at"],
+                            "дата аудита — измерение, глушить её нельзя")
+        self.assertEqual(audit._differing_paths([fp_a, fp_b], set()),
+                         [".last_audit_at"])
+
+    def test_stamp_just_outside_window_stays_a_difference(self):
+        """Граница окна проверена с ОБЕИХ сторон, а не только изнутри."""
+        audit = _load_audit()
+        inside = self.NOW.timestamp() + audit.CLOCK_WINDOW_S - 1
+        outside = self.NOW.timestamp() + audit.CLOCK_WINDOW_S + 1
+        to_iso = (lambda ts: datetime.fromtimestamp(ts, timezone.utc)
+                  .isoformat().replace("+00:00", "Z"))
+        fp_in = audit._fingerprint({"ts": to_iso(inside)}, "aave_v3",
+                                   now=self.NOW)
+        fp_out = audit._fingerprint({"ts": to_iso(outside)}, "aave_v3",
+                                    now=self.NOW)
+        self.assertEqual(fp_in[".ts"], audit._CLOCK)
+        self.assertNotEqual(fp_out[".ts"], audit._CLOCK)
+
+
+class TestRaisingModuleIsNeverCalledMiscoerced(unittest.TestCase):
+    """Пятёрка `failed` Tier-C — не потерянная коэрсия, и это структурно.
+
+    Карточка `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat`: пять модулей
+    падают исключением. Исключение всплывает из `_invoke` ДО `_coerce_score`,
+    поэтому коэрсировать нечего — вердикт `miscoerced` для такого модуля
+    недостижим. Тест держит это утверждение, а не доверяет прочтению кода.
+    """
+
+    def tearDown(self):
+        for key in [k for k in sys.modules
+                    if k.startswith("spa_core.analytics." + _FAKE_PREFIX)]:
+            del sys.modules[key]
+
+    def test_module_raising_missing_facts_is_failed_not_miscoerced(self):
+        audit = _load_audit()
+
+        def _refuses(context):
+            raise ValueError(
+                "Missing required fields: ['unique_users_30d']")
+
+        info = _install(_FAKE_PREFIX + "refuses", _refuses)
+        res = audit._audit_module(info)
+        self.assertEqual(res["classification"], "failed")
+        self.assertNotIn("miscoerced", res)
+        self.assertNotIn(res["classification"], audit.BLIND_EQUIVALENT)
+        self.assertIn("unique_users_30d",
+                      res["runs"]["aave_v3"].get("detail", ""),
+                      "отказ обязан НАЗЫВАТЬ, чего не хватает")
 
 
 class TestAggregatorHonoursMiscoercedMarkup(unittest.TestCase):

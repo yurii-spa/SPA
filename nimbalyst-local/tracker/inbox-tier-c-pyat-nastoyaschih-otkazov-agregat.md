@@ -300,3 +300,89 @@ audit_tier_c_wiring_feasibility.py --tier C
 *Цикл #143. Файлы: `spa_core/analytics/_tier_c_key_coverage.py` (сгенерирован),
 `scripts/audit_tier_c_wiring_feasibility.py`, `spa_core/analytics/signal_aggregator.py`,
 `spa_core/tests/test_tier_c_unsourced_markup.py` (23 теста).*
+
+---
+
+## Цикл #145 (2026-08-17): проверка «а не потерянная ли это коэрсия» — 0 из 5; побочно вскрыт ложный `miscoerced`
+
+Сегодня в агрегаторе появился статус `miscoerced` (`_protocol_blindness.MISCOERCED_MODULES`):
+вердикт «слеп» ставился по коэрсированному score, и один модуль был помечен слепым
+несправедливо. Вопрос к этой карточке: не того ли класса часть «настоящих отказов».
+
+### Ответ: НИ ОДИН из пяти, и это структурно, а не по совпадению
+
+`_coerce_score` вызывается в `signal_aggregator.py:455` — ПОСЛЕ возврата `_invoke`.
+Все пятеро бросают исключение внутри `_invoke` (строка 389), оно всплывает в `except`
+на 461 и даёт `failed`. Коэрсировать нечего: результата нет. Замер поимённо, с точкой
+разрыва:
+
+| модуль | где рвётся | что именно | вердикт |
+|---|---|---|---|
+| `protocol_defi_interest_rate_kink_proximity_analyzer` | `…kink_proximity_analyzer.py:755` `return analyze(token, config=self._config, **kwargs)` | `TypeError: analyze() got an unexpected keyword argument 'context'` | дефект обвязки, но отказ ПО ДЕЛУ (см. ниже) |
+| `protocol_defi_validator_slashing_exposure_analyzer` | `…slashing_exposure_analyzer.py:780` (та же строка делегирования) | тот же `TypeError` | то же |
+| `protocol_adoption_scorer` | `protocol_adoption_scorer.py:53` `float(protocol_data["unique_users_30d"])` | `KeyError: 'unique_users_30d'` | отказ по нехватке факта |
+| `defi_protocol_flash_loan_attack_surface_analyzer` | `…flash_loan_attack_surface_analyzer.py:265` (`_validate`) | `ValueError: Missing required keys: [10 полей]` | fail-CLOSED по проекту |
+| `protocol_defi_protocol_maturity_score_analyzer` | `…protocol_maturity_score_analyzer.py:94` (`_validate_input`) | `ValueError: Missing required fields: [13 полей]` | fail-CLOSED по проекту |
+
+Закреплено тестом `TestRaisingModuleIsNeverCalledMiscoerced` — утверждение держит проверка,
+а не прочтение кода.
+
+### Диагноз (а) опровергнут в ТРЕТИЙ раз, теперь свежим замером
+
+Обвязка у обоих — не «начата и не доведена», а generic-заглушка: `**kwargs` там ради
+делегирования, никакого `_pf.generic_profile_for` (как у обвязанных модулей) в ней нет.
+Что дала бы проводка контекста в `token`/`position`, перемерено сегодня на шести
+протоколах через `generic_profile_for`:
+
+* `slashing_risk_score = 0.0` на ВСЕХ шести — успокаивающая константа «риска слашинга нет»
+  (`num_validators`, `annual_downtime_slash_prob`, `…_penalty_pct` молча дефолтятся в 0);
+* `kink_proximity_score` = 12.5 / 0 / 50 / 12.5 / 50 / 12.5 — различает, но
+  `kink_utilization_pct = 80.0` ОДИНАКОВ у всех: это дефолт движка, а не факт, то есть
+  «близость к кинку» считается относительно выдуманного кинка.
+
+Проводка превратила бы честный отказ в тихий успех. НЕ сделано — и не должно быть сделано.
+Все пять остаются в `UNSOURCED_MODULES`; изменений в прод-пути агрегатора нет.
+
+### Что ПОЧИНЕНО: ложный `miscoerced` на грубых часах
+
+Прогон сегодняшним (miscoerced-осведомлённым) инструментом дал на Tier-C
+`counts={'blind_constant': 8, …, 'failed': 5, 'miscoerced': 1}` — то есть на один
+`blind_constant` меньше, чем базовая линия #142/#143. Виновник —
+`defi_protocol_sandwich_attack_exposure_analyzer`, и его `differing_paths` = `['.timestamp']`.
+Результат модуля константен для любого протокола во всём, кроме собственной отметки времени.
+
+Отсев дрожи в аудите построен на повторе одного протокола и предполагает, что часы дрожат.
+Отметка секундной точности (`2026-08-17T22:43:34Z`) внутри одной секунды у обоих повторов
+ОДИНАКОВА → путь признан стабильным, а trio- и wide-прогон разнесены секундами → путь
+«различается». Слепой модуль получал ярлык «зряч, чините коэрсию», причём вердикт зависел от
+того, в какую секунду лёг прогон. Существующий сторож `test_clock_field_is_not_a_measurement`
+это не ловил: его фикстура штампует микросекунды и потому дрожит всегда — проверка не видела
+настоящей поломки.
+
+Починка (`scripts/audit_protocol_blindness.py`): листовое ЗНАЧЕНИЕ-отметка СОБСТВЕННЫХ часов
+(ISO-строка в пределах `CLOCK_WINDOW_S = 300 c` от момента снятия отпечатка) маскируется, как
+маскируется эхо имени протокола. Маска намеренно узкая: только строки и только «сейчас» —
+дата аудита протокола или срок разлока отстоят от «сейчас» на месяцы и остаются РАЗЛИЧИЕМ;
+число не маскируется вовсе (эпоха неотличима от измерения без угадывания). Часы — вход
+(`_fingerprint(..., now=)`), а не окружение.
+
+После починки Tier-C воспроизводит базовую линию #142/#143 дословно:
+`modules=180 counts={'blind_constant': 9, 'unchecked': 162, 'dormant': 4, 'failed': 5}`,
+`miscoerced=0`.
+
+**Прод-разметка НЕ перегенерировалась и не изменилась.** Маска умеет только СНИМАТЬ различие,
+то есть `MISCOERCED_MODULES` может лишь сжаться; в файле ровно одна запись
+(`defi_cross_chain_yield_comparator`), её различия — `.detail.gross_apy_pct` и родня, не
+отметки времени. Перепроверено адресным прогоном этого модуля починенным инструментом: вердикт
+`miscoerced`, пути те же.
+
+### Контроль в обе стороны (мутационный)
+
+* снять маску часов (`_is_wall_clock_now → False`) → краснеют 3 теста, включая
+  `test_coarse_clock_field_is_not_a_measurement`; `test_domain_date_stays_a_measurement` зелёный;
+* расширить маску до любой ISO-строки (`→ True`) → краснеет `test_domain_date_stays_a_measurement`
+  (дата аудита перестала быть измерением) и обе границы окна; грубые часы зелёные.
+
+*Цикл #145. Файлы: `scripts/audit_protocol_blindness.py`,
+`spa_core/tests/test_protocol_blindness_miscoercion.py` (13 тестов). Мёртвый захват
+`claimed_by: cycle-87477` не трогал — как #142 и #143.*

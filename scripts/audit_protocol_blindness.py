@@ -51,6 +51,24 @@ fallback «первый ``*_score``»; зажим в [0,100]; bool → 0/100), �
 ОДНОГО протокола, из межпротокольного сравнения исключается. Эхо имени
 протокола во входе модуль не вычислял — маскируется.
 
+ГРУБЫЕ ЧАСЫ повтором не ловятся (замер 2026-08-17, `defi_protocol_sandwich_
+attack_exposure_analyzer`). Отсев дрожи предполагает, что часы дрожат между
+двумя прогонами; отметка с секундной точностью (``...T22:43:34Z``) внутри
+одной секунды у обоих прогонов ОДИНАКОВА — путь признаётся стабильным, а
+между trio- и wide-прогоном, разнесёнными на секунды, он различается. Модуль,
+чей результат константен во всём, кроме собственной отметки времени, получал
+вердикт ``miscoerced`` — то есть «модуль зряч, чините коэрсию» о модуле,
+который не измерил ничего. Вердикт при этом зависел от того, в какую секунду
+попал прогон.
+
+Поэтому листовое ЗНАЧЕНИЕ, являющееся отметкой СОБСТВЕННЫХ часов (строка
+ISO-8601 в пределах ``CLOCK_WINDOW_S`` от момента снятия отпечатка),
+маскируется так же, как эхо протокола: модуль его не вычислял. Маска намеренно
+узкая — только строки и только «сейчас»: дата аудита протокола или срок
+разлока отстоят от «сейчас» на месяцы и остаются РАЗЛИЧИЕМ; число замаскировать
+нельзя, не угадывая (эпоха неотличима от измерения), и оно тоже остаётся
+различием.
+
 Волна 2 (2026-08-05, задача A2) — широкая вселенная. Аудиторская тройка
 (aave_v3/maple/pendle) вся живёт на ethereum: модуль, честно различающий
 протоколы по chain/kind/fee-структуре, на тройке даёт равные score и ложно
@@ -130,11 +148,50 @@ def _utc_now_iso() -> str:
 # float округляется, чтобы дрожь последнего бита не читалась как измерение.
 
 _ECHO = "<PROTOCOL_ECHO>"
+_CLOCK = "<WALL_CLOCK_NOW>"
+
+#: Окно, внутри которого ISO-отметка считается снятой с СОБСТВЕННЫХ часов, а не
+#: измерением протокола. Прогоны одного модуля разнесены секундами, реальные
+#: доменные даты (аудит, запуск, разлок) — месяцами; 5 минут разделяет их с
+#: огромным запасом в обе стороны.
+CLOCK_WINDOW_S = 300.0
 
 
-def _mask(value: Any, protocol: str) -> Any:
+def _parse_iso(value: str) -> Optional[datetime]:
+    """Разобрать ISO-8601 с секундами. Не отметка времени → None."""
+    txt = value.strip()
+    # < 19 символов — это не «дата+время до секунды» (голая дата не в счёт:
+    # 2026-08-17 может быть доменным фактом, а не показанием часов).
+    if not (19 <= len(txt) <= 40):
+        return None
+    if txt.endswith(("Z", "z")):
+        txt = txt[:-1] + "+00:00"
+    try:
+        dt = datetime.fromisoformat(txt)
+    except ValueError:
+        return None
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+
+
+def _is_wall_clock_now(value: Any, now: datetime) -> bool:
+    """Значение — отметка СОБСТВЕННЫХ часов модуля (а не доменная дата)?
+
+    Только строки и только «сейчас»: число замаскировать нельзя, не угадывая
+    (эпоха неотличима от измерения), а доменная дата от «сейчас» далека.
+    """
+    if not isinstance(value, str):
+        return False
+    dt = _parse_iso(value)
+    if dt is None:
+        return False
+    return abs((dt - now).total_seconds()) <= CLOCK_WINDOW_S
+
+
+def _mask(value: Any, protocol: str, now: datetime) -> Any:
     if isinstance(value, str) and (value == protocol or protocol in value):
         return _ECHO
+    if _is_wall_clock_now(value, now):
+        return _CLOCK
     if isinstance(value, float):
         return round(value, 9)
     if isinstance(value, (int, bool)) or value is None:
@@ -143,21 +200,29 @@ def _mask(value: Any, protocol: str) -> Any:
 
 
 def _fingerprint(result: Any, protocol: str, path: str = "",
-                 acc: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """Плоский отпечаток результата: {путь: значение}, эхо протокола замаскировано."""
+                 acc: Optional[Dict[str, Any]] = None,
+                 now: Optional[datetime] = None) -> Dict[str, Any]:
+    """Плоский отпечаток результата: {путь: значение}, эхо протокола замаскировано.
+
+    ``now`` — вход, а не окружение (правило `.claude/rules/deployment.md`):
+    тест передаёт фиксированный момент И фиксированные отметки, обе стороны
+    закреплены. По умолчанию — реальные часы в момент снятия отпечатка.
+    """
     if acc is None:
         acc = {}
+    if now is None:
+        now = datetime.now(timezone.utc)
     if isinstance(result, dict):
         for key in result:
             key_txt = str(key)
             if protocol and protocol in key_txt:
                 key_txt = _ECHO
-            _fingerprint(result[key], protocol, path + "." + key_txt, acc)
+            _fingerprint(result[key], protocol, path + "." + key_txt, acc, now)
     elif isinstance(result, (list, tuple)):
         for i, item in enumerate(result):
-            _fingerprint(item, protocol, "%s[%d]" % (path, i), acc)
+            _fingerprint(item, protocol, "%s[%d]" % (path, i), acc, now)
     else:
-        acc[path] = _mask(result, protocol)
+        acc[path] = _mask(result, protocol, now)
     return acc
 
 
