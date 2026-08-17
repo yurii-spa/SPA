@@ -217,6 +217,20 @@ def is_loopback_host(host: str) -> bool:
     return host.startswith("127.")
 
 
+def is_loopback_url(url: Any) -> bool:
+    """``True`` when a urlopen argument does NOT address the live network.
+
+    Public so a sibling layer can ask THIS module the question instead of
+    re-deriving the rule (2026-08-17, card
+    ``inbox-storozh-telegram-dverei-vybivaet-storozh``): ``offline_block`` is
+    the mirror image of this guard — it refuses exactly what this one allows —
+    and two copies of "what counts as loopback" would drift apart silently.
+    No behaviour of this module changes; it is the composition of the two
+    helpers the wrapper above already calls.
+    """
+    return is_loopback_host(_host_of(_url_of(url)))
+
+
 def urlopen_chain() -> List[Any]:
     """The ``urlopen`` delegation chain, outermost first.
 

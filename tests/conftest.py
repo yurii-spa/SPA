@@ -32,30 +32,77 @@ os.environ.setdefault("SPA_RATE_LIMIT_ENABLED", "0")
 os.environ.setdefault("SPA_API_REQUIRE_AUTH", "0")
 
 # ---------------------------------------------------------------------------
-# Offline autouse fixture: prevent any live network call in the full test
-# suite. We patch urllib.request.urlopen at the stdlib level so that ALL
-# HTTP/HTTPS attempts fail immediately with OSError (no TCP wait).
-# Adapters catch this and fall back to their deterministic default APY values.
-# Individual tests that explicitly test network behaviour must monkeypatch
-# their own replacement via monkeypatch.setattr.
+# Offline block: prevent any live network call in the full test suite.  Every
+# HTTP/HTTPS attempt fails immediately with an OSError (no TCP wait); adapters
+# catch it and fall back to their deterministic default APY values.  Individual
+# tests that explicitly test network behaviour monkeypatch their own
+# replacement via monkeypatch.setattr.
+#
+# It WRAPS, it does not assign (2026-08-17, card
+# `inbox-storozh-telegram-dverei-vybivaet-storozh`).
+#
+# This used to be `_urllib_req.urlopen = _blocked_urlopen` — one line that
+# threw away every layer the other root had installed.  Measured, in the order
+# a repo-root run loads the two conftests:
+#
+#   spa_core conftest  ->  telegram_guard -> network_guard -> urlopen   (chain 3)
+#   THIS LINE          ->  _blocked_urlopen                             (chain 1)
+#   this file, later   ->  telegram_guard -> _blocked_urlopen  (network guard GONE)
+#   first test         ->  autouse fixture repairs it and records a "clobber"
+#
+# so every combined run printed `network guard was RE-INSTALLED mid-run` and
+# blamed whichever test ran first (reproduced verbatim with two files:
+# `pytest spa_core/tests/test_doc_drift.py tests/test_adapter_registry.py`
+# named `test_doc_drift.py::test_canonical_dr_doc_exists`, which does nothing
+# of the sort).
+#
+# Nothing is relaxed.  The block is now a layer that publishes `__wrapped__`
+# like its siblings, and the rule it enforced is split between the two layers
+# that can each enforce their half without blinding the other:
+#   * loopback / unparseable URLs   -> refused HERE (offline_block.OfflineError);
+#   * every other address           -> refused by network_guard, which also
+#                                      RECORDS the refusal (a block that
+#                                      answered for it would leave that ledger
+#                                      empty while three tests assert on it).
+# Both are OSError, the contract every caller under test already takes.  A
+# `pytest tests/` run gains network_guard's socket-level backstop, which this
+# root never had.  Rationale: spa_core/tests/offline_block.py.
 # ---------------------------------------------------------------------------
 import pytest
 import urllib.request as _urllib_req
 import urllib.error as _urllib_err
+import importlib.util as _ilu
+
+# ONE module object per guard, shared with spa_core/tests/conftest.py — see the
+# note there: two copies would mean two ledgers, one recording and the other
+# reporting.  Loaded by absolute path from the single source of truth so the
+# two roots can never drift apart.
+_GUARD_DIR = _ROOT / "spa_core" / "tests"
 
 
-class _OfflineError(OSError):
-    """Raised instead of real network calls in the test suite."""
-    reason = "offline — network disabled in test suite"
+def _shared_guard(module_name, filename):
+    mod = sys.modules.get(module_name)
+    if mod is None:
+        _spec = _ilu.spec_from_file_location(module_name, _GUARD_DIR / filename)
+        mod = _ilu.module_from_spec(_spec)          # type: ignore[arg-type]
+        _spec.loader.exec_module(mod)               # type: ignore[union-attr]
+        sys.modules[module_name] = mod
+    return mod
 
 
-def _blocked_urlopen(url, *args, **kwargs):
-    raise _OfflineError("offline — network disabled in test suite")
+# Installed BEFORE the offline block so the block WRAPS it and delegates the
+# live network to it — and idempotent, so a run that already loaded
+# spa_core/tests/conftest.py keeps that one instance untouched.
+network_guard = _shared_guard("spa_network_guard", "network_guard.py")
+network_guard.install()
 
+offline_block = _shared_guard("spa_offline_block", "offline_block.py")
+offline_block.install(network_guard)
 
-# Apply the patch at import time so it is active before any test module runs.
-# We do NOT use monkeypatch here so we don't create fixture ordering issues.
-_urllib_req.urlopen = _blocked_urlopen
+#: Kept under its historical name for any reader who greps for it: the error a
+#: refused LOCAL call raises in this root.  Non-loopback calls raise
+#: network_guard.LiveNetworkAccessAttempted — also an OSError.
+_OfflineError = offline_block.OfflineError
 
 # ---------------------------------------------------------------------------
 # Kill retry backoff in spa_core/feeds/defi_llama_feed.py:

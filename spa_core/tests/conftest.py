@@ -527,10 +527,16 @@ def _scope_network_guard_ledger(request):
     # (2026-08-08, cycle #163, card
     # `inbox-retsidiv-setevoi-strazh-snova-krasneet-t`).
     #
-    # tests/conftest.py replaces urlopen by plain assignment (line 58) and then
-    # re-installs ONLY telegram_guard (line 171), so in every run that collects
-    # both roots the chain becomes `telegram_guard -> _blocked_urlopen` with
-    # network_guard gone — before the first test runs. The network was still
+    # tests/conftest.py USED TO replace urlopen by plain assignment (line 58)
+    # and then re-install ONLY telegram_guard, so in every run that collects
+    # both roots the chain became `telegram_guard -> _blocked_urlopen` with
+    # network_guard gone — before the first test ran, which is why the end-of-run
+    # banner below blamed whichever test happened to be first. That block is now
+    # a wrapper (spa_core/tests/offline_block.py, 2026-08-17, card
+    # `inbox-storozh-telegram-dverei-vybivaet-storozh`) and no longer clobbers
+    # anything. This repair stays: it is the backstop for the NEXT plain
+    # assignment, and it is the thing that names it out loud. The network was
+    # still
     # blocked (the sibling block is also fail-CLOSED), but THIS guard's ledger
     # stayed empty, and the three tests that read it went red only in a full
     # run: test_a_a_refused_call_lands_in_the_live_ledger,

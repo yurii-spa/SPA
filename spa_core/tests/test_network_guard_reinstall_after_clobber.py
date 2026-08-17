@@ -20,9 +20,14 @@ Reproduced with ONE neighbour rather than the whole suite::
 
 Two defects, and the second is why the first went unnoticed:
 
-1. ``tests/conftest.py`` line 58 does ``urllib.request.urlopen =
+1. ``tests/conftest.py`` line 58 did ``urllib.request.urlopen =
    _blocked_urlopen`` — a plain assignment that discards the chain — and then
-   line 171 re-installs **only** ``telegram_guard``.  Result:
+   re-installed **only** ``telegram_guard``.  (Fixed 2026-08-17, card
+   ``inbox-storozh-telegram-dverei-vybivaet-storozh``: that block is now
+   :mod:`offline_block`, a wrapper.  The clobber is therefore *simulated* by
+   the tests below rather than shipped by a conftest — which is the point of
+   keeping them: ``ensure_installed`` must still repair, and still say so,
+   whoever does it next.)  Result:
    ``telegram_guard -> _blocked_urlopen``, with ``network_guard`` gone before
    the first test ran.  The network stayed blocked (the sibling block is also
    fail-CLOSED), so nothing looked wrong; only this guard's ledger went empty.
