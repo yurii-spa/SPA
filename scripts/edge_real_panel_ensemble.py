@@ -218,6 +218,37 @@ def glue_artifact(panel_dir: Path = PANEL_DIR) -> Dict[str, Dict[str, float]]:
     return out
 
 
+def mark_census(panel_dir: Path = PANEL_DIR) -> Dict[str, dict]:
+    """{book: daily_mark} — does each book carry a REAL daily mark, and if not, which way it fails.
+
+    WHY #17 NEEDS THIS (card ``agent-idea17-needs-a-panel-with-daily-marks``). The 2026-08-02
+    recompute found 6 of the 10 books flat on most days — ``lp_eth_stable`` on 851 of 852. Every
+    cross-sectional number below (avg pairwise correlation, equal-weight vs best-single, the
+    inverse-vol maxDD of 0.00% and its infinite Calmar) is arithmetic over those constants, which
+    is why the verdict is ⚠️ rather than ✅ or ❌. This function names the honest subset instead of
+    leaving it to a hand count.
+
+    ONE DEFINITION, not a second one: the statuses come from
+    ``spa_core.strategy_lab.aggressive_lab.scorecard.daily_mark`` over the loader's Track counts,
+    the same code the scorecard publishes — so this script and the scorecard can never disagree
+    about which books are eligible. Fail-CLOSED: a book the loader cannot read is reported
+    INSUFFICIENT_DATA, never assumed marked.
+    """
+    from spa_core.strategy_lab.aggressive_lab import loader as _ld
+    from spa_core.strategy_lab.aggressive_lab import scorecard as _sc
+
+    out: Dict[str, dict] = {}
+    for sid in _ld.discover_strategy_ids(data_dir=panel_dir):
+        # #17 is computed on the phase="backtest" block, so the census must judge that same track.
+        out[sid] = _sc.daily_mark(_ld.load_strategy(sid, data_dir=panel_dir).backtest)
+    return out
+
+
+def daily_mark_ids(panel_dir: Path = PANEL_DIR) -> List[str]:
+    """Sorted ids of the books a cross-sectional claim over this panel may honestly be made over."""
+    return sorted(b for b, c in mark_census(panel_dir).items() if c["cross_section_eligible"])
+
+
 def common_axis(panel: Dict[str, Dict[str, float]]) -> List[str]:
     """Sorted dates present in EVERY book (fail-closed intersection)."""
     sets = [set(r) for r in panel.values()]
@@ -516,8 +547,19 @@ def run_idea16(panel: Dict[str, Dict[str, float]], axis: List[str], target: str,
 
 
 # ─────────────────────────── idea #17 ───────────────────────────
-def run_idea17(panel: Dict[str, Dict[str, float]], axis: List[str], verbose: bool = True) -> Dict:
+def run_idea17(panel: Dict[str, Dict[str, float]], axis: List[str], verbose: bool = True,
+               *, restrict_to: Optional[Sequence[str]] = None,
+               census: Optional[Dict[str, dict]] = None) -> Dict:
+    """#17 over the panel. ``restrict_to`` narrows it to a NAMED subset of books (the card's second
+    option: say "cross-section of N books" out loud instead of implying ten); ``census`` is the
+    mark_census() result, echoed in the printout so no number leaves here without the caveat."""
     books = list(panel)
+    if restrict_to is not None:
+        books = [b for b in books if b in set(restrict_to)]
+        if len(books) < 2:
+            raise RuntimeError(
+                f"refusing to compute a cross-section over {len(books)} book(s) "
+                f"(requested subset: {sorted(restrict_to)}) — a cross-section needs at least two")
     rets = {b: [panel[b][d] for d in axis] for b in books}
     n = len(axis)
 
@@ -577,10 +619,30 @@ def run_idea17(panel: Dict[str, Dict[str, float]], axis: List[str], verbose: boo
         "inverse_vol_floor": p_floor,
         "best_single_perf": p_best,
         "oos": oos,
+        "restricted_to": (sorted(books) if restrict_to is not None else None),
+        "mark_census": census,
     }
 
     if verbose:
-        print(f"\n{'='*74}\nIDEA #17 — Cross-Sectional Risk-Parity on the REAL 10-book panel")
+        scope = (f"a NAMED subset of {len(books)} book(s)" if restrict_to is not None
+                 else f"the FULL {len(books)}-book panel")
+        print(f"\n{'='*74}\nIDEA #17 — Cross-Sectional Risk-Parity on {scope}")
+        if census is not None:
+            not_marked = sorted(b for b in books
+                                if not (census.get(b) or {}).get("cross_section_eligible"))
+            if not_marked:
+                print("  ⚠️  NOT every book below carries a real daily mark — every cross-sectional")
+                print("      number in this block is partly arithmetic over constants:")
+                for b in not_marked:
+                    c = census[b]
+                    ms = c.get("moved_share")
+                    ss = c.get("sourced_share")
+                    print(f"        {b:<20}{c['mark_status']:<18}"
+                          f"moved {'n/a' if ms is None else f'{ms*100:.1f}%'} of day-steps · "
+                          f"sourced {'n/a' if ss is None else f'{ss*100:.1f}%'} of points")
+            else:
+                print("  every book below carries a real daily mark (moved + sourced) — the "
+                      "cross-section is measurable")
         print(f"  avg pairwise daily-return corr across {len(books)} books = {avg_corr:.3f}")
         print(f"  best single book by Calmar = {best_single} (Calmar {p_best['calmar']:.2f}, maxDD {p_best['maxdd']*100:.2f}%)\n")
         print(f"  {'portfolio':<24}{'APY':>9}{'maxDD':>9}{'Calmar':>9}{'annVol':>9}")
@@ -619,8 +681,37 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print("  → the seam is a change of accounting series (forward book re-anchors at ~$100k),"
               " not a market move.")
 
+    # Section 0b — WHICH books actually carry a daily mark. Printed BEFORE #17 on purpose: the
+    # 2026-08-02 recompute found 6 of 10 books flat on most days, which is why #17 stands at ⚠️.
+    census = mark_census()
+    eligible = sorted(b for b, c in census.items() if c["cross_section_eligible"])
+    print(f"\n{'='*74}\n0b. DAILY-MARK CENSUS (card agent-idea17-needs-a-panel-with-daily-marks)")
+    print(f"  {'book':<20}{'mark status':<18}{'moved %':>10}{'sourced %':>11}{'last moved':>13}")
+    for book in sorted(census):
+        c = census[book]
+        ms, ss = c.get("moved_share"), c.get("sourced_share")
+        print(f"  {book:<20}{c['mark_status']:<18}"
+              f"{'n/a' if ms is None else f'{ms*100:.1f}%':>10}"
+              f"{'n/a' if ss is None else f'{ss*100:.1f}%':>11}"
+              f"{str(c.get('last_moved_date')):>13}")
+    print(f"  → a cross-sectional claim over this panel is measurable on "
+          f"{len(eligible)} of {len(census)} books: "
+          f"{', '.join(eligible) if eligible else 'NONE'}")
+
     run_idea16(panel, axis, target=target)
-    run_idea17(panel, axis)
+    run_idea17(panel, axis, census=census)
+    # The card's second option, run alongside rather than instead: #17 over the NAMED honest
+    # subset. Only when that subset is both non-trivial and smaller than the panel — otherwise the
+    # block above already IS the honest run and repeating it would fake a second measurement.
+    if 2 <= len(eligible) < len(census):
+        print(f"\n{'='*74}\n#17 RESTRICTED to the {len(eligible)} books with a real daily mark — "
+              f"the honest cross-section. Say 'cross-section of {len(eligible)} books', never 'of "
+              f"{len(census)}'.")
+        run_idea17(panel, axis, restrict_to=eligible, census=census)
+    elif len(eligible) < 2:
+        print(f"\n{'='*74}\n#17 CANNOT be restricted to an honest subset: only {len(eligible)} "
+              f"book(s) on this panel carry a real daily mark. #17 stays ⚠️ (not proven, not "
+              f"disproven) — refusing to compute a cross-section over constants.")
     print(f"\n{'='*74}\nEvidence: L0 (real feed-history backtest, NOT live). "
           f"Advisory / paper / OUTSIDE_RISKPOLICY. Survivorship + frictionless-switch caveats apply.")
     return 0

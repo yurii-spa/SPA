@@ -17,6 +17,11 @@ Per strategy it shows:
     2026-08-16 nothing here read Lane 1's `killed` flag, so dead books quietly out-ranked live ones
     (31.7% of the panel measured as effectively cash). The ranking rule is UNCHANGED — the fix is
     that the fact is stated, not that the order is quietly rewritten,
+  • THE DAILY MARK — is this book actually repriced day by day, with a named source (see
+    _daily_mark). A different question from liveness: the two books that broke registry idea #17
+    were both ALIVE — one was a near-constant (moved on 2 of 852 day-steps), the other moved every
+    single day with no mark source on any point. `daily_mark_summary.cross_section_eligible_ids`
+    names the subset a cross-sectional claim over this panel may be computed over,
   • an honest VERDICT label (see _verdict below).
 
 THE TRUSTWORTHY GATE (reused WS1.4 fail-closed logic): a strategy on thin/degenerate data is flagged
@@ -56,6 +61,24 @@ INSUFFICIENT = rm.INSUFFICIENT
 # headline yield — the whole point is to stop a fat APY from burying a catastrophic drawdown. Mirrors
 # the lab's promotion drawdown band (15%): a strategy whose stress tail blows past it is SEVERE_TAIL.
 SEVERE_TAIL_DD_PCT = 15.0
+
+# ── DAILY-MARK CENSUS thresholds (card agent-idea17-needs-a-panel-with-daily-marks) ──────────────
+# A cross-sectional claim ("diversifying across the panel lowers risk") is only measurable on books
+# that are actually repriced day by day. These two shares are what decide whether a book qualifies.
+# Both are deliberately generous: the failures they must catch were not marginal (0.2% and 2.7% of
+# day-steps moved; 100% of points unsourced), and a tight threshold would start excluding books for
+# being quiet rather than for being constants.
+#: below this share of moved day-steps a book is a CONSTANT wearing a strategy's name
+MARK_FROZEN_MOVED_SHARE = 0.05
+#: at/above this share of moved day-steps a book is repriced often enough to carry a daily mark
+MARK_MIN_MOVED_SHARE = 0.50
+#: at/above this share of points naming an ``mtm_source`` the movement has a stated origin
+MARK_MIN_SOURCED_SHARE = 0.50
+#: a track shorter than this cannot be judged either way (fail-CLOSED → INSUFFICIENT_DATA)
+MARK_MIN_POINTS = 2
+
+#: the only mark_status a cross-sectional verdict may be computed over
+MARK_STATUS_DAILY = "DAILY_MARK"
 
 
 def _utc_now_iso() -> str:
@@ -125,6 +148,72 @@ def _liveness(s: ld.LoadedStrategy, primary_track: ld.Track) -> dict:
         "flat_because_killed": bool(has_flat_tail and killed),
         "liveness_source": primary_track.phase,
     }
+
+
+def _daily_mark(track: ld.Track) -> dict:
+    """Does this book carry a REAL DAILY MARK — and if not, which way does it fail?
+
+    THE DEFECT THIS ANSWERS (card ``agent-idea17-needs-a-panel-with-daily-marks``). Registry idea
+    #17 asks whether cross-sectional diversification across the ten aggressive books lowers risk.
+    Measured on the 852-day panel, six of the ten books were flat on most days — one of them
+    (``lp_eth_stable``) on 851 of 852 — so the panel's headline results (mean pairwise correlation
+    0.072, maxDD 0.00%, Calmar inf) were arithmetic over constants, not evidence about
+    diversification. The verdict was correctly downgraded to "not proven and not disproven".
+
+    ``killed``/``flatline_reason`` cannot answer this: they only separate a dead book from a calm
+    one, and both of the panel's real failures are books that are ALIVE — a near-constant, and a
+    book that moves every single day with ``mtm_source`` null on every point (``points_farm``).
+
+    The status is a statement about MEASURABILITY, never about quality:
+
+      INSUFFICIENT_DATA — fewer than MARK_MIN_POINTS points: no claim either way.
+      FROZEN            — moved on < MARK_FROZEN_MOVED_SHARE of day-steps: a constant. Its zero
+                          volatility and zero drawdown are properties of the file, not the market.
+      UNSOURCED_DRIFT   — it moves, but fewer than MARK_MIN_SOURCED_SHARE of its points name where
+                          the mark came from. Movement from nowhere nameable.
+      SPARSE_MARK       — sourced, but repriced on fewer than MARK_MIN_MOVED_SHARE of day-steps:
+                          a real but intermittent mark; usable for level, not for daily co-movement.
+      DAILY_MARK        — repriced often enough AND sourced. The ONLY status a cross-sectional
+                          claim may be computed over.
+
+    FROZEN is checked before UNSOURCED_DRIFT on purpose: a book that does not move has nothing for
+    a source to explain, and calling it "unsourced" would hide the larger fact that it is constant.
+    """
+    n_pts = track.n_points
+    moved_share = track.moved_share
+    sourced_share = track.sourced_share
+    if n_pts < MARK_MIN_POINTS or moved_share is None or sourced_share is None:
+        status = "INSUFFICIENT_DATA"
+    elif moved_share < MARK_FROZEN_MOVED_SHARE:
+        status = "FROZEN"
+    elif sourced_share < MARK_MIN_SOURCED_SHARE:
+        status = "UNSOURCED_DRIFT"
+    elif moved_share < MARK_MIN_MOVED_SHARE:
+        status = "SPARSE_MARK"
+    else:
+        status = MARK_STATUS_DAILY
+    return {
+        "mark_status": status,
+        # eligibility is a DERIVED read of the status, so no consumer has to re-implement the rule
+        "cross_section_eligible": status == MARK_STATUS_DAILY,
+        "n_points": n_pts,
+        "n_steps": track.n_steps,
+        "n_moved_steps": track.n_moved_steps,
+        "moved_share": None if moved_share is None else round(moved_share, 6),
+        "n_sourced_points": track.n_sourced_points,
+        "sourced_share": None if sourced_share is None else round(sourced_share, 6),
+        "last_moved_date": track.last_moved_date,
+        "last_sourced_date": track.last_sourced_date,
+        "mark_source": track.phase,
+    }
+
+
+#: PUBLIC alias — the census is read by scripts/edge_real_panel_ensemble.py (the study that
+#: publishes registry verdict #17). Exported so there is ONE definition of "does this book carry a
+#: daily mark" rather than a second copy that can drift away from the scorecard's.
+def daily_mark(track: ld.Track) -> dict:
+    """The daily-mark census for one Track. See :func:`_daily_mark` for the measured defect."""
+    return _daily_mark(track)
 
 
 def _verdict(
@@ -230,6 +319,10 @@ def score_strategy(s: ld.LoadedStrategy) -> dict:
         # is arithmetic about a corpse. The ranking is unchanged; the caveat is now readable.
         "is_alive": not liveness["killed"],
         "liveness": liveness,
+        # ── DOES THIS BOOK CARRY A REAL DAILY MARK (and if not, which way does it fail) ──
+        # Read off the SAME track as the ratios and the liveness, so all three describe one series.
+        # This is the field a cross-sectional study must filter on — being alive is not enough.
+        "daily_mark": _daily_mark(primary_track),
         # ── the honest verdict + guardrail stamps ──
         "verdict": verdict,
         "is_advisory": True,
@@ -341,6 +434,35 @@ def build_scorecard(
                  "what it is."),
     }
 
+    # ── HOW MUCH OF THE PANEL IS ACTUALLY REPRICED DAILY ─────────────────────────────────────────
+    # The census card ``agent-idea17-needs-a-panel-with-daily-marks`` asks for. The per-book field
+    # says whether ONE book carries a daily mark; this names the SUBSET a cross-sectional claim may
+    # be computed over, so a study can state "cross-section of N books" instead of implying ten.
+    # It excludes nothing from any sort order — the ranking rule stays exactly as it was.
+    mark_by_status: Dict[str, List[str]] = {}
+    for e in entries:
+        mark_by_status.setdefault(e["daily_mark"]["mark_status"], []).append(e["strategy_id"])
+    eligible_ids = sorted(mark_by_status.get(MARK_STATUS_DAILY, []))
+    daily_mark_summary = {
+        "n_books": len(entries),
+        "n_daily_mark": len(eligible_ids),
+        "cross_section_eligible_ids": eligible_ids,
+        "by_status": {k: sorted(v) for k, v in sorted(mark_by_status.items())},
+        "thresholds": {
+            "frozen_moved_share_below": MARK_FROZEN_MOVED_SHARE,
+            "min_moved_share": MARK_MIN_MOVED_SHARE,
+            "min_sourced_share": MARK_MIN_SOURCED_SHARE,
+            "min_points": MARK_MIN_POINTS,
+        },
+        "note": ("A cross-sectional claim (correlation, diversification benefit, best-single vs "
+                 "equal-weight) is only measurable over books that are repriced day by day. A "
+                 "near-constant does not correlate with anything and reports zero drawdown; a book "
+                 "whose points name no mark source moves from nowhere nameable. Both are ALIVE, so "
+                 "the liveness summary above cannot see either. Any study over this panel must "
+                 "either restrict itself to cross_section_eligible_ids or say out loud which "
+                 "non-DAILY_MARK books it included and why."),
+    }
+
     n_trustworthy = sum(1 for e in entries if e["trustworthy"])
     n_severe_tail = sum(1 for e in entries if e["verdict"] == "SEVERE_TAIL")
     n_insufficient = sum(1 for e in entries if e["verdict"] == "INSUFFICIENT_DATA")
@@ -370,6 +492,7 @@ def build_scorecard(
         "n_severe_tail": n_severe_tail,
         "n_insufficient_data": n_insufficient,
         "liveness_summary": liveness_summary,
+        "daily_mark_summary": daily_mark_summary,
         "risk_class_legend": dict(RISK_CLASS_LABEL),
         "tier_summary": tier_summary,
         "sort_orders": _sort_keys(entries) if entries else {},
@@ -429,6 +552,16 @@ def render_table(doc: dict) -> str:
             f"alive · dead capital {frac_s} (${ls.get('dead_capital_usd', 0.0):,.0f} of "
             f"${ls.get('dead_capital_usd', 0.0) + ls.get('live_capital_usd', 0.0):,.0f})"
             + (f" · killed: {', '.join(ls['killed_ids'])}" if ls.get("killed_ids") else ""))
+    dm = doc.get("daily_mark_summary") or {}
+    if dm:
+        lines.append(
+            f"Daily mark: {dm.get('n_daily_mark', 0)}/{dm.get('n_books', 0)} books repriced daily "
+            f"WITH a named source — a cross-sectional claim over this panel is measurable on "
+            + (", ".join(dm.get("cross_section_eligible_ids") or []) or "NO book")
+            + " only")
+        for status, ids in (dm.get("by_status") or {}).items():
+            if status != MARK_STATUS_DAILY:
+                lines.append(f"  not cross-section eligible · {status}: {', '.join(ids)}")
     lines.append("Sort orders available: " + ", ".join(doc.get("sort_orders", {}).keys()))
     return "\n".join(lines)
 
@@ -442,7 +575,10 @@ def main() -> int:
                       "n_severe_tail": doc["n_severe_tail"],
                       "n_insufficient_data": doc["n_insufficient_data"],
                       "liveness": {k: doc["liveness_summary"][k]
-                                   for k in ("n_killed", "killed_ids", "dead_capital_frac")}},
+                                   for k in ("n_killed", "killed_ids", "dead_capital_frac")},
+                      "daily_mark": {k: doc["daily_mark_summary"][k]
+                                     for k in ("n_daily_mark", "cross_section_eligible_ids",
+                                               "by_status")}},
                      indent=2))
     return 0
 

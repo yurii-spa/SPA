@@ -26,6 +26,11 @@ HONESTY / fail-CLOSED:
   • LIVENESS IS CARRIED, NOT DROPPED: each point's ``killed`` flag is aggregated onto the Track
     (killed_since / n_killed_points / killed_final). A dead book's flat line must never reach the
     ranking layer looking like a calm one — see Track's docstring for the measured failure.
+  • MARK PROVENANCE IS CARRIED, NOT DROPPED: each point's ``mtm_source`` (Lane 1 stamps it in
+    harness._point) is aggregated onto the Track alongside the count of day-steps on which the
+    book's equity actually MOVED. Liveness answers "is this book dead"; this answers the different
+    question card ``agent-idea17-needs-a-panel-with-daily-marks`` asks — "does this book carry a
+    real DAILY MARK, or is it a near-constant / an unsourced drift". See Track's docstring.
 
 stdlib-only, deterministic, fail-CLOSED. LLM FORBIDDEN.
 """
@@ -58,6 +63,22 @@ class Track:
     drawdown — and beats the books that are still trading. The flag was never missing; it was
     simply dropped on the floor at the first consumer. It is carried on the Track, not stamped into
     each point dict, so the point shape the metrics/integrity layers consume is unchanged.
+
+    WHY MARK PROVENANCE ALSO LIVES HERE (card ``agent-idea17-needs-a-panel-with-daily-marks``).
+    Liveness separates "flat because it died" from "flat because the market was calm". It cannot
+    separate EITHER of them from the two failures measured on the live panel on 2026-08-15:
+
+      • a book that is not killed and still barely moves — ``lp_eth_stable`` moved on 2 of 852
+        day-steps, ``levered_restaking`` on 23. Its equity line is a constant, so its volatility,
+        its drawdown and every ratio built on them are arithmetic about a constant;
+      • a book that moves EVERY day with no named source — ``points_farm`` moved on 99.9% of
+        day-steps with ``mtm_source`` null on 100% of its points. It looks livelier than anything
+        else on the panel and its movement comes from nowhere nameable.
+
+    Neither shows up in ``killed`` and neither shows up in a trailing flat run, so a cross-sectional
+    verdict computed over "all ten books" silently rests on constants. The counts below are what let
+    a consumer name the honest subset instead. They are carried on the Track, not stamped into each
+    point dict, so the point shape the metrics/integrity layers consume is unchanged.
     """
 
     phase: str
@@ -68,10 +89,35 @@ class Track:
     killed_since: Optional[str] = None
     #: the book's state at the LAST point of this track
     killed_final: bool = False
+    #: how many points carry a NAMED mark source (``mtm_source`` a non-empty string)
+    n_sourced_points: int = 0
+    #: how many day-STEPS (there are n_points-1 of them) actually moved the book's equity
+    n_moved_steps: int = 0
+    #: last date on which equity moved / on which a source was named (None if never)
+    last_moved_date: Optional[str] = None
+    last_sourced_date: Optional[str] = None
 
     @property
     def n_points(self) -> int:
         return len(self.series)
+
+    @property
+    def n_steps(self) -> int:
+        """Day-steps available on this track: one fewer than the points (0 on a track of 0 or 1)."""
+        return max(len(self.series) - 1, 0)
+
+    @property
+    def moved_share(self) -> Optional[float]:
+        """Fraction of day-steps on which equity moved — None (no claim) when there are no steps.
+
+        fail-CLOSED on purpose: a one-point track has not been observed moving OR standing still,
+        and reporting 0.0 there would read as "measured, and it is frozen"."""
+        return (self.n_moved_steps / self.n_steps) if self.n_steps else None
+
+    @property
+    def sourced_share(self) -> Optional[float]:
+        """Fraction of points carrying a named mark source — None (no claim) on an empty track."""
+        return (self.n_sourced_points / len(self.series)) if self.series else None
 
     @property
     def final_equity_usd(self) -> Optional[float]:
@@ -106,6 +152,21 @@ class LoadedStrategy:
     @property
     def n_killed_points(self) -> int:
         return self.backtest.n_killed_points + self.forward.n_killed_points
+
+
+# A day-step "moved" when the equity changed by more than this RELATIVE tolerance. Relative so the
+# answer does not depend on the size of the book. Same magnitude as scorecard._FLAT_REL_TOL, which
+# calls a trailing run flat — deliberately, so the two readings of "this line is not moving" are of
+# the same order. They are NOT the same predicate: _flat_run scales by the track's global maximum,
+# this scales by the pair, so a step can be flat by one and moved by the other only inside that
+# 1e-9 band. Nothing downstream turns on the difference; both are far below any real mark.
+_MOVE_REL_TOL = 1e-9
+
+
+def _moved(prev_eq: float, eq: float) -> bool:
+    """Did equity actually move between two consecutive points on the SAME phase?"""
+    scale = max(abs(prev_eq), abs(eq), 1.0)
+    return abs(eq - prev_eq) / scale > _MOVE_REL_TOL
 
 
 def _coerce_point(obj: object) -> Optional[dict]:
@@ -185,6 +246,15 @@ def load_strategy(
         "forward":  {"n": 0, "since": None, "last": False},
         "backtest": {"n": 0, "since": None, "last": False},
     }
+    # mark provenance, tracked per phase alongside the points (see Track's docstring for why).
+    # ``prev_eq`` is the previous point's equity ON THAT PHASE — the two phases are separate series
+    # and a step must never be measured across the seam between them.
+    marks: Dict[str, dict] = {
+        "forward":  {"sourced": 0, "moved": 0, "prev_eq": None,
+                     "last_moved": None, "last_sourced": None},
+        "backtest": {"sourced": 0, "moved": 0, "prev_eq": None,
+                     "last_moved": None, "last_sourced": None},
+    }
     malformed = 0
     for line in raw.splitlines():
         line = line.strip()
@@ -214,14 +284,35 @@ def load_strategy(
             # a book that reports itself alive again (restart / un-kill) stops being dead-final;
             # the FIRST kill date is kept, so the history of the death is not erased.
             k["last"] = False
+        # ── mark provenance ────────────────────────────────────────────────────────────────────
+        # A source counts only when it is a NON-EMPTY STRING. null (a pure-accrual day, Lane 1's
+        # own convention) and "" are both "no source named" — never coerced into one.
+        mk = marks[phase]
+        src = obj.get("mtm_source")
+        if isinstance(src, str) and src.strip():
+            mk["sourced"] += 1
+            mk["last_sourced"] = pt["date"]
+        prev_eq = mk["prev_eq"]
+        if prev_eq is not None and _moved(prev_eq, pt["equity_usd"]):
+            mk["moved"] += 1
+            mk["last_moved"] = pt["date"]
+        mk["prev_eq"] = pt["equity_usd"]
 
     # also accept a risk_shape stamped inline on the first usable point if meta didn't set one
     out.forward = Track("forward", fwd, n_killed_points=kills["forward"]["n"],
                         killed_since=kills["forward"]["since"],
-                        killed_final=kills["forward"]["last"])
+                        killed_final=kills["forward"]["last"],
+                        n_sourced_points=marks["forward"]["sourced"],
+                        n_moved_steps=marks["forward"]["moved"],
+                        last_moved_date=marks["forward"]["last_moved"],
+                        last_sourced_date=marks["forward"]["last_sourced"])
     out.backtest = Track("backtest", bt, n_killed_points=kills["backtest"]["n"],
                          killed_since=kills["backtest"]["since"],
-                         killed_final=kills["backtest"]["last"])
+                         killed_final=kills["backtest"]["last"],
+                         n_sourced_points=marks["backtest"]["sourced"],
+                         n_moved_steps=marks["backtest"]["moved"],
+                         last_moved_date=marks["backtest"]["last_moved"],
+                         last_sourced_date=marks["backtest"]["last_sourced"])
     out.n_malformed_lines = malformed
     return out
 
