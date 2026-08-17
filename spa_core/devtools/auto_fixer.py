@@ -543,6 +543,45 @@ def notify_no_api_key(token: str, chat_id: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Alert classification
+# ---------------------------------------------------------------------------
+#
+# Приехало сюда 17.08 вместе со списанием `spa_core/monitoring/telegram_watcher.py`
+# (решение владельца по карточке `own-55-vtoroi-chitatel-komand-v-telegram`).
+# Функция ЖИЛА в списанном модуле, а звал её только этот файл — двумя ленивыми
+# импортами внутри `run_auto_fix`. Перенос дословный: ни одна ветка не изменена,
+# её вопросы переставлены на `tests/test_auto_fixer.py::TestParseAlertType`.
+
+def parse_alert_type(text: str) -> str:
+    """Identify the dominant error type from alert text."""
+    if "ImportError" in text or "ModuleNotFoundError" in text:
+        return "ImportError"
+    if "FileNotFoundError" in text or "No such file or directory" in text:
+        return "FileNotFoundError"
+    if "AttributeError" in text:
+        return "AttributeError"
+    if "TypeError" in text:
+        return "TypeError"
+    if "ValueError" in text:
+        return "ValueError"
+    if "KeyError" in text:
+        return "KeyError"
+    if "NameError" in text:
+        return "NameError"
+    if "IndexError" in text:
+        return "IndexError"
+    if "RuntimeError" in text:
+        return "RuntimeError"
+    if "ConnectionError" in text or "TimeoutError" in text:
+        return "NetworkError"
+    if "CRITICAL" in text:
+        return "CRITICAL"
+    if "Traceback" in text or "Exception" in text:
+        return "GenericException"
+    return "ERROR"
+
+
+# ---------------------------------------------------------------------------
 # Main fix orchestration
 # ---------------------------------------------------------------------------
 
@@ -584,7 +623,6 @@ def run_auto_fix(alert_text: str, token: Optional[str] = None,
     if not affected_file:
         log.warning("Could not identify affected file from alert")
         if token and chat_id:
-            from spa_core.monitoring.telegram_watcher import parse_alert_type
             error_type = parse_alert_type(alert_text)
             notify_failure(token, chat_id, "unknown", error_type,
                            "Could not identify affected file from traceback")
@@ -597,7 +635,6 @@ def run_auto_fix(alert_text: str, token: Optional[str] = None,
         return False
 
     # Parse error type
-    from spa_core.monitoring.telegram_watcher import parse_alert_type
     error_type = parse_alert_type(alert_text)
     log.info("Auto-fix: file=%s error_type=%s", rel_path, error_type)
 
@@ -718,8 +755,16 @@ def _summarize_fix(alert_text: str, error_type: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# CLI entry point (for subprocess invocation by telegram_watcher)
+# CLI entry point
 # ---------------------------------------------------------------------------
+#
+# 17.08: единственный, кто когда-либо звал этот модуль, — списанный
+# `telegram_watcher`. Вызывающих в боевом коде НЕ ОСТАЛОСЬ, а `__main__` остался:
+# модуль запускается одной строкой `python3 -m spa_core.devtools.auto_fixer`.
+# Это состояние НАЗВАНО вслух, а не замолчано: карточка владельцу
+# `own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih` + KNOWN_GAP в
+# `spa_core/tests/test_one_telegram_poller.py`. Судьбу модуля решает владелец —
+# сессия его не удаляет (стоп-правило CLAUDE.md).
 
 def main() -> None:
     import argparse

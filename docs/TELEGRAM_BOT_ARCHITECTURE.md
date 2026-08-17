@@ -99,7 +99,8 @@ detail available on demand.
    `api.telegram.org` with their own urllib instead of going through
    `telegram_client._post_message` (which enforces the 12-msg/min cross-process
    cap). Confirmed direct-POST modules:
-   `alert_dispatcher`, `telegram_manager`, `telegram_sender`, `telegram_watcher`,
+   `alert_dispatcher`, `telegram_manager`, `telegram_sender`,
+   `telegram_watcher` (СПИСАН 17.08, own-55 — модуля больше нет),
    `telegram_daily_digest`, `tournament_telegram`, `promotion_notifier`,
    `research_progress_telegram`, `telegram_research_alerts`,
    `telegram_protocols_reporter`, `family_fund/telegram_blast`,
@@ -352,7 +353,8 @@ builder and/or the on-demand screens).
 | `family_fund/telegram_blast`, `lead_tracker` | **OUT OF SCOPE** (investor channel, separate chat) | leave as-is, not the owner's ops chat |
 | `devtools/auto_fixer` Telegram | **RETIRE** (dev noise) | log only |
 | `bot_commands` (old) | **RETIRE** | superseded by `telegram/bot.py` service |
-| `telegram_manager`, `telegram_sender`, `telegram_watcher` | **RETIRE** | superseded by `telegram_client` + `push_policy` |
+| `telegram_manager`, `telegram_sender` | **RETIRE** | superseded by `telegram_client` + `push_policy` |
+| `telegram_watcher` | **СПИСАН 17.08** (own-55, вариант 1) | модуль + plist + тесты удалены: он подтверждал очередь и КРАЛ команды владельца |
 
 **launchd changes:**
 - **Add:** `com.spa.telegram_bot` (KeepAlive), `com.spa.digest_daily`,

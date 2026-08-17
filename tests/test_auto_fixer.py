@@ -42,6 +42,7 @@ from spa_core.devtools.auto_fixer import (
     create_backup,
     find_affected_file,
     is_rate_limited,
+    parse_alert_type,
     push_file,
     rollback,
     run_auto_fix,
@@ -373,3 +374,62 @@ class TestHelpers:
     def test_to_relative_outside_base(self, tmp_path):
         p = tmp_path / "outside.py"
         assert _to_relative(p) is None
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# parse_alert_type — ПЕРЕСАЖЕНО 17.08 из tests/test_telegram_watcher.py
+#
+# Инв. #16: тест не ослаблен и не удалён, а переехал вслед за кодом. Функция
+# жила в `spa_core/monitoring/telegram_watcher.py`, который списан решением
+# владельца (own-55, ВАРИАНТ 1); звал её только `auto_fixer`, туда она и
+# переехала дословно. Двенадцать вопросов ниже — те же самые, слово в слово,
+# что задавал удалённый файл: ни одна ветка классификации не потеряна.
+# ────────────────────────────────────────────────────────────────────────────
+
+class TestParseAlertType:
+    def test_import_error(self):
+        text = "ImportError: No module named 'foo'"
+        assert parse_alert_type(text) == "ImportError"
+
+    def test_module_not_found(self):
+        text = "ModuleNotFoundError: No module named 'bar'"
+        assert parse_alert_type(text) == "ImportError"
+
+    def test_attribute_error(self):
+        text = "AttributeError: 'NoneType' object has no attribute 'strip'"
+        assert parse_alert_type(text) == "AttributeError"
+
+    def test_file_not_found(self):
+        text = "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/x.json'"
+        assert parse_alert_type(text) == "FileNotFoundError"
+
+    def test_generic_error_fallback(self):
+        text = "❌ Something went wrong with the pipeline"
+        assert parse_alert_type(text) == "ERROR"
+
+    def test_type_error(self):
+        assert parse_alert_type("TypeError: unsupported operand type(s)") == "TypeError"
+
+    def test_value_error(self):
+        assert parse_alert_type("ValueError: invalid literal for int()") == "ValueError"
+
+    def test_key_error(self):
+        assert parse_alert_type("KeyError: 'apy'") == "KeyError"
+
+    def test_runtime_error(self):
+        assert parse_alert_type("RuntimeError: cuda out of memory") == "RuntimeError"
+
+    def test_generic_exception(self):
+        assert parse_alert_type("Traceback (most recent call last):") == "GenericException"
+
+    def test_critical_prefix(self):
+        assert parse_alert_type("CRITICAL: disk full") == "CRITICAL"
+
+    def test_name_error(self):
+        assert parse_alert_type("NameError: name 'x' is not defined") == "NameError"
+
+    def test_index_and_network_branches(self):
+        """Две ветки, которых удалённый файл не спрашивал — теперь спрошены."""
+        assert parse_alert_type("IndexError: list index out of range") == "IndexError"
+        assert parse_alert_type("ConnectionError: refused") == "NetworkError"
+        assert parse_alert_type("TimeoutError: timed out") == "NetworkError"

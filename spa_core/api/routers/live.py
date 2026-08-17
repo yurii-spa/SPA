@@ -328,7 +328,11 @@ async def live_portfolio():
 async def live_system():
     """Live system-health bundle — merges available health/watcher/log files."""
     result: dict[str, Any] = {}
-    for fname in ["system_health.json", "telegram_watcher_status.json",
+    # `telegram_watcher_status.json` убран 17.08 вместе со списанием агента
+    # (own-55): его не писал НИКТО ни одной строкой кода — файла не существовало
+    # никогда, и ключ не мог появиться в ответе. Снятие мёртвого чтения ответ
+    # эндпоинта не меняет.
+    for fname in ["system_health.json",
                   "auto_fixer_log.json", "golive_status.json"]:
         p = data_dir() / fname
         if not await aio_exists(p):

@@ -27,7 +27,8 @@ Fail-safe: every network/IO call is wrapped; an exception never crashes the run.
 Run via launchd every 5 min:
     python3 -m spa_core.monitoring.dashboard_watcher
 
-Dedup / cooldown (same scheme as telegram_watcher.py):
+Dedup / cooldown (scheme inherited from the retired telegram_watcher.py — written
+off 2026-08-17 by the owner's own-55 decision; the scheme stayed, the module did not):
     /tmp/spa_dw_seen_{hash}      seen alert  (TTL 2 h)
     /tmp/spa_dw_cooldown_{kind}  per-type cooldown (TTL 30 min)
     /tmp/spa_dw_pulse_last       last liveness pulse epoch
@@ -72,7 +73,7 @@ SYSTEM_PATH = "/api/live/system"
 HTTP_TIMEOUT = 10        # seconds (normal endpoints)
 PING_TIMEOUT = 5         # seconds (liveness)
 
-# Telegram (Keychain, same services as telegram_watcher.py)
+# Telegram (Keychain, same services the retired telegram_watcher.py used)
 TOKEN_SERVICE = "TELEGRAM_BOT_TOKEN_SPA"
 CHAT_ID_SERVICE = "TELEGRAM_CHAT_ID_SPA"
 

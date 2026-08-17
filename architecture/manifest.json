@@ -1501,22 +1501,6 @@
    "notes": ""
   },
   {
-   "label": "com.spa.telegram_watcher",
-   "plist_source": "repo:launchd/com.spa.telegram_watcher.plist",
-   "reboot_safe": false,
-   "schedule": "interval:300s",
-   "program": "python3",
-   "layer": "product",
-   "role": "unknown",
-   "intent": "retired",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "complete",
-   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): предок dashboard_watcher"
-  },
-  {
    "label": "com.spa.threat_reactor",
    "plist_source": "launch_agents",
    "reboot_safe": true,

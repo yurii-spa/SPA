@@ -15,15 +15,25 @@
 вызывающего в боевом коде — и ровно одна строка `python3 -m …` до второго
 поллера.
 
+17.08 второй такой модуль СПИСАН решением владельца (карточка
+`own-55-vtoroi-chitatel-komand-v-telegram`, ВАРИАНТ 1):
+`spa_core/monitoring/telegram_watcher.py` раз в 5 минут выгребал ту же очередь
+СО смещением и ПОДТВЕРЖДАЛ её (`_save_offset(max_update_id + 1)`), а
+подтверждённый апдейт Telegram не отдаёт больше никому — то есть команда
+владельца могла уйти сторожу и до бота не дойти вовсе. Удалены модуль, его
+настройка агента (`launchd/com.spa.telegram_watcher.plist`, StartInterval 300),
+его тесты и запись в `architecture/manifest.json`. Подтверждающий читатель
+теперь РОВНО ОДИН, и этот файл обязан краснеть, если появится второй.
+
 Что здесь проверяется — и чего эти проверки НЕ проверяют
 ------------------------------------------------------------------------------
 * читателей очереди ровно столько, сколько названо (и список может только
   уменьшаться);
-* хранилищ смещения ровно столько же — своё смещение есть своя память о
-  прочитанном;
+* ПОДТВЕРЖДАЮЩИЙ очередь — ровно один: своё смещение есть своя память о
+  прочитанном и право стереть сообщение владельца для всех остальных;
 * у каждой двери в чат владельца есть ВЛАДЕЛЕЦ: её кто-то импортирует или
   запускает. Дверь без владельца никто не открывает — но открыть может любой;
-* списанный поллер не вернулся ни модулем, ни установщиком.
+* списанные поллеры не вернулись ни модулем, ни установщиком, ни plist'ом.
 
 Ни один из них не отвечает на вопрос «сколько поллеров сейчас живо на хосте» —
 это вопрос `launchctl`, и он тут не задаётся. Ничего не запускается: правило
@@ -52,23 +62,41 @@ EXPECTED_POLLERS = {
     # способ узнать chat_id, если ключа нет в Keychain. Очередь не подтверждает
     # (ничего не удаляет), но токен трогает — поэтому назван, а не забыт.
     "scripts/checkpoint_7day.py",
-    # ОТКРЫТЫЙ дефект, не одобрение: watcher выгребает очередь СО смещением,
-    # то есть подтверждает апдейты и удаляет их для всех. Карточка
-    # `own-55-vtoroi-chitatel-komand-v-telegram`; закреплён отдельным
-    # тестом-KNOWN_GAP ниже, который обязан покраснеть, когда дефект закроют.
-    "spa_core/monitoring/telegram_watcher.py",
 }
 
-#: Хранилище смещения = память о прочитанном. Их ровно столько же, сколько
-#: читателей, ПОДТВЕРЖДАЮЩИХ очередь (checkpoint_7day смещения не хранит).
+#: Хранилище смещения = память о прочитанном. Читатель, ПОДТВЕРЖДАЮЩИЙ очередь,
+#: с 17.08 ровно один: `telegram_watcher` списан решением владельца по карточке
+#: `own-55-vtoroi-chitatel-komand-v-telegram` (`checkpoint_7day` смещения не
+#: хранит и не подтверждает).
 EXPECTED_OFFSET_STORES = {
     "spa_core/telegram/bot.py": {"tg_bot_v2_offset.json"},
-    "spa_core/monitoring/telegram_watcher.py": {"telegram_last_update_id.json"},
 }
 
-#: Списанный поллер (цикл #258). Возврат ЛЮБОГО из этих путей — возврат класса.
+#: Списанные поллеры: цикл #258 — `bot_commands`; 17.08 — `telegram_watcher`
+#: (ВАРИАНТ 1 владельца по own-55: «убрать модуль, настройку агента и тесты»).
+#: Возврат ЛЮБОГО из этих путей — возврат класса «второй читатель очереди».
 RETIRED_POLLER = "spa_core/alerts/bot_commands.py"
 RETIRED_INSTALLER = "scripts/install_bot_commands.sh"
+RETIRED_WATCHER = "spa_core/monitoring/telegram_watcher.py"
+RETIRED_WATCHER_PLIST = "launchd/com.spa.telegram_watcher.plist"
+RETIRED_WATCHER_TEST = "tests/test_telegram_watcher.py"
+
+#: ОТКРЫТОЕ состояние, названное вслух, а не одобренное. `auto_fixer` — вторая
+#: половина той же петли: watcher её ЗАПУСКАЛ (`run_auto_fix`), она просит
+#: Claude переписать прод-код и запушить. Со списанием watcher'а вызывающих в
+#: боевом коде у неё не осталось НИ ОДНОГО, а `__main__` остался — то есть это
+#: ровно «дверь без владельца», которую запрещает `TestEveryDoorHasAnOwner`.
+#:
+#: Почему исключение, а не удаление: решение владельца по own-55 названо
+#: поимённо и касается watcher'а (модуль, plist, тесты). Судьба `auto_fixer` —
+#: отдельный вопрос владельцу (карточка
+#: `own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih`), а не догадка сессии;
+#: стоп-правило CLAUDE.md запрещает трогать боевой модуль без ответа.
+#: Почему это НЕ молчаливое ослабление (инв. #16): исключение ровно одно и
+#: названо путём; тест ниже краснеет в ОБЕ стороны — и если сирот станет
+#: больше, и если эта перестанет быть сиротой (удалили или дали вызывающего),
+#: то есть закрытие вопроса не может пройти незамеченным.
+ORPHANED_DOORS_KNOWN_GAP = {"spa_core/devtools/auto_fixer.py"}
 
 
 class TestOnePoller(unittest.TestCase):
@@ -92,6 +120,22 @@ class TestOnePoller(unittest.TestCase):
             "память о прочитанном, то есть намерение читать очередь независимо "
             "от канонического бота.")
 
+    def test_exactly_one_module_confirms_the_queue(self):
+        """Подтверждающий читатель — РОВНО ОДИН, и это канонический бот.
+
+        Читать очередь и ПОДТВЕРЖДАТЬ её — разные вещи, и цена у второй другая:
+        подтверждённый апдейт Telegram не отдаёт больше НИКОМУ, то есть команда
+        владельца исчезает совсем (own-55). Поэтому вопрос задан отдельно от
+        `test_no_unnamed_reader_of_the_update_queue`: `checkpoint_7day` читает,
+        но не подтверждает, и его появление здесь было бы новым дефектом.
+        """
+        confirming = set(pollers.offset_stores())
+        self.assertEqual(
+            confirming, {"spa_core/telegram/bot.py"},
+            "подтверждать очередь Telegram имеет право только канонический бот; "
+            f"нашлось: {sorted(confirming)}. Своё смещение = право стереть "
+            "сообщение владельца для всех остальных.")
+
     def test_the_retired_poller_did_not_come_back(self):
         self.assertFalse(
             (_REPO / RETIRED_POLLER).exists(),
@@ -101,6 +145,28 @@ class TestOnePoller(unittest.TestCase):
             (_REPO / RETIRED_INSTALLER).exists(),
             f"{RETIRED_INSTALLER} вернулся: установщик агента, которого нет ни "
             "в одном коммите, и чья удача стоила бы владельцу команд.")
+
+    def test_the_retired_watcher_did_not_come_back(self):
+        """Списание watcher'а — три следа, и возврат ЛЮБОГО красит тест.
+
+        Модуль без plist'а — второй поллер в одну строку `python3 -m …`;
+        plist без модуля — агент, падающий каждые 5 минут; тест без модуля —
+        зелёный отчёт о том, чего нет. Поэтому спрашиваются все три.
+        """
+        for rel, why in (
+            (RETIRED_WATCHER,
+             "модуль с собственным getUpdates СО смещением: он подтверждает "
+             "апдейты, и команда владельца может не дойти до бота вовсе"),
+            (RETIRED_WATCHER_PLIST,
+             "настройка агента com.spa.telegram_watcher (StartInterval 300): "
+             "одна `launchctl bootstrap` — и второй читатель снова живой"),
+            (RETIRED_WATCHER_TEST,
+             "тест списанного модуля: зелёный отчёт о несуществующем коде"),
+        ):
+            self.assertFalse(
+                (_REPO / rel).exists(),
+                f"{rel} вернулся в дерево — {why}. Списан решением владельца "
+                "17.08 по карточке own-55-vtoroi-chitatel-komand-v-telegram.")
 
 
 class TestScanIsNotBlind(unittest.TestCase):
@@ -138,12 +204,12 @@ class TestEveryDoorHasAnOwner(unittest.TestCase):
     """Дверь в чат владельца, которую никто не зовёт, — заряженное ружьё."""
 
     def test_no_ownerless_door(self):
-        found = pollers.ownerless(sorted(doors.scan_repo()))
+        found = set(pollers.ownerless(sorted(doors.scan_repo())))
         self.assertEqual(
-            found, {},
+            found - ORPHANED_DOORS_KNOWN_GAP, set(),
             "дверь в чат владельца без единого вызывающего и без запуска: "
-            f"{sorted(found)}. Такой модуль выглядит рабочим, его правят «по "
-            "аналогии», и он запускается одной строкой.")
+            f"{sorted(found - ORPHANED_DOORS_KNOWN_GAP)}. Такой модуль выглядит "
+            "рабочим, его правят «по аналогии», и он запускается одной строкой.")
 
     def test_the_ownership_scan_still_sees_a_real_owner(self):
         """Положительный контроль: ослепший разбор объявил бы сиротой ВСЕХ.
@@ -184,30 +250,90 @@ class TestEveryDoorHasAnOwner(unittest.TestCase):
             "запуск интерпретатором перестал считаться владением")
 
 
-class TestSecondReaderKnownGap(unittest.TestCase):
-    """ОТКРЫТЫЙ дефект, названный вслух: watcher выгребает ту же очередь.
+class TestSecondReaderIsGoneForGood(unittest.TestCase):
+    """Положительный контроль САМОГО списания: тест обязан краснеть ДО него.
 
-    `spa_core/monitoring/telegram_watcher.py` читает `getUpdates` СО смещением
-    и продвигает его (`run_once`: `_save_offset(max_update_id + 1)`). Апдейт,
-    подтверждённый им, Telegram больше НИКОМУ не отдаст — то есть сообщение
-    владельца может не дойти до бота вовсе. Его plist лежит в дереве
-    (`launchd/com.spa.telegram_watcher.plist`, StartInterval 300).
+    Предыдущая редакция этого класса (`TestSecondReaderKnownGap`) держала дефект
+    названным, пока владелец решал. 17.08 он выбрал ВАРИАНТ 1 — списать. Класс
+    заменён, а не удалён: проверка должна была бы покраснеть на состоянии ДО
+    списания, иначе она украшение (правило `.claude/rules/deployment.md`).
 
-    Чинить это здесь нельзя: это боевой агент и решение владельца (стоп-правило
-    CLAUDE.md). Карточка заведена. Тест держит дефект НАЗВАННЫМ и обязан
-    покраснеть в тот день, когда его закроют, — иначе закрытие пройдёт молча.
+    Здесь это ИЗМЕРЕНО герметично: дерево-фикстура воспроизводит вчерашнее
+    состояние — модуль с собственным `getUpdates` и собственным смещением рядом
+    с ботом, — и разбор обязан увидеть в нём ДВУХ подтверждающих читателей.
+    Мутация «перестать смотреть на смещение» гасит именно этот вопрос.
     """
 
-    def test_watcher_still_confirms_updates_KNOWN_GAP(self):
-        src = (_REPO / "spa_core/monitoring/telegram_watcher.py").read_text(encoding="utf-8")
-        self.assertIn(
-            "_save_offset(max_update_id + 1)", src,
-            "watcher перестал подтверждать очередь — дефект закрыт: убрать этот "
-            "KNOWN_GAP, снять модуль из EXPECTED_POLLERS/EXPECTED_OFFSET_STORES "
-            "и закрыть карточку own-55-vtoroi-chitatel-komand-v-telegram")
-        self.assertTrue(
-            (_REPO / "launchd/com.spa.telegram_watcher.plist").exists(),
-            "plist watcher'а исчез — состояние изменилось, пересмотреть базу")
+    @staticmethod
+    def _tree_of_yesterday(root: Path) -> None:
+        """Синтез дерева ДО списания: бот + watcher, у каждого своё смещение."""
+        bot = root / "spa_core" / "telegram"
+        bot.mkdir(parents=True)
+        (bot / "bot.py").write_text(
+            '_api_call("getUpdates", {"timeout": 30})\n'
+            'OFFSET = "tg_bot_v2_offset.json"\n', encoding="utf-8")
+        mon = root / "spa_core" / "monitoring"
+        mon.mkdir(parents=True)
+        (mon / "telegram_watcher.py").write_text(
+            '_tg_request(token, "getUpdates", params)\n'
+            'OFFSET_FILE = DATA_DIR / "telegram_last_update_id.json"\n',
+            encoding="utf-8")
+
+    def test_the_watchdog_would_be_red_on_yesterdays_tree(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._tree_of_yesterday(root)
+
+            readers = set(pollers.poller_modules(root))
+            self.assertIn(
+                "spa_core/monitoring/telegram_watcher.py", readers,
+                "разбор не видит вчерашнего второго читателя — значит зелёный "
+                "результат на сегодняшнем дереве ничего не доказывает")
+            self.assertNotEqual(
+                readers - EXPECTED_POLLERS, set(),
+                "на дереве ДО списания test_no_unnamed_reader_of_the_update_"
+                "queue обязан краснеть")
+
+            confirming = set(pollers.offset_stores(root))
+            self.assertEqual(
+                confirming,
+                {"spa_core/telegram/bot.py",
+                 "spa_core/monitoring/telegram_watcher.py"},
+                "на дереве ДО списания подтверждающих читателей было ДВА — "
+                "test_exactly_one_module_confirms_the_queue обязан краснеть")
+
+    def test_todays_tree_has_exactly_one_confirming_reader(self):
+        """Обратная сторона: на СЕГОДНЯШНЕМ дереве вопрос закрыт."""
+        self.assertEqual(set(pollers.offset_stores()), {"spa_core/telegram/bot.py"})
+
+
+class TestOrphanedAutoFixerKnownGap(unittest.TestCase):
+    """ОТКРЫТЫЙ вопрос, названный вслух: у `auto_fixer` не осталось вызывающих.
+
+    Списание watcher'а убрало ЕДИНСТВЕННОГО, кто звал `run_auto_fix`. Модуль
+    остался целиком: свой `__main__`, свой ключ Claude, своя запись в прод-код и
+    свой пуш — то есть вторая половина ровно той петли, из-за которой владелец
+    и списал watcher («авто-починка кода по тексту из чата — самая рискованная
+    петля в системе»). Удалять его сессия не имеет права: решение own-55 названо
+    поимённо и его не касается.
+
+    Тест держит состояние названным и краснеет в ОБЕ стороны:
+      * сирота исчезла (удалили) или обзавелась вызывающим — вопрос закрыт,
+        значит `ORPHANED_DOORS_KNOWN_GAP` обязан уйти вместе с этим классом;
+      * сирот стало больше — ловит `test_no_ownerless_door` выше.
+    """
+
+    def test_auto_fixer_is_still_the_only_orphaned_door_KNOWN_GAP(self):
+        found = set(pollers.ownerless(sorted(doors.scan_repo())))
+        self.assertEqual(
+            found, ORPHANED_DOORS_KNOWN_GAP,
+            "набор дверей без владельца изменился: "
+            f"{sorted(found)} против {sorted(ORPHANED_DOORS_KNOWN_GAP)}. Если "
+            "auto_fixer получил вызывающего или снят — снять исключение "
+            "ORPHANED_DOORS_KNOWN_GAP и этот класс, закрыв карточку "
+            "own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih.")
 
 
 if __name__ == "__main__":
