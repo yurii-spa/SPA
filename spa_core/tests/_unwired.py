@@ -32,6 +32,20 @@
 сперва расширил набор распознаваемых форм вызова (`file_references`, разбор импортов
 через `ast`), и только затем отнял три слабых доказательства.
 
+**Четвёртая форма прозы — строка-СООБЩЕНИЕ (17.08, цикл #258).** Комментарий (#227),
+докстринг и самоупоминание однофамильца (#255) сняты; оставалась строка, которую
+программа ПЕЧАТАЕТ человеку: подсказка ``out.append(f"… `scripts/reap_stale_worktrees.py
+--worktree …`")`` мгновенно объявляла уборщик подключённым. Чинить это «не считать
+литералы вызовом» нельзя — самая частая настоящая форма запуска сама литерал
+(`subprocess.run([PY, str(ROOT / "scripts/x.py")])`), поэтому судится СОДЕРЖИМОЕ
+литерала, а внутри вызова-исполнителя не судится вовсе (`_message_literal_spans`).
+Цена измерена на живом дереве: проводкой по одному упоминанию в тексте держались
+**8** скриптов (`audit_protocol_blindness`, `build_dd_snapshot`,
+`defenses_exercised_report`, `find_defillama_sources`, `findings_to_cards`,
+`optimizer_ab`, `verify_dfb_pool`, `verify_riskwire`); ни одного из них не запускает
+никто. Сырое измерение: 96 сирот до, 104 после; ни один подключённый скрипт сиротой
+не стал (разность в обратную сторону пуста).
+
 Опт-аут-флага в коде здесь намеренно НЕТ: флаг научил бы сторожа отключать.
 
 **Сведение двух реализаций (17.08).** Сторож три недели жил в ДВУХ независимых
@@ -239,8 +253,103 @@ def _blank(text: str, spans: List[Tuple[int, int, int]]) -> str:
     return "".join(lines)
 
 
+#: Литерал-ПУТЬ: целиком путь к файлу (`scripts/x.py`, `./x.py`, `x.py`) и ничего больше.
+_PATH_ONLY_LITERAL = re.compile(rf"^[./]*(?:[\w.\-]+/)*{_NAME}+\.py$")
+
+#: Литерал-МОДУЛЬ: целиком `scripts.<имя>` и ничего больше.
+_MODULE_ONLY_LITERAL = re.compile(rf"^scripts\.{_NAME}+$")
+
+#: Вызовы, аргумент которых ИСПОЛНЯЕТСЯ, а не показывается человеку.
+#: Внутри них литерал засчитывается КАК ЕСТЬ — там живёт командная строка
+#: (`subprocess.run("python3 scripts/x.py --flag", shell=True)`), и требовать от неё
+#: формы «голый путь» значило бы объявить сиротой реально запускаемый скрипт.
+_EXEC_CALLS = frozenset({
+    "run", "Popen", "call", "check_call", "check_output", "getoutput",
+    "getstatusoutput", "system", "popen", "run_path", "spec_from_file_location",
+    "execv", "execve", "execvp", "execvpe", "execl", "execle", "execlp",
+    "spawnv", "spawnl", "spawnvp", "spawnlp",
+    "create_subprocess_exec", "create_subprocess_shell",
+})
+
+
+def _call_func_name(node: ast.AST) -> str:
+    """Последний компонент имени вызываемого: `subprocess.run` → `run`."""
+    func = getattr(node, "func", None)
+    if isinstance(func, ast.Attribute):
+        return func.attr
+    if isinstance(func, ast.Name):
+        return func.id
+    return ""
+
+
+def _message_literal_spans(text: str, tree: Optional[ast.AST]) -> List[Tuple[int, int, int]]:
+    """Координаты строковых литералов-СООБЩЕНИЙ: текст для человека, а не запуск.
+
+    Четвёртая форма прозы, после комментария (#227), докстринга и самоупоминания
+    (#255). Найдена циклом #257 своим же падением: подсказка
+    ``out.append(f"убирать за собой обязан `scripts/reap_stale_worktrees.py …`")``
+    мгновенно объявила уборщик ПОДКЛЮЧЁННЫМ, хотя вызывать его по-прежнему некому.
+    Одной строки в тексте сообщения хватало, чтобы навсегда снять настоящую сироту
+    с учёта храповика — молча и без злого умысла.
+
+    **Почему нельзя просто «не считать литералы вызовом».** Самая частая настоящая
+    форма запуска — тоже литерал: ``subprocess.run([PY, str(ROOT / "scripts/x.py")])``.
+    Поэтому судится не «литерал или нет», а ЧТО в литерале написано:
+
+    * литерал, который ЦЕЛИКОМ есть путь (`scripts/x.py`, `x.py`) или модуль
+      (`scripts.x`), — это аргумент запуска/импорта, он ОСТАЁТСЯ;
+    * литерал с текстом вокруг пути (``"Run scripts/optimizer_ab.py to regenerate"``,
+      ``help="отчёт audit_protocol_blindness.py --tier C"``) — сообщение, вырезается;
+    * f-строка вырезается целиком: путь, склеенный с подстановкой, — это текст,
+      а не argv (у argv каждый элемент отдельным литералом).
+
+    Исключение — тело вызова из `_EXEC_CALLS`: там литерал исполняется, каким бы
+    он ни был (`shell=True` принимает командную строку одной строкой). Исключение
+    работает только в плюс — оно СОХРАНЯЕТ проводку, а не отнимает.
+    """
+    if tree is None:
+        return []
+    lines = text.splitlines()
+    spans: List[Tuple[int, int, int]] = []
+
+    def _span(node: ast.AST) -> None:
+        start = getattr(node, "lineno", None)
+        end = getattr(node, "end_lineno", None) or start
+        if start is None:
+            return
+        for ln in range(start, end + 1):
+            if not (1 <= ln <= len(lines)):
+                continue
+            line = lines[ln - 1]
+            a = _char_col(line, node.col_offset) if ln == start else 0
+            b = _char_col(line, node.end_col_offset) if ln == end else len(line)
+            spans.append((ln, a, b))
+
+    def _walk(node: ast.AST, executed: bool) -> None:
+        here = executed or (isinstance(node, ast.Call)
+                            and _call_func_name(node) in _EXEC_CALLS)
+        if isinstance(node, ast.JoinedStr):
+            if not here:
+                _span(node)
+            return                      # внутрь f-строки не спускаемся
+        if (isinstance(node, ast.Constant) and isinstance(node.value, str)
+                and not here):
+            value = node.value.strip()
+            if not (_PATH_ONLY_LITERAL.match(value) or _MODULE_ONLY_LITERAL.match(value)):
+                _span(node)
+            return
+        for child in ast.iter_child_nodes(node):
+            _walk(child, here)
+
+    _walk(tree, False)
+    return spans
+
+
 def _python_without_prose(text: str, tree: Optional[ast.AST] = None) -> str:
-    """Питон без комментариев И без докстрингов; прочие литералы СОХРАНЕНЫ.
+    """Питон без комментариев, докстрингов И литералов-сообщений.
+
+    Литерал-ПУТЬ сохранён: в нём живёт настоящий вызов
+    (`subprocess.run(["python3", "scripts/x.py"])`). Разбор — `_message_literal_spans`.
 
     Не разобралось (битый файл, чужой синтаксис) — запасной путь `_cut_at_hash`:
     он строже сырого текста, и молчаливого возврата к слепоте здесь нет.
@@ -248,7 +357,10 @@ def _python_without_prose(text: str, tree: Optional[ast.AST] = None) -> str:
     comments = _comment_spans(text)
     if comments is None:
         return _cut_at_hash(text)
-    return _blank(text, comments + _docstring_spans(text, tree))
+    if tree is None:
+        tree = _parse(text)
+    return _blank(text, comments + _docstring_spans(text, tree)
+                  + _message_literal_spans(text, tree))
 
 
 def code_without_comments(path: pathlib.Path, text: str,
