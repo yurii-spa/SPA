@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Второй читатель команд в Телеграме: сторож-автопочинщик забирает сообщения себе"
-status: needs-owner
+status: ingested
 created: 2026-08-16
 ---
 

@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Сторож сайта не кладёт в git данные, из которых считает числа — их нельзя проверить
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-16
 ---

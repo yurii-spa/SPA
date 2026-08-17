@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Главная рекламирует бесплатный чекап, которого больше нет: снять секции или поднимать сервис?"
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-16
 ---
