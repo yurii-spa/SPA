@@ -21,6 +21,9 @@ from typing import Optional
 
 from spa_core.utils.atomic import atomic_save
 from spa_core.utils import clock
+# Единица APY объявляется ИМЕНОВАННОЙ константой контракта, а не литералом
+# "percent": литерал с опечаткой контракт трактует как НЕобъявленную единицу.
+from spa_core.adapters.apy_contract import APY_UNIT_PERCENT
 
 # ---------------------------------------------------------------------------
 # Константы путей
@@ -656,6 +659,11 @@ class APYAggregator:
 
         payload = {
             "generated_at":    clock.utcnow().isoformat() + "Z",
+            # Единицу APY ОБЪЯВЛЯЕТ ИСТОЧНИК — читателю догадываться по величине
+            # числа нельзя (`apy_contract`: 0.8 как «0.8%» и как «80%» — одно
+            # число). До этой строки файл единицу не объявлял, а читатели
+            # (напр. tournament_engine) верили докстрингу «percent units».
+            "apy_unit":        APY_UNIT_PERCENT,
             "count":           len(self._snapshots),
             "summary":         self.to_summary_dict(),
             "by_apy":          [_snap_to_dict(s) for s in self.rank_by_apy()],

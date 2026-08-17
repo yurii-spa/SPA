@@ -38,6 +38,7 @@ from spa_core.backtesting.professional_backtest import (
     _get_fallback_bee_data,
     _resolve_protocol_source,
 )
+from spa_core.strategies.mock_provenance import is_mock_fed, mock_provenance
 
 _log = logging.getLogger(__name__)
 
@@ -210,6 +211,12 @@ class MassTournament:
             data_dir=self._data_dir,
             add_noise=add_noise,
         )
+        # Провенанс подстановок по стратегиям: {module_path: mock_provenance-дикт}.
+        # Заполняется в extract_allocation, читается в run() — чтобы подставленное
+        # ехало в лидерборд С ИМЕНЕМ, а не растворялось в «стратегия заработала».
+        self.last_strategy_provenance: Dict[str, Dict[str, Any]] = {}
+        # Какие вызовы получили литеральный MOCK_APY (см. _label_fed_mock).
+        self.last_mock_fed_labels: Dict[str, bool] = {}
 
     # ── Strategy file discovery ───────────────────────────────────────────────
 
@@ -394,6 +401,17 @@ class MassTournament:
         # Instantiate
         try:
             instance = cls()
+            # Провенанс снимается СРАЗУ после конструктора: именно он грузит
+            # адаптеры и именно там S23 молча садился на mock-7%.
+            try:
+                self.last_strategy_provenance[module_path] = mock_provenance(
+                    instance, module=mod)
+            except Exception as prov_exc:  # noqa: BLE001 — провенанс не роняет турнир
+                self.last_strategy_provenance[module_path] = {
+                    "strategy_id": class_name,
+                    "provenance_error": str(prov_exc),
+                    "fully_live": None,
+                }
         except Exception as exc:
             if isinstance(module_alloc, dict):
                 norm = self.normalize_allocation(module_alloc)
@@ -447,6 +465,10 @@ class MassTournament:
                 if isinstance(raw, dict) and raw:
                     norm = self.normalize_allocation(raw)
                     if norm:
+                        # ИДЕНТИЧНОСТЬ, а не разбор строки-метки: победивший вызов
+                        # либо получил ТОТ САМЫЙ литеральный MOCK_APY, либо нет.
+                        self.last_mock_fed_labels[module_path] = any(
+                            v is MOCK_APY for v in kwargs.values())
                         return norm, label
             except TypeError:
                 continue  # wrong signature — try next
@@ -559,8 +581,22 @@ class MassTournament:
                 continue
 
             strategies_tested += 1
+            # ── Провенанс подстановок рядом со строкой рейтинга ────────────────
+            # Два РАЗНЫХ вопроса, и один не заменяет другого:
+            #   1. кормил ли турнир стратегию литеральным MOCK_APY (вход турнира);
+            #   2. заявляет ли САМА стратегия подстановку внутри (S23-класс).
+            prov = dict(self.last_strategy_provenance.get(module_path) or {})
+            fed_mock = bool(self.last_mock_fed_labels.get(module_path, False))
+            strategy_mock = is_mock_fed(prov)
             leaderboard.append({
                 "id":                sid,
+                # Вход: литеральный снимок MOCK_APY или собственные числа стратегии.
+                "apy_input":         "mock_apy_snapshot" if fed_mock else "strategy_internal",
+                "mock_apy_fed":      fed_mock,
+                "strategy_declares_mock": strategy_mock,
+                "mock_provenance":   prov,
+                # Итог: строка НЕ доверяема для рейтинга, если в неё вошла подстановка.
+                "mock_tainted":      fed_mock or strategy_mock,
                 "class":             primary_class,
                 "method_used":       method_used,
                 "sharpe":            metrics["sharpe_ratio"],
@@ -620,6 +656,22 @@ class MassTournament:
             # UNKNOWN rank for a strategy with no finite net return (insufficient data).
             napy = entry.get("annual_return_pct")
             entry["rank_unknown"] = not (isinstance(napy, (int, float)) and math.isfinite(napy))
+
+        # ── Доверяемый лидерборд: строки БЕЗ подстановок ───────────────────────
+        # Карточка `agent-guard-no-silent-mock-in-tournament.md` п.3: стратегия с
+        # подставленным числом не ранжируется как живая. Не удаляем её из
+        # `leaderboard` (провенанс обязан быть виден), а выносим отдельный список
+        # доверяемых — и помечаем каждую строку `trusted_for_ranking`.
+        for entry in leaderboard:
+            entry["trusted_for_ranking"] = not (
+                entry.get("mock_tainted") or entry.get("rank_unknown")
+            )
+        trusted_leaderboard = [e for e in leaderboard if e["trusted_for_ranking"]]
+        for i, entry in enumerate(trusted_leaderboard, 1):
+            entry["trusted_rank"] = i
+        mock_tainted_ids = sorted(
+            str(e.get("id")) for e in leaderboard if e.get("mock_tainted")
+        )
 
         top_5 = leaderboard[:5]
         bottom_5 = leaderboard[-5:] if len(leaderboard) >= 5 else leaderboard[:]
@@ -684,6 +736,13 @@ class MassTournament:
             "alt_rank_metric": "sharpe_ratio",
             "sharpe_degenerate_abs_threshold": 100.0,
             "protocol_data_sources": protocol_data_sources,
+            # ── Подстановки НАЗВАНЫ (не запрещены) ─────────────────────────────
+            # MOCK_APY — литеральный снимок в коде турнира, а не наблюдение.
+            # Кто на нём стоял и кто заявил mock внутри себя — здесь по именам.
+            "mock_apy_snapshot_is_literal": True,
+            "mock_tainted_strategies": mock_tainted_ids,
+            "mock_tainted_count":     len(mock_tainted_ids),
+            "trusted_leaderboard_size": len(trusted_leaderboard),
             "sharpe_note": (
                 "OWNER DECISION (2026-06-27): leaderboard is ranked by net-of-cost "
                 "annual return (net_annual_return_pct), NOT Sharpe. Stablecoin Sharpe "
@@ -712,6 +771,9 @@ class MassTournament:
             "total_files_scanned": len(strategy_files),
             "skip_reasons":       skip_reasons,
             "leaderboard":        leaderboard,
+            # Рейтинг БЕЗ подстановок. Пустой список — законный честный ответ
+            # («доверяемых строк нет»), а не признак поломки.
+            "trusted_leaderboard": trusted_leaderboard,
             "top_5":              top_5,
             "bottom_5":           bottom_5,
         }

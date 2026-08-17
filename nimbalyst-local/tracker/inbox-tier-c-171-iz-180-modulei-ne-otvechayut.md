@@ -186,3 +186,66 @@ analyze(inp: BasisTradeInput); raised AttributeError: …`). Текст искл
 Пункты 2 (103 unchecked) и 3 (9 ok-констант) НЕ тронуты — свой радиус, своя
 итерация. Число «не отвечают» после этой правки читается честнее: 162
 `unchecked`, и у 59 из них причина названа поимённо, а не «непонятно почему».
+
+---
+
+## Проверка цикла #142 (2026-08-17): гипотеза «`blind_equal` = модуль СЛОМАН» на Tier-C ОПРОВЕРГНУТА
+
+Починка `protocol_insurance_scorer` (17.08) вскрыла класс, из-за которого вердикт
+`blind_*` мог означать не «модуль слеп», а «модуль СЛОМАН и выдаёт константу»:
+результат РАЗЛИЧАЛСЯ между протоколами, но ни один его ключ не входил в
+`_SCORE_KEYS`, коэрция падала в fallback «первый `*_score` по порядку вставки», и
+им оказывался литеральный ноль. Классификация была права, причина — другая, и
+починка другая. Прежде чем идти списывать 171 модуль, это проверено замером.
+
+### Tier-C: причина ровно та, что заявлена — модули правда слепы
+
+Базовая линия воспроизведена точь-в-точь (sandbox-копия дерева, живое `data/` не
+тронуто): `modules=180 counts={'blind_constant': 9, 'unchecked': 162,
+'dormant': 4, 'failed': 5}`.
+
+Все девять `blind_constant` прогнаны на шести протоколах с разбором ПОЛНОГО
+результата, а не только score:
+
+| модуль | score | ключ коэрции | ветка | различающихся полей |
+|---|---|---|---|---|
+| `airdrop_farming_value_estimator` | 0.0 | `attractiveness_score` | `_SCORE_KEYS` | 0 |
+| `defi_protocol_interest_rate_sensitivity_analyzer` | 0.0 | `rate_sensitivity_score` | `_SCORE_KEYS` | 0 |
+| `defi_protocol_net_interest_margin_analyzer` | 0.0 | `nim_efficiency_score` | `_SCORE_KEYS` | 0 |
+| `defi_protocol_reserve_factor_economics_analyzer` | 0.0 | `reserve_adequacy_score` | `_SCORE_KEYS` | 0 |
+| `defi_protocol_sandwich_attack_exposure_analyzer` | 45.0 | `attack_feasibility_score` | `_SCORE_KEYS` | 0 |
+| `defi_protocol_token_vesting_overhang_analyzer` | 0.0 | `worst_cliff_score` | `_SCORE_KEYS` | 0 |
+| `defi_protocol_treasury_diversification_analyzer` | 100.0 | `hhi_concentration_score` | `_SCORE_KEYS` | 0 |
+| `protocol_partnership_network_analyzer` | 0.0 | `average_composability_score` | `_SCORE_KEYS` | 0 |
+| `protocol_revenue_share_analyzer` | 40.0 | `revenue_sustainability_score` | `_SCORE_KEYS` | 0 |
+
+«Различающихся полей = 0» считано по всему результату, кроме `timestamp`-полей и
+эха имени протокола (эхо входа модуль не вычислял, считать его измерением
+нельзя). У `defi_protocol_net_interest_margin_analyzer` константны и
+`supply_apy_pct`, и `borrow_apy_pct`, и `utilization_rate_pct`, и
+`total_supplied_usd` — то есть модуль считает по своим встроенным демо-числам и
+ctx['protocol'] действительно не читает.
+
+**Вывод: ни один из девяти не относится к классу `protocol_insurance_scorer`.**
+Все девять выбирают score ОБЪЯВЛЕННЫМ ключом из `_SCORE_KEYS` (fallback не
+задействован ни разу), и константа — их собственная, а не потеря коэрции. Ярлык
+`blind_constant` на Tier-C правдив и по вердикту, и по причине; списывать их
+можно, не опасаясь, что списываешь работающий код.
+
+### Но на Tier-B тот же класс ЕСТЬ — 2 модуля из 167
+
+Тем же замером прогнана вся разметка слепоты (`PROTOCOL_BLIND_DETAIL`, 167
+модулей). Результат: **164 CONSTANT_RESULT** (правда слепы) · **2 MISCOERCED**
+(результат различается, score константа) · **1 SCORE_DIFFERS** (разметка
+протухла). Детали и следствия — новая карточка
+`inbox-slepota-mozhet-byt-poteryannoi-koerciei`.
+
+### Что это меняет для карточки
+
+Пункты 2 (162 `unchecked`) и 3 (9 ok-констант) остаются ОТКРЫТЫМИ — эта проверка
+их не закрывает, она снимает риск закрыть их неверно. Пять настоящих отказов
+поимённо совпали с карточкой `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat`
+(`identical: True`).
+
+*Цикл #142. Воспроизведение — в sandbox-копии дерева; прогон из живого дерева
+пачкает `data/*`-логи (11 файлов, проверено и возвращено).*

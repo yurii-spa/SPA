@@ -46,6 +46,21 @@ audit_tier_c_wiring_feasibility.py — можно ли ЧЕСТНО провес
 ключей, равный ровно `{CONTEXT_KEY}`, даёт отдельный вердикт
 `COVERAGE_UNMEASURED` — не молчание и не `WIRABLE`.
 
+**Контекст-путь ТЕПЕРЬ ИЗМЕРЯЕТСЯ (цикл #142, карточка
+`inbox-25-modulei-poluchili-vechnyi-verdikt-pok`).** Отказ был правдив, но
+НИКОГДА не менялся: сколько ни перезапускай, движок продолжал брать факты мимо
+инструмента. Необратимое «не измерено» морит очередь — его читают дважды, потом
+перестают читать вовсе, и в этой же графе однажды окажется модуль, который
+действительно надо чинить. Поэтому источник фактов подменяется на записывающий
+РОВНО НА ВРЕМЯ ВЫЗОВА движка (`record_facts_path`): ключи, которые движок
+спрашивает у СВОЕЙ записи, попадают в тот же учёт, и плечо coverage снова меряет
+предмет. Учёт при этом РАЗДЕЛЬНЫЙ (`context_path_*` против `read_keys`) — иначе
+«инструмент положил ключ и сам его прочитал» стало бы неотличимо от «движок
+спросил ключ», то есть тавтология вернулась бы под другим именем.
+`COVERAGE_UNMEASURED` остаётся для того, про кого нечего сказать и после
+подмены (например, движок связал `facts_for` при импорте — подмене такой
+недоступен): «не измерено» обязано отличаться от «измерен ноль».
+
 Любой отказ назван поимённо: `missing_keys` перечисляет, ЧЕГО не хватает, —
 чтобы решение «дописать факты / взять живой фид / честно списать» принималось
 по фактам, а не по догадке.
@@ -60,9 +75,10 @@ audit_tier_c_wiring_feasibility.py — можно ли ЧЕСТНО провес
                    причём спрошен хотя бы один ключ СВЕРХ ключа-контекста;
   BLIND            score одинаков на всех протоколах — проводка = новая константа;
   COVERAGE_UNMEASURED
-                   различает, но из переданной записи прочитан ТОЛЬКО ключ-контекст
-                   `protocol` — движок берёт факты сам, плечо coverage не измерило
-                   ничего; «пригоден» тут утверждать не на чем (fail-CLOSED);
+                   различает, но покрытие не измерено НИ на переданной записи
+                   (прочитан только ключ-контекст `protocol`), НИ на контекст-пути
+                   (подменённый `_protocol_facts` тоже не спрошен ни о чём сверх
+                   него); «пригоден» тут утверждать не на чем (fail-CLOSED);
   NO_SCORE         выход не коэрсится в score (dormant);
   RAISES           движок отверг профиль исключением (контракт не удовлетворён);
   UNCOVERED        различает, но профиль не даёт части ключей — «различается не
@@ -116,12 +132,13 @@ from __future__ import annotations
 
 import argparse
 import collections
+import contextlib
 import inspect
 import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -183,6 +200,82 @@ class RecordingProfile(dict):
     def __contains__(self, key: Any) -> bool:
         self._note(key)
         return dict.__contains__(self, key)
+
+
+#: Внутренний признак: подмена источника фактов уже активна. Подмена
+#: ГЛОБАЛЬНА (атрибут модуля `_protocol_facts`), поэтому вложенный или
+#: параллельный вход перепутал бы чтения двух движков и выдал бы покрытие
+#: одного за покрытие другого. Отказ громкий — молчаливое наложение дало бы
+#: правдоподобное, но чужое число (тот же класс, что весь этот инструмент ловит).
+_FACTS_PATCH_ACTIVE: List[bool] = [False]
+
+
+@contextlib.contextmanager
+def record_facts_path(records: List["RecordingProfile"],
+                      source: Any = None) -> Iterator[None]:
+    """Подменить источник профиля в `_protocol_facts` на записывающий — НА
+    ВРЕМЯ ВЫЗОВА движка, и ни мгновением дольше.
+
+    Зачем (цикл #142, карточка `inbox-25-modulei-poluchili-vechnyi-verdikt-pok`).
+    Вердикт ``COVERAGE_UNMEASURED`` правдив, но НИКОГДА не меняется: движок на
+    контекст-пути ADR-031 спрашивает у переданной записи только ключ
+    ``protocol``, а профиль берёт из `_protocol_facts` САМ, мимо инструмента.
+    Fail-CLOSED-вердикт над неизвестным, которое само не рассосётся, морит
+    очередь: его читают два раза, а потом перестают читать вовсе — и в этой же
+    графе однажды окажется модуль, который действительно надо чинить. Поэтому
+    контекст-путь измеряется тем же приёмом, только на другом уровне.
+
+    Две ловушки, обе названы карточкой и обе закрыты здесь:
+
+    1. **Реэнтерабельность.** Настоящий ``generic_profile_for`` сам зовёт
+       ``facts_for``. Записать эти чтения — значит записать чтения БАЗЫ ФАКТОВ
+       как чтения движка и получить покрытие, посчитанное по чужим вопросам.
+       Поэтому вложенный вызов отдаёт сырую запись без учёта (``_depth``).
+    2. **Чтения ПОСЛЕ движка не в счёт.** ``extract_protocol_score`` читает
+       запись, когда движок уже ответил; к вопросу «что спросил движок» это
+       отношения не имеет. Подмена снимается на выходе из блока, а
+       ``extract_protocol_score`` вызывается ПОСЛЕ него — структурно, а не по
+       договорённости (закреплено тестом).
+
+    *source* — инъекция настоящего источника (тесты); по умолчанию реальный
+    ``_pf.generic_profile_for``.
+    """
+    if _FACTS_PATCH_ACTIVE[0]:
+        raise RuntimeError(
+            "record_facts_path уже активен: подмена глобальна, вложенный или "
+            "параллельный вход смешал бы чтения двух движков — покрытие одного "
+            "было бы выдано за покрытие другого")
+    real_generic = _pf.generic_profile_for
+    real_facts = _pf.facts_for
+    under = source if source is not None else real_generic
+    depth = [0]
+
+    def _wrap(real: Any) -> Any:
+        def inner(protocol: Any) -> Any:
+            if depth[0]:
+                # Ловушка 1: вложенный вызов внутри самой базы фактов.
+                return real(protocol)
+            depth[0] += 1
+            try:
+                raw = real(protocol)
+            finally:
+                depth[0] -= 1
+            if raw is None:
+                return None
+            rec = RecordingProfile(raw)
+            records.append(rec)
+            return rec
+        return inner
+
+    _pf.generic_profile_for = _wrap(under)
+    _pf.facts_for = _wrap(real_facts)
+    _FACTS_PATCH_ACTIVE[0] = True
+    try:
+        yield
+    finally:
+        _FACTS_PATCH_ACTIVE[0] = False
+        _pf.generic_profile_for = real_generic
+        _pf.facts_for = real_facts
 
 
 def _utc_now_iso() -> str:
@@ -254,11 +347,17 @@ def resolve_entry(obj: Any) -> Tuple[Optional[str], Optional[Any]]:
 def probe_module(module_info: Dict[str, Any],
                  protocols: Tuple[str, ...] = PROBE_PROTOCOLS,
                  min_coverage: float = DEFAULT_MIN_COVERAGE,
-                 profile_for: Any = None) -> Dict[str, Any]:
+                 profile_for: Any = None,
+                 facts_source: Any = None) -> Dict[str, Any]:
     """Сухой прогон движка на профилях протоколов. Ничего не проводит и не чинит.
 
-    `profile_for` — инъекция источника профиля (тесты); по умолчанию
+    `profile_for` — инъекция источника ПЕРЕДАВАЕМОЙ записи (тесты); по умолчанию
     `_protocol_facts.generic_profile_for`.
+    `facts_source` — инъекция источника, из которого движок берёт профиль САМ
+    (контекст-путь ADR-031); по умолчанию тот же настоящий
+    `_protocol_facts.generic_profile_for`. Два разных входа, потому что это два
+    разных пути данных, и путать их — ровно та тавтология, из-за которой
+    покрытие 25 модулей не измерялось вовсе (см. `record_facts_path`).
     """
     profile_for = profile_for or _pf.generic_profile_for
     name = module_info.get("module", "")
@@ -285,8 +384,14 @@ def probe_module(module_info: Dict[str, Any],
                           "инструментом не измеряется (не выдумываем вызов)"}
 
     scores: Dict[str, Any] = {}
-    read: set = set()
-    missing: set = set()
+    read: Set[Any] = set()
+    missing: Set[Any] = set()
+    # Отдельный учёт для контекст-пути: ключи, которые движок спросил у СВОЕЙ
+    # записи, взятой из `_protocol_facts` мимо инструмента. Держать их в том же
+    # множестве нельзя — тогда «инструмент положил ключ и сам его прочитал»
+    # станет неотличимо от «движок спросил ключ», а это и была тавтология.
+    ctx_read: Set[Any] = set()
+    ctx_missing: Set[Any] = set()
     detail = None
     raised = False
 
@@ -295,22 +400,36 @@ def probe_module(module_info: Dict[str, Any],
         if raw is None:            # протокол вне базы фактов — не находка модуля
             continue
         rec = RecordingProfile(raw)
+        own: List[RecordingProfile] = []
         try:
             # Форма вызова — та, которую движок объявил сам (см.
-            # `_PROBEABLE_SHAPES`), а не удобная инструменту.
-            result = fn([rec]) if shape == "list" else fn(rec)
+            # `_PROBEABLE_SHAPES`), а не удобная инструменту. Подмена источника
+            # фактов действует РОВНО на время вызова движка: см. ловушку 2 в
+            # `record_facts_path` — `extract_protocol_score` ниже читает запись
+            # уже ПОСЛЕ движка и в учёт попадать не имеет права.
+            with record_facts_path(own, source=facts_source):
+                result = fn([rec]) if shape == "list" else fn(rec)
         except Exception as exc:  # noqa: BLE001 — движок отверг профиль
             raised = True
             detail = f"{type(exc).__name__}: {exc}"
             read |= rec.read
             missing |= rec.missing
+            for r in own:
+                ctx_read |= r.read
+                ctx_missing |= r.missing
             break
         read |= rec.read
         missing |= rec.missing
+        for r in own:
+            ctx_read |= r.read
+            ctx_missing |= r.missing
+        # ВНЕ блока подмены — сознательно (ловушка 2).
         extracted = _pf.extract_protocol_score(result, raw)
         scores[proto] = None if extracted is None else float(extracted["risk_score"])
 
     coverage = None if not read else round((len(read) - len(missing)) / len(read), 4)
+    ctx_coverage = (None if not ctx_read else
+                    round((len(ctx_read) - len(ctx_missing)) / len(ctx_read), 4))
     out: Dict[str, Any] = {
         "module": name, "entry": entry, "call_shape": shape,
         # Чем именно звали — иначе вердикт нечем перепроверить.
@@ -322,6 +441,22 @@ def probe_module(module_info: Dict[str, Any],
         # разные утверждения, а различить их по счётчику нельзя.
         "read_keys": sorted(str(k) for k in read),
         "coverage": coverage, "missing_keys": sorted(str(k) for k in missing),
+        # Контекст-путь — ОТДЕЛЬНЫЕ поля, а не подмешанные в те же счётчики:
+        # иначе «не измерено» стало бы неотличимо от «измерен ноль».
+        "context_path_keys_read": len(ctx_read),
+        "context_path_keys_missing": len(ctx_missing),
+        "context_path_read_keys": sorted(str(k) for k in ctx_read),
+        "context_path_missing_keys": sorted(str(k) for k in ctx_missing),
+        "context_path_coverage": ctx_coverage,
+        # На какой записи посчитано покрытие, определившее вердикт. None —
+        # покрытие не измерено ни на одной (COVERAGE_UNMEASURED), и это НЕ ноль.
+        "coverage_basis": None,
+        # Покрытие, по которому ВЫНЕСЕН вердикт, и поимённый список
+        # отсутствующего. Отдельные поля, а не перезапись `coverage`: замер на
+        # переданной записи остаётся видимым, иначе вердикт нечем перепроверить.
+        # None — не измерено (см. `coverage_basis`).
+        "effective_coverage": None,
+        "effective_missing_keys": None,
     }
 
     if raised:
@@ -335,26 +470,45 @@ def probe_module(module_info: Dict[str, Any],
         out["verdict"] = "BLIND"
         return out
     # Различает — но участвовала ли в этом ПЕРЕДАННАЯ запись? Если движок
-    # спросил у неё только ключ-контекст, плечо coverage меряет сам инструмент
-    # (единственный спрошенный ключ он же и положил), а факты движок взял
-    # мимо него. Проверка стоит ДО coverage и ПОСЛЕ variance: одинаковый score
-    # — более сильное утверждение, BLIND его и должен назвать.
-    if read == {CONTEXT_KEY}:
-        out.update({
-            "verdict": "COVERAGE_UNMEASURED",
-            "detail": (
-                f"из переданной записи прочитан только ключ-контекст "
-                f"`{CONTEXT_KEY}` — движок берёт профиль из _protocol_facts сам, "
-                "и покрытие ключей этим инструментом НЕ измерено; "
-                "coverage=1.0 здесь тавтология, а не свидетельство пригодности"),
-        })
-        return out
+    # спросил у неё только ключ-контекст, плечо coverage на ней меряет сам
+    # инструмент (единственный спрошенный ключ он же и положил), а факты движок
+    # взял мимо него — из `_protocol_facts`. Проверка стоит ДО coverage и ПОСЛЕ
+    # variance: одинаковый score — более сильное утверждение, BLIND его и
+    # должен назвать.
+    #
+    # Цикл #142: этот случай больше не тупик. Подменённый на время вызова
+    # источник (`record_facts_path`) записал, какие ключи движок спросил у СВОЕЙ
+    # записи, и покрытие считается ПО НИМ. Пустой набор — по-прежнему честное
+    # «не измерено», а не «измерено ноль» (fail-CLOSED): так остаётся модуль,
+    # который берёт факты формой, недоступной подмене (связанный при импорте
+    # `from ... import facts_for`), — про него утверждать нечего.
+    eff_read, eff_missing, eff_coverage = read, missing, coverage
+    basis = "passed_record"
+    if read <= {CONTEXT_KEY}:
+        if ctx_read - {CONTEXT_KEY}:
+            eff_read, eff_missing, eff_coverage = ctx_read, ctx_missing, ctx_coverage
+            basis = "context_path"
+        else:
+            out.update({
+                "verdict": "COVERAGE_UNMEASURED",
+                "detail": (
+                    f"из переданной записи прочитан только ключ-контекст "
+                    f"`{CONTEXT_KEY}`, а от подменённого `_protocol_facts` движок "
+                    "не спросил ни одного ключа сверх него — покрытие НЕ измерено "
+                    "ни на одной записи; coverage=1.0 здесь тавтология, а не "
+                    "свидетельство пригодности"),
+            })
+            return out
+    out["coverage_basis"] = basis
+    out["effective_coverage"] = eff_coverage
+    out["effective_missing_keys"] = sorted(str(k) for k in eff_missing)
     # Различает — но различает ли ТЕМ, о чём модуль? Отвечает покрытие.
-    if coverage is None or coverage < min_coverage:
+    if eff_coverage is None or eff_coverage < min_coverage:
         out.update({"verdict": "UNCOVERED",
                     "detail": "score различается, но профиль не даёт "
-                              f"{len(missing)} из {len(read)} читаемых ключей — "
-                              "различие пришло из побочных полей"})
+                              f"{len(eff_missing)} из {len(eff_read)} читаемых "
+                              f"ключей (замер на `{basis}`) — различие пришло из "
+                              "побочных полей"})
         return out
     out["verdict"] = "WIRABLE"
     return out
@@ -381,9 +535,13 @@ def run_audit(tier: str = "C",
         "method": (
             "движок прогоняется на generic_profile_for каждого пробного протокола; "
             "WIRABLE = score различается И профиль покрывает все читаемые ключи "
-            f"(>= {min_coverage}) И спрошен хотя бы один ключ сверх ключа-контекста "
-            f"`{CONTEXT_KEY}` (иначе покрытие меряет сам инструмент — "
-            "COVERAGE_UNMEASURED); иначе отказ с поимённым списком отсутствующих ключей"
+            f"(>= {min_coverage}) И покрытие ИЗМЕРЕНО — на переданной записи либо "
+            "на контекст-пути (источник `_protocol_facts` подменён на записывающий "
+            "на время вызова движка, см. `record_facts_path`); если ни там, ни там "
+            f"не спрошено ничего сверх ключа-контекста `{CONTEXT_KEY}` — "
+            "COVERAGE_UNMEASURED, «не измерено» это НЕ «измерен ноль»; иначе отказ "
+            "с поимённым списком отсутствующих ключей. `coverage_basis` в каждой "
+            "записи говорит, на какой записи покрытие посчитано"
         ),
     }
 
@@ -454,11 +612,22 @@ def emit_markup(report: Dict[str, Any], path: Path) -> None:
     unc = [r for r in report["results"] if r["verdict"] == "UNCOVERED"]
     lines = []
     for r in sorted(unc, key=lambda x: x["module"]):
-        keys = ", ".join(f'"{k}"' for k in r["missing_keys"])
+        # `effective_*`, а не `coverage`/`missing_keys`: у модуля контекст-пути
+        # покрытие ИЗМЕРЕНО на записи, которую он взял из `_protocol_facts` сам,
+        # а на переданной инструментом оно тавтологично (цикл #142). Писать в
+        # прод-разметку тавтологичное число — значит вернуть ровно тот дефект,
+        # ради поимки которого разметка и заведена.
+        cov = r.get("effective_coverage")
+        miss = r.get("effective_missing_keys")
+        if cov is None or miss is None:   # fail-CLOSED: нечем — не пишем
+            raise AssertionError(
+                "UNCOVERED без измеренного покрытия: %s (basis=%r) — вердикт и "
+                "разметка разошлись" % (r["module"], r.get("coverage_basis")))
+        keys = ", ".join(f'"{k}"' for k in miss)
         lines.append(
             f'    "{r["module"]}": {{\n'
-            f'        "coverage": {r["coverage"]},\n'
-            f'        "missing_keys": ({keys}{"," if len(r["missing_keys"]) == 1 else ""}),\n'
+            f'        "coverage": {cov},\n'
+            f'        "missing_keys": ({keys}{"," if len(miss) == 1 else ""}),\n'
             f'    }},'
         )
     text = _MARKUP_TEMPLATE.format(

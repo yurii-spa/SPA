@@ -263,7 +263,18 @@ def test_no_sensitive_module_stays_silently_uncovered():
 # ─── генератор разметки ──────────────────────────────────────────────────────
 
 def test_emit_markup_writes_only_uncovered(tmp_path):
-    """В разметку попадает РОВНО UNCOVERED — не WIRABLE и не BLIND."""
+    """В разметку попадает РОВНО UNCOVERED — не WIRABLE и не BLIND.
+
+    Фикстура несёт `effective_coverage`/`effective_missing_keys` и
+    `coverage_basis`, потому что цикл #142 добавил их в схему отчёта
+    `probe_module`, и разметку генератор пишет теперь ПО НИМ: у модуля
+    контекст-пути `coverage` посчитан на переданной записи и тавтологичен, а
+    измеренное покрытие лежит в `effective_*` (см. `record_facts_path`).
+    Утверждения теста не изменились ни на символ — изменился производитель
+    отчёта, и фикстура догоняет его. Отказ генератора при ОТСУТСТВИИ
+    измеренного покрытия проверяется отдельно
+    (`test_emit_markup_refuses_uncovered_without_measured_coverage`).
+    """
     tool = _load_audit_tool()
     report = {
         "generated_at": _STAMP,
@@ -271,11 +282,14 @@ def test_emit_markup_writes_only_uncovered(tmp_path):
         "min_coverage": 1.0,
         "results": [
             {"module": "m_unc", "verdict": "UNCOVERED", "coverage": 0.5,
-             "missing_keys": ["a", "b"]},
+             "missing_keys": ["a", "b"], "coverage_basis": "passed_record",
+             "effective_coverage": 0.5, "effective_missing_keys": ["a", "b"]},
             {"module": "m_wir", "verdict": "WIRABLE", "coverage": 1.0,
-             "missing_keys": []},
+             "missing_keys": [], "coverage_basis": "passed_record",
+             "effective_coverage": 1.0, "effective_missing_keys": []},
             {"module": "m_blind", "verdict": "BLIND", "coverage": 1.0,
-             "missing_keys": []},
+             "missing_keys": [], "coverage_basis": None,
+             "effective_coverage": None, "effective_missing_keys": None},
         ],
     }
     path = tmp_path / "_gen.py"
@@ -298,8 +312,14 @@ def test_emit_markup_single_missing_key_stays_a_tuple(tmp_path):
         "generated_at": _STAMP,
         "probe_protocols": ["aave_v3"],
         "min_coverage": 1.0,
+        # `effective_*` — см. пояснение в
+        # `test_emit_markup_writes_only_uncovered`: схему отчёта расширил
+        # цикл #142, утверждение теста то же.
         "results": [{"module": "m_one", "verdict": "UNCOVERED",
-                     "coverage": 0.9, "missing_keys": ["harvests_per_year"]}],
+                     "coverage": 0.9, "missing_keys": ["harvests_per_year"],
+                     "coverage_basis": "passed_record",
+                     "effective_coverage": 0.9,
+                     "effective_missing_keys": ["harvests_per_year"]}],
     }
     path = tmp_path / "_gen_one.py"
     tool.emit_markup(report, path)
@@ -307,6 +327,35 @@ def test_emit_markup_single_missing_key_stays_a_tuple(tmp_path):
     exec(compile(path.read_text(encoding="utf-8"), str(path), "exec"), ns)
     keys = ns["UNSOURCED_DETAIL"]["m_one"]["missing_keys"]
     assert isinstance(keys, tuple) and keys == ("harvests_per_year",)
+
+
+def test_emit_markup_refuses_uncovered_without_measured_coverage(tmp_path):
+    """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ отказа: UNCOVERED без ИЗМЕРЕННОГО покрытия
+    не имеет права попасть в прод-разметку.
+
+    Авария, которую тест воспроизводит: генератор писал в разметку
+    `coverage`/`missing_keys` переданной записи. У модуля контекст-пути они
+    тавтологичны — инструмент сам положил единственный спрошенный ключ, —
+    поэтому в файл, который `run_tier_b` читает как приговор «модуль не
+    измеряет свой предмет», уехало бы число, не измерявшее ничего. Молча.
+    Теперь генератор ОТКАЗЫВАЕТ, и файл не создаётся вовсе.
+    """
+    tool = _load_audit_tool()
+    report = {
+        "generated_at": _STAMP,
+        "probe_protocols": ["aave_v3"],
+        "min_coverage": 1.0,
+        "results": [{"module": "m_tautological", "verdict": "UNCOVERED",
+                     "coverage": 1.0, "missing_keys": [],
+                     "coverage_basis": None,
+                     "effective_coverage": None,
+                     "effective_missing_keys": None}],
+    }
+    path = tmp_path / "_gen_refused.py"
+    with pytest.raises(AssertionError, match="без измеренного покрытия"):
+        tool.emit_markup(report, path)
+    assert not path.exists(), (
+        "отказ обязан быть ПОЛНЫМ: половина разметки на диске хуже её отсутствия")
 
 
 def test_emit_markup_refuses_partial_scan(tmp_path, monkeypatch, capsys):

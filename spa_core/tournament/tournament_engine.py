@@ -41,6 +41,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from spa_core.tournament import trusted_apy
+
 _log = logging.getLogger(__name__)
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -221,6 +223,11 @@ class TournamentEngine:
         self._engine_state_path = self._data_dir / "tournament_engine_state.json"
         # Refusals from the most recent check_promotions() call (fail-closed gate).
         self.last_refusals: List[Dict[str, Any]] = []
+        # NAMED refusals from the most recent trusted-APY read (see load_trusted_apy).
+        # A protocol whose APY could not be TRUSTED is listed here with a reason —
+        # it is never silently replaced by a literal or by a fabricated number.
+        self.last_apy_refusals: List[Dict[str, Any]] = []
+        self.last_apy_trust: Dict[str, Any] = {}
 
     # ─────────────────────────────────────────────────────────────────────────
     # Public API
@@ -621,6 +628,7 @@ class TournamentEngine:
         """
         date_str = date or _today_utc()
 
+        apy_injected = apy_map is not None
         if apy_map is None:
             apy_map = self._load_cached_apy()
 
@@ -641,12 +649,23 @@ class TournamentEngine:
             expected_apy_pct = 0.0
             weight_deployed = 0.0
 
+            # Протокол без ДОВЕРЯЕМОГО APY даёт 0% — это подстановка, и она обязана
+            # быть НАЗВАНА: иначе «стратегия заработала мало» неотличимо от
+            # «половину книги нечем было оценить» (тот же класс, что mock-7% S23).
+            untrusted: List[str] = []
             for proto, weight in allocation.items():
-                apy_pct = apy_map.get(proto, 0.0)
+                if proto in apy_map:
+                    apy_pct = float(apy_map[proto])
+                else:
+                    apy_pct = 0.0
+                    untrusted.append(proto)
                 daily_yield_usd += capital * weight * (apy_pct / 100.0) / 365.0
                 expected_apy_pct += weight * apy_pct
                 weight_deployed += weight
 
+            untrusted_weight = sum(
+                float(allocation.get(p) or 0.0) for p in untrusted
+            )
             day_results.append({
                 "strategy_id":        strategy_id,
                 "rank":               s.get("rank", 0),
@@ -654,6 +673,10 @@ class TournamentEngine:
                 "annualised_apy_pct": round(expected_apy_pct, 4),
                 "weight_deployed":    round(weight_deployed, 4),
                 "capital_usd":        capital,
+                # Провенанс рядом с числом: сколько книги оценено нулём и каким.
+                "untrusted_protocols":    sorted(untrusted),
+                "untrusted_weight":       round(untrusted_weight, 6),
+                "apy_fully_trusted":      not untrusted,
             })
 
         best = (
@@ -668,6 +691,11 @@ class TournamentEngine:
             "best_yield_usd": best["daily_yield_usd"] if best else 0.0,
             "best_apy_pct":   best["annualised_apy_pct"] if best else 0.0,
             "apy_map_keys":   sorted(apy_map.keys()),
+            # Откуда взялся вход дня: подан вызывающим (тест/бэктест) или прочитан
+            # через доверяемый гейт. Пустая карта — законный ОТКАЗ, и его причина
+            # едет вместе с днём, а не остаётся в логе.
+            "apy_input":      "injected" if apy_injected else "trusted_snapshot",
+            "apy_trust":      {} if apy_injected else dict(self.last_apy_trust),
         }
 
         # Append to shadow_paper_trading.json (ring-buffer 365)
@@ -731,6 +759,18 @@ class TournamentEngine:
 
         dataset_trustworthy, dataset_trust_reason = _dataset_trustworthy(tournament)
 
+        # Второй, независимый вопрос: доверяем ли мы САМОМУ APY-входу турнира.
+        # Стамп на датасете отвечает «не вырождена ли Sharpe», и НЕ отвечает
+        # «наблюдение это или двухмесячный литерал». Смешивать нельзя.
+        apy_trust: Dict[str, Any] = {}
+        apy_refusals: List[Dict] = []
+        try:
+            self.load_trusted_apy()
+            apy_trust = dict(self.last_apy_trust)
+            apy_refusals = list(self.last_apy_refusals)
+        except Exception as exc:  # fail-CLOSED: не доверяем, если не смогли прочесть
+            apy_trust = {"trusted": False, "reason": f"apy trust read failed ({exc})"}
+
         return {
             "schema_version":      "1.0",
             "engine_version":      VERSION,
@@ -744,6 +784,9 @@ class TournamentEngine:
             "promotion_refusals":  promotion_refusals,
             "data_trustworthy":    dataset_trustworthy,
             "data_trust_reason":   dataset_trust_reason,
+            # Вход APY: доверяемое наблюдение или ИМЕНОВАННЫЙ отказ (trusted_apy).
+            "apy_trust":           apy_trust,
+            "apy_refusals":        apy_refusals,
             "shadow_days_tracked": len(daily_results),
             "last_shadow_date":    last_shadow_date,
             "total_strategies":    tournament.get("total_strategies", 0),
@@ -754,59 +797,60 @@ class TournamentEngine:
     # Internal helpers
     # ─────────────────────────────────────────────────────────────────────────
 
-    def _load_cached_apy(self) -> Dict[str, float]:
+    def load_trusted_apy(
+        self,
+        *,
+        now: Optional[datetime] = None,
+        max_age_hours: float = trusted_apy.DEFAULT_MAX_AGE_HOURS,
+    ) -> trusted_apy.TrustedAPY:
+        """Прочитать ``apy_ranking.json`` и вернуть ТОЛЬКО доверяемые наблюдения.
+
+        Единственный вход APY у турнира. Число попадает в карту, только если снимок
+        ОБЪЯВИЛ единицу, строка помечена как наблюдение (``apy_source``) и отметка
+        ``last_updated`` свежа относительно ``now``. Всё прочее — именованный отказ
+        в :attr:`last_apy_refusals` (полный контракт — `trusted_apy`).
+
+        Замер 2026-08-17 на git-версии ``data/apy_ranking.json``: единица не
+        объявлена, провенанс отсутствует, отметки от 2026-06-21 (57 суток) —
+        то есть ДО этого гейта турнир кормился двухмесячными литералами как живым
+        APY. Ответ на это — отказ с именем, а не подстановка.
+
+        ``now`` — ВХОД, а не окружение: свежесть, зависящая от стенных часов,
+        делает тест бомбой с часовым механизмом.
         """
-        Load the most recent per-protocol APY snapshot ``{protocol_key: apy_pct}``.
-
-        Primary source is ``apy_ranking.json`` (``by_apy[]``) — refreshed by
-        cycle_runner every cycle and covering all adapters. Falls back to
-        ``adapter_orchestrator_status.json`` (deployed adapters only), then to
-        any list-shaped ``current_positions.json`` that still carries per-position
-        APY. Returns an empty dict if nothing is available (shadow yields → 0).
-
-        NOTE: ``current_positions.json`` now stores ``{protocol: amount}`` (no APY),
-        so iterating it as dicts would raise ``'str' object has no attribute 'get'``.
-        Every source is shape-guarded here.
-        """
-        apy_map: Dict[str, float] = {}
-
-        def _ingest(rows: Any, overwrite: bool) -> None:
-            if not isinstance(rows, list):
-                return
-            for row in rows:
-                if not isinstance(row, dict):
-                    continue
-                proto = row.get("protocol_key") or row.get("protocol")
-                apy = row.get("apy_pct")
-                if apy is None:
-                    apy = row.get("current_apy")
-                if proto and apy:
-                    if overwrite:
-                        apy_map[proto] = float(apy)
-                    else:
-                        apy_map.setdefault(proto, float(apy))
-
-        # Primary: apy_ranking.json — comprehensive, live (percent units).
-        ranking = _read_json(self._data_dir / "apy_ranking.json", {})
-        _ingest(ranking.get("by_apy") if isinstance(ranking, dict) else None, overwrite=True)
-
-        # Secondary: orchestrator status fills any gaps for deployed adapters.
-        orch = _read_json(self._data_dir / "adapter_orchestrator_status.json", {})
-        _ingest(orch.get("adapters") if isinstance(orch, dict) else None, overwrite=False)
-
-        # Tertiary: legacy list-shaped positions carrying per-position APY.
-        positions_data = _read_json(self._data_dir / "current_positions.json", {})
-        positions = (
-            positions_data.get("positions")
-            if isinstance(positions_data, dict)
-            else positions_data
+        snapshot = _read_json(self._data_dir / "apy_ranking.json", {})
+        result = trusted_apy.trusted_apy_map(
+            snapshot,
+            now=now or datetime.now(timezone.utc),
+            max_age_hours=max_age_hours,
         )
-        _ingest(positions, overwrite=False)
+        self.last_apy_refusals = list(result.refusals)
+        self.last_apy_trust = {
+            "trusted": result.trusted,
+            "unit": result.unit,
+            "reason": result.reason,
+            "trusted_protocols": sorted(result.apy_pct),
+            "refusals_by_reason": trusted_apy.refusal_summary(result.refusals),
+            "max_age_hours": max_age_hours,
+        }
+        if not result.trusted:
+            _log.warning("load_trusted_apy: %s", result.reason)
+        return result
 
-        if not apy_map:
-            _log.debug("_load_cached_apy: no APY data found, using empty map")
+    def _load_cached_apy(self) -> Dict[str, float]:
+        """Доверяемая карта ``{protocol_key: apy_pct}`` (может быть ПУСТОЙ).
 
-        return apy_map
+        Тонкая обёртка над :meth:`load_trusted_apy`, сохранённая для вызывающих,
+        которым нужна только карта. Пустой ответ — законный отказ, а не сбой:
+        причины лежат в :attr:`last_apy_refusals` и попадают в статус движка.
+
+        Раньше здесь были ещё два запасных источника (``adapter_orchestrator_status``
+        и list-образный ``current_positions``). Они СНЯТЫ намеренно: ни один из них
+        не объявляет единицу и не несёт провенанса, поэтому «заполнение пробелов»
+        из них было подстановкой непроверяемого числа в рейтинг доходности —
+        ровно тот класс, ради которого писан этот гейт.
+        """
+        return dict(self.load_trusted_apy().apy_pct)
 
     def _compute_paper_apy(
         self,
