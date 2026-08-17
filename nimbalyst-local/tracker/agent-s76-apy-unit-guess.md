@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent
 title: S76 угадывает единицу измерения доходности по величине числа — настоящие 0.5 % превращаются в 50 %
-status: backlog
+status: done
 source: находка цикла #121 при работе над AUD-18 (2026-08-05)
 created: 2026-08-05
 priority: medium
@@ -60,3 +60,52 @@ large)». S76 остался с эвристикой, от которой ушл
 
 - Родительская задача: `agent-aud18-strategy-unit-tests.md`
 - Тот же класс, уже закрытый в адаптерах: `spa_core/adapters/apy_contract.py`
+
+
+---
+
+## ✅ СВЕРКА 2026-08-17 (независимая) — ЗАКРЫТО
+
+Три критерия карточки проверены по отдельности.
+
+**(а) `compute_weighted_apy` больше не зависит от величины входного числа.**
+`spa_core/strategies/s76_concentrated_lp.py:151-201`: эвристики `if protocol ==
+"aerodrome_usdc_lp" and apy_pct < 1.0: apy_pct *= 100` в файле НЕТ. Вместо неё —
+объявленная единица модуля `APY_UNIT` и одна конверсия через
+`apy_decimal_from_declared(candidate, APY_UNIT, protocol=protocol)`
+(`spa_core/adapters/apy_contract.py`); значение вне sane-band ⇒ **fail-closed в
+объявленный `FALLBACK_APY`**, не домножение. Конверсия доля→процент ровно одна —
+`return total_decimal * 100.0`.
+
+**(б) `..._CURRENT_BEHAVIOUR` заменён тестом контракта, обе стороны.**
+`spa_core/tests/test_s76_concentrated_lp.py`: старого имени в файле нет;
+на его месте `test_true_sub_one_percent_apy_stays_sub_one_percent` (докстринг
+прямо называет замену) — проверяет ОБЕ стороны: честные 0.5 % у T1-ноги проходят
+немасштабированными, и LP с честными 0.5 % даёт lp_off-бленд 3.43 %, а не ~30.9 %.
+Вторая сторона контракта — `test_percent_leak_rejected_to_fallback_never_rescaled`
+(3.5/12.0 в долевом контракте отвергается в fallback, НИКОГДА не пересчитывается).
+Плюс `test_live_decimal_values_blended_and_converted_once` — на неисправленном
+коде он красный (в докстринге записано ожидаемое значение 7.21 старой эвристики).
+
+Дословный вывод:
+
+```
+$ python3 -m pytest spa_core/tests/test_s76_concentrated_lp.py -q
+30 passed, 4 subtests passed in 0.26s
+```
+
+**(в) «прогон турнира до/после — какие опубликованные числа сдвинулись».**
+Ответ измерен, а не прогнан: **ни одного.** `compute_weighted_apy` не вызывается
+НИКЕМ за пределами самих модулей стратегий и их тестов
+(`grep -rln "compute_weighted_apy"` даёт только `spa_core/strategies/s*.py`),
+а турнир зовёт исключительно `get_allocation` / `allocate`
+(`spa_core/backtesting/mass_tournament.py:432`) и никакой рефлексии по методам
+не делает. Опубликованный радиус правки — ноль.
+
+**Остаток класса НАЗВАН (не входит в эту карточку).** Живые магнитудные эвристики
+того же вида, не тронутые: `price_feeds/protocol_direct_feed.py:246,293` ·
+`adapters/pendle_pt_adapter.py:310` · `adapters/ethena_susde_adapter.py:128` ·
+`bee/backtest_live_fit.py:429,529` · `bee/walk_forward.py:175` ·
+`strategies/s_basis.py:169` · `monitoring/bts_monitor.py:256` ·
+`monitoring/series_anomaly_detector.py:134`. Плюс замер: **36 из 36 адаптеров
+`ADAPTER_REGISTRY` единицу ещё не объявляют** — это отдельная карточка.

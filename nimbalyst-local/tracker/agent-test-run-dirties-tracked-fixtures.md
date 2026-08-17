@@ -178,3 +178,78 @@ track is never read or written» — и ОДИН этот тест пачкае�
 
 **Не входит:** RiskPolicy / kill-switch / живой трек `data/equity_curve_daily.json` / launchd /
 `landing/**`.
+
+
+---
+
+## СВЕРКА 2026-08-17 — НЕ ЗАКРЫТА, но остаток сузился ровно до пяти путей (замер)
+
+Первый acceptance-критерий («после полного прогона `tests/` `git status
+--porcelain` пуст») проверен прогоном, а не по журналу.
+
+### Прогон 1 — `tests/` целиком, из чистого дерева
+
+```
+$ git checkout -- data spa_core/data && git status --porcelain   # пусто
+$ python3 -m pytest tests/ -q --tb=no
+3 failed, 13020 passed, 38 skipped, 880 subtests passed in 471.61s
+$ git status --porcelain
+ M data/hy_regime_log.json
+ M data/market_regime.json
+ M data/tear_sheet_summary.json
+ M data/uptime_prev_state.json
+ M data/uptime_status.json
+```
+
+**Пять путей — РОВНО те пять от корня `tests/`, которые раздел «Что ОСТАЛОСЬ»
+цикла #275 назвал измеренными, но не уведёнными.** Ни одного лишнего.
+(Два падения — `test_mypy_gate`, одно — `test_agent_template_wake_storm`;
+средовые, mypy в контейнере не установлен, к карточке отношения не имеют.)
+
+### Прогон 2 — шесть путей из тела карточки и 15 путей замера #274: ЧИСТО
+
+```
+$ git checkout -- data && git status --porcelain   # пусто
+$ python3 -m pytest spa_core/tests/test_cash_attribution_policy_refusals.py \
+      spa_core/tests/test_borrowing_cost_optimizer.py spa_core/tests/test_api.py \
+      spa_core/tests/test_alerts.py spa_core/tests/test_engine_bridge.py \
+      spa_core/tests/test_airdrop_farming_value_estimator.py \
+      spa_core/tests/test_test_run_leaves_tree_clean.py -q
+273 passed, 2 skipped in 25.48s
+$ git status --porcelain    # пусто
+```
+
+То есть все шесть путей ИЗ ТЕЛА КАРТОЧКИ (`spa_core/data/reward_harvesting_log.json`,
+`spa_core/data/token_emission_log.json`, `spa_core/database/spa.db`,
+`tests/fixtures/{golive_status,paper_evidence_7d,tournament_ranking_7d}.json`)
+после прогона их измеренных писателей больше не мутируют — увод работает.
+Второй acceptance-критерий (писатель назван файлом:строкой для каждого из шести)
+выполнен таблицей замера #274.
+
+### Почему карточка всё-таки НЕ закрывается
+
+Критерий №1 сформулирован как «пусто», а не «почти пусто». Пять путей остаются,
+и их писатели живут в `spa_core/risk/regime_gate.py`, `spa_core/monitoring/
+uptime_monitor.py`, `spa_core/reporting/tear_sheet_html.py` и в ПОДПРОЦЕССЕ
+`python3 -m spa_core.analysis.market_regime` — чужие зоны, отдельная итерация.
+
+### Новая форма того же дефекта, найденная сверкой (назвал, не чинил)
+
+Увод `live_paths.sandboxed_default` завязан на `under_test()`
+(`PYTEST_CURRENT_TEST`), поэтому он **не действует, когда модуль исполняет
+обычный скрипт**. Замер:
+
+```
+$ git checkout -- data && git status --porcelain   # пусто
+$ python3 scripts/audit_tier_c_wiring_feasibility.py --tier A --out /tmp/…
+$ git status --porcelain
+ M data/exit_liquidity_log.json
+ M data/liquidation_cascade_log.json
+```
+
+(при `--tier B`, где инструмент трогает 479 модулей, набор вырастает до 33
+`data/*_log.json` + два `spa_core/data/*_log.json`). Это ровно класс
+«сторож смотрит на признак прогона тестов, а вне него молчит», уже дважды
+описанный в `agent-tests-reach-live-feed-222`, — но здесь он даёт не отказы,
+а грязное дерево от обычного запуска инструмента. Карточка про тестовый прогон,
+поэтому чинить не стал; для решения нужна отдельная карточка.

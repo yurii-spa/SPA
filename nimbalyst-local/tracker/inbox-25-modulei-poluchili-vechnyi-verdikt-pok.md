@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: 25 модулей получили вечный вердикт «покрытие не измерено» — контекст-путь нечем мерить
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-06
 ---
@@ -157,3 +157,56 @@ created: 2026-08-06
 (20 проверок). Положительный контроль замерен: на инструменте ДО правки
 краснеют **18 из 20**. Полный прогон
 `-k "coverage or blindness or tier or protocol_key"`: 3117 passed, 27 skipped.*
+
+---
+
+## ✅ СВЕРКА 2026-08-17 (независимая, воспроизведением) — ЗАКРЫТО
+
+Проверял не по коммит-сообщению, а прогоном инструмента в этом дереве.
+
+**Инструмент.** `scripts/audit_tier_c_wiring_feasibility.py` содержит
+`record_facts_path` (строка 231) — контекстный менеджер, подменяющий
+`_protocol_facts.generic_profile_for`/`facts_for` РОВНО на время вызова движка
+(строка 427), с громким `RuntimeError` на вложенный вход (строка 262).
+Вердикт несёт `coverage_basis` / `effective_coverage` / `effective_missing_keys`
+(строки 470–520).
+
+**Мой прогон (дословный вывод):**
+
+```
+$ python3 scripts/audit_tier_c_wiring_feasibility.py --tier A --out …/_scratch_feas_a.json
+modules=12 counts={'WIRABLE': 3, 'BLIND': 2, 'RAISES': 2, 'UNCOVERED': 2, 'SHAPE_NOT_PROBED': 3}
+
+$ python3 scripts/audit_tier_c_wiring_feasibility.py --tier B --out …/_scratch_feas_b.json
+modules=479 counts={'SHAPE_NOT_PROBED': 90, 'NO_ENTRY': 72, 'NO_SCORE': 42,
+                    'RAISES': 45, 'BLIND': 171, 'UNCOVERED': 35, 'WIRABLE': 24}
+```
+
+`COVERAGE_UNMEASURED` — **0 в обоих тирах** (пересчитано по полю `verdict` в
+отчёте, а не по строке сводки). Вечная графа закрыта. `WIRABLE` Tier-B = **24**,
+как и заявлено; `coverage_basis == "context_path"` ровно у **22** модулей — то
+самое число, которое раньше стояло в `COVERAGE_UNMEASURED`.
+
+**Приёмка в обе стороны — воспроизведена на тех же двух модулях:**
+
+```
+{'module': 'protocol_tvl_filter', 'verdict': 'UNCOVERED',
+ 'coverage_basis': 'context_path', 'effective_coverage': 0.6667,
+ 'effective_missing_keys': ['tvl_trend_7d_pct']}
+```
+
+**Тесты:** `spa_core/tests/test_wiring_feasibility_context_path_measured.py` —
+`20 passed in 0.24s`.
+
+**Что осознанно осталось (не блокирует закрытие):** разметка
+`_protocol_key_coverage.py` не перегенерирована — это отдельная итерация с
+собственной карточкой, радиус здесь нулевой (`WIRABLE` ничего не гейтит).
+
+**Побочная находка, к этой карточке не относящаяся (назвал, не чинил):** сам
+инструмент при запуске **как скрипт** (вне pytest) пачкает git-tracked
+`data/*_log.json` — после `--tier A` в чистом дереве появились
+`M data/exit_liquidity_log.json` и `M data/liquidation_cascade_log.json`.
+Причина: увод `live_paths.sandboxed_default` привязан к `under_test()`
+(`PYTEST_CURRENT_TEST`), которого у обычного запуска скрипта нет. Это остаток
+класса карточки `agent-test-run-dirties-tracked-fixtures`, но в другой форме —
+не тестовый прогон, а скрипт.
