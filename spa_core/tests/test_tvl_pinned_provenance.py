@@ -127,6 +127,113 @@ class TestPinnedLookup(unittest.TestCase):
                 self.assertEqual(len(pid), 36, f"{key}: not a UUID shape: {pid}")
 
 
+# ── Коллизия на уровне ПОДСКАЗКИ (цикл #188 / карточка inbox-morpho-*) ────────
+#
+# ``test_no_two_keys_share_a_pool`` выше сверяет таблицу ПИНОВ и честно отвечает
+# на свой вопрос: два ключа не закреплены за одним UUID. На нужный вопрос — «два
+# ключа не стоят на одном пуле» — он не отвечает и ответить не может: ключ без
+# пина резолвится подсказкой и в таблицу пинов не входит вовсе. Классический
+# fail-OPEN.
+#
+# Замер 2026-08-17 (офлайн-реплей ``_lookup_live_pool`` на записях фида
+# 2026-08-10): ``morpho_steakhouse`` берёт пул 931ea9be… по ПИНУ, а
+# ``morpho_blue`` — ТОТ ЖЕ пул 931ea9be… по ПОДСКАЗКЕ, потому что подсказки у
+# них побайтово одинаковы: ("morpho", "USDC", "Ethereum"). Кэп на протокол
+# считает их разными протоколами (``PortfolioState.concentration_pct``
+# суммирует по строке ``protocol_key``), то есть T1 40 % + T2 20 % = до 60 %
+# книги в ОДНОМ контракте при всех зелёных проверках.
+#
+# Одинаковая тройка подсказок — не доказательство коллизии сама по себе (пул
+# выбирается ещё и по underlying и по TVL), но это ЕДИНСТВЕННОЕ место, где
+# коллизия закладывается статически, до всякого фида. Поэтому храповик стоит
+# здесь: он ловит ТРЕТЬЮ такую пару в момент её появления, а не через три месяца
+# на живых числах.
+#
+# Храповик, а не запрет: пара morpho существует сегодня, и её устранение —
+# money-path (вывод ключа из книги либо собственный пин), решение владельца.
+# База может только УМЕНЬШАТЬСЯ. Добавлять сюда новую пару, чтобы погасить
+# падение, ЗАПРЕЩЕНО — это ровно тот жест, который правило про тесты
+# (инвариант 16) называет молчаливым ослаблением.
+_KNOWN_HINT_COLLISIONS: dict[tuple[str, ...], str] = {
+    ("morpho_blue", "morpho_steakhouse"): "inbox-morpho-blue-i-morpho-steakhouse-razresha",
+}
+
+
+def _hint_collisions(hints: dict[str, tuple[str, str, str]]) -> dict[tuple[str, str, str], tuple[str, ...]]:
+    """(project, symbol, chain) → ключи, объявившие ОДНУ И ТУ ЖЕ подсказку.
+
+    Считается из таблицы, а не ведётся руками: список, который надо пополнять
+    вручную, — та самая форма, при которой следующий дубликат не заметят.
+    """
+    seen: dict[tuple[str, str, str], list[str]] = {}
+    for key, (proj, sym, chain) in hints.items():
+        seen.setdefault((proj.lower(), sym.upper(), chain.lower()), []).append(key)
+    return {ident: tuple(sorted(ks)) for ident, ks in seen.items() if len(ks) > 1}
+
+
+class TestHintCollisions(unittest.TestCase):
+    """Два ключа, резолвящиеся в один пул, — скрытая концентрация.
+
+    Обе стороны закреплены намеренно. Проверка, которая только подтверждает
+    «сегодня чисто», прошла бы и на таблице, где коллизий не видно потому, что
+    их не ищут; проверка, которая только ловит подделку, прошла бы на таблице,
+    объявляющей коллизией всё подряд.
+    """
+
+    def test_synthetic_third_pair_is_caught(self):
+        """Положительный контроль: новая пара на одной подсказке — видна.
+
+        Воспроизводит именно ту аварию, ради которой файл правится: ключ
+        добавили рядом с существующим, подсказку скопировали, пин не поставили.
+        """
+        fake = {
+            "aave_v3":      ("aave-v3", "USDC", "Ethereum"),
+            "euler_v2":     ("euler",   "USDC", "Ethereum"),
+            # новичок, скопировавший подсказку соседа
+            "euler_v2_alt": ("EULER",   "usdc", "ETHEREUM"),
+        }
+        self.assertEqual(
+            _hint_collisions(fake),
+            {("euler", "USDC", "ethereum"): ("euler_v2", "euler_v2_alt")},
+        )
+
+    def test_clean_table_reports_nothing(self):
+        """Отрицательный контроль: непохожие подсказки коллизией не объявляются."""
+        fake = {
+            "aave_v3":     ("aave-v3", "USDC", "Ethereum"),
+            "aave_v3_base": ("aave-v3", "USDC", "Base"),      # та же пара, другая сеть
+            "spark_susds": ("spark",   "USDS", "Ethereum"),   # та же сеть, другой актив
+        }
+        self.assertEqual(_hint_collisions(fake), {})
+
+    def test_no_undeclared_collision_in_the_real_table(self):
+        """Живая таблица подсказок не содержит НЕЗАЯВЛЕННЫХ коллизий."""
+        actual = {keys for keys in _hint_collisions(gen._DEFILLAMA_HINTS).values()}
+        undeclared = sorted(actual - set(_KNOWN_HINT_COLLISIONS))
+        self.assertEqual(
+            undeclared, [],
+            f"новые ключи делят подсказку с соседом: {undeclared}. Кэп на протокол "
+            f"считает их разными протоколами, риск — один. Чинить состав реестра "
+            f"(money-path ⇒ карточка владельцу), а не дописывать сюда исключение",
+        )
+
+    def test_known_collision_is_still_real(self):
+        """База может только уменьшаться: исчезнувшую пару обязаны СТЕРЕТЬ.
+
+        Без этой стороны исключение переживёт свою причину и будет молча
+        разрешать пару, которой давно нет, — то есть снова fail-OPEN, только
+        медленный.
+        """
+        actual = {keys for keys in _hint_collisions(gen._DEFILLAMA_HINTS).values()}
+        for keys, card in _KNOWN_HINT_COLLISIONS.items():
+            with self.subTest(keys=keys):
+                self.assertIn(
+                    keys, actual,
+                    f"{keys} больше не делят подсказку — удалить строку из "
+                    f"_KNOWN_HINT_COLLISIONS (карточка {card})",
+                )
+
+
 class TestEvidencedTvl(unittest.TestCase):
     """``_load_evidenced_tvl`` — what counts as an observation, and what never does."""
 
