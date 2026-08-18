@@ -530,3 +530,183 @@ def test_receipt_lands_in_the_main_tree_not_in_a_doomed_one(repo, monkeypatch, t
     assert ledger.exists(), "квитанции нет в главном дереве"
     row = json.loads(ledger.read_text(encoding="utf-8").strip().splitlines()[-1])
     assert row["worktree"] == str(wt)
+
+
+# ── база сначала ЧИТАЕТСЯ, и только потом судит (цикл #283) ──────────────────
+#
+# Живая авария 17.08 (дерево цикла #282): файл карточки, байт-в-байт равный `origin/main`,
+# объявлен `unique` — «здесь может лежать НЕДОСТАВЛЕННАЯ работа». Причина не в сравнении с
+# базой дерева, как читалось сначала, а в том, что базу НИКТО НЕ ЧИТАЛ: пуш идёт прямо в origin
+# через API, локальный `refs/remotes/origin/main` при этом не двигается. Каждый цикл пушит из
+# дерева ⇒ ложный отказ был нормой, и уборка стояла именно на нём.
+
+
+def _push_to_origin(tmp_path, origin, rel, content, msg):
+    """Доставить содержимое ПРЯМО в origin, минуя `root` — так работает пуш через API.
+
+    Локальный `refs/remotes/origin/main` у `root` от этого не двигается: ровно то состояние,
+    в котором уборщик судил доставку по снимку неизвестной давности."""
+    side = tmp_path / f"side-{abs(hash(msg)) % 10**6}"
+    _run(tmp_path, "clone", str(origin), str(side))
+    path = side / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    _run(side, "add", "-A")
+    _run(side, "commit", "-m", msg)
+    _run(side, "push", "origin", "main")
+
+
+def test_delivered_while_local_ref_stale_is_reaped(repo, tmp_path):
+    """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ аварии 17.08: содержимое лежит на origin, локальный ref отстал.
+
+    На неисправленном коде это `unique` + KEEP («НЕДОСТАВЛЕННАЯ работа») — тот самый ложный
+    отказ, из-за которого уборку каждый раз чинили руками через `git reset`."""
+    root, origin = repo
+    wt = _worktree(root, "spa_wt_c282")
+    delivered = "доставлено циклом #282\n"
+    (wt / "docs" / "STATE.md").write_text(delivered, encoding="utf-8")
+    _push_to_origin(tmp_path, origin, "docs/STATE.md", delivered, "deliver via API")
+    _age(wt)
+    _log(root, [])
+
+    # Предпосылка аварии: локальный ref ОТСТАЛ — доставку через API он не видел.
+    assert _run(root, "rev-parse", "origin/main").strip() != _run(
+        root, "ls-remote", str(origin), "main").split()[0]
+
+    t = _verdict(_report(root), wt)
+    # Прочитав базу, уборщик видит: расхождения с ней нет вовсе — значит и «недоставленного»
+    # тут нет. На неисправленном коде ровно этот путь звался `unique`.
+    assert t["verdict"] == R.REAP, t["reasons"]
+    assert "НЕДОСТАВЛЕННАЯ" not in " ".join(t["reasons"])
+    assert [p for p in t["paths"] if p["state"] in (R.UNIQUE, R.ABSENT)] == []
+
+
+def test_intermediate_delivered_version_survives_a_stale_ref(repo, tmp_path):
+    """Тот же класс, но содержимое дерева — УЖЕ ПЕРЕКРЫТАЯ доставленная версия.
+
+    Здесь путь остаётся в отчёте и обязан получить `delivered`: его blob лежит в истории базы.
+    На неисправленном коде устаревший ref не знает ни одной из двух версий ⇒ `unique`."""
+    root, origin = repo
+    wt = _worktree(root, "spa_wt_mid")
+    (wt / "docs" / "STATE.md").write_text("версия X\n", encoding="utf-8")
+    _push_to_origin(tmp_path, origin, "docs/STATE.md", "версия X\n", "deliver X")
+    _push_to_origin(tmp_path, origin, "docs/STATE.md", "версия Y\n", "supersede with Y")
+    _age(wt)
+    _log(root, [])
+
+    t = _verdict(_report(root), wt)
+    assert [p["state"] for p in t["paths"]] == [R.DELIVERED], t["paths"]
+    assert t["verdict"] == R.REAP, t["reasons"]
+
+
+def test_stale_ref_cannot_invent_a_delivery_only_hide_one(repo, tmp_path):
+    """ОБРАТНЫЙ КОНТРОЛЬ: настоящая недоставленная правка остаётся недоставленной и после fetch.
+
+    Иначе «починка» свелась бы к тому, что уборщик перестал отказывать вообще."""
+    root, _ = repo
+    wt = _worktree(root, "spa_wt_real")
+    (wt / "docs" / "STATE.md").write_text("работы этой нет нигде\n", encoding="utf-8")
+    _age(wt)
+    _log(root, [])
+
+    t = _verdict(_report(root), wt)
+    assert t["verdict"] == R.KEEP
+    assert [p["state"] for p in t["paths"]] == [R.UNIQUE]
+    assert "НЕДОСТАВЛЕННАЯ" in t["reasons"][0]
+
+
+def test_unread_base_is_named_not_dressed_as_undelivered_work(repo):
+    """База не прочитана ⇒ отказ ОСТАЁТСЯ, но называется своей причиной (код 2, не 1).
+
+    Ослабления нет: дерево по-прежнему не снимается. Ушла ЛОЖЬ о причине — «не спросили
+    origin» больше не выдаётся за «здесь лежит недоставленная работа»."""
+    root, _ = repo
+    wt = _worktree(root, "spa_wt_offline")
+    (wt / "docs" / "STATE.md").write_text("что-то\n", encoding="utf-8")
+    _age(wt)
+    _log(root, [])
+
+    report = _report(root, base_read=(False, "сети нет"))
+    t = _verdict(report, wt)
+    assert t["verdict"] == R.UNMEASURED, t
+    assert "не прочитана" in t["reasons"][0] and "сети нет" in t["reasons"][0]
+    assert "НЕДОСТАВЛЕННАЯ" not in t["reasons"][0]
+    assert R.exit_code(report) == 2
+
+
+def test_unread_base_still_reaps_on_positive_evidence(repo, tmp_path):
+    """Асимметрия названа и закреплена: несвежая база прячет доставку, но не выдумывает.
+
+    Значит `delivered`/`superseded` — положительные свидетельства — судят как раньше даже
+    без чтения базы; неизмеримыми делаются РОВНО отрицательные вердикты."""
+    root, origin = repo
+    wt = _worktree(root, "spa_wt_pos")
+    _push_to_origin(tmp_path, origin, "docs/STATE.md", "версия X\n", "deliver X")
+    _push_to_origin(tmp_path, origin, "docs/STATE.md", "версия Y\n", "supersede with Y")
+    _run(root, "fetch", "origin")                     # база прочитана ЗАРАНЕЕ, не прогоном
+    (wt / "docs" / "STATE.md").write_text("версия X\n", encoding="utf-8")
+    _age(wt)
+    _log(root, [])
+
+    report = _report(root, base_read=(False, "офлайн"))
+    t = _verdict(report, wt)
+    assert [p["state"] for p in t["paths"]] == [R.DELIVERED]
+    assert t["verdict"] == R.REAP, t["reasons"]
+
+
+def test_refresh_base_failure_is_named_not_swallowed(repo):
+    """Неудача чтения базы обязана вернуться ПРИЧИНОЙ, а не тихим «всё хорошо»."""
+    root, _ = repo
+    ok, why = R.refresh_base(root, "no_such_remote/main")
+    assert ok is False and "no_such_remote" in why
+
+    ok, why = R.refresh_base(root, "origin")          # не вида <remote>/<branch>
+    assert ok is False and "<remote>/<branch>" in why
+
+
+def test_refresh_base_reads_the_ref_the_verdict_uses(repo, tmp_path):
+    """Читать надо ИМЕННО `refs/remotes/<remote>/<branch>` — вердикт считается по нему.
+
+    `FETCH_HEAD` здесь не годится: `classify_path` ходит в `origin/main`."""
+    root, origin = repo
+    before = _run(root, "rev-parse", "origin/main").strip()
+    _push_to_origin(tmp_path, origin, "docs/STATE.md", "двинули базу\n", "move base")
+    assert _run(root, "rev-parse", "origin/main").strip() == before, "ref не должен был двинуться сам"
+
+    ok, why = R.refresh_base(root, "origin/main")
+    assert ok is True, why
+    assert _run(root, "rev-parse", "origin/main").strip() != before
+
+
+def test_refresh_base_does_not_lean_on_remote_config(repo, tmp_path):
+    """Ссылку двигает НАШ refspec, а не настройка `remote.origin.fetch` в чужом репозитории.
+
+    Найдено мутацией цикла #286 (она ВЫЖИЛА на исходном наборе): замена явного refspec на
+    голое `git fetch origin main` не роняла ни один тест — потому что во всех фикстурах
+    репозиторий получен `clone`, а у него `remote.origin.fetch` задан, и git двигает
+    remote-tracking ссылку попутно (opportunistic update). Стоило снять эту настройку — и
+    голая форма перестаёт двигать ссылку вовсе (замерено: `moved=NO` против `moved=YES`),
+    то есть вердикт снова считался бы по снимку неизвестной давности, но уже МОЛЧА: сам
+    `fetch` при этом успешен, `refresh_base` вернул бы «прочитана».
+
+    ЧЕСТНО: в проде `remote.origin.fetch` задан (`+refs/heads/*:refs/remotes/origin/*`), так
+    что живой поломки этот тест не чинит — он закрепляет причину, которую докстринг
+    `refresh_base` уже объявил своей, чтобы она не осталась одним лишь обещанием."""
+    root, origin = repo
+    _run(root, "config", "--unset", "remote.origin.fetch")
+    before = _run(root, "rev-parse", "origin/main").strip()
+    _push_to_origin(tmp_path, origin, "docs/STATE.md", "двинули базу без refspec\n", "no refspec")
+
+    ok, why = R.refresh_base(root, "origin/main")
+    assert ok is True, why
+    assert _run(root, "rev-parse", "origin/main").strip() != before, (
+        "ссылка не двинулась без `remote.origin.fetch` — читается FETCH_HEAD, а вердикт "
+        "считается по refs/remotes/origin/main")
+
+
+def test_report_always_says_what_it_measured_against(repo):
+    """Чем мерили — печатается всегда, а не только когда не получилось."""
+    root, _ = repo
+    _log(root, [])
+    assert "прочитана перед вердиктом" in R.render(_report(root))
+    assert "офлайн-прогон" in R.render(_report(root, base_read=(False, "офлайн-прогон")))

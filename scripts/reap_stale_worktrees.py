@@ -37,6 +37,24 @@ origin» ровно потому, что цикл #228 переписал фай
      Здесь может лежать НЕДОСТАВЛЕННАЯ работа ⇒ дерево остаётся, путь называется вслух;
    - ``absent`` — файла на базе нет вовсе. Всегда ``unique``-класс: отсутствие на базе
      самодостаточно.
+
+   **База сначала ЧИТАЕТСЯ, и только потом судит (цикл #283).** Пуш идёт прямо в origin через
+   API, локальный `refs/remotes/origin/main` при этом НЕ двигается — а уборщик его никогда не
+   обновлял. Значит собственную только что доставленную работу он не мог увидеть по построению:
+   замер на живом дереве #282 — файл карточки, байт-в-байт равный `origin/main`, объявлен
+   ``unique`` («здесь может лежать НЕДОСТАВЛЕННАЯ работа»), и тот же вердикт стал ``delivered``
+   после одного `git fetch`, без единой правки содержимого. Каждый цикл пушит из дерева, поэтому
+   ложный отказ был не редкой невезухой, а нормой — и именно на нём стояла уборка, а осадок
+   `/tmp/spa_c*` потом травил шаг 0a чужими «находками».
+
+   Направление ошибки у устаревшей базы ОДНО и это важно: история только растёт, поэтому
+   несвежий ref способен спрятать уже случившуюся доставку, но не выдумать её. Значит
+   ``delivered``/``superseded`` остаются верны и на старой базе (это положительные
+   свидетельства), а неверными делаются ровно отрицательные — ``unique``/``absent``. Отсюда
+   лечение: базовый ref обновляется перед вердиктом, а если обновить НЕ УДАЛОСЬ (нет сети,
+   `--no-fetch`), отрицательные вердикты больше не выдаются за недоставленную работу — дерево
+   остаётся как ``unmeasured`` с НАЗВАННОЙ причиной «база не прочитана». Отказ тот же (снятия
+   нет), но он перестал врать о причине; положительные вердикты при этом судят как раньше.
 5. **Перед снятием — архив.** Правка (`git diff <база>`) и копии неотслеживаемых файлов
    уезжают в `~/SPA_backups/worktree_reap/<имя>-<штамп>/` вместе с `manifest.json`. Работа не
    уничтожается, а перестаёт числиться рабочим деревом; восстановление — `git apply`.
@@ -260,6 +278,29 @@ def _origin_blob_history(root, base_ref, rel, git=_git):
     return shas
 
 
+def refresh_base(root, base_ref, git=_git):
+    """Прочитать базовый ref у remote ПЕРЕД вердиктом. (прочитана?, объяснение).
+
+    Единственная сетевая операция инструмента, и она обязана быть именно здесь: доставка идёт
+    в origin через API, локальный remote-tracking ref от этого не двигается, поэтому без
+    обновления уборщик судит доставку по снимку неизвестной давности. Refspec задан явно
+    (`+refs/heads/<branch>:refs/remotes/<remote>/<branch>`), а не оставлен на усмотрение
+    настроек remote: нам нужно обновление ИМЕННО той ссылки, по которой потом считается вердикт,
+    а не только `FETCH_HEAD`.
+
+    Неудача — не авария и не повод угадывать: возвращается «не прочитана» с причиной, и
+    отрицательные вердикты по путям выше становятся `unmeasured`, а не «недоставленной работой»."""
+    remote, sep, branch = base_ref.partition("/")
+    if not sep or not remote or not branch:
+        return False, (f"база {base_ref!r} не вида <remote>/<branch> — обновить её нечем, "
+                       f"вердикт считался бы по локальному снимку неизвестной давности")
+    refspec = f"+refs/heads/{branch}:refs/remotes/{remote}/{branch}"
+    rc, _, err = git(root, "fetch", "--quiet", remote, refspec)
+    if rc != 0:
+        return False, (f"`git fetch {remote} {refspec}` rc={rc} {err.strip()[:160]!r}")
+    return True, f"база {base_ref} прочитана перед вердиктом (`git fetch {remote} {branch}`)"
+
+
 def _base_moved_since(root, base_ref, head, rel, git=_git):
     """Продвинулась ли база по этому пути ПОСЛЕ HEAD дерева. None — не измерено."""
     rc, out, _ = git(root, "log", "--format=%H", f"{head}..{base_ref}", "--", rel)
@@ -325,8 +366,15 @@ def work_paths(wt_path, base_ref, git=_git):
 
 
 def inspect(root, reg, base_ref, fresh_files, grace_hours, git=_git, now_ts=None,
-            explicit=False):
+            explicit=False, base_read=(True, "")):
     """Вердикт по одной регистрации: reap / keep / unmeasured / prunable + причины.
+
+    ``base_read`` — ИЗМЕРЕННЫЙ результат `refresh_base` парой (прочитана?, объяснение). По
+    умолчанию «прочитана»: этим входом пользуются прямые вызовы в тестах, где база создаётся
+    локально и обновлять её не у кого. Сборщики отчёта передают сюда настоящий замер. Значение
+    влияет РОВНО на отрицательные вердикты по путям (`unique`/`absent`) и не способно привести
+    к снятию лишнего дерева ни при каком значении: оба исхода — отказ, разнятся только имя
+    причины и код возврата.
 
     ``explicit=True`` — дерево названо владельцем поимённо (`--worktree`, «я закончил»).
     Снимаются РОВНО признаки «сессия молчит» (свежее объявление и свежий mtime): они отвечают
@@ -414,10 +462,21 @@ def inspect(root, reg, base_ref, fresh_files, grace_hours, git=_git, now_ts=None
 
     risky = [v for v in verdicts if v["state"] in (UNIQUE, ABSENT)]
     if risky:
+        named = (", ".join(f"{v['path']} ({v['state']})" for v in risky[:10])
+                 + ("" if len(risky) <= 10 else f" и ещё {len(risky) - 10}"))
+        base_ok, base_why = base_read
+        if not base_ok:
+            # Отрицательный вердикт держится на утверждении «этого нет на базе», а базу мы в
+            # этом прогоне не прочитали. Отказ остаётся (снятия нет), но называется своей
+            # причиной: выдать «не спросили origin» за «недоставленную работу» — ровно та
+            # ложь, ради которой цикл #282 каждый раз чинил уборку руками.
+            out["verdict"] = UNMEASURED
+            out["reasons"].append(
+                f"база {base_ref} не прочитана ({base_why}) — «недоставлено» от «не спросили "
+                f"origin» неотличимо, пути НЕ объявляются недоставленными: " + named)
+            return out
         out["verdict"] = KEEP
-        out["reasons"].append("здесь может лежать НЕДОСТАВЛЕННАЯ работа: "
-                              + ", ".join(f"{v['path']} ({v['state']})" for v in risky[:10])
-                              + ("" if len(risky) <= 10 else f" и ещё {len(risky) - 10}"))
+        out["reasons"].append("здесь может лежать НЕДОСТАВЛЕННАЯ работа: " + named)
         return out
 
     out["verdict"] = REAP
@@ -489,10 +548,14 @@ def record_reap(root, wt, base_ref, verdicts, churn, archive_dest, ledger=None, 
     return str(ledger), None
 
 
-def build_report(root, base_ref, log_path, grace_hours, git=_git, now=None, now_ts=None):
+def build_report(root, base_ref, log_path, grace_hours, git=_git, now=None, now_ts=None,
+                 base_read=None):
     regs, why = list_registrations(root, git=git)
+    if base_read is None:
+        base_read = refresh_base(root, base_ref, git=git)
     report = {"root": str(root), "base": base_ref, "grace_hours": grace_hours,
-              "trees": [], "unmeasured_reasons": []}
+              "trees": [], "unmeasured_reasons": [],
+              "base_read": bool(base_read[0]), "base_read_why": base_read[1]}
     if regs is None:
         report["unmeasured_reasons"].append(why)
         return report
@@ -510,7 +573,7 @@ def build_report(root, base_ref, log_path, grace_hours, git=_git, now=None, now_
                                     "paths": [], "churn": 0, "head": None})
             continue
         report["trees"].append(inspect(root, reg, base_ref, fresh or [], grace_hours,
-                                       git=git, now_ts=now_ts))
+                                       git=git, now_ts=now_ts, base_read=base_read))
     return report
 
 
@@ -523,7 +586,7 @@ def _same_path(a, b) -> bool:
 
 
 def build_self_report(root, base_ref, target, log_path, grace_hours, git=_git, now=None,
-                      now_ts=None, cwd=None):
+                      now_ts=None, cwd=None, base_read=None):
     """Отчёт по ОДНОМУ дереву, названному владельцем (`--worktree`).
 
     Не «ещё один уборщик», а тот же самый: регистрация ищется в `git worktree list`, вердикт
@@ -538,8 +601,11 @@ def build_self_report(root, base_ref, target, log_path, grace_hours, git=_git, n
 
     Журнал объявлений читается и здесь: он не решает исход (п. 2 снят), но число свежих
     объявлений внутри дерева печатается — «что перевесило» обязано быть видно."""
+    if base_read is None:
+        base_read = refresh_base(root, base_ref, git=git)
     report = {"root": str(root), "base": base_ref, "grace_hours": grace_hours,
-              "trees": [], "unmeasured_reasons": [], "explicit_target": str(target)}
+              "trees": [], "unmeasured_reasons": [], "explicit_target": str(target),
+              "base_read": bool(base_read[0]), "base_read_why": base_read[1]}
 
     regs, why = list_registrations(root, git=git)
     if regs is None:
@@ -559,7 +625,7 @@ def build_self_report(root, base_ref, target, log_path, grace_hours, git=_git, n
         # Проверка «изнутри» стоит ПОСЛЕ него намеренно: иначе просьба про прод из самого
         # прода отвечала бы «перезапустись оттуда-то» вместо «этого не будет никогда».
         report["trees"].append(inspect(root, reg, base_ref, [], grace_hours, git=git,
-                                       now_ts=now_ts, explicit=True))
+                                       now_ts=now_ts, explicit=True, base_read=base_read))
         return report
 
     here = Path(cwd) if cwd is not None else Path.cwd()
@@ -583,7 +649,7 @@ def build_self_report(root, base_ref, target, log_path, grace_hours, git=_git, n
         fresh = []
 
     report["trees"].append(inspect(root, reg, base_ref, fresh, grace_hours, git=git,
-                                   now_ts=now_ts, explicit=True))
+                                   now_ts=now_ts, explicit=True, base_read=base_read))
     return report
 
 
@@ -595,6 +661,11 @@ def render(report) -> str:
     else:
         lines = [f"Уборка рабочих деревьев (база {report['base']}, окно {report['grace_hours']:g}ч); "
                  f"регистраций: {len(report['trees'])}"]
+    # Чем мерили — печатается ВСЕГДА, а не только когда не получилось: «доставлено?» без
+    # свежести базы читается как ответ на вопрос, которого никто не задавал (цикл #283).
+    if "base_read" in report:
+        mark = "✅" if report["base_read"] else "⚠️"
+        lines.append(f"  {mark} {report['base_read_why']}")
     by = {}
     for t in report["trees"]:
         by.setdefault(t["verdict"], []).append(t)
@@ -642,6 +713,10 @@ def main(argv=None) -> int:
                     help="«я закончил, сними МОЁ дерево»: измерить и снять ОДНО названное "
                          "дерево. Снимает только признаки «сессия молчит» (её называет сам "
                          "запрос); недоставленное по-прежнему отменяет снятие")
+    ap.add_argument("--no-fetch", action="store_true",
+                    help="не читать базовый ref у remote (офлайн). Вердикт от этого не "
+                         "становится мягче: пути, которых «нет на базе», больше не выдаются "
+                         "за недоставленную работу, а называются неизмеренными (код 2)")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
 
@@ -663,10 +738,20 @@ def main(argv=None) -> int:
             root_note = f"главное рабочее дерево не определено ({why}) — корнем взят {ROOT}"
 
     log_path = args.log or (root / "data" / "session_changes.jsonl")
-    if args.worktree:
-        report = build_self_report(root, args.base, args.worktree, log_path, args.grace_hours)
+    if args.no_fetch:
+        base_read = (False, "запрошен офлайн-прогон (`--no-fetch`)")
+    elif root_note:
+        # Главное дерево не разрешилось ⇒ прогон уже отказал (код 2). Ходить за этим в сеть
+        # незачем, и тесты не должны дёргать настоящий remote просто потому, что проверяют
+        # соседний отказ.
+        base_read = (False, f"база не читалась: {root_note}")
     else:
-        report = build_report(root, args.base, log_path, args.grace_hours)
+        base_read = refresh_base(root, args.base)
+    if args.worktree:
+        report = build_self_report(root, args.base, args.worktree, log_path, args.grace_hours,
+                                   base_read=base_read)
+    else:
+        report = build_report(root, args.base, log_path, args.grace_hours, base_read=base_read)
     if root_note:
         report["unmeasured_reasons"].append(root_note)
 
