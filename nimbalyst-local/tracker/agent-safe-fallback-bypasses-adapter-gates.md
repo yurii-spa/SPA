@@ -2,12 +2,32 @@
 trackerStatus:
   type: agent
 title: Аварийный портфель обходит гейты адаптеров — финансирует spark_susds, который запрещён инвариантом 10
-status: backlog
+status: blocked
 source: session-2026-08-02 (найдено при ADR-062)
 created: 2026-08-02
 priority: medium
 domain: money-path
+blocked_by: own-2026-08-18-avariinaya-kniga-idet-mimo-geitov-svezhesti
 ---
+
+## Замер 2026-08-18 — что уже закрыто, что осталось
+
+Прогон `_build_safe_fallback_positions(100_000)` с дефолтным гейтом:
+
+| гейт | спрашивается? | доказательство |
+|---|---|---|
+| класс адаптера (advisory / RESEARCH_ONLY / GSM) | **ДА** | `portfolio_rebalancer.py:225-247`; прогон: `spark_susds` → `BLOCK:gsm_not_confirmed`, доля в кэш |
+| доказанность APY (evidence, ADR-061) | **НЕТ** | `_fundable` (`allocator.py:872-884`) применяется только в `_load_adapters`; аварийная книга туда не заходит. Профинансированы 6 протоколов, наблюдённый APY есть у 1 (`compound_v3`) |
+| порог $5M по ЖИВОМУ TVL (ADR-053) | **НЕТ** | шпион на вызовах: внутри `_compliant_target` (`risk_gate.py:54`) вызываются только `validate_positions` → `_build_safe_fallback_positions` → `validate_positions`; `_apply_risk_policy_gate` НЕ вызывается. В `policy_enforcer.RULES` правила про TVL/evidence нет |
+
+Условие срабатывания ветки (`cycle_runner.py:1853` → `risk_gate.py:96-127`): не fail-safe и не
+policy_blocked · пост-гейтовая цель нарушает `max_protocols` (>8 протоколов) · `rebalance_portfolio`
+не собрал проходящую книгу. Не редкость: сработало в проде 08.08 (`adapter_orchestrator.py:97-103`),
+и `data/paper_trading_status.json` сейчас содержит ровно аварийную книгу.
+
+Цена строгого закрытия, измерена: развёрнуто $75 852 → **$0** (0 из 34 адаптеров заявляют живой
+TVL). Обесточивать аварийную ветку нельзя → развилка ушла владельцу карточкой
+`own-2026-08-18-avariinaya-kniga-idet-mimo-geitov-svezhesti`. Код НЕ тронут.
 
 ## Что случилось
 
