@@ -38,6 +38,25 @@ origin» ровно потому, что цикл #228 переписал фай
    - ``absent`` — файла на базе нет вовсе. Всегда ``unique``-класс: отсутствие на базе
      самодостаточно.
 
+   **Работа дерева — это ещё и его КОММИТЫ (цикл #294).** До #294 «работой» считалось
+   пересечение «изменено в дереве» (`git diff HEAD`) и «расходится с базой» (`git diff <база>`).
+   Файл, закоммиченный в дереве локально (save-point commit — сессии делают его перед
+   верификацией, и пушер такой коммит отбивает) в `git diff HEAD` не попадает ПО ПОСТРОЕНИЮ:
+   он уже в HEAD. Значит он не входил в пофайловый вердикт, не копировался в архив и не
+   попадал в квитанцию — дерево снималось, а работа исчезала молча и без следа. Теперь пути
+   коммитов `<база>..HEAD` считаются работой наравне с правкой и судятся тем же
+   ``classify_path``.
+
+   Замер перед починкой (45 живых деревьев, 2026-08-18): 10 держали коммиты, недостижимые с
+   базы, и НИ ОДНО не было защищено ИМИ — каждое уцелело по постороннему неотслеживаемому
+   файлу (`.claude/settings.local.json`). Это рецидив #234: «уцелел по совпадению, а не по
+   правилу», и совпадение перестаёт работать ровно тогда, когда постороннего файла нет.
+
+   Расхождение бывает и НЕСОПОСТАВИМЫМ (у части деревьев общего предка с базой нет вовсе:
+   23 283 коммита сверх неё). Пофайловый вердикт там не осмыслен и стоил бы тысяч вызовов
+   git, поэтому выше ``COMMITTED_PATHS_CAP`` дерево остаётся БЕЗ перечисления путей, с
+   названным числом коммитов. Отказ — тот же fail-CLOSED: сомнение всегда в пользу KEEP.
+
    **База сначала ЧИТАЕТСЯ, и только потом судит (цикл #283).** Пуш идёт прямо в origin через
    API, локальный `refs/remotes/origin/main` при этом НЕ двигается — а уборщик его никогда не
    обновлял. Значит собственную только что доставленную работу он не мог увидеть по построению:
@@ -135,6 +154,12 @@ CHURN_PATHS = frozenset({
     "spa_core/database/spa.db",
 })
 ARCHIVE_ROOT = Path.home() / "SPA_backups" / "worktree_reap"
+# Сколько путей коммитов дерева судить пофайлово. Выше потолка дерево ОСТАЁТСЯ без разбора:
+# столько путей бывает только у дерева с несопоставимой историей (замер 18.08: у 9 из 45
+# живых деревьев общего предка с базой нет вовсе), а там пофайловый вердикт не осмыслен и
+# стоил бы тысяч вызовов git. Потолок ослабить снятие НЕ может: он выбирает между «KEEP с
+# перечислением путей» и «KEEP с числом коммитов», REAP за ним не стоит ни при каком значении.
+COMMITTED_PATHS_CAP = 200
 
 DELIVERED, SUPERSEDED, UNIQUE, ABSENT = "delivered", "superseded", "unique", "absent"
 REAP, KEEP, UNMEASURED, PRUNABLE = "reap", "keep", "unmeasured", "prunable"
@@ -331,7 +356,11 @@ def classify_path(root, base_ref, head, wt_path, rel, git=_git):
 
 
 def work_paths(wt_path, base_ref, git=_git):
-    """(пути с работой, число отсеянных churn-путей, причина-если-не-измерено).
+    """(пути с работой, МНОЖЕСТВО отсеянных churn-путей, причина-если-не-измерено).
+
+    Отсеянное возвращается множеством, а не числом: с #294 к правке добавляются пути
+    коммитов дерева, churn среди них тот же самый, и два числа сложить без двойного счёта
+    нельзя — пересечение у множеств видно, у счётчиков нет.
 
     Работа = пересечение «изменено в дереве» и «расходится с базой» (иначе заброшенное дерево
     на старом коммите расходится с origin в сотнях нетронутых файлов) ПЛЮС неотслеживаемые
@@ -362,7 +391,36 @@ def work_paths(wt_path, base_ref, git=_git):
     paths |= expanded
 
     churn = {p for p in paths if p.startswith(CHURN_PREFIXES) or p in CHURN_PATHS}
-    return sorted(paths - churn), len(churn), None
+    return sorted(paths - churn), churn, None
+
+
+def committed_paths(wt_path, base_ref, git=_git):
+    """(число коммитов сверх базы, пути этих коммитов, причина-если-не-измерено).
+
+    Отвечает на вопрос, которого у уборщика не было до #294: «а не лежит ли работа дерева
+    в его СОБСТВЕННЫХ коммитах?». `git diff HEAD` на него не отвечает по построению —
+    закоммиченное с HEAD не расходится.
+
+    ``<база>..HEAD`` намеренно взят как разность множеств, а не через `merge-base`: общего
+    предка у дерева с базой может не быть вовсе, и тогда `merge-base` возвращает ПУСТО.
+    Пустая подстановка в диапазон даёт `..HEAD`, то есть `HEAD..HEAD` — ровно ноль, и замер
+    «коммитов сверх базы нет» получается на дереве, где их 23 283. Этот ложный ноль был
+    получен живьём при разборе карточки и стоил бы всей починки, будь он принят на веру."""
+    rc, out, err = git(wt_path, "rev-list", "--count", f"{base_ref}..HEAD")
+    if rc != 0:
+        return None, None, f"`git rev-list --count {base_ref}..HEAD` rc={rc} {err.strip()[:120]!r}"
+    try:
+        count = int(out.strip())
+    except ValueError:
+        return None, None, (f"`git rev-list --count {base_ref}..HEAD` вернул не число: "
+                            f"{out.strip()[:60]!r}")
+    if count == 0:
+        return 0, [], None
+    rc, names, err = git(wt_path, "-c", "core.quotepath=false", "log", "--format=",
+                         "--name-only", f"{base_ref}..HEAD")
+    if rc != 0:
+        return count, None, f"`git log --name-only {base_ref}..HEAD` rc={rc} {err.strip()[:120]!r}"
+    return count, sorted({ln for ln in names.split("\n") if ln}), None
 
 
 def inspect(root, reg, base_ref, fresh_files, grace_hours, git=_git, now_ts=None,
@@ -384,7 +442,7 @@ def inspect(root, reg, base_ref, fresh_files, grace_hours, git=_git, now_ts=None
     пофайловым вердиктом ниже, и он в явном режиме тот же самый."""
     wt = reg["path"]
     out = {"path": wt, "verdict": None, "reasons": [], "paths": [], "churn": 0, "head": None,
-           "explicit": bool(explicit)}
+           "unpushed_commits": None, "explicit": bool(explicit)}
 
     if reg["prunable"] or not reg["exists"]:
         out["verdict"] = PRUNABLE
@@ -441,11 +499,37 @@ def inspect(root, reg, base_ref, fresh_files, grace_hours, git=_git, now_ts=None
     out["head"] = head.strip()
 
     paths, churn, why = work_paths(wt, base_ref, git=git)
-    out["churn"] = churn
     if paths is None:
         out["verdict"] = UNMEASURED
         out["reasons"].append(why)
         return out
+    out["churn"] = len(churn)
+
+    # Работа дерева — не только его ПРАВКА, но и его КОММИТЫ (#294).
+    commits, committed, why = committed_paths(wt, base_ref, git=git)
+    out["unpushed_commits"] = commits
+    if commits is None or committed is None:
+        out["verdict"] = UNMEASURED
+        out["reasons"].append(why)
+        return out
+    if commits:
+        committed_churn = {p for p in committed
+                           if p.startswith(CHURN_PREFIXES) or p in CHURN_PATHS}
+        out["churn"] = len(churn | committed_churn)
+        extra = (set(committed) - committed_churn) - set(paths)
+        if len(extra) > COMMITTED_PATHS_CAP:
+            # Несопоставимая история: судить пофайлово нечего и незачем. Дерево ОСТАЁТСЯ.
+            out["verdict"] = KEEP
+            out["reasons"].append(
+                f"здесь может лежать НЕДОСТАВЛЕННАЯ работа: коммитов сверх {base_ref} — "
+                f"{commits}, затронутых путей — {len(extra)} (больше потолка "
+                f"{COMMITTED_PATHS_CAP}, пофайловый вердикт не выносится)")
+            return out
+        # Пути коммитов идут в ОБЩИЙ пофайловый вердикт, а не в отдельную ветку: если всё
+        # содержимое коммита уже есть в истории базы (``delivered``), работа доставлена —
+        # неважно, коммитом она лежала или правкой, — и дерево снимается как раньше. KEEP
+        # даёт ровно недоставленное (``unique``/``absent``), и теперь оно наконец видно.
+        paths = sorted(set(paths) | extra)
 
     verdicts = []
     for rel in paths:
@@ -524,7 +608,8 @@ def reap(root, wt, git=_git):
     return True, "снято"
 
 
-def record_reap(root, wt, base_ref, verdicts, churn, archive_dest, ledger=None, stamp=None):
+def record_reap(root, wt, base_ref, verdicts, churn, archive_dest, ledger=None, stamp=None,
+                head=None, unpushed_commits=None):
     """Квитанция снятия — `data/worktree_reap_log.jsonl`. (путь журнала, причина-если-не-записано).
 
     **Без неё уборка меняет шило на мыло.** Шаг 0a про объявленный путь внутри исчезнувшего
@@ -533,11 +618,16 @@ def record_reap(root, wt, base_ref, verdicts, churn, archive_dest, ledger=None, 
     измерено» — ровно тот класс, которым уже морили очередь. Квитанция несёт ИЗМЕРЕНИЕ,
     сделанное тогда, когда дерево ещё существовало: пофайловый вердикт и путь архива.
     Сторож от этого строже, а не слабее: пропуск даётся ровно тем путям, которые названы
-    поимённо как `delivered`/`superseded`."""
+    поимённо как `delivered`/`superseded`.
+
+    ``head`` и ``unpushed_commits`` (#294) — то, чем полноту квитанции можно проверить ЗАДНИМ
+    числом. До #294 в квитанции не было ни того, ни другого: у всех 142 записей поле `head`
+    отсутствовало, и «в дереве этого пути не было» приходилось принимать на слово. Теперь у
+    шага 0a есть, что спросить у самой записи."""
     ledger = Path(ledger) if ledger else Path(root) / "data" / "worktree_reap_log.jsonl"
     row = {"ts": stamp or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
            "worktree": str(wt), "base": base_ref, "archive": archive_dest,
-           "churn_paths": churn,
+           "churn_paths": churn, "head": head, "unpushed_commits": unpushed_commits,
            "paths": {v["path"]: v["state"] for v in verdicts}}
     try:
         ledger.parent.mkdir(parents=True, exist_ok=True)
@@ -570,7 +660,8 @@ def build_report(root, base_ref, log_path, grace_hours, git=_git, now=None, now_
         if fresh is None and not (reg["prunable"] or not reg["exists"]):
             report["trees"].append({"path": reg["path"], "verdict": UNMEASURED,
                                     "reasons": ["журнал объявлений не прочитан — занятость дерева не измерена"],
-                                    "paths": [], "churn": 0, "head": None})
+                                    "paths": [], "churn": 0, "head": None,
+                                    "unpushed_commits": None})
             continue
         report["trees"].append(inspect(root, reg, base_ref, fresh or [], grace_hours,
                                        git=git, now_ts=now_ts, base_read=base_read))
@@ -765,7 +856,9 @@ def main(argv=None) -> int:
                     continue
                 # Квитанция пишется ДО снятия: дерева не станет, а измерение обязано пережить
                 # его (иначе шаг 0a получит необратимое «нечем измерить»).
-                ledger, why = record_reap(root, t["path"], args.base, t["paths"], t["churn"], dest)
+                ledger, why = record_reap(root, t["path"], args.base, t["paths"], t["churn"],
+                                          dest, head=t.get("head"),
+                                          unpushed_commits=t.get("unpushed_commits"))
                 if ledger is None:
                     t["verdict"] = UNMEASURED
                     t["reasons"].append(f"{why} — снятие ОТМЕНЕНО (квитанция обязательна)")
