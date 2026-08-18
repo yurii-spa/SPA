@@ -107,6 +107,7 @@ from spa_core.paper_trading.equity import (  # noqa: F401 — re-exported
 from spa_core.paper_trading.risk_gate import (  # noqa: F401 — re-exported
     _apply_risk_policy_gate,
     _compliant_target,
+    alloc002_collapse_record,
     _record_policy_block,
     write_daily_block_slice,
 )
@@ -209,6 +210,10 @@ class CycleResult:
     # MP-534: market regime snapshot for this cycle.
     market_regime: str = "UNKNOWN"
     regime_t1_avg_apy: float = 0.0
+    # ALLOC-002 pre-diff collapse — {"fired": False} on a normal cycle, the full
+    # record (raw/compliant counts, dropped/opened protocols) when it fired.
+    # Observability only: no branch of the money-path reads this field.
+    alloc002_collapse: dict = field(default_factory=lambda: {"fired": False})
 
     def to_dict(self) -> dict:
         return {
@@ -241,6 +246,7 @@ class CycleResult:
             "correlation_id": self.correlation_id,
             "market_regime": self.market_regime,
             "regime_t1_avg_apy": self.regime_t1_avg_apy,
+            "alloc002_collapse": self.alloc002_collapse,
         }
 
 
@@ -1884,15 +1890,29 @@ def run_cycle(
     # turnover) instead of churning 24↔8 every cycle. Deterministic + fail-open.
     # Skipped under fail-safe HOLD / policy-block (we are holding regardless).
     _alloc002_pre_collapsed = False
+    # Наблюдаемость (карточка «оркестратор ведом каноническим реестром»):
+    # схлопывание подменяет предложенную аллокатором книгу аварийной. Пока это
+    # был ОДИН свободный текст в notes, причём обе цифры в нём считались ПОСЛЕ
+    # присваивания (обе — len(target_usd)), поэтому нота честно печатала
+    # «7 протоколов схлопнуты в 7» при любом размере сырой цели. Ни одного поля,
+    # по которому цикл со схлопыванием отличался бы от штатного, не было.
+    _alloc002_collapse: dict = {"fired": False}
     if not _safety_failed and not policy_blocked:
+        _alloc002_raw_target = dict(target_usd)
         target_usd, _alloc002_pre_collapsed = _compliant_target(
             target_usd, capital_usd, ddir, write
+        )
+        _alloc002_collapse = alloc002_collapse_record(
+            _alloc002_raw_target, target_usd, _alloc002_pre_collapsed
         )
         if _alloc002_pre_collapsed:
             notes.append(
                 "ALLOC-002: raw allocator target ({} protocols) collapsed to "
-                "compliant book ({} protocols) before rebalance diff.".format(
-                    len(target_usd), len(target_usd)
+                "compliant book ({} protocols) before rebalance diff; "
+                "dropped: {}.".format(
+                    _alloc002_collapse["raw_protocols"],
+                    _alloc002_collapse["compliant_protocols"],
+                    ", ".join(_alloc002_collapse["dropped"]) or "—",
                 )
             )
             # ── ADR-034 (D1-T1 fix): RE-APPLY the soft de-risk cap AFTER the
@@ -2243,6 +2263,7 @@ def run_cycle(
         correlation_id=_correlation_id,
         market_regime=_regime_name,
         regime_t1_avg_apy=_regime_t1_avg_apy,
+        alloc002_collapse=_alloc002_collapse,
     )
 
     # ── Step 6: persist everything atomically ─────────────────────────────

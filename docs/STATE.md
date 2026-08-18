@@ -140,7 +140,7 @@ python3 scripts/orchestrator_queue.py list --type owner-decision --status needs-
 
 ## 👁️ Наблюдение
 
-- **Монитор сессий:** `claude-code-kanban` → http://localhost:4455 (видит headless); идёт ли цикл — `orchestrator_cycle_lock.py status`.
+- **Монитор сессий:** `claude-code-kanban` → http://localhost:4455 (видит headless); идёт ли цикл — `orchestrator_cycle_lock.py status`. **Не переделывать (18.08, журнал W34):** расширение опрашиваемого набора до канона ПОСЧИТАНО — 8 опрошенных дают 8 проходных (норма), 10 → 9 → схлопывание (авария 08.08 воспроизведена), 36 → **27 проходных при пределе 8** ⇒ аварийная книга каждый цикл; расширять только ПОСЛЕ осознанного отбора лучших N в аллокаторе (карточка `owner-decision-vesti-opros-ot-polnogo-reestra-adapterov`, ждёт владельца). Наблюдаемость схлопывания ALLOC-002 уже починена (поле `alloc002_collapse` в статусе цикла + положительный контроль), нота больше не печатает одно и то же число дважды.
 
 ## 🔗 Ориентиры
 

@@ -304,6 +304,14 @@ def _write_status(
         # MP-534: market regime snapshot.
         "market_regime": result.market_regime,
         "regime_t1_avg_apy": result.regime_t1_avg_apy,
+        # ALLOC-002 pre-diff collapse. ALWAYS present: {"fired": false} states
+        # "this cycle's book is the one the allocator proposed", the full record
+        # states the opposite and names what fell out. Before this field the only
+        # trace was a free-text note whose two counts were the same number, so a
+        # reader (and every watchdog) could not tell the two cases apart.
+        "alloc002_collapse": getattr(
+            result, "alloc002_collapse", {"fired": False}
+        ),
     }
     _atomic_write_json(ddir / STATUS_FILENAME, doc)
 

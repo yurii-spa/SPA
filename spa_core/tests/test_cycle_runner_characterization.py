@@ -286,6 +286,14 @@ _GOLDEN = {
         },
     },
     "result": {
+        # ALLOC-002 collapse observability (2026-08-18, карточка «оркестратор
+        # ведом каноническим реестром»): ``CycleResult`` gained the
+        # ``alloc002_collapse`` record so a collapsed cycle is distinguishable
+        # from a normal one by a FIELD, not by free text. This golden run does
+        # NOT collapse, so the pinned value is the positive "nothing happened"
+        # statement — the assertion stays exact-match (invariant 16: the golden
+        # is extended, never loosened; a wrong value here still goes red).
+        "alloc002_collapse": {"fired": False},
         "apy_today_pct": 2.57,
         "current_equity": 100007.04,
         "daily_return_pct": 0.0,

@@ -51,6 +51,48 @@ def _coerce_feed_value(value) -> float:
     return fv if math.isfinite(fv) else _NON_FINITE_SENTINEL
 
 
+def alloc002_collapse_record(
+    raw_target: dict[str, float],
+    compliant_target: dict[str, float],
+    fired: bool,
+) -> dict:
+    """Describe an ALLOC-002 pre-diff collapse in machine-readable form.
+
+    WHY THIS EXISTS (observability, not behaviour). The collapse replaces the
+    book the allocator actually proposed with a deterministic emergency book,
+    and until now the ONLY trace it left was one free-text note in
+    ``paper_trading_status.json`` whose two numbers were both
+    ``len(target_usd)`` — read AFTER the reassignment, so the note said
+    "7 protocols collapsed to 7 protocols" no matter how large the raw target
+    was. A reader could not tell a collapse from a normal cycle by any field,
+    could not see how many protocols were dropped, and no watchdog could either:
+    nothing in ``monitoring/`` or ``alerts/`` reads that note. This helper emits
+    the facts a cycle must not lose — how many went in, how many came out, WHICH
+    protocols fell out and which the emergency book opened instead.
+
+    Pure: no I/O, no capital, deterministic (sorted names), never raises.
+    Returns ``{"fired": False}`` when no collapse happened — a positive
+    statement of "the cycle ran normally", distinguishable from a missing field.
+    """
+    if not fired:
+        return {"fired": False}
+    raw = {str(k): float(v) for k, v in (raw_target or {}).items() if float(v) > 0}
+    new = {str(k): float(v) for k, v in (compliant_target or {}).items() if float(v) > 0}
+    return {
+        "fired": True,
+        # The collapse branch in ``_compliant_target`` is entered ONLY on a
+        # max_protocols (ALLOC-002 diversity floor) violation — other policy
+        # violations return the raw target untouched.
+        "trigger_rule": "max_protocols",
+        "raw_protocols": len(raw),
+        "compliant_protocols": len(new),
+        "dropped": sorted(set(raw) - set(new)),
+        "opened": sorted(set(new) - set(raw)),
+        "raw_deployed_usd": round(sum(raw.values()), 2),
+        "compliant_deployed_usd": round(sum(new.values()), 2),
+    }
+
+
 def _compliant_target(
     target_usd: dict[str, float],
     capital_usd: float,
