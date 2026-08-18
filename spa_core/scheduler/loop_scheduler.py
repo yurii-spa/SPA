@@ -340,15 +340,44 @@ def run_strategic_loop(
         ceo_decisions = _read_json(dd / "ceo_decisions.json", [])
         alpha_candidates = _read_json(dd / "alpha_candidates.json", {})
 
+        # Честность производителя обязана дожить до потребителя (#288).
+        # `alpha_agent` с цикла #283 кладёт в артефакт `candidates_measured`:
+        # False означает, что реестра кандидатов не существует и скан отработал
+        # вхолостую. Прежний `len(candidates or [])` этот флаг ВЫБРАСЫВАЛ, и
+        # стратегическая петля получала «кандидатов ноль» там, где верное
+        # чтение — «кандидатов никто не искал».
+        alpha_measured = True
+        alpha_reason = ""
+        alpha_count: int | None = 0
+        if isinstance(alpha_candidates, dict):
+            alpha_measured = bool(alpha_candidates.get("candidates_measured", True))
+            alpha_reason = str(alpha_candidates.get("candidates_reason") or "")
+            alpha_count = len(alpha_candidates.get("candidates") or [])
+        else:
+            alpha_measured = False
+            alpha_reason = (
+                f"alpha_candidates.json не объект ({type(alpha_candidates).__name__})"
+            )
+        if not alpha_measured:
+            # Числа нет — и подставлять вместо него ноль запрещено: ноль здесь
+            # неотличим от измеренного «кандидатов не нашли».
+            alpha_count = None
+            if not alpha_reason:
+                alpha_reason = "artefact не назвал причину, но замер не состоялся"
+            log.warning(
+                "кандидаты альфа-скана НЕ ИЗМЕРЕНЫ (%s) — счётчик оставлен пустым, "
+                "а не нулём", alpha_reason,
+            )
+
         doc = {
             "status": "ok",
             "week_start": week_start,
             "ts": ts,
             "equity_bars_analyzed": len(daily_bars),
             "ceo_decisions_count": len(ceo_decisions) if isinstance(ceo_decisions, list) else 0,
-            "alpha_candidates_count": len(
-                alpha_candidates.get("candidates") or []
-            ) if isinstance(alpha_candidates, dict) else 0,
+            "alpha_candidates_count": alpha_count,
+            "alpha_candidates_measured": alpha_measured,
+            "alpha_candidates_reason": alpha_reason,
             "notes": [],  # populated by calling layer with LLM strategic analysis
             "llm_used": True,
         }

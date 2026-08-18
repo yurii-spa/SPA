@@ -53,6 +53,7 @@ from spa_core.utils.atomic import atomic_save
 # агента (цикл #276). Здесь его только читают: пятое определение того же
 # множества и есть та авария, из-за которой это исправление понадобилось.
 from spa_core.agents.protocol_research_agent import known_protocols
+from spa_core.adapter_sdk.candidate_registry import read_candidate_registry
 
 log = logging.getLogger("spa.agents.alpha_agent")
 
@@ -576,38 +577,15 @@ def candidate_set(data_dir: str | os.PathLike | None = None) -> dict:
 
     Присутствующий реестр с пустым списком — ИЗМЕРЕННЫЙ ноль
     (``measured=True``, ``items=[]``), и это другое состояние.
+
+    **Тело переехало в :func:`spa_core.adapter_sdk.candidate_registry.read_candidate_registry`
+    (цикл #288).** Здесь оставлена только делегация: у реестра нашлись ЕЩЁ ДВА
+    читателя (``protocol_research_agent``, ``loop_scheduler``), и честность,
+    вылеченная #283 в одном модуле, до них не доживала. Две копии одной
+    проверки расходятся не «если», а «когда» — прецедент ``risk/tvl_floor.py``.
+    Форма ответа не изменилась ни на ключ.
     """
-    ddir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
-    path = ddir / "candidate_registry.json"
-
-    if not path.exists():
-        return {"items": [], "measured": False,
-                "reason": f"реестр кандидатов не найден ({path.name}) — "
-                          "discovery ни разу не отработал в этом дереве"}
-    try:
-        doc = json.loads(path.read_text(encoding="utf-8"))
-    except (ValueError, OSError) as exc:
-        return {"items": [], "measured": False,
-                "reason": f"реестр кандидатов нечитаем ({path.name}: {type(exc).__name__})"}
-
-    if isinstance(doc, list):
-        return {"items": [c for c in doc if isinstance(c, dict)],
-                "measured": True, "reason": ""}
-    if not isinstance(doc, dict):
-        return {"items": [], "measured": False,
-                "reason": (f"реестр кандидатов не объект и не список "
-                           f"({path.name}: {type(doc).__name__})")}
-
-    raw = doc.get("candidates")
-    if raw is None:
-        return {"items": [], "measured": False,
-                "reason": f"в реестре кандидатов нет ключа candidates ({path.name})"}
-    if not isinstance(raw, list):
-        return {"items": [], "measured": False,
-                "reason": (f"ключ candidates не список ({path.name}: "
-                           f"{type(raw).__name__})")}
-    return {"items": [c for c in raw if isinstance(c, dict)],
-            "measured": True, "reason": ""}
+    return read_candidate_registry(data_dir)
 
 
 def _load_candidates(data_dir: Path) -> list[dict]:

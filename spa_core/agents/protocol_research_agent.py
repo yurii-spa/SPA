@@ -37,6 +37,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
 from spa_core.utils.atomic import atomic_save
+from spa_core.adapter_sdk.candidate_registry import read_candidate_registry
 
 log = logging.getLogger("spa.agents.protocol_research_agent")
 
@@ -313,27 +314,33 @@ def _existing_protocol_ids() -> list[str]:
 # ─── Core public functions ────────────────────────────────────────────────────
 
 
-def fetch_defi_candidates(data_dir: Path) -> list[dict]:
-    """Read candidate_registry.json and return candidates not yet in active adapters.
+def candidate_set(data_dir: Path | str | None = None) -> dict:
+    """Кандидаты от discovery ВМЕСТЕ с честностью замера.
 
-    Reads from:
-      - data/candidate_registry.json → candidates from discovery
-      - spa_core/adapters/__init__.py + spa_core/adapter_sdk/manifests/ → known
+    Второй читатель реестра — и до цикла #288 тот, до кого честность,
+    добавленная #283 первому (``alpha_agent``), не доживала: здесь жило
+    «Fail-safe: missing files → empty list», то есть **отсутствующий реестр
+    приезжал неотличимо от измеренного нуля кандидатов**. Разница не
+    косметическая: пустой список означает «новых протоколов не нашли», и на
+    этом основании отчёт исследования пишет ``status: ok`` с
+    ``new_candidates_found: 0`` — отчёт о работе, которой не было.
 
-    Returns list of candidate dicts still NOT in active adapters.
-    Fail-safe: missing files → empty list.
+    Ключи — те же, что у
+    :func:`spa_core.adapter_sdk.candidate_registry.read_candidate_registry`
+    (``items`` / ``measured`` / ``reason``); само чтение живёт там, одним
+    определением на репо.
     """
-    data_dir = Path(data_dir)
-    doc = _read_json(data_dir / "candidate_registry.json", {})
-    if isinstance(doc, dict):
-        candidates = doc.get("candidates") or []
-    elif isinstance(doc, list):
-        candidates = doc
-    else:
-        candidates = []
+    return read_candidate_registry(data_dir)
 
-    raw: list[dict] = [c for c in candidates if isinstance(c, dict)]
-    return raw
+
+def fetch_defi_candidates(data_dir: Path) -> list[dict]:
+    """Совместимая обёртка над :func:`candidate_set`: отдаёт только список.
+
+    Здесь пустой список по-прежнему означает и «кандидатов ноль», и «реестр не
+    прочитан»; кто должен их различать, обязан звать :func:`candidate_set`.
+    Форма ответа сохранена намеренно — у функции есть внешние потребители.
+    """
+    return candidate_set(data_dir)["items"]
 
 
 def filter_new_protocols(candidates: list[dict], existing_adapters: list[str]) -> list[dict]:
@@ -531,8 +538,19 @@ def run_research_cycle(
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     try:
-        # Step 1: fetch candidates
-        all_candidates = fetch_defi_candidates(ddir)
+        # Step 1: fetch candidates ВМЕСТЕ с честностью замера.
+        # Реестра может не быть вовсе (в проде на 2026-08-18 его и нет: у
+        # discovery нет писателя ни в одном plist). Тогда «кандидатов ноль» —
+        # не результат поиска, а его отсутствие, и отчёт обязан сказать это
+        # словами, а не отчитаться `status: ok` о работе, которой не было.
+        candidates = candidate_set(ddir)
+        all_candidates = candidates["items"]
+        if not candidates["measured"]:
+            log.warning(
+                "реестр кандидатов НЕ ИЗМЕРЕН (%s) — «новых протоколов не найдено» "
+                "здесь означает «не искали», а не результат поиска",
+                candidates["reason"],
+            )
 
         # Step 2: filter out already-known protocols.
         # Множество известного берётся ВМЕСТЕ с честностью замера: если источник
@@ -600,6 +618,14 @@ def run_research_cycle(
             "whitelist_candidates_count": len(whitelist_candidates),
             "existing_adapters_skipped": len(existing),
             "total_candidates_in_registry": len(all_candidates),
+            # Честность замера САМОГО ВХОДА — машинно, не только в логе (#288).
+            # measured=False означает «не искали»; при нём соседние нули
+            # (`new_candidates_found`, `total_candidates_in_registry`) — не
+            # результат поиска, и читать их как результат нельзя.
+            "candidate_registry": {
+                "measured": candidates["measured"],
+                "reason": candidates["reason"],
+            },
             # Честность замера множества известного — машинно, не только в логе:
             # measured=False означает «фильтру верить нельзя», а не «всё чисто».
             "known_set": {
@@ -625,6 +651,11 @@ def run_research_cycle(
             "new_candidates": len(new_candidates),
             "top_protocol": top_protocol,
             "status": "ok",
+            # Возвращается вызывающему по той же причине, по какой лежит в
+            # артефакте: ноль выше читается по-разному в зависимости от этого
+            # флага, и потребитель обязан иметь возможность их различить (#288).
+            "candidates_measured": candidates["measured"],
+            "candidates_reason": candidates["reason"],
         }
 
     except Exception as exc:  # cycle must never raise
