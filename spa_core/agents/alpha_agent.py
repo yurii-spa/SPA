@@ -1,7 +1,9 @@
 """Alpha Agent — еженедельный скан кандидатов на whitelist (MP-304).
 
 ИСТОЧНИКИ:
-  data/candidate_registry.json — кандидаты от discovery (adapter_sdk/discovery.py)
+  data/candidate_registry.json — кандидаты от discovery (adapter_sdk/discovery.py);
+    нечитаемый/отсутствующий реестр = measured=False, а НЕ «кандидатов ноль»
+    (в проде файла НЕТ — см. candidates_measured в артефакте)
   канон покрытия — protocol_research_agent.known_protocols() (реестр адаптеров +
     манифесты SDK); отвечает на «это уже наше?»
   data/adapter_orchestrator_status.json — что оркестратор ОПРОСИЛ (другой вопрос,
@@ -19,7 +21,8 @@ score = взвешенная сумма (0-100):
   diversification_bonus: если протокол не пересекается с множеством покрытия → 15;
     при НЕ измеренном множестве покрытия → 0 (fail-CLOSED: «не смогли посмотреть»
     не оплачивается баллами в пользу дубля), основание видно в
-    diversification_basis
+    diversification_basis, а СИЛА совпадения — в diversification_match
+    (MATCH_EXACT / MATCH_TOKEN / MATCH_SUBSTR, цикл #283)
 
 risk_flags:
   "credit_risk" если "credit" в имени протокола
@@ -96,6 +99,15 @@ class AlphaScore:
     # "не измерено: <причина>" — множество покрытия не прочитано, бонус снят
     # fail-CLOSED. Без этого поля ложное совпадение по подстроке невидимо.
     diversification_basis: str = ""
+    # ВИД совпадения (цикл #283): "" — не совпало либо не измерено ·
+    # MATCH_EXACT — нормализованные имена совпали целиком ·
+    # MATCH_TOKEN — одно имя есть непрерывный ряд токенов другого
+    # (``aave_v3`` ⊂ ``aave_v3_base``) · MATCH_SUBSTR — совпало ТОЛЬКО как
+    # подстрока, границы токенов НЕ совпали (``frax`` ⊂ ``sfrax``).
+    # Замер на каноне (56 имён): из 17 пар 15 — MATCH_TOKEN, 2 — MATCH_SUBSTR;
+    # последний класс самый слабый. Отдельным полем, потому что basis отвечает
+    # «с чем совпало», а этот — «насколько этому совпадению можно верить».
+    diversification_match: str = ""
     rationale: str = ""
     risk_flags: list[str] = field(default_factory=list)
     suggested_tier: str = "candidate"       # always "candidate" — never T1/T2/T3
@@ -153,6 +165,82 @@ def _atomic_write_json(path: Path, obj: Any) -> None:
 def _norm(s: str) -> str:
     """Нормализация имени протокола: регистр, дефисы/пробелы → подчёркивания."""
     return str(s).strip().lower().replace("-", "_").replace(" ", "_")
+
+
+# ─── Сличение имён: КАК именно совпало ────────────────────────────────────────
+#
+# Сличение идёт подстрокой в обе стороны, и цикл #277, подняв множество канона
+# с 8 имён до 56, завёл карточку: «ложный отказ в бонусе стал в семь раз
+# вероятнее». Величину замерили (цикл #283, тест
+# ``test_alpha_name_matching.py``), и она оказалась не той, что ожидалась:
+#
+#   на каноне из 56 имён подстрока даёт 17 пар, из которых 15 совпадают и по
+#   ГРАНИЦАМ ТОКЕНОВ (``aave_v3`` ⊂ ``aave_v3_base``, ``susde`` ⊂
+#   ``ethena_susde``), и лишь 2 — только как подстрока (``frax`` ⊂ ``fraxlend``,
+#   ``frax`` ⊂ ``sfrax``). Обе «только подстрочные» пары — РОДНЯ по существу
+#   (Frax и его же продукты), то есть совпадение верное.
+#
+# Отсюда решение НЕ менять форму сличения (подробности и цена — в карточке
+# ``inbox-slichenie-imen-protokolov-podstrokoi-vyr`` и журнале W34): на
+# измеренном множестве переход к границам токенов ломает 2 ВЕРНЫХ совпадения и
+# не чинит ни одного ложного. Единственная ложная пара канона —
+# ``pendle_pt_susde`` ↔ ``susde`` (PT-токен Pendle на sUSDE ≠ сам sUSDE) — по
+# ФОРМЕ ИМЕНИ неотличима от верной ``ethena_susde`` ↔ ``susde``: обе суть
+# ``X_susde ⊃ susde``. Никакое синтаксическое правило их не разделит; разделяет
+# только личность пула (UUID) — это отдельная задача.
+#
+# Поэтому здесь не правило, а ВИДИМОСТЬ: вид совпадения кладётся в артефакт
+# рядом с именем, и самый слабый класс (``MATCH_SUBSTR``) можно отобрать
+# запросом, а не перечитыванием кода.
+
+MATCH_EXACT = "точное совпадение"
+MATCH_TOKEN = "граница токенов"
+MATCH_SUBSTR = "подстрока (границы токенов не совпали)"
+
+
+def _tokens(s: str) -> list[str]:
+    """Имя протокола → список токенов (``aave_v3`` → ``['aave', 'v3']``)."""
+    return [t for t in _norm(s).split("_") if t]
+
+
+def _token_run(short: list[str], long_: list[str]) -> bool:
+    """Является ли ``short`` непрерывным рядом токенов внутри ``long_``."""
+    n = len(short)
+    if not n or n > len(long_):
+        return False
+    return any(long_[i:i + n] == short for i in range(len(long_) - n + 1))
+
+
+def match_names(a: str, b: str) -> str:
+    """Как совпали два имени протокола: ``MATCH_*`` либо ``""`` (не совпали).
+
+    Порядок ответов — от сильного к слабому; критерий совпадения тот же, что и
+    был (подстрока в обе стороны), меняется только то, что вид совпадения
+    теперь НАЗЫВАЕТСЯ.
+    """
+    an, bn = _norm(a), _norm(b)
+    if not an or not bn:
+        return ""
+    if an == bn:
+        return MATCH_EXACT
+    if not (an in bn or bn in an):
+        return ""
+    ta, tb = _tokens(an), _tokens(bn)
+    short, long_ = (ta, tb) if len(ta) <= len(tb) else (tb, ta)
+    return MATCH_TOKEN if _token_run(short, long_) else MATCH_SUBSTR
+
+
+def coverage_match(protocol: str, names: Any) -> tuple[str, str]:
+    """Первое совпадение имени с множеством покрытия: ``(имя, вид)``.
+
+    Не совпало ни с чем → ``("", "")``. Порядок обхода — как задан вызывающим
+    (у :func:`coverage_set` он отсортирован), чтобы ответ был детерминирован.
+    """
+    for active in names or []:
+        kind = match_names(protocol, active)
+        if kind:
+            return str(active), kind
+    return "", ""
 
 
 def polled_protocols(data_dir: str | os.PathLike | None = None) -> dict:
@@ -280,31 +368,41 @@ def _score_tier_bonus(suggested_tier: str) -> int:
     return 10
 
 
-def _diversification(protocol: str, coverage: Any) -> tuple[int, str]:
-    """Бонус за диверсификацию (0–15) ВМЕСТЕ с основанием.
+def diversification(protocol: str, coverage: Any) -> tuple[int, str, str]:
+    """Бонус за диверсификацию (0–15), основание и ВИД совпадения.
 
     ``coverage`` — либо словарь замера (:func:`coverage_set`), либо готовый
     список имён (тогда он считается измеренным: множество задал сам вызывающий).
 
-    Возврат: ``(бонус, основание)``. Основание — "" (пересечений нет), имя из
-    множества покрытия (совпало) либо "не измерено: <причина>".
+    Возврат: ``(бонус, основание, вид)``. Основание — "" (пересечений нет), имя
+    из множества покрытия (совпало) либо "не измерено: <причина>". Вид — одна
+    из констант ``MATCH_*`` либо "" (не совпало / не измерено).
 
     При ``measured=False`` бонус НЕ начисляется: «не смогли посмотреть» не
     должно оплачиваться баллами в пользу дубля (fail-CLOSED).
     """
     if isinstance(coverage, dict):
         if not coverage.get("measured", False):
-            return 0, "не измерено: " + (coverage.get("reason") or "причина не названа")
+            reason = coverage.get("reason") or "причина не названа"
+            return 0, "не измерено: " + reason, ""
         names = coverage.get("ids") or []
     else:
         names = coverage or []
 
-    prot_n = _norm(protocol)
-    for active in names:
-        active_n = _norm(active)
-        if prot_n and active_n and (prot_n in active_n or active_n in prot_n):
-            return 0, str(active)
-    return 15, ""
+    matched, kind = coverage_match(protocol, names)
+    if matched:
+        return 0, matched, kind
+    return 15, "", ""
+
+
+def _diversification(protocol: str, coverage: Any) -> tuple[int, str]:
+    """Совместимая обёртка над :func:`diversification`: бонус и основание.
+
+    Вид совпадения (``MATCH_*``) здесь теряется — кому он нужен, зовёт
+    :func:`diversification`.
+    """
+    bonus, basis, _kind = diversification(protocol, coverage)
+    return bonus, basis
 
 
 def _score_diversification(protocol: str, active_protocols: list[str]) -> int:
@@ -424,7 +522,7 @@ def score_candidate(candidate: dict, active_protocols: Any) -> AlphaScore:
     apy_score = _score_apy(apy_pct)
     exit_score = _score_exit(exit_latency_hours)
     tier_bonus = _score_tier_bonus(raw_tier)
-    div_bonus, div_basis = _diversification(protocol, active_protocols)
+    div_bonus, div_basis, div_match = diversification(protocol, active_protocols)
 
     total = tvl_score + apy_score + exit_score + tier_bonus + div_bonus
     # Clamp to 0–100
@@ -442,6 +540,7 @@ def score_candidate(candidate: dict, active_protocols: Any) -> AlphaScore:
         tier_bonus=tier_bonus,
         diversification_bonus=div_bonus,
         diversification_basis=div_basis,
+        diversification_match=div_match,
         risk_flags=risk_flags,
         suggested_tier="candidate",  # always candidate — never promote directly
         tvl_usd=tvl_usd,
@@ -457,15 +556,67 @@ def score_candidate(candidate: dict, active_protocols: Any) -> AlphaScore:
 # ─── Data loading helpers ──────────────────────────────────────────────────────
 
 
-def _load_candidates(data_dir: Path) -> list[dict]:
-    """Load candidate_registry.json → list of candidate dicts. Fail-safe."""
-    doc = _read_json(data_dir / "candidate_registry.json", {})
-    if isinstance(doc, dict):
-        candidates = doc.get("candidates") or []
-        return [c for c in candidates if isinstance(c, dict)]
+def candidate_set(data_dir: str | os.PathLike | None = None) -> dict:
+    """Кандидаты от discovery ВМЕСТЕ с честностью замера.
+
+    Пятая прядь той же ниточки, что #276 (активные адаптеры) и #277 (множество
+    покрытия): у обоих множеств «не смогли посмотреть» уже отделено от
+    измеренного нуля, а у САМИХ КАНДИДАТОВ — нет. Между тем в проде
+    ``data/candidate_registry.json`` не существует вовсе (discovery запускают
+    вручную), и артефакт ``alpha_candidates.json`` печатает ``"candidates": []``
+    — то есть «посмотрели и не нашли ничего достойного», хотя верное чтение
+    «мы не смотрели ни разу». Читатель отличить это не может ничем.
+
+    Ключи
+    -----
+    ``items``    — список кандидатов-словарей;
+    ``measured`` — False, если реестр не прочитан (нет файла / нечитаем /
+                   не та форма). Это НЕ «кандидатов ноль»;
+    ``reason``   — почему не измерен, словами (пусто при ``measured=True``).
+
+    Присутствующий реестр с пустым списком — ИЗМЕРЕННЫЙ ноль
+    (``measured=True``, ``items=[]``), и это другое состояние.
+    """
+    ddir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
+    path = ddir / "candidate_registry.json"
+
+    if not path.exists():
+        return {"items": [], "measured": False,
+                "reason": f"реестр кандидатов не найден ({path.name}) — "
+                          "discovery ни разу не отработал в этом дереве"}
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (ValueError, OSError) as exc:
+        return {"items": [], "measured": False,
+                "reason": f"реестр кандидатов нечитаем ({path.name}: {type(exc).__name__})"}
+
     if isinstance(doc, list):
-        return [c for c in doc if isinstance(c, dict)]
-    return []
+        return {"items": [c for c in doc if isinstance(c, dict)],
+                "measured": True, "reason": ""}
+    if not isinstance(doc, dict):
+        return {"items": [], "measured": False,
+                "reason": (f"реестр кандидатов не объект и не список "
+                           f"({path.name}: {type(doc).__name__})")}
+
+    raw = doc.get("candidates")
+    if raw is None:
+        return {"items": [], "measured": False,
+                "reason": f"в реестре кандидатов нет ключа candidates ({path.name})"}
+    if not isinstance(raw, list):
+        return {"items": [], "measured": False,
+                "reason": (f"ключ candidates не список ({path.name}: "
+                           f"{type(raw).__name__})")}
+    return {"items": [c for c in raw if isinstance(c, dict)],
+            "measured": True, "reason": ""}
+
+
+def _load_candidates(data_dir: Path) -> list[dict]:
+    """Совместимая обёртка над :func:`candidate_set`: отдаёт только список.
+
+    Здесь пустой список по-прежнему означает и «кандидатов ноль», и «реестр не
+    прочитан»; кто должен их различать, обязан звать :func:`candidate_set`.
+    """
+    return candidate_set(data_dir)["items"]
 
 
 def _load_active_protocols(data_dir: Path) -> list[str]:
@@ -503,7 +654,8 @@ def run_alpha_scan(
     """
     ddir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
 
-    candidates_raw = _load_candidates(ddir)
+    candidates = candidate_set(ddir)
+    candidates_raw = candidates["items"]
     coverage = coverage_set(ddir)
 
     scored: list[AlphaScore] = []
@@ -523,6 +675,11 @@ def run_alpha_scan(
             "множество покрытия НЕ измерено (%s) — бонус за диверсификацию не "
             "начисляется никому (fail-CLOSED)", coverage["reason"],
         )
+    if not candidates["measured"]:
+        log.warning(
+            "реестр кандидатов НЕ измерен (%s) — пустой список НЕ означает "
+            "«кандидатов нет»", candidates["reason"],
+        )
 
     now_ts = datetime.now(timezone.utc).isoformat()
     doc: dict = {
@@ -541,6 +698,11 @@ def run_alpha_scan(
             "отвечает coverage.ids (канон покрытия), а не это поле"
         ),
         "coverage": coverage,
+        # Честность замера САМИХ кандидатов (цикл #283). Без этих двух полей
+        # `"candidates": []` читается как «посмотрели, ничего не нашли», тогда
+        # как в проде реестра нет вовсе и верное чтение — «не смотрели».
+        "candidates_measured": candidates["measured"],
+        "candidates_reason": candidates["reason"],
         "note": (
             "candidates require ADR/human review before whitelisting — "
             "do not auto-promote"
