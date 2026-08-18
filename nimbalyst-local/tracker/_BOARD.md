@@ -2,13 +2,14 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-18T18:49:12Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-18T19:01:02Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **521** · ждёт владельца: **14** · занято сессиями: **3**.
+> Всего карточек: **523** · ждёт владельца: **15** · занято сессиями: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Аварийная книга раздаёт деньги мимо проверок свежести — цена закрытия дыры $75.9K в кэш** · _high_  ·  `own-2026-08-18-avariinaya-kniga-idet-mimo-geitov-svezhesti.md`
+- **Потолок концентрации не видит общего куратора — половина книги может лечь под одну команду** · _medium_  ·  `own-2026-08-18-potolok-ne-vidit-obshchego-kuratora.md`
 - **Подборщик раскладки И САМ АЛЛОКАТОР не знают про потолки по сетям — предлагают то, что гейт заворачивает** · _medium_  ·  `own-2026-08-18-tyuner-ne-znaet-o-setevykh-potolkakh.md`
 - **У ребалансера свой запас строже политики — оставляем или снимаем** · _medium_  ·  `own-2026-08-18-zapas-rebalansera-strozhe-politiki.md`
 - **Автопочинщик кода остался без вызывающих: убрать совсем или оставить лежать**  ·  `own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih.md`
@@ -31,10 +32,11 @@
 - **а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…** — держит `pid43119` · с 2026-08-14T11:52:34Z  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md`
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (130)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (131)
 
 ### · needs-owner
 - Аварийная книга раздаёт деньги мимо проверок свежести — цена закрытия дыры $75.9K в кэш  ·  `own-2026-08-18-avariinaya-kniga-idet-mimo-geitov-svezhesti.md` · 2026-08-18
+- Потолок концентрации не видит общего куратора — половина книги может лечь под одну команду  ·  `own-2026-08-18-potolok-ne-vidit-obshchego-kuratora.md` · 2026-08-18
 - Подборщик раскладки И САМ АЛЛОКАТОР не знают про потолки по сетям — предлагают то, что гейт заворачивает  ·  `own-2026-08-18-tyuner-ne-znaet-o-setevykh-potolkakh.md` · 2026-08-18
 - У ребалансера свой запас строже политики — оставляем или снимаем  ·  `own-2026-08-18-zapas-rebalansera-strozhe-politiki.md` · 2026-08-18
 - Автопочинщик кода остался без вызывающих: убрать совсем или оставить лежать  ·  `own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih.md` · 2026-08-17
@@ -515,10 +517,12 @@
 - Упоминание карточки в тексте объявления запирает её НАВСЕГДА — шаг 0b отвечает «не измерено» и после старения  ·  `agent-weak-mention-locks-card-forever.md` · 2026-07-31
 - Q11: разбор ветки yield-lab  ·  `agent-yield-lab-branch.md` · 2026-07-16
 
-## agent  (58)
+## agent  (59)
 
 ### · blocked
 - Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать  ·  `agent-fleet-parity-guard-never-scheduled.md` · 2026-08-05 · 🔒 `cycle-28258`
+- Завести производителя gsm_hours (on-chain GSM Pause Delay) — чтобы GSM-гейт перестал быть вечным замком  ·  `agent-gsm-hours-producer.md` · 2026-08-02
+- Кэп на протокол не видит общего куратора — Steakhouse держится и на Ethereum, и на Base  ·  `agent-morpho-curator-concentration.md` · 2026-08-05
 - Аварийный портфель обходит гейты адаптеров — финансирует spark_susds, который запрещён инвариантом 10  ·  `agent-safe-fallback-bypasses-adapter-gates.md` · 2026-08-02
 - spark_susds наблюдает чужой инструмент (sparklend lending vs sUSDS vault) — развести идентичности до допуска Sky  ·  `agent-spark-susds-identity-split.md` · 2026-08-05
 ### · in-progress
@@ -535,11 +539,10 @@
 - Свежая полная инвентаризация флота (73 агента) — что делает / жив ли / нужен ли / расход  ·  `agent-fleet-inventory-73.md` · 2026-07-23
 - Fluid гейтится по чужому параметру — нужен собственный таймлок, а не задержка Maker  ·  `agent-fluid-timelock-source.md` · 2026-08-05
 - GO-LIVE — внутридневной контроль просадки (частый, не раз в сутки)  ·  `agent-golive-intraday-drawdown-monitor.md` · 2026-07-23
-- Завести производителя gsm_hours (on-chain GSM Pause Delay) — чтобы GSM-гейт перестал быть вечным замком  ·  `agent-gsm-hours-producer.md` · 2026-08-02
 - Построить слой инвест-агентов «Head of Investment» (кураторы тиров + капитал-по-тирам + максимизаторы + решающий)  ·  `agent-head-of-investment-layer.md` · 2026-07-23
-- Кэп на протокол не видит общего куратора — Steakhouse держится и на Ethereum, и на Base  ·  `agent-morpho-curator-concentration.md` · 2026-08-05
 - ПРОДОЛЖИТЬ ОТСЮДА — дорожная карта по приоритету (сессия может оборваться, работа не должна)  ·  `agent-roadmap-continue-here.md` · 2026-08-05
 - Числа на сайте и обход owner-гейта — одна причина, чинить вместе (СТАРТ после утреннего апдейта)  ·  `agent-site-numbers-and-gate.md` · 2026-08-06
+- Потолок «T2 суммарно ≤ 50 %» не перепроверяется на уровне портфеля — 60 % в T2 проходит с нулём нарушений  ·  `agent-t2-total-cap-ne-proveryaetsya-na-portfele.md` · 2026-08-18
 - Тесты ходят в живую сеть (Telegram + аналитика) — полный набор не проходит целиком, когда сеть медленная  ·  `agent-tests-do-live-network-io.md` · 2026-08-02
 - 222 теста дёргают живой фид — 9 268 отказов за прогон; набор зелёный по неверной причине  ·  `agent-tests-reach-live-feed-222.md` · 2026-08-08
 - Сделать турнир стратегий ДОВЕРЯЕМЫМ — ранжировать по net-of-cost APY на реальных исторических данных (не Sharpe на mock)  ·  `agent-tournament-trustworthy-real-apy.md` · 2026-07-23

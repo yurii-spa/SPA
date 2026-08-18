@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent
 title: Завести производителя gsm_hours (on-chain GSM Pause Delay) — чтобы GSM-гейт перестал быть вечным замком
-status: backlog
+status: blocked
 source: owner-decision-2026-08-02 (вариант 1 — собирать данные)
 created: 2026-08-02
 priority: medium
@@ -36,3 +36,27 @@ domain: adapters / инвариант 10
 
 Обновить ADR-061 §Последствия (пункт про «вечный замок» снимается) и вернуть оба протокола в
 рассмотрение аллокатором на общих основаниях.
+
+---
+
+## Замер 2026-08-18 — что уже есть, что починено, что осталось владельцу
+
+**Производитель существует и установлен.** `spa_core/data_pipeline/sky_monitor.py` (CLI `main()`,
+launchd `com.spa.sky_monitor`, расписание 07:00, `scripts/agent_sky_monitor.sh`); в
+`data/agent_registry.json` — `loaded: true, last_exit: 0`. Кворум 2 независимых RPC, расхождение
+ответов = отказ (не большинство), `User-Agent: SPA-Monitor/2.0` присутствует — причина аварии
+2026-08-05 закрыта. Раздача — `_merge_gsm_hours` (`adapter_status_generator.py`), только
+`spark_susds`; потребитель `status_reader.gsm_confirmed` (окно 168 ч, `now` — вход).
+
+**Найдено и починено (fail-OPEN):** ноль от RPC отбрасывался тем же `continue`, что и молчание
+эндпоинта. Три эндпоинта, сообщающие «таймлок снят» (`0x0`), исчезали ДО проверки расхождения, и
+два отстающих открывали гейт на 48 ч. Теперь ноль — наблюдение: проходит кворум и расхождение,
+ниже порога закрывает гейт как НАБЛЮДЕНИЕ, а не как отсутствие. Плюс инвариант 5: запись
+`sky_status.json` / `sky_upgrade_needed.json` переведена на `atomic_save`. Разбор — журнал
+`docs/journal/2026-W34.md` (2026-08-18).
+
+**Осталось действием владельца (правило доставки п. 6):** в дереве НЕТ `data/sky_status.json`, а в
+`data/adapter_status.json` от 17.08 у `spark_susds` нет ни одного `gsm_*` поля — наблюдения сейчас
+нет, гейт закрыт. Нужно на Mac Mini: доставить изменённые файлы, прогнать
+`python3 -m spa_core.data_pipeline.sky_monitor` (сеть есть только там) и убедиться, что
+`data/sky_status.json` содержит `source: "onchain"` и свежий `last_checked`.
