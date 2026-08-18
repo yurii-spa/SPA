@@ -522,3 +522,140 @@ def test_run_cycle_returns_dict_always(tmp_path):
     result = run_research_cycle(data_dir=tmp_path)
     assert isinstance(result, dict)
     assert "status" in result
+
+
+# ─── ACTIVE-ADAPTER SET: shape-tolerant reading + fail-CLOSED ────────────────
+#
+# Positive control for cycle #274: the previous reader required a "{" on the
+# ADAPTER_REGISTRY assignment line while the file says "ADAPTER_REGISTRY = [",
+# so it silently reported ZERO active adapters.  Result was fail-OPEN: 26 of
+# the 36 protocols we already cover came back as fresh research candidates
+# (the 10 others happened to be matched by a manifest filename).
+# Every test below reds if the reader goes back to matching a SHAPE.
+
+from spa_core.agents.protocol_research_agent import (  # noqa: E402
+    _read_active_adapters_from_init,
+)
+
+_LIST_FORM = '''
+ADAPTER_REGISTRY = [
+    ("aave_v3", "T1", AaveV3Adapter),
+    ("compound_v3", "T1", CompoundV3Adapter),
+]
+if _BASE_AVAILABLE:
+    ADAPTER_REGISTRY.append(("aave_v3_base", "T2", AaveV3BaseAdapter))
+'''
+
+_DICT_FORM = '''
+ADAPTER_REGISTRY = {
+    "aave_v3": AaveV3Adapter,
+    "compound_v3": CompoundV3Adapter,
+}
+'''
+
+
+def test_active_adapters_real_tree_contains_aave_v3():
+    """The live tree must yield a NON-EMPTY set containing the book's largest position."""
+    keys = _read_active_adapters_from_init()
+    assert keys is not None, "active adapters unreadable in this tree"
+    assert "aave_v3" in keys, keys
+    assert len(keys) >= 30, f"only {len(keys)} adapters read — reader lost entries"
+
+
+def test_active_adapters_matches_canonical_registry_exactly():
+    """The AST reader must see the SAME set the runtime registry holds (36)."""
+    from spa_core.adapters import ADAPTER_REGISTRY as RUNTIME
+
+    runtime_keys = {e[0] if isinstance(e, (tuple, list)) else e for e in RUNTIME}
+    keys = set(_read_active_adapters_from_init() or [])
+    assert keys == runtime_keys, {
+        "missing_from_reader": sorted(runtime_keys - keys),
+        "extra_in_reader": sorted(keys - runtime_keys),
+    }
+
+
+def test_active_adapters_list_form_parsed(tmp_path):
+    """List-of-tuples form (today's file) parses — including conditional appends."""
+    f = tmp_path / "init_list.py"
+    f.write_text(_LIST_FORM, encoding="utf-8")
+    keys = _read_active_adapters_from_init(f)
+    assert keys == ["aave_v3", "aave_v3_base", "compound_v3"], keys
+
+
+def test_active_adapters_dict_form_parsed(tmp_path):
+    """Dict form (the shape the old regex assumed) must still parse."""
+    f = tmp_path / "init_dict.py"
+    f.write_text(_DICT_FORM, encoding="utf-8")
+    keys = _read_active_adapters_from_init(f)
+    assert keys == ["aave_v3", "compound_v3"], keys
+
+
+def test_active_adapters_empty_file_is_not_measured(tmp_path):
+    """A parsed file with no registry is NOT MEASURED (None), never 'zero adapters'."""
+    f = tmp_path / "init_empty.py"
+    f.write_text("X = 1\n", encoding="utf-8")
+    assert _read_active_adapters_from_init(f) is None
+
+
+def test_active_adapters_unparsable_file_is_not_measured(tmp_path):
+    f = tmp_path / "init_broken.py"
+    f.write_text("ADAPTER_REGISTRY = [ (\n", encoding="utf-8")
+    assert _read_active_adapters_from_init(f) is None
+
+
+def test_active_adapters_missing_file_is_not_measured(tmp_path):
+    assert _read_active_adapters_from_init(tmp_path / "nope.py") is None
+
+
+def test_existing_protocol_ids_reports_measured_flag():
+    ids, measured = _existing_protocol_ids()
+    assert measured is True
+    assert "aave_v3" in ids
+
+
+# ─── Two-way positive control on what the researcher publishes ───────────────
+
+
+def test_candidate_we_already_cover_is_not_offered_as_new(tmp_path):
+    """DIRECTION 1 (talkative): a protocol whose adapter we HAVE must not be published.
+
+    Reds if the active-adapter reader returns [] again — aave_v3 has no manifest
+    file, so the only thing keeping it out of the research output is the registry.
+    """
+    _write_registry(tmp_path, [_make_candidate(protocol_id="aave_v3", name="Aave V3")])
+    result = run_research_cycle(data_dir=tmp_path)
+    assert result["status"] == "ok"
+    doc = json.loads((tmp_path / "protocol_research.json").read_text())
+    published = {p["protocol_id"] for p in doc["protocols"]}
+    assert "aave_v3" not in published, published
+    assert result["new_candidates"] == 0
+
+
+def test_genuinely_new_candidate_still_reaches_research(tmp_path):
+    """DIRECTION 2 (blind): a protocol we do NOT cover must still be researched.
+
+    Reds if the known-set is ever widened into over-filtering.
+    """
+    pid = "zzz_novel_protocol_x9"
+    _write_registry(tmp_path, [_make_candidate(protocol_id=pid, name="ZZZ Novel Protocol X9")])
+    result = run_research_cycle(data_dir=tmp_path)
+    doc = json.loads((tmp_path / "protocol_research.json").read_text())
+    published = {p["protocol_id"] for p in doc["protocols"]}
+    assert pid in published, published
+    assert result["new_candidates"] == 1
+
+
+def test_cycle_refuses_when_active_adapters_not_measured(tmp_path, monkeypatch):
+    """Unreadable registry ⇒ REFUSE, not 'everything is new' (fail-CLOSED)."""
+    import spa_core.agents.protocol_research_agent as mod
+
+    monkeypatch.setattr(mod, "_read_active_adapters_from_init", lambda *a, **k: None)
+    _write_registry(tmp_path, [_make_candidate(protocol_id="zzz_novel_protocol_x9")])
+    result = run_research_cycle(data_dir=tmp_path)
+    assert result["status"].startswith("refused:"), result["status"]
+    assert result["researched_count"] == 0
+    status = json.loads((tmp_path / "protocol_research_status.json").read_text())
+    assert status["measured"] is False
+    doc = json.loads((tmp_path / "protocol_research.json").read_text())
+    assert doc["protocols"] == []
+    assert doc["measured"] is False

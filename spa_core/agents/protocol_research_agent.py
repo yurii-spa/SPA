@@ -29,6 +29,7 @@ Stdlib only. Atomic writes (tmpfile + os.replace). No imports from execution/ris
 """
 from __future__ import annotations
 
+import ast
 import json
 import logging
 import os
@@ -91,35 +92,110 @@ def _normalise(name: str) -> str:
 # ─── Active adapters discovery ────────────────────────────────────────────────
 
 
-def _read_active_adapters_from_init() -> list[str]:
-    """Parse ADAPTER_REGISTRY from spa_core/adapters/__init__.py (text scan).
+def _keys_from_registry_node(node: "ast.AST") -> list[str]:
+    """Protocol keys out of ONE registry-shaped literal node (shape-tolerant).
 
-    Returns list of protocol id strings. Fail-safe: any parse error → [].
-    This avoids importing the adapters module (possible network/side-effects).
+    Handles all three shapes the tree has historically used:
+      * list/tuple of tuples  → first element of each entry (``("aave_v3", "T1", Cls)``)
+      * list/tuple of strings → the string itself
+      * dict                  → its string keys
+    Anything else contributes nothing (never raises).
     """
-    if not _ADAPTERS_INIT.exists():
-        return []
+    keys: list[str] = []
+    if isinstance(node, ast.Dict):
+        for k in node.keys:
+            if isinstance(k, ast.Constant) and isinstance(k.value, str):
+                keys.append(k.value)
+        return keys
+    if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+        for elt in node.elts:
+            if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
+                keys.append(elt.value)
+            elif isinstance(elt, (ast.Tuple, ast.List)) and elt.elts:
+                first = elt.elts[0]
+                if isinstance(first, ast.Constant) and isinstance(first.value, str):
+                    keys.append(first.value)
+    return keys
+
+
+def _read_active_adapters_from_init(path: Optional[Path] = None) -> Optional[list[str]]:
+    """Protocol keys of the ACTIVE adapter registry, read by AST (no import).
+
+    SET CHOICE IS DELIBERATE — the same choice `governance_watcher.
+    whitelisted_protocol_keys` documents: the canonical ``ADAPTER_REGISTRY``
+    of ``spa_core/adapters/__init__.py`` (36 entries, list of tuples, largest
+    book position keyed ``aave_v3``).  This is the set that answers the
+    researcher's question "which protocols do we already cover".
+    NOT ``spa_core.adapters.registry.ADAPTER_METADATA`` (22, dict — it has no
+    ``aave_v3`` at all, it is ``aave_usdc`` there) and NOT
+    ``adapter_orchestrator.POLLED_ADAPTERS`` (8, what the cycle actually polls):
+    reading either of those would hand back protocols we do cover as fresh
+    research candidates.
+
+    Read by AST, not by a regex written for one SHAPE: the previous scan
+    required a ``{`` on the assignment line, the file says ``ADAPTER_REGISTRY = [``,
+    so it matched nothing and reported zero active adapters (cycle #274).
+    The AST walk also picks up the conditional ``ADAPTER_REGISTRY.append(...)``
+    entries (chain adapters registered behind availability flags) — they are
+    covered protocols too.
+
+    Returns ``None`` when the set could NOT be measured (file missing,
+    unparsable, or no key found).  Callers MUST treat ``None`` as *not
+    measured* — never as "we cover nothing", which is exactly the fail-OPEN
+    that let 26 of 36 already-covered protocols come back as new candidates.
+    Never raises.
+    """
+    src = Path(path) if path is not None else _ADAPTERS_INIT
+    if not src.exists():
+        log.warning(
+            "active adapters NOT MEASURED: %s missing (not the same as zero adapters)",
+            src,
+        )
+        return None
     try:
-        text = _ADAPTERS_INIT.read_text(encoding="utf-8")
-        protocols: list[str] = []
-        # Look for ADAPTER_REGISTRY = { ... }; grab string keys
-        in_registry = False
-        for line in text.splitlines():
-            stripped = line.strip()
-            if "ADAPTER_REGISTRY" in stripped and "=" in stripped and "{" in stripped:
-                in_registry = True
-            if in_registry:
-                # Match lines like: "aave_v3": ... or 'compound_v3': ...
-                import re
-                m = re.search(r'["\']([a-zA-Z0-9_\-]+)["\']\s*:', stripped)
-                if m:
-                    protocols.append(m.group(1))
-                if "}" in stripped and in_registry:
-                    break
-        return protocols
-    except Exception as exc:
-        log.warning("_read_active_adapters_from_init failed (%s)", exc)
-        return []
+        tree = ast.parse(src.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError, ValueError) as exc:
+        log.warning(
+            "active adapters NOT MEASURED: %s unparsable (%s) — not zero adapters",
+            src.name,
+            exc,
+        )
+        return None
+
+    keys: list[str] = []
+    for node in ast.walk(tree):
+        # ADAPTER_REGISTRY = <literal>  /  ADAPTER_REGISTRY: X = <literal>
+        targets: list[ast.AST] = []
+        if isinstance(node, ast.Assign):
+            targets = list(node.targets)
+        elif isinstance(node, ast.AnnAssign):
+            targets = [node.target]
+        if targets and node.value is not None:
+            named = any(
+                isinstance(t, ast.Name) and t.id == "ADAPTER_REGISTRY" for t in targets
+            )
+            if named:
+                keys.extend(_keys_from_registry_node(node.value))
+        # ADAPTER_REGISTRY.append((...)) — conditional chain registrations
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr in ("append", "add")
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "ADAPTER_REGISTRY"
+            and node.args
+        ):
+            keys.extend(_keys_from_registry_node(ast.List(elts=[node.args[0]])))
+
+    keys = sorted({k for k in keys if k})
+    if not keys:
+        log.warning(
+            "active adapters NOT MEASURED: %s parsed but no ADAPTER_REGISTRY keys found "
+            "(shape changed?) — this is NOT 'zero active adapters'",
+            src.name,
+        )
+        return None
+    return keys
 
 
 def _read_manifest_protocols() -> list[str]:
@@ -141,10 +217,17 @@ def _read_manifest_protocols() -> list[str]:
         return []
 
 
-def _existing_protocol_ids() -> list[str]:
-    """Combined list of protocol ids already covered (adapters + manifests)."""
-    ids = _read_active_adapters_from_init() + _read_manifest_protocols()
-    return list({_normalise(i) for i in ids})
+def _existing_protocol_ids() -> tuple[list[str], bool]:
+    """Protocol ids already covered (active adapters + manifests).
+
+    Returns ``(normalised_ids, adapters_measured)``.  ``adapters_measured`` is
+    ``False`` when the active-adapter registry could not be read — the caller
+    MUST refuse rather than publish candidates against a knowledge set that is
+    silently missing 36 protocols (fail-CLOSED, invariant #2).
+    """
+    active = _read_active_adapters_from_init()
+    ids = list(active or []) + _read_manifest_protocols()
+    return sorted({_normalise(i) for i in ids}), active is not None
 
 
 # ─── Core public functions ────────────────────────────────────────────────────
@@ -371,8 +454,52 @@ def run_research_cycle(
         # Step 1: fetch candidates
         all_candidates = fetch_defi_candidates(ddir)
 
-        # Step 2: filter out already-known protocols
-        existing = _existing_protocol_ids()
+        # Step 2: filter out already-known protocols.
+        # Fail-CLOSED: if the active-adapter set is NOT MEASURED, every covered
+        # protocol would be published as a fresh candidate — refuse instead.
+        existing, adapters_measured = _existing_protocol_ids()
+        if not adapters_measured:
+            reason = "refused: active adapters NOT MEASURED (ADAPTER_REGISTRY unreadable)"
+            log.warning(
+                "Protocol research REFUSED — %s; no candidates published this cycle",
+                reason,
+            )
+            refused_status: dict = {
+                "generated_at": now_ts,
+                "cycle_date": today,
+                "status": reason,
+                "measured": False,
+                "researched_count": 0,
+                "new_candidates_found": 0,
+                "top_protocol": None,
+                "whitelist_candidates_count": 0,
+                "existing_adapters_skipped": None,
+                "total_candidates_in_registry": len(all_candidates),
+            }
+            try:
+                _atomic_write_json(ddir / RESEARCH_FILENAME, {
+                    "generated_at": now_ts,
+                    "cycle_date": today,
+                    "measured": False,
+                    "researched_count": 0,
+                    "protocols": [],
+                    "add_to_whitelist_candidates": [],
+                    "monitor_list": [],
+                    "skip_list": [],
+                    "reason": reason,
+                })
+            except Exception as exc:
+                log.warning("protocol_research.json write failed (%s)", exc)
+            try:
+                _atomic_write_json(ddir / RESEARCH_STATUS_FILENAME, refused_status)
+            except Exception as exc:
+                log.warning("protocol_research_status.json write failed (%s)", exc)
+            return {
+                "researched_count": 0,
+                "new_candidates": 0,
+                "top_protocol": None,
+                "status": reason,
+            }
         new_candidates = filter_new_protocols(all_candidates, existing)
 
         # Step 3: research each candidate
@@ -405,6 +532,7 @@ def run_research_cycle(
         research_doc: dict = {
             "generated_at": now_ts,
             "cycle_date": today,
+            "measured": True,
             "researched_count": len(researched),
             "protocols": top,
             "add_to_whitelist_candidates": whitelist_candidates,
@@ -421,6 +549,7 @@ def run_research_cycle(
             "generated_at": now_ts,
             "cycle_date": today,
             "status": "ok",
+            "measured": True,
             "researched_count": len(researched),
             "new_candidates_found": len(new_candidates),
             "top_protocol": top_protocol,
