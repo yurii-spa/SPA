@@ -258,3 +258,60 @@ def test_normalizer_strips_only_bookkeeping_keys():
     nested = BASE_CARD.replace("  type: agent-task", "  type: inbox")
     assert delivery_gate.normalized_card(BASE_CARD) != \
         delivery_gate.normalized_card(nested), "вложенные ключи исключать нельзя"
+
+
+# ── ref доставки: «куда пушит ЭТА ветка», а не всегда origin/main ─────────────
+
+
+def test_delivery_ref_follows_the_branch_this_session_pushes_to(tmp_path):
+    """Положительный контроль аварии, найденной СРАЗУ после доставки гейта.
+
+    Гейт сверял с жёстким `origin/main`. Облачная сессия работает на ветке
+    (`claude/work-*`), которая на момент замера была на 88 коммитов ВПЕРЕДИ
+    `origin/main` — то есть вся её доставленная работа выглядела бы недоставленной,
+    и гейт отказал бы в КАЖДОМ закрытии. Сторож, мешающий по делу, выключают люди;
+    этот урок в репозитории записан дважды.
+
+    Порядок: явный `SPA_DELIVERY_REF` → upstream ветки → `origin/main`.
+    """
+    import os
+    import subprocess
+
+    from spa_core.owner_queue.delivery_gate import DEFAULT_REF, delivery_ref
+
+    def git(*args, cwd):
+        subprocess.run(["git", *args], cwd=str(cwd), check=True,
+                       capture_output=True, text=True)
+
+    origin = tmp_path / "origin.git"
+    origin.mkdir()
+    git("init", "--bare", "-b", "main", cwd=origin)
+
+    work = tmp_path / "work"
+    work.mkdir()
+    git("init", "-b", "main", cwd=work)
+    git("config", "user.email", "t@t", cwd=work)
+    git("config", "user.name", "t", cwd=work)
+    (work / "f.txt").write_text("x", encoding="utf-8")
+    git("add", "-A", cwd=work)
+    git("commit", "-m", "init", cwd=work)
+    git("remote", "add", "origin", str(origin), cwd=work)
+    git("push", "-u", "origin", "main", cwd=work)
+
+    # Без upstream-ветки и без переменной — прежнее поведение сохранено.
+    assert delivery_ref(work) == "origin/main" == DEFAULT_REF
+
+    # Своя ветка со своим upstream — ref идёт за НЕЙ, а не за main.
+    git("checkout", "-b", "feature", cwd=work)
+    git("push", "-u", "origin", "feature", cwd=work)
+    assert delivery_ref(work) == "origin/feature", (
+        "гейт сверяет с origin/main, а сессия пушит в свою ветку — "
+        "он отказал бы в каждом закрытии"
+    )
+
+    # Явное решение вызывающего сильнее обоих.
+    os.environ["SPA_DELIVERY_REF"] = "origin/release"
+    try:
+        assert delivery_ref(work) == "origin/release"
+    finally:
+        del os.environ["SPA_DELIVERY_REF"]

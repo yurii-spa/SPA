@@ -64,6 +64,7 @@ LLM_FORBIDDEN. Только stdlib.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from pathlib import Path
 
 from spa_core.owner_queue.origin_view import (
@@ -81,6 +82,7 @@ __all__ = [
     "CloseVerdict",
     "DELIVERED",
     "DEFAULT_REF",
+    "delivery_ref",
     "UNDELIVERED",
     "Unmeasured",
     "check_card_delivered",
@@ -161,7 +163,36 @@ def _card_text_on_ref(root: Path, card_path: Path, ref: str) -> str | None:
     return out
 
 
-def check_card_delivered(card_path: str | Path, *, ref: str = DEFAULT_REF) -> CloseVerdict:
+def delivery_ref(root: Path) -> str:
+    """Ref, НА КОТОРЫЙ эта сессия доставляет. Не всегда `origin/main`.
+
+    Замер 18.08, найденный сразу после доставки гейта: облачная сессия работает на
+    ветке (`claude/work-*`), которая на момент проверки была **на 88 коммитов впереди
+    `origin/main`** — то есть вся её доставленная работа для гейта выглядела бы
+    недоставленной, и он отказал бы в КАЖДОМ закрытии. Сторож, который мешает по делу,
+    выключают людьми — этот урок в репозитории записан дважды (owner-gate, краснеющий
+    каждую ночь; храповик дат, покрасивший бы половину набора).
+
+    Поэтому «доставлено» определяется как «уехало ТУДА, КУДА эта ветка пушит»:
+
+    1. `SPA_DELIVERY_REF` — явное решение вызывающего, сильнее всего;
+    2. upstream самой ветки (`@{upstream}`) — то, куда уходит `git push`;
+    3. `origin/main` — когда upstream не настроен (автономные циклы Мака пушат прямо
+       в main, и для них это по-прежнему верный ответ).
+
+    Сети не касается ни одна ветка: `rev-parse` читает локальные ссылки.
+    """
+    explicit = os.environ.get("SPA_DELIVERY_REF", "").strip()
+    if explicit:
+        return explicit
+    rc, out = _git(root, ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"])
+    upstream = (out or "").strip()
+    if rc == 0 and upstream and upstream != "@{upstream}":
+        return upstream
+    return DEFAULT_REF
+
+
+def check_card_delivered(card_path: str | Path, *, ref: str | None = None) -> CloseVerdict:
     """Можно ли закрывать эту карточку: её работа уже в версии ref?
 
     Сверка не выполнилась ⇒ `Unmeasured` с причиной (это НЕ «чисто»).
@@ -173,6 +204,8 @@ def check_card_delivered(card_path: str | Path, *, ref: str = DEFAULT_REF) -> Cl
         raise Unmeasured(f"карточка не прочитана: {exc}") from exc
 
     root = repo_root_of(p)
+    if ref is None:
+        ref = delivery_ref(root)
     sha = ref_sha(root, ref)
     on_ref = _card_text_on_ref(root, p, ref)
     if on_ref is None:
