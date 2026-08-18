@@ -188,6 +188,93 @@ def test_two_accepted_rows_on_one_number_are_a_duplicate(repo):
     assert list(adr.live_duplicates(repo)) == ["067"]
 
 
+# ── дубль по ФАЙЛАМ: второй источник, не копия реестрового ───────────────────
+#
+# `live_duplicates` судит по строкам INDEX.md. Реестр пишет человек, файлы кладёт работа —
+# и авария 067 жила ровно в этом зазоре: два ПРИНЯТЫХ решения лежали файлами под одним
+# номером с 06.08 по 15.08. Строка реестра — описание, файл — предмет; сторож, читающий
+# только описание, стережёт не то. Поэтому измерение отдельное и из другого источника.
+
+_POINTER_BODY = (
+    "# ADR-067 (номер занят) → решение перенумеровано в ADR-087\n\n"
+    "**Статус:** ❌ не решение, а указатель. Содержимого здесь нет.\n")
+
+
+def test_two_real_decisions_under_one_number_are_a_file_duplicate(repo):
+    """Авария 067 дословно, но замеренная по ФАЙЛАМ: реестра тут вообще нет.
+
+    Положительный контроль: воспроизведён предмет аварии (два решения на номере), а не её
+    описание в INDEX.md. Реестр в фикстуру не кладётся намеренно — измерение обязано
+    состояться и тогда, когда реестр «выглядит целым» или его правку ещё не написали.
+    """
+    d = repo / "docs" / "decisions"
+    (d / "ADR-067-golive-blocks.md").write_text("# ADR-067 гейт go-live\n", encoding="utf-8")
+    (d / "ADR-067-autopilot-mandate.md").write_text("# ADR-067 мандат\n", encoding="utf-8")
+
+    assert adr.file_duplicates(repo) == {
+        "067": ["ADR-067-autopilot-mandate.md", "ADR-067-golive-blocks.md"]}
+
+
+def test_a_pointer_file_next_to_a_decision_is_not_a_duplicate(repo):
+    """Принятый способ разойтись обязан оставаться зелёным — иначе сторожа отключат.
+
+    Указатель существует ровно затем, чтобы уехавшая в коммиты ссылка не упиралась в пустоту.
+    Требовать его удаления значило бы чинить сторожа ценой воскрешения мёртвой ссылки, то есть
+    менять реальную потерю на зелёный цвет.
+    """
+    d = repo / "docs" / "decisions"
+    (d / "ADR-067-golive-blocks.md").write_text(_POINTER_BODY, encoding="utf-8")
+    (d / "ADR-067-autopilot-mandate.md").write_text("# ADR-067 мандат\n", encoding="utf-8")
+
+    assert adr.file_duplicates(repo) == {}
+
+
+def test_pointer_is_recognised_by_heading_and_by_status_independently():
+    """Два признака указателя держатся ПОРОЗНЬ: они писались независимо и оба живые.
+
+    Если бы требовались оба сразу, переписанная шапка одного из будущих указателей молча
+    превратила бы его в «второе решение» и покрасила сторожа не на том.
+    """
+    assert adr.is_pointer_file("# ADR-073 (номер занят) → переехало в ADR-075\n")
+    assert adr.is_pointer_file("# ADR-073 переехал\n\n**Статус:** не решение, а указатель.\n")
+    assert not adr.is_pointer_file("# ADR-073 перераздача бюджета\n\n**Статус:** Accepted\n")
+
+
+def test_named_families_are_not_numbered_and_never_collide(repo):
+    """`ADR-YL-011` и `ADR-OWN-…` — своё пространство имён, распределяется только числовое.
+
+    Без этого разграничения пять файлов `ADR-OWN-*` читались бы как пятикратный дубль номера
+    «OWN» и сторож краснел бы на живом дереве с первого дня — то есть был бы снят.
+    """
+    d = repo / "docs" / "decisions"
+    for name in ("ADR-YL-011-a.md", "ADR-YL-012-b.md", "ADR-OWN-2026-07-c.md",
+                 "ADR-OWN-2026-07-d.md"):
+        (d / name).write_text("# решение\n", encoding="utf-8")
+
+    assert adr.file_duplicates(repo) == {}
+
+
+def test_unreadable_decision_counts_as_a_claim_not_as_a_pass(repo, monkeypatch):
+    """fail-CLOSED: «не прочитали файл» не сворачивается в «указатель, номер свободен».
+
+    Обратное поведение отдало бы номер по нечитаемому файлу — та же форма, что и «origin
+    недоступен ⇒ по дереву свободно», из-за которой всё это и строилось.
+    """
+    d = repo / "docs" / "decisions"
+    (d / "ADR-067-one.md").write_text(_POINTER_BODY, encoding="utf-8")
+    (d / "ADR-067-two.md").write_text("# ADR-067 решение\n", encoding="utf-8")
+
+    real_read = Path.read_text
+
+    def blind(self, *a, **kw):
+        if self.name == "ADR-067-one.md":
+            raise OSError("нечитаемо")
+        return real_read(self, *a, **kw)
+
+    monkeypatch.setattr(Path, "read_text", blind)
+    assert list(adr.file_duplicates(repo)) == ["067"]
+
+
 # ── fail-CLOSED ──────────────────────────────────────────────────────────────
 
 def test_unreadable_origin_refuses_to_hand_out_a_number(repo):
@@ -728,6 +815,43 @@ def test_live_duplicate_numbers_only_shrink():
     assert not healed, (
         f"дубли {healed} разошлись — удали их из {BASELINE.name}: база храповика обязана "
         f"уменьшаться, иначе она перестаёт что-либо стеречь")
+
+
+def test_live_decision_files_never_share_a_number():
+    """Ратчет по ФАЙЛАМ живого дерева: под одним номером — одно решение. Порог — НОЛЬ.
+
+    Базы известных исключений здесь нет намеренно, и это не строгость ради строгости: на
+    2026-08-18 дерево измеримо чисто (`067` и `073` держат по указателю рядом с решением, а
+    указатель номер не занимает), поэтому любая находка — новая. База имела бы смысл только
+    при существующем долге; заведённая пустой, она становится приглашением гасить падение
+    записью в неё.
+
+    Устойчивость к росту реестра: утверждение не перечисляет номеров и не знает, сколько их.
+    Новый ADR его не касается — красным он станет ровно тогда, когда номер займут дважды.
+    """
+    dupes = adr.file_duplicates(ROOT)
+    assert dupes == {}, (
+        f"под одним номером лежит больше одного решения: {dupes}. Возьми свободный номер "
+        f"(`python3 scripts/adr_number.py next`), переименуй ПРОИГРАВШЕГО (кто приземлился на "
+        f"origin позже) и оставь на старом имени файл-указатель — ссылки на старый адрес уже "
+        f"уехали в коммиты, мёртвая ссылка хуже указателя")
+
+
+def test_file_and_index_measurements_are_not_the_same_measurement():
+    """Два сторожа обязаны отвечать на РАЗНЫЕ вопросы, иначе второй — украшение.
+
+    Контроль на вырождение: реестр, «выглядящий целым», не должен успокаивать измерение по
+    файлам. Ровно эта разница и есть причина существования `file_duplicates` — если бы она
+    исчезла (например, `file_duplicates` начал бы читать INDEX.md), тест назовёт это вслух.
+    """
+    findings = adr.file_duplicates(ROOT / "spa_core")   # каталога решений там нет
+    assert findings == {}, "измерение обязано молчать там, где решений нет"
+
+    src = (ROOT / "scripts" / "adr_number.py").read_text(encoding="utf-8")
+    body = src.split("def file_duplicates(")[1].split("\ndef ")[0]
+    assert "INDEX" not in body and "parse_index" not in body, (
+        "file_duplicates начал читать реестр — второе измерение схлопнулось в копию первого, "
+        "и авария 067 (реестр цел, файлы столкнулись) снова пройдёт незамеченной")
 
 
 def test_baseline_entries_carry_a_traceable_reason():

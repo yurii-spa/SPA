@@ -580,6 +580,52 @@ def check_push(root, files, base_ref=DEFAULT_BASE, git=_git):
     return findings, unchecked
 
 
+# Указатель на переехавшее решение. Признак машиночитаемый и УЖЕ соблюдён обоими
+# существующими указателями (`ADR-067-golive-…`, `ADR-073-owner-decisions-in-telegram`):
+# заголовок «# ADR-NNN (номер занят) → …» и строка статуса, называющая файл указателем.
+# Достаточно ЛЮБОГО из двух: заголовок держит форму, статус — смысл, и они писались
+# независимо. Литерального списка номеров здесь нет намеренно — иначе сторож пришлось бы
+# править при каждом новом расхождении, а такие правят до тех пор, пока не отключат.
+_POINTER_HEAD_RE = re.compile(r"^#\s*ADR-[0-9A-Za-z.-]+\s*\(номер занят\)", re.MULTILINE)
+_POINTER_STATUS_RE = re.compile(r"^\*\*Статус:\*\*.*указател", re.MULTILINE | re.IGNORECASE)
+
+
+def is_pointer_file(text: str) -> bool:
+    """Файл — указатель на переехавшее решение, а не решение? Содержания в нём нет."""
+    return bool(_POINTER_HEAD_RE.search(text) or _POINTER_STATUS_RE.search(text))
+
+
+def file_duplicates(root, decisions_dir=DECISIONS_DIR):
+    """{номер: [файлы]} — номера, под которыми лежит БОЛЬШЕ ОДНОГО настоящего решения.
+
+    Отдельное измерение от `live_duplicates`, и намеренно из ДРУГОГО источника: тот судит по
+    строкам реестра, этот — по самим файлам. Ровно на этой разнице и держалась авария 067:
+    два принятых решения лежали файлами под одним номером, а реестр при этом «выглядел целым».
+    Реестр пишет человек, файлы кладёт работа — сторож, читающий только реестр, стережёт
+    описание вместо предмета.
+
+    Указатель номер НЕ занимает (`is_pointer_file`): «указатель + решение» — это и есть принятый
+    способ разойтись, и краснеть на нём значило бы требовать удалить указатель, то есть
+    воскресить мёртвую ссылку. Нечитаемый файл — находка, а не пропуск (fail-CLOSED): «не
+    измерено» здесь не сворачивается в «в порядке».
+    """
+    decisions = Path(root) / decisions_dir
+    if not decisions.is_dir():
+        return {}
+    by_number: dict[str, list] = {}
+    for p in sorted(decisions.glob("*.md")):
+        key = file_key(p.name)
+        if not key or not _NUMERIC_KEY_RE.match(key):
+            continue          # именованные семейства (YL/OWN/TEST) — своё пространство имён
+        try:
+            pointer = is_pointer_file(p.read_text(encoding="utf-8"))
+        except OSError:
+            pointer = False   # не прочитали ⇒ считаем претензией на номер, а не «не в счёт»
+        if not pointer:
+            by_number.setdefault(f"{int(key):03d}", []).append(p.name)
+    return {k: v for k, v in by_number.items() if len(v) > 1}
+
+
 def live_duplicates(root, index_rel=INDEX_REL):
     """{ключ: [статусы]} — номера с ДВУМЯ действующими претензиями в реестре дерева.
 
