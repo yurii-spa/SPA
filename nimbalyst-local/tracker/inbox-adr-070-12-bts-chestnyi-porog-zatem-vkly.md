@@ -74,3 +74,16 @@ $ grep -rn "SPA_BTS_ALERTS_ARMED" --include=*.plist .
 `EnvironmentVariables → SPA_BTS_ALERTS_ARMED=1` в
 `scripts/com.spa.bts-monitor.plist` и перезагрузить метку.
 Карточку не закрываю и в `owner-done` не двигаю (инвариант #14).
+
+---
+
+## Независимая сверка 2026-08-18 (третья пара глаз, прогон свой)
+
+- шаги 1–2: `pytest spa_core/tests/test_bts_monitor_honesty.py -q` → **39 passed**;
+  `bts_baseline.py` на месте, импорт в `bts_monitor.py:55` — подтверждено чтением кода;
+- шаг 3 (взвод тревог): `grep -rn "SPA_BTS_ALERTS_ARMED" --include=*.plist .` → **пусто**,
+  то есть `SPA_BTS_ALERTS_ARMED=1` в плистах нет по-прежнему.
+
+**Остаток числом: 1 шаг из 3**, и он не агентский — правка `scripts/com.spa.bts-monitor.plist`
++ `launchctl bootout/bootstrap` на Маке (правило доставки п.6, инвариант #12). Карточка
+остаётся открытой; в `owner-done` не двигается (инвариант #14).

@@ -2,12 +2,29 @@
 trackerStatus:
   type: agent
 title: Fluid гейтится по чужому параметру — нужен собственный таймлок, а не задержка Maker
-status: backlog
+status: blocked
 source: session-2026-08-05 (производитель gsm_hours)
 created: 2026-08-05
 priority: medium
 domain: adapters / инвариант 10
+blocked_by: own-fluid-gsm-gate-chuzhoy-parametr
 ---
+
+## Сверка 2026-08-18 (независимый прогон, не по отчёту)
+
+Работа 18.08 (коммит `a763ce89e`) — **только докстринг**, поведение не тронуто. Проверено:
+
+| что проверял | чем | результат |
+|---|---|---|
+| правился ли КОД | `git show a763ce89e -- spa_core/adapters/fluid_fusdc_adapter.py` | 15 строк, все внутри докстринга `is_gsm_compliant`; тело метода — прежний `return gsm_confirmed(self._read_status_block(), 48.0)` |
+| работает ли гейт | `FluidFUSDCAdapter().is_gsm_compliant()` | **`False`** — Fluid по-прежнему закрыт, дыры правка не открыла |
+| держится ли запрет наследования чужого числа | `pytest spa_core/tests/test_gsm_hours_producer.py -q` | **20 passed, 6 subtests** |
+| заведена ли карточка владельцу | `nimbalyst-local/tracker/own-fluid-gsm-gate-chuzhoy-parametr.md` | есть, `status: needs-owner`, три варианта (A/B/C) с ценой |
+
+**Остаток — не агентский.** Пункты 1–2 «что сделать» (найти собственный timelock Fluid и
+читать его двумя RPC) из контейнера невыполнимы: сети нет, а называть адрес по памяти
+запрещено. Пункт 3 — решение владельца, уже на его столе. Поэтому статус `backlog` →
+`blocked`: карточка ждёт не работы, а ответа.
 
 ## Факт
 

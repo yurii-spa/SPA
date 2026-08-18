@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-18T20:31:35Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-18T20:49:24Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **529** · ждёт владельца: **21** · занято сессиями: **3**.
+> Всего карточек: **531** · ждёт владельца: **23** · занято сессиями: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -15,12 +15,14 @@
 - **У ребалансера свой запас строже политики — оставляем или снимаем** · _medium_  ·  `own-2026-08-18-zapas-rebalansera-strozhe-politiki.md`
 - **Автопочинщик кода остался без вызывающих: убрать совсем или оставить лежать**  ·  `own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih.md`
 - **Fluid закрыт для капитала по правилу другого протокола — нужно твоё решение** · _medium_  ·  `own-fluid-gsm-gate-chuzhoy-parametr.md`
+- **Наблюдённая угроза до тебя не доезжает, а наша собственная остановка доезжает каждый день** · _medium_  ·  `own-red-team-nablyudennaya-ugroza-ne-doezzhaet.md`
 - **Ручной инструмент поиска новых источников доходности никто не запускает — оставить, поставить на расписание или списать**  ·  `own-ruchnoy-instrument-poiska-istochnikov.md`
 - **Цена нашего лимита «не больше 20 % на одно имя» измерена: поднимать его незачем, он стоит ровно в лучшей точке** · _medium_  ·  `own-tsena-nashego-limita-20-na-odno-imya-izme.md`
 - **Аварийная остановка ТЕРЯЕТСЯ при восстановлении из резерва (выбери, как убрать файлы состояния из git)** · _high_  ·  `owner-decision-avariinaya-ostanovka-teryaetsya-pri-vosst.md`
 - **Дневной лимит убытка считает «не знаю» за «убытка нет» — и в этот день цикл торгует**  ·  `owner-decision-dnevnoy-limit-ubytka-schitaet-neizvestn.md`
 - **Доска карточек обещает больше, чем даёт: поправить одну фразу в CLAUDE.md**  ·  `owner-decision-doska-kartochek-obeschaet-bolshe-chem-da.md`
 - **Две записи о деньгах: причина найдена и измерена — выбрать, чем чинить**  ·  `owner-decision-dve-zapisi-o-dengah-prichina-naidena-i-i.md`
+- **Проверка книги слабее проверки перед сделкой — 60 % в рисковом уровне проходит как «здоровый портфель»** · _medium_  ·  `owner-decision-proverka-knigi-slabee-proverki-pered-sde.md`
 - **Разведка кричит CRITICAL на нашу же остановку, а на реальный депег молчит — что делать с лестницей red_team**  ·  `owner-decision-razvedka-krichit-critical-na-nashu-zhe-o.md`
 - **Сбалансированный пакет не покупает ничего: в его коде нет самого шага выбора протоколов** · _high_  ·  `owner-decision-sbalansirovannyi-paket-ne-pokupaet-niche.md`
 - **Шесть находок за день оказались ОДНОЙ болезнью: где наблюдения нет, система говорит «всё хорошо» вместо «не знаю»**  ·  `owner-decision-shest-nahodok-za-den-okazalis-odnoi-bole.md`
@@ -38,7 +40,7 @@
 - **а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…** — держит `pid43119` · с 2026-08-14T11:52:34Z  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md`
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (137)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (139)
 
 ### · needs-owner
 - Аварийная книга раздаёт деньги мимо проверок свежести — цена закрытия дыры $75.9K в кэш  ·  `own-2026-08-18-avariinaya-kniga-idet-mimo-geitov-svezhesti.md` · 2026-08-18
@@ -48,12 +50,14 @@
 - У ребалансера свой запас строже политики — оставляем или снимаем  ·  `own-2026-08-18-zapas-rebalansera-strozhe-politiki.md` · 2026-08-18
 - Автопочинщик кода остался без вызывающих: убрать совсем или оставить лежать  ·  `own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih.md` · 2026-08-17
 - Fluid закрыт для капитала по правилу другого протокола — нужно твоё решение  ·  `own-fluid-gsm-gate-chuzhoy-parametr.md` · 2026-08-18
+- Наблюдённая угроза до тебя не доезжает, а наша собственная остановка доезжает каждый день  ·  `own-red-team-nablyudennaya-ugroza-ne-doezzhaet.md` · 2026-08-18
 - Ручной инструмент поиска новых источников доходности никто не запускает — оставить, поставить на расписание или списать  ·  `own-ruchnoy-instrument-poiska-istochnikov.md` · 2026-08-17
 - Цена нашего лимита «не больше 20 % на одно имя» измерена: поднимать его незачем, он стоит ровно в лучшей точке  ·  `own-tsena-nashego-limita-20-na-odno-imya-izme.md` · 2026-08-17
 - Аварийная остановка ТЕРЯЕТСЯ при восстановлении из резерва (выбери, как убрать файлы состояния из git)  ·  `owner-decision-avariinaya-ostanovka-teryaetsya-pri-vosst.md` · 2026-08-18
 - Дневной лимит убытка считает «не знаю» за «убытка нет» — и в этот день цикл торгует  ·  `owner-decision-dnevnoy-limit-ubytka-schitaet-neizvestn.md` · 2026-08-18
 - Доска карточек обещает больше, чем даёт: поправить одну фразу в CLAUDE.md  ·  `owner-decision-doska-kartochek-obeschaet-bolshe-chem-da.md` · 2026-08-17
 - Две записи о деньгах: причина найдена и измерена — выбрать, чем чинить  ·  `owner-decision-dve-zapisi-o-dengah-prichina-naidena-i-i.md` · 2026-08-17
+- Проверка книги слабее проверки перед сделкой — 60 % в рисковом уровне проходит как «здоровый портфель»  ·  `owner-decision-proverka-knigi-slabee-proverki-pered-sde.md` · 2026-08-18
 - Разведка кричит CRITICAL на нашу же остановку, а на реальный депег молчит — что делать с лестницей red_team  ·  `owner-decision-razvedka-krichit-critical-na-nashu-zhe-o.md` · 2026-08-18
 - Сбалансированный пакет не покупает ничего: в его коде нет самого шага выбора протоколов  ·  `owner-decision-sbalansirovannyi-paket-ne-pokupaet-niche.md` · 2026-08-18
 - Шесть находок за день оказались ОДНОЙ болезнью: где наблюдения нет, система говорит «всё хорошо» вместо «не знаю»  ·  `owner-decision-shest-nahodok-za-den-okazalis-odnoi-bole.md` · 2026-08-18
@@ -258,6 +262,7 @@
 - Храповик неподключённых скриптов не отличает мёртвый код от ручного R&D — и краснеет на честной работе  ·  `inbox-hrapovik-nepodklyuchennyh-skriptov-ne-ot.md` · 2026-08-10
 - Храповик неподключённых скриптов считает УПОМИНАНИЕ В КОММЕНТАРИИ за проводку — слепота стоит трёх скриптов  ·  `inbox-hrapovik-nepodklyuchennyh-skriptov-schit.md` · 2026-08-12
 - Храповик считает упоминание в докстринге за проводку — и это лишь одна из трёх слепот  ·  `inbox-hrapovik-schitaet-upominanie-v-dokstring.md` · 2026-08-14
+- Исследователь кандидатов считает, что активных адаптеров НОЛЬ: парсер написан под dict, а реестр — список  ·  `inbox-issledovatel-kandidatov-schitaet-chto-ak.md` · 2026-08-17
 - Из алерта: ⚠️ SPA 7-Day Checkpoint FAILED: 1 check(s)  ·  `inbox-iz-alerta-spa-7-day-checkpoint-failed-1-2.md` · 2026-08-08
 - Из алерта: ⚠️ SPA 7-Day Checkpoint FAILED: 1 check(s)  ·  `inbox-iz-alerta-spa-7-day-checkpoint-failed-1.md` · 2026-08-08
 - Карточка, созданная посреди цикла, не доезжает: create пишет в ХОСТ-дерево, а пуш идёт из worktree  ·  `inbox-kartochka-sozdannaya-posredi-tsikla-ne-d.md` · 2026-08-06
@@ -331,6 +336,7 @@
 - Сторож «вопросы владельцу» слеп к вопросу, который не отправляли — очередь 5, он говорит 3  ·  `inbox-storozh-voprosy-vladeltsu-slep-k-voprosu.md` · 2026-08-10
 - Страж ADR-номеров ложно краснеет: не видит INDEX среди доставляемых файлов  ·  `inbox-strazh-adr-nomerov-lozhno-krasneet-ne-vi.md` · 2026-08-09
 - Страж перезаписи считает переименование заголовка потерей записи — и его список «что пропадёт» неполон  ·  `inbox-strazh-perezapisi-schitaet-pereimenovani.md` · 2026-08-07
+- Строка Risk Gate дневного лимита убытка жила только в отключённом скрипте — в отчёт владельцу она не переехала  ·  `inbox-stroka-risk-gate-dnevnogo-limita-ubytka.md` · 2026-08-14
 - Сухой прогон уведомления (--check) пишет в живой реестр решений владельца  ·  `inbox-suhoi-progon-uvedomleniya-check-pishet-v.md` · 2026-08-09
 - Свести две реализации перезаполнения бюджета в одну (ADR-072 vs версия параллельной сессии)  ·  `inbox-svesti-dve-realizatsii-perezapolneniya-b.md` · 2026-08-08
 - Свежесть артефактов молчит там, где обязана краснеть: пустое дерево получает artifacts_overdue=[] вместо вердикта  ·  `inbox-svezhest-artefaktov-molchit-tam-gde-obya.md` · 2026-08-09
@@ -396,7 +402,6 @@
 - Два предписанных прогона рядом морят друг друга: приёмка «мой vs контроль» параллельно почти не движется  ·  `inbox-dva-predpisannyh-progona-ryadom-drug-druga-morya.md` · 2026-08-14
 - Две записи о деньгах расходятся каждый день — найти и починить ПРИЧИНУ (решение владельца 10.08, вариант 1)  ·  `inbox-dve-zapisi-o-dengah-rashodyatsya-kazhdyi.md` · 2026-08-10
 - Храповик неподключённых скриптов считает проводкой упоминание имени в тексте сообщения  ·  `inbox-hrapovik-nepodklyuchennyh-skriptov-schit-2.md` · 2026-08-16
-- Исследователь кандидатов считает, что активных адаптеров НОЛЬ: парсер написан под dict, а реестр — список  ·  `inbox-issledovatel-kandidatov-schitaet-chto-ak.md` · 2026-08-17
 - Книги за прошлый день нет в архиве: дозапись исходов навсегда несёт null в позициях  ·  `inbox-knigi-za-proshlyi-den-net-v-arhive-dozap.md` · 2026-08-17
 - Крупнейшая позиция книги стоит на константе: у aave_v3 (Ethereum, 40%) TVL «не измерено», а пул в фиде есть  ·  `inbox-krupneishaya-pozitsiya-knigi-stoit-na-ko.md` · 2026-08-09
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
@@ -413,7 +418,6 @@
 - Снятая остановка живёт в git: восстановление из резерва поднимет прод уже остановленным  ·  `inbox-snyataya-ostanovka-zhivet-v-git-vosstano.md` · 2026-08-10
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
 - Сторож Telegram-дверей выбивает сторожа живой сети из цепочки urlopen  ·  `inbox-storozh-telegram-dverei-vybivaet-storozh.md` · 2026-08-17
-- Строка Risk Gate дневного лимита убытка жила только в отключённом скрипте — в отчёт владельцу она не переехала  ·  `inbox-stroka-risk-gate-dnevnogo-limita-ubytka.md` · 2026-08-14
 - Табличка честности: дать ей дорогу на сайт (решение владельца 09.08)  ·  `inbox-tablichka-chestnosti-dat-ei-dorogu-na-sa.md` · 2026-08-08
 - Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md` · 2026-08-06 · 🔒 `cycle-87477`
 
@@ -533,6 +537,7 @@
 
 ### · blocked
 - Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать  ·  `agent-fleet-parity-guard-never-scheduled.md` · 2026-08-05 · 🔒 `cycle-28258`
+- Fluid гейтится по чужому параметру — нужен собственный таймлок, а не задержка Maker  ·  `agent-fluid-timelock-source.md` · 2026-08-05
 - Завести производителя gsm_hours (on-chain GSM Pause Delay) — чтобы GSM-гейт перестал быть вечным замком  ·  `agent-gsm-hours-producer.md` · 2026-08-02
 - Кэп на протокол не видит общего куратора — Steakhouse держится и на Ethereum, и на Base  ·  `agent-morpho-curator-concentration.md` · 2026-08-05
 - Аварийный портфель обходит гейты адаптеров — финансирует spark_susds, который запрещён инвариантом 10  ·  `agent-safe-fallback-bypasses-adapter-gates.md` · 2026-08-02
@@ -549,7 +554,6 @@
 - 11 протоколов закрыты для капитала из-за отсутствия живого фида — вселенная выбора сужена, 10% кэша стоят под 0%  ·  `agent-blocked-protocols-need-live-feeds.md` · 2026-08-05
 - Подписка checkup отвечает ok:true, даже если письмо не отправилось — поломка жила незамеченной с июля  ·  `agent-checkup-waitlist-fail-open-ok-true.md` · 2026-08-02
 - Свежая полная инвентаризация флота (73 агента) — что делает / жив ли / нужен ли / расход  ·  `agent-fleet-inventory-73.md` · 2026-07-23
-- Fluid гейтится по чужому параметру — нужен собственный таймлок, а не задержка Maker  ·  `agent-fluid-timelock-source.md` · 2026-08-05
 - GO-LIVE — внутридневной контроль просадки (частый, не раз в сутки)  ·  `agent-golive-intraday-drawdown-monitor.md` · 2026-07-23
 - Построить слой инвест-агентов «Head of Investment» (кураторы тиров + капитал-по-тирам + максимизаторы + решающий)  ·  `agent-head-of-investment-layer.md` · 2026-07-23
 - ПРОДОЛЖИТЬ ОТСЮДА — дорожная карта по приоритету (сессия может оборваться, работа не должна)  ·  `agent-roadmap-continue-here.md` · 2026-08-05

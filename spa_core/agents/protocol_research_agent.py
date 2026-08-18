@@ -123,7 +123,8 @@ def _read_active_adapters_from_init(path: Optional[Path] = None) -> Optional[lis
 
     SET CHOICE IS DELIBERATE — the same choice `governance_watcher.
     whitelisted_protocol_keys` documents: the canonical ``ADAPTER_REGISTRY``
-    of ``spa_core/adapters/__init__.py`` (36 entries, list of tuples, largest
+    of ``spa_core/adapters/__init__.py`` (35 entries — было 36 до ADR-070 п.17,
+    снявшего дубль ``frax``; список кортежей, largest
     book position keyed ``aave_v3``).  This is the set that answers the
     researcher's question "which protocols do we already cover".
     NOT ``spa_core.adapters.registry.ADAPTER_METADATA`` (22, dict — it has no

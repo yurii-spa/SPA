@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Исследователь кандидатов считает, что активных адаптеров НОЛЬ: парсер написан под dict, а реестр — список"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-17
 ---
@@ -67,3 +67,26 @@ RiskPolicy, kill-switch, живой трек, `data/` и состав любог
 Найдено циклом #274 при закрытии `inbox-dva-raznyh-reestra-adapterov-nosyat-odno`
 (журнал `docs/journal/2026-W34.md`). Исходная карточка этот файл НАЗЫВАЛА («не импортирует
 вовсе, а сканирует текст регуляркой»), но что разбор возвращает `[]`, не измеряла.
+
+
+---
+
+## Сверка 2026-08-18 — критерий приёмки выполнен, закрываю `done`
+
+Прогон мой, замер против этого дерева.
+
+| требование карточки | проверка | результат |
+|---|---|---|
+| разбор AST вместо регулярки по форме | `spa_core/agents/protocol_research_agent.py:121-197` (`ast.parse`, `Assign`/`AnnAssign` + `ADAPTER_REGISTRY.append(...)`) | сделано, импорта модуля нет |
+| `_read_active_adapters_from_init()` даёт набор с `aave_v3` | прогон | **35 ключей, `aave_v3` есть** |
+| пустой результат ≠ «нуль находок» | чтение кода | возвращается `None` + `log.warning("... NOT MEASURED ... this is NOT 'zero active adapters'")`; `_existing_protocol_ids()` отдаёт флаг `adapters_measured`, потребитель обязан отказать |
+| тест краснеет, если вернуть слепой разбор | **моя мутация**: `keys = sorted(...)` → `keys = []` | **10 failed, 62 passed**, включая `test_candidate_we_already_cover_is_not_offered_as_new`; мутация откачена, дерево чистое |
+| зелёный набор | `pytest spa_core/tests/test_protocol_research_agent.py -q` | **72 passed** |
+
+**Поправка к числу.** Шапка карточки и докстринг говорили про 36 активных адаптеров — сегодня
+их **35**: коммит `9031fb1c0` (ADR-070 п.17) снял дубль `frax`. Докстринг
+`_read_active_adapters_from_init` поправлен этой сверкой (только комментарий, поведение не
+тронуто).
+
+Границы соблюдены: `data/`, RiskPolicy, kill-switch и состав любого реестра этой работой не
+менялись.

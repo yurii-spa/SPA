@@ -70,6 +70,19 @@ TVL-замороженным пулам) и строки в `cash_attribution`. 
 породил ложные «зарубленные» → 2 красных; (C) неназванному снятию подставлено правдоподобное
 правило → 1 красный; (D) `gate_ledger=` убран из вызова в `cycle_runner` → 1 красный.
 
+### Независимая сверка 2026-08-18 — статус `done` подтверждён прогоном
+
+Перепроверено не по отчёту, а прогоном и чтением кода:
+
+- `build_gate_ledger` существует — `spa_core/paper_trading/cycle_gates.py:76`;
+- **проведён в цикл** — `spa_core/paper_trading/cycle_runner.py:126` (импорт) и `:1845`
+  (вызов), ровно после гейта и ДО kill-switch/soft-derisk (см. комментарий `Step 2b-ledger`),
+  обёрнут `try/except` (fail-open, наблюдаемость не валит цикл);
+- запись в артефакт — `allocation_rationale.py:301` (параметр) / `:454` (секция `gate_ledger`,
+  при отсутствии — `not_measured`, а не «гейт ничего не зарубил»);
+- тесты — `pytest spa_core/tests/test_gate_ledger.py -q` → **12 passed in 0.54s**;
+  строка `test_gate_ledger.py:219` держит сам факт вызова из `cycle_runner`.
+
 **Где замер неполон** (честно, не закрыто этой карточкой): стадии ДО RiskPolicy
 (analytics-blocking gate) мутируют `target_usd` на месте и наружу причину по протоколам не
 сообщают — их разница показана отдельной секцией `pre_riskpolicy_stage_changes` и целиком
