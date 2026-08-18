@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-18T20:49:24Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-18T20:51:24Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **531** · ждёт владельца: **23** · занято сессиями: **3**.
+> Всего карточек: **531** · ждёт владельца: **22** · занято сессиями: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -15,7 +15,6 @@
 - **У ребалансера свой запас строже политики — оставляем или снимаем** · _medium_  ·  `own-2026-08-18-zapas-rebalansera-strozhe-politiki.md`
 - **Автопочинщик кода остался без вызывающих: убрать совсем или оставить лежать**  ·  `own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih.md`
 - **Fluid закрыт для капитала по правилу другого протокола — нужно твоё решение** · _medium_  ·  `own-fluid-gsm-gate-chuzhoy-parametr.md`
-- **Наблюдённая угроза до тебя не доезжает, а наша собственная остановка доезжает каждый день** · _medium_  ·  `own-red-team-nablyudennaya-ugroza-ne-doezzhaet.md`
 - **Ручной инструмент поиска новых источников доходности никто не запускает — оставить, поставить на расписание или списать**  ·  `own-ruchnoy-instrument-poiska-istochnikov.md`
 - **Цена нашего лимита «не больше 20 % на одно имя» измерена: поднимать его незачем, он стоит ровно в лучшей точке** · _medium_  ·  `own-tsena-nashego-limita-20-na-odno-imya-izme.md`
 - **Аварийная остановка ТЕРЯЕТСЯ при восстановлении из резерва (выбери, как убрать файлы состояния из git)** · _high_  ·  `owner-decision-avariinaya-ostanovka-teryaetsya-pri-vosst.md`
@@ -50,7 +49,6 @@
 - У ребалансера свой запас строже политики — оставляем или снимаем  ·  `own-2026-08-18-zapas-rebalansera-strozhe-politiki.md` · 2026-08-18
 - Автопочинщик кода остался без вызывающих: убрать совсем или оставить лежать  ·  `own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih.md` · 2026-08-17
 - Fluid закрыт для капитала по правилу другого протокола — нужно твоё решение  ·  `own-fluid-gsm-gate-chuzhoy-parametr.md` · 2026-08-18
-- Наблюдённая угроза до тебя не доезжает, а наша собственная остановка доезжает каждый день  ·  `own-red-team-nablyudennaya-ugroza-ne-doezzhaet.md` · 2026-08-18
 - Ручной инструмент поиска новых источников доходности никто не запускает — оставить, поставить на расписание или списать  ·  `own-ruchnoy-instrument-poiska-istochnikov.md` · 2026-08-17
 - Цена нашего лимита «не больше 20 % на одно имя» измерена: поднимать его незачем, он стоит ровно в лучшей точке  ·  `own-tsena-nashego-limita-20-na-odno-imya-izme.md` · 2026-08-17
 - Аварийная остановка ТЕРЯЕТСЯ при восстановлении из резерва (выбери, как убрать файлы состояния из git)  ·  `owner-decision-avariinaya-ostanovka-teryaetsya-pri-vosst.md` · 2026-08-18
@@ -66,6 +64,8 @@
 - Вести опрос от полного реестра адаптеров? Замер: 27 проходных при пределе 8 — книга каждый цикл уходит в аварийную  ·  `owner-decision-vesti-opros-ot-polnogo-reestra-adapterov.md` · 2026-08-18
 - Внутридневная просадка: слепота теперь слышна — реши про мягкий тир, слепые покупки и порог тревоги  ·  `owner-decision-vnutridnevnaya-prosadka-slepota-teper-sl.md` · 2026-08-18
 - Закрытие вопроса владельца из рабочего дерева читается сторожем как «закрыли без владельца» — выбери, чем лечим  ·  `owner-decision-zakrytie-voprosa-vladeltsa-iz-rabochego.md` · 2026-08-17
+### · blocked
+- Наблюдённая угроза до тебя не доезжает, а наша собственная остановка доезжает каждый день  ·  `own-red-team-nablyudennaya-ugroza-ne-doezzhaet.md` · 2026-08-18
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
