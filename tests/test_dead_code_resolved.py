@@ -111,11 +111,21 @@ class TestUnusedImportsRemoved:
         assert "json" not in imports, \
             "alerts.py: `import json` должен быть удалён (не использовался)"
 
-    def test_08_allocation_tuner_no_field_import(self):
-        """spa_core/tuner/allocation_tuner.py — `field` из dataclasses не использовался."""
-        imports = _imports_of(REPO / "spa_core" / "tuner" / "allocation_tuner.py")
-        assert "field" not in imports, \
-            "allocation_tuner.py: `field` из dataclasses должен быть удалён"
+    def test_08_allocation_tuner_field_import_is_used(self):
+        """spa_core/tuner/allocation_tuner.py — `field` не должен быть мёртвым импортом.
+
+        ИЗМЕНЕНИЕ ТЕСТА, обоснование (инвариант 16, journal 2026-08-18):
+        предмет теста — МЁРТВЫЙ импорт, а не имя `field`. С 2026-08-18
+        `TunerConstraints` читает пороги из RiskConfig через
+        `field(default_factory=...)` — импорт стал живым, и запрет на само имя
+        стал бы запретом на единый источник порогов. Проверка сохранена в своей
+        сути: импортирован ⇒ обязан использоваться.
+        """
+        path = REPO / "spa_core" / "tuner" / "allocation_tuner.py"
+        imports = _imports_of(path)
+        if "field" in imports:
+            assert "field(" in _source(path), \
+                "allocation_tuner.py: `field` импортирован, но не используется"
 
     def test_09_source_pipeline_no_os_import(self):
         """spa_core/backtesting/source_pipeline.py — import os не использовался (использует atomic_save)."""

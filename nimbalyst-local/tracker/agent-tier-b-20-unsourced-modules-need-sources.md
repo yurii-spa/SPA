@@ -223,3 +223,106 @@ composite, и это заслуживает своей приёмки в обе 
 значит лишить оба дифа приёмки.
 
 *Цикл #143. Группы А/Б/В карточки остаются открытыми: источников нет.*
+
+---
+
+## Цикл 2026-08-18: разбор всех 36 записей по источникам — группа «а» ровно ОДНА, и её нельзя закрыть фактом
+
+Задача была не «поднять 20 модулей», а разобрать каждый: есть ли у него настоящий источник.
+Замер сделан в sandbox-копии дерева, живой `data/` не тронут.
+
+### Что измерено
+
+**160 различных недостающих ключей** на 36 модулях. Из них в структурной базе
+`_protocol_facts` существуют **два**:
+
+| ключ | что с ним | вердикт |
+|---|---|---|
+| `tvl_trend_7d_pct` | есть в `facts_for`, но **0.0 у всех 35 протоколов**, `data/tvl_trend_report.json` пуст | заглушка, не источник |
+| `twap_window_seconds` | есть, **различается** (1800 у amm_twap, 0 у остальных) | источник есть, но у модуля-владельца ещё 4 ключа без источника |
+
+Остальные 158 не отдаёт ни один адаптер (`spa_core/adapters/`: 0 совпадений по
+`quorum_pct`, `audit_count`, `liquidations_count_30d`, `optimal_utilization`,
+`github_commits_30d`, `deviation_threshold_pct`, …), ни фид DeFiLlama
+(`spa_core/adapters/defillama_feed.py:206` отдаёт ровно `{"apy","tvl","pool_id"}`),
+ни `data/`. Найденные при поиске совпадения в `data/*.json` — это ВЫХОДЫ самих
+модулей (`data/composability_risk_log.json`, `data/yield_after_tax_drag_log.json`),
+источником быть не могут.
+
+Два кандидата в источники всё же есть, но оба частичные и датированы плохо:
+`spa_core/risk/scoring_engine.py:225 BOOTSTRAP_PROTOCOLS` (`audit_count`,
+`tvl_change_30d_pct`; шапка прямо называет это fallback'ом «когда DefiLlama
+недоступен», `as_of` нет) и `data/incidents.json` (577 инцидентов, `by_protocol_summary`
+на 16 slug'ов; `updated_at` 2026-06-21, `total_amount_lost_usd` = 5.6e13 — суммы
+явно битые). Ни один модуль ими не закрывается целиком.
+
+### Разбивка 36 записей
+
+* **(а) источник ЕСТЬ и его хватает целиком — 1 модуль:**
+  `protocol_defi_stable_yield_consistency_scorer` (все 5 ключей: `apy_history` ←
+  `_apy_series`/`data/historical_apy`, остальные ← `_protocol_facts`).
+* **(в) источник частичный — 16 модулей.** Проводить нельзя: закрыв 1–4 ключа из 8–12,
+  получим более убедительное с виду число при тех же молча занулённых остальных.
+* **(б) источника нет и взять неоткуда — 19 модулей** (живой фид управления/оракулов/
+  ликвидаций/кривой ставки; реестр качественных фактов, который никто не ведёт;
+  плюс модули, у которых субъект — ПОЗИЦИЯ, а не протокол). Пометка `unsourced` — верна.
+
+**Ни одного факта в `_protocol_facts` не дописано** — дописывать нечего.
+
+### Почему единственный модуль группы «а» всё равно нельзя «провести»
+
+Он УЖЕ проведён в коде и работает честно; его пометка — артефакт замера. Инструмент
+`audit_tier_c_wiring_feasibility.py:416` передаёт движку ТОЛСТУЮ запись
+`generic_profile_for(proto)`, а прод-агрегатор (`signal_aggregator.py:450`) передаёт
+голый контекст `{"cycle_ts", "protocol"}`. Толстая запись содержит `withdrawal_delay_days`
+— один общий ключ с `_CTX_DOMAIN_KEYS` модуля, — поэтому `is_context_only` даёт False,
+ветка контекста не берётся, и модуль судят по легаси-пути, которого в проде нет:
+
+```
+is_context_only(толстая запись) = False   collision keys: ['withdrawal_delay_days']
+is_context_only(голый контекст) = True
+probe_module(...) → verdict=UNCOVERED  basis=passed_record  eff_cov=0.2857
+прод-путь _ModuleAdapter.run: aave_v3=68.51 morpho=45.50 spark=29.19 compound_v3=64.79
+                              maple=dormant pendle=dormant __ctrl__=dormant
+```
+
+То есть значения РАЗЛИЧАЮТСЯ (реальный ряд APY) и модуль fail-CLOSED'ится там, где ряда нет.
+Так же устроены ещё 9 модулей набора с веткой контекста (шесть `data_dir`-семейства +
+`emergency_withdrawal_pause`, `vault_redemption_cooldown`, `vault_round_trip_cost`): все 10
+судятся по `basis=passed_record`. **Осторожно:** у трёх из них ветка контекста сама молча
+занулила ключи (у `defi_protocol_emergency_withdrawal_pause_risk_analyzer:483` не переданы
+`annual_pause_probability_pct` и `historical_max_pause_days` ⇒ «вероятность паузы = 0»),
+так что для них пометка верна по ДРУГОЙ причине, чем написано.
+
+Починка — в инструменте (пробовать модуль тем же входом, каким его зовёт агрегатор), и это
+отдельная итерация с перегенерацией разметки: правка `_protocol_key_coverage.py` руками
+запрещена, а перегенерация смешала бы минимум четыре независимых дифа (см. разделы #142/#143).
+
+### Найдено попутно: пять модулей отвечают числом за НЕСУЩЕСТВУЮЩИЙ протокол
+
+`defi_protocol_cdp_stability_fee_analyzer` 100.0 · `defi_protocol_lending_market_health_scorer`
+42.0 · `defi_protocol_vault_instant_exit_nav_discount_analyzer` 0.0 ·
+`protocol_defi_position_health_monitor` 0.0 · `protocol_defi_yield_bearing_stablecoin_risk_analyzer`
+70.0 — одинаково для `aave_v3` и для `__no_such_protocol__`. Фактов протокола они не читают
+вовсе (ни `generic_profile_for`, ни `facts_for` в исходнике). Из composite они исключены уже
+сегодня (и `blind`, и `unsourced`), вреда живым числам нет, но ярлык «различается побочными
+полями» к ним не относится.
+
+### Положительный контроль (новый файл, в обе стороны)
+
+`spa_core/tests/test_unsourced_markup_positive_control.py` — 11 тестов, офлайн, ряды
+синтетические в `tmp_path`, `data/` не читается и не пишется. Проверено мутациями:
+
+| мутация | что краснеет |
+|---|---|
+| ветка контекста подставляет плоский `apy_pct` вместо ряда | `test_sourced_module_differentiates_on_real_series` |
+| fallback вместо отказа при отсутствии ряда | `test_sourced_module_refuses_without_series` (2 из 3 параметров) |
+| `tvl_trend_7d_pct` проведён в `generic_profile_for` | `test_unsourced_key_never_enters_profile_as_constant` + `test_tvl_trend_stub_is_not_promoted_into_profile` |
+| модуль-константа убран из всех разметок | `test_constant_for_nonexistent_protocol_stays_out_of_composite` |
+
+Тесты сформулированы двусторонне: появится настоящий источник истории TVL — значения начнут
+различаться, и тест разрешит проводку сам; починится модуль-константа — ассерта про разметку
+не будет вовсе.
+
+*Группы «б» и «в» карточки остаются открытыми: источников по-прежнему нет. Группа «а» —
+один модуль, и он ждёт не факта, а починки инструмента.*

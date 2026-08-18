@@ -13,10 +13,11 @@ import logging
 import math
 import os
 import random
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+from spa_core.risk.policy import RiskConfig
 from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.tuner")
@@ -35,18 +36,82 @@ _DAYS_YEAR = 365.0
 # ─── Dataclasses ─────────────────────────────────────────────────────────────
 
 
+def _policy() -> RiskConfig:
+    """Единственный источник порогов — RiskPolicy v1.0.
+
+    Намеренно БЕЗ ``try/except`` с литеральными fallback'ами: любой fallback —
+    это вторая копия порога, ровно то, что здесь и лечится. Не читается
+    политика ⇒ тюнер не стартует (fail-CLOSED), а не «работает по памяти».
+    """
+    return RiskConfig()
+
+
 @dataclass
 class TunerConstraints:
-    """Ограничения для оптимизатора — зеркало RiskPolicy v1.0."""
-    t1_min: float = 0.55          # Min T1 allocation (55%)
-    t2_max: float = 0.35          # Max T2 total allocation (35%)
-    per_protocol_max: float = 0.25  # Max single protocol (25%, снижен с 40%)
-    tvl_floor_usd: float = 5_000_000.0  # Min TVL пула
-    min_protocols: int = 3        # Min активных протоколов
-    max_protocols: int = 6        # Max активных протоколов (не index fund!)
-    cash_min: float = 0.05        # Min cash buffer (5%)
-    apy_min: float = 1.0          # Min APY % для включения
-    apy_max: float = 30.0         # Max APY % для включения
+    """Ограничения для оптимизатора — ЗЕРКАЛО RiskPolicy v1.0, а не её копия.
+
+    Каждое поле, у которого есть порог в политике, читается из ``RiskConfig``
+    через ``default_factory``. Литералов порогов здесь больше нет.
+
+    Замер 2026-08-18 (почему это переписано): прежние литералы разошлись с
+    политикой в ОБЕ стороны, и одна сторона была опасной —
+    ``per_protocol_max=0.25`` применялся плоско ко всем тирам, тогда как
+    политика держит T2-cap 20 % (`RiskConfig.max_concentration_t2`). Тюнер
+    предлагал ``maple`` (T2) на 23.81 %, а `policy_enforcer` тот же портфель
+    ОТКЛОНЯЛ (`per_protocol_max_pct CRITICAL 23.81 <= 20.0`). Остальные
+    расхождения были в строгую сторону и делали «оптимум» тюнера не оптимумом
+    политики: ``t2_max=0.35`` — значение ДО ADR-019 (политика 50 %),
+    ``t1_min=0.55`` — правило, которого в политике нет (enforcer обнулил свой
+    аналог `_T1_MIN_PCT = 0.0` ещё 2026-07-08), ``max_protocols=6`` против
+    ALLOC-002 = 8.
+
+    Поля БЕЗ аналога в политике (``min_protocols``, ``max_candidates``-подобные
+    настройки поиска) остаются собственными настройками тюнера и помечены ниже.
+    """
+
+    # ── Пороги RiskPolicy v1.0 (единственный источник — RiskConfig) ──────────
+    # T1-пола в политике НЕТ. Ноль = пол отключён; ровно так же поступил
+    # policy_enforcer (`_T1_MIN_PCT = 0.0`, 2026-07-08). Это НЕ новый порог,
+    # а отказ тюнера держать правило, которого у источника не существует.
+    t1_min: float = 0.0
+    t2_max: float = field(
+        default_factory=lambda: float(_policy().max_total_t2_allocation))
+    t3_max: float = field(
+        default_factory=lambda: float(_policy().max_total_t3_allocation))
+    per_protocol_max: float = field(
+        default_factory=lambda: float(_policy().max_single_protocol))
+    per_protocol_max_t1: float = field(
+        default_factory=lambda: float(_policy().max_concentration_t1))
+    # Политика применяет T2-cap ко всему, что не T1 (policy.py:410-411) — так же
+    # читает и enforcer (`per_protocol_t2_max_pct`, ADR-062).
+    per_protocol_max_t2: float = field(
+        default_factory=lambda: float(_policy().max_concentration_t2))
+    tvl_floor_usd: float = field(
+        default_factory=lambda: float(_policy().min_tvl_usd))
+    max_protocols: int = field(
+        default_factory=lambda: int(_policy().max_protocols))
+    cash_min: float = field(
+        default_factory=lambda: float(_policy().min_cash_pct))
+    apy_min: float = field(
+        default_factory=lambda: float(_policy().min_apy_for_new_position))
+    apy_max: float = field(
+        default_factory=lambda: float(_policy().max_apy_for_new_position))
+
+    # ── Собственные настройки тюнера (аналога в политике НЕТ) ────────────────
+    min_protocols: int = 3        # ниже — тюнер отказывается и уходит в all-cash
+
+    # ── производное ──────────────────────────────────────────────────────────
+
+    def cap_for(self, tier: str) -> float:
+        """Потолок на один протокол для тира — как его считает политика.
+
+        T1 → ``max_concentration_t1``; всё остальное (T2/T3) →
+        ``max_concentration_t2``. Сверху всегда действует абсолютный
+        ``max_single_protocol`` — потолок тира не может быть слабее.
+        """
+        t = str(tier or "T2").upper()
+        tier_cap = self.per_protocol_max_t1 if t == "T1" else self.per_protocol_max_t2
+        return min(tier_cap, self.per_protocol_max)
 
 
 @dataclass
@@ -137,10 +202,13 @@ class AllocationTuner:
 
         penalty = 0.0
 
-        # 1) per-protocol cap
+        # 1) per-protocol cap — ТИРО-ЗАВИСИМЫЙ, как в политике (policy.py:410-411)
+        #    и в enforcer'е (ADR-062). Плоский потолок пропускал T2-позицию на
+        #    23.8 % при policy-cap 20 % — гейт такой портфель отклонял.
         for pid, w in weights.items():
-            if w > c.per_protocol_max + _EPS:
-                penalty += (w - c.per_protocol_max) * 10.0
+            cap = c.cap_for(tier_map.get(pid, "T2"))
+            if w > cap + _EPS:
+                penalty += (w - cap) * 10.0
 
         # 2) T1 minimum
         t1_total = sum(w for pid, w in weights.items()
@@ -149,17 +217,26 @@ class AllocationTuner:
             deficit = c.t1_min - t1_total
             penalty += deficit * 8.0
 
-        # 3) T2 maximum
+        # 3) T2 maximum (ADR-019: 50 %) — считается по T2, T3 живёт под своим
+        #    потолком (ADR-020: 15 %). Раньше «всё, что не T1» шло в одну кучу.
         t2_total = sum(w for pid, w in weights.items()
-                       if tier_map.get(pid, "T2") != "T1")
+                       if tier_map.get(pid, "T2") == "T2")
         if t2_total > c.t2_max + _EPS:
             excess = t2_total - c.t2_max
             penalty += excess * 8.0
 
-        # 4) минимальное количество протоколов
+        # 3b) T3 maximum (ADR-020) — в тюнере не проверялся вовсе (fail-OPEN)
+        t3_total = sum(w for pid, w in weights.items()
+                       if tier_map.get(pid, "T2") == "T3")
+        if t3_total > c.t3_max + _EPS:
+            penalty += (t3_total - c.t3_max) * 8.0
+
+        # 4) количество протоколов: пол — настройка тюнера, потолок — ALLOC-002
         active = sum(1 for w in weights.values() if w > 0.01)
         if active < c.min_protocols:
             penalty += (c.min_protocols - active) * 2.0
+        if active > c.max_protocols:
+            penalty += (active - c.max_protocols) * 8.0
 
         # 5) cash buffer (сумма весов не превышает 1 - cash_min)
         total_w = sum(weights.values())
@@ -234,55 +311,63 @@ class AllocationTuner:
             apy_w = {pid: apy_map[pid] / apy_total for pid in ids}
             candidates.append(apy_w)
 
+        # Потолок на протокол — по тиру (см. TunerConstraints.cap_for)
+        cap = {a["id"]: c.cap_for(a.get("tier", "T2")) for a in adapter_data}
+        # Ёмкость T1 при тировых потолках: больше физически не разместить
+        t1_capacity = sum(cap[p] for p in t1_ids)
+
         # T1-якорь максимальный + T2 равные
         if t1_ids:
             cand = {}
-            t1_per = min(c.per_protocol_max, 1.0 / len(t1_ids))
-            t1_total = t1_per * len(t1_ids)
+            t1_per_frac = min(1.0, 1.0 / len(t1_ids))
+            t1_total = 0.0
+            for pid in t1_ids:
+                cand[pid] = min(cap[pid], t1_per_frac)
+                t1_total += cand[pid]
             t2_budget = min(c.t2_max, 1.0 - t1_total - c.cash_min)
             t2_per = (t2_budget / len(t2_ids)) if t2_ids else 0.0
-            t2_per = min(t2_per, c.per_protocol_max)
-            for pid in t1_ids:
-                cand[pid] = t1_per
             for pid in t2_ids:
-                cand[pid] = t2_per
+                cand[pid] = min(t2_per, cap[pid])
             candidates.append(cand)
 
         # T1-макс (один протокол) + T2
         for t1_anchor in t1_ids:
             cand = {pid: 0.0 for pid in ids}
-            cand[t1_anchor] = c.per_protocol_max  # 40%
-            # Остаток T1
+            cand[t1_anchor] = cap[t1_anchor]
+            # Остаток T1 — равномерно, каждый в своём потолке, в пределах
+            # свободного места (1 - cash_min - уже занятое якорем).
             remaining_t1 = [p for p in t1_ids if p != t1_anchor]
             if remaining_t1:
-                sub = min(c.t1_min - c.per_protocol_max, c.per_protocol_max)
-                sub = max(sub, 0.0)
+                room = max(0.0, 1.0 - c.cash_min - cand[t1_anchor])
+                per = room / len(remaining_t1)
                 for p in remaining_t1:
-                    cand[p] = sub / len(remaining_t1)
+                    cand[p] = min(per, cap[p])
             t1_used = sum(cand[p] for p in t1_ids)
             t2_budget = min(c.t2_max, 1.0 - t1_used - c.cash_min)
             t2_per = (t2_budget / len(t2_ids)) if t2_ids else 0.0
-            t2_per = min(t2_per, c.per_protocol_max)
             for pid in t2_ids:
-                cand[pid] = t2_per
+                cand[pid] = min(t2_per, cap[pid])
             candidates.append(cand)
 
         # ── 2. Grid search по T1/T2 весам ─────────────────────────────────
-        # Дискретная сетка: пробуем разные доли T1 (0.55 до 0.80 шагом 0.05)
-        for t1_frac in [round(x * 0.05, 2) for x in range(11, 17)]:  # 0.55..0.80
-            if not t1_ids:
+        # Дискретная сетка по доле T1 от 0 до предела (ёмкость тировых потолков
+        # или 1 - cash_min). Нижняя граница — 0, а не 0.55: T1-пола в политике
+        # нет, и сетка, начинавшаяся с 0.55, просто не показывала оптимизатору
+        # раскладки, разрешённые политикой.
+        t1_frac_max = min(t1_capacity, 1.0 - c.cash_min)
+        for step in range(0, 20):
+            t1_frac = round(step * 0.05, 2)
+            if not t1_ids or t1_frac > t1_frac_max + _EPS:
                 break
-            t1_per = min(t1_frac / len(t1_ids), c.per_protocol_max)
             t2_budget = min(c.t2_max, 1.0 - t1_frac - c.cash_min)
             if t2_budget < 0:
                 continue
             t2_per = (t2_budget / len(t2_ids)) if t2_ids else 0.0
-            t2_per = min(t2_per, c.per_protocol_max)
             cand = {}
             for pid in t1_ids:
-                cand[pid] = t1_per
+                cand[pid] = min(t1_frac / len(t1_ids), cap[pid])
             for pid in t2_ids:
-                cand[pid] = t2_per
+                cand[pid] = min(t2_per, cap[pid])
             candidates.append(cand)
 
         # ── 3. Random sampling с ограничениями ────────────────────────────
@@ -290,15 +375,16 @@ class AllocationTuner:
         for _ in range(n_random):
             cand: Dict[str, float] = {}
 
-            # T1 веса: сумма в [t1_min, 1 - cash_min]
-            t1_target = rng.uniform(c.t1_min, min(0.80, 1.0 - c.cash_min))
+            # T1 веса: сумма в [t1_min, min(ёмкость тировых потолков, 1 - cash_min)]
+            t1_hi = min(t1_capacity, 1.0 - c.cash_min)
+            t1_target = rng.uniform(min(c.t1_min, t1_hi), t1_hi)
             if t1_ids:
                 # Случайное разбиение T1 бюджета
                 t1_raw = [rng.random() for _ in t1_ids]
                 t1_sum = sum(t1_raw)
                 for i, pid in enumerate(t1_ids):
                     raw_w = (t1_raw[i] / t1_sum) * t1_target
-                    cand[pid] = min(raw_w, c.per_protocol_max)
+                    cand[pid] = min(raw_w, cap[pid])
                 # Откалибруем, если обрезали до cap
                 actual_t1 = sum(cand[p] for p in t1_ids)
                 if actual_t1 < c.t1_min:
@@ -306,7 +392,7 @@ class AllocationTuner:
                     deficit = c.t1_min - actual_t1
                     per = deficit / len(t1_ids)
                     for pid in t1_ids:
-                        cand[pid] = min(cand[pid] + per, c.per_protocol_max)
+                        cand[pid] = min(cand[pid] + per, cap[pid])
             else:
                 t1_target = 0.0
 
@@ -320,7 +406,7 @@ class AllocationTuner:
                 t2_sum = sum(t2_raw)
                 for i, pid in enumerate(t2_ids):
                     raw_w = (t2_raw[i] / t2_sum) * t2_target
-                    cand[pid] = min(raw_w, c.per_protocol_max)
+                    cand[pid] = min(raw_w, cap[pid])
             else:
                 for pid in t2_ids:
                     cand[pid] = 0.0

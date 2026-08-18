@@ -53,12 +53,26 @@ _DEFAULT_DATA_DIR = _REPO_ROOT / "data"
 POSITIONS_FILENAME = "current_positions.json"
 REBALANCER_VERSION = "v1.0"
 
-# TunerConstraints, выровненные с policy_enforcer RULES:
-#   per_protocol_max = 25%  (RULES["per_protocol_max_pct"] = 25.0)
-#   t1_min = 55%            (RULES["t1_min_pct"] = 55.0)
-#   t2_max = 45%            (консервативнее ADR-019 cap 50%)
-#   cash_min = 7%           (выше 5% minimum для запаса)
-#   max_protocols = 7       (< RULES["max_protocols"] = 8, запас 1)
+# ⚠️ ОТКЛОНЕНИЯ ОТ ПОЛИТИКИ — намеренный запас, НЕ зеркало (замер 2026-08-18).
+#
+# Прежний комментарий здесь описывал значения policy_enforcer.RULES, которых уже
+# не существует: он утверждал `RULES["per_protocol_max_pct"] = 25.0` и
+# `RULES["t1_min_pct"] = 55.0`, тогда как на деле enforcer читает из RiskConfig
+# 40.0 и 0.0 (T1-пол отключён 2026-07-08). Комментарий переписан по факту;
+# ЧИСЛА НЕ ТРОНУТЫ — их изменение сдвинуло бы money-path и требует владельца
+# (карточка own-2026-08-18-zapas-rebalansera-strozhe-politiki).
+#
+# Все поля, не перечисленные явно, наследуются из TunerConstraints, то есть
+# читаются из RiskConfig (единственный источник):
+#   per_protocol_max_t1 = 40 %  (RiskConfig.max_concentration_t1)
+#   per_protocol_max_t2 = 20 %  (RiskConfig.max_concentration_t2, T2+T3)
+#   t3_max = 15 %, tvl_floor = $5M, apy 1…30 %
+# Явные поля ниже — СТРОЖЕ политики (безопасное направление):
+#   per_protocol_max = 25 % < policy 40 %   — общий потолок на протокол
+#   t2_max           = 45 % < policy 50 %   (ADR-019)
+#   cash_min         =  7 % > policy 5 %
+#   max_protocols    =  7  < policy 8       (ALLOC-002)
+#   t1_min           = 55 %                 — аналога в политике НЕТ (см. карточку)
 _DEFAULT_CONSTRAINTS = TunerConstraints(
     t1_min=0.55,
     t2_max=0.45,
