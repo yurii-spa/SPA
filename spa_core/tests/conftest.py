@@ -6,6 +6,7 @@ pool/position/risk-config fixtures previously living in tests/.
 """
 import sys
 import json
+import time as _time
 import pytest
 import os
 import socket as _socket
@@ -487,6 +488,25 @@ if live_feed_doors is None:
     _doors_spec.loader.exec_module(live_feed_doors)          # type: ignore[union-attr]
     sys.modules["spa_live_feed_doors"] = live_feed_doors
 
+# ---------------------------------------------------------------------------
+# The GATE (2026-08-18, card `agent-tests-reach-live-feed-222`).
+#
+# The guard REFUSES the call, the doors stop most tests from walking up to a
+# feed, and the banner below REPORTS what is left — but the run still exits 0,
+# so a brand-new test that reaches for a feed costs nobody anything and the
+# number grows back. It already did once: "ноль отказов" was true of ONE test,
+# was read as true of the suite, and the suite was measured at 1726 again.
+# live_feed_gate.py turns that report into a failure, with the coverage it
+# actually has written down instead of implied.
+# ---------------------------------------------------------------------------
+_GATE_PATH = Path(__file__).resolve().parent / "live_feed_gate.py"
+live_feed_gate = sys.modules.get("spa_live_feed_gate")
+if live_feed_gate is None:
+    _gate_spec = _ilu.spec_from_file_location("spa_live_feed_gate", _GATE_PATH)
+    live_feed_gate = _ilu.module_from_spec(_gate_spec)       # type: ignore[arg-type]
+    _gate_spec.loader.exec_module(live_feed_gate)            # type: ignore[union-attr]
+    sys.modules["spa_live_feed_gate"] = live_feed_gate
+
 
 # ---------------------------------------------------------------------------
 # The network guard's ledger belongs to ONE test (2026-08-04, cycle #115,
@@ -516,12 +536,17 @@ if live_feed_doors is None:
 # ---------------------------------------------------------------------------
 @pytest.fixture(autouse=True)
 def _scope_network_guard_ledger(request):
-    """Give every test its own network-refusal ledger, and keep what it found.
+    """Give every test its own network-refusal ledger, and gate what it found.
 
-    Deliberately not a gate: unlike the Telegram fixture below, this one never
-    fails a test. Refusing a live call is the guard doing its job, and the two
-    concerns are separate — messaging the owner's chat is an incident, reaching
-    a price feed under test is a design smell with 102 known instances.
+    Recording is unchanged. What is new (2026-08-18) is that the recording is
+    now READ by `live_feed_gate` before the ledger is put away: a test that
+    reached for a live feed fails here unless the baseline already knew about
+    it. Scope is deliberately narrower than "every test" and is written down in
+    live_feed_gate.py — the measured files are gated at their measured caps,
+    every NEW test file is gated at zero, and older unmeasured files are still
+    only reported. A gate that reddened 89 % of the suite for being unmeasured
+    would be switched off within a day, which is the frozen-date-ratchet lesson
+    in .claude/rules/deployment.md.
     """
     # Put the guard BACK if something knocked it out of the urlopen chain
     # (2026-08-08, cycle #163, card
@@ -556,7 +581,40 @@ def _scope_network_guard_ledger(request):
         telegram_guard.install()
     network_guard.reset()
     yield
-    network_guard.archive(request.node.nodeid)
+    recorded = network_guard.archive(request.node.nodeid)
+    if recorded:
+        # Archived FIRST: whatever the gate decides, the refusals stay attributed
+        # and printed. A gate that ate its own evidence would be the same
+        # fail-OPEN shape this file keeps closing.
+        problem = live_feed_gate.check(
+            request.node.nodeid,
+            recorded,
+            marked=bool(request.node.get_closest_marker(live_feed_doors.MARKER)),
+        )
+        if problem:
+            pytest.fail(problem, pytrace=False)
+
+
+# ---------------------------------------------------------------------------
+# The TIME half of the same card (2026-08-18): a test that quietly grows to eat
+# the cycle is the same failure as one that quietly reaches for a feed — nobody
+# looks until a run stops completing. `--durations` on the measured slice put
+# 52 % of a 241 s run in THREE tests. This does not ban slow tests: @pytest.mark
+# .slow declares one, a measured long-runner keeps its recorded cap, and only
+# the UNDECLARED long-runner is refused. Same scope rule as the network gate.
+# ---------------------------------------------------------------------------
+@pytest.fixture(autouse=True)
+def _gate_the_time_budget(request):
+    started = _time.monotonic()
+    yield
+    elapsed = _time.monotonic() - started
+    problem = live_feed_gate.check_duration(
+        request.node.nodeid,
+        elapsed,
+        marked_slow=bool(request.node.get_closest_marker("slow")),
+    )
+    if problem:
+        pytest.fail(problem, pytrace=False)
 
 
 # ---------------------------------------------------------------------------
@@ -618,6 +676,19 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
                 f"  … {len(knocked_out) - 10} more test(s) not shown"
             )
 
+    # The newness half of the gate needs git. If it could not run, SAY so —
+    # a gate that silently went half-inert is worse than no gate, because the
+    # green now means something different from what it says.
+    trouble = live_feed_gate.git_trouble()
+    if trouble:
+        terminalreporter.write_sep("=", "live-feed gate ran HALF-INERT (no git)")
+        terminalreporter.write_line(
+            "The NEW-file half of the gate could not run — new test files were "
+            "NOT gated in this run. The measured-file half still applied."
+        )
+        for reason in trouble[:5]:
+            terminalreporter.write_line(f"  {reason}")
+
     archived = network_guard.archived()
     if not archived:
         return
@@ -628,6 +699,12 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
         f"code under test reaching for a live feed and getting a fail-CLOSED "
         f"OSError. Inject a fake feed instead (.claude/rules/adapters.md)."
     )
+    # Never let this list be read as "and everything else is hermetic": say what
+    # the gate actually covers, every time it prints.
+    try:
+        terminalreporter.write_line(live_feed_gate.coverage())
+    except Exception as exc:  # noqa: BLE001 — a broken baseline must be LOUD
+        terminalreporter.write_line(f"live-feed gate baseline UNREADABLE: {exc}")
     ranked = sorted(archived, key=lambda pair: -len(pair[1]))
     shown = ranked[:20]
     for nodeid, items in shown:

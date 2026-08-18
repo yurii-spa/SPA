@@ -1,11 +1,11 @@
 ---
 trackerStatus:
   type: owner-decision
-title: Подборщик раскладки не знает про потолки по сетям — предлагает то, что гейт заворачивает
+title: Подборщик раскладки И САМ АЛЛОКАТОР не знают про потолки по сетям — предлагают то, что гейт заворачивает
 status: needs-owner
 priority: medium
 owner: yuriycooleshov@gmail.com
-related: agent-tuner-constraints-drift-and-feed-divergence
+related: agent-tuner-constraints-drift-and-feed-divergence, agent-allocator-slep-k-limitu-seti
 created: 2026-08-18
 ---
 
@@ -28,6 +28,23 @@ created: 2026-08-18
 Пока подборщик советует (его предложение применяется вручную), цена этого — потерянный цикл и
 советы, которые нельзя применить. Если он когда-нибудь начнёт двигать капитал сам, цена станет
 реальной.
+
+**Дополнение 2026-08-18 (второй замер): ровно тем же болеет НЕ советчик, а сам аллокатор —
+тот, чья раскладка идёт в цикл.** Проверено поведением: взяли реальное предложение аллокатора
+(модель `optimized_yield`, живой снимок и реестр) и прогнали через настоящий гейт. Он предложил
+95 % капитала в Ethereum и гейт отверг раскладку ЦЕЛИКОМ — то есть в таком цикле сделок нет
+вообще. Причина та же: у аллокатора на входе нет поля «сеть», хотя сеть всех 20 кандидатов
+определяется из того же файла реестра, который аллокатор уже читает.
+
+Разница с подборщиком только в цене: подборщик советует, аллокатор — рабочая ступень цикла.
+Поэтому вариант A ниже стоит понимать как «научить сети ОБЕ ступени», а не одну.
+
+Отдельно, чтобы решение было честным: сетевой потолок нельзя «просто применить». Освободившиеся
+5 % надо куда-то деть, и вариантов ровно два — оставить их в кэше (капитал простаивает) или
+отправить в не-Ethereum (Arbitrum / Base). Оба замерены и оба гейт пропускает. Но Base
+owner-gated (ADR-025, фаза 2 требует твоего APPROVE_BASE), один Base-кандидат заморожен по
+ADR-053, другой — T3 со своим потолком 15 %. Куда именно уходят деньги — решение твоё, не моё,
+поэтому правку аллокатора я не делал.
 
 ## Что от тебя нужно
 
@@ -81,3 +98,73 @@ rebalancer_defaults apy=3.1213 cash=9.72 % → single_chain_max_pct CRITICAL 90.
 (`spa_core/tuner/allocation_tuner.py:_load_adapter_data`), поля `chain` нет; снимок
 `data/adapter_orchestrator_status.json` его тоже не несёт. Гейт резолвит сеть через
 `_resolve_chain_map` (`policy_enforcer.py:113-150`) из `data/adapter_registry.json`.
+
+### Замер по АЛЛОКАТОРУ, 2026-08-18 (тот же приём: предложение → настоящий гейт)
+
+`StrategyAllocator(allocation_model="optimized_yield").allocate()` на живом
+`data/adapter_orchestrator_status.json` + `data/adapter_registry.json`, капитал $100 000,
+затем `policy_enforcer.validate_positions(target_usd, capital, cash_usd=остаток)`:
+
+```
+MODEL: optimized_yield capital: 100000.0
+PROPOSAL (usd):
+   morpho_steakhouse            40000.00  40.00%
+   pendle                       20000.00  20.00%
+   frax                         20000.00  20.00%
+   scrvusd                      10000.00  10.00%
+   compound_v3                   5000.00   5.00%
+cash_pct: 0.05 deployed_pct: 0.95
+
+GATE passed: False
+VIOLATION single_chain_max_pct CRITICAL :: Chain 'ethereum' holds 95.0% —
+    exceeds single-chain cap 90.0% (actual=95.0 expected=<=90.0)
+```
+
+Нарушение ровно одно и ровно то, что в карточке `agent-allocator-slep-k-limitu-seti`
+(там оно было названо на `euler_v2 ... 95.0%`; на сегодняшнем снимке книга другая, число то же
+и правило то же). `approved=False` ⇒ `policy_blocked=True` ⇒ сделок в цикле нет.
+
+**Причина (файл:строка).** Ряд-кандидат, который аллокатор отдаёт модели раскладки, собирается
+в `spa_core/allocator/allocator.py:930-938` (ветка снимка оркестратора) и
+`spa_core/allocator/allocator.py:1024-1034` (ветка мёрджа реестра). Контракт ряда —
+`{protocol, apy_pct, tvl_usd, tier, apy_source, tvl_source, as_of}`, поля `chain` НЕТ ни в
+одной из веток. Замерено: `rows carrying a 'chain' key: 0 / 20`. Далее
+`spa_core/allocator/allocation_models.py` (420 строк, `optimized_yield_breakdown`) слова
+`chain` не содержит вообще — сетевого измерения в оптимизаторе нет, поэтому потолок и не
+применяется. Потолки, которые модель ЗНАЕТ, передаются явно
+(`allocator.py:1544-1553`: `tier_caps`, `t2_total_cap`, `cash_floor`, `max_protocols`) —
+сетевых среди них нет.
+
+**Важное отличие от тюнера: данные о сети у аллокатора ЕСТЬ под рукой.** Все 20 кандидатов
+резолвятся в сеть через тот же `_resolve_chain_map` по имени протокола, включая пришедших из
+снимка (у которого поля `chain` нет — реестр покрывает их по имени):
+
+```
+resolvable via policy_enforcer._resolve_chain_map: 20 / 20   unresolved: []
+   pendle 8.00 T2 ethereum (snapshot) · frax 7.50 T2 ethereum · scrvusd 7.00 T2 ethereum
+   morpho_steakhouse 6.50 T1 ethereum · morpho_blue_base 6.20 T2 base
+   sfrax 6.00 · stusd 6.00 · sdai 5.50 (все ethereum) · moonwell_base 5.50 T2 base
+   compound_v3 5.20 T1 ethereum (snapshot) · aave_v3_polygon 5.10 T1 polygon
+   wusdm 5.00 ethereum · maple 4.82 ethereum (snapshot) · aave_v3_optimism 4.80 T1 optimism
+   aave_v3_base 4.50 T2 base · aave_arbitrum 4.10 T1 arbitrum · morpho_blue 4.10 ethereum
+   aave_v3 3.50 T1 ethereum · yearn_v3 3.23 ethereum · euler_v2 2.75 ethereum
+```
+
+Реестр `data/adapter_registry.json` несёт `chain` для ВСЕХ 34 адаптеров
+(ethereum 26 · base 5 · arbitrum 1 · optimism 1 · polygon 1), и аллокатор этот файл уже
+открывает сам (`allocator.py:963` — ветка MP-REGISTRY).
+
+**Почему правка НЕ сделана (граница money-path).** Применение потолка не детерминировано:
+надо решить, куда девать вытесненные 5 %. Оба исхода замерены на том же предложении и оба
+гейт пропускает:
+
+```
+[as proposed by allocator]                      passed=False  cash=5000  single_chain_max_pct 95.0 > 90.0
+[counterfactual: 5% ethereum -> aave_arbitrum]  passed=True   cash=5000
+[counterfactual: 5% оставлены в кэше]           passed=True   cash=10000
+```
+
+Первый исход двигает деньги в L2 (Base — owner-gated ADR-025 фаза 2 / APPROVE_BASE;
+`morpho_blue_base` заморожен ADR-053; `moonwell_base` — T3 с потолком 15 %), второй оставляет
+капитал простаивать (ADR-055 требует объяснять кэш сверх 5 %). Это выбор владельца, а не
+механическое применение уже принятого правила, поэтому `spa_core/allocator/**` не тронут.

@@ -2,10 +2,11 @@
 trackerStatus:
   type: agent-task
 title: "Аллокатор слеп к лимиту сети — предлагает 95 % на Ethereum, и гейт блокирует ВСЮ раскладку"
-status: backlog
+status: blocked
 source: session-2026-08-08-owner-answers
 created: 2026-08-08
 priority: high
+blocked_by: own-2026-08-18-tyuner-ne-znaet-o-setevykh-potolkakh
 tags: [allocator, money-path, chain-limits, adr-073, risk-policy]
 ---
 
@@ -55,3 +56,70 @@ Base — `moonwell_base` **6.62 %**, `morpho_blue_base` 4.95 % (замороже
 `extra_finance_base` 1.52 %.
 
 То есть ёмкость вне Ethereum есть и она доходная — раскладка её просто не видит.
+
+---
+
+## Повторный замер 2026-08-18 — воспроизведено поведением, правка НЕ сделана (ждёт владельца)
+
+Дефект жив и воспроизводится тем же приёмом, которым в тот же день доказали дефект тюнера:
+реальное предложение аллокатора прогнано через НАСТОЯЩИЙ `policy_enforcer.validate_positions`.
+
+```
+MODEL: optimized_yield capital: 100000.0
+PROPOSAL (usd):
+   morpho_steakhouse            40000.00  40.00%
+   pendle                       20000.00  20.00%
+   frax                         20000.00  20.00%
+   scrvusd                      10000.00  10.00%
+   compound_v3                   5000.00   5.00%
+cash_pct: 0.05 deployed_pct: 0.95
+
+GATE passed: False
+VIOLATION single_chain_max_pct CRITICAL :: Chain 'ethereum' holds 95.0% —
+    exceeds single-chain cap 90.0% (actual=95.0 expected=<=90.0)
+```
+
+Число то же (95,0 %), правило то же; книга другая — на сегодняшнем снимке крайним оказался не
+`euler_v2`, но вердикт `approved=False` на ВСЮ раскладку никуда не делся.
+
+### Причина, файл:строка
+
+- Ряд-кандидат для модели раскладки собирается в `spa_core/allocator/allocator.py:930-938`
+  (ветка снимка оркестратора) и `spa_core/allocator/allocator.py:1024-1034` (ветка мёрджа
+  реестра). Контракт ряда: `{protocol, apy_pct, tvl_usd, tier, apy_source, tvl_source, as_of}` —
+  поля `chain` нет ни в одной ветке. Замер: `rows carrying a 'chain' key: 0 / 20`.
+- `spa_core/allocator/allocation_models.py` (420 строк, `optimized_yield_breakdown`) слова
+  `chain` не содержит вообще — сетевого измерения в оптимизаторе нет.
+- Потолки, которые модель знает, передаются явно (`allocator.py:1544-1553`: `tier_caps`,
+  `t2_total_cap`, `cash_floor`, `max_protocols`) — сетевых среди них нет.
+- Гейт же резолвит сеть по ИМЕНИ протокола через `_resolve_chain_map`
+  (`spa_core/risk/policy_enforcer.py:113-150`) из `data/adapter_registry.json`, где `chain`
+  проставлен у всех 34 адаптеров.
+
+### Развилка: данные о сети у аллокатора ЕСТЬ (в отличие от тюнера)
+
+`resolvable via policy_enforcer._resolve_chain_map: 20 / 20, unresolved: []` — включая
+кандидатов из снимка оркестратора (у самого снимка поля `chain` нет: `with chain field: 0/7`).
+Реестр — тот самый файл, который аллокатор УЖЕ открывает (`allocator.py:963`). То есть это не
+«нечем зеркалить», как у тюнера, а «измерение просто не заведено».
+
+### Почему всё-таки не починено
+
+Применение потолка не детерминировано: вытесненные 5 % надо куда-то деть, и оба исхода гейт
+пропускает —
+
+```
+[as proposed by allocator]                      passed=False  cash=5000  single_chain 95.0 > 90.0
+[counterfactual: 5% ethereum -> aave_arbitrum]  passed=True   cash=5000
+[counterfactual: 5% оставлены в кэше]           passed=True   cash=10000
+```
+
+— но первый двигает деньги в L2 (Base owner-gated ADR-025 фаза 2 / APPROVE_BASE;
+`morpho_blue_base` заморожен ADR-053; `moonwell_base` — T3, потолок 15 %), а второй оставляет
+капитал простаивать (ADR-055 требует объяснять кэш сверх 5 %). Это выбор ВЛАДЕЛЬЦА о том, куда
+идут деньги, а не механическое применение уже принятого правила — поэтому `spa_core/allocator/**`
+не тронут ни строкой.
+
+Вторая карточка владельцу НЕ заводилась: причина и решение те же, что у тюнера, замер добавлен
+в существующую — `own-2026-08-18-tyuner-ne-znaet-o-setevykh-potolkakh` (её вариант A теперь
+охватывает обе ступени). Разблокировать эту карточку после ответа владельца.
