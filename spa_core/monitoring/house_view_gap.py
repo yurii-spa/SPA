@@ -10,6 +10,11 @@ findings_bridge (карточки) и Шаг 0-офис оркестратора
                       книга её не держит, и отказ НЕ назван нигде:
                         - held в positions                       → нет гэпа
                         - в below_median_cap / warnings rationale → explained (INFO)
+                        - назван в атрибуции кэша ТОГО ЖЕ цикла (`cash.ineligible_rooms`,
+                          `cash.policy_refusals`, компоненты-потолки — ADR-055/076.3)
+                          → explained (INFO), и причина печатается ДОСЛОВНО. Исключение:
+                          протокол, названный циклом в `unexplained_deployable`, остаётся
+                          WARN — это дословное «стоит без записанной причины»
                         - протокола нет в ADAPTER_REGISTRY        → explained (INFO:
                           входа технически нет — нужен адаптер + промоушен)
                         - rationale НЕ ПРОЧИТАН                   → unchecked (ADR-070 п.5,
@@ -140,6 +145,104 @@ AGE_UNMEASURED_RU = "возраст НЕ ИЗМЕРЕН"
 
 def _norm(p) -> str:
     return str(p or "").strip().lower()
+
+
+#: Компоненты атрибуции кэша (`attribute_cash`, ADR-055/076.3), чьё присутствие протокола
+#: означает НАЗВАННЫЙ связывающий лимит: комната есть, но её держит потолок тира /
+#: агрегатный потолок / отсутствие живой доказанности. Это не «мы промолчали», это
+#: записанное решение цикла — с именем причины.
+_NAMED_BINDER_KINDS = ("per_protocol_cap", "aggregate_cap", "insufficient_eligible_live")
+
+#: Компонент, которым цикл САМ говорит «комната фондируема сегодня и стоит без
+#: записанной причины». Протокол отсюда НЕ может считаться объяснённым ничем другим —
+#: иначе сверка гасила бы ровно тот сигнал, ради которого написана (инвариант 16 по духу).
+_UNEXPLAINED_KIND = "unexplained_deployable"
+
+
+def _proto_of(entry) -> str:
+    """Имя протокола из строки компонента.
+
+    Формы, которые пишет `attribute_cash`: ``moonwell_base($20,000: tvl_below_floor)``,
+    ``moonwell_base(+$20,000 @ 5.73%)``, ``aave_v3@40%``, ``fluid_fusdc@cap(counterfactual)``.
+    """
+    return _norm(str(entry or "").split("(")[0].split("@")[0])
+
+
+def named_refusals_from_cash(rationale) -> dict[str, str]:
+    """Протокол → НАЗВАННАЯ причина отказа из атрибуции кэша ТОГО ЖЕ цикла.
+
+    Замер 18.08 (живой брифинг, `house_view_gap warn=2`): `moonwell_base` 5.73 % и
+    `fluid_fusdc` 5.54 % объявлялись «безымянным простоем», хотя причина каждого была
+    измерена и записана этим же циклом в `allocation_rationale.json → cash`
+    (`ineligible_rooms`: `tvl_below_floor` / `apy_not_live`). Сверка читала из rationale
+    ровно два поля — `below_median_cap` и `decision_shadow.warnings` — и не знала про
+    атрибуцию вовсе. Это ВТОРАЯ КОПИЯ определения «назван ли отказ»: производитель
+    называет причину в одном месте, потребитель ищет её в другом, и владелец читает
+    «непонятно почему» про измеренное. Правится ЧТЕНИЕМ того же источника, из которого
+    решение и записано (карточка ADR-076.3, п. 2), а не третьей копией правила.
+
+    Fail-CLOSED, две стороны:
+      * `cash` отсутствует / не разобран ⇒ пустой словарь — сверка не выдумывает
+        объяснение и оставляет находку WARN («не измерено» ≠ «причин нет»);
+      * протокол, названный циклом в `unexplained_deployable`, НИКОГДА не попадает в
+        объяснённые, даже если он же перечислен где-то ещё: это дословное «стоит без
+        записанной причины», и заглушить его значило бы погасить сигнал.
+
+    Капитал от этой функции не двигается: она только читает и называет.
+    """
+    if not isinstance(rationale, dict):
+        return {}
+    cash = rationale.get("cash")
+    if not isinstance(cash, dict):
+        return {}
+    named: dict[str, str] = {}
+    silent: set[str] = set()
+    for comp in cash.get("components") or []:
+        if not isinstance(comp, dict):
+            continue
+        kind = str(comp.get("kind") or "")
+        protos = [p for p in (_proto_of(x) for x in (comp.get("protocols") or [])) if p]
+        if kind == _UNEXPLAINED_KIND:
+            silent.update(protos)
+            # `caused_by` — провенанс освобождённого бюджета (ADR-053): он называет
+            # ЧУЖОЙ протокол-причину, а не объясняет саму простаивающую комнату.
+            for c in comp.get("caused_by") or []:
+                if isinstance(c, dict) and c.get("protocol"):
+                    named.setdefault(_norm(c["protocol"]),
+                                     str(c.get("reason") or "policy_refusal"))
+            continue
+        if kind in _NAMED_BINDER_KINDS:
+            for p in protos:
+                named.setdefault(p, kind)
+    for room in cash.get("ineligible_rooms") or []:
+        if isinstance(room, dict) and room.get("protocol"):
+            why = room.get("why") or []
+            named[_norm(room["protocol"])] = ",".join(str(w) for w in why) or "ineligible"
+    for ref in cash.get("policy_refusals") or []:
+        if isinstance(ref, dict) and ref.get("protocol"):
+            named.setdefault(_norm(ref["protocol"]),
+                             str(ref.get("reason") or "policy_refusal"))
+    for p in silent:
+        named.pop(p, None)
+    return {k: v for k, v in named.items() if k}
+
+
+def silent_protocols_from_cash(rationale) -> set[str]:
+    """Протоколы, которые цикл САМ назвал фондируемыми и простаивающими без причины.
+
+    Такая находка обязана остаться WARN независимо от того, мелькнуло ли имя протокола
+    в `warnings` соседнего артефакта: «упомянут» ≠ «отказ назван».
+    """
+    if not isinstance(rationale, dict):
+        return set()
+    cash = rationale.get("cash")
+    if not isinstance(cash, dict):
+        return set()
+    out: set[str] = set()
+    for comp in cash.get("components") or []:
+        if isinstance(comp, dict) and str(comp.get("kind") or "") == _UNEXPLAINED_KIND:
+            out.update(p for p in (_proto_of(x) for x in (comp.get("protocols") or [])) if p)
+    return out
 
 
 def _parse_iso(raw) -> dt.datetime | None:
@@ -284,11 +387,19 @@ def compute_gaps(chief: dict | None,
     # `if rationale:`, и МОЛЧАНИЕ ФАЙЛА становилось уликой: пропал производитель rationale —
     # и каждая невзятая возможность объявлялась «безымянным простоем» (WARN → карточка).
     refusals_measured = isinstance(rationale, dict)
+    # Протокол → названная причина из атрибуции кэша ТОГО ЖЕ цикла (ADR-076.3).
+    # Пусто ⇒ атрибуции нет/не разобрана ⇒ сверка судит как раньше (fail-CLOSED).
+    cash_named: dict[str, str] = {}
+    cash_silent: set[str] = set()
     if refusals_measured:
         for e in rationale.get("below_median_cap") or []:
             explained_protocols.add(_norm(e.get("protocol")))
         shadow = rationale.get("decision_shadow") or {}
         blob = json.dumps(shadow.get("warnings") or [], ensure_ascii=False).lower()
+        cash_named = named_refusals_from_cash(rationale)
+        cash_silent = silent_protocols_from_cash(rationale)
+        explained_protocols.update(cash_named)
+        explained_protocols -= cash_silent
     else:
         unchecked.append({"input": "allocation_rationale",
                           "reason": "файл не прочитан — «назван ли отказ» НЕ ИЗМЕРЕНО "
@@ -341,11 +452,16 @@ def compute_gaps(chief: dict | None,
                     "input_ages": {"chief_investment": chief_age,
                                    "current_positions": book_age,
                                    "allocation_rationale": ages.get("allocation_rationale")}}
-            if proto in explained_protocols or proto in blob:
+            if proto not in cash_silent and (proto in explained_protocols or proto in blob):
+                # Причина НАЗЫВАЕТСЯ в самом тексте, когда она известна: «отказ назван
+                # где-то в rationale» читателю не отвечает НА ЧТО именно опёрлись.
+                why = cash_named.get(proto)
                 gaps.append({"key": f"gap:opportunity_explained:{proto}",
                              "type": "opportunity_unheld", "severity": "INFO",
+                             "refusal_reason": why,
                              "message": f"возможность {proto} {v.get('apy_pct')}% не в книге — "
-                                        f"отказ НАЗВАН в rationale", **base})
+                                        + (f"отказ НАЗВАН циклом: {why}" if why
+                                           else "отказ НАЗВАН в rationale"), **base})
             elif registry_keys is None:
                 gaps.append({"key": f"gap:opportunity_unclassified:{proto}",
                              "type": "opportunity_unheld", "severity": "INFO",

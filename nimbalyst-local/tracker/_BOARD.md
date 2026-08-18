@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-18T09:37:54Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-18T10:05:44Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **514** · ждёт владельца: **12** · занято сессиями: **3**.
+> Всего карточек: **515** · ждёт владельца: **13** · занято сессиями: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -14,6 +14,7 @@
 - **Автопочинщик кода остался без вызывающих: убрать совсем или оставить лежать**  ·  `own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih.md`
 - **Ручной инструмент поиска новых источников доходности никто не запускает — оставить, поставить на расписание или списать**  ·  `own-ruchnoy-instrument-poiska-istochnikov.md`
 - **Цена нашего лимита «не больше 20 % на одно имя» измерена: поднимать его незачем, он стоит ровно в лучшей точке** · _medium_  ·  `own-tsena-nashego-limita-20-na-odno-imya-izme.md`
+- **Аварийная остановка ТЕРЯЕТСЯ при восстановлении из резерва (выбери, как убрать файлы состояния из git)** · _high_  ·  `owner-decision-avariinaya-ostanovka-teryaetsya-pri-vosst.md`
 - **Доска карточек обещает больше, чем даёт: поправить одну фразу в CLAUDE.md**  ·  `owner-decision-doska-kartochek-obeschaet-bolshe-chem-da.md`
 - **Две записи о деньгах: причина найдена и измерена — выбрать, чем чинить**  ·  `owner-decision-dve-zapisi-o-dengah-prichina-naidena-i-i.md`
 - **Правило «Sky/sUSDS = 0 %» отменено твоим же решением, но написано как действующее — и уже породило ложную тревогу**  ·  `owner-decision-pravilo-sky-susds-0-otmeneno-tvoim-zhe-r.md`
@@ -29,7 +30,7 @@
 - **а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…** — держит `pid43119` · с 2026-08-14T11:52:34Z  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md`
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (124)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (125)
 
 ### · needs-owner
 - Два имени в книге стоят на одном и том же хранилище Morpho — решить, каким быть второму  ·  `own-2026-08-17-morpho-blue-odin-pul-dva-kluycha.md` · 2026-08-17
@@ -38,6 +39,7 @@
 - Автопочинщик кода остался без вызывающих: убрать совсем или оставить лежать  ·  `own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih.md` · 2026-08-17
 - Ручной инструмент поиска новых источников доходности никто не запускает — оставить, поставить на расписание или списать  ·  `own-ruchnoy-instrument-poiska-istochnikov.md` · 2026-08-17
 - Цена нашего лимита «не больше 20 % на одно имя» измерена: поднимать его незачем, он стоит ровно в лучшей точке  ·  `own-tsena-nashego-limita-20-na-odno-imya-izme.md` · 2026-08-17
+- Аварийная остановка ТЕРЯЕТСЯ при восстановлении из резерва (выбери, как убрать файлы состояния из git)  ·  `owner-decision-avariinaya-ostanovka-teryaetsya-pri-vosst.md` · 2026-08-18
 - Доска карточек обещает больше, чем даёт: поправить одну фразу в CLAUDE.md  ·  `owner-decision-doska-kartochek-obeschaet-bolshe-chem-da.md` · 2026-08-17
 - Две записи о деньгах: причина найдена и измерена — выбрать, чем чинить  ·  `owner-decision-dve-zapisi-o-dengah-prichina-naidena-i-i.md` · 2026-08-17
 - Правило «Sky/sUSDS = 0 %» отменено твоим же решением, но написано как действующее — и уже породило ложную тревогу  ·  `owner-decision-pravilo-sky-susds-0-otmeneno-tvoim-zhe-r.md` · 2026-08-17
@@ -207,6 +209,7 @@
 - ADR-070.9: общий замок цикла оркестратора  ·  `inbox-adr-070-9-obschii-zamok-tsikla-orkestrat.md` · 2026-08-07
 - ADR-076.1: живой TVL для четырёх Aave вне Ethereum — единственное, чего не хватает кэшу  ·  `inbox-adr-076-1-zhivoi-tvl-dlya-chetyreh-aave.md` · 2026-08-08
 - ADR-076.2: aerodrome_usdc_lp — фид мёртв целиком, а 8.5% печатается как возможность  ·  `inbox-adr-076-2-aerodrome-usdc-lp-fid-mertv-ts.md` · 2026-08-08
+- ADR-076.3: атрибуция кэша обязана назвать лимит цепочки вместо UNEXPLAINED  ·  `inbox-adr-076-3-atributsiya-kesha-obyazana-naz.md` · 2026-08-08
 - ADR-089 п.1: коммитить дневной срез блокировок риск-гейта в git  ·  `inbox-adr-087-p-1-kommitit-dnevnoi-srez-blokir.md` · 2026-08-15
 - ALLOC-002-отбор: топ-8 по весу беднит книгу — отбирать ПОСЛЕ evidence/TVL-гейта  ·  `inbox-alloc-002-otbor-top-8-po-vesu-bednit-kni.md` · 2026-08-08
 - APY Persistence / Confidence  ·  `inbox-apy-persistence-confidence.md` · 2026-08-13
@@ -366,7 +369,6 @@
 - ADR-070.20: CLMM research + хедж-форма (ADR risk-слоя)  ·  `inbox-adr-070-20-clmm-research-hedzh-forma-adr.md` · 2026-08-07
 - ADR-070.5: перенести 3 гарантии дубля в живой мост  ·  `inbox-adr-070-5-perenesti-3-garantii-dublya-v.md` · 2026-08-07
 - ADR-072 не сработал: трим происходит в АЛЛОКАТОРЕ, не в гейте — кэш всё ещё 25%  ·  `inbox-adr-072-ne-srabotal-trim-proishodit-v-al.md` · 2026-08-08
-- ADR-076.3: атрибуция кэша обязана назвать лимит цепочки вместо UNEXPLAINED  ·  `inbox-adr-076-3-atributsiya-kesha-obyazana-naz.md` · 2026-08-08
 - ADR-089 п.2: применить правило ADR-055 (ниже медианы — не максить потолок) в расчёте весов, сначала в shadow  ·  `inbox-adr-087-p-2-primenit-pravilo-adr-055-niz.md` · 2026-08-15
 - ADR-089 п.3: свести два пути APY к одному определению (aave_v3 4.80 против 2.36)  ·  `inbox-adr-087-p-3-svesti-dva-puti-apy-k-odnomu.md` · 2026-08-15
 - Длинный документ владельца приехал СЕМЬЮ карточками, и шесть из них — не задачи, а куски предложений  ·  `inbox-dlinnyi-dokument-vladeltsa-priehal-semyu.md` · 2026-08-13
