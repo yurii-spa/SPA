@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Аллокатор ставит метку «живой размер пула» на выдуманное число — прямой запрет правила
-status: needs-owner
+status: ingested
 priority: high
 owner: yuriycooleshov@gmail.com
 related: inbox-krupneishaya-pozitsiya-knigi-stoit-na-ko
@@ -112,3 +112,10 @@ _row = {
 Существующий тест `spa_core/tests/test_tvl_pinned_provenance.py::TestEvidencedTvl` покрывает
 ЧИТАТЕЛЯ (`_load_evidenced_tvl`) и проходит; потребителя в аллокаторе не покрывает никто —
 отсюда и слепое пятно.
+
+---
+
+## ОТВЕТ ВЛАДЕЛЬЦА 18.08 — записан в ADR-095
+
+Решение принято кнопкой в сессии и зафиксировано в `docs/decisions/ADR-095-owner-decisions-2026-08-18.md`.
+Карточка переведена в `ingested` (инвариант 14: `owner-done` ставит только владелец).

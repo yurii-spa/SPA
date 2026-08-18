@@ -26,7 +26,7 @@
 - **DeFiLlama feed** (`defillama_feed.py`, TTL 300с): pinned `Accept-Encoding: gzip` → ответ
   надо декомпрессировать (иначе все `apy=None`). Pendle `tvl:null` → брать `liquidity.usd`.
   Chain-лейблы: Optimism = «OP Mainnet».
-- **Sky/sUSDS = 0%** до подтверждённого GSM Pause Delay ≥ 48h on-chain (инвариант).
+- **Sky/sUSDS — T1 с 05.08:** условие «GSM Pause Delay ≥ 48h on-chain» ПОДТВЕРЖДЕНО (`ADR-065`), инвариант 10 исполнен. Прежний запрет 0 % больше не действует.
 - **Только stdlib** в рантайме. Атомарные записи через `atomic_save`.
 - Новые адаптеры T2/T3 — `IS_ADVISORY=True` / `RESEARCH_ONLY=True` до go-live.
 - Тесты инжектят `FakeFeed` (DeFiLlama gzip падает офлайн) — не завязывать тесты на живую сеть.

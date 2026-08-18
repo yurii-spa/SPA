@@ -2,15 +2,12 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-18T11:10:07Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-18T18:22:38Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **518** · ждёт владельца: **15** · занято сессиями: **3**.
+> Всего карточек: **518** · ждёт владельца: **11** · занято сессиями: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
-- **Два имени в книге стоят на одном и том же хранилище Morpho — решить, каким быть второму** · _high_  ·  `own-2026-08-17-morpho-blue-odin-pul-dva-kluycha.md`
-- **Два ключа на один и тот же вклад в Sky — решить, какой оставить** · _medium_  ·  `own-2026-08-17-spark-susds-dublikat.md`
-- **Аллокатор ставит метку «живой размер пула» на выдуманное число — прямой запрет правила** · _high_  ·  `own-2026-08-18-metka-zhivoi-na-konstante-v-allokatore.md`
 - **Подборщик раскладки И САМ АЛЛОКАТОР не знают про потолки по сетям — предлагают то, что гейт заворачивает** · _medium_  ·  `own-2026-08-18-tyuner-ne-znaet-o-setevykh-potolkakh.md`
 - **У ребалансера свой запас строже политики — оставляем или снимаем** · _medium_  ·  `own-2026-08-18-zapas-rebalansera-strozhe-politiki.md`
 - **Автопочинщик кода остался без вызывающих: убрать совсем или оставить лежать**  ·  `own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih.md`
@@ -19,7 +16,6 @@
 - **Аварийная остановка ТЕРЯЕТСЯ при восстановлении из резерва (выбери, как убрать файлы состояния из git)** · _high_  ·  `owner-decision-avariinaya-ostanovka-teryaetsya-pri-vosst.md`
 - **Доска карточек обещает больше, чем даёт: поправить одну фразу в CLAUDE.md**  ·  `owner-decision-doska-kartochek-obeschaet-bolshe-chem-da.md`
 - **Две записи о деньгах: причина найдена и измерена — выбрать, чем чинить**  ·  `owner-decision-dve-zapisi-o-dengah-prichina-naidena-i-i.md`
-- **Правило «Sky/sUSDS = 0 %» отменено твоим же решением, но написано как действующее — и уже породило ложную тревогу**  ·  `owner-decision-pravilo-sky-susds-0-otmeneno-tvoim-zhe-r.md`
 - **Списать 180 фоновых модулей Tier-C или честно записать, что мы про них не знаем**  ·  `owner-decision-spisat-180-fonovyh-modulei-tier-c-ili-ch.md`
 - **Сторож сайта краснеет каждую ночь на длине трека — расширить дневной класс на одно поле?**  ·  `owner-decision-storozh-saita-krasneet-kazhduyu-noch-na.md`
 - **Закрытие вопроса владельца из рабочего дерева читается сторожем как «закрыли без владельца» — выбери, чем лечим**  ·  `owner-decision-zakrytie-voprosa-vladeltsa-iz-rabochego.md`
@@ -35,9 +31,6 @@
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (127)
 
 ### · needs-owner
-- Два имени в книге стоят на одном и том же хранилище Morpho — решить, каким быть второму  ·  `own-2026-08-17-morpho-blue-odin-pul-dva-kluycha.md` · 2026-08-17
-- Два ключа на один и тот же вклад в Sky — решить, какой оставить  ·  `own-2026-08-17-spark-susds-dublikat.md` · 2026-08-17
-- Аллокатор ставит метку «живой размер пула» на выдуманное число — прямой запрет правила  ·  `own-2026-08-18-metka-zhivoi-na-konstante-v-allokatore.md` · 2026-08-18
 - Подборщик раскладки И САМ АЛЛОКАТОР не знают про потолки по сетям — предлагают то, что гейт заворачивает  ·  `own-2026-08-18-tyuner-ne-znaet-o-setevykh-potolkakh.md` · 2026-08-18
 - У ребалансера свой запас строже политики — оставляем или снимаем  ·  `own-2026-08-18-zapas-rebalansera-strozhe-politiki.md` · 2026-08-18
 - Автопочинщик кода остался без вызывающих: убрать совсем или оставить лежать  ·  `own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih.md` · 2026-08-17
@@ -46,7 +39,6 @@
 - Аварийная остановка ТЕРЯЕТСЯ при восстановлении из резерва (выбери, как убрать файлы состояния из git)  ·  `owner-decision-avariinaya-ostanovka-teryaetsya-pri-vosst.md` · 2026-08-18
 - Доска карточек обещает больше, чем даёт: поправить одну фразу в CLAUDE.md  ·  `owner-decision-doska-kartochek-obeschaet-bolshe-chem-da.md` · 2026-08-17
 - Две записи о деньгах: причина найдена и измерена — выбрать, чем чинить  ·  `owner-decision-dve-zapisi-o-dengah-prichina-naidena-i-i.md` · 2026-08-17
-- Правило «Sky/sUSDS = 0 %» отменено твоим же решением, но написано как действующее — и уже породило ложную тревогу  ·  `owner-decision-pravilo-sky-susds-0-otmeneno-tvoim-zhe-r.md` · 2026-08-17
 - Списать 180 фоновых модулей Tier-C или честно записать, что мы про них не знаем  ·  `owner-decision-spisat-180-fonovyh-modulei-tier-c-ili-ch.md` · 2026-08-17
 - Сторож сайта краснеет каждую ночь на длине трека — расширить дневной класс на одно поле?  ·  `owner-decision-storozh-saita-krasneet-kazhduyu-noch-na.md` · 2026-08-17
 - Закрытие вопроса владельца из рабочего дерева читается сторожем как «закрыли без владельца» — выбери, чем лечим  ·  `owner-decision-zakrytie-voprosa-vladeltsa-iz-rabochego.md` · 2026-08-17
@@ -62,6 +54,9 @@
 - Какое capacity-число сделать заголовочным на /fundability  ·  `own-17-fundability-capacity-framing.md` · 2026-07-15
 - Одобрить новый вид дашборда (превью готово) — переносить на живой?  ·  `own-19-dashboard-preview-verdict.md` · 2026-07-15
 - Как автоматизировать публичный research-changelog (heartbeat сайта)  ·  `own-20-research-changelog-automation.md` · 2026-07-15
+- Два имени в книге стоят на одном и том же хранилище Morpho — решить, каким быть второму  ·  `own-2026-08-17-morpho-blue-odin-pul-dva-kluycha.md` · 2026-08-17
+- Два ключа на один и тот же вклад в Sky — решить, какой оставить  ·  `own-2026-08-17-spark-susds-dublikat.md` · 2026-08-17
+- Аллокатор ставит метку «живой размер пула» на выдуманное число — прямой запрет правила  ·  `own-2026-08-18-metka-zhivoi-na-konstante-v-allokatore.md` · 2026-08-18
 - Навести порядок в агентах — реши по каждому пункту (сводка инвентаризации)  ·  `own-21-agent-cleanup-decisions.md` · 2026-07-15
 - Ревью ветки yield-lab-scaffolding — мержить или оставить как есть  ·  `own-22-yield-lab-branch-review.md` · 2026-07-15
 - Через 2 дня (~17.07) — пересмотреть, как часто работает автономный цикл  ·  `own-23-autonomy-cadence-recheck.md` · 2026-07-15
@@ -129,6 +124,7 @@
 - Отчёт «эту карточку я НЕ беру» больше не считается захватом — подтверди или откати  ·  `owner-decision-otchet-o-zanyatosti-kartochki-bolshe-ne-sc.md` · 2026-08-01
 - Перезапустить сторожа реального времени, чтобы починка начала работать (одна команда)  ·  `owner-decision-perezapustit-storozha-realnogo-vremeni-c.md` · 2026-08-02
 - После страховки деньги остаются сиротами: 10 % капитала ($10 000) лежат в кэше, потому что освободившийся бюджет никто не перекладывает  ·  `owner-decision-posle-strahovki-dengi-ostayutsya-sirotam.md` · 2026-08-07
+- Правило «Sky/sUSDS = 0 %» отменено твоим же решением, но написано как действующее — и уже породило ложную тревогу  ·  `owner-decision-pravilo-sky-susds-0-otmeneno-tvoim-zhe-r.md` · 2026-08-17
 - 🅰🅰🅰 Продуктовый слой агентов (Head of Product + R&D продукта + продвижение) — построить  ·  `owner-decision-produktovyi-sloi-agentov-head-of-product.md` · 2026-07-16
 - Публичная страница «проверь нас» показывает замеры месячной давности — выбери, как их обновлять  ·  `owner-decision-publichnaya-stranitsa-prover-nas-pokazyv.md` · 2026-07-29
 - Рабочая копия проекта на маке отстала от GitHub на 345 коммитов — из-за этого очередь заданий показывает старое  ·  `owner-decision-rabochaya-kopiya-proekta-na-make-otstala.md` · 2026-07-31

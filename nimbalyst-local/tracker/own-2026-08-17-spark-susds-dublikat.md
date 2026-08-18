@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Два ключа на один и тот же вклад в Sky — решить, какой оставить
-status: needs-owner
+status: ingested
 priority: medium
 owner: yuriycooleshov@gmail.com
 blocks: agent-spark-susds-identity-split
@@ -45,3 +45,10 @@ created: 2026-08-17
 Получив ответ, оформлю его ADR-ом и внесу изменение в реестр отдельной задачей с прогоном
 `pre_cutover_gate`. Сторож «один ключ — один инструмент» останется на месте в любом случае: он
 ловит следующий такой дубликат автоматически.
+
+---
+
+## ОТВЕТ ВЛАДЕЛЬЦА 18.08 — записан в ADR-095
+
+Решение принято кнопкой в сессии и зафиксировано в `docs/decisions/ADR-095-owner-decisions-2026-08-18.md`.
+Карточка переведена в `ingested` (инвариант 14: `owner-done` ставит только владелец).

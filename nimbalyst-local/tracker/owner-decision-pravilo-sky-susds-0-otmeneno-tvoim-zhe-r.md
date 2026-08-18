@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Правило «Sky/sUSDS = 0 %» отменено твоим же решением, но написано как действующее — и уже породило ложную тревогу"
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-17
 ---
@@ -59,3 +59,10 @@ created: 2026-08-17
 _Источники: `CLAUDE.md:93`, `.claude/rules/adapters.md:29`,
 `docs/decisions/ADR-065-sky-susds-promoted-to-t1.md` (Accepted, 05.08),
 `spa_core/tuner/portfolio_rebalancer.py:81`._
+
+---
+
+## ОТВЕТ ВЛАДЕЛЬЦА 18.08 — записан в ADR-095
+
+Решение принято кнопкой в сессии и зафиксировано в `docs/decisions/ADR-095-owner-decisions-2026-08-18.md`.
+Карточка переведена в `ingested` (инвариант 14: `owner-done` ставит только владелец).

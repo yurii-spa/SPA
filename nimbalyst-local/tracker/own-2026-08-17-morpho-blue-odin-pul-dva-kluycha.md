@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Два имени в книге стоят на одном и том же хранилище Morpho — решить, каким быть второму
-status: needs-owner
+status: ingested
 priority: high
 owner: yuriycooleshov@gmail.com
 blocks: inbox-morpho-blue-i-morpho-steakhouse-razresha
@@ -95,3 +95,10 @@ ADR-053 не пускает в него новые деньги. Как толь
   хотя он резолвится в то самое хранилище Steakhouse. Слой advisory ничего не гейтит, поэтому я
   оставил как есть: это утверждение о личности инструмента, а его определяет как раз твой выбор
   выше.
+
+---
+
+## ОТВЕТ ВЛАДЕЛЬЦА 18.08 — записан в ADR-095
+
+Решение принято кнопкой в сессии и зафиксировано в `docs/decisions/ADR-095-owner-decisions-2026-08-18.md`.
+Карточка переведена в `ingested` (инвариант 14: `owner-done` ставит только владелец).

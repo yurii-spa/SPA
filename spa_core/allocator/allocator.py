@@ -919,18 +919,29 @@ class StrategyAllocator:
                 # A pinned observation outranks the orchestrator's literal: the
                 # orchestrator reports whatever the adapter handed it, and 11
                 # adapters hand over a hardcoded TVL_USD constant.
+                # ЧИСЛО И МЕТКА ЕДУТ ВМЕСТЕ (решение владельца ADR-095 п.3).
+                # До 18.08 живое наблюдение здесь читалось и ВЫБРАСЫВАЛОСЬ: строка
+                # получала литерал адаптера, а метку — "live". Лог при этом honest-но
+                # обещал «replaces the adapter literal», чего не происходило.
+                # Замер: пул с наблюдённым размером $2.6M проходил floor $5M по
+                # константе $800M и НЕ попадал в `_tvl_floor_unverified` — сторож
+                # молчал именно потому, что метка врала. Прямое нарушение правила
+                # `.claude/rules/risk-engine.md`: «Never stamp `live` on a constant».
+                # Соседний registry-путь (ниже в этом же файле) был написан правильно
+                # с самого начала — дефект асимметричный, ровно один из двух путей.
+                tvl_usd = float(a.get("tvl_usd", 0.0))
                 if tvl_source != "live" and protocol in tvl_evidence:
-                    tvl, _pool = tvl_evidence[protocol]
+                    tvl_usd, _pool = tvl_evidence[protocol]
                     tvl_source = "live"
                     log.info(
                         "ADR-053: %s TVL from pinned observation $%.0fM (pool %s) — "
                         "replaces the adapter literal",
-                        protocol, tvl / 1_000_000, _pool[:8],
+                        protocol, tvl_usd / 1_000_000, _pool[:8],
                     )
                 _row = {
                     "protocol": protocol,
                     "apy_pct": apy_pct,
-                    "tvl_usd": float(a.get("tvl_usd", 0.0)),
+                    "tvl_usd": tvl_usd,
                     "tier": a.get("tier", "T2"),
                     "apy_source": "live",
                     "tvl_source": tvl_source,
