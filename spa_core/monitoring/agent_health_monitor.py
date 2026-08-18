@@ -44,7 +44,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, NamedTuple, Optional, Tuple
 
 from spa_core.monitoring.agent_registry_refresh import refresh_if_stale
 from spa_core.monitoring.cycle_lock_watch import check_cycle_lock
@@ -54,6 +54,7 @@ from spa_core.monitoring.cycle_lock_watch import check_cycle_lock
 # вторая копия констант с parity-тестом, как в `cycle_lock_watch`.
 from spa_core.paper_trading.cycle_exit import (
     CYCLE_AGENT_LABEL,
+    EXIT_LOCK_REFUSED,
     describe_exit as describe_cycle_exit,
     is_by_design as cycle_exit_by_design,
 )
@@ -531,12 +532,110 @@ def _hours_since(ts: Optional[str], now: datetime) -> Optional[float]:
 
 
 # ===========================================================================
+# Отказ замка дневного цикла: защита сработала — или трек не пишется?
+# ===========================================================================
+# Состояния вердикта. Три, а не два: «не измерено» — самостоятельный исход, и
+# сваливать его в любую из двух сторон значит врать (память проекта: fail-OPEN
+# лечится ИМЕНЕМ «не измерено», а не эскалацией и не молчанием).
+REFUSAL_PROTECTED = "protected"      # цикл отработал, отказ защитил трек → INFO
+REFUSAL_TRACK_HOLE = "track_hole"    # свежего цикла нет → отказ не защитил ничего
+REFUSAL_UNCHECKED = "unchecked"      # отработал ли цикл — НЕ ИЗМЕРЕНО (fail-CLOSED)
+
+
+class LockRefusal(NamedTuple):
+    """Вердикт об отказе замка: состояние, возраст последнего цикла, слова."""
+    state: str
+    cycle_age_h: Optional[float]
+    words: str
+
+
+def _cycle_last_run_ts(data_dir: Path) -> Optional[str]:
+    """Отметка последнего ОТРАБОТАВШЕГО цикла — ОДНО определение на двух читателей.
+
+    Её спрашивают и системная проверка свежести цикла, и вердикт об отказе замка.
+    Две копии этого выражения разошлись бы молча (класс «два артефакта одного
+    цикла расходятся»), поэтому оно здесь одно. Нечитаемый / чужой формы артефакт
+    ⇒ ``None`` = не измерено, а не «свежего цикла нет».
+    """
+    cyc = _load_json(data_dir, "cycle_status.json", "cycle_health.json",
+                     "paper_trading_status.json")
+    if not isinstance(cyc, dict):
+        return None
+    ts = cyc.get("last_run") or cyc.get("last_cycle_ts")
+    if ts:
+        return ts
+    checks = cyc.get("checks")
+    gap = checks.get("cycle_gap") if isinstance(checks, dict) else None
+    return gap.get("last_cycle_at") if isinstance(gap, dict) else None
+
+
+def judge_lock_refusal(data_dir: Optional[Path], now: datetime,
+                       stale_h: Optional[float] = None) -> LockRefusal:
+    """Третий вопрос к коду 2: а цикл-то СЕГОДНЯ отработал?
+
+    Карточка ``inbox-otkaz-zamka-tsikla-neotlichim-ot-avarii``, замер 08.08: за
+    сутки цикл звали 20 раз, 18 из них — отказ замка, ни одной аварии. Владелец
+    всё это время видел жёлтое ``last_exit=2`` — то есть предупреждение, на 18/18
+    порождённое УСПЕШНОЙ работой защиты. Цикл #219 развёл коды (``cycle_exit``),
+    но двойка так и осталась одинаковой для двух противоположных исходов:
+
+    * второй цикл не дал затереть трек, а трек за день записан — это ХОРОШО;
+    * цикл отказывает раз за разом и трека за день НЕТ — это ПЛОХО.
+
+    Отличает их не код возврата, а отдельный факт: отработал ли РЕАЛЬНЫЙ цикл в
+    своём окне. Поэтому вердикт спрашивает артефакт цикла, а не толкует цифру.
+
+    **Чего этот вердикт НЕ делает.** Он не отвечает на вопрос «замок держит
+    труп?» — на него отвечает ``cycle_lock_watch`` (цикл #164), и его CRITICAL
+    остаётся на месте при любом исходе здесь: 08.08 цикл отработал в 09:52 и
+    ТУТ ЖЕ встал на 68 минут отказов мёртвого держателя. Один сторож — один
+    вопрос; зелёный ответ здесь никогда не означает ответа там.
+    """
+    if stale_h is None:
+        stale_h = CYCLE_STALE_H
+    if data_dir is None:
+        return LockRefusal(REFUSAL_UNCHECKED, None,
+                           "отработал ли цикл — НЕ ИЗМЕРЕНО (дерево не названо)")
+    ts = _cycle_last_run_ts(Path(data_dir))
+    # Возраст считается ЗНАКОВЫМ, а не через `_hours_since`: тот зажимает всё
+    # прошлое-из-будущего в 0.0, и отметка с испорченными часами прочиталась бы
+    # как «цикл только что отработал» — то есть погасила бы сигнал. Общий
+    # помощник намеренно не трогаю: его читают ещё четыре проверки, и это
+    # отдельная находка, а не попутная правка.
+    dt = _parse_iso(ts)
+    if dt is None:
+        return LockRefusal(REFUSAL_UNCHECKED, None,
+                           "отработал ли цикл — НЕ ИЗМЕРЕНО (артефакт цикла не прочитан)")
+    h = (now - dt).total_seconds() / 3600.0
+    # Отметка из будущего — не доказательство, а испорченные часы: принять её за
+    # «цикл только что отработал» значит погасить сигнал чужой поломкой.
+    if h < -0.5:
+        return LockRefusal(REFUSAL_UNCHECKED, round(h, 2),
+                           f"отметка цикла в БУДУЩЕМ ({-h:.1f}ч) — считать её "
+                           "доказательством нельзя")
+    if h <= stale_h:
+        return LockRefusal(REFUSAL_PROTECTED, round(h, 2),
+                           f"цикл отработал {h:.1f}ч назад — отказ защитил трек")
+    return LockRefusal(REFUSAL_TRACK_HOLE, round(h, 2),
+                       f"и свежего отработавшего цикла НЕТ ({h:.1f}ч > {stale_h:.0f}ч) — "
+                       "отказ не защитил трек, он его заменил")
+
+
+# ===========================================================================
 # Per-agent check
 # ===========================================================================
 def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
                 launchctl: Dict[str, dict], now: datetime,
-                project_root: Path = _PROJECT_ROOT) -> AgentHealth:
-    """Classify the health of a single agent. Fail-safe."""
+                project_root: Path = _PROJECT_ROOT,
+                data_dir: Optional[Path] = None) -> AgentHealth:
+    """Classify the health of a single agent. Fail-safe.
+
+    ``data_dir`` нужен ровно для ОДНОГО вопроса — отказа замка дневного цикла
+    (см. ``judge_lock_refusal``). Не передан ⇒ вопрос считается НЕ ИЗМЕРЕННЫМ, и
+    отказ краснит как раньше: подставлять сюда хостовый ``data/`` по умолчанию
+    нельзя — спрошенная про песочницу проверка отвечала бы про рабочий Mac (та
+    самая ошибка «сужу не то дерево, о котором спросили», цикл #173).
+    """
     cat = classify_agent(plist)
     health = AgentHealth(label=label, category=cat)
 
@@ -598,18 +697,41 @@ def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
         if label == CYCLE_AGENT_LABEL and isinstance(health.last_exit, int)
         else None
     )
+    # 3b) Отказ замка (код 2) — единственный исход, который САМ ПО СЕБЕ не
+    # говорит ничего (цикл #290, карточка `inbox-otkaz-zamka-tsikla-neotlichim-
+    # ot-avarii`). Он штатен ровно тогда, когда трек за день всё-таки записан
+    # ДРУГИМ прогоном, поэтому судится не цифрой, а фактом: отработал ли цикл в
+    # своём окне. Не измерено ⇒ краснит как прежде (fail-CLOSED).
+    _lock_refusal = (
+        judge_lock_refusal(data_dir, now)
+        if (label == CYCLE_AGENT_LABEL
+            and health.last_exit == EXIT_LOCK_REFUSED
+            and not _clean_signal_restart)
+        else None
+    )
     if (
         label == CYCLE_AGENT_LABEL
         and cycle_exit_by_design(health.last_exit)
         and not _clean_signal_restart
     ):
         health.note = f"last_exit={health.last_exit} — {_cycle_exit_meaning}"
+    elif _lock_refusal is not None and _lock_refusal.state == REFUSAL_PROTECTED:
+        # Защита сработала и трек записан: сказать вслух — да, красить — нет.
+        health.note = (
+            f"last_exit={health.last_exit} — {_cycle_exit_meaning}; "
+            f"{_lock_refusal.words}"
+        )
     elif health.last_exit not in (None, 0) and not _clean_signal_restart:
         _exit_text = (
             f"last_exit={health.last_exit}"
             if _cycle_exit_meaning is None
             else f"last_exit={health.last_exit} ({_cycle_exit_meaning})"
         )
+        if _lock_refusal is not None:
+            # Отказ, за которым НЕ стоит отработавший цикл (или это не измерено):
+            # причина названа в самой строке, иначе владелец снова читает голую
+            # цифру и гадает, что она значит.
+            _exit_text = f"{_exit_text} — {_lock_refusal.words}"
         if _server_alive:
             # crashed previously, KeepAlive brought it back → visible, not OK
             issues.append(f"{_exit_text} (prior crash; restarted)")
@@ -737,12 +859,10 @@ def check_system(data_dir: Path, now: datetime,
             status = _worst(status, CRITICAL)
 
     # --- cycle freshness (cycle_status.json | cycle_health.json | paper_trading_status.json) ---
-    cyc = _load_json(data_dir, "cycle_status.json", "cycle_health.json",
-                     "paper_trading_status.json")
-    if cyc:
-        ts = (cyc.get("last_run")
-              or cyc.get("last_cycle_ts")
-              or (cyc.get("checks", {}).get("cycle_gap", {}) or {}).get("last_cycle_at"))
+    # Отметку читает ОДИН помощник — тот же, которым судит отказ замка
+    # (`judge_lock_refusal`): два выражения об одном факте разошлись бы молча.
+    ts = _cycle_last_run_ts(data_dir)
+    if ts is not None:
         h = _hours_since(ts, now)
         checks["cycle_freshness_h"] = round(h, 2) if h is not None else None
         if h is not None and h > CYCLE_STALE_H:
@@ -1388,7 +1508,10 @@ class AgentHealthMonitor:
             if label in RETIRED_LABELS:
                 continue
             plist, parse_ok = _load_plist(path)
-            agents.append(check_agent(label, plist, parse_ok, launchctl, self.now))
+            # `data_dir` — не украшение: без него отказ замка дневного цикла
+            # остаётся НЕ ИЗМЕРЕННЫМ и краснит (fail-CLOSED, цикл #290).
+            agents.append(check_agent(label, plist, parse_ok, launchctl, self.now,
+                                      data_dir=self.data_dir))
 
         sys_checks, sys_status, sys_issues = check_system(
             self.data_dir, self.now, self.autopush_log)
