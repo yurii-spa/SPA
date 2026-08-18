@@ -45,6 +45,31 @@ $ grep -rn "SPA_BTS_ALERTS_ARMED" --include=*.plist .
 требует правки plist + `launchctl bootout/bootstrap` на Маке — действие владельца
 (`.claude/rules/deployment.md` п.6, инвариант #12).
 
+## СВЕРКА 2026-08-18 — перепроверено прогоном, закрыт последний «ноль вместо не знаю»
+
+Перепроверка шагов 1–2 своим прогоном + мутационный контроль:
+
+* убрать порог (`if excess > 0` → `if True`) — краснеет
+  `test_an_opportunity_below_our_own_yield_is_not_alert_worthy`;
+* сделать порог непроходимым (`if False`) — краснеют три теста, включая
+  положительный контроль «выше порога — реально шлёт»;
+* пропускать при неизмеренном пороге — краснеют
+  `test_unmeasurable_hurdle_refuses_every_alert` и `test_a_stale_track_is_an_unmeasurable_hurdle`.
+
+**Найдено и починено:** при НЕизмеренном пороге счётчики публиковались как `0`
+(`alert_gate.alert_worthy`, `summary.alert_worthy_count`) — то есть «тебе нечего сообщить»
+там, где правда «мы не знаем». Теперь при неизмеренном пороге это `null` + дословная
+причина в новых полях `alert_gate.alert_worthy_unchecked` / `summary.alert_worthy_unchecked`
+(`bts_monitor._hurdle_unchecked`). Измеренный ноль остаётся нулём и отличим от null.
+
+**Замер порога на копии `data/` в контейнере (2026-08-18):** порог НЕ измерен —
+`evidenced track is stale: newest day 2026-08-02 is 1454401s old (limit 172800s)`.
+Практический смысл для владельца: если взвести Телеграм при таком треке, не уйдёт
+НИ ОДНО сообщение (fail-CLOSED), а `bts_monitor_status.json` скажет почему.
+Числа порога: окно 30 дней = окно evidenced-трека для go-live; минимум 7 дней;
+предел свежести 48 ч = два дневных цикла. Величина самого порога источника не имеет
+кроме нашего трека — литерал не подставляется нигде.
+
 **Что нужно от владельца, чтобы карточка закрылась:** добавить
 `EnvironmentVariables → SPA_BTS_ALERTS_ARMED=1` в
 `scripts/com.spa.bts-monitor.plist` и перезагрузить метку.

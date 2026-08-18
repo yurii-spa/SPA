@@ -315,6 +315,46 @@ class TestAlertGateUsesOurYield(_MonitorCase):
         self.assertFalse(gate["hurdle"]["measured"])
         self.assertTrue(gate["hurdle"]["unchecked"])
 
+    # ── "not measured" must not be published as a reassuring zero ────────────
+    # Three-way control: an insufficient spread is caught, a sufficient one passes
+    # silently, and an unmeasurable hurdle reads as "not measured" — never as 0.
+
+    def test_unmeasured_hurdle_publishes_no_count_and_says_why(self):
+        self.write(track=0)
+        os.environ[BTS_ALERTS_ARMED_ENV] = "1"
+        report = self.monitor.run()
+        self.assertIsNone(report["alert_worthy"])
+        gate = self.status()["alert_gate"]
+        self.assertIsNone(gate["alert_worthy"])
+        # The reason is the hurdle's own refusal, verbatim — not a re-worded summary.
+        self.assertTrue(gate["alert_worthy_unchecked"])
+        self.assertEqual(gate["alert_worthy_unchecked"], gate["hurdle"]["unchecked"])
+        summary = self.artifact()["summary"]
+        self.assertIsNone(summary["alert_worthy_count"])
+        self.assertTrue(summary["alert_worthy_unchecked"])
+
+    def test_positive_control_measured_hurdle_publishes_a_real_zero(self):
+        # Hurdle 25% annual: measured, and nothing in the fixture beats it. THIS zero is
+        # a statement, and it must stay distinguishable from the null above.
+        self.write(apy_pct=25.0)
+        os.environ[BTS_ALERTS_ARMED_ENV] = "1"
+        report = self.monitor.run()
+        self.assertEqual(report["alert_worthy"], 0)
+        gate = self.status()["alert_gate"]
+        self.assertEqual(gate["alert_worthy"], 0)
+        self.assertIsNone(gate["alert_worthy_unchecked"])
+        self.assertEqual(self.artifact()["summary"]["alert_worthy_count"], 0)
+        self.assertIsNone(self.artifact()["summary"]["alert_worthy_unchecked"])
+
+    def test_positive_control_measured_hurdle_beaten_counts_and_stays_silent(self):
+        self.write(apy_pct=5.9)
+        os.environ[BTS_ALERTS_ARMED_ENV] = "1"
+        report = self.monitor.run()
+        self.assertEqual(report["alert_worthy"], 3)
+        self.assertEqual(self.artifact()["summary"]["alert_worthy_count"], 3)
+        self.assertIsNone(self.artifact()["summary"]["alert_worthy_unchecked"])
+        self.assertEqual(report["suppressed_alerts"], [])
+
     def test_disarmed_transport_still_says_so_verbatim(self):
         self.write(apy_pct=5.9)
         report = self.monitor.run()

@@ -552,6 +552,22 @@ class BTSMonitor:
                 )
         return passed, notes
 
+    @staticmethod
+    def _hurdle_unchecked(our_yield: Optional[OurYieldRead]) -> Optional[str]:
+        """Verbatim reason the hurdle is unknown, or None when it was measured.
+
+        Exists so the COUNTS can tell "measured, nothing qualified" apart from "the
+        hurdle was never measured". Both used to be published as `0`, and a zero reads
+        as reassurance: a reader of `alert_worthy` alone saw "nothing to tell the owner"
+        where the truth was "we do not know". Where there is no observation the artifact
+        must say so, not say everything is fine (invariant #2).
+        """
+        if our_yield is None:
+            return "our own yield was never looked up"
+        if not our_yield.measured:
+            return our_yield.unchecked or "our own yield NOT MEASURED (no reason given)"
+        return None
+
     def _create_alerts(
         self,
         new_excellent: List[BTSOpportunity],
@@ -611,6 +627,7 @@ class BTSMonitor:
         excellent_count = sum(1 for o in opps if o.edge_quality == "EXCELLENT")
         enter_count = sum(1 for o in opps if o.recommended_action == "ENTER")
         unchecked = list(unchecked or [])
+        hurdle_unchecked = self._hurdle_unchecked(our_yield)
 
         payload = {
             "timestamp": now_iso,
@@ -631,10 +648,17 @@ class BTSMonitor:
                 "enter_count": enter_count,
                 "total_analyzed": len(opps),
                 "measured": not unchecked,
-                "alert_worthy_count": sum(
-                    1 for o in opps
-                    if o.excess_vs_our_yield_bps is not None and o.excess_vs_our_yield_bps > 0
+                # None, not 0, when the hurdle is unknown: "nothing beat our yield" and
+                # "we never measured our yield" are different facts and must not share a
+                # zero (ADR-070 п.12, fail-CLOSED).
+                "alert_worthy_count": (
+                    None if hurdle_unchecked else sum(
+                        1 for o in opps
+                        if o.excess_vs_our_yield_bps is not None
+                        and o.excess_vs_our_yield_bps > 0
+                    )
                 ),
+                "alert_worthy_unchecked": hurdle_unchecked,
             },
         }
         try:
@@ -673,6 +697,9 @@ class BTSMonitor:
                           "unchecked": "our own yield was never looked up"}
                 ),
                 "alert_worthy": alert_worthy,
+                # Paired with `alert_worthy` so a null there is never read as "fine":
+                # verbatim reason when the hurdle itself could not be measured.
+                "alert_worthy_unchecked": self._hurdle_unchecked(our_yield),
                 "armed": _alerts_armed(),
             },
         }
@@ -708,7 +735,12 @@ class BTSMonitor:
                     # measured yield may reach the owner, and only then does the
                     # arming switch matter.
                     alertable, gate_notes = self._alert_gate(new_excellent, our_yield)
-                    alert_worthy = len(alertable)
+                    # An unmeasured hurdle yields NO count: 0 would say "nothing was
+                    # worth telling you", which is a verdict nobody is entitled to when
+                    # the hurdle is unknown.
+                    alert_worthy = (
+                        None if self._hurdle_unchecked(our_yield) else len(alertable)
+                    )
                     for note in gate_notes:
                         log.info(note)
                     suppressed.extend(gate_notes)
