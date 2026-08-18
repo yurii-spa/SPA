@@ -78,6 +78,92 @@ def _launchctl() -> dict[str, dict]:
     return out
 
 
+# ── Код выхода дневного цикла: ВТОРОЙ читатель `last_exit` ──────────────────
+# Карточка `inbox-otkaz-zamka-tsikla-neotlichim-ot-avarii`, пункт 1 дословно:
+# «Измерить ВСЕХ читателей `last_exit`, прежде чем менять код возврата». Коды
+# развели (#219, `cycle_exit.py`), читателя `agent_health` научили покупать
+# тишину доказательством живого держателя (`judge_lock_refusal`, 08-17) — а этот
+# реестр остался слепым к словарю целиком. Замер на этом дереве 18.08:
+#
+#     last_exit=1 → ['последний выход 1 (проверить)']   ← АВАРИЯ цикла
+#     last_exit=2 → ['последний выход 2 (проверить)']   ← защита сработала
+#     last_exit=3 → ['последний выход 3 (проверить)']   ← штатный отказ политики
+#
+# Три противоположных исхода — одна строка, и все три одинаково поднимают
+# `problem_count`, который дашборд `/admin/agents` рисует красным KPI. То есть
+# ровно то, ради чего карточка заведена, только этажом ниже: правильная работа
+# системы неотличима от поломки, и настоящая авария тонет в этом шуме.
+#
+# Правится ЧТЕНИЕМ ТОГО ЖЕ СУДЬИ, а не второй копией правил:
+#   * словарь исходов — `spa_core.paper_trading.cycle_exit` (импорт-free по
+#     построению, money-path сюда не тянет — инвариант #6);
+#   * законность отказа замка — `cycle_lock_watch.judge_lock_refusal`, тот самый,
+#     которым судит `agent_health`. Тишина покупается ТОЛЬКО живым держателем.
+#
+# Fail-CLOSED дважды: словарь применяется ТОЛЬКО к метке дневного цикла (у чужого
+# агента тройка означает что угодно), а если импорт не удался — поведение
+# остаётся ПРЕЖНИМ, то есть громким. Молчания по недосмотру здесь быть не может.
+_LAST_EXIT_CLEAN = (None, 0, -15)   # 0 — норма, -15 — SIGTERM (штатная остановка)
+
+
+def judge_last_exit(label: str, le, *, lock_verdict=None) -> tuple:
+    """``(проблема | None, заметка | None)`` для кода выхода агента.
+
+    Заметка — это ИНФОРМАЦИЯ: она называет исход вслух, но не красит пульт.
+    Проблема — прежний громкий сигнал. Один исход не может быть обоими сразу.
+    """
+    if le in _LAST_EXIT_CLEAN:
+        return (None, None)
+
+    try:
+        from spa_core.paper_trading.cycle_exit import (
+            CYCLE_AGENT_LABEL, describe_exit, is_by_design,
+        )
+    except Exception:       # noqa: BLE001 — словарь не прочитан ⇒ старая громкость
+        return (f"последний выход {le} (проверить)", None)
+
+    if label != CYCLE_AGENT_LABEL:
+        # Словарь описывает исходы ОДНОГО агента. У любого другого те же цифры
+        # означают что угодно, и трактовать их — значит замолчать чужую аварию.
+        return (f"последний выход {le} (проверить)", None)
+
+    words = describe_exit(le)
+
+    if is_by_design(le):
+        # Единственный исход, который словарь называет штатным: гейт отработал,
+        # капитал не сдвинулся. 13.08 он держал агента в WARNING круглые сутки.
+        return (None, f"последний выход {le} — {words} (штатно, не проблема)")
+
+    try:
+        from spa_core.monitoring.cycle_lock_watch import OK as _LOCK_OK, judge_lock_refusal
+    except Exception:       # noqa: BLE001
+        return (f"последний выход {le} — {words} (проверить)", None)
+
+    refusal = judge_lock_refusal(lock_verdict, le)
+    if refusal is not None and refusal[0] == _LOCK_OK:
+        # By design ПО ДОКАЗАТЕЛЬСТВУ, а не по коду: держатель предъявлен.
+        return (None, f"последний выход {le} — {words}; {refusal[1]}")
+    if refusal is not None:
+        # Отказ замка без предъявленного держателя: труп в дверях либо «не
+        # измерено». Остаётся проблемой — но теперь названной, а не безымянной.
+        return (f"последний выход {le} — {words}; {refusal[1]}", None)
+
+    return (f"последний выход {le} — {words} (проверить)", None)
+
+
+def _cycle_lock_verdict():
+    """Вердикт замка дневного цикла или ``None`` («не измерено»).
+
+    ``None`` — безопасная сторона: `judge_lock_refusal` трактует его как
+    «законность отказа НЕ ДОКАЗАНА» и оставляет прежнюю громкость.
+    """
+    try:
+        from spa_core.monitoring.cycle_lock_watch import check_cycle_lock
+        return check_cycle_lock(_REPO / "data")
+    except Exception:       # noqa: BLE001 — измерить не удалось ≠ «всё хорошо»
+        return None
+
+
 def _schedule(plist: dict) -> str:
     if "StartInterval" in plist:
         s = int(plist["StartInterval"])
@@ -105,11 +191,18 @@ def _retired() -> set[str]:
         return set()
 
 
-def build() -> dict:
+_LOCK_UNSET = object()
+
+
+def build(*, lock_verdict=_LOCK_UNSET) -> dict:
     loaded = _launchctl()
     retired = _retired()
     installed = {p.stem: p for p in _LAUNCH_DIR.glob("com.spa.*.plist")} if _LAUNCH_DIR.is_dir() else {}
     labels = set(loaded) | set(installed) | retired
+    # Замок читается ОДИН раз на сборку: все агенты судятся по одному снимку.
+    # Вход, а не окружение: тест подаёт вердикт явно и не зависит от машины.
+    if lock_verdict is _LOCK_UNSET:
+        lock_verdict = _cycle_lock_verdict()
 
     agents = []
     for label in sorted(labels):
@@ -124,6 +217,7 @@ def build() -> dict:
         is_retired = label in retired
         reboot_safe = label in installed  # plist resident in ~/Library survives reboot
         problems = []
+        notes: list[str] = []
         if is_retired and is_loaded:
             problems.append("RETIRED но ЗАГРУЖЕН (дубль/дрейф)")
         if is_loaded and not reboot_safe and not is_retired:
@@ -131,8 +225,11 @@ def build() -> dict:
         if not is_loaded and not is_retired and label in installed:
             problems.append("в ~/Library, но НЕ загружен (drift)")
         le = loaded.get(label, {}).get("last_exit")
-        if le not in (None, 0) and le not in (-15,):
-            problems.append(f"последний выход {le} (проверить)")
+        _exit_problem, _exit_note = judge_last_exit(label, le, lock_verdict=lock_verdict)
+        if _exit_problem:
+            problems.append(_exit_problem)
+        if _exit_note:
+            notes.append(_exit_note)
         agents.append({
             "label": label,
             "short": short,
@@ -144,6 +241,8 @@ def build() -> dict:
             "retired": is_retired,
             "reboot_safe": reboot_safe,
             "problems": problems,
+            # Информация, а не тревога: исход назван вслух, `problem_count` не растёт.
+            "notes": notes,
         })
 
     by_role: dict[str, int] = {}

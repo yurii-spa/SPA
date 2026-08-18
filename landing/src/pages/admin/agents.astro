@@ -90,6 +90,11 @@ import Layout from '../../layouts/Layout.astro';
             +'<span class="c-rb" title="переживёт reboot">'+(a.reboot_safe?'<span class="rb-ok">✓</span>':'<span class="rb-no">✗</span>')+'</span></div>'
             +'<div class="c-sched">'+esc(a.schedule||'—')+'</div>'
             +(a.problems&&a.problems.length?('<div class="c-prob">'+a.problems.map(esc).join(' · ')+'</div>'):'')
+            // Заметка — ИНФОРМАЦИЯ, а не тревога: штатный исход (отказ политики,
+            // законный отказ замка) назван вслух и НЕ красит карточку. Без этой
+            // строки правка реестра просто убрала бы исход с пульта — тишина
+            // вместо ложной тревоги, то есть та же болезнь с другой стороны.
+            +(a.notes&&a.notes.length?('<div class="c-note">'+a.notes.map(esc).join(' · ')+'</div>'):'')
             +'</div>';
         });
         html+='</div></section>';
@@ -152,5 +157,6 @@ import Layout from '../../layouts/Layout.astro';
   .ag-card .rb-ok{color:var(--ok)} .ag-card .rb-no{color:var(--warn)}
   .ag-card .c-sched{color:var(--text-muted);font-size:.75rem;margin-top:5px}
   .ag-card .c-prob{color:var(--danger);font-size:.72rem;margin-top:5px}
+  .ag-card .c-note{color:var(--text-muted);font-size:.72rem;margin-top:5px}
   .ag-offline{background:var(--bg-surface);border:1px solid var(--warn);border-radius:var(--r-md);padding:16px 18px;color:var(--warn);font-size:.9rem}
 </style>
