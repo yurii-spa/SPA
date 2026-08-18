@@ -24,6 +24,18 @@ from typing import Optional
 
 log = logging.getLogger("spa.sky_monitor")
 
+
+def _atomic_save(data: dict, path: Path) -> None:
+    """Invariant 5 write. Imported lazily: this module is also loaded as a
+    top-level ``data_pipeline.sky_monitor`` by ``export_data``, where the repo
+    root is not necessarily on ``sys.path``; a hard import at module scope would
+    break that caller rather than the write."""
+    try:
+        from spa_core.utils.atomic import atomic_save
+    except Exception:  # pragma: no cover — path-layout fallback
+        from utils.atomic import atomic_save  # type: ignore[no-redef]
+    atomic_save(data, str(path))
+
 # ─── Manual fallback constants ────────────────────────────────────────────────
 
 SKY_WATCH_CONDITION = "GSM Pause Delay >= 48h"
@@ -138,6 +150,20 @@ def _fetch_gsm_delay_onchain(
     safety parameter, and we do not know which — that is exactly the case the
     fail-CLOSED invariant exists for. ``None`` leaves the gate shut.
 
+    **A reported delay of zero is an ANSWER, not a silence.** It used to be
+    dropped by the same ``continue`` that skips an endpoint which never replied,
+    and that conflation was fail-OPEN in the one direction that matters: with
+    three endpoints reporting ``0`` (the timelock removed — precisely the event
+    this gate exists to catch) and two reporting the old 172 800 s, the zeros
+    vanished before the disagreement check could see them and the function
+    returned ``48.00h, witnesses=[a, b]``. The unanimous-zero case was just as
+    wrong the other way: it logged "no RPC endpoint answered", i.e. the very
+    "refused looks like down" misdiagnosis that kept the gate shut for weeks in
+    2026-08-05. An observed zero now flows through quorum and disagreement like
+    any other value; being below the threshold, it shuts the gate as an
+    OBSERVATION rather than as an absence, and the two states stay tellable
+    apart downstream.
+
     ``witnesses`` names the endpoints that agreed, so the observation can be
     re-checked by hand later.
     """
@@ -147,7 +173,9 @@ def _fetch_gsm_delay_onchain(
         if not hex_result:
             continue
         seconds = _hex_to_seconds(hex_result)
-        if seconds is None or seconds <= 0:
+        # Unparseable payload is not an observation; a negative value cannot come
+        # from a uint256 and means we decoded something else. Zero IS observed.
+        if seconds is None or seconds < 0:
             continue
         hours = seconds / 3600.0
         seen.setdefault(hours, []).append(rpc)
@@ -324,7 +352,10 @@ def export_sky_status_json(status_dict: Optional[dict] = None) -> Path:
         ),
     }
     path = _DATA_DIR / "sky_status.json"
-    path.write_text(json.dumps(out, indent=2, default=str), encoding="utf-8")
+    # Invariant 5: state files are written tmp+os.replace, never open(...,"w").
+    # A half-written sky_status.json is read by _merge_gsm_hours as unparseable
+    # and would drop the observation on a crash mid-write.
+    _atomic_save(out, path)
     log.info(f"sky_status.json written → {path}  (status={out['status']}, source={out['source']})")
     return path
 
@@ -408,9 +439,7 @@ def check_and_emit_upgrade_signal(status_dict: dict | None = None) -> dict:
         ),
         "resolved": False,
     }
-    _UPGRADE_SIGNAL_FILE.write_text(
-        json.dumps(signal, indent=2, default=str), encoding="utf-8"
-    )
+    _atomic_save(signal, _UPGRADE_SIGNAL_FILE)
 
     level = "🚨 NEW" if first_eligible else "ℹ️  ONGOING"
     log.warning(

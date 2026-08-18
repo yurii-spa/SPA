@@ -66,6 +66,103 @@ def load_outcomes(root: str = REPO_ROOT) -> list[dict]:
     return out
 
 
+_NOT_MEASURED = "книга за этот день не наблюдена ни одним источником — null, не ноль"
+
+
+def _resolve_book(root: str, day: str,
+                  curve: dict | None) -> tuple[dict | None, float | None, str, str]:
+    """Книга (позиции + кэш) на закрытии дня `day` — только из НАБЛЮДЁННОГО.
+
+    Возвращает ``(positions, cash_usd, источник_позиций, источник_кэша)``.
+
+    Почему источников два и именно в этом порядке (замер 2026-08-18, карточка
+    «Книги за прошлый день нет в архиве»).
+
+    * `data/current_positions.json` — снимок «прямо сейчас», датированный ровно
+      одним полем `generated_at`. Он годится ТОЛЬКО для сегодняшнего дня и
+      только пока цикл не отработал снова; для любого прошлого дня он
+      структурно не годится, и до этой правки других кандидатов у сборки не
+      было — поэтому КАЖДАЯ дозаписанная задним числом строка несла
+      `positions: null` не по случайности, а по построению.
+    * Дневной бар кривой (`data/equity_curve_daily.json`) — ДАТИРОВАННЫЙ архив
+      той же самой величины: `cycle_runner` пишет в бар и в снимок ОДИН объект
+      `effective_positions` одного прогона (`cycle_runner.py` → `_upsert_equity_point`
+      / `POSITIONS_FILENAME`). Это не «похожая» книга и не намерение: у
+      `allocation_rationale_history` лежит книга НА ВХОДЕ цикла и `target_positions`
+      (намерение, которое 14.08 не исполнилось) — их брать нельзя, а бар это
+      книга, с которой день закрылся. Кривая читается ТОЛЬКО на чтение.
+
+    Кэш из бара НЕ восстанавливается: бар несёт позиции и equity, но не
+    `cash_usd`. Вывести его как `capital − deployed` значило бы подставить
+    константу капитала за наблюдение — ровно та подмена, которую архив себе
+    запрещает. Кэш остаётся `null` с названной причиной.
+
+    Fail-CLOSED разделение, ради которого правка и сделана: «не измерено»
+    (`None` + причина) НИКОГДА не выглядит как «книга была пуста» (`{}` +
+    причина) и никогда как «кэша было ноль» (`0.0`). До правки оба смешивались:
+    `(pos.get("positions") or {})` превращало отсутствие поля в пустую книгу, а
+    `float(pos.get("cash_usd") or 0.0)` — отсутствие кэша в измеренный ноль.
+    """
+    def _book(raw) -> dict | None:
+        if not isinstance(raw, dict):
+            return None
+        out: dict[str, float] = {}
+        for k, v in raw.items():
+            try:
+                out[str(k)] = round(float(v), 2)
+            except (TypeError, ValueError):
+                return None
+        return out
+
+    pos = _load("data/current_positions.json", root)
+    same_day = isinstance(pos, dict) and str(pos.get("generated_at", ""))[:10] == day
+    if same_day:
+        book = _book(pos.get("positions"))
+        if book is not None:
+            raw_cash = pos.get("cash_usd")
+            if raw_cash is None:
+                return (book, None, "current_positions (тот же день)",
+                        "поля cash_usd в снимке нет — null, не ноль")
+            try:
+                return (book, round(float(raw_cash), 2),
+                        "current_positions (тот же день)",
+                        "current_positions (тот же день)")
+            except (TypeError, ValueError):
+                return (book, None, "current_positions (тот же день)",
+                        "cash_usd в снимке не число — null, не ноль")
+
+    bars = []
+    if isinstance(curve, dict) and isinstance(curve.get("daily"), list):
+        bars = [b for b in curve["daily"]
+                if isinstance(b, dict) and str(b.get("date")) == day]
+    if bars:
+        try:
+            from spa_core.paper_trading.track_evidence import is_evidenced_bar
+            ev = [b for b in bars if is_evidenced_bar(b)]
+        except Exception as e:  # noqa: BLE001
+            return (None, None, f"evidenced-признак бара не разобран: {e}", _NOT_MEASURED)
+        if ev:
+            book = _book(ev[-1].get("positions"))
+            if book is not None:
+                return (book, None,
+                        "equity_curve_daily: книга закрытия из evidenced-бара дня "
+                        "(тот же объект цикла, что и current_positions)",
+                        "бар кривой не несёт cash_usd; выводить его из константы "
+                        "капитала запрещено — null")
+            return (None, None,
+                    "в evidenced-баре дня нет разбираемых позиций — не измерено",
+                    _NOT_MEASURED)
+        return (None, None,
+                "бар за день есть, но он не evidenced — книга не засчитывается",
+                _NOT_MEASURED)
+
+    return (None, None,
+            ("current_positions не за этот день, бара за день в кривой нет"
+             if not same_day else
+             "снимок за этот день без разбираемых позиций, бара за день нет"),
+            _NOT_MEASURED)
+
+
 def build_outcome_line(root: str, day: str) -> dict:
     """Строка исхода за календарный день `day` — только из наблюдённого."""
     sources: dict[str, str] = {}
@@ -92,14 +189,9 @@ def build_outcome_line(root: str, day: str) -> dict:
     else:
         sources["equity"] = "equity_curve_daily не прочитан"
 
-    positions = cash = None
-    pos = _load("data/current_positions.json", root)
-    if pos and str(pos.get("generated_at", ""))[:10] == day:
-        positions = {k: round(float(v), 2) for k, v in (pos.get("positions") or {}).items()}
-        cash = float(pos.get("cash_usd") or 0.0)
-        sources["positions"] = "current_positions (тот же день)"
-    else:
-        sources["positions"] = "current_positions не за этот день — не приписываем"
+    positions, cash, pos_src, cash_src = _resolve_book(root, day, curve)
+    sources["positions"] = pos_src
+    sources["cash"] = cash_src
 
     apy = None
     hist_path = os.path.join(root, "data", "allocation_rationale_history.jsonl")
@@ -312,10 +404,13 @@ def backfill_outcomes(root: str = REPO_ROOT,
     с причиной в `sources`. Замер 2026-08-17 на живом проде: за прошлый день
     восстанавливаются `equity_close`, `daily_return_pct` (кривая датирована),
     `apy_evidenced_pct` (`allocation_rationale_history` по `cycle_date`) и
-    `posture_office` (архив вердиктов по `date`); НЕ восстанавливаются позиции и
-    кэш — снимок `current_positions.json` не архивируется по дням, а дневная
-    запись rationale даёт книгу НА ВХОДЕ цикла, а не на закрытии, и приравнять
-    одно к другому значило бы подменить величину.
+    `posture_office` (архив вердиктов по `date`). Замер 2026-08-18 уточнил
+    книгу: ПОЗИЦИИ на закрытии восстанавливаются из датированного evidenced-бара
+    кривой — туда `cycle_runner` кладёт тот же объект `effective_positions`, что
+    и в снимок `current_positions.json`; НЕ восстанавливается только `cash_usd`
+    (бар его не несёт, а вывести из константы капитала — подмена наблюдения).
+    Книга НА ВХОДЕ цикла из `allocation_rationale_history` и `target_positions`
+    по-прежнему не берутся: это другая величина и намерение соответственно.
 
     `measured: False` — мерить не от чего (полнота не измерена): НИЧЕГО не
     пишем. «Не знаю, какие дни нужны» это не «нужных дней нет».
@@ -345,9 +440,17 @@ def backfill_outcomes(root: str = REPO_ROOT,
             # нельзя: дыра останется, причина будет названа.
             skipped.append({"date": day, "reason": str(line["sources"].get("equity"))})
             continue
+        # Пометка дозаписи говорит, что вышло НА САМОМ ДЕЛЕ по этой строке, а не
+        # заранее заготовленную фразу: раньше здесь стояло безусловное «позиции и
+        # кэш не восстановимы», и после того как книга стала восстановимой из
+        # датированного бара, эта фраза стала бы враньём в каждой строке.
         line["sources"]["backfill"] = (
-            "дозапись задним числом: позиции и кэш за прошлый день не "
-            "восстановимы (дневного архива книги нет) — остаются null")
+            "дозапись задним числом; книга: "
+            + ("восстановлена — " if line["positions"] is not None else "НЕ восстановлена — ")
+            + str(line["sources"].get("positions"))
+            + "; кэш: "
+            + ("восстановлен" if line["cash_usd"] is not None else "НЕ восстановлен")
+            + " — " + str(line["sources"].get("cash")))
         written.append(line)
 
     result = {**base, "measured": True, "anchor_date": comp.get("anchor_date"),

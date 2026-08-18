@@ -821,8 +821,13 @@ def _merge_gsm_hours(adapters: dict, data_dir: Path) -> None:
         return
 
     hours = doc.get("gsm_hours")
-    if not isinstance(hours, (int, float)) or isinstance(hours, bool) or hours <= 0:
+    if not isinstance(hours, (int, float)) or isinstance(hours, bool) or hours < 0:
         return
+    # Zero is CARRIED, not dropped. An observed "the timelock is gone" and a
+    # never-observed delay both shut the gate, but they are not the same fact,
+    # and collapsing them is how the previous outage stayed invisible: the row
+    # said nothing either way. ``gsm_confirmed`` refuses 0 on the threshold
+    # (0 < 48), so carrying it is fail-CLOSED and readable at the same time.
     # Only an on-chain observation counts. "manual" is the hardcoded constant
     # the module falls back to; it must never reach a gate.
     if doc.get("source") != "onchain":

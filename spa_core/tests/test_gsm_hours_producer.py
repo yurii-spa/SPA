@@ -79,13 +79,75 @@ class TestOnchainQuorum(unittest.TestCase):
             hours, _ = SM._fetch_gsm_delay_onchain(endpoints=["rpc-a", "rpc-b"])
         self.assertIsNone(hours)
 
-    def test_nonsense_values_are_ignored(self):
-        for bad in ("0x0", "not-hex", "", None):
+    def test_unparseable_answers_are_not_observations(self):
+        """A payload we cannot decode is silence, not a reading.
+
+        ``"0x0"`` used to be asserted here alongside these, i.e. an endpoint
+        reporting a ZERO delay was treated as an endpoint that never answered.
+        It was moved to the two tests below on purpose (invariant 16: the change
+        is deliberate and recorded, not a quiet loosening) — that conflation was
+        fail-OPEN, see ``test_reported_zero_cannot_be_outvoted_silently``.
+        """
+        for bad in ("not-hex", "", None):
             with self.subTest(value=bad):
                 with mock.patch.object(SM, "_eth_call",
                                        self._fake_call({"rpc-a": bad, "rpc-b": bad})):
                     hours, _ = SM._fetch_gsm_delay_onchain(endpoints=["rpc-a", "rpc-b"])
                 self.assertIsNone(hours)
+
+    def test_reported_zero_cannot_be_outvoted_silently(self):
+        """POSITIVE CONTROL for the fail-OPEN measured 2026-08-18.
+
+        Three endpoints report that the pause delay is GONE (``0x0``) while two
+        still report the old 172 800 s. Dropping zeros before the disagreement
+        check returned ``(48.0, ['a', 'b'])`` — the gate opened on the strength
+        of the two witnesses that had not noticed, and the three saying "the
+        timelock is removed" were discarded as if they had timed out. The
+        endpoints demonstrably disagree about a safety parameter, so the only
+        allowed answer is refusal.
+        """
+        with mock.patch.object(SM, "_eth_call", self._fake_call(
+                {"a": _HEX_48H, "b": _HEX_48H, "c": "0x0", "d": "0x0", "e": "0x0"})):
+            hours, witnesses = SM._fetch_gsm_delay_onchain(endpoints=list("abcde"))
+        self.assertIsNone(hours, "a reported zero must reach the disagreement check")
+        self.assertEqual(witnesses, [])
+
+    def test_unanimous_zero_is_an_observation_not_a_silence(self):
+        """"The delay is zero" and "nobody answered" are different facts.
+
+        Both shut the gate, so nothing downstream loosens — but reporting an
+        observed zero as "no RPC endpoint answered" is the same misdiagnosis
+        (refused reads as down) that let the producer write ``null`` for weeks.
+        The observation is recorded, sourced ``onchain``, and refused on the
+        threshold rather than on absence.
+        """
+        with mock.patch.object(SM, "_eth_call",
+                               self._fake_call({"a": "0x0", "b": "0x0"})), \
+                mock.patch.object(SM, "_ETH_RPC_ENDPOINTS", ["a", "b"]), \
+                mock.patch.object(SM, "_fetch_gsm_delay_governance_api", lambda: None):
+            hours, witnesses = SM._fetch_gsm_delay_onchain(endpoints=["a", "b"])
+            self.assertEqual(hours, 0.0)
+            self.assertEqual(sorted(witnesses), ["a", "b"])
+
+            live = SM.check_sky_status_live()
+        self.assertEqual(live["source"], "onchain",
+                         "an observed zero must not fall through to the manual constant")
+        self.assertEqual(live["gsm_hours"], 0.0)
+        self.assertEqual(live["status"], "PENDING")
+        self.assertEqual(SM.get_sky_allocation_pct(live), 0.0)
+
+    def test_observed_zero_reaches_the_row_and_still_refuses(self):
+        """Carried into ``adapter_status`` — and refused there, on the threshold."""
+        with TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            (d / "sky_status.json").write_text(json.dumps(
+                {"gsm_hours": 0.0, "source": "onchain", "last_checked": ts(1)}),
+                encoding="utf-8")
+            rows = {"spark_susds": {}}
+            gen._merge_gsm_hours(rows, d)
+        self.assertEqual(rows["spark_susds"]["gsm_hours"], 0.0)
+        self.assertEqual(rows["spark_susds"]["gsm_source"], "onchain")
+        self.assertFalse(gsm_confirmed(rows["spark_susds"], 48.0))
 
 
 class TestGsmConfirmed(unittest.TestCase):
