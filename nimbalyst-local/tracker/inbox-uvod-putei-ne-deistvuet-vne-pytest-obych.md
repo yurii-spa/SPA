@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: Увод путей не действует вне pytest — обычный запуск скрипта пачкает git-tracked дерево
-status: backlog
+status: done
 source: nimbalyst
 created: 2026-08-17
 ---
@@ -155,3 +155,55 @@ $ git status --porcelain
 4. **`architecture/manifest.json` для `analytics_tier_b/c` даёт `"produces": []`** — манифест не
    знает ни об одном из этих логов, поэтому список писателей по нему построить нельзя. Это
    измеренный пробел манифеста, отдельный от этой карточки.
+
+---
+
+## ✅ ЗАКРЫТО 2026-08-18 — оба acceptance-критерия проверены МОИМ прогоном
+
+Статус переведён в `done` не по отчёту, а по замеру. Что именно измерено:
+
+**Критерий 1 — «из чистого дерева `--tier B` оставляет `git status --porcelain` пустым».**
+Снимок `git status --porcelain` до и после
+`python3 scripts/audit_tier_c_wiring_feasibility.py --tier B` — **побайтово одинаков**
+(`diff` пустой, exit 0). Отдельно прогнан `--tier A`: ни одного нового пути в `data/`.
+Было 32 испачканных пути на тире B — стало **0**.
+
+**Критерий 2 — положительный контроль в ОБЕ стороны.**
+`python3 -m pytest spa_core/tests/test_sandboxed_state_path.py -q` → **19 passed in 1.05s**, в том числе:
+`test_sandboxed_default_writes_to_the_tree_on_the_production_signal` (параметры `SPA_LIVE_WRITE=1`
+и `SPA_ENV=production` — прод пишет в дерево), `…redirects_without_any_signal_outside_pytest`
+(без признака — песочница), `test_production_path_is_unchanged_in_a_child_without_pytest`
+(дочерний процесс без pytest, `sandboxed_state_path` не тронут).
+
+**Критерий 3 — ни один ассерт не ослаблен.** Единственная замена теста
+(`test_sandboxed_default_is_inert_without_pytest`) — инверсия, обоснованная в теле изменения и
+записанная в `docs/journal/2026-W34.md` (строки ~2904-2945): прежнее плечо сохранено целиком,
+добавлено второе. Это ровно та процедура, которой требует инвариант 16.
+
+**Критерий 4 — журнал.** `docs/journal/2026-W34.md` содержит разбор варианта A с числами.
+
+### Прод-логи НЕ обесточены — проверено поимённо
+
+Реализация сужена так, что менялся только `sandboxed_default` (`spa_core/utils/live_paths.py:227`,
+порядок разрешения — `_tree_default_target:294-320`); `sandboxed_state_path` / `sandboxed_dir`
+(выгрузка дашборда, `adapter_status.json`, `gap_monitor`, `alert_dispatcher`) остались на прежней
+pytest-семантике. Признак раскатан по трём продовым писателям:
+
+* `com.spa.daily_cycle` → `scripts/com.spa.daily_cycle.plist` уже несёт
+  `EnvironmentVariables → SPA_ENV=production` ⇒ `cycle_runner.py:1023` (`run_tier_b`) и
+  `cycle_gates` (`run_tier_a`) пишут в дерево;
+* `com.spa.analytics_tier_b/c` → `agent_analytics_tier_*.sh:7` → `scripts/agent_template.sh:100`
+  `export SPA_ENV="${SPA_ENV:-production}"`.
+
+### Остаток, названный числом (на закрытие не влияет, но пусть будет записан)
+
+1. **6 из 94 плистов** несут `SPA_ENV`; остальные полагаются на `agent_template.sh`.
+   **7 обёрток `scripts/agent_*.sh` идут МИМО шаблона** (`agent_cc_kanban`, `agent_inbox_intake`,
+   `agent_morning_digest`, `agent_novel_edge_rnd`, `agent_orchestrator`, `agent_reboot_verify`,
+   `agent_status`) — то есть признака у них нет. Проверено: ни одна из семи не зовёт писателей
+   аналитики (`sandboxed_default` вызывается только из `spa_core/analytics/`, 179 файлов),
+   поэтому обесточивания нет; но следующий писатель, добавленный в эту семёрку, его получит.
+2. **Из контейнера не видно, какая копия плиста ЗАГРУЖЕНА на Маке** (`launchctl` недоступен).
+   Если загружен `com.spa.daily_cycle` без `SPA_ENV`, тир-B логи цикла уедут в песочницу молча —
+   это проверяется одной командой на Маке и относится к доставке (правило деплоя, п. 6),
+   а не к репозиторной части задачи.

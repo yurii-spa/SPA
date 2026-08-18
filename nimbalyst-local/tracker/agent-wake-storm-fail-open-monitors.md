@@ -198,3 +198,25 @@ _Доставлено на origin циклом #120 (карточка была �
 (plist + `scripts/check_agent_before_deploy.sh`) либо оставить его читаемым только через
 `agent_health` (тогда шторм называется на первом снимке ПОСЛЕ восстановления, а не во время).
 Пункт 4 карточки (сон Mac Mini, `pmset`) по-прежнему открыт и по-прежнему за владельцем.
+
+---
+
+## 🔎 СВЕРКА 2026-08-18 (независимый прогон) — статус НЕ меняю (`backlog`)
+
+Проверял не текст, а файлы и прогон:
+
+* `spa_core/monitoring/wake_storm_forensics.py` существует (21 365 б);
+  проводка в соседа — `spa_core/monitoring/agent_health_monitor.py:1194-1209`
+  (`checks["wake_storm_agents"]`, импорт `check_wake_storm`, ветка `UNCHECKED` при исключении).
+* Прогон: `python3 -m pytest spa_core/tests/test_wake_storm_forensics.py -q` → **21 passed in 9.42s**.
+* Положительный контроль на месте и он про НАСТОЯЩУЮ аварию:
+  `test_39_agents_falling_in_one_minute_is_a_storm`,
+  `test_storm_is_still_named_after_the_fleet_recovered`,
+  `test_recovered_fleet_is_invisible_to_the_neighbour` (доказывает, что сосед
+  `detect_wake_storm` события не видит), обратная сторона —
+  `test_normal_restart_of_one_agent_is_silent`, `test_old_storm_ages_out_and_stops_ringing`,
+  fail-CLOSED — `test_missing_log_dir_is_unchecked_not_ok`.
+
+**Карточка остаётся открытой по двум остаткам, оба вне репозитория:** пункт 4 (сон Mac Mini,
+`pmset`) и недоставленные правки продюсеров + сам сторож (нужен `launchctl` и решение владельца,
+правило доставки п. 6). Из контейнера ни то, ни другое не проверяемо.

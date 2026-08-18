@@ -182,6 +182,15 @@ def long_lived_labels(agent_dir: Optional[Path] = None) -> Tuple[List[dict], Opt
     он не выходит, значит нового кода не увидит. ``KeepAlive`` бывает и словарём
     (``{SuccessfulExit: false}``) — истинность проверяется, а не тип.
 
+    **Читать ЗНАЧЕНИЕ, а не ключ** (`.claude/rules/deployment.md`): наличие ключа
+    со значением ``<false/>`` однажды уже читалось как «сервер», и зависание
+    расписанного агента объявлялось успехом. Здесь обратная сторона того же
+    правила: ``<dict/>`` — ПУСТОЙ словарь — в Python ложен, и «проверка
+    истинности» роняла бы такого долгожителя в невидимость МОЛЧА. Словарная
+    форма ``KeepAlive`` у launchd — набор условий; пустой набор не означает «агент
+    выходит». fail-CLOSED: словарь любой длины = долгожитель, а нестандартность
+    формы названа вслух в ``note``, а не спрятана.
+
     Нечитаемый plist НЕ пропускается молча: он приходит помеченным ``problem`` и
     даёт `unchecked` — «не прочитали» не равно «долгожителей там нет».
     """
@@ -207,9 +216,18 @@ def long_lived_labels(agent_dir: Optional[Path] = None) -> Tuple[List[dict], Opt
         except Exception as exc:  # noqa: BLE001
             out.append({"label": label, "problem": "plist не читается: {}".format(exc)})
             continue
-        if not doc.get("KeepAlive"):
+        keep_alive = doc.get("KeepAlive")
+        note: Optional[str] = None
+        if isinstance(keep_alive, dict):
+            # Словарь ЛЮБОЙ длины — долгожитель. Пустой ложен в Python, но у
+            # launchd это не «нет KeepAlive»; молча уронить такой job в
+            # невидимость — тот же fail-OPEN, что чтение ключа вместо значения.
+            if not keep_alive:
+                note = ("KeepAlive задан ПУСТЫМ словарём — форма нестандартная; "
+                        "считаю долгожителем (fail-CLOSED), проверьте plist")
+        elif not keep_alive:
             continue
-        out.append({"label": label, "problem": None})
+        out.append({"label": label, "problem": None, "note": note})
     return out, None
 
 
@@ -611,9 +629,14 @@ def check_agent_code_freshness(
     verdicts: List[AgentCodeVerdict] = []
     for entry in labels:
         try:
-            verdicts.append(_check_one(
+            v = _check_one(
                 entry["label"], entry.get("problem"), repo_root=root, runner=run,
-                table=table, now=now, alert_hours=alert_hours, max_files=max_files))
+                table=table, now=now, alert_hours=alert_hours, max_files=max_files)
+            # Замечание о форме plist'а принадлежит вердикту, а не логу: иначе
+            # нестандартный `KeepAlive` виден только тому, кто читает stderr.
+            if entry.get("note"):
+                v.notes.append(entry["note"])
+            verdicts.append(v)
         except Exception as exc:  # noqa: BLE001 — fail-CLOSED, не тихий пропуск
             verdicts.append(AgentCodeVerdict(
                 label=entry.get("label", "?"), state=STATE_UNCHECKED, severity=WARNING,

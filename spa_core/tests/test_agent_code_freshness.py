@@ -300,6 +300,35 @@ def test_keepalive_dict_form_is_long_lived(repo, agent_dir):
     assert doc["long_lived_total"] == 1
 
 
+def test_empty_keepalive_dict_is_not_silently_dropped(repo, agent_dir):
+    """`KeepAlive = <dict/>` — долгожитель, а не «расписанный агент». Fail-CLOSED.
+
+    Обратная сторона правила «читать ЗНАЧЕНИЕ, а не ключ»
+    (`.claude/rules/deployment.md`). Один раз мы уже прочли НАЛИЧИЕ ключа как
+    «сервер» и объявили зависание расписанного агента успехом. Ровно та же
+    ошибка с другого конца: «проверить истинность значения» роняет ПУСТОЙ
+    словарь (в Python он ложен), и долгожитель исчезает из проверки МОЛЧА —
+    `long_lived_total` честно уменьшается, `stale_count` остаётся нулём, и отчёт
+    читается как «всё проверено, несвежих нет».
+
+    У launchd словарная форма — набор условий пробуждения, и пустой набор не
+    равен «KeepAlive нет». Поэтому: словарь любой длины = долгожитель, а
+    нестандартность формы НАЗВАНА, а не спрятана.
+
+    Положительный контроль: на прежнем коде (`if not doc.get("KeepAlive")`)
+    `long_lived_total` здесь равен 0 и тест краснеет.
+    """
+    _write_plist(agent_dir, "com.spa.apiserver", {})
+    doc = acf.check_agent_code_freshness(
+        agent_dir=agent_dir, repo_root=repo, runner=_make_runner())
+
+    assert doc["long_lived_total"] == 1, (
+        "пустой словарь KeepAlive уронил долгожителя в невидимость — fail-OPEN")
+    v = _only(doc, "com.spa.apiserver")
+    assert any("ПУСТЫМ словарём" in n for n in v["notes"]), (
+        "нестандартная форма обязана быть названа в вердикте, а не только в логе")
+
+
 # ── 5. Fail-CLOSED: «не измерено» никогда не «в порядке» ────────────────────
 def test_unreadable_plist_is_unchecked_not_skipped(repo, agent_dir):
     (agent_dir / "com.spa.broken.plist").write_bytes(b"not a plist at all")

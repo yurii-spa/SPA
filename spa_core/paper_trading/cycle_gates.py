@@ -67,6 +67,184 @@ def quantify_policy_refusals(
     return out
 
 
+GATE_LEDGER_SCHEMA = "gate-ledger-v1"
+
+# Below this many dollars a difference is float noise, not a decision.
+_LEDGER_EPS = 1e-6
+
+
+def build_gate_ledger(
+    *,
+    allocator_target: dict[str, float],
+    pre_gate_target: dict[str, float],
+    post_gate_target: dict[str, float],
+    gate: dict,
+    frozen_pools: list[str] | None = None,
+    redistribution: dict | None = None,
+) -> dict:
+    """What the allocator ASKED for, what survived the RiskPolicy gate, and why.
+
+    Карточка `agent-predgateovaya-tsel-ne-sohranyaetsya` (08.08): ``_pre_gate_target``
+    жил только в памяти ``run_cycle``. В артефакты попадало лишь производное —
+    :func:`quantify_policy_refusals` (и только по TVL-замороженным пулам) плюс
+    текстовая строка в ``cash_attribution``. Поэтому вопрос «что гейт зарубил в
+    цикле 2026-08-08 09:50 и по какому правилу» был неотвечаем задним числом, и
+    приёмка ADR-073 из-за этого осталась модульной, а не сквозной.
+
+    Чистая наблюдаемость: сравнивает три словаря, ничего не мутирует, ничего не
+    возвращает в money-path. Читатель — только advisory-писатель rationale.
+
+    **Fail-CLOSED в атрибуции.** Правило приписывается снятию ТОЛЬКО когда сам
+    гейт его назвал (``tvl_unverified`` — ADR-053; ``trimmed`` — min-cash буфер).
+    Снятие, которое гейт не объяснил, помечается ``rule=None`` /
+    ``attributed=False`` / ``status="not_measured"`` и попадает в
+    ``unnamed_removed_usd``: «не измерено» обязано отличаться от «причин нет».
+    То же для стадий ДО RiskPolicy (analytics-blocking): их разница показана
+    отдельной секцией и целиком помечена ``not_measured`` — они пока не называют
+    причину по протоколам.
+    """
+    frozen = {str(p) for p in (frozen_pools or [])}
+    gate_error = gate.get("error") if isinstance(gate, dict) else "gate_result_missing"
+    approved = bool(gate.get("approved")) if isinstance(gate, dict) else False
+    trimmed = bool(gate.get("trimmed")) if isinstance(gate, dict) else False
+    violations = [str(v) for v in (gate.get("violations") or [])] \
+        if isinstance(gate, dict) else []
+
+    def _f(d: dict, key: str) -> float:
+        try:
+            return float(d.get(key, 0.0) or 0.0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    added_by_redistribution = {
+        str(k) for k in ((redistribution or {}).get("added") or {})
+    }
+
+    changes: list[dict] = []
+    removed_usd = 0.0
+    named_removed_usd = 0.0
+    added_usd = 0.0
+    for proto in sorted(set(pre_gate_target) | set(post_gate_target)):
+        pre = _f(pre_gate_target, proto)
+        post = _f(post_gate_target, proto)
+        delta = post - pre
+        if abs(delta) <= _LEDGER_EPS:
+            continue
+        entry = {
+            "protocol": proto,
+            "pre_gate_usd": round(pre, 2),
+            "post_gate_usd": round(post, 2),
+            "delta_usd": round(delta, 2),
+        }
+        if delta < 0:
+            removed_usd += -delta
+            entry["direction"] = "removed"
+            if gate_error is not None:
+                # Гейт не был вычислен — приписывать ему правило нельзя.
+                entry.update(rule=None, rule_ref=None, attributed=False,
+                             status="not_measured",
+                             evidence="risk_policy gate error: %s" % (gate_error,))
+            elif proto in frozen:
+                entry.update(rule="tvl_unverified_fail_closed", rule_ref="ADR-053",
+                             attributed=True, status="named",
+                             evidence="gate.tvl_unverified")
+                named_removed_usd += -delta
+            elif trimmed:
+                entry.update(rule="min_cash_buffer_trim", rule_ref="RiskPolicy v1.0",
+                             attributed=True, status="named",
+                             evidence="gate.trimmed")
+                named_removed_usd += -delta
+            else:
+                entry.update(rule=None, rule_ref=None, attributed=False,
+                             status="not_measured",
+                             evidence="the gate removed this without naming a rule")
+        else:
+            added_usd += delta
+            entry["direction"] = "added"
+            if proto in added_by_redistribution:
+                entry.update(rule="adr_072_redistribution", rule_ref="ADR-072",
+                             attributed=True, status="named",
+                             evidence="redistribute_freed_budget.added")
+            else:
+                entry.update(rule=None, rule_ref=None, attributed=False,
+                             status="not_measured",
+                             evidence="target grew without a named source")
+        changes.append(entry)
+
+    unnamed_removed_usd = max(0.0, removed_usd - named_removed_usd)
+
+    # Стадии ДО RiskPolicy (analytics-blocking gate) — отдельно и честно
+    # непроатрибутированно: они мутируют target на месте и не сообщают наружу,
+    # какой протокол и почему. Показать разницу можно, назвать причину — нет.
+    pre_stage: list[dict] = []
+    for proto in sorted(set(allocator_target or {}) | set(pre_gate_target or {})):
+        raw = _f(allocator_target or {}, proto)
+        pre = _f(pre_gate_target or {}, proto)
+        if abs(pre - raw) <= _LEDGER_EPS:
+            continue
+        pre_stage.append({
+            "protocol": proto,
+            "allocator_usd": round(raw, 2),
+            "pre_gate_usd": round(pre, 2),
+            "delta_usd": round(pre - raw, 2),
+            "rule": None,
+            "attributed": False,
+            "status": "not_measured",
+            "evidence": ("stages before the RiskPolicy gate (analytics blocking) "
+                         "do not name a per-protocol reason yet"),
+        })
+
+    redis_status = "not_attempted"
+    freed_usd = None
+    if redistribution is not None:
+        redis_status = str(redistribution.get("status") or "not_attempted")
+        if redistribution.get("freed_usd") is not None:
+            try:
+                freed_usd = round(float(redistribution["freed_usd"]), 2)
+            except (TypeError, ValueError):
+                freed_usd = None
+
+    return {
+        "schema": GATE_LEDGER_SCHEMA,
+        "note": ("OBSERVABILITY ONLY: this ledger records the pre-gate ask beside "
+                 "the post-gate book. It moves no capital and gates nothing."),
+        "gate_evaluated": gate_error is None,
+        "gate_error": gate_error,
+        "gate_approved": approved,
+        "gate_trimmed": trimmed,
+        "gate_violations": violations,
+        "allocator_target": {k: round(_f(allocator_target or {}, k), 2)
+                             for k in sorted(allocator_target or {})},
+        "pre_gate_target": {k: round(_f(pre_gate_target, k), 2)
+                            for k in sorted(pre_gate_target or {})},
+        "post_gate_target": {k: round(_f(post_gate_target, k), 2)
+                             for k in sorted(post_gate_target or {})},
+        "changes": changes,
+        "pre_riskpolicy_stage_changes": pre_stage,
+        "summary": {
+            "asked_usd": round(sum(_f(pre_gate_target, k)
+                                   for k in (pre_gate_target or {})), 2),
+            "kept_usd": round(sum(_f(post_gate_target, k)
+                                  for k in (post_gate_target or {})), 2),
+            "removed_usd": round(removed_usd, 2),
+            "added_usd": round(added_usd, 2),
+            "named_removed_usd": round(named_removed_usd, 2),
+            "unnamed_removed_usd": round(unnamed_removed_usd, 2),
+            # Fail-CLOSED: полнота атрибуции — утверждение, а не умолчание.
+            "attribution_complete": (gate_error is None
+                                     and unnamed_removed_usd <= _LEDGER_EPS),
+        },
+        "redistribution": {
+            "status": redis_status,
+            "freed_usd": freed_usd,
+            "added": {str(k): round(float(v), 2) for k, v in
+                      sorted(((redistribution or {}).get("added") or {}).items())},
+            "second_gate_violations": list(
+                (redistribution or {}).get("second_gate_violations") or []),
+        },
+    }
+
+
 def apply_analytics_blocking_gate(
     target_usd: dict[str, float],
     *,

@@ -31,6 +31,7 @@ from unittest import mock
 
 from spa_core.allocator import allocator as A
 from spa_core.allocator.allocator import StrategyAllocator
+from spa_core.tests._freshness import ts as _ts
 
 #: Наблюдение из закреплённого пула — НИЖЕ порога $5M.
 OBSERVED_SMALL = 2_600_000.0
@@ -49,7 +50,11 @@ def _rows(evidence: dict[str, tuple[float, str]]) -> list[dict]:
         "tvl_usd": ADAPTER_LITERAL,
         "tvl_source": "static",
         "tier": "T1",
-        "last_updated": "2026-08-18T00:00:00+00:00",
+        # ОТНОСИТЕЛЬНАЯ отметка: литеральная дата рядом с понятием свежести —
+        # бомба замедленного действия, и храповик дат честно на ней покраснел
+        # (моя же правка, поймана сверкой через час). Предмет теста —
+        # ЧИСЛО TVL рядом с меткой, а не дата, поэтому шаблон 2 из `_freshness`.
+        "last_updated": _ts(hours_ago=1),
     }]}
     with TemporaryDirectory() as td:
         status = Path(td) / "adapter_status.json"

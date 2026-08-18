@@ -298,6 +298,7 @@ def write_shadow_rationale(
     params: Optional[TriggerParams] = None,
     blocked_protocols: Optional[Dict[str, str]] = None,
     policy_refusals: Optional[List[dict]] = None,
+    gate_ledger: Optional[dict] = None,
 ) -> dict:
     """Compute the shadow verdict and (optionally) persist it. Never raises."""
     try:
@@ -447,6 +448,15 @@ def write_shadow_rationale(
             "capital_usd": capital_usd,
             "decision_shadow": decision.to_dict(),
             "cash": cash,
+            # Предгейтовая цель рядом с послегейтовой (карточка 08.08). Отсутствие
+            # ledger'а — это ОТДЕЛЬНОЕ утверждение «не измерено», а не «гейт ничего
+            # не зарубил»: пустой словарь читался бы как второе.
+            "gate_ledger": (gate_ledger if gate_ledger is not None else {
+                "status": "not_measured",
+                "reason": ("the cycle did not supply a gate ledger — what the "
+                           "allocator asked for before the gate is unknown for "
+                           "this cycle"),
+            }),
             "below_median_cap": below_median,
             "history": {**hist, "position_age_days": ages},
             "params": {

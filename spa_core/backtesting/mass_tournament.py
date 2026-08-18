@@ -158,6 +158,23 @@ MOCK_APY: Dict[str, float] = {
 
 INITIAL_CAPITAL = 100_000.0
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Что считается ИЗМЕРЕННЫМ рядом доходности
+# ─────────────────────────────────────────────────────────────────────────────
+# Мок в АЛЛОКАЦИИ (MOCK_APY) и мок в РЯДЕ ДОХОДНОСТИ — два разных входа, и
+# пометка первого не отвечает за второй. Замер 2026-08-18 на 63 строках: 7 строк
+# помечены как mock-fed, а НЕ помеченными остались 30 строк, часть веса которых
+# бэктест обслуживал НЕ наблюдением:
+#   * ``modeled_proxy``      — встроенный смоделированный ряд (euler_v2, maple);
+#   * ``defillama_fallback`` — литеральный снимок в коде (spa_core.bee);
+#   * ``none``               — ряда нет вовсе ⇒ протокол молча даёт РОВНО 0 %
+#     годовых (`professional_backtest._build_protocol_daily_apy`: `annual_clean =
+#     0.0`), то есть успокаивающая константа вместо отказа.
+# При этом весь файл штамповался одной оптимистичной меткой `data_source =
+# defillama_pit_real` — «лучший из обслуживших», а не «тот, что обслужил ЭТУ
+# строку». Поэтому мера — ПОСТРОЧНАЯ: доля веса, обслуженная наблюдением.
+MEASURED_SERIES_SOURCES = frozenset({"defillama_pit_real", "defillama_real"})
+
 # Files to skip (not actual strategy implementations)
 _SKIP_FILES = frozenset({
     "strategy_registry.py",
@@ -181,6 +198,54 @@ def _atomic_write_json(path: Path, data: Any) -> None:
     with open(tmp, "w", encoding="utf-8") as fh:
         fh.write(payload)
     shutil.move(tmp, str(path))
+
+
+def series_provenance(
+    allocation: Dict[str, float],
+    bee_data: Dict,
+    fallback_bee: Dict,
+) -> Dict[str, Any]:
+    """Чем обслужен ряд доходности КАЖДОГО протокола этой строки рейтинга.
+
+    Возвращает
+    ----------
+    ``{apy_series_sources, measured_series_weight_pct, unmeasured_protocols,
+    unserved_protocols, series_tainted}``
+
+    ``measured_series_weight_pct`` — доля веса книги, доходность которой пришла
+    из наблюдения (``defillama_pit_real`` / ``defillama_real``). Всё остальное —
+    смоделированный ряд, литеральный снимок в коде или молчаливый ноль.
+
+    Ничего не подставляет и не «дотягивает» до 100 %: пустая аллокация даёт
+    ``measured_series_weight_pct = 0.0`` и ``series_tainted = True``
+    (fail-CLOSED — недоказанное не выглядит доказанным).
+    """
+    alloc = {k: float(v) for k, v in (allocation or {}).items()
+             if isinstance(v, (int, float)) and v > 0}
+    total = sum(alloc.values())
+    by_source: Dict[str, float] = {}
+    unmeasured: List[str] = []
+    unserved: List[str] = []
+    for proto, weight in alloc.items():
+        src = _resolve_protocol_source(proto, bee_data or {}, fallback_bee or {})
+        by_source[src] = by_source.get(src, 0.0) + weight
+        if src not in MEASURED_SERIES_SOURCES:
+            unmeasured.append(f"{proto}:{src}")
+        if src == "none":
+            unserved.append(proto)
+    measured = sum(w for s, w in by_source.items() if s in MEASURED_SERIES_SOURCES)
+    frac = (measured / total) if total > 0 else 0.0
+    return {
+        "apy_series_sources": {
+            s: round(w / total, 6) if total > 0 else 0.0
+            for s, w in sorted(by_source.items())
+        },
+        "measured_series_weight_pct": round(100.0 * frac, 4),
+        "unmeasured_protocols": sorted(unmeasured),
+        "unserved_protocols": sorted(unserved),
+        # Строгий порог: доверяем строке, только если ВЕСЬ её вес — наблюдение.
+        "series_tainted": frac < 0.999999,
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -520,6 +585,11 @@ class MassTournament:
         strategy_files = self.discover_strategy_files()
         _log.info("MassTournament: discovered %d strategy files", len(strategy_files))
 
+        # Источники рядов доходности читаются ОДИН раз и используются построчно
+        # (раньше читались только в конце — для одной общей оптимистичной метки).
+        bee_data, _bee_tag = _load_bee_apy_history()
+        fallback_bee = _get_fallback_bee_data()
+
         leaderboard: List[Dict[str, Any]] = []
         skip_reasons: Dict[str, str] = {}
         strategies_skipped = 0
@@ -588,6 +658,8 @@ class MassTournament:
             prov = dict(self.last_strategy_provenance.get(module_path) or {})
             fed_mock = bool(self.last_mock_fed_labels.get(module_path, False))
             strategy_mock = is_mock_fed(prov)
+            # 3-й, независимый вопрос: чем обслужен РЯД ДОХОДНОСТИ этой книги.
+            sprov = series_provenance(allocation, bee_data or {}, fallback_bee or {})
             leaderboard.append({
                 "id":                sid,
                 # Вход: литеральный снимок MOCK_APY или собственные числа стратегии.
@@ -597,6 +669,8 @@ class MassTournament:
                 "mock_provenance":   prov,
                 # Итог: строка НЕ доверяема для рейтинга, если в неё вошла подстановка.
                 "mock_tainted":      fed_mock or strategy_mock,
+                # ── Провенанс РЯДА ДОХОДНОСТИ (не путать с входом аллокации) ──
+                **sprov,
                 "class":             primary_class,
                 "method_used":       method_used,
                 "sharpe":            metrics["sharpe_ratio"],
@@ -662,15 +736,35 @@ class MassTournament:
         # подставленным числом не ранжируется как живая. Не удаляем её из
         # `leaderboard` (провенанс обязан быть виден), а выносим отдельный список
         # доверяемых — и помечаем каждую строку `trusted_for_ranking`.
+        # Дополнение 2026-08-18: подстановка бывает не только на входе аллокации,
+        # но и в РЯДЕ ДОХОДНОСТИ (`series_tainted`). Строка, часть книги которой
+        # обслужена смоделированным рядом, литеральным снимком или молчаливым
+        # нулём, ранжируется НЕ как измеренная — она остаётся в `leaderboard`
+        # (провенанс обязан быть виден) с ИМЕНОВАННОЙ причиной, но не попадает в
+        # `trusted_leaderboard`. Причины перечисляются, а не сворачиваются в bool.
         for entry in leaderboard:
-            entry["trusted_for_ranking"] = not (
-                entry.get("mock_tainted") or entry.get("rank_unknown")
-            )
+            reasons: List[str] = []
+            if entry.get("mock_apy_fed"):
+                reasons.append("fed_literal_mock_apy_snapshot")
+            if entry.get("strategy_declares_mock"):
+                reasons.append("strategy_declares_substituted_source")
+            if entry.get("rank_unknown"):
+                reasons.append("no_finite_net_return")
+            if entry.get("series_tainted"):
+                named = entry.get("unmeasured_protocols") or [
+                    "measured_weight_pct=%s" % entry.get("measured_series_weight_pct")
+                ]
+                reasons.append("apy_series_not_fully_measured:" + ",".join(named))
+            entry["untrusted_reasons"] = reasons
+            entry["trusted_for_ranking"] = not reasons
         trusted_leaderboard = [e for e in leaderboard if e["trusted_for_ranking"]]
         for i, entry in enumerate(trusted_leaderboard, 1):
             entry["trusted_rank"] = i
         mock_tainted_ids = sorted(
             str(e.get("id")) for e in leaderboard if e.get("mock_tainted")
+        )
+        series_tainted_ids = sorted(
+            str(e.get("id")) for e in leaderboard if e.get("series_tainted")
         )
 
         top_5 = leaderboard[:5]
@@ -680,8 +774,6 @@ class MassTournament:
         used_protocols: set = set()
         for entry in leaderboard:
             used_protocols.update((entry.get("allocation") or {}).keys())
-        bee_data, _bee_tag = _load_bee_apy_history()
-        fallback_bee = _get_fallback_bee_data()
         protocol_data_sources = {
             proto: _resolve_protocol_source(proto, bee_data or {}, fallback_bee or {})
             for proto in sorted(used_protocols)
@@ -740,8 +832,36 @@ class MassTournament:
             # MOCK_APY — литеральный снимок в коде турнира, а не наблюдение.
             # Кто на нём стоял и кто заявил mock внутри себя — здесь по именам.
             "mock_apy_snapshot_is_literal": True,
+            # Единицы снимка НАЗВАНЫ: он в ДОЛЯХ (0.035 = 3.5 %), тогда как часть
+            # стратегий документирует вход как `apy_pct` и сравнивает с порогами в
+            # процентах (`s74_rwa_yield`: `maple_apy > 7.0`). Расхождение единиц —
+            # стократное; поэтому НИ ОДНА строка, получившая снимок, не считается
+            # измеренной (см. `mock_apy_fed` → `untrusted_reasons`). Единицы здесь
+            # не «чинятся» умножением: подгонка числа без источника — та же
+            # подстановка, только незаметная.
+            "mock_apy_snapshot_units": "decimal",
+            "mock_apy_units_hazard": (
+                "MOCK_APY is decimal (0.035 = 3.5%) while several strategies document "
+                "apy_data/apy_map as apy_pct and compare against percent thresholds "
+                "(e.g. maple_apy > 7.0). Any row fed the snapshot is excluded from "
+                "trusted_leaderboard rather than rescaled."
+            ),
             "mock_tainted_strategies": mock_tainted_ids,
             "mock_tainted_count":     len(mock_tainted_ids),
+            # ── Ряд доходности: измеренное отделено от смоделированного ─────────
+            "measured_series_sources": sorted(MEASURED_SERIES_SOURCES),
+            "series_tainted_strategies": series_tainted_ids,
+            "series_tainted_count":   len(series_tainted_ids),
+            "unserved_protocols": sorted({
+                p for e in leaderboard for p in (e.get("unserved_protocols") or [])
+            }),
+            # `data_source` выше — ЛУЧШИЙ из обслуживших, а не общий для всех строк.
+            "data_source_is_best_of_served": True,
+            "data_source_note": (
+                "meta.data_source is the BEST source that served ANY protocol, not a "
+                "per-row guarantee. Per-row truth: leaderboard[].apy_series_sources / "
+                "measured_series_weight_pct."
+            ),
             "trusted_leaderboard_size": len(trusted_leaderboard),
             "sharpe_note": (
                 "OWNER DECISION (2026-06-27): leaderboard is ranked by net-of-cost "

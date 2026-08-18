@@ -122,6 +122,7 @@ from spa_core.paper_trading.cycle_gates import (  # noqa: F401 — re-exported
     apply_kill_switch_override,
     apply_rtmr_posture_gate,
     apply_soft_derisk_gate,
+    build_gate_ledger,
     quantify_policy_refusals,
 )
 from spa_core.paper_trading.cycle_reporting import (  # noqa: F401 — re-exported
@@ -1440,6 +1441,10 @@ def run_cycle(
     target_usd = {
         str(p): float(v) for p, v in (getattr(alloc, "target_usd", {}) or {}).items()
     }
+    # Наблюдаемость (карточка «предгейтовая цель не сохраняется»): сырая цель
+    # аллокатора ДО любых гейтовых стадий. Копия, читается только писателем
+    # ledger'а на Step 2f — ни одна ветка money-path её не видит.
+    _allocator_target = dict(target_usd)
     model_used = getattr(alloc, "model_used", None)
     strategy_loop_active = bool(getattr(alloc, "strategy_loop_active", False))
     # WS1.1 (money-path data-integrity): provenance of the APY that drove the
@@ -1704,6 +1709,9 @@ def run_cycle(
     policy_blocked = False
     # ADR-053 refusals, quantified — advisory provenance for the idle cash.
     _policy_refusals: list[dict] = []
+    # Наблюдаемость: исход перераздачи ADR-072 для ledger'а. "not_attempted" —
+    # честное «не запускалась», не «не понадобилась».
+    _redistribution_summary: dict = {"status": "not_attempted"}
 
     # MP-310: record risk_verdict event (fail-safe)
     _audit_verdict_id: str | None = None
@@ -1767,6 +1775,12 @@ def run_cycle(
                 from spa_core.paper_trading.risk_gate import redistribute_freed_budget
                 _re = redistribute_freed_budget(
                     target_usd, _pre_gate_target, capital_usd, adapters, gate)
+                _redistribution_summary = {
+                    "status": "no_freed_budget" if not _re["added"] else "attempted",
+                    "freed_usd": _re.get("freed_usd"),
+                    "added": dict(_re.get("added") or {}),
+                    "second_gate_violations": [],
+                }
                 if _re["added"]:
                     _gate2 = _apply_risk_policy_gate(
                         _re["target_usd"], capital_usd, adapters, ddir=ddir,
@@ -1774,6 +1788,7 @@ def run_cycle(
                     if (_gate2["error"] is None and _gate2["approved"]
                             and not _gate2["violations"]):
                         target_usd = dict(_gate2["target_usd"])
+                        _redistribution_summary["status"] = "applied"
                         notes.extend(_re["notes"])
                         notes.append(
                             "ADR-072: перераздано $"
@@ -1782,11 +1797,16 @@ def run_cycle(
                             "гейт APPROVED")
                         log.info("ADR-072 redistribution: %s", _re["added"])
                     else:
+                        _redistribution_summary["status"] = "rejected_by_second_gate"
+                        _redistribution_summary["second_gate_violations"] = list(
+                            _gate2.get("violations") or [])
                         notes.append(
                             "ADR-072: перераздача ОТКЛОНЕНА повторным гейтом "
                             f"({'; '.join(_gate2['violations']) or _gate2['error'] or 'not approved'}) "
                             "— принято слово гейта, кэш остался")
             except Exception as _re_exc:  # noqa: BLE001 — не смеет валить цикл
+                _redistribution_summary = {"status": "error",
+                                           "error": type(_re_exc).__name__}
                 log.warning("ADR-072 redistribution failed (%s) — cycle continues",
                             _re_exc)
 
@@ -1807,6 +1827,25 @@ def run_cycle(
                     current_positions=current_positions,
                     capital_usd=capital_usd,
                 )
+
+    # ── Step 2b-ledger: предгейтовая цель СОХРАНЯЕТСЯ рядом с послегейтовой ──
+    # Снимок берётся ЗДЕСЬ — сразу после гейта (и его повторного прохода по
+    # ADR-072) и ДО kill-switch / soft-derisk / base-gas / ALLOC-002 / RTMR, —
+    # чтобы разница отвечала ровно на вопрос «что зарубил ГЕЙТ», а не на смесь
+    # из шести последующих стадий. Чистое чтение: ни одного значения target_usd
+    # не меняет. Fail-open — слой наблюдаемости не смеет валить цикл.
+    _gate_ledger: dict | None = None
+    try:
+        _gate_ledger = build_gate_ledger(
+            allocator_target=_allocator_target,
+            pre_gate_target=_pre_gate_target,
+            post_gate_target=dict(target_usd),
+            gate=gate,
+            frozen_pools=list(gate.get("tvl_unverified") or []),
+            redistribution=_redistribution_summary,
+        )
+    except Exception as _gl_exc:  # noqa: BLE001 — наблюдаемость не ломает цикл
+        log.warning("gate ledger skipped (%s) — cycle continues", _gl_exc)
 
     # ── Step 2c (MP-108): kill-switch override — force all-cash allocation ──
     target_usd = apply_kill_switch_override(
@@ -1923,6 +1962,11 @@ def run_cycle(
             # them the artifact called this cycle's frozen budget "idle without
             # a recorded reason" while RiskPolicy had recorded one.
             policy_refusals=list(_policy_refusals),
+            # Карточка «предгейтовая цель не сохраняется»: что аллокатор ПРОСИЛ,
+            # что осталось ПОСЛЕ гейта и по какому названному правилу ушла
+            # разница. Без этого вопрос «а что он просил 08.08 в 09:50»
+            # отвечался только моделированием.
+            gate_ledger=_gate_ledger,
             trades=_read_json(ddir / TRADES_FILENAME, []),
             write=write,
         )

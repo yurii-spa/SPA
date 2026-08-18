@@ -180,3 +180,22 @@ ADR-093 п.3, но **его нет ни в индексе git, ни в дере�
 (`git rm --cached`; `push_to_github.py` удалений не умеет). Порядок предложен в
 отчёте: сначала H-REPLAY и H-JUNK (безобидны для истории), затем H-SAFETY, затем
 H-CAPITAL/H-LEDGER — последние только вместе с решением, куда возить канон трека.
+
+---
+
+## 🔎 СВЕРКА 2026-08-18 (независимый прогон) — Wave 3 подтверждена, статус `backlog` верен
+
+* `git ls-files data/kill_switch_active.json data/tg_bot_v2_offset.json` → **пусто**: оба файла
+  сняты с отслеживания, `git status --porcelain data/` чист (снятие доехало до коммита, а не
+  осталось в индексе, как было записано выше).
+* Прогон: `python3 -m pytest spa_core/tests/test_halt_state_survives_tree_restore.py
+  spa_core/tests/test_data_git_rollback_guard.py -q` → **1 failed, 27 passed in 2.97s**.
+  Единственный красный — `test_track_canon_is_actually_present_in_git`:
+  `канон трека отсутствует в git: data/tier1_packages.json`. Это ровно та находка, которая описана
+  в теле Wave 3, а не поломка теста; гасить его запрещено (инвариант 16).
+* Тест остановки (`test_halt_state_survives_tree_restore.py`) — на диске и зелёный.
+
+**Остаток числом:** 24 файла группы (а) всё ещё отслеживаются и ждут `git rm --cached` (действие
+владельца), плюс 1 красный по отсутствующему канону `data/tier1_packages.json`.
+Пункты 2 и 3 исходной карточки (presence-guard вместо skip в CI; дневной цикл не коммитит
+`paper_evidence.json`) не трогались — перепроверять их этой сессией не поручалось.
