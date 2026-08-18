@@ -2,14 +2,15 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-17T23:01:11Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-18T09:37:54Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **513** · ждёт владельца: **11** · занято сессиями: **3**.
+> Всего карточек: **514** · ждёт владельца: **12** · занято сессиями: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Два имени в книге стоят на одном и том же хранилище Morpho — решить, каким быть второму** · _high_  ·  `own-2026-08-17-morpho-blue-odin-pul-dva-kluycha.md`
 - **Два ключа на один и тот же вклад в Sky — решить, какой оставить** · _medium_  ·  `own-2026-08-17-spark-susds-dublikat.md`
+- **Аллокатор ставит метку «живой размер пула» на выдуманное число — прямой запрет правила** · _high_  ·  `own-2026-08-18-metka-zhivoi-na-konstante-v-allokatore.md`
 - **Автопочинщик кода остался без вызывающих: убрать совсем или оставить лежать**  ·  `own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih.md`
 - **Ручной инструмент поиска новых источников доходности никто не запускает — оставить, поставить на расписание или списать**  ·  `own-ruchnoy-instrument-poiska-istochnikov.md`
 - **Цена нашего лимита «не больше 20 % на одно имя» измерена: поднимать его незачем, он стоит ровно в лучшей точке** · _medium_  ·  `own-tsena-nashego-limita-20-na-odno-imya-izme.md`
@@ -28,11 +29,12 @@
 - **а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…** — держит `pid43119` · с 2026-08-14T11:52:34Z  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md`
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (123)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (124)
 
 ### · needs-owner
 - Два имени в книге стоят на одном и том же хранилище Morpho — решить, каким быть второму  ·  `own-2026-08-17-morpho-blue-odin-pul-dva-kluycha.md` · 2026-08-17
 - Два ключа на один и тот же вклад в Sky — решить, какой оставить  ·  `own-2026-08-17-spark-susds-dublikat.md` · 2026-08-17
+- Аллокатор ставит метку «живой размер пула» на выдуманное число — прямой запрет правила  ·  `own-2026-08-18-metka-zhivoi-na-konstante-v-allokatore.md` · 2026-08-18
 - Автопочинщик кода остался без вызывающих: убрать совсем или оставить лежать  ·  `own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih.md` · 2026-08-17
 - Ручной инструмент поиска новых источников доходности никто не запускает — оставить, поставить на расписание или списать  ·  `own-ruchnoy-instrument-poiska-istochnikov.md` · 2026-08-17
 - Цена нашего лимита «не больше 20 % на одно имя» измерена: поднимать его незачем, он стоит ровно в лучшей точке  ·  `own-tsena-nashego-limita-20-na-odno-imya-izme.md` · 2026-08-17

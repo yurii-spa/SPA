@@ -113,9 +113,30 @@ def notify_needs_owner(path: str | Path, *, dry_run: bool = False) -> str:
             try:
                 ok = _send(dedup=True)
             except TypeError as exc2:
-                log.warning("notify_needs_owner: sender rejected dedup (%s) — шлю без "
-                            "него; лишний повтор лучше потерянного вопроса", exc2)
+                # НИЖНЯЯ СТУПЕНЬ БОЛЬШЕ НЕ ТЕРЯЕТ ДЕДУП. Прежняя формулировка «лишний
+                # повтор владелец переживёт» верна для одного повтора и неверна для
+                # потока: 17.08 владелец получал один и тот же вопрос ~200 раз в сутки.
+                # Отправитель не умеет `dedup` — значит спрашиваем заслон ЗДЕСЬ, где мы
+                # ТОЧНО знаем, что это пуш, и только потом зовём голую отправку.
+                # Заслон спрашивается РОВНО ОДИН раз на этой ветке: он же считает лимит
+                # потока, и второй вызов молча съел бы половину бюджета.
+                from spa_core.alerts.telegram_client import (_record_history,
+                                                             guard_outbound)
+
+                log.warning("notify_needs_owner: sender rejected dedup (%s) — заслон "
+                            "спрашиваю сам", exc2)
+                reason = guard_outbound(msg, dedup=True)
+                if reason is not None:
+                    log.warning("notify_needs_owner: подавлено заслоном (%s)", reason)
+                    return msg
                 ok = _send()
+                # И ЗАПИСЫВАЕМ ОТПРАВКУ САМИ. Спросить заслон мало: он судит по журналу,
+                # а старый отправитель журнала не ведёт — второй такой же вопрос не нашёл
+                # бы, с чем сравниться, и уехал бы владельцу. Ровно на этом первая версия
+                # починки и покраснела (2 сообщения вместо 1).
+                # `solicited=False` — это пуш; дверь всё равно перепроверит свойство по
+                # тексту, потому что вызывающему в этом вопросе больше не верят.
+                _record_history(msg, ok=bool(ok), solicited=False, buttons=False)
         if not ok:
             log.warning("notify_needs_owner: send returned falsy for %s", path)
     except Exception as exc:  # noqa: BLE001 — notification must never crash the orchestrator
