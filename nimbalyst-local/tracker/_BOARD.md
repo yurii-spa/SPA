@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-18T10:20:09Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-18T10:32:14Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **515** · ждёт владельца: **13** · занято сессиями: **3**.
+> Всего карточек: **516** · ждёт владельца: **13** · занято сессиями: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -160,7 +160,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (227)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (228)
 
 ### · blocked
 - Конституция противоречит принятому ADR: инвариант 10 «Sky/sUSDS = 0%» отменён ADR-065, но написан как действующий  ·  `inbox-konstitutsiya-protivorechit-prinyatomu-a.md` · 2026-08-16
@@ -386,6 +386,7 @@
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08
 - Отказ замка цикла неотличим от аварии: last_exit=2 означает и 'защитил трек', и 'сломался'  ·  `inbox-otkaz-zamka-tsikla-neotlichim-ot-avarii.md` · 2026-08-08
 - Оживить фиды вне Ethereum — путь к снятию остатка кэша (решение владельца 08.08)  ·  `inbox-ozhivit-fidy-vne-ethereum-put-k-snyatiyu.md` · 2026-08-08
+- Под ключом stusd объявлены ДВА разных контракта с одинаковым vanity-префиксом — проверить on-chain  ·  `inbox-pod-klyuchom-stusd-obyavleny-dva-raznyh.md` · 2026-08-18
 - Подготовить ADR: пересмотр лимита одной цепочки 90% (решение владельца — за ним)  ·  `inbox-podgotovit-adr-peresmotr-limita-odnoi-ts.md` · 2026-08-08
 - Сбалансированный трек: ноль профинансированных дней из 40 при 920 отработанных циклах  ·  `inbox-sbalansirovannyi-trek-nol-profinansirova.md` · 2026-08-08
 - «Слепой» модуль может быть зрячим: 2 из 167 различают протоколы, а коэрция агрегатора теряет это различие  ·  `inbox-slepota-mozhet-byt-poteryannoi-koerciei.md` · 2026-08-17

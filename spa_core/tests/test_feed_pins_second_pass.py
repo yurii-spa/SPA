@@ -26,9 +26,14 @@ from unittest.mock import patch
 
 from spa_core.adapters.scrvusd_adapter import ScrvusdAdapter
 from spa_core.adapters.sdai_adapter import SdaiAdapter
+from spa_core.adapters.status_reader import read_live_tvl_usd, tvl_floor_verdict
 from spa_core.monitoring import adapter_status_generator as gen
 
 _FETCH = "spa_core.monitoring.adapter_status_generator._fetch_defillama"
+
+# Порог RiskPolicy. Держится здесь одним литералом только для читаемости теста;
+# сам вердикт получает его параметром, чтобы файл не завёл СВОЮ копию политики.
+_FLOOR_USD = 5_000_000.0
 
 # The three pools as the live feed reported them on 2026-08-05 (shape verbatim,
 # numbers rounded). The UUIDs are the pinned identities; a test built on other
@@ -179,6 +184,82 @@ class TestUnwiredStayUnwired(_GenBase):
             self.assertNotEqual(
                 row.get("tvl_pool_id"), _SCRVUSD_LP_POOL["pool"],
                 f"{key} pinned to the LP pair the wiring explicitly refused")
+
+
+class TestFloorVerdictRestsOnTheObservation(_GenBase):
+    """Порог $5M судится ЖИВЫМ числом — и только им (ADR-053).
+
+    Замер 2026-08-18. Файл выше уже доказывал, что пин даёт ``tvl_source="live"``,
+    а незакреплённый ключ остаётся ``static``. На нужный вопрос — «чем в итоге
+    судится гейт» — он не отвечал: между полем ``tvl_source`` и вердиктом стоит
+    ``tvl_floor_verdict``, и его поведение для этой шестёрки не было закреплено
+    НИГДЕ. Для четырёх аавовских пинов вне Ethereum такой контроль есть
+    (``test_feed_pins_aave_non_ethereum.py``), для второго прохода — не было.
+
+    Разница не косметическая: литералы незакреплённых ключей — ``frax`` $100M,
+    ``stusd`` $200M, ``wusdm`` $400M — все ВЫШЕ порога. Если вердикт когда-нибудь
+    начнёт читать ``tvl_usd`` без оглядки на ``tvl_source``, эти трое молча
+    «пройдут» гейт, которого никто не измерял, и ни один из существующих тестов
+    этого не увидит.
+
+    Обе стороны закреплены намеренно: только «живое проходит» пропустило бы
+    производителя, который штампует pass всем подряд; только «незакреплённое не
+    проходит» — того, кто отказывает всем.
+    """
+
+    def _write_status(self):
+        doc = self._generate(_ALL_POOLS)
+        gen.write(doc, self.output)
+
+    def test_live_observation_clears_the_floor_by_its_own_number(self):
+        """sdai $210.0M и scrvusd $18.68M проходят — потому что НАБЛЮДЕНЫ."""
+        self._write_status()
+        for key, observed in (("sdai", _SDAI_POOL["tvlUsd"]),
+                              ("scrvusd", _SCRVUSD_POOL["tvlUsd"])):
+            with self.subTest(key=key):
+                self.assertEqual(read_live_tvl_usd(key, data_dir=self.data_dir), observed)
+                self.assertIs(
+                    tvl_floor_verdict(key, data_dir=self.data_dir, floor_usd=_FLOOR_USD),
+                    True)
+
+    def test_observed_below_the_floor_is_a_refusal_not_a_pass(self):
+        """extra_finance_base: константа адаптера $15M, наблюдение $0.34M.
+
+        Отрицательный исход — это и есть измерение (ADR-076). Гейт обязан
+        вернуть ровно False, а не None: пул наблюдён, он просто мал.
+        """
+        self._write_status()
+        self.assertIs(
+            tvl_floor_verdict("extra_finance_base", data_dir=self.data_dir,
+                              floor_usd=_FLOOR_USD),
+            False)
+
+    def test_unwired_key_is_UNMEASURED_though_its_literal_is_huge(self):
+        """frax/stusd/wusdm: вердикт None, хотя литерал втрое-восьмикратно выше порога.
+
+        Это и есть «never stamp live on a constant», доведённое до вердикта:
+        ``None`` означает «не измеряли», и аллокатор по ADR-053 замораживает
+        такой пул, а не финансирует его.
+        """
+        self._write_status()
+        for key in ("frax", "stusd", "wusdm"):
+            with self.subTest(key=key):
+                self.assertIsNone(read_live_tvl_usd(key, data_dir=self.data_dir))
+                self.assertIsNone(
+                    tvl_floor_verdict(key, data_dir=self.data_dir, floor_usd=_FLOOR_USD),
+                    f"{key}: литерал не имеет права выносить вердикт по порогу")
+
+    def test_feed_down_leaves_every_verdict_unmeasured(self):
+        """Фид не ответил — ни один ключ не «проходит» и ни один не «падает».
+
+        Сетевой сбой не смеет выглядеть ни разрешением, ни отказом.
+        """
+        doc = self._generate(None)
+        gen.write(doc, self.output)
+        for key in _REGISTRY["adapters"]:
+            with self.subTest(key=key):
+                self.assertIsNone(
+                    tvl_floor_verdict(key, data_dir=self.data_dir, floor_usd=_FLOOR_USD))
 
 
 class TestAdapterEndToEnd(_GenBase):
