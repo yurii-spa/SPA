@@ -286,6 +286,95 @@ def _path_on_ref(root: str, ref: str, rel: str) -> bool:
     return out.returncode == 0
 
 
+def _blob_on_ref(root: str, ref: str, rel: str) -> bytes | None:
+    """Содержимое `<ref>:<rel>` байтами. None — прочитать нечем (git недоступен,
+    ref не разрешается, файла нет). Байты, а не текст: plist бывает двоичным,
+    и `plistlib.loads` разбирает оба формата."""
+    try:
+        out = subprocess.run(["git", "show", f"{ref}:{rel}"], cwd=root,
+                             capture_output=True, timeout=GIT_TIMEOUT)
+    except Exception:  # noqa: BLE001
+        return None
+    return out.stdout if out.returncode == 0 else None
+
+
+def mechanics_on_ref(root: str, ref: str, rel: str) -> dict | None:
+    """Механика plist'а, прочитанного С `ref`. None = прочитать/разобрать нечем.
+
+    Поля — те же и по тем же правилам, что у `_scan_plists`: путь ведёт в РЕПО,
+    значит `plist_source = repo:<rel>` и `reboot_safe = False` (в
+    `~/Library/LaunchAgents` этот файл не лежит — иначе его нашёл бы скан и сюда
+    бы не дошло). Разделение путей намеренное: скан отвечает на «что лежит на
+    ЭТОМ диске», а здесь вопрос другой — «что объявлено в репозитории».
+    """
+    blob = _blob_on_ref(root, ref, rel)
+    if blob is None:
+        return None
+    try:
+        pl = plistlib.loads(blob)
+    except Exception:  # noqa: BLE001  — битый plist на ref: судить не по чему
+        return None
+    if not isinstance(pl, dict):
+        return None
+    return {"plist_source": REPO_SRC_PREFIX + rel.replace(os.sep, "/"),
+            "reboot_safe": False,
+            "schedule": _parse_schedule(pl),
+            "program": _parse_program(pl)}
+
+
+def manifest_entry_on_ref(root: str, ref: str, rel: str, label: str) -> dict | None:
+    """Запись манифеста об агенте `label`, прочитанная С `ref`. None = нечем.
+
+    Обе стороны сравнения обязаны быть с ОДНОГО ref: манифест в прод-дереве
+    сегодня побайтно равен origin, но это совпадение, а не свойство — каталог
+    `architecture/` синхронизация тоже не возит.
+    """
+    blob = _blob_on_ref(root, ref, rel)
+    if blob is None:
+        return None
+    try:
+        data = json.loads(blob.decode("utf-8"))
+    except Exception:  # noqa: BLE001
+        return None
+    if not isinstance(data, dict) or not isinstance(data.get("agents"), list):
+        return None
+    for a in data["agents"]:
+        if isinstance(a, dict) and a.get("label") == label:
+            return a
+    return None
+
+
+def drift_against_ref(label: str, rel: str, manifest_rel: str,
+                      root: str, ref: str) -> tuple[list[str], dict] | None:
+    """B5 для агента, чей plist объявлен в репо, а сюда не доехал.
+
+    Возвращает `(строки расхождения, провенанс)` либо None, если прочитать с
+    `ref` нечем (тогда вызывающий обязан остаться при «не измерено» — молчание
+    покупается только доказательством, см. `unmeasurable_missing_plist`).
+
+    ЗАЧЕМ. Цикл #267 честно перевёл этот случай из ложного дрейфа в «НЕ ИЗМЕРЕНО»
+    — и это было верно, но НЕОБРАТИМО: вердикт B5 в прод-дереве застрял на
+    `UNCHECKED` навсегда, а значит настоящее «сошлось» стало неотличимо от
+    «нечем проверить». Модуль-сторож сам называет этот класс: «irreversible
+    UNCHECKED starves the queue». Лечится не ослаблением проверки, а ПОСТАНОВКОЙ
+    ВОПРОСА, на который есть ответ: plist объявлен в репо ⇒ спрашиваем репозиторий
+    (обе стороны с `ref`), и источник называем вслух — ровно так цикл #169
+    поступил с курацией.
+    """
+    mech = mechanics_on_ref(root, ref, rel)
+    if mech is None:
+        return None
+    entry = manifest_entry_on_ref(root, ref, manifest_rel, label)
+    if entry is None:
+        return None
+    diffs = [k for k in MECHANICAL_FIELDS if entry.get(k) != mech.get(k)]
+    lines = [f"{label}: {k} {entry.get(k)!r} → {mech.get(k)!r} "
+             f"(обе стороны прочитаны с {ref}: {manifest_rel} и {rel}; "
+             f"в этом рабочем дереве plist'а нет)" for k in diffs]
+    return lines, {"label": label, "ref": ref, "plist": rel,
+                   "manifest": manifest_rel, "agrees": not diffs}
+
+
 def unmeasurable_missing_plist(cur_entry: dict, new_entry: dict,
                                root: str | None = None,
                                ref: str | None = None) -> str | None:
@@ -331,13 +420,14 @@ def unmeasurable_missing_plist(cur_entry: dict, new_entry: dict,
 
 def compute_drift(current: dict, rebuilt: dict, manifest_path: str,
                   root: str | None = None,
-                  ref: str | None = None) -> tuple[list[str], list[str]]:
+                  ref: str | None = None) -> tuple[list[str], list[str], list[dict]]:
     """Чем манифест на диске расходится с перегенерацией из фактов.
 
-    Возвращает `(drift, unmeasurable)`: первое — расхождение, второе — то, что
-    в ЭТОМ дереве измерить нечем (см. `unmeasurable_missing_plist`). Разделение
-    нужно потому, что читатель у них разный: дрейф — находка сторожа (и карточка
-    от моста), «не измерено» — раздел `unchecked`, который вердикт не зеленит.
+    Возвращает `(drift, unmeasurable, measured_from_ref)`: первое — расхождение,
+    второе — то, что измерить нечем НИГДЕ, третье — провенанс замеров, взятых
+    с `ref` (см. `drift_against_ref`). Читатель у них разный: дрейф — находка
+    сторожа (и карточка от моста), «не измерено» — раздел `unchecked`, который
+    вердикт не зеленит, провенанс — строка отчёта «чем именно мерили».
 
     Отдельной функцией — потому что диагноз нужен НЕ только человеку у терминала.
     `architecture_conformance` (B5) до цикла #264 видел от этого скрипта ровно код
@@ -347,10 +437,14 @@ def compute_drift(current: dict, rebuilt: dict, manifest_path: str,
     """
     drift: list[str] = []
     unmeasurable: list[str] = []
+    from_ref: list[dict] = []
+    root = root or REPO_ROOT
+    ref = ref or CURATION_REF
+    manifest_rel = os.path.relpath(manifest_path, root).replace(os.sep, "/")
     if not os.path.exists(manifest_path):
-        return ["манифест отсутствует — запустить --write"], unmeasurable
+        return ["манифест отсутствует — запустить --write"], unmeasurable, from_ref
     if dumps(current) == dumps(rebuilt):
-        return drift, unmeasurable
+        return drift, unmeasurable, from_ref
     cur = {a["label"]: a for a in current.get("agents", [])}
     new = {a["label"]: a for a in rebuilt["agents"]}
     for label in sorted(set(cur) | set(new)):
@@ -365,6 +459,16 @@ def compute_drift(current: dict, rebuilt: dict, manifest_path: str,
                 continue
             why = unmeasurable_missing_plist(cur[label], new[label], root, ref)
             if why:
+                # Доказано: файл не удалён, а не доехал сюда. Значит вопрос
+                # «согласованы ли манифест и plist» задан не тому дереву —
+                # спрашиваем репозиторий, обе стороны с одного `ref`.
+                rel = str(cur[label]["plist_source"])[len(REPO_SRC_PREFIX):]
+                measured = drift_against_ref(label, rel, manifest_rel, root, ref)
+                if measured is not None:
+                    lines, prov = measured
+                    drift.extend(lines)
+                    from_ref.append(prov)
+                    continue
                 # ОДНА строка на агента: три поля «→ None» имеют одну причину,
                 # и три строки «не измерено» об одном и том же — тот же шум,
                 # от которого лечимся (ключ находки уже группируется по агенту).
@@ -372,9 +476,9 @@ def compute_drift(current: dict, rebuilt: dict, manifest_path: str,
                 continue
             for k in diffs:
                 drift.append(f"{label}: {k} {cur[label].get(k)!r} → {new[label].get(k)!r}")
-    if not drift and not unmeasurable:
+    if not drift and not unmeasurable and not from_ref:
         drift.append("недиагностированное расхождение сериализации — запустить --write")
-    return drift, unmeasurable
+    return drift, unmeasurable, from_ref
 
 
 def measure(manifest_path: str = DEFAULT_MANIFEST,
@@ -384,19 +488,23 @@ def measure(manifest_path: str = DEFAULT_MANIFEST,
             ref: str | None = None) -> dict:
     """Один замер «манифест ↔ факты»: без stdout, без записи, без sys.exit.
 
-    Возвращает `{plists, current, rebuilt, problems, drift, unmeasurable}`.
-    Пусты `problems` и `drift` ⇔ `main()` в режиме сверки вернул бы 0 — это ОДИН
-    источник вердикта для CLI и для сторожа. `unmeasurable` вердикт НЕ зеленит:
-    у CLI это код 1 (предупреждение), у сторожа — раздел `unchecked`.
+    Возвращает `{plists, current, rebuilt, problems, drift, unmeasurable,
+    measured_from_ref}`. Пусты `problems` и `drift` ⇔ `main()` в режиме сверки
+    вернул бы 0 — это ОДИН источник вердикта для CLI и для сторожа.
+    `unmeasurable` вердикт НЕ зеленит: у CLI это код 1 (предупреждение), у
+    сторожа — раздел `unchecked`. `measured_from_ref` вердикт не меняет вовсе —
+    это провенанс: чем именно мерили то, чего в этом дереве нет.
     """
     plists = _scan_plists(plist_dirs or default_plist_dirs())
     registry = _load_registry(registry_path)
     current = _load_manifest(manifest_path)
     rebuilt = build(current, plists, registry)
-    drift, unmeasurable = compute_drift(current, rebuilt, manifest_path, root, ref)
+    drift, unmeasurable, from_ref = compute_drift(current, rebuilt, manifest_path,
+                                                  root, ref)
     return {"plists": plists, "current": current, "rebuilt": rebuilt,
             "problems": validate(rebuilt, plists),
-            "drift": drift, "unmeasurable": unmeasurable}
+            "drift": drift, "unmeasurable": unmeasurable,
+            "measured_from_ref": from_ref}
 
 
 def main(argv=None) -> int:
@@ -430,6 +538,10 @@ def main(argv=None) -> int:
         print(f"DRIFT: {p}")
     for u in unmeasurable:
         print(f"НЕ ИЗМЕРЕНО: {u}")
+    for prov in m["measured_from_ref"]:
+        print(f"ИЗМЕРЕНО С {prov['ref']}: {prov['label']} "
+              f"({prov['plist']} — в этом дереве файла нет; "
+              f"{'сошлось' if prov['agrees'] else 'РАСХОДИТСЯ'})")
     if problems or drift:
         print(f"ИТОГ: манифест НЕ соответствует фактам "
               f"({len(problems)} схемных, {len(drift)} дрейфовых, "

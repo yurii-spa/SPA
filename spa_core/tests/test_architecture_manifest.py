@@ -430,25 +430,100 @@ class RepoPlistNotDeliveredHere(unittest.TestCase):
     # ── сама авария ─────────────────────────────────────────────────────────
 
     def test_missing_here_but_present_on_ref_is_not_drift(self):
-        """Файл есть на ref, нет в дереве ⇒ НЕ ИЗМЕРЕНО, а не дрейф механики."""
+        """Файл есть на ref, нет в дереве ⇒ НЕ дрейф механики.
+
+        ИЗМЕНЁН ЦИКЛОМ #236, намеренно (инв. #16), и это УЖЕСТОЧЕНИЕ, а не
+        поблажка. Ядро утверждения — `drift == []`, «граница синхронизации не
+        выдана за дрейф» — стоит на месте и проверяется здесь по-прежнему.
+        Изменилась вторая половина: раньше утверждалось «и признайся, что не
+        измерил», теперь — «и ИЗМЕРЬ там, где ответ есть». Признание #267 было
+        верным, но необратимым: вердикт B5 в прод-дереве застревал на UNCHECKED
+        навсегда, и настоящее «сошлось» становилось неотличимо от «нечем
+        проверить». Прежнее поведение никуда не делось — оно проверяется
+        `test_unreadable_on_ref_stays_unmeasured` (ref нечитаем) и всеми
+        обратными контролями ниже.
+        """
         self._init_repo()
         os.remove(os.path.join(self.root, self.REL))
         m = self._measure()
         self.assertEqual(m["drift"], [], "граница синхронизации выдана за дрейф")
-        own = self._own(m["unmeasurable"])
-        self.assertEqual(len(own), 1, m["unmeasurable"])
-        # причина обязана быть ПОВТОРЯЕМОЙ читателем: путь + ref + кто виноват
-        self.assertIn(self.REL.replace(os.sep, "/"), own[0])
-        self.assertIn(gen.CURATION_REF, own[0])
-        self.assertIn("НЕ ИЗМЕРЕНА", own[0])
+        self.assertEqual(self._own(m["unmeasurable"]), [], m["unmeasurable"])
+        prov = [p for p in m["measured_from_ref"]
+                if p["label"] == "com.spa.site_freshness"]
+        self.assertEqual(len(prov), 1, m["measured_from_ref"])
+        # провенанс обязан быть ПОВТОРЯЕМЫМ читателем: путь + ref + вердикт
+        self.assertEqual(prov[0]["plist"], self.REL.replace(os.sep, "/"))
+        self.assertEqual(prov[0]["ref"], gen.CURATION_REF)
+        self.assertIn("manifest.json", prov[0]["manifest"])
+        self.assertTrue(prov[0]["agrees"])
         # сосед по каталогу не задет
         self.assertFalse([x for x in m["drift"] + m["unmeasurable"]
                           if x.startswith("com.spa.keeper:")], m)
 
+    def test_ref_disagreement_is_named_as_drift(self):
+        """Сторож стал строже, а не зеленее: расхождение НА ORIGIN обязано
+        краснеть — до цикла #236 такой случай был неотличим от согласия,
+        оба тонули в одном «не измерено»."""
+        self._init_repo()
+        # манифест на ref говорит одно, plist на ref — другое
+        m0 = json.load(open(self.manifest_path))
+        for a in m0["agents"]:
+            if a["label"] == "com.spa.site_freshness":
+                a["schedule"] = "interval:99999s"
+        with open(self.manifest_path, "w", encoding="utf-8") as f:
+            f.write(gen.dumps(m0))
+        self._commit_all("манифест на origin разошёлся с plist'ом")
+        os.remove(os.path.join(self.root, self.REL))
+        m = self._measure()
+        own = [x for x in self._own(m["drift"]) if "schedule" in x]
+        self.assertTrue(own, m)
+        # находка обязана НАЗЫВАТЬ, чем мерили, — иначе читатель не повторит
+        self.assertIn(gen.CURATION_REF, own[0])
+        self.assertIn(self.REL.replace(os.sep, "/"), own[0])
+        self.assertEqual(self._own(m["unmeasurable"]), [], m["unmeasurable"])
+        self.assertFalse(m["measured_from_ref"][0]["agrees"])
+
+    def test_unreadable_on_ref_stays_unmeasured(self):
+        """Файл на ref ЕСТЬ, но разобрать его нечем (не plist) ⇒ «не измерено»,
+        а НЕ «сошлось». Fail-CLOSED: замер #236 покупает зелёный вердикт только
+        прочитанным содержимым, а не самим фактом присутствия пути."""
+        self._init_repo()
+        with open(os.path.join(self.root, self.REL), "w", encoding="utf-8") as f:
+            f.write("это не plist")
+        self._commit_all("на origin лежит мусор вместо plist")
+        os.remove(os.path.join(self.root, self.REL))
+        m = self._measure()
+        own = self._own(m["unmeasurable"])
+        self.assertEqual(len(own), 1, m)
+        self.assertIn("НЕ ИЗМЕРЕНА", own[0])
+        self.assertEqual(m["measured_from_ref"], [], m)
+        self.assertEqual(self._own(m["drift"]), [], m)
+
+    def test_manifest_absent_on_ref_stays_unmeasured(self):
+        """Вторая сторона сравнения обязана быть с ТОГО ЖЕ ref. Манифеста на ref
+        нет ⇒ судить не по чему ⇒ «не измерено». Без этого сторож молча
+        сравнивал бы plist с origin против манифеста ЭТОГО дерева — а `architecture/`
+        сюда тоже не синкается, и совпадение копий не гарантировано ничем."""
+        self._init_repo()
+        os.remove(self.manifest_path)
+        self._commit_all("на origin манифеста нет")
+        self._seed_manifest()          # локально манифест есть, на ref — нет
+        os.remove(os.path.join(self.root, self.REL))
+        m = self._measure()
+        self.assertEqual(m["measured_from_ref"], [], m)
+        self.assertEqual(len(self._own(m["unmeasurable"])), 1, m)
+
     def test_three_fields_collapse_into_one_line(self):
         """Три поля «→ None» имеют ОДНУ причину — и строка обязана быть одна,
-        иначе шум просто переехал из находок в `unchecked`."""
+        иначе шум просто переехал из находок в `unchecked`.
+
+        Условие пришлось усилить (#236): случай «не измерено» теперь достигается
+        только НЕПРОЧИТАННЫМ ref, поэтому проба стала точнее — она мерит ровно
+        группировку, а не побочный эффект отсутствия файла."""
         self._init_repo()
+        with open(os.path.join(self.root, self.REL), "w", encoding="utf-8") as f:
+            f.write("это не plist")
+        self._commit_all("на origin мусор")
         os.remove(os.path.join(self.root, self.REL))
         self.assertEqual(len(self._measure()["unmeasurable"]), 1)
 
@@ -552,15 +627,26 @@ class RepoPlistNotDeliveredHere(unittest.TestCase):
         self.assertFalse([x for x in m["unmeasurable"] if "сериализац" in x], m)
 
     def test_cli_says_one_for_unmeasurable_neither_zero_nor_two(self):
-        """«Нечем измерить» — не «сошлось» (0) и не «расходится» (2)."""
+        """Все четыре исхода CLI по одному сценарию, в порядке ужесточения.
+
+        ИЗМЕНЁН #236 намеренно (инв. #16): средняя ступень раньше была «файла
+        нет здесь ⇒ 1», теперь этот случай ИЗМЕРИМ и честно даёт 0, а код 1
+        остался ровно за тем, что не измеримо нигде (ref нечитаем). Проверка не
+        сузилась, а выросла с трёх ступеней до четырёх.
+        """
         self._init_repo()
         argv = ["--manifest", self.manifest_path, "--registry", self.registry_path,
                 "--plist-dir", self.la, "--plist-dir", self.launchd]
-        self.assertEqual(gen.main(argv), 0)
+        self.assertEqual(gen.main(argv), 0, "файл на месте — сошлось")
         os.remove(os.path.join(self.root, self.REL))
-        self.assertEqual(gen.main(argv), 1)
-        self._commit_all("удалили по-настоящему")
-        self.assertEqual(gen.main(argv), 2)
+        self.assertEqual(gen.main(argv), 0, "нет здесь, но прочитан с ref — сошлось")
+        with open(os.path.join(self.root, self.REL), "w", encoding="utf-8") as f:
+            f.write("это не plist")
+        self._commit_all("на origin мусор вместо plist")
+        os.remove(os.path.join(self.root, self.REL))
+        self.assertEqual(gen.main(argv), 1, "прочитать нечем — и не 0, и не 2")
+        self._commit_all("удалили по-настоящему")   # рабочее дерево уже без файла
+        self.assertEqual(gen.main(argv), 2, "пропал везде — расхождение")
 
 
 class RealManifest(unittest.TestCase):

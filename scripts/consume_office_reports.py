@@ -329,6 +329,15 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             out.append(f"   [{f.get('severity')}] {f.get('message')}")
         if (data.get("findings") or [])[8:]:
             out.append(f"   … ещё {len(data['findings']) - 8} наход(ок) в отчёте")
+        # ПРИЧИНА «не измерено» — не декорация: до цикла #236 счётчик
+        # `unchecked=1` печатался голым числом, и читателю шага 0 приходилось
+        # лезть в JSON руками, чтобы узнать, ЧТО именно не измерено.
+        for u in (data.get("unchecked") or [])[:4]:
+            out.append(f"   [НЕ ИЗМЕРЕНО] {u.get('check')}: {u.get('reason')}")
+        for p in (data.get("mechanics_from_ref") or [])[:4]:
+            out.append(f"   [измерено с {p.get('ref')}] {p.get('label')}: "
+                       f"{p.get('plist')} — в прод-дереве файла нет, "
+                       f"{'сошлось' if p.get('agrees') else 'РАСХОДИТСЯ'}")
     elif name == "house_view_gap.json":
         # Схема ВЫМЕРЕНА по производителю (`monitoring/house_view_gap.py`):
         # расхождения лежат в `gaps`, счётчики — `warn`/`info`/`unchecked`.

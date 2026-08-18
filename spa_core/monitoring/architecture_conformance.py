@@ -30,8 +30,12 @@
         на хосте без ~/Library/LaunchAgents/com.spa.* — честный UNCHECKED).
         Отдельно: plist, объявленный манифестом путём В РЕПО, которого в этом
         дереве нет, а на `origin/main` он ЕСТЬ, — это граница синхронизации,
-        а не дрейф механики ⇒ UNCHECKED с названной причиной, не находка
-        (цикл #267; доказательство — в `build_architecture_manifest`)
+        а не дрейф механики (цикл #267; доказательство — в
+        `build_architecture_manifest`). Цикл #236 доделал вторую половину:
+        такой случай больше не UNCHECKED навсегда — вопрос задаётся тому,
+        у кого есть ответ, и ОБЕ стороны сравнения читаются с `origin/main`
+        (plist и запись манифеста), а провенанс лежит в `mechanics_from_ref`.
+        Прочитать с ref нечем ⇒ по-прежнему UNCHECKED, не «сошлось».
   B6  локальная курация ↔ `origin/main` (замер 2026-08-08, цикл #168/#169)
 
 Откуда берётся КУРАЦИЯ (`intent` и родня) — отдельный вопрос от «какие plist'ы
@@ -284,12 +288,13 @@ def _manifest_drift_problems() -> dict | None:
             return None  # не прод-хост
         m = gen.measure()  # тот же вердикт, что у CLI без флагов: пусто ⇔ rc 0
         return {"drift": group_drift_by_agent(m["problems"] + m["drift"]),
-                "unmeasurable": list(m.get("unmeasurable") or [])}
+                "unmeasurable": list(m.get("unmeasurable") or []),
+                "measured_from_ref": list(m.get("measured_from_ref") or [])}
     except Exception as e:  # noqa: BLE001
         # Ключ БЕЗ текста исключения: путь/номер строки в ключе плодили бы новую
         # находку (и новую карточку) на каждый чих окружения.
         return {"drift": [{"key": "measure_failed", "message": f"B5 упал: {e}"}],
-                "unmeasurable": []}
+                "unmeasurable": [], "measured_from_ref": []}
 
 
 def origin_manifest(root: str = REPO_ROOT, ref: str = CURATION_REF,
@@ -378,7 +383,8 @@ def run_checks(manifest: dict,
                drift_problems: list[str | dict] | None = None,
                drift_measured: bool = False,
                curation: dict | None = None,
-               drift_unmeasurable: list[str] | None = None) -> dict:
+               drift_unmeasurable: list[str] | None = None,
+               drift_from_ref: list[dict] | None = None) -> dict:
     findings: list[dict] = []
     unchecked: list[dict] = []
     agents = manifest.get("agents", [])
@@ -562,6 +568,10 @@ def run_checks(manifest: dict,
         "fleet_size": (len(fleet) if fleet is not None else None),
         "manifest_agents": len(agents),
         "curation": curation,
+        # Провенанс B5: агенты, чей plist объявлен в репо и в это дерево не
+        # доехал — обе стороны сравнения прочитаны с ref. Вердикт не меняет,
+        # но отвечает на «чем измерено», иначе OK был бы неотличим от тишины.
+        "mechanics_from_ref": list(drift_from_ref or []),
         "slo_budgets": slo_budgets,
         "findings": kept,
         "aged": aged,
@@ -610,6 +620,7 @@ def main(argv=None) -> int:
                         drift_problems=(b5 or {}).get("drift"),
                         drift_measured=b5 is not None,
                         drift_unmeasurable=(b5 or {}).get("unmeasurable"),
+                        drift_from_ref=(b5 or {}).get("measured_from_ref"),
                         curation=curation)
 
     from spa_core.utils.atomic import atomic_save
