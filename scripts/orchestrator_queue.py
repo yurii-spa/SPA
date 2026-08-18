@@ -50,6 +50,10 @@ from spa_core.owner_queue.queue import (
     list_cards,
     set_status,
 )
+from spa_core.owner_queue.delivery_gate import (
+    Unmeasured as DeliveryUnmeasured,
+    check_card_delivered,
+)
 from spa_core.owner_queue.notify import notify_needs_owner
 from spa_core.owner_queue.owner_answer import (
     AnswerConflict,
@@ -500,11 +504,69 @@ def _carry_answer_before_closing(args) -> int | None:
     return None
 
 
+#: Статус, которым сессия объявляет работу сделанной. Ровно перед ним работа обязана
+#: оказаться на `origin/main` — иначе «сделано» знает только умирающее дерево.
+_DONE = "done"
+
+
+def _refuse_if_work_not_on_origin(args) -> int | None:
+    """Не дать закрыть карточку, чья работа не доехала до origin. None — можно.
+
+    **Зачем это стоит ЗДЕСЬ.** Класс «осиротевшая работа» (#97→#98, #244, #252→#254,
+    `rnd60`): сессия умирает МЕЖДУ работой и пушем, результат остаётся в её дереве, а
+    карточка уже `done` — и дальше вредит именно закрытая карточка, а не потерянные
+    файлы: следующая сессия читает доску, видит `done` и задачу не берёт. Замер по
+    журналу `data/tracker_status_audit.jsonl` (13–18.08): **10 из 10** закрытий этого
+    дерева на `origin/main` не видны. Закрыть карточку до сих пор мог кто угодно и
+    когда угодно — единственным условием была личность владельца (инв. #14), а условия
+    «работа доставлена» не было НИ ОДНОГО.
+
+    Проверка — карточно-точная и одна: расходится ли карточка со своей версией на
+    `origin/main` (`spa_core/owner_queue/delivery_gate.py`). Тело карточки и есть
+    приёмка, поэтому «здесь богаче, чем на origin» = «работа этой карточки не
+    доставлена». Разбора прозы и проверок всего дерева тут нет намеренно — обоснование
+    в шапке модуля.
+
+    Инвариант #14 не ослаблен и не задет: `owner-done` по-прежнему отказывается раньше,
+    в `queue.set_status`; этот гейт — про `done` и только про него.
+    """
+    if args.status != _DONE:
+        return None
+    reason = (getattr(args, "allow_undelivered", None) or "").strip()
+    try:
+        verdict = check_card_delivered(args.path)
+    except DeliveryUnmeasured as exc:
+        print(f"❓ доставка карточки НЕ ИЗМЕРЕНА ({exc}) — карточка закрывается без сверки",
+              file=sys.stderr)
+        return None
+    if verdict.allowed:
+        print(f"✅ доставка сверена: {verdict.detail}", file=sys.stderr)
+        return None
+    if reason:
+        print(f"⚠️  ОСОЗНАННЫЙ ОБХОД гейта доставки: {verdict.detail}\n"
+              f"    причина (названа вызывающим): {reason}\n"
+              f"    карточка закрывается по работе, которой на {verdict.ref} НЕТ — "
+              f"это решение остаётся здесь под протокол.", file=sys.stderr)
+        return None
+    print(f"REFUSED: {verdict.detail}\n"
+          f"    статус НЕ изменён: `done` по недоставленной работе — это как раз то,\n"
+          f"    из-за чего следующая сессия задачу не возьмёт, а на origin её не будет.\n"
+          f"    Что делать: доставить карточку (и работу) пушем, обновить локальную копию\n"
+          f"    ref (`git fetch origin main` — сам гейт в сеть не ходит НИКОГДА) и повторить.\n"
+          f"    Если закрыть надо всё равно — назвать причину вслух:\n"
+          f"    set-status {args.path} done --allow-undelivered \"<почему>\"",
+          file=sys.stderr)
+    return 2
+
+
 def cmd_set_status(args) -> int:
     if args.status == _INGESTED:
         refused = _carry_answer_before_closing(args)
         if refused is not None:
             return refused
+    refused = _refuse_if_work_not_on_origin(args)
+    if refused is not None:
+        return refused
     try:
         set_status(args.path, args.status)
     except OwnerDoneForbidden as exc:
@@ -645,7 +707,10 @@ def build_parser() -> argparse.ArgumentParser:
                     help="каталог трекера, где искать след ответа владельца перед `ingested` "
                          "(повторяемый). По умолчанию — рабочие деревья этого репозитория, "
                          "главное первым: бот пишет ответ именно туда")
-    ps.set_defaults(func=cmd_set_status)
+    ps.add_argument("--allow-undelivered", default=None, metavar="ПРИЧИНА",
+                    help="закрыть карточку (`done`), чья работа НЕ на origin/main. Причина "
+                         "обязательна и печатается вслух: осознанный обход, а не умолчание")
+    ps.set_defaults(func=cmd_set_status, allow_undelivered=None)
 
     pc = sub.add_parser("create", help="create a new card (used by Telegram/Obsidian intake)")
     pc.add_argument("--type", required=True, help="tracker type (inbox|owner-decision)")

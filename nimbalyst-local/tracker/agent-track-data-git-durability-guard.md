@@ -121,3 +121,62 @@ domain: CI integrity / track auditability
    Telegram-алерт на `any_stale` не заведён, в `system_health` как advisory-домен не вписан.
    То есть сам реестр свежести пока — «производитель без расписания», ровно класс пункта 3 карточки.
 4. Критерий «прогон Actions подтверждает, что 20 проверок РЕАЛЬНО выполняются» не проверен ничем.
+
+---
+
+## ✅ Сделано (Wave 3, 2026-08-18) — сторож КЛАССА «что можно возить в git»
+
+Продолжение аварии того же дня: `data/kill_switch_active.json` лежал в индексе, и
+`git checkout -- data/` затирал живую аварийную остановку версией из коммита
+(закрыто `test_halt_state_survives_tree_restore.py`). **Остановка была не одна такая.**
+
+**РАЗБОР 322 отслеживаемых файлов `data/**` по РИСКУ ОТКАТА** (296 в корне + 26 в
+подкаталогах). Правило отнесения детерминированное: писателя в коде нет → CANON
+(конфиг); канон трека/стейтмент/фикстура → CANON; иначе читается ради решения или
+дописывается и невосстановим → HARMFUL; иначе DERIVED.
+
+| группа | из 296 | что делает откат |
+|---|---|---|
+| **(а) ВРЕДНО** | **25** | возвращает опасное/устаревшее значение |
+| **(в) КАНОН** | **5** | возвращает задуманное; опасность обратная — ПРОТУХАНИЕ |
+| (б) безвредно | 266 | производный отчёт, писатель перезапишет целиком |
+
+Группа (а) по механизму: **H-SAFETY 7** (`live_trading_gate`, `emergency_status`,
+`kill_switch_status`, `risk_limits_check`, `gate_status`, `policy_violations`,
+`red_flags`) · **H-CAPITAL 2** (`current_positions`, `last_approved_allocation`) ·
+**H-LEDGER 4** (`trades`, `audit_trail.jsonl`, `live_execution_log`,
+`risk_policy_blocks`) · **H-REPLAY 10** (`tg_bot_v2_offset`, `autopush_state`,
+`alert_dispatcher_dedup`, `telegram_cooldowns`, `telegram_alert_state`,
+`milestone_alert_state`, `cycle_gap_state`, `uptime_prev_state`, `watchdog_state`,
+`orchestrator_trigger`) · **H-JUNK 2** (`_cli_check_out`, `_run_out_tmp`).
+Каждая строка обоснована ПОТРЕБИТЕЛЕМ В КОДЕ (файл:строка), а не мнением.
+
+**Сделано:**
+- `spa_core/monitoring/data_git_policy.py` — ЗАКРЫТЫЙ список «что можно возить»
+  (CANON пофайлово + 9 каталогов-негаций) и разбор состава git. Неназванный файл =
+  `UNCLASSIFIED` (красный), а не «всё кроме перечисленного». Read-only, stdlib.
+- `spa_core/monitoring/data_git_baseline.json` — известный долг (24 файла) и
+  терпимые производные (283). Обе секции могут ТОЛЬКО УМЕНЬШАТЬСЯ (храповик).
+- `spa_core/tests/test_data_git_rollback_guard.py` — **27 тестов**, положительный
+  контроль в ОБЕ стороны на двух механизмах: остановка (H-SAFETY, воспроизведение
+  аварии реальным `KillSwitchChecker`) и offset Telegram (H-REPLAY, реальный
+  `TelegramBot._read_offset`); канон — через свежий `git clone`. Четыре мутации
+  сторожа проверены — все пойманы.
+- `.gitignore`: закрытый список негаций дополнен 27 файлами канона, которые
+  отслеживались МИМО него (`risk_policy.json`, `capital_config.json`,
+  `AUDIT_BASELINE.json`, `paper_evidence*.json`, стейтменты, `historical_apy/*`,
+  `strategies/s*.json`, фикстуры `bee/*`).
+- Снят с отслеживания `data/tg_bot_v2_offset.json` (замер в обе стороны:
+  откат отматывал бота на 2 месяца и заставлял переисполнить команды владельца).
+  Снятие СТОИТ В ИНДЕКСЕ, не закоммичено.
+
+**НАЙДЕНО И НЕ ЗАКРЫТО (красный тест — сигнал):**
+`data/tier1_packages.json` перечислен в разрешающем списке `.gitignore` как канон
+ADR-093 п.3, но **его нет ни в индексе git, ни в дереве** — сторож сайта его не
+возит, и owner-gate не может пересчитать owner-gated «числа доходности» из
+репозитория. `test_track_canon_is_actually_present_in_git` КРАСНЫЙ по этой причине.
+
+**Ждёт владельца** — снятие остальных 24 файлов группы (а) с отслеживания
+(`git rm --cached`; `push_to_github.py` удалений не умеет). Порядок предложен в
+отчёте: сначала H-REPLAY и H-JUNK (безобидны для истории), затем H-SAFETY, затем
+H-CAPITAL/H-LEDGER — последние только вместе с решением, куда возить канон трека.

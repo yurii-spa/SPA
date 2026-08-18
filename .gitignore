@@ -152,3 +152,52 @@ inbox/.ingested/
 !data/equity_curve_daily.json
 !data/paper_trading_status.json
 !data/tier1_packages.json
+
+# ── КАНОН, отслеживаемый МИМО списка выше (замер 2026-08-18, карточка
+#    `agent-track-data-git-durability-guard`) ────────────────────────────────
+# Разбор 322 отслеживаемых файлов `data/**` по РИСКУ ОТКАТА (`git checkout -- data/`)
+# показал, что список выше закрыт не полностью: эти файлы отслеживаются с давних
+# пор и ОБЯЗАНЫ быть в git, но названы нигде не были. Негация делает намерение
+# явным и не даёт им выпасть при переклоне — как и для четвёрки выше.
+# Полная классификация с обоснованием по каждому файлу и сторож класса —
+# `spa_core/monitoring/data_git_policy.py` + `spa_core/tests/test_data_git_rollback_guard.py`.
+# Основание отнесения к канону — ЗАМЕР, а не вкус:
+#   • `risk_policy.json` / `capital_config.json` / `AUDIT_BASELINE.json` /
+#     `monitoring_config.json` — ПИСАТЕЛЯ В КОДЕ НЕТ, только читатели
+#     (`kill_switch.py:117/455/591/617` берёт оттуда пороги). Это ручной конфиг:
+#     не версионировать его — значит менять порог остановки без следа в git.
+#   • `paper_evidence*.json` — публичный evidence трека; `artifact_freshness`
+#     помечает `paper_evidence.json` как `committed=True`, то есть его git-копия
+#     уже СУДИТСЯ на свежесть — значит он обязан там быть.
+#   • стейтменты/месячные отчёты — закрытые периоды, неизменяемы после закрытия.
+#   • `historical_apy/*`, `bee/*` (каталог событий и сценарии), `strategies/s*.json`
+#     — фикстуры и определения, а не состояние.
+# Список ЗАКРЫТ. `data/strategies/run_log.json`, `data/bee/safety_report.json` и
+# `data/bee/backtest_live_fit.json` сюда НЕ входят — это производные выводы.
+!data/paper_evidence.json
+!data/paper_evidence_history.json
+!data/risk_policy.json
+!data/capital_config.json
+!data/AUDIT_BASELINE.json
+!data/monitoring/monitoring_config.json
+!data/monthly_reports/2026-06.json
+!data/statements/2026-06.json
+!data/statements/2026-06_i1.json
+!data/statements/2026-06_i2.json
+!data/historical_apy/aave_v3_usdc.json
+!data/historical_apy/compound_v3_usdc.json
+!data/historical_apy/morpho_blue_usdc.json
+!data/historical_apy/sky_susds.json
+!data/historical_apy/yearn_v3_usdc.json
+!data/strategies/s0_baseline.json
+!data/strategies/s1_concentration.json
+!data/strategies/s2_momentum.json
+!data/strategies/s3_risk_parity.json
+!data/strategies/s4_kelly.json
+!data/strategies/s5_yield_spread.json
+!data/bee/event_catalog.json
+!data/bee/counterfactual_FTX_CONTAGION_2022.json
+!data/bee/counterfactual_STETH_DISCOUNT_2022.json
+!data/bee/counterfactual_USDC_SVB_2023.json
+!data/bee/counterfactual_USDE_DN_STRESS.json
+!data/bee/counterfactual_UST_LUNA_2022.json
