@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-18T19:06:28Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-18T19:28:06Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **524** · ждёт владельца: **16** · занято сессиями: **3**.
+> Всего карточек: **525** · ждёт владельца: **17** · занято сессиями: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -23,6 +23,7 @@
 - **Разведка кричит CRITICAL на нашу же остановку, а на реальный депег молчит — что делать с лестницей red_team**  ·  `owner-decision-razvedka-krichit-critical-na-nashu-zhe-o.md`
 - **Списать 180 фоновых модулей Tier-C или честно записать, что мы про них не знаем**  ·  `owner-decision-spisat-180-fonovyh-modulei-tier-c-ili-ch.md`
 - **Сторож сайта краснеет каждую ночь на длине трека — расширить дневной класс на одно поле?**  ·  `owner-decision-storozh-saita-krasneet-kazhduyu-noch-na.md`
+- **Внутридневная просадка: слепота теперь слышна — реши про мягкий тир, слепые покупки и порог тревоги**  ·  `owner-decision-vnutridnevnaya-prosadka-slepota-teper-sl.md`
 - **Закрытие вопроса владельца из рабочего дерева читается сторожем как «закрыли без владельца» — выбери, чем лечим**  ·  `owner-decision-zakrytie-voprosa-vladeltsa-iz-rabochego.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
@@ -33,7 +34,7 @@
 - **а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…** — держит `pid43119` · с 2026-08-14T11:52:34Z  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md`
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (132)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (133)
 
 ### · needs-owner
 - Аварийная книга раздаёт деньги мимо проверок свежести — цена закрытия дыры $75.9K в кэш  ·  `own-2026-08-18-avariinaya-kniga-idet-mimo-geitov-svezhesti.md` · 2026-08-18
@@ -51,6 +52,7 @@
 - Разведка кричит CRITICAL на нашу же остановку, а на реальный депег молчит — что делать с лестницей red_team  ·  `owner-decision-razvedka-krichit-critical-na-nashu-zhe-o.md` · 2026-08-18
 - Списать 180 фоновых модулей Tier-C или честно записать, что мы про них не знаем  ·  `owner-decision-spisat-180-fonovyh-modulei-tier-c-ili-ch.md` · 2026-08-17
 - Сторож сайта краснеет каждую ночь на длине трека — расширить дневной класс на одно поле?  ·  `owner-decision-storozh-saita-krasneet-kazhduyu-noch-na.md` · 2026-08-17
+- Внутридневная просадка: слепота теперь слышна — реши про мягкий тир, слепые покупки и порог тревоги  ·  `owner-decision-vnutridnevnaya-prosadka-slepota-teper-sl.md` · 2026-08-18
 - Закрытие вопроса владельца из рабочего дерева читается сторожем как «закрыли без владельца» — выбери, чем лечим  ·  `owner-decision-zakrytie-voprosa-vladeltsa-iz-rabochego.md` · 2026-08-17
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15

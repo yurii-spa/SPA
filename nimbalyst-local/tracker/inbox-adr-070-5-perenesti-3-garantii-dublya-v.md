@@ -55,3 +55,30 @@ adr: ADR-070
 
 **Остаток:** удаление самого дубля (`*_c125`) — отдельный шаг ADR-070 п.5 («дубль потом
 удаляется»), здесь не делался: гарантии перенесены, но их источник ещё пригодится для сверки.
+
+---
+
+## Исполнено 2026-08-18 — дубль удалён, у каждой гарантии одно определение
+
+Сверка, ради которой дубль оставляли, выполнена: перенос перепроверен положительным контролем
+(пять мутаций живого кода, ниже), после чего дубль перестал быть «источником для сверки» и стал
+ВТОРЫМ определением тех же трёх правил. Удалено:
+
+| Удалено | Почему |
+|---|---|
+| `spa_core/monitoring/findings_bridge_c125.py` | второе определение гарантии 1 (`read_source_states`-аналог + `SOURCE_MAX_AGE_H`) |
+| `spa_core/monitoring/house_view_gap_c125.py` | второе определение гарантий 2 и 3 (`refusal_vocabulary` → `None`, `if proto in named_refusals: continue`) |
+| `spa_core/tests/test_house_view_gap.py` (31 тест) | проверял ТОЛЬКО удалённый `house_view_gap_c125`; ни одной строки прода не защищал |
+| `spa_core/tests/test_findings_to_cards.py` (25 тестов) | проверял ТОЛЬКО удалённый `findings_bridge_c125` (файл-шим `scripts/findings_to_cards.py` списан ранее) |
+
+Живой контур покрытия НЕ уменьшился: `test_findings_bridge*.py` (70 тестов) и
+`test_house_view_gap_{registry,cash_named_refusal,input_age,scheduled}.py` + `test_red_team_finding_loop.py`
+судят живые модули. Записи `test_house_view_gap.py` / `test_findings_to_cards.py` убраны из
+`frozen_date_baseline.json` (275 → 273 — храповик только сжимается, это разрешённое направление).
+
+**Удаление закреплено в обе стороны.** Два теста «нет вызывающего» в
+`test_house_view_gap_scheduled.py` заменены на: `test_the_duplicate_implementation_is_gone_from_the_tree`
+(возврат любого `spa_core/**/*_c125.py` = красный — проверено: вернул файл, тест покраснел) и
+`test_no_caller_anywhere_refers_to_the_deleted_duplicate`.
+
+Инвариант 14 соблюдён: статус карточки агентом не переводится в `owner-done`.

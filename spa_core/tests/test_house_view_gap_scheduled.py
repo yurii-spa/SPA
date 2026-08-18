@@ -9,10 +9,14 @@
 **Что здесь проверяется.** В ночь на 2026-08-06 Фазу 3 независимо сделали ДВЕ сессии.
 Канонические имена (`spa_core/monitoring/house_view_gap.py`, `findings_bridge.py`,
 `data/house_view_gap.json`) остались за той реализацией, которая **развёрнута и работает**
-— агент `com.spa.decision_loop`. Вторая (цикл #125) сохранена рядом под именами `*_c125`
-с отдельными файлами вывода и НИКЕМ не вызывается; выбор, что оставить насовсем, за
-владельцем (карточка `owner-decision-nochyu-odnu-zadachu-sdelali-dvazhdy-moya`).
-Поэтому тесты сторожат ЖИВУЮ цепочку, а не мою:
+— агент `com.spa.decision_loop`. Вторая (цикл #125) какое-то время лежала рядом под
+именами `*_c125` с отдельными файлами вывода и никем не вызывалась; владелец выбрал
+(ADR-070 п.5, 2026-08-07): живой контур остаётся, три его гарантии переносятся в живой,
+**дубль удаляется**. Перенос выполнен и закреплён `test_findings_bridge_silent_source.py`,
+дубль удалён 2026-08-18 — вместе с двумя тестовыми наборами, которые ЕГО и проверяли
+(`test_house_view_gap.py`, `test_findings_to_cards.py`: они не защищали ни одной строки
+прода, живой контур покрыт `test_findings_bridge*.py` и `test_house_view_gap_*.py`).
+Поэтому тесты сторожат ЖИВУЮ цепочку:
 
 1. агент объявлен в конституции как `active` и производит артефакты со своим SLO;
 2. его точка входа (bash-обёртка) существует и исполняема — режим 100644 у
@@ -21,8 +25,8 @@
 3. модуль, который обёртка запускает, реально импортируется и имеет CLI-вход;
 4. дневной цикл НЕ дублирует этот контур — два писателя за один
    `data/house_view_gap.json` затирали бы друг друга в разных схемах;
-5. параллельная реализация действительно разведена по файлам вывода (никакого общего
-   артефакта) — иначе «сохранена, не подключена» было бы неправдой.
+5. второй реализации больше НЕТ в дереве — «дубль удалён» проверяется в файлах, а не
+   на словах (иначе гарантии ADR-070 п.5 снова имели бы по два определения).
 """
 from __future__ import annotations
 
@@ -100,21 +104,21 @@ def test_daily_cycle_does_not_duplicate_the_live_loop():
     assert "findings_bridge" not in code
 
 
-def test_parallel_implementation_writes_only_its_own_files():
-    """«Сохранена, но не подключена» обязано быть правдой в файлах, а не на словах:
-    у параллельной версии ни одного общего артефакта с живой."""
-    from spa_core.monitoring import findings_bridge_c125, house_view_gap_c125
+def test_the_duplicate_implementation_is_gone_from_the_tree():
+    """ADR-070 п.5: «дубль потом удаляется». Пока он лежал рядом, КАЖДАЯ из трёх
+    гарантий имела по ДВА определения (молчащий источник — `findings_bridge_c125`,
+    «назван ли отказ» — `house_view_gap_c125.refusal_vocabulary`), и починка одного
+    места ничего не говорила о втором. Возврат файла = возврат второго определения."""
+    ghosts = [str(p.relative_to(_REPO_ROOT))
+              for p in (_REPO_ROOT / "spa_core").rglob("*_c125.py")]
+    assert ghosts == [], (
+        "дубль ADR-066 Фазы 3 вернулся в дерево: " + ", ".join(ghosts) +
+        " — гарантии ADR-070 п.5 снова имеют по два определения")
 
-    assert house_view_gap_c125.REPORT_PATH.endswith("house_view_gap_c125.json")
-    assert findings_bridge_c125.REPORT_REL.endswith("findings_bridge_c125.json")
-    assert findings_bridge_c125.STATE_REL.endswith("findings_bridge_c125_state.json")
-    assert findings_bridge_c125.SOURCES["hvg"].endswith("house_view_gap_c125.json")
-    assert LIVE_PRODUCT not in set(findings_bridge_c125.SOURCES.values())
 
-
-def test_parallel_implementation_has_no_caller():
-    """Если у неё вдруг появится вызывающий — это должно быть осознанным решением
-    (и тогда этот тест меняют вместе с ним), а не случайно уехавшей строкой."""
+def test_no_caller_anywhere_refers_to_the_deleted_duplicate():
+    """Ссылка на удалённый модуль из обёртки/plist — мёртвый агент при следующем
+    деплое, и ни один пульс этого не покажет (класс аварии 2026-08-04)."""
     hits = []
     for base in ("scripts", "launchd"):
         for path in (_REPO_ROOT / base).rglob("*"):
@@ -122,4 +126,4 @@ def test_parallel_implementation_has_no_caller():
                 text = path.read_text(encoding="utf-8", errors="ignore")
                 if "_c125" in text:
                     hits.append(str(path.relative_to(_REPO_ROOT)))
-    assert hits == [], f"у сохранённой-но-не-подключённой версии появился вызывающий: {hits}"
+    assert hits == [], f"ссылка на удалённый дубль: {hits}"

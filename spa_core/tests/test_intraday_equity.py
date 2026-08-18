@@ -22,6 +22,7 @@ import unittest
 
 from spa_core.governance.kill_switch import TIER_HARD_KILL, TIER_NONE, TIER_SOFT_DERISK
 from spa_core.monitoring import intraday_equity as ie
+from spa_core.tests._freshness import ts
 
 NOW = dt.datetime(2030, 6, 10, 7, 0, tzinfo=dt.timezone.utc)  # FROZEN-DATE-OK: injected-clock — часы инъектируются
 
@@ -159,6 +160,102 @@ class RunAndActivation(unittest.TestCase):
                        activate=lambda rt, reason: calls.append(reason) or True)
             self.assertEqual(r["status"], "UNCHECKED")
             self.assertEqual(calls, [])
+
+
+class BlindnessIsAudibleOutsideTheModule(unittest.TestCase):
+    """Отказ обязан отличаться от «просадки нет» и СНАРУЖИ, не только в отчёте.
+
+    Внутри модуля разница честная (UNCHECKED / tier=None / лестница не
+    вызывается) — это проверено выше. Но наружу оба исхода уходили одинаково:
+    процесс выходил 0, и для launchd, `agent_health_monitor` и владельца
+    «измерено, спокойно» было неотличимо от «не измерено вообще». Сенсор мог
+    ослепнуть на недели, а каждый сторож честно отвечал «агент жив, отработал».
+    Тот же класс, что снятый таймлок, читавшийся как «RPC не ответил».
+
+    Время — ВХОД: отметки задаются относительно (`_freshness.ts`), потому что
+    у `main()` часы не инъектируются; литеральных дат рядом со свежестью нет.
+    """
+
+    def _root(self, td, *, peg_age_h):
+        os.makedirs(os.path.join(td, "data"), exist_ok=True)
+        docs = {
+            "data/current_positions.json": {
+                "generated_at": ts(hours_ago=1.0),
+                "positions": {"morpho_steakhouse": 40000.0},
+                "cash_usd": 60000.0, "capital_usd": 100000.0},
+            "data/peg_report.json": {
+                "generated_at": ts(hours_ago=peg_age_h),
+                "statuses": [{"adapter_id": "morpho_steakhouse", "deviation_pct": 0.0}]},
+            "data/equity_curve_daily.json": curve(),
+        }
+        for rel, doc in docs.items():
+            with open(os.path.join(td, rel), "w", encoding="utf-8") as f:
+                json.dump(doc, f)
+        return td
+
+    def test_measured_calm_day_exits_zero(self):
+        """Положительный контроль обратной стороны: нормальный день молчит."""
+        with tempfile.TemporaryDirectory() as td:
+            root = self._root(td, peg_age_h=0.05)  # 3 минуты — живой peg
+            code = ie.main(["--run", "--root", root])
+            self.assertEqual(code, 0)
+            report = json.load(open(os.path.join(root, "data", "intraday_equity.json")))
+            self.assertEqual(report["status"], "OK")
+            self.assertEqual(report["tier"], TIER_NONE)
+
+    def test_blind_sensor_exits_nonzero(self):
+        """Не смогли измерить ⇒ отказ СЛЫШЕН: ненулевой выход, который
+        `agent_health_monitor` уже краснит (`last_exit not in (None, 0)`).
+        Вход отличается ровно возрастом peg — всё остальное то же самое."""
+        with tempfile.TemporaryDirectory() as td:
+            root = self._root(td, peg_age_h=2.0)  # peg протух → измерить нечем
+            code = ie.main(["--run", "--root", root])
+            self.assertEqual(code, 1, "слепой сенсор не смеет выглядеть успешным")
+            report = json.load(open(os.path.join(root, "data", "intraday_equity.json")))
+            self.assertEqual(report["status"], "UNCHECKED")
+            self.assertIsNone(report["tier"])
+
+    def test_the_sensor_artifact_has_an_expiry(self):
+        """Мёртвый сенсор = вернувшееся 24-часовое окно слепоты. Без срока
+        годности артефакта это состояние не видел ни один сторож."""
+        from spa_core.monitoring import artifact_freshness as af
+
+        art = next((a for a in af.ARTIFACT_REGISTRY
+                    if a.path == "intraday_equity.json"), None)
+        self.assertIsNotNone(art, "артефакт внутридневного сенсора обязан иметь срок годности")
+        self.assertEqual(art.producer, "com.spa.intraday_equity")
+        # Такт агента 300с: любой бюджет ≤ 6ч ловит смерть сенсора задолго до
+        # следующего суточного цикла (сам такт здесь НЕ вводится и не меняется).
+        self.assertLessEqual(art.max_age_hours, 6.0)
+
+
+class MissingDataNeverExtinguishesAStandingAlarm(unittest.TestCase):
+    """Пропавшие данные не смеют ГАСИТЬ уже поднятую тревогу.
+
+    Обратная сторона fail-CLOSED для kill-пути: «не измерено» не поднимает
+    тир — но и не снимает стоящую остановку. Иначе достаточно потерять фид,
+    чтобы остановка растворилась сама.
+    """
+
+    def test_standing_kill_survives_an_unreadable_curve(self):
+        from spa_core.governance.kill_switch import run_kill_switch_check
+
+        with tempfile.TemporaryDirectory() as td:
+            data = os.path.join(td, "data")
+            os.makedirs(data)
+            with open(os.path.join(data, "kill_switch_active.json"), "w") as f:
+                json.dump({"activated_at": ts(hours_ago=1.0),
+                           "reason": "внутридневная просадка"}, f)
+            res = run_kill_switch_check(equity_curve=[], data_dir=data)
+            self.assertTrue(res["triggered"], "нет данных — не повод снять остановку")
+            self.assertTrue(os.path.exists(os.path.join(data, "kill_switch_active.json")))
+
+    def test_intraday_sensor_never_deactivates(self):
+        """Сенсор умеет только поднимать тревогу — снятие остановки ручное."""
+        import inspect
+
+        src = inspect.getsource(ie)
+        self.assertNotIn("deactivate_kill_switch", src)
 
 
 class LiveSanity(unittest.TestCase):

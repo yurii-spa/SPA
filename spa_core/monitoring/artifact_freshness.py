@@ -90,6 +90,17 @@ ARTIFACT_REGISTRY: tuple = (
     # different quantity entirely.)
     Artifact("paper_evidence", "paper_evidence.json", "daily_cycle", 36.0, public=True,
              series_field="days", series_date_field="date", committed=True),
+    # 2026-08-18: внутридневной сенсор просадки (ADR-068) — единственная защита
+    # лестницы между суточными циклами — не был зарегистрирован здесь ни разу,
+    # ровно тот случай, который этот модуль и существует ловить: производитель
+    # есть, срока годности у его артефакта нет. Мёртвый сенсор = 24-часовое окно
+    # слепоты вернулось, и об этом молчали все.
+    # Бюджет АРИФМЕТИЧЕСКИЙ, не на вкус: `com.spa.intraday_equity` —
+    # StartInterval=300с, значит здоровый артефакт не старше ~5 минут; 1.0ч = 12
+    # пропущенных прогонов подряд, то есть порог не может закричать на исправное
+    # состояние. Новых ПОРОГОВ риска здесь нет — это срок годности файла,
+    # пороги лестницы (SOFT −5% / HARD −10%) не тронуты.
+    Artifact("intraday_equity", "intraday_equity.json", "com.spa.intraday_equity", 1.0),
     # daily producers with slack
     Artifact("dfb_pools", "dfb/pools.json", "dfb_capture", 30.0),
     Artifact("strategy_tournament", "strategy_tournament.json", "tournament_engine", 30.0),
