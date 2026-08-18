@@ -317,19 +317,51 @@ def test_sandboxed_default_passes_none_through(monkeypatch, tmp_path):
     assert live_paths.sandboxed_default(None, REPO_ROOT / "data" / "x.json") is None
 
 
-def test_sandboxed_default_is_inert_without_pytest(tmp_path):
-    """Положительный контроль прод-ветки: БЕЗ pytest путь не меняется ни на байт.
+# ─── Прод-ветка sandboxed_default: признак, а не «отсутствие pytest» ─────────
+#
+# ЯВНОЕ ОБОСНОВАНИЕ ИЗМЕНЕНИЯ ТЕСТА (инв. #16, карточка
+# ``inbox-uvod-putei-ne-deistvuet-vne-pytest-obych``, замер 2026-08-18).
+#
+# Здесь стоял ``test_sandboxed_default_is_inert_without_pytest``: он утверждал,
+# что БЕЗ pytest путь не меняется ни на байт. Утверждение было верным описанием
+# кода и одновременно — формулировкой дефекта. Замер из чистого дерева:
+#
+#     git checkout -- data && git status --porcelain      # пусто
+#     python3 scripts/audit_tier_c_wiring_feasibility.py --tier B
+#     git status --porcelain                              # 32 изменённых пути
+#
+# Скрипт запускается без pytest, признака не имеет — и «инертность вне pytest»
+# означала, что 56 git-tracked путей (union A+B+C) пачкаются при каждом запуске
+# аудиторского инструмента. Вопрос «мы под pytest» никогда и не был нужным
+# вопросом; нужный — «этому запуску РАЗРЕШЕНО писать в дерево».
+#
+# Тест НЕ ослаблен и НЕ скипнут: он заменён на контроль В ОБЕ СТОРОНЫ. Прежнее
+# плечо («прод пишет в дерево») сохранено целиком — оно теперь называется
+# ``test_sandboxed_default_writes_to_the_tree_on_the_production_signal`` и
+# проверяется тем же способом (дочерний процесс, реальные пути). Добавлено
+# второе плечо, которого не было: «без признака в дерево НЕ пишем».
+# Запись в журнале: docs/journal/.
 
-    Дочерний процесс, потому что изнутри прогона ``under_test()`` истинен по
-    построению — проверить прод-ветку «на месте» невозможно.
+def _sandboxed_default_in_child(extra_env: dict) -> dict:
+    """Замерить ``sandboxed_default`` в процессе БЕЗ pytest.
+
+    Дочерний процесс обязателен: изнутри прогона ``pytest`` уже в
+    ``sys.modules``, поэтому прод-ветку «на месте» проверить невозможно
+    в принципе (тот же приём, что в ``test_gas_monitor_hermetic``).
     """
     script = (
         "import json, sys\n"
         "sys.path.insert(0, sys.argv[1])\n"
         "from spa_core.utils import live_paths\n"
+        "assert 'pytest' not in sys.modules\n"
         "d = 'data/borrow_cost_log.json'\n"
         "got = live_paths.sandboxed_default(d, d)\n"
-        "print(json.dumps({'under_test': live_paths.under_test(), 'same': got == d}))\n"
+        "print(json.dumps({\n"
+        "    'under_test': live_paths.under_test(),\n"
+        "    'live_allowed': live_paths.live_state_writes_allowed(),\n"
+        "    'same': got == d,\n"
+        "    'got': got,\n"
+        "}))\n"
     )
     env = {
         k: v
@@ -337,10 +369,13 @@ def test_sandboxed_default_is_inert_without_pytest(tmp_path):
         if k
         not in (
             "PYTEST_CURRENT_TEST",
+            "SPA_ENV",
+            live_paths.LIVE_WRITE_ENV,
             live_paths.TEST_STATE_DIR_ENV,
             live_paths.LIVE_STATE_IN_TESTS_ENV,
         )
     }
+    env.update(extra_env)
     proc = subprocess.run(
         [sys.executable, "-c", script, str(REPO_ROOT)],
         capture_output=True,
@@ -348,11 +383,57 @@ def test_sandboxed_default_is_inert_without_pytest(tmp_path):
         env=env,
     )
     assert proc.returncode == 0, proc.stderr
-
     import json as _json
 
-    result = _json.loads(proc.stdout.strip().splitlines()[-1])
-    assert result["under_test"] is False
-    assert result["same"] is True, (
-        "БЕЗ pytest sandboxed_default изменил путь — увод протёк в прод"
+    return _json.loads(proc.stdout.strip().splitlines()[-1])
+
+
+@pytest.mark.parametrize(
+    "signal",
+    [
+        {"SPA_ENV": "production"},
+        {live_paths.LIVE_WRITE_ENV: "1"},
+    ],
+    ids=["spa_env_production", "spa_live_write"],
+)
+def test_sandboxed_default_writes_to_the_tree_on_the_production_signal(signal):
+    """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ (б): прод пишет в дерево, а не в песочницу.
+
+    Главное требование починки. Если это плечо покраснеет, значит увод
+    обесточил продовых писателей — а их всего три семейства и все измерены:
+    ``com.spa.daily_cycle`` → ``cycle_runner:1021`` (run_tier_b) и
+    ``cycle_gates:91`` (run_tier_a); ``com.spa.analytics_tier_b`` и
+    ``com.spa.analytics_tier_c`` → ``scripts/agent_template.sh``.
+    Молчаливого «логи уехали в /tmp» быть не должно.
+    """
+    result = _sandboxed_default_in_child(signal)
+
+    assert result["under_test"] is False, "дочерний процесс не должен знать pytest"
+    assert result["live_allowed"] is True, (
+        f"признак {signal} не признан прод-запуском — прод перестанет писать логи"
     )
+    assert result["same"] is True, (
+        f"с признаком {signal} sandboxed_default изменил путь — "
+        f"живая запись обесточена, получено {result['got']!r}"
+    )
+
+
+def test_sandboxed_default_redirects_without_any_signal_outside_pytest():
+    """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ (а): без признака в дерево НЕ пишем.
+
+    Воспроизводит ровно тот сценарий, ради которого заведена карточка: обычный
+    запуск скрипта (аудит, ``python3 -c "import spa_core.analytics.x"``) — не
+    pytest и не прод. Раньше он пачкал дерево; теперь обязан уходить в песочницу.
+    """
+    result = _sandboxed_default_in_child({})
+
+    assert result["under_test"] is False, "дочерний процесс не должен знать pytest"
+    assert result["live_allowed"] is False, (
+        "без SPA_ENV=production и без SPA_LIVE_WRITE запуск не является продовым"
+    )
+    assert result["same"] is False, (
+        "без признака sandboxed_default вернул путь в дерево — "
+        "обычный запуск скрипта снова пачкает git-tracked data/"
+    )
+    assert Path(result["got"]).name == "borrow_cost_log.json", (
+        "увод обязан сохранять имя файла")

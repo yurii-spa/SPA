@@ -16,7 +16,7 @@ import os
 import time
 from typing import Dict, List, Optional
 from spa_core.utils.atomic import atomic_save
-from spa_core.utils.live_paths import sandboxed_state_path
+from spa_core.utils.live_paths import sandboxed_default
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 
@@ -212,7 +212,8 @@ def _log_file() -> str:
     """
     if _LOG_FILE != _DEFAULT_LOG_FILE:
         return str(_LOG_FILE)
-    return str(sandboxed_state_path(_LOG_FILE))
+    # Увод СВОЕГО умолчания дерева — всегда, не только под pytest (замер 18.08).
+    return str(sandboxed_default(_LOG_FILE, _LOG_FILE))
 
 
 def _load_log() -> list:

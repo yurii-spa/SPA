@@ -128,6 +128,42 @@ TEST_STATE_DIR_ENV = "SPA_TEST_STATE_DIR"
 
 _TEST_STATE_ROOT: Path | None = None
 
+#: Явный признак «этому запуску РАЗРЕШЕНО писать производное состояние в дерево».
+#: Нужен для ad-hoc прод-запуска, где ``SPA_ENV`` не выставлен (ручной прогон
+#: агента, восстановление, отладка на проде).
+LIVE_WRITE_ENV = "SPA_LIVE_WRITE"
+
+#: Уже существующий признак прод-запуска — НЕ изобретаем новый (замер 18.08).
+#: Стоит в ``EnvironmentVariables`` четырёх плистов (`com.spa.daily_cycle`,
+#: `apiserver`, `hy_cycle`, `lp_cycle`) и экспортируется `scripts/agent_template.sh`,
+#: через который идут 75 из 82 обёрток флота — включая `analytics_tier_b/c`,
+#: единственных продовых писателей уводимых логов помимо дневного цикла.
+ENV_NAME_ENV = "SPA_ENV"
+PRODUCTION_ENV_VALUE = "production"
+
+
+def live_state_writes_allowed() -> bool:
+    """Разрешена ли ЖИВАЯ запись производного состояния в git-tracked дерево.
+
+    Замер 2026-08-18 (карточка ``inbox-uvod-putei-ne-deistvuet-vne-pytest-obych``).
+    ``under_test()`` отвечает на вопрос «мы под pytest», а нужный вопрос — «это
+    прод-запуск, которому положено писать в дерево». Это РАЗНЫЕ вопросы, и
+    расхождение между ними и есть дефект: обычный запуск скрипта
+    (``scripts/audit_tier_c_wiring_feasibility.py``) не под pytest, но и не прод —
+    и пачкал 56 трекаемых путей.
+
+    Признак ПОЛОЖИТЕЛЬНЫЙ (что-то разрешает), а не отрицательный (что-то
+    запрещает): по умолчанию — песочница, живая запись включается явно. Иначе
+    каждый следующий способ запустить модуль пришлось бы опознавать заново, и
+    класс вернулся бы в третий раз — ровно то, что предсказывала карточка про
+    вариант B.
+    """
+    if os.environ.get(LIVE_WRITE_ENV) == "1":
+        return True
+    if os.environ.get(ENV_NAME_ENV) == PRODUCTION_ENV_VALUE:
+        return True
+    return False
+
 
 def under_test() -> bool:
     """Исполняемся ли мы внутри прогона тестов.
@@ -211,6 +247,29 @@ def sandboxed_default(path, tree_default):
     (цикл #274); эта функция — его общая форма, чтобы 180 модулей не заводили
     180 копий.
 
+    **Когда увод действует (изменено 2026-08-18, вариант A карточки
+    ``inbox-uvod-putei-ne-deistvuet-vne-pytest-obych``).** Раньше — только под
+    pytest, и это закрывало ровно один сценарий из трёх. Замер: из чистого дерева
+    ``scripts/audit_tier_c_wiring_feasibility.py --tier B`` оставлял 32 изменённых
+    git-tracked пути (union A+B+C — 56), потому что скрипт запускается БЕЗ pytest
+    и признака не имел. Третий сценарий — ``python3 -c "import
+    spa_core.analytics.x"`` при отладке — пачкал дерево так же.
+
+    Теперь увод — УМОЛЧАНИЕ, а живая запись включается явно
+    (:func:`live_state_writes_allowed`). Это меняет вопрос с опознавательного
+    («узнали ли мы этот способ запуска?») на структурный («названо ли право
+    писать?»), и потому не требует опознавать каждый следующий инструмент.
+
+    **Область изменения — ТОЛЬКО эта функция.** :func:`sandboxed_state_path` и
+    :func:`sandboxed_state_dir` оставлены на прежней pytest-семантике намеренно:
+    замер показал, что ``sandboxed_default`` вызывается ИСКЛЮЧИТЕЛЬНО из
+    ``spa_core/analytics/`` (169 файлов), а чокпоинты выгрузки и money-path —
+    ``export_data.py:106``, ``adapter_status_generator.py:1074``,
+    ``gap_monitor.py:349,356``, ``alert_dispatcher.py:239,566``,
+    ``defillama_fetcher.py:646``, ``engine_bridge.py:205`` — ходят через ДРУГИЕ
+    две функции. Расширять увод на них одним заходом означало бы менять поведение
+    выгрузки дашборда без замера её писателей; это отдельная работа.
+
     **Тип возврата повторяет тип входа** (``str`` → ``str``, ``Path`` → ``Path``).
     Это не косметика: функция вставляется В СЕРЕДИНУ чужого писателя, где
     следующая строка — то ``path.parent.mkdir(...)``, то ``log_path + ".tmp"``.
@@ -225,10 +284,39 @@ def sandboxed_default(path, tree_default):
         # protocol_insider_activity_monitor покраснел именно на Path(None)).
         return None
     if _same_target(path, tree_default):
-        result = sandboxed_state_path(path)
+        result = _tree_default_target(Path(path))
     else:
         result = Path(path)
     return str(result) if isinstance(path, str) else result
+
+
+def _tree_default_target(default: Path) -> Path:
+    """Куда на самом деле писать СОБСТВЕННОЕ умолчание дерева.
+
+    Порядок разрешения (первый сработавший выигрывает):
+
+    1. :data:`LIVE_STATE_IN_TESTS_ENV` — осознанный обход из теста, который
+       МЕРЯЕТ прод-ветку (сохранён без изменений: на нём стоят существующие
+       положительные контроли);
+    2. :func:`under_test` — прогон тестов уводится ВСЕГДА. Стоит ВЫШЕ
+       прод-признака намеренно: иначе унаследованный ``SPA_ENV=production``
+       (прогон pytest на прод-машине, где переменная уже в окружении) вернул бы
+       ровно ту аварию цикла #274, ради которой увод и появился. Гарантия
+       «прогон тестов не пачкает дерево» не имеет права зависеть от env;
+    3. :func:`live_state_writes_allowed` — прод-запуск, пишем в дерево;
+    4. иначе — песочница. Сюда попадает третий сценарий, из-за которого всё
+       затевалось: обычный запуск инструмента (аудит, ``python3 -c "import
+       spa_core.analytics.x"``) — не pytest и не прод.
+
+    Имя файла сохраняется — как и в :func:`sandboxed_state_path`.
+    """
+    if os.environ.get(LIVE_STATE_IN_TESTS_ENV):
+        return default
+    if under_test():
+        return test_state_root() / default.name
+    if live_state_writes_allowed():
+        return default
+    return test_state_root() / default.name
 
 
 def _same_target(a, b) -> bool:

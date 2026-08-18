@@ -20,7 +20,7 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from spa_core.utils.live_paths import sandboxed_state_path
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Paths & constants
@@ -191,7 +191,8 @@ def _append_log(result: dict, log_file: Path = None) -> None:
         # Явный log_file — сильнее всего. Дефолт под тестами уводится в
         # песочницу: DATA_FILE это git-tracked data/yield_farming_roi_log.json,
         # и прогон его ПАЧКАЛ (цикл #274). В проде путь не меняется.
-        log_file = sandboxed_state_path(DATA_FILE)
+        # Увод СВОЕГО умолчания дерева — всегда, не только под pytest.
+        log_file = sandboxed_default(DATA_FILE, DATA_FILE)
 
     try:
         if log_file.exists():

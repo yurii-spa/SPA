@@ -15,7 +15,7 @@ import os
 import time
 from typing import Optional
 
-from spa_core.utils.live_paths import sandboxed_state_path
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -140,7 +140,9 @@ def _log_result(result: dict) -> None:
     # Разрешается НА ВЫЗОВЕ: _LOG_PATH это git-tracked
     # data/yield_volatility_surface_log.json, и прогон его ПАЧКАЛ (цикл #274).
     # В проде (без pytest) путь ровно тот же, что и был.
-    log_path = str(sandboxed_state_path(os.path.normpath(_LOG_PATH)))
+    # Увод СВОЕГО умолчания дерева — всегда, не только под pytest.
+    _norm = os.path.normpath(_LOG_PATH)
+    log_path = str(sandboxed_default(_norm, _norm))
     try:
         if os.path.exists(log_path):
             with open(log_path, "r") as f:

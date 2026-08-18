@@ -14,7 +14,7 @@ import os
 import time
 from typing import Optional
 from spa_core.utils.atomic import atomic_save
-from spa_core.utils.live_paths import sandboxed_state_path
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -68,7 +68,11 @@ def _get_log_path(data_dir: Optional[str]) -> str:
         here = parent
     # Под тестами дефолт уводится в песочницу: этот путь — git-tracked
     # spa_core/data/reward_harvesting_log.json, и прогон его ПАЧКАЛ (цикл #274).
-    return str(sandboxed_state_path(default))
+    # Увод — умолчание, живая запись по явному признаку (`live_state_writes_allowed`).
+    # Прежний помощник действовал только под pytest, и обычный запуск скрипта
+    # пачкал дерево (карточка `inbox-uvod-putei-ne-deistvuet-vne-pytest-obych`,
+    # замер 18.08).
+    return str(sandboxed_default(default, default))
 
 
 # ---------------------------------------------------------------------------

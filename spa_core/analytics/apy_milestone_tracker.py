@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from spa_core.base import BaseAnalytics
-from spa_core.utils.live_paths import sandboxed_state_path
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Milestone definitions
@@ -60,7 +60,12 @@ class ApyMilestoneTracker(BaseAnalytics):
             # песочницу: <repo>/data/apy_milestone_log.json git-tracked, и
             # прогон его ПАЧКАЛ через cycle_reporting (цикл #274). В проде
             # (без pytest) каталог ровно тот же, что и был.
-            self._log_path = sandboxed_state_path(_DEFAULT_DATA_DIR / _LOG_FILENAME)
+            # Увод СВОЕГО умолчания дерева — всегда, не только под pytest.
+            # Прод покрыт признаком: сюда ходят только cycle_reporting (внутри
+            # cycle_runner, плист `com.spa.daily_cycle` ставит SPA_ENV=production)
+            # и агент `analytics_tier_b` (обёртка agent_template.sh).
+            _tree_default = _DEFAULT_DATA_DIR / _LOG_FILENAME
+            self._log_path = sandboxed_default(_tree_default, _tree_default)
             self._data_dir = self._log_path.parent
         else:
             self._data_dir = Path(data_dir)

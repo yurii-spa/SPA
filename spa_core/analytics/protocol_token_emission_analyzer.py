@@ -16,7 +16,7 @@ import os
 import time
 from typing import Optional
 from spa_core.utils.atomic import atomic_save
-from spa_core.utils.live_paths import sandboxed_state_path
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -76,7 +76,8 @@ def _get_log_path(data_dir: Optional[str]) -> str:
         here = parent
     # Под тестами дефолт уводится в песочницу: этот путь — git-tracked
     # spa_core/data/token_emission_log.json, и прогон его ПАЧКАЛ (цикл #274).
-    return str(sandboxed_state_path(default))
+    # См. defi_reward_harvesting_optimizer: увод — умолчание, а не pytest-признак.
+    return str(sandboxed_default(default, default))
 
 
 # ---------------------------------------------------------------------------

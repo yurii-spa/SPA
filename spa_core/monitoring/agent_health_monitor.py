@@ -803,6 +803,7 @@ def check_system(data_dir: Path, now: datetime,
                  autopush_log: str = _AUTOPUSH_LOG,
                  code_freshness: Optional[Callable[[], dict]] = None,
                  cycle_lock: Optional[CycleLockVerdict] = None,
+                 wake_storm: Optional[Callable[[], dict]] = None,
                  ) -> Tuple[dict, str, List[str]]:
     """Run system-state checks. Returns (system_checks, status, issue_lines).
 
@@ -1171,6 +1172,42 @@ def check_system(data_dir: Path, now: datetime,
             issues.append(
                 "agent_code_freshness UNCHECKED: проверка свежести исполняемого "
                 "кода упала ({}) — это не «код свежий»".format(type(exc).__name__))
+            status = _worst(status, WARNING)
+
+    # --- падал ли флот РАЗОМ (шестой вопрос) --------------------------------
+    # Строкой выше живёт `detect_wake_storm`, и он отвечает на ДРУГОЙ вопрос:
+    # «сколько агентов ПРЯМО СЕЙЧАС несут ненулевой last_exit». Авария 04.08
+    # мимо него дважды: во время шторма этот монитор сам лежал (снимок был
+    # несвежим на 8 часов и рапортовал healthy 69/69), а через 15 минут флот
+    # ожил, launchctl показал exit 0 у всех — и событие исчезло задним числом.
+    # Замер сегодня: восстановившийся флот из 39 упавших агентов даёт
+    # `detect_wake_storm(...) is None` и отчёт «OK, healthy 39/39».
+    #
+    # Ответ на «падал ли флот разом» живёт в СВОЁМ модуле со своим предикатом,
+    # порогом, тестами и кодом выхода (`wake_storm_forensics`) — он читает улику
+    # на диске, которая переживает и шторм, и восстановление. Здесь только
+    # ДОСТАВКА его вердикта, а не расширение соседней проверки.
+    #
+    # ПОЧЕМУ ТОЛЬКО ДЛЯ СВОЕГО data_dir — тот же довод, что у `stale_code_agents`
+    # выше: проверка меряет ХОСТ (каталог логов флота), а не каталог, о котором
+    # спросили. Спрошенная про песочницу, она отвечала бы про рабочий Mac.
+    checks["wake_storm_agents"] = None
+    if wake_storm is not None or _asked_about_host:
+        try:
+            from spa_core.monitoring.wake_storm_forensics import check_wake_storm
+            wdoc = (wake_storm or (lambda: check_wake_storm(now=now)))()
+            storm_block = wdoc.get("storm")
+            checks["wake_storm_agents"] = (storm_block or {}).get("count") or 0
+            for line in wdoc.get("issues", []) or []:
+                issues.append(line)
+            if wdoc.get("status") == CRITICAL:
+                checks["critical_flags"] = int(checks.get("critical_flags") or 0) + 1
+            status = _worst(status, wdoc.get("status", OK))
+        except Exception as exc:  # noqa: BLE001 — fail-CLOSED, не тихий пропуск
+            log.warning("wake_storm_forensics check failed: %s", exc)
+            issues.append(
+                "wake_storm_forensics UNCHECKED: проверка «падал ли флот разом» "
+                "упала ({}) — это не «не падал»".format(type(exc).__name__))
             status = _worst(status, WARNING)
 
     # --- есть ли у ОСТАНОВКИ путь вверх (цикл #195) -------------------------

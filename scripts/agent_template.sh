@@ -78,6 +78,27 @@ PYTHON="${SPA_AGENT_PYTHON:-/Users/yuriikulieshov/miniconda3/bin/python3}"
 export PATH="/Users/yuriikulieshov/miniconda3/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
 export HOME="${HOME:-/Users/yuriikulieshov}"
 
+# ── Это ПРОД-запуск, и он имеет право писать производное состояние в дерево ──
+# Замер 2026-08-18 (карточка `inbox-uvod-putei-ne-deistvuet-vne-pytest-obych`).
+# Увод путей `live_paths.sandboxed_default` стал УМОЛЧАНИЕМ: по умолчанию
+# производное состояние уходит в песочницу, а живая запись включается явным
+# признаком. Без этой строки два продовых агента — `com.spa.analytics_tier_b` и
+# `com.spa.analytics_tier_c` — молча перестали бы писать 53 из 56 своих
+# ring-buffer логов: их плисты не имеют `EnvironmentVariables` вовсе, а признака
+# «я launchd-агент», пригодного к проверке, у процесса нет (`XPC_SERVICE_NAME`
+# подменить в тесте невозможно — SIGABRT, замер 10.08).
+#
+# Почему `SPA_ENV`, а не новое имя: признак УЖЕ существует и уже читается тремя
+# продовыми модулями (`cycle_runner.py:1021`, `adapter_status_generator.py:412`,
+# `base_gas_monitor.py:306`) и четырьмя плистами. Не хватало не признака, а его
+# раскатки. Через эту обёртку идут 75 из 82 обёрток флота — одна строка закрывает
+# всех, кому плист ничего не выставляет.
+#
+# `:-` намеренно: явно заданное значение (например `SPA_ENV=ci` в CI) СИЛЬНЕЕ.
+# Читатели сравнивают с "ci", поэтому переход «не выставлено → production»
+# ничего для них не меняет (None и "production" одинаково не равны "ci").
+export SPA_ENV="${SPA_ENV:-production}"
+
 # ── Generic mode (B): pull target from CLI args if header vars are unset ─────
 if [ -z "$AGENT_NAME" ] && [ "$#" -ge 1 ]; then
     AGENT_NAME="$1"; shift

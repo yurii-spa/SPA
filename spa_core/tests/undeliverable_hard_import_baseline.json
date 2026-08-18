@@ -1,0 +1,15 @@
+{
+  "_comment": "Файлы ВНЕ путей, которые автосинк возит на прод (scripts/code_sync_from_origin.sh, CODE_PATHS), и при этом жёстко импортирующие spa_core. Список может ТОЛЬКО уменьшаться. Добавлять сюда файл, чтобы погасить красный, ЗАПРЕЩЕНО — либо файл переезжает в доставляемый каталог, либо жёсткая зависимость снимается (try/except ImportError с громкой деградацией).",
+  "_why_these_seven": "Всё, что осталось после удаления корневого __init__.py (авария цикла #275), — архив attic/modules/**: код, снятый с исполнения и оставленный как история. Он не запускается ни одним агентом и ни одним тестом набора, поэтому разъезд с spa_core в проде для него безвреден; но безвредность — свойство сегодняшнего дерева, а не файла, поэтому он под замером, а не под ковром.",
+  "snapshot": "2026-08-18",
+  "count": 7,
+  "files": [
+    "attic/modules/monitoring/adapter_watchdog.py",
+    "attic/modules/monitoring/posture_gate.py",
+    "attic/modules/portfolio/drift_calculator.py",
+    "attic/modules/portfolio/rebalance_signal.py",
+    "attic/modules/tests/test_portfolio_state.py",
+    "attic/modules/tests/test_protocol_report.py",
+    "attic/modules/tests/test_rtmr_posture_gate.py"
+  ]
+}

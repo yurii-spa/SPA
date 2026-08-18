@@ -126,7 +126,118 @@ def test_ordinary_silent_transition_is_warn_not_critical(tmp_path):
     assert sentinel.exit_code(r) == 1
 
 
+def test_agent_hand_setting_owner_done_on_an_owner_question_is_critical(tmp_path):
+    """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ инварианта #14 в его дословной формулировке.
+
+    «Агентам ЗАПРЕЩЕНО переводить карточку решения в ``owner-done``.» Соседний тест
+    берёт `ingested -> owner-done`; здесь — ровно запрещённый инвариантом случай:
+    ЖИВОЙ вопрос владельца (`needs-owner`) закрывается как отвеченный владельцем, а
+    владельца никто не спрашивал. Это одновременно и уход из `needs-owner`, и приход
+    в `owner-done` — обе ступени лестницы тяжести обязаны сойтись на CRITICAL.
+    """
+    tree = _tree(tmp_path)
+    card = _card(tree, status="needs-owner")
+    sentinel.run(root=tree, now=T0)
+
+    _rewrite_status_line(card, "owner-done")  # рука агента, журнал молчит
+
+    r = sentinel.run(root=tree, now=T1)
+    assert r["verdict"] == sentinel.VERDICT_FINDINGS
+    (f,) = r["unattributed"]
+    assert (f["from"], f["to"]) == ("needs-owner", "owner-done")
+    assert f["severity"] == "CRITICAL"
+    assert f["reason"] == "no_record"
+    assert r["critical"] == 1
+    assert sentinel.exit_code(r) == 2
+
+
+def test_without_the_owner_done_rung_the_same_breach_goes_quiet(tmp_path, monkeypatch):
+    """Контроль на сторожа, а не на фикстуру: «краснеет ли это при снятии сторожа».
+
+    Проверка, никогда не видевшая настоящей поломки, — украшение
+    (``.claude/rules/deployment.md``). Здесь ступень `→ owner-done` снимается ТОЛЬКО
+    в памяти теста, и тот же самый обход инварианта #14 немедленно теряет CRITICAL.
+    Значит тяжесть даёт лестница сторожа, а не совпадение фикстуры. Прод не тронут:
+    ``monkeypatch`` возвращает константу назад.
+    """
+    tree = _tree(tmp_path)
+    # `ingested` — чтобы вторая ступень (уход из `needs-owner`) не подменила первую:
+    # мерим ровно вклад ступени `→ owner-done`.
+    card = _card(tree, status="ingested")
+    sentinel.run(root=tree, now=T0)
+    _rewrite_status_line(card, "owner-done")
+
+    monkeypatch.setattr(sentinel, "OWNER_ONLY", "статус-которого-не-бывает")
+
+    r = sentinel.run(root=tree, now=T1)
+    (f,) = r["unattributed"]
+    assert f["severity"] == "WARN"          # ← со сторожем здесь CRITICAL
+    assert r["critical"] == 0
+    assert sentinel.exit_code(r) == 1       # ← со сторожем здесь 2
+
+
+def test_generic_field_writer_may_not_smuggle_a_status(tmp_path):
+    """Обходной путь мимо сторожа: записать `status:` как обычное поле frontmatter.
+
+    ``set_fields`` — универсальный писатель полей; пропусти он ``status``, и
+    `owner-done` уехал бы в карточку без проверки инварианта #14 И без строки в
+    журнале аудита, то есть сторож увидел бы неатрибутированный переход вместо
+    отказа. Отказ обязан быть до записи: карточка и журнал остаются нетронутыми.
+    """
+    from spa_core.owner_queue.queue import set_fields
+
+    tree = _tree(tmp_path)
+    card = _card(tree, status="needs-owner")
+    with pytest.raises(OwnerDoneForbidden):
+        set_fields(card, {"status": "owner-done"})
+    assert status_audit.read_status(card) == "needs-owner"
+    assert status_audit.read_audit(tree)[0] == []
+
+
 # ── сторож: законные переходы молчат ─────────────────────────────────────────
+
+def test_needs_owner_to_ingested_is_the_one_move_an_agent_may_make(tmp_path):
+    """ОБРАТНЫЙ КОНТРОЛЬ: единственный разрешённый агенту переход не краснеет.
+
+    Инвариант #14 оставляет агенту ровно одно движение — `needs-owner → ingested`
+    после инжеста ответа владельца. Сторож, который краснел бы и на него, за неделю
+    научил бы всех себя игнорировать, и настоящий обход утонул бы в собственном шуме.
+    Часы настоящие с обеих сторон: ``set_status`` их не принимает.
+    """
+    tree = _tree(tmp_path)
+    card = _card(tree, status="needs-owner")
+    sentinel.run(root=tree)
+
+    set_status(card, "ingested")
+
+    r = sentinel.run(root=tree)
+    assert r["verdict"] == sentinel.VERDICT_OK, r["unattributed"]
+    assert r["unattributed"] == []
+    (a,) = r["attributed"]
+    assert (a["from"], a["to"]) == ("needs-owner", "ingested")
+    assert "queue.set_status" in a["writer"]
+    assert sentinel.exit_code(r) == 0
+
+
+def test_refused_owner_done_leaves_the_sentinel_with_nothing_to_report(tmp_path):
+    """Агент попробовал через API — отказ; значит и перехода нет, и тревоги нет.
+
+    Пара «писатель отказал + сторож молчит» обязана сходиться: отказ, после которого
+    сторож всё равно кричит, означал бы, что что-то всё-таки записалось.
+    """
+    tree = _tree(tmp_path)
+    card = _card(tree, status="needs-owner")
+    sentinel.run(root=tree)
+
+    with pytest.raises(OwnerDoneForbidden):
+        set_status(card, "owner-done")
+
+    r = sentinel.run(root=tree)
+    assert r["verdict"] == sentinel.VERDICT_OK, r
+    assert r["transitions"] == 0
+    assert sentinel.exit_code(r) == 0
+
+
 
 def test_set_status_is_attributed_and_names_the_writer(tmp_path):
     """Штатный перевод карточки объяснён журналом — сторож молчит и называет писателя.

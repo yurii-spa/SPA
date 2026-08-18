@@ -10,6 +10,8 @@ import os
 import time
 from typing import Any
 
+from spa_core.utils.live_paths import sandboxed_default
+
 # ── constants ────────────────────────────────────────────────────────────────
 LOG_CAP = 100
 
@@ -302,10 +304,16 @@ class ProtocolFeeStructureAnalyzer:
     # ------------------------------------------------------------------
 
     def _append_log(self, result: dict, cfg: dict) -> None:
-        log_path = os.path.abspath(
+        # Увод СВОЕГО умолчания дерева. Этот модуль циклом #275 подключён НЕ БЫЛ
+        # (замер 18.08: остался одним из семи, кто продолжал пачкать
+        # git-tracked data/ при обычном запуске инструмента). Путь здесь
+        # безальтернативно свой — вызывающий его не задаёт, поэтому оба
+        # аргумента совпадают.
+        _tree_default = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "..", "..", "data",
                          "fee_structure_log.json")
         )
+        log_path = sandboxed_default(_tree_default, _tree_default)
         try:
             if os.path.exists(log_path):
                 with open(log_path) as f:

@@ -36,6 +36,7 @@ import os
 import time
 from typing import Any
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_default
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -438,7 +439,14 @@ class ProtocolDeFiYieldBearingStablecoinRiskAnalyzer:
         }
 
         if write_log:
-            log_path = os.path.join(self.data_dir, _LOG_FILENAME)
+            # Увод СВОЕГО умолчания дерева (замер 18.08: модуль циклом #275
+            # подключён не был и продолжал пачкать git-tracked data/).
+            # Явно переданный `data_dir` принадлежит вызывающему и проходит
+            # насквозь — это и обеспечивает второй аргумент.
+            log_path = sandboxed_default(
+                os.path.join(self.data_dir, _LOG_FILENAME),
+                os.path.join(_DEFAULT_DATA_DIR, _LOG_FILENAME),
+            )
             entry = {
                 "timestamp": result["timestamp"],
                 "token_name": result["token_name"],
@@ -461,7 +469,14 @@ class ProtocolDeFiYieldBearingStablecoinRiskAnalyzer:
         """
         results = [self.analyze(inp, write_log=False) for inp in inputs]
         if write_log and results:
-            log_path = os.path.join(self.data_dir, _LOG_FILENAME)
+            # Увод СВОЕГО умолчания дерева (замер 18.08: модуль циклом #275
+            # подключён не был и продолжал пачкать git-tracked data/).
+            # Явно переданный `data_dir` принадлежит вызывающему и проходит
+            # насквозь — это и обеспечивает второй аргумент.
+            log_path = sandboxed_default(
+                os.path.join(self.data_dir, _LOG_FILENAME),
+                os.path.join(_DEFAULT_DATA_DIR, _LOG_FILENAME),
+            )
             entry = {
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 "batch_size": len(results),

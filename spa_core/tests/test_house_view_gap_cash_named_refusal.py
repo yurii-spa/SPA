@@ -25,6 +25,11 @@ import datetime as dt
 
 from spa_core.monitoring import house_view_gap as H
 
+# FROZEN-DATE-OK: injected-clock — часы здесь ВХОД, а не окружение (шаблон 1
+# `.claude/rules/deployment.md`): `NOW` фиксирован, ВСЕ отметки фикстур строятся
+# относительно него (`iso(hours_ago=…)`), а свежесть артефактов сверка судит по
+# явному `age_s` из `AGES`, а не по календарю. Сдвиг даты не может уронить ни один
+# тест этого файла — обе стороны закреплены.
 NOW = dt.datetime(2026, 8, 18, 12, 0, tzinfo=dt.timezone.utc)
 REGISTRY = {"moonwell_base", "fluid_fusdc"}
 AGES = {k: {"age_s": 3600} for k in
