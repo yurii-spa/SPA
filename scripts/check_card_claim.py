@@ -443,8 +443,33 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
     selves = self_identities(entries, self_session, self_anchor, sibling)
     # Личность держателя карточки берётся из ТОГО ЖЕ журнала: `claim` объявляет захват, и в
     # записи лежит долгоживущий процесс. Без этого захват из frontmatter под ярлыком без pid
-    # уходил в «не измерено» навсегда — см. `durable_by_session`.
-    durables = durable_by_session(entries, sibling)
+    # уходил в «не измерено» навсегда — см. `durable_by_session`. Родня по ярлыку (#293) —
+    # потому что у записи-захвата под переданным флагом ярлыком якоря нет по построению.
+    # Ярлык держателя из frontmatter спрашивается ОТДЕЛЬНО: в журнале он есть почти всегда
+    # (`claim` объявляет захват), но сторож, верный «почти», — это дыра, о которой не сказано.
+    durables, kin = anchors_with_kin(
+        entries, sibling,
+        extra_labels=[str((card_meta or {}).get("claimed_by") or "").strip()])
+
+    def _anchor_for(session, ts_raw):
+        """Поля долгоживущего процесса для ярлыка — свои либо родственные, либо None.
+
+        **Правка строго ДОПОЛНЯЮЩАЯ.** Ярлык, у которого якорь есть свой, отвечает ровно как
+        до #293 — тем же выражением `durables.get`, без новых условий: это поведение защищено
+        починкой #238, и трогать его здесь нечем (первая попытка провела через общее сужение
+        и ОДИН существующий тест честно покраснел — `test_frontmatter_holder_measured_dead_is_stale`,
+        где старт якоря фикстуры лежит позже захвата). Новый путь — только там, где раньше не
+        было НИЧЕГО: у родственного ярлыка.
+
+        Родня идёт через `borrow_durable` шага 0a, а не своим выражением: там живёт сужение
+        «процесс стартовал НЕ ПОЗЖЕ записи» (родившийся после захвата написать его не мог —
+        это переиспользованный ярлык, и заимствование дало бы ложный ACTIVE). Своя копия этого
+        правила разошлась бы молча."""
+        if session not in kin:
+            return durables.get(session)
+        borrowed, _why = sibling.borrow_durable({"session": session, "ts": ts_raw},
+                                                durables, kin)
+        return sibling.durable_fields(borrowed) or None
 
     report = {
         "card": cid,
@@ -590,7 +615,7 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
                                 f"{at_raw!r} — возраст захвата не измерен")
                 else:
                     _classify(holder, ts, "frontmatter", STRONG, "поле claimed_by в карточке",
-                              durables.get(holder))
+                              _anchor_for(holder, at_raw))
 
     # 2. журнал объявлений ───────────────────────────────────────────────────
     if log_error:
@@ -625,7 +650,8 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
                         "detail": "объявление `card_state: done` — захват снят"})
                 else:
                     latest[session] = (session, ts, strength, detail,
-                                       sibling.durable_fields(entry))
+                                       sibling.durable_fields(entry)
+                                       or _anchor_for(session, entry.get("ts")))
             # пересечение по файлам — отдельное измерение, не зависит от карточки
             if planned_files and session and session not in selves and ts is not None:
                 if (now - ts) <= grace:
@@ -651,9 +677,15 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
                             # недоставленной работы. Осиротевшее пересечение не исчезает из
                             # отчёта — оно НАЗЫВАЕТСЯ отдельно (это домен шага 0a), но
                             # вердикта «ЗАНЯТА» больше не даёт.
+                            # Заимствование личности нужно и здесь: пересечение по файлам —
+                            # НЕЗАВИСИМОЕ измерение, и если бы оно осталось судить по голой
+                            # записи, одна и та же мёртвая сессия читалась бы захватом как
+                            # осиротевшая, а файлами — как живая (вердикт берёт худшее ⇒
+                            # ЗАНЯТА). Починка одного близнеца из двух, #37.
+                            kin_entry, _why = sibling.borrow_durable(entry, durables, kin)
                             report["overlaps"].append({
                                 "session": session, "ts": _fmt_ts(ts), "files": shared,
-                                "orphaned": bool(sibling.durable_process_gone(entry, ps=ps)),
+                                "orphaned": bool(sibling.durable_process_gone(kin_entry, ps=ps)),
                                 "summary": str(entry.get("summary") or "")[:160]})
         for session, ts, strength, detail, process in latest.values():
             if report["card_status"] in TERMINAL_STATUSES:
@@ -901,6 +933,26 @@ def durable_by_session(entries, sibling):
     Разные пары ⇒ ключа нет ⇒ поведение побайтово прежнее (fail-CLOSED): угадывать, который
     из процессов держит карточку, инструмент не станет."""
     return sibling.durable_by_session(entries)
+
+
+def anchors_with_kin(entries, sibling, extra_labels=()):
+    """То же, плюс родня по ярлыку: `(ярлык → поля, ярлык → откуда взято)`.
+
+    **Определение ОДНО и живёт у шага 0a** (`check_undelivered_work.anchors_with_kin`) — здесь
+    делегирование, как и у `durable_by_session` выше.
+
+    **Зачем шагу 0b именно родня (цикл #293).** Протокол сам велит держателю передавать свой
+    идентификатор флагом (`--session pidN`, карточка `agent-durable-session-id`), а
+    `log_session_change.record` намеренно НЕ ставит якорь на переданный ярлык — иначе чужая
+    запись читалась бы как своя. Оба правила верны, а вместе дают запись-захват, у которой
+    якоря нет ПО ПОСТРОЕНИЮ: `durable_by_session` для неё пуст, `session_state` отдаёт вечный
+    `UNKNOWN`, и захват висит «занята», пока свеж, — а ждать уже некого. Якорь той же сессии
+    при этом лежит секундами позже под ярлыком `cycle-N-pidN`.
+
+    Точность важна: у ГОЛОГО ярлыка `pidN` активность читается прямо из ярлыка, поэтому
+    состарившийся захват уходил в `stale` и без родства (измерено, а не предположено) — дефект
+    жил ровно в окне свежести. Вечное «не измерено» тот же разрыв даёт у СОСТАВНОГО ярлыка."""
+    return sibling.anchors_with_kin(entries, extra_labels)
 
 
 def _log_entries(log, sibling=None, last=None):

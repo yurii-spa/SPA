@@ -284,7 +284,93 @@ def durable_by_session(entries):
     return {label: fields for label, (_anchor, fields) in found.items()}
 
 
-def borrow_durable(entry, anchors):
+_LABEL_PID_TOKEN = re.compile(r"(?:\A|[-_])(pid\d+)(?=\Z|[-_])")
+
+
+def pid_tokens(label):
+    """Токены вида `pidN` в ярлыке сессии — КОМПОНЕНТОМ, а не подстрокой.
+
+    `cycle-292-pid71239` → `{'pid71239'}`, `pid71239` → `{'pid71239'}`, `pid7` НЕ находится
+    внутри `pid71239` (иначе одна сессия «породнилась» бы с другой по общему префиксу числа —
+    ровно подстрочная коллизия, на которой уже обжёгся храповик неподключённых скриптов, #227)."""
+    return set(_LABEL_PID_TOKEN.findall(str(label or "")))
+
+
+def anchors_with_kin(entries, extra_labels=()):
+    """`durable_by_session`, где ярлык БЕЗ якоря получает якорь СОСЕДНЕГО ярлыка ТОЙ ЖЕ сессии.
+
+    **Дефект, который это закрывает (цикл #293).** Одна сессия пишет в журнал под ДВУМЯ
+    ярлыками: захват — под тем, что передан флагом `--session pidN` (так велит шаг 0b
+    протокола), а объявление владения — под своим `SPA_SESSION_ID` вида `cycle-N-pidN`. Якорь
+    (`session_pid`/`session_pid_start`) `log_session_change.record` ставит ТОЛЬКО когда ярлык
+    записи совпадает с собственным id писателя — и это верно, менять там нечего (карточка
+    `agent-claim-guard-blind-when-session-pid-is-set`: якорь на чужом ярлыке читался бы как
+    «запись моя»). Значит запись-захват якоря не несёт ПО ПОСТРОЕНИЮ, и `borrow_durable`,
+    который ищет якорь строго под ТЕМ ЖЕ ярлыком, до него не дотягивается.
+
+    Цена измерена, а не предположена (журнал 18.08, 996 записей): захватов — 430, из них без
+    якоря 116, и у 6 (5 карточек) якорь сессии лежал в соседнем ярлыке, причём во ВСЕХ шести
+    случаях соседний ярлык был к моменту замера измеримо мёртв. Один из них — живой случай
+    этого же цикла: шаг 0b объявил `⛔ ЗАНЯТА` о сессии #292, смерть которой напечатал в том же
+    отчёте двумя строками ниже, и запретил подъём осиротевшей работы, к которому звал шаг 0a.
+    Класс известен (#238 чинил его же с другого входа), но там знание о смерти в отчёте БЫЛО и
+    не доезжало до вердикта; здесь оно не доезжало до самого измерения.
+
+    **Три сужения, каждое fail-CLOSED** (несработавшее оставляет прежнее «не измерено»):
+
+    1. свой якорь всегда сильнее — ярлык, у которого он есть, не трогаем;
+    2. ярлык, чей СОБСТВЕННЫЙ якорь неоднозначен (`durable_by_session` его выбросил), родни не
+       получает: иначе правило неоднозначности снималось бы с чёрного хода;
+    3. токен должен вести к ОДНОМУ якорю, и токен у ярлыка — ровно один. Два разных якоря на
+       токен или два токена в ярлыке ⇒ родства нет: угадывать, которая из сессий писала, этот
+       инструмент не станет (то же правило, что у `durable_by_session`).
+
+    Проверку «процесс стартовал не позже записи» здесь НЕ дублируем — она живёт в
+    `borrow_durable` и применяется к заимствованию любой природы, своей и родственной.
+
+    `extra_labels` — ярлыки, которых в записях может не быть вовсе: захват во frontmatter
+    карточки несёт ЯРЛЫК держателя, и спрашивать о нём приходится отдельно (в журнале он есть
+    почти всегда, но «почти» у сторожа означает молчаливую дыру)."""
+    direct = durable_by_session(entries)
+    self_ambiguous = {str((e or {}).get("session") or "").strip()
+                      for e in entries or () if anchor_of(e) is not None}
+    self_ambiguous -= set(direct)
+
+    by_token, spoiled = {}, set()
+    for label, fields in direct.items():
+        key = (fields.get("session_pid"), str(fields.get("session_pid_start") or ""))
+        for tok in pid_tokens(label):
+            if tok in spoiled:
+                continue
+            prev = by_token.get(tok)
+            if prev is not None and prev[0] != key:
+                del by_token[tok]
+                spoiled.add(tok)
+                continue
+            by_token[tok] = (key, label, fields)
+
+    labels = [str((e or {}).get("session") or "").strip() for e in entries or ()]
+    labels += [str(x or "").strip() for x in extra_labels or ()]
+
+    widened, kin_source = dict(direct), {}
+    for label in labels:
+        if not label or label in widened or label in self_ambiguous:
+            continue
+        tokens = pid_tokens(label)
+        if len(tokens) != 1:
+            continue
+        found = by_token.get(next(iter(tokens)))
+        if found is None:
+            continue
+        _key, source, fields = found
+        if source == label:
+            continue
+        widened[label] = fields
+        kin_source[label] = source
+    return widened, kin_source
+
+
+def borrow_durable(entry, anchors, kin_source=None):
     """``(запись, пояснение)`` — запись как есть, либо её копия с личностью ИЗ ЖУРНАЛА.
 
     **Дефект, который это закрывает** (догфуд цикла #265). Шаг 0a мерил каждую запись в
@@ -324,7 +410,11 @@ def borrow_durable(entry, anchors):
     started = _parse_lstart(str(fields.get("session_pid_start") or ""))
     if ts is None or started is None or started > ts + CLOCK_SKEW:
         return entry, ""
-    return {**entry, **fields}, (f"личность взята из журнала по ярлыку {label!r} "
+    source = (kin_source or {}).get(label)
+    whose = (f"по ярлыку {label!r}" if source is None else
+             f"по РОДСТВЕННОМУ ярлыку {source!r} той же сессии (у {label!r} якоря нет "
+             f"по построению: `record` не ставит его на переданный флагом ярлык)")
+    return {**entry, **fields}, (f"личность взята из журнала {whose} "
                                  f"(pid{fields.get('session_pid')}, старт "
                                  f"{fields.get('session_pid_start')}): в самой записи её нет")
 
@@ -573,13 +663,63 @@ def read_reap_ledger(root):
     return rows, (f"битых строк в журнале снятых деревьев: {bad}" if bad else None)
 
 
+def churn_rule():
+    """(предикат «уборщик отсеивает этот путь как рабочее состояние», причина-если-не-прочитан).
+
+    **Почему импортом, а не копией.** Правило отсева живёт в уборщике
+    (`reap_stale_worktrees.CHURN_PREFIXES` / `CHURN_PATHS`), и менять его будут там — вслед за
+    писателями, которые пачкают дерево. Своя копия правила здесь разошлась бы МОЛЧА, а от
+    точности этого предиката зависит вердикт «поднимать нечего»: путь, отсеянный уборщиком,
+    в квитанцию не попадает, даже если он в дереве лежал. Тот же приём, которым #234 перенёс
+    `main_worktree` в уборщик, — импорт в обратную сторону.
+
+    Импорт ЛЕНИВЫЙ намеренно: уборщик импортирует этот модуль на верхнем уровне, и встречный
+    импорт на верхнем уровне замкнул бы кольцо. К моменту вызова оба модуля уже загружены.
+
+    ``None`` — правило прочитать не удалось: вердикта не будет (fail-CLOSED, класс #226 —
+    fail-OPEN внутри fail-CLOSED-сторожа)."""
+    import sys
+    scripts_dir = str(Path(__file__).resolve().parent)
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+    try:
+        from reap_stale_worktrees import CHURN_PATHS, CHURN_PREFIXES
+    except Exception as exc:                   # noqa: BLE001 — «не прочитано» это тоже измерение
+        return None, ("правило отсева уборщика (churn) прочитать не удалось "
+                      f"({type(exc).__name__}: {exc}) — попал бы путь в квитанцию или нет, "
+                      "НЕ ИЗМЕРЕНО")
+    return (lambda rel: rel.startswith(tuple(CHURN_PREFIXES)) or rel in CHURN_PATHS), None
+
+
 def reaped_state(path_str, ledger, root, base_ref, git=_git):
     """(вердикт, объяснение) для объявленного пути внутри СНЯТОГО дерева, либо (None, None).
 
-    Вердикты: ``delivered`` — снятие было измерено и работа объяснена; ``absent`` — путь в
-    квитанции не назван, а на базе такого файла нет вовсе (это находка, а не тишина);
-    ``unmeasured`` — квитанция называет путь недоставленным (снятия такого дерева быть не
-    должно, но если оно случилось — молчать нельзя)."""
+    Вердикты: ``delivered`` — снятие было измерено и работа объяснена; ``nowhere`` — путь в
+    квитанции не назван и на базе его нет вовсе, то есть в дереве его на момент снятия НЕ БЫЛО
+    (поднимать нечего); ``absent`` — то же самое, но вывод сделать НЕЛЬЗЯ (см. ниже), и находка
+    остаётся; ``unmeasured`` — квитанция называет путь недоставленным (снятия такого дерева быть
+    не должно, но если оно случилось — молчать нельзя).
+
+    **Почему «нет в квитанции» — это вывод, а не пустота (цикл #292).** Квитанция снятия
+    перечисляет КАЖДЫЙ путь, которым дерево расходилось с базой, и составляется она ТОГДА, когда
+    дерево ещё существует. Путь, которого в ней нет, с базой не расходился; если вдобавок на базе
+    такого файла нет вовсе — в дереве его не было. Улики модуль печатал и раньше, не хватало
+    ровно вердикта: находка проваливалась в «НЕ ДОСТАВЛЕНО» по умолчанию, и раздел набивался
+    осадком — тем самым, которым сторожа глохнут (#243 сбивал его с 42 до 4).
+    Это НЕ новое допущение: на том же «нет в квитанции ⇒ не расходился» уже держится ветка
+    `delivered` ниже (замер по журналу 18.08 — 741 путь).
+
+    **Две границы, и обе fail-CLOSED, а не «на всякий случай».** Уборщик отсеивает из квитанции
+    churn-пути (`data/`, три именованные фикстуры) — такой путь в неё не попал бы, даже если бы
+    в дереве лежал, поэтому вывода о нём нет: остаётся находка. И если путь в истории базы
+    ВСТРЕЧАЛСЯ, «нигде» ложно: это удаление/переименование на origin, тоже находка со своей
+    причиной. Обе ветки измеряются, а не предполагаются.
+
+    **Что этой веткой НЕ измеряется — названо, а не умолчано.** Уборщик собирает работу как
+    пересечение «изменено в дереве» и «расходится с базой», поэтому файл, ЗАКОММИЧЕННЫЙ в
+    дереве локально, в квитанцию не попадает. Такое дерево уборщик снимет и без этой правки —
+    дефект принадлежит уборщику, а не вердикту здесь (карточка
+    `inbox-uborschik-snimaet-derevo-s-lokalnym-komm`)."""
     p = Path(str(path_str))
     if not p.is_absolute():
         return None, None
@@ -600,8 +740,28 @@ def reaped_state(path_str, ledger, root, base_ref, git=_git):
                                 "снятие такого дерева правилом не предусмотрено")
         rc, _, _ = git(root, "cat-file", "-e", f"{base_ref}:{rel}")
         if rc != 0:
-            return ABSENT, (f"{where}, путь в квитанции не назван, и на {base_ref} такого "
-                            f"файла нет вовсе")
+            head = (f"{where}, путь в квитанции не назван, и на {base_ref} такого файла "
+                    "нет вовсе")
+            is_churn, why_churn = churn_rule()
+            if is_churn is None:
+                return ABSENT, f"{head}; {why_churn}"
+            if is_churn(rel):
+                return ABSENT, (f"{head} — НО под правило отсева уборщика (churn) этот путь "
+                                "подпадает, и в квитанцию он не попал бы, даже если бы лежал "
+                                "в дереве: был он там или нет, НЕ ИЗМЕРЕНО")
+            hist = origin_blob_history(root, base_ref, rel, git=git)
+            if hist is None:
+                return ABSENT, (f"{head}; историю {base_ref} по этому пути прочитать не "
+                                "удалось — существовало ли имя, НЕ ИЗМЕРЕНО")
+            if hist:
+                return ABSENT, (f"{head}, но в истории {base_ref} путь встречался "
+                                f"({len(hist)} версий) — это удаление/переименование на "
+                                "origin, а не пропажа объявленной работы")
+            return NOWHERE, (f"{head}. Квитанция перечисляет КАЖДЫЙ расходившийся с базой путь "
+                             "дерева и составлена ДО снятия; под правило отсева (churn) путь не "
+                             "подпадает, в истории базы не встречался ни разу — значит в дереве "
+                             "его на момент снятия НЕ БЫЛО. ПОДНИМАТЬ НЕЧЕГО: имя объявлено "
+                             "авансом, файла под ним не появилось")
         return DELIVERED, (f"{where}; путь при снятии не расходился с {base_ref} "
                            "(правки в дереве не было)")
     return None, None
@@ -1305,12 +1465,13 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
     unmeasured.extend(cu)
 
     # Личность сессии, которой нет в самой записи, но которая есть в журнале под тем же
-    # ярлыком (см. `borrow_durable`). Строится ОДИН раз по тем же записям, что и отчёт:
-    # шире окна чтения инструмент не смотрит и здесь.
-    anchors = durable_by_session(entries)
+    # ЛИБО родственным ярлыком той же сессии (см. `borrow_durable` / `anchors_with_kin`).
+    # Строится ОДИН раз по тем же записям, что и отчёт: шире окна чтения инструмент не
+    # смотрит и здесь.
+    anchors, kin = anchors_with_kin(entries)
 
     for entry in entries:
-        entry, borrowed = borrow_durable(entry, anchors)
+        entry, borrowed = borrow_durable(entry, anchors, kin)
         state, why = session_state(entry, self_session, ps=ps,
                                    self_session_trusted=self_session_trusted)
         if borrowed:
@@ -1357,6 +1518,24 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                                    "reason": detail})
                     continue
                 if st is not None:
+                    if st == NOWHERE:
+                        # Улики квитанции складываются в ВЕРДИКТ, а не в раздел «НЕ ДОСТАВЛЕНО».
+                        # Код возврата тот же (`nowhere` держит 1, см. exit_code): меняется
+                        # место в отчёте и вывод, а не видимость находки.
+                        key = (str(raw), NOWHERE)
+                        if key in seen:
+                            nowhere[seen[key]]["also_declared_by"].append(entry.get("session"))
+                            continue
+                        seen[key] = len(nowhere)
+                        nowhere.append({"session": entry.get("session"), "ts": entry.get("ts"),
+                                        "path": str(raw), "state": NOWHERE, "detail": detail,
+                                        "session_state": why, "within_grace": within_grace,
+                                        "summary": (entry.get("summary") or "")[:160],
+                                        "delivered_instead": delivered_by_session(
+                                            entry.get("session"), entries, root, base_ref,
+                                            git=git, diff_sets=diff_sets),
+                                        "also_declared_by": []})
+                        continue
                     if st == ABSENT:
                         findings.append({"session": entry.get("session"), "ts": entry.get("ts"),
                                          "path": str(raw), "state": ABSENT, "detail": detail,

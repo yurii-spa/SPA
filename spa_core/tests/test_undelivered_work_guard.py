@@ -946,14 +946,29 @@ class TestReapedTreeCarriesItsMeasurement:
         assert rep["exit_code"] == 2
         assert "'unique'" in rep["unmeasured"][0]["reason"]
 
-    def test_path_absent_from_ledger_and_from_base_is_a_finding(self, guard, repo, tmp_path):
-        """Файл, которого нет ни в квитанции, ни на базе, — потерянная работа, а не тишина."""
+    def test_path_absent_from_ledger_and_from_base_stays_visible_as_a_verdict(self, guard, repo,
+                                                                              tmp_path):
+        """Файл, которого нет ни в квитанции, ни на базе, — НЕ тишина. Но и не «потеря».
+
+        **Намеренная правка теста (цикл #292, инв. #16 — обоснование здесь и в журнале
+        `docs/journal/2026-W34.md`).** Тест закреплял ВЕРДИКТ `absent` («не доставлено»), и
+        именно этот вердикт карточка `inbox-shag-0a-u-snyatogo-dereva-kvitantsiya-uz` назвала
+        неверным: квитанция снятия перечисляет каждый расходившийся с базой путь и составлена
+        ДО снятия, значит путь, которого в ней нет и которого нет на базе, в дереве не
+        существовал. Замер 18.08: обе записи раздела «НЕ ДОСТАВЛЕНО» (2 из 2) были этого класса.
+
+        Ослабления нет, и проверка здесь СТАЛА СТРОЖЕ, а не мягче: к прежнему утверждению
+        «код возврата 1» добавлены «находка не исчезла» и «вердикт назван». Полный разбор
+        границ (churn · история базы · нечитаемое правило) — `test_undelivered_reaped_receipt.py`,
+        там же обратные контроли."""
         wt = tmp_path / "spa_wt_c191"
         self._ledger(repo, [{"ts": "2026-08-14T16:00:00Z", "worktree": str(wt), "base": "base",
                              "archive": "/arch/x", "paths": {"docs/STATE.md": "delivered"}}])
         rep = report(guard, repo, [entry("pid31439", [wt / "scripts" / "brand_new.py"])])
-        assert rep["exit_code"] == 1
-        assert rep["findings"][0]["state"] == guard.ABSENT
+        assert rep["exit_code"] == 1                      # видимость находки НЕ изменилась
+        assert rep["findings"] == []
+        assert [n["state"] for n in rep["nowhere"]] == [guard.NOWHERE]
+        assert "в дереве его на момент снятия НЕ БЫЛО" in rep["nowhere"][0]["detail"]
 
     def test_path_absent_from_ledger_but_present_on_base_is_explained(self, guard, repo, tmp_path):
         """В квитанции только расходившиеся пути: объявленный, но не тронутый файл терять нечем."""

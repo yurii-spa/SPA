@@ -68,7 +68,6 @@
     "optimizer_ab": "текст ошибки: spa_core/api/routers/optimizer.py:67 советует «Run scripts/optimizer_ab.py», когда артефакта нет",
     "ots_anchor": "однофамилец: spa_core/audit/ots_anchor.py упоминал сам себя",
     "perf_budget": "подстрочная коллизия: имя целиком лежит внутри scripts/dfb_perf_budget.py",
-    "reap_stale_worktrees": "докстринг: разбор в шапке scripts/check_undelivered_work.py",
     "run_stress_tests": "докстринг: spa_core/stress/stress_engine.py («atomic writes … run_stress_tests.py»)",
     "smoke_test_flagship": "докстринг: шапка scripts/smoke.py («в отличие от …»)",
     "verify_dfb_pool": "текст пояснения в ответе API: spa_core/api/routers/dfb.py:621 предлагает третьей стороне перепроверить самой",
