@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent-task
 title: Прогон тестов пачкает git-tracked фикстуры — «чистое дерево» перестало быть сигналом
-status: backlog
+status: in-progress
 priority: medium
 source: session-2026-08-04-cycle114
 created: 2026-08-04
