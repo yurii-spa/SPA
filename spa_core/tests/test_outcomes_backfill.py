@@ -276,8 +276,9 @@ class HonestyOfBackfilledFields(unittest.TestCase):
             line = next(r for r in oa.load_outcomes(tmp) if r["date"] == "2026-08-07")
         self.assertIsNone(line["positions"])
         self.assertIsNone(line["cash_usd"])
-        self.assertIn("не приписываем", line["sources"]["positions"])
-        self.assertIn("не восстановимы", line["sources"]["backfill"])
+        self.assertIn("баре", line["sources"]["positions"])
+        self.assertNotIn("current_positions", line["sources"]["positions"])
+        self.assertIn("книга: НЕ восстановлена", line["sources"]["backfill"])
 
 
 class WhatBackfillMustNotDo(unittest.TestCase):
