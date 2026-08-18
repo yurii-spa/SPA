@@ -238,6 +238,51 @@ class TestScanIsNotBlind(unittest.TestCase):
             [s for s in pollers._code_string_constants(tree) if "getUpdates" in s],
             ["getUpdates"])
 
+    def test_a_catalogue_entry_is_not_a_reader(self):
+        """ЧЕТВЁРТАЯ форма упоминания, найдена падением прогона 18.08.
+
+        `spa_core/monitoring/data_git_policy.py` — каталог файлов `data/**` с
+        классом риска отката: имя смещения стоит КЛЮЧОМ словаря, слово
+        `getUpdates` — в прозе описания. Каталог ничего не читает, он описывает
+        чужую работу, а разбор видел ровно те же литералы, что у поллера, и
+        объявлял второго претендента на токен.
+        """
+        src = (
+            "_RISK = {\n"
+            '    "data/tg_bot_v2_offset.json": (\n'
+            '        "H-REPLAY",\n'
+            '        "offset getUpdates Telegram (telegram/bot.py:69) — откат '
+            'заставит бота заново обработать команды",\n'
+            "    ),\n"
+            "}\n"
+        )
+        tree = ast.parse(src)
+        got = list(pollers._code_string_constants(tree))
+        self.assertEqual(
+            [s for s in got if "getUpdates" in s], [],
+            "проза каталога засчитана за вызов Bot API")
+        self.assertEqual(
+            [s for s in got if "offset" in s and s.endswith(".json")], [],
+            "ключ каталога засчитан за СВОЁ смещение — это и есть ложный "
+            "второй читатель очереди")
+
+    def test_a_module_that_both_describes_and_reads_is_still_caught(self):
+        """Сужение — per-occurrence, а не индульгенция всему файлу.
+
+        Иначе достаточно было бы завести в новом поллере один словарь-справочник,
+        чтобы сторож замолчал про него целиком.
+        """
+        src = (
+            '_RISK = {"data/tg_bot_v2_offset.json": ("H-REPLAY", "offset getUpdates")}\n'
+            '_MINE = "data/my_own_offset.json"\n'
+            '_api_call("getUpdates", {"timeout": 30})\n'
+        )
+        tree = ast.parse(src)
+        got = list(pollers._code_string_constants(tree))
+        self.assertIn("getUpdates", got, "настоящий вызов пропал вместе с каталогом")
+        self.assertIn("data/my_own_offset.json", got,
+                      "настоящее собственное смещение пропало вместе с каталогом")
+
 
 class TestEveryDoorHasAnOwner(unittest.TestCase):
     """Дверь в чат владельца, которую никто не зовёт, — заряженное ружьё."""

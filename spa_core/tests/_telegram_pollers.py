@@ -86,8 +86,42 @@ def _docstring_nodes(tree: ast.AST) -> Set[int]:
     return out
 
 
+def _catalogue_nodes(tree: ast.AST) -> Set[int]:
+    """id() строк, лежащих ВНУТРИ словаря-справочника: ключ или его описание.
+
+    Четвёртая форма «упоминания» после докстринга, голой строки и комментария —
+    и найдена она не рассуждением, а падением прогона 18.08. Модуль
+    `spa_core/monitoring/data_git_policy.py` (заведён 07600ccac тем же днём) —
+    КАТАЛОГ файлов `data/**` с классом риска отката: ключ
+    ``"data/tg_bot_v2_offset.json"``, значение — кортеж («H-REPLAY», проза, в
+    которой сказано слово ``getUpdates``). Каталог не читает очередь и не хранит
+    смещение: он ОПИСЫВАЕТ, что делает с ними бот. Разбор же видел ровно те же
+    литералы, что у настоящего поллера, и объявлял второго претендента на токен.
+
+    Цена ложной тревоги здесь выше обычного: этот сторож существует, чтобы
+    поймать ВТОРОЙ `getUpdates` на одном токене (авария #185, нажатия владельца
+    теряются). Сторож, который краснеет на каталоге, приучает гасить себя — и
+    настоящий второй поллер проедет следующим.
+
+    Сужение per-occurrence, а не per-module: тот же литерал в вызове или
+    присваивании в ТОМ ЖЕ файле по-прежнему считается действием. Модуль,
+    который и описывает, и читает, остаётся пойманным.
+    """
+    out: Set[int] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Dict):
+            continue
+        for part in list(node.keys) + list(node.values):
+            if part is None:
+                continue
+            for inner in ast.walk(part):
+                if isinstance(inner, ast.Constant) and isinstance(inner.value, str):
+                    out.add(id(inner))
+    return out
+
+
 def _code_string_constants(tree: ast.AST):
-    skip = _docstring_nodes(tree)
+    skip = _docstring_nodes(tree) | _catalogue_nodes(tree)
     for node in ast.walk(tree):
         if isinstance(node, ast.Constant) and isinstance(node.value, str) \
                 and id(node) not in skip:

@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-18T21:28:05Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-18T22:57:53Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **533** · ждёт владельца: **23** · занято сессиями: **3**.
+> Всего карточек: **535** · ждёт владельца: **24** · занято сессиями: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -12,6 +12,7 @@
 - **Дозаписать ли книгу за 12 прошлых дней трека — или оставить дыры как есть** · _medium_  ·  `own-2026-08-18-dozapisat-li-knigu-za-12-proshlyh-dnei.md`
 - **Два источника доходности опознают пул по-разному — и денежный путь ходит в тот, у которого проверки нет** · _high_  ·  `own-2026-08-18-dva-proizvoditelya-apy-opoznayut-pul-po-raznomu.md`
 - **Потолок концентрации не видит общего куратора — половина книги может лечь под одну команду** · _medium_  ·  `own-2026-08-18-potolok-ne-vidit-obshchego-kuratora.md`
+- **Просадка в отчёте — это шов двух симуляций, а не рыночное событие** · _medium_  ·  `own-2026-08-18-prosadka-v-otchete-eto-shov-dvuh-simulyatsii.md`
 - **Подборщик раскладки И САМ АЛЛОКАТОР не знают про потолки по сетям — предлагают то, что гейт заворачивает** · _medium_  ·  `own-2026-08-18-tyuner-ne-znaet-o-setevykh-potolkakh.md`
 - **У ребалансера свой запас строже политики — оставляем или снимаем** · _medium_  ·  `own-2026-08-18-zapas-rebalansera-strozhe-politiki.md`
 - **Автопочинщик кода остался без вызывающих: убрать совсем или оставить лежать**  ·  `own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih.md`
@@ -40,13 +41,14 @@
 - **а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…** — держит `pid43119` · с 2026-08-14T11:52:34Z  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md`
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (140)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (141)
 
 ### · needs-owner
 - Аварийная книга раздаёт деньги мимо проверок свежести — цена закрытия дыры $75.9K в кэш  ·  `own-2026-08-18-avariinaya-kniga-idet-mimo-geitov-svezhesti.md` · 2026-08-18
 - Дозаписать ли книгу за 12 прошлых дней трека — или оставить дыры как есть  ·  `own-2026-08-18-dozapisat-li-knigu-za-12-proshlyh-dnei.md` · 2026-08-18
 - Два источника доходности опознают пул по-разному — и денежный путь ходит в тот, у которого проверки нет  ·  `own-2026-08-18-dva-proizvoditelya-apy-opoznayut-pul-po-raznomu.md` · 2026-08-18
 - Потолок концентрации не видит общего куратора — половина книги может лечь под одну команду  ·  `own-2026-08-18-potolok-ne-vidit-obshchego-kuratora.md` · 2026-08-18
+- Просадка в отчёте — это шов двух симуляций, а не рыночное событие  ·  `own-2026-08-18-prosadka-v-otchete-eto-shov-dvuh-simulyatsii.md` · 2026-08-18
 - Подборщик раскладки И САМ АЛЛОКАТОР не знают про потолки по сетям — предлагают то, что гейт заворачивает  ·  `own-2026-08-18-tyuner-ne-znaet-o-setevykh-potolkakh.md` · 2026-08-18
 - У ребалансера свой запас строже политики — оставляем или снимаем  ·  `own-2026-08-18-zapas-rebalansera-strozhe-politiki.md` · 2026-08-18
 - Автопочинщик кода остался без вызывающих: убрать совсем или оставить лежать  ·  `own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih.md` · 2026-08-17
@@ -186,7 +188,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (229)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (230)
 
 ### · blocked
 - Конституция противоречит принятому ADR: инвариант 10 «Sky/sUSDS = 0%» отменён ADR-065, но написан как действующий  ·  `inbox-konstitutsiya-protivorechit-prinyatomu-a.md` · 2026-08-16
@@ -393,6 +395,7 @@
 - Записи журнала за 16 циклов стёрты — и восстановимы из git-истории (кран #139 закрыл, лужу нет)  ·  `inbox-zapisi-zhurnala-za-16-tsiklov-sterty-i-v.md` · 2026-08-07
 - Журнал циклов молча теряет записи при конкурентной доставке — за неделю пропало 9 (восстановлены)  ·  `inbox-zhurnal-tsiklov-molcha-teryaet-zapisi-pr.md` · 2026-08-06
 ### · new
+- 182 модуля аналитики пишут по относительному пути — прошлый заход этот класс видеть не мог  ·  `inbox-182-modulya-analitiki-pishut-po-otnositelnomu-puti.md` · 2026-08-18
 - 3 трека параллельно: Conservative + Balanced + Aggressive (мандат владельца)  ·  `inbox-3-treka-parallelno-conservative-balanced.md` · 2026-08-08
 - ADR-070.12: BTS честный порог, затем включить TG  ·  `inbox-adr-070-12-bts-chestnyi-porog-zatem-vkly.md` · 2026-08-07
 - ADR-070.14: governance watchlist = наш вайтлист  ·  `inbox-adr-070-14-governance-watchlist-nash-vai.md` · 2026-08-07
@@ -432,11 +435,11 @@
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
 - Чистка репо (мёртвый код) фазами  ·  `agent-cleanup.md` · 2026-07-16
+- Прогон тестов пачкает git-tracked фикстуры — «чистое дерево» перестало быть сигналом  ·  `agent-test-run-dirties-tracked-fixtures.md` · 2026-08-04
 ### · backlog
 - Долгоживущие агенты крутят код многонедельной давности — перезапустить (полномочие ADR-078)  ·  `agent-dolgozhivuschie-agenty-krutyat-staryi-kod.md` · 2026-08-09
 - Осиротевшая работа вернулась после закрытия своей карточки — циклы #97 и #98 умерли не доставив, второй прямо на подъёме работы первого  ·  `agent-orphaned-work-recurred-after-its-card-was-closed.md` · 2026-08-03
 - Права на origin нечем починить: пушер по построению сохраняет режим remote, а правило требует чинить режим на origin  ·  `agent-task-prava-na-origin-nechem-pochinit-pusher-p.md` · 2026-08-07
-- Прогон тестов пачкает git-tracked фикстуры — «чистое дерево» перестало быть сигналом  ·  `agent-test-run-dirties-tracked-fixtures.md` · 2026-08-04
 - 20 модулей Tier-B помечены `unsourced` — поднять их обратно можно только источником, не правкой разметки  ·  `agent-tier-b-20-unsourced-modules-need-sources.md` · 2026-08-06
 - Разбор базы храповика: 24 скрипта не упомянуты НИГДЕ — и это не значит «мусор»  ·  `agent-unwired-baseline-triage.md` · 2026-08-09
 ### · done
