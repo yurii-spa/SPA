@@ -250,6 +250,34 @@ RESILIENCE_STALE_H = 13.0
 # nobody re-ran the parity check (advisory WARNING, not money-path).
 FLEET_PARITY_STALE_H = 26.0
 
+# Допуск на расхождение часов между писателем отметки и нами. Полчаса — не
+# «немножко будущего», а порог, за которым это уже не дрейф часов: артефакты
+# пишет тот же Mac, а отметка, опередившая нас сильнее, приходит из испорченных
+# часов, чужого часового пояса или выдуманной даты. Значение то же, каким с
+# цикла #290 судит `judge_lock_refusal`, и теперь оно ОДНО на обоих читателей:
+# две копии этого числа разошлись бы молча.
+CLOCK_SKEW_H = 0.5
+
+
+def _is_future(hours: Optional[float]) -> bool:
+    """Отметка ВПЕРЕДИ наших часов больше, чем на допуск?
+
+    Отдельный предикат, а не сравнение по месту: вопрос «свежо ли» и вопрос
+    «можно ли этой отметке верить» — разные, и второй обязан звучать одинаково
+    у всех четырёх проверок.
+    """
+    return hours is not None and hours < -CLOCK_SKEW_H
+
+
+def _future_words(what: str, hours: float) -> str:
+    """Одна формулировка находки «отметка из будущего» на все проверки.
+
+    Строка стабильна (её дедупит ``should_alert``) и НАЗЫВАЕТ незнание: свежесть
+    не «в порядке» и не «протухла» — она НЕ ИЗМЕРЕНА, потому что мерить нечем.
+    """
+    return (f"{what} stamp {-hours:.1f}h in the FUTURE — freshness NOT MEASURED "
+            "(clock skew / wrong timezone / fabricated date)")
+
 
 # ===========================================================================
 # Dataclasses
@@ -525,10 +553,23 @@ def _parse_iso(ts: Optional[str]) -> Optional[datetime]:
 
 
 def _hours_since(ts: Optional[str], now: datetime) -> Optional[float]:
+    """ЗНАКОВЫЙ возраст отметки в часах; ``None`` — отметку не удалось прочитать.
+
+    Раньше здесь стоял ``max(0.0, …)``, и отметка из БУДУЩЕГО читалась как
+    «только что»: испорченные часы гасили ровно тот сигнал, ради которого
+    проверка написана (fail-OPEN, карточка
+    `inbox-otmetka-iz-buduschego-chitaetsya-kak-tol`). Зажим снят здесь, ОДНИМ
+    местом, а «верить ли отметке» спрашивается отдельным предикатом
+    ``_is_future`` — иначе отрицательный возраст просто проскочил бы сравнение
+    «> порога» и молчание осталось бы прежним.
+
+    Знак наружу не течёт: у всех четырёх читателей отрицательный возраст
+    перехватывается ветвью «из будущего» ДО того, как попасть в ``%.1fч``.
+    """
     dt = _parse_iso(ts)
     if dt is None:
         return None
-    return max(0.0, (now - dt).total_seconds() / 3600.0)
+    return (now - dt).total_seconds() / 3600.0
 
 
 # ===========================================================================
@@ -597,19 +638,18 @@ def judge_lock_refusal(data_dir: Optional[Path], now: datetime,
         return LockRefusal(REFUSAL_UNCHECKED, None,
                            "отработал ли цикл — НЕ ИЗМЕРЕНО (дерево не названо)")
     ts = _cycle_last_run_ts(Path(data_dir))
-    # Возраст считается ЗНАКОВЫМ, а не через `_hours_since`: тот зажимает всё
-    # прошлое-из-будущего в 0.0, и отметка с испорченными часами прочиталась бы
-    # как «цикл только что отработал» — то есть погасила бы сигнал. Общий
-    # помощник намеренно не трогаю: его читают ещё четыре проверки, и это
-    # отдельная находка, а не попутная правка.
-    dt = _parse_iso(ts)
-    if dt is None:
+    # Возраст ЗНАКОВЫЙ. С цикла #291 таков и общий `_hours_since` (зажим в 0.0
+    # снят у всех четырёх его читателей — карточка
+    # `inbox-otmetka-iz-buduschego-chitaetsya-kak-tol`), поэтому обходить его
+    # больше незачем: считаем тем же помощником, а допуск на часы берём из
+    # общей константы — второй копии этого числа быть не должно.
+    h = _hours_since(ts, now)
+    if h is None:
         return LockRefusal(REFUSAL_UNCHECKED, None,
                            "отработал ли цикл — НЕ ИЗМЕРЕНО (артефакт цикла не прочитан)")
-    h = (now - dt).total_seconds() / 3600.0
     # Отметка из будущего — не доказательство, а испорченные часы: принять её за
     # «цикл только что отработал» значит погасить сигнал чужой поломкой.
-    if h < -0.5:
+    if _is_future(h):
         return LockRefusal(REFUSAL_UNCHECKED, round(h, 2),
                            f"отметка цикла в БУДУЩЕМ ({-h:.1f}ч) — считать её "
                            "доказательством нельзя")
@@ -854,7 +894,13 @@ def check_system(data_dir: Path, now: datetime,
                 ts = daily[-1].get("date")
         h = _hours_since(ts, now)
         checks["equity_last_update_h"] = round(h, 2) if h is not None else None
-        if h is not None and h > EQUITY_STALE_H:
+        if _is_future(h):
+            # Отметка трека впереди наших часов: молчать здесь = погасить
+            # CRITICAL о протухшем треке чужой поломкой часов. Строгость та же,
+            # что у ветви «протух»: скрыт ровно тот сигнал, который она держит.
+            issues.append(_future_words("equity_curve", h))
+            status = _worst(status, CRITICAL)
+        elif h is not None and h > EQUITY_STALE_H:
             issues.append(f"equity_curve stale {h:.1f}h (>{EQUITY_STALE_H:.0f}h)")
             status = _worst(status, CRITICAL)
 
@@ -865,7 +911,13 @@ def check_system(data_dir: Path, now: datetime,
     if ts is not None:
         h = _hours_since(ts, now)
         checks["cycle_freshness_h"] = round(h, 2) if h is not None else None
-        if h is not None and h > CYCLE_STALE_H:
+        if _is_future(h):
+            # То же для цикла — и ровно тот же вывод, к какому пришёл
+            # `judge_lock_refusal` (`REFUSAL_UNCHECKED`): отметка из будущего
+            # доказательством отработавшего цикла быть не может.
+            issues.append(_future_words("daily cycle", h))
+            status = _worst(status, CRITICAL)
+        elif h is not None and h > CYCLE_STALE_H:
             issues.append(f"daily cycle stale {h:.1f}h (>{CYCLE_STALE_H:.0f}h)")
             status = _worst(status, CRITICAL)
 
@@ -1000,7 +1052,12 @@ def check_system(data_dir: Path, now: datetime,
         checks["resilience_age_h"] = round(rh, 2) if rh is not None else None
         posture = (str(res.get("overall")).upper() if res.get("overall") else None)
         checks["resilience_posture"] = posture
-        if rh is not None and rh > RESILIENCE_STALE_H:
+        if _is_future(rh):
+            # Advisory, как и соседняя ветвь «протухло»: DR — не money-path.
+            # Но сказать надо: «свежо» и «мерить нечем» — разные ответы.
+            issues.append(_future_words("resilience posture", rh))
+            status = _worst(status, WARNING)
+        elif rh is not None and rh > RESILIENCE_STALE_H:
             issues.append(
                 f"resilience posture stale {rh:.1f}h (>{RESILIENCE_STALE_H:.0f}h) "
                 "— DR proof-chain not fresh"
@@ -1024,7 +1081,10 @@ def check_system(data_dir: Path, now: datetime,
         checks["fleet_parity_age_h"] = round(fh, 2) if fh is not None else None
         fp_status = str(fp.get("status")).upper() if fp.get("status") else None
         checks["fleet_parity_status"] = fp_status
-        if fh is not None and fh > FLEET_PARITY_STALE_H:
+        if _is_future(fh):
+            issues.append(_future_words("fleet parity", fh))
+            status = _worst(status, WARNING)
+        elif fh is not None and fh > FLEET_PARITY_STALE_H:
             issues.append(
                 f"fleet parity stale {fh:.1f}h (>{FLEET_PARITY_STALE_H:.0f}h) — drift guard not re-run"
             )

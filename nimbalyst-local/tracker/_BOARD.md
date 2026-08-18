@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **494** · ждёт владельца: **10** · занято сессиями: **5**.
+> Всего карточек: **495** · ждёт владельца: **10** · занято сессиями: **5**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -142,7 +142,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (221)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (222)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -227,6 +227,7 @@
 - Очередь теряет карточки: читать обе формы frontmatter + сторож (решение владельца 09.08)  ·  `inbox-ochered-teryaet-kartochki-chitat-obe-for.md` · 2026-08-09
 - Осиротевший сторож свежести кода агентов (цикл #177) — 1136 строк лежат в /tmp, не проверены  ·  `inbox-osirotevshii-storozh-svezhesti-koda-agentov.md` · 2026-08-09
 - Отказ замка цикла неотличим от аварии: last_exit=2 означает и 'защитил трек', и 'сломался'  ·  `inbox-otkaz-zamka-tsikla-neotlichim-ot-avarii.md` · 2026-08-08
+- Отметка из БУДУЩЕГО читается как «только что»: общий помощник свежести зажимает возраст в ноль  ·  `inbox-otmetka-iz-buduschego-chitaetsya-kak-tol.md` · 2026-08-18
 - Ответ владельца живёт только в хост-дереве: бот пишет туда, инжест пушит на origin, копии расходятся навсегда  ·  `inbox-otvet-vladeltsa-zhivet-tolko-v-host-dereve.md` · 2026-08-09
 - Owner-gate заводит дубль карточки на каждый заблокированный пуш одних и тех же файлов  ·  `inbox-owner-gate-zavodit-dubl-kartochki-na-kaz.md` · 2026-08-08
 - Понял, бери все в работу  ·  `inbox-ponyal-beri-vse-v-rabotu.md` · 2026-08-12
@@ -348,13 +349,13 @@
 - Находка петли: возможность fluid_fusdc 5.03% (evidence L3) доступна книге, не держитс  ·  `inbox-nahodka-petli-vozmozhnost-fluid-fusdc-5.md` · 2026-08-13
 - Окно до 6 часов: ответ владельца между нажатием кнопки и прогоном моста живёт в одном экземпляре  ·  `inbox-okno-do-6-chasov-otvet-vladeltsa-mezhdu.md` · 2026-08-15
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08
-- Отметка из БУДУЩЕГО читается как «только что»: общий помощник свежести зажимает возраст в ноль  ·  `inbox-otmetka-iz-buduschego-chitaetsya-kak-tol.md` · 2026-08-18
 - owner-gate краснеет на СВОЕЙ ежедневной автоматике: сдвиг снимка трека на один цент = owner-gated  ·  `inbox-owner-gate-krasneet-na-svoei-ezhednevnoi.md` · 2026-08-13
 - Оживить фиды вне Ethereum — путь к снятию остатка кэша (решение владельца 08.08)  ·  `inbox-ozhivit-fidy-vne-ethereum-put-k-snyatiyu.md` · 2026-08-08
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
 - Подготовить ADR: пересмотр лимита одной цепочки 90% (решение владельца — за ним)  ·  `inbox-podgotovit-adr-peresmotr-limita-odnoi-ts.md` · 2026-08-08
 - Сбалансированный трек: ноль профинансированных дней из 40 при 920 отработанных циклах  ·  `inbox-sbalansirovannyi-trek-nol-profinansirova.md` · 2026-08-08
 - Семь скриптов, вскрытых строгим сканером: разобрать поштучно (подключить / списать / вывести класс правилом)  ·  `inbox-sem-skriptov-vskrytyh-strogim-skanerom-r.md` · 2026-08-16
+- Шаг 0a: у СНЯТОГО дерева квитанция уже отвечает «файла не было», но вердикт всё равно «НЕ ДОСТАВЛЕНО»  ·  `inbox-shag-0a-u-snyatogo-dereva-kvitantsiya-uz.md` · 2026-08-18
 - Шесть тестов — это 15% стены всей приёмки, и стена уходит в ядро на создание потоков  ·  `inbox-shest-testov-eto-15-steny-vsei-priemki-i.md` · 2026-08-18
 - Скан кандидатов работает каждый цикл по реестру, которого никто не пишет: discovery не подключён ни одним агентом  ·  `inbox-skan-kandidatov-rabotaet-kazhdyi-tsikl-p.md` · 2026-08-18
 - Снять переходное послабление маячка: решения обязаны гейтиться СВОИМ умением  ·  `inbox-snyat-perehodnoe-poslablenie-mayachka-re.md` · 2026-08-17
