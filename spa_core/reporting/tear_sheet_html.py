@@ -53,11 +53,27 @@ class TearSheetGenerator:
     # ─── public API ───────────────────────────────────────────────────────────
 
     def generate(self, data_dir: str = "data",
-                 output_dir: str = "docs/reports") -> dict:
+                 output_dir: str = "docs/reports",
+                 summary_path: "str | Path | None" = None) -> dict:
         """Load backtest result, generate HTML tear sheet + JSON summary.
 
         Returns the JSON summary dict.  Never raises — all errors are captured
         in notes and the function always returns a valid dict.
+
+        ``summary_path`` — where the JSON summary is written.  ``None`` ⇒
+        ``<data_dir>/tear_sheet_summary.json``, i.e. exactly the path this method
+        hard-wired before 2026-08-18: the default behaviour, and what the
+        dashboard reads, is unchanged.
+
+        Why the parameter exists (card ``agent-test-run-dirties-tracked-fixtures``).
+        ``data_dir`` is an INPUT directory — backtest results, stress tests, the
+        equity curve are read from it — and this method also wrote one of its
+        OUTPUTS back into it.  ``output_dir`` was already injectable and the
+        tests already pointed it at a ``TemporaryDirectory``; the summary had no
+        such seam, so ``tests/test_tear_sheet.py::TestRealDataIntegration``, which
+        deliberately reads the real ``data/`` dir, overwrote the git-tracked
+        ``data/tear_sheet_summary.json`` on every run.  Read-path and write-path
+        are now separable without changing where production writes.
         """
         data_dir = Path(data_dir)
         output_dir = Path(output_dir)
@@ -92,7 +108,11 @@ class TearSheetGenerator:
         html_path = output_dir / "backtest_tearsheet.html"
         self._atomic_write_text(html_path, html)
 
-        json_path = data_dir / "tear_sheet_summary.json"
+        json_path = (
+            Path(summary_path) if summary_path is not None
+            else data_dir / "tear_sheet_summary.json"
+        )
+        json_path.parent.mkdir(parents=True, exist_ok=True)
         self._atomic_write_json(json_path, summary)
 
         return summary

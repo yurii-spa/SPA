@@ -48,7 +48,14 @@ import pytest
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 #: Каталоги, где живут трекаемые артефакты состояния. Именно их пачкал прогон.
-_WATCHED_DIRS = ("data", "spa_core/data", "spa_core/database")
+#:
+#: ``tests/fixtures`` добавлен 2026-08-18. Пробел был измеримый: ТРИ из шести
+#: путей в теле карточки — ``tests/fixtures/{golive_status,paper_evidence_7d,
+#: tournament_ranking_7d}.json`` — сторож не наблюдал вовсе. Сверка 17.08 честно
+#: показала, что они больше не мутируют, но показала это ``git status``-ом, а не
+#: сторожем: снимите увод — и сторож промолчит ровно про те файлы, ради которых
+#: карточка заведена. Проверка, не смотрящая на предмет задачи, — украшение.
+_WATCHED_DIRS = ("data", "spa_core/data", "spa_core/database", "tests/fixtures")
 
 #: Канареечный срез: файлы, ИЗМЕРЕННЫЕ как писатели 13 трекаемых путей
 #: (инструментированный прогон, обёртки вокруг open/os.replace/sqlite3.connect).
@@ -72,6 +79,27 @@ _CANARY = (
     "spa_core/tests/test_defi_impermanent_loss_hedging_analyzer.py",  # monkeypatch константы
     "spa_core/tests/test_protocol_insider_activity_monitor.py",       # ``log_file=None``
     "spa_core/tests/test_defi_protocol_depositor_concentration_analyzer.py",  # cfg-словарь
+    # ── Писатели ПЯТИ путей от корня ``tests/`` (уведены 2026-08-18). ─────────
+    # Цикл #275 их измерил, но не увёл: их писатели лежат не в аналитике, а в
+    # ``spa_core/risk/``, ``spa_core/monitoring/``, ``spa_core/reporting/`` и —
+    # отдельный класс — в ДОЧЕРНЕМ процессе CLI. Замер на неисправленном HEAD:
+    # эти четыре файла в чистом чекауте пачкают ровно пять трекаемых путей
+    # (``data/{hy_regime_log,market_regime,tear_sheet_summary,uptime_prev_state,
+    # uptime_status}.json``), и ни одного лишнего.
+    #
+    # Здесь они стоят потому, что сторож обязан краснеть на ОТКАТ починки:
+    # у каждого из четырёх свой механизм увода (параметр ``log_path``,
+    # ``summary_path``, ``--state-dir``, ``live_paths.sandboxed_default``), и
+    # сняв любой из них, прогон снова разойдётся по байтам.
+    "tests/test_hy_cycle.py",        # regime_gate.log_regime_change — писатель без шва
+    "tests/test_tear_sheet.py",      # выход писался во ВХОДНОЙ data_dir
+    "tests/test_uptime_monitor.py",  # монитор писал своё состояние во ВХОДНОЙ data_dir
+    "tests/test_market_regime.py",   # писатель в дочернем процессе: патчить нечего
+    # Единственный измеренный писатель ``tests/fixtures/*.json`` — сид, который
+    # до цикла #225 запускался без каталога назначения и переписывал три
+    # трекаемых файла из тела карточки. Починка там уже стоит; здесь она
+    # получает сторожа, которого у неё не было.
+    "tests/test_seed_fixtures.py",
 )
 
 
@@ -80,6 +108,36 @@ def _git(*args: str) -> str:
         ("git", "-C", str(_REPO_ROOT)) + args,
         capture_output=True, text=True, check=True,
     ).stdout
+
+
+def _already_dirty() -> set[Path]:
+    """Трекаемые файлы, УЖЕ изменённые относительно HEAD до нашего прогона.
+
+    Зачем (авария 2026-08-18, соседняя сессия). Этот сторож по построению
+    ВОЗВРАЩАЕТ БАЙТЫ: он снимает содержимое до дочернего прогона и переписывает
+    им всё, что разошлось. В одиночном дереве это аккуратность. В дереве, где
+    параллельно работают несколько агентов, это способ молча стереть чужую
+    незакоммиченную правку, попавшую в наше окно наблюдения, — ровно тот класс
+    потери работы, из-за которого правку пришлось делать заново.
+
+    Поэтому файл, который был грязным ДО прогона, мы не трогаем и не судим:
+    его изменил не прогон. Проверку это не ослабляет — в CI и в чистом чекауте
+    (единственные места, где вердикт сторожа что-то значит) множество пусто, и
+    поведение ровно прежнее; ослабить его этим нельзя, а стереть чужую работу
+    без него — можно.
+    """
+    try:
+        out = _git("status", "--porcelain", "-z", "--", *_WATCHED_DIRS)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        # Не смогли спросить git — считаем, что грязного нет, и ведём себя
+        # как раньше. Fail-safe в сторону прежнего поведения, не в сторону
+        # молчания сторожа.
+        return set()
+    dirty: set[Path] = set()
+    for record in out.split("\0"):
+        if len(record) > 3:
+            dirty.add(_REPO_ROOT / record[3:])
+    return dirty
 
 
 def _tracked_state_files() -> list[Path]:
@@ -132,6 +190,11 @@ def tracked_state_files():
         files = _tracked_state_files()
     except (subprocess.CalledProcessError, FileNotFoundError):
         pytest.skip("git недоступен в этом окружении")
+    # Чужая незакоммиченная работа исключается ЗДЕСЬ, один раз на все три теста:
+    # каждый из них пишет и возвращает байты, и ни один не имеет права трогать
+    # файл, который изменил не он (см. _already_dirty).
+    skip = _already_dirty()
+    files = [p for p in files if p not in skip]
     if not files:
         pytest.skip("в наблюдаемых каталогах нет трекаемых файлов (пустой чекаут)")
     return files
@@ -146,7 +209,8 @@ def test_canary_pytest_run_leaves_tracked_state_untouched(tracked_state_files):
     канареечный срез или в тот же веер (``run_cycle`` тянет за собой всю
     аналитику через ``signal_aggregator``), и байты разойдутся.
     """
-    before = _snapshot(tracked_state_files)
+    watched = tracked_state_files
+    before = _snapshot(watched)
 
     env = dict(os.environ)
     # Дочерний прогон обязан быть таким же, как обычный: никаких послаблений,
@@ -157,7 +221,7 @@ def test_canary_pytest_run_leaves_tracked_state_untouched(tracked_state_files):
         cwd=str(_REPO_ROOT), capture_output=True, text=True, env=env,
     )
 
-    after = _snapshot(tracked_state_files)
+    after = _snapshot(watched)
     changed = _diff(before, after)
     _restore(before, changed)
 
@@ -209,6 +273,37 @@ def test_positive_control_detector_sees_a_tracked_write(tracked_state_files):
     assert not _diff(before, _snapshot(tracked_state_files)), (
         "после восстановления расхождений быть не должно"
     )
+
+
+def test_already_dirty_files_are_excluded_from_the_watch(monkeypatch):
+    """Файл, изменённый ДО прогона, сторож не наблюдает и не восстанавливает.
+
+    Положительный контроль к аварии 2026-08-18: соседняя сессия «вернула к
+    исходному» файлы, запачканные прогоном, и вместе с ними снесла живую
+    незакоммиченную правку третьего агента. Механизм возврата здесь тот же,
+    поэтому свойство «чужое не трогаем» обязано быть проверяемым, а не
+    подразумеваемым.
+
+    Git не зовём по-настоящему: сделать дерево грязным ради теста — значит
+    воспроизвести ровно ту опасность, от которой тест защищает. Подменяем вывод
+    ``git status --porcelain -z`` и проверяем разбор.
+    """
+    victim = "data/somebody_elses_work.json"
+    monkeypatch.setattr(
+        sys.modules[__name__], "_git",
+        lambda *args: f" M {victim}\0?? data/untracked.json\0",
+    )
+
+    dirty = _already_dirty()
+
+    assert (_REPO_ROOT / victim) in dirty, (
+        "уже изменённый файл не опознан — сторож будет его восстанавливать "
+        "и затрёт чужую работу"
+    )
+    # И обратная сторона: пустой вывод git не должен исключать вообще ничего,
+    # иначе сторож замолчит про всё сразу.
+    monkeypatch.setattr(sys.modules[__name__], "_git", lambda *args: "")
+    assert _already_dirty() == set()
 
 
 def test_positive_control_detector_is_quiet_when_nothing_changes(tracked_state_files):

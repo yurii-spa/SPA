@@ -159,14 +159,32 @@ def evaluate_regime(
 def log_regime_change(
     regime_result: dict,
     previous_state: Optional[str] = None,
+    log_path: Optional[Path] = None,
 ) -> None:
     """
     Атомарно записывает изменение/подтверждение режима в hy_regime_log.json.
 
     Использует tmp + os.replace для атомарности (идиома проекта).
     Если файл повреждён — пересоздаёт с нуля (fail-safe).
+
+    ``log_path`` — куда писать. ``None`` ⇒ :data:`_REGIME_LOG`, то есть ровно тот
+    путь, что был зашит здесь до 2026-08-18: поведение по умолчанию НЕ меняется,
+    гейт остаётся детерминированным, ADR не требуется.
+
+    Зачем параметр (карточка ``agent-test-run-dirties-tracked-fixtures``, замер
+    18.08). ЧИТАТЕЛЬ этого лога — ``paper_trading/hy_cycle.py`` — путь уже
+    инъектирует (модульная константа ``_HY_REGIME_LOG_PATH``, и тесты её
+    подменяют на ``tmp_path``), а ПИСАТЕЛЬ резолвил свой путь сам, из
+    ``__file__``. Асимметрия «читатель уводится, писатель нет» и есть дефект:
+    ``tests/test_hy_cycle.py`` честно подменял константу, читал из ``tmp_path`` —
+    и при этом каждый прогон ``TestFailClosed`` / ``TestKillSwitch`` дописывал 12
+    записей в git-tracked ``data/hy_regime_log.json`` рабочего дерева.
+
+    Уводится путь ПАРАМЕТРОМ, а не признаком «мы под pytest»: это risk-домен,
+    где поведение обязано зависеть только от входов (LLM_FORBIDDEN, детерминизм),
+    и подмешивать сюда env-эвристику ``live_paths`` было бы изменением правил.
     """
-    log_path = _PROJECT_ROOT / "data" / "hy_regime_log.json"
+    log_path = Path(log_path) if log_path is not None else _REGIME_LOG
 
     # Читаем существующий лог (или начинаем с нуля)
     try:

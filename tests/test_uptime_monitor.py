@@ -206,14 +206,23 @@ def test_main_returns_one_on_internal_failure(monkeypatch):
     assert um.main(argv=[]) == 1
 
 
-def test_main_smoke_real_run(monkeypatch):
+def test_main_smoke_real_run(monkeypatch, tmp_path):
     """End-to-end: main() against the real repo must return 0 and not raise.
 
     Runs against the LIVE repo, so it sees the real launchd fleet and — before
     2026-07-31 — fired real "agent down" pushes into the owner's Telegram on
     every run.  The sender is stubbed; the assertion below is unchanged, and
     the down-alert path itself is covered by the dedicated tests above.
+
+    ``--state-dir`` keeps every READ live (the fleet, the real data/ freshness
+    windows — that is what this smoke test is for) while the monitor's own two
+    output files land in tmp_path.  Without it this test rewrote git-tracked
+    data/uptime_status.json and data/uptime_prev_state.json on every run
+    (card agent-test-run-dirties-tracked-fixtures).
     """
     monkeypatch.setattr(um, "_send_agent_alert", lambda *a, **kw: False)
-    rc = um.main(argv=[])
+    rc = um.main(argv=["--state-dir", str(tmp_path)])
     assert rc == 0
+    # The seam must actually be used — otherwise this test silently goes back to
+    # writing into the tree the day someone drops the argument handling.
+    assert (tmp_path / um.UPTIME_STATUS_FILE).exists()

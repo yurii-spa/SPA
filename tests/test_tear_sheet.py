@@ -544,9 +544,14 @@ class TestRealDataIntegration:
         if not data_dir.exists():
             pytest.skip("project data/ dir not available in this environment")
         with tempfile.TemporaryDirectory() as tmpdir:
+            # data_dir is the REAL project data/ on purpose — that is what this
+            # test measures.  The summary, however, is an OUTPUT: writing it back
+            # into data/ dirtied the git-tracked data/tear_sheet_summary.json on
+            # every run (card agent-test-run-dirties-tracked-fixtures).
             summary = gen.generate(
                 data_dir=str(data_dir),
-                output_dir=str(Path(tmpdir) / "reports")
+                output_dir=str(Path(tmpdir) / "reports"),
+                summary_path=str(Path(tmpdir) / "tear_sheet_summary.json"),
             )
         assert isinstance(summary, dict)
         assert "best_strategy" in summary
@@ -561,7 +566,11 @@ class TestRealDataIntegration:
             pytest.skip("project data/ dir not available in this environment")
         with tempfile.TemporaryDirectory() as tmpdir:
             out_dir = Path(tmpdir) / "reports"
-            gen.generate(data_dir=str(data_dir), output_dir=str(out_dir))
+            gen.generate(
+                data_dir=str(data_dir),
+                output_dir=str(out_dir),
+                summary_path=str(Path(tmpdir) / "tear_sheet_summary.json"),
+            )
             html = (out_dir / "backtest_tearsheet.html").read_text(encoding="utf-8")
         required = [
             "Systematic Portfolio Allocator",

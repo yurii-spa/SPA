@@ -752,10 +752,30 @@ LAUNCHD_SERVICES = [
 def run_all_checks(
     data_dir: str | Path,
     repo_dir: str | Path,
+    state_dir: str | Path | None = None,
 ) -> dict[str, Any]:
     """
     Run all 4 uptime checks, write data/uptime_status.json atomically,
     and return the combined result.
+
+    ``state_dir`` — where this monitor's OWN two output files live
+    (``uptime_status.json`` and ``uptime_prev_state.json``).  ``None`` ⇒
+    ``data_dir``, i.e. exactly the behaviour that was hard-wired here before
+    2026-08-18; production is unchanged.
+
+    Why the seam exists (card ``agent-test-run-dirties-tracked-fixtures``).
+    ``data_dir`` is an INPUT directory for this monitor — ``check_cycle_freshness``
+    and the AGENT_OUTPUT_FILES freshness windows READ the live track out of it —
+    and the monitor also wrote its own state back into it.  ``test_main_smoke_real_run``
+    deliberately runs against the live repo (that is the point of the test: it must
+    see the real launchd fleet), so it had no way to keep the reads live while
+    keeping the writes out of the git-tracked tree, and dirtied
+    ``data/uptime_status.json`` + ``data/uptime_prev_state.json`` on every run.
+
+    Read and write of the previous-state file move TOGETHER (both take
+    ``state_dir``): splitting them would make the monitor compare a live previous
+    state against a sandboxed new one, i.e. judge a transition it then cannot
+    record — the read/write desync the analytics sandbox work already ruled out.
 
     Returns:
         {
@@ -771,6 +791,7 @@ def run_all_checks(
         }
     """
     data_dir = Path(data_dir)
+    state_dir = Path(state_dir) if state_dir is not None else data_dir
     ts_now = time.time()
 
     checks: dict[str, Any] = {}
@@ -821,8 +842,9 @@ def run_all_checks(
     }
 
     # Atomic write to data/uptime_status.json
-    out_file = data_dir / UPTIME_STATUS_FILE
-    tmp_file = data_dir / (UPTIME_STATUS_FILE + ".tmp")
+    state_dir.mkdir(parents=True, exist_ok=True)
+    out_file = state_dir / UPTIME_STATUS_FILE
+    tmp_file = state_dir / (UPTIME_STATUS_FILE + ".tmp")
     try:
         tmp_file.write_text(
             json.dumps(result, indent=2, ensure_ascii=False),
@@ -842,7 +864,7 @@ def run_all_checks(
     # Telegram down-alerts on running→down transitions (fail-safe, rate-limited).
     # Also persists the fresh running-state to data/uptime_prev_state.json.
     try:
-        _process_agent_alerts(data_dir, checks, now=ts_now)
+        _process_agent_alerts(state_dir, checks, now=ts_now)
     except Exception as exc:  # noqa: BLE001 — alerting must never break the monitor
         print(
             f"[uptime_monitor] WARNING: agent-alert processing failed: {exc}",
@@ -907,13 +929,26 @@ def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
     strict = "--strict" in args
 
+    # --state-dir DIR: redirect this monitor's OWN output files (uptime_status.json,
+    # uptime_prev_state.json) while every READ still comes from the live data/ dir.
+    # Added for test_main_smoke_real_run, which must exercise the real fleet without
+    # rewriting git-tracked state (card agent-test-run-dirties-tracked-fixtures).
+    # Absent ⇒ None ⇒ data_dir, i.e. production behaviour is unchanged.
+    state_dir: Path | None = None
+    if "--state-dir" in args:
+        idx = args.index("--state-dir")
+        if idx + 1 >= len(args):
+            print("[uptime_monitor] FATAL: --state-dir needs a directory", file=sys.stderr)
+            return 1
+        state_dir = Path(args[idx + 1])
+
     # Determine paths relative to this file's location
     here = Path(__file__).resolve()
     repo_dir = here.parent.parent.parent  # spa_core/monitoring/uptime_monitor.py → repo root
     data_dir = repo_dir / "data"
 
     try:
-        result = run_all_checks(data_dir=data_dir, repo_dir=repo_dir)
+        result = run_all_checks(data_dir=data_dir, repo_dir=repo_dir, state_dir=state_dir)
     except Exception as exc:  # noqa: BLE001 — only a real internal failure reaches here
         print(f"[uptime_monitor] FATAL: run_all_checks failed: {exc}", file=sys.stderr)
         return 1

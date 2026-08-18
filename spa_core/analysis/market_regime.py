@@ -30,6 +30,7 @@ import statistics
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import sandboxed_default
 
 
 # ---------------------------------------------------------------------------
@@ -81,11 +82,16 @@ class MarketRegimeDetector:
             If None, resolved automatically relative to this file:
             spa_core/analysis/market_regime.py → ../../data/
         """
+        _this = os.path.dirname(os.path.abspath(__file__))   # spa_core/analysis
+        _spa  = os.path.dirname(_this)                        # spa_core
+        _root = os.path.dirname(_spa)                         # project root
+        #: The tree's own default. Kept even when *data_dir* was given, so
+        #: save_to_cache() can tell "this is my default target" from "the caller
+        #: named this directory" without re-deriving it (see save_to_cache).
+        self._default_data_dir: str = os.path.join(_root, "data")
+
         if data_dir is None:
-            _this = os.path.dirname(os.path.abspath(__file__))   # spa_core/analysis
-            _spa  = os.path.dirname(_this)                        # spa_core
-            _root = os.path.dirname(_spa)                         # project root
-            self._data_dir: str = os.path.join(_root, "data")
+            self._data_dir: str = self._default_data_dir
         else:
             self._data_dir = os.path.abspath(data_dir)
 
@@ -251,9 +257,25 @@ class MarketRegimeDetector:
         Atomically write *result* to ``<data_dir>/market_regime.json``.
 
         Uses mkstemp + os.replace — safe under concurrent writers.
+
+        Only the module's OWN default target is sandboxed under a test run
+        (``live_paths.sandboxed_default``): a ``data_dir`` the caller named
+        itself passes straight through, which is what ``TestCachePersistence``
+        relies on when it writes to a ``TemporaryDirectory`` and reads back.
+
+        Why here and not in the test (card ``agent-test-run-dirties-tracked-fixtures``).
+        The measured writer of ``data/market_regime.json`` is the CLI running in a
+        CHILD process — ``tests/test_market_regime.py::TestCLI._run_cli`` spawns
+        ``python3 -m spa_core.analysis.market_regime`` with ``cwd=<repo root>``, so
+        there is no object in the test process whose path could be patched. The
+        child does inherit ``PYTEST_CURRENT_TEST``, which is the second signal
+        ``live_paths.under_test()`` reads, so the seam has to sit in the writer.
         """
-        os.makedirs(self._data_dir, exist_ok=True)
-        cache_path = os.path.join(self._data_dir, "market_regime.json")
+        cache_path = sandboxed_default(
+            os.path.join(self._data_dir, "market_regime.json"),
+            os.path.join(self._default_data_dir, "market_regime.json"),
+        )
+        os.makedirs(os.path.dirname(cache_path) or ".", exist_ok=True)
         atomic_save(result, str(cache_path))
     def load_from_adapter_status(self) -> Dict[str, float]:
         """
