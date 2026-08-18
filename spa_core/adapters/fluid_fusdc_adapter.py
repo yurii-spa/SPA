@@ -181,8 +181,19 @@ class FluidFUSDCAdapter(BaseAdapter):
         Читает adapter_status.json → fluid_fusdc.gsm_hours.
         При отсутствии поля считает gsm_hours = 0 → False.
 
-        GSM (Governance Security Module) gate защищает от governance exploits —
-        аналогичен правилу для Spark sUSDS в SPA.
+        ВНИМАНИЕ (карточка ``own-fluid-gsm-gate-chuzhoy-parametr``): порог 48 ч —
+        это GSM Pause Delay **Maker/Sky** (контракт ``DSPause``), параметр ЧУЖОГО
+        протокола. Fluid (Instadapp) управляется отдельно, и его собственная
+        задержка управления НИКОГДА не читалась — ни в коде, ни в данных её нет.
+        Поэтому поле ``gsm_hours`` для ``fluid_fusdc`` не заполняет никто
+        (``_GSM_INHERITS_SKY = ("spark_susds",)``, закреплено
+        ``test_gsm_hours_producer.py::test_fluid_does_not_inherit_another_protocols_parameter``),
+        и метод возвращает ``False`` ВСЕГДА. Следствие — гейт СТРОЖЕ, чем задуман:
+        Fluid закрыт для капитала безусловно (allocator: ``gsm_not_confirmed``).
+
+        НЕ подставлять сюда задержку Maker и не ставить «48» по умолчанию
+        (инвариант 10 и правило 16). Смена этого гейта двигает капитал ⇒ только
+        решением владельца по карточке выше.
         """
         return gsm_confirmed(self._read_status_block(), 48.0)
 
