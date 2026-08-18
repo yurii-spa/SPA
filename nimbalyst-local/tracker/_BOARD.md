@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-18T19:48:10Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-18T20:31:35Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **528** · ждёт владельца: **20** · занято сессиями: **3**.
+> Всего карточек: **529** · ждёт владельца: **21** · занято сессиями: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -26,6 +26,7 @@
 - **Шесть находок за день оказались ОДНОЙ болезнью: где наблюдения нет, система говорит «всё хорошо» вместо «не знаю»**  ·  `owner-decision-shest-nahodok-za-den-okazalis-odnoi-bole.md`
 - **Списать 180 фоновых модулей Tier-C или честно записать, что мы про них не знаем**  ·  `owner-decision-spisat-180-fonovyh-modulei-tier-c-ili-ch.md`
 - **Сторож сайта краснеет каждую ночь на длине трека — расширить дневной класс на одно поле?**  ·  `owner-decision-storozh-saita-krasneet-kazhduyu-noch-na.md`
+- **Вести опрос от полного реестра адаптеров? Замер: 27 проходных при пределе 8 — книга каждый цикл уходит в аварийную** · _high_  ·  `owner-decision-vesti-opros-ot-polnogo-reestra-adapterov.md`
 - **Внутридневная просадка: слепота теперь слышна — реши про мягкий тир, слепые покупки и порог тревоги**  ·  `owner-decision-vnutridnevnaya-prosadka-slepota-teper-sl.md`
 - **Закрытие вопроса владельца из рабочего дерева читается сторожем как «закрыли без владельца» — выбери, чем лечим**  ·  `owner-decision-zakrytie-voprosa-vladeltsa-iz-rabochego.md`
 
@@ -37,7 +38,7 @@
 - **а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…** — держит `pid43119` · с 2026-08-14T11:52:34Z  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md`
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (136)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (137)
 
 ### · needs-owner
 - Аварийная книга раздаёт деньги мимо проверок свежести — цена закрытия дыры $75.9K в кэш  ·  `own-2026-08-18-avariinaya-kniga-idet-mimo-geitov-svezhesti.md` · 2026-08-18
@@ -58,6 +59,7 @@
 - Шесть находок за день оказались ОДНОЙ болезнью: где наблюдения нет, система говорит «всё хорошо» вместо «не знаю»  ·  `owner-decision-shest-nahodok-za-den-okazalis-odnoi-bole.md` · 2026-08-18
 - Списать 180 фоновых модулей Tier-C или честно записать, что мы про них не знаем  ·  `owner-decision-spisat-180-fonovyh-modulei-tier-c-ili-ch.md` · 2026-08-17
 - Сторож сайта краснеет каждую ночь на длине трека — расширить дневной класс на одно поле?  ·  `owner-decision-storozh-saita-krasneet-kazhduyu-noch-na.md` · 2026-08-17
+- Вести опрос от полного реестра адаптеров? Замер: 27 проходных при пределе 8 — книга каждый цикл уходит в аварийную  ·  `owner-decision-vesti-opros-ot-polnogo-reestra-adapterov.md` · 2026-08-18
 - Внутридневная просадка: слепота теперь слышна — реши про мягкий тир, слепые покупки и порог тревоги  ·  `owner-decision-vnutridnevnaya-prosadka-slepota-teper-sl.md` · 2026-08-18
 - Закрытие вопроса владельца из рабочего дерева читается сторожем как «закрыли без владельца» — выбери, чем лечим  ·  `owner-decision-zakrytie-voprosa-vladeltsa-iz-rabochego.md` · 2026-08-17
 ### · ingested
@@ -184,6 +186,7 @@
 - Конституция противоречит принятому ADR: инвариант 10 «Sky/sUSDS = 0%» отменён ADR-065, но написан как действующий  ·  `inbox-konstitutsiya-protivorechit-prinyatomu-a.md` · 2026-08-16
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
+- ADR-070.17-18: frax удалить, notional_v3 вывести  ·  `inbox-adr-070-17-18-frax-udalit-notional-v3-vy.md` · 2026-08-07
 - Карточку моста закрыли руками — живая находка осиротела: мост считает её открытой и новую не заведёт  ·  `inbox-kartochku-mosta-zakryli-rukami-zhivaya-n.md` · 2026-08-17
 - owner-gate краснеет на СВОЕЙ ежедневной автоматике: сдвиг снимка трека на один цент = owner-gated  ·  `inbox-owner-gate-krasneet-na-svoei-ezhednevnoi.md` · 2026-08-13
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
@@ -384,7 +387,6 @@
 - 3 трека параллельно: Conservative + Balanced + Aggressive (мандат владельца)  ·  `inbox-3-treka-parallelno-conservative-balanced.md` · 2026-08-08
 - ADR-070.12: BTS честный порог, затем включить TG  ·  `inbox-adr-070-12-bts-chestnyi-porog-zatem-vkly.md` · 2026-08-07
 - ADR-070.14: governance watchlist = наш вайтлист  ·  `inbox-adr-070-14-governance-watchlist-nash-vai.md` · 2026-08-07
-- ADR-070.17-18: frax удалить, notional_v3 вывести  ·  `inbox-adr-070-17-18-frax-udalit-notional-v3-vy.md` · 2026-08-07
 - ADR-070.20: CLMM research + хедж-форма (ADR risk-слоя)  ·  `inbox-adr-070-20-clmm-research-hedzh-forma-adr.md` · 2026-08-07
 - ADR-070.5: перенести 3 гарантии дубля в живой мост  ·  `inbox-adr-070-5-perenesti-3-garantii-dublya-v.md` · 2026-08-07
 - ADR-072 не сработал: трим происходит в АЛЛОКАТОРЕ, не в гейте — кэш всё ещё 25%  ·  `inbox-adr-072-ne-srabotal-trim-proishodit-v-al.md` · 2026-08-08

@@ -232,7 +232,8 @@ class PaperDay1Checklist:
         Рядом живут три разных набора, и вопрос «сколько у нас адаптеров» имеет три
         разных честных ответа:
 
-          * ``spa_core.adapters.ADAPTER_REGISTRY``  — 36, список кортежей: ВСЕЛЕННАЯ
+          * ``spa_core.adapters.ADAPTER_REGISTRY``  — 35 (36 до ADR-070 п.17,
+            снявшего дубль `frax`), список кортежей: ВСЕЛЕННАЯ
             ВЫБОРА аллокатора, ключ крупнейшей позиции книги ``aave_v3``;
           * ``spa_core.adapters.registry.ADAPTER_METADATA`` — 22, dict метаданных;
             ``aave_v3`` там НЕТ вовсе (она называется ``aave_usdc``);

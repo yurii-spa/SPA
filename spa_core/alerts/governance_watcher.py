@@ -260,7 +260,8 @@ def whitelisted_protocol_keys() -> Optional[list[str]]:
     (``spa_core.adapters.ADAPTER_REGISTRY``) rather than duplicated here — a
     second hand-maintained list is exactly the drift that produced this bug.
 
-    SET CHOICE IS DELIBERATE: the canonical ``ADAPTER_REGISTRY`` (36 tuples,
+    SET CHOICE IS DELIBERATE: the canonical ``ADAPTER_REGISTRY`` (35 tuples — 36
+    until ADR-070 §17 removed the `frax` duplicate,
     largest book position keyed ``aave_v3``) — the allocator's universe of
     choice.  NOT ``spa_core.adapters.registry.ADAPTER_METADATA`` (22, dict),
     which does not contain ``aave_v3`` at all (it is ``aave_usdc`` there), and

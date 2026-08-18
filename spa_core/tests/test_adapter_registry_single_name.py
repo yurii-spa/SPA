@@ -4,7 +4,8 @@
 `ADAPTER_REGISTRY` в дереве жили **три** разных объекта разной формы, с разными
 именами протоколов и разного размера:
 
-    spa_core/adapters/__init__.py                — list[tuple], 36 записей, `aave_v3`
+    spa_core/adapters/__init__.py                — list[tuple], 35 записей, `aave_v3`
+                                                   (36 до ADR-070 п.17: снят `frax`)
     spa_core/adapters/registry.py                — dict, 22 записи, `aave_usdc`
     spa_core/orchestrator/adapter_orchestrator.py — list[tuple], 8 записей
 

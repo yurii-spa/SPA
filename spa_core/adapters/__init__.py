@@ -28,8 +28,13 @@ from .scrvusd_adapter import ScrvusdAdapter  # MP-560
 from .stusd_adapter import StusdAdapter  # MP-561
 # MP-562: MakerDAO Savings DAI (sDAI) ERC-4626 T2 adapter (hard-peg gate 0.5%, DSR yield)
 from .sdai_adapter import SdaiAdapter  # MP-562
-# MP-563: Frax Finance FraxLend USDC T2 adapter (hard-peg gate 0.5%, utilisation-based yield)
-from .frax_adapter import FraxAdapter  # MP-563
+# MP-563: Frax Finance FraxLend USDC T2 adapter — СНЯТ С РЕЕСТРА (ADR-070 п.17).
+# Модуль `frax_adapter.py` остаётся на диске как исторический артефакт, но НЕ
+# импортируется и НЕ экспортируется: ключ `frax` больше не входит в канонический
+# набор кандидатов. Причина — замер 2026-08-05/2026-08-18: адаптер моделирует
+# пару FraxLend v2 USDC/FRAX (0x3835a58CA93Cdb5f912519ad366826aC9a752510), которой
+# в фиде НЕТ вовсе; единственный кандидат — пул SFRAX, уже занятый ключом `sfrax`
+# (два ключа на один пул = скрытая концентрация мимо per-protocol cap).
 # MP-565: Aave V3 Optimism USDC lending T1 L2 adapter (hard-peg gate 0.5%, gas 95% cheaper)
 from .aave_v3_optimism_adapter import AaveV3OptimismAdapter  # MP-565
 # MP-593: Aave V3 Polygon USDC.e lending T1 L2 adapter (hard-peg gate 0.5%, gas 90% cheaper, USDC.e bridge note)
@@ -162,7 +167,9 @@ ADAPTER_REGISTRY = [
     ("scrvusd",       "T2", ScrvusdAdapter),  # MP-560
     ("stusd",         "T2", StusdAdapter),  # MP-561
     ("sdai",          "T2", SdaiAdapter),   # MP-562
-    ("frax",          "T2", FraxAdapter),   # MP-563
+    # ("frax", "T2", FraxAdapter) — УДАЛЁН ADR-070 п.17 (решение владельца 2026-08-07).
+    # Дубль `sfrax`: у ключа `frax` нет собственного пула в фиде. Не возвращать
+    # без нового ADR — храповик `test_adr070_frax_notional.py` покраснеет.
     ("aave_v3_optimism", "T1", AaveV3OptimismAdapter),  # MP-565
     ("aave_v3_polygon",  "T1", AaveV3PolygonAdapter),   # MP-593
     ("ethena_susde",     "T2", EthenaSusdeAdapter),     # MP-1227
@@ -226,7 +233,7 @@ __all__ = [
     "ScrvusdAdapter",  # MP-560
     "StusdAdapter",  # MP-561
     "SdaiAdapter",   # MP-562
-    "FraxAdapter",   # MP-563
+    # "FraxAdapter" — снят с экспорта вместе с ключом `frax` (ADR-070 п.17).
     "AaveV3OptimismAdapter",  # MP-565
     "AaveV3PolygonAdapter",   # MP-593
     "EthenaSusdeAdapter",     # MP-1227

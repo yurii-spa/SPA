@@ -635,36 +635,49 @@ class TestFraxAdapterToDict(unittest.TestCase):
 
 
 # ===========================================================================
-# TestFraxAdapterRegistry — 7 тестов
+# TestFraxAdapterRegistry — ПЕРЕВЁРНУТ 2026-08-18 (ADR-070 п.17)
 # ===========================================================================
-class TestFraxAdapterRegistry(unittest.TestCase):
+# ОБОСНОВАНИЕ ПРАВКИ (инвариант 16 CLAUDE.md — тесты не ослабляются молча):
+# тесты 104–108 ЗАКРЕПЛЯЛИ присутствие ключа `frax` в каноническом
+# ``ADAPTER_REGISTRY`` и экспорт ``FraxAdapter``. Владелец решением ADR-070 п.17
+# (2026-08-07) постановил дубль удалить: адаптер моделирует пару FraxLend v2
+# USDC/FRAX, которой в фиде нет вовсе, а единственный кандидат-пул (SFRAX) уже
+# занят ключом `sfrax` — два ключа на один пул это скрытая концентрация мимо
+# per-protocol cap.
+#
+# Тесты НЕ удалены и НЕ ослаблены: каждый из них ПЕРЕВЁРНУТ в утверждение об
+# отсутствии, то есть продолжает КРАСНЕТЬ — только теперь на возврат ключа, а не
+# на его пропажу. Проверка осталась ровно той же силы, изменился её знак.
+# Запись: docs/journal/2026-W34.md.
+class TestFraxAdapterRemovedFromRegistry(unittest.TestCase):
 
-    def test_104_registry_contains_frax(self):
+    def test_104_registry_no_longer_contains_frax(self):
+        """ADR-070 п.17: ключа `frax` в каноническом реестре БОЛЬШЕ НЕТ."""
         from spa_core.adapters import ADAPTER_REGISTRY
         keys = [entry[0] for entry in ADAPTER_REGISTRY]
-        self.assertIn("frax", keys)
+        self.assertNotIn("frax", keys)
 
-    def test_105_registry_frax_tier(self):
+    def test_105_sfrax_survived_the_removal(self):
+        """Удаление дубля НЕ должно было задеть ключ, за которым инструмент."""
         from spa_core.adapters import ADAPTER_REGISTRY
-        for key, tier, cls in ADAPTER_REGISTRY:
-            if key == "frax":
-                self.assertEqual(tier, "T2")
-                break
+        by_key = {k: t for k, t, _c in ADAPTER_REGISTRY}
+        self.assertIn("sfrax", by_key)
+        self.assertEqual(by_key["sfrax"], "T2")
 
-    def test_106_registry_frax_class(self):
+    def test_106_frax_adapter_class_is_in_no_registry_entry(self):
+        """Ключ мог смениться, а класс остаться — это тот же дубль под другим именем."""
         from spa_core.adapters import ADAPTER_REGISTRY
-        for key, tier, cls in ADAPTER_REGISTRY:
-            if key == "frax":
-                self.assertIs(cls, FraxAdapter)
-                break
+        self.assertEqual(
+            [k for k, _t, cls in ADAPTER_REGISTRY if cls is FraxAdapter], [])
 
-    def test_107_import_in_all(self):
+    def test_107_import_not_in_all(self):
         from spa_core.adapters import __all__
-        self.assertIn("FraxAdapter", __all__)
+        self.assertNotIn("FraxAdapter", __all__)
 
-    def test_108_direct_import(self):
-        from spa_core.adapters import FraxAdapter as FA
-        self.assertIs(FA, FraxAdapter)
+    def test_108_not_reexported_from_package(self):
+        """Модуль остаётся на диске (историю не стираем), но пакет его не отдаёт."""
+        import spa_core.adapters as pkg
+        self.assertFalse(hasattr(pkg, "FraxAdapter"))
 
     def test_109_no_stdlib_violation(self):
         """Проверяем что frax_adapter.py не импортирует запрещённые внешние модули."""

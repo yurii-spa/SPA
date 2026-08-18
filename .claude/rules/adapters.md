@@ -12,7 +12,7 @@
 
   | Имя | Где | Форма · размер | Как зовут крупнейшую позицию книги |
   |---|---|---|---|
-  | `ADAPTER_REGISTRY` | `spa_core/adapters/__init__.py` | список кортежей · 36 | `aave_v3` |
+  | `ADAPTER_REGISTRY` | `spa_core/adapters/__init__.py` | список кортежей · 35 (было 36 до ADR-070 п.17: снят `frax`) | `aave_v3` |
   | `ADAPTER_METADATA` | `spa_core/adapters/registry.py` | dict метаданных · 22 | `aave_usdc` (`aave_v3` там НЕТ) |
   | `POLLED_ADAPTERS` | `spa_core/orchestrator/adapter_orchestrator.py` | список кортежей · 8 | что цикл реально опрашивает |
 

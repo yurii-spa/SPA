@@ -9,7 +9,8 @@ MP-1380 (v9.96) introduced this dict alongside the canonical list in
 разных ответа на вопрос «есть ли у протокола адаптер?».
 
     ``spa_core.adapters.ADAPTER_REGISTRY``          — КАНОНИЧЕСКИЙ реестр
-                                                      (список кортежей, 36 записей;
+                                                      (список кортежей, 35 записей —
+                                                      36 до ADR-070 п.17, снявшего `frax`;
                                                       `aave_v3`), инвариант CLAUDE.md;
     ``spa_core.adapters.registry.ADAPTER_METADATA`` — ЭТОТ объект: метаданные,
                                                       22 записи, СВОИ имена
@@ -43,6 +44,14 @@ import logging
 from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
+
+
+class WithdrawnAdapterError(RuntimeError):
+    """Адаптер выведен решением владельца и не может быть инстанцирован.
+
+    Отдельный класс, а не ``KeyError``: «ключа нет» и «ключ выведен» — разные
+    факты, и вызывающий вправе их различать.
+    """
 
 # ---------------------------------------------------------------------------
 # Central registry  {adapter_id: metadata_dict}
@@ -232,6 +241,12 @@ ADAPTER_METADATA: Dict[str, Dict[str, Any]] = {
         "asset": "USDT",
         "fallback_apy": 5.4,
     },
+    # ADR-070 п.18 (решение владельца 2026-08-07): `notional_v3` ВЫВЕДЕН до
+    # отдельного разбора — продукт не ERC-4626, поэтому обвязка депозита/выхода
+    # ему не подходит. «Вывести» ≠ «удалить»: запись остаётся видимой (иначе
+    # причина исчезнет вместе с ключом), но помечена ``withdrawn`` — её нельзя
+    # инстанцировать через ``get_adapter`` и она не попадает в ``list_eligible``.
+    # Возврат — только новым ADR после разбора.
     "notional_v3": {
         "module": "spa_core.adapters.notional_v3_adapter",
         "class": "NotionalV3Adapter",
@@ -240,6 +255,11 @@ ADAPTER_METADATA: Dict[str, Dict[str, Any]] = {
         "chain": "Ethereum",
         "asset": "USDC",
         "fallback_apy": 5.0,
+        "withdrawn": True,
+        "withdrawn_adr": "ADR-070 п.18",
+        "withdrawn_reason": (
+            "не ERC-4626 — выведен до отдельного разбора (решение владельца 2026-08-07)"
+        ),
     },
     # ------------------------------------------------------------------
     # T3 — Speculative / advisory-only adapters
@@ -288,6 +308,14 @@ def get_adapter(adapter_id: str) -> Any:
         raise KeyError(f"Adapter '{adapter_id}' not found in ADAPTER_METADATA")
 
     meta = ADAPTER_METADATA[adapter_id]
+    # Fail-CLOSED: выведенный адаптер не инстанцируется. Отказ ИМЕНОВАННЫЙ —
+    # «нет такого» и «выведен решением владельца» это разные факты, и молчаливый
+    # KeyError доложил бы их одинаково.
+    if meta.get("withdrawn") is True:
+        raise WithdrawnAdapterError(
+            f"Adapter '{adapter_id}' withdrawn ({meta.get('withdrawn_adr', 'ADR')}): "
+            f"{meta.get('withdrawn_reason', 'no reason recorded')}"
+        )
     module_path: str = meta["module"]
     class_name: str = meta["class"]
 
@@ -303,6 +331,31 @@ def list_by_tier(tier: str) -> List[str]:
         for adapter_id, meta in ADAPTER_METADATA.items()
         if meta.get("tier") == tier
     ]
+
+
+def is_withdrawn(adapter_id: str) -> bool:
+    """True, если адаптер ВЫВЕДЕН (снят до отдельного разбора, ADR-070 п.18).
+
+    Неизвестный ключ — не выведенный, а отсутствующий: возвращаем False, звать
+    ``get_adapter`` всё равно нельзя (там KeyError).
+    """
+    meta = ADAPTER_METADATA.get(adapter_id)
+    return bool(meta and meta.get("withdrawn") is True)
+
+
+def list_withdrawn() -> List[str]:
+    """Return adapter IDs marked ``withdrawn=True`` (видимые, но не используемые)."""
+    return [aid for aid in ADAPTER_METADATA if is_withdrawn(aid)]
+
+
+def list_eligible() -> List[str]:
+    """Return adapter IDs that may be considered at all — без выведенных.
+
+    Это НЕ набор кандидатов на аллокацию (тот собирается из канонического
+    ``spa_core.adapters.ADAPTER_REGISTRY`` и проходит RiskPolicy) — это просто
+    «что в этих метаданных ещё живое».
+    """
+    return [aid for aid in ADAPTER_METADATA if not is_withdrawn(aid)]
 
 
 def list_research_only() -> List[str]:
@@ -333,6 +386,10 @@ def registry_summary() -> Dict[str, int]:
         "t2_count": t2_count,
         "t3_count": t3_count,
         "research_only_count": research_only_count,
+        # ADR-070 п.18: выведенные записи ОСТАЮТСЯ в total (они видимы), но
+        # считаются отдельно — иначе «сколько адаптеров» и «сколько живых»
+        # снова становятся одним числом с двумя разными ответами.
+        "withdrawn_count": len(list_withdrawn()),
     }
 
 
