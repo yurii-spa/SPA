@@ -46,6 +46,17 @@
 никто. Сырое измерение: 96 сирот до, 104 после; ни один подключённый скрипт сиротой
 не стал (разность в обратную сторону пуста).
 
+**Пятая форма — ГРУЗ ДОСТАВКИ (18.08, цикл #259).** Имя скрипта в `.sh` внутри
+списка `--files` инструмента доставки (`python3 push_to_github.py --files …
+"$REPO_ROOT/scripts/restore_spa_data.py" …`) засчитывалось за вызов. Пушер не
+ЗАПУСКАЕТ этот файл — он его ВЕЗЁТ; «доставлен» и «вызывается» — два разных
+события, и ровно на их смешении построен весь этот сторож. Цена измерена откатом
+починки на живом дереве: сырых сирот 99 до, 102 после; проводкой только по грузу
+держались ТРИ скрипта (`pat_rotation_helper`, `restore_spa_data`,
+`system_health_check`), обратная разность пуста. Судится ФЛАГ, а не форма строки
+(`_cut_shell_cargo`): «одинокий путь в продолжении строки» — это ещё и самая
+обычная запись настоящего вызова, и запрет в лоб дал бы ложную сироту.
+
 Опт-аут-флага в коде здесь намеренно НЕТ: флаг научил бы сторожа отключать.
 
 **Сведение двух реализаций (17.08).** Сторож три недели жил в ДВУХ независимых
@@ -363,6 +374,69 @@ def _python_without_prose(text: str, tree: Optional[ast.AST] = None) -> str:
                   + _message_literal_spans(text, tree))
 
 
+#: Флаг, после которого у инструмента доставки идёт СПИСОК ГРУЗА, а не команда.
+_CARGO_FLAGS = frozenset({"--files", "--file"})
+
+
+def _cut_shell_cargo(text: str) -> str:
+    """Убрать из `.sh` пути, перечисленные как ГРУЗ доставки (`--files …`).
+
+    Пятая форма того же класса, что комментарий (#227), докстринг и самоупоминание
+    однофамильца (#255) и строка-сообщение (#258): имя скрипта стоит в файле, но
+    НЕ как вызов. Здесь оно стоит как **перевозимый файл**::
+
+        python3 push_to_github.py \\
+          --files \\
+            "$REPO_ROOT/scripts/backup_spa_data.py" \\
+            "$REPO_ROOT/scripts/restore_spa_data.py" \\
+          --message "…"
+
+    Пушер не ЗАПУСКАЕТ `restore_spa_data.py` — он его отправляет. Разница ровно та,
+    ради которой заведён храповик: доставлен ≠ вызывается, и старый разовый
+    push-скрипт навсегда снимал сироту с учёта одним лишь тем, что когда-то её вёз.
+
+    **Цена измерена на живом дереве 18.08, а не заявлена:** проводкой только по
+    грузу держались ДВА скрипта — `pat_rotation_helper`
+    (`scripts/push_all_session.sh:123`) и `restore_spa_data`
+    (`scripts/run_cpa_wave9_pushes.sh:58`). Ни один из них не запускает никто.
+
+    **Почему судится флаг, а не «путь на отдельной строке».** Настоящий вызов
+    выглядит почти так же — ``python3 \\`` и путь продолжением строки, — поэтому
+    правило «одинокий путь в продолжении = груз» родило бы ЛОЖНУЮ сироту на честной
+    работе (капкан #227 в чистом виде). Вырезается только то, что стоит ПОСЛЕ
+    `--files`/`--file` и до следующего ключа: у аргумента этого флага исполняемой
+    роли не бывает.
+
+    `echo`-строки в `.sh` намеренно НЕ трогаются: разбора ролей в оболочке нет, и
+    выдумывать его тут нельзя (см. `test_shell_message_is_left_alone`). Узость —
+    измеренная, а не забытая: на сегодняшнем дереве ни один скрипт не держится
+    проводкой ТОЛЬКО за счёт `echo`.
+    """
+    lines = text.splitlines()
+    out: List[str] = []
+    in_cargo = False
+    for line in lines:
+        chars = list(line)
+        cont = line.rstrip().endswith("\\")
+        for token in re.finditer(r"\S+", line):
+            tok = token.group()
+            if tok == "\\":
+                continue
+            if tok in _CARGO_FLAGS:
+                in_cargo = True
+                continue
+            if tok.startswith("-"):
+                in_cargo = False
+                continue
+            if in_cargo:
+                for i in range(token.start(), token.end()):
+                    chars[i] = " "
+        out.append("".join(chars))
+        if not cont:                    # логическая команда кончилась
+            in_cargo = False
+    return "\n".join(out)
+
+
 def code_without_comments(path: pathlib.Path, text: str,
                           tree: Optional[ast.AST] = None) -> str:
     """Текст файла без ПРОЗЫ — то, в чём вообще может жить ВЫЗОВ.
@@ -379,7 +453,9 @@ def code_without_comments(path: pathlib.Path, text: str,
     suffix = path.suffix
     if suffix == ".py":
         return _python_without_prose(text, tree)
-    if suffix in (".sh", ".yml", ".yaml"):
+    if suffix == ".sh":
+        return _cut_shell_cargo(_cut_at_hash(text))
+    if suffix in (".yml", ".yaml"):
         return _cut_at_hash(text)
     if suffix == ".plist":
         return _XML_COMMENT.sub(" ", text)

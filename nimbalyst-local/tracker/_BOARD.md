@@ -2,14 +2,15 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-18T20:51:24Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-18T21:28:05Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **531** · ждёт владельца: **22** · занято сессиями: **3**.
+> Всего карточек: **533** · ждёт владельца: **23** · занято сессиями: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Аварийная книга раздаёт деньги мимо проверок свежести — цена закрытия дыры $75.9K в кэш** · _high_  ·  `own-2026-08-18-avariinaya-kniga-idet-mimo-geitov-svezhesti.md`
 - **Дозаписать ли книгу за 12 прошлых дней трека — или оставить дыры как есть** · _medium_  ·  `own-2026-08-18-dozapisat-li-knigu-za-12-proshlyh-dnei.md`
+- **Два источника доходности опознают пул по-разному — и денежный путь ходит в тот, у которого проверки нет** · _high_  ·  `own-2026-08-18-dva-proizvoditelya-apy-opoznayut-pul-po-raznomu.md`
 - **Потолок концентрации не видит общего куратора — половина книги может лечь под одну команду** · _medium_  ·  `own-2026-08-18-potolok-ne-vidit-obshchego-kuratora.md`
 - **Подборщик раскладки И САМ АЛЛОКАТОР не знают про потолки по сетям — предлагают то, что гейт заворачивает** · _medium_  ·  `own-2026-08-18-tyuner-ne-znaet-o-setevykh-potolkakh.md`
 - **У ребалансера свой запас строже политики — оставляем или снимаем** · _medium_  ·  `own-2026-08-18-zapas-rebalansera-strozhe-politiki.md`
@@ -39,11 +40,12 @@
 - **а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…** — держит `pid43119` · с 2026-08-14T11:52:34Z  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md`
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (139)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (140)
 
 ### · needs-owner
 - Аварийная книга раздаёт деньги мимо проверок свежести — цена закрытия дыры $75.9K в кэш  ·  `own-2026-08-18-avariinaya-kniga-idet-mimo-geitov-svezhesti.md` · 2026-08-18
 - Дозаписать ли книгу за 12 прошлых дней трека — или оставить дыры как есть  ·  `own-2026-08-18-dozapisat-li-knigu-za-12-proshlyh-dnei.md` · 2026-08-18
+- Два источника доходности опознают пул по-разному — и денежный путь ходит в тот, у которого проверки нет  ·  `own-2026-08-18-dva-proizvoditelya-apy-opoznayut-pul-po-raznomu.md` · 2026-08-18
 - Потолок концентрации не видит общего куратора — половина книги может лечь под одну команду  ·  `own-2026-08-18-potolok-ne-vidit-obshchego-kuratora.md` · 2026-08-18
 - Подборщик раскладки И САМ АЛЛОКАТОР не знают про потолки по сетям — предлагают то, что гейт заворачивает  ·  `own-2026-08-18-tyuner-ne-znaet-o-setevykh-potolkakh.md` · 2026-08-18
 - У ребалансера свой запас строже политики — оставляем или снимаем  ·  `own-2026-08-18-zapas-rebalansera-strozhe-politiki.md` · 2026-08-18
@@ -184,13 +186,14 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (228)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (229)
 
 ### · blocked
 - Конституция противоречит принятому ADR: инвариант 10 «Sky/sUSDS = 0%» отменён ADR-065, но написан как действующий  ·  `inbox-konstitutsiya-protivorechit-prinyatomu-a.md` · 2026-08-16
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
 - ADR-070.17-18: frax удалить, notional_v3 вывести  ·  `inbox-adr-070-17-18-frax-udalit-notional-v3-vy.md` · 2026-08-07
+- Храповик неподключённых скриптов считает проводкой упоминание имени в тексте сообщения  ·  `inbox-hrapovik-nepodklyuchennyh-skriptov-schit-2.md` · 2026-08-16
 - Карточку моста закрыли руками — живая находка осиротела: мост считает её открытой и новую не заведёт  ·  `inbox-kartochku-mosta-zakryli-rukami-zhivaya-n.md` · 2026-08-17
 - owner-gate краснеет на СВОЕЙ ежедневной автоматике: сдвиг снимка трека на один цент = owner-gated  ·  `inbox-owner-gate-krasneet-na-svoei-ezhednevnoi.md` · 2026-08-13
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
@@ -401,7 +404,6 @@
 - Длинный документ владельца приехал СЕМЬЮ карточками, и шесть из них — не задачи, а куски предложений  ·  `inbox-dlinnyi-dokument-vladeltsa-priehal-semyu.md` · 2026-08-13
 - Два предписанных прогона рядом морят друг друга: приёмка «мой vs контроль» параллельно почти не движется  ·  `inbox-dva-predpisannyh-progona-ryadom-drug-druga-morya.md` · 2026-08-14
 - Две записи о деньгах расходятся каждый день — найти и починить ПРИЧИНУ (решение владельца 10.08, вариант 1)  ·  `inbox-dve-zapisi-o-dengah-rashodyatsya-kazhdyi.md` · 2026-08-10
-- Храповик неподключённых скриптов считает проводкой упоминание имени в тексте сообщения  ·  `inbox-hrapovik-nepodklyuchennyh-skriptov-schit-2.md` · 2026-08-16
 - Книги за прошлый день нет в архиве: дозапись исходов навсегда несёт null в позициях  ·  `inbox-knigi-za-proshlyi-den-net-v-arhive-dozap.md` · 2026-08-17
 - Крупнейшая позиция книги стоит на константе: у aave_v3 (Ethereum, 40%) TVL «не измерено», а пул в фиде есть  ·  `inbox-krupneishaya-pozitsiya-knigi-stoit-na-ko.md` · 2026-08-09
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
@@ -413,6 +415,7 @@
 - Оживить фиды вне Ethereum — путь к снятию остатка кэша (решение владельца 08.08)  ·  `inbox-ozhivit-fidy-vne-ethereum-put-k-snyatiyu.md` · 2026-08-08
 - Под ключом stusd объявлены ДВА разных контракта с одинаковым vanity-префиксом — проверить on-chain  ·  `inbox-pod-klyuchom-stusd-obyavleny-dva-raznyh.md` · 2026-08-18
 - Подготовить ADR: пересмотр лимита одной цепочки 90% (решение владельца — за ним)  ·  `inbox-podgotovit-adr-peresmotr-limita-odnoi-ts.md` · 2026-08-08
+- Разобрать шесть сирот, вышедших из-под храповика после двух починок измерения  ·  `inbox-razobrat-shest-sirot-vyshedshih-iz-pod-h.md` · 2026-08-18
 - Сбалансированный трек: ноль профинансированных дней из 40 при 920 отработанных циклах  ·  `inbox-sbalansirovannyi-trek-nol-profinansirova.md` · 2026-08-08
 - «Слепой» модуль может быть зрячим: 2 из 167 различают протоколы, а коэрция агрегатора теряет это различие  ·  `inbox-slepota-mozhet-byt-poteryannoi-koerciei.md` · 2026-08-17
 - Снятая остановка живёт в git: восстановление из резерва поднимет прод уже остановленным  ·  `inbox-snyataya-ostanovka-zhivet-v-git-vosstano.md` · 2026-08-10
