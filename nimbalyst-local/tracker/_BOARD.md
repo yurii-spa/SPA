@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-18T19:28:06Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-18T19:29:42Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **525** · ждёт владельца: **17** · занято сессиями: **3**.
+> Всего карточек: **526** · ждёт владельца: **18** · занято сессиями: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -21,6 +21,7 @@
 - **Доска карточек обещает больше, чем даёт: поправить одну фразу в CLAUDE.md**  ·  `owner-decision-doska-kartochek-obeschaet-bolshe-chem-da.md`
 - **Две записи о деньгах: причина найдена и измерена — выбрать, чем чинить**  ·  `owner-decision-dve-zapisi-o-dengah-prichina-naidena-i-i.md`
 - **Разведка кричит CRITICAL на нашу же остановку, а на реальный депег молчит — что делать с лестницей red_team**  ·  `owner-decision-razvedka-krichit-critical-na-nashu-zhe-o.md`
+- **Шесть находок за день оказались ОДНОЙ болезнью: где наблюдения нет, система говорит «всё хорошо» вместо «не знаю»**  ·  `owner-decision-shest-nahodok-za-den-okazalis-odnoi-bole.md`
 - **Списать 180 фоновых модулей Tier-C или честно записать, что мы про них не знаем**  ·  `owner-decision-spisat-180-fonovyh-modulei-tier-c-ili-ch.md`
 - **Сторож сайта краснеет каждую ночь на длине трека — расширить дневной класс на одно поле?**  ·  `owner-decision-storozh-saita-krasneet-kazhduyu-noch-na.md`
 - **Внутридневная просадка: слепота теперь слышна — реши про мягкий тир, слепые покупки и порог тревоги**  ·  `owner-decision-vnutridnevnaya-prosadka-slepota-teper-sl.md`
@@ -34,7 +35,7 @@
 - **а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…** — держит `pid43119` · с 2026-08-14T11:52:34Z  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md`
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (133)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (134)
 
 ### · needs-owner
 - Аварийная книга раздаёт деньги мимо проверок свежести — цена закрытия дыры $75.9K в кэш  ·  `own-2026-08-18-avariinaya-kniga-idet-mimo-geitov-svezhesti.md` · 2026-08-18
@@ -50,6 +51,7 @@
 - Доска карточек обещает больше, чем даёт: поправить одну фразу в CLAUDE.md  ·  `owner-decision-doska-kartochek-obeschaet-bolshe-chem-da.md` · 2026-08-17
 - Две записи о деньгах: причина найдена и измерена — выбрать, чем чинить  ·  `owner-decision-dve-zapisi-o-dengah-prichina-naidena-i-i.md` · 2026-08-17
 - Разведка кричит CRITICAL на нашу же остановку, а на реальный депег молчит — что делать с лестницей red_team  ·  `owner-decision-razvedka-krichit-critical-na-nashu-zhe-o.md` · 2026-08-18
+- Шесть находок за день оказались ОДНОЙ болезнью: где наблюдения нет, система говорит «всё хорошо» вместо «не знаю»  ·  `owner-decision-shest-nahodok-za-den-okazalis-odnoi-bole.md` · 2026-08-18
 - Списать 180 фоновых модулей Tier-C или честно записать, что мы про них не знаем  ·  `owner-decision-spisat-180-fonovyh-modulei-tier-c-ili-ch.md` · 2026-08-17
 - Сторож сайта краснеет каждую ночь на длине трека — расширить дневной класс на одно поле?  ·  `owner-decision-storozh-saita-krasneet-kazhduyu-noch-na.md` · 2026-08-17
 - Внутридневная просадка: слепота теперь слышна — реши про мягкий тир, слепые покупки и порог тревоги  ·  `owner-decision-vnutridnevnaya-prosadka-slepota-teper-sl.md` · 2026-08-18
