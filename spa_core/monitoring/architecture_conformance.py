@@ -33,6 +33,24 @@
         а не дрейф механики ⇒ UNCHECKED с названной причиной, не находка
         (цикл #267; доказательство — в `build_architecture_manifest`)
   B6  локальная курация ↔ `origin/main` (замер 2026-08-08, цикл #168/#169)
+  B7  наблюдение за управлением ↔ книга: КАЖДЫЙ held-протокол либо имеет
+        настроенный канал (`governance_watcher.SNAPSHOT_SPACES`/`TALLY_GOVERNORS`),
+        либо НАЗВАН в `GOVERNANCE_SOURCE_UNCONFIRMED` с дословной причиной →
+        иначе WARN strong. И обратно: настроенный канал протокола, которого мы
+        не держим и не вайтлистим, — WARN strong (класс «наблюдали восемь
+        чужаков и докладывали здоровье»). См. ниже про номер ADR.
+
+О ЧЁМ B7 НЕ судит: состав watchlist — это НАБЛЮДЕНИЕ за управлением протоколов,
+не отбор капитала. B7 не читает и не двигает аллокацию, RiskPolicy и kill-switch;
+находка B7 не гейтит исполнение (advisory-слой, инвариант 1/9).
+
+Номер ADR у B7. Решение владельца 2026-08-07 (ADR-070 п.14) просило положить эту
+проверку в conformance «(ADR-071 B6)». Документа `docs/decisions/ADR-071*` НЕ
+СУЩЕСТВУЕТ — номер числится «названным, но не написанным», реестр перескакивает
+с ADR-070 на ADR-072. Имя `B6` в ЭТОМ модуле уже занято курацией. Поэтому
+проверка называется B7 и ссылается на РЕАЛЬНЫЕ документы: решение — ADR-070 п.14,
+рамка сторожа — ADR-066. Ссылку на ADR-071 не воспроизводим: сослаться в пустоту
+и сослаться правильно — разные вещи, и первое чинить потом дороже.
 
 Откуда берётся КУРАЦИЯ (`intent` и родня) — отдельный вопрос от «какие plist'ы
 лежат на диске». Механика (`plist_source`/`reboot_safe`/`schedule`/`program`)
@@ -362,6 +380,77 @@ def reconcile_curation(local: dict, origin: dict | None,
     }
 
 
+def gather_governance_coverage() -> dict:
+    """Факты для B7: что мы держим, за чем следим, что намеренно НЕ следим.
+
+    Вход сторожа, а не его логика: чтение книги и реестра каналов живёт здесь,
+    сравнение — в чистом :func:`run_checks`.
+
+    НИКОГДА не поднимает исключение и НИКОГДА не возвращает ``None``: любая
+    неудача чтения приходит как ``measured=False`` с дословной причиной. Это
+    ровно то различие, которое требует инвариант 2 — «канал наблюдения
+    недоступен» обязано отличаться от «нарушений нет». Пустой список находок
+    при ``measured=False`` даёт вердикт UNCHECKED, а не OK.
+
+    Ключи протоколов нормализуются здесь же (``aave-v3`` ↔ ``aave_v3``) той же
+    функцией, которой пользуется сам наблюдатель, — второй копии правила
+    сравнения не заводим.
+    """
+    out: dict = {
+        "measured": False, "reason": None,
+        "held": None, "monitored": {}, "named": {},
+        "whitelist_measured": False, "whitelist_reason": None, "whitelist": None,
+    }
+    try:
+        from spa_core.alerts.governance_watcher import (
+            GOVERNANCE_SOURCE_UNCONFIRMED,
+            _normalise_protocol_key,
+            load_held_protocol_keys,
+            monitored_protocol_keys,
+            whitelisted_protocol_keys,
+        )
+    except Exception as exc:
+        out["reason"] = f"governance_watcher неимпортируем — наблюдение НЕ ИЗМЕРЕНО: {exc}"
+        out["whitelist_reason"] = out["reason"]
+        return out
+
+    def _pairs(names) -> dict:
+        return {_normalise_protocol_key(n): str(n) for n in names if str(n)}
+
+    try:
+        out["monitored"] = _pairs(monitored_protocol_keys())
+        out["named"] = _pairs(GOVERNANCE_SOURCE_UNCONFIRMED.keys())
+    except Exception as exc:
+        out["reason"] = f"реестр каналов нечитаем — наблюдение НЕ ИЗМЕРЕНО: {exc}"
+        out["whitelist_reason"] = out["reason"]
+        return out
+
+    try:
+        held, why = load_held_protocol_keys()
+    except Exception as exc:  # pragma: no cover — сам загрузчик не поднимает
+        held, why = None, f"чтение книги упало: {exc}"
+    if held is None:
+        out["reason"] = f"книга нечитаема — покрытие held НЕ ИЗМЕРЕНО: {why}"
+    else:
+        out["measured"] = True
+        out["held"] = _pairs(held)
+
+    try:
+        wl = whitelisted_protocol_keys()
+    except Exception as exc:  # pragma: no cover
+        wl = None
+        out["whitelist_reason"] = f"ADAPTER_REGISTRY нечитаем: {exc}"
+    if wl is None:
+        out["whitelist_reason"] = (
+            out["whitelist_reason"]
+            or "ADAPTER_REGISTRY нечитаем — вайтлист НЕ ИЗМЕРЕН"
+        )
+    else:
+        out["whitelist_measured"] = True
+        out["whitelist"] = _pairs(wl)
+    return out
+
+
 # ── ядро (чистое: все входы — параметры) ─────────────────────────────────────
 
 def _finding(key: str, check: str, severity: str, cls: str, message: str) -> dict:
@@ -399,7 +488,8 @@ def run_checks(manifest: dict,
                drift_problems: list[str | dict] | None = None,
                drift_measured: bool = False,
                curation: dict | None = None,
-               drift_unmeasurable: list[str] | None = None) -> dict:
+               drift_unmeasurable: list[str] | None = None,
+               governance: dict | None = None) -> dict:
     findings: list[dict] = []
     unchecked: list[dict] = []
     agents = manifest.get("agents", [])
@@ -557,6 +647,44 @@ def run_checks(manifest: dict,
                     f"(решения живут в git), но прод-дерево `architecture/` при "
                     f"синхронизации не получает — стёртая память вернётся"))
 
+    # B7 — наблюдение за управлением ↔ книга (ADR-070 п.14; см. шапку модуля)
+    if governance is not None:
+        held = governance.get("held")
+        monitored = governance.get("monitored") or {}
+        named = governance.get("named") or {}
+        if not governance.get("measured") or held is None:
+            unchecked.append(_refusal(
+                "B7_governance",
+                f"наблюдение за управлением НЕ ИЗМЕРЕНО: "
+                f"{governance.get('reason') or 'причина не записана'} — "
+                f"«нарушений нет» и «канал недоступен» не смешиваем"))
+        else:
+            for key in sorted(held):
+                if key in monitored or key in named:
+                    continue
+                findings.append(_finding(
+                    f"B7:held_unwatched:{held[key]}", "B7", "WARN", "strong",
+                    f"{held[key]}: держим капитал, канала наблюдения за управлением НЕТ "
+                    f"и в GOVERNANCE_SOURCE_UNCONFIRMED он НЕ НАЗВАН — безымянное "
+                    f"отсутствие (ADR-070 п.14: вайтлист по мере наличия каналов)"))
+        # обратная сторона: следим за тем, чего не держим и не вайтлистим
+        if not governance.get("whitelist_measured"):
+            unchecked.append(_refusal(
+                "B7_governance",
+                f"вайтлист НЕ ИЗМЕРЕН: "
+                f"{governance.get('whitelist_reason') or 'причина не записана'} — "
+                f"«чужак в watchlist» не проверен"))
+        else:
+            ours = set(governance.get("whitelist") or {}) | set(held or {})
+            for key in sorted(monitored):
+                if key in ours:
+                    continue
+                findings.append(_finding(
+                    f"B7:watched_not_ours:{monitored[key]}", "B7", "WARN", "strong",
+                    f"{monitored[key]}: канал наблюдения настроен, но протокол НЕ наш "
+                    f"(ни в книге, ни в вайтлисте) — класс «восемь здоровых чужаков» "
+                    f"(ADR-070 п.14: watchlist = наш вайтлист)"))
+
     # первое появление + старение слабых
     prev_first_seen = prev_first_seen or {}
     now_iso = now.isoformat()
@@ -592,6 +720,7 @@ def run_checks(manifest: dict,
         "fleet_size": (len(fleet) if fleet is not None else None),
         "manifest_agents": len(agents),
         "curation": curation,
+        "governance": governance,
         "slo_budgets": slo_budgets,
         "findings": kept,
         "aged": aged,
@@ -640,7 +769,11 @@ def main(argv=None) -> int:
                         drift_problems=(b5 or {}).get("drift"),
                         drift_measured=b5 is not None,
                         drift_unmeasurable=(b5 or {}).get("unmeasurable"),
-                        curation=curation)
+                        curation=curation,
+                        # B7 всегда СПРАШИВАЕТСЯ: сборщик не возвращает None, а
+                        # неудачу чтения приносит как measured=False с причиной.
+                        # Пропустить аргумент = молча не проверить (fail-OPEN).
+                        governance=gather_governance_coverage())
 
     from spa_core.utils.atomic import atomic_save
     atomic_save(report, args.report)
