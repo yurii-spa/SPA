@@ -188,3 +188,38 @@ def test_a_different_question_passes_immediately(door):
     assert tc.guard_outbound(other, dedup=True) is None, (
         "другой вопрос подавлен как повтор — дедуп превратился в глушилку"
     )
+
+
+# ── вторая половина жалобы: «без вариантов кнопок» ───────────────────────────
+
+
+def test_buttonless_notice_does_not_promise_what_the_same_bot_cannot_do(tmp_path):
+    """Обещание «ответь номером, я разберу» стояло на НЕПОДТВЕРЖДЁННОЙ способности.
+
+    Кнопки снимаются ровно тогда, когда маячок бота не подтверждён (fail-CLOSED, ADR-069).
+    Но текстовый ответ разбирает ТОТ ЖЕ бот — значит за него ручаться нечем, и владелец,
+    написавший «2», не получал ничего. Fail-CLOSED снимал кнопки и тут же выдавал вместо
+    них непроверенную гарантию.
+
+    Положительный контроль: вернуть прежнюю фразу — тест краснеет.
+    """
+    from spa_core.telegram import owner_decisions as od
+
+    body = ("## Что от тебя нужно\n\n1. **Одобрить**\n"
+            "2. **Отклонить (рекомендую)**\n3. **Отложить**\n")
+    beacon = tmp_path / "no_such_beacon.json"  # маячка нет ⇒ способность не подтверждена
+
+    prep = od.prepare("Сайт: packages.astro — правка задела owner-gated область",
+                      body, "own-packages-astro", card_name="own-packages-astro.md",
+                      beacon_path=beacon)
+
+    assert prep.keyboard is None, "маячка нет — кнопок быть не должно"
+    text = prep.text
+    assert "Кнопки сейчас недоступны" in text
+    assert "я разберу" not in text, (
+        "текст ручается за разбор ответа тем же ботом, который только что не подтвердил "
+        "способность — обещание несуществующего"
+    )
+    assert "ручаться за это нельзя" in text, "оговорка про того же бота исчезла"
+    # И называет путь, который работает БЕЗ бота вообще.
+    assert "статус карточки" in text
