@@ -88,6 +88,41 @@ def _open_card_with_fingerprint(fingerprint: str):
     return None
 
 
+def _already_asked_in_shared_journal(title: str):
+    """Открытый (неотвеченный) пуш с ТЕМ ЖЕ заголовком в ОБЩЕМ журнале отправок.
+
+    Возвращает путь к карточке из журнала либо ``None``. Никогда не бросает: как и у
+    соседней проверки по трекеру, сомнение ⇒ ``None`` ⇒ карточка создаётся. Потерять
+    вопрос владельца хуже, чем задать его дважды, — но задавать его двести раз в сутки
+    хуже, чем оба варианта.
+
+    Заголовок, а не отпечаток нарушений: отпечаток живёт в ТЕЛЕ карточки, а журнал тела
+    не хранит. Заголовок же строится детерминированно из того же набора файлов
+    (:func:`_card_title`), поэтому «тот же вопрос» опознаётся без чтения чужого дерева.
+    """
+    # Под pytest журнал отправок — ОДИН общий временный файл на все прогоны
+    # (`owner_decisions._state_path`), и записи из соседнего теста читались бы как
+    # «вопрос уже задан». Замер: первая версия этой проверки покрасила восемь чужих
+    # тестов `test_owner_gate_approval_scope`, потому что мои же тесты выше оставили в
+    # том файле запись с тем же заголовком. Молчаливая зависимость от чужого теста —
+    # ровно то, что здесь запрещено, поэтому проверка под pytest выключена, пока её не
+    # включат явно (тот же признак, которым модуль уводит собственное состояние).
+    if os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get(
+        "SPA_OWNER_DECISIONS_TEST"
+    ):
+        return None
+    try:
+        from spa_core.telegram.owner_decisions import open_pushes  # type: ignore
+
+        for rec in open_pushes():
+            if (rec.get("title") or "") == title:
+                card = rec.get("card")
+                return Path(card) if card else None
+    except Exception:  # noqa: BLE001
+        return None
+    return None
+
+
 def _rel(path: str) -> str:
     """Repo-relative POSIX path. The gate reports violations by repo-relative path
     (`landing/src/pages/x.astro`), while `--files` may arrive absolute; an `approves:`
@@ -190,6 +225,21 @@ def _route_to_owner_card(site_files: list[str], report: dict, message: str) -> N
     # ни одна проверка не ослаблена, owner-gate по-прежнему НЕ пускает правку в live.
     fingerprint = _violations_fingerprint(violations)
     existing = _open_card_with_fingerprint(fingerprint)
+    if existing is None:
+        # ВТОРОЙ ВОПРОС, НА КОТОРЫЙ ПЕРВЫЙ НЕ ОТВЕЧАЕТ (жалоба владельца 17.08: «пишут
+        # раз по 200 в день одно и то же»). Проверка выше смотрит в трекер СВОЕГО дерева
+        # (`queue.TRACKER_DIR` считается от `__file__`), а оркестратор и сессии работают
+        # из worktree — и `nimbalyst-local/` между деревьями НЕ синкается (урок #193,
+        # замер #270: 109 карточек невидимы прод-дереву). Значит в чужом дереве карточка
+        # «уже открыта» не находится НИКОГДА, и каждый прогон заводил новую и слал новое
+        # уведомление.
+        #
+        # Журнал отправок при этом ОБЩИЙ по построению: `owner_decisions.STATE_PATH`
+        # живёт в живом `data/`, потому что нажимать будет бот из прода, а слать может
+        # сессия из worktree. Спрашиваем его — тем же вопросом, что и выше: этот вопрос
+        # владельцу уже задан и ещё не отвечен?
+        existing = _already_asked_in_shared_journal(_card_title(
+            sorted({_rel(str(v.get("file", ""))) for v in violations if v.get("file")})))
     if existing is not None:
         print(f"safe_site_push: owner card already open for the same violations "
               f"({existing.name}) — not creating a duplicate, not notifying",

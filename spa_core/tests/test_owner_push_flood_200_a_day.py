@@ -223,3 +223,91 @@ def test_buttonless_notice_does_not_promise_what_the_same_bot_cannot_do(tmp_path
     assert "ручаться за это нельзя" in text, "оговорка про того же бота исчезла"
     # И называет путь, который работает БЕЗ бота вообще.
     assert "статус карточки" in text
+
+
+# ── тот же вопрос из ЧУЖОГО дерева ───────────────────────────────────────────
+
+
+def test_the_same_site_question_is_not_re_asked_from_another_worktree(tmp_path,
+                                                                      monkeypatch):
+    """Проверка «карточка уже открыта» смотрела в трекер СВОЕГО дерева — и не находила.
+
+    `queue.TRACKER_DIR` считается от `__file__`, а оркестратор и сессии работают из
+    worktree; `nimbalyst-local/` между деревьями не синкается (урок #193, замер #270:
+    109 карточек невидимы прод-дереву). Поэтому в чужом дереве вопрос «уже спрашивали?»
+    отвечался «нет» ВСЕГДА, и каждый прогон заводил новую карточку и слал уведомление.
+
+    Журнал отправок общий по построению (живой `data/`), и теперь спрашивается он.
+    Положительный контроль: убрать обращение к журналу — тест краснеет.
+    """
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "_ssp", str(Path(__file__).resolve().parents[2] / "scripts" / "safe_site_push.py"))
+    ssp = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ssp)
+
+    monkeypatch.setenv("SPA_OWNER_DECISIONS_TEST", "1")
+    title = ssp._card_title(["landing/src/pages/packages.astro"])
+    live_card = tmp_path / "own-packages-astro.md"
+    live_card.write_text("# уже спрошено", encoding="utf-8")
+
+    journal = [{"title": title, "card": str(live_card), "choice": None}]
+    monkeypatch.setattr("spa_core.telegram.owner_decisions.open_pushes",
+                        lambda **kw: journal, raising=True)
+
+    assert ssp._already_asked_in_shared_journal(title) == live_card
+
+    # Обратный контроль №1: на ДРУГОЙ вопрос молчать нельзя.
+    other = ssp._card_title(["landing/src/pages/index.astro"])
+    assert ssp._already_asked_in_shared_journal(other) is None
+
+    # Обратный контроль №2: отвеченный вопрос перестаёт быть открытым, и следующий такой
+    # же обязан уехать владельцу — иначе одобрение закрыло бы канал навсегда.
+    journal[0]["choice"] = "2"
+    monkeypatch.setattr(
+        "spa_core.telegram.owner_decisions.open_pushes",
+        lambda **kw: [r for r in journal if not r.get("choice")], raising=True)
+    assert ssp._already_asked_in_shared_journal(title) is None
+
+
+def test_the_route_itself_stays_silent_when_the_question_is_already_open(tmp_path,
+                                                                        monkeypatch):
+    """Не помощник, а САМ маршрут: карточка не заводится и уведомление не уходит.
+
+    Отдельно от теста помощника выше — потому что проверка помощника остаётся зелёной,
+    даже если обращение к журналу выкинуть из маршрута. Мутация «убрать вызов» обязана
+    красить ИМЕННО этот тест.
+    """
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "_ssp2", str(Path(__file__).resolve().parents[2] / "scripts" / "safe_site_push.py"))
+    ssp = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ssp)
+
+    site_files = ["landing/src/pages/packages.astro"]
+    report = {"violations": [{"file": "landing/src/pages/packages.astro",
+                              "klass": "B", "rule": "yield-number",
+                              "matched_text": "6.78%"}]}
+    monkeypatch.setenv("SPA_OWNER_DECISIONS_TEST", "1")
+    title = ssp._card_title(["landing/src/pages/packages.astro"])
+
+    live_card = tmp_path / "own-packages-astro.md"
+    live_card.write_text("# уже спрошено", encoding="utf-8")
+    monkeypatch.setattr("spa_core.telegram.owner_decisions.open_pushes",
+                        lambda **kw: [{"title": title, "card": str(live_card),
+                                       "choice": None}], raising=True)
+
+    created: list = []
+    monkeypatch.setattr("spa_core.owner_queue.queue.create_card",
+                        lambda **kw: created.append(kw) or tmp_path / "new.md",
+                        raising=True)
+    notified: list = []
+    monkeypatch.setattr(ssp.subprocess, "run",
+                        lambda *a, **kw: notified.append(a), raising=True)
+
+    ssp._route_to_owner_card(site_files, report, "autonomous site edit")
+
+    assert created == [], "вопрос уже открыт, а маршрут завёл ЕЩЁ одну карточку"
+    assert notified == [], "вопрос уже открыт, а владельцу ушло ещё одно уведомление"
