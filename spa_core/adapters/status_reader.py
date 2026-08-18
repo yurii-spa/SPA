@@ -33,6 +33,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -127,6 +128,72 @@ def observed_apy_pct_from_block(block: object) -> Optional[float]:
     if not isinstance(block, dict):
         return None
     return _valid_pct(block.get("live_apy"))
+
+
+#: Сколько часов наблюдение остаётся свидетельством (ADR-061 / ADR-089 п.3).
+#:
+#: КАНОНИЧЕСКИЙ ДОМ окна свежести. Генератор носит последнее удачное наблюдение
+#: вперёд (``live_apy_as_of`` хранит время САМОГО наблюдения, не время записи
+#: файла) именно для того, чтобы сетевая икота не двигала капитал; решение «сколько
+#: оно ещё годно» принимает потребитель — и потребитель обязан быть один.
+#:
+#: Аллокатор держит свою приватную копию (``allocator._EVIDENCE_MAX_AGE_H``): он
+#: money-path, править его в этой задаче нельзя (ADR-089 п.3 — отдельное решение
+#: владельца). Расходиться копиям не даёт храповик
+#: ``spa_core/tests/test_apy_one_definition.py``: как только числа перестанут
+#: совпадать, тест краснеет. Правильный конец истории — аллокатор импортирует
+#: ЭТУ константу и своей не имеет.
+EVIDENCE_MAX_AGE_H = 36.0
+
+#: Причины, по которым наблюдения нет. Строки — часть контракта: «не наблюдали»
+#: и «наблюдали, но давно» — разные факты, и молчаливый ``None`` их путает.
+APY_OBSERVED = "observed"
+APY_NOT_OBSERVED = "not_observed"
+APY_STALE = "stale"
+APY_UNKNOWN_AGE = "unknown_age"
+
+
+def _parse_ts(value: object) -> "Optional[datetime]":
+    """ISO-8601 → aware datetime; ``None`` когда не разбирается. Не бросает."""
+    try:
+        dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (ValueError, AttributeError, TypeError):
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def observed_apy_pct_fresh(
+    block: object,
+    now: "Optional[datetime]" = None,
+    max_age_h: Optional[float] = None,
+) -> "tuple[Optional[float], str]":
+    """(APY в ПРОЦЕНТАХ, причина) — наблюдение, ещё годное как свидетельство.
+
+    Одно определение на репозиторий из двух половин, которые до ADR-089 п.3 жили
+    порознь: ЧТО считается наблюдением (:func:`observed_apy_pct_from_block` —
+    только ``live_apy``) и КАК ДОЛГО оно им остаётся (:data:`EVIDENCE_MAX_AGE_H`
+    по ``live_apy_as_of``). Отчёт знал первую половину неверно, а второй не знал
+    вовсе — поэтому печатал литерал из ``apy`` возрастом 11 суток как доходность.
+
+    ``now`` — ВХОД, а не окружение (`.claude/rules/deployment.md`): тест
+    закрепляет обе стороны и не протухает от календаря.
+
+    Fail-CLOSED: нет ``live_apy`` ⇒ ``(None, "not_observed")``; неразбираемая или
+    отсутствующая отметка времени ⇒ ``(None, "unknown_age")`` — неизвестный
+    возраст не свидетельство; старше окна ⇒ ``(None, "stale")``.
+    """
+    pct = observed_apy_pct_from_block(block)
+    if pct is None:
+        return None, APY_NOT_OBSERVED
+    assert isinstance(block, dict)  # observed_apy_pct_from_block гарантировал
+    dt = _parse_ts(block.get("live_apy_as_of"))
+    if dt is None:
+        return None, APY_UNKNOWN_AGE
+    ref = now or datetime.now(timezone.utc)
+    limit = EVIDENCE_MAX_AGE_H if max_age_h is None else float(max_age_h)
+    if (ref - dt).total_seconds() / 3600.0 > limit:
+        return None, APY_STALE
+    return pct, APY_OBSERVED
 
 
 def read_live_apy_pct(protocol: str, data_dir: Optional[Path] = None) -> Optional[float]:

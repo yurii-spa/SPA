@@ -57,6 +57,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from spa_core.adapters import status_reader
+
 
 def _esc(value: Any) -> str:
     """HTML-escape a dynamic value for parse_mode=HTML.
@@ -100,7 +102,11 @@ MAX_POSITION_LINES = 8
 # Base chain monitoring registry (ADR-025 Phase 1 — merged from the former
 # scripts/daily_paper_report.py so this is the single 08:00 morning report).
 # ``suspended=True`` → rendered with a SUSPENDED label, no capital allocated.
-# ``apy_fallback`` is used only when adapter_status.json has no live datapoint.
+# ``apy_fallback`` БОЛЬШЕ НЕ ЧИТАЕТСЯ (ADR-089 п.3, 2026-08-18): подстановка
+# литерала вместо отсутствующего наблюдения — ровно тот дефект, который эта
+# задача закрывает. Поле оставлено как исторический ориентир порядка величины и
+# закреплено тестом `test_apy_one_definition.py` как НЕ-вход отчёта; удалять его
+# нужно отдельно, вместе с потребителями реестра.
 _BASE_ADAPTERS_REGISTRY: dict[str, dict] = {
     "aave_v3_base": {"tier": "T2", "label": "Aave V3 Base", "apy_fallback": 4.5, "suspended": False},
     "morpho_blue_base": {"tier": "T2", "label": "Morpho Blue Base", "apy_fallback": 6.2, "suspended": False},
@@ -171,8 +177,41 @@ def _track_day_number(date_str: str, paper_start: str) -> int | None:
     return delta + 1 if delta >= 0 else None
 
 
-def _adapter_meta(adapter_doc: Any) -> dict[str, dict]:
-    """protocol_key → {display_name, apy} from adapter_status.json (read-only)."""
+#: Как называется отсутствие наблюдения в строке отчёта. Молчаливый пропуск —
+#: не вариант: «APY не показали» и «APY 0» читаются одинаково, а «показали
+#: литерал» вообще неотличимо от замера. Владелец должен видеть ПРИЧИНУ.
+_APY_REASON_RU: dict[str, str] = {
+    status_reader.APY_NOT_OBSERVED: "APY не наблюдался",
+    status_reader.APY_STALE: "APY: наблюдение протухло",
+    status_reader.APY_UNKNOWN_AGE: "APY: возраст наблюдения неизвестен",
+}
+
+
+def _apy_suffix(row: dict) -> str:
+    """Хвост строки позиции: наблюдённый APY либо названная причина его отсутствия."""
+    apy = row.get("apy") if isinstance(row, dict) else None
+    if isinstance(apy, (int, float)) and not isinstance(apy, bool):
+        return f" — {apy:.1f}% APY"
+    reason = str(row.get("apy_reason") or "") if isinstance(row, dict) else ""
+    return f" — {_APY_REASON_RU.get(reason, 'APY не наблюдался')}"
+
+
+def _adapter_meta(adapter_doc: Any, now_dt: datetime | None = None) -> dict[str, dict]:
+    """protocol_key → {display_name, apy, apy_reason} из adapter_status.json.
+
+    ADR-089 п.3 — одно определение наблюдения на репозиторий. Раньше здесь
+    читалось соседнее поле ``apy``, а оно при ``live_apy: null`` просто повторяет
+    ``fallback_apy`` (``adapter_status_generator``: ``apy_used = live_apy if
+    live_apy is not None else fallback_pct``). Замер 2026-08-18 на живом
+    ``data/adapter_status.json``: наблюдений — НОЛЬ из 34, а отчёт называл число
+    для всех 34 — то есть печатал константу из реестра как доходность позиции.
+    Аллокатор в той же ситуации протокол просто не берёт.
+
+    Теперь единственный судья — :func:`status_reader.observed_apy_pct_fresh`
+    (``live_apy`` + окно :data:`status_reader.EVIDENCE_MAX_AGE_H`). Второй копии
+    правила здесь нет и быть не должно: именно так дефект ADR-063 и расползался.
+    ``apy is None`` ⇒ отчёт обязан назвать причину, а не подставить литерал.
+    """
     out: dict[str, dict] = {}
     if not isinstance(adapter_doc, dict):
         return out
@@ -181,9 +220,11 @@ def _adapter_meta(adapter_doc: Any) -> dict[str, dict]:
         return out
     for key, meta in adapters.items():
         if isinstance(meta, dict):
+            apy, reason = status_reader.observed_apy_pct_fresh(meta, now=now_dt)
             out[str(key)] = {
                 "display_name": meta.get("display_name", str(key)),
-                "apy": meta.get("apy"),
+                "apy": apy,
+                "apy_reason": reason,
             }
     return out
 
@@ -328,21 +369,26 @@ def _days_to_track_target(day_number: int | None) -> int | None:
     return max(TRACK_TARGET_DAYS - day_number, 0)
 
 
-def _live_apy(info: dict, fallback: float) -> float:
-    """Live APY for a Base adapter, preferring apy_pct then apy then fallback.
+def _live_apy(info: dict, now_dt: datetime | None = None) -> tuple[float | None, str]:
+    """(APY в процентах, причина) для Base-адаптера — ОДНО определение (ADR-089 п.3).
 
-    adapter_status.json sometimes carries ``apy_pct: None`` alongside a populated
-    ``apy`` (percent units), so a plain ``.get("apy_pct", ...)`` would yield None.
+    Было: ``apy_pct`` → ``apy`` → литерал ``apy_fallback`` из
+    ``_BASE_ADAPTERS_REGISTRY``. Поля ``apy_pct`` в блоках
+    ``adapter_status.json → adapters`` нет вовсе (это имя из снимка
+    оркестратора), поэтому лестница всегда падала на ``apy``, а ``apy`` при
+    ``live_apy: null`` — эхо ``fallback_apy``. Если и его не было, печатался
+    зашитый прямо здесь литерал (``aave_v3_base: 4.5``) — и всё это выходило
+    владельцу строкой «4.5% APY (monitoring)», неотличимой от замера.
+
+    Теперь судит :func:`status_reader.observed_apy_pct_fresh`; литерала в этом
+    пути больше нет (`.claude/rules/adapters.md`: нет данных ⇒ ``None``).
     """
-    apy = info.get("apy_pct")
-    if apy is None:
-        apy = info.get("apy")
-    if apy is None:
-        apy = fallback
-    return float(apy)
+    return status_reader.observed_apy_pct_fresh(info, now=now_dt)
 
 
-def _collect_base_chain(adapter_doc: Any, data_dir: Path) -> dict:
+def _collect_base_chain(
+    adapter_doc: Any, data_dir: Path, now_dt: datetime | None = None
+) -> dict:
     """Gas status + Base adapter APYs for the report (ADR-025 Phase 1).
 
     All read-only and optional — every failure degrades gracefully. Base adapters
@@ -378,10 +424,12 @@ def _collect_base_chain(adapter_doc: Any, data_dir: Path) -> dict:
             rows.append({"label": meta["label"], "tier": meta["tier"], "suspended": True})
             continue
         info = live.get(adapter_id, {})
+        apy, reason = _live_apy(info, now_dt)
         rows.append({
             "label": meta["label"],
             "tier": meta["tier"],
-            "apy": _live_apy(info, meta["apy_fallback"]),
+            "apy": apy,
+            "apy_reason": reason,
             "suspended": False,
         })
 
@@ -389,10 +437,12 @@ def _collect_base_chain(adapter_doc: Any, data_dir: Path) -> dict:
     known = set(_BASE_ADAPTERS_REGISTRY)
     for adapter_id, info in live.items():
         if adapter_id not in known:
+            apy, reason = _live_apy(info, now_dt)
             rows.append({
                 "label": adapter_id,
                 "tier": f"T{info['tier']}" if isinstance(info.get("tier"), int) else info.get("tier", "?"),
-                "apy": _live_apy(info, 0.0),
+                "apy": apy,
+                "apy_reason": reason,
                 "suspended": False,
             })
 
@@ -474,7 +524,7 @@ def build_report_data(
             }
 
     avg7 = _seven_day_avg_apy(equity_doc, date_str)
-    adapter_meta = _adapter_meta(adapter_doc)
+    adapter_meta = _adapter_meta(adapter_doc, now_dt)
     best_strategy = _best_strategy(tournament_doc)
 
     golive_passed = golive_doc.get("passed")
@@ -489,7 +539,7 @@ def build_report_data(
     risk_approved = status_doc.get("risk_policy_approved")
     risk_blocks = _risk_blocks_today(blocks_doc, date_str)
 
-    base_chain = _collect_base_chain(adapter_doc, ddir)
+    base_chain = _collect_base_chain(adapter_doc, ddir, now_dt)
 
     return {
         "date": date_str,
@@ -591,9 +641,9 @@ def format_daily_message(data: dict) -> str:
         m = meta.get(key, {})
         name = m.get("display_name", key)
         pct = (val / equity_base * 100) if equity_base else 0.0
-        apy_p = m.get("apy")
-        apy_str = f" — {apy_p:.1f}% APY" if isinstance(apy_p, (int, float)) else ""
-        lines.append(f"  • {_esc(name)}: ${val:,.0f} ({pct:.1f}%){apy_str}")
+        lines.append(
+            f"  • {_esc(name)}: ${val:,.0f} ({pct:.1f}%){_apy_suffix(m)}"
+        )
     rest = ordered[MAX_POSITION_LINES:]
     if rest:
         rest_usd = sum(v for _, v in rest)
@@ -706,7 +756,8 @@ def format_daily_message(data: dict) -> str:
                 lines.append(f"  🚫 {_esc(row['label'])} [{_esc(row['tier'])}]: SUSPENDED")
             else:
                 lines.append(
-                    f"  📊 {_esc(row['label'])} [{_esc(row['tier'])}]: {row['apy']:.1f}% APY (monitoring)"
+                    f"  📊 {_esc(row['label'])} [{_esc(row['tier'])}]: "
+                    f"{_apy_suffix(row).removeprefix(' — ')} (monitoring)"
                 )
         lines.append("  ℹ️ Phase 1: monitoring without capital → until 2026-07-12")
 
