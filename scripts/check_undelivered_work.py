@@ -846,6 +846,36 @@ def churn_rule():
     return (lambda rel: rel.startswith(tuple(CHURN_PREFIXES)) or rel in CHURN_PATHS), None
 
 
+def reap_where(row) -> str:
+    """Общая шапка квитанции: «какое дерево, когда снято, где архив».
+
+    Вынесена, чтобы у вердикта (`reaped_state`) и у сборщика записи была ОДНА строка, а не две
+    похожие: рендер отчёта отделяет шапку от хвоста вычитанием префикса, и разойдись эти две
+    формулировки — группировка молча перестала бы срабатывать (текст остался бы верным, а
+    свёртка исчезла). Один источник — расхождение невозможно."""
+    return f"дерево снято {row.get('ts')} по правилу уборки, архив: {row.get('archive')}"
+
+
+def reap_match(path_str, ledger):
+    """(worktree, строка-квитанция, путь относительно дерева) для объявленного пути, либо тройка None.
+
+    Сопоставление вынесено из `reaped_state`, потому что оно нужно ДВАЖДЫ: вердикту и сборщику
+    записи отчёта (тому нужны дерево/время/архив, чтобы сгруппировать квитанции по деревьям).
+    `/tmp` и `/private/tmp` на macOS — один каталог, поэтому сверяются обе формы (см. #303)."""
+    p = Path(str(path_str))
+    if not p.is_absolute():
+        return None, None, None
+    for wt, row in ledger.items():
+        prefix = wt.rstrip("/") + os.sep
+        variants = {str(p), str(p).replace("/private/tmp/", "/tmp/", 1),
+                    str(p).replace("/tmp/", "/private/tmp/", 1)}
+        hit = next((v for v in variants if v.startswith(prefix)), None)
+        if hit is None:
+            continue
+        return wt, row, hit[len(prefix):]
+    return None, None, None
+
+
 def reaped_state(path_str, ledger, root, base_ref, git=_git):
     """(вердикт, объяснение) для объявленного пути внутри СНЯТОГО дерева, либо (None, None).
 
@@ -885,54 +915,45 @@ def reaped_state(path_str, ledger, root, base_ref, git=_git):
     дереве локально, в квитанцию не попадает. Такое дерево уборщик снимет и без этой правки —
     дефект принадлежит уборщику, а не вердикту здесь (карточка
     `inbox-uborschik-snimaet-derevo-s-lokalnym-komm`)."""
-    p = Path(str(path_str))
-    if not p.is_absolute():
+    wt, row, rel = reap_match(path_str, ledger)
+    if wt is None:
         return None, None
-    for wt, row in ledger.items():
-        prefix = wt.rstrip("/") + os.sep
-        variants = {str(p), str(p).replace("/private/tmp/", "/tmp/", 1),
-                    str(p).replace("/tmp/", "/private/tmp/", 1)}
-        hit = next((v for v in variants if v.startswith(prefix)), None)
-        if hit is None:
-            continue
-        rel = hit[len(prefix):]
-        state = (row.get("paths") or {}).get(rel)
-        where = f"дерево снято {row.get('ts')} по правилу уборки, архив: {row.get('archive')}"
-        if state in REAP_EXPLAINED:
-            return DELIVERED, f"{where}; содержимое пути объяснено при снятии ({state})"
-        if state is not None:
-            return UNMEASURED, (f"{where}, НО путь помечен при снятии как {state!r} — "
-                                "снятие такого дерева правилом не предусмотрено")
-        rc, _, _ = git(root, "cat-file", "-e", f"{base_ref}:{rel}")
-        if rc != 0:
-            head = (f"{where}, путь в квитанции не назван, и на {base_ref} такого файла "
-                    "нет вовсе")
-            is_churn, why_churn = churn_rule()
-            if is_churn is None:
-                return ABSENT, f"{head}; {why_churn}"
-            if is_churn(rel):
-                return ABSENT, (f"{head} — НО под правило отсева уборщика (churn) этот путь "
-                                "подпадает, и в квитанцию он не попал бы, даже если бы лежал "
-                                "в дереве: был он там или нет, НЕ ИЗМЕРЕНО")
-            hist = origin_blob_history(root, base_ref, rel, git=git)
-            if hist is None:
-                return ABSENT, (f"{head}; историю {base_ref} по этому пути прочитать не "
-                                "удалось — существовало ли имя, НЕ ИЗМЕРЕНО")
-            if hist:
-                return DELETED_ON_ORIGIN, (
-                    f"{head}, но в истории {base_ref} путь встречался ({len(hist)} версий) — "
-                    "это удаление/переименование на origin, а не пропажа объявленной работы. "
-                    "Квитанция перечисляет КАЖДЫЙ расходившийся с базой путь и составлена ДО "
-                    "снятия: этого пути в ней нет ⇒ в дереве лежало ровно то, что и на базе, "
-                    "а содержимое базы живёт в её истории. ПОДНИМАТЬ НЕЧЕГО")
-            return NOWHERE, (f"{head}. Квитанция перечисляет КАЖДЫЙ расходившийся с базой путь "
-                             "дерева и составлена ДО снятия; под правило отсева (churn) путь не "
-                             "подпадает, в истории базы не встречался ни разу — значит в дереве "
-                             "его на момент снятия НЕ БЫЛО. ПОДНИМАТЬ НЕЧЕГО: имя объявлено "
-                             "авансом, файла под ним не появилось")
-        return DELIVERED, (f"{where}; путь при снятии не расходился с {base_ref} "
-                           "(правки в дереве не было)")
-    return None, None
+    state = (row.get("paths") or {}).get(rel)
+    where = reap_where(row)
+    if state in REAP_EXPLAINED:
+        return DELIVERED, f"{where}; содержимое пути объяснено при снятии ({state})"
+    if state is not None:
+        return UNMEASURED, (f"{where}, НО путь помечен при снятии как {state!r} — "
+                            "снятие такого дерева правилом не предусмотрено")
+    rc, _, _ = git(root, "cat-file", "-e", f"{base_ref}:{rel}")
+    if rc != 0:
+        head = (f"{where}, путь в квитанции не назван, и на {base_ref} такого файла "
+                "нет вовсе")
+        is_churn, why_churn = churn_rule()
+        if is_churn is None:
+            return ABSENT, f"{head}; {why_churn}"
+        if is_churn(rel):
+            return ABSENT, (f"{head} — НО под правило отсева уборщика (churn) этот путь "
+                            "подпадает, и в квитанцию он не попал бы, даже если бы лежал "
+                            "в дереве: был он там или нет, НЕ ИЗМЕРЕНО")
+        hist = origin_blob_history(root, base_ref, rel, git=git)
+        if hist is None:
+            return ABSENT, (f"{head}; историю {base_ref} по этому пути прочитать не "
+                            "удалось — существовало ли имя, НЕ ИЗМЕРЕНО")
+        if hist:
+            return DELETED_ON_ORIGIN, (
+                f"{head}, но в истории {base_ref} путь встречался ({len(hist)} версий) — "
+                "это удаление/переименование на origin, а не пропажа объявленной работы. "
+                "Квитанция перечисляет КАЖДЫЙ расходившийся с базой путь и составлена ДО "
+                "снятия: этого пути в ней нет ⇒ в дереве лежало ровно то, что и на базе, "
+                "а содержимое базы живёт в её истории. ПОДНИМАТЬ НЕЧЕГО")
+        return NOWHERE, (f"{head}. Квитанция перечисляет КАЖДЫЙ расходившийся с базой путь "
+                         "дерева и составлена ДО снятия; под правило отсева (churn) путь не "
+                         "подпадает, в истории базы не встречался ни разу — значит в дереве "
+                         "его на момент снятия НЕ БЫЛО. ПОДНИМАТЬ НЕЧЕГО: имя объявлено "
+                         "авансом, файла под ним не появилось")
+    return DELIVERED, (f"{where}; путь при снятии не расходился с {base_ref} "
+                       "(правки в дереве не было)")
 
 
 def group_tree_gone(unmeasured):
@@ -1735,8 +1756,41 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                 # названному объяснённым; всё остальное идёт прежним путём.
                 st, detail = reaped_state(raw, reap_ledger, root, base_ref, git=git)
                 if st == DELIVERED:
+                    # Тот же приём дедупликации, что у соседей `nowhere`/`deleted`/`findings`
+                    # строками ниже, и по той же причине. Один и тот же путь объявляют по
+                    # НЕСКОЛЬКУ раз за цикл (объявление до работы, потом уточняющее), и раздел
+                    # квитанций был ЕДИНСТВЕННЫМ из пяти без этой свёртки: замер #307 — 87
+                    # строк при 54 уникальных путях, 33 строки чистого повтора. Видимость не
+                    # сужается: повторившая сессия называется в `also_declared_by`, ровно как
+                    # у соседей. Осадок в обязательном к прочтению отчёте — это механизм,
+                    # которым сторожа глохнут (#243/#291): читатель учится листать раздел.
+                    wt, row, rel_in_tree = reap_match(raw, reap_ledger)
+                    # Ключ — ДЕРЕВО+путь внутри него, а не объявленная строка: на macOS `/tmp`
+                    # и `/private/tmp` — один каталог, и один файл объявляется то одной формой,
+                    # то другой (тот же класс, что закрыл #303 в шаге 0b). По сырой строке
+                    # такая пара выглядит как два разных пути и пережила бы свёртку: в замере
+                    # #307 таких «двойников по ярлыку» 5 из 53.
+                    key = ((wt, rel_in_tree, DELIVERED) if wt is not None
+                           else (str(raw), DELIVERED))
+                    if key in seen:
+                        prev = reaped[seen[key]]
+                        # «Ещё объявляли» — про ДРУГИЕ сессии. Одна и та же сессия объявляет
+                        # путь по нескольку раз штатно (объявление до работы, потом уточняющее),
+                        # и записать её себе же в свидетели значило бы выдать осадок за факт.
+                        who = entry.get("session")
+                        if who and who != prev["session"] and who not in prev["also_declared_by"]:
+                            prev["also_declared_by"].append(who)
+                        continue
+                    seen[key] = len(reaped)
+                    where = reap_where(row) if row is not None else ""
+                    tail = detail
+                    if where and detail.startswith(where):
+                        tail = detail[len(where):].lstrip("; ,")
                     reaped.append({"session": entry.get("session"), "path": str(raw),
-                                   "reason": detail})
+                                   "reason": detail, "tree": wt, "rel": rel_in_tree,
+                                   "reap_ts": (row or {}).get("ts"),
+                                   "archive": (row or {}).get("archive"),
+                                   "verdict": tail, "also_declared_by": []})
                     continue
                 if st is not None:
                     if st == NOWHERE:
@@ -2163,11 +2217,41 @@ def render(report) -> str:
                 out.append(f"      объявляла: {f['summary']}")
 
     if report.get("reaped"):
+        # Свёртка по ДЕРЕВЬЯМ, а не построчно. Шапка квитанции («дерево снято …, архив: …»)
+        # одинакова у всех путей одного дерева и занимает ~120 символов; печатая её у каждого
+        # пути, раздел разрастался в 87 строк осадка (замер #307) — в отчёте, который протокол
+        # предписывает читать КАЖДЫЙ цикл. Ни один путь при этом не пропадает: шапка выносится
+        # один раз, пути перечисляются под своим вердиктом. Раздел `reaped` по построению
+        # держит только DELIVERED («поднимать нечего»); настоящие находки живут в разделах выше
+        # и здесь не сворачиваются ничем.
         out.append("")
-        out.append(f"🧾 снятые деревья с квитанцией ({len(report['reaped'])}) — дерева нет, но "
-                   "измерение сделано ДО снятия, и работа объяснена:")
+        groups = {}
         for r in report["reaped"]:
-            out.append(f"  - {r.get('session') or '-'} · {r['path']}: {r['reason']}")
+            groups.setdefault(r.get("tree") or "", []).append(r)
+        declared = sum(1 + len(r.get("also_declared_by") or []) for r in report["reaped"])
+        extra = "" if declared == len(report["reaped"]) else f"; объявлений {declared}"
+        out.append(f"🧾 снятые деревья с квитанцией (путей {len(report['reaped'])} "
+                   f"в {len(groups)} дерев.{extra}) — дерева нет, но измерение сделано ДО "
+                   "снятия, и работа объяснена:")
+        for tree, rows in groups.items():
+            if not tree:
+                # Дерево не опознано — сворачивать нечем, печатаем как раньше, пофайлово.
+                for r in rows:
+                    out.append(f"  - {r.get('session') or '-'} · {r['path']}: {r['reason']}")
+                continue
+            who = []
+            for r in rows:
+                for s in [r.get("session")] + list(r.get("also_declared_by") or []):
+                    if s and s not in who:
+                        who.append(s)
+            out.append(f"  ▪ {tree} — снято {rows[0].get('reap_ts')} · путей {len(rows)} · "
+                       f"объявляли: {', '.join(who) or '-'} · архив: {rows[0].get('archive')}")
+            by_verdict = {}
+            for r in rows:
+                by_verdict.setdefault(r.get("verdict") or r["reason"], []).append(r)
+            for verdict, rs in by_verdict.items():
+                paths = ", ".join(r.get("rel") or r["path"] for r in rs)
+                out.append(f"      {verdict} ({len(rs)}): {paths}")
 
     if report.get("fresh"):
         out.append("")
