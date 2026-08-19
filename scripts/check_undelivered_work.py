@@ -1621,6 +1621,32 @@ def card_closes_announcement(entry, root, base_ref, git=_git, cache=None):
 
 # ── сборка отчёта ────────────────────────────────────────────────────────────
 
+def add_witness(record, who) -> bool:
+    """«Ещё объявляли» — про ДРУГИЕ сессии, и ровно по одному разу.
+
+    Одна и та же сессия объявляет путь по НЕСКОЛЬКУ раз штатно (объявление до работы,
+    потом уточняющие — §3.4), и безусловный `append` записывал её себе же в свидетели:
+    три объявления одной сессии давали `also_declared_by = ['pidX', 'pidX']`, то есть
+    отчёт печатал двух несуществующих свидетелей про автора самой записи (замер #307,
+    герметичный прогон на чистом origin). Дороже всего это в разделе НАХОДОК: именно
+    по списку «кто ещё объявлял» сессия решает, две ли сессии взяли одну карточку —
+    вопрос, ради которого заводили шаг 0b (#230).
+
+    Правило ОДНО на все разделы (`nowhere` · `deleted_on_origin` · `by_design` ·
+    `card_closed` · `findings` · `reaped`): второй источник разошёлся бы молча, и
+    свёртка выключилась бы там, где её не поправили (урок `reap_where`, #307).
+    Видимость не сужается ни на строку: ДРУГАЯ сессия по-прежнему называется — см.
+    обратные контроли в тестах.
+    """
+    if not who or who == record.get("session"):
+        return False
+    witnesses = record.setdefault("also_declared_by", [])
+    if who in witnesses:
+        return False
+    witnesses.append(who)
+    return True
+
+
 def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                  malformed_lines=0, log_path=None, now=None,
                  grace_hours=DEFAULT_GRACE_HOURS, self_session_trusted=True,
@@ -1774,12 +1800,9 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                            else (str(raw), DELIVERED))
                     if key in seen:
                         prev = reaped[seen[key]]
-                        # «Ещё объявляли» — про ДРУГИЕ сессии. Одна и та же сессия объявляет
-                        # путь по нескольку раз штатно (объявление до работы, потом уточняющее),
-                        # и записать её себе же в свидетели значило бы выдать осадок за факт.
-                        who = entry.get("session")
-                        if who and who != prev["session"] and who not in prev["also_declared_by"]:
-                            prev["also_declared_by"].append(who)
+                        # «Ещё объявляли» — про ДРУГИЕ сессии (одно правило на все разделы,
+                        # см. `add_witness`).
+                        add_witness(prev, entry.get("session"))
                         continue
                     seen[key] = len(reaped)
                     where = reap_where(row) if row is not None else ""
@@ -1799,7 +1822,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                         # место в отчёте и вывод, а не видимость находки.
                         key = (str(raw), NOWHERE)
                         if key in seen:
-                            nowhere[seen[key]]["also_declared_by"].append(entry.get("session"))
+                            add_witness(nowhere[seen[key]], entry.get("session"))
                             continue
                         seen[key] = len(nowhere)
                         nowhere.append({"session": entry.get("session"), "ts": entry.get("ts"),
@@ -1819,7 +1842,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                         # `nowhere`.
                         key = (str(raw), DELETED_ON_ORIGIN)
                         if key in seen:
-                            deleted[seen[key]]["also_declared_by"].append(entry.get("session"))
+                            add_witness(deleted[seen[key]], entry.get("session"))
                             continue
                         seen[key] = len(deleted)
                         deleted.append({"session": entry.get("session"), "ts": entry.get("ts"),
@@ -1862,7 +1885,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                 if gone:
                     key = (rel, DELETED_ON_ORIGIN)
                     if key in seen:
-                        deleted[seen[key]]["also_declared_by"].append(entry.get("session"))
+                        add_witness(deleted[seen[key]], entry.get("session"))
                         continue
                     seen[key] = len(deleted)
                     deleted.append({"session": entry.get("session"), "ts": entry.get("ts"),
@@ -1877,7 +1900,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                 if verdict:
                     key = (rel, NOWHERE)
                     if key in seen:
-                        nowhere[seen[key]]["also_declared_by"].append(entry.get("session"))
+                        add_witness(nowhere[seen[key]], entry.get("session"))
                         continue
                     seen[key] = len(nowhere)
                     nowhere.append({"session": entry.get("session"), "ts": entry.get("ts"),
@@ -1903,7 +1926,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                     if refused:
                         key = (rel, BY_DESIGN)
                         if key in seen:
-                            by_design[seen[key]]["also_declared_by"].append(entry.get("session"))
+                            add_witness(by_design[seen[key]], entry.get("session"))
                             continue
                         seen[key] = len(by_design)
                         by_design.append({"session": entry.get("session"), "ts": entry.get("ts"),
@@ -1978,8 +2001,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                     if closes:
                         key = (rel, CARD_CLOSED)
                         if key in seen:
-                            card_closed[seen[key]]["also_declared_by"].append(
-                                entry.get("session"))
+                            add_witness(card_closed[seen[key]], entry.get("session"))
                             continue
                         seen[key] = len(card_closed)
                         card_closed.append({"session": entry.get("session"),
@@ -2007,7 +2029,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
             # спрятать свежую сироту в хвосте старой находки.
             key = (rel, st, detail, within_grace)
             if key in seen:
-                findings[seen[key]]["also_declared_by"].append(entry.get("session"))
+                add_witness(findings[seen[key]], entry.get("session"))
                 continue
             seen[key] = len(findings)
             findings.append({"session": entry.get("session"), "ts": entry.get("ts"),
