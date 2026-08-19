@@ -140,8 +140,11 @@ python3 -m spa_core.paper_trading.golive_checker
 python3 -m spa_core.monitoring.system_health_monitor
 # Обновить SYSTEM_BRIEFING сейчас:
 python3 scripts/update_system_briefing.py
-# Все тесты — РОВНО ТО, ЧТО ГЕЙТИТ CI (иначе «у меня зелено» при красном main):
-python3 -m pytest spa_core/tests/ tests/ scripts/tests/ spa_core/analytics/gross_of/ research/cards/ -q
+# Все тесты — РОВНО ТО, ЧТО ГЕЙТИТ CI (иначе «у меня зелено» при красном main).
+# ОКРУЖЕНИЕ — часть команды, а не украшение (цикл #304): без SPA_ENV=ci рантайм перестаёт
+# пропускать advisory-слой Tier B, и тот же набор идёт 125 с вместо 14 с на одном только
+# test_cycle_nav_determinism.py. Гейтит совпадение test_prescribed_run_matches_ci.py:
+SPA_ENV=ci PYTHONHASHSEED=0 python3 -m pytest spa_core/tests/ tests/ scripts/tests/ spa_core/analytics/gross_of/ research/cards/ -q
 # Статус агентов:
 launchctl list | grep spa    ·    bash scripts/verify_fleet_after_reboot.sh
 # Переустановить агентов:

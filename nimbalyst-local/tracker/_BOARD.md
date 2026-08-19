@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **502** · ждёт владельца: **13** · занято сессиями: **5**.
+> Всего карточек: **503** · ждёт владельца: **13** · занято сессиями: **5**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -148,7 +148,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (226)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (227)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -265,6 +265,7 @@
 - Шаг 0b не дотягивается родством до ярлыка cycle-<PID>: 328 из 445 захватов вне досягаемости починки #293  ·  `inbox-shag-0b-ne-dotyagivaetsya-rodstvom-do-ya.md` · 2026-08-19
 - Шаг 0b объявляет «ЗАНЯТА» о сессии, смерть которой печатает в том же отчёте: одна сессия — два ярлыка в журнале  ·  `inbox-shag-0b-obyavlyaet-zanyata-o-sessii-smer.md` · 2026-08-18
 - Шаг 2 из worktree на origin НЕ ВИДИТ ответ владельца: два цикла прошли мимо живого решения  ·  `inbox-shag-2-iz-worktree-na-origin-ne-vidit-ot.md` · 2026-08-14
+- Шесть тестов — это 15% стены всей приёмки, и стена уходит в ядро на создание потоков  ·  `inbox-shest-testov-eto-15-steny-vsei-priemki-i.md` · 2026-08-18
 - Сличение имён протоколов ПОДСТРОКОЙ выросло с 8 имён до 56: ложный отказ в бонусе стал в семь раз вероятнее  ·  `inbox-slichenie-imen-protokolov-podstrokoi-vyr.md` · 2026-08-17
 - SPA CI красный 12 прогонов: 17 тестов судят о ХОСТЕ (нет launchctl на Linux, cwd=spa_core), не о коде  ·  `inbox-spa-ci-krasnyi-12-progonov-17-testov-sud.md` · 2026-08-13
 - Статусы карточек владельца переписались сами: три карточки с одним заголовком, ответ уехал не в ту  ·  `inbox-statusy-kartochek-vladeltsa-perepisalis.md` · 2026-08-08
@@ -364,9 +365,9 @@
 - Оживить фиды вне Ethereum — путь к снятию остатка кэша (решение владельца 08.08)  ·  `inbox-ozhivit-fidy-vne-ethereum-put-k-snyatiyu.md` · 2026-08-08
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
 - Подготовить ADR: пересмотр лимита одной цепочки 90% (решение владельца — за ним)  ·  `inbox-podgotovit-adr-peresmotr-limita-odnoi-ts.md` · 2026-08-08
+- Разбор workflow читает шаг pip install как ПРОГОН pytest, а слово в комментарии — как его цель  ·  `inbox-razbor-workflow-chitaet-shag-pip-install.md` · 2026-08-19
 - Сбалансированный трек: ноль профинансированных дней из 40 при 920 отработанных циклах  ·  `inbox-sbalansirovannyi-trek-nol-profinansirova.md` · 2026-08-08
 - Семь скриптов, вскрытых строгим сканером: разобрать поштучно (подключить / списать / вывести класс правилом)  ·  `inbox-sem-skriptov-vskrytyh-strogim-skanerom-r.md` · 2026-08-16
-- Шесть тестов — это 15% стены всей приёмки, и стена уходит в ядро на создание потоков  ·  `inbox-shest-testov-eto-15-steny-vsei-priemki-i.md` · 2026-08-18
 - Скан кандидатов работает каждый цикл по реестру, которого никто не пишет: discovery не подключён ни одним агентом  ·  `inbox-skan-kandidatov-rabotaet-kazhdyi-tsikl-p.md` · 2026-08-18
 - Снять переходное послабление маячка: решения обязаны гейтиться СВОИМ умением  ·  `inbox-snyat-perehodnoe-poslablenie-mayachka-re.md` · 2026-08-17
 - Снятая остановка живёт в git: восстановление из резерва поднимет прод уже остановленным  ·  `inbox-snyataya-ostanovka-zhivet-v-git-vosstano.md` · 2026-08-10

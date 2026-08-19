@@ -59,6 +59,7 @@ def _load_sibling(name: str):
 
 _exclusions = _load_sibling("test_ci_test_exclusions")
 _run_blocks = _exclusions._run_blocks
+_join_continuations = _exclusions._join_continuations
 _tokenize = _exclusions._tokenize
 _normalize_cwd = _exclusions._normalize_cwd
 _unquote = _exclusions._unquote
@@ -118,6 +119,50 @@ def discover_test_dirs(root: Path) -> set[str]:
     return found
 
 
+def block_pytest_targets(block: list[str]) -> set[str]:
+    """Позиционные цели pytest в ОДНОМ ``run:``-блоке, с учётом ``cd`` внутри шага.
+
+    Вынесено из :func:`collect_pytest_targets` циклом #304, чтобы разбор окружения
+    (``ci_pytest_env``) спрашивал «какие каталоги гоняет ЭТОТ шаг» тем же кодом, а не
+    второй копией цикла по токенам. Урок цикла #47 — встроенная копия расходится с
+    оригиналом не «если», а «когда».
+    """
+    # Каждый ``run:`` — новая оболочка из корня workspace ⇒ cwd сбрасывается,
+    # иначе `cd spa_core` предыдущего шага «покрыл» бы путь следующего.
+    targets: set[str] = set()
+    cwd = ""
+    for command in block:
+        if command.lstrip().startswith("#"):
+            continue                          # закомментированный вызов ничего не гоняет
+        cd_match = _CD_RE.match(command)
+        if cd_match:
+            cwd = _normalize_cwd(cwd, cd_match.group(1))
+            continue
+        if not _PYTEST_RE.search(command):
+            continue
+        tokens = _tokenize(command)
+        skip_next = False
+        seen_pytest = False
+        for token in tokens:
+            if skip_next:
+                skip_next = False
+                continue
+            if not seen_pytest:
+                # пропускаем `python3 -m pytest` / `pytest`
+                if token.endswith("pytest"):
+                    seen_pytest = True
+                continue
+            if token.startswith("-"):
+                if "=" not in token and token in _VALUE_FLAGS:
+                    skip_next = True
+                continue
+            raw = _unquote(token).split("::")[0]
+            if not raw or raw.startswith("$"):
+                continue
+            targets.add(_normalize_cwd(cwd, raw))
+    return targets
+
+
 def collect_pytest_targets(files: dict[str, str]) -> set[str]:
     """Позиционные цели всех вызовов pytest в workflow, с учётом ``cd`` в шаге.
 
@@ -127,38 +172,7 @@ def collect_pytest_targets(files: dict[str, str]) -> set[str]:
     targets: set[str] = set()
     for _name, text in sorted(files.items()):
         for block in _run_blocks(text):
-            # Каждый ``run:`` — новая оболочка из корня workspace ⇒ cwd сбрасывается,
-            # иначе `cd spa_core` предыдущего шага «покрыл» бы путь следующего.
-            cwd = ""
-            for command in block:
-                if command.lstrip().startswith("#"):
-                    continue                      # закомментированный вызов ничего не гоняет
-                cd_match = _CD_RE.match(command)
-                if cd_match:
-                    cwd = _normalize_cwd(cwd, cd_match.group(1))
-                    continue
-                if not _PYTEST_RE.search(command):
-                    continue
-                tokens = _tokenize(command)
-                skip_next = False
-                seen_pytest = False
-                for token in tokens:
-                    if skip_next:
-                        skip_next = False
-                        continue
-                    if not seen_pytest:
-                        # пропускаем `python3 -m pytest` / `pytest`
-                        if token.endswith("pytest"):
-                            seen_pytest = True
-                        continue
-                    if token.startswith("-"):
-                        if "=" not in token and token in _VALUE_FLAGS:
-                            skip_next = True
-                        continue
-                    raw = _unquote(token).split("::")[0]
-                    if not raw or raw.startswith("$"):
-                        continue
-                    targets.add(_normalize_cwd(cwd, raw))
+            targets |= block_pytest_targets(block)
     return targets
 
 
@@ -192,9 +206,142 @@ def _pytest_command_count(files: dict[str, str]) -> int:
     )
 
 
+# ── ОКРУЖЕНИЕ, под которым CI зовёт pytest (цикл #304) ───────────────────────
+# «Те же каталоги» и «тот же прогон» — РАЗНЫЕ утверждения, и второе никем не
+# проверялось. Замер #304 на `spa_core/tests/test_cycle_nav_determinism.py`
+# (тот самый файл, который карточка звала «15 % стены приёмки»):
+#
+#   SPA_ENV=ci  →  14.30 с,     20 763 потока   ← так гоняет CI
+#   без SPA_ENV → 125.30 с,  679 762 потока     ← так предписывал CLAUDE.md
+#
+# Разница не в тестах, а в рантайме: `cycle_runner` под `SPA_ENV=ci` осознанно
+# пропускает advisory-слой Tier B (комментарий на месте пропуска), и без этой
+# переменной каждый смоделированный цикл поднимает ~479 advisory-модулей. Оба
+# прогона — 6 passed: набор один, прогон разный.
+#
+# Разбор YAML здесь настоящий (`yaml.safe_load`), а не второй самодельный
+# индент-парсер: прецедент — `tests/test_ci_workflows.py`, и pyyaml стоит в
+# списке зависимостей CI (`ci.yml`). Импорт fail-CLOSED: без pyyaml гейт
+# КРАСНЕЕТ с внятным сообщением, а не пропускается молча — молчаливый скип
+# здесь был бы ровно тем классом, ради которого файл написан.
+def strip_inline_comment(line: str) -> str:
+    """Отрезать хвост-комментарий ``#`` вне кавычек.
+
+    **Зачем и почему ТОЛЬКО здесь.** Шаг `pip install …` в `ci.yml` несёт хвост-комментарий,
+    в котором словами упомянут каталог `scripts/tests/`, — и общий разбор целей читает это
+    упоминание как ЦЕЛЬ pytest (сам вызов там тоже «находится»: в списке пакетов стоит слово
+    `pytest`). Для гейта покрытия лишняя цель безобидна — она может только ДОБАВИТЬ покрытия;
+    для вопроса об окружении она смертельна: шаг установки зависимостей окружения не ставит и
+    в одиночку обнулял бы ответ.
+
+    Общий `_tokenize` при этом НАМЕРЕННО не тронут: он кормит соседний гейт исключений, и
+    правка живого разбора «заодно» — это вторая задача за итерацию. Слепота названа и вынесена
+    карточкой `inbox-razbor-workflow-chitaet-shag-pip-install`, а не починена молча.
+    """
+    quote = ""
+    for i, ch in enumerate(line):
+        if quote:
+            if ch == quote:
+                quote = ""
+        elif ch in "\"'":
+            quote = ch
+        elif ch == "#" and (i == 0 or line[i - 1].isspace()):
+            return line[:i]
+    return line
+
+
+def _triggers_on_main(doc: dict) -> bool:
+    """Гоняется ли workflow на push/pull_request в main (то есть ГЕЙТИТ ли он main).
+
+    Ключ ``on`` YAML 1.1 разбирает как булево ``True`` — спрашиваем оба написания, иначе
+    ответ был бы «ни один workflow не гейтит main», то есть тихий fail-OPEN.
+    """
+    on = doc.get("on", doc.get(True))
+    if isinstance(on, str):
+        return on in ("push", "pull_request")
+    if isinstance(on, list):
+        return bool({"push", "pull_request"} & set(on))
+    if isinstance(on, dict):
+        return bool({"push", "pull_request"} & set(on))
+    return False
+
+
+def pytest_steps(text: str) -> list[tuple[set[str], dict[str, str]]]:
+    """``(цели, env)`` каждого шага workflow, который зовёт pytest.
+
+    ``env`` шага — job-level, перекрытый step-level (ровно как их складывает Actions).
+    Хвосты-комментарии из команд убраны (см. :func:`strip_inline_comment`).
+    """
+    try:
+        import yaml
+    except ImportError as exc:  # pragma: no cover — в CI pyyaml установлен всегда
+        raise AssertionError(
+            "для разбора окружения workflow нужен pyyaml (он есть в списке зависимостей "
+            f"CI в ci.yml); молчаливый скип здесь запрещён, инвариант #2: {exc}"
+        ) from exc
+
+    doc = yaml.safe_load(text) or {}
+    if not isinstance(doc, dict) or not _triggers_on_main(doc):
+        return []
+    found: list[tuple[set[str], dict[str, str]]] = []
+    for job in (doc.get("jobs") or {}).values():
+        if not isinstance(job, dict):
+            continue
+        job_env = {str(k): str(v) for k, v in (job.get("env") or {}).items()}
+        for step in job.get("steps") or []:
+            if not isinstance(step, dict):
+                continue
+            lines = [strip_inline_comment(ln) for ln in str(step.get("run") or "").splitlines()]
+            targets = block_pytest_targets(_join_continuations(lines))
+            if not targets:
+                continue
+            step_env = {str(k): str(v) for k, v in (step.get("env") or {}).items()}
+            found.append((targets, {**job_env, **step_env}))
+    return found
+
+
+def ci_pytest_env(files: dict[str, str], gating_dirs: set[str]) -> dict[str, str]:
+    """Окружение, под которым CI гоняет ГЕЙТЯЩИЙ набор — пересечение по имени И значению.
+
+    **Почему только гейтящие шаги.** Первый замер #304 брал пересечение по ВСЕМ шагам с
+    pytest и получил пусто: `proof-gate.yml`, `spa-run.yml` и шаг мета-проверки в `ci.yml`
+    окружения не ставят вовсе, и один такой шаг обнулял бы ответ. Но предписанная команда
+    повторяет не их, а ровно те шаги, что гоняют гейтящие каталоги, — вопрос ставится о них.
+
+    **Почему пересечение, а не объединение.** Переменная, которую ставит один шаг из трёх,
+    — особенность шага, а не свойство «прогона CI»; требовать её от предписанной команды
+    значило бы красить гейт на ровном месте. Требуем ровно то, без чего локальный прогон
+    заведомо не тот же самый.
+
+    ``files``/``gating_dirs`` — параметрами, чтобы гейт проверялся положительными
+    контролями на синтетическом YAML, а не только на живом дереве.
+    """
+    envs: list[dict[str, str]] = []
+    for _name, text in sorted(files.items()):
+        for targets, env in pytest_steps(text):
+            # Каталог ЦЕЛИКОМ, а не файл внутри него: `proof-gate.yml` тоже гейтит main,
+            # но зовёт четыре ИМЕНОВАННЫХ файла из `spa_core/tests/` под своим окружением,
+            # и предписанная команда воспроизводит не его, а прогон каталогов.
+            if targets & gating_dirs:
+                envs.append(env)
+    if not envs:
+        return {}
+    shared = dict(envs[0])
+    for env in envs[1:]:
+        shared = {k: v for k, v in shared.items() if env.get(k) == v}
+    return shared
+
+
+def gating_dirs(targets: set[str], root: Path) -> set[str]:
+    """Из целей CI — только те, что существуют как каталоги (файлы и мусор отброшены)."""
+    return {t.rstrip("/") for t in targets if (root / t).is_dir()}
+
+
 _WORKFLOW_FILES = _read_workflows()
 _TARGETS = collect_pytest_targets(_WORKFLOW_FILES)
 _TEST_DIRS = discover_test_dirs(_REPO_ROOT)
+_GATING_DIRS = gating_dirs(_TARGETS, _REPO_ROOT)
+_CI_PYTEST_ENV = ci_pytest_env(_WORKFLOW_FILES, _GATING_DIRS)
 
 
 # ── Проверки над живым деревом ────────────────────────────────────────────────
