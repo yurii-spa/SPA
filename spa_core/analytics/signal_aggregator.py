@@ -48,6 +48,7 @@ import json
 import logging
 import os
 import sys
+import threading
 import time
 import typing
 from collections import abc, deque
@@ -226,6 +227,58 @@ def _context_param(sig: "inspect.Signature", args: Tuple[Any, ...],
         if value is ctx:
             return param
     return None
+
+
+# ─── Ограничение по стене ──────────────────────────────────────────────────────
+
+def _run_bounded(fn, timeout: float, label: str = ""):
+    """Вызвать ``fn()`` и ВЕРНУТЬСЯ не позже ``timeout`` секунд.
+
+    Зачем отдельная функция (замер цикла #296). До неё границу ставил
+    ``with ThreadPoolExecutor(max_workers=1) as ex: fut.result(timeout=...)``,
+    и она НЕ ДЕРЖАЛА: ``FuturesTimeout`` действительно поднимался вовремя, но
+    выход из ``with`` зовёт ``shutdown(wait=True)`` — то есть ЖДЁТ тот самый
+    зависший модуль, ради ограничения которого таймаут и ставился. Замер
+    (`module_timeout=0.3с`, модуль спит 3с): исключение на 0.39с, а сам вызов
+    возвращал управление на **3.04с**. В health-логе при этом честно стояло
+    "timeout" — очередной случай «сторож ответил на СВОЙ вопрос, а не на
+    нужный»: статус верен, а обещание «модуль не задержит цикл дольше
+    MODULE_TIMEOUT» не выполнялось. В проде цена — дневной цикл, стоящий на
+    одном из ~479 Tier-B модулей столько, сколько тот сам захочет.
+
+    Поведение для вызывающего НЕ меняется: таймаут по-прежнему приходит как
+    ``FuturesTimeout``, исключение модуля — как оно само (тот же контракт, что
+    у ``Future.result``). Меняется одно: управление возвращается ВОВРЕМЯ.
+
+    Честно о цене: зависший модуль после таймаута продолжает работать в своём
+    потоке — оборвать чужой Python-код мы не можем и не пытаемся. Поток
+    **daemon**, поэтому он не держит выход интерпретатора (у пула потоки не
+    daemon, и `_python_exit` join'ит их на выходе). Его результат
+    отбрасывается, как отбрасывался и раньше.
+    """
+    box: Dict[str, Any] = {}
+    done = threading.Event()
+
+    def _runner() -> None:
+        try:
+            box["value"] = fn()
+        except BaseException as exc:  # noqa: BLE001 — переносим ИСХОДНОЕ исключение вызывающему
+            box["exc"] = exc
+        finally:
+            done.set()
+
+    threading.Thread(
+        target=_runner,
+        name=f"spa-signal-module:{label}"[:60],
+        daemon=True,
+    ).start()
+
+    if not done.wait(timeout):
+        raise FuturesTimeout(f"module exceeded {timeout}s")
+    exc = box.get("exc")
+    if exc is not None:
+        raise exc
+    return box.get("value")
 
 
 # ─── Module adapter ────────────────────────────────────────────────────────────
@@ -482,17 +535,19 @@ class SignalAggregator:
                     context: Dict[str, Any]) -> Tuple[Optional[float], bool]:
         """Запускает один модуль с таймаутом. Возвращает (score, ok). None при сбое."""
         adapter = _ModuleAdapter(module_info)
-        with ThreadPoolExecutor(max_workers=1) as ex:
-            fut = ex.submit(adapter.run, protocol, context)
-            try:
-                score, status, detail = fut.result(timeout=self.module_timeout)
-            except FuturesTimeout:
-                self._record(adapter.module_name, "timeout")
-                return None, False
-            except Exception as exc:  # noqa: BLE001
-                self._record(adapter.module_name, "failed",
-                             f"{type(exc).__name__}: {exc}")
-                return None, False
+        try:
+            score, status, detail = _run_bounded(
+                lambda: adapter.run(protocol, context),
+                self.module_timeout,
+                adapter.module_name,
+            )
+        except FuturesTimeout:
+            self._record(adapter.module_name, "timeout")
+            return None, False
+        except Exception as exc:  # noqa: BLE001
+            self._record(adapter.module_name, "failed",
+                         f"{type(exc).__name__}: {exc}")
+            return None, False
         self._record(adapter.module_name, status, detail)
         return score, status == "ok"
 
@@ -507,14 +562,16 @@ class SignalAggregator:
         бы лгать в другую сторону.
         """
         adapter = _ModuleAdapter(module_info)
-        with ThreadPoolExecutor(max_workers=1) as ex:
-            fut = ex.submit(adapter.run, protocol, context)
-            try:
-                score, status, _detail = fut.result(timeout=self.module_timeout)
-            except FuturesTimeout:
-                return None, False
-            except Exception:  # noqa: BLE001 — fail-open, как в проде
-                return None, False
+        try:
+            score, status, _detail = _run_bounded(
+                lambda: adapter.run(protocol, context),
+                self.module_timeout,
+                adapter.module_name,
+            )
+        except FuturesTimeout:
+            return None, False
+        except Exception:  # noqa: BLE001 — fail-open, как в проде
+            return None, False
         return score, status == "ok"
 
     # ── Tier A ───────────────────────────────────────────────────────────
