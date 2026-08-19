@@ -108,3 +108,41 @@ created: 2026-08-09
 вовсе. Добавлено 6 тестов в `spa_core/tests/test_tracker_status_audit.py`, прод-код не тронут.
 Контроли доказаны мутацией: снятие лестницы тяжести сторожа краснит 3 теста (включая новый),
 снятие гейта `set_fields` — свой; разрешённый переход при этом остаётся зелёным.
+
+---
+
+## Замер 2026-08-19 — немой писатель НАЙДЕН: это создатель карточки, дверь `--field status=`
+
+Полный перебор писателей `status:` (не по имени функции, а по факту записи в файл карточки)
+даёт шесть точек: `queue.set_status` (журналирует, отказывает в `owner-done`),
+`queue.set_fields` (отказывает в ключе `status`), `queue.create_card`,
+`owner_answer.record_owner_answer` (журналирует, только владелец),
+`owner_answer.carry_owner_answer` (пишет только `owner_*`-поля),
+`check_card_claim._set_claim_fields` (только `claimed_*`). Пять из шести чисты.
+
+**Шестой — `create_card`, и обход достижим из документированного CLI агента.** Гейт
+инварианта #14 смотрел ТОЛЬКО на параметр `status=`, а `extra_fields` принимал ключ `status`
+как обычное поле. Замерено исполнением:
+
+```
+orchestrator_queue.py create --type owner-decision … --status owner-done       → REFUSED (rc 2)
+orchestrator_queue.py create --type owner-decision … --field status=owner-done → карточка создана (rc 0)
+```
+
+Рождается карточка с ДВУМЯ верхнеуровневыми `status:`, и два читателя одного файла расходятся:
+`status_audit.status_of_text` (сторож переходов) берёт ПЕРВУЮ строку и видит `needs-owner`,
+`queue._parse_frontmatter` (CLI, доска, Telegram) — словарь, где побеждает ПОСЛЕДНЯЯ, и видит
+`owner-done`. Вопроса нет в очереди владельца, и везде он выглядит закрытым владельцем.
+Сторож переходов молчит не по недосмотру, а по построению: карточка для него `appeared`,
+перехода не было, записи в журнале не требуется — вердикт `OK`.
+
+**Починено в точке рождения** (`spa_core/owner_queue/queue.py::create_card`): ключ `status`
+в `extra_fields` теперь отказывается тем же `OwnerDoneForbidden`, что и в `set_fields`; CLI
+печатает `REFUSED` (существующая ветка `cmd_create`). Ни один живой вызывающий `extra_fields`
+статус не передаёт — поведение прода не меняется.
+
+Положительный контроль: `test_card_creator_may_not_smuggle_a_status_through_extra_fields` +
+характеризующий `test_a_second_status_line_splits_the_sentinel_from_the_owner_queue`
+(`spa_core/tests/test_tracker_status_audit.py`). Краснота доказана буквальной мутацией — гейт
+удалён из файла, применение подтверждено `inspect.getsource` загруженной функции, тест упал
+`DID NOT RAISE`; гейт возвращён, файл побайтово совпал с состоянием до мутации.

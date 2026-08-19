@@ -494,6 +494,21 @@ def create_card(
     """
     if status == OWNER_ONLY_STATUS:
         raise OwnerDoneForbidden("create_card must not set 'owner-done' (owner-only, invariant #14).")
+    # Гейт инварианта #14 смотрел ТОЛЬКО на параметр `status`, а `extra_fields`
+    # принимал ключ `status` как обычное поле — обход, воспроизведённый живым CLI
+    # 19.08 (`create --field status=owner-done` → карточка создана, rc 0).
+    # Родившаяся карточка несёт ДВА верхнеуровневых `status:`, и два читателя
+    # одного файла расходятся: сторож переходов (`status_audit.status_of_text`)
+    # берёт первую строку и видит `needs-owner`, а очередь/доска/Telegram
+    # (`_parse_frontmatter`, словарь) — последнюю и видят `owner-done`. Вопрос
+    # владельца исчезает из очереди и выглядит закрытым ИМ, а сторож печатает
+    # OK по построению: для него карточка `appeared`, перехода нет.
+    # Поэтому отказ стоит в точке РОЖДЕНИЯ, тем же исключением, что у set_fields.
+    if extra_fields and "status" in extra_fields:
+        raise OwnerDoneForbidden(
+            "create_card must not write 'status' through extra_fields — pass it as the "
+            "`status` argument (owner-done guard + audit trail, invariant #14)."
+        )
     d = Path(tracker_dir) if tracker_dir is not None else TRACKER_DIR
     d.mkdir(parents=True, exist_ok=True)
     dt = now or datetime.now(timezone.utc)

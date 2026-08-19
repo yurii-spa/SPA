@@ -194,6 +194,74 @@ def test_generic_field_writer_may_not_smuggle_a_status(tmp_path):
     assert status_audit.read_audit(tree)[0] == []
 
 
+def test_card_creator_may_not_smuggle_a_status_through_extra_fields(tmp_path):
+    """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ на настоящий обход (замерен 19.08, живой CLI агента).
+
+    ``set_fields`` ключ ``status`` отказывал с самого начала, а ``create_card`` — нет:
+    гейт инварианта #14 смотрел ТОЛЬКО на параметр ``status=``. Обе двери открыты из
+    документированной команды агента, и вели они в разные стороны::
+
+        orchestrator_queue.py create … --status owner-done       → REFUSED (rc 2)
+        orchestrator_queue.py create … --field status=owner-done → карточка создана
+
+    Соседний тест (``…_splits_the_sentinel_from_the_owner_queue``) меряет, во что это
+    обходилось: карточка с ДВУМЯ ``status:``, вопрос владельца пропадает из его очереди
+    и выглядит закрытым владельцем, а сторож переходов молчит по построению.
+
+    Отказ обязан быть ДО записи: файла карточки после него быть не должно.
+    """
+    from spa_core.owner_queue.queue import create_card
+
+    tree = _tree(tmp_path)
+    tracker = tree / sentinel.TRACKER_REL
+    with pytest.raises(OwnerDoneForbidden):
+        create_card("owner-decision", "Проба обхода", "тело",
+                    extra_fields={"status": "owner-done"}, tracker_dir=tracker)
+    assert list(tracker.glob("*.md")) == []
+    assert status_audit.read_audit(tree)[0] == []
+
+
+def test_a_second_status_line_splits_the_sentinel_from_the_owner_queue(tmp_path):
+    """ПОЧЕМУ отказ выше обязан стоять в СОЗДАТЕЛЕ: сторож этот класс не видит.
+
+    Карточка с двумя верхнеуровневыми ``status:`` читается двумя читателями по-разному:
+    ``status_audit.status_of_text`` (сторож переходов) берёт ПЕРВУЮ строку,
+    ``queue._parse_frontmatter`` (CLI, доска, Telegram) — словарь, где побеждает
+    ПОСЛЕДНЯЯ. Владелец теряет вопрос: в его очереди ``needs-owner`` карточки нет, а
+    везде, где печатается статус, стоит ``owner-done``.
+
+    Сторож переходов тут бессилен не по недосмотру, а по построению: карточка для него
+    новая (``appeared``), перехода не было, записи в журнале не требуется — он честно
+    печатает OK. Значит единственная защита — отказ в точке рождения карточки.
+    Тест характеризующий: закроют расхождение читателей — он покажет, что защиту в
+    ``create_card`` надо пересмотреть, а не что она стала не нужна.
+    """
+    from spa_core.owner_queue.queue import list_cards, load_card
+
+    tree = _tree(tmp_path)
+    tracker = tree / sentinel.TRACKER_REL
+    card = tracker / "owner-decision-dve-stroki-status.md"
+    card.write_text(
+        "---\n"
+        "trackerStatus:\n"
+        "  type: owner-decision\n"
+        'title: "Вопрос владельцу"\n'
+        "status: needs-owner\n"
+        "created: 2026-08-09\n"
+        "status: owner-done\n"
+        "---\n\nтело\n",
+        encoding="utf-8",
+    )
+    assert status_audit.read_status(card) == "needs-owner"   # то, что видит сторож
+    assert load_card(card).status == "owner-done"            # то, что видит владелец
+    assert list_cards("owner-decision", "needs-owner", tracker_dir=tracker) == []
+
+    sentinel.run(root=tree, now=T0)
+    r = sentinel.run(root=tree, now=T1)
+    assert r["verdict"] == sentinel.VERDICT_OK
+    assert r["unattributed"] == []
+
+
 # ── сторож: законные переходы молчат ─────────────────────────────────────────
 
 def test_needs_owner_to_ingested_is_the_one_move_an_agent_may_make(tmp_path):
