@@ -247,6 +247,7 @@
 - Проверь систему, сделай аудит, все ли ок?  ·  `inbox-prover-sistemu-sdelai-audit-vse-li-ok.md` · 2026-07-26
 - py: числа скриншота → approved:False (не DN); та же позиция с is_delta_neutral=…  ·  `inbox-py-chisla-skrinshota-approved-false-ne-d.md` · 2026-08-05
 - PYTHONPATH=/home/user/SPA pytest spa_core/tests/test_s{76,41,73,77,22}*.py -q →…  ·  `inbox-pythonpath-home-user-spa-pytest-spa-core.md` · 2026-08-05
+- Разбор workflow читает шаг pip install как ПРОГОН pytest, а слово в комментарии — как его цель  ·  `inbox-razbor-workflow-chitaet-shag-pip-install.md` · 2026-08-19
 - «red_team: CRITICAL» — это ЭХО нашей же остановки, а не находка разведки; причина нигде не названа  ·  `inbox-red-team-critical-eto-eho-ostanovki-a-ne-nahodka.md` · 2026-08-10
 - Рецидив: сетевой страж снова краснеет ТОЛЬКО в полном прогоне (3 теста, чистый origin)  ·  `inbox-retsidiv-setevoi-strazh-snova-krasneet-t.md` · 2026-08-08
 - Ряд дней offsite-бэкапа ключуется ЛОКАЛЬНОЙ датой, а читается по UTC — между 00 и 02 UTC серия рвётся  ·  `inbox-ryad-dnei-offsite-bekapa-klyuchuetsya-lo.md` · 2026-08-09
@@ -365,7 +366,6 @@
 - Оживить фиды вне Ethereum — путь к снятию остатка кэша (решение владельца 08.08)  ·  `inbox-ozhivit-fidy-vne-ethereum-put-k-snyatiyu.md` · 2026-08-08
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
 - Подготовить ADR: пересмотр лимита одной цепочки 90% (решение владельца — за ним)  ·  `inbox-podgotovit-adr-peresmotr-limita-odnoi-ts.md` · 2026-08-08
-- Разбор workflow читает шаг pip install как ПРОГОН pytest, а слово в комментарии — как его цель  ·  `inbox-razbor-workflow-chitaet-shag-pip-install.md` · 2026-08-19
 - Сбалансированный трек: ноль профинансированных дней из 40 при 920 отработанных циклах  ·  `inbox-sbalansirovannyi-trek-nol-profinansirova.md` · 2026-08-08
 - Семь скриптов, вскрытых строгим сканером: разобрать поштучно (подключить / списать / вывести класс правилом)  ·  `inbox-sem-skriptov-vskrytyh-strogim-skanerom-r.md` · 2026-08-16
 - Скан кандидатов работает каждый цикл по реестру, которого никто не пишет: discovery не подключён ни одним агентом  ·  `inbox-skan-kandidatov-rabotaet-kazhdyi-tsikl-p.md` · 2026-08-18

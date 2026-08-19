@@ -433,6 +433,15 @@ def test_positive_control_install_step_comment_is_not_a_pytest_run():
     плоском скаляре `#` после пробела съедает сам YAML, до нашего разбора комментарий не
     доезжает вовсе, и контроль оставался зелёным под собственной мутацией. В `ci.yml` шаг
     записан блочным скаляром, где `#` — обычный текст; авария живёт именно там.
+
+    **Правка цикла #305 — УЖЕСТОЧЕНИЕ, не послабление (инвариант #16).** До #305 шаг
+    установки всё равно считался «шагом с pytest»: комментарий отрезался, но из списка
+    пакетов целью становился `pyyaml`, и контроль утверждал `len(steps) == 2`, то есть
+    закреплял ровно ту половину дефекта, которую #304 чинить не стал (карточка
+    `inbox-razbor-workflow-chitaet-shag-pip-install`). Теперь установка вызовом не
+    является вовсе ⇒ шаг ОДИН. Проверка не сузилась: к прежнему утверждению о
+    комментарии добавлено утверждение о СПИСКЕ ПАКЕТОВ — ни одно слово строки установки
+    (ни из комментария, ни из аргументов `pip`) не имеет права стать целью.
     """
     text = (
         "name: gate\non:\n  push:\n    branches: [main]\njobs:\n  j:\n    steps:\n"
@@ -442,12 +451,15 @@ def test_positive_control_install_step_comment_is_not_a_pytest_run():
         "          python3 -m pytest scripts/tests/ -q\n"
         "        env:\n          SPA_ENV: ci\n"
     )
-    # Сначала — что комментарий ДОЕХАЛ до разбора (иначе контроль ничего не стережёт).
+    # Шаг установки — не прогон: у него нет целей, поэтому шагом с pytest он не считается.
     steps = _coverage.pytest_steps(text)
-    assert len(steps) == 2, steps
-    assert "scripts/tests" not in steps[0][0], (
-        "упоминание каталога в комментарии не имеет права быть целью"
-    )
+    assert len(steps) == 1, steps
+    assert steps[0][0] == {"scripts/tests"}, steps[0][0]
+    assert steps[0][1] == {"SPA_ENV": "ci"}, steps[0][1]
+    # Обе половины дефекта разом: ни слово из комментария, ни имя пакета не стали целью.
+    # Здесь `collect_pytest_targets`, а не `pytest_steps`: общий разбор целей — тот самый,
+    # что читал комментарий как каталог, и молчал он именно на этом пути.
+    assert _coverage.collect_pytest_targets({"gate.yml": text}) == {"scripts/tests"}
     assert _coverage.ci_pytest_env({"gate.yml": text}, {"scripts/tests"}) == {"SPA_ENV": "ci"}
 
 

@@ -65,6 +65,14 @@ _normalize_cwd = _exclusions._normalize_cwd
 _unquote = _exclusions._unquote
 _CD_RE = _exclusions._CD_RE
 _PYTEST_RE = _exclusions._PYTEST_RE
+# «Это ЗАПУСК pytest, а не упоминание его в чужой команде» + отрезание
+# хвоста-комментария — общее определение соседа (цикл #305, карточка
+# `inbox-razbor-workflow-chitaet-shag-pip-install`). Копии здесь БОЛЬШЕ НЕТ:
+# до #305 `strip_inline_comment` жил в этом файле и звался только разбором
+# окружения, а общий разбор целей продолжал читать комментарий как каталоги.
+pytest_run_segments = _exclusions.pytest_run_segments
+is_pytest_run = _exclusions.is_pytest_run
+strip_inline_comment = _exclusions.strip_inline_comment
 
 
 # ── Реестр осознанно НЕ запускаемых каталогов ────────────────────────────────
@@ -102,6 +110,11 @@ _VALUE_FLAGS = {"-k", "-m", "-p", "-n", "-c", "-o", "--tb", "--ignore", "--ignor
 _TRACE_TOKENS = ("agent-", "own-", "owner-decision-", "ADR", "docs/", "MP-")
 _MIN_JUSTIFICATION_LEN = 30
 
+# Перенаправления оболочки (`2>&1`, `2>/dev/null`, `> out.txt`): `shlex` отдаёт их
+# обычными словами, и до #305 они оседали в целях. Аргументом pytest они не являются
+# никогда. Отдельный токен-цель (`> out.txt` через пробел) съедается вместе с оператором.
+_REDIRECT_RE = re.compile(r"^\d*(?:>>|>|<)")
+
 
 def discover_test_dirs(root: Path) -> set[str]:
     """Каталоги с файлами ``test_*.py``, путями относительно корня репо."""
@@ -138,28 +151,34 @@ def block_pytest_targets(block: list[str]) -> set[str]:
         if cd_match:
             cwd = _normalize_cwd(cwd, cd_match.group(1))
             continue
-        if not _PYTEST_RE.search(command):
-            continue
-        tokens = _tokenize(command)
-        skip_next = False
-        seen_pytest = False
-        for token in tokens:
-            if skip_next:
-                skip_next = False
-                continue
-            if not seen_pytest:
-                # пропускаем `python3 -m pytest` / `pytest`
-                if token.endswith("pytest"):
-                    seen_pytest = True
-                continue
-            if token.startswith("-"):
-                if "=" not in token and token in _VALUE_FLAGS:
-                    skip_next = True
-                continue
-            raw = _unquote(token).split("::")[0]
-            if not raw or raw.startswith("$"):
-                continue
-            targets.add(_normalize_cwd(cwd, raw))
+        # Цели берутся ТОЛЬКО из сегментов, которые действительно запускают pytest
+        # (#305): шаг `pip install pytest …` вызовом не является, а хвост конвейера
+        # `… | tee test_output.txt` — не аргумент pytest.
+        for tokens in pytest_run_segments(command):
+            skip_next = False
+            seen_pytest = False
+            for token in tokens:
+                if skip_next:
+                    skip_next = False
+                    continue
+                if not seen_pytest:
+                    # пропускаем `python3 -m pytest` / `pytest`
+                    if token.endswith("pytest"):
+                        seen_pytest = True
+                    continue
+                if token.startswith("-"):
+                    if "=" not in token and token in _VALUE_FLAGS:
+                        skip_next = True
+                    continue
+                if _REDIRECT_RE.match(token):
+                    # голый оператор (`>`/`2>`) уносит и СЛЕДУЮЩИЙ токен — это имя файла
+                    if _REDIRECT_RE.fullmatch(token):
+                        skip_next = True
+                    continue
+                raw = _unquote(token).split("::")[0]
+                if not raw or raw.startswith("$"):
+                    continue
+                targets.add(_normalize_cwd(cwd, raw))
     return targets
 
 
@@ -202,7 +221,7 @@ def _pytest_command_count(files: dict[str, str]) -> int:
         for text in files.values()
         for block in _run_blocks(text)
         for command in block
-        if _PYTEST_RE.search(command) and not command.lstrip().startswith("#")
+        if is_pytest_run(command) and not command.lstrip().startswith("#")
     )
 
 
@@ -224,32 +243,6 @@ def _pytest_command_count(files: dict[str, str]) -> int:
 # списке зависимостей CI (`ci.yml`). Импорт fail-CLOSED: без pyyaml гейт
 # КРАСНЕЕТ с внятным сообщением, а не пропускается молча — молчаливый скип
 # здесь был бы ровно тем классом, ради которого файл написан.
-def strip_inline_comment(line: str) -> str:
-    """Отрезать хвост-комментарий ``#`` вне кавычек.
-
-    **Зачем и почему ТОЛЬКО здесь.** Шаг `pip install …` в `ci.yml` несёт хвост-комментарий,
-    в котором словами упомянут каталог `scripts/tests/`, — и общий разбор целей читает это
-    упоминание как ЦЕЛЬ pytest (сам вызов там тоже «находится»: в списке пакетов стоит слово
-    `pytest`). Для гейта покрытия лишняя цель безобидна — она может только ДОБАВИТЬ покрытия;
-    для вопроса об окружении она смертельна: шаг установки зависимостей окружения не ставит и
-    в одиночку обнулял бы ответ.
-
-    Общий `_tokenize` при этом НАМЕРЕННО не тронут: он кормит соседний гейт исключений, и
-    правка живого разбора «заодно» — это вторая задача за итерацию. Слепота названа и вынесена
-    карточкой `inbox-razbor-workflow-chitaet-shag-pip-install`, а не починена молча.
-    """
-    quote = ""
-    for i, ch in enumerate(line):
-        if quote:
-            if ch == quote:
-                quote = ""
-        elif ch in "\"'":
-            quote = ch
-        elif ch == "#" and (i == 0 or line[i - 1].isspace()):
-            return line[:i]
-    return line
-
-
 def _triggers_on_main(doc: dict) -> bool:
     """Гоняется ли workflow на push/pull_request в main (то есть ГЕЙТИТ ли он main).
 
@@ -491,3 +484,128 @@ def test_uncovered_dir_is_detected() -> None:
 def test_file_target_does_not_cover_its_directory() -> None:
     """`pytest tests/test_x.py` — это один файл, а не весь каталог."""
     assert uncovered_test_dirs({"tests"}, {"tests/test_x.py"}) == {"tests"}
+
+
+# ── Контроли цикла #305: установка ≠ запуск, комментарий ≠ цель ───────────────
+# Каждый — воспроизведение живой аварии, а не украшение. Все на БЛОЧНОМ скаляре
+# (`run: |`): в плоском `#` съедает сам YAML, и такой контроль зелен под любой
+# мутацией (ловушка, которую #304 поймал у себя).
+# Строка взята из живого `ci.yml` дословно, включая хвост-комментарий со словами
+# `scripts/tests/`.
+_SYNTHETIC_PIP_INSTALL = """
+jobs:
+  t:
+    steps:
+      - name: deps
+        run: |
+          pip install pytest pytest-asyncio pyyaml numpy bcrypt mypy==2.1.0  # pyflakes = the unused-import ratchet in scripts/tests/ shells out to it
+"""
+
+_SYNTHETIC_PIP_INSTALL_VIA_M = """
+jobs:
+  t:
+    steps:
+      - name: deps
+        run: |
+          python3 -m pip install --quiet pytest
+"""
+
+_SYNTHETIC_PIPE_TAIL = """
+jobs:
+  t:
+    steps:
+      - name: run
+        run: |
+          python -m pytest spa_core/tests/ -x -q 2>&1 | tee test_output.txt
+"""
+
+_SYNTHETIC_IF_PREFIX = """
+jobs:
+  t:
+    steps:
+      - name: probe
+        run: |
+          if python3 -m pytest spa_core/tests/test_dd_pack.py --collect-only -q 2>/dev/null | grep -q "head_live"; then
+            echo yes
+          fi
+"""
+
+_SYNTHETIC_COMMENT_TAIL_ON_REAL_RUN = """
+jobs:
+  t:
+    steps:
+      - name: run
+        run: |
+          python -m pytest tests/ -q  # раньше гоняли и scripts/tests/, см. карточку
+"""
+
+
+def test_pip_install_is_not_a_pytest_run() -> None:
+    """Шаг УСТАНОВКИ зависимостей не запускает ничего — целей у него нет.
+
+    Живой дефект: `pip install pytest pyyaml numpy …` давал цели `pyyaml`, `numpy`,
+    `bcrypt`, а из хвоста-комментария — `the`, `to` и настоящий каталог `scripts/tests`.
+    """
+    files = {"w.yml": _SYNTHETIC_PIP_INSTALL}
+    assert collect_pytest_targets(files) == set()
+    assert _pytest_command_count(files) == 0
+
+
+def test_pip_install_via_dash_m_is_not_a_pytest_run() -> None:
+    """`python3 -m pip install --quiet pytest` — тоже установка (живой proof-gate.yml).
+
+    Утверждение о ЧИСЛЕ вызовов здесь обязательно: в этой команде `pytest` — последний
+    токен, поэтому целей у неё нет и при полностью сломанном разборе. Проверка одних
+    только целей была бы зелёной под КАЖДОЙ мутацией — ровно то украшение, которое
+    цикл #304 нашёл у себя своей же мутацией. Мерим то, что действительно меняется.
+    """
+    files = {"w.yml": _SYNTHETIC_PIP_INSTALL_VIA_M}
+    assert collect_pytest_targets(files) == set()
+    assert _pytest_command_count(files) == 0
+
+
+def test_pipe_tail_is_not_a_pytest_argument() -> None:
+    """`… 2>&1 | tee test_output.txt` — хвост конвейера, а не цели pytest."""
+    assert collect_pytest_targets({"w.yml": _SYNTHETIC_PIPE_TAIL}) == {"spa_core/tests"}
+
+
+def test_shell_prefix_does_not_hide_a_real_run() -> None:
+    """Обратный контроль: `if python3 -m pytest …` — НАСТОЯЩИЙ вызов, терять его нельзя.
+
+    Без этого «позиционное» правило поехало бы в fail-OPEN: пропущенный вызов для
+    соседнего гейта исключений означает пропущенное исключение тестов.
+    """
+    targets = collect_pytest_targets({"w.yml": _SYNTHETIC_IF_PREFIX})
+    assert targets == {"spa_core/tests/test_dd_pack.py"}, targets
+
+
+def test_comment_tail_on_a_real_run_is_not_a_target() -> None:
+    """Слова в хвосте-комментарии настоящего вызова целями не становятся."""
+    assert collect_pytest_targets({"w.yml": _SYNTHETIC_COMMENT_TAIL_ON_REAL_RUN}) == {"tests"}
+
+
+def test_live_targets_are_real_paths_only() -> None:
+    """Обе стороны замера #305 на ЖИВОМ дереве, а не на синтетике.
+
+    До правки: 92 цели, из них реальных путей 10. Утверждение здесь — не «ровно 11»
+    (это ратчет на пустом месте, workflow меняются), а КЛАСС: каждая цель обязана
+    быть путём в репозитории. Мусорная цель безобидна лишь по знаку покрытия; она
+    же выдаёт каталог за покрытый прозой и обнуляет любой вопрос «а под чем гоняем».
+    """
+    junk = sorted(t for t in _TARGETS if not (_REPO_ROOT / t).exists())
+    assert not junk, (
+        f"в целях CI есть то, чего нет в репозитории: {junk}. Разбор снова читает "
+        "чужие слова как цели pytest."
+    )
+
+
+def test_gating_dirs_survived_the_tightening() -> None:
+    """Обратный контроль ужатия: ни один реально гоняемый каталог не потерян.
+
+    Если этот тест покраснеет — это НАХОДКА (CI перестал гонять каталог), а не повод
+    откатить правку разбора.
+    """
+    assert _GATING_DIRS == {
+        "tests", "spa_core/tests", "scripts/tests",
+        "spa_core/analytics/gross_of", "research/cards",
+    }, sorted(_GATING_DIRS)

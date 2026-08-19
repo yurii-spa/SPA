@@ -153,10 +153,148 @@ def _tokenize(command: str) -> list[str]:
         return command.split()
 
 
+# ── «Это ЗАПУСК pytest?» — одно определение на оба гейта (цикл #305) ──────────
+# Карточка `inbox-razbor-workflow-chitaet-shag-pip-install`. До #305 вопрос
+# решался регуляркой `_PYTEST_RE`, которая спрашивала лишь «встречается ли слово
+# pytest». Замер на живом дереве: 15 «вызовов pytest», из них ЧЕТЫРЕ — шаги
+# установки зависимостей (`pip install pytest …`, `python3 -m pip install --quiet
+# pytest`). Оттуда в цели покрытия попадали `pyyaml`, `numpy`, `bcrypt`, а вместе
+# с ними — слова из хвоста-комментария (`the`, `to`, `иначе`, `версия`) и, среди
+# них, настоящий каталог `scripts/tests`, «покрытый» ПРОЗОЙ. Всего 92 цели, из
+# которых реальных путей 10.
+#
+# Для гейта покрытия лишняя цель безобидна по знаку (может только ДОБАВИТЬ
+# покрытия), поэтому дефект не краснел никогда. Смертельным он становится там,
+# где по целям шага решают что-то ещё: #304 спрашивал «под каким окружением CI
+# гоняет гейтящий набор», и шаг установки — окружения не ставящий — в одиночку
+# обнулял ответ. Отдельно: пока `scripts/tests` числится покрытым ПО КОММЕНТАРИЮ,
+# исчезновение настоящего шага останется молчаливым.
+#
+# Признак выбран не «чёрным списком pip», а позиционный: pytest обязан стоять в
+# позиции КОМАНДЫ (сам по себе или после `python -m`), а не в списке аргументов
+# чужой команды. Это же отсекает хвосты конвейера (`… | tee test_output.txt`,
+# `… | grep -q …`), которые давали цели `tee`, `test_output.txt`, `grep`.
+_ENV_ASSIGN_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+_PYTHON_RE = re.compile(r"^(?:.*/)?python[0-9.]*$")
+# Слова, которые могут стоять ПЕРЕД настоящей командой и её не отменяют.
+# `if` — живой случай `proof-gate.yml`: `if python3 -m pytest … --collect-only …; then`.
+_PREFIX_WORDS = frozenset({
+    "!", "if", "then", "else", "elif", "while", "until", "do",
+    "time", "exec", "env", "nohup", "sudo", "command", "builtin",
+})
+
+
+def strip_inline_comment(line: str) -> str:
+    """Отрезать хвост-комментарий ``#`` вне кавычек.
+
+    Живёт ЗДЕСЬ, в общем разборе, а не рядом с одним потребителем: до #305 копия
+    стояла в `test_ci_covers_every_test_dir` и звалась только разбором окружения,
+    поэтому общий разбор целей продолжал читать слова из комментария как каталоги.
+    Одно определение — чинить в одном месте (урок цикла #47).
+
+    Осторожно с положительным контролем: в ПЛОСКОМ скаляре (``run: cmd # x``) `#`
+    съедает сам YAML, и контроль на нём зелен под любой мутацией. Проверять только
+    на блочном скаляре (``run: |``) — эту ловушку цикл #304 поймал у себя.
+    """
+    quote = ""
+    for i, ch in enumerate(line):
+        if quote:
+            if ch == quote:
+                quote = ""
+        elif ch in "\"'":
+            quote = ch
+        elif ch == "#" and (i == 0 or line[i - 1].isspace()):
+            return line[:i]
+    return line
+
+
+def _split_segments(command: str) -> list[str]:
+    """Разбить командную строку на сегменты по ``;`` ``&&`` ``||`` ``|`` вне кавычек.
+
+    Одиночный ``&`` НЕ разделитель: иначе перенаправление ``2>&1`` распалось бы на
+    два куска (живой случай `spa-run.yml`).
+    """
+    segments: list[str] = []
+    buf: list[str] = []
+    quote = ""
+    i = 0
+    while i < len(command):
+        ch = command[i]
+        if quote:
+            buf.append(ch)
+            if ch == quote:
+                quote = ""
+            i += 1
+            continue
+        if ch in "\"'":
+            quote = ch
+            buf.append(ch)
+            i += 1
+            continue
+        two = command[i:i + 2]
+        if two in ("&&", "||"):
+            segments.append("".join(buf))
+            buf = []
+            i += 2
+            continue
+        if ch in ";|":
+            segments.append("".join(buf))
+            buf = []
+            i += 1
+            continue
+        buf.append(ch)
+        i += 1
+    segments.append("".join(buf))
+    return [s.strip() for s in segments if s.strip()]
+
+
+def pytest_run_segments(command: str) -> list[list[str]]:
+    """Токены тех сегментов команды, которые РЕАЛЬНО запускают pytest.
+
+    Пустой список = команда pytest не запускает (в т.ч. `pip install pytest …`).
+    """
+    runs: list[list[str]] = []
+    for segment in _split_segments(strip_inline_comment(command)):
+        tokens = _tokenize(segment)
+        idx = 0
+        while idx < len(tokens) and (
+            tokens[idx] in _PREFIX_WORDS or _ENV_ASSIGN_RE.match(tokens[idx])
+        ):
+            idx += 1
+        head = tokens[idx:]
+        if not head:
+            continue
+        if head[0].endswith("pytest"):
+            runs.append(head)
+            continue
+        if _PYTHON_RE.match(head[0]):
+            # `python -m pytest` (флаги интерпретатора между ними допустимы);
+            # `python3 -m pip install pytest` сюда НЕ попадает — после `-m` стоит `pip`.
+            for j in range(1, len(head) - 1):
+                if head[j] == "-m":
+                    if head[j + 1].endswith("pytest"):
+                        runs.append(head)
+                    break
+    return runs
+
+
+def is_pytest_run(command: str) -> bool:
+    """Запускает ли команда pytest (а не просто упоминает его)."""
+    return bool(pytest_run_segments(command))
+
+
 def _flag_values(command: str, flag: str) -> list[str]:
     """Значения ``flag`` в команде: и ``--flag=v``, и ``--flag v``."""
+    return _flag_values_in_tokens(_tokenize(command), flag)
+
+
+def _flag_values_in_tokens(tokens: list[str], flag: str) -> list[str]:
+    """То же, но по уже разобранным токенам ОДНОГО сегмента.
+
+    Разделение появилось в #305: искать флаги во всей строке значило искать их и в
+    хвосте конвейера, и в чужой команде за ``&&``.
+    """
     values: list[str] = []
-    tokens = _tokenize(command)
     for idx, tok in enumerate(tokens):
         if tok.startswith(flag + "="):
             values.append(_unquote(tok[len(flag) + 1:]))
@@ -206,15 +344,14 @@ def collect_exclusions(files: dict[str, str]) -> list[Exclusion]:
                 if cd_match:
                     cwd = _normalize_cwd(cwd, cd_match.group(1))
                     continue
-                if not _PYTEST_RE.search(command):
-                    continue
-                for flag in _PATH_FLAGS + _GLOB_FLAGS:
-                    for value in _flag_values(command, flag):
-                        found.append(Exclusion(name, flag, value, cwd, command))
-                for flag in _EXPR_FLAGS:
-                    for value in _flag_values(command, flag):
-                        if re.search(r"\bnot\b", value):
+                for tokens in pytest_run_segments(command):
+                    for flag in _PATH_FLAGS + _GLOB_FLAGS:
+                        for value in _flag_values_in_tokens(tokens, flag):
                             found.append(Exclusion(name, flag, value, cwd, command))
+                    for flag in _EXPR_FLAGS:
+                        for value in _flag_values_in_tokens(tokens, flag):
+                            if re.search(r"\bnot\b", value):
+                                found.append(Exclusion(name, flag, value, cwd, command))
     return found
 
 
@@ -231,7 +368,7 @@ def _pytest_command_count(files: dict[str, str]) -> int:
         for text in files.values()
         for block in _run_blocks(text)
         for command in block
-        if _PYTEST_RE.search(command)
+        if is_pytest_run(command)
     )
 
 
@@ -455,6 +592,45 @@ def test_parser_does_not_match_yaml_paths_ignore_key() -> None:
     """``paths-ignore:`` — ключ триггера workflow, а не флаг pytest."""
     text = "on:\n  push:\n    paths-ignore:\n      - 'docs/**'\n      - '**.md'\n"
     assert collect_exclusions({"synthetic.yml": text}) == []
+
+
+def test_install_step_is_not_scanned_for_exclusions() -> None:
+    """Шаг установки — не вызов pytest, и искать в нём исключения нечего (#305).
+
+    Обратная сторона того же дефекта: сегодня в `pip install …` флагов `--ignore` нет,
+    но хвост-комментарий там ЕСТЬ, и слово `--ignore` в нём родило бы ЛОЖНОЕ исключение.
+    """
+    text = (
+        "        run: |\n"
+        "          pip install pytest pyyaml  # раньше было --ignore=tests/test_x.py\n"
+    )
+    assert collect_exclusions({"w.yml": text}) == []
+    assert _pytest_command_count({"w.yml": text}) == 0
+
+
+def test_exclusion_in_a_real_run_is_still_found() -> None:
+    """Обратный контроль: настоящий вызов после `if` и с конвейером — по-прежнему виден.
+
+    Пропущенный вызов здесь = пропущенное выключение тестов, то есть fail-OPEN внутри
+    гейта, написанного против невидимых выключений. Сужать разбор можно только так.
+    """
+    text = (
+        "        run: |\n"
+        "          if python3 -m pytest tests/ --ignore=tests/test_x.py -q 2>&1 | tee out.txt; then\n"
+        "            echo ok\n"
+        "          fi\n"
+    )
+    found = collect_exclusions({"w.yml": text})
+    assert [(e.flag, e.value) for e in found] == [("--ignore", "tests/test_x.py")]
+
+
+def test_flags_of_a_neighbouring_command_are_not_read_as_pytest_flags() -> None:
+    """`pytest tests/ && mypy --ignore-missing-imports` — второй сегмент не про тесты."""
+    text = (
+        "        run: |\n"
+        "          python -m pytest tests/ -q && python -m mypy spa_core/ --ignore=x.py\n"
+    )
+    assert collect_exclusions({"w.yml": text}) == []
 
 
 def test_parser_skips_commented_out_invocations() -> None:
