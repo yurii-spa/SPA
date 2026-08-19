@@ -1144,6 +1144,83 @@ class TelegramBot:
         except Exception as exc:  # noqa: BLE001 — опрос важнее сборщика
             log.warning("flush_pending_documents failed: %s", exc)
 
+    def _handle_card_query(self, text: str, chat_id: str) -> bool:
+        """«Что на мне?» / «проверь own-54» → ответ из ТРЕКЕРА, не из памяти.
+
+        Возвращает True, если сообщение разобрано как карточный вопрос (ответ
+        отправлен). False — не карточный вопрос, работает обычный классификатор.
+
+        Детерминированно (LLM запрещён на пути решений владельца). Карточка,
+        которой нет в живом дереве, доносится с origin/main и материализуется —
+        иначе кнопки под ней декоративны (класс «карточки не возит никто»).
+        Никогда не бросает: любой сбой → False, сообщение уходит прежним путём.
+        """
+        try:
+            import html as _html
+
+            from spa_core.telegram import card_lookup as cl
+            from spa_core.telegram import owner_decisions as od
+
+            wants_queue = cl.is_queue_question(text)
+            ref = cl.extract_card_ref(text)
+            if not wants_queue and not ref:
+                return False
+            tracker = od._live_tracker_dir(None)
+            if tracker is None:
+                # Под pytest / без живого дерева карточный путь не работает —
+                # честнее отдать сообщение обычному маршруту, чем отвечать вслепую.
+                return False
+            if wants_queue and not ref:
+                self.send_message(cl.queue_answer(tracker), chat_id)
+                return True
+
+            matches = cl.find_cards(ref, tracker)
+            if not matches:
+                fetched = cl.fetch_origin_card(ref, tracker.parents[1])
+                if fetched:
+                    name, body = fetched
+                    target = cl.materialize_text(name, body, tracker)
+                    if target is not None:
+                        matches = [target]
+                        self.send_message(
+                            "ℹ️ Карточки <code>%s</code> не было в живом дереве — "
+                            "принёс с origin/main и положил в трекер."
+                            % _html.escape(name), chat_id)
+            if not matches:
+                self.send_message(
+                    "🔎 Карточка «%s» не найдена ни в живом трекере, ни на "
+                    "origin/main. Если имя неточное — назови точнее."
+                    % _html.escape(ref), chat_id)
+                return True
+            if len(matches) > 1:
+                lines = ["🔎 По «%s» найдено %d карточек — уточни имя:"
+                         % (_html.escape(ref), len(matches))]
+                lines += ["• <code>%s</code>" % _html.escape(p.name)
+                          for p in matches[:8]]
+                self.send_message("\n".join(lines), chat_id)
+                return True
+
+            path = matches[0]
+            status = ""
+            try:
+                from spa_core.owner_queue.queue import load_card
+
+                status = str(load_card(path).status or "").strip().lower()
+            except Exception:  # noqa: BLE001 — сводка ниже переживёт битую карточку
+                pass
+            if status == "needs-owner":
+                # Полный владельческий вид: варианты + кнопки + регистрация нажатия —
+                # тем же единственным отправителем, что и штатные уведомления.
+                from spa_core.owner_queue.notify import notify_needs_owner
+
+                notify_needs_owner(path)
+                return True
+            self.send_message(cl.card_summary(path), chat_id)
+            return True
+        except Exception as exc:  # noqa: BLE001 — never crash the poll loop
+            log.warning("_handle_card_query failed: %s", exc)
+            return False
+
     def _handle_inbox_intake(self, msg: Dict, text: str, chat_id: str) -> bool:
         """Owner-only intake. ``/task`` → всегда задача; ``/status`` → сводка; свободный текст/голос →
         классификатор ВОПРОС/ЗАДАЧА/НЕПОНЯТНО (бот отвечает, а не только принимает задачи).
@@ -1206,6 +1283,13 @@ class TelegramBot:
             if self._handle_long_document(stripped, chat_id):
                 return True
             if self._handle_owner_text_answer(stripped, chat_id):
+                return True
+            # Карточки и очередь владельца — ДЕТЕРМИНИРОВАННО, до LLM-классификатора.
+            # Живой промах 2026-08-19: на «есть ли на мне own-54?» ask_router ответил
+            # «в моих записях нет» при карточке наверху доски — ответ строился из
+            # протухшего контекста. Вопросы «что на мне» и «проверь <карточку>» обязаны
+            # читаться из трекера, а не угадываться; не карточный вопрос → всё как было.
+            if self._handle_card_query(stripped, chat_id):
                 return True
             self._classify_route(stripped, chat_id, source="telegram")
             return True
