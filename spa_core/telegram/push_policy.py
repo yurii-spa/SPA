@@ -200,8 +200,15 @@ def _save_state(tg_dir: Path, state: dict) -> None:
         log.warning("push_policy: push_state write failed", exc_info=True)
 
 
-def _enqueue_digest(tg_dir: Path, item: dict, *, cap: int = 500) -> None:
-    """Append a demoted (non-Tier-1) event to the digest queue. Never raises."""
+def _enqueue_digest(tg_dir: Path, item: dict, *, cap: int = 500) -> bool:
+    """Append a demoted (non-Tier-1) event to the digest queue. Never raises.
+
+    Returns whether the item is REALLY on the queue. The failure is still swallowed
+    (a queue error must not crash a monitor), but it is no longer INVISIBLE: a caller
+    that reports delivery to a human — e.g. the /pilot contact form — must be able to
+    tell "queued for the daily digest" from "the queue write failed", instead of
+    inferring success from the mere absence of an exception.
+    """
     try:
         doc = atomic_load(str(tg_dir / DIGEST_QUEUE_FILENAME), default={})
         if not isinstance(doc, dict):
@@ -222,8 +229,10 @@ def _enqueue_digest(tg_dir: Path, item: dict, *, cap: int = 500) -> None:
             },
             str(tg_dir / DIGEST_QUEUE_FILENAME),
         )
+        return True
     except Exception:  # noqa: BLE001 — a queue error must never crash a monitor
         log.warning("push_policy: digest enqueue failed", exc_info=True)
+        return False
 
 
 def enqueue_digest(
@@ -234,14 +243,17 @@ def enqueue_digest(
     severity: str = "INFO",
     reason: str = "demoted",
     data_dir: Optional[str | Path] = None,
-) -> None:
+) -> bool:
     """Public convenience for a RETIRED/informational sender to demote its text
     to the digest queue (folded into the one daily digest) instead of pushing.
 
     Never raises. This is the canonical "I am not a Tier-1 push" call site for
     the monitors/agents that used to push unsolicited Telegram directly.
+
+    Returns whether the item actually reached the queue file (see ``_enqueue_digest``);
+    fire-and-forget callers may keep ignoring it.
     """
-    _enqueue_digest(
+    return _enqueue_digest(
         _tg_dir(Path(data_dir) if data_dir is not None else None),
         {
             "ts": _now_iso(),

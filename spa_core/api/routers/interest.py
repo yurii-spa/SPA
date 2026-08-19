@@ -19,7 +19,16 @@ HONESTY — `ok` never outruns the write (card `agent-checkup-waitlist-fail-open
   500 the page); publishing ``ok: true`` about it is not.
   The fix separates the two facts instead of merging them into one optimistic flag:
     * ``stored``: ``"ok" | "error"`` — did the record actually reach the JSONL sink;
-    * ``notified``: bool — did the owner-ping path report delivery (contact requests only);
+    * ``notified``: the owner-notification OUTCOME, not "we called the notifier" —
+      ``"sent" | "queued" | "skipped" | "error" | "unknown"`` (2026-08-19). The bool it
+      replaced was ``True`` whenever no exception escaped, so a push refused by the policy
+      gate, a failed transport, an unconfigured channel and a failed digest write all
+      reported a notified owner. ``skipped`` is the local twin of the missing
+      ``RESEND_API_KEY``: not attempted, and SAID so, instead of an anonymous failure.
+      Only ``sent``/``queued`` count as delivery; ``unknown`` means NOT MEASURED and
+      never counts (fail-CLOSED). ``notify_reason`` names the cause when it is not clean.
+      The same state is published on ``/api/pilot/requests/count`` as ``notify_channel``,
+      so "leads arrive, nobody is notified" is visible before a lead is lost;
     * ``ok`` — true only when the lead survived on AT LEAST ONE durable path. Both paths failing
       means the lead is LOST, and the endpoint says so (the /pilot form already renders ``error``).
   A ``position`` is likewise never returned for a row that was not written: the number would be
@@ -28,6 +37,7 @@ HONESTY — `ok` never outruns the write (card `agent-checkup-waitlist-fail-open
 from __future__ import annotations
 
 import json
+import logging
 import re
 import time
 from pathlib import Path
@@ -36,6 +46,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 router = APIRouter(tags=["interest"])
+log = logging.getLogger(__name__)
 
 _LOG = Path(__file__).resolve().parents[3] / "data" / "interest.jsonl"
 _DAY = 86400
@@ -197,7 +208,53 @@ def _is_material_lead(email: str, message: str, tier: str, source: str) -> bool:
     return False
 
 
-def _notify_owner_telegram(email: str, message: str, tier: str, utm: str, source: str = "") -> bool:
+#: Outcome vocabulary of the owner-notification leg. Three DIFFERENT facts, never merged:
+#:   "sent"    — a Tier-1 push was accepted by the transport (delivered);
+#:   "queued"  — demoted to the owner's daily digest AND the queue write is confirmed on disk;
+#:   "skipped" — not attempted, because the channel is not configured (measured absence);
+#:   "error"   — attempted and NOT delivered (transport/queue failure) — reason carried alongside;
+#:   "unknown" — the channel state could not be measured at all (never counted as delivery).
+_DELIVERED_STATES = frozenset({"sent", "queued"})
+
+
+def _telegram_configured() -> bool | None:
+    """Is the owner-notification channel configured? ``True``/``False`` = MEASURED,
+    ``None`` = could not be measured (do not guess in either direction).
+
+    This is the local analogue of the missing ``RESEND_API_KEY`` that made the sibling
+    DeFi Checkup waitlist look healthy for three weeks: "no credentials" must be a
+    DISTINCT, named outcome, not an anonymous delivery failure.
+    """
+    try:
+        from spa_core.alerts import telegram_client as _tc
+        try:
+            return bool(_tc.get_bot_token() and _tc.get_chat_id())
+        except EnvironmentError:
+            return False          # measured: credentials are absent
+    except Exception:  # noqa: BLE001 — importing/probing the channel itself failed
+        return None               # NOT measured — never reported as "configured"
+
+
+def notify_channel_status() -> dict:
+    """Operator-visible state of the owner-notification channel (health surface).
+
+    Exposed so that "leads arrive but nobody is notified" is VISIBLE without waiting for
+    a lead to be lost: an unconfigured channel is a loud field on the console, not a
+    line in a log nobody reads.
+    """
+    cfg = _telegram_configured()
+    if cfg is True:
+        return {"channel": "telegram", "configured": True, "measured": True}
+    if cfg is False:
+        return {"channel": "telegram", "configured": False, "measured": True,
+                "flag_reason": "telegram credentials are not configured — contact requests are "
+                               "stored but the owner is NOT notified"}
+    return {"channel": "telegram", "configured": None, "measured": False,
+            "flag_reason": "notification channel state could not be measured"}
+
+
+def _notify_owner_telegram(email: str, message: str, tier: str, utm: str,
+                           source: str = "") -> tuple[str, str]:
     """Route the owner lead-alert through the SINGLE Telegram authority (push_policy),
     NOT a direct telegram_client.send — a raw send bypasses the one push authority
     (see test_no_rogue_telegram_senders).
@@ -205,7 +262,22 @@ def _notify_owner_telegram(email: str, message: str, tier: str, utm: str, source
     Owner decision Q-OWN-16 (ADR-OWN-2026-07-lead-pings): a MATERIAL lead (B2B / early-access /
     aggressive tier — see ``_is_material_lead``) fires an instant per-lead Tier-1 ping via the
     ``pilot_request`` one-shot whitelist key (still under the policy's daily ceiling). A non-material
-    lead is demoted to the owner's daily digest exactly as before. Best-effort, never raises."""
+    lead is demoted to the owner's daily digest exactly as before. Best-effort, never raises.
+
+    Returns ``(state, reason)`` — see ``_DELIVERED_STATES``. It used to return ``True`` for
+    "no exception was raised", which is NOT delivery: ``push_critical`` returns ``False``
+    whenever the gate demotes the event or the transport fails, and the digest enqueue
+    swallowed its own failure. Both cases reported a notified owner who was never notified.
+    """
+    cfg = _telegram_configured()
+    if cfg is False:
+        # The RESEND_API_KEY analogue — loud, not a silent console.log inside the handler.
+        log.warning("pilot lead NOT notified: telegram credentials are not configured "
+                    "(the request is stored, the owner is not pinged)")
+        return ("skipped", "owner-notification channel is not configured")
+    if cfg is None:
+        log.warning("pilot lead notification state NOT measurable: telegram channel could not be probed")
+        return ("unknown", "owner-notification channel could not be probed")
     try:
         import html as _html
         from spa_core.telegram import push_policy
@@ -223,14 +295,25 @@ def _notify_owner_telegram(email: str, message: str, tier: str, utm: str, source
         body = " · ".join(parts)
         if material:
             # instant per-lead ping (one-shot Tier-1 key; still capped by the daily ceiling)
-            push_policy.push_critical("pilot_request", "INFO", title, body)
-        else:
-            # retail/individual signal → folds into the one daily digest (unchanged behaviour)
-            push_policy.enqueue_digest("pilot_request", title, body,
-                                       severity="INFO", reason="pilot_lead")
-        return True
-    except Exception:  # noqa: BLE001 — notify is best-effort
-        return False
+            sent = push_policy.push_critical("pilot_request", "INFO", title, body)
+            if sent:
+                return ("sent", "")
+            # The gate demoted it (ceiling/whitelist) or the transport failed — either way the
+            # owner has NOT seen it. Fall through to the digest so the lead is not lost silently.
+            queued = push_policy.enqueue_digest("pilot_request", title, body,
+                                                severity="INFO", reason="pilot_lead_push_failed")
+            if queued:
+                return ("queued", "instant ping not delivered — folded into the daily digest")
+            return ("error", "owner ping not delivered and the digest queue write failed")
+        # retail/individual signal → folds into the one daily digest (unchanged behaviour)
+        queued = push_policy.enqueue_digest("pilot_request", title, body,
+                                            severity="INFO", reason="pilot_lead")
+        if queued:
+            return ("queued", "")
+        return ("error", "digest queue write failed")
+    except Exception as exc:  # noqa: BLE001 — notify is best-effort, but never silently "ok"
+        log.warning("pilot lead notification failed: %s", exc)
+        return ("error", f"owner notification failed: {type(exc).__name__}")
 
 
 @router.post("/api/pilot/request")
@@ -264,15 +347,26 @@ def pilot_request(req: PilotRequest) -> dict:
     rec = {"t": int(time.time()), "email": email, "message": message, "tier": tier,
            "source": source, "utm": utm}
     stored = _append_jsonl(_REQ_LOG, rec)
-    notified = _notify_owner_telegram(email, message, tier, utm, source)
-    # ok = the lead survived on at least one durable path (sink OR owner ping). Not "we tried".
-    out = {"ok": bool(stored or notified), "stored": "ok" if stored else "error",
+    notified, notify_reason = _notify_owner_telegram(email, message, tier, utm, source)
+    delivered = notified in _DELIVERED_STATES
+    # ok = the lead survived on at least one durable path (sink OR owner notification that
+    # actually landed). "We called the notifier and it did not raise" is NOT a durable path.
+    out = {"ok": bool(stored or delivered), "stored": "ok" if stored else "error",
            "notified": notified}
+    if notify_reason:
+        out["notify_reason"] = notify_reason
     if position is not None and stored:
         # A position for an unwritten row would be handed out again to the next signup.
         out["position"] = position
     if not out["ok"]:
+        # Neutral, honest wording — no promise is made that was not kept.
+        log.warning("pilot request LOST: stored=%s notified=%s (%s)", out["stored"], notified,
+                    notify_reason or "-")
         out["error"] = "could not record the request — please try again"
+    elif not delivered:
+        # Stored, but nobody was pinged: the lead is safe, the follow-up is not automatic.
+        log.warning("pilot request stored but owner NOT notified: notified=%s (%s)",
+                    notified, notify_reason or "-")
     return out
 
 
@@ -306,6 +400,9 @@ def pilot_requests_count() -> dict:
         pass
     return {"total_requests": total, "requests_today": today, "requests_7d": last_7d,
             "by_source": by_source, "by_tier": by_tier,
+            # An unconfigured notification channel is named HERE, before a lead is lost —
+            # not discovered weeks later from an unanswered contact request.
+            "notify_channel": notify_channel_status(),
             "note": "count only (incl. by-source/by-tier opaque breakdowns) — full contact requests are "
                     "delivered to the owner via Telegram + data/pilot_requests.jsonl; never exposed on the "
                     "unauthenticated admin surface."}

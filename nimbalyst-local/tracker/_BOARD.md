@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-18T23:08:49Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-19T01:59:22Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **536** · ждёт владельца: **24** · занято сессиями: **3**.
+> Всего карточек: **537** · ждёт владельца: **25** · занято сессиями: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -15,6 +15,7 @@
 - **Просадка в отчёте — это шов двух симуляций, а не рыночное событие** · _medium_  ·  `own-2026-08-18-prosadka-v-otchete-eto-shov-dvuh-simulyatsii.md`
 - **Подборщик раскладки И САМ АЛЛОКАТОР не знают про потолки по сетям — предлагают то, что гейт заворачивает** · _medium_  ·  `own-2026-08-18-tyuner-ne-znaet-o-setevykh-potolkakh.md`
 - **У ребалансера свой запас строже политики — оставляем или снимаем** · _medium_  ·  `own-2026-08-18-zapas-rebalansera-strozhe-politiki.md`
+- **Судьба чекапа — воронка ведёт в никуда, а канал заявок молчит, если Телеграм не настроен** · _high_  ·  `own-2026-08-19-sudba-voronki-chekapa-i-kanal-zayavok.md`
 - **Автопочинщик кода остался без вызывающих: убрать совсем или оставить лежать**  ·  `own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih.md`
 - **Fluid закрыт для капитала по правилу другого протокола — нужно твоё решение** · _medium_  ·  `own-fluid-gsm-gate-chuzhoy-parametr.md`
 - **Ручной инструмент поиска новых источников доходности никто не запускает — оставить, поставить на расписание или списать**  ·  `own-ruchnoy-instrument-poiska-istochnikov.md`
@@ -41,7 +42,7 @@
 - **а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…** — держит `pid43119` · с 2026-08-14T11:52:34Z  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md`
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (141)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (142)
 
 ### · needs-owner
 - Аварийная книга раздаёт деньги мимо проверок свежести — цена закрытия дыры $75.9K в кэш  ·  `own-2026-08-18-avariinaya-kniga-idet-mimo-geitov-svezhesti.md` · 2026-08-18
@@ -51,6 +52,7 @@
 - Просадка в отчёте — это шов двух симуляций, а не рыночное событие  ·  `own-2026-08-18-prosadka-v-otchete-eto-shov-dvuh-simulyatsii.md` · 2026-08-18
 - Подборщик раскладки И САМ АЛЛОКАТОР не знают про потолки по сетям — предлагают то, что гейт заворачивает  ·  `own-2026-08-18-tyuner-ne-znaet-o-setevykh-potolkakh.md` · 2026-08-18
 - У ребалансера свой запас строже политики — оставляем или снимаем  ·  `own-2026-08-18-zapas-rebalansera-strozhe-politiki.md` · 2026-08-18
+- Судьба чекапа — воронка ведёт в никуда, а канал заявок молчит, если Телеграм не настроен  ·  `own-2026-08-19-sudba-voronki-chekapa-i-kanal-zayavok.md` · 2026-08-19
 - Автопочинщик кода остался без вызывающих: убрать совсем или оставить лежать  ·  `own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih.md` · 2026-08-17
 - Fluid закрыт для капитала по правилу другого протокола — нужно твоё решение  ·  `own-fluid-gsm-gate-chuzhoy-parametr.md` · 2026-08-18
 - Ручной инструмент поиска новых источников доходности никто не запускает — оставить, поставить на расписание или списать  ·  `own-ruchnoy-instrument-poiska-istochnikov.md` · 2026-08-17
