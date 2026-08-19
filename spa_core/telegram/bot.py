@@ -403,6 +403,10 @@ class TelegramBot:
             return []
         self._fail_streak = 0  # success → reset
         self._conflict_streak = 0
+        # Опрос удался ⇒ самое время отдать документы, чьё окно продолжения истекло.
+        # Здесь же лечится перезапуск бота: первый успешный опрос после старта поднимает
+        # придержанные на диске куски, поэтому они не зависят от жизни процесса.
+        self._flush_pending_documents()
         updates = result.get("result") or []
         if updates:
             try:
@@ -1081,6 +1085,65 @@ class TelegramBot:
         self.send_message(od.text_answer_reply(result), chat_id)
         return True
 
+    def _emit_document_card(self, emit) -> None:
+        """Собранный документ → ОДНА карточка + один ответ владельцу."""
+        import html
+
+        from spa_core.telegram.inbox_intake import save_inbox_document
+        from spa_core.telegram.long_message import provenance_note
+
+        _path, title = save_inbox_document(emit.text, provenance_note(emit))
+        self.send_message(
+            f"📥 Собрал документ из <b>{emit.parts}</b> частей в одну задачу: "
+            f"<b>{html.escape(title)}</b>\nОркестратор разберёт в следующем цикле.",
+            emit.chat_id)
+
+    def _handle_long_document(self, text: str, chat_id: str) -> bool:
+        """Сборщик длинного документа. True ⇒ сообщение поглощено (придержано/собрано).
+
+        Клиент Телеграма режет длинный текст по 4096 символов, и интейк видел N
+        независимых заданий (замер #306: спецификация владельца 13.08 стала СЕМЬЮ
+        карточками, шесть из них — куски предложений). Сообщение у самого предела —
+        это клиент говорит «дальше есть ещё».
+
+        Fail-safe: сборщик упал ⇒ возвращаем False, и сообщение идёт обычным путём.
+        Молчаливой потери слов владельца тут быть не может.
+        """
+        from spa_core.telegram import long_message as lm
+
+        try:
+            emits, hold, passthrough = lm.offer(chat_id, text, now=time.time())
+        except Exception as exc:  # noqa: BLE001 — сборщик не имеет права съесть сообщение
+            log.warning("long_document offer failed: %s", exc)
+            return False
+        for emit in emits:
+            try:
+                self._emit_document_card(emit)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("long_document emit failed: %s", exc)
+        if hold is not None and hold.parts == 1:
+            # Говорим ОДИН раз за документ, а не на каждой части: поток одинаковых
+            # сообщений — та самая жалоба владельца, которую закрывали #215/#217/#228.
+            self.send_message(
+                "📥 Принял первую часть длинного документа — жду продолжение "
+                "и соберу всё в ОДНУ задачу.", chat_id)
+        return not passthrough
+
+    def _flush_pending_documents(self) -> None:
+        """Отдать документы, чьё окно продолжения истекло. Зовётся каждым тактом опроса.
+
+        Именно этот вызов делает придержанный кусок недоставляемым только по времени, а не
+        по потере: продолжение может не прийти никогда (владелец передумал, бот
+        перезапустился), и тогда собранное уезжает карточкой само.
+        """
+        from spa_core.telegram import long_message as lm
+
+        try:
+            for emit in lm.flush_expired(now=time.time()):
+                self._emit_document_card(emit)
+        except Exception as exc:  # noqa: BLE001 — опрос важнее сборщика
+            log.warning("flush_pending_documents failed: %s", exc)
+
     def _handle_inbox_intake(self, msg: Dict, text: str, chat_id: str) -> bool:
         """Owner-only intake. ``/task`` → всегда задача; ``/status`` → сводка; свободный текст/голос →
         классификатор ВОПРОС/ЗАДАЧА/НЕПОНЯТНО (бот отвечает, а не только принимает задачи).
@@ -1111,6 +1174,10 @@ class TelegramBot:
                         "📥 Использование: <code>/task купить зонт в пятницу</code>\n"
                         "Или пришли голосовое — расшифрую и добавлю в inbox.", chat_id)
                     return True
+                # Длинный /task тоже режется клиентом: голова приезжает с префиксом,
+                # хвосты — обычным текстом. Придерживаем голову, хвосты приклеятся ниже.
+                if self._handle_long_document(task_text, chat_id):
+                    return True
                 from spa_core.telegram.inbox_intake import save_inbox_task
                 _path, title = save_inbox_task(task_text, source="telegram")
                 self.send_message(
@@ -1131,6 +1198,13 @@ class TelegramBot:
             # (owner_decisions.build_message). Разбирать было нечем, и его «Ответ 1»
             # уходил в классификатор — то есть решение становилось обычной задачей и не
             # исполнялось ничем (замерено дважды: 10.08 и 12.08). Не ответ → всё как было.
+            # ...но ПЕРЕД разбором ответа — сборщик длинного документа: кусок документа
+            # начинается с чего угодно, в том числе с цифры, и мог бы быть прочитан как
+            # «Ответ 2». Сборщик трогает сообщение ТОЛЬКО если оно у предела 4096 или
+            # если буфер этого чата уже открыт; ответ владельца («Ответ 1») он пропускает
+            # мимо себя по форме — см. long_message.looks_like_owner_answer.
+            if self._handle_long_document(stripped, chat_id):
+                return True
             if self._handle_owner_text_answer(stripped, chat_id):
                 return True
             self._classify_route(stripped, chat_id, source="telegram")

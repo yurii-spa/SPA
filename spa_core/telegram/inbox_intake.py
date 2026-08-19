@@ -57,6 +57,35 @@ def save_inbox_task(text: str, source: str = "telegram", transcript: str | None 
     return path, title
 
 
+def save_inbox_document(text: str, provenance: str, source: str = "telegram") -> tuple[Path, str]:
+    """Создать ОДНУ карточку из документа, собранного обратно из кусков Телеграма.
+
+    Отличие от :func:`save_inbox_task` — тело несёт ПРОИСХОЖДЕНИЕ: из скольких сообщений
+    документ собран и почему сборка закрыта. Без этой строки восстановить связь частей
+    можно было бы только памятью человека (ровно на этом и погорели семь карточек 13.08).
+
+    Классификатор ВОПРОС/ЗАДАЧА здесь сознательно не зовётся: многочастный документ — это
+    задание с телом, а не вопрос. Заодно в разборщик не уезжает текст в десятки килобайт.
+    """
+    title = _title_from_text(text)
+    body = "\n".join([
+        "## Задание (из Telegram)",
+        "",
+        text.strip(),
+        "",
+        "## Как это приехало",
+        "",
+        provenance,
+        "",
+        "_Классификатор не вызывался: документ из нескольких частей — задание, а не вопрос._",
+        "",
+        "---",
+        "_Оркестратор: при исполнении закрой карточку со ссылкой на порождённую работу (§6.4)._",
+    ])
+    path = create_card("inbox", title, body, status="new", source=source)
+    return path, title
+
+
 def transcribe_voice(audio_path: str | Path, language: str | None = None, timeout: int = 300) -> str | None:
     """Transcribe an audio file with the local whisper CLI. Returns text or None.
 

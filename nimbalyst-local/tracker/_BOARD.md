@@ -186,6 +186,7 @@
 - Брифинг считает снимок флота протухшим раньше, чем писатель его переписывает (35 мин против такта 60)  ·  `inbox-brifing-schitaet-snimok-flota-protuhshim.md` · 2026-08-15
 - CI 'SPA Tests' красный минимум 8 коммитов подряд, и этого никто не видит: цикл прогоняет только spa_core/tests  ·  `inbox-ci-spa-tests-krasnyi-minimum-8-kommitov.md` · 2026-08-09
 - Давай так и сделаем  ·  `inbox-davai-tak-i-sdelaem.md` · 2026-07-20
+- Длинный документ владельца приехал СЕМЬЮ карточками, и шесть из них — не задачи, а куски предложений  ·  `inbox-dlinnyi-dokument-vladeltsa-priehal-semyu.md` · 2026-08-13
 - docs/STATE.md разросся до 1647 строк при собственном пределе ~150 — а его читает каждая сессия  ·  `inbox-docs-state-md-razrossya-do-1647-strok-pr.md` · 2026-08-06
 - Доставка объявляет ВЕЧНЫЙ долг о закрытии, которое УЖЕ на origin: «доехало ли моё изменение» решается побайтовым равенством всего файла  ·  `inbox-dostavka-obyavlyaet-vechnyi-dolg-o-zakry.md` · 2026-08-17
 - Два предписанных прогона рядом морят друг друга: приёмка «мой vs контроль» параллельно почти не движется  ·  `inbox-dva-predpisannyh-progona-ryadom-drug-druga-morya.md` · 2026-08-14
@@ -349,7 +350,6 @@
 - ALLOC-002-отбор: топ-8 по весу беднит книгу — отбирать ПОСЛЕ evidence/TVL-гейта  ·  `inbox-alloc-002-otbor-top-8-po-vesu-bednit-kni.md` · 2026-08-08
 - APY Persistence / Confidence  ·  `inbox-apy-persistence-confidence.md` · 2026-08-13
 - Демоушен книг Aggressive по ОТНОСИТЕЛЬНОМУ рангу (решение владельца 09.08, вариант A)  ·  `inbox-demoushen-knig-aggressive-po-otnositelno.md` · 2026-08-09
-- Длинный документ владельца приехал СЕМЬЮ карточками, и шесть из них — не задачи, а куски предложений  ·  `inbox-dlinnyi-dokument-vladeltsa-priehal-semyu.md` · 2026-08-13
 - Для каждого этапа показать:  ·  `inbox-dlya-kazhdogo-etapa-pokazat.md` · 2026-08-13
 - Долгоживущие агенты не подхватывают доставленный код — и никто об этом не говорит  ·  `inbox-dolgozhivuschie-agenty-ne-podhvatyvayut.md` · 2026-08-08
 - Две записи о деньгах расходятся каждый день — найти и починить ПРИЧИНУ (решение владельца 10.08, вариант 1)  ·  `inbox-dve-zapisi-o-dengah-rashodyatsya-kazhdyi.md` · 2026-08-10
