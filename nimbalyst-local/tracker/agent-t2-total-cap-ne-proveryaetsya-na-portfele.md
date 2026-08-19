@@ -130,3 +130,29 @@ COUNTERFACTUAL: T2-total check on portfolio path would fire today? False (20.0% 
   (2) не проверено, вызывается ли `check_portfolio_health` в цикле с `check_axes=True`;
   (3) живая книга от 2026-08-02, на момент замера ей 16 дней — свежесть книги разбирается
   отдельной карточкой.
+
+## Итог 2026-08-19 — наблюдение доставлено, гейт не тронут
+
+Замер воспроизведён исполнением ещё раз (не чтением кода): книга 60 % T2 →
+`approved=True violations=[] warnings=[]`; та же книга через вход → отказ
+`Total T2 allocation 60.0% would exceed limit 50.0%`; книга 50 % → зелёная.
+
+**Сделано без владельца (поведение с деньгами НЕ изменено):** в `check_portfolio_health`
+добавлен warn-only `T2_TOTAL_WARN` — нарушение суммарного потолка на книге теперь НАЗЫВАЕТСЯ
+(доля, потолок, явная пометка «NOT a gate»). `approved` и `violations` не изменились.
+
+**Почему не гейт:** `violations` на этом пути → `approved=False` → `PaperTradingEngine.manage_risk`
+закрывает ВСЕ позиции. Violation здесь = принудительная распродажа книги. Money-path: ADR +
+владелец (карточка `owner-decision-proverka-knigi-slabee-proverki-pered-sde.md`, дополнена
+разделом «Обновление 2026-08-19»).
+
+**Живая книга:** T2 = 20 % (тир-мап `policy_enforcer`) или 0 % (`ADAPTER_METADATA`, где pendle
+= T3) при потолке 50 % — предупреждение сегодня не сработало бы. Оговорка: git-копия `data/`
+в контейнере отстаёт от прода, `generated_at 2026-08-02`.
+
+**Тесты:** новый `spa_core/tests/test_portfolio_t2_total_observation.py` (7, в обе стороны:
+откат блока роняет 2 из них поимённо), характеризационный `test_risk_policy_gate_symmetry.py`
+обновлён намеренно с обоснованием в докстринге (инвариант 16) — откат роняет и его.
+322 теста, касающихся `check_portfolio_health`, зелёные.
+
+status → in-progress (ждёт решения владельца по гейту).

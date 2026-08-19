@@ -132,6 +132,17 @@ def test_measured_t2_total_cap_absent_from_portfolio_path():
     """Отправная точка карточки, перемерена: книга 60 % в T2 одобряется.
 
     ФИКСАЦИЯ, НЕ ОДОБРЕНИЕ. Вход третьего T2 отказывает, книга — нет.
+
+    ИЗМЕНЕНО 2026-08-19 (инвариант 16 CLAUDE.md — намеренно, с обоснованием).
+    Гейт НЕ ТРОНУТ: `approved is True` и `violations == []` остались как были,
+    и именно они охраняют money-path. Ослаблен ровно один assert —
+    «портфельный путь не упоминает T2» → «упоминает, но только в warnings».
+    Причина: в `check_portfolio_health` добавлено НАБЛЮДЕНИЕ `T2_TOTAL_WARN`
+    (warn-only), чтобы нарушение потолка на книге НАЗЫВАЛОСЬ. Разница
+    «не проверяем» → «проверяем и называем, но не гейтим» сохранена и теперь
+    закреплена в обе стороны: если наблюдение исчезнет — тест краснеет; если
+    оно превратится в violation — краснеет тоже. Запись в
+    `docs/journal/2026-W34.md`.
     """
     pre = _book(
         _pos("aave_v3", "T1", 0.35),
@@ -156,7 +167,9 @@ def test_measured_t2_total_cap_absent_from_portfolio_path():
         "владельца (см. карточку agent-t2-total-cap-ne-proveryaetsya-na-portfele.md)."
     )
     assert health.violations == []
-    assert not _mentions(health.warnings, "t2")
+    # Наблюдение (не гейт): нарушение названо в warnings и НИГДЕ больше.
+    assert _mentions(health.warnings, "t2_total_warn"), health.warnings
+    assert not _mentions(health.violations, "t2")
 
 
 def test_measured_t3_total_cap_absent_from_both_paths():

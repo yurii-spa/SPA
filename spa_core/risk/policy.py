@@ -651,6 +651,34 @@ class RiskPolicy:
                 f"Cash buffer {state.cash_pct:.1%} below minimum {self.config.min_cash_pct:.1%}"
             )
 
+        # ── Суммарный потолок T2 на КНИГЕ — НАБЛЮДЕНИЕ, НЕ ГЕЙТ ──────────────
+        # Порог `max_total_t2_allocation` (50 %) гейтит только путь ВХОДА
+        # (`check_new_position`, блок «8. Лимит T2 совокупно»). На уже собранной
+        # книге он не проверялся вовсе: замер 2026-08-18 (карточка
+        # `agent-t2-total-cap-ne-proveryaetsya-na-portfele.md`) показал книгу
+        # 60 % в T2 с `approved=True`, `violations=[]`, `warnings=[]` — при том
+        # что вход третьего T2 в ту же книгу отказывает. Тир динамический
+        # (ADR-055: куратор двигает протокол T1 → T2 ПОСЛЕ входа), поэтому
+        # книга может нарушить потолок без единой сделки.
+        #
+        # Здесь порог только НАЗЫВАЕТСЯ. Повышение до `violations` — изменение
+        # money-path: `violations` на этом пути означают `approved=False`, а
+        # `PaperTradingEngine.manage_risk` на неодобренном здоровье закрывает
+        # ВСЕ позиции (engine.py: «Kill switch — закрываем всё»). То есть
+        # violation здесь = принудительная продажа книги. Такое решение —
+        # только через ADR и владельца (карточка
+        # `owner-decision-proverka-knigi-slabee-proverki-pered-sde.md`).
+        # Разница «не проверяем» → «проверяем и называем» сохранена намеренно.
+        _t2_total = state.t2_allocation_pct()
+        if _t2_total > self.config.max_total_t2_allocation:
+            warnings.append(
+                f"T2_TOTAL_WARN (observation-only, NOT a gate): portfolio T2 total "
+                f"{_t2_total:.1%} exceeds cap "
+                f"{self.config.max_total_t2_allocation:.1%} — entry path would have "
+                f"refused this book; portfolio path does not gate it (money-path "
+                f"change requires ADR + owner)"
+            )
+
         # MP-208: оси риска (credit/peg/duration/bridge) — опционально
         axis_checks: dict = {}
         if check_axes and state.positions:
