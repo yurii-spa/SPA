@@ -54,6 +54,19 @@ FAIL-CLOSED: каталог логов недоступен / файл нечи�
 `OK`. «Не измерено» ≠ «шторма не было» — ровно тот класс, из-за которого
 04.08 никто ничего не сказал.
 
+ОТДЕЛЬНО — РАЗРЫВ НАБЛЮДЕНИЯ (замер 2026-08-19, тот же класс внутри самого
+сторожа). Вопрос карточки звучит «падал ли флот разом **с прошлого взгляда**»,
+а ретроспектива по уликам отвечает на другой: «за последние `lookback_h`».
+Пока смотрят чаще, чем раз в `lookback_h`, это одно и то же; как только взгляд
+пропущен — нет. А пропускается он ИМЕННО в шторм: 04.08 снимок `agent_health`
+(единственный, кто спрашивает этого сторожа) был несвежим на 8 часов, потому
+что монитор лежал вместе с флотом. Разрыв в сутки+ давал бы улику ЗА окном
+ретроспективы и вердикт `OK` «шторма нет» — измеренный ноль, неотличимый от
+флота, который не падал. Поэтому: если ПРЕДЫДУЩИЙ взгляд старше горизонта
+ретроспективы, интервал между ними никем не осмотрен, и это `unchecked`
+(WARNING), а не `OK`. Нечитаемый предыдущий отчёт — тоже `unchecked`, а не
+«прошлого взгляда не было».
+
 Время — ВХОД (`now`), а не окружение: и окно ретроспективы, и метки улик
 сравниваются с переданным `now` (`.claude/rules/deployment.md`).
 
@@ -282,22 +295,78 @@ def cluster_storm(events: List[dict],
 # ===========================================================================
 # verdict
 # ===========================================================================
+def coverage_gap(previous: Optional[dict],
+                 now: datetime,
+                 lookback_h: float = LOOKBACK_H,
+                 ) -> Tuple[Optional[str], Optional[float], Optional[dict]]:
+    """Осмотрен ли интервал МЕЖДУ прошлым взглядом и горизонтом ретроспективы.
+
+    Возвращает ``(previous_look_iso, blind_gap_h, unchecked_entry)``.
+
+    * предыдущего отчёта нет (``None``) — первый взгляд: сторож честно отвечает
+      только за окно ретроспективы, разрыва ДОКАЗАТЬ нельзя ⇒ вердикт не трогаем;
+    * предыдущий отчёт нечитаем / без времени ⇒ ``unchecked`` (это НЕ «взгляда
+      не было»);
+    * предыдущий взгляд старше ``now - lookback_h`` ⇒ между ними никто не
+      смотрел, улики за тот интервал уже состарились ⇒ ``unchecked``.
+    """
+    if previous is None:
+        return None, None, None
+    if not isinstance(previous, dict):
+        return None, None, {
+            "check": "previous_look",
+            "reason": "предыдущий отчёт нечитаем — интервал с прошлого взгляда не осмотрен",
+        }
+    raw = previous.get("timestamp")
+    try:
+        prev = datetime.fromisoformat(str(raw))
+    except (TypeError, ValueError):
+        return None, None, {
+            "check": "previous_look",
+            "reason": (f"у предыдущего отчёта нет разбираемого времени ({raw!r}) — "
+                       "интервал с прошлого взгляда не осмотрен"),
+        }
+    if prev.tzinfo is None:
+        prev = prev.replace(tzinfo=timezone.utc)
+    horizon = now - timedelta(hours=float(lookback_h))
+    gap_h = round((horizon - prev).total_seconds() / 3600.0, 2)
+    if gap_h <= 0:
+        return prev.isoformat(), 0.0, None
+    return prev.isoformat(), gap_h, {
+        "check": "coverage_gap",
+        "reason": (
+            f"прошлый взгляд был {prev.isoformat()} — на {gap_h:g}ч раньше горизонта "
+            f"ретроспективы ({lookback_h:g}ч): улики за этот интервал уже состарились, "
+            "и «шторма нет» про него сказать НЕЛЬЗЯ"),
+    }
+
+
 def check_wake_storm(now: Optional[datetime] = None,
                      log_dir: Path | str = DEFAULT_LOG_DIR,
                      min_agents: int = STORM_MIN_AGENTS,
                      window_s: int = STORM_WINDOW_S,
                      lookback_h: float = LOOKBACK_H,
                      tail_bytes: int = TAIL_BYTES,
+                     previous: Optional[dict] = None,
                      ) -> dict:
     """Вердикт про ОДИН вопрос: падал ли флот разом за последние ``lookback_h``.
 
     ``CRITICAL`` — шторм найден. ``WARNING`` — не измерено (fail-CLOSED).
     ``OK`` — измерено и шторма нет.
+
+    ``previous`` — предыдущий отчёт этого же сторожа. Он превращает ответ «за
+    сутки» в ответ «с прошлого взгляда»: пропущенный взгляд шире ретроспективы
+    делает вердикт `WARNING`, а не `OK` (см. шапку модуля).
     """
     now = now or _utcnow()
     events, unchecked = scan_evidence(
         Path(log_dir), now, lookback_h=lookback_h, tail_bytes=tail_bytes)
     storm = cluster_storm(events, window_s=window_s, min_agents=min_agents)
+
+    previous_look, blind_gap_h, gap_unchecked = coverage_gap(
+        previous, now, lookback_h=lookback_h)
+    if gap_unchecked is not None:
+        unchecked.append(gap_unchecked)
 
     agents_seen = sorted({str(e.get("agent")) for e in events})
     issues: List[str] = []
@@ -341,6 +410,12 @@ def check_wake_storm(now: Optional[datetime] = None,
         "status": status,
         "reason": reason,
         "measured": not unchecked,
+        # Чем именно ограничен ответ. `answers_since_last_look=False` — сторож
+        # отвечает ТОЛЬКО за окно ретроспективы; это не то же самое, что «с
+        # прошлого взгляда», и читатель обязан видеть разницу, а не догадываться.
+        "previous_look": previous_look,
+        "blind_gap_h": blind_gap_h,
+        "answers_since_last_look": bool(previous_look is not None and not blind_gap_h),
         "storm": storm,
         "events": events,
         "agents_seen": agents_seen,
@@ -357,6 +432,26 @@ def check_wake_storm(now: Optional[datetime] = None,
 
 REPORT_FILENAME = "wake_storm_forensics.json"
 
+# Отдельное значение для «предыдущий отчёт есть, но прочитать его не смогли».
+# Не `None`: `None` означает «прошлого взгляда не было», и подменять им отказ
+# чтения — тот же класс, что вся эта карточка.
+_UNREADABLE_PREVIOUS = {"timestamp": None, "unreadable": True}
+
+
+def load_previous(path: Path | str) -> Optional[dict]:
+    """Предыдущий отчёт сторожа, если он есть.
+
+    ``None`` — файла нет (первый взгляд). Файл есть, но не читается/не разбирается
+    ⇒ возвращаем маркер нечитаемости, а не ``None``.
+    """
+    p = Path(path)
+    try:
+        if not p.is_file():
+            return None
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return _UNREADABLE_PREVIOUS
+
 
 def run(now: Optional[datetime] = None,
         log_dir: Path | str = DEFAULT_LOG_DIR,
@@ -369,10 +464,14 @@ def run(now: Optional[datetime] = None,
     карточки): ошибка записи поднимает статус до `WARNING` и попадает в
     `unchecked`.
     """
-    doc = check_wake_storm(now=now, log_dir=log_dir)
     if data_dir is None:
-        return doc, None
+        # Без места для состояния «прошлого взгляда» не существует: отвечаем за
+        # окно ретроспективы и говорим об этом полем, а не молчанием.
+        return check_wake_storm(now=now, log_dir=log_dir), None
+
     path = Path(data_dir) / REPORT_FILENAME
+    doc = check_wake_storm(now=now, log_dir=log_dir,
+                           previous=load_previous(path))
     try:
         from spa_core.utils.atomic import atomic_save
         atomic_save(doc, str(path))

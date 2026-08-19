@@ -23,6 +23,15 @@ FROZEN-DATE-OK: injected-clock — часы передаются парамет�
 """
 from __future__ import annotations
 
+# FROZEN-DATE-OK: injected-clock — часы передаются параметром `now=`, и все метки
+# улик выведены из того же якоря (`STORM_DT`/`ASKED_AT`), поэтому обе стороны
+# закреплены и календарь на тесты не влияет; сами даты здесь ещё и предмет теста
+# (исторический инцидент 2026-08-04). Маркер выставлен 19.08: до него файл был
+# вне класса лишь потому, что не содержал слов-триггеров свежести — а не потому,
+# что был безопаснее. Формулировка «FROZEN-DATE-OK» в докстроке выше маркером НЕ
+# является (нет ведущей решётки) и была ею только на вид.
+
+import json
 import os
 from datetime import timedelta
 
@@ -184,6 +193,121 @@ def test_old_storm_ages_out_and_stops_ringing(tmp_path):
     doc = wsf.check_wake_storm(now=much_later, log_dir=tmp_path)
     assert doc["status"] == wsf.OK
     assert doc["storm"] is None
+
+
+# ===========================================================================
+# РАЗРЫВ НАБЛЮДЕНИЯ — «не смотрели» ≠ «не падало»
+#
+# Форма аварии, воспроизводимая здесь: флот упал РАЗОМ, а сводный ответ остался
+# зелёным — но не потому, что улику не нашли, а потому, что НИКТО НЕ СМОТРЕЛ
+# дольше, чем живёт улика. Пропуск взгляда случается именно в шторм: спрашивает
+# этого сторожа `agent_health`, который в шторм лежит вместе с флотом (04.08 его
+# снимок отстал на 8 часов). Разрыв шире окна ретроспективы обязан давать
+# «не измерено», а не измеренный ноль.
+# ===========================================================================
+def _report_at(dt) -> dict:
+    """Предыдущий отчёт сторожа — из него читается только время взгляда."""
+    return {"timestamp": dt.isoformat(), "status": wsf.OK, "storm": None}
+
+
+def test_storm_older_than_lookback_is_unchecked_when_nobody_looked(tmp_path):
+    """ГЛАВНЫЙ ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ: 39 агентов упали, взгляд пропущен.
+
+    Написан через ПРОДОВЫЙ путь (`run` + отчёт на диске), а не через новый
+    параметр: тест обязан краснеть на старом коде ПОВЕДЕНИЕМ («вердикт OK»),
+    а не отсутствием сигнатуры. На коде до починки здесь `status == OK`.
+    """
+    out = tmp_path / "data"
+    out.mkdir()
+    _storm_logs(tmp_path)
+    asked = STORM_DT + timedelta(hours=wsf.LOOKBACK_H + 6)      # улика состарилась
+    # Прошлый взгляд — ДО шторма: интервал между ним и горизонтом не осмотрен никем.
+    (out / wsf.REPORT_FILENAME).write_text(
+        json.dumps(_report_at(STORM_DT - timedelta(hours=4))), encoding="utf-8")
+
+    doc, _ = wsf.run(now=asked, log_dir=tmp_path, data_dir=out)
+
+    assert doc["status"] != wsf.OK, doc["reason"]
+    assert doc["status"] == wsf.WARNING
+    assert doc["measured"] is False
+    assert doc["answers_since_last_look"] is False
+    assert doc["blind_gap_h"] > 0
+    assert any(u["check"] == "coverage_gap" for u in doc["unchecked"]), doc["unchecked"]
+
+
+def test_regular_look_keeps_the_answer_green(tmp_path):
+    """Обратная сторона: смотрят чаще ретроспективы и шторма нет — тишина."""
+    _write(tmp_path, "spa_self_heal.log", "[2026-08-04T07:00:00Z] ok\n")
+    previous = _report_at(ASKED_AT - timedelta(hours=1))
+    doc = wsf.check_wake_storm(now=ASKED_AT, log_dir=tmp_path, previous=previous)
+    assert doc["status"] == wsf.OK, doc["reason"]
+    assert doc["answers_since_last_look"] is True
+    assert doc["blind_gap_h"] == 0.0
+
+
+def test_storm_inside_lookback_still_wins_over_the_gap(tmp_path):
+    """Найденный шторм остаётся CRITICAL, даже если взгляд до него был пропущен."""
+    _storm_logs(tmp_path)
+    previous = _report_at(STORM_DT - timedelta(days=3))
+    doc = wsf.check_wake_storm(now=ASKED_AT, log_dir=tmp_path, previous=previous)
+    assert doc["status"] == wsf.CRITICAL
+    assert doc["storm"]["count"] == 39
+
+
+def test_first_look_ever_says_what_it_covers(tmp_path):
+    """Первого взгляда не с чем сравнить — разрыв НЕ выдумывается, но и не скрывается."""
+    _write(tmp_path, "spa_self_heal.log", "[2026-08-04T07:00:00Z] ok\n")
+    doc = wsf.check_wake_storm(now=ASKED_AT, log_dir=tmp_path, previous=None)
+    assert doc["status"] == wsf.OK
+    assert doc["previous_look"] is None
+    assert doc["answers_since_last_look"] is False
+
+
+def test_unreadable_previous_report_is_unchecked_not_a_fresh_start(tmp_path):
+    """Нечитаемый прошлый отчёт ≠ «прошлого взгляда не было» (тот же класс)."""
+    out = tmp_path / "data"
+    out.mkdir()
+    (out / wsf.REPORT_FILENAME).write_text("{это не json", encoding="utf-8")
+    _write(tmp_path, "spa_self_heal.log", "[2026-08-04T07:00:00Z] ok\n")
+
+    doc, path = wsf.run(now=ASKED_AT, log_dir=tmp_path, data_dir=out)
+
+    assert doc["status"] == wsf.WARNING, doc["reason"]
+    assert any(u["check"] == "previous_look" for u in doc["unchecked"])
+    assert path is not None            # новый вердикт всё равно опубликован
+
+
+def test_run_carries_the_previous_look_forward(tmp_path):
+    """Продовый путь: `run` сам поднимает прошлый взгляд из своего же отчёта."""
+    out = tmp_path / "data"
+    out.mkdir()
+    _write(tmp_path, "spa_self_heal.log", "[2026-08-04T07:00:00Z] ok\n")
+
+    first, _ = wsf.run(now=ASKED_AT, log_dir=tmp_path, data_dir=out)
+    assert first["previous_look"] is None
+
+    second, _ = wsf.run(now=ASKED_AT + timedelta(hours=1),
+                        log_dir=tmp_path, data_dir=out)
+    assert second["previous_look"] == first["timestamp"]
+    assert second["answers_since_last_look"] is True
+    assert second["status"] == wsf.OK
+
+    # А теперь взгляд пропущен на трое суток — и это уже НЕ «шторма не было».
+    третий, _ = wsf.run(now=ASKED_AT + timedelta(days=3),
+                        log_dir=tmp_path, data_dir=out)
+    assert третий["status"] == wsf.WARNING
+    assert третий["blind_gap_h"] > 0
+
+
+def test_gap_exit_code_is_nonzero(tmp_path):
+    """launchd обязан увидеть непросмотренный интервал как ненулевой код."""
+    out = tmp_path / "data"
+    out.mkdir()
+    _write(tmp_path, "spa_self_heal.log", "[2026-08-04T07:00:00Z] ok\n")
+    stale = _report_at(wsf._utcnow() - timedelta(hours=wsf.LOOKBACK_H + 10))
+    (out / wsf.REPORT_FILENAME).write_text(json.dumps(stale), encoding="utf-8")
+
+    assert wsf.main(["--log-dir", str(tmp_path), "--data-dir", str(out)]) == 1
 
 
 # ===========================================================================
