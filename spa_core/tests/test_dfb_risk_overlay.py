@@ -6,13 +6,25 @@ THE worst bug class (from MEMORY — the size-down exploit): a TOXIC pool (struc
 cap) must get the WORST class + REFUSE at ANY size — the structural-haircut veto is size-INDEPENDENT,
 so it can NEVER be sized around. A stale / missing feed → flagged, never a fabricated grade/number.
 
-PURE / no network (DeFiLlama disabled via injected surfaces) / no live-data mutation (tmp dirs).
+PURE / no network / no live-data mutation (tmp dirs).
+
+"No network" used to be true of the SURFACE half only. `build_universe` also reads the real
+`ADAPTER_REGISTRY`, and ~12 of those adapters carry their own feed URL and their own `urlopen`, so
+every call in this file made 21 refused live-feed attempts (measured 2026-08-19: 294 from this file
+alone). Those refusals are not leaks — the guard holds — but they made `test_universe_no_fabricated_cells`
+assert NOTHING about a registry row: the fetch failed, the cells came back `None`, and its
+`if p.apy_total is not None` body was never entered. Green because the feed was down. The registry is
+now injected the same way the surface and the breadth rows already were — see
+`fake_adapter_registry.py` for why the swap ADDS coverage rather than trading it away
+(card `agent-tests-reach-live-feed-222`).
 """
 from __future__ import annotations
 
 from decimal import Decimal
 
 import pytest
+
+from spa_core.tests import fake_adapter_registry
 
 from spa_core.dfb import Pool, RiskClass
 from spa_core.dfb import history as dfb_history
@@ -21,6 +33,21 @@ from spa_core.dfb.risk_overlay import overlay
 from spa_core.strategy_lab.rates_desk.contracts import D0, UnderlyingRisk
 
 _AS_OF = "2026-06-29"
+
+
+@pytest.fixture(autouse=True)
+def _hermetic_adapter_registry():
+    """Every test in this file gets the network-free registry (card
+    `agent-tests-reach-live-feed-222`).
+
+    Autouse because the reach is INDIRECT: `risk_overlay.build_and_write` and
+    `dfb.history` reach `build_universe` without this file naming it, so an
+    opt-in marker would have to be repeated on every test and would be forgotten
+    on the next one added. Tests that never build a universe are unaffected —
+    the swap is a module attribute, restored in the fixture teardown.
+    """
+    with fake_adapter_registry.injected():
+        yield
 
 
 def _surface():
@@ -62,6 +89,33 @@ def test_universe_pool_id_stable():
     # idempotent
     assert pool_universe.make_pool_id("Aave V3", "Ethereum", "USDC") == \
         pool_universe.make_pool_id("aave_v3", "ethereum", "usdc")
+
+
+def test_registry_rows_are_actually_read_not_merely_present():
+    """The registry half of the universe carries READ cells — and a dead feed still keeps its row.
+
+    This is the check the file could never make before the registry was injected (card
+    `agent-tests-reach-live-feed-222`): with the live registry and no egress, EVERY adapter row came
+    back with `apy_total=None, tvl_usd=None`, so every `if p.apy_total is not None` body in this
+    file was dead code and the suite could not tell a working `_pool_from_adapter` from a broken one.
+
+    Two sides, both required:
+      * a healthy adapter's numbers survive the read (construction → `get_yield_info()` →
+        `_norm_apy_decimal` → `Pool` cells) — the path that was never exercised;
+      * an adapter whose feed raises is KEPT as an identity row with `None` cells (fail-CLOSED
+        holes, never dropped, never 0-coerced) — the path that used to be the only one.
+    """
+    pools = pool_universe.build_universe(surface=_surface())
+    registry_rows = {p.protocol: p for p in pools if p.source == "adapter_registry"}
+    assert set(registry_rows) == {"fake_t1", "fake_t2", "fake_down"}
+
+    live = registry_rows["fake_t1"]
+    assert live.apy_total == pytest.approx(0.0525) and 0.0 <= live.apy_total <= 5.0
+    assert live.tvl_usd == pytest.approx(250_000_000.0)
+    assert live.tier == "T1"
+
+    dead = registry_rows["fake_down"]
+    assert dead.apy_total is None and dead.tvl_usd is None  # hole, not a fabricated 0.0
 
 
 def test_universe_no_fabricated_cells():

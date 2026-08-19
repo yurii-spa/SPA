@@ -12,7 +12,14 @@ Covers, property + red-team + smoke:
      through the SAME overlay (0 bypass — a thin/unknown breadth pool → UNKNOWN, never an ungraded
      "safe" passthrough); a toxic high-APY breadth pool still REFUSES.
 
-PURE / no network (injected feeds + injected breadth rows) / no live-data mutation (tmp dirs).
+PURE / no network (injected feeds + injected breadth rows + injected registry) / no live-data
+mutation (tmp dirs).
+
+The registry was the exception until 2026-08-19: `build_universe` read the real `ADAPTER_REGISTRY`,
+~12 of whose adapters carry their own feed URL and their own `urlopen`, so each of the eight tests
+below spent 21 refused live-feed attempts (168 measured) fetching rows none of them assert on — every
+breadth test filters to `breadth-` ids. Card `agent-tests-reach-live-feed-222`; rationale for the
+stand-in (and why it adds coverage instead of trading it away) in `fake_adapter_registry.py`.
 """
 from __future__ import annotations
 
@@ -24,8 +31,21 @@ from spa_core.dfb import Pool, RiskClass
 from spa_core.dfb import breadth_feed, pool_universe, risk_overlay, trends
 from spa_core.dfb.risk_overlay import overlay
 from spa_core.strategy_lab.rates_desk.feeds import UnderlyingRiskFeed
+from spa_core.tests import fake_adapter_registry
 
 _AS_OF = "2026-06-29"
+
+
+@pytest.fixture(autouse=True)
+def _hermetic_adapter_registry():
+    """Network-free registry for this module (see the file docstring).
+
+    Autouse for the same reason as in `test_dfb_risk_overlay.py`: the reach is indirect
+    (`risk_overlay.build_overlays` / `dfb.history` → `build_universe`), so an opt-in marker would be
+    forgotten by the next test added here. Restored on teardown.
+    """
+    with fake_adapter_registry.injected():
+        yield
 
 
 # ── hermetic peg feed (no network) ───────────────────────────────────────────────────────────────
