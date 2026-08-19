@@ -22,7 +22,9 @@
 и место в отчёте, оставаясь в коде возврата 1 (`nowhere` считается находкой, fail-CLOSED,
 инв. #2). Пропуск НЕ даётся, когда вывод сделать нельзя: путь под правилом отсева уборщика
 (churn) в квитанцию не попал бы, даже если бы лежал в дереве · путь, встречавшийся в истории
-базы, — это удаление на origin, а не «нигде» · правило отсева не прочитано — вердикта нет.
+базы, — это удаление на origin, а не «нигде» (с цикла #298 — свой вердикт `deleted_on_origin`,
+поднимать по нему тоже нечего, см. `test_undelivered_work_guard.py::TestPathDeletedOnOrigin`) ·
+правило отсева не прочитано — вердикта нет.
 Отдельно закреплено, что СНЯТИЕ ДЕРЕВА НЕ СТАНОВИТСЯ СПОСОБОМ ГАСИТЬ НАХОДКИ: путь, названный
 в квитанции недоставленным, по-прежнему даёт код 2, а дерево без квитанции — прежнее
 «не измерено».
@@ -234,7 +236,17 @@ class TestReapingNeverBecomesAWayToSilence:
 
     def test_path_that_lived_on_base_before_is_a_deletion_not_nowhere(self, guard, repo,
                                                                       tmp_path):
-        """«Нигде» ложно, если имя в истории базы встречалось: это удаление на origin."""
+        """«Нигде» ложно, если имя в истории базы встречалось: это удаление на origin.
+
+        ИНВ. #16 — ожидаемый вердикт изменён НАМЕРЕННО (цикл #298, карточка
+        `inbox-shag-0a-zovet-podnimat-udalennyi-na-orig`). Вход не изменился ни на байт.
+        Прежняя редакция утверждала `ABSENT`, то есть находку в разделе «НЕ ДОСТАВЛЕНО»,
+        и ровно это цикл #298 измерил как дефект: строка звала «сверить руками и поднять»,
+        а её собственное объяснение в той же строке говорило «это удаление, а не пропажа
+        объявленной работы». Различение «удаление ≠ нигде», ради которого тест написан,
+        не ослаблено, а УСИЛЕНО: раньше проверялась подстрока в тексте, теперь — вердикт,
+        раздел отчёта и то, что путь НЕ попал в находки. Класс «поднимать нечего» здесь
+        доказуем: квитанция называет каждый расходившийся путь и составлена ДО снятия."""
         (repo / "scripts" / "gone.py").write_text("жил\n", encoding="utf-8")
         _git(repo, "add", "-A")
         _git(repo, "commit", "-qm", "add gone")
@@ -246,8 +258,29 @@ class TestReapingNeverBecomesAWayToSilence:
         ledger(repo, [receipt(wt, {"docs/STATE.md": "delivered"})])
         rep = report(guard, repo, [entry("pid31439", [wt / "scripts" / "gone.py"])])
         assert rep["nowhere"] == []
-        assert rep["findings"][0]["state"] == guard.ABSENT
-        assert "удаление/переименование" in rep["findings"][0]["detail"]
+        assert rep["findings"] == []                       # НЕ «поднимай»: удаление доставлено
+        assert [f["state"] for f in rep["deleted_on_origin"]] == [guard.DELETED_ON_ORIGIN]
+        assert "удаление/переименование" in rep["deleted_on_origin"][0]["detail"]
+        assert "ПОДНИМАТЬ НЕЧЕГО" in rep["deleted_on_origin"][0]["detail"]
+
+    def test_receipt_that_names_the_path_undelivered_still_wins_over_deletion(self, guard, repo,
+                                                                              tmp_path):
+        """ОБРАТНЫЙ КОНТРОЛЬ к правке #298: снятие дерева не становится способом гасить
+        находку и через новую дверь. Квитанция, НАЗЫВАЮЩАЯ путь недоставленным, судит раньше
+        любых выводов об истории базы — вердикт остаётся «не измерено», код 2."""
+        (repo / "scripts" / "gone.py").write_text("жил\n", encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-qm", "add gone")
+        _git(repo, "rm", "-q", "scripts/gone.py")
+        _git(repo, "commit", "-qm", "remove gone")
+        _git(repo, "branch", "-f", "base", "HEAD")
+
+        wt = tmp_path / "spa_c289"
+        ledger(repo, [receipt(wt, {"scripts/gone.py": "unique"})])
+        rep = report(guard, repo, [entry("pid31439", [wt / "scripts" / "gone.py"])])
+        assert rep.get("deleted_on_origin", []) == []
+        assert rep["exit_code"] == 2
+        assert "правилом не предусмотрено" in rep["unmeasured"][0]["reason"]
 
     def test_unreadable_churn_rule_yields_no_verdict(self, guard, repo, tmp_path, monkeypatch):
         """fail-CLOSED: не прочитали правило — вердикта нет (класс #226)."""

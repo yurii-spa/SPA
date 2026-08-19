@@ -1051,8 +1051,17 @@ class TestDeclaredNameThatNeverExisted:
         assert "поднять" in rep["findings"][0]["detail"]
 
     def test_path_that_lived_on_base_and_was_deleted_is_not_nowhere(self, guard, repo):
-        """Второй контроль: путь БЫЛ на базе и удалён — это не «имени не было»,
-        и сворачивать такое в «поднимать нечего» значило бы прятать удаление."""
+        """Второй контроль: путь БЫЛ на базе и удалён — это не «имени не было».
+
+        ИНВ. #16 — ожидаемый вердикт изменён НАМЕРЕННО (цикл #298, карточка
+        `inbox-shag-0a-zovet-podnimat-udalennyi-na-orig`). Вход не изменился ни на байт;
+        различение, ради которого тест написан («удаление ≠ имени не было»), не ослаблено —
+        `nowhere` по-прежнему пуст, и это утверждается первым. Изменилось второе утверждение:
+        прежняя редакция требовала, чтобы удаление жило в разделе «НЕ ДОСТАВЛЕНО» с кодом 1,
+        а её обоснование («сворачивать такое в поднимать-нечего значило бы прятать удаление»)
+        цикл #298 разобрал по частям — удаление НЕ прячется, у него свой раздел, своя строка
+        и своё объяснение в каждом отчёте; пряталось бы оно молчанием, а не вердиктом.
+        Проверка УСИЛЕНА: утверждаются раздел, вердикт и отсутствие пути в находках."""
         (repo / "scripts" / "gone.py").write_text("жил на базе\n", encoding="utf-8")
         _git(repo, "add", "-A")
         _git(repo, "commit", "-qm", "add gone.py")
@@ -1061,10 +1070,10 @@ class TestDeclaredNameThatNeverExisted:
         _git(repo, "commit", "-qm", "rm gone.py")
         _git(repo, "branch", "-f", "base", "HEAD")
         rep = report(guard, repo, [entry("pid31439", [repo / "scripts" / "gone.py"])])
-        assert rep.get("nowhere", []) == []
-        assert [f["state"] for f in rep["findings"]] == [guard.ABSENT]
-        assert "истории" in rep["findings"][0]["detail"]
-        assert rep["exit_code"] == 1
+        assert rep.get("nowhere", []) == []                # удаление ≠ «имени не было»
+        assert rep["findings"] == []
+        assert [f["path"] for f in rep["deleted_on_origin"]] == ["scripts/gone.py"]
+        assert "истории" in rep["deleted_on_origin"][0]["detail"]
 
     def test_unreadable_history_keeps_the_finding(self, guard, repo):
         """fail-CLOSED: не смогли прочитать историю ⇒ вердикт «нигде» НЕ выносится,
@@ -1146,6 +1155,164 @@ class TestDeclaredNameThatNeverExisted:
                           ts="2026-01-20T11:00:00Z")
         rep = report(guard, repo, [e], ps=fake_ps({}))
         assert len(rep["nowhere"]) == 1 and rep["nowhere"][0]["within_grace"] is True
+        assert not any("находки нет" in f["reason"] for f in rep["fresh"])
+
+
+# ── 12-бис. путь УДАЛЁН на origin: удаление — тоже доставка ──────────────────
+#
+# Класс, измеренный циклом #298 на живом журнале (1011 записей, 37 деревьев): из 63 находок
+# 5 были путями, удалёнными НА origin осознанно. Живой случай дня: корневой `__init__.py`,
+# снятый циклом #297 через `github_delete` по решению карточки, — шаг 0a звал поднимать нашу
+# собственную доставленную работу, причём в самом срочном разделе («ждать больше некого —
+# сверить руками и поднять»), а объяснение В ТОЙ ЖЕ строке говорило «это удаление, а не
+# пропажа объявленной работы». Улики печатались, вердикт из них не делался — тот же класс,
+# что #243 (`nowhere`), #261 (`by_design`) и #292 (квитанция снятия).
+#
+# Снять такую находку нечем: она уходит только возвращением файла на origin, то есть отменой
+# верного решения. Поэтому здесь — единственное место, где вердикт НЕ держит код возврата
+# (обоснование у `exit_code`): дефекта нет ни в объявлении, ни в доставке.
+#
+# Каждый тест ниже — положительный контроль на форму реальной находки 19.08; обратные
+# контроли названы в докстрингах явно.
+
+class TestPathDeletedOnOrigin:
+    def _delete_on_base(self, repo, rel="scripts/gone.py", body="жил на базе\n"):
+        """Путь появляется на базе, попадает в её историю и затем удаляется."""
+        (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / rel).write_text(body, encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-qm", f"add {rel}")
+        _git(repo, "branch", "-f", "base", "HEAD")
+        _git(repo, "rm", "-q", rel)
+        _git(repo, "commit", "-qm", f"rm {rel}")
+        _git(repo, "branch", "-f", "base", "HEAD")
+
+    def test_deleted_path_is_not_called_orphaned_work(self, guard, repo):
+        """Форма живого случая 19.08: объявленный путь удалён на базе ⇒ поднимать нечего."""
+        self._delete_on_base(repo)
+        rep = report(guard, repo, [entry("pid26632", [repo / "scripts" / "gone.py"])])
+        assert rep["findings"] == []
+        assert [f["path"] for f in rep["deleted_on_origin"]] == ["scripts/gone.py"]
+        assert "ПОДНИМАТЬ НЕЧЕГО" in rep["deleted_on_origin"][0]["detail"]
+
+    def test_deletion_alone_yields_a_green_exit_code(self, guard, repo):
+        """Отличие от #243, и оно намеренное: у сторожа обязан быть путь обратно в зелёное.
+
+        Иначе одно верное решение (удалить файл на origin) держит ненулевой код навсегда —
+        «не измерено навсегда» в другой одежде. Недоставленное при этом НАЗВАНО в итоговой
+        строке, а не растворено в «всё доставлено»."""
+        self._delete_on_base(repo)
+        rep = report(guard, repo, [entry("pid26632", [repo / "scripts" / "gone.py"])])
+        assert rep["exit_code"] == 0
+        text = guard.render(rep)
+        assert "УДАЛЕНО НА base" in text
+        assert "путь удалён на base" in text
+        assert "✅ измерено полностью, всё доставлено" not in text
+
+    def _tree_with(self, repo, tmp_path, body):
+        wt = tmp_path / "spa_wt_live"
+        _git(repo, "worktree", "add", "-q", "--detach", str(wt), "base")
+        (wt / "scripts").mkdir(parents=True, exist_ok=True)
+        (wt / "scripts" / "gone.py").write_text(body, encoding="utf-8")
+        return wt
+
+    def test_unknown_bytes_under_a_deleted_name_are_still_a_finding(self, guard, repo, tmp_path):
+        """ОБРАТНЫЙ КОНТРОЛЬ, главный, и ЗЕЛЁНЫЙ НА ОБОИХ ДЕРЕВЬЯХ НАМЕРЕННО — им и
+        доказывается, что настоящая потеря не переехала в «поднимать нечего».
+
+        В дереве под удалённым именем лежит содержимое, которого история ЭТОГО пути не помнит,
+        — это может быть работа сессии, и она остаётся находкой с кодом 1. Утверждений о новых
+        формулировках здесь нет намеренно: тест обязан держать ПОВЕДЕНИЕ и до правки, и после."""
+        self._delete_on_base(repo)
+        self._tree_with(repo, tmp_path, "НОВАЯ работа сессии\n")
+        rep = report(guard, repo, [entry("pid31439", [repo / "scripts" / "gone.py"])])
+        assert rep.get("deleted_on_origin", []) == []
+        assert [f["state"] for f in rep["findings"]] == [guard.ABSENT]
+        assert rep["exit_code"] == 1
+
+    def test_finding_under_a_deleted_name_names_the_tree(self, guard, repo, tmp_path):
+        """Побочное усиление той же правки, и оно ИЗМЕРИМО: до #298 `never_existed` спрашивал
+        историю ПЕРВОЙ и до деревьев не доходил, поэтому под удалённым именем находка не могла
+        назвать дерево ВООБЩЕ — печаталось общее «это удаление, а не пропажа», то есть строка
+        отрицала собственную находку. Теперь дерево названо, а «удалением это не объясняется»
+        сказано прямо."""
+        self._delete_on_base(repo)
+        wt = self._tree_with(repo, tmp_path, "НОВАЯ работа сессии\n")
+        rep = report(guard, repo, [entry("pid31439", [repo / "scripts" / "gone.py"])])
+        detail = rep["findings"][0]["detail"]
+        assert str(wt) in detail                                # дерево НАЗВАНО, а не «где-то»
+        assert "поднимать может быть что" in detail
+        assert "а не пропажа объявленной работы" not in detail  # строка не спорит сама с собой
+
+    def test_bytes_already_known_to_history_are_not_a_finding(self, guard, repo, tmp_path):
+        """Вторая половина той же проверки: в дереве лежит РОВНО то, что было на базе до
+        удаления. Терять нечего — содержимое живёт в истории пути."""
+        self._delete_on_base(repo)
+        self._tree_with(repo, tmp_path, "жил на базе\n")
+        rep = report(guard, repo, [entry("pid31439", [repo / "scripts" / "gone.py"])])
+        assert rep["findings"] == []
+        assert [f["path"] for f in rep["deleted_on_origin"]] == ["scripts/gone.py"]
+
+    def test_unreadable_history_keeps_the_finding(self, guard, repo):
+        """fail-CLOSED (класс #226): историю не прочитали ⇒ вердикта нет, находка остаётся,
+        причина сказана вслух."""
+        self._delete_on_base(repo)
+        real = guard._git
+
+        def spy(cwd, *args):
+            if args[:1] == ("log",):
+                return 1, "", "boom"
+            return real(cwd, *args)
+
+        rep = report_with_git(guard, repo,
+                              [entry("pid31439", [repo / "scripts" / "gone.py"])], spy)
+        assert rep.get("deleted_on_origin", []) == []
+        assert [f["state"] for f in rep["findings"]] == [guard.ABSENT]
+        assert "НЕ ИЗМЕРЕНО" in rep["findings"][0]["detail"]
+        assert rep["exit_code"] == 1
+
+    def test_name_that_never_existed_stays_nowhere(self, guard, repo):
+        """ОБРАТНЫЙ КОНТРОЛЬ: класс #243 не переехал в новый раздел. Имени не было на базе
+        никогда ⇒ по-прежнему «не существует нигде» и по-прежнему код 1."""
+        rep = report(guard, repo, [entry("pid16782", [repo / "scripts" / "edge_rsb.py"])])
+        assert rep.get("deleted_on_origin", []) == []
+        assert [f["path"] for f in rep["nowhere"]] == ["scripts/edge_rsb.py"]
+        assert rep["exit_code"] == 1
+
+    def test_deletion_is_rendered_apart_from_undelivered(self, guard, repo, tmp_path):
+        """Смысл правки — глаз перестаёт учиться пролистывать «НЕ ДОСТАВЛЕНО»: настоящая
+        потеря и удаление стоят в разных разделах одного отчёта."""
+        self._delete_on_base(repo)
+        wt = tmp_path / "wt"
+        _git(repo, "worktree", "add", "-q", "--detach", str(wt), "base")
+        (wt / "scripts").mkdir(parents=True, exist_ok=True)
+        (wt / "scripts" / "real_loss.py").write_text("работа\n", encoding="utf-8")
+        rep = report(guard, repo, [entry("pid1", [repo / "scripts" / "real_loss.py"]),
+                                   entry("pid2", [repo / "scripts" / "gone.py"])])
+        text = guard.render(rep)
+        assert text.index("НЕ ДОСТАВЛЕНО") < text.index("УДАЛЕНО НА base")
+        assert text.index("scripts/real_loss.py") < text.index("УДАЛЕНО НА base")
+        assert text.index("УДАЛЕНО НА base") < text.index("scripts/gone.py")
+        assert rep["exit_code"] == 1                       # настоящая потеря держит код
+
+    def test_same_deleted_path_declared_twice_is_one_line(self, guard, repo):
+        """Тот же путь объявляют десятки сессий (сегодня — две записи об одном `__init__.py`):
+        строка одна, объявившие перечисляются."""
+        self._delete_on_base(repo)
+        rep = report(guard, repo, [entry("pid1", [repo / "scripts" / "gone.py"]),
+                                   entry("pid2", [repo / "scripts" / "gone.py"])])
+        assert len(rep["deleted_on_origin"]) == 1
+        assert rep["deleted_on_origin"][0]["also_declared_by"] == ["pid2"]
+
+    def test_orphan_in_grace_with_only_a_deleted_path_is_not_called_delivered(self, guard, repo):
+        """Сирота в окне, у которой ВСЁ объявленное — удалённый путь: в «свежие, находки нет»
+        она уйти не должна, иначе класс вернулся бы через другую дверь (прецедент #243)."""
+        self._delete_on_base(repo)
+        e = durable_entry("cycle-297-pid26632", [repo / "scripts" / "gone.py"], pid=4242,
+                          ts="2026-01-20T11:00:00Z")
+        rep = report(guard, repo, [e], ps=fake_ps({}))
+        assert len(rep["deleted_on_origin"]) == 1
+        assert rep["deleted_on_origin"][0]["within_grace"] is True
         assert not any("находки нет" in f["reason"] for f in rep["fresh"])
 
 
@@ -1402,10 +1569,8 @@ class TestPathTheRepoRefusesToTake:
         assert "поднять" in rep["findings"][0]["detail"]
         assert rep["exit_code"] == 1
 
-    def test_path_that_lived_on_base_is_not_excused_by_a_later_ignore_rule(self, guard, repo):
-        """ОБРАТНЫЙ КОНТРОЛЬ: путь БЫЛ на базе и удалён там, а `.gitignore` дописан позже.
-        Порядок веток защищает именно это: строкой в `.gitignore` нельзя задним числом
-        стереть настоящую находку об удалённом с базы файле."""
+    def _lived_on_base_then_ignored(self, repo, body):
+        """Путь жил на базе, удалён там, `.gitignore` дописан ПОСЛЕ, файл лежит в дереве."""
         (repo / "data").mkdir(exist_ok=True)
         (repo / "data" / "history.jsonl").write_text("жил на базе\n", encoding="utf-8")
         _git(repo, "add", "-A")
@@ -1415,11 +1580,36 @@ class TestPathTheRepoRefusesToTake:
         _git(repo, "commit", "-qm", "rm history.jsonl")
         _git(repo, "branch", "-f", "base", "HEAD")
         self._ignore_data(repo)                       # правило появилось ПОСЛЕ
-        (repo / "data" / "history.jsonl").write_text("жил на базе\n", encoding="utf-8")
+        (repo / "data" / "history.jsonl").write_text(body, encoding="utf-8")
+
+    def test_path_that_lived_on_base_is_not_excused_by_a_later_ignore_rule(self, guard, repo):
+        """ОБРАТНЫЙ КОНТРОЛЬ: путь БЫЛ на базе и удалён там, а `.gitignore` дописан позже.
+        Порядок веток защищает именно это: строкой в `.gitignore` нельзя задним числом
+        стереть вердикт о файле, который на базе БЫЛ.
+
+        ИНВ. #16 — ожидаемый раздел изменён НАМЕРЕННО (цикл #298). Вход не изменился ни на
+        байт, и утверждение, ради которого тест написан, стоит ПЕРВЫМ и не ослаблено:
+        `by_design` пуст, то есть поздним правилом `.gitignore` путь не оправдан. Изменилось
+        второе: содержимое в дереве здесь побайтно равно тому, что лежало на базе до удаления
+        (`"жил на базе\\n"`), — терять нечего, и с #298 это отдельный вердикт «удалено на
+        origin». Свойство «настоящая находка не гасится поздним `.gitignore`» не потеряно,
+        а вынесено в соседний тест с НОВЫМ содержимым, где терять есть что."""
+        self._lived_on_base_then_ignored(repo, "жил на базе\n")
         rep = report(guard, repo, [entry("pid31439", [repo / "data" / "history.jsonl"])])
         assert rep.get("by_design", []) == []
+        assert rep["findings"] == []
+        assert [f["path"] for f in rep["deleted_on_origin"]] == ["data/history.jsonl"]
+        assert "истории" in rep["deleted_on_origin"][0]["detail"]
+
+    def test_new_bytes_under_a_deleted_ignored_path_are_still_a_finding(self, guard, repo):
+        """Та же расстановка, но в дереве НОВОЕ содержимое: ни поздний `.gitignore`, ни
+        удаление на базе не гасят находку — истории этих байтов не помнит никто (цикл #298,
+        положительный контроль к правке о вердикте `deleted_on_origin`)."""
+        self._lived_on_base_then_ignored(repo, "НОВАЯ работа сессии\n")
+        rep = report(guard, repo, [entry("pid31439", [repo / "data" / "history.jsonl"])])
+        assert rep.get("by_design", []) == []
+        assert rep.get("deleted_on_origin", []) == []
         assert [f["state"] for f in rep["findings"]] == [guard.ABSENT]
-        assert "истории" in rep["findings"][0]["detail"]
         assert rep["exit_code"] == 1
 
     def test_unmeasurable_ignore_status_keeps_the_finding(self, guard, repo):
