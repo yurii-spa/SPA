@@ -20,14 +20,32 @@ Detection substrates
   * Free copy (.astro/.jsx/.ts/.html): bilingual EN+RU regex on ADDED / REMOVED
     diff-hunk lines only.
 
-Custodian exemption (not forgeable)
------------------------------------
+Custodian exemption (not forgeable) — THREE outcomes, not two
+-------------------------------------------------------------
   track_snapshot.json is legitimately auto-updated by deploy_site_snapshot.py. We do
   NOT trust the commit message. Instead: regenerate the snapshot from the committed
   data/ canon (scripts/generate_track_snapshot.py) and compare (ignoring the volatile
   generated_at). Byte-equivalent → deterministic custodian output → EXEMPT. A hand
-  edited number will not match regeneration → GATED. (Only available where data/ is
-  present, i.e. the pre-push self-check on the owner's machine — not in CI.)
+  edited number will not match regeneration → GATED.
+
+  The measurement is only POSSIBLE where the data/ canon is fresh enough to describe
+  the snapshot being judged — i.e. the pre-push self-check on the owner's machine.
+  In CI it is not: `data/equity_curve_daily.json` on origin is frozen far behind the
+  live track (measured 2026-08-19: canon as_of 2026-07-04 vs snapshot as_of 2026-08-19),
+  so regeneration reproduces an OLD snapshot and a mismatch proves nothing about who
+  wrote the file. Until 2026-08-19 that third outcome had no name: `git-range` mode
+  hardcoded `exempt=False` and every `except` returned `False`, so "I could not measure"
+  was reported as "I proved a violation". Cost, re-measured 2026-08-19 over all 221 runs
+  since 2026-07-15: 109 red, 106 of them (97.2 %) our own `chore(site-custodian)`
+  auto-deploy — ~10 red runs a day. The 3 informative reds are indistinguishable from
+  that noise.
+
+  Now: True = proved custodian · False = proved NOT custodian · None = NOT MEASURABLE
+  here, with the reason named. `None` grants NO exemption (fail-CLOSED, exit code
+  unchanged) — it only stops a failed measurement from masquerading as a verdict.
+  Whether an unmeasurable exemption may ship is an OWNER decision (ADR-078: site
+  numbers stay with the owner) — see `_snapshot_self_consistency` for the measured
+  alternative prepared for that decision.
 
 Owner-approval bypass
 ---------------------
@@ -311,26 +329,160 @@ def _track_snapshot_violations(
     return out
 
 
-def _snapshot_is_custodian_equivalent(repo: Path) -> bool:
-    """True if the working-tree track_snapshot.json byte-equals a fresh regeneration
-    from the committed data/ canon (ignoring volatile fields). Requires data/*.json."""
-    try:
-        import importlib.util
+_VOLATILE_SNAPSHOT_FIELDS = frozenset({"generated_at", "as_of_generated", "_generated"})
 
-        gen = repo / "scripts" / "generate_track_snapshot.py"
-        spec = importlib.util.spec_from_file_location("_gen_ts", gen)
-        if spec is None or spec.loader is None:
-            return False
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)  # type: ignore[union-attr]
+
+def _load_generator(repo: Path):
+    """Import scripts/generate_track_snapshot.py as a module (import-safe: its writes
+    live behind `if __name__ == '__main__'`). Raises on failure — the CALLER decides
+    what a failure means, which is the whole point of the tri-state below."""
+    import importlib.util
+
+    gen = repo / "scripts" / "generate_track_snapshot.py"
+    spec = importlib.util.spec_from_file_location("_gen_ts", gen)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"generator not importable at {gen}")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)  # type: ignore[union-attr]
+    return mod
+
+
+def _snapshot_custodian_equivalence(
+    repo: Path, current: dict[str, Any] | None = None
+) -> tuple[bool | None, str]:
+    """Is this track_snapshot.json the deterministic output of the custodian generator?
+
+    Returns (verdict, reason) where verdict is:
+      True  — proved custodian output (regeneration from the data/ canon matches)
+      False — proved NOT custodian output (regeneration ran, and differs)
+      None  — NOT MEASURABLE here, reason named (no generator / no canon / the canon is
+              older than the artifact being judged, so regeneration cannot reproduce it)
+
+    `None` is NOT an exemption. It exists so that "I could not measure" stops being
+    reported as "I proved a violation" — the distinction the guard lacked until
+    2026-08-19 (see the module docstring).
+    """
+    try:
+        mod = _load_generator(repo)
+    except Exception as exc:
+        return None, f"генератор не импортируется ({type(exc).__name__}) — освобождение нечем проверить"
+
+    try:
         regenerated = mod.build_snapshot()
-        current = json.loads((repo / _TRACK_SNAPSHOT).read_text(encoding="utf-8"))
-    except Exception:
-        return False
-    volatile = {"generated_at", "as_of_generated", "_generated"}
-    a = {k: v for k, v in regenerated.items() if k not in volatile}
-    b = {k: v for k, v in current.items() if k not in volatile}
-    return a == b
+    except Exception as exc:
+        return None, f"регенерация упала ({type(exc).__name__}) — освобождение нечем проверить"
+
+    if current is None:
+        try:
+            current = json.loads((repo / _TRACK_SNAPSHOT).read_text(encoding="utf-8"))
+        except Exception as exc:
+            return None, f"снимок не прочитан ({type(exc).__name__}) — сравнивать не с чем"
+    if not isinstance(regenerated, dict) or not isinstance(current, dict):
+        return None, "снимок или регенерация — не объект JSON, сравнение не определено"
+
+    # The canon must be able to DESCRIBE the artifact under judgement. `as_of` is the date
+    # of the last evidenced bar, so a canon whose regeneration lands EARLIER than the
+    # committed snapshot is behind the artifact: it reproduces an older track, and the
+    # mismatch that follows says nothing about who wrote the file. This is the CI case —
+    # data/equity_curve_daily.json on origin lags the live track by design.
+    r_as_of, c_as_of = regenerated.get("as_of"), current.get("as_of")
+    if isinstance(r_as_of, str) and isinstance(c_as_of, str) and r_as_of < c_as_of:
+        return None, (
+            f"канон data/ отстаёт от снимка (регенерация as_of={r_as_of}, "
+            f"снимок as_of={c_as_of}) — воспроизвести этот снимок каноном НЕЛЬЗЯ"
+        )
+
+    a = {k: v for k, v in regenerated.items() if k not in _VOLATILE_SNAPSHOT_FIELDS}
+    b = {k: v for k, v in current.items() if k not in _VOLATILE_SNAPSHOT_FIELDS}
+    if a == b:
+        return True, "регенерация из канона совпала — детерминированный вывод custodian"
+    differing = sorted(k for k in set(a) | set(b) if a.get(k) != b.get(k))
+    return False, "регенерация из канона РАСХОДИТСЯ по полям: " + ", ".join(differing[:8])
+
+
+def _snapshot_is_custodian_equivalent(repo: Path) -> bool:
+    """Back-compat boolean view: EXEMPT or not. `None` (not measurable) grants no
+    exemption — fail-CLOSED, exactly as before the tri-state existed."""
+    verdict, _ = _snapshot_custodian_equivalence(repo)
+    return verdict is True
+
+
+def _snapshot_self_consistency(
+    repo: Path, snap: Any
+) -> tuple[bool | None, str, list[dict[str, Any]]]:
+    """Do the DISPLAYED numbers agree with the snapshot's OWN `bars`?
+
+    Measurable WITHOUT the data/ canon — i.e. exactly where `_snapshot_custodian_equivalence`
+    cannot measure (CI). Recomputes with the generator's OWN arithmetic (imported, never a
+    second copy) so there is one definition of each number:
+
+        real_track_days   = number of evidenced bars
+        as_of             = date of the last evidenced bar
+        paper_apy_pct     = compound-annualized evidenced anchor → latest over real_track_days
+        max_drawdown_pct  = generator's _max_drawdown_pct over the evidenced bars
+        total_return_pct  = derived from end_equity
+        nav_usd           = end_equity (PoR-NAV mirrors it)
+
+    HONEST LIMIT, not hidden: `end_equity`/`nav_usd` come from paper_trading_status.json and
+    `gates_passed`/`gates_total` from golive_status.json — neither is a function of `bars`, so
+    forging THOSE is invisible to this check, as is forging the `bars` array itself. It covers
+    the headline yield (`paper_apy_pct`), the tail (`max_drawdown_pct`) and the track length.
+
+    Returns (verdict, reason, mismatches). None = not measurable, reason named.
+    This is a MEASUREMENT ONLY — it does not gate anything (see the module docstring).
+    """
+    if not isinstance(snap, dict):
+        return None, "снимок не прочитан — сверять нечего", []
+    bars = snap.get("bars")
+    if not isinstance(bars, list) or not bars:
+        return None, "в снимке нет массива bars — числа не из чего пересчитать", []
+    try:
+        mod = _load_generator(repo)
+    except Exception as exc:
+        return None, f"генератор не импортируется ({type(exc).__name__}) — арифметику взять негде", []
+
+    evidenced = [b for b in bars if isinstance(b, dict) and b.get("evidenced") is True]
+    expected: dict[str, Any] = {}
+
+    real_days = len(evidenced)
+    if evidenced:
+        expected["real_track_days"] = real_days
+        expected["as_of"] = evidenced[-1].get("date")
+        try:
+            expected["max_drawdown_pct"] = mod._max_drawdown_pct(evidenced)
+        except Exception:
+            pass
+        if len(evidenced) >= 2 and real_days > 0:
+            try:
+                anchor_eq = float(evidenced[0].get("equity") or 0)
+                latest_eq = float(evidenced[-1].get("equity") or 0)
+                if anchor_eq > 0 and latest_eq > 0:
+                    apy = ((latest_eq / anchor_eq) ** (365.0 / real_days) - 1.0) * 100.0
+                    expected["paper_apy_pct"] = round(apy, 4)
+            except (TypeError, ValueError, ZeroDivisionError, OverflowError):
+                pass
+
+    end_equity = snap.get("end_equity")
+    if isinstance(end_equity, (int, float)) and not isinstance(end_equity, bool):
+        expected["nav_usd"] = round(float(end_equity), 2)
+        expected["total_return_pct"] = round((float(end_equity) / 100000.0 - 1.0) * 100.0, 4)
+
+    if not expected:
+        return None, "ни одно поле не выводится из этого снимка — сверять нечего", []
+
+    mismatches = [
+        {"field": k, "declared": snap.get(k), "recomputed": v}
+        for k, v in expected.items()
+        if snap.get(k) != v
+    ]
+    checked = ", ".join(sorted(expected))
+    if not mismatches:
+        return True, f"числа согласны с собственными bars ({len(expected)}: {checked})", []
+    named = ", ".join(
+        f"{m['field']}: заявлено {m['declared']!r} против пересчитанного {m['recomputed']!r}"
+        for m in mismatches
+    )
+    return False, f"числа РАСХОДЯТСЯ с собственными bars — {named}", mismatches
 
 
 # ── free-text scan ──────────────────────────────────────────────────────────
@@ -481,6 +633,8 @@ def check_owner_gate(
     site_paths = [p for p in paths if p.startswith(_SITE_PREFIX)]
 
     violations: list[dict[str, Any]] = []
+    custodian_exemption: dict[str, Any] | None = None
+    self_consistency: dict[str, Any] | None = None
 
     # Structured JSON field-diff.
     if _TIER_BANDS in site_paths:
@@ -495,13 +649,42 @@ def check_owner_gate(
         violations.extend(_tier_bands_violations(old, new))
 
     if _TRACK_SNAPSHOT in site_paths:
-        exempt = _snapshot_is_custodian_equivalent(repo) if diff_mode != "git-range" else False
         old = _json_at(old_ref, _TRACK_SNAPSHOT, repo)
-        try:
-            new = json.loads((repo / _TRACK_SNAPSHOT).read_text(encoding="utf-8"))
-        except Exception:
+        # `new` must mean the same thing as it does for tier_bands above: in git-range mode
+        # the subject of judgement is the COMMITTED head, not whatever the working tree holds.
+        if diff_mode == "git-range":
             new = _json_at(head or "HEAD", _TRACK_SNAPSHOT, repo)
-        violations.extend(_track_snapshot_violations(old, new, exempt))
+        else:
+            new = None
+        if new is None:
+            try:
+                new = json.loads((repo / _TRACK_SNAPSHOT).read_text(encoding="utf-8"))
+            except Exception:
+                new = _json_at(head or "HEAD", _TRACK_SNAPSHOT, repo)
+
+        # Measure in EVERY mode. Where the canon cannot describe the artifact the answer
+        # comes back None ("not measurable") instead of the old hardcoded False ("violation").
+        exempt_verdict, exempt_reason = _snapshot_custodian_equivalence(repo, new)
+        custodian_exemption = {
+            "state": {True: "proved", False: "disproved", None: "unmeasured"}[exempt_verdict],
+            "reason": exempt_reason,
+        }
+        consistent, consistency_reason, consistency_mismatches = _snapshot_self_consistency(repo, new)
+        self_consistency = {
+            "state": {True: "consistent", False: "inconsistent", None: "unmeasured"}[consistent],
+            "reason": consistency_reason,
+            "mismatches": consistency_mismatches,
+        }
+
+        # `None` grants NO exemption — fail-CLOSED, exit code unchanged. It is recorded on
+        # each finding so "proved violation" and "could not prove innocence" stop reading alike.
+        snapshot_violations = _track_snapshot_violations(old, new, exempt_verdict is True)
+        if exempt_verdict is None:
+            snapshot_violations = [
+                {**v, "exemption_unmeasured": True, "exemption_reason": exempt_reason}
+                for v in snapshot_violations
+            ]
+        violations.extend(snapshot_violations)
 
     # Free-text scan (skip the two structured files — handled above).
     for p in site_paths:
@@ -526,6 +709,7 @@ def check_owner_gate(
         violations = kept
 
     violations.sort(key=lambda d: (d["file"], d["line"], d["klass"]))
+    unmeasured_count = sum(1 for v in violations if v.get("exemption_unmeasured"))
     return {
         "model": "owner_gate_check",
         "llm_forbidden": True,
@@ -533,6 +717,12 @@ def check_owner_gate(
         "diff_mode": diff_mode,
         "ok": len(violations) == 0,
         "gated_count": len(violations),
+        # How many of the gated findings are "could not prove innocence" rather than
+        # "proved guilt". Kept SEPARATE from gated_count on purpose: the exit code does
+        # not change, so nothing ships differently — but the two are no longer one number.
+        "unmeasured_count": unmeasured_count,
+        "custodian_exemption": custodian_exemption,
+        "self_consistency": self_consistency,
         "site_paths": sorted(site_paths),
         "violations": violations,
         "approved_bypasses": bypassed,
@@ -582,8 +772,20 @@ def _main(argv: list[str] | None = None) -> int:
     print("=== Owner-gate guard (auto-ship safety) ===")
     print(f"  diff-mode: {report['diff_mode']} · site paths: {len(report['site_paths'])}")
     for v in report["violations"]:
-        print(f"    [{v['klass']}] {v['file']}:{v['line']} {v['rule']} "
+        mark = " [НЕ ИЗМЕРЕНО]" if v.get("exemption_unmeasured") else ""
+        print(f"    [{v['klass']}]{mark} {v['file']}:{v['line']} {v['rule']} "
               f"({v['change']}) — {v['matched_text']}")
+    ce = report.get("custodian_exemption")
+    if ce:
+        label = {"proved": "ДОКАЗАНО (вывод custodian)",
+                 "disproved": "ОПРОВЕРГНУТО (не вывод custodian)",
+                 "unmeasured": "НЕ ИЗМЕРЕНО"}[ce["state"]]
+        print(f"  освобождение custodian: {label} — {ce['reason']}")
+    sc = report.get("self_consistency")
+    if sc:
+        label = {"consistent": "СОГЛАСНЫ", "inconsistent": "РАСХОДЯТСЯ",
+                 "unmeasured": "НЕ ИЗМЕРЕНО"}[sc["state"]]
+        print(f"  сверка чисел с собственными bars: {label} — {sc['reason']}")
     if report["approved_bypasses"]:
         print(f"  owner-approved bypasses: {len(report['approved_bypasses'])} "
               f"(card {report['approval']['card']})")
@@ -596,6 +798,12 @@ def _main(argv: list[str] | None = None) -> int:
         print("  RESULT: CLEAN — no owner-gated changes; safe to auto-ship.")
         return 0
     print(f"  RESULT: GATED — {report['gated_count']} owner-gated change(s) → route to owner card.")
+    if report.get("unmeasured_count"):
+        # Deliberately NOT a different exit code: whether an unmeasurable exemption may
+        # ship is the owner's decision (ADR-078), not this cycle's. Said out loud so the
+        # red is readable instead of merely repeated.
+        print(f"      из них НЕ ИЗМЕРЕНО (освобождение здесь недоказуемо): "
+              f"{report['unmeasured_count']} — код возврата НЕ смягчён")
     return 2
 
 

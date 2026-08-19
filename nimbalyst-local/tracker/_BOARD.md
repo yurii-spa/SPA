@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **499** · ждёт владельца: **11** · занято сессиями: **5**.
+> Всего карточек: **500** · ждёт владельца: **12** · занято сессиями: **5**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -15,6 +15,7 @@
 - **Главная рекламирует бесплатный чекап, которого больше нет: снять секции или поднимать сервис?**  ·  `owner-decision-glavnaya-reklamiruet-besplatnyi-chekap-k.md`
 - **Поиск новых протоколов не идёт: программу, которая его делает, никто не запускает**  ·  `owner-decision-poisk-novyh-protokolov-ne-idet-programmu.md`
 - **Сбалансированный тир: на сайте «идёт paper-трек», а в книге ноль позиций**  ·  `owner-decision-sbalansirovannyi-tir-na-saite-idet-paper.md`
+- **Сторож чисел сайта краснеет ~10 раз в день на нашей же автоматике — разрешить ему молчать там, где он всё равно ничего не измеряет?**  ·  `owner-decision-storozh-chisel-saita-krasneet-10-raz-v-den.md`
 - **Один лишний файл в рабочей папке не даёт запустить ТЕСТЫ на твоей машине — убрать его**  ·  `owner-decision-ubrat-slomannyi-ostatok-v-rabochei-papke.md`
 - **Включить нового сторожа сайта на Маке — одна команда, и табличка снимется сама**  ·  `owner-decision-vklyuchit-novogo-storozha-saita-na-make.md`
 
@@ -28,7 +29,7 @@
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (111)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (112)
 
 ### · needs-owner
 - Добавить одну строку в настройку агента — иначе не узнаем, кто гоняет цикл 52 раза в сутки  ·  `own-33-plist-marker-for-cycle-origin.md` · 2026-08-10
@@ -40,6 +41,7 @@
 - Главная рекламирует бесплатный чекап, которого больше нет: снять секции или поднимать сервис?  ·  `owner-decision-glavnaya-reklamiruet-besplatnyi-chekap-k.md` · 2026-08-16
 - Поиск новых протоколов не идёт: программу, которая его делает, никто не запускает  ·  `owner-decision-poisk-novyh-protokolov-ne-idet-programmu.md` · 2026-08-18
 - Сбалансированный тир: на сайте «идёт paper-трек», а в книге ноль позиций  ·  `owner-decision-sbalansirovannyi-tir-na-saite-idet-paper.md` · 2026-08-13
+- Сторож чисел сайта краснеет ~10 раз в день на нашей же автоматике — разрешить ему молчать там, где он всё равно ничего не измеряет?  ·  `owner-decision-storozh-chisel-saita-krasneet-10-raz-v-den.md` · 2026-08-19
 - Один лишний файл в рабочей папке не даёт запустить ТЕСТЫ на твоей машине — убрать его  ·  `owner-decision-ubrat-slomannyi-ostatok-v-rabochei-papke.md` · 2026-08-19
 - Включить нового сторожа сайта на Маке — одна команда, и табличка снимется сама  ·  `owner-decision-vklyuchit-novogo-storozha-saita-na-make.md` · 2026-08-14
 ### · ingested
@@ -232,6 +234,7 @@
 - Отказ замка цикла неотличим от аварии: last_exit=2 означает и 'защитил трек', и 'сломался'  ·  `inbox-otkaz-zamka-tsikla-neotlichim-ot-avarii.md` · 2026-08-08
 - Отметка из БУДУЩЕГО читается как «только что»: общий помощник свежести зажимает возраст в ноль  ·  `inbox-otmetka-iz-buduschego-chitaetsya-kak-tol.md` · 2026-08-18
 - Ответ владельца живёт только в хост-дереве: бот пишет туда, инжест пушит на origin, копии расходятся навсегда  ·  `inbox-otvet-vladeltsa-zhivet-tolko-v-host-dereve.md` · 2026-08-09
+- owner-gate краснеет на СВОЕЙ ежедневной автоматике: сдвиг снимка трека на один цент = owner-gated  ·  `inbox-owner-gate-krasneet-na-svoei-ezhednevnoi.md` · 2026-08-13
 - Owner-gate заводит дубль карточки на каждый заблокированный пуш одних и тех же файлов  ·  `inbox-owner-gate-zavodit-dubl-kartochki-na-kaz.md` · 2026-08-08
 - Понял, бери все в работу  ·  `inbox-ponyal-beri-vse-v-rabotu.md` · 2026-08-12
 - Прод-сторож архитектуры читает файл, который синхронизация не обновляет  ·  `inbox-prod-storozh-arhitektury-chitaet-fail-ko.md` · 2026-08-08
@@ -355,7 +358,6 @@
 - Находка петли: возможность fluid_fusdc 5.03% (evidence L3) доступна книге, не держитс  ·  `inbox-nahodka-petli-vozmozhnost-fluid-fusdc-5.md` · 2026-08-13
 - Окно до 6 часов: ответ владельца между нажатием кнопки и прогоном моста живёт в одном экземпляре  ·  `inbox-okno-do-6-chasov-otvet-vladeltsa-mezhdu.md` · 2026-08-15
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08
-- owner-gate краснеет на СВОЕЙ ежедневной автоматике: сдвиг снимка трека на один цент = owner-gated  ·  `inbox-owner-gate-krasneet-na-svoei-ezhednevnoi.md` · 2026-08-13
 - Оживить фиды вне Ethereum — путь к снятию остатка кэша (решение владельца 08.08)  ·  `inbox-ozhivit-fidy-vne-ethereum-put-k-snyatiyu.md` · 2026-08-08
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
 - Подготовить ADR: пересмотр лимита одной цепочки 90% (решение владельца — за ним)  ·  `inbox-podgotovit-adr-peresmotr-limita-odnoi-ts.md` · 2026-08-08

@@ -32,6 +32,16 @@ mode, so nothing touches the real repo, network, ``origin/main``, or ``data/``. 
 owner-approval bypass monkeypatches ``spa_core.owner_queue.queue.list_cards`` so no card
 store is read and no ``owner-done`` is ever written (invariant #14). Tests only — the module
 is NOT modified (invariant #16).
+
+# FROZEN-DATE-OK: historical-incident — the literal dates below (canon as_of 2026-07-04 vs
+# committed snapshot as_of 2026-08-19) ARE the subject: they reproduce the measured 2026-08-19
+# finding that origin's data/ canon is frozen far behind the live track, which is precisely why
+# the custodian exemption is not computable in CI. Preference #3 of .claude/rules/deployment.md.
+# These dates cannot rot with the calendar: NOTHING here compares them to the clock — there is no
+# datetime.now() in this file. Every date is compared only against another date supplied by the
+# same test (a lexical as_of ordering, or a bar date re-derived from the fixture's own bars), so
+# both sides are pinned by construction. Injecting a clock (preference #1) would add a parameter
+# that no code path under test reads.
 """
 from __future__ import annotations
 
@@ -253,9 +263,151 @@ def test_track_snapshot_walks_nested_and_ignores_nonnumber_fields():
 
 # ── _snapshot_is_custodian_equivalent (exemption is not forgeable) ──────────
 def test_custodian_equivalence_false_without_data(tmp_path):
-    # No generate_track_snapshot.py / data canon under the tmp repo → cannot regenerate
-    # → returns False (fail-closed: no exemption granted) rather than raising.
+    # No generate_track_snapshot.py / data canon under the tmp repo → cannot regenerate.
+    #
+    # ИЗМЕНЁН НАМЕРЕННО 2026-08-19, цикл #299 (инв. #16 — обоснование здесь и в журнале W34).
+    # Раньше тест утверждал ровно `is False`, то есть закреплял СХЛОПЫВАНИЕ «нечем измерить»
+    # в «доказано нарушение» — тот самый дефект, из-за которого owner-gate краснел 106 раз
+    # из 109 на собственной автоматике. Проверка не ослаблена, а УСИЛЕНА: теперь утверждаются
+    # ОБА конца — трёхзначный вердикт стал `None` с НАЗВАННОЙ причиной, и при этом
+    # освобождение по-прежнему НЕ выдаётся (fail-CLOSED сохранён дословно).
+    verdict, reason = G._snapshot_custodian_equivalence(tmp_path)
+    assert verdict is None, "«нечем измерить» обязано отличаться от «доказано нарушение»"
+    assert reason and "нечем проверить" in reason
+    # Поведение, ради которого тест писался, не изменилось ни на бит:
     assert G._snapshot_is_custodian_equivalent(tmp_path) is False
+
+
+# ── tri-state custodian equivalence (цикл #299) ─────────────────────────────
+def _fake_generator(repo: Path, snapshot: dict) -> None:
+    """Put a stub generate_track_snapshot.py under `repo` whose build_snapshot() returns
+    `snapshot`. Import-safe and write-free, exactly like the real one."""
+    (repo / "scripts").mkdir(parents=True, exist_ok=True)
+    (repo / "scripts" / "generate_track_snapshot.py").write_text(
+        "import json\n"
+        f"_SNAP = json.loads(r'''{json.dumps(snapshot)}''')\n"
+        "def build_snapshot():\n"
+        "    return dict(_SNAP)\n"
+        "def _max_drawdown_pct(bars):\n"
+        "    dds = [b['drawdown_pct'] for b in bars if b.get('drawdown_pct') is not None]\n"
+        "    return round(min(dds), 4) if dds else None\n",
+        encoding="utf-8",
+    )
+
+
+def _write_snapshot(repo: Path, snapshot: dict) -> None:
+    p = repo / _TRACK_SNAPSHOT
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(snapshot), encoding="utf-8")
+
+
+def test_custodian_equivalence_proved_when_regeneration_matches(tmp_path):
+    snap = {"as_of": "2026-08-19", "nav_usd": 100.0, "generated_at": "X"}
+    _fake_generator(tmp_path, {**snap, "generated_at": "DIFFERENT-BUT-VOLATILE"})
+    _write_snapshot(tmp_path, snap)
+    verdict, reason = G._snapshot_custodian_equivalence(tmp_path)
+    assert verdict is True, "volatile generated_at must not break the match"
+    assert "совпала" in reason
+
+
+def test_custodian_equivalence_disproved_when_regeneration_differs(tmp_path):
+    # Same as_of (so the canon CAN describe the artifact) but a different number →
+    # this is a real disproof, and it must stay distinguishable from "not measurable".
+    _fake_generator(tmp_path, {"as_of": "2026-08-19", "nav_usd": 100.0})
+    _write_snapshot(tmp_path, {"as_of": "2026-08-19", "nav_usd": 999.0})
+    verdict, reason = G._snapshot_custodian_equivalence(tmp_path)
+    assert verdict is False, "a hand-edited number must be PROVED not-custodian, not merely unmeasured"
+    assert "nav_usd" in reason
+
+
+def test_custodian_equivalence_unmeasured_when_canon_lags_the_snapshot(tmp_path):
+    # The live CI case, measured 2026-08-19: origin's data/ canon is frozen at 2026-07-04
+    # while the committed snapshot is 2026-08-19. Regeneration reproduces an OLDER track,
+    # so the mismatch says nothing about who wrote the file → NOT MEASURABLE, not "guilty".
+    _fake_generator(tmp_path, {"as_of": "2026-07-04", "nav_usd": 100.0})
+    _write_snapshot(tmp_path, {"as_of": "2026-08-19", "nav_usd": 999.0})
+    verdict, reason = G._snapshot_custodian_equivalence(tmp_path)
+    assert verdict is None
+    assert "2026-07-04" in reason and "2026-08-19" in reason, "обе стороны обязаны быть названы"
+    # ...and it still grants no exemption.
+    assert G._snapshot_is_custodian_equivalent(tmp_path) is False
+
+
+# ── _snapshot_self_consistency — the route that IS measurable in CI ──────────
+def _bars(n: int, start: float = 100000.0, step: float = 10.0) -> list[dict]:
+    return [
+        {"date": f"2026-06-{22 + i:02d}", "equity": start + step * i,
+         "drawdown_pct": -0.01 * (i % 3), "evidenced": True}
+        for i in range(n)
+    ]
+
+
+def _consistent_snapshot() -> dict:
+    bars = _bars(5)
+    end = 100500.0
+    real_days = len(bars)
+    apy = ((bars[-1]["equity"] / bars[0]["equity"]) ** (365.0 / real_days) - 1.0) * 100.0
+    return {
+        "as_of": bars[-1]["date"],
+        "real_track_days": real_days,
+        "paper_apy_pct": round(apy, 4),
+        "max_drawdown_pct": round(min(b["drawdown_pct"] for b in bars), 4),
+        "end_equity": end,
+        "nav_usd": round(end, 2),
+        "total_return_pct": round((end / 100000.0 - 1.0) * 100.0, 4),
+        "bars": bars,
+    }
+
+
+def test_self_consistency_holds_for_a_custodian_shaped_snapshot():
+    # Uses the REAL generator's arithmetic (repo_root=_REPO) against a synthetic snapshot —
+    # no canon is read and nothing is written, so this stays hermetic.
+    verdict, reason, mismatches = G._snapshot_self_consistency(_REPO, _consistent_snapshot())
+    assert verdict is True, reason
+    assert mismatches == []
+
+
+@pytest.mark.parametrize("field,forged", [
+    ("paper_apy_pct", 9.9),          # the headline yield number
+    ("max_drawdown_pct", -0.001),    # the tail
+    ("real_track_days", 900),        # the track length
+    ("total_return_pct", 42.0),      # the return
+])
+def test_self_consistency_catches_a_hand_edited_number(field, forged):
+    """Positive control, card step 4: a hand edit of a DISPLAYED number must be caught by
+    the route that works where the canon does not (CI)."""
+    snap = _consistent_snapshot()
+    snap[field] = forged
+    verdict, reason, mismatches = G._snapshot_self_consistency(_REPO, snap)
+    assert verdict is False, f"forged {field} slipped through"
+    assert [m["field"] for m in mismatches] == [field]
+    assert field in reason and repr(forged) in reason
+
+
+def test_self_consistency_unmeasured_without_bars():
+    # "no bars" is NOT "numbers are wrong" — the same distinction, one level down.
+    verdict, reason, mismatches = G._snapshot_self_consistency(_REPO, {"nav_usd": 1.0})
+    assert verdict is None and "bars" in reason and mismatches == []
+
+
+def test_self_consistency_unmeasured_without_a_generator(tmp_path):
+    verdict, reason, _ = G._snapshot_self_consistency(tmp_path, _consistent_snapshot())
+    assert verdict is None and "генератор" in reason
+
+
+def test_self_consistency_does_not_claim_to_cover_packages_or_gates():
+    """HONEST LIMIT, pinned so it cannot be quietly over-claimed later: packages.* and
+    gates_* are NOT functions of `bars` (they come from tier1_packages.json /
+    golive_status.json), so forging them is invisible here. This is exactly why the
+    recommendation to the owner is 'self-consistent AND only bars-derivable fields moved',
+    not 'self-consistent' alone — two of the three informative reds on origin moved
+    packages.conservative.apy_pct."""
+    snap = _consistent_snapshot()
+    snap["packages"] = {"conservative": {"apy_pct": 99.0, "dd_pct": 0.0}}
+    snap["gates_passed"] = 999
+    verdict, _, mismatches = G._snapshot_self_consistency(_REPO, snap)
+    assert verdict is True, "the check must not pretend to cover fields it cannot derive"
+    assert mismatches == []
 
 
 # ── end-to-end via a throwaway git repo (git-range mode) ────────────────────
@@ -352,3 +504,100 @@ def test_end_to_end_no_trailer_no_bypass(tmp_path):
                              commit_message="copy: add number")
     assert rep["ok"] is False
     assert rep["approval"] is None
+
+
+# ── end-to-end: the unmeasured-exemption split (цикл #299) ──────────────────
+def _repo_with_snapshot(tmp_path: Path, old: dict, new: dict) -> Path:
+    """Throwaway repo whose HEAD~1..HEAD is exactly a track_snapshot.json number change."""
+    repo = _init_repo(tmp_path)
+    _write_snapshot(repo, old)
+    _run_git(repo, "add", "-A")
+    _run_git(repo, "commit", "-qm", "snapshot: base")
+    _write_snapshot(repo, new)
+    _run_git(repo, "commit", "-aqm",
+             "chore(site-custodian): auto-deploy fresh track_snapshot after daily cycle")
+    return repo
+
+
+def test_unmeasured_exemption_is_named_but_the_exit_is_NOT_softened(tmp_path):
+    """The whole point, pinned in both directions.
+
+    A snapshot-number change whose custodian exemption cannot be proved here must be
+    (a) MARKED as unmeasured — so "could not prove innocence" stops reading like
+    "proved guilt" — while (b) still being GATED, because whether such a change may
+    ship is the OWNER's decision (ADR-078), not this guard's.
+    """
+    old = {"as_of": "2026-08-18", "nav_usd": 100.0, "bars": []}
+    new = {"as_of": "2026-08-19", "nav_usd": 200.0, "bars": []}
+    # canon lags the artifact → the CI condition
+    repo = _repo_with_snapshot(tmp_path, old, new)
+    _fake_generator(repo, {"as_of": "2026-07-04", "nav_usd": 1.0, "bars": []})
+
+    rep = G.check_owner_gate(diff_mode="git-range", base="HEAD~1", head="HEAD", repo_root=repo)
+
+    assert rep["ok"] is False, "нельзя молча позеленеть — это решение владельца"
+    assert rep["gated_count"] >= 1
+    assert rep["unmeasured_count"] == rep["gated_count"]
+    assert all(v.get("exemption_unmeasured") for v in rep["violations"])
+    assert rep["custodian_exemption"]["state"] == "unmeasured"
+    assert "2026-07-04" in rep["custodian_exemption"]["reason"]
+
+
+def test_proved_custodian_output_is_exempt_and_clean(tmp_path):
+    """Reverse control: where the canon CAN describe the artifact and matches, the change
+    is exempt and ships — the behaviour that already worked on the owner's machine."""
+    old = {"as_of": "2026-08-18", "nav_usd": 100.0, "bars": []}
+    new = {"as_of": "2026-08-19", "nav_usd": 200.0, "bars": []}
+    repo = _repo_with_snapshot(tmp_path, old, new)
+    _fake_generator(repo, dict(new))
+
+    rep = G.check_owner_gate(diff_mode="git-range", base="HEAD~1", head="HEAD", repo_root=repo)
+    assert rep["ok"] is True
+    assert rep["gated_count"] == 0
+    assert rep["custodian_exemption"]["state"] == "proved"
+
+
+def test_disproved_custodian_output_is_gated_and_not_marked_unmeasured(tmp_path):
+    """A hand edit, provable as such, must be a PROVED violation — never diluted into the
+    unmeasured bucket (that would be the fail-OPEN this change is careful to avoid)."""
+    old = {"as_of": "2026-08-19", "nav_usd": 100.0, "bars": []}
+    new = {"as_of": "2026-08-19", "nav_usd": 999.0, "bars": []}
+    repo = _repo_with_snapshot(tmp_path, old, new)
+    _fake_generator(repo, {"as_of": "2026-08-19", "nav_usd": 100.0, "bars": []})
+
+    rep = G.check_owner_gate(diff_mode="git-range", base="HEAD~1", head="HEAD", repo_root=repo)
+    assert rep["ok"] is False
+    assert rep["unmeasured_count"] == 0
+    assert not any(v.get("exemption_unmeasured") for v in rep["violations"])
+    assert rep["custodian_exemption"]["state"] == "disproved"
+
+
+def test_non_snapshot_violations_are_never_marked_unmeasured(tmp_path):
+    """Reverse control: the unmeasured marking belongs to the snapshot path alone. A
+    free-text baked number must stay an ordinary, fully-proved violation."""
+    repo = _init_repo(tmp_path)
+    page = repo / "landing" / "src" / "pages" / "index.astro"
+    page.write_text("<h1>SPA</h1>\n<p>Earn up to 30% net APY.</p>\n", encoding="utf-8")
+    _run_git(repo, "commit", "-aqm", "copy: add number")
+
+    rep = G.check_owner_gate(diff_mode="git-range", base="HEAD~1", head="HEAD", repo_root=repo)
+    assert rep["ok"] is False
+    assert rep["unmeasured_count"] == 0
+    assert rep["custodian_exemption"] is None, "снимок не менялся — блока о нём быть не должно"
+
+
+def test_git_range_judges_the_COMMITTED_head_not_the_working_tree(tmp_path):
+    """The subject of judgement in git-range mode is the commit, as it already is for
+    tier_bands.json. Before this fix the snapshot branch read the working tree first, so a
+    dirty tree could be judged against another commit's base."""
+    old = {"as_of": "2026-08-19", "nav_usd": 100.0, "bars": []}
+    new = {"as_of": "2026-08-19", "nav_usd": 200.0, "bars": []}   # what was actually COMMITTED
+    repo = _repo_with_snapshot(tmp_path, old, new)
+    _fake_generator(repo, {"as_of": "2026-08-19", "nav_usd": 1.0, "bars": []})
+    # Dirty the working tree with a number that was never committed.
+    _write_snapshot(repo, {"as_of": "2026-08-19", "nav_usd": 777777.0, "bars": []})
+
+    rep = G.check_owner_gate(diff_mode="git-range", base="HEAD~1", head="HEAD", repo_root=repo)
+    texts = " ".join(str(v.get("matched_text", "")) for v in rep["violations"])
+    assert "777777" not in texts, "git-range обязан судить КОММИТ, а не рабочее дерево"
+    assert "200.0" in texts, "судить обязан именно закоммиченное изменение"
