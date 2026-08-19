@@ -124,6 +124,11 @@ _CLAIM_KEYS = ("claimed_by", "claimed_at")
 # явный None выключает опознание собственных объявлений (герметичные тесты). См. `self_identities`.
 _ENV_ANCHOR = object()
 
+# То же различие для ОБЩИХ рабочих деревьев (родство по дереву, #303): умолчание меряет
+# главное дерево через `git worktree list`, явный None означает «не измерено» и выключает
+# признак целиком. Пустой кортеж — тоже измерение («общих деревьев нет»), и он не равен None.
+_MEASURE_TREES = object()
+
 
 class ClaimError(RuntimeError):
     """Захват не выполнен (карточку держит другой / идёт чужая запись). Fail-CLOSED."""
@@ -149,7 +154,7 @@ def load_sibling(path=SIBLING):
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     for attr in ("session_state", "read_entries", "_parse_ts", "ACTIVE", "UNKNOWN",
-                 "shared_log"):
+                 "shared_log", "main_worktree", "worktree_of"):
         if not hasattr(mod, attr):
             raise ImportError(f"{p}: нет ожидаемого символа {attr!r}")
     return mod
@@ -428,7 +433,8 @@ def _fmt_ts(dt: datetime) -> str:
 def build_report(cid, path, entries, self_session, sibling, *, now=None,
                  grace_hours=DEFAULT_GRACE_HOURS, ps=None, planned_files=(),
                  log_path=None, log_error=None, malformed_lines=0, card_meta=None,
-                 card_error=None, self_anchor=None, card_source=None, repo_root=ROOT):
+                 card_error=None, self_anchor=None, card_source=None, repo_root=ROOT,
+                 shared_trees=None):
     """Полный отчёт о занятости карточки. Чистая функция: ни git, ни файлов — всё на входе.
 
     `self_anchor` — пара (`session_pid`, `session_pid_start`) МОЕГО долгоживящего процесса или
@@ -449,7 +455,8 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
     # (`claim` объявляет захват), но сторож, верный «почти», — это дыра, о которой не сказано.
     durables, kin = anchors_with_kin(
         entries, sibling,
-        extra_labels=[str((card_meta or {}).get("claimed_by") or "").strip()])
+        extra_labels=[str((card_meta or {}).get("claimed_by") or "").strip()],
+        shared_trees=shared_trees)
 
     def _anchor_for(session, ts_raw):
         """Поля долгоживущего процесса для ярлыка — свои либо родственные, либо None.
@@ -517,6 +524,14 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
             return
         state, why = sibling.session_state({"session": session, "ts": rec["ts"],
                                             **(process or {})}, self_session, ps=ps)
+        # Заимствование НАЗЫВАЕТСЯ вслух. Иначе отчёт про ярлык `pid64051` пишет «завершился
+        # pid64036» — число из другой записи, и читателю нечем проверить вывод (живой замер
+        # #303). В `kin` попадают только ярлыки, у которых СВОЕГО якоря нет нигде, поэтому
+        # условие не может пометить чужим родством запись с собственной личностью.
+        if process and session in kin:
+            rec["kin_source"] = kin[session]
+            why = (f"{why} [личность взята по РОДСТВЕННОМУ ярлыку {kin[session]!r} той же "
+                   f"сессии — у {session!r} своего якоря в журнале нет]")
         rec["session_state"] = why
         age = (now - ts).total_seconds() / 3600.0 if ts else None
         rec["age_hours"] = round(age, 2) if age is not None else None
@@ -935,7 +950,7 @@ def durable_by_session(entries, sibling):
     return sibling.durable_by_session(entries)
 
 
-def anchors_with_kin(entries, sibling, extra_labels=()):
+def anchors_with_kin(entries, sibling, extra_labels=(), shared_trees=None):
     """То же, плюс родня по ярлыку: `(ярлык → поля, ярлык → откуда взято)`.
 
     **Определение ОДНО и живёт у шага 0a** (`check_undelivered_work.anchors_with_kin`) — здесь
@@ -951,8 +966,12 @@ def anchors_with_kin(entries, sibling, extra_labels=()):
 
     Точность важна: у ГОЛОГО ярлыка `pidN` активность читается прямо из ярлыка, поэтому
     состарившийся захват уходил в `stale` и без родства (измерено, а не предположено) — дефект
-    жил ровно в окне свежести. Вечное «не измерено» тот же разрыв даёт у СОСТАВНОГО ярлыка."""
-    return sibling.anchors_with_kin(entries, extra_labels)
+    жил ровно в окне свежести. Вечное «не измерено» тот же разрыв даёт у СОСТАВНОГО ярлыка.
+
+    `shared_trees` — деревья, общие для многих сессий (главное рабочее дерево): в них «то же
+    дерево» не значит «та же сессия». `None` = не измерено ⇒ родство по дереву выключено
+    (цикл #303, второй признак родства — см. докстринг шага 0a)."""
+    return sibling.anchors_with_kin(entries, extra_labels, shared_trees=shared_trees)
 
 
 def _log_entries(log, sibling=None, last=None):
@@ -975,7 +994,7 @@ def _log_entries(log, sibling=None, last=None):
 def gather(card, *, log=DEFAULT_LOG, tracker_dir=DEFAULT_TRACKER, sibling=None,
            self_session=None, now=None, grace_hours=DEFAULT_GRACE_HOURS,
            planned_files=(), last=None, ps=None, self_anchor=_ENV_ANCHOR,
-           base_ref=DEFAULT_BASE_REF, repo_root=ROOT):
+           base_ref=DEFAULT_BASE_REF, repo_root=ROOT, shared_trees=_MEASURE_TREES):
     """Прочитать карточку + журнал и собрать отчёт (файловый слой над `build_report`).
 
     `self_anchor` — мой долгоживущий процесс (`anchor_of`-пара) для опознания собственных
@@ -999,13 +1018,20 @@ def gather(card, *, log=DEFAULT_LOG, tracker_dir=DEFAULT_TRACKER, sibling=None,
     if self_anchor is _ENV_ANCHOR:
         self_anchor = measure_self_anchor()
 
+    if shared_trees is _MEASURE_TREES:
+        # Главное рабочее дерево общее для ВСЕХ сессий (журнал: 101 ярлык, 17 разных якорей) —
+        # родством оно быть не может. Не измерилось ⇒ None ⇒ признак выключен, а не «нет общих».
+        main_tree, _err = sibling.main_worktree(repo_root)
+        shared_trees = (str(main_tree),) if main_tree else None
+
     return build_report(card_id(path), path, entries,
                         self_session or self_session_id(), sibling,
                         now=now, grace_hours=grace_hours, ps=ps,
                         planned_files=planned_files, log_path=log_path,
                         log_error=log_error, malformed_lines=malformed,
                         card_meta=meta, card_error=card_error, self_anchor=self_anchor,
-                        card_source=card_source, repo_root=repo_root)
+                        card_source=card_source, repo_root=repo_root,
+                        shared_trees=shared_trees)
 
 
 # ── взятие / освобождение карточки ───────────────────────────────────────────

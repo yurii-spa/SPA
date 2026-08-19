@@ -317,7 +317,64 @@ def pid_tokens(label):
     return set(_LABEL_PID_TOKEN.findall(str(label or "")))
 
 
-def anchors_with_kin(entries, extra_labels=()):
+# Каталоги верхнего уровня репозитория: по ним объявленный путь читается как «<корень>/<каталог>/…».
+# Список — свойство ЭТОГО репо, а не догадка: всё, что в нём есть, лежит в git и объявляется
+# сессиями. Незнакомый первый компонент ⇒ дерево из пути НЕ читается (а не угадывается).
+_REPO_TOP_DIRS = frozenset({
+    ".claude", ".github", "architecture", "cabinet", "data", "docs", "inbox", "landing",
+    "launchd", "nimbalyst-local", "research", "scripts", "spa_core", "strategies", "tests",
+})
+
+
+def _normalize_tree(path):
+    """Путь к дереву в ОДНОМ написании: macOS отдаёт `/tmp/x` и `/private/tmp/x` за один каталог.
+
+    Именно на этом расхождении родство по дереву споткнулось бы в живом замере #301: захват
+    объявил `/private/tmp/spa_c301/…`, а объявление владения — `/tmp/spa_c301/…`. Побайтовое
+    сравнение двух написаний одного дерева ответило бы «разные деревья» — тот же класс, что
+    сама чинимая слепота. `realpath` здесь НЕ годится: снятого дерева на диске уже нет, а
+    ответ обязан быть одинаковым для живого и для снятого."""
+    p = str(path or "").strip()
+    if not p:
+        return None
+    for prefix in ("/private/tmp/", "/private/var/"):
+        if p.startswith(prefix):
+            p = "/" + p[len("/private/"):]
+            break
+    return p.rstrip("/") or "/"
+
+
+def tree_of_path(path):
+    """Корень рабочего дерева, читаемый из объявленного АБСОЛЮТНОГО пути, либо None.
+
+    `/tmp/spa_c301/scripts/x.py` → `/tmp/spa_c301`. Относительный путь и путь, первый
+    компонент которого не является каталогом репо, дерева не дают: домысливать корень по
+    «предпоследнему каталогу» значило бы выдавать догадку за измерение."""
+    p = _normalize_tree(path)
+    if not p or not p.startswith("/"):
+        return None
+    parts = Path(p).parts
+    for i, part in enumerate(parts):
+        if i > 0 and part in _REPO_TOP_DIRS:
+            return str(Path(*parts[:i]))
+    return None
+
+
+def worktree_of(entry):
+    """Рабочее дерево, названное файлами записи, либо None, если оно из них НЕ читается.
+
+    Читается ровно тогда, когда все объявленные пути, из которых дерево вообще выводится,
+    называют ОДНО дерево. Запись, объявившая файлы в двух деревьях (в журнале таких ярлыков
+    26 из 630), дерева не имеет — угадывать, какое из них «настоящее», инструмент не станет."""
+    roots = set()
+    for f in (entry or {}).get("files") or ():
+        root = tree_of_path(f)
+        if root:
+            roots.add(root)
+    return next(iter(roots)) if len(roots) == 1 else None
+
+
+def anchors_with_kin(entries, extra_labels=(), shared_trees=None):
     """`durable_by_session`, где ярлык БЕЗ якоря получает якорь СОСЕДНЕГО ярлыка ТОЙ ЖЕ сессии.
 
     **Дефект, который это закрывает (цикл #293).** Одна сессия пишет в журнал под ДВУМЯ
@@ -351,7 +408,38 @@ def anchors_with_kin(entries, extra_labels=()):
 
     `extra_labels` — ярлыки, которых в записях может не быть вовсе: захват во frontmatter
     карточки несёт ЯРЛЫК держателя, и спрашивать о нём приходится отдельно (в журнале он есть
-    почти всегда, но «почти» у сторожа означает молчаливую дыру)."""
+    почти всегда, но «почти» у сторожа означает молчаливую дыру).
+
+    ── Второй признак родства: РАБОЧЕЕ ДЕРЕВО (цикл #303) ──────────────────────
+
+    **Дефект, который это закрывает.** Токен `pidN` берётся из САМОГО ярлыка, а ярлык формы
+    `cycle-<PID>` (без слова `pid`) не даёт токена ВООБЩЕ: `pid_tokens('cycle-64036')` — пустое
+    множество. Значит починка #293 до такой пары не дотягивается ПО ПОСТРОЕНИЮ, а не по
+    недосмотру. Мало того, два ярлыка одной сессии несут РАЗНЫЕ числа (#301: захват под
+    `pid64051` — pid однократной CLI-команды, объявление под `cycle-64036` — долгоживущий
+    процесс), поэтому даже одинаковая форма родства бы не дала: совпадение чисел — счастливая
+    случайность, а не свойство. Живой замер #302 (журнал 19.08, 1021 запись): 328 захватов из
+    445 объявлены под ярлыком без токена, то есть вне досягаемости родства по токену.
+
+    Дерево — признак МАШИННЫЙ и общий у обоих ярлыков: сессия работает в одном изолированном
+    worktree (§3.4) и объявляет пути внутри него. Замер по всему журналу: 17 записей-захватов
+    получают якорь этим путём, и ни одна из них не получала его токеном.
+
+    **Четыре сужения, каждое fail-CLOSED:**
+
+    1. свой якорь и родство по ТОКЕНУ сильнее — дерево спрашивается только у ярлыка, которому
+       ни то, ни другое якоря не дало;
+    2. у ярлыка должно быть РОВНО ОДНО дерево на все его записи (иначе связывать нечем);
+    3. дерево должно вести к ОДНОМУ якорю — два разных якоря на дерево ⇒ родства нет;
+    4. `shared_trees` — деревья, ОБЩИЕ для многих сессий (главное рабочее дерево прежде
+       всего): в них живут все, и «то же дерево» там не значит «та же сессия». `None` =
+       общие деревья НЕ измерены ⇒ родство по дереву не применяется вовсе.
+
+    Сужение 4 — не теория: в живом журнале прод-дерево называют **101 ярлык с 17 разными
+    якорями**, то есть п.3 его и так отбрасывает. Но отбрасывает СЛУЧАЙНО (историей записей),
+    а сторож обязан быть шире подопечного — на коротком журнале того же прод-дерева хватило бы
+    одного якоря, и живая сессия получила бы чужую смерть. Ровно этой случайной безопасностью
+    обжёгся #234 («уцелел по случайному свежему объявлению, не по правилу»)."""
     direct = durable_by_session(entries)
     self_ambiguous = {str((e or {}).get("session") or "").strip()
                       for e in entries or () if anchor_of(e) is not None}
@@ -388,7 +476,52 @@ def anchors_with_kin(entries, extra_labels=()):
             continue
         widened[label] = fields
         kin_source[label] = source
+
+    if shared_trees is not None:
+        _widen_by_tree(entries, labels, direct, self_ambiguous, widened, kin_source,
+                       {_normalize_tree(t) for t in shared_trees})
     return widened, kin_source
+
+
+def _widen_by_tree(entries, labels, direct, self_ambiguous, widened, kin_source, shared):
+    """Второй проход `anchors_with_kin`: родство по общему рабочему дереву (см. её докстринг).
+
+    Правит `widened`/`kin_source` НА МЕСТЕ и только там, где после первого прохода не было
+    ничего: ярлык, получивший якорь свой или по токену, сюда не доходит."""
+    tree_by_label, split_labels = {}, set()
+    for e in entries or ():
+        label = str((e or {}).get("session") or "").strip()
+        tree = worktree_of(e)
+        if not label or tree is None:
+            continue
+        if tree_by_label.setdefault(label, tree) != tree:
+            split_labels.add(label)          # сессия объявляла файлы в разных деревьях
+
+    by_tree, spoiled = {}, set(shared)
+    for label, fields in direct.items():
+        tree = tree_by_label.get(label)
+        if tree is None or label in split_labels or tree in spoiled:
+            continue
+        key = (fields.get("session_pid"), str(fields.get("session_pid_start") or ""))
+        prev = by_tree.get(tree)
+        if prev is not None and prev[0] != key:
+            del by_tree[tree]
+            spoiled.add(tree)
+            continue
+        by_tree[tree] = (key, label, fields)
+
+    for label in labels:
+        if not label or label in widened or label in self_ambiguous or label in split_labels:
+            continue
+        tree = tree_by_label.get(label)
+        found = by_tree.get(tree) if tree else None
+        if found is None:
+            continue
+        _key, source, fields = found
+        if source == label:
+            continue
+        widened[label] = fields
+        kin_source[label] = source
 
 
 def borrow_durable(entry, anchors, kin_source=None):
@@ -433,8 +566,9 @@ def borrow_durable(entry, anchors, kin_source=None):
         return entry, ""
     source = (kin_source or {}).get(label)
     whose = (f"по ярлыку {label!r}" if source is None else
-             f"по РОДСТВЕННОМУ ярлыку {source!r} той же сессии (у {label!r} якоря нет "
-             f"по построению: `record` не ставит его на переданный флагом ярлык)")
+             f"по РОДСТВЕННОМУ ярлыку {source!r} той же сессии (у {label!r} своего якоря нет: "
+             f"`record` не ставит его на ярлык, переданный флагом, а без SPA_SESSION_PID его "
+             f"нет и у собственного)")
     return {**entry, **fields}, (f"личность взята из журнала {whose} "
                                  f"(pid{fields.get('session_pid')}, старт "
                                  f"{fields.get('session_pid_start')}): в самой записи её нет")
@@ -1468,7 +1602,8 @@ def card_closes_announcement(entry, root, base_ref, git=_git, cache=None):
 
 def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                  malformed_lines=0, log_path=None, now=None,
-                 grace_hours=DEFAULT_GRACE_HOURS, self_session_trusted=True):
+                 grace_hours=DEFAULT_GRACE_HOURS, self_session_trusted=True,
+                 shared_trees=None):
     root = Path(root)
     now = now or datetime.now(timezone.utc)
     grace = timedelta(hours=grace_hours)
@@ -1550,8 +1685,10 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
     # Личность сессии, которой нет в самой записи, но которая есть в журнале под тем же
     # ЛИБО родственным ярлыком той же сессии (см. `borrow_durable` / `anchors_with_kin`).
     # Строится ОДИН раз по тем же записям, что и отчёт: шире окна чтения инструмент не
-    # смотрит и здесь.
-    anchors, kin = anchors_with_kin(entries)
+    # смотрит и здесь. `shared_trees` приходит ИЗМЕРЕННЫМ от вызывающего (главное рабочее
+    # дерево общее для всех сессий, и «то же дерево» в нём не значит «та же сессия»); не
+    # измерено ⇒ родство по дереву не применяется вовсе (fail-CLOSED).
+    anchors, kin = anchors_with_kin(entries, shared_trees=shared_trees)
 
     for entry in entries:
         entry, borrowed = borrow_durable(entry, anchors, kin)
@@ -2101,7 +2238,11 @@ def main(argv=None) -> int:
                           self_session=self_session, ps=_ps_lstart, git=_git,
                           malformed_lines=malformed, log_path=log_path,
                           grace_hours=args.grace_hours,
-                          self_session_trusted=bool(env_session))
+                          self_session_trusted=bool(env_session),
+                          # ГЛАВНОЕ дерево, а не `root`: `--root` может указывать на worktree,
+                          # и тогда исключилось бы не то дерево. Не измерено ⇒ None ⇒ родство
+                          # по дереву выключено целиком (fail-CLOSED).
+                          shared_trees=(str(shared_root),) if shared_root else None)
     print(json.dumps(report, ensure_ascii=False, indent=2) if args.json else render(report))
     return int(report["exit_code"])
 
