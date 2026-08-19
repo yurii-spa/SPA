@@ -61,7 +61,6 @@
     "audit_protocol_blindness": "текст сообщения: scripts/audit_tier_c_wiring_feasibility.py:410 объясняет РАЗНИЦУ с ним («audit_protocol_blindness.py считает такой модуль sensitive»), не зовёт",
     "audit_tier_c_wiring_feasibility": "докстринг: шапка сгенерированного spa_core/analytics/_protocol_key_coverage.py (+ докстринг spa_core/analytics/signal_aggregator.py)",
     "build_dd_snapshot": "текст отчёта: scripts/generate_dd_pack.py:782 печатает читателю рецепт «python3 scripts/build_dd_snapshot.py → data/dd_snapshot/»",
-    "day30_review": "однофамилец: spa_core/riskwire/day30_review.py упоминал сам себя (скрипт-обёртку он не зовёт)",
     "defenses_exercised_report": "документированная команда в ответе API: spa_core/api/routers/readiness.py:137 отдаёт строку \"python3 scripts/defenses_exercised_report.py\" как значение поля, а не запускает",
     "find_defillama_sources": "текст чеклиста: spa_core/analytics/source_integration_helper.py:215 собирает инструкцию оператору (и шаблонный комментарий на :111 живёт ВНУТРИ строки)",
     "findings_to_cards": "текст докстринга-описания в spa_core/monitoring/findings_bridge_c125.py:335; живой мост зовут как модуль (spa_core.monitoring.findings_bridge --run из scripts/agent_decision_loop.sh), этот скрипт не зовёт никто",
