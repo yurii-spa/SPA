@@ -59,6 +59,8 @@ def notify_needs_owner(path: str | Path, *, dry_run: bool = False) -> str:
     """
     card = load_card(path)
     keyboard = None
+    # `None` — сообщение собрать не удалось, регистрации нет, и отмечать исход не на чем.
+    prep_pid: str | None = None
     try:
         from spa_core.telegram import owner_decisions
 
@@ -80,6 +82,8 @@ def notify_needs_owner(path: str | Path, *, dry_run: bool = False) -> str:
         # Запасной вид остаётся только на случай, когда подготовка вообще не удалась.
         msg = prep.text
         keyboard = prep.keyboard
+        # Сухой прогон НЕ регистрировал запись — отмечать исход тоже не на чем.
+        prep_pid = None if dry_run else prep.pid
     except Exception as exc:  # noqa: BLE001 — красивый вид не важнее самого уведомления
         log.warning("notify_needs_owner: rich build failed for %s: %s", path, exc)
         msg = build_message(card)
@@ -118,9 +122,34 @@ def notify_needs_owner(path: str | Path, *, dry_run: bool = False) -> str:
                 ok = _send()
         if not ok:
             log.warning("notify_needs_owner: send returned falsy for %s", path)
+        _record_outcome(prep_pid, ok=bool(ok))
     except Exception as exc:  # noqa: BLE001 — notification must never crash the orchestrator
         log.warning("notify_needs_owner: send failed for %s: %s", path, exc)
+        _record_outcome(prep_pid, ok=False)
     return msg
+
+
+def _record_outcome(pid: str | None, *, ok: bool) -> None:
+    """Записать в журнал пушей, УЕХАЛО ли сообщение. Никогда не бросает.
+
+    Без этого шага журнал знает только НАМЕРЕНИЕ: `register_push` ставит `buttons: true`
+    ещё до отправки, а между ней и владельцем стоит `guard_outbound` (лимит 12/мин на всех
+    отправителей + дедуп), который роняет сообщение молча и возвращает `None`. Запись при
+    этом продолжает утверждать, что кнопки доставлены, и `heal_buttonless` такую запись не
+    чинит НИКОГДА (он берёт только `buttons is False`).
+
+    Это и есть механика жалобы владельца «кнопки решения так и не пришли»: массовая
+    рассылка открытых вопросов упирается в лимит потока, часть сообщений гаснет, а все
+    журналы показывают успех.
+    """
+    if not pid:
+        return
+    try:
+        from spa_core.telegram import owner_decisions
+
+        owner_decisions.mark_send_outcome(pid, ok=ok)
+    except Exception as exc:  # noqa: BLE001 — наблюдение не роняет уведомление
+        log.warning("notify_needs_owner: outcome record failed for %s: %s", pid, exc)
 
 
 WITHDRAWN_REASON = ("находка исчезла при следующем прогоне сторожа — "
