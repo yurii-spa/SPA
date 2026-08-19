@@ -1,5 +1,17 @@
 # SPA — Code Audit Backlog
 
+> ⚠️ **АРХИВ (закрыт 2026-08-18). Ветку НЕ мержить в main.**
+> Сверка со свежим `origin/main` (2026-08-16, +538 коммитов) показала: автономная
+> система на Маке самостоятельно закрыла всё содержательное из этого аудита —
+> баг `atomic_save` починен, тесты стратегий написаны заново и глубже (154 шт.,
+> цикл #121, карточка AUD-18 закрыта 2026-08-05), кодовая база переписана
+> (аллокатор ×2, 1860 тест-файлов, 108k passed / 0 failed). Мерж этой ветки
+> **регрессировал бы** main (затёр бы более сильные версии одноимённых файлов).
+> Открытые хвосты (AUD-09/14/16) закрыты как superseded — код, к которому они
+> относились, уже не существует в июньском виде. AUD-19 решён владельцем
+> (ADR-070 п.20, вариант B); research-часть — `docs/research/RS-volatile-clmm.md`
+> (в этой ветке). Дальнейшая работа — только от свежего main / через карточки.
+
 > Аудит кодовой базы от **2026-06-22** (branch `claude/project-code-audit-9jyi9l`).
 > Масштаб: 2796 Python-файлов, ~1.35M строк. Источники находок: автоматические
 > проверки (ruff, pytest, compileall) + 3 доменных аудита (FORBIDDEN-правила,
@@ -39,16 +51,16 @@
 | AUD-06 | ✅ HIGH | Закоммичены node_modules + venv (~8100 файлов, ~135M) | DONE |
 | AUD-07 | ✅ MEDIUM | Закоммичен мусор: .command, *.bak, *.log, отчёты, junk-файлы | DONE |
 | AUD-08 | ✅ MEDIUM | Демо-бэкап под `data/` может навсегда заблокировать go-live | DONE |
-| AUD-09 | 🟡 MEDIUM | Дубликаты модулей в корне репо (7 орфанов удалено; ~16 — follow-up) | PARTIAL |
+| AUD-09 | ⬛ MEDIUM | Дубликаты модулей в корне — superseded: main переписан, июньской структуры нет | CLOSED |
 | AUD-10 | ✅ MEDIUM | file_lock (fcntl) на read-modify-write shared JSON | DONE |
 | AUD-11 | ✅ LOW | `cycle_runner` shadow-day: `today.isoformat()` всегда падал | DONE |
 | AUD-12 | ✅ LOW | `ValidationError` теперь `ValueError`; `test_sky_susds_adapter` 50/50 | DONE |
 | AUD-13 | 🟢 LOW | ruff: bare-except+F601+F541+F811+**F401 (2493 удалено по пакетам, ноль регрессий)**; F841 — manual follow-up | DONE (F401) |
 | AUD-15 | ✅ MEDIUM | ~80 предсущ. падений почин.; **системный atomic_save(str(self))-баг в ~23 модулях** | DONE |
-| AUD-16 | 🔜 LOW | Registry-sync: пакетный реестр на 26 адаптеров > оркестраторного | READY |
-| AUD-14 | 🔜 LOW | Near-duplicate подпакеты (backtest/backtesting, monitor/monitoring, …) | READY |
+| AUD-16 | ⬛ LOW | Registry-sync — superseded: в main «оркестратор ведом каноническим реестром» (карточка есть) | CLOSED |
+| AUD-14 | ⬛ LOW | Near-duplicate подпакеты — superseded: main консолидирует их своими циклами | CLOSED |
 | AUD-18 | ✅ MEDIUM | Unit-тесты на непокрытые стратегии s76/s41/s73/s77/s22 — 132 теста, ноль регрессий | DONE |
-| AUD-19 | 🟠 MEDIUM | Volatile CLMM (ETH/stable) как класс T3-SPEC: research + гейт policy_lp | DECISION |
+| AUD-19 | ✅ MEDIUM | Volatile CLMM — решено Owner (ADR-070 п.20, вар. B); research: docs/research/RS-volatile-clmm.md | DONE (research) |
 
 ---
 
