@@ -158,6 +158,17 @@ class StrategyTournamentRunner:
         top_strategies = leaderboard[:top_n]
 
         # ── Build ranked_strategies list ──────────────────────────────────────
+        # Метрика может быть ОТКАЗАНА (``None``) там, где у протокола книги нет
+        # ряда доходности вовсе — `mass_tournament` не подставляет 0 %
+        # («ноль-по-незнанию не доходность»). Здесь этот отказ обязан ПРОЕХАТЬ
+        # ДАЛЬШЕ как ``None``: `round(None)` уронил бы прогон, а `or 0.0`
+        # восстановил бы ровно тот выдуманный ноль, ради устранения которого
+        # отказ и введён. Сайт и API уже печатают «—» на ``null``.
+        def _r(value: Any, digits: int = 4, scale: float = 1.0) -> Optional[float]:
+            if not isinstance(value, (int, float)) or isinstance(value, bool):
+                return None
+            return round(float(value) * scale, digits)
+
         ranked_strategies: List[Dict[str, Any]] = []
         for s in leaderboard:
             ranked_strategies.append({
@@ -165,7 +176,7 @@ class StrategyTournamentRunner:
                 "strategy_id":       s["id"].upper().replace("_", "-")[:8],
                 "strategy_key":      s["id"],
                 "name":              s.get("class", s["id"]),
-                "sharpe":            round(s["sharpe"], 4),
+                "sharpe":            _r(s.get("sharpe")),
                 # OWNER DECISION 2026-06-27: Sharpe is a secondary/displayed metric.
                 # Carry through the degenerate flag + display string from the mass
                 # leaderboard so the ranking page shows "n/a (locked-vol)" instead of
@@ -173,14 +184,19 @@ class StrategyTournamentRunner:
                 "sharpe_degenerate": s.get("sharpe_degenerate"),
                 "sharpe_display":    s.get("sharpe_display"),
                 "rank_unknown":      s.get("rank_unknown", False),
-                "net_annual_return_pct": s.get("net_annual_return_pct", s["annual_return_pct"]),
-                "paper_apy":         round(s["annual_return_pct"], 4),
-                "annual_return_pct": round(s["annual_return_pct"], 4),
-                "max_drawdown":      round(s["max_dd_pct"] / 100.0, 6),
-                "max_dd_pct":        round(s["max_dd_pct"], 4),
-                "sortino":           round(s.get("sortino", 0.0), 4),
-                "calmar":            round(s.get("calmar", 0.0), 4),
-                "win_rate_pct":      round(s.get("win_rate_pct", 0.0), 4),
+                "net_annual_return_pct": s.get("net_annual_return_pct", s.get("annual_return_pct")),
+                "paper_apy":         _r(s.get("annual_return_pct")),
+                "annual_return_pct": _r(s.get("annual_return_pct")),
+                "max_drawdown":      _r(s.get("max_dd_pct"), 6, 1.0 / 100.0),
+                "max_dd_pct":        _r(s.get("max_dd_pct")),
+                "sortino":           _r(s.get("sortino")),
+                "calmar":            _r(s.get("calmar")),
+                "win_rate_pct":      _r(s.get("win_rate_pct")),
+                # Отказ едет ВМЕСТЕ с числом — иначе «нет числа» на витрине
+                # неотличимо от «мало заработала».
+                "return_metrics_refused":   bool(s.get("return_metrics_refused")),
+                "return_refusal_reason":    s.get("return_refusal_reason"),
+                "series_missing_protocols": s.get("series_missing_protocols") or [],
                 "allocation":        s.get("allocation", {}),
                 "is_shadow_active":  s["rank"] <= top_n,
                 "days_active":       0,

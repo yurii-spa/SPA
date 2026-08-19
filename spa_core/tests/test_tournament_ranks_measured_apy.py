@@ -37,10 +37,12 @@ from __future__ import annotations
 
 import pytest
 
+from spa_core.backtesting import mass_tournament as mass_tournament_module
 from spa_core.backtesting.mass_tournament import (
     MEASURED_SERIES_SOURCES,
     MOCK_APY,
     MassTournament,
+    return_metrics_refusal,
     series_provenance,
 )
 
@@ -224,3 +226,143 @@ def test_silently_unserved_protocols_are_listed_not_hidden(tournament):
     assert listed == from_rows
     for proto in listed:
         assert meta["protocol_data_sources"].get(proto) == "none", proto
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ОТСУТСТВИЕ РЯДА ≠ НОЛЬ (карточка agent-tournament-trustworthy-real-apy, п.3)
+# ─────────────────────────────────────────────────────────────────────────────
+# Замер 2026-08-19 своим прогоном (63 стратегии): пометка `series_tainted`
+# (16–18.08) НАЗЫВАЛА строку, у которой часть книги не имеет ряда доходности
+# вовсе, но ЧИСЛО у неё оставалось — бэктест оценивал такой протокол ровно в
+# 0 % годовых (`professional_backtest._build_protocol_daily_apy`:
+# `annual_clean = 0.0`), и строка занимала место в рейтинге по этому числу.
+# 22 строки из 63; крайний случай `s14_arbitrum_radiant` — 80 % веса книги без
+# ряда, место 44 с «3.03 % годовых». Число при этом ЗАНИЖЕНО выдуманным нулём,
+# то есть рейтинг врал в обе стороны одновременно.
+#
+# Ниже — два полюса контроля, снятие ЛЮБОГО красит:
+#   * `*_refused_*`     — строка без ряда обязана получить ОТКАЗ с названной
+#     причиной и уехать в хвост; краснеет, если вернуть подстановку нуля;
+#   * `*_still_ranked`  — строка со 100 % измеренного ряда обязана сохранить
+#     своё число и место; краснеет, если начать резать «на всякий случай».
+
+
+def test_missing_series_is_refused_by_name_not_priced_at_zero():
+    """Единица правила: ряда нет ⇒ ОТКАЗ с именем протокола (без прогона)."""
+    prov = series_provenance(
+        {"aave_v3": 0.5, "ethena_susde": 0.5}, _bee("aave_v3_usdc_eth"), {},
+    )
+    assert return_metrics_refusal(prov) == "apy_series_missing:ethena_susde"
+
+
+def test_modeled_series_is_not_refused():
+    """Положительный полюс единицы: смоделированный ряд — не отсутствующий.
+
+    `modeled_proxy` остаётся `series_tainted` (вне доверяемого рейтинга), но
+    отказа НЕ вызывает: там ряд есть и он не ноль. Краснеет, если отказ
+    расширить на всё неизмеренное подряд.
+    """
+    prov = series_provenance(
+        {"aave_v3": 0.5, "euler_v2": 0.5}, _bee("aave_v3_usdc_eth"), {},
+    )
+    assert prov["series_tainted"] is True
+    assert return_metrics_refusal(prov) is None
+
+
+def test_fully_measured_series_is_not_refused():
+    """Положительный полюс: 100 % наблюдения — числу ничего не мешает."""
+    prov = series_provenance(
+        {"aave_v3": 0.6, "compound_v3": 0.4},
+        _bee("aave_v3_usdc_eth", "compound_v3_usdc_eth"), {},
+    )
+    assert return_metrics_refusal(prov) is None
+
+
+def test_rows_without_series_carry_no_number_at_all(tournament):
+    """Прогон: у строки без ряда все метрики доходности ОТКАЗАНЫ (``None``)."""
+    refused = [r for r in tournament["leaderboard"] if r["unserved_protocols"]]
+    assert refused, "фикстура обязана содержать хотя бы одну такую строку"
+    for r in refused:
+        assert r["return_metrics_refused"] is True, r["id"]
+        for field in (
+            "annual_return_pct", "net_annual_return_pct", "sharpe",
+            "sortino", "calmar", "max_dd_pct", "total_return_pct",
+            "volatility_pct", "win_rate_pct", "final_equity_usd",
+        ):
+            assert r[field] is None, (r["id"], field, r[field])
+        # Причина названа ПОИМЁННО, а не сведена к «недостаточно данных».
+        assert r["return_refusal_reason"].startswith("apy_series_missing:")
+        for proto in r["unserved_protocols"]:
+            assert proto in r["return_refusal_reason"]
+        assert r["rank_unknown"] is True
+        assert r["trusted_for_ranking"] is False
+        assert r["return_refusal_reason"] in r["untrusted_reasons"]
+        # Подпись Sharpe отличает «ряда нет» от «вырожденная волатильность».
+        assert r["sharpe_display"] == "n/a (ряд не измерен)"
+        # Посчитанное с нулём хранится ОТДЕЛЬНО и под предупреждающим именем.
+        assert isinstance(r["zero_filled_metrics"], dict)
+        assert isinstance(r["zero_filled_metrics"]["annual_return_pct"], float)
+
+
+def test_rows_without_series_cannot_outrank_a_measured_row(tournament):
+    """Отказ уезжает в хвост: ни одна такая строка не стоит выше строки с числом."""
+    lb = tournament["leaderboard"]
+    ranks_with_number = [
+        r["rank"] for r in lb if not r["return_metrics_refused"]
+    ]
+    ranks_refused = [r["rank"] for r in lb if r["return_metrics_refused"]]
+    assert ranks_refused, "фикстура обязана содержать отказы"
+    assert min(ranks_refused) > max(ranks_with_number)
+    # И в шапку рейтинга такая строка попасть не может.
+    assert all(not r["return_metrics_refused"] for r in tournament["top_5"])
+
+
+def test_measured_rows_keep_their_number_and_place(tournament):
+    """Положительный полюс прогона: измеренные строки не тронуты.
+
+    Краснеет, если отказ начнёт задевать книги, у которых ряд есть.
+    """
+    kept = [r for r in tournament["leaderboard"] if not r["unserved_protocols"]]
+    assert kept
+    for r in kept:
+        assert r["return_metrics_refused"] is False, r["id"]
+        assert isinstance(r["annual_return_pct"], float), r["id"]
+        assert r["net_annual_return_pct"] == r["annual_return_pct"]
+        assert r["zero_filled_metrics"] is None
+
+
+def test_meta_counts_refusals_by_name(tournament):
+    """Мета считает отказы и называет протоколы без ряда — не только их число."""
+    meta = tournament["meta"]
+    refused = [r for r in tournament["leaderboard"] if r["return_metrics_refused"]]
+    assert meta["return_refused_count"] == len(refused)
+    assert meta["return_refused_strategies"] == sorted(r["id"] for r in refused)
+    assert meta["series_missing_protocols"] == sorted(
+        {p for r in tournament["leaderboard"] for p in r["series_missing_protocols"]}
+    )
+    assert set(meta["series_missing_protocols"]) == set(meta["unserved_protocols"])
+    # «net-of-cost» назван честно: издержка — литеральная константа, не замер.
+    assert meta["measured_switching_cost_available"] is False
+    assert "TX_COST_BPS" in meta["net_of_cost_basis"]
+
+
+def test_tournament_stays_advisory_and_touches_no_money_path():
+    """Турнир — advisory: он не гейтит исполнение и не двигает капитал.
+
+    Инвариант 9 + `.claude/rules/risk-engine.md`. Проверяется по ИСХОДНИКУ
+    обоих производителей рейтинга: появление здесь импорта execution / risk /
+    allocator красит тест — и это именно тот случай, когда чинить надо не тест.
+    """
+    import pathlib
+
+    from spa_core.tournament import tournament_engine
+
+    assert tournament_engine.IS_ADVISORY is True
+    root = pathlib.Path(mass_tournament_module.__file__).parent.parent
+    forbidden = ("spa_core.execution", "spa_core.risk", "spa_core.allocator")
+    for rel in ("backtesting/mass_tournament.py",
+                "backtesting/strategy_tournament_runner.py"):
+        src = (root / rel).read_text(encoding="utf-8")
+        for mod in forbidden:
+            assert f"import {mod}" not in src, (rel, mod)
+            assert f"from {mod}" not in src, (rel, mod)

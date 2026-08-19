@@ -248,6 +248,27 @@ def series_provenance(
     }
 
 
+def return_metrics_refusal(series_prov: Dict[str, Any]) -> Optional[str]:
+    """Причина отказа от метрик доходности этой строки, либо ``None``.
+
+    ОДНО место, где живёт правило «отсутствие ряда ≠ ноль». Отказ наступает
+    ровно тогда, когда у какого-то протокола книги ряда доходности НЕТ ВОВСЕ
+    (``_resolve_protocol_source`` → ``"none"``): бэктест оценил бы такой протокол
+    в 0 % годовых (`professional_backtest._build_protocol_daily_apy`:
+    ``annual_clean = 0.0``), а «ноль-по-незнанию» доходностью не является.
+
+    Смоделированный ряд и литеральный снимок (`modeled_proxy`,
+    `defillama_fallback`) под отказ НЕ подпадают — там ряд есть, и он не ноль;
+    такая строка, как и раньше, помечена ``series_tainted`` и не попадает в
+    ``trusted_leaderboard``. Третьей копии правила «что считается измеренным»
+    здесь не заводится: вход — готовый результат :func:`series_provenance`.
+    """
+    missing = sorted((series_prov or {}).get("unserved_protocols") or [])
+    if not missing:
+        return None
+    return "apy_series_missing:" + ",".join(missing)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # MassTournament
 # ─────────────────────────────────────────────────────────────────────────────
@@ -660,6 +681,41 @@ class MassTournament:
             strategy_mock = is_mock_fed(prov)
             # 3-й, независимый вопрос: чем обслужен РЯД ДОХОДНОСТИ этой книги.
             sprov = series_provenance(allocation, bee_data or {}, fallback_bee or {})
+            # ── ОТСУТСТВИЕ РЯДА ОБЯЗАНО БЫТЬ ОТЛИЧИМО ОТ НУЛЯ ─────────────────
+            # Протокол, у которого ряда доходности НЕТ ВОВСЕ (`_resolve_protocol_source`
+            # → "none"), молча оценивается бэктестом ровно в 0 % годовых
+            # (`professional_backtest._build_protocol_daily_apy`: `annual_clean = 0.0`).
+            # «Мы измерили ноль» и «мы не измеряли» — разные факты, и число,
+            # полученное из их смеси, не имеет права занимать место в рейтинге.
+            #
+            # Замер 2026-08-19 своим прогоном (63 стратегии): 22 строки получали
+            # место по такому числу, причём место ЗАНИЖЕННОЕ — выдуманный ноль
+            # тянет вниз. Крайний случай `s14_arbitrum_radiant`: 80 % веса книги
+            # (`aave_v3_arbitrum`) без ряда вообще, а строка стояла 44-й с
+            # «3.03 % годовых». Пометка `series_tainted` (16–18.08) этот случай
+            # НАЗЫВАЛА, но число оставляла — то есть отсутствие ряда по-прежнему
+            # выглядело как измеренная доходность.
+            #
+            # Fail-CLOSED: метрики, выведенные из ряда, ОТКАЗАНЫ (``None``) с
+            # названной причиной. Строка не удаляется из `leaderboard` —
+            # провенанс обязан быть виден — но уезжает в хвост как `rank_unknown`
+            # (`_rank_key` уже так устроен). Посчитанные значения сохраняются под
+            # `zero_filled_metrics`: видно, ЧТО именно отказано, и видно, что это
+            # не наблюдение. Правило «что считается измеренным рядом» здесь НЕ
+            # переписывается — берётся у `series_provenance` (одно определение).
+            #
+            # Обслуженный смоделированным рядом / литеральным снимком
+            # (`modeled_proxy`, `defillama_fallback`) под отказ НЕ попадает: там
+            # ряд есть и он не ноль. Такая строка, как и раньше, названа
+            # `series_tainted` и вне `trusted_leaderboard`.
+            _refusal = return_metrics_refusal(sprov)
+            series_missing = sorted(sprov.get("unserved_protocols") or [])
+            _refused = _refusal is not None
+
+            def _m(key: str) -> Optional[float]:
+                """Значение метрики или ``None``, когда ряда под ней не существует."""
+                return None if _refused else metrics[key]
+
             leaderboard.append({
                 "id":                sid,
                 # Вход: литеральный снимок MOCK_APY или собственные числа стратегии.
@@ -671,26 +727,51 @@ class MassTournament:
                 "mock_tainted":      fed_mock or strategy_mock,
                 # ── Провенанс РЯДА ДОХОДНОСТИ (не путать с входом аллокации) ──
                 **sprov,
+                # ── Отказ вместо выдуманного нуля (см. комментарий выше) ──────
+                "series_missing_protocols": sorted(series_missing),
+                "return_metrics_refused":   _refused,
+                "return_refusal_reason":    _refusal,
+                # Что дал бы бэктест, если бы отсутствующий ряд считать нулём.
+                # Хранится ПОД СВОИМ ИМЕНЕМ, чтобы никогда не быть прочитанным
+                # как доходность (`zero_filled` — это и есть предупреждение).
+                "zero_filled_metrics": (
+                    {
+                        "annual_return_pct": metrics["annualized_return_pct"],
+                        "sharpe":            metrics["sharpe_ratio"],
+                        "max_dd_pct":        metrics["max_drawdown_pct"],
+                        "note": (
+                            "Считано с ряда, которого нет: отсутствующий ряд "
+                            "оценён в 0 % годовых. НЕ доходность."
+                        ),
+                    }
+                    if _refused else None
+                ),
                 "class":             primary_class,
                 "method_used":       method_used,
-                "sharpe":            metrics["sharpe_ratio"],
-                "sortino":           metrics["sortino_ratio"],
-                "calmar":            metrics["calmar_ratio"],
-                "annual_return_pct": metrics["annualized_return_pct"],
-                "total_return_pct":  metrics["total_return_pct"],
-                "max_dd_pct":        metrics["max_drawdown_pct"],
-                "volatility_pct":    metrics["annualized_volatility_pct"],
-                "win_rate_pct":      metrics["win_rate_pct"],
-                "final_equity_usd":  metrics["final_equity_usd"],
+                "sharpe":            _m("sharpe_ratio"),
+                "sortino":           _m("sortino_ratio"),
+                "calmar":            _m("calmar_ratio"),
+                "annual_return_pct": _m("annualized_return_pct"),
+                "total_return_pct":  _m("total_return_pct"),
+                "max_dd_pct":        _m("max_drawdown_pct"),
+                "volatility_pct":    _m("annualized_volatility_pct"),
+                "win_rate_pct":      _m("win_rate_pct"),
+                "final_equity_usd":  _m("final_equity_usd"),
                 "allocation":        allocation,
             })
-            _log.info(
-                "Tested %s: Sharpe=%.3f  APY=%.2f%%  MaxDD=%.3f%%",
-                sid,
-                metrics["sharpe_ratio"],
-                metrics["annualized_return_pct"],
-                metrics["max_drawdown_pct"],
-            )
+            if _refused:
+                _log.info(
+                    "Tested %s: метрики ОТКАЗАНЫ — ряда нет у %s (0 %% был бы выдумкой)",
+                    sid, ",".join(sorted(series_missing)),
+                )
+            else:
+                _log.info(
+                    "Tested %s: Sharpe=%.3f  APY=%.2f%%  MaxDD=%.3f%%",
+                    sid,
+                    metrics["sharpe_ratio"],
+                    metrics["annualized_return_pct"],
+                    metrics["max_drawdown_pct"],
+                )
 
         # ── Sort by NET RETURN (OWNER DECISION 2026-06-27) ────────────────────
         # PRIMARY rank key is realized net-of-cost annual return (`annual_return_pct`,
@@ -723,8 +804,12 @@ class MassTournament:
             sh = entry.get("sharpe")
             sh_finite = isinstance(sh, (int, float)) and math.isfinite(sh)
             entry["sharpe_degenerate"] = (not sh_finite) or abs(sh) > DEGENERATE_SHARPE_ABS
+            # Отказ по отсутствующему ряду и вырожденная Sharpe — РАЗНЫЕ причины
+            # «нет числа», и подпись обязана их различать: «n/a (locked-vol)» на
+            # строке, у которой ряда нет вовсе, читалась бы как свойство рынка.
             entry["sharpe_display"] = (
-                "n/a (locked-vol)" if entry["sharpe_degenerate"]
+                "n/a (ряд не измерен)" if entry.get("return_metrics_refused")
+                else "n/a (locked-vol)" if entry["sharpe_degenerate"]
                 else round(float(sh), 4)
             )
             # UNKNOWN rank for a strategy with no finite net return (insufficient data).
@@ -748,6 +833,11 @@ class MassTournament:
                 reasons.append("fed_literal_mock_apy_snapshot")
             if entry.get("strategy_declares_mock"):
                 reasons.append("strategy_declares_substituted_source")
+            # Отказ по отсутствующему ряду называется ОТДЕЛЬНО и ПЕРВЫМ: он
+            # объясняет, ПОЧЕМУ числа нет, тогда как `no_finite_net_return` —
+            # только факт его отсутствия.
+            if entry.get("return_metrics_refused"):
+                reasons.append(str(entry.get("return_refusal_reason")))
             if entry.get("rank_unknown"):
                 reasons.append("no_finite_net_return")
             if entry.get("series_tainted"):
@@ -766,6 +856,15 @@ class MassTournament:
         series_tainted_ids = sorted(
             str(e.get("id")) for e in leaderboard if e.get("series_tainted")
         )
+        return_refused_ids = sorted(
+            str(e.get("id")) for e in leaderboard if e.get("return_metrics_refused")
+        )
+        # Какие именно протоколы не имеют ряда — по имени, а не числом строк.
+        series_missing_protocols = sorted({
+            p
+            for e in leaderboard
+            for p in (e.get("series_missing_protocols") or [])
+        })
 
         top_5 = leaderboard[:5]
         bottom_5 = leaderboard[-5:] if len(leaderboard) >= 5 else leaderboard[:]
@@ -855,6 +954,27 @@ class MassTournament:
             "unserved_protocols": sorted({
                 p for e in leaderboard for p in (e.get("unserved_protocols") or [])
             }),
+            # ── Отсутствие ряда ≠ ноль ────────────────────────────────────────
+            # Строки, у которых хотя бы один протокол книги не имеет ряда вовсе:
+            # метрики доходности им ОТКАЗАНЫ (None), место в рейтинге — хвост.
+            "return_refused_strategies": return_refused_ids,
+            "return_refused_count":      len(return_refused_ids),
+            "series_missing_protocols":  series_missing_protocols,
+            "return_refusal_note": (
+                "Протокол без ряда доходности молча стоил бы 0 % годовых "
+                "(professional_backtest._build_protocol_daily_apy: annual_clean = 0.0). "
+                "Ноль-по-незнанию не доходность: такие строки получают "
+                "annual_return_pct = null с причиной return_refusal_reason, а "
+                "посчитанное значение лежит отдельно в zero_filled_metrics."
+            ),
+            # Честная оговорка: издержки в бэктесте — МОДЕЛЬ, не замер.
+            "net_of_cost_basis": (
+                "«net-of-cost» = минус TX_COST_BPS=5 bps на депонированный капитал "
+                "при ежемесячном ребалансе (professional_backtest.py:69,640-643). Это "
+                "ЛИТЕРАЛЬНАЯ КОНСТАНТА, а не замеренные газ/проскальзывание: "
+                "измеренной стоимости переключения в репозитории нет."
+            ),
+            "measured_switching_cost_available": False,
             # `data_source` выше — ЛУЧШИЙ из обслуживших, а не общий для всех строк.
             "data_source_is_best_of_served": True,
             "data_source_note": (
@@ -947,20 +1067,26 @@ def main() -> None:
     print(f"{'='*60}")
     print(f"Strategies tested : {result['strategies_tested']}")
     print(f"Strategies skipped: {result['strategies_skipped']}")
-    print(f"\nTop 5 by Sharpe ratio:")
+    def _line(e: Dict[str, Any]) -> str:
+        # Отказанная метрика печатается как ОТКАЗ С ПРИЧИНОЙ, а не как 0.00 —
+        # ровно тот дефект, ради которого метрики и стали ``None``.
+        if e.get("return_metrics_refused"):
+            return (
+                f"  #{e['rank']:2d}  {e['id']:<38s}  "
+                f"ОТКАЗ: {e.get('return_refusal_reason')}"
+            )
+        return (
+            f"  #{e['rank']:2d}  {e['id']:<38s}  "
+            f"Sharpe={e['sharpe']:7.3f}  APY={e['annual_return_pct']:5.2f}%  "
+            f"MaxDD={e['max_dd_pct']:.4f}%"
+        )
+
+    print(f"\nTop 5 by net-of-cost annual return:")
     for e in result["top_5"]:
-        print(
-            f"  #{e['rank']:2d}  {e['id']:<38s}  "
-            f"Sharpe={e['sharpe']:7.3f}  APY={e['annual_return_pct']:5.2f}%  "
-            f"MaxDD={e['max_dd_pct']:.4f}%"
-        )
-    print(f"\nBottom 5 by Sharpe ratio:")
+        print(_line(e))
+    print(f"\nBottom 5 by net-of-cost annual return:")
     for e in result["bottom_5"]:
-        print(
-            f"  #{e['rank']:2d}  {e['id']:<38s}  "
-            f"Sharpe={e['sharpe']:7.3f}  APY={e['annual_return_pct']:5.2f}%  "
-            f"MaxDD={e['max_dd_pct']:.4f}%"
-        )
+        print(_line(e))
     print(f"\nSkipped strategies ({result['strategies_skipped']}):")
     for sid, reason in sorted(result["skip_reasons"].items()):
         print(f"  {sid:<38s}  {reason}")
