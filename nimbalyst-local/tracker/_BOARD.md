@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **545** · ждёт владельца: **3** · занято сессиями: **5**.
+> Всего карточек: **546** · ждёт владельца: **3** · занято сессиями: **5**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -145,7 +145,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (252)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (253)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -382,6 +382,7 @@
 - Оживить фиды вне Ethereum — путь к снятию остатка кэша (решение владельца 08.08)  ·  `inbox-ozhivit-fidy-vne-ethereum-put-k-snyatiyu.md` · 2026-08-08
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
 - Подготовить ADR: пересмотр лимита одной цепочки 90% (решение владельца — за ним)  ·  `inbox-podgotovit-adr-peresmotr-limita-odnoi-ts.md` · 2026-08-08
+- Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md` · 2026-08-20
 - Разобрать 52 карточки с ветки work-status-check, потом удалить ветку (решение владельца 20.08, вариант 1)  ·  `inbox-razobrat-52-kartochki-s-vetki-work-statu.md` · 2026-08-20
 - Сбалансированный трек: ноль профинансированных дней из 40 при 920 отработанных циклах  ·  `inbox-sbalansirovannyi-trek-nol-profinansirova.md` · 2026-08-08
 - Семь скриптов, вскрытых строгим сканером: разобрать поштучно (подключить / списать / вывести класс правилом)  ·  `inbox-sem-skriptov-vskrytyh-strogim-skanerom-r.md` · 2026-08-16
