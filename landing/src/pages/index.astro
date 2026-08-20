@@ -83,20 +83,12 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
       </div>
 
       <p class="hero-trust" data-ru="Без подключения кошелька. Без email. Только публичные данные.">No wallet connection. No email required. Public data only.</p>
-      <div style="margin-top:14px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-        {/* J5 (customer-journey-map): a first-timer can preview what the analysis looks like right at
-             the entry — the illustrative report lives further down THIS page (#sample-report). */}
-        <a class="btn btn-ghost" href="/#sample-report" data-track="hero_sample_report" data-ru="Посмотреть пример анализа →">See a sample analysis →</a>
-      </div>
-
-      <div class="hero-bullets" aria-label="What you get">
-        <span data-ru="Стоимость портфеля">Portfolio value</span>
-        <span data-ru="Простаивающий капитал">Idle capital</span>
-        <span data-ru="Оценка APY">Estimated APY</span>
-        <span data-ru="Риск-скор">Risk score</span>
-        <span data-ru="Топ-риски">Top risks</span>
-        <span data-ru="Рекомендации">Recommendations</span>
-      </div>
+      {/* 2026-08-20 (owner decision 19.08, variant 1 — ADR-089 §5): the "See a sample analysis" CTA
+           and the six-bullet "what you get" list both described the free wallet CHECKUP report
+           (portfolio value, idle capital, estimated APY, risk score…). That product is not deployed
+           and is not coming back, so the list was a promise with nothing behind it. The entry that
+           REMAINS is real and lives on this domain: /snapshot (four questions, no wallet, no email)
+           and /track-record. Nothing here that is still true was removed. */}
 
       <div class="hero-secondary">
         <a class="btn-ghost" href="/strategies" data-track="view_strategy_lab" data-ru="Смотреть Strategy Lab →">View Strategy Lab →</a>
@@ -246,97 +238,16 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
     </script>
   </section>
 
-  <!-- ============ DASHBOARD PREVIEW (the main visual asset) ============ -->
-  {/* id: the hero's "See a sample analysis" CTA points here. It used to point at the checkup
-       service's sample-report route, which 404s (service gone, 2026-08-16); the illustrative
-       report has always lived right here, so the CTA now lands on something real. */}
-  <section class="band" id="sample-report">
-    <div class="container">
-      <div class="sec-head">
-        <span class="eyebrow" data-ru="Ваш отчёт">Your report</span>
-        <h2 data-ru="Увидьте свой DeFi-портфель глазами риск-аналитика.">See your DeFi portfolio like a risk analyst would.</h2>
-      </div>
-      <div class="dash-preview">
-        <div class="dp-bar">
-          <span data-ru="Пример-кошелёк 0x7a…91f · 5 сетей · 14 активов">Sample wallet 0x7a…91f · 5 chains · 14 assets</span>
-          <span class="dp-ex" data-ru="Иллюстрация · не реальный кошелёк">Illustrative · not a real wallet</span>
-        </div>
-        <div class="dp-kpis">
-          <div class="dp-kpi"><div class="k" data-ru="Стоимость портфеля">Total Value</div><div class="v">$42,500</div><div class="s" data-ru="5 сетей · 14 активов">5 chains · 14 assets</div></div>
-          <div class="dp-kpi teal"><div class="k" data-ru="Оценка APY">Estimated APY</div><div class="v">5.4%</div><div class="s" data-ru="видимые DeFi-позиции">visible DeFi positions</div></div>
-          <div class="dp-kpi amb"><div class="k" data-ru="Эффективность капитала">Capital Efficiency</div><div class="v">68%</div><div class="s" data-ru="$29k работает · $13.5k простаивает">$29k deployed · $13.5k idle</div></div>
-          <div class="dp-kpi red"><div class="k" data-ru="Риск-скор">Risk Score</div><div class="v">72<small>/100</small></div><div class="s" data-ru="Высокий">High</div></div>
-        </div>
-        <div class="dp-low">
-          <div class="dp-mod">
-            <h3 data-ru="Распределение по сетям">Allocation by chain</h3>
-            <div class="dp-row"><span>Ethereum</span><b>$18,000</b></div><div class="dp-line"><i style="width:100%"></i></div>
-            <div class="dp-row"><span>Arbitrum</span><b>$9,500</b></div><div class="dp-line"><i style="width:53%"></i></div>
-            <div class="dp-row"><span>Base</span><b>$6,000</b></div><div class="dp-line"><i style="width:33%"></i></div>
-            <div class="dp-row"><span>BSC</span><b>$4,000</b></div><div class="dp-line"><i style="width:22%"></i></div>
-          </div>
-          <div class="dp-mod">
-            <h3 data-ru="Экспозиция по протоколам">Protocol exposure</h3>
-            <div class="dp-row"><span class="muted" data-ru="Простаивает в кошельке">Idle wallet</span><b style="color:var(--warn)">$13,500</b></div>
-            <div class="dp-row"><span>Aave</span><b>$10,000</b></div>
-            <div class="dp-row"><span>Pendle</span><b>$7,000</b></div>
-            <div class="dp-row"><span>Uniswap</span><b>$4,500</b></div>
-            <div class="dp-row"><span>Curve</span><b>$3,000</b></div>
-          </div>
-          <div class="dp-mod">
-            <h3 data-ru="Топ-рекомендации">Top recommendations</h3>
-            <div class="dp-flag"><span class="d" style="background:var(--danger)"></span><span data-ru="Снизить концентрацию — 44% в 2 протоколах">Reduce concentration — 44% in 2 protocols</span></div>
-            <div class="dp-flag"><span class="d" style="background:var(--data-teal)"></span><span data-ru="Задействовать простаивающий капитал — $13,500">Put idle capital to work — $13,500 idle</span></div>
-            <div class="dp-flag"><span class="d" style="background:var(--accent)"></span><span data-ru="Проверить разрешения токенов — 3 безлимитных">Review approvals — 3 unlimited</span></div>
-          </div>
-        </div>
-        <p style="text-align:center;margin:14px 0 0;font-size:12px;color:var(--text-dim)" data-ru="Иллюстративный пример — вымышленный кошелёк и цифры. Ваш отчёт строится из реальных ончейн-данных.">Illustrative example — a made-up wallet and numbers. Your report is built from real on-chain data.</p>
-      </div>
-      <div class="final-cta" style="margin-top:26px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-        <a class="btn btn-primary" href="/snapshot" data-track="analyze_wallet" data-ru="Пройти 60-секундный снимок">Take the 60-second snapshot</a>
-        <a class="btn btn-ghost" href="/track-record" data-track="view_live_track" data-ru="Смотреть живой трек →">See the live track →</a>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ WHAT YOUR CHECKUP INCLUDES ============ -->
-  <section class="band alt">
-    <div class="container">
-      <div class="sec-head">
-        <span class="eyebrow" data-ru="Бесплатный чекап">Free checkup</span>
-        <h2 data-ru="Что входит в ваш бесплатный чекап">What your free checkup includes</h2>
-      </div>
-      <div class="feat-grid">
-        <div class="feat-card"><h3 data-ru="Обзор портфеля">Portfolio overview</h3><p data-ru="Все активы, сети, токены, протоколы, работающий vs простаивающий капитал.">Total assets, chains, tokens, protocols, idle vs deployed capital.</p></div>
-        <div class="feat-card"><h3 data-ru="Эффективность доходности">Yield efficiency</h3><p data-ru="Оценка смешанного APY, простаивающий капитал, упущенная доходность, дисбаланс риск/доход.">Estimated blended APY, idle capital, missed yield potential, yield/risk mismatch.</p></div>
-        <div class="feat-card"><h3 data-ru="Разбор риска">Risk breakdown</h3><p data-ru="Риск протоколов, концентрации, ликвидности, стейблкоинов, смарт-контрактов.">Protocol risk, concentration, liquidity, stablecoin risk, smart-contract exposure.</p></div>
-        <div class="feat-card"><h3 data-ru="Гигиена кошелька">Wallet hygiene</h3><p data-ru="Активные approvals, безлимитные approvals, старые разрешения, рискованные контракты.">Active approvals, unlimited approvals, old permissions, risky contract exposure.</p></div>
-        <div class="feat-card"><h3 data-ru="Рекомендации">Recommendations</h3><p data-ru="Топ-риски, топ-возможности и соответствие стратегии.">Top risks, top opportunities, and strategy fit.</p></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ NOT ANOTHER TRACKER ============ -->
-  <section class="band">
-    <div class="container">
-      <div class="sec-head">
-        <span class="eyebrow" data-ru="Позиционирование">Positioning</span>
-        <h2 data-ru="Не очередной трекер портфеля. Слой принятия решений для DeFi.">Not another portfolio tracker. A decision layer for DeFi.</h2>
-        <p data-ru="Трекеры показывают, что у вас есть. DeFi Checkup объясняет, имеет ли ваш портфель смысл.">Portfolio trackers show what you own. DeFi Checkup explains whether your portfolio makes sense.</p>
-      </div>
-      <table class="cmp-table">
-        <tr><th data-ru="Функция">Feature</th><th data-ru="Трекеры портфеля">Portfolio trackers</th><th>DeFi Checkup</th></tr>
-        <tr><td data-ru="Показать активы кошелька">Show wallet assets</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
-        <tr><td data-ru="Показать позиции в протоколах">Show protocol positions</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
-        <tr><td data-ru="Оценить простаивающий капитал">Estimate idle capital</td><td class="mid" data-ru="Иногда">Sometimes</td><td class="yes">Yes</td></tr>
-        <tr><td data-ru="Объяснить дисбаланс риск/доход">Explain risk/yield mismatch</td><td class="no">No</td><td class="yes">Yes</td></tr>
-        <tr><td data-ru="Сравнить с профилями стратегий">Compare with strategy profiles</td><td class="no">No</td><td class="yes">Yes</td></tr>
-        <tr><td data-ru="Практичные рекомендации">Practical recommendations</td><td class="mid" data-ru="Ограничено">Limited</td><td class="yes">Yes</td></tr>
-        <tr><td data-ru="Мониторинг изменений риска">Monitor risk changes</td><td class="mid" data-ru="Ограничено">Limited</td><td class="mid" data-ru="Планируется">Planned</td></tr>
-        <tr><td data-ru="Публичный strategy lab">Public strategy lab</td><td class="no">No</td><td class="yes">Yes</td></tr>
-      </table>
-    </div>
-  </section>
+  {/* 2026-08-20 (owner decision 19.08, variant 1 — ADR-089 §5) — three sections were removed here:
+       "DASHBOARD PREVIEW / #sample-report" (an illustrative wallet report), "WHAT YOUR CHECKUP
+       INCLUDES" (the five deliverables of the free checkup) and "NOT ANOTHER TRACKER" (a feature
+       table positioning "DeFi Checkup" against portfolio trackers). All three described a product
+       that is not deployed: the service lived on checkup.earn-defi.com, the whole host answers 404
+       (measured 2026-08-16) and the Etherscan key never reached prod (own-06). A description of a
+       product nobody can reach is a promise without a product — the same class of untruth as a
+       stale number, only slower to notice. What stays on this page is what exists: /snapshot,
+       the live track, the tiers. Restore the day a checkup service is actually deployed — that
+       will be a fact, not an advance. */}
 
   <!-- ============ STRATEGIES — tier cards (main content) ============ -->
   <section class="band" id="strategies">
@@ -458,11 +369,14 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
     <div class="container">
       <div class="sec-head">
         <span class="eyebrow" data-ru="Исследование">Research</span>
-        <h2 data-ru="За чекапом — публичный strategy lab">Backed by a public strategy lab</h2>
-        <p data-ru="Наш чекап связан с SPA Strategy Lab — публичной исследовательской системой, где мы paper-тестируем стратегии доходности по стейблкоинам, прежде чем рисковать реальным капиталом.">Our checkup is connected to SPA Strategy Lab — a public research system where we paper-test stablecoin yield strategies before risking real capital.</p>
+        {/* 2026-08-20 (ADR-089 §5): this section was framed as "backed by / behind the CHECKUP".
+             The strategy lab is real and unchanged; only the reference to the undeployed checkup
+             product was dropped. Not a single claim about the lab was altered. */}
+        <h2 data-ru="Публичный strategy lab">A public strategy lab</h2>
+        <p data-ru="SPA Strategy Lab — публичная исследовательская система, где мы paper-тестируем стратегии доходности по стейблкоинам, прежде чем рисковать реальным капиталом.">SPA Strategy Lab is a public research system where we paper-test stablecoin yield strategies before risking real capital.</p>
       </div>
       <p style="color:var(--text-secondary); max-width:680px; margin:0 auto; text-align:center; font-size:.9375rem">
-        <span data-ru="Чекап помогает понять ваш текущий портфель. SPA Strategy Lab показывает, как можно структурировать и отслеживать разные профили риска — каждое обновление залогировано, каждая проверка правил видна.">The checkup helps you understand your current portfolio. The SPA Strategy Lab shows how different risk profiles can be structured and tracked over time — every update logged, every rule check visible.</span>
+        <span data-ru="SPA Strategy Lab показывает, как можно структурировать и отслеживать разные профили риска — каждое обновление залогировано, каждая проверка правил видна.">The SPA Strategy Lab shows how different risk profiles can be structured and tracked over time — every update logged, every rule check visible.</span>
       </p>
     </div>
   </section>
@@ -476,7 +390,10 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
       </div>
       <div class="trust-grid">
         <div class="trust-card"><h3 data-ru="Без депозитов">No deposits</h3><p data-ru="Мы никогда не просим вносить средства или подключать кошелёк для подписи.">We never ask you to deposit funds or connect a wallet for signing.</p></div>
-        <div class="trust-card"><h3 data-ru="Только публичные адреса">Public addresses only</h3><p data-ru="Чекап работает с публичными ончейн-данными.">The checkup works with public onchain data.</p></div>
+        {/* 2026-08-20 (ADR-089 §5): the card said "the checkup works with public onchain data" —
+             it described the address-scanning product, which is not deployed. What is true today is
+             narrower and stronger: nothing on this site asks for an address at all. */}
+        <div class="trust-card"><h3 data-ru="Адрес кошелька не нужен">No wallet address needed</h3><p data-ru="Мы не просим ни адрес, ни ключ, ни email — только публичные данные.">We ask for no address, no key and no email — public data only.</p></div>
         <div class="trust-card"><h3 data-ru="Без гарантий доходности">No guaranteed yield</h3><p data-ru="Все цифры APY — оценочные, целевые или протестированные на бумаге.">All APY figures are estimated, target-based, or paper-tested.</p></div>
         <div class="trust-card"><h3 data-ru="Прозрачное исследование">Transparent research</h3><p data-ru="Обновления стратегий, проверки риска и paper-результаты логируются публично.">Strategy updates, risk checks, and paper results are logged publicly.</p></div>
       </div>
@@ -492,11 +409,16 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
           <div style="font-size:16px;font-weight:800;color:var(--text-primary)" data-ru="Есть USDC / USDT?">Holding USDC / USDT?</div>
           <div style="font-size:13px;color:var(--text-secondary);margin-top:6px" data-ru="Смотрите консервативный тир — ~3,3% фактических, проверяемо, 0,0% просадки →">See the conservative tier — ~3.3% realized, auditable, 0.0% drawdown →</div>
         </a>
-        <a href="/#analyze" data-track="m11_idle" style="display:block;text-decoration:none;padding:20px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
+        {/* 2026-08-20 (ADR-089 §5): these two cards pointed at /#analyze — the hero, which used to
+             hold the paste-an-address widget of the checkup. The widget went with the service
+             (2026-08-16); landing on the hero delivered nothing for the promise on the card. Both
+             now point at /snapshot, which really does answer "what are idle stables leaving on the
+             table" (four questions, no wallet, no email). Copy unchanged — it is deliverable there. */}
+        <a href="/snapshot" data-track="m11_idle" style="display:block;text-decoration:none;padding:20px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
           <div style="font-size:16px;font-weight:800;color:var(--text-primary)" data-ru="Стейблы простаивают под 0%?">Idle stables earning 0%?</div>
           <div style="font-size:13px;color:var(--text-secondary);margin-top:6px" data-ru="Бесплатно посчитаем, сколько вы недополучаете →">Free — we'll show what you're leaving on the table →</div>
         </a>
-        <a href="/#analyze" data-track="m11_defi" style="display:block;text-decoration:none;padding:20px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
+        <a href="/snapshot" data-track="m11_defi" style="display:block;text-decoration:none;padding:20px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
           <div style="font-size:16px;font-weight:800;color:var(--text-primary)" data-ru="Уже в DeFi (Aave, LP…)?">Already in DeFi (Aave, LP…)?</div>
           <div style="font-size:13px;color:var(--text-secondary);margin-top:6px" data-ru="Проверьте риск вашей позиции бесплатно →">Check your position's real risk, free →</div>
         </a>
@@ -509,9 +431,10 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
     <div class="container final-cta">
       {/* The wallet-paste instruction here could not be followed after 2026-08-16: the checkup service
           that resolved addresses is not deployed and the hero input went with it. An instruction the
-          site cannot carry out is a defect, not copy — repointed at the live 60-second snapshot. The
-          sections that DESCRIBE the checkup product are untouched: that is the owner's call
-          (`owner-decision-glavnaya-reklamiruet-besplatnyi-chekap-k`). */}
+          site cannot carry out is a defect, not copy — repointed at the live 60-second snapshot.
+          2026-08-20: the sections that DESCRIBED the checkup product are now gone too — the owner
+          made that call (variant 1 on `owner-decision-glavnaya-reklamiruet-besplatnyi-chekap-k`,
+          ADR-089 §5). This CTA was already honest and is unchanged. */}
       <h2 data-ru="Начните с 60-секундного снимка">Start with the 60-second snapshot</h2>
       <p data-ru="Четыре вопроса, без кошелька и без email — честный снимок риска и сколько ваши стейблы оставляют «на столе».">Four questions, no wallet and no email — an honest risk snapshot and what your idle stables leave on the table.</p>
       <a class="btn btn-primary" href="/snapshot" data-track="analyze_wallet" data-ru="Пройти снимок">Take the snapshot</a>
@@ -658,48 +581,18 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
   /* ── Phase 1 redesign: checkup-first hero + new sections ─────────────── */
   .band.alt{background:var(--bg-surface)}
   .hero-trust{font-size:.8125rem; color:var(--text-muted); margin:14px 0 0}
-  .hero-bullets{display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:18px 0 0}
-  .hero-bullets span{font-size:.75rem; color:var(--text-secondary); background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-full); padding:6px 13px}
   .hero-secondary{margin-top:22px}
   .btn-ghost{display:inline-flex; align-items:center; font-size:.9375rem; font-weight:600; color:var(--text-secondary); border:1px solid var(--border); border-radius:var(--r-sm); padding:11px 20px; transition:all 120ms var(--ease)}
   .btn-ghost:hover{border-color:var(--border-strong); color:var(--text-primary)}
   .hero-powered{margin-top:26px; font-size:.8125rem; color:var(--text-muted)}
   .hero-powered b{color:var(--text-secondary)}
 
-  /* dashboard preview */
-  .dash-preview{position:relative; background:linear-gradient(180deg,var(--bg-surface),var(--bg-base)); border:1px solid var(--border-strong); border-radius:var(--r-xl); padding:26px; box-shadow:0 30px 80px -30px rgba(0,0,0,.6), 0 0 0 1px rgba(91,141,239,.1)}
-  .dp-bar{display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; font-size:.8125rem; color:var(--text-muted); flex-wrap:wrap; gap:8px}
-  .dp-ex{background:var(--teal-bg); color:var(--data-teal); font-size:.6875rem; font-weight:700; padding:4px 10px; border-radius:var(--r-full); text-transform:uppercase; letter-spacing:.06em}
-  .dp-kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:14px}
-  .dp-kpi{background:var(--bg-surface-2); border:1px solid var(--border); border-radius:var(--r-md); padding:16px 18px}
-  .dp-kpi .k{font-size:.6875rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em}
-  .dp-kpi .v{font-size:1.6rem; font-weight:800; margin-top:6px; color:var(--text-primary)}
-  .dp-kpi .v small{font-size:.9rem; color:var(--text-muted)}
-  .dp-kpi .s{font-size:.75rem; color:var(--text-secondary); margin-top:3px}
-  .dp-kpi.teal .v{color:var(--data-teal)} .dp-kpi.amb .v{color:var(--warn)} .dp-kpi.red .v{color:var(--danger)}
-  .dp-low{display:grid; grid-template-columns:1fr 1fr 1.2fr; gap:14px; margin-top:14px}
-  .dp-mod{background:var(--bg-surface-2); border:1px solid var(--border); border-radius:var(--r-md); padding:16px 18px}
-  .dp-mod h3{font-size:.6875rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em; margin:0 0 12px; font-weight:700}
-  .dp-row{display:flex; justify-content:space-between; font-size:.8125rem; padding:5px 0; color:var(--text-primary)}
-  .dp-line{height:6px; background:var(--bg-base); border-radius:4px; overflow:hidden; margin:2px 0 9px}
-  .dp-line>i{display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--data-teal)); border-radius:4px}
-  .dp-flag{display:flex; gap:9px; align-items:flex-start; font-size:.8125rem; padding:6px 0; color:var(--text-secondary)}
-  .dp-flag .d{width:6px; height:6px; border-radius:50%; margin-top:7px; flex:none}
-  @media(max-width:820px){.dp-kpis{grid-template-columns:1fr 1fr} .dp-low{grid-template-columns:1fr}}
 
-  /* feature cards + comparison table + trust cards */
-  .feat-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:18px}
-  .feat-card{background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:22px}
-  .feat-card h3{font-size:1rem; color:var(--text-primary); margin:0 0 8px}
-  .feat-card p{font-size:.875rem; color:var(--text-secondary); margin:0; line-height:1.55}
-  @media(max-width:820px){.feat-grid{grid-template-columns:1fr}}
-  .cmp-table{width:100%; border-collapse:collapse; font-size:.875rem; background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg); overflow:hidden}
-  .cmp-table th{text-align:left; padding:14px 18px; font-size:.6875rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); border-bottom:1px solid var(--border)}
-  .cmp-table th:last-child{color:var(--data-teal)}
-  .cmp-table td{padding:13px 18px; border-bottom:1px solid var(--border); color:var(--text-secondary)}
-  .cmp-table td:first-child{color:var(--text-primary)}
-  .cmp-table tr:last-child td{border-bottom:none}
-  .cmp-table .yes{color:var(--ok); font-weight:600} .cmp-table .no{color:var(--text-muted)} .cmp-table .mid{color:var(--warn)}
+  /* trust cards */
+  /* 2026-08-20 (ADR-089 §5): the .hero-bullets / .dash-preview+.dp-* / .feat-* / .cmp-table rules
+     dressed the checkup sections that came off this page — no element on the site carries these
+     classes any more (verified across landing/src). Removed for the same reason .walletcheck was:
+     dead CSS outlives the memory of why it is there. */
   .trust-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:18px}
   @media(max-width:820px){.trust-grid{grid-template-columns:1fr 1fr}}
   .trust-card{background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:20px}
