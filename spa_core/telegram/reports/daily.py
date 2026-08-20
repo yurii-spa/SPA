@@ -108,7 +108,90 @@ def build_digest_message(
     if office:
         message += "\n" + office
     data["office_consumed"] = consumed
+
+    factory = _build_factory_section(ddir)
+    if factory:
+        message += "\n" + factory
+
+    gaps = _standard_gaps(message)
+    data["report_standard_gaps"] = gaps
+    if gaps:
+        message += ("\n📋 Стандарт отчёта (AI1): не хватает — "
+                    + ", ".join(_esc(g) for g in gaps)
+                    + " (нет данных — это сигнал, не пропуск строки).")
     return message, data
+
+
+def _build_factory_section(ddir: Path, repo_root: "Path | None" = None) -> str:
+    """AI1 гл.19/гл.3 (мандат владельца 20.08): экономика цеха + паспорта агентов.
+
+    Обе строки — из детерминированных модулей мониторинга; артефакт свежее —
+    берём его, иначе считаем на месте (git/manifest локальны и дёшевы).
+    Never raises; недоступность источника — честная строка, не молчание.
+    """
+    lines: list[str] = []
+    try:
+        try:
+            from spa_core.monitoring import fleet_economics as fe
+
+            art = ddir / fe.ARTIFACT_REL
+            eco = (json.loads(art.read_text(encoding="utf-8")) if art.is_file()
+                   else fe.summary(repo_root))
+            if eco.get("commits") is None:
+                lines.append("⚙️ Цех: экономика не измерена (git недоступен — это сигнал)")
+            else:
+                cost = eco.get("cost_estimate_usd")
+                tail = (f" · ~${cost}" if cost is not None
+                        else " · стоимость не оценена (SPA_COST_PER_CYCLE_USD)")
+                lines.append(
+                    f"⚙️ Цех за 24ч: циклов <b>{_esc(eco.get('cycles'))}</b> · "
+                    f"коммитов {_esc(eco.get('commits'))}{tail}")
+        except Exception:  # noqa: BLE001
+            lines.append("⚙️ Цех: экономика недоступна (нет данных — это сигнал)")
+        try:
+            from spa_core.monitoring import agent_passports as ap
+
+            mp = (Path(repo_root) / ap.MANIFEST_REL) if repo_root else None
+            pa = ap.audit(mp)
+            if pa.get("total") is None:
+                lines.append("🪪 Паспорта агентов: не измерено (манифест не прочитан)")
+            else:
+                missing = pa.get("missing") or []
+                tail = ""
+                if missing:
+                    shown = ", ".join(m.replace("com.spa.", "") for m in missing[:3])
+                    more = f" +{len(missing) - 3}" if len(missing) > 3 else ""
+                    tail = f" · без паспорта: {_esc(shown)}{_esc(more)}"
+                lines.append(
+                    f"🪪 Паспорта агентов: <b>{_esc(pa.get('with_passport'))}/"
+                    f"{_esc(pa.get('total'))}</b>{tail}")
+        except Exception:  # noqa: BLE001
+            lines.append("🪪 Паспорта агентов: недоступно (нет данных — это сигнал)")
+    except Exception:  # noqa: BLE001
+        return ""
+    return "\n".join(lines)
+
+
+# Обязательные блоки дневного отчёта (AI1 гл.10, мандат владельца 20.08):
+# «хороший результат позволяет начать работу без уточняющих вопросов».
+# Маркер отсутствует ⇒ отчёт НАЗЫВАЕТ дыру сам — владелец не должен спрашивать
+# «а где три пакета?» (его живой вопрос 19.08, с него стандарт и начался).
+_REQUIRED_BLOCKS: "list[tuple[str, str]]" = [
+    ("SPA Daily Report", "сводка портфеля"),
+    ("Офис", "постура офиса"),
+    ("Архитектура", "сторож архитектуры"),
+    ("Цех", "экономика цеха"),
+    ("Паспорта агентов", "паспорта агентов"),
+    ("3 трека", "3 трека (Cons/Bal/Agg)"),
+]
+
+
+def _standard_gaps(message: str) -> "list[str]":
+    """Каких обязательных блоков в собранном отчёте нет. Never raises."""
+    try:
+        return [human for marker, human in _REQUIRED_BLOCKS if marker not in message]
+    except Exception:  # noqa: BLE001
+        return []
 
 
 def _build_office_section(ddir: Path) -> tuple[str, list[str]]:
