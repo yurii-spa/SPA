@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 import time
 from pathlib import Path
 from typing import Any, Dict
@@ -31,8 +30,30 @@ from spa_core.utils.atomic import atomic_save
 BASE_DIR = Path(__file__).resolve().parents[2]
 PREFS_FILE = BASE_DIR / "data" / "telegram" / "user_prefs.json"
 
-#: Куда уходят записи под pytest, когда путь не задан явно (см. :func:`_prefs_path`).
-PYTEST_PREFS_FILE = Path(tempfile.gettempdir()) / "spa_telegram_prefs_pytest.json"
+#: Имя файла-песочницы внутри директории прогона (см. `spa_core/utils/pytest_sandbox.py`).
+PYTEST_PREFS_NAME = "spa_telegram_prefs_pytest.json"
+
+
+def _pytest_prefs_file() -> Path:
+    """Куда уходят записи под pytest, когда путь не задан явно (см. :func:`_prefs_path`).
+
+    Считается КАЖДЫЙ раз, а не константой на импорт: песочница своя на прогон, и её
+    директория создаётся лениво — импорт модуля в проде не смеет плодить каталоги.
+    """
+    from spa_core.utils.pytest_sandbox import sandbox_path
+
+    return sandbox_path(PYTEST_PREFS_NAME)
+
+
+def __getattr__(name: str) -> Any:
+    """``prefs.PYTEST_PREFS_FILE`` — прежнее имя, теперь вычисляемое.
+
+    Имя осталось читаемым снаружи (его читают тесты изоляции), но перестало быть
+    константой: адрес песочницы зависит от прогона, а не от хоста.
+    """
+    if name == "PYTEST_PREFS_FILE":
+        return _pytest_prefs_file()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 #: Аварийный выход: тест, которому нужен ИМЕННО живой путь по умолчанию, ставит эту
 #: переменную окружения. По умолчанию — нет: умолчание обязано быть безопасным.
@@ -75,7 +96,7 @@ def _prefs_path(override: Path = None) -> Path:
     if Path(PREFS_FILE) != live:
         return Path(PREFS_FILE)
     if os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get(LIVE_ENV_FLAG):
-        return PYTEST_PREFS_FILE
+        return _pytest_prefs_file()
     return live
 
 # Язык по умолчанию — РУССКИЙ. У бота один адресат, и он русскоязычный (директива владельца

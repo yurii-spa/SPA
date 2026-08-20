@@ -695,3 +695,15 @@ if package_data_guard is None:
     sys.modules["spa_package_data_guard"] = package_data_guard
 
 _package_data_stays_clean = package_data_guard._package_data_stays_clean
+
+
+# ---------------------------------------------------------------------------
+# Адрес песочницы прогона публикуется в окружении В НАЧАЛЕ сессии, а не при первом
+# обращении: дочерний процесс наследует окружение в момент запуска, и родитель,
+# который до этого ни разу не трогал модуль состояния, отправил бы ребёнка в ЧУЖУЮ
+# песочницу (замер #320 — ровно так и вышло у первой версии проверки).
+# Почему песочница вообще своя на прогон — spa_core/utils/pytest_sandbox.py.
+# ---------------------------------------------------------------------------
+from spa_core.utils.pytest_sandbox import session_dir as _publish_sandbox_dir  # noqa: E402
+
+_publish_sandbox_dir()

@@ -33,7 +33,6 @@ from __future__ import annotations
 
 import hashlib
 import os
-import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -66,7 +65,12 @@ def _state_path(override: Optional[str | Path] = None) -> Path:
     if os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get(
         "SPA_ALERT_ACTIONS_TEST"
     ):
-        return Path(tempfile.gettempdir()) / "spa_alert_actions_pytest.json"
+        # Своя песочница на прогон — см. spa_core/utils/pytest_sandbox.py: общий на хост
+        # файл делает прогон зависимым от прошлых прогонов, как только у истории
+        # появляется читатель (у решений владельца им стал анти-шторм).
+        from spa_core.utils.pytest_sandbox import sandbox_path
+
+        return sandbox_path("spa_alert_actions_pytest.json")
     return STATE_PATH
 
 
@@ -325,7 +329,9 @@ def _beacon_path(override: Optional[str | Path] = None) -> Path:
     if os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get(
         "SPA_ALERT_ACTIONS_TEST"
     ):
-        return Path(tempfile.gettempdir()) / "spa_bot_capabilities_pytest.json"
+        from spa_core.utils.pytest_sandbox import sandbox_path
+
+        return sandbox_path("spa_bot_capabilities_pytest.json")
     return BEACON_PATH
 
 

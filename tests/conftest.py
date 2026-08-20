@@ -242,3 +242,12 @@ def _no_live_backup_dir():
     backup_dir_guard.install()
     yield
     backup_dir_guard.restore()
+
+
+# ---------------------------------------------------------------------------
+# Адрес песочницы прогона — в окружение с самого начала сессии (та же причина, что
+# в spa_core/tests/conftest.py): дочерние процессы наследуют окружение при запуске.
+# ---------------------------------------------------------------------------
+from spa_core.utils.pytest_sandbox import session_dir as _publish_sandbox_dir  # noqa: E402
+
+_publish_sandbox_dir()

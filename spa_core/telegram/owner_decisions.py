@@ -48,7 +48,6 @@ import html
 import json
 import os
 import re
-import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -84,7 +83,12 @@ def _state_path(override: Optional[str | Path] = None) -> Path:
     if os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get(
         "SPA_OWNER_DECISIONS_TEST"
     ):
-        return Path(tempfile.gettempdir()) / "spa_owner_decisions_pytest.json"
+        # Песочница СВОЯ на прогон, а не общая на весь хост: анти-шторм (окно 6 ч)
+        # читает историю, и общий файл делал прогон зависимым от того, когда набор
+        # гоняли на этой машине в прошлый раз (замер #320 — ровно 5 красных тестов).
+        from spa_core.utils.pytest_sandbox import sandbox_path
+
+        return sandbox_path("spa_owner_decisions_pytest.json")
     return STATE_PATH
 
 
