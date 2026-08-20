@@ -1,6 +1,6 @@
 # Реестр зрелости SPA — спроектировано / построено / заглушка
 
-> **Генерируется** `scripts/build_maturity_register.py` · замер от **2026-08-20 22:49 UTC**.
+> **Генерируется** `scripts/build_maturity_register.py` · замер от **2026-08-20 23:54 UTC**.
 > Руками не править — правка уедет при следующем запуске. Менять надо таблицу `SUBJECTS` / `JUDGMENT` в генераторе.
 >
 > **Зачем.** Отличить работающее от нарисованного, не читая 415 файлов `docs/`.
@@ -21,41 +21,45 @@
 
 | Уровень | Функций |
 |---|---|
-| L2 — документ есть, кода нет | **7** |
-| L3 — код есть, но не работает по-настоящему (нет тестов или нет данных) | **4** |
-| L4 — код, тесты и данные — работает внутри процесса | **2** |
+| L2 — документ есть, кода нет | **9** |
+| L3 — код есть, но не работает по-настоящему (нет тестов или нет данных) | **1** |
+| L4 — код, тесты и данные — работает внутри процесса | **3** |
 | L5 — живой агент — исполняется сам | **10** |
 
 ## Реестр
 
+Уровень определяют ТОЛЬКО явные пути функции. Колонка «упоминаний» — сколько файлов кода просто
+содержат ключевое слово; она уровень НЕ двигает (случайное вхождение — ключ JSON, имя файла в списке —
+поднимало слой с L2 на L3 и посылало читателя дописывать тесты к фантому).
+
 Колонки **ЗАМЕР** считаются кодом при каждом запуске. Колонки **СУЖДЕНИЕ** написаны человеком —
 они могут быть спорными, и это видно по заголовку. Смешивать их нельзя: иначе мнение читается как измерение.
 
-| Функция | L | ЗАМЕР: код | тесты | данных | живых агентов | `requires verification` | СУЖДЕНИЕ: эффект | вердикт (AI1 гл.06) |
-|---|---|---|---|---|---|---|---|---|
-| **Paper-трек и дневной цикл**<br/><sub>`01_project_overview.md` · `30_first_30_days_plan.md`</sub> | L5 | 159 | 75 | — | 5 | — | high | работает — не трогать |
-| **RiskPolicy v1.0 — детерминированный гейт**<br/><sub>`06_spa_core_invariants.md`</sub> | L5 | 329 | 63 | — | 1 | — | high | работает — заморожен на v1.0 до go-live |
-| **Стоп-кран (two-tier drawdown)**<br/><sub>`decisions/ADR-048-two-tier-kill-switch.md`</sub> | L5 | 87 | 59 | — | 1 | — | high | работает — не трогать |
-| **Адаптеры протоколов и фиды**<br/><sub>`23_data_architecture.md`</sub> | L5 | 131 | 78 | — | 1 | 5 | high | работает |
-| **Мониторинг, тревоги, здоровье флота**<br/><sub>`18_monitoring_and_alerting.md`</sub> | L5 | 73 | 51 | — | 15 | — | high | работает |
-| **Телеграм — рабочее место владельца**<br/><sub>`decisions/ADR-069-telegram-owner-workspace.md`</sub> | L5 | 150 | 137 | — | 3 | — | high | работает |
-| **Сайт earn-defi.com и дашборд**<br/><sub>`26_dashboard_specification.md`</sub> | L5 | 202 | 16 | — | 2 | — | mid | работает — owner-gated на числа |
-| **API-сервер**<br/><sub>`25_api_specification.md`</sub> | L5 | 59 | 49 | — | 1 | 1 | mid | работает |
-| **Strategy Lab и дески (advisory)**<br/><sub>`07_yield_lab_architecture.md` · `38_stablecoin_yield_engine.md`</sub> | L5 | 269 | 131 | — | 9 | 7 | mid | работает, advisory — капитал не двигает |
-| **Методология отчётности о доходности**<br/><sub>`41_performance_reporting_methodology.md`</sub> | L5 | 25 | 3 | — | 1 | 2 | mid | частично построено |
-| **Схема БД и качество данных**<br/><sub>`24_database_schema.md` · `40_data_quality_framework.md`</sub> | L4 | 11 | 10 | — | 0 | 2 | low | не нужно: files-first — источник правды git |
-| **Compliance surface**<br/><sub>`22_compliance_surface.md`</sub> | L4 | 34 | 13 | — | 0 | — | low | частично построено |
-| **Продуктовый слой AAA (16 аналитиков)**<br/><sub>`08_ai_investment_os_architecture.md` · `10_agent_architecture.md`</sub> | L3 | 1 | 0 | — | 0 | 1 | high | ПРОЕКТ ПОДГОТОВКИ: 15 паспортов написано, агентов ноль; owner-gated (ADR-004) |
-| **Экономика цеха и паспорта агентов (AI1)**<br/><sub>—</sub> | L3 | 4 | 2 | 0 | 0 | — | mid | инструмент есть, ДАННЫХ НЕТ — заполнить паспорта |
-| **Карточные системы: стратегии / протоколы / стейблы**<br/><sub>`11_strategy_card_system.md` · `12_protocol_card_system.md` · `13_stablecoin_card_system.md`</sub> | L3 | 1 | 1 | 0 | 0 | 5 | mid | учебный стенд: валидатор есть, карточек ноль |
-| **Готовность к внешнему капиталу**<br/><sub>`42_external_capital_readiness.md`</sub> | L3 | 1 | 0 | — | 0 | — | low | заблокировано: solicitation закрыт до legal-clearance |
-| **BTC capital cycle (лестница по фазам)**<br/><sub>`15_btc_cycle_framework.md` · `36_btc_capital_cycle_machine.md`</sub> | L2 | 0 | 1 | — | 0 | 36 | high | ПРОЕКТ ПОДГОТОВКИ: просадка −25% NAV не проходит под HARD_KILL −10%; бэктест сохранён, строить нельзя |
-| **ETH yield framework**<br/><sub>`16_eth_yield_framework.md`</sub> | L2 | 0 | 1 | — | 0 | 12 | mid | проект подготовки — замера нет вовсе |
-| **Risk Scoring v2 (advisory)**<br/><sub>`14_risk_scoring_v2.md`</sub> | L2 | 0 | 0 | — | 0 | 2 | mid | проект подготовки — advisory, гейтом не станет |
-| **Strategy Discovery Engine**<br/><sub>`35_strategy_discovery_engine.md`</sub> | L2 | 0 | 1 | — | 0 | 2 | mid | проект подготовки |
-| **Investment Committee workflow**<br/><sub>`39_investment_committee_workflow.md`</sub> | L2 | 0 | 1 | — | 0 | — | low | преждевременно: один владелец, комитета нет |
-| **Builder OS**<br/><sub>`09_builder_os_architecture.md` · `45_builder_os_workflow.md`</sub> | L2 | 0 | 1 | — | 0 | — | low | преждевременно |
-| **Опасные стратегии и research-first-20**<br/><sub>`43_dangerous_strategies.md` · `44_research_first_20_strategies.md`</sub> | L2 | 0 | 0 | — | 0 | 6 | low | research-документ, кода и не требует |
+| Функция | L | ЗАМЕР: код | тесты | данных | живых агентов | упоминаний | `requires verification` | СУЖДЕНИЕ: эффект | вердикт (AI1 гл.06) |
+|---|---|---|---|---|---|---|---|---|---|
+| **Paper-трек и дневной цикл**<br/><sub>`01_project_overview.md` · `30_first_30_days_plan.md`</sub> | L5 | 70 | 29 | — | 4 | 159 | — | high | работает — не трогать |
+| **Стоп-кран (two-tier drawdown)**<br/><sub>`decisions/ADR-048-two-tier-kill-switch.md`</sub> | L5 | 7 | 13 | — | 3 | 87 | — | high | работает — не трогать |
+| **Адаптеры протоколов и фиды**<br/><sub>`23_data_architecture.md`</sub> | L5 | 57 | 15 | — | 3 | 131 | 5 | high | работает |
+| **Мониторинг, тревоги, здоровье флота**<br/><sub>`18_monitoring_and_alerting.md`</sub> | L5 | 73 | 88 | — | 22 | 49 | — | high | работает |
+| **Телеграм — рабочее место владельца**<br/><sub>`decisions/ADR-069-alert-action-buttons.md`</sub> | L5 | 31 | 22 | — | 3 | 150 | — | high | работает |
+| **Продуктовый слой AAA (аналитики Investment OS)**<br/><sub>`08_ai_investment_os_architecture.md` · `10_agent_architecture.md`</sub> | L5 | 16 | 6 | — | 12 | 28 | 1 | high | частично АКТИВИРОВАН: io_* работают, остальное owner-gated (ADR-004) |
+| **Сайт earn-defi.com и дашборд**<br/><sub>`26_dashboard_specification.md`</sub> | L5 | 202 | 24 | — | 3 | 4 | — | mid | работает — owner-gated на числа |
+| **API-сервер**<br/><sub>`25_api_specification.md`</sub> | L5 | 35 | 14 | — | 1 | 42 | 1 | mid | работает |
+| **Strategy Lab и дески (advisory)**<br/><sub>`07_yield_lab_architecture.md` · `38_stablecoin_yield_engine.md`</sub> | L5 | 123 | 39 | — | 10 | 269 | 7 | mid | работает, advisory — капитал не двигает |
+| **Методология отчётности о доходности**<br/><sub>`41_performance_reporting_methodology.md`</sub> | L5 | 25 | 25 | — | 4 | 4 | 2 | mid | частично построено |
+| **RiskPolicy v1.0 — детерминированный гейт**<br/><sub>`06_spa_core_invariants.md`</sub> | L4 | 24 | 25 | — | 0 | 329 | — | high | работает — заморожен на v1.0 до go-live |
+| **Экономика цеха и паспорта агентов (AI1)**<br/><sub>—</sub> | L4 | 3 | 2 | — | 0 | 4 | — | mid | работает; паспортов полных 18 из 89 — остальное курация produces, карточка заведена |
+| **Карточные системы: стратегии / протоколы / стейблы**<br/><sub>`11_strategy_card_system.md` · `12_protocol_card_system.md` · `13_stablecoin_card_system.md`</sub> | L4 | 1 | 1 | 29 | 0 | 1 | 5 | mid | валидатор есть, карточки есть (git-tracked); автоматического производителя нет |
+| **Compliance surface**<br/><sub>`22_compliance_surface.md`</sub> | L3 | 3 | 0 | — | 0 | 34 | — | low | частично построено |
+| **BTC capital cycle (лестница по фазам)**<br/><sub>`15_btc_cycle_framework.md` · `36_btc_capital_cycle_machine.md`</sub> | L2 | 0 | 0 | — | 0 | — | 36 | high | ПРОЕКТ ПОДГОТОВКИ: просадка −25% NAV не проходит под HARD_KILL −10%; бэктест сохранён, строить нельзя |
+| **ETH yield framework**<br/><sub>`16_eth_yield_framework.md`</sub> | L2 | 0 | 0 | — | 0 | — | 12 | mid | проект подготовки — замера нет вовсе |
+| **Risk Scoring v2 (advisory)**<br/><sub>`14_risk_scoring_v2.md`</sub> | L2 | 0 | 0 | — | 0 | — | 2 | mid | проект подготовки — advisory, гейтом не станет |
+| **Strategy Discovery Engine**<br/><sub>`35_strategy_discovery_engine.md`</sub> | L2 | 0 | 0 | — | 0 | — | 2 | mid | проект подготовки |
+| **Investment Committee workflow**<br/><sub>`39_investment_committee_workflow.md`</sub> | L2 | 0 | 0 | — | 0 | — | — | low | преждевременно: один владелец, комитета нет |
+| **Builder OS**<br/><sub>`09_builder_os_architecture.md` · `45_builder_os_workflow.md`</sub> | L2 | 0 | 0 | — | 0 | — | — | low | преждевременно |
+| **Схема БД и качество данных**<br/><sub>`24_database_schema.md` · `40_data_quality_framework.md`</sub> | L2 | 0 | 0 | — | 0 | — | 2 | low | не нужно: files-first — источник правды git |
+| **Готовность к внешнему капиталу**<br/><sub>`42_external_capital_readiness.md`</sub> | L2 | 0 | 0 | — | 0 | 1 | — | low | заблокировано: solicitation закрыт до legal-clearance |
+| **Опасные стратегии и research-first-20**<br/><sub>`43_dangerous_strategies.md` · `44_research_first_20_strategies.md`</sub> | L2 | 0 | 0 | — | 0 | — | 6 | low | research-документ, кода и не требует |
 
 ## Спроектированные архитектуры (из `architecture/manifest.json`)
 

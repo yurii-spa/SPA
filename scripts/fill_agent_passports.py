@@ -67,15 +67,24 @@ def module_of(program: str | None) -> str | None:
         lines = wrapper.read_text(encoding="utf-8", errors="replace").splitlines()
     except OSError:
         return None
+    found: list[str] = []
     for line in lines:
-        s = line.strip()
-        if not s or s.startswith("#"):
+        t = line.strip()
+        if not t or t.startswith("#"):
             continue
         for rx in _MODULE_PATTERNS:
-            m = rx.search(s)
-            if m:
-                return m.group(1)
-    return None
+            m = rx.search(t)
+            if m and m.group(1) not in found:
+                found.append(m.group(1))
+    if not found:
+        return None
+    if len(found) > 1:
+        # Многошаговая обёртка (основной модуль + добивка вроде rollup-скрипта):
+        # взять ПЕРВЫЙ — значит с ощутимой вероятностью описать агента чужим
+        # докстрингом. Деловая цель, взятая не у того модуля, хуже пустой:
+        # пустую видно в списке «нужен автор», а чужую — нет. Fail-CLOSED.
+        return None
+    return found[0]
 
 
 def _module_file(module: str) -> Path | None:
@@ -104,8 +113,10 @@ def goal_from_docstring(module: str | None) -> str:
     if not body:
         return ""
     first = body.split("\n\n")[0].replace("\n", " ").strip()
-    # «agent_passports — у каждого агента...» → убрать техническое имя слева
-    first = re.sub(r"^[\w.]+\s*[—–-]\s*", "", first)
+    # «agent_passports — у каждого агента...» → убрать техническое имя слева.
+    # Дефис ОБЯЗАН быть окружён пробелами: без этого условия «MP-144: ...»
+    # превращалось в «144: ...» — номер задачи съедался вместе с префиксом.
+    first = re.sub(r"^[\w.]+\s+[—–-]\s+", "", first)
     # обрезать по концу первого предложения, не разрывая «гл.3»
     cut = re.search(r"\.(?:\s|$)", first)
     if cut:

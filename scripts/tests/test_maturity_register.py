@@ -139,5 +139,104 @@ class TestHonestSeparation(unittest.TestCase):
                              f"{key}: суждение подменяет замер {measured & set(j)}")
 
 
+class TestFindingsFromAdversarialReview(unittest.TestCase):
+    """Пять дефектов, найденных состязательным разбором 2026-08-20.
+
+    Все пять — одного рода: колонка, объявленная ЗАМЕРОМ («соврать не может»),
+    врала. Это ровно то, ради чего реестр написан, поэтому каждый закрыт
+    проверкой, а не правкой текста.
+    """
+
+    def test_agent_pattern_matches_label_without_com_spa_prefix(self):
+        """Авария: `^io_` не совпадал НИ С ЧЕМ — все метки начинаются с com.spa.
+
+        Реестр печатал «живых агентов: 0» по продуктовому слою, у которого их
+        тринадцать, и противоречил собственному же разделу ниже.
+        """
+        mod = _load()
+        agents = [{"label": "com.spa.io_quant", "intent": "active"},
+                  {"label": "com.spa.io_health", "intent": "retired"},
+                  {"label": "com.spa.telegram_bot", "intent": "active"}]
+        self.assertEqual(mod._agent_matches(r"^io_", agents), ["com.spa.io_quant"])
+
+    def test_live_io_agents_are_actually_counted(self):
+        """Замер на настоящем манифесте: продуктовый слой не может быть пустым."""
+        mod = _load()
+        live = mod._agent_matches(r"^io_", mod._load_agents())
+        self.assertGreater(len(live), 0, "io_*-агенты снова не находятся")
+
+    def test_keyword_mentions_do_not_raise_the_level(self):
+        """Авария: одно случайное вхождение подстроки давало L2 → L3.
+
+        `external_capital` находился как ключ JSON-отчёта, `two_layer` — как имя
+        файла в списке путей пушера. Оба слоя печатались как «код есть».
+        """
+        mod = _load()
+        subject = dict(key="_t", name="t", docs=["00_index.md"], paths=[],
+                       keywords=r"atomic_save", agents="")
+        m = mod.measure(subject, [])
+        self.assertGreater(m["mentions"], 0, "проверка бессмысленна без упоминаний")
+        self.assertEqual(m["code"], 0)
+        self.assertEqual(m["level"], 2, "упоминание — не реализация")
+
+    def test_every_referenced_doc_exists(self):
+        """Авария: ссылка на `ADR-069-telegram-owner-workspace.md`, которого нет."""
+        mod = _load()
+        self.assertEqual(mod._check_doc_refs(), [])
+
+    def test_data_glob_counts_only_tracked_files(self):
+        """Авария: уровень зависел от gitignored артефактов.
+
+        Файл не может быть верен одновременно в CI (артефактов нет) и на боевом
+        хосте (есть) — а `--check` гоняется именно в CI.
+        """
+        mod = _load()
+        tracked = mod._tracked()
+        self.assertTrue(tracked, "git ls-files пуст — проверка ничего не меряет")
+        self.assertNotIn("data/agent_passports.json", tracked)
+        subject = dict(key="_t", name="t", docs=["00_index.md"],
+                       paths=["spa_core/utils/atomic.py"], keywords="", agents="",
+                       data_glob=["data/agent_passports.json"])
+        self.assertEqual(mod.measure(subject, [])["data"], 0)
+
+
+class TestCheckRedBranchHasAPositiveControl(unittest.TestCase):
+    """`--check` обязан уметь вернуть 1 — иначе CI-шаг ничего не сторожит.
+
+    До разбора красную ветку не запускал ни один тест: замена `if drift:` на
+    `if False:` оставляла набор зелёным. Проверка, никогда не видевшая поломки,
+    — украшение (`.claude/rules/deployment.md`).
+    """
+
+    def _run_check_against(self, text: str) -> int:
+        import tempfile
+        mod = _load()
+        with tempfile.TemporaryDirectory() as td:
+            fake = Path(td) / "REG.md"
+            fake.write_text(text, encoding="utf-8")
+            mod.OUT = fake
+            argv = sys.argv
+            sys.argv = ["build_maturity_register.py", "--check"]
+            try:
+                return mod.main()
+            finally:
+                sys.argv = argv
+
+    def test_overstated_level_makes_check_return_one(self):
+        mod = _load()
+        text = mod.build()
+        faked = re.sub(r"(\*\*BTC capital cycle[^|]*\|) L2 \|", r"\1 L5 |", text)
+        self.assertNotEqual(faked, text, "подделка не применилась — тест бессмыслен")
+        self.assertEqual(self._run_check_against(faked), 1)
+
+    def test_honest_file_makes_check_return_zero(self):
+        """Обратный контроль: на верном файле красная ветка молчит."""
+        mod = _load()
+        self.assertEqual(self._run_check_against(mod.build()), 0)
+
+    def test_missing_file_makes_check_return_one(self):
+        self.assertEqual(self._run_check_against(""), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

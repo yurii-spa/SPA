@@ -251,5 +251,47 @@ class TestCheckIsAGate(unittest.TestCase):
         self.assertEqual(f.run(write=False)["stale"], [])
 
 
+class TestWrapperAmbiguityAndPrefixTrim(unittest.TestCase):
+    """Два дефекта заполнителя, найденных состязательным разбором 20.08."""
+
+    def test_multi_module_wrapper_is_ambiguous_not_first_wins(self):
+        """Брать ПЕРВЫЙ модуль многошаговой обёртки — описать агента чужим
+        докстрингом. Чужая цель хуже пустой: пустую видно в списке «нужен
+        автор», а чужую — нет."""
+        f = _load("_fap", "scripts/fill_agent_passports.py")
+        with tempfile.TemporaryDirectory() as td:
+            w = Path(td) / "agent_two.sh"
+            w.write_text('#!/bin/bash\nexport MODULE="spa_core.a.main"\n'
+                         'python3 -m spa_core.b.rollup\n', encoding="utf-8")
+            f.REPO = Path(td).parent
+            (Path(td).parent / "scripts").mkdir(exist_ok=True)
+            target = Path(td).parent / "scripts" / "agent_two.sh"
+            target.write_text(w.read_text(encoding="utf-8"), encoding="utf-8")
+            try:
+                self.assertIsNone(f.module_of("agent_two.sh"))
+            finally:
+                target.unlink(missing_ok=True)
+
+    def test_single_module_wrapper_still_resolves(self):
+        """Обратный контроль: однозначная обёртка обязана разбираться."""
+        f = _load("_fap", "scripts/fill_agent_passports.py")
+        self.assertEqual(f.module_of("agent_artifact_freshness.sh"),
+                         "spa_core.monitoring.artifact_freshness")
+
+    def test_ticket_prefix_is_not_eaten_by_the_name_trim(self):
+        """«MP-144: …» превращалось в «144: …» — номер задачи съедался."""
+        f = _load("_fap", "scripts/fill_agent_passports.py")
+        first = "MP-144: сторож чего-то важного."
+        import re as _re
+        trimmed = _re.sub(r"^[\w.]+\s+[—–-]\s+", "", first)
+        self.assertEqual(trimmed, first)
+
+    def test_module_name_prefix_is_still_trimmed(self):
+        """Обратный контроль: настоящий префикс имени по-прежнему снимается."""
+        import re as _re
+        got = _re.sub(r"^[\w.]+\s+[—–-]\s+", "", "agent_passports — у каждого агента.")
+        self.assertEqual(got, "у каждого агента.")
+
+
 if __name__ == "__main__":
     unittest.main()

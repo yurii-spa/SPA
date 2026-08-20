@@ -55,57 +55,94 @@ CODE_ROOTS = ("spa_core", "scripts", "landing/src", "research")
 TEST_MARKERS = ("/tests/", "test_", "_test.py")
 
 # ── Единица реестра — ФУНКЦИЯ (AI1 гл.04: диагностика по функциям) ────────────
-# paths    — явные пути; самый честный признак, ищется существованием.
-# keywords — regex для поиска реализации под ДРУГИМ именем; нужен, чтобы
-#            «кода нет» было доказано поиском, а не отсутствием догадки.
+# paths    — явные пути. ЕДИНСТВЕННОЕ, что определяет уровень.
+# keywords — regex для поиска реализации под ДРУГИМ именем. Показывается
+#            ОТДЕЛЬНОЙ колонкой «упоминаний» и уровень НЕ двигает.
+#            Почему так (состязательный разбор 20.08): единственное случайное
+#            вхождение подстроки поднимало слой с L2 на L3. `external_capital`
+#            находился как ключ JSON-отчёта `external_capital_managed_usd`, а
+#            `two_layer` — как ИМЯ ФАЙЛА в списке путей пушера. Оба слоя
+#            печатались как «код есть», и раздел «что делать» посылал читателя
+#            дописывать тесты к фантому. Упоминание — подсказка человеку, а не
+#            доказательство реализации.
+# agents    — regex по метке БЕЗ префикса `com.spa.`; см. _agent_matches.
 SUBJECTS: list[dict] = [
     # ─── Рантайм: то, что реально крутится ────────────────────────────────
     dict(key="paper_track", name="Paper-трек и дневной цикл",
          docs=["01_project_overview.md", "30_first_30_days_plan.md"],
-         paths=["spa_core/paper_trading"], keywords=r"cycle_runner|golive_checker",
-         agents=r"daily.?cycle|cycle"),
+         paths=["spa_core/paper_trading", "spa_core/tests/test_cycle*.py",
+                "spa_core/tests/test_golive*.py", "spa_core/tests/test_paper*.py"],
+         keywords=r"cycle_runner|golive_checker",
+         agents=r"^daily_cycle$|^cycle_gap_monitor$|^cycle_health$|^orchestrator$"),
     dict(key="riskpolicy", name="RiskPolicy v1.0 — детерминированный гейт",
          docs=["06_spa_core_invariants.md"],
-         paths=["spa_core/risk"], keywords=r"RiskPolicy", agents=r"risk"),
+         paths=["spa_core/risk", "spa_core/tests/test_risk*.py",
+                "spa_core/tests/test_*policy*.py"],
+         keywords=r"RiskPolicy",
+         # Библиотека, а не агент: её зовёт цикл. Приписывать ей чужого живого
+         # агента (раньше подстрока `risk` забирала `io_protocol_risk`) — врать.
+         agents=r""),
     dict(key="killswitch", name="Стоп-кран (two-tier drawdown)",
          docs=["decisions/ADR-048-two-tier-kill-switch.md"],
-         paths=["spa_core/governance/kill_switch.py"], keywords=r"kill_switch",
-         agents=r"kill|intraday"),
+         paths=["spa_core/governance", "spa_core/tests/test_kill_switch*.py",
+                "spa_core/tests/test_*drawdown*.py"],
+         keywords=r"kill_switch",
+         agents=r"^governance_watcher$|^intraday_equity$|^threat_reactor$"),
     dict(key="adapters", name="Адаптеры протоколов и фиды",
          docs=["23_data_architecture.md"],
-         paths=["spa_core/adapters"], keywords=r"ADAPTER_REGISTRY|defillama",
-         agents=r"adapter|feed"),
+         paths=["spa_core/adapters", "spa_core/tests/test_adapter*.py",
+                "spa_core/tests/test_defillama*.py"],
+         keywords=r"ADAPTER_REGISTRY|defillama",
+         agents=r"^peg_monitor$|^sky_monitor$|^base_gas_monitor$"),
     dict(key="monitoring", name="Мониторинг, тревоги, здоровье флота",
          docs=["18_monitoring_and_alerting.md"],
-         paths=["spa_core/monitoring"], keywords=r"system_health|agent_health",
-         agents=r"monitor|health"),
+         paths=["spa_core/monitoring", "spa_core/tests/test_*monitor*.py",
+                "spa_core/tests/test_*health*.py"],
+         keywords=r"system_health|agent_health",
+         agents=r"monitor|health|watchdog|freshness|resilience|self_heal|rtmr|red_flag"),
     dict(key="telegram", name="Телеграм — рабочее место владельца",
-         docs=["decisions/ADR-069-telegram-owner-workspace.md"],
-         paths=["spa_core/telegram"], keywords=r"telegram", agents=r"telegram|tg"),
+         docs=["decisions/ADR-069-alert-action-buttons.md"],
+         paths=["spa_core/telegram", "spa_core/tests/test_telegram*.py",
+                "spa_core/tests/test_push*.py"],
+         keywords=r"telegram", agents=r"^telegram"),
     dict(key="site", name="Сайт earn-defi.com и дашборд",
          docs=["26_dashboard_specification.md"],
-         paths=["landing/src"], keywords=r"safe_site_push|site_custodian",
-         agents=r"site|custodian|dashboard"),
+         paths=["landing/src", "spa_core/tests/test_*site*.py",
+                "spa_core/tests/test_*dashboard*.py"],
+         keywords=r"safe_site_push|site_custodian",
+         agents=r"^dashboard|^golive_freshness$"),
     dict(key="api", name="API-сервер",
          docs=["25_api_specification.md"],
-         paths=["spa_core/api"], keywords=r"fastapi|APIRouter", agents=r"apiserver"),
+         paths=["spa_core/api", "spa_core/tests/test_api*.py"],
+         keywords=r"APIRouter", agents=r"^apiserver$"),
     dict(key="strategy_lab", name="Strategy Lab и дески (advisory)",
          docs=["07_yield_lab_architecture.md", "38_stablecoin_yield_engine.md"],
-         paths=["spa_core/strategy_lab"], keywords=r"strategy_lab|sleeve",
-         agents=r"lab|sleeve|desk|swarm"),
+         paths=["spa_core/strategy_lab", "spa_core/tests/test_*sleeve*.py",
+                "spa_core/tests/test_*swarm*.py", "spa_core/tests/test_*lab*.py"],
+         keywords=r"strategy_lab|sleeve",
+         agents=r"^aggressive_lab$|^strategy_lab_paper$|^swarm|^rates_desk_paper$|^rwa_safety_board$"),
     dict(key="fleet_econ", name="Экономика цеха и паспорта агентов (AI1)",
-         docs=[], paths=["spa_core/monitoring/fleet_economics.py",
-                         "spa_core/monitoring/agent_passports.py"],
-         keywords=r"fleet_economics|agent_passports", agents=r"",
-         data_glob=["data/fleet_economics.json", "data/agent_passports.json"]),
+         docs=[],
+         paths=["spa_core/monitoring/fleet_economics.py",
+                "spa_core/monitoring/agent_passports.py",
+                "spa_core/tests/test_fleet_economics_passports.py",
+                "scripts/fill_agent_passports.py",
+                "scripts/tests/test_fill_agent_passports.py"],
+         keywords=r"fleet_economics|agent_passports", agents=r""),
+    dict(key="product_layer", name="Продуктовый слой AAA (аналитики Investment OS)",
+         docs=["08_ai_investment_os_architecture.md", "10_agent_architecture.md"],
+         paths=["spa_core/investment_os", "prompts/agents",
+                "spa_core/tests/test_*investment_os*.py",
+                "spa_core/tests/test_api_investment_os.py"],
+         keywords=r"investment_os", agents=r"^io_"),
 
     # ─── Спроектировано — построено частично или не построено ─────────────
     dict(key="btc_cycle", name="BTC capital cycle (лестница по фазам)",
          docs=["15_btc_cycle_framework.md", "36_btc_capital_cycle_machine.md"],
-         paths=[], keywords=r"btc_cycle|mvrv|realized_price", agents=r"btc"),
+         paths=[], keywords=r"btc_cycle|mvrv|realized_price", agents=r"^btc"),
     dict(key="eth_yield", name="ETH yield framework",
          docs=["16_eth_yield_framework.md"],
-         paths=[], keywords=r"eth_yield", agents=r"eth"),
+         paths=[], keywords=r"eth_yield", agents=r"^eth"),
     dict(key="risk_v2", name="Risk Scoring v2 (advisory)",
          docs=["14_risk_scoring_v2.md"],
          paths=[], keywords=r"risk_scoring_v2|black_swan_risk_score|market_regime_risk_score",
@@ -114,8 +151,9 @@ SUBJECTS: list[dict] = [
          docs=["11_strategy_card_system.md", "12_protocol_card_system.md",
                "13_stablecoin_card_system.md"],
          paths=["research/cards"], keywords=r"strategy_card|protocol_card|stablecoin_card",
-         agents=r"card",
-         data_glob=["research/cards/*.md", "research/cards/*.json", "data/cards/*"]),
+         agents=r"",
+         data_glob=["data/strategy_cards/**/*.md", "data/protocol_cards/**/*.md",
+                    "data/stablecoin_cards/**/*.md"]),
     dict(key="discovery", name="Strategy Discovery Engine",
          docs=["35_strategy_discovery_engine.md"],
          paths=[], keywords=r"strategy_discovery", agents=r"discovery"),
@@ -125,21 +163,20 @@ SUBJECTS: list[dict] = [
     dict(key="builder_os", name="Builder OS",
          docs=["09_builder_os_architecture.md", "45_builder_os_workflow.md"],
          paths=[], keywords=r"builder_os", agents=r"builder"),
-    dict(key="product_layer", name="Продуктовый слой AAA (16 аналитиков)",
-         docs=["08_ai_investment_os_architecture.md", "10_agent_architecture.md"],
-         paths=["prompts/agents"], keywords=r"product_layer|two_layer", agents=r"^io_"),
     dict(key="db_schema", name="Схема БД и качество данных",
          docs=["24_database_schema.md", "40_data_quality_framework.md"],
-         paths=[], keywords=r"CREATE TABLE|sqlalchemy|data_quality_framework", agents=r""),
+         paths=[], keywords=r"data_quality_framework", agents=r""),
     dict(key="perf_report", name="Методология отчётности о доходности",
          docs=["41_performance_reporting_methodology.md"],
-         paths=["spa_core/reporting"], keywords=r"performance_report", agents=r"report"),
+         paths=["spa_core/reporting", "spa_core/tests/test_*report*.py"],
+         keywords=r"performance_report", agents=r"^digest_|^system_briefing$|^tier1_digest$"),
     dict(key="ext_capital", name="Готовность к внешнему капиталу",
          docs=["42_external_capital_readiness.md"],
          paths=[], keywords=r"external_capital", agents=r""),
     dict(key="compliance", name="Compliance surface",
          docs=["22_compliance_surface.md"],
-         paths=["spa_core/compliance"], keywords=r"compliance", agents=r"compliance"),
+         paths=["spa_core/compliance", "spa_core/tests/test_*compliance*.py"],
+         keywords=r"compliance", agents=r""),
     dict(key="dangerous", name="Опасные стратегии и research-first-20",
          docs=["43_dangerous_strategies.md", "44_research_first_20_strategies.md"],
          paths=[], keywords=r"dangerous_strateg", agents=r""),
@@ -158,17 +195,19 @@ JUDGMENT: dict[str, dict] = {
     "site":          dict(effect="mid",  verdict="работает — owner-gated на числа"),
     "api":           dict(effect="mid",  verdict="работает"),
     "strategy_lab":  dict(effect="mid",  verdict="работает, advisory — капитал не двигает"),
-    "fleet_econ":    dict(effect="mid",  verdict="инструмент есть, ДАННЫХ НЕТ — заполнить паспорта"),
+    "fleet_econ":    dict(effect="mid",  verdict="работает; паспортов полных 18 из 89 — "
+                                                 "остальное курация produces, карточка заведена"),
     "btc_cycle":     dict(effect="high", verdict="ПРОЕКТ ПОДГОТОВКИ: просадка −25% NAV не проходит "
                                                  "под HARD_KILL −10%; бэктест сохранён, строить нельзя"),
     "eth_yield":     dict(effect="mid",  verdict="проект подготовки — замера нет вовсе"),
     "risk_v2":       dict(effect="mid",  verdict="проект подготовки — advisory, гейтом не станет"),
-    "cards":         dict(effect="mid",  verdict="учебный стенд: валидатор есть, карточек ноль"),
+    "cards":         dict(effect="mid",  verdict="валидатор есть, карточки есть (git-tracked); "
+                                                 "автоматического производителя нет"),
     "discovery":     dict(effect="mid",  verdict="проект подготовки"),
     "committee":     dict(effect="low",  verdict="преждевременно: один владелец, комитета нет"),
     "builder_os":    dict(effect="low",  verdict="преждевременно"),
-    "product_layer": dict(effect="high", verdict="ПРОЕКТ ПОДГОТОВКИ: 15 паспортов написано, "
-                                                 "агентов ноль; owner-gated (ADR-004)"),
+    "product_layer": dict(effect="high", verdict="частично АКТИВИРОВАН: io_* работают, "
+                                                 "остальное owner-gated (ADR-004)"),
     "db_schema":     dict(effect="low",  verdict="не нужно: files-first — источник правды git"),
     "perf_report":   dict(effect="mid",  verdict="частично построено"),
     "ext_capital":   dict(effect="low",  verdict="заблокировано: solicitation закрыт до legal-clearance"),
@@ -214,7 +253,13 @@ def _is_test(path: str) -> bool:
 def _count_paths(paths: list[str]) -> tuple[int, int]:
     """(файлов реализации, файлов тестов) по явным путям."""
     code = tests = 0
+    expanded: list[str] = []
     for p in paths:
+        if "*" in p:
+            expanded.extend(str(f.relative_to(REPO)) for f in REPO.glob(p))
+        else:
+            expanded.append(p)
+    for p in expanded:
         full = REPO / p
         if full.is_file():
             (tests := tests + 1) if _is_test(p) else (code := code + 1)
@@ -230,6 +275,45 @@ def _count_paths(paths: list[str]) -> tuple[int, int]:
     return code, tests
 
 
+_LABEL_PREFIX = "com.spa."
+
+
+def _agent_matches(pattern: str, agents: list[dict]) -> list[str]:
+    """Живые агенты функции. Сопоставление — по метке БЕЗ префикса `com.spa.`.
+
+    Ловушка, найденная состязательным разбором: шаблон `^io_` не мог совпасть
+    НИ С ОДНОЙ меткой, потому что все они начинаются с `com.spa.`, и реестр
+    печатал «живых агентов: 0» по строке про продуктовый слой, у которого их
+    тринадцать. Якорь `^` осмыслен только по имени без префикса — здесь он
+    таким и становится.
+    """
+    if not pattern:
+        return []
+    rx = re.compile(pattern, re.I)
+    out = []
+    for a in agents:
+        if a.get("intent") != "active":
+            continue
+        label = a.get("label", "")
+        name = label[len(_LABEL_PREFIX):] if label.startswith(_LABEL_PREFIX) else label
+        if rx.search(name):
+            out.append(label)
+    return out
+
+
+def _tracked() -> set[str]:
+    """Файлы под контролем версий. Уровень не имеет права зависеть от того,
+    запускали ли на этой машине то, что реестр же и предписывает: артефакты в
+    `.gitignore` есть на боевом хосте и отсутствуют в CI, и файл не может быть
+    верен в обоих местах сразу."""
+    try:
+        res = subprocess.run(["git", "-C", str(REPO), "ls-files"],
+                             capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.SubprocessError):
+        return set()
+    return {l.strip() for l in res.stdout.splitlines() if l.strip()}
+
+
 def _load_agents() -> list[dict]:
     if not MANIFEST.exists():
         return []
@@ -242,20 +326,17 @@ def _load_agents() -> list[dict]:
 def measure(subject: dict, agents: list[dict]) -> dict:
     code_n, test_n = _count_paths(subject.get("paths", []))
     hits = _rg(subject.get("keywords", ""), CODE_ROOTS)
-    kw_code = [h for h in hits if not _is_test(h)]
-    kw_test = [h for h in hits if _is_test(h)]
-    code_n = max(code_n, len(kw_code))
-    test_n = max(test_n, len(kw_test))
+    mentions = len([h for h in hits if not _is_test(h)])
 
-    pat = subject.get("agents") or ""
-    live = []
-    if pat:
-        rx = re.compile(pat, re.I)
-        live = [a["label"] for a in agents
-                if rx.search(a.get("label", "")) and a.get("intent") == "active"]
+    live = _agent_matches(subject.get("agents") or "", agents)
 
     globs = subject.get("data_glob") or []
-    data_n = sum(len(list(REPO.glob(g))) for g in globs)
+    tracked = _tracked() if globs else set()
+    data_n = 0
+    for g in globs:
+        for f in REPO.glob(g):
+            if f.is_file() and str(f.relative_to(REPO)) in tracked:
+                data_n += 1
 
     rv = 0
     for d in subject.get("docs", []):
@@ -277,10 +358,30 @@ def measure(subject: dict, agents: list[dict]) -> dict:
     else:
         level = 4
     return dict(code=code_n, tests=test_n, live=len(live), rv=rv,
-                data=data_n, has_data_check=bool(globs), level=level)
+                mentions=mentions, data=data_n, has_data_check=bool(globs),
+                level=level)
+
+
+def _check_doc_refs() -> list[str]:
+    """Каждый упомянутый документ обязан существовать.
+
+    Реестр печатал ссылку на `ADR-069-telegram-owner-workspace.md`, которого нет
+    (решение называется `ADR-069-alert-action-buttons.md`). Битая ссылка в файле,
+    заявленном как ЗАМЕР, — то же самое, что выдуманное число.
+    """
+    missing = []
+    for subj in SUBJECTS:
+        for d in subj.get("docs", []):
+            if not (REPO / "docs" / d).is_file():
+                missing.append(f"{subj['key']}: docs/{d}")
+    return missing
 
 
 def build() -> str:
+    missing = _check_doc_refs()
+    if missing:
+        raise SystemExit("реестр ссылается на несуществующие документы:\n  "
+                         + "\n  ".join(missing))
     agents = _load_agents()
     rows = []
     for s in SUBJECTS:
@@ -325,14 +426,20 @@ def build() -> str:
         "",
         "## Реестр",
         "",
+        "Уровень определяют ТОЛЬКО явные пути функции. Колонка «упоминаний» —"
+        " сколько файлов кода просто",
+        "содержат ключевое слово; она уровень НЕ двигает (случайное вхождение —"
+        " ключ JSON, имя файла в списке —",
+        "поднимало слой с L2 на L3 и посылало читателя дописывать тесты к фантому).",
+        "",
         "Колонки **ЗАМЕР** считаются кодом при каждом запуске. Колонки **СУЖДЕНИЕ**"
         " написаны человеком —",
         "они могут быть спорными, и это видно по заголовку. Смешивать их нельзя:"
         " иначе мнение читается как измерение.",
         "",
-        "| Функция | L | ЗАМЕР: код | тесты | данных | живых агентов |"
+        "| Функция | L | ЗАМЕР: код | тесты | данных | живых агентов | упоминаний |"
         " `requires verification` | СУЖДЕНИЕ: эффект | вердикт (AI1 гл.06) |",
-        "|---|---|---|---|---|---|---|---|---|",
+        "|---|---|---|---|---|---|---|---|---|---|",
     ]
     order = {"high": 0, "mid": 1, "low": 2}
     rows.sort(key=lambda r: (-r[1]["level"], order.get(r[2].get("effect", "low"), 3)))
@@ -341,7 +448,7 @@ def build() -> str:
         out.append(
             f"| **{s['name']}**<br/><sub>{docs}</sub> | L{m['level']} | {m['code']} |"
             f" {m['tests']} | {m['data'] if m['has_data_check'] else '—'} |"
-            f" {m['live']} | {m['rv'] or '—'} |"
+            f" {m['live']} | {m['mentions'] or '—'} | {m['rv'] or '—'} |"
             f" {j.get('effect', '?')} | {j.get('verdict', '?')} |"
         )
 
