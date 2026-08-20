@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Поиск новых протоколов не идёт: программу, которая его делает, никто не запускает"
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-18
 owner_choice: 1

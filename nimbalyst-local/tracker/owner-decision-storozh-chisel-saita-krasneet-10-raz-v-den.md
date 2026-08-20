@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Сторож чисел сайта краснеет ~10 раз в день на нашей же автоматике — разрешить ему молчать там, где он всё равно ничего не измеряет?"
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-19
 owner_choice: 1

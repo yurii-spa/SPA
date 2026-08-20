@@ -1,6 +1,6 @@
 ---
 type: owner-decision
-status: needs-owner
+status: ingested
 priority: high
 created: 2026-08-10
 tags: [rnd, kill-switch, adr-034, adr-048, risk, paper, advisory]

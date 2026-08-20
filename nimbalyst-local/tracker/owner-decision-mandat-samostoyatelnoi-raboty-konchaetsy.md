@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Мандат самостоятельной работы кончается сегодня — продлеваем, сужаем или закрываем?
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-19
 owner_choice: 3

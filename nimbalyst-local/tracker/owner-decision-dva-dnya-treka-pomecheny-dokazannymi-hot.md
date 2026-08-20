@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Два дня трека помечены доказанными, хотя в эти дни система не держала ничего
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-10
 owner_choice: 1

@@ -1,6 +1,6 @@
 ---
 type: owner-decision
-status: needs-owner
+status: ingested
 created: 2026-08-10
 owner_choice: 1
 owner_answered_at: 2026-08-19T21:51:10.359137+00:00

@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Сбалансированный тир: на сайте «идёт paper-трек», а в книге ноль позиций"
-status: needs-owner
+status: ingested
 source: orchestrator
 created: 2026-08-13
 owner_choice: 1
