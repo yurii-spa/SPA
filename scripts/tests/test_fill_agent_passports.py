@@ -147,5 +147,55 @@ class TestRealManifestState(unittest.TestCase):
                            "иначе кто-то дописал недостающее руками, выдумав")
 
 
+class TestManifestFormatIsPreserved(unittest.TestCase):
+    """Авария 5: запись переписывала ВЕСЬ манифест и калечила кириллицу.
+
+    `atomic_save` по умолчанию пишет `indent=2` и `ensure_ascii=True`. Структура
+    JSON при этом остаётся верной, поэтому НИ ОДИН существующий тест не краснел —
+    а на диске 1946 строк превращались в 2391, дифф разрастался с ~270 строк до
+    4331, и вся кириллица становилась `\\uXXXX` (96 строк там, где на origin ноль).
+    Ревьюер такой дифф прочитать не может, а экранированный текст не читает никто.
+
+    Формат задан РОВНО в одном месте — `dumps()` генератора манифеста. Эти тесты
+    держат оба конца: сериализатор берётся оттуда, и результат на диске ему
+    соответствует.
+    """
+
+    def _builder(self):
+        return _load("_bam", "scripts/build_architecture_manifest.py")
+
+    def test_fill_uses_the_canonical_serializer(self):
+        f = _load("_fap", "scripts/fill_agent_passports.py")
+        sample = {"schema_version": 1, "agents": [
+            {"label": "com.spa.x", "passport": {"goal": "цель по-русски"}}]}
+        self.assertEqual(f._dumps(sample), self._builder().dumps(sample),
+                         "формат манифеста определён дважды — он обязан быть один")
+
+    def test_serializer_does_not_escape_cyrillic(self):
+        f = _load("_fap", "scripts/fill_agent_passports.py")
+        out = f._dumps({"notes": "свежее 3 ч"})
+        self.assertIn("свежее 3 ч", out)
+        self.assertNotIn("\\u04", out)
+
+    def test_serializer_keeps_one_space_indent(self):
+        f = _load("_fap", "scripts/fill_agent_passports.py")
+        out = f._dumps({"schema_version": 1})
+        self.assertTrue(out.splitlines()[1].startswith(' "schema_version"'),
+                        f"отступ манифеста не канонический: {out.splitlines()[1]!r}")
+
+    def test_manifest_on_disk_carries_no_escaped_cyrillic(self):
+        """Замер на настоящем файле — регрессия видна сразу, а не в ревью."""
+        text = (_REPO / "architecture" / "manifest.json").read_text(encoding="utf-8")
+        self.assertNotIn("\\u04", text,
+                         "кириллица в манифесте экранирована — писали не тем сериализатором")
+
+    def test_manifest_on_disk_is_byte_identical_to_a_reserialization(self):
+        """Файл на диске обязан совпадать с тем, что даст канонический сериализатор."""
+        path = _REPO / "architecture" / "manifest.json"
+        text = path.read_text(encoding="utf-8")
+        self.assertEqual(text, self._builder().dumps(json.loads(text)),
+                         "манифест на диске записан не каноническим сериализатором")
+
+
 if __name__ == "__main__":
     unittest.main()

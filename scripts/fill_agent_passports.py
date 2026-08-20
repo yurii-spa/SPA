@@ -31,6 +31,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import re
 import sys
@@ -149,6 +150,25 @@ def derive(entry: dict) -> dict:
     }
 
 
+def _dumps(manifest: dict) -> str:
+    """Сериализация манифеста КАНОНИЧЕСКИМ сериализатором генератора.
+
+    Не `atomic_save`: его умолчания — `indent=2` и `ensure_ascii=True`, и первая
+    же запись переписала бы весь файл (1946 строк → 2391) и превратила бы всю
+    кириллицу в `\\uXXXX` — 96 строк там, где на origin их ноль. Дифф на 4331
+    строку вместо ~270 нечитаем для ревьюера, а экранированный текст нечитаем
+    вообще ни для кого; тесты этого не ловят, потому что структура JSON при этом
+    верна. Формат манифеста задан РОВНО в одном месте — `dumps()` генератора, —
+    и берётся оттуда, а не переписывается здесь второй раз (одно имя — один
+    объект).
+    """
+    spec = importlib.util.spec_from_file_location(
+        "_bam_dumps", REPO / "scripts" / "build_architecture_manifest.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.dumps(manifest)
+
+
 def run(*, write: bool) -> dict:
     data = json.loads(MANIFEST.read_text(encoding="utf-8"))
     agents = data.get("agents", [])
@@ -187,8 +207,8 @@ def run(*, write: bool) -> dict:
     }
     if write:
         sys.path.insert(0, str(REPO))
-        from spa_core.utils.atomic import atomic_save
-        atomic_save(data, str(MANIFEST))
+        from spa_core.utils.atomic import atomic_save_text
+        atomic_save_text(_dumps(data), str(MANIFEST))
     return report
 
 
