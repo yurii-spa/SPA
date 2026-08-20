@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Находка петли: возможность fluid_fusdc 5.03% (evidence L3) доступна книге, не держитс"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-13
 finding_key: "gap:opportunity_unnamed:fluid_fusdc"
