@@ -23,11 +23,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from spa_core.allocator.allocator import StrategyAllocator
-from spa_core.paper_trading.risk_gate import (
-    _apply_risk_policy_gate,
-    redistribute_freed_budget,
-)
+# spa_core импортируется ВНУТРИ main(): файл живёт вне каталогов автосинка,
+# и жёсткий верхнеуровневый импорт spa_core запрещён сторожем
+# test_unsynced_hard_imports (протухание молча, авария 2026-08-17).
 
 CAPITAL = 100_000.0
 
@@ -50,6 +48,12 @@ GRADES = [
 
 
 def main() -> None:
+    from spa_core.allocator.allocator import StrategyAllocator
+    from spa_core.paper_trading.risk_gate import (
+        _apply_risk_policy_gate,
+        redistribute_freed_budget,
+    )
+
     tmp = Path(tempfile.mkdtemp(prefix="cio_g4_repro_"))
     (tmp / "status.json").write_text(json.dumps({"adapters": ADAPTERS}))
     (tmp / "risk_scores.json").write_text(json.dumps({"scores": GRADES}))

@@ -43,10 +43,45 @@ _UNAVAILABLE_MSG = "Не смог обработать сообщение. Пе�
 _EMPTY_MSG = "Пустой ответ. Переформулируй или пришли как /task <текст>."
 
 
+def _fmt_age(path: Path) -> str:
+    """«5д назад» по mtime файла — честный штамп свежести источника."""
+    try:
+        import time
+
+        age_s = max(0.0, time.time() - path.stat().st_mtime)
+        if age_s < 3600:
+            return f"{int(age_s // 60)}м назад"
+        if age_s < 86400:
+            return f"{int(age_s // 3600)}ч назад"
+        return f"{int(age_s // 86400)}д назад"
+    except Exception:  # noqa: BLE001
+        return "возраст неизвестен"
+
+
 def _build_context(max_chars: int = 6000) -> str:
     parts: list[str] = []
+    # Живые числа трека ПЕРВЫМИ: большинство вопросов владельца — про состояние.
     try:
-        parts.append("=== docs/STATE.md ===\n" + (_REPO / "docs" / "STATE.md").read_text(encoding="utf-8"))
+        import json as _json
+
+        st_path = _REPO / "data" / "paper_trading_status.json"
+        st = _json.loads(st_path.read_text(encoding="utf-8"))
+        parts.append(
+            "=== Живой трек (data/paper_trading_status.json, %s) ===\n"
+            "дней: %s · equity: $%s · доходность сегодня: %s%% годовых · "
+            "последний цикл: %s (%s)" % (
+                _fmt_age(st_path),
+                st.get("days_running"), st.get("current_equity"),
+                st.get("apy_today_pct"), st.get("last_cycle_status"),
+                st.get("last_cycle_ts"),
+            )
+        )
+    except Exception:
+        pass
+    try:
+        state_path = _REPO / "docs" / "STATE.md"
+        parts.append("=== docs/STATE.md (обновлён %s — может отставать) ===\n" % _fmt_age(state_path)
+                     + state_path.read_text(encoding="utf-8"))
     except Exception:
         pass
     try:
@@ -75,7 +110,10 @@ Telegram. Определи ТИП сообщения и ответь СТРОГ�
 1) Если это ВОПРОС о состоянии проекта (что в работе, что меня ждёт, что нового, что решили по \
 теме, статус, агенты и т.п.) → ПЕРВАЯ строка ровно `QUESTION`, дальше короткий человеческий ответ \
 по-русски (2–6 строк) СТРОГО на основе КОНТЕКСТА ниже. Не выдумывай: если в контексте ответа нет — \
-честно напиши, что в записях этого нет.
+честно напиши, что в ЛОКАЛЬНЫХ записях этого не видно. ВАЖНО про карточки: локальный список может \
+отставать от origin — никогда не утверждай, что карточки «не существует»; предложи владельцу написать \
+«проверь <имя>» (бот найдёт её на origin и пришлёт с кнопками). Числа трека бери только из блока \
+«Живой трек»; у каждого источника указан возраст — если источник старый, скажи об этом.
 
 2) Если это ПОРУЧЕНИЕ или ЗАДАЧА (просьба что-то сделать/построить/починить) → верни РОВНО одну \
 строку `TASK` (больше ничего).

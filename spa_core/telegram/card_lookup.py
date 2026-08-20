@@ -51,6 +51,21 @@ _QUEUE_QUESTION_RE = re.compile(
     re.IGNORECASE,
 )
 
+# «открой 2» / «покажи №3» — выбор из ПОСЛЕДНЕГО показанного списка по номеру.
+# Голое число сюда не попадает намеренно: голое число — ОТВЕТ владельца (ADR-082).
+_PICK_RE = re.compile(
+    r"^\s*(?:открой|покажи|пришли|давай|отправь)\s+№?\s*(\d{1,2})\s*$",
+    re.IGNORECASE,
+)
+
+# «проверь тормоз» / «найди карточку про сайт» — поиск по СЛОВАМ названия,
+# когда точного слага в сообщении нет. Триггер-слово обязательно: иначе любой
+# текст стал бы «поиском» и никогда не доехал бы до классификатора задач.
+_LOOKUP_LEAD_RE = re.compile(
+    r"^\s*(?:проверь|найди|открой|покажи|пришли)\s+(?:карточк\w*\s+)?(?:про\s+)?(.{2,120})$",
+    re.IGNORECASE | re.DOTALL,
+)
+
 _GIT_TIMEOUT_S = 15
 
 
@@ -180,7 +195,7 @@ def _card_line(path: Path) -> str:
         status = str(card.status or "?")
     except Exception:  # noqa: BLE001 — битая карточка не должна прятать остальные
         pass
-    return f"• <b>{html.escape(title)}</b> [{html.escape(status)}] · <code>{html.escape(path.name)}</code>"
+    return f"<b>{html.escape(title)}</b> [{html.escape(status)}] · <code>{html.escape(path.name)}</code>"
 
 
 def card_summary(path: Path) -> str:
@@ -225,19 +240,78 @@ def needs_owner_cards(tracker_dir: Path) -> List[Path]:
     return [p for _, p in sorted(out, key=lambda t: t[0], reverse=True)]
 
 
-def queue_answer(tracker_dir: Path) -> str:
-    """Ответ на «что на мне?» — из ЖИВОГО трекера, не из памяти (HTML)."""
+def match_queue_pick(text: str) -> Optional[int]:
+    """«открой 2» → 2. Не выбор → ``None``. Голое число сюда не попадает."""
+    if not text:
+        return None
+    m = _PICK_RE.match(str(text))
+    return int(m.group(1)) if m else None
+
+
+def strip_lookup_lead(text: str) -> Optional[str]:
+    """«проверь тормоз» → «тормоз». Нет триггер-слова → ``None``."""
+    if not text:
+        return None
+    m = _LOOKUP_LEAD_RE.match(str(text))
+    return m.group(1).strip() if m else None
+
+
+def find_cards_by_title(query: str, tracker_dir: Path) -> List[Path]:
+    """Поиск по словам названия: каждое слово запроса должно войти в title/имя.
+
+    Детерминированно (casefold-вхождение, БЕЗ LLM). Пустой запрос или <2 симв. —
+    пусто. Никогда не бросает.
+    """
+    try:
+        words = [w for w in str(query or "").casefold().split() if len(w) >= 2]
+        if not words or not tracker_dir.is_dir():
+            return []
+        from spa_core.owner_queue.queue import load_card
+
+        out: List[Path] = []
+        for p in sorted(tracker_dir.glob("*.md")):
+            if p.name.startswith("_"):
+                continue
+            hay = p.stem.casefold()
+            try:
+                hay += " " + str(load_card(p).title or "").casefold()
+            except Exception:  # noqa: BLE001 — битая карточка ищется по имени
+                pass
+            if all(w in hay for w in words):
+                out.append(p)
+        return out
+    except Exception as exc:  # noqa: BLE001
+        log.warning("card_lookup.find_cards_by_title failed for %r: %s", query, exc)
+        return []
+
+
+def queue_overview(tracker_dir: Path) -> Tuple[str, List[Path]]:
+    """«Что на мне?»: нумерованный список из ЖИВОГО трекера + сами карточки.
+
+    Возвращает ``(текст, карточки)`` — вызывающий рассылает каждую отдельным
+    сообщением с кнопками и запоминает порядок для «открой N».
+    """
     cards = needs_owner_cards(tracker_dir)
     if not cards:
         return (
             "📥 В живом трекере нет карточек со статусом <b>needs-owner</b>.\n"
             "Честная оговорка: карточки с origin доезжают сюда не сами — "
             "если ждёшь конкретную, назови её имя (например «проверь own-54»), "
-            "я поищу и на origin."
+            "я поищу и на origin.",
+            [],
         )
     lines = [f"🟥 Ждут твоего решения — {len(cards)} шт. (по живому трекеру):"]
-    lines += [_card_line(p) for p in cards[:15]]
+    for i, p in enumerate(cards[:15], 1):
+        lines.append(f"{i}. {_card_line(p)}")
     if len(cards) > 15:
         lines.append(f"… и ещё {len(cards) - 15}.")
-    lines.append("Назови карточку («проверь own-54») — пришлю её с вариантами ответа.")
-    return "\n".join(lines)
+    lines.append(
+        "Сейчас пришлю каждое отдельным сообщением с кнопками. "
+        "Открыть по номеру: «открой 2». По словам: «проверь тормоз»."
+    )
+    return "\n".join(lines), cards
+
+
+def queue_answer(tracker_dir: Path) -> str:
+    """Back-compat обёртка: только текст ``queue_overview``."""
+    return queue_overview(tracker_dir)[0]

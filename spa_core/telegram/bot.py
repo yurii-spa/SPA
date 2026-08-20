@@ -1144,16 +1144,41 @@ class TelegramBot:
         except Exception as exc:  # noqa: BLE001 — опрос важнее сборщика
             log.warning("flush_pending_documents failed: %s", exc)
 
+    def _send_card(self, path, chat_id: str) -> None:
+        """Одна карточка владельцу: needs-owner → полный вид с кнопками, иначе сводка."""
+        from spa_core.telegram import card_lookup as cl
+
+        status = ""
+        try:
+            from spa_core.owner_queue.queue import load_card
+
+            status = str(load_card(path).status or "").strip().lower()
+        except Exception:  # noqa: BLE001 — сводка ниже переживёт битую карточку
+            pass
+        if status == "needs-owner":
+            # Полный владельческий вид: варианты + кнопки + регистрация нажатия —
+            # тем же единственным отправителем, что и штатные уведомления (дедуп
+            # 30 мин внутри: повторный «что на мне?» не зальёт чат копиями).
+            from spa_core.owner_queue.notify import notify_needs_owner
+
+            notify_needs_owner(path)
+            return
+        self.send_message(cl.card_summary(path), chat_id)
+
     def _handle_card_query(self, text: str, chat_id: str) -> bool:
-        """«Что на мне?» / «проверь own-54» → ответ из ТРЕКЕРА, не из памяти.
+        """Карточные вопросы владельца — из ТРЕКЕРА, не из памяти (v2, без слагов).
 
-        Возвращает True, если сообщение разобрано как карточный вопрос (ответ
-        отправлен). False — не карточный вопрос, работает обычный классификатор.
+        Владелец не обязан знать имена карточек (задание 2026-08-20: «не хочу
+        быть передастом»). Понимает четыре формы, все детерминированно:
 
-        Детерминированно (LLM запрещён на пути решений владельца). Карточка,
-        которой нет в живом дереве, доносится с origin/main и материализуется —
-        иначе кнопки под ней декоративны (класс «карточки не возит никто»).
-        Никогда не бросает: любой сбой → False, сообщение уходит прежним путём.
+        * «что на мне?» → нумерованный список + КАЖДОЕ решение отдельным
+          сообщением с кнопками (дедуп 30 мин защищает от повторной рассылки);
+        * «открой 2» → карточка №2 из последнего списка;
+        * «проверь тормоз» → поиск по словам названия;
+        * «проверь own-54» → точное имя; нет в живом дереве → донос с origin/main.
+
+        Возвращает True, если сообщение разобрано (ответ отправлен). False — не
+        карточный вопрос, работает обычный классификатор. Никогда не бросает.
         """
         try:
             import html as _html
@@ -1163,59 +1188,96 @@ class TelegramBot:
 
             wants_queue = cl.is_queue_question(text)
             ref = cl.extract_card_ref(text)
-            if not wants_queue and not ref:
+            pick = cl.match_queue_pick(text)
+            lead = None if (ref or wants_queue) else cl.strip_lookup_lead(text)
+            if not (wants_queue or ref or pick is not None or lead):
                 return False
             tracker = od._live_tracker_dir(None)
             if tracker is None:
                 # Под pytest / без живого дерева карточный путь не работает —
                 # честнее отдать сообщение обычному маршруту, чем отвечать вслепую.
                 return False
+            if not hasattr(self, "_last_queue_cards"):
+                self._last_queue_cards: Dict[str, list] = {}
+
+            # ── «открой 2» — выбор из последнего показанного списка ────────────
+            if pick is not None:
+                names = self._last_queue_cards.get(str(chat_id)) or []
+                if not names:
+                    self.send_message(
+                        "🔎 Я ещё не показывал список в этом чате — спроси "
+                        "«что на мне?», пришлю с номерами.", chat_id)
+                    return True
+                if not (1 <= pick <= len(names)):
+                    self.send_message(
+                        "🔎 В последнем списке %d пункт(ов) — номера %d нет."
+                        % (len(names), pick), chat_id)
+                    return True
+                path = tracker / names[pick - 1]
+                if not path.is_file():
+                    self.send_message(
+                        "⚠️ Карточка <code>%s</code> исчезла из трекера — "
+                        "спроси «что на мне?» заново." % _html.escape(names[pick - 1]),
+                        chat_id)
+                    return True
+                self._send_card(path, chat_id)
+                return True
+
+            # ── «что на мне?» — список + каждая карточка с кнопками ────────────
             if wants_queue and not ref:
-                self.send_message(cl.queue_answer(tracker), chat_id)
+                overview, cards = cl.queue_overview(tracker)
+                self.send_message(overview, chat_id)
+                self._last_queue_cards[str(chat_id)] = [p.name for p in cards]
+                for p in cards[:10]:
+                    try:
+                        self._send_card(p, chat_id)
+                    except Exception as exc:  # noqa: BLE001 — одна карточка не топит рассылку
+                        log.warning("card query: send %s failed: %s", p.name, exc)
+                if len(cards) > 10:
+                    self.send_message(
+                        "…прислал первые 10 из %d; остальные — «открой N» по списку."
+                        % len(cards), chat_id)
                 return True
 
-            matches = cl.find_cards(ref, tracker)
-            if not matches:
-                fetched = cl.fetch_origin_card(ref, tracker.parents[1])
-                if fetched:
-                    name, body = fetched
-                    target = cl.materialize_text(name, body, tracker)
-                    if target is not None:
-                        matches = [target]
-                        self.send_message(
-                            "ℹ️ Карточки <code>%s</code> не было в живом дереве — "
-                            "принёс с origin/main и положил в трекер."
-                            % _html.escape(name), chat_id)
-            if not matches:
-                self.send_message(
-                    "🔎 Карточка «%s» не найдена ни в живом трекере, ни на "
-                    "origin/main. Если имя неточное — назови точнее."
-                    % _html.escape(ref), chat_id)
-                return True
+            # ── точное имя / слаг ───────────────────────────────────────────────
+            if ref:
+                matches = cl.find_cards(ref, tracker)
+                if not matches:
+                    fetched = cl.fetch_origin_card(ref, tracker.parents[1])
+                    if fetched:
+                        name, body = fetched
+                        target = cl.materialize_text(name, body, tracker)
+                        if target is not None:
+                            matches = [target]
+                            self.send_message(
+                                "ℹ️ Карточки <code>%s</code> не было в живом дереве — "
+                                "принёс с origin/main и положил в трекер."
+                                % _html.escape(name), chat_id)
+                if not matches:
+                    self.send_message(
+                        "🔎 Карточка «%s» не найдена ни в живом трекере, ни на "
+                        "origin/main. Если имя неточное — назови словами: "
+                        "«проверь тормоз»." % _html.escape(ref), chat_id)
+                    return True
+            else:
+                # ── поиск по словам названия («проверь тормоз») ────────────────
+                matches = cl.find_cards_by_title(lead, tracker)
+                if not matches:
+                    self.send_message(
+                        "🔎 По словам «%s» карточек не нашёл. Полный список — "
+                        "«что на мне?»." % _html.escape(lead), chat_id)
+                    return True
+
             if len(matches) > 1:
-                lines = ["🔎 По «%s» найдено %d карточек — уточни имя:"
-                         % (_html.escape(ref), len(matches))]
-                lines += ["• <code>%s</code>" % _html.escape(p.name)
-                          for p in matches[:8]]
+                lines = ["🔎 Нашёл %d карточек — открой по номеру («открой 2»):"
+                         % len(matches)]
+                for i, m in enumerate(matches[:8], 1):
+                    lines.append("%d. <code>%s</code>" % (i, _html.escape(m.name)))
                 self.send_message("\n".join(lines), chat_id)
+                self._last_queue_cards[str(chat_id)] = [m.name for m in matches[:8]]
                 return True
 
-            path = matches[0]
-            status = ""
-            try:
-                from spa_core.owner_queue.queue import load_card
-
-                status = str(load_card(path).status or "").strip().lower()
-            except Exception:  # noqa: BLE001 — сводка ниже переживёт битую карточку
-                pass
-            if status == "needs-owner":
-                # Полный владельческий вид: варианты + кнопки + регистрация нажатия —
-                # тем же единственным отправителем, что и штатные уведомления.
-                from spa_core.owner_queue.notify import notify_needs_owner
-
-                notify_needs_owner(path)
-                return True
-            self.send_message(cl.card_summary(path), chat_id)
+            self._send_card(matches[0], chat_id)
             return True
         except Exception as exc:  # noqa: BLE001 — never crash the poll loop
             log.warning("_handle_card_query failed: %s", exc)
