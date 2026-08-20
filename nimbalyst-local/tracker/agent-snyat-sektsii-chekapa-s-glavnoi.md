@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent-task
 title: "Снять секции про бесплатный чекап с главной (решение владельца 19.08, вариант 1)"
-status: backlog
+status: done
 source: cycle-311-ingest
 created: 2026-08-20
 priority: medium
