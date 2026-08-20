@@ -27,6 +27,8 @@ so tests do not leak state into one another.
 """
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
 from spa_core.execution import safety_checks as sc
@@ -53,7 +55,19 @@ def _reset_module_state(tmp_path):
     sc._tx_timestamps.clear()
     sc._kill_switch_active = False
     sc.set_data_dir_override(tmp_path)
-    yield
+    # Транспорт Telegram подменён с 2026-08-20 (ADR-089 §2): у РУЧНОЙ постановки
+    # защёлки появился собственный отправитель, и `activate_kill_switch` теперь
+    # честно зовёт `notify_kill_switch`. Без подмены четыре теста этого файла
+    # уходили бы в боевой api.telegram.org — страж `telegram_guard` (цикл #58)
+    # ловит это и роняет их НАЗЫВАЯ, что он и сделал.
+    #
+    # Инв. #16 — проверка НЕ ослаблена: ни один assert не тронут, ни один тест
+    # не заскипан. Подменён только транспорт, ровно как предписывает сам страж и
+    # как цикл #55 уже сделал в трёх других файлах. Предмет этих тестов —
+    # блокирующий гейт исполнения, а не доставка сообщения; доставку меряет
+    # `test_killswitch_alert_survives_a_noisy_day.py`.
+    with mock.patch("spa_core.telegram.push_policy._send", return_value=True):
+        yield
     sc._tx_timestamps.clear()
     sc._kill_switch_active = False
     sc.set_data_dir_override(None)

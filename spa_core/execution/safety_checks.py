@@ -865,14 +865,30 @@ class PreExecutionSafety:
         silently reset the kill). All subsequent transactions are blocked until
         :meth:`deactivate_kill_switch` is called.
 
+        Владелец узнаёт об этом так же, как об автоматической постановке
+        (решение владельца 2026-08-19 вар. 1, ADR-089 §2). До 20.08 РУЧНАЯ
+        постановка была единственной немой: `run_kill_switch_check`,
+        `threat_reactor` и внутридневная проверка звонят каждая своим путём, а
+        здесь событие уходило в `print` — то есть в лог, который никто не
+        читает в момент остановки торговли.
+
+        Порядок обязателен: сначала защёлка записана, потом уведомление.
+        Отказ канала не имеет права отменить саму остановку.
+
         Args:
             reason: Human-readable reason for activation (recorded + logged)
         """
         global _kill_switch_active
         _kill_switch_active = True  # deprecated advisory shim (not authoritative)
         from spa_core.governance.kill_switch import KillSwitchChecker
-        KillSwitchChecker(data_dir=_resolve_data_dir()).activate_kill_switch(reason)
+        data_dir = _resolve_data_dir()
+        KillSwitchChecker(data_dir=data_dir).activate_kill_switch(reason)
         print(f"[KILL SWITCH ACTIVATED] {datetime.now(timezone.utc).isoformat()} — {reason}")
+        try:
+            from spa_core.alerts.kill_switch_alert import notify_kill_switch
+            notify_kill_switch(reason, source="ручная постановка", data_dir=data_dir)
+        except Exception:  # noqa: BLE001 — доставка не отменяет остановку
+            pass
 
     @staticmethod
     def deactivate_kill_switch(reason: str = "Manual deactivation by owner") -> None:

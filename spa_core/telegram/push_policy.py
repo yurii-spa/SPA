@@ -50,6 +50,15 @@ The gate, in order (ALL must pass to push):
    events — open /alerts" notice (sent once), and further events that day are
    dropped to the digest. Defends against a flapping detector.
 
+   **Exception — ``CEILING_EXEMPT_KEYS`` (owner decision 2026-08-19 вар. 1,
+   ADR-089 §2).** Остановка торговли — не «одно из» событий дня. 10.08 защёлка
+   простояла 13 часов незамеченной ровно потому, что день уже был шумным:
+   сообщение о стоп-кране конкурировало за тот же бюджет, что рутинный WARN.
+   Ключи из этого набора потолок не проверяют и бюджет НЕ тратят (иначе одна
+   остановка съедала бы место у десяти рутинных тревог). Спам это не открывает:
+   дедуп по отпечатку инцидента остаётся единственным и достаточным
+   ограничителем — тот же инцидент молчит, другой звонит.
+
 5. **Transport.** Sends via ``telegram_client._post_message`` so the shared
    flood-guard and ``alert_history.json`` audit trail still apply (belt &
    suspenders under the policy layer).
@@ -155,6 +164,24 @@ HELD_SCOPED_KEYS: frozenset[str] = frozenset({"peg_break", "red_flag"})
 # senders already dedup per milestone id in their own state file — the class-level bad-state
 # added no dedup, only silence.
 ONESHOT_KEYS: frozenset[str] = frozenset({"pilot_request", "golive_ready"})
+
+# Ключи, которые дневной потолок глушить НЕ ИМЕЕТ ПРАВА (решение владельца
+# 2026-08-19, вариант 1; ADR-089 §2; карточка `agent-stop-kran-sobstvennyi-otpravitel`).
+#
+# Авария, которую это лечит: 10.08 стоп-кран сработал и простоял 13 часов
+# незамеченным. Он отработал верно — утонула ДОСТАВКА: в тот день сторож уже
+# был красным по другой причине, потолок в 10 сообщений выбрали рутинные
+# тревоги, и остановка торговли ушла в «ещё события — открой /alerts».
+#
+# Свойство этого набора: событие не смотрит на потолок И не тратит его. Второе
+# так же важно, как первое: иначе одна остановка отнимала бы место у рутинных
+# тревог того же дня, то есть мы обменяли бы одну немоту на другую.
+#
+# Почему это не дыра для спама: у ключа обязан быть отпечаток инцидента
+# (``dedup_key``). Ограничителем остаётся он — тот же инцидент молчит, ДРУГОЙ
+# звонит. Потолок здесь никогда и не был защитой от повтора: повтор гасит
+# edge-триггер, а потолок гасил ПЕРВОЕ сообщение о новой аварии.
+CEILING_EXEMPT_KEYS: frozenset[str] = frozenset({"kill_switch"})
 
 DEFAULT_DAILY_CEILING = 10
 
@@ -264,7 +291,18 @@ def _today(now: Optional[datetime] = None) -> str:
 
 # ── Transport (the ONLY allowed Tier-1 send) ─────────────────────────────────
 def _send(text: str) -> bool:
-    """Send via the shared telegram_client transport (HTML). Never raises."""
+    """Send via the shared telegram_client transport (HTML). Never raises.
+
+    **Заслона «под pytest не отправлять» здесь СОЗНАТЕЛЬНО нет** (замерено
+    2026-08-20, цикл #313 — начал его писать и снял). Свойство «прогон тестов не
+    может позвонить владельцу» в репозитории уже есть, и оно СИЛЬНЕЕ: страж
+    `spa_core/tests/telegram_guard.py` (цикл #58) перехватывает `urlopen` и
+    роняет тест НАЗЫВАЯ его. Тихий `return False` на этом уровне выглядел бы
+    улучшением, а на деле ослепил бы стража: попытка не дошла бы до перехвата,
+    новый нарушитель перестал бы называться, и мы обменяли бы громкий отказ на
+    молчаливый. Ровно тот класс, который тут закрывают каждый цикл: гасить надо
+    МАРШРУТ, а не проверку.
+    """
     try:
         from spa_core.alerts.telegram_client import _post_message
         return bool(_post_message({"text": text, "parse_mode": "HTML"}))
@@ -342,7 +380,8 @@ def push_critical(
     resolved : push the ``bad → ok`` "RESOLVED" transition instead of the entry.
     data_dir : override the data dir (tests). Default <repo>/data.
     now      : injectable UTC time (determinism / tests).
-    daily_ceiling : hard cap on Tier-1 pushes per UTC day.
+    daily_ceiling : hard cap on Tier-1 pushes per UTC day. Ключи из
+        ``CEILING_EXEMPT_KEYS`` (стоп-кран) его не проверяют и не тратят.
     send     : when False, run the full gate but do not hit the transport (tests).
     dedup_key : optional STABLE fingerprint of the concrete incident (e.g. the
         sorted labels of the agents that are down). While the bad state persists
@@ -433,7 +472,11 @@ def _push_critical_impl(
     # Push immediately if under the daily ceiling; never write a persistent bad-state.
     if event_key in ONESHOT_KEYS and not resolved:
         ceil = _ceiling_for_today(state, today)
-        if int(ceil["pushed"]) >= daily_ceiling:
+        # Освобождение от потолка — свойство КЛЮЧА, а не ветки, в которую он
+        # попал. Иначе ключ, добавленный однажды в оба набора, молча потерял бы
+        # защиту, и узнали бы мы об этом на следующей аварии.
+        exempt = event_key in CEILING_EXEMPT_KEYS
+        if not exempt and int(ceil["pushed"]) >= daily_ceiling:
             # Over the ceiling: coalesce once, then demote further ones to the digest.
             if not ceil["coalesced_sent"]:
                 coalesced = (
@@ -455,7 +498,7 @@ def _push_critical_impl(
             log.info("push_policy: one-shot %r over ceiling → coalesced/demoted", event_key)
             return False
         sent = _send(_format_message(severity, title, body)) if send else True
-        if sent:
+        if sent and not exempt:
             ceil["pushed"] = int(ceil["pushed"]) + 1
         # record last_ts only — NO persistent bad-state (so the next lead pushes too)
         events[event_key] = {"state": _STATE_OK, "last_ts": ts, "oneshot": True}
@@ -508,7 +551,9 @@ def _push_critical_impl(
 
     # ── Gate 4: daily ceiling ────────────────────────────────────────────────
     ceil = _ceiling_for_today(state, today)
-    if ceil["pushed"] >= daily_ceiling:
+    # Остановка торговли потолку не подчиняется и его не тратит (ADR-089 §2).
+    exempt = event_key in CEILING_EXEMPT_KEYS
+    if not exempt and ceil["pushed"] >= daily_ceiling:
         # Mark the new bad state so the eventual RESOLVED still fires, but do not
         # push it individually — coalesce / demote. entry_pushed=False means the
         # persistence path will RETRY delivery once the ceiling frees up.
@@ -544,7 +589,7 @@ def _push_critical_impl(
     sent = _send(_format_message(severity, title, body)) if send else True
     events[event_key] = {"state": _STATE_BAD, "last_ts": ts,
                          "entry_pushed": bool(sent), "fingerprint": dedup_key}
-    if sent:
+    if sent and not exempt:
         ceil["pushed"] = int(ceil["pushed"]) + 1
     _save_state(tg_dir, state)
     log.info("push_policy: %r ENTRY pushed (sent=%s, ceiling=%d/%d)",

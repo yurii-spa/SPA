@@ -178,8 +178,18 @@ def test_advisory_peg_flap_does_not_prime_edge_state(tmp_path, sent):
 
 # ── daily ceiling ────────────────────────────────────────────────────────────
 def test_daily_ceiling_caps_pushes_and_coalesces_once(tmp_path, sent):
+    # Носитель заменён `kill_switch` → `cycle_gap` 2026-08-20 (ADR-089 §2,
+    # решение владельца вар. 1): стоп-кран выведен из-под дневного потолка
+    # (`push_policy.CEILING_EXEMPT_KEYS`), поэтому ключом-примером для ПОТОЛКА
+    # он больше служить не может. Проверка не ослаблена ни на одно утверждение —
+    # ровно те же три assert'а о том же свойстве, сменился только рутинный
+    # ключ-носитель. Новое поведение стоп-крана закрыто отдельным файлом
+    # `test_killswitch_alert_survives_a_noisy_day.py` (11 тестов, 9 краснеют
+    # на неисправленном origin), включая ОБРАТНЫЙ контроль «рутинная тревога
+    # сверх потолка по-прежнему демотируется». Инв. #16: изменение намеренное,
+    # обосновано здесь и записано в `docs/journal/2026-W34.md`.
     ceiling = 3
-    keys = ["kill_switch", "cycle_failed", "system_critical",
+    keys = ["cycle_gap", "cycle_failed", "system_critical",
             "agent_health_critical", "core_agent_down", "rules_critical"]
     pushed = 0
     for k in keys:
@@ -374,27 +384,37 @@ def test_undelivered_entry_is_retried_until_delivered_once(tmp_path, monkeypatch
 def test_ceiling_demoted_entry_is_delivered_when_ceiling_frees(tmp_path, sent):
     # An entry demoted by the daily ceiling (entry_pushed=False) must be
     # delivered when capacity is available again (next UTC day), not lost.
+    #
+    # Носитель заменён `kill_switch` → `system_critical` 2026-08-20 (ADR-089 §2):
+    # стоп-кран потолком больше не демотируется в принципе, то есть предусловие
+    # «entry_pushed=False из-за потолка» на нём воспроизвести НЕЛЬЗЯ. Свойство,
+    # которое мерит тест (недоставленная запись досылается, а не теряется
+    # навсегда), не изменилось и проверяется тем же кодом. Для стоп-крана та же
+    # досылка проверена отдельно — `test_a_refused_transport_is_retried_next_time`
+    # в `test_killswitch_alert_survives_a_noisy_day.py`, только предусловием там
+    # служит отказ ТРАНСПОРТА, а не потолок. Инв. #16: намеренно, обосновано,
+    # записано в `docs/journal/2026-W34.md`.
     day1, day2 = _dt(day=3), _dt(day=4)
     # Exhaust a ceiling of 1 with another key.
     assert push_policy.push_critical(
         "cycle_failed", "CRITICAL", "c", "b",
         data_dir=str(tmp_path), daily_ceiling=1, now=day1,
     ) is True
-    # kill_switch enters bad over the ceiling → coalesced, entry NOT delivered.
+    # system_critical enters bad over the ceiling → coalesced, entry NOT delivered.
     assert push_policy.push_critical(
-        "kill_switch", "CRITICAL", "Kill", "fired",
+        "system_critical", "CRITICAL", "Kill", "fired",
         data_dir=str(tmp_path), daily_ceiling=1, now=day1,
     ) is False
     sent_after_day1 = len(sent)
     # Next day, condition still bad: unfixed code stays silent forever; fixed
     # code delivers the never-delivered entry exactly once.
     assert push_policy.push_critical(
-        "kill_switch", "CRITICAL", "Kill", "fired",
+        "system_critical", "CRITICAL", "Kill", "fired",
         data_dir=str(tmp_path), daily_ceiling=1, now=day2,
     ) is True
     assert len(sent) == sent_after_day1 + 1
     # And once delivered — silent again.
     assert push_policy.push_critical(
-        "kill_switch", "CRITICAL", "Kill", "fired",
+        "system_critical", "CRITICAL", "Kill", "fired",
         data_dir=str(tmp_path), daily_ceiling=1, now=day2,
     ) is False

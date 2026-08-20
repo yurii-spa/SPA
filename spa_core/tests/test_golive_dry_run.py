@@ -16,6 +16,7 @@ stdlib + pytest only. No network, no chain, no capital.
 from __future__ import annotations
 
 import math
+from unittest import mock
 
 import pytest
 
@@ -136,8 +137,25 @@ def test_over_concentration_blocked():
 # ── Manual kill injection ───────────────────────────────────────────────────
 
 def test_manual_kill_fires_and_leaves_no_dirty_state():
+    # Транспорт Telegram подменён 2026-08-20 (ADR-089 §2, подъём #314): у РУЧНОЙ
+    # постановки защёлки появился собственный отправитель, а этот тест ставит её
+    # по-настоящему (`inject={"manual_kill": True}`) ⇒ без подмены он уходит в
+    # боевой api.telegram.org, и страж `telegram_guard` (цикл #58) роняет его,
+    # НАЗЫВАЯ — что он и сделал: 2 живых вызова, пойманных полным прогоном.
+    #
+    # Пятый тест того же класса: цикл #313 подменил транспорт в четырёх тестах
+    # `test_pre_execution_safety.py` и этот НЕ НАШЁЛ — он в другом файле и ставит
+    # защёлку через харнесс, а не напрямую. Нашёл его полный прогон против
+    # контроля на чистом origin того же sha (1 error у меня против 0 у origin),
+    # то есть цена «поверить отчёту мёртвой сессии» здесь была бы красный main.
+    #
+    # Инв. #16 — проверка НЕ ослаблена: ни один assert не тронут, ничего не
+    # заскипано. Подменён РОВНО транспорт, как предписывает сам страж. Предмет
+    # теста — что харнесс доходит до гейтов и не оставляет защёлку взведённой;
+    # доставку сообщения меряет `test_killswitch_alert_survives_a_noisy_day.py`.
     assert PreExecutionSafety.is_kill_switch_active() is False
-    report = dry_run(CLEAN_ALLOC, inject={"manual_kill": True})
+    with mock.patch("spa_core.telegram.push_policy._send", return_value=True):
+        report = dry_run(CLEAN_ALLOC, inject={"manual_kill": True})
     assert _verdict(report, "kill_switch") == "BLOCKED"
     assert _verdict(report, "pre_execution_safety") == "BLOCKED"
     assert report["would_proceed"] is False
