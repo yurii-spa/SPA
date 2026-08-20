@@ -13,7 +13,20 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(ROOT))
 
+import pytest
+
 import spa_core.analytics.protocol_regulatory_risk_assessor as mod
+
+
+# ---------------------------------------------------------------------------
+# Прогон не смеет писать в spa_core/data/ (agent-test-run-dirties-tracked-fixtures).
+# Разбор — spa_core/tests/_package_data_guard.py.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _regulatory_risk_log_into_tmp(tmp_path, monkeypatch):
+    monkeypatch.setattr(mod, "DATA_FILE", tmp_path / "regulatory_risk_log.json")
 
 
 # ---------------------------------------------------------------------------

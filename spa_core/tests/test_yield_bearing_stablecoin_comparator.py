@@ -23,6 +23,32 @@ from spa_core.analytics.yield_bearing_stablecoin_comparator import (
     _RING_BUFFER_MAX,
 )
 
+import functools
+
+import pytest
+
+import spa_core.analytics.yield_bearing_stablecoin_comparator as _ybs_mod
+
+
+# ---------------------------------------------------------------------------
+# Прогон не смеет писать в spa_core/data/ (agent-test-run-dirties-tracked-fixtures).
+# Подменять `_LOG_FILE` БЕСПОЛЕЗНО: путь запечён в значение по умолчанию
+# `_append_log(entry, log_path=_LOG_FILE)` в момент определения функции. Поэтому
+# подменяется САМА функция — partial'ом с tmp-путём; analyze() зовёт её позиционно.
+# Разбор — spa_core/tests/_package_data_guard.py.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _yield_stablecoin_log_into_tmp(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        _ybs_mod,
+        "_append_log",
+        functools.partial(
+            _ybs_mod._append_log, log_path=str(tmp_path / "yield_stablecoin_log.json")
+        ),
+    )
+
 
 # ---------------------------------------------------------------------------
 # Fixtures

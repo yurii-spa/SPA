@@ -43,8 +43,34 @@ import unittest
 from dataclasses import dataclass
 from typing import Any, Dict, List, Mapping, Optional
 
+import pytest
+
 from spa_core.analytics import _module_registry as registry
+from spa_core.analytics import daily_digest as _daily_digest
 from spa_core.analytics import signal_aggregator as sa
+
+
+# ---------------------------------------------------------------------------
+# Прогон не смеет писать в spa_core/data/ (agent-test-run-dirties-tracked-fixtures).
+# Здесь прогоняются ВСЕ Tier-C модули реестра, и один из них — DailyDigest —
+# строится конструктором по умолчанию (`data_dir="data"`) и сохраняет дайджест;
+# под `cd spa_core` (шаг CI) это каталог ПАКЕТА. Замер #315 назвал именно этот
+# тест писателем `daily_digest.json` (в списке карточки имя стояло как
+# `daily_digest_log.json` — такого файла не создаёт никто).
+# Подменяется только КУДА пишется дайджест: считаемое не меняется, поэтому
+# утверждение «те же 9 ok-модулей» проверяет ровно то же, что и раньше.
+# Разбор — spa_core/tests/_package_data_guard.py.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _daily_digest_into_tmp(tmp_path, monkeypatch):
+    _orig_init = _daily_digest.DailyDigest.__init__
+
+    def _init(self, data_dir=str(tmp_path)):
+        _orig_init(self, data_dir)
+
+    monkeypatch.setattr(_daily_digest.DailyDigest, "__init__", _init)
 
 
 # ─── Образцы модулей ──────────────────────────────────────────────────────────

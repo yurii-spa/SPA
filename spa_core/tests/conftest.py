@@ -674,3 +674,24 @@ def _no_live_backup_dir():
     backup_dir_guard.install()
     yield
     backup_dir_guard.restore()
+
+
+# ---------------------------------------------------------------------------
+# Прогон не смеет оставлять файлы в spa_core/data/ — это каталог ПАКЕТА с
+# git-tracked фикстурами, а не runtime-state. Под `cd spa_core` (шаг CI
+# «Run spa_core/tests») относительный `data/...` analytics-модулей резолвится
+# именно сюда, и до цикла #315 полный прогон оставлял там 14 untracked файлов ⇒
+# reap_stale_worktrees выносил `absent` и НЕ снимал рабочее дерево никогда.
+# Разбор, замер и почему сторож шире починки — spa_core/tests/_package_data_guard.py.
+# Загружается по пути к файлу (как backup_dir_guard выше): тот же модуль
+# подключается плагином `-p` в положительном контроле, и второй копии быть не должно.
+# ---------------------------------------------------------------------------
+_PKG_DATA_GUARD_PATH = Path(__file__).resolve().parent / "_package_data_guard.py"
+package_data_guard = sys.modules.get("spa_package_data_guard")
+if package_data_guard is None:
+    _pdg_spec = _ilu.spec_from_file_location("spa_package_data_guard", _PKG_DATA_GUARD_PATH)
+    package_data_guard = _ilu.module_from_spec(_pdg_spec)     # type: ignore[arg-type]
+    _pdg_spec.loader.exec_module(package_data_guard)          # type: ignore[union-attr]
+    sys.modules["spa_package_data_guard"] = package_data_guard
+
+_package_data_stays_clean = package_data_guard._package_data_stays_clean

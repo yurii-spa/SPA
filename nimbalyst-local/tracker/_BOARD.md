@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **527** · ждёт владельца: **3** · занято сессиями: **5**.
+> Всего карточек: **529** · ждёт владельца: **3** · занято сессиями: **5**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -140,7 +140,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (242)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (244)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -356,6 +356,7 @@
 - CIO: этап-1 (диагностика) готов документом — исполнять гэпы G1→G4, осколки 13.08 закрыть как дубли  ·  `inbox-cio-etap1-diagnostika-gotova-ispolnyat-g1-g4.md` · 2026-08-19
 - CLMM «79%»: research (часть 1 ADR-070 п.20) готов документом — остаётся часть 2 (ADR допуска с хеджем)  ·  `inbox-clmm-research-chast1-gotova-adr-070-p20.md` · 2026-08-19
 - Демоушен книг Aggressive по ОТНОСИТЕЛЬНОМУ рангу (решение владельца 09.08, вариант A)  ·  `inbox-demoushen-knig-aggressive-po-otnositelno.md` · 2026-08-09
+- Дочерний pytest виснет, если его тест-файл лежит в basetemp родителя: 300 с вместо 0.00 с  ·  `inbox-dochernii-pytest-visnet-esli-ego-test-fa.md` · 2026-08-20
 - Долгоживущие агенты не подхватывают доставленный код — и никто об этом не говорит  ·  `inbox-dolgozhivuschie-agenty-ne-podhvatyvayut.md` · 2026-08-08
 - Два теста краснеют оттого, что владелец ОТВЕТИЛ: очередь CLI судит о главном дереве  ·  `inbox-dva-testa-krasneyut-ottogo-chto-vladelet.md` · 2026-08-19
 - Две записи о деньгах расходятся каждый день — найти и починить ПРИЧИНУ (решение владельца 10.08, вариант 1)  ·  `inbox-dve-zapisi-o-dengah-rashodyatsya-kazhdyi.md` · 2026-08-10
@@ -373,6 +374,7 @@
 - Подготовить ADR: пересмотр лимита одной цепочки 90% (решение владельца — за ним)  ·  `inbox-podgotovit-adr-peresmotr-limita-odnoi-ts.md` · 2026-08-08
 - Сбалансированный трек: ноль профинансированных дней из 40 при 920 отработанных циклах  ·  `inbox-sbalansirovannyi-trek-nol-profinansirova.md` · 2026-08-08
 - Семь скриптов, вскрытых строгим сканером: разобрать поштучно (подключить / списать / вывести класс правилом)  ·  `inbox-sem-skriptov-vskrytyh-strogim-skanerom-r.md` · 2026-08-16
+- Шторм повторов одного решения владельцу (200+ копий за ночь) — анти-шторм доставлен, корень (слепой предикат «отправлено») остаётся  ·  `inbox-shtorm-povtorov-odnogo-resheniya-vladeltsu.md` · 2026-08-20
 - Скан кандидатов работает каждый цикл по реестру, которого никто не пишет: discovery не подключён ни одним агентом  ·  `inbox-skan-kandidatov-rabotaet-kazhdyi-tsikl-p.md` · 2026-08-18
 - Снять переходное послабление маячка: решения обязаны гейтиться СВОИМ умением  ·  `inbox-snyat-perehodnoe-poslablenie-mayachka-re.md` · 2026-08-17
 - Снятая остановка живёт в git: восстановление из резерва поднимет прод уже остановленным  ·  `inbox-snyataya-ostanovka-zhivet-v-git-vosstano.md` · 2026-08-10

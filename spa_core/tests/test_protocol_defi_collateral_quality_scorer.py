@@ -11,9 +11,26 @@ import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
+import pytest
+
 from spa_core.analytics.protocol_defi_collateral_quality_scorer import (
     ProtocolDeFiCollateralQualityScorer,
 )
+
+
+# ---------------------------------------------------------------------------
+# Прогон не смеет писать в spa_core/data/ (agent-test-run-dirties-tracked-fixtures).
+# Путь лога — атрибут КЛАССА и он относителен. Разбор — spa_core/tests/_package_data_guard.py.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _collateral_quality_log_into_tmp(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        ProtocolDeFiCollateralQualityScorer,
+        "LOG_FILE",
+        str(tmp_path / "collateral_quality_log.json"),
+    )
 
 # ---------------------------------------------------------------------------
 # Helpers

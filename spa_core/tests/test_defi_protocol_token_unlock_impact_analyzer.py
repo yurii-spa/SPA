@@ -11,12 +11,29 @@ import unittest
 _SRC = os.path.join(os.path.dirname(__file__), '..', '..')
 sys.path.insert(0, _SRC)
 
+import pytest
+
 from spa_core.analytics.defi_protocol_token_unlock_impact_analyzer import (
     DeFiProtocolTokenUnlockImpactAnalyzer,
     DEFAULT_CONFIG,
     VALID_IMPACT_LABELS,
     VALID_FLAGS,
 )
+
+
+# ---------------------------------------------------------------------------
+# Прогон не смеет писать в spa_core/data/ (agent-test-run-dirties-tracked-fixtures).
+# Путь лога приходит из DEFAULT_CONFIG и он относителен; конструктор без cfg
+# (TestMultipleSchedules::test_default_constructor_works) писал в каталог пакета.
+# Разбор — spa_core/tests/_package_data_guard.py.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _token_unlock_log_into_tmp(tmp_path, monkeypatch):
+    monkeypatch.setitem(
+        DEFAULT_CONFIG, "log_path", str(tmp_path / "token_unlock_impact_log.json")
+    )
 
 
 # ---------------------------------------------------------------------------

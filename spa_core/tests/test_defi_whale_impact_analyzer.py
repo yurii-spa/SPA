@@ -14,7 +14,22 @@ from unittest.mock import patch
 import spa_core.analytics.defi_whale_impact_analyzer as _mod
 import tempfile
 
+import pytest
+
 _ORIG_DATA_FILE = _mod.DATA_FILE
+
+
+# ---------------------------------------------------------------------------
+# Прогон не смеет писать в spa_core/data/ (agent-test-run-dirties-tracked-fixtures).
+# Комментарий выше обещал подмену «before import», но её не было ни одной строкой —
+# писателя нашли замером #315 (analyze() из TestImpactLevels). Разбор —
+# spa_core/tests/_package_data_guard.py.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _whale_impact_log_into_tmp(tmp_path, monkeypatch):
+    monkeypatch.setattr(_mod, "DATA_FILE", tmp_path / "whale_impact_log.json")
 
 
 def _make_pool(

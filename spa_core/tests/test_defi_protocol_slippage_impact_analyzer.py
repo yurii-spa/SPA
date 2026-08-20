@@ -12,9 +12,27 @@ import tempfile
 # Make sure the repo root is on the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
+import pytest
+
 from spa_core.analytics.defi_protocol_slippage_impact_analyzer import (
     DeFiProtocolSlippageImpactAnalyzer,
 )
+
+
+# ---------------------------------------------------------------------------
+# Прогон не смеет писать в spa_core/data/ (agent-test-run-dirties-tracked-fixtures).
+# Путь лога — атрибут КЛАССА и он относителен; под `cd spa_core` (шаг CI) он
+# резолвится в каталог пакета. Разбор — spa_core/tests/_package_data_guard.py.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _slippage_log_into_tmp(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        DeFiProtocolSlippageImpactAnalyzer,
+        "LOG_FILE",
+        str(tmp_path / "slippage_impact_log.json"),
+    )
 
 # ---------------------------------------------------------------------------
 # Helpers

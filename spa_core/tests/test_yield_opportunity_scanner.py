@@ -28,6 +28,19 @@ from spa_core.analytics.yield_opportunity_scanner import (
     analyze,
 )
 
+import pytest
+
+
+# ---------------------------------------------------------------------------
+# Прогон не смеет писать в spa_core/data/ (agent-test-run-dirties-tracked-fixtures).
+# Разбор — spa_core/tests/_package_data_guard.py.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _yield_scan_log_into_tmp(tmp_path, monkeypatch):
+    monkeypatch.setattr(yos, "DATA_FILE", tmp_path / "yield_opportunity_scan_log.json")
+
 
 # ---------------------------------------------------------------------------
 # Test helpers / fixtures

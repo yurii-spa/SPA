@@ -39,10 +39,30 @@ from spa_core.analytics.protocol_insurance_scorer import (
     _DOMAIN_KEYS as INSURANCE_DOMAIN_KEYS,
     ProtocolInsuranceScorer,
 )
+import pytest
+
+from spa_core.analytics import (
+    defi_protocol_token_bridge_security_risk_analyzer as _bridge_mod,
+)
 from spa_core.analytics.defi_protocol_token_bridge_security_risk_analyzer import (
     _DOMAIN_KEYS as BRIDGE_DOMAIN_KEYS,
     DeFiProtocolTokenBridgeSecurityRiskAnalyzer,
 )
+
+
+# ---------------------------------------------------------------------------
+# Прогон не смеет писать в spa_core/data/ (agent-test-run-dirties-tracked-fixtures).
+# `DATA_FILE` bridge-модуля относителен; под `cd spa_core` (шаг CI) полный payload
+# в TestBridgeAnalyzerRefusesHoles доходил до записи лога в каталог ПАКЕТА.
+# Разбор — spa_core/tests/_package_data_guard.py.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _bridge_log_into_tmp(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        _bridge_mod, "DATA_FILE", tmp_path / "bridge_security_risk_log.json"
+    )
 
 ANALYTICS_DIR = pathlib.Path(__file__).resolve().parents[1] / "analytics"
 

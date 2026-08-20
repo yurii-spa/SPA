@@ -26,6 +26,21 @@ from spa_core.analytics.protocol_developer_activity_tracker import (
     MAX_ENTRIES,
 )
 
+import pytest
+
+import spa_core.analytics.protocol_developer_activity_tracker as _dev_mod
+
+
+# ---------------------------------------------------------------------------
+# Прогон не смеет писать в spa_core/data/ (agent-test-run-dirties-tracked-fixtures).
+# Разбор — spa_core/tests/_package_data_guard.py.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _developer_activity_log_into_tmp(tmp_path, monkeypatch):
+    monkeypatch.setattr(_dev_mod, "DATA_FILE", tmp_path / "developer_activity_log.json")
+
 
 # ---------------------------------------------------------------------------
 # Helper factory

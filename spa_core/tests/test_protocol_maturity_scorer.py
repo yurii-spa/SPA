@@ -30,6 +30,19 @@ from spa_core.analytics.protocol_maturity_scorer import (
     analyze,
 )
 
+import pytest
+
+
+# ---------------------------------------------------------------------------
+# Прогон не смеет писать в spa_core/data/ (agent-test-run-dirties-tracked-fixtures).
+# Разбор — spa_core/tests/_package_data_guard.py.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _maturity_log_into_tmp(tmp_path, monkeypatch):
+    monkeypatch.setattr(pms, "DATA_FILE", tmp_path / "protocol_maturity_log.json")
+
 
 # ---------------------------------------------------------------------------
 # Fixtures

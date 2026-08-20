@@ -16,7 +16,23 @@ from unittest.mock import patch
 ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(ROOT))
 
+import pytest
+
 import spa_core.analytics.defi_vault_strategy_comparator as mod
+
+
+# ---------------------------------------------------------------------------
+# Прогон не смеет писать в spa_core/data/ (agent-test-run-dirties-tracked-fixtures).
+# `DATA_FILE` модуля относителен, а шаг CI «Run spa_core/tests» стартует из
+# `cd spa_core` ⇒ каждый вызов analyze() без подмены оставлял untracked файл в
+# каталоге ПАКЕТА, из-за которого reap_stale_worktrees навсегда отказывался снимать
+# рабочее дерево. Рецидив у любого будущего теста ловит spa_core/tests/_package_data_guard.py.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _vault_strategy_log_into_tmp(tmp_path, monkeypatch):
+    monkeypatch.setattr(mod, "DATA_FILE", tmp_path / "vault_strategy_log.json")
 
 
 # ---------------------------------------------------------------------------
