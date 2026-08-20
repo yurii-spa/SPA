@@ -649,6 +649,24 @@ def _office_absent_wholesale(targets: list[str], *, root: str,
     ]
 
 
+def _mandate_lines(now: dt.datetime) -> list[str]:
+    """Строки о действующем мандате автономии — или честное «не измерено».
+
+    Fail-CLOSED: если модуль не читается (старое дерево, битый импорт), это НЕ
+    повод молча продолжать широко. Печатаем УЗКИЙ протокол и называем причину —
+    неизмеренная широта полномочий обязана читаться как отсутствие широты.
+    """
+    try:
+        from spa_core.governance.autonomy_mandate import summary_lines
+    except Exception as e:  # noqa: BLE001
+        return [
+            f"⏹ мандат автономии: НЕ ИЗМЕРЕН ({type(e).__name__}: {e})",
+            "   режим цикла: ОДНА безопасная задача за цикл (базовый протокол) — "
+            "неизмеренная широта полномочий читается как её отсутствие",
+        ]
+    return summary_lines(now=now)
+
+
 def main(argv=None, *, now: dt.datetime | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--root", default=REPO_ROOT)
@@ -661,6 +679,16 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
                     help="только чтение/печать, без квитанций (для проверок)")
     args = ap.parse_args(argv)
     now = now or dt.datetime.now(dt.timezone.utc)
+
+    # ── Ширина собственных полномочий — ПЕРВОЙ строкой шага (ADR-101) ────────
+    # Печатается ДО манифеста намеренно: «как мне сегодня работать» не должно
+    # зависеть от того, читаются ли артефакты офиса. При `return 1` (нет
+    # манифеста) и `return 3` (офис не измерить из этого дерева) ответ всё
+    # равно уже произнесён. До ADR-101 срок мандата не знал никто: ADR-078
+    # истёк 19.08, и вопрос о продлении задал ЦИКЛ РУКАМИ в последний день.
+    for _ln in _mandate_lines(now):
+        print(_ln)
+    print()
 
     from spa_core.monitoring.consumption_receipts import write_receipt
 
