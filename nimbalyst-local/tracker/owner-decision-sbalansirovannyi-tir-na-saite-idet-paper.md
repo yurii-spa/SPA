@@ -5,6 +5,10 @@ title: "Сбалансированный тир: на сайте «идёт pape
 status: needs-owner
 source: orchestrator
 created: 2026-08-13
+owner_choice: 1
+owner_answered_at: 2026-08-19T21:53:22.499871+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно

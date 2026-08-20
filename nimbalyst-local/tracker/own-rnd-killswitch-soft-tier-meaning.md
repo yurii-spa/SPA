@@ -4,6 +4,10 @@ status: needs-owner
 priority: high
 created: 2026-08-10
 tags: [rnd, kill-switch, adr-034, adr-048, risk, paper, advisory]
+owner_choice: Б1
+owner_answered_at: 2026-08-19T21:51:56.896440+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 # Мягкая ступень аварийного тормоза (просадка 5 %) в её нынешней формулировке не делает НИЧЕГО — что она должна значить?

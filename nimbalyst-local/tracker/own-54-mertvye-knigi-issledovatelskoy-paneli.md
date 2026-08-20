@@ -2,6 +2,10 @@
 type: owner-decision
 status: needs-owner
 created: 2026-08-15
+owner_choice: 1
+owner_answered_at: 2026-08-19T21:51:32.487055+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 # Часть книг исследовательской панели не отвечает за свои числа — и все наши замеры про это молчали

@@ -2,6 +2,10 @@
 type: owner-decision
 status: needs-owner
 created: 2026-08-10
+owner_choice: 1
+owner_answered_at: 2026-08-19T21:51:10.359137+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 # 🛑 Стоп-кран: осталась одна щель в уведомлении — закрывать ли её

@@ -5,6 +5,10 @@ title: "Поиск новых протоколов не идёт: програм
 status: needs-owner
 source: nimbalyst
 created: 2026-08-18
+owner_choice: 1
+owner_answered_at: 2026-08-19T21:52:57.781995+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно
