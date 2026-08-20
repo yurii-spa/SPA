@@ -5,6 +5,10 @@ title: Твой ответ «Ответ 1» сегодня не применил
 status: needs-owner
 source: nimbalyst
 created: 2026-08-20
+owner_choice: 2
+owner_answered_at: 2026-08-20T11:04:12.731106+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно

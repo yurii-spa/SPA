@@ -5,6 +5,10 @@ title: "Сторож сайта: «одной команды» не хватил
 status: needs-owner
 source: orchestrator
 created: 2026-08-19
+owner_choice: 1
+owner_answered_at: 2026-08-20T12:34:03.261136+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно
