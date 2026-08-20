@@ -438,3 +438,83 @@ def test_bot_still_treats_an_ordinary_task_as_a_task(wired):
     assert handled is True
     assert wired.classified == [OWNER_MSG_10_08], "задача перехвачена разбором ответов"
     assert wired.sent == []
+
+
+# ─── Мягкая форма при реплае (живой случай 2026-08-20: «1. Ободрить») ─────────
+import unittest  # noqa: E402 — секция добавлена отдельно, файл выше на pytest-стиле
+
+class TestLenientReplyChoice(unittest.TestCase):
+    def test_number_dot_word(self):
+        from spa_core.telegram.owner_decisions import parse_reply_choice
+        self.assertEqual(parse_reply_choice("1. Ободрить"), "1")
+        self.assertEqual(parse_reply_choice("2) Отклонить"), "2")
+        self.assertEqual(parse_reply_choice("ответ 3 — отложить"), "3")
+
+    def test_not_a_choice(self):
+        from spa_core.telegram.owner_decisions import parse_reply_choice
+        self.assertIsNone(parse_reply_choice("Ободрить"))          # номера нет
+        self.assertIsNone(parse_reply_choice("2026 год пошёл"))    # «20» без разделителя
+        self.assertIsNone(parse_reply_choice("1"))                 # голый номер — строгий путь
+        self.assertIsNone(parse_reply_choice(""))
+
+
+class TestLenientReplyResolve(unittest.TestCase):
+    """«1. Ободрить» реплаем на нашу отправку → записан вариант 1 (опечатка не мешает)."""
+
+    CARD = "owner-decision-sait-pravka-lenient-test"
+
+    def setUp(self):
+        import json
+        import tempfile
+        from pathlib import Path
+
+        self.tmp = tempfile.TemporaryDirectory()
+        root = Path(self.tmp.name)
+        self.state = root / "journal.json"
+        (root / "nimbalyst-local" / "tracker").mkdir(parents=True)
+        self.card = root / "nimbalyst-local" / "tracker" / f"{self.CARD}.md"
+        self.card.write_text(
+            "---\ntype: owner-decision\nstatus: needs-owner\n---\n\n# Сайт\n\n"
+            "## Что от тебя нужно\n\n1. Одобрить\n2. Отклонить\n3. Отложить\n",
+            encoding="utf-8")
+        from spa_core.telegram import owner_decisions as od
+
+        self.od = od
+        self.state.write_text(json.dumps({"pushes": [{
+            "pid": od.make_pid(self.CARD),
+            "card": str(self.card),
+            "card_id": self.CARD,
+            "title": "Сайт",
+            "pushed_at": "2026-08-20T09:00:00+00:00",
+            "options": [{"num": "1", "label": "Одобрить", "recommended": False},
+                        {"num": "2", "label": "Отклонить", "recommended": True},
+                        {"num": "3", "label": "Отложить", "recommended": False}],
+            "buttons": False,
+            "choice": None,
+            "message_ids": [777],
+        }]}), encoding="utf-8")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_lenient_records_choice_via_reply(self):
+        res = self.od.resolve_text_answer(
+            "1. Ободрить", "42", owner_chat_id="42",
+            reply_to_message_id=777, state_path=self.state)
+        self.assertIsNotNone(res)
+        self.assertTrue(res.get("ok"), res)
+        self.assertEqual(res.get("resolved_by"), "reply_to")
+        self.assertEqual(res.get("card_id"), self.CARD)
+
+    def test_lenient_without_reply_stays_none(self):
+        # Без точного адресата мягкая форма НЕ ответ — уходит классификатору.
+        res = self.od.resolve_text_answer(
+            "1. Ободрить", "42", owner_chat_id="42",
+            reply_to_message_id=None, state_path=self.state)
+        self.assertIsNone(res)
+
+    def test_lenient_reply_to_foreign_message_stays_none(self):
+        res = self.od.resolve_text_answer(
+            "1. Ободрить", "42", owner_chat_id="42",
+            reply_to_message_id=999, state_path=self.state)
+        self.assertIsNone(res)

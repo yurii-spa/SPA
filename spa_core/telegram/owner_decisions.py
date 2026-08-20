@@ -1384,6 +1384,23 @@ _ANSWER_LINE_RE = re.compile(
 _BARE_ANSWER_RE = re.compile(rf"^\s*({_OPT_LIST})[\s.!)]*$", re.IGNORECASE)
 # Имя карточки из процитированной тревоги: «📄 owner-decision-….md».
 _CARD_NAME_RE = re.compile(r"([a-z0-9][a-z0-9._-]{6,})\.md", re.IGNORECASE)
+# Мягкая форма ТОЛЬКО для ответа реплаем: «1. Одобрить», «2) Отклонить», «ответ 1 —
+# одобряю». Номер главный, слова после — эхо подписи кнопки (владелец переписывает её
+# руками, с опечатками: живой случай 20.08 «1. Ободрить» → классификатор спросил
+# «кого подбодрить?»). Вне реплая форма НЕ принимается: без точного адресата хвост
+# из слов делает догадку, а не ответ.
+_LENIENT_REPLY_RE = re.compile(
+    rf"^\s*(?:ответ\s*[:#-]?\s*)?({_OPT_TOKEN})\s*[.)\]:—-]?\s+\S", re.IGNORECASE)
+
+
+def parse_reply_choice(text: str) -> Optional[str]:
+    """Номер варианта из мягкой формы «N. <слова>» — только для reply-привязки."""
+    if not text:
+        return None
+    m = _LENIENT_REPLY_RE.match(str(text))
+    return m.group(1) if m else None
+
+
 _OPT_SPLIT_RE = re.compile(r"\s*(?:и|,|\+|/)\s*", re.IGNORECASE)
 
 
@@ -1563,7 +1580,15 @@ def resolve_text_answer(
     except Exception:  # noqa: BLE001 — разбор не имеет права уронить бота
         return None
     if parsed is None:
-        return None
+        # Мягкая форма («1. Одобрить», любые слова/опечатки после номера) — ТОЛЬКО
+        # когда адресат известен ТОЧНО, по реплаю на нашу отправку (живой случай
+        # 20.08: «1. Ободрить» ушло в классификатор вместо записи решения).
+        lenient = parse_reply_choice(text)
+        if lenient is None or reply_to_message_id is None:
+            return None
+        if _push_by_message_id(reply_to_message_id, state_path=state_path) is None:
+            return None
+        parsed = ParsedTextAnswer(nums=(lenient,), card_id=None, raw=str(text).strip())
 
     if len(parsed.nums) > 1:
         # «1 и 3» — карточка могла и правда разрешать несколько, но записать можно
