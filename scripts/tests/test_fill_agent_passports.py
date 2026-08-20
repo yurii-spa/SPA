@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -195,6 +196,59 @@ class TestManifestFormatIsPreserved(unittest.TestCase):
         text = path.read_text(encoding="utf-8")
         self.assertEqual(text, self._builder().dumps(json.loads(text)),
                          "манифест на диске записан не каноническим сериализатором")
+
+
+class TestCheckIsAGate(unittest.TestCase):
+    """Проводка обязана уметь краснеть, иначе это не проводка, а украшение.
+
+    Скрипт подключён в `.github/workflows/generated-docs-integrity.yml`, потому
+    что храповик `test_unwired_scripts_ratchet` поймал его без вызывающего и был
+    прав: генератор, которого никто не зовёт, — это L3 из его же реестра.
+    Но CI-шаг, который не может провалиться, ничего не сторожит. `--check`
+    краснеет, когда манифест отстал от источников: кто-то дописал модулю
+    docstring или докурировал `produces`, а паспорт не обновили.
+    """
+
+    def _run_on(self, manifest: dict):
+        f = _load("_fap", "scripts/fill_agent_passports.py")
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "manifest.json"
+            path.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+            f.MANIFEST = path
+            return f.run(write=False)
+
+    def test_stale_manifest_is_named(self):
+        """Паспорт пуст, а из источников выводится — это отставание."""
+        r = self._run_on({"agents": [{
+            "label": "com.spa.agent_health", "program": "agent_agent_health.sh",
+            "produces": [{"artifact": "data/x.json", "slo_hours": 3}],
+            "passport": {}}]})
+        self.assertEqual(r["stale"], ["com.spa.agent_health"])
+
+    def test_up_to_date_manifest_is_not_stale(self):
+        """Обратный контроль: гейт не краснеет на согласованном манифесте."""
+        f = _load("_fap", "scripts/fill_agent_passports.py")
+        entry = {"label": "com.spa.agent_health", "program": "agent_agent_health.sh",
+                 "produces": [{"artifact": "data/x.json", "slo_hours": 3}]}
+        entry["passport"] = f.derive(entry)
+        self.assertEqual(self._run_on({"agents": [entry]})["stale"], [])
+
+    def test_agent_with_no_derivable_sources_is_not_stale(self):
+        """Пусто и вывести нечего — это не отставание, а честный пробел.
+
+        Иначе гейт краснел бы вечно на 26 агентах без docstring'а, и его бы
+        отключили — ровно то, чего запрещает `.claude/rules/deployment.md`.
+        """
+        r = self._run_on({"agents": [{
+            "label": "com.spa.nothing", "program": "__no_such_wrapper__.sh",
+            "produces": [], "passport": {}}]})
+        self.assertEqual(r["stale"], [])
+        self.assertEqual(r["empty"], 1)
+
+    def test_real_manifest_is_currently_up_to_date(self):
+        """Замер на настоящем файле: CI-шаг зелёный не по случайности."""
+        f = _load("_fap", "scripts/fill_agent_passports.py")
+        self.assertEqual(f.run(write=False)["stale"], [])
 
 
 if __name__ == "__main__":

@@ -174,6 +174,10 @@ def run(*, write: bool) -> dict:
     agents = data.get("agents", [])
     full = partial = empty = 0
     gaps: dict[str, list[str]] = {f: [] for f in FIELDS}
+    # Агенты, у которых из источников выводится больше, чем записано в манифесте.
+    # Появляются сами: кто-то дописал docstring модулю или докурировал produces —
+    # и паспорт молча отстал. Это и делает `--check` гейтом, а не отчётом.
+    stale: list[str] = []
 
     for a in agents:
         derived = derive(a)
@@ -186,6 +190,8 @@ def run(*, write: bool) -> dict:
         full += have == len(FIELDS)
         partial += 0 < have < len(FIELDS)
         empty += have == 0
+        if merged != {f: str(existing.get(f) or "").strip() for f in FIELDS}:
+            stale.append(a["label"])
         for f in FIELDS:
             if not merged[f]:
                 gaps[f].append(a["label"])
@@ -203,6 +209,7 @@ def run(*, write: bool) -> dict:
         "empty": empty,
         "gaps": {f: len(v) for f, v in gaps.items()},
         "metric_gap_due_to_uncurated_manifest": uncurated,
+        "stale": sorted(set(stale)),
         "needs_author": sorted(set(gaps["goal"])),
     }
     if write:
@@ -217,7 +224,8 @@ def main() -> int:
     ap.add_argument("--check", action="store_true", help="только отчёт, ничего не писать")
     args = ap.parse_args()
     r = run(write=not args.check)
-    print(json.dumps({k: v for k, v in r.items() if k != "needs_author"},
+    print(json.dumps({k: v for k, v in r.items()
+                      if k not in ("needs_author", "stale")},
                      ensure_ascii=False, indent=2))
     if r["needs_author"]:
         print(f"\nбез деловой цели ({len(r['needs_author'])}) — у обёртки не читается "
@@ -226,6 +234,14 @@ def main() -> int:
             print("  ·", label)
         print("\nЭто НЕ ошибка скрипта, а честный список: цель такому агенту "
               "должен написать его автор или владелец.")
+    if args.check and r["stale"]:
+        print(f"\nМАНИФЕСТ ОТСТАЛ ОТ ИСТОЧНИКОВ ({len(r['stale'])}): у этих агентов "
+              "выводится больше, чем записано.", file=sys.stderr)
+        for label in r["stale"]:
+            print("  ·", label, file=sys.stderr)
+        print("\nЗапустите `python3 scripts/fill_agent_passports.py` и закоммитьте "
+              "манифест.", file=sys.stderr)
+        return 1
     return 0
 
 

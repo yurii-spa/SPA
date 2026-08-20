@@ -90,7 +90,12 @@ CURATION_REF = "origin/main"
 # test_curated_fields_match_builder (иначе новое курируемое поле молча осталось
 # бы читаться с устаревшей локальной копии).
 CURATED_FIELDS = ("layer", "role", "intent", "produces", "consumes",
-                  "consumer_required", "governed_by", "curation", "notes")
+                  "consumer_required", "governed_by", "curation", "notes",
+                  # passport (AI1 гл.3/24) — курация, а не факт: цель, метрика и
+                  # эскалация выводятся из источников, но решение «вот эта цель»
+                  # принимает человек. Значит читается с origin, как остальная
+                  # курация, и расхождение с локальной копией НАЗЫВАЕТСЯ.
+                  "passport")
 
 EXIT_BY_OVERALL = {"OK": 0, "UNCHECKED": 1, "WARN": 1, "CRITICAL": 2}
 
