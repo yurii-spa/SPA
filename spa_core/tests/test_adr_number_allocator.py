@@ -531,3 +531,185 @@ def test_baseline_entries_carry_a_traceable_reason():
             "база храповика пуста, а в docs/decisions/INDEX.md живой дубль "
             f"{sorted(adr.live_duplicates(ROOT))}: пустая база разрешена только тогда, когда "
             f"разошлись ВСЕ номера — иначе дубль остался бы вовсе без учёта")
+
+
+# ── номер, занятый на ДРУГОЙ ВЕТКЕ (авария 2026-08-20) ───────────────────────
+#
+# Замер, породивший этот раздел: восемь решений `ADR-088`…`ADR-095` лежали на
+# `origin/claude/work-status-check-xfnbew`, а `main` не знал о них ни строкой. Номера 088 и 089
+# при этом были на `main` выписаны ВТОРОЙ раз и под другие решения. Союз «origin/main + рабочее
+# дерево» отвечал на свой вопрос честно — просто вопрос был у́же аварии: ветку он не смотрит по
+# построению. Цикл #318 обошёл столкновение вручную, взяв 096; обход в голове одной сессии
+# починкой не является. Каждый тест ниже краснеет на нечинёном стороже.
+
+
+def _commit_branch(repo, ref, files):
+    """Состояние ДРУГОЙ удалённой ветки: коммит поверх текущего, ref, откат рабочего дерева.
+
+    Откат обязателен: файлы ветки не должны остаться на диске, иначе номер числился бы
+    занятым по рабочему дереву и тест зеленел бы, даже если ветки не выметаются вовсе.
+    """
+    base = _run(repo, "git", "rev-parse", "HEAD").stdout.strip()
+    for rel, text in files.items():
+        p = repo / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(text, encoding="utf-8")
+    _run(repo, "git", "add", "-A")
+    _run(repo, "git", "commit", "-qm", f"branch {ref}")
+    sha = _run(repo, "git", "rev-parse", "HEAD").stdout.strip()
+    _run(repo, "git", "update-ref", f"refs/remotes/{ref}", sha)
+    _run(repo, "git", "reset", "-q", "--hard", base)
+
+
+def test_number_taken_only_on_another_branch_is_not_free(repo):
+    """Файл решения на ветке занимает номер так же, как файл на origin/main.
+
+    Дословная форма 20.08: `ADR-090` есть на ветке и его нет ни на main, ни на диске.
+    """
+    _commit_origin(repo, {
+        "docs/decisions/ADR-089-a.md": "x",
+        "docs/decisions/INDEX.md": INDEX_HEAD + _row("089", fname="ADR-089-a.md"),
+    })
+    _commit_branch(repo, "origin/claude/work-status-check", {
+        "docs/decisions/ADR-090-owner-decisions.md": "решение владельца 15.08",
+    })
+
+    taken, unchecked = adr.taken_keys(repo)
+    assert not unchecked
+    assert "090" in taken, "номер, занятый на ветке, свободным не является"
+    assert any("origin/claude/work-status-check" in w for w in taken["090"]), taken["090"]
+
+
+def test_next_number_jumps_over_numbers_taken_on_branches(repo):
+    """НЕДОСЛУЧИВШАЯСЯ АВАРИЯ #318 дословно: main кончается на 089, ветка держит 090…095.
+
+    Нечинёный распределитель выдал бы 090 — второй `ADR-090` за неделю. Обход руками (взять
+    096) сработал ровно потому, что сессия ЗАМЕТИЛА ветку; следующая могла и не заметить.
+    """
+    _commit_origin(repo, {
+        "docs/decisions/ADR-089-a.md": "x",
+        "docs/decisions/INDEX.md": INDEX_HEAD + _row("089", fname="ADR-089-a.md"),
+    })
+    _commit_branch(repo, "origin/claude/work-status-check", {
+        "docs/decisions/ADR-090-a.md": "x",
+        "docs/decisions/ADR-095-f.md": "x",
+    })
+
+    number, _, unchecked = adr.next_number(repo)
+    assert not unchecked
+    assert number == 96, "номер обязан перепрыгнуть всё, что занято на ветках"
+
+
+def test_new_file_on_a_number_taken_only_on_a_branch_is_refused(repo):
+    """Интерлок доставки: на main номер выглядит свободным (там дыра), а решение существует.
+
+    Находка «уже занят на origin/main» здесь молчит по построению — именно поэтому нужна
+    вторая. Ветка обязана быть НАЗВАНА: без имени находку нечем проверить.
+    """
+    _commit_origin(repo, {
+        "docs/decisions/ADR-089-a.md": "x",
+        "docs/decisions/INDEX.md": INDEX_HEAD + _row("089", fname="ADR-089-a.md"),
+    })
+    _commit_branch(repo, "origin/claude/work-status-check", {
+        "docs/decisions/ADR-090-owner-decisions.md": "решение владельца 15.08",
+    })
+
+    p = repo / "docs" / "decisions" / "ADR-090-something-else.md"
+    p.write_text("другое решение под тем же номером", encoding="utf-8")
+    (repo / "docs" / "decisions" / "INDEX.md").write_text(
+        INDEX_HEAD + _row("089", fname="ADR-089-a.md")
+        + _row("090", fname="ADR-090-something-else.md"), encoding="utf-8")
+
+    findings, unchecked = adr.check_push(repo, [str(p), str(repo / "docs/decisions/INDEX.md")])
+    assert not unchecked
+    assert len(findings) == 1, findings
+    assert "ADR-090-owner-decisions.md" in findings[0], findings[0]
+    assert "origin/claude/work-status-check" in findings[0], findings[0]
+
+
+def test_pushing_a_file_that_exists_on_a_branch_under_its_own_name_is_not_a_collision(repo):
+    """ОБРАТНЫЙ КОНТРОЛЬ. Доставка на main решения, разработанного на ветке, — обычное дело.
+
+    Если бы сторож краснел и на неё, он запирал бы верную работу — а такой сторож обходят
+    флагом при первой же доставке и он не поймает уже НИЧЕГО (`.claude/rules/deployment.md`).
+    """
+    _commit_origin(repo, {
+        "docs/decisions/ADR-089-a.md": "x",
+        "docs/decisions/INDEX.md": INDEX_HEAD + _row("089", fname="ADR-089-a.md"),
+    })
+    _commit_branch(repo, "origin/claude/work-status-check", {
+        "docs/decisions/ADR-090-owner-decisions.md": "решение владельца 15.08",
+    })
+
+    p = repo / "docs" / "decisions" / "ADR-090-owner-decisions.md"
+    p.write_text("то же решение, доставляется на main", encoding="utf-8")
+    (repo / "docs" / "decisions" / "INDEX.md").write_text(
+        INDEX_HEAD + _row("089", fname="ADR-089-a.md")
+        + _row("090", fname="ADR-090-owner-decisions.md"), encoding="utf-8")
+
+    findings, unchecked = adr.check_push(repo, [str(p), str(repo / "docs/decisions/INDEX.md")])
+    assert (findings, unchecked) == ([], []), "своё имя под своим номером — не столкновение"
+
+
+def test_a_branch_without_a_decisions_dir_is_a_fact_not_a_refusal(repo):
+    """«Решений на ветке нет» и «ветка не читается» — РАЗНЫЕ ответы, и путать их нельзя.
+
+    Форма `ls-tree <ref>:<путь>` падает на ветке без каталога решений, и тогда каждая ветка
+    репозитория, не касавшаяся `docs/`, превращала бы выдачу номера в отказ (код 2). Сторож,
+    отказывающий всегда, снимается — поэтому здесь `-- <путь>`: пусто и rc=0.
+    """
+    (repo / "README.md").write_text("до появления решений", encoding="utf-8")
+    _run(repo, "git", "add", "-A")
+    _run(repo, "git", "commit", "-qm", "no decisions yet")
+    empty = _run(repo, "git", "rev-parse", "HEAD").stdout.strip()
+    _run(repo, "git", "update-ref", "refs/remotes/origin/feature-no-docs", empty)
+
+    _commit_origin(repo, {
+        "docs/decisions/ADR-089-a.md": "x",
+        "docs/decisions/INDEX.md": INDEX_HEAD + _row("089", fname="ADR-089-a.md"),
+    })
+
+    number, _, unchecked = adr.next_number(repo)
+    assert unchecked == [], f"ветка без каталога решений — это факт, а не отказ: {unchecked}"
+    assert number == 90
+
+
+def test_unreadable_ref_list_refuses_to_hand_out_a_number(repo):
+    """fail-CLOSED: список веток не прочитан ⇒ номер НЕ выдаётся.
+
+    «Ну, по origin/main свободно» — ровно тот ответ, которым 20.08 номер занялся дважды.
+    """
+    _commit_origin(repo, {
+        "docs/decisions/ADR-089-a.md": "x",
+        "docs/decisions/INDEX.md": INDEX_HEAD + _row("089", fname="ADR-089-a.md"),
+    })
+
+    def blind_git(root, *args):
+        if args and args[0] == "for-each-ref":
+            return 128, "", "fatal: не читается"
+        return adr._git(root, *args)
+
+    number, _, unchecked = adr.next_number(repo, git=blind_git)
+    assert number is None
+    assert any("удалённых ref" in u for u in unchecked), unchecked
+
+
+def test_the_base_ref_is_not_swept_twice(repo):
+    """origin/HEAD — симссылка на base; выметать её значит удвоить каждую находку.
+
+    Обратный контроль к самому выметанию: расширение обязано добавлять ветки, а не
+    пересчитывать origin/main под вторым именем.
+    """
+    _commit_origin(repo, {
+        "docs/decisions/ADR-089-a.md": "x",
+        "docs/decisions/INDEX.md": INDEX_HEAD + _row("089", fname="ADR-089-a.md"),
+    })
+    head = _run(repo, "git", "rev-parse", "refs/remotes/origin/main").stdout.strip()
+    _run(repo, "git", "update-ref", "refs/remotes/origin/HEAD", head)
+
+    refs, unchecked = adr.other_refs(repo)
+    assert unchecked == []
+    assert refs == [], f"кроме base и его симссылки веток нет, а вымелось: {refs}"
+
+    elsewhere, _ = adr.keys_on_other_refs(repo)
+    assert elsewhere == {}, "решения origin/main не должны считаться «занятыми на ветке»"

@@ -31,8 +31,12 @@
 | Какой номер брать? | `next` | В МОМЕНТ пуша, не в начале работы |
 | Этот набор файлов можно доставлять? | `check --files …` | Интерлок пушера, до сети |
 
-`next` меряет занятость по СОЮЗУ origin/main и рабочего дерева. Смотреть только в дерево — это
-и есть исходный дефект: параллельная сессия живёт на origin, а не у тебя на диске.
+`next` меряет занятость по СОЮЗУ origin/main, ВСЕХ остальных удалённых веток и рабочего дерева.
+Смотреть только в дерево — это и есть исходный дефект: параллельная сессия живёт на origin, а не
+у тебя на диске. Ветки добавлены 2026-08-20 по замеру: восемь решений (`ADR-088`…`ADR-095`)
+лежали на `origin/claude/work-status-check-xfnbew`, `main` о них не знал, и номера 088/089 были
+на `main` выписаны ВТОРОЙ раз под другие решения. Союз из двух источников отвечал на свой вопрос
+честно — просто вопрос был у́же аварии.
 
 **Почему `max+1`, а не «первый свободный».** В нумерации есть дыры (31–47, 49, 51, 52, 71), и
 они не свободны: `ADR-071` уже назван в `docs/STATE.md` как «аудит-как-код» — решение, о котором
@@ -63,6 +67,7 @@ from check_undelivered_work import _git  # noqa: E402  (переиспользо
 DEFAULT_BASE = "origin/main"
 DECISIONS_DIR = "docs/decisions"
 INDEX_REL = f"{DECISIONS_DIR}/INDEX.md"
+REMOTES_NS = "refs/remotes/"
 
 # Имя файла решения: ADR-<ключ>-<слаг>.md. Ключ бывает числовым (`067`) и именованным
 # (`YL`, `OWN`, `TEST`) — это РАЗНЫЕ пространства имён, и распределяется только числовое.
@@ -138,12 +143,71 @@ def _origin_index(root, base_ref, git=_git):
     return out
 
 
+def other_refs(root, base_ref=DEFAULT_BASE, git=_git):
+    """(остальные удалённые ref'ы, не_измерено) — всё под ``refs/remotes/`` кроме base.
+
+    ``refs/remotes/origin/HEAD`` отбрасывается: это симссылка на base, и её содержимое
+    удвоило бы каждую находку. Читаются ЛОКАЛЬНЫЕ ref'ы, сети здесь нет.
+    """
+    rc, out, err = git(root, "for-each-ref", "--format=%(refname)", REMOTES_NS)
+    if rc != 0:
+        return [], [f"список удалённых ref'ов не читается ({err.strip() or rc}) — номера, "
+                    f"занятые на ветках, НЕ измерены"]
+    refs = []
+    for line in out.splitlines():
+        full = line.strip()
+        if not full.startswith(REMOTES_NS) or full.endswith("/HEAD"):
+            continue
+        short = full[len(REMOTES_NS):]
+        if short != base_ref:
+            refs.append(short)
+    return sorted(refs), []
+
+
+def _ref_files(root, ref, git=_git):
+    """Имена файлов решений на произвольном ref, либо None если ref не измерим.
+
+    Форма ``ls-tree -r <ref> -- <путь>`` выбрана намеренно вместо ``<ref>:<путь>``: у ветки,
+    где каталога решений нет вовсе, вторая форма падает — и «решений тут нет» стало бы
+    неотличимо от «ветка не читается». Первое — факт, второе — отказ измерить.
+    """
+    rc, out, _ = git(root, "ls-tree", "--name-only", "-r", ref, "--", f"{DECISIONS_DIR}/")
+    if rc != 0:
+        return None
+    return [line.strip().rsplit("/", 1)[-1] for line in out.splitlines() if line.strip()]
+
+
+def keys_on_other_refs(root, base_ref=DEFAULT_BASE, git=_git):
+    """({ключ: {имя файла: [ref, …]}}, не_измерено) по всем веткам кроме base.
+
+    **Зачем.** Замер 2026-08-20: восемь решений (`ADR-088`…`ADR-095`) живут на
+    `origin/claude/work-status-check-xfnbew`, и `main` о них не знает ни строкой. Номера 088 и
+    089 при этом выписаны на `main` ЗАНОВО и под другие решения — то есть номер уже занят
+    дважды, просто в разных ветках. Союз «origin/main + дерево» на этот вопрос не отвечает по
+    построению: он не смотрит ни на одну ветку, кроме своей.
+    """
+    refs, unchecked = other_refs(root, base_ref, git=git)
+    found: dict[str, dict[str, list]] = {}
+    for ref in refs:
+        names = _ref_files(root, ref, git=git)
+        if names is None:
+            unchecked.append(f"каталог решений на {ref} не читается — номера этой ветки "
+                             f"НЕ измерены")
+            continue
+        for name in names:
+            key = file_key(name)
+            if key:
+                found.setdefault(key, {}).setdefault(name, []).append(ref)
+    return found, unchecked
+
+
 def taken_keys(root, base_ref=DEFAULT_BASE, git=_git):
-    """(занятые ключи, не_измерено). Союз origin и рабочего дерева.
+    """(занятые ключи, не_измерено). Союз origin, ОСТАЛЬНЫХ веток и рабочего дерева.
 
     Смотреть только в дерево — исходный дефект: параллельная сессия занимает номер НА ORIGIN,
     и её файла у тебя на диске нет по построению. Поэтому недоступность origin — не повод
-    ответить «ну, по дереву свободно»: это отказ измерить (код 2).
+    ответить «ну, по дереву свободно»: это отказ измерить (код 2). Ровно то же верно и для
+    веток: номер, занятый на `origin/claude/…`, свободным не является.
     """
     root = Path(root)
     taken: dict[str, set] = {}
@@ -162,6 +226,13 @@ def taken_keys(root, base_ref=DEFAULT_BASE, git=_git):
             key = file_key(name)
             if key:
                 claim(key, f"{base_ref}:{DECISIONS_DIR}/{name}")
+
+    elsewhere, elsewhere_unchecked = keys_on_other_refs(root, base_ref, git=git)
+    unchecked.extend(elsewhere_unchecked)
+    for key, by_name in elsewhere.items():
+        for name, refs in by_name.items():
+            for ref in refs:
+                claim(key, f"{ref}:{DECISIONS_DIR}/{name}")
 
     origin_index = _origin_index(root, base_ref, git=git)
     if origin_index is None:
@@ -257,17 +328,37 @@ def check_push(root, files, base_ref=DEFAULT_BASE, git=_git):
         if key:
             origin_by_key.setdefault(key, []).append(name)
 
+    elsewhere, elsewhere_unchecked = keys_on_other_refs(root, base_ref, git=git)
+    unchecked.extend(elsewhere_unchecked)
+
     for rel in sorted(pushed_decisions):
         name = Path(rel).name
         key = file_key(name)
 
         # 1. Столкновение: НОВЫЙ файл берёт номер, уже занятый ДРУГИМ файлом на origin.
         others = [n for n in origin_by_key.get(key, []) if n != name]
-        if others and name not in origin_by_key.get(key, []):
+        collides_on_base = bool(others) and name not in origin_by_key.get(key, [])
+        if collides_on_base:
             findings.append(
                 f"{rel}: номер ADR-{key} уже занят на {base_ref} файлом "
                 f"{', '.join(sorted(others))} — это столкновение, а не обновление. "
                 f"Возьми номер через `scripts/adr_number.py next` и переименуй ДО пуша")
+
+        # 1b. То же столкновение, но занявший сидит на ДРУГОЙ ВЕТКЕ. На `main` номер выглядит
+        #     свободным (у нас там дыры 090–095), поэтому находка #1 молчит — а решение под
+        #     этим номером уже существует и уедет в конфликт при первом же слиянии.
+        #     Замер 2026-08-20: так на одну ветку легли ADR-088…095, из них 088 и 089 были
+        #     ВТОРОЙ раз выписаны на main под другие решения. Своё имя не считается: пуш
+        #     обновления файла, который на ветке лежит под тем же именем, — не столкновение.
+        if not collides_on_base:
+            by_name = {n: refs for n, refs in elsewhere.get(key, {}).items() if n != name}
+            if by_name:
+                where = "; ".join(f"{n} ({', '.join(sorted(refs))})"
+                                  for n, refs in sorted(by_name.items()))
+                findings.append(
+                    f"{rel}: номер ADR-{key} уже занят ВНЕ {base_ref} — {where}. "
+                    f"На {base_ref} он выглядит свободным, но решение под ним существует: "
+                    f"возьми номер через `scripts/adr_number.py next` и переименуй ДО пуша")
 
         # 2. Решение вне реестра — ловится ДО приземления, а не тестом после (карточка).
         rows = index_rows.get(key, [])
@@ -329,7 +420,8 @@ def _cmd_next(args) -> int:
             print(f"  - {u}")
     else:
         print(f"ADR-{number:03d}")
-        print(f"  занято номеров: {len(taken)} (союз {args.base} и рабочего дерева)")
+        print(f"  занято номеров: {len(taken)} "
+              f"(союз {args.base}, остальных удалённых веток и рабочего дерева)")
     return 2 if unchecked else 0
 
 
