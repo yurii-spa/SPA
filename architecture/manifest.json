@@ -1,1946 +1,2391 @@
 {
- "schema_version": 1,
- "adr": "ADR-066",
- "agents": [
-  {
-   "label": "com.spa.agent_health",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:3600s",
-   "program": "agent_agent_health.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [
+  "schema_version": 1,
+  "adr": "ADR-066",
+  "agents": [
     {
-     "artifact": "data/agent_health.json",
-     "slo_hours": 3
+      "label": "com.spa.agent_health",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:3600s",
+      "program": "agent_agent_health.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [
+        {
+          "artifact": "data/agent_health.json",
+          "slo_hours": 3
+        },
+        {
+          "artifact": "data/agent_registry.json",
+          "slo_hours": 26
+        },
+        {
+          "artifact": "data/owner_decision_pending.json",
+          "slo_hours": 3
+        }
+      ],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "complete",
+      "notes": "",
+      "passport": {
+        "goal": "SPA Agent Health \"Heartbeat\" Monitor.",
+        "quality_metric": "data/agent_health.json \u0441\u0432\u0435\u0436\u0435\u0435 3 \u0447; data/agent_registry.json \u0441\u0432\u0435\u0436\u0435\u0435 26 \u0447; data/owner_decision_pending.json \u0441\u0432\u0435\u0436\u0435\u0435 3 \u0447",
+        "escalation": "CRITICAL \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0443 \u0432 \u0422\u0435\u043b\u0435\u0433\u0440\u0430\u043c \u0447\u0435\u0440\u0435\u0437 push_policy (\u0434\u043d\u0435\u0432\u043d\u043e\u0439 \u043f\u043e\u0442\u043e\u043b\u043e\u043a; \u0441\u0442\u043e\u043f-\u043a\u0440\u0430\u043d \u043e\u0442 \u043d\u0435\u0433\u043e \u043e\u0441\u0432\u043e\u0431\u043e\u0436\u0434\u0451\u043d)"
+      }
     },
     {
-     "artifact": "data/agent_registry.json",
-     "slo_hours": 26
+      "label": "com.spa.aggressive_lab",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:86400s",
+      "program": "agent_aggressive_lab.sh",
+      "layer": "product",
+      "role": "allocation",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/strategy_lab/aggressive_lab/run.py \u2014 the Aggressive Lab CLI / standing-tick entrypoint.",
+        "quality_metric": "",
+        "escalation": ""
+      }
     },
     {
-     "artifact": "data/owner_decision_pending.json",
-     "slo_hours": 3
-    }
-   ],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "complete",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.aggressive_lab",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:86400s",
-   "program": "agent_aggressive_lab.sh",
-   "layer": "product",
-   "role": "allocation",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.analytics_tier_b",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:3600s",
-   "program": "agent_analytics_tier_b.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.analytics_tier_c",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "calendar:05:00",
-   "program": "agent_analytics_tier_c.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.apiserver",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "daemon",
-   "program": "agent_apiserver.sh",
-   "layer": "infra",
-   "role": "infra",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.architecture_conformance",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:21600s",
-   "program": "agent_architecture_conformance.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [
-    {
-     "artifact": "data/architecture_conformance.json",
-     "slo_hours": 7
-    }
-   ],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [
-    "ADR-066"
-   ],
-   "curation": "complete",
-   "notes": "сторож соответствия флота конституции (ADR-066 Фаза 1); за его свежестью следит agent_health (P4 — взаимный надзор)"
-  },
-  {
-   "label": "com.spa.artifact_freshness",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "calendar:09:15",
-   "program": "agent_artifact_freshness.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": "РАБОТАЕТ, но загружен из repo:scripts/ — НЕ переживёт ребут (находка 2026-08-05); в agent_registry отсутствует"
-  },
-  {
-   "label": "com.spa.auto_push",
-   "plist_source": "repo:launchd/com.spa.auto_push.plist",
-   "reboot_safe": false,
-   "schedule": "interval:5400s",
-   "program": "auto_push.sh",
-   "layer": "dev",
-   "role": "unknown",
-   "intent": "retired",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "complete",
-   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): дубль autopush"
-  },
-  {
-   "label": "com.spa.autopush",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:5400s",
-   "program": "auto_push.sh",
-   "layer": "dev",
-   "role": "infra",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.base_gas_monitor",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "calendar:06:00",
-   "program": "agent_base_gas_monitor.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.bts-feed",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:900s",
-   "program": "agent_bts-feed.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.bts-monitor",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:900s",
-   "program": "agent_bts-monitor.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.cc-kanban",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "daemon",
-   "program": "agent_cc_kanban.sh",
-   "layer": "dev",
-   "role": "infra",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.checkpoint-7day",
-   "plist_source": "repo:scripts/com.spa.checkpoint-7day.plist",
-   "reboot_safe": false,
-   "schedule": "calendar:10:00",
-   "program": "agent_checkpoint-7day.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "retired",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "complete",
-   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): эпоха прошла"
-  },
-  {
-   "label": "com.spa.cloudflared",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "daemon",
-   "program": "run_cloudflared.sh",
-   "layer": "infra",
-   "role": "infra",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.cmo_editorial",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:86400s",
-   "program": "agent_cmo_editorial.sh",
-   "layer": "product",
-   "role": "editorial",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [
-    "docs/CMO_EDITORIAL_LAYER.md"
-   ],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.competitive_watch",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "calendar:09:30",
-   "program": "agent_competitive_watch.sh",
-   "layer": "product",
-   "role": "research",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": "оживлён решением владельца 2026-08-06 (ADR-067): мониторинг конкурентов (09:30)"
-  },
-  {
-   "label": "com.spa.cpa_daily",
-   "plist_source": "repo:scripts/com.spa.cpa_daily.plist",
-   "reboot_safe": false,
-   "schedule": "calendar:09:00",
-   "program": "python3",
-   "layer": "product",
-   "role": "unknown",
-   "intent": "retired",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "complete",
-   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): легаси CPA-волн"
-  },
-  {
-   "label": "com.spa.cycle_gap_monitor",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:300s",
-   "program": "agent_cycle_gap_monitor.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.cycle_health",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:300s",
-   "program": "agent_cycle_health.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.daily_backup",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "calendar:05:30",
-   "program": "daily_backup.sh",
-   "layer": "infra",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.daily_cycle",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "calendar:08:00",
-   "program": "run_daily_paper_cycle.sh",
-   "layer": "product",
-   "role": "allocation",
-   "intent": "active",
-   "produces": [
-    {
-     "artifact": "data/equity_curve_daily.json",
-     "slo_hours": 26
+      "label": "com.spa.analytics_tier_b",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:3600s",
+      "program": "agent_analytics_tier_b.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "\u0410\u0433\u0440\u0435\u0433\u0438\u0440\u0443\u0435\u0442 \u0441\u0438\u0433\u043d\u0430\u043b\u044b \u0430\u043d\u0430\u043b\u0438\u0442\u0438\u0447\u0435\u0441\u043a\u0438\u0445 \u043c\u043e\u0434\u0443\u043b\u0435\u0439 (ADR-031).",
+        "quality_metric": "",
+        "escalation": ""
+      }
     },
     {
-     "artifact": "data/current_positions.json",
-     "slo_hours": 26
+      "label": "com.spa.analytics_tier_c",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "calendar:05:00",
+      "program": "agent_analytics_tier_c.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "\u0410\u0433\u0440\u0435\u0433\u0438\u0440\u0443\u0435\u0442 \u0441\u0438\u0433\u043d\u0430\u043b\u044b \u0430\u043d\u0430\u043b\u0438\u0442\u0438\u0447\u0435\u0441\u043a\u0438\u0445 \u043c\u043e\u0434\u0443\u043b\u0435\u0439 (ADR-031).",
+        "quality_metric": "",
+        "escalation": ""
+      }
     },
     {
-     "artifact": "data/allocation_rationale.json",
-     "slo_hours": 26
+      "label": "com.spa.apiserver",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "daemon",
+      "program": "agent_apiserver.sh",
+      "layer": "infra",
+      "role": "infra",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
     },
     {
-     "artifact": "data/allocation_rationale_history.jsonl",
-     "slo_hours": 26
+      "label": "com.spa.architecture_conformance",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:21600s",
+      "program": "agent_architecture_conformance.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [
+        {
+          "artifact": "data/architecture_conformance.json",
+          "slo_hours": 7
+        }
+      ],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [
+        "ADR-066"
+      ],
+      "curation": "complete",
+      "notes": "\u0441\u0442\u043e\u0440\u043e\u0436 \u0441\u043e\u043e\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0438\u044f \u0444\u043b\u043e\u0442\u0430 \u043a\u043e\u043d\u0441\u0442\u0438\u0442\u0443\u0446\u0438\u0438 (ADR-066 \u0424\u0430\u0437\u0430 1); \u0437\u0430 \u0435\u0433\u043e \u0441\u0432\u0435\u0436\u0435\u0441\u0442\u044c\u044e \u0441\u043b\u0435\u0434\u0438\u0442 agent_health (P4 \u2014 \u0432\u0437\u0430\u0438\u043c\u043d\u044b\u0439 \u043d\u0430\u0434\u0437\u043e\u0440)",
+      "passport": {
+        "goal": "\u0441\u0442\u043e\u0440\u043e\u0436 \u0441\u043e\u043e\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0438\u044f \u0444\u043b\u043e\u0442\u0430 \u043a\u043e\u043d\u0441\u0442\u0438\u0442\u0443\u0446\u0438\u0438 (ADR-066, \u0424\u0430\u0437\u0430 1).",
+        "quality_metric": "data/architecture_conformance.json \u0441\u0432\u0435\u0436\u0435\u0435 7 \u0447",
+        "escalation": "\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u0435\u043c: \u043f\u0440\u043e\u0442\u0443\u0445\u0448\u0438\u0439 \u0430\u0440\u0442\u0435\u0444\u0430\u043a\u0442 \u043b\u043e\u0432\u044f\u0442 \u0441\u0442\u043e\u0440\u043e\u0436\u0430 \u0441\u0432\u0435\u0436\u0435\u0441\u0442\u0438 (artifact_freshness / agent_health) \u043f\u043e SLO \u0438\u0437 \u043c\u0430\u043d\u0438\u0444\u0435\u0441\u0442\u0430"
+      }
     },
     {
-     "artifact": "data/shadow_trigger_evaluation.json",
-     "slo_hours": 26
-    }
-   ],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [
-    "ADR-060",
-    "ADR-061"
-   ],
-   "curation": "complete",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.dashboard",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "daemon",
-   "program": "agent_dashboard.sh",
-   "layer": "infra",
-   "role": "infra",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.dashboard_watcher",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:300s",
-   "program": "agent_dashboard_watcher.sh",
-   "layer": "product",
-   "role": "reporting",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.decision_loop",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:21600s",
-   "program": "agent_decision_loop.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [
-    {
-     "artifact": "data/house_view_gap.json",
-     "slo_hours": 7
+      "label": "com.spa.artifact_freshness",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "calendar:09:15",
+      "program": "agent_artifact_freshness.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "\u0420\u0410\u0411\u041e\u0422\u0410\u0415\u0422, \u043d\u043e \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d \u0438\u0437 repo:scripts/ \u2014 \u041d\u0415 \u043f\u0435\u0440\u0435\u0436\u0438\u0432\u0451\u0442 \u0440\u0435\u0431\u0443\u0442 (\u043d\u0430\u0445\u043e\u0434\u043a\u0430 2026-08-05); \u0432 agent_registry \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442",
+      "passport": {
+        "goal": "SPA Artifact Freshness Registry \u2014 single source of truth for \"what must stay fresh\".",
+        "quality_metric": "",
+        "escalation": ""
+      }
     },
     {
-     "artifact": "data/findings_bridge_report.json",
-     "slo_hours": 7
+      "label": "com.spa.auto_push",
+      "plist_source": "repo:launchd/com.spa.auto_push.plist",
+      "reboot_safe": false,
+      "schedule": "interval:5400s",
+      "program": "auto_push.sh",
+      "layer": "dev",
+      "role": "unknown",
+      "intent": "retired",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "complete",
+      "notes": "\u043f\u043e\u0445\u043e\u0440\u043e\u043d\u0435\u043d \u0440\u0435\u0448\u0435\u043d\u0438\u0435\u043c \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0430 2026-08-06 (ADR-067): \u0434\u0443\u0431\u043b\u044c autopush",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
     },
     {
-     "artifact": "data/loop_health.json",
-     "slo_hours": 7
+      "label": "com.spa.autopush",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:5400s",
+      "program": "auto_push.sh",
+      "layer": "dev",
+      "role": "infra",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
     },
     {
-     "artifact": "data/loop_retro.json",
-     "slo_hours": 192
+      "label": "com.spa.base_gas_monitor",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "calendar:06:00",
+      "program": "agent_base_gas_monitor.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/monitoring/base_gas_monitor.py ======================================== Base chain gas price monitor \u2014 ADR-025 kill-switch condition.",
+        "quality_metric": "",
+        "escalation": ""
+      }
     },
     {
-     "artifact": "data/investment_os/outcomes.jsonl",
-     "slo_hours": 31
-    }
-   ],
-   "consumes": [
-    "data/architecture_conformance.json",
-    "data/house_view_gap.json",
-    "data/investment_os/chief_investment.json",
-    "data/current_positions.json"
-   ],
-   "consumer_required": false,
-   "governed_by": [
-    "ADR-066"
-   ],
-   "curation": "complete",
-   "notes": "петля решений: пересчёт house_view_gap + мост находка→карточка (Фаза 3)"
-  },
-  {
-   "label": "com.spa.dfb_capture",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "calendar:09:30",
-   "program": "agent_dfb_capture.sh",
-   "layer": "product",
-   "role": "research",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.digest_daily",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "calendar:08:10",
-   "program": "agent_digest_daily.sh",
-   "layer": "product",
-   "role": "reporting",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.digest_weekly",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "calendar:wd0·10:00",
-   "program": "agent_digest_weekly.sh",
-   "layer": "product",
-   "role": "other",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": "развёрнут 2026-08-08 по решению владельца «четыре — ставить» (own-31); гейт check_agent_before_deploy пройден, last exit=0"
-  },
-  {
-   "label": "com.spa.familyfund",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "daemon",
-   "program": "agent_familyfund.sh",
-   "layer": "infra",
-   "role": "infra",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.fund-api",
-   "plist_source": "repo:scripts/com.spa.fund-api.plist",
-   "reboot_safe": false,
-   "schedule": "manual",
-   "program": "fund_api_server.py",
-   "layer": "infra",
-   "role": "unknown",
-   "intent": "retired",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "complete",
-   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): предок familyfund"
-  },
-  {
-   "label": "com.spa.golive_freshness",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:21600s",
-   "program": "agent_golive_freshness.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.governance_watcher",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:900s",
-   "program": "agent_governance_watcher.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.hy_cycle",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:3600s",
-   "program": "agent_hy_cycle.sh",
-   "layer": "product",
-   "role": "allocation",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.inbox_watch",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "event:watchpaths",
-   "program": "agent_inbox_intake.sh",
-   "layer": "dev",
-   "role": "infra",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.intraday_equity",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:300s",
-   "program": "agent_intraday_equity.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [
+      "label": "com.spa.bts-feed",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:900s",
+      "program": "agent_bts-feed.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
     {
-     "artifact": "data/intraday_equity.json",
-     "slo_hours": 1
-    }
-   ],
-   "consumes": [
-    "data/current_positions.json",
-    "data/peg_report.json",
-    "data/equity_curve_daily.json"
-   ],
-   "consumer_required": false,
-   "governed_by": [
-    "ADR-068",
-    "ADR-048"
-   ],
-   "curation": "complete",
-   "notes": "5-мин сенсор живой просадки; лестница и пороги — ТОЛЬКО governance/kill_switch (ADR-068)"
-  },
-  {
-   "label": "com.spa.io_chief_investment",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:86400s",
-   "program": "agent_io_chief_investment.sh",
-   "layer": "product",
-   "role": "analytics",
-   "intent": "active",
-   "produces": [
+      "label": "com.spa.bts-monitor",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:900s",
+      "program": "agent_bts-monitor.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
     {
-     "artifact": "data/investment_os/chief_investment.json",
-     "slo_hours": 26
-    }
-   ],
-   "consumes": [
-    "data/investment_os/liquidity.json",
-    "data/investment_os/market_regime.json",
-    "data/investment_os/market_structure.json",
-    "data/investment_os/onchain.json",
-    "data/investment_os/protocol_risk.json",
-    "data/investment_os/quant.json",
-    "data/investment_os/red_team.json",
-    "data/investment_os/reporting.json",
-    "data/investment_os/stablecoin_yield.json",
-    "data/investment_os/yield_quality.json"
-   ],
-   "consumer_required": true,
-   "governed_by": [
-    "ADR-055",
-    "docs/08_ai_investment_os_architecture.md"
-   ],
-   "curation": "complete",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.io_health",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:43200s",
-   "program": "agent_io_health.sh",
-   "layer": "product",
-   "role": "analytics",
-   "intent": "active",
-   "produces": [
+      "label": "com.spa.cc-kanban",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "daemon",
+      "program": "agent_cc_kanban.sh",
+      "layer": "dev",
+      "role": "infra",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
     {
-     "artifact": "data/investment_os/_health.json",
-     "slo_hours": 14
-    }
-   ],
-   "consumes": [],
-   "consumer_required": true,
-   "governed_by": [
-    "ADR-055"
-   ],
-   "curation": "complete",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.io_liquidity",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:86400s",
-   "program": "agent_io_liquidity.sh",
-   "layer": "product",
-   "role": "analytics",
-   "intent": "active",
-   "produces": [
+      "label": "com.spa.checkpoint-7day",
+      "plist_source": "repo:scripts/com.spa.checkpoint-7day.plist",
+      "reboot_safe": false,
+      "schedule": "calendar:10:00",
+      "program": "agent_checkpoint-7day.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "retired",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "complete",
+      "notes": "\u043f\u043e\u0445\u043e\u0440\u043e\u043d\u0435\u043d \u0440\u0435\u0448\u0435\u043d\u0438\u0435\u043c \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0430 2026-08-06 (ADR-067): \u044d\u043f\u043e\u0445\u0430 \u043f\u0440\u043e\u0448\u043b\u0430",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
     {
-     "artifact": "data/investment_os/liquidity.json",
-     "slo_hours": 26
-    }
-   ],
-   "consumes": [],
-   "consumer_required": true,
-   "governed_by": [
-    "ADR-055",
-    "docs/08_ai_investment_os_architecture.md"
-   ],
-   "curation": "complete",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.io_market_regime",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:86400s",
-   "program": "agent_io_market_regime.sh",
-   "layer": "product",
-   "role": "analytics",
-   "intent": "active",
-   "produces": [
+      "label": "com.spa.cloudflared",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "daemon",
+      "program": "run_cloudflared.sh",
+      "layer": "infra",
+      "role": "infra",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
     {
-     "artifact": "data/investment_os/market_regime.json",
-     "slo_hours": 26
-    }
-   ],
-   "consumes": [],
-   "consumer_required": true,
-   "governed_by": [
-    "ADR-055",
-    "docs/08_ai_investment_os_architecture.md"
-   ],
-   "curation": "complete",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.io_market_structure",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:86400s",
-   "program": "agent_io_market_structure.sh",
-   "layer": "product",
-   "role": "analytics",
-   "intent": "active",
-   "produces": [
+      "label": "com.spa.cmo_editorial",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:86400s",
+      "program": "agent_cmo_editorial.sh",
+      "layer": "product",
+      "role": "editorial",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [
+        "docs/CMO_EDITORIAL_LAYER.md"
+      ],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/cmo/editorial_agent.py \u2014 CMO editorial DRAFT runner (the live agent).",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
     {
-     "artifact": "data/investment_os/market_structure.json",
-     "slo_hours": 26
-    }
-   ],
-   "consumes": [],
-   "consumer_required": true,
-   "governed_by": [
-    "ADR-055",
-    "docs/08_ai_investment_os_architecture.md"
-   ],
-   "curation": "complete",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.io_onchain",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:86400s",
-   "program": "agent_io_onchain.sh",
-   "layer": "product",
-   "role": "analytics",
-   "intent": "active",
-   "produces": [
+      "label": "com.spa.competitive_watch",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "calendar:09:30",
+      "program": "agent_competitive_watch.sh",
+      "layer": "product",
+      "role": "research",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "\u043e\u0436\u0438\u0432\u043b\u0451\u043d \u0440\u0435\u0448\u0435\u043d\u0438\u0435\u043c \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0430 2026-08-06 (ADR-067): \u043c\u043e\u043d\u0438\u0442\u043e\u0440\u0438\u043d\u0433 \u043a\u043e\u043d\u043a\u0443\u0440\u0435\u043d\u0442\u043e\u0432 (09:30)",
+      "passport": {
+        "goal": "SPA Competitive Early-Warning Monitor (Proof-of-Risk WS-E).",
+        "quality_metric": "",
+        "escalation": "CRITICAL \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0443 \u0432 \u0422\u0435\u043b\u0435\u0433\u0440\u0430\u043c \u0447\u0435\u0440\u0435\u0437 push_policy (\u0434\u043d\u0435\u0432\u043d\u043e\u0439 \u043f\u043e\u0442\u043e\u043b\u043e\u043a; \u0441\u0442\u043e\u043f-\u043a\u0440\u0430\u043d \u043e\u0442 \u043d\u0435\u0433\u043e \u043e\u0441\u0432\u043e\u0431\u043e\u0436\u0434\u0451\u043d)"
+      }
+    },
     {
-     "artifact": "data/investment_os/onchain.json",
-     "slo_hours": 26
-    }
-   ],
-   "consumes": [],
-   "consumer_required": true,
-   "governed_by": [
-    "ADR-055",
-    "docs/08_ai_investment_os_architecture.md"
-   ],
-   "curation": "complete",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.io_protocol_risk",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:86400s",
-   "program": "agent_io_protocol_risk.sh",
-   "layer": "product",
-   "role": "analytics",
-   "intent": "active",
-   "produces": [
+      "label": "com.spa.cpa_daily",
+      "plist_source": "repo:scripts/com.spa.cpa_daily.plist",
+      "reboot_safe": false,
+      "schedule": "calendar:09:00",
+      "program": "python3",
+      "layer": "product",
+      "role": "unknown",
+      "intent": "retired",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "complete",
+      "notes": "\u043f\u043e\u0445\u043e\u0440\u043e\u043d\u0435\u043d \u0440\u0435\u0448\u0435\u043d\u0438\u0435\u043c \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0430 2026-08-06 (ADR-067): \u043b\u0435\u0433\u0430\u0441\u0438 CPA-\u0432\u043e\u043b\u043d",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
     {
-     "artifact": "data/investment_os/protocol_risk.json",
-     "slo_hours": 26
-    }
-   ],
-   "consumes": [],
-   "consumer_required": true,
-   "governed_by": [
-    "ADR-055",
-    "docs/08_ai_investment_os_architecture.md"
-   ],
-   "curation": "complete",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.io_quant",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:86400s",
-   "program": "agent_io_quant.sh",
-   "layer": "product",
-   "role": "analytics",
-   "intent": "active",
-   "produces": [
+      "label": "com.spa.cycle_gap_monitor",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:300s",
+      "program": "agent_cycle_gap_monitor.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "144: Cycle Gap Monitor \u2014 detects missed daily cycles and sends a Telegram alert.",
+        "quality_metric": "",
+        "escalation": "CRITICAL \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0443 \u0432 \u0422\u0435\u043b\u0435\u0433\u0440\u0430\u043c \u0447\u0435\u0440\u0435\u0437 push_policy (\u0434\u043d\u0435\u0432\u043d\u043e\u0439 \u043f\u043e\u0442\u043e\u043b\u043e\u043a; \u0441\u0442\u043e\u043f-\u043a\u0440\u0430\u043d \u043e\u0442 \u043d\u0435\u0433\u043e \u043e\u0441\u0432\u043e\u0431\u043e\u0436\u0434\u0451\u043d)"
+      }
+    },
     {
-     "artifact": "data/investment_os/quant.json",
-     "slo_hours": 26
-    }
-   ],
-   "consumes": [],
-   "consumer_required": true,
-   "governed_by": [
-    "ADR-055",
-    "docs/08_ai_investment_os_architecture.md"
-   ],
-   "curation": "complete",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.io_red_team",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:86400s",
-   "program": "agent_io_red_team.sh",
-   "layer": "product",
-   "role": "analytics",
-   "intent": "active",
-   "produces": [
+      "label": "com.spa.cycle_health",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:300s",
+      "program": "agent_cycle_health.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/monitoring/cycle_health_monitor.py ============================================ Monitors paper trading cycle health (MP-cycle-health).",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
     {
-     "artifact": "data/investment_os/red_team.json",
-     "slo_hours": 26
-    }
-   ],
-   "consumes": [],
-   "consumer_required": true,
-   "governed_by": [
-    "ADR-055",
-    "docs/08_ai_investment_os_architecture.md"
-   ],
-   "curation": "complete",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.io_reporting",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:86400s",
-   "program": "agent_io_reporting.sh",
-   "layer": "product",
-   "role": "analytics",
-   "intent": "active",
-   "produces": [
+      "label": "com.spa.daily_backup",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "calendar:05:30",
+      "program": "daily_backup.sh",
+      "layer": "infra",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
     {
-     "artifact": "data/investment_os/reporting.json",
-     "slo_hours": 26
-    }
-   ],
-   "consumes": [],
-   "consumer_required": true,
-   "governed_by": [
-    "ADR-055",
-    "docs/08_ai_investment_os_architecture.md"
-   ],
-   "curation": "complete",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.io_stablecoin_yield",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:86400s",
-   "program": "agent_io_stablecoin_yield.sh",
-   "layer": "product",
-   "role": "analytics",
-   "intent": "active",
-   "produces": [
+      "label": "com.spa.daily_cycle",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "calendar:08:00",
+      "program": "run_daily_paper_cycle.sh",
+      "layer": "product",
+      "role": "allocation",
+      "intent": "active",
+      "produces": [
+        {
+          "artifact": "data/equity_curve_daily.json",
+          "slo_hours": 26
+        },
+        {
+          "artifact": "data/current_positions.json",
+          "slo_hours": 26
+        },
+        {
+          "artifact": "data/allocation_rationale.json",
+          "slo_hours": 26
+        },
+        {
+          "artifact": "data/allocation_rationale_history.jsonl",
+          "slo_hours": 26
+        },
+        {
+          "artifact": "data/shadow_trigger_evaluation.json",
+          "slo_hours": 26
+        }
+      ],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [
+        "ADR-060",
+        "ADR-061"
+      ],
+      "curation": "complete",
+      "notes": "",
+      "passport": {
+        "goal": "SPA paper-trading cycle runner (SPA-V409).",
+        "quality_metric": "data/equity_curve_daily.json \u0441\u0432\u0435\u0436\u0435\u0435 26 \u0447; data/current_positions.json \u0441\u0432\u0435\u0436\u0435\u0435 26 \u0447; data/allocation_rationale.json \u0441\u0432\u0435\u0436\u0435\u0435 26 \u0447; data/allocation_rationale_history.jsonl \u0441\u0432\u0435\u0436\u0435\u0435 26 \u0447; data/shadow_trigger_evaluation.json \u0441\u0432\u0435\u0436\u0435\u0435 26 \u0447",
+        "escalation": "CRITICAL \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0443 \u0432 \u0422\u0435\u043b\u0435\u0433\u0440\u0430\u043c \u0447\u0435\u0440\u0435\u0437 push_policy (\u0434\u043d\u0435\u0432\u043d\u043e\u0439 \u043f\u043e\u0442\u043e\u043b\u043e\u043a; \u0441\u0442\u043e\u043f-\u043a\u0440\u0430\u043d \u043e\u0442 \u043d\u0435\u0433\u043e \u043e\u0441\u0432\u043e\u0431\u043e\u0436\u0434\u0451\u043d)"
+      }
+    },
     {
-     "artifact": "data/investment_os/stablecoin_yield.json",
-     "slo_hours": 26
-    }
-   ],
-   "consumes": [],
-   "consumer_required": true,
-   "governed_by": [
-    "ADR-055",
-    "docs/08_ai_investment_os_architecture.md"
-   ],
-   "curation": "complete",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.io_yield_quality",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:86400s",
-   "program": "agent_io_yield_quality.sh",
-   "layer": "product",
-   "role": "analytics",
-   "intent": "active",
-   "produces": [
+      "label": "com.spa.dashboard",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "daemon",
+      "program": "agent_dashboard.sh",
+      "layer": "infra",
+      "role": "infra",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
     {
-     "artifact": "data/investment_os/yield_quality.json",
-     "slo_hours": 26
-    }
-   ],
-   "consumes": [],
-   "consumer_required": true,
-   "governed_by": [
-    "ADR-055",
-    "docs/08_ai_investment_os_architecture.md"
-   ],
-   "curation": "complete",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.lp_cycle",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:3600s",
-   "program": "agent_lp_cycle.sh",
-   "layer": "product",
-   "role": "allocation",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.mass_tournament",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "calendar:06:30",
-   "program": "run_backtest_tier1.sh",
-   "layer": "product",
-   "role": "research",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.morning_digest",
-   "plist_source": null,
-   "reboot_safe": false,
-   "schedule": null,
-   "program": null,
-   "layer": "product",
-   "role": "other",
-   "intent": "retired",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.novel_edge_rnd",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "calendar:04:00",
-   "program": "agent_novel_edge_rnd.sh",
-   "layer": "product",
-   "role": "research",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": "оживлён решением владельца 2026-08-06 (ADR-067): standing-директива R&D edge (Вт/Пт 04:00)"
-  },
-  {
-   "label": "com.spa.orchestrator",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:3600s",
-   "program": "agent_orchestrator.sh",
-   "layer": "dev",
-   "role": "research",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.peg_monitor",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:300s",
-   "program": "agent_peg_monitor.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.portfolio_monitor",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:300s",
-   "program": "agent_portfolio_monitor.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.rates_desk_paper",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:3600s",
-   "program": "agent_rates_desk_paper.sh",
-   "layer": "product",
-   "role": "allocation",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.realized_at_size",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "calendar:09:20",
-   "program": "agent_realized_at_size.sh",
-   "layer": "product",
-   "role": "research",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.reboot_verify",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "manual",
-   "program": "agent_reboot_verify.sh",
-   "layer": "infra",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": "оживлён решением владельца 2026-08-06 (ADR-067): проверка флота после ребута (RunAtLoad)"
-  },
-  {
-   "label": "com.spa.red_flag_monitor",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:300s",
-   "program": "agent_red_flag_monitor.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.redteam_rotation",
-   "plist_source": "repo:scripts/com.spa.redteam_rotation.plist",
-   "reboot_safe": false,
-   "schedule": "calendar:09:30",
-   "program": "agent_redteam_rotation.sh",
-   "layer": "product",
-   "role": "unknown",
-   "intent": "retired",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "complete",
-   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): red-team живёт в research-слое"
-  },
-  {
-   "label": "com.spa.refusal",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "calendar:05:45",
-   "program": "agent_refusal.sh",
-   "layer": "product",
-   "role": "research",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.resilience",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:21600s",
-   "program": "agent_resilience.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.rtmr_sense",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "daemon",
-   "program": "agent_rtmr_sense.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.rules_watchdog",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:300s",
-   "program": "agent_rules_watchdog.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [
+      "label": "com.spa.dashboard_watcher",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:300s",
+      "program": "agent_dashboard_watcher.sh",
+      "layer": "product",
+      "role": "reporting",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/monitoring/dashboard_watcher.py",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
     {
-     "artifact": "data/watchdog_report.json",
-     "slo_hours": 1
-    }
-   ],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "complete",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.rwa_safety_board",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "calendar:05:50",
-   "program": "agent_rwa_safety_board.sh",
-   "layer": "product",
-   "role": "research",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.self_heal",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:300s",
-   "program": "agent_self_heal.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.site_freshness",
-   "plist_source": "repo:launchd/com.spa.site_freshness.plist",
-   "reboot_safe": false,
-   "schedule": "interval:21600s",
-   "program": "agent_site_freshness.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "designed",
-   "produces": [
+      "label": "com.spa.decision_loop",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:21600s",
+      "program": "agent_decision_loop.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [
+        {
+          "artifact": "data/house_view_gap.json",
+          "slo_hours": 7
+        },
+        {
+          "artifact": "data/findings_bridge_report.json",
+          "slo_hours": 7
+        },
+        {
+          "artifact": "data/loop_health.json",
+          "slo_hours": 7
+        },
+        {
+          "artifact": "data/loop_retro.json",
+          "slo_hours": 192
+        },
+        {
+          "artifact": "data/investment_os/outcomes.jsonl",
+          "slo_hours": 31
+        }
+      ],
+      "consumes": [
+        "data/architecture_conformance.json",
+        "data/house_view_gap.json",
+        "data/investment_os/chief_investment.json",
+        "data/current_positions.json"
+      ],
+      "consumer_required": false,
+      "governed_by": [
+        "ADR-066"
+      ],
+      "curation": "complete",
+      "notes": "\u043f\u0435\u0442\u043b\u044f \u0440\u0435\u0448\u0435\u043d\u0438\u0439: \u043f\u0435\u0440\u0435\u0441\u0447\u0451\u0442 house_view_gap + \u043c\u043e\u0441\u0442 \u043d\u0430\u0445\u043e\u0434\u043a\u0430\u2192\u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0430 (\u0424\u0430\u0437\u0430 3)",
+      "passport": {
+        "goal": "\u043c\u043e\u0441\u0442 \u00ab\u043d\u0430\u0445\u043e\u0434\u043a\u0430 \u2192 \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0430\u00bb (ADR-066, \u0424\u0430\u0437\u0430 3, C2).",
+        "quality_metric": "data/house_view_gap.json \u0441\u0432\u0435\u0436\u0435\u0435 7 \u0447; data/findings_bridge_report.json \u0441\u0432\u0435\u0436\u0435\u0435 7 \u0447; data/loop_health.json \u0441\u0432\u0435\u0436\u0435\u0435 7 \u0447; data/loop_retro.json \u0441\u0432\u0435\u0436\u0435\u0435 192 \u0447; data/investment_os/outcomes.jsonl \u0441\u0432\u0435\u0436\u0435\u0435 31 \u0447",
+        "escalation": "\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u0435\u043c: \u043f\u0440\u043e\u0442\u0443\u0445\u0448\u0438\u0439 \u0430\u0440\u0442\u0435\u0444\u0430\u043a\u0442 \u043b\u043e\u0432\u044f\u0442 \u0441\u0442\u043e\u0440\u043e\u0436\u0430 \u0441\u0432\u0435\u0436\u0435\u0441\u0442\u0438 (artifact_freshness / agent_health) \u043f\u043e SLO \u0438\u0437 \u043c\u0430\u043d\u0438\u0444\u0435\u0441\u0442\u0430"
+      }
+    },
     {
-     "artifact": "data/site_freshness_report.json",
-     "slo_hours": 13
-    }
-   ],
-   "consumes": [
-    "landing/src/data/track_snapshot.json"
-   ],
-   "consumer_required": false,
-   "governed_by": [
-    "ADR-085",
-    "ADR-YL-011"
-   ],
-   "curation": "complete",
-   "notes": "ADR-085 (решение владельца 14.08, вариант 1). intent=designed СОЗНАТЕЛЬНО: код доставлен, агент ещё НЕ загружен — launchctl это решение владельца (карточка owner-decision-vklyuchit-novogo-storozha-saita-na-make). ПРИ ЗАГРУЗКЕ перевести intent в active ТЕМ ЖЕ шагом, иначе сторож даст CRITICAL «активация мимо ADR» на верное действие владельца. produces начнёт наполняться только после загрузки."
-  },
-  {
-   "label": "com.spa.sky_monitor",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "calendar:07:00",
-   "program": "agent_sky_monitor.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.strategy_lab_paper",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:3600s",
-   "program": "agent_strategy_lab_paper.sh",
-   "layer": "product",
-   "role": "allocation",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.swarm_blend",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:3600s",
-   "program": "agent_swarm_blend.sh",
-   "layer": "product",
-   "role": "allocation",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.swarm_brain",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:3600s",
-   "program": "agent_swarm_brain.sh",
-   "layer": "product",
-   "role": "allocation",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.swarm_dwell",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:3600s",
-   "program": "agent_swarm_dwell.sh",
-   "layer": "product",
-   "role": "swarm",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [
-    "ADR-YL-012"
-   ],
-   "curation": "partial",
-   "notes": "РАБОТАЕТ, но загружен из repo:launchd/ — НЕ переживёт ребут (находка 2026-08-05); в agent_registry отсутствует"
-  },
-  {
-   "label": "com.spa.swarm_guardian",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:3600s",
-   "program": "agent_swarm_guardian.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.swarm_health",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:3600s",
-   "program": "agent_swarm_health.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.swarm_regime",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:3600s",
-   "program": "agent_swarm_regime.sh",
-   "layer": "product",
-   "role": "allocation",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.system_briefing",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:1800s",
-   "program": "agent_system_briefing.sh",
-   "layer": "product",
-   "role": "reporting",
-   "intent": "active",
-   "produces": [
+      "label": "com.spa.dfb_capture",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "calendar:09:30",
+      "program": "agent_dfb_capture.sh",
+      "layer": "product",
+      "role": "research",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/dfb/paper_dfb.py \u2014 WS-1.5: the DFB daily capture AGENT entrypoint (one tick).",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
     {
-     "artifact": "docs/SYSTEM_BRIEFING.md",
-     "slo_hours": 2
+      "label": "com.spa.digest_daily",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "calendar:08:10",
+      "program": "agent_digest_daily.sh",
+      "layer": "product",
+      "role": "reporting",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/telegram/reports/daily.py \u2014 THE one daily digest (Tier 2).",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.digest_weekly",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "calendar:wd0\u00b710:00",
+      "program": "agent_digest_weekly.sh",
+      "layer": "product",
+      "role": "other",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "\u0440\u0430\u0437\u0432\u0451\u0440\u043d\u0443\u0442 2026-08-08 \u043f\u043e \u0440\u0435\u0448\u0435\u043d\u0438\u044e \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0430 \u00ab\u0447\u0435\u0442\u044b\u0440\u0435 \u2014 \u0441\u0442\u0430\u0432\u0438\u0442\u044c\u00bb (own-31); \u0433\u0435\u0439\u0442 check_agent_before_deploy \u043f\u0440\u043e\u0439\u0434\u0435\u043d, last exit=0",
+      "passport": {
+        "goal": "spa_core/telegram/reports/weekly.py \u2014 THE one weekly digest (Tier 2).",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.familyfund",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "daemon",
+      "program": "agent_familyfund.sh",
+      "layer": "infra",
+      "role": "infra",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.fund-api",
+      "plist_source": "repo:scripts/com.spa.fund-api.plist",
+      "reboot_safe": false,
+      "schedule": "manual",
+      "program": "fund_api_server.py",
+      "layer": "infra",
+      "role": "unknown",
+      "intent": "retired",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "complete",
+      "notes": "\u043f\u043e\u0445\u043e\u0440\u043e\u043d\u0435\u043d \u0440\u0435\u0448\u0435\u043d\u0438\u0435\u043c \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0430 2026-08-06 (ADR-067): \u043f\u0440\u0435\u0434\u043e\u043a familyfund",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.golive_freshness",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:21600s",
+      "program": "agent_golive_freshness.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.governance_watcher",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:900s",
+      "program": "agent_governance_watcher.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "Governance Watcher \u2014 FEAT-MON-002 (Sprint v3.18).",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.hy_cycle",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:3600s",
+      "program": "agent_hy_cycle.sh",
+      "layer": "product",
+      "role": "allocation",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "Engine B (HY/Carry) paper trading cycle \u2014 EPIC-1 S1.3.",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.inbox_watch",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "event:watchpaths",
+      "program": "agent_inbox_intake.sh",
+      "layer": "dev",
+      "role": "infra",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.intraday_equity",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:300s",
+      "program": "agent_intraday_equity.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [
+        {
+          "artifact": "data/intraday_equity.json",
+          "slo_hours": 1
+        }
+      ],
+      "consumes": [
+        "data/current_positions.json",
+        "data/peg_report.json",
+        "data/equity_curve_daily.json"
+      ],
+      "consumer_required": false,
+      "governed_by": [
+        "ADR-068",
+        "ADR-048"
+      ],
+      "curation": "complete",
+      "notes": "5-\u043c\u0438\u043d \u0441\u0435\u043d\u0441\u043e\u0440 \u0436\u0438\u0432\u043e\u0439 \u043f\u0440\u043e\u0441\u0430\u0434\u043a\u0438; \u043b\u0435\u0441\u0442\u043d\u0438\u0446\u0430 \u0438 \u043f\u043e\u0440\u043e\u0433\u0438 \u2014 \u0422\u041e\u041b\u042c\u041a\u041e governance/kill_switch (ADR-068)",
+      "passport": {
+        "goal": "5-\u043c\u0438\u043d\u0443\u0442\u043d\u044b\u0439 \u0441\u0435\u043d\u0441\u043e\u0440 \u0436\u0438\u0432\u043e\u0439 \u043f\u0440\u043e\u0441\u0430\u0434\u043a\u0438 (ADR-068, \u043c\u0430\u043d\u0434\u0430\u0442 ADR-067).",
+        "quality_metric": "data/intraday_equity.json \u0441\u0432\u0435\u0436\u0435\u0435 1 \u0447",
+        "escalation": "CRITICAL \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0443 \u0432 \u0422\u0435\u043b\u0435\u0433\u0440\u0430\u043c \u0447\u0435\u0440\u0435\u0437 push_policy (\u0434\u043d\u0435\u0432\u043d\u043e\u0439 \u043f\u043e\u0442\u043e\u043b\u043e\u043a; \u0441\u0442\u043e\u043f-\u043a\u0440\u0430\u043d \u043e\u0442 \u043d\u0435\u0433\u043e \u043e\u0441\u0432\u043e\u0431\u043e\u0436\u0434\u0451\u043d)"
+      }
+    },
+    {
+      "label": "com.spa.io_chief_investment",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:86400s",
+      "program": "agent_io_chief_investment.sh",
+      "layer": "product",
+      "role": "analytics",
+      "intent": "active",
+      "produces": [
+        {
+          "artifact": "data/investment_os/chief_investment.json",
+          "slo_hours": 26
+        }
+      ],
+      "consumes": [
+        "data/investment_os/liquidity.json",
+        "data/investment_os/market_regime.json",
+        "data/investment_os/market_structure.json",
+        "data/investment_os/onchain.json",
+        "data/investment_os/protocol_risk.json",
+        "data/investment_os/quant.json",
+        "data/investment_os/red_team.json",
+        "data/investment_os/reporting.json",
+        "data/investment_os/stablecoin_yield.json",
+        "data/investment_os/yield_quality.json"
+      ],
+      "consumer_required": true,
+      "governed_by": [
+        "ADR-055",
+        "docs/08_ai_investment_os_architecture.md"
+      ],
+      "curation": "complete",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/investment_os/agents/chief_investment.py \u2014 Chief Investment analyst (Head of Product, docs/08).",
+        "quality_metric": "data/investment_os/chief_investment.json \u0441\u0432\u0435\u0436\u0435\u0435 26 \u0447",
+        "escalation": "\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u0435\u043c: \u043f\u0440\u043e\u0442\u0443\u0445\u0448\u0438\u0439 \u0430\u0440\u0442\u0435\u0444\u0430\u043a\u0442 \u043b\u043e\u0432\u044f\u0442 \u0441\u0442\u043e\u0440\u043e\u0436\u0430 \u0441\u0432\u0435\u0436\u0435\u0441\u0442\u0438 (artifact_freshness / agent_health) \u043f\u043e SLO \u0438\u0437 \u043c\u0430\u043d\u0438\u0444\u0435\u0441\u0442\u0430"
+      }
+    },
+    {
+      "label": "com.spa.io_health",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:43200s",
+      "program": "agent_io_health.sh",
+      "layer": "product",
+      "role": "analytics",
+      "intent": "active",
+      "produces": [
+        {
+          "artifact": "data/investment_os/_health.json",
+          "slo_hours": 14
+        }
+      ],
+      "consumes": [],
+      "consumer_required": true,
+      "governed_by": [
+        "ADR-055"
+      ],
+      "curation": "complete",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/investment_os/health.py \u2014 AI Investment OS product-layer health monitor.",
+        "quality_metric": "data/investment_os/_health.json \u0441\u0432\u0435\u0436\u0435\u0435 14 \u0447",
+        "escalation": "\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u0435\u043c: \u043f\u0440\u043e\u0442\u0443\u0445\u0448\u0438\u0439 \u0430\u0440\u0442\u0435\u0444\u0430\u043a\u0442 \u043b\u043e\u0432\u044f\u0442 \u0441\u0442\u043e\u0440\u043e\u0436\u0430 \u0441\u0432\u0435\u0436\u0435\u0441\u0442\u0438 (artifact_freshness / agent_health) \u043f\u043e SLO \u0438\u0437 \u043c\u0430\u043d\u0438\u0444\u0435\u0441\u0442\u0430"
+      }
+    },
+    {
+      "label": "com.spa.io_liquidity",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:86400s",
+      "program": "agent_io_liquidity.sh",
+      "layer": "product",
+      "role": "analytics",
+      "intent": "active",
+      "produces": [
+        {
+          "artifact": "data/investment_os/liquidity.json",
+          "slo_hours": 26
+        }
+      ],
+      "consumes": [],
+      "consumer_required": true,
+      "governed_by": [
+        "ADR-055",
+        "docs/08_ai_investment_os_architecture.md"
+      ],
+      "curation": "complete",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/investment_os/agents/liquidity.py \u2014 Liquidity analyst (AI Investment OS, docs/08).",
+        "quality_metric": "data/investment_os/liquidity.json \u0441\u0432\u0435\u0436\u0435\u0435 26 \u0447",
+        "escalation": "\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u0435\u043c: \u043f\u0440\u043e\u0442\u0443\u0445\u0448\u0438\u0439 \u0430\u0440\u0442\u0435\u0444\u0430\u043a\u0442 \u043b\u043e\u0432\u044f\u0442 \u0441\u0442\u043e\u0440\u043e\u0436\u0430 \u0441\u0432\u0435\u0436\u0435\u0441\u0442\u0438 (artifact_freshness / agent_health) \u043f\u043e SLO \u0438\u0437 \u043c\u0430\u043d\u0438\u0444\u0435\u0441\u0442\u0430"
+      }
+    },
+    {
+      "label": "com.spa.io_market_regime",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:86400s",
+      "program": "agent_io_market_regime.sh",
+      "layer": "product",
+      "role": "analytics",
+      "intent": "active",
+      "produces": [
+        {
+          "artifact": "data/investment_os/market_regime.json",
+          "slo_hours": 26
+        }
+      ],
+      "consumes": [],
+      "consumer_required": true,
+      "governed_by": [
+        "ADR-055",
+        "docs/08_ai_investment_os_architecture.md"
+      ],
+      "curation": "complete",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/investment_os/agents/market_regime.py \u2014 Market Regime analyst (AI Investment OS, docs/08).",
+        "quality_metric": "data/investment_os/market_regime.json \u0441\u0432\u0435\u0436\u0435\u0435 26 \u0447",
+        "escalation": "\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u0435\u043c: \u043f\u0440\u043e\u0442\u0443\u0445\u0448\u0438\u0439 \u0430\u0440\u0442\u0435\u0444\u0430\u043a\u0442 \u043b\u043e\u0432\u044f\u0442 \u0441\u0442\u043e\u0440\u043e\u0436\u0430 \u0441\u0432\u0435\u0436\u0435\u0441\u0442\u0438 (artifact_freshness / agent_health) \u043f\u043e SLO \u0438\u0437 \u043c\u0430\u043d\u0438\u0444\u0435\u0441\u0442\u0430"
+      }
+    },
+    {
+      "label": "com.spa.io_market_structure",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:86400s",
+      "program": "agent_io_market_structure.sh",
+      "layer": "product",
+      "role": "analytics",
+      "intent": "active",
+      "produces": [
+        {
+          "artifact": "data/investment_os/market_structure.json",
+          "slo_hours": 26
+        }
+      ],
+      "consumes": [],
+      "consumer_required": true,
+      "governed_by": [
+        "ADR-055",
+        "docs/08_ai_investment_os_architecture.md"
+      ],
+      "curation": "complete",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/investment_os/agents/market_structure.py \u2014 Market Structure analyst (AI Investment OS, docs/08).",
+        "quality_metric": "data/investment_os/market_structure.json \u0441\u0432\u0435\u0436\u0435\u0435 26 \u0447",
+        "escalation": "\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u0435\u043c: \u043f\u0440\u043e\u0442\u0443\u0445\u0448\u0438\u0439 \u0430\u0440\u0442\u0435\u0444\u0430\u043a\u0442 \u043b\u043e\u0432\u044f\u0442 \u0441\u0442\u043e\u0440\u043e\u0436\u0430 \u0441\u0432\u0435\u0436\u0435\u0441\u0442\u0438 (artifact_freshness / agent_health) \u043f\u043e SLO \u0438\u0437 \u043c\u0430\u043d\u0438\u0444\u0435\u0441\u0442\u0430"
+      }
+    },
+    {
+      "label": "com.spa.io_onchain",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:86400s",
+      "program": "agent_io_onchain.sh",
+      "layer": "product",
+      "role": "analytics",
+      "intent": "active",
+      "produces": [
+        {
+          "artifact": "data/investment_os/onchain.json",
+          "slo_hours": 26
+        }
+      ],
+      "consumes": [],
+      "consumer_required": true,
+      "governed_by": [
+        "ADR-055",
+        "docs/08_ai_investment_os_architecture.md"
+      ],
+      "curation": "complete",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/investment_os/agents/onchain.py \u2014 On-chain / Developer Activity analyst (AI Investment OS, docs/08).",
+        "quality_metric": "data/investment_os/onchain.json \u0441\u0432\u0435\u0436\u0435\u0435 26 \u0447",
+        "escalation": "\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u0435\u043c: \u043f\u0440\u043e\u0442\u0443\u0445\u0448\u0438\u0439 \u0430\u0440\u0442\u0435\u0444\u0430\u043a\u0442 \u043b\u043e\u0432\u044f\u0442 \u0441\u0442\u043e\u0440\u043e\u0436\u0430 \u0441\u0432\u0435\u0436\u0435\u0441\u0442\u0438 (artifact_freshness / agent_health) \u043f\u043e SLO \u0438\u0437 \u043c\u0430\u043d\u0438\u0444\u0435\u0441\u0442\u0430"
+      }
+    },
+    {
+      "label": "com.spa.io_protocol_risk",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:86400s",
+      "program": "agent_io_protocol_risk.sh",
+      "layer": "product",
+      "role": "analytics",
+      "intent": "active",
+      "produces": [
+        {
+          "artifact": "data/investment_os/protocol_risk.json",
+          "slo_hours": 26
+        }
+      ],
+      "consumes": [],
+      "consumer_required": true,
+      "governed_by": [
+        "ADR-055",
+        "docs/08_ai_investment_os_architecture.md"
+      ],
+      "curation": "complete",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/investment_os/agents/protocol_risk.py \u2014 Protocol & Peg Risk analyst (AI Investment OS, docs/08).",
+        "quality_metric": "data/investment_os/protocol_risk.json \u0441\u0432\u0435\u0436\u0435\u0435 26 \u0447",
+        "escalation": "\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u0435\u043c: \u043f\u0440\u043e\u0442\u0443\u0445\u0448\u0438\u0439 \u0430\u0440\u0442\u0435\u0444\u0430\u043a\u0442 \u043b\u043e\u0432\u044f\u0442 \u0441\u0442\u043e\u0440\u043e\u0436\u0430 \u0441\u0432\u0435\u0436\u0435\u0441\u0442\u0438 (artifact_freshness / agent_health) \u043f\u043e SLO \u0438\u0437 \u043c\u0430\u043d\u0438\u0444\u0435\u0441\u0442\u0430"
+      }
+    },
+    {
+      "label": "com.spa.io_quant",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:86400s",
+      "program": "agent_io_quant.sh",
+      "layer": "product",
+      "role": "analytics",
+      "intent": "active",
+      "produces": [
+        {
+          "artifact": "data/investment_os/quant.json",
+          "slo_hours": 26
+        }
+      ],
+      "consumes": [],
+      "consumer_required": true,
+      "governed_by": [
+        "ADR-055",
+        "docs/08_ai_investment_os_architecture.md"
+      ],
+      "curation": "complete",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/investment_os/agents/quant.py \u2014 Quant & Backtesting analyst (AI Investment OS, docs/08).",
+        "quality_metric": "data/investment_os/quant.json \u0441\u0432\u0435\u0436\u0435\u0435 26 \u0447",
+        "escalation": "\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u0435\u043c: \u043f\u0440\u043e\u0442\u0443\u0445\u0448\u0438\u0439 \u0430\u0440\u0442\u0435\u0444\u0430\u043a\u0442 \u043b\u043e\u0432\u044f\u0442 \u0441\u0442\u043e\u0440\u043e\u0436\u0430 \u0441\u0432\u0435\u0436\u0435\u0441\u0442\u0438 (artifact_freshness / agent_health) \u043f\u043e SLO \u0438\u0437 \u043c\u0430\u043d\u0438\u0444\u0435\u0441\u0442\u0430"
+      }
+    },
+    {
+      "label": "com.spa.io_red_team",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:86400s",
+      "program": "agent_io_red_team.sh",
+      "layer": "product",
+      "role": "analytics",
+      "intent": "active",
+      "produces": [
+        {
+          "artifact": "data/investment_os/red_team.json",
+          "slo_hours": 26
+        }
+      ],
+      "consumes": [],
+      "consumer_required": true,
+      "governed_by": [
+        "ADR-055",
+        "docs/08_ai_investment_os_architecture.md"
+      ],
+      "curation": "complete",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/investment_os/agents/red_team.py \u2014 Red Team analyst (AI Investment OS, docs/08).",
+        "quality_metric": "data/investment_os/red_team.json \u0441\u0432\u0435\u0436\u0435\u0435 26 \u0447",
+        "escalation": "\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u0435\u043c: \u043f\u0440\u043e\u0442\u0443\u0445\u0448\u0438\u0439 \u0430\u0440\u0442\u0435\u0444\u0430\u043a\u0442 \u043b\u043e\u0432\u044f\u0442 \u0441\u0442\u043e\u0440\u043e\u0436\u0430 \u0441\u0432\u0435\u0436\u0435\u0441\u0442\u0438 (artifact_freshness / agent_health) \u043f\u043e SLO \u0438\u0437 \u043c\u0430\u043d\u0438\u0444\u0435\u0441\u0442\u0430"
+      }
+    },
+    {
+      "label": "com.spa.io_reporting",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:86400s",
+      "program": "agent_io_reporting.sh",
+      "layer": "product",
+      "role": "analytics",
+      "intent": "active",
+      "produces": [
+        {
+          "artifact": "data/investment_os/reporting.json",
+          "slo_hours": 26
+        }
+      ],
+      "consumes": [],
+      "consumer_required": true,
+      "governed_by": [
+        "ADR-055",
+        "docs/08_ai_investment_os_architecture.md"
+      ],
+      "curation": "complete",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/investment_os/agents/reporting.py \u2014 Reporting analyst (AI Investment OS, docs/08).",
+        "quality_metric": "data/investment_os/reporting.json \u0441\u0432\u0435\u0436\u0435\u0435 26 \u0447",
+        "escalation": "\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u0435\u043c: \u043f\u0440\u043e\u0442\u0443\u0445\u0448\u0438\u0439 \u0430\u0440\u0442\u0435\u0444\u0430\u043a\u0442 \u043b\u043e\u0432\u044f\u0442 \u0441\u0442\u043e\u0440\u043e\u0436\u0430 \u0441\u0432\u0435\u0436\u0435\u0441\u0442\u0438 (artifact_freshness / agent_health) \u043f\u043e SLO \u0438\u0437 \u043c\u0430\u043d\u0438\u0444\u0435\u0441\u0442\u0430"
+      }
+    },
+    {
+      "label": "com.spa.io_stablecoin_yield",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:86400s",
+      "program": "agent_io_stablecoin_yield.sh",
+      "layer": "product",
+      "role": "analytics",
+      "intent": "active",
+      "produces": [
+        {
+          "artifact": "data/investment_os/stablecoin_yield.json",
+          "slo_hours": 26
+        }
+      ],
+      "consumes": [],
+      "consumer_required": true,
+      "governed_by": [
+        "ADR-055",
+        "docs/08_ai_investment_os_architecture.md"
+      ],
+      "curation": "complete",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/investment_os/agents/stablecoin_yield.py \u2014 Stablecoin Yield analyst (AI Investment OS).",
+        "quality_metric": "data/investment_os/stablecoin_yield.json \u0441\u0432\u0435\u0436\u0435\u0435 26 \u0447",
+        "escalation": "\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u0435\u043c: \u043f\u0440\u043e\u0442\u0443\u0445\u0448\u0438\u0439 \u0430\u0440\u0442\u0435\u0444\u0430\u043a\u0442 \u043b\u043e\u0432\u044f\u0442 \u0441\u0442\u043e\u0440\u043e\u0436\u0430 \u0441\u0432\u0435\u0436\u0435\u0441\u0442\u0438 (artifact_freshness / agent_health) \u043f\u043e SLO \u0438\u0437 \u043c\u0430\u043d\u0438\u0444\u0435\u0441\u0442\u0430"
+      }
+    },
+    {
+      "label": "com.spa.io_yield_quality",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:86400s",
+      "program": "agent_io_yield_quality.sh",
+      "layer": "product",
+      "role": "analytics",
+      "intent": "active",
+      "produces": [
+        {
+          "artifact": "data/investment_os/yield_quality.json",
+          "slo_hours": 26
+        }
+      ],
+      "consumes": [],
+      "consumer_required": true,
+      "governed_by": [
+        "ADR-055",
+        "docs/08_ai_investment_os_architecture.md"
+      ],
+      "curation": "complete",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/investment_os/agents/yield_quality.py \u2014 Yield Quality analyst (AI Investment OS, docs/08).",
+        "quality_metric": "data/investment_os/yield_quality.json \u0441\u0432\u0435\u0436\u0435\u0435 26 \u0447",
+        "escalation": "\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u0435\u043c: \u043f\u0440\u043e\u0442\u0443\u0445\u0448\u0438\u0439 \u0430\u0440\u0442\u0435\u0444\u0430\u043a\u0442 \u043b\u043e\u0432\u044f\u0442 \u0441\u0442\u043e\u0440\u043e\u0436\u0430 \u0441\u0432\u0435\u0436\u0435\u0441\u0442\u0438 (artifact_freshness / agent_health) \u043f\u043e SLO \u0438\u0437 \u043c\u0430\u043d\u0438\u0444\u0435\u0441\u0442\u0430"
+      }
+    },
+    {
+      "label": "com.spa.lp_cycle",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:3600s",
+      "program": "agent_lp_cycle.sh",
+      "layer": "product",
+      "role": "allocation",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "Engine C (LP/Liquidity) paper trading cycle \u2014 EPIC-2 S2.2.",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.mass_tournament",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "calendar:06:30",
+      "program": "run_backtest_tier1.sh",
+      "layer": "product",
+      "role": "research",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/backtesting/tier1/data_integrity.py \u2014 historical-data integrity / no-lookahead.",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.morning_digest",
+      "plist_source": null,
+      "reboot_safe": false,
+      "schedule": null,
+      "program": null,
+      "layer": "product",
+      "role": "other",
+      "intent": "retired",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.novel_edge_rnd",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "calendar:04:00",
+      "program": "agent_novel_edge_rnd.sh",
+      "layer": "product",
+      "role": "research",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "\u043e\u0436\u0438\u0432\u043b\u0451\u043d \u0440\u0435\u0448\u0435\u043d\u0438\u0435\u043c \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0430 2026-08-06 (ADR-067): standing-\u0434\u0438\u0440\u0435\u043a\u0442\u0438\u0432\u0430 R&D edge (\u0412\u0442/\u041f\u0442 04:00)",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.orchestrator",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:3600s",
+      "program": "agent_orchestrator.sh",
+      "layer": "dev",
+      "role": "research",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.peg_monitor",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:300s",
+      "program": "agent_peg_monitor.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "MP-601 PegStabilityMonitor.",
+        "quality_metric": "",
+        "escalation": "CRITICAL \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0443 \u0432 \u0422\u0435\u043b\u0435\u0433\u0440\u0430\u043c \u0447\u0435\u0440\u0435\u0437 push_policy (\u0434\u043d\u0435\u0432\u043d\u043e\u0439 \u043f\u043e\u0442\u043e\u043b\u043e\u043a; \u0441\u0442\u043e\u043f-\u043a\u0440\u0430\u043d \u043e\u0442 \u043d\u0435\u0433\u043e \u043e\u0441\u0432\u043e\u0431\u043e\u0436\u0434\u0451\u043d)"
+      }
+    },
+    {
+      "label": "com.spa.portfolio_monitor",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:300s",
+      "program": "agent_portfolio_monitor.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "Portfolio drift monitoring module for SPA (MP-578).",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.rates_desk_paper",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:3600s",
+      "program": "agent_rates_desk_paper.sh",
+      "layer": "product",
+      "role": "allocation",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/strategy_lab/rates_desk/paper_rates.py \u2014 LIVE paper-trading service for the rates-desk FixedCarry sleeve (the VALIDATED one).",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.realized_at_size",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "calendar:09:20",
+      "program": "agent_realized_at_size.sh",
+      "layer": "product",
+      "role": "research",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/strategy_lab/rates_desk/paper_realized_at_size.py \u2014 Lane B B2.6: the STANDING forward-measurement agent for the realized-at-size killer test.",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.reboot_verify",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "manual",
+      "program": "agent_reboot_verify.sh",
+      "layer": "infra",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "\u043e\u0436\u0438\u0432\u043b\u0451\u043d \u0440\u0435\u0448\u0435\u043d\u0438\u0435\u043c \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0430 2026-08-06 (ADR-067): \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u0444\u043b\u043e\u0442\u0430 \u043f\u043e\u0441\u043b\u0435 \u0440\u0435\u0431\u0443\u0442\u0430 (RunAtLoad)",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.red_flag_monitor",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:300s",
+      "program": "agent_red_flag_monitor.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "Red Flag Monitor \u2014 FEAT-MON-001 (Sprint v3.16).",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.redteam_rotation",
+      "plist_source": "repo:scripts/com.spa.redteam_rotation.plist",
+      "reboot_safe": false,
+      "schedule": "calendar:09:30",
+      "program": "agent_redteam_rotation.sh",
+      "layer": "product",
+      "role": "unknown",
+      "intent": "retired",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "complete",
+      "notes": "\u043f\u043e\u0445\u043e\u0440\u043e\u043d\u0435\u043d \u0440\u0435\u0448\u0435\u043d\u0438\u0435\u043c \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0430 2026-08-06 (ADR-067): red-team \u0436\u0438\u0432\u0451\u0442 \u0432 research-\u0441\u043b\u043e\u0435",
+      "passport": {
+        "goal": "spa_core/redteam/rotation.py \u2014 the rotating red-team scheduler + the hash-ANCHORED report.",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.refusal",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "calendar:05:45",
+      "program": "agent_refusal.sh",
+      "layer": "product",
+      "role": "research",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/strategy_lab/rates_desk/refusal_engine.py \u2014 PRODUCTION advisory refusal engine.",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.resilience",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:21600s",
+      "program": "agent_resilience.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.rtmr_sense",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "daemon",
+      "program": "agent_rtmr_sense.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/monitoring/rtmr_service.py \u2014 RTMR (ADR-053) sense+emergency service entrypoint.",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.rules_watchdog",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:300s",
+      "program": "agent_rules_watchdog.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [
+        {
+          "artifact": "data/watchdog_report.json",
+          "slo_hours": 1
+        }
+      ],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "complete",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/monitoring/rules_watchdog.py \u2014 Rules Watchdog",
+        "quality_metric": "data/watchdog_report.json \u0441\u0432\u0435\u0436\u0435\u0435 1 \u0447",
+        "escalation": "CRITICAL \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0443 \u0432 \u0422\u0435\u043b\u0435\u0433\u0440\u0430\u043c \u0447\u0435\u0440\u0435\u0437 push_policy (\u0434\u043d\u0435\u0432\u043d\u043e\u0439 \u043f\u043e\u0442\u043e\u043b\u043e\u043a; \u0441\u0442\u043e\u043f-\u043a\u0440\u0430\u043d \u043e\u0442 \u043d\u0435\u0433\u043e \u043e\u0441\u0432\u043e\u0431\u043e\u0436\u0434\u0451\u043d)"
+      }
+    },
+    {
+      "label": "com.spa.rwa_safety_board",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "calendar:05:50",
+      "program": "agent_rwa_safety_board.sh",
+      "layer": "product",
+      "role": "research",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/strategy_lab/rwa_backstop/safety_board.py \u2014 the RWA Collateral Safety Board.",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.self_heal",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:300s",
+      "program": "agent_self_heal.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/monitoring/self_heal.py \u2014 active self-healing watchdog (MP-SELFHEAL).",
+        "quality_metric": "",
+        "escalation": "CRITICAL \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0443 \u0432 \u0422\u0435\u043b\u0435\u0433\u0440\u0430\u043c \u0447\u0435\u0440\u0435\u0437 push_policy (\u0434\u043d\u0435\u0432\u043d\u043e\u0439 \u043f\u043e\u0442\u043e\u043b\u043e\u043a; \u0441\u0442\u043e\u043f-\u043a\u0440\u0430\u043d \u043e\u0442 \u043d\u0435\u0433\u043e \u043e\u0441\u0432\u043e\u0431\u043e\u0436\u0434\u0451\u043d)"
+      }
+    },
+    {
+      "label": "com.spa.site_freshness",
+      "plist_source": "repo:launchd/com.spa.site_freshness.plist",
+      "reboot_safe": false,
+      "schedule": "interval:21600s",
+      "program": "agent_site_freshness.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "designed",
+      "produces": [
+        {
+          "artifact": "data/site_freshness_report.json",
+          "slo_hours": 13
+        }
+      ],
+      "consumes": [
+        "landing/src/data/track_snapshot.json"
+      ],
+      "consumer_required": false,
+      "governed_by": [
+        "ADR-085",
+        "ADR-YL-011"
+      ],
+      "curation": "complete",
+      "notes": "ADR-085 (\u0440\u0435\u0448\u0435\u043d\u0438\u0435 \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0430 14.08, \u0432\u0430\u0440\u0438\u0430\u043d\u0442 1). intent=designed \u0421\u041e\u0417\u041d\u0410\u0422\u0415\u041b\u042c\u041d\u041e: \u043a\u043e\u0434 \u0434\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d, \u0430\u0433\u0435\u043d\u0442 \u0435\u0449\u0451 \u041d\u0415 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d \u2014 launchctl \u044d\u0442\u043e \u0440\u0435\u0448\u0435\u043d\u0438\u0435 \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0430 (\u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0430 owner-decision-vklyuchit-novogo-storozha-saita-na-make). \u041f\u0420\u0418 \u0417\u0410\u0413\u0420\u0423\u0417\u041a\u0415 \u043f\u0435\u0440\u0435\u0432\u0435\u0441\u0442\u0438 intent \u0432 active \u0422\u0415\u041c \u0416\u0415 \u0448\u0430\u0433\u043e\u043c, \u0438\u043d\u0430\u0447\u0435 \u0441\u0442\u043e\u0440\u043e\u0436 \u0434\u0430\u0441\u0442 CRITICAL \u00ab\u0430\u043a\u0442\u0438\u0432\u0430\u0446\u0438\u044f \u043c\u0438\u043c\u043e ADR\u00bb \u043d\u0430 \u0432\u0435\u0440\u043d\u043e\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435 \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0430. produces \u043d\u0430\u0447\u043d\u0451\u0442 \u043d\u0430\u043f\u043e\u043b\u043d\u044f\u0442\u044c\u0441\u044f \u0442\u043e\u043b\u044c\u043a\u043e \u043f\u043e\u0441\u043b\u0435 \u0437\u0430\u0433\u0440\u0443\u0437\u043a\u0438.",
+      "passport": {
+        "goal": "",
+        "quality_metric": "data/site_freshness_report.json \u0441\u0432\u0435\u0436\u0435\u0435 13 \u0447",
+        "escalation": "\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u0435\u043c: \u043f\u0440\u043e\u0442\u0443\u0445\u0448\u0438\u0439 \u0430\u0440\u0442\u0435\u0444\u0430\u043a\u0442 \u043b\u043e\u0432\u044f\u0442 \u0441\u0442\u043e\u0440\u043e\u0436\u0430 \u0441\u0432\u0435\u0436\u0435\u0441\u0442\u0438 (artifact_freshness / agent_health) \u043f\u043e SLO \u0438\u0437 \u043c\u0430\u043d\u0438\u0444\u0435\u0441\u0442\u0430"
+      }
+    },
+    {
+      "label": "com.spa.sky_monitor",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "calendar:07:00",
+      "program": "agent_sky_monitor.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "Sky/sUSDS GSM Pause Delay Monitor.",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.strategy_lab_paper",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:3600s",
+      "program": "agent_strategy_lab_paper.sh",
+      "layer": "product",
+      "role": "allocation",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.swarm_blend",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:3600s",
+      "program": "agent_swarm_blend.sh",
+      "layer": "product",
+      "role": "allocation",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "Swarm block 2 \u2014 the FORWARD 3-desk blend paper portfolio (validated idea #3 made live).",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.swarm_brain",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:3600s",
+      "program": "agent_swarm_brain.sh",
+      "layer": "product",
+      "role": "allocation",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "Swarm block 4 \u2014 L3 Dynamic Leverage Guardian, forward (the brain that sizes risk to weather).",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.swarm_dwell",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:3600s",
+      "program": "agent_swarm_dwell.sh",
+      "layer": "product",
+      "role": "swarm",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [
+        "ADR-YL-012"
+      ],
+      "curation": "partial",
+      "notes": "\u0420\u0410\u0411\u041e\u0422\u0410\u0415\u0422, \u043d\u043e \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d \u0438\u0437 repo:launchd/ \u2014 \u041d\u0415 \u043f\u0435\u0440\u0435\u0436\u0438\u0432\u0451\u0442 \u0440\u0435\u0431\u0443\u0442 (\u043d\u0430\u0445\u043e\u0434\u043a\u0430 2026-08-05); \u0432 agent_registry \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442",
+      "passport": {
+        "goal": "FORWARD paper book for the dwell-hysteresis latch (registry idea #36's control).",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.swarm_guardian",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:3600s",
+      "program": "agent_swarm_guardian.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "Swarm block 1 \u2014 L2 position guardians on the LIVE aggressive_lab forward paper track.",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.swarm_health",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:3600s",
+      "program": "agent_swarm_health.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "Swarm block 5 \u2014 L4 immune layer: the agent that watches the swarm itself.",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.swarm_regime",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:3600s",
+      "program": "agent_swarm_regime.sh",
+      "layer": "product",
+      "role": "allocation",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "Swarm block 3 \u2014 L1 funding-regime classifier (GREEN / YELLOW / RED carry weather).",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.system_briefing",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:1800s",
+      "program": "agent_system_briefing.sh",
+      "layer": "product",
+      "role": "reporting",
+      "intent": "active",
+      "produces": [
+        {
+          "artifact": "docs/SYSTEM_BRIEFING.md",
+          "slo_hours": 2
+        }
+      ],
+      "consumes": [],
+      "consumer_required": true,
+      "governed_by": [],
+      "curation": "complete",
+      "notes": "",
+      "passport": {
+        "goal": "",
+        "quality_metric": "docs/SYSTEM_BRIEFING.md \u0441\u0432\u0435\u0436\u0435\u0435 2 \u0447",
+        "escalation": "\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u0435\u043c: \u043f\u0440\u043e\u0442\u0443\u0445\u0448\u0438\u0439 \u0430\u0440\u0442\u0435\u0444\u0430\u043a\u0442 \u043b\u043e\u0432\u044f\u0442 \u0441\u0442\u043e\u0440\u043e\u0436\u0430 \u0441\u0432\u0435\u0436\u0435\u0441\u0442\u0438 (artifact_freshness / agent_health) \u043f\u043e SLO \u0438\u0437 \u043c\u0430\u043d\u0438\u0444\u0435\u0441\u0442\u0430"
+      }
+    },
+    {
+      "label": "com.spa.system_health_evening",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "calendar:20:00",
+      "program": "agent_system_health_evening.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "SPA end-to-end SYSTEM health monitor (12-hourly).",
+        "quality_metric": "",
+        "escalation": "CRITICAL \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0443 \u0432 \u0422\u0435\u043b\u0435\u0433\u0440\u0430\u043c \u0447\u0435\u0440\u0435\u0437 push_policy (\u0434\u043d\u0435\u0432\u043d\u043e\u0439 \u043f\u043e\u0442\u043e\u043b\u043e\u043a; \u0441\u0442\u043e\u043f-\u043a\u0440\u0430\u043d \u043e\u0442 \u043d\u0435\u0433\u043e \u043e\u0441\u0432\u043e\u0431\u043e\u0436\u0434\u0451\u043d)"
+      }
+    },
+    {
+      "label": "com.spa.system_health_morning",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "calendar:08:00",
+      "program": "agent_system_health_morning.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "SPA end-to-end SYSTEM health monitor (12-hourly).",
+        "quality_metric": "",
+        "escalation": "CRITICAL \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0443 \u0432 \u0422\u0435\u043b\u0435\u0433\u0440\u0430\u043c \u0447\u0435\u0440\u0435\u0437 push_policy (\u0434\u043d\u0435\u0432\u043d\u043e\u0439 \u043f\u043e\u0442\u043e\u043b\u043e\u043a; \u0441\u0442\u043e\u043f-\u043a\u0440\u0430\u043d \u043e\u0442 \u043d\u0435\u0433\u043e \u043e\u0441\u0432\u043e\u0431\u043e\u0436\u0434\u0451\u043d)"
+      }
+    },
+    {
+      "label": "com.spa.telegram_bot",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "daemon",
+      "program": "agent_telegram_bot.sh",
+      "layer": "infra",
+      "role": "reporting",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "SPA Telegram Bot v2.1.",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.telegram_health",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:300s",
+      "program": "agent_telegram_health.sh",
+      "layer": "product",
+      "role": "unknown",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "none",
+      "notes": "",
+      "passport": {
+        "goal": "\u0421\u0442\u043e\u0440\u043e\u0436 \u0422\u0435\u043b\u0435\u0433\u0440\u0430\u043c\u0430: \u0437\u0430\u043c\u0435\u0447\u0430\u0435\u0442 \u043f\u043e\u043b\u043e\u043c\u043a\u0443 \u0438 \u0447\u0438\u043d\u0438\u0442 \u0415\u0414\u0418\u041d\u0421\u0422\u0412\u0415\u041d\u041d\u042b\u041c \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u044b\u043c \u0441\u043f\u043e\u0441\u043e\u0431\u043e\u043c.",
+        "quality_metric": "",
+        "escalation": "CRITICAL \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0443 \u0432 \u0422\u0435\u043b\u0435\u0433\u0440\u0430\u043c \u0447\u0435\u0440\u0435\u0437 push_policy (\u0434\u043d\u0435\u0432\u043d\u043e\u0439 \u043f\u043e\u0442\u043e\u043b\u043e\u043a; \u0441\u0442\u043e\u043f-\u043a\u0440\u0430\u043d \u043e\u0442 \u043d\u0435\u0433\u043e \u043e\u0441\u0432\u043e\u0431\u043e\u0436\u0434\u0451\u043d)"
+      }
+    },
+    {
+      "label": "com.spa.telegram_milestone",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:86400s",
+      "program": "agent_telegram_milestone.sh",
+      "layer": "product",
+      "role": "reporting",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "Smart milestone Telegram alerts for SPA paper trading.",
+        "quality_metric": "",
+        "escalation": "CRITICAL \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0443 \u0432 \u0422\u0435\u043b\u0435\u0433\u0440\u0430\u043c \u0447\u0435\u0440\u0435\u0437 push_policy (\u0434\u043d\u0435\u0432\u043d\u043e\u0439 \u043f\u043e\u0442\u043e\u043b\u043e\u043a; \u0441\u0442\u043e\u043f-\u043a\u0440\u0430\u043d \u043e\u0442 \u043d\u0435\u0433\u043e \u043e\u0441\u0432\u043e\u0431\u043e\u0436\u0434\u0451\u043d)"
+      }
+    },
+    {
+      "label": "com.spa.telegram_watcher",
+      "plist_source": "repo:launchd/com.spa.telegram_watcher.plist",
+      "reboot_safe": false,
+      "schedule": "interval:300s",
+      "program": "python3",
+      "layer": "product",
+      "role": "unknown",
+      "intent": "retired",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "complete",
+      "notes": "\u043f\u043e\u0445\u043e\u0440\u043e\u043d\u0435\u043d \u0440\u0435\u0448\u0435\u043d\u0438\u0435\u043c \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0430 2026-08-06 (ADR-067): \u043f\u0440\u0435\u0434\u043e\u043a dashboard_watcher",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.threat_reactor",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:300s",
+      "program": "agent_threat_reactor.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/monitoring/threat_reactor.py \u2014 intraday protective reactor (MP-REACT).",
+        "quality_metric": "",
+        "escalation": "CRITICAL \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0443 \u0432 \u0422\u0435\u043b\u0435\u0433\u0440\u0430\u043c \u0447\u0435\u0440\u0435\u0437 push_policy (\u0434\u043d\u0435\u0432\u043d\u043e\u0439 \u043f\u043e\u0442\u043e\u043b\u043e\u043a; \u0441\u0442\u043e\u043f-\u043a\u0440\u0430\u043d \u043e\u0442 \u043d\u0435\u0433\u043e \u043e\u0441\u0432\u043e\u0431\u043e\u0436\u0434\u0451\u043d)"
+      }
+    },
+    {
+      "label": "com.spa.tier1_digest",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "calendar:wd0\u00b709:30",
+      "program": "agent_tier1_digest.sh",
+      "layer": "product",
+      "role": "other",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "\u0440\u0430\u0437\u0432\u0451\u0440\u043d\u0443\u0442 2026-08-08 \u043f\u043e \u0440\u0435\u0448\u0435\u043d\u0438\u044e \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0430 \u00ab\u0447\u0435\u0442\u044b\u0440\u0435 \u2014 \u0441\u0442\u0430\u0432\u0438\u0442\u044c\u00bb (own-31); \u0433\u0435\u0439\u0442 check_agent_before_deploy \u043f\u0440\u043e\u0439\u0434\u0435\u043d, last exit=0",
+      "passport": {
+        "goal": "spa_core/reporting/tier1_digest.py \u2014 weekly Tier-1 validation digest to Telegram.",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.tier1_governance",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "calendar:07:15",
+      "program": "run_tier1_governance.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "SPA Single Source of Truth (SSOT) MANIFEST + presentation validator.",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.tournament_engine",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "calendar:09:00",
+      "program": "agent_tournament_engine.sh",
+      "layer": "product",
+      "role": "research",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "SPA Tournament Engine v1.0 spa_core/tournament/tournament_engine.py",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.uptime_monitor",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:300s",
+      "program": "agent_uptime_monitor.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/monitoring/uptime_monitor.py ====================================== SPA Uptime Monitor \u2014 24/7 availability checks (MP-211).",
+        "quality_metric": "",
+        "escalation": "CRITICAL \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0443 \u0432 \u0422\u0435\u043b\u0435\u0433\u0440\u0430\u043c \u0447\u0435\u0440\u0435\u0437 push_policy (\u0434\u043d\u0435\u0432\u043d\u043e\u0439 \u043f\u043e\u0442\u043e\u043b\u043e\u043a; \u0441\u0442\u043e\u043f-\u043a\u0440\u0430\u043d \u043e\u0442 \u043d\u0435\u0433\u043e \u043e\u0441\u0432\u043e\u0431\u043e\u0436\u0434\u0451\u043d)"
+      }
+    },
+    {
+      "label": "com.spa.watchdog",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "interval:600s",
+      "program": "agent_watchdog.sh",
+      "layer": "product",
+      "role": "monitoring",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "spa_core/monitoring/watchdog.py \u2014 watchdog-over-watchdog guardian (Self-Healing Plane 1.7).",
+        "quality_metric": "",
+        "escalation": "CRITICAL \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0443 \u0432 \u0422\u0435\u043b\u0435\u0433\u0440\u0430\u043c \u0447\u0435\u0440\u0435\u0437 push_policy (\u0434\u043d\u0435\u0432\u043d\u043e\u0439 \u043f\u043e\u0442\u043e\u043b\u043e\u043a; \u0441\u0442\u043e\u043f-\u043a\u0440\u0430\u043d \u043e\u0442 \u043d\u0435\u0433\u043e \u043e\u0441\u0432\u043e\u0431\u043e\u0436\u0434\u0451\u043d)"
+      }
+    },
+    {
+      "label": "com.spa.weekly_backup",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "calendar:wd6\u00b710:00",
+      "program": "weekly_backup.sh",
+      "layer": "infra",
+      "role": "other",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "\u0440\u0430\u0437\u0432\u0451\u0440\u043d\u0443\u0442 2026-08-08 \u043f\u043e \u0440\u0435\u0448\u0435\u043d\u0438\u044e \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0430 \u00ab\u0447\u0435\u0442\u044b\u0440\u0435 \u2014 \u0441\u0442\u0430\u0432\u0438\u0442\u044c\u00bb (own-31); \u0433\u0435\u0439\u0442 check_agent_before_deploy \u043f\u0440\u043e\u0439\u0434\u0435\u043d, last exit=0",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
+    },
+    {
+      "label": "com.spa.work_digest",
+      "plist_source": "launch_agents",
+      "reboot_safe": true,
+      "schedule": "calendar:09:00",
+      "program": "agent_work_digest.sh",
+      "layer": "product",
+      "role": "reporting",
+      "intent": "active",
+      "produces": [],
+      "consumes": [],
+      "consumer_required": false,
+      "governed_by": [],
+      "curation": "partial",
+      "notes": "",
+      "passport": {
+        "goal": "",
+        "quality_metric": "",
+        "escalation": ""
+      }
     }
-   ],
-   "consumes": [],
-   "consumer_required": true,
-   "governed_by": [],
-   "curation": "complete",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.system_health_evening",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "calendar:20:00",
-   "program": "agent_system_health_evening.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.system_health_morning",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "calendar:08:00",
-   "program": "agent_system_health_morning.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.telegram_bot",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "daemon",
-   "program": "agent_telegram_bot.sh",
-   "layer": "infra",
-   "role": "reporting",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.telegram_health",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:300s",
-   "program": "agent_telegram_health.sh",
-   "layer": "product",
-   "role": "unknown",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "none",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.telegram_milestone",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:86400s",
-   "program": "agent_telegram_milestone.sh",
-   "layer": "product",
-   "role": "reporting",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.telegram_watcher",
-   "plist_source": "repo:launchd/com.spa.telegram_watcher.plist",
-   "reboot_safe": false,
-   "schedule": "interval:300s",
-   "program": "python3",
-   "layer": "product",
-   "role": "unknown",
-   "intent": "retired",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "complete",
-   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): предок dashboard_watcher"
-  },
-  {
-   "label": "com.spa.threat_reactor",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:300s",
-   "program": "agent_threat_reactor.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.tier1_digest",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "calendar:wd0·09:30",
-   "program": "agent_tier1_digest.sh",
-   "layer": "product",
-   "role": "other",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": "развёрнут 2026-08-08 по решению владельца «четыре — ставить» (own-31); гейт check_agent_before_deploy пройден, last exit=0"
-  },
-  {
-   "label": "com.spa.tier1_governance",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "calendar:07:15",
-   "program": "run_tier1_governance.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.tournament_engine",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "calendar:09:00",
-   "program": "agent_tournament_engine.sh",
-   "layer": "product",
-   "role": "research",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.uptime_monitor",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:300s",
-   "program": "agent_uptime_monitor.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.watchdog",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:600s",
-   "program": "agent_watchdog.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  },
-  {
-   "label": "com.spa.weekly_backup",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "calendar:wd6·10:00",
-   "program": "weekly_backup.sh",
-   "layer": "infra",
-   "role": "other",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": "развёрнут 2026-08-08 по решению владельца «четыре — ставить» (own-31); гейт check_agent_before_deploy пройден, last exit=0"
-  },
-  {
-   "label": "com.spa.work_digest",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "calendar:09:00",
-   "program": "agent_work_digest.sh",
-   "layer": "product",
-   "role": "reporting",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [],
-   "curation": "partial",
-   "notes": ""
-  }
- ],
- "artifacts": [
-  {
-   "path": "data/investment_os/chief_investment.json",
-   "producer": "com.spa.io_chief_investment",
-   "consumers": [
-    "orchestrator_protocol",
-    "digest_daily"
-   ],
-   "slo_hours": 26,
-   "status": "active"
-  },
-  {
-   "path": "data/investment_os/liquidity.json",
-   "producer": "com.spa.io_liquidity",
-   "consumers": [
-    "orchestrator_protocol",
-    "com.spa.io_chief_investment"
-   ],
-   "slo_hours": 26,
-   "status": "active"
-  },
-  {
-   "path": "data/investment_os/market_regime.json",
-   "producer": "com.spa.io_market_regime",
-   "consumers": [
-    "orchestrator_protocol",
-    "com.spa.io_chief_investment"
-   ],
-   "slo_hours": 26,
-   "status": "active"
-  },
-  {
-   "path": "data/investment_os/market_structure.json",
-   "producer": "com.spa.io_market_structure",
-   "consumers": [
-    "orchestrator_protocol"
-   ],
-   "slo_hours": 26,
-   "status": "active"
-  },
-  {
-   "path": "data/investment_os/onchain.json",
-   "producer": "com.spa.io_onchain",
-   "consumers": [
-    "orchestrator_protocol"
-   ],
-   "slo_hours": 26,
-   "status": "active"
-  },
-  {
-   "path": "data/investment_os/protocol_risk.json",
-   "producer": "com.spa.io_protocol_risk",
-   "consumers": [
-    "orchestrator_protocol",
-    "com.spa.io_chief_investment"
-   ],
-   "slo_hours": 26,
-   "status": "active"
-  },
-  {
-   "path": "data/investment_os/quant.json",
-   "producer": "com.spa.io_quant",
-   "consumers": [
-    "orchestrator_protocol"
-   ],
-   "slo_hours": 26,
-   "status": "active"
-  },
-  {
-   "path": "data/investment_os/red_team.json",
-   "producer": "com.spa.io_red_team",
-   "consumers": [
-    "orchestrator_protocol",
-    "com.spa.io_chief_investment"
-   ],
-   "slo_hours": 26,
-   "status": "active"
-  },
-  {
-   "path": "data/investment_os/reporting.json",
-   "producer": "com.spa.io_reporting",
-   "consumers": [
-    "orchestrator_protocol",
-    "com.spa.io_chief_investment"
-   ],
-   "slo_hours": 26,
-   "status": "active"
-  },
-  {
-   "path": "data/investment_os/stablecoin_yield.json",
-   "producer": "com.spa.io_stablecoin_yield",
-   "consumers": [
-    "orchestrator_protocol",
-    "com.spa.io_chief_investment"
-   ],
-   "slo_hours": 26,
-   "status": "active"
-  },
-  {
-   "path": "data/investment_os/yield_quality.json",
-   "producer": "com.spa.io_yield_quality",
-   "consumers": [
-    "orchestrator_protocol",
-    "com.spa.io_chief_investment"
-   ],
-   "slo_hours": 26,
-   "status": "active"
-  },
-  {
-   "path": "data/investment_os/_health.json",
-   "producer": "com.spa.io_health",
-   "consumers": [
-    "orchestrator_protocol",
-    "digest_daily"
-   ],
-   "slo_hours": 14,
-   "status": "active"
-  },
-  {
-   "path": "data/agent_registry.json",
-   "producer": "com.spa.agent_health",
-   "consumers": [
-    "architecture_conformance"
-   ],
-   "slo_hours": 26,
-   "status": "active",
-   "notes": "регенерируется agent_registry_refresh внутри hourly agent_health (фикс 2026-08-06 по карточке петли); инцидент 19-дневного протухания закрыт"
-  },
-  {
-   "path": "docs/SYSTEM_BRIEFING.md",
-   "producer": "com.spa.system_briefing",
-   "consumers": [
-    "orchestrator_protocol"
-   ],
-   "slo_hours": 2,
-   "status": "active"
-  },
-  {
-   "path": "data/agent_health.json",
-   "producer": "com.spa.agent_health",
-   "consumers": [],
-   "slo_hours": 3,
-   "status": "active"
-  },
-  {
-   "path": "data/owner_decision_pending.json",
-   "producer": "com.spa.agent_health",
-   "consumers": [
-    "orchestrator_protocol"
-   ],
-   "slo_hours": 3,
-   "status": "active",
-   "notes": "цикл #195 — есть ли у ОСТАНОВКИ путь вверх: ждёт ли система ответа владельца и сколько"
-  },
-  {
-   "path": "data/watchdog_report.json",
-   "producer": "com.spa.rules_watchdog",
-   "consumers": [],
-   "slo_hours": 1,
-   "status": "active"
-  },
-  {
-   "path": "data/architecture_conformance.json",
-   "producer": "com.spa.architecture_conformance",
-   "consumers": [
-    "orchestrator_protocol",
-    "digest_daily",
-    "findings_to_cards"
-   ],
-   "status": "active",
-   "notes": "ADR-066: отчёт сторожа; потребитель-мост — Фаза 3",
-   "slo_hours": 7
-  },
-  {
-   "path": "data/consumption_receipts.jsonl",
-   "producer": null,
-   "consumers": [],
-   "status": "active",
-   "notes": "ADR-066 Фаза 2: мульти-писатель (все потребители); producer=null осознанно",
-   "slo_hours": 26
-  },
-  {
-   "path": "data/house_view_gap.json",
-   "producer": "com.spa.decision_loop",
-   "consumers": [
-    "orchestrator_protocol",
-    "findings_to_cards"
-   ],
-   "status": "active",
-   "notes": "ADR-066 Фаза 3",
-   "slo_hours": 7
-  },
-  {
-   "path": "data/findings_bridge_report.json",
-   "producer": "com.spa.decision_loop",
-   "consumers": [
-    "orchestrator_protocol"
-   ],
-   "slo_hours": 7,
-   "status": "active",
-   "notes": "ADR-066 Фаза 3: отчёт моста (created/deferred/closed) — deferred читать ОБЯЗАТЕЛЬНО"
-  },
-  {
-   "path": "data/loop_health.json",
-   "producer": "com.spa.decision_loop",
-   "consumers": [
-    "digest_daily",
-    "orchestrator_protocol"
-   ],
-   "slo_hours": 7,
-   "status": "active",
-   "notes": "ADR-066 Фаза 4: метрики петли"
-  },
-  {
-   "path": "data/loop_retro.json",
-   "producer": "com.spa.decision_loop",
-   "consumers": [
-    "findings_to_cards",
-    "orchestrator_protocol"
-   ],
-   "slo_hours": 192,
-   "status": "active",
-   "notes": "ADR-066 Фаза 4: еженедельное ретро (кандидаты — owner-gated)"
-  },
-  {
-   "path": "data/shadow_trigger_evaluation.json",
-   "producer": "com.spa.daily_cycle",
-   "consumers": [
-    "orchestrator_protocol"
-   ],
-   "slo_hours": 26,
-   "status": "active",
-   "notes": "ADR-060/067: arming-evidence (критерий 30д+net>0+hit≥60%); оркестратор читает ежедневно"
-  },
-  {
-   "path": "data/allocation_rationale_history.jsonl",
-   "producer": "com.spa.daily_cycle",
-   "consumers": [
-    "shadow_trigger_eval"
-   ],
-   "slo_hours": 26,
-   "status": "active",
-   "notes": "ADR-060 Y3: append-only история shadow-вердиктов — единственная долговременная запись"
-  },
-  {
-   "path": "data/intraday_equity.json",
-   "producer": "com.spa.intraday_equity",
-   "consumers": [
-    "orchestrator_protocol"
-   ],
-   "slo_hours": 1,
-   "status": "active",
-   "notes": "ADR-068: intraday-оценка equity + вердикт лестницы; UNCHECKED = лестница не вызывалась"
-  },
-  {
-   "path": "data/investment_os/outcomes.jsonl",
-   "producer": "com.spa.decision_loop",
-   "consumers": [
-    "loop_retro"
-   ],
-   "period_hours": 24,
-   "slo_hours": 31,
-   "status": "active",
-   "notes": "цикл 3 ADR-067: правая половина hit-rate — исходы по дням (идемпотентно по дате)"
-  }
- ],
- "designed_architectures": [
-  {
-   "name": "Head-of-Investment: 4-ролевый решающий слой",
-   "governed_by": [
-    "ADR-055"
-   ],
-   "activation": "owner-gated",
-   "watch": "ни один процесс не вправе занять эти роли до активации владельцем"
-  },
-  {
-   "name": "Продуктовый слой AAA (супер-студия, 16 аналитиков)",
-   "governed_by": [
-    "ADR-004",
-    "docs/10_agent_architecture.md",
-    "docs/08_ai_investment_os_architecture.md"
-   ],
-   "activation": "owner-gated",
-   "watch": "io_* — активированная часть; остальное designed"
-  },
-  {
-   "name": "Swarm block-7 (роевое исполнение)",
-   "governed_by": [
-    "ADR-YL-012"
-   ],
-   "activation": "gate: 30 fwd days + 1 vol event",
-   "watch": "блоки 1–6 live; блок 7 не активировать до гейта"
-  },
-  {
-   "name": "ADR-066 контуры B–D (conformance/петля/ретро)",
-   "governed_by": [
-    "ADR-066"
-   ],
-   "activation": "фазы 1–4 по карточкам",
-   "watch": "см. planned-артефакты"
-  }
- ]
+  ],
+  "artifacts": [
+    {
+      "path": "data/investment_os/chief_investment.json",
+      "producer": "com.spa.io_chief_investment",
+      "consumers": [
+        "orchestrator_protocol",
+        "digest_daily"
+      ],
+      "slo_hours": 26,
+      "status": "active"
+    },
+    {
+      "path": "data/investment_os/liquidity.json",
+      "producer": "com.spa.io_liquidity",
+      "consumers": [
+        "orchestrator_protocol",
+        "com.spa.io_chief_investment"
+      ],
+      "slo_hours": 26,
+      "status": "active"
+    },
+    {
+      "path": "data/investment_os/market_regime.json",
+      "producer": "com.spa.io_market_regime",
+      "consumers": [
+        "orchestrator_protocol",
+        "com.spa.io_chief_investment"
+      ],
+      "slo_hours": 26,
+      "status": "active"
+    },
+    {
+      "path": "data/investment_os/market_structure.json",
+      "producer": "com.spa.io_market_structure",
+      "consumers": [
+        "orchestrator_protocol"
+      ],
+      "slo_hours": 26,
+      "status": "active"
+    },
+    {
+      "path": "data/investment_os/onchain.json",
+      "producer": "com.spa.io_onchain",
+      "consumers": [
+        "orchestrator_protocol"
+      ],
+      "slo_hours": 26,
+      "status": "active"
+    },
+    {
+      "path": "data/investment_os/protocol_risk.json",
+      "producer": "com.spa.io_protocol_risk",
+      "consumers": [
+        "orchestrator_protocol",
+        "com.spa.io_chief_investment"
+      ],
+      "slo_hours": 26,
+      "status": "active"
+    },
+    {
+      "path": "data/investment_os/quant.json",
+      "producer": "com.spa.io_quant",
+      "consumers": [
+        "orchestrator_protocol"
+      ],
+      "slo_hours": 26,
+      "status": "active"
+    },
+    {
+      "path": "data/investment_os/red_team.json",
+      "producer": "com.spa.io_red_team",
+      "consumers": [
+        "orchestrator_protocol",
+        "com.spa.io_chief_investment"
+      ],
+      "slo_hours": 26,
+      "status": "active"
+    },
+    {
+      "path": "data/investment_os/reporting.json",
+      "producer": "com.spa.io_reporting",
+      "consumers": [
+        "orchestrator_protocol",
+        "com.spa.io_chief_investment"
+      ],
+      "slo_hours": 26,
+      "status": "active"
+    },
+    {
+      "path": "data/investment_os/stablecoin_yield.json",
+      "producer": "com.spa.io_stablecoin_yield",
+      "consumers": [
+        "orchestrator_protocol",
+        "com.spa.io_chief_investment"
+      ],
+      "slo_hours": 26,
+      "status": "active"
+    },
+    {
+      "path": "data/investment_os/yield_quality.json",
+      "producer": "com.spa.io_yield_quality",
+      "consumers": [
+        "orchestrator_protocol",
+        "com.spa.io_chief_investment"
+      ],
+      "slo_hours": 26,
+      "status": "active"
+    },
+    {
+      "path": "data/investment_os/_health.json",
+      "producer": "com.spa.io_health",
+      "consumers": [
+        "orchestrator_protocol",
+        "digest_daily"
+      ],
+      "slo_hours": 14,
+      "status": "active"
+    },
+    {
+      "path": "data/agent_registry.json",
+      "producer": "com.spa.agent_health",
+      "consumers": [
+        "architecture_conformance"
+      ],
+      "slo_hours": 26,
+      "status": "active",
+      "notes": "\u0440\u0435\u0433\u0435\u043d\u0435\u0440\u0438\u0440\u0443\u0435\u0442\u0441\u044f agent_registry_refresh \u0432\u043d\u0443\u0442\u0440\u0438 hourly agent_health (\u0444\u0438\u043a\u0441 2026-08-06 \u043f\u043e \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0435 \u043f\u0435\u0442\u043b\u0438); \u0438\u043d\u0446\u0438\u0434\u0435\u043d\u0442 19-\u0434\u043d\u0435\u0432\u043d\u043e\u0433\u043e \u043f\u0440\u043e\u0442\u0443\u0445\u0430\u043d\u0438\u044f \u0437\u0430\u043a\u0440\u044b\u0442"
+    },
+    {
+      "path": "docs/SYSTEM_BRIEFING.md",
+      "producer": "com.spa.system_briefing",
+      "consumers": [
+        "orchestrator_protocol"
+      ],
+      "slo_hours": 2,
+      "status": "active"
+    },
+    {
+      "path": "data/agent_health.json",
+      "producer": "com.spa.agent_health",
+      "consumers": [],
+      "slo_hours": 3,
+      "status": "active"
+    },
+    {
+      "path": "data/owner_decision_pending.json",
+      "producer": "com.spa.agent_health",
+      "consumers": [
+        "orchestrator_protocol"
+      ],
+      "slo_hours": 3,
+      "status": "active",
+      "notes": "\u0446\u0438\u043a\u043b #195 \u2014 \u0435\u0441\u0442\u044c \u043b\u0438 \u0443 \u041e\u0421\u0422\u0410\u041d\u041e\u0412\u041a\u0418 \u043f\u0443\u0442\u044c \u0432\u0432\u0435\u0440\u0445: \u0436\u0434\u0451\u0442 \u043b\u0438 \u0441\u0438\u0441\u0442\u0435\u043c\u0430 \u043e\u0442\u0432\u0435\u0442\u0430 \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0430 \u0438 \u0441\u043a\u043e\u043b\u044c\u043a\u043e"
+    },
+    {
+      "path": "data/watchdog_report.json",
+      "producer": "com.spa.rules_watchdog",
+      "consumers": [],
+      "slo_hours": 1,
+      "status": "active"
+    },
+    {
+      "path": "data/architecture_conformance.json",
+      "producer": "com.spa.architecture_conformance",
+      "consumers": [
+        "orchestrator_protocol",
+        "digest_daily",
+        "findings_to_cards"
+      ],
+      "status": "active",
+      "notes": "ADR-066: \u043e\u0442\u0447\u0451\u0442 \u0441\u0442\u043e\u0440\u043e\u0436\u0430; \u043f\u043e\u0442\u0440\u0435\u0431\u0438\u0442\u0435\u043b\u044c-\u043c\u043e\u0441\u0442 \u2014 \u0424\u0430\u0437\u0430 3",
+      "slo_hours": 7
+    },
+    {
+      "path": "data/consumption_receipts.jsonl",
+      "producer": null,
+      "consumers": [],
+      "status": "active",
+      "notes": "ADR-066 \u0424\u0430\u0437\u0430 2: \u043c\u0443\u043b\u044c\u0442\u0438-\u043f\u0438\u0441\u0430\u0442\u0435\u043b\u044c (\u0432\u0441\u0435 \u043f\u043e\u0442\u0440\u0435\u0431\u0438\u0442\u0435\u043b\u0438); producer=null \u043e\u0441\u043e\u0437\u043d\u0430\u043d\u043d\u043e",
+      "slo_hours": 26
+    },
+    {
+      "path": "data/house_view_gap.json",
+      "producer": "com.spa.decision_loop",
+      "consumers": [
+        "orchestrator_protocol",
+        "findings_to_cards"
+      ],
+      "status": "active",
+      "notes": "ADR-066 \u0424\u0430\u0437\u0430 3",
+      "slo_hours": 7
+    },
+    {
+      "path": "data/findings_bridge_report.json",
+      "producer": "com.spa.decision_loop",
+      "consumers": [
+        "orchestrator_protocol"
+      ],
+      "slo_hours": 7,
+      "status": "active",
+      "notes": "ADR-066 \u0424\u0430\u0437\u0430 3: \u043e\u0442\u0447\u0451\u0442 \u043c\u043e\u0441\u0442\u0430 (created/deferred/closed) \u2014 deferred \u0447\u0438\u0442\u0430\u0442\u044c \u041e\u0411\u042f\u0417\u0410\u0422\u0415\u041b\u042c\u041d\u041e"
+    },
+    {
+      "path": "data/loop_health.json",
+      "producer": "com.spa.decision_loop",
+      "consumers": [
+        "digest_daily",
+        "orchestrator_protocol"
+      ],
+      "slo_hours": 7,
+      "status": "active",
+      "notes": "ADR-066 \u0424\u0430\u0437\u0430 4: \u043c\u0435\u0442\u0440\u0438\u043a\u0438 \u043f\u0435\u0442\u043b\u0438"
+    },
+    {
+      "path": "data/loop_retro.json",
+      "producer": "com.spa.decision_loop",
+      "consumers": [
+        "findings_to_cards",
+        "orchestrator_protocol"
+      ],
+      "slo_hours": 192,
+      "status": "active",
+      "notes": "ADR-066 \u0424\u0430\u0437\u0430 4: \u0435\u0436\u0435\u043d\u0435\u0434\u0435\u043b\u044c\u043d\u043e\u0435 \u0440\u0435\u0442\u0440\u043e (\u043a\u0430\u043d\u0434\u0438\u0434\u0430\u0442\u044b \u2014 owner-gated)"
+    },
+    {
+      "path": "data/shadow_trigger_evaluation.json",
+      "producer": "com.spa.daily_cycle",
+      "consumers": [
+        "orchestrator_protocol"
+      ],
+      "slo_hours": 26,
+      "status": "active",
+      "notes": "ADR-060/067: arming-evidence (\u043a\u0440\u0438\u0442\u0435\u0440\u0438\u0439 30\u0434+net>0+hit\u226560%); \u043e\u0440\u043a\u0435\u0441\u0442\u0440\u0430\u0442\u043e\u0440 \u0447\u0438\u0442\u0430\u0435\u0442 \u0435\u0436\u0435\u0434\u043d\u0435\u0432\u043d\u043e"
+    },
+    {
+      "path": "data/allocation_rationale_history.jsonl",
+      "producer": "com.spa.daily_cycle",
+      "consumers": [
+        "shadow_trigger_eval"
+      ],
+      "slo_hours": 26,
+      "status": "active",
+      "notes": "ADR-060 Y3: append-only \u0438\u0441\u0442\u043e\u0440\u0438\u044f shadow-\u0432\u0435\u0440\u0434\u0438\u043a\u0442\u043e\u0432 \u2014 \u0435\u0434\u0438\u043d\u0441\u0442\u0432\u0435\u043d\u043d\u0430\u044f \u0434\u043e\u043b\u0433\u043e\u0432\u0440\u0435\u043c\u0435\u043d\u043d\u0430\u044f \u0437\u0430\u043f\u0438\u0441\u044c"
+    },
+    {
+      "path": "data/intraday_equity.json",
+      "producer": "com.spa.intraday_equity",
+      "consumers": [
+        "orchestrator_protocol"
+      ],
+      "slo_hours": 1,
+      "status": "active",
+      "notes": "ADR-068: intraday-\u043e\u0446\u0435\u043d\u043a\u0430 equity + \u0432\u0435\u0440\u0434\u0438\u043a\u0442 \u043b\u0435\u0441\u0442\u043d\u0438\u0446\u044b; UNCHECKED = \u043b\u0435\u0441\u0442\u043d\u0438\u0446\u0430 \u043d\u0435 \u0432\u044b\u0437\u044b\u0432\u0430\u043b\u0430\u0441\u044c"
+    },
+    {
+      "path": "data/investment_os/outcomes.jsonl",
+      "producer": "com.spa.decision_loop",
+      "consumers": [
+        "loop_retro"
+      ],
+      "period_hours": 24,
+      "slo_hours": 31,
+      "status": "active",
+      "notes": "\u0446\u0438\u043a\u043b 3 ADR-067: \u043f\u0440\u0430\u0432\u0430\u044f \u043f\u043e\u043b\u043e\u0432\u0438\u043d\u0430 hit-rate \u2014 \u0438\u0441\u0445\u043e\u0434\u044b \u043f\u043e \u0434\u043d\u044f\u043c (\u0438\u0434\u0435\u043c\u043f\u043e\u0442\u0435\u043d\u0442\u043d\u043e \u043f\u043e \u0434\u0430\u0442\u0435)"
+    }
+  ],
+  "designed_architectures": [
+    {
+      "name": "Head-of-Investment: 4-\u0440\u043e\u043b\u0435\u0432\u044b\u0439 \u0440\u0435\u0448\u0430\u044e\u0449\u0438\u0439 \u0441\u043b\u043e\u0439",
+      "governed_by": [
+        "ADR-055"
+      ],
+      "activation": "owner-gated",
+      "watch": "\u043d\u0438 \u043e\u0434\u0438\u043d \u043f\u0440\u043e\u0446\u0435\u0441\u0441 \u043d\u0435 \u0432\u043f\u0440\u0430\u0432\u0435 \u0437\u0430\u043d\u044f\u0442\u044c \u044d\u0442\u0438 \u0440\u043e\u043b\u0438 \u0434\u043e \u0430\u043a\u0442\u0438\u0432\u0430\u0446\u0438\u0438 \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0435\u043c"
+    },
+    {
+      "name": "\u041f\u0440\u043e\u0434\u0443\u043a\u0442\u043e\u0432\u044b\u0439 \u0441\u043b\u043e\u0439 AAA (\u0441\u0443\u043f\u0435\u0440-\u0441\u0442\u0443\u0434\u0438\u044f, 16 \u0430\u043d\u0430\u043b\u0438\u0442\u0438\u043a\u043e\u0432)",
+      "governed_by": [
+        "ADR-004",
+        "docs/10_agent_architecture.md",
+        "docs/08_ai_investment_os_architecture.md"
+      ],
+      "activation": "owner-gated",
+      "watch": "io_* \u2014 \u0430\u043a\u0442\u0438\u0432\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u0430\u044f \u0447\u0430\u0441\u0442\u044c; \u043e\u0441\u0442\u0430\u043b\u044c\u043d\u043e\u0435 designed"
+    },
+    {
+      "name": "Swarm block-7 (\u0440\u043e\u0435\u0432\u043e\u0435 \u0438\u0441\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u0435)",
+      "governed_by": [
+        "ADR-YL-012"
+      ],
+      "activation": "gate: 30 fwd days + 1 vol event",
+      "watch": "\u0431\u043b\u043e\u043a\u0438 1\u20136 live; \u0431\u043b\u043e\u043a 7 \u043d\u0435 \u0430\u043a\u0442\u0438\u0432\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0434\u043e \u0433\u0435\u0439\u0442\u0430"
+    },
+    {
+      "name": "ADR-066 \u043a\u043e\u043d\u0442\u0443\u0440\u044b B\u2013D (conformance/\u043f\u0435\u0442\u043b\u044f/\u0440\u0435\u0442\u0440\u043e)",
+      "governed_by": [
+        "ADR-066"
+      ],
+      "activation": "\u0444\u0430\u0437\u044b 1\u20134 \u043f\u043e \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0430\u043c",
+      "watch": "\u0441\u043c. planned-\u0430\u0440\u0442\u0435\u0444\u0430\u043a\u0442\u044b"
+    }
+  ]
 }
