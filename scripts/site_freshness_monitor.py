@@ -35,7 +35,11 @@ import urllib.request
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[1]
-_SNAP = _ROOT / "landing" / "src" / "data" / "track_snapshot.json"
+#: Место снимка ВНУТРИ репозитория. Вынесено отдельно от `_SNAP` не для красоты:
+#: публикация идёт из свежей копии (ADR-098), и адрес файла в НЕЙ — это факт репозитория,
+#: а не свойство того, куда сейчас показывает `_SNAP`.
+_SNAP_REL = Path("landing") / "src" / "data" / "track_snapshot.json"
+_SNAP = _ROOT / _SNAP_REL
 _SITEMAP = _ROOT / "landing" / "public" / "sitemap.xml"
 _REPORT = _ROOT / "data" / "site_freshness_report.json"
 
@@ -544,6 +548,175 @@ def _delivery_possible(path=None):
         return True, ""
 
 
+#: Путь временной копии, из которой идёт публикация. Имя СТАБИЛЬНОЕ, а не уникальное,
+#: и это осознанный выбор: процесс, убитый посреди публикации, оставляет регистрацию
+#: рабочего дерева в общем git-каталоге, и уникальные имена копили бы её каждые 6 часов
+#: (шаг 0a такие «мёртвые регистрации» видит и докладывает — см. `check_undelivered_work`).
+#: При стабильном имени утечь может РОВНО ОДНА, и следующий же прогон её переиспользует.
+_PUBLISH_TREE = Path("/tmp/spa_site_publish")
+
+
+class FreshCheckoutError(RuntimeError):
+    """Свежую копию сделать не удалось. Публикация НЕ происходит (fail-CLOSED)."""
+
+
+def make_fresh_checkout(root: Path, dest: Path, branch: str = "main") -> dict:
+    """Временная рабочая копия репозитория с точкой отсчёта = сегодняшний `origin/<branch>`.
+
+    Зачем это вообще нужно (решение владельца 2026-08-20, вариант 1)
+    ------------------------------------------------------------------------------
+    ADR-085 перенёс Site Custodian на Мак затем, чтобы он МОГ снимать табличку
+    честности: из GitHub Actions это невозможно по построению (пушер по контракту
+    берёт файл только из живого дерева Мака). На Маке снятие тоже не работало — по
+    ДРУГОЙ причине и так же по построению:
+
+        `push_to_github.base_version` читает базу как `git cat-file blob HEAD:<путь>`
+        в дереве отправляемого файла. Рабочая папка на Маке отстаёт от origin на
+        665 коммитов (автосинк возит только `spa_core/`, `scripts/`, `tests/` и
+        указатель версии не двигает НИКОГДА). Значит база — версия файла
+        665-коммитной давности, а на remote лежит сегодняшняя ⇒ `divergence_verdict`
+        честно говорит DIVERGED, и пуш отказан. Отказ ВЕРНЫЙ: с такой базой мы и
+        правда не знаем, чью правку затираем.
+
+    Мы поменяли одну невозможность на другую, и до прогона 20.08 этого не знали.
+    Лечится не ослаблением стража, а тем, что у публикации появляется ЧЕСТНАЯ база:
+    считаем по живым данным Мака, а отправляем из копии, чей HEAD — сегодняшний
+    origin. Тогда расхождения не возникает не потому, что мы его прятали, а потому,
+    что его нет.
+
+    **Что при этом ЧЕСТНО теряется — сказать вслух.** База, равная remote по
+    построению, делает проверку расхождения ДЛЯ ЭТОГО ФАЙЛА вырожденной: чужую
+    правку в `track_snapshot.json` мы затрём молча. Это терпимо ровно по одной
+    причине, и она узкая: файл целиком пересчитывается из наших же данных, ручной
+    правки в нём не бывает. Общий страж пушера НЕ ослаблен ни на байт — меняется
+    только то, ОТКУДА публикует один агент.
+
+    `fetch` не обязателен: если сети нет, база останется прошлой — и тогда пушер
+    откажет ровно как раньше. То есть неудачный fetch делает нас не опаснее, а
+    просто менее удачливыми, поэтому он не фатален, но НАЗЫВАЕТСЯ в отчёте.
+
+    Возвращает словарь-протокол: ``{"path", "head", "fetched", "notes"}``.
+    """
+    import shutil
+
+    notes: list = []
+    if _git(root, ["rev-parse", "--verify", "HEAD"]) is None:
+        raise FreshCheckoutError(f"{root} — не рабочая копия git, свежую базу взять неоткуда")
+
+    fetched = _git(root, ["fetch", "origin", branch], timeout=120) is not None
+    if not fetched:
+        notes.append("fetch origin не прошёл — база будет прошлой; пушер откажет, "
+                     "если она разошлась с remote (это не ослабление, а невезение)")
+
+    ref = f"refs/remotes/origin/{branch}"
+    head = _git(root, ["rev-parse", "--verify", ref])
+    if not head:
+        raise FreshCheckoutError(f"{ref} не читается — сегодняшней точки отсчёта нет")
+
+    # Снять прошлую копию (в т.ч. утёкшую от убитого прогона) — иначе `worktree add`
+    # откажет на занятом пути. Безусловно: обе команды безвредны, когда снимать нечего,
+    # а «проверить и потом снять» — лишняя развилка ради того же результата.
+    _git(root, ["worktree", "remove", "--force", str(dest)])
+    if dest.exists():
+        shutil.rmtree(dest, ignore_errors=True)
+    _git(root, ["worktree", "prune"])
+
+    if _git(root, ["worktree", "add", "--detach", str(dest), head], timeout=180) is None:
+        raise FreshCheckoutError(f"git worktree add {dest} не выполнился")
+    if not (dest / "push_to_github_batch.py").exists():
+        raise FreshCheckoutError(f"в свежей копии {dest} нет инструмента доставки")
+    return {"path": dest, "head": head, "fetched": fetched, "notes": notes}
+
+
+def drop_fresh_checkout(root: Path, dest: Path) -> None:
+    """Снять временную копию. Никогда не бросает — уборка не имеет права ронять прогон.
+
+    Дисциплина «жатвы» рабочих деревьев (сначала померить недоставленное, потом
+    снимать) здесь НЕ применяется намеренно: в этой копии лежит ровно один
+    машинно-сгенерированный файл, который мы только что отправили, и терять в ней
+    нечего. Именно поэтому уборка безусловна.
+    """
+    import shutil
+
+    try:
+        _git(root, ["worktree", "remove", "--force", str(dest)])
+        if dest.exists():
+            shutil.rmtree(dest, ignore_errors=True)
+        _git(root, ["worktree", "prune"])
+    except Exception:  # noqa: BLE001 — см. докстринг
+        pass
+
+
+def _git(cwd, args: list, timeout: int = 30):
+    """``git <args>`` в ``cwd`` → stdout (str) или ``None``. Никогда не бросает.
+
+    ``GIT_TERMINAL_PROMPT=0`` — не украшение: агент ходит по расписанию без терминала,
+    и запрос учётных данных на `fetch` (протухший токен, приватный remote) без этой
+    переменной превращается в ЖДУЩИЙ процесс, а не в честный отказ. Таймаут поймал бы
+    его вторым эшелоном, но «висим 120 с каждые 6 часов» — не то поведение, которое
+    хочется обнаружить замером.
+    """
+    import os
+
+    env = dict(os.environ, GIT_TERMINAL_PROMPT="0")
+    try:
+        r = subprocess.run(["git", *args], cwd=str(cwd), capture_output=True,
+                           text=True, timeout=timeout, env=env)
+    except Exception:  # noqa: BLE001
+        return None
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def publish_from_fresh_checkout(local_file: Path, message: str, *, rel: Path = None,
+                                root: Path = None, dest: Path = None,
+                                timeout: int = 180) -> dict:
+    """Опубликовать ЛОКАЛЬНО посчитанный файл из свежей копии. Не бросает.
+
+    Возвращает ``{"delivered": bool, "reason": str, "rc": int|None, "detail": str}``.
+    Пушер запускается ИЗ САМОЙ КОПИИ (`dest/push_to_github_batch.py`, cwd=dest) —
+    иначе сработает сверка инструмента доставки (`ToolchainMismatch`): она сравнивает
+    запущенный пушер с копией в дереве отправляемых файлов, а деревья теперь разные.
+
+    ``rel`` — адрес файла ВНУТРИ репозитория. Передавать его явно правильнее, чем
+    выводить из ``local_file``: «откуда взяли содержимое» и «куда оно ложится в репо» —
+    два РАЗНЫХ вопроса, и связывать их положением файла на диске значит городить
+    зависимость там, где её нет. Без ``rel`` адрес выводится из ``local_file``, и файл
+    вне ``root`` тогда честно отвергается (fail-CLOSED: угадать его место нечем).
+    """
+    root = Path(root) if root is not None else _ROOT
+    dest = Path(dest) if dest is not None else _PUBLISH_TREE
+    local_file = Path(local_file)
+    if rel is None:
+        try:
+            rel = local_file.resolve().relative_to(root.resolve())
+        except ValueError:
+            return {"delivered": False, "reason": "file_outside_root", "rc": None,
+                    "detail": f"{local_file} лежит вне {root}"}
+    try:
+        info = make_fresh_checkout(root, dest)
+    except FreshCheckoutError as exc:
+        return {"delivered": False, "reason": "fresh_checkout_failed", "rc": None,
+                "detail": str(exc)}
+    try:
+        target = dest / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(local_file.read_bytes())
+        try:
+            rc = subprocess.run(
+                [sys.executable, str(dest / "push_to_github_batch.py"),
+                 "--files", str(target), "--message", message],
+                cwd=str(dest), timeout=timeout).returncode
+        except Exception as exc:  # noqa: BLE001
+            return {"delivered": False, "reason": "pusher_did_not_start", "rc": None,
+                    "detail": str(exc)[:200]}
+        detail = f"база {info['head'][:8]}" + ("" if info["fetched"] else "; " + "; ".join(info["notes"]))
+        if rc != 0:
+            return {"delivered": False, "reason": "push_refused", "rc": rc, "detail": detail}
+        return {"delivered": True, "reason": "", "rc": 0, "detail": detail}
+    finally:
+        drop_fresh_checkout(root, dest)
+
+
 def _deploy_snapshot(message: str, what: str, *, page_owner: bool = True) -> bool:
     """Отправить снимок и ЧЕСТНО сказать, уехал он или нет.
 
@@ -592,32 +765,40 @@ def _deploy_snapshot(message: str, what: str, *, page_owner: bool = True) -> boo
             except Exception:  # noqa: BLE001
                 pass
         return False
-    try:
-        rc = subprocess.run(
-            [sys.executable, str(_ROOT / "push_to_github_batch.py"),
-             "--files", str(_SNAP), "--message", message],
-            timeout=180).returncode
-    except Exception as e:  # noqa: BLE001
-        print(f"site_freshness_monitor: КРИТИЧНО — {what}: пушер не запустился ({e})",
-              file=sys.stderr)
-        _DELIVERY_NOTES.append({"what": what, "attempted": True, "delivered": False,
-                                "reason": "pusher_did_not_start", "detail": str(e)[:200]})
-        return False
-    if rc != 0:
-        print(f"site_freshness_monitor: КРИТИЧНО — {what}: доставка ОТКАЗАНА (код {rc}). "
-              f"Локальный снимок изменён, публичный сайт — НЕТ. Правило честности "
-              f"не исполнено.", file=sys.stderr)
-        _DELIVERY_NOTES.append({"what": what, "attempted": True, "delivered": False,
-                                "reason": "push_refused", "rc": rc})
+    # Публикуем ИЗ СВЕЖЕЙ КОПИИ, а не из рабочей папки (решение владельца 20.08,
+    # вариант 1; см. `make_fresh_checkout` — там же названо, что при этом теряется).
+    # Считаем по-прежнему по живым данным Мака: `_SNAP` берётся из рабочей папки и
+    # переносится в копию байт-в-байт. Меняется РОВНО точка отсчёта доставки.
+    res = publish_from_fresh_checkout(_SNAP, message, rel=_SNAP_REL)
+    if not res["delivered"]:
+        if res["reason"] == "pusher_did_not_start":
+            print(f"site_freshness_monitor: КРИТИЧНО — {what}: пушер не запустился "
+                  f"({res['detail']})", file=sys.stderr)
+        elif res["reason"] == "fresh_checkout_failed":
+            print(f"site_freshness_monitor: КРИТИЧНО — {what}: свежую копию сделать не "
+                  f"удалось ({res['detail']}) — публиковать из отставшей рабочей папки "
+                  f"НЕ СТАЛ (отказ был бы гарантирован).", file=sys.stderr)
+        else:
+            print(f"site_freshness_monitor: КРИТИЧНО — {what}: доставка ОТКАЗАНА "
+                  f"(код {res['rc']}, {res['detail']}). Локальный снимок изменён, "
+                  f"публичный сайт — НЕТ. Правило честности не исполнено.",
+                  file=sys.stderr)
+        note = {"what": what, "attempted": True, "delivered": False,
+                "reason": res["reason"], "detail": res["detail"]}
+        if res["rc"] is not None:
+            note["rc"] = res["rc"]
+        _DELIVERY_NOTES.append(note)
         try:
             _alert({"severity": "FAIL", "failures": [{
                 "code": "HONESTY_PLAQUE_UNDELIVERED",
-                "detail": f"{what}: push rc={rc} — сайт не обновлён, расхождение остаётся видимым публично",
+                "detail": f"{what}: {res['reason']} ({res['detail']}) — сайт не обновлён, "
+                          f"расхождение остаётся видимым публично",
             }]})
         except Exception:  # noqa: BLE001
             pass
         return False
-    _DELIVERY_NOTES.append({"what": what, "attempted": True, "delivered": True})
+    _DELIVERY_NOTES.append({"what": what, "attempted": True, "delivered": True,
+                            "base": res["detail"]})
     return True
 
 

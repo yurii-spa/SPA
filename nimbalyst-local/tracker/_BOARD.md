@@ -2,13 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **533** · ждёт владельца: **4** · занято сессиями: **5**.
+> Всего карточек: **535** · ждёт владельца: **2** · занято сессиями: **5**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Добавить одну строку в настройку агента — иначе не узнаем, кто гоняет цикл 52 раза в сутки**  ·  `own-33-plist-marker-for-cycle-origin.md`
-- **Аварийный тормоз: осталось одно решение — что делать после срабатывания (кнопки теперь есть)**  ·  `owner-decision-avariinyi-tormoz-ostalos-odno-reshenie-c.md`
-- **Сторож сайта: «одной команды» не хватило — рабочая папка отстала на 665 коммитов, и публикация отказана**  ·  `owner-decision-storozh-saita-odnoi-komandy-ne-hvatilo-r.md`
 - **Твой ответ «Ответ 1» сегодня не применился — теперь можно отвечать прямо на сообщение с вопросом**  ·  `owner-decision-tvoi-otvet-otvet-1-segodnya-ne-primenils.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
@@ -25,8 +23,6 @@
 
 ### · needs-owner
 - Добавить одну строку в настройку агента — иначе не узнаем, кто гоняет цикл 52 раза в сутки  ·  `own-33-plist-marker-for-cycle-origin.md` · 2026-08-10
-- Аварийный тормоз: осталось одно решение — что делать после срабатывания (кнопки теперь есть)  ·  `owner-decision-avariinyi-tormoz-ostalos-odno-reshenie-c.md` · 2026-08-19
-- Сторож сайта: «одной команды» не хватило — рабочая папка отстала на 665 коммитов, и публикация отказана  ·  `owner-decision-storozh-saita-odnoi-komandy-ne-hvatilo-r.md` · 2026-08-19
 - Твой ответ «Ответ 1» сегодня не применился — теперь можно отвечать прямо на сообщение с вопросом  ·  `owner-decision-tvoi-otvet-otvet-1-segodnya-ne-primenils.md` · 2026-08-20
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
@@ -70,6 +66,7 @@
 - Программа аудита системы + архитектурной памяти («швейцарские часы») — утвердить приоритет  ·  `owner-decision-20260716-084859-note.md` · 2026-07-16
 - Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда  ·  `owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira.md` · 2026-08-01
 - Аллокатор ранжирует пулы на невыверенном TVL ($50M-литерал) — исключать ли их из свежих целей?  ·  `owner-decision-allokator-ranzhiruet-puly-na-vydumannom-tvl.md` · 2026-08-02
+- Аварийный тормоз: осталось одно решение — что делать после срабатывания (кнопки теперь есть)  ·  `owner-decision-avariinyi-tormoz-ostalos-odno-reshenie-c.md` · 2026-08-19
 - ДУБЛЬ (отвечать не нужно) — Аварийный тормоз стоит с ночи — книга девять часов в кэше, снимать может только ты  ·  `owner-decision-avariinyi-tormoz-stoit-s-nochi-kniga-dev.md` · 2026-08-10
 - Безопасность: admin-панель /admin без пароля — закрыть за Cloudflare Access  ·  `owner-decision-bezopasnost-admin-panel-admin-bez-paroly.md` · 2026-07-16
 - Бумажный тест закончен — выбери, как двигаемся дальше (5 решений)  ·  `owner-decision-bumazhnyi-test-zakonchen-vyberi-kak-dvig.md` · 2026-07-29
@@ -123,6 +120,7 @@
 - Сторож правил не видит стоп-кран — смотрит в файл, которого нет (выбери, как чинить)  ·  `owner-decision-storozh-pravil-ne-vidit-stop-kran-smotri.md` · 2026-07-29
 - Сторож пропущенного цикла молчит до 10:00 UTC, хотя цикл стартует в 06:00 UTC — опустить порог?  ·  `owner-decision-storozh-propuschennogo-tsikla-molchit-do.md` · 2026-07-30
 - Сторож расхождения флота не запускался 21 день — его никто не зовёт  ·  `owner-decision-storozh-rashozhdeniya-flota-ne-zapuskals.md` · 2026-08-01
+- Сторож сайта: «одной команды» не хватило — рабочая папка отстала на 665 коммитов, и публикация отказана  ·  `owner-decision-storozh-saita-odnoi-komandy-ne-hvatilo-r.md` · 2026-08-19
 - Страница трека четвёртый день прячет цифры — снять табличку честности некому  ·  `owner-decision-stranitsa-treka-chetvertyi-den-pryachet.md` · 2026-08-14
 - Стратегия S23 никогда не видит живой Pendle — адаптер «похоронен», ошибка глотается молча (выбери, как чинить)  ·  `owner-decision-strategiya-s23-nikogda-ne-vidit-zhivoi-p.md` · 2026-07-30
 - Табличка честности не доезжает до сайта — публично видно 5.2% там, где живой расчёт даёт 4.8%  ·  `owner-decision-tablichka-chestnosti-ne-doezzhaet-do-sai.md` · 2026-08-08
@@ -227,6 +225,7 @@
 - Находка петли: hit-rate аналитиков не вычислим: proof.jsonl хранит только хэши, содер  ·  `inbox-nahodka-petli-hit-rate-analitikov-ne-vyc.md` · 2026-08-05
 - Находка петли: манифест ↔ факты: manifest --check вернул дрейф (см. build_architectur  ·  `inbox-nahodka-petli-manifest-fakty-manifest-ch.md` · 2026-08-15
 - Находка петли: постура офиса CRITICAL, но книга развёрнута (cash 10.0% < 50%) — офис  ·  `inbox-nahodka-petli-postura-ofisa-critical-no.md` · 2026-08-11
+- Находка петли: возможность fluid_fusdc 5.03% (evidence L3) доступна книге, не держитс  ·  `inbox-nahodka-petli-vozmozhnost-fluid-fusdc-5.md` · 2026-08-13
 - Находка петли: возможность moonwell_base 10.7382% (evidence L3) доступна книге, не де  ·  `inbox-nahodka-petli-vozmozhnost-moonwell-base.md` · 2026-08-14
 - Нечёткое совпадение отдаёт APY ЧУЖОГО актива: USDC.e ранжирует капитал как USDC — и платит БОЛЬШЕ настоящего  ·  `inbox-nechetkoe-sovpadenie-otdaet-apy-chuzhogo.md` · 2026-08-09
 - Номер ADR-067 занят ДВУМЯ разными решениями — реестр показывает две строки  ·  `inbox-nomer-adr-067-zanyat-dvumya-raznymi-resh.md` · 2026-08-07
@@ -369,7 +368,6 @@
 - Модуль bot_commands заменён, но жив: свой getUpdates-поллер и свои двери в чат  ·  `inbox-modul-bot-commands-zamenen-no-zhiv-svoi.md` · 2026-08-13
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
 - Находка петли: аналитик red_team: CRITICAL — требует реакции (карточка/решение), не п  ·  `inbox-nahodka-petli-analitik-red-team-critical.md` · 2026-08-10
-- Находка петли: возможность fluid_fusdc 5.03% (evidence L3) доступна книге, не держитс  ·  `inbox-nahodka-petli-vozmozhnost-fluid-fusdc-5.md` · 2026-08-13
 - Окно до 6 часов: ответ владельца между нажатием кнопки и прогоном моста живёт в одном экземпляре  ·  `inbox-okno-do-6-chasov-otvet-vladeltsa-mezhdu.md` · 2026-08-15
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08
 - Оживить фиды вне Ethereum — путь к снятию остатка кэша (решение владельца 08.08)  ·  `inbox-ozhivit-fidy-vne-ethereum-put-k-snyatiyu.md` · 2026-08-08
@@ -396,7 +394,7 @@
 - Замер обмена «доходность ↔ концентрация» на T2 (20/25/30%) — решение владельца A, задачи не было  ·  `inbox-zamer-obmena-dohodnost-kontsentratsiya-n.md` · 2026-08-08
 - Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07 · 🔒 `cycle-81141`
 
-## 🤖 Agent Tasks (что делает агент)  (112)
+## 🤖 Agent Tasks (что делает агент)  (114)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -422,11 +420,13 @@
 - Относительный путь в пушере читает ХОСТ-дерево, а не дерево отправки — набор уезжает как «OK, pushed=0»  ·  `agent-pusher-relative-path-silently-reads-the-host-tree.md` · 2026-08-04
 - Построить advisory paper-модуль под ранговое правило демоушена (вариант C владельца 2026-08-08)  ·  `agent-rank-demotion-paper-module.md` · 2026-08-08
 - Сторож чисел сайта: тихий проход только по двум условиям сразу (решение владельца 19.08, вариант 1)  ·  `agent-storozh-chisel-tihii-prohod-po-dvum-usloviyam.md` · 2026-08-20
+- Напоминание о снятии стоп-крана: реализовать политику А1 (ADR-097)  ·  `agent-task-napominanie-o-snyatii-stop-krana-realizo.md` · 2026-08-20
 - Одно число — два вердикта: portfolio health 69.4 это CRITICAL у системного сторожа и WARNING у агентного  ·  `agent-task-odno-chislo-dva-verdikta-portfolio-healt.md` · 2026-08-07
 - Права на origin нечем починить: пушер по построению сохраняет режим remote, а правило требует чинить режим на origin  ·  `agent-task-prava-na-origin-nechem-pochinit-pusher-p.md` · 2026-08-07
 - Прогон тестов пачкает git-tracked фикстуры — «чистое дерево» перестало быть сигналом  ·  `agent-test-run-dirties-tracked-fixtures.md` · 2026-08-04
 - 20 модулей Tier-B помечены `unsourced` — поднять их обратно можно только источником, не правкой разметки  ·  `agent-tier-b-20-unsourced-modules-need-sources.md` · 2026-08-06
 - Разбор базы храповика: 24 скрипта не упомянуты НИГДЕ — и это не значит «мусор»  ·  `agent-unwired-baseline-triage.md` · 2026-08-09
+- Включить агента com.spa.site_freshness — код по ADR-098 доставлен, тело не загружено  ·  `agent-vklyuchit-site-freshness-posle-adr-098.md` · 2026-08-20
 ### · done
 - Дашборд управления агентами /admin/agents  ·  `agent-agent-dashboard.md` · 2026-07-16
 - Книги aggressive_lab документированы как append-only, но история пересоздаётся — susde_dn сдвинулась на −9.7%  ·  `agent-aggressive-lab-books-are-regenerated.md` · 2026-08-01

@@ -65,21 +65,37 @@ class _Branch(unittest.TestCase):
         del self.mod._DELIVERY_NOTES[:]
 
     def _run(self, fn: str, snap: dict, *, deliverable: bool, rc: int = 1):
+        """Стенд МАРШРУТА: кому звонить и что записать, когда доставка удалась/нет.
+
+        Подменяется `publish_from_fresh_checkout` — шов доставки (решение владельца
+        2026-08-20, вариант 1: публикация идёт из свежей копии, а не из отставшей
+        рабочей папки). До 20.08 здесь подменялся `subprocess.run`, потому что
+        доставка была одним вызовом пушера; теперь их несколько (git + пушер), и
+        считать «сколько раз позвали subprocess» значит мерить внутренности
+        механизма вместо маршрута. Проверки НЕ ослаблены: все утверждения этих
+        тестов (звонок / молчание / след в отчёте / снимок не тронут) остались
+        дословно теми же. САМ механизм свежей копии проверяется настоящим git —
+        `test_site_custodian_fresh_checkout.py`, там же положительный контроль
+        аварии 20.08.
+        """
         alerts, pushes = [], []
         with TemporaryDirectory() as t:
             path = Path(t) / "track_snapshot.json"
             path.write_text(json.dumps(snap), encoding="utf-8")
 
-            def _fake_run(cmd, *a, **k):
-                pushes.append(cmd)
-                return mock.Mock(returncode=rc)
+            def _fake_publish(local_file, message, **k):
+                pushes.append([str(local_file), message])
+                if rc == 0:
+                    return {"delivered": True, "reason": "", "rc": 0, "detail": "база deadbeef"}
+                return {"delivered": False, "reason": "push_refused", "rc": rc,
+                        "detail": "база deadbeef"}
 
             probe = (lambda *a, **k: (True, "")) if deliverable else \
                     (lambda *a, **k: (False, "пушер работает только из живого дерева"))
             with mock.patch.object(self.mod, "_SNAP", path), \
                  mock.patch.object(self.mod, "_delivery_possible", probe), \
                  mock.patch.object(self.mod, "_alert", lambda r: alerts.append(r)), \
-                 mock.patch.object(self.mod.subprocess, "run", _fake_run):
+                 mock.patch.object(self.mod, "publish_from_fresh_checkout", _fake_publish):
                 getattr(self.mod, fn)()
             written = json.loads(path.read_text(encoding="utf-8"))
         return alerts, pushes, written

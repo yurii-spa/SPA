@@ -57,17 +57,31 @@ class TestFailureIsLoud(unittest.TestCase):
         ``test_site_freshness_delivery_route.py``). Предусловие зафиксировано
         явно — проверки при этом НЕ ослаблены: ни один ассерт не изменён и не снят,
         добавилась только среда, в которой они осмысленны.
+
+        Второе намеренное изменение — 20.08, ADR-098 (инв. #16). Подменяется
+        `publish_from_fresh_checkout`, а не `subprocess.run`: публикация переехала в
+        свежую копию, и доставка перестала быть ОДНИМ вызовом пушера. Со старой
+        подменой этот стенд гонял бы настоящий `git worktree add` в рабочем дереве
+        прогона — то есть тест о МАРШРУТЕ тревог трогал бы git. Ассерты не менялись;
+        сам механизм копии проверяет `test_site_custodian_fresh_checkout.py`.
         """
         alerts = []
         with TemporaryDirectory() as t:
             path = Path(t) / "track_snapshot.json"
             path.write_text(json.dumps(snap), encoding="utf-8")
+
+            def _fake_publish(local_file, message, **k):
+                if rc == 0:
+                    return {"delivered": True, "reason": "", "rc": 0,
+                            "detail": "база deadbeef"}
+                return {"delivered": False, "reason": "push_refused", "rc": rc,
+                        "detail": "база deadbeef"}
+
             with mock.patch.object(self.mod, "_SNAP", path), \
                  mock.patch.object(self.mod, "_delivery_possible",
                                    lambda *a, **k: (True, "")), \
                  mock.patch.object(self.mod, "_alert", lambda r: alerts.append(r)), \
-                 mock.patch.object(self.mod.subprocess, "run",
-                                   return_value=mock.Mock(returncode=rc)):
+                 mock.patch.object(self.mod, "publish_from_fresh_checkout", _fake_publish):
                 getattr(self.mod, fn)()
             written = json.loads(path.read_text(encoding="utf-8"))
         return alerts, written
@@ -103,9 +117,34 @@ class TestBothBranchesUseOneHelper(unittest.TestCase):
     """Две копии контракта расходятся при первой правке — здесь копия одна."""
 
     def test_no_direct_pusher_call_remains(self):
-        text = (_REPO / "scripts" / "site_freshness_monitor.py").read_text(encoding="utf-8")
-        self.assertEqual(text.count("push_to_github_batch.py"), 1,
-                         "вызов пушера обязан остаться единственным — в помощнике")
+        """Вызов пушера обязан остаться ЕДИНСТВЕННЫМ — в помощнике.
+
+        Считается ВЫЗОВ, а не упоминание строки. Раньше здесь стояло
+        `text.count("push_to_github_batch.py") == 1`, и это был текстовый суррогат:
+        20.08 (ADR-098) публикация переехала в свежую копию, и та же строка появилась
+        ещё дважды — в проверке «инструмент доставки в копии есть» и в докстринге.
+        Обе НЕ вызовы; страж покраснел бы на верном коде, а на настоящий второй
+        call-site, записанный чуть иначе, не отреагировал бы вовсе. Проверка не
+        ослаблена, а переведена на признак по делу: разбор AST считает узлы
+        `subprocess.run([...])`, в списке аргументов которых упоминается пушер.
+        """
+        import ast
+
+        src = (_REPO / "scripts" / "site_freshness_monitor.py").read_text(encoding="utf-8")
+        tree = ast.parse(src)
+        calls = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            if "push_to_github_batch.py" not in (ast.get_source_segment(src, node) or ""):
+                continue
+            fn = node.func
+            name = getattr(fn, "attr", getattr(fn, "id", ""))
+            if name == "run":
+                calls.append(node.lineno)
+        self.assertEqual(len(calls), 1,
+                         f"вызов пушера обязан остаться единственным — в помощнике; "
+                         f"найдены строки: {calls}")
 
 
 if __name__ == "__main__":

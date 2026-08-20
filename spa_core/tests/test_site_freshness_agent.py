@@ -198,15 +198,25 @@ class TestFromTheMacTheePlaqueActuallyComesDown(unittest.TestCase):
             path = Path(t) / "track_snapshot.json"
             path.write_text(json.dumps({"degraded": True, "nav_usd": 100863.31}),
                             encoding="utf-8")
+            self._last_snap = path
 
-            def _fake_run(cmd, *a, **k):
-                pushes.append(cmd)
-                return mock.Mock(returncode=rc)
+            # Шов доставки с 20.08 — `publish_from_fresh_checkout` (решение владельца,
+            # вариант 1: публикуем из свежей копии, а не из отставшей рабочей папки).
+            # Раньше подменялся `subprocess.run`: доставка была ровно одним вызовом
+            # пушера, теперь их несколько (git + пушер). Утверждения тестов ниже не
+            # менялись; настоящий git-механизм проверяет
+            # `test_site_custodian_fresh_checkout.py` (там положительный контроль 20.08).
+            def _fake_publish(local_file, message, **k):
+                pushes.append([str(local_file), message])
+                if rc == 0:
+                    return {"delivered": True, "reason": "", "rc": 0, "detail": "база deadbeef"}
+                return {"delivered": False, "reason": "push_refused", "rc": rc,
+                        "detail": "база deadbeef"}
 
             with mock.patch.object(self.mod, "_SNAP", path), \
                  mock.patch.object(self.mod, "_delivery_possible", lambda *a, **k: (True, "")), \
                  mock.patch.object(self.mod, "_alert", lambda r: alerts.append(r)), \
-                 mock.patch.object(self.mod.subprocess, "run", _fake_run):
+                 mock.patch.object(self.mod, "publish_from_fresh_checkout", _fake_publish):
                 self.mod._clear_degrade()
             written = json.loads(path.read_text(encoding="utf-8"))
         return alerts, pushes, written
@@ -219,7 +229,9 @@ class TestFromTheMacTheePlaqueActuallyComesDown(unittest.TestCase):
     def test_the_snapshot_is_actually_deployed(self):
         _, pushes, _ = self._clear()
         self.assertEqual(len(pushes), 1, "локальный флаг без доставки = сайт не изменился")
-        self.assertIn("push_to_github_batch.py", " ".join(pushes[0]))
+        # Публикуется РОВНО посчитанный локально снимок — числа в копию переносятся,
+        # а не пересчитываются там (инв. #8; в свежей копии лежит версия origin).
+        self.assertEqual(pushes[0][0], str(self._last_snap))
 
     def test_no_numbers_are_invented_on_the_way(self):
         """Инвариант #8: снятие таблички возвращает УЖЕ посчитанные числа, а не новые."""
