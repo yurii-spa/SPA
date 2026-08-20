@@ -2,13 +2,12 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **538** · ждёт владельца: **3** · занято сессиями: **5**.
+> Всего карточек: **540** · ждёт владельца: **2** · занято сессиями: **5**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Добавить одну строку в настройку агента — иначе не узнаем, кто гоняет цикл 52 раза в сутки**  ·  `own-33-plist-marker-for-cycle-origin.md`
 - **Твой ответ «Ответ 1» сегодня не применился — теперь можно отвечать прямо на сообщение с вопросом**  ·  `owner-decision-tvoi-otvet-otvet-1-segodnya-ne-primenils.md`
-- **Ветка с восемью записанными решениями: влить или закрыть**  ·  `owner-decision-vetka-s-vosemyu-zapisannymi-resheniyami.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
@@ -20,12 +19,11 @@
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (117)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (118)
 
 ### · needs-owner
 - Добавить одну строку в настройку агента — иначе не узнаем, кто гоняет цикл 52 раза в сутки  ·  `own-33-plist-marker-for-cycle-origin.md` · 2026-08-10
 - Твой ответ «Ответ 1» сегодня не применился — теперь можно отвечать прямо на сообщение с вопросом  ·  `owner-decision-tvoi-otvet-otvet-1-segodnya-ne-primenils.md` · 2026-08-20
-- Ветка с восемью записанными решениями: влить или закрыть  ·  `owner-decision-vetka-s-vosemyu-zapisannymi-resheniyami.md` · 2026-08-20
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -97,6 +95,7 @@
 - Мандат самостоятельной работы кончается сегодня — продлеваем, сужаем или закрываем?  ·  `owner-decision-mandat-samostoyatelnoi-raboty-konchaetsy.md` · 2026-08-19
 - Монитор депега стейблов слеп — нет источника цены (чинить нельзя молча: связан со стоп-краном)  ·  `owner-decision-monitor-depega-steiblov-slep-net-istochn.md` · 2026-07-17
 - Морфо — 40% книги — при пропаже данных подставляет выдуманные 6.5% вместо честного отказа  ·  `owner-decision-morfo-40-knigi-pri-propazhe-dannyh-podst.md` · 2026-08-02
+- На ветке лежат 52 твои карточки, а не только 8 решений — удалять её сейчас или сначала разобрать  ·  `owner-decision-na-vetke-lezhat-52-tvoi-kartochki-a-ne-t.md` · 2026-08-20
 - Наступила Фаза 2 (1 августа) — включаем, сдвигаем или осознанно откладываем?  ·  `owner-decision-nastupila-faza-2-1-avgusta-vklyuchaem-sd.md` · 2026-07-31
 - Ночью одну задачу сделали дважды — из-за этого main был красным; выбери, какую версию оставляем  ·  `owner-decision-nochyu-odnu-zadachu-sdelali-dvazhdy-moya.md` · 2026-08-05
 - Общая память проекта стирается пушем из рабочей копии на маке — сегодня так пропало 1729 строк истории  ·  `owner-decision-obschaya-pamyat-stiraetsya-pushem-iz-rabo.md` · 2026-08-02
@@ -134,6 +133,7 @@
 - Уточнение по заметке: Давай так и сделаем  ·  `owner-decision-utochnenie-po-zametke-davai-tak-i-sdelae.md` · 2026-07-22
 - Утреннее письмо может не дойти, а система этого не заметит — выбери, как это показывать  ·  `owner-decision-utrennee-pismo-mozhet-ne-doiti-a-sistema.md` · 2026-08-01
 - В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md` · 2026-07-29
+- Ветка с восемью записанными решениями: влить или закрыть  ·  `owner-decision-vetka-s-vosemyu-zapisannymi-resheniyami.md` · 2026-08-20
 - Включить нового сторожа сайта на Маке — одна команда, и табличка снимется сама  ·  `owner-decision-vklyuchit-novogo-storozha-saita-na-make.md` · 2026-08-14
 - Возить ли каталог решений об агентах на рабочую машину — или оставить как сейчас (сторож уже читает их из git)  ·  `owner-decision-vozit-li-katalog-reshenii-ob-agentah-na.md` · 2026-08-08
 - Выдуманная казна протокола в оценке страховки — оставить или отказываться?  ·  `owner-decision-vydumannaya-kazna-protokola-v-otsenke-st.md` · 2026-08-04
@@ -142,7 +142,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (249)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (250)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -268,6 +268,7 @@
 - Шаг 0a не спрашивает журнал о личности сессии, хотя ответ лежит СОСЕДНЕЙ записью — и запись уходит в «не измерено» навсегда  ·  `inbox-shag-0a-ne-sprashivaet-zhurnal-o-lichnos.md` · 2026-08-16
 - Шаг 0a повторяет одни и те же 6 находок каждый цикл: осадок из мёртвых /tmp-worktree'ов  ·  `inbox-shag-0a-povtoryaet-odni-i-te-zhe-6-nahod.md` · 2026-08-14
 - Шаг 0a приписывает сессии расхождение ЧУЖИХ рабочих деревьев: 12 находок из 49 ложны, и три самых объявляемых файла обречены на них навсегда  ·  `inbox-shag-0a-pripisyvaet-sessii-rashozhdenie.md` · 2026-08-15
+- Шаг 0a слеп к удалённым веткам: работа, уехавшая на ветку, невидима сверке «объявил → доставил»  ·  `inbox-shag-0a-slep-k-udalennym-vetkam-rabota-u.md` · 2026-08-20
 - Шаг 0a: свежее объявление МЁРТВОЙ сессии печатается как «работа может идти»  ·  `inbox-shag-0a-svezhee-obyavlenie-mertvoi-sessi.md` · 2026-08-14
 - Шаг 0a: у СНЯТОГО дерева квитанция уже отвечает «файла не было», но вердикт всё равно «НЕ ДОСТАВЛЕНО»  ·  `inbox-shag-0a-u-snyatogo-dereva-kvitantsiya-uz.md` · 2026-08-18
 - Шаг 0a вечно докладывает о файле, которого не существовало ни минуты: R&D-сессия переименовала свой результат на лету  ·  `inbox-shag-0a-vechno-dokladyvaet-o-faile-kotor.md` · 2026-08-15
@@ -377,9 +378,9 @@
 - Оживить фиды вне Ethereum — путь к снятию остатка кэша (решение владельца 08.08)  ·  `inbox-ozhivit-fidy-vne-ethereum-put-k-snyatiyu.md` · 2026-08-08
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
 - Подготовить ADR: пересмотр лимита одной цепочки 90% (решение владельца — за ним)  ·  `inbox-podgotovit-adr-peresmotr-limita-odnoi-ts.md` · 2026-08-08
+- Разобрать 52 карточки с ветки work-status-check, потом удалить ветку (решение владельца 20.08, вариант 1)  ·  `inbox-razobrat-52-kartochki-s-vetki-work-statu.md` · 2026-08-20
 - Сбалансированный трек: ноль профинансированных дней из 40 при 920 отработанных циклах  ·  `inbox-sbalansirovannyi-trek-nol-profinansirova.md` · 2026-08-08
 - Семь скриптов, вскрытых строгим сканером: разобрать поштучно (подключить / списать / вывести класс правилом)  ·  `inbox-sem-skriptov-vskrytyh-strogim-skanerom-r.md` · 2026-08-16
-- Шаг 0a слеп к удалённым веткам: работа, уехавшая на ветку, невидима сверке «объявил → доставил»  ·  `inbox-shag-0a-slep-k-udalennym-vetkam-rabota-u.md` · 2026-08-20
 - Шторм повторов одного решения владельцу (200+ копий за ночь) — анти-шторм доставлен, корень (слепой предикат «отправлено») остаётся  ·  `inbox-shtorm-povtorov-odnogo-resheniya-vladeltsu.md` · 2026-08-20
 - Шторм решений ПРОДОЛЖАЕТСЯ после анти-шторма: карточки живут ТОЛЬКО в хост-дереве, заголовок дрейфует → дубли, владелец измотан  ·  `inbox-shtorm-prodolzhaetsya-kartochki-tolko-v-host-dereve.md` · 2026-08-20
 - Скан кандидатов работает каждый цикл по реестру, которого никто не пишет: discovery не подключён ни одним агентом  ·  `inbox-skan-kandidatov-rabotaet-kazhdyi-tsikl-p.md` · 2026-08-18

@@ -70,6 +70,28 @@
    возврата, но печатается отдельным разделом и НАЗЫВАЕТ, что владелец байтов не измерен —
    меняется вердикт и место в отчёте, а не факт. Дерево объявления не определяется
    (относительный путь / каталога нет) ⇒ поведение прежнее, fail-CLOSED.
+3c. **«нигде» ≠ нигде: третье место, где застревает работа, — УДАЛЁННАЯ ВЕТКА.** До 20.08 сверка
+   знала два вместилища недоставленного (рабочие деревья и историю базы) и ни одного слова не
+   говорила про `refs/remotes/*`. **Замер цикла #322** (`origin/claude/work-status-check-xfnbew`,
+   133 коммита за 17–19.08): на ветке лежат **178 путей, которых на `main` нет вообще** — 8 файлов
+   решений (`ADR-088`…`ADR-095`), **52 карточки** (из них два десятка — вопросы владельцу, которые
+   он не видел ни разу) и 110 файлов кода и тестов. Для шага 0a всё это было невидимо ровно так же,
+   как было невидимо для распределителя номеров ADR до ADR-099. Хуже тишины: объявленный путь,
+   уехавший на ветку, попадал в раздел «ОБЪЯВЛЕНО, НО НЕ СУЩЕСТВУЕТ НИГДЕ» с вердиктом «ПОДНИМАТЬ
+   НЕЧЕГО» — fail-OPEN внутри fail-CLOSED-сторожа (класс #226). Теперь у `ABSENT` спрашивается
+   четвёртый источник (`paths_on_branches`) — ПЕРЕД тем как сказать «нигде»; путь, найденный на
+   ветке, уходит в свой раздел с именем ветки, и находкой остаётся (код 1: работа не на базе).
+3d. **Ветка как таковая — тоже вопрос, но АДРЕСНЫЙ, иначе это шум.** Карточка
+   `inbox-shag-0a-slep-k-udalennym-vetkam-rabota-u` требовала решить, по какому признаку ветка
+   становится находкой: «безадресный список веток каждый цикл — это шум, который научатся
+   пролистывать». Признак выбран ЗАМЕРОМ, а не вкусом: из 14 удалённых веток репозитория уникальные
+   файлы есть у 14, уникальный КОД — у 13, а уникальные **решения или карточки владельца** — ровно
+   у ОДНОЙ. Код на ветке — обычная параллельная работа, для того ветки и существуют; файл решения
+   или карточка владельца на ветке означает, что очередь ВЛАДЕЛЬЦА потеряла пункт, и это
+   невосстановимо ничем, кроме самой ветки. Поэтому находка — только второй класс
+   (`branches_with_owner_work`), а ветки с одним лишь кодом печатаются ОДНОЙ строкой с числами:
+   факт назван, раздел не раздут. Код возврата 1 такая находка держит, и вечной она не станет —
+   выход из неё есть и он в руках владельца: ветку либо вливают, либо удаляют.
 4. **отдельным вопросом** сверяет КАРТОЧКИ: карточка в НЕтерминальном статусе, лежащая в
    рабочем дереве и отсутствующая на базе, — находка (`card_findings`). Это не частный
    случай пункта 3: карточку, созданную посреди цикла, никто не объявляет, и разбор
@@ -174,6 +196,18 @@ CARD_CLOSED = "card_closed"
 # (цикл #297 снял корневой `__init__.py` через `github_delete`, и это верное действие), а
 # байтов, которых не было бы в истории базы, ни в одном дереве нет. Поднимать нечего.
 DELETED_ON_ORIGIN = "deleted_on_origin"
+# Девятое: объявленного пути нет ни на базе, ни в её истории, ни в одном рабочем дереве — но он
+# ЛЕЖИТ НА УДАЛЁННОЙ ВЕТКЕ. Это не «нигде» и не «доставлено»: поднимать есть что, и место названо.
+ON_BRANCH = "on_branch"
+
+# Классы путей, потеря которых невосстановима ничем, кроме самой ветки: решение и карточка
+# владельца. Код на ветке — обычная параллельная работа (для того ветки и существуют), и
+# находкой не считается — см. п. 3d шапки, признак выбран замером 14 веток.
+OWNER_WORK_PREFIXES = ("docs/decisions/", "nimbalyst-local/tracker/")
+CODE_PREFIXES = ("spa_core/", "scripts/", "tests/")
+# `origin` без имени ветки — это сам remote (`refs/remotes/origin/HEAD` печатается git'ом как
+# `origin`), сверять с ним нечего.
+_NOT_A_BRANCH = ("origin", "origin/HEAD")
 
 _PID_RE = re.compile(r"^pid(\d+)$")
 
@@ -1344,6 +1378,99 @@ def repo_refuses(rel, root, git=_git):
                   f"{err.strip()[:120]!r}")
 
 
+def remote_branch_refs(root, base_ref, git=_git):
+    """Удалённые ветки репозитория, кроме базовой: ([{ref, tip}], ошибка|None).
+
+    Читаются ЛОКАЛЬНЫЕ `refs/remotes/*` — `git fetch` здесь не вызывается, как и во всей
+    остальной сверке (без сети). Отсюда та же осознанная граница, что у базового ref: устаревшая
+    локальная копия ветки даёт ЛОЖНУЮ находку, а не ложную тишину.
+    """
+    rc, out, err = git(root, "for-each-ref",
+                       "--format=%(refname:short)\t%(committerdate:iso8601-strict)",
+                       "refs/remotes/")
+    if rc != 0:
+        return None, (f"список удалённых веток НЕ ПРОЧИТАН (git for-each-ref rc={rc} "
+                      f"{err.strip()[:120]!r}) — лежит ли недоставленное на ветке, не измерено")
+    rows = []
+    for line in out.splitlines():
+        ref, _, tip = line.partition("\t")
+        ref = ref.strip()
+        if not ref or ref in _NOT_A_BRANCH or ref == base_ref:
+            continue
+        rows.append({"ref": ref, "tip": tip.strip()})
+    return rows, None
+
+
+def _tree_paths(ref, root, git=_git):
+    """Все пути дерева ref'а, либо None — прочитать не удалось."""
+    rc, out, _ = git(root, "ls-tree", "-r", "--name-only", ref)
+    if rc != 0:
+        return None
+    return {line for line in out.splitlines() if line}
+
+
+def branch_scan(root, base_ref, git=_git):
+    """Что лежит на удалённых ветках и чего из этого нет на базе: (строки, «не измерено»).
+
+    Одна строка на ветку: ``ref`` · ``tip`` (дата последнего коммита) · ``ahead`` (коммитов
+    сверх базы) · ``files`` (полное дерево ветки, в отчёт НЕ кладётся) · ``unique``
+    (пути, которых на базе нет ВООБЩЕ) · ``owner_work`` / ``code`` (разбиение `unique`).
+
+    **Влитая ветка пропускается по измерению, а не по имени:** `merge-base --is-ancestor` —
+    ветка, целиком лежащая в истории базы, недоставленного не держит по построению. Так же
+    отсеивается и сама база, когда `--base` задан не именем, а sha.
+
+    Стоимость измерена, а не оценена: 14 веток этого репозитория — 0.34 с (`ls-tree -r` на
+    каждую + один на базу). Шаг 0a гоняется раз в цикл, это не тот порядок, ради которого
+    стоит заводить кэш и его протухание.
+    """
+    unmeasured = []
+    refs, err = remote_branch_refs(root, base_ref, git=git)
+    if refs is None:
+        return None, [err]
+    base_files = _tree_paths(base_ref, root, git=git)
+    if base_files is None:
+        return None, [f"дерево базы {base_ref} НЕ ПРОЧИТАНО (git ls-tree) — сверка веток с базой "
+                      "не выполнена"]
+    rows = []
+    for row in refs:
+        ref = row["ref"]
+        rc, _, _ = git(root, "merge-base", "--is-ancestor", ref, base_ref)
+        if rc == 0:                              # ветка целиком в истории базы
+            continue
+        if rc != 1:                              # ни «влита», ни «не влита» — это не измерение
+            unmeasured.append(f"ветка {ref}: влита ли она в {base_ref}, НЕ ИЗМЕРЕНО "
+                              f"(git merge-base --is-ancestor rc={rc})")
+            continue
+        files = _tree_paths(ref, root, git=git)
+        if files is None:
+            unmeasured.append(f"ветка {ref}: дерево НЕ ПРОЧИТАНО (git ls-tree) — что на ней "
+                              "лежит, не измерено")
+            continue
+        rc, ahead, _ = git(root, "rev-list", "--count", f"{base_ref}..{ref}")
+        unique = sorted(files - base_files)
+        rows.append({
+            "ref": ref,
+            "tip": row["tip"],
+            "ahead": int(ahead.strip()) if rc == 0 and ahead.strip().isdigit() else None,
+            "files": files,
+            "unique": unique,
+            "owner_work": [p for p in unique if p.startswith(OWNER_WORK_PREFIXES)],
+            "code": [p for p in unique if p.startswith(CODE_PREFIXES)],
+        })
+    return rows, unmeasured
+
+
+def paths_on_branches(rel, branches):
+    """Ветки, на которых ЛЕЖИТ этот путь. `branches is None` ⇒ не измерено ⇒ пустой список.
+
+    Вопрос задаётся ТОЛЬКО путям, которых нет ни на базе, ни в её истории, ни в одном рабочем
+    дереве (см. `never_existed`). Ответ «лежит на ветке X» точнее и полезнее, чем «нигде»:
+    поднимать есть что, и место названо.
+    """
+    return [b["ref"] for b in (branches or []) if rel in b["files"]]
+
+
 def delivered_by_session(session, entries, root, base_ref, git=_git, diff_sets=None, limit=6):
     """Что ЭТА ЖЕ сессия объявляла и что из объявленного лежит на базе — подсказка «переименовано?».
 
@@ -1656,6 +1783,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
     grace = timedelta(hours=grace_hours)
     findings, unmeasured, fresh, stale_copies, card_findings = [], [], [], [], []
     reaped, nowhere, by_design, card_closed, deleted = [], [], [], [], []
+    on_branch = []
     seen, hist_cache, card_cache = {}, {}, {}
     reap_ledger, ledger_error = read_reap_ledger(root)
     report = {
@@ -1675,6 +1803,9 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
         "by_design": by_design,
         "card_closed": card_closed,
         "deleted_on_origin": deleted,
+        "on_branch": on_branch,
+        "branches_with_owner_work": [],
+        "branches_code_only": [],
         "unmeasured": unmeasured,
         "dead_worktrees": [],
         "exit_code": 0,
@@ -1719,6 +1850,26 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
     for f in diff_failures:                      # чекаут не сравнён — сказать это вслух
         unmeasured.append({"session": None, "path": None,
                            "reason": f"{f} — рабочее дерево с базой НЕ сверено"})
+
+    # Третье вместилище недоставленного — удалённая ветка (п. 3c/3d шапки). Меряется ОДИН раз
+    # на отчёт: и как источник ответа для конкретного объявленного пути (`paths_on_branches`),
+    # и как самостоятельная находка, когда на ветке лежат решения/карточки владельца.
+    branches, branch_unmeasured = branch_scan(root, base_ref, git=git)
+    for reason in branch_unmeasured:
+        unmeasured.append({"session": None, "path": None, "reason": reason})
+    for b in (branches or []):
+        row = {"ref": b["ref"], "tip": b["tip"], "ahead": b["ahead"],
+               "unique": len(b["unique"]), "owner_work": b["owner_work"],
+               "code": len(b["code"]),
+               "decisions": [p for p in b["owner_work"] if p.startswith("docs/decisions/")],
+               "cards": [p for p in b["owner_work"] if p.startswith("nimbalyst-local/tracker/")]}
+        if b["owner_work"]:
+            report["branches_with_owner_work"].append(row)
+        elif b["unique"]:
+            # Ветка с одним лишь кодом — НЕ находка (признак выбран замером, п. 3d), но и не
+            # тишина: она названа строкой с числами. Разница между «не считаем» и «не видим»
+            # обязана быть видна в самом отчёте.
+            report["branches_code_only"].append(row)
 
     # Второй вопрос: карточка, созданная посреди цикла, не объявляется никогда, поэтому
     # разбор объявлений ниже её не увидит по построению (см. блок «карточки» выше).
@@ -1769,7 +1920,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                    "объявленный долгоживущий процесс завершился")
             produced_before = (len(findings), len(unmeasured), len(stale_copies),
                                len(reaped), len(nowhere), len(by_design), len(card_closed),
-                               len(deleted))
+                               len(deleted), len(on_branch))
 
         why = f"{why}; объявлено {age_h}ч назад"
         report["sessions_checked"] += 1
@@ -1898,6 +2049,29 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                 verdict, why_nowhere = never_existed(rel, root, base_ref, checkouts,
                                                      git=git, hist_cache=hist_cache)
                 if verdict:
+                    # ЧЕТВЁРТЫЙ источник, и он спрашивается ДО того, как сказать «нигде»:
+                    # путь мог уехать на удалённую ветку (п. 3c шапки). Сказать «ПОДНИМАТЬ
+                    # НЕЧЕГО» о работе, которая лежит на ветке, — fail-OPEN внутри
+                    # fail-CLOSED-сторожа (класс #226), а не мелкая неточность формулировки.
+                    on_refs = paths_on_branches(rel, branches)
+                    if on_refs:
+                        key = (rel, ON_BRANCH)
+                        if key in seen:
+                            add_witness(on_branch[seen[key]], entry.get("session"))
+                            continue
+                        seen[key] = len(on_branch)
+                        on_branch.append({
+                            "session": entry.get("session"), "ts": entry.get("ts"),
+                            "path": rel, "state": ON_BRANCH,
+                            "detail": (f"на {base_ref} пути нет и в истории не было, ни в одном "
+                                       f"рабочем дереве его нет — но он ЛЕЖИТ на ветке: "
+                                       f"{', '.join(on_refs)}. ПОДНИМАТЬ ЕСТЬ ЧТО, и место "
+                                       "названо: работа уехала на ветку, а не пропала"),
+                            "branches": on_refs, "session_state": why,
+                            "within_grace": within_grace,
+                            "summary": (entry.get("summary") or "")[:160],
+                            "also_declared_by": []})
+                        continue
                     key = (rel, NOWHERE)
                     if key in seen:
                         add_witness(nowhere[seen[key]], entry.get("session"))
@@ -2042,7 +2216,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
         # запись ронять нечестно — она остаётся в счётчике «свежих» со своим измерением.
         if within_grace and (len(findings), len(unmeasured), len(stale_copies),
                              len(reaped), len(nowhere), len(by_design),
-                             len(card_closed), len(deleted)) == produced_before:
+                             len(card_closed), len(deleted), len(on_branch)) == produced_before:
             fresh.append({"session": entry.get("session"), "ts": entry.get("ts"),
                           "age_hours": age_h, "files": len(entry.get("files") or []),
                           "reason": f"{why} — объявленное на {base_ref} есть, находки нет"})
@@ -2070,8 +2244,13 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
     # итоговой строке, а «потерянной работы нет» утверждается ровно там, где это измерено.
     # Обратная сторона закрыта в `deleted_on_origin`: незнакомые байты в дереве под удалённым
     # именем сюда не попадают вовсе — это по-прежнему находка с кодом 1.
+    # `on_branch` и `branches_with_owner_work` код 1 ДЕРЖАТ: работы нет на базе, и это тот самый
+    # вопрос, на который сторож обязан отвечать. Возражение «вечная находка без пути обратно»
+    # (им обосновано исключение `deleted_on_origin`) здесь не работает: выход есть и он
+    # обыкновенный — ветку вливают либо удаляют, после чего находка исчезает сама.
     report["exit_code"] = (2 if unmeasured
-                           else (1 if (findings or card_findings or nowhere) else 0))
+                           else (1 if (findings or card_findings or nowhere or on_branch
+                                       or report["branches_with_owner_work"]) else 0))
     return report
 
 
@@ -2127,6 +2306,48 @@ def render(report) -> str:
                    f"которых на {base} не было, лежат в деревьях ДРУГИХ сессий. Это не потерянная "
                    "работа объявившего; чья она — не измерено, и находкой остаётся:")
         _findings_block(foreign)
+
+    if report.get("on_branch"):
+        out.append("")
+        out.append(f"🌿 ОБЪЯВЛЕНО И ЛЕЖИТ НА ВЕТКЕ ({len(report['on_branch'])}) — "
+                   f"на {base} этого нет, в рабочих деревьях нет, но работа не пропала: она "
+                   "уехала на удалённую ветку. Поднимать есть что, место названо:")
+        for f in report["on_branch"]:
+            out.append(f"  [на ветке] {f['path']} → {', '.join(f.get('branches') or [])}")
+            out.append(f"      сессия {f['session']} ({f['ts']}): {f['session_state']}")
+            out.append(f"      {f['detail']}")
+            if f.get("also_declared_by"):
+                out.append(f"      то же имя объявляли ещё: {', '.join(f['also_declared_by'])}")
+            if f["summary"]:
+                out.append(f"      объявляла: {f['summary']}")
+
+    if report.get("branches_with_owner_work"):
+        rows = report["branches_with_owner_work"]
+        out.append("")
+        out.append(f"🌿 НА ВЕТКЕ ЛЕЖАТ РЕШЕНИЯ И КАРТОЧКИ ВЛАДЕЛЬЦА ({len(rows)}) — этих файлов "
+                   f"на {base} нет ВООБЩЕ. Код на ветке находкой не считается (обычная "
+                   "параллельная работа), а решение или карточка означают, что очередь "
+                   "владельца потеряла пункт: восстановить его нечем, кроме самой ветки:")
+        for b in rows:
+            out.append(f"  [ветка] {b['ref']} (последний коммит {b['tip'][:10]}, "
+                       f"коммитов сверх базы: {b['ahead']})")
+            out.append(f"      уникальных путей: {b['unique']} · решений: {len(b['decisions'])} "
+                       f"· карточек: {len(b['cards'])} · кода: {b['code']}")
+            for p in (b["decisions"] + b["cards"])[:8]:
+                out.append(f"        • {p}")
+            hidden = len(b["decisions"]) + len(b["cards"]) - 8
+            if hidden > 0:
+                out.append(f"        … и ещё {hidden} (полный список: "
+                           f"git diff --name-only {base} {b['ref']})")
+
+    if report.get("branches_code_only"):
+        rows = report["branches_code_only"]
+        out.append("")
+        out.append("🌿 ветки с уникальным КОДОМ, но без решений и карточек "
+                   f"({len(rows)}) — НЕ находки (признак выбран замером, см. шапку), названы "
+                   "числами, чтобы «не считаем» не читалось как «не видим»: "
+                   + " · ".join(f"{b['ref']} (уник. {b['unique']}, кода {b['code']}, "
+                                f"{b['tip'][:10]})" for b in rows))
 
     if report.get("nowhere"):
         out.append("")
@@ -2282,7 +2503,8 @@ def render(report) -> str:
             out.append(f"  - {f['session']} ({f['ts']}, файлов: {f['files']}): {f['reason']}")
 
     if (not report["findings"] and not report["unmeasured"]
-            and not report.get("card_findings") and not report.get("nowhere")):
+            and not report.get("card_findings") and not report.get("nowhere")
+            and not report.get("on_branch") and not report.get("branches_with_owner_work")):
         # «Всё доставлено» при непустом разделе выше было бы неправдой в собственном отчёте:
         # эти пути не доставлены и доставлены не будут. Утверждается ровно то, что измерено —
         # потерянной работы нет, а недоставленное названо и объяснено (правилом репозитория
