@@ -94,8 +94,16 @@ def wired(monkeypatch, sandbox):
     from spa_core.telegram import ask_router
     monkeypatch.setattr(ask_router, "classify_and_answer", lambda text: ("task", ""))
     # Разбор ответа владельца по умолчанию говорит «это не ответ».
+    #
+    # `**kw` — не послабление, а ОБЯЗАТЕЛЬНОЕ условие того, что этот дубль вообще что-то
+    # измеряет (цикл #317). Настоящая `resolve_text_answer` приняла именованный
+    # `reply_to_message_id`, а дубль с жёсткой парой аргументов начал бросать `TypeError`;
+    # в `bot._handle_owner_text_answer` он гасится штатным `except` и превращается в
+    # «это не ответ» — то есть дубль возвращал ПРАВИЛЬНЫЙ ответ по НЕПРАВИЛЬНОЙ причине и
+    # оставался зелёным, проверяя путь исключения вместо проверяемого. Ни одно
+    # утверждение не тронуто.
     from spa_core.telegram import owner_decisions as od
-    monkeypatch.setattr(od, "resolve_text_answer", lambda text, chat_id: None)
+    monkeypatch.setattr(od, "resolve_text_answer", lambda text, chat_id, **kw: None)
 
     return types.SimpleNamespace(bot=bot, cards=cards, sent=sent)
 
@@ -202,8 +210,12 @@ def test_an_owner_answer_is_not_swallowed_by_an_open_buffer(wired, monkeypatch):
     """
     seen: list[str] = []
     from spa_core.telegram import owner_decisions as od
+    # `**kw` — см. пояснение у дубля в фикстуре `wired`: настоящая функция приняла
+    # `reply_to_message_id` (цикл #317), и без этого дубль бросает `TypeError`, который
+    # бот гасит штатным `except`. Здесь это ЧЕСТНО покраснело — тест и заводился, чтобы
+    # ловить «слово владельца не дошло до разбора», а он не дошёл. Утверждения не тронуты.
     monkeypatch.setattr(od, "resolve_text_answer",
-                        lambda text, chat_id: (seen.append(text), None)[1])
+                        lambda text, chat_id, **kw: (seen.append(text), None)[1])
 
     _deliver(wired, [real_document_parts()[0], "Ответ 1"])
 

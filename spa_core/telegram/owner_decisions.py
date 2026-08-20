@@ -1054,10 +1054,71 @@ def buttonless_pushes(
     return out
 
 
+#: Сколько сообщений одного решения помним. Их бывает больше одного законно: текст без
+#: кнопок, потом до-доставка кнопок (`heal_buttonless`) — и ответить владелец может на
+#: любое из них. Потолок нужен только чтобы запись не росла без края.
+MESSAGE_IDS_MAX = 8
+
+
+def message_id_of(result) -> Optional[int]:
+    """``message_id`` из ответа Telegram API. ``None`` — его там нет.
+
+    Принимает то, что реально возвращают отправители: полный ответ API
+    (``{"ok": true, "result": {"message_id": 123, …}}``), уже развёрнутый ``result``,
+    голое число — или ``None``/``False``, когда отправка не состоялась. Никогда не бросает:
+    это наблюдение, и оно не имеет права уронить отправку.
+    """
+    if result is None or result is True or result is False:
+        return None
+    if isinstance(result, int):
+        return int(result) or None
+    if isinstance(result, dict):
+        inner = result.get("result")
+        if isinstance(inner, dict):
+            mid = inner.get("message_id")
+        else:
+            mid = result.get("message_id")
+        try:
+            return int(mid) if mid not in (None, "") else None
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def _remember_message_id(rec: Dict, message_id: Optional[int]) -> bool:
+    """Запомнить сообщение чата, несущее это решение. ``True`` — запись изменилась.
+
+    Копим СПИСОК, а не последнее: у одного решения законно бывает несколько сообщений
+    (текст без кнопок + до-доставка кнопок), и ответить владелец может на любое.
+    Затирать предыдущее значило бы снова терять адресата — ровно тот дефект, который
+    эта запись и заводится лечить.
+    """
+    if message_id is None:
+        return False
+    ids = rec.get("message_ids")
+    if not isinstance(ids, list):
+        ids = []
+    clean: List[int] = []
+    for v in ids:
+        try:
+            iv = int(v)
+        except (TypeError, ValueError):
+            continue
+        if iv not in clean:
+            clean.append(iv)
+    if message_id in clean:
+        rec["message_ids"] = clean[-MESSAGE_IDS_MAX:]
+        return False
+    clean.append(int(message_id))
+    rec["message_ids"] = clean[-MESSAGE_IDS_MAX:]
+    return True
+
+
 def mark_send_outcome(
     pid: str,
     *,
     ok: bool,
+    message_id: Optional[int] = None,
     now: Optional[datetime] = None,
     state_path: Optional[str | Path] = None,
 ) -> bool:
@@ -1100,6 +1161,17 @@ def mark_send_outcome(
             continue
         rec["delivered"] = bool(ok)
         rec["delivered_checked_at"] = stamp
+        # Адрес сообщения в чате — часть исхода отправки, а не украшение: ответ владельца
+        # «Ответ 1» приходит РЕПЛАЕМ на конкретное сообщение, и без этой отметки узнать,
+        # на какое именно, нечем ПО ПОСТРОЕНИЮ (замер 20.08: ни у одной из 38 записей
+        # журнала message_id не было, и оба ответа владельца в тот день отвергнуты как
+        # «неоднозначно» при 14 открытых вопросах).
+        #
+        # ТОЛЬКО при удачной отправке. Адрес сообщения, которого владелец не видел, —
+        # это приглашение записать ответ на непоказанный вопрос; тот же класс fail-OPEN,
+        # что и `buttons: true` до отправки, который эта функция и заводилась лечить.
+        if ok:
+            _remember_message_id(rec, message_id_of(message_id))
         if not ok:
             # Не уехало ничего ⇒ кнопок владелец не видел. Говорим это ИЗМЕРЕНИЕМ,
             # а не умолчанием: молчаливое `true` и есть чинимый дефект.
@@ -1116,10 +1188,16 @@ def mark_send_outcome(
 def mark_buttons_delivered(
     pid: str,
     *,
+    message_id: Optional[int] = None,
     now: Optional[datetime] = None,
     state_path: Optional[str | Path] = None,
 ) -> bool:
-    """Записать, что кнопки к решению ``pid`` всё-таки доставлены. Идемпотентно."""
+    """Записать, что кнопки к решению ``pid`` всё-таки доставлены. Идемпотентно.
+
+    ``message_id`` — адрес ДОСЛАННОГО сообщения. Оно отдельное и живёт в чате рядом с
+    первым, поэтому запоминается в дополнение к нему, а не вместо: владелец видит две
+    карточки одного вопроса и отвечает реплаем на ту, что под рукой.
+    """
     path_obj = _state_path(state_path)
     doc = _load(path_obj)
     stamp = (now or datetime.now(timezone.utc)).isoformat()
@@ -1128,6 +1206,7 @@ def mark_buttons_delivered(
         if isinstance(rec, dict) and rec.get("pid") == pid:
             rec["buttons"] = True
             rec["buttons_fixed_at"] = stamp
+            _remember_message_id(rec, message_id_of(message_id))
             hit = True
     if hit:
         _save(doc, path_obj)
@@ -1158,7 +1237,8 @@ def heal_buttonless(
                 ok = None
             if not ok:
                 continue  # не отправилось ⇒ отметку не ставим, попробуем в следующий раз
-            if mark_buttons_delivered(heal.pid, now=now, state_path=state_path):
+            if mark_buttons_delivered(heal.pid, message_id=message_id_of(ok),
+                                      now=now, state_path=state_path):
                 fixed.append(heal.pid)
     except Exception:  # noqa: BLE001
         pass
@@ -1377,6 +1457,37 @@ def _push_by_card_id(card_id: str, *, state_path: Optional[str | Path] = None) -
     return None
 
 
+def _push_by_message_id(
+    message_id: Optional[int], *, state_path: Optional[str | Path] = None,
+) -> Optional[Dict]:
+    """Запись журнала по адресу сообщения в чате. ``None`` — совпадения нет.
+
+    Совпадение ТОЧНОЕ и потому не является угадыванием: владелец физически указал на
+    сообщение, ответив на него реплаем. Это единственный источник адресата, который не
+    зависит ни от порядка вопросов, ни от их количества.
+    """
+    if message_id is None:
+        return None
+    try:
+        mid = int(message_id)
+    except (TypeError, ValueError):
+        return None
+    doc = _load(_state_path(state_path))
+    for rec in reversed(doc.get("pushes") or []):
+        if not isinstance(rec, dict):
+            continue
+        ids = rec.get("message_ids")
+        if not isinstance(ids, list):
+            continue
+        for v in ids:
+            try:
+                if int(v) == mid:
+                    return rec
+            except (TypeError, ValueError):
+                continue
+    return None
+
+
 def _last_answered_push(*, state_path: Optional[str | Path] = None) -> Optional[Dict]:
     """Последнее решение, на которое владелец УЖЕ ответил. ``None`` — таких нет."""
     doc = _load(_state_path(state_path))
@@ -1391,6 +1502,7 @@ def resolve_text_answer(
     actor_chat_id,
     *,
     owner_chat_id: Optional[str] = None,
+    reply_to_message_id: Optional[int] = None,
     state_path: Optional[str | Path] = None,
     now: Optional[datetime] = None,
 ) -> Optional[Dict]:
@@ -1416,7 +1528,24 @@ def resolve_text_answer(
                 "nums": list(parsed.nums), "card_id": parsed.card_id}
     num = parsed.nums[0]
 
-    if parsed.card_id:
+    # Реплай владельца — САМЫЙ точный из адресов, и потому спрашивается первым.
+    #
+    # Замер 20.08 (эта починка): владелец дважды прислал «Ответ 1» (11:08 и 11:16), и оба
+    # раза ответ отвергнут как `ambiguous` — открытых решений было 14. Адресат при этом
+    # был известен Телеграму ТОЧНО, но недостижим нам по построению: бот не читал
+    # `reply_to_message` вовсе, а в журнале отправок не было ни одного `message_id`.
+    #
+    # Подсказка работает ТОЛЬКО в плюс: совпало — адресат известен точно, не совпало —
+    # ниже работает ровно тот же разбор, что и раньше, слово в слово. Отвечать реплаем на
+    # постороннее сообщение владелец вправе, и это не должно делать ответ ХУЖЕ, чем без
+    # реплая. Отказ при неоднозначности не ослаблен: он просто перестал быть единственным
+    # исходом там, где точный ответ существовал.
+    rec = _push_by_message_id(reply_to_message_id, state_path=state_path)
+    resolved_by = "reply_to" if rec is not None else None
+
+    if rec is not None:
+        pass
+    elif parsed.card_id:
         rec = _push_by_card_id(parsed.card_id, state_path=state_path)
         if rec is None:
             # Ровно случай 12.08: владелец процитировал тревогу и ответил «1», а карточки
@@ -1453,6 +1582,12 @@ def resolve_text_answer(
     result.setdefault("card_id", rec.get("card_id"))
     result.setdefault("title", rec.get("title"))
     result["via"] = "text"
+    # ЧЕМ определён адресат — отдельным полем, а не подменой ``via``: канал остался
+    # текстовым (это влияет на запись в карточку), изменился только способ узнать, к чему
+    # ответ относится. Слить их в одно значило бы сделать вопрос «как мы поняли адресата»
+    # неотвечаемым задним числом — тем самым, на котором мы и стояли.
+    if resolved_by:
+        result["resolved_by"] = resolved_by
     if not result.get("ok"):
         result.setdefault("nums", [num])
     return result

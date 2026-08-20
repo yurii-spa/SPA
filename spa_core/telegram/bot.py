@@ -150,6 +150,25 @@ def _proto_label(key: str) -> str:
     return str(key).replace("_", " ").replace("-", " ").title()
 
 
+def _reply_to_message_id(msg: Any) -> Optional[int]:
+    """На какое сообщение владелец ответил реплаем. ``None`` — это не реплай.
+
+    Единственное место, где Телеграм говорит АДРЕСАТА ответа точно. Ничего не выводится и
+    не угадывается: либо поле есть, либо ответа на этот вопрос у нас нет. Никогда не
+    бросает — разбор обновления не имеет права уронить опрос.
+    """
+    if not isinstance(msg, dict):
+        return None
+    src = msg.get("reply_to_message")
+    if not isinstance(src, dict):
+        return None
+    mid = src.get("message_id")
+    try:
+        return int(mid) if mid not in (None, "") else None
+    except (TypeError, ValueError):
+        return None
+
+
 # ─── The bot ────────────────────────────────────────────────────────────────
 
 
@@ -1056,7 +1075,8 @@ class TelegramBot:
         else:  # unclear — вердикт модели о ТЕКСТЕ: законно переспросить
             self.send_message(f"🤔 {html.escape(resp)}", chat_id)
 
-    def _handle_owner_text_answer(self, text: str, chat_id: str) -> bool:
+    def _handle_owner_text_answer(self, text: str, chat_id: str,
+                                  reply_to_message_id: Optional[int] = None) -> bool:
         """«Ответ 1» в чат → выбор записан в карточку owner-путём (инв. #14 не ослаблен).
 
         Возвращает True, если сообщение РАЗОБРАНО как ответ владельца — записан он или
@@ -1065,11 +1085,17 @@ class TelegramBot:
         При отказе слова владельца НЕ ТЕРЯЮТСЯ: сообщение сохраняется inbox-карточкой,
         как и раньше, — но теперь владелец слышит ПРИЧИНУ, а не молчание. Именно
         молчание и стоило нам двух его ответов.
+
+        ``reply_to_message_id`` — сообщение, на которое владелец ОТВЕТИЛ реплаем. Это
+        точный адрес вопроса, и до 20.08 он выбрасывался прямо здесь: в разбор уходили
+        только текст и чат. Цена измерена в тот же день — «Ответ 1» дважды отвергнут как
+        «открытых вопросов несколько», при том что владелец на конкретный и указывал.
         """
         from spa_core.telegram import owner_decisions as od
 
         try:
-            result = od.resolve_text_answer(text, chat_id)
+            result = od.resolve_text_answer(
+                text, chat_id, reply_to_message_id=reply_to_message_id)
         except Exception as exc:  # noqa: BLE001 — разбор не имеет права съесть сообщение
             log.warning("_handle_owner_text_answer failed: %s", exc)
             return False
@@ -1344,7 +1370,11 @@ class TelegramBot:
             # мимо себя по форме — см. long_message.looks_like_owner_answer.
             if self._handle_long_document(stripped, chat_id):
                 return True
-            if self._handle_owner_text_answer(stripped, chat_id):
+            # Реплай владельца несёт точный адрес вопроса — берём его ИЗ ОБНОВЛЕНИЯ, а не
+            # угадываем по числу открытых. `msg` здесь есть целиком; до 20.08 из него
+            # брали только текст и чат, и адресат терялся на пороге.
+            if self._handle_owner_text_answer(
+                    stripped, chat_id, reply_to_message_id=_reply_to_message_id(msg)):
                 return True
             # Карточки и очередь владельца — ДЕТЕРМИНИРОВАННО, до LLM-классификатора.
             # Живой промах 2026-08-19: на «есть ли на мне own-54?» ask_router ответил

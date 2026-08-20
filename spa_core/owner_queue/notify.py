@@ -135,14 +135,18 @@ def notify_needs_owner(path: str | Path, *, dry_run: bool = False) -> str:
                 ok = _send()
         if not ok:
             log.warning("notify_needs_owner: send returned falsy for %s", path)
-        _record_outcome(prep_pid, ok=bool(ok))
+        # `ok` — это ПОЛНЫЙ ответ Telegram API, а в нём лежит `message_id`. Сжимать его
+        # здесь до `bool` мы и перестаём: ровно на этой строке терялся адресат ответа
+        # владельца (замер 20.08 — «Ответ 1» дважды отвергнут как «неоднозначно», хотя
+        # Телеграм знал адресата точно). Отправку это не трогает ничем.
+        _record_outcome(prep_pid, ok=bool(ok), result=ok)
     except Exception as exc:  # noqa: BLE001 — notification must never crash the orchestrator
         log.warning("notify_needs_owner: send failed for %s: %s", path, exc)
         _record_outcome(prep_pid, ok=False)
     return msg
 
 
-def _record_outcome(pid: str | None, *, ok: bool) -> None:
+def _record_outcome(pid: str | None, *, ok: bool, result=None) -> None:
     """Записать в журнал пушей, УЕХАЛО ли сообщение. Никогда не бросает.
 
     Без этого шага журнал знает только НАМЕРЕНИЕ: `register_push` ставит `buttons: true`
@@ -160,7 +164,8 @@ def _record_outcome(pid: str | None, *, ok: bool) -> None:
     try:
         from spa_core.telegram import owner_decisions
 
-        owner_decisions.mark_send_outcome(pid, ok=ok)
+        owner_decisions.mark_send_outcome(
+            pid, ok=ok, message_id=owner_decisions.message_id_of(result))
     except Exception as exc:  # noqa: BLE001 — наблюдение не роняет уведомление
         log.warning("notify_needs_owner: outcome record failed for %s: %s", pid, exc)
 
