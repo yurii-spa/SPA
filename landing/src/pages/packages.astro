@@ -34,7 +34,12 @@ const tiers = [
   {
     key: 'balanced',
     en: 'Balanced', ru: 'Сбалансированный',
-    status_en: 'RESEARCH · paper track running · not live-allocated', status_ru: 'ИССЛЕДОВАНИЕ · идёт paper-трек · без live-аллокации',
+    // OWNER 2026-08-19 (card owner-decision-sbalansirovannyi-tir-na-saite-idet-paper, variant 1):
+    // "paper track running" REMOVED until the Balanced book actually holds positions. Measured (#208):
+    // equity > 0 since 09.08, but positions_count == 0 in every one of 45/46 rows — hy_cycle accrues the
+    // band's average rate on the whole sum whether or not anything is held. An accrual is not a track.
+    // Re-add ONLY on the day positions_count > 0 is measured — that is a fact, not an advance.
+    status_en: 'RESEARCH · not live-allocated', status_ru: 'ИССЛЕДОВАНИЕ · без live-аллокации',
     tone: 'amber',
     live: false,
     what_en: 'sUSDe carry, Pendle YT-sUSDe. Risk-class C (yield paid for a tail). Paper-tested in the Aggressive Lab WITH its drawdowns labelled by event — never live-allocated until it passes the full lifecycle (yield-source + Red Team + ≥30-day paper + human approval).',
