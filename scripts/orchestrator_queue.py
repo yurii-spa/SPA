@@ -614,6 +614,27 @@ def cmd_notify(args) -> int:
     return 0
 
 
+def cmd_resend_open(args) -> int:
+    """Переслать владельцу все открытые вопросы заново, по одному (решение 20.08, вар. 2).
+
+    Код возврата — ЕДИНСТВЕННЫЙ канал недоставки для вызывающего (ADR-084): 0 — все
+    вопросы доехали (или это сухой прогон), 1 — хотя бы один не доехал. Частичная рассылка
+    успехом не считается: молчание о потерянном вопросе и есть та поломка, которую
+    владелец ловил руками.
+    """
+    from spa_core.owner_queue.resend import resend_open_questions, summary_line
+
+    report = resend_open_questions(dry_run=args.check,
+                                   tracker_dir=args.tracker_dir,
+                                   limit=args.limit)
+    print(summary_line(report))
+    for o in report.outcomes:
+        mark = "✅" if o.delivered else ("·" if report.dry_run else "❌")
+        extra = "" if o.delivered or report.dry_run else f" — {o.reason}"
+        print(f"  {mark} {o.card_id} — {o.title}{extra}")
+    return 0 if report.ok or report.dry_run else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Разбор аргументов отдельно от запуска: тесты обязаны звать РЕАЛЬНЫЙ путь команды
     (парсер + `cmd_*`), а не собирать args вручную мимо умолчаний парсера."""
@@ -666,6 +687,15 @@ def build_parser() -> argparse.ArgumentParser:
     pn.add_argument("path")
     pn.add_argument("--check", action="store_true", help="build message, do not send")
     pn.set_defaults(func=cmd_notify)
+
+    pr = sub.add_parser("resend-open",
+                        help="переслать владельцу ВСЕ открытые вопросы заново, по одному")
+    pr.add_argument("--check", action="store_true",
+                    help="показать, что уедет, и НЕ отправлять")
+    pr.add_argument("--limit", type=int, default=None, help="не больше N вопросов")
+    pr.add_argument("--tracker-dir", default=None,
+                    help="каталог трекера (по умолчанию — трекер дерева этой копии скрипта)")
+    pr.set_defaults(func=cmd_resend_open)
 
     return p
 

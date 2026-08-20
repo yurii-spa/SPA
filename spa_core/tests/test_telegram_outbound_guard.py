@@ -136,8 +136,58 @@ def test_notify_needs_owner_asks_for_dedup():
     rungs = [ln for ln in code if "_send(" in ln and "def _send" not in ln]
     assert len(rungs) == 4, ("лестница деградации: кнопки+дедуп, дедуп, дедуп после "
                              f"отказа от кнопок, голая отправка — найдено {len(rungs)}")
-    assert sum("dedup=True" in ln for ln in rungs) == 3, \
+    # ИЗМЕНЕНО ОСОЗНАННО (цикл #318, ADR-096; инв. #16 — обоснование здесь + журнал W34).
+    # Было: `sum("dedup=True" in ln ...) == 3` — счёт ЛИТЕРАЛА в исходнике. С приходом
+    # `owner_requested` (решение владельца 20.08: «пришлите вопросы заново») литерал стал
+    # переменной `dedup = not owner_requested`, и тест покраснел на ВЕРНОМ коде: проводка
+    # на месте, поведение по умолчанию прежнее, изменилась запись.
+    #
+    # Проверка не ослаблена, а РАСШИРЕНА, и намеренно в обе стороны:
+    #   1) структурно — дедуп по-прежнему передаётся на всех ступенях, кроме нижней;
+    #   2) ПОВЕДЕНЧЕСКИ (ниже) — по умолчанию до отправителя доезжает именно `True`.
+    # Старая форма второго не проверяла вовсе: литерал `dedup=True` в мёртвой ветке
+    # удовлетворил бы её полностью. Мутация `dedup = True → False` убивает новый тест и
+    # НЕ убивала старый.
+    assert sum("dedup=" in ln for ln in rungs) == 3, \
         f"дедуп обязан стоять на всех ступенях, кроме нижней: {rungs}"
+
+
+def test_default_notification_really_arrives_with_dedup_on(tmp_path, monkeypatch):
+    """Вторая половина проверки выше: ЧТО ДОЕХАЛО до отправителя, а не что написано.
+
+    Заведена вместе с `owner_requested` (#318). Структурный счёт мерит запись в
+    исходнике; этот тест мерит эффект — по умолчанию (владелец НИЧЕГО не просил) до
+    двери приезжает `dedup=True`, то есть петля спама 09.08/13.08 закрыта по-прежнему.
+
+    Анти-шторм здесь подменён СОЗНАТЕЛЬНО: он читает песочницу, общую на весь хост
+    (`inbox-pesochnitsa-testov-obschaya-na-ves-host`), и без подмены тест краснел бы от
+    чужого прогона за последние 6 часов, а не от проверяемого поведения.
+    """
+    from spa_core.owner_queue import notify as N
+
+    card = tmp_path / "own-default.md"
+    card.write_text(
+        "---\ntrackerStatus:\n  type: owner-decision\n"
+        "title: Тестовый вопрос\nstatus: needs-owner\n---\n\n"
+        "## Что случилось и почему это важно\n\nНечто.\n\n"
+        "## Что от тебя нужно\n\n* **Вариант 1 — да.**\n* **Вариант 2 — нет.**\n",
+        encoding="utf-8")
+
+    seen = {}
+
+    class Sender:
+        def send_message(self, text, parse_mode="HTML", **extra):
+            seen.update(extra)
+            seen["text"] = text
+            return {"result": {"message_id": 1}}
+
+    monkeypatch.setattr("spa_core.telegram.owner_decisions.throttle_state",
+                        lambda *a, **k: (True, ""))
+    monkeypatch.setattr("spa_core.telegram.bot.TelegramBot", Sender, raising=True)
+    N.notify_needs_owner(card)
+    assert seen.get("text"), "уведомление обязано дойти"
+    assert seen.get("dedup") is True, \
+        "без просьбы владельца дедуп обязан доехать до двери включённым"
 
 
 def test_a_sender_without_buttons_still_gets_the_dedup(tmp_path, monkeypatch):

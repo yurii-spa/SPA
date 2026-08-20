@@ -43,7 +43,8 @@ def build_message(card: Card) -> str:
     )
 
 
-def notify_needs_owner(path: str | Path, *, dry_run: bool = False) -> str:
+def notify_needs_owner(path: str | Path, *, dry_run: bool = False,
+                       owner_requested: bool = False) -> str:
     """Отправить владельцу карточку решения — с вариантами ответа и рекомендацией.
 
     Задание владельца 2026-08-08: решение должно приходить простым языком, с вариантами
@@ -56,12 +57,19 @@ def notify_needs_owner(path: str | Path, *, dry_run: bool = False) -> str:
     * бот не умеет обработать нажатие (маячок ADR-069) ⇒ текст уходит без кнопок.
 
     ``dry_run=True`` собирает сообщение, но не отправляет (тесты / ``--check``).
+
+    ``owner_requested=True`` — владелец САМ попросил прислать этот вопрос заново
+    (решение 20.08, вариант 2). Только это снимает анти-шторм и дедуп, и только для
+    одной отправки: оба заслона стоят против НАШЕЙ инициативы, а не против просьбы
+    владельца — «спросил дважды, ответить обязаны дважды» (тот же принцип, что
+    ``solicited`` у ``guard_outbound``). Заслоны при этом не ослаблены ни на строку:
+    без явного флага поведение прежнее, байт в байт.
     """
     card = load_card(path)
     # Анти-шторм (инцидент 2026-08-20: 200+ копий одного решения за ночь): та же
     # карточка без ответа не уходит чаще окна и потолка попыток. Сухой прогон
     # (--check, тесты) гейт не трогает — он ничего не отправляет.
-    if not dry_run:
+    if not dry_run and not owner_requested:
         try:
             from spa_core.telegram.owner_decisions import throttle_state
 
@@ -121,14 +129,19 @@ def notify_needs_owner(path: str | Path, *, dry_run: bool = False) -> str:
         def _send(**extra):
             return bot.send_message(msg, parse_mode="HTML", **extra)
 
+        # Владелец попросил прислать вопрос заново ⇒ сообщение СОЛИЦИТИРОВАНО, и дедуп
+        # (окно 30 мин, текст побуквенно тот же) обязан пропустить его — иначе исполнение
+        # его же решения гасится нашей защитой от нас самих. Лимит потока НЕ снимается
+        # ничем: он общий на всех отправителей и защищает канал, а не владельца от нас.
+        dedup = not owner_requested
         try:
-            ok = (_send(reply_markup=keyboard, dedup=True) if keyboard is not None
-                  else _send(dedup=True))
+            ok = (_send(reply_markup=keyboard, dedup=dedup) if keyboard is not None
+                  else _send(dedup=dedup))
         except TypeError as exc:
             log.warning("notify_needs_owner: sender rejected reply_markup (%s) — "
                         "отправляю без кнопок", exc)
             try:
-                ok = _send(dedup=True)
+                ok = _send(dedup=dedup)
             except TypeError as exc2:
                 log.warning("notify_needs_owner: sender rejected dedup (%s) — шлю без "
                             "него; лишний повтор лучше потерянного вопроса", exc2)
