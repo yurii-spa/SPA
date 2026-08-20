@@ -562,6 +562,10 @@ class AllocationResult:
     # receive capital this run, and why.
     evidence_gate_applied: bool = False
     blocked_protocols: dict[str, str] = field(default_factory=dict)
+    # ADR-072-остаток (карточка «трим происходит в АЛЛОКАТОРЕ»): сколько веса
+    # срезали ЗАЩИТНЫЕ тримы внутри аллокатора (доли, по шагам). Явный сигнал
+    # для перезаполнения/атрибуции кэша — вместо вычитания сумм на глаз.
+    protective_trims: dict[str, float] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -1625,6 +1629,7 @@ class StrategyAllocator:
         # MP-011: совокупный T2-кап ПОСЛЕ всех перераспределений (caps +
         # remainder-fill могут поднять суммарный T2 выше 35%) — финальный
         # инвариант перед возвратом: sum(T2) ≤ 35%.
+        _sum_before_t2 = sum(capped.values())
         capped, t2_cap_enforced = self._enforce_t2_total_cap(capped, tier_map)
         if t2_cap_enforced:
             notes.append(
@@ -1636,11 +1641,31 @@ class StrategyAllocator:
         # never enforced this, so optimized_yield could pour 30% into T3 (susde + extra_finance).
         # Re-applied here against the CANONICAL tier_map; the trimmed weight stays cash (never moved
         # to a riskier tier). Makes the go-live book compliant with the T3 cap the policy layer asserts.
+        _sum_before_t3 = sum(capped.values())
         capped, t3_cap_enforced = self._enforce_t3_total_cap(capped)
         if t3_cap_enforced:
             notes.append(
                 f"ADR-020: суммарный T3 срезан до {self.T3_TOTAL_CAP * 100:.0f}% "
                 "(излишек честно остался кэшем — не перемещён в более рисковый тир)."
+            )
+
+        # ADR-072-остаток: явный сигнал «сколько срезали защиты». Дельта каждого
+        # защитного шага измерена по факту (сумма до − сумма после), а не выведена
+        # из флагов: перезаполнителю и атрибуции кэша нужно ЧИСЛО, не догадка.
+        protective_trims: dict[str, float] = {}
+        _t2_cut = max(0.0, _sum_before_t2 - _sum_before_t3)
+        _t3_cut = max(0.0, _sum_before_t3 - sum(capped.values()))
+        if _t2_cut > 1e-9:
+            protective_trims["t2_total_cap"] = round(_t2_cut, 8)
+        if _t3_cut > 1e-9:
+            protective_trims["t3_total_cap"] = round(_t3_cut, 8)
+        if protective_trims:
+            _total_cut = sum(protective_trims.values())
+            notes.append(
+                "Защитные тримы аллокатора срезали в кэш "
+                f"{_total_cut * 100:.2f}% ("
+                + ", ".join(f"{k}: {v * 100:.2f}%" for k, v in protective_trims.items())
+                + ") — сигнал для перезаполнения (ADR-072)."
             )
 
         # Возвращаем исключённые риском протоколы в вывод с нулевым весом —
@@ -1757,6 +1782,7 @@ class StrategyAllocator:
             t2_pct=round(t2_pct, 6),
             total_deployed_pct=round(allocated, 6),
             risk_model_applied=risk_model_applied,
+            protective_trims=protective_trims,
             risk_breakdown=risk_breakdown,
             strategy_loop_active=strategy_loop_active,
             selected_strategy_id=selected_strategy_id,
