@@ -1,5 +1,7 @@
 # 36 — BTC Capital Cycle Machine (§13)
 
+> **Статус:** L2 · владелец: @yurii · приёмка: детектор фазы живёт модулем в `spa_core/`, покрыт тестами и стоит в `docs/MATURITY_REGISTER.md` на уровне ≥ L4. Блокер назван в ADR-102: просадка движка не помещается под стоп-кран, решение за владельцем (карточка `own-btc-dvizhok-ne-vlezaet-pod-stop-kran`). Замер бэктеста — `research/btc_cycle/`.
+
 > **DECISION-SUPPORT ONLY — NOT AUTO-TRADING.** This document describes a **human-approval-gated**
 > framework for reasoning about BTC through its market cycle. It is **not a bot**, does **not** hold
 > keys, does **not** sign or move funds, and is **not** wired to any execution path

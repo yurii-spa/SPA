@@ -1,5 +1,7 @@
 # 15 — BTC Cycle Framework (§14)
 
+> **Статус:** L2 · владелец: @yurii · приёмка: детектор фазы живёт модулем в `spa_core/`, покрыт тестами и стоит в `docs/MATURITY_REGISTER.md` на уровне ≥ L4. Блокер назван в ADR-102: просадка движка не помещается под стоп-кран, решение за владельцем (карточка `own-btc-dvizhok-ne-vlezaet-pod-stop-kran`). Замер бэктеста — `research/btc_cycle/`.
+
 > **DECISION-SUPPORT ONLY — NOT AUTO-TRADING.** This is the **analytical companion** to
 > [`36_btc_capital_cycle_machine.md`](36_btc_capital_cycle_machine.md). It defines *how* the desk
 > **detects** a BTC cycle phase, *how* it scores confidence, and *how* it reasons about BTC allocation
