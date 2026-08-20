@@ -835,6 +835,53 @@ def prepare_push(
                    beacon_path=beacon_path)
 
 
+# ── Анти-шторм отправок решений (инцидент 2026-08-20: 200+ копий одной карточки) ──
+# Петля: сторож «вопрос НЕ ОТПРАВЛЕН» с предикатом, слепым к чужому дереву, каждый
+# цикл «гасил» вопрос повторной отправкой. Журнал держит ОДНУ запись на pid (replace),
+# поэтому шторм был невидим даже журналу. Правило: та же карточка БЕЗ ответа не
+# уходит чаще раза в окно и не больше потолка попыток; сверх — тишина + WARNING.
+# Потерять уведомление хуже, чем послать дважды, — но 20 копий подряд теряют КАНАЛ:
+# владелец перестаёт читать. Ответ/снятие вопроса обнуляют счётчик (новая жизнь).
+STORM_WINDOW_S = 6 * 3600      # повтор без ответа — не чаще раза в 6 часов
+STORM_MAX_SENDS = 5            # и не больше 5 посылок без ответа суммарно
+
+
+def throttle_state(
+    card_id: str,
+    *,
+    now: Optional[datetime] = None,
+    state_path: Optional[str | Path] = None,
+) -> tuple[bool, str]:
+    """Можно ли СЕЙЧАС отправить решение по карточке. ``(allowed, причина_отказа)``.
+
+    Fail-OPEN намеренно: нечитаемый журнал не смеет прятать вопрос владельцу —
+    от шторма тогда защищает только дедуп отправителя (30 мин).
+    """
+    try:
+        rec = _push_by_card_id(card_id, state_path=state_path)
+        if not isinstance(rec, dict):
+            return True, ""
+        if rec.get("choice") or rec.get("withdrawn_at"):
+            return True, ""  # вопрос закрыт — новая отправка это НОВАЯ жизнь карточки
+        count = int(rec.get("send_count") or 1)
+        if count >= STORM_MAX_SENDS:
+            return False, (f"anti-storm: {count} посылок без ответа — потолок "
+                           f"{STORM_MAX_SENDS}, дальше молчим (владелец уже видел)")
+        dt = now or datetime.now(timezone.utc)
+        try:
+            last = datetime.fromisoformat(str(rec.get("pushed_at")))
+        except Exception:  # noqa: BLE001 — битая метка не должна глушить вопрос
+            return True, ""
+        age_s = (dt - last).total_seconds()
+        if 0 <= age_s < STORM_WINDOW_S:
+            return False, (f"anti-storm: та же карточка уходила {int(age_s // 60)} мин "
+                           f"назад без ответа — повтор не раньше, чем через "
+                           f"{int(STORM_WINDOW_S // 3600)}ч")
+        return True, ""
+    except Exception:  # noqa: BLE001 — защита не важнее самого уведомления
+        return True, ""
+
+
 def register_push(
     card_path: str | Path,
     title: str,
@@ -862,9 +909,21 @@ def register_push(
     path_obj = _state_path(state_path)
     doc = _load(path_obj)
     live_card = materialize_card(p, live_root=live_root)
+    prev = next((r for r in doc["pushes"]
+                 if isinstance(r, dict) and r.get("pid") == prep.pid), None)
+    # Счётчик посылок БЕЗ ответа: replace-семантика журнала прятала повторы
+    # (инцидент 2026-08-20, 200+ копий) — теперь каждая перезапись его наращивает,
+    # а ответ/снятие вопроса начинают счёт заново.
+    send_count = 1
+    if isinstance(prev, dict) and not (prev.get("choice") or prev.get("withdrawn_at")):
+        try:
+            send_count = int(prev.get("send_count") or 1) + 1
+        except Exception:  # noqa: BLE001
+            send_count = 2
     doc["pushes"] = [r for r in doc["pushes"] if r.get("pid") != prep.pid]
     doc["pushes"].append({
         "pid": prep.pid,
+        "send_count": send_count,
         "card": str(live_card),
         "card_id": p.stem,
         "title": title,

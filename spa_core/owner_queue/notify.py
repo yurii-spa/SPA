@@ -58,6 +58,19 @@ def notify_needs_owner(path: str | Path, *, dry_run: bool = False) -> str:
     ``dry_run=True`` собирает сообщение, но не отправляет (тесты / ``--check``).
     """
     card = load_card(path)
+    # Анти-шторм (инцидент 2026-08-20: 200+ копий одного решения за ночь): та же
+    # карточка без ответа не уходит чаще окна и потолка попыток. Сухой прогон
+    # (--check, тесты) гейт не трогает — он ничего не отправляет.
+    if not dry_run:
+        try:
+            from spa_core.telegram.owner_decisions import throttle_state
+
+            allowed, why = throttle_state(Path(path).stem)
+            if not allowed:
+                log.warning("notify_needs_owner SUPPRESSED for %s: %s", path, why)
+                return f"[anti-storm] отправка подавлена: {why}"
+        except Exception as exc:  # noqa: BLE001 — защита не важнее уведомления
+            log.warning("notify_needs_owner throttle check failed (%s) — шлю", exc)
     keyboard = None
     # `None` — сообщение собрать не удалось, регистрации нет, и отмечать исход не на чем.
     prep_pid: str | None = None
