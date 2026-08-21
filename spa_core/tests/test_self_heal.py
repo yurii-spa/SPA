@@ -26,6 +26,11 @@ Covered (R5 — apiserver data-staleness probe):
   (h) fresh cycle on disk BUT stale served API → exactly ONE apiserver kickstart
   (i) fresh served API → zero kickstarts
   (j) stale-data kickstart is circuit-broken (never a kickstart loop)
+
+Covered (R6 — telegram_bot beacon-staleness probe, owner mandate 2026-08-21):
+  (k) live pid + stale beacon → exactly ONE bot kickstart; fresh/unmeasurable → none
+  (l) pid 0 left to rule 2 (never two kickstarts for one incident)
+  (m) bot not loaded → probe never even READ; circuit breaker; dry-run
 """
 # LLM_FORBIDDEN
 from __future__ import annotations
@@ -112,6 +117,11 @@ def heal(monkeypatch):
     monkeypatch.setattr(self_heal, "_revival_history", lambda: {})
     # liveness probes UP by default (no kickstart from 2b)
     monkeypatch.setattr(self_heal, "_http_up", lambda url: True)
+    # NOTE 2026-08-21: R6 (telegram_bot stale-beacon probe) added its own read
+    # seam; default None = «не измерено» → no action, so tests that load the bot
+    # with a live pid never touch the real data/ beacon. raising=False for the
+    # same reason as the own-28 seams above.
+    monkeypatch.setattr(self_heal, "_beacon_age_seconds", lambda: None, raising=False)
 
     return h
 
@@ -694,3 +704,136 @@ def test_watchdog_and_uptime_monitor_never_resolve(monkeypatch):
     assert resolve_calls == []                        # никто не гасил
     assert len(push_kwargs) == 2                      # оба ушли entry-путём
     assert all(not k.get("resolved") for k in push_kwargs)
+
+
+# ===========================================================================
+# R6 — telegram_bot BEACON-staleness probe (мандат владельца 2026-08-21:
+# бот завис дважды за день, PID жив, long-poll заклинил; единственный признак —
+# протухший маячок; владелец дважды перезапускал руками)
+# ===========================================================================
+def _bot_loaded(monkeypatch, pid=10658):
+    monkeypatch.setattr(self_heal, "_loaded_labels",
+                        lambda: {"com.spa.telegram_bot": pid})
+
+
+def test_r6_stale_beacon_live_pid_kickstarts_bot(heal, monkeypatch):
+    """Положительный контроль всей проводки: маячок протух при живом PID → kickstart."""
+    _guard_no_real_io(monkeypatch)
+    _bot_loaded(monkeypatch)
+    monkeypatch.setattr(self_heal, "_beacon_age_seconds", lambda: 900.0)  # > 600
+
+    report = self_heal.run_self_heal()
+
+    assert heal.kickstarted == ["com.spa.telegram_bot"]
+    assert any("beacon" in a and "telegram_bot" in a for a in report["actions"])
+
+
+def test_r6_fresh_beacon_no_action(heal, monkeypatch):
+    _guard_no_real_io(monkeypatch)
+    _bot_loaded(monkeypatch)
+    monkeypatch.setattr(self_heal, "_beacon_age_seconds", lambda: 45.0)  # живой виток
+
+    self_heal.run_self_heal()
+
+    assert heal.kickstarted == []
+
+
+def test_r6_unmeasurable_beacon_no_action(heal, monkeypatch):
+    """Нет файла / не читается ⇒ None ⇒ БЕЗ действия. «Не смогли измерить» — не
+    доказательство зависания: старый бот без маячка не должен уходить в
+    kickstart-петлю (тот же fail-safe, что у R5)."""
+    _guard_no_real_io(monkeypatch)
+    _bot_loaded(monkeypatch)
+    monkeypatch.setattr(self_heal, "_beacon_age_seconds", lambda: None)
+
+    self_heal.run_self_heal()
+
+    assert heal.kickstarted == []
+
+
+def test_r6_pid_zero_left_to_rule2(heal, monkeypatch):
+    """PID 0 — мёртвый сервер, это юрисдикция правила 2 (оно и kickstart'ит).
+    R6 по протухшему маячку при PID 0 действовать не должен — иначе один инцидент
+    дал бы ДВА kickstart'а за прогон."""
+    _guard_no_real_io(monkeypatch)
+    _bot_loaded(monkeypatch, pid=0)
+    monkeypatch.setattr(self_heal, "_beacon_age_seconds", lambda: 900.0)
+
+    self_heal.run_self_heal()
+
+    # ровно один kickstart — от правила 2 (_SERVERS), не два
+    assert heal.kickstarted == ["com.spa.telegram_bot"]
+
+
+def test_r6_bot_not_loaded_probe_never_read(heal, monkeypatch):
+    """Вне Мака / в CI loaded пуст — R6 обязан быть полностью инертен и даже
+    НЕ ЧИТАТЬ маячок (гейт по loaded стоит ПЕРВЫМ)."""
+    _guard_no_real_io(monkeypatch)
+
+    def _boom():
+        raise AssertionError("beacon probe read while bot not loaded")
+
+    monkeypatch.setattr(self_heal, "_beacon_age_seconds", _boom)
+    # loaded по умолчанию пуст (фикстура)
+
+    self_heal.run_self_heal()
+
+    assert heal.kickstarted == []
+
+
+def test_r6_circuit_breaker_suppresses_kickstart_loop(heal, monkeypatch):
+    """Заклинивший намертво бот: MAX_REVIVALS_PER_HOUR перезапусков в час уже
+    сделано ⇒ предохранитель, НЕ kickstart (иначе петля перезапусков)."""
+    import time as _t
+    _guard_no_real_io(monkeypatch)
+    _bot_loaded(monkeypatch)
+    monkeypatch.setattr(self_heal, "_beacon_age_seconds", lambda: 900.0)
+    now = _t.time()
+    monkeypatch.setattr(
+        self_heal, "_revival_history",
+        lambda: {self_heal._BOT_STALE_LABEL:
+                 [now - 60 * i for i in range(1, self_heal.MAX_REVIVALS_PER_HOUR + 1)]},
+    )
+
+    report = self_heal.run_self_heal()
+
+    assert heal.kickstarted == []
+    assert any("stale-beacon" in b for b in report["circuit_breakers"])
+
+
+def test_r6_dry_run_reports_without_acting(heal, monkeypatch):
+    _guard_no_real_io(monkeypatch)
+    _bot_loaded(monkeypatch)
+    monkeypatch.setattr(self_heal, "_beacon_age_seconds", lambda: 900.0)
+
+    report = self_heal.run_self_heal(dry_run=True)
+
+    assert heal.kickstarted == []
+    assert any(a.startswith("would kickstart telegram_bot") for a in report["actions"])
+
+
+def test_r6_beacon_age_reader_units(tmp_path, monkeypatch):
+    """Юнит на сам зонд: читает updated_at, наивная отметка = UTC, мусор = None."""
+    import datetime as dt
+    import json as _json
+
+    monkeypatch.setattr(self_heal, "_DATA", tmp_path)
+    p = tmp_path / self_heal._BOT_BEACON_FILE
+
+    # свежая отметка → маленький возраст
+    now = dt.datetime.now(dt.timezone.utc)
+    p.write_text(_json.dumps({"updated_at": (now - dt.timedelta(seconds=30)).isoformat()}))
+    age = self_heal._beacon_age_seconds()
+    assert age is not None and 0 <= age < 120
+
+    # мусор → None (не действие)
+    p.write_text("{ not json")
+    assert self_heal._beacon_age_seconds() is None
+
+    # нет отметки → None
+    p.write_text(_json.dumps({"capabilities": ["alert_actions"]}))
+    assert self_heal._beacon_age_seconds() is None
+
+    # нет файла → None
+    p.unlink()
+    assert self_heal._beacon_age_seconds() is None
