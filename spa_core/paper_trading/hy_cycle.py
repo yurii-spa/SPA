@@ -244,28 +244,46 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
             "LLM_FORBIDDEN": True,
         }
 
-    # ── accrue ONE day of carry yield + record daily bar (dedup by date) ────
-    # Real APY of the high-yield band (from apy_ranking), accrued once per new day
-    # while regime==ENTER. Compounds into equity. No yield invented.
+    # ── rebalance the REAL paper book + accrue per-position (dedup by date) ──
+    # #208 / ADR-103: раньше здесь начислялась медианная ставка ПОЛОСЫ на весь
+    # капитал при пустом списке позиций — «начисление — не трек» (решение
+    # владельца 19.08). Теперь рукав держит поимённые позиции из живого
+    # apy_ranking и каждая начисляет по СВОЕМУ живому APY. Нет живых данных ⇒
+    # позиции держатся, доход 0, ничего не выдумывается (fail-closed).
     existing_dates = {entry.get("date") for entry in state.get("daily_history", [])}
     if today not in existing_dates:
-        from spa_core.paper_trading.sleeve_yield import hy_target_apy_pct, daily_yield
-        apy_pct = hy_target_apy_pct()
-        dy = daily_yield(equity, apy_pct)
+        from spa_core.paper_trading import sleeve_book
+        from spa_core.investment_os.directive import cio_allows_new_positions
+        rows = sleeve_book.load_ranking_rows()
+        cands = sleeve_book.hy_candidates(rows)
+        # CIO-директива (ADR-103): постура RED ⇒ новых позиций не открываем,
+        # удержание и начисление по уже открытым разрешены (hold+reduce OK).
+        allow_new = cio_allows_new_positions()
+        book, opened, closed = sleeve_book.rebalance_book(
+            state.get("positions") or [], cands, equity,
+            today=today, allow_new=allow_new,
+        )
+        dy, deployed = sleeve_book.accrue_book(book, cands)
         equity += dy
         if equity > peak:
             peak = equity
         drawdown = compute_drawdown(equity, peak)
         state["equity"] = equity
+        state["positions"] = book
         state.setdefault("daily_history", []).append({
             "date": today,
             "equity": round(equity, 2),
             "peak_equity": round(peak, 2),
             "drawdown_pct": drawdown,
             "regime": regime,
-            "apy_pct": round(apy_pct, 4),
+            "apy_pct": sleeve_book.book_weighted_apy_pct(book),
             "daily_yield_usd": round(dy, 4),
-            "positions_count": len(state.get("positions", [])),
+            "positions_count": len(book),
+            "deployed_usd": deployed,
+            "opened": opened,
+            "closed": closed,
+            "cio_allowed_new": allow_new,
+            "accrual_basis": sleeve_book.ACCRUAL_BASIS,
         })
 
     # ── обновляем state ──────────────────────────────────────────────────────

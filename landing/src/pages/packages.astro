@@ -67,6 +67,11 @@ const tiers = [
 // snapshot (dynamic); Balanced/Aggressive have no live track yet so they show the measured BACKTEST worst
 // (evidence-tagged L2), never a fabricated realized number.
 const snapPkg = (snap && snap.packages) || {};
+// ADR-103 (owner mandate 2026-08-21): live paper-track line per tier, FACT-GATED by the
+// owner's 2026-08-19 rule — rendered ONLY when the book actually holds positions
+// (status === 'paper_test_running', i.e. positions_count > 0 was MEASURED, never assumed).
+// APY here is computed over positions-held bars only (phantom accrual bars excluded, #208).
+const paperTracks = (snap && snap.paper_tracks) || {};
 for (const t of tiers) {
   const b = BANDS[t.key];
   if (b) {
@@ -79,6 +84,13 @@ for (const t of tiers) {
     } else {
       t.tail_en = b.tail_en; t.tail_ru = b.tail_ru;
     }
+  }
+  const pt = paperTracks[t.key];
+  if (pt && pt.status === 'paper_test_running' && !t.live) {
+    const apyPart_en = (typeof pt.apy_pct === 'number') ? ` · APY ${pt.apy_pct.toFixed(1)}% (paper, to date)` : '';
+    const apyPart_ru = (typeof pt.apy_pct === 'number') ? ` · APY ${pt.apy_pct.toFixed(1)}% (paper, на сегодня)` : '';
+    t.paper_en = `Paper test running · day ${pt.days_with_positions} · ${pt.positions_count} positions${apyPart_en}`;
+    t.paper_ru = `Идёт paper-тест · день ${pt.days_with_positions} · позиций: ${pt.positions_count}${apyPart_ru}`;
   }
 }
 
@@ -123,6 +135,12 @@ const toneMap = {
               <span data-ru={t.status_ru}>{t.status_en}</span>
             </div>
             <div class="text-xs font-mono text-slate-400 mb-4 pb-3 border-b border-white/10" data-ru={t.tail_ru}>⚠ {t.tail_en}</div>
+            {t.paper_en && (
+              <div class="text-xs font-mono text-data-teal mb-4 flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-data-teal animate-pulse" aria-hidden="true"></span>
+                <span data-ru={t.paper_ru}>{t.paper_en}</span>
+              </div>
+            )}
             <details class="group mt-auto">
               <summary class="cursor-pointer list-none text-sm font-medium text-accent-400 select-none flex items-center gap-1.5">
                 <span class="transition-transform group-open:rotate-90" aria-hidden="true">▸</span>

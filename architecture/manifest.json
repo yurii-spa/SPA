@@ -29,7 +29,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "complete",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "SPA Agent Health \"Heartbeat\" Monitor.",
+    "quality_metric": "data/agent_health.json свежее 3 ч; data/agent_registry.json свежее 26 ч; data/owner_decision_pending.json свежее 3 ч",
+    "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
+    "rights": "писать data/agent_health.json, data/agent_registry.json, data/owner_decision_pending.json; слать CRITICAL владельцу через push_policy",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.aggressive_lab",
@@ -45,7 +52,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/strategy_lab/aggressive_lab/run.py — the Aggressive Lab CLI / standing-tick entrypoint.",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.analytics_tier_b",
@@ -61,7 +75,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "Агрегирует сигналы аналитических модулей (ADR-031).",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "не импортирует execution"
+   }
   },
   {
    "label": "com.spa.analytics_tier_c",
@@ -77,7 +98,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "Агрегирует сигналы аналитических модулей (ADR-031).",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "не импортирует execution"
+   }
   },
   {
    "label": "com.spa.apiserver",
@@ -93,7 +121,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.architecture_conformance",
@@ -116,7 +151,14 @@
     "ADR-066"
    ],
    "curation": "complete",
-   "notes": "сторож соответствия флота конституции (ADR-066 Фаза 1); за его свежестью следит agent_health (P4 — взаимный надзор)"
+   "notes": "сторож соответствия флота конституции (ADR-066 Фаза 1); за его свежестью следит agent_health (P4 — взаимный надзор)",
+   "passport": {
+    "goal": "сторож соответствия флота конституции (ADR-066, Фаза 1).",
+    "quality_metric": "data/architecture_conformance.json свежее 7 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
+    "rights": "писать data/architecture_conformance.json",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.artifact_freshness",
@@ -132,7 +174,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": "РАБОТАЕТ, но загружен из repo:scripts/ — НЕ переживёт ребут (находка 2026-08-05); в agent_registry отсутствует"
+   "notes": "РАБОТАЕТ, но загружен из repo:scripts/ — НЕ переживёт ребут (находка 2026-08-05); в agent_registry отсутствует",
+   "passport": {
+    "goal": "SPA Artifact Freshness Registry — single source of truth for \"what must stay fresh\".",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.auto_push",
@@ -148,7 +197,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "complete",
-   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): дубль autopush"
+   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): дубль autopush",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.autopush",
@@ -164,7 +220,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.base_gas_monitor",
@@ -180,7 +243,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/monitoring/base_gas_monitor.py ======================================== Base chain gas price monitor — ADR-025 kill-switch condition.",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.bts-feed",
@@ -196,7 +266,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.bts-monitor",
@@ -212,7 +289,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.cc-kanban",
@@ -228,7 +312,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.checkpoint-7day",
@@ -244,7 +335,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "complete",
-   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): эпоха прошла"
+   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): эпоха прошла",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.cloudflared",
@@ -260,7 +358,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.cmo_editorial",
@@ -278,7 +383,14 @@
     "docs/CMO_EDITORIAL_LAYER.md"
    ],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/cmo/editorial_agent.py — CMO editorial DRAFT runner (the live agent).",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.competitive_watch",
@@ -294,7 +406,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": "оживлён решением владельца 2026-08-06 (ADR-067): мониторинг конкурентов (09:30)"
+   "notes": "оживлён решением владельца 2026-08-06 (ADR-067): мониторинг конкурентов (09:30)",
+   "passport": {
+    "goal": "SPA Competitive Early-Warning Monitor (Proof-of-Risk WS-E).",
+    "quality_metric": "",
+    "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
+    "rights": "слать CRITICAL владельцу через push_policy",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.cpa_daily",
@@ -310,7 +429,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "complete",
-   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): легаси CPA-волн"
+   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): легаси CPA-волн",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.cycle_gap_monitor",
@@ -326,7 +452,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "144: Cycle Gap Monitor — detects missed daily cycles and sends a Telegram alert.",
+    "quality_metric": "",
+    "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
+    "rights": "слать CRITICAL владельцу через push_policy",
+    "limits": "не импортирует execution"
+   }
   },
   {
    "label": "com.spa.cycle_health",
@@ -342,7 +475,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/monitoring/cycle_health_monitor.py ============================================ Monitors paper trading cycle health (MP-cycle-health).",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.daily_backup",
@@ -358,7 +498,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.daily_cycle",
@@ -398,7 +545,14 @@
     "ADR-061"
    ],
    "curation": "complete",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "SPA paper-trading cycle runner (SPA-V409).",
+    "quality_metric": "data/equity_curve_daily.json свежее 26 ч; data/current_positions.json свежее 26 ч; data/allocation_rationale.json свежее 26 ч; data/allocation_rationale_history.jsonl свежее 26 ч; data/shadow_trigger_evaluation.json свежее 26 ч",
+    "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
+    "rights": "писать data/equity_curve_daily.json, data/current_positions.json, data/allocation_rationale.json …; слать CRITICAL владельцу через push_policy",
+    "limits": "LLM запрещён"
+   }
   },
   {
    "label": "com.spa.dashboard",
@@ -414,7 +568,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.dashboard_watcher",
@@ -430,7 +591,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/monitoring/dashboard_watcher.py",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "не импортирует execution"
+   }
   },
   {
    "label": "com.spa.decision_loop",
@@ -474,7 +642,14 @@
     "ADR-066"
    ],
    "curation": "complete",
-   "notes": "петля решений: пересчёт house_view_gap + мост находка→карточка (Фаза 3)"
+   "notes": "петля решений: пересчёт house_view_gap + мост находка→карточка (Фаза 3)",
+   "passport": {
+    "goal": "мост «находка → карточка» (ADR-066, Фаза 3, C2).",
+    "quality_metric": "data/house_view_gap.json свежее 7 ч; data/findings_bridge_report.json свежее 7 ч; data/loop_health.json свежее 7 ч; data/loop_retro.json свежее 192 ч; data/investment_os/outcomes.jsonl свежее 31 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
+    "rights": "писать data/house_view_gap.json, data/findings_bridge_report.json, data/loop_health.json …",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.dfb_capture",
@@ -490,7 +665,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/dfb/paper_dfb.py — WS-1.5: the DFB daily capture AGENT entrypoint (one tick).",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.digest_daily",
@@ -506,7 +688,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/telegram/reports/daily.py — THE one daily digest (Tier 2).",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "advisory — капитал не двигает; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.digest_weekly",
@@ -522,7 +711,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": "развёрнут 2026-08-08 по решению владельца «четыре — ставить» (own-31); гейт check_agent_before_deploy пройден, last exit=0"
+   "notes": "развёрнут 2026-08-08 по решению владельца «четыре — ставить» (own-31); гейт check_agent_before_deploy пройден, last exit=0",
+   "passport": {
+    "goal": "spa_core/telegram/reports/weekly.py — THE one weekly digest (Tier 2).",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "не импортирует execution"
+   }
   },
   {
    "label": "com.spa.familyfund",
@@ -538,7 +734,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.fund-api",
@@ -554,7 +757,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "complete",
-   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): предок familyfund"
+   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): предок familyfund",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.golive_freshness",
@@ -570,7 +780,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.governance_watcher",
@@ -586,7 +803,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "Governance Watcher — FEAT-MON-002 (Sprint v3.18).",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "не импортирует execution"
+   }
   },
   {
    "label": "com.spa.hy_cycle",
@@ -602,7 +826,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "Engine B (HY/Carry) paper trading cycle — EPIC-1 S1.3.",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.inbox_watch",
@@ -618,7 +849,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.intraday_equity",
@@ -646,13 +884,20 @@
     "ADR-048"
    ],
    "curation": "complete",
-   "notes": "5-мин сенсор живой просадки; лестница и пороги — ТОЛЬКО governance/kill_switch (ADR-068)"
+   "notes": "5-мин сенсор живой просадки; лестница и пороги — ТОЛЬКО governance/kill_switch (ADR-068)",
+   "passport": {
+    "goal": "5-минутный сенсор живой просадки (ADR-068, мандат ADR-067).",
+    "quality_metric": "data/intraday_equity.json свежее 1 ч",
+    "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
+    "rights": "писать data/intraday_equity.json; слать CRITICAL владельцу через push_policy",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.io_chief_investment",
    "plist_source": "launch_agents",
    "reboot_safe": true,
-   "schedule": "interval:86400s",
+   "schedule": "interval:300s",
    "program": "agent_io_chief_investment.sh",
    "layer": "product",
    "role": "analytics",
@@ -660,7 +905,7 @@
    "produces": [
     {
      "artifact": "data/investment_os/chief_investment.json",
-     "slo_hours": 26
+     "slo_hours": 1
     }
    ],
    "consumes": [
@@ -681,7 +926,14 @@
     "docs/08_ai_investment_os_architecture.md"
    ],
    "curation": "complete",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/investment_os/agents/chief_investment.py — Chief Investment analyst (Head of Product, docs/08).",
+    "quality_metric": "data/investment_os/chief_investment.json свежее 26 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
+    "rights": "писать data/investment_os/chief_investment.json",
+    "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.io_health",
@@ -704,7 +956,14 @@
     "ADR-055"
    ],
    "curation": "complete",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/investment_os/health.py — AI Investment OS product-layer health monitor.",
+    "quality_metric": "data/investment_os/_health.json свежее 14 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
+    "rights": "писать data/investment_os/_health.json",
+    "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.io_liquidity",
@@ -728,7 +987,14 @@
     "docs/08_ai_investment_os_architecture.md"
    ],
    "curation": "complete",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/investment_os/agents/liquidity.py — Liquidity analyst (AI Investment OS, docs/08).",
+    "quality_metric": "data/investment_os/liquidity.json свежее 26 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
+    "rights": "писать data/investment_os/liquidity.json",
+    "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.io_market_regime",
@@ -752,7 +1018,14 @@
     "docs/08_ai_investment_os_architecture.md"
    ],
    "curation": "complete",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/investment_os/agents/market_regime.py — Market Regime analyst (AI Investment OS, docs/08).",
+    "quality_metric": "data/investment_os/market_regime.json свежее 26 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
+    "rights": "писать data/investment_os/market_regime.json",
+    "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.io_market_structure",
@@ -776,7 +1049,14 @@
     "docs/08_ai_investment_os_architecture.md"
    ],
    "curation": "complete",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/investment_os/agents/market_structure.py — Market Structure analyst (AI Investment OS, docs/08).",
+    "quality_metric": "data/investment_os/market_structure.json свежее 26 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
+    "rights": "писать data/investment_os/market_structure.json",
+    "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.io_onchain",
@@ -800,7 +1080,14 @@
     "docs/08_ai_investment_os_architecture.md"
    ],
    "curation": "complete",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/investment_os/agents/onchain.py — On-chain / Developer Activity analyst (AI Investment OS, docs/08).",
+    "quality_metric": "data/investment_os/onchain.json свежее 26 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
+    "rights": "писать data/investment_os/onchain.json",
+    "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.io_protocol_risk",
@@ -824,7 +1111,14 @@
     "docs/08_ai_investment_os_architecture.md"
    ],
    "curation": "complete",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/investment_os/agents/protocol_risk.py — Protocol & Peg Risk analyst (AI Investment OS, docs/08).",
+    "quality_metric": "data/investment_os/protocol_risk.json свежее 26 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
+    "rights": "писать data/investment_os/protocol_risk.json",
+    "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.io_quant",
@@ -848,7 +1142,14 @@
     "docs/08_ai_investment_os_architecture.md"
    ],
    "curation": "complete",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/investment_os/agents/quant.py — Quant & Backtesting analyst (AI Investment OS, docs/08).",
+    "quality_metric": "data/investment_os/quant.json свежее 26 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
+    "rights": "писать data/investment_os/quant.json",
+    "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.io_red_team",
@@ -872,7 +1173,14 @@
     "docs/08_ai_investment_os_architecture.md"
    ],
    "curation": "complete",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/investment_os/agents/red_team.py — Red Team analyst (AI Investment OS, docs/08).",
+    "quality_metric": "data/investment_os/red_team.json свежее 26 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
+    "rights": "писать data/investment_os/red_team.json",
+    "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.io_reporting",
@@ -896,7 +1204,14 @@
     "docs/08_ai_investment_os_architecture.md"
    ],
    "curation": "complete",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/investment_os/agents/reporting.py — Reporting analyst (AI Investment OS, docs/08).",
+    "quality_metric": "data/investment_os/reporting.json свежее 26 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
+    "rights": "писать data/investment_os/reporting.json",
+    "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.io_stablecoin_yield",
@@ -920,7 +1235,14 @@
     "docs/08_ai_investment_os_architecture.md"
    ],
    "curation": "complete",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/investment_os/agents/stablecoin_yield.py — Stablecoin Yield analyst (AI Investment OS).",
+    "quality_metric": "data/investment_os/stablecoin_yield.json свежее 26 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
+    "rights": "писать data/investment_os/stablecoin_yield.json",
+    "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.io_yield_quality",
@@ -944,7 +1266,14 @@
     "docs/08_ai_investment_os_architecture.md"
    ],
    "curation": "complete",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/investment_os/agents/yield_quality.py — Yield Quality analyst (AI Investment OS, docs/08).",
+    "quality_metric": "data/investment_os/yield_quality.json свежее 26 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
+    "rights": "писать data/investment_os/yield_quality.json",
+    "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.lp_cycle",
@@ -960,7 +1289,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "Engine C (LP/Liquidity) paper trading cycle — EPIC-2 S2.2.",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.mass_tournament",
@@ -976,7 +1312,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/backtesting/tier1/data_integrity.py — historical-data integrity / no-lookahead.",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.morning_digest",
@@ -992,7 +1335,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.novel_edge_rnd",
@@ -1008,7 +1358,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": "оживлён решением владельца 2026-08-06 (ADR-067): standing-директива R&D edge (Вт/Пт 04:00)"
+   "notes": "оживлён решением владельца 2026-08-06 (ADR-067): standing-директива R&D edge (Вт/Пт 04:00)",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.orchestrator",
@@ -1024,7 +1381,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.peg_monitor",
@@ -1040,7 +1404,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "MP-601 PegStabilityMonitor.",
+    "quality_metric": "",
+    "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
+    "rights": "слать CRITICAL владельцу через push_policy",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.portfolio_monitor",
@@ -1056,7 +1427,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "Portfolio drift monitoring module for SPA (MP-578).",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "не импортирует execution"
+   }
   },
   {
    "label": "com.spa.rates_desk_paper",
@@ -1072,7 +1450,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/strategy_lab/rates_desk/paper_rates.py — LIVE paper-trading service for the rates-desk FixedCarry sleeve (the VALIDATED one).",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.realized_at_size",
@@ -1088,7 +1473,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/strategy_lab/rates_desk/paper_realized_at_size.py — Lane B B2.6: the STANDING forward-measurement agent for the realized-at-size killer test.",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.reboot_verify",
@@ -1104,7 +1496,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": "оживлён решением владельца 2026-08-06 (ADR-067): проверка флота после ребута (RunAtLoad)"
+   "notes": "оживлён решением владельца 2026-08-06 (ADR-067): проверка флота после ребута (RunAtLoad)",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.red_flag_monitor",
@@ -1120,7 +1519,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "Red Flag Monitor — FEAT-MON-001 (Sprint v3.16).",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "не импортирует execution"
+   }
   },
   {
    "label": "com.spa.redteam_rotation",
@@ -1136,7 +1542,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "complete",
-   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): red-team живёт в research-слое"
+   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): red-team живёт в research-слое",
+   "passport": {
+    "goal": "spa_core/redteam/rotation.py — the rotating red-team scheduler + the hash-ANCHORED report.",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.refusal",
@@ -1152,7 +1565,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/strategy_lab/rates_desk/refusal_engine.py — PRODUCTION advisory refusal engine.",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.resilience",
@@ -1168,7 +1588,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.rtmr_sense",
@@ -1184,7 +1611,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/monitoring/rtmr_service.py — RTMR (ADR-053) sense+emergency service entrypoint.",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.rules_watchdog",
@@ -1205,7 +1639,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "complete",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/monitoring/rules_watchdog.py — Rules Watchdog",
+    "quality_metric": "data/watchdog_report.json свежее 1 ч",
+    "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
+    "rights": "писать data/watchdog_report.json; слать CRITICAL владельцу через push_policy",
+    "limits": "LLM запрещён"
+   }
   },
   {
    "label": "com.spa.rwa_safety_board",
@@ -1221,7 +1662,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/strategy_lab/rwa_backstop/safety_board.py — the RWA Collateral Safety Board.",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.self_heal",
@@ -1237,7 +1685,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/monitoring/self_heal.py — active self-healing watchdog (MP-SELFHEAL).",
+    "quality_metric": "",
+    "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
+    "rights": "слать CRITICAL владельцу через push_policy",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.site_freshness",
@@ -1263,7 +1718,14 @@
     "ADR-YL-011"
    ],
    "curation": "complete",
-   "notes": "ADR-085 (решение владельца 14.08, вариант 1). intent=designed СОЗНАТЕЛЬНО: код доставлен, агент ещё НЕ загружен — launchctl это решение владельца (карточка owner-decision-vklyuchit-novogo-storozha-saita-na-make). ПРИ ЗАГРУЗКЕ перевести intent в active ТЕМ ЖЕ шагом, иначе сторож даст CRITICAL «активация мимо ADR» на верное действие владельца. produces начнёт наполняться только после загрузки."
+   "notes": "ADR-085 (решение владельца 14.08, вариант 1). intent=designed СОЗНАТЕЛЬНО: код доставлен, агент ещё НЕ загружен — launchctl это решение владельца (карточка owner-decision-vklyuchit-novogo-storozha-saita-na-make). ПРИ ЗАГРУЗКЕ перевести intent в active ТЕМ ЖЕ шагом, иначе сторож даст CRITICAL «активация мимо ADR» на верное действие владельца. produces начнёт наполняться только после загрузки.",
+   "passport": {
+    "goal": "",
+    "quality_metric": "data/site_freshness_report.json свежее 13 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
+    "rights": "писать data/site_freshness_report.json",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.sky_monitor",
@@ -1279,7 +1741,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "Sky/sUSDS GSM Pause Delay Monitor.",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "не импортирует execution"
+   }
   },
   {
    "label": "com.spa.strategy_lab_paper",
@@ -1295,7 +1764,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.swarm_blend",
@@ -1311,7 +1787,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "Swarm block 2 — the FORWARD 3-desk blend paper portfolio (validated idea #3 made live).",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.swarm_brain",
@@ -1327,7 +1810,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "Swarm block 4 — L3 Dynamic Leverage Guardian, forward (the brain that sizes risk to weather).",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.swarm_dwell",
@@ -1345,7 +1835,14 @@
     "ADR-YL-012"
    ],
    "curation": "partial",
-   "notes": "РАБОТАЕТ, но загружен из repo:launchd/ — НЕ переживёт ребут (находка 2026-08-05); в agent_registry отсутствует"
+   "notes": "РАБОТАЕТ, но загружен из repo:launchd/ — НЕ переживёт ребут (находка 2026-08-05); в agent_registry отсутствует",
+   "passport": {
+    "goal": "FORWARD paper book for the dwell-hysteresis latch (registry idea #36's control).",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.swarm_guardian",
@@ -1361,7 +1858,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "Swarm block 1 — L2 position guardians on the LIVE aggressive_lab forward paper track.",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.swarm_health",
@@ -1377,7 +1881,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "Swarm block 5 — L4 immune layer: the agent that watches the swarm itself.",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.swarm_regime",
@@ -1393,7 +1904,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "Swarm block 3 — L1 funding-regime classifier (GREEN / YELLOW / RED carry weather).",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.system_briefing",
@@ -1414,7 +1932,14 @@
    "consumer_required": true,
    "governed_by": [],
    "curation": "complete",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "",
+    "quality_metric": "docs/SYSTEM_BRIEFING.md свежее 2 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
+    "rights": "писать docs/SYSTEM_BRIEFING.md",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.system_health_evening",
@@ -1430,7 +1955,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "SPA end-to-end SYSTEM health monitor (12-hourly).",
+    "quality_metric": "",
+    "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
+    "rights": "слать CRITICAL владельцу через push_policy",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.system_health_morning",
@@ -1446,7 +1978,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "SPA end-to-end SYSTEM health monitor (12-hourly).",
+    "quality_metric": "",
+    "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
+    "rights": "слать CRITICAL владельцу через push_policy",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.telegram_bot",
@@ -1462,7 +2001,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "SPA Telegram Bot v2.1.",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "не импортирует execution"
+   }
   },
   {
    "label": "com.spa.telegram_health",
@@ -1478,7 +2024,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "none",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "Сторож Телеграма: замечает поломку и чинит ЕДИНСТВЕННЫМ безопасным способом.",
+    "quality_metric": "",
+    "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
+    "rights": "слать CRITICAL владельцу через push_policy",
+    "limits": "не импортирует execution"
+   }
   },
   {
    "label": "com.spa.telegram_milestone",
@@ -1494,7 +2047,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "Smart milestone Telegram alerts for SPA paper trading.",
+    "quality_metric": "",
+    "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
+    "rights": "слать CRITICAL владельцу через push_policy",
+    "limits": "не импортирует execution"
+   }
   },
   {
    "label": "com.spa.telegram_watcher",
@@ -1510,7 +2070,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "complete",
-   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): предок dashboard_watcher"
+   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): предок dashboard_watcher",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.threat_reactor",
@@ -1526,7 +2093,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/monitoring/threat_reactor.py — intraday protective reactor (MP-REACT).",
+    "quality_metric": "",
+    "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
+    "rights": "слать CRITICAL владельцу через push_policy",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.tier1_digest",
@@ -1542,7 +2116,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": "развёрнут 2026-08-08 по решению владельца «четыре — ставить» (own-31); гейт check_agent_before_deploy пройден, last exit=0"
+   "notes": "развёрнут 2026-08-08 по решению владельца «четыре — ставить» (own-31); гейт check_agent_before_deploy пройден, last exit=0",
+   "passport": {
+    "goal": "spa_core/reporting/tier1_digest.py — weekly Tier-1 validation digest to Telegram.",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.tier1_governance",
@@ -1558,7 +2139,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "SPA Single Source of Truth (SSOT) MANIFEST + presentation validator.",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.tournament_engine",
@@ -1574,7 +2162,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "SPA Tournament Engine v1.0 spa_core/tournament/tournament_engine.py",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.uptime_monitor",
@@ -1590,7 +2185,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/monitoring/uptime_monitor.py ====================================== SPA Uptime Monitor — 24/7 availability checks (MP-211).",
+    "quality_metric": "",
+    "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
+    "rights": "слать CRITICAL владельцу через push_policy",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.watchdog",
@@ -1606,7 +2208,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "spa_core/monitoring/watchdog.py — watchdog-over-watchdog guardian (Self-Healing Plane 1.7).",
+    "quality_metric": "",
+    "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
+    "rights": "слать CRITICAL владельцу через push_policy",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
   },
   {
    "label": "com.spa.weekly_backup",
@@ -1622,7 +2231,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": "развёрнут 2026-08-08 по решению владельца «четыре — ставить» (own-31); гейт check_agent_before_deploy пройден, last exit=0"
+   "notes": "развёрнут 2026-08-08 по решению владельца «четыре — ставить» (own-31); гейт check_agent_before_deploy пройден, last exit=0",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   },
   {
    "label": "com.spa.work_digest",
@@ -1638,7 +2254,14 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": ""
+   "notes": "",
+   "passport": {
+    "goal": "",
+    "quality_metric": "",
+    "escalation": "",
+    "rights": "",
+    "limits": ""
+   }
   }
  ],
  "artifacts": [
@@ -1649,7 +2272,7 @@
     "orchestrator_protocol",
     "digest_daily"
    ],
-   "slo_hours": 26,
+   "slo_hours": 1,
    "status": "active"
   },
   {

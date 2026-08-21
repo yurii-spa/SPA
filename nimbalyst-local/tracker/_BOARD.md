@@ -2,12 +2,14 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **566** · ждёт владельца: **3** · занято сессиями: **6**.
+> Всего карточек: **570** · ждёт владельца: **5** · занято сессиями: **6**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Судьба чекапа — воронка ведёт в никуда, а канал заявок молчит, если Телеграм не настроен** · _high_  ·  `own-2026-08-19-sudba-voronki-chekapa-i-kanal-zayavok.md`
 - **Добавить одну строку в настройку агента — иначе не узнаем, кто гоняет цикл 52 раза в сутки**  ·  `own-33-plist-marker-for-cycle-origin.md`
+- **BTC-движок не помещается под наш стоп-кран — выбери, как быть: отдельный NAV, маленькая доля или только research** · _high_  ·  `own-btc-dvizhok-ne-vlezaet-pod-stop-kran.md`
+- **Нажми, чтобы на сайте появилась строка «идёт paper-тест» по Balanced и Aggressive** · _high_  ·  `own-cio-i-paper-cifry-tri-mandata-vladeltsa.md`
 - **Твой ответ «Ответ 1» сегодня не применился — теперь можно отвечать прямо на сообщение с вопросом**  ·  `owner-decision-tvoi-otvet-otvet-1-segodnya-ne-primenils.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
@@ -21,11 +23,13 @@
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (130)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (132)
 
 ### · needs-owner
 - Судьба чекапа — воронка ведёт в никуда, а канал заявок молчит, если Телеграм не настроен  ·  `own-2026-08-19-sudba-voronki-chekapa-i-kanal-zayavok.md` · 2026-08-19
 - Добавить одну строку в настройку агента — иначе не узнаем, кто гоняет цикл 52 раза в сутки  ·  `own-33-plist-marker-for-cycle-origin.md` · 2026-08-10
+- BTC-движок не помещается под наш стоп-кран — выбери, как быть: отдельный NAV, маленькая доля или только research  ·  `own-btc-dvizhok-ne-vlezaet-pod-stop-kran.md` · 2026-08-20
+- Нажми, чтобы на сайте появилась строка «идёт paper-тест» по Balanced и Aggressive  ·  `own-cio-i-paper-cifry-tri-mandata-vladeltsa.md` · 2026-08-21
 - Твой ответ «Ответ 1» сегодня не применился — теперь можно отвечать прямо на сообщение с вопросом  ·  `owner-decision-tvoi-otvet-otvet-1-segodnya-ne-primenils.md` · 2026-08-20
 ### · blocked
 - Наблюдённая угроза до тебя не доезжает, а наша собственная остановка доезжает каждый день  ·  `own-red-team-nablyudennaya-ugroza-ne-doezzhaet.md` · 2026-08-18
@@ -157,7 +161,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (264)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (265)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -404,6 +408,7 @@
 - Оживить фиды вне Ethereum — путь к снятию остатка кэша (решение владельца 08.08)  ·  `inbox-ozhivit-fidy-vne-ethereum-put-k-snyatiyu.md` · 2026-08-08
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
 - Подготовить ADR: пересмотр лимита одной цепочки 90% (решение владельца — за ним)  ·  `inbox-podgotovit-adr-peresmotr-limita-odnoi-ts.md` · 2026-08-08
+- Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md` · 2026-08-20
 - Разобрать 52 карточки с ветки work-status-check, потом удалить ветку (решение владельца 20.08, вариант 1)  ·  `inbox-razobrat-52-kartochki-s-vetki-work-statu.md` · 2026-08-20 · 🔒 `cycle-72588`
 - Сбалансированный трек: ноль профинансированных дней из 40 при 920 отработанных циклах  ·  `inbox-sbalansirovannyi-trek-nol-profinansirova.md` · 2026-08-08
 - Семь скриптов, вскрытых строгим сканером: разобрать поштучно (подключить / списать / вывести класс правилом)  ·  `inbox-sem-skriptov-vskrytyh-strogim-skanerom-r.md` · 2026-08-16
@@ -549,7 +554,7 @@
 ### · new
 - У руки демоушена (#39 CDR) нет ветки «отметка не пришла» — сегодня тёмный фид ЗАЩИЩАЕТ книгу, и это нигде не записано  ·  `agent-rnd51-stale-branch-for-demotion-arm.md` · 2026-08-14
 
-## agent  (58)
+## agent  (59)
 
 ### · blocked
 - Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать  ·  `agent-fleet-parity-guard-never-scheduled.md` · 2026-08-05 · 🔒 `cycle-28258`
@@ -578,6 +583,7 @@
 - Построить слой инвест-агентов «Head of Investment» (кураторы тиров + капитал-по-тирам + максимизаторы + решающий)  ·  `agent-head-of-investment-layer.md` · 2026-07-23
 - Манифест архитектуры не знает об агенте morning_digest — тест красный на origin  ·  `agent-manifest-drift-morning-digest.md` · 2026-08-06
 - Кэп на протокол не видит общего куратора — Steakhouse держится и на Ethereum, и на Base  ·  `agent-morpho-curator-concentration.md` · 2026-08-05
+- Паспорта агентов заполнены из источников (0 → 18 полных, 63 с целью); остаток — работа куратора, а не скрипта  ·  `agent-pasporta-zapolneny-chastichno-ostalos-kuratoru.md` · 2026-08-20
 - Линия время-рядов для 18 форкастеров (поток 3 own-27)  ·  `agent-relocate-forecasters-to-timeseries-lane.md` · 2026-08-04
 - Переселить 13 оптимизаторов в советники аллокатора (поток 1 own-27)  ·  `agent-relocate-optimizers-to-allocator-advisory.md` · 2026-08-04
 - Переселить 9 трекеров в слой отчётности (поток 2 own-27)  ·  `agent-relocate-trackers-to-reporting.md` · 2026-08-04

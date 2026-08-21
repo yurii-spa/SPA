@@ -1,0 +1,168 @@
+"""spa_core/paper_trading/sleeve_book.py — настоящая paper-книга рукавов B (HY) и C (LP).
+
+Зачем этот модуль существует (замер #208, решение владельца 2026-08-21, ADR-103).
+До него hy_cycle/lp_cycle начисляли МЕДИАННУЮ ставку полосы на весь капитал рукава,
+а позиции не открывал никто: `positions_count == 0` в каждой строке истории при
+растущем equity. Владелец 19.08 снял с сайта плашку «paper track running» ровно за
+это («начисление — не трек») и разрешил вернуть её «только в день, когда
+positions_count > 0 станет фактом». Этот модуль и делает его фактом: рукав держит
+ПОИМЕНОВАННЫЕ paper-позиции в живых протоколах из data/apy_ranking.json и
+начисляет доход КАЖДОЙ позиции по ЕЁ живому APY.
+
+Правила (те же, что у всего paper-слоя):
+  • Детерминизм: кандидаты сортируются по (−apy, protocol) — одинаковый вход даёт
+    одинаковую книгу. Никакого времени и случайности внутри.
+  • Fail-closed: нет живого ранжирования — существующие позиции ДЕРЖАТСЯ, но
+    начисляют 0 (нет данных ⇒ нет дохода, не выдумываем); новые не открываются.
+    Протокол, выпавший из живого ранжирования, в тот же день начисляет 0 и
+    закрывается в кэш при следующей перестройке.
+  • Потолки зеркалят RiskPolicy v1.0 по смыслу: ≤ MAX_POSITIONS позиций,
+    ≤ PER_PROTOCOL_CAP_PCT капитала на протокол, APY выше APY_CAP не начисляется
+    (границы самой политики НЕ трогаются — это paper-рукав, инвариант #9).
+  • LLM_FORBIDDEN. Только stdlib. Модуль ничего не пишет на диск — state пишут
+    сами циклы (атомарно).
+"""
+# LLM_FORBIDDEN
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import List, Optional, Tuple
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_APY_RANKING = _PROJECT_ROOT / "data" / "apy_ranking.json"
+
+# Границы книги рукава. Cap на протокол зеркалит T1-cap RiskPolicy (40%).
+MAX_POSITIONS = 4
+PER_PROTOCOL_CAP_PCT = 40.0
+APY_CAP = 30.0          # выше потолка политики доход не начисляется (не берём)
+HY_BAND_MIN = 6.0       # полоса high-yield (та же, что была в sleeve_yield)
+_LP_NAME_HINTS = ("lp", "aerodrome", "velodrome", "curve", "uniswap", "pool")
+
+ACCRUAL_BASIS = "per_position_live_apy"
+
+
+def load_ranking_rows(path: Optional[Path] = None) -> List[dict]:
+    """Живое ранжирование APY (пишет cycle_runner). Ошибка чтения → [] (fail-closed)."""
+    p = path or _APY_RANKING
+    try:
+        d = json.loads(p.read_text(encoding="utf-8"))
+        rows = d.get("by_apy") or []
+        return [r for r in rows if isinstance(r, dict)]
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _dedup_best(rows: List[dict]) -> List[dict]:
+    """Один протокол — одна строка (лучший APY). Сортировка (−apy, name) = детерминизм."""
+    best: dict[str, float] = {}
+    for r in rows:
+        name = str(r.get("protocol") or "").strip()
+        apy = r.get("apy_pct")
+        if not name or not isinstance(apy, (int, float)) or isinstance(apy, bool):
+            continue
+        apy = float(apy)
+        if apy <= 0 or apy > APY_CAP:
+            continue  # вне (0, APY_CAP] — не кандидат (полисный потолок)
+        if name not in best or apy > best[name]:
+            best[name] = apy
+    return [{"protocol": n, "apy_pct": a}
+            for n, a in sorted(best.items(), key=lambda kv: (-kv[1], kv[0]))]
+
+
+def hy_candidates(rows: List[dict]) -> List[dict]:
+    """Кандидаты полосы high-yield: живой APY ∈ [HY_BAND_MIN, APY_CAP]."""
+    return [c for c in _dedup_best(rows) if c["apy_pct"] >= HY_BAND_MIN]
+
+
+def lp_candidates(rows: List[dict]) -> List[dict]:
+    """Кандидаты LP-полосы: протоколы с LP-признаком в имени, APY ∈ (0, APY_CAP]."""
+    lp_rows = [r for r in rows
+               if any(h in str(r.get("protocol", "")).lower() for h in _LP_NAME_HINTS)]
+    return _dedup_best(lp_rows)
+
+
+def rebalance_book(positions: List[dict], candidates: List[dict], equity: float,
+                   *, today: str, allow_new: bool = True,
+                   max_positions: int = MAX_POSITIONS,
+                   cap_pct: float = PER_PROTOCOL_CAP_PCT,
+                   ) -> Tuple[List[dict], List[str], List[str]]:
+    """Перестроить книгу под сегодняшних кандидатов. Возвращает (book, opened, closed).
+
+    • candidates ПУСТЫ → данных нет: держим что есть, не открываем, не закрываем
+      (закрытие по отсутствию данных — действие, а нейтральность — удержание).
+    • Протокол позиции выпал из кандидатов → позиция закрывается в кэш (данные
+      ЕСТЬ и говорят «полоса его больше не содержит»).
+    • Свободные слоты добираются сверху списка кандидатов — только при allow_new
+      (CIO-постура RED запрещает НОВОЕ, ADR-103; удержание не запрещает).
+    • Веса: равный сплит по книге, но ≤ cap_pct капитала на протокол; остаток —
+      кэш (начисляет 0, и это видно в deployed_usd).
+    """
+    equity = max(0.0, float(equity or 0.0))
+    held = [dict(p) for p in (positions or []) if str(p.get("protocol") or "").strip()]
+    if not candidates:
+        return held, [], []
+
+    cand_by_name = {c["protocol"]: c["apy_pct"] for c in candidates}
+    kept = [p for p in held if p["protocol"] in cand_by_name]
+    closed = sorted(p["protocol"] for p in held if p["protocol"] not in cand_by_name)
+
+    opened: List[str] = []
+    if allow_new:
+        held_names = {p["protocol"] for p in kept}
+        for c in candidates:
+            if len(kept) >= max_positions:
+                break
+            if c["protocol"] in held_names:
+                continue
+            kept.append({"protocol": c["protocol"], "opened": today,
+                         "is_delta_neutral": True})
+            opened.append(c["protocol"])
+
+    kept = kept[:max_positions]
+    n = len(kept)
+    if n and equity > 0:
+        weight = min(1.0 / n, cap_pct / 100.0)
+        for p in kept:
+            p["apy_pct"] = round(float(cand_by_name[p["protocol"]]), 4)
+            p["notional_usd"] = round(equity * weight, 2)
+            p["stale"] = False
+    return kept, opened, closed
+
+
+def accrue_book(positions: List[dict], candidates: List[dict]) -> Tuple[float, float]:
+    """Дневной доход книги: КАЖДАЯ позиция по ЕЁ живому APY из сегодняшних кандидатов.
+
+    Протокола нет среди кандидатов (данные пропали) → его позиция начисляет 0 и
+    помечается stale=True — отсутствие данных наблюдаемо, доход не выдуман.
+    Возвращает (daily_yield_usd, deployed_usd).
+    """
+    cand_by_name = {c["protocol"]: c["apy_pct"] for c in candidates}
+    total = 0.0
+    deployed = 0.0
+    for p in positions or []:
+        notional = float(p.get("notional_usd") or 0.0)
+        if notional <= 0:
+            continue
+        deployed += notional
+        apy = cand_by_name.get(p.get("protocol"))
+        if apy is None or apy <= 0:
+            p["stale"] = True
+            continue
+        p["stale"] = False
+        total += notional * (min(float(apy), APY_CAP) / 100.0) / 365.0
+    return round(total, 6), round(deployed, 2)
+
+
+def book_weighted_apy_pct(positions: List[dict]) -> float:
+    """Честный APY книги: взвешен по deployed-нотионалам, stale-позиции дают 0."""
+    num = 0.0
+    den = 0.0
+    for p in positions or []:
+        notional = float(p.get("notional_usd") or 0.0)
+        if notional <= 0:
+            continue
+        den += notional
+        if not p.get("stale"):
+            num += notional * float(p.get("apy_pct") or 0.0)
+    return round(num / den, 4) if den > 0 else 0.0
