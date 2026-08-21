@@ -115,6 +115,106 @@ _PRODUCER: dict[str, str] = {
 }
 
 
+# О ЧЁМ вынесен вердикт — предмет проверки, в отличие от `_PRODUCER` (кто её
+# написал). Два разных вопроса, и до цикла #337 задавался только первый.
+#
+# Замер #337, живой. 21.08 07:44Z решение ADR-104 сменило в конституции такт
+# `com.spa.io_chief_investment` (`interval:86400s → interval:300s`). В прод-дерево
+# `architecture/` правка доехала в 19:21Z, а последний отчёт сторожа был
+# произведён в 16:19Z — и обязательный шаг 0-офис три часа печатал
+# `вердикт: OK (critical=0 warn=0 aged=0 unchecked=0)`. Строка была ПРАВДОЙ о
+# прежней конституции и НЕИЗМЕРЕННОСТЬЮ о текущей; отличить одно от другого
+# читателю было нечем. Возраст отчёта (5.1ч) на этот вопрос не отвечает: он
+# меряет, давно ли сторож ходил, а не сменился ли под ним ПРЕДМЕТ.
+#
+# Ровно тот же класс, что #222 закрыл для `house_view_gap` (сверка судила по
+# снимкам разных тактов) и #235 — для дом-вью (один бюджет на producers с
+# тактами в два порядка). Правило класса: зелёный ответ сторожа на СВОЙ вопрос
+# никогда не есть ответ на нужный.
+#
+# Объявлять сюда только то, что действительно измеримо и действительно является
+# предметом: артефакт, «предмет» которого — живая система (`data/*`), сюда НЕ
+# годится, иначе каждая запись цикла давала бы находку, и строка обесценится.
+_SUBJECT: dict[str, tuple[str, ...]] = {
+    "architecture_conformance.json": ("architecture/manifest.json",),
+}
+
+
+def _sha256(path: str) -> str | None:
+    import hashlib
+    try:
+        with open(path, "rb") as fh:
+            return hashlib.sha256(fh.read()).hexdigest()
+    except OSError:
+        return None
+
+
+def _subject_drift(name: str, data, *, root: str | None = None,
+                   now: dt.datetime | None = None) -> list[str]:
+    """Менялся ли ПРЕДМЕТ проверки после того, как вердикт был вынесен.
+
+    Три исхода, и они РАЗНЫЕ:
+      * предмет с тех пор не менялся ⇒ молчим (вердикт актуален);
+      * предмет изменился ⇒ находка: вердикт вынесен о ПРЕЖНЕЙ конституции,
+        о текущей не измерено ничего;
+      * предмет или отметка времени не читаются ⇒ «НЕ ИЗМЕРЕНО» вслух
+        (fail-CLOSED, инвариант 2), а не молчание.
+
+    Основание сравнения — СОДЕРЖИМОЕ (`sha256` из блока `inputs` отчёта), и
+    только при его отсутствии — `mtime`. Перезапись файла байт-в-байт двигает
+    mtime, а генератор манифеста идемпотентен по построению: судить по одному
+    mtime значило бы печатать находку на каждой холостой перегенерации.
+    Основание НАЗЫВАЕТСЯ в самой строке — иначе «сошлось по хэшу» и «сошлось,
+    потому что мерить было нечем» выглядят одинаково.
+    """
+    subjects = _SUBJECT.get(name)
+    if not subjects:
+        return []
+    root = root or REPO_ROOT
+    art_ts = _parse_ts(data.get("generated_at"))
+    recorded = {r.get("path"): r for r in (data.get("inputs") or [])
+                if isinstance(r, dict)}
+    lines: list[str] = []
+    for rel in subjects:
+        path = os.path.join(root, rel)
+        prev = recorded.get(rel)
+        now_sha = _sha256(path)
+        if now_sha is None:
+            lines.append(f"   ⚠️ предмет проверки {_UNMEASURED}: {rel} не прочитан — "
+                         f"о чём именно вынесен вердикт, сказать нечем.")
+            continue
+        if isinstance(prev, dict) and prev.get("sha256"):
+            if prev["sha256"] == now_sha:
+                continue
+            lines.append(
+                f"   ⚠️ ВЕРДИКТ О ПРЕЖНЕМ ПРЕДМЕТЕ: {rel} изменился ПОСЛЕ замера "
+                f"(сверка по содержимому: отчёт мерил {prev['sha256'][:12]}, "
+                f"сейчас {now_sha[:12]}) — про ТЕКУЩИЙ {rel} не измерено ничего. "
+                f"Это находка (карточка), а не деталь: дождаться такта "
+                f"производителя или прогнать сторожа руками.")
+            continue
+        # Старый отчёт без `inputs` — судим по mtime и говорим это вслух.
+        try:
+            mtime = dt.datetime.fromtimestamp(os.path.getmtime(path), dt.timezone.utc)
+        except OSError:
+            mtime = None
+        if art_ts is None or mtime is None:
+            why = ("у отчёта нет разобранного generated_at" if art_ts is None
+                   else f"у {rel} не измерено время правки")
+            lines.append(f"   ⚠️ предмет проверки {_UNMEASURED}: {why}; "
+                         f"отчёт старого образца (без блока `inputs`) — "
+                         f"сверить по содержимому нечем.")
+        elif mtime > art_ts:
+            lines.append(
+                f"   ⚠️ ВЕРДИКТ О ПРЕЖНЕМ ПРЕДМЕТЕ: {rel} правлен "
+                f"{mtime:%Y-%m-%d %H:%M}Z, отчёт произведён "
+                f"{art_ts:%Y-%m-%d %H:%M}Z — про ТЕКУЩИЙ {rel} не измерено "
+                f"ничего. Сверка по mtime (отчёт старого образца, без `inputs`): "
+                f"холостая перегенерация тем же содержимым даёт ту же строку. "
+                f"Это находка, а не деталь.")
+    return lines
+
+
 def _has_path(data, path: str) -> bool:
     """Есть ли (возможно вложенное) поле `a.b.c` — именно ЕСТЬ, а не истинно."""
     cur = data
@@ -267,14 +367,27 @@ def _age_line(ts_value, now: dt.datetime) -> str:
 
 
 def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
-                    root: str | None = None) -> list[str]:
-    """Компактная выжимка известных офисных файлов; generic — для остальных."""
+                    root: str | None = None,
+                    artifact_root: str | None = None) -> list[str]:
+    """Компактная выжимка известных офисных файлов; generic — для остальных.
+
+    Два разных корня, и это не педантизм. `root` — где искать ИСХОДНИК
+    производителя (сверка схемы); `artifact_root` — дерево, ЧЕЙ артефакт мы
+    сейчас читаем, и значит единственное место, где лежит ПРЕДМЕТ, о котором
+    вынесен вердикт. В режиме `--data-dir` (читаем офис прода из worktree) они
+    расходятся: сверить прод-отчёт с манифестом СВОЕГО дерева — значит выдумать
+    расхождение там, где его нет, ровно тем же способом, каким #267 выдумывал
+    «дрейф механики» из границы синхронизации. По умолчанию совпадают.
+    """
     name = os.path.basename(path)
     if not isinstance(data, dict):
         return [f"   (не-dict JSON, {type(data).__name__})"]
     now = now or dt.datetime.now(dt.timezone.utc)
     head: list[str] = _schema_drift(name, data, root=root)
     head.append(_age_line(data.get("generated_at"), now))
+    # ПОСЛЕ возраста и ДО вердикта: читатель должен узнать, что предмет сменился,
+    # раньше, чем прочтёт вердикт о нём.
+    head.extend(_subject_drift(name, data, root=(artifact_root or root), now=now))
     out: list[str] = []
     if name == "chief_investment.json":
         hv = data.get("house_view") or {}
@@ -735,7 +848,8 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
             lines = ["   файла нет на диске"]
         elif rel.endswith(".json"):
             try:
-                lines = _summarize_json(rel, json.load(open(full)), now=now)
+                lines = _summarize_json(rel, json.load(open(full)), now=now,
+                                        artifact_root=receipt_root)
                 ok = True
             except Exception as e:  # noqa: BLE001
                 lines = [f"   JSON не прочитан: {e}"]
