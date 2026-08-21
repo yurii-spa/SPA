@@ -24,6 +24,12 @@ import pytest
 from spa_core.investment_os import directive
 from spa_core.paper_trading import sleeve_book
 
+# FROZEN-DATE-OK: injected-clock — _NOW передаётся как now= во ВСЕ вызовы
+# load_directive, а generated_at артефакта house-view пишется от ТОГО ЖЕ _NOW
+# (_write_cio). Обе стороны сравнения свежести закреплены одним anchor, поэтому
+# тест иммунен к календарю (preference #1, .claude/rules/deployment.md). Тесты
+# с реальной свежестью (test_cio_red_prevents_opening) используют
+# datetime.now(timezone.utc), а не эту литеральную дату.
 _NOW = datetime(2026, 8, 21, 12, 0, tzinfo=timezone.utc)
 
 
