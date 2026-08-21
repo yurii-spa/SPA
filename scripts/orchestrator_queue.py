@@ -321,6 +321,27 @@ def _origin_read_through(cards: list, tracker_dir=None,
     return [by_id[c.id] for c in cards], verdicts
 
 
+def _tracker_dir_of(args):
+    """Каталог очереди, с которым работает ЭТА команда. Одна точка разрешения на команду.
+
+    Тот же порядок, что у пересборки доски (`_rebuild_board`): явный `--tracker-dir`
+    главнее умолчания модуля, а умолчание спрашивается У МОДУЛЯ В МОМЕНТ ВЫЗОВА, а не
+    берётся из копии, снятой при импорте.
+
+    **Почему это не косметика.** `cmd_list` делает два разных дела с очередью — печатает
+    её и спрашивает про ответ владельца в главном дереве — и до этой правки второе шло
+    по копии `TRACKER_DIR`, снятой в момент импорта скрипта. Одна команда работала с
+    ДВУМЯ каталогами: список — из указанного, сверка деревьев — из чужого. Замер 21.08:
+    под тестом с песочницей-трекером сверка отвечала про НАСТОЯЩИЕ рабочие деревья и
+    подмешивала в stdout живые `owner-done` карточки прода ⇒ вердикт набора зависел от
+    того, разобрал ли кто-то почту владельца, и красный CI переставал говорить о коде.
+    Утверждения тестов при этом были ВЕРНЫ — чинить надо было адрес, а не проверку.
+    """
+    from spa_core.owner_queue import queue as _queue
+
+    return getattr(args, "tracker_dir", None) or getattr(_queue, "TRACKER_DIR", None)
+
+
 def _cross_tree_owner_answers(tracker_dir, now=None):
     """(вердикт, карточки-из-главного-дерева, довесок-полей) — ответ владельца из ЛЮБОГО дерева.
 
@@ -375,7 +396,7 @@ def cmd_list(args) -> int:
     cards = list_cards(tracker_dir=getattr(args, "tracker_dir", None))
     verdicts: dict[str, dict] = {}
     if getattr(args, "origin_check", True):
-        cards, verdicts = _origin_read_through(cards, getattr(args, "tracker_dir", None),
+        cards, verdicts = _origin_read_through(cards, _tracker_dir_of(args),
                                                getattr(args, "ref", None))
     else:
         # Сверку выключили явным флагом. Это НЕ «совпало» — это «не измерено»,
@@ -384,7 +405,7 @@ def cmd_list(args) -> int:
               file=sys.stderr)
 
     cross_verdict, foreign, cross_reason = _cross_tree_owner_answers(
-        getattr(args, "tracker_dir", None) or TRACKER_DIR, now=getattr(args, "now", None))
+        _tracker_dir_of(args), now=getattr(args, "now", None))
     if cross_verdict == CROSS_FOUND:
         print(f"🔴 ОТВЕТ ВЛАДЕЛЬЦА ЕСТЬ В ГЛАВНОМ ДЕРЕВЕ, А ЗДЕСЬ ЕГО НЕТ ({len(foreign)}) — "
               f"бот пишет ответ в прод-дерево, на origin он не уезжает ничем:", file=sys.stderr)

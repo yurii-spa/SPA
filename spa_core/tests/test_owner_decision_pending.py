@@ -287,6 +287,89 @@ def test_a_pending_question_without_buttons_is_named(tree):
     assert "БЕЗ КНОПОК" in doc["issues"][0]
 
 
+def test_the_buttonless_finding_names_its_cause_not_just_the_card(tree):
+    """Авария 21.08 (#332): «БЕЗ КНОПОК» три цикла подряд не говорило НИЧЕГО.
+
+    Причин у этого состояния минимум четыре, лечатся они по-разному, и с одного
+    взгляда неразличимы: карточку-задание из-за этого написали с ОДНОЙ гипотезой
+    на два вопроса, и обе причины оказались другими. Причина обязана стоять в
+    самой находке — и машинно, и словами.
+    """
+    data, tracker = tree
+    _card(tracker)
+    _journal(data, [_push(buttons=False)])
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    entry = doc["pending"][0]
+    reason = entry["buttons_reason"]
+    assert reason["code"], "у находки обязан быть машинный код причины"
+    assert reason["text"] and reason["remedy"]
+    assert reason["code"] in doc["issues"][0], "код причины обязан стоять В строке находки"
+    assert reason["text"][:40] in doc["issues"][0]
+
+
+def test_a_question_that_did_get_buttons_is_not_diagnosed(tree):
+    """Обратный контроль: у здорового вопроса причины нет — и мерить её незачем.
+
+    Сверка стоит процесса git; гонять её по всей очереди значило бы платить за
+    вопрос, с которым всё в порядке.
+    """
+    data, tracker = tree
+    _card(tracker)
+    _journal(data, [_push(buttons=True)])
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    assert doc["buttonless_count"] == 0
+    assert "buttons_reason" not in doc["pending"][0]
+
+
+def test_options_living_only_on_origin_reach_the_report_as_a_stale_tree(tmp_path):
+    """Сквозной повтор `own-33`: варианты есть на `origin/main` и нет в дереве.
+
+    Ровно эта причина не видна с диска НИКАК, и ровно её сторож не спрашивал.
+    Фикстура — настоящий git-репозиторий: проверяется ЭФФЕКТ, а не заглушка.
+    """
+    import subprocess
+
+    root = tmp_path / "repo"
+    data = root / "data"
+    tracker = root / "nimbalyst-local" / "tracker"
+    tracker.mkdir(parents=True)
+    data.mkdir(parents=True)
+
+    def git(*args):
+        res = subprocess.run(["git", "-C", str(root), *args],
+                             capture_output=True, text=True)
+        assert res.returncode == 0, f"git {args}: {res.stderr}"
+        return res.stdout
+
+    subprocess.run(["git", "init", "-q", "-b", "main", str(root)], check=True)
+    git("config", "user.email", "t@example.com")
+    git("config", "user.name", "test")
+
+    _card(tracker)                                   # версия С вариантами
+    git("add", "-A")
+    git("commit", "-q", "-m", "c")
+    git("update-ref", "refs/remotes/origin/main", "HEAD")
+
+    # …а в дереве карточка отстала: тот же вопрос прозой, без единого варианта.
+    (tracker / f"{CARD_ID}.md").write_text(
+        "---\ntrackerStatus:\n  type: owner-decision\n"
+        'title: "Система остановлена аварийным выключателем"\n'
+        "status: needs-owner\n---\n\n## Что от тебя нужно\n\nСними стоп-кран.\n",
+        encoding="utf-8")
+    _journal(data, [_push(buttons=False)])
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    reason = doc["pending"][0]["buttons_reason"]
+    assert reason["code"] == "card_stale_vs_origin", reason["text"]
+    assert reason["measured"] is True
+    assert "card_stale_vs_origin" in doc["issues"][0]
+
+
 def test_halt_line_comes_first_even_when_buttons_are_missing_too(tree):
     """`reason` отчёта — это issues[0]; первой строкой обязана быть ОСТАНОВКА."""
     data, tracker = tree

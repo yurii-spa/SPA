@@ -282,6 +282,72 @@ def test_unmeasured_legacy_record_is_not_healed(env):
     assert send.sent == []
 
 
+CARD_NO_OPTIONS = """---
+trackerStatus:
+  type: owner-decision
+title: "Добавить одну строку в настройку агента"
+status: needs-owner
+created: 2026-08-10
+---
+
+## Что случилось и почему это важно
+
+Цикл идёт 52 раза в сутки, а кто его зовёт — неизвестно.
+
+## Что от тебя нужно
+
+Разреши добавить в файл настройки две строки. Альтернатива — ничего не менять.
+"""
+
+
+def test_a_card_that_gained_options_after_delivery_is_healed(env):
+    """Авария 21.08 (`own-33`): варианты дописаны ПОСЛЕ отправки — и ремонт их не видел.
+
+    Полный повтор: карточку отправили прозой (вариантов нет ⇒ кнопок нет, отказ
+    верен), а через 52 минуты переписали перечнем «Вариант 1 / Вариант 2». Ремонт
+    судил по СНИМКУ момента отправки (`rec["options"]` пуст) и объявлял такую
+    запись нечинимой НАВСЕГДА — fail-CLOSED, который уже никогда не открывается
+    обратно. Владельца после этого спросили ещё три раза, и все три — без кнопок.
+
+    Живой источник правды — тело карточки, и спрашивать надо ЕГО.
+    """
+    env["card"].write_text(CARD_NO_OPTIONS, encoding="utf-8")
+    od.register_push(env["card"], "Метка запуска", CARD_NO_OPTIONS, now=FIXED_NOW,
+                     state_path=env["state"], beacon_path=env["alive"])
+    assert _rec(env)["buttons"] is False      # бот жив, а вариантов в карточке нет
+    assert _rec(env)["options"] == []        # снимок момента отправки — пустой
+
+    env["card"].write_text(CARD, encoding="utf-8")  # карточку переписали перечнем
+
+    send = Sender()
+    fixed = od.heal_buttonless(send, now=FIXED_NOW, state_path=env["state"],
+                               beacon_path=env["alive"])
+
+    assert fixed, "кнопки к дописанным вариантам обязаны доехать"
+    assert len(send.sent) == 1
+    assert send.sent[0][1] is not None            # клавиатура собрана
+    assert _rec(env)["buttons"] is True
+
+
+def test_a_record_with_stale_options_is_still_silent_when_the_card_has_none(env):
+    """Обратный контроль: снимку НЕ верим и в другую сторону.
+
+    Запись помнит варианты, а в карточке их больше нет (её переписали прозой).
+    Разослать по памяти значило бы предложить владельцу выбор, которого в вопросе
+    уже не написано, — ровно тот запрет, ради которого стоит fail-CLOSED (ADR-075).
+    """
+    _push(env, beacon=env["dead"])
+    assert _rec(env)["options"], "фикстура: снимок обязан помнить варианты"
+
+    env["card"].write_text(CARD_NO_OPTIONS, encoding="utf-8")
+
+    send = Sender()
+    assert od.heal_buttonless(send, now=FIXED_NOW, state_path=env["state"],
+                              beacon_path=env["alive"]) == []
+    assert send.sent == []
+    assert _rec(env)["buttons"] is False
+
+
 def test_silent_while_the_bot_still_cannot_handle_taps(env):
     """Обработчика по-прежнему нет ⇒ чинить нечем; кнопку без обработчика не вешаем."""
     _push(env, beacon=env["dead"])

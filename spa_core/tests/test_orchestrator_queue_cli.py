@@ -75,9 +75,23 @@ def cli():
 
 @pytest.fixture
 def tracker(tmp_path, monkeypatch):
-    """A tmp tracker dir wired into the queue module globals the CLI reads."""
-    d = tmp_path / "tracker"
-    d.mkdir()
+    """A tmp tracker dir wired into the queue module globals the CLI reads.
+
+    Каталог лежит внутри НАСТОЯЩЕГО (пустого) git-репозитория, и это не украшение.
+    `cmd_list` спрашивает «нет ли ответа владельца в ГЛАВНОМ рабочем дереве», а какое
+    дерево главное, решает `git worktree list`. Каталог вне репозитория этому вопросу
+    неизмерим ⇒ CLI честно возвращает код 2 («список пуст и НЕ ПОДТВЕРЖДЁН») — правило
+    верное, и гасить его нельзя. Репозиторий-песочница делает сверку ИЗМЕРИМОЙ и при
+    этом замкнутой на tmp: единственное дерево — своё, чужих карточек взяться неоткуда.
+    Раньше изоляции не было вовсе, и сверка отвечала про НАСТОЯЩИЕ рабочие деревья
+    (замер 21.08: в stdout приезжали живые `owner-done` карточки прода).
+    """
+    import subprocess
+
+    root = tmp_path / "repo"
+    d = root / "nimbalyst-local" / "tracker"
+    d.mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", "-b", "main", str(root)], check=True)
     monkeypatch.setattr(queue, "TRACKER_DIR", d)
     return d
 
@@ -273,3 +287,112 @@ def test_notify_send_reports_ok(cli, tracker, monkeypatch, capsys):
 def test_main_requires_a_subcommand(cli):
     with pytest.raises(SystemExit):
         cli.main([])
+
+
+# ------------------------------------------- одна команда — ОДИН каталог очереди
+#
+# Авария 21.08 (цикл #333). Полный прогон на чистом `origin/main` давал два падения
+# (`test_list_human_empty`, `test_list_json_emits_card_dicts`), и оба — не про код:
+# `cmd_list` печатал список из УКАЗАННОГО каталога, а сверку «нет ли ответа владельца
+# в главном дереве» вёл по копии `TRACKER_DIR`, снятой в момент импорта скрипта. Под
+# тестом это НАСТОЯЩИЕ рабочие деревья, поэтому в stdout приезжали живые `owner-done`
+# карточки прода — и вердикт набора начинал зависеть от того, разобрал ли кто-то почту
+# владельца. Утверждения самих тестов были ВЕРНЫ; чинился адрес, а не проверка (инв. #16).
+
+
+def _git(cwd, *args):
+    import subprocess
+
+    res = subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True)
+    assert res.returncode == 0, f"git {' '.join(args)} -> {res.returncode}: {res.stderr}"
+    return res.stdout
+
+
+@pytest.fixture
+def two_trees(tmp_path):
+    """Настоящая пара деревьев: главное (куда пишет бот) + линкованный worktree.
+
+    Фикстура нужна именно НАСТОЯЩАЯ: вопрос «какое дерево главное» решает
+    `git worktree list`, и подменённая заглушка проверила бы наш пересказ, а не факт.
+    """
+    import subprocess
+
+    main = tmp_path / "main"
+    (main / "nimbalyst-local" / "tracker").mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", "-b", "main", str(main)], check=True)
+    _git(main, "config", "user.email", "t@example.com")
+    _git(main, "config", "user.name", "test")
+    (main / "seed.txt").write_text("seed", encoding="utf-8")
+    _git(main, "add", "-A")
+    _git(main, "commit", "-q", "-m", "seed")
+
+    wt = tmp_path / "wt"
+    _git(main, "worktree", "add", "-q", "--detach", str(wt))
+    (wt / "nimbalyst-local" / "tracker").mkdir(parents=True, exist_ok=True)
+    return main / "nimbalyst-local" / "tracker", wt / "nimbalyst-local" / "tracker"
+
+
+def test_the_cross_tree_check_answers_about_the_tracker_being_listed(
+        cli, two_trees, monkeypatch, capsys):
+    """Положительный контроль: сверка деревьев обязана быть про ТОТ ЖЕ каталог.
+
+    Ответ владельца лежит в главном дереве фикстуры, читаем — worktree фикстуры.
+    До починки CLI спрашивал про СОВСЕМ ДРУГУЮ пару деревьев (настоящий репозиторий),
+    поэтому засеянная карточка была ему невидима, а вместо неё в вывод попадало то,
+    что лежало в живом проде.
+    """
+    main_tracker, wt_tracker = two_trees
+    answered = CARD.replace("status: needs-owner", "status: owner-done")
+    _write(main_tracker, "own-42.md", answered)
+    _write(wt_tracker, "own-42.md", CARD)          # здесь ответа ещё нет
+    monkeypatch.setattr(queue, "TRACKER_DIR", wt_tracker)
+
+    rc = cli.main(["list", "--json", "--no-origin-check"])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+
+    found = [c for c in out if c["id"] == "own-42" and c["status"] == "owner-done"]
+    assert found, "ответ владельца из ГЛАВНОГО дерева обязан доехать в stdout (#246)"
+    assert str(main_tracker) in found[0]["path"], "путь обязан указывать на прочитанную копию"
+
+
+def test_a_sandbox_tracker_never_carries_cards_from_the_real_production_tree(
+        cli, tracker, monkeypatch, capsys):
+    """Вторая половина того же: песочница не имеет права принести чужие карточки.
+
+    Каталог песочницы не лежит ни в одном рабочем дереве ⇒ сверка честно отвечает
+    «НЕ ИЗМЕРЕНО» (fail-CLOSED, причина словами), а не подмешивает живую очередь.
+    """
+    seen = []
+    real = cli.scan_owner_answers_elsewhere
+
+    def _spy(tracker_dir, **kw):
+        seen.append(Path(tracker_dir))
+        return real(tracker_dir, **kw)
+
+    monkeypatch.setattr(cli, "scan_owner_answers_elsewhere", _spy)
+
+    rc = cli.main(["list", "--no-origin-check"])
+    assert rc == 0
+    assert seen == [tracker], f"сверка ушла в чужой каталог: {seen}"
+    assert "(no matching cards)" in capsys.readouterr().out
+
+
+def test_an_explicit_tracker_dir_still_wins_for_both_halves(
+        cli, tmp_path, monkeypatch, capsys):
+    """Обратный контроль: явный `--tracker-dir` главнее умолчания — и был таким.
+
+    Эта половина работала и до починки; тест закрепляет, что она НЕ изменилась.
+    """
+    explicit = tmp_path / "explicit"
+    explicit.mkdir()
+    seen = []
+    monkeypatch.setattr(cli, "scan_owner_answers_elsewhere",
+                        lambda d, **kw: (seen.append(Path(d)), (cli.CROSS_UNMEASURED,
+                                                                [], "тест"))[1])
+
+    rc = cli.main(["list", "--tracker-dir", str(explicit), "--no-origin-check"])
+    assert seen == [explicit]
+    # Заглушка выше отвечает «не измерено», а список пуст ⇒ код 2 — ЭТО ВЕРНО
+    # («решений нет» здесь не измерено). Правило не ослабляем, а закрепляем.
+    assert rc == 2
