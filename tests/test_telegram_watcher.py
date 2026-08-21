@@ -211,12 +211,17 @@ class TestDedup:
         update1 = _make_update(text, update_id=1)
         update2 = _make_update(text, update_id=2)
 
-        # Patch telegram_watcher.run_auto_fix (module-level name) so the dedup
-        # check works: first alert triggers fix, second (duplicate) is skipped.
-        with patch("spa_core.monitoring.telegram_watcher.run_auto_fix",
-                   return_value=True) as mock_fix:
-            process_updates([update1, update2], token="tok", chat_id="cid")
-        assert mock_fix.call_count == 1, "Second duplicate should be skipped"
+        # ADR-113 (инв. #16 — намеренная правка, обоснование здесь + в
+        # docs/journal/2026-W34.md). Предмет теста НЕ изменён: он и был про
+        # дедуп — «второй одинаковый алерт не должен пройти конвейер до конца».
+        # Изменилась только ТОЧКА НАБЛЮДЕНИЯ. Раньше конец конвейера опознавали
+        # по вызову run_auto_fix; владелец этот вызов снял (вариант 2), и
+        # мокать больше нечего. Возвращаемое значение process_updates —
+        # ровно тот же конец конвейера и столь же острое утверждение:
+        # 2 одинаковых апдейта → 1 засчитанный алерт.
+        assert process_updates([update1, update2], token="tok", chat_id="cid") == 1, (
+            "Second duplicate should be skipped"
+        )
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -240,7 +245,12 @@ class TestCooldown:
         assert _is_in_cooldown(h) is True
 
     def test_cooldown_second_alert_skipped(self, tmp_path, monkeypatch):
-        """Two similar alerts: second one should not trigger fix if cooldown active."""
+        """Two similar alerts: the one under an active cooldown must not pass.
+
+        ADR-113 (инв. #16): предмет — кулдаун, он тот же. Прежний свидетель
+        (run_auto_fix не получил текст №2) снят вместе с вызовом починки;
+        новый — счётчик засчитанных алертов: прошёл ровно один из двух.
+        """
         prefix_seen = str(tmp_path) + "/seen_"
         prefix_cd = str(tmp_path) + "/cd_"
         monkeypatch.setattr("spa_core.monitoring.telegram_watcher.TMP_PREFIX_SEEN", prefix_seen)
@@ -254,12 +264,10 @@ class TestCooldown:
         h2 = _content_hash(text + " again")
         _start_cooldown(h2)
 
-        with patch("spa_core.monitoring.telegram_watcher.run_auto_fix") as mock_fix:
-            mock_fix.return_value = True
-            process_updates([update1, update2], token="tok", chat_id="cid")
-            # update2 should be blocked by cooldown
-            for c in mock_fix.call_args_list:
-                assert (text + " again") not in str(c)
+        # update2 should be blocked by cooldown → exactly one alert counted
+        assert process_updates([update1, update2], token="tok", chat_id="cid") == 1, (
+            "the alert under an active cooldown must not be counted"
+        )
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -281,10 +289,9 @@ class TestMessageAge:
         monkeypatch.setattr("spa_core.monitoring.telegram_watcher.TMP_PREFIX_COOLDOWN",
                             str(tmp_path) + "/c_")
         old = _make_update("CRITICAL: old error", age_sec=MAX_MESSAGE_AGE_SEC + 60)
-        with patch("spa_core.monitoring.telegram_watcher.run_auto_fix") as mock_fix:
-            mock_fix.return_value = True
-            process_updates([old], token="tok", chat_id="cid")
-            mock_fix.assert_not_called()
+        # ADR-113 (инв. #16): предмет — фильтр по возрасту. «Не дошло до конца
+        # конвейера» теперь измеряется счётчиком, а не снятым моком.
+        assert process_updates([old], token="tok", chat_id="cid") == 0
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -336,7 +343,7 @@ class TestRunOnce:
                 with patch("spa_core.monitoring.telegram_watcher.get_updates", return_value=[]):
                     run_once()  # no errors, no updates
 
-    def test_run_once_triggers_fix_on_alert(self, tmp_path, monkeypatch):
+    def test_run_once_routes_the_alert_to_processing(self, tmp_path, monkeypatch):
         monkeypatch.setattr("spa_core.monitoring.telegram_watcher.DATA_DIR", tmp_path)
         monkeypatch.setattr("spa_core.monitoring.telegram_watcher.LOG_DIR", tmp_path)
         monkeypatch.setattr("spa_core.monitoring.telegram_watcher.OFFSET_FILE",
@@ -352,14 +359,30 @@ class TestRunOnce:
             update_id=99,
         )
 
+        # ADR-113 (инв. #16). Предмет теста — ПРОВОДКА ``run_once``: реальный
+        # алерт из getUpdates обязан дойти до ``process_updates``, а не осесть
+        # где-то по дороге. Раньше это опознавали по вызову снятой починки;
+        # теперь — по тому, что ``process_updates`` действительно позвали с этим
+        # апдейтом. Утверждение стало ТОЧНЕЕ: старое было бы зелёным и в случае,
+        # когда вотчер зовёт починку в обход разбора.
+        seen: list = []
+        real_process = process_updates
+
+        def _spy(updates, **kwargs):
+            seen.append(list(updates))
+            return real_process(updates, **kwargs)
+
         with patch("spa_core.monitoring.telegram_watcher.get_bot_token", return_value="TOK"):
             with patch("spa_core.monitoring.telegram_watcher.get_chat_id", return_value="CID"):
                 with patch("spa_core.monitoring.telegram_watcher.get_updates",
                            return_value=[alert_update]):
-                    with patch("spa_core.monitoring.telegram_watcher.run_auto_fix",
-                               return_value=True) as mock_fix:
+                    with patch("spa_core.monitoring.telegram_watcher.process_updates",
+                               side_effect=_spy):
                         run_once()
-                        mock_fix.assert_called_once()
+
+        assert seen == [[alert_update]], (
+            f"run_once must hand the fetched alert to process_updates; got {seen!r}"
+        )
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -407,25 +430,28 @@ class TestEdgeCases:
         monkeypatch.setattr("spa_core.monitoring.telegram_watcher.TMP_PREFIX_COOLDOWN",
                             str(tmp_path) + "/c_")
         update = _make_update("✅ All systems healthy", update_id=5)
-        with patch("spa_core.monitoring.telegram_watcher.run_auto_fix") as mock_fix:
-            process_updates([update], token="tok", chat_id="cid")
-            mock_fix.assert_not_called()
+        # ADR-113 (инв. #16): предмет — «здоровое сообщение не алерт».
+        assert process_updates([update], token="tok", chat_id="cid") == 0
 
     def test_empty_updates_list(self, tmp_path, monkeypatch):
         monkeypatch.setattr("spa_core.monitoring.telegram_watcher.TMP_PREFIX_SEEN",
                             str(tmp_path) + "/s_")
         monkeypatch.setattr("spa_core.monitoring.telegram_watcher.TMP_PREFIX_COOLDOWN",
                             str(tmp_path) + "/c_")
-        with patch("spa_core.monitoring.telegram_watcher.run_auto_fix") as mock_fix:
-            process_updates([], token="tok", chat_id="cid")
-            mock_fix.assert_not_called()
+        # ADR-113 (инв. #16): предмет — пустой список апдейтов.
+        assert process_updates([], token="tok", chat_id="cid") == 0
 
 
-# ── Shim for direct import of run_auto_fix in telegram_watcher ──────────────
-# telegram_watcher lazily imports run_auto_fix from auto_fixer inside process_updates.
-# Patch the auto_fixer module attribute so all lazy imports pick up the mock.
-@pytest.fixture(autouse=True)
-def patch_auto_fixer():
-    """Ensure auto_fixer.run_auto_fix is never called for real during watcher tests."""
-    with patch("spa_core.monitoring.telegram_watcher.run_auto_fix", return_value=True):
-        yield
+# ── ADR-113: здесь стоял autouse-фикстур ``patch_auto_fixer`` ────────────────
+# Он подменял ``telegram_watcher.run_auto_fix`` на всё время каждого теста —
+# страховка от того, что набор случайно позовёт НАСТОЯЩИЙ LLM-починщик.
+#
+# Инв. #16 — намеренное удаление, обоснование здесь и в docs/journal/2026-W34.md.
+# Фикстур снят не для того, чтобы покрасить набор зелёным, а потому что охраняемого
+# им имени больше нет: владелец 21.08 (вариант 2) снял вызов починки из вотчера
+# совсем. Страховка при этом не ослаблена, а УСИЛЕНА и вынесена туда, где ей место:
+# ``spa_core/tests/test_telegram_watcher_disarmed.py`` проверяет то же самое, но
+# в дочернем процессе и на настоящем модуле — шпион ставится в ``sys.modules`` ДО
+# импорта, то есть ловит и такую перепрошивку, которую подмена атрибута после
+# импорта не видела бы вовсе. Мок гарантировал «в тестах не позовём»; новый сторож
+# гарантирует «позвать нечем».

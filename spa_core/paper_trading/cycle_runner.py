@@ -1583,85 +1583,122 @@ def run_cycle(
             track_days=_book_age_days(ddir, equity_doc),
         )
         _dl_checker.save_result(_dl_result, ddir)
-        # ── ADR-048 (DL-02 ⊂ HARD kill) reconciliation ────────────────────────
-        # At ≥10% evidenced peak drawdown the AUTHORITATIVE response is the
-        # hard-kill ALL-CASH (the stronger action), NOT DL-02's HOLD/HALT. DL-02
-        # also HALTs at >10% peak drawdown and runs HERE (Step 2a), BEFORE the
-        # kill-switch override (Step 2c) — so an un-reconciled DL-02 HALT would
-        # early-return "blocked_by_daily_limits" (positions held, no all-cash)
-        # and SHADOW the kill. Reconciliation (minimal, money-path order
-        # preserved): when the hard kill is ARMED (_ks_triggered, computed in
-        # Step 1b) we DEFER any DL-02-only HALT — we drop the DL-02 halt reason
-        # so the cycle flows through to Step 2c where apply_kill_switch_override
-        # forces all-cash. DL-01 (daily-loss) ALWAYS HALTs (it is a distinct axis
-        # and is never deferred). If DL-01 is among the halt reasons the cycle
-        # still HALTs as before.
-        _dl_halt_reasons = list(_dl_result.get("halt_reasons") or [])
-        if _dl_result["gate"] == "HALT" and _ks_triggered:
-            _dl01_present = any("DL-01" in r for r in _dl_halt_reasons)
-            _dl02_deferred = [r for r in _dl_halt_reasons if "DL-02" in r]
-            if _dl02_deferred and not _dl01_present:
-                # DL-02-only HALT while the hard kill is armed → defer to the
-                # all-cash kill (stronger action wins). Do NOT early-return.
-                log.critical(
-                    "DAILY LIMITS DL-02 HALT DEFERRED to HARD kill (ADR-048): %s "
-                    "→ cycle proceeds to all-cash kill-switch override",
-                    "; ".join(_dl02_deferred),
-                )
-                notes.append(
-                    "daily_limits_dl02_deferred_to_hard_kill (ADR-048): "
-                    + "; ".join(_dl02_deferred)
-                )
-                _dl_result = dict(_dl_result)
-                _dl_result["gate"] = "PASS"
-                _dl_result["halt_reasons"] = []
-        if _dl_result["gate"] == "HALT":
+    except Exception as _dl_exc:
+        # ADR-112 (owner choice 2, 21.08). This branch used to read
+        # "fail-open, cycle continues": a day on which the daily-loss guard
+        # RAISED had no daily-loss limit at all, and said so only in a WARNING
+        # nobody reads. ADR-105 closed the neighbouring case ("we could not
+        # measure it") with HALT; the owner extended the same rule here —
+        # a check that crashed is a check that did not measure. The verdict is
+        # synthesised as a HALT and then flows through the SAME acting code
+        # below, so an error cannot take a shortcut past the reconciliation,
+        # the log line, the note or the state files.
+        #
+        # DELIBERATELY inside the try: ``save_result``. Its failure means the
+        # verdict was computed but not recorded — still "not measured" from
+        # the outside, and fail-CLOSED is the only direction this project
+        # moves a safety branch (invariant #2).
+        _dl_err = f"{type(_dl_exc).__name__}: {_dl_exc}"
+        log.critical(
+            "DAILY LIMITS CHECK RAISED (%s) — fail-CLOSED, cycle HALTs (ADR-112)",
+            _dl_err,
+        )
+        notes.append(f"daily_limits_check_error: {_dl_err}")
+        _dl_result = {
+            "gate": "HALT",
+            "halt_reasons": [
+                "DL-ERR: daily-limit check raised "
+                f"{_dl_err} — NOT MEASURED, no trading (ADR-112)"
+            ],
+            "warn_reasons": [],
+            "skip_reasons": [],
+        }
+
+    # ── ADR-048 (DL-02 ⊂ HARD kill) reconciliation ────────────────────────
+    # At ≥10% evidenced peak drawdown the AUTHORITATIVE response is the
+    # hard-kill ALL-CASH (the stronger action), NOT DL-02's HOLD/HALT. DL-02
+    # also HALTs at >10% peak drawdown and runs HERE (Step 2a), BEFORE the
+    # kill-switch override (Step 2c) — so an un-reconciled DL-02 HALT would
+    # early-return "blocked_by_daily_limits" (positions held, no all-cash)
+    # and SHADOW the kill. Reconciliation (minimal, money-path order
+    # preserved): when the hard kill is ARMED (_ks_triggered, computed in
+    # Step 1b) we DEFER any DL-02-only HALT — we drop the DL-02 halt reason
+    # so the cycle flows through to Step 2c where apply_kill_switch_override
+    # forces all-cash. DL-01 (daily-loss) ALWAYS HALTs (it is a distinct axis
+    # and is never deferred). If DL-01 is among the halt reasons the cycle
+    # still HALTs as before.
+    # ADR-112 extends this reconciliation to DL-ERR (the check itself raised).
+    # Without it the new fail-CLOSED branch would re-open the very hole ADR-048
+    # closed: "blocked_by_daily_limits" early-returns holding the positions,
+    # which is WEAKER than the all-cash hard kill and would SHADOW it. We do not
+    # know what DL-01 would have said on an error day — but all-cash is stronger
+    # than DL-01's hold-and-do-not-trade on every axis, so deferring to the kill
+    # never trades where the daily limit would have refused.
+    _dl_halt_reasons = list(_dl_result.get("halt_reasons") or [])
+    if _dl_result["gate"] == "HALT" and _ks_triggered:
+        _dl01_present = any("DL-01" in r for r in _dl_halt_reasons)
+        _dl02_deferred = [
+            r for r in _dl_halt_reasons if "DL-02" in r or "DL-ERR" in r
+        ]
+        if _dl02_deferred and not _dl01_present:
+            # DL-02-only (or DL-ERR) HALT while the hard kill is armed → defer
+            # to the all-cash kill (stronger action wins). Do NOT early-return.
             log.critical(
-                "DAILY LIMITS HALT: %s", "; ".join(_dl_result["halt_reasons"])
+                "DAILY LIMITS DL-02 HALT DEFERRED to HARD kill (ADR-048): %s "
+                "→ cycle proceeds to all-cash kill-switch override",
+                "; ".join(_dl02_deferred),
             )
             notes.append(
-                "daily_limits_halt: " + "; ".join(_dl_result["halt_reasons"])
+                "daily_limits_dl02_deferred_to_hard_kill (ADR-048): "
+                + "; ".join(_dl02_deferred)
             )
-            result = CycleResult(
-                run_ts=run_ts,
-                date=today,
-                status="blocked_by_daily_limits",
-                traded=False,
-                trade_id=None,
-                live_data=True,
-                num_adapters_live=len(apy_map),
-                current_equity=round(prev_equity, 2),
-                daily_yield_usd=0.0,
-                daily_return_pct=0.0,
-                apy_today_pct=0.0,
-                total_return_pct=round((prev_equity / capital_usd - 1.0) * 100.0, 4),
-                days_running=_days_running(today, paper_start_date),
-                model_used=model_used,
-                strategy_loop_active=strategy_loop_active,
-                positions=current_positions,
-                notes=notes,
-                policy_approved=False,
-                correlation_id=_correlation_id,
-                market_regime=_regime_name,
-                regime_t1_avg_apy=_regime_t1_avg_apy,
-            )
-            _write_equity(ddir, equity_doc, prev_equity, today, 0.0, {}, 0.0)
-            _write_status(ddir, result, paper_start_date, capital_usd, run_ts)
-            return result
-        if _dl_result["gate"] == "WARN":
-            log.warning(
-                "DAILY LIMITS WARN: %s", "; ".join(_dl_result["warn_reasons"])
-            )
-            for _w in _dl_result["warn_reasons"]:
-                notes.append(f"daily_limits_warn: {_w}")
-        # A tolerated silence is still a silence — name it in the cycle record
-        # so "we let this one pass" never has to be reconstructed later.
-        for _s in _dl_result.get("skip_reasons") or []:
-            log.warning("DAILY LIMITS NOT MEASURED (tolerated): %s", _s)
-            notes.append(f"daily_limits_not_measured: {_s}")
-    except Exception as _dl_exc:
-        log.warning("DailyLimitsChecker failed (%s) — fail-open, cycle continues", _dl_exc)
-        notes.append(f"daily_limits_check_error: {type(_dl_exc).__name__}: {_dl_exc}")
+            _dl_result = dict(_dl_result)
+            _dl_result["gate"] = "PASS"
+            _dl_result["halt_reasons"] = []
+    if _dl_result["gate"] == "HALT":
+        log.critical(
+            "DAILY LIMITS HALT: %s", "; ".join(_dl_result["halt_reasons"])
+        )
+        notes.append(
+            "daily_limits_halt: " + "; ".join(_dl_result["halt_reasons"])
+        )
+        result = CycleResult(
+            run_ts=run_ts,
+            date=today,
+            status="blocked_by_daily_limits",
+            traded=False,
+            trade_id=None,
+            live_data=True,
+            num_adapters_live=len(apy_map),
+            current_equity=round(prev_equity, 2),
+            daily_yield_usd=0.0,
+            daily_return_pct=0.0,
+            apy_today_pct=0.0,
+            total_return_pct=round((prev_equity / capital_usd - 1.0) * 100.0, 4),
+            days_running=_days_running(today, paper_start_date),
+            model_used=model_used,
+            strategy_loop_active=strategy_loop_active,
+            positions=current_positions,
+            notes=notes,
+            policy_approved=False,
+            correlation_id=_correlation_id,
+            market_regime=_regime_name,
+            regime_t1_avg_apy=_regime_t1_avg_apy,
+        )
+        _write_equity(ddir, equity_doc, prev_equity, today, 0.0, {}, 0.0)
+        _write_status(ddir, result, paper_start_date, capital_usd, run_ts)
+        return result
+    if _dl_result["gate"] == "WARN":
+        log.warning(
+            "DAILY LIMITS WARN: %s", "; ".join(_dl_result["warn_reasons"])
+        )
+        for _w in _dl_result["warn_reasons"]:
+            notes.append(f"daily_limits_warn: {_w}")
+    # A tolerated silence is still a silence — name it in the cycle record
+    # so "we let this one pass" never has to be reconstructed later.
+    for _s in _dl_result.get("skip_reasons") or []:
+        log.warning("DAILY LIMITS NOT MEASURED (tolerated): %s", _s)
+        notes.append(f"daily_limits_not_measured: {_s}")
 
     # ── Step 2b: Emergency Circuit Breakers (ADR-030) ────────────────────────
     # Runs AFTER DailyLimitsChecker, BEFORE RiskPolicy gate.
