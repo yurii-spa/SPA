@@ -202,6 +202,22 @@ def test_ring_buffer_trades_max_500(tmp_path):
     # Seed 500 existing trades, then a cycle that trades → should cap at 500.
     seed = [{"trade_id": f"T{i:03d}", "type": "rebalance"} for i in range(1, 501)]
     (tmp_path / "trades.json").write_text(json.dumps(seed))
+    # The two equity bars are new (2026-08-21, ADR-105; invariant #16 — deliberate,
+    # noted in docs/journal/2026-W34.md). They change nothing about what this test
+    # CHECKS — the trades ring buffer — and only make the sandbox coherent: 500
+    # recorded trades beside a book that has never closed a single day is a state
+    # that cannot arise except by corruption, and the daily-loss gate now stops
+    # the cycle when it sees it. Two bars is the least that makes the book
+    # measurable; their values are irrelevant to the assertions below.
+    (tmp_path / "equity_curve_daily.json").write_text(json.dumps({
+        "source": "cycle_runner",
+        "daily": [
+            {"date": "2026-06-08", "open_equity": 100_000.0,
+             "close_equity": 100_000.0, "daily_return_pct": 0.0, "evidenced": True},
+            {"date": "2026-06-09", "open_equity": 100_000.0,
+             "close_equity": 100_000.0, "daily_return_pct": 0.0, "evidenced": True},
+        ],
+    }))
     res = _run(tmp_path, APY, TARGET)
     assert res.traded is True
     trades = _load(tmp_path, "trades.json")

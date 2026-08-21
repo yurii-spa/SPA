@@ -662,7 +662,15 @@ class TestPortfolioRebalancer(unittest.TestCase):
 
             _orig = mod._build_safe_fallback_positions
 
-            def _bad_fallback(capital_usd, base_positions=None):
+            # ``**_kw`` added 2026-08-21 (ADR-108, invariant #16 — deliberate,
+            # noted in docs/journal/2026-W34.md). The real function grew a
+            # ``data_dir`` argument so the emergency book can consult live
+            # observations; this double refused it and the call raised TypeError
+            # before reaching the assertion. Nothing about what the test CHECKS
+            # changed — it still asserts Telegram is never called with
+            # send_alert=False — only the double's signature, which exists to
+            # mirror the real one.
+            def _bad_fallback(capital_usd, base_positions=None, **_kw):
                 return {"aave_v3": 30_000.0, "compound_v3": 30_000.0, "maple": 30_000.0}, 10_000.0
 
             mod._build_safe_fallback_positions = _bad_fallback
