@@ -135,18 +135,19 @@ def snapshot(root: Path, ref: str = DEFAULT_REF,
     return found
 
 
-def read_cards(root: Path, blobs: dict[str, str]) -> list[OriginCard]:
-    """Разобрать карточки по их blob-sha — ОДНИМ процессом git на весь пакет.
+def read_texts(root: Path, blobs: dict[str, str]) -> dict[str, str]:
+    """{card_id: ИСХОДНЫЙ текст карточки} по blob-sha — ОДНИМ процессом git на пакет.
 
-    По sha, а не по `ref:path`: sha уже добыты `snapshot()`, и второй способ
-    адресовать тот же объект — второй способ ошибиться. Пустой пакет процесс
-    вообще не запускает: `cat-file --batch` с пустым stdin ждать нечего.
+    Единственный в модуле читатель протокола `cat-file --batch`. Разбор кадров этого
+    протокола (заголовок · ровно `size` байт · перевод строки) вынесен сюда не ради
+    краткости: две копии такого разбора разошлись бы в том, какой обрыв ответа считать
+    «не измерено», и один из читателей однажды молча потерял бы карточку.
 
-    Нечитаемый или неразобравшийся blob — Unmeasured с причиной, НЕ пропуск:
-    молча выпавшая карточка и есть тот самый потерянный вопрос владельцу.
+    Нечитаемый blob — Unmeasured с причиной, НЕ пропуск: молча выпавшая карточка и есть
+    тот самый потерянный вопрос владельцу.
     """
     if not blobs:
-        return []
+        return {}
     order = sorted(blobs)
     probe = "".join(f"{blobs[card_id]}\n" for card_id in order)
     try:
@@ -159,7 +160,7 @@ def read_cards(root: Path, blobs: dict[str, str]) -> list[OriginCard]:
     if proc.returncode != 0:
         raise Unmeasured(f"`git cat-file --batch` вернул код {proc.returncode}")
 
-    cards: list[OriginCard] = []
+    texts: dict[str, str] = {}
     buf = proc.stdout
     pos = 0
     for card_id in order:
@@ -174,8 +175,25 @@ def read_cards(root: Path, blobs: dict[str, str]) -> list[OriginCard]:
         body = buf[nl + 1:nl + 1 + size]
         pos = nl + 1 + size + 1  # +1 — перевод строки после содержимого
         try:
-            card = load_card_text(body.decode("utf-8"), f"{card_id}.md")
-        except (UnicodeDecodeError, ValueError) as exc:
+            texts[card_id] = body.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise Unmeasured(f"карточка {card_id} на ref не читается: {exc}") from exc
+    return texts
+
+
+def read_cards(root: Path, blobs: dict[str, str]) -> list[OriginCard]:
+    """Разобрать карточки по их blob-sha. Разбор — `queue.load_card_text`, один на репо.
+
+    По sha, а не по `ref:path`: sha уже добыты `snapshot()`, и второй способ
+    адресовать тот же объект — второй способ ошибиться.
+
+    Неразобравшаяся карточка — Unmeasured с причиной, НЕ пропуск.
+    """
+    cards: list[OriginCard] = []
+    for card_id, text in sorted(read_texts(root, blobs).items()):
+        try:
+            card = load_card_text(text, f"{card_id}.md")
+        except ValueError as exc:
             raise Unmeasured(f"карточка {card_id} на ref не разобралась: {exc}") from exc
         cards.append(OriginCard(card_id=card_id, tracker_type=card.tracker_type or "",
                                 status=(card.status or "").strip(),
@@ -226,6 +244,29 @@ def cards_by_id(tracker_dir: Path, card_ids, *,
     origin = snapshot(root, ref, rel)
     blobs = {cid: blob for cid, blob in origin.items() if cid in wanted}
     return {c.card_id: c for c in read_cards(root, blobs)}, sha
+
+
+def card_sources(tracker_dir: Path, card_ids, *,
+                 ref: str = DEFAULT_REF) -> tuple[dict[str, str], str]:
+    """ИСХОДНЫЙ текст названных карточек в версии ref. → ({card_id: markdown}, sha ref).
+
+    Зачем нужен текст, а не разобранная карточка: карточку, которой в дереве нет,
+    нельзя ни показать владельцу, ни дать ему на неё ответить — весь путь ответа
+    (`notify_needs_owner` → `materialize_card` → нажатие кнопки → `set_status`)
+    работает с ФАЙЛОМ. Чтобы вопрос, живущий только на `origin`, дошёл до владельца
+    целиком (с вариантами и рекомендацией из тела), его текст надо взять с ref
+    дословно — а не пересказать по четырём полям `OriginCard`.
+
+    Те же три различимых исхода, что у `cards_by_id`: есть на ref ⇒ ключ · нет ⇒
+    ключа нет · сверка не выполнилась ⇒ `Unmeasured` с причиной.
+    """
+    root, rel, sha = _locate(Path(tracker_dir), ref)
+    wanted = {str(c) for c in card_ids}
+    if not wanted:
+        return {}, sha
+    origin = snapshot(root, ref, rel)
+    blobs = {cid: blob for cid, blob in origin.items() if cid in wanted}
+    return read_texts(root, blobs), sha
 
 
 def hidden_cards(tracker_dir: Path, *, ref: str = DEFAULT_REF,
