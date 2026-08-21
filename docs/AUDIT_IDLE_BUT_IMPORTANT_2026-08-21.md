@@ -29,15 +29,40 @@
 | Investment Committee · Builder OS · схема БД | L2, эффект low | реестр прямо говорит: оставить документами |
 | BTC-движок | L2, эффект high | ПРОЕКТ ПОДГОТОВКИ (ADR-102): просадка −25% NAV не проходит под HARD_KILL −10%. Решение — за владельцем, карточка есть |
 
-## C. Модули-сироты внутри ЖИВЫХ пакетов → скормить `agent-cleanup` (не новая карточка)
+## C. Модули-сироты — РАЗОБРАНЫ состязательно (вторая редакция, 2026-08-21 ночь)
 
-`swarm/rank_demotion_forward.py` (19 КБ, ни агента, ни импортёра, ни теста) ·
-`rates_desk/{promotion_rates, capacity_sizing, fair_value (двойник живого fair_value_engine), exit_liquidity_validation, rate_floor_recal}.py` ·
-`aggressive_lab/{tier_policy, tail_overlay}.py` + `aggressive_lab_runner.py` (агент зовёт template, не раннер) ·
-`rwa_backstop/onchain_nav.py` · `gross_of/sequencer_tip_config.py` + 3 приблудных `test_*.py` внутри пакета ·
-67 скриптов из unwired-базы (может только уменьшаться).
+> Первая редакция этой секции называла 13 сирот. Состязательный разбор (git-история +
+> проверка СКРЫТЫХ вызывающих: реестр аналитики, `agent_template.sh MODULE=`,
+> внутрипакетные импорты) опроверг **8 из 13** — первый обзор греп-ал только внешние
+> импорты и пропустил вызовы внутри пакетов. Ошибку нашёл разбор, а не перечитывание —
+> ровно как в PR #11.
 
-По каждому — решить: подключить или удалить; молча оставить нельзя (это и есть болезнь «неотличимо от работающего»).
+**НЕ сироты (8), не трогать:** `promotion_rates` (зовёт backtest_rates:904) ·
+`capacity_sizing` (sleeves:52) · `fair_value` (retro:29 — НЕ двойник engine, а
+валидированная 2-членная модель, engine её развивает) · `rate_floor_recal`
+(sleeves:51, спит за owner-флагом `SPA_RATE_FLOOR_RECAL` — dormant ≠ unwired) ·
+`tier_policy` (roster:776, scorecard:218) · `tail_overlay` (scorecard:45) ·
+`onchain_nav` (safety_board:44 — живой дневной агент) · `sequencer_tip_config`
+(sequencer_tip:60 → реестр Tier-B). Три «приблудных» test_*.py внутри gross_of/ —
+НЕ дубликаты, а ЕДИНСТВЕННЫЕ тесты трёх живых анализаторов (собираются pytest'ом
+на месте); перенос в tests/ — косметика, удаление снесло бы живое покрытие.
+
+**ПОДКЛЮЧИТЬ (2):**
+- `swarm/rank_demotion_forward.py` — вторая рука ADR-074 (решение владельца 08.08!),
+  единственный `*_forward` роя БЕЗ обёртки `agent_swarm_*.sh`; форвард-трек не копится
+  без дневного тика. Тест есть (обзор №1 ошибся и тут).
+- `compliance/monthly_statement.py` — рабочий `main()`, реальные выписки в
+  `data/statements/` ОБРЫВАЮТСЯ на июне (два месяца гниют); нужен планировщик.
+
+**УДАЛИТЬ (1):** `aggressive_lab_runner.py` — вторая голова оркестрации: launchd
+реально зовёт `aggressive_lab.run` (agent_aggressive_lab.sh:10), раннер не зовёт
+никто, докстринг про «launchd вызывает меня» ложен в этом дереве. Две головы могут
+только разъезжаться. (Альтернатива — перевести MODULE= на него; выбрать ОДНО.)
+
+**RESEARCH-KEEP (2, осознанно):** `exit_liquidity_validation.py` — ручной производитель
+§9 в RATES_DESK_VALIDATION.md; флаг гнили: секцию никто не перегенерирует ·
+`liquidator/` — код-эвиденс за ОПУБЛИКОВАННЫМ NO-GO (LIQUIDATOR_DERISK.md, рынок
+в 5–10 раз ниже планки), связь док↔пак держит test_dd_pack:340.
 
 ## D. Методологическое (для будущих аудитов)
 
