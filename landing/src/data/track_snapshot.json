@@ -3,7 +3,7 @@
   "generator": "scripts/generate_track_snapshot.py",
   "note": "Build-time static fallback for the public pages. Live values come from api.earn-defi.com and override these client-side; this is the last honest snapshot for offline / crawlers. real_track_days = EVIDENCED bars only. Missing value => 'data unavailable', never a stale number.",
   "as_of": "2026-08-21",
-  "generated_at": "2026-08-21T15:16:15Z",
+  "generated_at": "2026-08-21T16:19:58Z",
   "degraded": false,
   "real_track_days": 59,
   "go_live_target": "2026-07-21",
@@ -11,11 +11,11 @@
   "days_needed": 30,
   "gates_passed": 29,
   "gates_total": 29,
-  "end_equity": 100987.82,
-  "nav_usd": 100987.82,
-  "paper_apy_pct": 5.2847,
+  "end_equity": 100991.26,
+  "nav_usd": 100991.26,
+  "paper_apy_pct": 5.3069,
   "max_drawdown_pct": -0.0257,
-  "total_return_pct": 0.9878,
+  "total_return_pct": 0.9913,
   "packages": {
     "conservative": {
       "apy_pct": 4.3,
@@ -2248,25 +2248,25 @@
     {
       "date": "2026-08-21",
       "open_equity": 100974.64,
-      "close_equity": 100987.82,
-      "high_equity": 100987.82,
+      "close_equity": 100991.26,
+      "high_equity": 100991.26,
       "low_equity": 100974.64,
       "snapshots": 1,
-      "daily_return_pct": 0.013051,
-      "cumulative_return_pct": 0.987818,
+      "daily_return_pct": 0.016455,
+      "cumulative_return_pct": 0.991255,
       "drawdown_pct": 0.0,
-      "equity": 100987.82,
-      "apy_today": 4.7631,
-      "daily_yield_usd": 13.1784,
+      "equity": 100991.26,
+      "apy_today": 6.0052,
+      "daily_yield_usd": 16.6151,
       "positions": {
         "pendle": 20000.0,
-        "compound_v3": 10000.0,
         "maple": 20000.0,
-        "morpho_steakhouse": 5000.0
+        "morpho_steakhouse": 40000.0,
+        "morpho_blue": 10000.0
       },
       "source": "cycle",
       "evidenced": true,
-      "accrual_source": "fallback"
+      "accrual_source": "live"
     }
   ]
 }
