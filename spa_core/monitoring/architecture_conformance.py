@@ -302,6 +302,47 @@ def _manifest_drift_problems() -> dict | None:
                 "unmeasurable": [], "measured_from_ref": []}
 
 
+def subject_inputs(root: str = REPO_ROOT) -> list[dict]:
+    """Провенанс ПРЕДМЕТА: по какой именно копии конституции вынесен вердикт.
+
+    Зачем (замер цикла #337). 21.08 07:44Z решение ADR-104 сменило такт
+    `com.spa.io_chief_investment` в манифесте `interval:86400s → interval:300s`;
+    в прод-дерево `architecture/` эта правка доехала в 19:21Z, а последний отчёт
+    сторожа был произведён в 16:19Z. Обязательный шаг 0-офис три часа печатал
+    `вердикт: OK (critical=0 warn=0)` — и это была ПРАВДА о прежней конституции
+    и НЕИЗМЕРЕННОСТЬ о текущей, а различить их читателю было нечем: у отчёта
+    есть возраст, но не было ответа на вопрос «а предмет с тех пор менялся?».
+    Тот же класс, что #222 закрыл для `house_view_gap` сверкой РАЗНЫХ тактов:
+    возраст каждого входа обязан лежать машинно и называться словами.
+
+    `sha256` важнее `mtime`: перезапись файла тем же содержимым двигает mtime и
+    дала бы ложную находку каждый раз, когда цикл перегенерировал манифест
+    байт-в-байт (генератор идемпотентен по построению — тест
+    `test_idempotent_write`). Поэтому читатель судит по содержимому, а mtime
+    остаётся для отчёта и для старых отчётов без `inputs`.
+
+    Fail-CLOSED: нечитаемый предмет — `measured: false` с причиной, а НЕ
+    молчание и не «сошлось».
+    """
+    import hashlib
+    rows: list[dict] = []
+    for rel in (MANIFEST_REL,):
+        path = os.path.join(root, rel)
+        row: dict = {"path": rel, "role": "subject", "measured": False,
+                     "mtime": None, "sha256": None, "reason": ""}
+        try:
+            with open(path, "rb") as fh:
+                blob = fh.read()
+            row["sha256"] = hashlib.sha256(blob).hexdigest()
+            row["mtime"] = dt.datetime.fromtimestamp(
+                os.path.getmtime(path), dt.timezone.utc).isoformat()
+            row["measured"] = True
+        except OSError as e:
+            row["reason"] = f"предмет не прочитан: {e}"
+        rows.append(row)
+    return rows
+
+
 def origin_manifest(root: str = REPO_ROOT, ref: str = CURATION_REF,
                     rel: str = MANIFEST_REL) -> tuple[dict | None, str]:
     """Манифест из git (`<ref>:<rel>`) — конституция. Сети не требует: читается
@@ -389,7 +430,8 @@ def run_checks(manifest: dict,
                drift_measured: bool = False,
                curation: dict | None = None,
                drift_unmeasurable: list[str] | None = None,
-               drift_from_ref: list[dict] | None = None) -> dict:
+               drift_from_ref: list[dict] | None = None,
+               inputs: list[dict] | None = None) -> dict:
     findings: list[dict] = []
     unchecked: list[dict] = []
     agents = manifest.get("agents", [])
@@ -577,6 +619,11 @@ def run_checks(manifest: dict,
         # доехал — обе стороны сравнения прочитаны с ref. Вердикт не меняет,
         # но отвечает на «чем измерено», иначе OK был бы неотличим от тишины.
         "mechanics_from_ref": list(drift_from_ref or []),
+        # Провенанс ПРЕДМЕТА: по какой копии конституции вынесен этот вердикт
+        # (см. `subject_inputs`). Читатель отчёта обязан уметь спросить «а
+        # предмет с тех пор менялся?» — иначе `OK` о прежнем манифесте
+        # неотличим от `OK` о текущем.
+        "inputs": list(inputs or []),
         "slo_budgets": slo_budgets,
         "findings": kept,
         "aged": aged,
@@ -626,6 +673,7 @@ def main(argv=None) -> int:
                         drift_measured=b5 is not None,
                         drift_unmeasurable=(b5 or {}).get("unmeasurable"),
                         drift_from_ref=(b5 or {}).get("measured_from_ref"),
+                        inputs=subject_inputs(),
                         curation=curation)
 
     from spa_core.utils.atomic import atomic_save
