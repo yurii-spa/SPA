@@ -39,7 +39,12 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 MANIFEST = REPO / "architecture" / "manifest.json"
-FIELDS = ("goal", "quality_metric", "escalation")
+# Паспорт (AI1 гл. 3/24). Мандат владельца 2026-08-21 расширил его тремя полями
+# книги на два самых важных для риск-модели SPA: rights (что агенту МОЖНО —
+# какие артефакты он пишет, куда эскалирует) и limits (чего НЕЛЬЗЯ — advisory-режим,
+# запрет LLM, запрет импорта execution). До этого «чего агенту нельзя» жило только
+# прозой в CLAUDE.md и промптах — машина не могла проверить незаписанное.
+FIELDS = ("goal", "quality_metric", "escalation", "rights", "limits")
 
 # Три способа, которыми обёртки называют свой python-модуль. Порядок важен:
 # `export MODULE=` встречается в обёртках нового образца, позиционный
@@ -152,12 +157,63 @@ def escalation_from_code(module: str | None, entry: dict) -> str:
     return ""
 
 
+def rights_from_manifest(module: str | None, entry: dict) -> str:
+    """Что агенту МОЖНО — выведено из фактов манифеста/кода, не из пожеланий.
+
+    Право = писать объявленные артефакты + путь эскалации. Оба берутся из того,
+    что агент РЕАЛЬНО делает (produces, вызов push_critical), а не из описания.
+    """
+    parts: list[str] = []
+    arts = [p.get("artifact") for p in (entry.get("produces") or []) if p.get("artifact")]
+    if arts:
+        shown = ", ".join(arts[:3]) + (" …" if len(arts) > 3 else "")
+        parts.append(f"писать {shown}")
+    src = ""
+    f = _module_file(module) if module else None
+    if f:
+        try:
+            src = f.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            src = ""
+    if "push_critical" in src:
+        parts.append("слать CRITICAL владельцу через push_policy")
+    return "; ".join(parts)
+
+
+def limits_from_code(module: str | None, entry: dict) -> str:
+    """Чего агенту НЕЛЬЗЯ — прочитано из кода и манифеста, не из прозы.
+
+    Ключевая для риск-модели SPA половина паспорта: advisory-режим, запрет LLM,
+    запрет импорта execution. Всё это уже ЕСТЬ машиночитаемо (маркер LLM_FORBIDDEN,
+    отсутствие импорта execution, флаг curation) — паспорт лишь называет это, а не
+    выдумывает. Нет модуля для проверки ⇒ поле пустое (fail-CLOSED, не догадка).
+    """
+    f = _module_file(module) if module else None
+    if not f:
+        return ""
+    try:
+        src = f.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    lims: list[str] = []
+    # advisory: пишет в investment_os/ (harness форсит is_advisory) или несёт флаг
+    if "is_advisory" in src or "IS_ADVISORY" in src or "/investment_os/" in src:
+        lims.append("advisory — капитал не двигает")
+    if "LLM_FORBIDDEN" in src or "LLM FORBIDDEN" in src:
+        lims.append("LLM запрещён")
+    if "spa_core.execution" not in src and "spa_core/execution" not in src:
+        lims.append("не импортирует execution")
+    return "; ".join(lims)
+
+
 def derive(entry: dict) -> dict:
     module = module_of(entry.get("program"))
     return {
         "goal": goal_from_docstring(module),
         "quality_metric": quality_metric_from_produces(entry),
         "escalation": escalation_from_code(module, entry),
+        "rights": rights_from_manifest(module, entry),
+        "limits": limits_from_code(module, entry),
     }
 
 

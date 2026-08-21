@@ -251,6 +251,58 @@ class TestCheckIsAGate(unittest.TestCase):
         self.assertEqual(f.run(write=False)["stale"], [])
 
 
+class TestRightsAndLimits(unittest.TestCase):
+    """Паспорт до 10 полей (AI1 гл.3/24, мандат владельца 2026-08-21).
+
+    Два новых поля — rights (что можно) и limits (чего нельзя) — выводятся ИЗ
+    ИСТОЧНИКОВ (produces, вызов push_critical, маркеры LLM_FORBIDDEN / execution),
+    а не из прозы. Нет источника ⇒ поле пустое (fail-CLOSED, не догадка).
+    """
+
+    def test_fields_include_rights_and_limits(self):
+        f = _load("_fap", "scripts/fill_agent_passports.py")
+        self.assertIn("rights", f.FIELDS)
+        self.assertIn("limits", f.FIELDS)
+
+    def test_rights_names_produced_artifacts(self):
+        f = _load("_fap", "scripts/fill_agent_passports.py")
+        r = f.rights_from_manifest(None, {"produces": [
+            {"artifact": "data/x.json", "slo_hours": 3}]})
+        self.assertIn("data/x.json", r)
+        self.assertIn("писать", r)
+
+    def test_rights_empty_without_any_source(self):
+        f = _load("_fap", "scripts/fill_agent_passports.py")
+        self.assertEqual(f.rights_from_manifest(None, {"produces": []}), "")
+
+    def test_limits_read_llm_forbidden_from_source(self):
+        """limits берётся из РЕАЛЬНОГО модуля, а не выдумывается."""
+        f = _load("_fap", "scripts/fill_agent_passports.py")
+        # kill_switch несёт LLM_FORBIDDEN и не импортирует execution
+        lim = f.limits_from_code("spa_core.governance.kill_switch", {})
+        self.assertIn("LLM запрещён", lim)
+        self.assertIn("не импортирует execution", lim)
+
+    def test_limits_empty_when_module_missing(self):
+        f = _load("_fap", "scripts/fill_agent_passports.py")
+        self.assertEqual(f.limits_from_code(None, {}), "")
+        self.assertEqual(f.limits_from_code("spa_core.__nope__", {}), "")
+
+    def test_advisory_module_is_marked(self):
+        f = _load("_fap", "scripts/fill_agent_passports.py")
+        # директива CIO пишет про investment_os и является advisory-слоем
+        lim = f.limits_from_code("spa_core.investment_os.directive", {})
+        self.assertIn("advisory", lim)
+
+    def test_real_manifest_carries_limits_for_many_agents(self):
+        """Замер: «чего нельзя» перестало быть только прозой."""
+        data = json.loads((_REPO / "architecture" / "manifest.json").read_text(encoding="utf-8"))
+        with_limits = sum(1 for a in data.get("agents", [])
+                          if str((a.get("passport") or {}).get("limits") or "").strip())
+        self.assertGreater(with_limits, 20,
+                           "limits не выведены — паспорт не расширился")
+
+
 class TestWrapperAmbiguityAndPrefixTrim(unittest.TestCase):
     """Два дефекта заполнителя, найденных состязательным разбором 20.08."""
 
