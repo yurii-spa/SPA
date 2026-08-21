@@ -97,6 +97,15 @@
    случай пункта 3: карточку, созданную посреди цикла, никто не объявляет, и разбор
    объявлений её не увидит по построению (цикл #140, карточка
    `inbox-kartochka-sozdannaya-posredi-tsikla-ne-d`);
+4b. **отдельным вопросом** сверяет то, чего НЕ ОБЪЯВЛЯЛ НИКТО (`unannounced_divergence_scan`,
+   карточка `inbox-shag-0a-ne-vidit-neobyavlennyi-kod-v-osi`, замер #334). Пункты 1–3 сверяют
+   ОБЪЯВЛЕННЫЕ пути, и этого достаточно ровно до тех пор, пока сессия объявляет всё, что пишет.
+   21.08 `cycle-72429` объявила карточки и не объявила код: `buttonless_reason.py` (211 строк)
+   встречается в 144 строках отчёта **0 раз**. Половина работы всплыла только потому, что
+   карточки ищутся ДРУГИМ механизмом (п. 4). Теперь у каждого рабочего дерева спрашивается
+   и обратное: что в нём расходится с базой, чего не объявлял никто и чьих байтов репозиторий
+   не помнит вовсе. Дерево подтверждённо активной сессии из вопроса исключено — там расхождение
+   норма (обратный контроль); «не измерено» активностью не считается;
 5. печатает находки и **отдельно** всё, что измерить не удалось.
 
 **Почему окно ожидания, а не только `ps`.** По умолчанию `log_session_change.py` пишет
@@ -1507,6 +1516,246 @@ def collect_diff_sets(base_ref, checkouts, git=_git):
     return sets, failed
 
 
+# ── НЕобъявленное расхождение: пятое вместилище недоставленного ──────────────
+#
+# Пути, которые пачкает САМ прогон тестов, а не работа сессии. Правило уборщика
+# (`churn_rule`) знает `data/` целиком, но из `spa_core/data/` — ровно ДВА файла поимённо,
+# и это не недосмотр: по этому правилу уборщик решает, снимать ли дерево, и расширять его
+# «заодно» значит менять ЧУЖОЙ вердикт (#283 — уборщик судит о доставленности). Поэтому
+# у сканера свой список, ЗАКРЫТЫЙ и поимённый.
+#
+# Замер #316 (карточка `agent-test-run-dirties-tracked-fixtures`): класс «прогон перезаписывает
+# tracked-фикстуры» — 81 путь (`data/` 80 + `spa.db`), и в живом прогоне #335 именно
+# `spa_core/data/*_log.json` дали 65 из 145 кандидатов в семи деревьях, включая ДВА КОНТРОЛЬНЫХ
+# дерева, где работы не было ни одной строки по построению. Отсеянное СЧИТАЕТСЯ и печатается:
+# разница между «не считаем» и «не видим» обязана быть видна в самом отчёте.
+TEST_STATE_PREFIXES = ("spa_core/data/",)
+
+# Потолок хеширования. Выше него содержимое с базой не сверяется — но вердикт по файлу всё
+# равно выносится, из более дешёвого источника (есть ли ИМЯ на базе). См. `oversized` в
+# `unannounced_divergence_scan`: замер #335 — три архива резерва в прод-дереве (0.2 + 0.6 +
+# 1.26 ГБ) стоили шагу 0a +29 с процессорного времени каждый прогон.
+HASH_SIZE_CEILING = 64 * 1024 * 1024
+
+
+def declared_rel_paths(entries, checkouts=()):
+    """Множество путей (относительно корня дерева), объявленных ХОТЬ КЕМ-ТО в журнале.
+
+    Сканер ищет расхождение, которого НИКТО не объявлял, — значит вычитать надо объявления
+    ВСЕХ сессий, а не только той, чьё это дерево: объявленный путь уже разбирается основным
+    отчётом (`file_state` называет там КАЖДОЕ дерево, где он расходится), и вторая строка о
+    тех же байтах была бы не находкой, а эхом.
+
+    **Корень отрезается по СПИСКУ известных деревьев, а не по догадке.** `tree_of_path` выводит
+    корень из формы пути — по первому компоненту, который является каталогом репо
+    (`spa_core/`, `docs/`, …), — и для файла В КОРНЕ дерева (`repo/in_flight.py`) не даёт
+    ничего: отрезать нечего, и путь остался бы абсолютным, то есть с относительным именем
+    кандидата не совпал бы никогда. Замер #335: на этом покраснели 10 существующих тестов
+    шага 0a — объявленный `in_flight.py` объявлялся заново как «никем не объявленный».
+    Точное совпадение с корнем чекаута такой формы не имеет и потому надёжнее; `tree_of_path`
+    остаётся ЗАПАСНЫМ — им читаются объявления СНЯТЫХ деревьев, которых в списке уже нет.
+
+    Оба написания корня (`/tmp` и `/private/tmp`) приводятся к одному `_normalize_tree`.
+    Путь, из которого корень не читается ничем, берётся как есть: объявление относительным
+    путём в журнале встречается, и молча терять такую строку значило бы сузить вычитание,
+    то есть завести ложную находку."""
+    roots = sorted({r for r in (_normalize_tree(str(c)) for c in (checkouts or ())) if r},
+                   key=len, reverse=True)
+    declared = set()
+    for entry in entries or ():
+        for f in (entry or {}).get("files") or ():
+            raw = _normalize_tree(str(f))
+            if not raw:
+                continue
+            for root in roots:
+                if raw.startswith(root.rstrip("/") + "/"):
+                    raw = raw[len(root.rstrip("/")) + 1:]
+                    break
+            else:
+                tree = tree_of_path(f)
+                if tree and raw.startswith(tree.rstrip("/") + "/"):
+                    raw = raw[len(tree.rstrip("/")) + 1:]
+            declared.add(raw.lstrip("/"))
+    return declared
+
+
+def unannounced_divergence_scan(root, base_ref, checkouts, declared, active_trees,
+                                diff_sets, git=_git):
+    """[строка на рабочее дерево] — что в нём расходится с базой, но НИКЕМ не объявлено.
+
+    **Дефект, который это закрывает** (карточка `inbox-shag-0a-ne-vidit-neobyavlennyi-kod-v-osi`,
+    замер цикла #334). Сессия `cycle-72429` умерла между работой и пушем, оставив два дерева.
+    Шаг 0a показал из них ТОЛЬКО карточку: сторож сверяет с origin **объявленные пути**, а
+    `buttonless_reason.py` (211 строк, новый модуль) и правки двух прод-модулей объявлены не
+    были — прямой замер полного вывода дал слово `buttonless_reason` **0 раз при 144 строках
+    отчёта**. Работу нашли руками, открыв `git status` в осиротевшем дереве; спасло случайное
+    соседство карточки, которую сторож находит ДРУГИМ механизмом (сканом трекеров).
+
+    Это ровно вариант (2) закрытой карточки `agent-claim-without-announce-is-invisible`
+    («сканировать worktree на НЕобъявленные расхождения»), осознанно отложенный тогда до
+    условия «если сироты всё равно появятся». Условие наступило и ИЗМЕРЕНО.
+
+    **Отсев — четыре ступени, и каждая названа числом в отчёте** (иначе «не считаем» читается
+    как «не видим»; порядок отсева выбран по цене — сначала бесплатное, потом git):
+
+    1. дерево ЖИВОЙ сессии — не находка вовсе. Расхождение там норма: сессия работает. Признак
+       тот же, что у `#233`, — сессия ПОДТВЕРЖДЁННО активна (`ACTIVE`); «не измерено» активностью
+       не считается, то есть направление отсева fail-CLOSED (молчим только по доказательству);
+    2. churn уборщика (`churn_rule`) и состояние, которое пишет сам прогон тестов
+       (`TEST_STATE_PREFIXES`) — это не работа, а след запуска;
+    3. путь, объявленный хоть кем-то, — им занят основной отчёт (`declared_rel_paths`);
+    4. содержимое, которое репозиторий ПОМНИТ (`cat-file --batch-check` отвечает `blob`), —
+       старая копия или локальный коммит: байты не в одном экземпляре, поднимать нечего.
+
+    Находка — то, что пережило все четыре: байты, которых объектная база репозитория не знает
+    ВООБЩЕ. Такая работа существует ровно в одном экземпляре и ровно в этом дереве; снимут
+    дерево — и её не станет. Код 1, как у соседних вместилищ (`on_branch`, скорлупа).
+
+    **Ограничение названо, а не замолчано.** Ступень 4 отвечает на «помнит ли репозиторий эти
+    байты», а не на «есть ли они на origin/main»: сессия, сделавшая локальный коммит (save-point),
+    сюда не попадёт — её блоб известен объектной базе. Это осознанный обмен: спрашивать историю
+    origin по каждому пути стоило бы `git log` на файл (в живом замере — сотни вызовов), а класс
+    «локальный коммит вместо пуша» держит отдельный сторож уборщика (`reaped_state`).
+
+    **fail-CLOSED не ослаблен.** Любая ступень, которая не отработала (правило churn ·
+    `ls-files` дерева · `hash-object` · `cat-file`), даёт `unchecked` и код 2 — «не смог
+    измерить» не сворачивается в «поднимать нечего».
+
+    Стоимость ограничена и измерена: два ПАКЕТНЫХ вызова git на дерево-кандидат плюс один
+    `ls-files`; деревья живых сессий не стоят ничего. Потолка на число файлов нет намеренно —
+    тихо срезанное покрытие читалось бы как «проверено всё»."""
+    rows = []
+    is_churn, why_churn = churn_rule()
+    base_tree, why_tree = _base_tree(root, base_ref, git=git)
+
+    for loc in checkouts:
+        tree = _normalize_tree(str(loc))
+        row = {"tree": tree, "path": str(loc), "active": tree in (active_trees or ()),
+               "candidates": 0, "churn": 0, "test_state": 0, "declared": 0, "gone": 0,
+               "by_card_scan": 0, "known": 0, "oversized": [],
+               "undelivered": [], "unchecked": []}
+        rows.append(row)
+        if row["active"]:
+            continue                     # дерево живой сессии: расхождение — норма, не находка
+
+        raw = diff_sets.get(str(loc))
+        if raw is None:
+            # Дерево с базой не сверено — об этом уже сказано отдельной строкой «НЕ ИЗМЕРЕНО»
+            # (см. `collect_diff_sets` в build_report). Второй раз тот же факт не заводим,
+            # но и молча полным отсутствием находок его не подменяем.
+            row["unchecked"].append(
+                f"рабочее дерево с {base_ref} не сверено — НЕобъявленное расхождение в нём "
+                "НЕ ИЗМЕРЕНО")
+            continue
+
+        rc, out, err = git(loc, "-c", "core.quotepath=false",
+                           "ls-files", "--others", "--exclude-standard")
+        if rc != 0:
+            row["unchecked"].append(
+                f"`git ls-files --others` rc={rc}: {err.strip()[:160]!r} — новых файлов в "
+                "дереве НЕ ИЗМЕРЕНО (именно ими был невидимый модуль 21.08)")
+            continue
+        untracked = [ln for ln in out.split("\n") if ln]
+
+        cand = sorted(set(raw) | set(untracked))
+        row["candidates"] = len(cand)
+        if is_churn is None:
+            row["unchecked"].append(f"{why_churn} — отделить работу от churn НЕ УДАЛОСЬ, "
+                                    f"кандидатов в дереве: {len(cand)}")
+            continue
+        if base_tree is None:
+            row["unchecked"].append(why_tree)
+            continue
+
+        work = []
+        for rel in cand:
+            if is_churn(rel):
+                row["churn"] += 1
+            elif rel.startswith(TEST_STATE_PREFIXES):
+                row["test_state"] += 1
+            elif rel.startswith(TRACKER_REL + "/"):
+                # Карточками занят СВОЙ раздел (п. 4 шапки, `undelivered_cards`), а расхождением
+                # их содержимого — доставка следа ответа владельца (ADR-086). Замер #335: без
+                # этой ступени прод-дерево давало 77 строк о карточках из 115, то есть раздел
+                # выродился бы в копию соседнего. Убирается ТЕНЬ, а не находка — тот же приём,
+                # которым выше снимается «расходятся чужие деревья» при наличии настоящей.
+                # Ограничение названо: карточку в ТЕРМИНАЛЬНОМ статусе, которой нет на базе,
+                # п. 4 пропускает намеренно, и сюда она теперь тоже не попадёт.
+                row["by_card_scan"] += 1
+            elif rel in (declared or ()):
+                row["declared"] += 1
+            else:
+                try:
+                    size = (Path(loc) / rel).stat().st_size
+                except OSError:
+                    size = None
+                if size is None:
+                    # Путь УДАЛЁН в дереве (`git diff HEAD` показывает удаление наравне с
+                    # правкой). Байтов, которые существовали бы только здесь, у удаления нет по
+                    # построению — содержимое лежит на базе. Считаем и НАЗЫВАЕМ числом, но в
+                    # вопрос «что можно потерять вместе с деревом» не берём. Живой замер #335:
+                    # без этой ступени `hash-object` падал на первом же удалённом пути
+                    # прод-дерева (`rc=128, не удалось открыть файл`) и ВСЁ дерево уходило в
+                    # «НЕ ИЗМЕРЕНО» навсегда — необратимое «не измерено» внутри сторожа,
+                    # заведённого против него же.
+                    row["gone"] += 1
+                elif size > HASH_SIZE_CEILING:
+                    # Крупный файл не хешируем — и это НЕ тихий потолок: ответ по нему всё равно
+                    # даётся, просто из более дешёвого источника. Имени нет на базе ⇒ байты
+                    # существуют ровно здесь, и это верно БЕЗ сверки содержимого; имя на базе
+                    # есть ⇒ сравнить было нечем, и это честное «не измерено» (код 2).
+                    # Замер #335: три архива резерва (0.2 + 0.6 + 1.26 ГБ) стоили +29 с
+                    # процессорного времени КАЖДОМУ прогону шага 0a (16.6 с → 49.5 с) ради
+                    # вывода, известного заранее.
+                    row["oversized"].append({"path": rel, "size": size,
+                                             "on_base": rel in base_tree})
+                else:
+                    work.append(rel)
+
+        for big in row["oversized"]:
+            if big["on_base"]:
+                row["unchecked"].append(
+                    f"{big['path']}: {big['size'] // (1024 * 1024)} МБ — содержимое с {base_ref} "
+                    f"НЕ сверялось (потолок хеширования {HASH_SIZE_CEILING // (1024 * 1024)} МБ), "
+                    "а имя на базе есть: расходится ли содержимое, НЕ ИЗМЕРЕНО")
+            else:
+                row["undelivered"].append({"path": big["path"], "sha": None,
+                                           "on_base": False, "size": big["size"]})
+        if not work:
+            continue
+
+        rc, out, err = git(root, "hash-object", "--stdin-paths",
+                           stdin="\n".join(str(Path(loc) / r) for r in work) + "\n")
+        shas = out.split()
+        if rc != 0 or len(shas) != len(work):
+            row["unchecked"].append(
+                f"`git hash-object` по дереву не отработал (rc={rc}, хешей {len(shas)} "
+                f"на {len(work)} файлов): {err.strip()[:160]!r} — содержимое НЕ ИЗМЕРЕНО")
+            continue
+
+        rc, out, err = git(root, "cat-file", "--batch-check", stdin="\n".join(shas) + "\n")
+        verdicts = out.splitlines()
+        if rc != 0 or len(verdicts) != len(work):
+            row["unchecked"].append(
+                f"`git cat-file --batch-check` не отработал (rc={rc}, ответов "
+                f"{len(verdicts)} на {len(work)} блобов): {err.strip()[:160]!r} — известны ли "
+                "репозиторию эти файлы, НЕ ИЗМЕРЕНО")
+            continue
+
+        for rel, sha, verdict in zip(work, shas, verdicts):
+            parts = verdict.split()
+            if len(parts) >= 2 and parts[1] == "blob":
+                row["known"] += 1        # репозиторий помнит байты ⇒ не единственный экземпляр
+            elif len(parts) >= 2 and parts[1] == "missing":
+                row["undelivered"].append({"path": rel, "sha": sha,
+                                           "on_base": rel in base_tree})
+            else:
+                row["unchecked"].append(
+                    f"{rel}: `cat-file --batch-check` ответил {verdict.strip()[:80]!r} — "
+                    "ни 'blob', ни 'missing'; известен ли блоб репозиторию, НЕ ИЗМЕРЕНО")
+    return rows
+
+
 def _blob_sha(path):
     """git-хеш содержимого файла, посчитанный локально (без вызова git)."""
     try:
@@ -2155,6 +2404,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
         "unmeasured": unmeasured,
         "dead_worktrees": [],
         "orphan_registrations": [],
+        "unannounced": [],
         "exit_code": 0,
     }
 
@@ -2246,6 +2496,9 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
     # Ярлыки, которые журнал ОПРОВЕРГ как носителей личности (несколько разных якорей под
     # одним ярлыком): для них запасной критерий «pid из ярлыка» не применяется вовсе.
     disproved = labels_with_conflicting_anchors(entries)
+    # Деревья подтверждённо активных сессий — собираются в цикле ниже, читаются ПОСЛЕ него
+    # сканером НЕобъявленного расхождения.
+    active_trees = set()
 
     for entry in entries:
         entry, borrowed = borrow_durable(entry, anchors, kin)
@@ -2256,6 +2509,13 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
             why = f"{why} [{borrowed}]"
         if state == ACTIVE:
             report["sessions_active"] += 1
+            # Дерево живой сессии — единственное основание МОЛЧАТЬ о НЕобъявленном расхождении
+            # в нём (см. `unannounced_divergence_scan`). Копится здесь, а не отдельным проходом:
+            # признак активности обязан быть ТОТ ЖЕ, которым отчёт судит записи, иначе сторож
+            # заведёт себе второе определение живости и разойдётся с первым молча.
+            active_tree = worktree_of(entry)
+            if active_tree:
+                active_trees.add(active_tree)
             continue
         if state == UNKNOWN:
             unmeasured.append({"session": entry.get("session"), "path": None, "reason": why})
@@ -2581,6 +2841,18 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                           "age_hours": age_h, "files": len(entry.get("files") or []),
                           "reason": f"{why} — объявленное на {base_ref} есть, находки нет"})
 
+    # Пятое вместилище недоставленного — расхождение, которого НИКТО не объявлял (карточка
+    # `inbox-shag-0a-ne-vidit-neobyavlennyi-kod-v-osi`, замер #334). Считается ПОСЛЕ цикла:
+    # деревья живых сессий известны только по его завершении, а молчать о дереве можно ровно
+    # по этому доказательству. Вычитаются объявления ВСЕХ записей, а не только разобранных
+    # выше: путь, объявленный кем угодно, уже разбирается основным отчётом.
+    report["unannounced"] = unannounced_divergence_scan(
+        root, base_ref, checkouts, declared_rel_paths(entries, checkouts), active_trees,
+        diff_sets, git=git)
+    for row in report["unannounced"]:
+        for reason in row["unchecked"]:
+            unmeasured.append({"session": None, "path": row["path"], "reason": reason})
+
     # Один и тот же путь объявляют десятки сессий, и часть из них своё доставила, часть — нет.
     # Если по этому пути есть хоть одна НАСТОЯЩАЯ находка (чьё-то своё дерево расходится), то
     # строка «расходятся чужие деревья» о том же пути — её тень: те же байты, названные дважды.
@@ -2612,10 +2884,15 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
     # в объектной базе репозитория ВООБЩЕ, то есть работа существует ровно в одном экземпляре и
     # ровно в этой скорлупе. Путь обратно в зелёное обыкновенный — поднять и доставить (после
     # чего блоб станет известен базе), либо осознанно снять регистрацию, измерив цену.
+    # `unannounced` держит код 1 на ТОМ ЖЕ основании, что скорлупа: содержимого нет в объектной
+    # базе репозитория ВООБЩЕ ⇒ работа существует в одном экземпляре и ровно в этом дереве.
+    # Путь обратно в зелёное обыкновенный: доставить (блоб станет известен базе) либо снять
+    # дерево уборщиком, который измерит цену и оставит квитанцию.
     orphan_findings = any(row["undelivered"] for row in report["orphan_registrations"])
+    unannounced_findings = any(row["undelivered"] for row in report["unannounced"])
     report["exit_code"] = (2 if unmeasured
                            else (1 if (findings or card_findings or nowhere or on_branch
-                                       or orphan_findings
+                                       or orphan_findings or unannounced_findings
                                        or report["branches_with_owner_work"]) else 0))
     return report
 
@@ -2815,6 +3092,42 @@ def render(report) -> str:
             if len(r["undelivered"]) > 20:
                 out.append(f"      … и ещё {len(r['undelivered']) - 20} "
                            f"(полный список — `--json`, ключ `orphan_registrations`)")
+
+    unann = report.get("unannounced") or []
+    unann_hits = [r for r in unann if r["undelivered"]]
+    if unann_hits:
+        out.append("")
+        total = sum(len(r["undelivered"]) for r in unann_hits)
+        out.append(f"🙈 РАСХОЖДЕНИЕ, КОТОРОГО НИКТО НЕ ОБЪЯВЛЯЛ ({len(unann_hits)} дерев(о/а), "
+                   f"файлов: {total}) — работа лежит в рабочем дереве, объявления на неё нет НИ "
+                   "ОДНОГО, и содержимого этих файлов НЕТ в объектной базе репозитория ВООБЩЕ. "
+                   "Байты существуют ровно здесь. Сессия дерева НЕ подтверждена активной — "
+                   "поднимать есть что, и место названо:")
+        for r in unann_hits:
+            out.append(f"  [не объявлено] {r['tree']}")
+            out.append(f"      кандидатов: {r['candidates']} · отсеяно: churn {r['churn']}, "
+                       f"состояние прогона тестов {r['test_state']}, карточки (свой раздел) "
+                       f"{r['by_card_scan']}, объявлено кем-то {r['declared']}, удалено в "
+                       f"дереве {r['gone']} · старых копий (блоб известен репо): {r['known']} · "
+                       f"НЕТ В РЕПО: {len(r['undelivered'])}")
+            for f in r["undelivered"][:20]:
+                where = f"есть на {base} под другим содержимым" if f["on_base"] \
+                    else f"имени нет и на {base}"
+                mark = f"{f['size'] // (1024 * 1024)} МБ, содержимое не сверялось" \
+                    if f.get("size") is not None else (f["sha"] or "?")[:9]
+                out.append(f"      • {f['path']} ({mark}, {where})")
+            # Потолок печати — тот же, что у скорлупы, и он НЕ тихий: срезанное названо числом,
+            # полный список лежит в `--json`. Замер #335: 11 деревьев, 100 файлов, причём два
+            # дерева несут ОДНИ И ТЕ ЖЕ 28 путей — безадресная простыня каждый цикл научила бы
+            # раздел пролистывать (прецедент п. 3d шапки), а это тот же дефект, только медленнее.
+            if len(r["undelivered"]) > 20:
+                out.append(f"      … и ещё {len(r['undelivered']) - 20} "
+                           f"(полный список — `--json`, ключ `unannounced`)")
+        skipped_active = [r for r in unann if r["active"]]
+        if skipped_active:
+            out.append(f"      деревьев пропущено как ЖИВЫЕ (сессия подтверждённо активна, "
+                       f"расхождение там норма): {len(skipped_active)} — "
+                       f"{', '.join(r['tree'] for r in skipped_active)}")
 
     if report.get("dead_worktrees"):
         out.append("")

@@ -1490,9 +1490,20 @@ class TestPathTheRepoRefusesToTake:
 
     @staticmethod
     def _ignore_data(repo):
-        """`.gitignore` в точности как в проде: `data/**/*.jsonl` (строка 48 живого файла)."""
+        """`.gitignore` в точности как в проде: `data/**/*.jsonl` (строка 48 живого файла).
+
+        Файл КОММИТИТСЯ — как в проде, где `.gitignore` лежит в git с первого дня. Раньше
+        фикстура оставляла его untracked, и это было незаметно: сторож смотрел только на
+        объявленные пути, а `.gitignore` никто не объявляет. С разделом «расхождение, которого
+        никто не объявлял» (#335) незакоммиченный `.gitignore` стал ВЕРНОЙ находкой — файл
+        лежит в дереве, на базе его нет, репозиторий его байтов не помнит. Правится ФИКСТУРА,
+        приведённая к проду; ни одно утверждение теста не тронуто (инв. #16, обоснование
+        продублировано в `docs/journal/2026-W34.md`)."""
         (repo / ".gitignore").write_text("data/**/*.jsonl\n", encoding="utf-8")
         (repo / "data").mkdir(exist_ok=True)
+        _git(repo, "add", ".gitignore")
+        _git(repo, "commit", "-qm", ".gitignore как в проде — в git, а не в дереве")
+        _git(repo, "branch", "-f", "base", "HEAD")
 
     def test_ignored_path_is_not_called_undelivered_work(self, guard, repo):
         """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ: точная форма аварии — «надо поднять» об игнорируемом пути."""

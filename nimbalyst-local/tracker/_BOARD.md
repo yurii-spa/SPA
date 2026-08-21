@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **571** · ждёт владельца: **4** · занято сессиями: **6**.
+> Всего карточек: **575** · ждёт владельца: **4** · занято сессиями: **6**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -160,7 +160,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (266)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (270)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -284,6 +284,7 @@
 - Шаг 0-офис печатает не то, что в файлах: вердикт house_view_gap мёртв (None вместо расхождений), house_view едет без возраста (19.4 ч)  ·  `inbox-shag-0-ofis-pechataet-ne-to-chto-v-faila.md` · 2026-08-09
 - Шаг 0a из worktree даёт 18 строк «не измерено» на пустом месте: 16 мёртвых регистраций рабочих деревьев  ·  `inbox-shag-0a-iz-worktree-daet-18-strok-ne-izm.md` · 2026-08-06
 - Шаг 0a не спрашивает журнал о личности сессии, хотя ответ лежит СОСЕДНЕЙ записью — и запись уходит в «не измерено» навсегда  ·  `inbox-shag-0a-ne-sprashivaet-zhurnal-o-lichnos.md` · 2026-08-16
+- Шаг 0a не видит НЕобъявленный код в осиротевшем дереве: 211-строчный модуль был невидим, спасла лежавшая рядом карточка  ·  `inbox-shag-0a-ne-vidit-neobyavlennyi-kod-v-osi.md` · 2026-08-21
 - Неизмеримый ярлык сессии работал как утверждение: шаг 0a терял её файлы, шаг 0b запрещал подъём — а pid был написан в самом ярлыке  ·  `inbox-shag-0a-neizmerimyi-yarlyk-derzhit-kartochku.md` · 2026-08-21
 - Шаг 0a объявляет осиротевшую регистрацию НЕИЗМЕРИМОЙ — а измерить её можно за две минуты  ·  `inbox-shag-0a-obyavlyaet-osirotevshuyu-registr.md` · 2026-08-20
 - Шаг 0a повторяет одни и те же 6 находок каждый цикл: осадок из мёртвых /tmp-worktree'ов  ·  `inbox-shag-0a-povtoryaet-odni-i-te-zhe-6-nahod.md` · 2026-08-14
@@ -305,6 +306,7 @@
 - Сторож архитектуры кричит CRITICAL о четырёх агентах — и все четыре обвинения ложные: прод читает манифест, который доставка никогда не обновляет  ·  `inbox-storozh-arhitektury-krichit-critical-o-c.md` · 2026-08-08
 - Сторож архитектуры навсегда «не измерил» механику агента, чей plist лежит в репо  ·  `inbox-storozh-arhitektury-navsegda-ne-izmeril.md` · 2026-08-18
 - Сторож доставки может ПРОПУСТИТЬ чужую работу, если pid его собственного процесса совпал с чужим идентификатором  ·  `inbox-storozh-dostavki-mozhet-propustit-chuzhu.md` · 2026-08-14
+- Сторож недоставляемых зависимостей краснеет на docs/research/cio_g4_repro.py — второй нарушитель за первым  ·  `inbox-storozh-nedostavlyaemyh-zavisimostei-kra.md` · 2026-08-20
 - Сторож расхождений судит по СТАРОМУ снимку постуры: кричит CRITICAL, когда офис уже YELLOW  ·  `inbox-storozh-rashozhdenii-sudit-po-staromu-sn.md` · 2026-08-12
 - Сторож вопросов владельца говорит «не измерено» там, где ответ лежит на origin — механика (origin_view) уже есть  ·  `inbox-storozh-voprosov-vladeltsa-govorit-ne-iz.md` · 2026-08-17
 - Сторож «вопросы владельцу» слеп к вопросу, который не отправляли — очередь 5, он говорит 3  ·  `inbox-storozh-voprosy-vladeltsu-slep-k-voprosu.md` · 2026-08-10
@@ -333,6 +335,7 @@
 - Упавший классификатор превратился в 44 вопроса владельцу, а 44 задания — в done  ·  `inbox-upavshii-klassifikator-prevratilsya-v-44.md` · 2026-08-12
 - Вердикт WIRABLE подделываем: 22 из 23 «пригодных» модулей читают РОВНО ОДИН ключ  ·  `inbox-verdikt-wirable-poddelyvaem-22-iz-23-pri.md` · 2026-08-06
 - Весь поддомен checkup.earn-defi.com отдаёт 404 — с главной публично ведут битые ссылки, и job site-freshness красный всегда  ·  `inbox-ves-poddomen-checkup-earn-defi-com-otdae.md` · 2026-08-14
+- Ветка unreadable-description-ltyucb СНОВА несёт вопросы владельца, хотя карточка о ней закрыта: 3 ADR + 4 карточки  ·  `inbox-vetka-unreadable-description-ltyucb-snov.md` · 2026-08-21
 - Вопросы владельцу снова уезжают БЕЗ кнопок — две карточки 'починено' стоят done, а замер 21.08 показывает обратное  ·  `inbox-voprosy-vladeltsu-snova-uezzhayut-bez-kn.md` · 2026-08-21
 - Восемь карточек всё ещё ждут владельца БЕЗ КНОПОК — разобрать остаток  ·  `inbox-vosem-kartochek-vse-esche-zhdut-vladelts.md` · 2026-08-10
 - Восемь вопросов владельцу живут только на origin — отправитель считает очередь по ПРОД-дереву и не видел их ни разу  ·  `inbox-vosem-voprosov-vladeltsu-zhivut-tolko-na.md` · 2026-08-21
@@ -412,20 +415,21 @@
 - Разобрать 52 карточки с ветки work-status-check, потом удалить ветку (решение владельца 20.08, вариант 1)  ·  `inbox-razobrat-52-kartochki-s-vetki-work-statu.md` · 2026-08-20 · 🔒 `cycle-72588`
 - Сбалансированный трек: ноль профинансированных дней из 40 при 920 отработанных циклах  ·  `inbox-sbalansirovannyi-trek-nol-profinansirova.md` · 2026-08-08
 - Семь скриптов, вскрытых строгим сканером: разобрать поштучно (подключить / списать / вывести класс правилом)  ·  `inbox-sem-skriptov-vskrytyh-strogim-skanerom-r.md` · 2026-08-16
-- Шаг 0a не видит НЕобъявленный код в осиротевшем дереве: 211-строчный модуль был невидим, спасла лежавшая рядом карточка  ·  `inbox-shag-0a-ne-vidit-neobyavlennyi-kod-v-osi.md` · 2026-08-21
 - Шаг 0a зовёт поднять файл, который в прод-дереве ОТСТАЁТ на 1672 строки — подъём стёр бы 14 записей реестра  ·  `inbox-shag-0a-zovet-podnyat-fail-kotoryi-v-pro.md` · 2026-08-21
 - Шторм повторов одного решения владельцу (200+ копий за ночь) — анти-шторм доставлен, корень (слепой предикат «отправлено») остаётся  ·  `inbox-shtorm-povtorov-odnogo-resheniya-vladeltsu.md` · 2026-08-20
 - Шторм решений ПРОДОЛЖАЕТСЯ после анти-шторма: карточки живут ТОЛЬКО в хост-дереве, заголовок дрейфует → дубли, владелец измотан  ·  `inbox-shtorm-prodolzhaetsya-kartochki-tolko-v-host-dereve.md` · 2026-08-20
 - Скан кандидатов работает каждый цикл по реестру, которого никто не пишет: discovery не подключён ни одним агентом  ·  `inbox-skan-kandidatov-rabotaet-kazhdyi-tsikl-p.md` · 2026-08-18
+- Сканер назвал 136 файлов работы, которой никто не объявлял, в 11 деревьях — разобрать по одному дереву  ·  `inbox-skaner-nazval-136-failov-raboty-kotoroi.md` · 2026-08-21
+- Сканер НЕобъявленного не видит, что тот же файл лежит на базе под другим путём — 41% списка это переезд каталога  ·  `inbox-skaner-neobyavlennogo-ne-vidit-chto-tot.md` · 2026-08-21
 - Снять переходное послабление маячка: решения обязаны гейтиться СВОИМ умением  ·  `inbox-snyat-perehodnoe-poslablenie-mayachka-re.md` · 2026-08-17
 - Снятая остановка живёт в git: восстановление из резерва поднимет прод уже остановленным  ·  `inbox-snyataya-ostanovka-zhivet-v-git-vosstano.md` · 2026-08-10
-- Сторож недоставляемых зависимостей краснеет на docs/research/cio_g4_repro.py — второй нарушитель за первым  ·  `inbox-storozh-nedostavlyaemyh-zavisimostei-kra.md` · 2026-08-20
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
 - Строка Risk Gate дневного лимита убытка жила только в отключённом скрипте — в отчёт владельцу она не переехала  ·  `inbox-stroka-risk-gate-dnevnogo-limita-ubytka.md` · 2026-08-14
 - Свести две реализации перезаполнения бюджета в одну (ADR-072 vs версия параллельной сессии)  ·  `inbox-svesti-dve-realizatsii-perezapolneniya-b.md` · 2026-08-08
 - Табличка честности: дать ей дорогу на сайт (решение владельца 09.08)  ·  `inbox-tablichka-chestnosti-dat-ei-dorogu-na-sa.md` · 2026-08-08
 - TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13
 - Тест GSM Sky приколочен к до-ADR-065 состоянию  ·  `inbox-test-gsm-sky-prikolochen-k-do-adr-065-so.md` · 2026-08-07
+- Тест манифеста флота красный на Маке: конституция объявляет такт 300с, plist даёт 86400с — и conformance при этом ЗЕЛЁНЫЙ  ·  `inbox-test-manifesta-flota-krasnyi-na-make-kon.md` · 2026-08-21
 - Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md` · 2026-08-06 · 🔒 `cycle-87477`
 - Три отправителя стоп-крана в обход канонической двери (найдено #313)  ·  `inbox-tri-otpravitelya-stop-krana-v-obhod-kano.md` · 2026-08-20
 - Вопрос с ДВУМЯ решениями нечем ответить с телефона: кнопок нет по построению, а он висит девять дней  ·  `inbox-vopros-s-dvumya-resheniyami-nechem-otvet.md` · 2026-08-19
