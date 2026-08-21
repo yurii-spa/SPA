@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **559** · ждёт владельца: **11** · занято сессиями: **6**.
+> Всего карточек: **560** · ждёт владельца: **12** · занято сессиями: **6**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -14,6 +14,7 @@
 - **Добавить одну строку в настройку агента — иначе не узнаем, кто гоняет цикл 52 раза в сутки**  ·  `own-33-plist-marker-for-cycle-origin.md`
 - **Автопочинщик кода остался без вызывающих: убрать совсем или оставить лежать**  ·  `own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih.md`
 - **BTC-движок не помещается под наш стоп-кран — выбери, как быть: отдельный NAV, маленькая доля или только research** · _high_  ·  `own-btc-dvizhok-ne-vlezaet-pod-stop-kran.md`
+- **Нажми, чтобы на сайте появилась строка «идёт paper-тест» по Balanced и Aggressive** · _high_  ·  `own-cio-i-paper-cifry-tri-mandata-vladeltsa.md`
 - **Аварийная остановка ТЕРЯЕТСЯ при восстановлении из резерва (выбери, как убрать файлы состояния из git)** · _high_  ·  `owner-decision-avariinaya-ostanovka-teryaetsya-pri-vosst.md`
 - **Дневной лимит убытка считает «не знаю» за «убытка нет» — и в этот день цикл торгует**  ·  `owner-decision-dnevnoy-limit-ubytka-schitaet-neizvestn.md`
 - **Твой ответ «Ответ 1» сегодня не применился — теперь можно отвечать прямо на сообщение с вопросом**  ·  `owner-decision-tvoi-otvet-otvet-1-segodnya-ne-primenils.md`
@@ -29,7 +30,7 @@
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (129)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (130)
 
 ### · needs-owner
 - Аварийная книга раздаёт деньги мимо проверок свежести — цена закрытия дыры $75.9K в кэш  ·  `own-2026-08-18-avariinaya-kniga-idet-mimo-geitov-svezhesti.md` · 2026-08-18
@@ -40,6 +41,7 @@
 - Добавить одну строку в настройку агента — иначе не узнаем, кто гоняет цикл 52 раза в сутки  ·  `own-33-plist-marker-for-cycle-origin.md` · 2026-08-10
 - Автопочинщик кода остался без вызывающих: убрать совсем или оставить лежать  ·  `own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih.md` · 2026-08-17
 - BTC-движок не помещается под наш стоп-кран — выбери, как быть: отдельный NAV, маленькая доля или только research  ·  `own-btc-dvizhok-ne-vlezaet-pod-stop-kran.md` · 2026-08-20
+- Нажми, чтобы на сайте появилась строка «идёт paper-тест» по Balanced и Aggressive  ·  `own-cio-i-paper-cifry-tri-mandata-vladeltsa.md` · 2026-08-21
 - Аварийная остановка ТЕРЯЕТСЯ при восстановлении из резерва (выбери, как убрать файлы состояния из git)  ·  `owner-decision-avariinaya-ostanovka-teryaetsya-pri-vosst.md` · 2026-08-18
 - Дневной лимит убытка считает «не знаю» за «убытка нет» — и в этот день цикл торгует  ·  `owner-decision-dnevnoy-limit-ubytka-schitaet-neizvestn.md` · 2026-08-18
 - Твой ответ «Ответ 1» сегодня не применился — теперь можно отвечать прямо на сообщение с вопросом  ·  `owner-decision-tvoi-otvet-otvet-1-segodnya-ne-primenils.md` · 2026-08-20

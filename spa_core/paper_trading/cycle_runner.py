@@ -1408,6 +1408,24 @@ def run_cycle(
         )
         notes.append(f"soft_derisk_check_error: {type(_dexc).__name__}")
 
+    # ── Step 1d (ADR-103, мандат владельца 2026-08-21): директива CIO ─────────
+    # House-view Chief Investment перестал быть write-only советом: СВЕЖАЯ
+    # осторожная постура (RED/CRITICAL/STRESS) включает ту же самую механику
+    # «no new / no increase, hold+reduce OK», что и SOFT_DERISK — оба call-site
+    # apply_soft_derisk_gate ниже (включая re-clamp после ALLOC-002) отработают
+    # автоматически. RiskPolicy v1.0 и kill-switch стоят ВЫШЕ и не тронуты.
+    # Fail-closed К НЕЙТРАЛИ: нет артефакта / протух / не ok — поведение прежнее
+    # (совет не становится гейтом через своё отсутствие).
+    try:
+        from spa_core.investment_os.directive import load_directive
+        _cio = load_directive(ddir)
+        if _cio.get("no_increase"):
+            _derisk_active = True
+            notes.append(f"cio_directive_no_increase: {_cio.get('reason')}")
+            log.warning("CIO DIRECTIVE ACTIVE (ADR-103): %s", _cio.get("reason"))
+    except Exception as _cexc:  # noqa: BLE001 — директива advisory-слоя, не HALT
+        notes.append(f"cio_directive_error: {type(_cexc).__name__}")
+
     # ── Step 2: allocator → target allocation ─────────────────────────────
     alloc = (allocator or _default_allocator(ddir)).allocate()
     target_usd = {

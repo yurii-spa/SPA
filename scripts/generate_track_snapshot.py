@@ -92,6 +92,48 @@ def _tier_packages() -> dict:
     return out
 
 
+def _sleeve_paper_track(state_path: Path) -> dict:
+    """Paper-трек рукава (Balanced=hy, Aggressive=lp) для карточки тира — ЧЕСТНЫЙ.
+
+    Правило владельца 2026-08-19 (карточка owner-decision-sbalansirovannyi-tir-…,
+    вариант 1): «идёт paper-тест» показывается ТОЛЬКО когда positions_count > 0 —
+    факт, а не аванс. Поэтому:
+      • days_with_positions — бары, где книга реально держала позиции;
+      • apy_pct — годовая ставка, посчитанная ТОЛЬКО по этим честным барам
+        (≥2 бара, иначе None → «—»);
+      • бары фантомного начисления (equity растёт при positions_count == 0,
+        замер #208) в APY НЕ входят — они видны отдельным счётчиком.
+    Файла нет / нечитаем → all-None (сайт честно молчит). ADR-103.
+    """
+    st = _load(state_path)
+    hist = [h for h in (st.get("daily_history") or []) if isinstance(h, dict)]
+    funded = [h for h in hist if float(h.get("equity", 0) or 0) > 0]
+    honest = [h for h in funded if int(h.get("positions_count", 0) or 0) > 0]
+
+    apy = None
+    if len(honest) >= 2:
+        first_eq = float(honest[0].get("equity") or 0)
+        last_eq = float(honest[-1].get("equity") or 0)
+        days = len(honest)
+        if first_eq > 0 and last_eq > 0:
+            apy = round(((last_eq / first_eq) ** (365.0 / days) - 1.0) * 100.0, 2)
+
+    dd_vals = [float(h.get("drawdown_pct") or h.get("il_drawdown_pct") or 0.0) for h in honest]
+    last = funded[-1] if funded else {}
+    status = ("paper_test_running" if honest
+              else ("accrual_only_no_positions" if funded else "not_started"))
+    return {
+        "status": status,                       # факт, не аванс
+        "days_with_positions": len(honest),
+        "days_funded": len(funded),
+        "apy_pct": apy,                         # только по честным барам, иначе None
+        "dd_pct": round(min(dd_vals) * 100.0, 2) if dd_vals else None,
+        "nav_usd": round(float(st.get("equity") or 0.0), 2) or None,
+        "positions_count": int(last.get("positions_count", 0) or 0),
+        "evidence": "paper",                    # это paper-тест, не live (инв. #8)
+    }
+
+
 def build_snapshot(golive_path: Path = GOLIVE, equity_path: Path = EQUITY, pts_path=None) -> dict:
     """Assemble the build-time static snapshot from the committed data files.
 
@@ -162,6 +204,24 @@ def build_snapshot(golive_path: Path = GOLIVE, equity_path: Path = EQUITY, pts_p
         "max_drawdown_pct": _max_drawdown_pct(evidenced or bars),
         "total_return_pct": round((end_equity / 100000.0 - 1.0) * 100.0, 4),
         "packages": _tier_packages(),   # tier-card net-APY static fallback (Preserve/Core/Max), null if uncomputed
+        # ── ADR-103: живые paper-треки трёх пакетов (факт positions_count>0 — правило
+        # владельца 19.08). Conservative — главная evidenced-книга; Balanced/Aggressive —
+        # рукава B/C. Карточка тира показывает «идёт paper-тест · день N · APY» только
+        # когда status == paper_test_running.
+        "paper_tracks": {
+            "conservative": {
+                "status": "paper_test_running" if real_days > 0 else "not_started",
+                "days_with_positions": real_days,
+                "days_funded": real_days,
+                "apy_pct": round(float(paper_apy), 2) if paper_apy is not None else None,
+                "dd_pct": _max_drawdown_pct(evidenced or bars),
+                "nav_usd": round(end_equity, 2),
+                "positions_count": None,   # главная книга ведёт позиции в своём снимке
+                "evidence": "paper",
+            },
+            "balanced": _sleeve_paper_track(ROOT / "data" / "hy_paper_trading.json"),
+            "aggressive": _sleeve_paper_track(ROOT / "data" / "lp_paper_trading.json"),
+        },
         "bars": bars,
     }
     return snap
