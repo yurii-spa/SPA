@@ -485,11 +485,28 @@ class TestEdgeCasesAndSave(unittest.TestCase):
             self.assertAlmostEqual(hist[0]["close_equity"], 100_000.0)
 
     def test_T50_check_all_empty_inputs_no_crash(self):
-        """T50: check() with all-empty inputs → no exception, gate is PASS (all SKIP)."""
+        """T50: check() with all-empty inputs → no exception, gate is HALT.
+
+        CHANGED 2026-08-21 (ADR-105, owner decision В of 09:40Z; invariant #16 —
+        deliberate, justified here and in ``docs/journal/2026-W34.md``).
+
+        This assertion used to read ``GATE_PASS`` with the comment "All SKIP →
+        no HALT/WARN → PASS". That was a faithful description of the code and a
+        statement of the defect the owner has now ruled on: with nothing to
+        measure, DL-01 said the same word as on a calm profitable day and the
+        cycle allocated capital. Under ADR-105 an unevaluable DL-01/DL-02 halts.
+
+        What the test asserts is NOT weakened — it still pins the crash-freedom
+        this case was written for, and now pins the verdict too, which the old
+        line stated in the direction we have since decided is wrong. The
+        narrow, caller-declared young-track exception is covered in
+        ``spa_core/tests/test_dl_unmeasurable_halts.py``.
+        """
         r = self.chk.check([], {}, {})
         self.assertIn(r["gate"], (GATE_PASS, GATE_WARN, GATE_HALT))
-        # All SKIP → no HALT/WARN → PASS
-        self.assertEqual(r["gate"], GATE_PASS)
+        # Nothing measurable on DL-01/DL-02 → fail-CLOSED (ADR-105).
+        self.assertEqual(r["gate"], GATE_HALT)
+        self.assertTrue(any("NOT MEASURED" in x for x in r["halt_reasons"]))
 
     def test_T51_check_ids_are_correct(self):
         """T51: Check IDs are DL-01..DL-05 in order."""

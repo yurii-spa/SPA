@@ -718,32 +718,32 @@ def _summarize_fix(alert_text: str, error_type: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# CLI entry point (for subprocess invocation by telegram_watcher)
+# DISARMED — no entry point (ADR-106, owner decision 2026-08-21 09:39Z)
 # ---------------------------------------------------------------------------
-
-def main() -> None:
-    import argparse
-    parser = argparse.ArgumentParser(description="SPA Auto Fixer")
-    parser.add_argument("--alert", type=str, help="Alert text to process")
-    parser.add_argument("--alert-file", type=str, help="File containing alert text")
-    args = parser.parse_args()
-
-    alert_text = ""
-    if args.alert:
-        alert_text = args.alert
-    elif args.alert_file:
-        alert_text = Path(args.alert_file).read_text()
-    else:
-        # Read from stdin
-        alert_text = sys.stdin.read()
-
-    if not alert_text.strip():
-        log.error("No alert text provided")
-        sys.exit(1)
-
-    success = run_auto_fix(alert_text)
-    sys.exit(0 if success else 1)
-
-
-if __name__ == "__main__":
-    main()
+# This module used to end with a CLI ``main()`` plus an ``if __name__ ==
+# "__main__"`` guard, so the whole loop the owner closed — an LLM rewrites
+# production code, applies the patch and pushes it to GitHub — was one line
+# away from running again:
+#
+#     python3 -m spa_core.devtools.auto_fixer --alert "..."
+#
+# The caller that used to invoke it (``monitoring/telegram_watcher``) was
+# retired, which left this file as a module with no callers and a trigger still
+# attached — the "loaded gun" class we had already caught once on
+# ``bot_commands``. Owner choice was option 2 of card
+# ``own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih``: keep the functions as
+# a library, take the trigger off.
+#
+# So: NOTHING is deleted below this line's worth of behaviour — every function
+# above still exists and still does what it did. There is simply no way left to
+# start this module as a program. Restoring auto-repair is a deliberate act
+# (write a caller under owner supervision), not a one-liner.
+#
+# Honest residue, measured 2026-08-21 and NOT covered by this decision:
+# ``spa_core/monitoring/telegram_watcher.py`` still imports ``run_auto_fix``
+# in-process, and ``launchd/com.spa.telegram_watcher.plist`` still exists —
+# though that agent is NOT loaded on the fleet (``launchctl list``: absent).
+# Retiring the watcher is card ``own-55``, whose answer was lost with branch
+# ``work-status-check-xfnbew``; it is being re-asked, not assumed.
+#
+# Guarded by ``spa_core/tests/test_auto_fixer_disarmed.py``.

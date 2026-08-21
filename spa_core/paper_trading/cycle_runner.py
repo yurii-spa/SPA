@@ -345,6 +345,56 @@ def _next_trade_id(trades: list[dict]) -> str:
     return f"T{max_n + 1:03d}"
 
 
+def _book_age_days(ddir: Path, equity_doc: Any) -> int:
+    """How many CLOSES this book should already have, judged from outside the curve.
+
+    ADR-105 needs exactly one fact: should this book already have had two daily
+    closes? Three candidate answers were tried, and the first two were wrong for
+    reasons worth keeping written down.
+
+    * **The curve itself** — circular. It is the file under suspicion.
+    * **The configured track start** (``_days_running``) — describes the *track
+      we run*, not *this data directory*. Every sandbox inherits prod's start
+      date, so a brand-new data dir claimed to be a 46-day track whose curve had
+      been destroyed, and its very first cycle halted.
+    * **Calendar days recorded in ``paper_trading_status.json``** — counts DAYS,
+      not CLOSES, and this system deliberately produces days without a close: a
+      stale feed makes the cycle refuse (``skipped_no_live_data``) and append no
+      bar, by design. Counting that day made the NEXT cycle halt over a gap the
+      system had itself, correctly, created.
+
+    What is left is the honest one: records of cycles that actually CLOSED.
+    ``N`` recorded trades mean ``N`` closes before today, so the book is on day
+    ``N+1``; the curve's ``summary`` is a separate object from its ``daily``
+    list, so a write that truncates the bars can leave the roll-up behind and
+    the file then testifies against itself. Nothing speaks ⇒ the book is new.
+
+    Note the deliberate softness at the boundary: one trade puts the book on day
+    2, which genuinely has only one prior close, so it is still tolerated.
+
+    Deliberate limit, named rather than hidden: wiping the whole ``data/``
+    directory leaves no witness and therefore reads as day one. That hole is
+    inherent in the owner's own carve-out ("the first day of a new track has to
+    be allowed, or no track can ever start") — it cannot be closed from inside
+    this function, and the tolerated case is logged loudly so it leaves a trace.
+    """
+    witnesses: list[int] = []
+
+    summary = equity_doc.get("summary") if isinstance(equity_doc, dict) else None
+    if isinstance(summary, dict):
+        for key in ("num_snapshots", "real_days", "evidenced_days"):
+            val = summary.get(key)
+            if isinstance(val, int) and not isinstance(val, bool) and val > 0:
+                witnesses.append(val)
+                break
+
+    trades = _read_json(ddir / TRADES_FILENAME, [])
+    if isinstance(trades, list) and trades:
+        witnesses.append(len(trades) + 1)
+
+    return max(witnesses) if witnesses else 1
+
+
 def _days_running(today: str, start: str = PAPER_START_DATE) -> int:
     """Calendar days elapsed since paper-trading start (inclusive, ≥ 1)."""
     try:
@@ -1517,7 +1567,21 @@ def run_cycle(
         _dl_apy_map = _sanity_apy_map(
             adapters if isinstance(adapters, list) else []
         )
-        _dl_result = _dl_checker.check(_dl_eq_history, target_usd, _dl_apy_map)
+        # ADR-105 (owner choice В, 21.08): an unmeasurable DL-01/DL-02 now HALTs
+        # instead of reading as a calm day. ``track_days`` is the one fact only
+        # this caller knows — while the book is younger than the two closes
+        # DL-01 compares, missing bars are its age, not a broken state file.
+        # Everything else (emptied file, bars without an equity value) halts.
+        # The age comes from ``_book_age_days`` — records left BESIDE the curve —
+        # and NOT from ``_days_running``: that measures the configured track, so
+        # a fresh data directory would inherit prod's age and read as a 46-day
+        # track whose curve had been destroyed.
+        _dl_result = _dl_checker.check(
+            _dl_eq_history,
+            target_usd,
+            _dl_apy_map,
+            track_days=_book_age_days(ddir, equity_doc),
+        )
         _dl_checker.save_result(_dl_result, ddir)
         # ── ADR-048 (DL-02 ⊂ HARD kill) reconciliation ────────────────────────
         # At ≥10% evidenced peak drawdown the AUTHORITATIVE response is the
@@ -1590,6 +1654,11 @@ def run_cycle(
             )
             for _w in _dl_result["warn_reasons"]:
                 notes.append(f"daily_limits_warn: {_w}")
+        # A tolerated silence is still a silence — name it in the cycle record
+        # so "we let this one pass" never has to be reconstructed later.
+        for _s in _dl_result.get("skip_reasons") or []:
+            log.warning("DAILY LIMITS NOT MEASURED (tolerated): %s", _s)
+            notes.append(f"daily_limits_not_measured: {_s}")
     except Exception as _dl_exc:
         log.warning("DailyLimitsChecker failed (%s) — fail-open, cycle continues", _dl_exc)
         notes.append(f"daily_limits_check_error: {type(_dl_exc).__name__}: {_dl_exc}")

@@ -12,6 +12,11 @@ Checks five real-time risk limits before each allocation cycle:
 Gate logic
 ----------
 - **HALT**  — DL-01 or DL-02 FAIL → allocation must be blocked immediately.
+- **HALT**  — DL-01 or DL-02 could NOT be evaluated (ADR-105, owner choice В
+  of 2026-08-21): "could not measure" is not "nothing was lost". The one
+  tolerated exception is a track too young to have two closes yet — the caller
+  declares its age via ``track_days`` (see ``check``). A caller that says
+  nothing gets HALT, never PASS.
 - **WARN**  — DL-03, DL-04, or DL-05 FAIL → log & note, allocation proceeds.
 - **PASS**  — all checks nominal.
 
@@ -66,6 +71,20 @@ CHECK_FAIL = "FAIL"
 CHECK_WARN = "WARN"
 CHECK_SKIP = "SKIP"   # not enough data to evaluate
 
+# ── Why a check could not be evaluated (ADR-105) ─────────────────────────────
+# The gate treats these two kinds very differently, so the reason is machine
+# readable and never re-derived by matching on the human message.
+SKIP_NO_HISTORY = "no_history"      # the bars simply are not there yet
+SKIP_UNUSABLE = "unusable_data"     # bars exist but carry no usable equity
+
+# DL-01 compares two closes. A track that has not yet produced two of them is
+# young, not broken — this is the ONLY shortage the gate tolerates, and only
+# when the caller states the track's age (``track_days``).
+MIN_BARS_FOR_DAILY_LOSS = 2
+
+# Checks whose silence blocks the cycle. DL-03/04/05 are advisory by design.
+_UNMEASURABLE_HALTS = ("DL-01", "DL-02")
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 class DailyLimitsChecker:
@@ -118,6 +137,8 @@ class DailyLimitsChecker:
         equity_history: list[dict[str, Any]],
         allocation: dict[str, float],
         apy_map: dict[str, float],
+        *,
+        track_days: int | None = None,
     ) -> dict[str, Any]:
         """Run all five risk-limit checks and return a gate verdict.
 
@@ -132,6 +153,15 @@ class DailyLimitsChecker:
         apy_map:
             Mapping of adapter-name → APY in percent
             (e.g. ``{"aave_v3": 3.5, "compound_v3": 4.8}``).
+        track_days:
+            Age of the track in days, inclusive of today (``1`` on its first
+            day). Supplied by the caller because only the caller knows it.
+            Its ONLY effect: while the track is younger than
+            ``MIN_BARS_FOR_DAILY_LOSS`` days, a *missing-bars* SKIP on DL-01 /
+            DL-02 is tolerated instead of halting — a track that has not lived
+            two days cannot have a two-day loss. Every other kind of silence
+            halts, and ``None`` (the default) tolerates nothing: a caller that
+            forgets to speak gets HALT, not PASS.
 
         Returns
         -------
@@ -140,6 +170,9 @@ class DailyLimitsChecker:
             ``checks``       – list of check dicts (id, name, status, value, limit)
             ``halt_reasons`` – list[str], non-empty only when gate == "HALT"
             ``warn_reasons`` – list[str], non-empty only when gate == "WARN"
+            ``skip_reasons`` – list[str], DL-01/DL-02 silences that were
+                               tolerated because the track is still too young.
+                               Never empty-and-silent: what was excused is named.
             ``checked_at``   – ISO-8601 UTC timestamp
         """
         now_ts = datetime.now(timezone.utc).isoformat()
@@ -153,10 +186,18 @@ class DailyLimitsChecker:
 
         halt_reasons: list[str] = []
         warn_reasons: list[str] = []
+        skip_reasons: list[str] = []
+
+        # ADR-105 (owner choice В, 2026-08-21). A track younger than the two
+        # closes DL-01 compares is the ONE excuse for silence — and only the
+        # caller knows the track's age, so it has to say it out loud.
+        young_track = (
+            track_days is not None and track_days <= MIN_BARS_FOR_DAILY_LOSS
+        )
 
         for chk in checks:
             if chk["status"] == CHECK_FAIL:
-                if chk["id"] in ("DL-01", "DL-02"):
+                if chk["id"] in _UNMEASURABLE_HALTS:
                     halt_reasons.append(
                         f"{chk['id']} {chk['name']}: {chk.get('message', '')}"
                     )
@@ -164,6 +205,25 @@ class DailyLimitsChecker:
                     # DL-03 / DL-04 / DL-05 FAIL → treated as WARN
                     warn_reasons.append(
                         f"{chk['id']} {chk['name']}: {chk.get('message', '')}"
+                    )
+            elif chk["status"] == CHECK_SKIP and chk["id"] in _UNMEASURABLE_HALTS:
+                # ── "Could not measure" is not "nothing was lost" ──────────
+                # Before ADR-105 this branch did not exist: an unmeasurable
+                # daily loss produced a verdict byte-identical to a calm
+                # profitable day, and the cycle traded. Invariant 2 says the
+                # opposite — do not guess in favour of entering.
+                if young_track and chk.get("skip_kind") == SKIP_NO_HISTORY:
+                    skip_reasons.append(
+                        f"{chk['id']} {chk['name']}: NOT MEASURED — "
+                        f"{chk.get('message', '')} (tolerated: track is on day "
+                        f"{track_days}, younger than the {MIN_BARS_FOR_DAILY_LOSS} "
+                        f"closes this check compares)"
+                    )
+                else:
+                    halt_reasons.append(
+                        f"{chk['id']} {chk['name']}: NOT MEASURED — "
+                        f"{chk.get('message', '')} (fail-CLOSED, ADR-105: "
+                        f"unmeasurable is not clean)"
                     )
             elif chk["status"] == CHECK_WARN:
                 warn_reasons.append(
@@ -182,6 +242,7 @@ class DailyLimitsChecker:
             "checks": checks,
             "halt_reasons": halt_reasons,
             "warn_reasons": warn_reasons,
+            "skip_reasons": skip_reasons,
             "checked_at": now_ts,
         }
 
@@ -215,8 +276,9 @@ class DailyLimitsChecker:
             "limit": self.max_daily_loss_pct,
         }
 
-        if not equity_history or len(equity_history) < 2:
+        if not equity_history or len(equity_history) < MIN_BARS_FOR_DAILY_LOSS:
             return {**base, "status": CHECK_SKIP, "value": None,
+                    "skip_kind": SKIP_NO_HISTORY,
                     "message": "insufficient equity history (need ≥ 2 bars)"}
 
         prev_close = _bar_equity(equity_history[-2])
@@ -224,10 +286,12 @@ class DailyLimitsChecker:
 
         if prev_close is None or curr_close is None:
             return {**base, "status": CHECK_SKIP, "value": None,
+                    "skip_kind": SKIP_UNUSABLE,
                     "message": "missing equity value in bars"}
 
         if prev_close <= 0:
             return {**base, "status": CHECK_SKIP, "value": None,
+                    "skip_kind": SKIP_UNUSABLE,
                     "message": "previous close equity is zero or negative"}
 
         loss_pct = (prev_close - curr_close) / prev_close * 100.0
@@ -262,6 +326,7 @@ class DailyLimitsChecker:
 
         if not equity_history:
             return {**base, "status": CHECK_SKIP, "value": None,
+                    "skip_kind": SKIP_NO_HISTORY,
                     "message": "no equity history"}
 
         equities = [_bar_equity(b) for b in equity_history]
@@ -269,6 +334,7 @@ class DailyLimitsChecker:
 
         if not equities:
             return {**base, "status": CHECK_SKIP, "value": None,
+                    "skip_kind": SKIP_UNUSABLE,
                     "message": "no valid equity values in history"}
 
         peak = equities[0]
