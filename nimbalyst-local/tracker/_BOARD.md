@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **568** · ждёт владельца: **5** · занято сессиями: **6**.
+> Всего карточек: **570** · ждёт владельца: **5** · занято сессиями: **6**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -161,7 +161,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (263)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (265)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -318,6 +318,7 @@
 - Сделать названия/ID карточек человекочитаемыми (убрать нечитаемые цифры-буквы)  ·  `inbox-task-readable-card-ids.md` · 2026-07-15
 - Команда /status в Telegram-боте — сводка системы простым языком  ·  `inbox-task-status-command.md` · 2026-07-15
 - test_agent_template_code_sync краснеет ТОЛЬКО в CI — причина не измерена  ·  `inbox-test-agent-template-code-sync-krasneet-t.md` · 2026-08-10
+- Тест очереди читает ЖИВОЕ прод-дерево: разбор ответов владельца красит CI  ·  `inbox-test-ocheredi-chitaet-zhivoe-prod-derevo.md` · 2026-08-21
 - Тестовые chat_id попали в живые настройки Телеграм-бота  ·  `inbox-testovye-chat-id-popali-v-zhivye-nastroi.md` · 2026-08-08
 - Tier-B: 19 модулей числятся работающими, но различают протоколы побочными полями — предметных данных у них нет  ·  `inbox-tier-b-19-modulei-chislyatsya-rabotayusc.md` · 2026-08-06
 - Tier-C аналитики (180 модулей) остался протокол-слепым: фаза 2 чинила только A и B  ·  `inbox-tier-c-analitiki-180-modulei-ostalsya-pr.md` · 2026-08-06
@@ -333,6 +334,7 @@
 - Упавший классификатор превратился в 44 вопроса владельцу, а 44 задания — в done  ·  `inbox-upavshii-klassifikator-prevratilsya-v-44.md` · 2026-08-12
 - Вердикт WIRABLE подделываем: 22 из 23 «пригодных» модулей читают РОВНО ОДИН ключ  ·  `inbox-verdikt-wirable-poddelyvaem-22-iz-23-pri.md` · 2026-08-06
 - Весь поддомен checkup.earn-defi.com отдаёт 404 — с главной публично ведут битые ссылки, и job site-freshness красный всегда  ·  `inbox-ves-poddomen-checkup-earn-defi-com-otdae.md` · 2026-08-14
+- Вопросы владельцу снова уезжают БЕЗ кнопок — две карточки 'починено' стоят done, а замер 21.08 показывает обратное  ·  `inbox-voprosy-vladeltsu-snova-uezzhayut-bez-kn.md` · 2026-08-21
 - Восемь карточек всё ещё ждут владельца БЕЗ КНОПОК — разобрать остаток  ·  `inbox-vosem-kartochek-vse-esche-zhdut-vladelts.md` · 2026-08-10
 - Восемь вопросов владельцу живут только на origin — отправитель считает очередь по ПРОД-дереву и не видел их ни разу  ·  `inbox-vosem-voprosov-vladeltsu-zhivut-tolko-na.md` · 2026-08-21
 - Вот обе задачи, оформленные подробно и по отдельности — в стиле карточек проект…  ·  `inbox-vot-obe-zadachi-oformlennye-podrobno-i-p.md` · 2026-08-05
@@ -410,6 +412,7 @@
 - Разобрать 52 карточки с ветки work-status-check, потом удалить ветку (решение владельца 20.08, вариант 1)  ·  `inbox-razobrat-52-kartochki-s-vetki-work-statu.md` · 2026-08-20 · 🔒 `cycle-72588`
 - Сбалансированный трек: ноль профинансированных дней из 40 при 920 отработанных циклах  ·  `inbox-sbalansirovannyi-trek-nol-profinansirova.md` · 2026-08-08
 - Семь скриптов, вскрытых строгим сканером: разобрать поштучно (подключить / списать / вывести класс правилом)  ·  `inbox-sem-skriptov-vskrytyh-strogim-skanerom-r.md` · 2026-08-16
+- Шаг 0a не видит НЕобъявленный код в осиротевшем дереве: 211-строчный модуль был невидим, спасла лежавшая рядом карточка  ·  `inbox-shag-0a-ne-vidit-neobyavlennyi-kod-v-osi.md` · 2026-08-21
 - Шаг 0a зовёт поднять файл, который в прод-дереве ОТСТАЁТ на 1672 строки — подъём стёр бы 14 записей реестра  ·  `inbox-shag-0a-zovet-podnyat-fail-kotoryi-v-pro.md` · 2026-08-21
 - Шторм повторов одного решения владельцу (200+ копий за ночь) — анти-шторм доставлен, корень (слепой предикат «отправлено») остаётся  ·  `inbox-shtorm-povtorov-odnogo-resheniya-vladeltsu.md` · 2026-08-20
 - Шторм решений ПРОДОЛЖАЕТСЯ после анти-шторма: карточки живут ТОЛЬКО в хост-дереве, заголовок дрейфует → дубли, владелец измотан  ·  `inbox-shtorm-prodolzhaetsya-kartochki-tolko-v-host-dereve.md` · 2026-08-20
@@ -423,13 +426,12 @@
 - Табличка честности: дать ей дорогу на сайт (решение владельца 09.08)  ·  `inbox-tablichka-chestnosti-dat-ei-dorogu-na-sa.md` · 2026-08-08
 - TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13
 - Тест GSM Sky приколочен к до-ADR-065 состоянию  ·  `inbox-test-gsm-sky-prikolochen-k-do-adr-065-so.md` · 2026-08-07
-- Тест очереди читает ЖИВОЕ прод-дерево: разбор ответов владельца красит CI  ·  `inbox-test-ocheredi-chitaet-zhivoe-prod-derevo.md` · 2026-08-21
 - Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md` · 2026-08-06 · 🔒 `cycle-87477`
 - Три отправителя стоп-крана в обход канонической двери (найдено #313)  ·  `inbox-tri-otpravitelya-stop-krana-v-obhod-kano.md` · 2026-08-20
 - Вопрос с ДВУМЯ решениями нечем ответить с телефона: кнопок нет по построению, а он висит девять дней  ·  `inbox-vopros-s-dvumya-resheniyami-nechem-otvet.md` · 2026-08-19
-- Вопросы владельцу снова уезжают БЕЗ кнопок — две карточки 'починено' стоят done, а замер 21.08 показывает обратное  ·  `inbox-voprosy-vladeltsu-snova-uezzhayut-bez-kn.md` · 2026-08-21
 - Замер обмена «доходность ↔ концентрация» на T2 (20/25/30%) — решение владельца A, задачи не было  ·  `inbox-zamer-obmena-dohodnost-kontsentratsiya-n.md` · 2026-08-08
 - Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07 · 🔒 `cycle-81141`
+- Живая копия карточки отстала от origin, а перезаписать её запрещено намеренно — вопрос владельцу остаётся без кнопок и лечить его нечем  ·  `inbox-zhivaya-kopiya-kartochki-otstala-ot-origin.md` · 2026-08-21
 
 ## 🤖 Agent Tasks (что делает агент)  (114)
 

@@ -440,10 +440,31 @@ def _scan_channel_buttons(ddir: Path) -> dict:
     return out
 
 
+def _buttonless_reason(tracker_dir: Path, card_id: str, *,
+                       now: dt.datetime,
+                       beacon_path: Optional[str | Path]) -> dict:
+    """Измеренная причина отсутствия кнопок у названного вопроса. Не бросает.
+
+    Обёртка нужна ровно затем, чтобы неудача самого измерителя тоже приезжала
+    ПРИЧИНОЙ, а не пустым местом: «причин не нашлось» и «померить не смогли» —
+    разные факты, и первое здесь было бы ложью.
+    """
+    try:
+        from spa_core.telegram.buttonless_reason import explain
+
+        return explain(tracker_dir / f"{card_id}.md",
+                       now=now, beacon_path=beacon_path, ref=ORIGIN_REF).as_dict()
+    except Exception as exc:  # noqa: BLE001 — сторож не роняет отчёт
+        return {"code": "unmeasured", "measured": False,
+                "text": f"измеритель причины не выполнился: {exc}",
+                "remedy": "разобрать вручную"}
+
+
 def check_pending_owner_decisions(*,
                                   now: Optional[dt.datetime] = None,
                                   data_dir: Optional[str | Path] = None,
-                                  tracker_dir: Optional[str | Path] = None) -> dict:
+                                  tracker_dir: Optional[str | Path] = None,
+                                  beacon_path: Optional[str | Path] = None) -> dict:
     """Собрать отчёт «путь вверх». Ничего не пишет — только считает."""
     now = now or dt.datetime.now(dt.timezone.utc)
     ddir = Path(data_dir) if data_dir is not None else live_data_dir(_REPO_ROOT)
@@ -617,6 +638,17 @@ def check_pending_owner_decisions(*,
 
     buttonless = [p for p in delivered if not p["buttons"]]
 
+    # --- ПОЧЕМУ кнопок нет: причина измеряется, а не гадается -----------------
+    # «Кнопок нет» — верный ответ на свой вопрос и бесполезный для того, кто
+    # должен что-то сделать: причин минимум четыре и лечатся они по-разному.
+    # Замер 21.08 (#333): у двух вопросов подряд причины оказались РАЗНЫЕ, и
+    # обе не совпали с единственной гипотезой карточки-задания. Одна из них
+    # (дерево отстало от `origin`) с диска не видна вовсе — поэтому спрашиваем
+    # ref. Мерим только те, у кого кнопок нет: сверка стоит процесса git.
+    for p in buttonless:
+        p["buttons_reason"] = _buttonless_reason(tdir, p["card_id"],
+                                                 now=now, beacon_path=beacon_path)
+
     # --- H1/H2: путь вверх во время остановки -------------------------------
     # Идут ПЕРВЫМИ: `reason` отчёта — это issues[0], и первой строкой обязана
     # стоять остановка, а не второстепенная жалоба на кнопки.
@@ -739,7 +771,13 @@ def check_pending_owner_decisions(*,
 
     # --- H3: вопрос, на который владелец физически не может ответить --------
     if buttonless:
-        names = ", ".join(p["card_id"] for p in buttonless[:3])
+        # Причина печатается РЯДОМ с именем карточки, а не лежит в отчёте молча:
+        # одинаковые с виду строки лечатся по-разному, и читатель обязан узнать
+        # это ЗДЕСЬ, не открывая json и не разбирая карточку руками полчаса.
+        names = ", ".join(
+            f"{p['card_id']} [{(p.get('buttons_reason') or {}).get('code', 'unmeasured')}: "
+            f"{(p.get('buttons_reason') or {}).get('text', 'причина НЕ ИЗМЕРЕНА')}]"
+            for p in buttonless[:3])
         more = f" (и ещё {len(buttonless) - 3})" if len(buttonless) > 3 else ""
         issues.append(
             f"owner_decision_pending: {len(buttonless)} вопрос(ов) владельцу ждут ответа "
