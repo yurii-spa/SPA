@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Дневной лимит убытка: а если сама проверка УПАЛА — торгуем или нет? (второй вопрос той же карточки, ответа нет)"
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-21
 owner_choice: 2
@@ -66,3 +66,11 @@ _Связано: ADR-105 (доставлено 21.08), `spa_core/risk/daily_limi
 `spa_core/paper_trading/cycle_runner.py`. Исходная карточка —
 `owner-decision-dnevnoy-limit-ubytka-schitaet-neizvestn`, там этот подвопрос стоял последним
 абзацем раздела «Что от тебя нужно»._
+
+---
+
+## Решение владельца
+
+**Вариант 2** — тот же режим, что ты уже выбрал: не посчитали — не торгуем
+
+_Ответ владельца получен 2026-08-21T12:34:20.955108+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._

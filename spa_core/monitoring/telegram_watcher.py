@@ -1,10 +1,28 @@
 """
 spa_core/monitoring/telegram_watcher.py
 ==========================================
-SPA Telegram Alert Watcher — autonomous error detection & auto-fix trigger.
+SPA Telegram Alert Watcher — READ-ONLY alert detection. DISARMED.
 
 Reads Telegram messages via getUpdates, detects CRITICAL/ERROR/❌/⚠️ patterns,
-deduplicates via SHA-1, enforces cooldowns, then invokes auto_fixer.
+deduplicates via SHA-1, and LOGS them. It repairs nothing.
+
+DISARMED 2026-08-21 — ADR-113, owner choice 2
+------------------------------------------------------------------------------
+This module used to end its loop with ``run_auto_fix(text, ...)``: text arriving
+in the owner's chat went to an LLM, which rewrote production code and pushed it.
+The owner named that loop the riskiest in the system. ADR-106 took the entry
+point away from ``auto_fixer`` itself; this watcher was the OTHER half — it
+called the repair *inside itself*, so removing an entry point did not touch it.
+
+The owner chose "keep it, but disarm it" over deletion: reading the chat is
+useful, rewriting prod code from chat text is not. So the import and the call
+are gone, not commented out — and the guard is a test, not this paragraph:
+``spa_core/tests/test_telegram_watcher_disarmed.py`` reddens both by name (the
+module must not reference auto_fixer) and by effect (a spy installed BEFORE the
+import is never called).
+
+Do not re-add a repair call here. If the loop is ever wanted again, it is an
+owner decision (invariant #3 forbids LLM in monitoring), not a refactor.
 
 Run via launchd every 5 min:
     python3 -m spa_core.monitoring.telegram_watcher
@@ -15,7 +33,7 @@ Design constraints:
   - READ/WRITE: data/telegram_last_update_id.json
   - Dedup files: /tmp/spa_tw_seen_{hash}  (TTL 24 h)
   - Cooldown: /tmp/spa_tw_cooldown_{hash}  (TTL 30 min)
-  - LLM calls delegated to auto_fixer.py
+  - NO LLM, NO code repair, NO push — detection and logging only
 """
 from __future__ import annotations
 
@@ -32,14 +50,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-# Module-level import of run_auto_fix so tests can monkeypatch
-# spa_core.monitoring.telegram_watcher.run_auto_fix directly.
-try:
-    from spa_core.devtools.auto_fixer import run_auto_fix  # noqa: F401
-except ImportError:
-    def run_auto_fix(alert_text: str, **kwargs) -> bool:  # type: ignore[misc]
-        """Fallback stub — auto_fixer not available."""
-        return False
+# ADR-113: the module-level import of ``run_auto_fix`` used to live here. It is
+# deliberately NOT replaced by a stub — a stub named ``run_auto_fix`` would keep
+# the call site plausible and let a later edit re-arm the loop by changing one
+# import line. There is no name to re-bind.
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -348,8 +362,15 @@ def is_message_too_old(msg: Dict) -> bool:
 # ---------------------------------------------------------------------------
 
 def process_updates(updates: List[Dict], token: str, chat_id: str) -> int:
-    """Process a batch of Telegram updates. Returns count of fixes triggered."""
-    fixes_triggered = 0
+    """Process a batch of Telegram updates. Returns count of alerts DETECTED.
+
+    ADR-113: the return value used to count *repairs triggered*. Nothing is
+    repaired any more, so the number now means what the function actually does —
+    alerts it saw and logged. ``token``/``chat_id`` are kept in the signature
+    because the callers pass them and a read-only watcher may still need them to
+    confirm receipt; they are not used to send anything today.
+    """
+    alerts_detected = 0
     for update in updates:
         msg = update.get("message") or update.get("channel_post")
         if not msg:
@@ -379,32 +400,25 @@ def process_updates(updates: List[Dict], token: str, chat_id: str) -> int:
             log.info("Duplicate alert skipped (hash=%s)", content_hash)
             continue
 
-        # Cooldown: skip if we triggered a fix for similar content recently
+        # Cooldown: a leftover cooldown file still suppresses a re-read. The
+        # cooldown was there to throttle repair attempts; ADR-113 removed the
+        # repairs, so nothing STARTS a cooldown any more (``_start_cooldown``
+        # keeps its callers in the tests only). Honouring an existing file costs
+        # nothing and keeps old state from surprising us.
         if _is_in_cooldown(content_hash):
-            log.info("Cooldown active for hash=%s — skipping auto-fix", content_hash)
+            log.info("Cooldown active for hash=%s — skipping alert", content_hash)
             continue
 
-        # Mark seen immediately to prevent parallel runs from double-triggering
+        # Mark seen immediately to prevent parallel runs from double-logging
         _mark_seen(content_hash)
 
         alert_type = parse_alert_type(text)
-        log.info("Alert detected: type=%s hash=%s", alert_type, content_hash)
+        # ADR-113: this is the end of the line. The alert is named in the log
+        # and nothing else happens — no LLM, no code edit, no push.
+        log.info("Alert detected (read-only): type=%s hash=%s", alert_type, content_hash)
+        alerts_detected += 1
 
-        # Trigger auto-fix via module-level run_auto_fix (patchable in tests)
-        try:
-            fixed = run_auto_fix(text, token=token, chat_id=chat_id)
-        except Exception as _fix_exc:
-            log.error("auto_fixer error: %s", _fix_exc, exc_info=True)
-            fixed = False
-        except Exception as exc:
-            log.error("auto_fixer error: %s", exc, exc_info=True)
-            fixed = False
-
-        if fixed:
-            _start_cooldown(content_hash)
-            fixes_triggered += 1
-
-    return fixes_triggered
+    return alerts_detected
 
 
 def run_once() -> None:
@@ -441,8 +455,8 @@ def run_once() -> None:
     max_update_id = max(u["update_id"] for u in updates)
     _save_offset(max_update_id + 1)
 
-    fixes = process_updates(updates, token=token or "", chat_id=chat_id or "")
-    log.info("Done. Fixes triggered: %d", fixes)
+    detected = process_updates(updates, token=token or "", chat_id=chat_id or "")
+    log.info("Done. Alerts detected (read-only, ADR-113): %d", detected)
 
 
 # ---------------------------------------------------------------------------
