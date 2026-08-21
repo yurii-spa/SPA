@@ -1,23 +1,34 @@
-"""spa_core/investment_os/directive.py — директива CIO для paper-цикла (ADR-103).
+"""spa_core/investment_os/directive.py — директива CIO для paper-цикла (ADR-103 + ADR-104).
 
-Мандат владельца 2026-08-21 (дословно: «Снять ограничения разрешаю все»): house-view
-Chief Investment перестаёт быть write-only советом — его постура ДВИГАЕТ paper-книги.
-Границы мандата, записанные в ADR-103 и не нарушаемые этим модулем:
+Мандат владельца 2026-08-21: house-view Chief Investment перестал быть write-only
+советом (ADR-103) — и «CIO должен следить за КАЖДЫМ движением актива и принимать
+решения, не раз в день» (ADR-104). Оба закрыты здесь.
 
-  • RiskPolicy v1.0 остаётся ЕДИНСТВЕННЫМ hard-гейтом (инвариант #1) — директива
-    стоит НИЖЕ него и ничего в нём не меняет.
+Как достигается «постоянное слежение» БЕЗ тяжёлого повтора суточного синтеза:
+директива читает не только суточный house-view, но и ДВА непрерывных сигнала,
+которые уже собираются каждые ~5 минут / в реальном времени:
+
+  • data/intraday_equity.json — внутридневная просадка + tier (intraday_equity, 300с);
+  • data/monitoring/risk_posture.json — оборонительная постура RTMR (rtmr_sense, daemon).
+
+Любой из них, показавший движение вниз (intraday tier ≥ SOFT_DERISK, или portfolio
+posture ≠ NORMAL), включает no_increase НЕМЕДЛЕННО — не дожидаясь суточного цикла.
+Это и есть «решение на каждое движение»: движение ловят непрерывные сенсоры, CIO
+реагирует тем же тактом. DERISK всегда быстро (ADR-055).
+
+Границы мандата (не нарушаются этим модулем):
+  • RiskPolicy v1.0 — ЕДИНСТВЕННЫЙ hard-гейт (инвариант #1); директива стоит НИЖЕ.
   • Kill-switch (ADR-034/048) не тронут; директива переиспользует ТУ ЖЕ механику
     «no new / no increase, hold+reduce OK», что и SOFT_DERISK.
-  • Fail-closed К НЕЙТРАЛИ: нет артефакта / артефакт протух / статус не ok /
-    постура не осторожная — директива НЕАКТИВНА и цикл ведёт себя как раньше.
-    Отсутствие advisory-артефакта НЕ останавливает деск (иначе совет стал бы
-    гейтом через своё отсутствие — новая хрупкость, которой мандат не просил).
-  • LLM_FORBIDDEN: house-view собран детерминированным кодом (harness), этот
-    модуль — чистое чтение JSON. Никаких внешних вызовов.
+  • Fail-closed. Для house-view — к НЕЙТРАЛИ (нет/протух артефакт ⇒ поведение
+    прежнее: совет не становится гейтом через отсутствие). Для intraday/posture —
+    к ОСТОРОЖНОСТИ на обнаруженном движении, но нечитаемый сигнал ≠ движение
+    (нечитаемый intraday/posture молчит, не выдумывает просадку).
+  • LLM_FORBIDDEN: всё — детерминированное чтение JSON. Никаких внешних вызовов.
 
-Активная директива ровно одна: постура ранга 3 (RED / CRITICAL / STRESS) из
-СВЕЖЕГО артефакта (≤ MAX_AGE_HOURS, SLO самого агента) ⇒ no_increase=True.
-YELLOW и ниже — наблюдение, не действие (SENSE часто · ACT редко, ADR-055).
+Активная директива: (house-view ранга 3 RED/CRITICAL/STRESS из СВЕЖЕГО артефакта)
+ИЛИ (intraday tier ≥ SOFT_DERISK) ИЛИ (risk_posture.portfolio ≠ NORMAL).
+YELLOW и ниже без движения — наблюдение, не действие (SENSE часто · ACT редко).
 """
 # LLM_FORBIDDEN
 from __future__ import annotations
@@ -41,6 +52,38 @@ def _neutral(reason: str) -> dict:
             "reason": reason, "as_of": None}
 
 
+def _intraday_movement(base: Path) -> Optional[str]:
+    """Внутридневное движение вниз из data/intraday_equity.json (сенсор 300с).
+
+    tier ≥ SOFT_DERISK ⇒ вернуть причину (движение обнаружено). Нет файла /
+    нечитаем / tier NONE ⇒ None (нечитаемый сигнал НЕ выдумывает просадку).
+    """
+    try:
+        doc = json.loads((base / "intraday_equity.json").read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return None
+    tier = str(doc.get("tier") or "").upper()
+    if tier in ("SOFT_DERISK", "HARD_KILL"):
+        dd = doc.get("drawdown_pct")
+        return f"intraday_{tier.lower()}: drawdown {dd}% — движение вниз, немедленно"
+    return None
+
+
+def _posture_movement(base: Path) -> Optional[str]:
+    """Оборонительная постура RTMR из data/monitoring/risk_posture.json (daemon).
+
+    portfolio ≠ NORMAL ⇒ вернуть причину. Нет файла / нечитаем / NORMAL ⇒ None.
+    """
+    try:
+        doc = json.loads((base / "monitoring" / "risk_posture.json").read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return None
+    portfolio = str(doc.get("portfolio") or "NORMAL").upper()
+    if portfolio and portfolio != "NORMAL":
+        return f"rtmr_posture_{portfolio.lower()}: оборонительная постройка — немедленно"
+    return None
+
+
 def load_directive(data_dir: Optional[str | Path] = None, *,
                    now: Optional[datetime] = None,
                    max_age_hours: float = MAX_AGE_HOURS) -> dict:
@@ -50,6 +93,15 @@ def load_directive(data_dir: Optional[str | Path] = None, *,
     Любая проблема → нейтраль с названной причиной (наблюдаемый fail-closed).
     """
     base = Path(data_dir) if data_dir is not None else _PROJECT_ROOT / "data"
+
+    # ── непрерывное слежение (ADR-104): движение вниз из intraday/RTMR-сенсоров
+    # включает no_increase НЕМЕДЛЕННО, независимо от суточного house-view. Это и
+    # есть «решение на каждое движение» — DERISK всегда быстро (ADR-055).
+    for mover in (_intraday_movement(base), _posture_movement(base)):
+        if mover:
+            return {"active": True, "no_increase": True, "posture": "MOVEMENT_DERISK",
+                    "reason": f"cio_intraday_derisk: {mover} (ADR-104)", "as_of": None}
+
     artifact = base / "investment_os" / "chief_investment.json"
     try:
         doc = json.loads(artifact.read_text(encoding="utf-8"))

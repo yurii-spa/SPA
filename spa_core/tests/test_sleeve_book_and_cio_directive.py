@@ -182,6 +182,57 @@ class TestCioDirective:
         assert directive.cio_allows_new_positions(tmp_path, now=_NOW) is False
 
 
+class TestContinuousMovementWatch:
+    """ADR-104: CIO следит за КАЖДЫМ движением через непрерывные сенсоры, а не раз
+    в день. Движение вниз (intraday tier ≥ SOFT_DERISK или posture ≠ NORMAL) даёт
+    no_increase НЕМЕДЛЕННО, обгоняя суточный house-view. DERISK всегда быстро."""
+
+    def _write_intraday(self, tmp, tier, dd=-6.0):
+        (tmp / "intraday_equity.json").write_text(
+            json.dumps({"tier": tier, "drawdown_pct": dd}), encoding="utf-8")
+
+    def _write_posture(self, tmp, portfolio):
+        d = tmp / "monitoring"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "risk_posture.json").write_text(
+            json.dumps({"portfolio": portfolio, "entries": {}}), encoding="utf-8")
+
+    def test_intraday_soft_derisk_blocks_immediately(self, tmp_path):
+        self._write_intraday(tmp_path, "SOFT_DERISK")
+        d = directive.load_directive(tmp_path, now=_NOW)
+        assert d["no_increase"] is True and "intraday_soft_derisk" in d["reason"]
+
+    def test_intraday_hard_kill_blocks_immediately(self, tmp_path):
+        self._write_intraday(tmp_path, "HARD_KILL", dd=-11.0)
+        assert directive.load_directive(tmp_path, now=_NOW)["no_increase"] is True
+
+    def test_intraday_none_does_not_block(self, tmp_path):
+        self._write_intraday(tmp_path, "NONE", dd=-1.0)
+        assert directive.load_directive(tmp_path, now=_NOW)["no_increase"] is False
+
+    def test_rtmr_defensive_posture_blocks(self, tmp_path):
+        self._write_posture(tmp_path, "DEFENSIVE")
+        d = directive.load_directive(tmp_path, now=_NOW)
+        assert d["no_increase"] is True and "rtmr_posture_defensive" in d["reason"]
+
+    def test_rtmr_normal_posture_does_not_block(self, tmp_path):
+        self._write_posture(tmp_path, "NORMAL")
+        assert directive.load_directive(tmp_path, now=_NOW)["no_increase"] is False
+
+    def test_movement_overrides_calm_daily_houseview(self, tmp_path):
+        """Ключ мандата: суточный house-view спокоен (GREEN), но актив дёрнулся —
+        CIO решает по ДВИЖЕНИЮ, не по вчерашнему синтезу."""
+        _write_cio(tmp_path, posture="GREEN")
+        self._write_intraday(tmp_path, "SOFT_DERISK")
+        d = directive.load_directive(tmp_path, now=_NOW)
+        assert d["no_increase"] is True and d["posture"] == "MOVEMENT_DERISK"
+
+    def test_unreadable_intraday_is_not_movement(self, tmp_path):
+        """Нечитаемый сигнал ≠ движение: молчит, не выдумывает просадку."""
+        (tmp_path / "intraday_equity.json").write_text("{broken", encoding="utf-8")
+        assert directive.load_directive(tmp_path, now=_NOW)["no_increase"] is False
+
+
 # ── интеграция: hy_cycle строит НАСТОЯЩУЮ книгу ─────────────────────────────
 
 @pytest.fixture

@@ -897,7 +897,7 @@
    "label": "com.spa.io_chief_investment",
    "plist_source": "launch_agents",
    "reboot_safe": true,
-   "schedule": "interval:86400s",
+   "schedule": "interval:300s",
    "program": "agent_io_chief_investment.sh",
    "layer": "product",
    "role": "analytics",
@@ -905,7 +905,7 @@
    "produces": [
     {
      "artifact": "data/investment_os/chief_investment.json",
-     "slo_hours": 26
+     "slo_hours": 1
     }
    ],
    "consumes": [
