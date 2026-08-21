@@ -214,13 +214,18 @@ _PID_RE = re.compile(r"^pid(\d+)$")
 
 # ── внешние команды (подменяются в тестах) ───────────────────────────────────
 
-def _git(cwd, *args: str):
-    """(rc, stdout, stderr). Никогда не бросает — «git не отработал» это тоже измерение."""
+def _git(cwd, *args: str, stdin=None):
+    """(rc, stdout, stderr). Никогда не бросает — «git не отработал» это тоже измерение.
+
+    ``stdin`` — для пакетных команд (`hash-object --stdin-paths`, `cat-file --batch-check`):
+    пофайловый вызов на скорлупе с сотнями путей стоил бы сотен процессов. Параметр
+    именованный и со значением по умолчанию, поэтому подставные `git` из тестов, объявленные
+    как ``(cwd, *args)``, его не получают и продолжают работать без правки."""
     env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
     env["GIT_CONFIG_NOSYSTEM"] = "1"
     env["GIT_OPTIONAL_LOCKS"] = "0"
     try:
-        p = subprocess.run(["git", "-C", str(cwd), *args],
+        p = subprocess.run(["git", "-C", str(cwd), *args], input=stdin,
                            capture_output=True, text=True, env=env)
     except (OSError, subprocess.SubprocessError) as exc:      # нет git в PATH и т.п.
         return 127, "", f"git недоступен: {exc}"
@@ -337,6 +342,34 @@ def durable_by_session(entries):
             continue
         found[label] = (anchor, durable_fields(entry))
     return {label: fields for label, (_anchor, fields) in found.items()}
+
+
+def labels_with_conflicting_anchors(entries):
+    """Ярлыки, под которыми журнал знает НЕСКОЛЬКО РАЗНЫХ якорей (перезапуск цикла под тем же
+    `SPA_SESSION_ID`).
+
+    Зачем отдельный вопрос, когда есть `durable_by_session` (цикл #327). Тот отвечает «можно ли
+    ЗАИМСТВОВАТЬ личность» и на неоднозначном ярлыке молчит — а молчание читается одинаково в
+    двух РАЗНЫХ случаях: якоря нет ни у кого (ничего не известно) и якорей несколько
+    (известно, что ярлык носили разные процессы). Для запасного критерия `pid_from_label` это
+    различие решающее: во втором случае журнал прямо ОПРОВЕРГ ярлык как носителя личности —
+    в живом примере ярлык `cycle-264-pid80387` несёт якоря 80373 и 99999, то есть названный им
+    pid не совпадает НИ С ОДНИМ из них. Померить такой pid значит спросить `ps` о постороннем
+    процессе, и живой посторонний дал бы ложный ACTIVE — fail-OPEN внутри fail-CLOSED-сторожа.
+    """
+    seen, conflicting = {}, set()
+    for entry in entries or ():
+        label = str((entry or {}).get("session") or "").strip()
+        if not label:
+            continue
+        anchor = anchor_of(entry)
+        if anchor is None:
+            continue
+        if label in seen and seen[label] != anchor:
+            conflicting.add(label)
+            continue
+        seen.setdefault(label, anchor)
+    return conflicting
 
 
 _LABEL_PID_TOKEN = re.compile(r"(?:\A|[-_])(pid\d+)(?=\Z|[-_])")
@@ -687,7 +720,8 @@ def durable_process_gone(entry, ps=_ps_lstart):
     return durable is not None and durable[0] == NOT_CONFIRMED
 
 
-def session_state(entry, self_session, ps=_ps_lstart, self_session_trusted=True):
+def session_state(entry, self_session, ps=_ps_lstart, self_session_trusted=True,
+                  label_identity_disproved=False):
     """(ACTIVE|NOT_CONFIRMED|UNKNOWN, измерение словами).
 
     ACTIVE — активность ПОДТВЕРЖДЕНА (это мы сами; объявленный сессией долгоживущий процесс
@@ -714,15 +748,79 @@ def session_state(entry, self_session, ps=_ps_lstart, self_session_trusted=True)
     if session and session == self_session:
         if self_session_trusted:
             return ACTIVE, "это текущая сессия"
-        state, why = _measured_session_state(entry, session, ps)
+        state, why = _measured_session_state(
+            entry, session, ps, label_identity_disproved=label_identity_disproved)
         return state, (f"идентификатор совпал с личностью этой проверки ({self_session}), но "
                        f"она выведена из pid однократного процесса и доверенной не является "
                        f"(нет SPA_SESSION_ID) — меряем запись как чужую: {why}")
 
-    return _measured_session_state(entry, session, ps)
+    return _measured_session_state(entry, session, ps,
+                                   label_identity_disproved=label_identity_disproved)
 
 
-def _measured_session_state(entry, session, ps=_ps_lstart):
+def pid_from_label(session):
+    """``(pid, откуда, причина отказа)`` — pid, названный самим идентификатором сессии.
+
+    **Дефект, который это закрывает** (замер цикла #326). Запасной критерий активности
+    разбирал ТОЛЬКО точную форму `pid<N>` (`_PID_RE`), а сессии давно называют себя составным
+    ярлыком — `cycle-325-pid40372`, `cycle-323-pid61319`. Когда у такой записи нет своей пары
+    (`session_pid`, `session_pid_start`) и нечего заимствовать у соседей по журналу
+    (`borrow_durable`), измерение упиралось в «идентификатор не содержит pid» — при том, что
+    pid в нём написан открытым текстом и стоил одной команды `ps`.
+
+    **Самое неприятное: ответ уже лежал в этом же файле.** `pid_tokens` умеет доставать
+    `pidN` из составного ярлыка с #303, где эту механику написали для РОДСТВА ярлыков одной
+    сессии. Родство её спрашивало, измерение активности — ни разу. Поэтому здесь не заводится
+    вторая регулярка: разбор ровно один (`_LABEL_PID_TOKEN`, разделители `-`/`_`, токен
+    компонентом а не подстрокой), и ужесточение его правил автоматически ужесточает оба
+    читателя вместо того, чтобы разводить их по разным определениям.
+
+    Цена этого «не измерено» — не косметическая, и она измерена на живом случае. 21.08 цикл
+    #325 умер, не доставив работу; его единственное объявление несло ярлык
+    `cycle-325-pid40372` без якоря. Шаг 0a отправил запись в «❓ НЕ ИЗМЕРЕНО» ⇒ объявленные ею
+    файлы не разбирались ВООБЩЕ (тот же ущерб, что описан у `borrow_durable`), а шаг 0b
+    прочитал неизмеримую личность как **живого держателя карточки** и запретил подъём
+    осиротевшей работы. Неизмеримость здесь работает как утверждение — и оба раза не в ту
+    сторону.
+
+    **Fail-CLOSED не ослаблен, а сужен до настоящей неизвестности:**
+
+    * pid нет в ярлыке вовсе ⇒ отказ, как было;
+    * ярлык называет НЕСКОЛЬКО РАЗНЫХ pid ⇒ отказ: гадать, который из них процесс сессии,
+      значит менять «не измерено» на выдумку;
+    * `pid0`/`pid1` ⇒ отказ (это не pid сессии, а `ps` по ним ответит утвердительно).
+
+    Доверие ярлыку не повышается: pid из ярлыка — тот же ЗАПАСНОЙ критерий, что и `pid<N>`,
+    с той же защитой от переиспользования pid (старт позже объявления ⇒ «занят ДРУГИМ
+    процессом», см. `_measured_session_state`) и с тем же запретом на пропуск «это мы сами»
+    (`session_state`: доверенная личность — только явный `SPA_SESSION_ID`). Источник pid
+    НАЗЫВАЕТСЯ в измерении вслух, чтобы читатель не принял ярлык за объявленный якорь.
+    """
+    session = str(session or "")
+    m = _PID_RE.match(session)
+    if m:
+        pid = int(m.group(1))
+        if pid <= 1:
+            return None, "", (f"идентификатор сессии {session!r} называет pid{pid} — "
+                              "это не процесс сессии, активность не измерена")
+        return pid, "id", ""
+
+    distinct = sorted(int(token[3:]) for token in pid_tokens(session))
+    if not distinct:
+        return None, "", (f"идентификатор сессии {session!r} не содержит pid — "
+                          "активность процесса не измерена")
+    if len(distinct) > 1:
+        names = ", ".join(f"pid{p}" for p in distinct)
+        return None, "", (f"идентификатор сессии {session!r} называет несколько разных pid "
+                          f"({names}) — который из них процесс сессии, не измерено")
+    pid = distinct[0]
+    if pid <= 1:
+        return None, "", (f"идентификатор сессии {session!r} называет pid{pid} — "
+                          "это не процесс сессии, активность не измерена")
+    return pid, "label", ""
+
+
+def _measured_session_state(entry, session, ps=_ps_lstart, label_identity_disproved=False):
     """Измерение активности записи без ветки «это мы сами» (см. `session_state`)."""
     ts = _parse_ts(entry.get("ts"))
     if ts is None:
@@ -733,29 +831,40 @@ def _measured_session_state(entry, session, ps=_ps_lstart):
     if durable is not None:
         return durable
 
-    m = _PID_RE.match(session)
-    if not m:
-        return UNKNOWN, (f"идентификатор сессии {session!r} не содержит pid — "
-                         "активность процесса не измерена")
-    pid = int(m.group(1))
+    pid, origin, why = pid_from_label(session)
+    if pid is None:
+        return UNKNOWN, why
+    # Ярлык как носитель личности ОПРОВЕРГНУТ журналом (несколько разных якорей под ним) —
+    # запасной критерий отказывает, а не спрашивает `ps` о постороннем процессе. Отличать
+    # «якоря нет ни у кого» от «якорей несколько» обязательно: первое молчит, второе
+    # утверждает (`labels_with_conflicting_anchors`, цикл #327).
+    if origin == "label" and label_identity_disproved:
+        return UNKNOWN, (f"идентификатор сессии {session!r} называет pid{pid}, но в журнале под "
+                         "этим же ярлыком НЕСКОЛЬКО РАЗНЫХ долгоживущих процессов — ярлык как "
+                         "личность опровергнут, активность не измерена")
+    # Ярлык — не объявленный якорь, и читатель обязан видеть разницу: `session_pid` пишется
+    # только по подтверждённому процессу, а pid из ярлыка сессия назвала сама.
+    named = f"pid{pid}" if origin == "id" else f"pid{pid} (назван ярлыком сессии {session!r})"
 
     rc, out = ps(pid)
     if rc == 1:
-        return NOT_CONFIRMED, f"процесса pid{pid} нет (активность не подтверждена)"
+        return NOT_CONFIRMED, f"процесса {named} нет (активность не подтверждена)"
     if rc != 0:
-        return UNKNOWN, f"`ps -p {pid}` не отработал (rc={rc}) — активность не измерена"
+        return UNKNOWN, (f"`ps -p {pid}` не отработал (rc={rc}) — активность {named} "
+                         "не измерена")
     if not out.strip():
-        return UNKNOWN, f"`ps -p {pid}` вернул пустой ответ — активность не измерена"
+        return UNKNOWN, (f"`ps -p {pid}` вернул пустой ответ — активность {named} "
+                         "не измерена")
 
     started = _parse_lstart(out)
     if started is None:
-        return UNKNOWN, (f"pid{pid} существует, но время старта не разобрано: "
+        return UNKNOWN, (f"{named} существует, но время старта не разобрано: "
                          f"{out.strip()!r} — активность не измерена")
 
     if started > ts + CLOCK_SKEW:
-        return NOT_CONFIRMED, (f"pid{pid} занят ДРУГИМ процессом: старт {started.isoformat()} "
+        return NOT_CONFIRMED, (f"{named} занят ДРУГИМ процессом: старт {started.isoformat()} "
                                f"позже объявления {ts.isoformat()}")
-    return ACTIVE, f"pid{pid} жив (старт {started.isoformat()})"
+    return ACTIVE, f"{named} жив (старт {started.isoformat()})"
 
 
 # ── путь → путь внутри репозитория ───────────────────────────────────────────
@@ -1191,6 +1300,182 @@ def list_checkouts(root, git=_git):
     if Path(root) not in dirs:
         dirs.insert(0, Path(root))
     return dirs, dead, None
+
+
+# ── осиротевшая регистрация: четвёртое вместилище недоставленного ────────────
+#
+# Каталоги, которые не являются работой сессии ни в каком дереве: служебные кеши и
+# устанавливаемые зависимости. Список ЗАКРЫТЫЙ и поимённый — по образцу `CHURN_PATHS`
+# уборщика; расширять его, чтобы «скорлупа наконец замолчала», — то же самое, что гасить
+# сторожа. Отсеянное СЧИТАЕТСЯ и печатается: разница между «не считаем» и «не видим»
+# обязана быть видна в самом отчёте.
+SHELL_SKIP_DIRS = frozenset({
+    ".git", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
+    "node_modules", ".astro", ".venv", "venv", ".egg-info",
+})
+
+
+def _walk_shell(shell_dir):
+    """(отсортированные относительные пути, отсеяно-каталогами, причина-если-не-прочиталось).
+
+    Обычный обход файловой системы, а НЕ git: привязка мертва именно git-а, и спрашивать
+    его тут не у кого. Симлинки не разыменовываются (за пределы скорлупы обход не выходит).
+
+    ``onerror`` обязателен: по умолчанию `os.walk` ошибки чтения ГЛОТАЕТ, и нечитаемый
+    подкаталог вернул бы пустой список — то есть «файлов вне churn нет, цена снятия ноль»
+    над содержимым, которое не прочитано ВООБЩЕ. Это ровно тот fail-OPEN, ради закрытия
+    которого написана вся проверка, только этажом ниже."""
+    base = Path(shell_dir)
+    rels, skipped = [], 0
+
+    def _boom(exc):
+        raise exc
+
+    try:
+        for dirpath, dirnames, filenames in os.walk(base, onerror=_boom, followlinks=False):
+            keep = [d for d in dirnames if d not in SHELL_SKIP_DIRS]
+            skipped += len(dirnames) - len(keep)
+            dirnames[:] = keep
+            for name in filenames:
+                p = Path(dirpath) / name
+                if p.is_symlink() or not p.is_file():
+                    continue
+                rels.append(str(p.relative_to(base)))
+    except OSError as exc:                       # каталог исчез/нет прав — это НЕ «пусто»
+        return None, skipped, f"обход каталога не удался: {exc!r}"
+    return sorted(rels), skipped, None
+
+
+def _base_tree(root, base_ref, git=_git):
+    """({путь: blob-sha} для базового ref, причина-если-не-прочиталось).
+
+    ``core.quotePath=false`` обязателен: по умолчанию git экранирует не-ASCII путь
+    (``"\\320\\264..."``), а обход файловой системы даёт его сырым — совпадения не будет,
+    и доставленный файл посчитался бы «старой копией». Находкой это не станет (блоб-то в
+    базе есть), но число в отчёте врало бы."""
+    rc, out, err = git(root, "-c", "core.quotePath=false",
+                       "ls-tree", "-r", "--format=%(objectname) %(path)", base_ref)
+    if rc != 0:
+        return None, (f"`git ls-tree {base_ref}` завершился rc={rc}: {err.strip()[:160]!r} — "
+                      "сверить содержимое скорлупы с базой НЕ УДАЛОСЬ")
+    tree = {}
+    for line in out.splitlines():
+        sha, sep, path = line.partition(" ")
+        if sep:
+            tree[path] = sha
+    return tree, None
+
+
+def orphan_registration_scan(root, base_ref, dead, git=_git):
+    """[строка на осиротевшую регистрацию] — ЧТО в ней лежит, вместо «сверять нечего».
+
+    **Дефект, который это закрывает** (карточка `inbox-shag-0a-obyavlyaet-osirotevshuyu-registr`,
+    замер цикла #323). Мёртвая регистрация — каталог рабочего дерева, у которого умерла
+    git-привязка (`.git`-файл внутри исчез, служебная запись в `.git/worktrees/` осталась).
+    Шаг 0a называл такую регистрацию строкой «**сверять нечего**, но и молчать не о чем» и
+    советовал `git worktree prune`. Утверждение «сверять нечего» НЕВЕРНО, и это выяснилось
+    при попытке выполнить его же совет: в 21 скорлупе уцелело **70 настоящих файлов** вне
+    churn (`docs/STATE.md`, ADR, карточки трекера, `spa_core/monitoring/*`), из них **51**
+    расходился с `origin/main`. Слепое `prune` стёрло бы последний указатель на них.
+
+    Осиротевшая регистрация — **четвёртое** вместилище недоставленной работы: после рабочего
+    дерева (шапка), удалённой ветки (ADR-100) и снятого дерева с квитанцией. На нём сторож
+    молчал УТВЕРДИТЕЛЬНО — тот же класс, что вся очередь #146–#195: зелёный ответ на свой
+    вопрос («git-привязки нет») выдавался за ответ на нужный («работа не потеряна?»).
+
+    **Три исхода, и они РАЗНЫЕ** — сегодня все три схлопнуты в одну строку:
+
+    - ``delivered`` — содержимое побайтово совпадает с `base_ref` (blob-sha равны);
+    - ``stale`` — расходится с базой, НО сам блоб известен объектной базе репозитория
+      (`cat-file --batch-check`): содержимое когда-то коммитилось ⇒ это старая копия,
+      поднимать нечего. Именно этим оказались ВСЕ 51 расхождения замера #323;
+    - ``undelivered`` — блоба нет в объектной базе ВООБЩЕ: байтов, которых не помнит
+      репозиторий, нет больше нигде. **Вот это и есть находка** (код 1).
+
+    **fail-CLOSED не ослаблен.** Любой шаг, который не отработал (правило отсева churn ·
+    `ls-tree` базы · `hash-object` скорлупы · `cat-file --batch-check` · обход каталога),
+    даёт ``unchecked`` и код 2 — «не смог измерить» не сворачивается в «поднимать нечего».
+    Обратная сторона названа: молчаливого «всё в порядке» здесь не появляется ни в одной ветке.
+
+    Стоимость измерена и ограничена: три вызова git на скорлупу (`hash-object --stdin-paths`
+    и `cat-file --batch-check` — пакетные, по одному на регистрацию), плюс ОДИН `ls-tree`
+    на весь отчёт. Потолка на число файлов НЕТ намеренно: тихо срезанное покрытие читалось бы
+    как «проверено всё»."""
+    rows = []
+    if not dead:
+        return rows
+
+    is_churn, why_churn = churn_rule()
+    tree, why_tree = _base_tree(root, base_ref, git=git)
+
+    for d in dead:
+        row = {"path": d["path"], "files": 0, "skipped_dirs": 0, "churn": 0,
+               "delivered": 0, "stale": 0, "undelivered": [], "unchecked": []}
+        rows.append(row)
+
+        rels, skipped, why_walk = _walk_shell(d["path"])
+        row["skipped_dirs"] = skipped
+        if rels is None:
+            row["unchecked"].append(why_walk)
+            continue
+        if is_churn is None:
+            row["unchecked"].append(f"{why_churn} — отделить работу от churn НЕ УДАЛОСЬ, "
+                                    f"файлов в скорлупе: {len(rels)}")
+            continue
+        if tree is None:
+            row["unchecked"].append(why_tree)
+            continue
+
+        work = [r for r in rels if not is_churn(r)]
+        row["churn"] = len(rels) - len(work)
+        row["files"] = len(work)
+        if not work:
+            continue
+
+        # Хеши считаем ПАКЕТНО и в главном дереве: объектная база у worktree общая, а в самой
+        # скорлупе git не работает по условию задачи.
+        rc, out, err = git(root, "hash-object", "--stdin-paths",
+                           stdin="\n".join(str(Path(d["path"]) / r) for r in work) + "\n")
+        shas = out.split()
+        if rc != 0 or len(shas) != len(work):
+            row["unchecked"].append(
+                f"`git hash-object` по скорлупе не отработал (rc={rc}, "
+                f"хешей {len(shas)} на {len(work)} файлов): {err.strip()[:160]!r} — "
+                "содержимое скорлупы НЕ ИЗМЕРЕНО")
+            continue
+
+        unknown = []                     # расходится с базой ⇒ спросить объектную базу
+        for rel, sha in zip(work, shas):
+            if tree.get(rel) == sha:
+                row["delivered"] += 1
+            else:
+                unknown.append((rel, sha))
+        if not unknown:
+            continue
+
+        rc, out, err = git(root, "cat-file", "--batch-check",
+                           stdin="\n".join(sha for _rel, sha in unknown) + "\n")
+        verdicts = out.splitlines()
+        if rc != 0 or len(verdicts) != len(unknown):
+            row["unchecked"].append(
+                f"`git cat-file --batch-check` не отработал (rc={rc}, "
+                f"ответов {len(verdicts)} на {len(unknown)} блобов): {err.strip()[:160]!r} — "
+                f"известны ли репозиторию {len(unknown)} расходящ(ийся/ихся) файл(ов), "
+                "НЕ ИЗМЕРЕНО")
+            continue
+
+        for (rel, sha), verdict in zip(unknown, verdicts):
+            parts = verdict.split()
+            if len(parts) >= 2 and parts[1] == "blob":
+                row["stale"] += 1        # блоб известен ⇒ старая копия, поднимать нечего
+            elif len(parts) >= 2 and parts[1] == "missing":
+                row["undelivered"].append({"path": rel, "sha": sha,
+                                           "on_base": rel in tree})
+            else:
+                row["unchecked"].append(
+                    f"{rel}: `cat-file --batch-check` ответил {verdict.strip()[:80]!r} — "
+                    "ни 'blob', ни 'missing'; известен ли блоб репозиторию, НЕ ИЗМЕРЕНО")
+    return rows
 
 
 def collect_diff_sets(base_ref, checkouts, git=_git):
@@ -1808,6 +2093,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
         "branches_code_only": [],
         "unmeasured": unmeasured,
         "dead_worktrees": [],
+        "orphan_registrations": [],
         "exit_code": 0,
     }
 
@@ -1838,13 +2124,21 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
         return report
     report["checkouts"] = [str(c) for c in checkouts]
 
-    # Мёртвая регистрация: git-привязки нет, сверять нечего. Названа отдельной строкой на
-    # каталог (не молчание), а «не измерено» из неё делается только там, где git СЧИТАЕТ
-    # дерево живым — то есть где непонятность настоящая. См. list_checkouts.
+    # Мёртвая регистрация: git-привязки нет. Названа отдельной строкой на каталог, а «не
+    # измерено» из неё делается только там, где git СЧИТАЕТ дерево живым — то есть где
+    # непонятность настоящая. См. list_checkouts.
     report["dead_worktrees"] = [d for d in dead_worktrees if d["prunable"]]
     for d in dead_worktrees:
         if not d["prunable"]:
             unmeasured.append({"session": None, "path": d["path"], "reason": d["reason"]})
+
+    # ...и её СОДЕРЖИМОЕ (см. orphan_registration_scan). До цикла #325 строка выше говорила
+    # «сверять нечего» — утвердительное молчание над четвёртым вместилищем недоставленного.
+    report["orphan_registrations"] = orphan_registration_scan(
+        root, base_ref, report["dead_worktrees"], git=git)
+    for row in report["orphan_registrations"]:
+        for reason in row["unchecked"]:
+            unmeasured.append({"session": None, "path": row["path"], "reason": reason})
 
     diff_sets, diff_failures = collect_diff_sets(base_ref, checkouts, git=git)
     for f in diff_failures:                      # чекаут не сравнён — сказать это вслух
@@ -1887,11 +2181,15 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
     # дерево общее для всех сессий, и «то же дерево» в нём не значит «та же сессия»); не
     # измерено ⇒ родство по дереву не применяется вовсе (fail-CLOSED).
     anchors, kin = anchors_with_kin(entries, shared_trees=shared_trees)
+    # Ярлыки, которые журнал ОПРОВЕРГ как носителей личности (несколько разных якорей под
+    # одним ярлыком): для них запасной критерий «pid из ярлыка» не применяется вовсе.
+    disproved = labels_with_conflicting_anchors(entries)
 
     for entry in entries:
         entry, borrowed = borrow_durable(entry, anchors, kin)
-        state, why = session_state(entry, self_session, ps=ps,
-                                   self_session_trusted=self_session_trusted)
+        state, why = session_state(
+            entry, self_session, ps=ps, self_session_trusted=self_session_trusted,
+            label_identity_disproved=str(entry.get("session") or "").strip() in disproved)
         if borrowed:
             why = f"{why} [{borrowed}]"
         if state == ACTIVE:
@@ -2248,8 +2546,14 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
     # вопрос, на который сторож обязан отвечать. Возражение «вечная находка без пути обратно»
     # (им обосновано исключение `deleted_on_origin`) здесь не работает: выход есть и он
     # обыкновенный — ветку вливают либо удаляют, после чего находка исчезает сама.
+    # `orphan_registrations` держат код 1 на том же основании, что `on_branch`: содержимого нет
+    # в объектной базе репозитория ВООБЩЕ, то есть работа существует ровно в одном экземпляре и
+    # ровно в этой скорлупе. Путь обратно в зелёное обыкновенный — поднять и доставить (после
+    # чего блоб станет известен базе), либо осознанно снять регистрацию, измерив цену.
+    orphan_findings = any(row["undelivered"] for row in report["orphan_registrations"])
     report["exit_code"] = (2 if unmeasured
                            else (1 if (findings or card_findings or nowhere or on_branch
+                                       or orphan_findings
                                        or report["branches_with_owner_work"]) else 0))
     return report
 
@@ -2405,13 +2709,52 @@ def render(report) -> str:
                        "(меряет, архивирует, оставляет квитанцию; протокол §3.4). "
                        "Снятое руками неизмеримо навсегда.")
 
+    rows_by_path = {r["path"]: r for r in (report.get("orphan_registrations") or [])}
+    orphan_hits = [r for r in rows_by_path.values() if r["undelivered"]]
+
+    if orphan_hits:
+        out.append("")
+        total = sum(len(r["undelivered"]) for r in orphan_hits)
+        out.append(f"🥚 В ОСИРОТЕВШЕЙ РЕГИСТРАЦИИ ЛЕЖИТ НЕДОСТАВЛЕННОЕ ({len(orphan_hits)} "
+                   f"скорлуп(а/ы), файлов: {total}) — каталог рабочего дерева остался, "
+                   "git-привязка мертва, и содержимого этих файлов НЕТ в объектной базе "
+                   "репозитория ВООБЩЕ: ни на базе, ни в одном коммите. Байты существуют "
+                   "ровно здесь. `git worktree prune` сотрёт последний указатель на них:")
+        for r in orphan_hits:
+            out.append(f"  [скорлупа] {r['path']}")
+            out.append(f"      файлов вне churn: {r['files']} · совпадает с {base}: "
+                       f"{r['delivered']} · старых копий (блоб известен репо): {r['stale']} · "
+                       f"НЕТ В РЕПО: {len(r['undelivered'])}")
+            for f in r["undelivered"][:20]:
+                where = f"есть на {base} под другим содержимым" if f["on_base"] \
+                    else f"имени нет и на {base}"
+                out.append(f"      • {f['path']} ({f['sha'][:9]}, {where})")
+            if len(r["undelivered"]) > 20:
+                out.append(f"      … и ещё {len(r['undelivered']) - 20} "
+                           f"(полный список — `--json`, ключ `orphan_registrations`)")
+
     if report.get("dead_worktrees"):
         out.append("")
         out.append(f"🧹 мёртвые регистрации рабочих деревьев ({len(report['dead_worktrees'])}) — "
-                   "каталог остался, git-привязки нет; сверять нечего, но и молчать не о чем "
-                   "(лечится осознанным `git worktree prune`):")
+                   "каталог остался, git-привязки нет (лечится `git worktree prune`, но цену "
+                   "снятия смотреть в строке КАЖДОЙ скорлупы — она измерена, а не оценена):")
         for d in report["dead_worktrees"]:
+            r = rows_by_path.get(d["path"])
             out.append(f"  - {d['path']}: {d['reason']}")
+            if r is None:
+                continue
+            if r["unchecked"]:
+                out.append(f"      содержимое НЕ ИЗМЕРЕНО: {r['unchecked'][0]}")
+            elif r["undelivered"]:
+                out.append(f"      ⚠️ снимать НЕЛЬЗЯ: {len(r['undelivered'])} файл(ов) нет в "
+                           "объектной базе репо — см. раздел «в осиротевшей регистрации»")
+            elif r["files"]:
+                out.append(f"      цена снятия НОЛЬ: файлов вне churn {r['files']}, из них "
+                           f"совпадает с {base} {r['delivered']}, старых копий {r['stale']}; "
+                           "содержимого, неизвестного репозиторию, нет")
+            else:
+                out.append(f"      цена снятия НОЛЬ: файлов вне churn нет "
+                           f"(отсеяно churn-путей: {r['churn']})")
 
     if report.get("by_design"):
         out.append("")
