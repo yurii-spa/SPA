@@ -1734,16 +1734,77 @@ def branch_scan(root, base_ref, git=_git):
             continue
         rc, ahead, _ = git(root, "rev-list", "--count", f"{base_ref}..{ref}")
         unique = sorted(files - base_files)
+        owner_work = [p for p in unique if p.startswith(OWNER_WORK_PREFIXES)]
+        touch, touch_unmeasured = owner_work_last_touch(root, base_ref, ref, owner_work, git=git)
+        if touch_unmeasured:
+            unmeasured.append(touch_unmeasured)
         rows.append({
             "ref": ref,
             "tip": row["tip"],
             "ahead": int(ahead.strip()) if rc == 0 and ahead.strip().isdigit() else None,
             "files": files,
             "unique": unique,
-            "owner_work": [p for p in unique if p.startswith(OWNER_WORK_PREFIXES)],
+            "owner_work": owner_work,
             "code": [p for p in unique if p.startswith(CODE_PREFIXES)],
+            "owner_touch": touch,
         })
     return rows, unmeasured
+
+
+def owner_work_last_touch(root, base_ref, ref, owner_work, git=_git):
+    """Когда решения и карточки ветки трогали в последний раз: (замер|None, «не измерено»|None).
+
+    Замер — ``{"date", "sha", "commits_above"}``: дата последнего коммита ветки, который трогает
+    ХОТЯ БЫ ОДИН из путей `owner_work`, и число коммитов, лежащих поверх него и не трогающих
+    НИ ОДНОГО из них.
+
+    **Почему спрашивается именно это, а не «свежий ли у ветки коммит».** Вершину ветки двигает
+    и merge НАШЕЙ ЖЕ базы: облачная сессия подмерживает `origin/main` сама, и `committerdate`
+    вершины после этого говорит о нашем цикле, а не о работе автора. 21.08 у
+    `origin/claude/unreadable-description-ltyucb` вершина была свежестью 24 минуты, а последний
+    коммит АВТОРА — шестичасовой давности: три merge базы поверх. Шаг 0a печатал первую дату, и
+    читалась она как «работа идёт». Это не косметика: карточка разбора ветки разводит по этой
+    дате два ПРОТИВОПОЛОЖНЫХ действия — «не трогать живую работу» и «разобрать брошенную», —
+    а ветка, которую мержат с базой раз в час, выглядит вечно живой, и потерянные на ней решения
+    владельца не поднимаются НИКОГДА. Fail-OPEN внутри fail-CLOSED-сторожа (класс #226).
+
+    **Почему признак — пути, а не `--no-merges`.** Merge МОЖЕТ нести содержимое автора (разрешение
+    конфликта), и `--no-merges` объявил бы такую ветку замороженной — то есть позвал бы разбирать
+    ЖИВУЮ работу, а это ровно та разрушительная сторона, от которой предостерегает карточка.
+    Спрашивается поэтому не «какой природы коммит», а «трогал ли он предмет находки»: решения и
+    карточки, которых на базе нет ВООБЩЕ. Ответ на этот вопрос ТОЧЕН — коммит либо есть в
+    ``rev-list -- <пути>``, либо его там нет, — и он же есть ровно тот вход, по которому решают
+    судьбу ветки: если карточки владельца не двигались, они брошены независимо от того, чем занят
+    автор в других файлах.
+
+    Ветка без решений и карточек замера не получает (`None`): предмета нет — нечего и датировать.
+    """
+    if not owner_work:
+        return None, None
+    rc, out, err = git(root, "rev-list", "--max-count=1", "--format=%H%x09%cI",
+                       f"{base_ref}..{ref}", "--", *owner_work)
+    if rc != 0:
+        return None, (f"ветка {ref}: когда в последний раз трогали её решения и карточки, "
+                      f"НЕ ИЗМЕРЕНО (git rev-list rc={rc} {err.strip()[:120]!r}) — свежесть "
+                      "вершины про них не говорит, а другого основания нет")
+    # `rev-list --format` печатает строку «commit <sha>» и следом саму строку формата.
+    payload = [ln for ln in out.splitlines() if not ln.startswith("commit ")]
+    if not payload:
+        return None, None
+    sha, _, date = payload[0].partition("\t")
+    sha, date = sha.strip(), date.strip()
+    if not sha or not date:
+        return None, (f"ветка {ref}: дату последнего касания решений и карточек прочитать не "
+                      f"удалось (git rev-list вернул {payload[0].strip()[:80]!r}) — НЕ ИЗМЕРЕНО")
+    # `^sha ^base_ref`, а не `sha..ref`: merge базы втягивает в ветку и коммиты НАШЕГО ЖЕ main,
+    # и без второго исключения счёт мерил бы наш цикл вместо работы автора (живой замер 21.08:
+    # 16 против 2). Число обязано отвечать ровно на «сколько автор сделал поверх, не тронув
+    # предмет находки».
+    rc, above, _ = git(root, "rev-list", "--count", ref, f"^{sha}", f"^{base_ref}")
+    if rc != 0 or not above.strip().isdigit():
+        return None, (f"ветка {ref}: сколько коммитов лежит поверх последнего касания её решений "
+                      f"и карточек, НЕ ИЗМЕРЕНО (git rev-list --count rc={rc})")
+    return {"date": date, "sha": sha, "commits_above": int(above.strip())}, None
 
 
 def paths_on_branches(rel, branches):
@@ -2156,7 +2217,8 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                "unique": len(b["unique"]), "owner_work": b["owner_work"],
                "code": len(b["code"]),
                "decisions": [p for p in b["owner_work"] if p.startswith("docs/decisions/")],
-               "cards": [p for p in b["owner_work"] if p.startswith("nimbalyst-local/tracker/")]}
+               "cards": [p for p in b["owner_work"] if p.startswith("nimbalyst-local/tracker/")],
+               "owner_touch": b.get("owner_touch")}
         if b["owner_work"]:
             report["branches_with_owner_work"].append(row)
         elif b["unique"]:
@@ -2560,6 +2622,17 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
 
 # ── печать ───────────────────────────────────────────────────────────────────
 
+def _stamp(iso):
+    """Отметка времени до МИНУТ: «2026-08-21 01:56». Непонятный вход отдаётся как есть.
+
+    До дня не обрезаем осознанно: у ветки, которую мержат несколько раз в сутки, весь разрыв
+    между вершиной и последним касанием предмета — внутрисуточный (21.08: 05:40 против 01:56),
+    и «2026-08-21» с обеих сторон читалось бы как «разрыва нет».
+    """
+    s = str(iso or "")
+    return s[:16].replace("T", " ") if len(s) >= 16 and s[10:11] == "T" else s
+
+
 def render(report) -> str:
     out = []
     base = report["base_ref"]
@@ -2633,8 +2706,18 @@ def render(report) -> str:
                    "параллельная работа), а решение или карточка означают, что очередь "
                    "владельца потеряла пункт: восстановить его нечем, кроме самой ветки:")
         for b in rows:
-            out.append(f"  [ветка] {b['ref']} (последний коммит {b['tip'][:10]}, "
+            out.append(f"  [ветка] {b['ref']} (последний коммит {_stamp(b['tip'])}, "
                        f"коммитов сверх базы: {b['ahead']})")
+            touch = b.get("owner_touch")
+            if touch and touch["commits_above"] > 0:
+                # Вершину двигает и merge НАШЕЙ ЖЕ базы: без этой строки свежая дата вершины
+                # читается как «работа идёт» и уводит разбор ветки в противоположное действие.
+                # Обе даты печатаются С МИНУТАМИ намеренно: у ветки, которую мержат несколько раз
+                # в сутки, весь разрыв внутрисуточный, и обрезка до дня стёрла бы ровно его.
+                out.append(f"      решения и карточки этой ветки не трогали с "
+                           f"{_stamp(touch['date'])} — поверх лежат {touch['commits_above']} "
+                           f"коммит(ов) автора, ни один их не касается: свежесть ВЕРШИНЫ про "
+                           f"предмет находки НЕ ГОВОРИТ, судить о судьбе ветки по ней нельзя")
             out.append(f"      уникальных путей: {b['unique']} · решений: {len(b['decisions'])} "
                        f"· карточек: {len(b['cards'])} · кода: {b['code']}")
             for p in (b["decisions"] + b["cards"])[:8]:
