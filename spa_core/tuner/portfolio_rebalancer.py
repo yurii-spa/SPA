@@ -166,6 +166,8 @@ def _build_safe_fallback_positions(
     capital_usd: float,
     base_positions: Optional[Dict[str, float]] = None,
     class_gate=None,
+    data_dir: Optional[Path] = None,
+    tvl_verdict_fn=None,
 ) -> Tuple[Dict[str, float], float]:
     """Build a known-good policy-compliant portfolio.
 
@@ -180,6 +182,10 @@ def _build_safe_fallback_positions(
         class_gate:     Optional ``(protocol) -> (allowed, reason)`` override
                         (for tests). Default — the allocator's
                         ``_adapter_class_gate`` (ADR-061).
+        data_dir:       Where the live observations live (ADR-108).
+        tvl_verdict_fn: Optional ``(protocol, data_dir) -> True|False|None``
+                        override (for tests). Default —
+                        ``status_reader.tvl_floor_verdict``.
 
     Returns:
         (positions_usd, cash_usd)
@@ -218,6 +224,45 @@ def _build_safe_fallback_positions(
             )
             return {}, capital_usd
 
+    # ── ADR-108 (owner choice C, 2026-08-21) ────────────────────────────────
+    # Second gate: a protocol leaves the emergency book when a LIVE observation
+    # exists and CONTRADICTS the rule — observed pool size below the $5M
+    # RiskPolicy floor. No observation at all is not a contradiction: the
+    # emergency book exists precisely for "the data is bad", and its membership
+    # is approved by ADR, not by a feed.
+    #
+    # `tvl_floor_verdict` is already three-valued and means exactly this:
+    #   False → observed, below the floor  → evidence AGAINST → drop to cash
+    #   None  → nothing was observed       → keep (ADR-approved membership)
+    #   True  → observed, above the floor  → keep
+    #
+    # Measured cost on today's data (2026-08-18, 34 adapters): $0 — not one of
+    # the seven has a contradicting observation. The owner was shown that number
+    # and chose C over the strict variant B, which measured $75_852 → $0, i.e.
+    # it would have turned the emergency branch into "always fully in cash".
+    #
+    # NOTE the asymmetry with the class gate above, and it is deliberate: a
+    # failure to READ an observation is treated as "not observed" (keep), not as
+    # evidence. Blocking on read errors would quietly deliver variant B — one
+    # unreadable file and the whole emergency book goes to cash — which is the
+    # option the owner declined. The invariant-bearing class gate (9/10) is
+    # untouched and still fails CLOSED.
+    if tvl_verdict_fn is None:
+        try:
+            from spa_core.adapters.status_reader import (
+                tvl_floor_verdict as tvl_verdict_fn,
+            )
+        except Exception as exc:  # noqa: BLE001
+            log.error(
+                "safe-fallback: live-TVL reader unavailable (%s) — no protocol "
+                "can be contradicted, emergency book keeps its ADR-approved "
+                "membership (ADR-108)",
+                exc,
+            )
+            tvl_verdict_fn = lambda _proto, _dd=None: None  # noqa: E731
+
+    ddir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
+
     allowed_base: Dict[str, float] = {}
     blocked: Dict[str, str] = {}
     for proto, usd in base.items():
@@ -226,13 +271,25 @@ def _build_safe_fallback_positions(
         except Exception as exc:  # noqa: BLE001 — fail-CLOSED per protocol
             ok, reason = False, f"gate_error:{type(exc).__name__}"
         if ok:
+            try:
+                verdict = tvl_verdict_fn(proto, ddir)
+            except Exception as exc:  # noqa: BLE001 — unread ≠ contradicted
+                log.error(
+                    "safe-fallback: live-TVL verdict for %s raised %s — treated "
+                    "as NOT OBSERVED, protocol kept (ADR-108)",
+                    proto, type(exc).__name__,
+                )
+                verdict = None
+            if verdict is False:
+                ok, reason = False, "live_tvl_below_floor"
+        if ok:
             allowed_base[proto] = usd
         else:
             blocked[proto] = str(reason)
     if blocked:
         log.warning(
-            "safe-fallback: adapter class gate BLOCKED %s — share moved to cash "
-            "(invariants 9/10, ADR-061)",
+            "safe-fallback: BLOCKED %s — share moved to cash "
+            "(invariants 9/10 ADR-061; live-TVL contradiction ADR-108)",
             blocked,
         )
     if not allowed_base:
@@ -352,7 +409,9 @@ def rebalance_portfolio(
             rules_violated,
         )
         # ── Fallback: use hardcoded policy-compliant portfolio ────────────
-        positions_usd, cash_usd = _build_safe_fallback_positions(capital_usd)
+        positions_usd, cash_usd = _build_safe_fallback_positions(
+            capital_usd, data_dir=ddir
+        )
         val = validate_positions(
             positions=positions_usd,
             capital_usd=capital_usd,
