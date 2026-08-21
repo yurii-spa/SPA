@@ -467,7 +467,6 @@
 - Напоминание о снятии стоп-крана: реализовать политику А1 (ADR-097)  ·  `agent-task-napominanie-o-snyatii-stop-krana-realizo.md` · 2026-08-20
 - Одно число — два вердикта: portfolio health 69.4 это CRITICAL у системного сторожа и WARNING у агентного  ·  `agent-task-odno-chislo-dva-verdikta-portfolio-healt.md` · 2026-08-07
 - Права на origin нечем починить: пушер по построению сохраняет режим remote, а правило требует чинить режим на origin  ·  `agent-task-prava-na-origin-nechem-pochinit-pusher-p.md` · 2026-08-07
-- Сторож-автоперезапуск telegram_bot: маячок протух — бот перезапускается сам  ·  `agent-telegram-bot-watchdog.md` · 2026-08-21
 - Прогон тестов пачкает git-tracked фикстуры — «чистое дерево» перестало быть сигналом  ·  `agent-test-run-dirties-tracked-fixtures.md` · 2026-08-04
 - 20 модулей Tier-B помечены `unsourced` — поднять их обратно можно только источником, не правкой разметки  ·  `agent-tier-b-20-unsourced-modules-need-sources.md` · 2026-08-06
 - Разбор базы храповика: 24 скрипта не упомянуты НИГДЕ — и это не значит «мусор»  ·  `agent-unwired-baseline-triage.md` · 2026-08-09
@@ -546,6 +545,7 @@
 - Красный CI-Lite невидим: гейт mypy живёт в workflow, который никто не смотрит, и его падение гасит две другие проверки  ·  `agent-task-krasnyi-ci-lite-nevidim-geit-mypy-zhivet.md` · 2026-08-03
 - Повторное дописывание файла в одном цикле дублирует содержимое: rebase_append считает хвост от устаревшей базы, а не от remote  ·  `agent-task-povtornoe-dopisyvanie-faila-v-odnom-tsik.md` · 2026-08-03
 - Сторож governance отчитывается «8 ok / 0 failed», не проверяя НИ ОДИН удерживаемый протокол — пересечение с портфелем пустое  ·  `agent-task-storozh-governance-otchityvaetsya-8-ok-0.md` · 2026-08-01
+- Сторож-автоперезапуск telegram_bot: маячок протух — бот перезапускается сам  ·  `agent-telegram-bot-watchdog.md` · 2026-08-21
 - Последнее падение на main — страж сети требует ПУСТОЙ журнал попыток, а к его очереди накоплено 2267 чужих записей  ·  `agent-telegram-guard-outermost-fails-only-in-full-run.md` · 2026-08-03
 - Тесты шлют боевые Telegram-алерты владельцу (cycle_gap)  ·  `agent-tests-send-live-telegram-alerts.md` · 2026-07-31
 - Тест трек-персистенса пишет в НАСТОЯЩИЙ off-site бэкап (iCloud) и вешает весь прогон spa_core/tests намертво  ·  `agent-track-persistence-test-writes-to-real-icloud-backup.md` · 2026-08-04
