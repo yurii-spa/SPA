@@ -138,3 +138,99 @@ def test_no_site_files_skips_guard_still_pushes(monkeypatch, fake_run):
     assert len(push_calls) == 1
     env = push_calls[0]["kwargs"].get("env", {})
     assert env.get("SPA_SITE_PUSH_VERIFIED") == "1"
+
+
+# --------------------------------------------------------------------------- #
+# Спам владельцу (замер 21.08): один owner-gated вопрос — ОДНО уведомление,    #
+# даже когда каждый цикл идёт в свежем worktree                               #
+# --------------------------------------------------------------------------- #
+@pytest.fixture()
+def ledger_tmp(monkeypatch, tmp_path):
+    """Включить персистентный реестр уведомлений и увести его в throwaway-файл.
+
+    Без опт-ина реестр под pytest выключен (`_ledger_disabled`), чтобы прогон не
+    читал/писал живое состояние. Этому тесту реестр НУЖЕН — включаем явно.
+    """
+    ledger = tmp_path / "owner_gate_notify_ledger.json"
+    monkeypatch.setenv("SPA_OWNER_GATE_LEDGER_TEST", "1")
+    monkeypatch.setenv("SPA_OWNER_GATE_LEDGER", str(ledger))
+    return ledger
+
+
+def _gated_once(monkeypatch, tmp_path, report, *, tracker_name):
+    """Один цикл автономного оркестратора: СВОЙ пустой worktree-трекер, общий реестр."""
+    d = tmp_path / tracker_name
+    d.mkdir()
+    monkeypatch.setattr(ownq, "TRACKER_DIR", d)
+    monkeypatch.setattr(sp, "_run_guard", lambda files, msg: (2, report))
+    return sp.main(["--files", "landing/src/pages/packages.astro", "-m", "paper numbers"])
+
+
+def test_same_owner_gated_change_notifies_owner_only_once(monkeypatch, fake_run,
+                                                          ledger_tmp, tmp_path):
+    report = {"violations": [
+        {"klass": "B", "file": "landing/src/pages/packages.astro",
+         "rule": "yield-number", "matched_text": "APY 8%"}]}
+
+    # Два цикла подряд, КАЖДЫЙ в своём (пустом) worktree-трекере — точное
+    # воспроизведение прода: worktree-проверка прежней карточки не видит.
+    assert _gated_once(monkeypatch, tmp_path, report, tracker_name="tracker_cycle1") == 2
+    assert _gated_once(monkeypatch, tmp_path, report, tracker_name="tracker_cycle2") == 2
+
+    notify_calls = [c for c in fake_run.calls if "notify" in c["cmd"]]
+    assert len(notify_calls) == 1, (
+        "владельца уведомили дважды об ОДНОМ owner-gated вопросе — это и есть спам, "
+        f"который чинится: {len(notify_calls)} уведомлений")
+
+
+def test_different_violations_still_notify(monkeypatch, fake_run, ledger_tmp, tmp_path):
+    """Обратный контроль: ДРУГОЙ набор нарушений — новый вопрос, новое уведомление."""
+    report_a = {"violations": [
+        {"klass": "B", "file": "landing/src/pages/packages.astro",
+         "rule": "yield-number", "matched_text": "APY 8%"}]}
+    report_b = {"violations": [
+        {"klass": "L", "file": "landing/src/pages/faq.astro",
+         "rule": "legal-disclaimer", "matched_text": "no lock-up"}]}
+
+    assert _gated_once(monkeypatch, tmp_path, report_a, tracker_name="t1") == 2
+    assert _gated_once(monkeypatch, tmp_path, report_b, tracker_name="t2") == 2
+
+    notify_calls = [c for c in fake_run.calls if "notify" in c["cmd"]]
+    assert len(notify_calls) == 2, (
+        "разные owner-gated вопросы обязаны уведомлять раздельно — иначе дедуп "
+        "проглотил бы настоящий второй вопрос")
+
+
+# --------------------------------------------------------------------------- #
+# Единичные проверки логики реестра (часы — вход, fail-OPEN на битом файле)    #
+# --------------------------------------------------------------------------- #
+def test_ledger_cooldown_expires(monkeypatch, ledger_tmp):
+    import datetime as dt
+
+    monkeypatch.setenv("SPA_OWNER_GATE_LEDGER_TEST", "1")
+    t0 = dt.datetime(2026, 8, 21, 12, 0, tzinfo=dt.timezone.utc)  # FROZEN-DATE-OK: injected-clock (обе стороны часов — вход, тест бессмертен)
+    sp._record_notified("abc123", now=t0)
+
+    within, _ = sp._recently_notified("abc123", now=t0 + dt.timedelta(hours=1))
+    assert within is True, "в пределах окна отката повтор обязан подавляться"
+
+    after, _ = sp._recently_notified("abc123",
+                                     now=t0 + dt.timedelta(hours=sp._RENOTIFY_COOLDOWN_H + 1))
+    assert after is False, "после окна отката владельца можно переспросить (потерянное первое)"
+
+
+def test_ledger_unreadable_fails_open(monkeypatch, ledger_tmp):
+    # Битый реестр НЕ имеет права подавить вопрос владельцу (fail-OPEN сюда — по замыслу).
+    ledger_tmp.write_text("{ this is not json", encoding="utf-8")
+    monkeypatch.setenv("SPA_OWNER_GATE_LEDGER_TEST", "1")
+    skip, _ = sp._recently_notified("whatever")
+    assert skip is False, "нечитаемый реестр обязан пропустить уведомление, а не съесть его"
+
+
+def test_ledger_disabled_under_pytest_without_optin(monkeypatch):
+    # Без опт-ина реестр молчит: прогон тестов не читает и не пишет живое состояние.
+    monkeypatch.delenv("SPA_OWNER_GATE_LEDGER_TEST", raising=False)
+    monkeypatch.delenv("SPA_OWNER_GATE_LEDGER", raising=False)
+    assert sp._ledger_disabled() is True
+    sp._record_notified("x")  # no-op, must not raise or write anywhere
+    assert sp._recently_notified("x") == (False, None)

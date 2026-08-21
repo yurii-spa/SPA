@@ -88,6 +88,131 @@ def _open_card_with_fingerprint(fingerprint: str):
     return None
 
 
+# ── Персистентный дедуп УВЕДОМЛЕНИЙ (спам владельцу, замер 21.08.2026) ─────────
+#
+# `_open_card_with_fingerprint` смотрит в трекер ЗАПУСКАЮЩЕГО дерева
+# (`queue.TRACKER_DIR` = `<repo>/nimbalyst-local/tracker`). Автономный оркестратор
+# бежит КАЖДЫЙ цикл в свежем worktree, где карточки прошлого цикла нет, а сама
+# карточка на `origin` не возится (автосинк не тянет `nimbalyst-local/tracker/`,
+# урок #193/#270). Поэтому worktree-проверка НИКОГДА не находит прежнюю карточку —
+# и тот же owner-gated вопрос заводился и УВЕДОМЛЯЛСЯ владельцу каждый цикл. Окно
+# анти-шторма в 30 минут (`telegram_client.DUPLICATE_WINDOW_S`) не спасает: циклы
+# разнесены дальше, и каждый проходит окно как «новое» сообщение.
+#
+# Лечится тем, что «мы уже спросили владельца про ЭТОТ набор нарушений» пишется в
+# ЖИВОЙ data-каталог (`live_data_dir`), а не в дерево запуска — и переживает смену
+# worktree. Отпечаток набора нарушений стабилен между циклами, поэтому он и есть
+# ключ. НЕ подавление: owner-gate по-прежнему НЕ пускает правку в live; тише
+# становится только повтор ОДНОГО И ТОГО ЖЕ вопроса. Пропущенный вопрос всё равно
+# виден: непрерывный сторож `owner_decision_pending` держит открытые вопросы
+# владельца в отчёте (ежечасно, шаг 0-офис), а долгий откат ниже страхует от
+# потерянного первого сообщения.
+_NOTIFY_LEDGER_NAME = "owner_gate_notify_ledger.json"
+
+#: Как долго один и тот же owner-gated вопрос НЕ переспрашивается у владельца. Не
+#: «никогда»: первое сообщение могло не дойти (сеть), и раз в сутки напомнить —
+#: это не спам. Переопределяется env для тестов.
+_RENOTIFY_COOLDOWN_H = float(os.environ.get("SPA_OWNER_GATE_RENOTIFY_H", "24") or 24)
+
+
+def _ledger_disabled() -> bool:
+    """Под pytest реестр выключен, если тест явно не попросил обратного.
+
+    Тот же приём, что у `telegram_client._record_history`: живой реестр лежит в
+    `live_data_dir`, и без этого прогон тестов либо читал бы чужое состояние, либо
+    писал бы файл в рабочее дерево. Тест, которому реестр НУЖЕН, ставит
+    `SPA_OWNER_GATE_LEDGER_TEST=1` и указывает путь через `SPA_OWNER_GATE_LEDGER`.
+    """
+    return bool(os.environ.get("PYTEST_CURRENT_TEST")) and not os.environ.get(
+        "SPA_OWNER_GATE_LEDGER_TEST"
+    )
+
+
+def _ledger_path() -> Path:
+    override = os.environ.get("SPA_OWNER_GATE_LEDGER")
+    if override:
+        return Path(override)
+    from spa_core.utils.live_paths import live_data_dir
+
+    return live_data_dir(_REPO_ROOT) / _NOTIFY_LEDGER_NAME
+
+
+def _recently_notified(fingerprint: str, *, now=None):
+    """(skip, last_iso): уведомляли ли уже про ЭТОТ набор нарушений в окне отката.
+
+    Fail-OPEN намеренно и ровно в эту сторону: нечитаемый/битый реестр НЕ имеет
+    права ПОДАВИТЬ вопрос владельцу — в сомнении уведомляем (лучше лишний повтор,
+    чем потерянное решение). Подавляет только ЯВНАЯ свежая запись.
+    """
+    if _ledger_disabled():
+        return False, None
+    import datetime as _dt
+
+    now = now or _dt.datetime.now(_dt.timezone.utc)
+    try:
+        doc = json.loads(_ledger_path().read_text(encoding="utf-8"))
+        rec = (doc.get("fingerprints") or {}).get(fingerprint)
+    except Exception:  # noqa: BLE001 — нет/битый реестр ⇒ считаем «не уведомляли»
+        return False, None
+    if not isinstance(rec, dict):
+        return False, None
+    ts = rec.get("notified_at")
+    try:
+        last = _dt.datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        if last.tzinfo is None:
+            last = last.replace(tzinfo=_dt.timezone.utc)
+    except Exception:  # noqa: BLE001 — неразборчивая отметка ⇒ уведомляем
+        return False, None
+    age_h = (now - last).total_seconds() / 3600.0
+    return (0 <= age_h < _RENOTIFY_COOLDOWN_H), ts
+
+
+def _record_notified(fingerprint: str, *, now=None) -> None:
+    """Запомнить, что владельца про ЭТОТ набор нарушений уже уведомили. Не бросает.
+
+    Записи старше двойного окла отката подрезаются — реестр не растёт бесконечно.
+    """
+    if _ledger_disabled():
+        return
+    import datetime as _dt
+
+    now = now or _dt.datetime.now(_dt.timezone.utc)
+    path = _ledger_path()
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(doc, dict):
+            doc = {}
+    except Exception:  # noqa: BLE001
+        doc = {}
+    fps = doc.get("fingerprints")
+    if not isinstance(fps, dict):
+        fps = {}
+    fps[fingerprint] = {"notified_at": now.isoformat()}
+    # Подрезка: держим только записи в пределах 2× окна отката.
+    cutoff = now - _dt.timedelta(hours=_RENOTIFY_COOLDOWN_H * 2)
+    kept = {}
+    for fp, rec in fps.items():
+        if not isinstance(rec, dict):
+            continue
+        try:
+            t = _dt.datetime.fromisoformat(str(rec.get("notified_at")).replace("Z", "+00:00"))
+            if t.tzinfo is None:
+                t = t.replace(tzinfo=_dt.timezone.utc)
+        except Exception:  # noqa: BLE001 — неразборчивую отметку не держим
+            continue
+        if t >= cutoff:
+            kept[fp] = rec
+    out = {"schema_version": 1, "source": "safe_site_push",
+           "updated_at": now.isoformat(), "fingerprints": kept}
+    try:
+        from spa_core.utils.atomic import atomic_save
+
+        path.parent.mkdir(parents=True, exist_ok=True)
+        atomic_save(out, str(path))
+    except Exception as exc:  # noqa: BLE001 — учёт не важнее доставки
+        print(f"safe_site_push: notify-ledger write failed ({exc})", file=sys.stderr)
+
+
 def _rel(path: str) -> str:
     """Repo-relative POSIX path. The gate reports violations by repo-relative path
     (`landing/src/pages/x.astro`), while `--files` may arrive absolute; an `approves:`
@@ -195,6 +320,16 @@ def _route_to_owner_card(site_files: list[str], report: dict, message: str) -> N
               f"({existing.name}) — not creating a duplicate, not notifying",
               file=sys.stderr)
         return
+    # Персистентный дедуп ПОВЕРХ worktree-проверки выше: она видит только карточки
+    # ЗАПУСКАЮЩЕГО дерева, а автономный оркестратор каждый цикл — в новом worktree,
+    # где прежней карточки нет (спам владельцу, замер 21.08). Реестр в живом
+    # data-каталоге переживает смену дерева и молчит про уже заданный вопрос.
+    recently, last_at = _recently_notified(fingerprint)
+    if recently:
+        print(f"safe_site_push: owner already notified about these violations at "
+              f"{last_at} (< {_RENOTIFY_COOLDOWN_H:g}h ago) — not re-notifying "
+              f"(fingerprint {fingerprint})", file=sys.stderr)
+        return
     lines.append("")
     lines.append(f"<!-- owner-gate-fingerprint: {fingerprint} -->")
     body = "\n".join(lines)
@@ -225,6 +360,9 @@ def _route_to_owner_card(site_files: list[str], report: dict, message: str) -> N
                  "notify", str(card_path)],
                 cwd=str(_REPO_ROOT), timeout=30,
             )
+            # Отметить ТОЛЬКО после отправки: упавший create_card до этой точки не
+            # доходит, и откат не начнётся с вопроса, которого владелец не видел.
+            _record_notified(fingerprint)
         except Exception:
             pass
     except Exception as exc:
