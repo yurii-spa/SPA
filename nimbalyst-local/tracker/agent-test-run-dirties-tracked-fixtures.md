@@ -187,3 +187,31 @@ STATE про эту карточку говорил «писателя не ме
 
 **Осторожно следующему:** `data/` в корне — живое состояние (там же трек). Чинить писателей, а НЕ
 добавлять пути в `.gitignore` и НЕ трогать `CHURN_PATHS` уборщика — это гашение сторожа.
+
+---
+
+## 📏 Живой замер циклом #324: не три файла, а **83**
+
+Число в этой карточке (три git-tracked фикстуры) занижает масштаб больше чем в 25 раз. Замерено
+побочно, без отдельной работы: полный прогон CI-командой в чистом worktree на `bc3bfb8be`
+(`spa_core/tests/ tests/ scripts/tests/ spa_core/analytics/gross_of/ research/cards/`,
+109142 passed / 0 failed), затем `scripts/reap_stale_worktrees.py` перечислил отсеянные
+churn-пути. Их **83**, и это git-tracked файлы, а не мусор в `/tmp`:
+
+- `data/*_log.json` — 78 штук (`alert_log`, `risk_alerts`, `attack_simulation_log`,
+  `liquidation_cascade_log`, `adapter_status`, `gap_monitor`, `market_regime`, `uptime_status`,
+  `tear_sheet_summary`, …);
+- `spa_core/data/` — `reward_harvesting_log.json`, `token_emission_log.json`;
+- `spa_core/database/spa.db`.
+
+**Почему это важнее, чем звучит.** Карточка #225/#226 закрыла три ПОИМЕНОВАННЫХ пути, и после этого
+«чистое дерево перед пушем» снова читается как сигнал — а он ложный: любой полный прогон пачкает
+ещё 83. Отдельно: `data/alert_log.json` и `data/risk_alerts.json` в этом списке — это живое
+состояние тревог (известный класс «прогон тестов может ЗАГЛУШИТЬ настоящую тревогу kill-switch»).
+
+**Сверка с другим источником:** карточка `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data`
+на ветке `origin/claude/unreadable-description-ltyucb` называет **сорок**. Ни три, ни сорок с этим
+замером не сходятся — писателя я НЕ мерил (какой тест какой файл трогает), поэтому расхождение
+называю, а не объясняю: возможно, разный набор путей прогона или разный момент замера. Число 83
+получено на команде, которой гоняет CI, и на одном конкретном sha — это его область применимости.
+
