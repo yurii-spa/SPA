@@ -20,6 +20,9 @@ Self-healing rules (deterministic, stdlib only, LLM FORBIDDEN):
      kickstart com.spa.daily_cycle.
   4. Every action is logged to data/self_heal_status.json and (on action or repeated
      failure) sent to Telegram. Fail-safe: a heal attempt never crashes the watchdog.
+  R6. telegram_bot with a LIVE pid but a STALE liveness beacon (long-poll wedged —
+     rule 2 sees only PID 0) → kickstart -k, edge-triggered + circuit-broken
+     (see the R6 constants below; owner mandate 2026-08-21).
   5. own-28 (вариант 1): the final «✅ восстановлено» for the ``core_agent_down``
      alert class is emitted HERE and only here — after a clean run whose own fleet
      check proves every residency-required agent is alive again (fail-CLOSED on
@@ -58,6 +61,24 @@ SUBPROC_TIMEOUT = 25
 API_STALE_HOURS = 30.0
 _API_STATUS_URL = "http://127.0.0.1:8765/api/health-public"
 _API_STALE_LABEL = "com.spa.apiserver::stale_data"  # circuit-breaker key
+
+# R6 — telegram_bot BEACON-staleness probe (мандат владельца 2026-08-21, карточка
+# agent-telegram-bot-watchdog: бот завис ДВАЖДЫ за день, владелец дважды чинил руками).
+# Та же болезнь, что R5, у другого долгожителя: процесс ЖИВ (PID есть — правило 2
+# его не видит), а long-poll заклинил. Единственный наблюдаемый признак — маячок
+# `telegram_bot_capabilities.json`, который живой бот обновляет каждый виток
+# (~30 с; ADR-069). Пока маячок протух, отправители честно снимают кнопки с
+# вопросов владельцу — путь его решений рвётся молча.
+#   Порог 600 с = 2× BEACON_MAX_AGE_S alert_actions: «протух для кнопок» ещё не
+#   значит «мёртв» (могла быть пауза сети) — kickstart только при двукратном.
+#   Fail-safe как в R5: нет файла / не читается / нет отметки ⇒ None ⇒ БЕЗ
+#   действия (старый бот без маячка не должен уходить в kickstart-петлю).
+#   kickstart -k перезапускает ВНУТРИ существующего job — второго поллера
+#   (409-инцидент 2026-08-08) этот путь не создаёт по построению.
+BOT_BEACON_STALE_S = 600.0
+_BOT_BEACON_FILE = "telegram_bot_capabilities.json"
+_BOT_LABEL = "com.spa.telegram_bot"
+_BOT_STALE_LABEL = "com.spa.telegram_bot::stale_beacon"  # circuit-breaker key
 
 # Shared, single-source residency/classification judgement (same one
 # agent_health uses) so self_heal's expected/loaded reconcile with the monitor.
@@ -222,6 +243,26 @@ def _served_cycle_age_hours(url: str = _API_STATUS_URL) -> float | None:
         if youngest is None or age < youngest:
             youngest = age
     return youngest
+
+
+def _beacon_age_seconds() -> float | None:
+    """Возраст (сек) маячка живости telegram_bot, или None.
+
+    None — когда файла нет, он не читается или отметка неразборчива: «не смогли
+    измерить» НЕ доказательство зависания и действия не вызывает (fail-safe,
+    ровно как у ``_served_cycle_age_hours``: ошибка пробы не имеет права
+    запускать kickstart-петлю)."""
+    try:
+        d = json.loads((_DATA / _BOT_BEACON_FILE).read_text())
+        ts = d.get("updated_at")
+        if not ts or not isinstance(ts, str):
+            return None
+        t = datetime.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        if t.tzinfo is None:
+            t = t.replace(tzinfo=datetime.timezone.utc)
+        return (datetime.datetime.now(datetime.timezone.utc) - t).total_seconds()
+    except Exception:
+        return None
 
 
 def _recover_cycle() -> bool:
@@ -447,6 +488,39 @@ def run_self_heal(dry_run: bool = False) -> dict:
             else:
                 failures.append("kickstart failed (stale-data) com.spa.apiserver")
                 involved.add(_API_STALE_LABEL)
+
+    # 2d) R6 — telegram_bot beacon-staleness probe. Правило 2 видит только PID 0;
+    # зависший бот держит PID и молчит — единственный признак это протухший маячок
+    # (см. константы R6 выше). Гейт СНАЧАЛА по loaded (вне Мака/в CI loaded пуст ⇒
+    # правило полностью инертно, ни одного чтения диска), потом по маячку.
+    # Edge-triggered + circuit-broken той же историей revival, ключ _BOT_STALE_LABEL:
+    # заклинивший намертво бот перезапускается не чаще MAX_REVIVALS_PER_HOUR/ч,
+    # дальше — предохранитель и тревога (лечим симптом, называем болезнь).
+    if loaded.get(_BOT_LABEL, 0) != 0:
+        beacon_age = _beacon_age_seconds()
+        if beacon_age is not None and beacon_age > BOT_BEACON_STALE_S:
+            recent = [t for t in hist.get(_BOT_STALE_LABEL, []) if now_epoch - t < 3600.0]
+            if len(recent) >= MAX_REVIVALS_PER_HOUR:
+                breakers.append(
+                    f"circuit-breaker: telegram_bot stale-beacon kickstart "
+                    f"suppressed ({len(recent)}/h) — beacon {beacon_age:.0f}s old"
+                )
+                involved.add(_BOT_STALE_LABEL)
+            elif dry_run:
+                actions.append(
+                    f"would kickstart telegram_bot (beacon STALE: {beacon_age:.0f}s "
+                    f"> {BOT_BEACON_STALE_S:.0f}s, pid alive)"
+                )
+            elif _kickstart(_BOT_LABEL):
+                actions.append(
+                    f"restarted hung telegram_bot (beacon {beacon_age:.0f}s stale, "
+                    f"pid was alive — long-poll wedged)"
+                )
+                _record_revival(hist, _BOT_STALE_LABEL, now_epoch)
+                involved.add(_BOT_STALE_LABEL)
+            else:
+                failures.append("kickstart failed (stale-beacon) com.spa.telegram_bot")
+                involved.add(_BOT_STALE_LABEL)
 
     # 3) Daily cycle gap → recover.
     age = _last_cycle_age_hours()
