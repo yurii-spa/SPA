@@ -444,6 +444,7 @@
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
 - Чистка репо (мёртвый код) фазами  ·  `agent-cleanup.md` · 2026-07-16
+- Внутридневной paper-актор: ребаланс между суточными циклами (следующий шаг ADR-104)  ·  `agent-intraday-paper-actor.md` · 2026-08-21
 - Q&A бэклог (12 ответов) + видимость задач  ·  `agent-qa-backlog.md` · 2026-07-16
 - Включить redteam_rotation: 1021 строка состязательных сценариев написана и не бегает ни разу  ·  `agent-vklyuchit-redteam-rotation.md` · 2026-08-21
 ### · backlog
@@ -457,7 +458,6 @@
 - Подстановка выдуманного APY живёт ещё в 15 адаптерах — у 14 она доходит до оркестратора  ·  `agent-fake-fallback-v-15-adapterah.md` · 2026-08-08
 - Панель идеи #17 на 6 книгах из 10 состоит из неподвижных марок — кросс-секцию на ней измерить нельзя  ·  `agent-idea17-needs-a-panel-with-daily-marks.md` · 2026-08-02
 - protocol_insurance_scorer выбрасывает ИЗВЕСТНОЕ страховое покрытие и объявляет его нулём  ·  `agent-insurance-scorer-otbrasyvaet-izvestnoe-pokrytie.md` · 2026-08-08
-- Внутридневной paper-актор: ребаланс между суточными циклами (следующий шаг ADR-104)  ·  `agent-intraday-paper-actor.md` · 2026-08-21
 - morpho_steakhouse — 40 % книги — отсутствует в реестре риск-скоров, и три теста краснеют на main из-за этого  ·  `agent-morpho-steakhouse-bez-risk-score.md` · 2026-08-08
 - Мягкая ступень стоп-крана: перестать подавать её как защиту (решение владельца 19.08, вариант Б1)  ·  `agent-myagkaya-stupen-perestat-nazyvat-zaschitoi.md` · 2026-08-20
 - Осиротевшая работа вернулась после закрытия своей карточки — циклы #97 и #98 умерли не доставив, второй прямо на подъёме работы первого  ·  `agent-orphaned-work-recurred-after-its-card-was-closed.md` · 2026-08-03
