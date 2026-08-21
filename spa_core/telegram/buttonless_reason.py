@@ -174,7 +174,7 @@ def explain(card_path: str | Path, *,
     сейчас или нет, и только его отказ разбираем на причины.
     """
     from spa_core.owner_queue.queue import load_card
-    from spa_core.telegram.owner_decisions import prepare
+    from spa_core.telegram.owner_decisions import ack_allowed, prepare
 
     path = Path(card_path)
     if not path.is_file():
@@ -187,24 +187,43 @@ def explain(card_path: str | Path, *,
                       f"карточка не разобралась ({exc}) — есть ли в ней варианты, "
                       f"НЕ ИЗМЕРЕНО", "починить разметку карточки")
     try:
+        # Право на подтверждение меряет тот же единственный писатель правила
+        # (`ack_allowed`), что и отправка, — иначе сторож объяснял бы причину
+        # состояния, которого у отправителя нет.
+        allow_ack, _why = ack_allowed(path, card.body or "", ref=ref)
         prep = prepare(card.title or path.stem, card.body or "", path.stem,
-                       card_name=path.name, now=now, beacon_path=beacon_path)
+                       card_name=path.name, now=now, beacon_path=beacon_path,
+                       allow_ack=allow_ack)
     except Exception as exc:  # noqa: BLE001
         return Reason(CODE_UNMEASURED,
                       f"сборка сообщения не выполнилась ({exc}) — причина отсутствия "
                       f"кнопок НЕ ИЗМЕРЕНА", _REMEDY_HEAL)
 
     if prep.keyboard is not None:
+        what = (f"варианты разбираются ({len(prep.options)})" if prep.options
+                # Вариантов нет и не будет — карточка их не предлагает. Но кнопка
+                # подтверждения поручения (ADR-115) собралась бы, и «(0) вариантов
+                # разбираются» здесь было бы неправдой о собственном же вердикте.
+                else "выбора в карточке нет, но это поручение — кнопки подтверждения "
+                     "собираются")
         return Reason(
             CODE_HEAL_PENDING,
-            f"варианты разбираются ({len(prep.options)}) и обработчик нажатия жив — "
+            f"{what} и обработчик нажатия жив — "
             f"кнопки собрались бы прямо сейчас, значит до этой записи не дошёл ремонт",
             _REMEDY_HEAL,
         )
-    if prep.options:
+    if prep.options or prep.ack:
+        what = (f"варианты разбираются ({len(prep.options)})" if prep.options
+                # Кнопка подтверждения поручения (ADR-115) собралась бы — значит
+                # дело НЕ в форме вопроса, и лечится оно ботом, а не переписыванием
+                # карточки. До #338 такая запись попадала в `no_options_in_card`
+                # («отказ верен, лечится формой»), то есть сторож называл верную
+                # причину неверного состояния и отправлял чинить не то.
+                else "выбора в карточке нет (поручение), кнопка подтверждения "
+                     "собралась бы")
         return Reason(
             CODE_HANDLER_UNAVAILABLE,
-            f"варианты разбираются ({len(prep.options)}), но живого обработчика "
+            f"{what}, но живого обработчика "
             f"нажатия нет — кнопка увела бы владельца в неизвестный глагол",
             _REMEDY_HANDLER,
         )

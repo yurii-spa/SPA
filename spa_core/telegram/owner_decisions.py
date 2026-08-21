@@ -48,7 +48,7 @@ import html
 import json
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -626,7 +626,8 @@ def summarize(body: str, limit: int = SUMMARY_MAX) -> str:
 
 
 def build_message(title: str, body: str, options: List[ParsedOption],
-                  *, has_buttons: bool = True, card_name: str = "") -> str:
+                  *, has_buttons: bool = True, card_name: str = "",
+                  ack_buttons: bool = False) -> str:
     """HTML-сообщение владельцу: заголовок, суть, перечень вариантов.
 
     HTML, а не Markdown: в карточках сплошь пути с подчёркиваниями (`agent_health`),
@@ -669,6 +670,15 @@ def build_message(title: str, body: str, options: List[ParsedOption],
         parts += ["", "⚠️ Варианты в карточке есть, но я не смог собрать из них кнопки "
                       "(так бывает, когда в одной карточке несколько разных решений). "
                       "Открой её целиком и ответь словами — и заведи мне это как дефект."]
+    elif ack_buttons:
+        # Выбора в карточке нет и не было: это поручение или сообщение о находке.
+        # Раньше здесь стоял тупик — ответить владелец мог только словами, и по
+        # замеру #197 не отвечал. Теперь есть чем ответить с телефона, и текст
+        # честно говорит, что кнопки НЕ являются вариантами карточки.
+        parts += ["", "Выбора в карточке нет — это поручение.",
+                  f"<b>{html.escape(ACK_BUTTONS[ACK_ACCEPT])}</b> — беру в работу. "
+                  f"<b>{html.escape(ACK_BUTTONS[ACK_DECLINE])}</b> — не делаем.",
+                  "Если нужно иначе — напиши словами, разберу."]
     else:
         # Fail-CLOSED: вариантов не разобрали — не выдумываем их, честно зовём в карточку.
         tail = ("Вариантов в карточке не нашёл — открой её целиком кнопкой ниже."
@@ -698,6 +708,159 @@ def build_keyboard(pid: str, options: List[ParsedOption]) -> Dict:
     return {"inline_keyboard": rows}
 
 
+# ── подтверждение ПОРУЧЕНИЯ (карточка без вариантов) ─────────────────────────
+#
+# Замер #197 (10.08): пять карточек-поручений («сделай то-то» / «вот находка») висели
+# у владельца двое суток без единого ответа. Разбор вёл себя правильно — вариантов в
+# карточке нет, выдумывать их запрещено (ADR-075), — и владелец получал текст, на
+# который ответить можно ТОЛЬКО словами. Молчание в этом состоянии неотличимо от «не
+# увидел», и по факту ни одна из пяти не была отвечена. На 21.08 22:52Z таких висит три.
+#
+# «Принято» — НЕ выдуманный вариант. Выдуманный вариант — это подсунуть владельцу выбор
+# между действиями, которых карточка не предлагала; здесь же выбора нет вовсе, а есть
+# согласие с уже сформулированным поручением, то есть та самая пара, которая у любого
+# поручения существует и без нас: сделать или не делать.
+#
+# Инвариант #14 НЕ ослаблен, и это проверяется тестом. Кнопку жмёт ВЛАДЕЛЕЦ; запись идёт
+# тем же единственным owner-путём `owner_answer.record_owner_answer`, который сверяет
+# личность ВНУТРИ писателя; `queue.set_status` по-прежнему отказывает агенту. Прецедент —
+# ADR-082 (текстовый ответ владельца) : канал другой, решение то же.
+#
+# Границы намеренно узкие (fail-CLOSED). Подтверждение предлагается ТОЛЬКО когда выбора
+# в карточке нет НИ В КАКОМ виде:
+#   * `parse_options` пуст — вариантов не разобрано;
+#   * `has_unparsed_options` молчит — и не написано их так, что мы не смогли прочесть
+#     (иначе кнопка «Принято» ПРЯЧЕТ настоящий выбор: владелец подтвердит поручение,
+#     которого ему не показали);
+#   * `allows_multiple` молчит — карточка не разрешает взять несколько пунктов.
+# Любое из трёх — кнопок подтверждения нет, текст объясняет причину как раньше.
+
+#: Владелец согласен: поручение принято, агент берёт в работу.
+ACK_ACCEPT = "ack"
+#: Владелец отказывается: делать не надо. Такой же полноценный ответ, как согласие —
+#: без него «принято» было бы не выбором, а единственной кнопкой (то есть подписью).
+ACK_DECLINE = "nack"
+
+#: Что уедет в карточку как текст решения владельца.
+ACK_LABELS: Dict[str, str] = {
+    ACK_ACCEPT: "Принято — беру в работу",
+    ACK_DECLINE: "Не надо — не делаем",
+}
+
+#: Подписи кнопок.
+ACK_BUTTONS: Dict[str, str] = {
+    ACK_ACCEPT: "✅ Принято",
+    ACK_DECLINE: "🚫 Не надо",
+}
+
+
+#: Следы ВЫБОРА, которого разбор не прочитал. Сторож обязан быть ШИРЕ подопечного:
+#: `has_unparsed_options` ищет строку, начинающуюся с «Вариант N», и этого мало.
+#: Живой замер по очереди (21.08): из пяти открытых вопросов ровно один прошёл узкую
+#: проверку — `own-2026-08-19-sudba-voronki-chekapa-i-kanal-zayavok`, у которого выбор
+#: записан буквами «(а)/(б)» внутри «**Решение 1 — …** Варианты:». То есть в
+#: единственном случае, где подтверждение сработало бы, оно ПРЯТАЛО БЫ настоящий
+#: выбор. Здесь дешевле ошибиться в сторону молчания: цена ложного «нет кнопок» —
+#: прежнее неудобство, цена ложного «Принято» — закрытый не тем ответом вопрос.
+_CHOICE_TRACE_RE = re.compile(
+    r"(?:вариант\w*|option\b"          # само слово, где угодно в секции
+    r"|^\s*[-*•]?\s*\(?[а-яa-z]\)"     # буквенный перечень: «(а)», «б)», «a)»
+    r"|выбер\w+|выбор\w*|choose\b"     # «выбери, как поступаем»
+    r"|либо\b.*\bлибо\b)",             # «либо то, либо это»
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def looks_like_a_choice(body: str) -> bool:
+    """Есть ли в секции «Что от тебя нужно» СЛЕД выбора — читаемого или нет.
+
+    Намеренно шире :func:`has_unparsed_options`: тот отвечает на вопрос «сказать ли
+    владельцу, что варианты есть, а кнопок нет», и ложное срабатывание там стоит
+    одной невнятной фразы. Здесь ложное МОЛЧАНИЕ стоит одной невнятной фразы, а
+    ложное срабатывание — закрытой карточки. Пороги разные, значит и предикаты
+    разные; общий на оба был бы компромиссом не в ту сторону.
+    """
+    return any(_CHOICE_TRACE_RE.search(ln) for ln in _section_lines(body))
+
+
+def offers_ack(body: str) -> bool:
+    """Предлагать ли этой карточке кнопки подтверждения.
+
+    Единственное место, где живёт правило (сторож `buttonless_reason` его не
+    пересказывает, а спрашивает через :func:`prepare`).
+    """
+    if parse_options(body):
+        return False
+    if has_unparsed_options(body):
+        return False
+    if allows_multiple(body):
+        return False
+    if looks_like_a_choice(body):
+        return False
+    return True
+
+
+#: Чья копия карточки считается источником правды при решении про подтверждение.
+ACK_REF = "origin/main"
+
+
+def ack_allowed(card_path: str | Path, body: str, *,
+                ref: str = ACK_REF) -> Tuple[bool, str]:
+    """Можно ли предложить подтверждение ЭТОЙ карточке. → (можно, причина отказа).
+
+    ``offers_ack`` смотрит только в тело, лежащее в ЭТОМ дереве, — и этого мало.
+    Каталог очереди автосинком не возится (`origin_view`), поэтому прод-дерево
+    штатно отстаёт от `origin/main`: замер 21.08 на живой `own-33` — в дереве
+    проза, на origin у той же карточки ДВА варианта, дописанные через 52 минуты
+    после отправки. Кнопка «✅ Принято» по такой копии закрыла бы вопрос, ВЫБОРА В
+    КОТОРОМ ВЛАДЕЛЕЦ НЕ ВИДЕЛ, — то есть ровно то, что запрещает ADR-075, только
+    молча и необратимо. Раньше цена этого расхождения была «кнопок нет» (видно и
+    безобидно), теперь стала бы «карточка закрыта не тем ответом».
+
+    Fail-CLOSED: сверка не выполнилась ⇒ подтверждения НЕТ. «Не измерено» и «выбора
+    нет» здесь обязаны вести к разному, и первое — к молчанию. Отсутствие git
+    (песочница, CI-фикстура, чистая установка) — законное «не измерено», а не
+    находка: подтверждения там просто не будет, поведение остаётся прежним.
+
+    Карточки нет на ref — это ИЗМЕРЕННОЕ отсутствие (её ещё не пушили), а не
+    неудача сверки: свежее нашей копии не существует, отставать не от чего.
+    """
+    if not offers_ack(body):
+        return False, "в карточке есть выбор — подтверждение спрятало бы его"
+    from spa_core.owner_queue.origin_view import Unmeasured, card_sources
+    from spa_core.owner_queue.queue import load_card_text
+
+    p = Path(card_path)
+    try:
+        texts, _sha = card_sources(p.parent, [p.stem], ref=ref)
+    except Unmeasured as exc:
+        return False, f"сверка с `{ref}` не выполнилась: {exc}"
+    except Exception as exc:  # noqa: BLE001 — отправка не имеет права упасть
+        return False, f"сверка с `{ref}` не выполнилась: {exc}"
+    raw = texts.get(p.stem)
+    if raw is None:
+        return True, ""
+    try:
+        ref_body = load_card_text(raw, p.name).body or ""
+    except Exception as exc:  # noqa: BLE001
+        return False, f"карточка на `{ref}` не разобралась: {exc}"
+    if not offers_ack(ref_body):
+        return False, (f"в этом дереве выбора нет, а на `{ref}` он есть — "
+                       f"подтверждение закрыло бы вопрос по отставшей копии")
+    return True, ""
+
+
+def build_ack_keyboard(pid: str) -> Dict:
+    """Клавиатура подтверждения: «Принято» / «Не надо» + «Подробнее»."""
+    return {"inline_keyboard": [
+        [{"text": ACK_BUTTONS[ACK_ACCEPT],
+          "callback_data": build_callback(pid, ACK_ACCEPT)}],
+        [{"text": ACK_BUTTONS[ACK_DECLINE],
+          "callback_data": build_callback(pid, ACK_DECLINE)}],
+        [{"text": "📖 Подробнее", "callback_data": build_callback(pid, "more")}],
+    ]}
+
+
 # ── подготовка и отправка ────────────────────────────────────────────────────
 
 MORE_CHOICE = "more"  # не выбор варианта, а «покажи карточку целиком»
@@ -711,6 +874,13 @@ class Prepared:
     text: str
     keyboard: Optional[Dict]
     options: List[ParsedOption]
+    #: Карточке применимо ПОДТВЕРЖДЕНИЕ поручения, а не выбор варианта — свойство
+    #: самой карточки, не маячка: `ack and keyboard is None` читается как «кнопка
+    #: подтверждения собралась бы, но обработчика нет».
+    #: Отдельным полем, а не «options непустой»: `options` по контракту содержит
+    #: ТОЛЬКО вычитанное из карточки, и всё, что его читает (журнал отправок,
+    #: сторожа, текст «Варианты:»), обязано остаться правдой.
+    ack: bool = False
 
 
 def prepare(
@@ -721,6 +891,7 @@ def prepare(
     card_name: str = "",
     now: Optional[datetime] = None,
     beacon_path: Optional[str | Path] = None,
+    allow_ack: bool = False,
 ) -> Prepared:
     """Собрать сообщение и клавиатуру. Текст уходит ВСЕГДА, кнопки — по условиям.
 
@@ -732,13 +903,20 @@ def prepare(
       сообщение панелью настроек, то есть стирает сам вопрос.
 
     Само уведомление при этом НЕ подавляется: решение владельца важнее украшений.
+
+    ``allow_ack`` — карточка ИЗМЕРЕНА как не предлагающая выбора (см.
+    :func:`ack_allowed`). По умолчанию ``False``, и это намеренно: тело карточки
+    в этом дереве может отставать от источника правды, а сама функция чистая и
+    в git не ходит. Кто зовёт с путём к файлу (`prepare_push`, `buttonless_pushes`,
+    сторож `buttonless_reason`) — тот и меряет.
     """
     options = parse_options(body)
+    ack = allow_ack and not options and offers_ack(body)
     pid = make_pid(card_id)
     # Клавиатуру решаем ПЕРВОЙ: текст обязан знать, будет ли кнопка, иначе он пообещает
     # несуществующее (замер 08.08 — решение с «Нажми кнопку» и без кнопок).
     keyboard = None
-    if options:
+    if options or ack:
         from spa_core.telegram import alert_actions
 
         # Спрашиваем СВОЁ умение (`act:od:`), а не «умеет ли бот кнопки под тревогой»:
@@ -757,10 +935,17 @@ def prepare(
             capability=alert_actions.CAPABILITY_OWNER_DECISIONS,
             also_accept=(alert_actions.CAPABILITY,),
         ):
-            keyboard = build_keyboard(pid, options)
+            # Маячок гейтит и подтверждение: нажатие «Принято» — тот же глагол
+            # `act:od:`, и по старому боту оно точно так же стёрло бы сам вопрос.
+            keyboard = (build_keyboard(pid, options) if options
+                        else build_ack_keyboard(pid))
+    # `ack` — РЕЖИМ карточки (выбора нет, применимо подтверждение), а не «кнопки
+    # уехали»: это разные факты, и сторожу нужны оба. Обещать кнопки в ТЕКСТЕ можно
+    # только по второму — иначе повторится 08.08 («Нажми кнопку» без единой кнопки).
     text = build_message(title, body, options, has_buttons=keyboard is not None,
-                         card_name=card_name or card_id)
-    return Prepared(pid=pid, text=text, keyboard=keyboard, options=options)
+                         card_name=card_name or card_id,
+                         ack_buttons=ack and keyboard is not None)
+    return Prepared(pid=pid, text=text, keyboard=keyboard, options=options, ack=ack)
 
 
 def _live_tracker_dir(override: Optional[str | Path] = None) -> Optional[Path]:
@@ -835,8 +1020,11 @@ def prepare_push(
     сухой прогон начал бы показывать не то, что уедет по-настоящему.
     """
     p = Path(card_path)
+    # Право на подтверждение меряется ЗДЕСЬ, где есть путь к файлу: `prepare` чистая
+    # и в git не ходит. Отказ сверки — молчание, а не подтверждение (fail-CLOSED).
+    allow_ack, _why = ack_allowed(p, body)
     return prepare(title, body, p.stem, card_name=p.name, now=now,
-                   beacon_path=beacon_path)
+                   beacon_path=beacon_path, allow_ack=allow_ack)
 
 
 # ── Анти-шторм отправок решений (инцидент 2026-08-20: 200+ копий одной карточки) ──
@@ -934,6 +1122,10 @@ def register_push(
         "pushed_at": dt.isoformat(),
         "options": [{"num": o.num, "label": o.label, "recommended": o.recommended}
                     for o in prep.options],
+        # Кнопки были ПОДТВЕРЖДЕНИЕМ поручения, а не выбором варианта. Отдельно от
+        # `options` (тот по контракту — только вычитанное из карточки) и отдельно от
+        # `buttons` («кнопки уехали»): три разных факта, и склеивать их нельзя.
+        "ack": bool(prep.ack),
         # ИЗМЕРЕНО, а не предположено: уехали ли кнопки вместе с этим решением.
         # Без этой отметки вопрос «получил ли владелец кнопки?» неотвечаем задним числом.
         # 10.08 это и вышло: четыре решения (в т.ч. «прод остановлен») ушли в 04:13Z,
@@ -1006,6 +1198,12 @@ class Heal:
     card: str
     text: str
     keyboard: Dict
+    #: Варианты, СОБРАННЫЕ СЕЙЧАС, — их же несут досылаемые кнопки. Журнал обязан
+    #: узнать о них вместе с кнопками: иначе нажатие ищет вариант в снимке момента
+    #: отправки, где его нет, и владелец получает «такого варианта нет».
+    options: List[ParsedOption] = field(default_factory=list)
+    #: Досылка — подтверждение поручения, а не выбор варианта.
+    ack: bool = False
 
 
 def buttonless_pushes(
@@ -1053,15 +1251,18 @@ def buttonless_pushes(
         if card.status != "needs-owner":
             continue  # вопрос уже не на владельце
         try:
+            allow_ack, _why = ack_allowed(path, card.body)
             prep = prepare(card.title or path.stem, card.body, path.stem,
-                           card_name=path.name, now=now, beacon_path=beacon_path)
+                           card_name=path.name, now=now, beacon_path=beacon_path,
+                           allow_ack=allow_ack)
         except Exception:  # noqa: BLE001
             continue
         if prep.keyboard is None:
             continue  # обработчика всё ещё нет — чинить нечем, молчим
         out.append(Heal(pid=prep.pid, card=str(path),
                         text=HEAL_PREFIX + "\n\n" + prep.text,
-                        keyboard=prep.keyboard))
+                        keyboard=prep.keyboard,
+                        options=list(prep.options), ack=prep.ack))
     return out
 
 
@@ -1200,6 +1401,8 @@ def mark_buttons_delivered(
     pid: str,
     *,
     message_id: Optional[int] = None,
+    options: Optional[List[ParsedOption]] = None,
+    ack: Optional[bool] = None,
     now: Optional[datetime] = None,
     state_path: Optional[str | Path] = None,
 ) -> bool:
@@ -1208,6 +1411,14 @@ def mark_buttons_delivered(
     ``message_id`` — адрес ДОСЛАННОГО сообщения. Оно отдельное и живёт в чате рядом с
     первым, поэтому запоминается в дополнение к нему, а не вместо: владелец видит две
     карточки одного вопроса и отвечает реплаем на ту, что под рукой.
+
+    ``options`` — варианты, которые несут ДОСЛАННЫЕ кнопки. Без них журнал остаётся
+    снимком момента первой отправки, и нажатие по свежедосланной кнопке отвечает
+    «Такого варианта в этой карточке нет». Замер (цикл #338, ровно сценарий `own-33`
+    от 21.08): пуш без вариантов → карточка получает их через 52 минуты → досылка
+    рисует кнопки «1»/«2» → нажатие `unknown_option`. Кнопка, ведущая в никуда, —
+    это ровно та жалоба владельца, ради которой досылку и писали. ``None`` — не
+    трогать (совместимость с вызовами, которые про варианты ничего не знают).
     """
     path_obj = _state_path(state_path)
     doc = _load(path_obj)
@@ -1217,6 +1428,11 @@ def mark_buttons_delivered(
         if isinstance(rec, dict) and rec.get("pid") == pid:
             rec["buttons"] = True
             rec["buttons_fixed_at"] = stamp
+            if options is not None:
+                rec["options"] = [{"num": o.num, "label": o.label,
+                                   "recommended": o.recommended} for o in options]
+            if ack is not None:
+                rec["ack"] = bool(ack)
             _remember_message_id(rec, message_id_of(message_id))
             hit = True
     if hit:
@@ -1249,6 +1465,7 @@ def heal_buttonless(
             if not ok:
                 continue  # не отправилось ⇒ отметку не ставим, попробуем в следующий раз
             if mark_buttons_delivered(heal.pid, message_id=message_id_of(ok),
+                                      options=heal.options, ack=heal.ack,
                                       now=now, state_path=state_path):
                 fixed.append(heal.pid)
     except Exception:  # noqa: BLE001
@@ -1286,11 +1503,25 @@ def record_choice(
         # в закрытую карточку нельзя, но и молчать нельзя: ответ ниже это объясняет.
         return {"ok": False, "reason": "card_withdrawn", "card": rec.get("card")}
 
-    opt = None
-    for o in rec.get("options") or []:
-        if str(o.get("num", "")).lower() == str(choice).lower():
-            opt = o
-            break
+    from spa_core.owner_queue.owner_answer import KIND_ACK, KIND_OPTION
+
+    # Подтверждение поручения резолвится КОНСТАНТОЙ, а не журналом. Журнал — снимок
+    # момента отправки, а «Принято»/«Не надо» не зависят от содержимого карточки
+    # вовсе: кнопка либо была нарисована (и тогда её нарисовали мы, по правилу
+    # `offers_ack`), либо владелец её не увидит. Привязка к записи здесь дала бы
+    # ровно ту поломку, что уже есть у вариантов: досланные `heal_buttonless`
+    # кнопки не обновляют `options`, и нажатие отвечает «такого варианта нет».
+    ack_choice = str(choice).lower() if str(choice).lower() in ACK_LABELS else None
+    kind = KIND_OPTION
+    if ack_choice:
+        opt = {"num": ack_choice, "label": ACK_LABELS[ack_choice]}
+        kind = KIND_ACK
+    else:
+        opt = None
+        for o in rec.get("options") or []:
+            if str(o.get("num", "")).lower() == str(choice).lower():
+                opt = o
+                break
     if opt is None:
         return {"ok": False, "reason": "unknown_option", "card": rec.get("card")}
 
@@ -1305,6 +1536,7 @@ def record_choice(
             choice_label=str(opt.get("label") or ""),
             actor_chat_id=actor_chat_id,
             owner_chat_id=owner_chat_id,
+            kind=kind,
             now=now,
         )
     except NotTheOwner:
@@ -1317,7 +1549,8 @@ def record_choice(
     rec["answered_at"] = res.get("answered_at")
     _save(doc, path_obj)
     return {"ok": True, "already": bool(res.get("already")), "card": str(card_path),
-            "choice": str(opt["num"]), "label": str(opt.get("label") or "")}
+            "choice": str(opt["num"]), "label": str(opt.get("label") or ""),
+            "kind": kind}
 
 
 # ── ответ владельцу после нажатия ────────────────────────────────────────────
@@ -1341,6 +1574,16 @@ def confirmation_text(result: Dict) -> str:
     if result.get("ok"):
         num = html.escape(str(result.get("choice", "")))
         label = html.escape(_capitalize(str(result.get("label") or "")))
+        if str(result.get("kind") or "") == "ack":
+            # Вариантов карточка не предлагала — говорить «вариант ack» значит
+            # выдумать выбор в ответе после того, как честно не выдумали его в вопросе.
+            if result.get("already"):
+                return (f"👌 Это уже записано: <b>{label}</b>.\n"
+                        f"Повторно ничего не менял.")
+            tail = ("беру в работу." if str(result.get("choice")) == ACK_ACCEPT
+                    else "делать не буду.")
+            return (f"✅ Записал: <b>{label}</b>.\n"
+                    f"Карточка закрыта твоим решением, {tail}")
         if result.get("already"):
             return (f"👌 Это решение уже записано: <b>вариант {num}</b> — {label}.\n"
                     f"Повторно ничего не менял.")

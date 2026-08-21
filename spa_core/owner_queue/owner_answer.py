@@ -85,6 +85,15 @@ def _set_frontmatter_field(lines: list[str], start: int, end: int,
     return end + 1
 
 
+#: Ответ владельца — ВЫБОР варианта, вычитанного из карточки.
+KIND_OPTION = "option"
+#: Ответ владельца — ПОДТВЕРЖДЕНИЕ поручения: вариантов карточка не предлагала,
+#: владелец сказал «принято» / «не надо». Разные вещи, и читателю карточки они
+#: обязаны быть различимы: «владелец выбрал вариант 1» и «владелец согласился с
+#: поручением» ведут к разной работе, а раньше выглядели бы одинаково.
+KIND_ACK = "ack"
+
+
 def record_owner_answer(
     path: str | Path,
     *,
@@ -93,6 +102,7 @@ def record_owner_answer(
     actor_chat_id,
     owner_chat_id: Optional[str] = None,
     via: str = "telegram",
+    kind: str = KIND_OPTION,
     now: Optional[datetime] = None,
 ) -> dict:
     """Записать решение владельца в карточку и закрыть её как ``owner-done``.
@@ -100,6 +110,11 @@ def record_owner_answer(
     Идемпотентно: повторный тот же выбор ничего не переписывает и не плодит вторую
     секцию «Решение владельца» — владелец может нажать дважды из двух чатов, и это
     не должно выглядеть как два разных решения.
+
+    ``kind`` — ЧЕМ был ответ: :data:`KIND_OPTION` (выбран вариант карточки) или
+    :data:`KIND_ACK` (карточка вариантов не предлагала, владелец подтвердил
+    поручение). Личность проверяется одинаково: инвариант #14 не знает разницы
+    между кнопкой «Вариант 1» и кнопкой «Принято» — обе нажимает владелец.
 
     :raises NotTheOwner: ответ не от владельца либо личность не подтверждена.
     """
@@ -150,9 +165,13 @@ def record_owner_answer(
         lines, start, end, "owner_answered_by", str(actor_chat_id)
     )
 
+    end = _set_frontmatter_field(lines, start, end, "owner_answer_kind", str(kind))
+
+    headline = (f"**{choice_label}**" if kind == KIND_ACK
+                else f"**Вариант {choice_num}** — {choice_label}")
     body_addition = (
         f"\n\n---\n\n{ANSWER_HEADING}\n\n"
-        f"**Вариант {choice_num}** — {choice_label}\n\n"
+        f"{headline}\n\n"
         f"_Ответ владельца получен {stamp} ({via}). "
         f"Карточка закрыта самим владельцем, не агентом (инвариант #14)._\n"
     )

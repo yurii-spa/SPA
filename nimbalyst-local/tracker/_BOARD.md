@@ -172,6 +172,7 @@
 - Очередь владельца показывает 20 карточек из 23: три вопроса не доезжают до него из-за формы frontmatter  ·  `inbox-ochered-vladeltsa-pokazyvaet-20-kartoche.md` · 2026-08-07
 ### · done
 - «Кнопок нету» — вторая половина жалобы 14.08: какое сообщение приходит с вариантами, но без кнопок  ·  `agent-knopki-pod-resheniem-vtoraya-polovina.md` · 2026-08-14
+- На карточку-поручение владелец не может ответить НИЧЕМ, кроме слов — пять висят с 08.08  ·  `agent-porucheniya-bez-vybora-nechem-otvetit.md` · 2026-08-10
 - 1  ·  `inbox-1.md` · 2026-08-19
 - 100 запусков на одном snapshot.  ·  `inbox-100-zapuskov-na-odnom-snapshot.md` · 2026-08-13
 - Проверь связь это тестовое сообщение.  ·  `inbox-20260715-123528-note.md` · 2026-07-15
@@ -369,7 +370,6 @@
 - Записи журнала за 16 циклов стёрты — и восстановимы из git-истории (кран #139 закрыл, лужу нет)  ·  `inbox-zapisi-zhurnala-za-16-tsiklov-sterty-i-v.md` · 2026-08-07
 - Журнал циклов молча теряет записи при конкурентной доставке — за неделю пропало 9 (восстановлены)  ·  `inbox-zhurnal-tsiklov-molcha-teryaet-zapisi-pr.md` · 2026-08-06
 ### · new
-- На карточку-поручение владелец не может ответить НИЧЕМ, кроме слов — пять висят с 08.08  ·  `agent-porucheniya-bez-vybora-nechem-otvetit.md` · 2026-08-10
 - 25 модулей получили вечный вердикт «покрытие не измерено» — контекст-путь нечем мерить  ·  `inbox-25-modulei-poluchili-vechnyi-verdikt-pok.md` · 2026-08-06
 - 3 трека параллельно: Conservative + Balanced + Aggressive (мандат владельца)  ·  `inbox-3-treka-parallelno-conservative-balanced.md` · 2026-08-08
 - 7-day checkpoint: gap_check считать от evidenced-якоря (решение владельца 09.08)  ·  `inbox-7-day-checkpoint-gap-check-schitat-ot-ev.md` · 2026-08-09
