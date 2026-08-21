@@ -120,6 +120,21 @@ def report_with_git(guard, repo, entries, git, **kw):
 
 # ── 1. ядро: мёртвая сессия, файла на базе нет ───────────────────────────────
 
+
+# ── Фикстурный ярлык `pid1` переименован в `pid101` (цикл #327, инв. #16) ──────────────
+# ПРЕДМЕТ каждого теста ниже — СВЕДЕНИЕ строк отчёта (один путь, объявленный многими
+# сессиями = одна строка со списком объявивших). Ярлык сессии в них — произвольная метка,
+# и до #327 `pid1` был такой же меткой, как `pid2`.
+#
+# С #327 запасной критерий активности ОТКАЗЫВАЕТСЯ измерять `pid0`/`pid1`, и отказ верный:
+# pid 1 — это launchd, `ps -p 1` отвечает утвердительно ВСЕГДА ⇒ запись под ярлыком `pid1`
+# читалась бы как вечно живая сессия (ложный ACTIVE, fail-OPEN внутри fail-CLOSED-сторожа).
+# Проверка не ослаблена и не отключена: чинится ФИКСТУРА, которая случайно взяла имя,
+# ставшее значимым, — ровно тот же порядок, что правило доставки предписывает для
+# литеральных дат («чинить фикстуру, а не гасить проверку»). Обоснование — журнал W34,
+# цикл #327. Отказ по `pid0`/`pid1` закреплён СВОИМ тестом в
+# `spa_core/tests/test_step0a_compound_session_id.py::…::test_pid_zero_and_one_are_refused`.
+
 class TestAbsentOnBase:
     def test_new_file_never_delivered_is_reported(self, guard, repo):
         """Точная форма случая #42/#43: новый тест-файл существует локально, на базе его нет."""
@@ -165,11 +180,11 @@ class TestAbsentOnBase:
         """STATE и журнал объявляет почти каждая сессия — иначе одна находка размножается
         по числу записей. Атрибуции содержимого нет, поэтому объявившие просто перечислены."""
         (repo / "scripts" / "brand_new.py").write_text("work\n", encoding="utf-8")
-        rep = report(guard, repo, [entry("pid1", [repo / "scripts" / "brand_new.py"]),
+        rep = report(guard, repo, [entry("pid101", [repo / "scripts" / "brand_new.py"]),
                                    entry("pid2", [repo / "scripts" / "brand_new.py"]),
                                    entry("pid3", [repo / "scripts" / "brand_new.py"])])
         assert len(rep["findings"]) == 1
-        assert rep["findings"][0]["session"] == "pid1"
+        assert rep["findings"][0]["session"] == "pid101"
         assert rep["findings"][0]["also_declared_by"] == ["pid2", "pid3"]
 
     def test_stale_local_copy_already_in_origin_history_is_not_a_finding(self, guard, repo):
@@ -587,7 +602,7 @@ class TestLogReading:
 
     def test_malformed_line_is_counted_not_silently_dropped(self, guard, tmp_path):
         log = tmp_path / "log.jsonl"
-        log.write_text(json.dumps(entry("pid1", [])) + "\n{битая строка\n", encoding="utf-8")
+        log.write_text(json.dumps(entry("pid101", [])) + "\n{битая строка\n", encoding="utf-8")
         rows, bad = guard.read_entries(log, last=None)
         assert len(rows) == 1 and bad == 1
 
@@ -1108,7 +1123,7 @@ class TestDeclaredNameThatNeverExisted:
         wt = tmp_path / "wt"
         _git(repo, "worktree", "add", "-q", "--detach", str(wt), "base")
         (wt / "scripts" / "real_loss.py").write_text("работа\n", encoding="utf-8")
-        rep = report(guard, repo, [entry("pid1", [repo / "scripts" / "real_loss.py"]),
+        rep = report(guard, repo, [entry("pid101", [repo / "scripts" / "real_loss.py"]),
                                    entry("pid2", [repo / "scripts" / "phantom.py"])])
         text = guard.render(rep)
         assert text.index("НЕ ДОСТАВЛЕНО") < text.index("НЕ СУЩЕСТВУЕТ НИГДЕ")
@@ -1143,7 +1158,7 @@ class TestDeclaredNameThatNeverExisted:
         assert "слепило несколько путей" in rep["nowhere"][0]["detail"]
 
     def test_same_phantom_name_declared_twice_is_one_line(self, guard, repo):
-        rep = report(guard, repo, [entry("pid1", [repo / "scripts" / "edge_rsb.py"]),
+        rep = report(guard, repo, [entry("pid101", [repo / "scripts" / "edge_rsb.py"]),
                                    entry("pid2", [repo / "scripts" / "edge_rsb.py"])])
         assert len(rep["nowhere"]) == 1
         assert rep["nowhere"][0]["also_declared_by"] == ["pid2"]
@@ -1287,7 +1302,7 @@ class TestPathDeletedOnOrigin:
         _git(repo, "worktree", "add", "-q", "--detach", str(wt), "base")
         (wt / "scripts").mkdir(parents=True, exist_ok=True)
         (wt / "scripts" / "real_loss.py").write_text("работа\n", encoding="utf-8")
-        rep = report(guard, repo, [entry("pid1", [repo / "scripts" / "real_loss.py"]),
+        rep = report(guard, repo, [entry("pid101", [repo / "scripts" / "real_loss.py"]),
                                    entry("pid2", [repo / "scripts" / "gone.py"])])
         text = guard.render(rep)
         assert text.index("НЕ ДОСТАВЛЕНО") < text.index("УДАЛЕНО НА base")
@@ -1299,7 +1314,7 @@ class TestPathDeletedOnOrigin:
         """Тот же путь объявляют десятки сессий (сегодня — две записи об одном `__init__.py`):
         строка одна, объявившие перечисляются."""
         self._delete_on_base(repo)
-        rep = report(guard, repo, [entry("pid1", [repo / "scripts" / "gone.py"]),
+        rep = report(guard, repo, [entry("pid101", [repo / "scripts" / "gone.py"]),
                                    entry("pid2", [repo / "scripts" / "gone.py"])])
         assert len(rep["deleted_on_origin"]) == 1
         assert rep["deleted_on_origin"][0]["also_declared_by"] == ["pid2"]
@@ -1990,18 +2005,48 @@ class TestIdentityBorrowedFromTheJournal:
     # ── обратные контроли: сужения, без которых это было бы fail-OPEN ──
 
     def test_ambiguous_label_is_not_borrowed(self, guard, repo):
-        """Два разных якоря под одним ярлыком (перезапуск цикла) ⇒ угадывать нельзя."""
+        """Два разных якоря под одним ярлыком (перезапуск цикла) ⇒ угадывать нельзя.
+
+        ПРЕДМЕТ теста не изменился: неоднозначный ярлык обязан оставить запись НЕИЗМЕРЕННОЙ.
+        Изменена ФОРМУЛИРОВКА отказа, и намеренно (инв. #16, обоснование — журнал W34, цикл
+        #327). Раньше отказ был побочным: разбор ярлыка знал только точную форму `pid<N>`,
+        поэтому составной ярлык давал «не содержит pid» — утверждение, которое просто НЕВЕРНО
+        (`cycle-264-pid80387` pid содержит). С #327 запасной критерий умеет читать pid из
+        ярлыка, и отказ здесь стал ПРЯМЫМ: журнал знает под этим ярлыком несколько разных
+        якорей ⇒ ярлык как носитель личности опровергнут ⇒ `ps` о постороннем pid не
+        спрашиваем (живой посторонний дал бы ложный ACTIVE — fail-OPEN).
+
+        Проверка при этом УСИЛЕНА: раньше сходилась любая причина отказа, теперь названа
+        именно та, ради которой сужение существует."""
         entries = self._pair(repo, 80373)
         entries.append(durable_entry("cycle-264-pid80387", [], 99999,
                                      ts="2026-01-15T12:00:09Z"))
         rep = report(guard, repo, entries, ps=fake_ps({}))
-        assert any("не содержит pid" in u["reason"] for u in rep["unmeasured"])
+        assert rep["unmeasured"], "неоднозначный ярлык обязан остаться НЕИЗМЕРЕННЫМ"
+        assert any("НЕСКОЛЬКО РАЗНЫХ долгоживущих процессов" in u["reason"]
+                   for u in rep["unmeasured"])
+        assert all("личность взята из журнала" not in u["reason"]
+                   for u in rep["unmeasured"]), "заимствования быть не должно"
+        assert rep["sessions_active"] == 0
 
     def test_anchor_started_after_the_record_is_not_borrowed(self, guard, repo):
-        """Процесс, родившийся ПОСЛЕ объявления, написать его не мог — иначе ложный ACTIVE."""
+        """Процесс, родившийся ПОСЛЕ объявления, написать его не мог — иначе ложный ACTIVE.
+
+        ПРЕДМЕТ теста — «заимствования не было», и он проверяется здесь ПРЯМО (а не по
+        побочному признаку «запись осталась неизмеренной»). Изменено намеренно (инв. #16,
+        обоснование — журнал W34, цикл #327): здесь ярлык журналом НЕ опровергнут (якорь под
+        ним один), поэтому с #327 запись меряется запасным критерием — pid'ом, который назван
+        самим ярлыком (`pid80387`, мёртв у `fake_ps`) ⇒ `not_confirmed`, а не «не измерено».
+        Это НЕ ослабление: живой якорь `pid80373` по-прежнему не достаётся записи захвата
+        (иначе был бы ложный ACTIVE), и именно это утверждение теперь проверяется явно."""
         entries = self._pair(repo, 80373, start=_LSTART_NEW)
         rep = report(guard, repo, entries, ps=fake_ps({80373: (0, _LSTART_NEW + "\n")}))
-        assert any("не содержит pid" in u["reason"] for u in rep["unmeasured"])
+        claim = [f for f in rep["findings"] if f["path"].endswith("c265_claimed.py")]
+        assert claim, "запись захвата обязана быть разобрана, а не пропущена"
+        why = claim[0]["session_state"]
+        assert "личность взята из журнала" not in why, "заимствования быть не должно"
+        assert "pid80387" in why and "назван ярлыком сессии" in why
+        assert "pid80373" not in why
         # Активна ровно ОДНА запись — та, у которой якорь СВОЙ. Заимствования не было:
         # иначе живой pid80373 сделал бы активной и запись захвата (ложный ACTIVE).
         assert rep["sessions_active"] == 1

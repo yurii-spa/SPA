@@ -166,6 +166,21 @@ def _card_closed_path(repo):
 
 # ── 1. положительные контроли: одна сессия себе не свидетель ─────────────────
 
+
+# ── Фикстурный ярлык `pid1` переименован в `pid101` (цикл #327, инв. #16) ──────────────
+# ПРЕДМЕТ каждого теста ниже — СВЕДЕНИЕ строк отчёта (один путь, объявленный многими
+# сессиями = одна строка со списком объявивших). Ярлык сессии в них — произвольная метка,
+# и до #327 `pid1` был такой же меткой, как `pid2`.
+#
+# С #327 запасной критерий активности ОТКАЗЫВАЕТСЯ измерять `pid0`/`pid1`, и отказ верный:
+# pid 1 — это launchd, `ps -p 1` отвечает утвердительно ВСЕГДА ⇒ запись под ярлыком `pid1`
+# читалась бы как вечно живая сессия (ложный ACTIVE, fail-OPEN внутри fail-CLOSED-сторожа).
+# Проверка не ослаблена и не отключена: чинится ФИКСТУРА, которая случайно взяла имя,
+# ставшее значимым, — ровно тот же порядок, что правило доставки предписывает для
+# литеральных дат («чинить фикстуру, а не гасить проверку»). Обоснование — журнал W34,
+# цикл #327. Отказ по `pid0`/`pid1` закреплён СВОИМ тестом в
+# `spa_core/tests/test_step0a_compound_session_id.py::…::test_pid_zero_and_one_are_refused`.
+
 class TestOneSessionIsNotItsOwnWitness:
     """Каждый тест — точная форма замера #307, и каждый краснеет на неисправленном стороже
     (`also_declared_by == ['pid31439', 'pid31439']`)."""
@@ -242,17 +257,17 @@ class TestTwoSessionsAreStillBothNamed:
 
     def test_findings_section(self, guard, repo):
         p = _absent_path(repo)
-        rep = report(guard, repo, [entry("pid1", [p]), entry("pid2", [p]), entry("pid3", [p])])
+        rep = report(guard, repo, [entry("pid101", [p]), entry("pid2", [p]), entry("pid3", [p])])
         assert rep["findings"][0]["also_declared_by"] == ["pid2", "pid3"]
 
     def test_nowhere_section(self, guard, repo):
         p = _phantom_path(repo)
-        rep = report(guard, repo, [entry("pid1", [p]), entry("pid2", [p])])
+        rep = report(guard, repo, [entry("pid101", [p]), entry("pid2", [p])])
         assert rep["nowhere"][0]["also_declared_by"] == ["pid2"]
 
     def test_deleted_on_origin_section(self, guard, repo):
         p = _deleted_path(repo)
-        rep = report(guard, repo, [entry("pid1", [p]), entry("pid2", [p])])
+        rep = report(guard, repo, [entry("pid101", [p]), entry("pid2", [p])])
         assert rep["deleted_on_origin"][0]["also_declared_by"] == ["pid2"]
 
     def test_by_design_section(self, guard, repo):
@@ -274,8 +289,8 @@ class TestTwoSessionsAreStillBothNamed:
 
 class TestTheRuleItself:
     def test_add_witness_answers_each_case(self, guard):
-        rec = {"session": "pid1", "also_declared_by": []}
-        assert guard.add_witness(rec, "pid1") is False        # автор записи себе не свидетель
+        rec = {"session": "pid101", "also_declared_by": []}
+        assert guard.add_witness(rec, "pid101") is False        # автор записи себе не свидетель
         assert guard.add_witness(rec, None) is False          # имени нет — судить нечем
         assert guard.add_witness(rec, "") is False
         assert guard.add_witness(rec, "pid2") is True         # другая сессия — свидетель
