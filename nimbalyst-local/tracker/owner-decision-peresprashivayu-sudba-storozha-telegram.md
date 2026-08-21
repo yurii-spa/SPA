@@ -5,6 +5,10 @@ title: "Переспрашиваю: судьба сторожа telegram_watcher
 status: needs-owner
 source: nimbalyst
 created: 2026-08-21
+owner_choice: 2
+owner_answered_at: 2026-08-21T12:34:58.906935+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно

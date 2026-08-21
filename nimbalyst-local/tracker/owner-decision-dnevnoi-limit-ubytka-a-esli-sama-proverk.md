@@ -5,6 +5,10 @@ title: "Дневной лимит убытка: а если сама прове�
 status: needs-owner
 source: nimbalyst
 created: 2026-08-21
+owner_choice: 2
+owner_answered_at: 2026-08-21T12:34:20.955108+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно
