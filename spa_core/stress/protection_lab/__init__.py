@@ -63,6 +63,12 @@ from .replay import (  # noqa: E402
 )
 from .synthetic import SyntheticSpec, build_synthetic_scenario, ADVERSARIAL_SPECS  # noqa: E402
 from .report import format_report, format_summary_table  # noqa: E402
+from .adversarial import (  # noqa: E402
+    families_to_dict,
+    format_sweep_report,
+    generate_grid,
+    run_sweep,
+)
 
 __all__ = [
     "IS_ADVISORY",
@@ -84,4 +90,8 @@ __all__ = [
     "ADVERSARIAL_SPECS",
     "format_report",
     "format_summary_table",
+    "generate_grid",
+    "run_sweep",
+    "format_sweep_report",
+    "families_to_dict",
 ]

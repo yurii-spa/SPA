@@ -36,11 +36,28 @@ def main(argv: list[str] | None = None) -> int:
                         help="прогнать все исторические сценарии с replay-спекой")
     parser.add_argument("--adversarial", action="store_true",
                         help="прогнать adversarial-набор синтетики")
+    parser.add_argument("--sweep", action="store_true",
+                        help="фаза 7 v2: переборная adversarial-сетка (~1300 комбинаций) "
+                             "с кластеризацией семейств отказов")
     parser.add_argument("--capital", type=float, default=100_000.0)
     parser.add_argument("--out", help="путь JSON-отчёта (data/protection_lab/...)")
     args = parser.parse_args(argv)
 
     scenarios = load_all_scenarios()
+
+    if args.sweep:
+        from .adversarial import families_to_dict, format_sweep_report, run_sweep
+        families = run_sweep(capital_usd=args.capital)
+        print(format_sweep_report(families))
+        if args.out:
+            out = Path(args.out)
+            if "data/protection_lab" not in str(out):
+                print("отчёты пишутся только в data/protection_lab/", file=sys.stderr)
+                return 2
+            from spa_core.utils.atomic import atomic_save
+            atomic_save(families_to_dict(families), str(out), indent=1)
+            print(f"отчёт записан: {out}")
+        return 0
 
     if args.list:
         for sid, sc in scenarios.items():
