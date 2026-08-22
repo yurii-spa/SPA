@@ -85,15 +85,15 @@ def run_real_backtest() -> dict:
 
 def run_daily(as_of: Optional[str] = None) -> dict:
     """Advance the Aggressive Lab forward paper track by ONE live tick — the programmatic
-    Lane-1 accrual entry the standing daily runner (``aggressive_lab_runner``) resolves
-    FIRST (spec ``run:run_daily``).
+    Lane-1 accrual entry the standing agent (``com.spa.aggressive_lab`` → this module's
+    ``main``) uses daily.
 
     It MUST build :func:`_real_history_feeds` so the restaking / PT / sUSDe books get real
     live data. A bare ``PaperService()`` defaults to an EMPTY ``AggressiveFeeds()`` whose
     live loaders are unpopulated → every restaking/ratio book fail-closes on missing data
     and the forward track FREEZES (the 2026-07-06 root bug; leverage_loop + levered_restaking
-    stayed at 0 days). Before this function existed the runner's fallback ``cls().tick()`` hit
-    exactly that empty-feeds path. Deterministic, fail-closed, advisory (moves no capital,
+    stayed at 0 days; the since-deleted ``aggressive_lab_runner``'s fallback path hit exactly
+    that empty-feeds trap). Deterministic, fail-closed, advisory (moves no capital,
     never touches the go-live track — isolation-verified inside ``tick``).
     """
     return PaperService(feeds=_real_history_feeds()).tick(as_of)

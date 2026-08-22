@@ -47,12 +47,3 @@ def test_main_paper_branch_routes_through_run_daily(monkeypatch):
     assert calls["n"] == 1
 
 
-def test_runner_resolves_run_daily_first():
-    # The standing daily runner's FIRST accrual candidate is 'run:run_daily'. It must now
-    # resolve (previously missing → runner fell to the empty-feeds cls().tick() freeze path).
-    from spa_core.strategy_lab import aggressive_lab_runner as R
-
-    fn = R._resolve(R._ACCRUAL_CANDIDATES)
-    assert fn is not None
-    assert getattr(fn, "__name__", "") == "run_daily"
-    assert fn is run.run_daily

@@ -57,9 +57,10 @@ New tab **"Aggressive Lab"** → `AggressiveLabSection`:
 
 - Wrapper `scripts/agent_aggressive_lab.sh` → `agent_template.sh` (bash-wrapper, `/tmp` log — rule #11).
 - Plist `scripts/com.spa.aggressive_lab.plist`: daily 08:20 + RunAtLoad, `/tmp` logs only.
-- Runner `spa_core/strategy_lab/aggressive_lab_runner.py`: one tick = accrue (Lane 1) + re-rank
-  (Lane 2), **idempotent per UTC day**, **fail-CLOSED** (a missing producer is recorded, exit 0),
+- Entrypoint `spa_core/strategy_lab/aggressive_lab/run.py` (`MODULE` в обёртке): one tick =
+  accrue (Lane 1, real feeds) + backtest surface, **idempotent per UTC day**, **fail-CLOSED**,
   **never touches the go-live track**. Writes only under `data/aggressive_lab/`.
+  (Ранний параллельный `aggressive_lab_runner.py` удалён 2026-08-22 — launchd его никогда не звал.)
 - **Deploy ONLY via the gate** (CLAUDE.md rule #11):
   `bash scripts/check_agent_before_deploy.sh aggressive_lab` — proves run-once exit 0, log written,
   and the canonical go-live track is **byte-unchanged**. (Not blindly `launchctl`-loaded.)
