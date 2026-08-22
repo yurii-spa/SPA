@@ -6,6 +6,10 @@ status: needs-owner
 source: session-2026-08-19 (карточка agent-checkup-waitlist-fail-open-ok-true)
 created: 2026-08-19
 priority: high
+owner_choice: 1
+owner_answered_at: 2026-08-22T18:38:35.935852+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно
