@@ -10,6 +10,8 @@
 		<string>/Users/yuriikulieshov/miniconda3/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
 		<key>SPA_ENV</key>
 		<string>production</string>
+		<key>SPA_LAUNCHD</key>
+		<string>1</string>
 	</dict>
 	<key>Label</key>
 	<string>com.spa.daily_cycle</string>

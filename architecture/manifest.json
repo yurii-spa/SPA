@@ -1356,8 +1356,8 @@
   },
   {
    "label": "com.spa.monthly_statement",
-   "plist_source": "repo:launchd/com.spa.monthly_statement.plist",
-   "reboot_safe": false,
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
    "schedule": "calendar:08:30",
    "program": "agent_monthly_statement.sh",
    "layer": "product",
@@ -1955,8 +1955,8 @@
   },
   {
    "label": "com.spa.swarm_rank_demotion",
-   "plist_source": "repo:launchd/com.spa.swarm_rank_demotion.plist",
-   "reboot_safe": false,
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
    "schedule": "interval:3600s",
    "program": "agent_swarm_rank_demotion.sh",
    "layer": "product",

@@ -18,11 +18,19 @@ SIGABRT (замерено). Признак, который невозможно 
 from __future__ import annotations
 
 import os
+import plistlib
 import subprocess
 import unittest
 from pathlib import Path
 
-_WRAPPER = Path(__file__).resolve().parents[2] / "scripts" / "run_daily_paper_cycle.sh"
+_REPO = Path(__file__).resolve().parents[2]
+_WRAPPER = _REPO / "scripts" / "run_daily_paper_cycle.sh"
+
+#: КАНОНИЧЕСКИЙ источник настройки цикла — файл в git, а не копия в
+#: `~/Library/LaunchAgents` (инв. #13). Именно этот файл ставит `install_all_agents.sh`
+#: (строка `"$REPO/scripts/com.spa.daily_cycle.plist"`), поэтому проверять надо ЕГО:
+#: судить о хосте тест не должен (на Linux каталога LaunchAgents нет вовсе).
+_PLIST = _REPO / "scripts" / "com.spa.daily_cycle.plist"
 
 
 def _classify(env: dict) -> str:
@@ -65,6 +73,34 @@ class TestTheOldSignalIsGone(unittest.TestCase):
     def test_ppid_is_still_logged_as_reference(self):
         """Убирать сведения не надо — надо перестать делать по ним вывод."""
         self.assertIn("ppid=$PPID", _WRAPPER.read_text(encoding="utf-8"))
+
+
+class TestTheMarkerIsActuallyDeclared(unittest.TestCase):
+    """Признак существует в КОДЕ обёртки — но кто его туда кладёт?
+
+    Разбор 22.08 (решение владельца по карточке `own-33`, вариант 1): ветка классификации
+    была написана 10.08 и с тех пор зелёная, а `SPA_LAUNCHD` не объявляла НИ ОДНА настройка
+    запуска — ни в репо, ни на машине. То есть КАЖДЫЙ плановый запуск цикла попадал в
+    `kind=ad-hoc` вместе с ручными, и вопрос «кто гоняет цикл 52 раза в сутки» оставался
+    неотвечаемым ровно тем измерением, которое под него делали.
+
+    Прежние тесты этого увидеть не могли по построению: они кормили ветку словарём,
+    собранным в самом тесте. Здесь окружение берётся из ФАЙЛА настройки — и на плисте
+    без метки оба теста ниже краснеют (положительный контроль — авария 10.08–22.08).
+    """
+
+    def _plist_env(self) -> dict:
+        return plistlib.loads(_PLIST.read_bytes()).get("EnvironmentVariables", {})
+
+    def test_the_plist_declares_the_marker(self):
+        self.assertEqual(
+            self._plist_env().get("SPA_LAUNCHD"), "1",
+            "плист цикла обязан объявлять SPA_LAUNCHD=1 — иначе метку некому поставить",
+        )
+
+    def test_a_scheduled_run_with_that_plist_reads_as_scheduled(self):
+        """Эффект, а не исходник: окружение ИЗ ФАЙЛА прогоняется через ту же ветку."""
+        self.assertEqual(_classify(self._plist_env()), "scheduled")
 
 
 if __name__ == "__main__":
