@@ -3,7 +3,7 @@
   "generator": "scripts/generate_track_snapshot.py",
   "note": "Build-time static fallback for the public pages. Live values come from api.earn-defi.com and override these client-side; this is the last honest snapshot for offline / crawlers. real_track_days = EVIDENCED bars only. Missing value => 'data unavailable', never a stale number.",
   "as_of": "2026-08-22",
-  "generated_at": "2026-08-22T00:28:53Z",
+  "generated_at": "2026-08-22T01:03:26Z",
   "degraded": false,
   "real_track_days": 60,
   "go_live_target": "2026-07-21",
@@ -42,23 +42,23 @@
       "evidence": "paper"
     },
     "balanced": {
-      "status": "accrual_only_no_positions",
-      "days_with_positions": 0,
-      "days_funded": 13,
+      "status": "paper_test_running",
+      "days_with_positions": 1,
+      "days_funded": 14,
       "apy_pct": null,
-      "dd_pct": null,
-      "nav_usd": 66857.79,
-      "positions_count": 0,
+      "dd_pct": 0.0,
+      "nav_usd": 66877.25,
+      "positions_count": 4,
       "evidence": "paper"
     },
     "aggressive": {
-      "status": "accrual_only_no_positions",
-      "days_with_positions": 0,
-      "days_funded": 13,
+      "status": "paper_test_running",
+      "days_with_positions": 1,
+      "days_funded": 14,
       "apy_pct": null,
-      "dd_pct": null,
-      "nav_usd": 33434.38,
-      "positions_count": 0,
+      "dd_pct": 0.0,
+      "nav_usd": 33437.5,
+      "positions_count": 1,
       "evidence": "paper"
     }
   },
@@ -2312,7 +2312,7 @@
       "drawdown_pct": 0.0,
       "equity": 101010.03,
       "apy_today": 6.3323,
-      "daily_yield_usd": 17.5241,
+      "daily_yield_usd": 17.524,
       "positions": {
         "pendle": 20000.0,
         "maple": 20000.0,
