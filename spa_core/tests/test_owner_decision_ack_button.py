@@ -447,7 +447,18 @@ def test_multiselect_gets_no_ack_buttons(env):
 # ── 4. нажатие: карточка закрывается решением ВЛАДЕЛЬЦА ──────────────────────
 
 
-def test_accept_closes_the_card_as_owner_done(env):
+def test_accept_records_the_owner_answer_and_leaves_the_card_open(env):
+    """ИЗМЕНЁН НАМЕРЕННО циклом #350 (инв. #16), и проверка при этом УСИЛЕНА.
+
+    Раньше здесь стояло ``assert "status: owner-done" in text`` — тест закреплял
+    поведение, которое оказалось АВАРИЕЙ: 22.08 20:29Z нажатие «✅ Принято» сделало
+    карточку-поручение терминальной в момент, когда её собственный критерий приёмки
+    не выполнен (замер 20:47Z), и обещанной перепроверки делать стало некому.
+    Ни один assert не снят: к прежним четырём (след ответа владельца + отсутствие
+    выдуманного «варианта») добавлены ДВА новых — статус ровно ``owner-accepted``
+    и явный запрет терминального. Разбор аварии — `test_owner_accepted_status.py`,
+    обоснование — `docs/journal/2026-W34.md`, цикл #350.
+    """
     card = _write(env, CARD_INSTRUCTION)
     _commit(env)
     prep, live = _push(env, card, CARD_INSTRUCTION)
@@ -457,7 +468,10 @@ def test_accept_closes_the_card_as_owner_done(env):
 
     assert res["ok"] is True and res["kind"] == "ack"
     text = live.read_text(encoding="utf-8")
-    assert "status: owner-done" in text
+    assert "status: owner-accepted" in text
+    assert "status: owner-done" not in text, (
+        "«принято» — обещание совершить действие, а не действие: терминальный "
+        "статус здесь теряет обещанную перепроверку (авария 22.08 20:29Z)")
     assert "owner_choice: ack" in text
     assert "owner_answer_kind: ack" in text
     assert "**Принято — беру в работу**" in text
@@ -635,4 +649,10 @@ def test_heal_delivers_ack_buttons_to_an_instruction_card(env):
     res = od.record_choice(prep.pid, od.ACK_ACCEPT, OWNER, owner_chat_id=OWNER,
                            now=FIXED_NOW, state_path=env["state"])
     assert res["ok"] is True
-    assert "status: owner-done" in live.read_text(encoding="utf-8")
+    # ИЗМЕНЕНО НАМЕРЕННО (#350, инв. #16) и УСИЛЕНО: досланная кнопка обязана вести
+    # туда же, куда исходная, — а «туда же» с #350 означает НЕтерминальный
+    # `owner-accepted`. Проверяется не только статус, но и след ответа владельца,
+    # которого прежнее утверждение не касалось вовсе.
+    text = live.read_text(encoding="utf-8")
+    assert "status: owner-accepted" in text and "status: owner-done" not in text
+    assert "owner_choice: ack" in text and "owner_answer_kind: ack" in text

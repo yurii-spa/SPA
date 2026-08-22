@@ -57,6 +57,12 @@ breaker: HALT»). Снять остановку может ТОЛЬКО влад
       CRITICAL  дереве нет: владелец его ВИДИТ, а нажатие отвечает «карточка
                 исчезла». Найдено со стороны журнала отправок, поэтому не сводится
                 к H8 (тот фильтрует тип и считает в хвосте НЕотправленные).
+  H10 (без      поручения, ПРИНЯТЫЕ владельцем и ещё не исполненные (`owner-accepted`,
+      статуса)  ADR-124). Не вопрос владельцу — НАШЕ обещание, и читатель у него один:
+                обязательный шаг 0-офис протокола. Статус отчёта СОЗНАТЕЛЬНО не
+                поднимаем — прецедент H7/ADR-084: файл ежечасно читает
+                `agent_health_monitor`, умеющий звонить владельцу, а звать владельца
+                из-за нашего невыполненного обещания — ровно наоборот.
 
 Очередь дерева ≠ очередь владельца (цикл #270, 17.08.2026)
 ------------------------------------------------------------------------------
@@ -187,6 +193,12 @@ _OPEN_CARD_STATUS = "needs-owner"
 #: молча погасили бы живой вопрос). Незнакомый статус остаётся НЕ ИЗМЕРЕНО.
 _TERMINAL_CARD_STATUS = frozenset({"ingested", "done", "owner-done"})
 
+#: Владелец ОТВЕТИЛ («принято — беру в работу»), а работа ещё впереди (#350). Это
+#: третье состояние, и оба прежних читали бы его неверно: как «ждёт владельца» —
+#: значит слать ему уже отвеченный вопрос; как «закрыто» — значит потерять ровно то,
+#: ради чего статус и заведён (обещанная перепроверка без исполнителя).
+_ACCEPTED_CARD_STATUS = "owner-accepted"
+
 
 def _worst(*statuses: str) -> str:
     return max(statuses, key=lambda s: _SEVERITY.get(s, 0)) if statuses else OK
@@ -272,8 +284,12 @@ def _is_phantom(card) -> bool:
     return any(sig in body for sig in _PHANTOM_SIGNATURES)
 
 
-def _scan_queue(tracker_dir: Path) -> tuple[list[dict], list[dict], bool]:
-    """Очередь вопросов владельцу из ЖИВОГО дерева. → (карточки, unchecked, есть_ли_каталог).
+def _scan_queue(tracker_dir: Path) -> tuple[list[dict], list[dict], list[dict], bool]:
+    """Очередь владельца из ЖИВОГО дерева. → (ждущие, ПРИНЯТЫЕ, unchecked, есть_ли_каталог).
+
+    Три состояния, а не два (#350): «ждёт владельца» (`needs-owner`), «владелец принял,
+    работа впереди» (`owner-accepted`) и «закрыто». Слить принятые с любым из соседей
+    значило бы либо снова слать владельцу отвеченный вопрос, либо потерять обещание.
 
     Каталога нет ⇒ очереди нет: это законное состояние песочницы/чистой установки,
     и объявлять его «не измерено» значило бы жечь предупреждение там, где мерить
@@ -282,9 +298,10 @@ def _scan_queue(tracker_dir: Path) -> tuple[list[dict], list[dict], bool]:
     без `status:` невидима ЛЮБОМУ фильтру, включая очередь владельца.
     """
     queue: list[dict] = []
+    accepted: list[dict] = []
     unchecked: list[dict] = []
     if not tracker_dir.is_dir():
-        return queue, unchecked, False
+        return queue, accepted, unchecked, False
 
     from spa_core.owner_queue.queue import load_card
 
@@ -314,6 +331,16 @@ def _scan_queue(tracker_dir: Path) -> tuple[list[dict], list[dict], bool]:
                           "любому фильтру очереди, ждёт ли она ответа, НЕ ИЗМЕРЕНО",
             })
             continue
+        if status == _ACCEPTED_CARD_STATUS:
+            # Не вопрос владельцу (он ответил) и не закрытая карточка (работа впереди).
+            # Ждёт АГЕНТА — и потому едет в отчёт отдельным списком, а не растворяется
+            # ни в очереди, ни в тишине.
+            accepted.append({
+                "card_id": card_id,
+                "title": card.title or card_id,
+                "accepted_at": card.fields.get("owner_answered_at"),
+            })
+            continue
         if status != _OPEN_CARD_STATUS:
             continue
         queue.append({
@@ -322,7 +349,7 @@ def _scan_queue(tracker_dir: Path) -> tuple[list[dict], list[dict], bool]:
             "created": card.fields.get("created"),
             "phantom": _is_phantom(card),
         })
-    return queue, unchecked, True
+    return queue, accepted, unchecked, True
 
 
 #: С какой копией очереди сверяемся. Локальный ref, `git fetch` НЕ вызывается:
@@ -412,7 +439,7 @@ def _resolve_missing_on_origin(tracker_dir: Path, card_ids: list[str]) -> dict:
 CHANNEL_HISTORY = "alert_history.json"
 
 
-def _scan_channel_buttons(ddir: Path) -> dict:
+def _scan_channel_buttons(ddir: Path, pushes=None) -> dict:
     """Сообщения с вариантами, уехавшие БЕЗ кнопок — по общему журналу канала.
 
     Fail-CLOSED и никогда не бросает: журнала нет ⇒ ``measured=False`` и причина
@@ -433,7 +460,10 @@ def _scan_channel_buttons(ddir: Path) -> dict:
     try:
         from spa_core.telegram.buttonless_audit import scan
 
-        out = scan(entries)
+        # Журнал отправок передаём тем же вызовом: с ним у каждой находки появляется
+        # ПРИЧИНА, а без неё строка отчёта зовёт читателя копать два журнала руками
+        # (замер #350 — полчаса на две строки).
+        out = scan(entries, pushes=pushes)
     except Exception as exc:  # noqa: BLE001 — сторож не роняет отчёт
         return {"measured": False, "reason": f"скан не выполнен: {exc}"}
     out["measured"] = True
@@ -558,6 +588,7 @@ def check_pending_owner_decisions(*,
     origin_status_by_card = missing_on_origin.get("found") or {}
     closed_on_origin: list[dict] = []
     open_on_origin: list[dict] = []
+    accepted_on_origin: list[dict] = []
     for card_id in missing_ids:
         origin_status = origin_status_by_card.get(card_id)
         if origin_status in _TERMINAL_CARD_STATUS:
@@ -566,6 +597,13 @@ def check_pending_owner_decisions(*,
             # и печатается отдельной строкой (иначе он «исчезнет молча», а прод
             # так и будет отвечать «карточка исчезла» на нажатие).
             closed_on_origin.append({"card_id": card_id, "origin_status": origin_status})
+            continue
+        if origin_status == _ACCEPTED_CARD_STATUS:
+            # Владелец ответил, файла в дереве нет: вопроса к нему больше нет, а
+            # работа есть. Молчать нельзя (иначе принятое поручение испарится вместе
+            # с дрейфом прод↔origin), но и «не измерено» здесь ложно — измерено точно.
+            accepted_on_origin.append({"card_id": card_id,
+                                       "origin_status": origin_status})
             continue
         if origin_status == _OPEN_CARD_STATUS:
             # Находка СИЛЬНЕЕ прежней «не измерено»: вопрос ЖИВОЙ, владельцу его
@@ -591,7 +629,7 @@ def check_pending_owner_decisions(*,
         })
 
     # --- очередь: ИСТОЧНИК списка ждущих вопросов ---------------------------
-    queue_cards, queue_unchecked, queue_present = _scan_queue(tdir)
+    queue_cards, accepted_cards, queue_unchecked, queue_present = _scan_queue(tdir)
     unchecked.extend(queue_unchecked)
 
     # Фантомы вынимаем ДО подсчёта очереди: это не вопросы, и складывать их с
@@ -811,7 +849,7 @@ def check_pending_owner_decisions(*,
     # значит ответить на жалобу о спаме новым спамом. Направление таблички решает
     # (прецедент ADR-084): находка едет в отчёт и в обязательный шаг 0-офис, где её
     # читает оркестратор, а не в чат. Закреплено тестом в обе стороны.
-    channel = _scan_channel_buttons(ddir)
+    channel = _scan_channel_buttons(ddir, pushes)
 
     return {
         "generated_at": now.isoformat(),
@@ -844,6 +882,14 @@ def check_pending_owner_decisions(*,
         "missing_cards": missing_on_origin,
         "closed_on_origin": closed_on_origin,
         "open_on_origin": open_on_origin,
+        "accepted_on_origin": accepted_on_origin,
+        # Поручения, ПРИНЯТЫЕ владельцем и ещё не исполненные (#350). Не вопросы
+        # владельцу — работа агента; читатель — обязательный шаг 0-офис протокола.
+        # Статус отчёта СОЗНАТЕЛЬНО не поднимаем (прецедент H7/ADR-084): этот файл
+        # ежечасно читает `agent_health_monitor`, умеющий звонить владельцу, а звать
+        # владельца из-за НАШЕГО невыполненного обещания — ровно наоборот.
+        "accepted": accepted_cards,
+        "accepted_count": len(accepted_cards),
         "channel_buttons": channel,
         "pending": pending,
         "issues": issues,
@@ -857,6 +903,11 @@ def check_pending_owner_decisions(*,
         "reason": (issues[0] if issues else
                    ("остановки нет; вопросов владельцу без ответа: "
                     f"{len(pending)}"
+                    # Принятые поручения — НЕ вопросы владельцу, поэтому в счёт выше
+                    # они не идут; но и промолчать о них нельзя: это наше обещание,
+                    # у которого до #350 не было ни статуса, ни читателя.
+                    + (f"; принятых поручений в работе: {len(accepted_cards)}"
+                       if accepted_cards else "")
                     + ("" if origin_gap.get("measured")
                        else f" (полнота очереди НЕ ИЗМЕРЕНА: "
                             f"{origin_gap.get('reason', 'причина не названа')})"))),

@@ -24,10 +24,11 @@
 
 Тяжесть перехода — по цене ошибки, а не по частоте
 ------------------------------------------------------------------------------
-* ``needs-owner`` → что угодно, кроме ``owner-done`` — **CRITICAL**: так вопрос владельцу
-  исчезает из очереди, ровно та потеря, что случилась 09.08;
-* → ``owner-done`` без записи — **CRITICAL**: инвариант #14 (закрывает только владелец)
-  проверяется в писателе, и обход писателя обязан быть слышен;
+* ``needs-owner`` → что угодно, кроме owner-only статусов — **CRITICAL**: так вопрос
+  владельцу исчезает из очереди, ровно та потеря, что случилась 09.08;
+* → ``owner-done`` / ``owner-accepted`` без записи — **CRITICAL**: инвариант #14
+  (закрывает только владелец) проверяется в писателе, и обход писателя обязан быть
+  слышен для ОБОИХ статусов, а не только для терминального;
 * остальные неатрибутированные — **WARN**: подозрительно, но вопрос владельца не теряется.
 
 Fail-CLOSED: нет предыдущего снимка / трекер не прочитан ⇒ вердикт ``UNCHECKED`` (код 2),
@@ -47,6 +48,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from spa_core.owner_queue.queue import OWNER_ONLY_STATUSES
 from spa_core.owner_queue.status_audit import read_audit, read_status
 from spa_core.utils.atomic import atomic_save
 
@@ -64,6 +66,13 @@ SLACK = dt.timedelta(minutes=5)
 OWNER_WAITING = "needs-owner"
 #: Статус, который по инварианту #14 ставит только владелец.
 OWNER_ONLY = "owner-done"
+#: ВСЕ статусы, которые вправе поставить только владелец. С #350 их два: к `owner-done`
+#: добавился НЕтерминальный `owner-accepted` («принято — беру в работу»).
+#:
+#: Импорт ЖЁСТКИЙ, без страховки `try/except`, и это осознанно: страховка молча свела бы
+#: перечень к одному члену — то есть сторож перестал бы кричать ровно о НОВОМ статусе,
+#: сохранив зелёный вид. Ронять модуль тут нечем: `status_audit` из того же пакета уже
+#: импортируется жёстко строкой выше, и если пакет недоступен, сторож не работает вовсе.
 
 VERDICT_OK = "OK"
 VERDICT_FINDINGS = "FINDINGS"
@@ -104,9 +113,12 @@ def _parse_ts(value) -> Optional[dt.datetime]:
 
 
 def _severity(old: str, new: str) -> str:
-    if new == OWNER_ONLY:
+    # Приход в ЛЮБОЙ owner-only статус мимо писателя — обход инварианта #14, и он
+    # обязан быть слышен одинаково громко: `owner-accepted` закрывает вопрос из
+    # очереди владельца ровно так же, как `owner-done` (#350).
+    if new in OWNER_ONLY_STATUSES:
         return "CRITICAL"
-    if old == OWNER_WAITING and new != OWNER_ONLY:
+    if old == OWNER_WAITING and new not in OWNER_ONLY_STATUSES:
         return "CRITICAL"
     return "WARN"
 

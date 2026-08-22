@@ -86,16 +86,119 @@ def history_fields(text: str, buttons: Optional[bool]) -> Dict[str, Any]:
     return out
 
 
+# ── ЧЕМ послано и ПОЧЕМУ без кнопок ─────────────────────────────────────────
+#
+# Замер #350 на живом отчёте. Шаг 0-офис напечатал «⚠️ КНОПОК НЕТ у 2 доставленных
+# сообщений с вариантами» — и всё. Чтобы понять, надо ли что-то чинить, сессии
+# пришлось руками поднять `data/telegram_owner_decisions.json`, найти обе карточки по
+# кускам текста и сверить времена: полчаса ровно на тот вопрос, который у соседней
+# находки (H3, `buttons_reason`) печатается прямо в строке. Находка без причины —
+# это приглашение к раскопкам, а не сигнал: одинаковые с виду строки лечатся
+# по-разному, и «сообщение уехало ДРУГОЙ дверью» с «наш разбор не собрал вариантов»
+# ведут к противоположной работе.
+#
+# Сопоставляем ТОЛЬКО по ``message_id`` — точному, измеренному ключу. Сведение по
+# близости времени было бы гаданием: в очереди рядом стоят карточки одной минуты, и
+# ложная атрибуция здесь дороже отсутствия (прецедент «нечёткое совпадение отдаёт APY
+# чужого пула»). Не сошлось — так и говорим, с причиной.
+
+#: Наша дверь, а вариантов в журнале нет: кнопкам неоткуда взяться — чинить РАЗБОР.
+JOIN_OWN_NO_OPTIONS = "own_door_no_options"
+#: Наша дверь и журнал говорит «кнопки были», а канал — «не было». Расхождение двух
+#: наших же записей: чинить не разбор, а путь между сборкой клавиатуры и отправкой.
+JOIN_OWN_CONTRADICTS = "own_door_says_buttons"
+#: Сообщение послано НЕ дверью решений владельца: у нашей message_id пишется всегда.
+JOIN_OTHER_SENDER = "other_sender"
+#: Сопоставить нечем — и это НЕ «другая дверь». Разница принципиальная: объявить
+#: чужим отправителем сообщение, чью запись мы просто не пометили id, значит закрыть
+#: СВОЙ дефект чужим именем.
+JOIN_UNMATCHABLE = "unmatchable"
+#: Журнала отправок не дали вовсе.
+JOIN_NO_JOURNAL = "no_journal"
+
+_JOIN_TEXT = {
+    JOIN_OWN_NO_OPTIONS: "наша дверь, вариантов в журнале нет — чинить РАЗБОР карточки",
+    JOIN_OWN_CONTRADICTS: "наша дверь, журнал говорит «кнопки были» — чинить путь "
+                          "между сборкой клавиатуры и отправкой",
+    JOIN_OTHER_SENDER: "послано НЕ дверью решений владельца — у нашей message_id "
+                       "пишется всегда; искать отправителя, а не разбор",
+    JOIN_UNMATCHABLE: "сопоставить нечем, отправитель НЕ ИЗМЕРЕН",
+    JOIN_NO_JOURNAL: "журнал отправок не передан — отправитель НЕ ИЗМЕРЕН",
+}
+
+
+def _push_index(pushes) -> tuple[dict, int]:
+    """(message_id → запись, сколько записей БЕЗ message_ids).
+
+    Второе число — не украшение: пока в журнале есть записи без id, «не нашли по id»
+    не имеет права читаться как «другая дверь».
+    """
+    by_id: Dict[int, Dict[str, Any]] = {}
+    idless = 0
+    for rec in pushes or []:
+        if not isinstance(rec, dict):
+            continue
+        ids = rec.get("message_ids")
+        clean = []
+        for v in (ids if isinstance(ids, list) else []):
+            try:
+                clean.append(int(v))
+            except (TypeError, ValueError):
+                continue
+        if not clean:
+            idless += 1
+            continue
+        for mid in clean:
+            by_id.setdefault(mid, rec)
+    return by_id, idless
+
+
+def attribute_send(entry: Dict[str, Any], by_id: dict, idless: int,
+                   *, have_journal: bool) -> Dict[str, Any]:
+    """Чем послано это сообщение и почему без кнопок. Никогда не бросает.
+
+    Fail-CLOSED: любое сомнение → ``unmatchable`` с названной причиной, а не догадка.
+    """
+    if not have_journal:
+        return {"code": JOIN_NO_JOURNAL, "text": _JOIN_TEXT[JOIN_NO_JOURNAL]}
+    mid = entry.get("message_id")
+    try:
+        mid = int(mid)
+    except (TypeError, ValueError):
+        return {"code": JOIN_UNMATCHABLE,
+                "text": f"{_JOIN_TEXT[JOIN_UNMATCHABLE]}: у записи канала нет message_id"}
+    rec = by_id.get(mid)
+    if rec is None:
+        if idless:
+            return {"code": JOIN_UNMATCHABLE,
+                    "text": (f"{_JOIN_TEXT[JOIN_UNMATCHABLE]}: записи с id {mid} в журнале "
+                             f"нет, но и сам журнал неполон — {idless} отправк(а/и) без "
+                             f"message_ids, и «чужая дверь» от «наша без отметки id» "
+                             f"неотличимы")}
+        return {"code": JOIN_OTHER_SENDER, "text": _JOIN_TEXT[JOIN_OTHER_SENDER],
+                "card_id": None}
+    code = JOIN_OWN_CONTRADICTS if rec.get("buttons") else JOIN_OWN_NO_OPTIONS
+    return {"code": code, "text": _JOIN_TEXT[code],
+            "card_id": rec.get("card_id")}
+
+
 # ── скан журнала ─────────────────────────────────────────────────────────────
 
 
-def scan(entries: Iterable[Dict[str, Any]], *, limit: int = 20) -> Dict[str, Any]:
+def scan(entries: Iterable[Dict[str, Any]], *, limit: int = 20,
+         pushes: Optional[Iterable[Dict[str, Any]]] = None) -> Dict[str, Any]:
     """Доставленные сообщения, предложившие выбор без кнопок + честный «не измерено».
 
     Судим ТОЛЬКО про ``ok=True``: подавленное заслоном сообщение в чат не приезжало, и
     кнопки ему не нужны. Запись без поля ``buttons`` — не находка и не чистота, а
     отдельный счётчик: журнал до цикла #229 этого не знал ни про одну отправку.
+
+    ``pushes`` — журнал отправок решений владельца. С ним у каждой находки появляется
+    ПРИЧИНА (:func:`attribute_send`), без него — честное «отправитель НЕ ИЗМЕРЕН».
+    Необязателен намеренно: скан не имеет права зависеть от второго файла (#350).
     """
+    have_journal = pushes is not None
+    by_id, idless = _push_index(pushes)
     confirmed: List[Dict[str, Any]] = []
     unmeasured = 0
     unscanned = 0
@@ -120,12 +223,15 @@ def scan(entries: Iterable[Dict[str, Any]], *, limit: int = 20) -> Dict[str, Any
             continue
         if rec.get("buttons"):
             continue
-        confirmed.append({
+        found = {
             "ts": rec.get("ts"),
             "preview": rec.get("preview"),
             "message_id": rec.get("message_id"),
             "solicited": bool(rec.get("solicited")),
-        })
+        }
+        found["cause"] = attribute_send(found, by_id, idless,
+                                        have_journal=have_journal)
+        confirmed.append(found)
     confirmed.sort(key=lambda r: str(r.get("ts") or ""), reverse=True)
     return {
         "with_choice": total_choice,
@@ -144,8 +250,15 @@ def summary_line(report: Dict[str, Any]) -> str:
     u = int(report.get("unmeasured_count") or 0)
     if n:
         first = (report.get("buttonless") or [{}])[0]
+        # Причина стоит РЯДОМ с находкой, а не в json: без неё эта строка стоила
+        # сессии #350 получаса раскопок по двум журналам (см. шапку модуля).
+        cause = first.get("cause") if isinstance(first.get("cause"), dict) else None
+        why = (cause or {}).get("text") or "причина НЕ ИЗМЕРЕНА (отчёт старого образца)"
+        card = (cause or {}).get("card_id")
+        card_tail = f", карточка {card}" if card else ""
         return (f"⚠️ КНОПОК НЕТ у {n} доставленн(ого/ых) сообщени(я/й) с вариантами; "
-                f"свежайшее {first.get('ts')}: {str(first.get('preview') or '')[:80]}")
+                f"свежайшее {first.get('ts')}: {str(first.get('preview') or '')[:80]} "
+                f"[{why}{card_tail}]")
     if u:
         return (f"сообщений с вариантами без измеренных кнопок: {u} "
                 f"(старые записи журнала — «не измерено», не «чисто»)")

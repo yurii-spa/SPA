@@ -19,8 +19,11 @@ import unittest
 from pathlib import Path
 
 from spa_core.telegram import owner_decisions
-from spa_core.telegram.buttonless_audit import (history_fields, offers_choice, scan,
-                                                summary_line)
+from spa_core.telegram.buttonless_audit import (JOIN_NO_JOURNAL, JOIN_OTHER_SENDER,
+                                                JOIN_OWN_CONTRADICTS,
+                                                JOIN_OWN_NO_OPTIONS, JOIN_UNMATCHABLE,
+                                                attribute_send, history_fields,
+                                                offers_choice, scan, summary_line)
 
 
 # ── 1. Детектор узнаёт РЕАЛЬНЫЙ текст нашего же билдера ─────────────────────
@@ -310,3 +313,132 @@ class OfficeStepPrintsItTests(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+# ── 4. У находки есть ПРИЧИНА, а не приглашение копать два журнала ──────────
+#
+# Замер #350 на живом отчёте: шаг 0-офис напечатал «⚠️ КНОПОК НЕТ у 2 доставленных
+# сообщений с вариантами» — и всё. Чтобы понять, надо ли что-то чинить, сессии
+# пришлось руками поднять журнал отправок, найти обе карточки по кускам текста и
+# сверить времена: полчаса ровно на тот вопрос, который у соседней находки (H3,
+# `buttons_reason`) печатается прямо в строке.
+
+
+def _sent(mid, *, ts="2026-08-21T22:06:45+00:00"):
+    """Доставленное сообщение с вариантами и без кнопок — форма живой записи канала."""
+    return {"ok": True, "offers_choice": True, "buttons": False,
+            "message_id": mid, "ts": ts, "preview": "🧑‍⚖️ Нужно твоё решение"}
+
+
+class ButtonlessCauseTests(unittest.TestCase):
+    """Одинаковые с виду строки лечатся по-разному — причина обязана стоять рядом."""
+
+    def test_own_door_without_options_names_the_parser(self):
+        """Наша дверь, вариантов в журнале нет ⇒ чинить РАЗБОР карточки."""
+        pushes = [{"card_id": "own-33", "message_ids": [8342],
+                   "buttons": False, "options": []}]
+
+        out = scan([_sent(8342)], pushes=pushes)
+
+        self.assertEqual(out["buttonless"][0]["cause"]["code"], JOIN_OWN_NO_OPTIONS)
+        self.assertEqual(out["buttonless"][0]["cause"]["card_id"], "own-33")
+        self.assertIn("РАЗБОР", summary_line(out))
+
+    def test_own_door_that_claims_buttons_is_a_different_defect(self):
+        """Журнал говорит «кнопки были», канал — «не было»: чинить путь до отправки."""
+        pushes = [{"card_id": "own-33", "message_ids": [8342],
+                   "buttons": True, "options": [{"num": "1", "label": "х"}]}]
+
+        out = scan([_sent(8342)], pushes=pushes)
+
+        self.assertEqual(out["buttonless"][0]["cause"]["code"], JOIN_OWN_CONTRADICTS)
+
+    def test_a_foreign_sender_is_only_named_when_the_journal_is_complete(self):
+        """У нашей двери message_id пишется всегда — значит это не она."""
+        pushes = [{"card_id": "own-33", "message_ids": [111], "buttons": True}]
+
+        out = scan([_sent(8342)], pushes=pushes)
+
+        self.assertEqual(out["buttonless"][0]["cause"]["code"], JOIN_OTHER_SENDER)
+
+    def test_an_incomplete_journal_never_blames_a_foreign_sender(self):
+        """ГВОЗДЬ: объявить чужим сообщение, чью запись мы просто не пометили, —
+        значит закрыть СВОЙ дефект чужим именем.
+
+        Замер по живому журналу 22.08: 35 записей из 58 (60 %) не имеют
+        `message_ids`, и 20 из них владелец ОТВЕТИЛ, то есть доставлены наверняка.
+        """
+        pushes = [{"card_id": "own-33", "message_ids": [111], "buttons": True},
+                  {"card_id": "own-34", "buttons": True}]          # без message_ids
+
+        out = scan([_sent(8342)], pushes=pushes)
+        cause = out["buttonless"][0]["cause"]
+
+        self.assertEqual(cause["code"], JOIN_UNMATCHABLE)
+        self.assertIn("1 отправк", cause["text"])
+        self.assertIn("НЕ ИЗМЕРЕН", summary_line(out))
+
+    def test_no_journal_is_unmeasured_not_clean(self):
+        """Скан не зависит от второго файла — но и не притворяется, что знает."""
+        out = scan([_sent(8342)])
+
+        self.assertEqual(out["buttonless"][0]["cause"]["code"], JOIN_NO_JOURNAL)
+        self.assertIn("НЕ ИЗМЕРЕН", summary_line(out))
+
+    def test_a_channel_entry_without_message_id_is_unmatchable(self):
+        out = scan([_sent(None)], pushes=[{"card_id": "x", "message_ids": [1]}])
+
+        self.assertEqual(out["buttonless"][0]["cause"]["code"], JOIN_UNMATCHABLE)
+
+    def test_attribution_never_raises_on_junk(self):
+        """Сторож не имеет права упасть на кривой записи — иначе шаг 0-офис слепнет."""
+        for junk in ({}, {"message_id": "не-число"}, {"message_id": []}):
+            self.assertEqual(
+                attribute_send(junk, {}, 0, have_journal=True)["code"],
+                JOIN_UNMATCHABLE)
+
+    def test_a_clean_channel_says_nothing_about_causes(self):
+        """Обратный контроль: где кнопки есть, разговора о причинах нет вовсе."""
+        out = scan([{"ok": True, "offers_choice": True, "buttons": True,
+                     "message_id": 1, "ts": "t"}], pushes=[])
+
+        self.assertEqual(out["buttonless_count"], 0)
+        self.assertIn("все с кнопками", summary_line(out))
+
+
+# ── 5. ПРОВОДКА: причина доезжает до отчёта, а не только живёт в функции ────
+#
+# Мутация #350 показала дыру ровно этого вида: снятие аргумента `pushes` в
+# `owner_decision_pending._scan_channel_buttons(ddir, pushes)` не покрасило НИ ОДНОГО
+# теста — все они звали `scan()` напрямую. Проверять надо ЭФФЕКТ на отчёте, иначе
+# исправная деталь висит неподключённой (тот же класс, что «one deleted call site
+# left 1364 tests GREEN»).
+
+class ButtonlessCauseIsWiredIntoTheReportTests(unittest.TestCase):
+
+    def _report(self, tmp: Path):
+        from spa_core.monitoring import owner_decision_pending as odp
+
+        (tmp / "alert_history.json").write_text(json.dumps(
+            {"entries": [_sent(8342)]}), encoding="utf-8")
+        (tmp / "telegram_owner_decisions.json").write_text(json.dumps(
+            {"schema_version": 1,
+             "pushes": [{"pid": "p1", "card_id": "own-33", "message_ids": [8342],
+                         "buttons": False, "options": [],
+                         "pushed_at": "2026-08-21T22:06:40+00:00"}]}),
+            encoding="utf-8")
+        tracker = tmp / "nimbalyst-local" / "tracker"
+        tracker.mkdir(parents=True)
+        return odp.check_pending_owner_decisions(data_dir=tmp, tracker_dir=tracker)
+
+    def test_the_report_carries_the_cause_of_the_buttonless_send(self):
+        with tempfile.TemporaryDirectory() as d:
+            doc = self._report(Path(d))
+
+        cause = doc["channel_buttons"]["buttonless"][0]["cause"]
+        self.assertEqual(cause["code"], JOIN_OWN_NO_OPTIONS)
+        self.assertEqual(cause["card_id"], "own-33")
+        self.assertNotEqual(
+            cause["code"], JOIN_NO_JOURNAL,
+            "журнал отправок лежит рядом в том же каталоге — «не передан» здесь "
+            "означает оборванную проводку, а не отсутствие данных")

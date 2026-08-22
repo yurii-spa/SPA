@@ -628,6 +628,32 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                               for c in closed if isinstance(c, dict))
             out.append(f"   дрейф прод↔origin: {len(closed)} отправленн(ая/ых) карточк(а/и) "
                        f"ЗАКРЫТЫ на origin, файла в прод-дереве нет — {names}")
+        # Принятые поручения (#350): владелец нажал «Принято — беру в работу», и
+        # карточка ОСТАЛАСЬ открытой, потому что «принято» — это обещание, а не
+        # исполнение. Читатель у обещания ровно один — этот шаг; молчание здесь
+        # вернуло бы ровно ту потерю, ради которой статус и заведён.
+        # Блока нет вовсе ⇒ говорим «НЕ ИЗМЕРЕНО»: отчёт старого образца не имеет
+        # права выглядеть как «принятых поручений нет».
+        if "accepted" not in data:
+            out.append("   ⚠️ принятые поручения НЕ ИЗМЕРЕНЫ: в отчёте нет блока "
+                       "accepted (отчёт старого образца)")
+        else:
+            accepted = data.get("accepted")
+            accepted = accepted if isinstance(accepted, list) else []
+            if accepted:
+                names = ", ".join(
+                    f"{c.get('card_id')} (принято {str(c.get('accepted_at') or 'когда — не записано')[:19]})"
+                    for c in accepted if isinstance(c, dict))
+                out.append(f"   ⚠️ принято владельцем, НЕ ИСПОЛНЕНО: {len(accepted)} "
+                           f"поручени(е/я) ждут агента — {names}")
+            else:
+                out.append("   принятых и неисполненных поручений нет")
+        accepted_origin = data.get("accepted_on_origin")
+        if isinstance(accepted_origin, list) and accepted_origin:
+            names = ", ".join(str(c.get("card_id")) for c in accepted_origin
+                              if isinstance(c, dict))
+            out.append(f"   дрейф прод↔origin: {len(accepted_origin)} принят(ое/ых) "
+                       f"поручени(е/я) есть на origin, файла в прод-дереве нет — {names}")
         # Канал: уезжали ли владельцу сообщения с вариантами БЕЗ кнопок (жалоба 14.08).
         # Печатаем ОТДЕЛЬНОЙ строкой и всегда: молчание про этот вопрос читалось бы как
         # «кнопки в порядке», а до цикла #229 он был неизмерим по построению.

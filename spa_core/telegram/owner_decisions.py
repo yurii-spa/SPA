@@ -53,6 +53,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from spa_core.owner_queue.owner_answer import (
+    ACK_ACCEPT_CHOICE as _ACK_ACCEPT_CHOICE,
+    ACK_DECLINE_CHOICE as _ACK_DECLINE_CHOICE,
+)
 from spa_core.utils.atomic import atomic_save, atomic_save_text
 from spa_core.utils.live_paths import live_data_dir
 
@@ -877,10 +881,16 @@ def build_keyboard(pid: str, options: List[ParsedOption]) -> Dict:
 # Любое из трёх — кнопок подтверждения нет, текст объясняет причину как раньше.
 
 #: Владелец согласен: поручение принято, агент берёт в работу.
-ACK_ACCEPT = "ack"
+#:
+#: Значение НЕ пишется здесь второй раз: от него зависит СТАТУС карточки, а статус пишет
+#: `owner_queue.owner_answer` — значит там ему и место, а тут только имя (#143–#145).
+#: С #350 «принято» переводит карточку в НЕтерминальный `owner-accepted`: это обещание
+#: совершить действие, а не действие.
+ACK_ACCEPT = _ACK_ACCEPT_CHOICE
 #: Владелец отказывается: делать не надо. Такой же полноценный ответ, как согласие —
 #: без него «принято» было бы не выбором, а единственной кнопкой (то есть подписью).
-ACK_DECLINE = "nack"
+#: В отличие от «принято», отказ карточку ЗАКРЫВАЕТ: после него не ждут ничего.
+ACK_DECLINE = _ACK_DECLINE_CHOICE
 
 #: Что уедет в карточку как текст решения владельца.
 ACK_LABELS: Dict[str, str] = {
@@ -1918,10 +1928,16 @@ def confirmation_text(result: Dict) -> str:
             if result.get("already"):
                 return (f"👌 Это уже записано: <b>{label}</b>.\n"
                         f"Повторно ничего не менял.")
-            tail = ("беру в работу." if str(result.get("choice")) == ACK_ACCEPT
-                    else "делать не буду.")
+            # «Принято» карточку НЕ закрывает — и владелец обязан услышать это здесь,
+            # а не обнаружить через неделю, что обещанная перепроверка не случилась
+            # (#350: единственное ack-закрытие стало терминальным при НЕвыполненном
+            # критерии приёмки той же карточки). «Не надо» — закрывает: ждать нечего.
+            if str(result.get("choice")) == ACK_ACCEPT:
+                return (f"✅ Записал: <b>{label}</b>.\n"
+                        f"Карточка остаётся открытой, пока я не сделаю и не отчитаюсь "
+                        f"о результате — закрою её сам, когда будет чем закрыть.")
             return (f"✅ Записал: <b>{label}</b>.\n"
-                    f"Карточка закрыта твоим решением, {tail}")
+                    f"Карточка закрыта твоим решением, делать не буду.")
         if result.get("already"):
             return (f"👌 Это решение уже записано: <b>вариант {num}</b> — {label}.\n"
                     f"Повторно ничего не менял.")

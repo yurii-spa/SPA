@@ -39,7 +39,10 @@ TYPE_LABEL = {
 }
 # порядок статусов внутри типа (неизвестные — в конец)
 STATUS_ORDER = [
-    "needs-owner", "blocked", "in-progress", "backlog",
+    # `owner-accepted` стоит ВТОРЫМ, сразу за вопросами владельцу: это наше принятое
+    # и ещё не исполненное обещание (#350) — его место наверху, а не в хвосте среди
+    # закрытых. Терминальным он НЕ является.
+    "needs-owner", "owner-accepted", "blocked", "in-progress", "backlog",
     "open", "ingested", "done", "owner-done",
 ]
 # статусы, означающие «ждёт владельца» — выносим наверх
@@ -47,6 +50,9 @@ WAITING_OWNER = {"needs-owner"}
 # статусы, при которых работа закрыта ⇒ забытый claimed_by не считается занятостью
 # (та же таблица, что в scripts/check_card_claim.py — карточку никто не «держит» после done)
 TERMINAL_STATUSES = {"done", "ingested", "owner-done"}
+# `owner-accepted` СОЗНАТЕЛЬНО не здесь: владелец ответил, но работа впереди, и захват
+# карточки продолжает действовать — иначе принятое поручение немедленно выглядело бы
+# свободным для второй сессии.
 
 
 def parse_frontmatter(text: str) -> dict:
