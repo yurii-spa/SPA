@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent-task
 title: "Одно число — два вердикта: portfolio health 69.4 это CRITICAL у системного сторожа и WARNING у агентного"
-status: backlog
+status: done
 created: 2026-08-07
 priority: medium
 domain: мониторинг / пороги
@@ -50,3 +50,12 @@ CRITICAL» и рядом «Agents ⚠️ WARNING» — при том, что и�
 То есть d6.health CRITICAL — не новая беда, а ТРЕТЬЕ имя уже известного простоя капитала
 (`capital-efficiency LAZY` + карточка владельца «После страховки деньги остаются сиротами»).
 Замер дописан в ту карточку, дубля намеренно не создаю.
+
+
+## Закрыто 2026-08-22: решение владельца — вариант 1 (ADR-123)
+
+Композитная оценка качества ниже пола 70 = WARNING у обоих сторожей; CRITICAL в
+`d6_risk_gates` остаётся за настоящими отказами гейтов. Порог не менялся. Правка в
+`system_health_monitor._check_portfolio_health` (CRITICAL → WARNING с комментарием),
+тест переименован намеренно по ADR-123 (инв. #16), добавлен контроль домена, мутация
+красит оба. `agent_health_monitor` не менялся — он уже говорил WARNING.
