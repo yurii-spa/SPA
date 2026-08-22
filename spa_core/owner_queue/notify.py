@@ -65,6 +65,19 @@ def notify_needs_owner(path: str | Path, *, dry_run: bool = False,
     ``solicited`` у ``guard_outbound``). Заслоны при этом не ослаблены ни на строку:
     без явного флага поведение прежнее, байт в байт.
     """
+    # Живая копия карточки могла ОТСТАТЬ от источника правды: варианты дописаны на
+    # `origin/main` уже после того, как карточка уехала владельцу (замер 21.08: `own-33`
+    # — через 52 минуты; спрошен четыре раза, все четыре честно без кнопок). Обновление
+    # обязано случиться ДО `load_card`, иначе починится следующая отправка, а не эта.
+    # Оно узкое и доказуемо ничего не теряющее — все условия в `refresh_live_copy_from_ref`.
+    try:
+        from spa_core.telegram.owner_decisions import refresh_live_copy_from_ref
+
+        rep = refresh_live_copy_from_ref(path)
+        if rep.get("verdict") == "refreshed_from_ref":
+            log.warning("notify_needs_owner: %s", rep.get("detail"))
+    except Exception as exc:  # noqa: BLE001 — обновление не важнее самого уведомления
+        log.warning("notify_needs_owner: refresh from ref failed for %s: %s", path, exc)
     card = load_card(path)
     # Анти-шторм (инцидент 2026-08-20: 200+ копий одного решения за ночь): та же
     # карточка без ответа не уходит чаще окна и потолка попыток. Сухой прогон
