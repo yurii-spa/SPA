@@ -881,3 +881,55 @@ def test_data_dir_routes_receipts_to_the_foreign_tree(tmp_path) -> None:
     assert in_prod.exists(), f"квитанция не легла в прод-дерево: {in_prod}\n{out}"
     assert "house_view_gap.json" in in_prod.read_text(encoding="utf-8")
     assert not in_wt.exists(), f"квитанция осела в одноразовом worktree: {in_wt}"
+
+
+# ── 11. срок годности дом-вью: ПРОИСХОЖДЕНИЕ названо, когда оно не конституция ──
+#
+# Живой замер 22.08 (цикл #340). Шаг 0-офис печатал
+#   `дом-вью (chief_investment): FRESH · возраст 12.4ч при сроке годности 30ч`
+# про артефакт, которому конституция флота после решения владельца ADR-104 (21.08)
+# объявила срок годности 1ч. Число 30ч было списано рукой 16.08 и связи с источником
+# не имело. Число без источника нечем оспорить, поэтому источник теперь в строке —
+# но ТОЛЬКО когда он не конституция: иначе шум в каждом цикле.
+
+_HV_ROW = {"agent": "chief_investment", "status": "STALE", "fresh": False,
+           "present": True, "age_s": 44640, "max_age_s": 3600}
+
+
+def _health_with_house_view(**hv) -> dict:
+    doc = json.loads(json.dumps(HEALTH_REAL))
+    doc["house_view"] = dict(_HV_ROW, **hv)
+    return doc
+
+
+def test_house_view_budget_read_from_the_constitution_is_not_narrated() -> None:
+    """Обратный контроль: замеренный срок — норма, о ней не говорят."""
+    out = _text(MOD._summarize_json(
+        "data/investment_os/_health.json",
+        _health_with_house_view(budget_source="manifest_slo",
+                                budget_why="architecture/manifest.json: slo_hours=1"),
+        now=NOW))
+    assert "дом-вью (chief_investment): STALE" in out, out
+    assert "при сроке годности 1ч" in out, out
+    assert "НЕ из конституции" not in out, out
+
+
+def test_house_view_budget_fallen_back_to_a_literal_says_so() -> None:
+    """Откат на литерал обязан быть СЛЫШЕН: иначе он неотличим от замера."""
+    out = _text(MOD._summarize_json(
+        "data/investment_os/_health.json",
+        _health_with_house_view(status="FRESH", fresh=True, max_age_s=108000,
+                                budget_source="fallback",
+                                budget_why="manifest.json not read (FileNotFoundError)"),
+        now=NOW))
+    assert "срок НЕ из конституции" in out, out
+    assert "fallback" in out, out
+    assert "FileNotFoundError" in out, out
+
+
+def test_old_health_report_without_the_source_still_prints() -> None:
+    """Отчёт СТАРОГО образца (поля нет вовсе) не должен рвать шаг 0-офис."""
+    out = _text(MOD._summarize_json("data/investment_os/_health.json",
+                                    _health_with_house_view(), now=NOW))
+    assert "дом-вью (chief_investment): STALE" in out, out
+    assert "НЕ из конституции" not in out, out
