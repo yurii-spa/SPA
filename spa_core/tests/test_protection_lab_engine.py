@@ -232,3 +232,49 @@ class HonestAccounting(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CashMixMechanics(unittest.TestCase):
+    """Корзина кэша — инструмент counterfactual-замера (карточка владельцу).
+
+    Направление закреплено: конвертация выручки в убежище ПО ПАНИЧЕСКОЙ ПРЕМИИ
+    обязана стоить денег, а не выглядеть бесплатной диверсификацией.
+    """
+
+    def _depeg_with_premium(self):
+        # USDC падает и восстанавливается; USDT — премия убежища в те же дни.
+        spec = SyntheticSpec(
+            name="SYN_test_cash_mix", description="депег + премия убежища",
+            duration_days=10,
+            depegs=[DepegSpec("USDC", 0.88, start_day=1, trough_day=2,
+                              recovery_day=5)],
+        )
+        sc = build_synthetic_scenario(spec)
+        sc.replay.shocks.append(type(sc.replay.shocks[0])(
+            kind="peg", params={"symbol": "USDT",
+                                "path": [[1, 1.0], [2, 1.01], [5, 1.0]]}))
+        return sc
+
+    def test_default_mix_is_pure_usdc_and_matches_omitted_arg(self):
+        sc = self._depeg_with_premium()
+        a = run_replay(sc, book=_BOOK)
+        b = run_replay(sc, book=_BOOK, cash_mix={"USDC": 1.0})
+        self.assertEqual(a.protected.bars, b.protected.bars)
+
+    def test_converting_exit_proceeds_at_panic_premium_costs_money(self):
+        sc = self._depeg_with_premium()
+        pure = run_replay(sc, book=_BOOK)
+        mixed = run_replay(sc, book=_BOOK, cash_mix={"USDC": 0.5, "USDT": 0.5})
+        self.assertLess(
+            mixed.protected.final_equity, pure.protected.final_equity,
+            "покупка USDT по премии $1.01 в кризис + отказ от восстановления "
+            "USDC обязаны стоить денег — если стало «бесплатно», движок начал "
+            "льстить диверсификации")
+
+    def test_mix_weights_are_normalized_and_zero_sum_rejected(self):
+        sc = self._depeg_with_premium()
+        a = run_replay(sc, book=_BOOK, cash_mix={"USDC": 2.0, "USDT": 2.0})
+        b = run_replay(sc, book=_BOOK, cash_mix={"USDC": 0.5, "USDT": 0.5})
+        self.assertEqual(a.protected.bars, b.protected.bars)
+        with self.assertRaises(ValueError):
+            run_replay(sc, book=_BOOK, cash_mix={"USDC": 0.0})

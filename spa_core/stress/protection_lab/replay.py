@@ -225,6 +225,7 @@ def _run_book(
     book: List[BookPosition],
     capital_usd: float,
     protect: bool,
+    cash_mix: Optional[Dict[str, float]] = None,
 ) -> ReplayRun:
     spec = scenario.replay
     assert spec is not None, "у сценария нет replay-спеки"
@@ -236,9 +237,17 @@ def _run_book(
     symbol_of = {pos.protocol: spec.exposure_symbols.get(pos.protocol, pos.exposure_symbol)
                  for pos in book}
 
+    # Корзина кэша: по умолчанию 100% USDC (текущая система). Веса нормируются.
+    mix = dict(cash_mix) if cash_mix else {CASH_SYMBOL: 1.0}
+    mix_total = sum(mix.values())
+    if mix_total <= 0:
+        raise ValueError("cash_mix: сумма весов должна быть положительной")
+    mix = {s: w / mix_total for s, w in mix.items() if w > 0}
+
     # units: принципал в единицах своего символа (value_usd = units × peg).
     units: Dict[str, float] = {pos.protocol: capital_usd * pos.weight for pos in book}
-    cash_units = capital_usd * max(0.0, 1.0 - sum(pos.weight for pos in book))
+    cash_total = capital_usd * max(0.0, 1.0 - sum(pos.weight for pos in book))
+    cash: Dict[str, float] = {s: cash_total * w for s, w in mix.items()}
 
     run = ReplayRun(label="protected" if protect else "benchmark")
     closes: List[float] = []
@@ -280,7 +289,7 @@ def _run_book(
             # Депег-гейт: цены всех символов экспозиции книги + кэша, какими их
             # видел вчерашний рынок. Классификация — той же detect_depeg,
             # которую вызывает RiskPolicy.check_stablecoin_depeg.
-            watched = sorted({CASH_SYMBOL, *symbol_of.values()})
+            watched = sorted({*mix, *symbol_of.values()})
             prices = {sym: visible.peg(sym) for sym in watched}
             for ev in detector.detect_depeg(prices):
                 if ev["severity"] != "CRITICAL":
@@ -296,9 +305,9 @@ def _run_book(
                                    f"({ev['deviation_pct']:+.2f}%) CRITICAL — "
                                    f"выход из {', '.join(sorted(exposed))}"),
                     })
-                if sym == CASH_SYMBOL:
-                    note = ("канал НЕ ЗАЩИЩЁН: кэш системы — USDC; выход из "
-                            "USDC-позиций в USDC-кэш не снижает peg-экспозицию")
+                if sym in mix:
+                    note = (f"канал НЕ ЗАЩИЩЁН: кэш системы — {sym}; выход из "
+                            f"{sym}-позиций в {sym}-кэш не снижает peg-экспозицию")
                     if note not in [a.get("finding") for a in run.actions]:
                         run.actions.append({
                             "day": d, "date": day_date,
@@ -339,8 +348,10 @@ def _run_book(
                 proceeds = max(0.0, value_usd - haircut - gas)
                 run.haircut_usd += haircut
                 run.gas_usd += min(gas, value_usd)
-                peg_cash = m.peg(CASH_SYMBOL)
-                cash_units += proceeds / peg_cash if peg_cash > 0 else 0.0
+                for s, w in mix.items():
+                    peg_s = m.peg(s)
+                    if peg_s > 0:
+                        cash[s] += proceeds * w / peg_s
                 units[p] = 0.0
                 scheduled_exits.discard(p)
                 run.actions.append({
@@ -350,7 +361,7 @@ def _run_book(
                 })
 
         # ── 4. Дневной бар NAV ─────────────────────────────────────────────
-        nav = cash_units * m.peg(CASH_SYMBOL) + sum(
+        nav = sum(cash[s] * m.peg(s) for s in cash) + sum(
             units[p] * m.peg(symbol_of[p]) for p in units)
         closes.append(nav)
         run.bars.append({
@@ -372,7 +383,7 @@ def _run_book(
     run.max_drawdown_pct = round(max_dd, 4)
     run.positions_end_usd = {
         p: round(units[p] * last_m.peg(symbol_of[p]), 2) for p in units if units[p] > 0}
-    run.cash_end_usd = round(cash_units * last_m.peg(CASH_SYMBOL), 2)
+    run.cash_end_usd = round(sum(cash[s] * last_m.peg(s) for s in cash), 2)
     for key in ("yield_earned_usd", "impairment_usd", "haircut_usd", "gas_usd"):
         setattr(run, key, round(getattr(run, key), 4))
     return run
@@ -382,15 +393,21 @@ def run_replay(
     scenario: Scenario,
     book: Optional[List[BookPosition]] = None,
     capital_usd: float = 100_000.0,
+    cash_mix: Optional[Dict[str, float]] = None,
 ) -> ProtectionReport:
-    """Прогнать сценарий: benchmark + protected, собрать метрики защиты."""
+    """Прогнать сценарий: benchmark + protected, собрать метрики защиты.
+
+    ``cash_mix`` — корзина кэша {символ: вес}; по умолчанию {"USDC": 1.0}
+    (текущая система). Нужна для замеров «а если кэш диверсифицирован» —
+    сам прод такой корзины НЕ имеет, это инструмент counterfactual-замера.
+    """
     if scenario.replay is None:
         raise ValueError(f"{scenario.id}: у сценария нет replay-спеки — только датасет")
     if book is None:
         book = DEFAULT_BOOK
 
-    benchmark = _run_book(scenario, book, capital_usd, protect=False)
-    protected = _run_book(scenario, book, capital_usd, protect=True)
+    benchmark = _run_book(scenario, book, capital_usd, protect=False, cash_mix=cash_mix)
+    protected = _run_book(scenario, book, capital_usd, protect=True, cash_mix=cash_mix)
 
     report = ProtectionReport(
         scenario_id=scenario.id,
