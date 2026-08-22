@@ -1382,6 +1382,33 @@ class Heal:
     ack: bool = False
 
 
+def _heal_prepare(path: Path, *, now: Optional[datetime],
+                  beacon_path: Optional[str | Path]):
+    """Карточка с диска + собранное по ней сообщение. ``None`` — читать нечего.
+
+    Отдельной функцией, потому что читать её приходится ДВАЖДЫ: второй раз — после
+    обновления живой копии с ref. Повторять четыре строки на месте значило бы
+    получить два слегка разных чтения одной карточки, а расхождение здесь стоит
+    владельцу нажатия.
+    """
+    from spa_core.owner_queue.queue import load_card
+
+    try:
+        card = load_card(path)
+    except Exception:  # noqa: BLE001 — карточку могли переместить/удалить
+        return None
+    if card.status != "needs-owner":
+        return None  # вопрос уже не на владельце
+    try:
+        allow_ack, _why = ack_allowed(path, card.body)
+        prep = prepare(card.title or path.stem, card.body, path.stem,
+                       card_name=path.name, now=now, beacon_path=beacon_path,
+                       allow_ack=allow_ack)
+    except Exception:  # noqa: BLE001
+        return None
+    return card, prep
+
+
 def buttonless_pushes(
     *,
     now: Optional[datetime] = None,
@@ -1394,8 +1421,6 @@ def buttonless_pushes(
     Пусто — нормальный ответ (и обычный): либо всё уехало с кнопками, либо обработчика
     по-прежнему нет, либо владелец уже ответил.
     """
-    from spa_core.owner_queue.queue import load_card
-
     out: List[Heal] = []
     try:
         doc = _load(_state_path(state_path))
@@ -1415,24 +1440,41 @@ def buttonless_pushes(
         # варианты уже после того, как уехала без них (замер 21.08: `own-33`
         # дописан через 52 минуты после доставки). Судя по замороженному снимку,
         # ремонт объявлял такую запись нечинимой НАВСЕГДА — fail-CLOSED, который
-        # уже никогда не открывается обратно. Живой источник правды — тело
-        # карточки, и спрашивает его `prepare` ниже: нет вариантов или нет
-        # обработчика ⇒ `keyboard is None` ⇒ мы всё равно молчим. Отказ тот же,
-        # основание — измеренное сейчас, а не запомненное тогда.
+        # уже никогда не открывается обратно. Спрашиваем тело карточки —
+        # `_heal_prepare` ниже: нет вариантов или нет обработчика ⇒
+        # `keyboard is None` ⇒ мы всё равно молчим. Отказ тот же, основание —
+        # измеренное сейчас, а не запомненное тогда.
+        #
+        # Тело живой копии при этом источником правды НЕ является: очередь живёт
+        # на `origin/main`, а сюда её не возит никто (#193). Поэтому «вариантов
+        # нет» здесь — ещё не ответ, и ниже он перепроверяется по ref.
         path = Path(str(rec.get("card") or ""))
-        try:
-            card = load_card(path)
-        except Exception:  # noqa: BLE001 — карточку могли переместить/удалить
+        got = _heal_prepare(path, now=now, beacon_path=beacon_path)
+        if got is None:
             continue
-        if card.status != "needs-owner":
-            continue  # вопрос уже не на владельце
-        try:
-            allow_ack, _why = ack_allowed(path, card.body)
-            prep = prepare(card.title or path.stem, card.body, path.stem,
-                           card_name=path.name, now=now, beacon_path=beacon_path,
-                           allow_ack=allow_ack)
-        except Exception:  # noqa: BLE001
-            continue
+        card, prep = got
+        if prep.keyboard is None and not parse_options(card.body or ""):
+            # Живая копия могла ОТСТАТЬ от источника правды: каталог очереди в
+            # прод-дерево не возит никто (#193), и вариантов здесь нет ровно
+            # потому, что их дописали уже после того, как копия сюда попала.
+            # Лекарство есть (#339) — но до УЖЕ доставленного вопроса оно не
+            # доезжало: `notify` по нему больше не пойдёт (звать владельца ради
+            # своей же недоставки запрещено, ADR-084), а ремонт спрашивал только
+            # копию и получал честный отказ о ней. Спрашиваем ref здесь, где
+            # чинится ЭТА запись, — иначе вылечится следующая, а эта висит.
+            #
+            # Цена платится только на БОЛЬНОМ пути: варианты разбираются ⇒
+            # `keyboard is None` про обработчика, а не про тело, и git мы не
+            # трогаем вовсе. Все четыре условия безопасности (следа ответа
+            # владельца нет · статус `needs-owner` · та же карточка на ref ·
+            # ref богаче ИМЕННО вариантами) остаются ВНУТРИ
+            # `refresh_live_copy_from_ref`: копия с ответом владельца не
+            # перезаписывается ни при каком расхождении.
+            if refresh_live_copy_from_ref(path).get("verdict") == REFRESH_DONE:
+                got = _heal_prepare(path, now=now, beacon_path=beacon_path)
+                if got is None:
+                    continue
+                card, prep = got
         if prep.keyboard is None:
             continue  # обработчика всё ещё нет — чинить нечем, молчим
         out.append(Heal(pid=prep.pid, card=str(path),

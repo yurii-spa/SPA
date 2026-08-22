@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **599** · ждёт владельца: **3** · занято сессиями: **6**.
+> Всего карточек: **600** · ждёт владельца: **3** · занято сессиями: **6**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -164,7 +164,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (286)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (287)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -285,6 +285,7 @@
 - Разбор workflow читает шаг pip install как ПРОГОН pytest, а слово в комментарии — как его цель  ·  `inbox-razbor-workflow-chitaet-shag-pip-install.md` · 2026-08-19
 - Раздел находок шага 0a называет автора записи её же свидетелем: also_declared_by эхом повторяет одну сессию  ·  `inbox-razdel-nahodok-shaga-0a-nazyvaet-avtora.md` · 2026-08-19
 - «red_team: CRITICAL» — это ЭХО нашей же остановки, а не находка разведки; причина нигде не названа  ·  `inbox-red-team-critical-eto-eho-ostanovki-a-ne-nahodka.md` · 2026-08-10
+- Ремонт кнопок не спрашивает источник правды: лекарство от отставшей живой копии есть, но до УЖЕ доставленного вопроса не доедет никогда  ·  `inbox-remont-knopok-ne-sprashivaet-istochnik-p.md` · 2026-08-22
 - Рецидив: сетевой страж снова краснеет ТОЛЬКО в полном прогоне (3 теста, чистый origin)  ·  `inbox-retsidiv-setevoi-strazh-snova-krasneet-t.md` · 2026-08-08
 - Ряд дней offsite-бэкапа ключуется ЛОКАЛЬНОЙ датой, а читается по UTC — между 00 и 02 UTC серия рвётся  ·  `inbox-ryad-dnei-offsite-bekapa-klyuchuetsya-lo.md` · 2026-08-09
 - Шаг 0-офис из worktree докладывает «не прочитано 20» — и это выглядит как настоящая находка  ·  `inbox-shag-0-ofis-iz-worktree-dokladyvaet-ne-p.md` · 2026-08-12
