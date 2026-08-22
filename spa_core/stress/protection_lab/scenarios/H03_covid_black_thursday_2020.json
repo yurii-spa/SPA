@@ -1,0 +1,438 @@
+{
+ "schema_version": 1,
+ "id": "H03_covid_black_thursday_2020",
+ "name": "COVID Black Thursday (March 12-13, 2020)",
+ "event_class": [
+  "market_crash",
+  "liquidity_oracle_infra",
+  "systemic_contagion"
+ ],
+ "window_utc": {
+  "start": "2020-03-12T00:00:00Z",
+  "trough": "2020-03-13T02:16:00Z",
+  "end": "2020-03-19T23:59:00Z",
+  "notes_on_end": "Acute phase ends with successful start of first-ever MKR debt auction Mar 19; Maker recapitalization completed Mar 28"
+ },
+ "speed": "BTC ~-40% in 24h (Mar 12) and ~-52% peak-to-trough in ~26h; ETH -43% in one day (largest ever), ~-55% in ~26h; DeFi TVL -43% in ~48h; Maker went from solvent to a ~5.67M DAI deficit in roughly 12 hours",
+ "summary": "12-13 марта 2020: BTC −52%, ETH −55% за ~26 часов, gas 200-400+ gwei, ликвидации Maker с нулевыми ставками (дыра 4.5-6.65M DAI), DAI депегнулся ВВЕРХ до $1.10+. USDC пег держал (flight to safety). Урон DeFi-кредитору шёл через механику ликвидаций/газа/оракулов, а не через цену стейблкоина. Книга SPA на 2026-08: aave_v3 40% / pendle (PT_USDC) 20% / maple 15% / morpho_steakhouse 15% / кэш USDC 10%.",
+ "timeline": [
+  {
+   "ts": "2020-03-08/09",
+   "event": "Prelude: oil price war + COVID risk-off; BTC slides from ~$9,100 to ~$7,900 area over the preceding days, ETH from ~$250 to ~$194",
+   "observed": false
+  },
+  {
+   "ts": "2020-03-11",
+   "event": "WHO declares COVID-19 a pandemic; US announces Europe travel ban in evening (US time) — global risk-off accelerates, S&P 500 hits circuit breakers on Mar 12",
+   "observed": true
+  },
+  {
+   "ts": "2020-03-12 (day, UTC)",
+   "event": "ETH falls 43% from $194 to $111 — largest single-day loss in its history; Ethereum congested, hourly mean gas ~200 gwei (spiking higher); MakerDAO liquidation queue builds (~3,994 Maker liquidations, >$10M collateral liquidated that day)",
+   "observed": true,
+   "source_url": "https://medium.com/glassnode-insights/what-really-happened-to-makerdao-f8bc2d1cf406"
+  },
+  {
+   "ts": "2020-03-12 (day, UTC)",
+   "event": "Maker 'Medianizer' oracle feed lags badly under gas congestion — at one point quoting ETH at $166 while spot was ~$130; keeper bots cannot land competitive bids at prevailing gas prices",
+   "observed": true,
+   "source_url": "https://sigmaprime.io/blog/oracles-and-pricing/"
+  },
+  {
+   "ts": "2020-03-12T10:00-11:00Z",
+   "event": "First leg: BTC falls from ~$7,300 to a low of $5,690 (CoinDesk: $7,200 to $5,678 in ~15 min around 10:45 UTC); $702M of liquidations on BitMEX that day ($698M sell-side)",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2020/03/12/bitcoins-crash-triggers-over-700m-in-liquidations-on-bitmex"
+  },
+  {
+   "ts": "2020-03-12T~20:00Z → 2020-03-13T~09:00Z",
+   "event": "Zero-bid auctions: with keepers priced out/congested, a small number of bots win Maker collateral auctions with 0-DAI bids — ultimately ~62,843 ETH ($8.32M of collateral) across ~1,400+ auctions taken for essentially nothing (exact sub-window approximate)",
+   "observed": false,
+   "source_url": "https://medium.com/@whiterabbit_hq/black-thursday-for-makerdao-8-32-million-was-liquidated-for-0-dai-36b83cac56b6"
+  },
+  {
+   "ts": "2020-03-12T~22:00Z → 2020-03-13T02:16Z",
+   "event": "Second leg (attributed partly to a lender liquidating client collateral): BTC breaks $5,000 then $4,000; BitMEX XBTUSD prints ~$3,596, ~$400 below Coinbase spot, as the inverse-perp liquidation spiral feeds on itself",
+   "observed": true,
+   "source_url": "https://coinmetrics.substack.com/p/coin-metrics-state-of-the-network-bf8"
+  },
+  {
+   "ts": "2020-03-13 (early UTC)",
+   "event": "ETH prints its cycle low ~$86-95 depending on venue ('briefly below $90'); DAI trades far above peg — as high as ~$1.10-1.12 (CoinGecko print $1.1264) on deleveraging demand to repay vault debt; DeFi TVL (DeFi Pulse) down to ~$571M from ~$1B+",
+   "observed": true,
+   "source_url": "https://www.defipulse.com/blog/defi-status-report-black-thursday"
+  },
+  {
+   "ts": "2020-03-13/14",
+   "event": "Maker emergency governance: auction parameters extended (bid duration/auction length lengthened from minutes to hours), stability fee cut, and a first-ever MKR debt (flop) auction planned; Maker system deficit measured at ~5.67M DAI of unbacked DAI (early press reports said ~$4.5M; one post-mortem summary cites 6.65M)",
+   "observed": true,
+   "source_url": "https://www.theblock.co/post/58606/in-a-first-makerdao-protocol-to-auction-mkr-tokens-to-cover-4m-bad-debt"
+  },
+  {
+   "ts": "2020-03-13T02:16Z",
+   "event": "BitMEX goes offline for ~25 min (02:16-02:40 UTC) — later attributed to a botnet/DDoS attack initially misdiagnosed as a cloud hardware failure. The halt interrupts the liquidation cascade; BTC rebounds from ~$3,850-3,867 spot (Coinbase/Bitstamp low; BitMEX low $3,596) to >$5,000 within hours",
+   "observed": true,
+   "source_url": "https://www.bitmex.com/blog/how-we-are-responding-to-last-weeks-ddos-attacks"
+  },
+  {
+   "ts": "2020-03-13T12:56Z",
+   "event": "Second DDoS attack takes BitMEX down again for ~25 minutes; full service restored",
+   "observed": true,
+   "source_url": "https://www.bitmex.com/blog/ddos-attack-13-march-2020"
+  },
+  {
+   "ts": "2020-03-17 (early hours UTC)",
+   "event": "Executive vote adds USDC as Maker collateral (third asset, alongside ETH and BAT; ~$20M debt ceiling) to relieve the DAI liquidity squeeze and pull DAI back toward peg",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/tech/2020/03/17/makerdao-adds-usdc-as-defi-collateral-following-black-thursday-chaos"
+  },
+  {
+   "ts": "2020-03-19 → 2020-03-28",
+   "event": "106 debt auctions complete: 20,980 MKR sold at an average ~$296.35, raising ~5.3M DAI from 36 bidders; Paradigm wins 72 of 106 auctions (~3.6M DAI). Maker recapitalized",
+   "observed": true,
+   "source_url": "https://blockonomi.com/makerdao-emergency-5-million-dai-raised/"
+  },
+  {
+   "ts": "2020-03-19T~10:25Z",
+   "event": "First-ever MKR debt auction begins (reported 6:25 am ET); MKR minted and sold in 50,000-DAI lots to recapitalize the protocol; Paradigm pre-announces participation up to the ~5M DAI shortfall",
+   "observed": true,
+   "source_url": "https://www.theblock.co/post/58606/in-a-first-makerdao-protocol-to-auction-mkr-tokens-to-cover-4m-bad-debt"
+  },
+  {
+   "ts": "2020-03-22",
+   "event": "DeFi TVL bottoms ~$487M (from ~$1B+ pre-crash / $1.28B Feb 15 high)",
+   "observed": true,
+   "source_url": "https://decrypt.co/31444/defi-market-recovers-covid-crash-retakes-1b-total-value"
+  },
+  {
+   "ts": "2020-09-23",
+   "event": "Aftermath: Maker governance votes NOT to compensate Black Thursday vault holders (65% against)",
+   "observed": true,
+   "source_url": "https://www.theblock.co/news/defi/2020-09-23-makerdao-wont-compensate-vaults-affected-by-liquidations-march-market-crash-78571"
+  }
+ ],
+ "market_impact": {
+  "btc": {
+   "from_usd": 7950,
+   "to_usd": 3850,
+   "drawdown_pct": -51.6,
+   "window": "2020-03-12T00:00Z -> 2020-03-13T02:40Z",
+   "notes": "Trough venue-dependent: BitMEX XBTUSD $3,596, Coinbase/Bitstamp ~$3,850-3,867. First leg $7,300->$5,690 at 10:00-11:00 UTC Mar 12; second leg overnight into 02:16 UTC Mar 13. Single-day loss ~39% on Mar 12"
+  },
+  "eth": {
+   "from_usd": 194,
+   "to_usd": 88,
+   "drawdown_pct": -55,
+   "window": "2020-03-12T00:00Z -> 2020-03-13T~02:30Z",
+   "notes": "Mar 12 close $111 (-43%, largest single-day loss in ETH history); Mar 13 intraday low ~$86-95 depending on venue ('briefly below $90'); drawdown_pct is approximate given venue dispersion (-53% to -58%)"
+  },
+  "mkr": {
+   "from_usd": null,
+   "to_usd": null,
+   "drawdown_pct": null,
+   "window": "2020-03-12 -> 2020-03-28",
+   "notes": "MKR fell sharply with the market and faced dilution from the debt auction; auction cleared at avg $296.35/MKR. Pre-crash MKR price not verified against a source — left null"
+  },
+  "total_liquidations": {
+   "bitmex_usd": 702000000,
+   "notes": "$702M liquidated on BitMEX on Mar 12 alone ($698M sell-side) per CoinDesk. A reliable free aggregate across ALL venues for Mar 12-13 2020 was not verifiable (Coinglass-era aggregates start later); do not use the frequently miscited ~$1B/303k-trader figure — that belongs to a different, later event"
+  },
+  "defi_lending_liquidations": {
+   "maker_usd": 10000000,
+   "compound_usd": 6260000,
+   "aave_usd": 550000,
+   "notes": "Maker: 3,994 liquidations >$10M collateral on Mar 12; Compound ~$5-6.26M (record at the time); Aave ~$550k"
+  }
+ },
+ "stablecoins": [
+  {
+   "symbol": "DAI",
+   "min_price_usd": null,
+   "when": "2020-03-12 -> 2020-03-13 peak dislocation; premium persisted for weeks",
+   "duration_below_099": "n/a — DAI depegged UPWARD, not downward",
+   "notes": "DAI traded ABOVE peg: reported highs $1.10-1.12 (CoinGecko print $1.1264 on thin liquidity); deleveragers paid ~10% premiums at peak and >2% premiums persisted for weeks after. Cause: demand to repay vault debt + supply destruction while zero-bid auctions burned less DAI than modeled. Fixed only gradually via USDC collateral (Mar 17), stability-fee changes, and much later the PSM (Dec 2020)"
+  },
+  {
+   "symbol": "USDC",
+   "min_price_usd": null,
+   "when": "March 2020",
+   "duration_below_099": "none material",
+   "notes": "No downward depeg; stablecoins were the flight-to-safety asset. USDC market cap grew from ~$473M (Jan 2020) to ~$700M+ (April 2020)"
+  },
+  {
+   "symbol": "USDT",
+   "min_price_usd": null,
+   "when": "March 2020",
+   "duration_below_099": "none material",
+   "notes": "Traded at a slight premium on some venues during panic; supply expanded sharply in the following weeks (total stablecoin supply ~$6.8B around March 2020, expanding rapidly through Q2 2020 — 'the great stablecoin inflow'). Exact USDT market-cap path not independently verified here"
+  }
+ ],
+ "defi_impact": {
+  "tvl": {
+   "global_before_usd": "~$1B+ (Feb 15 2020 peak $1.28B, DeFi Pulse)",
+   "global_trough_usd": "$571M on 2020-03-13; low of ~$487M on 2020-03-22",
+   "drawdown_pct": "~-45% to -55% from Feb peak",
+   "recovered": "retook $1B in June 2020"
+  },
+  "bad_debt_usd": {
+   "maker_system_deficit": "~5.67M DAI unbacked (commonly cited; early press ~$4.5M, one post-mortem summary 6.65M — report as 4.5-6.65M range with 5.67M the most-cited figure)",
+   "vault_owner_losses": "$8.32M of ETH collateral (62,843 ETH) seized via ~1,400+ zero-bid auctions — 100% loss of remaining collateral for affected vaults (no refund of the normal ~13% liquidation-penalty remainder)"
+  },
+  "liquidations_usd": {
+   "maker": ">$10M collateral, 3,994 liquidations on Mar 12",
+   "compound": "~$5-6.26M (then-record)",
+   "aave": "~$550k",
+   "dydx": "included in ~$25M/month cross-protocol total (Mar 2020)"
+  },
+  "gas": "Hourly mean gas ~200 gwei on Mar 12, >400 gwei on Mar 13 (vs single digits normal); 10x+ spike priced out Maker keeper bots and oracle updates; any on-chain exit/rebalance cost an order of magnitude more than modeled",
+  "oracle_behavior": "Maker Medianizer updates stalled in the mempool; at one point it quoted ETH $166 vs ~$130 spot. The lag first delayed liquidations, then released them in a batch into a keeper vacuum. (Chainlink/other feeds also lagged under congestion.)",
+  "withdrawal_freezes": "No formal withdrawal freezes in major DeFi protocols; however lending-pool liquidity effectively tightened (utilization spikes) and on-chain exits were rationed by gas cost. CeFi: BitMEX down twice for ~25 min each (02:16 and 12:56 UTC Mar 13) — DDoS attacks, initially reported as hardware failure",
+  "protocols_paused_or_insolvent": "MakerDAO technically insolvent (negative system surplus ~5.67M DAI) from Mar 12-13 until the MKR debt auctions recapitalized it Mar 19-28 (5.3M DAI raised, 20,980 MKR minted, avg $296.35, 36 bidders, Paradigm won 72/106 auctions). Emergency Shutdown of Maker was seriously debated but not triggered",
+  "bridge_chain_availability": "Ethereum L1 remained live throughout — congested and expensive, never halted; no L2s/bridges of consequence existed yet",
+  "dex_liquidity": "Order books and AMM (Uniswap v1) liquidity thinned dramatically; cross-venue spot dislocations of hundreds of dollars on BTC; DAI/USDC pools drained by peg arbitrage"
+ },
+ "causes": {
+  "primary": "Exogenous macro shock (COVID-19 pandemic declaration + oil price war) triggered a global risk-off cascade that hit an over-leveraged, structurally fragile crypto derivatives market and an immature DeFi liquidation infrastructure simultaneously.",
+  "secondary": [
+   "BitMEX inverse-perpetual liquidation engine created a self-reinforcing sell spiral, driving its price ~$400 below spot until an outage halted it",
+   "Ethereum network congestion (gas ~200 gwei Mar 12, >400 gwei hourly mean Mar 13) broke the economic assumptions of Maker keepers and oracles",
+   "Maker Medianizer oracle lag (quoting $166 vs ~$130 spot) delayed and then batch-released liquidations",
+   "Maker auction design flaw: 10-minute auction windows + no minimum bid allowed zero-bid collateral seizure when keeper competition vanished",
+   "DAI reflexivity: mass deleveraging demanded DAI exactly when zero-bid auctions burned less DAI than expected, squeezing DAI to a 6-12% premium",
+   "Concentrated 24/7 leverage with no market-wide circuit breakers (the accidental BitMEX halt functioned as one)"
+  ],
+  "mechanism": "COVID/oil macro shock -> global margin call, equities circuit-breakered -> crypto longs liquidated in two waves (Mar 12 10:45 UTC, then overnight) -> BitMEX inverse-perp cascade drags BTC to $3,596 vs ~$4,000 spot -> panic exits flood Ethereum, gas 10x -> Maker oracle updates and keeper bids stall in mempool -> stale prices release a liquidation wave into an empty keeper market -> bots win ~62,843 ETH ($8.32M) for ~0 DAI across 1,400+ auctions -> Maker left with ~5.67M DAI unbacked -> DAI squeezed to $1.10+ premium -> emergency governance (auction params, USDC collateral Mar 17) -> first-ever MKR debt auction Mar 19-28 recapitalizes the protocol; BitMEX's 02:16 UTC outage arguably stopped the price cascade (BTC rebounded >$5,000 within hours)."
+ },
+ "contagion": [
+  "COVID pandemic declaration + oil price war -> global risk-off, equity circuit breakers",
+  "Crypto derivatives long-liquidation cascade ($702M on BitMEX Mar 12, two waves)",
+  "BitMEX inverse-perp spiral drags BTC ~$400 below spot until 02:16 UTC outage halts the cascade",
+  "Panic exits flood Ethereum -> gas 200-400+ gwei",
+  "Maker Medianizer oracle lag + keeper congestion",
+  "Zero-bid Maker auctions: 62,843 ETH ($8.32M) taken for ~0 DAI",
+  "Maker system deficit ~5.67M DAI (protocol insolvent)",
+  "DAI supply squeeze -> DAI trades $1.06-1.12 ABOVE peg -> deleveraging costs spike across all DAI-based DeFi",
+  "Emergency governance: auction params changed, USDC onboarded as Maker collateral (Mar 17)",
+  "First-ever MKR debt auction (Mar 19-28) mints/sells 20,980 MKR for 5.3M DAI -> recapitalization",
+  "Flight to stablecoins -> multi-billion stablecoin supply expansion through Q2 2020"
+ ],
+ "recovery": {
+  "recovered": true,
+  "time_to_recover": "Price cascade stopped within minutes of the 02:16 UTC Mar 13 BitMEX halt (BTC >$5,000 same day); BTC regained pre-crash ~$7,900 by late April 2020 (~6-7 weeks) and $9k+ by May halving; ETH regained ~$194 by early May 2020; Maker recapitalized in 16 days (debt auctions done Mar 28); DeFi TVL retook $1B in June 2020",
+  "notes": "DAI premium >2% persisted for weeks; the peg was only durably anchored after USDC collateral scaled up (and structurally after the PSM in Dec 2020). Vault owners were never compensated (Sept 2020 governance vote against). BitMEX lost significant open interest / market share permanently. The event forced Maker's Liquidations 2.0 redesign and normalized stablecoin collateral in 'decentralized' stablecoins"
+ },
+ "sources": [
+  {
+   "url": "https://www.coindesk.com/markets/2020/03/12/bitcoins-crash-triggers-over-700m-in-liquidations-on-bitmex",
+   "title": "CoinDesk: Bitcoin's Crash Triggers Over $700M in Liquidations on BitMEX",
+   "supports": "$702M BitMEX liquidations Mar 12 ($698M sell-side); BTC $7,200 -> $5,678 in ~15 min around 10:45 UTC",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.bitmex.com/blog/how-we-are-responding-to-last-weeks-ddos-attacks",
+   "title": "BitMEX Blog (primary): How We Are Responding to the 13 March DDoS Attacks",
+   "supports": "Two DDoS attacks at 02:16 UTC and 12:56 UTC Mar 13, ~25 min outages; botnet query attack initially misdiagnosed as cloud hardware failure",
+   "confidence": "high"
+  },
+  {
+   "url": "https://cointelegraph.com/news/bitmex-denies-it-made-bitcoin-price-drop-to-37k-after-going-offline",
+   "title": "Cointelegraph: BitMEX Denies It Made Bitcoin Price Drop to $3.7K After Going Offline",
+   "supports": "Outage window 02:16-02:40 UTC Mar 13; BTC ~$3.6-3.7k prints on BitMEX; rebound after outage; cascade-halt interpretation",
+   "confidence": "high"
+  },
+  {
+   "url": "https://medium.com/@whiterabbit_hq/black-thursday-for-makerdao-8-32-million-was-liquidated-for-0-dai-36b83cac56b6",
+   "title": "Whiterabbit: Black Thursday for MakerDAO — $8.32 million was liquidated for 0 DAI",
+   "supports": "$8.32M / 62,843 ETH of collateral won via zero-bid auctions across Mar 12-13; keeper congestion mechanism; gas 200+ gwei",
+   "confidence": "high"
+  },
+  {
+   "url": "https://medium.com/glassnode-insights/what-really-happened-to-makerdao-f8bc2d1cf406",
+   "title": "Glassnode: What Really Happened To MakerDAO?",
+   "supports": "ETH -43% ($194->$111) Mar 12; hourly mean gas ~200 gwei Mar 12 / >400 gwei Mar 13; Medianizer failed to update; ~5.67M DAI system debt",
+   "confidence": "high"
+  },
+  {
+   "url": "https://sigmaprime.io/blog/oracles-and-pricing/",
+   "title": "Sigma Prime: Oracle and Pricing Vulnerabilities",
+   "supports": "Maker Medianizer quoted ETH $166 vs ~$130 real; ~$4.5M DAI left unbacked (early estimate); zero-bid 50-ETH auction mechanics",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.theblock.co/post/58606/in-a-first-makerdao-protocol-to-auction-mkr-tokens-to-cover-4m-bad-debt",
+   "title": "The Block: In a first, MakerDAO protocol to auction MKR tokens to cover $4M bad debt",
+   "supports": "First-ever debt auction announced; Mar 19 start (reported 6:25 am ET); 50,000-DAI lots; >$4M bad-debt trigger",
+   "confidence": "high"
+  },
+  {
+   "url": "https://blockonomi.com/makerdao-emergency-5-million-dai-raised/",
+   "title": "Blockonomi: MakerDAO Emergency Auctions Conclude with 5.3 Million Dai Raised",
+   "supports": "Auctions Mar 19-28; 106 auctions; 20,980 MKR at avg $296.35; 5.3M DAI raised; 36 bidders",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.theblock.co/news/defi/2020-03-31-mkr-auctions-conclude-with-crypto-venture-firm-paradigm-emerging-as-the-biggest-winner-60447",
+   "title": "The Block: MKR auctions conclude with Paradigm emerging as the biggest winner",
+   "supports": "Paradigm won 72/106 auctions paying ~3.6M DAI; auction conclusion",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/tech/2020/03/17/makerdao-adds-usdc-as-defi-collateral-following-black-thursday-chaos",
+   "title": "CoinDesk: MakerDAO Adds USDC as DeFi Collateral Following 'Black Thursday' Chaos",
+   "supports": "USDC onboarded via executive vote early hours Mar 17 (third collateral, ~$20M ceiling) in response to DAI trading above peg; ~$4.5M deficit context",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.defipulse.com/blog/defi-status-report-black-thursday",
+   "title": "DeFi Pulse: DeFi Status Report Post-Black Thursday",
+   "supports": "DeFi TVL fall; ETH ~$193 -> ~$95 in <24h across the two days; cross-protocol liquidation context",
+   "confidence": "high"
+  },
+  {
+   "url": "https://medium.com/aave/crypto-black-thursday-the-good-the-bad-and-the-ugly-7f2acebf2b83",
+   "title": "Aave (Emilio Frangella): Crypto Black Thursday — The Good, the Bad and the Ugly",
+   "supports": "Aave ~$550k liquidated; Compound >$5M; fixed-spread vs auction liquidation model comparison",
+   "confidence": "high"
+  },
+  {
+   "url": "https://decrypt.co/31444/defi-market-recovers-covid-crash-retakes-1b-total-value",
+   "title": "Decrypt: DeFi recovers from COVID crash, retakes $1 billion in total value",
+   "supports": "TVL slid to ~$487M on Mar 22 from ~$1B record; retook $1B June 2020",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/tech/2020/07/22/mempool-manipulation-enabled-theft-of-8m-in-makerdao-collateral-on-black-thursday-report",
+   "title": "CoinDesk: Mempool Manipulation Enabled Theft of $8M in MakerDAO Collateral (Blocknative report)",
+   "supports": "Mempool flooding/'hammerbot' behavior contributed to keeper failure and the ~$8M zero-bid seizure",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.theblock.co/news/defi/2020-09-23-makerdao-wont-compensate-vaults-affected-by-liquidations-march-market-crash-78571",
+   "title": "The Block: MakerDAO won't compensate Vaults affected by March liquidations",
+   "supports": "Sept 2020 governance vote against compensating Black Thursday vault holders",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.crowdfundinsider.com/2020/04/160799-makerdao-recommends-safety-measures-to-prevent-debt-crisis-created-following-last-months-historic-cryptocurrency-market-crash/",
+   "title": "Crowdfund Insider: MakerDAO post-mortem recommendations",
+   "supports": "62,843 ETH across ~1,461 auctions to near-zero bids; 6.65M DAI undercollateralization figure (upper end of the deficit range)",
+   "confidence": "medium"
+  }
+ ],
+ "confidence_notes": "Well-observed facts: BitMEX outage times (02:16 and 12:56 UTC Mar 13, ~25 min each — primary source, BitMEX blog); $702M BitMEX liquidations Mar 12 (CoinDesk); ETH -43% $194->$111 on Mar 12; $8.32M / 62,843 ETH zero-bid seizure (Whiterabbit report, widely corroborated); debt auction results (20,980 MKR, avg $296.35, 5.3M DAI, Mar 19-28, Paradigm 72/106); USDC onboarding Mar 17; TVL $571M Mar 13 / $487M Mar 22. Contested/approximate: (1) BTC trough is venue-dependent — $3,596 BitMEX vs ~$3,850-3,867 Coinbase/Bitstamp; I use $3,850 spot for drawdown, and the $7,950 start is an approximate Mar 12 open (sources quote $7,900-7,950); headline drawdown -50% to -52% depending on venue/window. (2) ETH trough ~$86-95 across venues ('briefly below $90'); to_usd=88 is a representative mid, not a single sourced print. (3) Maker system deficit: $4.5M (early estimates, Mar 13-17 press) -> 5.67M DAI (most-cited unbacked-DAI figure) -> 6.65M DAI (one post-mortem summary); report as a range — the recapitalization actually raised 5.3M DAI. (4) DAI premium peak: $1.10-1.12 commonly cited; the $1.1264 print is a thin-market CoinGecko high; 'premiums ~10% at peak, >2% for weeks' is from analytical sources. (5) Gas figures are hourly means (~200 Mar 12, >400 Mar 13); individual spikes were higher. (6) Zero-bid auction count: 'over 1,000' to 1,462 across sources; 62,843 ETH is consistent. (7) The '$1B total liquidations / 303,466 traders' figure surfaced in search belongs to a LATER event and is deliberately excluded. (8) Second-leg attribution to a lender liquidating client collateral is a credible contemporaneous hypothesis (Forbes/market analyses), not proven. (9) Timeline entries flagged observed=false (prelude drift, zero-bid sub-window) are approximations consistent with sources but without exact sourced timestamps. Primary-source access note: several primary pages (blog.makerdao.com, multicoin.capital, coinmetrics.substack.com, glassnode) were blocked by the network egress proxy; their figures were verified through search-indexed excerpts and at least one independent secondary source each. ПРАВКИ АУДИТА: средняя цена MKR-аукциона $296.35 противоречит 5.3M DAI / 20,980 MKR = $252.6 — одна из двух цифр неверна (структура лотов подтверждает 5.3M); TVL-якорь: $1.28B (15 фев) → $487M (22 мар) = −62%, от ~$1B перед крахом = −51%.",
+ "data_availability": {
+  "btc_eth_price_series": "FREE and good: Binance public data dumps (data.binance.vision) — 1m klines for BTCUSDT/ETHUSDT covering Mar 2020; Coinbase Exchange public API — 60s candles for BTC-USD/ETH-USD (rate-limited, free); Bitstamp API similar. This is sufficient to replay both legs and the 02:16 UTC trough at 1-minute granularity. CoinGecko free API gives only DAILY granularity for 2020 (hourly restricted to recent windows on free tier).",
+  "bitmex_perp_prices": "PARTIAL: BitMEX public trade/quote history is downloadable free (public.bitmex.com data dumps) — XBTUSD trades for Mar 12-13 2020 exist, letting you reconstruct the perp-vs-spot dislocation; heavier to process.",
+  "stablecoin_prices": "PARTIAL: DAI minute-level — Coinbase Pro DAI-USDC candles via public API (pair live since 2019, free); CoinGecko DAI only daily for 2020 (daily close masks the $1.10+ intraday premium — a daily-granularity replay will UNDERSTATE the DAI dislocation). USDC/USDT daily free via CoinGecko; Kraken/Bitfinex APIs for finer granularity.",
+  "tvl": "FREE: DeFiLlama API (api.llama.fi) — historical daily TVL per protocol (Maker, Compound, Aave v1) and global, covering Mar 2020; DeFi Pulse historical data is no longer reliably served — use DeFiLlama.",
+  "liquidations": "MOSTLY NOT FREE as a packaged series: no free aggregated cross-exchange derivatives-liquidation history for Mar 2020 (Coinglass-style aggregates start later); BitMEX liquidation orders can be partially reconstructed from its free public data dumps. Maker liquidations/zero-bid auctions ARE fully reconstructable free from on-chain events (Google BigQuery public Ethereum dataset free tier, or Dune free tier — bite/tend/deal events of the cat/flip contracts).",
+  "gas": "FREE: Etherscan Daily Average Gas Price chart (CSV export, free) for the 200->400 gwei daily picture; intraday/hourly gas requires BigQuery public Ethereum dataset (free tier) — also free but requires SQL work.",
+  "oracle_behavior": "FREE but raw only: Maker Medianizer LogMedianPrice / poke events on-chain via BigQuery/Dune/archive node — no packaged CSV; needed to replay the $166-vs-$130 lag precisely.",
+  "not_obtainable_free": "Comprehensive cross-venue liquidation totals for Mar 2020; exchange order-book depth snapshots (Kaiko et al. are paid); minute-level DAI on venues other than Coinbase Pro; historical DeFi lending APY series at fine granularity (DeFiLlama yields history starts much later — 2020 stable APYs must be reconstructed from on-chain protocol events)."
+ },
+ "spa_relevance": {
+  "portfolio_mapping": {
+   "aave_v3_usdc": "Direct analogue is the 2020 lending-pool stress: (a) liquidity-crunch channel — panic borrowing/withdrawal spikes utilization, and instant withdrawal of the full position can become temporarily impossible (no formal freeze, but same effect); (b) insolvency channel — the Maker zero-bid failure is the canonical proof that liquidation engines break exactly when gas is 200-400+ gwei and oracles lag, so an Aave-style market CAN accrue bad debt against USDC suppliers in a Black-Thursday replay; (c) APY channel — borrow rates spike during the crunch then collapse toward ~0-1% for months after (2020 pattern), gutting expected yield.",
+   "pendle_pt": "PT is a fixed-rate zero-coupon claim: in a liquidity crunch its AMM liquidity evaporates and the PT trades at a sharply wider discount (implied yield spike). A mark-to-market or forced-exit before maturity realizes that loss even though the claim itself stays money-good; a 2020-style gas regime also makes small-position exits uneconomic. Underlying-yield collapse post-crisis lowers reinvestment rates at maturity.",
+   "maple": "Credit channel: March-2020-type shocks hit exactly the market-maker/trading-firm borrower base that uses undercollateralized credit; Maple's withdrawal-cycle/lockup design means the cash is NOT reachable during the acute window regardless of borrower health — a structural withdrawal-freeze exposure the 2020 event window would have straddled entirely.",
+   "morpho_steakhouse_usdc": "Inherits both Aave-type channels via underlying Morpho Blue markets (oracle-lag bad debt on collateralized markets, utilization spikes blocking instant withdrawal) plus curator-allocation risk: vault may be allocated to markets whose collateral (e.g. ETH LSTs) is the crashing asset; DAI-premium history also shows the exit asset itself can dislocate 6-12% at the worst moment.",
+   "cash_10pct": "The one sleeve that works as designed — but only if it is truly idle USDC and the system does not need on-chain transactions to 'mobilize' it: at 200-400 gwei, every defensive transaction costs 10x+ the modeled amount."
+  },
+  "unpriced_risks_if_usdc_equals_1_and_always_withdrawable": [
+   "Withdrawal availability: 2020 shows the binding constraint is utilization/lockup + gas, not protocol failure — a model that assumes T+0 full withdrawal at negligible cost is wrong precisely during the event the kill-switch is for (SOFT/HARD derisk orders may be unexecutable or 10x more expensive than modeled)",
+   "Oracle-lag bad debt: solvency of lending positions depends on liquidation infrastructure that demonstrably fails under congestion; USDC-supplier principal is NOT risk-free even when USDC=1",
+   "Stablecoin dislocation is two-sided: 2020's lesson is a PREMIUM depeg (DAI $1.10+) — any strategy that must BUY a stablecoin during deleveraging (repay debt, exit a PT/DAI pool) pays the premium; marking all stables at $1 hides this cost",
+   "APY regime change: post-crisis stable yields collapsed for months — a backtest that holds pre-crisis APY constant overstates recovery-period income",
+   "Keeper/executor assumption: SPA's own protective actions (rebalance to cash) rely on the same congested infrastructure that broke Maker's keepers; execution cost and latency must be stressed 10x in this scenario",
+   "PT mark-to-market: if the risk system marks PT at book/implied-yield rather than exit price, a Black-Thursday drawdown is invisible until a forced sale"
+  ],
+  "kill_switch_note": "In a faithful replay, portfolio NAV hit comes mostly from PT discount widening + temporary inability to exit Maple/high-utilization pools rather than from USDC price; a drawdown ladder keyed only to marked prices with USDC=1 could read ~0% drawdown while actual liquidation value of the portfolio is down well past the SOFT -5% tier."
+ },
+ "replay": {
+  "duration_days": 21,
+  "start_date": "2020-03-05",
+  "base": {
+   "aave_v3": {
+    "apy_pct": 5.0
+   },
+   "pendle": {
+    "apy_pct": 6.0
+   },
+   "maple": {
+    "apy_pct": 7.0
+   },
+   "morpho_steakhouse": {
+    "apy_pct": 6.0
+   }
+  },
+  "shocks": [
+   {
+    "kind": "liquidity",
+    "params": {
+     "from_day": 7,
+     "to_day": 10,
+     "exit_haircut_pct": 0.02,
+     "gas_cost_usd": 400.0
+    }
+   },
+   {
+    "kind": "apy",
+    "params": {
+     "protocol": "aave_v3",
+     "apy_pct": 15.0,
+     "from_day": 7,
+     "to_day": 12
+    }
+   },
+   {
+    "kind": "apy",
+    "params": {
+     "protocol": "aave_v3",
+     "apy_pct": 1.0,
+     "from_day": 13,
+     "to_day": 20
+    }
+   },
+   {
+    "kind": "peg",
+    "params": {
+     "symbol": "PT_USDC",
+     "path": [
+      [
+       7,
+       1.0
+      ],
+      [
+       9,
+       0.95
+      ],
+      [
+       14,
+       1.0
+      ]
+     ]
+    }
+   },
+   {
+    "kind": "capital_loss",
+    "params": {
+     "protocol": "morpho_steakhouse",
+     "day": 8,
+     "loss_pct": 0.02
+    }
+   },
+   {
+    "kind": "freeze",
+    "params": {
+     "protocol": "maple",
+     "from_day": 8,
+     "to_day": 18
+    }
+   }
+  ],
+  "assumptions": [
+   "Ни один протокол книги не существовал в 2020 — маппинг на аналоги: aave_v3←Aave v1/Compound (спайк ставок), morpho_steakhouse←yVault-стиль (−2% на gas/slippage, исторический факт Yearn-стратегий), maple←замёрзшие кредитные дески (заморозка без дефолта), PT_USDC←дисконт receipt-токенов в gas-кризис (5%, оценка).",
+   "USDC пег держал (историч. факт) — депег-шока USDC нет."
+  ]
+ }
+}

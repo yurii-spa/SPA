@@ -1,0 +1,326 @@
+{
+ "schema_version": 1,
+ "id": "H02_2018_crypto_winter",
+ "name": "2018 Crypto Winter — ICO bubble unwind (Dec 2017 → Dec 2018)",
+ "event_class": [
+  "market_crash"
+ ],
+ "window_utc": {
+  "start": "2017-12-17",
+  "trough": "2018-12-15",
+  "end": "2018-12-31"
+ },
+ "speed": "Two-phase: violent then grinding. -30–45% in 5 days (Dec 17–22, 2017); -70% in 7 weeks (to Feb 6, 2018); then a 9-month sideways bleed; final -48% leg in ~4 weeks (Nov 14 – Dec 15, 2018). Full path: BTC -84% / ETH -94% / mcap ~-84% over ~12 months — the defining feature is the SLOW GRIND, not a single crash day.",
+ "summary": "Годовой разгруз пузыря ICO: BTC $19.8k→$3.1k (−84%), ETH −94%, капитализация рынка −84%. Не flash-crash, а 12-месячный slow grind с USDT-паникой октября 2018 ($0.85 на Kraken — venue-wick). Для стейбл-книги канал — не NAV, а yield famine: спрос на займы умирает, APY→0-1% на месяцы. Книга SPA на 2026-08: aave_v3 40% / pendle (PT_USDC) 20% / maple 15% / morpho_steakhouse 15% / кэш USDC 10%.",
+ "timeline": [
+  {
+   "ts": "2017-12-17",
+   "event": "BTC prints cycle all-time high ~$19,783 (CoinDesk BPI; exchange-dependent $19,650–$20,089). CME bitcoin futures launch the next day (CBOE launched Dec 10) — the top coincides with the opening of a regulated short channel.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2017/12/29/from-900-to-20000-bitcoins-historic-2017-price-run-revisited"
+  },
+  {
+   "ts": "2017-12-22",
+   "event": "First violent leg: BTC tumbles below $11,000 — roughly 30–45% off the peak in five days (retrospectives disagree on the exact intraday depth).",
+   "observed": true,
+   "source_url": "https://calendar.bitbo.io/price/2017/"
+  },
+  {
+   "ts": "2018-01-07",
+   "event": "Total crypto market cap peaks at over $830B in early January as altcoins/ICO tokens top after BTC (ETH ATH ~$1,432 on Jan 13).",
+   "observed": true,
+   "source_url": "https://www.cnbc.com/2018/11/23/cryptocurrencies-have-shed-almost-700-billion-since-january-peak.html"
+  },
+  {
+   "ts": "2018-01-16",
+   "event": "Broad 'Great Crypto Crash' leg: BTC falls ~20% intraday over Jan 16–17, pierces $10,000 (first ~50% off ATH); Korea/China regulatory crackdown fears drive the selloff; altcoins fall harder.",
+   "observed": true,
+   "source_url": "https://www.aljazeera.com/economy/2018/1/18/bitcoin-price-plummets-to-11900-usd-per-btc"
+  },
+  {
+   "ts": "2018-01-26",
+   "event": "Coincheck (Japan) hacked for ~$530M in NEM — largest exchange theft on record at the time; withdrawals frozen; Japan launches exchange-wide inspections; regulatory overhang deepens.",
+   "observed": true,
+   "source_url": "https://money.cnn.com/2018/01/29/technology/coincheck-cryptocurrency-exchange-hack-japan/index.html"
+  },
+  {
+   "ts": "2018-02-01/2018-10-31",
+   "event": "SLOW GRIND: nine months of lower highs inside $6k–$10k, shrinking volumes and liquidity; ICO projects funded in ETH progressively liquidate treasuries to cover fiat opex, so ETH persistently underperforms BTC.",
+   "observed": true,
+   "source_url": "https://money.com/bitcoin-price-low-2018-peak/"
+  },
+  {
+   "ts": "2018-02-06",
+   "event": "First major bottom: BTC dips to ~$5,967 (~-70% from ATH), then rebounds — beginning a 9-month $6,000–$10,000 range.",
+   "observed": true,
+   "source_url": "https://paybis.com/blog/bitcoin-crash-history/"
+  },
+  {
+   "ts": "2018-09-08",
+   "event": "ETH breaks down below $200 (to ~$166–192 in the second week of September, ~-88% from ATH) amid the heaviest ICO-treasury selling since March (~153,500 ETH / >$30M in one week); ETH capitulates ahead of BTC.",
+   "observed": true,
+   "source_url": "https://cryptovest.com/news/ethereum-crash-eth-breaks-down-below-200-on-ico-selling-spree/"
+  },
+  {
+   "ts": "2018-10-15",
+   "event": "Tether confidence crisis: USDT trades down to ~$0.85 on Kraken (~$0.90 elsewhere) on Tether-reserve rumors and Bitfinex withdrawal problems; BTC briefly spikes in USDT terms; Bitfinex sends 630M USDT back to treasury over following days; peg restored over ~2 weeks.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2018/10/22/bitfinex-took-630-million-tether-out-of-circulation-after-drop-below-1/"
+  },
+  {
+   "ts": "2018-11-14",
+   "event": "The $6,000 floor that held for 8 months breaks: BTC -9% to a low of $5,390 (lowest in over a year), the day before the contentious Bitcoin Cash fork; stop-loss cascades; total mcap drops ~$210B → ~$180B intraday; tech-stock selloff backdrop.",
+   "observed": true,
+   "source_url": "https://www.cnbc.com/2018/11/14/bitcoin-plummets-under-6000-to-a-low-of-the-year-after-months-of-stability.html"
+  },
+  {
+   "ts": "2018-11-15",
+   "event": "BCH 'hash war' fork (ABC vs SV): miners divert hashpower from BTC (BTC share of SHA-256 hash fell ~7pp Nov 10–17); both sides mine at a loss (~$12M burned); the conflict feeds fear of miner dumping and capitulation.",
+   "observed": true,
+   "source_url": "https://cointelegraph.com/news/bitcoin-cash-hard-fork-battle-who-is-winning-the-hash-war"
+  },
+  {
+   "ts": "2018-11-25",
+   "event": "Successive 5-day legs down through $5,000 and $4,000: BTC ~$3,600 by Nov 25; total mcap $138.6B by Nov 23 — down more than 80% (~$700B) from the January peak.",
+   "observed": true,
+   "source_url": "https://www.cnbc.com/2018/11/23/cryptocurrencies-have-shed-almost-700-billion-since-january-peak.html"
+  },
+  {
+   "ts": "2018-12-01/2018-12-31",
+   "event": "ICO treasuries 'sell the bottom': record 433,000 ETH (~$52.4M) offloaded in December alone — Filecoin withdraws its entire 216,906 ETH stash, Tezos 82,000 ETH, Aragon moves 40,000 ETH into DAI; 50 major ICO wallets' holdings fell from ~$3B (Jan) to ~$350M.",
+   "observed": true,
+   "source_url": "https://news.bitcoin.com/ico-treasuries-offloaded-the-most-eth-in-november-and-december-this-year/"
+  },
+  {
+   "ts": "2018-12-07",
+   "event": "ETH down 94% from its January record high (CoinDesk).",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2018/12/07/ether-price-now-down-94-from-januarys-record-high"
+  },
+  {
+   "ts": "2018-12-15",
+   "event": "Capitulation trough: BTC $3,122 (~-84% from ATH), ETH ~$83 (~-94%); mining hashrate had been falling as rigs go unprofitable.",
+   "observed": true,
+   "source_url": "https://cryptopotato.com/exactly-one-year-ago-bitcoin-price-nailed-2018-bear-market-at-3122/"
+  },
+  {
+   "ts": "2018-12-21",
+   "event": "MakerDAO MKR holders vote stability fee 2.5% → 0.5% after ETH collapse triggered CDP liquidations that shrank DAI supply ~27%; DAI returns to $1 — single-collateral DAI held its peg through a 94% collateral drawdown.",
+   "observed": true,
+   "source_url": "https://coinrivet.com/how-the-dai-stablecoin-has-held-its-peg-despite-ethereums-recent-volatility/"
+  }
+ ],
+ "market_impact": {
+  "btc": {
+   "from_usd": 19783,
+   "to_usd": 3122,
+   "drawdown_pct": -84.2,
+   "window": "2017-12-17 → 2018-12-15 (363 days); first leg -45% in ~5 days to Dec 22, -70% by Feb 6, then 9-month $6k–$10k grind, final -48% leg Nov 14 – Dec 15, 2018",
+   "note": "ATH is exchange-dependent ($19,650–$20,089); $19,783.21 is the commonly cited CoinDesk BPI print"
+  },
+  "eth": {
+   "from_usd": 1432,
+   "to_usd": 83,
+   "drawdown_pct": -94.2,
+   "window": "2018-01-13 → 2018-12-15; ETH broke down ahead of BTC (below $200 on 2018-09-08, ~$166 second week of September) under ICO-treasury selling",
+   "note": "low $83.19 on 2018-12-15; some feeds show $82–$84"
+  },
+  "total_crypto_mcap": {
+   "from_usd": 830000000000,
+   "to_usd": null,
+   "drawdown_pct": -84,
+   "window": "early Jan 2018 → mid-Dec 2018",
+   "note": "peak >$830B (CNBC/CoinMarketCap); $138.6B on 2018-11-23 (-80%, sourced); mid-December trough ~$100–130B is approximate — requires verification, so to_usd left null"
+  },
+  "bch": {
+   "from_usd": null,
+   "to_usd": null,
+   "drawdown_pct": null,
+   "window": "hash-war fork 2018-11-15",
+   "note": "BCH split into ABC/SV and fell to record lows during the war; both sides mined at a loss (~$12M burned); precise pre/post prices not verified here"
+  }
+ },
+ "stablecoins": [
+  {
+   "symbol": "USDT",
+   "min_price_usd": 0.85,
+   "when": "2018-10-15 (low printed on Kraken; ~$0.90 on most venues)",
+   "duration_below_099": "~2 weeks material discount mid-to-late October 2018; CoinDesk reported the price stabilized by Oct 31 after Bitfinex/Tether removed 630M USDT from circulation",
+   "notes": "Idiosyncratic confidence crisis (Tether reserve rumors + Bitfinex withdrawal problems), not a redemption failure; BTC traded at a premium in USDT terms during the depeg as traders fled the stablecoin"
+  },
+  {
+   "symbol": "DAI (single-collateral SAI)",
+   "min_price_usd": null,
+   "when": "late 2018",
+   "duration_below_099": "no sustained break documented",
+   "notes": "Held ~$1 through a 94% collateral (ETH) drawdown — the canonical early stress-pass. CDP liquidations shrank DAI supply ~27% in late 2018; MKR vote on 2018-12-21 cut stability fee 2.5%→0.5% to restore the peg. Exact intraday deviation series not verified"
+  },
+  {
+   "symbol": "USDC",
+   "min_price_usd": null,
+   "when": "launched Sep 2018, mid-event",
+   "duration_below_099": "n/a",
+   "notes": "USDC did not exist for most of the event window; no documented depeg in Q4 2018. It was a beneficiary of the October USDT flight"
+  }
+ ],
+ "defi_impact": {
+  "context": "DeFi was pre-history during this event — this is the key fact for backtesting. MakerDAO single-collateral DAI (launched Dec 2017) was essentially the only significant money protocol; Compound v1 launched Sep 2018 and Uniswap v1 Nov 2018, both INTO the trough. None of the SPA portfolio protocols existed (Aave was still ETHLend; Pendle, Maple, Morpho founded 2020-2021).",
+  "tvl_changes": "No reliable TVL series for most of 2018 (DeFi Pulse is defunct; DeFiLlama backfill is thin pre-2019). Notably, ETH locked in Maker CDPs GREW through the bear market even as its USD value collapsed — TVL-in-USD vs TVL-in-kind diverge violently in this scenario.",
+  "bad_debt_usd": "None recorded at protocol level. Maker's CDP liquidation machinery worked; DAI supply shrank ~27% via liquidations but the system stayed solvent and DAI held $1. Losses concentrated at ICO treasuries (~$3B→$350M across 50 major wallets), the hacked exchange (Coincheck, ~$530M covered from its own funds), and miners.",
+  "liquidations_usd": "No aggregated figure exists for 2018. Maker CDP 'bite' events are reconstructable on-chain only; CEX futures liquidation data (BitMEX era) was never publicly archived in aggregate.",
+  "gas_oracles": "No documented oracle failure through the entire -94% ETH decline (contrast Black Thursday 2020). Gas was mostly low/declining after the Dec-2017/Jan-2018 CryptoKitties-era congestion — slow grinds do not produce gas spikes; that failure mode belongs to fast crashes.",
+  "withdrawal_freezes": "None in DeFi. Centralized: Coincheck froze NEM (then broader) withdrawals after the Jan 26 hack; Bitfinex USDT redemption friction in Oct 2018 was the proximate trigger of the USDT depeg.",
+  "protocols_paused_insolvent": "None among the then-existing DeFi set. The 'insolvencies' of this cycle were ICO project treasuries and startups, which transmitted stress by SELLING ETH — a supply channel, not a protocol-solvency channel."
+ },
+ "causes": {
+  "primary": "Unwind of a pure retail speculative mania (the 2017 ICO bubble): prices ran far ahead of any usage, and once momentum reversed there was no institutional or cash-flow bid — a 12-month reflexive deleveraging with structurally thin liquidity.",
+  "secondary": [
+   "CBOE/CME futures launches (Dec 10/18, 2017) opened a regulated short channel exactly at the top",
+   "Regulatory tightening: South Korea/China crackdown fears (Jan 2018), Japan exchange inspections after Coincheck, SEC ICO enforcement through 2018",
+   "Coincheck hack (~$530M NEM, Jan 26, 2018) — largest exchange theft on record at the time",
+   "ICO treasuries funded in ETH selling into weakness all year (record 433k ETH in Dec 2018) — a persistent, price-insensitive supply overhang unique to ETH",
+   "Tether/Bitfinex confidence crisis (USDT to $0.85, Oct 15, 2018)",
+   "BCH hash war (Nov 15, 2018) + break of the $6,000 technical floor → stop cascades and miner capitulation"
+  ],
+  "mechanism": "Retail euphoria + ICO issuance peak (Dec 2017–Jan 2018) → futures open a short channel and momentum reverses → Jan–Feb regulatory shocks and the Coincheck hack force a -70% repricing → ICO projects, capitalized in ETH, must sell ETH continuously to fund fiat opex → reflexive supply pressure + evaporating retail volume produce a 9-month slow grind ($6k–$10k) instead of a V-recovery → October USDT scare shakes confidence in market plumbing → Nov 14–15: the $6k floor breaks the day before the BCH hash war; stops cascade, miners turn unprofitable and capitulate → December capitulation to BTC -84% / ETH -94%, with ICO treasuries dumping record ETH at the bottom."
+ },
+ "contagion": [
+  "ICO/retail mania peak (BTC top Dec 17 2017, alt/mcap top ~Jan 7 2018, ETH top Jan 13 2018)",
+  "CME/CBOE futures + Korea/China regulatory shocks -> Jan 16-17 crash below $10k",
+  "Coincheck $530M hack (Jan 26) -> Japan crackdown, withdrawal freeze at exchange -> Feb 6 low $5,967",
+  "ICO treasuries (capitalized in ETH) sell ETH to fund opex -> persistent ETH supply pressure -> ETH -94% vs BTC -84%; ETH breaks $200 Sept 8 on heaviest ICO selling since March",
+  "Slow-grind liquidity drought Feb-Oct (9 months in $6k-$10k range, shrinking volumes)",
+  "Oct 15: Tether/Bitfinex confidence crisis, USDT to $0.85 on Kraken -> flight from USDT, 630M USDT burned",
+  "Nov 14: $6,000 floor breaks (stop cascades) -> Nov 15 BCH hash war splits hashpower, miners bleed cash",
+  "Miner capitulation + forced selling -> three ~5-day legs down through $5k/$4k -> BTC $3,122 / ETH $83 on Dec 15",
+  "ICO projects die or downsize; record 433k ETH treasury liquidation into the December bottom (sell-the-bottom)"
+ ],
+ "recovery": {
+  "recovered": true,
+  "time_to_recover": "BTC: ~3 years peak-to-recovery — previous ATH ($19,783) not exceeded until 2020-12-16 when BTC broke $20,000 (~2 years from the Dec 2018 trough). ETH: ~3 years, ATH ~$1,432 not regained until January 2021 (approximate). Total mcap regained the Jan-2018 $830B peak in early January 2021.",
+  "notes": "Recovery required an entirely new demand regime (2020 institutional/DeFi cycle). Within the window, prices merely stabilized: BTC based at ~$3.1–4k through Q1 2019. For stress-library purposes: assume NO mean-reversion on any tactical horizon — 12+ months of persistently falling prices and yields."
+ },
+ "sources": [
+  {
+   "url": "https://www.coindesk.com/markets/2017/12/29/from-900-to-20000-bitcoins-historic-2017-price-run-revisited",
+   "title": "CoinDesk — From $900 to $20,000: Bitcoin's Historic 2017 Price Run Revisited",
+   "supports": "BTC ATH $19,783.21 on 2017-12-17 (CoinDesk BPI); ~30% drop below $11,000 within days",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.cnbc.com/2018/11/23/cryptocurrencies-have-shed-almost-700-billion-since-january-peak.html",
+   "title": "CNBC (2018-11-23) — Cryptocurrencies have shed almost $700 billion since January peak",
+   "supports": "Total mcap peak >$830B early Jan 2018; $138.6B on 2018-11-23; >80% / ~$700B decline",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/markets/2018/12/07/ether-price-now-down-94-from-januarys-record-high",
+   "title": "CoinDesk (2018-12-07) — Ether Price Now Down 94% From January's Record High",
+   "supports": "ETH -94% from Jan 2018 record (~$1,432 ATH; ~$83 December low)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.cnbc.com/2018/11/14/bitcoin-plummets-under-6000-to-a-low-of-the-year-after-months-of-stability.html",
+   "title": "CNBC (2018-11-14) — Bitcoin plummets under $6,000",
+   "supports": "Nov 14 break of $6,000 after months of stability; intraday low $5,390.12; mcap $210B→$180B; eve of BCH fork",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/markets/2018/10/22/bitfinex-took-630-million-tether-out-of-circulation-after-drop-below-1/",
+   "title": "CoinDesk (2018-10-22) — Bitfinex Took 630 Million Tether Out of Circulation After Drop Below $1",
+   "supports": "USDT depeg to $0.85 on Kraken 2018-10-15; ~$0.90 elsewhere; 630M USDT sent to treasury; peg restored by ~Oct 31",
+   "confidence": "high"
+  },
+  {
+   "url": "https://cryptopotato.com/exactly-one-year-ago-bitcoin-price-nailed-2018-bear-market-at-3122/",
+   "title": "CryptoPotato — Bitcoin nailed the 2018 bear-market bottom at $3,122",
+   "supports": "BTC trough $3,122 on 2018-12-15; -84% from $19,783 (corroborated by CoinDesk 2019-12-16 'bottoming out at $3,100')",
+   "confidence": "high"
+  },
+  {
+   "url": "https://news.bitcoin.com/ico-treasuries-offloaded-the-most-eth-in-november-and-december-this-year/",
+   "title": "Bitcoin.com News (Dec 2018, citing Diar/TokenAnalyst) — ICO Treasuries Offloaded the Most ETH in November and December",
+   "supports": "Record 433,000 ETH ($52.4M) offloaded Dec 2018; Filecoin 216,906 ETH, Tezos 82,000, Aragon 40,000→DAI; 50 ICO wallets $3B→$350M; ~62% of raised ETH moved/liquidated",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://money.cnn.com/2018/01/29/technology/coincheck-cryptocurrency-exchange-hack-japan/index.html",
+   "title": "CNN Money — Coincheck: $530M cryptocurrency heist may be biggest ever",
+   "supports": "Coincheck hack 2018-01-26, ~$530M NEM, ¥46.3B ($426M) customer reimbursement, Japan exchange inspections",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.aljazeera.com/economy/2018/1/18/bitcoin-price-plummets-to-11900-usd-per-btc",
+   "title": "Al Jazeera (2018-01-18) — Bitcoin price plummets",
+   "supports": "Mid-January 2018 crash: BTC ~-20%, pierced below $10,000 on Korea/China regulation fears (corroborated by NPR 2018-01-18)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://paybis.com/blog/bitcoin-crash-history/",
+   "title": "Paybis — Bitcoin Crash History (retrospective)",
+   "supports": "2018-02-06 low $5,967; subsequent $6k–$10k nine-month range; year-end fall to $3,122",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://cryptovest.com/news/ethereum-crash-eth-breaks-down-below-200-on-ico-selling-spree/",
+   "title": "Cryptovest (Sep 2018) — ETH Breaks Down Below $200 on ICO Selling Spree",
+   "supports": "ETH below $200 on 2018-09-08 (to ~$166–192 that week); ~153,500 ETH (>$30M) sold by ICOs in one week — heaviest since March",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://cointelegraph.com/news/bitcoin-cash-hard-fork-battle-who-is-winning-the-hash-war",
+   "title": "Cointelegraph — Bitcoin Cash Hard Fork Battle: Who Is Winning the Hash War",
+   "supports": "2018-11-15 BCH ABC/SV fork mechanics; hashpower shift from BTC (~7pp Nov 10–17); ~$12M burned in unprofitable mining",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://coinrivet.com/how-the-dai-stablecoin-has-held-its-peg-despite-ethereums-recent-volatility/",
+   "title": "Coin Rivet — How the DAI stablecoin held its peg despite Ethereum's volatility",
+   "supports": "Single-collateral DAI held $1 through ETH -94%; CDP liquidations cut DAI supply ~27%; 2018-12-21 MKR vote stability fee 2.5%→0.5%",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.cnbc.com/2020/12/16/bitcoin-breaks-above-20000-for-the-first-time-ever.html",
+   "title": "CNBC (2020-12-16) — Bitcoin breaks above $20,000 for the first time ever",
+   "supports": "Recovery date: previous ATH not exceeded until 2020-12-16 (~3 years peak-to-recovery)",
+   "confidence": "high"
+  }
+ ],
+ "confidence_notes": "Observed and well-sourced (2+ independent sources): BTC ATH $19,783 on 2017-12-17 (but exchange-dependent — $19,650–$20,089 across venues; treat as ~$19.7k); break below $11k by 2017-12-22; BTC below $10k Jan 17 2018; Coincheck $530M Jan 26; Feb 6 2018 low ~$5,967 (widely cited, single-source precision); mcap peak >$830B and $138.6B on Nov 23 2018 (CNBC/CMC); USDT $0.85 Kraken low on Oct 15 2018 and 630M USDT burn (CoinDesk); Nov 14 2018 low $5,390 (CNBC intraday); BCH fork Nov 15; BTC trough $3,122 on Dec 15 2018 (CoinDesk/CryptoPotato; venue lows $3,122–$3,236); ETH -94% (CoinDesk) with low ~$83; Dec 2018 ICO treasury outflow 433k ETH incl. Filecoin 216,906 (Diar via Bitcoin.com News); recovery 2020-12-16 (CNBC). Contested/approximate: the '-45% in under a week' Dec 2017 figure — retrospectives range from ~30% (CoinDesk) to 'over 45%' (bitbo calendar) depending on which intraday prints are compared; I report the range. Total-mcap TROUGH (~$100–130B mid-Dec 2018) is inferred from the sourced Nov 23 $138.6B plus the December leg — no direct snapshot fetched (CoinMarketCap blocked by proxy), hence to_usd=null. ETH ATH varies $1,431–$1,448 by feed; $1,432 used. DAI supply -27% and the Dec 21 fee vote are single-source (Coin Rivet) — plausible, on-chain verifiable. 'BTC hashrate fell ~40% in Nov–Dec 2018' is deliberately OMITTED as I did not source it; direction (miner capitulation, hashrate decline) is sourced, magnitude is not. Inference clearly separated: everything in spa_relevance is analytical mapping, not historical fact; the CME-futures-at-the-top observation is documented timing, causality is a (widely researched) inference.",
+ "data_availability": {
+  "price_series": {
+   "btc_eth": "FREE and good. Daily full-history: CryptoCompare API (histoday, no key limits for daily), Yahoo Finance (BTC-USD from 2014, ETH-USD from 2017), Bitstamp public OHLC API. Hourly: CryptoCompare histohour (free, full history). 1-minute: Bitstamp public API (BTC/USD from 2011) and the widely mirrored Kaggle 'Bitcoin Historical Data' bitstampUSD 1-min set (2012–2021); Kraken Trades endpoint gives full tick history free (rate-limited, slow bulk pull). CoinGecko free tier now caps market_chart history to 365 days — NOT usable for 2018 without a paid key.",
+   "granularity_recommended": "1d for the grind, 1h for Dec-2017, Jan/Feb-2018 and Nov-14→Dec-15-2018 legs"
+  },
+  "stablecoin_prices": {
+   "usdt": "FREE: Kraken USDT/USD full trade history via public Trades API (this is the venue where $0.85 printed — best-quality depeg series); CryptoCompare daily USDT/USD full history.",
+   "dai_sai": "Partial: CoinGecko lists single-collateral 'Sai' with history but free-tier 365-day cap blocks 2018; CryptoCompare DAI coverage of 2018 is spotty. On-chain reconstruction (Eth2Dai/OasisDEX trades via Dune free tier) is the reliable path.",
+   "usdc": "Launched 2018-09; short overlapping series available same routes"
+  },
+  "tvl": "MOSTLY NOT AVAILABLE FREE IN CLEAN FORM. DeFi Pulse (the 2018-era tracker) is defunct; DeFiLlama's backfill for 2018 is thin-to-absent for most of the year. Maker ETH-locked is reconstructable on-chain (Dune free tier) — and note TVL-in-ETH rose while TVL-in-USD collapsed.",
+  "liquidations": "NOT obtainable free as an aggregate. Coinglass-style CEX liquidation series do not cover 2018; BitMEX liquidation history was never archived publicly in aggregate. Maker CDP 'bite' events are on-chain and free via Dune queries — the only rigorous DeFi liquidation series for this window.",
+  "gas": "FREE: Etherscan charts (daily average gas price, gas used, tx count) cover full 2018; confirms the slow grind was NOT a gas event.",
+  "other_free": "CoinMarketCap weekly historical snapshots (coinmarketcap.com/historical/) for total-mcap and per-coin ranks in 2018 — scrapeable page by page (blocked from this session's proxy but publicly free); blockchain.com hashrate charts for the Nov–Dec 2018 miner-capitulation signal.",
+  "not_free": "2018 intraday order-book depth / DEX liquidity (DEXes were negligible anyway), aggregated CEX liquidation feeds, ICO treasury flow datasets (TokenAnalyst defunct; Diar research archived as PDFs, not raw data)"
+ },
+ "spa_relevance": {
+  "headline": "A 2018-style winter mostly BYPASSES the NAV kill-switch of a USDC-denominated portfolio and attacks through yield famine, credit deterioration, and stablecoin-plumbing scares — the channels SPA currently prices least.",
+  "position_by_position": {
+   "aave_v3_usdc": "Channel: APY collapse + utilization swings. A 12-month leverage unwind kills borrow demand; USDC supply APY grinds toward 0–1%. Secondary: an Oct-2018-style USDT scare pushes flight INTO USDC (benign premium) but can spike utilization — temporary inability to withdraw at full size.",
+   "pendle_pt": "Channel: implied-yield collapse + liquidity drought. Existing PT holders locked at fixed rates are the one WINNER of a yield famine (PT accretes to par), but exit liquidity in Pendle pools thins with the market, and at maturity there is nowhere to redeploy above the RiskPolicy 1% APY floor.",
+   "maple": "Channel: credit + withdrawal freeze. Maple lends under-collateralized to trading firms — exactly the borrower class whose P&L dies in an -84% drawdown with 9 months of low volumes (the 2022 Orthogonal default is the realized analog). Withdrawal windows/loan maturities mean the position is NOT always withdrawable; a slow grind maximizes time-at-risk.",
+   "morpho_steakhouse_usdc": "Same channel as Aave (rates to ~0) plus curator/market concentration: as yield evaporates, vaults chase the few remaining bps into riskier collateral markets — APY-floor pressure becomes a risk-migration force.",
+   "cash_10pct": "The only sleeve the 2018 replay rewards. In the historical analog the correct end-state allocation trends toward 100% cash — which the fail-closed RiskPolicy would in fact produce via the 1% APY floor."
+  },
+  "unpriced_if_usdc_equals_1_and_always_withdrawable": [
+   "Yield famine is invisible to the drawdown ladder: months of sub-floor APY produce ~0% NAV drawdown, so SOFT -5%/HARD -10% never fire; the portfolio fails its 30-day track objective silently. Needs a yield-regime sensor, not just a drawdown sensor.",
+   "Maple withdrawal windows and borrower default = a position that is marked at par but not redeemable at par on demand (freeze + haircut risk unmodeled).",
+   "Aave/Morpho utilization ~100% during a stablecoin scare = temporary withdrawal freeze even with zero insolvency.",
+   "Stablecoin cross-contagion: USDT at $0.85 with USDC at par distorts every stable pool and rate; a system hardcoding USDC=1 also cannot represent the sympathetic USDC discount scenario at all.",
+   "TVL-floor gate ambiguity: in 2018 TVL-in-kind rose while TVL-in-USD collapsed — a USD-denominated $5M TVL floor behaves very differently from an in-kind one during a 12-month asset-price grind.",
+   "Slow-grind duration risk: SPA's SENSE-often/ACT-rarely cadence and anti-churn hysteresis are tuned for shocks; a 12-month monotonic decay of eligible APYs is a regime where 'hold' is repeatedly the locally cheap and globally wrong answer."
+  ],
+  "kill_switch_note": "Replaying 2018 against the virtual $100k USDC book: evidenced peak-to-current NAV drawdown likely stays well under 5% (yield accrual minus a possible Maple impairment), so neither SOFT_DERISK nor HARD_KILL triggers unless a Maple-style default is marked to NAV — making this scenario a test of the ADR-055 'explain idle cash / yield-improvement' layer and fail-closed APY floor, not of the kill-switch."
+ },
+ "replay": null
+}

@@ -1,0 +1,481 @@
+{
+ "schema_version": 1,
+ "id": "H07_ftx_november_2022",
+ "name": "FTX / Alameda collapse and CeFi contagion (November 2022)",
+ "event_class": [
+  "cefi_counterparty",
+  "systemic_contagion",
+  "market_crash"
+ ],
+ "window_utc": {
+  "start": "2022-11-02",
+  "trough": "2022-11-09 (BTC intraday low $15,742; marginal lower close/low 2022-11-21)",
+  "end": "2022-12-05 (end chosen to include the Maple/Orthogonal default — the last direct contagion event relevant to a DeFi credit portfolio; market prices had stabilized after the 2022-11-21/22 lows)"
+ },
+ "speed": "Run and insolvency: $6B withdrawals in 72h (Nov 6-8). FTT -80% in ~24h (Nov 8), -90.4% in 6 days. BTC -24% in ~3 days (Nov 7-9); ETH -31% in ~2 days (Nov 8-9); SOL -60%+ in ~8 days. From first public crack (Nov 2) to Chapter 11: 9 days. Solana DeFi TVL -67% in 4 days.",
+ "summary": "2-11 ноября 2022: bank run на FTX — $6B выводов за 72 часа, FTT −90%, банкротство за 9 дней, дыра ~$8B. BTC $20.6k→$15.7k (−24%), ETH −31%, SOL −67%. USDC пег держал; USDT $0.97 1-2 дня (WARN-уровень). DeFi работал — CeFi замёрз. Хвост для нашей книги: дефолт Orthogonal Trading в Maple M11 (5 недель СКРЫВАЛ потери на FTX, объявлен 5 декабря = день 33 окна) — $36M, БЕЗ ценового сигнала заранее. Книга SPA на 2026-08: aave_v3 40% / pendle (PT_USDC) 20% / maple 15% / morpho_steakhouse 15% / кэш USDC 10%.",
+ "timeline": [
+  {
+   "ts": "2022-11-02",
+   "event": "CoinDesk (Ian Allison) publishes Alameda Research balance sheet: ~$14.6B of assets dominated by FTT and SOL — Alameda's solvency rests on FTX's own self-issued token. Confidence in FTX/Alameda starts to crack.",
+   "observed": true,
+   "source_url": "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX"
+  },
+  {
+   "ts": "2022-11-06T15:47Z",
+   "event": "CZ tweets Binance will liquidate its FTT holdings (~$530-580M) citing 'recent revelations'; Alameda CEO Caroline Ellison publicly offers to buy the FTT at $22 — inadvertently signaling a defended liquidation level. Depositor run on FTX begins (~$1B withdrawn that day).",
+   "observed": true,
+   "source_url": "https://coinledger.io/learn/the-ftx-collapse"
+  },
+  {
+   "ts": "2022-11-07",
+   "event": "SBF tweets 'FTX is fine. Assets are fine.' (later deleted) as ~$4B more leaves the exchange; FTT still holds near $22 as Alameda defends the level. Total run reaches ~$6B in 72 hours per SBF's message to staff.",
+   "observed": true,
+   "source_url": "https://www.malaymail.com/news/money/2022/11/09/crypto-exchange-ftx-saw-us6b-in-withdrawals-in-72-hours-says-ceo-message-to-staff/38402"
+  },
+  {
+   "ts": "2022-11-08",
+   "event": "FTX halts customer withdrawals (liquidity exhausted). Hours later CZ announces a non-binding letter of intent for Binance to acquire FTX.com. FTT breaks the $22 defense and plunges ~80% intraday (~$22 to ~$4-5), wiping >$2B of market cap; Uniswap daily volume more than triples to $4.2B as traders flee CEXs.",
+   "observed": true,
+   "source_url": "https://www.cnbc.com/2022/11/08/ftxs-ftt-token-plunges-80percent-wiping-out-over-2-billion-in-value.html"
+  },
+  {
+   "ts": "2022-11-09",
+   "event": "Binance walks away after due diligence (announced ~evening UTC), citing mishandled customer funds and reported US agency investigations. BTC crashes to a two-year low of ~$15,742 intraday; ETH -14% to ~$1,083-1,129; global DeFi TVL drops ~12% (~$10B) in 24h. Exchanges scramble to announce Merkle-tree proof-of-reserves after CZ proposes it as an industry standard.",
+   "observed": true,
+   "source_url": "https://www.cnbc.com/2022/11/09/binance-backs-out-of-ftx-rescue-leaving-the-crypto-exchange-on-the-brink-of-collapse.html"
+  },
+  {
+   "ts": "2022-11-10",
+   "event": "SBF apology thread ('I'm sorry'); Alameda to wind down. USDT slips from peg to ~$0.97 on order books (some venues print ~$0.96); Tether states zero FTX/Alameda credit exposure and honors redemptions. BlockFi pauses client withdrawals. Solana DeFi TVL down to $347M from $1.04B on Nov 6 (-67%).",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2022/11/10/tethers-usdt-stablecoin-slips-from-1-peg"
+  },
+  {
+   "ts": "2022-11-11",
+   "event": "FTX Group (~130 entities incl. FTX.com, FTX US, Alameda Research) files Chapter 11 in Delaware. SBF resigns; John J. Ray III (Enron liquidator) becomes CEO. Customer shortfall ~$8B (debtors later put customer claims at ~$8.7B).",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/policy/2023/06/26/ftx-bankruptcy-team-says-the-exchange-owed-customers-87b"
+  },
+  {
+   "ts": "2022-11-11/12 (overnight)",
+   "event": "~$477M drained from FTX wallets in unauthorized transfers hours after the bankruptcy filing; funds swapped/dumped on DEXs and moved partly through RenBridge (Alameda-owned).",
+   "observed": true,
+   "source_url": "https://www.elliptic.co/blog/analysis/477-million-in-unauthorized-transfers-from-ftx"
+  },
+  {
+   "ts": "2022-11-12/14",
+   "event": "Solana DeFi abandons Serum en masse — its program update keys were held by FTX and feared compromised by the hack; protocols delist Serum markets and the community deploys the OpenBook fork. Sollet-wrapped soBTC/soETH (backing custodied on FTX) permanently depeg. SOL trades below $13 vs ~$37 a week earlier.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/business/2022/11/12/ftx-hack-spooks-solana-defi-community-igniting-revolution-at-alameda-controlled-serum-dex"
+  },
+  {
+   "ts": "2022-11-16",
+   "event": "Genesis Global Capital (lending arm, ~$175M locked on FTX) halts withdrawals and new loans; Gemini Earn — which lent user funds to Genesis — freezes redemptions for ~340,000 users owed ~$900M.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/business/2022/11/16/genesis-crypto-lending-unit-is-halting-customer-withdrawals-in-wake-of-ftx-collapse"
+  },
+  {
+   "ts": "2022-11-21/22",
+   "event": "Cycle lows: BTC ~$15,480-15,590 (venue-dependent), ETH ~$1,081, FTT ~$1.26 (-90.4% from Nov 7 by Nov 13 at $2.10). SOL bears ~70% November high-to-low loss, slipping below $12.",
+   "observed": true,
+   "source_url": "https://www.cnbc.com/2022/11/21/bitcoin-btc-ether-eth-fall-as-ftx-collapse-ripples-through-market.html"
+  },
+  {
+   "ts": "2022-11-22/23",
+   "event": "Avraham Eisenberg's 40M-CRV short via Aave v2 (attempted post-Mango squeeze) is liquidated, leaving Aave ~$1.6M of bad debt — small, but the first bad-debt print on a blue-chip lender during the stress window (covered by Aave treasury Jan 2023).",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2022/11/22/mango-exploiter-gets-liquidated-after-roiling-aave-using-20m-of-borrowed-curve-tokens"
+  },
+  {
+   "ts": "2022-11-25",
+   "event": "Binance publishes its Merkle-tree BTC proof-of-reserves; nine-plus exchanges (OKX, KuCoin, Bybit, Deribit, Huobi, Gate, Bitget...) commit to PoR — the 'proof-of-reserves era' begins as a direct institutional consequence of FTX.",
+   "observed": true,
+   "source_url": "https://cointelegraph.com/news/binance-publishes-official-merkle-tree-based-proof-of-reserves"
+  },
+  {
+   "ts": "2022-11-28",
+   "event": "BlockFi files Chapter 11, citing significant FTX exposure: obligations owed by Alameda, assets stuck on FTX.com, and its $400M FTX US credit line ($275M drawn).",
+   "observed": true,
+   "source_url": "https://www.cnbc.com/2022/11/28/blockfi-files-for-bankruptcy-as-ftx-fallout-spreads.html"
+  },
+  {
+   "ts": "2022-12-05",
+   "event": "Orthogonal Trading served default notice on $36M across 8 loans on Maple Finance (~$31M in M11 Credit's USDC pool; ~30% of ALL active Maple loans) after misrepresenting its FTX exposure ($2.5M claimed in November vs. far larger trapped balances revealed Dec 3). Maple severs ties; pool lenders face principal impairment with no exit — pool cash was lent out.",
+   "observed": true,
+   "source_url": "https://www.theblock.co/post/192097/maple-finance-default-orthogonal-trading"
+  },
+  {
+   "ts": "2023-01-19",
+   "event": "(Aftershock, outside window) Genesis Global Capital files Chapter 11 — the Gemini Earn freeze converts into a multi-year bankruptcy claim.",
+   "observed": true,
+   "source_url": "https://qz.com/genesis-bankruptcy-2023-gemini-earn-ftx-collapse-1850010613"
+  }
+ ],
+ "market_impact": {
+  "btc": {
+   "from_usd": 20600,
+   "to_usd": 15742,
+   "drawdown_pct": -23.6,
+   "window": "2022-11-07 -> 2022-11-09 intraday low $15,742 (two-year low); marginal lower prints $15,480-15,590 on 2022-11-21 depending on venue; Nov 1 reference $20,485"
+  },
+  "eth": {
+   "from_usd": 1574.8,
+   "to_usd": 1083.29,
+   "drawdown_pct": -31.2,
+   "window": "2022-11-08 high $1,574.80 -> 2022-11-09 low $1,083.29; retest ~$1,081 on 2022-11-21/22"
+  },
+  "sol": {
+   "from_usd": 36.9,
+   "to_usd": 12,
+   "drawdown_pct": -67,
+   "window": "2022-11-05 -> 2022-11-14; ~-70% November high-to-low per FXStreet; SOL below $13 within days of the collapse and below $12 by late Nov; -94% for full-year 2022"
+  },
+  "ftt": {
+   "from_usd": 22.27,
+   "to_usd": 2.1,
+   "drawdown_pct": -90.4,
+   "window": "2022-11-07 -> 2022-11-13; -80% intraday on 2022-11-08 alone (>$2B mcap wiped); $1.26 by 2022-11-22; never recovered"
+  },
+  "srm_serum": {
+   "from_usd": null,
+   "to_usd": null,
+   "drawdown_pct": null,
+   "window": "SRM collapsed alongside FTT (Alameda-linked, FTX held update keys); protocol abandoned and forked to OpenBook — exact price path not verified against a primary source"
+  }
+ },
+ "stablecoins": [
+  {
+   "symbol": "USDT",
+   "min_price_usd": 0.97,
+   "when": "2022-11-10 (early UTC hours)",
+   "duration_below_099": "~1-2 days of intermittent sub-$0.99 prints on major order books (Nov 9-10), largely restored within 48h",
+   "notes": "CoinDesk reported ~3% below peg (~$0.97); Bloomberg saw prints near $0.96 on some venues. Order-book/flight-to-quality driven, not a redemption failure — Tether processed redemptions and stated zero FTX/Alameda credit exposure; also froze $46M of FTX-linked USDT at law-enforcement request. CoinGecko later attributed some of the deepest prints to a pricing-data issue, so treat sub-$0.97 values as venue artifacts."
+  },
+  {
+   "symbol": "USDC",
+   "min_price_usd": 1,
+   "when": "n/a",
+   "duration_below_099": "none",
+   "notes": "No depeg; USDC was the flight-to-quality asset and intermittently traded at a slight premium as traders rotated out of USDT and off CEXs."
+  },
+  {
+   "symbol": "BUSD",
+   "min_price_usd": null,
+   "when": "n/a",
+   "duration_below_099": "none material",
+   "notes": "Held peg through the window; became a temporary safe-haven on Binance. (Paxos wind-down came later, Feb 2023, unrelated to this window.)"
+  }
+ ],
+ "defi_impact": {
+  "tvl": {
+   "global": "Global DeFi TVL fell ~12% (~$10B) in 24h on Nov 9 (Bloomberg); from ~$55-65B pre-event to ~$39-42B by late Nov/early Dec — exact levels differ by aggregator (DeFiLlama vs DappRadar); a 20-month low",
+   "solana": "Chain TVL $1.04B (Nov 6) -> $347M (Nov 10, -67%) -> $330M (Nov 14, -63% w/w); ended 2022 at ~$290M (-96% YoY). One widely-circulated '$330B' figure is a unit error",
+   "ethereum_bluechips": "Aave/Maker/Compound/Uniswap TVL fell with asset prices but protocols operated normally — the event is the canonical 'DeFi worked, CeFi froze' case study"
+  },
+  "bad_debt_usd": {
+   "aave_v2_crv": 1600000,
+   "maple_orthogonal_default": 36000000,
+   "notes": "Aave v2: $1.6M bad debt from the Eisenberg CRV short squeeze liquidation (Nov 22), covered by treasury Jan 2023. Maple: $36M Orthogonal default (Dec 5; ~$31M in M11 USDC pool; ~30% of all active Maple loans) — principal impairment for pool lenders, plus Auros loan stress in the same pools. FTX wallet drain of $477M was exchange-level, not DeFi bad debt."
+  },
+  "liquidations_usd": {
+   "futures_liquidations_nov8_9": 1600000000,
+   "notes": "~$1.6B of leveraged positions liquidated around the collapse (secondary source, approximate); on-chain lending liquidations were orderly — no cascade failure on Aave/Compound/Maker."
+  },
+  "gas": "No extreme sustained Ethereum gas spike documented (unlike May 2021/2022 events); activity surge was real — Uniswap daily volume >3x to $4.2B on Nov 8, weekly DEX volume hit a record ~$32B — but blockspace absorbed it.",
+  "oracle_behavior": "Major oracles (Chainlink, Pyth) functioned; risks were price-dispersion risks: (1) venue prices diverged during the USDT wobble — protocols hardcoding USDT=$1 or using single-venue feeds saw distorted valuations; (2) FTT/SRM feeds collapsed >90% intra-week, stressing anything using them as collateral; (3) Solana's Sollet-wrapped soBTC/soETH permanently depegged from BTC/ETH because backing was custodied on FTX — an oracle/collateral trap for Solana lenders.",
+  "withdrawal_freezes": [
+   "FTX.com — halted Nov 8 (brief Bahamas-only reopening Nov 10-11)",
+   "BlockFi — paused Nov 10, Chapter 11 Nov 28",
+   "Genesis Global Capital — halted Nov 16 (Chapter 11 Jan 19, 2023)",
+   "Gemini Earn — frozen Nov 16 via Genesis; $900M / ~340k users",
+   "Others: AAX, SALT, Liquid also halted mid-Nov"
+  ],
+  "protocols_paused_insolvent": [
+   "FTX / FTX US / Alameda — Chapter 11 Nov 11",
+   "BlockFi — Chapter 11 Nov 28",
+   "Orthogonal Trading — insolvent, provisional liquidation Dec 2022",
+   "Genesis — insolvent (bankrupt Jan 2023)",
+   "Serum — abandoned (FTX-held update keys), forked to OpenBook",
+   "No blue-chip DeFi protocol paused, froze, or failed"
+  ],
+  "bridge_chain_availability": "No L1 outages — notably Solana stayed up throughout despite the run. RenBridge (Alameda-funded) was used to launder part of the $477M hack and its shutdown was announced in Dec 2022 when Alameda funding died, forcing renBTC holders to bridge back out — a realized bridge-counterparty risk."
+ },
+ "causes": {
+  "primary": "FTX operated with an ~$8B hole: customer deposits were secretly funneled to Alameda Research via a code-level backdoor exempting Alameda from risk checks and giving it effectively unlimited credit; the 'assets' backing this were dominated by illiquid self-issued tokens (FTT, SRM) and locked SOL. When depositors ran, the assets weren't there.",
+  "secondary": [
+   "No segregation of customer funds, no independent custody, no real audit or board oversight (Ray: 'complete failure of corporate controls')",
+   "Collateralization of loans with self-issued FTT, whose value depended reflexively on FTX's own credibility",
+   "CoinDesk's Nov 2 balance-sheet leak made the FTT concentration public; CZ's Nov 6 public liquidation announcement acted as the coordinating trigger for the run",
+   "Opaque, interlinked CeFi credit network (Genesis, BlockFi, Maple borrowers like Orthogonal) with unhedged FTX/Alameda counterparty exposure",
+   "Post-3AC industry already fragile; no proof-of-reserves norms existed to arrest a confidence run"
+  ],
+  "mechanism": "CoinDesk story reveals Alameda's balance sheet is mostly FTT/SOL -> confidence cracks -> CZ announces Binance will dump ~$530M FTT; Ellison's '$22 bid' telegraphs a defended level -> depositors pull ~$6B in 72h -> FTX cannot pay (assets lent to Alameda / illiquid) -> withdrawals halted Nov 8 -> FTT collateral spiral: -80% in a day, -90% in a week -> Binance LOI fails on due diligence Nov 9 -> broad crypto crash (BTC -24%, ETH -31%) -> Chapter 11 Nov 11 + $477M hack -> everything SBF-touched repriced: SOL -60%+, Serum abandoned, Solana TVL -67% -> USDT order-book depeg to ~$0.97 as traders de-risk -> CeFi lenders with trapped FTX balances freeze (BlockFi Nov 10, Genesis/Gemini Earn Nov 16) -> credit losses propagate into DeFi under-collateralized credit pools (Orthogonal $36M default on Maple) -> BlockFi and later Genesis go bankrupt."
+ },
+ "contagion": [
+  "CoinDesk Alameda balance-sheet story (Nov 2) -> FTT confidence crack",
+  "CZ FTT liquidation announcement (Nov 6) -> $6B depositor run on FTX in 72h",
+  "FTX withdrawal halt (Nov 8) -> FTT -80% -> failed Binance LOI (Nov 9) -> BTC/ETH to 2-year lows",
+  "FTX/Alameda Chapter 11 (Nov 11) -> $477M wallet drain (Nov 11-12)",
+  "SBF-linked assets: SOL -60%+ in a week, Serum abandoned over compromised update keys, soBTC/soETH wrappers permanently depegged, Solana DeFi TVL $1.04B -> $347M",
+  "Flight from USDT (order-book depeg to ~$0.97, Nov 10) into USDC/DAI",
+  "CeFi lender freezes: BlockFi pauses (Nov 10) -> Genesis halts withdrawals (Nov 16) -> Gemini Earn frozen ($900M, 340k users)",
+  "DeFi credit pools hit: Orthogonal Trading defaults on $36M on Maple (Dec 5), ~30% of Maple's active loan book",
+  "BlockFi Chapter 11 (Nov 28) -> Genesis Chapter 11 (Jan 19, 2023) -> DCG stress -> Silvergate deposit run (Q4 2022) feeding the March 2023 banking leg"
+ ],
+ "recovery": {
+  "recovered": "partial and asymmetric",
+  "time_to_recover": "BTC/ETH: ~2 months to reclaim pre-collapse levels (BTC back above $21k by 2023-01-14); SOL: ~12 months (sub-$10 Dec 2022, recovered in late-2023 rally, new ATH Nov 2024); FTT: never; frozen CeFi claims: 1.5-3+ years",
+  "notes": "Market prices bottomed Nov 21-22, 2022 and chopped sideways until January 2023. Credit-side recovery was far slower: Genesis filed Chapter 11 Jan 19, 2023; Gemini Earn users were made substantially whole only in 2024; FTX customers began receiving distributions in Feb 2025 at 100%+ of petition-date USD values (crypto-denominated losses remained large since BTC had ~6x'd). Maple wrote off the Orthogonal loans and relaunched as Maple 2.0 (Dec 2022) with revamped withdrawal mechanics. Structural legacies: the proof-of-reserves standard on CEXs, decimation of under-collateralized crypto credit, Serum -> OpenBook, and the Silvergate deposit run that seeded the March 2023 banking/USDC event (H-series neighbor)."
+ },
+ "sources": [
+  {
+   "url": "https://www.cnbc.com/2022/11/08/ftxs-ftt-token-plunges-80percent-wiping-out-over-2-billion-in-value.html",
+   "title": "CNBC: FTX's FTT token plunges 80%, wiping out over $2 billion in value (Nov 8, 2022)",
+   "supports": "FTT -80% intraday Nov 8, >$2B market cap wiped",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coingecko.com/research/publications/ftt-impacted-ftx-collapse",
+   "title": "CoinGecko Research: FTT's market cap & token price after FTX's collapse",
+   "supports": "FTT $22.27 (Nov 7) -> $2.10 (Nov 13), -90.4%; $1.26 by Nov 22",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.malaymail.com/news/money/2022/11/09/crypto-exchange-ftx-saw-us6b-in-withdrawals-in-72-hours-says-ceo-message-to-staff/38402",
+   "title": "Reuters (via Malay Mail): FTX saw US$6b in withdrawals in 72 hours, says CEO message to staff",
+   "supports": "$6B withdrawal run in 72h before Nov 8",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/policy/2023/06/26/ftx-bankruptcy-team-says-the-exchange-owed-customers-87b",
+   "title": "CoinDesk: FTX bankruptcy team says the exchange owed customers $8.7B",
+   "supports": "Customer shortfall ~$8B at collapse / $8.7B owed per debtors' June 2023 report",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.cnbc.com/2022/11/09/binance-backs-out-of-ftx-rescue-leaving-the-crypto-exchange-on-the-brink-of-collapse.html",
+   "title": "CNBC: Binance backs out of FTX rescue (Nov 9, 2022)",
+   "supports": "Nov 8 LOI, Nov 9 withdrawal after due diligence; BTC two-year low Nov 9; SOL -20% that day",
+   "confidence": "high"
+  },
+  {
+   "url": "https://news.bitcoin.com/thanks-to-the-ftx-collapse-bitcoins-price-in-november-2022-looks-to-join-the-4-previous-negative-novembers-of-the-past-11-years/",
+   "title": "Bitcoin.com News: Bitcoin's November 2022 price action",
+   "supports": "BTC $20,485 Nov 1; intraday low $15,742 on Nov 9",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.cnbc.com/2022/11/21/bitcoin-btc-ether-eth-fall-as-ftx-collapse-ripples-through-market.html",
+   "title": "CNBC: Bitcoin drops to lowest in more than a week, ether slides (Nov 21, 2022)",
+   "supports": "BTC low $15,586.94 and ETH ~$1,081 on Nov 21",
+   "confidence": "high"
+  },
+  {
+   "url": "https://capital.com/en-int/analysis/ethereum-eth-price-prediction",
+   "title": "Capital.com ETH analysis (historical section)",
+   "supports": "ETH $1,574.80 high Nov 8 -> $1,083.29 low Nov 9 (-31%)",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.fxstreet.com/amp/cryptocurrencies/news/solana-price-bears-staggering-70-loss-between-high-and-low-of-november-202211221516",
+   "title": "FXStreet: Solana price bears staggering 70% loss between high and low of November (Nov 22, 2022)",
+   "supports": "SOL ~-70% Nov high-to-low; pre-crash level ~$36.9; sub-$12 prints",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.coindesk.com/markets/2022/11/10/tethers-usdt-stablecoin-slips-from-1-peg",
+   "title": "CoinDesk: Tether's USDT stablecoin drops 3% below $1 peg (Nov 10, 2022)",
+   "supports": "USDT to ~$0.97 Nov 10; Bloomberg corroborates prints near $0.96",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.elliptic.co/blog/analysis/477-million-in-unauthorized-transfers-from-ftx",
+   "title": "Elliptic: $477 million moved out of FTX in suspected theft",
+   "supports": "$477M hack Nov 11-12; RenBridge laundering path",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/business/2022/11/16/genesis-crypto-lending-unit-is-halting-customer-withdrawals-in-wake-of-ftx-collapse",
+   "title": "CoinDesk: Genesis' crypto-lending unit is halting customer withdrawals (Nov 16, 2022)",
+   "supports": "Genesis freeze Nov 16; $175M locked on FTX",
+   "confidence": "high"
+  },
+  {
+   "url": "https://decrypt.co/116387/genesis-gemini-earn-900-million-owed-users-ftx",
+   "title": "Decrypt: Genesis owes Gemini Earn users $900M",
+   "supports": "$900M owed to ~340,000 Gemini Earn users",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.cnbc.com/2022/11/28/blockfi-files-for-bankruptcy-as-ftx-fallout-spreads.html",
+   "title": "CNBC: BlockFi files for bankruptcy as FTX fallout spreads (Nov 28, 2022)",
+   "supports": "BlockFi Chapter 11 Nov 28; withdrawals paused Nov 10-11; FTX US credit line / Alameda obligations",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.theblock.co/post/192097/maple-finance-default-orthogonal-trading",
+   "title": "The Block: Orthogonal Trading defaults on $36 million of loans on Maple Finance",
+   "supports": "$36M default Dec 5; ~$31M in M11 USDC pool; ~30% of Maple active loans; misrepresented FTX exposure (CoinDesk Dec 5 corroborates)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://dappradar.com/blog/ftx-causes-chaos-on-solana-after-tvl-dropped-66",
+   "title": "DappRadar: FTX causes chaos on Solana after TVL dropped 66%",
+   "supports": "Solana TVL $1.04B (Nov 6) -> $347M (Nov 10); CryptoSlate corroborates $330M on Nov 14 (-63% w/w, DeFiLlama data)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.bloomberg.com/news/articles/2022-11-09/ftx-s-collapse-spurs-10-billion-drop-in-decentralized-finance",
+   "title": "Bloomberg: Binance's FTX takeover spurs $10 billion crypto drop for DeFi",
+   "supports": "Global DeFi TVL -12% (~$10B) in 24h on Nov 9",
+   "confidence": "high"
+  },
+  {
+   "url": "https://decrypt.co/114364/defi-exchange-volume-hits-ftx-collapse",
+   "title": "Decrypt: DeFi weekly exchange volume hits $32 billion amid FTX collapse",
+   "supports": "Record $32B weekly DEX volume; Uniswap $1.3B -> $4.2B daily on Nov 8",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/business/2022/11/12/ftx-hack-spooks-solana-defi-community-igniting-revolution-at-alameda-controlled-serum-dex",
+   "title": "CoinDesk: FTX hack spooks Solana DeFi community, igniting revolution at Alameda-controlled Serum DEX",
+   "supports": "Serum update-key compromise fears, protocol exodus, OpenBook fork",
+   "confidence": "high"
+  },
+  {
+   "url": "https://cryptoslate.com/binance-to-start-proof-of-reserves-cz-proposes-all-crypto-exchanges-follow-suit/",
+   "title": "CryptoSlate: Binance to start proof-of-reserves; CZ proposes all crypto exchanges follow suit",
+   "supports": "Proof-of-reserves era trigger (Nov 8-9); Cointelegraph corroborates Binance Merkle-tree PoR publication Nov 25; CoinDesk Nov 9 documents 9 exchanges committing",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/markets/2022/11/22/mango-exploiter-gets-liquidated-after-roiling-aave-using-20m-of-borrowed-curve-tokens",
+   "title": "CoinDesk: Mango exploiter gets liquidated after roiling Aave using $20M of borrowed Curve tokens",
+   "supports": "Eisenberg CRV short liquidation; ~$1.6M Aave v2 bad debt (Nov 22)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://en.wikipedia.org/wiki/Bankruptcy_of_FTX",
+   "title": "Wikipedia: Bankruptcy of FTX",
+   "supports": "Overall timeline skeleton: Nov 2 CoinDesk story, Nov 6 CZ announcement, Nov 8 halt+LOI, Nov 9 walk-away, Nov 11 Chapter 11 (~130 entities), SBF resignation, John Ray III",
+   "confidence": "high"
+  }
+ ],
+ "confidence_notes": "Observed, well-sourced facts: the Nov 2 -> Nov 11 event sequence and dates; FTT $22.27 -> $2.10 (-90.4%, CoinGecko) and -80% on Nov 8 (CNBC/CoinDesk); $6B/72h run (SBF staff message via Reuters); withdrawal halt Nov 8; Binance LOI Nov 8 and walk-away Nov 9; Chapter 11 Nov 11; $477M drain (Elliptic); Genesis halt Nov 16 with $175M FTX-locked and $900M/340k Gemini Earn (Decrypt/CoinDesk); BlockFi Ch.11 Nov 28; Orthogonal $36M Maple default Dec 5 (~$31M M11 USDC pool, ~30% of active loans); Aave $1.6M CRV bad debt; Solana TVL $1.04B->$347M->$330M (DeFiLlama-based); global TVL -12%/~$10B on Nov 9 (Bloomberg). CONTESTED/APPROXIMATE: (1) BTC trough — $15,742 Nov 9 intraday vs $15,480-15,590 Nov 21 depending on venue/index; I use $15,742 for the acute window and flag Nov 21 as the marginal cycle low; from-price ~$20,600 (Nov 7) is a rounded venue composite. (2) ETH path $1,574.80->$1,083.29 comes from a secondary market-analysis source; direction and ~-31% magnitude corroborated by CNBC (-14% single day to ~$1,128; ~$1,081 on Nov 21). (3) SOL from/to (~$36.9 -> ~$12) is venue-approximate; the -70% Nov high-to-low is FXStreet's calc; use exchange klines for exact replay. (4) USDT depeg depth: ~$0.97 (CoinDesk) vs ~$0.96 (Bloomberg, some venues); CoinGecko admitted a data issue exaggerated some prints — depth below $0.97 is low-confidence, duration figures are my inference from reporting, not a measured series. (5) $1.6B futures liquidations is a secondary-source figure, medium confidence. (6) Shortfall: ~$8B was the contemporaneous figure; FTX debtors later formalized ~$8.7B owed to customers (June 2023). (7) Global TVL start/end levels vary by aggregator ($55-65B pre-event; $39-42B trough) — I report the range. (8) SRM price path left null — not verified against a primary source. Widely-circulated 'Solana TVL fell from $330 billion' is a known unit error; correct scale is ~$1B -> ~$0.33B.",
+ "data_availability": {
+  "prices": "FREE, full replay possible: Binance spot klines REST API (klines endpoint) — 1m/1h/1d granularity back through Nov 2022 for BTCUSDT, ETHUSDT, SOLUSDT and (delisted but historical) FTTUSDT, no API key needed. Kraken public OHLC API for BTC/USD, ETH/USD at 1m. Yahoo Finance / Stooq free daily BTC-USD, ETH-USD. NOT free: CoinGecko public/demo API restricts historical queries to the last 365 days (Nov 2022 daily data requires a paid plan); CoinDesk/TradingView exports also paywalled.",
+  "stablecoin_prices": "FREE: Kraken public OHLC for USDT/USD at 1m granularity is the cleanest primary record of the Nov 9-10 USDT wobble (real USD order book). DeFiLlama stablecoins API (stablecoins.llama.fi) gives free daily prices/mcap history for USDT/USDC/BUSD — daily granularity only, which UNDERSTATES an intraday depeg. Curve 3pool imbalance replay requires archive-node or Dune queries (free with account).",
+  "tvl": "FREE via DeFiLlama API: /v2/historicalChainTvl (global), /v2/historicalChainTvl/Solana, /protocol/aave, /protocol/maple, /protocol/serum — daily granularity, no key. Note: this session's egress proxy blocked api.llama.fi, so figures above come from contemporaneous articles citing DeFiLlama; the SPA runtime already has a whitelisted DeFiLlama feed and can pull the raw series itself.",
+  "liquidations": "PARTLY FREE: aggregate CEX futures liquidation history (Coinglass) is paywalled at hourly granularity for 2022 — the ~$1.6B figure is only obtainable free from news citations. On-chain liquidations (Aave v2/v3, Compound) fully reconstructable free from event logs via Dune (free tier) or public RPC archive queries.",
+  "gas": "FREE: Etherscan daily average gas price chart offers CSV download without login; Dune has free block-level basefee data. Sub-daily historical gas percentiles for Nov 2022 require Dune queries (free tier) rather than a turnkey API.",
+  "exchange_flows_and_run_dynamics": "NOT free as raw data: FTX inflow/outflow reconstructions came from Nansen/Chainalysis/Elliptic — their public blog posts (qualitative, some charts) are free, raw datasets are not. The $5-6B run size rests on SBF's staff message (Reuters) and Nansen's public analysis.",
+  "maple_default": "FREE: Maple governance forum posts, M11 Credit disclosures, and on-chain pool state are public; The Block/CoinDesk articles date-stamp the default sequence."
+ },
+ "spa_relevance": {
+  "summary": "FTX is the canonical test that price-based risk gates miss: USDC never depegged and blue-chip DeFi never froze, yet a USDC yield portfolio with CeFi-credit exposure (Maple) would have taken real, permanent principal loss plus a multi-month freeze, while the rest of the book suffered only APY compression. The loss channel is counterparty credit + withdrawal liquidity, not price.",
+  "positions": {
+   "aave_v3_usdc": "Hit channel: none direct — Aave kept operating; USDC suppliers could withdraw throughout. Aave v2 took $1.6M CRV bad debt (Nov 22) — trivially small vs TVL, socialized by treasury. Secondary channel: utilization/APY whipsaw — borrow demand collapsed post-FTX, compressing USDC supply APY toward/below SPA's 1% APY floor gate for extended stretches; a brief utilization spike during the panic could have delayed a full-size withdrawal by hours.",
+   "pendle_pt": "Hit channel: liquidity crunch, not solvency. A PT held to maturity on a surviving underlying is fine; exiting mid-panic means selling into thin AMM liquidity at a widened discount (implied yields spike as everyone bids liquidity). Also check the underlying: any PT on a yield source with CeFi/FTX-linked credit would have been impaired. Mark-to-market drawdown on PT positions during such a week is real even when hold-to-maturity value is unchanged — the system must distinguish the two.",
+   "maple": "DIRECT HIT — this exact event impaired this exact venue. Orthogonal defaulted on $36M (Dec 5), ~$31M in the M11 USDC pool, ~30% of Maple's entire active book; borrower had lied about FTX exposure. Pool cash was lent out, so 'withdraw' was structurally impossible during the run regardless of UI state; Maple v1 also had lockup/cooldown mechanics. Under-collateralized CeFi credit converts an exchange failure into lender principal loss with weeks of lag (Nov 11 bankruptcy -> Dec 3 revelation -> Dec 5 default). An APY/TVL feed showed nothing wrong until it was too late.",
+   "morpho_steakhouse_usdc": "No direct 2022 analog (Morpho Blue/Steakhouse launched later; 2022 Morpho Optimizer simply inherited Aave/Compound risk, which held). Mapped channels: curator/market risk — a vault allocating to markets collateralized by exchange tokens (FTT-like), CeFi-linked wrappers (soBTC-like), or hardcoded-$1 stablecoin oracles is where this scenario bites; plus in-kind withdrawal risk if a market hits full utilization during a panic.",
+   "cash_usdc_10pct": "Fine — USDC held peg and traded at a premium. But the event shows 10% cash is the only layer guaranteed same-day liquid: Aave was withdrawable, Maple was not, Pendle only at a discount. Kill-switch note: a HARD_KILL 'all-cash' order is unexecutable against a frozen Maple position — derisk ladders must model per-position exit latency, not assume instant convertibility."
+  },
+  "unpriced_if_usdc_equals_1_and_always_withdrawable": [
+   "Maple-style credit default: NAV impairment (-30% of a pool) with zero preceding price signal in USDC terms — invisible to a system marking stablecoin positions at par",
+   "Withdrawal-freeze latency: 'approved exit' != 'executed exit'; Genesis/Gemini/BlockFi/Maple all froze while dashboards showed balances intact",
+   "APY collapse regime: post-FTX stablecoin lending yields compressed sector-wide for months (borrow demand died), stressing the 1% APY floor and cash-must-be-explained rules simultaneously",
+   "USDT wobble second-order: SPA holds USDC, but pools/routes with USDT legs (Curve 3pool imbalance, USDT-quoted venues) briefly mispriced ~2-3%",
+   "Counterparty-of-counterparty exposure: Orthogonal's FTX balance was invisible to Maple lenders — TVL/APY feeds carry no information about borrower balance sheets; refusal-first posture on under-collateralized credit is the only defense",
+   "Kill-switch executability: HARD_KILL all-cash assumes all positions are sellable; this event produces a state where drawdown >10% coexists with a frozen position"
+  ]
+ },
+ "replay": {
+  "duration_days": 35,
+  "start_date": "2022-11-02",
+  "base": {
+   "aave_v3": {
+    "apy_pct": 3.0
+   },
+   "pendle": {
+    "apy_pct": 5.5
+   },
+   "maple": {
+    "apy_pct": 8.5
+   },
+   "morpho_steakhouse": {
+    "apy_pct": 4.0
+   }
+  },
+  "shocks": [
+   {
+    "kind": "apy",
+    "params": {
+     "protocol": "aave_v3",
+     "apy_pct": 5.5,
+     "from_day": 6,
+     "to_day": 10
+    }
+   },
+   {
+    "kind": "apy",
+    "params": {
+     "protocol": "aave_v3",
+     "apy_pct": 2.0,
+     "from_day": 11,
+     "to_day": 34
+    }
+   },
+   {
+    "kind": "liquidity",
+    "params": {
+     "from_day": 6,
+     "to_day": 12,
+     "exit_haircut_pct": 0.015,
+     "gas_cost_usd": 120.0
+    }
+   },
+   {
+    "kind": "peg",
+    "params": {
+     "symbol": "PT_USDC",
+     "path": [
+      [
+       6,
+       1.0
+      ],
+      [
+       9,
+       0.97
+      ],
+      [
+       20,
+       1.0
+      ]
+     ]
+    }
+   },
+   {
+    "kind": "freeze",
+    "params": {
+     "protocol": "maple",
+     "from_day": 14,
+     "to_day": 34
+    }
+   },
+   {
+    "kind": "capital_loss",
+    "params": {
+     "protocol": "maple",
+     "day": 33,
+     "loss_pct": 0.3
+    }
+   }
+  ],
+  "assumptions": [
+   "maple −30% день 33 = дефолт Orthogonal 5 дек (реальный тайминг окна); доля потерь пула M11 уточняется сценарием H13 (выделенное исследование).",
+   "Заморозка maple с дня 14 — очередь на выход/локапы Maple 1.0 после FTX.",
+   "USDT-wobble книга не видит (не в экспозициях)."
+  ]
+ }
+}

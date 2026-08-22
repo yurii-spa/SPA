@@ -1,0 +1,384 @@
+{
+ "schema_version": 1,
+ "id": "H14_stream_xusd_nov_2025",
+ "name": "Stream Finance / xUSD collapse and the November 2025 curator crisis",
+ "event_class": [
+  "stablecoin_depeg",
+  "cefi_counterparty",
+  "systemic_contagion",
+  "liquidity_oracle_infra",
+  "protocol_exploit"
+ ],
+ "window_utc": {
+  "start": "2025-11-03T00:00:00Z",
+  "trough": "2025-11-06T00:00:00Z",
+  "end": "2025-11-14T00:00:00Z",
+  "note": "Root loss occurred 2025-10-10 off-chain and was concealed ~3 weeks. Public window: Balancer exploit + freeze eve (Nov 3) through USDX capitulation (~Nov 14). Workout/liquidation still ongoing as of 2026-08-22 — xUSD never repegged."
+ },
+ "speed": "Hours-to-days for the crash leg: freeze + disclosure (late Nov 3 US / early Nov 4 UTC) → xUSD ~$0.50 in ~12h → $0.23-0.30 within 24h; deUSD -98% in ~48h; USDX broke 48h later. Months-to-years for the workout leg (liquidation entity formed Mar 2026; no distributions as of Aug 2026). Root loss preceded public phase by ~3 weeks (concealment).",
+ "summary": "Кризис кураторов ноября 2025: Stream Finance раскрыла потерю ~$93M внешним управляющим (убыток случился 10.10 и ~3 недели скрывался), ЗАМОРОЗИЛА вводы/выводы — и лишь ПОТОМ xUSD рухнул до $0.23-0.30 (выйти было нельзя ни по какой цене). deUSD Элixir (65% обеспечения — займы Stream) −98%, USDX < $0.60. ~$285M экспозиции через КУРАТОРНЫЕ рынки Morpho/Euler (TelosC $123.6M, Elixir $68M, MEV Capital $25.4M), захардкоженные $1-оракулы блокировали ликвидации. ~$1B недельного оттока из yield-стейблов — крупнейший с Luna. USDC/USDT пеги целы; Steakhouse USDC исторически НЕ пострадал — но канал куратора это ровно наш morpho-рукав, один куратор в сторону. Книга SPA на 2026-08: aave_v3 40% / pendle (PT_USDC) 20% / maple 15% / morpho_steakhouse 15% / кэш USDC 10%.",
+ "timeline": [
+  {
+   "ts": "2025-10-10",
+   "event": "ETH flash-crash/liquidation cascade. Stream Finance's external fund manager (trader Ryan DeMattia per the Dec 2025 lawsuit) loses ~$93M (~17.5% of AUM) in off-chain 'delta-neutral' strategies. Loss is not disclosed for ~3 weeks.",
+   "observed": true,
+   "source_url": "https://www.dlnews.com/articles/defi/stream-finance-founders-sue-partner-over-alleged-93m-loss/"
+  },
+  {
+   "ts": "2025-10-28",
+   "event": "Analyst CBB publishes on-chain warning: only ~$170M collateral supports xUSD on-chain vs ~$530M borrowed from lending protocols (~4.1x effective leverage via recursive looped minting). Yearn dev Schlagonia had privately warned Stream ~172 days earlier (per rekt.news).",
+   "observed": true,
+   "source_url": "https://rekt.news/loop-contagion"
+  },
+  {
+   "ts": "2025-11-03",
+   "event": "Balancer v2 exploited for $116M initial estimate / $128.6M final (rounding-error in batchSwap invariant math) across 6 chains — DeFi-wide risk-off the same week, initially (wrongly) blamed for Stream's hole.",
+   "observed": true,
+   "source_url": "https://research.checkpoint.com/2025/how-an-attacker-drained-128m-from-balancer-through-rounding-error-exploitation/"
+  },
+  {
+   "ts": "2025-11-04",
+   "event": "Hardcoded-oracle failure: many curated markets on Morpho/Euler/Silo priced xUSD collateral at a fixed $1.00 (MEV Capital's market: hardcoded $1.26 exchange rate) while spot fell to ~$0.23 — liquidations never fired; utilization hit 100%, borrow APRs spiked to ~88%; lenders could not withdraw.",
+   "observed": true,
+   "source_url": "https://pharos.watch/learn/case-studies/stream-elixir-contagion-2025/"
+  },
+  {
+   "ts": "2025-11-04",
+   "event": "Researcher collective YAM (Yields & More) maps $284.96M of Stream-linked debt across ≥7 networks and curated vaults: TelosC $123.64M (Euler, largely Plasma), Elixir $68M (private Morpho markets), MEV Capital $25.42M (Morpho/Euler), Varlamore $19.17M (Silo), Re7 Labs $14.65M, Enclabs $2.56M, Mithras $2.3M, plus TiD/Invariant Group and others — 'not an extensive list'.",
+   "observed": true,
+   "source_url": "https://www.theblock.co/post/377491/analysts-map-285m-in-potential-exposure-across-defi-after-stream-finances-93m-loss"
+  },
+  {
+   "ts": "2025-11-04T04:00:00Z",
+   "event": "FREEZE BEFORE DEEP DEPEG: Stream announces on X (late Nov 3 US evening / early hours Nov 4 UTC; exact minute not published) that the external manager lost ~$93M, and suspends ALL deposits and withdrawals effective immediately; retains Perkins Coie. Primary redemption closes while xUSD still trades near peg — secondary DEX pools become the only exit.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2025/11/04/stream-finance-faces-usd93-million-loss-launches-legal-investigation"
+  },
+  {
+   "ts": "2025-11-04T16:00:00Z",
+   "event": "xUSD crashes AFTER the freeze: ~-25% then through $0.50 within ~12h of the announcement (PeckShield), reaching $0.23–$0.30 within 24h (-70..77%). ~$160M of user deposits frozen; Stream TVL had peaked >$200M.",
+   "observed": true,
+   "source_url": "https://decrypt.co/347285/stream-finance-stablecoin-plunges-77-protocol-fund-manager-loses-93-million"
+  },
+  {
+   "ts": "2025-11-05",
+   "event": "Elixir deUSD breaks: ~65% of its backing (~$68M USDC) had been lent to Stream via private permissioned Morpho markets; deUSD collapses ~98% to ~$0.015 on secondary markets.",
+   "observed": true,
+   "source_url": "https://beincrypto.com/elixir-deusd-stablecoin-collapse-stream-finance-loss/"
+  },
+  {
+   "ts": "2025-11-06",
+   "event": "Elixir announces full wind-down of deUSD/sdeUSD; ~80% of non-Stream holders redeem 1:1 in USDC before/through the wind-down; snapshot + claims portal for the remainder; Elixir asserts intent to make non-Stream holders 100% whole (its claim against Stream disputed).",
+   "observed": true,
+   "source_url": "https://www.theblock.co/post/377961/elixir-sunsets-deusd-synthetic-stablecoin-following-stream-finance-unwinding-aims-full-redemptions"
+  },
+  {
+   "ts": "2025-11-06",
+   "event": "Stables Labs USDX (similar opaque delta-neutral model, peak supply reported ~$685M) depegs below $0.60, printing ~$0.30 lows; PancakeSwap and Lista DAO 'monitoring'; USDX slides to ~$0.04 by Nov 14. Re7 reports >$13M stuck in Stables-Labs-linked markets with no response from the issuer.",
+   "observed": true,
+   "source_url": "https://www.tradingview.com/news/the_block:20a0543c5094b:0-synthetic-stablecoin-usdx-depegs-below-0-60-pancakeswap-and-lista-monitoring-the-situation/"
+  },
+  {
+   "ts": "2025-11-07",
+   "event": "Euler emerges as the single largest lender to Stream: ~$137M of Stream-linked bad debt attributed to Euler curated markets (TelosC, Re7, K3, MEV Capital vaults; Euler DAO's own core markets reported zero exposure). Figure is a secondary-source consensus, mostly unrealized claims vs the Stream estate rather than instantly socialized depositor loss.",
+   "observed": true,
+   "source_url": "https://www.zircuit.com/blog/behind-cryptos-biggest-collapses"
+  },
+  {
+   "ts": "2025-11-10",
+   "event": "Sector-wide run on the curator model: ~$1B leaves yield-bearing stablecoins in one week (Stablewatch; largest weekly outflow since Luna 2022), hitting even unaffected issuers (Reservoir, YieldFi, Coinshift TVL down sharply, pegs held). Morpho co-founder Paul Frambot: only '1 out of ~320 vaults on the Morpho App' had xUSD exposure — isolation worked, but vault due-diligence burden lands on depositors.",
+   "observed": true,
+   "source_url": "https://www.panewslab.com/en/articles/23d810f9-1423-449c-8bc1-71129deb2c8b"
+  },
+  {
+   "ts": "2025-11-12",
+   "event": "MORPHO-CURATOR LOSS CRYSTALLIZED: MEV Capital removes the Elixir sdeUSD/USDC market from its Ethereum Morpho USDC vault, REALIZING bad debt equal to ~3.6% of vault TVL (on top of ~$650k xUSD bad debt where its oracle was hardcoded at $1.26 vs $0.23 spot). Re7 Labs discloses ~$27.4M total bad debt across xUSD/USDT0 (Euler Plasma) and deUSD/sdeUSD (Morpho) markets. Steakhouse Financial (Nov 4 statement) and Gauntlet had zero exposure to xUSD/yUSD/deUSD/mHYPER/mMEV.",
+   "observed": true,
+   "source_url": "https://x.com/MEVCapital/status/1988581694476071222"
+  },
+  {
+   "ts": "2025-12-08",
+   "event": "Stream Trading Corp. sues current owner-operator Caleb '0xlaw' McMeans (N.D. Cal.), alleging he ran Stream 'as his own business', hired the trader who lost ~$93M, and moved ~$2.1M through Railgun to personal wallets two days before disclosure (later returned). Perkins Coie-led investigation produced no public report.",
+   "observed": true,
+   "source_url": "https://www.dlnews.com/articles/defi/stream-finance-founders-sue-partner-over-alleged-93m-loss/"
+  },
+  {
+   "ts": "2026-05-15",
+   "event": "Stream breaks ~6-month silence: wind-down via 'Stream Soft Holding Company' (Delaware, incorporated 2026-03-20), an Assignment-for-Benefit-of-Creditors-style liquidation to consolidate and distribute remaining assets; begins collecting creditor claims toward a 'potential global resolution' — no recovery %, no deadline, no distribution yet.",
+   "observed": true,
+   "source_url": "https://thedefiant.io/news/defi/stream-finance-breaks-six-month-silence-with-wind-down-plan"
+  },
+  {
+   "ts": "2026-07-15",
+   "event": "SiloDAO files a consolidated recovery claim with Stream on behalf of affected lenders: >$31.6M in stablecoin claims plus 272.70 BTC. As of 2026-08-22 no distributions or haircut percentages have been announced; xUSD trades as a distressed claim (~$0.07–$0.17 range reported through late 2025 / 2026).",
+   "observed": true,
+   "source_url": "https://medium.com/silo-protocol/silodao-files-recovery-claim-with-stream-finance-on-behalf-of-affected-lenders-5cd049b64429"
+  }
+ ],
+ "market_impact": {
+  "xUSD_stream": {
+   "from_usd": 1,
+   "to_usd": 0.26,
+   "drawdown_pct": -77,
+   "window": "2025-11-04, ~24h after freeze announcement",
+   "trough_range_note": "Reported floor $0.23–$0.30 across sources (Decrypt/PeckShield -77% to ~$0.26; Invezz $0.29; MEV Capital cites $0.23 spot vs $1.26 hardcoded oracle). Never recovered: ~$0.165 mid-Nov 2025, $0.07–$0.14 later; trades as claim on estate."
+  },
+  "deUSD_elixir": {
+   "from_usd": 1,
+   "to_usd": 0.015,
+   "drawdown_pct": -98,
+   "window": "2025-11-04 → 2025-11-06",
+   "note": "Market price only; ~80% of holders ultimately redeemed 1:1 in USDC via wind-down"
+  },
+  "USDX_stables_labs": {
+   "from_usd": 1,
+   "to_usd": 0.3,
+   "drawdown_pct": -70,
+   "window": "2025-11-06 (below $0.60, ~$0.30 low)",
+   "note": "~$0.04 by 2025-11-14 (>-95%); peak supply reported ~$685M (single-source, unverified)"
+  },
+  "BTC_ETH_majors": null,
+  "defi_yield_stablecoin_sector_tvl": {
+   "from_usd": null,
+   "to_usd": null,
+   "drawdown_pct": null,
+   "window": "week of 2025-11-03",
+   "note": "~$1B outflow from yield-bearing stablecoins in one week (Stablewatch) — largest since Luna 2022; majors' price moves that week driven by broader deleveraging, not attributable to this event"
+  }
+ },
+ "stablecoins": [
+  "xUSD (Stream Finance, yield-bearing 'staked USD'): -77% in 24h to $0.23-0.30, later $0.07-0.17; never repegged; ~$160M frozen",
+  "deUSD/sdeUSD (Elixir): -98% to ~$0.015 market price; wound down; ~80% of holders redeemed 1:1 USDC, rest via claims portal",
+  "USDX (Stables Labs): <$0.60 on Nov 6, ~$0.30 low, ~$0.04 by Nov 14; issuer unresponsive; >$13M curator funds stuck (Re7)",
+  "USDC/USDT: unaffected pegs — flight-to-quality destinations; contagion hit yield-bearing wrappers, not fiat-backed majors"
+ ],
+ "defi_impact": {
+  "total_mapped_exposure_usd": 284960000,
+  "stream_tvl_frozen_usd": 160000000,
+  "direct_loss_usd": 93000000,
+  "morpho": "Elixir's $68M to Stream sat in private/permissioned Morpho markets (largest single Morpho-channel chunk). Public curated vaults: MEV Capital Ethereum Morpho USDC vault realized bad debt ≈3.6% of vault TVL (sdeUSD/USDC removal, 2025-11-12) plus ~$650k xUSD bad debt; Re7 deUSD/sdeUSD Morpho markets hit. Morpho isolation held: ~1 of ~320 Morpho App vaults exposed (Frambot); protocol itself solvent, no MORPHO governance bailout.",
+  "euler": "Largest lender to Stream: ~$137M Stream-linked bad debt in curated markets (TelosC's $123.64M concentrated largely in Plasma xUSD markets; Re7, K3, MEV Capital also exposed); Euler DAO core markets reported zero exposure; recovery depends on Stream estate — unresolved as of 2026-08-22.",
+  "silo": "Varlamore-curated markets ~$19.17M exposure; SiloDAO later filed consolidated claim >$31.6M stables + 272.70 BTC (Jul 2026).",
+  "elixir": "deUSD wound down entirely; ~80% of holders redeemed 1:1 USDC, remainder via claims portal; deUSD market price -98% during the run.",
+  "stables_labs_usdx": "USDX depegged Nov 6 (<$0.60, then ~$0.30, ~$0.04 by Nov 14); Re7 reported >$13M stuck; issuer unresponsive.",
+  "curators": "Re7 Labs ~$27.4M total bad debt; MEV Capital $25.42M exposure; TelosC $123.64M; smaller: Enclabs $2.56M, Mithras $2.3M, TiD/Invariant Group. Unaffected by choice: Steakhouse Financial (explicit zero exposure to xUSD/yUSD/deUSD/mHYPER/mMEV) and Gauntlet.",
+  "sector": "~$1B weekly outflow from yield-bearing stablecoins (largest since Luna); curator-model trust crisis — calls for curator disclosure standards, oracle policy (no hardcoded pegs for redeemable-only assets), and proof-of-reserve for 'delta-neutral' stables; Aave camp used it to argue against externalized risk management.",
+  "aave_pendle_maple": "Aave v3 core markets: no xUSD/deUSD/USDX listings, no bad debt — beneficiary of flight to quality. Maple: no reported Stream exposure. Pendle: pools existed for affected synthetic-dollar ecosystems (e.g. sUSDX); PTs on such underlyings became claims on broken collateral, while blue-chip PT markets functioned."
+ },
+ "causes": {
+  "root_cause": "Off-chain, unverifiable asset management: one external trader (Ryan DeMattia per lawsuit) controlled Stream user funds without multisig/custody controls and lost ~$93M (~17.5% of AUM) around the 2025-10-10 ETH crash; loss concealed ~3 weeks before the 2025-11-04 disclosure-plus-freeze.",
+  "amplifier_1_recursive_leverage": "Looped/recursive minting: ~$170M real on-chain collateral supporting ~$530M of borrowings (~4.1x) across Euler/Morpho/Silo — xUSD supply inflated far beyond backing (publicly flagged by CBB on 2025-10-28, by Schlagonia ~172 days earlier).",
+  "amplifier_2_hardcoded_oracles": "Curated lending markets priced xUSD at a FIXED $1.00 (MEV Capital market: fixed $1.26 exchange rate) 'to avoid depeg liquidation cascades' — when spot hit $0.23 liquidations never fired; borrowers kept real USDC, lenders held mispriced collateral; utilization hit 100% with ~88% borrow APR, freezing lender exits.",
+  "amplifier_3_curator_agency_problem": "Third-party curators (TelosC, MEV Capital, Re7, Varlamore, K3 …) chasing fee/TVL growth allocated depositor USDC into exotic Stream/Elixir collateral markets on Morpho/Euler/Silo; depositors saw 'Morpho/Euler' branding, not the curator's risk book.",
+  "amplifier_4_rehypothecation_web": "Elixir lent 65% of deUSD backing (~$68M) to Stream via private Morpho markets; USDX ran similar opaque strategies — one desk's loss propagated into three stablecoins and $285M of interlinked debt across ≥7 chains.",
+  "trigger_context": "Balancer v2 exploit ($116–128.6M) on 2025-11-03 put DeFi risk-off the same week; freeze-then-disclosure forced all xUSD exit through thin DEX pools.",
+  "freeze_vs_depeg_ordering": "Freeze came FIRST: withdrawals/deposits suspended with the disclosure (late Nov 3 US / early Nov 4 UTC) while xUSD was still near peg; the -77% crash unfolded over the following 12–24h on secondary markets."
+ },
+ "contagion": [
+  "Curated-vault channel: USDC depositors in Morpho/Euler/Silo vaults → curator allocations into xUSD/deUSD collateral markets → bad debt socialized to vault depositors (MEV Capital -3.6% realized; Re7 ~$27.4M; TelosC $123.64M claims)",
+  "Stablecoin backing channel: Elixir deUSD (65% of backing lent to Stream) → -98% and wind-down; Stables Labs USDX (similar strategy) → -95%+",
+  "Oracle channel: hardcoded $1.00/$1.26 xUSD prices → no liquidations → 100% utilization → lender withdrawals frozen across chains (Ethereum, Plasma, Sonic, Worldchain, +)",
+  "Confidence channel: ~$1B one-week outflow from yield-bearing stablecoins including untouched issuers; curated-vault TVL contraction and borrow-rate spikes sector-wide",
+  "Same-week compounding: Balancer v2 exploit ($116-128.6M, Nov 3) primed risk-off and was initially misattributed as Stream's cause",
+  "Workout channel (slow): Stream estate claims (Elixir $68M, Euler curators ~$137M, SiloDAO $31.6M+272.7 BTC) unresolved into Aug 2026 — recovery uncertainty kept xUSD at deep discount"
+ ],
+ "recovery": {
+  "xusd_peg": "Never recovered — trades as a distressed claim ($0.165 mid-Nov 2025; $0.07-0.14 later; no repeg as of 2026-08-22)",
+  "stream_estate": "Perkins Coie investigation (no public findings) → Stream Trading Corp. v. McMeans lawsuit (2025-12-08, N.D. Cal.) → Stream Soft Holding Company (Delaware, 2026-03-20) running an ABC-style wind-down announced May 2026; creditor claims being collected toward 'global resolution'; NO distribution, recovery rate, or haircut % announced as of 2026-08-22",
+  "elixir_deusd": "Best outcome of the three: ~80% of holders redeemed 1:1 in USDC; remainder via snapshot/claims portal; Elixir's $68M claim vs Stream disputed on priority",
+  "curated_vaults": "MEV Capital Morpho USDC vault: -3.6% realized haircut, exposure removed, vault continued; Re7 ~$27.4M bad debt with legal recovery pending; Euler ~$137M and Silo claims ($31.6M + 272.70 BTC filed Jul 2026) pending against the estate",
+  "curator_model_aftermath": "Structural repricing, not extinction: ~$1B sector outflow, TVL migration to conservative curators (Steakhouse, Gauntlet), push for curator disclosure/oracle standards; Morpho defended isolation design ('1 of ~320 vaults'); institutional curated vaults kept launching into 2026 (e.g. Bitwise on Morpho)"
+ },
+ "sources": [
+  {
+   "url": "https://www.coindesk.com/markets/2025/11/04/stream-finance-faces-usd93-million-loss-launches-legal-investigation",
+   "title": "Stream Finance Faces $93M Loss, Launches Legal Investigation (CoinDesk, 2025-11-04)",
+   "supports": "$93M loss disclosure, deposit/withdrawal freeze, Perkins Coie retention, Nov 4 dating",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.theblock.co/post/377491/analysts-map-285m-in-potential-exposure-across-defi-after-stream-finances-93m-loss",
+   "title": "Analysts map $285M in potential exposure across DeFi (The Block)",
+   "supports": "$285M/$284.96M YAM exposure map; TelosC $123.6M, Elixir $68M, MEV Capital $25.4M; ≥7 networks; Euler/Silo/Morpho/Sonic rehypothecation",
+   "confidence": "high"
+  },
+  {
+   "url": "https://x.com/yieldsandmore/status/1985571764441579649",
+   "title": "YAM (Yields & More) exposure thread (primary analytic source)",
+   "supports": "Curator-by-curator breakdown incl. Varlamore $19.17M, Enclabs $2.56M, Mithras $2.3M; 'not an extensive list'",
+   "confidence": "high"
+  },
+  {
+   "url": "https://decrypt.co/347285/stream-finance-stablecoin-plunges-77-protocol-fund-manager-loses-93-million",
+   "title": "Stream Finance Stablecoin Plunges 77% (Decrypt)",
+   "supports": "77% xUSD crash within ~24h of disclosure; fund-manager loss framing",
+   "confidence": "high"
+  },
+  {
+   "url": "https://rekt.news/loop-contagion",
+   "title": "Rekt News — The Loop Contagion",
+   "supports": "$170M collateral vs $530M borrowed (~4.1x), CBB Oct 28 warning, Schlagonia ~172-day-early warning, hardcoded-$1 oracle mechanics, curator failure analysis",
+   "confidence": "high for on-chain figures, medium for narrative details"
+  },
+  {
+   "url": "https://x.com/MEVCapital/status/1988581694476071222",
+   "title": "MEV Capital operational update on Morpho USDC vault (primary)",
+   "supports": "Ethereum Morpho USDC vault removed sdeUSD/USDC market, realized bad debt ≈3.6% of vault TVL; no remaining Elixir exposure",
+   "confidence": "high (primary statement)"
+  },
+  {
+   "url": "https://www.theblock.co/post/377961/elixir-sunsets-deusd-synthetic-stablecoin-following-stream-finance-unwinding-aims-full-redemptions",
+   "title": "Elixir sunsets deUSD (The Block)",
+   "supports": "deUSD wind-down, ~80% of holders redeemed 1:1, claims portal, $68M/65% of backing lent to Stream via private Morpho markets",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.tradingview.com/news/the_block:20a0543c5094b:0-synthetic-stablecoin-usdx-depegs-below-0-60-pancakeswap-and-lista-monitoring-the-situation/",
+   "title": "USDX depegs below $0.60 (The Block via TradingView)",
+   "supports": "USDX <$0.60 on 2025-11-06, ~$0.30 low, Lista/PancakeSwap monitoring; ~$0.04 by Nov 14 (follow-on reports)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://research.checkpoint.com/2025/how-an-attacker-drained-128m-from-balancer-through-rounding-error-exploitation/",
+   "title": "Check Point Research — Balancer v2 exploit analysis",
+   "supports": "Balancer v2 drained $128.64M on 2025-11-03 across 6 chains via rounding-error/batchSwap; $116M initial estimates elsewhere",
+   "confidence": "high"
+  },
+  {
+   "url": "https://mpost.io/re7-labs-reports-impact-from-stablecoin-protocol-failures-total-losses-exceed-27m/",
+   "title": "Re7 Labs reports total losses exceeding $27M (Metaverse Post, from Re7's own report)",
+   "supports": "Re7 ~$27.4M bad debt (xUSD/USDT0 on Euler Plasma; deUSD/sdeUSD on Morpho); >$13M in Stables Labs USDX markets; Stream partial repayment $7M USDC on Worldchain",
+   "confidence": "high (curator primary report relayed)"
+  },
+  {
+   "url": "https://x.com/SteakhouseFi/status/1985620465650381093",
+   "title": "Steakhouse Financial statement (primary, 2025-11-04)",
+   "supports": "Steakhouse vaults had NO exposure to xUSD/yUSD/deUSD/mHYPER/mMEV — directly relevant to the book's Morpho Steakhouse USDC sleeve",
+   "confidence": "high (primary)"
+  },
+  {
+   "url": "https://www.zircuit.com/blog/behind-cryptos-biggest-collapses",
+   "title": "Zircuit — DeFi Death Spiral analysis",
+   "supports": "~$137M Euler bad debt; $160M frozen; 100% utilization / ~88% borrow APR; oracle hardcoding blocking liquidations",
+   "confidence": "medium (secondary; $137M likely single analytic origin)"
+  },
+  {
+   "url": "https://www.dlnews.com/articles/defi/stream-finance-founders-sue-partner-over-alleged-93m-loss/",
+   "title": "DL News — Stream founders sue partner over $93M loss",
+   "supports": "2025-12-08 lawsuit vs Caleb '0xlaw' McMeans; trader Ryan DeMattia; ~17.5% of AUM; $2.1M moved via Railgun pre-disclosure",
+   "confidence": "high (court filing coverage)"
+  },
+  {
+   "url": "https://thedefiant.io/news/defi/stream-finance-breaks-six-month-silence-with-wind-down-plan",
+   "title": "The Defiant — Stream breaks six-month silence with wind-down plan",
+   "supports": "Stream Soft Holding Company (Delaware, 2026-03-20), ABC-style liquidation, May 2026 announcement, creditor claims / 'global resolution', no distribution terms",
+   "confidence": "high"
+  },
+  {
+   "url": "https://medium.com/silo-protocol/silodao-files-recovery-claim-with-stream-finance-on-behalf-of-affected-lenders-5cd049b64429",
+   "title": "SiloDAO files recovery claim with Stream Finance (Silo, Jul 2026, primary)",
+   "supports": ">$31.6M stablecoin claims + 272.70 BTC filed on behalf of affected Silo lenders; workout still open Aug 2026",
+   "confidence": "high (primary)"
+  },
+  {
+   "url": "https://www.panewslab.com/en/articles/23d810f9-1423-449c-8bc1-71129deb2c8b",
+   "title": "PANews — $1 billion outflow from stablecoins (Stablewatch data)",
+   "supports": "~$1B one-week outflow from yield-bearing stablecoins post-collapse, largest since Luna; unaffected issuers (Reservoir, YieldFi, Coinshift) hit by outflows while pegs held; Steakhouse/Gauntlet avoided losses",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://chorus.one/reports-research/defi-curators-in-2025-navigating-chaos-building-resilience",
+   "title": "Chorus One — DeFi Curators in 2025",
+   "supports": "Frambot: '1 of ~320 Morpho App vaults' exposed; xUSD ~$0.165 post-crash; curator-model aftermath",
+   "confidence": "medium"
+  }
+ ],
+ "confidence_notes": "High confidence (2+ independent sources): $93M loss; Nov 4 (UTC) disclosure-plus-freeze preceding the deep depeg; xUSD -70..77% within 24h with floor in $0.23-0.30; $285M ($284.96M) YAM exposure map and its top lines (TelosC $123.64M, Elixir $68M/65% of backing, MEV Capital $25.42M, Varlamore $19.17M); hardcoded $1 oracles blocking liquidations; deUSD -98% and wind-down with ~80% 1:1 redemptions; USDX <$0.60 Nov 6; Balancer v2 $116-128.6M Nov 3; MEV Capital Morpho vault -3.6% realized (primary statement); Re7 ~$27.4M (primary report); Dec 8 lawsuit and 2026 wind-down (court/liquidator coverage). Medium confidence: Euler ~$137M bad debt (multiple secondary outlets, likely one analytic origin; largely claims vs estate, not final realized loss); ~$1B weekly yield-stable outflow (Stablewatch via secondary reports); USDX peak supply ~$685M (single source); '172 days' Schlagonia warning (rekt.news only); $160M frozen deposits (widely repeated, single analytic origin). Approximate timestamps: intraday times are date-level except where sourced; the 04:00 UTC disclosure time is an estimate from 'early hours Nov 4 UTC / Nov 3 evening US' reporting — flagged, not fabricated. xUSD from-price ambiguity: media used $1.00 peg reference while the token's oracle exchange rate was $1.26 (yield-accruing), so drawdown is -77% vs $1.00 or ~-80% vs $1.26. Direct fetches of several primary URLs (rekt.news, The Block, CoinDesk, protos, CoinGecko) were blocked by this environment's egress proxy; their content was verified via search-index extraction of those same articles — URLs listed are the canonical sources.",
+ "data_availability": {
+  "price_data": "Good: CoinGecko retains Staked Stream USD (xUSD), deUSD, USDX histories; DEX (Curve/Uniswap) pool data on-chain for minute-level depeg path",
+  "onchain_data": "Good: Morpho/Euler/Silo market states (utilization, bad debt, hardcoded oracle configs) fully on-chain across Ethereum/Plasma/Sonic/Worldchain etc.; YAM's exposure sheet and Dune dashboards public",
+  "official_disclosures": "Partial: Stream's X announcements (2025-11-04 disclosure, freeze) exist but carry no exact-minute press timeline; NO official post-mortem from Stream; Perkins Coie findings not public; best forensic records are the Dec 2025 lawsuit (N.D. Cal.) and curator reports (Re7, MEV Capital)",
+  "gaps": "Exact freeze timestamp (minute-level) unpublished; Stream's off-chain books opaque — the $93M loss composition known only via litigation; recovery rate unknown until estate distributes; USDX issuer never published a reconciliation"
+ },
+ "spa_relevance": {
+  "book": "$100k USDC: Aave v3 40% / Pendle PT 20% / Maple 15% / Morpho Steakhouse USDC 15% / cash 10%",
+  "aave_v3_40pct": "Near-zero direct loss in the historical event (no exotic synthetic-dollar collateral on Aave core). Stress residual: deposit-rate compression + short utilization spikes as refugees rotate in/out. Historical-analog loss: ~$0 of $40k.",
+  "pendle_pt_20pct": "CONDITIONAL on underlying. PT on a blue-chip underlying: par at maturity, temporary secondary-market discount/illiquidity (mark-to-market -2..-10% intraweek plausible). PT on a curated synthetic-dollar (sUSDX/deUSD-class): principal loss up to -70..-98% — the Nov 2025 lesson is that PT 'fixed yield' is only as good as the redeemability of the underlying. Historical-analog loss for a quality-screened PT book: ~$0-1k of $20k.",
+  "maple_15pct": "No direct Nov-2025 exposure; Maple gained share afterward. But structural rhyme is direct: off-chain credit/underwriting with delayed loss disclosure is exactly Stream's failure mode — model a freeze-then-haircut path (weeks of gated withdrawals) rather than a smooth drawdown. Historical-analog loss: $0 of $15k.",
+  "morpho_steakhouse_15pct": "THE CHANNEL OF THIS EVENT — curated Morpho USDC vault. Actual Steakhouse vaults: ZERO exposure (explicit 2025-11-04 statement; blue-chip collateral only) → historical loss $0. Counterfactual with an MEV-Capital-grade curator: realized -3.6% of TVL (≈ -$540 on $15k) PLUS days-to-weeks of 100% utilization (withdrawals effectively frozen, borrow APR ~88%); worst curated books (Re7/TelosC-style xUSD concentration) ran to double-digit % unresolved claims. Stress-test both legs: small haircut AND illiquidity window; monitor curator allocations weekly — exotic collateral appearing in the vault is the leading indicator (CBB's warning gave 6 days; Schlagonia's ~6 months).",
+  "cash_10pct": "USDC itself unaffected. Cash is the rebalancing ammunition during the 1-2 week illiquidity window.",
+  "estimated_book_impact": "Historical replay: ≈$0 direct loss (Steakhouse/Aave/Maple clean) + mark-to-market noise on Pendle PT. Adverse-curator counterfactual: -0.5% to -2% NAV ($500-$2,000), dominated by the Morpho vault sleeve, plus 1-3 weeks of partial illiquidity on 15-35% of book. Kill-switch note: SOFT -5% would NOT trip on the historical replay; an xUSD-grade curated allocation (10-15% of a vault at -77%) would.",
+  "key_lesson_for_spa": "Freeze precedes depeg: by the time the price signal exists, the exit is closed. Gates must key on disclosure/withdrawal-halt events and curator-allocation changes, not on price alone — consistent with SPA's fail-CLOSED/refusal-first design and the ADR-053 live-TVL-only rule (a hardcoded $1 oracle is exactly a 'stamped literal')."
+ },
+ "replay": {
+  "duration_days": 12,
+  "start_date": "2025-11-03",
+  "base": {
+   "aave_v3": {
+    "apy_pct": 5.0
+   },
+   "pendle": {
+    "apy_pct": 7.5
+   },
+   "maple": {
+    "apy_pct": 9.0
+   },
+   "morpho_steakhouse": {
+    "apy_pct": 6.5
+   }
+  },
+  "shocks": [
+   {
+    "kind": "freeze",
+    "params": {
+     "protocol": "morpho_steakhouse",
+     "from_day": 1,
+     "to_day": 3
+    }
+   },
+   {
+    "kind": "apy",
+    "params": {
+     "protocol": "morpho_steakhouse",
+     "apy_pct": 2.0,
+     "from_day": 4,
+     "to_day": 11
+    }
+   },
+   {
+    "kind": "peg",
+    "params": {
+     "symbol": "PT_USDC",
+     "path": [
+      [
+       1,
+       1.0
+      ],
+      [
+       3,
+       0.975
+      ],
+      [
+       8,
+       1.0
+      ]
+     ]
+    }
+   },
+   {
+    "kind": "liquidity",
+    "params": {
+     "from_day": 1,
+     "to_day": 5,
+     "exit_haircut_pct": 0.01,
+     "gas_cost_usd": 100.0
+    }
+   }
+  ],
+  "assumptions": [
+   "Steakhouse USDC в историческом событии НЕ пострадал (экспонированы были MEV Capital/Re7/TelosC) — потерь morpho-рукава нет; заморозка выхода 1-3 дня — оценка утилизационного пика панической недели, не замер.",
+   "Контрфакт «наш куратор оказался экспонирован» живёт в SYN_S03 (morpho −12% + заморозка), сюда намеренно не вписан.",
+   "PT-дисконт 2.5% (WARN) — вторичная волна на PT-рынках yield-стейблов."
+  ]
+ }
+}

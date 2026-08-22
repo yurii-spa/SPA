@@ -1,0 +1,371 @@
+{
+ "schema_version": 1,
+ "id": "H10_aug_2024_yen_carry",
+ "name": "August 2024 yen carry trade unwind / global risk-off crash (Aug 4-5 2024)",
+ "event_class": [
+  "market_crash"
+ ],
+ "window_utc": {
+  "start": "2024-07-31T03:30:00Z",
+  "trough": "2024-08-05T14:00:00Z",
+  "end": "2024-08-08T23:59:00Z"
+ },
+ "speed": "BTC -30% intraday peak-to-trough over 7 days (Jul 29 -> Aug 5), of which the final ~-15% came in ~36 weekend/overnight hours; ETH -22% in a single 24h window (Aug 4 evening -> Aug 5, worst since May 2021); Nikkei -12.4% in one session; VIX 23 -> 65.73 intraday within hours on Aug 5. Recovery nearly as fast: BTC +8% within hours of the low, >$60k in 3 days.",
+ "summary": "4-5 августа 2024: разворот yen carry trade — Nikkei −12.4% (худший день с 1987), VIX 16→65, BTC $70k→$49k (−30% за неделю, −15% за 36 выходных часов), ETH −22% за сутки (продажи Jump), >$1B ликвидаций. Пеги идеальны (USDC min $0.9998), Aave — рекордные ликвидации БЕЗ bad debt (+$6M выручки). Чистый макро-шок без крипто-нативного отказа: контроль «защите нечего делать». Книга SPA на 2026-08: aave_v3 40% / pendle (PT_USDC) 20% / maple 15% / morpho_steakhouse 15% / кэш USDC 10%.",
+ "timeline": [
+  {
+   "ts": "2024-07-31T03:30:00Z",
+   "event": "BOJ raises uncollateralized overnight call rate target to ~0.25% (from 0-0.1%) and announces JGB purchase taper; Governor Ueda hawkish in presser. Yen begins sharp appreciation, repricing funding cost of the crowded yen carry trade. (Intraday time approximate; date and 0.25% confirmed.)",
+   "observed": true,
+   "source_url": "https://cryptopragmatist.com/p/bitcoin-crash-25-unraveling-august-5th-market-meltdown"
+  },
+  {
+   "ts": "2024-08-01T14:00:00Z",
+   "event": "Weak US ISM manufacturing print and rising jobless claims spark US growth scare; global equities slide, yen keeps strengthening. (From memory / inferred bridge between BOJ hike and NFP; not independently sourced in this session.)",
+   "observed": false
+  },
+  {
+   "ts": "2024-08-02T12:30:00Z",
+   "event": "US July jobs report: nonfarm payrolls +114,000 (vs ~175k expected, vs +215k 12-month average), unemployment rises to 4.3% - Sahm rule recession indicator triggered. Nikkei falls ~5.8% same day (approx.), S&P 500 -1.8% (approx.), VIX intraday high 29.66 (CBOE data, exact). Recession fear becomes the second engine of the unwind.",
+   "observed": true,
+   "source_url": "https://www.cnbc.com/2024/08/02/job-growth-totals-114000-in-july-much-less-than-expected-as-unemployment-rate-rises-to-4point3percent.html"
+  },
+  {
+   "ts": "2024-08-03T00:00:00Z",
+   "event": "Weekend: crypto is the only major risk market open; BTC drifts lower on thin liquidity ($60,688 -> $58,306 daily reference rates Aug 3 -> Aug 4, Coin Metrics). Meanwhile Jump Crypto's on-chain unwind of its ETH book continues: ~86,091 ETH unstaked from Lido since Jul 25, ~$377M wstETH liquidated over two weeks (per Arkham/Lookonchain-based reporting; Jump never confirmed the reason).",
+   "observed": true,
+   "source_url": "https://techreport.com/news/jump-crypto-liquidates-481m-worth-of-wsteth-triggers-eth-crash/"
+  },
+  {
+   "ts": "2024-08-04T21:00:00Z",
+   "event": "Sunday evening UTC into Asia Monday open: ETH begins its steep leg from ~$2,700-2,760, ultimately about -22% in ~24h to the $2,100s - its worst single-day fall since May 2021 (reported range across venues/windows: -18% to -26%). BTC breaks down through $58k -> $54k. Several outlets called Sunday Aug 4 'the biggest single-day crypto crash this year'. (Start hour approximate.)",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2024/08/05/crypto-futures-witness-840m-in-liquidations-as-bitcoin-nosedives-ether-records-biggest-fall-since-2021/"
+  },
+  {
+   "ts": "2024-08-05T00:00:00Z",
+   "event": "Tokyo Black Monday: Nikkei 225 closes -12.40% at 31,458.42 (-4,451.28 points from 35,909.70), worst single-day fall since October 1987; circuit breakers briefly halt Japanese equity futures trading. USD/JPY hits 141.70 intraday low (close 145.58) - yen up ~8% from pre-BOJ-hike levels. Trading session 00:00-06:00 UTC.",
+   "observed": true,
+   "source_url": "https://www.wsj.com/articles/japan-stocks-fall-sharply-after-weak-u-s-jobs-data-yen-strengthening-3903689f"
+  },
+  {
+   "ts": "2024-08-05T05:00:00Z",
+   "event": "Crypto capitulation during Asian hours: BTC falls below $50,000 for the first time since February 2024, wicking toward ~$49,000 (venue lows reported $49,000-49,221); ETH prints intraday low ~$2,111. Headlines: 'Crypto crash wipes out $1 billion, Bitcoin plunges toward $49,000'. (Exact hour of the wick approximate.)",
+   "observed": true,
+   "source_url": "https://cryptobriefing.com/crypto-market-crash-billion-liquidations/"
+  },
+  {
+   "ts": "2024-08-05T13:30:00Z",
+   "event": "US pre-market/open panic: VIX spikes to 65.73 intraday - highest since March 2020 - before closing at 38.57 (CBOE daily data, exact). S&P 500 closes -3.0% (worst day in ~2 years), Nasdaq -3.4%, Dow -2.6%.",
+   "observed": true,
+   "source_url": "https://github.com/datasets/finance-vix"
+  },
+  {
+   "ts": "2024-08-05T18:00:00Z",
+   "event": "Damage tally for the 24h: crypto futures liquidations top $1B (CoinDesk initially reported $840M, updated to >$1B; Decrypt/Cointelegraph '>$1 billion'; majority longs, per CoinGlass). On-chain: Aave has a record liquidation day, processing liquidations cleanly and earning ~$6M revenue with no bad-debt event; The Defiant: 'all-time Aave v3 liquidations double'. Ethereum total daily fees spike ~8x to 6,603 ETH vs ~800 ETH/day prior week (Coin Metrics). USDC/USDT/DAI hold peg throughout (daily refs within +/-0.3%). No withdrawal freezes, no oracle failures, no protocol insolvency.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/business/2024/08/05/defi-giant-aave-rakes-in-6m-in-revenue-as-crypto-market-plunges/"
+  },
+  {
+   "ts": "2024-08-05T22:00:00Z",
+   "event": "First bounce: BTC recovers to ~$53k by late Aug 5 ('Bitcoin Bounces to $53K After Brutal Sell-Off Reminiscent of Covid Crash' - CoinDesk).",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2024/08/05/bitcoin-bounces-to-53k-after-brutal-sell-off-reminiscent-of-covid-crash/"
+  },
+  {
+   "ts": "2024-08-06T06:00:00Z",
+   "event": "Nikkei rebounds ~+10% (largest point gain on record, approx.); BTC jumps above $56k, broad crypto recovery ('Bitcoin Jumps Above $56K, Solana Leads Recovery From Monday's Rout').",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2024/08/06/bitcoin-jumps-above-56k-solana-leads-recovery-from-mondays-rout/"
+  },
+  {
+   "ts": "2024-08-07T02:30:00Z",
+   "event": "BOJ Deputy Governor Uchida walks back hawkishness: BOJ will not raise rates while markets are unstable - relief rally in yen crosses and risk assets ('First Mover Americas: BoJ Comments Offer Relief to Crypto'). Jump Trading still selling: another ~$29M ETH moved, ~$63M estimated left (Cointelegraph, Aug 7).",
+   "observed": true,
+   "source_url": "https://cointelegraph.com/news/jump-trading-sells-29m-ether-bottom-near"
+  },
+  {
+   "ts": "2024-08-08T20:00:00Z",
+   "event": "BTC back above $60k (Coin Metrics daily reference rate $61,909 on Aug 8 - 3 days after the trough), aided by strong US jobless claims data. Acute phase over; ETH lags at ~$2,687.",
+   "observed": true,
+   "source_url": "https://github.com/coinmetrics/data"
+  }
+ ],
+ "market_impact": {
+  "btc": {
+   "from_usd": 70000,
+   "to_usd": 49000,
+   "drawdown_pct": -30,
+   "window": "2024-07-29 intraday high (~$70,000, approximate; Coin Metrics daily reference peak $68,170.67 on Jul 28) -> 2024-08-05 intraday wick (~$49,000; venue lows reported $49,000-$49,221). On daily reference rates: $68,170.67 -> $54,343.63 = -20.3%."
+  },
+  "eth": {
+   "from_usd": 3323.15,
+   "to_usd": 2111,
+   "drawdown_pct": -36,
+   "window": "2024-07-29 daily reference $3,323.15 -> 2024-08-05 intraday low ~$2,111 (approximate; '$2.1k' per multiple reports). Single-day Aug 4->5: ~$2,700-2,760 -> $2,100s = ~-22% in 24h, worst since May 2021 (reported range -18% to -26% depending on window/venue). Daily refs: $2,698.46 (Aug 4) -> $2,434.27 (Aug 5)."
+  },
+  "nikkei_225": {
+   "from": 35909.7,
+   "to": 31458.42,
+   "drawdown_pct": -12.4,
+   "window": "2024-08-05 single session; -4,451.28 points, worst day since Oct 1987; additionally ~-5.8% on Aug 2 (approx). Rebound ~+10% Aug 6 (approx)."
+  },
+  "sp500": {
+   "drawdown_pct": -3,
+   "window": "2024-08-05 session (worst day in ~2 years); Nasdaq -3.4%, Dow -2.6% same day"
+  },
+  "usdjpy": {
+   "from": 153.8,
+   "to": 141.7,
+   "note": "Yen surged ~8% vs USD from pre-BOJ-hike ~153-154 (Jul 30, approximate) to 141.70 intraday low on Aug 5 (close 145.58; cross-checked vs yfinance-derived archive)",
+   "window": "2024-07-31 -> 2024-08-05"
+  },
+  "vix": {
+   "from": 16.36,
+   "to": 65.73,
+   "note": "VIX close Jul 31: 16.36 -> Aug 5 intraday high 65.73 (highest since Mar 2020), close 38.57. CBOE daily data, exact.",
+   "window": "2024-07-31 -> 2024-08-05"
+  }
+ },
+ "stablecoins": [
+  {
+   "symbol": "USDC",
+   "min_price_usd": 0.9998,
+   "when": "2024-08-04 to 2024-08-08 (Coin Metrics daily reference rates)",
+   "duration_below_099": "none",
+   "notes": "No depeg at all - daily refs 0.9998-1.0001 through the crash. Intraday venue deviations were negligible; this event never questioned stablecoin solvency."
+  },
+  {
+   "symbol": "USDT",
+   "min_price_usd": 0.9988,
+   "when": "2024-08-02 (daily ref; 1.0005 on Aug 5 itself - traded at slight premium during the crash as a flight-to-cash asset)",
+   "duration_below_099": "none",
+   "notes": "Held peg; mild premium on crash day is typical of risk-off flight into stables."
+  },
+  {
+   "symbol": "DAI",
+   "min_price_usd": 0.9972,
+   "when": "2024-08-06 (daily ref)",
+   "duration_below_099": "none",
+   "notes": "Held peg within +/-0.3%. Note separately: stETH/ETH traded at a small intraday discount during the Jump selling (order of ~0.5-2% on some venues) - reported at the time but NOT verified in this session."
+  }
+ ],
+ "defi_impact": {
+  "tvl": "Global DeFi TVL fell roughly $95-96B -> low-$80sB between Aug 2 and Aug 5 2024 (approximate, from memory - REQUIRES VERIFICATION against DeFiLlama, which was unreachable in this sandbox; the drop was almost entirely mark-to-market on ETH/BTC collateral, not outflows)",
+  "liquidations_cex_futures_usd": "> $1.0B in 24h spanning Aug 4-5 (CoinDesk headline updated from $840M to $1B+; Decrypt and Cointelegraph both '>$1B'; majority longs per CoinGlass; ~275-290k traders liquidated is commonly cited but unverified here)",
+  "liquidations_onchain": "Record day for Aave: ~$6M protocol revenue from liquidations on Aug 5 (CoinDesk, sourced); The Defiant reported all-time Aave v3 liquidation records doubling. Whole-of-DeFi on-chain liquidation total for Aug 5 was reported around $320-350M at the time - approximate, not verified in this session (null-confidence; reconstructable from Dune/event logs)",
+  "bad_debt_usd": null,
+  "bad_debt_notes": "No material new bad debt reported on Aave v3, Morpho, Maple, Compound or other major money markets - liquidations cleared profitably despite -22% ETH in 24h. This is the key negative result: the DeFi credit layer passed a violent macro stress test.",
+  "gas": "Ethereum total daily fees spiked ~8x: 6,602.9 ETH burned/paid on Aug 5 vs ~430-1,350 ETH/day in the prior 8 days (Coin Metrics FeeTotNtv, exact). Rebalancing/liquidation transactions cost several times normal exactly during the cascade.",
+  "oracle_behavior": "No oracle failures or material staleness reported; Chainlink feeds updated at high frequency through the move (inference from absence of incident reports - no positive verification).",
+  "withdrawal_freezes": "None on major DeFi protocols. Money-market utilization and borrow APYs spiked intraday as liquidators borrowed stables (inference), but no gating events reported.",
+  "protocols_paused_or_insolvent": "None. No crypto-native failure: no depeg, no protocol insolvency, no bridge hack, no CEX failure.",
+  "chains_bridges": "No major chain outage reported (Solana, L2s stayed up); Japanese equity futures - not crypto rails - were what hit circuit breakers."
+ },
+ "causes": {
+  "primary": "Pure macro shock: BOJ's Jul 31 rate hike to ~0.25% + hawkish guidance collided with an abrupt US growth scare (weak ISM Aug 1, +114k NFP / 4.3% unemployment Aug 2 triggering the Sahm rule), forcing a violent unwind of massively crowded yen-funded carry trades and cross-asset deleveraging. No crypto-native failure occurred.",
+  "secondary": [
+   "Crowded leveraged positioning: yen shorts near record (CFTC) and levered long-tech/long-risk books funded in yen; volatility spike mechanically tightened margin constraints (BIS Bulletin 90 framing)",
+   "Weekend timing: crypto was the only major market open Aug 3-4, so it became the pressure-release valve, with thin Sunday-night liquidity amplifying the move",
+   "Jump Crypto's on-chain liquidation of its ETH book (~$377M wstETH over two weeks, ~$481-500M total per on-chain trackers; reason never officially confirmed - CFTC scrutiny and president's June departure were the backdrop) deepened ETH's underperformance vs BTC",
+   "Rumor amplification: unverified chatter about Paradigm-style OTC sales and Golem's ETH exchange transfers circulated on Aug 5; only Jump's flows were credibly traced on-chain",
+   "Background ETH supply pressure: Grayscale ETHE outflows (~$2B since ETF debut) and Genesis bankruptcy distributions (~$4B incl. ~$3B crypto) in the same week",
+   "Geopolitical jitters (feared Iran-Israel escalation) cited as an additional risk-off overlay"
+  ],
+  "mechanism": "BOJ hike + hawkish signal -> yen appreciates -> carry-trade funding costs and FX losses trigger margin calls -> weak US data adds recession fear -> levered cross-asset books de-gross -> Japanese equities crash (-12.4% Aug 5) and VIX spikes to 65.73 -> correlated selling of anything liquid, with crypto sold first over the weekend (only open market, thin liquidity) -> perp funding flips, >$1B futures liquidation cascade -> spot wicks (BTC ~$49k, ETH ~$2.1k) -> on-chain collateral liquidations (record Aave day) processed cleanly at 8x gas -> BOJ verbally capitulates Aug 7 -> V-shaped partial recovery."
+ },
+ "contagion": [
+  "Jul 31: BOJ hikes to 0.25% -> yen surges, carry-trade funding reprices",
+  "Aug 1-2: weak US ISM + NFP 114k/4.3% unemployment (Sahm rule) -> recession fear joins the unwind",
+  "Aug 2: Nikkei -5.8%, US equities slide, VIX to ~29 -> margin calls on yen-funded levered books",
+  "Aug 3-4 (weekend): crypto only market open; thin Sunday liquidity -> BTC/ETH sold as liquid risk proxy",
+  "Aug 4-5: Jump Crypto wstETH/ETH sales + rumors amplify ETH leg (-22% in 24h, worst since May 2021)",
+  "Aug 5 Asia: Nikkei -12.4% (worst since 1987), circuit breakers; USD/JPY 141.7 -> full risk-off",
+  "Aug 5: >$1B crypto futures liquidations in 24h (majority longs) -> spot wicks BTC ~$49k / ETH ~$2,111",
+  "Aug 5 on-chain: record Aave liquidation day ($6M revenue, no bad debt), ETH fees spike ~8x; stablecoins hold peg - contagion STOPS at the DeFi solvency layer",
+  "Aug 5 US: VIX 65.73 intraday, S&P -3.0% -> but no funding/credit event in TradFi either",
+  "Aug 6-8: Nikkei +10%, BOJ Uchida dovish walk-back (Aug 7) -> BTC back >$60k by Aug 8; ETH recovery lags"
+ ],
+ "recovery": {
+  "recovered": "partial-fast, then full over months",
+  "time_to_recover": "BTC: +8% within hours of the wick (back to $53k late Aug 5), >$56k Aug 6, >$60k by Aug 8 (3 days after trough); full recovery to the ~$70k pre-event level only in late Oct 2024 (approx, from memory). ETH: much slower - still ~$2,687 on Aug 8, and did not durably reclaim its pre-crash ~$3,200 level until Nov 2024 (approx, from memory). Nikkei: +10% Aug 6 (approx), pre-crash level regained within ~5-6 weeks (approx).",
+  "notes": "Classic V-shaped macro-shock recovery once the policy trigger reversed (BOJ Uchida's Aug 7 'no hikes while markets unstable'). Because nothing broke in crypto's plumbing, prices mean-reverted quickly; ETH lagged due to the Jump inventory overhang and ETHE outflows. DeFi yields: a one-day liquidation windfall for lenders followed by softer borrowing demand as leverage reset."
+ },
+ "sources": [
+  {
+   "url": "https://whatthefuckjusthappenedtoday.com/2024/08/05/day-1294/",
+   "title": "WTFJHT Day 1294 (Aug 5 2024 digest, citing CNBC/AP/WaPo; raw source verified at github.com/mkiser/WTFJHT _posts/2024-08-05-day-1294.markdown)",
+   "supports": "Nikkei -12.4% worst day since Black Monday 1987; S&P 500 -3.0% (worst in ~2 years); Dow -2.6%; Nasdaq -3.4%; jobs report +114,000 / unemployment 4.3% as selloff trigger",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.cnbc.com/2024/08/02/job-growth-totals-114000-in-july-much-less-than-expected-as-unemployment-rate-rises-to-4point3percent.html",
+   "title": "CNBC: Job growth totals 114,000 in July, much less than expected, as unemployment rate rises to 4.3%",
+   "supports": "Aug 2 NFP +114k and 4.3% unemployment (URL/title verified via WTFJHT citation; page itself unreachable in sandbox)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://github.com/datasets/finance-vix",
+   "title": "CBOE VIX daily OHLC (datasets/finance-vix mirror) - fetched and read directly",
+   "supports": "VIX Aug 5 2024: open 23.39, HIGH 65.73, close 38.57; Aug 2 high 29.66; Jul 31 close 16.36 (exact)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://github.com/coinmetrics/data",
+   "title": "Coin Metrics community data (daily reference rates) - fetched and read directly",
+   "supports": "BTC daily refs: $68,170.67 Jul 28 -> $54,343.63 Aug 5 -> $61,908.79 Aug 8; ETH: $3,323.15 Jul 29 / $2,698.46 Aug 4 / $2,434.27 Aug 5; USDC/USDT/DAI pegs held (0.9972-1.0005 daily refs Aug 2-8); ETH FeeTotNtv 6,602.9 ETH on Aug 5 vs ~430-1,350 prior days (~8x fee spike)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/markets/2024/08/05/crypto-futures-witness-840m-in-liquidations-as-bitcoin-nosedives-ether-records-biggest-fall-since-2021/",
+   "title": "CoinDesk: Crypto Futures Record $1B in Liquidations as Bitcoin Nosedives, Ether Slumps Most Since 2021",
+   "supports": ">$1B futures liquidations in 24h (updated from $840M); ETH's biggest single-day fall since 2021 (headline verified via yarb-web3 Aug 5 2024 archive)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://decrypt.co/243123/crypto-liquidations-top-1-billion-after-bitcoin-dives-below-50k",
+   "title": "Decrypt: Crypto Liquidations Top $1 Billion After Bitcoin Dives Below $50K",
+   "supports": "Independent confirmation of >$1B 24h liquidations and BTC below $50k on Aug 5",
+   "confidence": "high"
+  },
+  {
+   "url": "https://cryptobriefing.com/crypto-market-crash-billion-liquidations/",
+   "title": "Crypto Briefing: Crypto crash wipes out $1 billion, Bitcoin plunges toward $49,000 (headline verified in two independent Aug 5 2024 archives: Neurabuzz news snapshot 10:00, yarb-web3)",
+   "supports": "BTC intraday wick toward ~$49,000 on Aug 5; $1B liquidation figure",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/business/2024/08/05/defi-giant-aave-rakes-in-6m-in-revenue-as-crypto-market-plunges/",
+   "title": "CoinDesk: DeFi Giant Aave Rakes in $6M in Revenue as Crypto Market Plunges",
+   "supports": "Aave ~$6M liquidation-day revenue, protocol weathered the stress (no insolvency); headline verified via yarb-web3 Aug 5 archive; The Defiant same day: 'All-Time Aave v3 Liquidations Double'",
+   "confidence": "high"
+  },
+  {
+   "url": "https://techreport.com/news/jump-crypto-liquidates-481m-worth-of-wsteth-triggers-eth-crash/",
+   "title": "Techreport: Jump Crypto Liquidates $481M Worth of wstETH",
+   "supports": "Jump on-chain unwind: ~$481M wstETH total, ~$377M over two weeks, ~86,091 ETH unstaked from Lido since Jul 25, 72,213 ETH (~$167M) to exchanges; The Defiant Aug 5 corroborates '~$500M, expected to finish by 5pm EST' (https://thedefiant.io/news/markets/jump-trading-liquidates-500m-ethereum-contributing-to-3-4k-bitcoin-drop-expected)",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://cointelegraph.com/news/jump-trading-sells-29m-ether-bottom-near",
+   "title": "Cointelegraph: Jump Trading sells another $29M Ether with $63M left to go (Aug 7 2024)",
+   "supports": "Jump's selling continued past the crash trough; scale of remaining inventory",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.wsj.com/articles/japan-stocks-fall-sharply-after-weak-u-s-jobs-data-yen-strengthening-3903689f",
+   "title": "WSJ: Japan's Nikkei Posts Biggest Single-Day Fall Since 1987 After Weak U.S. Data (headline+dek verified via archived WSJ feed in paprikka/bard 2024-08-05 archive)",
+   "supports": "Nikkei closed -12.4% Aug 5, biggest single-day fall since 1987, triggered by weak US jobs data and yen rise; cross-checked against yfinance-derived archive: close 31,458.42, -4,451.28 pts from 35,909.70; USD/JPY low 141.70 / close 145.58 same day",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.bis.org/publ/bisbull90.pdf",
+   "title": "BIS Bulletin No 90: The market turbulence and carry trade unwind of August 2024",
+   "supports": "Macro mechanism: crowded yen-funded carry positions, volatility-induced margin spiral, retail margin calls forcing sales of unrelated assets incl. BTC/ETH 'losses of up to 20%' (title and BTC/ETH framing verified via search result; PDF unreachable in sandbox - mechanism attribution medium confidence)",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.coindesk.com/markets/2024/08/06/bitcoin-jumps-above-56k-solana-leads-recovery-from-mondays-rout/",
+   "title": "CoinDesk: Bitcoin Jumps Above $56K (Aug 6) + Bitcoin Bounces to $53K (Aug 5) + First Mover: BoJ Comments Offer Relief to Crypto (Aug 7)",
+   "supports": "Recovery path Aug 5-7: $53k bounce, >$56k Aug 6, BOJ Uchida dovish walk-back Aug 7 as relief catalyst (all three headlines verified via yarb-web3 archives)",
+   "confidence": "high"
+  }
+ ],
+ "confidence_notes": "VERIFIED HARD (two+ independent or primary-data sources): Nikkei -12.40% Aug 5 close 31,458.42 (-4,451.28 pts), worst since Oct 1987 (WSJ + WTFJHT/CNBC + El Financiero archive + yfinance-derived doc); VIX intraday 65.73 / close 38.57 Aug 5 (CBOE dataset read directly, independently matched by a second archive); NFP +114k / 4.3% unemployment Aug 2 (CNBC via WTFJHT); BOJ hike to ~0.25% Jul 31 (multiple); >$1B crypto futures liquidations in 24h (CoinDesk+Decrypt+Cointelegraph headlines in archives); BTC below $50k, wick toward ~$49k, ETH ~$2.1k Aug 5 (multiple archived headlines); Aave ~$6M liquidation-day revenue (CoinDesk); stablecoin pegs held and ETH fees spiked ~8x on Aug 5 (Coin Metrics data read directly); BTC daily refs $54,343 Aug 5 -> $61,909 Aug 8 (Coin Metrics, confirms '>$60k within days'); S&P -3.0%/Nasdaq -3.4%/Dow -2.6% Aug 5. APPROXIMATE/SINGLE-SOURCE: BTC ~$70,000 intraday Jul 29 (daily ref only $66,867; exact wick unverified - drawdown -30% is therefore intraday-peak-to-intraday-trough and imprecise by 1-2pp; venue lows Aug 5 range $49,000-49,221); ETH intraday low $2,111 and the exact -22% (reported range -18% to -26% by window/venue); USD/JPY 141.70 low / 145.58 close Aug 5 (yfinance-derived archive, single source); Nikkei -5.8% Aug 2 and +10.2% Aug 6 (memory); Jump Crypto totals ($377M/2wk, $481-500M total - on-chain attribution by trackers, Jump never confirmed; motive is INFERENCE); ~275-290k traders liquidated (memory, unsourced). UNVERIFIED/NULL: global DeFi TVL drop (~$95B->low-$80sB, requires DeFiLlama); whole-of-DeFi on-chain liquidation total (~$320-350M reported at the time, not re-sourced); stETH intraday discount; bad_debt_usd set to null - absence of reported bad debt is an observed absence, not a measured zero. FACT vs INFERENCE: the TradFi->crypto transmission mechanism (margin-spiral, weekend liquidity valve) follows BIS Bulletin 90's framing (bulletin itself unreachable in sandbox); oracle normality and utilization-spike behavior are inferences from absence of incident reports. Research constraint: WebSearch budget was exhausted after 2 searches and most news/data domains were egress-blocked; verification leaned on primary datasets (Coin Metrics, CBOE mirror) fetched directly plus contemporaneous headline archives on GitHub (yarb-web3, Neurabuzz, WTFJHT, bard) - headline text verified, full article bodies mostly not readable.",
+ "data_availability": {
+  "price_series": "FREE and good: Binance public data dump (data.binance.vision) - 1m/1h/1d klines for BTCUSDT, ETHUSDT etc., covers Aug 2024, ideal for replaying the Sunday-night cascade minute-by-minute. Coinbase Exchange API free candles (1m) for USD pairs incl. the ~$2,111 ETH wick. Coin Metrics community CSVs on GitHub (verified working in this session) give daily reference rates. NOTE: intraday lows differ by venue ($49,000-49,221 BTC) - pick one venue and state it.",
+  "stablecoin_prices": "FREE: Coin Metrics community daily PriceUSD for USDC/USDT/DAI (verified: pegs held). For intraday peg behavior use Binance/Kraken USDC-USDT and DAI pairs 1m klines (free dumps). CoinGecko free API only gives DAILY granularity this far back (hourly >90d lookback is paid).",
+  "tvl": "FREE: DeFiLlama API (api.llama.fi) - historical daily TVL global, per-chain, per-protocol (aave-v3, morpho, pendle, maple) covers Aug 2024. Was egress-blocked in this sandbox, hence global TVL drop marked 'requires verification', but freely obtainable in production.",
+  "liquidations": "MIXED: CEX futures liquidation historical TIME SERIES (CoinGlass) is PAID - the >$1B/24h figure survives only in news archives; do not expect a free replayable series. On-chain liquidations ARE freely reconstructable: Aave v3 LiquidationCall events via public RPC/subgraph or free-tier Dune queries; Morpho similarly.",
+  "gas": "FREE: Etherscan daily average gas price chart (CSV export), Coin Metrics FeeTotNtv/FeeMeanNtv daily (verified: 8x spike on Aug 5). For hourly base-fee replay: any archive-node provider free tier or public datasets of block base fees.",
+  "macro_crosscheck": "FREE: VIX daily OHLC (CBOE via datasets/finance-vix on GitHub, verified). Nikkei 225 daily via stooq.com (^nkx) or FRED NIKKEI225. USD/JPY daily via FRED DEXJPUS; intraday FX is paid.",
+  "not_obtainable_free": "CoinGlass historical aggregated liquidation series; Kaiko order-book depth / market-depth deterioration data (the 'thin Sunday liquidity' can only be proxied free via realized volume+range from Binance klines); intraday stablecoin/LST discount depth; CME futures gap data (approximable from free CME settlement prices)."
+ },
+ "spa_relevance": {
+  "summary": "This is the canonical 'violent macro crash with zero crypto-native failure' scenario for a $100k USDC yield portfolio: NAV in stable-denominated lending barely moves, pegs hold, nothing freezes - yet the operating environment (gas, utilization, exit liquidity, APY path) whipsaws violently for ~72 hours.",
+  "aave_v3_usdc": "HIT CHANNEL: none to solvency; actually a windfall day - record liquidations processed cleanly, ~$6M protocol revenue, USDC supply APY spiked with utilization as liquidators/shorts borrowed stables, then normalized. Residual risks that WERE live: (a) intraday utilization spike can temporarily make a full large withdrawal impossible until rates draw repayments; (b) had ETH fallen another ~15-20% with 8x gas, liquidation lag could have created bad debt socialized to suppliers.",
+  "pendle_pt": "HIT CHANNEL: mark-to-market + exit liquidity, not credit. PT held to maturity was unaffected, but implied yields spiked and AMM liquidity thinned exactly when a stress-driven rebalance would want to exit - a mid-crisis PT sale would have realized a haircut (magnitude unverified). Unpriced if the system marks PT at par-trajectory and assumes exit at quoted price.",
+  "maple": "HIT CHANNEL: none observed in Aug 2024 - no defaults or delinquencies reported in cash-management/secured lending pools. Latent risk is the same as any fixed-term credit position: capital is locked regardless of macro stress, so it contributes nothing to crisis-time liquidity.",
+  "morpho_steakhouse_usdc": "HIT CHANNEL: same as Aave - collateral (wstETH etc.) down >20% in 24h tested liquidation engines; no bad debt reported. Vault-specific risk: curator concentration in LST-collateral markets during an event where stETH traded at a small intraday discount (discount unverified) - an oracle using the stETH market price vs the ETH-per-share rate would have behaved differently.",
+  "cash_10pct": "Performed exactly as designed - the only sleeve that could pay 8x gas and buy the dip / meet obligations without touching thinned exit liquidity.",
+  "unpriced_if_usdc_equals_1_and_always_withdrawable": [
+   "Gas-cost shock: rebalancing cost ~8x normal exactly when triggers fire (Coin Metrics FeeTotNtv, verified) - a fixed gas budget assumption breaks",
+   "Utilization-spike withdrawal friction on money markets during the cascade (hours-scale, not a freeze - but binding for same-block full exits)",
+   "PT exit-liquidity haircut / implied-yield spike for any pre-maturity unwind",
+   "APY whipsaw: one-day supply-APY spike followed by weeks of compressed yields as leverage reset - a yield-chasing rebalancer would buy the spike and hold the compression",
+   "LST secondary-market discount as a hidden oracle/collateral channel in Morpho/Aave LST markets",
+   "False kill-switch positives: BTC -30%/ETH -22% headlines with portfolio NAV flat - a drawdown ladder keyed to market beta rather than evidenced portfolio NAV would have de-risked into a V-bottom for nothing. This event is the regression test that SOFT/HARD triggers must key off portfolio drawdown, not market drawdown."
+  ],
+  "kill_switch_note": "Portfolio-level evidenced drawdown for this composition through Aug 4-8 2024 would have been well under the 5% SOFT tier (stables held peg, no bad debt, no freeze) - correct behavior is HOLD + log, not de-risk."
+ },
+ "replay": {
+  "duration_days": 6,
+  "start_date": "2024-08-02",
+  "base": {
+   "aave_v3": {
+    "apy_pct": 5.0
+   },
+   "pendle": {
+    "apy_pct": 7.0
+   },
+   "maple": {
+    "apy_pct": 9.0
+   },
+   "morpho_steakhouse": {
+    "apy_pct": 6.0
+   }
+  },
+  "shocks": [
+   {
+    "kind": "apy",
+    "params": {
+     "protocol": "aave_v3",
+     "apy_pct": 10.0,
+     "from_day": 2,
+     "to_day": 3
+    }
+   },
+   {
+    "kind": "apy",
+    "params": {
+     "protocol": "aave_v3",
+     "apy_pct": 3.0,
+     "from_day": 4,
+     "to_day": 5
+    }
+   },
+   {
+    "kind": "liquidity",
+    "params": {
+     "from_day": 2,
+     "to_day": 3,
+     "exit_haircut_pct": 0.01,
+     "gas_cost_usd": 100.0
+    }
+   },
+   {
+    "kind": "peg",
+    "params": {
+     "symbol": "PT_USDC",
+     "path": [
+      [
+       2,
+       1.0
+      ],
+      [
+       3,
+       0.975
+      ],
+      [
+       5,
+       1.0
+      ]
+     ]
+    }
+   }
+  ],
+  "assumptions": [
+   "PT-дисконт 2.5% (WARN, без выхода) — implied-yield спайк риск-оффа; остальное — операционный шторм без потерь капитала."
+  ]
+ }
+}

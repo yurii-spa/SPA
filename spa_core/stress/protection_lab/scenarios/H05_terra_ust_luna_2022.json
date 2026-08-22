@@ -1,0 +1,468 @@
+{
+ "schema_version": 1,
+ "id": "H05_terra_ust_luna_2022",
+ "name": "Terra/UST/LUNA Death Spiral (May 2022)",
+ "event_class": [
+  "stablecoin_depeg",
+  "systemic_contagion",
+  "market_crash",
+  "liquidity_oracle_infra"
+ ],
+ "window_utc": {
+  "start": "2022-05-07T21:40:00Z",
+  "trough": "2022-05-13T00:00:00Z",
+  "end": "2022-05-16T23:59:00Z"
+ },
+ "speed": "UST: $1.00 -> $0.0997 in ~6 days (May 7-13), with the terminal leg $0.93 -> $0.10 in ~72h; LUNA: -99.99%+ in ~4 days (May 9-13); ~$50B of LUNA+UST valuation destroyed in under a week (NBER: 'collapsed in three days'); BTC -36% May 5 -> May 12; Terra TVL -90%+ in 5 days.",
+ "summary": "7-13 мая 2022: смертельная спираль UST/LUNA — UST $1→$0.10, LUNA −99.99%, $50B уничтожено за считанные дни (NBER: bank run, а не единый атакующий), LFG продала ~80k BTC резервов, продавив BTC к $25.4k (−36% с 5 мая). USDC держал пег С ПРЕМИЕЙ; USDT — $0.945 intraday (venue-wick). Книга SPA не касалась UST по вайтлисту — и это главный защитный механизм здесь: refusal-first, а не пороги (Anchor 19.5% прошёл бы APY-гейт <30%). Книга SPA на 2026-08: aave_v3 40% / pendle (PT_USDC) 20% / maple 15% / morpho_steakhouse 15% / кэш USDC 10%.",
+ "timeline": [
+  {
+   "ts": "2022-05-06T00:00:00Z",
+   "event": "Pre-event state: Anchor holds ~$14B UST deposits (~75% of UST supply) at 19.5% subsidized yield; Terra chain TVL ~$21.7B (2nd after Ethereum; April peak ~$29-30B); LFG reserve as of May 7: 80,394 BTC (~$3.5B) + other assets; BTC already sliding post-FOMC from May 5 high ~$39,789.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2022/05/09/investors-flee-terras-anchor-as-ust-stablecoin-repeatedly-loses-1-peg"
+  },
+  {
+   "ts": "2022-05-07T21:44:00Z",
+   "event": "Trigger (time approx from Chainalysis/litigation reporting): Terraform Labs withdraws 150M UST from Curve UST/3CRV pool ahead of planned 4pool migration, thinning liquidity; minutes later a single 85M UST->USDC swap (largest ever in the pool) pushes UST's pool share from ~33% to ~66%; UST slips to ~$0.985.",
+   "observed": true,
+   "source_url": "https://www.chainalysis.com/blog/how-terrausd-collapsed/"
+  },
+  {
+   "ts": "2022-05-07T21:47:00Z",
+   "event": "Anchor run begins (single-sourced timestamp): large withdrawals start ~21:47 UTC; two large addresses pull ~375M UST; ~280M UST leaves Anchor within 24h. NBER identifies May 7 position adjustments by a few large UST holders as the start of the run.",
+   "observed": true,
+   "source_url": "https://calebandbrown.com/blog/a-week-of-terra-ust-and-luna-collapse-explained/"
+  },
+  {
+   "ts": "2022-05-08T12:00:00Z",
+   "event": "UST trades $0.985-$0.995; Anchor loses ~20% of deposits over May 7-8; LUNA -17%. LFG begins converting BTC reserve: transfers 52,189 BTC to trade with a counterparty for ~1,515,689,462 UST (per LFG's May 16 disclosure).",
+   "observed": true,
+   "source_url": "https://cryptobriefing.com/terras-lfg-reveals-what-happened-to-its-bitcoin-reserves/"
+  },
+  {
+   "ts": "2022-05-09T16:00:00Z",
+   "event": "First deep depeg: UST falls to ~$0.60-0.65 intraday (venue-dependent), partially recovers toward ~$0.90; ~5B UST (35% of the 14B) withdrawn from Anchor on May 9 alone, deposits $14B (Fri) -> $8.7B (Mon); LUNA -~48-50% on the day (~$62 -> ~$30). Do Kwon tweets 'Deploying more capital - steady lads'; LFG council votes to deploy $1.5B ($750M BTC to OTC firms + 750M UST).",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2022/05/09/investors-flee-terras-anchor-as-ust-stablecoin-repeatedly-loses-1-peg"
+  },
+  {
+   "ts": "2022-05-10T12:00:00Z",
+   "event": "LFG executes on-chain swaps of its final 33,206 BTC for ~1,164,018,521 UST in last-ditch peg defense. UST recovers to ~$0.93 (its final peak) then fades; LFG reported seeking >$1B outside capital; BTC dips below $31k as market fears LFG reserve dumping.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/business/2022/05/10/ust-backer-lfg-seeks-1b-to-shore-up-stablecoin-peg-report"
+  },
+  {
+   "ts": "2022-05-11T12:00:00Z",
+   "event": "Peg defense fails: UST slides to ~$0.26-0.30; LUNA drops below $8 (>90% off weekly); cumulative Anchor withdrawals exceed 11B UST; Celsius withdraws its remaining ~225,000 ETH (~$463M bETH collateral) from Anchor early May 11, exiting fully before the bottom; governance moves to raise base pool / speed UST burning.",
+   "observed": true,
+   "source_url": "https://www.theblock.co/post/146752/celsius-pulled-half-a-billion-dollars-out-of-anchor-protocol-amid-terra-chaos"
+  },
+  {
+   "ts": "2022-05-12T06:00:00Z",
+   "event": "Death-spiral peak: peg-arb redemptions hyperinflate LUNA supply; LUNA -96% on the day to <$0.10, then <$0.01; UST hits ~$0.22-0.23 on Binance; several exchanges suspend LUNA trading.",
+   "observed": true,
+   "source_url": "https://www.cnbc.com/2022/05/12/cryptocurrency-luna-now-almost-worthless-after-ust-falls-below-peg.html"
+  },
+  {
+   "ts": "2022-05-12T12:00:00Z",
+   "event": "Contagion to majors and stablecoins: BTC prints $25,401.29 (lowest since Dec 26, 2020); ETH low ~$1,701 (both ~-30% over 7 days); USDT breaks peg intraday to ~$0.945-0.9485 (FTX/Kraken; ~$0.9455 composite), Tether keeps redeeming ($10B+ over the following two weeks) and recovers within days; USDC/DAI trade at a premium (flight to quality).",
+   "observed": true,
+   "source_url": "https://www.cnbc.com/2022/05/12/bitcoin-btc-price-falls-below-27000-as-crypto-sell-off-intensifies.html"
+  },
+  {
+   "ts": "2022-05-12T18:00:00Z",
+   "event": "Terra chain HALT #1 at block height 7,603,700 (time approx): validators stop the chain because hyperinflated LUNA supply collapsed the cost of a governance attack; chain restarts after an emergency patch disabling new delegations.",
+   "observed": true,
+   "source_url": "https://watcher.guru/news/breaking-terra-ust-blockchain-has-been-halted-at-a-block-height-of-7603700"
+  },
+  {
+   "ts": "2022-05-13T02:00:00Z",
+   "event": "Terra chain HALT #2 at block height 7,607,789, less than 24h after the first (time approx, early hours UTC); block production resumes ~13:30 UTC May 13 with on-chain swaps and IBC disabled — chain-wide de facto withdrawal freeze while halted.",
+   "observed": true,
+   "source_url": "https://finance.yahoo.com/news/terra-network-shuts-down-again-073753424.html"
+  },
+  {
+   "ts": "2022-05-13T04:00:00Z",
+   "event": "Terminal prints: LUNA supply reaches ~6.5T tokens (from ~343-380M on May 9-10, ~+1,900,000%); LUNA trades ~$0.0003 -> below $0.0001 (effectively zero); UST hits then-all-time low $0.0997; Binance halts/removes LUNA and UST spot+margin pairs (00:40 GMT settlement), OKX and others delist.",
+   "observed": true,
+   "source_url": "https://www.cnbc.com/2022/05/13/cryptocurrency-luna-crashes-to-0-as-ust-falls-from-peg-bitcoin-rises.html"
+  },
+  {
+   "ts": "2022-05-13T12:00:00Z",
+   "event": "Oracle failure spillover (May 12-13): Chainlink pauses its LUNA feed at $0.107 while market price is ~$0.01; attackers deposit near-worthless LUNA as collateral: Venus Protocol (BNB Chain) drained of ~$13.5M borrowed (~$11.2M net loss), Blizz Finance (Avalanche) drained ~$8.3M (protocol killed) — ~$21.8M combined.",
+   "observed": true,
+   "source_url": "https://rekt.news/venus-blizz-rekt"
+  },
+  {
+   "ts": "2022-05-16T14:00:00Z",
+   "event": "LFG discloses reserve accounting: 313 BTC remain of 80,394 (net ~80,081 BTC deployed, ~$2.7-3B at execution prices); UST trades below $0.20; Terra ecosystem TVL down from ~$21.7-30B to <$3B; NBER later estimates ~$50B of LUNA+UST valuation wiped out in days.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/business/2022/05/16/luna-foundation-guard-left-with-313-bitcoin-after-ust-crash"
+  },
+  {
+   "ts": "2022-05-28T00:00:00Z",
+   "event": "Aftermath: Terra 2.0 (Phoenix-1) launches without a stablecoin; original chain renamed Terra Classic (LUNC/USTC); UST never repegs (USTC settles at cents).",
+   "observed": true,
+   "source_url": "https://thedefiant.io/education/blockchains/what-was-terra"
+  },
+  {
+   "ts": "2022-06-12T00:00:00Z",
+   "event": "Contagion seed 1 matures: Celsius — weakened by the post-Terra environment and stETH discount despite having exited Anchor — freezes all withdrawals; files Chapter 11 July 13.",
+   "observed": true,
+   "source_url": "https://www.fxstreet.com/cryptocurrencies/news/is-celsius-network-collapsing-like-terras-luna-202206131028"
+  },
+  {
+   "ts": "2022-06-17T00:00:00Z",
+   "event": "Contagion seed 2 matures: Three Arrows Capital confirms heavy LUNA losses (~$200M invested in LFG's Feb 2022 round; reported ~$560-600M position value locked/wiped); fails margin calls mid-June, ordered liquidated in BVI June 27, files Chapter 15 July 1 — cascading into Voyager, BlockFi, Genesis.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/business/2022/06/17/three-arrows-capital-confirms-heavy-losses-from-lunas-collapse-exploring-potential-options-report"
+  }
+ ],
+ "market_impact": {
+  "btc": {
+   "from_usd": 39789,
+   "to_usd": 25401.29,
+   "drawdown_pct": -36.2,
+   "window": "May 5 local high ($39,789, StatMuse) -> May 12 low ($25,401.29, CNBC). Within the strict Terra window (May 7 ~$34,500-35,500 -> May 12) the move is ~-26 to -29%. LFG's ~80k BTC liquidation (May 8-10) plus macro risk-off drove it."
+  },
+  "eth": {
+   "from_usd": null,
+   "to_usd": 1701,
+   "drawdown_pct": -30,
+   "window": "7 days into May 12: contemporaneous reporting has ETH 'down about 30% in the past seven days' to a ~$1,701 low on May 12; exact pre-event reference price not pinned from a primary source here (was ~$2,700-2,940 early May depending on day)."
+  },
+  "luna": {
+   "from_usd": 82.55,
+   "to_usd": 0.0001,
+   "drawdown_pct": -99.9999,
+   "window": "~May 5 ($82.55 per Newsweek; ATH $116-119 April 5-6) -> May 13 (~$0.0003 then <$0.0001; ~$0.000001 prints cited). Supply hyperinflated ~343-380M -> ~6.5T tokens May 9-13."
+  },
+  "ust": {
+   "from_usd": 1,
+   "to_usd": 0.0997,
+   "drawdown_pct": -90,
+   "window": "May 7 ($0.985 first crack) -> May 13 ($0.0997 then-ATL); never repegged — kept sliding to cents (USTC)."
+  },
+  "luna_ust_combined_valuation_wiped_usd": 50000000000,
+  "broader_crypto": {
+   "note": "Estimates of broader crypto market losses in the surrounding weeks range ~$200-400B+ (Forbes framed the wider April-May slide as a '$1 trillion meltdown' from the April peak); the ~$50B figure is specifically LUNA+UST valuation per NBER."
+  }
+ },
+ "stablecoins": [
+  {
+   "symbol": "UST",
+   "min_price_usd": 0.0997,
+   "when": "2022-05-13 (then-all-time low; path: $0.985 May 7-8, ~$0.60-0.65 low May 9, $0.93 recovery May 10, ~$0.26-0.30 May 11, ~$0.22-0.23 May 12)",
+   "duration_below_099": "Permanent — never repegged; below $0.20 by May 16, settled at single-digit cents as USTC",
+   "notes": "Algorithmic, endogenously collateralized; ~$18B+ supply pre-crash (3rd largest stablecoin); intraday lows venue-dependent (Binance vs Coinbase)"
+  },
+  {
+   "symbol": "USDT",
+   "min_price_usd": 0.945,
+   "when": "2022-05-12 intraday (FTX ~$0.945, Kraken ~$0.9485, ~$0.9455 composite widely cited)",
+   "duration_below_099": "Hours intraday on May 12; secondary-market discount lingered days while Tether processed $10B+ redemptions over ~2 weeks",
+   "notes": "Peg held via continuous 1:1 redemptions; first major USDT stress test of the cycle"
+  },
+  {
+   "symbol": "USDC",
+   "min_price_usd": null,
+   "when": "2022-05-11/12",
+   "duration_below_099": "n/a",
+   "notes": "Traded AT OR ABOVE $1 (flight-to-quality premium); supply grew as UST/USDT refugees rotated in"
+  },
+  {
+   "symbol": "DAI",
+   "min_price_usd": null,
+   "when": "2022-05-11/12",
+   "duration_below_099": "n/a",
+   "notes": "Held peg / slight premium; MakerDAO unaffected directly (no UST collateral)"
+  }
+ ],
+ "defi_impact": {
+  "tvl": {
+   "terra_chain": "~$21.7B on the eve (DeFiLlama; April peak ~$29-30B; one secondary source claims $35B) -> <$3B within ~5 days -> effectively ~0 after halts/delistings",
+   "anchor": "$14B deposits (May 6) -> $8.7B (May 9) -> >11B UST withdrawn by May 11 -> protocol dead; TVL had peaked ~$17B",
+   "global_defi": "Total DeFi TVL fell on the order of 40-50%+ across May 2022, the bulk during Terra week (DeFiLlama; approximate)"
+  },
+  "bad_debt_usd": {
+   "venus_protocol_bnb": 11200000,
+   "blizz_finance_avalanche": 8300000,
+   "combined_oracle_exploits": 21800000,
+   "terra_native_lending": "not conventionally counted — Anchor/Terra-native books were a total loss with the chain",
+   "note": "Ethereum blue-chips (Aave/Compound/Maker) took no material bad debt from this event"
+  },
+  "liquidations_usd": "Crypto-wide derivatives liquidations exceeded ~$1B/day on the worst days (May 9-12) per contemporaneous aggregator reports — approximate, not precisely sourced here (Coinglass history paywalled)",
+  "gas": "No documented sustained extreme Ethereum gas crisis (unlike Mar 2020); elevated activity around Curve pool exits and the May 12 USDT wobble",
+  "oracle_behavior": "Critical failure mode: Chainlink PAUSED the LUNA feed at $0.107 during freefall (market ~$0.01); protocols that kept accepting LUNA collateral at the stale price were drained (Venus $13.5M borrowed/$11.2M loss; Blizz $8.3M, protocol killed by its own timelock preventing a fast pause). Terra's native oracle spreads blew out during hyperinflation",
+  "withdrawal_freezes": "Terra chain halted twice (blocks 7,603,700 May 12 and 7,607,789 May 13; restarted with delegations, then swaps/IBC disabled) = chain-wide freeze of ALL assets; exchanges suspended Terra deposits/withdrawals and delisted LUNA/UST (Binance settlement 00:40 GMT May 13); notably Anchor itself never froze — the run cleared BECAUSE withdrawals stayed open",
+  "dex_liquidity": "Curve UST/3CRV went from balanced to ~66% then ~95% UST (exit-only, deep discount); the planned 4pool was stillborn; Terra DEXes (Astroport/Terraswap) liquidity evaporated; wormhole-wrapped UST stranded on Ethereum/Solana/Avalanche",
+  "protocols_paused_or_insolvent": [
+   "Anchor (dead)",
+   "Blizz Finance (drained, abandoned)",
+   "Venus (paused, $11.2M loss)",
+   "entire Terra dApp ecosystem (Mirror, Astroport, Mars, etc.)"
+  ],
+  "bridge_chain_availability": "Terra IBC channels closed during/after halts; bridged UST unredeemable at par anywhere"
+ },
+ "causes": {
+  "primary": "Structurally fragile algorithmic stablecoin: UST was backed only by endogenous collateral (LUNA seigniorage), while ~75% of UST supply sat in Anchor earning a subsidized, unsustainable 19.5% yield — a classic run-prone deposit base with a redemption mechanism that guarantees hyperinflation under stress (death spiral).",
+  "secondary": [
+   "Curve 4pool migration removed 150M UST of pool liquidity at the exact moment large UST->USDC sells hit (May 7), making the initial depeg cheap to cause and easy to see",
+   "Macro risk-off backdrop (Fed +50bp May 4; BTC already -10%+ into May 7) pre-weakened bid for all crypto collateral",
+   "LFG's BTC reserve (~$3.5B) was far too small versus ~$18B+ UST supply, and its forced deployment transmitted the run into BTC itself, deepening system-wide fear",
+   "On-chain transparency accelerated the run: investors could watch Anchor/Curve outflows in real time (NBER: sophisticated/wealthy investors ran first and lost least; retail ran late and lost most)",
+   "Mint/redemption base-pool capacity limits caused redemption spreads to blow out, breaking the arb that was supposed to restore the peg"
+  ],
+  "mechanism": "Curve UST/3CRV liquidity withdrawn (150M UST) -> 85M UST dump imbalances pool -> UST ~$0.985 -> Anchor run begins (May 7) -> withdrawals snowball ($14B -> $8.7B by May 9; >11B out by May 11) -> UST breaks to $0.60s -> peg-arb burns UST / mints LUNA -> LUNA supply explodes 343M -> 6.5T, price -99.99% -> seigniorage backing evaporates faster than redemptions clear -> LFG sells 80k BTC into the market, BTC -> $25.4k, panic broadens, USDT wobbles to ~$0.95 -> LUNA hyperinflation collapses cost of governance attack -> validators halt chain twice (blocks 7,603,700 and 7,607,789) -> exchanges delist, oracle feeds pause (Venus/Blizz drained) -> ecosystem TVL -> ~0; credit contagion (3AC, Celsius et al.) detonates over the following 6 weeks."
+ },
+ "contagion": [
+  "Curve UST/3CRV: 150M UST liquidity withdrawal + 85M UST->USDC dump (May 7 ~21:44 UTC) -> UST $0.985",
+  "Anchor bank run: $14B deposits -> $8.7B by May 9, >11B UST withdrawn by May 11",
+  "Peg-arb mint spiral: LUNA supply ~343-380M -> ~6.5T (May 9-13), LUNA $62 -> <$0.0001",
+  "LFG sells BTC reserves: 52,189 BTC (May 8) + 33,206 BTC (May 10), 80,394 -> 313 BTC -> BTC sell pressure, $25,401 low May 12",
+  "Stablecoin flight: USDT to ~$0.945-0.95 intraday May 12, $10B+ redemptions in 2 weeks; USDC/DAI at premium",
+  "Oracle failure spillover: Chainlink LUNA feed paused at $0.107 vs ~$0.01 market -> Venus (~$11.2M loss) and Blizz (~$8.3M, fatal) drained",
+  "Infrastructure freeze: Terra chain halted twice (blocks 7,603,700 / 7,607,789), IBC/swaps disabled, exchanges delist LUNA/UST, wormhole-wrapped UST stranded",
+  "Fund/lender losses: 3AC ~$200M LFG round (~$560-600M reported position) wiped -> margin calls June -> BVI liquidation June 27 / Chapter 15 July 1",
+  "Lender runs: Celsius freezes withdrawals June 12 (Ch.11 July 13) despite exiting Anchor in time; Voyager, BlockFi hit via 3AC loans; Genesis weakened",
+  "Sets the stage for the full 2022 credit cascade culminating in FTX (Nov 2022)"
+ ],
+ "recovery": {
+  "recovered": "no (UST/LUNA); partial-then-worse for majors",
+  "time_to_recover": "UST/LUNA: never — Terra 2.0 launched May 28, 2022 without a stablecoin; USTC/LUNC settled at fractions of a cent. USDT: repegged within days. BTC/ETH: bounced to ~$30k/$2.1k within a week but made new lows in June 2022 (BTC ~$17.6k) as Terra-seeded credit contagion (Celsius June 12, 3AC late June, Voyager/BlockFi) detonated; pre-Terra price levels not durably reclaimed until 2023-24.",
+  "notes": "This event is the canonical proof that an 'unbreakable' $18B stablecoin can go to ~zero in 6 days, that reserve defense can transmit stress to the reserve asset (BTC), and that the second-order credit damage arrives on a 4-8 WEEK lag, not during the acute window."
+ },
+ "sources": [
+  {
+   "url": "https://www.nber.org/papers/w31160",
+   "title": "Anatomy of a Run: The Terra Luna Crash (Liu, Makarov, Schoar, NBER w31160)",
+   "supports": "~$50B LUNA+UST valuation wiped in ~3 days; run began May 7 with a few large UST holders; run not concentrated manipulation; sophisticated/wealthy ran first with smaller losses; Anchor at center",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/business/2022/05/16/luna-foundation-guard-left-with-313-bitcoin-after-ust-crash",
+   "title": "CoinDesk: LFG Reserves Dwindle to Just 313 Bitcoins From 80K",
+   "supports": "LFG held 80,394 BTC as of May 7; 52,189 BTC to counterparty May 8 for ~1.516B UST; 33,206 BTC swapped May 10 for ~1.164B UST; 313 BTC left May 16; UST below $0.20 by then",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.cnbc.com/2022/05/12/bitcoin-btc-price-falls-below-27000-as-crypto-sell-off-intensifies.html",
+   "title": "CNBC: Bitcoin falls below $26,000 May 12 2022",
+   "supports": "BTC low $25,401.29 on May 12, lowest since Dec 26 2020; USDT to ~$0.95 intraday; LFG BTC-reserve fear as driver",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.cnbc.com/2022/05/13/cryptocurrency-luna-crashes-to-0-as-ust-falls-from-peg-bitcoin-rises.html",
+   "title": "CNBC: Luna crashes to $0 as UST falls further (May 13)",
+   "supports": "LUNA effectively zero May 13; UST low ~$0.0997-0.12; Binance delisting of UST/LUNA pairs",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/markets/2022/05/09/investors-flee-terras-anchor-as-ust-stablecoin-repeatedly-loses-1-peg",
+   "title": "CoinDesk: Investors Flee Terra's Anchor (May 9)",
+   "supports": "Anchor deposits $14B (Fri) -> $8.7B (Mon May 9); 19.5% yield; crypto-style bank run framing",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.chainalysis.com/blog/how-terrausd-collapsed/",
+   "title": "Chainalysis: UST's Collapse & The Trades That Triggered It",
+   "supports": "May 7 trigger sequence: 150M UST Curve withdrawal by Terraform, 85M UST->USDC swap minutes later, pool share 33%->66%, UST to ~$0.985 (page itself egress-blocked; content via search index + corroborating litigation reporting)",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://watcher.guru/news/breaking-terra-ust-blockchain-has-been-halted-at-a-block-height-of-7603700",
+   "title": "Watcher.Guru / CryptoBriefing: Terra halted at 7,603,700",
+   "supports": "Halt #1 block height 7,603,700 May 12 (governance-attack risk from LUNA inflation); halt #2 block 7,607,789 May 13; restart with delegations patch",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://rekt.news/venus-blizz-rekt",
+   "title": "rekt.news: Blizz Finance & Venus Protocol",
+   "supports": "Chainlink LUNA feed paused at $0.107 vs ~$0.01 market; Venus ~$13.5M borrowed / ~$11.2M loss; Blizz ~$8.3M drained (timelock prevented pause); ~$21.8M combined",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.theblock.co/post/146752/celsius-pulled-half-a-billion-dollars-out-of-anchor-protocol-amid-terra-chaos",
+   "title": "The Block: Celsius pulled ~half a billion out of Anchor",
+   "supports": "Celsius had ~261k ETH (~$535M) in Anchor; withdrew ~225k ETH (~$463M) early May 11; fully out before collapse",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.coindesk.com/business/2022/06/17/three-arrows-capital-confirms-heavy-losses-from-lunas-collapse-exploring-potential-options-report",
+   "title": "CoinDesk: 3AC confirms heavy LUNA losses",
+   "supports": "3AC ~$200M into LFG's Feb 2022 LUNA round; reported ~$560-600M position value; losses precipitated 3AC insolvency",
+   "confidence": "high"
+  },
+  {
+   "url": "https://wiki.defillama.com/wiki/LUNA_Collapse_in_May_2022",
+   "title": "DeFiLlama wiki: LUNA Collapse in May 2022",
+   "supports": "Terra TVL figures ($21.7B May / $29.3B Apr 29 / '35b to <3b in five days' claim); DeFi-wide TVL decline >50% (page egress-blocked; via search index)",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.richmondfed.org/publications/research/economic_brief/2022/eb_22-24",
+   "title": "Richmond Fed: Why Stablecoins Fail — Post-Mortem on Terra",
+   "supports": "Run mechanics: May 7-8 Anchor -20% deposits / LUNA -17%; May 9 LUNA -48%, redemptions ramp; economist framing of algorithmic fragility",
+   "confidence": "high"
+  },
+  {
+   "url": "https://coincodex.com/article/22749/what-happened-to-luna/",
+   "title": "CoinCodex: Why Did Luna Crash 99.99%?",
+   "supports": "LUNA ~$62 May 9 -> ~$0.0003 May 13; supply ~343-380M -> ~6.5T; ATH $116-119 April 2022",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://messari.io/report/usdt-redemptions-and-depeg",
+   "title": "Messari / Kraken Learn: USDT redemptions and depeg",
+   "supports": "USDT low ~$0.9485 Kraken / ~$0.945 FTX May 12; $10B+ (up to ~$17B cited) redeemed over ~2 weeks without halting",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://financefeeds.com/jane-street-terraform-ust-insider-trading-lawsuit/",
+   "title": "FinanceFeeds: litigation over May 7 Curve trades",
+   "supports": "150M UST withdrawal to 4pool + 85M UST swap minutes later (largest single 3pool trade); UST $0.42 May 12 / <$0.15 May 13 path corroboration",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://decrypt.co/100290/binance-halts-trading-terra-delists-luna-ust",
+   "title": "Decrypt: Binance removes UST/LUNA pairs",
+   "supports": "Binance delisting/settlement mechanics May 13 (00:40 GMT), pairs removed, later partial resumption",
+   "confidence": "medium"
+  }
+ ],
+ "confidence_notes": "Observed, multi-sourced facts: LFG reserve accounting (80,394 -> 313 BTC; 52,189 BTC May 8 + 33,206 BTC May 10, per LFG's own May 16 disclosure via CoinDesk/CryptoBriefing); BTC low $25,401.29 May 12 (CNBC); Anchor $14B -> $8.7B by May 9 (CoinDesk); halt block heights 7,603,700 / 7,607,789; Venus $11.2M / Blizz $8.3M oracle-pause losses (rekt.news + The Record); UST then-ATL $0.0997 May 13 (CNBC/FXEmpire); LUNA supply to ~6.5T; USDT ~$0.945-0.9485 May 12; NBER $50B estimate. Contested/approximate: (1) Terra TVL on the eve — $21.7B (DeFiLlama May) vs $29-30B (late-April peak) vs one $35B claim; I treat $21.7B as event-eve and $29-30B as April peak. (2) UST intraday lows May 9-12 are venue-dependent: May 9 low reported $0.60-0.65, May 11 $0.26-0.30, May 12 $0.22-0.23 (Binance) — treat as ranges. (3) Minute-level timestamps (21:44 UTC Curve trades; 21:47 UTC Anchor outflow start; 280M/375M UST first withdrawals) come from Chainalysis/NBER/litigation as relayed by search indexes and secondary reporting — the primary PDFs (nber.org, chainalysis.com, jumpcrypto.com, federalreserve.gov) were egress-blocked in this environment, so minute precision is stated but not independently re-verified; dates are solid. (4) Exact UTC clock times of the two chain halts are approximate (block heights are the hard facts; halt #2 restart ~13:30 UTC May 13 per Yahoo/Binance-era reporting). (5) ETH pre-event reference price not pinned ($1,701 May 12 low and '-30% in 7 days' are sourced; from_usd left null). (6) Headline destruction figures vary by scope: ~$50B = LUNA+UST valuation (NBER); $40-45B 'ecosystem' figures and ~$60B claims circulate; broader-market loss estimates ($200-400B week, '$1T' from April peak) are wider-window and lower confidence. (7) 3AC exposure: $200M invested in LFG round (well-sourced) vs ~$560-600M position value (reported, medium confidence). (8) LUNA terminal prints below $0.0001 vary by venue ($0.000001 cited); direction not in doubt. (9) Liquidation and gas figures are qualitative — free historical series unavailable. ПРАВКИ АУДИТА: арифметика LFG не сходится — транши 52,189 + 33,206 = 85,395 BTC при резерве 80,394 и «net ~80,081» в раскрытии 16 мая; обе цифры из одного источника, расхождение ~5.3k BTC названо, не сглажено.",
+ "data_availability": {
+  "price_series": {
+   "free": [
+    "Binance public data dumps (data.binance.vision): 1m/1h/1d klines for BTCUSDT, ETHUSDT, LUNAUSDT, LUNABUSD, USTUSDT — UST/LUNA pairs available up to May 13 2022 delisting, then LUNC/USTC pairs after relisting — best free intraday source for the death spiral",
+    "CoinGecko free API: daily OHLC for terra-luna-classic (LUNC) and terrausd/USTC, BTC, ETH (free tier limits old-date granularity to daily)",
+    "CryptoCompare free API: full hourly history for BTC/ETH/LUNA/UST"
+   ],
+   "granularity": "1m (Binance dumps) / 1h (CryptoCompare) / 1d (CoinGecko)",
+   "caveats": "LUNA ticker continuity: pre-crash LUNA = today's LUNC; CoinGecko id renamed. UST venue prices diverged heavily May 11-13 — pick one venue and say so."
+  },
+  "stablecoin_prices": {
+   "free": [
+    "DeFiLlama /stablecoins API: daily price + circulating mcap history for UST, USDT, USDC, DAI",
+    "Kraken public OHLC/CSV export: USDT/USD 1m-1d (captures May 12 $0.9485 print)",
+    "Binance dumps: USTUSDT, USDCUSDT 1m"
+   ],
+   "caveats": "Composite 'the' UST price does not exist intraday; use per-venue series."
+  },
+  "tvl": {
+   "free": [
+    "DeFiLlama API: historicalChainTvl for Terra (Classic) — daily, shows ~$21B -> <$3B; protocol TVL for Anchor; global DeFi TVL"
+   ],
+   "granularity": "daily"
+  },
+  "liquidations": {
+   "free": false,
+   "notes": "Coinglass historical liquidation series is paywalled; only day-level aggregates survive in contemporaneous news. Mark liquidations as approximate in any replay."
+  },
+  "gas": {
+   "free": "partial",
+   "notes": "Etherscan daily-average gas price is a PRO endpoint; free path = Dune (free tier) query over blocks, or public BigQuery ethereum dataset. Gas was not a dominant factor in this event."
+  },
+  "onchain_run_microstructure": {
+   "free": "partial/effortful",
+   "notes": "Curve UST/3CRV pool balances + the May 7 trades reconstructible free on Dune (Ethereum side). Terra-side minute data (Anchor deposits, LUNA mint/burn, oracle prints) requires Terra Classic FCD/archive endpoints which are spotty post-collapse; the NBER paper (free PDF) is the curated reference dataset. LUNA supply history: daily via CoinGecko/Messari free."
+  },
+  "not_obtainable_free": [
+   "Intraday liquidation tape (Coinglass paywall)",
+   "LFG OTC execution prices/timing beyond the May 16 statement and the Nov 2022 JS Held audit (lfg.org/audit)",
+   "Minute-level Terra chain state during/around the two halts",
+   "Historical Anchor deposit ledger at account level (Flipside's old Terra tables largely retired)"
+  ]
+ },
+ "spa_relevance": {
+  "direct_exposure": "None of the four SPA venues holds UST — but every channel below hit USDC-based lenders in 2022 and most are reproducible.",
+  "per_position_channels": {
+   "aave_v3_usdc": "Channel: liquidity crunch + rate whipsaw, not insolvency. During the run, stablecoin borrow demand spikes (shorting depegging stables, funding exits) — utilization can pin near 100%, making 'withdraw anytime' temporarily false while supply APY spikes then collapses. Aave took no bad debt from Terra, but the Venus/Blizz oracle-pause exploit is the exact failure mode for any Aave-like market listing a collapsing collateral: a PAUSED (stale-high) oracle is worse than a falling one. SPA's fail-CLOSED/live-TVL-only rules map directly.",
+   "pendle_pt_usdc": "Channel: underlying-yield-source death + AMM-exit-only liquidity. Anchor was 2022's 'fixed yield' — products wrapping it went to zero with it. A PT is money-good only if the underlying market (and its stable) survives to maturity; mid-crisis the only exit is the AMM at a deep discount (UST pools went 95% one-sided). Stress test: mark PT at crisis AMM depth, not at implied-yield fair value.",
+   "maple_usdc": "Channel: slow-burn credit contagion + withdrawal freeze. Terra seeded 3AC/Celsius failures that later produced real Maple events: pool freezes and defaults (Babel mid-2022; Orthogonal ~$36M M11 default Dec 2022; Auros). Undercollateralized lending takes the hit 4-8+ weeks AFTER the trigger, and lockups/queues mean the position is NOT withdrawable exactly when cash is needed. Stress test must model the lag, not just day-of drawdown.",
+   "morpho_steakhouse_usdc": "Channel: curated-vault collateral/oracle risk. Vault is money-good only if every collateral market's oracle behaves during freefall; the Chainlink LUNA pause shows the tail: stale feed -> toxic collateral accepted -> bad debt socialized to USDC suppliers. Also same utilization-spike withdrawal friction as Aave.",
+   "cash_10pct": "In this event the 10% cash buffer works ONLY if 'cash' is USDC (traded at premium) — a USDT buffer was down ~5% intraday May 12 and only redeemable at par via Tether's own window."
+  },
+  "unpriced_if_system_assumes_USDC_eq_1_and_always_withdrawable": [
+   "USDT != $1 (May 12: ~$0.945-0.95) — any venue pricing stables at $1 mismarks; a Terra-2022 replay assuming all-stables-at-par misses the whole stablecoin leg",
+   "Withdrawability is regime-dependent: utilization pinning (Aave/Morpho), pool lockups (Maple), chain halts (all funds frozen chain-wide twice), and exchange suspensions all break 'always withdrawable' — none is priced by APY",
+   "Oracle PAUSE (stale price) risk: distinct from oracle-wrong risk; produced $21.8M of bad debt at Venus/Blizz and is invisible to TVL/APY screens",
+   "Credit lag: Maple-style losses arrive weeks after the event window ends — a 7-day stress window scores this crisis as near-zero loss for the SPA book, which is exactly the trap",
+   "APY collapse: DeFi-wide TVL -40-50% and the death of the 20%-yield anchor repriced ALL stable yields down for a year — a yield-optimizer's forward-return assumption is the silent casualty",
+   "Reflexivity of reserves: LFG selling BTC to defend UST crashed BTC — 'diversified reserves' correlate to 1 in a run; analogous for any protocol whose safety module is its own or a correlated token"
+  ]
+ },
+ "replay": {
+  "duration_days": 14,
+  "start_date": "2022-05-05",
+  "base": {
+   "aave_v3": {
+    "apy_pct": 4.0
+   },
+   "pendle": {
+    "apy_pct": 6.0
+   },
+   "maple": {
+    "apy_pct": 8.0
+   },
+   "morpho_steakhouse": {
+    "apy_pct": 5.0
+   }
+  },
+  "shocks": [
+   {
+    "kind": "apy",
+    "params": {
+     "protocol": "aave_v3",
+     "apy_pct": 9.0,
+     "from_day": 4,
+     "to_day": 8
+    }
+   },
+   {
+    "kind": "apy",
+    "params": {
+     "protocol": "aave_v3",
+     "apy_pct": 2.5,
+     "from_day": 9,
+     "to_day": 13
+    }
+   },
+   {
+    "kind": "peg",
+    "params": {
+     "symbol": "PT_USDC",
+     "path": [
+      [
+       4,
+       1.0
+      ],
+      [
+       7,
+       0.965
+      ],
+      [
+       12,
+       1.0
+      ]
+     ]
+    }
+   },
+   {
+    "kind": "liquidity",
+    "params": {
+     "from_day": 5,
+     "to_day": 9,
+     "exit_haircut_pct": 0.015,
+     "gas_cost_usd": 200.0
+    }
+   }
+  ],
+  "assumptions": [
+   "Книга не держит UST/Anchor (вайтлист) — прямых потерь нет; шоки — вторичные: whipsaw ставок, 3.5%-дисконт receipt-токенов (WARN), ликвидность выхода.",
+   "Дефолты Maple (Babel) случились в июне — вне окна, живут в H06/H07.",
+   "USDT-депег $0.945 книга НЕ видит: USDT не в списке экспозиций — депег-монитор смотрит только свои символы (честное свойство защиты)."
+  ]
+ }
+}

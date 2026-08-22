@@ -1,0 +1,457 @@
+{
+ "schema_version": 1,
+ "id": "H09_curve_vyper_july_2023",
+ "name": "Curve/Vyper reentrancy exploit and CRV contagion scare (July 30 – August 2023)",
+ "event_class": [
+  "protocol_exploit",
+  "systemic_contagion",
+  "liquidity_oracle_infra"
+ ],
+ "window_utc": {
+  "start": "2023-07-30T13:10:00Z",
+  "trough": "2023-08-01T00:00:00Z",
+  "end": "2023-08-07T00:00:00Z"
+ },
+ "speed": "~$70M drained across 4 pools within ~6-7 hours on Jul 30; Curve TVL -47% in ~2 days; CRV ~-34% peak-to-trough in ~2 days (instantaneous ~-88% print on DEX during the drain); the systemic (Egorov liquidation) overhang played out over ~1 week",
+ "summary": "30 июля 2023: reentrancy-баг компилятора Vyper 0.2.15-0.3.0 — ~$70M выкачано из пулов Curve, TVL Curve −47% за 2 дня, CRV −34% (на DEX печатал $0.086). Системная угроза второго порядка: CRV-займы Egorov ~$100M+ на Aave/Frax/Abracadabra — ликвидация в неликвидный CRV дала бы bad debt Aave; разряжено OTC-продажами. Для книги — задокументированный near-miss канала «bad debt социализируется на USDC-саплаеров» + Fraxlend с utilization 100% на дни. Книга SPA на 2026-08: aave_v3 40% / pendle (PT_USDC) 20% / maple 15% / morpho_steakhouse 15% / кэш USDC 10%.",
+ "timeline": [
+  {
+   "ts": "2021-07",
+   "event": "Vyper compiler v0.2.15 ships a change to set_storage_slots that mis-allocates the storage slots backing @nonreentrant locks: different functions sharing a named lock get DIFFERENT slots, silently disabling cross-function reentrancy protection. Bug persists through v0.2.16 and v0.3.0; fixed in v0.3.1 (late 2021) but already-deployed pools compiled with vulnerable versions remain live.",
+   "observed": true,
+   "source_url": "https://hackmd.io/@vyperlang/HJUgNMhs2"
+  },
+  {
+   "ts": "2023-06-12",
+   "event": "Pre-history of the second-order risk: Gauntlet proposes freezing CRV and setting CRV LTV to 0 on Aave v2 Ethereum, citing Egorov's ~$67.7M USDT/USDC debt against ~$185M CRV collateral; Aave community votes the proposal down (~June 18).",
+   "observed": true,
+   "source_url": "https://www.theblock.co/post/235422/aave-community-rejects-gauntlets-proposal-to-freeze-crv-tokens-on-v2"
+  },
+  {
+   "ts": "2023-07-30T13:10:00Z",
+   "event": "First exploit transaction targets JPEG'd's pETH/ETH Curve pool; the exploiter is front-run by an MEV searcher who drains 6,106.65 WETH (~$11.4M) using the same reentrancy technique (add_liquidity/remove_liquidity cross-function reentrancy through raw ETH calls).",
+   "observed": true,
+   "source_url": "https://hackmd.io/@LlamaRisk/BJzSKHNjn"
+  },
+  {
+   "ts": "2023-07-30T14:50:00Z",
+   "event": "Metronome msETH/ETH pool drained: 866.55 WETH (~$1.6M) + 959.71 msETH (~$1.8M). In parallel (14:49 UTC) Curve alerts Alchemix; Alchemix multisig starts pulling liquidity at 14:55 UTC but the alETH/ETH pool is drained of 7,258.70 WETH (~$13.6M) + 4,821.55 alETH (~$9M).",
+   "observed": true,
+   "source_url": "https://alchemixfi.medium.com/curve-exploit-post-mortem-7142e78bc339"
+  },
+  {
+   "ts": "2023-07-30T19:00:00Z",
+   "event": "CRV/ETH pool drained (~$24.7M: 7,193,401.77 CRV + 7,680.49 WETH + 2,879.65 ETH). CRV's deepest on-chain liquidity venue is destroyed; CRV prints as low as ~$0.086 on DEXes. White-hat MEV bot c0ffeebabe.eth front-runs part of the attack, capturing the 2,879.65 ETH (~$5.4M). (Exact hour approximate; evening UTC per postmortems.)",
+   "observed": false,
+   "source_url": "https://www.theblock.co/post/242136/mev-bot-runner-c0ffeebabe-eth-returns-5-4-million-amid-curve-exploit"
+  },
+  {
+   "ts": "2023-07-30T20:00:00Z",
+   "event": "Chainlink's CRV/USD feed, aggregating CEX prices, floors around $0.59 while DEX spot collapses — Aave and other lenders see no liquidation-triggering price, averting a cascade off the manipulated on-chain print.",
+   "observed": true,
+   "source_url": "https://cryptobriefing.com/cexs-saving-defi-chainlink-rescues-curve-finance/"
+  },
+  {
+   "ts": "2023-07-30T23:59:00Z",
+   "event": "July 30 becomes the most profitable MEV day in Ethereum history: ~6,006 ETH (~$11M) in MEV rewards, including a record single-block reward of 584.05 ETH (> $1M) from front-running exploit transactions. Copycat attacks on BNB Chain (Ellipsis ~$68.6k) and deBridge (~$24.6k); Arbitrum Tricrypto pool flagged as potentially vulnerable, LPs told to exit as precaution (not exploited).",
+   "observed": true,
+   "source_url": "https://www.theblock.co/post/242155/ethereum-mev-rewards-hit-11-million-in-a-single-day-due-to-curve-exploit"
+  },
+  {
+   "ts": "2023-07-31T12:00:00Z",
+   "event": "Panic withdrawals: Curve TVL collapses from $3.26B (Jul 30) toward $1.73B by Aug 1 (-47%, DeFiLlama). CRV falls ~20-30% on CEXes. Focus shifts to the SECOND-ORDER threat: Egorov's CRV-collateralized stablecoin loans — 63.2M USDT on Aave v2 (against ~$168M / 288M+ CRV, >30% of circulating supply, liquidation price ~0.3767 CRV/USDT), 15.8M FRAX on Fraxlend (59M CRV), 18.76M MIM on Abracadabra — ~97.76M stables against ~427.5M CRV (~47% of circulating supply), plus a DOLA line on Inverse Finance.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2023/07/31/a-curve-founders-168m-stash-is-under-stress-creating-a-risk-for-defi-as-a-whole"
+  },
+  {
+   "ts": "2023-07-31T18:00:00Z",
+   "event": "c0ffeebabe.eth returns the 2,879 ETH (~$5.4M) to the Curve deployer, and later ~955 msETH/$1.6M to Metronome. Fraxlend emerges as the most acute fuse: its Time-Weighted Variable Interest Rate doubles every 12h at 100% utilization (path to ~10,000% APY in ~3.5 days), threatening to liquidate Egorov regardless of CRV price; Egorov deploys an incentivized Curve pool to pull FRAX liquidity in and pays Fraxlend down first.",
+   "observed": true,
+   "source_url": "https://www.chaincatcher.com/en/article/2098398"
+  },
+  {
+   "ts": "2023-08-01T00:00:00Z",
+   "event": "CRV hits a seven-month low around $0.48 on CEXes. Egorov begins OTC sales at ~$0.40/CRV with informal lockups: Justin Sun (~5M CRV), Machi Big Brother (3.75M), DWF Labs (2.5M), Cream Finance, DCFGod and others — ultimately 106M CRV for ~$46M in early August (one later accounting: cumulative ~158.65M CRV to 53 buyers for ~$63.46M across August).",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/tech/2023/08/01/tron-founder-justin-sun-alleviates-curve-finances-looming-bad-debt-situation"
+  },
+  {
+   "ts": "2023-08-03T00:00:00Z",
+   "event": "Egorov has raised ~$42.4M and paid down debt but still owes ~$80M on-chain. crvUSD briefly depegs by ~0.35% before PegKeepers restore it. Curve, Metronome and Alchemix jointly offer the attacker a 10% bounty / no legal action if 90% is returned by August 6.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/business/2023/08/03/curve-founder-still-owes-80m-despite-raising-nearly-30m-in-past-two-days"
+  },
+  {
+   "ts": "2023-08-04T00:00:00Z",
+   "event": "Returns begin: JPEG'd receives back 5,494.4 WETH (attacker keeps 610.6 WETH as the 10% bounty); on Aug 4-5 the alETH exploiter returns all 4,820.55 alETH + WETH to Alchemix ('I'm refunding you... because I don't want to ruin your project').",
+   "observed": true,
+   "source_url": "https://cointelegraph.com/news/jpeg-d-confirms-return-of-eth-from-curve-hacker"
+  },
+  {
+   "ts": "2023-08-06T00:00:00Z",
+   "event": "Bounty deadline passes with the CRV/ETH exploiter not returning the remainder; Curve opens the $1.85M bounty to the public for identifying the attacker.",
+   "observed": true,
+   "source_url": "https://decrypt.co/151555/1-8m-bounty-now-open-public-curve-finance-hacker-misses-deadline"
+  },
+  {
+   "ts": "2023-08-07T00:00:00Z",
+   "event": "Curve announces ~73% of hacked funds ($52.3M of ~$70M+) recovered; acute phase over. Liquidation threat is defused via OTC paydowns; no bad debt realized on Aave.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/tech/2023/08/07/curve-recoups-73-of-hacked-funds-bolstering-crv-sentiment"
+  },
+  {
+   "ts": "2023-08-12T00:00:00Z",
+   "event": "Aave DAO response: Chaos Labs proposals (votes ended Aug 12) disable CRV borrowing on Aave v3 Ethereum and Polygon and reduce the CRV liquidation threshold on v2; Gauntlet's renewed proposal to freeze the CRV reserve on Aave v2 Ethereum (freezeReserve, ARFC dated Aug 19) follows — CRV can no longer back new borrowing on v2.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/business/2023/08/10/aave-token-holders-voting-on-2-proposals-following-averted-curve-liquidation-crisis"
+  },
+  {
+   "ts": "2023-09-27T00:00:00Z",
+   "event": "Egorov deposits ~$35M more CRV and fully settles his Aave debt position, closing the largest single systemic exposure; remaining debt across other venues cut to ~$42.7M.",
+   "observed": true,
+   "source_url": "https://www.theblock.co/post/253164/curve-founder-michael-egorov-settles-aave-debt"
+  },
+  {
+   "ts": "2023-12-21T00:00:00Z",
+   "event": "Curve DAO vote (~94% yes) approves ~$49.2M reimbursement to LPs of the affected pools (alETH/ETH, pETH/ETH, msETH/ETH, CRV/ETH): ~$7.2M of white-hat-recovered ETH plus ~$42M in CRV covering unrecovered losses and missed emissions — LPs effectively made whole.",
+   "observed": true,
+   "source_url": "https://coingape.com/curve-finance-community-approves-49m-payout-for-july-hack-victims/"
+  }
+ ],
+ "market_impact": {
+  "crv": {
+   "from_usd": 0.73,
+   "to_usd": 0.48,
+   "drawdown_pct": -34,
+   "window": "2023-07-30 -> 2023-08-01 (CEX prices; sources report the initial leg variously as -19% to $0.59, -25% to $0.548, and the Aug 1 seven-month low of ~$0.48; on-chain DEX prints touched ~$0.086 during the CRV/ETH pool drain but were never the oracle price)"
+  },
+  "btc": {
+   "from_usd": null,
+   "to_usd": null,
+   "drawdown_pct": null,
+   "window": "2023-07-30 -> 2023-08-07; BTC ~$29k range, essentially unaffected — the event was idiosyncratic to Curve/CRV; no sourced BTC drawdown attributable to it"
+  },
+  "eth": {
+   "from_usd": null,
+   "to_usd": null,
+   "drawdown_pct": null,
+   "window": "2023-07-30 -> 2023-08-07; ETH dipped only modestly (~$1.85-1.88k range); no sourced event-attributable drawdown"
+  },
+  "aleth_peth_mseth": {
+   "from_usd": null,
+   "to_usd": null,
+   "drawdown_pct": null,
+   "window": "LST-pegged assets alETH/pETH/msETH lost their primary liquidity venue and traded at discounts to ETH after the drains; magnitudes not reliably sourced (null). Curve killed gauges on affected pools and spun up new plain pools"
+  },
+  "crvusd": {
+   "from_usd": 1,
+   "to_usd": 0.9965,
+   "drawdown_pct": -0.35,
+   "window": "2023-08-03 brief depeg (~0.35% below $1), PegKeeper restored peg same day"
+  }
+ },
+ "stablecoins": [
+  {
+   "symbol": "crvUSD",
+   "min_price_usd": 0.9965,
+   "when": "2023-08-03",
+   "duration_below_099": "never below 0.99 — max deviation ~0.35%",
+   "notes": "Brief wobble on post-hack uncertainty; PegKeeper algorithm restored peg within the day. Curve's crvUSD stable pools were named among exploited pools in some reports but crvUSD itself stayed effectively pegged."
+  },
+  {
+   "symbol": "USDC",
+   "min_price_usd": null,
+   "when": "n/a",
+   "duration_below_099": "none",
+   "notes": "No depeg — this event did not stress fiat-backed stablecoin pegs."
+  },
+  {
+   "symbol": "USDT",
+   "min_price_usd": null,
+   "when": "n/a",
+   "duration_below_099": "none",
+   "notes": "No depeg; USDT was the asset Egorov had borrowed on Aave — utilization/borrow-rate pressure, not peg pressure."
+  },
+  {
+   "symbol": "alETH/pETH/msETH (ETH-pegged)",
+   "min_price_usd": null,
+   "when": "2023-07-30 onward",
+   "duration_below_099": "days-weeks vs ETH peg",
+   "notes": "LST/synthetic-ETH pegged assets lost their primary liquidity venue when the pools were drained and traded at discounts to ETH; exact discount magnitudes not reliably sourced (null). Included because peg behavior of pool-quoted synthetics is the direct analog for PT/vault share pricing."
+  },
+  {
+   "symbol": "MIM/FRAX/DOLA",
+   "min_price_usd": null,
+   "when": "2023-07-31 - 2023-08-04",
+   "duration_below_099": "none material",
+   "notes": "Lender-side stress (Abracadabra raised rates; Fraxlend utilization hit 100% with rate-doubling ramp; Inverse capped exposure) rather than peg breaks."
+  }
+ ],
+ "defi_impact": {
+  "tvl": {
+   "curve_tvl_before_usd": 3260000000,
+   "curve_tvl_after_usd": 1730000000,
+   "curve_tvl_change_pct": -47,
+   "window": "2023-07-30 -> 2023-08-01 (DeFiLlama); one intraday snapshot showed -42% to $1.87B on Jul 31; Curve TVL remained depressed for months (2-year lows later in 2023)",
+   "global_defi_tvl": "modest dip, not reliably quantified (null)"
+  },
+  "exploit_losses_usd": {
+   "total_range": "61000000-73500000 (commonly cited ~$70M)",
+   "peth_eth_jpegd": 11400000,
+   "mseth_eth_metronome": 3400000,
+   "aleth_eth_alchemix": 22600000,
+   "crv_eth_curve": 24700000,
+   "ellipsis_bnb": 68600,
+   "debridge": 24600
+  },
+  "recoveries_usd": {
+   "returned_by_2023_08_07": 52300000,
+   "returned_pct": 73,
+   "notable": "c0ffeebabe.eth returned 2,879 ETH ($5.4M) + ~$1.6M msETH; JPEG'd got 5,494.4 WETH back (610.6 WETH kept as 10% bounty); Alchemix got all 4,820.55 alETH + WETH back; Curve DAO approved $49.2M LP reimbursement Dec 21 2023 (94% yes)"
+  },
+  "bad_debt_usd": {
+   "realized_from_event": 0,
+   "narrowly_avoided": "Liquidation of Egorov's Aave v2 position (63.2M USDT against 288M+ CRV = >30% of circulating supply, liq price ~$0.3767 vs CRV low ~$0.48) would have dumped collateral into a market whose main on-chain venue had just been drained — widely assessed as certain to leave large Aave v2 bad debt requiring the Safety Module (AAVE-token) backstop; no precise consensus dollar estimate, so left unquantified"
+  },
+  "liquidations_usd": null,
+  "gas_mev": "Jul 30 was the most profitable MEV day in Ethereum history: ~6,006 ETH (~$11M) in MEV rewards incl. a record 584.05 ETH single-block reward; gas spiked during the exploit window as bots fought to front-run",
+  "oracles": "Decisive factor: Chainlink CRV/USD (CEX-price aggregation) floored ~$0.59 while DEX spot printed ~$0.086 — lending protocols never saw the manipulated price, so no false-liquidation cascade. Flip side: protocols relying on DEX/spot oracles would have liquidated into nothing. Curve pools' internal price oracles were the manipulated object itself.",
+  "withdrawal_freezes": "No user withdrawal freezes on Curve's unaffected pools; affected-pool LPs lost funds instantly rather than being frozen. Post-crisis, Aave FROZE the CRV reserve on v2 (no new CRV-backed borrowing) and disabled CRV borrowing on v3 Ethereum/Polygon (votes ended Aug 12); Fraxlend hit 100% utilization (lenders temporarily could not withdraw FRAX until Egorov repaid).",
+  "protocols_paused_or_insolvent": "None insolvent. JPEG'd/Alchemix/Metronome paused/removed Curve liquidity; Curve killed gauges on affected pools and deployed replacement pools; Arbitrum Tricrypto LPs advised to exit as precaution.",
+  "bridges_chains": "No chain halts. Copycat exploits on BNB Chain (Ellipsis, ~$68.6k) and deBridge (~$24.6k); Vyper-compiled contracts across chains had to be triaged."
+ },
+ "causes": {
+  "primary": "Latent Vyper compiler bug (v0.2.15/0.2.16/0.3.0): @nonreentrant lock storage slots mis-allocated by set_storage_slots, so named reentrancy locks did not actually guard across functions — enabling cross-function reentrancy on Curve pools with raw-ETH callbacks that were compiled with those versions.",
+  "secondary": [
+   "Compiler-level vulnerability class: audits of the pool contracts could not see it; the vulnerable versions were ~2 years old and which deployed contracts used them was not tracked anywhere.",
+   "Concentration of a single founder's leverage: ~$100M of stablecoin debt across Aave v2/Fraxlend/Abracadabra/Inverse against ~47% of CRV circulating supply, with Aave v2 lacking supply caps/isolation to prevent it.",
+   "Reflexivity: the exploit drained the CRV/ETH pool that WAS the main on-chain CRV liquidity, so the same event that cut CRV's price also removed the exit liquidity a liquidation would have needed.",
+   "Fraxlend's time-weighted rate mechanism at 100% utilization created a second, price-independent liquidation fuse (rates doubling every 12h toward ~10,000% APY)."
+  ],
+  "mechanism": "Vyper compiler mis-compiles reentrancy locks -> attacker (and front-running MEV bots) reenter add_liquidity/remove_liquidity on 4 Curve ETH-paired pools on Jul 30, draining ~$70M -> CRV crashes ~30% (CEX) / ~$0.086 (DEX) and Curve TVL halves on panic withdrawals -> Egorov's CRV-collateralized loans approach liquidation (Aave liq px ~$0.3767 vs CRV ~$0.48) -> feared forced sale of 300M+ CRV into a market whose main on-chain venue was just drained -> projected Aave v2 bad debt and Safety Module (AAVE token) backstop event -> defused by: Chainlink CEX-priced oracle floor blocking manipulated-price liquidations, Egorov's OTC sales (~106M CRV @ ~$0.40) and debt paydowns, white-hat/hacker returns (73% of funds), and Aave governance freezing/disabling CRV markets."
+ },
+ "contagion": [
+  "Vyper compiler bug (broken reentrancy locks in 0.2.15/0.2.16/0.3.0) -> 4 Curve ETH-paired pools drained ~$70M (pETH/ETH ~$11.4M, msETH/ETH ~$3.4M, alETH/ETH ~$22.6M, CRV/ETH ~$24.7M) + BNB-chain copycats (~$73k) + deBridge (~$24.6k)",
+  "CRV/ETH pool drain destroys CRV's deepest on-chain liquidity; DEX CRV prints ~$0.086; CRV -20-30% on CEXes to ~$0.48",
+  "Curve TVL -47% in ~2 days ($3.26B -> $1.73B) on panic withdrawals; alETH/pETH/msETH depeg vs ETH; crvUSD briefly -0.35%",
+  "CRV crash puts Egorov's ~$100M CRV-backed loans (Aave v2 63.2M USDT; Fraxlend 15.8M FRAX with rate-doubling fuse; Abracadabra 18.76M MIM; Inverse DOLA) within ~25% of liquidation (Aave liq px ~$0.3767)",
+  "Feared liquidation of 30%+ of CRV circulating supply into a market with no depth -> projected Aave v2 bad debt -> Aave Safety Module / AAVE-token selloff scenario -> DeFi-wide confidence shock (traders piled into CRV shorts; lenders Aave/Abracadabra/Inverse rushed parameter changes)",
+  "Defused before impact: Chainlink CEX-priced feed floored ~$0.59 (no false liquidation trigger); Egorov OTC-sold ~106M CRV @ ~$0.40 to Justin Sun/DWF/Machi/others and repaid Fraxlend then Aave; hacker + white-hats returned 73% of funds by Aug 7; Aave froze CRV on v2 and disabled CRV borrowing on v3"
+ ],
+ "recovery": {
+  "recovered": "mostly — LPs made whole, but protocol metrics did not mean-revert",
+  "time_to_recover": "Funds: 73% returned within 8 days; LPs fully compensated ~5 months later (Dec 21 2023 vote). Systemic threat: defused within ~1 week (OTC sales + paydowns); Aave exposure fully closed Sept 27 2023. Markets: CRV never regained its pre-hack $0.73 level in 2023 and Curve TVL stayed at roughly half its pre-hack level for months (2-year lows into late 2023).",
+  "notes": "Recovery was discretionary, not mechanical: it depended on the attacker accepting a 10% bounty, white-hat MEV bots choosing to return funds, 50+ whales buying OTC at $0.40 with handshake lockups, and a DAO voting treasury CRV to victims. None of these channels can be assumed in a stress model. The same Egorov overhang re-emerged in June 2024, when CRV fell ~30% and his positions WERE liquidated (~$140M CRV) — evidence that the 2023 defusal deferred rather than eliminated the risk."
+ },
+ "sources": [
+  {
+   "url": "https://hackmd.io/@vyperlang/HJUgNMhs2",
+   "title": "Vyper Nonreentrancy Lock Vulnerability Technical Post-Mortem Report",
+   "supports": "Root cause: bug introduced in v0.2.15 set_storage_slots, storage slots for nonreentrant locks incorrectly allocated; persisted v0.2.16-v0.3.0, fixed v0.3.1",
+   "confidence": "high"
+  },
+  {
+   "url": "https://hackmd.io/@LlamaRisk/BJzSKHNjn",
+   "title": "Curve Pool Reentrancy Exploit Postmortem July 30th, 2023 (LlamaRisk)",
+   "supports": "Per-pool drains: pETH/ETH 6,106.65 WETH (~$11M); msETH/ETH 866.55 WETH + 959.71 msETH; alETH/ETH 7,258.70 WETH + 4,821.55 alETH; CRV/ETH 7,193,401.77 CRV + 7,680.49 WETH + 2,879.65 ETH; first exploit tx 13:10 UTC; JPEG'd acknowledgment 14:17 UTC",
+   "confidence": "high"
+  },
+  {
+   "url": "https://alchemixfi.medium.com/curve-exploit-post-mortem-7142e78bc339",
+   "title": "Alchemix: Curve Exploit Post Mortem",
+   "supports": "Curve alerted Alchemix 14:49 UTC; multisig began removing liquidity 14:55 UTC; alETH/ETH loss detail",
+   "confidence": "high"
+  },
+  {
+   "url": "https://cryptoslate.com/curve-finance-tvl-halved-following-vyper-vulnerability-exploit/",
+   "title": "CryptoSlate: Curve Finance TVL falls following Vyper exploit",
+   "supports": "Curve TVL $3.26B (Jul 30) -> $1.731B (~-47%, DeFiLlama); CRV -19% to $0.59 initial leg; affected pool list",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/markets/2023/07/31/a-curve-founders-168m-stash-is-under-stress-creating-a-risk-for-defi-as-a-whole",
+   "title": "CoinDesk: Curve Founder's $168M Stash Is Under Stress",
+   "supports": "Egorov Aave position: $63M USDT loan against ~$168M CRV collateral; systemic-risk framing for DeFi",
+   "confidence": "high"
+  },
+  {
+   "url": "https://members.delphidigital.io/feed/michael-egorovs-crv-positions",
+   "title": "Delphi Digital: Michael Egorov's CRV Positions",
+   "supports": "Loan breakdown: 63.2M USDT (Aave), 15.8M FRAX (Fraxlend, 59M CRV collateral), 18.76M MIM (Abracadabra) = 97.76M stables vs 427.5M CRV (~47% of circulating supply); Fraxlend TWVIR as biggest risk",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.chaincatcher.com/en/article/2098398",
+   "title": "ChainCatcher: How are Fraxlend's interest rates calculated?",
+   "supports": "Fraxlend time-weighted rate doubles every 12h at 100% utilization, reaching ~10,000% APY in ~3.5 days",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://cryptobriefing.com/cexs-saving-defi-chainlink-rescues-curve-finance/",
+   "title": "Crypto Briefing: Chainlink Rescues Curve Finance Amid Vyper Vulnerability",
+   "supports": "DEX CRV price fell to ~$0.086; Chainlink CEX-aggregated feed floored ~$0.59, averting liquidation cascade",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.theblock.co/post/242136/mev-bot-runner-c0ffeebabe-eth-returns-5-4-million-amid-curve-exploit",
+   "title": "The Block: c0ffeebabe.eth returns $5.4 million amid Curve exploit",
+   "supports": "White-hat MEV bot front-ran attacker, returned 2,879 ETH ($5.4M) to Curve deployer; ~$1.6M Metronome recovery",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.theblock.co/post/242155/ethereum-mev-rewards-hit-11-million-in-a-single-day-due-to-curve-exploit",
+   "title": "The Block / Unchained: record MEV day",
+   "supports": "Jul 30: ~6,006 ETH (~$11M) MEV rewards, largest-ever 584.05 ETH block reward (also unchainedcrypto.com/curve-exploit-results-in-largest-mev-block-rewards-in-ethereums-history/)",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.coindesk.com/tech/2023/08/01/tron-founder-justin-sun-alleviates-curve-finances-looming-bad-debt-situation",
+   "title": "CoinDesk: Crisis at DeFi Giant Curve Eases After Justin Sun and Others Step In",
+   "supports": "OTC sales at ~$0.40: Justin Sun ~5M CRV, Machi Big Brother 3.75M, DWF Labs 2.5M, Cream, DCFGod; bad-debt fears easing",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/business/2023/08/03/curve-founder-still-owes-80m-despite-raising-nearly-30m-in-past-two-days",
+   "title": "CoinDesk: Curve Founder Raises $42.4M to Pay Off $80M On-Chain Debt",
+   "supports": "Aug 3 snapshot: $42.4M raised OTC, ~$80M debt outstanding; 106M CRV / ~$46M total OTC figure",
+   "confidence": "high"
+  },
+  {
+   "url": "https://cointelegraph.com/news/jpeg-d-confirms-return-of-eth-from-curve-hacker",
+   "title": "Cointelegraph: JPEG'd confirms return of 5,495 ETH; Alchemix full return",
+   "supports": "JPEG'd got 5,494.4 WETH back, 610.6 WETH kept as 10% bounty (Aug 4); Alchemix received 4,820.55 alETH back (Aug 5); Aug 3 joint 10% bounty offer (also cointelegraph.com/news/alchemix-reports-return-of-all-stolen-funds-from-curve-pools)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/tech/2023/08/07/curve-recoups-73-of-hacked-funds-bolstering-crv-sentiment",
+   "title": "CoinDesk / CCN: Curve recoups 73% of hacked funds",
+   "supports": "$52.3M = 73% of stolen funds returned by ~Aug 7; Aug 6 deadline missed by CRV/ETH exploiter -> $1.85M public identification bounty (decrypt.co/151555)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.theblock.co/post/235422/aave-community-rejects-gauntlets-proposal-to-freeze-crv-tokens-on-v2",
+   "title": "The Block: Aave community rejects Gauntlet CRV freeze (June) + Gauntlet freeze recommendation",
+   "supports": "June 2023 pre-history: Gauntlet freeze/LTV-0 proposal rejected ~unanimously June 18; Gauntlet cited $67.7M debt vs $185M CRV collateral; renewed freeze passed post-exploit (governance-v2.aave.com/governance/proposal/297/, ARFC Aug 19)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/business/2023/08/10/aave-token-holders-voting-on-2-proposals-following-averted-curve-liquidation-crisis",
+   "title": "CoinDesk: Aave voting on 2 proposals after averted Curve liquidation crisis",
+   "supports": "Chaos Labs proposals (votes ended Aug 12): disable CRV borrowing on v3 Ethereum/Polygon; cut CRV liquidation threshold on v2",
+   "confidence": "high"
+  },
+  {
+   "url": "https://thedefiant.io/news/defi/curve-finance-founder-michael-egorov-suffers-massive-liquidations",
+   "title": "The Defiant / Unchained: liquidation-risk coverage",
+   "supports": "CRV seven-month low $0.48 on Aug 1; Aave liquidation price ~0.3767 CRV/USDT; contagion-threshold $0.368 commentary; insufficient on-chain liquidity to absorb liquidation -> bad debt",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://cointelegraph.com/news/curve-crvusd-depegs-market-reacts-shock-events",
+   "title": "Cointelegraph: crvUSD briefly depegs",
+   "supports": "crvUSD -0.35% max deviation on Aug 3, PegKeeper restored peg",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://crypto.news/bsc-suffers-73k-vyper-attack-following-curve-finance-exploit/",
+   "title": "crypto.news / Cointelegraph story-so-far: BSC copycat + peripheral losses",
+   "supports": "BNB Chain copycat ~$73k (Ellipsis ~$68.6k), deBridge ~$24.6k, Arbitrum Tricrypto flagged vulnerable/not exploited (also cointelegraph.com/news/curve-vyper-exploit-whole-story-so-far)",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.theblock.co/post/253164/curve-founder-michael-egorov-settles-aave-debt",
+   "title": "The Block / CoinDesk: Egorov settles entire Aave debt (Sept 2023)",
+   "supports": "Sept 27 2023: ~$35M CRV deposit, Aave position fully settled; remaining cross-protocol debt ~$42.7M (also coindesk.com/business/2023/09/27/...)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://coingape.com/curve-finance-community-approves-49m-payout-for-july-hack-victims/",
+   "title": "CoinGape: Curve community approves $49M payout (Dec 2023)",
+   "supports": "Dec 21 2023 vote ~94% yes; $49.2M reimbursement = ~$7.2M whitehat-recovered ETH + ~$42M CRV, covering LP losses and missed emissions",
+   "confidence": "medium"
+  }
+ ],
+ "confidence_notes": "Observed facts, well-multi-sourced: Vyper versions 0.2.15/0.2.16/0.3.0 and root cause (official Vyper post-mortem); per-pool token amounts (LlamaRisk postmortem); Curve TVL $3.26B->$1.73B (DeFiLlama via CryptoSlate); 73%/$52.3M recovered by Aug 7; JPEG'd 5,494.4 WETH return with 610.6 WETH bounty; Alchemix 4,820.55 alETH return; c0ffeebabe 2,879 ETH; Aave votes (June rejection, Aug 10-12 proposals); Dec 21 2023 $49.2M reimbursement; Egorov settling Aave in Sept 2023. CONTESTED/APPROXIMATE: (1) total loss ranges $61M-$73.5M across sources depending on whether white-hat front-run funds, BSC/deBridge copycats, and CRV-at-what-price are counted — '~$70M' is the standard headline; (2) CRV price path: pre-exploit $0.73-0.75, first-leg drop reported variously -19%/-25%, Aug 1 low ~$0.48 (some cite $0.481); the $0.086 was a DEX-only print, and the '$0.59 Chainlink floor' comes from one analytics writeup (medium confidence); (3) Egorov debt totals moved daily: Delphi's Aug-1 snapshot 97.76M stables vs 427.5M CRV (47% of supply) vs Gauntlet's June $67.7M/$185M vs press '$100M+/~$110M' — the brief's 'Aave ~$63M' is CONFIRMED (63.2M USDT); Inverse Finance's ~10M DOLA figure is a September snapshot, his July 30 Inverse exposure is not precisely sourced (partly why totals differ); (4) OTC totals: 106M CRV/~$46M is the widely cited early-August figure; one retrospective counts 158.65M CRV/~$63.46M to 53 buyers across all of August — both reported; (5) intraday times 13:10/14:17/14:49-14:55/14:50 UTC are from postmortems (high confidence); the CRV/ETH drain 'evening UTC' hour is inferred (marked observed=false); (6) potential Aave bad-debt size had liquidation fired was never authoritatively quantified — left null rather than invented; (7) the brief's 'TVL -47%' and 'CRV -30%+' are CONFIRMED; its 'Egorov $100M+' is confirmed as order-of-magnitude with the per-protocol split above. INFERENCE (labeled as such): all SPA mapping content, and the Blockworks mention of a 'Pendle pETH-ETH pool' among victims appears to be a misattribution of JPEG'd's pETH — no other source corroborates Pendle losses, so none are claimed.",
+ "data_availability": {
+  "price_series": "FREE: Binance public market-data (data.binance.vision) 1m/1h/1d klines for CRVUSDT, ETHUSDT, BTCUSDT, FRAXUSDT covering Jul-Aug 2023 — best granularity for CRV's crash and recovery; OKX/Bybit similar. CoinGecko free API gives daily (and hourly for recent windows only) — 2023 history at daily granularity is free via /market_chart/range for top coins; CryptoCompare free hourly. NOT free: the on-chain DEX print (~$0.086) — needs archive-node pool-state replay or GeckoTerminal/Kaiko paid history; treat as a documented spike, not a replayable series.",
+  "stablecoin_prices": "FREE: DeFiLlama stablecoins API (daily prices/pegs) covers crvUSD, USDC, USDT, FRAX, MIM, DOLA for the window. alETH/pETH/msETH vs ETH discounts: CoinGecko has alETH daily (patchy); pETH/msETH coverage is poor — mark ETH-pegged synthetic discounts as approximate or reconstruct from Curve pool swap events (needs archive node / free Dune queries).",
+  "tvl": "FREE and good: DeFiLlama API daily TVL for curve-dex (shows $3.26B->$1.73B), aave-v2, aave-v3, alchemix, jpegd, metronome, fraxlend, abracadabra; per-pool Curve TVL series also on DeFiLlama /pool endpoints (yields dataset) at daily granularity.",
+  "liquidations": "PARTIAL/FREE-WITH-EFFORT: no free one-call aggregate. Aave v2/v3 LiquidationCall events via the free Aave subgraph or Dune free tier reconstruct per-market liquidations (this event's point: ~zero CRV liquidations executed — the crisis is in the counterfactual). CEX futures liquidations for CRV: Coinglass shows recent data free but historical export is paid — mark paid.",
+  "gas": "FREE: Etherscan API (free key) daily average gas price; Dune free tier for intraday Jul 30 gas/priority-fee spikes; MEV data free via mevboost.pics and Flashbots public relay datasets (the 584 ETH block is block-level public data).",
+  "defi_rates": "FREE: DeFiLlama yields API has historical APY snapshots for Aave USDC/USDT and Curve pools at daily granularity — captures the borrow-rate/utilization spike channel. Fraxlend historical utilization/rates: reconstructable from contract events (free RPC + effort), not from any free API.",
+  "not_obtainable_free": "Intraday order-book depth / CEX-DEX liquidity depth (Kaiko paid — key for modeling 'liquidation into thin liquidity'); tick-level Curve pool reserve history without an archive node; Chainlink round-by-round historical answers are technically free (feed contract logs via public RPC) but high-effort; OTC transaction terms (off-chain, only press-reported)."
+ },
+ "spa_relevance": {
+  "positions_hit": {
+   "aave_v3_usdc": "Most directly analogous exposure. The 2023 crisis was on Aave v2, but the mechanism transfers: as a USDC supplier, the portfolio is short protocol bad-debt — a whale's collateral (CRV then; any long-tail collateral now) liquidating into thin on-chain liquidity socializes losses onto suppliers. Secondary channel: stress makes utilization spike (borrowers top up / lenders flee), so supply APY jumps AND withdrawals can temporarily fail at ~100% utilization — exactly what FRAX lenders on Fraxlend experienced for days.",
+   "morpho_steakhouse_usdc": "Morpho Blue vaults did not exist in July 2023 (no historical series to replay directly). Mapped risk: curated vault allocates USDC into isolated markets whose collateral can be a CRV-like token; a compiler-class exploit or collateral-liquidity collapse in one market hits the vault share price with zero advance APY signal. Oracle choice (CEX-anchored Chainlink vs DEX spot) determines whether the market liquidates correctly, too early, or into nothing.",
+   "pendle_pt": "Pendle was not materially hit in 2023 (the drained 'pETH' was JPEG'd's, not Pendle's, despite some confused reporting). Mapped risk: PT trades on AMM pools compiled/audited code paths just like Curve's; an exploit or panic drains PT/underlying AMM liquidity, gapping PT mark-to-market far below fair value. Hold-to-maturity recovers face value ONLY if the underlying yield source (e.g., an Aave/Morpho market) itself stays solvent — the two failure modes correlate in a Curve-style event.",
+   "maple": "Least affected channel in this event (credit/RWA venue, USDC intact). Indirect: risk-off after the exploit widened DeFi credit spreads and TVL flight; a Maple-style venue's lockups mean the portfolio cannot de-risk mid-event.",
+   "cash_10pct": "USDC held peg throughout — the 10% cash buffer was genuinely safe in this scenario, and was the only sleeve that could have funded opportunistic rebalancing (CRV at $0.40 OTC was the trade of the month for whales)."
+  },
+  "channels": [
+   "protocol_exploit -> instant principal loss in affected pools (no market warning; APY/TVL looked normal minutes before)",
+   "liquidity_crunch -> utilization spike on lending markets = temporary withdrawal failure for suppliers (Fraxlend at 100% util) + Curve TVL -47% in 2 days",
+   "solvency_threat -> lender bad-debt socialization if whale collateral liquidates into thin liquidity (averted on Aave v2 by ~25% of CRV price)",
+   "oracle divergence -> DEX spot $0.086 vs Chainlink $0.59: any system marking or liquidating off on-chain spot would have catastrophically mispriced CRV for hours",
+   "APY collapse/spike -> drained pools' yields gone; stress-driven borrow-rate spikes elsewhere"
+  ],
+  "unpriced_if_usdc_equals_1_and_always_withdrawable": [
+   "Withdrawal availability: this event proves 'protocol always withdrawable' fails two ways — exploited pools (principal gone, not frozen) and 100%-utilization lending markets (principal intact, temporarily unwithdrawable). A paper system that models exits at NAV any day misses both.",
+   "Bad-debt socialization on Aave-type positions: supplier APY carries an unpriced short-put on the worst collateral asset in the pool and on the DEX liquidity available to liquidators. TVL floors and live-TVL checks (SPA's ADR-053) do not capture COLLATERAL-side concentration (one address = 30%+ of a collateral's supply).",
+   "Exploit tail: a compiler-level bug bypasses audit-based whitelisting entirely — Curve was the most battle-tested DeFi protocol; whitelist status is not a stochastic APY haircut but a jump-to-loss process (~-100% on affected pool principal, with recovery a slow, discretionary variable: 73% in a week here, then DAO reimbursement 5 months later).",
+   "Oracle-regime assumption: USDC=1 was fine here, but CRV-at-Chainlink vs CRV-on-DEX diverged 7x for hours. Any liquidation/kill-switch logic reading on-chain spot would have fired massively wrong; SPA's fail-CLOSED refusal on feed divergence is exactly the correct behavior this event validates.",
+   "Contagion latency: the systemic phase (Egorov loans) took DAYS and was defused by off-chain OTC deals invisible to on-chain data — a daily-cycle system would see peg=1, TVL falling, APY spiking, and would need the drawdown ladder (SOFT -5%/HARD -10%) plus per-protocol freeze rather than any single-metric trigger."
+  ]
+ },
+ "replay": {
+  "duration_days": 9,
+  "start_date": "2023-07-30",
+  "base": {
+   "aave_v3": {
+    "apy_pct": 3.5
+   },
+   "pendle": {
+    "apy_pct": 5.0
+   },
+   "maple": {
+    "apy_pct": 7.0
+   },
+   "morpho_steakhouse": {
+    "apy_pct": 4.0
+   }
+  },
+  "shocks": [
+   {
+    "kind": "apy",
+    "params": {
+     "protocol": "aave_v3",
+     "apy_pct": 8.0,
+     "from_day": 0,
+     "to_day": 3
+    }
+   },
+   {
+    "kind": "apy",
+    "params": {
+     "protocol": "aave_v3",
+     "apy_pct": 3.5,
+     "from_day": 4,
+     "to_day": 8
+    }
+   },
+   {
+    "kind": "liquidity",
+    "params": {
+     "from_day": 0,
+     "to_day": 4,
+     "exit_haircut_pct": 0.01,
+     "gas_cost_usd": 90.0
+    }
+   }
+  ],
+  "assumptions": [
+   "Потерь капитала книги нет (историч. факт: Aave bad debt не случился — near-miss); replay фиксирует «сигнала нет, потерь нет», а датасет — цепочку, которая МОГЛА социализировать убыток на USDC-саплаеров."
+  ]
+ }
+}

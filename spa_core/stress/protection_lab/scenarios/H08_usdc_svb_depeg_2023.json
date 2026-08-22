@@ -1,0 +1,542 @@
+{
+ "schema_version": 1,
+ "id": "H08_usdc_svb_depeg_2023",
+ "name": "USDC / Silicon Valley Bank depeg (March 10-13, 2023)",
+ "event_class": [
+  "stablecoin_depeg",
+  "liquidity_oracle_infra"
+ ],
+ "window_utc": {
+  "start": "2023-03-10T16:00:00Z",
+  "trough": "2023-03-11T07:16:00Z",
+  "end": "2023-03-13T23:59:00Z"
+ },
+ "speed": "USDC -13% in ~4 hours (disclosure 03:11 UTC -> low 07:16 UTC Mar 11); full episode peg-break-to-repeg ~65 hours; BTC swung -11% then +20% within the same 5 days",
+ "summary": "10-13 марта 2023: у Circle $3.3B резервов застряло в SVB — USDC $1→$0.87 за ~4 часа (redemption закрыт на выходные), DAI $0.885, FRAX $0.875, USDT — с премией. Пег восстановлен за ~65 часов после гарантий ФРС. КАНОНИЧЕСКИЙ сценарий для книги, где кэш — тот же USDC: выход «в кэш» НЕ снижает peg-экспозицию, а продажа на дне фиксирует убыток, который пассив вернул за 3 дня. Книга SPA на 2026-08: aave_v3 40% / pendle (PT_USDC) 20% / maple 15% / morpho_steakhouse 15% / кэш USDC 10%.",
+ "timeline": [
+  {
+   "ts": "2023-03-08",
+   "event": "Silvergate Capital announces voluntary liquidation (its SEN crypto settlement network had already been discontinued Mar 3) — crypto USD banking rails begin failing; BTC/ETH sell off.",
+   "observed": true,
+   "source_url": "https://www.cnbc.com/2023/03/09/bitcoin-ether-fall-after-go-to-crypto-bank-silvergate-announces-liquidation.html"
+  },
+  {
+   "ts": "2023-03-09",
+   "event": "SVB Financial discloses $1.8B loss on a $21B bond portfolio sale; a run on Silicon Valley Bank begins. Circle initiates wires Thursday to pull its deposits — they do not clear.",
+   "observed": true,
+   "source_url": "https://www.cnbc.com/2023/03/10/bitcoin-falls-below-20000-63-billion-wiped-off-cryptocurrency-market.html"
+  },
+  {
+   "ts": "2023-03-10 (~16:30 UTC)",
+   "event": "California DFPI closes Silicon Valley Bank; FDIC receivership — largest US bank failure since 2008. BTC falls below $20k (~$19,670, one-month low); >$70B wiped off crypto market cap in 24h.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2023/03/10/bitcoin-falls-below-20k-as-2023-rally-reverses"
+  },
+  {
+   "ts": "2023-03-10T23:50Z",
+   "event": "Circle tweets (6:50pm ET) it is 'operating normally'; SVB is one of six banking partners holding the cash portion of reserves; USDC already wobbling ~$0.98-0.99 on DEXs as traders flee the Curve 3pool.",
+   "observed": true,
+   "source_url": "https://www.fortune.com/crypto/2023/03/10/circle-reveals-3-3-billion-stuck-silicon-valley-bank-usdc-wobbles-against-peg"
+  },
+  {
+   "ts": "2023-03-11 (full day)",
+   "event": "Record DEX volumes: Uniswap ~$11.9B/24h (all-time high), Curve ~$6-7B (all-time high, 3pool ~80% of it). Borrowers rush to repay dollar-denominated debt with discounted stablecoins: >$2B USDC + ~$300M DAI repaid on Aave/Compound on Saturday alone; debtors 'saved' ~$100M ($84.1M USDC, $20.8M DAI per Flipside). ~3.4k liquidations on Aave v2/v3 seize ~$24M collateral (86% USDC); Aave realizes ~$300k insolvencies over the weekend.",
+   "observed": true,
+   "source_url": "https://www.axios.com/2023/03/13/circle-stablecoin-debts"
+  },
+  {
+   "ts": "2023-03-11 (late UTC)",
+   "event": "Circle blog commits to covering any reserve shortfall 'using corporate resources, involving external capital if necessary'. USDC oscillates roughly $0.90-0.97 through the weekend; arbitrageurs accumulate (a wallet linked to Justin Sun reportedly nets >$3M); MEV extraction hits records — one sandwich of a panic 3CRV dump nets a bot $2.045M profit while the seller receives $0.05 USDT for ~$2M.",
+   "observed": true,
+   "source_url": "https://cointelegraph.com/news/crypto-whales-suffer-huge-losses-due-to-usdc-depeg-svb-collapse"
+  },
+  {
+   "ts": "2023-03-11 (morning UTC)",
+   "event": "MakerDAO files emergency executive: USDC PSM daily mint cap 950M -> 250M, swap fee 0% -> 1%, LP-token debt ceilings to 0. Passes governance in ~2h but the 48h GSM delay means it executes only Monday Mar 13 — after the turmoil is over. DAI tracks USDC down because >50% of collateral was USDC-linked (PSM).",
+   "observed": true,
+   "source_url": "https://www.doseofdefi.com/p/damage-control-defi-lenders-and-the"
+  },
+  {
+   "ts": "2023-03-11T03:11Z",
+   "event": "Circle discloses (10:11pm ET Fri) that $3.3B of ~$40B USDC reserves (~8%) remain stuck at SVB because Thursday's wires were not processed. Secondary-market run accelerates; primary redemptions effectively closed for the weekend (banking rails shut).",
+   "observed": true,
+   "source_url": "https://cointelegraph.com/news/circle-discloses-3-3b-tied-up-at-silicon-valley-bank"
+  },
+  {
+   "ts": "2023-03-11T03:41Z",
+   "event": "Coinbase tweets (10:41pm ET) it is pausing USDC:USD conversions over the weekend 'while banks are closed'; Binance had suspended USDC auto-conversion to BUSD (~01:52 UTC). Off-ramp closure deepens panic.",
+   "observed": true,
+   "source_url": "https://x.com/coinbase/status/1634399032767307776"
+  },
+  {
+   "ts": "2023-03-11T07:03Z",
+   "event": "Gauntlet tells Aave Guardian to be ready to pause (07:03 UTC), then at 09:19 UTC formally recommends pausing ALL Aave v2/v3 markets (v3 e-mode assumed stablecoin correlation with only 1% liquidation bonus). Aave Guardian declines a full pause.",
+   "observed": true,
+   "source_url": "https://governance.aave.com/t/aave-resilient-through-usdc-volatility/12330"
+  },
+  {
+   "ts": "2023-03-11T07:16Z",
+   "event": "USDC bottoms ~$0.87-0.88 (Kraken low $0.877 at 07:16 UTC; ~$0.87 'by 2am ET'; Fed note cites trough ~$0.86-0.87). DAI hits all-time low ~$0.885-0.897, FRAX ~$0.874-0.885; USDT trades at a premium. Curve 3pool drained of USDT (<7% share vs USDC and DAI >45% each); median gas jumps from ~23 to ~304 gwei (+1,200%).",
+   "observed": true,
+   "source_url": "https://decrypt.co/123211/usdc-stablecoin-depegs-90-cents-circle-exposure-silicon-valley-bank"
+  },
+  {
+   "ts": "2023-03-11T13:00Z",
+   "event": "Aave Guardian freezes USDC, USDT, DAI, FRAX, MAI on Aave v3 Avalanche and sets LTV to 0 (no new positions; liquidations continue). Separately, Compound v2's Pause Guardian halts USDC supply — Compound v2 hard-codes USDC at $1.00 (85.5% collateral factor), so a persistent depeg below ~$0.875 would have created insolvencies; borrowing continues.",
+   "observed": true,
+   "source_url": "https://cointelegraph.com/news/aave-freezes-stablecoin-trading-on-avalanche-v3-as-activity-surges-on-cexs"
+  },
+  {
+   "ts": "2023-03-12 (~23:00 UTC)",
+   "event": "Circle CEO Allaire: '100% of deposits from SVB are secure and will be available at banking open tomorrow'; $3.3B moving to BNY Mellon, new mint/redeem settlement partner Cross River Bank; automated minting/redemption to resume Monday.",
+   "observed": true,
+   "source_url": "https://www.theblock.co/post/219133/circle-usdc-operations-will-resume-at-open-monday-allaire"
+  },
+  {
+   "ts": "2023-03-12T22:15Z",
+   "event": "Treasury/Fed/FDIC joint statement (6:15pm EDT): all SVB depositors made whole with full access Monday Mar 13; Signature Bank (Signet rail) closed the same day under identical guarantee; Fed launches BTFP facility. USDC gaps up toward $0.97-0.99.",
+   "observed": true,
+   "source_url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20230312b.htm"
+  },
+  {
+   "ts": "2023-03-13",
+   "event": "US banks open; Circle resumes 1:1 redemptions and USDC repegs (~$0.993-1.00 on major indices during the day; fully at $1 by Mar 13 evening/Mar 14). DAI and FRAX repeg in tandem. BTC rallies 18-20% off Friday's low to >$24,000; ETH +15% to ~$1,700.",
+   "observed": true,
+   "source_url": "https://cryptobriefing.com/circles-usdc-regains-1-peg-after-tumultuous-weekend/"
+  },
+  {
+   "ts": "2023-03-13/2023-03-21",
+   "event": "Slow-burn aftermath: repeg does not stop the exit — Circle burns ~$1.6B USDC on Fri Mar 10 alone, ~$1B net redemptions by Sat, ~$6B net redemptions by Mar 21; USDC circulation falls >10% within weeks (mcap $43.5B pre-event, sliding toward ~$33B by summer 2023). MakerDAO's emergency PSM parameters finally execute Mar 13 — after the crisis.",
+   "observed": true,
+   "source_url": "https://www.bloomberg.com/news/articles/2023-03-21/redemptions-rise-to-about-6-billion-from-circle-usdc-stablecoin"
+  }
+ ],
+ "market_impact": {
+  "usdc": {
+   "from_usd": 1,
+   "to_usd": 0.87,
+   "drawdown_pct": -13,
+   "window": "2023-03-10T22:00Z -> 2023-03-11T07:16Z; venue lows $0.86-0.885 (Kraken $0.877 @ 07:16 UTC; Fed note cites ~$0.86-0.87 trough); repegged 2023-03-13",
+   "notes": "aggregate-index low commonly cited $0.87-0.88; thin-liquidity venue prints lower"
+  },
+  "dai": {
+   "from_usd": 1,
+   "to_usd": 0.885,
+   "drawdown_pct": -11.5,
+   "window": "2023-03-11, all-time low; sources range $0.85-0.897 (CoinDesk: '88 cents')",
+   "notes": ">50% of Maker collateral was USDC-linked via PSM"
+  },
+  "frax": {
+   "from_usd": 1,
+   "to_usd": 0.875,
+   "drawdown_pct": -12.5,
+   "window": "2023-03-11; sources cite $0.8745-0.885",
+   "notes": "USDC-collateralized via AMOs; protocol hard-codes collateral at $1"
+  },
+  "usdt": {
+   "from_usd": 1,
+   "to_usd": null,
+   "drawdown_pct": null,
+   "window": "2023-03-11/13",
+   "notes": "traded at a PREMIUM (~$1.01-1.03 intraday on major venues; Fed note: 'marginally above peg') as flight-to-safety destination; one low-quality source claims $1.15 wick — not corroborated, rejected"
+  },
+  "btc": {
+   "from_usd": 22150,
+   "to_usd": 19670,
+   "drawdown_pct": -11.2,
+   "window": "2023-03-08 -> 2023-03-10 (SVB panic leg); then RALLIED +18-24% to >$24,000 by 2023-03-13/14 after the Fed backstop",
+   "notes": "net move across the event window is strongly positive — banking-crisis narrative flipped bullish for BTC"
+  },
+  "eth": {
+   "from_usd": null,
+   "to_usd": 1414,
+   "drawdown_pct": null,
+   "window": "low ~$1,378-1,414 on 2023-03-10; +15% to ~$1,700 by 2023-03-13",
+   "notes": "pre-event reference price not precisely sourced, hence null from_usd"
+  }
+ },
+ "stablecoins": [
+  {
+   "symbol": "USDC",
+   "min_price_usd": 0.87,
+   "when": "2023-03-11T07:16Z (Kraken low $0.877; venue range $0.86-0.885)",
+   "duration_below_099": "~60-65h (approx. Mar 11 ~03:30 UTC to Mar 13 ~15:00 UTC) — inferred from event chronology, not a directly sourced figure",
+   "notes": "largest fiat-backed stablecoin depeg on record at the time; primary redemptions closed throughout"
+  },
+  {
+   "symbol": "DAI",
+   "min_price_usd": 0.885,
+   "when": "2023-03-11 (all-time low; sources range $0.85-0.897)",
+   "duration_below_099": "~2 days (approx)",
+   "notes": "mechanical contagion: >50% of collateral USDC-linked via PSM; Maker's emergency PSM changes delayed 48h by GSM"
+  },
+  {
+   "symbol": "FRAX",
+   "min_price_usd": 0.875,
+   "when": "2023-03-11 (sources: $0.8745-0.885)",
+   "duration_below_099": "~2 days (approx)",
+   "notes": "largest FRAX depeg ever; protocol hard-codes collateral (incl. USDC) at $1"
+  },
+  {
+   "symbol": "USDT",
+   "min_price_usd": null,
+   "when": "2023-03-11/13",
+   "notes": "traded at a PREMIUM (~$1.01-1.03) as the flight-to-safety asset; only stablecoin with net inflows that week"
+  },
+  {
+   "symbol": "BUSD",
+   "min_price_usd": null,
+   "when": "2023-03-11/13",
+   "notes": "slight premium (flight-to-safety), per Fed note; already in wind-down after February Paxos order"
+  },
+  {
+   "symbol": "MIM",
+   "min_price_usd": null,
+   "when": "2023-03-11",
+   "notes": "also depegged due to USDC-linked collateral (cited qualitatively by multiple sources); low not verified -> null"
+  }
+ ],
+ "defi_impact": {
+  "tvl": {
+   "global_change": null,
+   "notes": "no reliable free-sourced global TVL delta found for Mar 10-13; DeFiLlama historical series makes this replayable. TVL impact was modest vs price impact — the event was a repricing + rotation, not a TVL collapse"
+  },
+  "bad_debt_usd": {
+   "aave": "~$300k realized insolvencies over the weekend (Gauntlet, governance post); mid-event estimate was ~$550k at prevailing prices",
+   "compound_v2": "no material realized bad debt, but Gauntlet warned that USDC stabilizing below ~$0.875 vs the hard-coded $1.00 oracle (85.5% collateral factor) would have produced protocol insolvencies",
+   "notes": "system-wide realized bad debt was small BECAUSE the depeg lasted <3 days"
+  },
+  "liquidations_usd": {
+   "aave_v2_v3": "~3,400 liquidations seizing ~$24M of collateral, 86% of it USDC (Aave/Kaiko)",
+   "cex_futures": null,
+   "notes": "liquidations were of stable-stable positions marked via Chainlink market feeds; e-mode 1% liquidation bonus made them barely profitable"
+  },
+  "debt_repayment_wave": ">$2B USDC + ~$300M DAI repaid on Aave/Compound on Sat Mar 11 alone; borrowers 'saved' ~$100M repaying with discounted coins ($84.1M USDC, $20.8M DAI — Flipside via Axios)",
+  "gas": "median gas ~23 gwei -> ~304 gwei within minutes of Circle's disclosure (+1,200%); Uniswap swaps averaging ~$58, spikes >$70-80; Ethereum MEV rewards hit an all-time high; landmark sandwiches: $2.045M bot profit on a panic $2M 3CRV dump (seller received $0.05), $215k extracted from a $220k USDC->USDT swap (Mar 12)",
+  "oracle_behavior": "Chainlink USDC/USD tracked the market price -> Aave marked to market and liquidated correctly. Compound v2 hard-coded USDC=$1.00 -> blind to the depeg; Pause Guardian halted USDC SUPPLY only (borrowing continued). Frax hard-codes collateral=$1. Maker PSM swaps USDC 1:1 by design -> became the market's dump venue for USDC, transmitting the depeg into DAI",
+  "withdrawal_freezes": "Circle primary mint/redeem closed Fri night-Mon (banking rails, not protocol); Coinbase USDC:USD conversions paused (03:41 UTC Mar 11); Binance USDC auto-conversion suspended (~01:52 UTC); Compound v2 USDC supply paused; Aave v3 Avalanche USDC/USDT/DAI/FRAX/MAI frozen with LTV->0 at 13:00 UTC Mar 11 (existing withdrawals still possible; no new positions). MakerDAO's protective PSM changes were stuck behind the 48h GSM delay and landed only after the crisis",
+  "protocols_paused_insolvent": "no protocol became insolvent; freezes were precautionary. Gauntlet's recommendation to pause ALL Aave v2/v3 markets was NOT implemented on mainnet",
+  "dex_liquidity": "Curve 3pool massively imbalanced: USDT share <7%, USDC and DAI >45% each (~$500M pool); record volumes: Uniswap ~$11.9B/24h ATH, Curve ~$6-7B ATH; stable-stable spot liquidity effectively one-way",
+  "bridges_chains": "no chain halts or bridge failures; contagion spread cross-chain via bridged USDC pricing (hence the Avalanche freeze)"
+ },
+ "causes": {
+  "primary": "Classic bank-run transmission into a stablecoin: SVB's failure trapped $3.3B (~8%) of USDC's cash reserves, disclosed Friday night AFTER the primary redemption window had closed for the weekend, so all price discovery happened in secondary markets with no arbitrage anchor.",
+  "secondary": [
+   "Weekend banking gap: mint/redeem rails (and Coinbase/Binance conversion desks) shut Fri night-Mon morning, converting a solvency question (~3% worst-case haircut) into a 13% price dislocation",
+   "Concentration of crypto USD rails: Silvergate/SEN already dead, Signature/Signet killed Sunday — settlement infrastructure failing simultaneously",
+   "DeFi's structural USDC dependence: DAI (>50% USDC-linked collateral via PSM) and FRAX (USDC AMOs) mechanically imported the depeg",
+   "Hard-coded $1 assumptions: Compound v2 oracle, Frax collateral pricing, Maker PSM 1:1 swaps — protocols could not see or price the depeg",
+   "Thin weekend DEX liquidity + panic selling: Curve 3pool drained of USDT, gas x13, record MEV extraction punishing forced sellers"
+  ],
+  "mechanism": "SVB bond-portfolio losses -> depositor run -> FDIC receivership Fri Mar 10 -> Circle's $3.3B wire fails -> 10:11pm ET disclosure -> secondary-market run on USDC with primary redemptions closed -> USDC $0.87-0.88 -> mechanical contagion to USDC-collateralized stables (DAI, FRAX, MIM) -> DEX pool imbalance, gas/MEV spike, lending-market liquidations and guardian freezes -> flight to USDT/BTC/ETH -> Fed/Treasury/FDIC full-depositor backstop Sun 6:15pm EDT + Circle corporate guarantee -> redemptions reopen Monday -> arbitrage closes the discount within hours."
+ },
+ "contagion": [
+  "SVB fails (Mar 10, FDIC receivership)",
+  "Circle discloses $3.3B/~8% of USDC reserves trapped (Mar 11 03:11 UTC)",
+  "Primary redemptions closed for weekend + Coinbase/Binance conversion pauses (03:41 UTC)",
+  "USDC secondary-market run -> $0.87-0.88 low (07:16 UTC Mar 11)",
+  "USDC-backed stables depeg: DAI ~$0.885 (PSM), FRAX ~$0.875, MIM wobbles",
+  "Curve 3pool drained of USDT (<7% share); record DEX volume (Uniswap $11.9B, Curve $6-7B); gas 23->304 gwei; record MEV sandwiches",
+  "Lending-market stress: 3.4k Aave liquidations ($24M collateral, 86% USDC), ~$300k Aave insolvencies, Compound v2 USDC supply paused (hard-coded $1), Aave v3 Avalanche stables frozen 13:00 UTC",
+  "$2B+ discounted-stablecoin debt repayments on Aave/Compound; flight to USDT/BTC/ETH",
+  "Fed/Treasury/FDIC backstop (Mar 12 22:15 UTC) + Signature Bank closure (Signet rail lost) + Circle guarantee",
+  "Redemptions reopen Mar 13 -> repeg -> BTC/ETH rally +15-20%",
+  "Slow-burn: ~$6B net USDC redemptions by Mar 21, circulation -10%+, months-long USDC market-share bleed to USDT"
+ ],
+ "recovery": {
+  "recovered": true,
+  "time_to_recover": "Peg: ~65h from break to restoration — Circle resumed 1:1 redemptions Mon Mar 13 and USDC printed $0.993-1.00 that day, fully $1.00 by Mar 13 evening/Mar 14. DAI/FRAX repegged in tandem. Trust: much slower — ~$6B net redemptions by Mar 21, circulation down >10% in weeks and USDC market cap slid from $43.5B toward ~$33B by mid-2023; market share ceded to USDT took over a year to begin recovering.",
+  "notes": "Recovery was exogenous: the Fed/Treasury/FDIC full-depositor backstop (Mar 12, 22:15 UTC) plus Circle's corporate guarantee, NOT market self-correction. The counterfactual without the Sunday backstop — a permanent ~3% reserve haircut plus Monday-morning redemption run — is the harsher stress-test variant. Buyers at $0.87-0.88 earned ~14% in 48h (a Justin Sun-linked wallet reportedly >$3M); MEV bots earned record extraction from panic sellers."
+ },
+ "sources": [
+  {
+   "url": "https://cointelegraph.com/news/circle-discloses-3-3b-tied-up-at-silicon-valley-bank",
+   "title": "Cointelegraph: Circle discloses $3.3B tied up at Silicon Valley Bank",
+   "supports": "$3.3B of ~$40B reserves; disclosure tweet at 10:11pm ET Mar 10 (03:11 UTC Mar 11); failed Thursday wires; earlier 6:50pm ET 'operating normally' tweet",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.cnbc.com/2023/03/11/stablecoin-usdc-breaks-dollar-peg-after-firm-reveals-it-has-3point3-billion-in-svb-exposure.html",
+   "title": "CNBC: USDC breaks dollar peg after $3.3B SVB exposure revealed",
+   "supports": "USDC to $0.87 by 2am ET Mar 11; ~8% of reserves; >$1B redemptions Friday; Coinbase pause",
+   "confidence": "high"
+  },
+  {
+   "url": "https://x.com/coinbase/status/1634399032767307776",
+   "title": "Coinbase tweet: pausing USDC:USD conversions",
+   "supports": "Coinbase suspension of USDC:USD conversions over the weekend, 10:41pm ET Mar 10 (03:41 UTC Mar 11); banking-hours rationale",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20230312b.htm",
+   "title": "Federal Reserve press release, March 12, 2023 (joint statement)",
+   "supports": "Fed/Treasury/FDIC joint statement released 6:15pm EDT Mar 12 (22:15 UTC); all SVB and Signature depositors made whole, access Monday Mar 13; BTFP",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.federalreserve.gov/econres/notes/feds-notes/in-the-shadow-of-bank-run-lessons-from-the-silicon-valley-bank-failure-and-its-impact-on-stablecoins-20251217.html",
+   "title": "Fed Notes: In the Shadow of Bank Runs — SVB and stablecoins",
+   "supports": "USDC trough ~$0.86-0.87; primary-market closure mechanics; USDT/BUSD traded marginally above peg (flight-to-safety); page itself was egress-blocked — figures taken from search-result excerpts",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://governance.aave.com/t/aave-resilient-through-usdc-volatility/12330",
+   "title": "Gauntlet on Aave governance: Aave Resilient Through USDC Volatility",
+   "supports": "~$300k realized Aave insolvencies over the weekend (~$550k estimated mid-event); Gauntlet pause recommendations at 07:03 and 09:19 UTC Mar 11; Guardian declined mainnet pause; e-mode 1% liquidation bonus risk",
+   "confidence": "high"
+  },
+  {
+   "url": "https://cointelegraph.com/news/aave-freezes-stablecoin-trading-on-avalanche-v3-as-activity-surges-on-cexs",
+   "title": "Cointelegraph: Aave freezes stablecoin trading on v3 Avalanche",
+   "supports": "Aave Guardian froze USDC/USDT/DAI/FRAX/MAI on v3 Avalanche ~13:00 UTC Mar 11, LTV->0, liquidations continued",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.doseofdefi.com/p/damage-control-defi-lenders-and-the",
+   "title": "Dose of DeFi: Damage control — DeFi lenders and the USDC depeg",
+   "supports": "MakerDAO emergency PSM changes (daily cap ->250M, fee ->1%), passed in ~2h, executed only Mar 13 due to 48h GSM delay; Compound v2 Pause Guardian halted USDC supply while borrowing continued; hard-coded $1.00 oracle + 85.5% collateral factor insolvency risk below ~$0.875",
+   "confidence": "high"
+  },
+  {
+   "url": "https://aave.com/blog/historical-liquidations",
+   "title": "Aave blog: How Aave Liquidations Perform Under Volatile Conditions",
+   "supports": "~3.4k liquidations on Aave v2/v3 from $24M of collateral, 86% USDC, during the March 2023 depeg",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.axios.com/2023/03/13/circle-stablecoin-debts",
+   "title": "Axios: Debtors in de-pegged stablecoins saved millions",
+   "supports": ">$2B USDC + ~$300M DAI loan repayments on Aave/Compound on Saturday; borrowers saved ~$100M ($84.1M USDC, $20.8M DAI, per Flipside)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://cointelegraph.com/news/curve-finance-trading-volume-reaches-7b-historic-high-after-usdc-depeg",
+   "title": "Cointelegraph: Curve volume reaches $7B historic high",
+   "supports": "Curve record daily volume $6-7B Mar 11; 3pool ~80% of volume; Uniswap ~$11.9-12B record (with Decrypt: decrypt.co/123327)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/business/2023/03/10/defi-protocol-curves-500m-stablecoin-pool-hammered-as-traders-flee-usdc",
+   "title": "CoinDesk: Curve's $500M stablecoin pool hammered as traders flee USDC",
+   "supports": "Curve 3pool imbalance: USDT share <7%, USDC and DAI >45-46% each (corroborated by bitdegree.org recap)",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.binance.com/en/square/post/297172",
+   "title": "The Block (via Binance Square): Ethereum gas fee skyrockets as users scramble out of USDC",
+   "supports": "median gas ~23 gwei -> 304 gwei (+1,200%) after Circle's disclosure; Uniswap average swap ~$58",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.chaincatcher.com/en/article/2172343",
+   "title": "ChainCatcher: How MEV attacked stablecoin transactions during the depeg",
+   "supports": "$2M 3CRV panic dump via KyberSwap netted seller $0.05 USDT, MEV bot profit ~$2.045M; $215.5k sandwich on a $220.8k USDC->USDT Uniswap v3 swap Mar 12; CoinDesk corroborates record MEV rewards (coindesk.com/tech/2023/03/15/mev-rewards-on-ethereum-reach-all-time-high-during-svb-bank-run-and-usdc-depeg)",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://cryptobriefing.com/circles-usdc-regains-1-peg-after-tumultuous-weekend/",
+   "title": "Crypto Briefing: USDC regains $1 peg after tumultuous weekend",
+   "supports": "repeg Mon Mar 13 (~$0.993 on indices) after redemptions resumed; Cross River Bank new settlement partner; $5.4B at BNY Mellon; corroborated by CoinDesk Mar 13 and CNBC Mar 13",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.theblock.co/post/219133/circle-usdc-operations-will-resume-at-open-monday-allaire",
+   "title": "The Block: Circle USDC operations will resume Monday — Allaire",
+   "supports": "Allaire Sunday statement: 100% of SVB deposits secure, available at banking open Monday; corporate-resources backstop pledge (with Circle pressroom: circle.com/pressroom/3-3-billion-of-usdc-reserve-risk-removed-dollar-de-peg-closes)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/markets/2023/03/11/circles-usdc-endured-1b-of-net-redemptions-since-silicon-valley-banks-shutdown",
+   "title": "CoinDesk: USDC endured $1B of net redemptions since SVB shutdown",
+   "supports": "~$1.6B USDC burned Friday; ~$1B net redemptions by Saturday; market cap $43.5B -> $42.4B",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.bloomberg.com/news/articles/2023-03-21/redemptions-rise-to-about-6-billion-from-circle-usdc-stablecoin",
+   "title": "Bloomberg: USDC redemptions rise to about $6 billion",
+   "supports": "~$6B net redemptions by Mar 21; sustained post-event circulation decline (CryptoSlate corroborates >10% circulation drop)",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.coindesk.com/markets/2023/03/10/bitcoin-falls-below-20k-as-2023-rally-reverses",
+   "title": "CoinDesk: Bitcoin falls below $20K as 2023 rally reverses",
+   "supports": "BTC one-month low ~$19,670-19,900 on Mar 10; >$70B market-cap loss in 24h (CNBC corroborates)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://techcrunch.com/2023/03/13/bitcoin-rallies-18-percent-in-wake-of-svb-crisis/",
+   "title": "TechCrunch: Bitcoin rallies 18% in wake of SVB crisis",
+   "supports": "BTC +18.4% to >$24,000 and ETH +15% to ~$1,700 in 24h after the backstop",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/markets/2023/03/11/dai-depegs-as-stablecoin-rout-plagues-crypto",
+   "title": "CoinDesk: DAI depegs to lifetime lows",
+   "supports": "DAI all-time low ~$0.88-0.897 on Mar 11; >50% USDC-linked collateral; FRAX low $0.8745-0.885 (Gate.com/mdpi corroborate)",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://cointelegraph.com/news/crypto-whales-suffer-huge-losses-due-to-usdc-depeg-svb-collapse",
+   "title": "Cointelegraph: whale losses and profits from the depeg",
+   "supports": "Justin Sun-linked wallet reportedly >$3M profit buying the discount; whale losses on panic exits",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://arxiv.org/html/2606.07442v1",
+   "title": "arXiv: Tracing Stablecoin Contagion during the USDC Depeg after the SVB Collapse",
+   "supports": "contagion structure USDC->DAI/FRAX; flight-to-safety into USDT; secondary-market flow dynamics (page egress-blocked; used via search excerpts)",
+   "confidence": "medium"
+  }
+ ],
+ "confidence_notes": "Solidly multi-sourced (high confidence): $3.3B/~8% of ~$40B reserves at SVB; disclosure at 10:11pm ET Mar 10; Coinbase pause 10:41pm ET; Binance suspension; Fed/Treasury/FDIC statement 6:15pm EDT Mar 12; Allaire Sunday guarantee; redemptions resumed and peg restored Mon Mar 13; Aave v3 Avalanche freeze ~13:00 UTC Mar 11; Compound v2 USDC supply pause with hard-coded $1 oracle; Maker PSM emergency changes delayed by 48h GSM; Curve/Uniswap record volumes; ~$1.6B burned Friday, ~$6B net redemptions by Mar 21. CONTESTED/APPROXIMATE: (1) USDC minimum — venue-dependent: $0.877 Kraken @ 07:16 UTC is the best-timestamped print; Fed note cites ~$0.86-0.87 trough; press consensus $0.87-0.88; I report $0.87 as headline with $0.86-0.885 range. (2) DAI low — sources span $0.85-0.897 (CoinDesk '88 cents'); reported as ~$0.885. (3) FRAX low $0.8745-0.885. (4) USDT premium — 'marginally above peg' (Fed) is the defensible claim; exact premium magnitude ($1.01-1.03) is approximate and the single '$1.15' claim was rejected as uncorroborated. (5) Duration below $0.99 (~60-65h) is INFERRED from the chronology, not directly sourced (the Fed note and S&P report likely contain the exact figure but were egress-blocked). (6) Gas 23->304 gwei comes from one secondary source (The Block via Binance Square) — medium confidence. (7) Aave $24M/3.4k liquidations from Aave's own blog (Kaiko data); Aave ~$300k realized insolvency from Gauntlet's governance post — these are protocol/risk-manager self-reports. (8) Justin Sun $3M profit is 'reportedly/allegedly' per Cointelegraph. (9) BTC pre-event reference $22,150 (Mar 8) and low $19,670 from press; intraday venue lows vary ($19.55-19.9k). ETH from_usd left null — pre-event reference not precisely sourced. (10) Global DeFi TVL delta left null — no verifiable free source found; replayable from DeFiLlama. Several primary pages (federalreserve.gov note, coindesk.com, arxiv.org, gauntlet.xyz, doseofdefi.com) were egress-blocked in this environment; their figures were taken from search-result excerpts and corroborated across at least two independent outlets wherever they back headline numbers.",
+ "data_availability": {
+  "stablecoin_prices": {
+   "free": "Binance klines API — 1m OHLCV full history for USDC/USDT, USDC/BUSD, DAI pairs (the cleanest free intraday replay of the peg path); Kraken free downloadable OHLCVT CSVs — 1m USDC/USD, DAI/USD, USDT/USD (true fiat pairs, capture the $0.877 @ 07:16 UTC low); CoinGecko free API — daily-granularity USDC/DAI/FRAX/USDT price history for 2023 ranges; CryptoCompare free tier — hourly full history",
+   "not_free": "consolidated-index intraday (CoinMarketCap/CoinGecko hourly-or-finer for a 2023 window) is paywalled; Kaiko tick/venue-level data paywalled. Note Coinbase has NO USDC-USD candle series (USD and USDC are unified in its books)"
+  },
+  "crypto_prices": {
+   "free": "BTC/ETH 1m/1h/1d from Binance, Coinbase Exchange, Kraken public APIs — full 2023 history",
+   "not_free": "nothing needed beyond free tier"
+  },
+  "tvl": {
+   "free": "DeFiLlama API — free historical TVL (global, per-chain, per-protocol: Aave v2/v3, Compound, Maker, Curve) at daily granularity; DeFiLlama /stablecoins endpoints — free historical circulating supply AND daily price per stablecoin (directly replays the USDC supply collapse Mar-Jun 2023)",
+   "not_free": "intraday TVL does not exist anywhere"
+  },
+  "lending_markets": {
+   "free": "Aave v2/v3 subgraphs (The Graph free tier) — per-tx liquidations, rates, utilization for Mar 2023; Dune (free account) — community dashboards for the repayment wave, PSM flows, Curve 3pool composition over time; Gauntlet's governance posts (public) for insolvency figures",
+   "not_free": "Gauntlet/Chaos Labs full risk datasets"
+  },
+  "dex_liquidity": {
+   "free": "Curve 3pool composition replayable from on-chain via Dune free tier or an archive-node query; Uniswap v3 subgraph for volumes/liquidity",
+   "not_free": "order-book depth on CEXs (Kaiko/CryptoTick)"
+  },
+  "gas": {
+   "free": "Etherscan daily average gas price chart (CSV export, free) — shows the Mar 11 spike at daily resolution; Dune free tier for hourly/median gas and MEV metrics; Flashbots MEV-Explore public data",
+   "not_free": "commercial mempool/MEV datasets"
+  },
+  "liquidations_cex": {
+   "free": null,
+   "not_free": "historical CEX futures liquidation series (Coinglass) is paywalled for 2023 — mark CEX liquidation totals as not freely obtainable"
+  },
+  "redemptions_primary_market": {
+   "free": "Circle attestations (monthly, public) + DeFiLlama stablecoin supply series approximate net redemptions at daily granularity; on-chain USDC mint/burn events free via any node/Etherscan",
+   "not_free": "intraday redemption queue data (never public)"
+  }
+ },
+ "spa_relevance": {
+  "summary": "THE canonical scenario for this portfolio: every non-cash position is USDC-denominated, and in March 2023 the 'risk-free' leg itself broke 13% for ~3 days while exit rails (primary redemption, CEX conversion, cheap gas) all closed simultaneously.",
+  "positions": {
+   "aave_v3_usdc": "Direct hit through THREE channels: (1) mark-to-market — aUSDC is worth what USDC is worth, -12-13% at the trough; (2) market mechanics — $2B+ repayment wave crashed utilization and supply APY overnight (APY collapse channel), while liquidations of stable-stable e-mode positions generated ~$300k insolvencies socializable to suppliers; (3) governance — on Avalanche the market was frozen (LTV->0) intra-crisis; a guardian pause (recommended by Gauntlet!) would have blocked even exits. Withdrawal itself kept working on mainnet — but only because the Guardian declined the pause.",
+   "pendle_pt": "PT is a fixed-rate claim on an underlying yield position (e.g. aUSDC): at maturity it inherits the full USDC depeg 1:1, and pre-maturity it trades WORSE — PT secondary price = discounted underlying x panic yield spike, in an AMM whose liquidity evaporates exactly when needed. Exiting a PT on Mar 11 meant selling into a thin pool at 300 gwei with MEV bots harvesting every large stable swap (see the $2M->$0.05 sandwich). Model: PT price shock >= underlying depeg, plus a liquidity/slippage penalty of several percent.",
+   "maple": "Maple pools lend USDC to institutional borrowers with lockups/withdrawal queues — the NAV silently marks -13% with USDC and there is NO intra-crisis exit at all (queue-gated). Also second-order counterparty channel: March 2023 hit exactly the market-maker borrower base Maple lends to, and Maple's own cash-management product held T-bills via banking rails of the kind that were failing. A 3-day depeg is survivable; the scenario variant where the backstop does NOT come Sunday night is the one that produces borrower defaults and real bad debt here.",
+   "morpho_steakhouse_usdc": "Inherits the underlying money-market behavior (in 2023 terms, Morpho-Aave/Compound; today, Morpho Blue markets). Critical detail from this event: if any underlying market prices USDC like Compound v2 did (hard-coded $1), the vault share price will NOT reflect the depeg — NAV looks flat while real value is -13%, and whoever redeems first exits at fantasy NAV at the expense of remaining LPs. Also curator-action risk: guardians froze/paused markets with hours' notice.",
+   "cash_10pct": "Only if 'cash' means actual fiat off-rails. If 'cash' is idle USDC, it depegs identically — 2023 proved the cash bucket is the SAME risk, not a hedge. USDT or T-bill exposure would have been the actual hedge that weekend."
+  },
+  "unpriced_if_usdc_hardcoded_1": [
+   "The entire -13% mark-to-market on ~90% of the portfolio (worst-case realized loss if forced to liquidate at the trough: roughly -$11k on $90k deployed)",
+   "Primary redemption closure: USDC->USD convertibility is NOT continuous — it has weekend/banking-hours gaps; any model assuming instant $1 exit is wrong 2 days out of 7",
+   "Correlated depeg of 'diversifiers': DAI/FRAX fell WITH USDC (rotating into them mid-crisis was not a hedge)",
+   "Protocol-level freezes: markets can be frozen (no new positions) or paused (no exits) mid-crisis by guardians within hours — rebalancing plans that assume protocols are always withdrawable fail exactly when needed",
+   "Gas/MEV exit tax: 13x gas and record sandwich extraction mean small-size emergency exits lose additional 1-5%+; a $100k portfolio's rebalance costs explode",
+   "APY whipsaw: supply APY on USDC money markets collapsed (repayment wave) then normalized — yield-chasing logic reading that signal mid-crisis would rotate at the worst moment",
+   "NAV illusion in wrappers over hard-coded-$1 oracles: vault share prices that don't mark the depeg create first-mover redemption advantage",
+   "Kill-switch interaction: a USDC depeg drives evidenced NAV drawdown straight through the SOFT (-5%) band at $0.95 and to HARD (-10%) at $0.90 — an all-cash HARD_KILL response that sells USDC positions INTO the trough crystallizes the loss ~48h before the recovery; the scenario argues for depeg-aware handling (distinguish 'asset repricing' from 'strategy failure')"
+  ]
+ },
+ "replay": {
+  "duration_days": 7,
+  "start_date": "2023-03-10",
+  "base": {
+   "aave_v3": {
+    "apy_pct": 3.0
+   },
+   "pendle": {
+    "apy_pct": 5.0
+   },
+   "maple": {
+    "apy_pct": 8.0
+   },
+   "morpho_steakhouse": {
+    "apy_pct": 4.0
+   }
+  },
+  "shocks": [
+   {
+    "kind": "peg",
+    "params": {
+     "symbol": "USDC",
+     "path": [
+      [
+       0,
+       1.0
+      ],
+      [
+       1,
+       0.88
+      ],
+      [
+       2,
+       0.97
+      ],
+      [
+       3,
+       0.999
+      ]
+     ]
+    }
+   },
+   {
+    "kind": "peg",
+    "params": {
+     "symbol": "PT_USDC",
+     "path": [
+      [
+       0,
+       1.0
+      ],
+      [
+       1,
+       0.91
+      ],
+      [
+       3,
+       0.995
+      ]
+     ]
+    }
+   },
+   {
+    "kind": "apy",
+    "params": {
+     "protocol": "aave_v3",
+     "apy_pct": 25.0,
+     "from_day": 0,
+     "to_day": 2
+    }
+   },
+   {
+    "kind": "apy",
+    "params": {
+     "protocol": "aave_v3",
+     "apy_pct": 1.5,
+     "from_day": 3,
+     "to_day": 6
+    }
+   },
+   {
+    "kind": "liquidity",
+    "params": {
+     "from_day": 0,
+     "to_day": 2,
+     "exit_haircut_pct": 0.02,
+     "gas_cost_usd": 300.0
+    }
+   }
+  ],
+  "assumptions": [
+   "USDC-путь: композит $0.88 на дне (venue-低 $0.86-0.885 — wick против дневного закрытия помечен в датасете).",
+   "PT_USDC 0.91 — PT на USDC-подложке торгуется сквозь депег подложки.",
+   "Дневная гранулярность: внутридневной низ 07:16 UTC субботы система видит утренним циклом позже."
+  ]
+ }
+}

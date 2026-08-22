@@ -1,0 +1,436 @@
+{
+ "schema_version": 1,
+ "id": "H04_may_2021_cascade",
+ "name": "May 2021 Leverage Cascade (Tesla U-turn + China bans, May 19 crash day)",
+ "event_class": [
+  "market_crash"
+ ],
+ "window_utc": {
+  "start": "2021-05-12T22:00:00Z",
+  "trough": "2021-05-19T13:00:00Z",
+  "end": "2021-05-24T00:00:00Z"
+ },
+ "speed": "BTC ~-30% intraday on May 19 (≈$43k -> $30,001 in roughly 12h, bulk in ~6h); ETH -47% intraday; -54% (BTC) / -56% (ETH) from ATHs in 5 weeks / 1 week respectively; ~$8-9B liquidations and >60% of futures OI destroyed within days",
+ "summary": "19 мая 2021: BTC −30% внутри дня ($43k→$30k), ETH −47%, $8-9B ликвидаций за сутки, >60% открытого интереса уничтожено. Пеги держали ВСЕ стейблы. Контрольный сценарий «чистый рыночный крах»: NAV стейбл-книги цел, но операционная среда (газ, ставки, ликвидность) штормит 48 часов, а форвардный APY падает на месяцы. Книга SPA на 2026-08: aave_v3 40% / pendle (PT_USDC) 20% / maple 15% / morpho_steakhouse 15% / кэш USDC 10%.",
+ "timeline": [
+  {
+   "ts": "2021-04-14",
+   "event": "Context: BTC prints cycle ATH ~$64,800-64,900 (venue-dependent); aggregate BTC futures open interest peaks at $27.4B mid-April (Glassnode) — the leverage that later unwinds",
+   "observed": true,
+   "source_url": "https://research.glassnode.com/surveying-the-may-2021-sell-off/"
+  },
+  {
+   "ts": "2021-05-12T22:06:00Z",
+   "event": "Elon Musk announces Tesla suspends BTC vehicle payments over coal/energy concerns (~6pm ET). BTC drops ~5% within minutes from ~$54.8k and ~17% over the following day; ETH had printed its ATH ($4,330-4,384 depending on feed) earlier the same day",
+   "observed": true,
+   "source_url": "https://www.cnbc.com/2021/05/12/elon-musk-says-tesla-will-stop-accepting-bitcoin-for-car-purchases.html"
+  },
+  {
+   "ts": "2021-05-13",
+   "event": "BTC slides to lowest since early March (~$46-49k); Musk's ambiguous tweets May 16-17 about Tesla possibly selling its BTC keep pressure on; BTC grinds to ~$42-45k by May 18",
+   "observed": true,
+   "source_url": "https://www.forbes.com/sites/joewalsh/2021/05/12/tesla-will-stop-accepting-bitcoin-as-payment-due-to-environmental-worries-musk-says/"
+  },
+  {
+   "ts": "2021-05-18",
+   "event": "Three Chinese industry bodies (NIFA, China Banking Assoc., Payment & Clearing Assoc.) issue joint statement barring financial and payment institutions from any crypto-related services (trading, clearing, settlement, savings/trust/pledging)",
+   "observed": true,
+   "source_url": "https://www.cnbc.com/2021/05/18/china-bans-financial-payment-institutions-from-cryptocurrency-business.html"
+  },
+  {
+   "ts": "2021-05-19T06:00:00Z",
+   "event": "Sell-off accelerates through the European morning: BTC breaks $40k from ~$43k as spot selling (retail-driven per Chainalysis) meets long liquidations; time approximate",
+   "observed": false,
+   "source_url": "https://www.chainalysis.com/blog/cryptocurrency-price-crash-may-2021/"
+  },
+  {
+   "ts": "2021-05-19T13:00:00Z",
+   "event": "Cascade climax (~9am ET, time approximate): BTC prints $30,001.51 (Coin Metrics via CNBC), lowest since late January, ~-30% intraday and ~-54% from April ATH; ETH prints $1,902.08 (CoinDesk data via Forbes), >56% below its week-old ATH; some feeds show BTC wicks to ~$29,563-30,066",
+   "observed": true,
+   "source_url": "https://www.cnbc.com/2021/05/19/bitcoin-btc-price-plunges-but-bottom-could-be-near-.html"
+  },
+  {
+   "ts": "2021-05-19T13:30:00Z",
+   "event": "Exchange infrastructure buckles: Binance disables ETH/ERC-20 withdrawals citing network congestion (~1h) and suspends leveraged-token trading; Coinbase/Coinbase Pro report intermittent downtime and delayed ETH/ERC-20 withdrawals; Kraken, Gemini, WazirX, CoinDCX degraded. Later research (Baumgartner & Guettler; IWH) documents Binance halting retail trading and its futures dislocating ~7x wider vs other venues",
+   "observed": true,
+   "source_url": "https://x.com/binance/status/1395002603558391812"
+  },
+  {
+   "ts": "2021-05-19T14:00:00Z",
+   "event": "On-chain gas war: Ethereum gas oscillates 1,500-1,700 gwei for ~an hour with peaks >2,000 gwei (Delphi Digital) as liquidators/arbitrageurs and margin traders race; average ERC-20 transfer >$140, average Uniswap swap $411-457",
+   "observed": true,
+   "source_url": "https://www.fxstreet.com/cryptocurrencies/news/fallout-ethereum-fees-skyrocketed-as-traders-raced-to-unwind-leveraged-positions-202105200728"
+  },
+  {
+   "ts": "2021-05-19T20:00:00Z",
+   "event": "Partial V-recovery within hours: BTC rebounds from ~$30k toward $38-40k; ETH, down 47% intraday at the low, finishes the session ~-28% (Deribit). Funding rates on perps flip from persistently positive to negative — shorts paying longs",
+   "observed": true,
+   "source_url": "https://insights.deribit.com/exchange-updates/the-flash-crash-of-may-19-2021/"
+  },
+  {
+   "ts": "2021-05-19T23:59:00Z",
+   "event": "24h derivatives wipe: >$8B liquidations across ~800,000 traders per bybt (some aggregations put it at ~$9.0B; Bybit CEO estimated $8-10B; true figure higher since Binance throttled its liquidation feed from late April 2021). Record DeFi liquidation day: $377M collateral liquidated across Aave/Compound/Maker; Maker settles $41M debt via 177 auctions with only ~$12k of losses; DAI trades $0.996-1.015 — no depeg, no meaningful bad debt",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2021/05/19/bitcoin-drops-below-31k-before-rebounding-8b-in-liquidations-triggered"
+  },
+  {
+   "ts": "2021-05-20",
+   "event": "Relief rally: ETH +~14%, BTC back above $40k intraday; stablecoins trade at slight premium as flight-to-stables continues",
+   "observed": true,
+   "source_url": "https://cryptoticker.io/en/ethereum-price-2100-200-ema-test/"
+  },
+  {
+   "ts": "2021-05-21",
+   "event": "Second China shock: State Council Financial Stability Committee chaired by Vice Premier Liu He vows to 'crack down on bitcoin mining and trading behavior' — first explicit State Council targeting of mining. BTC slides >6% on the headline and the bounce dies",
+   "observed": true,
+   "source_url": "https://www.cnbc.com/2021/05/21/bitcoin-falls-after-china-calls-for-crackdown-on-bitcoin-mining-and-trading-behavior.html"
+  },
+  {
+   "ts": "2021-05-23",
+   "event": "Second leg down into the weekend: BTC hits ~$31,100-32,000 (venue-dependent Sunday low), ~-52% from ATH; week closes ~$34,700, worst week (-25.4%) since March 2020 (FXEmpire feed). ETH retests ~$2,100-2,200",
+   "observed": true,
+   "source_url": "https://www.fxempire.com/forecasts/article/bitcoin-and-ethereum-weekly-technical-analysis-may-24th-2021-732475"
+  },
+  {
+   "ts": "2021-05-26",
+   "event": "BTC reclaims $40,000 (AFP); acute phase over. Aggregate futures OI ends the episode >60% below the $27.4B April peak (Glassnode) — the leverage reset that defines the event",
+   "observed": true,
+   "source_url": "https://research.glassnode.com/surveying-the-may-2021-sell-off/"
+  },
+  {
+   "ts": "2021-06-22",
+   "event": "Aftermath (outside window): China mining ban escalation drives BTC briefly below $30k ($28.8k area); range $29-42k persists until late July; new ATHs only in Oct-Nov 2021",
+   "observed": true,
+   "source_url": "https://www.cnbc.com/2021/06/21/bitcoin-btc-price-drops-on-china-crypto-mining-crackdown.html"
+  }
+ ],
+ "market_impact": {
+  "btc": {
+   "from_usd": 58000,
+   "to_usd": 30001.51,
+   "drawdown_pct": -48.3,
+   "window": "2021-05-12 high (~$56.7-58k, feed-dependent) -> 2021-05-19T~13:00Z low ($30,001.51 Coin Metrics; $29,563-30,066 wicks on some feeds)",
+   "intraday_may19_pct": -30,
+   "from_apr14_ath_pct": -53.7,
+   "ath_ref_usd": 64850,
+   "may19_close_usd": 36700,
+   "may23_low_usd": 31100,
+   "notes": "may19_close and may23_low are venue-dependent approximations (~$36.7-38.8k close; $31.1-32k Sunday low); week ending May 23 was -25.4% (FXEmpire feed)"
+  },
+  "eth": {
+   "from_usd": 4330.75,
+   "to_usd": 1902.08,
+   "drawdown_pct": -56.1,
+   "window": "2021-05-12 ATH ($4,330-4,384 feed-dependent) -> 2021-05-19 low ($1,902.08 CoinDesk data)",
+   "intraday_may19_pct": -47,
+   "may19_close_pct": -28,
+   "notes": "biggest one-day ETH loss to date: -47% intraday, closed ~-28% (Deribit Insights)"
+  },
+  "total_crypto_market_cap": {
+   "from_usd": null,
+   "to_usd": null,
+   "drawdown_pct": null,
+   "window": "2021-05-12 -> 2021-05-23",
+   "notes": "roughly $1T lost market-wide over the crash period and >$500B off BTC's peak market value (CNBC/Fortune); exact peak/trough caps not pinned to a single source — use CoinGecko/CMC series to replay"
+  },
+  "btc_futures_open_interest": {
+   "from_usd": 27400000000,
+   "to_usd": null,
+   "drawdown_pct": -60,
+   "window": "mid-April 2021 peak -> late May 2021",
+   "notes": ">60% of the $27.4B mid-April aggregate OI cleared by end of the sell-off (Glassnode). A conflicting '$42B->$25B' claim in a Phemex retrospective was discarded as inconsistent with contemporaneous data"
+  }
+ },
+ "stablecoins": [
+  {
+   "symbol": "USDT",
+   "min_price_usd": null,
+   "duration_below_099": "none on major venues",
+   "when": "2021-05-19",
+   "notes": "Held peg; traded at slight premium amid flight to stables; served as exit liquidity (Glassnode). Venue-level wicks existed but no sustained deviation."
+  },
+  {
+   "symbol": "USDC",
+   "min_price_usd": null,
+   "duration_below_099": "none",
+   "when": "2021-05-19",
+   "notes": "Held peg; mild premium. May 2021 is a NON-depeg stress scenario for USDC-based portfolios."
+  },
+  {
+   "symbol": "DAI",
+   "min_price_usd": 0.996,
+   "duration_below_099": "0 (never below $0.99)",
+   "when": "2021-05-19",
+   "notes": "Oscillated $0.996-1.015 (Cointelegraph, May 24 2021); Maker liquidations worked; supply contracted as vaults were closed/liquidated."
+  }
+ ],
+ "defi_impact": {
+  "tvl": "Aggregate DeFi TVL fell roughly 40% from its ~May 11-12 peak to the May 23-24 trough (DeFiLlama total TVL series replays this precisely; ETH-denominated TVL fell ~30% from highs per later TechCrunch/DeFiLlama retrospective). Exact USD endpoints not pinned by a contemporaneous source — take from DeFiLlama API.",
+  "liquidations_defi": "Record single day: $377M collateral liquidated across Aave+Compound+Maker on May 19 (Cointelegraph Consulting/Dune); May 2021 total >$1.17B. 1,168 addresses liquidated on Aave, 714 on Compound; MakerDAO liquidated 2,255 vault positions in May.",
+  "liquidations_cex": "$8-9B futures liquidations in 24h (~800k traders, bybt); undercounted because Binance capped its public liquidation feed from late April 2021.",
+  "bad_debt_usd": 12000,
+  "bad_debt_notes": "Maker Liquidations 2.0 (deployed weeks earlier) settled $41M of debt via 177 Dutch auctions, earned $5.1M in fees, and incurred only ~$12k of losses across 2 auctions (Messari) — no material bad debt anywhere in blue-chip DeFi; sharp contrast to Black Thursday 2020.",
+  "gas": "Peak >2,000 gwei; 1,500-1,700 gwei sustained ~1 hour (Delphi Digital); average ERC-20 transfer >$140, average Uniswap swap $411-457; $1,000+ fee transactions reported stuck.",
+  "oracles": "No major oracle failure reported on Chainlink/Maker OSM (unlike March 2020) — liquidations executed against live prices; however Binance halted its own market/transaction data feed during the worst window, blinding strategies keyed to it (IWH/SSRN studies).",
+  "withdrawal_freezes": "CEX-side only: Binance ETH/ERC-20 withdrawals disabled (~1h) and leveraged-token trading suspended; Coinbase delayed ETH/ERC-20 withdrawals with intermittent platform downtime; no DeFi protocol froze withdrawals; no protocol paused or became insolvent.",
+  "dex_liquidity": "DEXs absorbed record flow: Uniswap v3 record ~$2.6B daily volume May 19; May 2021 on pace for record ~$140B monthly DEX volume (Messari). Slippage/exit costs dominated by gas, not AMM depth, for majors and stables.",
+  "stablecoins": "USDT/USDC held peg on major venues (slight premiums — flight to stables); DAI oscillated $0.996-1.015 on May 19; only small algorithmic stables suffered.",
+  "chains_bridges": "Ethereum L1 remained live but congested; no bridge or chain outage central to the event (BSC congested; its lending forks saw heavy liquidations — e.g. Venus VAI/XVS distress days later)."
+ },
+ "causes": {
+  "primary": "Unwind of record perpetual-futures leverage built up into the April 2021 top ($27.4B BTC OI), triggered by back-to-back sentiment/regulatory shocks: Tesla suspending BTC payments (May 12) and China's industry-body ban on institutional crypto services (May 18), climaxing in a self-reinforcing long-liquidation cascade on May 19.",
+  "secondary": [
+   "Retail-dominated spot selling into weak depth (Chainalysis: selling driven by retail, not institutions)",
+   "Exchange outages/degradation (Coinbase intermittent downtime, Binance retail-trading and data-feed halt, ETH/ERC-20 withdrawal freezes) removed bid-side liquidity and amplified panic; Binance futures dislocated ~7x vs other venues (Baumgartner & Guettler, SSRN 4260876)",
+   "Ethereum congestion (>2,000 gwei) slowed on-chain deleveraging and made position defense expensive",
+   "China State Council (Liu He) mining/trading crackdown statement May 21 killed the rebound and forced the May 23 retest",
+   "Musk 'Tesla may sell' innuendo May 16-17 kept sentiment bleeding between the two shocks"
+  ],
+  "mechanism": "Leverage builds Jan-Apr (OI $27.4B, funding persistently positive) -> Tesla U-turn May 12 breaks momentum, BTC -17% over the week -> China industry-body ban May 18 adds regulatory fear -> May 19: spot selling pushes BTC through $40k, triggering margin calls; forced selling of longs feeds back into price (~$8-9B liquidated / ~800k traders in 24h, ~50% BTC pairs) -> exchanges degrade under load, retail cannot add margin or buy the dip, order books thin -> BTC -30% intraday to $30,001, ETH -47% -> on-chain: collateral values crash, record $377M DeFi liquidations execute in gas wars at 1,500-2,000+ gwei -> shorts/sellers exhaust, funding flips negative, V-bounce to $38-40k -> May 21 State Council statement re-ignites selling -> May 23 retest ~$31k -> OI >60% cleared, market enters 2-month $29-42k range."
+ },
+ "contagion": [
+  "Tesla BTC-payment suspension (May 12) -> momentum break, -17% week",
+  "China industry-body service ban (May 18) -> regulatory fear premium",
+  "Spot selling breaks $40k (May 19) -> perp long margin calls -> $8-9B liquidation cascade, ~50% in BTC pairs",
+  "Liquidation flow -> exchange overload: Coinbase/Binance degraded, Binance ETH/ERC-20 withdrawals frozen -> buyers locked out, books thin -> deeper wick to $30k",
+  "Collateral crash -> record on-chain deleveraging: $377M Aave/Compound/Maker liquidations -> gas war >2,000 gwei -> exits cost $140-457 per tx",
+  "Panic rotation to stables -> stablecoin premiums (no depeg; DAI 0.996-1.015)",
+  "Seller exhaustion -> funding flips negative -> V-bounce to $38-40k",
+  "China State Council mining/trading crackdown (May 21) -> second leg -> May 23 low ~$31k -> miner capitulation phase into June (June 22 sub-$30k)"
+ ],
+ "recovery": {
+  "recovered": "partially within hours/days; fully by Q4 2021",
+  "time_to_recover": "Bounce to $38-40k same day (+~30% off low); $40k reclaimed May 26 (7 days); but the leverage reset held BTC in a $29-42k range ~2.5 months (deeper low $28.8k on June 22 during China mining-ban escalation); prior ATH not exceeded until ~Oct 20 2021 (BTC ~$67k) and ETH ~Nov 2021 ($4,878) — ~5-6 months",
+  "notes": "Classic post-cascade pattern: violent intraday V (short-covering into negative funding), failed relief rally killed by the next headline (May 21 State Council), retest of lows (May 23), then long sideways accumulation with funding neutral-to-negative before recovery. For a yield portfolio the more durable effect was the collapse of leverage demand: stablecoin lending/perp-basis yields fell from double digits pre-crash to low single digits for months."
+ },
+ "sources": [
+  {
+   "url": "https://www.cnbc.com/2021/05/19/bitcoin-btc-price-plunges-but-bottom-could-be-near-.html",
+   "title": "Bitcoin price plunges to $30,000, hits lowest level since January (CNBC, May 19 2021)",
+   "supports": "BTC intraday low $30,001.51 (Coin Metrics), lowest since late January; ~30% intraday plunge",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/markets/2021/05/19/bitcoin-drops-below-31k-before-rebounding-8b-in-liquidations-triggered",
+   "title": "Bitcoin Drops Below $31K Before Rebounding; $8B in Liquidations Triggered (CoinDesk)",
+   "supports": "$8B 24h liquidations per bybt; ~50% BTC share; biggest one-day drop since March 12 2020; spot-led selling $55k->sub-$40k",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.theblock.co/post/338482/bybit-ceo-estimates-crypto-traders-were-liquidated-for-8-10-billion-in-last-day-alone",
+   "title": "Bybit CEO estimates $8-10B liquidated in last day (The Block)",
+   "supports": "Upper bound of the $8-10B liquidation range; corroborates bybt undercount thesis",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://finance.yahoo.com/news/over-800-000-crypto-traders-180000565.html",
+   "title": "Over 800,000 Crypto Traders Liquidated in Last 24 Hours (Decrypt/Yahoo)",
+   "supports": "804,242 traders liquidated; >$8B positions",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.cnbc.com/2021/05/12/elon-musk-says-tesla-will-stop-accepting-bitcoin-for-car-purchases.html",
+   "title": "Musk says Tesla will stop accepting bitcoin (CNBC, May 12 2021)",
+   "supports": "Tesla suspension timing and content; ~5% immediate BTC drop from ~$54.8k",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.cnbc.com/2021/05/18/china-bans-financial-payment-institutions-from-cryptocurrency-business.html",
+   "title": "China bans financial, payment institutions from cryptocurrency business (CNBC, May 18 2021)",
+   "supports": "May 18 three-industry-body joint statement content and scope",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.cnbc.com/2021/05/21/bitcoin-falls-after-china-calls-for-crackdown-on-bitcoin-mining-and-trading-behavior.html",
+   "title": "Bitcoin falls after China calls for crackdown on mining and trading (CNBC, May 21 2021)",
+   "supports": "May 21 State Council/Liu He statement; >6% same-day BTC drop; first explicit State Council mining target",
+   "confidence": "high"
+  },
+  {
+   "url": "https://fortune.com/2021/05/19/coinbase-binance-outage-crypto-bitcoin-crash/",
+   "title": "Coinbase and Binance outages show fragility of crypto exchanges (Fortune)",
+   "supports": "Coinbase/Binance outages during ~30% plunge to nearly $30,000; >$500B wiped from BTC peak market value",
+   "confidence": "high"
+  },
+  {
+   "url": "https://x.com/binance/status/1395002603558391812",
+   "title": "Binance: '$ETH and ERC20 withdrawals are temporarily disabled due to network congestion' (May 19 2021)",
+   "supports": "Primary source for Binance withdrawal freeze",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.fxstreet.com/cryptocurrencies/news/fallout-ethereum-fees-skyrocketed-as-traders-raced-to-unwind-leveraged-positions-202105200728",
+   "title": "Ethereum fees skyrocketed as traders raced to unwind leveraged positions (FXStreet, May 20 2021, citing Delphi Digital)",
+   "supports": "Gas >2,000 gwei peak; 1,500-1,700 gwei for ~1 hour; liquidator gas wars; $1,000+ fees stuck",
+   "confidence": "high"
+  },
+  {
+   "url": "https://cointelegraph.com/news/cointelegraph-consulting-defi-hit-by-a-tsunami-of-liquidations-in-may",
+   "title": "Cointelegraph Consulting: DeFi hit by a tsunami of liquidations in May",
+   "supports": "$377M single-day Aave+Compound+Maker liquidations on May 19 (2-year record); 1,168 Aave / 714 Compound addresses; 2,255 Maker positions in May; >$1.17B May total",
+   "confidence": "high"
+  },
+  {
+   "url": "https://messari.io/report/makerdao-valuation",
+   "title": "MakerDAO Valuation (Messari)",
+   "supports": "May 19: $41M debt settled via 177 auctions, $5.1M liquidation fees, 2 losses totaling ~$12k (Liquidations 2.0)",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://cointelegraph.com/news/crypto-crash-sees-centralized-stablecoins-retain-pegs-while-algorithmic-tokens-suffer",
+   "title": "Crypto crash sees centralized stablecoins retain pegs while algorithmic tokens suffer (Cointelegraph, May 24 2021)",
+   "supports": "DAI $0.996-1.015 on May 19; USDT/USDC held pegs; BTC $58k May 12 -> $36k area May 19 framing",
+   "confidence": "high"
+  },
+  {
+   "url": "https://research.glassnode.com/surveying-the-may-2021-sell-off/",
+   "title": "Surveying the May 2021 Sell-off (Glassnode)",
+   "supports": ">60% of $27.4B mid-April futures OI cleared; deleveraging cascade framing; stablecoins as exit liquidity",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.forbes.com/sites/cbovaird/2021/05/19/did-ether-enter-a-bear-market-after-losing-more-than-50-of-its-value/",
+   "title": "Did Ether Enter A Bear Market After Losing More Than 50% Of Its Value? (Forbes)",
+   "supports": "ETH low $1,902.08 (CoinDesk data), >56% below ~$4,400 ATH",
+   "confidence": "high"
+  },
+  {
+   "url": "https://insights.deribit.com/exchange-updates/the-flash-crash-of-may-19-2021/",
+   "title": "The (Flash) Crash of May 19, 2021 (Deribit Insights)",
+   "supports": "ETH -47% intraday, closed -28%; first major crash of the institutional era",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4260876",
+   "title": "Trust in a Trustless Network: The Case of the Bitcoin Flash Crash of May 19, 2021 (Baumgartner & Guettler, SSRN)",
+   "supports": "Binance halted retail trading and transaction data; Binance futures price dislocation ~7x wider than reference period",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.fxempire.com/forecasts/article/bitcoin-and-ethereum-weekly-technical-analysis-may-24th-2021-732475",
+   "title": "Bitcoin and Ethereum Weekly Technical Analysis May 24th 2021 (FXEmpire)",
+   "supports": "Week ending May 23: -25.42%, week close $34,747, intraweek low $29,563 (their feed)",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.chainalysis.com/blog/cryptocurrency-price-crash-may-2021/",
+   "title": "The May 2021 Cryptocurrency Crash Explained (Chainalysis)",
+   "supports": "Selling driven by retail, not institutions",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://cointelegraph.com/news/uniswap-v3-overtakes-sushiswap-by-volume-on-track-to-surpass-v2-this-month",
+   "title": "Uniswap v3 overtakes SushiSwap by volume (Cointelegraph)",
+   "supports": "Uniswap v3 record ~$2.6B daily volume on May 19",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.malaymail.com/amp/news/money---international/2021/05/26/bitcoin-reclaims-us40000-as-crypto-volatility-lingers/1977157",
+   "title": "Bitcoin reclaims US$40,000 as crypto volatility lingers (AFP/Malay Mail, May 26 2021)",
+   "supports": "BTC back above $40k May 26 — end of acute phase",
+   "confidence": "medium"
+  }
+ ],
+ "confidence_notes": "Solid (multi-source): May 19 BTC low $30,001.51 (Coin Metrics via CNBC; Fortune 'nearly $30,000'; CoinDesk 'below $31k' on its BPI); ETH low $1,902.08 (CoinDesk data via Forbes); >$8B 24h liquidations (bybt via CoinDesk) with honest range $8-9B (some aggregations $9.01B) and Bybit CEO's $8-10B estimate — bybt undercounts because Binance throttled its liquidation feed from late April 2021; gas >2,000 gwei peak / 1,500-1,700 sustained (Delphi via FXStreet); $377M DeFi liquidations May 19 (Cointelegraph Consulting); Maker $41M/177 auctions/$12k losses (Messari); DAI 0.996-1.015 and centralized stables holding peg (Cointelegraph); OI: >60% of $27.4B mid-April peak cleared (Glassnode) — a conflicting '$42B->$25B' figure from a Phemex retrospective was discarded as inconsistent. Contested/approximate: all intraday TIMES (the ~13:00 UTC trough is inferred from CNBC's ~9am ET reporting — verify against 1m klines); May 12 pre-crash reference high ($56.7-58k feed-dependent) and ETH ATH ($4,330.75 CMC vs ~$4,384 other feeds); May 19 close (~$36.7-38.8k) and May 23 Sunday low (~$31.1-32k) are venue-dependent — I report ranges; FXEmpire's feed shows a $29,563 weekly low, below Coin Metrics' $30,001; total market-cap loss (~$1T market-wide, >$500B BTC) is order-of-magnitude press framing, not a precise series — set null and replay from CoinGecko; DeFi TVL drawdown (~-40% USD) is inferred from DeFiLlama-shaped retrospectives, not a contemporaneous number — pull exact endpoints from the DeFiLlama API; funding 'flipped negative' is directionally multi-source but I have no free archival print of the exact May 19 funding values (replayable via Binance funding-rate API). Musk tweet time 22:06 UTC May 12 is approximate (evening ET). Inference vs fact: the causal mechanism (leverage cascade amplified by exchange outages) is the consensus reading, supported by the SSRN/IWH microstructure studies, but 'outages deepened the wick' is analytical inference, not a measured counterfactual.",
+ "data_availability": {
+  "price_series": "FREE and high quality. Binance public data archive (data.binance.vision) has full 1m klines CSVs for BTCUSDT/ETHUSDT etc. covering May 2021 — best replay source. Coinbase Exchange REST /candles gives 1m for BTC-USD/ETH-USD (rate-limited pulls). Bitstamp OHLC API free. CoinGecko free tier: only DAILY granularity that far back. Note venue divergence on May 19 (Binance futures dislocated) — replay should use at least 2 venues.",
+  "stablecoin_prices": "FREE: Binance 1m klines for USDC/USDT, BUSD/USDT pairs (data.binance.vision); Kraken OHLC for USDT/USD, DAI/USD; on-chain Curve 3pool swap prices via Dune (free tier) or BigQuery public Ethereum dataset. CoinGecko daily for sanity check. DAI $0.996-1.015 range is press-sourced and replayable on-chain.",
+  "tvl": "FREE: DeFiLlama API (api.llama.fi) — historical daily total TVL and per-protocol (aave, compound, makerdao) covers May 2021; use it for exact peak/trough since contemporaneous articles don't pin USD endpoints.",
+  "liquidations_cex": "NOT freely obtainable at granularity. Coinglass (ex-bybt) historical liquidation series is paywalled; Binance capped its liquidation websocket feed from late April 2021 so even paid aggregates undercount May 19. Headline $8-9B exists only as press snapshots.",
+  "liquidations_defi": "FREE: fully replayable on-chain — Aave v2 LiquidationCall, Compound LiquidateBorrow, Maker Clipper auction events via Dune free tier / BigQuery public dataset / TheGraph.",
+  "gas": "FREE: Etherscan daily average gas price chart CSV (free download); intraday percentiles via BigQuery public bigquery-public-data.crypto_ethereum (free quota). Pre-EIP-1559, so use gas_price on transactions, not base fee.",
+  "funding_rates": "FREE: Binance futures API /fapi/v1/fundingRate returns full history incl. May 2021 (8h prints); Bybit/OKX partial history free. Confirms the negative flip post-May 19.",
+  "open_interest": "NOT freely obtainable for 2021: Binance OI endpoint only serves ~30 days; Coinglass/Glassnode historical OI paywalled; The Block chart page shows the series but no free API export. Rely on Glassnode's published '$27.4B peak, >60% cleared' figure.",
+  "exchange_outage_record": "FREE: status.coinbase.com history, Binance/Coinbase tweets, and the SSRN/IWH papers for the Binance microstructure record."
+ },
+ "spa_relevance": {
+  "headline": "The best 'pure market crash, pegs hold' control scenario: a $100k USDC yield portfolio survives with NAV ~intact, but every operational assumption about exits gets stressed for ~48h and forward APY collapses for months.",
+  "positions": {
+   "aave_v3_usdc_supply": "Hit channels: (1) brief utilization/borrow-rate spike during the cascade, then a months-long APY collapse as >60% of futures OI (the leverage demand behind stable borrow rates) is destroyed — post-May stable supply APYs fell from ~8-15% to ~2-4%; (2) protocol solvency held (May-2021-analog liquidation engines produced only ~$12k losses on $41M at Maker; Aave/Compound cleared $300M+ without bad debt), so principal channel is quiet; (3) same-day exit costs 10-100x normal gas ($140+ per transfer, $400+ per swap at 2,000 gwei).",
+   "pendle_pt": "Pendle did not exist yet (mainnet June 2021) — map by analogy: implied yields gap UP in the panic then collapse after; PT mark-to-market whipsaws and AMM exit liquidity thins exactly when you'd want to sell; hold-to-maturity PT on a solvent underlying loses nothing to this event, but any NAV marked off PT spot prices shows a drawdown the portfolio can't realize away.",
+   "maple": "Maple had just launched (May 2021, ~$0 scale). Analog channel: its borrowers are market makers — a -30% day with $8-9B liquidations is exactly when MM credit stress peaks; termed loans mean lender USDC is NOT withdrawable on demand. Unpriced if the system assumes always-withdrawable.",
+   "morpho_steakhouse_usdc": "Analog channel: underlying lending-market utilization spikes as borrowers scramble -> withdrawal liquidity can be partially unavailable for hours-days; APY spikes then collapses with the leverage reset; curator/oracle risk quiet in this event.",
+   "cash_10pct": "Unimpaired; its real value here is avoiding forced on-chain transactions during the 2,000-gwei window."
+  },
+  "unpriced_if_usdc_equals_1_and_always_withdrawable": [
+   "Gas/exit-cost shock: rebalancing or de-risking during the cascade costs 30-100bps of a $100k portfolio per round trip (this event's binding constraint, not the peg)",
+   "Utilization-driven withdrawal delay on lending markets/vaults (hours-days) — not a freeze but violates 'instantly withdrawable'",
+   "APY regime collapse: the dominant realized P&L effect for a yield portfolio — forward stablecoin yields fell ~60-80% for months after the deleveraging; a backtest assuming pre-crash APYs persist overstates income badly",
+   "CEX/off-ramp outage risk: Coinbase/Binance degradation + ETH/ERC-20 withdrawal freezes block the CEX leg of any exit route for ~hours",
+   "Data-feed outage: Binance halted market data mid-crash — any monitor keyed to a single feed goes blind exactly at the trough (argues for SPA's quorum/fail-CLOSED design)",
+   "What this scenario does NOT test: USDC depeg, protocol insolvency, DeFi withdrawal freezes, oracle failure — pair with H03 (Black Thursday) and the UST/USDC-depeg scenarios for those"
+  ],
+  "kill_switch_note": "A crypto-beta portfolio hits HARD_KILL (-10%) within hours on May 19; the SPA stable-yield portfolio would see near-zero NAV drawdown (pegs held, no bad debt) — this event instead stresses SENSE-layer (feed outages), exit-cost modeling, and APY-forecast honesty."
+ },
+ "replay": {
+  "duration_days": 12,
+  "start_date": "2021-05-12",
+  "base": {
+   "aave_v3": {
+    "apy_pct": 8.0
+   },
+   "pendle": {
+    "apy_pct": 9.0
+   },
+   "maple": {
+    "apy_pct": 9.0
+   },
+   "morpho_steakhouse": {
+    "apy_pct": 8.0
+   }
+  },
+  "shocks": [
+   {
+    "kind": "apy",
+    "params": {
+     "protocol": "aave_v3",
+     "apy_pct": 12.0,
+     "from_day": 0,
+     "to_day": 2
+    }
+   },
+   {
+    "kind": "apy",
+    "params": {
+     "protocol": "aave_v3",
+     "apy_pct": 2.0,
+     "from_day": 3,
+     "to_day": 11
+    }
+   },
+   {
+    "kind": "liquidity",
+    "params": {
+     "from_day": 0,
+     "to_day": 2,
+     "exit_haircut_pct": 0.01,
+     "gas_cost_usd": 250.0
+    }
+   },
+   {
+    "kind": "peg",
+    "params": {
+     "symbol": "PT_USDC",
+     "path": [
+      [
+       0,
+       1.0
+      ],
+      [
+       7,
+       0.97
+      ],
+      [
+       11,
+       1.0
+      ]
+     ]
+    }
+   }
+  ],
+  "assumptions": [
+   "Протоколы книги (кроме Aave) не существовали в мае 2021 — каналы-аналоги: спайк→коллапс ставок и 3%-дисконт PT (implied-yield spike, WARN-уровень).",
+   "Пеги держали (историч. факт) — потерь капитала нет."
+  ]
+ }
+}
