@@ -35,9 +35,10 @@ created: 2026-07-16
 - rank_demotion_forward — **ПОДКЛЮЧЁН кодом 2026-08-22** (обёртка
   `agent_swarm_rank_demotion.sh` + plist + запись манифеста intent=designed по
   прецеденту site_freshness; smoke: модуль честно отвечает NO_DATA без панели).
-  Осталась активация владельцем: `launchctl bootstrap` через гейт инв. #12,
-  затем intent → active тем же шагом (написано в notes манифеста).
+  ✅ **АКТИВИРОВАН владельцем 2026-08-22 ~07:30Z**: гейт инв. #12 пройден (sandbox
+  exit 0, канонический трек побайтово не тронут), plist установлен персистентно,
+  живой тик подтверждён логом (EXIT 0, честный state=NO_DATA days=17). intent → active.
 - monthly_statement — **ПОДКЛЮЧЁН кодом 2026-08-22** (PR #19: обёртка
   `agent_monthly_statement.sh` + plist 1-го числа 08:30 + манифест intent=designed).
-  Осталась активация владельцем тем же `launchctl bootstrap`-шагом, что и
-  rank_demotion (≤3 агентов за раз, инв. #12).
+  ✅ **АКТИВИРОВАН владельцем 2026-08-22 ~07:30Z** тем же шагом (гейт пройден,
+  `launchctl list` = 0, календарный тик 1-го числа 08:30). intent → active.
