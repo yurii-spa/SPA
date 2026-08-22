@@ -169,7 +169,13 @@ def test_the_promise_and_the_parser_cannot_drift_apart():
     options = od.parse_options(CARD)
     msg = od.build_message("Сайт: правка задела owner-gated область", CARD, options,
                            has_buttons=False, card_name="own-site.md")
-    assert "Ответь номером варианта" in msg, "изменилось обещание — проверь разбор"
+    # 2026-08-22: обещаем реплай (работает при любом числе открытых карточек).
+    assert "Ответь РЕПЛАЕМ" in msg, "изменилось обещание — проверь разбор"
+    # Обещанная форма — голый номер (реплаем) — обязана разбираться:
+    bare = od.parse_text_answer("2")
+    assert bare is not None and bare.nums == ("2",)
+    # Прежние формы не сломаны: «Ответ 1» с процитированной тревогой по-прежнему
+    # разбирается и привязывается к процитированной карточке.
     parsed = od.parse_text_answer(msg + "\nОтвет 1")
     assert parsed is not None and parsed.nums == ("1",)
     assert parsed.card_id == "own-site"
