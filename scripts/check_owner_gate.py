@@ -108,6 +108,12 @@ _TS_NUMBER_FIELDS = (
     "gates_passed", "gates_total", "real_track_days",
 )
 
+# ── Стоящее одобрение владельца (ADR-116, 2026-08-22, фаза стройки) ────────
+# Классы, которые уезжают в live без карточки владельцу. РОВНО названные им:
+# B — числа доходности, D — legal-файлы. Пустой frozenset() = одобрение отозвано.
+_STANDING_APPROVED_KLASSES = frozenset({"B", "D"})
+_STANDING_APPROVAL_ADR = "ADR-116"
+
 # ── regexes (compiled once) ─────────────────────────────────────────────────
 # Class A — solicitation (active-offer phrasing). EN + RU.
 _RE_SOLICIT = re.compile(
@@ -692,6 +698,37 @@ def check_owner_gate(
             continue
         violations.extend(_scan_free_text(p, hunks.get(p, [])))
 
+    # ── Стоящее одобрение владельца (ADR-116, решение 2026-08-22) ──────────
+    # Дословно: «я бы хотел чтобы цифры и юр вопросы пока мы строим на сайте
+    # менялись без этого вопроса, я разрешаю». На фазе стройки классы B (числа)
+    # и D (legal-файлы) уезжают в live БЕЗ карточки владельцу. Находки НЕ
+    # исчезают — они переезжают в report["standing_approved"] (видимость без
+    # гейта). A (solicitation), C (нейминг/расшифровка SPA) и E (honesty-токены)
+    # владелец НЕ называл — они gated как прежде: снятие A до legal-clearance —
+    # прямой юридический риск, E прячет paper под live. Отзыв — словом владельца
+    # или go-live (тогда этот блок удаляется, тест держит обе стороны).
+    standing: list[dict[str, Any]] = []
+    if _STANDING_APPROVED_KLASSES:
+        ce_state = (custodian_exemption or {}).get("state") \
+            if isinstance(custodian_exemption, dict) else None
+        kept_v = []
+        for v in violations:
+            in_standing = v["klass"] in _STANDING_APPROVED_KLASSES
+            # Граница одобрения: владелец разрешил числам МЕНЯТЬСЯ без вопроса,
+            # а не подделываться. ДОКАЗАННАЯ ручная правка снимка трека
+            # (custodian DISPROVED — рука написала число, которого генератор не
+            # выдавал) остаётся gated: это APY-честность (инв. #8), её он не
+            # снимал. Недоказуемость (unmeasured, канон отстал в CI/worktree) —
+            # штатный шум стройки, он и уезжает по стоящему одобрению.
+            if (in_standing and v.get("rule") == "snapshot.number"
+                    and ce_state == "disproved"):
+                in_standing = False
+            if in_standing:
+                standing.append({**v, "standing_approved_by": _STANDING_APPROVAL_ADR})
+            else:
+                kept_v.append(v)
+        violations = kept_v
+
     # Owner-approval bypass — drop violations covered by an owner-done card scope.
     approval = _approved_scope(commit_message, repo)
     bypassed: list[dict[str, Any]] = []
@@ -727,6 +764,10 @@ def check_owner_gate(
         "violations": violations,
         "approved_bypasses": bypassed,
         "approval": approval,
+        # ADR-116: находки, уехавшие по стоящему одобрению владельца. Видимость
+        # без гейта: они НЕ в gated_count, но и не исчезли из отчёта.
+        "standing_approved": standing,
+        "standing_approval_adr": _STANDING_APPROVAL_ADR if standing else None,
     }
 
 
@@ -789,6 +830,9 @@ def _main(argv: list[str] | None = None) -> int:
     if report["approved_bypasses"]:
         print(f"  owner-approved bypasses: {len(report['approved_bypasses'])} "
               f"(card {report['approval']['card']})")
+    if report.get("standing_approved"):
+        print(f"  стоящее одобрение владельца ({report['standing_approval_adr']}): "
+              f"{len(report['standing_approved'])} находок класса B/D уехали без карточки")
 
     if args.report:
         dst = _write_report(report, _REPO_ROOT)

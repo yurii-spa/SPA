@@ -5,8 +5,18 @@ title: "TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing"
 status: new
 source: telegram
 created: 2026-08-13
-priority: high
+priority: critical
 ---
+
+## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
+
+Владелец спросил «как запустить CIO?» — трактовать как прямой приказ начать
+исполнение немедленно, вне общей очереди. Порядок готов и перепроверен:
+`docs/research/RS-portfolio-cio-diagnosis.md` — начинать с **G1 (живые фиды вне
+Ethereum + расхождение pendle-фидов; только с хоста)**, затем вопрос владельцу
+про констрейнты тюнера (кандидат-ADR из диагностики), затем SHADOW-замер и
+вопрос про ARM ADR-060. G2/G3/G4 уже закрыты (см. замеры в
+`inbox-cio-etap1-diagnostika-gotova-ispolnyat-g1-g4`) — не переделывать.
 
 ## Задание (из Telegram)
 

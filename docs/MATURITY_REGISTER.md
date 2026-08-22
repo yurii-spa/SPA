@@ -1,6 +1,6 @@
 # Реестр зрелости SPA — спроектировано / построено / заглушка
 
-> **Генерируется** `scripts/build_maturity_register.py` · замер от **2026-08-22 08:44 UTC**.
+> **Генерируется** `scripts/build_maturity_register.py` · замер от **2026-08-22 09:22 UTC**.
 > Руками не править — правка уедет при следующем запуске. Менять надо таблицу `SUBJECTS` / `JUDGMENT` в генераторе.
 >
 > **Зачем.** Отличить работающее от нарисованного, не читая 415 файлов `docs/`.
@@ -45,7 +45,7 @@
 | **Продуктовый слой AAA (аналитики Investment OS)**<br/><sub>`08_ai_investment_os_architecture.md` · `10_agent_architecture.md`</sub> | L5 | 17 | 6 | — | 12 | 35 | 1 | high | частично АКТИВИРОВАН: io_* работают, остальное owner-gated (ADR-004) |
 | **Сайт earn-defi.com и дашборд**<br/><sub>`26_dashboard_specification.md`</sub> | L5 | 202 | 24 | — | 3 | 4 | — | mid | работает — owner-gated на числа |
 | **API-сервер**<br/><sub>`25_api_specification.md`</sub> | L5 | 35 | 14 | — | 1 | 42 | 1 | mid | работает |
-| **Strategy Lab и дески (advisory)**<br/><sub>`07_yield_lab_architecture.md` · `38_stablecoin_yield_engine.md`</sub> | L5 | 122 | 40 | — | 10 | 272 | 7 | mid | работает, advisory — капитал не двигает |
+| **Strategy Lab и дески (advisory)**<br/><sub>`07_yield_lab_architecture.md` · `38_stablecoin_yield_engine.md`</sub> | L5 | 122 | 40 | — | 11 | 272 | 7 | mid | работает, advisory — капитал не двигает |
 | **Методология отчётности о доходности**<br/><sub>`41_performance_reporting_methodology.md`</sub> | L5 | 25 | 25 | — | 4 | 4 | 2 | mid | частично построено |
 | **RiskPolicy v1.0 — детерминированный гейт**<br/><sub>`06_spa_core_invariants.md`</sub> | L4 | 24 | 25 | — | 0 | 335 | — | high | работает — заморожен на v1.0 до go-live |
 | **Экономика цеха и паспорта агентов (AI1)**<br/><sub>—</sub> | L4 | 3 | 2 | — | 0 | 4 | — | mid | работает; паспортов полных 18 из 89 — остальное курация produces, карточка заведена |

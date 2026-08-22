@@ -552,7 +552,10 @@ def test_message_never_promises_a_button_that_will_not_be_there(tmp_path):
     assert prep.keyboard is None
     assert prep.options, "варианты обязаны разобраться — проверяем именно согласованность"
     assert "Нажми кнопку" not in prep.text
-    assert "Ответь номером варианта" in prep.text
+    # 2026-08-22 (жалоба владельца): обещание сменилось с «ответь номером в чат»
+    # на «ответь РЕПЛАЕМ» — голый номер в чате привязывается только при одной
+    # открытой карточке, а реплай работает при любом их числе.
+    assert "Ответь РЕПЛАЕМ" in prep.text
 
 
 def test_message_does_promise_the_button_when_it_is_really_there(tmp_path):

@@ -1362,7 +1362,7 @@
    "program": "agent_monthly_statement.sh",
    "layer": "product",
    "role": "reporting",
-   "intent": "designed",
+   "intent": "active",
    "produces": [
     {
      "artifact": "data/statements",
@@ -1961,7 +1961,7 @@
    "program": "agent_swarm_rank_demotion.sh",
    "layer": "product",
    "role": "allocation",
-   "intent": "designed",
+   "intent": "active",
    "produces": [
     {
      "artifact": "data/swarm/rank_demotion_status.json",
