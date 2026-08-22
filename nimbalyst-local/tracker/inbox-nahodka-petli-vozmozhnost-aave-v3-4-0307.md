@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Находка петли: возможность aave_v3 4.0307% (evidence L4) доступна книге, не держится "
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-21
 finding_key: "gap:opportunity_unnamed:aave_v3"
