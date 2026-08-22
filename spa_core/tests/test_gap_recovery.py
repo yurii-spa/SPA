@@ -224,7 +224,14 @@ class TestAttemptRecovery(GapRecoveryBase):
         self.assertFalse(self.lock.exists())  # lock снят даже после падения
 
     def test_lock_blocks_parallel_run(self):
-        """Живой lock другого процесса → skipped 'locked', цикл не зовётся."""
+        """Живой lock другого процесса → skipped 'locked', цикл не зовётся.
+
+        Номер 99999 здесь ИНЕРТЕН и это измерено (цикл #343): `gap_monitor`
+        живость держателя не спрашивает вовсе — единственный `pid` в модуле это
+        `os.getpid()` при записи СВОЕГО замка, а исход решает возраст файла.
+        Причина названа, чтобы литерал не читался как «заведомо мёртвый номер»:
+        такое чтение 22.08 стоило красного теста (pid 98535 ожил).
+        """
         self.write_stale_equity()
         self.lock.write_text(json.dumps({"pid": 99999, "ts": _iso(0)}))
         cycle = self.make_cycle_fn()
