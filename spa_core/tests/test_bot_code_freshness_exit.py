@@ -58,7 +58,11 @@ def test_flapping_sync_does_not_exit(tmp_path):
     не даёт выйти посреди доставки (выход только на устоявшемся коде)."""
     root = _zone(tmp_path)
     s = _sentinel(root)
-    for i, content in enumerate(["x = 2\n", "x = 3\n", "x = 4\n"], start=1):
+    # Содержимое РАЗНОЙ ДЛИНЫ намеренно: отпечаток различает (mtime_ns, size),
+    # и на быстрой FS CI две записи одного размера легли в один mtime-гранул —
+    # отпечатки совпали, тест флапал (замер: run 32561831444, 22.08). Размер
+    # не зависит от гранулярности часов файловой системы.
+    for i, content in enumerate(["x = 2\n", "x = 33\n", "x = 444\n"], start=1):
         _touch(root, content)
         assert s.should_exit(now=_T0 + i * 300.0) is False
 
