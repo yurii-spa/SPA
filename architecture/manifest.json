@@ -253,6 +253,39 @@
    }
   },
   {
+   "label": "com.spa.btc_nav",
+   "plist_source": "repo:launchd/com.spa.btc_nav.plist",
+   "reboot_safe": false,
+   "schedule": "calendar:08:40",
+   "program": "agent_btc_nav.sh",
+   "layer": "product",
+   "role": "paper-trading",
+   "intent": "designed",
+   "produces": [
+    {
+     "artifact": "data/btc_paper_trading.json",
+     "slo_hours": 26
+    }
+   ],
+   "consumes": [
+    "data/btc_cycle/target_share.json"
+   ],
+   "consumer_required": false,
+   "governed_by": [
+    "ADR-118",
+    "ADR-102"
+   ],
+   "curation": "complete",
+   "notes": "Q1-решение владельца 22.08: paper-NAV трек BTC/USDT-движка (чемпион v0.1, k=0.7 по вердикту бэктест-фазы). Двухслойно (инвариант #4): research-продюсер (pandas) пишет target_share.json, stdlib-бухгалтер ведёт ОТДЕЛЬНУЮ книгу btc_paper_trading.json — IS_ADVISORY, капитал не двигает, вне kill-switch общего NAV по построению (own-btc: ответ владельца, вариант 1 в paper-форме). intent=designed по прецеденту site_freshness: bootstrap — решение владельца (гейт инв. #12); при загрузке intent → active тем же шагом. ЧЕСТНАЯ ГРАНИЦА: движок v0.1 (backtest.py + датасеты + fetch) ещё у владельца — до передачи продюсер молчит, книга копит gap-дни, ничего не выдумывается.",
+   "passport": {
+    "goal": "Живой paper-NAV трек BTC-лестницы v0.1 — единственная чистая валидация после сожжённых тест-окон: трек-рекорд нельзя купить или ускорить (Q1 владельца).",
+    "quality_metric": "data/btc_paper_trading.json свежее 26 ч; daily_history растёт по дням без выдуманных цен (gap-дни записаны причинами, не дорисованы)",
+    "escalation": "молчанием: протухшую книгу ловят сторожа свежести по SLO из манифеста; NO_ENGINE виден в /tmp/spa_btc_nav.log и в gaps книги",
+    "rights": "писать data/btc_cycle/target_share.json (продюсер) и data/btc_paper_trading.json (бухгалтер)",
+    "limits": "advisory / paper / ОТДЕЛЬНЫЙ виртуальный NAV — капитал не двигает; основную книгу и equity_curve_daily не трогает ни строкой; LLM запрещён"
+   }
+  },
+  {
    "label": "com.spa.bts-feed",
    "plist_source": "launch_agents",
    "reboot_safe": true,
@@ -1323,8 +1356,8 @@
   },
   {
    "label": "com.spa.monthly_statement",
-   "plist_source": "repo:launchd/com.spa.monthly_statement.plist",
-   "reboot_safe": false,
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
    "schedule": "calendar:08:30",
    "program": "agent_monthly_statement.sh",
    "layer": "product",
@@ -1922,8 +1955,8 @@
   },
   {
    "label": "com.spa.swarm_rank_demotion",
-   "plist_source": "repo:launchd/com.spa.swarm_rank_demotion.plist",
-   "reboot_safe": false,
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
    "schedule": "interval:3600s",
    "program": "agent_swarm_rank_demotion.sh",
    "layer": "product",

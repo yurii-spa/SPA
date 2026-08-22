@@ -10,6 +10,15 @@ FROZEN-DATE-OK: injected-clock — часы инъектируются (`now=` �
 воспроизведение аварии (мёртвый держатель ⇒ CRITICAL) и контроль в обратную сторону
 (живой держатель ⇒ тишина), плюс контроль-различитель: если живость перестанут
 спрашивать вовсе, два состояния сольются и тест покраснеет.
+
+ЖИВОСТЬ — ТОЖЕ ВХОД (цикл #343). `INCIDENT_PID` ниже — дословный номер из аварии, и
+он остаётся ради текста находки, но БОЛЬШЕ НИЧЕГО НЕ РЕШАЕТ: смерть держателя всюду
+сказана явно (`pid_alive=DEAD`). Раньше её решала настоящая ОС, и 22.08 номер 98535
+оказался занят живым `siriactionsd` — тест покраснел на состоянии хоста при неизменном
+коде (тот же sha: passed в 08:34, FAILED в 10:00). Литеральный pid — такая же бомба
+замедленного действия, как литеральная дата, только взрывается не от календаря, а от
+счётчика процессов. Там, где нужен номер с ИЗВЕСТНОЙ живостью, берётся `os.getpid()`:
+он жив по построению на любой машине, а не по удаче.
 """
 from __future__ import annotations
 
@@ -286,11 +295,55 @@ def test_agent_health_surfaces_the_stuck_lock(tmp_path):
     from spa_core.monitoring import agent_health_monitor as ahm
 
     _write_lock(tmp_path, {"pid": INCIDENT_PID, "ts": INCIDENT_TS})
-    checks, status, issues = ahm.check_system(tmp_path, INCIDENT_NOW)
+    # `pid_alive=DEAD` добавлен циклом #343 и это УСИЛЕНИЕ, а не ослабление:
+    # раньше «мёртв» здесь означала НАСТОЯЩАЯ ОС, и 22.08 номер 98535 из слепка
+    # аварии оказался занят живым `siriactionsd` — тест краснел на состоянии
+    # хоста при неизменном коде. Теперь смерть держателя сказана явно, а
+    # проводку (что `check_system` вообще спрашивает замок) по-прежнему держит
+    # `checks["cycle_lock_state"]`: снимите вызов — и ключа не станет.
+    checks, status, issues = ahm.check_system(tmp_path, INCIDENT_NOW, pid_alive=DEAD)
 
     assert checks.get("cycle_lock_state") == STATE_HELD_DEAD
     assert status == "CRITICAL"
     assert any(str(INCIDENT_PID) in i for i in issues)
+
+
+def test_liveness_reaches_the_watch_and_the_host_does_not_decide(tmp_path):
+    """Проводка ДОВОДИТ живость до сторожа — и это видно на живом номере.
+
+    Положительный контроль ровно того, что чинил #343: замок держит номер
+    ЭТОГО ЖЕ процесса (он жив на любой машине, по построению), а вход говорит
+    «мёртв». Верный ответ — `held_dead`.
+
+    Уроните проброс `pid_alive` в `check_system` — и вердикт свалится к
+    настоящей ОС, то есть к `held_alive`, и тест покраснеет на КАЖДОМ хосте, а
+    не только там, где номеру повезло. Литеральный pid для этого не годится:
+    его смерть — вопрос удачи, а не построения.
+    """
+    from spa_core.monitoring import agent_health_monitor as ahm
+
+    _write_lock(tmp_path, {"pid": os.getpid(), "ts": INCIDENT_TS})
+    checks, status, _issues = ahm.check_system(tmp_path, INCIDENT_NOW, pid_alive=DEAD)
+
+    assert checks.get("cycle_lock_state") == STATE_HELD_DEAD
+    assert status == "CRITICAL"
+
+
+def test_unmeasured_liveness_reaches_the_watch_too(tmp_path):
+    """Зеркало предыдущего: «не измерено» обязано доезжать до сторожа НЕ как смерть.
+
+    Тот же живой номер, но вход говорит «измерить не удалось». Верный ответ —
+    `UNCHECKED` (WARNING), и он отличается и от `held_alive` (что ответила бы
+    ОС), и от `held_dead`. Проверяет ту же проводку с другой стороны: свалиться
+    к настоящей ОС здесь означает `held_alive` — тоже красное на любом хосте.
+    """
+    from spa_core.monitoring import agent_health_monitor as ahm
+
+    _write_lock(tmp_path, {"pid": os.getpid(), "ts": INCIDENT_TS})
+    checks, _status, _issues = ahm.check_system(tmp_path, INCIDENT_NOW,
+                                                pid_alive=UNMEASURABLE)
+
+    assert checks.get("cycle_lock_state") == STATE_UNCHECKED
 
 
 def test_agent_health_stays_quiet_when_the_holder_is_alive(tmp_path):

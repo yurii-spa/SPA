@@ -5,11 +5,11 @@ title: Консолидация четырёх стресс-движков + д�
 status: new
 source: nimbalyst
 created: 2026-08-22
-origin: ADR-117 protection lab session 2026-08-22
+origin: ADR-120 protection lab session 2026-08-22
 ---
 
 ## Что случилось и почему это важно
-Разведка Protection Lab (ADR-117) нашла ЧЕТЫРЕ параллельных стресс-движка:
+Разведка Protection Lab (ADR-120) нашла ЧЕТЫРЕ параллельных стресс-движка:
 `spa_core/stress/stress_engine.py` (MP-112), `spa_core/risk/stress_tester.py`,
 `spa_core/analytics/scenario_simulator.py`, `spa_core/backtesting/tier1/stress.py`.
 У v1-движка дрейф: `_KILL_SWITCH_DD = 0.05` — одноуровневый стоп-кран, которого

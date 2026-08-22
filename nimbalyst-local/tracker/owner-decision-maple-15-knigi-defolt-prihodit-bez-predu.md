@@ -5,7 +5,7 @@ title: "Maple 15% книги: дефолт приходит без предуп�
 status: needs-owner
 source: nimbalyst
 created: 2026-08-22
-origin: protection-lab H13, ADR-117
+origin: protection-lab H13, ADR-120
 ---
 
 ## Что случилось и почему это важно

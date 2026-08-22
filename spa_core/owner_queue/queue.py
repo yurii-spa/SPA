@@ -35,7 +35,37 @@ from spa_core.utils.atomic import atomic_save_text
 log = logging.getLogger(__name__)
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-TRACKER_DIR = Path(os.environ.get("SPA_TRACKER_DIR", _REPO_ROOT / "nimbalyst-local" / "tracker"))
+
+
+def _resolve_tracker_dir() -> Path:
+    """Каталог очереди владельца: ЖИВОЕ дерево, а не дерево вызывающего.
+
+    Карточка-призрак (2026-08-22, замер на владельце): автономный цикл в
+    /tmp-worktree создал owner-decision, отправил вопрос в Telegram — и умер
+    вместе с worktree. Файла карточки не существовало нигде, владелец ответил
+    реплаем «2», и живой бот честно сказал «не знаю такого вопроса»: вопрос,
+    на который НЕЛЬЗЯ ответить по построению. Тот же worktree-vs-live класс,
+    что у журнала пушей (STATE_PATH) и дедуп-реестра owner-gate.
+
+    Порядок (зеркалит live_paths):
+      1. ``SPA_TRACKER_DIR`` — явный шов (тесты, песочницы).
+      2. Живое дерево (``SPA_LIVE_ROOT`` / ~/Documents/SPA_Claude) — на Маке
+         карточка ложится в ПРОД-трекер и переживает worktree; бот может
+         записать в неё ответ владельца.
+      3. Дерево этого модуля — облако/CI, где живого дерева нет (как раньше).
+
+    Намеренно НЕ смотрим ``SPA_DATA_DIR``: песочница гейта подменяет data/,
+    но вопрос владельцу — не data, он не имеет права испаряться с песочницей.
+    """
+    env = os.environ.get("SPA_TRACKER_DIR")
+    if env:
+        return Path(env)
+    from spa_core.utils.live_paths import live_root
+
+    return live_root(_REPO_ROOT) / "nimbalyst-local" / "tracker"
+
+
+TRACKER_DIR = _resolve_tracker_dir()
 
 # Owner-only terminal status the agent must never set (CLAUDE.md invariant #14).
 OWNER_ONLY_STATUS = "owner-done"

@@ -78,6 +78,71 @@ HTTP_TIMEOUT_S = 35  # long-poll timeout (30) + slack
 # (ask_router headless claude, 120s) + one long-poll (35s) so normal work never trips it.
 _WATCHDOG_CHECK_S = 30    # how often the watchdog samples the poll heartbeat
 _STALL_LIMIT_S = 240      # loop silent longer than this → force restart (> 120s + 35s + slack)
+
+# ── Сентинел свежести кода (ADR-117, 2026-08-22) ─────────────────────────────
+# Бот — KeepAlive-длгожитель: процесс держит в памяти код, набранный при старте,
+# и НИ ОДНА влитая починка до него не доезжает без перезапуска. Жалоба владельца
+# 22.08 дословно: «ты это уже делал кучу раз, но эффекта нет» — реплай-привязка
+# и кнопки были починены на origin, а живой бот исполнял память недельной
+# давности. Сентинел раз в _CODE_CHECK_S сверяет отпечаток СВОИХ модулей
+# (spa_core/telegram + spa_core/owner_queue) с тем, что было при старте; код
+# сменился и УСТОЯЛСЯ (два замера подряд один и тот же новый отпечаток — защита
+# от полусинхронизированного дерева) → чистый выход, launchd KeepAlive тут же
+# поднимает бота уже с новым кодом. Не измерили отпечаток → не перезапускаемся
+# (fail-safe: сомнение не роняет живого бота).
+_CODE_CHECK_S = 300.0
+_CODE_SCOPE_DIRS = ("spa_core/telegram", "spa_core/owner_queue")
+
+
+def _code_fingerprint(repo_root: Optional[Path] = None) -> str:
+    """Отпечаток кода бота: (путь, mtime_ns, размер) всех .py в зоне. "" = не измерено."""
+    root = repo_root or Path(__file__).resolve().parents[2]
+    try:
+        import hashlib
+        h = hashlib.sha256()
+        seen = False
+        for rel in _CODE_SCOPE_DIRS:
+            base = root / rel
+            if not base.is_dir():
+                continue
+            for p in sorted(base.rglob("*.py")):
+                st = p.stat()
+                h.update(f"{p.relative_to(root)}|{st.st_mtime_ns}|{st.st_size}\n".encode())
+                seen = True
+        return h.hexdigest()[:16] if seen else ""
+    except Exception:  # noqa: BLE001 — сомнение не роняет живого бота
+        return ""
+
+
+class CodeFreshnessSentinel:
+    """Двухфазный детектор «код сменился и устоялся». Чистая логика, тестируется отдельно."""
+
+    def __init__(self, *, repo_root: Optional[Path] = None,
+                 check_s: float = _CODE_CHECK_S) -> None:
+        self._root = repo_root
+        self._check_s = check_s
+        self._fp0 = _code_fingerprint(repo_root)
+        self._pending: Optional[str] = None
+        self._next_at = time.time() + check_s
+
+    def should_exit(self, now: Optional[float] = None) -> bool:
+        """True — код обновился и устоялся, пора чисто выйти под респавн launchd."""
+        now = time.time() if now is None else now
+        if now < self._next_at:
+            return False
+        self._next_at = now + self._check_s
+        if not self._fp0:
+            return False  # старт не измерился — сравнивать не с чем, живём
+        fp = _code_fingerprint(self._root)
+        if not fp or fp == self._fp0:
+            self._pending = None  # не измерено / код прежний — двухфазность сбрасывается
+            return False
+        if fp == self._pending:
+            return True  # тот же НОВЫЙ отпечаток второй замер подряд — устоялся
+        self._pending = fp  # первая фаза: изменение увидено, ждём подтверждения
+        return False
+
+
 KEYCHAIN_ACCOUNT = "spa"
 TOKEN_SERVICE = "TELEGRAM_BOT_TOKEN_SPA"
 CHAT_ID_SERVICE = "TELEGRAM_CHAT_ID_SPA"
@@ -1550,10 +1615,20 @@ class TelegramBot:
         # module constants above). Self-heals ANY silent hang without an external agent.
         self._last_beat = time.time()
         self._start_liveness_watchdog()
+        # ADR-117: сентинел свежести кода — длгожитель сам замечает, что его
+        # модули обновились, и чисто выходит под респавн launchd (KeepAlive).
+        code_sentinel = CodeFreshnessSentinel()
         try:
             while True:
                 self._last_beat = time.time()
                 self.refresh_capability_beacon()
+                if code_sentinel.should_exit():
+                    # Точка выхода — МЕЖДУ поллами: ни один update не брошен на
+                    # середине. finally отпускает лок, launchd поднимает свежего.
+                    log.warning("код бота обновился и устоялся (ADR-117) — чистый "
+                                "выход под респавн launchd; свежие починки доедут "
+                                "до чата без ручного перезапуска.")
+                    return
                 try:
                     for upd in self.get_updates():
                         self.handle_update(upd)

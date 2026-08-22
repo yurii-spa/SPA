@@ -1,4 +1,4 @@
-# ADR-117 · Protection Lab: историческая библиотека кризисов + replay поверх настоящего governance-слоя
+# ADR-120 · Protection Lab: историческая библиотека кризисов + replay поверх настоящего governance-слоя
 
 - **Статус:** Accepted
 - **Дата:** 2026-08-22

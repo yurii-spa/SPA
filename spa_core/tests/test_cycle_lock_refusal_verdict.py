@@ -247,14 +247,15 @@ def test_the_corpse_in_the_doorway_is_still_critical(tmp_path):
     Зелёный агент здесь не означает «с замком всё хорошо» — на этот вопрос
     отвечает другой сторож, и его CRITICAL обязан остаться на месте.
     """
-    ghost = 4_194_303
-    try:
-        os.kill(ghost, 0)
-        pytest.skip("номер занят на этой машине — проверка неинформативна")
-    except ProcessLookupError:
-        pass
-    except OSError:
-        pytest.skip("живость этого номера измерить нельзя")
+    # ЖИВОСТЬ ГОВОРИТСЯ ЯВНО (цикл #343). До этого номер брался «заведомо
+    # свободный» (4_194_303), а если он вдруг занят — тест СКИПАЛСЯ двумя
+    # разными ветками. Скип здесь хуже, чем кажется: сторож, чей CRITICAL
+    # проверяют, молча переставал проверяться, и «не измерено» было
+    # неотличимо от «прошло». Изменение НАМЕРЕННОЕ и УСИЛЯЕТ проверку
+    # (инв. #16): номер теперь ЖИВОЙ по построению (`os.getpid()`), смерть
+    # держателя — вход, обе ветки скипа исчезли, тест исполняется ВСЕГДА и на
+    # любой машине. Соседний класс — та же авария 22.08 с pid 98535.
+    holder_pid = os.getpid()   # жив ПО ПОСТРОЕНИЮ; «мёртв» скажет вход, а не имя
 
     from spa_core.monitoring.cycle_lock_watch import CYCLE_LOCK_FILE
 
@@ -262,7 +263,7 @@ def test_the_corpse_in_the_doorway_is_still_critical(tmp_path):
     held_dt = NOW - timedelta(minutes=68)
     held = held_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
     lock = tmp_path / CYCLE_LOCK_FILE
-    lock.write_text(json.dumps({"pid": ghost, "ts": held}), encoding="utf-8")
+    lock.write_text(json.dumps({"pid": holder_pid, "ts": held}), encoding="utf-8")
     # Возраст замка сторож меряет по mtime — иначе он объявит замок протухшим
     # по разнице реальных часов и `NOW`, и мы проверим не тот исход.
     os.utime(lock, (held_dt.timestamp(), held_dt.timestamp()))
@@ -270,7 +271,8 @@ def test_the_corpse_in_the_doorway_is_still_critical(tmp_path):
     # агент зелёный…
     assert _judge(tmp_path, tmp_path).status == ahm.OK
     # …и ровно в тот же момент система кричит о трупе в замке.
-    _checks, status, issues = ahm.check_system(tmp_path, NOW, autopush_log=_NONE_LOG)
+    _checks, status, issues = ahm.check_system(tmp_path, NOW, autopush_log=_NONE_LOG,
+                                               pid_alive=lambda _pid: False)
     assert status == ahm.CRITICAL
     assert any("замок" in i or "lock" in i for i in issues)
 
