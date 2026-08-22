@@ -519,7 +519,16 @@ def overall_pass(checks: list[dict]) -> tuple[bool, list[str]]:
 def run_checkpoint(data_dir: Path = DATA, *, notify: bool = True) -> int:
     """
     Запускает все проверки, выводит summary, шлёт Telegram.
-    Возвращает exit code (0 = pass, 1 = fail).
+
+    Возвращает exit code, и это код РАБОТОСПОСОБНОСТИ, а не вердикта
+    (карточка agent-checkpoint-7day-gate-conflict, вариант 1, 2026-08-22):
+    0 = отчёт построен полностью (какие проверки красные — сказано В отчёте
+    и алертом через push_policy); 1 = настоящий сбой — проверки упали
+    исключением, отчёт не построен. До правки код 1 означал «в проверках
+    есть красное»: гейт деплоя честно не пропускал агента (manual run
+    exit=1), а под launchd он вечно значился бы last_exit=1 — WARN-шум,
+    который через неделю перестают читать и который маскирует настоящую
+    поломку. Конвенция флота: last_exit — работоспособность.
 
     `notify=False` — единственный поддерживаемый способ НЕ трогать канал (флаг
     `--no-telegram`). До 2026-08-10 флаг был пустышкой: он переопределял
@@ -530,11 +539,17 @@ def run_checkpoint(data_dir: Path = DATA, *, notify: bool = True) -> int:
     """
     today = date.today()
 
-    # Выполняем все 4 проверки
-    gaps   = check_gaps(data_dir)
-    sharpe = check_sharpe(data_dir)
-    equity = check_equity(data_dir)
-    files  = check_files(data_dir)
+    # Выполняем все 4 проверки. Исключение здесь — НАСТОЯЩИЙ сбой (не вердикт):
+    # отчёта нет, и это единственное, что имеет право дать ненулевой код.
+    try:
+        gaps   = check_gaps(data_dir)
+        sharpe = check_sharpe(data_dir)
+        equity = check_equity(data_dir)
+        files  = check_files(data_dir)
+    except Exception as exc:  # noqa: BLE001 — имя причины уходит в консоль/лог агента
+        print(f"❌ CHECKPOINT BROKEN: проверки упали, отчёт НЕ построен: "
+              f"{type(exc).__name__}: {exc}")
+        return 1
 
     checks = [gaps, sharpe, equity, files]
     passed, failures = overall_pass(checks)
@@ -575,13 +590,13 @@ def run_checkpoint(data_dir: Path = DATA, *, notify: bool = True) -> int:
     if not notify:
         print("\n[Telegram] Уведомление ПОДАВЛЕНО флагом --no-telegram "
               "(канал не тронут; результат проверок от этого не изменился).")
-        return 0 if passed else 1
+        return 0  # отчёт построен; вердикт — в отчёте (см. докстринг)
 
     ok = _notify_via_push_policy(passed, failures, tg_msg)
     if not ok and not passed:
         print("\n[Telegram] Уведомление не ушло (либо дедуп: тот же набор провалов уже сообщён).")
 
-    return 0 if passed else 1
+    return 0  # отчёт построен и доставка отработала по политике; вердикт — в отчёте/алерте
 
 
 def _notify_via_push_policy(passed: bool, failures: list, tg_msg: str) -> bool:
