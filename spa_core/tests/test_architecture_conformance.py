@@ -287,6 +287,114 @@ class B3Consumption(unittest.TestCase):
         self.assertIn("B3:consumption_stale:data/investment_os/quant.json", keys(r))
 
 
+class B3ConsumptionBudget(unittest.TestCase):
+    """Цикл #348: B3 судил ЧИТАТЕЛЯ сроком годности ПРОИЗВОДИТЕЛЯ.
+
+    Авария воспроизводится дословно: `chief_investment.json` объявлен
+    `slo_hours: 1` (с ADR-104 продюсер пишет раз в 300с), а самый частый его
+    читатель — шаг 0-офис протокола оркестратора с тактом 3600с. По журналу
+    реситов на 22.08: 210 из 352 разрывов больше часа (60 %), медиана 1.27ч,
+    максимум 6.0ч — сторож объявлял «потребитель замолчал» на ИСПРАВНОМ контуре
+    чаще, чем контур молчал. Класс тот же, что #256 у B2, только у B3 его не лечили.
+    """
+
+    ART = "data/investment_os/chief_investment.json"
+
+    def setup_io(self, **art_extra):
+        producer = agent("com.spa.io_chief_investment", consumer_required=True)
+        reader = agent("com.spa.orchestrator")
+        reader["schedule"] = "interval:3600s"
+        art = {"path": self.ART, "producer": "com.spa.io_chief_investment",
+               "consumers": ["orchestrator_protocol", "digest_daily"],
+               "slo_hours": 1, "status": "active"}
+        art.update(art_extra)
+        return manifest([producer, reader], [art])
+
+    def _run(self, m, receipt_age_h):
+        return run(m, {"com.spa.io_chief_investment", "com.spa.orchestrator"},
+                   ts_map={self.ART: NOW - dt.timedelta(minutes=4)},
+                   receipts={self.ART: NOW - dt.timedelta(hours=receipt_age_h)})
+
+    def test_producer_slo_no_longer_binds_the_reader(self):
+        """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ аварии: медианный разрыв 1.27ч при slo_hours=1.
+
+        На неисправленном стороже здесь B3:consumption_stale — ложное обвинение
+        читателя, который прочитал ровно так часто, как объявлено (такт 1ч).
+        """
+        r = self._run(self.setup_io(), 1.27)
+        self.assertEqual([k for k in keys(r) if k.startswith("B3")], [])
+
+    def test_worst_observed_gap_is_also_clean(self):
+        """Максимум наблюдённого разрыва (6.0ч) — всё ещё исправный контур."""
+        r = self._run(self.setup_io(), 6.0)
+        self.assertEqual([k for k in keys(r) if k.startswith("B3")], [])
+
+    def test_real_silence_still_flagged(self):
+        """Обратная сторона: сторож НЕ стал зеленее — сутки без чтения краснеют."""
+        r = self._run(self.setup_io(), 40)
+        self.assertIn(f"B3:consumption_stale:{self.ART}", keys(r))
+
+    def test_never_read_still_flagged(self):
+        """Ядро аудита неприкосновенно: ни одного ресита — находка при любом бюджете."""
+        m = self.setup_io()
+        r = run(m, {"com.spa.io_chief_investment", "com.spa.orchestrator"},
+                ts_map={self.ART: NOW - dt.timedelta(minutes=4)})
+        self.assertIn(f"B3:no_consumption:{self.ART}", keys(r))
+
+    def test_explicit_consumption_slo_is_honoured(self):
+        """Свой дал — свой и спрашиваем: 8ч чтения против объявленных 6ч."""
+        r = self._run(self.setup_io(consumption_slo_hours=6), 8)
+        self.assertIn(f"B3:consumption_stale:{self.ART}", keys(r))
+
+    def test_explicit_consumption_slo_below_reader_tick_names_the_literal(self):
+        """Дверь за собой закрыта: `consumption_slo_hours` строже такта читателя.
+
+        Это дефект МАНИФЕСТА (тот же вердикт, что B2 выносит `slo_hours`), а не
+        читателя — иначе класс вернулся бы через новый литерал.
+        """
+        r = self._run(self.setup_io(consumption_slo_hours=0.5), 0.2)
+        self.assertIn(f"B3:consumption_slo_unsatisfiable:{self.ART}", keys(r))
+        self.assertEqual(
+            [k for k in keys(r) if k.startswith("B3:consumption_stale")], [])
+
+    def test_satisfiable_literal_raises_no_unsatisfiable_finding(self):
+        """Обратный контроль: 26ч при часовом читателе — выполнимо, тишина."""
+        r = self._run(self.setup_io(consumption_slo_hours=26), 0.2)
+        self.assertEqual([k for k in keys(r) if k.startswith("B3")], [])
+
+    def test_unmeasurable_reader_tick_does_not_widen_the_budget(self):
+        """fail-CLOSED: такт читателя не измерим ⇒ бюджет остаётся объявленным."""
+        m = self.setup_io(consumers=["nekto_neizvestnyi"], consumption_slo_hours=6)
+        r = run(m, {"com.spa.io_chief_investment", "com.spa.orchestrator"},
+                ts_map={self.ART: NOW - dt.timedelta(minutes=4)},
+                receipts={self.ART: NOW - dt.timedelta(hours=8)})
+        self.assertIn(f"B3:consumption_stale:{self.ART}", keys(r))
+        self.assertEqual(
+            [k for k in keys(r) if k.startswith("B3:consumption_slo_unsatisfiable")],
+            [])
+
+    def test_budget_is_shown_not_just_applied(self):
+        """Урок #235: бюджет обязан быть показательным, иначе спорить не с чем."""
+        r = self._run(self.setup_io(), 1.27)
+        rows = [b for b in r["consumption_budgets"] if b["path"] == self.ART]
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual(row["declared_h"], ac.CONSUMPTION_SLO_DEFAULT_H)
+        self.assertFalse(row["declared_explicit"])
+        self.assertEqual(row["fastest_consumer"], "orchestrator_protocol")
+        self.assertEqual(row["floor_h"], 1.0)
+        self.assertIs(row["satisfiable"], True)
+
+    def test_producer_slo_change_cannot_move_the_reader_budget(self):
+        """Корень аварии: ужесточение `slo_hours` продюсера НЕ трогает B3."""
+        loose = self._run(self.setup_io(slo_hours=26), 1.27)
+        tight = self._run(self.setup_io(slo_hours=1), 1.27)
+        pick = lambda r: [b["budget_h"] for b in r["consumption_budgets"]
+                          if b["path"] == self.ART]
+        self.assertEqual(pick(loose), pick(tight))
+        self.assertEqual(pick(tight), [ac.CONSUMPTION_SLO_DEFAULT_H])
+
+
 class UncheckedHonesty(unittest.TestCase):
     def test_fleet_unmeasured_is_not_ok(self):
         """Класс fail-OPEN (#29–#38): «не смог посмотреть» ≠ «всё хорошо»."""

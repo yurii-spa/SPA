@@ -25,7 +25,15 @@
         слагаемые лежат машинно в `slo_budgets` (урок #235: бюджет обязан быть
         показательным, иначе спорить не с чем).
   B3  замыкание потребления: продукт агента с consumer_required обязан иметь СВЕЖИЙ
-        ресит в data/consumption_receipts.jsonl → WARN (ядро аудита: 12 io_* в никуда)
+        ресит в data/consumption_receipts.jsonl → WARN (ядро аудита: 12 io_* в никуда).
+        Срок годности ПОТРЕБЛЕНИЯ — собственный (`consumption_slo_hours`, по умолчанию
+        26ч), а НЕ заимствованный `slo_hours` продюсера: «файл свежий?» и «его кто-то
+        читает?» — разные вопросы разного масштаба, и пока B3 брал чужой литерал,
+        ужесточение SLO продюсера молча ужесточало требование к ЧИТАТЕЛЮ (замер #348:
+        `chief_investment.json` slo_hours=1 при часовом такте шага 0-офис ⇒ 60 %
+        разрывов реситов «нарушали» бюджет на исправном контуре). Литерал сверяется
+        с тактом самого частого читателя — тот же приём, что у B2; бюджет и его
+        слагаемые лежат машинно в `consumption_budgets`.
   B5  манифест сам соответствует фактам plist'ов (перегенерация без дрейфа;
         на хосте без ~/Library/LaunchAgents/com.spa.* — честный UNCHECKED).
         Отдельно: plist, объявленный манифестом путём В РЕПО, которого в этом
@@ -210,6 +218,70 @@ def freshness_floor(art: dict, by_label: dict) -> dict:
                           f"({agent.get('schedule')!r})"}
     return {"floor_h": period_h + tick_h, "period_h": period_h,
             "tick_h": tick_h, "reason": ""}
+
+
+# Бюджет ПОТРЕБЛЕНИЯ по умолчанию — ровно тот литерал, что стоял в B3 запасным
+# значением с самого рождения проверки (`art.get("slo_hours") or 26`). Он НЕ
+# выдуман этим изменением: у вопроса «этот отчёт вообще кто-нибудь читает?»
+# масштаб суток, а не часов (ядро аудита 2026-08-05 — 12 io_* без читателя
+# МЕСЯЦАМИ).
+CONSUMPTION_SLO_DEFAULT_H = 26.0
+
+# Словарь `consumers` манифеста — курация, и имена в нём не всегда launchd-ярлыки:
+# шаги протокола названы по роли. Соответствие держим ЗДЕСЬ и явно, а не гадаем
+# подстрокой (класс «сличение имён подстрокой выручает не тот объект»).
+CONSUMER_LABEL_ALIASES = {
+    "orchestrator_protocol": "com.spa.orchestrator",
+}
+
+
+def consumer_tick_hours(consumer: str, by_label: dict) -> float | None:
+    """Такт ПОТРЕБИТЕЛЯ по имени из `consumers`. None = не измерим (не гадаем)."""
+    for label in (consumer, f"com.spa.{consumer}",
+                  CONSUMER_LABEL_ALIASES.get(consumer)):
+        agent = by_label.get(label) if label else None
+        if agent is not None:
+            return producer_tick_hours(agent.get("schedule"))
+    return None
+
+
+def consumption_floor(art: dict, by_label: dict) -> dict:
+    """Физический минимум бюджета ПОТРЕБЛЕНИЯ — из такта самого частого читателя.
+
+    Ресит появляется только когда потребитель РАБОТАЕТ, поэтому возраст последнего
+    ресита при такте T гуляет в [0, T] на исправной системе. Требовать ресит свежее
+    T — значит краснеть на системе, которая читает ровно так часто, как объявлено.
+
+    Замер 2026-08-22 (цикл #348), из-за которого это появилось:
+    `chief_investment.json` объявлен `slo_hours: 1` (контракт ПРОИЗВОДИТЕЛЯ — с
+    ADR-104 он пишет раз в 300с), а самый частый его читатель — шаг 0-офис
+    протокола оркестратора с тактом 3600с. По журналу реситов: 210 из 352
+    разрывов (60 %) больше часа, медиана 1.27ч, максимум 6.0ч — то есть сторож
+    объявлял «потребитель замолчал» на исправном контуре чаще, чем молчал.
+
+    Возвращает {"floor_h", "consumer", "tick_h", "reason"}; floor_h=None — такт
+    ни одного потребителя не измерим (НЕ повод расширять бюджет: fail-CLOSED).
+    """
+    consumers = [c for c in (art.get("consumers") or []) if c]
+    if not consumers:
+        return {"floor_h": None, "consumer": None, "tick_h": None,
+                "reason": "потребители не объявлены"}
+    best: tuple[float, str] | None = None
+    unresolved: list[str] = []
+    for c in consumers:
+        tick = consumer_tick_hours(c, by_label)
+        if tick is None:
+            unresolved.append(c)
+            continue
+        if best is None or tick < best[0]:
+            best = (tick, c)
+    if best is None:
+        return {"floor_h": None, "consumer": None, "tick_h": None,
+                "reason": f"такт не измерим ни у одного потребителя: "
+                          f"{', '.join(unresolved)}"}
+    return {"floor_h": best[0], "consumer": best[1], "tick_h": best[0],
+            "reason": (f"такт не измерим у: {', '.join(unresolved)}"
+                       if unresolved else "")}
 
 
 def load_receipts(path: str = RECEIPTS_PATH) -> dict[str, dt.datetime]:
@@ -521,6 +593,7 @@ def run_checks(manifest: dict,
                 f"(класс agent_registry: 19 дней молчаливого протухания)"))
 
     # B3 — замыкание потребления
+    consumption_budgets: list[dict] = []
     for art in manifest.get("artifacts", []):
         if art.get("status") != "active":
             continue
@@ -528,16 +601,41 @@ def run_checks(manifest: dict,
         if producer and by_label.get(producer, {}).get("consumer_required"):
             path = art["path"]
             ts = receipts.get(path)
-            slo = art.get("slo_hours") or 26
+            # Срок годности ПОТРЕБЛЕНИЯ — свой, а не заимствованный у продюсера.
+            # `slo_hours` отвечает на вопрос «файл свежий?» (контракт производителя);
+            # вопрос B3 — «его кто-нибудь читает?», и это разные вопросы с разным
+            # масштабом. Пока B3 брал чужой литерал, ужесточение SLO продюсера
+            # молча ужесточало требование к ЧИТАТЕЛЮ — цикл #348.
+            declared = float(art.get("consumption_slo_hours") or 0) or CONSUMPTION_SLO_DEFAULT_H
+            floor = consumption_floor(art, by_label)
+            floor_h = floor["floor_h"]
+            unsatisfiable = bool(floor_h is not None and declared < floor_h)
+            budget = max(declared, floor_h) if unsatisfiable else declared
+            consumption_budgets.append({
+                "path": path, "declared_h": declared,
+                "declared_explicit": bool(art.get("consumption_slo_hours")),
+                "floor_h": floor_h, "fastest_consumer": floor["consumer"],
+                "budget_h": budget,
+                "satisfiable": (None if floor_h is None else not unsatisfiable),
+                "reason": floor["reason"]})
+            if unsatisfiable:
+                findings.append(_finding(
+                    f"B3:consumption_slo_unsatisfiable:{path}", "B3", "WARN", "strong",
+                    f"{path}: объявленный `consumption_slo_hours` {declared:g}ч МЕНЬШЕ "
+                    f"такта самого частого читателя ({floor['consumer']}, "
+                    f"{floor_h:g}ч) — читатель не может его обеспечить, молчание "
+                    f"считается по {budget:g}ч. Чинить литерал в манифесте, а не "
+                    f"читателя (класс #256/#348: сторож краснел на исправном контуре)"))
             if ts is None:
                 findings.append(_finding(
                     f"B3:no_consumption:{path}", "B3", "WARN", "strong",
                     f"{path}: consumer_required, но НИ ОДНОГО ресита потребления "
                     f"(ядро аудита 2026-08-05: отчёты в никуда)"))
-            elif (now - ts).total_seconds() / 3600.0 > slo:
+            elif (now - ts).total_seconds() / 3600.0 > budget:
                 findings.append(_finding(
                     f"B3:consumption_stale:{path}", "B3", "WARN", "strong",
-                    f"{path}: последний ресит старше SLO {slo}ч — потребитель замолчал"))
+                    f"{path}: последний ресит старше бюджета потребления {budget:g}ч "
+                    f"— потребитель замолчал"))
 
     # B5 — манифест соответствует фактам plist'ов
     if not drift_measured:
@@ -625,6 +723,7 @@ def run_checks(manifest: dict,
         # неотличим от `OK` о текущем.
         "inputs": list(inputs or []),
         "slo_budgets": slo_budgets,
+        "consumption_budgets": consumption_budgets,
         "findings": kept,
         "aged": aged,
         "unchecked": unchecked,

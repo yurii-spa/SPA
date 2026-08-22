@@ -2,12 +2,12 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **600** · ждёт владельца: **3** · занято сессиями: **6**.
+> Всего карточек: **602** · ждёт владельца: **3** · занято сессиями: **6**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
-- **Судьба чекапа — воронка ведёт в никуда, а канал заявок молчит, если Телеграм не настроен** · _high_  ·  `own-2026-08-19-sudba-voronki-chekapa-i-kanal-zayavok.md`
 - **Хвост maple ты принял на доле 15%, а фактическая доля — 20%: принятый убыток на треть больше**  ·  `owner-decision-hvost-maple-ty-prinyal-na-dole-15-a-fakt.md`
+- **Снять мёртвый адрес checkup.earn-defi.com — последнее, что осталось от похороненного чекапа**  ·  `owner-decision-snyat-mertvyi-adres-checkup-earn-defi-co.md`
 - **Твой ответ «Ответ 1» сегодня не применился — теперь можно отвечать прямо на сообщение с вопросом**  ·  `owner-decision-tvoi-otvet-otvet-1-segodnya-ne-primenils.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
@@ -21,11 +21,11 @@
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (137)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (138)
 
 ### · needs-owner
-- Судьба чекапа — воронка ведёт в никуда, а канал заявок молчит, если Телеграм не настроен  ·  `own-2026-08-19-sudba-voronki-chekapa-i-kanal-zayavok.md` · 2026-08-19
 - Хвост maple ты принял на доле 15%, а фактическая доля — 20%: принятый убыток на треть больше  ·  `owner-decision-hvost-maple-ty-prinyal-na-dole-15-a-fakt.md` · 2026-08-22
+- Снять мёртвый адрес checkup.earn-defi.com — последнее, что осталось от похороненного чекапа  ·  `owner-decision-snyat-mertvyi-adres-checkup-earn-defi-co.md` · 2026-08-22
 - Твой ответ «Ответ 1» сегодня не применился — теперь можно отвечать прямо на сообщение с вопросом  ·  `owner-decision-tvoi-otvet-otvet-1-segodnya-ne-primenils.md` · 2026-08-20
 ### · blocked
 - Наблюдённая угроза до тебя не доезжает, а наша собственная остановка доезжает каждый день  ·  `own-red-team-nablyudennaya-ugroza-ne-doezzhaet.md` · 2026-08-18
@@ -45,6 +45,7 @@
 - Дозаписать ли книгу за 12 прошлых дней трека — или оставить дыры как есть  ·  `own-2026-08-18-dozapisat-li-knigu-za-12-proshlyh-dnei.md` · 2026-08-18
 - Два источника доходности опознают пул по-разному — и денежный путь ходит в тот, у которого проверки нет  ·  `own-2026-08-18-dva-proizvoditelya-apy-opoznayut-pul-po-raznomu.md` · 2026-08-18
 - Просадка в отчёте — это шов двух симуляций, а не рыночное событие  ·  `own-2026-08-18-prosadka-v-otchete-eto-shov-dvuh-simulyatsii.md` · 2026-08-18
+- Судьба чекапа — воронка ведёт в никуда, а канал заявок молчит, если Телеграм не настроен  ·  `own-2026-08-19-sudba-voronki-chekapa-i-kanal-zayavok.md` · 2026-08-19
 - Навести порядок в агентах — реши по каждому пункту (сводка инвентаризации)  ·  `own-21-agent-cleanup-decisions.md` · 2026-07-15
 - Ревью ветки yield-lab-scaffolding — мержить или оставить как есть  ·  `own-22-yield-lab-branch-review.md` · 2026-07-15
 - Через 2 дня (~17.07) — пересмотреть, как часто работает автономный цикл  ·  `own-23-autonomy-cadence-recheck.md` · 2026-07-15
@@ -164,7 +165,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (287)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (288)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -207,6 +208,7 @@
 - Аудит пригодности не видел 186 модулей Tier-B из 479: форма входа dict не пробовалась ни разу  ·  `inbox-audit-prigodnosti-ne-videl-186-modulei-t.md` · 2026-08-06
 - автономный аркестратор должен был быть раз в 1 час а не раз в 3 часа  ·  `inbox-avtonomnyi-arkestrator-dolzhen-byl-byt-r.md` · 2026-07-16
 - Брифинг считает снимок флота протухшим раньше, чем писатель его переписывает (35 мин против такта 60)  ·  `inbox-brifing-schitaet-snimok-flota-protuhshim.md` · 2026-08-15
+- Чекап ушёл с главной, но остался в МЕНЮ: раздел назван по несуществующему продукту (остаток ADR-089 §5)  ·  `inbox-chekap-ushel-s-glavnoi-no-ostalsya-v-men.md` · 2026-08-20
 - CI 'SPA Tests' красный минимум 8 коммитов подряд, и этого никто не видит: цикл прогоняет только spa_core/tests  ·  `inbox-ci-spa-tests-krasnyi-minimum-8-kommitov.md` · 2026-08-09
 - Давай так и сделаем  ·  `inbox-davai-tak-i-sdelaem.md` · 2026-07-20
 - Длинный документ владельца приехал СЕМЬЮ карточками, и шесть из них — не задачи, а куски предложений  ·  `inbox-dlinnyi-dokument-vladeltsa-priehal-semyu.md` · 2026-08-13
@@ -247,9 +249,11 @@
 - Находка петли: com.spa.artifact_freshness работает, но plist не персистентен (repo:sc  ·  `inbox-nahodka-petli-com-spa-artifact-freshness.md` · 2026-08-05
 - Находка петли: com.spa.swarm_dwell работает, но plist не персистентен (repo:launchd/c  ·  `inbox-nahodka-petli-com-spa-swarm-dwell-rabota.md` · 2026-08-05
 - Находка петли: data/agent_registry.json: возраст 477.2ч > SLO 26ч (класс agent_regist  ·  `inbox-nahodka-petli-data-agent-registry-json-v.md` · 2026-08-05
+- Находка петли: data/investment_os/chief_investment.json: возраст 19.1ч > SLO 1ч (клас  ·  `inbox-nahodka-petli-data-investment-os-chief-i.md` · 2026-08-22
 - Находка петли: data/investment_os/_health.json: последний ресит старше SLO 14ч — потр  ·  `inbox-nahodka-petli-data-investment-os-health.md` · 2026-08-12
 - Находка петли: docs/SYSTEM_BRIEFING.md: последний ресит старше SLO 2ч — потребитель з  ·  `inbox-nahodka-petli-docs-system-briefing-md-po.md` · 2026-08-11
 - Находка петли: hit-rate аналитиков не вычислим: proof.jsonl хранит только хэши, содер  ·  `inbox-nahodka-petli-hit-rate-analitikov-ne-vyc.md` · 2026-08-05
+- Находка петли: манифест ↔ факты: com.spa.io_chief_investment: schedule 'interval:300s  ·  `inbox-nahodka-petli-manifest-fakty-com-spa-io.md` · 2026-08-22
 - Находка петли: манифест ↔ факты: manifest --check вернул дрейф (см. build_architectur  ·  `inbox-nahodka-petli-manifest-fakty-manifest-ch.md` · 2026-08-15
 - Находка петли: постура офиса CRITICAL, но книга развёрнута (cash 10.0% < 50%) — офис  ·  `inbox-nahodka-petli-postura-ofisa-critical-no.md` · 2026-08-11
 - Находка петли: возможность aave_v3 4.0307% (evidence L4) доступна книге, не держится  ·  `inbox-nahodka-petli-vozmozhnost-aave-v3-4-0307.md` · 2026-08-21
@@ -404,7 +408,6 @@
 - AI1 (книга владельца): три внедрения доставлены — экономика цеха, паспорта агентов, стандарт отчёта; циклам — заполнить паспорта и подключить генератор  ·  `inbox-ai1-tri-vnedreniya-ekonomika-pasporta-standart.md` · 2026-08-20
 - ALLOC-002-отбор: топ-8 по весу беднит книгу — отбирать ПОСЛЕ evidence/TVL-гейта  ·  `inbox-alloc-002-otbor-top-8-po-vesu-bednit-kni.md` · 2026-08-08
 - Бот на прямой вопрос владельца отрицает существующую needs-owner карточку (own-54) — ответ про очередь обязан читаться из доски, не из контекст-брифа  ·  `inbox-bot-otritsaet-suschestvuyuschuyu-own-kartochku.md` · 2026-08-19
-- Чекап ушёл с главной, но остался в МЕНЮ: раздел назван по несуществующему продукту (остаток ADR-089 §5)  ·  `inbox-chekap-ushel-s-glavnoi-no-ostalsya-v-men.md` · 2026-08-20
 - CIO: этап-1 (диагностика) готов документом — исполнять гэпы G1→G4, осколки 13.08 закрыть как дубли  ·  `inbox-cio-etap1-diagnostika-gotova-ispolnyat-g1-g4.md` · 2026-08-19
 - CLMM «79%»: research (часть 1 ADR-070 п.20) готов документом — остаётся часть 2 (ADR допуска с хеджем)  ·  `inbox-clmm-research-chast1-gotova-adr-070-p20.md` · 2026-08-19
 - Демоушен книг Aggressive по ОТНОСИТЕЛЬНОМУ рангу (решение владельца 09.08, вариант A)  ·  `inbox-demoushen-knig-aggressive-po-otnositelno.md` · 2026-08-09
@@ -420,8 +423,7 @@
 - Модуль bot_commands заменён, но жив: свой getUpdates-поллер и свои двери в чат  ·  `inbox-modul-bot-commands-zamenen-no-zhiv-svoi.md` · 2026-08-13
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
 - Находка петли: аналитик red_team: CRITICAL — требует реакции (карточка/решение), не п  ·  `inbox-nahodka-petli-analitik-red-team-critical.md` · 2026-08-10
-- Находка петли: data/investment_os/chief_investment.json: возраст 19.1ч > SLO 1ч (клас  ·  `inbox-nahodka-petli-data-investment-os-chief-i.md` · 2026-08-22
-- Находка петли: манифест ↔ факты: com.spa.io_chief_investment: schedule 'interval:300s  ·  `inbox-nahodka-petli-manifest-fakty-com-spa-io.md` · 2026-08-22
+- Находка петли: data/investment_os/chief_investment.json: последний ресит старше SLO 1  ·  `inbox-nahodka-petli-data-investment-os-chief-i-2.md` · 2026-08-22
 - Окно до 6 часов: ответ владельца между нажатием кнопки и прогоном моста живёт в одном экземпляре  ·  `inbox-okno-do-6-chasov-otvet-vladeltsa-mezhdu.md` · 2026-08-15
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08
 - Остатки инжеста 21.08: гейт доказанности APY в аварийной книге и якорь архива исходов — сначала ЗАМЕР  ·  `inbox-ostatki-inzhesta-21-08-geit-dokazannosti.md` · 2026-08-21
@@ -599,7 +601,6 @@
 ### · backlog
 - Advisory / сигнальный трек (вариант C) — отложен владельцем, держать в бэклоге  ·  `agent-advisory-signals-track-c.md` · 2026-07-23
 - 11 протоколов закрыты для капитала из-за отсутствия живого фида — вселенная выбора сужена, 10% кэша стоят под 0%  ·  `agent-blocked-protocols-need-live-feeds.md` · 2026-08-05
-- Подписка checkup отвечает ok:true, даже если письмо не отправилось — поломка жила незамеченной с июля  ·  `agent-checkup-waitlist-fail-open-ok-true.md` · 2026-08-02
 - Сверка цикла 04.08 — первый прогон на новом коде даст БОЛЬШОЙ ребаланс, это ожидаемо (не чинить)  ·  `agent-cycle-reconciliation-2026-08-04.md` · 2026-08-03
 - Найти источники данных для семи протоколов без фида (владелец выбрал «искать дальше»)  ·  `agent-find-feeds-for-seven-protocols.md` · 2026-08-05
 - Свежая полная инвентаризация флота (73 агента) — что делает / жив ли / нужен ли / расход  ·  `agent-fleet-inventory-73.md` · 2026-07-23
@@ -631,6 +632,7 @@
 ### · done
 - AUD-18 — пять доходных стратегий турнира без собственных тестов (замер показал другой пробел, чем в задании)  ·  `agent-aud18-strategy-unit-tests.md` · 2026-08-05
 - Проверка целостности резерва гонится с перегенерацией артефактов — «порча», которой нет  ·  `agent-backup-integrity-races-the-cycle.md` · 2026-08-05
+- Подписка checkup отвечает ok:true, даже если письмо не отправилось — поломка жила незамеченной с июля  ·  `agent-checkup-waitlist-fail-open-ok-true.md` · 2026-08-02
 - Буфер обмена подсунул текст, замаскированный под системные инструкции — разбор и правило  ·  `agent-clipboard-injection-incident-2026-08-02.md` · 2026-08-02
 - Прод крутит код на 409 коммитов старше origin — разрыв «запушено → выполняется» никто не проверял  ·  `agent-deployment-drift-guard.md` · 2026-08-03
 - Сетевая икота фида может эвакуировать книгу в кэш — нужна политика устаревания вместо «есть/нет»  ·  `agent-feed-staleness-policy.md` · 2026-08-04
