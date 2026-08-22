@@ -73,7 +73,11 @@ def test_reverted_change_resets_the_pending_phase(tmp_path):
     s = _sentinel(root)
     original = (root / B._CODE_SCOPE_DIRS[0] / "mod.py").read_text(encoding="utf-8")
     st = (root / B._CODE_SCOPE_DIRS[0] / "mod.py").stat()
-    _touch(root, "x = 2\n")
+    # Размеры ВСЕХ промежуточных состояний отличаются от исходного намеренно:
+    # отпечаток различает (mtime_ns, size), и на грубых часах ФС CI запись
+    # ТОГО ЖЕ размера в тот же mtime-гранул неотличима от исходника — тест
+    # флапал второй раз тем же классом (run 32565300416, 22.08).
+    _touch(root, "x = 22\n")
     assert s.should_exit(now=_T0 + 300.0) is False
     # вернуть байты И mtime — откат должен быть настоящим, не «другое изменение»
     p = root / B._CODE_SCOPE_DIRS[0] / "mod.py"
@@ -82,7 +86,7 @@ def test_reverted_change_resets_the_pending_phase(tmp_path):
     os.utime(p, ns=(st.st_atime_ns, st.st_mtime_ns))
     assert s.should_exit(now=_T0 + 600.0) is False
     # и после отката новое настоящее изменение снова требует ДВУХ замеров
-    _touch(root, "x = 5\n")
+    _touch(root, "x = 55555\n")
     assert s.should_exit(now=_T0 + 900.0) is False
     assert s.should_exit(now=_T0 + 1200.0) is True
 
