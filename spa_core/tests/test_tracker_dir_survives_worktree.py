@@ -11,7 +11,6 @@ owner-gate: состояние, обязанное переживать worktree
 # LLM_FORBIDDEN
 from __future__ import annotations
 
-import importlib
 from pathlib import Path
 
 from spa_core.owner_queue import queue as Q
@@ -60,20 +59,35 @@ def test_gate_sandbox_env_does_not_hijack_the_owner_queue(tmp_path, monkeypatch)
     assert got == live / "nimbalyst-local" / "tracker"
 
 
-def test_create_card_lands_in_the_live_tracker(tmp_path, monkeypatch):
+def test_create_card_lands_in_the_live_tracker(tmp_path):
     """Сквозной контроль: create_card с дефолтным разрешением кладёт файл в
-    живой трекер (через перезагрузку модуля с SPA_LIVE_ROOT)."""
+    живой трекер. СУБПРОЦЕССОМ намеренно: importlib.reload(queue) в тесте
+    подменяет класс OwnerDoneForbidden новым объектом, и у любого более
+    позднего теста pytest.raises(старый класс) перестаёт ловить — ровно так
+    покраснел test_owner_done_refusal_leaves_no_record в полном прогоне CI
+    (run 32564423137, 22.08), оставаясь зелёным соло. Свежий импорт в чужом
+    процессе — изоляция без побочных эффектов на identity классов."""
+    import json
+    import subprocess
+    import sys
+
     live = tmp_path / "prod-tree"
     (live / "nimbalyst-local" / "tracker").mkdir(parents=True)
-    monkeypatch.delenv("SPA_TRACKER_DIR", raising=False)
-    monkeypatch.setenv("SPA_LIVE_ROOT", str(live))
-    mod = importlib.reload(Q)
-    try:
-        path = mod.create_card(tracker_type="owner-decision",
-                               title="Тест: призрак не рождается",
-                               body="## Что случилось и почему это важно\nтест\n")
-        assert Path(path).parent == live / "nimbalyst-local" / "tracker"
-        assert Path(path).exists()
-    finally:
-        monkeypatch.delenv("SPA_LIVE_ROOT", raising=False)
-        importlib.reload(Q)
+    env = {k: v for k, v in __import__("os").environ.items()
+           if k not in ("SPA_TRACKER_DIR",)}
+    env["SPA_LIVE_ROOT"] = str(live)
+    code = (
+        "import json\n"
+        "from spa_core.owner_queue.queue import create_card, TRACKER_DIR\n"
+        "p = create_card(tracker_type='owner-decision',\n"
+        "                title='Тест: призрак не рождается',\n"
+        "                body='## Что случилось и почему это важно\\nтест\\n')\n"
+        "print(json.dumps({'tracker': str(TRACKER_DIR), 'card': str(p)}))\n"
+    )
+    out = subprocess.run([sys.executable, "-c", code], env=env, cwd=str(Q._REPO_ROOT),
+                         capture_output=True, text=True, timeout=60)
+    assert out.returncode == 0, out.stderr
+    got = json.loads(out.stdout.strip().splitlines()[-1])
+    assert Path(got["tracker"]) == live / "nimbalyst-local" / "tracker"
+    assert Path(got["card"]).parent == live / "nimbalyst-local" / "tracker"
+    assert Path(got["card"]).exists()
