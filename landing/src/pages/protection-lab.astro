@@ -1,0 +1,361 @@
+---
+// Protection Lab (ADR-120, phase 8; owner-approved 2026-08-22 «разрешаю мержить на главный сайт»).
+// EVERY number on this page comes from landing/src/data/protection_lab.json, which is
+// generated ONLY by scripts/build_protection_lab_site_data.py running the deterministic
+// replay engine (spa_core/stress/protection_lab). Hand-editing numbers here is forbidden —
+// regenerate instead. Honest by design: verdicts include "protection cost money" and
+// "channel not covered"; hiding them would defeat the page's purpose.
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+import LAB from '../data/protection_lab.json';
+
+const S = LAB.summary;
+const LAB_JSON = JSON.stringify(LAB);
+
+const verdictMeta = {
+  worked:       { en: 'protection worked',      ru: 'защита отработала',      cls: 'text-ok border-ok-border bg-ok-bg' },
+  quiet:        { en: 'quiet: nothing to hit',  ru: 'тихо: бить нечем',       cls: 'text-ok border-ok-border bg-ok-bg' },
+  costly:       { en: 'protection cost money',  ru: 'защита стоила денег',    cls: 'text-warn border-warn-border bg-warn-bg' },
+  uncovered:    { en: 'channel not covered',    ru: 'канал не покрыт',        cls: 'text-danger border-danger-border bg-danger-bg' },
+  unexecutable: { en: 'could not execute',      ru: 'исполнить было нельзя',  cls: 'text-danger border-danger-border bg-danger-bg' },
+};
+const fmtSaved = (v) => (v >= 0 ? '+$' : '−$') + Math.abs(Math.round(v)).toLocaleString('en-US');
+const fmtDd = (v) => '−' + v.toFixed(1) + '%';
+---
+
+<Layout
+  title="Protection Lab — every major crypto crisis, replayed | earn-defi.com"
+  description="16 historical crypto catastrophes replayed against our risk system: what the protection saw, what it did, what it could actually execute, and what a passive holder would have kept. Including the cases where protection failed or cost money. Research, not an offering."
+  canonical="https://earn-defi.com/protection-lab"
+>
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Hero -->
+    <section class="pt-20 pb-8">
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-accent-500/10 border border-accent-700/40 text-xs text-accent-300 font-medium">
+        <span class="w-1.5 h-1.5 rounded-full bg-accent-400" aria-hidden="true"></span>
+        <span data-ru="Исторический replay · paper">Historical replay · paper</span>
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Лаборатория защиты">
+        Protection Lab
+      </h1>
+      <p class="text-xl text-white/50 leading-relaxed max-w-2xl" data-ru="Мы не просим верить словам «управление риском». Вот крупнейшие катастрофы крипторынка — выберите любую и посмотрите, что произошло бы с виртуальными $100,000 под нашей защитой против пассивного держателя той же корзины. Включая случаи, где защита не помогла или помешала: это исследование, а не витрина.">
+        We don't ask you to trust the words "risk management". Here are the largest catastrophes in
+        crypto history — pick any one and see what would have happened to a virtual $100,000 under our
+        protection versus a passive holder of the same basket. Including the cases where protection
+        failed or made things worse: this is research, not a showcase.
+      </p>
+    </section>
+
+    <!-- Honesty banner -->
+    <section class="pb-2">
+      <div class="rounded-xl border border-warn-border bg-warn-bg p-5">
+        <p class="text-xs text-warn uppercase tracking-wider font-mono mb-2" data-ru="Как это читать">How to read this</p>
+        <p class="text-sm text-white/70 leading-relaxed" data-ru={`Это детерминированный replay по историческим данным с источниками (сгенерировано ${LAB.generated}), а НЕ live-результаты, не прогноз и не инвест-совет. Портфель виртуальный ($100,000, paper). Решения в replay принимает настоящий risk-код системы; без заглядывания в будущее: решение дня T видит рынок конца дня T−1. Выход из замороженного протокола записывается как отказ исполнения, а не как защита. Допущения маппинга исторических площадок на сегодняшнюю корзину задокументированы в каждом сценарии публичного репозитория.`}>
+          This is a deterministic replay over sourced historical data (generated {LAB.generated}) —
+          <strong class="text-white/85">not</strong> live results, a forecast, or investment advice. The
+          portfolio is virtual ($100,000, paper). Replay decisions are made by the system's real risk
+          code; no look-ahead: a day-T decision sees the market as of end of day T−1. An exit from a
+          frozen venue is recorded as an <strong class="text-white/85">execution failure</strong>, not as
+          protection. Mapping assumptions for historical venues are documented per scenario in the public repo.
+        </p>
+      </div>
+    </section>
+
+    <!-- Summary tiles -->
+    <section class="py-8 grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div class="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+        <div class="text-2xl font-bold font-mono text-white">{S.library}</div>
+        <div class="text-xs text-white/50 mt-1 leading-snug" data-ru="исторических кризисов в библиотеке (2014–2026), каждый с источниками">historical crises in the library (2014–2026), each with sources</div>
+      </div>
+      <div class="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+        <div class="text-2xl font-bold font-mono text-ok">{S.survived_hard}/{S.replayed}</div>
+        <div class="text-xs text-white/50 mt-1 leading-snug" data-ru="прогонов без жёсткой (−10%) просадки защищённой корзины">replays without a hard (−10%) drawdown of the protected basket</div>
+      </div>
+      <div class="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+        <div class="text-2xl font-bold font-mono text-danger">{fmtDd(S.worst_prot_dd)}</div>
+        <div class="text-xs text-white/50 mt-1 leading-snug" data-ru="худшая просадка под защитой — кредитные/заморозочные каналы без ценового сигнала">worst protected drawdown — credit/freeze channels with no price signal</div>
+      </div>
+      <div class="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+        <div class="text-2xl font-bold font-mono text-white">5</div>
+        <div class="text-xs text-white/50 mt-1 leading-snug" data-ru="каналов риска, которые лаборатория честно называет незакрытыми">risk channels the lab honestly names as not covered</div>
+      </div>
+    </section>
+
+    <!-- Historical grid -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs font-mono uppercase tracking-[0.12em] text-white/40 mb-2" data-ru="Исторические кризисы">Historical crises</p>
+      <h2 class="text-2xl font-semibold text-white mb-5" data-ru="Выберите катастрофу">Pick a catastrophe</h2>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {LAB.historical.map((s) => (
+          <button type="button" data-sid={s.id}
+            class="pl-card text-left rounded-xl border border-white/8 bg-white/[0.02] p-4 hover:border-white/20 transition-colors cursor-pointer">
+            <div class="font-semibold text-white text-sm leading-snug mb-0.5" data-ru={s.nameRu}>{s.nameEn}</div>
+            <div class="font-mono text-[11px] text-white/35 mb-2">{s.window}</div>
+            <div class="flex justify-between text-xs font-mono text-white/60">
+              <span data-ru="пассив DD">passive DD</span><span>{fmtDd(s.metrics.bench_dd)}</span>
+            </div>
+            <div class="flex justify-between text-xs font-mono text-white/60">
+              <span data-ru="защита DD">protected DD</span><span>{fmtDd(s.metrics.prot_dd)}</span>
+            </div>
+            <div class="flex justify-between text-xs font-mono mb-2">
+              <span class="text-white/60">saved</span>
+              <span class={s.metrics.saved < 0 ? 'text-danger' : (s.metrics.saved > 0 ? 'text-ok' : 'text-white/60')}>{fmtSaved(s.metrics.saved)}</span>
+            </div>
+            <span class={'inline-block text-[11px] font-medium px-2 py-0.5 rounded-full border ' + verdictMeta[s.verdict].cls}
+              data-ru={verdictMeta[s.verdict].ru}>{verdictMeta[s.verdict].en}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+
+    <!-- Synthetic chips -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs font-mono uppercase tracking-[0.12em] text-white/40 mb-2" data-ru="Синтетические стрессы">Synthetic stresses</p>
+      <h2 class="text-2xl font-semibold text-white mb-2" data-ru="Сценарии, которых ещё не было">Scenarios that have not happened yet</h2>
+      <p class="text-sm text-white/50 max-w-2xl mb-4" data-ru="Семейства отказов, сгенерированные параметрическим движком — включая те, где защита заведомо бессильна или вредит. Тот же детерминированный код, что и у исторических прогонов.">
+        Failure families generated by the parametric engine — including ones where protection is
+        knowingly powerless or harmful. The same deterministic code as the historical replays.
+      </p>
+      <div class="flex flex-wrap gap-2">
+        {LAB.synthetic.map((s) => (
+          <button type="button" data-sid={s.id}
+            class="pl-card rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-sm text-white/80 hover:border-white/25 transition-colors cursor-pointer"
+            data-ru={s.nameRu}>{s.nameEn}</button>
+        ))}
+      </div>
+    </section>
+
+    <!-- Detail -->
+    <section class="py-10 border-t border-white/5" id="pl-detail-sec">
+      <p class="text-xs font-mono uppercase tracking-[0.12em] text-white/40 mb-4" data-ru="Разбор">Breakdown</p>
+      <div id="pl-detail" class="rounded-xl border border-white/10 bg-white/[0.02] p-5 sm:p-6 relative"></div>
+    </section>
+
+    <!-- Method -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs font-mono uppercase tracking-[0.12em] text-white/40 mb-2" data-ru="Метод">Method</p>
+      <h2 class="text-2xl font-semibold text-white mb-4" data-ru="Как это посчитано">How this is computed</h2>
+      <ul class="space-y-3 text-sm text-white/60 leading-relaxed max-w-2xl">
+        <li data-ru="Два прогона одной корзины: «Пассив» ничего не делает; «Под защитой» — ежедневный цикл, решения принимает настоящий risk-код (двухуровневый стоп-кран и депег-гейт), а не копия его порогов.">Two runs of one basket: "Passive" does nothing; "Protected" is the daily cycle, with decisions made by the system's real risk code (the two-tier kill-switch ladder and the depeg gate), not by a copy of its thresholds.</li>
+        <li data-ru="Учёт не приукрашивает: haircut и gas за выходы платятся, выходы исполняются по ценам дня шока, «capital saved» бывает отрицательным — и мы показываем эти случаи первыми.">The accounting does not flatter: exit haircuts and gas are paid, exits execute at shock-day prices, and "capital saved" can be negative — we show those cases first.</li>
+        <li data-ru="Незакрытые каналы названы: кредитный дефолт без ценового сигнала; депег самого кэш-актива; недоступность вывода при целом NAV; внутридневная скорость каскадов; фиксация убытка на транзиентных дисконтах.">The uncovered channels are named: credit default with no price signal; a depeg of the cash asset itself; withdrawal unavailability while NAV is intact; intraday cascade speed; locking losses on transient discounts.</li>
+        <li data-ru="Провенанс: каждый исторический сценарий несёт таймлайн UTC, ≥3 источников и допущения маппинга в публичном репозитории; спорные числа помечены в самом сценарии.">Provenance: every historical scenario carries a UTC timeline, ≥3 sources and mapping assumptions in the public repo; contested figures are flagged inside the scenario itself.</li>
+      </ul>
+    </section>
+
+  </main>
+  <Disclaimer />
+
+  <style>
+    .pl-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .pl-card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+    #pl-tip { position: absolute; pointer-events: none; background: #E6EAEE; color: #0A0C10;
+      font-family: var(--font-mono); font-size: 11px; padding: 6px 9px; border-radius: 6px;
+      opacity: 0; max-width: 300px; z-index: 5; transition: opacity .12s; }
+    .pl-daytab { border-collapse: collapse; font-family: var(--font-mono); font-size: 11px; }
+    .pl-daytab th, .pl-daytab td { padding: 3px 14px 3px 0; text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,.06); color: rgba(255,255,255,.55); }
+    #pl-chart text { font-family: var(--font-mono); font-size: 10.5px; fill: rgba(255,255,255,.45); }
+    #pl-chart .dl { font-family: var(--font-sans); font-size: 11.5px; font-weight: 600; }
+  </style>
+
+  <script is:inline define:vars={{ LAB_JSON }}>
+  (function () {
+    var LAB;
+    try { LAB = JSON.parse(LAB_JSON); } catch (e) { return; }
+    var ALL = LAB.historical.concat(LAB.synthetic);
+    var current = null;
+
+    function isRu() { try { return (localStorage.getItem('spa_lang') || 'en') === 'ru'; } catch (e) { return false; } }
+    function fmt$(v) { return '$' + Math.round(v).toLocaleString('en-US'); }
+    function fmtSaved(v) { return (v >= 0 ? '+$' : '−$') + Math.abs(Math.round(v)).toLocaleString('en-US'); }
+    function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+    var L = {
+      passive:   { en: 'Passive',            ru: 'Пассив' },
+      protectedL:{ en: 'Protected',          ru: 'Под защитой' },
+      finalP:    { en: 'Passive, final',     ru: 'Пассив, финал' },
+      finalPr:   { en: 'Protected, final',   ru: 'Под защитой, финал' },
+      saved:     { en: 'Capital saved',      ru: 'Capital saved' },
+      seen:      { en: 'Danger seen',        ru: 'Опасность увидена' },
+      never:     { en: 'never',              ru: 'никогда' },
+      day:       { en: 'day ',               ru: 'день ' },
+      dayShort:  { en: 'd. ',                ru: 'д. ' },
+      actions:   { en: 'Protection actions', ru: 'Действия защиты' },
+      fails:     { en: 'Execution failures', ru: 'Отказы исполнения' },
+      failsNote: { en: 'an exit decision existed, but withdrawals were frozen — a right decision that cannot execute is not protection, and we show that.',
+                   ru: 'решение о выходе было, но вывод был заморожен — верное решение, которое нельзя исполнить, не защита, и мы это показываем.' },
+      table:     { en: 'Daily data (table)',  ru: 'Данные по дням (таблица)' },
+      dayCol:    { en: 'day',                ru: 'день' },
+      note:      { en: 'Honest caveat',      ru: 'Честная оговорка' },
+      kinds: {
+        hard_kill:    { en: 'hard kill-switch',        ru: 'жёсткий стоп-кран',        c: 'var(--danger)' },
+        soft_derisk:  { en: 'soft de-risk',            ru: 'мягкое снижение риска',    c: 'var(--warn)' },
+        depeg_exit:   { en: 'depeg-gate exit',         ru: 'выход по депег-гейту',     c: 'var(--warn)' },
+        architecture_finding: { en: 'finding: channel not covered', ru: 'находка: канал не защищён', c: 'var(--danger)' },
+      },
+    };
+    function t(k) { var o = L[k]; return isRu() ? o.ru : o.en; }
+
+    function render(s) {
+      current = s;
+      var m = s.metrics, ru = isRu();
+      var host = document.getElementById('pl-detail');
+      if (!host) return;
+      var html =
+        '<h3 class="text-xl font-semibold text-white mb-1">' + esc(ru ? s.nameRu : s.nameEn) + '</h3>' +
+        '<p class="text-xs font-mono text-white/35 mb-3">' + esc(s.fullName).slice(0, 120) + (s.window ? ' · ' + s.window : '') + '</p>' +
+        '<p class="text-sm text-white/60 leading-relaxed max-w-2xl mb-4">' + esc(ru ? s.blurbRu : s.blurbEn) + '</p>' +
+        '<div class="flex flex-wrap gap-x-6 gap-y-2 font-mono text-sm mb-3">' +
+          kpi(t('finalP'), fmt$(m.bench_final), 'text-white/80') +
+          kpi(t('finalPr'), fmt$(m.prot_final), 'text-white/80') +
+          kpi(t('saved'), fmtSaved(m.saved), m.saved < 0 ? 'text-danger' : 'text-ok') +
+          kpi(t('seen'), m.det === null ? t('never') : t('day') + m.det, 'text-white/80') +
+        '</div>' +
+        '<div class="flex flex-wrap gap-4 items-center text-xs text-white/45 mb-1">' +
+          '<span><i style="display:inline-block;width:16px;border-top:2.5px solid #d95926;vertical-align:middle;margin-right:6px"></i>' + t('passive') + '</span>' +
+          '<span><i style="display:inline-block;width:16px;border-top:2.5px solid #3987e5;vertical-align:middle;margin-right:6px"></i>' + t('protectedL') + '</span>' +
+        '</div>' +
+        '<div class="relative overflow-x-auto"><div id="pl-chart"></div><div id="pl-tip"></div></div>';
+      var acts = s.actions || [];
+      if (acts.length) {
+        html += '<div class="mt-4"><p class="text-xs font-mono uppercase tracking-wider text-white/40 mb-2">' + t('actions') + '</p>';
+        for (var i = 0; i < acts.length; i++) {
+          var k = L.kinds[acts[i].kind] || { en: acts[i].kind, ru: acts[i].kind, c: 'rgba(255,255,255,.4)' };
+          html += '<div class="flex gap-3 items-center text-sm text-white/65 py-1 border-t border-white/5">' +
+            '<span class="font-mono text-white/35 w-12">' + t('dayShort') + acts[i].day + '</span>' +
+            '<span style="width:8px;height:8px;border-radius:50%;background:' + k.c + ';flex:none"></span>' +
+            '<span>' + (isRu() ? k.ru : k.en) + '</span></div>';
+        }
+        html += '</div>';
+      }
+      if (s.fails > 0) {
+        html += '<div class="mt-3 rounded-lg border border-danger-border bg-danger-bg p-3 text-sm text-white/70">' +
+          '<span class="text-danger font-medium">' + t('fails') + ': ' + s.fails + '</span> — ' + t('failsNote') + '</div>';
+      }
+      html += '<p class="mt-4 text-xs text-white/40 max-w-2xl"><span class="font-mono uppercase tracking-wider">' + t('note') + ':</span> ' +
+        esc(ru ? s.noteRu : s.noteEn) + '</p>';
+      html += dayTable(s);
+      host.innerHTML = html;
+      drawChart(s);
+    }
+
+    function kpi(label, value, cls) {
+      return '<div><div class="text-[10px] uppercase tracking-wider text-white/35 font-sans">' + label + '</div>' +
+        '<div class="' + cls + '">' + value + '</div></div>';
+    }
+
+    function dayTable(s) {
+      var rows = '';
+      for (var i = 0; i < s.prot.length; i++) {
+        rows += '<tr><td>' + (s.dates && s.dates[i] ? s.dates[i] : i) + '</td><td>' + fmt$(s.bench[i]) + '</td><td>' + fmt$(s.prot[i]) + '</td></tr>';
+      }
+      return '<details class="mt-3 text-xs text-white/45"><summary class="cursor-pointer">' + t('table') + '</summary>' +
+        '<div class="overflow-x-auto mt-2"><table class="pl-daytab"><tr><th>' + t('dayCol') + '</th><th>' + t('passive') + '</th><th>' + t('protectedL') + '</th></tr>' +
+        rows + '</table></div></details>';
+    }
+
+    function drawChart(s) {
+      var host = document.getElementById('pl-chart');
+      if (!host) return;
+      var W = 860, H = 280, Lp = 58, R = 92, T = 12, B = 28;
+      var n = s.prot.length;
+      var all = s.bench.concat(s.prot);
+      var lo = Math.min.apply(null, all), hi = Math.max.apply(null, all);
+      var pad = Math.max((hi - lo) * 0.08, 200); lo -= pad; hi += pad;
+      function x(i) { return Lp + (W - Lp - R) * (n === 1 ? 0 : i / (n - 1)); }
+      function y(v) { return T + (H - T - B) * (1 - (v - lo) / (hi - lo)); }
+      function path(arr) {
+        var d = '';
+        for (var i = 0; i < arr.length; i++) d += (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(arr[i]).toFixed(1);
+        return d;
+      }
+      var g = '';
+      for (var tt = 0; tt <= 4; tt++) {
+        var v = lo + (hi - lo) * tt / 4, yy = y(v);
+        g += '<line x1="' + Lp + '" x2="' + (W - R) + '" y1="' + yy + '" y2="' + yy + '" stroke="rgba(255,255,255,.07)" stroke-width="1"/>' +
+             '<text x="' + (Lp - 8) + '" y="' + (yy + 3.5) + '" text-anchor="end">' + Math.round(v / 1000) + 'k</text>';
+      }
+      var xt = '', idxs = [0, Math.floor((n - 1) / 2), n - 1];
+      for (var q = 0; q < idxs.length; q++) {
+        var i2 = idxs[q];
+        if (i2 >= 0 && i2 < n) xt += '<text x="' + x(i2) + '" y="' + (H - 6) + '" text-anchor="middle">' +
+          (s.dates && s.dates[i2] ? s.dates[i2].slice(5) : i2) + '</text>';
+      }
+      var marks = '';
+      for (var a = 0; a < (s.actions || []).length; a++) {
+        var ac = s.actions[a];
+        var k = L.kinds[ac.kind] || { c: 'rgba(255,255,255,.4)' };
+        if (ac.day < n) marks += '<circle cx="' + x(ac.day) + '" cy="' + y(s.prot[ac.day]) +
+          '" r="4.5" fill="' + k.c + '" stroke="#0A0C10" stroke-width="2"/>';
+      }
+      var eB = y(s.bench[n - 1]), eP = y(s.prot[n - 1]);
+      if (Math.abs(eB - eP) < 14) { if (eB < eP) { eB -= 7; eP += 7; } else { eP -= 7; eB += 7; } }
+      host.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="min-width:640px;width:100%" role="img" aria-label="NAV">' +
+        g + xt +
+        '<path d="' + path(s.bench) + '" fill="none" stroke="#d95926" stroke-width="2"/>' +
+        '<path d="' + path(s.prot) + '" fill="none" stroke="#3987e5" stroke-width="2.5"/>' +
+        marks +
+        '<text class="dl" x="' + (W - R + 8) + '" y="' + (eB + 4) + '" fill="#d95926">' + t('passive') + '</text>' +
+        '<text class="dl" x="' + (W - R + 8) + '" y="' + (eP + 4) + '" fill="#3987e5">' + t('protectedL') + '</text>' +
+        '<line id="pl-xh" x1="0" x2="0" y1="' + T + '" y2="' + (H - B) + '" stroke="rgba(255,255,255,.35)" stroke-width="1" opacity="0"/></svg>';
+      var svg = host.querySelector('svg'), tip = document.getElementById('pl-tip'), xh = host.querySelector('#pl-xh');
+      if (!svg || !tip) return;
+      svg.addEventListener('mousemove', function (ev) {
+        var r = svg.getBoundingClientRect();
+        var px = (ev.clientX - r.left) / r.width * W;
+        var i = Math.round((px - Lp) / (W - Lp - R) * (n - 1));
+        if (i < 0 || i > n - 1) { tip.style.opacity = 0; xh.setAttribute('opacity', 0); return; }
+        xh.setAttribute('x1', x(i)); xh.setAttribute('x2', x(i)); xh.setAttribute('opacity', .5);
+        var flags = [];
+        for (var a2 = 0; a2 < (s.actions || []).length; a2++) {
+          if (s.actions[a2].day === i) {
+            var kk = L.kinds[s.actions[a2].kind];
+            flags.push(kk ? (isRu() ? kk.ru : kk.en) : s.actions[a2].kind);
+          }
+        }
+        tip.innerHTML = (s.dates && s.dates[i] ? s.dates[i] : i) + '<br>' +
+          t('passive') + ' ' + fmt$(s.bench[i]) + ' · ' + t('protectedL') + ' ' + fmt$(s.prot[i]) +
+          (flags.length ? '<br>⚑ ' + esc(flags.join('; ')) : '');
+        var wrap = host.parentElement.getBoundingClientRect();
+        tip.style.left = Math.min(ev.clientX - wrap.left + 14, Math.max(wrap.width - 310, 0)) + 'px';
+        tip.style.top = (ev.clientY - wrap.top - 10) + 'px';
+        tip.style.opacity = 1;
+      });
+      svg.addEventListener('mouseleave', function () { tip.style.opacity = 0; xh.setAttribute('opacity', 0); });
+    }
+
+    function select(id, el) {
+      var s = null;
+      for (var i = 0; i < ALL.length; i++) if (ALL[i].id === id) { s = ALL[i]; break; }
+      if (!s) return;
+      var cards = document.querySelectorAll('.pl-card');
+      for (var c = 0; c < cards.length; c++) cards[c].classList.remove('active');
+      if (el) el.classList.add('active');
+      render(s);
+      try {
+        if (window.spaTrack) window.spaTrack('protection_lab_scenario', { id: id });
+        var sec = document.getElementById('pl-detail-sec');
+        if (sec && el) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (e) {}
+    }
+
+    var cards = document.querySelectorAll('.pl-card');
+    for (var i = 0; i < cards.length; i++) {
+      (function (el) {
+        el.addEventListener('click', function () { select(el.getAttribute('data-sid'), el); });
+      })(cards[i]);
+    }
+
+    // языковой свитчер сайта перерисовывает динамическую часть
+    window.__renderLive = function () { if (current) render(current); };
+
+    // стартовый разбор — канонический депег USDC (единственный депег кэша в истории)
+    var startId = 'H08_usdc_svb_depeg_2023';
+    var startEl = document.querySelector('[data-sid="' + startId + '"]');
+    if (startEl) startEl.classList.add('active');
+    select(startId, null);
+  })();
+  </script>
+</Layout>

@@ -26,7 +26,7 @@
 | 5. Синтетика | параметризованный генератор, тот же движок | **L4** | `synthetic.py` |
 | 6. AI-генератор параметров | LLM только предлагает `SyntheticSpec` | **L2** (описано, не строено) | карточка `inbox-protection-lab-fazy-6-8-*` |
 | 7. Adversarial | v1: рукописные семейства отказов; перебор — не строен | **L3** (набор есть, перебора нет) | `synthetic.py::ADVERSARIAL_SPECS` |
-| 8. Страница сайта | Protection Lab UI | **L1/L2**, owner-gated | та же карточка |
+| 8. Страница сайта | `/protection-lab` — интерактив, EN|RU, все числа из генератора | **L4** (v1, owner-approved 22.08) | `landing/src/pages/protection-lab.astro` + `scripts/build_protection_lab_site_data.py` |
 
 ## Архитектура (почему так)
 
