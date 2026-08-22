@@ -1,7 +1,7 @@
 """
 Tests for MP-1251:
 GrossOfReferralAffiliateFeeAnalyzer
-Run: python3 -m unittest spa_core.analytics.gross_of.test_defi_protocol_vault_performance_fee_gross_of_referral_affiliate_fee_analyzer -v
+Run: python3 -m unittest spa_core.tests.test_gross_of.test_defi_protocol_vault_performance_fee_gross_of_referral_affiliate_fee_analyzer -v
 """
 
 import json

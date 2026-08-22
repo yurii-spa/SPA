@@ -1,7 +1,7 @@
 """
-Tests for MP-1251:
-GrossOfLstPegSlippageAnalyzer
-Run: python3 -m unittest spa_core.analytics.gross_of.test_defi_protocol_vault_performance_fee_gross_of_lst_peg_slippage_analyzer -v
+Tests for MP-1250:
+GrossOfLpAmmFeeDragAnalyzer
+Run: python3 -m unittest spa_core.tests.test_gross_of.test_defi_protocol_vault_performance_fee_gross_of_lp_amm_fee_drag_analyzer -v
 """
 
 import json
@@ -15,8 +15,8 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from spa_core.analytics.gross_of.defi_protocol_vault_performance_fee_gross_of_lst_peg_slippage_analyzer import (  # noqa: E501
-    GrossOfLstPegSlippageAnalyzer,
+from spa_core.analytics.gross_of.defi_protocol_vault_performance_fee_gross_of_lp_amm_fee_drag_analyzer import (  # noqa: E501
+    GrossOfLpAmmFeeDragAnalyzer,
     _f,
     _clamp,
     _mean,
@@ -30,7 +30,7 @@ from spa_core.analytics.gross_of.defi_protocol_vault_performance_fee_gross_of_ls
     CLEAN_FRACTION,
     MILD_FRACTION,
     MODERATE_FRACTION,
-    HIGH_LST_PEG_SLIPPAGE_PCT,
+    HIGH_LP_AMM_FEE_PCT,
     EPS,
     LOG_PATH,
     LOG_CAP,
@@ -42,23 +42,23 @@ from spa_core.analytics.gross_of.defi_protocol_vault_performance_fee_gross_of_ls
 def make_pos(
     vault="ETH-Vault",
     gross_yield_pct=None,
-    net_of_lst_peg_slippage_yield_pct=None,
+    net_of_lp_amm_fee_yield_pct=None,
     performance_fee_pct=None,
-    lst_peg_slippage_rate_pct=None,
-    lst_peg_slippage_gap_pct=None,
+    lp_amm_fee_rate_pct=None,
+    lp_amm_fee_gap_pct=None,
     fee_charged_pct=None,
 ):
     pos = {"vault": vault}
     if gross_yield_pct is not None:
         pos["gross_yield_pct"] = gross_yield_pct
-    if net_of_lst_peg_slippage_yield_pct is not None:
-        pos["net_of_lst_peg_slippage_yield_pct"] = net_of_lst_peg_slippage_yield_pct
+    if net_of_lp_amm_fee_yield_pct is not None:
+        pos["net_of_lp_amm_fee_yield_pct"] = net_of_lp_amm_fee_yield_pct
     if performance_fee_pct is not None:
         pos["performance_fee_pct"] = performance_fee_pct
-    if lst_peg_slippage_rate_pct is not None:
-        pos["lst_peg_slippage_rate_pct"] = lst_peg_slippage_rate_pct
-    if lst_peg_slippage_gap_pct is not None:
-        pos["lst_peg_slippage_gap_pct"] = lst_peg_slippage_gap_pct
+    if lp_amm_fee_rate_pct is not None:
+        pos["lp_amm_fee_rate_pct"] = lp_amm_fee_rate_pct
+    if lp_amm_fee_gap_pct is not None:
+        pos["lp_amm_fee_gap_pct"] = lp_amm_fee_gap_pct
     if fee_charged_pct is not None:
         pos["fee_charged_pct"] = fee_charged_pct
     return pos
@@ -144,106 +144,106 @@ class TestHelpers(unittest.TestCase):
 
 class TestMainPathClassification(unittest.TestCase):
     def setUp(self):
-        self.an = GrossOfLstPegSlippageAnalyzer()
+        self.an = GrossOfLpAmmFeeDragAnalyzer()
 
     def test_clean_equal_net_gross(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=15.0,
-            net_of_lst_peg_slippage_yield_pct=15.0,
+            net_of_lp_amm_fee_yield_pct=15.0,
             performance_fee_pct=20.0))
         self.assertEqual(r["classification"],
-                         "CLEAN_NET_OF_LST_PEG_SLIPPAGE_BASE")
+                         "CLEAN_NET_OF_LP_AMM_FEE_BASE")
         self.assertIn("CLEAN_NET_BASE", r["flags"])
 
     def test_clean_net_slightly_below_gross(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=15.0,
-            net_of_lst_peg_slippage_yield_pct=14.8,
+            net_of_lp_amm_fee_yield_pct=14.8,
             performance_fee_pct=20.0))
         self.assertEqual(r["classification"],
-                         "CLEAN_NET_OF_LST_PEG_SLIPPAGE_BASE")
+                         "CLEAN_NET_OF_LP_AMM_FEE_BASE")
 
     def test_mild_gap(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            net_of_lst_peg_slippage_yield_pct=16.0,
+            net_of_lp_amm_fee_yield_pct=16.0,
             performance_fee_pct=20.0))
         self.assertAlmostEqual(
-            r["fee_on_lst_peg_slippage_fraction"], 0.2, places=4)
+            r["fee_on_lp_amm_fee_fraction"], 0.2, places=4)
         self.assertEqual(r["classification"],
-                         "MILD_FEE_ON_LST_PEG_SLIPPAGE_GAP")
+                         "MILD_FEE_ON_LP_AMM_FEE_GAP")
 
     def test_moderate_gap(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            net_of_lst_peg_slippage_yield_pct=10.0,
+            net_of_lp_amm_fee_yield_pct=10.0,
             performance_fee_pct=20.0))
         self.assertAlmostEqual(
-            r["fee_on_lst_peg_slippage_fraction"], 0.5, places=4)
+            r["fee_on_lp_amm_fee_fraction"], 0.5, places=4)
         self.assertEqual(r["classification"],
-                         "MODERATE_FEE_ON_LST_PEG_SLIPPAGE_GAP")
+                         "MODERATE_FEE_ON_LP_AMM_FEE_GAP")
 
     def test_severe_gap_high_fraction(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            net_of_lst_peg_slippage_yield_pct=4.0,
+            net_of_lp_amm_fee_yield_pct=4.0,
             performance_fee_pct=20.0))
-        self.assertGreater(r["fee_on_lst_peg_slippage_fraction"], 0.50)
+        self.assertGreater(r["fee_on_lp_amm_fee_fraction"], 0.50)
         self.assertEqual(r["classification"],
-                         "SEVERE_FEE_ON_LST_PEG_SLIPPAGE_GAP")
+                         "SEVERE_FEE_ON_LP_AMM_FEE_GAP")
 
     def test_severe_gap_net_negative(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=10.0,
-            net_of_lst_peg_slippage_yield_pct=-2.0,
+            net_of_lp_amm_fee_yield_pct=-2.0,
             performance_fee_pct=50.0))
         self.assertEqual(r["classification"],
-                         "SEVERE_FEE_ON_LST_PEG_SLIPPAGE_GAP")
+                         "SEVERE_FEE_ON_LP_AMM_FEE_GAP")
         self.assertTrue(r["net_is_negative"])
 
     def test_net_zero_yields_full_gap(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=10.0,
-            net_of_lst_peg_slippage_yield_pct=0.0,
+            net_of_lp_amm_fee_yield_pct=0.0,
             performance_fee_pct=20.0))
         self.assertAlmostEqual(
-            r["fee_on_lst_peg_slippage_fraction"], 1.0, places=4)
+            r["fee_on_lp_amm_fee_fraction"], 1.0, places=4)
         self.assertEqual(r["classification"],
-                         "SEVERE_FEE_ON_LST_PEG_SLIPPAGE_GAP")
+                         "SEVERE_FEE_ON_LP_AMM_FEE_GAP")
 
     def test_recommendation_clean(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=15.0,
-            net_of_lst_peg_slippage_yield_pct=15.0,
+            net_of_lp_amm_fee_yield_pct=15.0,
             performance_fee_pct=20.0))
         self.assertEqual(r["recommendation"], "TRUST_FEE_STRUCTURE")
 
     def test_recommendation_mild(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            net_of_lst_peg_slippage_yield_pct=16.0,
+            net_of_lp_amm_fee_yield_pct=16.0,
             performance_fee_pct=20.0))
-        self.assertEqual(r["recommendation"], "MINOR_FEE_ON_LST_PEG_SLIPPAGE")
+        self.assertEqual(r["recommendation"], "MINOR_FEE_ON_LP_AMM_FEE")
 
     def test_recommendation_moderate(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            net_of_lst_peg_slippage_yield_pct=10.0,
+            net_of_lp_amm_fee_yield_pct=10.0,
             performance_fee_pct=20.0))
         self.assertEqual(r["recommendation"],
-                         "DEMAND_NET_OF_LST_PEG_SLIPPAGE_BASE")
+                         "DEMAND_NET_OF_LP_AMM_FEE_BASE")
 
     def test_recommendation_severe(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=10.0,
-            net_of_lst_peg_slippage_yield_pct=-2.0,
+            net_of_lp_amm_fee_yield_pct=-2.0,
             performance_fee_pct=50.0))
-        self.assertEqual(r["recommendation"], "AVOID_FEE_ON_LST_PEG_SLIPPAGE")
+        self.assertEqual(r["recommendation"], "AVOID_FEE_ON_LP_AMM_FEE")
 
     def test_used_main_true(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=15.0,
-            net_of_lst_peg_slippage_yield_pct=15.0,
+            net_of_lp_amm_fee_yield_pct=15.0,
             performance_fee_pct=20.0))
         self.assertTrue(r["used_main"])
         self.assertFalse(r["used_override"])
@@ -253,53 +253,53 @@ class TestMainPathClassification(unittest.TestCase):
 
 class TestMath(unittest.TestCase):
     def setUp(self):
-        self.an = GrossOfLstPegSlippageAnalyzer()
+        self.an = GrossOfLpAmmFeeDragAnalyzer()
 
     def test_fee_charged_formula(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            net_of_lst_peg_slippage_yield_pct=14.0,
+            net_of_lp_amm_fee_yield_pct=14.0,
             performance_fee_pct=20.0))
         self.assertAlmostEqual(r["fee_charged_pct"], 20.0 * 0.2, places=4)
 
     def test_fair_fee_formula(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            net_of_lst_peg_slippage_yield_pct=14.0,
+            net_of_lp_amm_fee_yield_pct=14.0,
             performance_fee_pct=20.0))
         self.assertAlmostEqual(r["fair_fee_pct"], 14.0 * 0.2, places=4)
 
     def test_gap_formula(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            net_of_lst_peg_slippage_yield_pct=14.0,
+            net_of_lp_amm_fee_yield_pct=14.0,
             performance_fee_pct=20.0))
         expected_gap = 20.0 * 0.2 - 14.0 * 0.2
         self.assertAlmostEqual(
-            r["lst_peg_slippage_gap_pct"], expected_gap, places=4)
+            r["lp_amm_fee_gap_pct"], expected_gap, places=4)
 
     def test_fraction_formula(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            net_of_lst_peg_slippage_yield_pct=14.0,
+            net_of_lp_amm_fee_yield_pct=14.0,
             performance_fee_pct=20.0))
         charged = 20.0 * 0.2
         gap = (20.0 - 14.0) * 0.2
         self.assertAlmostEqual(
-            r["fee_on_lst_peg_slippage_fraction"], gap / charged, places=4)
+            r["fee_on_lp_amm_fee_fraction"], gap / charged, places=4)
 
-    def test_lst_peg_slippage_consumed_formula(self):
+    def test_lp_amm_fee_consumed_formula(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            net_of_lst_peg_slippage_yield_pct=14.0,
+            net_of_lp_amm_fee_yield_pct=14.0,
             performance_fee_pct=20.0))
         self.assertAlmostEqual(
-            r["lst_peg_slippage_consumed_yield_pct"], 6.0, places=4)
+            r["lp_amm_fee_consumed_yield_pct"], 6.0, places=4)
 
     def test_net_return_after_fee(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            net_of_lst_peg_slippage_yield_pct=14.0,
+            net_of_lp_amm_fee_yield_pct=14.0,
             performance_fee_pct=20.0))
         expected = 14.0 - 20.0 * 0.2
         self.assertAlmostEqual(r["net_return_after_fee_pct"], expected, places=4)
@@ -307,7 +307,7 @@ class TestMath(unittest.TestCase):
     def test_net_return_fair(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            net_of_lst_peg_slippage_yield_pct=14.0,
+            net_of_lp_amm_fee_yield_pct=14.0,
             performance_fee_pct=20.0))
         expected = 14.0 - 14.0 * 0.2
         self.assertAlmostEqual(r["net_return_fair_pct"], expected, places=4)
@@ -315,22 +315,22 @@ class TestMath(unittest.TestCase):
     def test_overstatement_equals_gap(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            net_of_lst_peg_slippage_yield_pct=12.0,
+            net_of_lp_amm_fee_yield_pct=12.0,
             performance_fee_pct=20.0))
         self.assertAlmostEqual(r["overstatement_pct"],
-                               r["lst_peg_slippage_gap_pct"], places=4)
+                               r["lp_amm_fee_gap_pct"], places=4)
 
     def test_realization_ratio_clean(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=15.0,
-            net_of_lst_peg_slippage_yield_pct=15.0,
+            net_of_lp_amm_fee_yield_pct=15.0,
             performance_fee_pct=20.0))
         self.assertAlmostEqual(r["realization_ratio"], 1.0, places=4)
 
     def test_realization_ratio_bounds(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=10.0,
-            net_of_lst_peg_slippage_yield_pct=-3.0,
+            net_of_lp_amm_fee_yield_pct=-3.0,
             performance_fee_pct=50.0))
         self.assertGreaterEqual(r["realization_ratio"], 0.0)
         self.assertLessEqual(r["realization_ratio"], 1.0)
@@ -338,7 +338,7 @@ class TestMath(unittest.TestCase):
     def test_performance_fee_pct_clamped_high(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=10.0,
-            net_of_lst_peg_slippage_yield_pct=8.0,
+            net_of_lp_amm_fee_yield_pct=8.0,
             performance_fee_pct=200.0))
         self.assertAlmostEqual(r["performance_fee_pct"], 100.0, places=2)
         self.assertAlmostEqual(r["fee_charged_pct"], 10.0, places=4)
@@ -346,66 +346,66 @@ class TestMath(unittest.TestCase):
     def test_performance_fee_pct_clamped_low(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=10.0,
-            net_of_lst_peg_slippage_yield_pct=8.0,
+            net_of_lp_amm_fee_yield_pct=8.0,
             performance_fee_pct=-50.0))
         self.assertAlmostEqual(r["performance_fee_pct"], 0.0, places=2)
         self.assertAlmostEqual(r["fee_charged_pct"], 0.0, places=4)
         self.assertAlmostEqual(
-            r["lst_peg_slippage_gap_pct"], 0.0, places=4)
+            r["lp_amm_fee_gap_pct"], 0.0, places=4)
         self.assertEqual(r["classification"],
-                         "CLEAN_NET_OF_LST_PEG_SLIPPAGE_BASE")
+                         "CLEAN_NET_OF_LP_AMM_FEE_BASE")
 
     def test_net_above_gross_clamps_consumed_zero(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=10.0,
-            net_of_lst_peg_slippage_yield_pct=12.0,
+            net_of_lp_amm_fee_yield_pct=12.0,
             performance_fee_pct=20.0))
         self.assertAlmostEqual(
-            r["lst_peg_slippage_consumed_yield_pct"], 0.0, places=4)
+            r["lp_amm_fee_consumed_yield_pct"], 0.0, places=4)
         self.assertAlmostEqual(
-            r["lst_peg_slippage_gap_pct"], 0.0, places=4)
+            r["lp_amm_fee_gap_pct"], 0.0, places=4)
         self.assertEqual(r["classification"],
-                         "CLEAN_NET_OF_LST_PEG_SLIPPAGE_BASE")
+                         "CLEAN_NET_OF_LP_AMM_FEE_BASE")
 
     def test_zero_fee_rate_always_clean(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=10.0,
-            net_of_lst_peg_slippage_yield_pct=10.0,
+            net_of_lp_amm_fee_yield_pct=10.0,
             performance_fee_pct=0.0))
         self.assertAlmostEqual(
-            r["lst_peg_slippage_gap_pct"], 0.0, places=4)
+            r["lp_amm_fee_gap_pct"], 0.0, places=4)
         self.assertAlmostEqual(
-            r["fee_on_lst_peg_slippage_fraction"], 0.0, places=4)
+            r["fee_on_lp_amm_fee_fraction"], 0.0, places=4)
         self.assertEqual(r["classification"],
-                         "CLEAN_NET_OF_LST_PEG_SLIPPAGE_BASE")
+                         "CLEAN_NET_OF_LP_AMM_FEE_BASE")
 
 
 # ── override path ─────────────────────────────────────────────────────────────
 
 class TestOverridePath(unittest.TestCase):
     def setUp(self):
-        self.an = GrossOfLstPegSlippageAnalyzer()
+        self.an = GrossOfLpAmmFeeDragAnalyzer()
 
     def test_override_basic(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            lst_peg_slippage_gap_pct=4.8,
+            lp_amm_fee_gap_pct=4.8,
             fee_charged_pct=12.0))
         self.assertTrue(r["used_override"])
         self.assertFalse(r["used_main"])
         self.assertIn("GAP_FROM_OVERRIDE", r["flags"])
         self.assertAlmostEqual(
-            r["fee_on_lst_peg_slippage_fraction"], 0.4, places=4)
+            r["fee_on_lp_amm_fee_fraction"], 0.4, places=4)
         self.assertEqual(r["classification"],
-                         "MODERATE_FEE_ON_LST_PEG_SLIPPAGE_GAP")
+                         "MODERATE_FEE_ON_LP_AMM_FEE_GAP")
 
     def test_override_geometry_none(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            lst_peg_slippage_gap_pct=4.8,
+            lp_amm_fee_gap_pct=4.8,
             fee_charged_pct=12.0))
-        self.assertIsNone(r["net_of_lst_peg_slippage_yield_pct"])
-        self.assertIsNone(r["lst_peg_slippage_consumed_yield_pct"])
+        self.assertIsNone(r["net_of_lp_amm_fee_yield_pct"])
+        self.assertIsNone(r["lp_amm_fee_consumed_yield_pct"])
         self.assertIsNone(r["net_return_after_fee_pct"])
         self.assertIsNone(r["net_return_fair_pct"])
         self.assertIsNone(r["performance_fee_pct"])
@@ -413,92 +413,92 @@ class TestOverridePath(unittest.TestCase):
     def test_override_geometry_flags_suppressed(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            lst_peg_slippage_gap_pct=4.8,
+            lp_amm_fee_gap_pct=4.8,
             fee_charged_pct=12.0))
-        self.assertNotIn("FEE_ON_LST_PEG_SLIPPAGE", r["flags"])
-        self.assertNotIn("FULL_FEE_ON_LST_PEG_SLIPPAGE", r["flags"])
+        self.assertNotIn("FEE_ON_LP_AMM_FEE", r["flags"])
+        self.assertNotIn("FULL_FEE_ON_LP_AMM_FEE", r["flags"])
         self.assertNotIn("NET_NEGATIVE_AFTER_FEE", r["flags"])
 
     def test_override_negative_gap_magnitude(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            lst_peg_slippage_gap_pct=-4.8,
+            lp_amm_fee_gap_pct=-4.8,
             fee_charged_pct=12.0))
         self.assertAlmostEqual(
-            r["lst_peg_slippage_gap_pct"], 4.8, places=4)
+            r["lp_amm_fee_gap_pct"], 4.8, places=4)
 
     def test_override_gap_capped_at_fee_charged(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            lst_peg_slippage_gap_pct=99.0,
+            lp_amm_fee_gap_pct=99.0,
             fee_charged_pct=12.0))
-        self.assertEqual(r["lst_peg_slippage_gap_pct"], 12.0)
-        self.assertEqual(r["fee_on_lst_peg_slippage_fraction"], 1.0)
+        self.assertEqual(r["lp_amm_fee_gap_pct"], 12.0)
+        self.assertEqual(r["fee_on_lp_amm_fee_fraction"], 1.0)
         self.assertEqual(r["fair_fee_pct"], 0.0)
 
     def test_override_realization_anchor(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            lst_peg_slippage_gap_pct=3.0,
+            lp_amm_fee_gap_pct=3.0,
             fee_charged_pct=12.0))
-        frac = r["fee_on_lst_peg_slippage_fraction"]
+        frac = r["fee_on_lp_amm_fee_fraction"]
         self.assertAlmostEqual(r["realization_ratio"], 1.0 - frac, places=4)
 
     def test_override_denominator_is_fee_charged(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            lst_peg_slippage_gap_pct=3.0,
+            lp_amm_fee_gap_pct=3.0,
             fee_charged_pct=12.0))
         self.assertAlmostEqual(
-            r["fee_on_lst_peg_slippage_fraction"], 3.0 / 12.0, places=4)
+            r["fee_on_lp_amm_fee_fraction"], 3.0 / 12.0, places=4)
 
-    def test_override_high_lst_peg_slippage_still_flagged(self):
+    def test_override_high_lp_amm_fee_still_flagged(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            lst_peg_slippage_gap_pct=3.0,
+            lp_amm_fee_gap_pct=3.0,
             fee_charged_pct=12.0,
-            lst_peg_slippage_rate_pct=0.8))
-        self.assertIn("HIGH_LST_PEG_SLIPPAGE", r["flags"])
+            lp_amm_fee_rate_pct=0.5))
+        self.assertIn("HIGH_LP_AMM_FEE", r["flags"])
         self.assertIn("GAP_FROM_OVERRIDE", r["flags"])
 
     def test_override_requires_positive_fee_charged(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            lst_peg_slippage_gap_pct=3.0,
+            lp_amm_fee_gap_pct=3.0,
             fee_charged_pct=0.0,
             performance_fee_pct=20.0,
-            net_of_lst_peg_slippage_yield_pct=20.0))
+            net_of_lp_amm_fee_yield_pct=20.0))
         self.assertFalse(r["used_override"])
         self.assertTrue(r["used_main"])
 
     def test_override_clean_when_small_gap(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            lst_peg_slippage_gap_pct=0.3,
+            lp_amm_fee_gap_pct=0.3,
             fee_charged_pct=12.0))
         self.assertEqual(r["classification"],
-                         "CLEAN_NET_OF_LST_PEG_SLIPPAGE_BASE")
+                         "CLEAN_NET_OF_LP_AMM_FEE_BASE")
         self.assertIn("CLEAN_NET_BASE", r["flags"])
 
     def test_override_severe_when_large_gap(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            lst_peg_slippage_gap_pct=10.0,
+            lp_amm_fee_gap_pct=10.0,
             fee_charged_pct=12.0))
         self.assertEqual(r["classification"],
-                         "SEVERE_FEE_ON_LST_PEG_SLIPPAGE_GAP")
+                         "SEVERE_FEE_ON_LP_AMM_FEE_GAP")
 
 
 # ── insufficient data ─────────────────────────────────────────────────────────
 
 class TestInsufficientData(unittest.TestCase):
     def setUp(self):
-        self.an = GrossOfLstPegSlippageAnalyzer()
+        self.an = GrossOfLpAmmFeeDragAnalyzer()
 
     def test_missing_gross(self):
         r = self.an.analyze(make_pos(
             performance_fee_pct=20.0,
-            net_of_lst_peg_slippage_yield_pct=5.0))
+            net_of_lp_amm_fee_yield_pct=5.0))
         self.assertEqual(r["classification"], "INSUFFICIENT_DATA")
         self.assertEqual(r["score"], 0.0)
         self.assertEqual(r["grade"], "F")
@@ -527,13 +527,13 @@ class TestInsufficientData(unittest.TestCase):
     def test_missing_fee_main_path(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=10.0,
-            net_of_lst_peg_slippage_yield_pct=5.0))
+            net_of_lp_amm_fee_yield_pct=5.0))
         self.assertEqual(r["classification"], "INSUFFICIENT_DATA")
 
     def test_nan_fee_main_path(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=10.0,
-            net_of_lst_peg_slippage_yield_pct=5.0,
+            net_of_lp_amm_fee_yield_pct=5.0,
             performance_fee_pct=float("nan")))
         self.assertEqual(r["classification"], "INSUFFICIENT_DATA")
 
@@ -547,26 +547,26 @@ class TestInsufficientData(unittest.TestCase):
         r = self.an.analyze(make_pos(gross_yield_pct=10.0))
         self.assertEqual(r["classification"], "INSUFFICIENT_DATA")
         for k in ("net_return_after_fee_pct", "fee_charged_pct",
-                  "lst_peg_slippage_gap_pct", "realization_ratio",
-                  "fee_on_lst_peg_slippage_fraction",
-                  "lst_peg_slippage_consumed_yield_pct"):
+                  "lp_amm_fee_gap_pct", "realization_ratio",
+                  "fee_on_lp_amm_fee_fraction",
+                  "lp_amm_fee_consumed_yield_pct"):
             self.assertIsNone(r[k])
 
     def test_insufficient_recommendation(self):
         r = self.an.analyze(make_pos(performance_fee_pct=20.0))
-        self.assertEqual(r["recommendation"], "AVOID_FEE_ON_LST_PEG_SLIPPAGE")
+        self.assertEqual(r["recommendation"], "AVOID_FEE_ON_LP_AMM_FEE")
 
 
 # ── flags ─────────────────────────────────────────────────────────────────────
 
 class TestFlags(unittest.TestCase):
     def setUp(self):
-        self.an = GrossOfLstPegSlippageAnalyzer()
+        self.an = GrossOfLpAmmFeeDragAnalyzer()
 
     def test_clean_net_base_flag(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=15.0,
-            net_of_lst_peg_slippage_yield_pct=15.0,
+            net_of_lp_amm_fee_yield_pct=15.0,
             performance_fee_pct=20.0))
         self.assertIn("CLEAN_NET_BASE", r["flags"])
 
@@ -574,46 +574,46 @@ class TestFlags(unittest.TestCase):
         for net in (15.0, 12.0, 8.0, 4.0):
             r = self.an.analyze(make_pos(
                 gross_yield_pct=15.0,
-                net_of_lst_peg_slippage_yield_pct=net,
+                net_of_lp_amm_fee_yield_pct=net,
                 performance_fee_pct=20.0))
             self.assertIn(r["classification"], r["flags"])
 
-    def test_high_lst_peg_slippage_flag(self):
+    def test_high_lp_amm_fee_flag(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=15.0,
-            net_of_lst_peg_slippage_yield_pct=13.0,
+            net_of_lp_amm_fee_yield_pct=13.0,
             performance_fee_pct=20.0,
-            lst_peg_slippage_rate_pct=HIGH_LST_PEG_SLIPPAGE_PCT))
-        self.assertIn("HIGH_LST_PEG_SLIPPAGE", r["flags"])
+            lp_amm_fee_rate_pct=HIGH_LP_AMM_FEE_PCT))
+        self.assertIn("HIGH_LP_AMM_FEE", r["flags"])
 
-    def test_no_high_lst_peg_slippage_flag_below_threshold(self):
+    def test_no_high_lp_amm_fee_flag_below_threshold(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=15.0,
-            net_of_lst_peg_slippage_yield_pct=13.0,
+            net_of_lp_amm_fee_yield_pct=13.0,
             performance_fee_pct=20.0,
-            lst_peg_slippage_rate_pct=0.1))
-        self.assertNotIn("HIGH_LST_PEG_SLIPPAGE", r["flags"])
+            lp_amm_fee_rate_pct=0.1))
+        self.assertNotIn("HIGH_LP_AMM_FEE", r["flags"])
 
-    def test_full_fee_on_lst_peg_slippage_flag(self):
+    def test_full_fee_on_lp_amm_fee_flag(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=10.0,
-            net_of_lst_peg_slippage_yield_pct=0.0,
+            net_of_lp_amm_fee_yield_pct=0.0,
             performance_fee_pct=20.0))
-        self.assertIn("FULL_FEE_ON_LST_PEG_SLIPPAGE", r["flags"])
+        self.assertIn("FULL_FEE_ON_LP_AMM_FEE", r["flags"])
 
-    def test_fee_on_lst_peg_slippage_flag(self):
+    def test_fee_on_lp_amm_fee_flag(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            net_of_lst_peg_slippage_yield_pct=14.0,
+            net_of_lp_amm_fee_yield_pct=14.0,
             performance_fee_pct=20.0))
-        self.assertIn("FEE_ON_LST_PEG_SLIPPAGE", r["flags"])
+        self.assertIn("FEE_ON_LP_AMM_FEE", r["flags"])
 
 
 # ── aggregate ─────────────────────────────────────────────────────────────────
 
 class TestAggregate(unittest.TestCase):
     def setUp(self):
-        self.an = GrossOfLstPegSlippageAnalyzer()
+        self.an = GrossOfLpAmmFeeDragAnalyzer()
 
     def test_portfolio_structure(self):
         out = self.an.analyze_portfolio(_demo_positions())
@@ -623,36 +623,36 @@ class TestAggregate(unittest.TestCase):
         agg = out["aggregate"]
         self.assertEqual(agg["position_count"], 5)
         self.assertIn("cleanest_vault", agg)
-        self.assertIn("worst_lst_peg_slippage_gap_vault", agg)
+        self.assertIn("worst_lp_amm_fee_gap_vault", agg)
 
     def test_aggregate_cleanest_and_worst(self):
         positions = [
             make_pos(vault="Clean", gross_yield_pct=15.0,
-                     net_of_lst_peg_slippage_yield_pct=15.0,
+                     net_of_lp_amm_fee_yield_pct=15.0,
                      performance_fee_pct=20.0),
             make_pos(vault="Bad", gross_yield_pct=10.0,
-                     net_of_lst_peg_slippage_yield_pct=-2.0,
+                     net_of_lp_amm_fee_yield_pct=-2.0,
                      performance_fee_pct=50.0),
         ]
         agg = self.an.analyze_portfolio(positions)["aggregate"]
         self.assertEqual(agg["cleanest_vault"], "Clean")
-        self.assertEqual(agg["worst_lst_peg_slippage_gap_vault"], "Bad")
+        self.assertEqual(agg["worst_lp_amm_fee_gap_vault"], "Bad")
 
     def test_aggregate_all_insufficient(self):
         positions = [make_pos(vault="X"), make_pos(vault="Y")]
         agg = self.an.analyze_portfolio(positions)["aggregate"]
         self.assertIsNone(agg["cleanest_vault"])
-        self.assertIsNone(agg["worst_lst_peg_slippage_gap_vault"])
+        self.assertIsNone(agg["worst_lp_amm_fee_gap_vault"])
         self.assertEqual(agg["avg_score"], 0.0)
         self.assertEqual(agg["position_count"], 2)
 
     def test_aggregate_net_negative_count(self):
         positions = [
             make_pos(vault="A", gross_yield_pct=15.0,
-                     net_of_lst_peg_slippage_yield_pct=15.0,
+                     net_of_lp_amm_fee_yield_pct=15.0,
                      performance_fee_pct=20.0),
             make_pos(vault="B", gross_yield_pct=10.0,
-                     net_of_lst_peg_slippage_yield_pct=-2.0,
+                     net_of_lp_amm_fee_yield_pct=-2.0,
                      performance_fee_pct=50.0),
         ]
         agg = self.an.analyze_portfolio(positions)["aggregate"]
@@ -661,10 +661,10 @@ class TestAggregate(unittest.TestCase):
     def test_aggregate_avg_score_perfect(self):
         positions = [
             make_pos(vault="A", gross_yield_pct=15.0,
-                     net_of_lst_peg_slippage_yield_pct=15.0,
+                     net_of_lp_amm_fee_yield_pct=15.0,
                      performance_fee_pct=20.0),
             make_pos(vault="B", gross_yield_pct=15.0,
-                     net_of_lst_peg_slippage_yield_pct=15.0,
+                     net_of_lp_amm_fee_yield_pct=15.0,
                      performance_fee_pct=20.0),
         ]
         agg = self.an.analyze_portfolio(positions)["aggregate"]
@@ -672,12 +672,12 @@ class TestAggregate(unittest.TestCase):
 
     def test_aggregate_single_position(self):
         positions = [make_pos(vault="Solo", gross_yield_pct=15.0,
-                              net_of_lst_peg_slippage_yield_pct=15.0,
+                              net_of_lp_amm_fee_yield_pct=15.0,
                               performance_fee_pct=20.0)]
         out = self.an.analyze_portfolio(positions)
         agg = out["aggregate"]
         self.assertEqual(agg["cleanest_vault"], "Solo")
-        self.assertEqual(agg["worst_lst_peg_slippage_gap_vault"], "Solo")
+        self.assertEqual(agg["worst_lp_amm_fee_gap_vault"], "Solo")
         self.assertEqual(agg["position_count"], 1)
 
 
@@ -685,7 +685,7 @@ class TestAggregate(unittest.TestCase):
 
 class TestRingBufferLog(unittest.TestCase):
     def setUp(self):
-        self.an = GrossOfLstPegSlippageAnalyzer()
+        self.an = GrossOfLpAmmFeeDragAnalyzer()
 
     def test_write_log_creates_file(self):
         with tempfile.TemporaryDirectory() as d:
@@ -707,7 +707,7 @@ class TestRingBufferLog(unittest.TestCase):
             for _ in range(5):
                 self.an.analyze_portfolio(
                     [make_pos(gross_yield_pct=16.0,
-                              net_of_lst_peg_slippage_yield_pct=10.0,
+                              net_of_lp_amm_fee_yield_pct=10.0,
                               performance_fee_pct=20.0)],
                     cfg=cfg, write_log=True)
             with open(log_path) as fh:
@@ -722,7 +722,7 @@ class TestRingBufferLog(unittest.TestCase):
             cfg = {"log_path": log_path, "log_cap": 3}
             self.an.analyze_portfolio(
                 [make_pos(gross_yield_pct=16.0,
-                          net_of_lst_peg_slippage_yield_pct=10.0,
+                          net_of_lp_amm_fee_yield_pct=10.0,
                           performance_fee_pct=20.0)],
                 cfg=cfg, write_log=True)
             with open(log_path) as fh:
@@ -734,7 +734,7 @@ class TestRingBufferLog(unittest.TestCase):
             log_path = os.path.join(d, "log.json")
             cfg = {"log_path": log_path, "log_cap": 3}
             self.an.analyze(make_pos(gross_yield_pct=16.0,
-                                     net_of_lst_peg_slippage_yield_pct=10.0,
+                                     net_of_lp_amm_fee_yield_pct=10.0,
                                      performance_fee_pct=20.0),
                             cfg=cfg, write_log=True)
             self.assertFalse(os.path.exists(log_path + ".tmp"))
@@ -744,7 +744,7 @@ class TestRingBufferLog(unittest.TestCase):
             log_path = os.path.join(d, "log.json")
             cfg = {"log_path": log_path, "log_cap": 3}
             self.an.analyze(make_pos(gross_yield_pct=16.0,
-                                     net_of_lst_peg_slippage_yield_pct=10.0,
+                                     net_of_lp_amm_fee_yield_pct=10.0,
                                      performance_fee_pct=20.0),
                             cfg=cfg, write_log=False)
             self.assertFalse(os.path.exists(log_path))
@@ -765,7 +765,7 @@ class TestRingBufferLog(unittest.TestCase):
 
 class TestInvariants(unittest.TestCase):
     def setUp(self):
-        self.an = GrossOfLstPegSlippageAnalyzer()
+        self.an = GrossOfLpAmmFeeDragAnalyzer()
 
     def test_all_floats_finite(self):
         out = self.an.analyze_portfolio(_demo_positions())
@@ -783,45 +783,45 @@ class TestInvariants(unittest.TestCase):
                 for fee in (0.0, 10.0, 20.0, 50.0, 100.0):
                     r = self.an.analyze(make_pos(
                         gross_yield_pct=gross,
-                        net_of_lst_peg_slippage_yield_pct=net,
+                        net_of_lp_amm_fee_yield_pct=net,
                         performance_fee_pct=fee))
                     self.assertGreaterEqual(r["score"], 0.0)
                     self.assertLessEqual(r["score"], 100.0)
                     self.assertGreaterEqual(
-                        r["fee_on_lst_peg_slippage_fraction"], 0.0)
+                        r["fee_on_lp_amm_fee_fraction"], 0.0)
                     self.assertLessEqual(
-                        r["fee_on_lst_peg_slippage_fraction"], 1.0)
+                        r["fee_on_lp_amm_fee_fraction"], 1.0)
                     self.assertGreaterEqual(r["realization_ratio"], 0.0)
                     self.assertLessEqual(r["realization_ratio"], 1.0)
                     self.assertTrue(_all_floats_finite(r))
 
-    def test_fraction_monotone_with_peg_slippage(self):
+    def test_fraction_monotone_with_lp_fee(self):
         prev = -1.0
         for net in (20.0, 16.0, 12.0, 8.0, 4.0, 0.0):
             r = self.an.analyze(make_pos(
                 gross_yield_pct=20.0,
-                net_of_lst_peg_slippage_yield_pct=net,
+                net_of_lp_amm_fee_yield_pct=net,
                 performance_fee_pct=20.0))
             self.assertGreaterEqual(
-                r["fee_on_lst_peg_slippage_fraction"], prev)
-            prev = r["fee_on_lst_peg_slippage_fraction"]
+                r["fee_on_lp_amm_fee_fraction"], prev)
+            prev = r["fee_on_lp_amm_fee_fraction"]
 
     def test_token_fallback(self):
         r = self.an.analyze({"token": "TKN", "gross_yield_pct": 15.0,
-                             "net_of_lst_peg_slippage_yield_pct": 15.0,
+                             "net_of_lp_amm_fee_yield_pct": 15.0,
                              "performance_fee_pct": 20.0})
         self.assertEqual(r["token"], "TKN")
 
     def test_unknown_token(self):
         r = self.an.analyze({"gross_yield_pct": 15.0,
-                             "net_of_lst_peg_slippage_yield_pct": 15.0,
+                             "net_of_lp_amm_fee_yield_pct": 15.0,
                              "performance_fee_pct": 20.0})
         self.assertEqual(r["token"], "UNKNOWN")
 
     def test_result_keys_stable(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=16.0,
-            net_of_lst_peg_slippage_yield_pct=10.0,
+            net_of_lp_amm_fee_yield_pct=10.0,
             performance_fee_pct=20.0))
         ins = self.an._insufficient("X")
         self.assertEqual(set(r.keys()), set(ins.keys()))
@@ -829,7 +829,7 @@ class TestInvariants(unittest.TestCase):
     def test_override_keys_stable(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            lst_peg_slippage_gap_pct=4.8,
+            lp_amm_fee_gap_pct=4.8,
             fee_charged_pct=12.0))
         ins = self.an._insufficient("X")
         self.assertEqual(set(r.keys()), set(ins.keys()))
@@ -837,14 +837,14 @@ class TestInvariants(unittest.TestCase):
     def test_sample_count_zero(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=16.0,
-            net_of_lst_peg_slippage_yield_pct=10.0,
+            net_of_lp_amm_fee_yield_pct=10.0,
             performance_fee_pct=20.0))
         self.assertEqual(r["sample_count"], 0)
 
     def test_used_main_true_on_main_path(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=15.0,
-            net_of_lst_peg_slippage_yield_pct=15.0,
+            net_of_lp_amm_fee_yield_pct=15.0,
             performance_fee_pct=20.0))
         self.assertTrue(r["used_main"])
         self.assertFalse(r["used_override"])
@@ -854,23 +854,23 @@ class TestInvariants(unittest.TestCase):
 
 class TestGradesAndScore(unittest.TestCase):
     def setUp(self):
-        self.an = GrossOfLstPegSlippageAnalyzer()
+        self.an = GrossOfLpAmmFeeDragAnalyzer()
 
     def test_clean_grade_a(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=15.0,
-            net_of_lst_peg_slippage_yield_pct=15.0,
+            net_of_lp_amm_fee_yield_pct=15.0,
             performance_fee_pct=20.0))
         self.assertEqual(r["grade"], "A")
 
     def test_severe_lower_grade(self):
         clean = self.an.analyze(make_pos(
             gross_yield_pct=15.0,
-            net_of_lst_peg_slippage_yield_pct=15.0,
+            net_of_lp_amm_fee_yield_pct=15.0,
             performance_fee_pct=20.0))
         severe = self.an.analyze(make_pos(
             gross_yield_pct=10.0,
-            net_of_lst_peg_slippage_yield_pct=-2.0,
+            net_of_lp_amm_fee_yield_pct=-2.0,
             performance_fee_pct=50.0))
         self.assertLess(severe["score"], clean["score"])
 
@@ -888,14 +888,14 @@ class TestGradesAndScore(unittest.TestCase):
         ):
             r = self.an.analyze(make_pos(
                 gross_yield_pct=gross,
-                net_of_lst_peg_slippage_yield_pct=net,
+                net_of_lp_amm_fee_yield_pct=net,
                 performance_fee_pct=fee))
             self.assertEqual(r["grade"], _grade_from_score(r["score"]))
 
     def test_grade_boundary_b_c(self):
         r = self.an.analyze(make_pos(
             gross_yield_pct=20.0,
-            net_of_lst_peg_slippage_yield_pct=12.0,
+            net_of_lp_amm_fee_yield_pct=12.0,
             performance_fee_pct=20.0))
         self.assertIn(r["grade"], ("B", "C", "D"))
         self.assertLess(r["score"], 85.0)
@@ -905,7 +905,7 @@ class TestGradesAndScore(unittest.TestCase):
 
 class TestDemo(unittest.TestCase):
     def setUp(self):
-        self.an = GrossOfLstPegSlippageAnalyzer()
+        self.an = GrossOfLpAmmFeeDragAnalyzer()
 
     def test_demo_positions_count(self):
         self.assertEqual(len(_demo_positions()), 5)
@@ -914,19 +914,19 @@ class TestDemo(unittest.TestCase):
         out = self.an.analyze_portfolio(_demo_positions())
         classes = {p["token"]: p["classification"] for p in out["positions"]}
         self.assertEqual(
-            classes["stETH-Vault-CleanPeg"],
-            "CLEAN_NET_OF_LST_PEG_SLIPPAGE_BASE")
+            classes["USDC-LP-Vault-CleanLpFee"],
+            "CLEAN_NET_OF_LP_AMM_FEE_BASE")
         self.assertEqual(
-            classes["rETH-Vault-ModeratePegSlippage"],
-            "MODERATE_FEE_ON_LST_PEG_SLIPPAGE_GAP")
+            classes["CRV-LP-Vault-ModerateLpFee"],
+            "MODERATE_FEE_ON_LP_AMM_FEE_GAP")
         self.assertEqual(
-            classes["cbETH-Vault-SeverePegSlippage"],
-            "SEVERE_FEE_ON_LST_PEG_SLIPPAGE_GAP")
+            classes["BAL-LP-Vault-SevereLpFee"],
+            "SEVERE_FEE_ON_LP_AMM_FEE_GAP")
         self.assertEqual(
-            classes["wstETH-Vault-OverridePegGap"],
-            "MODERATE_FEE_ON_LST_PEG_SLIPPAGE_GAP")
+            classes["UNI-LP-Vault-OverrideLpFeeGap"],
+            "MODERATE_FEE_ON_LP_AMM_FEE_GAP")
         self.assertEqual(
-            classes["MYSTERY-LST-Vault-NoData"], "INSUFFICIENT_DATA")
+            classes["MYSTERY-Vault-NoData"], "INSUFFICIENT_DATA")
 
     def test_demo_json_serialisable(self):
         out = self.an.analyze_portfolio(_demo_positions())
