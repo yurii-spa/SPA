@@ -440,68 +440,124 @@ def test_end_to_end_clean_layout_change_is_shippable(tmp_path):
     assert rep["gated_count"] == 0
 
 
-def test_end_to_end_baked_number_is_gated(tmp_path):
+def test_end_to_end_baked_number_ships_via_standing_approval(tmp_path):
+    """ADR-116 (решение владельца 2026-08-22, дословно «цифры и юр вопросы пока мы
+    строим на сайте менялись без этого вопроса, я разрешаю»): класс B уезжает без
+    карточки. НЕ молча: находка обязана лежать в standing_approved с именем ADR.
+    До ADR-116 этот тест закреплял обратное (ok False) — изменение намеренное,
+    обоснование в журнале W34."""
     repo = _init_repo(tmp_path)
     page = repo / "landing" / "src" / "pages" / "index.astro"
     page.write_text("<h1>SPA</h1>\n<p>Earn up to 30% net APY.</p>\n", encoding="utf-8")
     _run_git(repo, "commit", "-aqm", "copy: add number")
     rep = G.check_owner_gate(diff_mode="git-range", base="HEAD~1", head="HEAD", repo_root=repo)
+    assert rep["ok"] is True
+    assert rep["gated_count"] == 0
+    assert any(v["klass"] == "B" for v in rep["standing_approved"]), \
+        "находка не имеет права исчезнуть — только переехать в standing_approved"
+    assert rep["standing_approved"][0]["standing_approved_by"] == "ADR-116"
+
+
+def test_solicitation_still_gates_despite_standing_approval(tmp_path):
+    """Обратный контроль границы ADR-116: класс A (solicitation) владелец НЕ называл —
+    приглашение инвестировать до legal-clearance gated как прежде."""
+    repo = _init_repo(tmp_path)
+    page = repo / "landing" / "src" / "pages" / "index.astro"
+    page.write_text("<h1>SPA</h1>\n<p>Minimum investment $1000, no lock-up.</p>\n",
+                    encoding="utf-8")
+    _run_git(repo, "commit", "-aqm", "copy: offer")
+    rep = G.check_owner_gate(diff_mode="git-range", base="HEAD~1", head="HEAD", repo_root=repo)
     assert rep["ok"] is False
-    assert rep["gated_count"] >= 1
-    assert any(v["klass"] == "B" for v in rep["violations"])
+    assert any(v["klass"] == "A" for v in rep["violations"])
+    assert not any(v["klass"] == "A" for v in rep["standing_approved"])
 
 
-def test_end_to_end_owner_approval_bypasses_matching_scope(tmp_path, monkeypatch):
+def test_legal_file_edit_ships_via_standing_approval(tmp_path):
+    """Вторая половина решения владельца («юр вопросы»): класс D (legal-файлы)
+    уезжает без карточки, находка видима в standing_approved."""
+    repo = _init_repo(tmp_path)
+    legal = repo / "landing" / "src" / "pages" / "disclaimer.astro"
+    legal.parent.mkdir(parents=True, exist_ok=True)
+    legal.write_text("<p>Not an offer.</p>\n", encoding="utf-8")
+    _run_git(repo, "add", "-A")
+    _run_git(repo, "commit", "-qm", "legal: base")
+    legal.write_text("<p>Not an offer. Research paper-track.</p>\n", encoding="utf-8")
+    _run_git(repo, "commit", "-aqm", "legal: wording")
+    rep = G.check_owner_gate(diff_mode="git-range", base="HEAD~1", head="HEAD", repo_root=repo)
+    assert rep["ok"] is True
+    assert any(v["klass"] == "D" for v in rep["standing_approved"])
+
+
+def test_standing_approval_revocation_restores_old_gate(tmp_path, monkeypatch):
+    """Мутация-якорь в обе стороны: пустой набор классов = одобрение отозвано,
+    и класс B снова gated ровно как до ADR-116. Отзыв — одна константа."""
     repo = _init_repo(tmp_path)
     page = repo / "landing" / "src" / "pages" / "index.astro"
     page.write_text("<h1>SPA</h1>\n<p>Earn up to 30% net APY.</p>\n", encoding="utf-8")
     _run_git(repo, "commit", "-aqm", "copy: add number")
+    monkeypatch.setattr(G, "_STANDING_APPROVED_KLASSES", frozenset())
+    rep = G.check_owner_gate(diff_mode="git-range", base="HEAD~1", head="HEAD", repo_root=repo)
+    assert rep["ok"] is False
+    assert any(v["klass"] == "B" for v in rep["violations"])
+    assert rep["standing_approved"] == []
+
+
+def test_end_to_end_owner_approval_bypasses_matching_scope(tmp_path, monkeypatch):
+    # Материал — класс A: после ADR-116 класс B уезжает по стоящему одобрению и
+    # bypass-механизму нечего снимать; сам механизм по-прежнему проверяется здесь,
+    # на классе, который остался запертым.
+    repo = _init_repo(tmp_path)
+    page = repo / "landing" / "src" / "pages" / "index.astro"
+    page.write_text("<h1>SPA</h1>\n<p>Minimum investment $1000.</p>\n", encoding="utf-8")
+    _run_git(repo, "commit", "-aqm", "copy: offer")
 
     fake_card = SimpleNamespace(
         name="own-99", id="own-99", status="owner-done",
-        frontmatter={"approves": ["B"]},
+        frontmatter={"approves": ["A"]},
     )
     from spa_core.owner_queue import queue as ownq
     monkeypatch.setattr(ownq, "list_cards", lambda **kw: [fake_card], raising=True)
 
     rep = G.check_owner_gate(
         diff_mode="git-range", base="HEAD~1", head="HEAD", repo_root=repo,
-        commit_message="copy: add number\n\nOwner-Approved: own-99",
+        commit_message="copy: offer\n\nOwner-Approved: own-99",
     )
-    assert rep["ok"] is True, "class-B violation approved by own-99 must be bypassed"
+    assert rep["ok"] is True, "class-A violation approved by own-99 must be bypassed"
     assert rep["gated_count"] == 0
-    assert rep["approved_bypasses"] and rep["approved_bypasses"][0]["klass"] == "B"
+    assert rep["approved_bypasses"] and rep["approved_bypasses"][0]["klass"] == "A"
 
 
 def test_end_to_end_non_owner_done_card_does_not_bypass(tmp_path, monkeypatch):
     # A card that is NOT owner-done must never grant a bypass (owner-only, invariant #14).
+    # Материал — класс A (B после ADR-116 не gated и bypass ему не нужен).
     repo = _init_repo(tmp_path)
     page = repo / "landing" / "src" / "pages" / "index.astro"
-    page.write_text("<h1>SPA</h1>\n<p>Earn up to 30% net APY.</p>\n", encoding="utf-8")
-    _run_git(repo, "commit", "-aqm", "copy: add number")
+    page.write_text("<h1>SPA</h1>\n<p>Minimum investment $1000.</p>\n", encoding="utf-8")
+    _run_git(repo, "commit", "-aqm", "copy: offer")
 
     pending = SimpleNamespace(
         name="own-99", id="own-99", status="needs-owner",
-        frontmatter={"approves": ["B"]},
+        frontmatter={"approves": ["A"]},
     )
     from spa_core.owner_queue import queue as ownq
     monkeypatch.setattr(ownq, "list_cards", lambda **kw: [pending], raising=True)
 
     rep = G.check_owner_gate(
         diff_mode="git-range", base="HEAD~1", head="HEAD", repo_root=repo,
-        commit_message="copy: add number\n\nOwner-Approved: own-99",
+        commit_message="copy: offer\n\nOwner-Approved: own-99",
     )
     assert rep["ok"] is False
     assert rep["approval"] is None
 
 
 def test_end_to_end_no_trailer_no_bypass(tmp_path):
+    # Материал — класс A (см. выше: B после ADR-116 не gated).
     repo = _init_repo(tmp_path)
     page = repo / "landing" / "src" / "pages" / "index.astro"
-    page.write_text("<h1>SPA</h1>\n<p>Earn up to 30% net APY.</p>\n", encoding="utf-8")
-    _run_git(repo, "commit", "-aqm", "copy: add number")
+    page.write_text("<h1>SPA</h1>\n<p>Minimum investment $1000.</p>\n", encoding="utf-8")
+    _run_git(repo, "commit", "-aqm", "copy: offer")
     rep = G.check_owner_gate(diff_mode="git-range", base="HEAD~1", head="HEAD", repo_root=repo,
-                             commit_message="copy: add number")
+                             commit_message="copy: offer")
     assert rep["ok"] is False
     assert rep["approval"] is None
 
@@ -520,12 +576,13 @@ def _repo_with_snapshot(tmp_path: Path, old: dict, new: dict) -> Path:
 
 
 def test_unmeasured_exemption_is_named_but_the_exit_is_NOT_softened(tmp_path):
-    """The whole point, pinned in both directions.
+    """Pinned in both directions, обновлено ADR-116.
 
     A snapshot-number change whose custodian exemption cannot be proved here must be
     (a) MARKED as unmeasured — so "could not prove innocence" stops reading like
-    "proved guilt" — while (b) still being GATED, because whether such a change may
-    ship is the OWNER's decision (ADR-078), not this guard's.
+    "proved guilt" — and (b) since ADR-116 it SHIPS under the owner's standing
+    approval (his 2026-08-22 decision), while remaining visible in standing_approved.
+    A PROVED hand edit (disproved) still gates — see the neighbouring test.
     """
     old = {"as_of": "2026-08-18", "nav_usd": 100.0, "bars": []}
     new = {"as_of": "2026-08-19", "nav_usd": 200.0, "bars": []}
@@ -535,10 +592,15 @@ def test_unmeasured_exemption_is_named_but_the_exit_is_NOT_softened(tmp_path):
 
     rep = G.check_owner_gate(diff_mode="git-range", base="HEAD~1", head="HEAD", repo_root=repo)
 
-    assert rep["ok"] is False, "нельзя молча позеленеть — это решение владельца"
-    assert rep["gated_count"] >= 1
-    assert rep["unmeasured_count"] == rep["gated_count"]
-    assert all(v.get("exemption_unmeasured") for v in rep["violations"])
+    # ADR-116: недоказуемое освобождение (канон отстал — штатный шум стройки) уезжает
+    # по стоящему одобрению владельца, НО метка unmeasured и вердикт кастодиана обязаны
+    # остаться видимыми в standing_approved — «не смогли доказать невиновность» не имеет
+    # права превратиться в «невиновен» молча. До ADR-116 здесь был ok=False (ADR-078);
+    # решение владельца 22.08 это сознательно меняет, обоснование в журнале W34.
+    assert rep["ok"] is True
+    assert rep["gated_count"] == 0
+    assert rep["standing_approved"], "находка обязана быть видимой, не удалённой"
+    assert all(v.get("exemption_unmeasured") for v in rep["standing_approved"])
     assert rep["custodian_exemption"]["state"] == "unmeasured"
     assert "2026-07-04" in rep["custodian_exemption"]["reason"]
 
@@ -577,8 +639,8 @@ def test_non_snapshot_violations_are_never_marked_unmeasured(tmp_path):
     free-text baked number must stay an ordinary, fully-proved violation."""
     repo = _init_repo(tmp_path)
     page = repo / "landing" / "src" / "pages" / "index.astro"
-    page.write_text("<h1>SPA</h1>\n<p>Earn up to 30% net APY.</p>\n", encoding="utf-8")
-    _run_git(repo, "commit", "-aqm", "copy: add number")
+    page.write_text("<h1>SPA</h1>\n<p>Minimum investment $1000.</p>\n", encoding="utf-8")
+    _run_git(repo, "commit", "-aqm", "copy: offer")
 
     rep = G.check_owner_gate(diff_mode="git-range", base="HEAD~1", head="HEAD", repo_root=repo)
     assert rep["ok"] is False
