@@ -8,7 +8,10 @@
 #
 #   · реестр зрелости — краснеет, если функция с замером L2 записана как построенная;
 #   · паспорта агентов — краснеют, если манифест отстал от источников (кто-то
-#     дописал docstring модулю или докурировал produces, а паспорт не обновили).
+#     дописал docstring модулю или докурировал produces, а паспорт не обновили);
+#   · данные страницы Protection Lab — краснеют, если landing/src/data/protection_lab.json
+#     разошёлся с движком (кто-то правил числа руками или менял сценарии/движок,
+#     не перегенерировав страницу).
 #
 # Обе читают репозиторий и НИЧЕГО не пишут: режим `--check`.
 name: SPA — генерируемые документы не разошлись с замером
@@ -31,3 +34,5 @@ jobs:
         run: python3 scripts/build_maturity_register.py --check
       - name: Паспорта агентов не отстали от источников
         run: python3 scripts/fill_agent_passports.py --check
+      - name: Данные Protection Lab совпадают с движком
+        run: python3 scripts/build_protection_lab_site_data.py --check

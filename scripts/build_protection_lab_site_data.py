@@ -5,7 +5,14 @@
 библиотеку и adversarial-набор и пишет `landing/src/data/protection_lab.json`.
 Руками числа в JSON не вносятся НИКОГДА — правка чисел = перегенерация.
 
-Запуск:  python3 scripts/build_protection_lab_site_data.py
+Проводка (иначе храповик неподключённых скриптов прав, что скрипт мёртв): режим
+`--check` в `.github/workflows/generated-docs-integrity.yml` краснеет, если
+закоммиченный JSON разошёлся с выводом движка — то есть если кто-то правил числа
+руками или менял сценарии/движок, не перегенерировав страницу.
+
+Запуск:
+    python3 scripts/build_protection_lab_site_data.py           # записать JSON
+    python3 scripts/build_protection_lab_site_data.py --check   # только сверить (CI)
 """
 from __future__ import annotations
 
@@ -234,8 +241,8 @@ def pack(sid: str, name_en_full: str, window: str, rep, synthetic: bool) -> dict
     }
 
 
-def main() -> int:
-    out = {"generated": date.today().isoformat(),
+def build_payload(generated: str) -> dict:
+    out = {"generated": generated,
            "provenance": "spa_core.stress.protection_lab (ADR-120); "
                          "regenerate: python3 scripts/build_protection_lab_site_data.py",
            "capital_usd": 100000, "historical": [], "synthetic": []}
@@ -260,6 +267,34 @@ def main() -> int:
                              if s["metrics"]["prot_dd"] < 10.0),
         "worst_prot_dd": max(s["metrics"]["prot_dd"] for s in out["historical"]),
     }
+    return out
+
+
+def _comparable(payload: dict) -> dict:
+    """Копия без волатильной даты генерации — сверять только числа/структуру."""
+    return {k: v for k, v in payload.items() if k != "generated"}
+
+
+def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    check = "--check" in argv
+
+    if check:
+        if not OUT.is_file():
+            print(f"НЕТ ФАЙЛА {OUT} — запусти генератор без --check", file=sys.stderr)
+            return 1
+        committed = json.loads(OUT.read_text(encoding="utf-8"))
+        fresh = build_payload(generated=committed.get("generated", ""))
+        if _comparable(committed) != _comparable(fresh):
+            print("РАСХОЖДЕНИЕ: landing/src/data/protection_lab.json разошёлся с движком "
+                  "Protection Lab. Числа страницы правятся ТОЛЬКО перегенерацией:\n"
+                  "  python3 scripts/build_protection_lab_site_data.py", file=sys.stderr)
+            return 1
+        print(f"OK: {OUT.name} совпадает с движком "
+              f"(hist {len(fresh['historical'])} · syn {len(fresh['synthetic'])})")
+        return 0
+
+    out = build_payload(generated=date.today().isoformat())
     OUT.parent.mkdir(parents=True, exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as fh:
         json.dump(out, fh, ensure_ascii=False, indent=1)
