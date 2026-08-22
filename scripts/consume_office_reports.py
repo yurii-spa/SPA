@@ -421,8 +421,16 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             max_h = hv.get("max_age_s")
             max_txt = f"{max_h / 3600:.0f}ч" if isinstance(max_h, (int, float)) else _UNMEASURED
             mark = "" if hv.get("status") == "FRESH" else "⚠️ "
+            # ПРОИСХОЖДЕНИЕ срока годности (#340). Молчим, когда он ПРОЧИТАН из конституции
+            # флота, и говорим вслух, когда это откат на литерал: до #340 срок был списан
+            # рукой с такта 16.08, решение владельца ADR-104 сменило такт 21.08, и строка
+            # «дом-вью FRESH при сроке 30ч» свидетельствовала В ПОЛЬЗУ здоровья артефакта,
+            # который по действующей конституции протух. Число без источника неоспоримо.
+            src = hv.get("budget_source")
+            src_txt = ("" if src in ("manifest_slo", None)
+                       else f" · срок НЕ из конституции ({src}: {hv.get('budget_why', '')})")
             out.append(f"   {mark}дом-вью ({hv.get('agent')}): {hv.get('status')} · "
-                       f"возраст {age_txt} при сроке годности {max_txt}")
+                       f"возраст {age_txt} при сроке годности {max_txt}{src_txt}")
         else:
             out.append(f"   дом-вью: {_UNMEASURED} (поля `house_view` нет — "
                        f"производитель ещё не переписал файл)")

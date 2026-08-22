@@ -29,6 +29,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from spa_core.monitoring import manifest_slo
+
 # ── status vocabulary (fail-CLOSED: only FRESH is a clean pass) ──────────────────────
 FRESH = "FRESH"
 STALE = "STALE"          # exists + parseable, but older than max_age_hours
@@ -38,7 +40,13 @@ UNCHECKED = "UNCHECKED"  # exists but timestamp unparseable / read error → RED
 
 @dataclass(frozen=True)
 class Artifact:
-    """One freshness-tracked artifact. `max_age_hours` is the RED threshold."""
+    """One freshness-tracked artifact.
+
+    `max_age_hours` is the FALLBACK threshold, not the answer: when the fleet's constitution
+    (`architecture/manifest.json`) declares an `slo_hours` for this artifact, THAT wins and the
+    literal here is never consulted (#342 — see `effective_budgets`). The literal stays for the
+    artifacts the constitution says nothing about, and every verdict names which one it used.
+    """
     name: str
     path: str                      # relative to data_dir
     producer: str                  # agent/cron/cycle that MUST refresh it (accountability)
@@ -119,40 +127,79 @@ class FreshnessResult:
     max_age_hours: float
     public: bool
     path: str
+    budget_source: str = "literal"   # where max_age_hours came from — part of the verdict
 
     @property
     def ok(self) -> bool:
         return self.status == FRESH
 
 
+def effective_budgets(registry: tuple = ARTIFACT_REGISTRY,
+                      manifest_path=None) -> dict[str, dict]:
+    """Freshness budget per artifact, READ from the constitution — one number, one place.
+
+    Returns ``{name: {"hours": float, "source": str, "why": str}}``.
+
+      manifest_slo — `slo_hours` for this artifact's path in `architecture/manifest.json`
+      literal      — the constitution is silent about it; the registry literal is used
+      fallback     — the constitution could not be READ at all; literal used, reason named
+
+    `source` travels with the number on purpose. The defect this closes (#342) was not a wrong
+    number, it was an unsayable one: two guards judged `chief_investment.json` 30x apart and
+    neither verdict could be argued with, because neither said where its ceiling came from.
+    """
+    by_path, why = manifest_slo.slo_hours_by_path(manifest_path)
+    out: dict[str, dict] = {}
+    for art in registry:
+        rel = f"data/{art.path}"
+        if rel in by_path:
+            out[art.name] = {"hours": float(by_path[rel]), "source": "manifest_slo",
+                             "why": f"architecture/manifest.json: slo_hours={by_path[rel]:g}"}
+        else:
+            out[art.name] = {
+                "hours": float(art.max_age_hours),
+                "source": "fallback" if why else "literal",
+                "why": why or "constitution declares no active SLO for this artifact",
+            }
+    return out
+
+
 def check_freshness(data_dir, *, now: Optional[datetime] = None,
-                    registry: tuple = ARTIFACT_REGISTRY) -> list:
+                    registry: tuple = ARTIFACT_REGISTRY,
+                    budgets: Optional[dict] = None) -> list:
     """
     Evaluate every registered artifact. Returns a list[FreshnessResult].
 
     fail-CLOSED: required file absent → MISSING; timestamp unparseable → UNCHECKED;
-    age > max_age_hours → STALE. Only a present, parseable, in-window artifact is FRESH.
-    `now` is injectable for hermetic tests.
+    age > the effective budget → STALE. Only a present, parseable, in-window artifact is FRESH.
+
+    `now` AND `budgets` are injectable inputs, not environment (rule `.claude/rules/deployment.md`:
+    the cadence a guard judges by is the same kind of moving ground as the clock — pass it in).
+    Default: read the constitution.
     """
     base = Path(data_dir)
     now = now or datetime.now(timezone.utc)
+    b = budgets if budgets is not None else effective_budgets(registry)
     results: list = []
     for art in registry:
+        spec = b.get(art.name) or {"hours": art.max_age_hours, "source": "literal"}
+        budget = float(spec["hours"])
+        src = str(spec.get("source", "literal"))
         full = base / art.path
         if not full.exists():
             status = MISSING if art.required else UNCHECKED
             results.append(FreshnessResult(art.name, art.producer, status, None,
-                                           art.max_age_hours, art.public, art.path))
+                                           budget, art.public, art.path, src))
             continue
         ts = _artifact_ts(full, art)
         if ts is None:
             results.append(FreshnessResult(art.name, art.producer, UNCHECKED, None,
-                                           art.max_age_hours, art.public, art.path))
+                                           budget, art.public, art.path, src))
             continue
         age_h = (now - ts).total_seconds() / 3600.0
-        status = FRESH if age_h <= art.max_age_hours else STALE
+        status = FRESH if age_h <= budget else STALE
         results.append(FreshnessResult(art.name, art.producer, status, round(age_h, 2),
-                                       art.max_age_hours, art.public, art.path))
+                                       budget, art.public, art.path, src))
     return results
 
 
@@ -170,10 +217,11 @@ def summarize(results: list) -> dict:
         "n_unchecked": len(unchecked),
         "stale": [{"name": r.name, "producer": r.producer, "status": r.status,
                    "age_hours": r.age_hours, "max_age_hours": r.max_age_hours,
-                   "public": r.public} for r in stale],
+                   "public": r.public, "budget_source": r.budget_source} for r in stale],
         "artifacts": [{"name": r.name, "producer": r.producer, "status": r.status,
                        "age_hours": r.age_hours, "max_age_hours": r.max_age_hours,
-                       "public": r.public, "path": r.path} for r in results],
+                       "public": r.public, "path": r.path,
+                       "budget_source": r.budget_source} for r in results],
     }
 
 
@@ -207,7 +255,12 @@ def _alert_if_stale(report: dict) -> bool:
             pub = " (public)" if s.get("public") else ""
             age = s.get("age_hours")
             age_s = f"{age:.0f}h" if isinstance(age, (int, float)) else s.get("status")
-            lines.append(f"• {s['name']}{pub}: {age_s} > {s['max_age_hours']:.0f}h — producer {s['producer']}")
+            # the ceiling's ORIGIN rides along: silent when it was READ from the constitution,
+            # said out loud when a literal is standing in for it (#342).
+            src = s.get("budget_source")
+            src_txt = "" if src == "manifest_slo" else f" [ceiling: {src}]"
+            lines.append(f"• {s['name']}{pub}: {age_s} > {s['max_age_hours']:.0f}h"
+                         f"{src_txt} — producer {s['producer']}")
         enqueue_digest(
             "artifact_freshness",
             f"⚠️ Artifact freshness: {report['n_stale']} stale",
