@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Находка петли: манифест ↔ факты: com.spa.io_chief_investment: schedule 'interval:300s"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-22
 finding_key: "B5:drift:com.spa.io_chief_investment"

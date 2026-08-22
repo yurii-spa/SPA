@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Находка петли: data/investment_os/chief_investment.json: возраст 19.1ч > SLO 1ч (клас"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-22
 finding_key: "B2:stale:data/investment_os/chief_investment.json"
