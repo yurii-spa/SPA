@@ -1322,6 +1322,36 @@
    }
   },
   {
+   "label": "com.spa.monthly_statement",
+   "plist_source": "repo:launchd/com.spa.monthly_statement.plist",
+   "reboot_safe": false,
+   "schedule": "calendar:08:30",
+   "program": "agent_monthly_statement.sh",
+   "layer": "product",
+   "role": "reporting",
+   "intent": "designed",
+   "produces": [
+    {
+     "artifact": "data/statements",
+     "slo_hours": 792
+    }
+   ],
+   "consumes": [
+    "data/equity_curve_daily.json"
+   ],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "complete",
+   "notes": "Аудит 21.08, вердикт WIRE: рабочий CLI, настоящие выписки в data/statements/ обрывались на июне — планировщика не было. Тик 1-го числа 08:30 (builder игнорирует Day в строке расписания — известное огрубление механики, поэтому calendar:08:30). intent=designed СОЗНАТЕЛЬНО (прецедент site_freshness): код+обёртка+plist доставлены, launchctl bootstrap — решение владельца (гейт инв. #12). ПРИ ЗАГРУЗКЕ intent → active тем же шагом. slo_hours 792 = 33 дня (месячный такт + буфер).",
+   "passport": {
+    "goal": "Месячная выписка комплаенса: opening/closing NAV, доходность периода в $ и %, годовая, микс стратегий, аттестация риск-событий — в data/statements/<YYYY-MM>.json.",
+    "quality_metric": "к 2-му числу месяца в data/statements/ лежит выписка за прошлый месяц",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
+    "rights": "писать data/statements",
+    "limits": "read-only по треку; капитал не двигает; LLM запрещён; execution не импортирует"
+   }
+  },
+  {
    "label": "com.spa.morning_digest",
    "plist_source": null,
    "reboot_safe": false,
@@ -1888,6 +1918,38 @@
     "escalation": "",
     "rights": "",
     "limits": ""
+   }
+  },
+  {
+   "label": "com.spa.swarm_rank_demotion",
+   "plist_source": "repo:launchd/com.spa.swarm_rank_demotion.plist",
+   "reboot_safe": false,
+   "schedule": "interval:3600s",
+   "program": "agent_swarm_rank_demotion.sh",
+   "layer": "product",
+   "role": "allocation",
+   "intent": "designed",
+   "produces": [
+    {
+     "artifact": "data/swarm/rank_demotion_status.json",
+     "slo_hours": 25
+    }
+   ],
+   "consumes": [
+    "data/aggressive_lab"
+   ],
+   "consumer_required": false,
+   "governed_by": [
+    "ADR-074"
+   ],
+   "curation": "complete",
+   "notes": "Вторая рука ADR-074 (решения владельца 08.08: вар. A+C + own-rnd-xvd вар.1 — две руки drift/vol в одном модуле). Аудит 21.08, вердикт WIRE: единственный *_forward роя БЕЗ обёртки, форвард-трек не копился вовсе. intent=designed СОЗНАТЕЛЬНО (прецедент site_freshness/ADR-085): код+обёртка+plist доставлены, launchctl bootstrap — решение владельца (гейт инв. #12, ≤3 агентов за раз). ПРИ ЗАГРУЗКЕ перевести intent в active ТЕМ ЖЕ шагом. produces начнёт наполняться после активации; slo_hours 25 = дневной тик + буфер.",
+   "passport": {
+    "goal": "Форвардный paper-трек рангового демоушена ADR-074, две руки (drift/vol): через 30 дней форварда увидеть глазами, какая рука лучше, вместо спора по бэктесту.",
+    "quality_metric": "data/swarm/rank_demotion_status.json свежее 25 ч; книга rank_demotion_book.jsonl растёт по дням без REFUSED_OUT_OF_ORDER",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
+    "rights": "писать data/swarm/rank_demotion_status.json",
+    "limits": "advisory / OUTSIDE_RISKPOLICY / paper — капитал не двигает; kill-switch не заменяет (честная граница №2 модуля); LLM запрещён"
    }
   },
   {
