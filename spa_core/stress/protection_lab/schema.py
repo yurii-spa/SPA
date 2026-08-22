@@ -91,6 +91,8 @@ class Scenario:
     sources: List[dict]
     confidence_notes: str
     data_availability: Dict[str, Any] = field(default_factory=dict)
+    # Маппинг события на книгу SPA: какие позиции, каким каналом, что не покрыто.
+    spa_relevance: Dict[str, Any] = field(default_factory=dict)
     replay: Optional[ReplaySpec] = None
     schema_version: int = SCHEMA_VERSION
     synthetic: bool = False
@@ -257,6 +259,7 @@ def scenario_from_dict(raw: dict) -> Scenario:
         sources=list(raw["sources"]),
         confidence_notes=str(raw["confidence_notes"]),
         data_availability=dict(raw.get("data_availability") or {}),
+        spa_relevance=dict(raw.get("spa_relevance") or {}),
         replay=replay,
         schema_version=int(raw.get("schema_version", SCHEMA_VERSION)),
         synthetic=bool(raw.get("synthetic", False)),

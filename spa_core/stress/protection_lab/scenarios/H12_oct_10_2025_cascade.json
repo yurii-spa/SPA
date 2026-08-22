@@ -1,0 +1,474 @@
+{
+ "schema_version": 1,
+ "id": "H12_oct_10_2025_cascade",
+ "name": "October 10-11 2025 Tariff-Shock Liquidation Cascade (largest liquidation event in crypto history; Binance USDe/wBETH/BNSOL collateral-oracle loop)",
+ "event_class": [
+  "market_crash",
+  "stablecoin_depeg",
+  "liquidity_oracle_infra",
+  "systemic_contagion"
+ ],
+ "window_utc": {
+  "start": "2025-10-10T14:57:00Z",
+  "trough": "2025-10-10T21:20:00Z",
+  "end": "2025-10-13T23:59:00Z",
+  "notes": "Start = first Trump tariff-threat post (~10:57 ET, minute approximate); acute cascade 20:50-22:16 UTC Oct 10; Binance's official depeg window 21:36-22:16 UTC; acute phase over by Oct 13 (BTC >$114k, compensation announced). Aftershocks ran into Nov 2025."
+ },
+ "speed": "BTC -14.5% peak-to-trough in ~6.5h, with the bulk (-10%) in ~20 minutes (21:00-21:21 UTC); alts -40-70% (wicks to -99%) within the hour; USDe -35% on Binance inside a 40-min window (21:36-22:16 UTC); $19.1-19.35B liquidated in 24h (~1.6M traders) — largest liquidation event in crypto history",
+ "summary": "10 октября 2025, 21:00-21:21 UTC: крупнейший каскад ликвидаций в истории — $19.1-19.35B за сутки (~1.6M трейдеров), BTC −14.5% за 6.5ч (−10% за 20 минут), альты −40-70%, USDe $0.65 НА BINANCE (петля unified-margin оракула; on-chain $0.985+), wBETH/BNSOL −88% на внутренних книгах. On-chain USDC-рельсы прошли БЕЗ ПОВРЕЖДЕНИЙ: Aave провёл рекордные ~$180M ликвидаций за час без bad debt (Chainlink-оракулы отказались брать биржевые принты). Внутридневная скорость заведомо быстрее дневного цикла SPA — это свойство системы, лаборатория его показывает. Отложенный хвост — Stream/xUSD (H14). Книга SPA на 2026-08: aave_v3 40% / pendle (PT_USDC) 20% / maple 15% / morpho_steakhouse 15% / кэш USDC 10%.",
+ "timeline": [
+  {
+   "ts": "2025-10-06",
+   "event": "BTC prints all-time high above $126,000; total futures OI near records after months of low volatility — maximum-leverage backdrop. Binance had announced (Oct 6) an oracle/index update for collateral assets scheduled for Oct 14, leaving a known transition window.",
+   "observed": true,
+   "source_url": "https://www.reuters.com/world/asia-pacific/after-record-crypto-crash-rush-hedge-against-another-freefall-2025-10-13/"
+  },
+  {
+   "ts": "2025-10-10T14:57:00Z",
+   "event": "Trump Truth Social post threatens a 'massive increase of tariffs' on China over its rare-earth export controls (~10:57 ET; minute approximate). BTC slides from ~$122.5k to below $119k alongside equities; S&P 500 ends -2.7%, worst day since April.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2025/10/10/trump-tariff-threat-on-china-sends-bitcoin-tumbling-below-usd119k"
+  },
+  {
+   "ts": "2025-10-10T20:55:00Z",
+   "event": "After US equity close, Trump announces 100% tariff on China 'over and above' existing tariffs, effective Nov 1, plus export controls on 'any and all critical software' (post time ~20:50-21:04 UTC, minute not independently verified; Reuters wire ~21:03 UTC). Crypto is the only major market open. A pre-positioned Hyperliquid short (~$160-200M profit) opened ~30 min earlier fuels later insider-trading allegations (unproven).",
+   "observed": true,
+   "source_url": "https://www.smh.com.au/business/markets/crypto-anger-as-investors-claim-insider-trading-in-600b-trump-crash-20251013-p5n1xj.html"
+  },
+  {
+   "ts": "2025-10-10T21:00:00Z",
+   "event": "Cascade wave 1 (21:00-21:21 UTC): BTC falls ~$117k -> ~$105k in roughly 20 minutes; aggregate low $104,782.88 (Reuters), wicks ~$102k on some venues. ETH to ~$3,430-3,510 (-~20%). Alts -40-70% intraday: XRP -40/41%, DOGE -50%, AAVE -64% ($278.27->$100.18); ATOM briefly prints ~$0.001 on Binance; SOL -~40% wick. Prices bottom 21:20-21:21 UTC.",
+   "observed": true,
+   "source_url": "https://www.reuters.com/world/asia-pacific/after-record-crypto-crash-rush-hedge-against-another-freefall-2025-10-13/"
+  },
+  {
+   "ts": "2025-10-10T21:36:00Z",
+   "event": "Binance's official 'depeg window' begins (21:36-22:16 UTC, per Binance's own announcement): Unified-Account collateral (USDe, wBETH, BNSOL) is valued off Binance's OWN thin spot orderbooks; liquidated collateral is sold into the same books that price it -> self-referential loop. USDe prints ~$0.65 on Binance spot (-35%; feeds show $0.62-0.66) while trading within ~0.3% of $1.00 on Bybit/Curve/Uniswap; wBETH wicks to ~$430 (~-90%) and BNSOL from ~$300 to ~$35 (~-88%). ADL fires across venues; USDT briefly trades at ~$1.006 premium; Rabby/DeBank wallet front-ends halt transactions; CoW Swap prints aberrant fills.",
+   "observed": true,
+   "source_url": "https://www.binance.com/en/square/post/10-12-2025-binance-to-compensate-users-affected-by-usde-bnsol-and-wbeth-depeg-30878046233481"
+  },
+  {
+   "ts": "2025-10-10T22:13:00Z",
+   "event": "Ethena publicly confirms operations normal: mint/redeem never stopped, ~$2B of USDe redeemed within 24h without delay; Chainlink and DeFi oracles held USDe at ~$1.00 throughout, so NO on-chain liquidation cascade (exact post time low confidence).",
+   "observed": false,
+   "source_url": "https://www.coindesk.com/markets/2025/10/13/no-ethena-s-usde-didn-t-de-peg"
+  },
+  {
+   "ts": "2025-10-11T03:46:00Z",
+   "event": "24h tally: $19.1-19.35B liquidated (largest in crypto history; ~$16.7B longs), ~1.6-1.67M traders; largest single liquidation $203.36M (ETH position on Hyperliquid); CoinDesk 20 index -12.1%. CoinGlass and exchange executives note the true total is materially HIGHER because exchange APIs throttle liquidation reporting. BTC rebounds to ~$113k.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2025/10/10/usd16b-in-longs-liquidated-as-wall-street-sell-off-extends-btc-eth-broader-crypto-market-meltdown"
+  },
+  {
+   "ts": "2025-10-11T12:00:00Z",
+   "event": "Venue damage assessed: Hyperliquid — ~$10.3B liquidations, $1.23B trader capital erased, >1,000 wallets fully wiped, 6,300 in the red, 205 lost >$1M each; HLP liquidator vault PROFITED >$40M in one day; OI $15B->$6B. Lighter avoided ADL but suffered multi-hour outage. DeFi held: Aave processed a record ~$180M of liquidations in ~1h with no bad debt ('largest stress test'); Morpho ~$100M, no bad debt.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2025/10/11/largest-ever-crypto-liquidation-event-wipes-out-6-300-wallets-on-hyperliquid"
+  },
+  {
+   "ts": "2025-10-11T12:29:00Z",
+   "event": "Ethena publishes unscheduled proof-of-reserves: USDe overcollateralized by ~$66M on ~$9.65B supply, verified by independent attestors (Chaos Labs, Chainlink, Llama Risk, Harris & Trotter); short-perp hedges profited as prices fell. (Attestation is well documented; exact hour secondary-sourced.)",
+   "observed": false,
+   "source_url": "https://www.coindesk.com/markets/2025/10/13/no-ethena-s-usde-didn-t-de-peg"
+  },
+  {
+   "ts": "2025-10-12T17:12:00Z",
+   "event": "Binance announces compensation for all Futures/Margin/Loans users liquidated in the 21:36-22:16 UTC window (paid vs the 2025-10-11 00:00 UTC market price; ~$283M ultimately paid on this track) and accelerates the oracle fix: redemption prices added to the collateral index weights + a minimum price threshold (soft floor) for the USDe index, pulled forward from Oct 14 to Oct 11-12.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2025/10/12/binance-to-compensate-users-affected-by-crash-in-wbeth-bnsol-and-ethena-s-usde"
+  },
+  {
+   "ts": "2025-10-13",
+   "event": "Acute phase ends: BTC back above $114-115k (+~12% off lows), spot BTC ETFs take ~$420M inflows; derivatives funding rates at lowest since the 2022 bear market; >$10B of BTC open interest erased. CoinDesk publishes 'No, Ethena's USDe Didn't De-peg'. Reuters totals the event at a record ~$19B day / ~$25B including the weekend.",
+   "observed": true,
+   "source_url": "https://finance.yahoo.com/news/tariff-shock-wipes-19b-crypto-191129664.html"
+  },
+  {
+   "ts": "2025-10-14",
+   "event": "Binance launches $400M 'Together' support initiative ($300M vouchers to force-liquidated retail users + $100M institutional liquidity facility), framed as confidence-restoring, explicitly not an admission of liability.",
+   "observed": true,
+   "source_url": "https://www.binance.com/en/square/post/10-14-2025-binance-launches-400-million-support-initiative-amid-crypto-market-volatility-31008731846026"
+  },
+  {
+   "ts": "2025-10-15 → 2025-11-02",
+   "event": "Structural aftermath: market-maker balance sheets impaired, altcoin orderbook depth stays sharply reduced for months, OI rebuild is slow, funding stays depressed; USDe supply contracts from ~$9.6B toward ~$6B over the following weeks as leveraged carry unwinds. Market never reclaims the Oct 6 ATH; BTC drifts to ~$110k mid-October and breaks below $100k in early November.",
+   "observed": true,
+   "source_url": "https://www.reuters.com/world/asia-pacific/after-record-crypto-crash-rush-hedge-against-another-freefall-2025-10-13/"
+  },
+  {
+   "ts": "2025-11-03",
+   "event": "Aftershock 1: Balancer v2 Composable Stable Pools exploited across ~6 chains (old rounding/scaling bug); estimates rose $70M -> $110-117M -> ~$128M; Berachain halted and forked its network; StakeWise recovered $19.3M (5,041 osETH), Berachain Foundation $12.8M. Same day, Stream Finance suspends all deposits/withdrawals after an external fund manager discloses ~$93M loss of user assets (loss widely linked to Oct 10-11 trading).",
+   "observed": true,
+   "source_url": "https://www.msn.com/en-us/money/other/balancer-suffers-116m-exploit-targeting-wrapped-eth/ar-AA1PI2ce"
+  },
+  {
+   "ts": "2025-11-04",
+   "event": "Aftershock 2: Stream's xUSD collapses from $1 to ~$0.43 within hours (-77% first day; later prints ~$0.23-0.24); on-chain data shows ~$170M assets vs ~$530M loans (>4x leverage); analysts map ~$285M of loans across Euler, Silo, Morpho markets and curators (TelosC, MEV Capital, Re7) secured by xUSD/xBTC/xETH; Elixir's deUSD (large Stream creditor) is subsequently wound down. Curated-vault/synthetic-yield contagion — the deferred casualty of Oct 10.",
+   "observed": true,
+   "source_url": "https://finance.yahoo.com/news/stream-finance-freezes-withdrawals-93m-152500237.html"
+  }
+ ],
+ "market_impact": {
+  "btc": {
+   "from_usd": 122574.46,
+   "to_usd": 104782.88,
+   "drawdown_pct": -14.5,
+   "window": "Oct 10 high -> Oct 10-11 low (Reuters); bulk ~-10% in ~20 min, 21:00-21:21 UTC; venue wicks ~$102,000; ATH context: >$126,000 on Oct 6 2025",
+   "liquidations_usd": 5380000000
+  },
+  "eth": {
+   "from_usd": 4300,
+   "to_usd": 3435,
+   "drawdown_pct": -20,
+   "window": "Oct 10 ~$4,300 -> crash lows ~$3,430-3,510 (sources vary in this band); recovered to ~$3,844 by Oct 11 morning UTC",
+   "liquidations_usd": 4430000000
+  },
+  "sol": {
+   "from_usd": null,
+   "to_usd": null,
+   "drawdown_pct": -40,
+   "window": "intraday wick Oct 10; -40% per multiple accounts; $2.01B liquidated",
+   "note": "wick magnitude venue-dependent"
+  },
+  "xrp": {
+   "drawdown_pct": -41,
+   "window": "Oct 10-11 intraday flash crash, biggest one-day drop on record for XRP; later reclaimed $2.47; $708M liquidated"
+  },
+  "doge": {
+   "drawdown_pct": -50,
+   "window": "Oct 10-11 intraday flash crash, stabilized near $0.19"
+  },
+  "aave_token": {
+   "from_usd": 278.27,
+   "to_usd": 100.18,
+   "drawdown_pct": -64,
+   "window": "Oct 10-11 intraday; recovered to $240.09"
+  },
+  "atom": {
+   "to_usd": 0.001,
+   "drawdown_pct": -99,
+   "window": "seconds-to-minutes wick on Binance during the cascade (~98% intra-hour loss reported for ATOM/SUI)"
+  },
+  "ena": {
+   "drawdown_pct": -40,
+   "window": "daily; intraday wicks much deeper (up to ~-80% claimed on some venues, contested)"
+  },
+  "bnb": {
+   "note": "held above $1,000 — relative safe haven among alts"
+  },
+  "indices_and_aggregates": {
+   "coindesk_20_pct": -12.1,
+   "altcoin_market_cap_loss_usd": 131000000000,
+   "total_crypto_market_cap_loss_usd": "range $400-600B in ~24h (SMH ~$400B; other tallies $500-560B); total mcap ~-9% to ~$3.7-3.8T",
+   "avg_token_claim": null
+  }
+ },
+ "stablecoins": [
+  {
+   "symbol": "USDe",
+   "min_price_usd": 0.65,
+   "when": "2025-10-10 ~21:36-22:16 UTC, Binance spot ONLY (books bottomed ~21:41; feeds show lows $0.62-0.66; $0.6567 often quoted but not independently verified here)",
+   "duration_below_099": "~40-90 min on Binance; on-chain (Curve/Uniswap) and Bybit deviation stayed <0.3% — never materially below $0.99 there",
+   "notes": "NOT a solvency depeg: venue-local oracle artifact of Binance's own-orderbook collateral index. Ethena stayed overcollateralized (~$66M on ~$9.65B supply, attested by Chaos Labs/Chainlink/Llama Risk/Harris & Trotter); mint/redeem uninterrupted, ~$2B redeemed in 24h; short-perp hedge PROFITED as prices fell. Binance paid ~$283M compensation and added redemption prices + a price floor to its USDe index. Supply later contracted ~$9.6B -> ~$6B as leveraged carry unwound."
+  },
+  {
+   "symbol": "wBETH",
+   "min_price_usd": 430,
+   "when": "2025-10-10 21:36-22:16 UTC, Binance",
+   "notes": "LST (not a stablecoin) — included because its ETH-peg break drove the collateral loop: ~-89% vs par (ETH ~$3,700-3,900 at the time) on Binance's internal books; par elsewhere and redeemable at par at issuer. Covered by Binance compensation. Wick level medium confidence."
+  },
+  {
+   "symbol": "BNSOL",
+   "min_price_usd": 35,
+   "when": "2025-10-10 21:36-22:16 UTC, Binance",
+   "notes": "Binance Staked SOL LST: ~$300 -> ~$35 (~-88%) on Binance internal books; same mechanism and compensation. Wick level medium confidence."
+  },
+  {
+   "symbol": "USDT",
+   "min_price_usd": null,
+   "when": "2025-10-10 ~21:00-23:00 UTC",
+   "notes": "Traded at a PREMIUM (~$1.006) as the flight-to-cash asset; no downside depeg. Tether/Circle minted billions in the following days to meet demand."
+  },
+  {
+   "symbol": "USDC",
+   "min_price_usd": null,
+   "when": "-",
+   "notes": "No notable depeg in this event; held ~$1.00 (this crisis, unlike SVB-Mar-2023, did not touch USDC's peg)."
+  },
+  {
+   "symbol": "xUSD (Stream Finance)",
+   "min_price_usd": 0.23,
+   "when": "2025-11-03/04 (aftershock), lowest prints later still",
+   "notes": "True insolvency collapse (aftershock of Oct 10 losses): $1 -> ~$0.43 within hours of the $93M loss disclosure (-77% day one), later ~$0.23-0.24; withdrawals frozen; ~$285M loans secured by xUSD/xBTC/xETH across Euler/Silo/Morpho; Elixir deUSD (large creditor) wound down. Contrast case to USDe: opaque, leveraged (>4x), no attested reserves."
+  }
+ ],
+ "defi_impact": {
+  "tvl": {
+   "global_change": null,
+   "notes": "No reliably sourced global DeFi TVL delta obtained for Oct 10-13 (DeFiLlama daily series can supply it — see data_availability); Balancer TVL fell ~50% after its Nov 3 exploit; USDe/Ethena TVL contracted ~$9.6B -> ~$6B over the following weeks."
+  },
+  "bad_debt_usd": {
+   "oct_10_11_onchain_majors": 0,
+   "notes": "Aave processed a record ~$180M of liquidations in ~1h and Morpho ~$100M with NO bad debt reported — because Chainlink-style oracles held USDe/collateral at par, refusing the CEX prints. ~$4.8B of Aave positions were at risk had oracles tracked Binance prices. Deferred bad debt arrived via aftershocks: Stream Finance $93M direct loss + ~$285M xUSD/xBTC/xETH-collateralized loan web (Nov), Balancer exploit $116-128M (Nov 3)."
+  },
+  "liquidations_usd": {
+   "cex_reported_24h": 19350000000,
+   "of_which_longs": 16700000000,
+   "traders_liquidated": 1666361,
+   "largest_single": 203360000,
+   "hyperliquid_total": 10280000000,
+   "onchain_aave_1h": 180000000,
+   "onchain_morpho": 100000000,
+   "notes": "CoinGlass-derived totals $19.1-19.35B; systematically UNDERREPORTED (exchange APIs throttle liquidation feeds — Binance ~1 order/sec/symbol); Reuters later called it a record '~$25B' crash including the weekend; informal estimates run $30B+ (unverified)."
+  },
+  "gas": null,
+  "gas_notes": "No sourced gas figure obtained; infrastructure strain documented instead: Rabby and DeBank wallet front-ends halted transactions for tens of thousands of users, CoW Swap produced aberrant fills, Lighter had a multi-hour outage.",
+  "oracle_behavior": "THE defining feature: Binance valued unified-margin collateral (USDe/wBETH/BNSOL) via an index built from its OWN spot orderbooks -> self-referential loop (collateral sold into the book that prices it). External/Chainlink oracles and every other major venue kept USDe ~$1.00, firewalling DeFi. Post-mortem fix (accelerated to Oct 11-12): redemption prices added into index weights + minimum price threshold on the USDe index + more frequent risk-parameter reviews.",
+  "withdrawal_freezes": "None among major on-chain money markets during Oct 10-13 (Aave/Morpho/Maple/Pendle all operational; Ethena mint/redeem uninterrupted). CEX service degradation on Binance (compensated). Aftershock freezes: Stream Finance suspended all deposits/withdrawals Nov 3 (~$160M+ user funds trapped); Berachain halted its chain Nov 3 (Balancer exploit).",
+  "adl": "Auto-deleveraging fired across major perp venues, force-closing profitable shorts to fill bankruptcy holes; Lighter was the notable major venue avoiding ADL (at the cost of an outage); Hyperliquid's HLP liquidator vault PROFITED >$40M that day.",
+  "perp_open_interest": "BTC futures OI: >$10B erased within days (sourced); venue snapshots: Hyperliquid OI $15B -> $6B (-60%) in one day; one widely shared dashboard showed BTC perp OI $67B -> $33B (-51%), ETH $38B -> $19B, alts $43B -> $31B — magnitude contested between sources ('-43%' from the task brief could not be independently verified; treat aggregate OI drop as roughly -30% to -50%). Funding rates collapsed to lowest since the 2022 bear market.",
+  "protocols_insolvent_or_paused": "October: none of the majors. November aftershocks: Stream Finance (insolvent, frozen), Elixir deUSD (wound down), Balancer v2 (exploited, TVL -50%), Berachain (temporary halt/fork)."
+ },
+ "causes": {
+  "primary": "Macro shock — Trump's surprise 100% China tariff announcement (~21:00 UTC Friday, after US equity close) hitting a record-leveraged crypto market as the only market open, into thin Friday-evening/weekend liquidity.",
+  "secondary": [
+   "Record leverage/OI buildup after months of grind-up (BTC ATH Oct 6); crowded longs across 1.6M+ accounts",
+   "Binance Unified Account cross-margin accepting volatile/yield-bearing collateral (USDe, wBETH, BNSOL) VALUED ON BINANCE'S OWN SPOT ORDERBOOKS — a venue-internal, self-referential collateral oracle",
+   "Known oracle-fix transition window (announced Oct 6, scheduled Oct 14) — the crash hit inside it; Colin Wu and others argue this was exploited deliberately (unproven)",
+   "ADL mechanics closing profitable shorts to fill liquidation holes, amplifying dislocation; Lighter outage removed a venue",
+   "Market makers pulling quotes — unable to hedge as collateral marks collapsed; weekend/Friday-evening depth already thin",
+   "Pre-positioned large shorts minutes before the announcement (~$160-200M profit) — insider-trading allegations, never proven",
+   "Structural: liquidation reporting caps (Binance API ~1 order/sec/symbol) meant the real cascade was larger than the reported $19B"
+  ],
+  "mechanism": "100% tariff post (~20:50-21:04 UTC) -> instant risk-off in the only open market -> long liquidations begin -> thin books gap down -> BTC -10% in ~20 min, alts -40-70% -> Binance unified-margin accounts see USDe/wBETH/BNSOL collateral re-marked on Binance's own collapsing spot books -> equity evaporates -> forced liquidation of those accounts -> collateral dumped into the same thin books -> local prices collapse further (USDe $0.65, wBETH ~$430, BNSOL ~$35) -> next liquidation tier triggers; ADL storms close winners; insurance funds drain. Firewall: Chainlink/DeFi oracles kept USDe ~$1.00, so the loop stayed venue-local — Aave/Morpho processed record liquidations with no bad debt and DeFi avoided the spillover ($4.8B of Aave positions were at risk had oracles tracked CEX prints)."
+ },
+ "contagion": [
+  "Trump 100% China tariff post ~20:50-21:04 UTC Oct 10 (after equity close)",
+  "crypto perp long liquidations begin across all venues (only open market)",
+  "BTC -10% in ~20 min (21:00-21:21 UTC), alts -40-70%, ATOM/alt wicks to near zero on thin books",
+  "Binance unified-margin collateral (USDe/wBETH/BNSOL) marked on Binance's OWN thin spot books -> collateral value collapse -> forced selling into the same books (self-referential oracle loop, 21:36-22:16 UTC)",
+  "USDe prints $0.65 ON BINANCE ONLY (on-chain/Bybit deviation <0.3%) -> 'Ethena depeg' panic headlines",
+  "ADL storms + insurance-fund drawdowns close profitable shorts across venues; Lighter outage",
+  "firewall holds: Chainlink oracles keep USDe ~$1 -> NO on-chain cascade; Aave liquidates $180M/1h with no bad debt; Ethena redeems ~$2B at par",
+  "$19.3B+ reported liquidations / ~1.6M traders; OI collapses (Hyperliquid -60%); funding to 2022 lows",
+  "market-maker balance sheets damaged -> altcoin depth impaired for months; USDe supply -$3B+; BTC never reclaims ATH, breaks <$100k early Nov",
+  "deferred casualties Nov 3-4: Stream Finance $93M loss + xUSD collapse ($1 -> $0.43 -> ~$0.23) -> ~$285M curated-vault loan contagion (Euler/Silo/Morpho/Elixir/TelosC) + Balancer v2 $116-128M exploit into the weakened market"
+ ],
+ "recovery": {
+  "recovered": "partial",
+  "time_to_recover": "USDe on Binance: back near par within ~40-90 min (on-chain never left it); BTC: +12% off lows to >$114k within ~72h; market STRUCTURE (alt depth, OI, market-maker capacity): months — never fully restored before the Nov 2025 aftershocks",
+  "notes": "V-shaped price bounce (BTC $104.8k -> $115k by Oct 12-13, ETF inflows ~$420M) but the event marked the cycle top: BTC never reclaimed the Oct 6 ATH ($126k), slid through late October and broke below $100k on Nov 4-5 2025 amid Balancer/Stream aftershocks; ETH ~$3,372 and SOL ~$158 by Nov 6. Altcoin orderbook depth and market-maker balance sheets stayed impaired for months (widely reported; hard depth series requires Kaiko-class paid data). USDe supply contracted ~$9.6B -> ~$6B; Ethena's design was VALIDATED (overcollateralized throughout) while the opaque copycats (Stream xUSD, Elixir deUSD) died three weeks later. Binance paid ~$283M compensation + $400M support program and fixed its collateral index."
+ },
+ "sources": [
+  {
+   "title": "Reuters — After record crypto crash, a rush to hedge against another freefall (Oct 13 2025; also syndicated by Straits Times)",
+   "url": "https://www.reuters.com/world/asia-pacific/after-record-crypto-crash-rush-hedge-against-another-freefall-2025-10-13/",
+   "supports": "BTC Oct 10 high $122,574.46 -> Oct 10-11 low $104,782.88 (>-14%); BTC ATH >$126,000 on Oct 6; largest liquidation event in crypto history; 'record ~$25B crash' framing",
+   "confidence": "high"
+  },
+  {
+   "title": "CoinDesk — Biggest Crypto Liquidation Ever Sees $16B Longs Decimated Amid Market Chaos",
+   "url": "https://www.coindesk.com/markets/2025/10/10/usd16b-in-longs-liquidated-as-wall-street-sell-off-extends-btc-eth-broader-crypto-market-meltdown",
+   "supports": "$19.1B/24h total, $16.7B longs; CoinDesk 20 -12.1%; BTC recovery to $113,294 and ETH $3,844 by Oct 11",
+   "confidence": "high"
+  },
+  {
+   "title": "Binance (first-party) — Binance to Compensate Users Affected by USDe, BNSOL and WBETH Depeg",
+   "url": "https://www.binance.com/en/square/post/10-12-2025-binance-to-compensate-users-affected-by-usde-bnsol-and-wbeth-depeg-30878046233481",
+   "supports": "Official depeg window 2025-10-10 21:36-22:16 UTC; compensation vs 2025-10-11 00:00 UTC price within 72h; oracle fix: redemption prices in index weights + minimum price threshold for USDe index",
+   "confidence": "high"
+  },
+  {
+   "title": "CoinDesk — Binance to Compensate Users Affected by Crash in wBETH, BNSOL, and Ethena's USDe (Omkar Godbole, Oct 12 2025)",
+   "url": "https://www.coindesk.com/markets/2025/10/12/binance-to-compensate-users-affected-by-crash-in-wbeth-bnsol-and-ethena-s-usde",
+   "supports": "Wrapped-asset crash localized to Binance; compensation announcement; ~$283M paid figure widely reported alongside",
+   "confidence": "high"
+  },
+  {
+   "title": "CoinDesk — Ethena's USDe Briefly Loses Peg During $19B Crypto Liquidation Cascade (Oct 11 2025)",
+   "url": "https://www.coindesk.com/markets/2025/10/11/ethena-s-usde-briefly-loses-peg-during-usd19b-crypto-liquidation-cascade",
+   "supports": "USDe ~$0.65 print on Binance during the $19B cascade; tariff trigger",
+   "confidence": "high"
+  },
+  {
+   "title": "CoinDesk — No, Ethena's USDe Didn't De-peg (Oct 13 2025)",
+   "url": "https://www.coindesk.com/markets/2025/10/13/no-ethena-s-usde-didn-t-de-peg",
+   "supports": "Venue-isolated artifact of Binance's own-orderbook oracle index; on-chain deviation <0.3%; mint/redeem uninterrupted; USDe overcollateralized throughout (Guy Young statement)",
+   "confidence": "high"
+  },
+  {
+   "title": "CoinDesk — AAVE Sees 64% Flash Crash as DeFi Protocol Endures 'Largest Stress Test' (Oct 11 2025)",
+   "url": "https://www.coindesk.com/markets/2025/10/11/aave-sees-64-flash-crash-as-defi-protocol-endures-largest-stress-test",
+   "supports": "Aave record ~$180M liquidations in ~1h with no bad debt/human intervention; AAVE token $278.27 -> $100.18 (-64%), recovery $240.09",
+   "confidence": "high"
+  },
+  {
+   "title": "CoinDesk — 'Largest Ever' Crypto Liquidation Event Wipes Out 6,300 Wallets on Hyperliquid (Oct 11 2025)",
+   "url": "https://www.coindesk.com/markets/2025/10/11/largest-ever-crypto-liquidation-event-wipes-out-6-300-wallets-on-hyperliquid",
+   "supports": "Hyperliquid: $1.23B trader capital erased, >1,000 wallets fully liquidated, 6,300 in red, 205 lost >$1M; largest-ever framing",
+   "confidence": "high"
+  },
+  {
+   "title": "Cryptonews (Yahoo Finance syndication) — $19.35 Billion in 24 Hours, Largest Crypto Liquidation Event Recorded",
+   "url": "https://finance.yahoo.com/news/19-35-billion-24-hours-111114735.html",
+   "supports": "$19.35B/24h; 1,666,361 traders liquidated; largest single liquidation $203.36M on Hyperliquid; per-asset liquidations BTC $5.38B / ETH $4.43B / SOL $2.01B / XRP $708M (also carried by the companion piece finance.yahoo.com/news/trump-100-china-tariff-triggers-091235751.html)",
+   "confidence": "medium"
+  },
+  {
+   "title": "CoinDesk (Yahoo syndication) — Tariff Shock Wipes $19B in Crypto, 1.6M Traders Liquidated; BTC Quickly Rebounds (Oct 13 2025)",
+   "url": "https://finance.yahoo.com/news/tariff-shock-wipes-19b-crypto-191129664.html",
+   "supports": "1.6M traders; BTC below $105k then back >$114k by Oct 13; $420M spot-ETF inflows in recovery",
+   "confidence": "high"
+  },
+  {
+   "title": "Wu Blockchain — Weekly Project Updates: Hyperliquid Vault's Daily Earnings Reach $40 Million...",
+   "url": "https://wublock.substack.com/p/weekly-project-updates-hyperliquid-2f8",
+   "supports": "HLP liquidator vault +$40M single-day profit; Lighter outage losses; venue-level color",
+   "confidence": "medium"
+  },
+  {
+   "title": "CCN (Yahoo syndication) — 'This Felt Different': Why Friday's Crypto Crash Made History",
+   "url": "https://finance.yahoo.com/news/felt-different-why-friday-crypto-133009363.html",
+   "supports": "BTC flash lows ~$104,500 aggregate, ~$102,000 on some exchanges; Friday-liquidity framing",
+   "confidence": "medium"
+  },
+  {
+   "title": "Cryptonews (Yahoo) — Derivatives Funding Rates Collapse to 2022 Lows as Billions Liquidated",
+   "url": "https://www.yahoo.com/finance/news/derivatives-funding-rates-collapse-2022-143322245.html",
+   "supports": ">$10B BTC open interest erased across major exchanges; funding at lowest since 2022 bear market",
+   "confidence": "medium"
+  },
+  {
+   "title": "SMH — Crypto anger as investors claim insider trading in $600b Trump crash",
+   "url": "https://www.smh.com.au/business/markets/crypto-anger-as-investors-claim-insider-trading-in-600b-trump-crash-20251013-p5n1xj.html",
+   "supports": "~$400B market-cap wipe in <24h; anonymous pre-announcement short profiting up to ~$200M; insider-trading allegations",
+   "confidence": "medium"
+  },
+  {
+   "title": "Decrypt/CoinDesk via Yahoo — Stream Finance Stablecoin Plunges 77% After Fund Manager Loses $93M + Stream Finance Freezes Withdrawals After $93M Loss",
+   "url": "https://finance.yahoo.com/news/stream-finance-freezes-withdrawals-93m-152500237.html",
+   "supports": "Aftershock: $93M external-manager loss disclosed Nov 3; withdrawals/deposits frozen; xUSD -77% first day (later ~$0.23-0.43 prints); ~$284.96M loans secured by xUSD/xBTC/xETH; Perkins Coie retained; >4x leverage ($170M assets vs $530M loans per companion piece finance.yahoo.com/news/defi-protocol-stream-finance-suspends-051921738.html)",
+   "confidence": "high"
+  },
+  {
+   "title": "Cryptopolitan (MSN) — Balancer suffers $116M exploit targeting wrapped ETH + Yahoo — Balancer Recovers $19.3M Hours After Hack",
+   "url": "https://www.msn.com/en-us/money/other/balancer-suffers-116m-exploit-targeting-wrapped-eth/ar-AA1PI2ce",
+   "supports": "Aftershock: Nov 3 2025 Balancer v2 multi-chain exploit, estimates $70M -> $116M (some tallies $128M); Berachain halt/fork; StakeWise recovered 5,041 osETH ($19.3M) (finance.yahoo.com/news/balancer-defi-protocol-recovers-19-081054763.html)",
+   "confidence": "high"
+  },
+  {
+   "title": "TLDR Crypto newsletter, Oct 13-14 2025 issues (verbatim archive on GitHub)",
+   "url": "https://github.com/GaloisField2718/tldr_news/blob/master/TLDR%20Crypto/article_13-10-2025.md",
+   "supports": "OI collapse snapshots (BTC $67B->$33B, ETH $38B->$19B, alts $43B->$31B — contested), Hyperliquid OI $15B->$6B, ADL storm/Lighter-only-exception, Aave $180M + Morpho ~$100M no bad debt, USDT $1.006 premium, ATOM near zero, Rabby/DeBank halts, Aave $4.8B at risk, Binance margin-engine mispricing of wBETH/BNSOL",
+   "confidence": "medium"
+  },
+  {
+   "title": "ExchangeSimulation research: Deep dive — mark price construction, §6.3 Binance USDe/wBETH/BNSOL 2025-10-10",
+   "url": "https://github.com/VladKochetov007/ExchangeSimulation/blob/main/docs/research/deepdive-markprice-construction.md",
+   "supports": "Mechanism synthesis: venue-internal collateral oracle loop; prices bottomed 21:20-21:21 UTC with severe depeg after 21:36 UTC; USDe $0.65 (-35%) while ~$1.00 elsewhere; BNSOL ~$300->$35, wBETH ~$430; ~$283M compensation; index-fix description; cites Binance first-party posts",
+   "confidence": "medium"
+  }
+ ],
+ "confidence_notes": "Research constraint: the sandbox egress proxy blocked all direct news/aggregator domains; primary/secondary sources were accessed via verbatim GitHub-hosted archives (TLDR newsletter mirror, Newsoid full-text news dumps with canonical URLs, yarb-web3 CoinDesk headline archive, independent research writeups quoting Binance's first-party posts) and cross-checked against the SPA repo's own previously verified research cards (data/stablecoin_cards/examples/usde.stablecoin.md, sourced 2026-07-02). All listed URLs were carried inside those archives; every headline number appears in >=2 independent mirrors. One GitHub dataset (an AI-summarization challenge repo containing deliberately planted errors) was identified and EXCLUDED as a source. OBSERVED (high confidence): BTC $122,574.46 -> $104,782.88 (-14.5%, Reuters); ATH >$126k Oct 6; $19.1-19.35B liquidations/24h with ~$16.7B longs; 1.6-1.67M traders; largest single liquidation $203.36M (Hyperliquid); Binance official depeg window 21:36-22:16 UTC and compensation terms; USDe ~$0.65 Binance-only print vs <0.3% on-chain deviation; Aave $180M/1h and Morpho ~$100M liquidations with no bad debt; AAVE -64%, XRP -41%, DOGE -50% wicks; CoinDesk 20 -12.1%; ~$283M compensation + $400M program; Stream Finance $93M/xUSD collapse and Balancer $116-128M exploit (Nov 3-4). APPROXIMATE/CONTESTED: exact Truth Social post times (morning threat ~14:57 UTC and 100%-tariff post ~20:50-21:04 UTC are inferred from wire timestamps and market microstructure, not a primary archive — minute-level marked observed=false); USDe exact low (feeds range $0.62-0.66; the often-quoted $0.6567 could not be independently confirmed here — 0.65 used); wBETH ~$430 and BNSOL ~$35 wicks (consistent across two independent writeups, medium confidence); Ethena PoR ~$66M over ~$9.65B supply and 12:29 GMT timing (attested event is well documented; figures via secondary mirrors, medium confidence); ~$2B USDe redemptions/24h (medium); total market-cap loss $400-600B (source-dependent; -$131B altcoins per Bloomberg-derived report); ETH low $3,430-3,510 band (venue-dependent). NOT VERIFIED (from the task brief, could not be sourced — treat as null): 'perp OI -43%' (sourced snapshots instead: Hyperliquid -60%, BTC OI >$10B erased, one contested dashboard -51%); 'CoinDesk average-token -47%' (no matching CoinDesk analysis found; the closest sourced aggregates are CoinDesk 20 -12.1% and Wiston Capital's altcoins-cratered analysis); ENA -80% intraday wick (only -40%+ daily is corroborated); claims of $30-40B 'true' liquidations (plausible direction given documented API throttling, but unverified — Reuters' later 'record $25B' is the highest number from a top-tier outlet). Ethereum gas levels during the event: no source obtained -> null.",
+ "data_availability": {
+  "price_series": "BEST free source: Binance public market data (data.binance.vision bulk CSVs + REST klines) — permanent 1m (and even 1s) OHLCV for BTC/ETH/alts spot and perps, INCLUDING the exact dislocated pairs (USDE/USDT, WBETH/ETH, BNSOL/SOL spot) — the 21:36-22:16 UTC wicks are replayable at 1-minute granularity for free. Bybit/OKX public APIs give the counterfactual (no depeg) venues. CoinGecko free API: only DAILY granularity for a 2025 window (hourly limited to recent 90d) — sufficient for context, not for the cascade. CryptoCompare free: hourly.",
+  "stablecoin_prices": "USDe/USDT Binance 1m klines (free, shows the $0.65 print); on-chain Curve/Uniswap USDe pool prices via Dune (free account) or subgraphs — demonstrates the <0.3% on-chain deviation; Chainlink USDe feed history on-chain (free via RPC/Dune). USDC/USDT same. xUSD (Nov aftershock) via CoinGecko daily + Dune.",
+  "tvl": "DeFiLlama free API — daily protocol TVL (Aave v3, Morpho, Pendle, Maple, Ethena, Balancer pre/post-hack) and chain TVL; stablecoins.llama.fi for USDe supply contraction ($9.6B->$6B). Fully free.",
+  "liquidations": "NOT freely replayable at granularity: CoinGlass historical liquidation tape and heatmaps are paid; exchange APIs do not backfill liquidation streams (and throttled them in real time — hence underreporting). Free: headline aggregates from news archives ($19.1-19.35B, 1.66M traders, $203.36M largest), on-chain Aave/Morpho liquidation events via Dune/subgraphs (free, complete).",
+  "open_interest_funding": "Funding-rate history: FREE and complete (Binance fapi fundingRate endpoint, full history — shows the collapse to 2022 lows). OI history: Binance API only keeps ~30 days -> Oct 2025 OI is NOT freely obtainable from exchanges now; CoinGlass/Laevitas/Glassnode OI history is paid. Hyperliquid's own info API has some historical stats free.",
+  "gas": "Etherscan API (free key): daily average gas price series; Dune (free): block-level base fee for the exact window. Adequate.",
+  "not_obtainable_free": "Exchange-internal ADL event logs and per-account liquidation ladders; Binance's internal collateral-index composition at event time (only described in announcements); minute-level cross-venue OI for Oct 2025; market-maker orderbook depth history (Kaiko/paid) needed to quantify the months-long liquidity impairment; CoinGlass historical minute liquidation data.",
+  "replay_recommendation": "For Protection Lab replay: drive the scenario off Binance 1m klines (USDE/USDT, WBETH/ETH, BNSOL/SOL, BTC, ETH), DeFiLlama daily TVL, Binance funding history, and Dune-derived Aave/Morpho liquidation + Curve USDe pool series; treat OI (-30..-50%) and liquidation tape as scenario parameters, not data."
+ },
+ "spa_relevance": {
+  "summary": "For a $100k USDC yield book (Aave v3 USDC + Pendle PT + Maple + Morpho Steakhouse USDC + 10% cash) the Oct 10 cascade is the canonical 'NAV looks fine, everything else moved' event: on-chain USDC rails came through UNBROKEN (no bad debt, no freezes, USDC at $1), so realized loss ≈ 0 — but four of the book's five risk channels were live simultaneously and are largely unpriced if the system assumes USDC=1 and always-withdrawable protocols.",
+  "position_by_position": {
+   "aave_v3_usdc": "Not impaired — Aave processed a record $180M liquidations in ~1h with zero bad debt; USDC supplier principal intact, liquidation-driven borrow demand briefly SPIKES supply APY. The unpriced tail was counterfactual: ~$4.8B of positions were at risk had Aave's oracles tracked Binance's dislocated prints — oracle-divergence policy (Chainlink vs venue price) is the exact variable that separated 'no bad debt' from a socialized-loss event for USDC suppliers. Secondary channel: utilization spikes -> withdrawal latency risk at exactly the moment a derisk would want out.",
+   "pendle_pt": "Hit through the MARK, not the principal: PT-sUSDe/PT-USDe discounts widened as implied yields spiked and AMM liquidity thinned (repo's own SYN_S05/SYN_S06 shape: PT to 0.80-0.85 with 3-5% exit haircut). Exiting during the window crystallizes a loss that held-to-maturity avoids — IF the underlying (USDe) stays solvent, which it did (overcollateralized ~$66M throughout, attested). The residual PT tail is exactly 'USDe-solvency-to-maturity' as underwritten in the repo's pt_susde_fixed candidate; Oct 10 is its live stress-pass. Post-event: funding collapse to 2022 lows crushes sUSDe carry -> future PT rolls price much lower APY (APY-collapse channel).",
+   "maple": "No October default; the channel is CREDIT-WITH-LAG: Maple's borrower base (trading firms/market makers) is precisely the cohort whose balance sheets were damaged on Oct 10, and Stream Finance proved the disclosure lag runs ~3 weeks (loss taken ~Oct 10-11, disclosed Nov 3, instant freeze + 77% writedown). A paper model that marks Maple at par daily prices none of this; withdrawal queues/cooldowns mean the freeze arrives exactly when exit is wanted.",
+   "morpho_steakhouse_usdc": "Morpho processed ~$100M liquidations with no bad debt on Oct 10 — the vault itself passed. But the November xUSD contagion (~$285M of loans across Euler/Silo/Morpho markets curated by TelosC/MEV Capital/Re7) demonstrated the curated-vault channel: vault quality = curator's collateral choices, and a curator reaching for synthetic-yield collateral converts 'blue-chip lending' into unsecured credit silently. Utilization-spike -> withdrawal-queue latency also applies.",
+   "cash_10pct_usdc": "Worked as designed — USDC held $1.00 throughout (USDT even traded at a premium). Caveat: the event shows peg quality is VENUE-LOCAL (USDe was $1.00 on-chain and $0.65 on Binance simultaneously); a cash buffer marked off a single venue's feed can be mismarked in both directions."
+  },
+  "unpriced_if_usdc_equals_1_and_always_withdrawable": [
+   "Venue-local price vs oracle price divergence (the entire USDe '$0.65' was this) — a NAV using one feed can panic-sell or miss real dislocation",
+   "Withdrawal-timing risk: utilization spikes / queue latency on Aave-Morpho, Maple cooldowns, and (aftershock) hard freezes (Stream) — 'withdrawable' failed exactly during the 40-minute window and for weeks in the Nov contagion",
+   "PT mark-to-market vs held-to-maturity accounting — exit haircut 3-5%+ during dislocation that reverts by maturity; a drawdown-triggered derisk that sells PTs into the wick REALIZES the artifact (repo's SYN_S05 trap)",
+   "APY collapse: funding to 2022 lows + leverage demand gone -> weeks-to-months of compressed carry across every sleeve; a plan priced off pre-crash APYs silently misses target",
+   "Credit-with-disclosure-lag on private-credit/curated sleeves (Maple borrowers, Morpho curators): losses incurred Oct 10 surfaced Nov 3",
+   "Infrastructure/timing: the acute phase ran 21:00-22:16 UTC FRIDAY with wallet front-ends (Rabby/DeBank) down and aberrant DEX fills — a daily 08:00-local cycle sees it 11-35h late; gas/execution assumptions of calm markets fail in the only window that matters"
+  ],
+  "kill_switch_note": "A stable-only book's evidenced NAV drawdown through this event was likely well under the SOFT -5% tier — correct refusal-first behavior is HOLD (don't sell PTs into the artifact wick), which is what fail-CLOSED + Chainlink-anchored marks produce; the scenario's value for Protection Lab is testing that the ladder does NOT fire on venue-local artifacts while freeze/credit-lag channels are surfaced."
+ },
+ "replay": {
+  "duration_days": 5,
+  "start_date": "2025-10-10",
+  "base": {
+   "aave_v3": {
+    "apy_pct": 5.5
+   },
+   "pendle": {
+    "apy_pct": 8.0
+   },
+   "maple": {
+    "apy_pct": 9.0
+   },
+   "morpho_steakhouse": {
+    "apy_pct": 6.5
+   }
+  },
+  "shocks": [
+   {
+    "kind": "peg",
+    "params": {
+     "symbol": "PT_USDC",
+     "path": [
+      [
+       0,
+       1.0
+      ],
+      [
+       1,
+       0.93
+      ],
+      [
+       3,
+       0.995
+      ]
+     ]
+    }
+   },
+   {
+    "kind": "apy",
+    "params": {
+     "protocol": "aave_v3",
+     "apy_pct": 15.0,
+     "from_day": 0,
+     "to_day": 1
+    }
+   },
+   {
+    "kind": "apy",
+    "params": {
+     "protocol": "aave_v3",
+     "apy_pct": 3.0,
+     "from_day": 2,
+     "to_day": 4
+    }
+   },
+   {
+    "kind": "liquidity",
+    "params": {
+     "from_day": 0,
+     "to_day": 1,
+     "exit_haircut_pct": 0.04,
+     "gas_cost_usd": 150.0
+    }
+   }
+  ],
+  "assumptions": [
+   "USDC держал $1 (историч. факт) — депег-шока USDC нет.",
+   "PT_USDC 0.93 — аналог стресса PT-рынков на yield-стейблах (USDe-PT) в каскаде; наш generic PT_USDC — оценка, не замер.",
+   "Внутридневную петлю Binance-оракула дневная гранулярность replay не воспроизводит — ограничение НАЗВАНО (см. ADR-117)."
+  ]
+ }
+}

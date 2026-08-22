@@ -1,0 +1,524 @@
+{
+ "schema_version": 1,
+ "id": "H06_celsius_3ac_stETH_june_2022",
+ "name": "Celsius freeze / 3AC insolvency / stETH depeg — June–July 2022 CeFi credit contagion",
+ "event_class": [
+  "cefi_counterparty",
+  "systemic_contagion",
+  "liquidity_oracle_infra",
+  "market_crash"
+ ],
+ "window_utc": {
+  "start": "2022-06-01",
+  "trough": "2022-06-18",
+  "end": "2022-07-13",
+  "notes_inline": "Acute phase: June 1 (BTC monthly open $31.7k, stETH already at a ~2-4% discount from the May 12 Terra shock) through July 13 (Celsius Chapter 11). Trough June 18 (BTC $17.6k, ETH $880.93). Slow-reveal preamble begins 2022-05-12."
+ },
+ "speed": "Slow reveal over ~9 weeks (May 12 – July 13), with an acute crash in the middle: BTC -44% June 1->18 (-37% in the final week; -17% in 48h after the Celsius freeze); ETH -55% June 1->18; stETH ground from ~2% to ~7-8% discount over 5 weeks rather than gapping. Institutional failures arrived in weekly installments: freeze June 12, margin calls June 14-15, 3AC default June 27, bankruptcies July 5 and July 13.",
+ "summary": "Июнь-июль 2022, медленное вскрытие скрытого плеча: заморозка Celsius (12.06), маржин-коллы и дефолт 3AC (~$10B AUM на пике), stETH дисконт до 0.92-0.94 (вытеснение через полупустой Curve-пул), BTC $31.7k→$17.6k (−44%), ETH −55%. Пеги USDC/USDT/DAI ДЕРЖАЛИ; blue-chip DeFi не взял bad debt (Celsius погасил Maker/Aave полностью). Весь урон — кредит, ликвидность и заморозки: каналы, которых модель USDC=1 не видит. Книга SPA на 2026-08: aave_v3 40% / pendle (PT_USDC) 20% / maple 15% / morpho_steakhouse 15% / кэш USDC 10%.",
+ "timeline": [
+  {
+   "ts": "2022-05-12",
+   "event": "Terra collapse spillover into stETH: 615,980 bETH bridged back from Terra and unwrapped to stETH, sold into Ethereum. Same day 3AC pulls ~$400M of liquidity (127k stETH + 73k ETH) from the Curve stETH/ETH pool in one tx; Celsius pulls ~$380M in three txs. Pool thins, stETH slips to ~0.95-0.96 ETH (Nansen forensics).",
+   "observed": true,
+   "source_url": "https://cryptoslate.com/nansen-report-reveals-terra-caused-the-steth-depeg-and-crippled-celsius-3ac/"
+  },
+  {
+   "ts": "2022-06-07",
+   "event": "Slow reveal, week of June 6-12: Celsius quietly shuffles collateral (large ETH/WBTC withdrawals from Aave into its DeFi wallets), insolvency rumors build; market fears Celsius must dump its ~$450M stETH stake into a pool that cannot absorb it.",
+   "observed": false,
+   "source_url": "https://crypto.news/what-happened-to-celsius-network-a-year-in-review/"
+  },
+  {
+   "ts": "2022-06-10",
+   "event": "stETH trades at 0.9474 ETH on Curve (~5% discount); Curve stETH/ETH pool imbalanced to roughly 75-80% stETH / 20-25% ETH. US CPI print (8.6%) starts a broad risk-off leg; BTC breaks below $29k over the weekend.",
+   "observed": true,
+   "source_url": "https://jp12.medium.com/steth-vs-eth-price-deviations-25877c66c3d0"
+  },
+  {
+   "ts": "2022-06-13",
+   "event": "Panic day: BTC -12% to ~$22.5-24k, ETH -15-19% to ~$1,200; total crypto market cap closes below $1T for the first time since Jan 2021; stETH prints ~0.93 ETH; largest single-day count of on-chain DeFi liquidation events of the period. Celsius' Maker vault: 278M DAI debt vs 17,919 WBTC collateral, liquidation price $22,584 — dangerously close to spot.",
+   "observed": true,
+   "source_url": "https://www.theblock.co/post/151574/cryptocurrency-prices-plunge-as-global-market-cap-falls-below-1-trillion"
+  },
+  {
+   "ts": "2022-06-13T02:00:00Z",
+   "event": "Celsius (night of June 12 ET) pauses ALL withdrawals, swaps and transfers for ~1.7M registered users citing 'extreme market conditions' ($11.8B AUM as of May, ~$8B lent out). CEL token -60% within an hour to ~$0.19.",
+   "observed": true,
+   "source_url": "https://techcrunch.com/2022/06/12/crypto-lender-celsius-pauses-withdrawals-transfers-citing-extreme-market-conditions/"
+  },
+  {
+   "ts": "2022-06-14",
+   "event": "Celsius defends its Maker vault: adds ~2,000+ WBTC (to 23,962 WBTC), cutting liquidation price to ~$16,582. Meanwhile a 3AC wallet withdraws ~80,000 stETH from Aave and swaps ~38,900 stETH to ETH (~$45M) at a discount to service its ~$264M Aave / ~$35M Compound loans — selling stETH into the thin Curve pool and deepening the depeg.",
+   "observed": true,
+   "source_url": "https://decrypt.co/103030/three-arrows-capital-unravel-heres-whats-going-on"
+  },
+  {
+   "ts": "2022-06-15",
+   "event": "3AC fails to meet margin calls; BlockFi and Genesis begin liquidating 3AC collateral (~$400M of liquidations reported); Zhu Su tweets 3AC is 'in the process of communicating with relevant parties'. Fed hikes 75bp the same day.",
+   "observed": true,
+   "source_url": "https://www.fxstreet.com/cryptocurrencies/news/three-arrows-capitals-zhu-su-speaks-out-after-400-million-liquidation-due-to-celsius-and-terras-luna-fiasco-202206150841"
+  },
+  {
+   "ts": "2022-06-17",
+   "event": "Contagion widens: Babel Finance suspends withdrawals. MakerDAO executes emergency shutoff of the Aave DAI Direct Deposit Module (D3M) — of 200M DAI supplied to Aave v2, ~100M was borrowed by Celsius against stETH collateral. Aave governance moves to freeze the stETH market and pause ETH borrowing (stETH ~6% below ETH).",
+   "observed": true,
+   "source_url": "https://decrypt.co/103150/makerdao-votes-to-disable-aave-dai-supply-reducing-celsius-exposure"
+  },
+  {
+   "ts": "2022-06-17",
+   "event": "Curve stETH/ETH pool nearly drained of ETH — the main on-chain exit for stETH is functionally one-sided, so any further forced seller must accept a worse price or OTC discount (3AC ultimately sold stETH at a haircut near the panic peak).",
+   "observed": true,
+   "source_url": "https://fortune.com/2022/06/17/steth-token-trading-pool-crypto-investors/"
+  },
+  {
+   "ts": "2022-06-18",
+   "event": "Capitulation trough: BTC prints ~$17,601-17,800 (lowest since Dec 2020; -44% from June 1 open, -37% on the week), ETH prints $880.93; stETH discount peaks ~7-8% (prints in the 0.92-0.94 ETH range across venues).",
+   "observed": true,
+   "source_url": "https://www.cnbc.com/2022/06/18/bitcoin-price-drops-below-18600-as-sell-off-accelerates.html"
+  },
+  {
+   "ts": "2022-06-21",
+   "event": "BlockFi (after ~$80M loss on 3AC) takes a $250M emergency credit facility from FTX. Maple Finance warns its pools may lack cash to meet withdrawals — lenders must queue for borrower repayments; several pools show zero liquid cash; Orthogonal pool has a $10M USDC loan out to frozen Babel Finance.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/business/2022/06/21/blockfi-receives-250m-credit-facility-from-ftx"
+  },
+  {
+   "ts": "2022-06-23",
+   "event": "CoinFLEX pauses all withdrawals (separate $47M counterparty hole, same liquidity spiral).",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2022/08/03/want-to-strike-terror-in-crypto-markets-in-2022-just-say-youre-suspending-withdrawals/"
+  },
+  {
+   "ts": "2022-06-27",
+   "event": "Voyager Digital issues notice of default to 3AC on a loan of 15,250 BTC + $350M USDC (~$650-675M). Same day a British Virgin Islands court orders 3AC into liquidation (Teneo appointed; reported June 29). 3AC peak AUM ~$10B (March 2022); creditor claims later filed total ~$3.5B, incl. Genesis $2.36B of loans (~$1.2B claim after collateral), Deribit ~$80M.",
+   "observed": true,
+   "source_url": "https://www.cnbc.com/2022/06/27/three-arrows-capital-crypto-hedge-fund-defaults-on-voyager-loan.html"
+  },
+  {
+   "ts": "2022-07-01",
+   "event": "3AC files Chapter 15 in SDNY; Voyager suspends all trading, deposits and withdrawals.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2022/08/03/want-to-strike-terror-in-crypto-markets-in-2022-just-say-youre-suspending-withdrawals/"
+  },
+  {
+   "ts": "2022-07-05",
+   "event": "Voyager Digital files Chapter 11 (SDNY, case 22-10943; >100,000 creditors, $1-10B assets). July 4: Vauld freezes withdrawals.",
+   "observed": true,
+   "source_url": "https://www.forbes.com/sites/ninabambysheva/2022/07/06/crypto-broker-voyager-digital-files-for-chapter-11-bankruptcy/"
+  },
+  {
+   "ts": "2022-07-07",
+   "event": "Celsius finishes unwinding its Maker vault — repays the final $41.2M of the ~$223M+ paid down since July 1 ($183M tranche on July 5), liquidation price drops to $0 and ~21.9k WBTC (~$450M) collateral is reclaimed. Its DeFi debts were defended and repaid in full; DeFi protocols took no Celsius bad debt.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2022/07/05/celsius-repays-183m-on-defi-exchange-maker-gets-back-collateral-blockchain-data-shows"
+  },
+  {
+   "ts": "2022-07-12",
+   "event": "Celsius repays its remaining Aave debt (~$81M incl. final $63.5M USDC), unlocking ~400-416k stETH (~$410-418M) and moving it to a new wallet; by July 13 Forbes tallies >$1B collateral reclaimed from Maker/Aave/Compound against ~$500M+ of debt repaid. Maple's Orthogonal pool later liquidates the defaulted Babel loan: $7.9M realized loss = 3.2% haircut across $244M of pool deposits.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2022/07/12/celsius-reclaims-410m-of-steth-tokens-after-paying-down-81m-debt-to-aave"
+  },
+  {
+   "ts": "2022-07-13",
+   "event": "Celsius files Chapter 11 (SDNY): $4.3B assets vs $5.5B liabilities — a $1.19B balance-sheet hole; user deposits $4.72B of the liabilities. Total assets had fallen from $22.1B (Mar 30) to $4.3B. Acute phase ends; Genesis files its $1.2B 3AC claim July 18 (absorbed by parent DCG).",
+   "observed": true,
+   "source_url": "https://dfr.vermont.gov/consumer-alert/celsius-network-files-chapter-11-bankruptcy"
+  }
+ ],
+ "market_impact": {
+  "btc": {
+   "from_usd": 31700,
+   "to_usd": 17601,
+   "drawdown_pct": -44.5,
+   "window": "2022-06-01 open -> 2022-06-18/19 low; venue lows $17,601-$17,800; -37% in the final week; June monthly close $19,784.73 (-37.8%, worst month since 2011)"
+  },
+  "eth": {
+   "from_usd": 1941.9,
+   "to_usd": 880.93,
+   "drawdown_pct": -54.6,
+   "window": "2022-06-01 open $1,941.90 -> 2022-06-18/19 low $880.93; -45% for June"
+  },
+  "steth_eth_ratio": {
+   "from": 1,
+   "to": null,
+   "low_range": "0.92-0.94 ETH per stETH (~6-8% discount), most-cited prints ~0.93-0.935 on June 13-18; 0.9474 on June 10",
+   "window": "slid from ~0.98-0.99 late May to trough June 13-18; discount ~3% by mid-Aug 2022",
+   "note": "ratio, not USD; venue- and pool-depth dependent"
+  },
+  "cel_token": {
+   "from_usd": null,
+   "to_usd": 0.19,
+   "drawdown_pct": null,
+   "window": "-60% within ~1 hour of the June 12/13 freeze announcement, to ~$0.19"
+  },
+  "total_crypto_market_cap": {
+   "event": "fell below $1T on 2022-06-13, first time since Jan 2021; ~$180B wiped in the 24h around the Celsius freeze"
+  },
+  "3ac": {
+   "peak_aum_usd": 10000000000,
+   "as_of": "March 2022 (Nansen estimate cited in bankruptcy coverage)",
+   "creditor_claims_usd": 3500000000
+  }
+ },
+ "stablecoins": [
+  {
+   "symbol": "USDD",
+   "min_price_usd": 0.97,
+   "when": "2022-06-13/14 and intermittently for weeks after",
+   "duration_below_099": "intermittently below $0.99 for much of June-August 2022 despite Tron DAO deploying ~$700M USDC and $2B against shorts",
+   "notes": "Tron's algorithmic stablecoin, launched May 2022; the only outright stablecoin depeg of this episode"
+  },
+  {
+   "symbol": "USDT",
+   "min_price_usd": null,
+   "when": "mid-June 2022 order-book wobbles",
+   "duration_below_099": "did not sustain < $0.99 in June (May 12 Terra-panic low ~$0.9959 was the year's worst)",
+   "notes": "held near peg through the June phase; no reliably sourced June low, hence null"
+  },
+  {
+   "symbol": "USDC",
+   "min_price_usd": null,
+   "when": "n/a",
+   "duration_below_099": "none",
+   "notes": "held $1.00 and tended to trade at a slight premium as flight-to-quality collateral (inference from contemporaneous coverage; Voyager's 3AC loan and Celsius' DeFi repayments were all denominated/settled in USDC)"
+  },
+  {
+   "symbol": "DAI",
+   "min_price_usd": null,
+   "when": "n/a",
+   "duration_below_099": "none",
+   "notes": "peg held; Maker's stress was collateral risk (Celsius vault) and D3M counterparty risk, not the peg. NOTE: the defining 'depeg' of this event was stETH/ETH (0.92-0.94), a receipt-token discount rather than a stablecoin depeg"
+  }
+ ],
+ "defi_impact": {
+  "tvl": "Global DeFi TVL roughly halved across the May-June contagion: ~$142B (April 2022) to ~$52B by end-June on one common methodology; the steepest leg came May 8-15 (Terra) with a second ~30-35% leg June 8-19. Per-protocol: Aave/Compound/Curve TVL fell both from price decline and from Celsius/3AC withdrawing >$1B of collateral as they unwound; Curve stETH/ETH pool was nearly drained of its ETH side by June 17 (~80/20 imbalance at peak).",
+  "bad_debt_usd": "DeFi blue-chips took ~zero bad debt from Celsius/3AC: Celsius repaid Maker/Aave/Compound in full (~$500M+ debt, >$1B collateral reclaimed by July 13); 3AC's Aave/Compound positions were unwound/liquidated at market. Realized DeFi credit loss: Maple/Orthogonal pool $7.9M (3.2% haircut on $244M deposits) from Babel's defaulted $10M unsecured loan. The multi-billion bad debt sat in CeFi: Celsius -$1.19B balance-sheet hole, 3AC ~$3.5B claims (Genesis $2.36B lent / $1.2B claim, Voyager ~$675M).",
+  "liquidations_usd": "On-chain: ~$362M liquidated on Aave v2 across 5,500+ events (32,000+ positions) during the roughly week-long June stress per Aave's own retrospective; June 13, 2022 recorded the largest daily count of DeFi liquidation events in academic samples of the period. Celsius' 278M-DAI Maker vault was defended (never liquidated). CEX futures liquidations ran ~$1B+/24h on the worst days (June 13-14) but granular historical CEX data is paywalled — treat as approximate.",
+  "gas": "No sustained gas crisis: brief congestion during the June 13 cascade, but overall Ethereum activity contracted and average fees fell to multi-month lows by early July 2022. Contrast with May 2021 or March 2020 — gas was NOT a binding constraint on exits here.",
+  "oracles": "No oracle failure. Chainlink ETH/USD tracked correctly; stETH markets priced off actual (depressed) market rates, so the depeg transmitted into Aave collateral valuations by design. Key insight: the damage vector was pool microstructure (one-sided Curve liquidity), not oracle manipulation.",
+  "withdrawal_freezes": "CeFi: Celsius June 12 (19+ months, ~1.7M users, distributions only from early 2024), Babel Finance June 17, Finblox caps June 16, CoinFLEX June 23, Voyager July 1, Vauld July 4, Zipmex July 20. DeFi-adjacent: Maple lenders queued behind borrower repayments June 21+ (several pools at zero liquid cash) — an effective soft freeze without any code-level pause.",
+  "protocols_paused_insolvent": "MakerDAO emergency-disabled the Aave D3M (June 17); Aave governance froze the stETH market, raised its liquidation threshold and paused ETH borrowing; Lido publicly warned leveraged stakers of liquidation risk. No major DeFi protocol became insolvent; Maple pools impaired (Babel loss realized July).",
+  "bridges_chains": "No chain halts or bridge failures attributable to this event; Ethereum, and major L2s/L1s remained live throughout (Solana's Solend had a governance scare over a $200M+ whale position June 19-20, same market stress, no loss)."
+ },
+ "causes": {
+  "primary": "Hidden, rehypothecated CeFi leverage concentrated in illiquid or one-way assets (stETH pre-withdrawals, GBTC, Terra positions) unwinding after Terra's May collapse: Celsius ran demand-deposit liabilities against staked/locked assets (classic maturity/liquidity mismatch), and 3AC was a massively leveraged common counterparty to virtually every major lender (Genesis $2.36B, Voyager ~$675M, BlockFi, BitMEX, FTX, Deribit, Babel).",
+  "secondary": [
+   "stETH's structural one-way liquidity before Ethereum withdrawals: the Curve stETH/ETH pool was the only at-scale exit, so LP pulls (3AC ~$400M and Celsius ~$380M on May 12 alone) plus forced sales mechanically moved the price — a liquidity-microstructure failure, not an oracle failure",
+   "Macro tightening bid-removal: 8.6% CPI print June 10 and the Fed's 75bp hike June 15 (first since 1994) accelerated the deleveraging",
+   "Opaque CeFi balance sheets — no one could see who was exposed to whom, so every freeze triggered runs on the next lender",
+   "Celsius-specific prior losses (Stakehound ~35k ETH, BadgerDAO hack, Anchor/Terra exposure exited near the top) already had it insolvent per later examiner findings",
+   "Undercollateralized lending: Genesis' 3AC loans had >80% margin requirements breached; Maple pools lent unsecured to trading firms (Babel via Orthogonal)"
+  ],
+  "mechanism": "Terra collapses (May) -> 615,980 bETH unwrapped to stETH and sold + big LPs (3AC, Celsius) pull Curve stETH liquidity -> pool skews to ~80% stETH, stETH slips to 0.94-0.95 -> mark-to-market losses and collateral haircuts on Aave/Maker loans backed by stETH/WBTC -> depositors run on Celsius -> Celsius freezes withdrawals June 12 -> market-wide panic (BTC < $1T cap day, June 13) -> margin calls on 3AC -> 3AC dumps ~39k stETH into the thin pool June 14, deepening the depeg it is being margin-called on -> lenders (BlockFi, Genesis) liquidate 3AC -> 3AC defaults (Voyager June 27) and is court-liquidated -> counterparty freezes cascade (Babel June 17, CoinFLEX June 23, Voyager July 1, Vauld July 4) -> bankruptcies: 3AC June 27/July 1, Voyager July 5, Celsius July 13. Weeks-long slow reveal, not a single-day crash."
+ },
+ "contagion": [
+  "Terra/UST collapse (May 7-13) -> stETH depeg begins (bETH unwind + 3AC/Celsius pull ~$780M Curve liquidity, May 12)",
+  "stETH discount -> Celsius (illiquid stETH vs demand deposits) hit by depositor run -> withdrawal freeze June 12",
+  "Celsius freeze -> market-wide panic: BTC -12% June 13, market cap < $1T, DeFi liquidation-event record day",
+  "Panic prices -> 3AC margin calls June 14-15 -> 3AC dumps stETH into thin Curve pool (reflexive deepening of the depeg)",
+  "BlockFi/Genesis liquidate 3AC collateral -> 3AC insolvent -> defaults on Voyager ($675M) June 27 -> BVI liquidation order",
+  "3AC default -> Voyager freeze July 1 -> Voyager Chapter 11 July 5; Genesis $1.2B hole absorbed by DCG (resurfaces in Nov 2022 FTX round)",
+  "Babel freeze June 17 -> Maple/Orthogonal $10M loan defaults -> first realized DeFi-lender loss ($7.9M, 3.2% pool haircut) + Maple withdrawal queues",
+  "Defensive DeFi governance: MakerDAO cuts Aave D3M June 17; Aave freezes stETH market — DeFi protocols de-risk and take no Celsius bad debt (Celsius repays Maker/Aave/Compound in full by July 12-13)",
+  "Celsius Chapter 11 July 13 (-$1.19B balance sheet); BlockFi survives on FTX credit line — chain continues into FTX/Genesis collapse Nov 2022"
+ ],
+ "recovery": {
+  "recovered": "partial-then-lower-low",
+  "time_to_recover": "stETH: discount ~3% by mid-Aug 2022, re-widened to ~5-7% pre-Merge (Sep 7), effectively closed after the Merge and fully converged after Shapella withdrawals (Apr 2023). BTC/ETH: no V-recovery — ranged $19-25k / $1,000-2,000 through summer; BTC made a LOWER low ~$15.5k in Nov 2022 (FTX), regaining its June 1 2022 level (~$31.7k) only ~June 2023 (≈12 months). ETH's June 18 low of $880.93 held as the cycle low.",
+  "notes": "Credit never recovered: Celsius depositors were frozen 19+ months (court distributions began Jan-Feb 2024 at partial recovery); Voyager creditors took years; 3AC claims ~$3.5B in liquidation; Genesis' 3AC hole ($1.2B, papered over by a DCG promissory note) resurfaced and helped fail Genesis in the Nov 2022 FTX round. The June 2022 episode is the middle link of a three-part 2022 chain: Terra (May) -> Celsius/3AC (June-July) -> FTX/Genesis/BlockFi (Nov)."
+ },
+ "sources": [
+  {
+   "url": "https://techcrunch.com/2022/06/12/crypto-lender-celsius-pauses-withdrawals-transfers-citing-extreme-market-conditions/",
+   "title": "TechCrunch: Celsius pauses withdrawals, transfers (June 12, 2022)",
+   "supports": "Freeze announced night of June 12; all withdrawals/swaps/transfers paused; 'extreme market conditions' wording",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.cnbc.com/2022/06/13/crypto-lender-celsius-pauses-withdrawals-bitcoin-slides.html",
+   "title": "CNBC: Celsius pauses withdrawals (June 13, 2022)",
+   "supports": "Celsius ~$11.8-12B AUM May 2022, ~$8B lent out, 1M+ users; CEL -60% to ~$0.19; ~$180B market-cap loss around the freeze",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.theblock.co/post/151574/cryptocurrency-prices-plunge-as-global-market-cap-falls-below-1-trillion",
+   "title": "The Block: crypto market cap falls below $1 trillion (June 13, 2022)",
+   "supports": "Market cap < $1T on June 13, first since Jan 2021; BTC/ETH June 13 price levels",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.cnbc.com/2022/06/18/bitcoin-price-drops-below-18600-as-sell-off-accelerates.html",
+   "title": "CNBC: Bitcoin briefly drops below $17,800 (June 18, 2022)",
+   "supports": "June 18 capitulation; BTC sub-$18k prints; -30%+ on the week; macro/Fed context",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.statmuse.com/money/ask/bitcoin-price-june-18th-2022",
+   "title": "StatMuse: BTC price June 18-19, 2022",
+   "supports": "BTC daily low $17,601 (June 18/19); ETH low $880.93; June monthly close $19,784.73 (-37.8%)",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://coincodecap.com/ethereum-price-analysis-june-2022",
+   "title": "CoinCodeCap: Ethereum June 2022 price analysis",
+   "supports": "ETH June 2022 open $1,941.90, close $1,071.01, -44.85% month",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://cryptoslate.com/nansen-report-reveals-terra-caused-the-steth-depeg-and-crippled-celsius-3ac/",
+   "title": "CryptoSlate: Nansen on-chain forensics of the stETH depeg (June 29, 2022)",
+   "supports": "615,980 bETH bridged back from Terra; May 12 Curve liquidity pulls — 3AC ~$400M (127-128k stETH + 73k ETH, single tx), Celsius ~$380M (three txs); ~567k stETH added to pool; 3AC sold stETH at a haircut near panic peak",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/business/2022/06/29/nansen-casts-blame-for-steth-de-peg-on-terra",
+   "title": "CoinDesk: Nansen casts blame for stETH depeg on Terra",
+   "supports": "Independent confirmation of the Nansen depeg narrative (Terra unwind -> LP withdrawals -> depeg)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://jp12.medium.com/steth-vs-eth-price-deviations-25877c66c3d0",
+   "title": "stETH vs ETH price deviations (analysis)",
+   "supports": "stETH 0.9474 ETH on Curve June 10; ~80/20 pool imbalance; max decoupling ~6.4%",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.trustnodes.com/2022/06/13/steth-drops-to-0-93-eth",
+   "title": "Trustnodes: stETH drops to 0.93 ETH (June 13, 2022)",
+   "supports": "stETH ~0.93 print June 13; corroborates 0.92-0.94 trough range (CoinDesk Aug 15 piece cites 'as low as 0.92')",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://fortune.com/2022/06/17/steth-token-trading-pool-crypto-investors/",
+   "title": "Fortune: Curve stETH pool drying up (June 17, 2022)",
+   "supports": "Curve stETH/ETH pool nearly empty of ETH — sellers' exit closing",
+   "confidence": "high"
+  },
+  {
+   "url": "https://decrypt.co/103030/three-arrows-capital-unravel-heres-whats-going-on",
+   "title": "Decrypt: Is 3AC next to unravel? (June 15, 2022)",
+   "supports": "3AC wallet withdrew 80k stETH from Aave June 14, swapped ~38.9k stETH (~$45M); $264M Aave + $35M Compound loans being defended",
+   "confidence": "high"
+  },
+  {
+   "url": "https://cryptoslate.com/celsius-races-to-add-more-collateral-to-maker-as-threat-of-liquidation-looms/",
+   "title": "CryptoSlate: Celsius races to add Maker collateral",
+   "supports": "Maker vault 278M DAI vs 17,919 WBTC, liq price $22,584 June 13; collateral top-ups June 14 -> ~23,962 WBTC, liq ~$16,582",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.coindesk.com/markets/2022/07/05/celsius-repays-183m-on-defi-exchange-maker-gets-back-collateral-blockchain-data-shows",
+   "title": "CoinDesk: Celsius repays $183M on Maker (July 5, 2022)",
+   "supports": "Maker paydown path; July 7 full payoff (final $41.2M, liq price to $0) corroborated by watcher.guru/cryptodaily",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/markets/2022/07/12/celsius-reclaims-410m-of-steth-tokens-after-paying-down-81m-debt-to-aave",
+   "title": "CoinDesk: Celsius reclaims $410M stETH after paying down Aave (July 12, 2022)",
+   "supports": "Aave repayment ($81M incl. $63.5M USDC final), ~400-416k stETH (~$410-418M) unlocked; Forbes July 13 corroborates >$1B total collateral reclaimed",
+   "confidence": "high"
+  },
+  {
+   "url": "https://decrypt.co/103150/makerdao-votes-to-disable-aave-dai-supply-reducing-celsius-exposure",
+   "title": "Decrypt: MakerDAO disables Aave D3M over Celsius exposure (June 17, 2022)",
+   "supports": "D3M shutoff executable June 17 21:03 UTC; 200M DAI Aave exposure of which ~100M borrowed by Celsius vs stETH; Aave stETH-freeze proposal",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.cnbc.com/2022/06/27/three-arrows-capital-crypto-hedge-fund-defaults-on-voyager-loan.html",
+   "title": "CNBC: 3AC defaults on Voyager loan (June 27, 2022)",
+   "supports": "Default notice June 27; loan = $350M USDC + 15,250 BTC (~$650-675M total, BTC-price dependent)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.forbes.com/sites/siladityaray/2022/06/29/court-reportedly-orders-liquidation-of-crypto-hedge-fund-three-arrows-capital-threatening-more-market-turmoil/",
+   "title": "Forbes: BVI court orders 3AC liquidation",
+   "supports": "BVI liquidation order (dated June 27, reported June 29); Chapter 15 filing July 1",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.cnbc.com/2022/07/11/how-the-fall-of-three-arrows-or-3ac-dragged-down-crypto-investors.html",
+   "title": "CNBC: From $10 billion to zero — 3AC collapse",
+   "supports": "3AC ~$10B AUM (March 2022); ~$3.5B creditor claims; borrowed-from list (Voyager, Genesis, BlockFi, BitMEX, FTX)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.theblock.co/post/158167/crypto-lender-genesis-lent-2-36-billion-to-three-arrows-capital",
+   "title": "The Block: Genesis lent $2.36B to 3AC",
+   "supports": "Genesis $2.36B 3AC exposure, >80% weighted margin requirement; $1.2B claim (CoinDesk July 18) absorbed by DCG",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/business/2022/06/21/blockfi-receives-250m-credit-facility-from-ftx",
+   "title": "CoinDesk: BlockFi receives $250M credit facility from FTX (June 21, 2022)",
+   "supports": "FTX backstop June 21; BlockFi ~$80M 3AC loss (Benzinga/creditor lists corroborate)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/markets/2022/08/03/want-to-strike-terror-in-crypto-markets-in-2022-just-say-youre-suspending-withdrawals/",
+   "title": "CoinDesk: 2022 withdrawal-suspension timeline",
+   "supports": "Freeze cascade dates: Babel June 17, CoinFLEX June 23, Voyager July 1, Vauld July 4, Zipmex July 20",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.forbes.com/sites/ninabambysheva/2022/07/06/crypto-broker-voyager-digital-files-for-chapter-11-bankruptcy/",
+   "title": "Forbes: Voyager files Chapter 11 (July 5-6, 2022)",
+   "supports": "Voyager Chapter 11 filed July 5, SDNY case 22-10943, >100k creditors, $1-10B assets",
+   "confidence": "high"
+  },
+  {
+   "url": "https://dfr.vermont.gov/consumer-alert/celsius-network-files-chapter-11-bankruptcy",
+   "title": "Vermont DFR consumer alert: Celsius Chapter 11",
+   "supports": "Celsius Chapter 11 July 13, 2022 (regulator source); $1.19B deficit / $4.3B assets vs $5.5B liabilities corroborated by bankruptcy-filing coverage (fxstreet, Bitcoin Magazine Pro)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://beincrypto.com/maple-finance-says-lenders-may-have-to-wait-for-borrower-repayments/",
+   "title": "BeInCrypto: Maple lenders may have to wait for repayments (June 2022)",
+   "supports": "Maple June 21-22 liquidity crunch, pools at zero cash, lenders queued; Orthogonal $10M Babel loan; later $7.9M loss = 3.2% haircut on $244M pool (coingape corroborates)",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://aave.com/blog/historical-liquidations",
+   "title": "Aave: How Aave liquidations perform under volatile conditions",
+   "supports": "~$362M liquidated on Aave v2 across 5,500+ events / 32,000+ positions in the week-long June 2022 stress",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.bis.org/publ/arpdf/ar2022e3.htm",
+   "title": "BIS Annual Economic Report 2022, ch. III: The future monetary system",
+   "supports": "BIS contemporaneous assessment (published June 21-26, 2022, mid-crisis): crypto's structural flaws — no nominal anchor, fragmentation, reliance on unregulated intermediaries posing financial risks; Terra as the spectacular failure",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.bis.org/publ/bisbull69.pdf",
+   "title": "BIS Bulletin No 69: Crypto shocks and retail losses (Feb 2023)",
+   "supports": "BIS post-mortem: around the 2022 shocks (Terra, Celsius/3AC window, FTX) whales sold while retail bought the dip; majority of retail users lost money on BTC; contagion stayed largely self-referential to crypto with little spillover to broader finance",
+   "confidence": "high"
+  },
+  {
+   "url": "https://beincrypto.com/tron-based-usdd-stablecoin-shaky-ground-depegs-0-97/",
+   "title": "BeInCrypto: USDD depegs to $0.97 (June 2022)",
+   "supports": "USDD low ~$0.97 June 13-14; Tron DAO $700M USDC + ~$2B defense; weeks below peg",
+   "confidence": "medium"
+  }
+ ],
+ "confidence_notes": "Directly observed and multi-sourced: freeze/bankruptcy dates (Celsius June 12/July 13; Babel June 17; CoinFLEX June 23; Voyager July 1 & 5; Vauld July 4; 3AC default June 27, BVI order June 27/reported June 29, Ch.15 July 1); Celsius Maker vault mechanics and full DeFi repayment; MakerDAO D3M shutoff; Maple crunch and the $7.9M Babel loss; Genesis $2.36B/3AC and Voyager $350M USDC + 15,250 BTC. Approximate/ranged: BTC trough $17,601-$17,800 (venue differences; StatMuse/CoinMarketCap daily low vs CNBC intraday print) — I use $17,601; BTC June open ~$31,700 is inferred from StatMuse monthly close $19,784.73 at -37.8% (arithmetic implies ~$31.8k open) — drawdown_pct -44.5% carries ~±1pp uncertainty; stETH trough is venue/pool-depth dependent: sourced prints span 0.92 (CoinDesk) to 0.9337-0.94 (Trustnodes and market-data recaps) — I report the range rather than one number; Voyager loan headline varies $650M-$675M purely with BTC marks; 3AC peak AUM ~$10B is Nansen's March 2022 estimate repeated by CNBC (some later reporting suggested up to $18B unverified — not used); global TVL 'April $142B -> June $52B' is one methodology (DeFiLlama recomputations differ; treat magnitudes, ~-60-65%, not exact levels); Aave $362M/32k-positions liquidation figure comes from Aave's own retrospective and the summary may blur May (Terra) vs June windows — medium confidence; CEX liquidation totals (~$1B/24h June 13-14) are news-cycle aggregates, not verified tape. Unsourced -> null: a specific June 2022 USDT low (held near peg; no reliable print found), CEL pre-crash reference price, and any June 13 gas-spike quantification (evidence actually points to falling fees through late June — the gas claim in defi_impact is partly inference). USDC premium during flight-to-quality is inference from its role as settlement asset, not a measured series. The Celsius pre-freeze wallet-shuffling timeline entry (June 7) is from secondary year-in-review reporting — marked observed=false.",
+ "data_availability": {
+  "price_series_btc_eth": "FREE, high quality. Binance spot API (klines): 1m/1h/1d BTCUSDT & ETHUSDT covering June-July 2022, no key needed. CoinGecko free API: daily granularity for this period (hourly only within last 90 days on free tier). Yahoo Finance / Stooq: daily OHLC free.",
+  "steth_eth_ratio": "PARTIAL. Daily: free via CoinGecko (stETH USD series / ETH USD series) — adequate to replay the discount path day by day. Intraday/trade-level: only via Curve stETH/ETH pool swap events — Dune Analytics (free account, SQL) or direct archive-node/Etherscan event scraping (free but laborious). stETH was not listed on major CEXes in 2022, so no CEX klines exist.",
+  "curve_pool_composition": "Dune (free account) — pool balance history (stETH vs ETH share, LP withdrawals incl. the May 12 3AC/Celsius pulls are visible on-chain); no simple free REST API. Etherscan (free) for the specific transactions.",
+  "stablecoin_prices": "FREE: CoinGecko daily for USDT/USDC/DAI/USDD; CryptoCompare free API gives hourly stablecoin prices for 2022. Sufficient to show pegs holding while stETH broke.",
+  "tvl": "FREE and excellent: DeFiLlama API — historical global TVL and per-protocol (Aave v2, Compound, Maker, Curve, Lido, Maple) daily series through June-July 2022; per-pool via yields endpoints is NOT retroactive to 2022 for all pools.",
+  "liquidations": "MIXED. On-chain (Aave/Compound/Maker) liquidation events: free via Dune (free account) or protocol subgraphs — fully replayable. CEX futures liquidations for June 2022: Coinglass historical granularity is PAYWALLED — daily aggregates circulate in news archives only; treat as approximate/not freely obtainable.",
+  "gas": "FREE: Etherscan daily average gas price chart (CSV download) and Dune for intraday June 13; Owlracle free API (limited history).",
+  "celsius_3ac_onchain_positions": "FREE: labeled Celsius/3AC wallets on Etherscan; multiple public Dune dashboards reconstruct the Maker vault (liq price path), Aave/Compound repayments, and stETH transfers.",
+  "not_obtainable_free": [
+   "Intraday CEX liquidation tape for 2022 (Coinglass paywall)",
+   "Historical order-book depth (Kaiko/paid only)",
+   "Celsius internal balance-sheet time series (only court-filing snapshots: Mar 30 $22.1B AUM, July 13 $4.3B/$5.5B)",
+   "Maple pool-level cash/withdrawal-queue history (reconstructable from on-chain events via Dune only, no ready API)"
+  ]
+ },
+ "spa_relevance": {
+  "summary": "This is the canonical stress for exactly SPA's shape of portfolio: USDC lending against opaque counterparties, receipt tokens with thin one-way exits, and the assumption that 'withdrawable' is a constant. Stablecoin pegs (USDC/USDT/DAI) HELD — every dollar of damage came through credit, liquidity and freeze channels a USDC=1 model does not see.",
+  "position_by_position": {
+   "aave_v3_usdc_supply": "Channel: liquidity crunch + APY whipsaw, NOT bad debt. In June 2022 Aave v2 processed $362M of liquidations with no material insolvency, and Celsius/3AC repaid — USDC suppliers lost nothing. But: utilization spiked as stressed borrowers drew stables and suppliers fled; governance froze the stETH market and paused ETH borrowing within days. A replay means: temporarily unable to withdraw full size at will (utilization > liquid reserves), stables supply APY spiking then collapsing as leverage demand evaporates. UNPRICED if the system assumes Aave is always instantly withdrawable at par.",
+   "pendle_pt": "Channel: receipt-token discount + AMM liquidity evaporation. The stETH 6-8% discount IS the Pendle-PT stress template: a par-convergent claim traded through a single thin pool, where large LPs withdrawing (3AC/Celsius pulled ~$780M from Curve on one day) both removes exit liquidity and moves the price against remaining holders. A PT held to maturity converges, but any forced or rebalancing exit mid-crisis realizes a 5-10% mark-to-market haircut plus slippage. UNPRICED if PTs are marked at par/implied-yield rather than executable exit price, and if the model ignores who the other LPs are.",
+   "maple_usdc": "DIRECT historical hit — highest-risk sleeve in this scenario. June 21-22, 2022: Maple pools ran out of liquid cash; lenders queued behind borrower repayments (an uncoded withdrawal freeze); Orthogonal pool's $10M unsecured loan to Babel (frozen June 17) defaulted -> $7.9M realized loss, a 3.2% haircut on $244M of pool deposits. Maple = unsecured CeFi-counterparty credit in DeFi wrapping: this event transmits BOTH a freeze (weeks-months) AND principal loss. UNPRICED if Maple is modeled as withdrawable-at-NAV.",
+   "morpho_steakhouse_usdc": "Did not exist in 2022; map via analog: a curated vault inherits (a) underlying market utilization/liquidity risk (same as Aave channel) and (b) curator concentration risk — in 2022 the 'blue-chip' borrower everyone trusted was Celsius itself. Vault-level exit liquidity can be far worse than headline market liquidity when many depositors exit one curator simultaneously.",
+   "cash_10pct_usdc": "USDC held peg (traded at a slight premium as the flight-to-quality asset; all crisis settlements — Voyager's loan, Celsius' DeFi repayments — ran through USDC). Cash was the correct asset in this event. Caveat: USDC=1 was untested here (its own test came March 2023/SVB)."
+  },
+  "unpriced_risks_if_usdc_equals_1_and_always_withdrawable": [
+   "Withdrawal queues/freezes on credit-style positions (Maple 2022: queue + 3.2% haircut) — a freeze is not a price event, so a price-only model scores it zero loss while capital is trapped for weeks-years",
+   "Utilization crunches on money markets (Aave withdrawable balance < supplied balance during stress)",
+   "Secondary-market discounts on par-convergent receipt tokens (stETH -8% => PT analog) when exit pools are drained by informed LPs first",
+   "APY regime collapse after the deleveraging (stables yields compressed for months — a yield-optimizer's forward revenue assumption breaks)",
+   "Slow-reveal counterparty contagion: the kill signal here was NOT a price gap but weeks of on-chain tells (Curve pool imbalance trending, whale LP withdrawals, collateral shuffling, freeze announcements) — a daily-cycle SENSE loop can catch it; a drawdown-only kill-switch fires late because USDC-denominated NAV barely moves until the freeze"
+  ],
+  "protection_lab_replay_hooks": "Trigger sequence to simulate: T-30d receipt-token discount drifts 1%->5%; T-7d major pool LP concentration exits; T0 largest CeFi-style borrower freezes (Maple sleeve: freeze + 3% haircut, 90d lockup); T+2d money-market utilization >95% (Aave sleeve: withdrawal cap 50% for 5 days, supply APY x3 then /3); T+6d PT discount widens to 6-8% (exit haircut if rebalancing); pegs of USDC/USDT/DAI stay 0.998-1.002 throughout — verifying the system does NOT rely on depeg as its only alarm."
+ },
+ "replay": {
+  "duration_days": 45,
+  "start_date": "2022-06-01",
+  "base": {
+   "aave_v3": {
+    "apy_pct": 3.5
+   },
+   "pendle": {
+    "apy_pct": 6.0
+   },
+   "maple": {
+    "apy_pct": 8.5
+   },
+   "morpho_steakhouse": {
+    "apy_pct": 4.5
+   }
+  },
+  "shocks": [
+   {
+    "kind": "peg",
+    "params": {
+     "symbol": "PT_USDC",
+     "path": [
+      [
+       10,
+       1.0
+      ],
+      [
+       17,
+       0.955
+      ],
+      [
+       35,
+       0.99
+      ],
+      [
+       44,
+       1.0
+      ]
+     ]
+    }
+   },
+   {
+    "kind": "apy",
+    "params": {
+     "protocol": "aave_v3",
+     "apy_pct": 2.0,
+     "from_day": 14,
+     "to_day": 44
+    }
+   },
+   {
+    "kind": "liquidity",
+    "params": {
+     "from_day": 12,
+     "to_day": 20,
+     "exit_haircut_pct": 0.02,
+     "gas_cost_usd": 150.0
+    }
+   },
+   {
+    "kind": "freeze",
+    "params": {
+     "protocol": "maple",
+     "from_day": 12,
+     "to_day": 30
+    }
+   },
+   {
+    "kind": "capital_loss",
+    "params": {
+     "protocol": "maple",
+     "day": 40,
+     "loss_pct": 0.0324
+    }
+   }
+  ],
+  "assumptions": [
+   "PT_USDC-дисконт 4.5% — аналог stETH-механики (receipt-токен, тонкий односторонний выход); в 2022 fixed-yield USDC-рынки этой глубины не имели — оценка, не замер.",
+   "maple: заморозка (90-дневные локапы Maple 1.0, очередь на выход) + списание 3.24% (Babel/Orthogonal $7.9M от пула $244M, историч. факт, сжато к дню 40 окна)."
+  ]
+ }
+}

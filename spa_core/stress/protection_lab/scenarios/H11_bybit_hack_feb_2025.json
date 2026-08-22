@@ -1,0 +1,349 @@
+{
+ "schema_version": 1,
+ "id": "H11_bybit_hack_feb_2025",
+ "name": "Bybit $1.46B Cold-Wallet Hack (Lazarus / Safe{Wallet} supply-chain, Feb 21 2025)",
+ "event_class": [
+  "protocol_exploit",
+  "cefi_counterparty"
+ ],
+ "window_utc": {
+  "start": "2025-02-21T14:16:00Z",
+  "trough": "2025-03-10T00:00:00Z",
+  "end": "2025-03-10T23:59:00Z",
+  "note": "Acute exchange-solvency phase ended 2025-02-24 (ETH gap closed, 1:1 PoR); laundering phase complete 2025-03-04; price slide (hack sentiment entangled with tariff macro + record ETF outflows) reached local bottom 2025-03-10 on daily closes"
+ },
+ "speed": "Theft: $1.46B in minutes (single masked transaction at 14:16 UTC, drained across ~40+ txs within ~2h). Bank-run phase: ~350k withdrawal requests in ~12h, ~$4-6B outflows in ~2 days. Solvency restored in ~72h. Market: ETH -3.1% d/d on hack day, then (entangled with tariff macro) -31.5% peak-to-trough over 3 weeks; BTC -19.7% over the same window. Laundering: 100% of ETH moved in 10 days.",
+ "summary": "21 февраля 2025: кража $1.46B ETH/stETH у Bybit (Lazarus; подмена UI Safe, слепая подпись delegatecall) — крупнейшая в истории. НО: биржа осталась платёжеспособной, выводы не закрывались (~350k заявок обработано, мосты-займы + выкуп ETH), паника погашена за 72 часа. DeFi не тронут, пеги идеальны. Урок: custody-hack БЕЗ инсолвентности ≠ bank run; урон книге — только компрессия APY на фоне макро-слива (−20-30% BTC/ETH за 3 недели, спутано с тарифным шоком). Книга SPA на 2026-08: aave_v3 40% / pendle (PT_USDC) 20% / maple 15% / morpho_steakhouse 15% / кэш USDC 10%.",
+ "timeline": [
+  {
+   "ts": "2025-02-04",
+   "event": "Lazarus Group (UNC4899/TraderTraitor) compromises a Safe{Wallet} developer's macOS workstation via a trojanized Docker 'stock investment simulator' project; AWS session tokens hijacked, MFA bypassed (Safe/Mandiant findings)",
+   "observed": true,
+   "source_url": "https://x.com/safe"
+  },
+  {
+   "ts": "2025-02-19",
+   "event": "Malicious JavaScript injected into app.safe.global frontend served from Safe{Wallet}'s AWS S3 bucket; payload activates ONLY for Bybit's ETH cold-wallet Safe address (plus one test address) — benign for all other users (Sygnia forensics)",
+   "observed": true,
+   "source_url": "https://www.sygnia.co/blog/sygnia-investigation-bybit-hack/"
+  },
+  {
+   "ts": "2025-02-21 evening UTC",
+   "event": "ZachXBT links attacker addresses to Lazarus Group (overlap with Phemex hack clusters); ETH dips ~4% intraday on hack news (daily close -3.1% d/d: $2,740.7 -> $2,655.7, Coin Metrics)",
+   "observed": true,
+   "source_url": "https://coinmetrics.io/community-network-data/"
+  },
+  {
+   "ts": "2025-02-21/22",
+   "event": "Withdrawal run: ~350,000 withdrawal requests, ~99% processed within ~12 hours; total client outflows across assets estimated $4-6B. Bybit bridges the gap: ~40,000 ETH loan from Bitget, stETH from MEXC, whale deposits, OTC ETH buying via Galaxy Digital / FalconX / Wintermute",
+   "observed": true,
+   "source_url": "https://announcements.bybit.com/"
+  },
+  {
+   "ts": "2025-02-21/22",
+   "event": "Mantle's mETH Protocol uses its 8-hour withdrawal delay window to pause cmETH withdrawals and claw back 15,000 cmETH (~$43M) from the attacker — the only large tranche recovered intact; withdrawal-delay design acted as protection",
+   "observed": true,
+   "source_url": "https://x.com/mETHProtocol"
+  },
+  {
+   "ts": "2025-02-21T14:16:00Z",
+   "event": "During a routine cold-to-warm ETH transfer, all three Bybit signers (incl. CEO Ben Zhou on a Ledger) blind-sign a masked transaction: UI displayed a legitimate transfer while the actual payload was a delegatecall swapping the Safe's mastercopy to an attacker contract. Wallet drained: ~401,347 ETH + ~90,375.5 stETH + 15,000 cmETH + 8,000 mETH ≈ $1.46B — largest crypto theft in history. Malicious JS removed from S3 ~2 minutes later",
+   "observed": true,
+   "source_url": "https://www.sygnia.co/blog/sygnia-investigation-bybit-hack/"
+  },
+  {
+   "ts": "2025-02-21T~15:00Z (approx, within ~30-90 min)",
+   "event": "Ben Zhou publicly confirms the hack on X and holds a livestream: Bybit is solvent, client assets 1:1 backed, the loss can be covered — WITHDRAWALS STAY OPEN (the defining decision of the event)",
+   "observed": true,
+   "source_url": "https://x.com/benbybit"
+  },
+  {
+   "ts": "2025-02-22/23",
+   "event": "Bybit buys back ~266,000 ETH (~$740M+) via OTC and exchanges; ETH daily close rebounds ABOVE pre-hack level to $2,821.9 on Feb 23 (Coin Metrics) — buyback bid + short squeeze",
+   "observed": true,
+   "source_url": "https://coinmetrics.io/community-network-data/"
+  },
+  {
+   "ts": "2025-02-24",
+   "event": "Bybit announces the ETH gap fully closed (~446,870 ETH ≈ $1.23B replenished via purchases, loans and deposits per Lookonchain) and publishes Hacken-verified proof-of-reserves confirming 1:1 backing — solvency restored within ~72h",
+   "observed": true,
+   "source_url": "https://announcements.bybit.com/"
+  },
+  {
+   "ts": "2025-02-24 to 2025-03-04",
+   "event": "Laundering sprint: 100% of ~499k ETH moved within 10 days, mostly swapped to BTC via THORChain (record ~$4.66B weekly volume, ~$5.5M fees). THORChain governance crisis: validators reverse a vote to block DPRK-linked flows; core dev 'Pluto' resigns. Chainflip ships a screening/blocking upgrade after Bybit's request; no-KYC exchange eXch refuses to block and processes tens of millions",
+   "observed": true,
+   "source_url": "https://www.elliptic.co/blog"
+  },
+  {
+   "ts": "2025-02-25",
+   "event": "Macro risk-off compounds the overhang: BTC's first daily close below $90k since Nov 2024 ($88,769.7, Coin Metrics; intraday drop reported ~6-7.5%) — driven primarily by confirmed US tariffs and a record ~$1.1B single-day US spot-BTC-ETF outflow, with the hack as sentiment overhang, not the main driver. Bybit launches LazarusBounty (10% of recovered funds)",
+   "observed": true,
+   "source_url": "https://coinmetrics.io/community-network-data/"
+  },
+  {
+   "ts": "2025-02-26",
+   "event": "FBI IC3 PSA formally attributes the theft to DPRK 'TraderTraitor' (Lazarus), publishes actor addresses, states funds are being converted to BTC and dispersed across thousands of addresses. Safe{Wallet} restores mainnet service on rebuilt, hardened infrastructure. BTC daily close $83,987.9 (-14.6% from Feb 20)",
+   "observed": true,
+   "source_url": "https://www.ic3.gov/PSA/2025/PSA250226"
+  },
+  {
+   "ts": "2025-03-04",
+   "event": "Ben Zhou traceability update: ~77% of stolen funds still traceable, ~20% gone dark (mixers), ~3% frozen (~$43M)",
+   "observed": true,
+   "source_url": "https://x.com/benbybit"
+  },
+  {
+   "ts": "2025-03-06",
+   "event": "Safe{Wallet} + Mandiant publish forensic statement: compromised developer workstation -> hijacked AWS session tokens -> S3 JS injection targeted at Bybit; Bybit's own infrastructure was never breached (matching Sygnia's conclusion)",
+   "observed": true,
+   "source_url": "https://x.com/safe"
+  },
+  {
+   "ts": "2025-03-10",
+   "event": "Entangled hack+macro slide bottoms locally: ETH daily close $1,879.7 (-31.5% from Feb 17 pre-hack peak; -33.4% from Feb 23 rebound high), BTC $79,006 (-19.7% from Feb 20 close) — Coin Metrics daily",
+   "observed": true,
+   "source_url": "https://coinmetrics.io/community-network-data/"
+  },
+  {
+   "ts": "2025-04-30 (aftermath)",
+   "event": "German BKA seizes eXch servers and €34M in crypto (eXch had announced shutdown Apr 17) — the main non-compliant laundering venue taken down. BTC regained its pre-event close on 2025-05-08; ETH not until 2025-06-10 (Coin Metrics daily), after an interim tariff-crash low of $1,471 on 2025-04-08",
+   "observed": true,
+   "source_url": "https://coinmetrics.io/community-network-data/"
+  }
+ ],
+ "market_impact": {
+  "eth": {
+   "from_usd": 2743.38,
+   "to_usd": 1879.69,
+   "drawdown_pct": -31.5,
+   "window": "2025-02-17 pre-hack peak -> 2025-03-10 local trough, daily closes (Coin Metrics). Hack-day move: -3.1% d/d close ($2,740.7 -> $2,655.7); intraday dip ~-4% reported. Rebound to $2,821.9 on Feb 23 (Bybit buyback bid), then -33.4% from that high to Mar 10. Extended macro slide continued to $1,471.1 on 2025-04-08 (-46.4% from Feb 17) — tariff-driven, not hack-attributable"
+  },
+  "btc": {
+   "from_usd": 98392.22,
+   "to_usd": 79005.96,
+   "drawdown_pct": -19.7,
+   "window": "2025-02-20 close -> 2025-03-10 close (Coin Metrics daily). First close <$90k since Nov 2024 on 2025-02-25 ($88,769.7; d/d close -3.4%, intraday reported ~-6 to -7.5% — attribution predominantly tariff macro + record ~$1.1B daily spot-ETF outflow, hack was overhang only)"
+  },
+  "steth": {
+   "from_usd": null,
+   "to_usd": null,
+   "drawdown_pct": null,
+   "window": "Attacker dumped ~90,375 stETH; stETH/ETH discount stayed small (reported sub-1% intraday) — no depeg event; exact intraday discount requires verification (null rather than guess)"
+  },
+  "meth_cmeth": {
+   "from_usd": null,
+   "to_usd": null,
+   "drawdown_pct": null,
+   "window": "8,000 mETH sold by attacker (minor peg impact); 15,000 cmETH clawed back via mETH Protocol's 8h withdrawal delay (~$43M recovered)"
+  }
+ },
+ "stablecoins": [
+  {
+   "symbol": "USDC",
+   "min_price_usd": 0.9996,
+   "when": "2025-03-10",
+   "duration_below_099": "0 (never below $0.99)",
+   "notes": "No depeg — computed from Coin Metrics daily reference rates, window 2025-02-14..2025-03-15"
+  },
+  {
+   "symbol": "USDT",
+   "min_price_usd": 0.9985,
+   "when": "2025-02-26",
+   "duration_below_099": "0 (never below $0.99)",
+   "notes": "Normal noise despite Lazarus laundering flows partially touching USDT rails; no peg stress"
+  },
+  {
+   "symbol": "DAI",
+   "min_price_usd": 0.99958,
+   "when": "2025-02-26",
+   "duration_below_099": "0",
+   "notes": "Unaffected"
+  }
+ ],
+ "defi_impact": {
+  "tvl_changes": "No exploit-driven TVL loss at any DeFi protocol — the theft was CeFi custody. Global DeFi TVL declined over Feb-Mar 2025 primarily price-driven (ETH -30%+); exact deltas not verifiable in this sandbox (replayable from DeFiLlama free API) — null rather than guessed",
+  "bad_debt_usd": 0,
+  "bad_debt_notes": "No DeFi bad debt attributable to the event; Aave/Morpho/Maple/Pendle solvency untouched",
+  "liquidations_usd": null,
+  "liquidations_notes": "Hack day itself moderate; the big liquidation days were macro: ~$1.3B+/24h reported around Feb 24-25 (CoinGlass contemporaneous reporting, not free-replayable, macro-attributed — tariffs + ETF outflows)",
+  "gas": "No meaningful gas spike; Ethereum remained in the low-gwei regime typical of early 2025 (approximate, low confidence)",
+  "oracles": "No oracle incidents; no stablecoin depeg to trip oracles; stETH discount stayed small despite 90k stETH dump",
+  "withdrawal_freezes": [
+   "Bybit: NONE — the defining fact of the event (custody hack WITHOUT insolvency, withdrawals open throughout)",
+   "Safe{Wallet} UI paused Feb 21-26 (transaction-proposal service down for thousands of multisig treasuries — operational, no funds lost)",
+   "mETH Protocol: cmETH withdrawals paused inside the 8h delay window — PROTECTIVE freeze that recovered $43M from the attacker",
+   "Chainflip: temporarily disabled frontend swaps, then shipped protocol-level screening",
+   "OKX (Mar 2025 aftermath): suspended its Web3 DEX aggregator amid EU regulator scrutiny over laundered Bybit funds"
+  ],
+  "protocols_paused_insolvent": "None insolvent",
+  "bridges_chains": "All chains and bridges fully operational throughout"
+ },
+ "causes": {
+  "primary": "Supply-chain compromise of Safe{Wallet}'s web frontend (developer workstation breach -> AWS session-token hijack -> targeted malicious JS in the S3-served UI) combined with blind signing: Bybit's three multisig signers approved a delegatecall that swapped the Safe mastercopy while their screens (and hardware-wallet hash displays) showed a routine transfer",
+  "secondary": [
+   "Single point of failure: all signers used the same compromised web UI with no independent transaction-decoding verification (no EIP-712 clear-signing path, no second-channel simulation)",
+   "Hardware wallets display opaque hashes for Safe transactions — 'verified' signing that verifies nothing human-readable",
+   "Predictable, high-value routine cold-to-warm transfers gave the attacker a known window",
+   "DPRK state-actor capability and patience (workstation compromised 17 days before execution; JS activated only for the target address)",
+   "Industry-level: no-KYC swap infrastructure (THORChain, eXch) enabled laundering of ~$1.4B in 10 days"
+  ],
+  "mechanism": "Feb 4: Safe dev workstation infected via trojanized Docker project -> AWS session tokens hijacked, MFA bypassed -> Feb 19: malicious JS planted in app.safe.global S3 bucket, conditioned on Bybit's cold-wallet address -> Feb 21 14:16 UTC: during routine transfer, JS masks the payload; 3-of-N signers blind-sign delegatecall replacing Safe mastercopy -> attacker controls wallet, drains ~$1.46B in ETH/LSTs across ~40+ txs -> JS scrubbed from S3 within ~2 min -> withdrawal run on Bybit -> bridged loans + OTC ETH buybacks close the gap in 72h -> funds converted to BTC via THORChain within 10 days"
+ },
+ "contagion": [
+  "Safe{Wallet} developer workstation compromise (Feb 4) -> targeted JS injection in app.safe.global (Feb 19)",
+  "Masked delegatecall blind-signed by Bybit multisig -> $1.46B ETH/stETH/cmETH/mETH drained (Feb 21 14:16 UTC)",
+  "Withdrawal run on Bybit: ~350k requests, ~$4-6B outflows — but withdrawals never suspended",
+  "Inter-exchange liquidity backstop: Bitget 40k ETH loan, MEXC stETH, whale deposits, Galaxy/FalconX/Wintermute OTC buys (~$740M+) -> ETH briefly bid ABOVE pre-hack price (Feb 23)",
+  "Gap closed + audited 1:1 PoR (Feb 24) -> run subsides, NO insolvency, NO CeFi credit contagion (the counterfactual: an FTX-style freeze would have hit Ethena's short-leg venues and CeFi credit desks)",
+  "Safe{Wallet} UI outage Feb 21-26 -> operational freeze for thousands of DAO/treasury multisigs (no funds lost)",
+  "Laundering wave: THORChain record $4.66B weekly volume + governance crisis; Chainflip screening; eXch defection (later seized)",
+  "Sector confidence hit compounds macro risk-off (tariffs + record ETF outflows) -> BTC <$90k Feb 25, ETH -31.5% by Mar 10 — macro-dominated tail, hack-attributable share only the first ~4%"
+ ],
+ "recovery": {
+  "recovered": "Bybit: yes — solvency/1:1 backing restored within ~72h (Hacken-verified PoR by Feb 24); stolen funds: mostly NOT recovered (~3% frozen ≈ $43M as of Mar 4 2025, plus 15k cmETH ≈ $43M clawed back; the rest converted to BTC and dispersed). Market: slow",
+  "time_to_recover": "Exchange gap: 3 days. Safe{Wallet} service: 5 days (Feb 26). BTC regained pre-event daily close 2025-05-08 (~11 weeks); ETH not until 2025-06-10 (~16 weeks), after an interim tariff-crash low of $1,471 on 2025-04-08 (Coin Metrics daily)",
+  "notes": "Bybit retained market share and later resumed growth; the event became the canonical proof that a CEX can absorb the largest theft in crypto history without a withdrawal freeze IF reserves exceed the hole and the response is fast and transparent. Contrast: FTX (fraud + hole -> freeze -> collapse). Industry response: clear-signing/EIP-712 push, Safe infrastructure rebuild, transaction-simulation adoption, and the THORChain neutrality debate"
+ },
+ "sources": [
+  {
+   "url": "https://www.ic3.gov/PSA/2025/PSA250226",
+   "title": "FBI IC3 PSA I-022625: North Korea Responsible for $1.5 Billion Bybit Hack (Feb 26, 2025)",
+   "supports": "DPRK/TraderTraitor (Lazarus) attribution; ~$1.5B headline figure; funds converted to BTC and dispersed across thousands of addresses; published actor addresses",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.sygnia.co/blog/sygnia-investigation-bybit-hack/",
+   "title": "Sygnia interim investigation report commissioned by Bybit (Feb 26, 2025)",
+   "supports": "Attack mechanics: malicious JS in Safe{Wallet}'s AWS S3 bucket modified Feb 19, activated only for Bybit's Safe address, removed ~2 min after the theft; Bybit's own infrastructure NOT compromised; execution 2025-02-21 ~14:16 UTC",
+   "confidence": "high"
+  },
+  {
+   "url": "https://x.com/safe",
+   "title": "Safe{Wallet} statement with Mandiant preliminary findings (Mar 6, 2025) + service-restoration updates (Feb 26)",
+   "supports": "Compromised developer macOS workstation (Feb 4, trojanized Docker project), hijacked AWS session tokens, MFA bypass, targeted injection; UI paused Feb 21-26; infrastructure rebuilt",
+   "confidence": "high (content), medium (exact post URL not pinned here)"
+  },
+  {
+   "url": "https://www.chainalysis.com/blog/bybit-exchange-hack-february-2025-crypto-security-lazarus-group/",
+   "title": "Chainalysis: The Bybit Exchange Hack (Feb 24, 2025)",
+   "supports": "$1.46B total; asset breakdown (~401,347 ETH / ~90,375 stETH / 15,000 cmETH / 8,000 mETH); largest theft in crypto history; laundering typology (intermediary wallets, DEX swaps, cross-chain to BTC)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.elliptic.co/blog",
+   "title": "Elliptic: the $1.46B Bybit hack — following North Korea's money-laundering playbook (Feb-Mar 2025 series)",
+   "supports": "$1.46B figure; laundering pace (100% of ETH moved within 10 days); eXch's refusal to block and multi-million throughput; THORChain routing",
+   "confidence": "high (content), medium (exact post slug)"
+  },
+  {
+   "url": "https://announcements.bybit.com/",
+   "title": "Bybit official announcements + Ben Zhou (@benbybit) statements, Feb 21 - Mar 4, 2025",
+   "supports": "Withdrawals kept open; ~350k withdrawal requests ~99% processed in ~12h; ETH gap closed Feb 24 with Hacken-audited 1:1 PoR; LazarusBounty (10%); Mar 4 traceability split 77% / 20% / 3% (~$43M frozen)",
+   "confidence": "medium-high"
+  },
+  {
+   "url": "https://coinmetrics.io/community-network-data/",
+   "title": "Coin Metrics Community Network Data — local CSV snapshot (btc/eth/usdc/usdt/dai), fetched 2026-08-22 into session scratchpad",
+   "supports": "ALL price and peg numbers computed in this report: ETH $2,743.38 (Feb 17) -> $2,655.74 (Feb 21, -3.1% d/d) -> $2,821.86 (Feb 23) -> $1,879.69 (Mar 10, -31.5%) -> $1,471.09 (Apr 8, -46.4%); BTC $98,392 (Feb 20) -> $88,770 (Feb 25) -> $83,988 (Feb 26) -> $79,006 (Mar 10, -19.7%); USDC min 0.9996 / USDT 0.9985 / DAI 0.99958; recovery dates 2025-05-08 (BTC), 2025-06-10 (ETH)",
+   "confidence": "high (directly computed from data files at /tmp/claude-0/-home-user-SPA/49213098-fc36-52be-afab-fb6b80a625ec/scratchpad/{eth,btc,usdc,usdt,dai}.csv)"
+  },
+  {
+   "url": "https://en.wikipedia.org/wiki/Bybit_hack",
+   "title": "Wikipedia: Bybit hack (aggregate reference)",
+   "supports": "Cross-checks the overall narrative: date/time, amounts, Lazarus attribution, Bitget/MEXC loans, THORChain volumes and governance dispute, eXch seizure by German BKA (Apr 30, 2025, €34M)",
+   "confidence": "medium"
+  }
+ ],
+ "confidence_notes": "ENVIRONMENT CAVEAT: this session's web access was unavailable (WebSearch budget exhausted by sibling tasks; egress proxy blocked all news/forensics domains), so live re-verification of narrative figures was impossible. Two evidence tiers are used. TIER 1 — OBSERVED (computed directly from the local Coin Metrics daily dataset, high confidence): every price, drawdown, peg and recovery-date figure (ETH -3.1% d/d hack day, Feb 23 rebound to $2,821.9, -31.5% Feb 17->Mar 10, -46.4% to Apr 8; BTC -19.7% Feb 20->Mar 10, first <$90k close Feb 25; USDC/USDT/DAI mins 0.9996/0.9985/0.99958; BTC recovery 2025-05-08, ETH 2025-06-10). TIER 2 — REPORTED (from the assistant's knowledge of the primary sources listed; the event is inside the Jan-2026 cutoff and among the best-documented in crypto history, but figures could not be re-fetched here — treat as 'reported, re-verify on replay ingest'): $1.46B total and the 401,347 ETH / 90,375.5 stETH / 15,000 cmETH / 8,000 mETH split; 14:16 UTC execution; Feb 4 / Feb 19 forensic dates; ~350k withdrawals ~99% in ~12h; ~$740M+ buybacks / ~446,870 ETH replenished; THORChain ~$4.66B week and ~$5.5M fees; 77/20/3% traceability and ~$43M frozen; eXch seizure €34M. CONTESTED/RANGE: total loss is quoted $1.4B-$1.5B across sources ($1.46B Chainalysis/Elliptic — used here; $1.436B in this repo's own research/yield_research_2026.md; '$1.5B' FBI headline). BRIEF CORRECTIONS: (1) 'ETH -23% over following weeks' — computed values are -29.2% (Feb 21 close -> Mar 10) or -33.4% (Feb 23 rebound high -> Mar 10); the slide was predominantly MACRO (tariffs, record ETF outflows), with only the first ~3-4% plausibly hack-attributable; (2) 'BTC -7.5% intraday Feb 25' — daily close change was only -3.4% (Coin Metrics); intraday drop was reported ~6-7.5% and its attribution is primarily the tariff confirmation + record ~$1.1B one-day spot-ETF outflow, NOT the hack; (3) note ETH initially traded UP through Feb 23 on Bybit's buyback — the naive 'hack -> immediate crash' story is wrong for the first 48h. Exact-URL uncertainty flagged inline for the Safe statement and Elliptic post (content well-established; slugs not pinned). Intraday claims (-4% ETH hack-hour, Feb 25 BTC intraday) are marked approximate; stETH intraday discount deliberately left null.",
+ "data_availability": {
+  "price_series": {
+   "daily": "Coin Metrics Community CSV (free, daily, PriceUSD/ReferenceRateUSD) — VERIFIED PRESENT locally in this session's scratchpad and used for all computed figures; CoinGecko free API also serves daily for Feb 2025",
+   "intraday": "Binance public klines REST API (free, 1m/1h candles, ETHUSDT/BTCUSDT/STETHETH back past 2025) and Bybit public API — standard free replay path for the -4% hack-hour move; NOT reachable from this sandbox but free in normal environments"
+  },
+  "stablecoin_prices": "Coin Metrics daily (local, verified: no depeg) and CoinGecko free daily; intraday stablecoin ticks for Feb 2025 are NOT on CoinGecko free tier (90-day hourly limit) — use Binance 1m USDC/USDT pairs or Dune curve-pool queries (free tier)",
+  "steth_meth_pegs": "CoinGecko stETH daily free; intraday stETH/ETH and cmETH flows via Dune free tier (Curve/Uniswap pool data); mETH Protocol announcements for the 15k cmETH clawback",
+  "tvl": "DeFiLlama free API — global, per-chain, per-protocol daily TVL fully replayable for Feb-Mar 2025 (Aave v3, Morpho, Maple, Pendle)",
+  "liquidations": "NOT freely replayable: CoinGlass historical aggregates are paywalled; only contemporaneous news snapshots (~$1.3B/24h on Feb 24-25) survive free",
+  "gas": "Etherscan daily average gas price chart CSV (free with API key); Dune free tier for intraday",
+  "exchange_flows_reserves": "Mostly NOT free: Nansen/Arkham Bybit-outflow dashboards paywalled; DeFiLlama CEX transparency page has limited history; Ben Zhou/Bybit PoR announcements are the free record",
+  "yields_apy_history": "DeFiLlama yields API (free) has historical pool APY for Aave v3 USDC / Morpho Steakhouse / Maple / Pendle — enables replaying the APY-compression channel",
+  "forensics": "Free primary documents: FBI IC3 PSA, Sygnia report, Safe/Mandiant statement, Chainalysis/Elliptic blogs"
+ },
+ "spa_relevance": {
+  "direct_hits": "None. A $100k USDC portfolio in Aave v3 / Pendle PT / Maple / Morpho Steakhouse + 10% cash rides through with near-zero NAV impact: USDC min $0.9996, no DeFi protocol touched, no withdrawal freeze on any held venue, no bad debt, oracles normal.",
+  "channels_that_did_move": [
+   "APY collapse (the real P&L channel): ETH -31% + risk-off gutted leveraged borrow demand -> USDC supply APYs on Aave/Morpho compressed over the following weeks; a yield forecast anchored to Feb 2025 rates overstates realized carry",
+   "Pendle PT mark-to-market: risk-off widens implied yields -> MTM dip if PTs are sold pre-maturity (par at maturity is unaffected); PT liquidity thins exactly when rotation is tempting",
+   "Maple: borrower base is trading firms holding collateral on CEXes — a Bybit failure (the counterfactual) transmits into Maple credit; the realized event shows the channel exists even when it does not fire"
+  ],
+  "unpriced_if_usdc_equals_1_and_always_withdrawable": [
+   "Operational signing / front-end supply-chain risk: the system's own future custody (Safe-based multisig at go-live) carries masked-transaction risk that NO market-risk model prices; the mitigations are procedural (independent tx decoding, second-device verification, no single UI dependency) — directly relevant to SPA's go-live custody design",
+   "Embedded CeFi counterparty risk inside 'DeFi' yields: Ethena-type basis strategies (short legs on Bybit et al.) and Maple credit are one bad hack-response away from a counterparty freeze; a model that treats all whitelisted yield as on-chain-only misprices this",
+   "Withdrawal-delay ambivalence: cmETH's 8h delay SAVED $43M — a scoring model that treats instant withdrawability as strictly good (and delay windows purely as liquidity risk) misprices protective friction",
+   "Contagion asymmetry lesson for the kill-switch: the drawdown here was macro-entangled and slow (-5% tier would have tripped on the Feb 24-26 leg from beta exposure, not from the hack); for a USDC-only book the correct sensor is counterparty/peg telemetry, not price drawdown — this scenario stresses the monitoring layer, not the ladder"
+  ],
+  "backtest_note": "As a replay scenario this is a NEAR-MISS template: inject (a) 2-3 weeks of stable-APY compression, (b) a PT implied-yield widening shock, and (c) a counterfactual branch where the exchange freezes withdrawals (Ethena/Maple stress) to price what the realized history left unpriced"
+ },
+ "replay": {
+  "duration_days": 18,
+  "start_date": "2025-02-21",
+  "base": {
+   "aave_v3": {
+    "apy_pct": 6.0
+   },
+   "pendle": {
+    "apy_pct": 8.0
+   },
+   "maple": {
+    "apy_pct": 9.5
+   },
+   "morpho_steakhouse": {
+    "apy_pct": 7.0
+   }
+  },
+  "shocks": [
+   {
+    "kind": "apy",
+    "params": {
+     "protocol": "aave_v3",
+     "apy_pct": 2.5,
+     "from_day": 5,
+     "to_day": 17
+    }
+   },
+   {
+    "kind": "peg",
+    "params": {
+     "symbol": "PT_USDC",
+     "path": [
+      [
+       3,
+       1.0
+      ],
+      [
+       10,
+       0.975
+      ],
+      [
+       17,
+       0.995
+      ]
+     ]
+    }
+   },
+   {
+    "kind": "liquidity",
+    "params": {
+     "from_day": 0,
+     "to_day": 2,
+     "exit_haircut_pct": 0.005,
+     "gas_cost_usd": 80.0
+    }
+   }
+  ],
+  "assumptions": [
+   "Прямых потерь книги нет (историч. факт); PT-дисконт 2.5% и коллапс APY — вторичные каналы риск-оффа последующих недель."
+  ]
+ }
+}

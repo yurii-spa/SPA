@@ -205,6 +205,20 @@ ADVERSARIAL_SPECS: List[SyntheticSpec] = [
                    "gas_cost_usd": 100.0, "protocol": "pendle"},
     ),
     SyntheticSpec(
+        name="SYN_S07_utilization_pin",
+        description="Utilization-пин БЕЗ взлома (аудит полноты, дыра №4): borrow-спрос "
+                    "пинит Aave к 100% — вывод недоступен 3 дня, supply APY 18%, NAV "
+                    "не падает ни на цент. Вопрос сценария: видит ли защита v1.0 "
+                    "недоступность вывода, когда ни дроудауна, ни депега нет.",
+        duration_days=10,
+        freezes=[{"protocol": "aave_v3", "from_day": 1, "to_day": 3}],
+        apy_shocks=[{"protocol": "aave_v3", "apy_pct": 18.0,
+                     "from_day": 1, "to_day": 3}],
+        assumptions=["Исторические шаблоны: FTX-неделя (стейблы), Mar-2023 "
+                     "(шорт депега пинит USDC-utilization ровно когда книге нужен "
+                     "выход), Nov-2025 (кураторный кризис Morpho)."],
+    ),
+    SyntheticSpec(
         name="SYN_S06_oct10_x2",
         description="10.10.2025 × 2: двухдневный каскад ликвидаций вдвое сильнее — "
                     "PT-дисконт до 0.80, morpho −4% (ADL/оракульные метки), haircut "

@@ -1,0 +1,373 @@
+{
+ "schema_version": 1,
+ "id": "H01_mtgox_2014",
+ "name": "Mt. Gox collapse (withdrawal halt → 850k BTC hole → bankruptcy), February 2014",
+ "event_class": [
+  "cefi_counterparty",
+  "market_crash"
+ ],
+ "window_utc": {
+  "start": "2014-02-07",
+  "trough": "2014-02-25",
+  "end": "2014-02-28",
+  "notes": "Acute phase: withdrawal halt (Feb 7) through bankruptcy filing (Feb 28). Aftermath tail: liquidation ordered Apr 2014; bear market bottomed Jan 14, 2015; creditor-repayment overhang resurfaced Jul 2024."
+ },
+ "speed": "Counterparty leg: Gox-internal BTC -85% in 2 weeks ($829 -> $124, Feb 7-21). Market leg: ~-22/-23% in 24h on Feb 24-25 ($581 -> $437, BPI intraday $418); ~-48% over the 3-week acute window. Structural leg: -84% to -87% over 14 months (Nov 2013 -> Jan 2015). Customer funds: 100% frozen instantly on Feb 7, ~80% permanently lost, remainder returned after 10+ years.",
+ "summary": "Биржа, через которую шло ~70% мирового объёма BTC, остановила вывод, девять месяцев скрывала, что монеты украдены годами ранее, и обанкротилась с дырой в 850k BTC (~$473M). Внутренняя цена BTC на Gox упала до $124 при $566 на Bitstamp — счёт на бирже перестал быть биткоином. Рынок: −48% за 3 недели, весь медвежий цикл 2013–2015 — до −87%. Канонический шаблон CeFi-контрагента: «баланс отображается, активов нет». Книга SPA на 2026-08: aave_v3 40% / pendle (PT_USDC) 20% / maple 15% / morpho_steakhouse 15% / кэш USDC 10%.",
+ "timeline": [
+  {
+   "ts": "2013-04-01",
+   "event": "Pre-existing stress: from spring 2013 Gox customers experience growing FIAT withdrawal delays; Gox BTC trades at a premium approaching $200 vs other exchanges — an early symptom that customer balances were not fully backed/redeemable.",
+   "observed": true,
+   "source_url": "https://weis2019.econinfosec.org/wp-content/uploads/sites/6/2019/05/WEIS_2019_paper_44.pdf"
+  },
+  {
+   "ts": "2013-11-30",
+   "event": "Context: BTC bull-market top ~$1,150-1,163 (Bitstamp); Mt. Gox — which at its 2013 peak handled ~70-80% of global BTC volume — printed even higher. Bear market begins as China's PBoC restricts banks from handling BTC (Dec 2013).",
+   "observed": true,
+   "source_url": "https://cointelegraph.com/features/a-brief-history-of-bitcoin-crashes-and-bear-markets-2009-2022"
+  },
+  {
+   "ts": "2014-02-07",
+   "event": "Mt. Gox halts ALL bitcoin withdrawals, citing need to investigate; BTC price drops on all venues. Gox BTC quoted ~$829 around this date.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2014/02/07/mt-gox-halts-all-bitcoin-withdrawals-price-drop-follows"
+  },
+  {
+   "ts": "2014-02-10",
+   "event": "Gox press release blames 'transaction malleability' (a real Bitcoin protocol quirk) for the halt; price falls further; CoinDesk removes Mt. Gox from its Bitcoin Price Index the same day — the reference index had to eject the broken venue.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2014/02/10/coindesk-removes-mt-gox-from-bitcoin-price-index/"
+  },
+  {
+   "ts": "2014-02-20",
+   "event": "Gox internal BTC price hits $135 while external venues trade ~$550-600: customers dumping trapped Gox-BTC IOUs at any price. The 'exchange balance' has de facto depegged from real BTC.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2014/02/20/bitcoin-price-hits-135-on-mt-gox-following-office-move-and-verification-demand"
+  },
+  {
+   "ts": "2014-02-21",
+   "event": "Gox BTC offered at $124 vs $566 on Bitstamp and $553 on BTC-e — a ~78% counterparty discount (down from $829 two weeks earlier on Gox itself).",
+   "observed": true,
+   "source_url": "https://www.bloomberg.com/news/articles/2014-02-21/bitcoins-offered-on-mt-gox-drop-as-withdrawals-halted"
+  },
+  {
+   "ts": "2014-02-23",
+   "event": "CEO Mark Karpelès resigns from the Bitcoin Foundation board; Gox deletes its tweets.",
+   "observed": true,
+   "source_url": "https://en.bitcoin.it/wiki/Collapse_of_Mt._Gox"
+  },
+  {
+   "ts": "2014-02-24",
+   "event": "Gox suspends all trading and the website goes dark. Leaked internal 'Crisis Strategy Draft' claims the company is insolvent, having lost 744,408 customer BTC in a theft 'which went unnoticed for several years'; Karpelès calls the document 'more or less' authentic.",
+   "observed": true,
+   "source_url": "https://newslines.org/mt-gox/crisis-strategy-document-744408-bitcoins-missing/"
+  },
+  {
+   "ts": "2014-02-25",
+   "event": "Global panic day: CoinDesk BPI falls ~23% to an intraday low near $418 (daily basis ~$581 to ~$437) as Gox goes fully offline; last Gox prints were below $200.",
+   "observed": true,
+   "source_url": "https://www.forbes.com/sites/andygreenberg/2014/02/25/bitcoins-price-plummets-as-mt-gox-goes-dark-with-massive-hack-rumored/"
+  },
+  {
+   "ts": "2014-02-28",
+   "event": "Mt. Gox files for civil rehabilitation (minji saisei bankruptcy protection) at Tokyo District Court: ~850,000 BTC missing (750k customer + 100k proprietary, ~$473M at then-prices; 'nearly $500M'), ¥6.5B (~$64M) liabilities vs ¥3.84B (~$38M) assets. Karpelès bows in apology, blames 'weakness in our system'.",
+   "observed": true,
+   "source_url": "https://www.wkar.org/2014-02-28/mtgox-files-for-bankruptcy-nearly-500m-of-bitcoins-lost"
+  },
+  {
+   "ts": "2014-03-02",
+   "event": "Contagion to small custodians: 'bitcoin bank' Flexcoin is robbed of 896 BTC (~$570-600k) from its hot wallet via a race-condition exploit and shuts down permanently days after the Gox filing.",
+   "observed": true,
+   "source_url": "https://www.welivesecurity.com/2014/03/05/bitcoin-bank-flexcoin-shuts-down-after-attackers-loot-570000-from-hot-wallet/"
+  },
+  {
+   "ts": "2014-03-20",
+   "event": "Gox announces discovery of 199,999.99 BTC (~$116M) in an old-format wallet unused since before June 2011 (balance confirmed Mar 7, reported to counsel Mar 8); missing total revised down to ~650,000 BTC — never recovered.",
+   "observed": true,
+   "source_url": "https://money.cnn.com/2014/03/21/technology/mt-gox-missing-bitcoin/"
+  },
+  {
+   "ts": "2014-03-27",
+   "event": "ETH Zurich researchers Decker & Wattenhofer publish blockchain-wide analysis: at most ~386 BTC could have been stolen from Gox via transaction-malleability attacks before the closure — the official explanation cannot account for 849,600 of the missing coins.",
+   "observed": true,
+   "source_url": "https://arxiv.org/abs/1403.6676"
+  },
+  {
+   "ts": "2014-04-11",
+   "event": "BTC prints its H1-2014 low ~$340-385 (BPI low ~$355 on Apr 11) — compounded by PBoC forcing banks to close Chinese exchange accounts by Apr 15, on top of post-Gox confidence damage.",
+   "observed": true,
+   "source_url": "https://www.cnbc.com/2014/04/15/bitcoin-defies-talk-of-china-crackdown.html"
+  },
+  {
+   "ts": "2014-04-16",
+   "event": "Tokyo District Court dismisses the civil-rehabilitation application at Gox's own request; provisional administrator Nobuaki Kobayashi appointed; company moves into liquidation/straight bankruptcy (proceedings formally opened later in April).",
+   "observed": true,
+   "source_url": "https://www.computerworld.com/article/1616418/mt-gox-faces-liquidation-in-japan-as-court-rejects-rehabilitation-process.html"
+  },
+  {
+   "ts": "2015-01-14",
+   "event": "Bear-market bottom: BTC ~$152 on Bitstamp — roughly -84% to -87% from the Nov 2013 peak, 14 months after it. The Gox collapse is the signature event of this bear.",
+   "observed": true,
+   "source_url": "https://cointelegraph.com/features/a-brief-history-of-bitcoin-crashes-and-bear-markets-2009-2022"
+  },
+  {
+   "ts": "2015-04-19",
+   "event": "WizSec (Kim Nilsson) forensic reconstruction from leaked databases: the coins were stolen continuously straight out of the Gox HOT WALLET starting late 2011 (wallet.dat keys copied Sep 2011); ~630,000 BTC gone by mid/summer 2013 — Gox operated massively insolvent for ~2 years before the halt.",
+   "observed": true,
+   "source_url": "https://blog.wizsec.jp/2015/04/the-missing-mtgox-bitcoins.html"
+  },
+  {
+   "ts": "2017-02-23",
+   "event": "Confidence-shock duration marker: BTC finally surpasses its 2013 all-time high (~$1,168 on Bitstamp) — ~3.2 years underwater from the Nov 2013 peak.",
+   "observed": true,
+   "source_url": "https://news.bitcoin.com/bitcoin-price-surpasses-2013-time-high/"
+  },
+  {
+   "ts": "2017-07-26",
+   "event": "Alexander Vinnik (BTC-e) arrested in Greece; WizSec links wallets that received the stolen Gox coins to Vinnik — supporting the long-running-theft-and-laundering explanation over malleability.",
+   "observed": true,
+   "source_url": "https://www.theregister.com/2017/07/27/greek_police_arrest_alleged_russian_bitcoin_launderer/"
+  },
+  {
+   "ts": "2024-07-05",
+   "event": "Repayment overhang materializes: rehabilitation trustee begins distributing ~$9B — 142,000 BTC (~$8.95B), 143,000 BCH and ¥69B (~$432M) — to ~24,000 creditors via exchanges (Bitbank, Kraken, Bitstamp etc.). BTC slides ~12% on the week to ~$53,500-55,000, compounded by German-government BTC sales. Deadline since extended repeatedly, currently Oct 31, 2026; ~19,500 creditors repaid as of the latest extension.",
+   "observed": true,
+   "source_url": "https://www.theblock.co/post/301448/mt-gox-to-distribute-9-billion-of-bitcoin-bitcoin-cash-repayments-from-beginning-of-july"
+  }
+ ],
+ "market_impact": {
+  "btc": {
+   "from_usd": 800,
+   "to_usd": 418,
+   "drawdown_pct": -48,
+   "window": "2014-02-07 -> 2014-02-25 (acute). From ~$800 (early-Feb composite; Gox printed $829 ~Feb 7, other venues ~$700-770) to ~$418 CoinDesk-BPI intraday low Feb 25. Single worst day Feb 24-25: ~-22/-23% ($581 -> $437). Feb -> end-March basis: ~$828 -> <$440 (~-47%). Extended to Apr 11 low: ~$340-385 (~-55% from early Feb)."
+  },
+  "btc_gox_internal": {
+   "from_usd": 829,
+   "to_usd": 124,
+   "drawdown_pct": -85,
+   "window": "2014-02-07 -> 2014-02-21; trapped Gox-balance BTC quoted $124 vs $566 Bitstamp / $553 BTC-e (78% counterparty discount); last prints <$200 on Feb 24-25 before shutdown"
+  },
+  "eth": null,
+  "bear_market_context_2013_2015": {
+   "from_usd": 1163,
+   "to_usd": 152,
+   "drawdown_pct": -87,
+   "window": "2013-11-30 (Bitstamp ~$1,150-1,163; commonly cited -84% to -87% depending on index) -> 2015-01-14 ($152 Bitstamp). Gox collapse occurred 2.5 months into this bear and is its signature event."
+  },
+  "jan_apr_2014_path": {
+   "jan_1_open_usd": 770,
+   "jan_6_high_usd": 1023.31,
+   "feb_7_usd": 800,
+   "feb_25_low_usd": 418,
+   "mar_avg_usd": 570,
+   "apr_11_low_usd": 355,
+   "notes": "CoinDesk BPI basis: opened 2014 at $770, spiked to $1,023.31 Jan 6 (other indexes show ~$919 — contested), slid through Gox crisis to $418 (Feb 25), bounced to ~$550-630 in March, second flush to ~$340-385 on China bank-account crackdown Apr 10-11, recovered ~$500 by Apr 15."
+  },
+  "missing_btc": {
+   "claimed_2014_02_28": 850000,
+   "leaked_doc_2014_02_24": 744408,
+   "after_200k_found": 650000,
+   "usd_value_at_filing": 473000000
+  },
+  "repayment_overhang_2024": {
+   "btc_held_by_estate": 142000,
+   "bch_held": 143000,
+   "fiat_jpy_bn": 69,
+   "total_usd_bn": 9,
+   "btc_price_impact": "~-12% week into Jul 5, 2024 (~$63k -> ~$53.5k low), attribution shared with German-government BTC sales and miner selling"
+  }
+ },
+ "stablecoins": [],
+ "defi_impact": {
+  "applicability": "No DeFi existed in Feb 2014 (Ethereum launched Jul 2015; USDT launched Oct 2014). All fields below are the CeFi analogs this event supplies, plus what is genuinely N/A.",
+  "tvl_change": null,
+  "bad_debt_usd": "~$473M at filing (850,000 BTC at ~$556; 'nearly $500M' per Reuters/NPR); net ~650,000 BTC (~$390M then; tens of billions at 2024+ prices) after 200k BTC found Mar 2014. Plus ~$27M customer fiat unaccounted (requires verification). Recovery rate for creditors: claims eventually paid at 2014-fixed JPY valuations plus partial in-kind BTC/BCH — in-kind holders were made massively whole in USD terms by 2024 BTC appreciation, a historical accident, not a design feature.",
+  "withdrawal_freezes": "The defining feature: BTC withdrawals halted Feb 7, 2014 with trading still open for 17 days (customers could only trade trapped IOUs, not exit); full freeze Feb 24; assets locked in bankruptcy for over 10 years (first distributions Jul 2024, deadline now Oct 2026).",
+  "liquidations_usd": null,
+  "gas": null,
+  "oracle_behavior": "Closest analog: CoinDesk's Bitcoin Price Index (the de facto industry reference price) had to remove Mt. Gox from its constituents on Feb 10, 2014 because the broken venue's price (trading at up to 78% discount) was contaminating the index — the 2014 version of a bad oracle feed from a broken market.",
+  "dex_liquidity": "No DEXs. Order-book liquidity migrated to Bitstamp/BTC-e, which absorbed the flow without failing; the inter-exchange spread (Gox $124 vs Bitstamp $566) is the cleanest historical dataset of a counterparty-discount blowout.",
+  "protocols_paused_insolvent": "Mt. Gox (insolvent, liquidated). Contagion casualties: Flexcoin (896 BTC hot-wallet theft, closed Mar 2014). Bitcoin protocol itself never halted; malleability-related withdrawal pauses hit several exchanges (e.g. Bitstamp briefly, Feb 11) but resolved in days.",
+  "bridge_chain_availability": "Bitcoin network operated normally throughout — the failure was entirely at the custodial/counterparty layer, while the settlement layer stayed live. Malleability spam in mid-Feb 2014 temporarily complicated wallet software confirmation-tracking but did not halt the chain."
+ },
+ "causes": {
+  "primary": "Long-running undetected theft: Mt. Gox's hot-wallet private keys were compromised (wallet.dat copied, ~Sep 2011) and coins were siphoned continuously from late 2011; ~630,000 BTC were gone by mid-2013 (WizSec forensics), so the exchange operated massively fractionally-reserved for ~2 years. The Feb 2014 halt was the moment the hole could no longer be papered over, not the moment of loss.",
+  "secondary": [
+   "'Transaction malleability' — the official explanation in Gox's Feb 10, 2014 press release — was largely a cover story: Decker & Wattenhofer showed at most ~386 BTC could be attributed to malleability attacks before closure.",
+   "Catastrophic operational controls: no reconciliation of on-chain holdings vs customer liabilities, no external audits, single-developer code-deployment bottleneck (Karpelès), commingled company/customer funds.",
+   "Market-structure single point of failure: one venue carried ~70-80% of global BTC volume at its 2013 peak, so its failure repriced the whole asset class and its price feed contaminated reference indexes (CoinDesk had to eject Gox from the BPI on Feb 10).",
+   "Pre-existing fiat-rail stress: US DHS seizure of Gox's Dwolla accounts (2013) and months of fiat withdrawal delays had already created a persistent Gox premium/discount vs other venues — an unheeded redemption-stress signal.",
+   "~¥2.8B / ~$27M of customer fiat deposits also unaccounted for at filing (requires verification)."
+  ],
+  "mechanism": "Keys stolen 2011 -> hot wallet drained continuously 2011-2013 while internal ledger still showed customer balances -> reserves effectively empty by mid-2013 -> withdrawal delays surface as liquidity symptoms -> Feb 7, 2014 full BTC withdrawal halt -> trapped customers dump internal Gox-BTC IOUs, internal price depegs -85% vs external BTC ($829 -> $124) -> Feb 24 leak reveals 744,408 BTC hole, trading halted, site dark -> global BTC -23% in a day -> Feb 28 bankruptcy filing confirms 850k BTC missing -> trust in custodial exchanges collapses, bear market deepens for 11 more months -> decade of bankruptcy proceedings converts the loss into a persistent 140k+ BTC supply overhang that still moved markets in 2024."
+ },
+ "contagion": [
+  "Gox fiat withdrawal delays (2013) -> persistent Gox price premium/discount vs Bitstamp/BTC-e (redemption stress visible but unpriced)",
+  "Feb 7: full BTC withdrawal halt -> trapped Gox balances become IOUs -> internal Gox-BTC price depegs: $829 -> $135 (Feb 20) -> $124 (Feb 21) vs ~$560 externally",
+  "Feb 24-25: insolvency leak + site dark -> global BTC (non-Gox venues) -22/-23% in one day, CoinDesk BPI to ~$418",
+  "Feb 28: bankruptcy filing (850k BTC / ~$473M hole) -> asset-class confidence shock: BTC unable to reclaim $700 for months",
+  "Early March: copycat attacks / failures at small custodians — Flexcoin robbed of 896 BTC and shuts down (Mar 2-4); trust in ALL custodial venues repriced",
+  "Compounding macro leg: China PBoC bank-account crackdown (Apr 2014) -> second flush to ~$340-385",
+  "Slow leg: bear market extends to Jan 2015 ($152, -84/-87% from ATH); ATH not reclaimed until Feb 2017 (~3.2 years)",
+  "Decade-later leg: 142k BTC estate distribution begins Jul 5, 2024 -> ~-12% weekly BTC drawdown on overhang fears (shared attribution with German-gov sales)"
+ ],
+ "recovery": {
+  "recovered": "partially, on very long horizons",
+  "time_to_recover": "Market price: ~3.2 years (Nov 2013 ATH ~$1,163 regained Feb 23, 2017; interim bottom $152 on Jan 14, 2015, 14 months after peak and 11 months after the Gox filing). Customer funds: 10+ years — assets frozen Feb 2014, first distributions Jul 5, 2024, deadline extended to Oct 31, 2026; ~650k of 850k BTC never recovered.",
+  "notes": "Acute-phase price stabilization was fast (BPI back to ~$550-630 within a week of the filing), but the confidence shock was structural: the bear market ran 11 more months and the event permanently reshaped exchange practice (proof-of-reserves attempts, cold-storage norms, Japan's exchange licensing regime). Creditors repaid in-kind BTC/BCH in 2024+ were made whole or better in USD terms purely because BTC appreciated ~100x while frozen — an accident of the workout, not a recovery mechanism a stress model should credit."
+ },
+ "sources": [
+  {
+   "url": "https://www.bloomberg.com/news/articles/2014-02-21/bitcoins-offered-on-mt-gox-drop-as-withdrawals-halted",
+   "title": "Bloomberg: Bitcoins Offered on Mt. Gox Drop as Withdrawals Halted (Feb 21, 2014)",
+   "supports": "Gox internal price $124 on Feb 21 vs Bitstamp $566 / BTC-e $553; Gox at $829 two weeks earlier; counterparty depeg magnitude",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/markets/2014/02/07/mt-gox-halts-all-bitcoin-withdrawals-price-drop-follows",
+   "title": "CoinDesk: Mt. Gox Halts ALL Bitcoin Withdrawals, Price Drop Follows (Feb 7, 2014)",
+   "supports": "Feb 7 withdrawal halt date and immediate price reaction",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/markets/2014/02/10/coindesk-removes-mt-gox-from-bitcoin-price-index/",
+   "title": "CoinDesk Removes Mt. Gox from Bitcoin Price Index (Feb 10, 2014)",
+   "supports": "Feb 10 malleability press release; index-contamination / oracle analog",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.forbes.com/sites/andygreenberg/2014/02/25/bitcoins-price-plummets-as-mt-gox-goes-dark-with-massive-hack-rumored/",
+   "title": "Forbes: Bitcoin's Price Plummets As Mt. Gox Goes Dark (Feb 25, 2014)",
+   "supports": "~23% BPI drop to ~$418 low as Gox went offline; Gox prints <$200; Crisis Strategy Draft rumors",
+   "confidence": "high"
+  },
+  {
+   "url": "https://newslines.org/mt-gox/crisis-strategy-document-744408-bitcoins-missing/",
+   "title": "Crisis Strategy Draft: 744,408 bitcoins missing (leaked Feb 24, 2014)",
+   "supports": "744,408 BTC figure in leaked internal document; Karpelès 'more or less authentic' confirmation",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.wkar.org/2014-02-28/mtgox-files-for-bankruptcy-nearly-500m-of-bitcoins-lost",
+   "title": "NPR/WKAR: Mt. Gox Files For Bankruptcy; Nearly $500M Of Bitcoins Lost (Feb 28, 2014)",
+   "supports": "Feb 28 civil-rehabilitation filing; 750k customer + 100k company BTC missing; ~$473M/'nearly $500M' valuation",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/markets/2014/02/28/mt-gox-files-for-bankruptcy-claims-636-million-debt",
+   "title": "CoinDesk: Mt. Gox Files for Bankruptcy, Claims $63.6 Million Debt",
+   "supports": "¥6.5B (~$64M) liabilities vs ¥3.84B (~$38M) assets in the filing",
+   "confidence": "high"
+  },
+  {
+   "url": "https://arxiv.org/abs/1403.6676",
+   "title": "Decker & Wattenhofer, 'Bitcoin Transaction Malleability and MtGox' (arXiv 1403.6676, Mar 2014)",
+   "supports": "At most ~386 BTC attributable to malleability attacks; official explanation cannot cover 849,600 BTC",
+   "confidence": "high"
+  },
+  {
+   "url": "https://blog.wizsec.jp/2015/04/the-missing-mtgox-bitcoins.html",
+   "title": "WizSec: The missing MtGox bitcoins (Apr 2015)",
+   "supports": "Coins stolen continuously from hot wallet from late 2011; ~630k BTC gone / reserves wiped out by mid-2013; keys copied Sep 2011; Vinnik-linked laundering wallets",
+   "confidence": "high"
+  },
+  {
+   "url": "https://money.cnn.com/2014/03/21/technology/mt-gox-missing-bitcoin/",
+   "title": "CNN: Mt.Gox finds 200,000 bitcoins in old wallet (Mar 21, 2014)",
+   "supports": "199,999.99 BTC (~$116M) found in old-format wallet; missing revised to ~650k; Mar 7/8 discovery dates",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.computerworld.com/article/1616418/mt-gox-faces-liquidation-in-japan-as-court-rejects-rehabilitation-process.html",
+   "title": "Computerworld: Mt. Gox faces liquidation as court rejects rehabilitation (Apr 2014)",
+   "supports": "Apr 16, 2014 dismissal of civil rehabilitation; provisional administrator Kobayashi; liquidation path",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.welivesecurity.com/2014/03/05/bitcoin-bank-flexcoin-shuts-down-after-attackers-loot-570000-from-hot-wallet/",
+   "title": "Flexcoin shuts down after 896 BTC hot-wallet theft (Mar 2014)",
+   "supports": "Contagion: Flexcoin robbed Mar 2, 2014 and closed permanently days after Gox filing",
+   "confidence": "high"
+  },
+  {
+   "url": "https://cointelegraph.com/features/a-brief-history-of-bitcoin-crashes-and-bear-markets-2009-2022",
+   "title": "Cointelegraph: A brief history of Bitcoin crashes and bear markets",
+   "supports": "2013-2015 bear context: ~$1,150+ Nov 2013 top -> sub-$200/$152 Jan 2015 bottom, -84% (other indexes -87%); China PBoC catalyst",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.coindesk.com/markets/2014/12/27/bitcoin-price-2014-a-year-in-review",
+   "title": "CoinDesk: Bitcoin Price 2014 — A Year in Review",
+   "supports": "2014 opened at $770 (BPI); Jan 6 high $1,023.31; full-year price path",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.cnbc.com/2014/04/15/bitcoin-defies-talk-of-china-crackdown.html",
+   "title": "CNBC: Bitcoin defies talk of China crackdown (Apr 15, 2014)",
+   "supports": "April 2014 low ~$355 (Apr 11) amid PBoC bank-account closures; recovery to ~$500 by Apr 15",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://news.bitcoin.com/bitcoin-price-surpasses-2013-time-high/",
+   "title": "Bitcoin.com News: Bitcoin Price Surpasses 2013 All-Time High (Feb 23, 2017)",
+   "supports": "ATH regained Feb 23, 2017 at ~$1,168 Bitstamp — ~3.2-year confidence-shock duration",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.theblock.co/post/301448/mt-gox-to-distribute-9-billion-of-bitcoin-bitcoin-cash-repayments-from-beginning-of-july",
+   "title": "The Block: Mt. Gox to distribute $9 billion of BTC/BCH repayments from beginning of July (2024)",
+   "supports": "2024 overhang: ~$9B total; 142k BTC ($8.95B), 143k BCH, ¥69B fiat; ~24,000 creditors; July 2024 start",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.cnbc.com/2024/07/05/mt-gox-begins-repaying-bitcoin-to-creditors-a-decade-on-from-collapse.html",
+   "title": "CNBC: Mt. Gox begins repaying bitcoin to creditors (Jul 5, 2024)",
+   "supports": "Repayments began Jul 5, 2024; market-pressure context alongside German-government sales; BTC ~$53.5-55k",
+   "confidence": "high"
+  },
+  {
+   "url": "https://decrypt.co/346053/mt-gox-pushes-back-bitcoin-repayments-by-another-year",
+   "title": "Decrypt: Mt. Gox pushes back Bitcoin repayments to October 2026",
+   "supports": "Repayment deadline extended to Oct 31, 2026; ~19,500 creditors repaid so far",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://weis2019.econinfosec.org/wp-content/uploads/sites/6/2019/05/WEIS_2019_paper_44.pdf",
+   "title": "WEIS 2019: Identifying the Arbitrageurs on Mt. Gox (leaked-dataset study)",
+   "supports": "Pre-collapse fiat-withdrawal delays from spring 2013 and Gox price premium approaching $200 vs other venues",
+   "confidence": "medium"
+  }
+ ],
+ "confidence_notes": "Observed and well-sourced: Feb 7 halt, Feb 10 malleability release, Gox $135 (Feb 20) and $124 vs $566/$553 (Feb 21, Bloomberg), Feb 24 shutdown + 744,408 BTC leaked figure, Feb 28 filing (850k BTC = 750k customer + 100k company; ¥6.5B liabilities / ¥3.84B assets), 200k BTC found (announced Mar 20), ≤386 BTC malleability ceiling (Decker & Wattenhofer), WizSec long-running-theft finding, Jul 5 2024 repayment start (142k BTC / 143k BCH / ¥69B ≈ $9B), Oct 31 2026 deadline extension. Contested/approximate figures (ranges reported, not resolved): (1) Nov 2013 peak — $1,137-$1,163 on Bitstamp-type indexes, ~$1,242 printed on Gox; I use $1,163. (2) Bear-market depth — -84% to -87% depending on peak/trough index (trough $152 Bitstamp Jan 14, 2015; some series show sub-$170 into Aug 2015 retest). (3) Early-Jan 2014 high — $1,023.31 (CoinDesk BPI) vs ~$919 (other indexes). (4) Pre-halt Feb price — $829 is the GOX quote; non-Gox venues traded ~$700-770, so the acute-window from_usd=800/drawdown -48% is a composite APPROXIMATION (defensible range -40% to -50%). (5) Feb 24-25 one-day move — reported as both ~-22% ($581->$437 daily) and 'close to 23%' to the $418 intraday BPI low. (6) '70% of BTC volume' is a 2013 peak-share estimate (sources say 70-80%); Gox's share had already fallen materially by Feb 2014. (7) ~$27M/¥2.8B missing customer fiat at filing: widely reported at the time but not re-verified here — treat as requires-verification. (8) 2024 price impact attribution is INFERENCE: the ~-12% week to ~$53.5k coincided with German-government sales and miner selling; no clean single-cause decomposition exists. Inferred (not directly observed): that Gox's final internal prints went below $100 — Forbes documents '<$200'; sub-$100 claims circulate but were not verified, so I anchor the internal-depeg floor at the Bloomberg-sourced $124. ПРАВКИ АУДИТА: однодневное движение 24-25 фев по ценам $581→$437 = −24.8% (в источниках «−22/−23%» — расхождение названо); доля невозвращённого точнее 650k/850k = 76.5%, а не «~80%».",
+ "data_availability": {
+  "price_series_btc_tick": "FREE, best-in-class for this event: bitcoincharts CSV archive (http://api.bitcoincharts.com/v1/csv/) — full tick-level trade dumps per venue: mtgoxUSD.csv.gz (runs until the Feb 2014 shutdown, capturing the internal-price depeg to $124), bitstampUSD.csv.gz, btceUSD.csv.gz. Format: unix_ts,price,amount; trivially aggregated to 1m/1h/1d. This pair (mtgoxUSD vs bitstampUSD) is the replay dataset for the counterparty-discount channel.",
+  "price_series_btc_daily_hourly": "FREE: CryptoCompare API (daily+hourly BTC-USD back past 2014); Coin Metrics community CSV (daily BTC series from 2010); bitbo/charts and Yahoo Finance (^CDIXBX partial CoinDesk BPI history). CAUTION: CoinGecko daily data starts 2013-04-28 but the free tier is now restricted to the trailing 365 days — NOT usable for 2014 without a paid plan.",
+  "gox_internal_orderbook": "The leaked Mt. Gox trade log (Apr 2011 - Nov 2013, per-user anonymized) circulates publicly (used by the WEIS 2019 paper) — covers pre-crisis premium but ENDS Nov 2013; Feb 2014 internal prices must come from the bitcoincharts mtgoxUSD feed.",
+  "stablecoin_prices": "N/A — no stablecoins existed (USDT launched Oct 2014). Nothing to fetch; the depeg series to replay instead is the Gox-BTC vs Bitstamp-BTC spread from the tick data above.",
+  "tvl_defillama": "N/A — DeFi and Ethereum did not exist; DeFiLlama has no 2014 coverage. No TVL replay possible.",
+  "liquidations": "NOT OBTAINABLE — no public derivatives-liquidation datasets for Feb 2014 (BitMEX launched Nov 2014; OKCoin/Huobi futures data from that era not freely archived). Gox margin-position data never published.",
+  "gas": "N/A for ETH gas (no Ethereum). Bitcoin network fee and mempool daily series are FREE at blockchain.com/charts (transaction-fees, cost-per-transaction) — show no settlement-layer stress during the event.",
+  "bankruptcy_docs": "FREE: trustee announcements archived at mtgox.com (Kobayashi-era PDFs, EN/JP) for the 2014-2026 claims/repayment leg; WizSec blog posts for forensic flow reconstruction."
+ },
+ "spa_relevance": {
+  "direct_position_impact": "None of the portfolio's venues (Aave v3, Pendle, Maple, Morpho) nor USDC existed in 2014, so this scenario cannot be replayed against the book price-for-price. Its value is as the canonical CENTRALIZED-COUNTERPARTY FREEZE template: the dominant venue for an asset halts redemptions while balances still display, then reveals the assets were gone for years.",
+  "channel_mapping": {
+   "maple": "Closest analog and highest-risk mapping. Maple is permissioned credit with withdrawal queues and off-chain counterparty performance — exactly the Gox failure surface: a position can show a healthy balance while the underlying is already impaired, and a 'temporary' redemption delay (Gox: spring-2013 fiat delays) is the leading indicator of a hole, not an ops hiccup. Maple's own 2022 bad-debt episode (Orthogonal/FTX) followed the Gox script: undisclosed insolvency behind a still-open UI.",
+   "morpho_steakhouse_vault": "Freeze/IOU-depeg channel: if a curated vault's underlying markets lock up, vault shares become the 2014 equivalent of Gox-BTC — a claim trading (or marked) far below the underlying. Stress test: mark vault shares at a Gox-style counterparty discount (-20% to -85%) during a freeze rather than at oracle NAV.",
+   "pendle_pt": "Exit-liquidity channel: Gox showed trapped holders will dump claims at 78% discounts to escape a frozen counterparty. PT held to maturity is insulated ONLY if the underlying yield source stays solvent; an early exit during a panic prices like a distressed claim (AMM liquidity vanishes, deep discount to implied value).",
+   "aave_v3": "Least analogous (overcollateralized, on-chain, transparent reserves are precisely the post-Gox design response), but the index-contamination lesson applies to its oracles: a broken venue's price polluting a reference feed (Gox in the CoinDesk BPI, Feb 7-10 2014) is the ancestor of every bad-oracle incident.",
+   "cash_10pct": "Gox's lesson for the cash sleeve: 'cash' held AT a counterparty is not cash. The 10% buffer only functions if it is genuinely bankruptcy-remote from every yield venue."
+  },
+  "unpriced_if_assumed_withdrawable_and_usdc_1": [
+   "FROZEN != PAUSED: Gox balances displayed normally for 17 days after the halt and proved ~80% unrecoverable for 10 years. A system that models protocol withdrawal as always-available (or delayed-but-whole) prices this at zero. The SPA book's Maple/Morpho positions carry exactly this tail.",
+   "DISPLAYED BALANCE != BACKED BALANCE: Gox was insolvent for ~2 years while its ledger showed full balances and its API served prices. Live-feed health (the SPA 'tvl_source==live' rule) verifies the feed, not the backing — Gox's feed was live to the last day.",
+   "REDEMPTION-DELAY AS SIGNAL: months of 'temporary' withdrawal delays and a persistent venue price premium/discount preceded the collapse. A refusal-first system should treat growing exit friction / secondary-market discount on a venue's claims as a demotion trigger (fail-CLOSED), not noise.",
+   "DURATION OF IMPAIRMENT: 10-year workout. Kill-switch drawdown math (SOFT -5%/HARD -10%) assumes positions can be converted to cash; a Gox-type freeze makes the HARD_KILL 'all-cash' instruction unexecutable for the frozen sleeve — the plan needs a defined behavior for unsellable positions.",
+   "SUPPLY OVERHANG DECADES LATER: 142k BTC estate distributions moved BTC ~-12% in Jul 2024. Post-crisis workouts create recurring, schedulable sell-pressure events — relevant to any collateral asset with a known bankruptcy-estate overhang."
+  ],
+  "stablecoin_note": "No stablecoin leg exists in this event (USDT launched Oct 2014). USDC=1 assumption is untested here; use 2023 USDC depeg (SVB) scenario for that channel."
+ },
+ "replay": null
+}

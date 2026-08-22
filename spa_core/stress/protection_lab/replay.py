@@ -402,7 +402,9 @@ def run_replay(
     report.capital_saved_usd = round(protected.final_equity - benchmark.final_equity, 2)
     report.benchmark_loss_usd = round(max(0.0, capital_usd - benchmark.final_equity), 2)
     report.protected_loss_usd = round(max(0.0, capital_usd - protected.final_equity), 2)
-    if report.benchmark_loss_usd > 1e-9:
+    # Efficiency осмысленна только при заметной потере бенчмарка: деление на
+    # копеечный знаменатель печатает «-18000%» и врёт масштабом. Порог 0.5%.
+    if report.benchmark_loss_usd >= 0.005 * capital_usd:
         report.protection_efficiency_pct = round(
             (report.benchmark_loss_usd - report.protected_loss_usd)
             / report.benchmark_loss_usd * 100.0, 2)
