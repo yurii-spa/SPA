@@ -194,12 +194,19 @@ def _notify_owner_telegram(email: str, message: str, tier: str, utm: str, source
         parts.append("Некастодиально · запрос на разговор, не сделка.")
         body = " · ".join(parts)
         if material:
-            # instant per-lead ping (one-shot Tier-1 key; still capped by the daily ceiling)
-            push_policy.push_critical("pilot_request", "INFO", title, body)
-        else:
-            # retail/individual signal → folds into the one daily digest (unchanged behaviour)
-            push_policy.enqueue_digest("pilot_request", title, body,
-                                       severity="INFO", reason="pilot_lead")
+            # instant per-lead ping (one-shot Tier-1 key; still capped by the daily ceiling).
+            # ЧЕСТНЫЙ ВОЗВРАТ (решение владельца 2026-08-22, карточка про канал заявок): раньше
+            # здесь стояло безусловное ``return True`` — API рапортовал сайту «уведомил» даже
+            # когда ``push_critical`` вернул False (пустая связка ключей, сеть, дневной потолок).
+            # Ровно тот класс, который мы закрываем каждый цикл: зелёный ответ на СВОЙ вопрос
+            # («я позвал отправителя») читался как ответ на нужный («владелец узнал»).
+            return bool(push_policy.push_critical("pilot_request", "INFO", title, body))
+        # retail/individual signal → folds into the one daily digest (unchanged behaviour).
+        # Дайджест — тоже маршрут к владельцу, поэтому True; ``enqueue_digest`` ничего не
+        # возвращает и провал очереди отсюда неизмерим — эту границу знает сторож
+        # ``spa_core/monitoring/lead_channel_watch.py``, а не эта строка.
+        push_policy.enqueue_digest("pilot_request", title, body,
+                                   severity="INFO", reason="pilot_lead")
         return True
     except Exception:  # noqa: BLE001 — notify is best-effort
         return False
@@ -270,6 +277,30 @@ def pilot_requests_count() -> dict:
         pass
     return {"total_requests": total, "requests_today": today, "requests_7d": last_7d,
             "by_source": by_source, "by_tier": by_tier,
+            "notify_channel": _notify_channel_status(),
             "note": "count only (incl. by-source/by-tier opaque breakdowns) — full contact requests are "
                     "delivered to the owner via Telegram + data/pilot_requests.jsonl; never exposed on the "
                     "unauthenticated admin surface."}
+
+
+def _notify_channel_status() -> dict:
+    """Состояние канала «заявка → владелец», БЕЗ единого секрета наружу.
+
+    Почему поле появилось. 22.08 владельцу ушёл вопрос «открой
+    ``/api/pilot/requests/count`` и посмотри поле ``notify_channel``» — а такого поля в коде
+    не было НИ РАЗУ. Ответ пришёл («вариант 1: configured: true»), но доказательством он не
+    является: прочитать было нечего. Теперь поле есть, и оно измеряется сторожем
+    ``lead_channel_watch``, а не объявляется константой.
+
+    Наружу отдаются только вердикт, причина и имена ПРОБ — никогда значение токена
+    (инвариант #7). ``configured`` булев ровно для того вопроса, который задавали владельцу.
+    """
+    try:
+        from spa_core.monitoring import lead_channel_watch as LCW
+        verdict = LCW.check()
+        return {"configured": verdict.status == LCW.OK, "status": verdict.status,
+                "detail": verdict.summary(),
+                "probes": {p.name: p.status for p in verdict.probes}}
+    except Exception as exc:  # noqa: BLE001 — админ-счётчик не имеет права падать из-за пробы
+        return {"configured": False, "status": "UNCHECKED",
+                "detail": f"проба канала сорвалась: {exc!r}", "probes": {}}

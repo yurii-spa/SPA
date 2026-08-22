@@ -311,6 +311,48 @@ def _send(text: str) -> bool:
         return False
 
 
+def credentials_status() -> dict:
+    """Достаются ли креды ТЕМ ЖЕ кодом, которым этот модуль отправляет — БЕЗ отправки.
+
+    Зачем это здесь, а не у спрашивающего. Вопрос «дойдёт ли сообщение до владельца»
+    задают сторожа (например `spa_core/monitoring/lead_channel_watch.py`), но тянуться за
+    ответом к транспорту они не имеют права: инвариант «одна дверь в чат владельца»
+    закреплён `test_no_rogue_telegram_senders`, и он НАМЕРЕННО шире своего предмета —
+    запрещает сам импорт транспорта, а не только вызов отправки. Сторож, обошедший этот
+    запрет ради «я же только читаю», открыл бы дверь следующему, кто «только читает».
+
+    Поэтому спрашивают АВТОРИТЕТ, а он отвечает своим же кодом. Копии логики нет: имена
+    служб и читатели берутся из транспорта, а не переписываются здесь — иначе сторож
+    остался бы зелёным ровно в ту аварию, ради которой написан.
+
+    Возвращает ``{"ok": bool|None, "missing": [имена служб], "error": repr|None}``.
+    ``ok is None`` — НЕ ИЗМЕРЕНО (транспорт не импортируется, проба сорвалась): это не
+    «всё хорошо» и не «сломано». Значение секрета не возвращается никогда (инв. #7).
+    Ничего не отправляет и никогда не бросает.
+    """
+    try:
+        from spa_core.alerts.telegram_client import (
+            CHAT_ID_SERVICE,
+            TOKEN_SERVICE,
+            get_bot_token,
+            get_chat_id,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": None, "missing": [], "error": repr(exc)}
+    missing: list[str] = []
+    for label, reader in ((TOKEN_SERVICE, get_bot_token), (CHAT_ID_SERVICE, get_chat_id)):
+        try:
+            value = reader()
+        except EnvironmentError:
+            missing.append(label)
+            continue
+        except Exception as exc:  # noqa: BLE001 — незнакомая поломка ≠ отсутствие ключа
+            return {"ok": None, "missing": [], "error": repr(exc)}
+        if not str(value or "").strip():
+            missing.append(label)
+    return {"ok": not missing, "missing": missing, "error": None}
+
+
 def _humanize(title: str, body: str) -> tuple[str, str]:
     """Перевести заголовок/тело алерта на простой русский (owner-задание 2026-07-20/27).
 

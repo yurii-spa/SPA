@@ -2,10 +2,17 @@
 trackerStatus:
   type: owner-decision
 title: "Maple 15% книги: дефолт приходит без предупреждения — что делаем с кредитным каналом"
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-22
 origin: protection-lab H13, ADR-120
+owner_choice: 3
+owner_answered_at: 2026-08-22T13:58:52.496014+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
+owner_answer_kind: option
+claimed_by: cycle-663
+claimed_at: 2026-08-22T14:59:03Z
 ---
 
 ## Что случилось и почему это важно
@@ -33,3 +40,11 @@ Protection Lab прогнал книгу через дефолт Orthogonal в M
 ## Что будет после
 По твоему выбору: ADR + реализация (сторож — advisory, доли — через обычный цикл;
 пороги RiskPolicy v1.0 не трогаются, изменение целевых весов — не изменение политики).
+
+---
+
+## Решение владельца
+
+**Вариант 3** — Принять риск осознанно
+
+_Ответ владельца получен 2026-08-22T13:58:52.496014+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._

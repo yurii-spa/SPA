@@ -1412,7 +1412,41 @@ class SystemHealthMonitor:
     # ======================================================================
     def check_d7_hygiene(self) -> list[CheckResult]:
         D = "d7_hygiene"
-        return [self._check_kanban(D), self._check_logs(D), self._check_clutter(D)]
+        return [self._check_kanban(D), self._check_logs(D), self._check_clutter(D),
+                self._check_lead_channel(D)]
+
+    def _check_lead_channel(self, D: str) -> CheckResult:
+        """Дойдёт ли до владельца заявка, оставленная на сайте прямо сейчас.
+
+        Решение владельца 2026-08-22 (вариант 1: «канал настроен — поставь сторожа, который
+        закричит, если он ОТВАЛИТСЯ потом»). Измерение живое, а не чтение артефакта: у файла
+        статуса был бы свой класс протухания, и «сторож молчит» стало бы неотличимо от
+        «сторож давно не запускался».
+
+        Тяжесть берётся ИЗ ПРОБЫ (`lead_channel_watch.PROBE_SEVERITY`), а не назначается
+        здесь: пустая связка ключей — внешняя тихая авария (CRITICAL), сломанная нами же
+        проводка — наша доставка и владельца не зовёт (WARNING, прецедент ADR-084).
+        «Не измерено» (нет `security`, чужая среда) ⇒ SKIPPED с названной причиной, а не OK.
+        """
+        try:
+            from spa_core.monitoring import lead_channel_watch as LCW
+            verdict = LCW.check()
+        except Exception as exc:           # noqa: BLE001
+            return CheckResult("d7.lead_channel", D, SKIPPED, "сторож канала заявок не запустился",
+                               skipped_reason=repr(exc), error=repr(exc))
+        evidence = {"probes": [p.to_dict() for p in verdict.probes]}
+        if verdict.status == LCW.BROKEN:
+            status = CRITICAL if verdict.severity == "CRITICAL" else WARNING
+            return CheckResult("d7.lead_channel", D, status,
+                               f"канал заявок с сайта сломан: {verdict.summary()}",
+                               value=verdict.status, expected=LCW.OK, evidence=evidence)
+        if verdict.status == LCW.UNCHECKED:
+            return CheckResult("d7.lead_channel", D, SKIPPED,
+                               f"канал заявок НЕ измерен: {verdict.summary()}",
+                               value=verdict.status, evidence=evidence,
+                               skipped_reason=verdict.summary())
+        return CheckResult("d7.lead_channel", D, OK, verdict.summary(),
+                           value=verdict.status, evidence=evidence)
 
     def _check_kanban(self, D: str) -> CheckResult:
         path = self.project_root / "KANBAN.json"

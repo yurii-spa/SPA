@@ -2,10 +2,17 @@
 trackerStatus:
   type: owner-decision
 title: "Кэш системы — тот же USDC: замер показал, что наивная корзина кэша не лечит, а вредит"
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-22
 origin: protection-lab H08 + cash_mix measurement
+owner_choice: 3
+owner_answered_at: 2026-08-22T13:58:14.926221+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
+owner_answer_kind: option
+claimed_by: cycle-663
+claimed_at: 2026-08-22T14:59:02Z
 ---
 
 ## Что случилось и почему это важно
@@ -41,3 +48,11 @@ Protection Lab показал: при депеге USDC (SVB-2023, единст�
 исследовательская карточка с замером номинаций.
 Замер воспроизводим: spa_core/stress/protection_lab, run_replay(cash_mix=...), тесты
 CashMixMechanics закрепляют механику направлением.
+
+---
+
+## Решение владельца
+
+**Вариант 3** — Исследовать смену номинации ПОЗИЦИЙ
+
+_Ответ владельца получен 2026-08-22T13:58:14.926221+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._
