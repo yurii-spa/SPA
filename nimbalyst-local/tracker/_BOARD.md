@@ -2,13 +2,12 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **583** · ждёт владельца: **5** · занято сессиями: **6**.
+> Всего карточек: **585** · ждёт владельца: **4** · занято сессиями: **6**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Судьба чекапа — воронка ведёт в никуда, а канал заявок молчит, если Телеграм не настроен** · _high_  ·  `own-2026-08-19-sudba-voronki-chekapa-i-kanal-zayavok.md`
 - **Добавить одну строку в настройку агента — иначе не узнаем, кто гоняет цикл 52 раза в сутки**  ·  `own-33-plist-marker-for-cycle-origin.md`
-- **BTC-движок не помещается под наш стоп-кран — выбери, как быть: отдельный NAV, маленькая доля или только research** · _high_  ·  `own-btc-dvizhok-ne-vlezaet-pod-stop-kran.md`
 - **Решение ADR-104 записано, но до машины не доехало: CIO обязан смотреть раз в 5 минут, а смотрит раз в сутки**  ·  `owner-decision-reshenie-adr-104-zapisano-no-do-mashiny.md`
 - **Твой ответ «Ответ 1» сегодня не применился — теперь можно отвечать прямо на сообщение с вопросом**  ·  `owner-decision-tvoi-otvet-otvet-1-segodnya-ne-primenils.md`
 
@@ -28,7 +27,6 @@
 ### · needs-owner
 - Судьба чекапа — воронка ведёт в никуда, а канал заявок молчит, если Телеграм не настроен  ·  `own-2026-08-19-sudba-voronki-chekapa-i-kanal-zayavok.md` · 2026-08-19
 - Добавить одну строку в настройку агента — иначе не узнаем, кто гоняет цикл 52 раза в сутки  ·  `own-33-plist-marker-for-cycle-origin.md` · 2026-08-10
-- BTC-движок не помещается под наш стоп-кран — выбери, как быть: отдельный NAV, маленькая доля или только research  ·  `own-btc-dvizhok-ne-vlezaet-pod-stop-kran.md` · 2026-08-20
 - Решение ADR-104 записано, но до машины не доехало: CIO обязан смотреть раз в 5 минут, а смотрит раз в сутки  ·  `owner-decision-reshenie-adr-104-zapisano-no-do-mashiny.md` · 2026-08-21
 - Твой ответ «Ответ 1» сегодня не применился — теперь можно отвечать прямо на сообщение с вопросом  ·  `owner-decision-tvoi-otvet-otvet-1-segodnya-ne-primenils.md` · 2026-08-20
 ### · blocked
@@ -66,6 +64,7 @@
 - Часть книг исследовательской панели не отвечает за свои числа — и все наши замеры про это молчали  ·  `own-54-mertvye-knigi-issledovatelskoy-paneli.md` · 2026-08-15
 - Автопочинщик кода остался без вызывающих: убрать совсем или оставить лежать  ·  `own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih.md` · 2026-08-17
 - Вторая задача из твоего сообщения (волатильный ETH-пул с доходностью «79%») — сам её не беру, нужно твоё решение  ·  `own-aud19-volatile-clmm-vvodim-li-klass.md` · 2026-08-05
+- BTC-движок не помещается под наш стоп-кран — выбери, как быть: отдельный NAV, маленькая доля или только research  ·  `own-btc-dvizhok-ne-vlezaet-pod-stop-kran.md` · 2026-08-20
 - Нажми, чтобы на сайте появилась строка «идёт paper-тест» по Balanced и Aggressive  ·  `own-cio-i-paper-cifry-tri-mandata-vladeltsa.md` · 2026-08-21
 - МАНДАТ АВТОНОМИИ ВОЗОБНОВЛЁН на 30 дней (решение владельца 2026-08-20, cloud-сессия) — вернуться к темпу ADR-078  ·  `own-mandat-avtonomii-vozobnovlen-30-dnei.md` · 2026-08-20
 - Нашлось правило, которое впервые даёт И доход выше, И просадку меньше — строить ли под него paper-модуль  ·  `own-rnd-cdr-demotion-readmission-paper-module.md` · 2026-08-06
@@ -162,7 +161,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (274)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (276)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -410,6 +409,8 @@
 - Модуль bot_commands заменён, но жив: свой getUpdates-поллер и свои двери в чат  ·  `inbox-modul-bot-commands-zamenen-no-zhiv-svoi.md` · 2026-08-13
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
 - Находка петли: аналитик red_team: CRITICAL — требует реакции (карточка/решение), не п  ·  `inbox-nahodka-petli-analitik-red-team-critical.md` · 2026-08-10
+- Находка петли: data/investment_os/chief_investment.json: возраст 19.1ч > SLO 1ч (клас  ·  `inbox-nahodka-petli-data-investment-os-chief-i.md` · 2026-08-22
+- Находка петли: манифест ↔ факты: com.spa.io_chief_investment: schedule 'interval:300s  ·  `inbox-nahodka-petli-manifest-fakty-com-spa-io.md` · 2026-08-22
 - Находка петли: возможность aave_v3 4.0307% (evidence L4) доступна книге, не держится  ·  `inbox-nahodka-petli-vozmozhnost-aave-v3-4-0307.md` · 2026-08-21
 - Окно до 6 часов: ответ владельца между нажатием кнопки и прогоном моста живёт в одном экземпляре  ·  `inbox-okno-do-6-chasov-otvet-vladeltsa-mezhdu.md` · 2026-08-15
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08
