@@ -37,4 +37,7 @@ created: 2026-07-16
   прецеденту site_freshness; smoke: модуль честно отвечает NO_DATA без панели).
   Осталась активация владельцем: `launchctl bootstrap` через гейт инв. #12,
   затем intent → active тем же шагом (написано в notes манифеста).
-- monthly_statement (выписки гниют с июня) — ещё не подключён.
+- monthly_statement — **ПОДКЛЮЧЁН кодом 2026-08-22** (PR #19: обёртка
+  `agent_monthly_statement.sh` + plist 1-го числа 08:30 + манифест intent=designed).
+  Осталась активация владельцем тем же `launchctl bootstrap`-шагом, что и
+  rank_demotion (≤3 агентов за раз, инв. #12).
