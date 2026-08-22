@@ -1322,6 +1322,36 @@
    }
   },
   {
+   "label": "com.spa.monthly_statement",
+   "plist_source": "repo:launchd/com.spa.monthly_statement.plist",
+   "reboot_safe": false,
+   "schedule": "calendar:08:30",
+   "program": "agent_monthly_statement.sh",
+   "layer": "product",
+   "role": "reporting",
+   "intent": "designed",
+   "produces": [
+    {
+     "artifact": "data/statements",
+     "slo_hours": 792
+    }
+   ],
+   "consumes": [
+    "data/equity_curve_daily.json"
+   ],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "complete",
+   "notes": "Аудит 21.08, вердикт WIRE: рабочий CLI, настоящие выписки в data/statements/ обрывались на июне — планировщика не было. Тик 1-го числа 08:30 (builder игнорирует Day в строке расписания — известное огрубление механики, поэтому calendar:08:30). intent=designed СОЗНАТЕЛЬНО (прецедент site_freshness): код+обёртка+plist доставлены, launchctl bootstrap — решение владельца (гейт инв. #12). ПРИ ЗАГРУЗКЕ intent → active тем же шагом. slo_hours 792 = 33 дня (месячный такт + буфер).",
+   "passport": {
+    "goal": "Месячная выписка комплаенса: opening/closing NAV, доходность периода в $ и %, годовая, микс стратегий, аттестация риск-событий — в data/statements/<YYYY-MM>.json.",
+    "quality_metric": "к 2-му числу месяца в data/statements/ лежит выписка за прошлый месяц",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
+    "rights": "писать data/statements",
+    "limits": "read-only по треку; капитал не двигает; LLM запрещён; execution не импортирует"
+   }
+  },
+  {
    "label": "com.spa.morning_digest",
    "plist_source": null,
    "reboot_safe": false,
