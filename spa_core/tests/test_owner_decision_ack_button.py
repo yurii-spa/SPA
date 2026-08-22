@@ -363,24 +363,55 @@ def test_unparsed_options_get_no_ack_buttons(env):
     assert "Варианты в карточке есть" in prep.text
 
 
-def test_a_lettered_choice_is_refused_even_though_the_narrow_check_passes(env):
-    """Дыра, найденную ЧУЖИМ тестом: «(а)/(б)» внутри «Решения 1».
+def test_a_lettered_choice_now_gets_its_own_buttons_and_never_an_ack(env):
+    """Дыра, найденная ЧУЖИМ тестом: «(а)/(б)» внутри «Решения 1».
 
-    Узкая проверка `has_unparsed_options` ищет строку, начинающуюся с «Вариант N»,
-    и такой карточки не видит. Замер по живой очереди 21.08: из пяти открытых
-    вопросов узкую проверку проходил ровно ОДИН — и это был он. То есть в
-    единственном случае, где подтверждение сработало бы, оно закрыло бы вопрос
-    «хоронить или воскрешать» кнопкой «Принято».
+    **Тест намеренно усилен циклом #349 (инв. #16, запись в `docs/journal/2026-W34.md`).**
+    Прежняя редакция требовала ``has_unparsed_options(CARD_LETTERED) is False`` как
+    «предусловие: узкая молчит» и ``prep.keyboard is None``. Оба утверждения
+    закрепляли слепоту разбора как свойство КАРТОЧКИ: варианты в ней написаны ровно
+    по §2.4 (буквы + рекомендация), просто форма разбору не была известна, и живой
+    `own-2026-08-19-sudba-voronki-chekapa-i-kanal-zayavok` (`high`) простоял из-за
+    этого неотвечаемым с 19.08 по 22.08. Ослабления нет: старое требование «кнопка
+    „Принято“ НЕ появляется» сохранено ДОСЛОВНО, а к нему добавлено более сильное —
+    владелец получает НАСТОЯЩИЕ варианты карточки, а не молчание.
     """
-    assert od.has_unparsed_options(CARD_LETTERED) is False, "предусловие: узкая молчит"
     assert od.looks_like_a_choice(CARD_LETTERED) is True
 
     card = _write(env, CARD_LETTERED, name="own-lettered")
     _commit(env)
     prep, _ = _push(env, card, CARD_LETTERED)
 
+    assert prep.ack is False, "подтверждение спрятало бы выбор — как и раньше"
+    assert [o.num for o in prep.options] == ["а", "б"]
+    labels = [b["text"] for row in prep.keyboard["inline_keyboard"] for b in row]
+    assert any("Похоронить" in t for t in labels), labels
+    assert any("Воскресить" in t for t in labels), labels
+    assert od.ACK_BUTTONS[od.ACK_ACCEPT] not in labels
+
+
+def test_the_same_letters_in_two_decisions_stay_buttonless_and_are_named_as_ours(env):
+    """Граница fail-CLOSED не сдвинута: ДВА решения в одной карточке — не выбор одного.
+
+    Метки повторяются («а»/«б» в каждом решении) ⇒ разбор отказывает целиком, иначе
+    нажатие закрыло бы карточку, похоронив второй вопрос. Отказ верен — и обязан
+    звучать как НАША неполадка, а не как «выбора не предлагали».
+    """
+    body = CARD_LETTERED + (
+        "\n**Решение 2 — канал заявок.** Варианты:\n"
+        "- **(а) Телеграм.** Заявки идут в чат.\n"
+        "- **(б) Почта.** Заявки идут письмом.\n"
+    )
+    assert od.parse_options(body) == []
+    assert od.has_unparsed_options(body) is True
+
+    card = _write(env, body, name="own-two-decisions")
+    _commit(env)
+    prep, _ = _push(env, card, body)
+
     assert prep.ack is False
     assert prep.keyboard is None
+    assert "Варианты в карточке есть" in prep.text
 
 
 def test_the_five_cards_of_2026_08_08_would_get_buttons(env):
