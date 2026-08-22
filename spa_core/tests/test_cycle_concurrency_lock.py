@@ -56,6 +56,12 @@ class TestLockPrimitive(unittest.TestCase):
         with TemporaryDirectory() as t:
             d = Path(t)
             path = d / CR.CYCLE_LOCK_FILE
+            # 999999 > PID_MAX (macOS 99998, Linux ≤ 4194304 и по умолчанию 32768):
+            # номер НЕДОСТИЖИМ по построению, а не «свободен по удаче» — поэтому
+            # `_ps_start` о нём отвечает «не измерено», и замок снимается по
+            # возрасту, что и есть предмет этого теста. Причина названа циклом
+            # #343: литеральный pid без названной причины — бомба замедленного
+            # действия (22.08 номер 98535 из соседней фикстуры ожил).
             path.write_text(json.dumps({"pid": 999999, "ts": "старый"}), encoding="utf-8")
             old = time.time() - (CR.CYCLE_LOCK_STALE_SECONDS + 60)
             os.utime(path, (old, old))

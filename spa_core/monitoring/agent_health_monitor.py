@@ -860,6 +860,7 @@ def _load_json(data_dir: Path, *names: str) -> Optional[dict]:
 def check_system(data_dir: Path, now: datetime,
                  autopush_log: str = _AUTOPUSH_LOG,
                  code_freshness: Optional[Callable[[], dict]] = None,
+                 pid_alive: Optional[Callable[[int], Optional[bool]]] = None,
                  ) -> Tuple[dict, str, List[str]]:
     """Run system-state checks. Returns (system_checks, status, issue_lines)."""
     checks: dict = {
@@ -1172,7 +1173,18 @@ def check_system(data_dir: Path, now: datetime,
     # CRITICAL здесь безопасен: потребителей `system_issues` у kill-switch /
     # threat_reactor нет (проверено grep'ом), self_heal читает из этого модуля
     # только общие помощники, а не вердикт — эскалация отчётности, капитал не двигает.
-    lock_verdict = check_cycle_lock(data_dir, now)
+    # ЖИВОСТЬ ДЕРЖАТЕЛЯ — ВХОД, А НЕ ОКРУЖЕНИЕ (цикл #343). `check_cycle_lock`
+    # принимал `pid_alive=` с рождения, а эта проводка — нет, и потому её
+    # проверка спрашивала НАСТОЯЩУЮ ОС. Литеральный pid в фикстуре означает
+    # «мёртв» ровно до того дня, когда счётчик процессов дойдёт до этого номера:
+    # 22.08 pid 98535 из дословного слепка аварии 08.08 оказался занят живым
+    # `siriactionsd`, сторож честно ответил `held_alive`, и проверка проводки
+    # покраснела на СОСТОЯНИИ ХОСТА при неизменном коде (тот же sha прошёл в
+    # 08:34 и упал в 10:00). Приём тот же, что уже применён к часам (`now=`) и к
+    # бюджету свежести (#342): вход по умолчанию `None` = спрашивать ОС, как и
+    # прежде, — в проде поведение не меняется ни на шаг.
+    lock_verdict = (check_cycle_lock(data_dir, now) if pid_alive is None
+                    else check_cycle_lock(data_dir, now, pid_alive=pid_alive))
     checks["cycle_lock_state"] = lock_verdict.state
     checks["cycle_lock_refusals"] = lock_verdict.refusals_since_lock
     if lock_verdict.issue:
