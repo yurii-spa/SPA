@@ -1,6 +1,6 @@
 # Реестр зрелости SPA — спроектировано / построено / заглушка
 
-> **Генерируется** `scripts/build_maturity_register.py` · замер от **2026-08-21 05:39 UTC**.
+> **Генерируется** `scripts/build_maturity_register.py` · замер от **2026-08-22 07:35 UTC**.
 > Руками не править — правка уедет при следующем запуске. Менять надо таблицу `SUBJECTS` / `JUDGMENT` в генераторе.
 >
 > **Зачем.** Отличить работающее от нарисованного, не читая 415 файлов `docs/`.
@@ -37,17 +37,17 @@
 
 | Функция | L | ЗАМЕР: код | тесты | данных | живых агентов | упоминаний | `requires verification` | СУЖДЕНИЕ: эффект | вердикт (AI1 гл.06) |
 |---|---|---|---|---|---|---|---|---|---|
-| **Paper-трек и дневной цикл**<br/><sub>`01_project_overview.md` · `30_first_30_days_plan.md`</sub> | L5 | 70 | 29 | — | 4 | 159 | — | high | работает — не трогать |
-| **Стоп-кран (two-tier drawdown)**<br/><sub>`decisions/ADR-048-two-tier-kill-switch.md`</sub> | L5 | 7 | 13 | — | 3 | 87 | — | high | работает — не трогать |
+| **Paper-трек и дневной цикл**<br/><sub>`01_project_overview.md` · `30_first_30_days_plan.md`</sub> | L5 | 72 | 29 | — | 4 | 161 | — | high | работает — не трогать |
+| **Стоп-кран (two-tier drawdown)**<br/><sub>`decisions/ADR-048-two-tier-kill-switch.md`</sub> | L5 | 7 | 14 | — | 3 | 87 | — | high | работает — не трогать |
 | **Адаптеры протоколов и фиды**<br/><sub>`23_data_architecture.md`</sub> | L5 | 57 | 15 | — | 3 | 131 | 5 | high | работает |
 | **Мониторинг, тревоги, здоровье флота**<br/><sub>`18_monitoring_and_alerting.md`</sub> | L5 | 73 | 88 | — | 22 | 49 | — | high | работает |
-| **Телеграм — рабочее место владельца**<br/><sub>`decisions/ADR-069-alert-action-buttons.md`</sub> | L5 | 31 | 22 | — | 3 | 150 | — | high | работает |
-| **Продуктовый слой AAA (аналитики Investment OS)**<br/><sub>`08_ai_investment_os_architecture.md` · `10_agent_architecture.md`</sub> | L5 | 16 | 6 | — | 12 | 28 | 1 | high | частично АКТИВИРОВАН: io_* работают, остальное owner-gated (ADR-004) |
+| **Телеграм — рабочее место владельца**<br/><sub>`decisions/ADR-069-alert-action-buttons.md`</sub> | L5 | 32 | 23 | — | 3 | 152 | — | high | работает |
+| **Продуктовый слой AAA (аналитики Investment OS)**<br/><sub>`08_ai_investment_os_architecture.md` · `10_agent_architecture.md`</sub> | L5 | 17 | 6 | — | 12 | 34 | 1 | high | частично АКТИВИРОВАН: io_* работают, остальное owner-gated (ADR-004) |
 | **Сайт earn-defi.com и дашборд**<br/><sub>`26_dashboard_specification.md`</sub> | L5 | 202 | 24 | — | 3 | 4 | — | mid | работает — owner-gated на числа |
 | **API-сервер**<br/><sub>`25_api_specification.md`</sub> | L5 | 35 | 14 | — | 1 | 42 | 1 | mid | работает |
-| **Strategy Lab и дески (advisory)**<br/><sub>`07_yield_lab_architecture.md` · `38_stablecoin_yield_engine.md`</sub> | L5 | 123 | 39 | — | 10 | 270 | 7 | mid | работает, advisory — капитал не двигает |
+| **Strategy Lab и дески (advisory)**<br/><sub>`07_yield_lab_architecture.md` · `38_stablecoin_yield_engine.md`</sub> | L5 | 122 | 40 | — | 11 | 272 | 7 | mid | работает, advisory — капитал не двигает |
 | **Методология отчётности о доходности**<br/><sub>`41_performance_reporting_methodology.md`</sub> | L5 | 25 | 25 | — | 4 | 4 | 2 | mid | частично построено |
-| **RiskPolicy v1.0 — детерминированный гейт**<br/><sub>`06_spa_core_invariants.md`</sub> | L4 | 24 | 25 | — | 0 | 330 | — | high | работает — заморожен на v1.0 до go-live |
+| **RiskPolicy v1.0 — детерминированный гейт**<br/><sub>`06_spa_core_invariants.md`</sub> | L4 | 24 | 25 | — | 0 | 335 | — | high | работает — заморожен на v1.0 до go-live |
 | **Экономика цеха и паспорта агентов (AI1)**<br/><sub>—</sub> | L4 | 3 | 2 | — | 0 | 4 | — | mid | работает; паспортов полных 18 из 89 — остальное курация produces, карточка заведена |
 | **Карточные системы: стратегии / протоколы / стейблы**<br/><sub>`11_strategy_card_system.md` · `12_protocol_card_system.md` · `13_stablecoin_card_system.md`</sub> | L4 | 1 | 1 | 29 | 0 | 1 | 5 | mid | валидатор есть, карточки есть (git-tracked); автоматического производителя нет |
 | **Compliance surface**<br/><sub>`22_compliance_surface.md`</sub> | L3 | 3 | 0 | — | 0 | 34 | — | low | частично построено |
