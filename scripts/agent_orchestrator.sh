@@ -94,6 +94,23 @@ release_lock() {
 }
 trap release_lock EXIT
 
+# ── ПЕРВАЯ ДОСТАВКА ВОПРОСОВ ВЛАДЕЛЬЦУ (цикл #345) ──────────────────────────
+# Вопрос, попавший на origin НЕ через живую сессию (merge ветки / PR / другая машина),
+# до владельца не доезжал ничем: отправитель умеет обе стороны очереди с #330, но у него
+# НЕТ вызывающего — `resend-open` был только подкомандой CLI. Замер 22.08: три `needs-owner`
+# на origin, все `delivered: false`, два из них настоящие (Protection Lab, PR #30).
+# Здесь именно ПЕРВАЯ отправка: `owner_requested` не ставится, дедуп/анти-шторм/лимит потока
+# стоят все; потолок за прогон, остаток называется поимённо. Пересылка по просьбе владельца
+# (`resend-open`) — по-прежнему только руками.
+# Подоболочка и `|| true`: доставка не смеет ронять цикл (урок #221 — секция, способная
+# уронить обёртку, гасит агента молча). Скрипта нет (прод отстал от origin) => говорим вслух.
+if [ -f "$REPO_ROOT/scripts/orchestrator_queue.py" ]; then
+    DELIVER_OUT="$( ( "$PYTHON" "$REPO_ROOT/scripts/orchestrator_queue.py" deliver-new ) 2>&1 || true )"
+    echo "[$(ts)] deliver-new: ${DELIVER_OUT:-(нет вывода)}" >> "$LOG"
+else
+    echo "[$(ts)] deliver-new: ⚠️ нет $REPO_ROOT/scripts/orchestrator_queue.py — первая доставка вопросов владельцу НЕ выполнялась" >> "$LOG"
+fi
+
 # ── ARMED: run one headless GOVERNED-AUTONOMY cycle ─────────────────────────
 PROMPT="Ты — оркестратор SPA под НОВЫМ протоколом «управляемая автономия» (owner-approved 2026-07-15). \
 Исполни ПОЛНОСТЬЮ docs/ORCHESTRATOR_PROTOCOL.md за один цикл, включая раздел «Автономный рабочий мандат»: \

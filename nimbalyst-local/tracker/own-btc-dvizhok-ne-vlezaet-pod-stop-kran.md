@@ -7,6 +7,10 @@ source: разбор бэктеста из архива владельца (20.0
 created: 2026-08-20
 priority: high
 related: docs/decisions/ADR-102-btc-cycle-backtest-archived-not-built.md, research/btc_cycle/README.md
+owner_choice: 1
+owner_answered_at: 2026-08-22T09:15:14.641741+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно

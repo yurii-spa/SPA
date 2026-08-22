@@ -662,6 +662,38 @@ def cmd_resend_open(args) -> int:
     return 0 if report.ok or report.dry_run else 1
 
 
+def cmd_deliver_new(args) -> int:
+    """Доставить владельцу вопросы, которых он НЕ ВИДЕЛ НИ РАЗУ (первая отправка).
+
+    Отличие от `resend-open` — не в объёме, а в правах: пересылка идёт по ПРОСЬБЕ
+    владельца и снимает дедуп с анти-штормом всему набору; первая доставка идёт по нашей
+    инициативе и обязана идти при ВСЕХ включённых заслонах. Смешать их значило бы завести
+    второй, неподотчётный путь повторов (жалобы владельца #215/#217/#228, ADR-084).
+
+    Код возврата — единственный канал недоставки для вызывающего (ADR-084): 0 — всё
+    попытанное доехало (или сухой прогон) И очередь сверена с `origin/main`; 1 — что-то
+    не доехало ИЛИ очередь сверить не удалось. Несверённая очередь роняет код и в сухом
+    прогоне: «новых вопросов нет» и «новых вопросов не видно» снаружи одинаковы, а стоила
+    эта неразличимость восьми невидимых вопросов владельцу (#330).
+    """
+    from spa_core.owner_queue.first_delivery import (FIRST_DELIVERY_PER_RUN,
+                                                     deliver_new_questions,
+                                                     summary_line)
+
+    limit = FIRST_DELIVERY_PER_RUN if args.limit is None else args.limit
+    report = deliver_new_questions(dry_run=args.check,
+                                   tracker_dir=args.tracker_dir,
+                                   limit=limit)
+    print(summary_line(report))
+    for o in report.outcomes:
+        mark = "✅" if o.delivered else ("·" if report.dry_run else "❌")
+        extra = "" if o.delivered or report.dry_run else f" — {o.reason}"
+        print(f"  {mark} {o.card_id} — {o.title}{extra}")
+    if not report.queue_measured:
+        return 1
+    return 0 if report.ok or report.dry_run else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Разбор аргументов отдельно от запуска: тесты обязаны звать РЕАЛЬНЫЙ путь команды
     (парсер + `cmd_*`), а не собирать args вручную мимо умолчаний парсера."""
@@ -723,6 +755,19 @@ def build_parser() -> argparse.ArgumentParser:
     pr.add_argument("--tracker-dir", default=None,
                     help="каталог трекера (по умолчанию — трекер дерева этой копии скрипта)")
     pr.set_defaults(func=cmd_resend_open)
+
+    pd = sub.add_parser("deliver-new",
+                        help="доставить владельцу вопросы, которых он НЕ ВИДЕЛ НИ РАЗУ")
+    pd.add_argument("--check", action="store_true",
+                    help="показать, что уедет, и НЕ отправлять")
+    # Умолчание НЕ дублируется здесь числом: потолок живёт одной строкой в
+    # `first_delivery.FIRST_DELIVERY_PER_RUN`, а `None` означает «взять его оттуда».
+    pd.add_argument("--limit", type=int, default=None,
+                    help="не больше N первых отправок за прогон (умолчание — потолок "
+                         "модуля; остаток НАЗЫВАЕТСЯ, не усекается молча)")
+    pd.add_argument("--tracker-dir", default=None,
+                    help="каталог трекера (по умолчанию — трекер дерева этой копии скрипта)")
+    pd.set_defaults(func=cmd_deliver_new)
 
     return p
 
