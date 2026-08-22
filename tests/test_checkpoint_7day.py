@@ -420,7 +420,10 @@ class TestTelegramOnFail(SpaTestCase):
         with stub_notification_authority() as recorded:
             code = run_checkpoint(data_dir=self.data_dir)
 
-        self.assertEqual(code, 1)
+        # 2026-08-22 (карточка agent-checkpoint-7day-gate-conflict, вариант 1):
+        # exit code = работоспособность, НЕ вердикт. Отчёт построен ⇒ 0;
+        # сам провал держит следующая же проверка — тревога ОБЯЗАНА уйти.
+        self.assertEqual(code, 0, "построенный отчёт = exit 0; вердикт живёт в алерте")
         self.assertEqual(len(recorded), 1, f"ожидалась одна отправка, получено: {recorded}")
         kind, event_key, body = recorded[0]
         self.assertEqual(kind, "push")
@@ -463,7 +466,10 @@ class TestTelegramOnFail(SpaTestCase):
         with stub_notification_authority() as recorded:
             code = run_checkpoint(data_dir=self.data_dir, notify=False)
 
-        self.assertEqual(code, 1, "подавление канала не имеет права красить провал в pass")
+        # 2026-08-22 (вариант 1 той же карточки): exit code больше не вердикт,
+        # поэтому «не красить провал в pass» держится не кодом, а ОТЧЁТОМ —
+        # он по-прежнему обязан называть провал (проверка ниже).
+        self.assertEqual(code, 0, "построенный отчёт = exit 0 и при подавленном канале")
         self.assertEqual(recorded, [], "канал был тронут вопреки --no-telegram")
 
 
@@ -573,14 +579,39 @@ class TestExitCode(SpaTestCase):
 
         self.assertEqual(code, 0)
 
-    def test_exit_code_one_on_fail(self):
-        """Equity ниже floor ($80k) → exit code 1."""
+    def test_exit_code_zero_on_verdict_fail_but_alert_raised(self):
+        """2026-08-22, вариант 1 карточки agent-checkpoint-7day-gate-conflict:
+        красный ВЕРДИКТ (equity ниже floor) → exit 0, отчёт построен, тревога
+        поднята. Обратный контроль на «провал стал беззвучным» — тревога
+        обязана уйти push'ем."""
         self._prepare(equity=80_000.0)
 
-        with stub_notification_authority():
+        with stub_notification_authority() as recorded:
             code = run_checkpoint(data_dir=self.data_dir)
 
-        self.assertEqual(code, 1)
+        self.assertEqual(code, 0, "вердикт не имеет права жить в exit code")
+        self.assertEqual([k for k, _, _ in recorded], ["push"],
+                         "красный вердикт при exit 0 ОБЯЗАН уйти тревогой")
+
+    def test_exit_code_one_on_real_breakage(self):
+        """Настоящий сбой (проверка упала исключением, отчёта нет) → exit 1.
+        Единственный законный ненулевой код после развода кодов (вариант 1)."""
+        self._prepare(equity=100_500.0)
+        import scripts.checkpoint_7day as cp
+
+        def _boom(_):
+            raise RuntimeError("data unreadable")
+
+        orig = cp.check_gaps
+        cp.check_gaps = _boom
+        try:
+            with stub_notification_authority() as recorded:
+                code = run_checkpoint(data_dir=self.data_dir)
+        finally:
+            cp.check_gaps = orig
+
+        self.assertEqual(code, 1, "сломанные проверки обязаны давать ненулевой код")
+        self.assertEqual(recorded, [], "сбой построения не маскируется под вердикт-алерт")
 
     def test_overall_pass_helper_all_pass(self):
         """overall_pass с пустыми fail → True, []."""
