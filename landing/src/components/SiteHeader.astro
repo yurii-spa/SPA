@@ -23,23 +23,16 @@ import TIER_BANDS from '../lib/tier_bands.json';
 // their URLs still resolve and they remain reachable from the footer until the admin move.
 // A group is either a DIRECT link (`direct:true` + `href`, no dropdown) or a dropdown (`items`).
 const groups = [
-  {
-    // J2 (customer-journey-map): the flagship free tool was hidden behind a single `/#analyze` scroll
-    // anchor. Expose the real entries so a user can CHECK a wallet or SEE a sample without hunting.
-    // 2026-08-16: the two checkup.earn-defi.com entries were removed — that service is not deployed
-    // and every one of its routes answers 404, so both nav items were public dead ends. The group
-    // now points only at pages that exist on this domain.
-    id: 'checkup', en: 'Checkup', ru: 'Чекап',
-    items: [
-      // 2026-08-20 (owner decision 19.08, variant 1 — ADR-089 §5): the checkup sections came off the
-      // homepage, so two of the three entries here stopped resolving to anything. `/#sample-report`
-      // was the illustrative wallet report — that anchor no longer exists on the page, and an anchor
-      // that scrolls nowhere is the same untruth as a dead link, only quieter. `/#analyze` was the
-      // hero that used to hold the paste-an-address widget; it still scrolls, but "Start on this
-      // page" now starts nothing. What is left is the one entry that exists on this domain.
-      { href: '/snapshot', en: '60-second safety snapshot', ru: '60-секундный снимок безопасности', desc: 'Four questions — no wallet, no email', descRu: 'Четыре вопроса — без кошелька и email', track: 'nav_checkup_snapshot' },
-    ],
-  },
+  // 2026-08-22 (owner decision 22.08 — ADR-122, variant 1 "bury"): this used to be a dropdown group
+  // named after the DeFi Checkup. The product is closed: the whole checkup.earn-defi.com host answers
+  // 404 since mid-August, its homepage sections came off on 2026-08-20 (ADR-089 §5), and the owner has
+  // now closed the product itself. What survived the removals was ONE live item — /snapshot — inside a
+  // group still carrying the dead product's name, on every one of the 119 pages (the header is shared).
+  // A menu section named after a product that does not exist is the same untruth as a dead link, only
+  // quieter. It is now a direct link named after the page it actually opens.
+  // The `track` beacon keeps its old id ON PURPOSE: the visible name changed, the metric series must
+  // stay continuous — renaming it would silently split the funnel history at this commit.
+  { id: 'snapshot', en: 'Safety snapshot', ru: 'Снимок безопасности', direct: true, href: '/snapshot', track: 'nav_checkup_snapshot' },
   {
     id: 'strategy', en: 'Strategy Lab', ru: 'Strategy Lab',
     items: [
@@ -66,7 +59,10 @@ const groups = [
     items: [
       { href: '/research', en: 'Research notes', ru: 'Заметки исследований', desc: 'The public research arc', descRu: 'Публичная research-арка' },
       { href: '/protection-lab', en: 'Protection Lab', ru: 'Лаборатория защиты', desc: '16 crises replayed against the risk system', descRu: '16 кризисов через систему защиты', track: 'nav_protection_lab' },
-      { href: '/competitive-position', en: 'Checkup vs trackers', ru: 'Чекап vs трекеры', desc: 'A decision layer, not a tracker', descRu: 'Слой решений, а не трекер' },
+      // 2026-08-22 (ADR-122): was "Checkup vs trackers" / "Чекап vs трекеры" — named after the closed
+      // product, while the page it opens never mentioned the checkup at all. Renamed to the page's own
+      // h1 ("Competitive position — the white space, each claim shipped"); href and desc unchanged.
+      { href: '/competitive-position', en: 'Competitive position', ru: 'Конкурентная позиция', desc: 'A decision layer, not a tracker', descRu: 'Слой решений, а не трекер' },
       { href: '/methodology', en: 'Methodology', ru: 'Методология', desc: 'How the daily cycle works', descRu: 'Как работает дневной цикл' },
     ],
   },
@@ -92,6 +88,7 @@ const itemActive = (href) => (href === '/' ? path === '/' : path === href || pat
     <nav class="nav" aria-label="Primary">
       {groups.map((g) => (g.direct ? (
         <a class:list={['nav-trigger nav-link', { active: groupActive(g) }]} href={g.href} data-ru={g.ru}
+           data-track={g.track}
            aria-current={groupActive(g) ? 'page' : undefined}>{g.en}</a>
       ) : (
         <div class="nav-group" data-group>
@@ -141,7 +138,7 @@ const itemActive = (href) => (href === '/' ? path === '/' : path === href || pat
 
   <div class="mobile-panel" id="mobilePanel">
     {groups.map((g) => (g.direct ? (
-      <a class="m-link" href={g.href} aria-current={groupActive(g) ? 'page' : undefined} data-ru={g.ru}>{g.en}</a>
+      <a class="m-link" href={g.href} data-track={g.track} aria-current={groupActive(g) ? 'page' : undefined} data-ru={g.ru}>{g.en}</a>
     ) : (
       <details class="m-group" open={groupActive(g)}>
         <summary data-ru={g.ru}>{g.en}</summary>
