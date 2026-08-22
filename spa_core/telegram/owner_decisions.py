@@ -981,6 +981,149 @@ def _live_tracker_dir(override: Optional[str | Path] = None) -> Optional[Path]:
     return live_root(_REPO_ROOT) / "nimbalyst-local" / "tracker"
 
 
+# ── Живая копия карточки ОТСТАЛА от источника правды ─────────────────────────
+#
+# **Замер 21.08 (циклы #332/#333).** `own-33-plist-marker-for-cycle-origin` стоял перед
+# владельцем без кнопок с 20.08 и был отправлен ЧЕТЫРЕ раза — каждый раз честно без
+# кнопок. Причина не в разборе: варианты в карточке ЕСТЬ, но только на `origin/main`
+# (цикл #321 переписал вопрос перечнем «Вариант 1 / Вариант 2» в 19:53Z — через 52
+# минуты после отправки в 19:01Z). Бот шлёт из ПРОД-дерева, а каталог очереди туда не
+# возит никто (автосинк возит `spa_core/`·`scripts/`·`tests/`, #193), поэтому в живом
+# дереве до сих пор лежала версия прозой, где вариантов нет.
+#
+# **Почему это не лечилось уже написанным.** `materialize_card` копирует карточку в
+# живое дерево ТОЛЬКО когда её там нет: существующая может нести ответ владельца, и
+# затирать её запрещено (#178). `parse_options` отказывается видеть варианты там, где
+# их нет, — и отказ верен (ADR-075: выдумывать владельцу выбор запрещено). Оба правила
+# правы поодиночке, а вместе давали состояние БЕЗ ЛЕКАРСТВА: одно не даёт скопировать,
+# другое не даёт собрать кнопки. Циклом #332 причина стала измеряться и называться
+# (`buttonless_reason.CODE_STALE_VS_ORIGIN`) — видимой, но не вылеченной.
+#
+# **Что здесь решено, и это решение ИЗМЕРЯЕМОЕ, а не умолчание.** При расхождении живой
+# копии и ref побеждает ref — но только когда ДОКАЗАНО, что терять нечего. Все четыре
+# условия обязаны выполниться, любое «не измерено» ⇒ не трогаем (fail-CLOSED в сторону
+# сохранения живой копии, потому что цена ошибки здесь несимметрична: потерянный ответ
+# владельца невосстановим, а лишний цикл без кнопок — нет):
+#
+# 1. в живой копии НЕТ следа ответа владельца (`read_answer_fields` пуст);
+# 2. статус живой копии — `needs-owner` (вопрос всё ещё на владельце);
+# 3. на ref карточка есть, разбирается, статус тот же `needs-owner`, следа ответа нет;
+# 4. тело на ref строго богаче В ТОМ ИЗМЕРЕНИИ, которое лечим: там варианты
+#    разбираются, здесь — ни одного.
+#
+# Условие 4 нарочно узкое. «Тело на ref длиннее» или «ref новее по дате» открыли бы
+# перезапись живой копии в случаях, где терять как раз есть что, — а класс аварии,
+# который мы чиним, ровно один и опознаётся точно.
+#
+# Перед самой записью текст живой копии перечитывается и сверяется с прочитанным на
+# шаге 1: между проверкой и записью владелец мог нажать кнопку, и запись поверх его
+# ответа была бы ровно той аварией, от которой защищает запрет #178.
+
+#: Статус карточки, при котором вопрос всё ещё стоит перед владельцем.
+NEEDS_OWNER_STATUS = "needs-owner"
+
+REFRESH_DONE = "refreshed_from_ref"        # живая копия обновлена с ref
+REFRESH_NOT_STALE = "not_stale"            # ref не богаче — обновлять нечего
+REFRESH_OWNER_ANSWER = "owner_answer_present"   # есть след ответа — НЕ трогаем
+REFRESH_STATUS = "status_not_needs_owner"  # вопрос уже не на владельце
+REFRESH_ABSENT_ON_REF = "absent_on_ref"    # на ref карточки нет — сверять не с чем
+REFRESH_RACE = "changed_under_us"          # копия изменилась между проверкой и записью
+REFRESH_UNMEASURED = "unmeasured"          # сверка не выполнилась. НЕ «всё в порядке»
+
+
+def _refresh_verdict(code: str, detail: str, path: Path) -> dict:
+    return {"verdict": code, "detail": detail, "path": str(path),
+            "measured": code != REFRESH_UNMEASURED}
+
+
+def refresh_live_copy_from_ref(card_path: str | Path, *,
+                               ref: str = "origin/main") -> dict:
+    """Обновить копию карточки с ``ref`` — ТОЛЬКО когда доказано, что терять нечего.
+
+    Возвращает вердикт словарём (``verdict`` + ``detail``); **никогда не бросает** —
+    перенос не важнее самого уведомления, и упасть здесь значило бы потерять вопрос
+    владельцу целиком.
+
+    Полный разбор оснований — в комментарии над функцией. Коротко: пишем поверх живой
+    копии только если в ней нет ни следа ответа владельца, ни закрытого статуса, а на
+    ``ref`` лежит та же карточка в том же статусе, где варианты разбираются, а здесь —
+    ни одного.
+    """
+    from spa_core.owner_queue.owner_answer import read_answer_fields
+    from spa_core.owner_queue.queue import load_card_text
+
+    p = Path(card_path)
+    try:
+        local_text = p.read_text(encoding="utf-8")
+    except OSError as exc:
+        return _refresh_verdict(REFRESH_UNMEASURED,
+                                f"живая копия не прочитана: {exc}", p)
+    try:
+        if read_answer_fields(local_text):
+            return _refresh_verdict(
+                REFRESH_OWNER_ANSWER,
+                "в живой копии есть след ответа владельца — перезапись запрещена (#178)",
+                p)
+        local = load_card_text(local_text, p.name, path=p)
+    except Exception as exc:  # noqa: BLE001 — сторож не роняет отправку
+        return _refresh_verdict(REFRESH_UNMEASURED,
+                                f"живая копия не разобралась: {exc}", p)
+    if str(local.status or "").strip() != NEEDS_OWNER_STATUS:
+        return _refresh_verdict(
+            REFRESH_STATUS,
+            f"статус живой копии `{local.status}` — вопрос уже не на владельце", p)
+
+    try:
+        from spa_core.owner_queue.origin_view import card_sources
+
+        texts, sha = card_sources(p.parent, [p.stem], ref=ref)
+    except Exception as exc:  # noqa: BLE001 — включая Unmeasured
+        return _refresh_verdict(REFRESH_UNMEASURED,
+                                f"сверка с `{ref}` не выполнилась: {exc}", p)
+    raw = texts.get(p.stem)
+    short = (sha or "?")[:9]
+    if raw is None:
+        return _refresh_verdict(REFRESH_ABSENT_ON_REF,
+                                f"на `{ref}` ({short}) карточки нет — сверять не с чем", p)
+    try:
+        if read_answer_fields(raw):
+            return _refresh_verdict(
+                REFRESH_OWNER_ANSWER,
+                f"на `{ref}` ({short}) у карточки есть след ответа владельца — это "
+                f"перенос следа (`carry_owner_answer`), а не обновление вопроса", p)
+        remote = load_card_text(raw, p.name, path=p)
+    except Exception as exc:  # noqa: BLE001
+        return _refresh_verdict(REFRESH_UNMEASURED,
+                                f"карточка на `{ref}` ({short}) не разобралась: {exc}", p)
+    if str(remote.status or "").strip() != NEEDS_OWNER_STATUS:
+        return _refresh_verdict(
+            REFRESH_STATUS,
+            f"статус на `{ref}` ({short}) — `{remote.status}`, вопрос там уже закрыт", p)
+
+    remote_options = parse_options(remote.body or "")
+    if not remote_options or parse_options(local.body or ""):
+        return _refresh_verdict(
+            REFRESH_NOT_STALE,
+            f"на `{ref}` ({short}) вариантов {len(remote_options)}, в живой копии "
+            f"{len(parse_options(local.body or ''))} — ref не богаче, обновлять нечего", p)
+
+    # Перечитываем ПЕРЕД записью: между проверкой и записью владелец мог нажать кнопку.
+    try:
+        if p.read_text(encoding="utf-8") != local_text:
+            return _refresh_verdict(
+                REFRESH_RACE,
+                "живая копия изменилась между проверкой и записью — не трогаем", p)
+        atomic_save_text(raw, str(p))
+    except Exception as exc:  # noqa: BLE001
+        return _refresh_verdict(REFRESH_UNMEASURED,
+                                f"запись живой копии не выполнилась: {exc}", p)
+    nums = ", ".join(str(o.num) for o in remote_options)
+    return _refresh_verdict(
+        REFRESH_DONE,
+        f"живая копия обновлена с `{ref}` ({short}): вариантов было 0, стало "
+        f"{len(remote_options)} ({nums}); следа ответа владельца в ней не было", p)
+
+
 def materialize_card(card_path: Path,
                      *, live_root: Optional[str | Path] = None) -> Path:
     """Карточка в том дереве, где нажатие будет обработано. Никогда не бросает.
@@ -996,6 +1139,12 @@ def materialize_card(card_path: Path,
 
     Копируем ТОЛЬКО когда живой копии нет: существующая может нести ответ владельца
     (его оттуда забирает ``carry_owner_answer``, #178), и затирать её запрещено.
+
+    Существующая при этом может и ОТСТАВАТЬ от источника правды — тогда владельца
+    четвёртый раз спрашивают по копии без вариантов. Это лечит
+    :func:`refresh_live_copy_from_ref`, и лечит узко: пишет поверх только когда
+    доказано, что терять нечего. Запрет выше не ослаблен — он и есть первое из
+    четырёх условий там.
     """
     try:
         target_dir = _live_tracker_dir(live_root)
@@ -1005,6 +1154,7 @@ def materialize_card(card_path: Path,
         if card_path.resolve() == target.resolve():
             return card_path
         if target.is_file():
+            refresh_live_copy_from_ref(target)
             return target
         if not card_path.is_file():
             return card_path
