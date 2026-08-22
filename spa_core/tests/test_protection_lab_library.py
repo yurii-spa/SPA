@@ -24,7 +24,8 @@ _REPORTS = {sid: run_replay(sc) for sid, sc in _SCENARIOS.items() if sc.has_repl
 class LibraryIntegrity(unittest.TestCase):
     def test_library_size_and_validity(self):
         # load_all_scenarios fail-CLOSED: сам факт загрузки = все файлы валидны.
-        self.assertGreaterEqual(len(_SCENARIOS), 12)
+        # 12 канонических + 4 продвинутых аудитом полноты (H13-H16).
+        self.assertGreaterEqual(len(_SCENARIOS), 16)
 
     def test_canonical_twelve_present(self):
         for sid in [
@@ -34,6 +35,9 @@ class LibraryIntegrity(unittest.TestCase):
             "H07_ftx_november_2022", "H08_usdc_svb_depeg_2023",
             "H09_curve_vyper_july_2023", "H10_aug_2024_yen_carry",
             "H11_bybit_hack_feb_2025", "H12_oct_10_2025_cascade",
+            # продвинутые аудитом полноты — дыры каналов ИМЕННО нашей книги:
+            "H13_maple_orthogonal_dec_2022", "H14_stream_xusd_nov_2025",
+            "H15_euler_mar_2023", "H16_aave_capo_mar_2026",
         ]:
             self.assertIn(sid, _SCENARIOS)
 
@@ -80,6 +84,10 @@ class GoldenNumbers(unittest.TestCase):
     def test_h12_oct_10_2025(self):
         self._golden("H12_oct_10_2025_cascade", 99996.44, 99337.28, 2)
 
+    def test_h13_maple_orthogonal(self):
+        # Флагман кредитного канала: −80% пула M11 одним блоком, выход заперт локапами.
+        self._golden("H13_maple_orthogonal_dec_2022", 88390.03, 87706.22, 28)
+
 
 class HonestOutcomes(unittest.TestCase):
     """Нельстивые результаты закреплены НАПРАВЛЕНИЕМ, не только числом."""
@@ -101,10 +109,19 @@ class HonestOutcomes(unittest.TestCase):
         self.assertGreater(r.benchmark_loss_usd, 4000)
         self.assertTrue(any("не покрыт политикой" in f for f in r.findings))
 
+    def test_frozen_position_is_execution_failure_not_protection(self):
+        # H13: 17 попыток выйти из замороженного maple; H15: 28 из halt'нутого
+        # Euler-требования — «решение верное, исполнить нельзя» обязано быть видно.
+        for sid in ("H13_maple_orthogonal_dec_2022", "H15_euler_mar_2023"):
+            r = _REPORTS[sid]
+            self.assertTrue(r.protected.execution_failures, sid)
+            self.assertTrue(any("отказ исполнения" in f for f in r.findings), sid)
+
     def test_quiet_controls_stay_quiet(self):
         for sid in ("H04_may_2021_cascade", "H05_terra_ust_luna_2022",
                     "H09_curve_vyper_july_2023", "H10_aug_2024_yen_carry",
-                    "H11_bybit_hack_feb_2025"):
+                    "H11_bybit_hack_feb_2025", "H14_stream_xusd_nov_2025",
+                    "H16_aave_capo_mar_2026"):
             r = _REPORTS[sid]
             self.assertEqual(r.capital_saved_usd, 0.0,
                              f"{sid}: контрольный сценарий перестал быть тихим")

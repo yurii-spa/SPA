@@ -1,0 +1,379 @@
+{
+ "schema_version": 1,
+ "id": "H15_euler_mar_2023",
+ "name": "Euler Finance exploit and full recovery (Mar 13 – Apr 12, 2023)",
+ "event_class": [
+  "protocol_exploit",
+  "systemic_contagion"
+ ],
+ "window_utc": {
+  "start": "2023-03-13T08:50:23Z",
+  "trough": "2023-03-13T10:00:00Z",
+  "end": "2023-04-12T02:00:00Z",
+  "notes": "start = exploit contract deployment (block 16817996); trough = depositor mark-to-zero moment after six attack txs drained ~$197M and modules were disabled; end = redemptions opened to users at 02:00 UTC Apr 12. Attacker's final return was Apr 3-4 (the brief's 'Apr 4' endpoint); funds were frozen ~30 days, not ~3 weeks — the ~3 weeks figure matches the attacker-return window (Mar 13 to Apr 3)."
+ },
+ "speed": "Drain: ~20 minutes (six transactions starting 08:50:23 UTC, Mar 13). Freeze: same-day, protocol-wide. Negotiated recovery: 22 days to final return (Apr 3-4). Depositor access restored: 30 days (Apr 12, 02:00 UTC). Contagion propagation: same-day (integrator vaults paused within hours).",
+ "summary": "Euler Finance, 13.03.2023: flash-loan «donation»-атака (отсутствие health-check в donateToReserves) — $197M выкачано за ~20 минут из аудированного блю-чип lending-протокола; депозиты заморожены; заражение в Angle agEUR ($17.6M), Balancer bb-e ($11.9M), Idle/Yearn. УНИКАЛЬНЫЙ исход: под давлением атакующий вернул ВСЁ к 03-04.04, redemption 12.04 ~100% долларовой стоимости на момент эксплойта. Канонический тест учёта: mark-to-zero 13 марта против mark-to-recovery 12 апреля — паническая продажа замороженных требований на вторичке фиксировала −70%+, терпение вернуло всё. Книга SPA на 2026-08: aave_v3 40% / pendle (PT_USDC) 20% / maple 15% / morpho_steakhouse 15% / кэш USDC 10%.",
+ "timeline": [
+  {
+   "ts": "2023-03-13T08:50:23Z",
+   "event": "Attacker (gas-funded via Tornado Cash) deploys exploit contract at block 16817996. Six attack transactions follow over ~20 minutes: flash-loan (~$30M DAI from Aave in the DAI leg), deposit, 10x eToken mint-leverage loop, donateToReserves() call (added in eIP-14, July 2022, missing the health/liquidity check every other balance-changing function had) creates bad debt, then self-liquidation at soft-liquidation discount lets a second contract seize collateral at a profit.",
+   "observed": true,
+   "source_url": "https://slowmist.medium.com/slowmist-an-analysis-of-the-attack-on-euler-finance-5143abc0d5ad"
+  },
+  {
+   "ts": "2023-03-13T09:15:00Z",
+   "event": "~$196.9M drained (largest DeFi hack of 2023 to that point and largest-ever lending-protocol exploit at the time): ~$135.8M stETH/wstETH (rekt.news: ~86k ETH-derivatives, $134.6M), ~$33.85M USDC (~34M), ~$18.5M WBTC (849 WBTC), ~$8.75M DAI (~8.9M). Timestamp approximate (attack txs span ~08:56-09:15 UTC).",
+   "observed": true,
+   "source_url": "https://rekt.news/euler-rekt"
+  },
+  {
+   "ts": "2023-03-13T12:00:00Z",
+   "event": "Euler disables protocol: EToken module off at block 16818363, DToken at block 16818853 — all deposits/withdrawals frozen (these blocks later became the NAV snapshot basis). EUL token drops >45% intraday (from just above $6 pre-hack; reported multi-day low ~$2.07). Time approximate, date confirmed.",
+   "observed": true,
+   "source_url": "https://decrypt.co/123293/defi-lender-euler-finance-hit-flash-loan-attack"
+  },
+  {
+   "ts": "2023-03-13T18:00:00Z",
+   "event": "Contagion surfaces same day across 11 protocols (~$37.6M total): Angle ~$17.6M USDC stuck (agEUR undercollateralized; minting/redemption paused), Balancer bb-e-USD pool ~$11.9M (>65% of pool TVL; emergency subDAO pauses pool into recovery mode), Idle Finance ~$5.9M (Best Yield / Yield Tranches paused), Yearn ~$1.38M indirect via Angle/Idle strategies; also Yield Protocol, Inverse Finance, SwissBorg, Opyn, Mean Finance, Sense, Harvest. Time approximate.",
+   "observed": true,
+   "source_url": "https://www.tradingview.com/news/cointelegraph:7e5c89d52094b:0-euler-attack-causes-locked-tokens-losses-in-11-defi-protocols-including-balancer/"
+  },
+  {
+   "ts": "2023-03-14",
+   "event": "Euler sends on-chain ultimatum: return 90% within 24 hours (i.e., keep 10% ≈ $19.7M as bounty) or a $1M reward will be placed on information leading to the attacker's arrest.",
+   "observed": true,
+   "source_url": "https://decrypt.co/123656/euler-issues-on-chain-ultimatum-to-hacker-in-bid-to-recover-treasury"
+  },
+  {
+   "ts": "2023-03-16",
+   "event": "Deadline passes; Euler launches the $1M information bounty (the 'doxxing threat'). Attacker begins obfuscation: 1,000 ETH through Tornado Cash.",
+   "observed": true,
+   "source_url": "https://www.coinspeaker.com/euler-finance-hacker-1-million-bounty/"
+  },
+  {
+   "ts": "2023-03-17",
+   "event": "100 ETH of stolen funds sent to an address linked to the Lazarus/Ronin Bridge exploiter — raising (never-substantiated) North Korea attribution questions; widely read as misdirection.",
+   "observed": true,
+   "source_url": "https://cryptoslate.com/euler-finance-hacker-sent-100eth-to-ronin-bridge-exploiter/"
+  },
+  {
+   "ts": "2023-03-18",
+   "event": "First return: 3,000 ETH (~$5.4M) sent back to Euler's deployer address.",
+   "observed": true,
+   "source_url": "https://www.chainalysis.com/blog/euler-finance-flash-loan-attack/"
+  },
+  {
+   "ts": "2023-03-20",
+   "event": "Attacker signals capitulation on-chain: 'We want to make this easy on all those affected. No intention of keeping what is not ours. Setting up secure communication. Let us come to an agreement.' Private negotiations begin.",
+   "observed": true,
+   "source_url": "https://www.cryptopolitan.com/euler-finance-hacker-message-address-defi-platform/"
+  },
+  {
+   "ts": "2023-03-21",
+   "event": "Lazarus-attributed actors attempt to phish the Euler exploiter via an on-chain message with a malware link (hacker-vs-hacker sideshow, per Chainalysis/CoinDesk).",
+   "observed": true,
+   "source_url": "https://coindesk.com/business/2023/03/21/hacker-vs-hacker-north-koreans-attempt-to-phish-euler-exploiter-of-200m-in-crypto-experts-say/amp"
+  },
+  {
+   "ts": "2023-03-25",
+   "event": "Largest tranche returned: 51,000 ETH (~$89M). Between Mar 25-28 cumulative returns reach ~84,951 ETH ($147.8M) plus ~$29.9M DAI (Blockworks tally).",
+   "observed": true,
+   "source_url": "https://blockworks.com/news/euler-exploiter-returns-money"
+  },
+  {
+   "ts": "2023-03-27",
+   "event": "Further 7,737 ETH returned (Cointelegraph: 'over 58,000 ETH' cumulative for Mar 25+27).",
+   "observed": true,
+   "source_url": "https://cointelegraph.com/news/euler-finance-exploiter-returns-over-58-000-stolen-ether"
+  },
+  {
+   "ts": "2023-03-28",
+   "event": "On-chain apology signed 'Jacob': 'I don't think what I say will help me in any way but I still want to say it. I f***ed up... I am sorry' — accompanied by further ETH and DAI returns.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/tech/2023/03/28/hacker-behind-200m-euler-attack-apologizes-returns-millions-in-ether-dai-to-protocol"
+  },
+  {
+   "ts": "2023-04-03T22:55:00Z",
+   "event": "Final tranche: ~$31M in three transactions — 10,580 ETH (~$19M) + ~$12M DAI (reported '6:55 pm EST' Apr 3; UTC conversion approximate).",
+   "observed": true,
+   "source_url": "https://www.theblock.co/post/224705/euler-hacker-returns-funds"
+  },
+  {
+   "ts": "2023-04-04",
+   "event": "Euler announces all recoverable funds returned; $1M information bounty closed ('because the exploiter did the right thing'). Cumulative recovery: 95,556 ETH + ~43M DAI. ~1,100 ETH irrecoverable (Tornado Cash) + 100 ETH sent to the Ronin-linked address. No bounty was ultimately kept by the attacker.",
+   "observed": true,
+   "source_url": "https://cointelegraph.com/news/euler-labs-hacker-returns-all-of-the-recoverable-funds-timeline"
+  },
+  {
+   "ts": "2023-04-12T02:00:00Z",
+   "event": "Redemptions open under 'Plan for Redemption of Euler Funds V2': merkle-proof claims (EulerClaims contract) paying each depositor a pro-rata ETH/DAI/USDC basket against account NAV reconstructed at the module-disable blocks (16818363/16818853). Recovered assets worth ~$223M at claim-time prices vs ~$197M exploited — depositors made whole in exploit-time USD terms. Angle receives its share same day, restoring agEUR overcollateralization; Idle subsequently swaps its basket back to original underlyings and restores 100% to vault users.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/business/2023/04/12/euler-finance-lets-users-redeem-recovered-funds-following-200m-theft"
+  }
+ ],
+ "market_impact": {
+  "EUL": {
+   "from_usd": 6,
+   "to_usd": 2.07,
+   "drawdown_pct": -66,
+   "window": "2023-03-12 (pre-hack, 'just above $6') -> multi-day post-hack low; intraday Mar 13 drop reported as >45%; trough of ~$2.07 ('nearly 70%') reported over following days; partial recovery to ~$4.05 (+20% day-move) on Apr 3-4 full-return news — still ~35% below pre-hack"
+  },
+  "euler_protocol_deposits": {
+   "from_usd": 196900000,
+   "to_usd": 0,
+   "drawdown_pct": -100,
+   "window": "2023-03-13 ~09:15 UTC mark-to-zero for drained pools (DAI/wstETH/USDC/WBTC); restored to ~100% of exploit-time USD value at redemption 2023-04-12"
+  },
+  "ETH": null,
+  "BTC": null,
+  "euler_pre_hack_TVL": null,
+  "agEUR_peg": null
+ },
+ "stablecoins": [
+  "agEUR (Angle): became undercollateralized after ~$17.6M USDC of backing was caught in Euler; minting/redemption paused Mar 13; peg pressure until recovered funds received Apr 12, 2023 restored overcollateralization (depeg magnitude not verified from sources consulted — LlamaRisk covered the Curve-pool effect)",
+  "DAI: unaffected as an instrument — ~8.9M DAI stolen as an asset; no peg event; attacker actually returned ~43M DAI total (converted portions of loot into DAI)",
+  "USDC: unaffected as an instrument — ~34M stolen as an asset; no peg event (note: distinct from the USDC depeg of Mar 10-13, 2023 tied to SVB, which was resolving the same weekend and is a separate scenario)"
+ ],
+ "defi_impact": {
+  "tvl_and_freeze": "Entire Euler v1 protocol disabled on Mar 13 (EToken module at block 16818363, DToken at block 16818853); ALL deposits — including untouched ones — frozen ~30 days until claims opened Apr 12 02:00 UTC. The brief's '~3 weeks' matches the attacker-return window (Mar 13-Apr 3), not the freeze.",
+  "amount_exploited_usd": 196900000,
+  "per_asset_usd": {
+   "stETH_wstETH": 135800000,
+   "USDC": 33850000,
+   "WBTC": 18500000,
+   "DAI": 8750000
+  },
+  "per_asset_tokens": {
+   "WBTC": 849,
+   "DAI_millions": 8.9,
+   "USDC_millions": 34,
+   "ETH_derivatives_thousands": 86
+  },
+  "rank_at_time": "Largest DeFi hack of 2023 at the time and largest-ever hack of a DeFi lending protocol (BlockSec, Chainalysis, Bloomberg framing)",
+  "recovery_channel": "Off-market: funds returned by the attacker himself, not via liquidations — no forced selling, no oracle stress, no cascading liquidations in the wider market",
+  "protocol_aftermath": "Euler v1 never re-enabled for new deposits; team rebuilt and launched Euler v2 in 2024 after 31 audits (The Block); Euler branded the episode a '$240M recovery' (value of returned assets including ETH appreciation)"
+ },
+ "causes": {
+  "root_cause": "donateToReserves() was added to the eToken contract in the eIP-14 upgrade (July 2022) without the account health/liquidity check that every other balance-changing function performed — letting a user donate eToken collateral while keeping dToken debt, deliberately making their own account insolvent.",
+  "mechanism": "Flash-loan amplification + self-liquidation: per attack tx (six total, one per drained market): flash-borrow (e.g. ~$30M DAI from Aave), deposit into Euler, use mint() to lever ~10x eToken/dToken, donate a large eToken slug to reserves creating bad debt, then a second attacker contract liquidates the first at Euler's soft-liquidation discount (up to ~20%), acquiring collateral cheaply and withdrawing the surplus. Repeated across DAI, wstETH, USDC and WBTC pools.",
+  "aggravators": [
+   "Vulnerable function was live ~8 months and had passed audit review (a whitehat later claimed the donateToReserves addition was itself a fix that introduced the bug — The Block)",
+   "Flash loans removed any capital barrier",
+   "Soft-liquidation discount design made self-liquidation profitable",
+   "No health check meant fail-open rather than fail-closed on the donation path"
+  ],
+  "attribution": "Self-identified as 'Jacob' in on-chain/encrypted apologies; claimed to be acting alone; 100 ETH sent to a Lazarus/Ronin-linked address was never substantiated as real DPRK involvement and is widely read as misdirection. No prosecution publicly reported.",
+  "classification_note": "Not a market event: crypto prices broadly were unaffected; ETH actually appreciated over the window, which is why the recovered ETH-heavy basket exceeded the exploited USD value."
+ },
+ "contagion": [
+  "Angle Protocol: ~$17.6M USDC deposited in Euler lost/frozen — agEUR became undercollateralized; minting and redemption paused; seniority vote prioritized agEUR holders over SLPs/hedging agents; overcollateralization restored after receiving recovered funds Apr 12, 2023",
+  "Balancer: Euler Boosted USD (bb-e-USD) pool ~$11.9M affected — >65% of pool TVL; emergency subDAO paused pool into recovery mode; OpCo built withdrawal tooling for non-Euler assets (used e.g. by TempleDAO)",
+  "Idle Finance: ~$5.9M across Best Yield vaults and Yield Tranches — all Euler-linked vaults paused Mar 13; after redemption, Idle swapped the recovered ETH/DAI/USDC basket back to original underlyings and restored 100% with no user losses",
+  "Yearn Finance: ~$1.38M indirect exposure via Angle and Idle strategies (Yearn stated vaults' bad debt would be covered)",
+  "Total: 11 DeFi protocols with locked tokens/losses, cumulative ~$37.6M beyond Euler itself — others included Yield Protocol, Inverse Finance, SwissBorg, Opyn, Mean Finance, Sense and Harvest (Cointelegraph count)",
+  "Insurance layer: Nexus Mutual paid claims for the Euler loss event; after users were made whole via redemption, Nexus asked claimants to return payouts (documented in Nexus claims history)",
+  "NOT contagion: no stablecoin systemic break (DAI/USDC instruments unaffected), no broad market drawdown, no CeFi counterparty failures"
+ ],
+ "recovery": {
+  "amounts_returned": "95,556 ETH + ~43M DAI cumulative (tranches: 3,000 ETH Mar 18; 51,000 ETH Mar 25; 7,737 ETH Mar 27; further ETH+DAI with apology Mar 28; final ~$31M = 10,580 ETH + ~$12M DAI Apr 3). ~1,100 ETH irrecoverable via Tornado Cash + 100 ETH to Ronin-linked address.",
+  "recovered_value": "~$223M at Apr 12 claim-time prices (CoinDesk/Cointelegraph) vs ~$196.9M exploited; Euler's own retrospective brands it a '$240M recovery'. Excess over exploit-time value came from ETH appreciation during the freeze.",
+  "bounty_outcome": "10% bounty (~$19.7M) was offered Mar 14 but the attacker ultimately returned everything recoverable and kept nothing; the $1M information bounty was closed Apr 4.",
+  "depositor_outcome": "Made whole at exploit-time USD NAV: claims computed from account state reconstructed at module-disable blocks 16818363/16818853, paid as pro-rata ETH/DAI/USDC basket via merkle-proof EulerClaims contract (terms-acceptance token required). Small residue still unclaimed years later (~149 ETH across 1,636 addresses reported, later ~32 ETH — figures from 2025-2026 follow-ups).",
+  "integrator_outcomes": "Idle: 100% restored to users after basket swap-back. Angle: overcollateralization restored Apr 12. Nexus Mutual claimants asked to return insurance payouts after being made whole.",
+  "token_and_protocol": "EUL partially recovered (~$4.05 after Apr 3-4 news vs >$6 pre-hack); v1 wound down; Euler v2 launched 2024 after 31 audits.",
+  "timeline_days": {
+   "attack_to_full_return": 22,
+   "attack_to_claims_open": 30
+  }
+ },
+ "sources": [
+  {
+   "url": "https://www.chainalysis.com/blog/euler-finance-flash-loan-attack/",
+   "title": "Euler Finance Flash Loan Attack Explained (Chainalysis)",
+   "supports": "Attack mechanics (Tornado gas funding, ~$30M DAI Aave flash loan, 10x leverage, donateToReserves, self-liquidation), per-asset breakdown ($135.8M stETH / $33.85M USDC / $18.5M WBTC / $8.75M DAI), return tranches (3,000 ETH Mar 18; 51,000 ETH Mar 25; 7,000+ ETH and $10M DAI later), 'Jacob' apology, Lazarus phishing attempt",
+   "confidence": "high"
+  },
+  {
+   "url": "https://rekt.news/euler-rekt",
+   "title": "Euler Finance - REKT",
+   "supports": "Independent per-asset token quantities: ~86k ETH-derivatives ($134.6M), 849 WBTC ($18.6M), 34M USDC, 8.9M DAI; attack mechanics",
+   "confidence": "high"
+  },
+  {
+   "url": "https://blocksec.com/blog/euler-finance-incident-the-largest-hack-of-2023",
+   "title": "Euler Finance Incident: The Largest Hack of 2023 (BlockSec)",
+   "supports": "'Largest hack of 2023' ranking; six attack transactions from two attacker EOAs; technical root cause",
+   "confidence": "high"
+  },
+  {
+   "url": "https://slowmist.medium.com/slowmist-an-analysis-of-the-attack-on-euler-finance-5143abc0d5ad",
+   "title": "SlowMist: An Analysis of the Attack on Euler Finance",
+   "supports": "Exploit contract deployment 08:50:23 UTC Mar 13 2023, block 16817996, transaction-level mechanics",
+   "confidence": "high"
+  },
+  {
+   "url": "https://cointelegraph.com/news/euler-labs-hacker-returns-all-of-the-recoverable-funds-timeline",
+   "title": "Euler Labs hacker returns 'all of the recoverable funds' — Timeline (Cointelegraph)",
+   "supports": "Full negotiation/return timeline; Apr 4 'all recoverable funds' announcement; cumulative 95,556 ETH + 43M DAI; 10% bounty ($19.7M) and $1M reward; bounty closure",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.theblock.co/post/224705/euler-hacker-returns-funds",
+   "title": "Euler hacker returns $31 million, marking end to 'recoverable funds' (The Block)",
+   "supports": "Final Apr 3 tranche: $31M in three txs = 10,580 ETH (~$19M) + ~$12M DAI, ~6:55pm EST; cumulative >$177M returned",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/business/2023/04/03/euler-says-all-recoverable-funds-stolen-in-200m-hack-have-been-returned",
+   "title": "Euler Says All 'Recoverable Funds' Have Been Returned (CoinDesk)",
+   "supports": "Second source for the Apr 3-4 full-return announcement",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/business/2023/04/12/euler-finance-lets-users-redeem-recovered-funds-following-200m-theft",
+   "title": "Euler Finance Lets Users Redeem Recovered Funds (CoinDesk, Apr 12 2023)",
+   "supports": "Redemptions opened Apr 12; recovered funds 95,556 ETH + $43M DAI worth ~$223M at then-current prices",
+   "confidence": "high"
+  },
+  {
+   "url": "https://cointelegraph.com/news/euler-finance-opens-redemptions-after-hacker-returns-funds",
+   "title": "Euler Finance opens redemptions after hacker returns funds (Cointelegraph)",
+   "supports": "Claims opened 02:00 UTC Apr 12; ~1,100 ETH irrecoverable via Tornado Cash",
+   "confidence": "high"
+  },
+  {
+   "url": "https://forum.euler.finance/t/plan-for-redemption-of-euler-funds-v2/947",
+   "title": "Plan for Redemption of Euler Funds V2 (Euler Governance Forum)",
+   "supports": "Redemption methodology: pro-rata ETH/DAI/USDC basket against account value at module-disable blocks; primary source (egress-blocked here; content confirmed via search-indexed text and github.com/euler-xyz/euler-redemption-scripts which cites blocks 16818363/16818853)",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.tradingview.com/news/cointelegraph:7e5c89d52094b:0-euler-attack-causes-locked-tokens-losses-in-11-defi-protocols-including-balancer/",
+   "title": "Euler attack causes locked tokens, losses in 11 DeFi protocols (Cointelegraph via TradingView)",
+   "supports": "Contagion: 11 protocols, ~$37.6M cumulative; Angle >$17M USDC, Balancer bb-e-USD ~$11.9M (>65% of pool TVL), Idle ~$5.9M, Yearn ~$1.38M indirect",
+   "confidence": "high"
+  },
+  {
+   "url": "https://medium.com/idle-finance/euler-incident-full-recovery-distribution-plan-b4f75637a91a",
+   "title": "Euler Incident: Full Recovery & Distribution Plan (Idle Finance)",
+   "supports": "Idle received recovered basket via Euler coordination, swapped back to original underlyings, restored 100% with no user losses",
+   "confidence": "high"
+  },
+  {
+   "url": "https://blog.angle.money/euler-hack-reflection-learning-adapting-and-strengthening-angle-protocol",
+   "title": "Euler Hack Reflection (Angle Protocol blog)",
+   "supports": "Angle's 17.6M USDC exposure, agEUR undercollateralization, seniority vote, funds received Apr 12 restoring overcollateralization (corroborated by chaincatcher.com/en/article/2089220)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://decrypt.co/123656/euler-issues-on-chain-ultimatum-to-hacker-in-bid-to-recover-treasury",
+   "title": "Euler Issues On-Chain Ultimatum to Hacker (Decrypt)",
+   "supports": "Mar 14 ultimatum: return 90% in 24h or $1M bounty on attacker's identity",
+   "confidence": "high"
+  },
+  {
+   "url": "https://cryptoslate.com/euler-finance-hacker-sent-100eth-to-ronin-bridge-exploiter/",
+   "title": "Euler Finance hacker sent 100 ETH to Ronin Bridge exploiter (CryptoSlate)",
+   "supports": "Mar 17: 100 ETH to Lazarus/Ronin-linked address; 1,000 ETH to Tornado Cash",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.euler.finance/blog/war-peace-behind-the-scenes-of-eulers-240m-exploit-recovery",
+   "title": "War & Peace: Behind the Scenes of Euler's $240M Exploit Recovery (Euler blog)",
+   "supports": "Euler's own '$240M recovery' framing and negotiation narrative (egress-blocked here; title/figure corroborated by The Block: '$197M exploited... recovery led to return of roughly $240M')",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://decrypt.co/123293/defi-lender-euler-finance-hit-flash-loan-attack",
+   "title": "DeFi Lender Euler Finance Drained of $197M (Decrypt)",
+   "supports": "Day-of report; EUL token plunged >45% on Mar 13",
+   "confidence": "high"
+  },
+  {
+   "url": "https://beincrypto.com/euler-finance-recovers-stolen-funds-eul-token-price/",
+   "title": "Euler Finance Recovers All Stolen Funds, EUL Token Price Jumps (BeInCrypto)",
+   "supports": "EUL pre-hack 'just above $6'; post-recovery jump from $3.36 to ~$4.05 (+20%) on full-return news",
+   "confidence": "medium"
+  }
+ ],
+ "confidence_notes": "High confidence: attack date/time (Mar 13, 2023, 08:50:23 UTC deploy, block 16817996), ~$196.9M/$197M total, per-asset split ($135.8M stETH/wstETH, ~$34M USDC, $18.5M WBTC 849 tokens, ~$8.75-8.9M DAI — two independent sources each), Mar 14 ultimatum, $1M info bounty, Mar 20 capitulation message, Mar 28 'Jacob' apology, Apr 3-4 final return, cumulative 95,556 ETH + ~43M DAI, Apr 12 02:00 UTC redemption, ~$223M claim-time value, 11-protocol/$37.6M contagion with Angle $17.6M / Balancer $11.9M / Idle $5.9M / Yearn $1.38M. Known discrepancies (ranges reported, not resolved): (1) EUL drawdown — >45% day-one (Decrypt) vs 'nearly 70% to $2.07' at multi-day trough; from_usd 6.0 is 'just above $6' per BeInCrypto, exact pre-hack print not verified; (2) individual return tranches don't sum cleanly to 95,556 ETH across outlets (Blockworks' 84,951 ETH Mar 25-28 vs itemized 51,000+7,737; final DAI $12M per The Block vs '$10M+' elsewhere) — cumulative totals are the reliable numbers; (3) 'deposits frozen ~3 weeks' in the brief is imprecise: attacker returns spanned 22 days but depositor funds were frozen 30 days (Mar 13-Apr 12); (4) 'wstETH' vs 'stETH' labeling varies by outlet (rekt: '86k ETH derivatives' incl. stETH/wstETH/WETH); (5) '$240M recovery' is Euler's own framing at later prices — $223M at Apr 12 is the contemporaneous figure; (6) NAV restoration: depositors were made whole in exploit-time USD terms but paid in an ETH/DAI/USDC basket, so exact per-user outcomes vs pure USDC depended on conversion timing; agEUR depeg depth and Sherlock/Nexus insurance payout amounts were not verified and are deliberately omitted rather than estimated.",
+ "data_availability": {
+  "on_chain": "Complete: attack txs at block 16817996+ (Ethereum mainnet), attacker EOAs and exploit contracts public, all return tranches and on-chain messages traceable via Etherscan; redemption merkle data in github.com/euler-xyz/euler-redemption-scripts (module-disable blocks 16818363/16818853)",
+  "primary_sources": "Euler governance forum (redemption plans), euler.finance blog (War & Peace retrospective), rekt.news, Chainalysis, CoinDesk, Coinbase investigation, and cointelegraph.com were egress-blocked for direct fetch in this environment — content was verified via search-indexed full-text summaries and cross-checked across 4+ independent outlets per headline number",
+  "price_data": "EUL intraday OHLC not directly pulled; drawdown reported as a range from news sources (>45% day-one, ~70% to $2.07 at trough). agEUR depeg magnitude not verified (LlamaRisk archive covers it). Euler pre-hack TVL not verified — left null rather than estimated",
+  "quality": "High for amounts stolen/returned and dates (multiple independent confirmations); medium for exact tranche-by-tranche arithmetic (see confidence_notes)"
+ },
+ "spa_relevance": {
+  "aave_v3_40pct": "Direct analog: Euler was a blue-chip-adjacent, audited lending protocol — same category of risk as the $40k Aave v3 sleeve. Lesson: an audited money market can go to zero in 20 minutes from one missing health check; TVL and audit count are not exploit immunity. A same-size event marks the book -40% instantly — through HARD_KILL (-10%) in one block.",
+  "pendle_pt_20pct": "Analog via Balancer bb-e-USD: wrapped/boosted exposure to an exploited venue (pool held eTokens) lost >65% of pool TVL and was frozen in recovery mode. PT tokens on a compromised underlying behave the same: the derivative wrapper adds a recovery-coordination layer and delay, it does not insulate principal.",
+  "maple_15pct": "Freeze precedent more than exploit precedent: withdrawals halted protocol-wide for ~30 days including unaffected depositors. Any sleeve with gated/permissioned redemption should be stress-modeled with a 30-day liquidity blackout.",
+  "morpho_steakhouse_15pct": "Curated-vault contagion channel: Idle and Angle were exactly this — third-party vaults/integrators routing user funds into the exploited market. Idle's outcome (paused immediately, recovered 100% via coordinated redemption + basket swap-back) is the good path; it still required ~1 month and active curator work. Curator responsiveness is a real risk parameter.",
+  "cash_10pct": "The only sleeve that stays actionable during a freeze. Kill-switch mechanics (SOFT -5% / HARD -10%) cannot execute against frozen positions — during Mar 13-Apr 12 there was literally no sell button. Cash is the only lever the ladder can actually pull mid-freeze.",
+  "accounting_question": "Mark-to-zero vs mark-to-recovery, on the $100k book with a 40% sleeve in the exploited protocol: Mar 13 mark-to-zero => NAV $60k (-40%, instant HARD_KILL breach, unactionable because frozen). Apr 4 (all recoverable funds back) / Apr 12 (claims open) mark-to-recovery => ~100% of exploit-time USD value restored, i.e. realized loss ~0% — recovered basket was even worth ~$223M vs $197M exploited because ETH appreciated. Caveats for a USDC book: (1) redemption paid a pro-rata ETH/DAI/USDC basket, so a USDC depositor carried ~1 month of ETH price risk plus swap costs on the way back to USDC — the ETH appreciation was luck, not design; (2) mark-to-recovery was unknowable ex ante: full attacker return is the exception (base rate for full voluntary return of a $100M+ exploit is low); a policy of instantly realizing -40% (selling claims at the ~10-30 cents-on-the-dollar distressed quotes typical mid-crisis) would have destroyed capital that patient holders recovered in full. Suggested stress encoding: instant -40% NAV shock, 30-day freeze on the affected sleeve, then a bimodal recovery distribution (full recovery vs low-double-digit residual) resolving over 22-30 days.",
+  "policy_note": "For SPA's ladder this event argues that drawdown from a frozen/exploited position should be flagged as 'evidenced but unactionable' rather than triggering forced liquidation of the REMAINING liquid sleeves at the bottom tick."
+ },
+ "replay": {
+  "duration_days": 31,
+  "start_date": "2023-03-13",
+  "base": {
+   "aave_v3": {
+    "apy_pct": 3.0
+   },
+   "pendle": {
+    "apy_pct": 5.0
+   },
+   "maple": {
+    "apy_pct": 7.5
+   },
+   "morpho_steakhouse": {
+    "apy_pct": 4.0
+   }
+  },
+  "exposure_symbols": {
+   "morpho_steakhouse": "EULER_CLAIM"
+  },
+  "shocks": [
+   {
+    "kind": "halt",
+    "params": {
+     "protocol": "morpho_steakhouse",
+     "from_day": 0,
+     "to_day": 29
+    }
+   },
+   {
+    "kind": "peg",
+    "params": {
+     "symbol": "EULER_CLAIM",
+     "path": [
+      [
+       0,
+       1.0
+      ],
+      [
+       1,
+       0.1
+      ],
+      [
+       21,
+       0.15
+      ],
+      [
+       23,
+       0.9
+      ],
+      [
+       30,
+       1.0
+      ]
+     ]
+    }
+   }
+  ],
+  "assumptions": [
+   "КОНТРФАКТ, названный явно: книга Euler не держала; для теста учёта mark-to-zero/mark-to-recovery 15%-рукав morpho_steakhouse маппится на Euler-подобную позицию (символ EULER_CLAIM): halt 30 дней, справедливая стоимость требования 0.10-0.15 три недели (вторичная паника), возврат к пару к дню 30 (историч. факт: вернули ~100%).",
+   "Урок направления: HARD_KILL сработает на −13.5% NAV, но исполнить выход НЕЛЬЗЯ (halt) — а «неисполнимость» здесь СПАСЛА от фиксации −85%. Обобщать нельзя: в Terra/FTX то же терпение теряло всё — асимметрия невыводимая, и это главный вывод сценария."
+  ]
+ }
+}

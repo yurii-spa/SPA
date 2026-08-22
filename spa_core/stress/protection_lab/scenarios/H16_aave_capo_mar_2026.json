@@ -1,0 +1,271 @@
+{
+ "schema_version": 1,
+ "id": "H16_aave_capo_mar_2026",
+ "name": "Aave V3 wstETH CAPO oracle misconfiguration — wrongful liquidations (Mar 10, 2026)",
+ "event_class": [
+  "liquidity_oracle_infra"
+ ],
+ "window_utc": {
+  "start": "2026-03-10T11:46:00Z",
+  "trough": "2026-03-10T11:47:00Z (approx — bad snapshotRatio executed on-chain one block after submission; max mispricing -2.85% applied from that block)",
+  "end": "2026-03-10T23:59:00Z (acute phase; Chaos Labs cut wstETH borrow caps and realigned snapshot parameters the same day — exact correction minute not verified. Reimbursement tail ran into spring 2026)"
+ },
+ "speed": "Near-instantaneous onset: the bad snapshotRatio executed on-chain one block after the 11:46 UTC submission, and permissionless liquidation bots cleared all 34 eligible positions within the following minutes to hours — no warning, no market signal, nothing a borrower could react to. Detection, borrow-cap cuts and parameter realignment happened the same day; full financial resolution (reimbursement) took roughly days-to-weeks via governance.",
+ "summary": "Aave v3 CAPO, 10.03.2026, 11:46 UTC: некорректный snapshotRatio в CAPO-обвязке оракула (риск-провайдер Chaos Labs) капнул wstETH на −2.85% против живого курса БЕЗ движения рынка — permissionless-боты за минуты ликвидировали 34 здоровые позиции на ~$26-27M (штрафы ~499-512 ETH). Bad debt НОЛЬ, USDC-саплаеры не потеряли ни цента (протоколу даже плюс в резервы), DAO возместило заёмщикам. Класс риска: не манипуляция, а КОНФИГУРАЦИОННАЯ ошибка профессионального провайдера в автоматизированном пайплайне параметров — на крупнейшей площадке книги. Для саплаера — операционный риск площадки, не кредитный. Книга SPA на 2026-08: aave_v3 40% / pendle (PT_USDC) 20% / maple 15% / morpho_steakhouse 15% / кэш USDC 10%.",
+ "timeline": [
+  {
+   "ts": "2026-03 (mid-March, exact date unverified)",
+   "event": "Follow-up '[Direct to AIP] Re-enable wstETH Borrow Caps on Ethereum Core and Prime (Post CAPO Incident)' (thread 24295) restores the borrow caps cut during the emergency response.",
+   "observed": true,
+   "source_url": "https://governance.aave.com/t/direct-to-aip-re-enable-wsteth-borrow-caps-on-ethereum-core-and-prime-post-capo-incident/24295"
+  },
+  {
+   "ts": "2026-03-10 (same day, time unverified)",
+   "event": "Chaos Labs detects and intervenes: temporarily reduces wstETH borrow caps and manually realigns snapshotRatio/snapshotTimestamp, restoring correct pricing. Founder Stani Kulechov confirms a CAPO misconfiguration in an external risk tool, not a protocol vulnerability; zero bad debt; core pools and depositors unaffected.",
+   "observed": true,
+   "source_url": "https://en.cryptonomist.ch/2026/03/23/aave-oracle-liquidations/"
+  },
+  {
+   "ts": "2026-03-10T11:46:00Z",
+   "event": "Chaos Labs' off-chain Edge Risk engine computes and submits a snapshotRatio update to the wstETH CAPO adapter on Aave V3 Ethereum; AgentHub (BGD Labs' automated execution layer) fires it on-chain one block later via Chainlink Automation.",
+   "observed": true,
+   "source_url": "https://rekt.news/aave-rekt"
+  },
+  {
+   "ts": "2026-03-10T11:47:00Z",
+   "event": "Misconfiguration goes live: the update tried to move snapshotRatio from ~1.1572 toward ~1.2282 but a growth-rate constraint capped it at ~1.1919, while snapshotTimestamp jumped unimpeded to an anchor ~7 days in the past. CAPO's extrapolated ceiling comes out at ~1.1939 wstETH/ETH vs the live on-chain rate of ~1.2285 — Aave prices wstETH ~2.85% below true value with no market move (approx ts: one block after submission).",
+   "observed": true,
+   "source_url": "https://rekt.news/aave-rekt"
+  },
+  {
+   "ts": "2026-03-10T12:00:00Z",
+   "event": "Liquidation cascade (intraday, exact minutes unverified): bots liquidate ~10,938 wstETH across 34 high-leverage ETH-correlated E-Mode accounts on Aave V3 Ethereum Core and Prime instances — ~$26-27M notional — capturing ~499-512 ETH in liquidation bonuses.",
+   "observed": true,
+   "source_url": "https://cointelegraph.com/features/how-a-2-85-price-error-triggered-27m-in-liquidations-on-aave"
+  },
+  {
+   "ts": "2026-03-10T18:00:00Z (publication same day)",
+   "event": "CoinDesk and other outlets report the 'rare' ~$27M wrongful liquidation event; Chaos Labs post-mortem 'Exchange Rate Misalignment on wstETH Core and Prime Instances' goes up on the Aave governance forum (thread 24269).",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/business/2026/03/10/defi-lending-platform-aave-sees-a-rare-usd27-million-liquidations-after-a-price-glitch"
+  },
+  {
+   "ts": "2026-03-11",
+   "event": "TokenLogic files '[Direct to AIP] wstETH CAPO Oracle Incident User Reimbursement' (thread 24275): total refund 512.19 ETH to the 34 affected accounts; net DAO cost 357.56 ETH after recoveries.",
+   "observed": true,
+   "source_url": "https://governance.aave.com/t/direct-to-aip-wsteth-capo-oracle-incident-user-reimbursement/24275"
+  },
+  {
+   "ts": "2026-03-11 (approx)",
+   "event": "Early restitution: ~141.5 ETH of liquidator profits clawed back via BuilderNet refunds (plus ~13 ETH in liquidation fees) flows to affected users; DAO treasury commitment capped around 345-358 ETH covers the remainder.",
+   "observed": true,
+   "source_url": "https://www.bitget.com/news/detail/12560605254903"
+  },
+  {
+   "ts": "2026-03-13",
+   "event": "Media tallies the incident as one of '4 setbacks in 12 days' for Aave; AAVE token trades down (~$125 to ~$108 area over the surrounding days — partially broader-market and other-news driven, not cleanly attributable).",
+   "observed": true,
+   "source_url": "https://www.thecoinrepublic.com/2026/03/13/crypto-news-aave-hit-by-4-setbacks-in-12-days-is-defis-top-lender-jinxed/"
+  },
+  {
+   "ts": "2026-04-06",
+   "event": "Chaos Labs announces exit as Aave's risk manager (role held since Nov 2022), citing unprofitability, a V4-migration methodology/budget dispute with Aave Labs ($8M asked vs $5M offered) and legal-liability concerns to which the CAPO incident contributed; follows earlier exits of BGD Labs and Aave Chan Initiative; LlamaRisk absorbs risk coverage.",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/tech/2026/04/06/aave-loses-key-risk-manager-chaos-labs-amid-contributor-exodus-and-disputes"
+  },
+  {
+   "ts": "2026-08 (retrospectives as of report date 2026-08-22)",
+   "event": "Reimbursement reported finalized for all 34 affected accounts (initial 141 ETH BuilderNet refund + DAO treasury top-up); August 2026 retrospectives treat the event as the canonical 'oracle staleness without an oracle hack' failure mode.",
+   "observed": true,
+   "source_url": "https://cryptodaily.co.uk/2026/08/oracle-staleness-defi-without-hack"
+  }
+ ],
+ "market_impact": {
+  "wstETH_aave_oracle_rate_eth_terms": {
+   "from_usd": null,
+   "to_usd": null,
+   "drawdown_pct": -2.85,
+   "window": "2026-03-10 intraday. NOT a USD market move: Aave's CAPO cap priced wstETH at ~1.1939 ETH vs live on-chain rate ~1.2285 ETH (some sources cite the stored snapshotRatio ~1.1919 vs cap ~1.1939 distinction). The wstETH/stETH secondary market and Lido exchange rate were unaffected."
+  },
+  "wstETH_market_price": {
+   "from_usd": null,
+   "to_usd": null,
+   "drawdown_pct": 0,
+   "window": "No genuine market move accompanied the liquidations — this is the defining feature of the event; the mispricing was purely internal to Aave's oracle cap."
+  },
+  "AAVE_token": {
+   "from_usd": 125,
+   "to_usd": 108,
+   "drawdown_pct": -13.6,
+   "window": "~2026-03-10 to mid-March (invezz/TradingView). Caution: only ~-3% was attributed to the incident week itself; the $125->$108 slide overlaps broader market weakness and other Aave negative news — do not model as pure event impact."
+  },
+  "liquidated_positions": {
+   "from_usd": null,
+   "to_usd": null,
+   "drawdown_pct": null,
+   "window": "34 borrower accounts lost ~499-512 ETH in liquidation penalties on ~$26-27M of closed positions (2026-03-10); later reimbursed in full."
+  }
+ },
+ "stablecoins": [],
+ "defi_impact": {
+  "protocol": "Aave V3 Ethereum — Core and Prime instances only (other chains/instances unaffected)",
+  "collateral_affected": "wstETH (Lido wrapped staked ETH) used in ETH-correlated E-Mode; borrowed asset predominantly WETH/ETH",
+  "liquidated": "~10,938 wstETH across 34 accounts, ~$26-27M notional (The Block: $26M; CoinDesk et al.: $27M; one outlier $21.7M); ~499-512 ETH in liquidation bonuses captured by bots",
+  "bad_debt_usd": 0,
+  "suppliers_affected": "NO — this is the key fact for a USDC-supplier book. Liquidity pools were untouched, no supplier haircut, no withdrawal freeze, zero bad debt (over-collateralized positions were liquidated 2.85% too early, which if anything over-protects suppliers). Losses fell exclusively on the 34 wrongfully liquidated BORROWERS via liquidation penalties, and were then socialized to the DAO treasury through reimbursement.",
+  "operational_response": "wstETH borrow caps temporarily slashed on Core/Prime during the emergency, re-enabled by follow-up Direct-to-AIP (thread 24295); snapshot parameters manually realigned same day",
+  "governance_fallout": "Accelerated Aave's 2026 service-provider exodus: Chaos Labs exited as risk manager 2026-04-06 (legal-liability concerns for risk providers cited), after BGD Labs and ACI departures; LlamaRisk took over risk coverage — leaving the largest DeFi lender briefly without its long-time dedicated risk manager"
+ },
+ "causes": {
+  "root_cause": "Parameter desynchronization inside Aave's CAPO (Correlated/Capped Asset Price Oracle) adapter for wstETH: an automated snapshotRatio update was clamped by the adapter's growth-rate constraint (moved only ~1.1572 -> ~1.1919 instead of the intended ~1.2282), while snapshotTimestamp updated unimpeded to an anchor ~7 days in the past. The cap formula (snapshotRatio grown forward at maxYearlyRatioGrowthPercent since snapshotTimestamp) then produced a ceiling ~1.1939 wstETH/ETH, ~2.85% BELOW the live rate ~1.2285 — inverting CAPO's purpose (it exists to cap upside manipulation of LST exchange rates, and should never bind below the true rate).",
+  "proximate_trigger": "2026-03-10 11:46 UTC: Chaos Labs' off-chain Edge Risk engine computed/submitted the flawed update; BGD Labs' AgentHub executed it on-chain one block later via Chainlink Automation, with no sanity cross-check against the live on-chain exchange rate before liquidations became eligible.",
+  "amplifier": "Permissionless liquidation bots acted within blocks on the 34 ETH-correlated E-Mode positions (high leverage, thin health-factor buffers), so a 2.85% oracle-only haircut was enough to push them 'underwater' on paper.",
+  "what_it_was_NOT": "Not a hack/exploit, not a Chainlink feed failure, not an Aave smart-contract bug, not a market crash — no underlying price moved. Chaos Labs and Stani Kulechov both characterized it as a misconfiguration of an external risk tool.",
+  "responsibility": "Chaos Labs (risk manager operating the CAPO parameters/Edge engine) owned the error; the Aave DAO accepted reimbursement responsibility; the incident fed Chaos Labs' April 6, 2026 exit as Aave risk manager."
+ },
+ "contagion": [
+  "None to markets: wstETH's actual exchange rate and secondary-market price never moved; no depeg, no cross-protocol liquidation cascade, no stablecoin involvement.",
+  "Contained to Aave V3 Ethereum Core and Prime instances; other Aave deployments and other lending protocols unaffected.",
+  "Governance/vendor contagion was the real transmission channel: the incident sharpened legal-liability fears for DeFi risk providers and fed Chaos Labs' 2026-04-06 exit as Aave risk manager, following BGD Labs and Aave Chan Initiative departures — briefly leaving ~$50B TVL without a dedicated risk manager (LlamaRisk stepped in).",
+  "Reputational clustering: media counted it among '4 setbacks in 12 days' for Aave in March 2026; AAVE token softness (~$125 -> ~$108) was partially coincident with broader market weakness.",
+  "Do not conflate with the SEPARATE April 2026 KelpDAO/rsETH exploit (~$292M stolen), which DID cause ~$200M bad debt on Aave and a ~$6B TVL drop — that later event, not CAPO, is the supplier-loss scenario; CAPO itself left suppliers whole."
+ ],
+ "recovery": {
+  "technical": "Same-day fix: Chaos Labs cut wstETH borrow caps and manually realigned snapshotRatio/snapshotTimestamp, restoring correct CAPO pricing on 2026-03-10; borrow caps re-enabled shortly after via Direct-to-AIP (thread 24295).",
+  "financial": "Liquidations were not reversible on-chain; users were made whole in ETH instead. Recoveries: 141.5 ETH of liquidator profit clawed back via BuilderNet refunds plus ~13 ETH in liquidation fees, distributed to affected users as an early refund (~141 ETH). TokenLogic's Direct-to-AIP (filed 2026-03-11) set total restitution at 512.19 ETH with net DAO treasury cost of 357.56 ETH (early reports framed the treasury cap as ~345-358 ETH).",
+  "status_as_of_2026_08": "Multiple outlets and an Aug 2026 retrospective report compensation finalized for all 34 affected accounts — full reimbursement. Exact on-chain payout execution date not independently verified from available sources.",
+  "structural": "CAPO parameter-update process reviewed across Aave markets; incident became a reference case for adding live-rate sanity checks to automated risk-parameter pipelines. Longer-term: risk-provider turnover (Chaos Labs out, LlamaRisk in) as of April 2026.",
+  "duration_to_full_recovery": "Oracle: same day. User balances: days (BuilderNet portion) to weeks (DAO treasury portion). Protocol solvency: never impaired (zero bad debt)."
+ },
+ "sources": [
+  {
+   "url": "https://www.coindesk.com/business/2026/03/10/defi-lending-platform-aave-sees-a-rare-usd27-million-liquidations-after-a-price-glitch",
+   "title": "DeFi lending platform Aave sees $27 million liquidations after wstETH price glitch (CoinDesk, 2026-03-10)",
+   "supports": "Event date (Mar 10, 2026), ~$27M headline liquidation figure, wstETH price glitch characterization",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.theblock.co/post/393121/aave-oracle-glitch-wsteth",
+   "title": "Aave suffers oracle glitch, triggering $26 million in unfair wstETH liquidations (The Block)",
+   "supports": "Independent second source for the headline number (reports $26M — establishes the $26-27M range), 'unfair liquidations' framing",
+   "confidence": "high"
+  },
+  {
+   "url": "https://governance.aave.com/t/post-mortem-exchange-rate-misallignment-on-wsteth-core-and-prime-instances/24269",
+   "title": "Post-Mortem: Exchange Rate Misalignment on wstETH Core and Prime Instances (Aave governance forum)",
+   "supports": "Official post-mortem: root cause (snapshotRatio/snapshotTimestamp desync after constrained update), affected instances (Ethereum Core + Prime), no oracle-network breach",
+   "confidence": "high (primary source; content corroborated via search index — direct fetch blocked by sandbox egress proxy)"
+  },
+  {
+   "url": "https://governance.aave.com/t/direct-to-aip-wsteth-capo-oracle-incident-user-reimbursement/24275",
+   "title": "[Direct To AIP] wstETH CAPO Oracle Incident User Reimbursement (TokenLogic, 2026-03-11)",
+   "supports": "Reimbursement commitment and exact figures: 512.19 ETH total refund, 357.56 ETH net DAO cost after recoveries (141.5 ETH BuilderNet + ~13 ETH fees)",
+   "confidence": "high (primary source; content corroborated via multiple search summaries — direct fetch blocked)"
+  },
+  {
+   "url": "https://rekt.news/aave-rekt",
+   "title": "Aave — Rekt (rekt.news incident analysis)",
+   "supports": "Mechanism detail: 11:46 UTC submission by Chaos Labs Edge engine, AgentHub/Chainlink Automation execution one block later, ratio clamped ~1.1572->1.1919 with 7-day-old timestamp anchor, computed ceiling ~1.1939 vs live ~1.2285",
+   "confidence": "medium-high (fetch blocked; details cross-matched with Cointelegraph/CoinCentral/KuCoin summaries)"
+  },
+  {
+   "url": "https://cointelegraph.com/features/how-a-2-85-price-error-triggered-27m-in-liquidations-on-aave",
+   "title": "How a 2.85% Price Error Triggered $27M in Liquidations on Aave (Cointelegraph feature)",
+   "supports": "10,938 wstETH across 34 accounts, ~512 ETH liquidation bonuses, ~1.19 vs ~1.23 ETH valuation, no bad debt, reimbursement commitment",
+   "confidence": "high"
+  },
+  {
+   "url": "https://en.cryptonomist.ch/2026/03/23/aave-oracle-liquidations/",
+   "title": "Aave oracle failure triggers $21.7M liquidations in DeFi (Cryptonomist, 2026-03-23)",
+   "supports": "Chaos Labs same-day intervention (borrow caps cut, snapshot params realigned); note: its $21.7M total is an outlier vs the $26-27M consensus",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.coindesk.com/tech/2026/04/06/aave-loses-key-risk-manager-chaos-labs-amid-contributor-exodus-and-disputes",
+   "title": "Aave loses key risk manager Chaos Labs amid contributor exodus and disputes (CoinDesk, 2026-04-06)",
+   "supports": "Chaos Labs exit date and stated reasons; CAPO incident's contribution to risk-provider legal-liability concerns; LlamaRisk succession",
+   "confidence": "high"
+  },
+  {
+   "url": "https://governance.aave.com/t/direct-to-aip-re-enable-wsteth-borrow-caps-on-ethereum-core-and-prime-post-capo-incident/24295",
+   "title": "[Direct to AIP] Re-enable wstETH Borrow Caps on Ethereum Core and Prime (Post CAPO Incident)",
+   "supports": "Emergency borrow-cap reduction during the incident and subsequent restoration via governance",
+   "confidence": "medium-high (primary source; fetch blocked, existence and purpose verified via search index)"
+  },
+  {
+   "url": "https://cryptodaily.co.uk/2026/08/oracle-staleness-defi-without-hack",
+   "title": "Oracle Staleness Can Break DeFi Without an Oracle Hack (CryptoDaily, Aug 2026)",
+   "supports": "As-of-Aug-2026 retrospective confirming the incident's characterization and resolution; full compensation of all 34 accounts reported finalized",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.tradingview.com/news/invezz:bdbb02142094b:0-aave-price-outlook-after-oracle-glitch-triggers-27m-liquidations/",
+   "title": "Aave price outlook after oracle glitch triggers $27M liquidations (Invezz via TradingView)",
+   "supports": "AAVE token reaction (~$125 -> ~$108 area, ~-3% incident-week attribution) — flagged as confounded by broader market",
+   "confidence": "medium"
+  }
+ ],
+ "confidence_notes": "Overall confidence: HIGH on event existence, date/time, mechanism, no-bad-debt/no-supplier-loss finding, and reimbursement structure — each is corroborated by 3+ independent outlets plus the governance-forum record. MEDIUM on exact figures where sources genuinely disagree: total liquidated is reported as $26M (The Block), ~$26.9M, and $27M (CoinDesk/Cointelegraph), with one $21.7M outlier — I report the $26-27M range; liquidation bonuses appear as both ~499 ETH and ~512 ETH (the 512.19 ETH AIP refund equals gross penalties, 499 ETH is likely net of the ~13 ETH fee component); the capped rate appears as both ~1.1919 (stored snapshotRatio) and ~1.1939 (extrapolated ceiling) — these are two different quantities in the same mechanism, both reported. The brief's $27.78M could NOT be confirmed in any live source and should be replaced with the $26-27M range. LOW confidence items, left qualified: exact correction minute, exact treasury-payout execution date, and the AAVE token move's attribution (confounded window). Method caveat: the sandbox egress proxy blocked all direct page fetches, so verification relied on cross-matching nine independent web-search result sets quoting the primary sources; no number here rests on a single outlet. For the SPA USDC book the load-bearing conclusion is robust: this was wrongful liquidation of BORROWERS only — zero bad debt, USDC suppliers completely unaffected — i.e., an operational near-miss for a supplier book, whose supplier-loss analogue is the separate April 2026 Kelp/rsETH event.",
+ "data_availability": {
+  "primary_sources_exist": "Yes — Chaos Labs/Aave post-mortem (governance thread 24269), TokenLogic reimbursement Direct-to-AIP (thread 24275), borrow-cap restoration AIP (thread 24295), rekt.news 'aave-rekt' deep-dive, CoinDesk/The Block/Cointelegraph coverage. All liquidation and BuilderNet-refund transactions are on Ethereum mainnet and independently auditable on-chain.",
+  "sandbox_limitation": "This environment's egress proxy blocked EVERY direct WebFetch (coindesk.com, theblock.co, governance.aave.com, rekt.news, cryptonews.com, dev.to, yahoo.com, banklesstimes.com). All facts were therefore assembled from 9 independent WebSearch passes whose result summaries quote the above primaries; every headline number below is corroborated by at least two independent outlets in those results.",
+  "verified": [
+   "date 2026-03-10 and 11:46 UTC trigger time",
+   "-2.85% mispricing (cap ~1.1939 vs live ~1.2285 wstETH/ETH)",
+   "34 accounts, ~10,938 wstETH, $26-27M range",
+   "zero bad debt, suppliers untouched",
+   "499-512 ETH liquidation bonuses",
+   "141.5 ETH BuilderNet recovery + ~13 ETH fees",
+   "512.19 ETH total refund / 357.56 ETH net DAO cost",
+   "Chaos Labs exit 2026-04-06"
+  ],
+  "unverified_nulls": [
+   "the brief's $27.78M figure — appears in NO located source; reported range is $26M (The Block) to $27M (CoinDesk), with $26.9M in several outlets and a $21.7M outlier (Cryptonomist)",
+   "exact minute the oracle was corrected / duration of the misprice window (only 'same day' confirmed)",
+   "exact on-chain AIP execution/payout transaction date for the treasury top-up (reports say compensation was finalized for all 34 accounts, but a dated execution receipt was not retrievable)",
+   "per-account loss distribution"
+  ]
+ },
+ "spa_relevance": {
+  "book": "$100k USDC: Aave v3 40% / Pendle PT 20% / Maple 15% / Morpho Steakhouse USDC 15% / cash 10%",
+  "direct_nav_impact_usd": 0,
+  "aave_v3_40pct": "A USDC supplier on Aave V3 Ethereum would have experienced ZERO loss and zero disruption: no bad debt, pools untouched, withdrawals normal, and the event even nets positive to reserves (liquidation fees). The event materializes VENUE-OPERATIONAL risk, not credit risk: the same automation chain (off-chain risk engine -> on-chain executor, no live-rate sanity check) could in a mirrored failure OVER-value collateral or delay legitimate liquidations, which WOULD create bad debt hitting suppliers. Treat as evidence that 40% single-venue concentration carries correlated oracle-governance/ops risk that TVL and utilization metrics do not capture — and note the vendor-instability tail (risk manager exited 4 weeks later).",
+  "pendle_pt_20pct": "No impact on USDC-yield PTs. Advisory: Pendle PT collateral listed on Aave is priced via analogous capped/linear-discount oracles — the same misconfiguration class applies to PT markets; PT positions on ETH-correlated underlyings would have been in the blast radius.",
+  "maple_15pct": "No impact (institutional credit pools, no CAPO/wstETH exposure).",
+  "morpho_steakhouse_15pct": "No direct impact. Analogous risk: MetaMorpho vaults allocate to isolated markets whose oracles are curator-configured; a curator/oracle misconfiguration is the same failure family, and on Morpho losses from a mispriced market WOULD flow to vault suppliers (no DAO treasury backstop of Aave's size).",
+  "cash_10pct": "Unaffected.",
+  "stress_test_use": "Model as a zero-NAV-loss operational near-miss with a defined tail variant: (a) base replay = 0% book impact, possible 1-day precautionary freeze of new Aave allocations (fail-closed posture per SPA RiskPolicy); (b) tail variant = sign-flipped or larger misconfig on a debt or collateral asset creating supplier-side bad debt (for calibration: the separate Apr 2026 Kelp/rsETH exploit DID hit Aave with ~$200M bad debt and a ~$6B TVL drop — that scenario, not this one, is the supplier-loss analogue). Also validates SPA's live-TVL/fail-closed invariants: the wrongful print was detectable by cross-checking the oracle cap vs the live on-chain exchange rate — exactly the class of feed-divergence refusal SPA's quorum logic is built for."
+ },
+ "replay": {
+  "duration_days": 5,
+  "start_date": "2026-03-10",
+  "base": {
+   "aave_v3": {
+    "apy_pct": 5.5
+   },
+   "pendle": {
+    "apy_pct": 7.5
+   },
+   "maple": {
+    "apy_pct": 9.0
+   },
+   "morpho_steakhouse": {
+    "apy_pct": 6.5
+   }
+  },
+  "shocks": [
+   {
+    "kind": "apy",
+    "params": {
+     "protocol": "aave_v3",
+     "apy_pct": 6.5,
+     "from_day": 0,
+     "to_day": 1
+    }
+   }
+  ],
+  "assumptions": [
+   "Исторически честный тихий контроль: USDC-саплаер не терял ничего; ценность сценария — в датасете (класс «оракульная КОНФИГУРАЦИЯ», venue-операционный риск) и в вопросе к тирингу площадки, не в P&L."
+  ]
+ }
+}

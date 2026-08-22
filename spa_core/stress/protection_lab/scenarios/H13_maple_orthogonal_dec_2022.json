@@ -1,0 +1,357 @@
+{
+ "schema_version": 1,
+ "id": "H13_maple_orthogonal_dec_2022",
+ "name": "Maple Finance / Orthogonal Trading default (FTX contagion, Nov–Dec 2022)",
+ "event_class": [
+  "cefi_counterparty",
+  "systemic_contagion"
+ ],
+ "window_utc": {
+  "start": "2022-11-08",
+  "trough": "2022-12-05",
+  "end": "2022-12-22"
+ },
+ "speed": "Jump-to-default: ~4 weeks of concealed insolvency with zero on-chain signal, then an instantaneous ~80% pool markdown on the day of the default notice (2022-12-05). MPL token: −24.7% in 24h, ~−58% to the December low. Contrast with market-crash events: no drawdown path to react to — the entire loss materialized in one announcement.",
+ "summary": "Дефолт Orthogonal Trading в Maple M11 (ноя-дек 2022): фонд ~4 недели СКРЫВАЛ потери на FTX (говорил делегату про $2.5M экспозиции), продолжая быть должным пулам, и 05.12.2022 объявлен дефолт на $36M (8 займов) — $31M из ~$38.5M активных займов пула M11 USDC (~80% мгновенной уценки капитала кредиторов). Сигнала на цепочке НЕ БЫЛО: APY и TVL пула выглядели здоровыми до самого объявления, а локапы Maple 1.0 (90 дней + 10-дневный cooldown) делали выход невозможным даже после тревожного звонка Auros 30.11. Финальный возврат кредиторам публично НЕ закрыт (подтверждено лишь ~$2.5M near-term recovery). Флагманский стресс нашего кредитного рукава. Книга SPA на 2026-08: aave_v3 40% / pendle (PT_USDC) 20% / maple 15% / morpho_steakhouse 15% / кэш USDC 10%.",
+ "timeline": [
+  {
+   "ts": "2022-11-08",
+   "event": "FTX halts customer withdrawals as Alameda/FTX crisis breaks; Orthogonal Trading has substantial funds on the exchange",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2022/12/05/maple-finance-severs-ties-with-orthogonal-trading-alleging-it-misrepresented-financial-position"
+  },
+  {
+   "ts": "2022-11-11",
+   "event": "FTX files Chapter 11. Start of the concealment window: through November, Orthogonal repeatedly tells pool delegate M11 Credit its FTX exposure is only ~$2.5M",
+   "observed": true,
+   "source_url": "https://www.theblock.co/post/192097/maple-finance-default-orthogonal-trading"
+  },
+  {
+   "ts": "2022-11-30",
+   "event": "First public crack (different borrower, same delegate): Auros Global misses a principal payment on a 2,400 wETH (~$3M) loan in the M11 wETH pool; 5-day grace period starts. Maple pool APYs otherwise look healthy — no on-chain signal of Orthogonal's condition",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2022/11/30/crypto-trader-auros-global-misses-payment-on-defi-loan-as-ftx-contagion-spreads"
+  },
+  {
+   "ts": "2022-12",
+   "event": "MPL prints December 2022 low ~$2.94 (~−58% from pre-default ~$7, ~−88% from Aug 2022 high ~$24)",
+   "observed": true,
+   "source_url": "https://www.coinlore.com/coin/maple/historical-data"
+  },
+  {
+   "ts": "2022-12-03",
+   "event": "Orthogonal Trading reverses its story: discloses to M11 Credit that FTX losses are substantially larger than the claimed $2.5M and that it cannot repay its loans (effectively insolvent for ~4 weeks)",
+   "observed": true,
+   "source_url": "https://www.theblock.co/post/192097/maple-finance-default-orthogonal-trading"
+  },
+  {
+   "ts": "2022-12-05",
+   "event": "M11 Credit issues notice of default on all 8 Orthogonal loans: $36M total — $31M in the M11 USDC pool (~80% of its ~$38.5M active loans) and ~$5M in the M11 wETH pool (~17% hit); ~30% of all active Maple loans. Maple severs all ties with Orthogonal Trading (borrower) and Orthogonal Credit (delegate); expected near-term recovery only ~$2.5M (pool cover + accrued fees)",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2022/12/05/maple-finance-severs-ties-with-orthogonal-trading-alleging-it-misrepresented-financial-position"
+  },
+  {
+   "ts": "2022-12-05T18:00:00Z",
+   "event": "MPL token −24.7% in 24h to $5.29 (CoinGecko via The Block); lenders cannot exit — Maple 1.0 requires deposit lockup (30-90d per source) then a 10-day cooldown plus ~2-day withdrawal window, and pool cash is far below queued withdrawals",
+   "observed": true,
+   "source_url": "https://www.theblock.co/post/192166/maple-token-down-more-than-24-cuts-ties-with-orthogonal-trading-following-36-million-default"
+  },
+  {
+   "ts": "2022-12-06",
+   "event": "Bloomberg/CoinDesk confirm default as FTX contagion; reports of internal dissent at Orthogonal; Maple community weighs response",
+   "observed": true,
+   "source_url": "https://www.bloomberg.com/news/articles/2022-12-06/crypto-fund-orthogonal-defaults-on-36-million-debt-as-ftx-contagion-spreads"
+  },
+  {
+   "ts": "2022-12-12",
+   "event": "CoinDesk tallies ~$54M of soured debt (Orthogonal + Auros) = ~66% of Maple's $82M total outstanding loans across its four active pools",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2022/12/12/maple-finances-54m-of-sour-debt-shows-risks-of-crypto-lending-without-collateral"
+  },
+  {
+   "ts": "2022-12-14",
+   "event": "Maple 2.0 released: request-based prorated/scheduled withdrawals, delegate-declared immediate defaults with instant loss recognition, mandatory delegate first-loss capital, auto-compounding; Solana lending discontinued",
+   "observed": true,
+   "source_url": "https://cointelegraph.com/news/maple-finance-2-0-overhaul-aimed-at-speeding-up-the-defaulting-process"
+  },
+  {
+   "ts": "2022-12-20",
+   "event": "Auros Global discloses it is in provisional liquidation (BVI) while negotiating with creditors",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2022/12/20/crypto-trading-firm-auros-hit-by-ftx-collapse-discloses-provisional-liquidation"
+  },
+  {
+   "ts": "2022-12-22",
+   "event": "Orthogonal Trading placed under provisional liquidation by BVI court on petition of M11 Credit + Maple Foundation; Kroll appointed as Joint Provisional Liquidators",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/markets/2022/12/22/crypto-firm-orthogonal-trading-said-to-be-in-provisional-liquidation-after-maple-defaults"
+  },
+  {
+   "ts": "2023-01-31",
+   "event": "Kroll representatives appointed full Joint Liquidators of Orthogonal Trading (late Jan); recovery bottleneck: information from the FTX estate (Orthogonal's main asset is its FTX claim)",
+   "observed": true,
+   "source_url": "https://medium.com/@M11PoolDelegate/update-on-orthogonal-trading-liquidation-process-2e8a5d907939"
+  },
+  {
+   "ts": "2023-02-15",
+   "event": "Auros restructures its ~$18M M11-pool debt: 55% repaid immediately, 40% reissued ≤9 months at 8.64%, 5% ≤90 days at 0%",
+   "observed": true,
+   "source_url": "https://www.coindesk.com/business/2023/02/15/crypto-trading-firm-auros-global-restructures-18m-in-debt-on-maple-finance"
+  },
+  {
+   "ts": "2023-11-08",
+   "event": "M11 Credit confirms 100% repayment of Auros loans secured. Orthogonal side remains in liquidation with no published final distribution to M11 USDC pool lenders",
+   "observed": true,
+   "source_url": "https://medium.com/@M11credit/auros-global-repaid-100-of-funds-to-m11-credit-pools-on-maple-a5509cc1911e"
+  }
+ ],
+ "market_impact": {
+  "MPL_token": {
+   "from_usd": 7,
+   "to_usd": 5.29,
+   "drawdown_pct": 24.7,
+   "window": "2022-12-04 → 2022-12-05 18:00 UTC (24h, The Block/CoinGecko); from_usd back-computed from the reported −24.7%",
+   "follow_through": {
+    "december_2022_low_usd": 2.94,
+    "drawdown_from_pre_default_pct": 58,
+    "confidence": "medium — aggregator historical data (CoinLore/Bitget)"
+   }
+  },
+  "maple_m11_usdc_pool_lender_capital": {
+   "from_usd": 38500000,
+   "to_usd": null,
+   "drawdown_pct": 80,
+   "window": "instantaneous at default declaration 2022-12-05; ~80% loss on remaining pool capital ($31M of ~$38.5M active loans in default); final LGD after liquidation recoveries unresolved publicly"
+  },
+  "maple_m11_weth_pool_lender_capital": {
+   "from_usd": null,
+   "to_usd": null,
+   "drawdown_pct": 17,
+   "window": "instantaneous at default declaration 2022-12-05 (~$5M Orthogonal debt)"
+  },
+  "maple_protocol_outstanding_loans": {
+   "from_usd": 82000000,
+   "to_usd": null,
+   "drawdown_pct": null,
+   "window": "as of 2022-12-12: ~$54M (~66%) of the $82M outstanding was soured (Orthogonal + Auros)"
+  },
+  "USDC_peg": null,
+  "BTC": null,
+  "ETH": null
+ },
+ "stablecoins": [
+  "USDC — denomination asset of the defaulted loans; the peg itself was never impaired (this was a credit loss ON USDC deposits, not a depeg)",
+  "No stablecoin depeg occurred in this event"
+ ],
+ "defi_impact": {
+  "maple_protocol": {
+   "m11_usdc_pool": "Orthogonal owed $31M of ~$38.5M active loans (~80%); remaining lenders faced ~80% loss on capital at default; expected near-term offset only ~$2.5M (pool cover + Orthogonal's accrued platform fees)",
+   "m11_weth_pool": "~$5M of Orthogonal debt in default (~17% pool hit); same pool also carried Auros's 8,400 wETH (~$10.7M) distressed exposure",
+   "protocol_wide": "$36M Orthogonal default = ~30% of all active Maple loans; by 2022-12-12 soured debt across borrowers (Orthogonal + Auros) reached ~$54M = ~66% of $82M total outstanding in Maple's four active pools",
+   "governance_response": "Maple severed all ties with Orthogonal (borrower) and Orthogonal Credit (delegate) on 2022-12-05 and shut its pools; Maple 2.0 shipped 2022-12-14: modular contracts, request-based prorated/scheduled withdrawals (replacing deposit lockup + 10-day cooldown), delegate-declared instant defaults with immediate loss recognition, mandatory delegate first-loss capital, auto-compounding, Solana lending discontinued"
+  },
+  "no_onchain_signal": "KEY LESSON (confirmed): a private-credit borrower default has no on-chain price signal beforehand. Pool APY and TVL looked healthy until the 2022-12-05 announcement; the only public warning was Auros missing a wETH principal payment on 2022-11-30 — five days earlier and about a different borrower — and Maple 1.0's lockup/cooldown withdrawal design meant even lenders who reacted to it could not exit. Loss arrived as an instantaneous jump-to-default markdown, not a tradeable drawdown path.",
+  "composability": "Damage stayed inside Maple's credit pools: no oracle failure, no exploit, no liquidation cascade into overcollateralized DeFi (Aave/Compound/Morpho-style markets unaffected); USDC itself never depegged. This is idiosyncratic counterparty credit risk wearing a DeFi wrapper.",
+  "sector_effect": "Uncollateralized on-chain credit sector (Maple, TrueFi, Clearpool) lost depositor trust; Maple's outstanding loans had already fallen from a ~$900M-scale 2022 peak to $82M by mid-Dec 2022."
+ },
+ "causes": {
+  "root_cause": "Uncollateralized (private-credit) DeFi lending: Orthogonal Trading, a crypto hedge fund borrowing from Maple Finance's M11 Credit-managed pools, had large funds trapped on FTX when it collapsed (Chapter 11 filed 2022-11-11). Orthogonal concealed the loss — during November 2022 it repeatedly told pool delegate M11 Credit its FTX exposure was only ~$2.5M — and kept operating 'while effectively insolvent' for ~4 weeks before admitting on 2022-12-03 that it could not repay.",
+  "mechanism": "Maple 1.0 loans were under-collateralized loans to whitelisted institutional borrowers, underwritten off-chain by pool delegates (M11 Credit / Orthogonal Credit). There was no on-chain collateral to liquidate and no on-chain price signal of borrower distress: the pools' APY and TVL looked healthy until the default notice. When M11 Credit declared default on 2022-12-05, the loss was marked against lenders' pool shares instantly (jump-to-default), with no drawdown path in between.",
+  "aggravating_factors": [
+   "Pool delegate due diligence failed: Orthogonal's own affiliate (Orthogonal Credit) was simultaneously a Maple pool delegate, and delegates accepted borrower self-reported financials",
+   "Concentration: Orthogonal's $31M was ~80% of the M11 USDC pool's ~$38.5M of active loans; the $36M default was ~30% of ALL active loans on Maple",
+   "Maple 1.0 withdrawal mechanics (deposit lockup, reported as 90-day per protocol docs / 'minimum 30 days' per Cointelegraph, then a 10-day cooldown plus ~2-day exit window) plus pools being nearly fully lent meant lenders could not exit even after the 2022-11-30 Auros warning sign",
+   "'Pool cover' first-loss reserves were tiny relative to loans (~$2.5M expected recovery vs $36M default)",
+   "FTX contagion hit multiple Maple borrowers at once (Orthogonal, Auros), so soured debt reached ~66% of the $82M outstanding across Maple's four active pools by 2022-12-12"
+  ],
+  "prior_context": "Maple had already taken its first credit loss in July 2022: Babel Finance defaulted on a $10M USDC loan in the Orthogonal Credit-delegated pool (notice of default 2022-07-01, liquidated 2022-07-10), lenders booked a $7.9M loss = ~3.2% haircut on ~$244M pool deposits — an early demonstration of the same no-collateral, no-on-chain-signal failure mode."
+ },
+ "contagion": [
+  "FTX/Alameda collapse (2022-11-08/11) → Orthogonal Trading (BVI hedge fund) funds trapped on FTX",
+  "Orthogonal conceals insolvency ~4 weeks while continuing to owe Maple M11 pools → default notice 2022-12-05 on $36M (8 loans)",
+  "M11 USDC pool: $31M of ~$38.5M active loans in default (~80% pool hit); M11 wETH pool: ~$5M (~17% hit)",
+  "Parallel FTX casualty: Auros Global misses 2,400 wETH (~$3M) principal payment 2022-11-30; total Auros debt ~$18M to M11 pools; provisional liquidation disclosed 2022-12-20",
+  "Protocol level: soured debt ~$54M = ~66% of Maple's $82M outstanding loans by 2022-12-12; MPL token −24.7% in a day, ~−58% to December low ~$2.94",
+  "Corporate unwind: Orthogonal placed in BVI provisional liquidation 2022-12-22 (Kroll), full Joint Liquidators late Jan 2023",
+  "Trust contagion to the uncollateralized-credit sector broadly (TrueFi/Clearpool peers repriced; Maple deposits fled), forcing the Maple 2.0 redesign (2022-12-14)",
+  "NOT propagated: no stablecoin depeg, no smart-contract exploit, no cascade into overcollateralized money markets (Aave/Compound unaffected)"
+ ],
+ "recovery": {
+  "near_term": "~$2.5M expected recovery for M11 USDC pool lenders from pool cover + Orthogonal's accrued platform fees (vs $36M default) — announced 2022-12-05/06.",
+  "orthogonal_liquidation": "BVI court placed Orthogonal Trading in provisional liquidation ~2022-12-22 with Kroll as Joint Provisional Liquidators (petitioned by M11 Credit + Maple Foundation); Kroll appointed full Joint Liquidators late January 2023. Main recoverable asset was Orthogonal's claim on the FTX estate; M11's status updates named lack of FTX-estate information as the bottleneck. No final creditor distribution percentage has been published — final LGD for M11 USDC lenders remains publicly unresolved (FTX estate's 2024-25 cash distributions at >100% of petition-date values likely improved it, but no confirmation).",
+  "auros_contrast": "The parallel Auros exposure (~$18M to M11 pools) resolved far better: restructuring agreed 2023-02-15 (55% repaid immediately, 40% reissued ≤9 months at 8.64%, 5% ≤90 days at 0%); M11 Credit confirmed 100% repayment secured by 2023-11-08 (~11 months).",
+  "protocol_recovery": "Maple 2.0 (2022-12-14) rebuilt withdrawals, default handling and delegate first-loss capital; Maple survived, pivoted toward collateralized/RWA lending through 2023 and TVL later recovered to multi-billion scale (2024-25), but Maple 1.0-style unsecured pools were effectively abandoned.",
+  "time_to_partial_recovery": "Pool cover distribution: weeks. Auros side: 55% in ~2.5 months, 100% in ~11 months. Orthogonal side: >1 year, final amount unknown."
+ },
+ "sources": [
+  {
+   "url": "https://www.coindesk.com/markets/2022/12/05/maple-finance-severs-ties-with-orthogonal-trading-alleging-it-misrepresented-financial-position",
+   "title": "CoinDesk: FTX Contagion Spreads as Orthogonal Trading Gets Default Notice for $36M Debt on Maple Finance (2022-12-05)",
+   "supports": "Default notice date Dec 5 2022; $36M total; Maple severing ties with Orthogonal Trading (borrower) and Orthogonal Credit (delegate); misrepresentation of financial position; effectively-insolvent language",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.theblock.co/post/192097/maple-finance-default-orthogonal-trading",
+   "title": "The Block: Orthogonal Trading defaults on $36 million of loans on Maple Finance",
+   "supports": "8 loans / $36M; $31M in M11 USDC pool = ~80% of $38.5M active loans; ~$5M in wETH pool; ~30% of all active Maple loans; ~$2.5M expected recovery; November claim of only ~$2.5M FTX exposure, reversed Dec 3",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.theblock.co/post/192166/maple-token-down-more-than-24-cuts-ties-with-orthogonal-trading-following-36-million-default",
+   "title": "The Block: Maple token down more than 24% following $36 million default",
+   "supports": "MPL −24.7% in 24h to $5.29 (1pm EST Dec 5, CoinGecko data)",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.bloomberg.com/news/articles/2022-12-06/crypto-fund-orthogonal-defaults-on-36-million-debt-as-ftx-contagion-spreads",
+   "title": "Bloomberg: Crypto Fund Orthogonal Defaults On $36 Million Debt As FTX Contagion Spreads (2022-12-06)",
+   "supports": "Independent confirmation of $36M default and FTX-contagion cause",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/markets/2022/12/12/maple-finances-54m-of-sour-debt-shows-risks-of-crypto-lending-without-collateral",
+   "title": "CoinDesk: Maple Finance's $54M of Sour Debt Shows Risks of Crypto Lending Without Collateral (2022-12-12)",
+   "supports": "$54M soured debt = ~66% of $82M outstanding loans across Maple's four active pools; uncollateralized-lending risk framing",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/markets/2022/11/30/crypto-trader-auros-global-misses-payment-on-defi-loan-as-ftx-contagion-spreads",
+   "title": "CoinDesk: Auros Global Misses Payment on DeFi Loan (2022-11-30)",
+   "supports": "Auros missed principal on 2,400 wETH (~$3M) loan in M11 wETH pool; 5-day grace period; total 8,400 wETH (~$10.7M) + $7.5M USDC Auros exposure",
+   "confidence": "high"
+  },
+  {
+   "url": "https://cointelegraph.com/news/maple-finance-2-0-overhaul-aimed-at-speeding-up-the-defaulting-process",
+   "title": "Cointelegraph: Maple Finance 2.0 overhaul aims to speed the process for loan defaults (2022-12-14)",
+   "supports": "Maple 2.0 release date and redesign: prorated/scheduled withdrawals replacing deposit-lockup regime ('minimum 30 days' per this source), instant default declaration, delegate first-loss capital, auto-compounding",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coindesk.com/markets/2022/12/22/crypto-firm-orthogonal-trading-said-to-be-in-provisional-liquidation-after-maple-defaults",
+   "title": "CoinDesk: Orthogonal Trading Said to Be in Provisional Liquidation After Maple Defaults (2022-12-22)",
+   "supports": "BVI provisional liquidation of Orthogonal Trading",
+   "confidence": "high"
+  },
+  {
+   "url": "https://medium.com/@M11credit/m11-credit-update-on-orthogonal-trading-9f896c264f8f",
+   "title": "M11 Credit: Update on Orthogonal Trading (primary source)",
+   "supports": "Delegate's own account: $2.5M claimed FTX exposure repeated during November; Dec 3 disclosure; default notice; misrepresentation over ~4 weeks",
+   "confidence": "high"
+  },
+  {
+   "url": "https://medium.com/@M11PoolDelegate/update-on-orthogonal-trading-liquidation-process-2e8a5d907939",
+   "title": "M11 Credit: Status update on Orthogonal Trading liquidation process (primary source)",
+   "supports": "Kroll as Joint Provisional Liquidators then Joint Liquidators (late Jan 2023); FTX-estate information as recovery bottleneck; no final distribution figure",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://www.coindesk.com/business/2023/02/15/crypto-trading-firm-auros-global-restructures-18m-in-debt-on-maple-finance",
+   "title": "CoinDesk: Auros Global Restructures $18M in Debt on Maple Finance (2023-02-15)",
+   "supports": "Auros restructuring terms: 55% immediate / 40% ≤9mo at 8.64% / 5% ≤90d at 0%",
+   "confidence": "high"
+  },
+  {
+   "url": "https://medium.com/@M11credit/auros-global-repaid-100-of-funds-to-m11-credit-pools-on-maple-a5509cc1911e",
+   "title": "M11 Credit: Auros Global repaid 100% of funds to M11 Credit pools on Maple (primary source)",
+   "supports": "Full Auros repayment secured by 2023-11-08",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://medium.com/@orthogonal_trading/confidently-moving-forward-from-babel-loan-liquidation-56b8bd1b7fa4",
+   "title": "Orthogonal Credit: Confidently Moving Forward from Babel Loan Liquidation (primary source)",
+   "supports": "Babel Finance context: $10M USDC loan, notice of default 2022-07-01, liquidated 2022-07-10, $7.9M lender loss = ~3.2% haircut on ~$244M pool deposits, +$1M pool-cover top-up",
+   "confidence": "high"
+  },
+  {
+   "url": "https://www.coinlore.com/coin/maple/historical-data",
+   "title": "CoinLore: Maple (MPL) historical prices",
+   "supports": "MPL December 2022 low ~$2.94 (vs Aug 2022 high ~$24)",
+   "confidence": "medium"
+  },
+  {
+   "url": "https://blockworks.co/news/maple-finance-bad-loans-immediate-defaults",
+   "title": "Blockworks: Maple Finance Opts for Immediate Defaults To Curb Bad Loans",
+   "supports": "Maple 2.0 default-process change: delegate-declared immediate defaults with instant loss recognition",
+   "confidence": "medium"
+  }
+ ],
+ "confidence_notes": "Headline numbers ($36M / 8 loans / $31M in M11 USDC pool / ~80% pool loss / ~30% of Maple's active loans / Dec 5 2022 default notice) are confirmed by 3+ independent outlets (The Block, CoinDesk, Bloomberg, Decrypt). Corrections to the brief: concealment was ~4 weeks (FTX Ch.11 Nov 11 → disclosure Dec 3, and M11's own '4 weeks' language), not ~5; wETH-pool exposure was ~$5M (~17% pool hit), confirmed. Maple 1.0 withdrawal terms are the weakest area: protocol docs-derived sources describe a 90-day deposit lockup then 10-day cooldown + ~2-day exit window, while Cointelegraph's Maple 2.0 coverage says 'minimum of 30 days to withdraw after deposit' — I report the range; either way exit before default was impossible. MPL intraday figures: −24.7% to $5.29 on Dec 5 (The Block, CoinGecko-sourced) is solid; the December 2022 low ~$2.94 comes from aggregator historical data (CoinLore/Bitget) — medium confidence; pre-default reference ~$7.0 is back-computed from The Block's −24.7% and marked accordingly. Final loss-given-default for M11 USDC lenders is UNRESOLVED publicly: only ~$2.5M near-term recovery (pool cover + accrued fees) was confirmed, Kroll's BVI liquidation of Orthogonal (main asset: an FTX estate claim) has no published final distribution — reported as null rather than estimated. FTX actual-exposure size for Orthogonal was never publicly quantified beyond 'substantially larger than $2.5M' — null. Auros full repayment by 2023-11-08 is from M11 Credit's own Medium post (single primary source, but consistent with CoinDesk's Feb 2023 restructuring terms).",
+ "data_availability": {
+  "onchain": "Full Ethereum history of Maple v1 pool contracts (deposits, loan drawdowns, default/liquidation txs) is public; Maple subgraph and Dune dashboards cover pool balances. Crucially, on-chain APY/TVL series show NO pre-default distress — useful as a negative control for signal research.",
+  "market_data": "MPL daily OHLC from CoinGecko/CoinMarketCap/CoinLore (note: current 'Maple/SYRUP' listings reflect the 2024-25 token migration; use 2022 MPL history). Maple TVL time series on DeFiLlama.",
+  "primary_docs": "M11 Credit and Orthogonal Credit Medium post-mortems (Dec 2022 default notice, liquidation status updates, Auros restructuring and 100%-repayment posts); Maple Finance blog/treasury reports; Maple 2.0 release notes.",
+  "legal": "BVI court provisional-liquidation proceedings (Kroll as JPLs/JLs) are not fully public; final creditor distribution data for Orthogonal Trading not published — final LGD for M11 USDC lenders cannot be closed from public data.",
+  "gaps": [
+   "Orthogonal's true FTX exposure amount never disclosed",
+   "No public final recovery % for M11 USDC pool lenders",
+   "Intra-pool lender-level loss accounting only reconstructable from chain data"
+  ]
+ },
+ "spa_relevance": {
+  "book_mapping": {
+   "maple_15pct": "DIRECT HIT — this event is the historical stress case for the $15,000 Maple sleeve. If that sleeve had sat in the affected M11 USDC pool: ~80% instantaneous markdown = −$12,000 = −12.0% of the $100k book in one block, with the position locked (no exit possible). Even a protocol-average outcome (~66% of outstanding loans soured, LGD uncertain) implies high-single-digit to ~10% book loss from a 15% sleeve.",
+   "aave_v3_40pct": "Unaffected in the historical event — overcollateralized money markets saw no contagion from Maple's credit loss. Aave's risk is a different class (oracle/liquidation/utilization), not borrower credit.",
+   "pendle_pt_20pct": "No direct analog (Pendle PT is overcollateralized yield-splitting). Partial analogy on exit liquidity only: PT sold pre-maturity in a panic takes a discount, but there is a market — unlike Maple 1.0 where exit was structurally impossible.",
+   "morpho_steakhouse_15pct": "Did not exist in Dec 2022. Steakhouse USDC lends against on-chain collateral, so borrower jump-to-default in this form doesn't apply; the transferable lesson is curator risk (delegate ≈ curator: an agent whose off-chain judgment you cannot verify from chain data).",
+   "cash_10pct": "Unaffected; USDC held peg throughout."
+  },
+  "kill_switch_implication": "CRITICAL: this event defeats the two-tier drawdown ladder. Loss arrives as a single-block jump-to-default (−12% of book from the Maple sleeve alone), skipping straight past SOFT_DERISK (−5%) into HARD_KILL (≥−10%) territory with zero time to de-risk — and HARD_KILL's 'all-cash' response cannot liquidate a defaulted, locked credit position anyway. Drawdown-reactive controls are ex-post here; the only effective control is ex-ante sizing.",
+  "risk_policy_gaps_exposed": [
+   "APY/TVL-based gates are blind to private-credit counterparty risk: M11 USDC pool (~$38.5M active loans) passes the $5M TVL floor, APY looked healthy until the announcement, and live-TVL checks (ADR-053) would have shown nothing wrong on Dec 4",
+   "Withdrawal terms must be a first-class risk parameter: Maple 1.0's deposit lockup (30-90d) + 10-day cooldown + ~2-day window means 'DERISK всегда быстро' is physically impossible — fail-CLOSED cannot execute on locked capital",
+   "Per-protocol cap is the only defense that works: with 80% LGD, keeping worst-case single-protocol loss under the 10% HARD_KILL budget requires the uncollateralized-credit sleeve ≤12.5% (current 15% Maple weight implies a 12% worst-case hit)",
+   "The one observable early signal (Auros missing a wETH payment on 2022-11-30, T-5 days, different borrower, same delegate) argues for a delegate/curator-level contagion rule: any missed payment in a delegate's pool family ⇒ freeze new allocation to ALL that delegate's pools (cap-at-held, fail-CLOSED)"
+  ],
+  "stress_test_spec": "Model as jump process, not path: at T0 mark Maple sleeve −80% (severe, historical M11 USDC) / −17% (moderate, wETH-pool analog) / −3.2% (mild, Babel 2022 analog) with recovery lag of 12+ months and recovered fraction uncertain (use 0-30% of loss for severe case); no exit possible for locked sleeve regardless of warning; other sleeves flat; MPL-style governance-token hedge assumption invalid (−25% day one, −58% to trough)."
+ },
+ "replay": {
+  "duration_days": 45,
+  "start_date": "2022-11-08",
+  "base": {
+   "aave_v3": {
+    "apy_pct": 3.0
+   },
+   "pendle": {
+    "apy_pct": 5.5
+   },
+   "maple": {
+    "apy_pct": 8.5
+   },
+   "morpho_steakhouse": {
+    "apy_pct": 4.0
+   }
+  },
+  "shocks": [
+   {
+    "kind": "freeze",
+    "params": {
+     "protocol": "maple",
+     "from_day": 0,
+     "to_day": 44
+    }
+   },
+   {
+    "kind": "capital_loss",
+    "params": {
+     "protocol": "maple",
+     "day": 27,
+     "loss_pct": 0.8
+    }
+   },
+   {
+    "kind": "liquidity",
+    "params": {
+     "from_day": 27,
+     "to_day": 35,
+     "exit_haircut_pct": 0.005,
+     "gas_cost_usd": 60.0
+    }
+   }
+  ],
+  "assumptions": [
+   "maple −80% день 27 (05.12.2022) — уценка капитала кредиторов пула M11 USDC при дефолте ($31M из ~$38.5M), подтверждена 3+ источниками; финальный LGD публично не закрыт — берём уценку на дату дефолта.",
+   "freeze весь горизонт — локапы Maple 1.0 по построению (90д + cooldown): выход был невозможен и ДО дефолта.",
+   "H07 (FTX) моделирует тот же арк с диверсифицированным допущением −30%; здесь — концентрированная реальность одного пула. Не суммировать."
+  ]
+ }
+}
