@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **613** · ждёт владельца: **3** · занято сессиями: **7**.
+> Всего карточек: **617** · ждёт владельца: **3** · занято сессиями: **7**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -168,7 +168,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (297)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (300)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -273,6 +273,7 @@
 - новая задача которую нужно решить мне сейчас в telegram пишется спамится одно и…  ·  `inbox-novaya-zadacha-kotoruyu-nuzhno-reshit-mn.md` · 2026-08-13
 - Обход owner-gate по трейлеру Owner-Approved не работал никогда: опечатка в имени аргумента, спрятанная слепым except  ·  `inbox-obhod-owner-gate-po-treileru-owner-appro.md` · 2026-08-07
 - Очередь теряет карточки: читать обе формы frontmatter + сторож (решение владельца 09.08)  ·  `inbox-ochered-teryaet-kartochki-chitat-obe-for.md` · 2026-08-09
+- Осиротела R&D-итерация #73 ACL: скрипт и тест лежат в /private/tmp/spa_rnd73, замеров и записи реестра нет — сессия умерла ПОСРЕДИ работы  ·  `inbox-osirotela-r-d-iteratsiya-73-acl-skript-i.md` · 2026-08-23
 - Осиротевший сторож свежести кода агентов (цикл #177) — 1136 строк лежат в /tmp, не проверены  ·  `inbox-osirotevshii-storozh-svezhesti-koda-agentov.md` · 2026-08-09
 - Отказ замка цикла неотличим от аварии: last_exit=2 означает и 'защитил трек', и 'сломался'  ·  `inbox-otkaz-zamka-tsikla-neotlichim-ot-avarii.md` · 2026-08-08
 - Отметка из БУДУЩЕГО читается как «только что»: общий помощник свежести зажимает возраст в ноль  ·  `inbox-otmetka-iz-buduschego-chitaetsya-kak-tol.md` · 2026-08-18
@@ -426,6 +427,7 @@
 - Два теста краснеют оттого, что владелец ОТВЕТИЛ: очередь CLI судит о главном дереве  ·  `inbox-dva-testa-krasneyut-ottogo-chto-vladelet.md` · 2026-08-19
 - Две записи о деньгах расходятся каждый день — найти и починить ПРИЧИНУ (решение владельца 10.08, вариант 1)  ·  `inbox-dve-zapisi-o-dengah-rashodyatsya-kazhdyi.md` · 2026-08-10
 - Голый ответ владельца («1», «2») при вопросе БЕЗ вариантов молча превращается в задачу — решение не применяется  ·  `inbox-golyi-otvet-vladeltsa-1-2-pri-voprose-be.md` · 2026-08-22
+- Карта «чей это тест» ВЫДУМЫВАЕТСЯ, если в том же дереве идёт второй прогон: атрибуция по совпадению во времени, без единой проверки, что писал именно этот тест  ·  `inbox-karta-chei-eto-test-vydumyvaetsya-pri-parallelnom-progone.md` · 2026-08-23
 - Книги за прошлый день нет в архиве: дозапись исходов навсегда несёт null в позициях  ·  `inbox-knigi-za-proshlyi-den-net-v-arhive-dozap.md` · 2026-08-17
 - Консолидация четырёх стресс-движков + дрейф порога в stress_engine v1  ·  `inbox-konsolidatsiya-chetyreh-stress-dvizhkov.md` · 2026-08-22
 - Крупнейшая позиция книги стоит на константе: у aave_v3 (Ethereum, 40%) TVL «не измерено», а пул в фиде есть  ·  `inbox-krupneishaya-pozitsiya-knigi-stoit-na-ko.md` · 2026-08-09
@@ -433,10 +435,10 @@
 - Модуль bot_commands заменён, но жив: свой getUpdates-поллер и свои двери в чат  ·  `inbox-modul-bot-commands-zamenen-no-zhiv-svoi.md` · 2026-08-13
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
 - Находка петли: аналитик red_team: CRITICAL — требует реакции (карточка/решение), не п  ·  `inbox-nahodka-petli-analitik-red-team-critical.md` · 2026-08-10
+- Находка петли: возможность spark_susds 3.6765% (evidence L4) доступна книге, не держи  ·  `inbox-nahodka-petli-vozmozhnost-spark-susds-3.md` · 2026-08-23
 - Обещанная перепроверка DNS checkup осталась без исполнителя: карточку закрыли, критерий не выполнен  ·  `inbox-obeschannaya-pereproverka-dns-checkup-os.md` · 2026-08-22
 - Окно до 6 часов: ответ владельца между нажатием кнопки и прогоном моста живёт в одном экземпляре  ·  `inbox-okno-do-6-chasov-otvet-vladeltsa-mezhdu.md` · 2026-08-15
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08
-- Осиротела R&D-итерация #73 ACL: скрипт и тест лежат в /private/tmp/spa_rnd73, замеров и записи реестра нет — сессия умерла ПОСРЕДИ работы  ·  `inbox-osirotela-r-d-iteratsiya-73-acl-skript-i.md` · 2026-08-23
 - Остатки инжеста 21.08: гейт доказанности APY в аварийной книге и якорь архива исходов — сначала ЗАМЕР  ·  `inbox-ostatki-inzhesta-21-08-geit-dokazannosti.md` · 2026-08-21
 - Оживить фиды вне Ethereum — путь к снятию остатка кэша (решение владельца 08.08)  ·  `inbox-ozhivit-fidy-vne-ethereum-put-k-snyatiyu.md` · 2026-08-08
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
@@ -467,12 +469,13 @@
 - Третья ветка держит решение и две карточки владельца, а номер ADR-117 занят дважды  ·  `inbox-tretya-vetka-derzhit-reshenie-i-dve-kart.md` · 2026-08-22
 - Три отправителя стоп-крана в обход канонической двери (найдено #313)  ·  `inbox-tri-otpravitelya-stop-krana-v-obhod-kano.md` · 2026-08-20
 - У ежедневного аудита 90% нет сторожа — он молча стоял 13 суток, и метрика не сдвинулась ни на модуль  ·  `inbox-u-ezhednevnogo-audita-90-net-storozha-on.md` · 2026-08-22
+- У уборщика нет слова «намеренно НЕ доставлено»: путь, который решено не везти на origin, делает дерево неснимаемым НАВСЕГДА и кормит шаг 0a вечной ложной находкой  ·  `inbox-uborschik-ne-znaet-slova-namerenno-ne-dostavleno.md` · 2026-08-23
 - Вопрос с ДВУМЯ решениями нечем ответить с телефона: кнопок нет по построению, а он висит девять дней  ·  `inbox-vopros-s-dvumya-resheniyami-nechem-otvet.md` · 2026-08-19
 - Вопрос владельцу велел прочитать поле, которого в коде нет — и ответ пришёл: инструкцию владельцу никто не проверяет  ·  `inbox-vopros-vladeltsu-velel-prochitat-pole-ko.md` · 2026-08-22
 - Замер обмена «доходность ↔ концентрация» на T2 (20/25/30%) — решение владельца A, задачи не было  ·  `inbox-zamer-obmena-dohodnost-kontsentratsiya-n.md` · 2026-08-08
 - Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07 · 🔒 `cycle-81141`
 
-## 🤖 Agent Tasks (что делает агент)  (117)
+## 🤖 Agent Tasks (что делает агент)  (118)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -494,13 +497,13 @@
 - Мягкая ступень стоп-крана: перестать подавать её как защиту (решение владельца 19.08, вариант Б1)  ·  `agent-myagkaya-stupen-perestat-nazyvat-zaschitoi.md` · 2026-08-20
 - Осиротевшая работа вернулась после закрытия своей карточки — циклы #97 и #98 умерли не доставив, второй прямо на подъёме работы первого  ·  `agent-orphaned-work-recurred-after-its-card-was-closed.md` · 2026-08-03
 - Оживить четыре мёртвые книги исследовательской панели — починить фиды (решение владельца 19.08, вариант 1)  ·  `agent-ozhivit-chetyre-mertvye-knigi-paneli.md` · 2026-08-20
+- Довести пейпер-тест до уровня основного пакета во ВСЕХ пакетах (aggressive_lab / rates_desk / swarm / rwa_backstop / liquidator / underwriting / BTC)  ·  `agent-paper-test-parity-all-packages.md` · 2026-08-22
 - Поиск новых протоколов — шагом внутри дневного цикла (решение владельца 19.08, вариант 1)  ·  `agent-poisk-protokolov-shag-dnevnogo-tsikla.md` · 2026-08-20
 - Цель аллокатора ДО гейта нигде не сохраняется — ни один вопрос «а что он просил?» не проверяем задним числом  ·  `agent-predgateovaya-tsel-ne-sohranyaetsya.md` · 2026-08-08
 - Относительный путь в пушере читает ХОСТ-дерево, а не дерево отправки — набор уезжает как «OK, pushed=0»  ·  `agent-pusher-relative-path-silently-reads-the-host-tree.md` · 2026-08-04
 - Построить advisory paper-модуль под ранговое правило демоушена (вариант C владельца 2026-08-08)  ·  `agent-rank-demotion-paper-module.md` · 2026-08-08
 - Сторож чисел сайта: тихий проход только по двум условиям сразу (решение владельца 19.08, вариант 1)  ·  `agent-storozh-chisel-tihii-prohod-po-dvum-usloviyam.md` · 2026-08-20
 - Напоминание о снятии стоп-крана: реализовать политику А1 (ADR-097)  ·  `agent-task-napominanie-o-snyatii-stop-krana-realizo.md` · 2026-08-20
-- Одно число — два вердикта: portfolio health 69.4 это CRITICAL у системного сторожа и WARNING у агентного  ·  `agent-task-odno-chislo-dva-verdikta-portfolio-healt.md` · 2026-08-07
 - Права на origin нечем починить: пушер по построению сохраняет режим remote, а правило требует чинить режим на origin  ·  `agent-task-prava-na-origin-nechem-pochinit-pusher-p.md` · 2026-08-07
 - Прогон тестов пачкает git-tracked фикстуры — «чистое дерево» перестало быть сигналом  ·  `agent-test-run-dirties-tracked-fixtures.md` · 2026-08-04
 - 20 модулей Tier-B помечены `unsourced` — поднять их обратно можно только источником, не правкой разметки  ·  `agent-tier-b-20-unsourced-modules-need-sources.md` · 2026-08-06
@@ -578,6 +581,7 @@
 - CI на main красный с 06:23Z — сканер мёртвого кода не укладывается в 30-секундный бюджет на раннере (локально укладывается)  ·  `agent-task-ci-na-main-krasnyi-s-06-23z-skaner-mertv.md` · 2026-07-31
 - Два предсуществующих красных теста на main: дрейф манифеста morning_digest и храповик литеральных дат  ·  `agent-task-dva-predsuschestvuyuschih-krasnyh-testa.md` · 2026-08-06
 - Красный CI-Lite невидим: гейт mypy живёт в workflow, который никто не смотрит, и его падение гасит две другие проверки  ·  `agent-task-krasnyi-ci-lite-nevidim-geit-mypy-zhivet.md` · 2026-08-03
+- Одно число — два вердикта: portfolio health 69.4 это CRITICAL у системного сторожа и WARNING у агентного  ·  `agent-task-odno-chislo-dva-verdikta-portfolio-healt.md` · 2026-08-07
 - Повторное дописывание файла в одном цикле дублирует содержимое: rebase_append считает хвост от устаревшей базы, а не от remote  ·  `agent-task-povtornoe-dopisyvanie-faila-v-odnom-tsik.md` · 2026-08-03
 - Сторож governance отчитывается «8 ok / 0 failed», не проверяя НИ ОДИН удерживаемый протокол — пересечение с портфелем пустое  ·  `agent-task-storozh-governance-otchityvaetsya-8-ok-0.md` · 2026-08-01
 - Сторож-автоперезапуск telegram_bot: маячок протух — бот перезапускается сам  ·  `agent-telegram-bot-watchdog.md` · 2026-08-21
