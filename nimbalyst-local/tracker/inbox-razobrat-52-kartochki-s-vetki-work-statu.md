@@ -60,7 +60,8 @@ verify` пройден) — полная копия ветки на случай
 
 ## 📦 Ход разбора (промежуточное состояние — обновлять каждым циклом)
 
-**Разобрано: 15 из 52.** Осталось 37 (в т.ч. 18 живых вопросов владельца).
+**Разобрано: 33 из 52.** Осталось 19 — все `inbox-*`/`agent-*`; **вопросов владельца среди них
+больше нет** (батч 2 закрыл все 18).
 Замер состава: из 52 карточек ветки `own-*`/`owner-decision-*` не ~20, а **33** —
 26 `needs-owner`, 6 `ingested`, 1 `blocked`. Начал с них, как велит п.2.
 
@@ -114,8 +115,75 @@ verify` пройден) — полная копия ветки на случай
 Это НЕ повод переносить код (запрет владельца в силе), но и молчать об этом нельзя: после удаления
 ветки три готовых решения придётся находить заново. Названо здесь и в журнале W34.
 
+
+
+### Батч 2 (цикл #355, 23.08) — 18 карточек: ВСЕ оставшиеся вопросы владельца
+
+Отбор — не по имени файла: сначала посчитаны пути, которых на `main` НЕТ ВООБЩЕ
+(`git ls-tree` ветки минус `main` = **43**), из них вычтены 6, уже разобранных батчем 1 как
+(б)/(в) и оставшихся на ветке. Итог — 37 неразобранных, среди них ровно **18** `own-*`/
+`owner-decision-*`. Именно они разобраны здесь (п. 2 приёмки: вопросы владельца — первыми).
+
+**(а) живое, на `main` не было ⇒ ПЕРЕНЕСЕНО — 8.** У каждой в теле раздел «🚚 Перенесено на
+`main` циклом #355»: с чем сверялось и **чем премиса перемерена на `main` 4fc822849** (не со слов
+карточки):
+
+| карточка | статус | чем ПЕРЕМЕРЕНА на `main` |
+|---|---|---|
+| `own-2026-08-18-metka-zhivoi-na-konstante-v-allokatore` | ingested | `allocator.py:926-928` ставит `live`, `:937` кладёт литерал — дефект ЖИВ |
+| `owner-decision-pravilo-sky-susds-0-otmeneno-tvoim-zhe-r` | ingested | `CLAUDE.md:95` и `.claude/rules/adapters.md:29` объявляют инвариант 10 действующим |
+| `own-yakorenie-treka-ne-rabotalo-43-dnya` | ingested | `proofs/ots/ots_anchors.jsonl` = 1 строка; вызывающего у `ots_anchor.py` нет; `com.spa.smoke_flagship` не установлен |
+| `owner-decision-doska-kartochek-obeschaet-bolshe-chem-da` | needs-owner | `CLAUDE.md:27` дословно обещает «сам на каждой мутации карточки» |
+| `owner-decision-dve-zapisi-o-dengah-prichina-naidena-i-i` | needs-owner | ответ на задачу `inbox-dve-zapisi-o-dengah-rashodyatsya-kazhdyi` (`new`) — причина найдена прогоном |
+| `owner-decision-vnutridnevnaya-prosadka-slepota-teper-sl` | needs-owner | 4 вопроса о ПОВЕДЕНИИ риска; ADR-068/104/114 отвечают «что построено», не «как вести себя вслепую» |
+| `owner-decision-zakrytie-voprosa-vladeltsa-iz-rabochego` | needs-owner | `.gitignore:47-48` — журнал аудита в git не попадает ⇒ ложная тревога воспроизводится всегда |
+| `owner-decision-shest-nahodok-za-den-okazalis-odnoi-bole` | needs-owner | на `main` есть частные случаи класса, карточки о самом классе нет |
+
+**(б) повтор того, что на `main` уже есть ⇒ НЕ перенесено — 7.** Замер с ветки приложен к
+карточке `main` разделом «➕ Замер с ветки», иначе он умер бы вместе с веткой:
+
+| карточка ветки | совпала с (на `main`) | что забрано в `main`-карточку |
+|---|---|---|
+| `own-2026-08-17-morpho-blue-odin-pul-dva-kluycha` | `inbox-morpho-blue-i-morpho-steakhouse-razresha` (new) | **ответ владельца 18.08 — вариант B** + замер одного пула |
+| `own-2026-08-17-spark-susds-dublikat` | `agent-spark-susds-identity-split` (backlog) | **ответ владельца 18.08 — вариант B** (переименовать в SparkLend USDS) |
+| `owner-decision-proverka-knigi-slabee-proverki-pered-sde` | `agent-enforcer-coverage-gaps` (in-progress) | замер 14 порогов: 3 строги на обеих, 60 % T2 проходит как «здоровый портфель» |
+| `owner-decision-vesti-opros-ot-polnogo-reestra-adapterov` | `inbox-orkestrator-vedom-kanonicheskim-reestrom` (new) | таблица 8/10/36 → 8/9/**27** проходных при пределе ALLOC-002 = 8 |
+| `owner-decision-spisat-180-fonovyh-modulei-tier-c-ili-ch` | `inbox-tier-c-171-iz-180-modulei-ne-otvechayut` (in-progress) | разложение 162/9/5/4, протокол-чувствительных 0 из 180 |
+| `owner-decision-razvedka-krichit-critical-na-nashu-zhe-o` | `own-red-team-nablyudennaya-ugroza-ne-doezzhaet` (перенесена батчем 1) | адреса: `red_team.py:89`, `house_view_gap.py:69` и `:517-539` |
+| `owner-decision-storozh-saita-ne-kladet-v-git-dannye-iz` | `owner-decision-chisla-treka-na-saite-ne-podtverzhdayuts` (ingested) | 6 коммитов сторожа = 0 файлов `data/`; 53 дн./29-29 против 13 дн./27-29 в git |
+
+**(в) устарело фактически ⇒ НЕ перенесено — 3.** Починка названа поимённо:
+
+| карточка ветки | чем закрыта на `main` |
+|---|---|
+| `own-55-vtoroi-chitatel-komand-v-telegram` | вопрос ПЕРЕСПРОШЕН и отвечен: `owner-decision-peresprashivayu-sudba-storozha-telegram` (ingested) + **ADR-113** (`telegram_watcher` разоружён) |
+| `owner-decision-sbalansirovannyi-paket-ne-pokupaet-niche` | **ADR-125** (23.08): у Balanced появился шаг выбора — живой ranking, 4 позиции по $25k; премиса «в коде нет самого шага покупки» больше не верна |
+| `owner-decision-storozh-saita-krasneet-kazhduyu-noch-na` | **ADR-116** (22.08): стоящее одобрение владельца, класс B (числа доходности) уезжает в live без карточки ⇒ ежедневная тревога на длине трека снята источником |
+
+### Что вскрылось по дороге (сверх приёмки карточки) — батч 2
+
+**Вывод `ADR-099` «потерянных решений нет» верен для КАРТОЧЕК и неверен для СОДЕРЖАНИЯ.**
+`ADR-099` считал, сколько карточек ветки уже `ingested` на `main` (8 из 9), и заключил: владельца
+переспросили, но ничего не потеряли. Замер батча 2 показывает второй слой: `ADR-095` ветки
+(18.08) содержит **четыре** решения владельца, и два из них — пп. 3 и 4, помеченные там же
+«работа агента, исполняется сразу», — **на `main` не исполнены и карточек на `main` не имели**:
+
+1. **п. 3** — аллокатор ставит метку «живое» на константу. Перемерено сегодня на `main`
+   4fc822849: `spa_core/allocator/allocator.py:926-928` читает живой TVL из `tvl_evidence`,
+   ставит `tvl_source="live"` и **выбрасывает число**, а `:937` кладёт в `tvl_usd` литерал
+   адаптера. Соседний registry-путь `:1019-1021` написан верно. Прямое нарушение
+   `.claude/rules/risk-engine.md` («Never stamp `live` on a constant»); кормит отбор кандидатов,
+   `feed_coverage`, дашборд и куратора тиров. Жёсткого гейта не достигает (тот читает снимок
+   оркестратора).
+2. **п. 4** — инвариант 10 «Sky/sUSDS = 0 %» снять как исполненный (условие выполнено 05.08,
+   `ADR-065`). На `main` он по-прежнему объявлен действующим (`CLAUDE.md:95`,
+   `.claude/rules/adapters.md:29`) и уже породил ложную «критичную» находку 16.08.
+
+Оба решения теперь лежат на `main` в перенесённых карточках (то есть с закрытием ветки не
+исчезнут). Исполнение — вопрос владельцу: `owner-decision-dva-tvoih-resheniya-ot-18-08-ne-ispolnen`.
+
 ### Следующий батч
 
-Начинать с оставшихся живых вопросов владельца (18 шт.), затем 6 `ingested` и 19 `inbox-*`/`agent-*`.
+Осталось **19** карточек, все `inbox-*`/`agent-*` (вопросов владельца больше нет). Полный список —
+`comm -23 <(git ls-tree -r --name-only <ветка> -- nimbalyst-local/tracker/|sort) <(git ls-tree -r --name-only origin/main -- nimbalyst-local/tracker/|sort)` минус разобранные выше.
 Ветку НЕ удалять до конца разбора (п. «Чего делать нельзя»).
-

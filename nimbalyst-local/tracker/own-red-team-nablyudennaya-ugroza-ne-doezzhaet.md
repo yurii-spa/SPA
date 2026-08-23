@@ -91,3 +91,14 @@ source: inbox-nahodka-petli-analitik-red-team-critical
 **Владельцу пачкой НЕ отправлялась** (ADR-084: штатное и решённое не звонит владельцу) — `notify`
 по ней не запускался. Код и тесты ветки не переносились: так записано в решении владельца.
 
+
+---
+
+## ➕ Точные координаты с закрываемой ветки (цикл #355, 2026-08-23)
+
+На ветке та же находка лежала ВТОРОЙ карточкой (`owner-decision-razvedka-krichit-critical-na-nashu-zhe-o`,
+18.08) — дубликат этой, не переношу. Забираю из неё только то, чего здесь не было, — адреса:
+лестница постур `spa_core/investment_os/agents/red_team.py:89` · `_RED_TOKENS = ("RED","CRITICAL")`
+в `spa_core/monitoring/house_view_gap.py:69` · рождение находки `gap:analyst_red:red_team` там же
+`:517-539`. Именно из-за `_RED_TOKENS` слово `THREATS_PRESENT` (настоящая наблюдённая угроза) в
+лестницу не попадает, а `kill_switch_already_active` (наше эхо) попадает каждый цикл.
