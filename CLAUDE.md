@@ -23,8 +23,12 @@ SPA — автономный DeFi yield-optimizer на стадии **paper trad
    - **`docs/SYSTEM_MAP.md`** — живая карта ВСЕЙ системы: каждый из 58 агентов (по ролям), страницы сайта,
      код по подсистемам, ПОЧЕМУ так устроено (+ `data/agent_registry.json` / дашборд `/admin/agents`);
    - **`nimbalyst-local/tracker/_BOARD.md`** — ЕДИНЫЙ ОБЗОР всех карточек одним взглядом (по типу+статусу,
-     вверху «ждёт владельца»); авто-индекс, регенерится `scripts/build_tracker_board.py` + сам на каждой
-     мутации карточки. Читать ЕГО первым, не открывая 56 файлов. Сами карточки — `nimbalyst-local/tracker/*.md`:
+     вверху «ждёт владельца»); авто-индекс, регенерится `scripts/build_tracker_board.py`: при мутации
+     через `orchestrator_queue.py` — автоматически, при **ручной правке карточки доску надо
+     пересобрать самому** (`python3 scripts/build_tracker_board.py`), иначе она отстанет и покажет
+     закрытую карточку открытой. Сторожа, который ловит расхождение, на `main` пока НЕТ
+     (`agent-storozh-doski-zhivet-tolko-na-vetke`). Читать ЕГО первым, не открывая 56 файлов.
+     Сами карточки — `nimbalyst-local/tracker/*.md`:
      `own-*`/`owner-decision-*` = Owner Decisions (ждёт владельца) · `agent-*` = Agent Tasks (что делает
      агент: backlog/in-progress/blocked/done) · `inbox-*` = задания;
    - **`docs/OWNER_BACKLOG_<дата>.md`** — свежие решения владельца из Q&A-сессий;
@@ -92,7 +96,14 @@ SPA — автономный DeFi yield-optimizer на стадии **paper trad
    до legal-clearance. Не выдавать paper/backtest за live; каждая APY-claim имеет
    evidence-level (L0–L6, `docs/37`) + источник + risk-категория + last-verified дата.
 9. **IS_ADVISORY=True** для всех новых стратегий/sleeve'ов T2/T3 до go-live.
-10. **Sky/sUSDS = 0%** до подтверждённого GSM Pause Delay ≥ 48h on-chain.
+10. **ИСПОЛНЕН 2026-08-05 — [ADR-065](docs/decisions/ADR-065-sky-susds-promoted-to-t1.md).**
+    Условие «Sky/sUSDS = 0% до подтверждённого GSM Pause Delay ≥ 48h on-chain» выполнено:
+    `DSPause.delay()` = 48.00 ч, три согласных RPC, `sky_susds` повышен WL/0 → **T1**. Запрета
+    больше нет; механика жива — `is_gsm_compliant()` по-прежнему гейтит адаптер fail-CLOSED,
+    и при откате задержки ниже 48 ч он снова закроет протокол сам. Номер сохранён за строкой
+    намеренно: на «инвариант 10» ссылаются код и тесты. *(Снят как исполненный решением
+    владельца 2026-08-23, вариант 1 — строка читалась как действующий запрет и 2026-08-16
+    дала агенту ложную CRITICAL.)*
 11. **Атомарный KANBAN** — перечитывать с диска перед записью (конкурентный писатель — цикл).
 12. **Деплой агента только через gate** — `scripts/check_agent_before_deploy.sh <name>` перед
     `launchctl bootstrap`; bash-wrapper (не прямой `python3 -m`), логи в `/tmp/` (не `~/Documents`)
