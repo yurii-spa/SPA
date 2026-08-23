@@ -2333,10 +2333,21 @@ def resolve_text_answer(
                         "label": last.get("choice_label"), "title": last.get("title")}
             return {"ok": False, "reason": "no_open_decision"}
         if len(candidates) > 1:
+            # `addressees` — ПОЛНЫЙ список кандидатов с их pid и признаком «предлагает ли
+            # этот вопрос номер, который прислал владелец». Именно из него собирается
+            # переспрос кнопками (`build_answer_addressee_picker`): адресата называет
+            # владелец нажатием, а не мы догадкой. `candidates` (укороченный, без pid)
+            # остаётся как был — на нём стоит текстовый ответ и его тесты.
             return {"ok": False, "reason": "ambiguous",
+                    "num": num,
                     "candidates": [{"card_id": c.get("card_id"), "title": c.get("title")}
                                    for c in candidates[:5]],
-                    "candidates_total": len(candidates)}
+                    "candidates_total": len(candidates),
+                    "addressees": [{"pid": c.get("pid"),
+                                    "card_id": c.get("card_id"),
+                                    "title": c.get("title"),
+                                    "offers": _record_offers_option(c, num)}
+                                   for c in candidates]}
         rec = candidates[0]
 
     if rec.get("choice"):
@@ -2397,6 +2408,15 @@ def text_answer_reply(result: Dict) -> str:
         total = int(result.get("candidates_total") or len(cands))
         if total > len(cands):
             lines.append(f"…и ещё {total - len(cands)}")
+        num = str(result.get("num") or "").strip()
+        addressees = result.get("addressees")
+        if num and isinstance(addressees, list) and addressees \
+                and not any(a.get("offers") for a in addressees):
+            # Кнопок-адресатов не будет — и владелец обязан услышать ПОЧЕМУ, иначе
+            # «просто список карточек» читается как «выбери сам», а выбирать нечего:
+            # ни один из открытых вопросов такого варианта не предлагал.
+            lines += ["", f"Ни один из открытых вопросов варианта <b>{html.escape(num)}</b> "
+                          f"не предлагает — поэтому кнопок под этим сообщением нет."]
         lines += ["", "Ответь кнопкой под нужным решением или пришли имя карточки вместе "
                       "с номером."]
         return "\n".join(lines)
@@ -2408,6 +2428,94 @@ def text_answer_reply(result: Dict) -> str:
     if reason in _TEXT_REASON_RU:
         return "⚠️ " + _TEXT_REASON_RU[reason]
     return confirmation_text(result)
+
+
+#: Сколько кнопок-адресатов показываем в переспросе максимум. Список открытых вопросов
+#: бывает длинным (замер 20.08 — 14 штук), а сообщение с полусотней кнопок нечитаемо с
+#: телефона. Обрезанное НАЗЫВАЕТСЯ вслух: молчаливый потолок читается владельцем как
+#: «других вопросов нет» — ровно та ложь, которую мы здесь и лечим.
+PICKER_MAX_BUTTONS = 8
+
+#: Длина подписи кнопки-АДРЕСАТА. Это не подпись варианта (`BUTTON_LABEL_MAX` = 30, там
+#: строка идёт с префиксом «1. » и вариантов немного), а ЗАГОЛОВОК ВОПРОСА, и по нему
+#: владелец должен отличить один свой вопрос от другого. Замер на живой очереди 23.08:
+#: при 30 символах два соседних вопроса дают подпись «Закрытие вопроса владельца…»
+#: одинаково — выбор вслепую, то есть кнопка снова обещает больше, чем даёт.
+PICKER_LABEL_MAX = 56
+
+
+def _record_offers_option(rec: Dict, num: str) -> bool:
+    """Предлагает ли ОТПРАВЛЕННЫЙ вопрос вариант с таким номером.
+
+    Сверяется со снимком вариантов в журнале — тем же, по которому потом решает
+    :func:`record_choice`. Иначе кнопка вела бы в никуда: нажатие отвечало бы «такого
+    варианта нет», а владелец считал бы, что ответил (цикл #191, «кнопка в НИКУДА»).
+    """
+    want = str(num or "").strip().lower()
+    if not want:
+        return False
+    for opt in rec.get("options") or []:
+        if str(opt.get("num", "")).strip().lower() == want:
+            return True
+    return False
+
+
+def build_answer_addressee_picker(result: Dict) -> Optional[Tuple[str, Dict]]:
+    """Переспрос «к какому вопросу относится твой ответ N» — ОДНО сообщение с кнопками.
+
+    Возвращает ``(текст, клавиатура)`` либо ``None``, если переспрашивать нечем.
+
+    Зачем это существует
+    ------------------------------------------------------------------------------
+    Владелец отвечает голым номером, открытых вопросов несколько — привязать ответ
+    НЕ К ЧЕМУ, и угадывать запрещено (ADR-075: применённое не то решение владельца
+    дороже неприменённого). До сих пор исход был один: отказ текстом + сообщение
+    сохранялось inbox-задачей. Замер 20.08: «Ответ 1» дважды отвергнут как
+    ``ambiguous`` при 14 открытых вопросах — оба ответа владельца не применились.
+
+    Догадки здесь по-прежнему нет ни одной. Адресата называет САМ владелец нажатием,
+    а мы лишь показываем список тех вопросов, которые РЕАЛЬНО предлагают присланный
+    номер. ``callback_data`` — тот же самый, что у штатной кнопки под карточкой
+    (``act:od:<pid>:<номер>``), поэтому нажатие идёт единственным owner-путём и
+    инвариант #14 не ослаблен ни на строку.
+
+    Кнопка появляется ТОЛЬКО у вопроса, в чьём снимке вариантов этот номер есть.
+    Вопрос без вариантов (или с другими номерами) кнопки не получает: кнопка, ведущая
+    в «такого варианта нет», хуже её отсутствия.
+    """
+    num = str(result.get("num") or "").strip()
+    addressees = [a for a in (result.get("addressees") or []) if a.get("offers")]
+    if not num or not addressees:
+        return None
+
+    shown = [a for a in addressees[:PICKER_MAX_BUTTONS] if str(a.get("pid") or "")]
+    labels = [_capitalize(_shorten(str(a.get("title") or a.get("card_id") or ""),
+                                   PICKER_LABEL_MAX)) for a in shown]
+    rows: List[List[Dict]] = []
+    for a, label in zip(shown, labels):
+        if labels.count(label) > 1:
+            # Две одинаковые подписи = выбор вслепую. Различаем ИМЕНЕМ карточки — оно
+            # уникально по построению, а придумывать сокращение заголовка мы не вправе.
+            label = _shorten(str(a.get("card_id") or label), PICKER_LABEL_MAX)
+        rows.append([{"text": label,
+                      "callback_data": build_callback(str(a["pid"]), num.lower())}])
+    if not rows:
+        return None
+
+    lines = [f"⚠️ Открытых вопросов сейчас несколько — не понял, к какому относится "
+             f"твой <b>{html.escape(num)}</b>, и угадывать не стал. Ничего не записал.",
+             "",
+             f"Нажми тот вопрос, которому предназначен ответ — запишу в него вариант "
+             f"{html.escape(num)}:"]
+    hidden = len(addressees) - len(rows)
+    if hidden > 0:
+        lines += ["", f"…и ещё {hidden} вопрос(ов) с таким вариантом — не поместились "
+                      f"в это сообщение. Открой /decisions, если ответ относится к ним."]
+    skipped = len([a for a in (result.get("addressees") or []) if not a.get("offers")])
+    if skipped:
+        lines += ["", f"(ещё {skipped} открытых вопрос(ов) варианта "
+                      f"{html.escape(num)} не предлагают — их в списке нет)"]
+    return "\n".join(lines), {"inline_keyboard": rows}
 
 
 def pending_decisions(

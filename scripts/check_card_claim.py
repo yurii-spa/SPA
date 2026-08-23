@@ -86,6 +86,7 @@ worktree (§3.4), а `data/` в `.gitignore` ⇒ журнал объявлени
     python3 scripts/check_card_claim.py check <карточка> --files /abs/a.py /abs/b.py --json
     python3 scripts/check_card_claim.py check <карточка> --session pid72474   # моё объявление
     python3 scripts/check_card_claim.py claim   <карточка>      # взять (пишет claimed_by/at)
+    python3 scripts/check_card_claim.py claim   <карточка> --takeover "чем сверил"  # ПОДЪЁМ осиротевшего захвата
     python3 scripts/check_card_claim.py release <карточка>      # отпустить
     python3 scripts/check_card_claim.py list                    # все занятые карточки
 """
@@ -118,7 +119,11 @@ _SEVERITY = {FREE: 0, STALE: 1, CLAIMED: 2, UNCHECKED: 3}
 # Благодаря этому забытый claimed_by не блокирует карточку вечно и его не нужно вычищать.
 TERMINAL_STATUSES = {"done", "ingested", "owner-done"}
 
-_CLAIM_KEYS = ("claimed_by", "claimed_at")
+#: Строки frontmatter, которыми распоряжается ИМЕННО захват. Основание подъёма
+#: (`claim_takeover_reason`) стоит здесь, а не рядом: оно ставится вместе с захватом и
+#: обязано сниматься вместе с ним — иначе на карточке навсегда осталось бы объяснение
+#: подъёма, которого больше нет (утверждение без предмета — тот самый класс).
+_CLAIM_KEYS = ("claimed_by", "claimed_at", "claim_takeover_reason")
 
 # «Якорь не передан» ≠ «якоря нет»: умолчание меряет свой долгоживущий процесс из окружения,
 # явный None выключает опознание собственных объявлений (герметичные тесты). См. `self_identities`.
@@ -1076,6 +1081,11 @@ def _set_claim_fields(text: str, values) -> str:
     end = next(i for i in range(1, len(kept)) if kept[i].strip() == "---")
     insert = [f"claimed_by: {values['claimed_by']}\n",
               f"claimed_at: {values['claimed_at']}\n"]
+    reason = str(values.get("claim_takeover_reason") or "").strip()
+    if reason:
+        # Однострочно и без переводов строки: frontmatter здесь разбирается построчно,
+        # многострочное значение развалило бы его у КАЖДОГО читателя карточки.
+        insert.append("claim_takeover_reason: " + " ".join(reason.split()) + "\n")
     return "".join(kept[:end] + insert + kept[end:])
 
 
@@ -1156,12 +1166,33 @@ def _unannounce_claim(cid, path, session, log, announcer=None):
 
 def claim_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, now=None,
                grace_hours=DEFAULT_GRACE_HOURS, sibling=None, ps=None,
-               announcer=None, self_anchor=_ENV_ANCHOR):
+               announcer=None, self_anchor=_ENV_ANCHOR, takeover_reason=""):
     """Взять карточку. Отказ, если её держит другая сессия или занятость не измерена.
 
     Захват всегда сопровождается записью в общем журнале объявлений: «взял, но не объявил» —
     состояние, из-за которого работа цикла #52 была невидима, — здесь невозможно по
     построению. Не удалось объявить ⇒ карточка НЕ берётся (fail-CLOSED, инв. #2).
+
+    ``takeover_reason`` — ПОДЪЁМ осиротевшего захвата (вердикт ``stale``) с названной
+    причиной. Зачем отдельное слово (замер цикла #358, живой случай)
+    ------------------------------------------------------------------------------
+    Протокол называет ``stale`` «кандидатом на ручной подъём осиротевшей работы» — то есть
+    ПРЯМО предписывает взять такую карточку, сверив работу вручную. Инструмент же отказывал
+    без единого способа согласиться: `claim` на `stale` бросал `ClaimError`, флага не было.
+    Сессия, которая всё сделала по протоколу, оставалась без пометки на карточке — и
+    следующий цикл видел тот же осиротевший захват умершей сессии, а не живой. Ровно тот
+    класс, что цикл #354 закрыл словом ``dropped`` у уборщика: **у законного действия не
+    было имени, поэтому оно выглядело нарушением.**
+
+    Ослаблением это НЕ является, и направление ошибки не меняется:
+
+    * подъём разрешён ТОЛЬКО при вердикте ``stale``. ``claimed`` (подтверждённо живая
+      сессия) и ``unchecked`` (занятость не измерена) отказывают как прежде — там подъём и
+      был бы кражей работы либо решением без измерения;
+    * причина ОБЯЗАТЕЛЬНА и непустая: «подъём» без основания закрыл бы что угодно, и это
+      единственное, чем он отличается от молчаливого перехвата;
+    * причина уезжает в ОБЩИЙ журнал объявлений и во frontmatter карточки — подъём
+      становится видимым событием, а не отсутствием записи.
 
     `log` — ОБЯЗАТЕЛЬНЫЙ аргумент, см. `release_card`."""
     sibling = sibling or load_sibling()
@@ -1187,12 +1218,29 @@ def claim_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, now=None
                     self_session=session, now=now, grace_hours=grace_hours, ps=ps,
                     self_anchor=self_anchor)
     selves = set(report.get("self_sessions") or [session])
-    if report["verdict"] in (CLAIMED, UNCHECKED, STALE):
+    takeover_reason = str(takeover_reason or "").strip()
+    stale_holders = {c.get("session") for c in report.get("claims") or []
+                     if c.get("state") == "stale"}
+    lifting = bool(takeover_reason) and report["verdict"] == STALE
+    if report["verdict"] in (CLAIMED, UNCHECKED) or (report["verdict"] == STALE and not lifting):
+        hint = ""
+        if report["verdict"] == STALE:
+            # Отказ обязан НАЗЫВАТЬ выход: иначе следующая сессия сделает ровно то, что
+            # сделала эта — обойдёт инструмент руками, и захват снова останется невидимым.
+            hint = ("\nЭто осиротевший захват. Протокол разрешает ПОДЪЁМ после ручной сверки "
+                    "(шаг 0a + свои прогоны, отчёту умершей сессии не верить):\n"
+                    f"  python3 scripts/check_card_claim.py claim {card_id(path)} "
+                    "--takeover \"<чем сверил, что работа не потеряна>\"")
         raise ClaimError(f"вердикт `{report['verdict']}` — карточка не взята.\n"
-                         + render(report))
+                         + render(report) + hint)
 
     try:
-        announce_claim(card_id(path), path, session, "claim", log, announcer)
+        summary = ""
+        if lifting:
+            summary = (f"[check_card_claim] ПОДЪЁМ осиротевшего захвата карточки "
+                       f"{card_id(path)} (было: {', '.join(sorted(h for h in stale_holders if h)) or '?'}) "
+                       f"— основание: {takeover_reason}")
+        announce_claim(card_id(path), path, session, "claim", log, announcer, summary=summary)
     except (ImportError, OSError, SyntaxError, AttributeError, TypeError, ValueError) as exc:
         raise AnnounceError(
             f"захват НЕ объявлен в журнале ({log}): {exc.__class__.__name__}: {exc}. "
@@ -1211,18 +1259,33 @@ def claim_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, now=None
         # карточке (status `done`, `claimed_by` умершей pid94637).
         if str(meta.get("status") or "").strip() in TERMINAL_STATUSES:
             holder = ""
+        if holder and lifting and holder in stale_holders:
+            # Подъём перебивает ИМЕННО тот захват, который отчёт назвал осиротевшим, и
+            # только его. Появившийся между проверкой и правкой ЧУЖОЙ живой захват (гонка)
+            # ниже по-прежнему отказывает — иначе флаг подъёма стал бы отмычкой.
+            holder = ""
         if holder and holder not in selves:
             # Гонка: захват появился между проверкой и правкой. `selves` — не только мой
             # текущий ярлык: карточку могла взять ЭТА ЖЕ сессия предыдущей командой под другим
             # ярлыком (`self_identities`), и тогда это не гонка, а собственный захват.
             _unannounce_claim(card_id(path), path, session, log, announcer)
             raise ClaimError(f"карточку успела взять сессия {holder} — не перезаписываю")
-        new = _set_claim_fields(text, {"claimed_by": session, "claimed_at": _fmt_ts(now)})
+        fields = {"claimed_by": session, "claimed_at": _fmt_ts(now)}
+        if lifting:
+            # Основание подъёма живёт В КАРТОЧКЕ, а не только в журнале: карточка уезжает
+            # на origin, журнал — нет. Без этой строки следующий читатель видит смену
+            # владельца без объяснения, то есть снова «утверждение без измерения».
+            fields["claim_takeover_reason"] = takeover_reason
+        new = _set_claim_fields(text, fields)
         _atomic_write(path, new)
     finally:
         _release_lock(fd, lock)
-    return {"card": card_id(path), "path": str(path), "claimed_by": session,
-            "claimed_at": _fmt_ts(now), "anchored": bool(self_anchor)}
+    out = {"card": card_id(path), "path": str(path), "claimed_by": session,
+           "claimed_at": _fmt_ts(now), "anchored": bool(self_anchor)}
+    if lifting:
+        out["takeover_from"] = sorted(h for h in stale_holders if h)
+        out["takeover_reason"] = takeover_reason
+    return out
 
 
 def release_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, force=False,
@@ -1355,6 +1418,10 @@ def main(argv=None) -> int:
     k.add_argument("card")
     k.add_argument("--session", default=None)
     k.add_argument("--grace-hours", type=float, default=DEFAULT_GRACE_HOURS)
+    k.add_argument("--takeover", metavar="ПРИЧИНА", default="",
+                   help="ПОДЪЁМ осиротевшего захвата (только при вердикте `stale`): чем "
+                        "сверил, что работа умершей сессии не потеряна. Пустая причина не "
+                        "принимается; `claimed`/`unchecked` этот флаг НЕ снимает.")
 
     r = sub.add_parser("release", help="отпустить карточку")
     r.add_argument("card")
@@ -1400,9 +1467,16 @@ def main(argv=None) -> int:
     try:
         if args.cmd == "claim":
             res = claim_card(args.card, session=args.session, tracker_dir=args.tracker_dir,
-                             grace_hours=args.grace_hours, sibling=sibling, log=log)
-            print(json.dumps(res, ensure_ascii=False) if args.json
-                  else f"взята: {res['card']} → {res['claimed_by']} ({res['claimed_at']})")
+                             grace_hours=args.grace_hours, sibling=sibling, log=log,
+                             takeover_reason=args.takeover)
+            if args.json:
+                print(json.dumps(res, ensure_ascii=False))
+            elif res.get("takeover_reason"):
+                print(f"ПОДНЯТА: {res['card']} → {res['claimed_by']} ({res['claimed_at']}); "
+                      f"осиротевший захват {', '.join(res.get('takeover_from') or []) or '?'} "
+                      f"перебит с основанием: {res['takeover_reason']}")
+            else:
+                print(f"взята: {res['card']} → {res['claimed_by']} ({res['claimed_at']})")
             if not res.get("anchored"):
                 # Причина, а не только следствие: заимствование личности на стороне читателя
                 # (`check_undelivered_work.borrow_durable`) спасает запись лишь тогда, когда
