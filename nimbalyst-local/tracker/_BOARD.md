@@ -2,12 +2,13 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **611** · ждёт владельца: **3** · занято сессиями: **7**.
+> Всего карточек: **612** · ждёт владельца: **4** · занято сессиями: **7**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Снять замороженный «Журнал изменений» с сайта — нужна твоя подпись на удалении** · _medium_  ·  `own-2026-08-22-snyat-changelog-so-saita.md`
 - **Хвост maple ты принял на доле 15%, а фактическая доля — 20%: принятый убыток на треть больше**  ·  `owner-decision-hvost-maple-ty-prinyal-na-dole-15-a-fakt.md`
+- **Три пакета начали реальный paper-тест — Balanced и Aggressive пошли (нужно да/нет по двум пунктам)**  ·  `owner-decision-tri-paketa-nachali-realnyi-paper-test-ba.md`
 - **Твой ответ «Ответ 1» сегодня не применился — теперь можно отвечать прямо на сообщение с вопросом**  ·  `owner-decision-tvoi-otvet-otvet-1-segodnya-ne-primenils.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
@@ -22,11 +23,12 @@
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (139)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (140)
 
 ### · needs-owner
 - Снять замороженный «Журнал изменений» с сайта — нужна твоя подпись на удалении  ·  `own-2026-08-22-snyat-changelog-so-saita.md` · 2026-08-22
 - Хвост maple ты принял на доле 15%, а фактическая доля — 20%: принятый убыток на треть больше  ·  `owner-decision-hvost-maple-ty-prinyal-na-dole-15-a-fakt.md` · 2026-08-22
+- Три пакета начали реальный paper-тест — Balanced и Aggressive пошли (нужно да/нет по двум пунктам)  ·  `owner-decision-tri-paketa-nachali-realnyi-paper-test-ba.md` · 2026-08-23
 - Твой ответ «Ответ 1» сегодня не применился — теперь можно отвечать прямо на сообщение с вопросом  ·  `owner-decision-tvoi-otvet-otvet-1-segodnya-ne-primenils.md` · 2026-08-20
 ### · blocked
 - Наблюдённая угроза до тебя не доезжает, а наша собственная остановка доезжает каждый день  ·  `own-red-team-nablyudennaya-ugroza-ne-doezzhaet.md` · 2026-08-18
