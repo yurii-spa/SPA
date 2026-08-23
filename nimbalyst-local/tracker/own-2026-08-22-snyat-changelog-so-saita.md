@@ -13,6 +13,10 @@ approves:
   - landing/src/components/SiteFooter.astro
   - landing/src/pages/blog/index.astro
   - landing/src/pages/rss.xml.ts
+owner_choice: 1
+owner_answered_at: 2026-08-23T12:37:46.406397+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно

@@ -5,6 +5,10 @@ title: Два твоих решения от 18.08 не исполнены — �
 status: needs-owner
 source: nimbalyst
 created: 2026-08-23
+owner_choice: 1
+owner_answered_at: 2026-08-23T12:26:17.779257+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно
