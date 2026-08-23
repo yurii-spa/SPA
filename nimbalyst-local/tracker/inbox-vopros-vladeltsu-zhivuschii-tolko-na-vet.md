@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: Вопрос владельцу, живущий ТОЛЬКО на ветке, невидим и сторожу, и отправителю — 18 таких, один заперт в своём же PR
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-23
 claimed_by: cycle-90750
