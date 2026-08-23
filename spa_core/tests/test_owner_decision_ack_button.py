@@ -420,7 +420,13 @@ def test_the_same_letters_in_two_decisions_stay_buttonless_and_are_named_as_ours
 
     assert prep.ack is False
     assert prep.keyboard is None
-    assert "Варианты в карточке есть" in prep.text
+    # ИНВ. #16 — правка НАМЕРЕННАЯ (цикл #359, обоснование в журнале W34). Требование
+    # «звучать как НАША неполадка, а не как „выбора не предлагали“» СОХРАНЕНО и усилено:
+    # текст обязан назвать, ЧТО именно наше. Дефекта разбора здесь нет — отказ верен, —
+    # а не сделано ДЕЛЕНИЕ карточки на отдельные вопросы, и это наша работа, не владельца.
+    assert "не варианты одного решения" in prep.text
+    assert "Вариантов в карточке не нашёл" not in prep.text
+    assert "моя работа" in prep.text
 
 
 def test_the_five_cards_of_2026_08_08_would_get_buttons(env):

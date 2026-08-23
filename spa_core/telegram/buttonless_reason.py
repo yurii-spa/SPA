@@ -74,6 +74,12 @@ CODE_NO_OPTIONS = "no_options_in_card"
 #: он ровно наоборот: не переписыванием вопроса, а разбором. Сваленные в один код, эти
 #: два состояния отправляли автора чинить верную карточку (#343).
 CODE_UNREADABLE_OPTIONS = "unreadable_options_in_card"
+#: Карточка задаёт НЕСКОЛЬКО независимых вопросов. Отказ от кнопок ВЕРЕН и лечится
+#: делением карточки, а не разбором. Отдельный код, потому что до #359 это состояние
+#: попадало в `unreadable_options_in_card` — «наш дефект разбора, научите `parse_options`
+#: этой форме», — то есть звало починить работающий отказ, СЛОМАВ его: выученная форма
+#: дала бы N кнопок, первая из которых закрывает карточку с N−1 открытыми вопросами.
+CODE_MULTI_QUESTION = "multi_question_card"
 #: Файла карточки нет: нажимать не по чему, и это не «нет вариантов».
 CODE_CARD_GONE = "card_gone"
 #: Сверка не выполнилась. НЕ «причин не найдено».
@@ -90,6 +96,11 @@ _REMEDY_NO_OPTIONS = ("переписать вопрос перечнем «Ва
 _REMEDY_HANDLER = ("поднять/перезапустить бота, объявляющего умение `act:od:` — "
                    "до этого кнопка стёрла бы сам вопрос")
 _REMEDY_HEAL = "штатный ремонт `heal_buttonless` — дослать кнопки к этой записи"
+_REMEDY_MULTI_QUESTION = (
+    "разделить карточку на отдельные вопросы, каждый со своим перечнем вариантов "
+    "(прецедент `own-rnd-killswitch-rearm-policy-missing`: после выноса второго вопроса "
+    "в свою карточку кнопки собрались штатным путём). Разбор НЕ трогать: он отказывает "
+    "верно — одно нажатие закрывает карточку целиком")
 _REMEDY_UNREADABLE = ("разобрать выбор КОДОМ: научить `parse_options` этой форме — "
                       "либо, если карточка задаёт ДВА решения, разделить её надвое; "
                       "верно оформленный перечень не переписывать (он по §2.4)")
@@ -135,7 +146,11 @@ def _origin_body(path: Path, ref: str) -> tuple[Optional[str], str]:
 def _explain_no_options(path: Path, ref: str) -> Reason:
     """Вариантов нет в дереве. Есть ли они на ref — вопрос, неразрешимый с диска."""
     from spa_core.owner_queue.origin_view import Unmeasured
-    from spa_core.telegram.owner_decisions import has_unparsed_options, parse_options
+    from spa_core.telegram.owner_decisions import (
+        has_unparsed_options,
+        multi_question,
+        parse_options,
+    )
 
     try:
         body, sha = _origin_body(path, ref)
@@ -168,6 +183,19 @@ def _explain_no_options(path: Path, ref: str) -> Reason:
             f"{len(origin_options)} ({nums}) — владельца спрашивают по копии, "
             f"отставшей от источника правды",
             _REMEDY_STALE,
+        )
+    mq = multi_question(body)
+    if mq is not None:
+        # Вопросов больше одного — отказ ВЕРЕН, и лечится он делением карточки. Ветка
+        # стоит ВЫШЕ `has_unparsed_options`, потому что тот отвечает на свой вопрос
+        # («есть ли след неразобранного перечня») и для многовопросной карточки честно
+        # говорит «да» — а вывод из этого «да» до #359 делался неверный.
+        return Reason(
+            CODE_MULTI_QUESTION,
+            f"карточка задаёт не один вопрос, а несколько"
+            f"{f' ({mq.count} пунктов)' if mq.count else ''}: {mq.text}. Кнопок нет "
+            f"ПРАВИЛЬНО — нажатие закрыло бы карточку, похоронив остальные вопросы",
+            _REMEDY_MULTI_QUESTION,
         )
     if has_unparsed_options(body):
         # Выбор В КАРТОЧКЕ ЕСТЬ — не разобрали его МЫ. Прежний текст объявлял «отказ
