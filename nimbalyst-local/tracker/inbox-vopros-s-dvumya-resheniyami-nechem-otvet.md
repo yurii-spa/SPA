@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Вопрос с ДВУМЯ решениями нечем ответить с телефона: кнопок нет по построению, а он висит девять дней"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-19
 claimed_by: cycle-359
