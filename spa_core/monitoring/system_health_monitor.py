@@ -1181,7 +1181,12 @@ class SystemHealthMonitor:
         if not _is_finite_number(score):
             return CheckResult("d6.health", D, WARNING, "portfolio health score not numeric")
         if score < PORTFOLIO_HEALTH_FLOOR:
-            return CheckResult("d6.health", D, CRITICAL,
+            # ADR-123 (owner, 2026-08-22): the composite quality score below the floor is
+            # WARNING in BOTH monitors — agent_health_monitor already said WARNING for the
+            # same number, and CRITICAL here made "d6_risk_gates: CRITICAL" read as a gate
+            # refusal while policy_compliant was true. CRITICAL in d6 is reserved for real
+            # gate refusals (t2 cap, killswitch, held-protocol red flag, safety state).
+            return CheckResult("d6.health", D, WARNING,
                                f"portfolio health {score} < {PORTFOLIO_HEALTH_FLOOR}",
                                value=score, expected=PORTFOLIO_HEALTH_FLOOR)
         return CheckResult("d6.health", D, OK, f"portfolio health {score}",

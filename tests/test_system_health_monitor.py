@@ -776,13 +776,32 @@ def test_d6_health_missing_is_warning_not_critical(good_dir, monkeypatch):
     assert by_id(res, "d6.health").status == WARNING
 
 
-def test_d6_health_low_critical(good_dir, monkeypatch):
+def test_d6_health_low_is_warning_not_critical(good_dir, monkeypatch):
+    # ADR-123 (owner, 2026-08-22): the composite quality score below the floor is
+    # WARNING in both monitors; CRITICAL in d6_risk_gates is reserved for real gate
+    # refusals. Was `test_d6_health_low_critical` asserting CRITICAL — deliberate
+    # change per the ADR (inv. #16), not a silent weakening: the floor (70) and the
+    # check itself are untouched, only the level.
     _write(good_dir / "data", "portfolio_health.json", {"score": 42})
     mon = make_mon(good_dir)
     prelude(mon)
     _patch_killswitch(mon, monkeypatch)
     res = mon.check_d6_risk_gates()
-    assert by_id(res, "d6.health").status == CRITICAL
+    assert by_id(res, "d6.health").status == WARNING
+
+
+def test_d6_low_health_alone_does_not_make_d6_critical(good_dir, monkeypatch):
+    # ADR-123 positive control for the DOMAIN verdict: with ONLY the composite score
+    # low (no cap breach, no killswitch, no held-protocol red flag), no check in
+    # d6_risk_gates may be CRITICAL — the loudest level stays reserved for real gate
+    # refusals. Kills the mutation "WARNING flipped back to CRITICAL" at domain level.
+    _write(good_dir / "data", "portfolio_health.json", {"score": 42})
+    mon = make_mon(good_dir)
+    prelude(mon)
+    _patch_killswitch(mon, monkeypatch)
+    res = mon.check_d6_risk_gates()
+    assert all(r.status != CRITICAL for r in res), \
+        [f"{r.check_id}={r.status}" for r in res if r.status == CRITICAL]
 
 
 def test_d6_health_good_ok(good_dir, monkeypatch):
