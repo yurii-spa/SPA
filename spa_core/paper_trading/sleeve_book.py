@@ -39,6 +39,20 @@ APY_CAP = 30.0          # выше потолка политики доход н
 HY_BAND_MIN = 6.0       # полоса high-yield (та же, что была в sleeve_yield)
 _LP_NAME_HINTS = ("lp", "aerodrome", "velodrome", "curve", "uniswap", "pool")
 
+# Мандат владельца 2026-08 (решение «Гоу B»): три пакета — Conservative / Balanced /
+# Aggressive — должны быть СОПОСТАВИМЫ по капиталу. Каждый рукав засевается одним и
+# тем же виртуальным $100k, чтобы доходность и просадку можно было честно сравнивать.
+PACKAGE_SEED_USD = 100_000.0
+
+# Aggressive-профиль (пакет Max-Yield, рукав C). Отличается от Balanced НЕ вселенной
+# (whitelist один и тот же — стейблы), а КОНЦЕНТРАЦИЕЙ и бюджетом просадки: держим
+# только top-2 самых доходных имени с потолком 60% и терпим просадку до -25%
+# (owner: «стоп под 25% просадки»). Настоящая directional/leveraged агрессия требует
+# расширения whitelist (owner/legal) — вынесено отдельной задачей, здесь НЕ выдаётся.
+AGG_BAND_MIN = 6.0          # тот же порог входа, что у Balanced — не простаивать
+AGG_MAX_POSITIONS = 2       # концентрация: две самые доходные позиции
+AGG_PER_PROTOCOL_CAP_PCT = 60.0
+
 ACCRUAL_BASIS = "per_position_live_apy"
 
 
@@ -76,10 +90,28 @@ def hy_candidates(rows: List[dict]) -> List[dict]:
 
 
 def lp_candidates(rows: List[dict]) -> List[dict]:
-    """Кандидаты LP-полосы: протоколы с LP-признаком в имени, APY ∈ (0, APY_CAP]."""
+    """Кандидаты LP-полосы: протоколы с LP-признаком в имени, APY ∈ (0, APY_CAP].
+
+    Историческая функция рукава C, пока он был delta-neutral LP-книгой. С «Гоу B»
+    (2026-08) рукав C стал Aggressive-книгой и опрашивает band_candidates, а не имена
+    LP: в живом whitelist LP-имён нет, и этот фильтр возвращал ПУСТО — рукав простаивал
+    (замер: 929 циклов вхолостую). Оставлена для совместимости/тестов.
+    """
     lp_rows = [r for r in rows
                if any(h in str(r.get("protocol", "")).lower() for h in _LP_NAME_HINTS)]
     return _dedup_best(lp_rows)
+
+
+def band_candidates(rows: List[dict], min_apy: float,
+                    max_apy: float = APY_CAP) -> List[dict]:
+    """Кандидаты произвольной полосы доходности: живой APY ∈ [min_apy, max_apy].
+
+    Обобщение hy_candidates: Balanced берёт [6, cap], Aggressive — ту же полосу, но
+    затем концентрируется через max_positions/cap_pct в rebalance_book. Список уже
+    отсортирован по (−apy, name), поэтому «взять top-N» = взять самые доходные.
+    """
+    return [c for c in _dedup_best(rows)
+            if min_apy <= c["apy_pct"] <= max_apy]
 
 
 def rebalance_book(positions: List[dict], candidates: List[dict], equity: float,

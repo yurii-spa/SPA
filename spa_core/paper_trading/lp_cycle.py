@@ -1,33 +1,46 @@
 """
-Engine C (LP/Liquidity) paper trading cycle — EPIC-2 S2.2.
-Запускается отдельно от Engine A cycle_runner и Engine B hy_cycle.
+Engine C paper trading cycle — пакет **Aggressive** (сайт: lp → aggressive,
+ADR-103 / generate_track_snapshot.py). Запускается отдельно от Engine A/B.
 
-LLM_FORBIDDEN. fail-closed: ошибка → skip cycle.
-IL kill switch: drawdown > -12% от equity → kill switch, все позиции закрываются.
-Delta-neutral requirement: все позиции должны быть delta-neutral.
+LLM_FORBIDDEN. Только stdlib. Атомарные записи: tmp + os.replace.
 
+Постура (решение владельца 2026-08 «Гоу B» — собрать НАСТОЯЩУЮ высокодоходную книгу
+в опубликованной полосе Aggressive, до 20% APY, стоп под 25% просадки):
+рукав держит book СПЛОШНОЙ и КОНЦЕНТРИРОВАННУЮ — top-2 самых доходных имени полосы
+из живого apy_ranking, потолок 60% на протокол, бюджет просадки −25%. Раньше рукав
+опрашивал lp_candidates (фильтр по LP-именам): в живом whitelist LP-имён НЕТ, список
+возвращался ПУСТЫМ, и рукав простаивал (замер: 929 циклов вхолостую с 22.06). Теперь
+опрашивает band_candidates — те же стейбл-протоколы, но взятые концентрированно.
+
+Честная рамка (инвариант #8): whitelist сейчас — только стейбл-протоколы (susde,
+pendle PT, …), directional/leveraged плечо в нём отсутствует, поэтому «агрессия»
+здесь = КОНЦЕНТРАЦИЯ + широкий бюджет просадки, а НЕ directional-риск. Позиции по
+сути peg/duration-риск ⇒ честно помечены delta-neutral. Настоящая directional-
+агрессия требует расширения whitelist (owner/legal) — вынесено отдельной задачей.
+
+IL kill switch: drawdown < -25% → kill switch. RiskPolicy v1.0 НЕ трогается (инв. #9).
 GoLiveChecker-LP: нужно 14+ дней paper trading для прохождения.
-
-Атомарные записи: tmp + os.replace. Только stdlib.
 """
 # LLM_FORBIDDEN
 from pathlib import Path
 import json
 import os
 from spa_core.utils import clock
+from spa_core.paper_trading import sleeve_book
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _LP_DATA_PATH = _PROJECT_ROOT / "data" / "lp_paper_trading.json"
 
-LP_CYCLE_VERSION = "lp_cycle_v1.1"
+LP_CYCLE_VERSION = "lp_cycle_v1.2"
 
-# Virtual seed capital for the LP sleeve — separate book ON TOP of the $100k safe
-# sleeve, so the go-live honest track is untouched (decision 2026-06-23).
-# 2026-08-08 (мандат владельца): пакет Balanced = $100k (HY 2 : LP 1).
-LP_SEED_EQUITY = 33_333.33
+# Virtual seed capital — пакет Aggressive = $100k (мандат владельца 2026-08: три
+# пакета сопоставимы по капиталу). Ровно тот же $100k, что у Conservative и Balanced.
+LP_SEED_EQUITY = sleeve_book.PACKAGE_SEED_USD
 
-# IL kill switch threshold: IL drawdown > -12% → kill switch
-IL_KILL_THRESHOLD = -0.12
+# IL kill switch threshold: IL drawdown < -25% → kill switch (бюджет тира Aggressive
+# ≤25%; owner «Гоу B»: «стоп под 25% просадки»). Широкий бюджет — и есть тот рычаг,
+# которым Aggressive отличается от Balanced (−8%): терпит больше до халта.
+IL_KILL_THRESHOLD = -0.25
 
 # GoLive requirement: минимум 14 дней трека
 _GOLIVE_MIN_DAYS = 14
@@ -145,17 +158,13 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
 
     state["LLM_FORBIDDEN"] = True
 
-    # Self-seed: fund the sleeve ONLY when the state is genuinely fresh (never run,
-    # no equity, no history). Guards against clobbering an in-flight book.
-    # 2026-08-08 (мандат владельца «три пакета должны работать»): прежнее условие
-    # требовало ПУСТОЙ истории и НУЛЯ циклов — но первый же прогон дописывал в
-    # историю запись с нулевым капиталом, и засев становился НЕВОЗМОЖЕН НАВСЕГДА.
-    # Замер: HY 918 циклов, LP 929 циклов вхолостую с 22.06 — книги нулевые,
-    # агенты живы, «работа» имитировалась. Класс «замок, который нельзя открыть»
-    # (ср. go-live на невосстановимых дырах, ADR-087, выписан как ADR-067).
-    # Новое условие: засеваем, если денег НЕ БЫЛО НИКОГДА — ни сейчас, ни в
-    # истории. Книга, у которой капитал БЫЛ и обнулился, НЕ засевается: это
-    # потеря, её надо разбирать, а не затирать свежим сидом (fail-closed).
+    # Self-seed: засеваем рукав ТОЛЬКО когда он по-настоящему свежий (денег нет ни
+    # сейчас, ни в истории). Guards against clobbering an in-flight book.
+    # 2026-08 («Гоу B», $100k): сид поднят до мандатного $100k (LP_SEED_EQUITY =
+    # PACKAGE_SEED_USD) — условия засева НЕ трогаем. Свежая книга (seed<=0, equity<=0,
+    # без ever_funded) сеется чистым днём-1 на $100k. Книга, у которой капитал БЫЛ
+    # (даже фантомный) — НЕ засевается (fail-closed, инвариант владельца 08.08;
+    # сторож spa_core/tests/test_sleeve_seeding_lock.py).
     _hist = state.get("daily_history") or []
     _ever_funded = any(float(h.get("equity", 0) or 0) > 0 for h in _hist)
     if (float(state.get("seed_equity", 0) or 0) <= 0
@@ -164,7 +173,8 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
         state["seed_equity"] = LP_SEED_EQUITY
         state["equity"] = LP_SEED_EQUITY
         state["peak_equity"] = LP_SEED_EQUITY
-        state["note"] = f"Engine C LP sleeve — seeded ${LP_SEED_EQUITY:,.0f} virtual."
+        state["note"] = (f"Aggressive (Engine C) — clean start seeded "
+                         f"${LP_SEED_EQUITY:,.0f} virtual (owner mandate 2026-08 «Гоу B»).")
 
     # ── delta-neutral check ──────────────────────────────────────────────────
     positions = state.get("positions", [])
@@ -214,22 +224,24 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
             "LLM_FORBIDDEN": True,
         }
 
-    # ── rebalance the REAL paper LP book + accrue per-position (dedup by date) ──
-    # #208 / ADR-103: раньше здесь начислялась медианная LP-ставка на весь капитал
-    # при пустом списке позиций. Теперь рукав держит поимённые LP-позиции из
-    # живого apy_ranking, каждая начисляет по СВОЕМУ живому APY. Нет живых
-    # данных ⇒ позиции держатся, доход 0 (fail-closed). IL по-прежнему не
-    # моделируется (нужен прайс-фид) — il_drawdown остаётся 0 и это записано.
+    # ── rebalance the REAL Aggressive book + accrue per-position (dedup by date) ──
+    # «Гоу B»: концентрированная высокодоходная книга — top-2 самых доходных имени
+    # полосы (band_candidates), потолок 60% на протокол. Раньше опрашивался
+    # lp_candidates (фильтр по LP-именам) → в живом whitelist LP-имён НЕТ → список
+    # пуст → рукав простаивал. Теперь берём те же стейбл-протоколы, но концентрированно.
+    # Каждая позиция начисляет по СВОЕМУ живому APY; нет живых данных ⇒ держим, доход 0
+    # (fail-closed). IL по-прежнему не моделируется (нужен прайс-фид) — il_drawdown 0.
     existing_dates = {entry.get("date") for entry in state.get("daily_history", [])}
     if today not in existing_dates:
-        from spa_core.paper_trading import sleeve_book
         from spa_core.investment_os.directive import cio_allows_new_positions
         rows = sleeve_book.load_ranking_rows()
-        cands = sleeve_book.lp_candidates(rows)
+        cands = sleeve_book.band_candidates(rows, sleeve_book.AGG_BAND_MIN)
         # CIO-директива (ADR-103): постура RED ⇒ новых позиций не открываем.
         allow_new = cio_allows_new_positions()
         book, opened, closed = sleeve_book.rebalance_book(
             positions, cands, equity, today=today, allow_new=allow_new,
+            max_positions=sleeve_book.AGG_MAX_POSITIONS,
+            cap_pct=sleeve_book.AGG_PER_PROTOCOL_CAP_PCT,
         )
         dy, deployed = sleeve_book.accrue_book(book, cands)
         equity += dy

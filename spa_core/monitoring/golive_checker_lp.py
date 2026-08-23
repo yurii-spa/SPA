@@ -3,7 +3,7 @@ GoLiveChecker-LP — Engine C (LP/Liquidity) readiness checks — EPIC-2 S2.2.
 
 6 проверок перед переходом Engine C в production:
   CHECK-LP-001  14+ дней paper tracking в daily_history
-  CHECK-LP-002  max IL drawdown never < -12% (kill threshold)
+  CHECK-LP-002  max IL drawdown never < -25% (kill threshold — Aggressive-бюджет)
   CHECK-LP-003  policy_lp.evaluate_lp_position() без ошибок (импортируется)
   CHECK-LP-004  UniswapV3LPAdapter.read_state() без ошибок
   CHECK-LP-005  data/lp_paper_trading.json существует
@@ -33,7 +33,9 @@ GOLIVE_LP_VERSION = "golive_lp_v1.0"
 
 # Константы GoLive
 _MIN_TRACK_DAYS = 14
-_IL_KILL_THRESHOLD = -0.12  # -12%
+# Пакет Aggressive: бюджет просадки ≤25% (owner «Гоу B»). Согласовано с
+# lp_cycle.IL_KILL_THRESHOLD = -0.25 — go-live-гейт и runtime-kill об одном пороге.
+_IL_KILL_THRESHOLD = -0.25  # -25%
 
 
 @dataclass
