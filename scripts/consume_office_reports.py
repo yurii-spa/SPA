@@ -618,6 +618,31 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         else:
             out.append(f"   очередь полна: невидимых дереву вопросов нет "
                        f"({gap.get('ref')} {str(gap.get('ref_sha'))[:9]})")
+        # Третье плечо той же полноты (#351): вопрос владельцу, живущий ТОЛЬКО на
+        # ВЕТКЕ. Его не видит ни строка выше (сверяет дерево с `origin/main`), ни
+        # отправитель. Печатаем ВСЕГДА и сразу после неё: рядом эти две строки
+        # означают «очередь измерена с обеих сторон», а строка выше в одиночку
+        # читалась как утверждение о полноте, замера под которым не было.
+        bgap = data.get("branch_queue")
+        if not isinstance(bgap, dict):
+            out.append("   ⚠️ вопросы на ВЕТКАХ НЕ ИЗМЕРЕНЫ: в отчёте нет блока "
+                       "branch_queue (отчёт старого образца)")
+        elif not bgap.get("measured"):
+            out.append(f"   ⚠️ вопросы на ВЕТКАХ НЕ ИЗМЕРЕНЫ: {bgap.get('reason')}")
+        else:
+            unread = bgap.get("unreadable") or []
+            tail = (f"; НЕ ПРОЧИТАНО веток: {len(unread)}" if unread else "")
+            if bgap.get("count"):
+                names = ", ".join(
+                    f"{c.get('card_id')} ({', '.join(c.get('branches') or [])})"
+                    for c in (bgap.get("cards") or [])[:3])
+                more = (f" (и ещё {bgap['count'] - 3})" if bgap["count"] > 3 else "")
+                out.append(f"   ⚠️ вопросов владельцу ТОЛЬКО НА ВЕТКЕ: {bgap['count']} "
+                           f"— ни задать, ни закрыть (веток прочитано "
+                           f"{bgap.get('branches_read')}){tail}: {names}{more}")
+            else:
+                out.append(f"   вопросов, живущих только на ветке, нет "
+                           f"(веток прочитано {bgap.get('branches_read')}){tail}")
         # Дрейф прод↔origin (цикл #273): отправленная карточка закрыта на origin, а
         # файла в прод-дереве нет. НЕ находка — но и не молчание: до #273 такие
         # строки неделю держали сторожа в WARNING как «не измерено», и именно ради

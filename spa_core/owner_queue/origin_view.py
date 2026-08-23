@@ -292,3 +292,144 @@ def hidden_cards(tracker_dir: Path, *, ref: str = DEFAULT_REF,
     if status is not None:
         cards = [c for c in cards if c.status == status]
     return cards, sha
+
+
+#: Пространство удалённых веток, в котором ищем вопросы владельца. Локальные копии
+#: ref'ов, `git fetch` отсюда НЕ вызывается (общее правило модуля): ответ — про те
+#: ветки, что уже лежат локально, и sha каждой печатается, чтобы «сверено с веткой»
+#: нельзя было прочитать как «сверено со свежайшей веткой».
+BRANCH_NAMESPACE = "refs/remotes/origin"
+
+
+@dataclass(frozen=True)
+class BranchCard:
+    """Карточка, найденная на ветке и отсутствующая в канонической очереди.
+
+    `branches` — все ветки, где карточка встретилась (одна и та же карточка живёт
+    на нескольких ветках регулярно: ветка-потомок несёт карточку предка).
+
+    `ever_on_base` различает ДВА разных факта, которые с диска выглядят одинаково:
+    карточки на `origin/main` нет, потому что она туда никогда не попадала
+    (потерянный вопрос), — и её там нет, потому что она **была и снята намеренно**
+    (наш собственный тест-зонд `owner-decision-test-prizrak-ne-rozhdaetsya`, снятый
+    коммитом `029627b46`). Признак измеримый, а не эвристический: история пути на
+    базовом ref либо пуста, либо нет.
+    """
+
+    card_id: str
+    tracker_type: str
+    status: str
+    title: str
+    branches: tuple[str, ...]
+    ever_on_base: bool
+
+
+@dataclass(frozen=True)
+class BranchScan:
+    """Результат обхода веток. Пустой список карточек ≠ «не измерено».
+
+    `unreadable` — ветки, которые прочитать не удалось, с причиной СЛОВАМИ. Одна
+    нечитаемая ветка не отменяет замер по остальным, но и не имеет права исчезнуть:
+    молча пропущенная ветка — это fail-OPEN внутри fail-CLOSED-сверки.
+    """
+
+    base_ref: str
+    base_sha: str
+    branches_read: tuple[str, ...]
+    unreadable: tuple[tuple[str, str], ...]
+    cards: tuple[BranchCard, ...]
+
+
+def remote_branches(root: Path, *, namespace: str = BRANCH_NAMESPACE,
+                    base_ref: str = DEFAULT_REF) -> list[str]:
+    """Короткие имена удалённых веток пространства, КРОМЕ базовой и `HEAD`.
+
+    `origin/HEAD` — символическая ссылка на ту же базу; считать её веткой значило бы
+    сверять базу с самой собой и получать вечный ноль, неотличимый от честного.
+    """
+    rc, out = _git(root, ["for-each-ref", "--format=%(refname:short)", namespace])
+    if rc != 0:
+        raise Unmeasured(f"`git for-each-ref {namespace}` вернул код {rc}")
+    skip = {base_ref, f"{namespace.rsplit('/', 1)[-1]}/HEAD", "origin/HEAD"}
+    return [b for b in (line.strip() for line in out.splitlines()) if b and b not in skip]
+
+
+def path_ever_on_ref(root: Path, ref: str, path: str) -> bool:
+    """Встречался ли путь в истории ref хоть раз. Не измеримо ⇒ Unmeasured.
+
+    Отвечает ровно на «была ли карточка в канонической очереди когда-либо», и
+    ответ этот с текущего снимка неполучаем: снимок знает только «сейчас».
+    """
+    rc, out = _git(root, ["log", "--format=%H", "-1", ref, "--", path])
+    if rc != 0:
+        raise Unmeasured(f"`git log {ref} -- {path}` вернул код {rc}")
+    return bool(out.strip())
+
+
+def branch_only_cards(tracker_dir: Path, *, base_ref: str = DEFAULT_REF,
+                      namespace: str = BRANCH_NAMESPACE,
+                      tracker_type: str | None = None,
+                      status: str | None = None) -> BranchScan:
+    """Карточки, которых нет НИ в этом дереве, НИ на базовом ref — только на ветках.
+
+    Третье плечо класса «вопрос владельцу невидим», и самое немое из трёх. Первые
+    два уже измеряются: «есть на `origin/main`, нет в дереве» (`hidden_cards`,
+    читатель — `owner_decision_pending`) и «есть в дереве, нет на origin» (дрейф
+    прод↔origin). Карточка, живущая ТОЛЬКО на ветке, невидима обеим сверкам сразу:
+    ни очередь, ни отправитель (`resend.open_questions` читает дерево + `origin/main`)
+    её не встретят никогда, а значит вопрос нельзя ни задать, ни закрыть.
+
+    Замер 23.08.2026 (цикл #351): 18 таких `needs-owner` на 36 ветках, из них
+    `own-2026-08-22-snyat-changelog-so-saita` лежит внутри ОТКРЫТОГО PR #35 и просит
+    подпись владельца, без которой этот же PR не вливают, — замкнутый круг, который
+    сам не разомкнётся.
+
+    Фильтры применяются к версии НА ВЕТКЕ: другой версии у такой карточки нет.
+    Дерево исключается наравне с базой намеренно — карточка, лежащая в живом дереве,
+    владельцу достижима, и это плечо меряет не эта функция.
+
+    Fail-CLOSED: базу не прочитать ⇒ `Unmeasured` (пустой ответ означал бы «на ветках
+    ничего нет»). Отдельная ветка не прочиталась ⇒ она названа в `unreadable`, а
+    замер по остальным состоялся.
+    """
+    tdir = Path(tracker_dir)
+    root, rel, base_sha = _locate(tdir, base_ref)
+    base = snapshot(root, base_ref, rel)
+    in_tree = {p.stem for p in tdir.glob("*.md")} | _NOT_CARDS
+    known = set(base) | in_tree
+
+    read: list[str] = []
+    unreadable: list[tuple[str, str]] = []
+    found: dict[str, tuple[OriginCard, list[str]]] = {}
+    for branch in remote_branches(root, namespace=namespace, base_ref=base_ref):
+        try:
+            extra = {cid: blob for cid, blob in snapshot(root, branch, rel).items()
+                     if cid not in known}
+            cards = read_cards(root, extra)
+        except Unmeasured as exc:
+            unreadable.append((branch, str(exc)))
+            continue
+        read.append(branch)
+        for card in cards:
+            if tracker_type is not None and card.tracker_type != tracker_type:
+                continue
+            if status is not None and card.status != status:
+                continue
+            found.setdefault(card.card_id, (card, []))[1].append(branch)
+
+    out: list[BranchCard] = []
+    for card_id, (card, branches) in sorted(found.items()):
+        try:
+            ever = path_ever_on_ref(root, base_ref, f"{rel}/{card_id}.md")
+        except Unmeasured as exc:
+            # История пути не прочиталась — «намеренно снята» утверждать нечем.
+            # Fail-CLOSED в сторону НАХОДКИ: пропустить потерянный вопрос дороже,
+            # чем лишний раз назвать снятый. Причина уезжает в `unreadable`.
+            unreadable.append((f"{base_ref}:{card_id}", str(exc)))
+            ever = False
+        out.append(BranchCard(card_id=card.card_id, tracker_type=card.tracker_type,
+                              status=card.status, title=card.title,
+                              branches=tuple(branches), ever_on_base=ever))
+    return BranchScan(base_ref=base_ref, base_sha=base_sha,
+                      branches_read=tuple(read), unreadable=tuple(unreadable),
+                      cards=tuple(out))
