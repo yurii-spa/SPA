@@ -389,6 +389,19 @@ class TestStep0aNamesTheDecision:
         assert WHY in text and "pid21014" in text
         assert "решено не доставлять" in text
 
+    def test_the_pre_decision_measurement_is_labelled_as_such(self, guard, repo):
+        """Живой замер #354: перенесённая строка кончается словами «её надо поднять» —
+        в разделе решения она спорила бы с собственным заголовком. Замер не переписывается
+        (он верен и сделан ДО решения), а называется его место во времени."""
+        root, _ = repo
+        p = root / "docs" / "NEW.md"
+        p.write_text("работа\n", encoding="utf-8")
+        text = guard.render(_step0a(guard, root, [
+            _entry("pid21014", [p], dropped=[{"path": str(p), "reason": WHY}])]))
+        for line in text.splitlines():
+            if "надо поднять" in line:
+                assert "измерено до решения" in line, line
+
     def test_a_declaration_of_another_session_about_another_tree_does_not_hide_it(self, guard,
                                                                                  repo):
         """Ключ — объявленная СТРОКА, не relative-путь: иначе одно решение гасило бы чужие."""
