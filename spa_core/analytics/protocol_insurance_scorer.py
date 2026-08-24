@@ -207,11 +207,22 @@ class ProtocolInsuranceScorer:
             _p = _pf.generic_profile_for(protocol_data["protocol"])
             if _p is None:
                 return None
+            # Страховое покрытие структурная база ЗНАЕТ: ``systemic.insurance_pct_of_tvl``
+            # (страховой фонд как % TVL) приезжает в профиль полями
+            # ``insurance_coverage_pct`` / ``insurance_fund_usd`` и РАЗЛИЧАЕТСЯ между
+            # протоколами (0.0 / 0.5 / 1.0 / 1.5 на базе 35 протоколов). До 24.08 здесь
+            # стояли литералы ``False`` / ``0.0``: измеренный факт выбрасывался и
+            # заменялся нулём — зеркало выдуманной казны (обе — утверждение о протоколе,
+            # ничем не подкреплённое). Нулевое покрытие остаётся нулём, но теперь это
+            # ИЗМЕРЕННЫЙ ноль базы, а не подстановка.
+            _cov_pct = float(_p["insurance_coverage_pct"])
             _legacy = {
                 "protocol": _p["name"],
-                "has_insurance": False,
-                "insurance_coverage_pct": 0.0,
-                "insurance_provider": "none",
+                "has_insurance": _cov_pct > 0.0,
+                "insurance_coverage_pct": _cov_pct,
+                # Имя страховщика в базе НЕ измерено — пустая строка, а не выдуманное
+                # "none" (на скор не влияет, но читателя результата не обманывает).
+                "insurance_provider": "",
                 # Казна протокола в структурной базе _protocol_facts ОТСУТСТВУЕТ.
                 # До 08.08 здесь стояло ``_p["tvl_usd"] * 0.02`` — выдуманное
                 # число, одинаковое (ratio 0.02) для КАЖДОГО протокола: оно
@@ -225,8 +236,21 @@ class ProtocolInsuranceScorer:
                 "has_timelock": bool(_p["has_timelock"]),
                 "timelock_days": _p["timelock_hours"] / 24.0,
             }
-            return _pf.extract_protocol_score(self.score(_legacy, write_log=False),
-                                              _p)
+            _res = self.score(_legacy, write_log=False)
+            if _res is None:
+                return None
+            # ── ПОЛЯРНОСТЬ (карточка agent-insurance-scorer-…, п.2) ──────────────
+            # Шкала модуля: больше = ЛУЧШЕ защищён. Агрегатор ждёт обратного:
+            # больше = ОПАСНЕЕ. Без явного ключа ``_coerce_score`` не находил в
+            # результате НИ ОДНОГО ключа из ``_SCORE_KEYS`` и падал в fallback
+            # «первый попавшийся ``*_score``» — по порядку вставки это
+            # ``coverage_score``, равный 0.0 у КАЖДОГО протокола (замер #366: 35 из
+            # 35). Отсюда и разметка ``blind_equal``: модуль был слеп не по природе
+            # задачи, а из-за двух подстановок подряд.
+            # Даём агрегатору СОБСТВЕННЫЙ композит модуля с перевёрнутым знаком —
+            # ключ ``risk_score`` первый в ``_SCORE_KEYS``, выбор детерминирован.
+            _res["risk_score"] = round(100.0 - float(_res["total_insurance_score"]), 4)
+            return _pf.extract_protocol_score(_res, _p)
         self._validate(protocol_data)
 
         protocol           = protocol_data["protocol"]
