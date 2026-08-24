@@ -431,3 +431,46 @@ class TestGetHYRegime:
         monkeypatch.setattr(m, "_HY_REGIME_LOG_PATH", log_path)
 
         assert m.get_hy_regime() == "EXIT"
+
+
+# ── 9. Разовый owner-approved пересев на $100k (решение владельца 2026-08-24) ──────
+# Инвариант #16 / журнал W34: живые книги шли на легаси-сиде $66k; владелец выбрал
+# чистый рестарт на $100k. Миграция маркер-guarded — срабатывает один раз, funded-книгу
+# с маркером повторно не затирает (штатный self-seed по _ever_funded не тронут).
+
+class TestReseed100kMigration:
+    def test_legacy_book_reset_to_clean_100k(self, m, monkeypatch):
+        legacy = {
+            "sleeve": "B", "seed_equity": 66666.67, "equity": 66916.19, "peak_equity": 66916.19,
+            "positions": [{"protocol": "susde", "notional_usd": 16700}],
+            "daily_history": [{"date": "2026-08-21", "equity": 66700, "positions_count": 4}],
+            "regime": "ENTER", "cycles_completed": 900,
+        }
+        captured = {}
+        monkeypatch.setattr(m, "load_hy_state", lambda: dict(legacy))
+        monkeypatch.setattr(m, "save_hy_state", lambda s: captured.update(s))
+
+        m.run_hy_cycle(dry_run=False)
+
+        assert captured.get("reseed_100k_done") is True
+        assert captured.get("seed_equity") == pytest.approx(100000.0)
+        # чистый рестарт: ровно новый день-1, старые 3 дня стёрты (владелец принял)
+        assert len(captured.get("daily_history")) == 1
+        assert captured["daily_history"][-1]["deployed_usd"] == pytest.approx(100000.0)
+
+    def test_marked_book_not_re_wiped(self, m, monkeypatch):
+        booked = {
+            "sleeve": "B", "seed_equity": 100000.0, "equity": 123456.0, "peak_equity": 123456.0,
+            "positions": [{"protocol": "susde", "notional_usd": 25000}],
+            "daily_history": [{"date": "2026-08-01", "equity": 123456.0, "positions_count": 4}],
+            "regime": "ENTER", "cycles_completed": 5, "reseed_100k_done": True,
+        }
+        captured = {}
+        monkeypatch.setattr(m, "load_hy_state", lambda: dict(booked))
+        monkeypatch.setattr(m, "save_hy_state", lambda s: captured.update(s))
+
+        m.run_hy_cycle(dry_run=False)
+
+        # миграция НЕ должна была обнулить книгу к $100k (только начисление сверху)
+        assert captured.get("equity") >= 123456.0
+        assert captured.get("reseed_100k_done") is True
