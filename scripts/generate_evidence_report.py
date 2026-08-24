@@ -133,6 +133,112 @@ def load_json(path: str) -> dict:
 
 
 # --------------------------------------------------------------------------- #
+# Tournament schema reconciliation (2026-08-24, цикл #373)
+# --------------------------------------------------------------------------- #
+#
+# TWO live producers write data/tournament_ranking.json, and they disagree —
+# on the top-level key, on where the name lives, AND on the APY unit:
+#
+#   MultiStrategyRunner.export_results (spa_core/paper_trading/multi_strategy_runner.py)
+#       {"strategies": [{rank, strategy_id, composite_score,
+#                        net_apy,  # FRACTION — the producer says so: 0.042 == 4.2%
+#                        is_active, days_running}], "total_active", "weighted_apy"}
+#       This is what the live file carries today.
+#
+#   TournamentEvaluator.save_ranking (spa_core/paper_trading/tournament_evaluator.py)
+#       {"ranking": [{strategy_id, rank, composite_score,
+#                     metrics: {name, status, realized_apy_pct,  # PERCENT
+#                               days_observed, ...}}]}
+#       Name and status live NESTED under ``metrics``, not at the top level.
+#
+# Until 2026-08-24 this module read top-level ``name`` / ``apy_target`` /
+# ``status`` / ``apy_realized`` — keys NEITHER producer writes. Section 2 therefore
+# printed a blank name, "N/A" and "unknown" for EVERY row on ANY real data, and the
+# avg-APY fallback could never fire. The 2026-06-28 reconciliation (WS2.2) fixed
+# section 1's key drift and left this half on the stale schema; nobody noticed
+# because the generator has no caller at all (card agent-unwired-baseline-triage).
+#
+# Units are resolved BY SOURCE KEY, never by magnitude (`.claude/rules/adapters.md`:
+# APY units are inconsistent across the codebase by construction). Reading
+# ``net_apy`` into the percent slot would print a 4.2 % strategy as "0.0%" — the
+# 100× understatement is exactly the trap a magnitude heuristic walks into.
+
+# APY keys that carry PERCENT, in preference order, and where to look for them.
+_APY_PCT_KEYS = ("apy_target", "realized_apy_pct", "apy_realized")
+# APY keys that carry a FRACTION (must be ×100 before display).
+_APY_FRACTION_KEYS = ("net_apy",)
+
+
+def _tournament_entries(tournament: dict) -> tuple[list, str]:
+    """
+    Return (entries, source_key) for whichever producer wrote the document.
+
+    Empty list + "" when neither key is present — an honest absence, not a
+    silently empty table.
+    """
+    for key in ("strategies", "ranking"):
+        raw = tournament.get(key)
+        if isinstance(raw, list) and raw:
+            return raw, key
+    return [], ""
+
+
+def _strategy_row(entry: dict) -> dict:
+    """
+    Normalise ONE tournament entry from either producer into display fields.
+
+    Any field the producer does not supply stays ``None`` — the caller renders
+    it as "—". A missing field is never filled with 0 / "unknown".
+    """
+    if not isinstance(entry, dict):
+        return {"rank": None, "name": None, "apy_pct": None,
+                "apy_kind": None, "days": None, "status": None}
+
+    metrics = entry.get("metrics")
+    metrics = metrics if isinstance(metrics, dict) else {}
+
+    name = entry.get("name") or metrics.get("name") or entry.get("strategy_id")
+
+    status = entry.get("status") or metrics.get("status")
+    if status is None and "is_active" in entry:
+        status = "active" if entry.get("is_active") else "inactive"
+
+    apy_pct: float | None = None
+    apy_kind: str | None = None
+    for key in _APY_PCT_KEYS:
+        for src in (entry, metrics):
+            value = src.get(key)
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                apy_pct, apy_kind = float(value), key
+                break
+        if apy_pct is not None:
+            break
+    if apy_pct is None:
+        for key in _APY_FRACTION_KEYS:
+            for src in (entry, metrics):
+                value = src.get(key)
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
+                    # FRACTION → percent. Conversion is decided by the KEY.
+                    apy_pct, apy_kind = float(value) * 100.0, key
+                    break
+            if apy_pct is not None:
+                break
+
+    days = entry.get("days_running")
+    if days is None:
+        days = metrics.get("days_observed")
+
+    return {
+        "rank": entry.get("rank"),
+        "name": name,
+        "apy_pct": apy_pct,
+        "apy_kind": apy_kind,
+        "days": days,
+        "status": status,
+    }
+
+
+# --------------------------------------------------------------------------- #
 # Derived metrics helpers
 # --------------------------------------------------------------------------- #
 
@@ -141,17 +247,20 @@ def _compute_avg_apy(evidence: dict, tournament: dict) -> float | None:
     Average APY computed STRICTLY over the EVIDENCED days (current ``apy_pct``
     schema). A pre-anchor / non-evidenced day can NOT contribute. Falls back to
     the tournament winner's realized APY only when there is no evidenced day.
+
+    The fallback reads the winner through :func:`_strategy_row`, so it accepts
+    BOTH producers and converts a fraction-valued ``net_apy`` to percent by key.
+    Before 2026-08-24 it read ``apy_realized`` — a key no producer writes — and
+    so was dead code that always returned None.
     """
     apys = [a for a in (_day_apy(d) for d in _evidenced_days(evidence)) if a is not None]
     if apys:
         return sum(apys) / len(apys)
 
     # Fallback: tournament winner's realized APY (only when no evidenced day yet).
-    strategies = tournament.get("strategies", [])
-    if strategies:
-        winner_apy = strategies[0].get("apy_realized")
-        if winner_apy is not None:
-            return float(winner_apy)
+    entries, _ = _tournament_entries(tournament)
+    if entries:
+        return _strategy_row(entries[0])["apy_pct"]
     return None
 
 
@@ -313,9 +422,20 @@ def _section1(evidence: dict, tournament: dict, golive: dict, prepared_date: str
     return "\n".join(lines)
 
 
+_APY_KIND_LABELS = {
+    "apy_target": "target APY",
+    "realized_apy_pct": "realized APY",
+    "apy_realized": "realized APY",
+    "net_apy": "realized net APY",
+}
+
+
 def _section2(tournament: dict) -> str:
-    strategies = tournament.get("strategies", [])
-    top5 = [s for s in strategies if s.get("rank") is not None][:5]
+    entries, source_key = _tournament_entries(tournament)
+    rows = [_strategy_row(e) for e in entries]
+    ranked = [r for r in rows if r["rank"] is not None]
+    ranked.sort(key=lambda r: r["rank"])
+    top5 = ranked[:5]
 
     lines = [
         "SECTION 2: STRATEGY TOURNAMENT (Top 5)",
@@ -326,18 +446,29 @@ def _section2(tournament: dict) -> str:
         lines.append("  No strategy data available yet.")
         return "\n".join(lines)
 
-    header = f"{'Rank':<5} {'Strategy':<28} {'APY Target':>10} {'Days':>6} {'Status':<14}"
+    header = f"{'Rank':<5} {'Strategy':<28} {'APY':>10} {'Days':>6} {'Status':<14}"
     lines.append(header)
     lines.append("-" * len(header))
 
-    for s in top5:
-        rank = s.get("rank", "?")
-        name = (s.get("name") or "")[:27]
-        apy_target = s.get("apy_target")
-        days_run = s.get("days_running", 0)
-        status = (s.get("status") or "unknown")[:13]
-        apy_str = f"{apy_target:.1f}%" if apy_target is not None else "N/A"
-        lines.append(f"{rank:<5} {name:<28} {apy_str:>10} {days_run:>6} {status:<14}")
+    for r in top5:
+        rank = r["rank"]
+        name = (str(r["name"])[:27]) if r["name"] else "—"
+        days = r["days"] if r["days"] is not None else "—"
+        status = (str(r["status"])[:13]) if r["status"] else "—"
+        apy_str = f"{r['apy_pct']:.2f}%" if r["apy_pct"] is not None else "—"
+        lines.append(f"{rank:<5} {name:<28} {apy_str:>10} {days:>6} {status:<14}")
+
+    # Name WHICH number the APY column carries: the two producers of this file
+    # report different kinds (target vs realized net), and a bare "APY" header
+    # over a mixed column would be a claim we cannot back.
+    kinds = sorted({_APY_KIND_LABELS.get(r["apy_kind"], r["apy_kind"])
+                    for r in top5 if r["apy_kind"]})
+    if kinds:
+        lines.append("")
+        lines.append(f"APY column: {', '.join(kinds)}  ·  source key: \"{source_key}\"")
+    elif source_key:
+        lines.append("")
+        lines.append(f"APY column: no APY reported by the producer  ·  source key: \"{source_key}\"")
 
     winner = tournament.get("winner")
     if winner:
