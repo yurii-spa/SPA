@@ -5,6 +5,10 @@ title: "Шесть находок за день оказались ОДНОЙ б
 status: needs-owner
 source: nimbalyst
 created: 2026-08-18
+owner_choice: A
+owner_answered_at: 2026-08-23T19:46:52.582499+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно

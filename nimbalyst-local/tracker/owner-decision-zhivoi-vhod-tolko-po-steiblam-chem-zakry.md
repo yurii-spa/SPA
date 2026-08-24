@@ -5,6 +5,10 @@ title: "Живой вход только по стейблам: чем закр�
 status: needs-owner
 source: nimbalyst
 created: 2026-08-23
+owner_choice: 2
+owner_answered_at: 2026-08-23T20:07:08.627140+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно

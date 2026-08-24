@@ -5,6 +5,10 @@ title: "Внутридневная просадка: мягкий тир вну�
 status: needs-owner
 source: nimbalyst
 created: 2026-08-18
+owner_choice: 1
+owner_answered_at: 2026-08-23T20:06:14.498628+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно
