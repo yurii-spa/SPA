@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Находка петли: возможность spark_susds 3.6765% (evidence L4) доступна книге, не держи"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-23
 finding_key: "gap:opportunity_unnamed:spark_susds"
