@@ -29,6 +29,23 @@
 ``scan(entries)``        — какие ДОСТАВЛЕННЫЕ сообщения предлагали выбор без кнопок.
                            Записи без поля `buttons` — «не измерено», отдельной строкой:
                            старый журнал не имеет права выглядеть чистым (fail-CLOSED).
+                           Починенные штатным ремонтом — на СВОЕЙ полке (`healed`), см. ниже.
+
+Почему у починенного случая своя полка (замер #370)
+------------------------------------------------------------------------------
+24.08 в 11:21:37Z вопрос владельцу («Ежедневную проверку аналитики некому гонять»,
+сообщение 9048) уехал без кнопок; в 13:16:47Z штатный ремонт (`heal_buttonless`) дослал
+их вторым сообщением, и в 13:28 владелец нажал. Ремонт отработал ровно как задуман.
+
+А шаг 0-офис до сих пор печатал этот случай как ОТКРЫТЫЙ дефект с призывом «чинить путь
+между сборкой клавиатуры и отправкой» — и печатал бы его ВЕЧНО: сообщение в канале кнопок
+задним числом не отращивает, а `buttons_fixed_at` в той же записи журнала не читал никто.
+Вечная находка глушит соседние настоящие (в том же отчёте их три, `unmatchable`).
+
+Вычеркнуть починенное было бы ровно тем fail-OPEN, ради которого класс и заводили, —
+поэтому не вычёркиваем, а НАЗЫВАЕМ: код причины ``healed_by_followup``, отдельный
+счётчик, и число, которого не мерил никто, — **сколько владелец просидел с вопросом,
+на который нечем ответить** (в том случае 1.92 ч).
 
 stdlib, детерминированно, **LLM запрещён** (инвариант #3 — это monitoring-путь).
 """
@@ -114,6 +131,11 @@ JOIN_OWN_NO_OPTIONS = "own_door_no_options"
 #: Наша дверь и журнал говорит «кнопки были», а канал — «не было». Расхождение двух
 #: наших же записей: чинить не разбор, а путь между сборкой клавиатуры и отправкой.
 JOIN_OWN_CONTRADICTS = "own_door_says_buttons"
+#: Наша дверь, кнопок в этом сообщении не было — и штатный ремонт их ДОСЛАЛ вторым
+#: сообщением (`buttons_fixed_at` пишет только `mark_buttons_delivered`, и только после
+#: удавшейся отправки). Владелец кнопки получил; чинить путь отправки по этой записи
+#: больше нечего — а вот СКОЛЬКО он ждал без них, до сих пор не мерил никто.
+JOIN_HEALED = "healed_by_followup"
 #: Сообщение послано НЕ дверью решений владельца: у нашей message_id пишется всегда.
 JOIN_OTHER_SENDER = "other_sender"
 #: Сопоставить нечем — и это НЕ «другая дверь». Разница принципиальная: объявить
@@ -127,6 +149,8 @@ _JOIN_TEXT = {
     JOIN_OWN_NO_OPTIONS: "наша дверь, вариантов в журнале нет — чинить РАЗБОР карточки",
     JOIN_OWN_CONTRADICTS: "наша дверь, журнал говорит «кнопки были» — чинить путь "
                           "между сборкой клавиатуры и отправкой",
+    JOIN_HEALED: "кнопки досланы вдогонку вторым сообщением — владелец их получил, "
+                 "путь отправки по этой записи чинить нечего",
     JOIN_OTHER_SENDER: "послано НЕ дверью решений владельца — у нашей message_id "
                        "пишется всегда; искать отправителя, а не разбор",
     JOIN_UNMATCHABLE: "сопоставить нечем, отправитель НЕ ИЗМЕРЕН",
@@ -184,9 +208,63 @@ def attribute_send(entry: Dict[str, Any], by_id: dict, idless: int,
                              f"неотличимы")}
         return {"code": JOIN_OTHER_SENDER, "text": _JOIN_TEXT[JOIN_OTHER_SENDER],
                 "card_id": None}
+    fixed_at = rec.get("buttons_fixed_at")
+    if isinstance(fixed_at, str) and fixed_at.strip():
+        # Ремонт СОСТОЯЛСЯ: `buttons_fixed_at` ставит только `mark_buttons_delivered`,
+        # и только когда досылка уехала. Это единственная запись в обоих журналах,
+        # которая отличает «владелец остался без кнопок» от «кнопки приехали вторым
+        # сообщением», — и до этой правки её не читал никто.
+        out: Dict[str, Any] = {"code": JOIN_HEALED, "text": _JOIN_TEXT[JOIN_HEALED],
+                               "card_id": rec.get("card_id"),
+                               "fixed_at": fixed_at.strip()}
+        out["healed_by"] = _healing_message_id(rec, mid)
+        out["waited_h"] = _waited_hours(entry.get("ts"), fixed_at)
+        return out
     code = JOIN_OWN_CONTRADICTS if rec.get("buttons") else JOIN_OWN_NO_OPTIONS
     return {"code": code, "text": _JOIN_TEXT[code],
             "card_id": rec.get("card_id")}
+
+
+def _healing_message_id(rec: Dict[str, Any], sent_mid: int) -> Optional[int]:
+    """Каким сообщением приехали кнопки. ``None`` — досылка id не оставила.
+
+    ``None`` здесь означает «не измерено», а не «не было»: отправитель мог вернуть
+    ответ без ``message_id``, и ремонт всё равно состоялся (отметку без успеха не
+    ставят). Врать номером мы не будем ни в ту, ни в другую сторону.
+    """
+    later = None
+    for v in (rec.get("message_ids") if isinstance(rec.get("message_ids"), list) else []):
+        try:
+            v = int(v)
+        except (TypeError, ValueError):
+            continue
+        if v != sent_mid:
+            later = v
+    return later
+
+
+def _waited_hours(sent_iso, fixed_iso) -> Optional[float]:
+    """Сколько владелец просидел с вопросом, на который нечем ответить. Не бросает.
+
+    ``None`` — не измерено (отметку не разобрать). Отрицательную разницу тоже отдаём
+    как «не измерено»: ремонт РАНЬШЕ отправки означает, что часы одной из сторон врут,
+    а зажатый в ноль возраст уже стоил нам находки (#291) — второй раз не повторяем.
+    """
+    from datetime import datetime
+
+    def _parse(v):
+        if not isinstance(v, str) or not v.strip():
+            return None
+        try:
+            return datetime.fromisoformat(v.strip().replace("Z", "+00:00"))
+        except ValueError:
+            return None
+
+    a, b = _parse(sent_iso), _parse(fixed_iso)
+    if a is None or b is None or a.tzinfo is None or b.tzinfo is None:
+        return None
+    delta = (b - a).total_seconds() / 3600.0
+    return round(delta, 2) if delta >= 0 else None
 
 
 # ── скан журнала ─────────────────────────────────────────────────────────────
@@ -240,13 +318,46 @@ def scan(entries: Iterable[Dict[str, Any]], *, limit: int = 20,
                                         have_journal=have_journal)
         confirmed.append(found)
     confirmed.sort(key=lambda r: str(r.get("ts") or ""), reverse=True)
+    # Починенное НЕ исчезает — оно получает свою полку. Разница принципиальная:
+    # сообщение в канале кнопок задним числом не отращивает, поэтому в общей куче
+    # починенный случай кричал бы ВЕЧНО и звал чинить путь, у которого ремонт уже
+    # отработал, — а вечный крик глушит соседние настоящие находки. Но и вычеркнуть
+    # его нельзя: это ровно тот fail-OPEN, из-за которого класс и заводили. Отсюда
+    # два счётчика и две полки.
+    healed = [r for r in confirmed
+              if (r.get("cause") or {}).get("code") == JOIN_HEALED]
+    open_ = [r for r in confirmed
+             if (r.get("cause") or {}).get("code") != JOIN_HEALED]
     return {
         "with_choice": total_choice,
-        "buttonless": confirmed[:limit],
-        "buttonless_count": len(confirmed),
+        "buttonless": open_[:limit],
+        "buttonless_count": len(open_),
+        "healed": healed[:limit],
+        "healed_count": len(healed),
         "unmeasured_count": unmeasured,
         "unscanned_count": unscanned,
     }
+
+
+def _healed_tail(report: Dict[str, Any]) -> str:
+    """Хвост строки про досланные вдогонку кнопки. Пусто — если таких не было.
+
+    Печатается ВСЕГДА, когда такие записи есть, в том числе рядом с «незакрытых нет»:
+    ремонт сработал — это не то же самое, что «отправили правильно с первого раза», и
+    единственное число, которым эти два состояния различимы для читателя, — сколько
+    владелец просидел с вопросом, на который нечем ответить.
+    """
+    m = int(report.get("healed_count") or 0)
+    if not m:
+        return ""
+    waits = [w for w in ((r.get("cause") or {}).get("waited_h")
+                         for r in (report.get("healed") or []))
+             if isinstance(w, (int, float))]
+    if waits:
+        worst = f"владелец ждал до {max(waits):.2f} ч"
+    else:
+        worst = "сколько ждал владелец — НЕ ИЗМЕРЕНО"
+    return f" · кнопки досланы вдогонку: {m} ({worst})"
 
 
 def summary_line(report: Dict[str, Any]) -> str:
@@ -255,6 +366,7 @@ def summary_line(report: Dict[str, Any]) -> str:
         return "канал: кнопки НЕ ИЗМЕРЕНЫ (нет блока)"
     n = int(report.get("buttonless_count") or 0)
     u = int(report.get("unmeasured_count") or 0)
+    healed_tail = _healed_tail(report)
     if n:
         first = (report.get("buttonless") or [{}])[0]
         # Причина стоит РЯДОМ с находкой, а не в json: без неё эта строка стоила
@@ -265,12 +377,17 @@ def summary_line(report: Dict[str, Any]) -> str:
         card_tail = f", карточка {card}" if card else ""
         return (f"⚠️ КНОПОК НЕТ у {n} доставленн(ого/ых) сообщени(я/й) с вариантами; "
                 f"свежайшее {first.get('ts')}: {str(first.get('preview') or '')[:80]} "
-                f"[{why}{card_tail}]")
+                f"[{why}{card_tail}]{healed_tail}")
     if u:
         return (f"сообщений с вариантами без измеренных кнопок: {u} "
-                f"(старые записи журнала — «не измерено», не «чисто»)")
+                f"(старые записи журнала — «не измерено», не «чисто»){healed_tail}")
     choice = int(report.get("with_choice") or 0)
     old = int(report.get("unscanned_count") or 0)
+    if healed_tail:
+        # Незакрытых нет — но «все с кнопками» было бы неправдой: у этих кнопок не было
+        # в момент отправки, и владелец ждал их измеренное время. Говорим ровно это.
+        return (f"сообщения с вариантами: {choice}, незакрытых без кнопок нет"
+                f"{healed_tail}")
     if not choice and old:
         # «Ноль сообщений с вариантами» из журнала, где ни одна запись не измерена, —
         # это НЕ чистота. Пока кольцевой буфер не сменится на записи нового образца,
