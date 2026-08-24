@@ -264,3 +264,56 @@ verify` пройден) — полная копия ветки на случай
 
 **Владельцу пачкой не отправлялось** (ADR-084) — `notify` ни по одной карточке не запускался.
 Код и тесты ветки не переносились.
+
+
+---
+
+## 🔭 Пачка 4 — стартовый замер сделан циклом #372 (сам разбор НЕ начат)
+
+Чтобы следующая пачка начиналась с измерения, а не с нуля: 19 оставшихся карточек ветки
+(`inbox-*` / `agent-*`) уже вытащены и разложены по статусу НА ВЕТКЕ, и по каждой сделан
+поиск однофамильца-по-объекту на `main`. Разбор СОДЕРЖАНИЕМ по ним НЕ проводился — не считать
+эту таблицу вердиктом.
+
+| статус на ветке | сколько | что это значит для разбора |
+|---|---|---|
+| `done` | 7 | **самая опасная куча, см. ниже** |
+| `new` | 9 | кандидаты в задачи; у 6 на `main` есть карточка по тому же объекту под другим именем |
+| `in-progress` / `blocked` / `backlog` | 3 | по одной каждая |
+
+**Куча `done` — предупреждение, а не удобство.** «Сделано» на ветке означает «сделано НА ВЕТКЕ»,
+а код ветки мы не переносим по решению владельца. Проверено на двух из семи, и обе проверки
+дали одно: **починки на `main` нет вовсе.**
+
+* `inbox-uvod-putei-ne-deistvuet-vne-pytest-obych` (`done`) стоит поверх работы цикла #275
+  «увод путей на 194 модуля `spa_core/analytics/`». На `main` функций `sandboxed_default` и
+  `under_test` **не существует ни одной** (`grep -rn "def under_test\|def sandboxed_default"`
+  по `spa_core/` и `scripts/` — пусто), `PYTEST_CURRENT_TEST` в `spa_core/analytics/` не
+  встречается. То есть на `main` не закрыт ни «свой» сценарий, ни «соседний».
+  На `main` этот класс живёт под своим именем — замер #361 («заслон герметичности покрывает
+  1 модуль из 209»), так что находка не потеряна; потеряна была бы вера в слово `done`.
+* `inbox-storozh-nepodklyuchennyh-skriptov-susche` (`done`) описывает сведение ДВУХ реализаций
+  сторожа и прямо перечисляет, что «припарковано и в слитое дерево НЕ уехало».
+
+**Правило для пачки 4:** статус карточки ветки читать как «состояние ветки», и по каждой
+`done` спрашивать отдельно — доехала ли починка на `main`. Карточка с ветки описывает ВЕТКУ
+(тот же урок дала пачка 3: две перенесённые карточки ссылались на работу как на сделанную,
+а на `main` её нет).
+
+**Однофамильцы по объекту, найденные на `main` (проверять содержанием, не по имени):**
+`agent-t2-total-cap-ne-proveryaetsya-na-portfele` → `agent-task-odno-chislo-dva-verdikta-portfolio-healt`
+(и перенесённая мной `owner-decision-proverka-knigi-slabee-proverki-pered-sde` — тот же предмет) ·
+`inbox-nomera-adr-stalkivayutsya-po-ustroistvu` → `inbox-nomera-adr-stalkivayutsya-dva-raza-za-de`,
+`inbox-nomer-adr-067-zanyat-dvumya-raznymi-resh` ·
+`inbox-sem-skriptov-bez-vyzyvayuschego-razbor` → `inbox-sem-skriptov-vskrytyh-strogim-skanerom-r`,
+`inbox-hrapovik-schitaet-upominanie-v-dokstring` ·
+`inbox-konstitutsiya-protivorechit-prinyatomu-a` → `agent-book-violations-advisory-and-sky` ·
+`inbox-obyavlen-kanonom-no-ne-suschestvoval-nikogda` → `agent-spa-core-tests-red-on-main` ·
+`inbox-adr-087-p-2/-p-3` → `agent-allocator-yield-frozen-rootcause`.
+Без однофамильца на `main` (поиск по объекту ничего не дал — кандидаты в перенос):
+`inbox-adr-087-p-1-kommitit-dnevnoi-srez-blokir`, `inbox-dve-parallelnye-realizatsii-odnogo-hrapo`,
+`inbox-hrapovik-importov-sovetuet-zatyanut-seby`, `inbox-kartochku-mosta-zakryli-rukami-zhivaya-n`,
+`inbox-pod-klyuchom-stusd-obyavleny-dva-raznyh`, `inbox-razobrat-shest-sirot-vyshedshih-iz-pod-h`,
+`inbox-slepota-mozhet-byt-poteryannoi-koerciei`, `inbox-uvod-putei-ne-deistvuet-vne-pytest-obych`,
+`inbox-v-oblachnom-konteinere-dev-null-obychnyi`, `inbox-182-modulya-analitiki-pishut-po-otnositelnomu-puti`,
+`inbox-storozh-telegram-dverei-vybivaet-storozh`.
