@@ -187,3 +187,80 @@ verify` пройден) — полная копия ветки на случай
 Осталось **19** карточек, все `inbox-*`/`agent-*` (вопросов владельца больше нет). Полный список —
 `comm -23 <(git ls-tree -r --name-only <ветка> -- nimbalyst-local/tracker/|sort) <(git ls-tree -r --name-only origin/main -- nimbalyst-local/tracker/|sort)` минус разобранные выше.
 Ветку НЕ удалять до конца разбора (п. «Чего делать нельзя»).
+
+
+---
+
+## 📦 Пачка 3 — 2026-08-24, цикл #372 (все 12 висевших вопросов владельца разобраны)
+
+**Перемерено, а не переписано из шапки.** «52 карточки» — число цикла #322; сегодня на ветке
+осталось **35** путей, которых на `main` нет ВООБЩЕ (пачки 1 и 2 уже сняли 17). Из этих 35:
+**16 карточек владельца** (12 в статусе `needs-owner` — те самые, что каждый цикл называет
+`owner_decision_pending.branch_queue`; 4 уже `ingested` на самой ветке) и **19** карточек
+`inbox-*`/`agent-*`.
+
+Эта пачка закрывает **все 12 `needs-owner`**. Каждая отнесена по СОДЕРЖАНИЮ — сверкой с
+сегодняшним кодом `main` (`5a9fbb2ba`), а не по заголовку.
+
+### Перенесено на `main` — 9 (замер подтвердил: дефект жив сегодня)
+
+| карточка | чем подтверждено на `main` сегодня |
+|---|---|
+| `own-2026-08-18-potolok-ne-vidit-obshchego-kuratora` | `grep -c curator spa_core/risk/policy.py` = **0**; на `main` только `agent-morpho-curator-concentration` (`backlog`, карточка агента, не вопрос) |
+| `own-2026-08-18-tyuner-ne-znaet-o-setevykh-potolkakh` | дыра ШИРЕ описанной: `allocation_tuner.py:42-47` держит свои литералы (0.35/0.25/0.05), теста `test_unmirrored_gate_rules_are_still_exactly_the_known_gap` на `main` НЕТ, `chain` не упоминается ни в тюнере, ни в аллокаторе |
+| `own-2026-08-18-zapas-rebalansera-strozhe-politiki` | `portfolio_rebalancer.py:63` — `t1_min=0.55` на месте; в политике правила «≥55 % в T1» нет |
+| `own-fluid-gsm-gate-chuzhoy-parametr` | `fluid_fusdc_adapter.py:11-12,20,178` — гейт 48 ч на месте; `allocator.py:471` называет его намеренным; `fluid_usdc` по-прежнему без гейта |
+| `own-ruchnoy-instrument-poiska-istochnikov` | читателя `data/source_discovery.json` нет (только сам скрипт и его тест). Помечена **PARTIAL**: вариант A частично перекрыт ответом владельца 19.08 (вариант 1 в `owner-decision-poisk-novyh-protokolov-ne-idet-programmu`) — это записано В карточке |
+| `own-tsena-nashego-limita-20-na-odno-imya-izme` | самого замера (852 дня, потолок 20/25/30 %) на `main` нет нигде; это ОТВЕТ на запрос владельца 08.08 (`own-rnd-duty-is-concentration-adr055`, вариант A) |
+| `owner-decision-proverka-knigi-slabee-proverki-pered-sde` | интроспекция `RiskPolicy.check_portfolio_health` (`policy.py:511`): `t2_allocation_pct` / `chain_allocation` / `l2_allocation` / `apy` / `max_protocols` — **ни одного** в исходнике проверки книги |
+| `owner-decision-spisat-180-fonovyh-modulei-tier-c-ili-ch` | находка на `main` есть (`inbox-tier-c-171-…`, `inbox-tier-c-pyat-…`), но обе типа `inbox`; ВОПРОСА владельцу нет ни одного. `_tier_c_key_coverage.py` на `main` не существует |
+| `owner-decision-vesti-opros-ot-polnogo-reestra-adapterov` | `POLLED_ADAPTERS` = **8** (`adapter_orchestrator.py:73`), `len(ADAPTER_REGISTRY)` = **36**, `max_protocols = 8` (`policy.py:75`) — «ровно у края» воспроизводится |
+
+### Перенесено ЧАСТЬЮ — 1 (половина устарела по-хорошему, половина жива)
+
+* `owner-decision-sbalansirovannyi-paket-ne-pokupaet-niche` → новая карточка
+  **`own-2026-08-24-pustaya-kniga-prohodit-chek-list-go-live`**.
+  Главное утверждение оригинала («в коде пакета нет шага выбора протоколов») на `main` НЕВЕРНО:
+  `hy_cycle.py:271-287` и `lp_cycle.py:257-274` зовут `sleeve_book` и пишут позиции (ADR-125,
+  23.08); перемерено — Balanced держит 4 позиции, Aggressive 2. Нести это владельцу значило бы
+  спросить об отвеченном (ADR-084). Жива вторая половина: `golive_checker_lp.py:341-355` —
+  CHECK-LP-006 на нуле позиций отвечает «требование выполнено», у CHECK-HY-001…006 проверки
+  наполнения книги нет вовсе. Перенесена ровно она, с честной рамкой «сегодня книги не пусты».
+
+### НЕ перенесено — 2 (повтор и решённое; названо, с чем совпало)
+
+* `owner-decision-razvedka-krichit-critical-na-nashu-zhe-o` — **дубль по объекту и по вариантам**
+  карточки `own-red-team-nablyudennaya-ugroza-ne-doezzhaet` (`main`, статус `blocked`, 18.08):
+  тот же `red_team.py` + `house_view_gap.py`, та же перевёрнутая чувствительность
+  (`THREATS_PRESENT` не доезжает, эхо стоп-крана доезжает), те же три варианта. Заголовки
+  разные — содержание одно. Второй раз владельца об этом не спрашиваем.
+* `owner-decision-storozh-saita-krasneet-kazhduyu-noch-na` — **решено более широким решением.**
+  `real_track_days` уже входит в `_TS_NUMBER_FIELDS` (класс B, `scripts/check_owner_gate.py:107-108`)
+  и пересчитывается из канона (`:455`), а класс B c **ADR-116** (22.08) стоит в
+  `_STANDING_APPROVED_KLASSES` — числа уезжают в live без карточки владельцу. Ровно вариант A
+  этой карточки, только принятый шире. Ежедневной красноты по этому полю больше нет.
+
+### Осталось на ветке после пачки 3
+
+**26 путей** = 4 карточки владельца, уже `ingested` **на самой ветке**
+(`own-2026-08-17-morpho-blue-odin-pul-dva-kluycha`, `own-2026-08-17-spark-susds-dublikat`,
+`own-55-vtoroi-chitatel-komand-v-telegram`, `owner-decision-storozh-saita-ne-kladet-v-git-dannye-iz`)
++ **19** карточек `inbox-*`/`agent-*`
++ 3 разобранные сегодня, но намеренно оставленные на ветке (2 повтора/решённых и оригинал
+разделённой карточки). **Вопросов владельца в статусе `needs-owner` на ветке НЕ ОСТАЛОСЬ.**
+
+**Чего я про эти 4 НЕ мерил, чтобы не выдать чужое измерение за своё:** доехал ли ОТВЕТ
+каждой из них на `main`. Карточка владельца `owner-decision-na-vetke-lezhat-52-tvoi-kartochki-a-ne-t`
+утверждает это про решения ветки в целом («их ты потом ответил ещё раз через Мак»), и это замер
+цикла #322, а не мой. Спот-проверка сегодня: у трёх на `main` лежит родственник по объекту
+(`agent-spark-susds-identity-split`, `inbox-morpho-blue-i-morpho-steakhouse-razresha`,
+`owner-decision-storozh-saita-odnoi-komandy-ne-hvatilo-r`), у `own-55-vtoroi-chitatel-komand-v-telegram`
+родственника по имени я не нашёл. Это НЕ находка (совпадение ищется содержанием, а имён я и не
+сверял по содержанию) — это честная граница пачки 3: они `ingested`, вопросов не держат, и их
+разбор идёт следующей пачкой вместе с `inbox-*`/`agent-*`.
+
+Ветку НЕ удаляю: решение владельца — удалять ПОСЛЕ разбора, а 19 карточек `inbox-*`/`agent-*`
+ещё не разобраны. Следующая пачка — они.
+
+**Владельцу пачкой не отправлялось** (ADR-084) — `notify` ни по одной карточке не запускался.
+Код и тесты ветки не переносились.
