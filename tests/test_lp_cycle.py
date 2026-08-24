@@ -536,3 +536,45 @@ class TestDailyHistoryDedup:
         if saved_states:
             history = saved_states[-1].get("daily_history", [])
             assert len(history) == 1
+
+
+# ── 10. Разовый owner-approved пересев на $100k (решение владельца 2026-08-24) ──────
+# Инвариант #16 / журнал W34: живая книга шла на легаси-сиде $33k; владелец выбрал
+# чистый рестарт на $100k. Маркер-guarded: один раз, marked-книгу повторно не затирает.
+
+class TestReseed100kMigration:
+    def test_legacy_book_reset_to_clean_100k(self, m, monkeypatch):
+        legacy = {
+            "sleeve": "C", "seed_equity": 33333.33, "equity": 33450.92, "peak_equity": 33450.92,
+            "il_drawdown_pct": 0.0,
+            "positions": [{"pool_id": "susde", "is_delta_neutral": True}],
+            "daily_history": [{"date": "2026-08-21", "equity": 33400, "positions_count": 2}],
+            "cycles_completed": 930,
+        }
+        captured = {}
+        monkeypatch.setattr(m, "load_lp_state", lambda: dict(legacy))
+        monkeypatch.setattr(m, "save_lp_state", lambda s: captured.update(s))
+
+        m.run_lp_cycle(dry_run=False)
+
+        assert captured.get("reseed_100k_done") is True
+        assert captured.get("seed_equity") == pytest.approx(100000.0)
+        assert len(captured.get("daily_history")) == 1
+        assert captured["daily_history"][-1]["deployed_usd"] == pytest.approx(100000.0)
+
+    def test_marked_book_not_re_wiped(self, m, monkeypatch):
+        booked = {
+            "sleeve": "C", "seed_equity": 100000.0, "equity": 111111.0, "peak_equity": 111111.0,
+            "il_drawdown_pct": 0.0,
+            "positions": [{"pool_id": "susde", "is_delta_neutral": True}],
+            "daily_history": [{"date": "2026-08-01", "equity": 111111.0, "positions_count": 2}],
+            "cycles_completed": 5, "reseed_100k_done": True,
+        }
+        captured = {}
+        monkeypatch.setattr(m, "load_lp_state", lambda: dict(booked))
+        monkeypatch.setattr(m, "save_lp_state", lambda s: captured.update(s))
+
+        m.run_lp_cycle(dry_run=False)
+
+        assert captured.get("equity") >= 111111.0
+        assert captured.get("reseed_100k_done") is True

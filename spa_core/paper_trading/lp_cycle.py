@@ -158,6 +158,27 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
 
     state["LLM_FORBIDDEN"] = True
 
+    # ── Разовый owner-approved пересев на мандатный $100k (решение владельца 2026-08-24) ──
+    # Живая книга пошла на ЛЕГАСИ-сиде ($33k у Aggressive) — была профинансирована раньше,
+    # и штатный self-seed её (правильно) не трогал по _ever_funded. Владелец явно выбрал
+    # ЧИСТЫЙ рестарт на $100k, сознательно приняв потерю накопленных дней. Штатный self-seed
+    # ниже по-прежнему fail-closed по _ever_funded; здесь — разовая миграция по прямому
+    # указанию владельца, защищённая маркером reseed_100k_done (срабатывает РОВНО ОДИН РАЗ,
+    # $100k-книгу повторно не затирает). Можно удалить после проставления маркера в проде.
+    # Условие узкое: только профинансированная книга НИЖЕ мандата (0 < seed < $100k) — то
+    # есть реальный легаси-сид $33k. Свежие и $100k-книги (и фикстуры тестов) не трогает.
+    if (not state.get("reseed_100k_done")
+            and 0 < float(state.get("seed_equity", 0) or 0) < sleeve_book.PACKAGE_SEED_USD):
+        state["seed_equity"] = LP_SEED_EQUITY
+        state["equity"] = LP_SEED_EQUITY
+        state["peak_equity"] = LP_SEED_EQUITY
+        state["il_drawdown_pct"] = 0.0
+        state["positions"] = []
+        state["daily_history"] = []
+        state["reseed_100k_done"] = True
+        state["note"] = (f"Aggressive (Engine C) — clean ${LP_SEED_EQUITY:,.0f} restart "
+                         f"(owner decision 2026-08-24).")
+
     # Self-seed: засеваем рукав ТОЛЬКО когда он по-настоящему свежий (денег нет ни
     # сейчас, ни в истории). Guards against clobbering an in-flight book.
     # 2026-08 («Гоу B», $100k): сид поднят до мандатного $100k (LP_SEED_EQUITY =

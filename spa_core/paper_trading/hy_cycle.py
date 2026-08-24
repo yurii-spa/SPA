@@ -179,6 +179,30 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
 
     state = load_hy_state()
 
+    # ── Разовый owner-approved пересев на мандатный $100k (решение владельца 2026-08-24) ──
+    # Живые книги пошли на ЛЕГАСИ-сидах ($66k у Balanced), потому что были профинансированы
+    # раньше, и штатный self-seed их (правильно) не трогал по _ever_funded. Владелец явно
+    # выбрал ЧИСТЫЙ рестарт на $100k, сознательно приняв потерю накопленных дней. Это НЕ
+    # ослабление предохранителя: штатный self-seed ниже по-прежнему fail-closed по
+    # _ever_funded; здесь — разовая миграция по прямому указанию владельца, защищённая
+    # маркером reseed_100k_done, чтобы сработать РОВНО ОДИН РАЗ и никогда не затереть
+    # $100k-книгу повторно. Можно удалить после того, как маркер проставлен в проде.
+    # Условие узкое: срабатывает ТОЛЬКО на профинансированной книге НИЖЕ мандата
+    # (0 < seed < $100k) — то есть на реальном легаси-сиде $66k. Свежие книги (seed=0) и
+    # уже $100k-книги под условие не попадают (и синтетические фикстуры тестов тоже).
+    if (not state.get("reseed_100k_done")
+            and 0 < float(state.get("seed_equity", 0) or 0) < sleeve_book.PACKAGE_SEED_USD):
+        state["seed_equity"] = HY_SEED_EQUITY
+        state["equity"] = HY_SEED_EQUITY
+        state["peak_equity"] = HY_SEED_EQUITY
+        state["drawdown_pct"] = 0.0
+        state["positions"] = []
+        state["daily_history"] = []
+        state["regime"] = "EXIT"
+        state["reseed_100k_done"] = True
+        state["note"] = (f"Balanced (Engine B) — clean ${HY_SEED_EQUITY:,.0f} restart "
+                         f"(owner decision 2026-08-24).")
+
     # Self-seed: засеваем рукав ТОЛЬКО когда он по-настоящему свежий (денег нет ни
     # сейчас, ни в истории). Guards against clobbering an in-flight book.
     # 2026-08 (мандат «начинай», $100k): сид поднят до мандатного $100k (константа
