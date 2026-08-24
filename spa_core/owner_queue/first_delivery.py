@@ -105,6 +105,10 @@ class FirstDeliveryReport:
     attempted_before: List[str] = field(default_factory=list)
     #: Не влезли в потолок прогона. Названы, а не усечены молча.
     deferred: List[str] = field(default_factory=list)
+    #: Не отправлены, потому что инструкция ссылается на то, чего в системе НЕТ
+    #: (``card_instruction_lint``, авария 22.08 — поле ``notify_channel``). Каждая
+    #: запись: ``{"card": id, "reason": словами, "missing": [токены]}``.
+    lint_blocked: List[dict] = field(default_factory=list)
     attempted: int = 0
     delivered: int = 0
     failed: int = 0
@@ -200,6 +204,12 @@ def _deliver(stamp, work, *, tracker_dir, dry_run, sleep, pace_s, limit,
         else:
             report.attempted_before.append(card.path.stem)
 
+    # Инструкция владельцу — тоже утверждение о системе (авария 22.08: владельца
+    # послали читать поле `notify_channel`, которого в коде не было ни разу, и его
+    # ответ пришёл неотличимым от настоящего замера). Проверяем ДО потолка прогона:
+    # заблокированная карточка не имеет права съедать чужую отправку.
+    fresh = _lint_gate(fresh, report)
+
     take = fresh if limit is None else fresh[:max(0, int(limit))]
     report.deferred = [c.path.stem for c in fresh[len(take):]]
     report.attempted = len(take)
@@ -242,6 +252,39 @@ def _deliver(stamp, work, *, tracker_dir, dry_run, sleep, pace_s, limit,
     return report
 
 
+def _lint_gate(fresh, report: FirstDeliveryReport):
+    """Отсеять карточки, чью инструкцию владельцу физически нельзя исполнить.
+
+    Право запрещать даёт ТОЛЬКО доказанное отсутствие (см. докстринг
+    :mod:`spa_core.owner_queue.card_instruction_lint`). Линтер упал / формулировку не
+    разобрать ⇒ карточка едет как раньше: молчащая очередь вопросов дороже той аварии,
+    которую линтер лечит. Поэтому исключение здесь — не запрет, а строка в логе.
+    """
+    try:
+        from spa_core.owner_queue.card_instruction_lint import lint_card
+    except Exception as exc:  # noqa: BLE001 — линтер недоступен ⇒ доставка как раньше
+        log.warning("first_delivery: линтер инструкции недоступен (%s) — не проверяю", exc)
+        return fresh
+    kept = []
+    for card in fresh:
+        try:
+            res = lint_card(card.path)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("first_delivery: линтер упал на %s: %s — отправляю как раньше",
+                        card.path.stem, exc)
+            kept.append(card)
+            continue
+        if res.blocked:
+            report.lint_blocked.append({"card": card.path.stem,
+                                        "reason": res.reason_line(),
+                                        "missing": [r.token for r in res.missing]})
+            log.warning("first_delivery: НЕ отправляю %s — %s",
+                        card.path.stem, res.reason_line())
+            continue
+        kept.append(card)
+    return kept
+
+
 def _write_report(report: FirstDeliveryReport,
                   report_path: Optional[str | Path] = None) -> None:
     """Отчёт на диск. Никогда не бросает — наблюдение не важнее самой доставки."""
@@ -279,9 +322,14 @@ def summary_line(report: FirstDeliveryReport) -> str:
     if report.deferred:
         tail = (f" · отложено до следующего прогона {len(report.deferred)}: "
                 + ", ".join(report.deferred))
+    # Заблокированное линтером НАЗЫВАЕТСЯ здесь же. Молчаливое «не отправили» читается
+    # как «отправлять было нечего» — ровно та тишина в очереди, от которой заслон и стоит.
+    if report.lint_blocked:
+        tail += (f" · ⛔ не отправлено (инструкция неисполнима) {len(report.lint_blocked)}: "
+                 + ", ".join(f"{b['card']} ({b['reason']})" for b in report.lint_blocked))
     if not report.never_sent:
         return ("новых вопросов владельцу нет — все открытые он уже видел "
-                f"(открытых {report.open_total})" + note)
+                f"(открытых {report.open_total})" + note + tail)
     if report.dry_run:
         return (f"сухой прогон: НИ РАЗУ не отправленных {len(report.never_sent)}, "
                 f"к отправке {report.attempted}, ничего не отправлено" + note + tail)

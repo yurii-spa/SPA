@@ -2,9 +2,16 @@
 trackerStatus:
   type: owner-decision
 title: "Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег"
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-23
+owner_choice: 2
+owner_answered_at: 2026-08-23T20:07:08.627140+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
+owner_answer_kind: option
+status_trail:
+  - "2026-08-23T21:22:08.238393+00:00 owner-done -> ingested · queue.set_status · cycle-360"
 ---
 
 ## Что случилось и почему это важно
@@ -44,3 +51,11 @@ created: 2026-08-23
 ---
 
 Вопрос вынесен из карточки `owner-decision-vnutridnevnaya-prosadka-slepota-teper-sl` циклом #359 (23.08): там их было пять сразу, и поэтому не было ни одной кнопки.
+
+---
+
+## Решение владельца
+
+**Вариант 2** — завести живой источник оценки позиций
+
+_Ответ владельца получен 2026-08-23T20:07:08.627140+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._

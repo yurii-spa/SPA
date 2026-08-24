@@ -225,3 +225,69 @@ def test_main_tail_renders_dash_for_no_files_or_verified(mod, capsys):
     out = capsys.readouterr().out
     assert "files: -" in out
     assert "verified: -" in out
+
+
+# ── каталог объявления (`cwd`) — цикл #363 ───────────────────────────────────
+#
+# 24.08 сессия `rnd-75-rearm` объявила три пути ОТНОСИТЕЛЬНЫМИ (``--files`` документирован как
+# «absolute paths», но ничем это не проверяется). Шаг 0a на такой записи отключает весь разбор
+# «чьё это расхождение»: `check_undelivered_work.declaring_tree` отвечает «рабочее дерево в
+# записи не названо» и запись висит обвинением навсегда. Поле `cwd` называет дерево ФАКТОМ из
+# самой записи. Пути при этом НЕ переписываются — запись хранит ровно то, что дала сессия.
+
+def test_record_names_the_directory_the_announcement_was_made_from(mod, tmp_path, monkeypatch):
+    work = tmp_path / "spa_c363"
+    work.mkdir()
+    monkeypatch.chdir(work)
+    e = mod.record("работа", ["scripts/rel.py"], "")
+    import os
+    assert e["cwd"] == os.path.realpath(str(work))
+    # Путь остался ровно тем, что передала сессия: чинится атрибуция, не содержимое записи.
+    assert e["files"] == ["scripts/rel.py"]
+    assert json.loads(_lines(mod)[-1])["cwd"] == os.path.realpath(str(work))
+
+
+def test_announce_cwd_is_canonical_so_tmp_symlink_does_not_hide_the_tree(mod, tmp_path,
+                                                                        monkeypatch):
+    """/tmp на macOS — симлинк на /private/tmp, и деревья сравниваются строкой: неканонический
+    каталог молча не совпал бы ни с одним рабочим деревом (тот же урок, что `_real` у шага 0a).
+
+    ГРАНИЦА НАЗВАНА ЧЕСТНО (тот же порядок, что у `test_declaration_through_a_symlink_still_
+    names_the_tree` в `test_undelivered_work_guard.py`): мутация «убрать `os.path.realpath`»
+    этот тест НЕ красит — ИЗМЕРЕНО, 369 passed. `chdir` по симлинку уже разрешает его, и
+    `os.getcwd()` сам отдаёт канонический путь. `realpath` оставлен страховкой на случай, когда
+    каталог придёт не из `getcwd()`, и он НЕ доказан мутацией — это замер, а не предположение.
+    Тест же пиннит наблюдаемое свойство: записанный каталог — канонический, как его ни назови."""
+    import os
+    real = tmp_path / "real_tree"
+    real.mkdir()
+    link = tmp_path / "link_tree"
+    link.symlink_to(real)
+    monkeypatch.chdir(link)
+    e = mod.record("работа", ["scripts/rel.py"], "")
+    assert e["cwd"] == os.path.realpath(str(real))
+
+
+def test_an_absolute_only_announcement_stays_byte_identical_to_the_old_shape(mod, tmp_path,
+                                                                             monkeypatch):
+    """ГРАНИЦА ПОЛЯ, закреплённая СВОИМ тестом, а не только чужими.
+
+    `cwd` пишется ровно тогда, когда что-то добавляет: у абсолютного пути дерево названо им
+    самим. Правильно оформленное объявление обязано остаться байт в байт прежним — этот
+    контракт держат ещё `test_card_claim_guard::TestAnnounceLogField` и
+    `test_durable_session_id::TestWriterEntrySchema`, и «покрасить» их, перестав писать поле
+    ВООБЩЕ, нельзя: тесты выше требуют его на относительном пути."""
+    monkeypatch.chdir(tmp_path)
+    e = mod.record("работа", ["/abs/a.py", "/abs/b.py"], "", process=({}, "нет"))
+    assert set(e) == {"ts", "session", "summary", "files", "verified"}
+    e2 = mod.record("без файлов вовсе", [], "", process=({}, "нет"))
+    assert "cwd" not in e2
+
+
+def test_record_without_a_readable_cwd_omits_the_field_instead_of_inventing_one(
+        mod, monkeypatch):
+    """Каталог удалён из-под процесса ⇒ поля нет вовсе. Читатель тогда судит по-старому
+    (fail-CLOSED), а не по выдуманному месту."""
+    monkeypatch.setattr(mod.os, "getcwd", lambda: (_ for _ in ()).throw(OSError("gone")))
+    e = mod.record("работа", ["scripts/rel.py"], "")
+    assert "cwd" not in e

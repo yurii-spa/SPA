@@ -32,6 +32,7 @@ from spa_core.owner_queue.queue import (
     set_status,
 )
 from spa_core.owner_queue.notify import build_message
+from spa_core.owner_queue.status_audit import TRAIL_KEY, read_trail
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -179,9 +180,36 @@ def test_set_status_rewrites_status_on_both_forms(tracker: Path) -> None:
 
 
 def test_set_status_touches_only_the_status_line_of_a_flat_card(tracker: Path) -> None:
-    before = (tracker / "own-flat.md").read_text(encoding="utf-8").splitlines()
-    set_status(tracker / "own-flat.md", "ingested")
-    after = (tracker / "own-flat.md").read_text(encoding="utf-8").splitlines()
-    diff = [(a, b) for a, b in zip(before, after) if a != b]
-    assert diff == [("status: needs-owner", "status: ingested")]
-    assert len(before) == len(after)
+    """Кроме `status:` и следа перехода, файл обязан остаться байт-в-байт.
+
+    НАМЕРЕННОЕ изменение проверки, цикл #360 (инвариант #16 — обоснование здесь,
+    запись в `docs/journal/2026-W34.md`). Решение владельца 2026-08-23, вариант 1
+    (ADR-129) велело писать след перехода В САМУ карточку: журнал аудита живёт в
+    `data/` и в git не попадает, поэтому законное закрытие вопроса из рабочего дерева
+    приезжало в прод немым, и сторож называл его «вопрос владельца закрыли без
+    владельца» КАЖДЫЙ раз. Блок `status_trail:` теперь — часть записи статуса, а не
+    побочный ущерб.
+
+    Предмет проверки НЕ ослаблен, а усилен. Прошлая форма сравнивала строки через
+    `zip`, то есть про ДОПИСАННЫЕ в конец строки не говорила ничего (`zip` молча
+    обрывается по короткому списку), и держалась на отдельном `len(before) == len(after)`.
+    Здесь сравнивается ВЕСЬ файл с вырезанным следом — включая тело карточки, текст
+    которого читает владелец.
+    """
+    card = tracker / "own-flat.md"
+    before = card.read_text(encoding="utf-8")
+    set_status(card, "ingested")
+    after = card.read_text(encoding="utf-8")
+
+    trail = read_trail(after)
+    assert len(trail) == 1 and trail[0]["old"] == "needs-owner" \
+        and trail[0]["new"] == "ingested", trail
+
+    without_trail = [
+        ln for ln in after.splitlines()
+        if ln.strip() != f"{TRAIL_KEY}:" and not ln.lstrip().startswith('- "2026')
+    ]
+    expected = before.replace("status: needs-owner", "status: ingested").splitlines()
+    assert without_trail == expected, (
+        "кроме строки status: и блока следа не должно измениться НИЧЕГО"
+    )

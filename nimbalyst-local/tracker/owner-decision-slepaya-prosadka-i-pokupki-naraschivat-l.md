@@ -2,9 +2,16 @@
 trackerStatus:
   type: owner-decision
 title: "Слепая просадка и покупки: наращивать ли позиции, когда просадку вычислить не из чего"
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-23
+owner_choice: 1
+owner_answered_at: 2026-08-23T20:00:51.647931+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
+owner_answer_kind: option
+status_trail:
+  - "2026-08-23T21:22:07.889286+00:00 owner-done -> ingested · queue.set_status · cycle-360"
 ---
 
 ## Что случилось и почему это важно
@@ -44,3 +51,11 @@ RiskPolicy v1.0 не переписывается). Вариант 2 — зап�
 ---
 
 Вопрос вынесен из карточки `owner-decision-vnutridnevnaya-prosadka-slepota-teper-sl` циклом #359 (23.08): там их было пять сразу, и поэтому не было ни одной кнопки — нажатие закрыло бы карточку, похоронив остальные вопросы.
+
+---
+
+## Решение владельца
+
+**Вариант 1** — при невычислимой просадке запрещать НАРАЩИВАНИЕ
+
+_Ответ владельца получен 2026-08-23T20:00:51.647931+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._

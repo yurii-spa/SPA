@@ -31,6 +31,26 @@
   слышен для ОБОИХ статусов, а не только для терминального;
 * остальные неатрибутированные — **WARN**: подозрительно, но вопрос владельца не теряется.
 
+Два источника объяснения, и второй нужен по построению
+------------------------------------------------------------------------------
+Журнал аудита живёт в ``data/`` и в git НЕ ПОПАДАЕТ (``.gitignore``: ``data/**/*.jsonl``),
+а карточки — попадают. Протокол §3.4 требует работать из ОТДЕЛЬНОГО рабочего дерева,
+поэтому законное закрытие вопроса владельца приезжало в прод-дерево без записи о себе,
+и сторож называл его ``CRITICAL: неатрибутированный уход из needs-owner`` — теми самыми
+словами, которые означают «вопрос владельца закрыли без владельца». Каждый раз, а не
+иногда: ровно так сторожа глохнут (замер 17.08 воспроизведён дословно).
+
+Решение владельца 2026-08-23, вариант 1 (ADR-129): **след перехода едет в самой
+карточке**. Поэтому объяснений два, и порядок их таков:
+
+1. запись журнала этого дерева (знает pid, команду, дерево — для разбора);
+2. след во frontmatter карточки (``status_trail``) — то, что пережило доставку.
+
+Чего это НЕ лечит и сказано вслух: тот, кто правит ``status:`` руками, может дописать
+и след. Файловый сторож такой подделки не различит НИКОГДА — предмет и доказательство
+лежат в одном файле. Немого писателя БЕЗ следа он ловит по-прежнему, и обе стороны
+закреплены тестом ``test_status_trail_travels_with_card.py``.
+
 Fail-CLOSED: нет предыдущего снимка / трекер не прочитан ⇒ вердикт ``UNCHECKED`` (код 2),
 а не «нарушений не найдено». «Не измерено» никогда не значит «в порядке».
 
@@ -49,7 +69,7 @@ from pathlib import Path
 from typing import Optional
 
 from spa_core.owner_queue.queue import OWNER_ONLY_STATUSES
-from spa_core.owner_queue.status_audit import read_audit, read_status
+from spa_core.owner_queue.status_audit import read_audit, read_status, trail_explains
 from spa_core.utils.atomic import atomic_save
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -124,7 +144,8 @@ def _severity(old: str, new: str) -> str:
 
 
 def attribute(card: str, old: str, new: str, records: list[dict],
-              since: Optional[dt.datetime], until: dt.datetime) -> dict:
+              since: Optional[dt.datetime], until: dt.datetime,
+              card_text: Optional[str] = None) -> dict:
     """Объясняет ли журнал переход ``old -> new`` этой карточки.
 
     Записи берутся только из окна между снимками: старая запись про тот же переход
@@ -148,8 +169,21 @@ def attribute(card: str, old: str, new: str, records: list[dict],
         mine.append((ts, r))
     mine.sort(key=lambda item: item[0])
     if not mine:
+        # Журнал молчит — спрашиваем САМУ карточку. Решение владельца 2026-08-23,
+        # вариант 1 (ADR-129): журнал живёт в `data/` и в git не попадает, поэтому
+        # законный переход, сделанный в рабочем дереве (а §3.4 требует именно его),
+        # приезжает в прод немым. След едет вместе с карточкой и отвечает ровно на
+        # тот вопрос, который здесь и задаётся: «этот переход кто-нибудь объяснил?»
+        via_card = trail_explains(card_text, old, new) if card_text else None
+        if via_card:
+            who = f"{via_card['source']} · след карточки"
+            if via_card.get("session"):
+                who += f" · {via_card['session']}"
+            return {"attributed": True, "reason": "card_trail", "writer": who,
+                    "trail_ts": via_card["ts"], "records": via_card["records"]}
         return {"attributed": False, "reason": "no_record",
-                "detail": "в журнале аудита нет ни одной записи об этом переходе"}
+                "detail": "в журнале аудита нет ни одной записи об этом переходе, "
+                          "и след перехода в самой карточке его не объясняет"}
     first, last = mine[0][1], mine[-1][1]
     got_old = str(first.get("old") or MISSING)
     got_new = str(last.get("new") or MISSING)
@@ -157,6 +191,15 @@ def attribute(card: str, old: str, new: str, records: list[dict],
     if got_old == old and got_new == new:
         return {"attributed": True, "reason": "chain_matches", "writer": who,
                 "records": [r for _, r in mine]}
+    # Журнал есть, но он про ДРУГОЙ переход: у прод-дерева бывает своя старая запись
+    # об этой же карточке, а приехавший переход сделан в чужом дереве. Спрашиваем след.
+    via_card = trail_explains(card_text, old, new) if card_text else None
+    if via_card:
+        trail_who = f"{via_card['source']} · след карточки"
+        if via_card.get("session"):
+            trail_who += f" · {via_card['session']}"
+        return {"attributed": True, "reason": "card_trail", "writer": trail_who,
+                "trail_ts": via_card["ts"], "records": via_card["records"]}
     return {"attributed": False, "reason": "chain_mismatch", "writer": who,
             "detail": f"журнал объясняет переход {got_old!r} -> {got_new!r}, "
                       f"а в трекере произошёл {old!r} -> {new!r}",
@@ -197,7 +240,15 @@ def run(root: str | Path = REPO_ROOT, now: Optional[dt.datetime] = None,
         old, new = str(prev[card]), str(statuses[card])
         if old == new:
             continue
-        verdict = attribute(card, old, new, records, prev_at, stamp)
+        # Текст карточки читаем ТОЛЬКО у изменившихся: след живёт в ней самой
+        # (ADR-129), а платить чтением за все 500 карточек ради десятка переходов
+        # незачем. Нечитаемые сюда не доходят — они уже в `unreadable`.
+        try:
+            card_text = (tracker / card).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            card_text = None
+        verdict = attribute(card, old, new, records, prev_at, stamp,
+                            card_text=card_text)
         item = {"card": card, "from": old, "to": new, **verdict}
         if verdict["attributed"]:
             attributed.append(item)
@@ -257,7 +308,13 @@ def _print(report: dict) -> None:
         if f.get("writer"):
             print(f"      ближайшая запись журнала: {f['writer']}")
     for a in report["attributed"]:
-        print(f"  [ok] {a['card']}: {a['from']} -> {a['to']} — {a.get('writer')}")
+        line = f"  [ok] {a['card']}: {a['from']} -> {a['to']} — {a.get('writer')}"
+        # Возраст следа НАЗЫВАЕТСЯ, а не прячется: карточка приезжает с задержкой
+        # доставки, и читатель имеет право видеть, насколько давним объяснением
+        # закрыт переход (ADR-129, «времени тут не проверяем осознанно»).
+        if a.get("trail_ts"):
+            line += f" (след от {a['trail_ts']})"
+        print(line)
     for u in report["unchecked"]:
         print(f"  [НЕ ИЗМЕРЕНО] {u}")
     if report["verdict"] == VERDICT_OK:
