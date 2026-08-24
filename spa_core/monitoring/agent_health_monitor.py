@@ -135,6 +135,7 @@ CAT_HIGH_FREQ = "high_freq"      # StartInterval <= 600s  (~5 min agents)
 CAT_MID_FREQ = "mid_freq"        # 600 < StartInterval <= 7200s (15-120 min)
 CAT_DAILY = "daily"              # StartCalendarInterval (hourly/daily) or interval > 7200s
 CAT_WEEKLY = "weekly"            # StartCalendarInterval with Weekday key (repeating weekly)
+CAT_MONTHLY = "monthly"          # StartCalendarInterval with Day (day-of-MONTH) and no Month
 CAT_ONE_TIME = "one_time"        # StartCalendarInterval with specific Month+Day (runs once)
 CAT_ALWAYS_ON = "always_on"      # KeepAlive server — check PID, not log age
 CAT_ON_DEMAND = "on_demand"      # RunAtLoad-once, no schedule/keepalive
@@ -144,6 +145,14 @@ _FRESHNESS_THRESHOLD_MIN = {
     CAT_MID_FREQ: 180,          # alert if log > 3 h old
     CAT_DAILY: 26 * 60,         # alert if log > 26 h old
     CAT_WEEKLY: 7 * 24 * 60,    # alert if log > 7 days old (CRIT at 14 days)
+    # A day-of-month job fires at most once every 31 days, so its window must be a
+    # MONTH, not a day. Judged by the DAILY window (26h/52h) such an agent is CRITICAL
+    # ~28 days out of every 30 BY CONSTRUCTION — a permanent red that says nothing about
+    # the agent (com.spa.monthly_statement, measured 2026-08-24: `log stale 2.6d (>2.2d)`
+    # with `last_exit: 0`). Same class as #242/#256: the freshness budget has to come from
+    # the PRODUCER's cadence. 33 days = the longest real gap (31) plus slack, so WARNING
+    # means "it missed its slot" and CRITICAL (2x) means "it missed two in a row".
+    CAT_MONTHLY: 33 * 24 * 60,
 }
 
 # Categories whose agents launchd keeps RESIDENT in `launchctl list` between runs:
@@ -440,6 +449,11 @@ def classify_agent(plist: Optional[dict]) -> str:
             # Weekly schedule (Weekday key)
             if "Weekday" in cal:
                 return CAT_WEEKLY
+            # `Day` WITHOUT `Month` is launchd's day-of-MONTH: "the 1st of every month".
+            # It used to fall through to CAT_DAILY, which asks a monthly producer a daily
+            # question and pins it to a permanent false CRITICAL (see _FRESHNESS_THRESHOLD_MIN).
+            if "Day" in cal:
+                return CAT_MONTHLY
         return CAT_DAILY
     return CAT_ON_DEMAND
 

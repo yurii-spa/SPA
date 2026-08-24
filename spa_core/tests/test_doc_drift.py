@@ -282,6 +282,34 @@ def _doc_fraction(text: str, denom: int, *, lo: int, hi: int) -> int | None:
     return None
 
 
+# The paper-track GOAL the narrative docs render as `n/30`. It is the denominator of the
+# printed fraction, NOT a ceiling on the numerator: the track legitimately runs past its goal.
+_TRACK_TARGET_DAYS = 30
+_TRACK_DOC_LAG_DAYS = 7
+
+
+def _track_band(track: int, *, lag_days: int = _TRACK_DOC_LAG_DAYS) -> tuple[int, int]:
+    """Sane band `[lo, hi]` for the evidenced track-days number a narrative doc may state.
+
+    `lo` tolerates a doc LAGGING the live counter by up to a week (TEST-2 decouple: the daily
+    cycle advances `track` continuously, so a ±1 window flipped the suite red every ~2 days and
+    could flip mid-run as the agent rewrote golive_status.json). `hi` forbids OVERSTATING the
+    track; the `+1` covers the UTC-rollover moment. The real era guard is the evidenced ANCHOR,
+    asserted separately — the number only needs a sanity band.
+
+    `hi` used to carry a `min(_TRACK_TARGET_DAYS, track + 1)` cap, written while the track was
+    still shorter than its goal. That cap is INERT below the goal — `min(30, track + 1)` equals
+    `track + 1` for every `track <= 29`, so it never once bound there — and WRONG at or above it:
+    on 2026-08-24, at `track = 62`, it produced `55 <= n <= 30`, an EMPTY band that NO document
+    could satisfy, and the guard went red on every possible value instead of on drift. Dropping
+    the cap therefore changes nothing below the goal (pinned by `test_track_band_*` below) and
+    un-breaks the guard above it: a track that has passed its goal is a normal state, not drift.
+    Same class as a literal date in a fixture (`.claude/rules/deployment.md`) — the assumption
+    "the track is shorter than the goal" stopped being true on its own, with no edit to any code.
+    """
+    return max(0, track - lag_days), track + 1
+
+
 def test_narrative_docs_match_golive_state():
     _require_golive_status()
     g = _authoritative_golive()
@@ -295,14 +323,7 @@ def test_narrative_docs_match_golive_state():
     golive_lo = max(passed, total - 3)
     golive_hi = total
 
-    # Track-days band (TEST-2 decouple): the daily cycle advances `track` continuously, so a ±1 window
-    # coupled a static doc number to a live counter and flipped the suite red every ~2 days (and could
-    # flip mid-run as the agent rewrote golive_status.json). The ANCHOR date (asserted below) is the real
-    # drift guard; the number only needs a sanity band. So tolerate a LAGGING doc (up to ~a week behind)
-    # while keeping the UPPER bound tight — a doc may never OVERSTATE the track, and a wrong-era/inflated
-    # value (e.g. 30, or a pre-reset high) is still caught by `track_hi`.
-    track_lo = max(0, track - 7)
-    track_hi = min(30, track + 1)
+    track_lo, track_hi = _track_band(track)
 
     # CLAUDE.md was deliberately condensed to lean instructions (env-setup-v3 Фаза 2, commit
     # e50a138c) and no longer carries the volatile live GoLive/track dashboard — those numbers now
@@ -330,6 +351,48 @@ def test_narrative_docs_match_golive_state():
         assert anchor in text, (
             f"{path.name} drifted: missing authoritative evidenced anchor "
             f"'{anchor}' from data/golive_status.json"
+        )
+
+
+# ---------------------------------------------------------------------------
+# 8b. The guard ABOVE has to be able to go green. These are its positive controls
+#     — hermetic (no data/ needed), so they hold on a clean checkout too, where
+#     the committed golive canon (track 13) keeps the live accident invisible.
+# ---------------------------------------------------------------------------
+def test_track_band_is_never_empty_past_the_goal():
+    """Positive control replaying the 2026-08-24 failure: at `track = 62` the old
+    `min(30, track + 1)` cap made the band `55 <= n <= 30` — empty, so the guard
+    was red on EVERY value including the correct one. It must be satisfiable."""
+    for track in (0, 1, 29, 30, 31, 37, 62, 365):
+        lo, hi = _track_band(track)
+        assert lo <= hi, f"empty band at track={track}: {lo} <= n <= {hi}"
+        assert lo <= track <= hi, (
+            f"the LIVE track {track} does not fit its own band {lo}..{hi} — the guard "
+            f"cannot go green on the truth"
+        )
+
+
+def test_track_band_still_reds_a_wrong_era_number():
+    """The other direction — the fix must not become an off-switch (invariant #16).
+    At a live track of 62 both the pre-reset drift (`15/30`) and a stale
+    goal-reached value (`30/30`) must stay OUT of the band."""
+    lo, hi = _track_band(62)
+    for wrong in (0, 7, 12, 15, 30, 54, 64, 100):
+        assert not (lo <= wrong <= hi), (
+            f"wrong-era track value {wrong} slipped into the band {lo}..{hi} at live track 62"
+        )
+    assert _doc_fraction("трек **62/30** evidenced", 30, lo=lo, hi=hi) == 62
+    assert _doc_fraction("трек **12/30** evidenced", 30, lo=lo, hi=hi) is None
+    assert _doc_fraction("трек **30/30** evidenced", 30, lo=lo, hi=hi) is None
+
+
+def test_track_band_unchanged_below_the_goal():
+    """Anti-weakening pin: dropping the `min(30, …)` cap must change NOTHING while the
+    track is shorter than its goal — that cap never bound there. Byte-identical to the
+    pre-fix formula for every such track, so this fix cannot be read as a loosening."""
+    for track in range(0, _TRACK_TARGET_DAYS):
+        assert _track_band(track) == (max(0, track - 7), min(_TRACK_TARGET_DAYS, track + 1)), (
+            f"band changed below the goal at track={track} — that IS a loosening"
         )
 
 
