@@ -5,8 +5,6 @@ title: "Tier-C: пять настоящих отказов агрегатора 
 status: new
 source: nimbalyst
 created: 2026-08-06
-claimed_by: cycle-87477
-claimed_at: 2026-08-06T18:43:13Z
 ---
 
 ## Находка
