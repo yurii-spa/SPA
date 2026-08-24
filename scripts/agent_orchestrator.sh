@@ -117,6 +117,9 @@ PROMPT="Ты — оркестратор SPA под НОВЫМ протоколо
 (1) прочитай docs/STATE.md + docs/decisions/INDEX.md + docs/SYSTEM_BRIEFING.md + свежие data/session_changes.jsonl, \
 затем ОБЯЗАТЕЛЬНО python3 scripts/consume_office_reports.py (ADR-066: офис+сторож архитектуры в контекст, \
 квитанции потребления; RED/CRITICAL/НЕ-ПРОЧИТАН из вывода => карточка, не молчание); \
+(1в) ОБЯЗАТЕЛЬНО из своего worktree python3 scripts/cycle_analytics_audit.py (ADR-130, решение владельца \
+24.08 вариант 2: ежедневный аудит протокол-слепоты — шаг цикла; прогон идёт в песочнице, живое data/ не \
+трогается; код 1 => обновлённый spa_core/analytics/_protocol_blindness.py доставить ЭТИМ ЖЕ пушем, код 2 => карточка); \
 (2) разбери Inbox (задача/идея/непонятно) и инжест owner-done (ADR + set-status ingested через \
 scripts/orchestrator_queue.py; НИКОГДА не ставь owner-done); (3) если явных заданий нет — возьми ОДНУ \
 безопасную задачу сам (hardening/тесты/доки/мелкие НЕ-owner-gated фичи из backlog/roadmap). \
