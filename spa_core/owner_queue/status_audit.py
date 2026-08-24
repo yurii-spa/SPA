@@ -49,6 +49,206 @@ ARGV_CAP = 400
 
 _STATUS_RE = re.compile(r"^status:[ \t]*(.*)$")
 
+# ---------------------------------------------------------------------------
+# След перехода В САМОЙ КАРТОЧКЕ (решение владельца 2026-08-23, вариант 1, ADR-129)
+# ---------------------------------------------------------------------------
+#
+# Журнал выше живёт в ``data/`` и в git НЕ ПОПАДАЕТ (``.gitignore``: ``data/**/*.jsonl``),
+# а карточки — попадают. Протокол §3.4 требует работать из ОТДЕЛЬНОГО дерева, поэтому
+# законное закрытие вопроса владельца приезжает в прод-дерево БЕЗ записи о себе, и
+# сторож ``tracker_status_sentinel`` называет его ``CRITICAL: неатрибутированный уход
+# из needs-owner`` — теми самыми словами, которые означают «вопрос владельца закрыли
+# без владельца». Это ложная тревога КАЖДЫЙ раз, а не иногда: ровно так сторожа глохнут.
+#
+# Владелец выбрал вариант 1: **везти след вместе с карточкой**. Компактная строка
+# перехода пишется в тот же файл, что и сам ``status:`` (одной записью — иначе падение
+# между двумя записями породило бы ровно того призрака, которого мы лечим), а журнал
+# с pid/командой/деревом остаётся ЛОКАЛЬНЫМ для разбора.
+#
+# Чего след НЕ несёт и почему: pid, командной строки и путей хост-машины здесь нет —
+# это было решением владельца («в репозиторий поедут pid, пути и командные строки» —
+# явная причина отказа от варианта 2). Для сторожа этого и не нужно: ему достаточно
+# отличить «переход сделал НАШ код» от «переход не объяснил никто».
+#
+# Честная граница: тот, кто правит ``status:`` руками, может дописать и след. Файловый
+# сторож этого не различит НИКОГДА — доказательство и предмет лежат в одном файле.
+# След закрывает ЛОЖНУЮ тревогу на законном пути; немого писателя без следа он ловит
+# по-прежнему, и именно это проверено тестом в обе стороны.
+
+#: Ключ frontmatter, под которым едет след. Список YAML: рендерится в Nimbalyst/Obsidian
+#: как поле, в теле карточки владельцу не мешает.
+TRAIL_KEY = "status_trail"
+
+#: Сколько последних переходов держим. Карточка живёт месяцами и меняет статус десятки
+#: раз; неограниченный след превратил бы frontmatter в журнал.
+TRAIL_CAP = 12
+
+#: Разделитель полей внутри строки следа.
+TRAIL_SEP = " · "
+
+_TRAIL_ITEM_RE = re.compile(r"^\s+-\s+(.*)$")
+_TRAIL_LINE_RE = re.compile(r"^(?P<ts>\S+)\s+(?P<old>\S+)\s*->\s*(?P<new>\S+)$")
+
+
+#: Как след называет «строки status: не было вовсе». Совпадает со словарём сторожа.
+MISSING_STATUS = "(нет)"
+
+
+def session_label() -> Optional[str]:
+    """Ярлык сессии для следа — только если сессия себя назвала.
+
+    Берётся из ``SPA_SESSION_ID`` (его выставляет обёртка цикла). Подставлять сюда pid
+    «на всякий случай» нельзя: владелец отказался от варианта 2 именно из-за pid'ов в
+    репозитории. Нет ярлыка — поля в следе просто нет; сторожу хватает ``source``.
+    """
+    value = (os.environ.get("SPA_SESSION_ID") or "").strip()
+    return value or None
+
+
+def trail_line(*, old: Optional[str], new: str, source: str,
+               now: Optional[datetime] = None,
+               session: Optional[str] = None) -> str:
+    """Одна строка следа: ``<ts> <old> -> <new> · <source>[ · <session>]``."""
+    stamp = (now or datetime.now(timezone.utc)).isoformat()
+    parts = [f"{stamp} {old or MISSING_STATUS} -> {new}", source]
+    label = session if session is not None else session_label()
+    if label:
+        parts.append(label)
+    return TRAIL_SEP.join(parts)
+
+
+def _frontmatter_bounds(lines: list[str]) -> tuple[Optional[int], Optional[int]]:
+    """Индексы открывающего и закрывающего ``---``. ``(None, None)`` — frontmatter нет."""
+    start = end = None
+    seen = 0
+    for i, ln in enumerate(lines):
+        if ln.strip() == "---":
+            seen += 1
+            if seen == 1:
+                start = i
+            elif seen == 2:
+                end = i
+                break
+    return start, end
+
+
+def read_trail(text: str) -> list[dict]:
+    """След переходов из ТЕКСТА карточки, в порядке записи.
+
+    Нечитаемая строка следа отбрасывается, а не выдаётся за переход: выдумывать
+    переход из мусора значило бы оправдывать чужую правку.
+    """
+    lines = text.splitlines()
+    start, end = _frontmatter_bounds(lines)
+    if start is None or end is None:
+        return []
+    out: list[dict] = []
+    inside = False
+    for ln in lines[start + 1:end]:
+        if not ln[:1].isspace():
+            inside = ln.split(":", 1)[0].strip() == TRAIL_KEY if ":" in ln else False
+            continue
+        if not inside:
+            continue
+        m = _TRAIL_ITEM_RE.match(ln)
+        if not m:
+            continue
+        raw = _unquote_trail(m.group(1).strip())
+        parts = [p.strip() for p in raw.split(TRAIL_SEP)]
+        head = _TRAIL_LINE_RE.match(parts[0]) if parts else None
+        if not head:
+            continue
+        out.append({
+            "ts": head.group("ts"),
+            "old": head.group("old"),
+            "new": head.group("new"),
+            "source": parts[1] if len(parts) > 1 else "",
+            "session": parts[2] if len(parts) > 2 else "",
+            "raw": raw,
+        })
+    return out
+
+
+def _unquote_trail(value: str) -> str:
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        return value[1:-1]
+    return value
+
+
+def stamp_trail(text: str, *, old: Optional[str], new: str, source: str,
+                now: Optional[datetime] = None,
+                session: Optional[str] = None) -> str:
+    """Текст карточки с дописанным следом перехода.
+
+    Ничего не бросает и НИКОГДА не роняет запись статуса: у карточки без frontmatter
+    след писать некуда — возвращаем текст как есть (переход тогда останется
+    неатрибутированным, и это честный исход, а не потеря работы).
+    """
+    lines = text.splitlines(keepends=True)
+    start, end = _frontmatter_bounds(lines)
+    if start is None or end is None:
+        return text
+
+    existing = [item["raw"] for item in read_trail(text)]
+    existing.append(trail_line(old=old, new=new, source=source, now=now,
+                               session=session))
+    kept = existing[-TRAIL_CAP:]
+
+    # Выбрасываем старый блок целиком: ключ и его отступные строки.
+    rebuilt: list[str] = []
+    inside = False
+    for i, ln in enumerate(lines):
+        if start < i < end:
+            if not ln[:1].isspace():
+                inside = (ln.split(":", 1)[0].strip() == TRAIL_KEY) if ":" in ln else False
+                if inside:
+                    continue
+            elif inside:
+                continue
+        rebuilt.append(ln)
+
+    start, end = _frontmatter_bounds(rebuilt)
+    if start is None or end is None:                    # недостижимо: границы были
+        return text
+    block = [f"{TRAIL_KEY}:\n"] + [f"  - \"{line}\"\n" for line in kept]
+    rebuilt[end:end] = block
+    return "".join(rebuilt)
+
+
+def trail_explains(text: str, old: str, new: str) -> Optional[dict]:
+    """Объясняет ли след КАРТОЧКИ переход ``old -> new``. ``None`` — не объясняет.
+
+    Цепочка читается с конца: последняя запись обязана приводить в ``new``, а начало
+    непрерывного хвоста — совпадать с ``old``. Так же, как в журнале: одна запись не
+    выдаёт индульгенцию всем последующим.
+
+    Времени тут НЕ проверяем осознанно. Журнальное окно существует, чтобы старая
+    запись не оправдала новый переход в ОДНОМ дереве; след же едет вместе с карточкой
+    и попадает в прод-дерево с задержкой доставки — от часов до дней. Требовать окна
+    значило бы объявлять КАЖДУЮ доставленную карточку неатрибутированной, то есть
+    вернуть ровно ту ложную тревогу, ради которой след и заведён. Возраст записи
+    возвращается вызывающему и печатается в отчёте — он назван, а не спрятан.
+    """
+    entries = read_trail(text)
+    if not entries:
+        return None
+    if entries[-1]["new"] != new:
+        return None
+    chain_start = len(entries) - 1
+    while chain_start > 0 and entries[chain_start - 1]["new"] == entries[chain_start]["old"]:
+        chain_start -= 1
+        if entries[chain_start]["old"] == old:
+            break
+    if entries[chain_start]["old"] != old:
+        return None
+    last = entries[-1]
+    return {
+        "ts": last["ts"],
+        "source": last["source"],
+        "session": last["session"],
+        "records": entries[chain_start:],
+    }
+
 
 def repo_root_for(path: str | Path) -> Optional[Path]:
     """Корень рабочего дерева, которому принадлежит файл (по ``.git`` вверх).

@@ -37,7 +37,7 @@ from spa_core.owner_queue.queue import (
     _parse_frontmatter,
     _split_frontmatter,
 )
-from spa_core.owner_queue.status_audit import record_status_write
+from spa_core.owner_queue.status_audit import record_status_write, stamp_trail
 from spa_core.utils.atomic import atomic_save_text
 
 
@@ -222,6 +222,11 @@ def record_owner_answer(
         f"_Ответ владельца получен {stamp} ({via}). {verdict}_\n"
     )
     out = "".join(lines).rstrip("\n") + body_addition
+    # След перехода — в саму карточку, вместе со статусом (ADR-129, вариант 1
+    # владельца): ответ владельца тоже переезжает между деревьями, и без следа
+    # он приезжает немым ровно так же, как закрытие агентом.
+    out = stamp_trail(out, old=old_status, new=new_status,
+                      source="owner_answer.record_owner_answer", now=now)
     atomic_save_text(out, str(p))
     record_status_write(p, old=old_status, new=new_status,
                         source="owner_answer.record_owner_answer", now=now)

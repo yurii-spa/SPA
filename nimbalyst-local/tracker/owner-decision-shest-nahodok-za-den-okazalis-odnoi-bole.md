@@ -2,13 +2,16 @@
 trackerStatus:
   type: owner-decision
 title: "Шесть находок за день оказались ОДНОЙ болезнью: где наблюдения нет, система говорит «всё хорошо» вместо «не знаю»"
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-18
 owner_choice: A
 owner_answered_at: 2026-08-23T19:46:52.582499+00:00
 owner_answer_via: telegram
 owner_answered_by: 258651137
+owner_answer_kind: option
+status_trail:
+  - "2026-08-23T21:22:07.597039+00:00 owner-done -> ingested · queue.set_status · cycle-360"
 ---
 
 ## Что случилось и почему это важно
@@ -85,3 +88,11 @@ _Источники (все — сегодняшние коммиты ветки
 `agent-checkup-waitlist-fail-open-ok-true` (`done`), `inbox-nablyudennyi-nol-podmenyaetsya-literalom`
 (`done`) — но карточки о САМОМ классе («где наблюдения нет, система говорит „всё хорошо" вместо
 „не знаю"») и о решении владельца по нему нет ни одной.
+
+---
+
+## Решение владельца
+
+**Вариант A** — Дописать в `CLAUDE.md` инвариант: *«Отсутствие наблюдения обязано
+
+_Ответ владельца получен 2026-08-23T19:46:52.582499+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._

@@ -28,7 +28,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
-from spa_core.owner_queue.status_audit import record_status_write
+from spa_core.owner_queue.status_audit import record_status_write, stamp_trail
 from spa_core.utils.atomic import atomic_save_text
 
 # Repo-root-relative canonical location of the files-first queue.
@@ -371,7 +371,13 @@ def set_status(path: str | Path, new_status: str) -> None:
         # created with no status is invisible to every filter AND unfixable by this tool.
         lines.insert(end, f"status: {new_status}\n")
 
-    atomic_save_text("".join(lines), str(p))
+    # След перехода едет В САМОЙ карточке — решение владельца 2026-08-23, вариант 1
+    # (ADR-129). Одной записью со статусом, а не двумя: журнал в `data/` в git не
+    # попадает, поэтому законное закрытие из рабочего дерева приезжало в прод немым,
+    # и сторож называл его «вопрос владельца закрыли без владельца» КАЖДЫЙ раз.
+    _text = stamp_trail("".join(lines), old=_old_status, new=new_status,
+                        source="queue.set_status")
+    atomic_save_text(_text, str(p))
     # Кто перевёл карточку — в журнал. Импорт наверху, а не здесь: аудит держится
     # на одной stdlib и кольца не создаёт, а «на всякий случай локальный» импорт —
     # это молчаливая своя копия правила, за которую проект уже платил (#144).
