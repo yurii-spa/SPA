@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **679** · ждёт владельца: **16** · занято сессиями: **6**.
+> Всего карточек: **680** · ждёт владельца: **17** · занято сессиями: **6**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -16,6 +16,7 @@
 - **Ручной инструмент поиска новых источников доходности никто не запускает — оставить, поставить на расписание или списать**  ·  `own-ruchnoy-instrument-poiska-istochnikov.md`
 - **Цена нашего лимита «не больше 20 % на одно имя» измерена: поднимать его незачем, он стоит ровно в лучшей точке** · _medium_  ·  `own-tsena-nashego-limita-20-na-odno-imya-izme.md`
 - **Договор называет старый потолок T2 — 35 % при живых 50 %**  ·  `owner-decision-dogovor-nazyvaet-staryi-potolok-t2-35-pr.md`
+- **Когда ты последний раз менял пароль-ключ для GitHub? Машина этого не знает, а срок — через 7 дней**  ·  `owner-decision-kogda-ty-poslednii-raz-menyal-parol-klyu.md`
 - **Проверка книги слабее проверки перед сделкой — 60 % в рисковом уровне проходит как «здоровый портфель»** · _medium_  ·  `owner-decision-proverka-knigi-slabee-proverki-pered-sde.md`
 - **Списать 180 фоновых модулей Tier-C или честно записать, что мы про них не знаем**  ·  `owner-decision-spisat-180-fonovyh-modulei-tier-c-ili-ch.md`
 - **Три отчёта о доказательной базе трека молчат 2 месяца — оживить или убрать в архив** · _medium_  ·  `owner-decision-tri-otcheta-o-dokazatelnoi-baze-treka-mo.md`
@@ -34,7 +35,7 @@
 - **Разобрать 52 карточки с ветки work-status-check, потом удалить ветку (решение владельца 20.08, вариант 1)** — держит `pid85035` · с 2026-08-25T00:20:38Z  ·  `inbox-razobrat-52-kartochki-s-vetki-work-statu.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (169)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (170)
 
 ### · needs-owner
 - Потолок концентрации не видит общего куратора — половина книги может лечь под одну команду  ·  `own-2026-08-18-potolok-ne-vidit-obshchego-kuratora.md` · 2026-08-18
@@ -47,6 +48,7 @@
 - Ручной инструмент поиска новых источников доходности никто не запускает — оставить, поставить на расписание или списать  ·  `own-ruchnoy-instrument-poiska-istochnikov.md` · 2026-08-17
 - Цена нашего лимита «не больше 20 % на одно имя» измерена: поднимать его незачем, он стоит ровно в лучшей точке  ·  `own-tsena-nashego-limita-20-na-odno-imya-izme.md` · 2026-08-17
 - Договор называет старый потолок T2 — 35 % при живых 50 %  ·  `owner-decision-dogovor-nazyvaet-staryi-potolok-t2-35-pr.md` · 2026-08-25
+- Когда ты последний раз менял пароль-ключ для GitHub? Машина этого не знает, а срок — через 7 дней  ·  `owner-decision-kogda-ty-poslednii-raz-menyal-parol-klyu.md` · 2026-08-25
 - Проверка книги слабее проверки перед сделкой — 60 % в рисковом уровне проходит как «здоровый портфель»  ·  `owner-decision-proverka-knigi-slabee-proverki-pered-sde.md` · 2026-08-18
 - Списать 180 фоновых модулей Tier-C или честно записать, что мы про них не знаем  ·  `owner-decision-spisat-180-fonovyh-modulei-tier-c-ili-ch.md` · 2026-08-17
 - Три отчёта о доказательной базе трека молчат 2 месяца — оживить или убрать в архив  ·  `owner-decision-tri-otcheta-o-dokazatelnoi-baze-treka-mo.md` · 2026-08-24
@@ -384,6 +386,7 @@
 - Сторож «вопросы владельцу» слеп к вопросу, который не отправляли — очередь 5, он говорит 3  ·  `inbox-storozh-voprosy-vladeltsu-slep-k-voprosu.md` · 2026-08-10
 - Страж ADR-номеров ложно краснеет: не видит INDEX среди доставляемых файлов  ·  `inbox-strazh-adr-nomerov-lozhno-krasneet-ne-vi.md` · 2026-08-09
 - Страж перезаписи считает переименование заголовка потерей записи — и его список «что пропадёт» неполон  ·  `inbox-strazh-perezapisi-schitaet-pereimenovani.md` · 2026-08-07
+- Страж ротации PAT сам сочиняет дату, которую сторожит (и его никто не зовёт)  ·  `inbox-strazh-rotatsii-pat-sam-sochinyaet-datu.md` · 2026-08-25
 - Сухой прогон уведомления (--check) пишет в живой реестр решений владельца  ·  `inbox-suhoi-progon-uvedomleniya-check-pishet-v.md` · 2026-08-09
 - Свежесть артефактов молчит там, где обязана краснеть: пустое дерево получает artifacts_overdue=[] вместо вердикта  ·  `inbox-svezhest-artefaktov-molchit-tam-gde-obya.md` · 2026-08-09
 - Так почини  ·  `inbox-tak-pochini.md` · 2026-08-08
@@ -527,7 +530,6 @@
 - Смена номинации ПОЗИЦИЙ как единственный рычаг против депега своего же кэша (решение владельца 22.08, вариант 3)  ·  `inbox-smena-nominatsii-pozitsii-kak-edinstvenn.md` · 2026-08-22
 - Снять переходное послабление маячка: решения обязаны гейтиться СВОИМ умением  ·  `inbox-snyat-perehodnoe-poslablenie-mayachka-re.md` · 2026-08-17
 - Снятая остановка живёт в git: восстановление из резерва поднимет прод уже остановленным  ·  `inbox-snyataya-ostanovka-zhivet-v-git-vosstano.md` · 2026-08-10
-- Страж ротации PAT сам сочиняет дату, которую сторожит (и его никто не зовёт)  ·  `inbox-strazh-rotatsii-pat-sam-sochinyaet-datu.md` · 2026-08-25
 - Строка Risk Gate дневного лимита убытка жила только в отключённом скрипте — в отчёт владельцу она не переехала  ·  `inbox-stroka-risk-gate-dnevnogo-limita-ubytka.md` · 2026-08-14
 - Свести две реализации перезаполнения бюджета в одну (ADR-072 vs версия параллельной сессии)  ·  `inbox-svesti-dve-realizatsii-perezapolneniya-b.md` · 2026-08-08
 - Табличка честности: дать ей дорогу на сайт (решение владельца 09.08)  ·  `inbox-tablichka-chestnosti-dat-ei-dorogu-na-sa.md` · 2026-08-08

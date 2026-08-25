@@ -3,6 +3,15 @@ Tests for scripts/pat_rotation_helper.py — MP-071
 Run: pytest spa_core/tests/test_pat_rotation.py -v
 """
 
+# FROZEN-DATE-OK: injected-clock — каждая литеральная дата здесь идёт В ПАРЕ с
+# `now=`/`state_file=`, отданными коду под проверкой (`_compute_status(state, now=…)`,
+# `cmd_mark_rotated(now=…, state_file=…)`), и ВСЕ отметки выведены из того же якоря:
+# 2026-08-25 → 2026-11-23 это +90 дней, 89 дней это тот же якорь при now=2026-08-26,
+# 2026-01-01/2026-04-01 сравниваются только с переданным now. Обе стороны закреплены,
+# календарь на вердикт не влияет — это преференция #1 `.claude/rules/deployment.md`,
+# а не литерал против настенных часов. Ни одна дата не сверяется с `date.today()`:
+# фикстуры `state_ok`/`state_warning`/`state_overdue` относительные и такими остались.
+
 import json
 import os
 import sys
@@ -83,31 +92,123 @@ def state_overdue(tmp_state_file):
 
 
 # ────────────────────────────────────────────────────────────────────────────
-# 1. State creation — file absent → auto-create with today
+# 1. Отсутствующее состояние = «НЕ ИЗВЕСТНО», а не «ротация была сегодня»
+#
+# НАМЕРЕННАЯ ПРАВКА ТЕСТОВ (инвариант #16, обоснование — здесь, в теле коммита
+# и в docs/journal/2026-W35.md). Три теста этого раздела —
+# `test_state_created_when_absent`, `test_state_created_next_rotation_is_90_days`,
+# `test_state_created_contains_keychain_service` — ЗАКРЕПЛЯЛИ дефект, а не защищали
+# от него: они требовали, чтобы `_load_state()` при отсутствующем файле СОЧИНИЛ
+# `last_rotation = сегодня`. Именно из-за этого `--check` возвращал 0 ровно потому,
+# что его спросили впервые (карточка `inbox-strazh-rotatsii-pat-sam-sochinyaet-datu`,
+# замер цикла #379: в прод-дереве файла не было, один `--status` создал его с датой,
+# в которую никакой ротации не было).
+#
+# Проверка не ослаблена, а РАЗВЁРНУТА: вместо «файл создаётся» теперь проверяется
+# «файл НЕ создаётся, а состояние называется неизвестным», и к этому добавлены
+# проверки эффекта (`--check` = 1, `--status` = 2), которых не было вовсе. Тесты
+# ниже — положительные контроли: на НЕИСПРАВЛЕННОМ модуле каждый краснеет.
 # ────────────────────────────────────────────────────────────────────────────
 
-def test_state_created_when_absent(tmp_state_file):
-    """_load_state creates the file with today when it does not exist."""
+def test_absent_state_is_not_invented(tmp_state_file):
+    """Нет файла ⇒ `_load_state` возвращает None и НИЧЕГО не пишет.
+
+    Положительный контроль: на старом модуле здесь возвращался словарь с
+    `last_rotation = сегодня`, а файл появлялся на диске.
+    """
     assert not tmp_state_file.exists()
-    state = prh._load_state()
+    assert prh._load_state() is None
+    assert not tmp_state_file.exists(), "страж сочинил состояние, о котором отчитывается"
+
+
+def test_absent_state_stays_absent_after_every_read_command(tmp_state_file):
+    """Ни `--check`, ни `--status`, ни режим по умолчанию не создают состояние."""
+    for argv in ([], ["--check"], ["--status"]):
+        prh.main(argv)
+        assert not tmp_state_file.exists(), f"{argv or ['(default)']} создал файл состояния"
+
+
+def test_check_refuses_when_rotation_date_unknown(tmp_state_file):
+    """`--check` при неизвестной дате = 1 (fail-CLOSED), критерий карточки.
+
+    Положительный контроль: на старом модуле ровно этот вызов давал 0.
+    """
+    assert not tmp_state_file.exists()
+    assert prh.main(["--check"]) == 1
+
+
+def test_status_exit_2_when_rotation_date_unknown(tmp_state_file, capsys):
+    """`--status` при неизвестной дате: код 2 («не измерено») + honest JSON."""
+    assert prh.main(["--status"]) == 2
+    data = json.loads(capsys.readouterr().out)
+    assert data["rotation_date_known"] is False
+    assert "НЕ ИЗВЕСТНА" in data["unknown_reason"]
+
+
+def test_unknown_status_carries_no_falsy_judgment_keys(tmp_state_file):
+    """У статуса «не знаю» ключей-суждений НЕТ вовсе — присутствующий и ложный ключ
+    читается наивным потребителем как «всё хорошо», и именно так дефект и держался."""
+    status = prh._compute_status(prh._load_state(), now=date(2026, 8, 25))
+    for key in ("days_until_rotation", "is_overdue", "needs_rotation_soon",
+                "last_rotation", "next_rotation"):
+        assert key not in status, f"ключ {key} присутствует в статусе «не измерено»"
+
+
+def test_default_mode_refuses_when_rotation_date_unknown(tmp_state_file, capsys):
+    """Режим по умолчанию печатает ОТКАЗ и выходит 1, а не «✅ PAT rotation OK»."""
+    assert prh.main([]) == 1
+    out = capsys.readouterr().out
+    assert "НЕ ИЗВЕСТНА" in out
+    assert "✅" not in out
+
+
+def test_unreadable_state_is_unknown_not_a_crash(tmp_state_file):
+    """Битый JSON — тот же вид, что «файла нет»: наблюдения нет, ответа «ok» тоже."""
+    tmp_state_file.parent.mkdir(parents=True, exist_ok=True)
+    tmp_state_file.write_text("{ это не json", encoding="utf-8")
+    assert prh._load_state() is None
+    assert prh.main(["--check"]) == 1
+
+
+def test_state_without_any_usable_date_is_unknown(tmp_state_file):
+    """Словарь без пригодной даты раньше ронял KeyError/ValueError наружу."""
+    tmp_state_file.parent.mkdir(parents=True, exist_ok=True)
+    tmp_state_file.write_text(json.dumps({"keychain_service": "spa-claude-pat"}),
+                              encoding="utf-8")
+    status = prh._compute_status(prh._load_state(), now=date(2026, 8, 25))
+    assert status["rotation_date_known"] is False
+    assert prh.main(["--check"]) == 1
+
+
+def test_mark_rotated_is_the_only_writer(tmp_state_file):
+    """Обе стороны: до отметки — отказ, после отметки — счётчик идёт (обратный контроль)."""
+    assert prh.main(["--check"]) == 1
+    assert not tmp_state_file.exists()
+
+    prh.cmd_mark_rotated(now=date(2026, 8, 25), state_file=tmp_state_file)
+
     assert tmp_state_file.exists()
-    assert state["last_rotation"] == date.today().isoformat()
+    written = json.loads(tmp_state_file.read_text())
+    assert written["last_rotation"] == "2026-08-25"
+    assert written["next_rotation"] == "2026-11-23"  # +90 дней, посчитано вручную
+
+    status = prh._compute_status(prh._load_state(), now=date(2026, 8, 26))
+    assert status["rotation_date_known"] is True
+    assert status["days_until_rotation"] == 89
+    assert prh.cmd_check(status) == 0
 
 
-def test_state_created_next_rotation_is_90_days(tmp_state_file):
-    """Auto-created state sets next_rotation to today + 90 days."""
-    prh._load_state()
-    state = json.loads(tmp_state_file.read_text())
-    expected = (date.today() + timedelta(days=90)).isoformat()
-    assert state["next_rotation"] == expected
-
-
-def test_state_created_contains_keychain_service(tmp_state_file):
-    """Auto-created state includes keychain_service key."""
-    prh._load_state()
-    state = json.loads(tmp_state_file.read_text())
-    assert "keychain_service" in state
-    assert state["keychain_service"] == prh.KEYCHAIN_SERVICE
+def test_now_is_an_input_not_the_wall_clock(tmp_state_file):
+    """Время — вход: обе стороны сравнения закреплены, тест не зависит от календаря
+    (`.claude/rules/deployment.md`, раздел про фиксированные даты)."""
+    state = {"last_rotation": "2026-01-01", "next_rotation": "2026-04-01",
+             "keychain_service": "spa-claude-pat"}
+    assert prh._compute_status(state, now=date(2026, 3, 1))["days_until_rotation"] == 31
+    assert prh._compute_status(state, now=date(2026, 4, 1))["days_until_rotation"] == 0
+    assert prh._compute_status(state, now=date(2026, 4, 10))["is_overdue"] is True
+    # тот же вход, другой «сейчас» ⇒ другой ответ: часы действительно снаружи
+    assert prh._compute_status(state, now=date(2026, 3, 1))["needs_rotation_soon"] is False
+    assert prh._compute_status(state, now=date(2026, 3, 25))["needs_rotation_soon"] is True
 
 
 def test_state_loaded_from_existing_file(tmp_state_file, state_ok):
@@ -275,12 +376,14 @@ def test_status_json_contains_required_keys(tmp_state_file, state_ok, capsys):
     captured = capsys.readouterr()
     data = json.loads(captured.out)
     for key in ("today", "last_rotation", "next_rotation",
-                 "days_until_rotation", "is_overdue", "needs_rotation_soon"):
+                 "days_until_rotation", "is_overdue", "needs_rotation_soon",
+                 "rotation_date_known"):
         assert key in data, f"Missing key: {key}"
+    assert data["rotation_date_known"] is True
 
 
-def test_status_exit_code_is_0(tmp_state_file, state_ok):
-    """--status always returns exit code 0."""
+def test_status_exit_code_is_0_when_measured(tmp_state_file, state_ok):
+    """--status = 0, но только когда дата ИЗМЕРЕНА (неизмеренная — 2, см. раздел 1)."""
     exit_code = prh.main(["--status"])
     assert exit_code == 0
 
