@@ -100,10 +100,10 @@ through the existing harness, without off-code infrastructure (CEX custody, lega
 ### 8. Staked-stable / savings-rate wrappers (transparent backing)
 - **Why research first.** Yield from a *disclosed* mechanism (e.g. tokenized savings rate) — a clean case for verifying "who pays and why" before touching opaque wrappers.
 - **Yield source.** Disclosed savings-rate / borrow-demand mechanism behind a transparent wrapper.
-- **Main risk.** Mechanism change (rate can be set to 0 by governance); backing quality; contract risk. Note the SPA invariant: **Sky/sUSDS = 0%** until GSM Pause Delay ≥ 48h confirmed on-chain ([`06`](06_spa_core_invariants.md)).
+- **Main risk.** Mechanism change (rate can be set to 0 by governance); backing quality; contract risk. Note the SPA precedent: the **Sky/sUSDS = 0%** rule held until GSM Pause Delay ≥ 48h was confirmed on-chain — it was, on 2026-08-05, and the rule was lifted ([`ADR-065`](decisions/ADR-065-sky-susds-promoted-to-t1.md)). The pattern to copy is the *verifiable precondition*, not the frozen zero.
 - **First data to collect.** The disclosed backing + rate mechanism, governance control over the rate, redemption terms, attestation.
 - **Product-line fit.** Preserve / Core. · **Capital-tier fit.** $100k → $100M+ (mechanism-dependent).
-- **MVP-testable?** **Partial** — data reachable; gated by the specific-mechanism verification (e.g. the Sky pause-delay condition).
+- **MVP-testable?** **Partial** — data reachable; gated by the specific-mechanism verification (e.g. the Sky pause-delay condition, which cleared 2026-08-05).
 
 ---
 

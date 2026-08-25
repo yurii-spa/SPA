@@ -75,14 +75,25 @@ The kill switch is implemented in `spa_core/safety/safeguard.py` and
 
 ---
 
-## 6. Sky/sUSDS Special Rule
+## 6. Sky/sUSDS Special Rule — **CONDITION MET 2026-08-05, RULE LIFTED**
 
-Sky protocol (sUSDS) receives **0% allocation** until:
+The rule was: Sky protocol (sUSDS) receives **0% allocation** until
 
 - On-chain GSM Pause Delay is confirmed ≥ 48 hours
 - `spa_core/data_pipeline/sky_monitor.py` returns `gsm_pause_delay_ok: True`
 
-See ADR-001 for rationale.
+**Both conditions were observed on 2026-08-05**: `DSPause.delay()` = 172 800 s =
+**48.00 h**, agreed by 3 independent RPC endpoints, source `onchain`, stamped in
+`data/sky_status.json`. By owner decision the same day, `sky_susds` moved
+**WL / 0% → T1** and is ranked by the allocator under the ordinary T1 concentration
+cap — **no fixed share is assigned by hand**.
+
+Authority: [`ADR-065`](decisions/ADR-065-sky-susds-promoted-to-t1.md) (Accepted 2026-08-05),
+confirmed by [`ADR-126`](decisions/ADR-126-owner-decisions-2026-08-23-two-unexecuted.md).
+ADR-001 records the original rationale for the 0% rule.
+
+**This is not a loosening of risk policy:** the gate was a verifiable precondition,
+it was verified, and it opened. Reinstating a 0% hard rule requires a new ADR.
 
 ---
 

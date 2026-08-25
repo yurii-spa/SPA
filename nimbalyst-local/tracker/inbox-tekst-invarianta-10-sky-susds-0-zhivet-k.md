@@ -2,9 +2,14 @@
 trackerStatus:
   type: inbox
 title: "Текст инварианта 10 (Sky/sUSDS = 0 %) живёт как действующий ещё в docs/"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-23
+claimed_by: cycle-380
+claimed_at: 2026-08-25T09:10:40Z
+claim_takeover_reason: шаг 0a: работа cycle-357 не потеряна и не сделана — карточка на origin/main в статусе new, приложенный к ней замер ветки (#375, cycle-75127) уже доставлен коммитом; сам предмет карточки НЕ тронут: grep 'GSM Pause Delay' по docs/ на origin/main всё ещё находит запрет как ДЕЙСТВУЮЩИЙ в живых справочниках (06_spa_core_invariants, RISK_MANAGEMENT_POLICY §6, SOURCE_INTEGRATION_GUIDE:273, DATA_SOURCES_REGISTRY:42, AGENT_REGISTRY:81, YIELD_STRATEGY_ROADMAP:159). pid2754 (cycle-357) и pid10700 мертвы, деревья сняты квитанцией
+status_trail:
+  - "2026-08-25T09:20:54.943266+00:00 new -> done · queue.set_status · cycle-93711"
 ---
 
 ## Что случилось и почему это важно
@@ -61,3 +66,34 @@ created: 2026-08-23
 
 Перемерено мной на `main` `d4e4fc18d`: обе строки конституции на месте (`CLAUDE.md`, раздел
 инвариантов, п. 10; `.claude/rules/adapters.md`, строка про Sky/sUSDS) — расхождение живо.
+
+---
+
+## ✅ Закрыто циклом #380 (2026-08-25)
+
+**Сделано.** Восемь ЖИВЫХ справочников больше не описывают снятый запрет как действующий —
+в каждом стоит «условие выполнено 05.08.2026» со ссылкой на ADR-065:
+`docs/RISK_MANAGEMENT_POLICY.md` (§6) · `docs/SOURCE_INTEGRATION_GUIDE.md` ·
+`docs/DATA_SOURCES_REGISTRY.md` · `docs/AGENT_REGISTRY.md` ·
+`docs/44_research_first_20_strategies.md` · `docs/TIER1_BACKTEST.md` ·
+`docs/YIELD_STRATEGY_ROADMAP.md` · `docs/SPA_ARCHITECTURE_EVOLUTION_v2.md` (ADR-018 → SUPERSEDED).
+Исторические снимки не тронуты — и теперь тест ТРЕБУЕТ от каждого из них даты или маркера
+SUPERSEDED в шапке, иначе исключение не действует.
+
+**Критерий приёмки закреплён кодом, а не обещанием.** `spa_core/tests/test_doc_drift.py`, +6 тестов:
+детектор + положительный контроль ВЕРБАТИМНЫМ довправочным текстом шести мест (через настоящий
+`_susds_active_ban_lines`, не через копию регулярок) + обратный контроль (исправленная
+формулировка обязана проходить) + контроль корпуса + оба списка исключений ведутся «только на
+уменьшение». Приёмка мутацией в обе стороны.
+
+**Две половины НЕ сделаны и названы, а не забыты:**
+
+1. `docs/decision_index.md` — ФАКТ поправлен (причина отказа помечена снятой, ссылка на ADR-065),
+   **вердикт деска НЕ переголосован**: у sUSDS остаётся независимое основание near-floor, у Spark —
+   концентрация. Пересмотр — работа деска (ADR-YL-008), не правка текста. При этом расхождение
+   реальное: книга 25.08 держит `spark_susds` 5 %. → `inbox-verdikt-deska-po-susds-stoit-na-snyatoi`
+2. `docs/legal/DOGOVIR_PROSTOGO_TOVARYSTVA_TEMPLATE.md:354` — договорный термин, правка за
+   владельцем. → `owner-decision-v-shablone-dogovora-ostalos-snyatoe-ogra`
+
+**Поправка к самой карточке:** `docs/06_spa_core_invariants.md` в списке пострадавших назван
+ошибочно — он не упоминает Sky/sUSDS вовсе (замер `grep`). Чинил по замеру, а не по списку.

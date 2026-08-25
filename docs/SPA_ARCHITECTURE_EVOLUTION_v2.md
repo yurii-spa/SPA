@@ -2198,18 +2198,24 @@ allocation_usd: float  # ❌
 | T2 total cap | ≤50% |
 | APY range for new position | 1% – 30% |
 | Minimum cash buffer | ≥5% |
-| Kill switch | Portfolio drawdown ≥5% → close all |
+| Kill switch | **Two-tier** (ADR-034 / ADR-048, `spa_core/governance/kill_switch.py`): drawdown ∈ [5%, 10%) → SOFT_DERISK (halt new / no INCREASE, **does not liquidate**) · ≥10% inclusive → HARD_KILL (all-cash). The single-rung «≥5% → close all» line below was written before the ladder existed and is **not** what the code does. |
 
 ---
 
-### ADR-018: Sky/sUSDS at 0% Until On-Chain GSM Pause Delay ≥48h
+### ADR-018: Sky/sUSDS at 0% Until On-Chain GSM Pause Delay ≥48h — **SUPERSEDED 2026-08-05**
 
 **Date:** From CLAUDE.md  
-**Status:** Accepted  
+**Status:** **Superseded by [`ADR-065`](decisions/ADR-065-sky-susds-promoted-to-t1.md) (2026-08-05)**  
 
-**Decision:** Sky/sUSDS allocation remains 0% until on-chain confirmation of GSM (Governance Security Module) Pause Delay ≥48 hours.
+**Decision (as written):** Sky/sUSDS allocation remains 0% until on-chain confirmation of GSM
+(Governance Security Module) Pause Delay ≥48 hours.
 
-**Monitor:** `spa_core/data_pipeline/sky_monitor.py`
+**What happened:** the condition was verified, not waived — `DSPause.delay()` = 172 800 s = **48.00 h**,
+agreed by 3 independent RPC endpoints on 2026-08-05. `sky_susds` moved **WL / 0% → T1**; the share is
+set by the allocator under the ordinary T1 cap, with no hand-assigned percentage.
+
+**Monitor:** `spa_core/data_pipeline/sky_monitor.py` — still runs, now to catch the delay falling back
+below 48 h.
 
 ---
 

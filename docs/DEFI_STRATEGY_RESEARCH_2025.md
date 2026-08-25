@@ -79,7 +79,7 @@
 | **Главный риск** | Governance risk; зависимость от Sky DAO; ставка может быть снижена без notice |
 | **TVL** | Часть более широкой Sky/Maker экосистемы |
 | **Совместимость** | ⚠️ USDS (не USDC), конвертация USDC→USDS через Spark |
-| **Статус в SPA** | KANBAN: watch list; ADR для Sky/sUSDS — 0% аллокации до подтверждённого GSM Pause Delay ≥ 48h |
+| **Статус в SPA** | На дату обзора (06.2026): watch list, 0 % до подтверждённого GSM Pause Delay ≥ 48h. **С 05.08.2026 — T1**, условие выполнено (48.00 ч on-chain), долю решает аллокатор ([`ADR-065`](decisions/ADR-065-sky-susds-promoted-to-t1.md)) |
 
 **Вывод:** Интересная ставка, но требует выполнения условий ADR-002. Pendle PT-stUSDS предлагает фиксированный доступ к SSR (~16.8% в Pendle пуле).
 
@@ -466,7 +466,7 @@
 | Aave V3 Lending | ✅ | — | ✅ | ✅ | ✅ Активно |
 | Compound V3 | ✅ | — | — | ✅ | ✅ Активно |
 | Morpho Blue/Vaults | ✅ | — | ✅ | — | ✅ Активно |
-| Spark/sUSDS | ⚠️ USDS | — | — | — | Заморожено (ADR) |
+| Spark/sUSDS | ⚠️ USDS | — | — | — | Разморожено 05.08.2026 (ADR-065); на дату обзора — заморожено |
 | Pendle PT | ✅ via swap | — | — | ✅ | В разработке |
 | Ethena sUSDe | ✅ via swap | — | — | ✅ | Paper-only (S8) |
 | Pendle YT | ✅ via swap | — | — | ✅ | Paper-only (S10, ADR-021) |

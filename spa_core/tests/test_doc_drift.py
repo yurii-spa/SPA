@@ -545,3 +545,239 @@ def test_proof_chain_spec_worked_example_reproduces():
             f"PROOF_CHAIN_SPEC.md still pins a volatile seq=111 entry_hash literal ({retired[:8]}…) — "
             "remove it; the mirror re-chains so a fixed-seq literal rots. Recipe is the source of truth."
         )
+
+
+# ---------------------------------------------------------------------------
+# Sky/sUSDS: a LIFTED rule must not keep living in the docs as an ACTIVE ban.
+#
+# Invariant 10 held Sky/sUSDS at 0% allocation until an on-chain GSM Pause Delay
+# ≥ 48h was confirmed. The condition WAS confirmed — 2026-08-05, DSPause.delay()
+# = 172 800 s = 48.00 h, three independent RPC agreeing — and the owner promoted
+# sky_susds WL → T1 (ADR-065, re-confirmed by ADR-126). CLAUDE.md and
+# .claude/rules/adapters.md were updated the same day.
+#
+# The rest of docs/ was not, and the price of that remainder is MEASURED, not
+# hypothetical: on 2026-08-16 a triage agent read the stale text as current and
+# declared a live line of code a CRITICAL violation. A false critical born of
+# prose, not of code.
+#
+# This guard answers exactly ONE question: **does any LIVING doc still state the
+# 0%-until-GSM rule as if it were in force?**
+#
+# What it deliberately does NOT check (so a green run is not read as more than
+# it is):
+#   * whether the allocator actually holds sky_susds (that is the book's job);
+#   * prose that merely names the gate without the zero ("blocker: GSM < 48h") —
+#     it does not assert an allocation ban and reads as history either way;
+#   * docs/decisions/** and docs/journal/** — a decision or a journal entry
+#     records what was true when written and must never be rewritten.
+#
+# Two named exception classes, and neither is free:
+#   * HISTORY snapshots — must carry a date or a SUPERSEDED marker in their head,
+#     verified below. A doc parked here without a dated header FAILS.
+#   * OWNER-GATED — the legal template states the rule as a contract term.
+#     Changing a term in a legal template is the owner's call, not an agent's
+#     doc edit, so it is NAMED here rather than silently swept in with history.
+# Both lists SHRINK ONLY: if a listed file no longer states the rule, the test
+# fails and tells you to delete the entry — an allowlist nobody prunes becomes
+# decoration.
+# ---------------------------------------------------------------------------
+_SUSDS_SUBJECT = re.compile(r"sky[\s/_-]*susds|susds|\bsky\b", re.IGNORECASE)
+_SUSDS_ZERO = re.compile(r"(?<![\d.])0\s*%|HOLD-AT-0|нулев|zero allocation", re.IGNORECASE)
+_SUSDS_GATE = re.compile(r"\bGSM\b|pause[\s-]*delay", re.IGNORECASE)
+# Any of these, on the line or within ±4 lines, means the text NAMES the lift —
+# which is exactly what a correct doc does, so it must not be flagged.
+_SUSDS_CURED = re.compile(
+    r"ADR-065|lifted|снят|supersed|cured|выполнен|\bmet\b|2026-08-05|05\.08\.2026",
+    re.IGNORECASE,
+)
+
+# History snapshots: legitimately describe the world on their own date.
+_SUSDS_HISTORY_DOCS = {
+    "docs/EXECUTION_SAFETY_AUDIT_20260619.md",
+    "docs/REPORT_v2_dashboard.md",
+    "docs/operator_runbook.md",
+    "docs/protocol_research_2026_06.md",
+    "docs/research/PROTOCOL_RESEARCH_v469.md",
+}
+# Owner-gated: a contract term, not a reference sentence. Named with its reason.
+_SUSDS_OWNER_GATED_DOCS = {
+    "docs/legal/DOGOVIR_PROSTOGO_TOVARYSTVA_TEMPLATE.md":
+        "договорный термин: правку условия в юридическом шаблоне делает владелец, не агент — "
+        "вопрос заведён карточкой owner-decision-v-shablone-dogovora-ostalos-snyatoe-ogra (#380)",
+}
+_SUSDS_SKIP_DIRS = ("docs/journal/", "docs/decisions/", "docs/ideas/", "docs/rules-draft/")
+# A dated or explicitly-superseded header is what makes a history doc readable as
+# history. Checked against the head of the file, not asserted by the list.
+_DATED_HEADER = re.compile(
+    r"20\d\d[-./]\d\d|SUPERSEDED|ИСТОРИЧЕСКИЙ|Retained for history", re.IGNORECASE
+)
+
+
+def _susds_scanned_docs() -> list[Path]:
+    """Every doc a session might read as CURRENT guidance."""
+    out = [_REPO_ROOT / "CLAUDE.md", _RULES_MD]
+    out += sorted((_REPO_ROOT / ".claude" / "rules").glob("*.md"))
+    out += sorted(_DOCS.rglob("*.md"))
+    return [p for p in out if p.is_file()]
+
+
+def _susds_active_ban_lines(path: Path) -> list[tuple[int, str]]:
+    """Lines asserting the 0%-until-GSM rule with no mention of the lift nearby."""
+    lines = _read(path).splitlines()
+    found: list[tuple[int, str]] = []
+    for i, ln in enumerate(lines):
+        window = "\n".join(lines[max(0, i - 4): i + 5])
+        states_ban = bool(_SUSDS_ZERO.search(ln)) and bool(_SUSDS_GATE.search(ln))
+        if not states_ban:
+            # Same claim split across a sentence: subject + zero on the line, gate nearby.
+            states_ban = (
+                bool(_SUSDS_SUBJECT.search(ln))
+                and bool(_SUSDS_ZERO.search(ln))
+                and bool(_SUSDS_GATE.search("\n".join(lines[max(0, i - 3): i + 4])))
+            )
+        if not states_ban:
+            continue
+        if _SUSDS_CURED.search(window):
+            continue
+        found.append((i + 1, ln.strip()))
+    return found
+
+
+def test_susds_zero_rule_is_not_stated_as_active_in_living_docs():
+    """No living reference doc may present the lifted Sky/sUSDS ban as in force."""
+    offenders: list[str] = []
+    for path in _susds_scanned_docs():
+        rel = path.relative_to(_REPO_ROOT).as_posix()
+        if rel.startswith(_SUSDS_SKIP_DIRS):
+            continue
+        if rel in _SUSDS_HISTORY_DOCS or rel in _SUSDS_OWNER_GATED_DOCS:
+            continue
+        for lineno, text in _susds_active_ban_lines(path):
+            offenders.append(f"{rel}:{lineno}: {text[:160]}")
+    assert not offenders, (
+        "a LIVING doc still states «Sky/sUSDS = 0 % до GSM Pause Delay ≥ 48h» as an ACTIVE rule.\n"
+        "The condition was MET on 2026-08-05 (48.00 h on-chain, 3 independent RPC) and the ban was\n"
+        "lifted by ADR-065 — stale prose of exactly this class produced a FALSE CRITICAL finding\n"
+        "on 2026-08-16 (a triage agent called a live line of code a violation because it read the\n"
+        "doc as current). Fix: state that the condition was met and link ADR-065, as CLAUDE.md does.\n"
+        "If the file is a dated snapshot, add it to _SUSDS_HISTORY_DOCS — it must carry a dated header.\n"
+        "Offending lines:\n  " + "\n  ".join(offenders)
+    )
+
+
+def test_susds_history_docs_are_readable_as_history_and_still_needed():
+    """Each history exception must (a) exist, (b) be dated, (c) still be needed."""
+    for rel in sorted(_SUSDS_HISTORY_DOCS):
+        path = _REPO_ROOT / rel
+        assert path.is_file(), (
+            f"{rel} is listed as a Sky/sUSDS history snapshot but does not exist — "
+            "delete the entry (the list must shrink, never carry ghosts)."
+        )
+        head = "\n".join(_read(path).splitlines()[:14])
+        assert _DATED_HEADER.search(head), (
+            f"{rel} is exempted as a HISTORY snapshot, but its head carries no date and no\n"
+            "SUPERSEDED marker — nothing tells a reader it describes a past state. Add the\n"
+            "dated header, or fix the text instead of exempting it."
+        )
+        assert _susds_active_ban_lines(path), (
+            f"{rel} no longer states the Sky/sUSDS ban — remove it from _SUSDS_HISTORY_DOCS.\n"
+            "An exception nobody prunes turns the allowlist into decoration."
+        )
+
+
+def test_susds_owner_gated_exception_is_named_with_a_reason_and_still_needed():
+    """The legal-template exception is a NAMED owner decision, not a quiet sweep."""
+    for rel, reason in sorted(_SUSDS_OWNER_GATED_DOCS.items()):
+        path = _REPO_ROOT / rel
+        assert path.is_file(), f"{rel} listed as owner-gated but missing — delete the entry."
+        assert reason.strip(), f"{rel} exempted without a reason — name it or fix it."
+        assert _susds_active_ban_lines(path), (
+            f"{rel} no longer states the Sky/sUSDS ban — remove it from _SUSDS_OWNER_GATED_DOCS."
+        )
+
+
+# Verbatim pre-fix snippets from origin/main before cycle #380 — one per doc that
+# had to be fixed. Kept as multi-line blocks because two of them state the ban
+# across a sentence break, which is exactly the shape a line-only detector misses.
+_SUSDS_PRE_FIX_SNIPPETS = {
+    "SOURCE_INTEGRATION_GUIDE": "- **Sky/sUSDS stays at 0% allocation** until on-chain GSM Pause Delay ≥ 48h",
+    "DATA_SOURCES_REGISTRY": "| `sky_susds` | Sky (MakerDAO) | sUSDS | 0% current | monitor only | GSM Pause Delay rule |",
+    "RISK_MANAGEMENT_POLICY": (
+        "## 6. Sky/sUSDS Special Rule\n\n"
+        "Sky protocol (sUSDS) receives **0% allocation** until:\n\n"
+        "- On-chain GSM Pause Delay is confirmed ≥ 48 hours\n"
+    ),
+    "44_research": (
+        "- **Main risk.** Mechanism change; contract risk. Note the SPA invariant: "
+        "**Sky/sUSDS = 0%** until GSM Pause Delay ≥ 48h confirmed on-chain.\n"
+    ),
+    "ARCH_EVOLUTION_ADR_018": (
+        "### ADR-018: Sky/sUSDS at 0% Until On-Chain GSM Pause Delay ≥48h\n\n"
+        "**Status:** Accepted\n\n"
+        "**Decision:** Sky/sUSDS allocation remains 0% until on-chain confirmation of "
+        "GSM (Governance Security Module) Pause Delay ≥48 hours.\n"
+    ),
+    "protocol_research_ru": (
+        "**Tier Decision: T1**\n"
+        "Текущий статус: **0% аллокации** до подтверждения on-chain GSM Pause Delay ≥ 48h\n"
+    ),
+}
+
+
+def test_susds_detector_fires_on_the_pre_fix_text(tmp_path):
+    """Positive control: the REAL helper, on the REAL pre-fix text of each doc.
+
+    Every snippet is verbatim from origin/main before cycle #380. The helper —
+    not a re-implementation of its regexes — must flag each one; if it goes blind
+    the green run above would mean nothing.
+    """
+    for name, snippet in _SUSDS_PRE_FIX_SNIPPETS.items():
+        probe = tmp_path / f"{name}.md"
+        probe.write_text(snippet, encoding="utf-8")
+        assert _susds_active_ban_lines(probe), (
+            f"detector went blind on the pre-fix text of {name} — it would no longer catch the "
+            "stale-ban class that produced a FALSE CRITICAL on 2026-08-16:\n" + snippet
+        )
+
+
+def test_susds_detector_accepts_the_fixed_text(tmp_path):
+    """Negative control: the text as it stands AFTER this fix must pass.
+
+    Without this, a detector that flags everything would look just as green, and
+    the guard would push docs to delete history instead of dating it.
+    """
+    fixed = (
+        "- **Sky/sUSDS: the 0% rule is LIFTED** — the on-chain GSM Pause Delay ≥ 48h\n"
+        "  precondition was met on 2026-08-05 (48.00 h, 3 independent RPC) and `sky_susds`\n"
+        "  moved WL → T1; the share is decided by the allocator (ADR-065)\n"
+    )
+    probe = tmp_path / "fixed.md"
+    probe.write_text(fixed, encoding="utf-8")
+    assert not _susds_active_ban_lines(probe), (
+        "the corrected wording is flagged as an active ban — the guard would nag forever "
+        "and teach the next session to disable it"
+    )
+
+
+def test_susds_guard_scans_the_docs_it_claims_to_scan(tmp_path):
+    """A scanner that reaches nothing is green by construction (audit lesson:
+    a guard whose corpus is empty answers 'ok' about a world it never read)."""
+    scanned = {p.relative_to(_REPO_ROOT).as_posix() for p in _susds_scanned_docs()}
+    for must in ("CLAUDE.md", "docs/RISK_MANAGEMENT_POLICY.md", "docs/SOURCE_INTEGRATION_GUIDE.md"):
+        assert must in scanned, f"{must} is not in the scanned corpus — the guard cannot see it"
+    assert len(scanned) > 50, f"scanned corpus suspiciously small ({len(scanned)} docs)"
+
+
+def test_susds_canonical_rule_docs_state_the_lift():
+    """CLAUDE.md and the adapters rule are what every session reads first — they
+    must carry the lift, not merely stop carrying the ban."""
+    for rel in ("CLAUDE.md", ".claude/rules/adapters.md"):
+        text = _read(_REPO_ROOT / rel)
+        assert re.search(r"gsm|pause[\s-]*delay|DSPause", text, re.IGNORECASE), (
+            f"{rel} no longer mentions the GSM condition at all — the lift is only honest if the "
+            "condition it cleared is still named."
+        )
+        assert re.search(r"выполнено|снят|ADR-065|2026-08-05|05\.08\.2026", text), (
+            f"{rel} names the GSM condition but never says it was MET (2026-08-05, ADR-065)."
+        )
