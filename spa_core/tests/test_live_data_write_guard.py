@@ -31,6 +31,8 @@ from pathlib import Path
 
 import pytest
 
+from spa_core.tests import _child_pytest
+
 # Тот САМЫЙ объект, который зарегистрировали оба conftest (они грузят модуль по
 # пути к файлу под именем `spa_live_data_write_guard`). Вторая копия сторожа
 # проверяла бы не то, что работает в прогоне.
@@ -90,9 +92,9 @@ def _run_child(test_file, with_guard, env_extra=None):
     env.pop(guard.AUDIT_ENV, None)
     env.pop(guard.AUDIT_OUT_ENV, None)
     env.update(env_extra or {})
-    cmd = [sys.executable, "-m", "pytest", str(test_file), "-q", "-p", "no:cacheprovider"]
+    extra = ["-q", "-p", "no:cacheprovider"]
     if with_guard:
-        cmd += ["-p", "live_data_write_guard"]
+        extra += ["-p", "live_data_write_guard"]
     if env_extra is None or "PATH" not in env_extra:
         # Дочерний прогон идёт БЕЗ git НАМЕРЕННО. Сторож тогда работает в своём
         # штатном запасном режиме (`tracked_paths() is None` ⇒ наблюдается весь
@@ -102,18 +104,24 @@ def _run_child(test_file, with_guard, env_extra=None):
         env["PATH"] = ""
     # Потолок узкий НАМЕРЕННО: здоровый прогон занимает доли секунды, и зависший
     # дочерний pytest обязан назваться быстро, а не съесть цикл.
-    return subprocess.run(
-        cmd, cwd=str(REPO_ROOT), env=env, capture_output=True, text=True, timeout=120
+    return _child_pytest.run_child_pytest(
+        test_file, *extra, cwd=REPO_ROOT, env=env, timeout=120
     )
 
 
 def _write_child(body, decoy):
-    """Файл подставного теста — ВНЕ basetemp родителя.
+    """Файл подставного теста — в собственном временном каталоге.
 
-    Замер #315: дочерний pytest, чей файл лежит внутри `pytest-of-<user>/pytest-N`,
-    не доходит даже до `--collect-only` (300 с и таймаут), а тот же файл вне этого
-    дерева отрабатывает за 0.00 с. Поэтому здесь `tempfile.mkdtemp()`, а не
-    фикстура `tmp_path`.
+    Замер #315: дочерний pytest, чей файл лежал внутри `pytest-of-<user>/pytest-N`,
+    не доходил даже до `--collect-only` (300 с и таймаут), а тот же файл вне этого
+    дерева отрабатывал за 0.00 с — отсюда `tempfile.mkdtemp()` вместо `tmp_path`.
+
+    Цикл #382 измерил ПРИЧИНУ, и она не в каталоге: pytest считает rootdir общим
+    предком cwd и аргумента и обходит `scandir`-ом всё, что накрыл. `mkdtemp`
+    спасал лишь потому, что возвращает НЕразрешённый `/var/...`; один `.resolve()`
+    вернул бы аварию. Настоящая защита теперь — якорь `--rootdir` в
+    `_child_pytest.run_child_pytest`, а каталог остаётся своим просто ради
+    изоляции улик.
     """
     child_dir = Path(tempfile.mkdtemp(prefix="spa_live_data_guard_control_"))
     test_file = child_dir / "test_writer.py"
