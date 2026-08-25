@@ -200,3 +200,30 @@ pytest уже содержит корень репо и доказал бы не
 пользуется человек руками, когда заводит новый адаптер. Вопрос владельцу — подключать его шагом
 цикла или честно оставить ручным инструментом (тогда храповик обязан знать про такой класс).
 
+
+---
+
+## ➕ Замер с ветки (цикл #375, пачка 4 — карточка `inbox-sem-skriptov-bez-vyzyvayuschego-razbor` НЕ перенесена как повтор)
+
+На ветке тот же предмет разобран карточкой `inbox-sem-skriptov-bez-vyzyvayuschego-razbor`
+(`done` НА ВЕТКЕ, 15.08). Дубля не завожу — её таблица приложена сюда, чтобы не собирать её заново:
+
+| скрипт | что держало его «подключённым» | что это такое |
+|---|---|---|
+| `audit_tier_c_wiring_feasibility` | докстринг сгенерированного им же `spa_core/analytics/_protocol_key_coverage.py` | разовый аудит-генератор |
+| `reap_stale_worktrees` | докстринг + шаг 0г `docs/ORCHESTRATOR_PROTOCOL.md` | уборщик мёртвых worktree'ов |
+| `run_stress_tests` | докстринг `spa_core/stress/stress_engine.py` | CLI стресс-движка MP-112 |
+| `smoke_test_flagship` | докстринг `scripts/smoke.py` («в отличие от …») | тяжёлый end-to-end смоук |
+| `day30_review` | самоупоминание `spa_core/riskwire/day30_review.py` | тонкая обёртка над ЖИВЫМ модулем WS1.3 |
+| `ots_anchor` | самоупоминание `spa_core/audit/ots_anchor.py` | CLI внешнего якорения (ADR-YL-010) |
+| `perf_budget` | подстрока внутри `dfb_perf_budget.py` | perf-гейт money-path (WS-6.5) |
+
+**Это НЕ брак измерения:** проверено сплошным поиском по `*.sh`, `*.plist`, `*.yml`, `*.json` и по
+всем импортам — ни plist'а, ни обёртки, ни CI-шага, ни импорта, ноль у всех семи. Храповик
+краснел ПРАВДУ.
+
+**Перемерено мной на `main` `d4e4fc18d`:** в базе `spa_core/tests/unwired_scripts_baseline.json`
+сегодня 54 имени + 12 в разделе `revealed_by_stricter_detector`; `reap_stale_worktrees` и
+`day30_review` в базе отсутствуют — то есть по ним вердикт с тех пор изменился, и разбор надо
+начинать с перезамера, а не с этой таблицы. Прогон `test_unwired_scripts_ratchet` на `main` мой:
+**8 passed**.

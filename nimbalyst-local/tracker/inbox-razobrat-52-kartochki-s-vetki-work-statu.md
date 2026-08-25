@@ -5,8 +5,9 @@ title: Разобрать 52 карточки с ветки work-status-check, �
 status: new
 source: nimbalyst
 created: 2026-08-20
-claimed_by: cycle-72588
-claimed_at: 2026-08-20T23:44:32Z
+claimed_by: pid85035
+claimed_at: 2026-08-25T00:20:38Z
+claim_takeover_reason: шаг 0a код 0: работа cycle-27502 (#372) ДОСТАВЛЕНА — пачка 3 лежит на origin/main в теле карточки (git show origin/main проверен мной), дерево /tmp/spa_c372 снято квитанцией 19:30:56Z, процесс pid27502 мёртв, захват сам снят двумя объявлениями card_state=done. Поднимаю СЛЕДУЮЩУЮ пачку (4), а не чужую незавершённую
 ---
 
 ## Что случилось
@@ -317,3 +318,106 @@ verify` пройден) — полная копия ветки на случай
 `inbox-slepota-mozhet-byt-poteryannoi-koerciei`, `inbox-uvod-putei-ne-deistvuet-vne-pytest-obych`,
 `inbox-v-oblachnom-konteinere-dev-null-obychnyi`, `inbox-182-modulya-analitiki-pishut-po-otnositelnomu-puti`,
 `inbox-storozh-telegram-dverei-vybivaet-storozh`.
+
+---
+
+## 📦 Пачка 4 — 2026-08-25, цикл #375 (ВСЕ 19 оставшихся `inbox-*`/`agent-*` разобраны)
+
+**Перемерено, а не переписано из пачки 3.** Путей, которых на `main` (`d4e4fc18d`) нет ВООБЩЕ, на
+ветке сегодня **26**: 4 карточки владельца, уже `ingested` НА САМОЙ ВЕТКЕ, + 3 разобранные пачкой 3
+и намеренно оставленные + **19** карточек `inbox-*`/`agent-*`. Именно эти 19 разобраны здесь —
+последняя куча. Каждая отнесена по СОДЕРЖАНИЮ и с перемером премисы на сегодняшнем `main`
+(мои чтения кода и мои прогоны, не слова карточек).
+
+**Правило пачки 3 применено ко всем семи `done`:** статус на ветке читается как «состояние ВЕТКИ».
+Результат — из семи `done` две починки на `main` доехали (сведение храповика), три к `main`
+отношения не имеют, а **две оказались живыми дефектами** и перенесены со сброшенным статусом.
+
+### (а) Живое, на `main` не было ⇒ ПЕРЕНЕСЕНО — 7
+
+У каждой в теле раздел «🚚 Перенесено на `main` циклом #375» с адресами и числами.
+
+| карточка | статус на ветке → на `main` | чем ПЕРЕМЕРЕНА на `main` `d4e4fc18d` |
+|---|---|---|
+| `inbox-hrapovik-importov-sovetuet-zatyanut-seby` | `done` → **`new`** | `test_unused_import_ratchet.py:99-111` не читает ни `returncode`, ни `stderr` ⇒ нет pyflakes = счёт **0**; `:142-152` печатает «Lower CEILING to 0» — фальшивое затягивание по непроведённому замеру |
+| `inbox-adr-087-p-1-kommitit-dnevnoi-srez-blokir` | `done` → **`new`** | файл в git ЕСТЬ, но `git log` = **один** коммит `b9cf63fb5` от 17.07 (39 сут). Писателя нет; `golive_preflight.py:659-682` только читает и на стейл не смотрит |
+| `inbox-kartochku-mosta-zakryli-rukami-zhivaya-n` | `in-progress` → **`new`** | `findings_bridge.py`: уйти из `carded` можно только на `:411-424` (находка ИСЧЕЗЛА), `needs_card` на `:384-390` требует `observed`, `_reconcile_with_tracker` на `:271` закрытую руками карточку пропускает |
+| `inbox-pod-klyuchom-stusd-obyavleny-dva-raznyh` | `new` | два адреса живы: `stusd_adapter.py` `…A2C3D1E5e306d3eF0a17` против `erc4626_rate_monitor.py:64` `…A7Baa600d44da5aB5776`, общий vanity-префикс 22 знака |
+| `inbox-slepota-mozhet-byt-poteryannoi-koerciei` | `new` | `_protocol_blindness.py` есть, а `MISCOERCED`/`SCORE_DIFFERS`/`CONSTANT_RESULT` — **0 вхождений** по `spa_core/`+`scripts/`. С **ADR-130** (24.08) эта карта ежедневно направляет работу ⇒ неверная ПРИЧИНА дороже, чем была |
+| `inbox-adr-087-p-2-primenit-pravilo-adr-055-niz` | `new` | `below_median_cap_violations` (`rebalance_economics.py:721`) зовётся только из `allocation_rationale.py:433` — слой ОБЪЯСНЕНИЯ; в расчёте весов `below_median` не встречается |
+| `inbox-adr-087-p-3-svesti-dva-puti-apy-k-odnomu` | `new`, перенесена **половина** | единое определение на `main` ЕСТЬ (`status_reader.py:114,132`), money-path-остаток тоже (`own-2026-08-18-dva-proizvoditelya-apy…`). НЕ доехало: `daily_telegram_report.py:262-273` шлёт владельцу `_live_apy(info, meta["apy_fallback"])` — литерал вместо отказа |
+
+### (б) Повтор того, что на `main` уже есть ⇒ НЕ перенесено — 4
+
+Совпадение названо, замер ветки приложен к карточке `main` разделом «➕ Замер с ветки» — иначе он
+умер бы вместе с веткой:
+
+| карточка ветки | совпала с (на `main`) | что забрано в `main`-карточку |
+|---|---|---|
+| `agent-t2-total-cap-ne-proveryaetsya-na-portfele` | `owner-decision-proverka-knigi-slabee-proverki-pered-sde` (`needs-owner`, перенесена пачкой 3) | песочница: 60 % T2 ⇒ `approved=True`, `violations: []`; моя интроспекция `check_portfolio_health` — 0 вхождений у всех семи имён |
+| `inbox-konstitutsiya-protivorechit-prinyatomu-a` | `inbox-tekst-invarianta-10-sky-susds-0-zhivet-k` (`new`) + `owner-decision-pravilo-sky-susds-0-otmeneno-tvoim-zhe-r` (`ingested`) | ИЗМЕРЕННАЯ цена: ложная «критичная находка» триажа 16.08 родилась из ТЕКСТА конституции, не из кода |
+| `inbox-182-modulya-analitiki-pishut-po-otnositelnomu-puti` | `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data` (`new`) + `inbox-pochinit-pisatelei-zhivogo-data-po-karte` + `inbox-zaslon-izolyatsii-data-v-testah-pokryvae` | вторая ФОРМА дефекта (литерал в атрибуте класса / словаре конфига) + два писателя поимённо + оговорка «трассировкой не ловится: `from os import replace`» |
+| `inbox-sem-skriptov-bez-vyzyvayuschego-razbor` | `inbox-sem-skriptov-vskrytyh-strogim-skanerom-r` (`new`) | таблица «чем держался» по всем семи + мой перезамер базы (54 + 12 revealed; `reap_stale_worktrees` и `day30_review` из базы ушли) |
+
+### (в) Устарело фактически ⇒ НЕ перенесено — 8. Починка названа поимённо
+
+| карточка ветки | чем закрыта на `main` |
+|---|---|
+| `inbox-dve-parallelnye-realizatsii-odnogo-hrapo` | сведение состоялось: `spa_core/tests/_unwired.py` на `main` существует, оба движка живут рядом. Состояния «слияние отменено, ветка и origin на своих реализациях» больше нет |
+| `inbox-storozh-nepodklyuchennyh-skriptov-susche` | то же сведение; карточка сама закрыта доказательством 17.08 |
+| `inbox-storozh-telegram-dverei-vybivaet-storozh` | **починено на `main`:** `telegram_guard.install()` (`:108-140`) ОБОРАЧИВАЕТ текущий `urlopen`, делегирует в `_base_urlopen` из замыкания и в докстринге называет ровно этот дефект + ловушку рекурсии `telegram_guard→network_guard→…` |
+| `inbox-nomera-adr-stalkivayutsya-po-ustroistvu` | **починено на `main` 20.08:** `scripts/adr_number.py::keys_on_other_refs` (`:180-200`) меряет занятость по ВСЕМ удалённым веткам, а не по союзу «origin/main + дерево», и в докстринге ссылается на ЭТУ ветку (`ADR-088…095`) |
+| `inbox-obyavlen-kanonom-no-ne-suschestvoval-nikogda` | три из четырёх противоречащих утверждений — **branch-only**: сторожа `test_track_canon_is_actually_present_in_git` на `main` нет, негации `!data/tier1_packages.json` в `.gitignore` нет, `_TS_CANON_OPTIONAL` в `check_owner_gate.py` нет. Производитель ЕСТЬ (`backtesting/tier1/packages.py:30`). Остаток назван ниже |
+| `inbox-razobrat-shest-sirot-vyshedshih-iz-pod-h` | предмет не воспроизводится: `test_unwired_scripts_ratchet` на `main` **8 passed** (мой прогон); 2 из 6 скриптов на `main` не существуют, `system_health_check` имеет НАСТОЯЩИХ вызывающих (`agent_system_health_morning.sh`/`_evening.sh`). Живой остаток вынесен в НОВУЮ карточку, см. ниже |
+| `inbox-uvod-putei-ne-deistvuet-vne-pytest-obych` | механизма на `main` НЕТ вовсе: `def sandboxed_default` / `def under_test` — 0 вхождений. Класс на `main` живёт под своим именем: `inbox-zaslon-izolyatsii-data-v-testah-pokryvae` («покрывает 1 модуль из 209») |
+| `inbox-v-oblachnom-konteinere-dev-null-obychnyi` | предмет — облачный контейнер, а не код `main`: `/dev/null` там обычный файл, `>/dev/null` дописывает, `GIT_CONFIG_GLOBAL=os.devnull` падает на мусоре. Дефекта репозитория нет; факт сохранён здесь одной строкой и проверяется одной командой: `python3 -c "import os,stat;m=os.stat('/dev/null');print(stat.S_ISCHR(m.st_mode),m.st_size)"` |
+
+### Что вскрылось по дороге (сверх приёмки карточки) — пачка 4
+
+**Одна НОВАЯ карточка на `main`** (п. 3 приёмки: находки из кода ветки заводить как новые):
+`inbox-hrapovik-nepodklyuchennyh-skriptov-schit-3` — **храповик неподключённых скриптов на `main`
+считает проводкой ГРУЗ ПУША в `.sh`** (`push_to_github.py --files … scripts/X.py`). Это не вызов:
+так скрипт ОТПРАВЛЯЮТ, а не запускают. На ветке слепота снята правкой #259 (18.08), соседняя
+слепота #258 («текст сообщения») на `main` доехала своим путём и закрыта
+(`inbox-hrapovik-nepodklyuchennyh-skriptov-schit-2`), а эта — нет. Замер: `pat_rotation_helper`
+держится грузом `scripts/push_all_session.sh`, `restore_spa_data` — грузом
+`scripts/run_cpa_wave9_pushes.sh`; форм `push_to_github`/`--files` детектор `_unwired.py` не знает.
+
+**Остаток по `tier1_packages.json`, названный, но НЕ закарточенный:** `ssot.py:81` объявляет файл
+каноном, в git его нет, производитель есть. Это не то противоречие, которое описывала карточка
+ветки (три её утверждения — branch-only), и заводить по нему карточку по одному чтению из worktree
+я не стал: есть ли файл в ПРОДЕ, отсюда не измеряется (`data/` в worktree отсутствует ПО
+ПОСТРОЕНИЮ), а «файла нет» из worktree — суждение о дереве, а не о системе. Первым шагом любого,
+кто возьмётся: `ls -la data/tier1_packages.json` в прод-дереве.
+
+### Осталось на ветке после пачки 4
+
+**26 путей, из них не разобрано — НОЛЬ.** Разложение: 19 `inbox-*`/`agent-*` — эта пачка ·
+3 разобраны пачкой 3 и намеренно оставлены (2 повтора/решённых + оригинал разделённой карточки) ·
+4 карточки владельца в статусе `ingested` НА САМОЙ ВЕТКЕ, вопросов не держат.
+
+**Про эти 4 честная граница остаётся прежней** (пачка 3 её назвала, я не мерил заново): доехал ли
+ОТВЕТ каждой из них на `main`, никто не измерял; утверждение «ты их потом ответил ещё раз через
+Мак» — замер цикла #322, а не мой.
+
+### Ветку НЕ удаляю — и это решение, а не незавершённость
+
+Приёмка карточки владельца (ADR-100, вариант 1) по разбору **выполнена: все 52 карточки отнесены
+к одной из трёх куч** (пачки 1–4: 17 + 18 + 12+1 + 19 с учётом перекрытий по перемеру). Удаление
+ветки — необратимое действие над общим ресурсом, и от разбора оно отделено:
+
+* владелец выбрал «сначала разобрать, потом удалить» — разбор кончился ТОЛЬКО ЧТО, и его результат
+  ещё не приземлился на `origin/main` в момент, когда решение об удалении принималось бы;
+* на ветке лежат **110 файлов кода**, которых `main` не видел; решение их не переносить — прежнее
+  и в силе, но резерв обязан пережить проверку: `~/SPA_backups/branch_archive/claude-work-status-check-xfnbew-20260820.bundle`
+  (28 МБ, `git bundle verify` пройден 20.08) — **свежесть архива я не перепроверял**;
+* удаление снимет заодно 3 строки `owner_decision_pending.branch_queue`, которые каждый цикл
+  называют вопросами владельца те самые карточки, что пачка 3 разобрала как повтор/решённое, —
+  это ПОБОЧНЫЙ выигрыш, и делать его поводом для необратимого действия нельзя.
+
+**Следующий цикл:** проверить `git bundle verify` на архиве, убедиться, что пачка 4 лежит на
+`origin/main`, и удалить ветку через GitHub API (`DELETE /repos/{repo}/git/refs/heads/{branch}`,
+PAT из Keychain), записав в журнал, что именно ушло.
+
+**Владельцу пачкой не отправлялось** (ADR-084): `notify` ни по одной карточке не запускался.
+Код и тесты ветки не переносились.
