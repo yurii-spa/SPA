@@ -68,6 +68,7 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import json
 from pathlib import Path
 from typing import Iterable
@@ -115,6 +116,70 @@ WRITER_CALLS = frozenset({"atomic_save", "atomic_save_text"})
 SIGNAL_OR = "or_falsy"
 SIGNAL_EXCEPT = "except_success"
 SIGNALS = (SIGNAL_OR, SIGNAL_EXCEPT)
+
+
+#: Длина отпечатка выражения. Двенадцать шестнадцатеричных знаков — 48 бит: на 247
+#: членах класса случайное столкновение практически исключено, а строка базы остаётся
+#: читаемой глазом в diff.
+ANCHOR_DIGEST_LEN = 12
+
+
+def normalise_code(node: ast.AST) -> str:
+    """Текст выражения, из которого убраны отступы и переносы.
+
+    ``ast.unparse`` уже отбрасывает комментарии и приводит запись к канону, поэтому
+    переформатирование члена (перенос длинной строки, смена кавычек) его НЕ сдвигает,
+    а изменение самого выражения — сдвигает. Это ровно то различие, ради которого
+    якорь и заводится.
+    """
+    return " ".join(ast.unparse(node).split())
+
+
+def code_digest(code: str) -> str:
+    return hashlib.sha256(code.encode("utf-8")).hexdigest()[:ANCHOR_DIGEST_LEN]
+
+
+def place_parts(place: str) -> tuple[str, str, str]:
+    """``(файл, строка-ПОДСКАЗКА, якорь)`` для места из базы или из дерева.
+
+    Старая форма ``файл.py:НОМЕР`` (до перехода на якорь по содержимому) даёт пустой
+    якорь — и распознаётся как таковая, а не притворяется совпадением: половинчатая
+    база обязана краснеть, а не молча ничего не находить.
+    """
+    rel, _, rest = place.partition(":")
+    line, _, anchor = rest.partition(":")
+    return rel, line, anchor
+
+
+def place_key(place: str) -> str:
+    """Ключ СРАВНЕНИЯ места: файл + отпечаток выражения + порядковый номер.
+
+    Номера строки здесь НЕТ намеренно. Пока ключом была координата, храповик краснел
+    на любой вставке строк ВЫШЕ члена и звал это «новым местом класса» (цикл #374:
+    ``agent_health_monitor.py:1156`` уехал на ``:1170``, код побайтово тот же). Хуже
+    того, сдвиг мог и СПРЯТАТЬ находку: съехавший член попадал на координату соседа,
+    уже лежащую в базе, и настоящее новое место оставалось незамеченным (замер #378
+    на ``apy_aggregator.py``: 329→332 при живом 332 ⇒ ложно-новых 1 вместо 2).
+    """
+    rel, _line, anchor = place_parts(place)
+    return f"{rel}:{anchor}" if anchor else place
+
+
+def place_sort_key(place: str) -> tuple[str, str]:
+    """Порядок базы. По ЯКОРЮ, а не по номеру строки — иначе перестановка строк
+    перетряхивала бы весь файл базы, то есть возвращала бы diff-шум, ради снятия
+    которого якорь и вводится."""
+    rel, _line, anchor = place_parts(place)
+    return (rel, anchor)
+
+
+def place_file(place: str) -> str:
+    return place_parts(place)[0]
+
+
+def has_anchor(place: str) -> bool:
+    return bool(place_parts(place)[2])
+
 
 
 def _falsy_literal(node: ast.AST) -> str | None:
@@ -187,7 +252,18 @@ def writes_artifact(tree: ast.AST) -> bool:
 
 
 def scan_source(source: str, rel_path: str) -> list[dict]:
-    """Члены класса в ОДНОМ файле. Пустой список — файл чист либо не писатель."""
+    """Члены класса в ОДНОМ файле. Пустой список — файл чист либо не писатель.
+
+    ``where`` несёт три вещи через двоеточие: файл · номер строки · якорь
+    ``<отпечаток>#<порядковый>``. Сравнивают члены по ЯКОРЮ (``place_key``), номер
+    строки остаётся подсказкой человеку и может отстать — обновлять его отдельным
+    падением теста было бы возвращением ровно той болезни, от которой якорь и лечит.
+
+    Порядковый номер нужен там, где в одном файле лежат ДВА одинаковых выражения
+    (``alpha_agent.py`` — четыре пары): без него у них был бы один ключ и второе
+    место исчезло бы из учёта. Появление третьего такого же выражения даёт ``#2``,
+    которого в базе нет, — то есть настоящее новое место по-прежнему ловится.
+    """
     try:
         tree = ast.parse(source)
     except SyntaxError:
@@ -195,6 +271,14 @@ def scan_source(source: str, rel_path: str) -> list[dict]:
     if not writes_artifact(tree):
         return []
     found: list[dict] = []
+    seen: dict[tuple[str, str], int] = {}
+
+    def _place(node: ast.AST, signal: str, code: str) -> str:
+        digest = code_digest(code)
+        ordinal = seen.get((signal, digest), 0)
+        seen[(signal, digest)] = ordinal + 1
+        return f"{rel_path}:{node.lineno}:{digest}#{ordinal}"
+
     for node in ast.walk(tree):
         if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.Or):
             literal = _falsy_literal(node.values[-1])
@@ -204,9 +288,11 @@ def scan_source(source: str, rel_path: str) -> list[dict]:
                     keys.extend(_lookup_keys(value))
                 hit = [k for k in keys if is_observation_key(k)]
                 if hit:
+                    code = normalise_code(node)
                     found.append({
                         "signal": SIGNAL_OR,
-                        "where": f"{rel_path}:{node.lineno}",
+                        "where": _place(node, SIGNAL_OR, code),
+                        "code": code,
                         "detail": f"{hit[0]!r} or {literal}",
                     })
         if isinstance(node, ast.ExceptHandler):
@@ -214,9 +300,11 @@ def scan_source(source: str, rel_path: str) -> list[dict]:
                 if isinstance(sub, ast.Return) and sub.value is not None:
                     literal = _success_literal(sub.value)
                     if literal:
+                        code = normalise_code(sub)
                         found.append({
                             "signal": SIGNAL_EXCEPT,
-                            "where": f"{rel_path}:{sub.lineno}",
+                            "where": _place(sub, SIGNAL_EXCEPT, code),
+                            "code": code,
                             "detail": f"except -> return {literal}",
                         })
     return found
@@ -240,7 +328,7 @@ def scan_tree(root: str | Path = REPO_ROOT,
             except OSError:
                 continue
             found.extend(scan_source(source, rel))
-    found.sort(key=lambda item: (item["signal"], item["where"]))
+    found.sort(key=lambda item: (item["signal"], place_sort_key(item["where"])))
     return found
 
 
@@ -253,4 +341,44 @@ def baseline_places(baseline: dict, signal: str) -> list[str]:
 
 
 def places_of(found: list[dict], signal: str) -> list[str]:
-    return sorted({item["where"] for item in found if item["signal"] == signal})
+    return sorted({item["where"] for item in found if item["signal"] == signal},
+                  key=place_sort_key)
+
+
+def keys_of(places: Iterable[str]) -> set[str]:
+    """Множество ключей сравнения. Работать НАДО с ним, а не со строками мест:
+    строка несёт номер-подсказку и расходится от сдвига, ключ — нет."""
+    return {place_key(p) for p in places}
+
+
+def build_baseline(root: str | Path = REPO_ROOT, measured_on: str = "") -> dict:
+    """Тело базы по ЖИВОМУ дереву — чтобы переякорение было воспроизводимой командой,
+    а не ручной правкой 247 строк.
+
+    Ничего не решает за человека: возвращает словарь, записывать его или нет — дело
+    вызывающего. Пересобирать базу, ЧТОБЫ ПОГАСИТЬ падение, по-прежнему запрещено
+    (инвариант #16): счёт членов сторожит ``CEILINGS`` в тесте, и он не поднимается.
+    """
+    found = scan_tree(root)
+    baseline = load_baseline()
+    for signal in SIGNALS:
+        baseline["signals"][signal]["places"] = places_of(found, signal)
+    if measured_on:
+        baseline["measured_on"] = measured_on
+    return baseline
+
+
+if __name__ == "__main__":                                   # переякорение вручную
+    import argparse
+
+    ap = argparse.ArgumentParser(description="Пересобрать базу класса по дереву.")
+    ap.add_argument("--write", action="store_true", help="записать в базу (иначе — счёт)")
+    ap.add_argument("--measured-on", default="", help="sha дерева, на котором мерили")
+    args = ap.parse_args()
+    fresh = build_baseline(measured_on=args.measured_on)
+    for sig in SIGNALS:
+        print(f"{sig}: {len(fresh['signals'][sig]['places'])}")
+    if args.write:
+        BASELINE_PATH.write_text(
+            json.dumps(fresh, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(f"записано: {BASELINE_PATH}")
