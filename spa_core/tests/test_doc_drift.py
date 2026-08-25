@@ -601,11 +601,13 @@ _SUSDS_HISTORY_DOCS = {
     "docs/research/PROTOCOL_RESEARCH_v469.md",
 }
 # Owner-gated: a contract term, not a reference sentence. Named with its reason.
-_SUSDS_OWNER_GATED_DOCS = {
-    "docs/legal/DOGOVIR_PROSTOGO_TOVARYSTVA_TEMPLATE.md":
-        "договорный термин: правку условия в юридическом шаблоне делает владелец, не агент — "
-        "вопрос заведён карточкой owner-decision-v-shablone-dogovora-ostalos-snyatoe-ogra (#380)",
-}
+# EMPTY since 2026-08-25 (cycle #381): the single entry was the legal template, and
+# the owner answered the card that held it (option 2, 10:23Z) — the term is now a
+# general governance-precondition rule that names no protocol, so the exception had
+# to go. The list stays here as a RATCHET on future entries, not as decoration: an
+# empty allowlist makes the test below vacuous, so the teeth moved to
+# test_susds_legal_template_is_scanned_like_any_living_doc — a re-add would fail it.
+_SUSDS_OWNER_GATED_DOCS: dict[str, str] = {}
 _SUSDS_SKIP_DIRS = ("docs/journal/", "docs/decisions/", "docs/ideas/", "docs/rules-draft/")
 # A dated or explicitly-superseded header is what makes a history doc readable as
 # history. Checked against the head of the file, not asserted by the list.
@@ -697,6 +699,65 @@ def test_susds_owner_gated_exception_is_named_with_a_reason_and_still_needed():
         )
 
 
+# --- cycle #381: the owner answered, so the exception is gone. These two carry the
+# --- teeth the now-empty allowlist can no longer carry.
+_LEGAL_TEMPLATE = "docs/legal/DOGOVIR_PROSTOGO_TOVARYSTVA_TEMPLATE.md"
+
+
+def test_susds_legal_template_is_scanned_like_any_living_doc():
+    """The template lost its exemption — it must now pass on its own merits.
+
+    Owner decision 2026-08-25 (option 2): the contract term became a general
+    governance-precondition rule naming no protocol. Two ways that could rot
+    silently, and this test closes both: the file quietly re-enters an exception
+    list, or the ban text comes back under the exemption nobody re-reads.
+    """
+    path = _REPO_ROOT / _LEGAL_TEMPLATE
+    assert path.is_file(), f"{_LEGAL_TEMPLATE} vanished — the owner decision has no subject left"
+    scanned = {p.relative_to(_REPO_ROOT).as_posix() for p in _susds_scanned_docs()}
+    assert _LEGAL_TEMPLATE in scanned, (
+        f"{_LEGAL_TEMPLATE} is no longer in the scanned corpus — it would be green by "
+        "construction, exactly the blindness the owner-gated exception used to make VISIBLE"
+    )
+    assert _LEGAL_TEMPLATE not in _SUSDS_OWNER_GATED_DOCS, (
+        f"{_LEGAL_TEMPLATE} was put back into _SUSDS_OWNER_GATED_DOCS. The owner ANSWERED that "
+        "card on 2026-08-25 (option 2) — re-exempting it re-opens a decided question silently. "
+        "If the contract term genuinely changed again, that is a NEW owner-decision card."
+    )
+    assert _LEGAL_TEMPLATE not in _SUSDS_HISTORY_DOCS, (
+        f"{_LEGAL_TEMPLATE} is a LIVE contract template, not a dated snapshot — it must not be "
+        "parked in the history allowlist"
+    )
+    offenders = _susds_active_ban_lines(path)
+    assert not offenders, (
+        f"{_LEGAL_TEMPLATE} states the lifted Sky/sUSDS ban as an ACTIVE contract term again: "
+        f"{offenders}. This template goes to a real person; per the owner's decision the clause "
+        "must be a general governance-precondition rule that names no protocol."
+    )
+
+
+def test_susds_detector_accepts_the_general_governance_rule(tmp_path):
+    """Negative control on the EXACT replacement wording the owner chose.
+
+    Without it, a detector tightened later could start flagging the very sentence
+    the owner approved, and the next session would learn to disable the guard
+    instead of fixing it.
+    """
+    probe = tmp_path / "dogovir.md"
+    probe.write_text(
+        "- APY нової позиції: 1%–30% (позиції поза діапазоном — заблоковані)\n"
+        "- Протокол, безпека якого спирається на governance-передумову (затримка паузи, "
+        "таймлок тощо),\n"
+        "  допускається до портфеля **лише після підтвердження цієї передумови on-chain**; до\n"
+        "  підтвердження його частка — 0%\n",
+        encoding="utf-8",
+    )
+    assert not _susds_active_ban_lines(probe), (
+        "the owner-approved general rule is flagged as an active Sky/sUSDS ban — the guard "
+        "would nag forever on the wording the owner himself chose"
+    )
+
+
 # Verbatim pre-fix snippets from origin/main before cycle #380 — one per doc that
 # had to be fixed. Kept as multi-line blocks because two of them state the ban
 # across a sentence break, which is exactly the shape a line-only detector misses.
@@ -718,6 +779,10 @@ _SUSDS_PRE_FIX_SNIPPETS = {
         "**Decision:** Sky/sUSDS allocation remains 0% until on-chain confirmation of "
         "GSM (Governance Security Module) Pause Delay ≥48 hours.\n"
     ),
+    # Cycle #381 (owner option 2, 2026-08-25): verbatim line 354 of the legal
+    # template before the reformulation. It was the LAST owner-gated exception —
+    # if the detector goes blind on it, emptying that allowlist means nothing.
+    "DOGOVIR_TEMPLATE": "- Sky/sUSDS: **0% до підтвердження GSM Pause Delay ≥ 48h on-chain**",
     "protocol_research_ru": (
         "**Tier Decision: T1**\n"
         "Текущий статус: **0% аллокации** до подтверждения on-chain GSM Pause Delay ≥ 48h\n"

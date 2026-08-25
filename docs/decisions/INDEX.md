@@ -87,6 +87,7 @@
 | ADR-YL-011 | Site Custodian — защита earn-defi.com от stale-чисел | Accepted | [ADR-YL-011](ADR-YL-011-site-custodian.md) |
 | ADR-YL-012 | SPA Swarm — 5-слойный рой над aggressive-доменом (advisory) | Accepted | [ADR-YL-012](ADR-YL-012-spa-swarm.md) (charter `docs/SWARM_ARCHITECTURE.md`) |
 | ADR-OWN-2026-07 | Пакет закрытых решений владельца (июль 2026) | Accepted | [ADR-OWN-2026-07](ADR-OWN-2026-07-owner-decisions-batch.md) |
+| ADR-131 | Ограничение в шаблоне договора — общее правило governance-предусловия, без имени протокола (решение владельца 25.08, вариант 2) | Accepted | [ADR-131](ADR-131-contract-governance-precondition-rule.md) |
 | ADR-OWN-2026-07 (autoship) | Автономный авто-шип сайта под owner-gate (full auto-ship, owner-approved) | Accepted | [ADR-OWN-2026-07-autoship](ADR-OWN-2026-07-autoship.md) |
 | ADR-OWN-2026-07 (lead-pings) | Мгновенный Telegram-пинг о крупных/B2B заявках (Q-OWN-16, one-shot key) | Accepted | [ADR-OWN-2026-07-lead-pings](ADR-OWN-2026-07-lead-pings.md) |
 | ADR-OWN-2026-07 (repo-freeze) | Инцидент freeze-main-phase0: пуши восстановлены (bypass admin), запрет молчаливых изменений настроек репо/launchd | Accepted | [ADR-OWN-2026-07-repo-freeze-incident](ADR-OWN-2026-07-repo-freeze-incident.md) |
