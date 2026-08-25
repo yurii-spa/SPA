@@ -167,5 +167,114 @@ class TestTheDetectorItself(unittest.TestCase):
         self.assertFalse(watched & registry_recorded_scripts())
 
 
+class TestDeliveryPayloadIsNotACall(unittest.TestCase):
+    """Груз пуша в `.sh` — не вызов (цикл #379, карточка
+    `inbox-hrapovik-nepodklyuchennyh-skriptov-schit-3`).
+
+    `python3 push_to_github.py --files … scripts/X.py` ОТПРАВЛЯЕТ `X.py` на origin.
+    Скрипт, у которого нет ни одного настоящего вызывающего, числился подключённым
+    ровно потому, что однажды уехал в пуше — доказательство слабее вызова, того же
+    класса, что докстринг (#255) и текст сообщения (#278).
+
+    Каждая проверка ниже строит СВОЁ дерево и судит через настоящую точку входа
+    (`scripts_without_caller(root)`), а не через внутреннюю функцию: урок #144 —
+    мутировать надо проводку, а проверка детали остаётся зелёной, когда проводка
+    мертва.
+    """
+
+    def _root(self, sh_body: str, *, script: str = "lonely_tool") -> Path:
+        """Дерево из одного скрипта с точкой входа и одной оболочки."""
+        import tempfile
+        root = Path(tempfile.mkdtemp(prefix="unwired_payload_"))
+        self.addCleanup(__import__("shutil").rmtree, root, True)
+        (root / "scripts").mkdir(parents=True)
+        (root / "scripts" / f"{script}.py").write_text(
+            'if __name__ == "__main__":\n    pass\n', encoding="utf-8")
+        (root / "scripts" / "deliver.sh").write_text(sh_body, encoding="utf-8")
+        return root
+
+    def test_a_push_payload_does_not_make_a_script_wired(self):
+        """Отрицательный контроль аварии: имя в списке `--files` — не проводка.
+
+        На неисправленном детекторе эта проверка КРАСНАЯ: он видел имя в тексте
+        оболочки и объявлял скрипт подключённым.
+        """
+        from spa_core.tests._unwired import scripts_without_caller
+        root = self._root(
+            '#!/bin/bash\n'
+            'python3 push_to_github.py \\\n'
+            '  --files \\\n'
+            '  "$REPO_ROOT/scripts/lonely_tool.py" \\\n'
+            '  --message "sprint vX"\n')
+        self.assertIn("lonely_tool", scripts_without_caller(root),
+                      "имя в грузе пуша снова читается как вызов")
+
+    def test_a_real_call_from_sh_is_still_a_call(self):
+        """Обратная сторона, без которой починка опаснее дефекта.
+
+        `bash scripts/X.py` и `python3 scripts/X.py --once` — настоящие запуски.
+        Объявить их сиротами хуже пропуска (#183/#255), поэтому проверка стоит
+        рядом и на том же дереве.
+        """
+        from spa_core.tests._unwired import scripts_without_caller
+        for call in ("bash scripts/lonely_tool.py",
+                     "python3 scripts/lonely_tool.py --once",
+                     "python3 -m scripts.lonely_tool"):
+            with self.subTest(call=call):
+                root = self._root(f"#!/bin/bash\n{call}\n")
+                self.assertNotIn("lonely_tool", scripts_without_caller(root),
+                                 f"настоящий запуск перестал считаться вызовом: {call}")
+
+    def test_the_payload_rule_fires_only_for_delivery_tools(self):
+        """`--files` у ЛЮБОЙ другой команды проводкой быть не перестаёт.
+
+        Правило намеренно узкое: список инструментов доставки закрыт. Расширить
+        его значит начать терять настоящие вызовы, а это направление ошибки в
+        проекте признано худшим.
+        """
+        from spa_core.tests._unwired import scripts_without_caller
+        root = self._root('#!/bin/bash\n'
+                          'python3 scripts/some_runner.py --files scripts/lonely_tool.py\n')
+        self.assertNotIn("lonely_tool", scripts_without_caller(root),
+                         "`--files` у не-доставочной команды перестал быть проводкой")
+
+    def test_the_delivery_tool_itself_stays_wired(self):
+        """Затирается ХВОСТ после `--files`, а не команда: пушер-то запускают."""
+        from spa_core.tests._unwired import scripts_without_caller
+        root = self._root(
+            '#!/bin/bash\n'
+            'python3 scripts/push_to_github.py --files scripts/other.py\n',
+            script="push_to_github")
+        self.assertNotIn("push_to_github", scripts_without_caller(root),
+                         "затёрли саму команду доставки, а не её груз")
+
+    def test_the_payload_ends_at_the_next_flag(self):
+        """Груз кончается на первом токене-флаге — дальше текст не трогаем.
+
+        Без этой границы правило съедало бы весь остаток команды, а вместе с ним
+        и настоящие вызовы, стоящие в той же логической строке.
+        """
+        from spa_core.tests._unwired import scripts_without_caller
+        root = self._root(
+            '#!/bin/bash\n'
+            'python3 push_to_github.py --files scripts/other.py '
+            '--after python3 scripts/lonely_tool.py\n')
+        self.assertNotIn("lonely_tool", scripts_without_caller(root),
+                         "затирание перешагнуло через флаг и съело хвост команды")
+
+    def test_the_fix_is_wired_into_the_real_reader(self):
+        """Против отката проводки в одну строку (урок #144).
+
+        Функцию можно оставить в файле и перестать её звать — все проверки выше
+        строятся на `scripts_without_caller`, но эта называет саму связь.
+        """
+        import inspect
+
+        from spa_core.tests import _unwired
+        self.assertIn("_sh_without_delivery_payload",
+                      inspect.getsource(_unwired.code_without_comments),
+                      "оболочки снова читаются без снятия груза доставки")
+
+
 if __name__ == "__main__":
     unittest.main()
