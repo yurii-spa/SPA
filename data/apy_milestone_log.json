@@ -1,7 +1,7 @@
 {
   "start_date": "2026-06-18",
   "last_updated": "2026-08-25",
-  "days_recorded": 47,
+  "days_recorded": 48,
   "daily_log": [
     {
       "date": "2026-06-18",
@@ -10,7 +10,7 @@
     },
     {
       "date": "2026-06-10",
-      "apy_pct": 1.6,
+      "apy_pct": 3.02,
       "strategy_id": "s7_pendle_yt"
     },
     {
@@ -25,27 +25,27 @@
     },
     {
       "date": "2026-06-11",
-      "apy_pct": 0.0,
+      "apy_pct": 1.6,
       "strategy_id": "s7_pendle_yt"
     },
     {
       "date": "2026-06-15",
-      "apy_pct": 0.0,
+      "apy_pct": 4.6,
       "strategy_id": "s7_pendle_yt"
     },
     {
       "date": "2026-06-14",
-      "apy_pct": 1.6328,
+      "apy_pct": 3.1593,
       "strategy_id": "s7_pendle_yt"
     },
     {
       "date": "2026-06-12",
-      "apy_pct": 1.5119,
+      "apy_pct": 3.1599,
       "strategy_id": "s7_pendle_yt"
     },
     {
       "date": "2026-06-13",
-      "apy_pct": 1.6329,
+      "apy_pct": 3.1596,
       "strategy_id": "s7_pendle_yt"
     },
     {
@@ -70,7 +70,7 @@
     },
     {
       "date": "2026-06-22",
-      "apy_pct": 2.57,
+      "apy_pct": 1.6,
       "strategy_id": "s7_pendle_yt"
     },
     {
@@ -239,7 +239,12 @@
     },
     {
       "date": "2026-08-25",
-      "apy_pct": 3.32,
+      "apy_pct": 2.0,
+      "strategy_id": "s7_pendle_yt"
+    },
+    {
+      "date": "2026-08-06",
+      "apy_pct": 1.6,
       "strategy_id": "s7_pendle_yt"
     }
   ],
