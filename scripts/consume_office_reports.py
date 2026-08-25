@@ -643,6 +643,30 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             else:
                 out.append(f"   вопросов, живущих только на ветке, нет "
                            f"(веток прочитано {bgap.get('branches_read')}){tail}")
+            # Третий исход рядом с «потеряно» и «убрано с базы»: карточку прочитали
+            # при разборе ветки и осознанно решили не везти. Печатается ОТДЕЛЬНОЙ
+            # строкой и с основанием — «решено не везти» без автора закрыло бы что
+            # угодно, а невидимое основание проверить нечем (карточка
+            # `inbox-storozh-voprosy-vladeltsa-na-vetke-ne-zn`).
+            dropped = bgap.get("dropped") or []
+            if dropped:
+                names = "; ".join(
+                    f"{d.get('card_id')} — {d.get('by')}, {d.get('date')}: {d.get('reason')}"
+                    for d in dropped[:3] if isinstance(d, dict))
+                more = (f" (и ещё {len(dropped) - 3})" if len(dropped) > 3 else "")
+                out.append(f"   🚮 прочитано и осознанно НЕ везём: {len(dropped)} — "
+                           f"это РЕШЕНИЕ, а не потеря: {names}{more}")
+            # Брак реестра решений — находка о САМОМ реестре. Молчать нельзя: строка
+            # с меткой, которую сторож не принял, означает, что автор решение записал,
+            # а система его не увидела, и обе стороны считают, что всё в порядке.
+            issues = bgap.get("declaration_issues") or []
+            if issues:
+                names = "; ".join(f"{i.get('where')} — {i.get('reason')}"
+                                  for i in issues[:3] if isinstance(i, dict))
+                more = (f" (и ещё {len(issues) - 3})" if len(issues) > 3 else "")
+                out.append(f"   ⚠️ реестр «не везём» с браком: {len(issues)} — "
+                           f"объявлением НЕ считается, карточка остаётся потерей: "
+                           f"{names}{more}")
         # Дрейф прод↔origin (цикл #273): отправленная карточка закрыта на origin, а
         # файла в прод-дереве нет. НЕ находка — но и не молчание: до #273 такие
         # строки неделю держали сторожа в WARNING как «не измерено», и именно ради

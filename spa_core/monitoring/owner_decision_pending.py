@@ -425,6 +425,25 @@ def _scan_branch_queue(tracker_dir: Path) -> dict:
     `main` убран коммитом `029627b46` — это не потеря. Признак измеримый (история
     пути на базовом ref), а не эвристика.
 
+    **Третий исход — «прочитано и осознанно не везём»** (карточка
+    `inbox-storozh-voprosy-vladeltsa-na-vetke-ne-zn`, цикл #376). Двух имён не
+    хватало на самый частый и совершенно ПРАВИЛЬНЫЙ исход разбора ветки: дубль уже
+    разобранного, устаревшая премиса, замер приложен к карточке на `main`. Такая
+    карточка на `main` не лежала НИКОГДА ⇒ ``ever_on_base = False`` ⇒ она попадала
+    в `count` НАВСЕГДА, и число не могло дойти до нуля даже после полного разбора
+    ветки. Замер 23.08 (цикл #356): 12 карточек, все 12 — с ветки
+    `origin/claude/work-status-check-xfnbew`, разбор которой цикл #355 в тот же день
+    ЗАКОНЧИЛ; 25.08 их оставалось 3, и все три названы поимённо в теле
+    карточки-разбора с починкой (ADR-125 / ADR-116) или совпадением.
+
+    Цена молчания тут не «лишняя строка»: постоянный житель раздела находок
+    приучает пролистывать раздел, в котором однажды окажется настоящая потеря
+    вопроса владельца, — тот же механизм, которым глохнут сторожа (#354).
+    Ослаблением это не является: решение обязано быть ЗАПИСАНО с автором, датой и
+    основанием, иначе объявлением не считается вовсе, — и незаписанное решение
+    по-прежнему потеря. Строка с меткой, но без обязательного поля, НЕ выбрасывается
+    молча: она едет в `declaration_issues`.
+
     Fail-CLOSED и никогда не бросает наружу — ровно как соседи по файлу: сверять не
     с чем (не git-дерево, ref не разрешается) ⇒ ``measured=False`` и причина
     СЛОВАМИ. Отдельная нечитаемая ветка замер по остальным не отменяет, но и не
@@ -442,19 +461,36 @@ def _scan_branch_queue(tracker_dir: Path) -> dict:
         return {"measured": False, "reason": f"ветки не прочитаны: {exc}"}
     except Exception as exc:  # noqa: BLE001 — неожиданное тоже «не измерено», не «чисто»
         return {"measured": False, "reason": f"обход веток не выполнен: {exc}"}
-    lost = [c for c in scan.cards if not c.ever_on_base]
+    on_base = [c for c in scan.cards if c.ever_on_base]
+    dropped = [c for c in scan.cards if not c.ever_on_base and c.dropped is not None]
+    lost = [c for c in scan.cards if not c.ever_on_base and c.dropped is None]
     return {
         "measured": True,
         "ref": scan.base_ref,
         "ref_sha": scan.base_sha,
         "branches_read": len(scan.branches_read),
-        # Число ПОТЕРЯННЫХ, а не всех найденных: намеренно снятая карточка стоит
-        # рядом отдельным числом, чтобы «мы это убрали сами» нельзя было прочитать
-        # как находку и наоборот.
+        # Число ПОТЕРЯННЫХ, а не всех найденных: намеренно снятая карточка и
+        # осознанно не привезённая стоят рядом отдельными числами, чтобы «мы это
+        # решили сами» нельзя было прочитать как находку и наоборот.
         "count": len(lost),
-        "removed_on_base_count": len(scan.cards) - len(lost),
+        "removed_on_base_count": len(on_base),
+        "dropped_count": len(dropped),
         "cards": [{"card_id": c.card_id, "title": c.title,
                    "branches": list(c.branches)} for c in lost],
+        # Автор, дата и основание едут в отчёт ВСЕГДА: решение, основание которого
+        # не видно, читателю проверить нечем, и тогда признак закрывает что угодно.
+        "dropped": [{"card_id": c.card_id, "title": c.title,
+                     "branches": list(c.branches), "by": c.dropped.by,
+                     "date": c.dropped.date, "reason": c.dropped.reason,
+                     "declared_in": c.dropped.declared_in} for c in dropped],
+        # Брак объявлений и объявления, пережившие свой предмет. НЕ находка о
+        # владельце — находка о самом реестре: реестр, из которого ничего не уходит
+        # и в который можно писать как попало, через год состоит из мусора.
+        "declaration_issues": (
+            [{"where": w, "reason": r} for w, r in scan.dropped_broken]
+            + [{"where": cid, "reason": "объявлено «не везём», но карточки нет ни на "
+                                        "одной прочитанной ветке — решение пережило предмет"}
+               for cid in scan.dropped_stale]),
         "unreadable": [{"branch": b, "reason": r} for b, r in scan.unreadable],
     }
 

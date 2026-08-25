@@ -374,6 +374,7 @@
 - Сторож недоставляемых зависимостей краснеет на docs/research/cio_g4_repro.py — второй нарушитель за первым  ·  `inbox-storozh-nedostavlyaemyh-zavisimostei-kra.md` · 2026-08-20
 - Сторож расхождений судит по СТАРОМУ снимку постуры: кричит CRITICAL, когда офис уже YELLOW  ·  `inbox-storozh-rashozhdenii-sudit-po-staromu-sn.md` · 2026-08-12
 - Сторож вопросов владельца говорит «не измерено» там, где ответ лежит на origin — механика (origin_view) уже есть  ·  `inbox-storozh-voprosov-vladeltsa-govorit-ne-iz.md` · 2026-08-17
+- Сторож «вопросы владельца на ветке» не знает слова «прочитано и осознанно не везём» — счёт не дойдёт до нуля никогда  ·  `inbox-storozh-voprosy-vladeltsa-na-vetke-ne-zn.md` · 2026-08-23
 - Сторож «вопросы владельцу» слеп к вопросу, который не отправляли — очередь 5, он говорит 3  ·  `inbox-storozh-voprosy-vladeltsu-slep-k-voprosu.md` · 2026-08-10
 - Страж ADR-номеров ложно краснеет: не видит INDEX среди доставляемых файлов  ·  `inbox-strazh-adr-nomerov-lozhno-krasneet-ne-vi.md` · 2026-08-09
 - Страж перезаписи считает переименование заголовка потерей записи — и его список «что пропадёт» неполон  ·  `inbox-strazh-perezapisi-schitaet-pereimenovani.md` · 2026-08-07
@@ -519,7 +520,6 @@
 - Смена номинации ПОЗИЦИЙ как единственный рычаг против депега своего же кэша (решение владельца 22.08, вариант 3)  ·  `inbox-smena-nominatsii-pozitsii-kak-edinstvenn.md` · 2026-08-22
 - Снять переходное послабление маячка: решения обязаны гейтиться СВОИМ умением  ·  `inbox-snyat-perehodnoe-poslablenie-mayachka-re.md` · 2026-08-17
 - Снятая остановка живёт в git: восстановление из резерва поднимет прод уже остановленным  ·  `inbox-snyataya-ostanovka-zhivet-v-git-vosstano.md` · 2026-08-10
-- Сторож «вопросы владельца на ветке» не знает слова «прочитано и осознанно не везём» — счёт не дойдёт до нуля никогда  ·  `inbox-storozh-voprosy-vladeltsa-na-vetke-ne-zn.md` · 2026-08-23
 - Строка Risk Gate дневного лимита убытка жила только в отключённом скрипте — в отчёт владельцу она не переехала  ·  `inbox-stroka-risk-gate-dnevnogo-limita-ubytka.md` · 2026-08-14
 - Свести две реализации перезаполнения бюджета в одну (ADR-072 vs версия параллельной сессии)  ·  `inbox-svesti-dve-realizatsii-perezapolneniya-b.md` · 2026-08-08
 - Табличка честности: дать ей дорогу на сайт (решение владельца 09.08)  ·  `inbox-tablichka-chestnosti-dat-ei-dorogu-na-sa.md` · 2026-08-08
