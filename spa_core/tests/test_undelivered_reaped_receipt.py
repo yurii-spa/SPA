@@ -331,3 +331,46 @@ class TestChurnRuleHasOneDefinition:
         assert "from reap_stale_worktrees import" in source
         assert "reward_harvesting_log" not in source, \
             "правило отсева скопировано литералом — оно обязано читаться импортом"
+
+
+# ── 5. имена вердиктов берутся у ИСТОЧНИКА, а не копией (цикл #377) ──────────
+
+class TestExplainedVerdictsComeFromTheReaper:
+    """Копия списка вердиктов, живущая своей жизнью, — способ, которым сторож глохнет.
+
+    #377 завёл уборщику шестое имя (`not_in_tree`: путь, которого дерево НИКОГДА не
+    выкладывало). Литеральная копия здесь объявила бы его «помечен неизвестно чем» — код 2
+    НАВСЕГДА на каждом снятом дереве с таким путём, то есть починка уборщика родила бы в
+    шаге 0a ровно тот необратимый класс «не измерено», ради снятия которого квитанция и
+    писалась (прецедент #292)."""
+
+    def test_set_is_read_from_the_source_not_from_a_local_copy(self, guard, reaper):
+        explained, why = guard.reap_explained()
+        assert why is None, why
+        assert explained == {reaper.DELIVERED, reaper.SUPERSEDED, reaper.NOT_IN_TREE}, explained
+
+    def test_negative_verdicts_never_enter_the_set(self, guard, reaper):
+        """Ослабления нет: `unique` / `absent` / `dropped` не попадают в множество никогда —
+        ни из источника, ни из запасного списка."""
+        explained, _ = guard.reap_explained()
+        for negative in (reaper.UNIQUE, reaper.ABSENT, reaper.DROPPED):
+            assert negative not in explained, negative
+            assert negative not in guard.REAP_EXPLAINED_FALLBACK, negative
+
+    def test_path_never_checked_out_in_that_tree_is_not_a_finding(self, guard, repo, tmp_path):
+        """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ сквозной: квитанция называет путь `not_in_tree` ⇒ поднимать
+        нечего, кода 2 нет."""
+        wt = tmp_path / "spa_c376"
+        ledger(repo, [receipt(wt, {"scripts/alien.py": "not_in_tree"})])
+        rep = report(guard, repo, [entry("pid31439", [wt / "scripts" / "alien.py"])])
+        assert rep["exit_code"] == 0, rep
+        assert rep["nowhere"] == [] and rep["unmeasured"] == []
+        assert len(rep["reaped"]) == 1
+
+    def test_unknown_verdict_is_still_unmeasured(self, guard, repo, tmp_path):
+        """ОБРАТНЫЙ КОНТРОЛЬ: множество расширилось РОВНО на измеренное имя. Незнакомое
+        слово в квитанции по-прежнему даёт fail-CLOSED, а не тихий пропуск."""
+        wt = tmp_path / "spa_c376x"
+        ledger(repo, [receipt(wt, {"scripts/alien.py": "vsyo_horosho"})])
+        rep = report(guard, repo, [entry("pid31439", [wt / "scripts" / "alien.py"])])
+        assert rep["exit_code"] == 2, rep

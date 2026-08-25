@@ -405,6 +405,7 @@
 - Уборщик мёртвых деревьев не запускается из worktree — а по протоколу сессии работают только там  ·  `inbox-uborschik-mertvyh-derevev-ne-zapuskaetsy.md` · 2026-08-14
 - У уборщика нет слова «намеренно НЕ доставлено»: путь, который решено не везти на origin, делает дерево неснимаемым НАВСЕГДА и кормит шаг 0a вечной ложной находкой  ·  `inbox-uborschik-ne-znaet-slova-namerenno-ne-dostavleno.md` · 2026-08-23
 - Уборщик снимает дерево с ЛОКАЛЬНЫМ коммитом: такая работа в квитанцию не попадает вовсе  ·  `inbox-uborschik-snimaet-derevo-s-lokalnym-komm.md` · 2026-08-18
+- Уборщик зовёт «недоставленной работой» ОТСУТСТВУЮЩИЙ файл — после переноса HEAD на свежий origin  ·  `inbox-uborschik-zovet-nedostavlennoi-rabotoi-otsutstvuyuschii-fail.md` · 2026-08-25
 - Упавший классификатор превратился в 44 вопроса владельцу, а 44 задания — в done  ·  `inbox-upavshii-klassifikator-prevratilsya-v-44.md` · 2026-08-12
 - Вердикт WIRABLE подделываем: 22 из 23 «пригодных» модулей читают РОВНО ОДИН ключ  ·  `inbox-verdikt-wirable-poddelyvaem-22-iz-23-pri.md` · 2026-08-06
 - Весь поддомен checkup.earn-defi.com отдаёт 404 — с главной публично ведут битые ссылки, и job site-freshness красный всегда  ·  `inbox-ves-poddomen-checkup-earn-defi-com-otdae.md` · 2026-08-14
@@ -527,7 +528,6 @@
 - Текст инварианта 10 (Sky/sUSDS = 0 %) живёт как действующий ещё в docs/  ·  `inbox-tekst-invarianta-10-sky-susds-0-zhivet-k.md` · 2026-08-23
 - Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md` · 2026-08-06
 - Три отправителя стоп-крана в обход канонической двери (найдено #313)  ·  `inbox-tri-otpravitelya-stop-krana-v-obhod-kano.md` · 2026-08-20
-- Уборщик зовёт «недоставленной работой» ОТСУТСТВУЮЩИЙ файл — после переноса HEAD на свежий origin  ·  `inbox-uborschik-zovet-nedostavlennoi-rabotoi-otsutstvuyuschii-fail.md` · 2026-08-25
 - Замер обмена «доходность ↔ концентрация» на T2 (20/25/30%) — решение владельца A, задачи не было  ·  `inbox-zamer-obmena-dohodnost-kontsentratsiya-n.md` · 2026-08-08
 - Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07 · 🔒 `cycle-81141`
 - Заслон изоляции data/ в тестах покрывает 1 модуль из 209 — вердикт теста решает живой файл хоста  ·  `inbox-zaslon-izolyatsii-data-v-testah-pokryvae.md` · 2026-08-23

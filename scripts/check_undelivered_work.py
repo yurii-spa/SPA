@@ -964,8 +964,35 @@ def shared_log(start=ROOT, git=_git):
 TREE_GONE = "рабочее дерево удалено вместе с объявленным путём"
 
 REAP_LEDGER_NAME = "worktree_reap_log.jsonl"
-# Вердикты, при которых снятое дерево не уносило с собой работу (см. reap_stale_worktrees.py).
-REAP_EXPLAINED = {"delivered", "superseded"}
+# Вердикты, при которых снятое дерево не уносило с собой работу. Ниже — ЗАПАСНОЙ список на
+# случай, когда модуль уборщика прочитать не удалось; действующий берётся у САМОГО уборщика
+# (`reap_explained()`), потому что имена вердиктов заводят там. Копия, живущая своей жизнью,
+# — ровно тот класс, которым сторожа глохнут: #377 добавил уборщику шестое имя
+# (`not_in_tree`), и литеральная копия здесь молча объявила бы его «помечен неизвестно чем»,
+# то есть код 2 НАВСЕГДА на каждом снятом дереве с таким путём.
+REAP_EXPLAINED_FALLBACK = frozenset({"delivered", "superseded"})
+
+
+def reap_explained():
+    """(множество «работа не потеряна» из уборщика, причина-если-читали запасной список).
+
+    Импорт ЛЕНИВЫЙ по той же причине, что и в `churn_rule`: уборщик импортирует этот модуль
+    на верхнем уровне, встречный импорт замкнул бы кольцо.
+
+    Ослабления нет: множество собирается из ПОЛОЖИТЕЛЬНЫХ вердиктов уборщика, а `unique` /
+    `absent` / `dropped` в него не входят ни при каком исходе — `dropped` разбирается своей
+    веткой ниже (у решения обязаны быть автор и причина)."""
+    import sys
+    scripts_dir = str(Path(__file__).resolve().parent)
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+    try:
+        from reap_stale_worktrees import DELIVERED as _D, NOT_IN_TREE as _N, SUPERSEDED as _S
+    except Exception as exc:                   # noqa: BLE001 — «не прочитано» это тоже измерение
+        return REAP_EXPLAINED_FALLBACK, (
+            f"имена вердиктов уборщика прочитать не удалось ({type(exc).__name__}: {exc}) — "
+            "читается запасной список, новые имена вердиктов здесь не известны")
+    return frozenset({_D, _S, _N}), None
 
 
 def read_reap_ledger(root):
@@ -1104,7 +1131,8 @@ def reaped_state(path_str, ledger, root, base_ref, git=_git):
         return None, None
     state = (row.get("paths") or {}).get(rel)
     where = reap_where(row)
-    if state in REAP_EXPLAINED:
+    explained, _why_fallback = reap_explained()
+    if state in explained:
         return DELIVERED, f"{where}; содержимое пути объяснено при снятии ({state})"
     if state == DROPPED:
         # Уборщик снял дерево, потому что сессия ОБЪЯВИЛА этот путь намеренно недоставленным
