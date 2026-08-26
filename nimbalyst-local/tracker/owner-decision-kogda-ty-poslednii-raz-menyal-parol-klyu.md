@@ -4,6 +4,10 @@ trackerStatus:
 title: Когда ты последний раз менял пароль-ключ для GitHub? Машина этого не знает, а срок — через 7 дней
 status: needs-owner
 created: 2026-08-25
+owner_choice: 1
+owner_answered_at: 2026-08-25T22:22:18.330530+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 
