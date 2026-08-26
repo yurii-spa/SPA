@@ -977,10 +977,50 @@ class TestT1FloorMirrorsPolicy:
         from spa_core.tuner.portfolio_rebalancer import _DEFAULT_CONSTRAINTS
         assert _DEFAULT_CONSTRAINTS.t1_min != 0.55
 
-    def test_deliberate_margins_kept(self):
-        """Осознанный запас владелец решил ОСТАВИТЬ — он не должен уехать вместе с фантомом."""
+    def test_constraints_mirror_policy_after_margins_were_removed(self):
+        """Запасы СНЯТЫ решением владельца 26.08 — констрейнты стали зеркалом политики.
+
+        **Намеренная правка теста (инвариант #16), обоснование здесь и в журнале W35.**
+        Прежняя редакция звалась `test_deliberate_margins_kept` и требовала
+        25/45/7/7 — запас, который владелец решил оставить **25.08**. **26.08** он
+        кнопкой выбрал «Зеркалить политику», отменив собственное решение суточной
+        давности (коммит `b6f426f`, цена названа в вопросе). Та сессия обновила три
+        пина запасов, а этот пропустила — и он краснел на ЧИСТОМ `origin/main`
+        (замер: `assert 0.4 == 0.25`), то есть сторожил уже отменённое решение.
+
+        Тест не ослаблен: утверждений столько же, и они по-прежнему пиньтся к
+        конкретным числам — просто к тем, которые сейчас верны. Сторожевой смысл
+        сохранён и УСИЛЕН соседним тестом ниже: механизм возврата запаса обязан
+        остаться живым, иначе «вернуть запас — одно поле» станет неправдой.
+        """
         from spa_core.tuner.portfolio_rebalancer import _DEFAULT_CONSTRAINTS as c
-        assert c.per_protocol_max == 0.25
-        assert c.t2_max == 0.45
-        assert c.cash_min == 0.07
-        assert c.max_protocols == 7
+        assert c.per_protocol_max == 0.40   # конверт = потолок T1; per-тир min() даёт 40/20
+        assert c.t2_max == 0.50             # ADR-019
+        assert c.cash_min == 0.05
+        assert c.max_protocols == 8
+
+    def test_the_way_back_to_a_margin_is_still_one_field(self):
+        """Обратный контроль к предыдущему: снятие запаса не сломало МЕХАНИЗМ.
+
+        Решение 26.08 обещает дословно «вернуть запас — одно поле», и обещание
+        стоит ровно столько, сколько стоит формула `min()`. Убери её — снятие
+        запаса станет необратимым молча, а следующий владелец обнаружит это, уже
+        подняв конверт и не увидев эффекта.
+        """
+        from spa_core.tuner.allocation_tuner import TunerConstraints
+        narrow = TunerConstraints(per_protocol_max=0.25)
+        assert narrow.protocol_cap("T1") == 0.25, "запас не сузил потолок T1 — min() мёртв"
+        assert narrow.protocol_cap("T2") == 0.20, "потолок T2 политики перестал действовать"
+
+    def test_the_mirror_is_not_a_literal_copy(self):
+        """Зеркало обязано ЧИТАТЬ политику, а не повторять её числа наизусть.
+
+        Литеральная копия расходится молча — ровно фантомный T1-пол, ради которого
+        весь этот класс и написан: политику правят, копию нет.
+        """
+        from spa_core.tuner.portfolio_rebalancer import _DEFAULT_CONSTRAINTS as c
+        from spa_core.risk.policy import RiskConfig
+        p = RiskConfig()
+        assert c.per_protocol_t1_max == p.max_concentration_t1
+        assert c.per_protocol_t2_max == p.max_concentration_t2
+        assert c.t2_max == p.max_total_t2_allocation
