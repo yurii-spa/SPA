@@ -95,7 +95,7 @@ OWNER_ACCEPTED_STATUS = "owner-accepted"
 #: не стоит: закрывать через него было нечего.
 OWNER_ONLY_STATUSES = frozenset({OWNER_ACCEPTED_STATUS})
 
-#: Статус, закрывающий карточку. Агенту РАЗРЕШЁН с 2026-08-26 (ADR-144) — но только через
+#: Статус, закрывающий карточку. Агенту РАЗРЕШЁН с 2026-08-26 (ADR-146) — но только через
 #: именованное закрытие с записанным основанием, см. `set_status(..., closed_by=, evidence=)`.
 #:
 #: Что здесь НЕ изменилось и почему. Запрет снят не потому, что авария #350 перестала быть
@@ -110,11 +110,11 @@ AGENT_CLOSABLE_STATUS = OWNER_ONLY_STATUS
 
 #: Статусы, приход в которые МИМО писателя обязан звучать как CRITICAL.
 #:
-#: Разрешение агенту закрывать карточки (ADR-144) сняло вопрос «кому МОЖНО», но не вопрос
+#: Разрешение агенту закрывать карточки (ADR-146) сняло вопрос «кому МОЖНО», но не вопрос
 #: «осталась ли запись». Карточка, оказавшаяся закрытой без единого следа, подозрительна
 #: одинаково независимо от того, чья рука это сделала: след — единственное, чем закрытие
 #: отличается от пропажи вопроса. Поэтому сторож читает ЭТОТ набор (объединение), а не
-#: `OWNER_ONLY_STATUSES`, который после ADR-144 сузился до одного имени.
+#: `OWNER_ONLY_STATUSES`, который после ADR-146 сузился до одного имени.
 #:
 #: Отдельным именем, а не выражением по месту: два разъехавшихся перечня — способ замолчать
 #: ровно о новом члене класса (#143–#145), и тест сверяет сторожа с этим именем.
@@ -361,7 +361,7 @@ def set_status(path: str | Path, new_status: str,
     Refuses ``owner-accepted`` outright: that status is the owner's own words, and an agent
     setting it invents a quote rather than closing anything (it is non-terminal — ADR-124).
 
-    Accepts ``owner-done`` from an agent since 2026-08-26 (ADR-144) — the owner delegated card
+    Accepts ``owner-done`` from an agent since 2026-08-26 (ADR-146) — the owner delegated card
     closing — **but only with `closed_by` and `evidence` given**. The property that survives is
     not "who pressed the button" (авария #350 was the owner's own press) but *a terminal status
     means the acceptance criterion was checked*. No evidence ⇒ refuse, as before.
@@ -372,13 +372,13 @@ def set_status(path: str | Path, new_status: str,
     if new_status in OWNER_ONLY_STATUSES:
         raise OwnerDoneForbidden(
             f"Agents may not set status '{new_status}' — that status is the owner's own words, "
-            "not a verdict an agent may reach (CLAUDE.md invariant #14, ADR-144). It is "
+            "not a verdict an agent may reach (CLAUDE.md invariant #14, ADR-146). It is "
             "non-terminal and closes nothing; to CLOSE a card use owner-done with evidence."
         )
     if new_status == AGENT_CLOSABLE_STATUS and not (closed_by and evidence):
         raise OwnerDoneForbidden(
             f"Closing a card with '{new_status}' requires closed_by= AND evidence= "
-            "(CLAUDE.md invariant #14, ADR-144). A terminal status must mean the card's "
+            "(CLAUDE.md invariant #14, ADR-146). A terminal status must mean the card's "
             "acceptance criterion was CHECKED — that is what авария #350 cost, and it is the "
             "half of the old guard that stays machine-enforced."
         )
@@ -428,7 +428,7 @@ def set_status(path: str | Path, new_status: str,
     # попадает, поэтому законное закрытие из рабочего дерева приезжало в прод немым,
     # и сторож называл его «вопрос владельца закрыли без владельца» КАЖДЫЙ раз.
     #
-    # Закрытие агентом (ADR-144) едет ТЕМ ЖЕ следом, а не своей параллельной записью: кто
+    # Закрытие агентом (ADR-146) едет ТЕМ ЖЕ следом, а не своей параллельной записью: кто
     # закрыл и на каком основании — половина ответа на «почему карточка закрыта», и она
     # обязана лежать там же, где остальные переходы, иначе появится второй источник правды.
     # Разделитель следа из основания вычищается: иначе основание с ` · ` внутри развалило бы
@@ -568,14 +568,14 @@ def create_card(
     short numeric suffix is appended ONLY on collision (``-2``, ``-3`` …). The date is
     still recorded in the ``created:`` frontmatter field.
     Never sets ``owner-done`` / ``owner-accepted`` — callers create in an open state.
-    This stays true after ADR-144 let agents CLOSE cards: closing demands a checked
+    This stays true after ADR-146 let agents CLOSE cards: closing demands a checked
     acceptance criterion, and a newborn card has nothing checked yet. A card born closed
     is a question that was never actually asked.
     """
     if status in UNCREATABLE_STATUSES:
         raise OwnerDoneForbidden(
             f"create_card must not set '{status}': a card is never born closed "
-            "(invariant #14, ADR-144). Create it open, then close it with evidence.")
+            "(invariant #14, ADR-146). Create it open, then close it with evidence.")
     d = Path(tracker_dir) if tracker_dir is not None else TRACKER_DIR
     d.mkdir(parents=True, exist_ok=True)
     dt = now or datetime.now(timezone.utc)

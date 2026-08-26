@@ -60,7 +60,7 @@ _RED_TOKENS = ("RED", "CRITICAL")
 
 #: Слова, поднимающие находку по АНАЛИТИКУ (не по постуре офиса). Шире `_RED_TOKENS` ровно на
 #: `THREATS_PRESENT` — решение владельца 2026-08-26 «карточки закрывай сам», вариант А карточки
-#: `own-red-team-nablyudennaya-ugroza-ne-doezzhaet` (ADR-144).
+#: `own-red-team-nablyudennaya-ugroza-ne-doezzhaet` (ADR-146).
 #
 # Замер 18.08, четыре состояния подряд: разведка НАШЛА угрозу (`THREATS_PRESENT`) — карточка НЕ
 # заводилась; мы сами остановлены выключателем (`kill_switch_already_active` ⇒ `CRITICAL`) —
