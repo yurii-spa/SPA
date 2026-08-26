@@ -318,15 +318,17 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
           </div>
           <div>
             <h4 class="text-sm font-semibold text-white mb-2" data-ru="Двухуровневый kill switch (просадка от пика)">Two-Tier Kill Switch (Peak Drawdown)</h4>
-            <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru="Kill switch реагирует на просадку капитала от пика к текущему. При ≥5% (SOFT) деск снижает риск: останавливает новые входы и любое увеличение позиций (удержание и сокращение разрешены), НЕ ликвидируя. При ≥10% (HARD) весь портфель переводится в кэш. Это неотменяемо — ни человек, ни ИИ, ни логика стратегии не могут предотвратить срабатывание.">
+            <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru="Kill switch реагирует на просадку капитала от пика к текущему. При ≥5% (SOFT) деск останавливает новые входы и любое увеличение позиций (удержание и сокращение разрешены), НЕ ликвидируя — это запрет наращивать, а не снижение уже открытой экспозиции. При ≥10% (HARD) весь портфель переводится в кэш. Это неотменяемо — ни человек, ни ИИ, ни логика стратегии не могут предотвратить срабатывание.">
               The kill switch responds to peak-to-current equity drawdown. At ≥5% (SOFT) the desk
-              de-risks: it halts new entries and any position increase (holds and reductions still
-              allowed) and does NOT liquidate. At ≥10% (HARD) the whole portfolio moves to cash.
-              This is non-overridable — no human, no AI, no strategy logic can prevent the trigger.
+              halts new entries and any position increase (holds and reductions still allowed) and
+              does NOT liquidate — this blocks further growth, it does not reduce exposure already
+              open. At ≥10% (HARD) the whole portfolio moves to cash. This is non-overridable — no
+              human, no AI, no strategy logic can prevent the trigger.
             </p>
-            <p class="text-xs text-white/50" data-ru="Аварийный стоп — последняя линия защиты. Он не устраняет убытки, а ограничивает дальнейшую экспозицию после наступления просадки.">
-              The kill switch is the last line of defense. It does not eliminate losses — it
-              limits further exposure after a drawdown event has occurred.
+            <p class="text-xs text-white/50" data-ru="HARD — последний рубеж: перевод всего портфеля в кэш. SOFT текущую экспозицию не снижает, только блокирует её рост. Ни один из уровней не устраняет уже понесённые убытки.">
+              HARD is the last line of defense: it moves the whole portfolio to cash. SOFT does
+              not reduce current exposure — it only blocks further growth. Neither tier eliminates
+              losses already incurred.
             </p>
           </div>
         </div>

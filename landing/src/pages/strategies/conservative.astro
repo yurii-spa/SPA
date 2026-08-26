@@ -294,14 +294,16 @@ const global = strategies.global;
           </div>
           <div>
             <h4 class="text-sm font-semibold text-white mb-2" data-ru="Двухуровневый kill switch (просадка от пика)">Two-Tier Kill Switch (Peak Drawdown)</h4>
-            <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru="При просадке капитала от пика ≥5% (SOFT) деск снижает риск: стоп новых входов и увеличения позиций, без ликвидации. При ≥10% (HARD) весь портфель переводится в 100% кэш. Это неотменяемо.">
-              At ≥5% peak-to-current equity drawdown (SOFT) the desk de-risks: it halts new entries
-              and position increases, without liquidating. At ≥10% (HARD) the whole portfolio moves
-              to 100% cash. This is non-overridable.
+            <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru="При просадке капитала от пика ≥5% (SOFT) деск останавливает новые входы и увеличение позиций, без ликвидации — это запрет наращивать, а не снижение уже открытой экспозиции. При ≥10% (HARD) весь портфель переводится в 100% кэш. Это неотменяемо.">
+              At ≥5% peak-to-current equity drawdown (SOFT) the desk halts new entries and position
+              increases, without liquidating — this blocks further growth, it does not reduce
+              exposure already open. At ≥10% (HARD) the whole portfolio moves to 100% cash. This is
+              non-overridable.
             </p>
-            <p class="text-xs text-white/50" data-ru="Аварийный стоп ограничивает дальнейшую экспозицию после наступления просадки. Он не устраняет убытки, а ограничивает их.">
-              The kill switch limits further exposure after a drawdown event. It does not
-              eliminate losses — it caps them.
+            <p class="text-xs text-white/50" data-ru="SOFT текущую экспозицию не снижает, только блокирует её рост. HARD переводит портфель в кэш после наступления просадки. Ни один из уровней не устраняет уже понесённые убытки.">
+              SOFT does not reduce current exposure — it only blocks further growth. HARD moves the
+              portfolio to cash after a drawdown event. Neither tier eliminates losses already
+              incurred.
             </p>
           </div>
         </div>
