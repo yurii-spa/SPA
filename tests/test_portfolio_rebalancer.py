@@ -957,3 +957,30 @@ class TestSafeFallbackAdapterClassGate(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+# ── Зеркало политики: фантомный T1-пол не должен вернуться ────────────────────
+# Решение владельца 2026-08-25 (вариант A). Ребалансер держал t1_min=0.55 — копию
+# правила, удалённого из RiskPolicy 2026-07-08; гейт и сторож свели своё значение к
+# 0.0 ещё тогда, а ребалансер остался единственным носителем фантома и потому строил
+# раскладку под несуществующее требование. Сторож ниже краснеет, если копия вернётся.
+
+class TestT1FloorMirrorsPolicy:
+    def test_rebalancer_t1_min_mirrors_enforcer(self):
+        """t1_min ребалансера обязан совпадать с RULES['t1_min_pct'] гейта."""
+        from spa_core.tuner.portfolio_rebalancer import _DEFAULT_CONSTRAINTS
+        from spa_core.risk.policy_enforcer import RULES
+        assert _DEFAULT_CONSTRAINTS.t1_min * 100.0 == float(RULES["t1_min_pct"])
+
+    def test_no_phantom_55pct_floor(self):
+        """Прямой контроль на саму аварию: 55%-пола в ребалансере больше нет."""
+        from spa_core.tuner.portfolio_rebalancer import _DEFAULT_CONSTRAINTS
+        assert _DEFAULT_CONSTRAINTS.t1_min != 0.55
+
+    def test_deliberate_margins_kept(self):
+        """Осознанный запас владелец решил ОСТАВИТЬ — он не должен уехать вместе с фантомом."""
+        from spa_core.tuner.portfolio_rebalancer import _DEFAULT_CONSTRAINTS as c
+        assert c.per_protocol_max == 0.25
+        assert c.t2_max == 0.45
+        assert c.cash_min == 0.07
+        assert c.max_protocols == 7

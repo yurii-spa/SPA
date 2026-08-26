@@ -11,6 +11,7 @@ LLM_FORBIDDEN. fail-closed: нет данных → CHECK_FAIL.
   CHECK-HY-004  policy_hy.evaluate_protocol() работает без ошибок
   CHECK-HY-005  PendlePTAdapter.read_state() без ошибок
   CHECK-HY-006  data/hy_paper_trading.json существует и читаема
+  CHECK-HY-007  Книга держит хотя бы одну позицию (пустая книга = НЕ готова)
 
 Атомарная запись: tmp + os.replace (data/golive_hy_report.json).
 """
@@ -172,6 +173,32 @@ def _check_drawdown(hy_state: dict) -> HYGoLiveCheck:
     )
 
 
+def _check_book_not_empty(hy_state: dict) -> HYGoLiveCheck:
+    """CHECK-HY-007: книга держит хотя бы одну позицию. LLM_FORBIDDEN.
+
+    Решение владельца 2026-08-25 (вариант A, карточка «Пустая книга проходит чек-лист
+    go-live целиком»). До неё ни одна из шести проверок HY-001…006 не спрашивала, держит
+    ли книга хоть что-нибудь: опустевшая книга — из-за отказа фидов, сработавшего
+    стоп-крана или ошибки отбора — предъявлялась готовой к живым деньгам.
+
+    Ноль позиций ⇒ FAIL, а не PASS и не предупреждение (предупреждение в чек-листе
+    go-live ничего не блокирует). Пороги RiskPolicy v1.0 и стоп-кран НЕ трогаются.
+    fail-closed: state нечитаем ⇒ позиций ноль ⇒ FAIL.
+    """
+    # LLM_FORBIDDEN
+    positions = hy_state.get("positions") or []
+    n = len(positions)
+    return HYGoLiveCheck(
+        check_id="CHECK-HY-007",
+        name="Книга держит хотя бы одну позицию",
+        status="PASS" if n > 0 else "FAIL",
+        value=n,
+        threshold="> 0",
+        note=(f"Открытых позиций: {n}" if n > 0
+              else "Книга ПУСТА (0 позиций) — go-live этого пакета не проходит"),
+    )
+
+
 def _check_policy_hy() -> HYGoLiveCheck:
     """CHECK-HY-004: policy_hy.evaluate_protocol() работает без ошибок. LLM_FORBIDDEN."""
     # LLM_FORBIDDEN
@@ -289,7 +316,7 @@ def run_golive_check_hy() -> HYGoLiveReport:
     except Exception:
         hy_state = {}  # fail-closed: нет данных → проверки провалятся сами
 
-    # Запускаем все проверки в порядке CHECK-HY-001..006
+    # Запускаем все проверки в порядке CHECK-HY-001..007
     checks = [
         _check_paper_days(hy_state),
         _check_enter_days(hy_state),
@@ -297,6 +324,7 @@ def run_golive_check_hy() -> HYGoLiveReport:
         _check_policy_hy(),
         _check_pendle_adapter(),
         _check_data_file(),
+        _check_book_not_empty(hy_state),
     ]
 
     passed = sum(1 for c in checks if c.status == "PASS")

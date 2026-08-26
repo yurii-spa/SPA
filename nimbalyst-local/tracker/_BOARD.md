@@ -2,27 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **680** · ждёт владельца: **17** · занято сессиями: **6**.
+> Всего карточек: **681** · ждёт владельца: **0** · занято сессиями: **6**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
-- **Потолок концентрации не видит общего куратора — половина книги может лечь под одну команду** · _medium_  ·  `own-2026-08-18-potolok-ne-vidit-obshchego-kuratora.md`
-- **Подборщик раскладки И САМ АЛЛОКАТОР не знают про потолки по сетям — предлагают то, что гейт заворачивает** · _medium_  ·  `own-2026-08-18-tyuner-ne-znaet-o-setevykh-potolkakh.md`
-- **У ребалансера свой запас строже политики — оставляем или снимаем** · _medium_  ·  `own-2026-08-18-zapas-rebalansera-strozhe-politiki.md`
-- **Сторожа переходов статусов сейчас двигают только циклы вручную — заводить ли ему отдельного агента** · _medium_  ·  `own-2026-08-23-postoyannyi-progon-storozha-perehodov.md`
-- **Пустая книга проходит чек-лист go-live целиком — проверка «все позиции безопасны» на нуле позиций отвечает «да»** · _medium_  ·  `own-2026-08-24-pustaya-kniga-prohodit-chek-list-go-live.md`
-- **Курс, по которому лаборатория решает «сработала авария», шумит сильнее самой аварии — и убил четыре книги зря** · _high_  ·  `own-76-shum-ratio-ubivaet-knigi-laboratorii.md`
-- **Fluid закрыт для капитала по правилу другого протокола — нужно твоё решение** · _medium_  ·  `own-fluid-gsm-gate-chuzhoy-parametr.md`
-- **Ручной инструмент поиска новых источников доходности никто не запускает — оставить, поставить на расписание или списать**  ·  `own-ruchnoy-instrument-poiska-istochnikov.md`
-- **Цена нашего лимита «не больше 20 % на одно имя» измерена: поднимать его незачем, он стоит ровно в лучшей точке** · _medium_  ·  `own-tsena-nashego-limita-20-na-odno-imya-izme.md`
-- **Договор называет старый потолок T2 — 35 % при живых 50 %**  ·  `owner-decision-dogovor-nazyvaet-staryi-potolok-t2-35-pr.md`
-- **Когда ты последний раз менял пароль-ключ для GitHub? Машина этого не знает, а срок — через 7 дней**  ·  `owner-decision-kogda-ty-poslednii-raz-menyal-parol-klyu.md`
-- **Проверка книги слабее проверки перед сделкой — 60 % в рисковом уровне проходит как «здоровый портфель»** · _medium_  ·  `owner-decision-proverka-knigi-slabee-proverki-pered-sde.md`
-- **Списать 180 фоновых модулей Tier-C или честно записать, что мы про них не знаем**  ·  `owner-decision-spisat-180-fonovyh-modulei-tier-c-ili-ch.md`
-- **Три отчёта о доказательной базе трека молчат 2 месяца — оживить или убрать в архив** · _medium_  ·  `owner-decision-tri-otcheta-o-dokazatelnoi-baze-treka-mo.md`
-- **Твой ответ «Ответ 1» сегодня не применился — теперь можно отвечать прямо на сообщение с вопросом**  ·  `owner-decision-tvoi-otvet-otvet-1-segodnya-ne-primenils.md`
-- **Вести опрос от полного реестра адаптеров? Замер: 27 проходных при пределе 8 — книга каждый цикл уходит в аварийную** · _high_  ·  `owner-decision-vesti-opros-ot-polnogo-reestra-adapterov.md`
-- **Я откатил 116 файлов живого состояния в боевом дереве — 114 вернул из резерва, дыра 19,5 часов осталась**  ·  `owner-decision-ya-otkatil-116-failov-zhivogo-sostoyaniy.md`
+_Пусто — открытых решений на владельце нет._
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
@@ -37,24 +21,6 @@
 
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (170)
 
-### · needs-owner
-- Потолок концентрации не видит общего куратора — половина книги может лечь под одну команду  ·  `own-2026-08-18-potolok-ne-vidit-obshchego-kuratora.md` · 2026-08-18
-- Подборщик раскладки И САМ АЛЛОКАТОР не знают про потолки по сетям — предлагают то, что гейт заворачивает  ·  `own-2026-08-18-tyuner-ne-znaet-o-setevykh-potolkakh.md` · 2026-08-18
-- У ребалансера свой запас строже политики — оставляем или снимаем  ·  `own-2026-08-18-zapas-rebalansera-strozhe-politiki.md` · 2026-08-18
-- Сторожа переходов статусов сейчас двигают только циклы вручную — заводить ли ему отдельного агента  ·  `own-2026-08-23-postoyannyi-progon-storozha-perehodov.md` · 2026-08-23
-- Пустая книга проходит чек-лист go-live целиком — проверка «все позиции безопасны» на нуле позиций отвечает «да»  ·  `own-2026-08-24-pustaya-kniga-prohodit-chek-list-go-live.md` · 2026-08-24
-- Курс, по которому лаборатория решает «сработала авария», шумит сильнее самой аварии — и убил четыре книги зря  ·  `own-76-shum-ratio-ubivaet-knigi-laboratorii.md` · 2026-08-24
-- Fluid закрыт для капитала по правилу другого протокола — нужно твоё решение  ·  `own-fluid-gsm-gate-chuzhoy-parametr.md` · 2026-08-18
-- Ручной инструмент поиска новых источников доходности никто не запускает — оставить, поставить на расписание или списать  ·  `own-ruchnoy-instrument-poiska-istochnikov.md` · 2026-08-17
-- Цена нашего лимита «не больше 20 % на одно имя» измерена: поднимать его незачем, он стоит ровно в лучшей точке  ·  `own-tsena-nashego-limita-20-na-odno-imya-izme.md` · 2026-08-17
-- Договор называет старый потолок T2 — 35 % при живых 50 %  ·  `owner-decision-dogovor-nazyvaet-staryi-potolok-t2-35-pr.md` · 2026-08-25
-- Когда ты последний раз менял пароль-ключ для GitHub? Машина этого не знает, а срок — через 7 дней  ·  `owner-decision-kogda-ty-poslednii-raz-menyal-parol-klyu.md` · 2026-08-25
-- Проверка книги слабее проверки перед сделкой — 60 % в рисковом уровне проходит как «здоровый портфель»  ·  `owner-decision-proverka-knigi-slabee-proverki-pered-sde.md` · 2026-08-18
-- Списать 180 фоновых модулей Tier-C или честно записать, что мы про них не знаем  ·  `owner-decision-spisat-180-fonovyh-modulei-tier-c-ili-ch.md` · 2026-08-17
-- Три отчёта о доказательной базе трека молчат 2 месяца — оживить или убрать в архив  ·  `owner-decision-tri-otcheta-o-dokazatelnoi-baze-treka-mo.md` · 2026-08-24
-- Твой ответ «Ответ 1» сегодня не применился — теперь можно отвечать прямо на сообщение с вопросом  ·  `owner-decision-tvoi-otvet-otvet-1-segodnya-ne-primenils.md` · 2026-08-20
-- Вести опрос от полного реестра адаптеров? Замер: 27 проходных при пределе 8 — книга каждый цикл уходит в аварийную  ·  `owner-decision-vesti-opros-ot-polnogo-reestra-adapterov.md` · 2026-08-18
-- Я откатил 116 файлов живого состояния в боевом дереве — 114 вернул из резерва, дыра 19,5 часов осталась  ·  `owner-decision-ya-otkatil-116-failov-zhivogo-sostoyaniy.md` · 2026-08-23
 ### · blocked
 - Наблюдённая угроза до тебя не доезжает, а наша собственная остановка доезжает каждый день  ·  `own-red-team-nablyudennaya-ugroza-ne-doezzhaet.md` · 2026-08-18
 ### · ingested
@@ -73,9 +39,14 @@
 - Дозаписать ли книгу за 12 прошлых дней трека — или оставить дыры как есть  ·  `own-2026-08-18-dozapisat-li-knigu-za-12-proshlyh-dnei.md` · 2026-08-18
 - Два источника доходности опознают пул по-разному — и денежный путь ходит в тот, у которого проверки нет  ·  `own-2026-08-18-dva-proizvoditelya-apy-opoznayut-pul-po-raznomu.md` · 2026-08-18
 - Аллокатор ставит метку «живой размер пула» на выдуманное число — прямой запрет правила  ·  `own-2026-08-18-metka-zhivoi-na-konstante-v-allokatore.md` · 2026-08-18
+- Потолок концентрации не видит общего куратора — половина книги может лечь под одну команду  ·  `own-2026-08-18-potolok-ne-vidit-obshchego-kuratora.md` · 2026-08-18
 - Просадка в отчёте — это шов двух симуляций, а не рыночное событие  ·  `own-2026-08-18-prosadka-v-otchete-eto-shov-dvuh-simulyatsii.md` · 2026-08-18
+- Подборщик раскладки И САМ АЛЛОКАТОР не знают про потолки по сетям — предлагают то, что гейт заворачивает  ·  `own-2026-08-18-tyuner-ne-znaet-o-setevykh-potolkakh.md` · 2026-08-18
+- У ребалансера свой запас строже политики — оставляем или снимаем  ·  `own-2026-08-18-zapas-rebalansera-strozhe-politiki.md` · 2026-08-18
 - Судьба чекапа — воронка ведёт в никуда, а канал заявок молчит, если Телеграм не настроен  ·  `own-2026-08-19-sudba-voronki-chekapa-i-kanal-zayavok.md` · 2026-08-19
 - Снять замороженный «Журнал изменений» с сайта — нужна твоя подпись на удалении  ·  `own-2026-08-22-snyat-changelog-so-saita.md` · 2026-08-22
+- Сторожа переходов статусов сейчас двигают только циклы вручную — заводить ли ему отдельного агента  ·  `own-2026-08-23-postoyannyi-progon-storozha-perehodov.md` · 2026-08-23
+- Пустая книга проходит чек-лист go-live целиком — проверка «все позиции безопасны» на нуле позиций отвечает «да»  ·  `own-2026-08-24-pustaya-kniga-prohodit-chek-list-go-live.md` · 2026-08-24
 - Навести порядок в агентах — реши по каждому пункту (сводка инвентаризации)  ·  `own-21-agent-cleanup-decisions.md` · 2026-07-15
 - Ревью ветки yield-lab-scaffolding — мержить или оставить как есть  ·  `own-22-yield-lab-branch-review.md` · 2026-07-15
 - Через 2 дня (~17.07) — пересмотреть, как часто работает автономный цикл  ·  `own-23-autonomy-cadence-recheck.md` · 2026-07-15
@@ -93,9 +64,11 @@
 - 🛑 Стоп-кран: осталась одна щель в уведомлении — закрывать ли её  ·  `own-34-kill-switch-active-13h-unnoticed.md` · 2026-08-10
 - Часть книг исследовательской панели не отвечает за свои числа — и все наши замеры про это молчали  ·  `own-54-mertvye-knigi-issledovatelskoy-paneli.md` · 2026-08-15
 - Автопочинщик кода остался без вызывающих: убрать совсем или оставить лежать  ·  `own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih.md` · 2026-08-17
+- Курс, по которому лаборатория решает «сработала авария», шумит сильнее самой аварии — и убил четыре книги зря  ·  `own-76-shum-ratio-ubivaet-knigi-laboratorii.md` · 2026-08-24
 - Вторая задача из твоего сообщения (волатильный ETH-пул с доходностью «79%») — сам её не беру, нужно твоё решение  ·  `own-aud19-volatile-clmm-vvodim-li-klass.md` · 2026-08-05
 - BTC-движок не помещается под наш стоп-кран — выбери, как быть: отдельный NAV, маленькая доля или только research  ·  `own-btc-dvizhok-ne-vlezaet-pod-stop-kran.md` · 2026-08-20
 - Нажми, чтобы на сайте появилась строка «идёт paper-тест» по Balanced и Aggressive  ·  `own-cio-i-paper-cifry-tri-mandata-vladeltsa.md` · 2026-08-21
+- Fluid закрыт для капитала по правилу другого протокола — нужно твоё решение  ·  `own-fluid-gsm-gate-chuzhoy-parametr.md` · 2026-08-18
 - МАНДАТ АВТОНОМИИ ВОЗОБНОВЛЁН на 30 дней (решение владельца 2026-08-20, cloud-сессия) — вернуться к темпу ADR-078  ·  `own-mandat-avtonomii-vozobnovlen-30-dnei.md` · 2026-08-20
 - Нашлось правило, которое впервые даёт И доход выше, И просадку меньше — строить ли под него paper-модуль  ·  `own-rnd-cdr-demotion-readmission-paper-module.md` · 2026-08-06
 - Все семь правил «выключать слабую книгу» на самом деле крутят ОДНУ ручку — концентрацию. И наш же лимит 20% срезает её ровно там, где она начинает платить  ·  `own-rnd-duty-is-concentration-adr055.md` · 2026-08-07
@@ -104,6 +77,8 @@
 - Мягкая ступень аварийного тормоза (просадка 5 %) в её нынешней формулировке не делает НИЧЕГО — что она должна значить?  ·  `own-rnd-killswitch-soft-tier-meaning.md` · 2026-08-10
 - Правило «выключать худшую книгу, а не убыточную» дало лучшие числа за весь реестр — менять ли под это правило отбора тиров  ·  `own-rnd-xsd-rank-demotion-allocator.md` · 2026-08-07
 - Нашлось правило, которое снижает просадку почти бесплатно — но менять его на живом ничего не надо, вопрос только «куда его записать»  ·  `own-rnd-xvd-vol-rank-second-arm.md` · 2026-08-08
+- Ручной инструмент поиска новых источников доходности никто не запускает — оставить, поставить на расписание или списать  ·  `own-ruchnoy-instrument-poiska-istochnikov.md` · 2026-08-17
+- own-tsena-nashego-limita-20-na-odno-imya-izme  ·  `own-tsena-nashego-limita-20-na-odno-imya-izme.md` · 2026-08-17
 - Внешнее якорение трека не работало 43 дня — я его починил, нужен твой взгляд на два хвоста  ·  `own-yakorenie-treka-ne-rabotalo-43-dnya.md` · 2026-08-15
 - 10% денег стоят без работы: причина найдена — 11 протоколов закрыты из-за отсутствия живого фида, нужен твой выбор  ·  `owner-decision-10-deneg-stoyat-bez-raboty-prichina-naid.md` · 2026-08-05
 - ТЕСТ: подтверди, что очередь работает — переведи в Owner Done  ·  `owner-decision-20260715-124956-owner-done.md` · 2026-07-15T00:00:00.000Z
@@ -128,6 +103,7 @@
 - Дневной лимит убытка: а если сама проверка УПАЛА — торгуем или нет? (второй вопрос той же карточки, ответа нет)  ·  `owner-decision-dnevnoi-limit-ubytka-a-esli-sama-proverk.md` · 2026-08-21
 - Дневной цикл сегодня запускали 8 раз не по расписанию — и кто именно, система не записывает  ·  `owner-decision-dnevnoi-tsikl-segodnya-zapuskali-8-raz-n.md` · 2026-08-08
 - Дневной лимит убытка считает «не знаю» за «убытка нет» — и в этот день цикл торгует  ·  `owner-decision-dnevnoy-limit-ubytka-schitaet-neizvestn.md` · 2026-08-18
+- Договор называет старый потолок T2 — 35 % при живых 50 %  ·  `owner-decision-dogovor-nazyvaet-staryi-potolok-t2-35-pr.md` · 2026-08-25
 - Доска карточек обещает больше, чем даёт: поправить одну фразу в CLAUDE.md  ·  `owner-decision-doska-kartochek-obeschaet-bolshe-chem-da.md` · 2026-08-17
 - Два агента не переживут перезагрузку — разрешить доустановить их в системную папку  ·  `owner-decision-dva-agenta-ne-perezhivut-perezagruzku-ra.md` · 2026-08-06
 - Два дня трека помечены доказанными, хотя в эти дни система не держала ничего  ·  `owner-decision-dva-dnya-treka-pomecheny-dokazannymi-hot.md` · 2026-08-10
@@ -143,6 +119,7 @@
 - Хвост maple ты принял на доле 15%, а фактическая доля — 20%: принятый убыток на треть больше  ·  `owner-decision-hvost-maple-ty-prinyal-na-dole-15-a-fakt.md` · 2026-08-22
 - Кэш системы — тот же USDC: замер показал, что наивная корзина кэша не лечит, а вредит  ·  `owner-decision-kesh-sistemy-tot-zhe-usdc-zamer-pokazal.md` · 2026-08-22
 - Книги aggressive_lab переписывают свою историю — и это отложенно заденет числа на сайте  ·  `owner-decision-knigi-aggressive-lab-perepisyvayut-svoyu.md` · 2026-08-01
+- Когда ты последний раз менял пароль-ключ для GitHub? Машина этого не знает, а срок — через 7 дней  ·  `owner-decision-kogda-ty-poslednii-raz-menyal-parol-klyu.md` · 2026-08-25
 - Критичная находка петли: com.spa.digest_weekly работает при intent=retired  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-digest.md` · 2026-08-08
 - Критичная находка петли: com.spa.telegram_health загружен, в манифесте ОТСУТСТВУЕТ (класс swarm  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-telegr.md` · 2026-08-08
 - Критичная находка петли: com.spa.tier1_digest работает при intent=retired  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-tier1.md` · 2026-08-08
@@ -164,6 +141,7 @@
 - Правило «Sky/sUSDS = 0 %» отменено твоим же решением, но написано как действующее — и уже породило ложную тревогу  ·  `owner-decision-pravilo-sky-susds-0-otmeneno-tvoim-zhe-r.md` · 2026-08-17
 - 🅰🅰🅰 Продуктовый слой агентов (Head of Product + R&D продукта + продвижение) — построить  ·  `owner-decision-produktovyi-sloi-agentov-head-of-product.md` · 2026-07-16
 - Проверь одно поле: доходят ли до тебя заявки с сайта (одна минута)  ·  `owner-decision-prover-odno-pole-dohodyat-li-do-tebya-za.md` · 2026-08-22
+- Проверка книги слабее проверки перед сделкой — 60 % в рисковом уровне проходит как «здоровый портфель»  ·  `owner-decision-proverka-knigi-slabee-proverki-pered-sde.md` · 2026-08-18
 - Публичная страница «проверь нас» показывает замеры месячной давности — выбери, как их обновлять  ·  `owner-decision-publichnaya-stranitsa-prover-nas-pokazyv.md` · 2026-07-29
 - Рабочая копия проекта на маке отстала от GitHub на 345 коммитов — из-за этого очередь заданий показывает старое  ·  `owner-decision-rabochaya-kopiya-proekta-na-make-otstala.md` · 2026-07-31
 - Решение ADR-070 п.6 исполнить нельзя: «один вольт — один риск» упирается в тир morpho_steakhouse (40% → 20%)  ·  `owner-decision-reshenie-adr-070-p-6-ispolnit-nelzya-odi.md` · 2026-08-10
@@ -179,6 +157,7 @@
 - Сколько минут слепоты внутридневного сенсора — уже повод тебя разбудить  ·  `owner-decision-skolko-minut-slepoty-vnutridnevnogo-sens.md` · 2026-08-23
 - Слепая просадка и покупки: наращивать ли позиции, когда просадку вычислить не из чего  ·  `owner-decision-slepaya-prosadka-i-pokupki-naraschivat-l.md` · 2026-08-23
 - Снять мёртвый адрес checkup.earn-defi.com — последнее, что осталось от похороненного чекапа  ·  `owner-decision-snyat-mertvyi-adres-checkup-earn-defi-co.md` · 2026-08-22
+- Списать 180 фоновых модулей Tier-C или честно записать, что мы про них не знаем  ·  `owner-decision-spisat-180-fonovyh-modulei-tier-c-ili-ch.md` · 2026-08-17
 - Сторож базисной сделки ожил и хочет слать тебе «отличная возможность» — включаем эти сообщения или нет  ·  `owner-decision-storozh-bazisnoi-sdelki-ozhil-i-hochet-s.md` · 2026-08-01
 - Сторож чисел сайта краснеет ~10 раз в день на нашей же автоматике — разрешить ему молчать там, где он всё равно ничего не измеряет?  ·  `owner-decision-storozh-chisel-saita-krasneet-10-raz-v-den.md` · 2026-08-19
 - Сторож голосований следит за чужими протоколами, а за нашими — нет: выбери, добавлять источники или убрать лишние  ·  `owner-decision-storozh-golosovanii-sledit-za-chuzhimi-p.md` · 2026-08-01
@@ -191,19 +170,23 @@
 - Табличка честности не доезжает до сайта — публично видно 5.2% там, где живой расчёт даёт 4.8%  ·  `owner-decision-tablichka-chestnosti-ne-doezzhaet-do-sai.md` · 2026-08-08
 - Третья проверка кода сломалась и 8 часов этого никто не видел — нужен сторож за всеми проверками  ·  `owner-decision-tretya-proverka-koda-slomalas-i-8-chasov.md` · 2026-08-03
 - Тревога о стоп-кране до тебя больше не дойдёт — событие застряло в «плохо» с 4 июля (выбери, как чинить)  ·  `owner-decision-trevoga-o-stop-krane-do-tebya-bolshe-ne.md` · 2026-07-31
+- Три отчёта о доказательной базе трека молчат 2 месяца — оживить или убрать в архив  ·  `owner-decision-tri-otcheta-o-dokazatelnoi-baze-treka-mo.md` · 2026-08-24
 - Три пакета начали реальный paper-тест — Balanced и Aggressive пошли (нужно да/нет по двум пунктам)  ·  `owner-decision-tri-paketa-nachali-realnyi-paper-test-ba.md` · 2026-08-23
 - Три выведенных агента остались в системе и красят сверку архитектуры  ·  `owner-decision-tri-vyvedennyh-agenta-ostalis-v-sisteme.md` · 2026-08-08
+- Твой ответ «Ответ 1» сегодня не применился — теперь можно отвечать прямо на сообщение с вопросом  ·  `owner-decision-tvoi-otvet-otvet-1-segodnya-ne-primenils.md` · 2026-08-20
 - Твои решения от 23 июля 11 дней не лежали в git — доставил, подтверди что в силе  ·  `owner-decision-tvoi-resheniya-ot-23-iyulya-11-dnei-ne-l.md` · 2026-08-02
 - Один лишний файл в рабочей папке не даёт запустить ТЕСТЫ на твоей машине — убрать его  ·  `owner-decision-ubrat-slomannyi-ostatok-v-rabochei-papke.md` · 2026-08-19
 - Уточнение по заметке: Давай так и сделаем  ·  `owner-decision-utochnenie-po-zametke-davai-tak-i-sdelae.md` · 2026-07-22
 - Утреннее письмо может не дойти, а система этого не заметит — выбери, как это показывать  ·  `owner-decision-utrennee-pismo-mozhet-ne-doiti-a-sistema.md` · 2026-08-01
 - В шаблоне договора осталось снятое ограничение по Sky/sUSDS  ·  `owner-decision-v-shablone-dogovora-ostalos-snyatoe-ogra.md` · 2026-08-25
 - В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md` · 2026-07-29
+- Вести опрос от полного реестра адаптеров? Замер: 27 проходных при пределе 8 — книга каждый цикл уходит в аварийную  ·  `owner-decision-vesti-opros-ot-polnogo-reestra-adapterov.md` · 2026-08-18
 - Ветка с восемью записанными решениями: влить или закрыть  ·  `owner-decision-vetka-s-vosemyu-zapisannymi-resheniyami.md` · 2026-08-20
 - Включить нового сторожа сайта на Маке — одна команда, и табличка снимется сама  ·  `owner-decision-vklyuchit-novogo-storozha-saita-na-make.md` · 2026-08-14
 - Внутридневная просадка: мягкий тир внутри дня — действовать в минутах или как сейчас  ·  `owner-decision-vnutridnevnaya-prosadka-slepota-teper-sl.md` · 2026-08-18
 - Возить ли каталог решений об агентах на рабочую машину — или оставить как сейчас (сторож уже читает их из git)  ·  `owner-decision-vozit-li-katalog-reshenii-ob-agentah-na.md` · 2026-08-08
 - Выдуманная казна протокола в оценке страховки — оставить или отказываться?  ·  `owner-decision-vydumannaya-kazna-protokola-v-otsenke-st.md` · 2026-08-04
+- Я откатил 116 файлов живого состояния в боевом дереве — 114 вернул из резерва, дыра 19,5 часов осталась  ·  `owner-decision-ya-otkatil-116-failov-zhivogo-sostoyaniy.md` · 2026-08-23
 - Закрытие вопроса владельца из рабочего дерева читается сторожем как «закрыли без владельца» — выбери, чем лечим  ·  `owner-decision-zakrytie-voprosa-vladeltsa-iz-rabochego.md` · 2026-08-17
 - Замок дневного цикла не спрашивает, жив ли держатель — сегодня 18 отказов подряд из-за мёртвого процесса  ·  `owner-decision-zamok-dnevnogo-tsikla-ne-sprashivaet-zhi.md` · 2026-08-08
 - Запасной ключ к защите сайта не работает — починить или убрать из инструкции?  ·  `owner-decision-zapasnoi-klyuch-k-zaschite-saita-ne-rabo.md` · 2026-08-07
@@ -211,7 +194,7 @@
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (323)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (324)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -503,6 +486,7 @@
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
 - Находка петли: аналитик red_team: CRITICAL — требует реакции (карточка/решение), не п  ·  `inbox-nahodka-petli-analitik-red-team-critical.md` · 2026-08-10
 - Находка петли: возможность aave_v3 4.0586% (evidence L4) доступна книге, не держится  ·  `inbox-nahodka-petli-vozmozhnost-aave-v3-4-0586.md` · 2026-08-25
+- Находка петли: возможность fluid_fusdc 5.11% (evidence L3) доступна книге, не держитс  ·  `inbox-nahodka-petli-vozmozhnost-fluid-fusdc-5-2.md` · 2026-08-26
 - Обещанная перепроверка DNS checkup осталась без исполнителя: карточку закрыли, критерий не выполнен  ·  `inbox-obeschannaya-pereproverka-dns-checkup-os.md` · 2026-08-22
 - Окно до 6 часов: ответ владельца между нажатием кнопки и прогоном моста живёт в одном экземпляре  ·  `inbox-okno-do-6-chasov-otvet-vladeltsa-mezhdu.md` · 2026-08-15
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08
