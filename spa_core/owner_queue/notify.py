@@ -196,6 +196,45 @@ def _record_outcome(pid: str | None, *, ok: bool, result=None) -> None:
         log.warning("notify_needs_owner: outcome record failed for %s: %s", pid, exc)
 
 
+def delivery_verdict(path, *, state_path=None):
+    """УЕХАЛО ли сообщение по карточке. Возвращает ``(True|False|None, причина словами)``.
+
+    Зачем отдельная функция (замер цикла #385, живой случай). Журнал отправок с #309 знает
+    исход честно (`mark_send_outcome`), но ЕДИНСТВЕННЫЙ человеческий потребитель —
+    `scripts/orchestrator_queue.py notify` — печатал «OK: notified» безусловно, то есть
+    отчитывался о НАМЕРЕНИИ отправить. В этом цикле сообщение владельцу дважды подряд
+    гасил дедуп отправителя (`duplicate_dropped`), а команда оба раза отвечала «OK» и
+    кодом 0. Сессия, читающая такой ответ, считает вопрос заданным — а он не задан.
+
+    Тот же класс, что чинили в самом журнале: ответ на СВОЙ вопрос («мы попытались»)
+    читается как ответ на нужный («владелец получил»).
+
+    `None` — «не измерено», и это ТРЕТИЙ исход, а не разновидность неудачи: записи может
+    не быть вовсе (чужой путь отправки, подменённый отправитель в тесте).
+    """
+    from pathlib import Path as _Path
+
+    try:
+        from spa_core.telegram import owner_decisions
+        # Приватный доступ намеренный: публичного чтения одной записи в модуле нет, а
+        # заводить второй путь к journal-файлу значило бы завести второе знание о его
+        # формате. Расхождение поймает тест на исход.
+        rec = owner_decisions._push_by_card_id(_Path(path).stem, state_path=state_path)
+    except Exception as exc:  # noqa: BLE001 — недоступность журнала это «не измерено»
+        return None, f"журнал отправок не читается ({exc.__class__.__name__})"
+
+    if not isinstance(rec, dict):
+        return None, "записи об этой карточке в журнале отправок нет"
+    delivered = rec.get("delivered")
+    if delivered is True:
+        return True, f"доставлено, message_ids={rec.get('message_ids')}"
+    if delivered is False:
+        return False, ("отправитель не отдал сообщение — дедуп по тексту (30 мин), "
+                       "лимит потока 12/мин или бот не ответил; подробности в "
+                       "data/telegram_owner_decisions.json")
+    return None, "в записи журнала нет отметки о доставке — НЕ ИЗМЕРЕНО"
+
+
 WITHDRAWN_REASON = ("находка исчезла при следующем прогоне сторожа — "
                     "тревога оказалась ложной")
 
