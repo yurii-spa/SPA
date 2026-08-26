@@ -57,13 +57,14 @@ def main():
         health_cmd.append("--test")
     results["health"] = run_step("health_check", health_cmd, args.dry_run)
 
-    # Step 3: weekly report on Fridays
-    if is_friday():
-        weekly_cmd = [python, str(ROOT / "scripts/weekly_evidence_report.py")]
-        results["weekly"] = run_step("weekly_report", weekly_cmd, args.dry_run)
-    else:
-        print(f"⏭ weekly_report: skipped (not Friday)")
-        results["weekly"] = None
+    # Step 3: weekly report — АРХИВИРОВАН 2026-08-26 (ADR-140).
+    # Решение владельца 25.08, вариант 1: из трёх отчётов доказательной базы
+    # оживлён ТОЛЬКО тридцатидневный (шагом дневного цикла, без нового агента);
+    # недельный уехал в attic/scripts/weekly_evidence_report.py. Шаг оставлен
+    # НАЗВАННЫМ, а не вырезанным: молча исчезнувший шаг неотличим от «его тут
+    # никогда не было», а он был и его сняли решением (инв. #17).
+    print("⏭ weekly_report: АРХИВИРОВАН (ADR-140) — attic/scripts/weekly_evidence_report.py")
+    results["weekly"] = None
 
     # Summary
     failed = [k for k, v in results.items() if v is False]

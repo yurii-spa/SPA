@@ -1350,6 +1350,77 @@ class StrategyAllocator:
         )
         return w, True
 
+    def _select_best_n(
+        self,
+        weights: dict[str, float],
+        apy_map: dict[str, float] | None = None,
+        tier_map: dict[str, str] | None = None,
+    ) -> tuple[dict[str, float], set[str], list[str]]:
+        """Оставить ЛУЧШИЕ ``MAX_PROTOCOLS`` и отсечь худших (ADR-138).
+
+        **Что было.** Аллокатор раздавал деньги по ВСЕМ проходным протоколам, а
+        готовую раскладку уже потом ловило правило «не больше 8 позиций»
+        (ALLOC-002) — и вместо того, чтобы отсечь худших, система выбрасывала
+        раскладку целиком и брала аварийную книгу, которая к тому же идёт мимо
+        проверок свежести. Замер на модели по умолчанию (``risk_adjusted``):
+        12 кандидатов → 12 профинансировано, 27 → 27, гейт отвергал обе
+        (`max_protocols`). Порог ``max_protocols`` до сих пор доходил ТОЛЬКО до
+        ``optimized_yield``; остальные модели о нём не знали.
+
+        Поэтому «больше кандидатов» буквально означало «хуже книга»: сегодня
+        проходных ровно 8, и первый же девятый протокол, подтвердивший доходность
+        и размер пула, ронял книгу в фолбэк.
+
+        **Порядок важен.** Отбор идёт СТРОГО ПОСЛЕ проверок доказанности
+        доходности и живого размера пула — условие владельца дословно. Замер
+        08.08 показал цену обратного порядка: отбор ДО проверок дал кэш 15.8 % и
+        доходность 4.73 против 10 % / 6.03.
+
+        **Чем судим.** Предпочтением самой модели: вес, который она назначила
+        (по убыванию), затем APY, затем имя — детерминированно и без нового
+        объектива. Своя мера ранжирования была бы порогом политики с чёрного
+        хода: у моделей уже есть своя, и ADR на другую никто не писал. Для
+        ``equal_weight`` веса равны, и решает APY — то есть «лучшие 8» там
+        буквально «восемь самых доходных».
+
+        Отсечённые НАЗЫВАЮТСЯ (инв. #17). Их вес не перекладывается вручную —
+        он возвращается в бюджет, и дальше по конвейеру ``_fill_remainder``
+        разливает его по ОСТАВШИМСЯ в пределах их cap'ов.
+
+        Идемпотентно. Возвращает ``(weights, dropped, notes)``.
+        """
+        limit = int(self.MAX_PROTOCOLS)
+        funded = {p: w for p, w in weights.items() if w > _EPS}
+        if limit <= 0 or len(funded) <= limit:
+            return dict(weights), set(), []
+
+        apy_map = apy_map or {}
+        ranked = sorted(
+            funded.items(),
+            key=lambda kv: (-kv[1], -float(apy_map.get(kv[0], 0.0) or 0.0), kv[0]),
+        )
+        keep = {p for p, _ in ranked[:limit]}
+        dropped = [p for p, _ in ranked[limit:]]
+
+        # УДАЛЯЕМ из расчёта, а не обнуляем. Обнулённый протокол остаётся в
+        # словаре, и следующие шаги честно считают его «есть ёмкость, вес ноль»:
+        # `_apply_caps` разливает на него излишек, `_fill_remainder` — остаток.
+        # Замер с обнулением: 12 кандидатов → 11 профинансировано, предел 8 —
+        # то есть отсечение не срабатывало вовсе.
+        out = dict(weights)
+        freed = 0.0
+        for p in dropped:
+            freed += out.pop(p, 0.0)
+
+        note = (
+            f"ALLOC-002 (ADR-138): проходных {len(funded)} при пределе {limit} — "
+            f"отсечены худшие {len(dropped)} ({', '.join(dropped)}), "
+            f"освобождено {freed * 100:.2f}% в бюджет оставшихся. "
+            "Раньше такая книга целиком уходила в аварийный фолбэк."
+        )
+        log.warning("%s", note)
+        return out, set(dropped), [note]
+
     def _enforce_chain_caps(
         self, weights: dict[str, float]
     ) -> tuple[dict[str, float], list[str]]:
@@ -1728,6 +1799,20 @@ class StrategyAllocator:
         # _apply_caps перераспределит на них excess, а _fill_remainder — остаток.
         weights_for_alloc = {p: w for p, w in raw_weights.items() if p not in excluded}
 
+        # ADR-138 (решение владельца 25.08, вариант A): ОСОЗНАННЫЙ отбор лучших N
+        # СТРОГО ПОСЛЕ проверок доходности и живого размера пула. Всё, что дошло
+        # сюда, эти проверки уже прошло (`_load_adapters` → TVL-floor → evidence
+        # gate → исключения риск-модели), поэтому отбор судит равных.
+        weights_for_alloc, dropped_by_count, kept_notes = self._select_best_n(
+            weights_for_alloc, apy_map, tier_map
+        )
+        notes.extend(kept_notes)
+        # Отсечённые по счёту НЕ должны вернуться через водоналив остатка:
+        # `_fill_remainder` разливает по свободной ёмкости ВСЕХ известных ему
+        # протоколов, включая обнулённых, и без этого списка книга снова
+        # набирала одиннадцать позиций при пределе восемь (замер).
+        _no_refill = set(excluded) | dropped_by_count
+
         capped, was_capped = self._apply_caps(weights_for_alloc, tier_map)
         if was_capped:
             notes.append("Веса ограничены cap'ами по тирам (T1≤40%, T2≤20%).")
@@ -1745,7 +1830,7 @@ class StrategyAllocator:
             filled = False
         else:
             capped, filled = self._fill_remainder(
-                capped, tier_map, apy_map, exclude=excluded
+                capped, tier_map, apy_map, exclude=_no_refill
             )
 
         # MP-011: совокупный T2-кап ПОСЛЕ всех перераспределений (caps +
@@ -1806,6 +1891,11 @@ class StrategyAllocator:
         # Возвращаем исключённые риском протоколы в вывод с нулевым весом —
         # для прозрачности (видно, что они учтены и сознательно занулены).
         for p in excluded:
+            capped.setdefault(p, 0.0)
+        # ADR-138: отсечённые по счёту — тоже видны нулём. Молча исчезнувший из
+        # вывода протокол неотличим от «его не рассматривали» (инв. #17), а его
+        # рассмотрели и сознательно предпочли лучших.
+        for p in dropped_by_count:
             capped.setdefault(p, 0.0)
         if filled:
             notes.append(

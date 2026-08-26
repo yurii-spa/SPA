@@ -20,7 +20,7 @@ import math
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from spa_core.paper_trading._cycle_io import (
     DASHBOARD_HISTORY_FILENAME,
@@ -144,14 +144,25 @@ def _run_daily_monitors(
 # ─── MP-016: Telegram alerts (fail-safe, advisory — never crash the cycle) ───
 
 
-def _should_send_alert(alert_type: str, content: str) -> bool:
-    """De-duplicate repeat alerts of the same ``alert_type``.
+def dedup_verdict(alert_type: str, content: str) -> Optional[bool]:
+    """Дубль ли это оповещение? ТРИ исхода, а не два (инвариант #17).
 
-    Returns ``True`` only when *content* differs from the last payload sent
-    for this ``alert_type``. Guards against the daily cycle re-blasting an
-    identical Telegram message every run (a standing red flag or persistent
-    gap would otherwise alert on every cycle). Best-effort: any I/O error
-    falls through to ``True`` so a genuinely new alert is never swallowed.
+    * ``True``  — измерено: содержимое отличается от прошлого, оповещение новое;
+    * ``False`` — измерено: содержимое то же самое, это повтор;
+    * ``None``  — **НЕ ИЗМЕРЕНО**: файл отпечатка не прочитался/не записался,
+      и мы не знаем, дубль это или нет.
+
+    Раньше третий исход возвращался как ``True`` — «не знаю» было неотличимо от
+    «измерено, оповещение новое». ПОВЕДЕНИЕ от этого не страдало (отправить —
+    безопасная сторона: дедупликация не смеет глушить настоящую тревогу), но
+    ПРЕДСТАВЛЕНИЕ было ровно тем, что запрещает инвариант #17, и храповик
+    ``test_absent_observation_ratchet`` называет это местом класса «отсутствие
+    наблюдения = благополучие».
+
+    Найдено 26.08 попутно: файл стал писателем артефакта (в нём появился
+    ``atomic_save`` для отметки свежести отчёта, ADR-140), и сканер храповика,
+    который смотрит только на файлы-писатели, впервые ЗАГЛЯНУЛ сюда. Место
+    существовало всё это время — не измерялось.
     """
     try:
         hash_file = Path(f"/tmp/spa_cycle_alert_hash_{alert_type}")
@@ -160,8 +171,22 @@ def _should_send_alert(alert_type: str, content: str) -> bool:
             return False  # identical to the last alert — skip
         hash_file.write_text(new_hash)
         return True
-    except Exception:  # noqa: BLE001 — dedup must never block a real alert
-        return True
+    except Exception as exc:  # noqa: BLE001 — dedup must never block a real alert
+        log.warning("alert dedup НЕ ИЗМЕРЕНА для %s (%s) — шлём, не зная, дубль ли",
+                    alert_type, exc)
+        return None
+
+
+def _should_send_alert(alert_type: str, content: str) -> bool:
+    """Слать ли оповещение. Тонкая обёртка над :func:`dedup_verdict`.
+
+    «Не измерено» (``None``) ⇒ **слать**: дедупликация не смеет глушить
+    настоящую тревогу. Поведение то же, что и до ADR-140; разница в том, что
+    теперь неизмеренность ВИДНА отдельным значением, а решение «шлём» принято
+    здесь явно, а не спрятано в возврате измерителя.
+    """
+    verdict = dedup_verdict(alert_type, content)
+    return True if verdict is None else verdict
 
 
 def _run_cycle_alerts(
@@ -887,3 +912,91 @@ def run_post_cycle_advisory(
 
     # ── MP-512: APY Milestone Tracker ────────────────────────────────
     _record_apy_milestone(result=result, today=today)
+
+    # ── ADR-140: тридцатидневный отчёт о доказательной базе ───────────
+    _generate_evidence_report_30d(ddir=ddir, now_dt=now_dt)
+
+
+# ── ADR-140: тридцатидневный отчёт о доказательной базе трека ────────────────
+#: Сколько часов отчёт имеет право быть старым, прежде чем это НАЗЫВАЕТСЯ.
+#: Цикл дневной, поэтому 36 ч — «пропустили один прогон и ещё половину суток»:
+#: одиночный сбой не звенит, а замолчавшая цепочка звенит на следующий день.
+EVIDENCE_REPORT_MAX_AGE_H = 36.0
+EVIDENCE_REPORT_NAME = "evidence_report_30d.txt"
+EVIDENCE_FRESHNESS_STATUS = "evidence_report_30d_status.json"
+
+
+def evidence_report_freshness(
+    report_path: Path,
+    now: "datetime | None" = None,
+    max_age_h: float = EVIDENCE_REPORT_MAX_AGE_H,
+) -> dict:
+    """Свежесть тридцатидневного отчёта. Три исхода, а не два (инв. #17).
+
+    * ``fresh``   — отчёт есть и моложе ``max_age_h``;
+    * ``stale``   — отчёт есть и старше: сколько именно часов, названо числом;
+    * ``missing`` — отчёта нет вовсе. Это НЕ «свежий» и не «старый на ноль».
+
+    Ради чего сторож: замер 24.08 показал, что отчёт молчал **56 дней**, и об
+    этом не сказал никто — общая обёртка, из которой он запускался, сама никем
+    не звалась, а каждый из трёх отчётов выглядел вызываемым, потому что его
+    звал сосед. Время — ВХОД функции, а не окружение
+    (`.claude/rules/deployment.md`), поэтому тест бессмертен.
+    """
+    from datetime import datetime as _dt, timezone as _tz
+    now = now or _dt.now(_tz.utc)
+    if not report_path.exists():
+        return {"status": "missing", "age_hours": None, "max_age_hours": max_age_h,
+                "path": str(report_path)}
+    try:
+        mtime = _dt.fromtimestamp(report_path.stat().st_mtime, tz=_tz.utc)
+    except OSError as exc:  # noqa: BLE001
+        return {"status": "missing", "age_hours": None, "max_age_hours": max_age_h,
+                "path": str(report_path), "error": f"{type(exc).__name__}: {exc}"}
+    age_h = (now - mtime).total_seconds() / 3600.0
+    return {
+        "status": "fresh" if age_h <= max_age_h else "stale",
+        "age_hours": round(age_h, 3),
+        "max_age_hours": max_age_h,
+        "generated_at": mtime.isoformat(),
+        "path": str(report_path),
+    }
+
+
+def _generate_evidence_report_30d(*, ddir: Path, now_dt) -> None:
+    """Собрать тридцатидневный отчёт шагом дневного цикла (ADR-140).
+
+    Решение владельца 2026-08-25, вариант 1: оживить ТОЛЬКО тридцатидневный
+    отчёт — «внутри существующего дневного цикла, без нового агента». Недельный
+    и ежедневный уехали в ``attic/``.
+
+    Отчёт — единственный документ, который сводит трек, турнир и чек-лист
+    go-live в одно место для товарищества. Капитал он не двигает и гейтом не
+    работает; шаг fail-safe, как и все соседние в этом хвосте.
+
+    Рядом пишется отметка свежести, потому что «молчит 56 дней» обязано быть
+    ВИДНО, а не обнаруживаться замером через два месяца.
+    """
+    report_path = ddir.parent / "docs" / EVIDENCE_REPORT_NAME
+    try:
+        import sys as _sys
+        _scripts = str(ddir.parent / "scripts")
+        if _scripts not in _sys.path:
+            _sys.path.insert(0, _scripts)
+        from generate_evidence_report import generate_report, write_report
+        text = generate_report()
+        write_report(text, str(report_path))
+        log.info("ADR-140: evidence_report_30d обновлён (%s)", report_path)
+    except Exception as _ev_exc:  # noqa: BLE001 — шаг никогда не роняет цикл
+        log.warning("evidence_report_30d failed (%s) — cycle continues", _ev_exc)
+
+    # Отметка свежести пишется В ЛЮБОМ случае — в том числе когда генерация
+    # только что упала. Иначе молчание отчёта снова стало бы невидимым.
+    try:
+        from spa_core.utils.atomic import atomic_save
+        atomic_save(
+            evidence_report_freshness(report_path, now=now_dt),
+            str(ddir / EVIDENCE_FRESHNESS_STATUS),
+        )
+    except Exception as _fr_exc:  # noqa: BLE001
+        log.warning("evidence freshness stamp failed (%s)", _fr_exc)
