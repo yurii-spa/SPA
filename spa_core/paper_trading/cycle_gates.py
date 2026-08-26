@@ -81,6 +81,7 @@ def build_gate_ledger(
     gate: dict,
     frozen_pools: list[str] | None = None,
     redistribution: dict | None = None,
+    protective_trim: dict | None = None,
 ) -> dict:
     """What the allocator ASKED for, what survived the RiskPolicy gate, and why.
 
@@ -234,6 +235,12 @@ def build_gate_ledger(
             "attribution_complete": (gate_error is None
                                      and unnamed_removed_usd <= _LEDGER_EPS),
         },
+        # Карточка «ADR-072 не сработал: трим происходит в АЛЛОКАТОРЕ, не в
+        # гейте». Ledger отвечал только на вопрос «что зарубил ГЕЙТ», поэтому
+        # доллары, срезанные защитами ДО гейта, в артефакт не попадали вовсе —
+        # и кэш выглядел «непонятным». Здесь они лежат рядом, посчитанные по
+        # флагу стадии. Наблюдаемость: ничего не гейтит, ничего не двигает.
+        "allocator_protective_trim": dict(protective_trim or {}),
         "redistribution": {
             "status": redis_status,
             "freed_usd": freed_usd,

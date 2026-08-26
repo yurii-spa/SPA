@@ -1451,6 +1451,33 @@ def run_cycle(
     # аллокатора ДО любых гейтовых стадий. Копия, читается только писателем
     # ledger'а на Step 2f — ни одна ветка money-path её не видит.
     _allocator_target = dict(target_usd)
+    # Карточка «ADR-072 не сработал: трим происходит в АЛЛОКАТОРЕ, не в гейте».
+    # Явный, посчитанный ПО ФЛАГУ стадии сигнал «сколько капитала оставили кэшем
+    # защиты самого аллокатора». Разница ``asked − deployed`` вокруг гейта его не
+    # видит по построению — трим случился раньше гейта. ADR-055: эти доллары
+    # обязаны быть НАЗВАНЫ каждый цикл, даже если перераздача выключена.
+    _protective_trim: dict = dict(getattr(alloc, "protective_trim", {}) or {})
+    _protective_trim_usd = 0.0
+    try:
+        _protective_trim_usd = float(_protective_trim.get("total_usd") or 0.0)
+    except (TypeError, ValueError):
+        _protective_trim_usd = 0.0
+    if _protective_trim_usd > 0:
+        notes.append(
+            "ADR-055 protective_trim: защиты аллокатора оставили кэшем "
+            f"${_protective_trim_usd:,.0f} (флаги: "
+            + ", ".join(
+                f"{k}={'да' if v else 'нет'}"
+                for k, v in sorted((_protective_trim.get("flags") or {}).items())
+            )
+            + ")"
+        )
+    if _protective_trim and not _protective_trim.get("measured", True):
+        notes.append(
+            "ADR-055 protective_trim: НЕ ИЗМЕРЕНО — "
+            f"${_protective_trim.get('unnamed_usd', 0.0):,.0f} ушли из книги "
+            "аллокатора без флага стадии"
+        )
     model_used = getattr(alloc, "model_used", None)
     strategy_loop_active = bool(getattr(alloc, "strategy_loop_active", False))
     # WS1.1 (money-path data-integrity): provenance of the APY that drove the
@@ -1780,13 +1807,24 @@ def run_cycle(
             try:
                 from spa_core.paper_trading.risk_gate import redistribute_freed_budget
                 _re = redistribute_freed_budget(
-                    target_usd, _pre_gate_target, capital_usd, adapters, gate)
+                    target_usd, _pre_gate_target, capital_usd, adapters, gate,
+                    # Сигнал НАЗЫВАЕТСЯ, но деньги НЕ двигает: перераздача
+                    # защитного трима — money-path и ждёт решения владельца
+                    # (карточка own-pererazdavat-li-srezannoe-zaschitami).
+                    protective_trim_usd=_protective_trim_usd,
+                    redistribute_protective_trim=False)
                 _redistribution_summary = {
                     "status": "no_freed_budget" if not _re["added"] else "attempted",
                     "freed_usd": _re.get("freed_usd"),
+                    "protective_trim_usd": _re.get("protective_trim_usd"),
+                    "protective_trim_redistributed": _re.get(
+                        "protective_trim_redistributed"),
                     "added": dict(_re.get("added") or {}),
                     "second_gate_violations": [],
                 }
+                for _n in _re.get("notes") or []:
+                    if _n.startswith("ADR-055:") and _n not in notes:
+                        notes.append(_n)
                 if _re["added"]:
                     _gate2 = _apply_risk_policy_gate(
                         _re["target_usd"], capital_usd, adapters, ddir=ddir,
@@ -1849,6 +1887,7 @@ def run_cycle(
             gate=gate,
             frozen_pools=list(gate.get("tvl_unverified") or []),
             redistribution=_redistribution_summary,
+            protective_trim=_protective_trim,
         )
     except Exception as _gl_exc:  # noqa: BLE001 — наблюдаемость не ломает цикл
         log.warning("gate ledger skipped (%s) — cycle continues", _gl_exc)

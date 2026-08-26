@@ -579,6 +579,8 @@ def redistribute_freed_budget(
     max_protocols: int = 8,
     max_single_chain_pct: "float | None" = None,
     max_l2_total_pct: "float | None" = None,
+    protective_trim_usd: "float | None" = None,
+    redistribute_protective_trim: bool = False,
 ) -> dict:
     """Перераздаёт бюджет, СРЕЗАННЫЙ гейтом, в оставшихся честных кандидатов.
 
@@ -605,6 +607,22 @@ def redistribute_freed_budget(
 
     Возвращает ``{"target_usd", "added": {proto: usd}, "freed_usd", "notes"}``;
     при freed ≤ эпсилон — вход без изменений. Пороги RiskPolicy не меняются.
+
+    ``protective_trim_usd`` (карточка «ADR-072 не сработал: трим происходит в
+    АЛЛОКАТОРЕ, не в гейте») — ЯВНЫЙ сигнал от аллокатора: сколько капитала его
+    собственные защиты (потолки тира, суммарный T2/T3, capacity) оставили кэшем.
+    Величина вычислена ПО ФЛАГУ стадии
+    (:func:`spa_core.allocator.allocator.measure_protective_trim`), а не по
+    разнице сумм вокруг гейта — именно поэтому ``asked − deployed`` его не видел
+    и ``freed`` выходил нулём при кэше 25 %.
+
+    **По умолчанию сигнал ТОЛЬКО НАЗЫВАЕТСЯ, деньги не двигает**
+    (``redistribute_protective_trim=False``). Это money-path: сколько капитала
+    размещается — решение владельца, а не побочный эффект правки наблюдаемости.
+    ADR-055 при этом соблюдён: кэш сверх буфера ОБЪЯСНЁН каждый цикл (поле
+    ``protective_trim_usd`` + именованная нота), молчаливого простоя нет.
+    Включение (``True``) добавляет эту сумму к ``freed`` — и новый target всё
+    равно обязан пройти гейт ПОВТОРНО у вызывающего (инвариант 1).
     """
     # 2026-08-08 (решение владельца, вариант 1 карточки
     # `owner-decision-posle-strahovki-dengi-ostayutsya-sirotam`): потолки сети
@@ -627,7 +645,8 @@ def redistribute_freed_budget(
             max_l2_total_pct = _l2_cap
 
     out = {"target_usd": dict(gate_target), "added": {}, "freed_usd": 0.0,
-           "notes": []}
+           "notes": [], "protective_trim_usd": 0.0,
+           "protective_trim_redistributed": False}
     try:
         cap = float(capital_usd)
         if not math.isfinite(cap) or cap <= 0:
@@ -640,6 +659,33 @@ def redistribute_freed_budget(
         # его собственному решению) — не наш предмет: заполнять его значило бы
         # отменять решение модели, а не спасать срезанный бюджет.
         freed = min(deployable_max - deployed, max(0.0, asked - deployed))
+
+        # ── Явный сигнал «сколько срезали ЗАЩИТЫ АЛЛОКАТОРА» ────────────────
+        # Разница ``asked − deployed`` живёт ВОКРУГ ГЕЙТА и по построению слепа
+        # к тримам, случившимся ДО него, внутри аллокатора. Поэтому величина
+        # приходит отдельным входом, посчитанным ПО ФЛАГУ стадии.
+        _pt = 0.0
+        if protective_trim_usd is not None:
+            try:
+                _pt = float(protective_trim_usd)
+            except (TypeError, ValueError):
+                _pt = 0.0
+            if not math.isfinite(_pt) or _pt < 0:
+                _pt = 0.0
+        out["protective_trim_usd"] = round(_pt, 2)
+        out["protective_trim_redistributed"] = bool(
+            redistribute_protective_trim and _pt > 0
+        )
+        if _pt > 0 and not redistribute_protective_trim:
+            # ADR-055: назван, но не потрачен. Молчать об этих деньгах нельзя.
+            out["notes"].append(
+                f"ADR-055: защиты аллокатора оставили кэшем ${_pt:,.0f} — сумма "
+                "НАЗВАНА, но НЕ перераздаётся (money-path, ждёт решения "
+                "владельца: карточка own-pererazdavat-li-srezannoe-zaschitami)")
+        if redistribute_protective_trim and _pt > 0:
+            # Буфер по-прежнему неприкосновенен: верхняя граница — deployable_max.
+            freed = min(deployable_max - deployed, max(0.0, asked - deployed) + _pt)
+
         out["freed_usd"] = round(max(0.0, freed), 2)
         if freed <= cap * 0.005:  # < 0.5% капитала — не гоняем копейки
             return out
