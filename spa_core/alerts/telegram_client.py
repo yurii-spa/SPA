@@ -15,6 +15,8 @@ Stdlib only: ``subprocess`` for Keychain, ``urllib.request`` for HTTP.
 """
 from __future__ import annotations
 
+import contextlib
+import fcntl
 import json
 import logging
 import os
@@ -90,6 +92,51 @@ def _dedup_preview(text: str) -> str:
 # и разбор «кто это шлёт» упирался в пустоту (потрачено два круга 08–09.08).
 _HISTORY_STATE = live_data_dir(Path(__file__).resolve().parents[2]) / "alert_history.json"
 HISTORY_MAX = 500
+
+# ── Cross-process outbound lock (карточка `inbox-critical-kartochka-goloda-...`, замер
+# 26.08 — безопасность 2 параллельных циклов оркестратора) ──────────────────────────
+# `guard_outbound` РЕШАЕТ «слать/не слать» ЧТЕНИЕМ `_HISTORY_STATE`, а фиксирует решение
+# запись в неё же, которая происходит ПОСЛЕ фактической отправки (`_record_history`).
+# Между чтением и записью — окно: при одном процессе-отправителе оно неопасно (следующий
+# вызов — от того же процесса, последовательно), но при ДВУХ параллельных процессах оба
+# читают «повторов нет» одновременно и оба шлют — владелец получает дубль (класс, который
+# уже дважды чинили как «поток одинаковых сообщений», 09.08 и 13.08). Один и тот же
+# advisory-лок (POSIX `flock`, блокирующий) вокруг всей последовательности
+# guard-решение → HTTP-отправка → `_record_history` у ОБЕИХ дверей (`_post_message` здесь
+# и `TelegramBot.send_message`/`edit_message_text` в `spa_core/telegram/bot.py`) убирает
+# гонку целиком: держится и под pytest (иначе тест на конкуренцию ничего бы не проверял),
+# путь — тем же `live_data_dir`, что и история/лимит потока, так что тест и прод лочатся
+# на один и тот же файл своего дерева.
+_OUTBOUND_LOCK_PATH = live_data_dir(Path(__file__).resolve().parents[2]) / ".telegram_outbound.lock"
+
+
+@contextlib.contextmanager
+def outbound_lock():
+    """Держит эксклюзивный кросс-процессный лок на время guard-решения+отправки+записи.
+
+    Блокирующий (``LOCK_EX`` без ``LOCK_NB``) — редкая конкурентная отправка подождёт
+    доли секунды своей очереди, а не потеряется дублем. Никогда не бросает: ошибка
+    открытия/лока (диск недоступен и т.п.) — тот же fail-open принцип, что у остальной
+    защиты в этом модуле, поэтому падение лока не имеет права уронить отправку владельцу.
+    """
+    _OUTBOUND_LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        fh = open(_OUTBOUND_LOCK_PATH, "a+")
+    except OSError:
+        yield
+        return
+    try:
+        try:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+        except OSError:
+            pass  # не залочилось — шлём как раньше, не блокируя владельца
+        yield
+    finally:
+        try:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+        except OSError:
+            pass
+        fh.close()
 
 
 def _classify(text: str) -> str:
@@ -354,66 +401,70 @@ def guard_outbound(text: str, *, dedup: bool = True) -> str | None:
 
 def _post_message(payload_dict: dict) -> bool:
     """Internal: POST a sendMessage payload. Shared by send_message and
-    send_message_with_keyboard. Fail-safe: any failure → WARNING + False."""
-    text = payload_dict.get("text", "")
-    if guard_outbound(text) is not None:
-        return False
-    try:
-        token = get_bot_token()
-        chat_id = get_chat_id()
-    except EnvironmentError as exc:
-        log.warning("Telegram send skipped: %s", exc)
-        _record_history(text, ok=False, error=str(exc))
-        return False
+    send_message_with_keyboard. Fail-safe: any failure → WARNING + False.
 
-    payload_dict["chat_id"] = chat_id
-    payload_dict.setdefault("parse_mode", "Markdown")
-    payload_dict.setdefault("disable_web_page_preview", True)
-
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = json.dumps(payload_dict).encode("utf-8")
-
-    last_err: Exception | None = None
-    for attempt in range(1 + RETRIES):
-        try:
-            req = urllib.request.Request(
-                url,
-                data=payload,
-                headers={"Content-Type": "application/json"},
-                method="POST",
-            )
-            with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT_S) as resp:
-                if resp.status == 200:
-                    msg_id = None
-                    try:
-                        body = json.loads(resp.read().decode("utf-8"))
-                        msg_id = (body.get("result") or {}).get("message_id")
-                    except Exception:  # noqa: BLE001 — body parse is best-effort
-                        pass
-                    _record_history(text, ok=True, message_id=msg_id,
-                                    buttons="reply_markup" in payload_dict)
-                    return True
-                last_err = RuntimeError(f"HTTP status {resp.status}")
-        except urllib.error.HTTPError as exc:
-            # 400 = parse error (Markdown/HTML choke on '_' in protocol names or '<').
-            # Retry ONCE as plain text so the message always delivers (no formatting
-            # beats a silently-dropped alert). Fixes the recurring 400 glitch class.
-            if exc.code == 400 and "parse_mode" in payload_dict:
-                log.warning("Telegram 400 (parse) — retrying as plain text")
-                payload_dict.pop("parse_mode", None)
-                payload = json.dumps(payload_dict).encode("utf-8")
-                continue
-            log.warning("Telegram API error %s: %s", exc.code, exc.reason)
-            _record_history(text, ok=False, error=f"HTTP {exc.code}: {exc.reason}")
+    Целиком под ``outbound_lock()`` — guard-решение, сама отправка и запись в историю
+    должны быть одной атомарной последовательностью межпроцессно (см. докстринг лока)."""
+    with outbound_lock():
+        text = payload_dict.get("text", "")
+        if guard_outbound(text) is not None:
             return False
-        except (urllib.error.URLError, TimeoutError, OSError) as exc:
-            last_err = exc
-        except Exception as exc:  # noqa: BLE001 — alerts must never crash callers
-            last_err = exc
+        try:
+            token = get_bot_token()
+            chat_id = get_chat_id()
+        except EnvironmentError as exc:
+            log.warning("Telegram send skipped: %s", exc)
+            _record_history(text, ok=False, error=str(exc))
+            return False
 
-    log.warning("Telegram send failed after %d attempt(s): %s", 1 + RETRIES, last_err)
-    _record_history(text, ok=False, error=str(last_err))
-    return False
+        payload_dict["chat_id"] = chat_id
+        payload_dict.setdefault("parse_mode", "Markdown")
+        payload_dict.setdefault("disable_web_page_preview", True)
+
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        payload = json.dumps(payload_dict).encode("utf-8")
+
+        last_err: Exception | None = None
+        for attempt in range(1 + RETRIES):
+            try:
+                req = urllib.request.Request(
+                    url,
+                    data=payload,
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT_S) as resp:
+                    if resp.status == 200:
+                        msg_id = None
+                        try:
+                            body = json.loads(resp.read().decode("utf-8"))
+                            msg_id = (body.get("result") or {}).get("message_id")
+                        except Exception:  # noqa: BLE001 — body parse is best-effort
+                            pass
+                        _record_history(text, ok=True, message_id=msg_id,
+                                        buttons="reply_markup" in payload_dict)
+                        return True
+                    last_err = RuntimeError(f"HTTP status {resp.status}")
+            except urllib.error.HTTPError as exc:
+                # 400 = parse error (Markdown/HTML choke on '_' in protocol names or '<').
+                # Retry ONCE as plain text so the message always delivers (no formatting
+                # beats a silently-dropped alert). Fixes the recurring 400 glitch class.
+                if exc.code == 400 and "parse_mode" in payload_dict:
+                    log.warning("Telegram 400 (parse) — retrying as plain text")
+                    payload_dict.pop("parse_mode", None)
+                    payload = json.dumps(payload_dict).encode("utf-8")
+                    continue
+                log.warning("Telegram API error %s: %s", exc.code, exc.reason)
+                _record_history(text, ok=False, error=f"HTTP {exc.code}: {exc.reason}")
+                return False
+            except (urllib.error.URLError, TimeoutError, OSError) as exc:
+                last_err = exc
+            except Exception as exc:  # noqa: BLE001 — alerts must never crash callers
+                last_err = exc
+
+        log.warning("Telegram send failed after %d attempt(s): %s", 1 + RETRIES, last_err)
+        _record_history(text, ok=False, error=str(last_err))
+        return False
 
 
 def send_message(text: str, parse_mode: str = "Markdown", actions: bool = True) -> bool:

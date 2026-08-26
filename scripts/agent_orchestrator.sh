@@ -23,7 +23,11 @@ set -uo pipefail
 REPO_ROOT="/Users/yuriikulieshov/Documents/SPA_Claude"
 CLAUDE_BIN="${CLAUDE_BIN:-/Users/yuriikulieshov/.local/bin/claude}"
 PYTHON="/Users/yuriikulieshov/miniconda3/bin/python3"
-LOG="/tmp/spa_orchestrator.log"
+# SPA_ORCHESTRATOR_LOG_SUFFIX (owner-decision 26.08, 2 параллельных агента): второй
+# инстанс пишет в СВОЙ файл — без этого два процесса чередовали бы строки в одном
+# /tmp/spa_orchestrator.log, и читать «что сделал этот цикл» стало бы нельзя. По
+# умолчанию (не задан) — тот же путь, что и всегда, ничего не меняется.
+LOG="/tmp/spa_orchestrator${SPA_ORCHESTRATOR_LOG_SUFFIX:-}.log"
 
 export PATH="/Users/yuriikulieshov/.local/bin:/Users/yuriikulieshov/miniconda3/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
 export HOME="/Users/yuriikulieshov"
@@ -62,21 +66,28 @@ export SPA_AUTONOMOUS=1
 export SPA_SESSION_PID=$$
 export SPA_SESSION_ID="${SPA_SESSION_ID:-cycle-$$}"
 
-# ── CYCLE LOCK (ADR-070 п.9, решение владельца 2026-08-07) ──────────────────
-# Один цикл за раз. Карточки от одновременной работы защищены с 30.07, сам цикл — нет:
-# захват карточки ловит столкновение уже ПОСЛЕ шагов 0/0a/0b и не ловит вовсе, когда вторая
+# ── CYCLE LOCK (ADR-070 п.9, решение владельца 2026-08-07; N слотов — решение владельца
+# 26.08 «проверь и внедри, если безопасно», ускорение разгрузки очереди) ────────────────
+# По умолчанию (SPA_ORCHESTRATOR_MAX_CONCURRENT не задан) — один цикл за раз, ПОВЕДЕНИЕ
+# НЕ МЕНЯЕТСЯ. Карточки от одновременной работы защищены с 30.07, сам цикл — нет: захват
+# карточки ловит столкновение уже ПОСЛЕ шагов 0/0a/0b и не ловит вовсе, когда вторая
 # сессия берёт следующую карточку и два автономных пушера идут в origin/main наперегонки.
 # Замок общий (в главном рабочем дереве — циклы работают из /tmp-worktree), atomic-mkdir,
 # живость держателя ИЗМЕРЯЕТСЯ тем же кодом, что шаги 0a/0b. Код 3 = занято живой сессией:
 # это не ошибка, а вежливый выход (agent_health не должен краснеть на здоровое поведение).
 # Поломка самого замка => `unprotected`, код 0: цикл идёт и говорит об этом вслух.
+# Поднять до 2 параллельных циклов — ОДИН флаг здесь + второй launchd-агент (см.
+# launchd/com.spa.orchestrator2.plist), а не переписывание замка: safety-ревью 26.08
+# нашло и починило единственную незакрытую гонку (дубли в Telegram — telegram_client.
+# outbound_lock), карточкам/STATE/пушу уже ничего не грозит при двух держателях.
 LOCK_PY="$REPO_ROOT/scripts/orchestrator_cycle_lock.py"
+MAX_CONCURRENT="${SPA_ORCHESTRATOR_MAX_CONCURRENT:-1}"
 if [ ! -f "$LOCK_PY" ]; then
     # Дерево прода отстаёт от origin (синк идёт Step 0 дневного цикла). Молчать нельзя:
     # незаметно потерянная защита — это класс fail-OPEN, ради которого замок и написан.
     echo "[$(ts)] lock: ⚠️ нет $LOCK_PY — цикл идёт БЕЗ защиты от одновременного прогона" >> "$LOG"
 else
-    LOCK_OUT="$("$PYTHON" "$LOCK_PY" acquire \
+    LOCK_OUT="$("$PYTHON" "$LOCK_PY" acquire --max-concurrent "$MAX_CONCURRENT" \
                 --session "$SPA_SESSION_ID" --pid "$SPA_SESSION_PID" 2>&1)"
     LOCK_RC=$?
     echo "[$(ts)] lock: $LOCK_OUT" >> "$LOG"
@@ -89,7 +100,7 @@ fi
 # измеренной смерти держателя, но лишний круг «занято» никому не нужен.
 release_lock() {
     [ -f "$LOCK_PY" ] || return 0
-    "$PYTHON" "$LOCK_PY" release \
+    "$PYTHON" "$LOCK_PY" release --max-concurrent "$MAX_CONCURRENT" \
         --session "$SPA_SESSION_ID" --pid "$SPA_SESSION_PID" >> "$LOG" 2>&1
 }
 trap release_lock EXIT

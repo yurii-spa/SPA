@@ -63,6 +63,7 @@ def _guard_env(tmp_path, monkeypatch):
     monkeypatch.setenv("SPA_ALERT_HISTORY_TEST", "1")
     monkeypatch.setattr(tc, "_HISTORY_STATE", tmp_path / "alert_history.json")
     monkeypatch.setattr(tc, "_RATE_STATE", tmp_path / ".telegram_rate.json")
+    monkeypatch.setattr(tc, "_OUTBOUND_LOCK_PATH", tmp_path / ".telegram_outbound.lock")
     return tmp_path
 
 

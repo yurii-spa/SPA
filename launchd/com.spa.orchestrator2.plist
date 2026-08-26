@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.spa.orchestrator2 — второй headless orchestrator-агент (owner-decision 26.08:
+  «проверь и внедри, если безопасно» — очередь бэклога наполняется быстрее, чем
+  разгружается циклами по одному в час).
+
+  ТОТ ЖЕ scripts/agent_orchestrator.sh, что у com.spa.orchestrator — не отдельный код,
+  не второй набор правил. Разница ровно в двух вещах:
+    1. Расписание сдвинуто на :30 (StartCalendarInterval, а не StartInterval) — так что
+       эффективный такт разгрузки очереди становится раз в 30 мин, а не раз в час, БЕЗ
+       намеренной одновременности; редкое пересечение (первый агент ещё работает, когда
+       наступает :30) покрыто N=2-слотовым замком (см. ниже), а не полагается на удачу.
+    2. SPA_ORCHESTRATOR_MAX_CONCURRENT=2 — оба агента (этот и оригинальный) пробуют до
+       двух независимых слотов замка ADR-070 п.9 (scripts/orchestrator_cycle_lock.py),
+       вместо одного общего на всех.
+
+  Предпосылки безопасности (safety-ревью 26.08, до этого файла): захват карточек
+  (scripts/check_card_claim.py), слияние STATE.md/журнала (push_to_github.rebase_append),
+  повтор при столкновении пуша (Contents API 409-retry) — уже гонко-устойчивы для ДВУХ
+  независимых пушеров. Единственный найденный незакрытый риск (дубли в Telegram при двух
+  параллельных отправителях) — починен отдельно (telegram_client.outbound_lock,
+  межпроцессный flock вокруг guard-решения → отправка → запись в историю).
+
+  НЕ загружен по умолчанию (создание файла ≠ активация). Активировать:
+    launchctl bootstrap gui/$(id -u) launchd/com.spa.orchestrator2.plist
+  Отключить (вернуться к одному циклу в час):
+    launchctl bootout gui/$(id -u)/com.spa.orchestrator2
+  Логи — в /tmp per CLAUDE.md invariant #12 (никогда ~/Documents → TCC exit-78).
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.spa.orchestrator2</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_orchestrator.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+
+    <!-- Сдвиг на :30 каждого часа — эффективный такт разгрузки очереди 30 мин вместо 60,
+         без намеренного одновременного старта с com.spa.orchestrator (:00). -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Minute</key>
+        <integer>30</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>SPA_ORCHESTRATOR_ARMED</key>
+        <string>1</string>
+        <key>SPA_ORCHESTRATOR_MAX_CONCURRENT</key>
+        <string>2</string>
+        <!-- Свой /tmp/spa_orchestrator2.log — иначе строки этого агента чередовались бы
+             со строками com.spa.orchestrator в одном файле. -->
+        <key>SPA_ORCHESTRATOR_LOG_SUFFIX</key>
+        <string>2</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/spa_orchestrator2.plist.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/spa_orchestrator2.plist.err.log</string>
+</dict>
+</plist>

@@ -41,6 +41,7 @@ Design
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -347,44 +348,53 @@ class TelegramBot:
         if not target:
             log.warning("send_message: no chat_id available")
             return None
+        # ВЕСЬ путь guard-решение → отправка → запись — под одним кросс-процессным локом
+        # (см. telegram_client.outbound_lock): иначе 2 параллельных цикла оркестратора
+        # оба видят «повторов нет» и оба шлют владельцу дубль (замер 26.08).
         try:
-            from spa_core.alerts.telegram_client import guard_outbound
-            reason = guard_outbound(text, dedup=dedup)
-            if reason is not None:
-                log.warning("bot send dropped by guard (%s). preview=%r",
-                            reason, (text or "")[:80])
-                return None
+            from spa_core.alerts.telegram_client import outbound_lock
         except Exception:
-            pass  # guard import failure must never block a legitimate reply
-        params: Dict[str, Any] = {
-            "chat_id": target,
-            "text": text,
-            "parse_mode": parse_mode,
-            "disable_web_page_preview": True,
-        }
-        if reply_markup is not None:
-            params["reply_markup"] = json.dumps(reply_markup)
-        result = self._api_call("sendMessage", params)
-        # Журнал — часть отправки, а не украшение: пока эта дверь молчала, вопрос «кто
-        # шлёт владельцу одно и то же» упирался в пустоту. Наблюдение не имеет права
-        # уронить отправку, поэтому всё в try.
-        try:
-            from spa_core.alerts.telegram_client import _record_history
-            _record_history(
-                text,
-                ok=bool(result),
-                message_id=((result or {}).get("result") or {}).get("message_id"),
-                error=None if result else "bot_api_call_failed",
-                solicited=not dedup,
-                # Жалоба владельца 14.08: «пишет варианты ответов — кнопок нету».
-                # Дверь — единственное место, где ещё видно И полный текст, И
-                # клавиатуру: в журнале превью 80 символов, блок «Варианты:» в него
-                # не влезает. Не сказать здесь = сделать класс неизмеримым (#229).
-                buttons=reply_markup is not None,
-            )
-        except Exception:  # noqa: BLE001
-            log.debug("bot send history record failed", exc_info=True)
-        return result
+            outbound_lock = None  # guard import failure must never block a legitimate reply
+        cm = outbound_lock() if outbound_lock is not None else contextlib.nullcontext()
+        with cm:
+            try:
+                from spa_core.alerts.telegram_client import guard_outbound
+                reason = guard_outbound(text, dedup=dedup)
+                if reason is not None:
+                    log.warning("bot send dropped by guard (%s). preview=%r",
+                                reason, (text or "")[:80])
+                    return None
+            except Exception:
+                pass  # guard import failure must never block a legitimate reply
+            params: Dict[str, Any] = {
+                "chat_id": target,
+                "text": text,
+                "parse_mode": parse_mode,
+                "disable_web_page_preview": True,
+            }
+            if reply_markup is not None:
+                params["reply_markup"] = json.dumps(reply_markup)
+            result = self._api_call("sendMessage", params)
+            # Журнал — часть отправки, а не украшение: пока эта дверь молчала, вопрос «кто
+            # шлёт владельцу одно и то же» упирался в пустоту. Наблюдение не имеет права
+            # уронить отправку, поэтому всё в try.
+            try:
+                from spa_core.alerts.telegram_client import _record_history
+                _record_history(
+                    text,
+                    ok=bool(result),
+                    message_id=((result or {}).get("result") or {}).get("message_id"),
+                    error=None if result else "bot_api_call_failed",
+                    solicited=not dedup,
+                    # Жалоба владельца 14.08: «пишет варианты ответов — кнопок нету».
+                    # Дверь — единственное место, где ещё видно И полный текст, И
+                    # клавиатуру: в журнале превью 80 символов, блок «Варианты:» в него
+                    # не влезает. Не сказать здесь = сделать класс неизмеримым (#229).
+                    buttons=reply_markup is not None,
+                )
+            except Exception:  # noqa: BLE001
+                log.debug("bot send history record failed", exc_info=True)
+            return result
 
     def _answer_callback(self, callback_query_id: str) -> None:
         if not callback_query_id:
@@ -410,37 +420,44 @@ class TelegramBot:
         """
         if not chat_id or message_id in (None, ""):
             return None
+        # См. send_message: guard-решение → отправка → запись под одним локом (замер 26.08).
         try:
-            from spa_core.alerts.telegram_client import guard_outbound
-            reason = guard_outbound(text, dedup=False)
-            if reason is not None:
-                log.warning("bot edit dropped by guard (%s)", reason)
-                return None
+            from spa_core.alerts.telegram_client import outbound_lock
         except Exception:
-            pass
-        params: Dict[str, Any] = {
-            "chat_id": chat_id,
-            "message_id": message_id,
-            "text": text,
-            "parse_mode": parse_mode,
-            "disable_web_page_preview": True,
-        }
-        if reply_markup is not None:
-            params["reply_markup"] = json.dumps(reply_markup)
-        result = self._api_call("editMessageText", params)
-        try:
-            from spa_core.alerts.telegram_client import _record_history
-            _record_history(
-                text,
-                ok=bool(result),
-                message_id=message_id,
-                error=None if result else "bot_edit_failed",
-                solicited=True,
-                buttons=reply_markup is not None,
-            )
-        except Exception:  # noqa: BLE001 — наблюдение не имеет права уронить правку
-            log.debug("bot edit history record failed", exc_info=True)
-        return result
+            outbound_lock = None
+        cm = outbound_lock() if outbound_lock is not None else contextlib.nullcontext()
+        with cm:
+            try:
+                from spa_core.alerts.telegram_client import guard_outbound
+                reason = guard_outbound(text, dedup=False)
+                if reason is not None:
+                    log.warning("bot edit dropped by guard (%s)", reason)
+                    return None
+            except Exception:
+                pass
+            params: Dict[str, Any] = {
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "text": text,
+                "parse_mode": parse_mode,
+                "disable_web_page_preview": True,
+            }
+            if reply_markup is not None:
+                params["reply_markup"] = json.dumps(reply_markup)
+            result = self._api_call("editMessageText", params)
+            try:
+                from spa_core.alerts.telegram_client import _record_history
+                _record_history(
+                    text,
+                    ok=bool(result),
+                    message_id=message_id,
+                    error=None if result else "bot_edit_failed",
+                    solicited=True,
+                    buttons=reply_markup is not None,
+                )
+            except Exception:  # noqa: BLE001 — наблюдение не имеет права уронить правку
+                log.debug("bot edit history record failed", exc_info=True)
+            return result
 
     # ── Offset persistence ────────────────────────────────────────────────
 

@@ -131,6 +131,91 @@ def lock_dir(sibling, start=ROOT):
     return Path(log_path).parent / LOCK_DIRNAME, err
 
 
+# ── N параллельных держателей (owner-decision 26.08: «проверь и внедри, если
+# безопасно» — ускорение разгрузки очереди) ──────────────────────────────────
+# По умолчанию (`max_concurrent=1`) ничего не меняется: слот 0 — ТОТ ЖЕ путь, что и
+# всегда (`LOCK_DIRNAME` без суффикса), а `acquire_any_slot`/`release_any_slot`/
+# `status_all` при N=1 делают РОВНО один вызов существующих `acquire`/`release`/`status`
+# на этот путь — байт-в-байт то же поведение, что до этой правки. Включается ОДНИМ
+# флагом (`SPA_ORCHESTRATOR_MAX_CONCURRENT` / `--max-concurrent`), а не переписыванием
+# формата замка: два параллельных цикла — это N НЕЗАВИСИМЫХ однослотовых замков рядом,
+# каждый со своей семантикой mine/busy/abandoned/stale, ничего в которой не тронуто.
+MAX_CONCURRENT_ENV = "SPA_ORCHESTRATOR_MAX_CONCURRENT"
+
+
+def slot_lock_dir(sibling, slot: int, start=ROOT):
+    """(каталог замка СЛОТА N, причина-если-не-общий). slot=0 — ``lock_dir`` без изменений
+    (обратная совместимость с уже установленным на хосте прод-путём); slot>=1 — отдельный
+    каталог рядом, тот же общий журнал определяет «общее ли дерево»."""
+    base, err = lock_dir(sibling, start)
+    if slot <= 0:
+        return base, err
+    return base.parent / f"{LOCK_DIRNAME}.{slot}", err
+
+
+def acquire_any_slot(max_concurrent: int, record: dict, self_session, self_pid, sibling, *,
+                     now, self_pid_start="", ps=None,
+                     unmeasured_ttl_sec=DEFAULT_UNMEASURED_TTL_SEC, entries=(), start=ROOT):
+    """Взять ПЕРВЫЙ свободный (или уже свой) слот из ``max_concurrent``.
+
+    (вердикт, сообщение, номер_слота|None, путь|None). Слот пробуется по порядку — 0, 1, …
+    — так что при ``max_concurrent=1`` это ровно один вызов ``acquire`` на исходный путь.
+    Общий каталог не разрешился (``shared_err``) — это касается ВСЕХ слотов одинаково,
+    вторую попытку не имеет смысла делать: сразу ``UNPROTECTED``."""
+    last_verdict, last_msg = UNPROTECTED, "нет ни одного слота для проверки"
+    for slot in range(max(1, int(max_concurrent))):
+        path, shared_err = slot_lock_dir(sibling, slot, start)
+        if shared_err:
+            return (UNPROTECTED,
+                    f"общий каталог замка не разрешён ({shared_err}) — замок был бы виден "
+                    f"только этой сессии; цикл идёт БЕЗ защиты", None, path)
+        verdict, msg = acquire(path, record, self_session, self_pid, sibling, now=now,
+                               self_pid_start=self_pid_start, ps=ps,
+                               unmeasured_ttl_sec=unmeasured_ttl_sec, entries=entries)
+        if verdict != BUSY:
+            return verdict, msg, slot, path
+        last_verdict, last_msg = verdict, msg
+    return (BUSY, f"все {max_concurrent} слот(ов) заняты. Последний: {last_msg}", None, None)
+
+
+def release_any_slot(max_concurrent: int, self_session, self_pid, sibling, *,
+                     self_pid_start="", start=ROOT):
+    """Снять ТОТ слот (из ``max_concurrent``), который держит эта сессия.
+
+    Проходит все слоты (дёшево — их не больше нескольких единиц) и снимает ровно тот,
+    личность которого совпала; чужие/пустые слоты ``release`` уже не трогает сам по себе
+    (см. докстринг ``release``). Держит не больше одного слота одновременно по построению
+    ``acquire_any_slot``, но проход по всем — не догадка, а измерение."""
+    released_any = False
+    last_msg = "замка нет — снимать нечего"
+    for slot in range(max(1, int(max_concurrent))):
+        path, shared_err = slot_lock_dir(sibling, slot, start)
+        if shared_err:
+            continue
+        verdict, msg = release(path, self_session, self_pid, self_pid_start)
+        if verdict == RELEASED:
+            released_any = True
+            last_msg = msg
+    return (RELEASED, last_msg) if released_any else (NOT_HELD, last_msg)
+
+
+def status_all(max_concurrent: int, self_session, self_pid, sibling, *, now,
+              self_pid_start="", ps=None, unmeasured_ttl_sec=DEFAULT_UNMEASURED_TTL_SEC,
+              entries=(), start=ROOT):
+    """[(слот, вердикт, сообщение, путь), …] — по каждому слоту, без единой мутации."""
+    out = []
+    for slot in range(max(1, int(max_concurrent))):
+        path, shared_err = slot_lock_dir(sibling, slot, start)
+        if shared_err:
+            out.append((slot, UNPROTECTED, f"общий каталог не разрешён: {shared_err}", path))
+            continue
+        verdict, msg = status(path, self_session, self_pid, sibling, now=now,
+                              self_pid_start=self_pid_start, ps=ps,
+                              unmeasured_ttl_sec=unmeasured_ttl_sec, entries=entries)
+        out.append((slot, verdict, msg, path))
+    return out
+
+
 # ── личность держателя ───────────────────────────────────────────────────────
 
 def holder_record(session: str, pid, pid_start: str, now: datetime, extra=None) -> dict:
@@ -435,6 +520,11 @@ def main(argv=None) -> int:
     ap.add_argument("--pid", default=None, help="долгоживущий pid (умолчание — SPA_SESSION_PID)")
     ap.add_argument("--unmeasured-ttl-hours", type=float,
                     default=DEFAULT_UNMEASURED_TTL_SEC / 3600.0)
+    ap.add_argument(
+        "--max-concurrent", type=int,
+        default=int(os.environ.get(MAX_CONCURRENT_ENV, "1") or "1"),
+        help=(f"сколько независимых слотов замка допустимо одновременно (умолчание 1 — "
+              f"сегодняшнее поведение БЕЗ изменений; переопределяется {MAX_CONCURRENT_ENV})"))
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
 
@@ -446,11 +536,7 @@ def main(argv=None) -> int:
                      f"измерить занятость нечем ({exc}) — цикл идёт БЕЗ защиты", None)
 
     session, pid, start = _identity(args, sibling)
-    path, shared_err = lock_dir(sibling)
-    if shared_err:
-        return _emit(args, UNPROTECTED,
-                     f"общий каталог замка не разрешён ({shared_err}) — замок был бы виден "
-                     f"только этой сессии; цикл идёт БЕЗ защиты", str(path))
+    max_concurrent = max(1, args.max_concurrent)
 
     entries = ()
     try:
@@ -460,26 +546,63 @@ def main(argv=None) -> int:
         entries = ()                     # без оценки времени, но замок работает
 
     ttl = max(0.0, args.unmeasured_ttl_hours) * 3600.0
+
+    # max_concurrent == 1 (умолчание) — путь НЕ ТРОНУТ: тот же вызов `lock_dir`/
+    # `acquire`/`release`/`status` на тот же путь, что и до этой правки, буквально.
+    # Ветвление на N слотов существует ТОЛЬКО когда владелец явно поднял лимит.
+    if max_concurrent == 1:
+        path, shared_err = lock_dir(sibling)
+        if shared_err:
+            return _emit(args, UNPROTECTED,
+                         f"общий каталог замка не разрешён ({shared_err}) — замок был бы виден "
+                         f"только этой сессии; цикл идёт БЕЗ защиты", str(path))
+        if args.command == "acquire":
+            verdict, msg = acquire(path, holder_record(session, pid, start, now),
+                                   session, pid, sibling, now=now, self_pid_start=start,
+                                   unmeasured_ttl_sec=ttl, entries=entries)
+        elif args.command == "release":
+            verdict, msg = release(path, session, pid, start)
+        else:
+            verdict, msg = status(path, session, pid, sibling, now=now, self_pid_start=start,
+                                  unmeasured_ttl_sec=ttl, entries=entries)
+        return _emit(args, verdict, msg, str(path))
+
     if args.command == "acquire":
-        verdict, msg = acquire(path, holder_record(session, pid, start, now),
-                               session, pid, sibling, now=now, self_pid_start=start,
-                               unmeasured_ttl_sec=ttl, entries=entries)
-    elif args.command == "release":
-        verdict, msg = release(path, session, pid, start)
-    else:
-        verdict, msg = status(path, session, pid, sibling, now=now, self_pid_start=start,
-                              unmeasured_ttl_sec=ttl, entries=entries)
-    return _emit(args, verdict, msg, str(path))
+        verdict, msg, slot, path = acquire_any_slot(
+            max_concurrent, holder_record(session, pid, start, now), session, pid, sibling,
+            now=now, self_pid_start=start, unmeasured_ttl_sec=ttl, entries=entries)
+        extra = {"slot": slot} if args.json else None
+        return _emit(args, verdict, msg, str(path) if path else None, extra=extra)
+    if args.command == "release":
+        verdict, msg = release_any_slot(max_concurrent, session, pid, sibling,
+                                        self_pid_start=start)
+        return _emit(args, verdict, msg, None)
+
+    rows = status_all(max_concurrent, session, pid, sibling, now=now, self_pid_start=start,
+                      unmeasured_ttl_sec=ttl, entries=entries)
+    if args.json:
+        print(json.dumps({"slots": [
+            {"slot": s, "verdict": v, "message": m, "lock": str(p) if p else None}
+            for s, v, m, p in rows]}, ensure_ascii=False))
+        # код возврата статуса по слотам — 0, если хоть один свободен/мой; иначе занято
+        return EXIT_OK if any(v != BUSY for _, v, _, _ in rows) else EXIT_BUSY
+    for s, v, m, p in rows:
+        mark = {BUSY: "⏸", UNPROTECTED: "⚠️"}.get(v, "✅")
+        print(f"{mark} [слот {s}] [{v}] {m}")
+    return EXIT_OK if any(v != BUSY for _, v, _, _ in rows) else EXIT_BUSY
 
 
-def _emit(args, verdict, message, path) -> int:
+def _emit(args, verdict, message, path, extra=None) -> int:
     code = _EXIT_BY_VERDICT.get(verdict, EXIT_OK)
     if args.json:
-        print(json.dumps({"verdict": verdict, "message": message, "lock": path,
-                          "exit_code": code}, ensure_ascii=False))
+        payload = {"verdict": verdict, "message": message, "lock": path, "exit_code": code}
+        if extra:
+            payload.update(extra)
+        print(json.dumps(payload, ensure_ascii=False))
     else:
         mark = {BUSY: "⏸", NOT_MINE: "⛔", UNPROTECTED: "⚠️"}.get(verdict, "✅")
-        print(f"{mark} [{verdict}] {message}")
+        slot_note = f" (слот {extra['slot']})" if extra and extra.get("slot") is not None else ""
+        print(f"{mark} [{verdict}]{slot_note} {message}")
     return code
 
 

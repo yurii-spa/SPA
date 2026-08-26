@@ -34,10 +34,20 @@
     <key>RunAtLoad</key>
     <false/>
 
+    <!-- MAX_CONCURRENT=2 (owner-decision 26.08: «проверь и внедри, если безопасно» — очередь
+         наполняется быстрее, чем разгружается). Разгон — второй агент com.spa.orchestrator2
+         (тот же скрипт, сдвинут на :30 через StartCalendarInterval), а не изменение ЭТОГО
+         расписания: safety-ревью нашло и починило единственную незакрытую гонку (Telegram-
+         дубли — telegram_client.outbound_lock), сам замок ADR-070 п.9 теперь пускает N
+         независимых держателей (scripts/orchestrator_cycle_lock.py, slot_lock_dir). Этот флаг
+         сам по себе НИЧЕГО не меняет, пока второй агент не установлен и не загружен владельцем
+         (launchctl bootstrap) — без него это по-прежнему один цикл в час, как и было. -->
     <key>EnvironmentVariables</key>
     <dict>
         <key>SPA_ORCHESTRATOR_ARMED</key>
         <string>1</string>
+        <key>SPA_ORCHESTRATOR_MAX_CONCURRENT</key>
+        <string>2</string>
     </dict>
 
     <key>StandardOutPath</key>
