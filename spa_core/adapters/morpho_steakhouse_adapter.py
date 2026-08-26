@@ -37,6 +37,7 @@ from typing import Optional
 from .base_adapter import BaseAdapter, YieldInfo
 from .defillama_feed import DeFiLlamaFeed
 from spa_core.utils.errors import safe_call
+from spa_core.utils.data_dir import own_data_dir
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +109,7 @@ class MorphoSteakhouseAdapter(BaseAdapter):
     ) -> None:
         super().__init__(asset)
         self.tier = self.TIER
-        self._data_dir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
+        self._data_dir = Path(data_dir) if data_dir is not None else own_data_dir(_DEFAULT_DATA_DIR)
         # own-29: живой DeFiLlama-фид. Контракт как у аллокатора (ADR-061):
         # дефолтный фид НЕ ходит в сеть под pytest — тесты обязаны инжектить
         # FakeFeed явно (DeFiLlama gzip офлайн падает; правило adapters.md).

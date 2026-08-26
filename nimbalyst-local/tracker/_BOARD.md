@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **692** · ждёт владельца: **1** · занято сессиями: **6**.
+> Всего карточек: **696** · ждёт владельца: **1** · занято сессиями: **6**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -197,7 +197,7 @@
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (333)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (337)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -440,6 +440,7 @@
 - Задача, смотри, после того, как ты починил Telegram-бот и перестала мне слать,  ·  `inbox-zadacha-smotri-posle-togo-kak-ty-pochini.md` · 2026-08-13
 - Задча • 10% денег стоят без работы под 0% — это money-path, карточка «agent-all…  ·  `inbox-zadcha-10-deneg-stoyat-bez-raboty-pod-0.md` · 2026-08-05
 - Записи журнала за 16 циклов стёрты — и восстановимы из git-истории (кран #139 закрыл, лужу нет)  ·  `inbox-zapisi-zhurnala-za-16-tsiklov-sterty-i-v.md` · 2026-08-07
+- Заслон изоляции data/ в тестах покрывает 1 модуль из 209 — вердикт теста решает живой файл хоста  ·  `inbox-zaslon-izolyatsii-data-v-testah-pokryvae.md` · 2026-08-23
 - Здоровье офиса судит дом-вью по такту, списанному рукой: два сторожа, один файл, вердикты расходятся в 30 раз  ·  `inbox-zdorove-ofisa-sudit-dom-vyu-po-taktu-spi.md` · 2026-08-22
 - Живая копия карточки отстала от origin, а перезаписать её запрещено намеренно — вопрос владельцу остаётся без кнопок и лечить его нечем  ·  `inbox-zhivaya-kopiya-kartochki-otstala-ot-origin.md` · 2026-08-21
 - Журнал циклов молча теряет записи при конкурентной доставке — за неделю пропало 9 (восстановлены)  ·  `inbox-zhurnal-tsiklov-molcha-teryaet-zapisi-pr.md` · 2026-08-06
@@ -470,11 +471,13 @@
 - ADR-110: личность актива в общем фиде — доставка ТОЛЬКО после показа владельцу списка потерь  ·  `inbox-adr-110-lichnost-aktiva-v-obschem-fide-d.md` · 2026-08-21
 - AI1 (книга владельца): три внедрения доставлены — экономика цеха, паспорта агентов, стандарт отчёта; циклам — заполнить паспорта и подключить генератор  ·  `inbox-ai1-tri-vnedreniya-ekonomika-pasporta-standart.md` · 2026-08-20
 - ALLOC-002-отбор: топ-8 по весу беднит книгу — отбирать ПОСЛЕ evidence/TVL-гейта  ·  `inbox-alloc-002-otbor-top-8-po-vesu-bednit-kni.md` · 2026-08-08
+- Autouse-заслон data/ не доходит до корня spa_core/tests — 97 тыс. проверок судят живой файл хоста  ·  `inbox-autouse-zaslon-data-ne-dohodit-do-kornya.md` · 2026-08-26
 - Бот на прямой вопрос владельца отрицает существующую needs-owner карточку (own-54) — ответ про очередь обязан читаться из доски, не из контекст-брифа  ·  `inbox-bot-otritsaet-suschestvuyuschuyu-own-kartochku.md` · 2026-08-19
 - Число трека в нарративных документах некому обновлять — сторож будет краснеть примерно раз в неделю  ·  `inbox-chislo-treka-v-narrativnyh-dokumentah-ne.md` · 2026-08-24
 - CI main КРАСНЫЙ: сторож rootdir дочернего pytest сторожит механизм, которого больше нет  ·  `inbox-ci-main-krasnyi-storozh-rootdir-docherne.md` · 2026-08-26
 - CIO: этап-1 (диагностика) готов документом — исполнять гэпы G1→G4, осколки 13.08 закрыть как дубли  ·  `inbox-cio-etap1-diagnostika-gotova-ispolnyat-g1-g4.md` · 2026-08-19
 - CLMM «79%»: research (часть 1 ADR-070 п.20) готов документом — остаётся часть 2 (ADR допуска с хеджем)  ·  `inbox-clmm-research-chast1-gotova-adr-070-p20.md` · 2026-08-19
+- Critical-карточка голодает 4 дня при 40+ циклах: подъёмы/находки вытесняют верх очереди — нужно правило анти-голодания  ·  `inbox-critical-kartochka-goloda-et-4-dnya-pri-40-tsiklah.md` · 2026-08-26
 - Демоушен книг Aggressive по ОТНОСИТЕЛЬНОМУ рангу (решение владельца 09.08, вариант A)  ·  `inbox-demoushen-knig-aggressive-po-otnositelno.md` · 2026-08-09
 - Долгоживущие агенты не подхватывают доставленный код — и никто об этом не говорит  ·  `inbox-dolgozhivuschie-agenty-ne-podhvatyvayut.md` · 2026-08-08
 - Два теста краснеют оттого, что владелец ОТВЕТИЛ: очередь CLI судит о главном дереве  ·  `inbox-dva-testa-krasneyut-ottogo-chto-vladelet.md` · 2026-08-19
@@ -514,6 +517,7 @@
 - Сбалансированный трек: ноль профинансированных дней из 40 при 920 отработанных циклах  ·  `inbox-sbalansirovannyi-trek-nol-profinansirova.md` · 2026-08-08
 - scripts/system_health_check.py заменён монитором два месяца назад, но остался в дереве  ·  `inbox-scripts-system-health-check-py-zamenen-m.md` · 2026-08-25
 - Семь скриптов, вскрытых строгим сканером: разобрать поштучно (подключить / списать / вывести класс правилом)  ·  `inbox-sem-skriptov-vskrytyh-strogim-skanerom-r.md` · 2026-08-16
+- Сессия теряет доступ на ЧТЕНИЕ прод-дерева, а запись продолжает работать — второй случай из двух аудитов  ·  `inbox-sessiya-teryaet-dostup-na-chtenie-prod-de.md` · 2026-08-26
 - Шаг 0a зовёт поднять файл, который в прод-дереве ОТСТАЁТ на 1672 строки — подъём стёр бы 14 записей реестра  ·  `inbox-shag-0a-zovet-podnyat-fail-kotoryi-v-pro.md` · 2026-08-21
 - Шторм повторов одного решения владельцу (200+ копий за ночь) — анти-шторм доставлен, корень (слепой предикат «отправлено») остаётся  ·  `inbox-shtorm-povtorov-odnogo-resheniya-vladeltsu.md` · 2026-08-20
 - Шторм решений ПРОДОЛЖАЕТСЯ после анти-шторма: карточки живут ТОЛЬКО в хост-дереве, заголовок дрейфует → дубли, владелец измотан  ·  `inbox-shtorm-prodolzhaetsya-kartochki-tolko-v-host-dereve.md` · 2026-08-20
@@ -534,7 +538,7 @@
 - Закрепить morpho_blue_base за конкретным хранилищем (сейчас берётся «крупнейшее сегодня»)  ·  `inbox-zakrepit-morpho-blue-base-za-konkretnym.md` · 2026-08-26
 - Замер обмена «доходность ↔ концентрация» на T2 (20/25/30%) — решение владельца A, задачи не было  ·  `inbox-zamer-obmena-dohodnost-kontsentratsiya-n.md` · 2026-08-08
 - Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07 · 🔒 `cycle-81141`
-- Заслон изоляции data/ в тестах покрывает 1 модуль из 209 — вердикт теста решает живой файл хоста  ·  `inbox-zaslon-izolyatsii-data-v-testah-pokryvae.md` · 2026-08-23
+- Запись ЗА другую сессию уезжает с якорем ЖИВОГО процесса писателя — чужой ярлык читается как ACTIVE  ·  `inbox-zapis-za-druguyu-sessiyu-uezzhaet-s-yako.md` · 2026-08-26
 - Заслон от шторма считает попытки, а не доставки — вопрос владельцу можно запереть, ни разу не показав  ·  `inbox-zaslon-ot-shtorma-schitaet-popytki-a-ne.md` · 2026-08-26
 
 ## 🤖 Agent Tasks (что делает агент)  (127)

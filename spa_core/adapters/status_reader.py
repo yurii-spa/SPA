@@ -36,6 +36,8 @@ import math
 from pathlib import Path
 from typing import Optional
 
+from spa_core.utils.data_dir import own_data_dir
+
 logger = logging.getLogger(__name__)
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -69,7 +71,7 @@ def _valid_pct(value: object) -> Optional[float]:
 
 def read_status_doc(data_dir: Optional[Path] = None) -> dict:
     """Load ``adapter_status.json``. Returns ``{}`` on any error. Never raises."""
-    ddir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
+    ddir = Path(data_dir) if data_dir is not None else own_data_dir(_DEFAULT_DATA_DIR)
     try:
         with open(ddir / STATUS_FILENAME, encoding="utf-8") as fh:
             doc = json.load(fh)
