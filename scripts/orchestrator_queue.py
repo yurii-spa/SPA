@@ -535,7 +535,10 @@ def cmd_set_status(args) -> int:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
     print(f"OK: {args.path} -> status: {args.status}")
-    _rebuild_board()
+    # `args.path` может указывать в СОСЕДНЕЕ дерево (worktree §3.4) — доску обязано
+    # пересобрать то дерево, чью карточку только что поменяли, а не дерево этой копии
+    # скрипта (иначе карточка становится `done`, а её доска продолжает звать её `new`).
+    _rebuild_board(tracker_dir=Path(args.path).resolve().parent)
     return 0
 
 

@@ -2,6 +2,8 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
+> Собрана: 2026-08-26T19:53:09Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+>
 > Всего карточек: **697** · ждёт владельца: **1** · занято сессиями: **6**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
@@ -554,7 +556,6 @@
 - Аллокатор слеп к лимиту сети — предлагает 95 % на Ethereum, и гейт блокирует ВСЮ раскладку  ·  `agent-allocator-slep-k-limitu-seti.md` · 2026-08-08
 - День с пустой книгой не считается доказанным (решение владельца 19.08, вариант 1)  ·  `agent-den-s-pustoi-knigoi-ne-dokazannyi.md` · 2026-08-20
 - Долгоживущие агенты крутят код многонедельной давности — перезапустить (полномочие ADR-078)  ·  `agent-dolgozhivuschie-agenty-krutyat-staryi-kod.md` · 2026-08-09
-- «303 файла разошлись» — почти всё это шум по построению, и я пять раз докладывал его как риск  ·  `agent-drift-number-is-mostly-noise.md` · 2026-08-10
 - Два артефакта одного цикла втрое расходятся в оценке потерь: 451 б.п. против 132 б.п.  ·  `agent-dva-artefakta-odnogo-tsikla-raskhodyatsya-vtroe.md` · 2026-08-08
 - Две записи о деньгах, причина 1: доказательная база на повторную дату молча возвращает СТАРУЮ строку  ·  `agent-dve-zapisi-o-dengah-prichina-1-semantika-povtornoi-zapisi.md` · 2026-08-23
 - Две записи о деньгах, причина 2: разрыв цепочки 10.06 и пересчёт июня (владелец разрешил переписывание)  ·  `agent-dve-zapisi-o-dengah-prichina-2-razryv-treka-10-06.md` · 2026-08-23
@@ -573,7 +574,6 @@
 - Реестр свежести не знает о кривой трека и golive_status — их git-копии замерли на 04.07, и полтора месяца об этом никто не сказал  ·  `agent-reestr-svezhesti-slep-k-krivoi-treka.md` · 2026-08-23
 - Слепота внутридневного сенсора 30 минут подряд — разбудить владельца (число владельца, ADR-129)  ·  `agent-slepota-sensora-30-minut-trevoga.md` · 2026-08-23
 - Сторож чисел сайта: тихий проход только по двум условиям сразу (решение владельца 19.08, вариант 1)  ·  `agent-storozh-chisel-tihii-prohod-po-dvum-usloviyam.md` · 2026-08-20
-- Сторож доски карточек и `--check` живут ТОЛЬКО на ветке — карточка владельцу описывала их как готовые  ·  `agent-storozh-doski-zhivet-tolko-na-vetke.md` · 2026-08-23
 - Напоминание о снятии стоп-крана: реализовать политику А1 (ADR-097)  ·  `agent-task-napominanie-o-snyatii-stop-krana-realizo.md` · 2026-08-20
 - Права на origin нечем починить: пушер по построению сохраняет режим remote, а правило требует чинить режим на origin  ·  `agent-task-prava-na-origin-nechem-pochinit-pusher-p.md` · 2026-08-07
 - Прогон тестов пачкает git-tracked фикстуры — «чистое дерево» перестало быть сигналом  ·  `agent-test-run-dirties-tracked-fixtures.md` · 2026-08-04
@@ -606,6 +606,7 @@
 - Дедуп карточек (разовый скан)  ·  `agent-dedup-cards.md` · 2026-07-16
 - Храповик расхождения не запускается нигде — я сам произвёл тот класс, что вчера закрывал  ·  `agent-divergence-ratchet-has-no-runner.md` · 2026-08-10
 - CI на main красный: downside_beta делит на дисперсию-шум — герметичный тест падает на Linux/py3.11 и проходит на py3.12  ·  `agent-downside-beta-degenerate-variance.md` · 2026-07-30
+- «303 файла разошлись» — почти всё это шум по построению, и я пять раз докладывал его как риск  ·  `agent-drift-number-is-mostly-noise.md` · 2026-08-10
 - Идентификатор сессии в announce-логе не переживает саму команду — активность сессии измерить нечем  ·  `agent-durable-session-id.md` · 2026-07-30
 - ENV_SETUP v3 — контур владельца (все этапы)  ·  `agent-env-setup.md` · 2026-07-16
 - Q1: флот reboot-safe (7 агентов)  ·  `agent-fleet-reboot.md` · 2026-07-16
@@ -648,6 +649,7 @@
 - 19 тестов spa_core/tests красны на main (предсуществующие, никем не отслеживались)  ·  `agent-spa-core-tests-red-on-main.md` · 2026-07-29
 - CI на main красный — два теста Spark требуют «гарантированный fallback 5.5%», который ADR-063 намеренно убрал  ·  `agent-spark-apy-tests-assert-a-fallback-adr-063-removed.md` · 2026-08-03
 - Стоп-крану — собственный отправитель (решение владельца 19.08, вариант 1)  ·  `agent-stop-kran-sobstvennyi-otpravitel.md` · 2026-08-20
+- Сторож доски карточек и `--check` живут ТОЛЬКО на ветке — карточка владельцу описывала их как готовые  ·  `agent-storozh-doski-zhivet-tolko-na-vetke.md` · 2026-08-23
 - Сторож кнопок не знает слова «досланы вдогонку»: починенный случай докладывается открытым дефектом ВЕЧНО и глушит соседние настоящие  ·  `agent-storozh-knopok-ne-znaet-slova-doslany-vdogonku.md` · 2026-08-24
 - Разбор swarm-сессии 11.07 (31 идея)  ·  `agent-swarm-review.md` · 2026-07-16
 - Bootstrap: единая доска карточек + читать историю решений при старте  ·  `agent-task-bootstrap-edinaya-doska-kartochek-chitat.md` · 2026-07-16
