@@ -100,9 +100,18 @@ CARD_OPTIONS = _HEAD + (
 )
 
 #: Варианты НАПИСАНЫ, но разбор их не взял. Кнопка «Принято» спрятала бы выбор.
+#:
+#: НАМЕРЕННАЯ правка фикстуры, цикл #351 (инв. #16 — ни одно утверждение теста не тронуто).
+#: Прежний текст был двумя строками «Вариант 1: …» / «Вариант 2: …», и он попадал сюда лишь
+#: потому, что разбор не знал формы БЕЗ жирного. Теперь знает (замер по 609 живым карточкам:
+#: кнопки появились у 2, пропали у 0), и прежняя фикстура перестала изображать состояние,
+#: ради которого написана, — она стала разбираемой. Взята ДРУГАЯ форма того же состояния,
+#: и она не случайная: это ПРОЗА в одну строку, которую разбор отвергает по правилу
+#: «вторая метка в строке ⇒ это не перечень» — иначе владелец получил бы ОДНУ кнопку там,
+#: где карточка предлагает две. Предмет теста прежний: выбор написан, кнопок собрать нельзя,
+#: и «Принято» его бы спрятало.
 CARD_UNPARSED = _HEAD + (
-    "Вариант 1: перезапустить агента — но только после проверки.\n"
-    "Вариант 2: вывести агента из флота.\n"
+    "Вариант 1 — перезапустить агента. Вариант 2 — вывести его из флота. Выбери один.\n"
 )
 
 #: Карточка разрешает взять НЕСКОЛЬКО пунктов — кнопкой это не выразить.
@@ -363,24 +372,61 @@ def test_unparsed_options_get_no_ack_buttons(env):
     assert "Варианты в карточке есть" in prep.text
 
 
-def test_a_lettered_choice_is_refused_even_though_the_narrow_check_passes(env):
-    """Дыра, найденную ЧУЖИМ тестом: «(а)/(б)» внутри «Решения 1».
+def test_a_lettered_choice_now_gets_its_own_buttons_and_never_an_ack(env):
+    """Дыра, найденная ЧУЖИМ тестом: «(а)/(б)» внутри «Решения 1».
 
-    Узкая проверка `has_unparsed_options` ищет строку, начинающуюся с «Вариант N»,
-    и такой карточки не видит. Замер по живой очереди 21.08: из пяти открытых
-    вопросов узкую проверку проходил ровно ОДИН — и это был он. То есть в
-    единственном случае, где подтверждение сработало бы, оно закрыло бы вопрос
-    «хоронить или воскрешать» кнопкой «Принято».
+    **Тест намеренно усилен циклом #349 (инв. #16, запись в `docs/journal/2026-W34.md`).**
+    Прежняя редакция требовала ``has_unparsed_options(CARD_LETTERED) is False`` как
+    «предусловие: узкая молчит» и ``prep.keyboard is None``. Оба утверждения
+    закрепляли слепоту разбора как свойство КАРТОЧКИ: варианты в ней написаны ровно
+    по §2.4 (буквы + рекомендация), просто форма разбору не была известна, и живой
+    `own-2026-08-19-sudba-voronki-chekapa-i-kanal-zayavok` (`high`) простоял из-за
+    этого неотвечаемым с 19.08 по 22.08. Ослабления нет: старое требование «кнопка
+    „Принято“ НЕ появляется» сохранено ДОСЛОВНО, а к нему добавлено более сильное —
+    владелец получает НАСТОЯЩИЕ варианты карточки, а не молчание.
     """
-    assert od.has_unparsed_options(CARD_LETTERED) is False, "предусловие: узкая молчит"
     assert od.looks_like_a_choice(CARD_LETTERED) is True
 
     card = _write(env, CARD_LETTERED, name="own-lettered")
     _commit(env)
     prep, _ = _push(env, card, CARD_LETTERED)
 
+    assert prep.ack is False, "подтверждение спрятало бы выбор — как и раньше"
+    assert [o.num for o in prep.options] == ["а", "б"]
+    labels = [b["text"] for row in prep.keyboard["inline_keyboard"] for b in row]
+    assert any("Похоронить" in t for t in labels), labels
+    assert any("Воскресить" in t for t in labels), labels
+    assert od.ACK_BUTTONS[od.ACK_ACCEPT] not in labels
+
+
+def test_the_same_letters_in_two_decisions_stay_buttonless_and_are_named_as_ours(env):
+    """Граница fail-CLOSED не сдвинута: ДВА решения в одной карточке — не выбор одного.
+
+    Метки повторяются («а»/«б» в каждом решении) ⇒ разбор отказывает целиком, иначе
+    нажатие закрыло бы карточку, похоронив второй вопрос. Отказ верен — и обязан
+    звучать как НАША неполадка, а не как «выбора не предлагали».
+    """
+    body = CARD_LETTERED + (
+        "\n**Решение 2 — канал заявок.** Варианты:\n"
+        "- **(а) Телеграм.** Заявки идут в чат.\n"
+        "- **(б) Почта.** Заявки идут письмом.\n"
+    )
+    assert od.parse_options(body) == []
+    assert od.has_unparsed_options(body) is True
+
+    card = _write(env, body, name="own-two-decisions")
+    _commit(env)
+    prep, _ = _push(env, card, body)
+
     assert prep.ack is False
     assert prep.keyboard is None
+    # ИНВ. #16 — правка НАМЕРЕННАЯ (цикл #359, обоснование в журнале W34). Требование
+    # «звучать как НАША неполадка, а не как „выбора не предлагали“» СОХРАНЕНО и усилено:
+    # текст обязан назвать, ЧТО именно наше. Дефекта разбора здесь нет — отказ верен, —
+    # а не сделано ДЕЛЕНИЕ карточки на отдельные вопросы, и это наша работа, не владельца.
+    assert "не варианты одного решения" in prep.text
+    assert "Вариантов в карточке не нашёл" not in prep.text
+    assert "моя работа" in prep.text
 
 
 def test_the_five_cards_of_2026_08_08_would_get_buttons(env):
@@ -416,7 +462,18 @@ def test_multiselect_gets_no_ack_buttons(env):
 # ── 4. нажатие: карточка закрывается решением ВЛАДЕЛЬЦА ──────────────────────
 
 
-def test_accept_closes_the_card_as_owner_done(env):
+def test_accept_records_the_owner_answer_and_leaves_the_card_open(env):
+    """ИЗМЕНЁН НАМЕРЕННО циклом #350 (инв. #16), и проверка при этом УСИЛЕНА.
+
+    Раньше здесь стояло ``assert "status: owner-done" in text`` — тест закреплял
+    поведение, которое оказалось АВАРИЕЙ: 22.08 20:29Z нажатие «✅ Принято» сделало
+    карточку-поручение терминальной в момент, когда её собственный критерий приёмки
+    не выполнен (замер 20:47Z), и обещанной перепроверки делать стало некому.
+    Ни один assert не снят: к прежним четырём (след ответа владельца + отсутствие
+    выдуманного «варианта») добавлены ДВА новых — статус ровно ``owner-accepted``
+    и явный запрет терминального. Разбор аварии — `test_owner_accepted_status.py`,
+    обоснование — `docs/journal/2026-W34.md`, цикл #350.
+    """
     card = _write(env, CARD_INSTRUCTION)
     _commit(env)
     prep, live = _push(env, card, CARD_INSTRUCTION)
@@ -426,7 +483,10 @@ def test_accept_closes_the_card_as_owner_done(env):
 
     assert res["ok"] is True and res["kind"] == "ack"
     text = live.read_text(encoding="utf-8")
-    assert "status: owner-done" in text
+    assert "status: owner-accepted" in text
+    assert "status: owner-done" not in text, (
+        "«принято» — обещание совершить действие, а не действие: терминальный "
+        "статус здесь теряет обещанную перепроверку (авария 22.08 20:29Z)")
     assert "owner_choice: ack" in text
     assert "owner_answer_kind: ack" in text
     assert "**Принято — беру в работу**" in text
@@ -604,4 +664,10 @@ def test_heal_delivers_ack_buttons_to_an_instruction_card(env):
     res = od.record_choice(prep.pid, od.ACK_ACCEPT, OWNER, owner_chat_id=OWNER,
                            now=FIXED_NOW, state_path=env["state"])
     assert res["ok"] is True
-    assert "status: owner-done" in live.read_text(encoding="utf-8")
+    # ИЗМЕНЕНО НАМЕРЕННО (#350, инв. #16) и УСИЛЕНО: досланная кнопка обязана вести
+    # туда же, куда исходная, — а «туда же» с #350 означает НЕтерминальный
+    # `owner-accepted`. Проверяется не только статус, но и след ответа владельца,
+    # которого прежнее утверждение не касалось вовсе.
+    text = live.read_text(encoding="utf-8")
+    assert "status: owner-accepted" in text and "status: owner-done" not in text
+    assert "owner_choice: ack" in text and "owner_answer_kind: ack" in text

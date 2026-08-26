@@ -57,6 +57,21 @@ breaker: HALT»). Снять остановку может ТОЛЬКО влад
       CRITICAL  дереве нет: владелец его ВИДИТ, а нажатие отвечает «карточка
                 исчезла». Найдено со стороны журнала отправок, поэтому не сводится
                 к H8 (тот фильтрует тип и считает в хвосте НЕотправленные).
+  H11 (без      вопрос владельцу живёт ТОЛЬКО на ВЕТКЕ: его нет ни в дереве, ни на
+      статуса)  `origin/main`, и потому он невидим И этому сторожу (H8 сверяет с
+                `origin/main`), И отправителю (`resend.open_questions` читает дерево
+                + `origin/main`, #330). Третье плечо класса, и самое немое: вопрос
+                нельзя ни задать, ни закрыть. Замер 23.08: 18 таких на 36 ветках,
+                один заперт в своём же открытом PR. Статус СОЗНАТЕЛЬНО не поднимаем
+                (прецедент H7/H10/ADR-084 плюс: 17 из 18 живут на ОДНОЙ известной
+                ветке под ручным разбором, и вечный WARNING приучил бы пролистывать
+                блок, в котором однажды окажется свежая потеря).
+  H10 (без      поручения, ПРИНЯТЫЕ владельцем и ещё не исполненные (`owner-accepted`,
+      статуса)  ADR-124). Не вопрос владельцу — НАШЕ обещание, и читатель у него один:
+                обязательный шаг 0-офис протокола. Статус отчёта СОЗНАТЕЛЬНО не
+                поднимаем — прецедент H7/ADR-084: файл ежечасно читает
+                `agent_health_monitor`, умеющий звонить владельцу, а звать владельца
+                из-за нашего невыполненного обещания — ровно наоборот.
 
 Очередь дерева ≠ очередь владельца (цикл #270, 17.08.2026)
 ------------------------------------------------------------------------------
@@ -187,6 +202,12 @@ _OPEN_CARD_STATUS = "needs-owner"
 #: молча погасили бы живой вопрос). Незнакомый статус остаётся НЕ ИЗМЕРЕНО.
 _TERMINAL_CARD_STATUS = frozenset({"ingested", "done", "owner-done"})
 
+#: Владелец ОТВЕТИЛ («принято — беру в работу»), а работа ещё впереди (#350). Это
+#: третье состояние, и оба прежних читали бы его неверно: как «ждёт владельца» —
+#: значит слать ему уже отвеченный вопрос; как «закрыто» — значит потерять ровно то,
+#: ради чего статус и заведён (обещанная перепроверка без исполнителя).
+_ACCEPTED_CARD_STATUS = "owner-accepted"
+
 
 def _worst(*statuses: str) -> str:
     return max(statuses, key=lambda s: _SEVERITY.get(s, 0)) if statuses else OK
@@ -272,8 +293,12 @@ def _is_phantom(card) -> bool:
     return any(sig in body for sig in _PHANTOM_SIGNATURES)
 
 
-def _scan_queue(tracker_dir: Path) -> tuple[list[dict], list[dict], bool]:
-    """Очередь вопросов владельцу из ЖИВОГО дерева. → (карточки, unchecked, есть_ли_каталог).
+def _scan_queue(tracker_dir: Path) -> tuple[list[dict], list[dict], list[dict], bool]:
+    """Очередь владельца из ЖИВОГО дерева. → (ждущие, ПРИНЯТЫЕ, unchecked, есть_ли_каталог).
+
+    Три состояния, а не два (#350): «ждёт владельца» (`needs-owner`), «владелец принял,
+    работа впереди» (`owner-accepted`) и «закрыто». Слить принятые с любым из соседей
+    значило бы либо снова слать владельцу отвеченный вопрос, либо потерять обещание.
 
     Каталога нет ⇒ очереди нет: это законное состояние песочницы/чистой установки,
     и объявлять его «не измерено» значило бы жечь предупреждение там, где мерить
@@ -282,9 +307,10 @@ def _scan_queue(tracker_dir: Path) -> tuple[list[dict], list[dict], bool]:
     без `status:` невидима ЛЮБОМУ фильтру, включая очередь владельца.
     """
     queue: list[dict] = []
+    accepted: list[dict] = []
     unchecked: list[dict] = []
     if not tracker_dir.is_dir():
-        return queue, unchecked, False
+        return queue, accepted, unchecked, False
 
     from spa_core.owner_queue.queue import load_card
 
@@ -314,6 +340,16 @@ def _scan_queue(tracker_dir: Path) -> tuple[list[dict], list[dict], bool]:
                           "любому фильтру очереди, ждёт ли она ответа, НЕ ИЗМЕРЕНО",
             })
             continue
+        if status == _ACCEPTED_CARD_STATUS:
+            # Не вопрос владельцу (он ответил) и не закрытая карточка (работа впереди).
+            # Ждёт АГЕНТА — и потому едет в отчёт отдельным списком, а не растворяется
+            # ни в очереди, ни в тишине.
+            accepted.append({
+                "card_id": card_id,
+                "title": card.title or card_id,
+                "accepted_at": card.fields.get("owner_answered_at"),
+            })
+            continue
         if status != _OPEN_CARD_STATUS:
             continue
         queue.append({
@@ -322,7 +358,7 @@ def _scan_queue(tracker_dir: Path) -> tuple[list[dict], list[dict], bool]:
             "created": card.fields.get("created"),
             "phantom": _is_phantom(card),
         })
-    return queue, unchecked, True
+    return queue, accepted, unchecked, True
 
 
 #: С какой копией очереди сверяемся. Локальный ref, `git fetch` НЕ вызывается:
@@ -364,6 +400,98 @@ def _scan_origin_gap(tracker_dir: Path, pushes_by_card: dict[str, list[dict]]) -
         "hidden": [{"card_id": c.card_id, "title": c.title,
                     "delivered": bool(pushes_by_card.get(c.card_id))}
                    for c in cards],
+    }
+
+
+def _scan_branch_queue(tracker_dir: Path) -> dict:
+    """Вопросы владельцу, которых нет НИ в дереве, НИ на `origin/main` — только на ветках.
+
+    ТРЕТЬЕ плечо класса «вопрос владельцу невидим», и самое немое из трёх. Два
+    первых уже меряются: `_scan_origin_gap` («есть на origin, нет в дереве», #270)
+    и `closed_on_origin`/`open_on_origin` (дрейф прод↔origin, #273). Карточка,
+    живущая ТОЛЬКО на ветке, не встречается ни одной из этих сверок — и ни
+    отправителю (`resend.open_questions` читает дерево + `origin/main`, #330).
+    Вопрос нельзя ни задать, ни закрыть, и молчания об этом никто не замечает:
+    строка шага 0-офис «очередь полна: невидимых дереву вопросов нет» была
+    утверждением о полноте, на которое замера не существовало.
+
+    Замер 23.08.2026 (цикл #351, 36 веток): **18** `needs-owner` не были на
+    `origin/main` ни минуты. Один из них — `own-2026-08-22-snyat-changelog-so-saita`
+    внутри ОТКРЫТОГО PR #35: карточка просит подпись владельца, без которой этот же
+    PR не вливают, то есть вопрос заперт в том, что сам же разблокирует.
+
+    `ever_on_base` отделяет потерянный вопрос от НАМЕРЕННО снятого: наш тест-зонд
+    `owner-decision-test-prizrak-ne-rozhdaetsya` лежит на двух влитых ветках, а с
+    `main` убран коммитом `029627b46` — это не потеря. Признак измеримый (история
+    пути на базовом ref), а не эвристика.
+
+    **Третий исход — «прочитано и осознанно не везём»** (карточка
+    `inbox-storozh-voprosy-vladeltsa-na-vetke-ne-zn`, цикл #376). Двух имён не
+    хватало на самый частый и совершенно ПРАВИЛЬНЫЙ исход разбора ветки: дубль уже
+    разобранного, устаревшая премиса, замер приложен к карточке на `main`. Такая
+    карточка на `main` не лежала НИКОГДА ⇒ ``ever_on_base = False`` ⇒ она попадала
+    в `count` НАВСЕГДА, и число не могло дойти до нуля даже после полного разбора
+    ветки. Замер 23.08 (цикл #356): 12 карточек, все 12 — с ветки
+    `origin/claude/work-status-check-xfnbew`, разбор которой цикл #355 в тот же день
+    ЗАКОНЧИЛ; 25.08 их оставалось 3, и все три названы поимённо в теле
+    карточки-разбора с починкой (ADR-125 / ADR-116) или совпадением.
+
+    Цена молчания тут не «лишняя строка»: постоянный житель раздела находок
+    приучает пролистывать раздел, в котором однажды окажется настоящая потеря
+    вопроса владельца, — тот же механизм, которым глохнут сторожа (#354).
+    Ослаблением это не является: решение обязано быть ЗАПИСАНО с автором, датой и
+    основанием, иначе объявлением не считается вовсе, — и незаписанное решение
+    по-прежнему потеря. Строка с меткой, но без обязательного поля, НЕ выбрасывается
+    молча: она едет в `declaration_issues`.
+
+    Fail-CLOSED и никогда не бросает наружу — ровно как соседи по файлу: сверять не
+    с чем (не git-дерево, ref не разрешается) ⇒ ``measured=False`` и причина
+    СЛОВАМИ. Отдельная нечитаемая ветка замер по остальным не отменяет, но и не
+    исчезает: она названа в `unreadable`.
+    """
+    try:
+        from spa_core.owner_queue.origin_view import Unmeasured, branch_only_cards
+    except Exception as exc:  # noqa: BLE001 — сторож не роняет отчёт из-за импорта
+        return {"measured": False, "reason": f"обход веток недоступен: {exc}"}
+    try:
+        scan = branch_only_cards(Path(tracker_dir), base_ref=ORIGIN_REF,
+                                 tracker_type=_QUEUE_CARD_TYPE,
+                                 status=_OPEN_CARD_STATUS)
+    except Unmeasured as exc:
+        return {"measured": False, "reason": f"ветки не прочитаны: {exc}"}
+    except Exception as exc:  # noqa: BLE001 — неожиданное тоже «не измерено», не «чисто»
+        return {"measured": False, "reason": f"обход веток не выполнен: {exc}"}
+    on_base = [c for c in scan.cards if c.ever_on_base]
+    dropped = [c for c in scan.cards if not c.ever_on_base and c.dropped is not None]
+    lost = [c for c in scan.cards if not c.ever_on_base and c.dropped is None]
+    return {
+        "measured": True,
+        "ref": scan.base_ref,
+        "ref_sha": scan.base_sha,
+        "branches_read": len(scan.branches_read),
+        # Число ПОТЕРЯННЫХ, а не всех найденных: намеренно снятая карточка и
+        # осознанно не привезённая стоят рядом отдельными числами, чтобы «мы это
+        # решили сами» нельзя было прочитать как находку и наоборот.
+        "count": len(lost),
+        "removed_on_base_count": len(on_base),
+        "dropped_count": len(dropped),
+        "cards": [{"card_id": c.card_id, "title": c.title,
+                   "branches": list(c.branches)} for c in lost],
+        # Автор, дата и основание едут в отчёт ВСЕГДА: решение, основание которого
+        # не видно, читателю проверить нечем, и тогда признак закрывает что угодно.
+        "dropped": [{"card_id": c.card_id, "title": c.title,
+                     "branches": list(c.branches), "by": c.dropped.by,
+                     "date": c.dropped.date, "reason": c.dropped.reason,
+                     "declared_in": c.dropped.declared_in} for c in dropped],
+        # Брак объявлений и объявления, пережившие свой предмет. НЕ находка о
+        # владельце — находка о самом реестре: реестр, из которого ничего не уходит
+        # и в который можно писать как попало, через год состоит из мусора.
+        "declaration_issues": (
+            [{"where": w, "reason": r} for w, r in scan.dropped_broken]
+            + [{"where": cid, "reason": "объявлено «не везём», но карточки нет ни на "
+                                        "одной прочитанной ветке — решение пережило предмет"}
+               for cid in scan.dropped_stale]),
+        "unreadable": [{"branch": b, "reason": r} for b, r in scan.unreadable],
     }
 
 
@@ -412,7 +540,7 @@ def _resolve_missing_on_origin(tracker_dir: Path, card_ids: list[str]) -> dict:
 CHANNEL_HISTORY = "alert_history.json"
 
 
-def _scan_channel_buttons(ddir: Path) -> dict:
+def _scan_channel_buttons(ddir: Path, pushes=None) -> dict:
     """Сообщения с вариантами, уехавшие БЕЗ кнопок — по общему журналу канала.
 
     Fail-CLOSED и никогда не бросает: журнала нет ⇒ ``measured=False`` и причина
@@ -433,7 +561,10 @@ def _scan_channel_buttons(ddir: Path) -> dict:
     try:
         from spa_core.telegram.buttonless_audit import scan
 
-        out = scan(entries)
+        # Журнал отправок передаём тем же вызовом: с ним у каждой находки появляется
+        # ПРИЧИНА, а без неё строка отчёта зовёт читателя копать два журнала руками
+        # (замер #350 — полчаса на две строки).
+        out = scan(entries, pushes=pushes)
     except Exception as exc:  # noqa: BLE001 — сторож не роняет отчёт
         return {"measured": False, "reason": f"скан не выполнен: {exc}"}
     out["measured"] = True
@@ -552,12 +683,22 @@ def check_pending_owner_decisions(*,
     # находка ниже удвоила бы уже сказанное. Порядок строк отчёта от этого не
     # меняется — issues здесь не дописываются.
     origin_gap = _scan_origin_gap(tdir, pushes_by_card)
+    # Третье плечо той же сверки (#351). Статус отчёта СОЗНАТЕЛЬНО не поднимаем —
+    # прецедент H7/ADR-084: файл ежечасно читает `agent_health_monitor`, умеющий
+    # звонить владельцу, а звонить владельцу о НАШЕЙ недоставке его же вопросов
+    # значит ответить на жалобу о спаме новым спамом. Плюс 17 из 18 находок живут
+    # на ОДНОЙ известной ветке под ручным разбором: вечный WARNING приучил бы
+    # пролистывать блок, в котором однажды окажется свежая потеря. Находка едет в
+    # отчёт и в ОБЯЗАТЕЛЬНЫЙ шаг 0-офис, где её читает оркестратор. Закреплено
+    # тестом в обе стороны.
+    branch_gap = _scan_branch_queue(tdir)
     gap_ids = {str(c.get("card_id")) for c in (origin_gap.get("hidden") or [])}
 
     missing_on_origin = _resolve_missing_on_origin(tdir, list(missing_ids))
     origin_status_by_card = missing_on_origin.get("found") or {}
     closed_on_origin: list[dict] = []
     open_on_origin: list[dict] = []
+    accepted_on_origin: list[dict] = []
     for card_id in missing_ids:
         origin_status = origin_status_by_card.get(card_id)
         if origin_status in _TERMINAL_CARD_STATUS:
@@ -566,6 +707,13 @@ def check_pending_owner_decisions(*,
             # и печатается отдельной строкой (иначе он «исчезнет молча», а прод
             # так и будет отвечать «карточка исчезла» на нажатие).
             closed_on_origin.append({"card_id": card_id, "origin_status": origin_status})
+            continue
+        if origin_status == _ACCEPTED_CARD_STATUS:
+            # Владелец ответил, файла в дереве нет: вопроса к нему больше нет, а
+            # работа есть. Молчать нельзя (иначе принятое поручение испарится вместе
+            # с дрейфом прод↔origin), но и «не измерено» здесь ложно — измерено точно.
+            accepted_on_origin.append({"card_id": card_id,
+                                       "origin_status": origin_status})
             continue
         if origin_status == _OPEN_CARD_STATUS:
             # Находка СИЛЬНЕЕ прежней «не измерено»: вопрос ЖИВОЙ, владельцу его
@@ -591,7 +739,7 @@ def check_pending_owner_decisions(*,
         })
 
     # --- очередь: ИСТОЧНИК списка ждущих вопросов ---------------------------
-    queue_cards, queue_unchecked, queue_present = _scan_queue(tdir)
+    queue_cards, accepted_cards, queue_unchecked, queue_present = _scan_queue(tdir)
     unchecked.extend(queue_unchecked)
 
     # Фантомы вынимаем ДО подсчёта очереди: это не вопросы, и складывать их с
@@ -811,7 +959,7 @@ def check_pending_owner_decisions(*,
     # значит ответить на жалобу о спаме новым спамом. Направление таблички решает
     # (прецедент ADR-084): находка едет в отчёт и в обязательный шаг 0-офис, где её
     # читает оркестратор, а не в чат. Закреплено тестом в обе стороны.
-    channel = _scan_channel_buttons(ddir)
+    channel = _scan_channel_buttons(ddir, pushes)
 
     return {
         "generated_at": now.isoformat(),
@@ -837,6 +985,12 @@ def check_pending_owner_decisions(*,
         # обязаны быть различимы, иначе сломанная сверка выглядит как порядок.
         "queue_gap_count": (len(gap_cards) if origin_gap.get("measured") else None),
         "origin_queue": origin_gap,
+        # Вопросы владельцу, живущие ТОЛЬКО на ветке (#351): их не видит ни
+        # `origin_queue` выше, ни отправитель. `None` — не измерено: ноль и «не
+        # мерили» обязаны быть различимы и здесь.
+        "branch_queue_count": (branch_gap.get("count")
+                               if branch_gap.get("measured") else None),
+        "branch_queue": branch_gap,
         # Пропавшие карточки, разложенные по трём исходам (#273). `closed_on_origin`
         # — НЕ находка, а факт дрейфа прод↔origin: вопрос закрыт, файл не доехал.
         # Он остаётся в отчёте и печатается, потому что молча исчезнувший факт
@@ -844,6 +998,14 @@ def check_pending_owner_decisions(*,
         "missing_cards": missing_on_origin,
         "closed_on_origin": closed_on_origin,
         "open_on_origin": open_on_origin,
+        "accepted_on_origin": accepted_on_origin,
+        # Поручения, ПРИНЯТЫЕ владельцем и ещё не исполненные (#350). Не вопросы
+        # владельцу — работа агента; читатель — обязательный шаг 0-офис протокола.
+        # Статус отчёта СОЗНАТЕЛЬНО не поднимаем (прецедент H7/ADR-084): этот файл
+        # ежечасно читает `agent_health_monitor`, умеющий звонить владельцу, а звать
+        # владельца из-за НАШЕГО невыполненного обещания — ровно наоборот.
+        "accepted": accepted_cards,
+        "accepted_count": len(accepted_cards),
         "channel_buttons": channel,
         "pending": pending,
         "issues": issues,
@@ -857,6 +1019,11 @@ def check_pending_owner_decisions(*,
         "reason": (issues[0] if issues else
                    ("остановки нет; вопросов владельцу без ответа: "
                     f"{len(pending)}"
+                    # Принятые поручения — НЕ вопросы владельцу, поэтому в счёт выше
+                    # они не идут; но и промолчать о них нельзя: это наше обещание,
+                    # у которого до #350 не было ни статуса, ни читателя.
+                    + (f"; принятых поручений в работе: {len(accepted_cards)}"
+                       if accepted_cards else "")
                     + ("" if origin_gap.get("measured")
                        else f" (полнота очереди НЕ ИЗМЕРЕНА: "
                             f"{origin_gap.get('reason', 'причина не названа')})"))),

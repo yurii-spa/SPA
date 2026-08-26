@@ -24,6 +24,10 @@ fields:
     options:
       - value: needs-owner
         label: Needs Owner
+      # НЕтерминальный: владелец нажал «✅ Принято — беру в работу» (ADR-124, #350).
+      # Он ОТВЕТИЛ, но работа впереди; снимает статус только отчёт агента (ingested).
+      - value: owner-accepted
+        label: Owner Accepted (в работе)
       - value: owner-done
         label: Owner Done
       - value: ingested
@@ -50,4 +54,6 @@ roles:
   workflowStatus: status
 
 # ПРАВИЛО (жёсткое, дублируется в CLAUDE.md): агентам запрещено переводить карточку в
-# 'owner-done'. Только владелец. Агент двигает лишь needs-owner -> ingested (после инжеста).
+# 'owner-done' И в 'owner-accepted'. Оба ставит только владелец. Агент двигает лишь
+# needs-owner -> ingested (после инжеста) и owner-accepted -> ingested (после ИСПОЛНЕНИЯ,
+# то есть отчёта о выполненном критерии приёмки; ADR-124).

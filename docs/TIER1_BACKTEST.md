@@ -67,8 +67,11 @@ DSR гейтит доверие: пакет предлагается клиен�
 
 - **Реальные данные расширены до 13 протоколов** (добавлены morpho_steakhouse 755д, morpho_blue,
   maple 332д; уточнены DeFiLlama-слаги: morpho symbol=`STEAKUSDC`, maple symbol=`USDC`+meta
-  `syrup`). **spark_susds / sky_susds НЕ фетчатся** — RULES.md фиксирует Sky/sUSDS = 0% до
-  on-chain GSM Pause Delay ≥ 48h; остаются на консервативном proxy (не противоречим доку).
+  `syrup`). **spark_susds / sky_susds не фетчились** — на момент P2 действовал запрет «Sky/sUSDS = 0 %
+  до on-chain GSM Pause Delay ≥ 48h», и они стояли на консервативном proxy. **Запрет снят
+  05.08.2026** (задержка наблюдена 48.00 ч, [`ADR-065`](decisions/ADR-065-sky-susds-promoted-to-t1.md)),
+  причина держать их на proxy отпала — реальные ряды для них не заведены, и это открытый пункт
+  P2, а не правило.
 - **`spa_core/backtesting/tier1/oos.py` — out-of-sample проверка для YIELD.** Вместо Sharpe-OOS
   (вырожден) считает blended net-APY стратегии на in-sample (первые 70%) vs out-of-sample
   (последние 30%) по реальным рядам, выравнивая по общей оси дат (forward-fill — ряды стартуют

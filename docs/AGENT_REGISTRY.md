@@ -78,7 +78,7 @@
 | `tier1_governance` | Tier-1 governance-чек | 07:15 | ◐ НЕПОНЯТНО |
 | `analytics_tier_b` / `_c` | Аналитические тиры B/C | hourly / 05:00 | ◐ НЕПОНЯТНО |
 | `base_gas_monitor` | Газ на Base-сети | 06:00 | ◐ НЕПОНЯТНО (нужен ли) |
-| `sky_monitor` | Мониторинг Sky/sUSDS (GSM Pause Delay) | 07:00 | ВАЖНЫЙ (инвариант Sky=0%) |
+| `sky_monitor` | Мониторинг Sky/sUSDS (GSM Pause Delay) | 07:00 | ВАЖНЫЙ (условие выполнено 05.08, ADR-065 — монитор следит, чтобы задержка не упала обратно ниже 48 ч) |
 | `dfb_capture` | DFB (DeFi risk board) capture | 09:30 | ◐ НЕПОНЯТНО |
 | `bts-feed` / `bts-monitor` | «bts» фид + монитор | 15 мин | ◐ НЕПОНЯТНО (расшифровать «bts») |
 | `checkpoint-7day` | 7-дневный чекпоинт | 10:00 | ◐ НЕПОНЯТНО |

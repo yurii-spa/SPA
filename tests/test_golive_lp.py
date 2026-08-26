@@ -116,32 +116,43 @@ class TestCheckLP002ILDrawdown:
         assert check.status == "PASS"
 
     def test_il_exceeded_in_history_fail(self, gm):
-        """IL < -12% в historical записи → CHECK-LP-002 FAIL"""
+        """IL < -25% в historical записи → CHECK-LP-002 FAIL (Aggressive-бюджет)."""
+        # Порог сдвинут -12% → -25% намеренно (инвариант #16, «Гоу B»): пакет
+        # Aggressive терпит просадку до 25%; go-live-гейт согласован с runtime-kill.
         state_with_breach = {
             "il_drawdown_pct": 0.0,
             "daily_history": [
-                {"date": "2026-06-01", "il_drawdown_pct": -0.15},  # нарушение
+                {"date": "2026-06-01", "il_drawdown_pct": -0.28},  # нарушение (>25%)
                 {"date": "2026-06-02", "il_drawdown_pct": 0.0},
             ],
         }
         check = gm._check_lp_002_max_il_drawdown(state_with_breach)
         assert check.status == "FAIL"
-        assert "-15.00%" in check.detail or "-0.15" in check.detail or "−15" in check.detail or "-15" in check.detail
+        assert "-28.00%" in check.detail or "-0.28" in check.detail or "−28" in check.detail or "-28" in check.detail
 
     def test_current_il_exceeded_fail(self, gm):
-        """Текущий il_drawdown_pct < -12% → CHECK-LP-002 FAIL"""
+        """Текущий il_drawdown_pct < -25% → CHECK-LP-002 FAIL."""
         state_bad = {
-            "il_drawdown_pct": -0.13,
+            "il_drawdown_pct": -0.26,
             "daily_history": [],
         }
         check = gm._check_lp_002_max_il_drawdown(state_bad)
         assert check.status == "FAIL"
 
-    def test_exactly_minus_12pct_pass(self, gm):
-        """IL drawdown ровно -12% → PASS (порог строго <)"""
+    def test_exactly_minus_25pct_pass(self, gm):
+        """IL drawdown ровно -25% → PASS (порог строго <)."""
         state = {
-            "il_drawdown_pct": -0.12,
-            "daily_history": [{"date": "2026-06-01", "il_drawdown_pct": -0.12}],
+            "il_drawdown_pct": -0.25,
+            "daily_history": [{"date": "2026-06-01", "il_drawdown_pct": -0.25}],
+        }
+        check = gm._check_lp_002_max_il_drawdown(state)
+        assert check.status == "PASS"
+
+    def test_minus_20pct_within_budget_pass(self, gm):
+        """IL drawdown -20% → PASS: в бюджете Aggressive ≤25%."""
+        state = {
+            "il_drawdown_pct": -0.20,
+            "daily_history": [{"date": "2026-06-01", "il_drawdown_pct": -0.20}],
         }
         check = gm._check_lp_002_max_il_drawdown(state)
         assert check.status == "PASS"

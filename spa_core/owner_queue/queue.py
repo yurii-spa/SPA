@@ -10,7 +10,7 @@ Card frontmatter shape (see .nimbalyst/trackers/owner-decision.yaml)::
     trackerStatus:
       type: owner-decision        # or: inbox
     title: ...
-    status: needs-owner           # needs-owner | owner-done | ingested (owner-decision)
+    status: needs-owner           # needs-owner | owner-accepted | owner-done | ingested
     priority: medium
     owner: someone@example.com
     ...
@@ -28,7 +28,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
-from spa_core.owner_queue.status_audit import record_status_write
+from spa_core.owner_queue.status_audit import record_status_write, stamp_trail
 from spa_core.utils.atomic import atomic_save_text
 
 # Repo-root-relative canonical location of the files-first queue.
@@ -69,6 +69,26 @@ TRACKER_DIR = _resolve_tracker_dir()
 
 # Owner-only terminal status the agent must never set (CLAUDE.md invariant #14).
 OWNER_ONLY_STATUS = "owner-done"
+
+#: Владелец сказал «принято — беру в работу», а работа ещё ВПЕРЕДИ. НЕ терминальный.
+#:
+#: Замер #350 (население — одна карточка, и ровно она же авария): у карточки-ПОРУЧЕНИЯ
+#: `owner-decision-snyat-mertvyi-adres-checkup-earn-defi-co` критерий приёмки записан в
+#: ней самой («`curl -I …` больше не отвечает 404»), а нажатие «✅ Принято» 22.08 20:29Z
+#: поставило `owner-done` — терминальный статус — в момент, когда критерий НЕ выполнен
+#: (замер 20:47Z: всё ещё 404). Обещанной перепроверки делать стало некому: пункт выбыл
+#: из очереди. Для карточки-ВЫБОРА закрытие нажатием верно и решено осознанно (ADR-075):
+#: ответ И ЕСТЬ результат. Для поручения «принято» — обещание совершить действие, и
+#: сводить два состояния в один терминальный статус значит терять половину из них.
+#:
+#: Статус ставит ТОЛЬКО владелец — по той же причине, что и `owner-done`: это его слово,
+#: а не вывод агента. Агенту разрешён переход `owner-accepted → ingested`, и только
+#: после того, как он сам проверил критерий приёмки и записал результат.
+OWNER_ACCEPTED_STATUS = "owner-accepted"
+
+#: Оба статуса, которые вправе поставить только владелец. Один список на весь модуль:
+#: вторая копия имён — тот самый дефект, за который проект уже платил (#143–#145).
+OWNER_ONLY_STATUSES = frozenset({OWNER_ONLY_STATUS, OWNER_ACCEPTED_STATUS})
 
 # Sensible default status per tracker type when a card is created without one.
 # Guards against status-less "dead-letter" cards: a card with no top-level ``status:``
@@ -302,12 +322,12 @@ def list_cards(
 def set_status(path: str | Path, new_status: str) -> None:
     """Atomically rewrite the top-level ``status:`` in a card's frontmatter.
 
-    Refuses ``owner-done`` (owner-only). Only the ``status:`` line changes; the rest of
-    the file is preserved byte-for-byte modulo that one line.
+    Refuses ``owner-done`` AND ``owner-accepted`` (both owner-only). Only the ``status:``
+    line changes; the rest of the file is preserved byte-for-byte modulo that one line.
     """
-    if new_status == OWNER_ONLY_STATUS:
+    if new_status in OWNER_ONLY_STATUSES:
         raise OwnerDoneForbidden(
-            "Agents may not set status 'owner-done' — that transition is owner-only "
+            f"Agents may not set status '{new_status}' — that transition is owner-only "
             "(CLAUDE.md invariant #14). Allowed agent targets: ingested / in-progress / done / needs-owner."
         )
     p = Path(path)
@@ -351,7 +371,13 @@ def set_status(path: str | Path, new_status: str) -> None:
         # created with no status is invisible to every filter AND unfixable by this tool.
         lines.insert(end, f"status: {new_status}\n")
 
-    atomic_save_text("".join(lines), str(p))
+    # След перехода едет В САМОЙ карточке — решение владельца 2026-08-23, вариант 1
+    # (ADR-129). Одной записью со статусом, а не двумя: журнал в `data/` в git не
+    # попадает, поэтому законное закрытие из рабочего дерева приезжало в прод немым,
+    # и сторож называл его «вопрос владельца закрыли без владельца» КАЖДЫЙ раз.
+    _text = stamp_trail("".join(lines), old=_old_status, new=new_status,
+                        source="queue.set_status")
+    atomic_save_text(_text, str(p))
     # Кто перевёл карточку — в журнал. Импорт наверху, а не здесь: аудит держится
     # на одной stdlib и кольца не создаёт, а «на всякий случай локальный» импорт —
     # это молчаливая своя копия правила, за которую проект уже платил (#144).
@@ -423,7 +449,11 @@ def _yaml_escape(value: str) -> str:
 
 #: Статусы, в которых вопрос ВСЁ ЕЩЁ ждёт ответа. Закрытая карточка идемпотентность не
 #: даёт: если вопрос вернулся после закрытия — это новый вопрос, и о нём надо сказать.
-_OPEN_STATUSES = frozenset({"needs-owner", "new", "in-progress", "blocked"})
+#: `owner-accepted` тоже открыт: владелец согласился, а СДЕЛАНО ещё ничего не было
+#: (#350). Считать его закрытым значило бы вернуть ровно ту потерю, ради которой
+#: статус и заведён.
+_OPEN_STATUSES = frozenset({"needs-owner", "new", "in-progress", "blocked",
+                            OWNER_ACCEPTED_STATUS})
 
 
 def _open_twin(d: Path, base: str, tracker_type: str, body: str) -> Path | None:
@@ -475,10 +505,12 @@ def create_card(
     disambiguate, and made IDs opaque — owner feedback inbox-task-readable-card-ids). A
     short numeric suffix is appended ONLY on collision (``-2``, ``-3`` …). The date is
     still recorded in the ``created:`` frontmatter field.
-    Never sets ``owner-done`` (owner-only) — callers create in an open state.
+    Never sets ``owner-done`` / ``owner-accepted`` (owner-only) — callers create in an
+    open state.
     """
-    if status == OWNER_ONLY_STATUS:
-        raise OwnerDoneForbidden("create_card must not set 'owner-done' (owner-only, invariant #14).")
+    if status in OWNER_ONLY_STATUSES:
+        raise OwnerDoneForbidden(
+            f"create_card must not set '{status}' (owner-only, invariant #14).")
     d = Path(tracker_dir) if tracker_dir is not None else TRACKER_DIR
     d.mkdir(parents=True, exist_ok=True)
     dt = now or datetime.now(timezone.utc)

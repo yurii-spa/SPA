@@ -36,7 +36,43 @@ origin» ровно потому, что цикл #228 переписал фай
    - ``unique`` — содержимого в истории нет И база по этому пути с HEAD дерева не двигалась.
      Здесь может лежать НЕДОСТАВЛЕННАЯ работа ⇒ дерево остаётся, путь называется вслух;
    - ``absent`` — файла на базе нет вовсе. Всегда ``unique``-класс: отсутствие на базе
-     самодостаточно.
+     самодостаточно;
+   - ``not_in_tree`` — **пути нет на диске ЭТОГО дерева, а на базе он есть** (цикл #377).
+     Шестое имя, и появилось оно потому, что до него отсутствие файла дочитывалось до
+     ``unique`` МОЛЧА: `_blob_sha` у несуществующего пути возвращает ``None``, ветка
+     ``delivered`` закрыта условием ``sha is not None``, база по пути не двигалась — и
+     вердикт выходил вывернутым наизнанку, «здесь может лежать НЕДОСТАВЛЕННАЯ работа» о
+     пути, которого в дереве НЕТ, а на базе он ЕСТЬ. Терять нечему.
+
+     Замер #376 (воспроизведён #377 целиком, от `git init` до вердикта): состояние приходит
+     из СТАНДАРТНОГО хода протокола — страж перезаписи пушера отбивает пуш, лечение по
+     `CLAUDE.md` — перенести правку на свежий origin и переставить HEAD
+     (`git reset --mixed origin/main`), после чего HEAD перечисляет чужие пути, которых
+     дерево никогда не выкладывало. Чем аккуратнее сессия соблюдает протокол, тем вернее
+     упрётся в неснимаемое дерево — а неснимаемые `/tmp`-дерева и есть тот механизм, которым
+     шаг 0a обзаводится вечными жителями раздела «НЕ ДОСТАВЛЕНО» (класс #243/#354).
+
+     **Имя выбирает ЗАМЕР, а не догадка о происхождении состояния** — ``_never_materialised``
+     спрашивает stat-запись индекса (`git ls-files --debug`): нули в `ino`/`ctime` значат, что
+     файл в индекс попал из дерева коммита и на диске его тут не было НИ РАЗУ. Настоящее
+     удаление выложенного файла (тоже возможная работа сессии) несёт живые `ino`/`ctime` и
+     по-прежнему судится как ``unique`` — послабления нет. Не измерили ⇒ судим строже,
+     как раньше;
+   - ``dropped`` — **«решено НЕ везти, вот почему»** (цикл #354). Пятое имя, и оно не
+     смягчение, а недостающее слово: разбор, кончившийся отказом доставлять (дубль уже
+     отвеченного вопроса, черновик, отменённая находка), — частый и ПРАВИЛЬНЫЙ исход, а
+     сказать о нём было нечем. Замер #353: карточка-дубль из `/private/tmp/spa_rnd73`, шаг 1a
+     дал `DONE`, везти её значило второй раз спросить отвеченное (шторм повторов, ADR-084) —
+     и дерево стало неснимаемым НАВСЕГДА, а шаг 0a получил вечного жителя раздела
+     «НЕ ДОСТАВЛЕНО». Постоянный житель там приучает пролистывать весь раздел, и настоящая
+     находка проедет вместе с ним — ровно механизм, которым глохнут сторожа.
+
+     **Признак берётся ТОЛЬКО из явного объявления с причиной** — `log_session_change.py
+     --dropped ПУТЬ ПРИЧИНА`. Молчание вердикта не даёт: иначе им закрыли бы что угодно.
+     Перекрываются РОВНО отрицательные вердикты (`unique`/`absent`), исходный сохраняется в
+     `was`, причина печатается вслух и ложится в квитанцию рядом с архивом. Путь из отчёта
+     не ИСЧЕЗАЕТ ни здесь, ни на шаге 0a: у решения есть автор, и оно должно быть видно.
+     Fail-CLOSED цел — путь без объявления судится байт-в-байт как раньше.
 
    **Работа дерева — это ещё и его КОММИТЫ (цикл #294).** До #294 «работой» считалось
    пересечение «изменено в дереве» (`git diff HEAD`) и «расходится с базой» (`git diff <база>`).
@@ -125,6 +161,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -162,6 +199,13 @@ ARCHIVE_ROOT = Path.home() / "SPA_backups" / "worktree_reap"
 COMMITTED_PATHS_CAP = 200
 
 DELIVERED, SUPERSEDED, UNIQUE, ABSENT = "delivered", "superseded", "unique", "absent"
+# Пятый вердикт по пути — «решено НЕ везти, вот почему» (цикл #354, карточка
+# `inbox-uborschik-ne-znaet-slova-namerenno-ne-dostavleno`). См. п. 4a шапки: он НЕ ослабляет
+# `unique`/`absent`, а даёт им единственный измеримый выход — объявление с причиной.
+DROPPED = "dropped"
+# Шестой вердикт — «этого пути дерево НИКОГДА не выкладывало» (цикл #377, карточка
+# `inbox-uborschik-zovet-nedostavlennoi-rabotoi-otsutstvuyuschii-fail`). См. п. 4б шапки.
+NOT_IN_TREE = "not_in_tree"
 REAP, KEEP, UNMEASURED, PRUNABLE = "reap", "keep", "unmeasured", "prunable"
 
 
@@ -254,6 +298,50 @@ def recent_declarations(log_path, grace_hours, now=None):
     return fresh, None
 
 
+def _path_forms(path):
+    """Все написания одного пути: `/tmp/x` и `/private/tmp/x` на macOS — один каталог."""
+    p = str(path)
+    return {p, p.replace("/private/tmp/", "/tmp/", 1), p.replace("/tmp/", "/private/tmp/", 1)}
+
+
+def dropped_declarations(log_path):
+    """({каждое написание пути: объявление}, причина-если-не-прочитано).
+
+    **Окна здесь нет намеренно.** «Сессия ещё работает» — утверждение о НАСТОЯЩЕМ, оно
+    протухает, поэтому у объявления владения окно есть. «Решено не доставлять» — утверждение о
+    ПРОШЛОМ: разбор состоялся, у него есть автор, причина и дата, и через сутки он не
+    перестаёт быть верным. Дай ему окно — и находка вернулась бы ровно тем вечным жителем
+    раздела «НЕ ДОСТАВЛЕНО», против которого правка и написана.
+
+    Признак берётся ТОЛЬКО из явного поля `dropped` записи журнала (пишет
+    `log_session_change.py --dropped ПУТЬ ПРИЧИНА`, причина обязательна). Молчание вердикта
+    не даёт: путь без объявления судится как раньше, `unique`/`absent` не ослаблены ни на йоту."""
+    path = Path(log_path)
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        return None, f"журнал объявлений не прочитан ({path}): {exc}"
+    out = {}
+    for line in raw.splitlines():
+        if not line.strip():
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue                      # битую строку журнала разбирает шаг 0a, не мы
+        for row in obj.get("dropped") or ():
+            declared, reason = str(row.get("path") or "").strip(), str(row.get("reason") or "").strip()
+            if not declared or not reason:
+                # Писатель такую пару не пропускает; если она всё же в журнале (правка руками,
+                # старая схема) — вердикта она не даёт. Fail-CLOSED.
+                continue
+            decl = {"path": declared, "reason": reason, "session": obj.get("session"),
+                    "ts": obj.get("ts"), "card": obj.get("card")}
+            for form in _path_forms(declared):
+                out[form] = decl                 # последнее объявление о пути главнее
+    return out, None
+
+
 def _declared_inside(wt_path, fresh_files):
     """Свежие объявления, чьи пути лежат внутри этого дерева."""
     prefix = str(Path(wt_path)) + os.sep
@@ -334,11 +422,57 @@ def _base_moved_since(root, base_ref, head, rel, git=_git):
     return bool(out.strip())
 
 
+_LS_FILES_INO = re.compile(r"^\s*dev:\s*(\d+)\s+ino:\s*(\d+)\s*$", re.M)
+_LS_FILES_CTIME = re.compile(r"^\s*ctime:\s*(\d+):(\d+)\s*$", re.M)
+
+
+def _never_materialised(wt_path, rel, git=_git):
+    """Выкладывало ли ЭТО дерево путь на диск хоть раз. True — никогда, None — не измерено.
+
+    Спрашивается ИНДЕКС, а не догадка о том, как дерево пришло в текущее состояние. Git
+    хранит в индексе stat-запись каждого файла (`dev`/`ino`/`ctime`/`size`) и заполняет её
+    ровно тогда, когда САМ трогает файл на диске — при выкладке (`checkout`, `reset --hard`)
+    или при `add`. Запись, попавшая в индекс из дерева коммита без выкладки (`reset --mixed`
+    на свежий `origin/main` — предписанное протоколом лечение отбитого пуша), несёт нули:
+    `dev: 0  ino: 0`, `ctime: 0:0`. Отличие прямое и однозначное:
+
+    | как путь попал в индекс | ino | ctime | что это значит |
+    |---|---|---|---|
+    | `git reset --mixed` на базу с чужим путём | 0 | 0:0 | файла тут НИКОГДА не было |
+    | выложен и потом удалён сессией | ≠0 | ≠0 | удаление — возможная работа дерева |
+
+    Пустой файл сюда не проваливается: у него ноль в `size`, но `ino`/`ctime` настоящие.
+    Не разобрали вывод / путь не в индексе / git не ответил ⇒ ``None`` (fail-CLOSED: зовущий
+    судит как раньше, то есть строже)."""
+    rc, out, _ = git(wt_path, "ls-files", "--debug", "--", rel)
+    if rc != 0 or not out.strip():
+        return None
+    m_ino, m_ctime = _LS_FILES_INO.search(out), _LS_FILES_CTIME.search(out)
+    if not m_ino or not m_ctime:
+        return None
+    return (int(m_ino.group(2)) == 0
+            and int(m_ctime.group(1)) == 0 and int(m_ctime.group(2)) == 0)
+
+
 def classify_path(root, base_ref, head, wt_path, rel, git=_git):
     """(вердикт, объяснение) для одного расходящегося пути дерева."""
     rc, _, _ = git(root, "cat-file", "-e", f"{base_ref}:{rel}")
     if rc != 0:
         return ABSENT, f"на {base_ref} файла нет вовсе"
+
+    # ТРЕТИЙ вопрос — «а лежит ли путь на диске?» (цикл #377). Без него отсутствие файла
+    # дочитывалось до `unique` МОЛЧА: `_blob_sha` у несуществующего пути даёт None, ветка
+    # `delivered` закрыта условием `sha is not None`, база по пути не двигалась (HEAD только
+    # что переставлен НА неё) — и вердикт выходил вывернутым наизнанку: «здесь может лежать
+    # НЕДОСТАВЛЕННАЯ работа» о пути, которого в дереве нет, а на базе он ЕСТЬ. Терять нечему.
+    if not os.path.lexists(os.path.join(wt_path, rel)):
+        never = _never_materialised(wt_path, rel, git=git)
+        if never:
+            return NOT_IN_TREE, (f"пути нет на диске дерева, на {base_ref} он есть, "
+                                 f"а в индексе у него нулевая stat-запись — дерево его "
+                                 f"никогда не выкладывало, терять нечего")
+        # never is False ⇒ файл ТУТ БЫЛ и его удалили: удаление — возможная работа, судим
+        # как раньше. never is None ⇒ не измерено, и тем более судим как раньше (строже).
 
     sha = _blob_sha(Path(wt_path) / rel)
     history = _origin_blob_history(root, base_ref, rel, git=git)
@@ -424,7 +558,7 @@ def committed_paths(wt_path, base_ref, git=_git):
 
 
 def inspect(root, reg, base_ref, fresh_files, grace_hours, git=_git, now_ts=None,
-            explicit=False, base_read=(True, "")):
+            explicit=False, base_read=(True, ""), dropped=None):
     """Вердикт по одной регистрации: reap / keep / unmeasured / prunable + причины.
 
     ``base_read`` — ИЗМЕРЕННЫЙ результат `refresh_base` парой (прочитана?, объяснение). По
@@ -433,6 +567,9 @@ def inspect(root, reg, base_ref, fresh_files, grace_hours, git=_git, now_ts=None
     влияет РОВНО на отрицательные вердикты по путям (`unique`/`absent`) и не способно привести
     к снятию лишнего дерева ни при каком значении: оба исхода — отказ, разнятся только имя
     причины и код возврата.
+
+    ``dropped`` — прочитанные объявления «решено НЕ доставлять» (`dropped_declarations`).
+    Пустое/`None` = прежнее поведение байт-в-байт: ни один путь не смягчается.
 
     ``explicit=True`` — дерево названо владельцем поимённо (`--worktree`, «я закончил»).
     Снимаются РОВНО признаки «сессия молчит» (свежее объявление и свежий mtime): они отвечают
@@ -537,6 +674,32 @@ def inspect(root, reg, base_ref, fresh_files, grace_hours, git=_git, now_ts=None
         verdicts.append({"path": rel, "state": state, "why": why})
     out["paths"] = verdicts
 
+    # Пятый вердикт: путь, который сессия ОБЪЯВИЛА намеренно недоставленным (#354).
+    #
+    # Порядок важен и он именно такой: сперва путь судится обычным `classify_path`, и только
+    # ОТРИЦАТЕЛЬНЫЙ вердикт (`unique`/`absent`) может быть перекрыт объявлением. Положительные
+    # (`delivered`/`superseded`) не трогаются: они и так не держат дерево, а перекрыть их
+    # значило бы дать объявлению власть над ИЗМЕРЕНИЕМ вместо власти над РЕШЕНИЕМ. Исходный
+    # вердикт сохраняется в `was` — «дерево снялось потому, что кто-то так решил» обязано быть
+    # проверяемым задним числом, а не раствориться в слове `dropped`.
+    dropped_here = []
+    for v in verdicts:
+        if v["state"] not in (UNIQUE, ABSENT):
+            continue
+        decl = None
+        for form in _path_forms(Path(wt) / v["path"]):
+            decl = (dropped or {}).get(form)
+            if decl:
+                break
+        if not decl:
+            continue
+        v["was"], v["state"] = v["state"], DROPPED
+        v["dropped"] = decl
+        v["why"] = (f"объявлено НАМЕРЕННО не доставленным ({v['was']}): {decl['reason']} "
+                    f"[сессия {decl.get('session')}, {decl.get('ts')}"
+                    + (f", карточка {decl['card']}" if decl.get("card") else "") + "]")
+        dropped_here.append(v)
+
     if any(v["state"] is None for v in verdicts):
         out["verdict"] = UNMEASURED
         out["reasons"].append("часть путей измерить не удалось: "
@@ -571,6 +734,11 @@ def inspect(root, reg, base_ref, fresh_files, grace_hours, git=_git, now_ts=None
         "сессия молчит ≥ окна; работа объяснена вся: "
         + (", ".join(f"{k} {n}" for k, n in sorted(kinds.items())) if kinds else "правок нет")
         + (f"; отсеяно churn-путей: {churn}" if churn else ""))
+    # Решение печатается ВСЛУХ, а не прячется за словом `dropped` в счётчике: у «не везём»
+    # есть автор и причина, и читатель отчёта обязан их видеть, иначе признак станет тихой
+    # кнопкой «снять что угодно».
+    for v in dropped_here:
+        out["reasons"].append(f"    🚮 НАМЕРЕННО НЕ ДОСТАВЛЕНО: {v['path']} — {v['why']}")
     return out
 
 
@@ -629,6 +797,12 @@ def record_reap(root, wt, base_ref, verdicts, churn, archive_dest, ledger=None, 
            "worktree": str(wt), "base": base_ref, "archive": archive_dest,
            "churn_paths": churn, "head": head, "unpushed_commits": unpushed_commits,
            "paths": {v["path"]: v["state"] for v in verdicts}}
+    # ПРИЧИНА ложится рядом с архивом (#354). Без неё квитанция знает слово `dropped`, но не
+    # знает, кто и почему так решил, — а шаг 0a читает эту запись годы спустя, когда дерева
+    # уже нет: «намеренно не доставлено» без причины там неотличимо от порчи квитанции.
+    dropped_rows = {v["path"]: v.get("dropped") for v in verdicts if v.get("state") == DROPPED}
+    if dropped_rows:
+        row["dropped"] = {p: d for p, d in dropped_rows.items() if d}
     try:
         ledger.parent.mkdir(parents=True, exist_ok=True)
         with ledger.open("a", encoding="utf-8") as fh:
@@ -643,8 +817,10 @@ def build_report(root, base_ref, log_path, grace_hours, git=_git, now=None, now_
     regs, why = list_registrations(root, git=git)
     if base_read is None:
         base_read = refresh_base(root, base_ref, git=git)
+    dropped, _why_dropped = dropped_declarations(log_path)
     report = {"root": str(root), "base": base_ref, "grace_hours": grace_hours,
               "trees": [], "unmeasured_reasons": [],
+              "dropped_declared": len({d["path"] for d in (dropped or {}).values()}),
               "base_read": bool(base_read[0]), "base_read_why": base_read[1]}
     if regs is None:
         report["unmeasured_reasons"].append(why)
@@ -664,7 +840,8 @@ def build_report(root, base_ref, log_path, grace_hours, git=_git, now=None, now_
                                     "unpushed_commits": None})
             continue
         report["trees"].append(inspect(root, reg, base_ref, fresh or [], grace_hours,
-                                       git=git, now_ts=now_ts, base_read=base_read))
+                                       git=git, now_ts=now_ts, base_read=base_read,
+                                       dropped=dropped))
     return report
 
 
@@ -694,8 +871,10 @@ def build_self_report(root, base_ref, target, log_path, grace_hours, git=_git, n
     объявлений внутри дерева печатается — «что перевесило» обязано быть видно."""
     if base_read is None:
         base_read = refresh_base(root, base_ref, git=git)
+    dropped, _why_dropped = dropped_declarations(log_path)
     report = {"root": str(root), "base": base_ref, "grace_hours": grace_hours,
               "trees": [], "unmeasured_reasons": [], "explicit_target": str(target),
+              "dropped_declared": len({d["path"] for d in (dropped or {}).values()}),
               "base_read": bool(base_read[0]), "base_read_why": base_read[1]}
 
     regs, why = list_registrations(root, git=git)
@@ -716,7 +895,8 @@ def build_self_report(root, base_ref, target, log_path, grace_hours, git=_git, n
         # Проверка «изнутри» стоит ПОСЛЕ него намеренно: иначе просьба про прод из самого
         # прода отвечала бы «перезапустись оттуда-то» вместо «этого не будет никогда».
         report["trees"].append(inspect(root, reg, base_ref, [], grace_hours, git=git,
-                                       now_ts=now_ts, explicit=True, base_read=base_read))
+                                       now_ts=now_ts, explicit=True, base_read=base_read,
+                                       dropped=dropped))
         return report
 
     here = Path(cwd) if cwd is not None else Path.cwd()
@@ -740,7 +920,8 @@ def build_self_report(root, base_ref, target, log_path, grace_hours, git=_git, n
         fresh = []
 
     report["trees"].append(inspect(root, reg, base_ref, fresh, grace_hours, git=git,
-                                   now_ts=now_ts, explicit=True, base_read=base_read))
+                                   now_ts=now_ts, explicit=True, base_read=base_read,
+                                   dropped=dropped))
     return report
 
 

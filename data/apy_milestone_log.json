@@ -1,11 +1,11 @@
 {
   "start_date": "2026-06-18",
-  "last_updated": "2026-08-04",
-  "days_recorded": 46,
+  "last_updated": "2026-08-25",
+  "days_recorded": 48,
   "daily_log": [
     {
       "date": "2026-06-18",
-      "apy_pct": 2.6306,
+      "apy_pct": 0.0,
       "strategy_id": "s7_pendle_yt"
     },
     {
@@ -70,7 +70,7 @@
     },
     {
       "date": "2026-06-22",
-      "apy_pct": 2.57,
+      "apy_pct": 1.6,
       "strategy_id": "s7_pendle_yt"
     },
     {
@@ -235,6 +235,16 @@
     {
       "date": "2026-08-04",
       "apy_pct": 3.32,
+      "strategy_id": "s7_pendle_yt"
+    },
+    {
+      "date": "2026-08-25",
+      "apy_pct": 2.0,
+      "strategy_id": "s7_pendle_yt"
+    },
+    {
+      "date": "2026-08-06",
+      "apy_pct": 1.6,
       "strategy_id": "s7_pendle_yt"
     }
   ],

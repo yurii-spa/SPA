@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: Третья ветка держит решение и две карточки владельца, а номер ADR-117 занят дважды
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-22
 ---
@@ -67,3 +67,59 @@ created: 2026-08-22
 Здесь — **новый экземпляр на новой ветке, родившейся сегодня**, а не переоткрытие старого.
 
 **Замерено циклом #344**, прод-дерево, `origin/main 14df1e61d`.
+
+---
+
+## Перемер цикла #354 (2026-08-23, 09:4xZ) — ветка ушла вперёд, обе исходные находки СНЯТЫ
+
+Ветка `defi-protection-lab-stress-tests-q2wfaz` переписана (вершина 2026-08-23 06:23Z, 2 коммита
+сверх базы вместо 4). Проверено пофайлово:
+
+1. **Номер ADR-117 больше не занят дважды.** На ветке теперь `docs/decisions/ADR-120-protection-lab.md`,
+   `ADR-117` и там и на `main` — `bot-code-freshness-self-restart`. Пункт 2 задания выполнен
+   не нами.
+2. **Обе названные карточки владельца доехали до `main`** (`owner-decision-kesh-sistemy-tot-zhe-usdc-zamer-pokazal`,
+   `owner-decision-maple-15-knigi-defolt-prihodit-bez-predu` — есть на `origin/main`). Пункт 3
+   задания выполнен не нами.
+
+**Но КЛАСС не закрыт — на ветке лежит НОВОЕ, и оно крупнее прежнего.** Уникальных путей 15
+(1 решение, 2 карточки, код paper-движков):
+
+- `docs/decisions/ADR-125-three-tier-paper-tracks-start.md` — **три пакета начинают реальный
+  paper-трек**: Balanced (`hy_cycle`) и Aggressive (`lp_cycle`) переводятся на $100k и деплоят
+  поимённые позиции сплошным. Замер в самом ADR: Balanced гейтился по НЕСУЩЕСТВУЮЩЕМУ
+  perp-funding фиду (918 циклов вхолостую с 22.06), Aggressive искал LP-имена, которых в
+  whitelist нет (929 циклов). Это прямо отвечает на давний вопрос владельца о простое
+  Balanced (`owner-decision-sbalansirovannyi-tir-na-saite-idet-paper`, `needs-owner`).
+- `owner-decision-tri-paketa-nachali-realnyi-paper-test-ba.md` — статус `ingested`, **в теле
+  лежит ОТВЕТ ВЛАДЕЛЬЦА от 23.08** («стоп Balanced оставить снятым» + «завести задачу на 20%»).
+  На `main` этого ответа нет НИГДЕ.
+- `inbox-prorabotat-rasshirenie-whitelist-dlya-na.md` — порождённая тем ответом задача.
+- код: `spa_core/paper_trading/{hy_cycle,lp_cycle,sleeve_book}.py`,
+  `spa_core/monitoring/golive_checker_lp.py` + 4 файла тестов.
+
+**Работу НЕ поднимаю и ветку не трогаю** (правило этой карточки, п. 1): сессия Protection Lab
+ведёт её через PR, объявлений в `data/session_changes.jsonl` не пишет вовсе — значит признак
+«умерла» по журналу неизмерим, а вершине 3 часа. Карточка перемерена, чтобы факт не растворился.
+
+**Что осталось сделать (та же тройка, по новому содержимому):** дождаться слияния PR; если ветка
+встанет, перенести на `main` ответ владельца 23.08 содержанием (порядок ADR-100) и обе карточки.
+Номера ADR на ветке сейчас непротиворечивы — при слиянии перепроверить `scripts/adr_number.py check`.
+
+## Закрыто тем же циклом #354 (2026-08-23, 10:2xZ) — PR #38 влит, всё на `main`
+
+Пока шёл прогон, ветка была слита (`72ff54130`, «Merge pull request #38 from
+yurii-spa/claude/defi-protection-lab-stres»). Перепроверено пофайлово на `origin/main`:
+
+- `docs/decisions/ADR-125-three-tier-paper-tracks-start.md` — есть;
+- `nimbalyst-local/tracker/owner-decision-tri-paketa-nachali-realnyi-paper-test-ba.md` (ответ
+  владельца 23.08) — есть;
+- `nimbalyst-local/tracker/inbox-prorabotat-rasshirenie-whitelist-dlya-na.md` — есть;
+- номера ADR: дублей от слияния нет (`ADR-125` уникален; давние `ADR-067`/`ADR-073` — известный
+  и отдельно разобранный класс, не отсюда).
+
+Очередь владельца снова полна, реестр решений однозначен — оба критерия приёмки выполнены.
+**Ничего переносить руками не пришлось: сработал обычный путь (PR → merge), а не подъём.**
+Урок для класса, а не для этой карточки: находка «решение владельца живёт только на ветке» верна
+в момент замера и снимается САМА, когда ветку вливают. Ждать её снятия — правильное действие;
+поднимать чужую живую ветку руками было бы дороже и опаснее.

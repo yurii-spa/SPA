@@ -3,6 +3,36 @@
 PAT Rotation Helper — SPA Project
 Напоминает о ротации PAT и генерирует пошаговый checklist.
 PAT НИКОГДА не читается и не хранится в коде — только Keychain.
+
+**Почему модуль переписан (карточка `inbox-strazh-rotatsii-pat-sam-sochinyaet-datu`,
+замер цикла #379, починка #383).** `_load_state()` при ОТСУТСТВУЮЩЕМ файле состояния
+создавал его с `last_rotation = сегодня`. То есть первый же `--status` или `--check`
+СОЧИНЯЛ факт, о котором отчитывался: «ротация была сегодня, до следующей 90 дней», и
+`--check` возвращал 0 ровно потому, что его спросили впервые. Замер вживую 25.08: в
+прод-дереве `data/pat_rotation_state.json` не существовало, один вызов `--status` создал
+его с датой, в которую никакой ротации не было.
+
+Это класс «fail-OPEN monitor»: страж, который не может покраснеть, потому что молчание
+он сам превращает в благополучие. Инвариант проекта — refusal-first: нет наблюдения ⇒
+ОТКАЗ, а не выдуманное значение.
+
+**Что теперь:**
+
+- `_load_state()` НИЧЕГО не пишет. Нет файла (или он нечитаем) ⇒ `None`, и это состояние
+  называется своим именем: «дата последней ротации НЕ ИЗВЕСТНА».
+- Дату ротации выставляет ТОЛЬКО `--mark-rotated` — человек, который её реально сделал.
+- Время — ВХОД (`now=`), а не `date.today()` внутри (`.claude/rules/deployment.md`,
+  раздел про фиксированные даты): обе стороны сравнения закрепляются тестом.
+- В состоянии «не известно» словарь статуса НЕ СОДЕРЖИТ ключей-суждений
+  (`days_until_rotation`, `is_overdue`, `needs_rotation_soon`, `last_rotation`,
+  `next_rotation`) — намеренно. Ключ, который присутствует и ложен, — ровно то, чем этот
+  дефект и держался: наивный `if status["needs_rotation_soon"]` прочитал бы `None` как
+  «всё хорошо». `KeyError` громкий, `None` — нет.
+
+Коды возврата: **0** — ротация не нужна · **1** — нужна ротация ИЛИ дата НЕ ИЗВЕСТНА
+(`--check`, требование карточки) · **2** — `--status` при неизмеренном состоянии
+(конвенция репозитория «2 = не измерено»: репортёр, отвечающий 0 на «я не знаю», — тот
+же fail-OPEN, только тише).
 """
 
 import argparse
@@ -43,40 +73,81 @@ def _atomic_write(path: Path, data: dict) -> None:
         raise
 
 
-def _load_state() -> dict:
-    """Читает state-файл; если нет — создаёт с today."""
-    if not STATE_FILE.exists():
-        today = date.today().isoformat()
-        next_rotation = (date.today() + timedelta(days=ROTATION_INTERVAL_DAYS)).isoformat()
-        state = {
-            "last_rotation": today,
-            "next_rotation": next_rotation,
-            "keychain_service": KEYCHAIN_SERVICE,
-        }
-        _atomic_write(STATE_FILE, state)
-        return state
+def _load_state(state_file: Path = None):
+    """Читает state-файл. НИЧЕГО не пишет. Нет файла / нечитаем ⇒ ``None``.
 
-    with open(STATE_FILE, encoding="utf-8") as f:
-        return json.load(f)
+    Раньше здесь стояла авто-запись `last_rotation = сегодня`, и она и была дефектом:
+    отсутствие наблюдения превращалось в наблюдение «ротация была только что». Читатель
+    обязан отличать «дата известна» от «даты нет», поэтому «нет» возвращается отдельным
+    значением, а не подставляется.
+    """
+    path = state_file or STATE_FILE
+    try:
+        with open(path, encoding="utf-8") as f:
+            state = json.load(f)
+    except (OSError, ValueError):
+        return None
+    return state if isinstance(state, dict) else None
 
 
-def _compute_status(state: dict) -> dict:
-    """Вычисляет сколько дней до следующей ротации и признак срочности."""
+def _unknown_status(reason: str, now: date, state=None) -> dict:
+    """Статус «дата ротации НЕ ИЗВЕСТНА» — без единого ключа-суждения.
+
+    Ключи `days_until_rotation` / `is_overdue` / `needs_rotation_soon` здесь ОТСУТСТВУЮТ
+    намеренно (см. модульный докстринг): присутствующий и ложный ключ — это и есть тот
+    способ, которым «не измерено» бесшумно читается как «в порядке».
+    """
+    keychain = KEYCHAIN_SERVICE
+    if isinstance(state, dict):
+        keychain = state.get("keychain_service", KEYCHAIN_SERVICE)
+    return {
+        "today": now.isoformat(),
+        "rotation_date_known": False,
+        "unknown_reason": reason,
+        "keychain_service": keychain,
+    }
+
+
+def _compute_status(state, now: date = None, state_file: Path = None) -> dict:
+    """Сколько дней до следующей ротации и признак срочности — либо честное «не знаю».
+
+    `now` — ВХОД (по умолчанию реальные часы): тест закрепляет обе стороны сравнения и
+    не начинает падать от того, что сдвинулся календарь.
+    """
+    now = now or date.today()
+    path = state_file or STATE_FILE
+
+    if not state:
+        if not path.exists():
+            reason = (f"файла состояния нет ({path}) — дата последней ротации PAT НЕ ИЗВЕСТНА. "
+                      f"Её выставляет только `--mark-rotated`, и только после настоящей ротации")
+        else:
+            reason = (f"файл состояния {path} не читается (нет JSON-объекта) — "
+                      f"дата последней ротации PAT НЕ ИЗМЕРЕНА")
+        return _unknown_status(reason, now)
+
     next_rotation_str = state.get("next_rotation")
-    if not next_rotation_str:
-        # Fallback: считаем от last_rotation
-        last = date.fromisoformat(state["last_rotation"])
-        next_rotation = last + timedelta(days=ROTATION_INTERVAL_DAYS)
-    else:
-        next_rotation = date.fromisoformat(next_rotation_str)
+    try:
+        if next_rotation_str:
+            next_rotation = date.fromisoformat(next_rotation_str)
+        else:
+            # Fallback: считаем от last_rotation
+            next_rotation = (date.fromisoformat(state["last_rotation"])
+                             + timedelta(days=ROTATION_INTERVAL_DAYS))
+    except (KeyError, TypeError, ValueError):
+        # Ни одной пригодной даты. Раньше здесь летел KeyError/ValueError наружу;
+        # теперь это тот же вид, что и «файла нет»: наблюдения нет.
+        return _unknown_status(
+            f"в {path} нет пригодной даты ротации (next_rotation={state.get('next_rotation')!r}, "
+            f"last_rotation={state.get('last_rotation')!r}) — НЕ ИЗМЕРЕНО", now, state)
 
-    today = date.today()
-    days_until = (next_rotation - today).days
+    days_until = (next_rotation - now).days
     is_overdue = days_until < 0
     needs_rotation = days_until < WARNING_THRESHOLD_DAYS
 
     return {
-        "today": today.isoformat(),
+        "today": now.isoformat(),
+        "rotation_date_known": True,
         "last_rotation": state.get("last_rotation"),
         "next_rotation": next_rotation.isoformat(),
         "days_until_rotation": days_until,
@@ -84,6 +155,22 @@ def _compute_status(state: dict) -> dict:
         "needs_rotation_soon": needs_rotation,
         "keychain_service": state.get("keychain_service", KEYCHAIN_SERVICE),
     }
+
+
+def _print_unknown(status: dict) -> None:
+    """Печатает ОТКАЗ: даты нет, значит и ответа «всё хорошо» нет."""
+    print("❓  ДАТА РОТАЦИИ PAT НЕ ИЗВЕСТНА — это отказ, а не «всё в порядке»")
+    print()
+    print(f"  Причина: {status['unknown_reason']}")
+    print()
+    print("  Что делать:")
+    print("  1. Если ротацию делали — вспомнить когда её делали НА САМОМ ДЕЛЕ;")
+    print("     файл состояния восстанавливается только настоящей датой.")
+    print("  2. Если не делали (или дата потеряна) — сделать ротацию сейчас "
+          "и отметить её:")
+    print("     python3 scripts/pat_rotation_helper.py --mark-rotated")
+    print()
+    print(f"  Ожидаемый файл состояния: {STATE_FILE}")
 
 
 def _print_warning(status: dict) -> None:
@@ -114,9 +201,12 @@ def _print_warning(status: dict) -> None:
 # ── команды ───────────────────────────────────────────────────────────────────
 
 def cmd_default(status: dict) -> int:
-    """Основной режим: показывает статус, при необходимости — WARNING."""
-    days = status["days_until_rotation"]
+    """Основной режим: показывает статус, при необходимости — WARNING или ОТКАЗ."""
+    if not status.get("rotation_date_known"):
+        _print_unknown(status)
+        return 1
 
+    days = status["days_until_rotation"]
     if status["needs_rotation_soon"] or status["is_overdue"]:
         _print_warning(status)
         return 1
@@ -127,38 +217,41 @@ def cmd_default(status: dict) -> int:
 
 
 def cmd_check(status: dict) -> int:
-    """--check: тихий режим, только exit code (0=ok, 1=нужна ротация скоро)."""
+    """--check: тихий режим, только exit code (0=ok, 1=нужна ротация ЛИБО дата не известна).
+
+    Проверка «известна ли дата» стоит ПЕРВОЙ и намеренно: пока её не было, отсутствие
+    наблюдения давало 0 — тот самый зелёный ответ, которого никто не измерял.
+    """
+    if not status.get("rotation_date_known"):
+        return 1
     return 1 if status["needs_rotation_soon"] or status["is_overdue"] else 0
 
 
 def cmd_status(status: dict) -> int:
-    """--status: JSON вывод статуса."""
+    """--status: JSON вывод статуса. Код 2, если дата НЕ ИЗМЕРЕНА (конвенция репозитория)."""
     print(json.dumps(status, indent=2, ensure_ascii=False))
-    return 0
+    return 0 if status.get("rotation_date_known") else 2
 
 
-def cmd_mark_rotated() -> int:
-    """--mark-rotated: обновляет дату последней ротации."""
-    today = date.today()
-    next_rotation = today + timedelta(days=ROTATION_INTERVAL_DAYS)
+def cmd_mark_rotated(now: date = None, state_file: Path = None) -> int:
+    """--mark-rotated: ЕДИНСТВЕННЫЙ путь, которым дата ротации попадает в состояние."""
+    now = now or date.today()
+    path = state_file or STATE_FILE
+    next_rotation = now + timedelta(days=ROTATION_INTERVAL_DAYS)
 
     # Загружаем существующее состояние чтобы сохранить keychain_service
-    if STATE_FILE.exists():
-        with open(STATE_FILE, encoding="utf-8") as f:
-            existing = json.load(f)
-        keychain_service = existing.get("keychain_service", KEYCHAIN_SERVICE)
-    else:
-        keychain_service = KEYCHAIN_SERVICE
+    existing = _load_state(path)
+    keychain_service = (existing or {}).get("keychain_service", KEYCHAIN_SERVICE)
 
     state = {
-        "last_rotation": today.isoformat(),
+        "last_rotation": now.isoformat(),
         "next_rotation": next_rotation.isoformat(),
         "keychain_service": keychain_service,
     }
-    _atomic_write(STATE_FILE, state)
+    _atomic_write(path, state)
 
     print(f"✅  PAT rotation marked. Next rotation due: {next_rotation.isoformat()}")
-    print(f"    State file updated: {STATE_FILE}")
+    print(f"    State file updated: {path}")
     return 0
 
 
@@ -200,6 +293,7 @@ Examples:
 
     state = _load_state()
     status = _compute_status(state)
+
 
     if args.check:
         return cmd_check(status)

@@ -26,7 +26,9 @@
 - **DeFiLlama feed** (`defillama_feed.py`, TTL 300с): pinned `Accept-Encoding: gzip` → ответ
   надо декомпрессировать (иначе все `apy=None`). Pendle `tvl:null` → брать `liquidity.usd`.
   Chain-лейблы: Optimism = «OP Mainnet».
-- **Sky/sUSDS = 0%** до подтверждённого GSM Pause Delay ≥ 48h on-chain (инвариант).
+- **Sky/sUSDS: запрет СНЯТ** — условие выполнено 2026-08-05 (`DSPause.delay()` = 48.00 ч,
+  три согласных RPC), `sky_susds` WL/0 → T1, [ADR-065](../../docs/decisions/ADR-065-sky-susds-promoted-to-t1.md).
+  Гейт `is_gsm_compliant()` остаётся и закроет протокол сам, если задержка уйдёт ниже 48 ч.
 - **Только stdlib** в рантайме. Атомарные записи через `atomic_save`.
 - Новые адаптеры T2/T3 — `IS_ADVISORY=True` / `RESEARCH_ONLY=True` до go-live.
 - Тесты инжектят `FakeFeed` (DeFiLlama gzip падает офлайн) — не завязывать тесты на живую сеть.

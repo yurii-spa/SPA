@@ -156,7 +156,9 @@ Loop: supply USDC → borrow USDT/DAI по eMode → swap → supply снова.
 **Альтернатива: Spark sDAI / sUSDS**
 - APY: 4.5–6.0% через Sky Savings Rate
 - Полностью on-chain, no KYC, $8B TVL
-- SPA уже имеет SKY adapter в watch-list — нужно только ждать GSM Pause Delay ≥ 48h
+- SPA имеет SKY adapter; ожидание GSM Pause Delay ≥ 48h **закончилось 05.08.2026** (48.00 ч on-chain,
+  3 независимых RPC) — `sky_susds` переведён WL → T1, долю решает аллокатор
+  ([`ADR-065`](decisions/ADR-065-sky-susds-promoted-to-t1.md))
 
 #### D. Concentrated LP Stablecoin Pairs (Curve / Uniswap v3)
 
@@ -670,7 +672,7 @@ spa_core/adapters/pendle_pt.py (СОЗДАТЬ)
 **Protocol expansion:**
 - [ ] Запустить S2 (Pendle PT Rotation) — первые 30 дней трека данных должны появиться
 - [ ] Добавить Maple Syrup adapter (`maple_syrup.py`) — обновить существующий maple.py
-- [ ] Skywatch monitor unlock: если GSM Pause Delay ≥ 48h — включить Sky/sUSDS allocation (MP в watch list)
+- [x] Skywatch monitor unlock: GSM Pause Delay ≥ 48h подтверждён 05.08.2026 — Sky/sUSDS выведен из watch list в T1 ([`ADR-065`](decisions/ADR-065-sky-susds-promoted-to-t1.md))
 
 **Tournament первые результаты:**
 - К октябрю S1 будет иметь 30+ дней данных → первое promotion decision

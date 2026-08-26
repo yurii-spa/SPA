@@ -311,14 +311,16 @@ def lp(monkeypatch, tmp_path):
 
 class TestLpCycleRealBook:
     def test_lp_bar_holds_real_positions(self, lp, tmp_path):
+        # «Гоу B» (инвариант #16): рукав Aggressive берёт top-2 самых доходных имени
+        # полосы (band_candidates + концентрация), а НЕ протоколы с LP-именем. Из
+        # aerodrome 11 / aave 9 / curve_3pool 8 попадают два самых доходных.
         _write_ranking(tmp_path, ("curve_3pool", 8.0), ("aerodrome", 11.0), ("aave", 9.0))
         res = lp.run_lp_cycle(dry_run=False)
         assert res.get("kill_switch") is not True
         state = json.loads((tmp_path / "lp_paper_trading.json").read_text())
         bar = state["daily_history"][-1]
-        # aave — не LP-протокол (нет name-hint) и в книгу не попадает
-        assert bar["positions_count"] == 2
-        assert {p["protocol"] for p in state["positions"]} == {"aerodrome", "curve_3pool"}
+        assert bar["positions_count"] == 2          # AGG_MAX_POSITIONS
+        assert {p["protocol"] for p in state["positions"]} == {"aerodrome", "aave"}
         assert bar["daily_yield_usd"] > 0
 
     def test_lp_no_ranking_zero_yield(self, lp, tmp_path):

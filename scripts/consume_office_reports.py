@@ -618,6 +618,55 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         else:
             out.append(f"   очередь полна: невидимых дереву вопросов нет "
                        f"({gap.get('ref')} {str(gap.get('ref_sha'))[:9]})")
+        # Третье плечо той же полноты (#351): вопрос владельцу, живущий ТОЛЬКО на
+        # ВЕТКЕ. Его не видит ни строка выше (сверяет дерево с `origin/main`), ни
+        # отправитель. Печатаем ВСЕГДА и сразу после неё: рядом эти две строки
+        # означают «очередь измерена с обеих сторон», а строка выше в одиночку
+        # читалась как утверждение о полноте, замера под которым не было.
+        bgap = data.get("branch_queue")
+        if not isinstance(bgap, dict):
+            out.append("   ⚠️ вопросы на ВЕТКАХ НЕ ИЗМЕРЕНЫ: в отчёте нет блока "
+                       "branch_queue (отчёт старого образца)")
+        elif not bgap.get("measured"):
+            out.append(f"   ⚠️ вопросы на ВЕТКАХ НЕ ИЗМЕРЕНЫ: {bgap.get('reason')}")
+        else:
+            unread = bgap.get("unreadable") or []
+            tail = (f"; НЕ ПРОЧИТАНО веток: {len(unread)}" if unread else "")
+            if bgap.get("count"):
+                names = ", ".join(
+                    f"{c.get('card_id')} ({', '.join(c.get('branches') or [])})"
+                    for c in (bgap.get("cards") or [])[:3])
+                more = (f" (и ещё {bgap['count'] - 3})" if bgap["count"] > 3 else "")
+                out.append(f"   ⚠️ вопросов владельцу ТОЛЬКО НА ВЕТКЕ: {bgap['count']} "
+                           f"— ни задать, ни закрыть (веток прочитано "
+                           f"{bgap.get('branches_read')}){tail}: {names}{more}")
+            else:
+                out.append(f"   вопросов, живущих только на ветке, нет "
+                           f"(веток прочитано {bgap.get('branches_read')}){tail}")
+            # Третий исход рядом с «потеряно» и «убрано с базы»: карточку прочитали
+            # при разборе ветки и осознанно решили не везти. Печатается ОТДЕЛЬНОЙ
+            # строкой и с основанием — «решено не везти» без автора закрыло бы что
+            # угодно, а невидимое основание проверить нечем (карточка
+            # `inbox-storozh-voprosy-vladeltsa-na-vetke-ne-zn`).
+            dropped = bgap.get("dropped") or []
+            if dropped:
+                names = "; ".join(
+                    f"{d.get('card_id')} — {d.get('by')}, {d.get('date')}: {d.get('reason')}"
+                    for d in dropped[:3] if isinstance(d, dict))
+                more = (f" (и ещё {len(dropped) - 3})" if len(dropped) > 3 else "")
+                out.append(f"   🚮 прочитано и осознанно НЕ везём: {len(dropped)} — "
+                           f"это РЕШЕНИЕ, а не потеря: {names}{more}")
+            # Брак реестра решений — находка о САМОМ реестре. Молчать нельзя: строка
+            # с меткой, которую сторож не принял, означает, что автор решение записал,
+            # а система его не увидела, и обе стороны считают, что всё в порядке.
+            issues = bgap.get("declaration_issues") or []
+            if issues:
+                names = "; ".join(f"{i.get('where')} — {i.get('reason')}"
+                                  for i in issues[:3] if isinstance(i, dict))
+                more = (f" (и ещё {len(issues) - 3})" if len(issues) > 3 else "")
+                out.append(f"   ⚠️ реестр «не везём» с браком: {len(issues)} — "
+                           f"объявлением НЕ считается, карточка остаётся потерей: "
+                           f"{names}{more}")
         # Дрейф прод↔origin (цикл #273): отправленная карточка закрыта на origin, а
         # файла в прод-дереве нет. НЕ находка — но и не молчание: до #273 такие
         # строки неделю держали сторожа в WARNING как «не измерено», и именно ради
@@ -628,6 +677,32 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                               for c in closed if isinstance(c, dict))
             out.append(f"   дрейф прод↔origin: {len(closed)} отправленн(ая/ых) карточк(а/и) "
                        f"ЗАКРЫТЫ на origin, файла в прод-дереве нет — {names}")
+        # Принятые поручения (#350): владелец нажал «Принято — беру в работу», и
+        # карточка ОСТАЛАСЬ открытой, потому что «принято» — это обещание, а не
+        # исполнение. Читатель у обещания ровно один — этот шаг; молчание здесь
+        # вернуло бы ровно ту потерю, ради которой статус и заведён.
+        # Блока нет вовсе ⇒ говорим «НЕ ИЗМЕРЕНО»: отчёт старого образца не имеет
+        # права выглядеть как «принятых поручений нет».
+        if "accepted" not in data:
+            out.append("   ⚠️ принятые поручения НЕ ИЗМЕРЕНЫ: в отчёте нет блока "
+                       "accepted (отчёт старого образца)")
+        else:
+            accepted = data.get("accepted")
+            accepted = accepted if isinstance(accepted, list) else []
+            if accepted:
+                names = ", ".join(
+                    f"{c.get('card_id')} (принято {str(c.get('accepted_at') or 'когда — не записано')[:19]})"
+                    for c in accepted if isinstance(c, dict))
+                out.append(f"   ⚠️ принято владельцем, НЕ ИСПОЛНЕНО: {len(accepted)} "
+                           f"поручени(е/я) ждут агента — {names}")
+            else:
+                out.append("   принятых и неисполненных поручений нет")
+        accepted_origin = data.get("accepted_on_origin")
+        if isinstance(accepted_origin, list) and accepted_origin:
+            names = ", ".join(str(c.get("card_id")) for c in accepted_origin
+                              if isinstance(c, dict))
+            out.append(f"   дрейф прод↔origin: {len(accepted_origin)} принят(ое/ых) "
+                       f"поручени(е/я) есть на origin, файла в прод-дереве нет — {names}")
         # Канал: уезжали ли владельцу сообщения с вариантами БЕЗ кнопок (жалоба 14.08).
         # Печатаем ОТДЕЛЬНОЙ строкой и всегда: молчание про этот вопрос читалось бы как
         # «кнопки в порядке», а до цикла #229 он был неизмерим по построению.

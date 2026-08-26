@@ -1,20 +1,18 @@
 """
-Тесты EPIC-1 S1.3 — Engine B HY/Carry paper trading cycle (hy_cycle.py).
+Тесты Engine B (пакет Balanced) paper trading cycle (hy_cycle.py).
 
+Контракт обновлён 2026-08 (мандат «начинай», ADR-125, журнал W34, инвариант #16):
+perp-прокси-режим ENTER/EXIT больше НЕ гейтит деплой — рукав разворачивается сплошным.
 Покрытие:
-  - fail-closed: EXIT режим → cycle_skipped=True
-  - WATCH режим → cycle_skipped=True (не ENTER)
-  - UNKNOWN/невалидный режим → cycle_skipped=True
-  - kill_switch при drawdown > -8%
-  - kill_switch НЕ срабатывает при малой просадке (-3%)
-  - compute_drawdown: peak, drawdown, zero-peak safe
-  - load_hy_state: default при отсутствии файла
-  - save/load roundtrip: атомарная запись + загрузка
-  - get_hy_summary: обязательные поля, LLM_FORBIDDEN, golive_days_remaining
-  - LLM_FORBIDDEN в файле и результатах
-  - run_hy_cycle dry_run не пишет файл
+  - сплошной деплой: любой perp-режим (EXIT/WATCH/невалидный) НЕ пропускает цикл
+  - здоровая развёрнутая книга ⇒ честная постура regime=ENTER
+  - CIO RED (allow_new=False) блокирует НОВЫЕ позиции (гейт жив)
+  - kill_switch при drawdown < -8%; НЕ срабатывает при -3% / ровно -8%
   - kill_switch обновляет regime → EXIT в state
-  - ENTER режим: цикл не скипается
+  - compute_drawdown: peak, drawdown, zero-peak safe
+  - load_hy_state: default при отсутствии файла; save/load roundtrip
+  - get_hy_summary: обязательные поля, LLM_FORBIDDEN, golive_days_remaining
+  - LLM_FORBIDDEN в файле и результатах; dry_run не пишет файл
   - HY_CYCLE_VERSION определён
 """
 import pytest
@@ -43,55 +41,75 @@ def m():
     return mod
 
 
-# ── 1. fail-closed: EXIT / WATCH / UNKNOWN режимы ───────────────────────────
+# ── 1. Сплошной деплой: perp-режим больше НЕ гейтит цикл ─────────────────────
+# ИЗМЕНЕНО намеренно (мандат владельца 2026-08 «начинай», инвариант #16): рукав
+# Balanced перестал гейтиться прокси-режимом ENTER над несуществующим perp-funding
+# фидом — фид отсутствовал, режим fail-closed'ился в EXIT, и рукав НЕ открывал
+# позиций НИКОГДА (918 циклов вхолостую). Обоснование и журнал: docs/journal/2026-W34.md,
+# ADR-125. Старый контракт «regime != ENTER → cycle_skipped» СНЯТ. Новый контракт,
+# закреплённый ниже: деплой идёт сплошным, гейты — kill-switch (−8%) и CIO-директива
+# (allow_new). Это НЕ ослабление проверки, а ЗАМЕНА гейта на осмысленный (положительные
+# контроли: kill_switch ниже; CIO RED блокирует новые — test_cio_red_blocks_new).
 
-class TestFailClosed:
-    def test_exit_regime_skips_cycle(self, m, monkeypatch):
-        """EXIT режим → cycle_skipped=True (fail-closed)"""
-        monkeypatch.setattr(m, "get_hy_regime", lambda: "EXIT")
+class TestContinuousDeploy:
+    def test_perp_regime_no_longer_skips_cycle(self, m, monkeypatch):
+        """Прокси-режим (EXIT/WATCH/невалидный) НЕ пропускает цикл — деплой сплошной."""
+        # get_hy_regime теперь inert для деплоя; форсируем его в любые значения —
+        # цикл всё равно разворачивает книгу, а не скипается.
+        for forced in ("EXIT", "WATCH", "FOOBAR"):
+            monkeypatch.setattr(m, "get_hy_regime", lambda f=forced: f)
+            fresh = {
+                "equity": 0.0, "peak_equity": 0.0, "seed_equity": 0.0,
+                "positions": [], "daily_history": [], "cycles_completed": 0,
+            }
+            monkeypatch.setattr(m, "load_hy_state", lambda s=fresh: dict(s))
 
-        result = m.run_hy_cycle(dry_run=True)
+            result = m.run_hy_cycle(dry_run=True)
 
-        assert result.get("cycle_skipped") is True
-        assert "EXIT" in result.get("reason", "")
-        assert result.get("LLM_FORBIDDEN") is True
+            assert result.get("cycle_skipped") is not True, forced
+            assert result.get("LLM_FORBIDDEN") is True
 
-    def test_watch_regime_skips_cycle(self, m, monkeypatch):
-        """WATCH режим → cycle_skipped=True (не ENTER)"""
-        monkeypatch.setattr(m, "get_hy_regime", lambda: "WATCH")
-
-        result = m.run_hy_cycle(dry_run=True)
-
-        assert result.get("cycle_skipped") is True
-        assert "WATCH" in result.get("reason", "")
-
-    def test_unknown_regime_skips_cycle(self, m, monkeypatch):
-        """UNKNOWN / невалидный режим → cycle_skipped=True"""
-        monkeypatch.setattr(m, "get_hy_regime", lambda: "FOOBAR")
-
-        result = m.run_hy_cycle(dry_run=True)
-
-        assert result.get("cycle_skipped") is True
-
-    def test_enter_regime_does_not_skip(self, m, monkeypatch):
-        """ENTER режим → цикл выполняется (cycle_skipped=False или отсутствует kill_switch)"""
-        monkeypatch.setattr(m, "get_hy_regime", lambda: "ENTER")
-        normal_state = {
-            "equity": 1000.0,
-            "peak_equity": 1000.0,
-            "positions": [],
-            "daily_history": [],
-            "cycles_completed": 0,
+    def test_healthy_book_regime_is_enter(self, m, monkeypatch):
+        """Развёрнутая здоровая книга ⇒ честная постура regime=ENTER (не perp-прокси)."""
+        fresh = {
+            "equity": 0.0, "peak_equity": 0.0, "seed_equity": 0.0,
+            "positions": [], "daily_history": [], "cycles_completed": 0,
         }
-        monkeypatch.setattr(m, "load_hy_state", lambda: dict(normal_state))
+        monkeypatch.setattr(m, "load_hy_state", lambda: dict(fresh))
 
         result = m.run_hy_cycle(dry_run=True)
 
         assert result.get("cycle_skipped") is not True
         assert result.get("kill_switch") is not True
+        assert result.get("regime") == "ENTER"   # развёрнута в рынок
+
+    def test_cio_red_blocks_new_positions(self, m, monkeypatch):
+        """CIO-директива RED (allow_new=False) ⇒ новые позиции НЕ открываются (гейт жив)."""
+        import spa_core.paper_trading.hy_cycle as mod
+        # Патчим точку импорта внутри цикла: цикл делает
+        # `from spa_core.investment_os.directive import cio_allows_new_positions`.
+        import spa_core.investment_os.directive as directive
+        monkeypatch.setattr(directive, "cio_allows_new_positions", lambda: False)
+
+        fresh = {
+            "equity": 0.0, "peak_equity": 0.0, "seed_equity": 0.0,
+            "positions": [], "daily_history": [], "cycles_completed": 0,
+        }
+        captured = {}
+        monkeypatch.setattr(m, "load_hy_state", lambda: dict(fresh))
+        monkeypatch.setattr(m, "save_hy_state", lambda s: captured.update(s))
+
+        m.run_hy_cycle(dry_run=False)
+
+        bar = captured.get("daily_history", [{}])[-1]
+        assert bar.get("cio_allowed_new") is False
+        assert bar.get("opened") == []          # RED ⇒ ничего нового не открыто
+        assert bar.get("positions_count") == 0  # книга пуста (нечего держать)
 
 
 # ── 2. Kill switch ──────────────────────────────────────────────────────────
+# Фикстуры с equity>0 и без истории: сид-гейт (seed<=0 и equity<=0 и не ever_funded)
+# НЕ срабатывает при equity>0 — просадка сохраняется, kill-путь честно проверяется.
 
 class TestKillSwitch:
     def test_kill_switch_triggered_at_9pct_drawdown(self, m, monkeypatch):
@@ -413,3 +431,46 @@ class TestGetHYRegime:
         monkeypatch.setattr(m, "_HY_REGIME_LOG_PATH", log_path)
 
         assert m.get_hy_regime() == "EXIT"
+
+
+# ── 9. Разовый owner-approved пересев на $100k (решение владельца 2026-08-24) ──────
+# Инвариант #16 / журнал W34: живые книги шли на легаси-сиде $66k; владелец выбрал
+# чистый рестарт на $100k. Миграция маркер-guarded — срабатывает один раз, funded-книгу
+# с маркером повторно не затирает (штатный self-seed по _ever_funded не тронут).
+
+class TestReseed100kMigration:
+    def test_legacy_book_reset_to_clean_100k(self, m, monkeypatch):
+        legacy = {
+            "sleeve": "B", "seed_equity": 66666.67, "equity": 66916.19, "peak_equity": 66916.19,
+            "positions": [{"protocol": "susde", "notional_usd": 16700}],
+            "daily_history": [{"date": "2026-08-21", "equity": 66700, "positions_count": 4}],
+            "regime": "ENTER", "cycles_completed": 900,
+        }
+        captured = {}
+        monkeypatch.setattr(m, "load_hy_state", lambda: dict(legacy))
+        monkeypatch.setattr(m, "save_hy_state", lambda s: captured.update(s))
+
+        m.run_hy_cycle(dry_run=False)
+
+        assert captured.get("reseed_100k_done") is True
+        assert captured.get("seed_equity") == pytest.approx(100000.0)
+        # чистый рестарт: ровно новый день-1, старые 3 дня стёрты (владелец принял)
+        assert len(captured.get("daily_history")) == 1
+        assert captured["daily_history"][-1]["deployed_usd"] == pytest.approx(100000.0)
+
+    def test_marked_book_not_re_wiped(self, m, monkeypatch):
+        booked = {
+            "sleeve": "B", "seed_equity": 100000.0, "equity": 123456.0, "peak_equity": 123456.0,
+            "positions": [{"protocol": "susde", "notional_usd": 25000}],
+            "daily_history": [{"date": "2026-08-01", "equity": 123456.0, "positions_count": 4}],
+            "regime": "ENTER", "cycles_completed": 5, "reseed_100k_done": True,
+        }
+        captured = {}
+        monkeypatch.setattr(m, "load_hy_state", lambda: dict(booked))
+        monkeypatch.setattr(m, "save_hy_state", lambda s: captured.update(s))
+
+        m.run_hy_cycle(dry_run=False)
+
+        # миграция НЕ должна была обнулить книгу к $100k (только начисление сверху)
+        assert captured.get("equity") >= 123456.0
+        assert captured.get("reseed_100k_done") is True

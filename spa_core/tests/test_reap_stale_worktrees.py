@@ -710,3 +710,106 @@ def test_report_always_says_what_it_measured_against(repo):
     _log(root, [])
     assert "прочитана перед вердиктом" in R.render(_report(root))
     assert "офлайн-прогон" in R.render(_report(root, base_read=(False, "офлайн-прогон")))
+
+
+# ── путь, которого дерево НИКОГДА не выкладывало (цикл #377) ──────────────────
+#
+# Замер #376, воспроизведённый здесь целиком — от `git init` до вердикта. Состояние приходит
+# из СТАНДАРТНОГО хода протокола: страж перезаписи пушера отбивает пуш, предписанное
+# `CLAUDE.md` лечение — перенести правку на свежий origin и переставить HEAD
+# (`git reset --mixed origin/main`), после чего HEAD перечисляет чужие пути, которых дерево
+# никогда не выкладывало. Уборщик объявлял их «недоставленной работой» и дерево не снимал.
+
+def _reset_onto_fresh_origin(root, wt):
+    """Лечение отбитого пуша по протоколу: перенести HEAD дерева на свежий `origin/main`."""
+    _run(root, "fetch", "origin")
+    _run(wt, "fetch", "origin")
+    _run(wt, "reset", "--mixed", "origin/main")
+
+
+def test_path_this_tree_never_checked_out_does_not_hold_it(repo, tmp_path):
+    """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ #376: чужой путь, приехавший в HEAD переносом на свежий origin.
+
+    На диске дерева файла НЕТ, на origin он ЕСТЬ — терять нечему, а вердикт был вывернут
+    наизнанку: `unique`, «здесь может лежать НЕДОСТАВЛЕННАЯ работа». На неисправленном модуле
+    тест краснеет: дерево остаётся KEEP навсегда."""
+    root, origin = repo
+    wt = _worktree(root, "spa_c376")
+    _push_to_origin(tmp_path, origin, "scripts/alien.py", "# чужая работа R&D\n", "alien work")
+    _reset_onto_fresh_origin(root, wt)
+    _age(wt)
+    _log(root, [])
+
+    t = _verdict(_report(root), wt)
+    assert [p["state"] for p in t["paths"]] == [R.NOT_IN_TREE], t["paths"]
+    assert t["verdict"] == R.REAP, t["reasons"]
+
+
+def test_deleted_file_this_tree_did_check_out_still_holds_it(repo):
+    """ОБРАТНЫЙ КОНТРОЛЬ: удаление ВЫЛОЖЕННОГО файла — тоже возможная работа сессии.
+
+    Отличие меряется stat-записью индекса, а не догадкой о том, как дерево пришло в это
+    состояние: у выложенного файла `ino`/`ctime` настоящие. Послабления нет — `unique`."""
+    root, _ = repo
+    wt = _worktree(root, "spa_wt_deleter")
+    os.remove(wt / "keep.txt")
+    _age(wt)
+    _log(root, [])
+
+    t = _verdict(_report(root), wt)
+    assert [p["state"] for p in t["paths"]] == [R.UNIQUE], t["paths"]
+    assert t["verdict"] == R.KEEP, t["reasons"]
+
+
+def test_deleted_empty_file_is_not_mistaken_for_never_checked_out(repo):
+    """У пустого файла нулевой `size` — и ровно на нём признак «нулей в индексе» сломался бы,
+    возьми он `size`. Берутся `ino`/`ctime`: у выложенного пустого файла они настоящие."""
+    root, _ = repo
+    (root / "empty.txt").write_text("", encoding="utf-8")
+    _run(root, "add", "-A")
+    _run(root, "commit", "-m", "empty file")
+    _run(root, "push", "origin", "main")
+    wt = _worktree(root, "spa_wt_empty")
+    os.remove(wt / "empty.txt")
+    _age(wt)
+    _log(root, [])
+
+    t = _verdict(_report(root), wt)
+    assert [p["state"] for p in t["paths"]] == [R.UNIQUE], t["paths"]
+    assert t["verdict"] == R.KEEP, t["reasons"]
+
+
+def test_content_matching_origin_on_disk_stays_delivered(repo):
+    """Симметричная половина (п. 2 карточки): путь ЕСТЬ и на диске, и на базе, содержимое
+    совпадает ⇒ `delivered`. Сегодня это работает, но тестом закреплено не было — и первая же
+    правка ветки «файла на диске нет» ломала бы его молча."""
+    root, _ = repo
+    wt = _worktree(root, "spa_wt_same")
+    (wt / "docs" / "STATE.md").write_text("v1\n", encoding="utf-8")   # байт-в-байт как на базе
+    (wt / "untracked.txt").write_text("держит дерево\n", encoding="utf-8")
+    _age(wt)
+    _log(root, [])
+
+    t = _verdict(_report(root), wt)
+    states = {p["path"]: p["state"] for p in t["paths"]}
+    assert states.get("docs/STATE.md", R.DELIVERED) == R.DELIVERED, states
+
+
+def test_unmeasured_index_stat_keeps_the_stricter_verdict(repo, tmp_path):
+    """FAIL-CLOSED: stat-запись индекса прочитать не удалось ⇒ судим как раньше (`unique`),
+    а не в пользу снятия. Признак не имеет права быть тихой кнопкой «снять что угодно»."""
+    root, origin = repo
+    wt = _worktree(root, "spa_c376_blind")
+    _push_to_origin(tmp_path, origin, "scripts/alien.py", "# чужая работа\n", "alien blind")
+    _reset_onto_fresh_origin(root, wt)
+    head = _run(wt, "rev-parse", "HEAD").strip()
+
+    def _mute_ls_files(cwd, *args):
+        if args and args[0] == "ls-files":
+            return 1, "", "boom"
+        return R._git(cwd, *args)
+
+    assert R._never_materialised(str(wt), "scripts/alien.py", git=_mute_ls_files) is None
+    state, _why = R.classify_path(str(root), "origin/main", head, str(wt), "scripts/alien.py",
+                                  git=_mute_ls_files)
+    assert state == R.UNIQUE, state

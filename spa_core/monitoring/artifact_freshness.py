@@ -29,7 +29,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from spa_core.monitoring import manifest_slo
+from spa_core.monitoring import analytics_audit_freshness, manifest_slo
 
 # ── status vocabulary (fail-CLOSED: only FRESH is a clean pass) ──────────────────────
 FRESH = "FRESH"
@@ -75,6 +75,16 @@ ARTIFACT_REGISTRY: tuple = (
     # not guessed: com.spa.io_chief_investment runs StartInterval=86400 (daily) → 24h + grace.
     Artifact("investment_os_chief", "investment_os/chief_investment.json",
              "com.spa.io_chief_investment", 30.0),
+    # 2026-08-24 (#367): у ЕЖЕДНЕВНОГО аудита протокол-слепоты (директива владельца 03.08,
+    # ~90 % рабочего аналитического слоя) сторожа не было вовсе — 20.08 обнаружилось, что сам
+    # аудит молча стоял 13 суток, и метрика за это время не сдвинулась ни на один модуль.
+    # Здесь судится ОТМЕТКА АУДИТА (`as_of` документа = AUDIT_GENERATED_AT разметки), а не
+    # часы писателя: файл переписывается каждым прогоном этого агента, поэтому его собственное
+    # время сделало бы запись вечно зелёной. `allow_mtime=False` закрывает вторую лазейку —
+    # перезапись не выдаёт себя за замер. Такт: сутки директивы + запас на цикл.
+    Artifact("analytics_90pct_status", analytics_audit_freshness.STATUS_FILENAME,
+             "audit_protocol_blindness (--emit-markup, sandbox-прогон цикла)",
+             analytics_audit_freshness.DEFAULT_BUDGET_HOURS, allow_mtime=False),
     # KNOWN-STALE 2026-07-23 (producer without schedule) — registry makes them RED, not silent:
     Artifact("riskwire_measurements", "riskwire/measurements.json", "riskwire_facade(NEW)", 30.0, public=True),
     Artifact("rates_desk_rate_surface", "rates_desk/rate_surface.json", "rates_desk", 30.0, public=True),
@@ -226,7 +236,15 @@ def summarize(results: list) -> dict:
 
 
 def write_report(data_dir, *, now: Optional[datetime] = None) -> dict:
-    """Run the check and atomically write data/artifact_freshness.json. Returns the report."""
+    """Run the check and atomically write data/artifact_freshness.json. Returns the report.
+
+    Первым делом ВЫВОДИТСЯ артефакт аудита протокол-слепоты (#367): его производителем
+    назначен этот агент, потому что предмет замера — отметка в коде (`_protocol_blindness.py`),
+    которая доезжает в прод обычным синком `spa_core/`, и заводить ради неё нового агента
+    (то есть деплой) не нужно. Вывод дешёвый и read-only; вердикт при этом ставит НЕ он, а
+    реестр — по `as_of` документа, то есть по часам АУДИТА, а не по часам этого прогона.
+    """
+    analytics_audit_freshness.write_status(data_dir, now=now)
     report = summarize(check_freshness(data_dir, now=now))
     report["generated_at"] = (now or datetime.now(timezone.utc)).isoformat()
     try:

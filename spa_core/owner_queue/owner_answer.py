@@ -32,11 +32,12 @@ from pathlib import Path
 from typing import Optional
 
 from spa_core.owner_queue.queue import (
+    OWNER_ACCEPTED_STATUS,
     OWNER_ONLY_STATUS,
     _parse_frontmatter,
     _split_frontmatter,
 )
-from spa_core.owner_queue.status_audit import record_status_write
+from spa_core.owner_queue.status_audit import record_status_write, stamp_trail
 from spa_core.utils.atomic import atomic_save_text
 
 
@@ -93,6 +94,37 @@ KIND_OPTION = "option"
 #: поручением» ведут к разной работе, а раньше выглядели бы одинаково.
 KIND_ACK = "ack"
 
+#: ЧТО именно подтвердил владелец. Один источник этих двух значений на весь проект:
+#: `owner_decisions.ACK_ACCEPT` / `ACK_DECLINE` берутся отсюда, а не пишутся второй раз
+#: (вторая копия имён — дефект #143–#145). Здесь они нужны потому, что от них зависит
+#: СТАТУС карточки, а статус пишет этот модуль.
+ACK_ACCEPT_CHOICE = "ack"    # «принято — беру в работу»: работа ещё впереди
+ACK_DECLINE_CHOICE = "nack"  # «не надо — не делаем»: больше не ждут ничего
+
+
+def status_for_answer(kind: str, choice_num: str) -> str:
+    """Каким статусом закрывается карточка этим ответом владельца.
+
+    Единственное место, где живёт правило «что значит ответ для очереди».
+
+    * ВЫБОР варианта (:data:`KIND_OPTION`) → ``owner-done``. Ответ И ЕСТЬ результат,
+      закрытие нажатием решено осознанно (ADR-075, решение владельца 08.08).
+    * «Не надо» (:data:`ACK_DECLINE_CHOICE`) → ``owner-done``. Отказ тоже полон:
+      после него не ждут ни действия, ни проверки.
+    * «Принято — беру в работу» (:data:`ACK_ACCEPT_CHOICE`) → ``owner-accepted``,
+      НЕтерминальный. Это обещание совершить действие, а не действие. Замер #350:
+      единственное на тот день ack-закрытие (`owner-decision-snyat-mertvyi-adres-\
+      checkup-earn-defi-co`, 22.08 20:29Z) стало терминальным при НЕвыполненном
+      критерии приёмки той же карточки (замер 20:47Z — всё ещё 404), и обещанную
+      перепроверку делать стало некому.
+
+    Незнакомый ``kind`` ведёт себя как выбор — прежнее поведение: новый вид ответа
+    не имеет права молча получить НЕтерминальный статус и зависнуть в очереди.
+    """
+    if str(kind) == KIND_ACK and str(choice_num).lower() == ACK_ACCEPT_CHOICE:
+        return OWNER_ACCEPTED_STATUS
+    return OWNER_ONLY_STATUS
+
 
 def record_owner_answer(
     path: str | Path,
@@ -105,7 +137,12 @@ def record_owner_answer(
     kind: str = KIND_OPTION,
     now: Optional[datetime] = None,
 ) -> dict:
-    """Записать решение владельца в карточку и закрыть её как ``owner-done``.
+    """Записать решение владельца в карточку и перевести её в статус ЕГО ответа.
+
+    Куда именно — решает :func:`status_for_answer`: выбор варианта и «не надо»
+    закрывают карточку (``owner-done``), «принято — беру в работу» переводит её в
+    НЕтерминальный ``owner-accepted``, потому что работа после этого только
+    начинается (#350).
 
     Идемпотентно: повторный тот же выбор ничего не переписывает и не плодит вторую
     секцию «Решение владельца» — владелец может нажать дважды из двух чатов, и это
@@ -157,7 +194,8 @@ def record_owner_answer(
     if start is None or end is None:
         raise ValueError(f"{p}: could not locate frontmatter bounds")
 
-    end = _set_frontmatter_field(lines, start, end, "status", OWNER_ONLY_STATUS)
+    new_status = status_for_answer(kind, choice_num)
+    end = _set_frontmatter_field(lines, start, end, "status", new_status)
     end = _set_frontmatter_field(lines, start, end, "owner_choice", str(choice_num))
     end = _set_frontmatter_field(lines, start, end, "owner_answered_at", stamp)
     end = _set_frontmatter_field(lines, start, end, "owner_answer_via", via)
@@ -169,17 +207,31 @@ def record_owner_answer(
 
     headline = (f"**{choice_label}**" if kind == KIND_ACK
                 else f"**Вариант {choice_num}** — {choice_label}")
+    # Приписка про закрытие обязана быть ПРАВДОЙ: «принято» карточку не закрывает,
+    # и читатель карточки (человек, не только фильтр) должен узнать это здесь же.
+    verdict = (
+        "Карточка закрыта самим владельцем, не агентом (инвариант #14)."
+        if new_status == OWNER_ONLY_STATUS else
+        "Поручение ПРИНЯТО владельцем — карточка остаётся открытой "
+        "(`owner-accepted`), пока агент не выполнит её критерий приёмки и не "
+        "отчитается. Закрыть её в `ingested` может только этот отчёт."
+    )
     body_addition = (
         f"\n\n---\n\n{ANSWER_HEADING}\n\n"
         f"{headline}\n\n"
-        f"_Ответ владельца получен {stamp} ({via}). "
-        f"Карточка закрыта самим владельцем, не агентом (инвариант #14)._\n"
+        f"_Ответ владельца получен {stamp} ({via}). {verdict}_\n"
     )
     out = "".join(lines).rstrip("\n") + body_addition
+    # След перехода — в саму карточку, вместе со статусом (ADR-129, вариант 1
+    # владельца): ответ владельца тоже переезжает между деревьями, и без следа
+    # он приезжает немым ровно так же, как закрытие агентом.
+    out = stamp_trail(out, old=old_status, new=new_status,
+                      source="owner_answer.record_owner_answer", now=now)
     atomic_save_text(out, str(p))
-    record_status_write(p, old=old_status, new=OWNER_ONLY_STATUS,
+    record_status_write(p, old=old_status, new=new_status,
                         source="owner_answer.record_owner_answer", now=now)
-    return {"path": str(p), "choice": choice_num, "already": False, "answered_at": stamp}
+    return {"path": str(p), "choice": choice_num, "already": False,
+            "answered_at": stamp, "status": new_status}
 
 
 # ── перенос следа решения владельца в ту копию карточки, которая уедет в git ──
@@ -411,7 +463,16 @@ CROSS_UNMEASURED = "unmeasured"        # опросить не удалось �
 #: Такая карточка находкой не считается — граница осознанная: если владелец ответил ПОВТОРНО
 #: уже после инжеста, доказать это здесь нечем, и доказательство живёт там, где ему место —
 #: в сверке следа (`_same_owner_answer` + `carry_owner_answer`, вердикт `answer_ingested_proven`).
-_LOCAL_HANDLED = frozenset({OWNER_ONLY_STATUS, "ingested", "done", "owner-done-archived"})
+#: `owner-accepted` здесь тоже «ответ виден»: владелец ответил, и читаемое дерево это
+#: показывает. Работа при этом ещё впереди — но вопрос раздела ровно один: «есть ли
+#: ответ владельца, невидимый читателю», и на него ответ «есть, виден» (#350).
+_LOCAL_HANDLED = frozenset({OWNER_ONLY_STATUS, OWNER_ACCEPTED_STATUS,
+                            "ingested", "done", "owner-done-archived"})
+
+#: Статусы, в которых карточка ГЛАВНОГО дерева несёт ответ владельца. Пропустить здесь
+#: `owner-accepted` значило бы вернуть дефект #231: ответ владельца, невидимый шагу 2
+#: из worktree, — только теперь молча и для целого КЛАССА ответов («принято»).
+_ANSWERED_IN_MAIN = frozenset({OWNER_ONLY_STATUS, OWNER_ACCEPTED_STATUS})
 
 
 class ForeignOwnerAnswer:
@@ -535,7 +596,7 @@ def scan_owner_answers_elsewhere(tracker_dir, *, now: datetime | None = None):
         except (OSError, UnicodeDecodeError):
             continue          # битая копия — не находка и не доказательство (fail-open по файлу)
         fm = _parse_frontmatter(_split_frontmatter(text)[0])
-        if str(fm.get("status", "") or "").strip() != OWNER_ONLY_STATUS:
+        if str(fm.get("status", "") or "").strip() not in _ANSWERED_IN_MAIN:
             continue
         local = d / p.name
         local_status = ""

@@ -270,7 +270,9 @@ needed:
   third-party packages.
 - **Atomic writes** for all state files: use `tmp + os.replace`, never
   `open(..., "w")` directly on `data/*.json`.
-- **Sky/sUSDS stays at 0% allocation** until on-chain GSM Pause Delay ≥ 48h
+- **Sky/sUSDS: the 0% rule is LIFTED** — the on-chain GSM Pause Delay ≥ 48h precondition was
+  met on 2026-08-05 (48.00 h, 3 independent RPC) and `sky_susds` moved WL → T1; the share is
+  decided by the allocator, not by hand ([`ADR-065`](decisions/ADR-065-sky-susds-promoted-to-t1.md))
   is confirmed.
 - **LLM forbidden** in risk / execution / monitoring components.
 - **Do not import** `spa_core/execution/` from adapter or analytics code.

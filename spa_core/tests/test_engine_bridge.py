@@ -540,6 +540,38 @@ class TestPaperBookSurvivesLiveFailure:
 
         monkeypatch.setattr(eb_mod, "LiveExecutionBridge", _AlwaysFails)
 
+        # Журнал ИСПОЛНЕНИЯ — в tmp, а не в живой data/live_execution_log.json.
+        # Замер цикла #352 (SPA_DATA_WRITE_AUDIT=1) назвал ИМЕННО этот тест
+        # единственным писателем execution-домена во всём наборе: PaperTrader с
+        # live_execution=True строит мост, а тот берёт `_DEFAULT_LOG_PATH`
+        # (читается в __init__, поэтому подмена модульного атрибута работает).
+        #
+        # Подменять приходится ДВА модуля, и это не перестраховка. `engine._bridge()`
+        # пробует `from execution.engine_bridge import …` и только при неудаче —
+        # `spa_core.execution.…`; корень репо и каталог `spa_core/` оба бывают на
+        # sys.path, поэтому один и тот же файл живёт в sys.modules ДВАЖДЫ, двумя
+        # разными объектами с двумя разными `_DEFAULT_LOG_PATH`. Первая версия этой
+        # починки правила только `spa_core.execution.…` — и файл продолжал писаться;
+        # поймано сторожем, а не рассуждением (тот же класс, что «два объекта с
+        # именем ADAPTER_REGISTRY»).
+        #
+        # Карточка требовала закрыть этот путь ОТДЕЛЬНО и ПЕРВЫМ: read-only тест не
+        # имеет права касаться домена исполнения даже отметкой времени (инв. #6,
+        # .claude/rules/deployment.md). Ни одно утверждение теста не тронуто —
+        # меняется только АДРЕС журнала.
+        import importlib as _importlib
+        _patched = 0
+        for _name in ("execution.engine_bridge", "spa_core.execution.engine_bridge"):
+            try:
+                _mod = _importlib.import_module(_name)
+            except ImportError:
+                continue
+            monkeypatch.setattr(
+                _mod, "_DEFAULT_LOG_PATH", tmp_path / "live_execution_log.json"
+            )
+            _patched += 1
+        assert _patched, "ни один модуль моста не импортировался — журнал уедет в прод"
+
         db_path = Path(_t.mktemp(suffix=".db"))
         init_database(db_path=db_path)
         trader = PaperTrader(db_path=db_path, live_execution=True)

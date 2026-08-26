@@ -20,4 +20,7 @@ from spa_core.tests.test_doc_drift import (  # noqa: F401
     test_narrative_docs_match_golive_state,
     test_rules_md_kill_switch_two_tier,
     test_superseded_docs_point_at_canonical,
+    test_track_band_is_never_empty_past_the_goal,
+    test_track_band_still_reds_a_wrong_era_number,
+    test_track_band_unchanged_below_the_goal,
 )

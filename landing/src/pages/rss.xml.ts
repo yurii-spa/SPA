@@ -3,10 +3,11 @@
 // feed readers + AI answer engines (robots.txt already welcomes GPTBot/ClaudeBot/PerplexityBot) get a
 // machine-readable changelog. Static output (Astro endpoint) — no server, honest last-build snapshot.
 import posts from '../lib/blog_posts.json';
-// Q2-14: merge the auto-generated research changelog (track + refusal digests) into the feed so the
-// track's public heartbeat reaches feed readers + AI answer engines. Changelog entries link to /changelog.
-let changelog: any[] = [];
-try { changelog = (await import('../data/changelog.json')).default || []; } catch (e) { changelog = []; }
+// Q2-14 (RETIRED 2026-08-23, owner decision, option 1): the auto-generated research changelog used to
+// be merged in here. Its generator was never wired to any agent, so /changelog showed July for three
+// weeks; the page and its data file are gone and the feed carries blog posts only. Anything re-adding
+// a second source here must come with a scheduled producer — a feed entry pointing at a page nobody
+// regenerates is a stale claim with a timestamp on it.
 
 const SITE = 'https://earn-defi.com';
 
@@ -19,10 +20,9 @@ function esc(s: string): string {
 }
 
 export async function GET() {
-  // blog posts link to /blog/<slug>; changelog digests link to the /changelog listing.
+  // blog posts link to /blog/<slug>.
   const merged = [
     ...posts.map((p: any) => ({ ...p, _url: `${SITE}/blog/${p.slug}` })),
-    ...changelog.map((c: any) => ({ ...c, _url: `${SITE}/changelog#${c.slug}` })),
   ].sort((a, b) => (a.date < b.date ? 1 : -1)); // newest first
   const items = merged
     .map((p) => {

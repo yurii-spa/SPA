@@ -82,6 +82,78 @@ def _cut_at_hash(text: str) -> str:
     return "\n".join(out)
 
 
+#: Инструменты ДОСТАВКИ: путь в их аргументах — ГРУЗ ПУША, а не запуск.
+#: Список закрытый и намеренно короткий: расширять его значит гасить доказательство.
+_DELIVERY_TOOLS = ("push_to_github", "safe_site_push")
+
+#: Флаг, после которого у команды доставки идёт СПИСОК ГРУЗА.
+_PAYLOAD_FLAG = re.compile(r"(?<![\w-])--files(?![\w-])")
+
+
+def _sh_without_delivery_payload(text: str) -> str:
+    """Оболочка без СПИСКА ГРУЗА доставки: имя файла там — не вызов.
+
+    `python3 push_to_github.py --files … "$REPO_ROOT/scripts/X.py" --message "…"`
+    ОТПРАВЛЯЕТ `X.py` на origin, а не запускает его. До цикла #379 сканер читал
+    такое упоминание как проводку, и скрипт числился подключённым ровно потому,
+    что однажды уехал в пуше (карточка
+    `inbox-hrapovik-nepodklyuchennyh-skriptov-schit-3`, замер #375). Это тот же
+    класс, что докстринг (#255) и текст сообщения (#278): доказательство слабее
+    вызова, снимающее скрипт с учёта молча и навсегда.
+
+    Затирается **только хвост после `--files`** и только внутри логической
+    строки, где назван инструмент доставки. Границы выбраны так, чтобы ошибиться
+    в сторону СОХРАНЕНИЯ доказательства (объявить живой скрипт сиротой в этом
+    проекте хуже пропуска, #183/#255):
+
+    * сам `push_to_github.py` НЕ затирается — он-то как раз запускается;
+    * груз кончается на первом же токене-флаге (`--message`, `--branch`), дальше
+      текст остаётся нетронутым;
+    * настоящий запуск из `.sh` (`bash scripts/X.py`, `python3 scripts/X.py --once`)
+      под правило не попадает вовсе: у него нет `--files` перед именем.
+
+    Логическая строка склеивается по обратным слэшам — пушер зовут именно так,
+    по одному пути на строку, и правило, судящее физические строки, увидело бы
+    груз как самостоятельную команду.
+    """
+    lines = text.splitlines(keepends=True)
+    starts = [0]
+    for line in lines:
+        starts.append(starts[-1] + len(line))
+    groups: List[List[int]] = []
+    cur: List[int] = []
+    for i, line in enumerate(lines):
+        cur.append(i)
+        if not line.rstrip("\n").endswith("\\"):
+            groups.append(cur)
+            cur = []
+    if cur:
+        groups.append(cur)
+    out = list(text)
+    for g in groups:
+        a, b = starts[g[0]], starts[g[-1] + 1]
+        chunk = text[a:b]
+        if not any(tool in chunk for tool in _DELIVERY_TOOLS):
+            continue
+        for m in _PAYLOAD_FLAG.finditer(chunk):
+            i = m.end()
+            while i < len(chunk):
+                while i < len(chunk) and chunk[i].isspace():
+                    i += 1
+                if i >= len(chunk):
+                    break
+                if chunk[i] == "\\":       # перенос строки внутри одной команды
+                    i += 1
+                    continue
+                if chunk[i] == "-":        # следующий ФЛАГ — груз кончился
+                    break
+                while i < len(chunk) and not chunk[i].isspace():
+                    if chunk[i] != "\n":
+                        out[a + i] = " "
+                    i += 1
+    return "".join(out)
+
+
 def _python_without_comments(text: str) -> str:
     """Питон без `#`-комментариев; строковые литералы СОХРАНЕНЫ.
 
@@ -309,7 +381,7 @@ def code_without_comments(path: pathlib.Path, text: str) -> str:
     if suffix == ".py":
         return _python_without_prose(_python_without_comments(text))
     if suffix in (".sh", ".yml", ".yaml"):
-        return _cut_at_hash(text)
+        return _sh_without_delivery_payload(_cut_at_hash(text))
     if suffix == ".plist":
         return _XML_COMMENT.sub(" ", text)
     return text

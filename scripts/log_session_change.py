@@ -155,9 +155,36 @@ def durable_process(env=None, ps=None):
 CARD_STATES = ("claim", "done")
 
 
+class DroppedWithoutReason(ValueError):
+    """`--dropped` без причины. Отказ, а не пустая запись — см. ``normalize_dropped``."""
+
+
+def normalize_dropped(pairs) -> list:
+    """[(путь, причина)] → [{"path":…, "reason":…}]. Бросает ``DroppedWithoutReason``.
+
+    **«Намеренно не доставлено» — это РЕШЕНИЕ, и оно обязано иметь автора и причину**
+    (карточка `inbox-uborschik-ne-znaet-slova-namerenno-ne-dostavleno`, цикл #353).
+    Уборщик деревьев и шаг 0a читают это поле, чтобы отличить «решено не везти, вот почему»
+    от забывчивости, — и признак, который можно поставить молчанием, закрыл бы им что угодно.
+    Поэтому пустая причина здесь ОТКАЗ (запись не пишется вовсе), а не поле-пустышка:
+    молчание вердикта `dropped` не даёт ни на одном из читателей."""
+    out = []
+    for pair in pairs or ():
+        path, reason = (list(pair) + ["", ""])[:2]
+        path, reason = str(path).strip(), str(reason).strip()
+        if not path:
+            raise DroppedWithoutReason("--dropped: путь пуст")
+        if not reason:
+            raise DroppedWithoutReason(
+                f"--dropped {path}: причина пуста. «Решено не доставлять» без причины "
+                f"неотличимо от забывчивости — запись не пишется (fail-CLOSED)")
+        out.append({"path": path, "reason": reason})
+    return out
+
+
 def record(summary: str, files: list, verified: str,
            card: str = "", card_state: str = "", log=None, session: str = "",
-           process=None) -> dict:
+           process=None, dropped=()) -> dict:
     """Append ONE announce entry. ``log`` overrides the shared journal (tests, explicit --log);
     ``session`` overrides the writer's own id (a caller announcing on behalf of a session whose
     id it was given — otherwise the entry would carry this process's pid instead); ``process``
@@ -196,9 +223,21 @@ def record(summary: str, files: list, verified: str,
         "verified": (verified or "").strip(),
     }
     # Optional and only ever ADDED: readers of older entries must keep working unchanged.
+    # Пишется ТОЛЬКО когда среди объявленных путей есть относительный, т.е. когда поле
+    # что-то добавляет: у абсолютного пути дерево названо им самим. Так форма записи для
+    # правильно оформленного объявления остаётся БАЙТ В БАЙТ прежней (это контракт, и он
+    # закреплён чужими тестами: `test_card_claim_guard::TestAnnounceLogField`,
+    # `test_durable_session_id::TestWriterEntrySchema`).
+    if any(not Path(str(f)).is_absolute() for f in entry["files"]):
+        cwd = _announce_cwd()
+        if cwd:
+            entry["cwd"] = cwd
     if card:
         entry["card"] = str(card).strip()
         entry["card_state"] = (card_state or "claim").strip()
+    dropped_rows = normalize_dropped(dropped)
+    if dropped_rows:
+        entry["dropped"] = dropped_rows
     if process is not None:
         proc, _why = process
     elif label == own_id:
@@ -214,6 +253,31 @@ def record(summary: str, files: list, verified: str,
     with open(target, "a", encoding="utf-8") as fh:
         fh.write(line)
     return entry
+
+
+def _announce_cwd() -> str:
+    """Каталог, ИЗ КОТОРОГО сделано объявление — канонический путь (или "" если не читается).
+
+    ``--files`` документирован как «absolute paths», но НИЧТО этого не проверяет, и 24.08
+    сессия ``rnd-75-rearm`` объявила три пути относительными. Для шага 0a это не мелочь
+    оформления: ``declaring_tree`` отвечает на вопрос «чьё это расхождение» ТОЛЬКО по дереву,
+    названному в самой записи, и на относительном пути возвращает «дерево объявления не
+    названо» — запись навсегда теряет право быть оправданной чужим деревом и висит в
+    «НЕ ДОСТАВЛЕНО», даже когда своя работа доставлена.
+
+    Каталог объявления отвечает на этот вопрос ФАКТОМ из записи, а не догадкой читателя —
+    тот же принцип, что и для абсолютного пути. Пути НЕ переписываются: запись хранит ровно
+    то, что передала сессия, плюс место, откуда это сказано. Поле только ДОБАВЛЯЕТСЯ —
+    записи без него парсятся и судятся ровно как раньше (fail-CLOSED сохранён).
+
+    Вызывается ТОЛЬКО при относительном пути среди объявленных: у абсолютного дерево названо
+    им самим, и запись обязана остаться байт в байт прежней.
+    """
+    try:
+        return os.path.realpath(os.getcwd())
+    except OSError:
+        # Каталог удалён из-под процесса — это измерение, а не повод выдумать место.
+        return ""
 
 
 def tail(n: int) -> list:
@@ -238,6 +302,12 @@ def main(argv=None) -> int:
     ap.add_argument("--card-state", default="claim", choices=CARD_STATES,
                     help="claim = taking/holding the card (default); done = claim released")
     ap.add_argument("--tail", nargs="?", type=int, const=20, help="print the last N entries (default 20)")
+    ap.add_argument("--dropped", nargs=2, action="append", metavar=("PATH", "REASON"),
+                    default=[],
+                    help="путь, который решено НЕ доставлять на origin, и ПОЧЕМУ "
+                         "(дубль отвеченного вопроса, черновик, отменённая находка). Читают "
+                         "уборщик деревьев и шаг 0a: без этого объявления путь навсегда "
+                         "держит дерево и кормит «НЕ ДОСТАВЛЕНО». Причина обязательна")
     args = ap.parse_args(argv)
 
     if args.tail is not None:
@@ -257,10 +327,16 @@ def main(argv=None) -> int:
     if not args.summary:
         ap.error("provide --summary (and --files/--verified), or --tail to read")
     proc, why = durable_process()
-    e = record(args.summary, args.files, args.verified, args.card, args.card_state,
-               process=(proc, why))
+    try:
+        e = record(args.summary, args.files, args.verified, args.card, args.card_state,
+                   process=(proc, why), dropped=args.dropped)
+    except DroppedWithoutReason as exc:
+        print(f"ОТКАЗ: {exc}", file=sys.stderr)
+        return 2
     card = f" card={e['card']}({e['card_state']})" if e.get("card") else ""
     print(f"announced: {e['ts']} [{e['session']}]{card} {e['summary']}")
+    for row in e.get("dropped") or ():
+        print(f"    намеренно НЕ доставляется: {row['path']} — {row['reason']}")
     if proc:
         print(f"    долгоживущий процесс: pid{proc['session_pid']} "
               f"(старт {proc['session_pid_start']}) — активность сессии измерима")

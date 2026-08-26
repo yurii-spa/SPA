@@ -1166,13 +1166,45 @@ class TelegramBot:
             return False
         if result is None:
             return False
-        if str(result.get("reason") or "") in od.PRESERVE_ON_REFUSAL:
+        reason = str(result.get("reason") or "")
+        # Неоднозначный адресат — единственный отказ, где вопрос можно ЗАКРЫТЬ прямо в
+        # чате: список открытых вопросов у нас есть, номер владелец назвал, недостаёт
+        # ровно одного — какому из вопросов ответ предназначен. Это спрашивается кнопками,
+        # а не угадывается (ADR-075). Нечем спросить (ни один вопрос такого варианта не
+        # предлагает) ⇒ picker вернёт None, и владелец получит прежний текст, но с
+        # НАЗВАННОЙ причиной, почему кнопок нет.
+        picker = None
+        if reason == "ambiguous":
             try:
-                from spa_core.telegram.inbox_intake import save_inbox_task
+                picker = od.build_answer_addressee_picker(result)
+            except Exception as exc:  # noqa: BLE001 — переспрос не имеет права съесть ответ
+                log.warning("build_answer_addressee_picker failed: %s", exc)
+                picker = None
+        if reason in od.PRESERVE_ON_REFUSAL:
+            try:
+                if reason == "ambiguous":
+                    # Слова владельца сохраняются, как и раньше, — но карточкой, которая
+                    # ЧЕСТНО названа: это неприменённый ОТВЕТ, а не поручение. Заголовок
+                    # «2» в очереди неотличим от работы, и ровно так решения владельца
+                    # четыре раза подряд оседали в inbox вместо карточек (22–23.08).
+                    from spa_core.telegram.inbox_intake import save_unapplied_owner_answer
 
-                save_inbox_task(text, source="telegram")
+                    save_unapplied_owner_answer(
+                        text,
+                        num=str(result.get("num") or ""),
+                        candidates=result.get("addressees") or [],
+                        asked_with_buttons=picker is not None,
+                        source="telegram")
+                else:
+                    from spa_core.telegram.inbox_intake import save_inbox_task
+
+                    save_inbox_task(text, source="telegram")
             except Exception as exc:  # noqa: BLE001 — не сохранили ⇒ скажем правду ниже
                 log.warning("save_inbox_task after refused answer failed: %s", exc)
+        if picker is not None:
+            picker_text, keyboard = picker
+            self.send_message(picker_text, chat_id, reply_markup=keyboard)
+            return True
         self.send_message(od.text_answer_reply(result), chat_id)
         return True
 

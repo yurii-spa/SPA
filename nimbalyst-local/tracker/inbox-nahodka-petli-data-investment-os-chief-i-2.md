@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Находка петли: data/investment_os/chief_investment.json: последний ресит старше SLO 1"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-22
 finding_key: "B3:consumption_stale:data/investment_os/chief_investment.json"

@@ -766,7 +766,13 @@ def test_a_card_with_unreadable_options_says_so_instead_of_denying_them(tmp_path
     assert od.has_unparsed_options(CARD_TWO_DECISIONS_SAME_NUMBERS) is True
     prep = od.prepare("Два решения", CARD_TWO_DECISIONS_SAME_NUMBERS, "own-2d", now=NOW,
                       beacon_path=_beacon(tmp_path))
-    assert "Варианты в карточке есть" in prep.text
+    # ИНВ. #16 — правка НАМЕРЕННАЯ (цикл #359, обоснование в журнале W34). Отрицательное
+    # утверждение — сердце этого теста — осталось ДОСЛОВНО. Сменилась положительная
+    # половина: фикстура задаёт ДВА решения, и прежний текст («варианты есть, но я не смог
+    # собрать из них кнопки… заведи мне это как дефект») был о ней неправдой — дефекта нет,
+    # отказ верен. Проверка стала строже: владельцу обязаны назвать состояние.
+    assert "не варианты одного решения" in prep.text
+    assert "заведи мне это как дефект" not in prep.text
     assert "Вариантов в карточке не нашёл" not in prep.text
 
 
@@ -837,7 +843,10 @@ def test_letter_digit_card_tells_the_owner_the_truth_about_missing_buttons(tmp_p
     prep = od.prepare("Аварийный тормоз", CARD_LETTER_DIGIT_TWO_DECISIONS, "own-rearm",
                       now=NOW, beacon_path=_beacon(tmp_path))
     assert prep.keyboard is None, "два решения в одной карточке кнопками не выразить"
-    assert "Варианты в карточке есть" in prep.text
+    # ИНВ. #16 — правка НАМЕРЕННАЯ (цикл #359, журнал W34): см. соседний тест. Карточка
+    # с составными метками (А1…/Б1…) — это два вопроса, а не неизвестная разбору форма.
+    assert "не варианты одного решения" in prep.text
+    assert "заведи мне это как дефект" not in prep.text
     assert "Вариантов в карточке не нашёл" not in prep.text
 
 

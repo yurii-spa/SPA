@@ -920,21 +920,32 @@ class StrategyAllocator:
                 # constant → "static" — it may rank, but must never be presented
                 # as verifying the $5M floor (see _filter_by_tvl).
                 tvl_source = "live" if a.get("tvl_source") == "live" else "static"
+                tvl_usd = float(a.get("tvl_usd", 0.0))
                 # A pinned observation outranks the orchestrator's literal: the
                 # orchestrator reports whatever the adapter handed it, and 11
                 # adapters hand over a hardcoded TVL_USD constant.
+                #
+                # ADR-126 (owner decision 2026-08-23, option 1): the observation
+                # must REPLACE the number, not just the label. Until this line
+                # the branch bound the measured value to a local that nothing
+                # read, so the row went out stamped ``tvl_source="live"`` while
+                # carrying the very literal the observation was fetched to
+                # replace — the one thing `.claude/rules/risk-engine.md` forbids
+                # by name ("Never stamp `live` on a constant"). The registry
+                # merge below always did this correctly; only this path did not.
                 if tvl_source != "live" and protocol in tvl_evidence:
-                    tvl, _pool = tvl_evidence[protocol]
+                    tvl_usd, _pool = tvl_evidence[protocol]
+                    tvl_usd = float(tvl_usd)
                     tvl_source = "live"
                     log.info(
                         "ADR-053: %s TVL from pinned observation $%.0fM (pool %s) — "
                         "replaces the adapter literal",
-                        protocol, tvl / 1_000_000, _pool[:8],
+                        protocol, tvl_usd / 1_000_000, _pool[:8],
                     )
                 _row = {
                     "protocol": protocol,
                     "apy_pct": apy_pct,
-                    "tvl_usd": float(a.get("tvl_usd", 0.0)),
+                    "tvl_usd": tvl_usd,
                     "tier": a.get("tier", "T2"),
                     "apy_source": "live",
                     "tvl_source": tvl_source,

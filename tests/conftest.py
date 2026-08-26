@@ -251,3 +251,32 @@ def _no_live_backup_dir():
 from spa_core.utils.pytest_sandbox import session_dir as _publish_sandbox_dir  # noqa: E402
 
 _publish_sandbox_dir()
+
+
+# ---------------------------------------------------------------------------
+# Прогон не смеет ПЕРЕПИСЫВАТЬ живое git-tracked состояние (`data/`, sqlite,
+# фикстуры пакета) — тот же сторож, что в spa_core/tests/conftest.py, и по той же
+# причине, по какой три сторожа выше стоят в ОБОИХ корнях: CI собирает корни
+# отдельными шагами, и поставленный в одном оставил бы второй без защиты.
+# Загружается по пути к файлу из единственного источника, поэтому корни не могут
+# разъехаться. Разбор — spa_core/tests/live_data_write_guard.py.
+# ---------------------------------------------------------------------------
+_LIVE_DATA_GUARD_PATH = _ROOT / "spa_core" / "tests" / "live_data_write_guard.py"
+live_data_write_guard = sys.modules.get("spa_live_data_write_guard")
+if live_data_write_guard is None:
+    _ldg_spec = _ilu.spec_from_file_location("spa_live_data_write_guard", _LIVE_DATA_GUARD_PATH)
+    live_data_write_guard = _ilu.module_from_spec(_ldg_spec)   # type: ignore[arg-type]
+    _ldg_spec.loader.exec_module(live_data_write_guard)        # type: ignore[union-attr]
+    sys.modules["spa_live_data_write_guard"] = live_data_write_guard
+
+_live_data_stays_clean = live_data_write_guard._live_data_stays_clean
+
+
+def pytest_sessionstart(session):                # noqa: D401 — хук pytest
+    """База сторожа живого `data/` — до первого теста (идемпотентно с корнем-соседом)."""
+    live_data_write_guard.session_start()
+
+
+def pytest_sessionfinish(session, exitstatus):   # noqa: D401 — хук pytest
+    """Отчёт сторожа живого `data/` — и красный прогон, если состояние поехало."""
+    live_data_write_guard.session_finish(session)

@@ -208,6 +208,11 @@ DELETED_ON_ORIGIN = "deleted_on_origin"
 # Девятое: объявленного пути нет ни на базе, ни в её истории, ни в одном рабочем дереве — но он
 # ЛЕЖИТ НА УДАЛЁННОЙ ВЕТКЕ. Это не «нигде» и не «доставлено»: поднимать есть что, и место названо.
 ON_BRANCH = "on_branch"
+# Десятое: путь НЕ доставлен, и это РЕШЕНИЕ, а не забывчивость — сессия объявила отказ везти
+# вместе с причиной (`log_session_change.py --dropped ПУТЬ ПРИЧИНА`, цикл #354). Находкой не
+# считается и кода 1 не держит — но и не исчезает: печатается своим разделом с автором,
+# датой и причиной. Без объявления вердикта нет: молчание оставляет прежнюю находку.
+DROPPED = "dropped"
 
 # Классы путей, потеря которых невосстановима ничем, кроме самой ветки: решение и карточка
 # владельца. Код на ветке — обычная параллельная работа (для того ветки и существуют), и
@@ -434,6 +439,33 @@ def tree_of_path(path):
         if i > 0 and part in _REPO_TOP_DIRS:
             return str(Path(*parts[:i]))
     return None
+
+
+def dropped_declarations(entries):
+    """{ключ: объявление} для путей, которые сессии объявили НАМЕРЕННО не доставленными.
+
+    Сверка идёт по СТРОКЕ, которую написала сессия (плюс `/tmp` ≡ `/private/tmp`), а не по
+    repo-relative форме — и это граница, а не мелочь. Один и тот же относительный путь
+    (`nimbalyst-local/tracker/x.md`) лежит в ДЕСЯТКАХ рабочих деревьев; сведи ключ к нему — и
+    отказ одной сессии везти СВОЮ копию погасил бы находку о ЧУЖОЙ. Поэтому находка несёт
+    объявленный путь как есть (`declared_as`), и сверяется именно он.
+
+    Причина обязательна: пара без неё пропускается (fail-CLOSED, зеркало `normalize_dropped`
+    у писателя). Окна нет — см. `reap_stale_worktrees.dropped_declarations`."""
+    out = {}
+    for entry in entries or ():
+        for row in (entry or {}).get("dropped") or ():
+            declared = str((row or {}).get("path") or "").strip()
+            reason = str((row or {}).get("reason") or "").strip()
+            if not declared or not reason:
+                continue
+            decl = {"path": declared, "reason": reason, "session": entry.get("session"),
+                    "ts": entry.get("ts"), "card": entry.get("card")}
+            for k in {declared, _normalize_tree(declared) or declared,
+                      declared.replace("/private/tmp/", "/tmp/", 1),
+                      declared.replace("/tmp/", "/private/tmp/", 1)}:
+                out[k] = decl
+    return out
 
 
 def worktree_of(entry):
@@ -932,8 +964,35 @@ def shared_log(start=ROOT, git=_git):
 TREE_GONE = "рабочее дерево удалено вместе с объявленным путём"
 
 REAP_LEDGER_NAME = "worktree_reap_log.jsonl"
-# Вердикты, при которых снятое дерево не уносило с собой работу (см. reap_stale_worktrees.py).
-REAP_EXPLAINED = {"delivered", "superseded"}
+# Вердикты, при которых снятое дерево не уносило с собой работу. Ниже — ЗАПАСНОЙ список на
+# случай, когда модуль уборщика прочитать не удалось; действующий берётся у САМОГО уборщика
+# (`reap_explained()`), потому что имена вердиктов заводят там. Копия, живущая своей жизнью,
+# — ровно тот класс, которым сторожа глохнут: #377 добавил уборщику шестое имя
+# (`not_in_tree`), и литеральная копия здесь молча объявила бы его «помечен неизвестно чем»,
+# то есть код 2 НАВСЕГДА на каждом снятом дереве с таким путём.
+REAP_EXPLAINED_FALLBACK = frozenset({"delivered", "superseded"})
+
+
+def reap_explained():
+    """(множество «работа не потеряна» из уборщика, причина-если-читали запасной список).
+
+    Импорт ЛЕНИВЫЙ по той же причине, что и в `churn_rule`: уборщик импортирует этот модуль
+    на верхнем уровне, встречный импорт замкнул бы кольцо.
+
+    Ослабления нет: множество собирается из ПОЛОЖИТЕЛЬНЫХ вердиктов уборщика, а `unique` /
+    `absent` / `dropped` в него не входят ни при каком исходе — `dropped` разбирается своей
+    веткой ниже (у решения обязаны быть автор и причина)."""
+    import sys
+    scripts_dir = str(Path(__file__).resolve().parent)
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+    try:
+        from reap_stale_worktrees import DELIVERED as _D, NOT_IN_TREE as _N, SUPERSEDED as _S
+    except Exception as exc:                   # noqa: BLE001 — «не прочитано» это тоже измерение
+        return REAP_EXPLAINED_FALLBACK, (
+            f"имена вердиктов уборщика прочитать не удалось ({type(exc).__name__}: {exc}) — "
+            "читается запасной список, новые имена вердиктов здесь не известны")
+    return frozenset({_D, _S, _N}), None
 
 
 def read_reap_ledger(root):
@@ -1072,8 +1131,26 @@ def reaped_state(path_str, ledger, root, base_ref, git=_git):
         return None, None
     state = (row.get("paths") or {}).get(rel)
     where = reap_where(row)
-    if state in REAP_EXPLAINED:
+    explained, _why_fallback = reap_explained()
+    if state in explained:
         return DELIVERED, f"{where}; содержимое пути объяснено при снятии ({state})"
+    if state == DROPPED:
+        # Уборщик снял дерево, потому что сессия ОБЪЯВИЛА этот путь намеренно недоставленным
+        # (#354). Без этой ветки квитанция читалась бы веткой ниже как «помечен неизвестно
+        # чем» ⇒ код 2 навсегда: починка уборщика родила бы в шаге 0a ровно тот класс
+        # необратимого «не измерено», ради снятия которого квитанция и писалась.
+        decl = (row.get("dropped") or {}).get(rel) or {}
+        reason = str(decl.get("reason") or "").strip()
+        if not reason:
+            # Слово в квитанции есть, причины нет — судить «это решение» нечем. Fail-CLOSED:
+            # прежнее «не измерено», а не молчаливый пропуск.
+            return UNMEASURED, (f"{where}, путь помечен при снятии как {DROPPED!r}, НО причина "
+                                "в квитанции не названа — решение это было или порча записи, "
+                                "НЕ ИЗМЕРЕНО")
+        who = f"сессия {decl.get('session')}, {decl.get('ts')}"
+        card = f", карточка {decl['card']}" if decl.get("card") else ""
+        return DROPPED, (f"{where}; путь объявлен НАМЕРЕННО не доставленным: {reason} "
+                         f"[{who}{card}]")
     if state is not None:
         return UNMEASURED, (f"{where}, НО путь помечен при снятии как {state!r} — "
                             "снятие такого дерева правилом не предусмотрено")
@@ -1187,7 +1264,7 @@ def resolve_rel(path_str, root, git=_git):
         return None, f"путь вне найденного корня worktree: {path_str}"
 
 
-def declaring_tree(path_str, root, git=_git):
+def declaring_tree(path_str, root, git=_git, announce_cwd=None):
     """Рабочее дерево, ИЗ КОТОРОГО объявлен путь: (str-корень, None) либо (None, причина).
 
     Дерево не угадывается и не выводится из совпадения имён — его называет САМА запись
@@ -1196,13 +1273,31 @@ def declaring_tree(path_str, root, git=_git):
     принципом, что в `resolve_rel`: принадлежность репозиторию по общему git-каталогу,
     корень — `rev-parse --show-toplevel`.
 
+    ``announce_cwd`` — каталог, из которого сделано объявление (поле ``cwd``,
+    `log_session_change.py`). Он нужен ровно для относительных путей: ``--files``
+    документирован как абсолютные пути, но ничем это не проверяется, и 24.08 сессия
+    `rnd-75-rearm` объявила три пути относительными — их дерево стало неопределимым НАВСЕГДА.
+    Догадкой это не чинится: каталог берётся из САМОЙ записи, тем же принципом, что и
+    абсолютный путь. Записи без ``cwd`` (все, что написаны до этого поля) судятся ровно как
+    раньше.
+
     ``None`` — судить по «своему дереву» нечем, и это НЕ повод считать работу доставленной:
-    вызывающий обязан оставить прежнее (более строгое) поведение. Две причины:
-    относительный путь (дерева в записи нет вовсе) и удалённый каталог.
+    вызывающий обязан оставить прежнее (более строгое) поведение. Причины: относительный путь
+    без каталога объявления (дерева в записи нет вовсе), каталог объявления, которого больше
+    нет, и удалённый каталог самого пути.
     """
     p = Path(str(path_str))
     if not p.is_absolute():
-        return None, "путь объявлен относительным — рабочее дерево в записи не названо"
+        base = Path(str(announce_cwd)) if announce_cwd else None
+        if base is None:
+            return None, "путь объявлен относительным — рабочее дерево в записи не названо"
+        if not base.is_absolute():
+            return None, ("путь объявлен относительным, и каталог объявления в записи тоже не "
+                          f"абсолютен ({announce_cwd}) — рабочее дерево не определить")
+        if not base.is_dir():
+            return None, ("путь объявлен относительным, а каталога объявления "
+                          f"({announce_cwd}) больше нет — рабочее дерево не определить")
+        p = base / p
 
     try:
         p.resolve().relative_to(Path(root).resolve())
@@ -2378,7 +2473,20 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
     grace = timedelta(hours=grace_hours)
     findings, unmeasured, fresh, stale_copies, card_findings = [], [], [], [], []
     reaped, nowhere, by_design, card_closed, deleted = [], [], [], [], []
-    on_branch = []
+    on_branch, dropped = [], []
+    # Объявления «решено НЕ везти» читаются из ВСЕГО журнала, а не из среза `--last`: решение
+    # принимает ОДНА сессия, а спотыкается о путь потом ЛЮБАЯ (журнал объявляет один и тот же
+    # файл десятками записей). Срез — про то, чью работу мы сегодня разбираем; решение о пути
+    # к этому вопросу отношения не имеет. Журнал не прочитан ⇒ объявлений нет ⇒ прежнее
+    # поведение байт-в-байт (fail-CLOSED).
+    def _all_entries():
+        if not log_path:
+            return entries
+        try:
+            return read_entries(log_path, None)[0]
+        except OSError:
+            return entries          # журнал не прочитан ⇒ объявлений нет ⇒ прежнее поведение
+    dropped_decls = dropped_declarations(_all_entries())
     seen, hist_cache, card_cache = {}, {}, {}
     reap_ledger, ledger_error = read_reap_ledger(root)
     report = {
@@ -2396,6 +2504,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
         "reaped": reaped,
         "nowhere": nowhere,
         "by_design": by_design,
+        "dropped": dropped,
         "card_closed": card_closed,
         "deleted_on_origin": deleted,
         "on_branch": on_branch,
@@ -2540,7 +2649,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                    "объявленный долгоживущий процесс завершился")
             produced_before = (len(findings), len(unmeasured), len(stale_copies),
                                len(reaped), len(nowhere), len(by_design), len(card_closed),
-                               len(deleted), len(on_branch))
+                               len(deleted), len(on_branch), len(dropped))
 
         why = f"{why}; объявлено {age_h}ч назад"
         report["sessions_checked"] += 1
@@ -2585,6 +2694,22 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                                    "reap_ts": (row or {}).get("ts"),
                                    "archive": (row or {}).get("archive"),
                                    "verdict": tail, "also_declared_by": []})
+                    continue
+                if st == DROPPED:
+                    # Дерево снято, и квитанция несёт РЕШЕНИЕ сессии не везти этот путь вместе
+                    # с причиной (#354). Раздел свой — «намеренно не доставлено» не находка, но
+                    # и не тишина: у решения есть автор, и он назван.
+                    key = (str(raw), DROPPED)
+                    if key in seen:
+                        add_witness(dropped[seen[key]], entry.get("session"))
+                        continue
+                    seen[key] = len(dropped)
+                    dropped.append({"session": entry.get("session"), "ts": entry.get("ts"),
+                                    "path": str(raw), "state": DROPPED, "detail": detail,
+                                    "session_state": why, "within_grace": within_grace,
+                                    "summary": (entry.get("summary") or "")[:160],
+                                    "decided_by": None, "reason": None,
+                                    "also_declared_by": []})
                     continue
                 if st is not None:
                     if st == NOWHERE:
@@ -2766,7 +2891,8 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                     # и находка «сессия X не доставила» — ложное обвинение (замер #252: 12 из
                     # 49). Видимость расхождения при этом сохраняется полностью: находка
                     # остаётся, меняются вердикт и раздел (прецедент #243).
-                    own, why_own = declaring_tree(raw, root, git=git)
+                    own, why_own = declaring_tree(raw, root, git=git,
+                                                  announce_cwd=entry.get("cwd"))
                     if own is not None and not any(_same_tree(l, own) for l in unseen):
                         foreign_only = True
                         detail = (f"в СВОЁМ дереве объявившей сессии ({own}) этот путь "
@@ -2830,13 +2956,18 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                              "path": rel, "state": st, "detail": detail, "session_state": why,
                              "within_grace": within_grace, "foreign_only": foreign_only,
                              "summary": (entry.get("summary") or "")[:160],
+                             # Строка, которую написала сессия. Нужна ровно для сверки с
+                             # объявлением «намеренно не доставлено»: `rel` один на все
+                             # деревья, а решение принято про КОНКРЕТНОЕ (#354).
+                             "declared_as": str(raw),
                              "also_declared_by": []})
 
         # Сирота, у которой всё объявленное УЖЕ на базе: находки нет, но и в тишину такую
         # запись ронять нечестно — она остаётся в счётчике «свежих» со своим измерением.
         if within_grace and (len(findings), len(unmeasured), len(stale_copies),
                              len(reaped), len(nowhere), len(by_design),
-                             len(card_closed), len(deleted), len(on_branch)) == produced_before:
+                             len(card_closed), len(deleted), len(on_branch),
+                             len(dropped)) == produced_before:
             fresh.append({"session": entry.get("session"), "ts": entry.get("ts"),
                           "age_hours": age_h, "files": len(entry.get("files") or []),
                           "reason": f"{why} — объявленное на {base_ref} есть, находки нет"})
@@ -2852,6 +2983,64 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
     for row in report["unannounced"]:
         for reason in row["unchecked"]:
             unmeasured.append({"session": None, "path": row["path"], "reason": reason})
+
+    # ── «намеренно не доставлено»: решение сессии, а не забывчивость (#354) ──
+    #
+    # Разбор ставится ПОСЛЕ цикла и переносит уже готовую находку в свой раздел, а не гасит её
+    # на входе. Так это остаётся ровно вычитанием ИЗВЕСТНОГО: путь измерен обычным порядком,
+    # его состояние сохранено в `was`, и «почему сняли» проверяемо задним числом. Гасить на
+    # входе значило бы не мерить вовсе — и объявление получило бы власть над ИЗМЕРЕНИЕМ,
+    # а не над РЕШЕНИЕМ.
+    #
+    # Что переносится: находка (`findings`) и недоставленная карточка (`card_findings`) —
+    # ровно те два раздела, которые зовут «поднять и доставить». `nowhere`/`by_design`/
+    # `deleted_on_origin` не трогаются: там поднимать нечего по ИЗМЕРЕНИЮ, и объявление
+    # ничего к этому не добавляет.
+    def _decl_for(*candidates):
+        for c in candidates:
+            if not c:
+                continue
+            for form in {str(c), _normalize_tree(str(c)) or str(c)}:
+                if form and form in dropped_decls:
+                    return dropped_decls[form]
+        return None
+
+    kept = []
+    for f in findings:
+        decl = _decl_for(f.get("declared_as"), f.get("path"))
+        if decl is None:
+            kept.append(f)
+            continue
+        dropped.append({"session": f.get("session"), "ts": f.get("ts"), "path": f["path"],
+                        "state": DROPPED, "was": f.get("state"),
+                        "detail": f.get("detail"), "session_state": f.get("session_state"),
+                        "within_grace": f.get("within_grace"), "summary": f.get("summary"),
+                        "reason": decl["reason"], "decided_by": decl.get("session"),
+                        "decided_at": decl.get("ts"), "card": decl.get("card"),
+                        "also_declared_by": f.get("also_declared_by") or []})
+    findings[:] = kept
+
+    kept_cards = []
+    for c in card_findings:
+        trees = c.get("trees") or []
+        # Дерево за деревом: одна и та же карточка может лежать в двух деревьях, и решение
+        # «не везу» принято про КОНКРЕТНОЕ. Осталось хоть одно необъявленное — находка живёт.
+        still, decls = [], []
+        for t in trees:
+            decl = _decl_for(str(Path(t) / c.get("file", "")), c.get("file"))
+            (decls if decl else still).append(decl or t)
+        if still or not decls:
+            c["trees"] = still or trees
+            kept_cards.append(c)
+            continue
+        decl = decls[0]
+        dropped.append({"session": None, "ts": None, "path": c.get("file"), "state": DROPPED,
+                        "was": "card", "detail": c.get("reason"), "session_state": None,
+                        "within_grace": False, "summary": f"карточка {c.get('card')}",
+                        "reason": decl["reason"], "decided_by": decl.get("session"),
+                        "decided_at": decl.get("ts"), "card": decl.get("card"),
+                        "also_declared_by": []})
+    card_findings[:] = kept_cards
 
     # Один и тот же путь объявляют десятки сессий, и часть из них своё доставила, часть — нет.
     # Если по этому пути есть хоть одна НАСТОЯЩАЯ находка (чьё-то своё дерево расходится), то
@@ -2888,6 +3077,11 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
     # базе репозитория ВООБЩЕ ⇒ работа существует в одном экземпляре и ровно в этом дереве.
     # Путь обратно в зелёное обыкновенный: доставить (блоб станет известен базе) либо снять
     # дерево уборщиком, который измерит цену и оставит квитанцию.
+    # `dropped` кода 1 НЕ держит — по тому же доводу, что `deleted_on_origin`: дефекта нет ни в
+    # объявлении, ни в доставке. Путь не доставлен ОСОЗНАННО, у решения есть автор, дата и
+    # причина, и пути обратно в зелёное у находки не было бы вовсе: снять её можно только
+    # доставкой, то есть отменой верного решения (у #353 — вторым вопросом об уже отвеченном).
+    # Видимость при этом не сужается ни на строку: раздел печатается всегда и называет автора.
     orphan_findings = any(row["undelivered"] for row in report["orphan_registrations"])
     unannounced_findings = any(row["undelivered"] for row in report["unannounced"])
     report["exit_code"] = (2 if unmeasured
@@ -3165,6 +3359,30 @@ def render(report) -> str:
             if f.get("also_declared_by"):
                 out.append(f"      тот же путь объявляли ещё: {', '.join(f['also_declared_by'])}")
 
+    if report.get("dropped"):
+        out.append("")
+        out.append(f"🚮 НАМЕРЕННО НЕ ДОСТАВЛЕНО ({len(report['dropped'])}) — это РЕШЕНИЕ, а не "
+                   "забывчивость: сессия разобрала путь и объявила отказ везти его на "
+                   f"{base} вместе с причиной. Раздел не прячет путь, а называет автора и "
+                   "основание — «решено не везти» без автора закрыло бы что угодно. Не "
+                   "согласен с решением — доставляй вручную, отчёт этому не мешает:")
+        for f in report["dropped"]:
+            out.append(f"  [не везём] {f['path']}"
+                       + (f" (было: {f['was']})" if f.get("was") else ""))
+            if f.get("reason"):
+                who = f.get("decided_by") or "?"
+                when = f.get("decided_at") or "?"
+                card = f", карточка {f['card']}" if f.get("card") else ""
+                out.append(f"      решила сессия {who} ({when}{card}): {f['reason']}")
+            if f.get("detail"):
+                # Замер печатается как ЗАМЕР, а не как указание. Строка написана для раздела
+                # «НЕ ДОСТАВЛЕНО» и кончается словами «её надо поднять» — в разделе решения
+                # она бы спорила с собственным заголовком. Текст не переписывается (это
+                # измерение, сделанное ДО решения) — называется его место во времени.
+                out.append(f"      измерено до решения: {f['detail']}")
+            if f.get("also_declared_by"):
+                out.append(f"      тот же путь объявляли ещё: {', '.join(f['also_declared_by'])}")
+
     if report.get("deleted_on_origin"):
         out.append("")
         out.append(f"🗑  УДАЛЕНО НА {base} ({len(report['deleted_on_origin'])}) — имя там БЫЛО и "
@@ -3255,6 +3473,8 @@ def render(report) -> str:
             explained.append("карточка объявления закрыта на базе")
         if report.get("deleted_on_origin"):
             explained.append(f"путь удалён на {base}")
+        if report.get("dropped"):
+            explained.append("решено не доставлять (с причиной)")
         out.append("✅ измерено полностью, всё доставлено" if not explained
                    else "✅ измерено полностью, потерянной работы нет (недоставленное — "
                         + "; ".join(explained) + ", разделы выше)")

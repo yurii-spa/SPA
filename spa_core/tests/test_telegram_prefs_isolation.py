@@ -33,6 +33,7 @@ import textwrap
 import unittest
 from pathlib import Path
 
+from spa_core.tests import _child_pytest
 from spa_core.telegram import prefs as prefs_store
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -251,9 +252,14 @@ class TestUnderRealPytestProcess(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            out = subprocess.run(
-                [sys.executable, "-m", "pytest", str(test_file), "-q", "-p", "no:cacheprovider"],
-                capture_output=True, text=True, cwd=str(root),
+            # Якорь `--rootdir` даёт `_child_pytest`: без него pytest считает
+            # rootdir общим предком cwd и аргумента и обходит `scandir`-ом весь
+            # системный временный каталог (замер #382 — 9 780 560 записей,
+            # >300 с). Здесь cwd совпадает с каталогом файла и потому спасает
+            # сам по себе, но держаться это должно на договорённости набора,
+            # а не на совпадении.
+            out = _child_pytest.run_child_pytest(
+                test_file, "-q", "-p", "no:cacheprovider", cwd=root, timeout=120
             )
             self.assertEqual(out.returncode, 0, out.stdout + out.stderr)
 

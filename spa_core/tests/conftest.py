@@ -707,3 +707,37 @@ _package_data_stays_clean = package_data_guard._package_data_stays_clean
 from spa_core.utils.pytest_sandbox import session_dir as _publish_sandbox_dir  # noqa: E402
 
 _publish_sandbox_dir()
+
+
+# ---------------------------------------------------------------------------
+# Прогон не смеет ПЕРЕПИСЫВАТЬ живое git-tracked состояние (`data/`, sqlite,
+# фикстуры пакета). Сосед выше ловит ПОЯВЛЕНИЕ файла в каталоге пакета; здесь
+# ловится ИЗМЕНЕНИЕ существующего — а именно оно описано в карточке
+# inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data: журнал
+# тревог не появляется, у него переписывается `updated_at` и дописываются
+# тестовые тревоги. Разбор, три несходящихся замера и почему проверка стоит на
+# уровне ПРОГОНА (замер цены), а имя теста — отдельным заходом
+# (`SPA_DATA_WRITE_AUDIT=1`) — spa_core/tests/live_data_write_guard.py.
+# Загружается по пути к файлу (как сторожа выше): один и тот же модуль
+# подключается из ОБОИХ корней conftest и плагином `-p` в положительном
+# контроле — второй копии быть не должно.
+# ---------------------------------------------------------------------------
+_LIVE_DATA_GUARD_PATH = Path(__file__).resolve().parent / "live_data_write_guard.py"
+live_data_write_guard = sys.modules.get("spa_live_data_write_guard")
+if live_data_write_guard is None:
+    _ldg_spec = _ilu.spec_from_file_location("spa_live_data_write_guard", _LIVE_DATA_GUARD_PATH)
+    live_data_write_guard = _ilu.module_from_spec(_ldg_spec)   # type: ignore[arg-type]
+    _ldg_spec.loader.exec_module(live_data_write_guard)        # type: ignore[union-attr]
+    sys.modules["spa_live_data_write_guard"] = live_data_write_guard
+
+_live_data_stays_clean = live_data_write_guard._live_data_stays_clean
+
+
+def pytest_sessionstart(session):                # noqa: D401 — хук pytest
+    """База сторожа живого `data/` — до первого теста."""
+    live_data_write_guard.session_start()
+
+
+def pytest_sessionfinish(session, exitstatus):   # noqa: D401 — хук pytest
+    """Отчёт сторожа живого `data/` — и красный прогон, если состояние поехало."""
+    live_data_write_guard.session_finish(session)

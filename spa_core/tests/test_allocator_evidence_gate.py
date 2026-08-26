@@ -143,10 +143,60 @@ def test_advisory_adapter_cannot_be_funded() -> None:
         assert allowed is False and reason == "advisory", advisory
 
 
-def test_sky_susds_gsm_gate_is_consulted() -> None:
-    """Invariant 10 — Sky/sUSDS stays at 0 % until the GSM delay is confirmed."""
-    allowed, reason = _adapter_class_gate("spark_susds")
-    assert allowed is False and reason == "gsm_not_confirmed"
+def _pin_spark_status(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, block: dict) -> None:
+    """Make ``spark_susds``'s status block an INPUT of the test, not the host's state.
+
+    ``_adapter_class_gate`` instantiates the real adapter with no arguments, so the
+    adapter falls back to its module-level default data directory — the live repo's
+    ``data/``. Redirecting that default is the only injection point the gate leaves,
+    and it keeps the whole real chain under test (registry lookup → real adapter class
+    → ``is_gsm_compliant`` → ``status_reader.gsm_confirmed``). Only the observation is
+    injected.
+    """
+    _write(tmp_path / "adapter_status.json", {"adapters": {"spark_susds": block}})
+    import spa_core.adapters.spark_susds_adapter as spark_mod
+    monkeypatch.setattr(spark_mod, "_DEFAULT_DATA_DIR", tmp_path, raising=True)
+
+
+@pytest.mark.parametrize(
+    ("case", "block", "expected"),
+    [
+        # GSM observed, fresh, at the threshold → capital may enter (ADR-065).
+        ("confirmed_at_threshold",
+         {"gsm_hours": 48.0, "gsm_hours_as_of": _ts(1)}, (True, None)),
+        ("confirmed_above_threshold",
+         {"gsm_hours": 72.0, "gsm_hours_as_of": _ts(1)}, (True, None)),
+        # …and every way the observation can fail keeps the door shut (invariant 10).
+        ("below_threshold",
+         {"gsm_hours": 47.9, "gsm_hours_as_of": _ts(1)}, (False, "gsm_not_confirmed")),
+        ("never_observed", {}, (False, "gsm_not_confirmed")),
+        ("no_timestamp", {"gsm_hours": 72.0}, (False, "gsm_not_confirmed")),
+        # 168 h is status_reader.GSM_MAX_AGE_H — an expired reading is not freshness.
+        ("reading_expired",
+         {"gsm_hours": 72.0, "gsm_hours_as_of": _ts(200)}, (False, "gsm_not_confirmed")),
+    ],
+)
+def test_sky_susds_gsm_gate_is_consulted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    case: str, block: dict, expected: tuple,
+) -> None:
+    """Invariant 10 / ADR-065 — the gate follows the OBSERVATION, in both directions.
+
+    Cycle #361 measured this test judging the HOST rather than the code: the assertion
+    was one-sided (``allowed is False``) and ``_adapter_class_gate`` reads the live
+    ``data/adapter_status.json``, so the same code was green in a worktree on the frozen
+    ``origin/main`` canon (GSM unobserved there) and RED in the production tree, where
+    the feed has since observed the 48 h delay on-chain (ADR-065). A verdict decided by
+    a data file is not a verdict about the gate — and this file's own header promises
+    "no dependence on the live repo's ``data/``", which was false for exactly this test.
+
+    Both directions are now pinned, which is a STRICTER check than before, not a weaker
+    one (invariant #16): a gate stuck open fails the four refusal cases, a gate stuck
+    shut fails the two confirmed ones. Invariant 10 is unchanged — 0 % until the delay
+    is confirmed; what changed is that "confirmed" is now supplied by the test.
+    """
+    _pin_spark_status(tmp_path, monkeypatch, block)
+    assert _adapter_class_gate("spark_susds") == expected, case
 
 
 def test_generic_apy_band_is_not_a_funding_gate() -> None:

@@ -1,21 +1,20 @@
 """
-Тесты EPIC-2 S2.2 — Engine C LP paper trading cycle (lp_cycle.py).
+Тесты Engine C (пакет Aggressive) paper trading cycle (lp_cycle.py).
 
+Контракт обновлён 2026-08 («Гоу B», ADR-125, журнал W34, инвариант #16): рукав стал
+концентрированной высокодоходной книгой (band_candidates, top-2), бюджет просадки −25%.
 Покрытие:
   - fail-closed при ошибке загрузки state
-  - IL kill switch -13% → kill_switch=True
-  - IL kill switch ровно -12% → НЕ срабатывает (threshold строго <)
-  - Малый drawdown -3% → нет kill switch
+  - IL kill switch -27% → kill_switch=True; ровно -25% и -20% → НЕ срабатывает
+  - IL_KILL_THRESHOLD = -0.25 (Aggressive-бюджет ≤25%)
   - check_positions_delta_neutral: пустой список, все neutral, одна non-neutral
   - Non-delta-neutral позиции → cycle_skipped=True
   - compute_il_drawdown: peak=0 safe, корректный расчёт
   - load_lp_state: default при отсутствии файла, fail-closed на битом JSON
-  - save/load roundtrip: атомарная запись
-  - dry_run не пишет файл
+  - save/load roundtrip; dry_run не пишет файл
   - get_lp_summary: обязательные поля, LLM_FORBIDDEN, golive_days_remaining
   - 14 дней трека → golive_ready=True
-  - LLM_FORBIDDEN в файле и результатах
-  - LP_CYCLE_VERSION, IL_KILL_THRESHOLD константы
+  - LLM_FORBIDDEN в файле и результатах; LP_CYCLE_VERSION определён
   - daily_history: дедупликация по дате
 
 LLM_FORBIDDEN.
@@ -86,12 +85,15 @@ class TestFailClosed:
 
 
 # ── 2. IL kill switch ────────────────────────────────────────────────────────
+# Пакет Aggressive: бюджет просадки −25% (owner «Гоу B»: «стоп под 25%»), НЕ −12%.
+# Порог сдвинут -12% → -25% намеренно (инвариант #16, журнал W34, ADR-125). Фикстуры
+# с equity>0 без истории: сид-гейт при equity>0 не срабатывает, просадка сохраняется.
 
 class TestILKillSwitch:
-    def test_kill_switch_at_13pct_il_drawdown(self, m, monkeypatch):
-        """IL drawdown -13% (< -12% threshold) → kill_switch=True"""
+    def test_kill_switch_at_27pct_il_drawdown(self, m, monkeypatch):
+        """IL drawdown -27% (< -25% threshold) → kill_switch=True (Aggressive-бюджет)."""
         bad_state = {
-            "equity": 8700.0,   # -13% от пика 10000
+            "equity": 7300.0,   # -27% от пика 10000
             "peak_equity": 10000.0,
             "positions": [],
             "daily_history": [],
@@ -102,13 +104,13 @@ class TestILKillSwitch:
         result = m.run_lp_cycle(dry_run=True)
 
         assert result.get("kill_switch") is True
-        assert result.get("il_drawdown_pct") < -0.12
+        assert result.get("il_drawdown_pct") < -0.25
         assert result.get("LLM_FORBIDDEN") is True
 
-    def test_kill_switch_not_at_exactly_12pct(self, m, monkeypatch):
-        """IL drawdown ровно -12% → НЕ срабатывает (threshold строго <)"""
+    def test_kill_switch_not_at_exactly_25pct(self, m, monkeypatch):
+        """IL drawdown ровно -25% → НЕ срабатывает (threshold строго <)."""
         edge_state = {
-            "equity": 8800.0,   # ровно -12% от пика 10000
+            "equity": 7500.0,   # ровно -25% от пика 10000
             "peak_equity": 10000.0,
             "positions": [],
             "daily_history": [],
@@ -120,10 +122,10 @@ class TestILKillSwitch:
 
         assert not result.get("kill_switch")
 
-    def test_kill_switch_not_at_3pct_drawdown(self, m, monkeypatch):
-        """IL drawdown -3% → kill switch НЕ срабатывает"""
+    def test_kill_switch_not_at_20pct_within_budget(self, m, monkeypatch):
+        """IL drawdown -20% → НЕ срабатывает: широкий бюджет Aggressive терпит его."""
         ok_state = {
-            "equity": 9700.0,   # -3% от пика 10000
+            "equity": 8000.0,   # -20% от пика 10000 — в бюджете ≤25%
             "peak_equity": 10000.0,
             "positions": [],
             "daily_history": [],
@@ -139,7 +141,7 @@ class TestILKillSwitch:
     def test_kill_switch_writes_state_when_not_dry_run(self, m, monkeypatch):
         """kill_switch=True + dry_run=False → save_lp_state вызывается"""
         bad_state = {
-            "equity": 8000.0,   # -20% от пика 10000
+            "equity": 7000.0,   # -30% от пика 10000 (< -25%)
             "peak_equity": 10000.0,
             "positions": [],
             "daily_history": [],
@@ -159,8 +161,8 @@ class TestILKillSwitch:
         assert saved.get("LLM_FORBIDDEN") is True
 
     def test_kill_switch_threshold_constant(self, m):
-        """IL_KILL_THRESHOLD = -0.12"""
-        assert m.IL_KILL_THRESHOLD == pytest.approx(-0.12)
+        """IL_KILL_THRESHOLD = -0.25 (Aggressive-бюджет ≤25%, owner «Гоу B»)."""
+        assert m.IL_KILL_THRESHOLD == pytest.approx(-0.25)
 
 
 # ── 3. Delta-neutral requirement ────────────────────────────────────────────
@@ -425,8 +427,8 @@ class TestLLMForbidden:
     def test_kill_switch_result_llm_forbidden(self, m, monkeypatch):
         """Результат kill_switch содержит LLM_FORBIDDEN=True"""
         bad_state = {
-            "equity": 8000.0,
-            "peak_equity": 10000.0,  # -20%
+            "equity": 7000.0,
+            "peak_equity": 10000.0,  # -30% (< -25% Aggressive-порог)
             "positions": [],
             "daily_history": [],
             "cycles_completed": 0,
@@ -474,9 +476,9 @@ class TestVersionAndConstants:
         assert isinstance(m.LP_CYCLE_VERSION, str)
         assert "lp_cycle" in m.LP_CYCLE_VERSION
 
-    def test_il_kill_threshold_is_minus_12pct(self, m):
-        """IL_KILL_THRESHOLD = -0.12"""
-        assert m.IL_KILL_THRESHOLD == pytest.approx(-0.12)
+    def test_il_kill_threshold_is_minus_25pct(self, m):
+        """IL_KILL_THRESHOLD = -0.25 (Aggressive-бюджет ≤25%, owner «Гоу B»)."""
+        assert m.IL_KILL_THRESHOLD == pytest.approx(-0.25)
 
     def test_golive_min_days_is_14(self, m):
         """GoLive minimum = 14 дней"""
@@ -534,3 +536,45 @@ class TestDailyHistoryDedup:
         if saved_states:
             history = saved_states[-1].get("daily_history", [])
             assert len(history) == 1
+
+
+# ── 10. Разовый owner-approved пересев на $100k (решение владельца 2026-08-24) ──────
+# Инвариант #16 / журнал W34: живая книга шла на легаси-сиде $33k; владелец выбрал
+# чистый рестарт на $100k. Маркер-guarded: один раз, marked-книгу повторно не затирает.
+
+class TestReseed100kMigration:
+    def test_legacy_book_reset_to_clean_100k(self, m, monkeypatch):
+        legacy = {
+            "sleeve": "C", "seed_equity": 33333.33, "equity": 33450.92, "peak_equity": 33450.92,
+            "il_drawdown_pct": 0.0,
+            "positions": [{"pool_id": "susde", "is_delta_neutral": True}],
+            "daily_history": [{"date": "2026-08-21", "equity": 33400, "positions_count": 2}],
+            "cycles_completed": 930,
+        }
+        captured = {}
+        monkeypatch.setattr(m, "load_lp_state", lambda: dict(legacy))
+        monkeypatch.setattr(m, "save_lp_state", lambda s: captured.update(s))
+
+        m.run_lp_cycle(dry_run=False)
+
+        assert captured.get("reseed_100k_done") is True
+        assert captured.get("seed_equity") == pytest.approx(100000.0)
+        assert len(captured.get("daily_history")) == 1
+        assert captured["daily_history"][-1]["deployed_usd"] == pytest.approx(100000.0)
+
+    def test_marked_book_not_re_wiped(self, m, monkeypatch):
+        booked = {
+            "sleeve": "C", "seed_equity": 100000.0, "equity": 111111.0, "peak_equity": 111111.0,
+            "il_drawdown_pct": 0.0,
+            "positions": [{"pool_id": "susde", "is_delta_neutral": True}],
+            "daily_history": [{"date": "2026-08-01", "equity": 111111.0, "positions_count": 2}],
+            "cycles_completed": 5, "reseed_100k_done": True,
+        }
+        captured = {}
+        monkeypatch.setattr(m, "load_lp_state", lambda: dict(booked))
+        monkeypatch.setattr(m, "save_lp_state", lambda s: captured.update(s))
+
+        m.run_lp_cycle(dry_run=False)
+
+        assert captured.get("equity") >= 111111.0
+        assert captured.get("reseed_100k_done") is True

@@ -154,9 +154,22 @@ def test_shm_portfolio_health_reads_health_score_key(tmp_path):
     mon = SystemHealthMonitor(data_dir=str(data), project_root=str(tmp_path))
     mon._prelude()
     res = mon._check_portfolio_health("d6_risk_gates")
-    # 50 < floor(70) -> CRITICAL, and the score was actually READ (value set).
+    # 50 < floor(70) -> WARNING, and the score was actually READ (value set).
+    #
+    # ADR-123 (решение владельца 22.08, вариант 1): композит ниже пола 70 = WARNING у ОБОИХ
+    # сторожей; CRITICAL в d6_risk_gates остаётся за настоящими отказами гейтов. Ожидание
+    # изменено НАМЕРЕННО по этому ADR (инв. #16), запись — `docs/journal/2026-W34.md`, цикл
+    # #353. Предмет теста при этом НЕ ослаблен и не сужен: он про то, что читается ключ
+    # `health_score` (а не `score`) и что прочитанное значение доехало до результата —
+    # обе проверки на месте, порог 70 не тронут, а уровень проверяется по-прежнему точным
+    # равенством (WARNING, не «не CRITICAL»), поэтому откат правки ADR-123 красит и его.
+    #
+    # Этот тест ветка `claude/health-verdict-alignment` не обновила — она правила только
+    # `tests/test_system_health_monitor.py`. Поймано полным прогоном цикла #353 против
+    # контроля на чистом origin того же sha; в изоляции воспроизводится обеими сторонами
+    # (моё дерево — red, контроль — green).
     assert res.value == 50.0
-    assert res.status == CRITICAL
+    assert res.status == WARNING
 
 
 def test_agent_health_portfolio_reads_health_score_key(tmp_path):

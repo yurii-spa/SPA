@@ -2108,3 +2108,104 @@ class TestIdentityBorrowedFromTheJournal:
         assert guard.anchor_of({"session_pid": True, "session_pid_start": "S"}) is None
         assert guard.anchor_of({"session_pid": 1, "session_pid_start": "S"}) is None
         assert guard.anchor_of("не запись") is None
+
+
+# ── 22. относительный путь в объявлении: каталог объявления называет дерево ──
+#
+# Авария, воспроизводимая дословно (цикл #363, 24.08). Сессия `rnd-75-rearm` объявила
+# `scripts/edge_rearm_rule.py`, `spa_core/tests/test_edge_rearm_rule.py` и
+# `docs/DYNAMIC_LEVERAGE_GUARDIAN.md` ОТНОСИТЕЛЬНЫМИ путями. `--files` документирован как
+# «absolute paths», но ничем это не проверяется. Шаг 0a напечатал по последнему из них:
+#
+#   «есть на origin/main, но содержимого из … НЕТ в истории origin/main для этого файла;
+#    своё дерево сессии не определено — путь объявлен относительным — рабочее дерево в
+#    записи не названо»
+#
+# То есть разбор «чьё это расхождение» (класс #252 выше) для такой записи выключен НАВСЕГДА,
+# и запись обречена висеть обвинением, даже когда своё дерево совпадает с базой байт-в-байт.
+# `docs/DYNAMIC_LEVERAGE_GUARDIAN.md` — ровно тот файл, на котором класс #252 и был измерен.
+#
+# Чинится тем же принципом, что и всё остальное здесь: дерево называет САМА запись
+# (`cwd`, пишет `log_session_change.py`), а не догадка читателя. Каждый тест ниже — контроль
+# в обе стороны: без `cwd` поведение обязано остаться прежним (fail-CLOSED).
+
+class TestRelativePathNamesItsTreeByAnnounceCwd:
+    def _two_trees(self, repo, tmp_path):
+        mine = tmp_path / "spa_rnd75"
+        theirs = tmp_path / "spa_c249"
+        _git(repo, "worktree", "add", "-q", "--detach", str(mine), "base")
+        _git(repo, "worktree", "add", "-q", "--detach", str(theirs), "base")
+        return mine, theirs
+
+    def test_relative_path_without_cwd_still_refuses_to_name_a_tree(self, guard, repo,
+                                                                    tmp_path):
+        """ОБРАТНЫЙ КОНТРОЛЬ. Старые записи (их в журнале сотни) не начинают судиться
+        догадкой: без каталога объявления вердикт и его формулировка прежние."""
+        self._two_trees(repo, tmp_path)
+        tree, why = guard.declaring_tree("scripts/kept.py", repo)
+        assert tree is None
+        assert "путь объявлен относительным — рабочее дерево в записи не названо" == why
+
+    def test_relative_path_plus_cwd_names_the_declaring_tree(self, guard, repo, tmp_path):
+        """Прямая починка: `cwd` = дерево объявившего ⇒ дерево названо, и названо ЕГО."""
+        mine, theirs = self._two_trees(repo, tmp_path)
+        tree, why = guard.declaring_tree("scripts/kept.py", repo, announce_cwd=str(mine))
+        assert why is None
+        assert guard._same_tree(tree, mine)
+        assert not guard._same_tree(tree, theirs)
+
+    def test_cwd_of_a_deleted_tree_is_not_guessed(self, guard, repo, tmp_path):
+        """Каталог объявления мог быть снят вместе с деревом. Подстановки соседнего дерева
+        не происходит — причина названа своим именем (тот же порядок, что у удалённого
+        дерева абсолютного пути)."""
+        mine, theirs = self._two_trees(repo, tmp_path)
+        shutil.rmtree(mine)
+        tree, why = guard.declaring_tree("scripts/kept.py", repo, announce_cwd=str(mine))
+        assert tree is None
+        assert not guard._same_tree(tree or "/", theirs)
+        assert "каталога объявления" in why and "больше нет" in why
+
+    def test_a_relative_cwd_is_refused_rather_than_resolved_against_the_runner(self, guard,
+                                                                              repo):
+        """`cwd` сам обязан быть абсолютным: относительный склеился бы с каталогом ЧИТАТЕЛЯ
+        (прод-дерева), то есть с деревом, к объявлению отношения не имеющим."""
+        tree, why = guard.declaring_tree("scripts/kept.py", repo, announce_cwd="../spa_c249")
+        assert tree is None and "тоже не абсолютен" in why
+
+    def test_cwd_never_overrides_an_absolute_declared_path(self, guard, repo, tmp_path):
+        """Приоритет: путь абсолютен ⇒ он и называет дерево. Иначе запись, где сессия
+        объявила ЧУЖОЙ абсолютный путь из своего каталога, читалась бы наоборот."""
+        mine, theirs = self._two_trees(repo, tmp_path)
+        tree, why = guard.declaring_tree(str(theirs / "scripts" / "kept.py"), repo,
+                                         announce_cwd=str(mine))
+        assert why is None and guard._same_tree(tree, theirs)
+
+    def test_end_to_end_relative_announce_is_no_longer_a_false_accusation(self, guard, repo,
+                                                                          tmp_path):
+        """ФОРМА АВАРИИ ЦЕЛИКОМ, через `build_report`: своё дерево совпадает с базой,
+        расходится ЧУЖОЕ, путь объявлен относительно своего дерева.
+
+        До починки такая запись печаталась как «НЕ ДОСТАВЛЕНО … своё дерево сессии не
+        определено»; после — тот же разбор, что у абсолютного пути (#252)."""
+        mine, theirs = self._two_trees(repo, tmp_path)
+        (theirs / "scripts" / "kept.py").write_text("чужая правка\n", encoding="utf-8")
+        # Ярлык с pid — как во всех фикстурах файла: `ps` подменён (`fake_ps({})`), так что
+        # хоста он не касается, а сессия читается мёртвой. Настоящая запись 24.08 звалась
+        # `rnd-75-rearm`, и её активность отдельно уходит в `unmeasured` — здесь предмет
+        # другой (атрибуция дерева), поэтому она не должна забирать запись из разбора.
+        rec = entry("pid45275", ["scripts/kept.py"])
+        rec["cwd"] = str(mine)
+        rep = report(guard, repo, [rec])
+        assert [f.get("foreign_only") for f in rep["findings"]] == [True]
+        assert str(theirs) in rep["findings"][0]["detail"]
+        assert "НЕ ДОСТАВЛЕНО" not in guard.render(rep)
+
+    def test_end_to_end_without_cwd_keeps_the_old_strict_verdict(self, guard, repo, tmp_path):
+        """ОБРАТНЫЙ КОНТРОЛЬ к предыдущему: та же запись БЕЗ `cwd` судится по-старому —
+        находка остаётся строгой, покрытие не сужено."""
+        mine, theirs = self._two_trees(repo, tmp_path)
+        (theirs / "scripts" / "kept.py").write_text("чужая правка\n", encoding="utf-8")
+        rep = report(guard, repo, [entry("pid45275", ["scripts/kept.py"])])
+        assert [bool(f.get("foreign_only")) for f in rep["findings"]] == [False]
+        assert "своё дерево сессии не определено" in rep["findings"][0]["detail"]
+        assert rep["exit_code"] == 1

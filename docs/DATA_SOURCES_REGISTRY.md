@@ -39,7 +39,7 @@ These sources form the primary paper-trading universe.
 | `compound_v3_usdc` | Compound V3 Comet | USDC | ~4.8% | `compound_v3.py` | Mainnet, T1 |
 | `aave_v3_base` | Aave V3 | USDC | ~4.6% | `aave_v3_arbitrum.py` | Base chain |
 | `morpho_blue` | Morpho Blue | USDC | ~5.0% | `morpho_blue.py` | Mainnet |
-| `sky_susds` | Sky (MakerDAO) | sUSDS | 0% current | monitor only | GSM Pause Delay rule |
+| `sky_susds` | Sky (MakerDAO) | sUSDS | allocator-decided | T1 since 2026-08-05 | GSM Pause Delay ≥ 48h met (ADR-065) |
 | `sfrax` | Frax Finance | sFRAX | ~4.5% | yield feed | Research |
 
 ---

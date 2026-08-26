@@ -1,32 +1,42 @@
 """
-Engine B (HY/Carry) paper trading cycle — EPIC-1 S1.3.
-Запускается отдельно от Engine A cycle_runner.
+Engine B (HY/Carry) paper trading cycle — пакет **Balanced** (сайт: hy → balanced,
+ADR-103 / generate_track_snapshot.py). Запускается отдельно от Engine A cycle_runner.
 
-LLM_FORBIDDEN. fail-closed: EXIT режим → skip.
+LLM_FORBIDDEN. Только stdlib. Атомарные записи: tmp + os.replace.
+
+Постура (решение владельца 2026-08 «начинай», разблокировка простоя):
+рукав Balanced держит book СПЛОШНОЙ — каждый цикл ребалансирует поимённые позиции
+из живого apy_ranking и начисляет по их живому APY. Раньше цикл ГЕЙТИЛСЯ прокси-
+режимом ENTER/EXIT над несуществующим perp-funding фидом: фид отсутствовал → режим
+fail-closed'ился в EXIT → рукав НЕ открывал позиций НИКОГДА (замер: 918 циклов
+вхолостую с 22.06 при живых агентах). Гейтом остаётся то, что и должно им быть:
+  • kill-switch по просадке (−8%) — форсирует EXIT и халтит;
+  • CIO-директива allow_new (постура RED ⇒ hold+reduce, новых не открываем).
+`regime` в state/барах теперь ЧЕСТНАЯ ПОСТУРА книги (ENTER = развёрнута и здорова,
+WATCH = в кэше/нечего разворачивать, EXIT = killed), а не мёртвый perp-прокси — так
+CHECK-HY-002 (≥7 дней ENTER) снова осмысленна. RiskPolicy v1.0 НЕ трогается: это
+paper-рукав (инвариант #9), пороги политики неизменны.
+
 GoLiveChecker-HY: нужно 14+ дней paper trading для прохождения.
-
-Атомарные записи: tmp + os.replace. Только stdlib.
 """
 # LLM_FORBIDDEN
 from pathlib import Path
 import json
 import os
 from spa_core.utils import clock
+from spa_core.paper_trading import sleeve_book
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _HY_DATA_PATH = _PROJECT_ROOT / "data" / "hy_paper_trading.json"
 _HY_REGIME_LOG_PATH = _PROJECT_ROOT / "data" / "hy_regime_log.json"
 
-HY_CYCLE_VERSION = "hy_cycle_v1.1"
+HY_CYCLE_VERSION = "hy_cycle_v1.2"
 
-# Virtual seed capital for the HY sleeve — separate book ON TOP of the $100k safe
-# sleeve, so the go-live honest track is untouched (decision 2026-06-23).
-# 2026-08-08 (мандат владельца): пакет Balanced = $100k, как Conservative и
-# Aggressive — иначе три трека несопоставимы по доходности и просадке.
-# Пропорция рукавов HY:LP = 2:1 сохранена, изменён только масштаб.
-HY_SEED_EQUITY = 66_666.67
+# Virtual seed capital — пакет Balanced = $100k (мандат владельца 2026-08: три пакета
+# сопоставимы по капиталу). Ровно тот же $100k, что у Conservative и Aggressive.
+HY_SEED_EQUITY = sleeve_book.PACKAGE_SEED_USD
 
-# Kill switch threshold: drawdown > 8% → EXIT
+# Kill switch threshold: drawdown > 8% → EXIT (в бюджете тира Balanced ≤10%)
 _KILL_DRAWDOWN_THRESHOLD = -0.08
 
 # GoLive requirement: минимум 14 дней трека
@@ -148,15 +158,18 @@ def compute_drawdown(equity: float, peak_equity: float) -> float:
 
 def run_hy_cycle(dry_run: bool = True) -> dict:
     """
-    Один цикл Engine B HY/Carry paper trading.
+    Один цикл Engine B (пакет Balanced) paper trading.
 
     Логика:
-      1. Читает state из hy_paper_trading.json
-      2. Получает текущий режим из hy_regime_log.json
-      3. Если режим != ENTER → пропускаем (fail-closed, cycle_skipped=True)
-      4. Считаем drawdown; если < -8% → kill_switch, форсируем EXIT
-      5. Обновляем daily_history (дедупликация по дате)
-      6. Если dry_run=False → атомарная запись в hy_paper_trading.json
+      1. Читает state из hy_paper_trading.json.
+      2. Чистый старт: рукав, НИКОГДА не державший реальной позиции, (пере)сеется на
+         мандатный $100k (счётчик ещё не начинался). Держал позиции → не трогаем.
+      3. Считаем drawdown; если < -8% → kill_switch, форсируем EXIT, халтим.
+      4. Иначе — СПЛОШНОЙ деплой: ребаланс поимённой book из живого apy_ranking
+         (CIO-директива allow_new гейтит только НОВЫЕ позиции), начисление по живому
+         APY каждой позиции. Нет живых данных ⇒ держим, доход 0 (fail-closed).
+      5. `regime` пишется как честная постура (ENTER развёрнута / WATCH кэш / EXIT kill).
+      6. Обновляем daily_history (дедуп по дате). dry_run=False → атомарная запись.
 
     LLM_FORBIDDEN. fail-closed. dry_run=True по умолчанию.
     """
@@ -166,17 +179,38 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
 
     state = load_hy_state()
 
-    # Self-seed: fund the sleeve ONLY when the state is genuinely fresh (never run,
-    # no equity, no history). Guards against clobbering an in-flight book.
-    # 2026-08-08 (мандат владельца «три пакета должны работать»): прежнее условие
-    # требовало ПУСТОЙ истории и НУЛЯ циклов — но первый же прогон дописывал в
-    # историю запись с нулевым капиталом, и засев становился НЕВОЗМОЖЕН НАВСЕГДА.
-    # Замер: HY 918 циклов, LP 929 циклов вхолостую с 22.06 — книги нулевые,
-    # агенты живы, «работа» имитировалась. Класс «замок, который нельзя открыть»
-    # (ср. go-live на невосстановимых дырах, ADR-087, выписан как ADR-067).
-    # Новое условие: засеваем, если денег НЕ БЫЛО НИКОГДА — ни сейчас, ни в
-    # истории. Книга, у которой капитал БЫЛ и обнулился, НЕ засевается: это
-    # потеря, её надо разбирать, а не затирать свежим сидом (fail-closed).
+    # ── Разовый owner-approved пересев на мандатный $100k (решение владельца 2026-08-24) ──
+    # Живые книги пошли на ЛЕГАСИ-сидах ($66k у Balanced), потому что были профинансированы
+    # раньше, и штатный self-seed их (правильно) не трогал по _ever_funded. Владелец явно
+    # выбрал ЧИСТЫЙ рестарт на $100k, сознательно приняв потерю накопленных дней. Это НЕ
+    # ослабление предохранителя: штатный self-seed ниже по-прежнему fail-closed по
+    # _ever_funded; здесь — разовая миграция по прямому указанию владельца, защищённая
+    # маркером reseed_100k_done, чтобы сработать РОВНО ОДИН РАЗ и никогда не затереть
+    # $100k-книгу повторно. Можно удалить после того, как маркер проставлен в проде.
+    # Условие узкое: срабатывает ТОЛЬКО на профинансированной книге НИЖЕ мандата
+    # (0 < seed < $100k) — то есть на реальном легаси-сиде $66k. Свежие книги (seed=0) и
+    # уже $100k-книги под условие не попадают (и синтетические фикстуры тестов тоже).
+    if (not state.get("reseed_100k_done")
+            and 0 < float(state.get("seed_equity", 0) or 0) < sleeve_book.PACKAGE_SEED_USD):
+        state["seed_equity"] = HY_SEED_EQUITY
+        state["equity"] = HY_SEED_EQUITY
+        state["peak_equity"] = HY_SEED_EQUITY
+        state["drawdown_pct"] = 0.0
+        state["positions"] = []
+        state["daily_history"] = []
+        state["regime"] = "EXIT"
+        state["reseed_100k_done"] = True
+        state["note"] = (f"Balanced (Engine B) — clean ${HY_SEED_EQUITY:,.0f} restart "
+                         f"(owner decision 2026-08-24).")
+
+    # Self-seed: засеваем рукав ТОЛЬКО когда он по-настоящему свежий (денег нет ни
+    # сейчас, ни в истории). Guards against clobbering an in-flight book.
+    # 2026-08 (мандат «начинай», $100k): сид поднят до мандатного $100k (константа
+    # HY_SEED_EQUITY = PACKAGE_SEED_USD) — сами условия засева НЕ трогаем, они и так
+    # верны: свежая книга (seed<=0, equity<=0, без ever_funded) сеется чистым днём-1
+    # на $100k. Книга, у которой капитал БЫЛ (даже фантомный) — НЕ засевается: это
+    # потеря / уже начатый трек, её разбирают, а не затирают (fail-closed, инвариант
+    # владельца 08.08; сторож spa_core/tests/test_sleeve_seeding_lock.py).
     _hist = state.get("daily_history") or []
     _ever_funded = any(float(h.get("equity", 0) or 0) > 0 for h in _hist)
     if (float(state.get("seed_equity", 0) or 0) <= 0
@@ -185,33 +219,12 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
         state["seed_equity"] = HY_SEED_EQUITY
         state["equity"] = HY_SEED_EQUITY
         state["peak_equity"] = HY_SEED_EQUITY
-        state["note"] = f"Engine B HY sleeve — seeded ${HY_SEED_EQUITY:,.0f} virtual."
+        state["note"] = (f"Balanced (Engine B) — clean start seeded "
+                         f"${HY_SEED_EQUITY:,.0f} virtual (owner mandate 2026-08).")
 
-    # Refresh regime from live data (writes hy_regime_log.json), then read it back.
+    # Обновляем perp-прокси лог для наблюдаемости (НЕ гейтит деплой — см. docstring).
     refresh_hy_regime(state.get("regime", "EXIT"), state.get("drawdown_pct", 0.0))
-    regime = get_hy_regime()
-
-    # Всегда обновляем regime в state
-    state["regime"] = regime
     state["LLM_FORBIDDEN"] = True
-
-    # ── fail-closed: режим не ENTER → пропускаем цикл ──────────────────────
-    if regime != "ENTER":
-        state["last_cycle_at"] = now.isoformat() + "Z"
-        state["cycles_completed"] = state.get("cycles_completed", 0) + 1
-        if not dry_run:
-            save_hy_state(state)
-        return {
-            "sleeve": "B",
-            "cycle_skipped": True,
-            "reason": f"regime={regime} — no new HY positions",
-            "equity": state.get("equity", 0.0),
-            "drawdown_pct": state.get("drawdown_pct", 0.0),
-            "regime": regime,
-            "ran_at": now.isoformat() + "Z",
-            "dry_run": dry_run,
-            "LLM_FORBIDDEN": True,
-        }
 
     # ── drawdown kill switch ─────────────────────────────────────────────────
     equity = state.get("equity", 0.0)
@@ -244,21 +257,19 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
             "LLM_FORBIDDEN": True,
         }
 
-    # ── rebalance the REAL paper book + accrue per-position (dedup by date) ──
-    # #208 / ADR-103: раньше здесь начислялась медианная ставка ПОЛОСЫ на весь
-    # капитал при пустом списке позиций — «начисление — не трек» (решение
-    # владельца 19.08). Теперь рукав держит поимённые позиции из живого
-    # apy_ranking и каждая начисляет по СВОЕМУ живому APY. Нет живых данных ⇒
-    # позиции держатся, доход 0, ничего не выдумывается (fail-closed).
+    # ── СПЛОШНОЙ деплой: ребаланс поимённой book + начисление (дедуп по дате) ──
+    # #208 / ADR-103: раньше начислялась медианная ставка ПОЛОСЫ на весь капитал при
+    # пустом списке позиций — «начисление — не трек» (решение владельца 19.08). Теперь
+    # рукав держит поимённые позиции из живого apy_ranking и каждая начисляет по СВОЕМУ
+    # живому APY. Нет живых данных ⇒ позиции держатся, доход 0 (fail-closed). Деплой
+    # больше НЕ гейтится perp-режимом ENTER (мандат «начинай»): гейты — kill-switch
+    # выше и CIO-директива allow_new (только НОВЫЕ позиции).
+    from spa_core.investment_os.directive import cio_allows_new_positions
+    allow_new = cio_allows_new_positions()
     existing_dates = {entry.get("date") for entry in state.get("daily_history", [])}
     if today not in existing_dates:
-        from spa_core.paper_trading import sleeve_book
-        from spa_core.investment_os.directive import cio_allows_new_positions
         rows = sleeve_book.load_ranking_rows()
         cands = sleeve_book.hy_candidates(rows)
-        # CIO-директива (ADR-103): постура RED ⇒ новых позиций не открываем,
-        # удержание и начисление по уже открытым разрешены (hold+reduce OK).
-        allow_new = cio_allows_new_positions()
         book, opened, closed = sleeve_book.rebalance_book(
             state.get("positions") or [], cands, equity,
             today=today, allow_new=allow_new,
@@ -268,6 +279,10 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
         if equity > peak:
             peak = equity
         drawdown = compute_drawdown(equity, peak)
+        # Честная постура книги: развёрнута в рынок ⇒ ENTER; всё в кэше ⇒ WATCH.
+        # (EXIT ставит только kill-switch выше.) Так CHECK-HY-002 «≥7 дней ENTER»
+        # снова осмысленна — считает дни реального присутствия в рынке.
+        regime = "ENTER" if deployed > 0 else "WATCH"
         state["equity"] = equity
         state["positions"] = book
         state.setdefault("daily_history", []).append({
@@ -285,8 +300,14 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
             "cio_allowed_new": allow_new,
             "accrual_basis": sleeve_book.ACCRUAL_BASIS,
         })
+    else:
+        # Тот же день уже записан — постуру берём из текущей развёрнутости книги.
+        _dep = sum(float(p.get("notional_usd") or 0.0)
+                   for p in (state.get("positions") or []))
+        regime = "ENTER" if _dep > 0 else "WATCH"
 
     # ── обновляем state ──────────────────────────────────────────────────────
+    state["regime"] = regime
     state["peak_equity"] = peak
     state["drawdown_pct"] = drawdown
     state["last_cycle_at"] = now.isoformat() + "Z"

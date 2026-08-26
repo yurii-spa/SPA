@@ -24,6 +24,8 @@ from pathlib import Path
 
 import pytest
 
+from spa_core.tests import _child_pytest
+
 # Тот САМЫЙ объект, который зарегистрировал conftest (он грузит модуль по пути
 # к файлу под именем `spa_package_data_guard`). Вторая копия сторожа проверяла бы
 # не то, что работает в прогоне.
@@ -56,13 +58,15 @@ def _run_child(test_file: Path, with_guard: bool):
     env["PYTHONPATH"] = os.pathsep.join(
         [str(REPO_ROOT), str(TESTS_DIR), env.get("PYTHONPATH", "")]
     )
-    cmd = [sys.executable, "-m", "pytest", str(test_file), "-q", "-p", "no:cacheprovider"]
+    extra = ["-q", "-p", "no:cacheprovider"]
     if with_guard:
-        cmd += ["-p", "_package_data_guard"]
+        extra += ["-p", "_package_data_guard"]
     # Потолок узкий НАМЕРЕННО: здоровый прогон занимает доли секунды (замер #315),
     # и зависший дочерний pytest обязан назваться быстро, а не съесть цикл.
-    return subprocess.run(
-        cmd, cwd=str(REPO_ROOT), env=env, capture_output=True, text=True, timeout=120
+    # Якорь `--rootdir` даёт `_child_pytest` — без него pytest считает rootdir
+    # общим предком cwd и аргумента и уходит в scandir по системному /tmp (#382).
+    return _child_pytest.run_child_pytest(
+        test_file, *extra, cwd=REPO_ROOT, env=env, timeout=120
     )
 
 
@@ -134,8 +138,15 @@ def test_child_run_goes_red_and_names_the_writer():
     `tmp_path`. Замер #315: дочерний pytest, чей файл лежит внутри basetemp
     родителя (`.../pytest-of-<user>/pytest-N/...`), не доходит даже до
     `--collect-only` — 300 с и таймаут; тот же файл вне этого дерева отрабатывает
-    за 0.00 с. Родство каталогов здесь не деталь оформления, а условие, при
-    котором положительный контроль вообще выполним.
+    за 0.00 с.
+
+    Цикл #382 измерил, ПОЧЕМУ, и оказалось, что каталог тут ни при чём: pytest
+    берёт rootdir общим предком cwd и аргумента и обходит `scandir`-ом всё, что
+    тот накрыл (на замерявшейся машине — 9 780 560 записей в системном /tmp).
+    `mkdtemp` работал ЛИШЬ потому, что возвращает неразрешённый `/var/...`; тот
+    же путь после `.resolve()` виснет ровно так же. Условие выполнимости этого
+    контроля теперь — якорь `--rootdir` в `_child_pytest.run_child_pytest`,
+    а не родство каталогов.
     """
     junk = guard.PACKAGE_DATA_DIR / JUNK_NAME
     child_dir = Path(tempfile.mkdtemp(prefix="spa_package_data_guard_control_"))
