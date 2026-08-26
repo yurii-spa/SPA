@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **694** · ждёт владельца: **1** · занято сессиями: **6**.
+> Всего карточек: **694** · ждёт владельца: **0** · занято сессиями: **6**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
-- **CI молча не запустился на PR — зелёная галочка означала «не проверяли»**  ·  `owner-decision-ci-molcha-ne-zapustilsya-na-pr-zelenaya.md`
+_Пусто — открытых решений на владельце нет._
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
@@ -21,8 +21,6 @@
 
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (173)
 
-### · needs-owner
-- CI молча не запустился на PR — зелёная галочка означала «не проверяли»  ·  `owner-decision-ci-molcha-ne-zapustilsya-na-pr-zelenaya.md` · 2026-08-26
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -196,6 +194,7 @@
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 ### · owner-done
 - Наблюдённая угроза до тебя не доезжает, а наша собственная остановка доезжает каждый день  ·  `own-red-team-nablyudennaya-ugroza-ne-doezzhaet.md` · 2026-08-18
+- CI молча не запустился на PR — зелёная галочка означала «не проверяли»  ·  `owner-decision-ci-molcha-ne-zapustilsya-na-pr-zelenaya.md` · 2026-08-26
 - Ключ GitHub: переспрашиваю — прошлые кнопки были моей ошибкой  ·  `owner-decision-klyuch-github-peresprashivayu-proshlye-k.md` · 2026-08-26
 
 ## 📥 Inbox (задания: Telegram / заметки / голос)  (334)
