@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "ADR-076.3: атрибуция кэша обязана назвать лимит цепочки вместо UNEXPLAINED"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-08
 ---
@@ -68,3 +68,9 @@ RiskPolicy по-разному определяют живой TVL, и атри�
 причины не двигается. Живой трек `data/equity_curve_daily.json` не трогать.
 
 Родитель: [ADR-076](../../docs/decisions/ADR-076-live-feeds-outside-ethereum.md).
+
+---
+
+## Закрытие (аудит очереди, 26.08)
+
+Решено: `spa_core/allocator/rebalance_economics.py` — трёхстороннее объяснение (explained / named_not_quantified / UNEXPLAINED_CASH) на основе policy_refusals заменило бинарный UNEXPLAINED.

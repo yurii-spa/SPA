@@ -2,10 +2,16 @@
 trackerStatus:
   type: inbox
 title: "ALLOC-002-отбор: топ-8 по весу беднит книгу — отбирать ПОСЛЕ evidence/TVL-гейта"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-08
 priority: high
 ---
 
 Замер 08.08 (sandbox): отбор лучших 8 по risk-adjusted весу ДО потолков дал кэш 15.8% и APY 4.73 против 10%/6.03 без него — потому что в топ-8 попадают кандидаты, которые затем НЕ проходят TVL/evidence-гейт (aave_v3_base, morpho_blue_base со static TVL), их доли уходят в кэш, а отсечённые живые (compound_v3, euler) в книгу уже не возвращаются. Правильный порядок: сначала отсеять по доказанности (live TVL+APY, ADR-053/061), потом отбирать лучшие N среди ПРОХОДНЫХ, потом потолки. Плюс: рассмотреть отбор по вкладу в доходность после потолков, а не по сырому весу. Money-path: sandbox-замер до/после обязателен, pre_cutover_gate.
+
+---
+
+## Закрытие (аудит очереди, 26.08)
+
+Решено ADR-138 (`docs/decisions/ADR-138-allocator-selects-best-n-after-gates.md`) — отбор top-N теперь строго ПОСЛЕ evidence/TVL-гейта, докстринг цитирует тот же замер 08.08 (15.8%/4.73 vs 10%/6.03).

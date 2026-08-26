@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-06
 ---
@@ -169,3 +169,9 @@ composite. Среди добавленных: `protocol_defi_yield_bearing_stabl
 
 *Цикл #138. Отдельная находка про сам критерий WIRABLE →
 `inbox-verdikt-wirable-poddelyvaem-22-iz-23-pri`.*
+
+---
+
+## Закрытие (аудит очереди, 26.08)
+
+Решено ADR-133 (`docs/decisions/ADR-133-tier-c-nine-written-off-162-frozen.md`) + `spa_core/analytics/_tier_c_writeoff.py` — те же 5 модулей честно поимённо учтены вместо тихого замалчивания.
