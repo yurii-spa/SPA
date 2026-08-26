@@ -786,10 +786,25 @@ class PaperTrader:
         actions = []
         state = self._load_portfolio_state()
 
-        # Проверка здоровья
+        # Проверка здоровья.
+        #
+        # ADR-134: распродажу вызывает ТРЕБУЕМЫЙ ОТВЕТ, а не сам факт нарушения.
+        # Раньше здесь стояло `if not health.approved` — и книга закрывалась
+        # целиком по ЛЮБОМУ нарушению, включая SOFT-тир просадки, у которого в
+        # тексте нарушения дословно написано «NOT all-cash» (ADR-050). После
+        # доклада проверки книги до симметрии с проверкой перед сделкой поводов
+        # сказать `approved=False` стало больше (доля T2, коридор APY, пол TVL,
+        # кэш-буфер), и старое условие превратило бы просевший APY удерживаемой
+        # позиции в принудительный выход в кэш. Порог не изменился ни один —
+        # изменилось, ЧТО ЗА НИМ СЛЕДУЕТ.
+        from spa_core.risk.policy import RESPONSE_ALL_CASH
+
         health = self.policy.check_portfolio_health(state)
-        if not health.approved:
-            log.error(f"Portfolio health check FAILED: {health}")
+        if health.required_response == RESPONSE_ALL_CASH:
+            log.error(
+                "Portfolio health ALL-CASH kill (%s): %s",
+                "; ".join(health.all_cash_reasons), health,
+            )
             # Kill switch — закрываем всё
             for pos in state.positions:
                 try:
@@ -799,6 +814,20 @@ class PaperTrader:
                 except Exception as e:
                     log.error(f"Failed to close {pos.protocol_key}: {e}")
             return actions
+
+        # ADR-134. Книга вне политики, но распродажи это не требует: покупки и
+        # наращивание стоят, держать / снижать долю / выходить — можно. Отметка
+        # обязана быть ВИДНА (инв. #17): иначе такая книга дошла бы до конца этой
+        # функции и отчиталась `NO_OP: portfolio_healthy`, то есть нарушение
+        # выглядело бы здоровьем.
+        if not health.approved:
+            log.warning("Portfolio HALT_NEW (no forced sell): %s", health.violations)
+            actions.append({
+                "action": "HALT_NEW",
+                "reason": "portfolio_violations",
+                "violations": list(health.violations),
+                "exit_allowed": True,
+            })
 
         # Закрыть позиции с критическим drawdown
         for pos in state.positions:

@@ -407,17 +407,30 @@ class TestRebalanceKillSwitch:
         result = trader.rebalance()
         assert isinstance(result, list)
 
+    # ── ADR-134: правка этих двух тестов НАМЕРЕННАЯ (инвариант #16) ────────────
+    # Обе фикстуры собирали вердикт РУКАМИ и описывали просадку **6.5 %** — это
+    # SOFT-тир [5 %, 10 %), в котором ADR-050 прямо запрещает полный выход в кэш
+    # ("halt new/increase, hold/reduce/withdraw only — NOT all-cash"). То есть
+    # тесты закрепляли ровно тот дефект, который ADR-134 и чинит: `rebalance`
+    # закрывал книгу по ЛЮБОМУ `approved=False`. Утверждение «кил закрывает всё»
+    # сохранено дословно — изменилась только фикстура: она теперь требует
+    # ALL_CASH явно, как это делает настоящий HARD-кил. Ниже добавлен разбор
+    # SOFT-случая, которого у файла не было вовсе, — набор УСИЛЕН, не ослаблен.
+
     def test_rebalance_kill_switch_closes_all(self, trader):
-        """When portfolio health check fails, kill-switch closes all positions."""
-        # Open a position first
+        """A verdict that DEMANDS all-cash closes every position."""
+        from spa_core.risk.policy import RESPONSE_ALL_CASH
+
         trader.open_position("aave-v3-usdc-ethereum", 5_000.0, 4.5, 150e6)
 
-        # Force health check to fail (simulates drawdown > 5%)
+        # HARD tier (≥10%) — the only drawdown band that means all-cash.
         rejected_health = RiskCheckResult(
             check_name="portfolio_health",
             approved=False,
-            violations=["drawdown_exceeded: 6.5% > 5.0%"],
+            violations=["KILL SWITCH TRIGGERED (HARD): drawdown 12.0% ≥ 10.0%"],
             warnings=[],
+            required_response=RESPONSE_ALL_CASH,
+            all_cash_reasons=["HARD kill: drawdown 12.0% ≥ 10.0%"],
         )
         with patch.object(trader.policy, "check_portfolio_health",
                           return_value=rejected_health):
@@ -428,12 +441,16 @@ class TestRebalanceKillSwitch:
 
     def test_rebalance_kill_switch_reason_is_kill_switch(self, trader):
         """Kill-switch close actions carry reason='kill_switch'."""
+        from spa_core.risk.policy import RESPONSE_ALL_CASH
+
         trader.open_position("aave-v3-usdc-ethereum", 5_000.0, 4.5, 150e6)
         rejected_health = RiskCheckResult(
             check_name="portfolio_health",
             approved=False,
-            violations=["drawdown_exceeded"],
+            violations=["KILL SWITCH TRIGGERED (HARD)"],
             warnings=[],
+            required_response=RESPONSE_ALL_CASH,
+            all_cash_reasons=["HARD kill"],
         )
         with patch.object(trader.policy, "check_portfolio_health",
                           return_value=rejected_health):
@@ -441,6 +458,31 @@ class TestRebalanceKillSwitch:
 
         close_actions = [a for a in actions if a.get("reason") == "kill_switch"]
         assert len(close_actions) >= 1
+
+    def test_rebalance_soft_derisk_does_not_liquidate(self, trader):
+        """SOFT tier (6.5%) must NOT go all-cash — ADR-050, enforced since ADR-134.
+
+        This is the case the two tests above used to assert BACKWARDS: they fed
+        a 6.5% drawdown and demanded a full close. A hand-built rejected verdict
+        now means HALT_NEW (fail-safe: all-cash is never inferred, only demanded).
+        """
+        trader.open_position("aave-v3-usdc-ethereum", 5_000.0, 4.5, 150e6)
+        soft = RiskCheckResult(
+            check_name="portfolio_health",
+            approved=False,
+            violations=["SOFT DE-RISK (drawdown 6.5%) — NOT all-cash"],
+            warnings=[],
+        )
+        with patch.object(trader.policy, "check_portfolio_health",
+                          return_value=soft):
+            actions = trader.rebalance()
+
+        assert not [a for a in actions if a.get("reason") == "kill_switch"], actions
+        halt = [a for a in actions if a.get("action") == "HALT_NEW"]
+        assert len(halt) == 1, actions
+        assert halt[0]["exit_allowed"] is True
+        assert not [a for a in actions if a.get("action") == "NO_OP"], (
+            "a violated book must not report itself healthy")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

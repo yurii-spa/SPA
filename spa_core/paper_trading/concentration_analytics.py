@@ -147,6 +147,36 @@ def _classify(hhi_index_deployed: Optional[int]) -> Optional[str]:
 # ─── Pure computation ─────────────────────────────────────────────────────────
 
 
+def _curator_block(positions_usd: Dict[str, float], aum: float) -> Dict[str, Any]:
+    """Блок «концентрация по куратору» для отчёта. НИКОГДА не бросает.
+
+    Всегда несёт ДВЕ вещи разом: измеренную концентрацию и размер собственного
+    незнания. Порознь они врут: `max_pct` без `coverage` читается как гарантия,
+    хотя посчитан по двум протоколам из 36 (инв. #17).
+
+    Недоступная разметка — это ``available: false`` с причиной, а не нули:
+    отсутствие наблюдения обязано отличаться от «концентрации нет».
+    """
+    try:
+        from spa_core.paper_trading.curator_registry import coverage
+        conc = curator_concentration(positions_usd, aum)
+        return {
+            "available": True,
+            "advisory_only": True,
+            "gates_nothing": True,
+            **conc,
+            "coverage": coverage(),
+        }
+    except Exception as exc:  # noqa: BLE001 — advisory: отчёт не падает из-за блока
+        log.warning("curator block degraded: %s", exc)
+        return {
+            "available": False,
+            "advisory_only": True,
+            "gates_nothing": True,
+            "reason": f"разметка кураторов не прочитана: {type(exc).__name__}: {exc}",
+        }
+
+
 def _empty_result(
     notes: List[str],
     *,
@@ -175,6 +205,7 @@ def _empty_result(
         "top1_protocol": None,
         "top3_share": 0.0,
         "num_positions": 0,
+        "curator": _curator_block({}, 0.0),
         "concentration_class": None,
         "max_single_position_share": MAX_SINGLE_POSITION_SHARE,
         "policy_ok": True,
@@ -382,6 +413,17 @@ def build_concentration(
             "policy_ok": policy_ok,
             "policy_breaches": breaches,
             "by_tier": by_tier_echo,
+            # ADR-135 (решение владельца 25.08, вариант Б): концентрация по
+            # КУРАТОРУ переехала из «написана и никем не вызывается» в отчёт.
+            # Кэп считает деньги по имени протокола и не видит, что за
+            # несколькими именами стоит одна команда; замер 18.08 — 50 % книги под
+            # одним куратором при полностью зелёном отчёте. Блок ADVISORY: ничего
+            # не гейтит, порогов RiskPolicy не касается. Рядом с числом ОБЯЗАН
+            # ехать размер незнания (`coverage`) — иначе «max_pct 10 %» читается
+            # как гарантия, хотя кураторы известны у двух протоколов из 36.
+            "curator": _curator_block(
+                {r["protocol"]: r["usd"] for r in rows}, aum
+            ),
             "counts": {
                 "positions": num_positions,
                 "policy_breaches": len(breaches),
@@ -510,47 +552,6 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     return p
 
 
-def main(argv: Optional[List[str]] = None) -> int:
-    parser = _build_arg_parser()
-    # Custom error handling: argparse normally prints to stderr and exits 2 on a
-    # junk arg; this advisory CLI must always exit 0 with a clear ERROR and no
-    # traceback (pattern: exit_liquidity.py).
-    try:
-        args = parser.parse_args(argv)
-    except SystemExit as exc:
-        if exc.code not in (0, None):
-            print(
-                "ERROR: invalid arguments — use --check | --run [--data-dir DIR]",
-                file=sys.stderr,
-            )
-        return 0
-
-    try:
-        doc = build_status_doc(data_dir=args.data_dir)
-        if args.run:
-            outcome = write_status(doc, data_dir=args.data_dir)
-            print(
-                f"concentration_analytics: verdict={doc['verdict']} "
-                f"hhi_index={doc.get('hhi_protocol_deployed_index')} "
-                f"class={doc.get('concentration_class')} "
-                f"top1={doc.get('top1_share')} — "
-                f"{'written' if outcome['changed'] else 'unchanged (idempotent)'} "
-                f"{outcome['path']}"
-            )
-        else:
-            print(json.dumps(doc, ensure_ascii=False, indent=2))
-    except Exception as exc:  # advisory: no tracebacks, exit 0
-        print(
-            f"concentration_analytics: ERROR — {type(exc).__name__}: {exc}",
-            file=sys.stderr,
-        )
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())
-
-
 # ── Концентрация по КУРАТОРУ (advisory, ADR-065 / решение владельца 2026-08-05) ──
 
 # Кто задаёт параметры риска хранилищу. Разные пулы одного куратора — это разные
@@ -560,10 +561,20 @@ if __name__ == "__main__":
 # Замер 2026-08-05: morpho_steakhouse (40 %) + morpho_blue_base (10 %) = 50 % капитала
 # под куратором Steakhouse. Метрика ADVISORY: она ничего не гейтит и не двигает капитал —
 # менять пороги RiskPolicy можно только отдельным ADR. Сначала измерить, потом решать.
-_CURATOR_OF: dict[str, str] = {
-    "morpho_steakhouse": "steakhouse",   # Ethereum, хранилище STEAKUSDC
-    "morpho_blue_base":  "steakhouse",   # Base, хранилище STEAKUSDC — тот же куратор
-}
+# ADR-135 (решение владельца 2026-08-25, вариант Б): разметка кураторов переехала
+# в ДАННЫЕ — `spa_core/paper_trading/curator_registry.py`, где у каждой записи есть
+# источник, дата проверки и степень доверия (pinned / derived / unknown), а у
+# незнания — размер. Здесь остаётся ПРОИЗВОДНОЕ отображение под тем же именем:
+# потребители (и старый тест) продолжают работать, но истина живёт в одном месте.
+def _curator_of_default() -> dict[str, str]:
+    try:
+        from spa_core.paper_trading.curator_registry import curator_of
+        return curator_of()
+    except Exception:  # noqa: BLE001 — advisory: разметка не обязана ронять отчёт
+        return {}
+
+
+_CURATOR_OF: dict[str, str] = _curator_of_default()
 
 
 def curator_concentration(
@@ -606,3 +617,44 @@ def curator_concentration(
         "max_curator": top[0] if top else None,
         "unmapped": sorted(unmapped),
     }
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    parser = _build_arg_parser()
+    # Custom error handling: argparse normally prints to stderr and exits 2 on a
+    # junk arg; this advisory CLI must always exit 0 with a clear ERROR and no
+    # traceback (pattern: exit_liquidity.py).
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as exc:
+        if exc.code not in (0, None):
+            print(
+                "ERROR: invalid arguments — use --check | --run [--data-dir DIR]",
+                file=sys.stderr,
+            )
+        return 0
+
+    try:
+        doc = build_status_doc(data_dir=args.data_dir)
+        if args.run:
+            outcome = write_status(doc, data_dir=args.data_dir)
+            print(
+                f"concentration_analytics: verdict={doc['verdict']} "
+                f"hhi_index={doc.get('hhi_protocol_deployed_index')} "
+                f"class={doc.get('concentration_class')} "
+                f"top1={doc.get('top1_share')} — "
+                f"{'written' if outcome['changed'] else 'unchanged (idempotent)'} "
+                f"{outcome['path']}"
+            )
+        else:
+            print(json.dumps(doc, ensure_ascii=False, indent=2))
+    except Exception as exc:  # advisory: no tracebacks, exit 0
+        print(
+            f"concentration_analytics: ERROR — {type(exc).__name__}: {exc}",
+            file=sys.stderr,
+        )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
