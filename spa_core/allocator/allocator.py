@@ -467,9 +467,19 @@ def _adapter_class_gate(protocol: str) -> tuple[bool, str | None]:
       how two advisory pools came to hold 15 % of the book (D3).
     * ``is_gsm_compliant() == False`` ⇒ not funded. This is the adapter's own
       ACTIVATION invariant — for ``spark_susds`` it is invariant 10 (Sky/sUSDS =
-      0 % until the GSM Pause Delay ≥ 48 h is confirmed on-chain), and
-      ``fluid_fusdc`` declares the same gate deliberately ("аналог Spark sUSDS,
-      protects against governance exploits"). Nothing consulted it (D4).
+      0 % until the GSM Pause Delay ≥ 48 h is confirmed on-chain). Nothing
+      consulted it (D4).
+
+      ADR-137 (owner, 2026-08-25, option A): ``fluid_fusdc`` used to declare the
+      same gate, and this docstring used to call that deliberate. It was not — 48 h
+      is Maker's ``DSPause`` number, and Fluid (Instadapp) has its own governance
+      that we have never read. The gate could therefore answer only "unconfirmed",
+      so a $150.3M pool at 4.82 % was closed to capital by an alien rule rather
+      than by risk — while its sibling ``fluid_usdc``, the same protocol, passed
+      freely. The gate is REMOVED from the adapter (not stubbed to ``True``: a
+      gate that cannot refuse is the literal ``True`` wearing a risk gate's name),
+      and ``hasattr`` below therefore skips Fluid. Admission is the common key —
+      live APY and live TVL.
 
     DELIBERATELY NOT gated on the generic ``is_eligible()``, although the card
     proposed it: for most adapters ``is_eligible`` is ``gsm ∧ MIN_APY ≤ apy ≤
@@ -614,6 +624,23 @@ class StrategyAllocator:
     MAX_PROTOCOLS: int = (
         _POLICY_CONFIG.max_protocols if _POLICY_CONFIG is not None else 8
     )
+    # ── ADR-136: сетевые потолки. У аллокатора на входе не было поля «сеть»,
+    #    хотя сеть всех кандидатов определяется из того же файла реестра,
+    #    который аллокатор уже читает. Замер 2026-08-18: предложение модели
+    #    optimized_yield дало 95 % капитала в Ethereum, и гейт отверг раскладку
+    #    ЦЕЛИКОМ — то есть в таком цикле сделок не было вовсе.
+    #    Значения — из той же политики, ни одного нового числа.
+    SINGLE_CHAIN_CAP: float = (
+        _POLICY_CONFIG.max_single_chain_allocation if _POLICY_CONFIG is not None else 0.90
+    )
+    L2_TOTAL_CAP: float = (
+        _POLICY_CONFIG.max_l2_total_allocation if _POLICY_CONFIG is not None else 0.50
+    )
+    BASE_CHAIN_CAP: float = (
+        getattr(_POLICY_CONFIG, "BASE_CHAIN_CAP", 0.20) if _POLICY_CONFIG is not None else 0.20
+    )
+    #: Тот же набор L2, что у входного гейта политики (блок 10).
+    L2_CHAINS: frozenset = frozenset({"arbitrum", "base"})
 
     # Assert: fallback значения должны совпадать с policy (нет silent drift)
     if _POLICY_CONFIG is not None:
@@ -1323,6 +1350,90 @@ class StrategyAllocator:
         )
         return w, True
 
+    def _enforce_chain_caps(
+        self, weights: dict[str, float]
+    ) -> tuple[dict[str, float], list[str]]:
+        """Срезать раскладку до СЕТЕВЫХ потолков политики (ADR-136).
+
+        Три потолка, все из ``RiskConfig``, ни одного нового числа:
+        одна сеть ≤ :data:`SINGLE_CHAIN_CAP`, все L2 вместе ≤ :data:`L2_TOTAL_CAP`,
+        Base ≤ :data:`BASE_CHAIN_CAP` (ADR-025).
+
+        Сеть резолвится ТЕМ ЖЕ ``_resolve_chain_map``, которым её резолвит гейт —
+        импортом, а не копией: копия разъехалась бы с гейтом ровно так же, как
+        разъезжались пороги.
+
+        **Неразрешённая сеть — ХУДШИЙ случай, а не «прочее».** Условие владельца
+        к варианту A звучит «протокол, у которого сеть не определяется, — не
+        берётся в раскладку (отказ, а не догадка)», и у подборщика исполнено
+        буквально. Здесь — ступень, чья раскладка ИДЁТ В ЦИКЛ, и обнулять на ней
+        реальный протокол из-за пробела в реестре значит воспроизводить ровно ту
+        аварию, которую ADR-136 и чинит: цикл без сделок. Поэтому неразрешённые
+        считаются **одной и той же неизвестной сетью** — самое концентрированное
+        из возможных предположений. Недосчитать потолок это не может (оценка
+        только строже правды), капитал при этом не простаивает, а имена
+        называются в ``notes``. Отличие от буквы решения владельца названо в
+        ADR-136 §3 — если он предпочтёт жёсткий отказ и здесь, это одна строка.
+
+        Излишек НИКОГДА не перекладывается в другой протокол: он честно остаётся
+        кэшем (тот же принцип, что у :meth:`_enforce_t3_total_cap`).
+        Идемпотентно. Возвращает ``(weights, notes)``; ``notes`` называют каждый
+        срез — молчаливый простой капитала запрещён (ADR-055).
+        """
+        w = dict(weights)
+        notes: list[str] = []
+        funded = [p for p, val in w.items() if val > _EPS]
+        if not funded:
+            return w, notes
+
+        try:
+            from spa_core.risk.policy_enforcer import _resolve_chain_map
+            chain_map, unresolved = _resolve_chain_map(funded)
+        except Exception as exc:  # noqa: BLE001
+            # Карту построить не удалось ⇒ сеть НЕ ИЗМЕРЕНА ни у одного
+            # протокола. Тихо пропустить проверку значило бы выдать «потолки
+            # соблюдены» вместо «не проверено» (инв. #17), поэтому все идут в
+            # ту же корзину худшего случая — то есть книга целиком судится как
+            # одна сеть и режется до 90 %.
+            log.warning("ADR-136: карта сетей не построена (%s) — fail-CLOSED", exc)
+            chain_map, unresolved = {}, list(funded)
+
+        # Худший случай: все неопознанные — одна и та же сеть. Оценка может быть
+        # только СТРОЖЕ правды, поэтому потолок недосчитан быть не может.
+        _UNKNOWN = "<неизвестная сеть>"
+        if unresolved:
+            for p in unresolved:
+                chain_map[p] = _UNKNOWN
+            notes.append(
+                "сеть не определена у " + ", ".join(sorted(unresolved))
+                + f" — считаются ОДНОЙ сетью «{_UNKNOWN}» (худший случай, "
+                "потолок недосчитан быть не может)"
+            )
+
+        def _scale(members: list[str], cap: float, label: str) -> None:
+            total = sum(w.get(p, 0.0) for p in members)
+            if total <= cap + _EPS or total <= _EPS:
+                return
+            scale = cap / total
+            for p in members:
+                w[p] = w[p] * scale
+            notes.append(
+                f"{label}: {total * 100:.2f}% → {cap * 100:.2f}% (излишек честно остался кэшем)"
+            )
+
+        chains = sorted({chain_map.get(p, "") for p in funded if chain_map.get(p)})
+        for ch in chains:
+            _scale([p for p in funded if chain_map.get(p) == ch],
+                   self.SINGLE_CHAIN_CAP, f"сеть {ch}")
+        _scale([p for p in funded if chain_map.get(p) in self.L2_CHAINS],
+               self.L2_TOTAL_CAP, "L2 суммарно")
+        _scale([p for p in funded if chain_map.get(p) == "base"],
+               self.BASE_CHAIN_CAP, "сеть base")
+
+        if notes:
+            log.warning("ADR-136: сетевые потолки применены: %s", "; ".join(notes))
+        return w, notes
+
     # ── заполнение остатка T1-якорем (SPA-V405) ───────────────────────────
     def _fill_remainder(
         self,
@@ -1660,12 +1771,25 @@ class StrategyAllocator:
                 "(излишек честно остался кэшем — не перемещён в более рисковый тир)."
             )
 
+        # ADR-136: сетевые потолки — последний защитный шаг перед учётом тримов.
+        # До него аллокатор о сетях не знал вовсе: замер 2026-08-18 дал 95 % в
+        # Ethereum и гейт отверг раскладку ЦЕЛИКОМ, то есть цикл остался без
+        # сделок. Срезанное остаётся кэшем и попадает в protective_trims ниже,
+        # чтобы перезаполнитель и атрибуция кэша видели ЧИСЛО, а не догадку.
+        _sum_before_chain = sum(capped.values())
+        capped, chain_notes = self._enforce_chain_caps(capped)
+        for _n in chain_notes:
+            notes.append(f"ADR-136 (сетевые потолки): {_n}")
+
         # ADR-072-остаток: явный сигнал «сколько срезали защиты». Дельта каждого
         # защитного шага измерена по факту (сумма до − сумма после), а не выведена
         # из флагов: перезаполнителю и атрибуции кэша нужно ЧИСЛО, не догадка.
         protective_trims: dict[str, float] = {}
         _t2_cut = max(0.0, _sum_before_t2 - _sum_before_t3)
-        _t3_cut = max(0.0, _sum_before_t3 - sum(capped.values()))
+        _t3_cut = max(0.0, _sum_before_t3 - _sum_before_chain)
+        _chain_cut = max(0.0, _sum_before_chain - sum(capped.values()))
+        if _chain_cut > 1e-9:
+            protective_trims["chain_caps"] = round(_chain_cut, 8)
         if _t2_cut > 1e-9:
             protective_trims["t2_total_cap"] = round(_t2_cut, 8)
         if _t3_cut > 1e-9:

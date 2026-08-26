@@ -198,9 +198,23 @@ class TestStrategyAllocator(unittest.TestCase):
         ]
         alloc = self._allocator(adapters)
         res = alloc.allocate(model="equal_weight")
-        self.assertAlmostEqual(res.allocated_pct, 1.0, places=6)
-        self.assertAlmostEqual(res.expected_apy_pct, 9.0, places=4)
-        # инвариант: expected_apy == Σ(weight·apy)
+        # ADR-136: правка утверждения НАМЕРЕННАЯ (инв. #16). Прежнее значение
+        # 1.0 означало книгу, размещённую на 100 % в одной сети (сеть трёх
+        # синтетических протоколов не определяется, и они судятся как ОДНА
+        # неизвестная — худший случай). Политика разрешает 90 %, гейт такую
+        # книгу отвергает (`single_chain_max_pct`), да и кэш-буфер 5 % она тоже
+        # пробивает. Предмет теста — расчёт APY — не изменился: он проверяется
+        # ниже и остался прежним.
+        self.assertAlmostEqual(res.allocated_pct,
+                               StrategyAllocator.SINGLE_CHAIN_CAP, places=6)
+        # 9.0 — среднее APY трёх протоколов, и оно было равно портфельному
+        # ТОЛЬКО потому, что книга размещалась на 100 %. ``expected_apy_pct``
+        # считается от полного AUM, поэтому появившийся кэш честно его разбавляет
+        # (ADR-136). Число выражено через сам потолок, а не литералом 8.1, чтобы
+        # тест не пришлось править ещё раз, если потолок когда-нибудь сдвинут ADR'ом.
+        self.assertAlmostEqual(res.expected_apy_pct,
+                               9.0 * StrategyAllocator.SINGLE_CHAIN_CAP, places=4)
+        # инвариант: expected_apy == Σ(weight·apy) — НЕ изменился
         manual = sum(res.target_weights[p] * apy for p, apy in
                      (("a", 6.0), ("b", 9.0), ("c", 12.0)))
         self.assertAlmostEqual(res.expected_apy_pct, manual, places=4)

@@ -31,22 +31,71 @@ _EPS = 1e-9
 # Торговые дни в году (365 для круглосуточного DeFi)
 _DAYS_YEAR = 365.0
 
+# ── Пороги политики — ЧИТАЮТСЯ, а не переписываются (ADR-136) ────────────────
+# Тюнер предлагает раскладку, которую потом судит гейт. Любое собственное число
+# здесь — это будущее расхождение: замер 2026-08-18 показал предложение с 22.8 %
+# в одном T2-протоколе (гейт разрешает 20 %) и 93.5 % в одной сети (гейт — 90 %).
+# Поэтому значения берутся из ``RiskConfig``, а не набираются заново.
+try:
+    from spa_core.risk.policy import RiskConfig as _RiskConfig
+    _POLICY = _RiskConfig()
+except Exception:  # noqa: BLE001 — тюнер advisory, но тогда он обязан СКАЗАТЬ
+    _POLICY = None
+    log.warning("tuner: RiskConfig недоступен — зеркало порогов не построено")
+
+_P_SINGLE_CHAIN = _POLICY.max_single_chain_allocation if _POLICY else 0.90
+_P_L2_TOTAL = _POLICY.max_l2_total_allocation if _POLICY else 0.50
+_P_BASE_CHAIN = _POLICY.BASE_CHAIN_CAP if _POLICY else 0.20
+_P_T1_CONC = _POLICY.max_concentration_t1 if _POLICY else 0.40
+_P_T2_CONC = _POLICY.max_concentration_t2 if _POLICY else 0.20
+
+#: Какие сети считаются L2 — тот же набор, что у входного гейта политики
+#: (``check_new_position``, блок 10). Отдельная копия здесь была бы ровно тем
+#: расхождением, ради которого всё это и делается.
+L2_CHAINS = frozenset({"arbitrum", "base"})
+
 
 # ─── Dataclasses ─────────────────────────────────────────────────────────────
 
 
 @dataclass
 class TunerConstraints:
-    """Ограничения для оптимизатора — зеркало RiskPolicy v1.0."""
-    t1_min: float = 0.55          # Min T1 allocation (55%)
-    t2_max: float = 0.35          # Max T2 total allocation (35%)
-    per_protocol_max: float = 0.25  # Max single protocol (25%, снижен с 40%)
-    tvl_floor_usd: float = 5_000_000.0  # Min TVL пула
+    """Ограничения для оптимизатора — зеркало RiskPolicy v1.0.
+
+    Часть значений намеренно СТРОЖЕ политики (запас подборщика, решение
+    владельца 25.08 по соседней карточке: «убрать призрака, запас оставить»).
+    Строже — можно; слабее — нельзя: это и есть расхождение, из-за которого
+    предложение заворачивал гейт.
+    """
+    t1_min: float = 0.55          # Min T1 allocation (55%) — СТРОЖЕ политики (у неё пола нет)
+    t2_max: float = 0.35          # Max T2 total (35%) — СТРОЖЕ политики (50%, ADR-019)
+    per_protocol_max: float = 0.25  # Общий запас подборщика; тир-потолки ниже строже
+    tvl_floor_usd: float = 5_000_000.0  # Min TVL пула — ЗЕРКАЛО policy.min_tvl_usd
     min_protocols: int = 3        # Min активных протоколов
     max_protocols: int = 6        # Max активных протоколов (не index fund!)
-    cash_min: float = 0.05        # Min cash buffer (5%)
-    apy_min: float = 1.0          # Min APY % для включения
-    apy_max: float = 30.0         # Max APY % для включения
+    cash_min: float = 0.05        # Min cash buffer (5%) — ЗЕРКАЛО policy.min_cash_pct
+    apy_min: float = 1.0          # Min APY % — ЗЕРКАЛО policy.min_apy_for_new_position
+    apy_max: float = 30.0         # Max APY % — ЗЕРКАЛО policy.max_apy_for_new_position
+
+    # ── ADR-136: потолки, которых у подборщика не было вовсе ────────────────
+    # Все три — ЗЕРКАЛО политики, ни одного нового числа.
+    per_protocol_t1_max: float = _P_T1_CONC   # policy.max_concentration_t1 (40%)
+    per_protocol_t2_max: float = _P_T2_CONC   # policy.max_concentration_t2 (20%)
+    single_chain_max: float = _P_SINGLE_CHAIN  # policy.max_single_chain_allocation (90%)
+    l2_total_max: float = _P_L2_TOTAL          # policy.max_l2_total_allocation (50%)
+    base_chain_max: float = _P_BASE_CHAIN      # policy.BASE_CHAIN_CAP (20%, ADR-025)
+
+    def protocol_cap(self, tier: str) -> float:
+        """Потолок на один протокол: строгий из «запаса» и потолка тира.
+
+        Флаг ``per_protocol_max`` = 0.25 строже политики для T1 (40 %) и
+        СЛАБЕЕ для T2 (20 %) — именно на этом подборщик предлагал 22.8 %.
+        Берём минимум: запас сохраняется там, где он строже, дыра закрыта там,
+        где его не хватало.
+        """
+        t = str(tier or "T2").upper()
+        policy_cap = self.per_protocol_t1_max if t == "T1" else self.per_protocol_t2_max
+        return min(self.per_protocol_max, policy_cap)
 
 
 @dataclass
@@ -61,10 +110,25 @@ class TunerResult:
     protocol_breakdown: List[dict]       # [{id, weight, apy, tier}]
     objective_score: float               # Значение целевой функции
     timestamp: str = ""
+    # ADR-136: что именно срезали до потолков политики и почему. Пустой список —
+    # «проверено, срезать было нечего», а не «не проверяли»: шаг выполняется
+    # всегда (см. ``_enforce_policy_caps``). Молчаливый простой капитала
+    # запрещён (ADR-055) — каждый срез назван.
+    # ``None`` только как значение по умолчанию dataclass'а — ``__post_init__``
+    # немедленно превращает его в список, поэтому «не проверяли» на выходе не
+    # существует: шаг выполняется всегда.
+    policy_cap_notes: Optional[List[str]] = None
+    # ADR-136: протоколы, не взятые в раскладку из-за неопределимой сети.
+    # Отказ, а не догадка — условие владельца к варианту A.
+    refused_no_chain: Optional[List[str]] = None
 
     def __post_init__(self):
         if not self.timestamp:
             self.timestamp = datetime.now(timezone.utc).isoformat()
+        if self.policy_cap_notes is None:
+            self.policy_cap_notes = []
+        if self.refused_no_chain is None:
+            self.refused_no_chain = []
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -78,13 +142,26 @@ class AllocationTuner:
 
     def __init__(self, constraints: Optional[TunerConstraints] = None):
         self.constraints = constraints or TunerConstraints()
+        #: ADR-136: протоколы, отброшенные из-за неопределимой сети. Пустой
+        #: список = «проверено, таких нет»; заполняется в ``_eligible_adapters``.
+        self.refused_no_chain: List[str] = []
 
     # ── вспомогательные методы ─────────────────────────────────────────────
 
     def _eligible_adapters(self, adapter_data: List[dict]) -> List[dict]:
-        """Отфильтровывает адаптеры по TVL floor и APY bounds."""
+        """Отфильтровывает адаптеры по TVL floor, APY bounds и ИЗВЕСТНОСТИ СЕТИ.
+
+        ADR-136, дословное условие владельца к варианту A: «протокол, у которого
+        сеть не определяется, — не берётся в раскладку (**отказ, а не
+        догадка**)». Догадка здесь означала бы отнести вес к сети, которой мы не
+        знаем, и сетевой потолок недосчитался бы — то есть fail-OPEN.
+
+        Отброшенные НАЗЫВАЮТСЯ (``self.refused_no_chain``), а не исчезают: инв. #17.
+        """
         c = self.constraints
         result = []
+        refused: List[str] = []
+        passed_pre_chain = []
         for a in adapter_data:
             tvl = float(a.get("tvl_usd", 0.0) or 0.0)
             apy = float(a.get("apy", 0.0) or 0.0)
@@ -92,8 +169,124 @@ class AllocationTuner:
                 continue
             if apy < c.apy_min or apy > c.apy_max:
                 continue
+            passed_pre_chain.append(a)
+
+        # Сеть берётся из ТОГО ЖЕ реестра, что у гейта. Вызывающий может принести
+        # её сам (``_load_adapter_data`` так и делает), но если не принёс — это
+        # ещё не «неизвестна»: сперва спрашиваем реестр, и только его молчание
+        # означает отказ. Иначе прямой вызов ``optimize()`` отказывал бы всем.
+        missing = [a for a in passed_pre_chain if not str(a.get("chain") or "").strip()]
+        if missing:
+            try:
+                from spa_core.risk.policy_enforcer import _resolve_chain_map
+                chain_map, _ = _resolve_chain_map([a["id"] for a in missing])
+            except Exception as exc:  # noqa: BLE001 — реестр молчит ⇒ отказ всем таким
+                log.warning("tuner: карта сетей не построена (%s) — fail-CLOSED", exc)
+                chain_map = {}
+            for a in missing:
+                a["chain"] = str(chain_map.get(a["id"], "") or "").strip().lower()
+
+        for a in passed_pre_chain:
+            if not str(a.get("chain") or "").strip():
+                refused.append(str(a.get("id", "?")))
+                continue
             result.append(a)
+        self.refused_no_chain = sorted(refused)
+        if refused:
+            log.warning(
+                "tuner: сеть не определена у %d протокол(ов) — НЕ берутся в "
+                "раскладку (fail-CLOSED, ADR-136): %s",
+                len(refused), ", ".join(self.refused_no_chain),
+            )
         return result
+
+    def _chain_of(self, adapter_data: List[dict]) -> Dict[str, str]:
+        """``{протокол: сеть}`` по данным, которые пришли на вход."""
+        return {a["id"]: str(a.get("chain") or "").strip().lower()
+                for a in adapter_data if a.get("id")}
+
+    def _chain_totals(
+        self, weights: Dict[str, float], chain_of: Dict[str, str]
+    ) -> Dict[str, float]:
+        totals: Dict[str, float] = {}
+        for pid, w in weights.items():
+            ch = chain_of.get(pid, "")
+            if not ch:
+                continue
+            totals[ch] = totals.get(ch, 0.0) + w
+        return totals
+
+    def _enforce_policy_caps(
+        self,
+        weights: Dict[str, float],
+        adapter_data: List[dict],
+    ) -> Tuple[Dict[str, float], List[str]]:
+        """Срезает раскладку до потолков политики. Срезанное ОСТАЁТСЯ КЭШЕМ.
+
+        ADR-136. Ограничения тюнера — «мягкие» (штрафы в целевой функции), и
+        победивший кандидат мог нарушать их и всё равно выигрывать по APY:
+        замер 2026-08-18 дал 22.8 % в одном T2-протоколе и 93.5 % в одной сети,
+        после чего гейт отвергал раскладку ЦЕЛИКОМ — то есть в таком цикле
+        сделок не было вовсе.
+
+        Поэтому здесь — ЖЁСТКИЙ финальный шаг по порядку строгости:
+        потолок на протокол (тир-aware) → сеть → L2 → Base → кэш-буфер.
+        Излишек НИКОГДА не перекладывается в другой протокол: он честно
+        становится кэшем (тот же принцип, что у ``_enforce_t3_total_cap``
+        аллокатора — освободившийся вес не уезжает в более рискованный тир).
+
+        Возвращает ``(weights, notes)``; ``notes`` называют КАЖДЫЙ срез —
+        молчаливый простой капитала запрещён (ADR-055).
+        """
+        c = self.constraints
+        tier_of = {a["id"]: str(a.get("tier", "T2")).upper() for a in adapter_data}
+        chain_of = self._chain_of(adapter_data)
+        w = dict(weights)
+        notes: List[str] = []
+
+        # 1) Потолок на один протокол — по тиру.
+        for pid, val in list(w.items()):
+            cap = c.protocol_cap(tier_of.get(pid, "T2"))
+            if val > cap + _EPS:
+                notes.append(
+                    f"{pid}: {val * 100:.2f}% → {cap * 100:.2f}% "
+                    f"(потолок на протокол, тир {tier_of.get(pid, 'T2')})"
+                )
+                w[pid] = cap
+
+        # 2) Потолок на одну сеть, 3) L2 суммарно, 4) Base — одинаковой формой:
+        #    пропорциональное сжатие группы до потолка.
+        def _scale_group(members: List[str], total: float, cap: float, label: str) -> None:
+            if total <= cap + _EPS or total <= _EPS:
+                return
+            scale = cap / total
+            for pid in members:
+                w[pid] = w[pid] * scale
+            notes.append(f"{label}: {total * 100:.2f}% → {cap * 100:.2f}% (излишек — в кэш)")
+
+        totals = self._chain_totals(w, chain_of)
+        for ch, total in sorted(totals.items()):
+            members = [p for p in w if chain_of.get(p) == ch]
+            _scale_group(members, total, c.single_chain_max, f"сеть {ch}")
+
+        l2_members = [p for p in w if chain_of.get(p) in L2_CHAINS]
+        _scale_group(l2_members, sum(w[p] for p in l2_members), c.l2_total_max, "L2 суммарно")
+
+        base_members = [p for p in w if chain_of.get(p) == "base"]
+        _scale_group(base_members, sum(w[p] for p in base_members), c.base_chain_max, "сеть base")
+
+        # 5) Кэш-буфер: сумма весов ≤ 1 − cash_min.
+        total_w = sum(w.values())
+        deploy_cap = 1.0 - c.cash_min
+        if total_w > deploy_cap + _EPS and total_w > _EPS:
+            scale = deploy_cap / total_w
+            for pid in w:
+                w[pid] = w[pid] * scale
+            notes.append(
+                f"кэш-буфер: размещено {total_w * 100:.2f}% → {deploy_cap * 100:.2f}%"
+            )
+
+        return {k: round(v, 6) for k, v in w.items()}, notes
 
     def _t1_t2_split(self, adapter_data: List[dict]) -> Tuple[List[dict], List[dict]]:
         """Разбивает на T1 и T2 адаптеры."""
@@ -389,6 +582,11 @@ class AllocationTuner:
             best_weights = {a["id"]: 1.0 / n for a in eligible}
             best_score = self._score_allocation(best_weights, eligible)
 
+        # ADR-136: ЖЁСТКИЙ финальный срез до потолков политики. Штрафы в целевой
+        # функции — мягкие, и кандидат с высоким APY мог выиграть, нарушая их;
+        # гейт потом отвергал раскладку целиком, и цикл оставался без сделок.
+        best_weights, cap_notes = self._enforce_policy_caps(best_weights, eligible)
+
         # Округляем веса до 6 знаков
         best_weights = {k: round(v, 6) for k, v in best_weights.items()}
 
@@ -456,6 +654,8 @@ class AllocationTuner:
             improvements=improvements,
             protocol_breakdown=breakdown,
             objective_score=round(best_score, 6),
+            policy_cap_notes=cap_notes,
+            refused_no_chain=list(self.refused_no_chain),
         )
 
     # ── backtest ───────────────────────────────────────────────────────────
@@ -531,7 +731,7 @@ def _load_adapter_data(data_dir: Optional[Path] = None) -> List[dict]:
         log.warning("Ошибка чтения adapter_orchestrator_status.json: %s", e)
         return []
 
-    result = []
+    rows = []
     for a in raw.get("adapters", []):
         status = a.get("status", "ok")
         if status not in ("ok", "partial"):
@@ -539,13 +739,33 @@ def _load_adapter_data(data_dir: Optional[Path] = None) -> List[dict]:
         protocol = a.get("protocol", "")
         if not protocol:
             continue
-        result.append({
+        rows.append({
             "id": protocol,
             "apy": float(a.get("apy_pct", 0.0) or 0.0),
             "tvl_usd": float(a.get("tvl_usd", 0.0) or 0.0),
             "tier": a.get("tier", "T2"),
         })
-    return result
+
+    # ADR-136: поле «сеть» приходит из ТОГО ЖЕ источника, что у гейта.
+    # Снимок оркестратора сети не несёт вовсе — именно поэтому подборщик о
+    # сетевых потолках не знал. Резолвер импортируется, а не копируется: копия
+    # разъехалась бы с гейтом ровно так же, как разъехались пороги.
+    # Неразрешённая сеть остаётся ПУСТОЙ строкой — ``_eligible_adapters``
+    # откажет такому протоколу, а не отнесёт его наугад (fail-CLOSED).
+    try:
+        from spa_core.risk.policy_enforcer import _resolve_chain_map
+        chain_map, unresolved = _resolve_chain_map([r["id"] for r in rows])
+    except Exception as exc:  # noqa: BLE001
+        log.warning(
+            "tuner: карта сетей не построена (%s) — ни один протокол не пройдёт "
+            "фильтр сети (fail-CLOSED, ADR-136)", exc,
+        )
+        chain_map, unresolved = {}, [r["id"] for r in rows]
+    if unresolved:
+        log.warning("tuner: сеть не определена для: %s", ", ".join(unresolved))
+    for r in rows:
+        r["chain"] = str(chain_map.get(r["id"], "") or "").strip().lower()
+    return rows
 
 
 def _load_current_weights(data_dir: Optional[Path] = None) -> Optional[Dict[str, float]]:
