@@ -48,6 +48,9 @@ _P_L2_TOTAL = _POLICY.max_l2_total_allocation if _POLICY else 0.50
 _P_BASE_CHAIN = _POLICY.BASE_CHAIN_CAP if _POLICY else 0.20
 _P_T1_CONC = _POLICY.max_concentration_t1 if _POLICY else 0.40
 _P_T2_CONC = _POLICY.max_concentration_t2 if _POLICY else 0.20
+_P_T2_TOTAL = _POLICY.max_total_t2_allocation if _POLICY else 0.50
+_P_CASH_MIN = _POLICY.min_cash_pct if _POLICY else 0.05
+_P_MAX_PROTOCOLS = _POLICY.max_protocols if _POLICY else 8
 
 #: Какие сети считаются L2 — тот же набор, что у входного гейта политики
 #: (``check_new_position``, блок 10). Отдельная копия здесь была бы ровно тем
@@ -60,20 +63,23 @@ L2_CHAINS = frozenset({"arbitrum", "base"})
 
 @dataclass
 class TunerConstraints:
-    """Ограничения для оптимизатора — зеркало RiskPolicy v1.0.
+    """Ограничения для оптимизатора — ЗЕРКАЛО RiskPolicy v1.0, без запасов.
 
-    Часть значений намеренно СТРОЖЕ политики (запас подборщика, решение
-    владельца 25.08 по соседней карточке: «убрать призрака, запас оставить»).
-    Строже — можно; слабее — нельзя: это и есть расхождение, из-за которого
-    предложение заворачивал гейт.
+    Решение владельца 2026-08-26 (cloud-сессия, кнопка «Зеркалить политику»):
+    сверх-осторожные запасы поверх политики СНЯТЫ — ОТМЕНЯЕТ его же решение
+    25.08 «запас оставить» (последнее решение побеждает; разворот назван
+    вслух, не молча). Рацио: два источника лимитов = вечный разъезд
+    (ADR-060 §1.4 — предложения тюнера заворачивал гейт); граница риска —
+    сама RiskPolicy, она проверяет всё независимо. Ужесточение — только
+    через изменение ПОЛИТИКИ (ADR), не через тихие поля здесь.
     """
-    t1_min: float = 0.55          # Min T1 allocation (55%) — СТРОЖЕ политики (у неё пола нет)
-    t2_max: float = 0.35          # Max T2 total (35%) — СТРОЖЕ политики (50%, ADR-019)
-    per_protocol_max: float = 0.25  # Общий запас подборщика; тир-потолки ниже строже
+    t1_min: float = 0.0           # Пола нет — как в политике (снят запас 0.55, реш. 26.08)
+    t2_max: float = _P_T2_TOTAL   # ЗЕРКАЛО policy.max_total_t2_allocation (50%, ADR-019)
+    per_protocol_max: float = _P_T1_CONC  # Конверт = потолок T1; per-тир min() даёт ровно 40/20
     tvl_floor_usd: float = 5_000_000.0  # Min TVL пула — ЗЕРКАЛО policy.min_tvl_usd
     min_protocols: int = 3        # Min активных протоколов
-    max_protocols: int = 6        # Max активных протоколов (не index fund!)
-    cash_min: float = 0.05        # Min cash buffer (5%) — ЗЕРКАЛО policy.min_cash_pct
+    max_protocols: int = _P_MAX_PROTOCOLS  # ЗЕРКАЛО policy.max_protocols (ALLOC-002: 8)
+    cash_min: float = _P_CASH_MIN  # Min cash buffer — ЗЕРКАЛО policy.min_cash_pct (5%)
     apy_min: float = 1.0          # Min APY % — ЗЕРКАЛО policy.min_apy_for_new_position
     apy_max: float = 30.0         # Max APY % — ЗЕРКАЛО policy.max_apy_for_new_position
 
@@ -88,10 +94,10 @@ class TunerConstraints:
     def protocol_cap(self, tier: str) -> float:
         """Потолок на один протокол: строгий из «запаса» и потолка тира.
 
-        Флаг ``per_protocol_max`` = 0.25 строже политики для T1 (40 %) и
-        СЛАБЕЕ для T2 (20 %) — именно на этом подборщик предлагал 22.8 %.
-        Берём минимум: запас сохраняется там, где он строже, дыра закрыта там,
-        где его не хватало.
+        После снятия запасов (реш. владельца 26.08) конверт ``per_protocol_max``
+        равен потолку T1, и минимум даёт РОВНО политику: T1 40 % / T2 20 %.
+        Формула min() сохранена: если владелец однажды вернёт запас, он снова
+        заработает без правки кода.
         """
         t = str(tier or "T2").upper()
         policy_cap = self.per_protocol_t1_max if t == "T1" else self.per_protocol_t2_max

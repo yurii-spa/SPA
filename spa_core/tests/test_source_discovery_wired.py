@@ -140,6 +140,41 @@ class TheScheduleIsPrepared(unittest.TestCase):
         self.assertFalse(bool(self._plist().get("KeepAlive", False)))
 
 
+class InstallationIsDeclared(unittest.TestCase):
+    """Владелец дал разрешение 2026-08-26 — агент подключён в установщик (ADR-143).
+
+    Раньше файл проверял только «расписание подготовлено», а установку оставлял
+    владельцу. Теперь подключение к `install_all_agents.sh` сторожится: без него
+    plist остаётся сиротой, которую `fleet_parity_check.py` числит в
+    `orphan_plist_not_declared`, а чистая переустановка флота молча теряет.
+
+    Проверки «агент ЗАГРУЖЕН» здесь нет намеренно: `launchctl` живёт только на
+    прод-Маке, в CI его нет вовсе, и такой тест был бы вечно пропущенным — то есть
+    неотличимым от непроверенного (инв. #17).
+    """
+
+    LABEL = "com.spa.source_discovery"
+
+    def _installer(self) -> str:
+        p = REPO / "scripts" / "install_all_agents.sh"
+        self.assertTrue(p.is_file(), "установщик флота не найден")
+        return p.read_text(encoding="utf-8")
+
+    def test_the_installer_declares_it(self):
+        self.assertIn(self.LABEL, self._installer(),
+                      "агента нет в установщике — находки снова некому производить")
+
+    def test_the_installer_points_at_the_plist_that_exists(self):
+        self.assertIn(f"launchd/{self.LABEL}.plist", self._installer())
+        self.assertTrue(PLIST.is_file(), f"установщик указывает на отсутствующий {PLIST}")
+
+    def test_it_is_declared_optional_so_a_stale_tree_skips_instead_of_failing(self):
+        text = self._installer()
+        tail = text[text.index(self.LABEL):][:200]
+        self.assertIn('"1"', tail,
+                      "агент объявлен обязательным — отстающее дерево уронит весь флот")
+
+
 class ManifestKnowsTheProducerAndDemandsAConsumer(unittest.TestCase):
     """Артефакт с читателем обязан быть объявлен как такой."""
 

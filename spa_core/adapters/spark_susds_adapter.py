@@ -29,6 +29,7 @@ from .base_adapter import BaseAdapter, YieldInfo
 # ADR-063 (D1): единый читатель схемы adapter_status.json — адаптер больше не
 # знает форму файла и не может прочитать не то место.
 from spa_core.adapters.status_reader import gsm_confirmed, read_live_apy_pct, read_status_block
+from spa_core.utils.data_dir import own_data_dir
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +88,7 @@ class SparkSusdsAdapter(BaseAdapter):
     ) -> None:
         super().__init__(asset)
         self.tier = self.TIER
-        self._data_dir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
+        self._data_dir = Path(data_dir) if data_dir is not None else own_data_dir(_DEFAULT_DATA_DIR)
         # Виртуальная аллокация (только для paper trading учёта)
         self._allocated: float = 0.0
 

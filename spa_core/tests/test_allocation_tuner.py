@@ -105,7 +105,10 @@ def test_t2_cap_respected():
     t2_ids = {a["id"] for a in _GOOD_ADAPTERS if a["tier"] != "T1"}
     t2_total = sum(result.optimal_weights.get(pid, 0.0) for pid in t2_ids)
 
-    assert t2_total <= 0.35 + 1e-4, (
+    # ИЗМЕНЕНО НАМЕРЕННО (реш. владельца 26.08, cloud): запас t2_max=0.35 снят,
+    # тюнер зеркалит политику — тест судит по ИСТОЧНИКУ ПРАВДЫ, а не по литералу
+    # (класс «эхо» #197: сменится политика — тест поедет следом сам).
+    assert t2_total <= tuner.constraints.t2_max + 1e-4, (
         f"T2 total {t2_total * 100:.2f}% > 35%"
     )
 

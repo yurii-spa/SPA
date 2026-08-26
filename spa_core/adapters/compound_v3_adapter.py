@@ -41,6 +41,7 @@ from .base_adapter import BaseAdapter, YieldInfo
 from spa_core.adapters.status_reader import read_live_apy_pct, read_status_block
 from .defillama_feed import DeFiLlamaFeed
 from spa_core.utils.errors import safe_call
+from spa_core.utils.data_dir import own_data_dir
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +162,7 @@ class CompoundV3Adapter(BaseAdapter):
 
         # Определяем путь к data/
         if data_dir is None:
-            self._data_dir: Path = _DEFAULT_DATA_DIR
+            self._data_dir: Path = own_data_dir(_DEFAULT_DATA_DIR)
         else:
             self._data_dir = Path(data_dir)
 

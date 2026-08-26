@@ -147,15 +147,30 @@ def _pin_spark_status(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, block: di
     """Make ``spark_susds``'s status block an INPUT of the test, not the host's state.
 
     ``_adapter_class_gate`` instantiates the real adapter with no arguments, so the
-    adapter falls back to its module-level default data directory — the live repo's
-    ``data/``. Redirecting that default is the only injection point the gate leaves,
-    and it keeps the whole real chain under test (registry lookup → real adapter class
-    → ``is_gsm_compliant`` → ``status_reader.gsm_confirmed``). Only the observation is
-    injected.
+    adapter falls back to its default data directory. Redirecting that default is the
+    only injection point the gate leaves, and it keeps the whole real chain under test
+    (registry lookup → real adapter class → ``is_gsm_compliant`` →
+    ``status_reader.gsm_confirmed``). Only the observation is injected.
+
+    **Инъекция идёт ДВУМЯ путями, и это не перестраховка (цикл #387).** С доставкой
+    `spa_core/utils/data_dir.own_data_dir` умолчание адаптера разрешается В МОМЕНТ
+    ВЫЗОВА и `SPA_DATA_DIR` СИЛЬНЕЕ константы модуля — так и задумано, иначе
+    autouse-заслон `tests/conftest.py::_isolate_data_dir` до адаптера не доходит.
+    Но у этого есть следствие: там, где заслон работает (в сессии загружен
+    `tests/conftest.py`), переменная указывает на ПУСТУЮ песочницу и перебивает
+    подмену `_DEFAULT_DATA_DIR` — тест переставал видеть собственную инъекцию и
+    краснел на «подтверждённых» случаях. Замерено полным прогоном #387: два падения,
+    оба — `confirmed_*`.
+
+    Поэтому наблюдение кладётся туда, куда СМОТРИТ канонический механизм, а подмена
+    константы остаётся для прогонов без заслона (`spa_core/tests` в одиночку —
+    отдельная находка `inbox-autouse-zaslon-data-ne-dohodit-do-kornya`). Утверждение
+    теста при этом не тронуто: обе стороны по-прежнему закреплены.
     """
     _write(tmp_path / "adapter_status.json", {"adapters": {"spark_susds": block}})
     import spa_core.adapters.spark_susds_adapter as spark_mod
     monkeypatch.setattr(spark_mod, "_DEFAULT_DATA_DIR", tmp_path, raising=True)
+    monkeypatch.setenv("SPA_DATA_DIR", str(tmp_path))
 
 
 @pytest.mark.parametrize(

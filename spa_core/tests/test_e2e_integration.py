@@ -318,15 +318,47 @@ class TestAdapterBehavior(unittest.TestCase):
 
     # ── 2.3 MorphoSteakhouseAdapter ───────────────────────────────────────────
 
-    def test_morpho_get_apy_pct_returns_float(self):
-        """MorphoSteakhouseAdapter.get_apy_pct() возвращает float > 0."""
+    def test_morpho_get_apy_pct_reads_the_observation_and_refuses_without_it(self):
+        """`get_apy_pct()` следует НАБЛЮДЕНИЮ: есть отметка ⇒ float > 0, нет ⇒ None.
+
+        **Изменено намеренно циклом #387 (инв. #16), и это УЖЕСТОЧЕНИЕ, а не поблажка.**
+        Тест утверждал `float > 0` вообще без входа: живого фида в прогоне нет (сети нет),
+        поэтому число приходило из ЖИВОГО `data/adapter_status.json` хоста. То есть вердикт
+        решал файл рабочего дерева — ровно класс карточки
+        `inbox-zaslon-izolyatsii-data-v-testah-pokryvae`. Пока адаптер брал каталог
+        состояния константой, это было НЕВИДИМО; с доставкой `own_data_dir` autouse-заслон
+        (`SPA_DATA_DIR`) наконец доходит до адаптера, песочница пуста — и тест честно
+        покраснел на своей же безосновательности (замер: полный прогон #387).
+
+        Теперь состояние — ВХОД, и проверяются ОБЕ стороны, включая отказ: подстановка
+        `FALLBACK_APY_PCT = 6.5` удалена решением владельца 08.08, «нет данных ⇒ None»
+        (ADR-063 п.3, `.claude/rules/adapters.md`), и это утверждение здесь закреплено.
+        """
+        import tempfile
         mod, err = _try_import("spa_core.adapters.morpho_steakhouse_adapter")
         if mod is None:
             self.skipTest(f"morpho_steakhouse_adapter недоступен: {err}")
-        adapter = mod.MorphoSteakhouseAdapter()
-        apy = adapter.get_apy_pct()
-        self.assertIsInstance(apy, float)
-        self.assertGreater(apy, 0.0)
+        prev = os.environ.get("SPA_DATA_DIR")
+        with tempfile.TemporaryDirectory() as tmp:
+            os.environ["SPA_DATA_DIR"] = tmp
+            try:
+                # 1) наблюдения нет ⇒ отказ, а не выдуманное число.
+                self.assertIsNone(mod.MorphoSteakhouseAdapter().get_apy_pct())
+                # 2) наблюдение есть ⇒ адаптер отдаёт ровно его, в процентах.
+                (Path(tmp) / "adapter_status.json").write_text(
+                    # Форма — та, которую РЕАЛЬНО читает `_read_apy_from_status`
+                    # (верхнеуровневый ключ протокола, legacy-блок живого производителя),
+                    # а не та, что кажется правильной по соседнему `status_reader`.
+                    json.dumps({"morpho_steakhouse": {"apy": 3.47}}),
+                    encoding="utf-8")
+                apy = mod.MorphoSteakhouseAdapter().get_apy_pct()
+                self.assertIsInstance(apy, float)
+                self.assertGreater(apy, 0.0)
+            finally:
+                if prev is None:
+                    os.environ.pop("SPA_DATA_DIR", None)
+                else:
+                    os.environ["SPA_DATA_DIR"] = prev
 
     def test_morpho_to_dict_has_tier(self):
         """MorphoSteakhouseAdapter.to_dict() содержит ключ 'tier'."""

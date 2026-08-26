@@ -38,6 +38,7 @@ from spa_core.adapters.status_reader import (
     read_status_block,
 )
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.data_dir import own_data_dir
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +96,7 @@ class FluidFUSDCAdapter(BaseAdapter):
     ) -> None:
         super().__init__(asset)
         self.tier = self.TIER
-        self._data_dir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
+        self._data_dir = Path(data_dir) if data_dir is not None else own_data_dir(_DEFAULT_DATA_DIR)
         # Виртуальная аллокация (только для paper trading учёта)
         self._allocated: float = 0.0
 

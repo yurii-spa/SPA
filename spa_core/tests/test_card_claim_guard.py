@@ -2063,21 +2063,56 @@ class TestIdentityHasOneDefinition:
 
 
 class TestClaimSaysWhenItHasNoIdentity:
-    """Причина, а не только следствие: захват без личности процесса неизмерим НАВСЕГДА.
+    """Захват без личности процесса неизмерим НАВСЕГДА — поэтому он НЕ СОСТОИТСЯ (цикл #387).
 
     Заимствование личности на стороне читателя (`check_undelivered_work.borrow_durable`)
     спасает запись лишь тогда, когда якорь у ЯРЛЫКА есть хоть где-то в журнале. Живой замер
-    16.08: у ярлыка `cycle-263` его нет нигде — такой захват шаг 0a не измерит никогда, и
-    узнает об этом СЛЕДУЮЩИЙ цикл, а не та сессия, которая может это исправить одной
-    переменной окружения. Поэтому `claim` говорит об этом сразу и вслух.
+    16.08: у ярлыка `cycle-263` его нет нигде — такой захват шаг 0a не измерит никогда.
+
+    **ИЗМЕНЕНИЕ ПОВЕДЕНИЯ, НАМЕРЕННОЕ (инвариант #16, журнал W35, цикл #387).** Цикл #263
+    назвал класс верно и выбрал ПРЕДУПРЕЖДЕНИЕ на stderr: `claim` брал карточку и печатал
+    совет выставить `SPA_SESSION_PID`. Предупреждение не удержало. 26.08 сессия #386 взяла
+    карточку под ярлыком `cycle-386` без объявленного долгоживущего процесса, через сорок
+    минут умерла, не доставив ничего, — и карточка с настоящей недоставленной работой стала
+    НЕБЕРУЩЕЙСЯ: шаг 0a печатал «работу надо поднять», шаг 0b в ту же минуту — `⛔ ЗАНЯТА`,
+    а `--takeover` отказывал (подъём разрешён только на `stale`). Время не лечит:
+    `session_state` для ярлыка без pid отдаёт `UNKNOWN` необратимо, так что по истечении окна
+    вердикт уходит в `unchecked`, где подъём запрещён так же.
+
+    Поэтому два теста ниже ПЕРЕПИСАНЫ с «предупреждает и берёт» на «отказывает и не берёт».
+    Оба обратных контроля (`test_claim_reports_a_measured_anchor`,
+    `test_cli_is_silent_when_the_anchor_is_there`) оставлены как были и остались зелёными —
+    проверка не ослаблена, а ужесточена: отказ проверяется ещё и по тому, что ни карточка, ни
+    журнал не тронуты.
     """
 
-    def test_claim_reports_that_it_had_no_anchor(self, guard, sibling, tracker, log):
+    def test_claim_without_a_measurable_identity_is_refused(self, guard, sibling, tracker, log):
+        """Отказ, а не совет: неизмеримый захват запирает карточку навсегда."""
+        card = write_card(tracker, "agent-x")
+        before = card.read_text(encoding="utf-8")
+        with pytest.raises(guard.UnmeasurableClaim) as exc:
+            guard.claim_card("agent-x", session="cycle-386", tracker_dir=tracker, now=NOW,
+                             sibling=sibling, log=log, ps=lambda pid: (1, ""),
+                             self_anchor=None)
+        assert "SPA_SESSION_PID" in str(exc.value) and "cycle-386" in str(exc.value)
+        assert card.read_text(encoding="utf-8") == before, "карточку трогать нельзя"
+
+    def test_the_refused_claim_leaves_no_trace_in_the_shared_log(self, guard, sibling, tracker,
+                                                                 log):
+        """Порядок отказа: ДО объявления. Иначе в общем журнале осталась бы запись «держу»
+        о карточке, которой сессия не владеет, — ровно то состояние, которое чинит
+        `_unannounce_claim`, только без единого способа его заметить."""
         write_card(tracker, "agent-x")
-        res = guard.claim_card("agent-x", session="pid1", tracker_dir=tracker, now=NOW,
-                               sibling=sibling, log=log, ps=lambda pid: (1, ""),
-                               self_anchor=None)
-        assert res["anchored"] is False
+        with pytest.raises(guard.UnmeasurableClaim):
+            guard.claim_card("agent-x", session="cycle-386", tracker_dir=tracker, now=NOW,
+                             sibling=sibling, log=log, ps=lambda pid: (1, ""),
+                             self_anchor=None)
+        assert log.read_text(encoding="utf-8").strip() == ""
+
+    def test_the_refusal_is_a_claim_error_so_callers_keep_handling_it(self, guard):
+        """`UnmeasurableClaim` — подвид `ClaimError`: вызывающие, ловившие отказ захвата,
+        продолжают его ловить, и новый исход не проливается мимо их обработчиков."""
+        assert issubclass(guard.UnmeasurableClaim, guard.ClaimError)
 
     def test_claim_reports_a_measured_anchor(self, guard, sibling, tracker, log):
         """Обратный контроль: якорь назван ⇒ предупреждения быть не должно."""
@@ -2087,16 +2122,20 @@ class TestClaimSaysWhenItHasNoIdentity:
                                self_anchor=(4242, "Wed Jan 14 10:00:00 2026"))
         assert res["anchored"] is True
 
-    def test_cli_warns_on_stderr_when_the_claim_carries_no_identity(self, guard, tracker, log,
-                                                                    capsys, monkeypatch):
+    def test_cli_refuses_with_code_2_when_the_claim_carries_no_identity(self, guard, tracker,
+                                                                        log, capsys,
+                                                                        monkeypatch):
+        """Код возврата 2 — «не измерено», а не 1 («занято»): та же семантика, что у вердикта
+        `unchecked`, и цикл-обёртка отличает одно от другого без разбора текста."""
         monkeypatch.delenv("SPA_SESSION_PID", raising=False)
-        write_card(tracker, "agent-x")
+        card = write_card(tracker, "agent-x")
         rc = guard.main(["--tracker-dir", str(tracker), "--log", str(log),
                          "claim", "agent-x", "--session", "cycle-263"])
         captured = capsys.readouterr()
-        assert rc == 0 and "взята: agent-x" in captured.out
-        assert "БЕЗ личности процесса" in captured.err
-        assert "SPA_SESSION_PID" in captured.err and "'cycle-263'" in captured.err
+        assert rc == 2
+        assert "взята: agent-x" not in captured.out
+        assert "SPA_SESSION_PID" in captured.out and "cycle-263" in captured.out
+        assert "claimed_by" not in card.read_text(encoding="utf-8")
 
     def test_cli_is_silent_when_the_anchor_is_there(self, guard, tracker, log, capsys,
                                                     monkeypatch):

@@ -59,6 +59,7 @@ import requests
 
 from . import config
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.data_dir import own_data_dir
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +155,7 @@ class SkySUSDSFeed:
         )
         self.symbol = symbol
         self.chain = chain
-        self.data_dir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
+        self.data_dir = Path(data_dir) if data_dir is not None else own_data_dir(_DEFAULT_DATA_DIR)
 
         self._cache: Optional[list] = None
         self._cache_ts: float = 0.0

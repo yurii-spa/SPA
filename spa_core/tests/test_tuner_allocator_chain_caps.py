@@ -59,16 +59,20 @@ class MirrorNotOwnNumbers(unittest.TestCase):
         self.assertEqual(c.per_protocol_t2_max, cfg.max_concentration_t2)
 
     def test_protocol_cap_takes_the_stricter_of_margin_and_policy(self):
-        """Запас 25 % строже политики для T1 (40 %) и СЛАБЕЕ для T2 (20 %).
+        """min(запас, потолок тира) — семантика жива, дефолт теперь = политика.
 
-        Именно на этой слабине подборщик предлагал 22.8 % в T2-протоколе.
-        Берётся минимум: запас сохранён там, где строже, дыра закрыта там, где
-        его не хватало.
+        ИЗМЕНЕНО НАМЕРЕННО (реш. владельца 26.08, cloud): запасы сняты, дефолт
+        зеркалит политику РОВНО (T1 40 / T2 20). Историческая слабина (22.8 %
+        в T2 при конверте 25 %) по-прежнему закрыта — проверяется явным
+        запасом: формула min() не тронута.
         """
         c = TunerConstraints()
-        self.assertAlmostEqual(c.protocol_cap("T1"), 0.25)   # запас строже 40 %
-        self.assertAlmostEqual(c.protocol_cap("T2"), 0.20)   # политика строже 25 %
+        self.assertAlmostEqual(c.protocol_cap("T1"), 0.40)   # дефолт = политика
+        self.assertAlmostEqual(c.protocol_cap("T2"), 0.20)
         self.assertAlmostEqual(c.protocol_cap("T3"), 0.20)   # не-T1 судится как T2
+        tighter = TunerConstraints(per_protocol_max=0.25)    # вернуть запас — одно поле
+        self.assertAlmostEqual(tighter.protocol_cap("T1"), 0.25)
+        self.assertAlmostEqual(tighter.protocol_cap("T2"), 0.20)
 
     def test_l2_set_matches_the_entry_gate(self):
         from spa_core.tuner.allocation_tuner import L2_CHAINS
@@ -104,11 +108,22 @@ class TunerProposalPassesTheGate(unittest.TestCase):
                              f"одна сеть {top:.4f}")
 
     def test_the_trim_is_named_not_silent(self):
-        """ADR-055: молчаливый простой капитала запрещён — срез назван."""
-        _, res = self._propose(ETH_BOOK)
+        """ADR-055: молчаливый простой капитала запрещён — срез назван.
+
+        ИЗМЕНЕНО НАМЕРЕННО (реш. владельца 26.08): на зеркальных дефолтах
+        all-ethereum книга ужимается тир-потолками ниже сетевого 90 % и
+        сетевой срез не наступает — исторический сценарий воспроизводится
+        явным запасом 25.08 (конверт 25 %, t2_max 35 %), на нём сетевой срез
+        обязан быть НАЗВАН. Плюс инвариант дефолтов: ЛЮБОЙ срез именован.
+        """
+        _, res = self._propose(ETH_BOOK, constraints=TunerConstraints(
+            per_protocol_max=0.25, t2_max=0.35))
         self.assertTrue(res.policy_cap_notes, "срез произошёл, но не назван")
         self.assertTrue(any("сеть ethereum" in n for n in res.policy_cap_notes),
                         res.policy_cap_notes)
+        _, res_default = self._propose(ETH_BOOK)
+        self.assertTrue(res_default.policy_cap_notes,
+                        "срезы на дефолтах тоже обязаны быть названы")
 
     def test_per_protocol_t2_cap_is_respected(self):
         """Второе нарушение того же замера: 22.8 % в T2 при потолке 20 %."""
