@@ -977,50 +977,34 @@ class TestT1FloorMirrorsPolicy:
         from spa_core.tuner.portfolio_rebalancer import _DEFAULT_CONSTRAINTS
         assert _DEFAULT_CONSTRAINTS.t1_min != 0.55
 
-    def test_constraints_mirror_policy_after_margins_were_removed(self):
-        """Запасы СНЯТЫ решением владельца 26.08 — констрейнты стали зеркалом политики.
+    def test_margins_mirror_policy_after_the_owner_reversed_himself(self):
+        """Запасов больше нет: поля — ЗЕРКАЛО живого RiskConfig (ADR-144, реш. владельца 26.08).
 
-        **Намеренная правка теста (инвариант #16), обоснование здесь и в журнале W35.**
-        Прежняя редакция звалась `test_deliberate_margins_kept` и требовала
-        25/45/7/7 — запас, который владелец решил оставить **25.08**. **26.08** он
-        кнопкой выбрал «Зеркалить политику», отменив собственное решение суточной
-        давности (коммит `b6f426f`, цена названа в вопросе). Та сессия обновила три
-        пина запасов, а этот пропустила — и он краснел на ЧИСТОМ `origin/main`
-        (замер: `assert 0.4 == 0.25`), то есть сторожил уже отменённое решение.
+        ИЗМЕНЕНИЕ ТЕСТА НАМЕРЕННОЕ (инв. #16), обоснование здесь и в
+        `docs/journal/2026-W35.md`. Прежняя версия называлась
+        `test_deliberate_margins_kept` и пинила запасы 0.25 / 0.45 / 0.07 / 7 по решению
+        владельца **25.08 «запас оставить»**. **26.08 владелец это решение ОТМЕНИЛ** кнопкой
+        «Зеркалить политику» (карточка `own-tuner-zerkalit-politiku-zapasy-snyaty`, ADR-144),
+        и реализация уехала на `origin/main` коммитом `b6f426f88`. Автор той правки обновил три
+        пина в `spa_core/tests/`, а этот — четвёртый, в ДРУГОМ корне (`tests/`) — не увидел,
+        и с 26.08 он красил `main` в одиночку (замер цикла #388: полный прогон CI-командой на
+        чистом `origin/main` = ровно 1 failed, и это он).
 
-        Тест не ослаблен: утверждений столько же, и они по-прежнему пиньтся к
-        конкретным числам — просто к тем, которые сейчас верны. Сторожевой смысл
-        сохранён и УСИЛЕН соседним тестом ниже: механизм возврата запаса обязан
-        остаться живым, иначе «вернуть запас — одно поле» станет неправдой.
-        """
-        from spa_core.tuner.portfolio_rebalancer import _DEFAULT_CONSTRAINTS as c
-        assert c.per_protocol_max == 0.40   # конверт = потолок T1; per-тир min() даёт 40/20
-        assert c.t2_max == 0.50             # ADR-019
-        assert c.cash_min == 0.05
-        assert c.max_protocols == 8
-
-    def test_the_way_back_to_a_margin_is_still_one_field(self):
-        """Обратный контроль к предыдущему: снятие запаса не сломало МЕХАНИЗМ.
-
-        Решение 26.08 обещает дословно «вернуть запас — одно поле», и обещание
-        стоит ровно столько, сколько стоит формула `min()`. Убери её — снятие
-        запаса станет необратимым молча, а следующий владелец обнаружит это, уже
-        подняв конверт и не увидев эффекта.
-        """
-        from spa_core.tuner.allocation_tuner import TunerConstraints
-        narrow = TunerConstraints(per_protocol_max=0.25)
-        assert narrow.protocol_cap("T1") == 0.25, "запас не сузил потолок T1 — min() мёртв"
-        assert narrow.protocol_cap("T2") == 0.20, "потолок T2 политики перестал действовать"
-
-    def test_the_mirror_is_not_a_literal_copy(self):
-        """Зеркало обязано ЧИТАТЬ политику, а не повторять её числа наизусть.
-
-        Литеральная копия расходится молча — ровно фантомный T1-пол, ради которого
-        весь этот класс и написан: политику правят, копию нет.
+        Проверка не ослаблена, а перенесена на источник правды: раньше она сверяла литералы с
+        литералами (класс «эхо»), теперь — поля тюнера с ЖИВЫМ `RiskConfig`. Изменится
+        политика — зеркало обязано поехать следом, иначе тест краснеет.
         """
         from spa_core.tuner.portfolio_rebalancer import _DEFAULT_CONSTRAINTS as c
         from spa_core.risk.policy import RiskConfig
-        p = RiskConfig()
-        assert c.per_protocol_t1_max == p.max_concentration_t1
-        assert c.per_protocol_t2_max == p.max_concentration_t2
-        assert c.t2_max == p.max_total_t2_allocation
+        cfg = RiskConfig()
+        assert c.per_protocol_max == cfg.max_concentration_t1
+        assert c.t2_max == cfg.max_total_t2_allocation
+        assert c.cash_min == cfg.min_cash_pct
+        assert c.max_protocols == cfg.max_protocols
+        # обратное плечо: ужесточение по-прежнему возможно ОДНИМ полем, формула min() жива
+        from spa_core.tuner.allocation_tuner import TunerConstraints
+        assert TunerConstraints(per_protocol_max=0.25).protocol_cap("T1") == 0.25
+        # …и вторая половина того же: потолок ТИРА T2 под узким конвертом тоже действует.
+        # Без неё min() проверен лишь с одной стороны — ужесточение видно, а потолок
+        # политики мог бы молча исчезнуть.
+        assert TunerConstraints(per_protocol_max=0.25).protocol_cap("T2") == 0.20

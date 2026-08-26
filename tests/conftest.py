@@ -272,6 +272,25 @@ if live_data_write_guard is None:
 _live_data_stays_clean = live_data_write_guard._live_data_stays_clean
 
 
+# ---------------------------------------------------------------------------
+# Ни один тест не судит по ОКРУЖЕНИЮ прогона: `SPA_SESSION_PID`/`SPA_SESSION_ID`
+# снимаются на время каждого теста. Замер 26.08 (#388): один и тот же sha
+# 2a9489d84 давал `197 passed` на Маке под оркестратором и `28 failed` в CI —
+# разница ровно в этих двух переменных. Тот же модуль, что у корня-соседа
+# (`spa_core/tests/conftest.py`), по тому же пути — второй копии быть не должно.
+# Разбор и замеры — spa_core/tests/ambient_session_guard.py.
+# ---------------------------------------------------------------------------
+_AMBIENT_GUARD_PATH = _ROOT / "spa_core" / "tests" / "ambient_session_guard.py"
+ambient_session_guard = sys.modules.get("spa_ambient_session_guard")
+if ambient_session_guard is None:
+    _amb_spec = _ilu.spec_from_file_location("spa_ambient_session_guard", _AMBIENT_GUARD_PATH)
+    ambient_session_guard = _ilu.module_from_spec(_amb_spec)   # type: ignore[arg-type]
+    _amb_spec.loader.exec_module(ambient_session_guard)        # type: ignore[union-attr]
+    sys.modules["spa_ambient_session_guard"] = ambient_session_guard
+
+_no_ambient_session_identity = ambient_session_guard._no_ambient_session_identity
+
+
 def pytest_sessionstart(session):                # noqa: D401 — хук pytest
     """База сторожа живого `data/` — до первого теста (идемпотентно с корнем-соседом)."""
     live_data_write_guard.session_start()

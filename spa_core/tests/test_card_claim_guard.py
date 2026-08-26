@@ -25,6 +25,7 @@
 """
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
@@ -129,6 +130,20 @@ def run(guard, tracker, log, card, *, session="pid1", ps=None, now=NOW,
     return guard.gather(card, log=log, tracker_dir=tracker, sibling=sibling,
                         self_session=session, now=now, grace_hours=grace_hours,
                         planned_files=planned_files, ps=ps, self_anchor=self_anchor)
+
+
+#: Якорь долгоживущего процесса для ГЕРМЕТИЧНЫХ проверок: фиксированная пара
+#: (pid, «старт verbatim»), которую никто не меряет через `ps` — она сравнивается только
+#: с такими же парами внутри журнала самого теста. Литеральный pid здесь безопасен ровно
+#: потому, что живым процессом он не притворяется (ср. урок про литеральные pid'ы).
+#:
+#: Подавать его ЯВНО обязательно везде, где вызывается `claim_card`: умолчание
+#: (`_ENV_ANCHOR`) меряет `SPA_SESSION_PID` из окружения ПРОГОНА, и тогда вердикт теста
+#: решает не код, а то, запущен ли pytest внутри цикла оркестратора. Ровно это красило
+#: `main` 26.08 — на Маке 197 passed, в CI 28 failed на ОДНОМ И ТОМ ЖЕ sha 2a9489d84
+#: (карточка inbox-commit-9cb8a7823-krasit-28-testov-zahvata, сторож —
+#: spa_core/tests/ambient_session_guard.py).
+MY_ANCHOR = (41721, "Sat Aug  1 13:37:28 2026")
 
 
 # ── базовая семантика вердикта ───────────────────────────────────────────────
@@ -587,7 +602,8 @@ class TestClaimAndRelease:
         p = write_card(tracker, "agent-x", extra_body="## Тело\n\nстрока 1\nстрока 2\n")
         before = p.read_text(encoding="utf-8")
         res = guard.claim_card("agent-x", session="pid1", tracker_dir=tracker, now=NOW,
-                               sibling=sibling, log=log, ps=lambda pid: (1, ""))
+                               sibling=sibling, log=log, ps=lambda pid: (1, ""),
+                               self_anchor=MY_ANCHOR)
         after = p.read_text(encoding="utf-8")
         assert res["claimed_by"] == "pid1"
         meta = guard.frontmatter(after)
@@ -602,7 +618,8 @@ class TestClaimAndRelease:
                    claimed_at=_fmt(NOW - timedelta(minutes=5)))
         with pytest.raises(guard.ClaimError) as exc:
             guard.claim_card("agent-x", session="pid1", tracker_dir=tracker, now=NOW,
-                             sibling=sibling, log=log, ps=lambda pid: (1, ""))
+                             sibling=sibling, log=log, ps=lambda pid: (1, ""),
+                             self_anchor=MY_ANCHOR)
         assert "claimed" in str(exc.value)
 
     def test_claim_refuses_when_unmeasured(self, guard, sibling, tracker, tmp_path):
@@ -611,7 +628,7 @@ class TestClaimAndRelease:
         with pytest.raises(guard.ClaimError) as exc:
             guard.claim_card("agent-x", session="pid1", tracker_dir=tracker, now=NOW,
                              sibling=sibling, log=tmp_path / "нет.jsonl",
-                             ps=lambda pid: (1, ""))
+                             ps=lambda pid: (1, ""), self_anchor=MY_ANCHOR)
         assert "unchecked" in str(exc.value)
 
     def test_claim_refuses_while_another_write_is_in_flight(self, guard, sibling, tracker, log):
@@ -620,7 +637,8 @@ class TestClaimAndRelease:
         lock.write_text("pid999\n", encoding="utf-8")
         with pytest.raises(guard.ClaimError) as exc:
             guard.claim_card("agent-x", session="pid1", tracker_dir=tracker, now=NOW,
-                             sibling=sibling, log=log, ps=lambda pid: (1, ""))
+                             sibling=sibling, log=log, ps=lambda pid: (1, ""),
+                             self_anchor=MY_ANCHOR)
         assert "правит другая сессия" in str(exc.value)
         assert lock.exists()          # чужую блокировку не сносим молча
 
@@ -628,8 +646,10 @@ class TestClaimAndRelease:
         p = write_card(tracker, "agent-x")
         before = p.read_text(encoding="utf-8")
         guard.claim_card("agent-x", session="pid1", tracker_dir=tracker, now=NOW,
-                         sibling=sibling, log=log, ps=lambda pid: (1, ""))
-        guard.release_card("agent-x", session="pid1", tracker_dir=tracker, log=log)
+                         sibling=sibling, log=log, ps=lambda pid: (1, ""),
+                         self_anchor=MY_ANCHOR)
+        guard.release_card("agent-x", session="pid1", tracker_dir=tracker, log=log,
+                           self_anchor=MY_ANCHOR)
         assert p.read_text(encoding="utf-8") == before
 
     def test_release_refuses_foreign_claim_without_force(self, guard, tracker, log):
@@ -651,7 +671,8 @@ class TestClaimAndRelease:
         """Сквозной сценарий: я взял → следующая сессия видит занятость."""
         write_card(tracker, "agent-x")
         guard.claim_card("agent-x", session="pid1", tracker_dir=tracker, now=NOW,
-                         sibling=sibling, log=log, ps=lambda pid: (1, ""))
+                         sibling=sibling, log=log, ps=lambda pid: (1, ""),
+                         self_anchor=MY_ANCHOR)
         r = run(guard, tracker, log, "agent-x", session="pid2", ps=lambda pid: (1, ""),
                 now=NOW + timedelta(minutes=5), sibling=sibling)
         assert r["verdict"] == guard.CLAIMED
@@ -747,7 +768,12 @@ class TestCli:
         payload = json.loads(capsys.readouterr().out)
         assert payload["verdict"] == guard.FREE and payload["card"] == "agent-x"
 
-    def test_claim_release_roundtrip_via_cli(self, guard, tracker, log, capsys):
+    def test_claim_release_roundtrip_via_cli(self, guard, tracker, log, capsys, monkeypatch):
+        # `main` берёт якорь ТОЛЬКО из окружения — флага у CLI нет. Объявляем долгоживущий
+        # процесс ЯВНО, и им является сам pytest: он подтверждается настоящим `ps`, живёт
+        # весь прогон, и вердикт перестаёт зависеть от того, КТО запустил тест (до #388
+        # эти два теста были зелёными на Маке под оркестратором и красными в CI).
+        monkeypatch.setenv("SPA_SESSION_PID", str(os.getpid()))
         write_card(tracker, "agent-x")
         assert self._run(guard, ["--tracker-dir", str(tracker), "--log", str(log),
                                  "claim", "agent-x", "--session", "pidCLI"]) == 0
@@ -757,7 +783,12 @@ class TestCli:
                                  "release", "agent-x", "--session", "pidCLI"]) == 0
         assert guard.list_claimed(tracker) == []
 
-    def test_claim_refusal_exits_one(self, guard, tracker, log, capsys):
+    def test_claim_refusal_exits_one(self, guard, tracker, log, capsys, monkeypatch):
+        # `main` берёт якорь ТОЛЬКО из окружения — флага у CLI нет. Объявляем долгоживущий
+        # процесс ЯВНО, и им является сам pytest: он подтверждается настоящим `ps`, живёт
+        # весь прогон, и вердикт перестаёт зависеть от того, КТО запустил тест (до #388
+        # эти два теста были зелёными на Маке под оркестратором и красными в CI).
+        monkeypatch.setenv("SPA_SESSION_PID", str(os.getpid()))
         write_card(tracker, "agent-x", claimed_by="pidOTHER",
                    claimed_at=_fmt(datetime.now(timezone.utc)))
         rc = self._run(guard, ["--tracker-dir", str(tracker), "--log", str(log),
@@ -1375,8 +1406,6 @@ class TestFileOverlapStillBlocksWithoutStrongSignal:
 
 
 # ── личность сессии = измерение, а не ярлык (agent-self-claim-blocked-by-own-second-identity) ──
-
-MY_ANCHOR = (41721, "Sat Aug  1 13:37:28 2026")
 
 
 def anchored(entry, anchor):

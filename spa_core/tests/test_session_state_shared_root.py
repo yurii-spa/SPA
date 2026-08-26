@@ -287,9 +287,43 @@ def _dead_ps(pid):
     return 1, ""
 
 
+#: Якорь долгоживущего процесса для герметичных проверок: фиксированная пара
+#: (pid, «старт verbatim»), которую никто не меряет через `ps`.
+SELF_ANCHOR = (41721, "Sat Aug  1 13:37:28 2026")
+
+
+def _claim(mod, *args, **kw):
+    """`claim_card` с ЯВНЫМ якорем личности (умолчание читает окружение ПРОГОНА).
+
+    С коммита 9cb8a7823 пустой якорь = отказ `UnmeasurableClaim` ДО проверки предмета,
+    а `SPA_SESSION_PID` есть на машине под оркестратором и нет в CI ⇒ один и тот же sha
+    давал два разных вердикта (#388). Помощник, а не kwarg на каждом вызове: забыть
+    помощника заметнее, чем забыть аргумент.
+    """
+    kw.setdefault("self_anchor", SELF_ANCHOR)
+    return mod.claim_card(*args, **kw)
+
+
+def _release(mod, *args, **kw):
+    """`release_card` с тем же якорем — снимает захват та же личность, что его ставила."""
+    kw.setdefault("self_anchor", SELF_ANCHOR)
+    return mod.release_card(*args, **kw)
+
+
+def _gather(mod, *args, **kw):
+    """ЧИТАТЕЛЬ герметичен без якоря: `self_anchor=None` — это «я никем не объявлялся».
+
+    Подаётся явно, а не умолчанием: у читателя якорь из окружения совпал бы с якорем
+    захватившего (одна и та же переменная), и чужой захват прочитался бы как СВОЙ —
+    вердикт `free` там, где тест проверяет `claimed`.
+    """
+    kw.setdefault("self_anchor", None)
+    return mod.gather(*args, **kw)
+
+
 class TestClaimAlwaysAnnounces:
     def test_claim_writes_an_announce_entry(self, claim, bench):
-        claim.claim_card("agent-demo", session="pid5001", tracker_dir=bench["tracker"],
+        _claim(claim, "agent-demo", session="pid5001", tracker_dir=bench["tracker"],
                          log=bench["log"], ps=_dead_ps)
         rows = _entries(bench["log"])
         assert len(rows) == 1
@@ -303,14 +337,14 @@ class TestClaimAlwaysAnnounces:
 
         Хост-копия карточки НЕ содержит `claimed_by` (пуша ещё не было) — занятость держится
         только на общем журнале."""
-        claim.claim_card("agent-demo", session="pid5002", tracker_dir=bench["tracker"],
+        _claim(claim, "agent-demo", session="pid5002", tracker_dir=bench["tracker"],
                          log=bench["log"], ps=_dead_ps)
         host_tracker = tmp_path / "host_tracker"
         host_tracker.mkdir()
         (host_tracker / "agent-demo.md").write_text(
             "---\ntitle: Демо\nstatus: backlog\n---\n\nтело\n", encoding="utf-8")
 
-        report = claim.gather("agent-demo", log=bench["log"], tracker_dir=host_tracker,
+        report = _gather(claim, "agent-demo", log=bench["log"], tracker_dir=host_tracker,
                               self_session="pid9999", ps=_dead_ps)
         assert report["verdict"] == claim.CLAIMED
         assert any(c["session"] == "pid5002" for c in report["claims"])
@@ -320,7 +354,7 @@ class TestClaimAlwaysAnnounces:
 
         Тот же захват во frontmatter дерева сессии, но пустой общий журнал ⇒ `free` — ровно
         то состояние, в котором цикл #53 мог бы взять карточку цикла #52 второй раз."""
-        claim.claim_card("agent-demo", session="pid5003", tracker_dir=bench["tracker"],
+        _claim(claim, "agent-demo", session="pid5003", tracker_dir=bench["tracker"],
                          log=bench["log"], ps=_dead_ps)
         host_tracker = tmp_path / "host_tracker2"
         host_tracker.mkdir()
@@ -329,12 +363,12 @@ class TestClaimAlwaysAnnounces:
         empty_log = tmp_path / "empty.jsonl"
         empty_log.write_text("", encoding="utf-8")
 
-        report = claim.gather("agent-demo", log=empty_log, tracker_dir=host_tracker,
+        report = _gather(claim, "agent-demo", log=empty_log, tracker_dir=host_tracker,
                               self_session="pid9999", ps=_dead_ps)
         assert report["verdict"] == claim.FREE
 
     def test_announce_entry_is_a_strong_hit_for_the_reader(self, claim, bench):
-        claim.claim_card("agent-demo", session="pid5004", tracker_dir=bench["tracker"],
+        _claim(claim, "agent-demo", session="pid5004", tracker_dir=bench["tracker"],
                          log=bench["log"], ps=_dead_ps)
         strength, detail = claim.entry_hit(_entries(bench["log"])[0], "agent-demo")
         assert strength == claim.STRONG
@@ -347,7 +381,7 @@ class TestClaimAlwaysAnnounces:
 
         before = bench["card"].read_text(encoding="utf-8")
         with pytest.raises(claim.AnnounceError):
-            claim.claim_card("agent-demo", session="pid5005", tracker_dir=bench["tracker"],
+            _claim(claim, "agent-demo", session="pid5005", tracker_dir=bench["tracker"],
                              log=bench["log"], ps=_dead_ps, announcer=Broken())
         assert bench["card"].read_text(encoding="utf-8") == before
         assert "claimed_by" not in bench["card"].read_text(encoding="utf-8")
@@ -361,19 +395,19 @@ class TestClaimAlwaysAnnounces:
                 seen["card_had_claim"] = "claimed_by" in bench["card"].read_text(
                     encoding="utf-8")
 
-        claim.claim_card("agent-demo", session="pid5006", tracker_dir=bench["tracker"],
+        _claim(claim, "agent-demo", session="pid5006", tracker_dir=bench["tracker"],
                          log=bench["log"], ps=_dead_ps, announcer=Spy())
         assert seen["card_had_claim"] is False
         assert "claimed_by: pid5006" in bench["card"].read_text(encoding="utf-8")
 
     def test_release_announces_done_and_frees_the_card(self, claim, bench):
-        claim.claim_card("agent-demo", session="pid5007", tracker_dir=bench["tracker"],
+        _claim(claim, "agent-demo", session="pid5007", tracker_dir=bench["tracker"],
                          log=bench["log"], ps=_dead_ps)
-        claim.release_card("agent-demo", session="pid5007", tracker_dir=bench["tracker"],
+        _release(claim, "agent-demo", session="pid5007", tracker_dir=bench["tracker"],
                            log=bench["log"])
         rows = _entries(bench["log"])
         assert rows[-1]["card_state"] == "done"
-        report = claim.gather("agent-demo", log=bench["log"], tracker_dir=bench["tracker"],
+        report = _gather(claim, "agent-demo", log=bench["log"], tracker_dir=bench["tracker"],
                               self_session="pid9999", ps=_dead_ps)
         assert report["verdict"] == claim.FREE, "после release карточка обязана быть свободной"
 
@@ -387,20 +421,20 @@ class TestClaimAlwaysAnnounces:
             def record(self, **kw):
                 raise OSError("журнал недоступен")
 
-        claim.claim_card("agent-demo", session="pid5010", tracker_dir=bench["tracker"],
+        _claim(claim, "agent-demo", session="pid5010", tracker_dir=bench["tracker"],
                          log=bench["log"], ps=_dead_ps)
         with pytest.raises(claim.AnnounceError) as exc:
-            claim.release_card("agent-demo", session="pid5010", tracker_dir=bench["tracker"],
+            _release(claim, "agent-demo", session="pid5010", tracker_dir=bench["tracker"],
                                log=bench["log"], announcer=Broken())
         assert "ОТПУЩЕНА" in str(exc.value)
         assert "claimed_by" not in bench["card"].read_text(encoding="utf-8")
 
     def test_a_card_held_by_another_session_is_still_refused(self, claim, bench):
         """Положительный контроль: прежняя защита от столкновения (#46) на месте."""
-        claim.claim_card("agent-demo", session="pid5008", tracker_dir=bench["tracker"],
+        _claim(claim, "agent-demo", session="pid5008", tracker_dir=bench["tracker"],
                          log=bench["log"], ps=_dead_ps)
         with pytest.raises(claim.ClaimError):
-            claim.claim_card("agent-demo", session="pid5009", tracker_dir=bench["tracker"],
+            _claim(claim, "agent-demo", session="pid5009", tracker_dir=bench["tracker"],
                              log=bench["log"], ps=_dead_ps)
 
     def test_announce_error_is_a_claim_error(self, claim):
@@ -533,11 +567,11 @@ class TestClaimWritePathAgreesWithTheVerdict:
         bench["card"].write_text(
             "---\ntitle: Демо\nstatus: done\nclaimed_by: pid94637\n"
             "claimed_at: 2026-07-31T07:35:12Z\n---\n\nтело\n", encoding="utf-8")
-        report = claim.gather("agent-demo", log=bench["log"], tracker_dir=bench["tracker"],
+        report = _gather(claim, "agent-demo", log=bench["log"], tracker_dir=bench["tracker"],
                               self_session="pid6001", ps=_dead_ps)
         assert report["verdict"] == claim.FREE, "предпосылка: вердикт — СВОБОДНА"
 
-        res = claim.claim_card("agent-demo", session="pid6001", tracker_dir=bench["tracker"],
+        res = _claim(claim, "agent-demo", session="pid6001", tracker_dir=bench["tracker"],
                                log=bench["log"], ps=_dead_ps)
         assert res["claimed_by"] == "pid6001", "запись обязана согласиться с вердиктом"
 
@@ -549,7 +583,7 @@ class TestClaimWritePathAgreesWithTheVerdict:
             "---\ntitle: Демо\nstatus: backlog\nclaimed_by: pid7777\n"
             "claimed_at: 2026-07-31T07:35:12Z\n---\n\nтело\n", encoding="utf-8")
         with pytest.raises(claim.ClaimError):
-            claim.claim_card("agent-demo", session="pid6002", tracker_dir=bench["tracker"],
+            _claim(claim, "agent-demo", session="pid6002", tracker_dir=bench["tracker"],
                              log=bench["log"], ps=_dead_ps)
 
     def test_a_refused_claim_leaves_no_claim_in_the_shared_log(self, claim, bench):
@@ -562,14 +596,14 @@ class TestClaimWritePathAgreesWithTheVerdict:
         ровно та точка между двумя шагами)."""
         racer = _RacingAnnouncer(claim, bench["card"], "pid7777")
         with pytest.raises(claim.ClaimError, match="pid7777"):
-            claim.claim_card("agent-demo", session="pid6003", tracker_dir=bench["tracker"],
+            _claim(claim, "agent-demo", session="pid6003", tracker_dir=bench["tracker"],
                              log=bench["log"], ps=_dead_ps, announcer=racer)
 
         mine = [e for e in _entries(bench["log"]) if e.get("session") == "pid6003"]
         assert mine, "объявление было сделано до правки — оно должно остаться в журнале"
         assert mine[-1]["card_state"] == "done", "последнее слово о захвате — «снят»"
 
-        report = claim.gather("agent-demo", log=bench["log"], tracker_dir=bench["tracker"],
+        report = _gather(claim, "agent-demo", log=bench["log"], tracker_dir=bench["tracker"],
                               self_session="pid9999", ps=_dead_ps)
         assert not any(c["session"] == "pid6003" for c in report["claims"]), \
             "сессия, которой отказали, не должна числиться держателем"
@@ -578,6 +612,6 @@ class TestClaimWritePathAgreesWithTheVerdict:
         """Не смогли компенсировать — отказ всё равно отказ, и об этом сказано вслух."""
         racer = _RacingAnnouncer(claim, bench["card"], "pid7777", break_after=1)
         with pytest.raises(claim.ClaimError, match="pid7777"):
-            claim.claim_card("agent-demo", session="pid6004", tracker_dir=bench["tracker"],
+            _claim(claim, "agent-demo", session="pid6004", tracker_dir=bench["tracker"],
                              log=bench["log"], ps=_dead_ps, announcer=racer)
         assert "не компенсирован" in capsys.readouterr().err
