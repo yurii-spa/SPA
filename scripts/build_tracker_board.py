@@ -11,9 +11,12 @@ Stdlib-only. Атомарная запись.
 """
 from __future__ import annotations
 
+import argparse
 import os
+import re
 import sys
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -121,10 +124,16 @@ def atomic_write(path: Path, content: str) -> None:
             os.remove(tmp)
 
 
-def main() -> int:
+def collect_cards(tracker: Path, out_name: str = "_BOARD.md") -> list[dict]:
+    """Карточки на диске — ЕДИНСТВЕННЫЙ источник правды доски.
+
+    Вынесено из `main()`, чтобы у сверки (`--check`) и у сборки был ОДИН читатель диска:
+    вторая копия правила «как читается статус» — ровно тот дефект, из-за которого доска
+    и разъехалась с карточками (замер 17.08: три расхождения на 508 карточек).
+    """
     cards = []
-    for p in sorted(TRACKER.glob("*.md")):
-        if p.name == OUT.name:
+    for p in sorted(tracker.glob("*.md")):
+        if p.name == out_name:
             continue
         try:
             text = p.read_text(encoding="utf-8")
@@ -150,6 +159,18 @@ def main() -> int:
             "claimed_by": holder if status not in TERMINAL_STATUSES else "",
             "claimed_at": (meta.get("claimed_at", "") or "").strip(),
         })
+    return cards
+
+
+def render_board(cards: list[dict], now: datetime | None = None) -> str:
+    """Текст доски. `now` — ВХОД, а не окружение (правило про время в тестах).
+
+    Доска ОБЯЗАНА называть свою дату: она производна и может отстать от карточек, а §1
+    `CLAUDE.md` велит читать её ПЕРВОЙ. Читатель, который не видит отметки сборки, не может
+    отличить свежий индекс от вчерашнего — ровно так дважды 17.08 брались закрытые карточки.
+    """
+    now = now or datetime.now(timezone.utc)
+    stamp = now.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     by_type: dict[str, list] = {}
     for c in cards:
@@ -163,7 +184,11 @@ def main() -> int:
     lines.append("")
     lines.append("> Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. "
                  "НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).")
-    lines.append(f">")
+    lines.append(">")
+    lines.append(f"> {BUILT_AT_PREFIX}{stamp} · сверка с карточками: "
+                 "`python3 scripts/build_tracker_board.py --check` (сторож "
+                 "`spa_core/tests/test_tracker_board_matches_cards.py`).")
+    lines.append(">")
     lines.append(f"> Всего карточек: **{len(cards)}** · "
                  f"ждёт владельца: **{len(waiting)}** · занято сессиями: **{len(claimed)}**.")
     lines.append("")
@@ -212,19 +237,107 @@ def main() -> int:
             lines.append(f"- {c['title']}  ·  `{c['file']}`{when}{lock}")
         lines.append("")
 
-    content = "\n".join(lines) + "\n"
-    atomic_write(OUT, content)
+    return "\n".join(lines) + "\n"
+
+
+# --- сверка «доска ↔ карточки» --------------------------------------------------------
+# Доска — производный индекс, но §1 CLAUDE.md велит читать её ПЕРВОЙ и «не открывать 56
+# файлов». Значит она обязана СОВПАДАТЬ с frontmatter карточек; расхождение — не косметика,
+# а неверный вход каждой сессии. 17.08 замерено 3 расхождения на 508 карточек (одна карточка
+# `done` числилась `new`, две отсутствовали вовсе) — и по ним дважды бралась закрытая работа.
+
+BUILT_AT_PREFIX = "Собрана: "
+_BOARD_ROW = re.compile(r"^- .*?`([^`]+\.md)`")
+_BOARD_STATUS_HEADING = re.compile(r"^### · (.+)$")
+
+
+def board_status_map(board_text: str) -> dict[str, str]:
+    """Что доска УТВЕРЖДАЕТ о статусе каждой карточки: {имя файла: статус}.
+
+    Читается ровно то, что видит человек — строки под заголовками `### · <статус>`.
+    Секции «ждёт владельца» / «заняты сессиями» — дубликаты тех же карточек без своего
+    заголовка статуса; они намеренно пропускаются (`cur = None` на любом `## `).
+    """
+    out: dict[str, str] = {}
+    cur: str | None = None
+    for line in board_text.splitlines():
+        if line.startswith("## "):
+            cur = None
+            continue
+        m = _BOARD_STATUS_HEADING.match(line)
+        if m:
+            cur = m.group(1).strip()
+            continue
+        if cur is None:
+            continue
+        m = _BOARD_ROW.match(line)
+        if m:
+            out[m.group(1)] = cur
+    return out
+
+
+def board_drift(tracker: Path, out_name: str = "_BOARD.md") -> list[tuple[str, str, str]]:
+    """Расхождения доски с карточками: [(файл, статус на доске, статус в frontmatter)].
+
+    Fail-CLOSED: отсутствующая доска — расхождение по КАЖДОЙ карточке, а не «нечего сверять».
+    """
+    board_path = tracker / out_name
+    claimed = board_status_map(board_path.read_text(encoding="utf-8")) if board_path.exists() else {}
+    actual = {c["file"]: c["status"] for c in collect_cards(tracker, out_name)}
+    drift = []
+    for name in sorted(set(claimed) | set(actual)):
+        said = claimed.get(name, "<НЕТ НА ДОСКЕ>")
+        real = actual.get(name, "<НЕТ КАРТОЧКИ>")
+        if said != real:
+            drift.append((name, said, real))
+    return drift
+
+
+def main(argv=None) -> int:
+    # argv=None ⇒ пустой список, а НЕ sys.argv: `main()` вызывают из кода
+    # (`orchestrator_queue._rebuild_board`, тесты), где sys.argv принадлежит чужой программе.
+    args = _parse(argv)
+
+    tracker = Path(args.tracker_dir) if args.tracker_dir else TRACKER
+    out = tracker / OUT.name if args.tracker_dir else OUT
+
+    if args.check:
+        drift = board_drift(tracker, out.name)
+        if drift:
+            print(f"ДОСКА РАСХОДИТСЯ С КАРТОЧКАМИ: {len(drift)}", file=sys.stderr)
+            for name, said, real in drift:
+                print(f"  {name}: доска={said!r} · карточка={real!r}", file=sys.stderr)
+            print("Починка: python3 scripts/build_tracker_board.py "
+                  "(статусы карточек НЕ трогать — инвариант 14).", file=sys.stderr)
+            return 1
+        print(f"OK: доска совпадает с карточками ({len(collect_cards(tracker, out.name))} карточек)")
+        return 0
+
+    cards = collect_cards(tracker, out.name)
+    content = render_board(cards)
+    atomic_write(out, content)
     # Доска может быть перенацелена на другой каталог (`--tracker-dir`, песочница теста) —
     # тогда её пути нет внутри репозитория. Статусная СТРОКА не имеет права ронять сборку:
     # файл уже записан, и падение здесь выглядело бы как «доска не собралась».
     try:
-        where = OUT.relative_to(REPO)
+        where = out.relative_to(REPO)
     except ValueError:
-        where = OUT
+        where = out
+    waiting = [c for c in cards if c["status"] in WAITING_OWNER]
+    claimed = [c for c in cards if c["claimed_by"]]
     print(f"wrote {where} — {len(cards)} cards, "
           f"{len(waiting)} waiting-owner, {len(claimed)} claimed")
     return 0
 
 
+def _parse(argv):
+    p = argparse.ArgumentParser(description="Собрать/сверить _BOARD.md из карточек трекера.")
+    p.add_argument("--tracker-dir", default=None,
+                   help="каталог карточек (по умолчанию — трекер СВОЕГО дерева)")
+    p.add_argument("--check", action="store_true",
+                   help="не писать, а СВЕРИТЬ доску с frontmatter карточек; расхождение ⇒ код 1")
+    return p.parse_args([] if argv is None else argv)
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

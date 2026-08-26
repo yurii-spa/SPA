@@ -26,8 +26,9 @@ SPA — автономный DeFi yield-optimizer на стадии **paper trad
      вверху «ждёт владельца»); авто-индекс, регенерится `scripts/build_tracker_board.py`: при мутации
      через `orchestrator_queue.py` — автоматически, при **ручной правке карточки доску надо
      пересобрать самому** (`python3 scripts/build_tracker_board.py`), иначе она отстанет и покажет
-     закрытую карточку открытой. Сторожа, который ловит расхождение, на `main` пока НЕТ
-     (`agent-storozh-doski-zhivet-tolko-na-vetke`). Читать ЕГО первым, не открывая 56 файлов.
+     закрытую карточку открытой. Сверка — `python3 scripts/build_tracker_board.py --check`
+     (сторож `spa_core/tests/test_tracker_board_matches_cards.py`, порт 2026-08-26 из ветки
+     `agent-storozh-doski-zhivet-tolko-na-vetke`). Читать доску первой, не открывая 56 файлов.
      Сами карточки — `nimbalyst-local/tracker/*.md`:
      `own-*`/`owner-decision-*` = Owner Decisions (ждёт владельца) · `agent-*` = Agent Tasks (что делает
      агент: backlog/in-progress/blocked/done) · `inbox-*` = задания;
