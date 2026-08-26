@@ -2,13 +2,13 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-26T22:06:05Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-26T22:21:36Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **700** · ждёт владельца: **1** · занято сессиями: **6**.
+> Всего карточек: **700** · ждёт владельца: **0** · занято сессиями: **6**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
-- **Два помощника готовы, но включить их можешь только ты — они стоят вторые сутки** · _medium_  ·  `owner-decision-dva-pomoschnika-gotovy-no-vklyuchit-ih-m.md`
+_Пусто — открытых решений на владельце нет._
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
@@ -23,8 +23,6 @@
 
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (175)
 
-### · needs-owner
-- Два помощника готовы, но включить их можешь только ты — они стоят вторые сутки  ·  `owner-decision-dva-pomoschnika-gotovy-no-vklyuchit-ih-m.md` · 2026-08-26
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -110,6 +108,7 @@
 - Доска карточек обещает больше, чем даёт: поправить одну фразу в CLAUDE.md  ·  `owner-decision-doska-kartochek-obeschaet-bolshe-chem-da.md` · 2026-08-17
 - Два агента не переживут перезагрузку — разрешить доустановить их в системную папку  ·  `owner-decision-dva-agenta-ne-perezhivut-perezagruzku-ra.md` · 2026-08-06
 - Два дня трека помечены доказанными, хотя в эти дни система не держала ничего  ·  `owner-decision-dva-dnya-treka-pomecheny-dokazannymi-hot.md` · 2026-08-10
+- Два помощника готовы, но включить их можешь только ты — они стоят вторые сутки  ·  `owner-decision-dva-pomoschnika-gotovy-no-vklyuchit-ih-m.md` · 2026-08-26
 - Два цикла оркестратора работали одновременно — карточки защищены, сам цикл нет  ·  `owner-decision-dva-tsikla-orkestratora-rabotali-odnovre.md` · 2026-08-01
 - Два твоих решения от 18.08 не исполнены — а ветку, где они записаны, мы закрываем как «повторы»  ·  `owner-decision-dva-tvoih-resheniya-ot-18-08-ne-ispolnen.md` · 2026-08-23
 - Две записи о деньгах: причина найдена и измерена — выбрать, чем чинить  ·  `owner-decision-dve-zapisi-o-dengah-prichina-naidena-i-i.md` · 2026-08-17
