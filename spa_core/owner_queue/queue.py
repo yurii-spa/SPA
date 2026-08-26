@@ -28,7 +28,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
-from spa_core.owner_queue.status_audit import record_status_write, stamp_trail
+from spa_core.owner_queue.status_audit import TRAIL_SEP, record_status_write, stamp_trail
 from spa_core.utils.atomic import atomic_save_text
 
 # Repo-root-relative canonical location of the files-first queue.
@@ -86,9 +86,44 @@ OWNER_ONLY_STATUS = "owner-done"
 #: после того, как он сам проверил критерий приёмки и записал результат.
 OWNER_ACCEPTED_STATUS = "owner-accepted"
 
-#: Оба статуса, которые вправе поставить только владелец. Один список на весь модуль:
-#: вторая копия имён — тот самый дефект, за который проект уже платил (#143–#145).
-OWNER_ONLY_STATUSES = frozenset({OWNER_ONLY_STATUS, OWNER_ACCEPTED_STATUS})
+#: Статус, который вправе поставить ТОЛЬКО владелец, и после 2026-08-26 — единственный такой.
+#:
+#: `owner-accepted` — это дословно СЛОВА владельца («принято, беру в работу»). Агент, ставящий
+#: его, не закрывает карточку, а выдумывает чужую реплику. Разрешение 26.08 «карточки тоже
+#: закрывай сам» было про ЗАКРЫТИЕ, а закрытие — это `owner-done`; `owner-accepted` нетерминален
+#: (ADR-124) и закрытием не является вовсе. Поэтому он остаётся owner-only и владельцу это ничего
+#: не стоит: закрывать через него было нечего.
+OWNER_ONLY_STATUSES = frozenset({OWNER_ACCEPTED_STATUS})
+
+#: Статус, закрывающий карточку. Агенту РАЗРЕШЁН с 2026-08-26 (ADR-144) — но только через
+#: именованное закрытие с записанным основанием, см. `set_status(..., closed_by=, evidence=)`.
+#:
+#: Что здесь НЕ изменилось и почему. Запрет снят не потому, что авария #350 перестала быть
+#: аварией, а потому, что он защищал не то. Замер #350: нажатие «✅ Принято» поставило
+#: терминальный статус в момент, когда критерий приёмки НЕ был выполнен (карточка требовала
+#: «`curl -I …` больше не отвечает 404», а спустя 18 минут он всё ещё отвечал 404) — и
+#: обещанной перепроверки делать стало некому, пункт выбыл из очереди. Закрыл её ВЛАДЕЛЕЦ
+#: кнопкой, не агент. Значит охраняемое свойство — не «кто нажал», а **«терминальный статус
+#: означает проверенный критерий»**, и именно оно оставлено машинным: без `evidence` закрытие
+#: по-прежнему ОТКАЗЫВАЕТ.
+AGENT_CLOSABLE_STATUS = OWNER_ONLY_STATUS
+
+#: Статусы, приход в которые МИМО писателя обязан звучать как CRITICAL.
+#:
+#: Разрешение агенту закрывать карточки (ADR-144) сняло вопрос «кому МОЖНО», но не вопрос
+#: «осталась ли запись». Карточка, оказавшаяся закрытой без единого следа, подозрительна
+#: одинаково независимо от того, чья рука это сделала: след — единственное, чем закрытие
+#: отличается от пропажи вопроса. Поэтому сторож читает ЭТОТ набор (объединение), а не
+#: `OWNER_ONLY_STATUSES`, который после ADR-144 сузился до одного имени.
+#:
+#: Отдельным именем, а не выражением по месту: два разъехавшихся перечня — способ замолчать
+#: ровно о новом члене класса (#143–#145), и тест сверяет сторожа с этим именем.
+ATTRIBUTION_CRITICAL_STATUSES = OWNER_ONLY_STATUSES | {AGENT_CLOSABLE_STATUS}
+
+#: Статусы, с которыми карточку нельзя СОЗДАТЬ. Шире, чем owner-only, и намеренно:
+#: закрытие требует ПРОВЕРЕННОГО критерия приёмки, а у новорождённой карточки проверять
+#: ещё нечего. Карточка, рождённая закрытой, — это вопрос, которого никогда не задавали.
+UNCREATABLE_STATUSES = ATTRIBUTION_CRITICAL_STATUSES
 
 # Sensible default status per tracker type when a card is created without one.
 # Guards against status-less "dead-letter" cards: a card with no top-level ``status:``
@@ -319,16 +354,33 @@ def list_cards(
     return cards
 
 
-def set_status(path: str | Path, new_status: str) -> None:
+def set_status(path: str | Path, new_status: str,
+               closed_by: str | None = None, evidence: str | None = None) -> None:
     """Atomically rewrite the top-level ``status:`` in a card's frontmatter.
 
-    Refuses ``owner-done`` AND ``owner-accepted`` (both owner-only). Only the ``status:``
-    line changes; the rest of the file is preserved byte-for-byte modulo that one line.
+    Refuses ``owner-accepted`` outright: that status is the owner's own words, and an agent
+    setting it invents a quote rather than closing anything (it is non-terminal — ADR-124).
+
+    Accepts ``owner-done`` from an agent since 2026-08-26 (ADR-144) — the owner delegated card
+    closing — **but only with `closed_by` and `evidence` given**. The property that survives is
+    not "who pressed the button" (авария #350 was the owner's own press) but *a terminal status
+    means the acceptance criterion was checked*. No evidence ⇒ refuse, as before.
+
+    Only the ``status:`` line changes; the rest of the file is preserved byte-for-byte modulo
+    that one line (the closure stamp is appended to the body, not the frontmatter).
     """
     if new_status in OWNER_ONLY_STATUSES:
         raise OwnerDoneForbidden(
-            f"Agents may not set status '{new_status}' — that transition is owner-only "
-            "(CLAUDE.md invariant #14). Allowed agent targets: ingested / in-progress / done / needs-owner."
+            f"Agents may not set status '{new_status}' — that status is the owner's own words, "
+            "not a verdict an agent may reach (CLAUDE.md invariant #14, ADR-144). It is "
+            "non-terminal and closes nothing; to CLOSE a card use owner-done with evidence."
+        )
+    if new_status == AGENT_CLOSABLE_STATUS and not (closed_by and evidence):
+        raise OwnerDoneForbidden(
+            f"Closing a card with '{new_status}' requires closed_by= AND evidence= "
+            "(CLAUDE.md invariant #14, ADR-144). A terminal status must mean the card's "
+            "acceptance criterion was CHECKED — that is what авария #350 cost, and it is the "
+            "half of the old guard that stays machine-enforced."
         )
     p = Path(path)
     text = p.read_text(encoding="utf-8")
@@ -375,8 +427,18 @@ def set_status(path: str | Path, new_status: str) -> None:
     # (ADR-129). Одной записью со статусом, а не двумя: журнал в `data/` в git не
     # попадает, поэтому законное закрытие из рабочего дерева приезжало в прод немым,
     # и сторож называл его «вопрос владельца закрыли без владельца» КАЖДЫЙ раз.
+    #
+    # Закрытие агентом (ADR-144) едет ТЕМ ЖЕ следом, а не своей параллельной записью: кто
+    # закрыл и на каком основании — половина ответа на «почему карточка закрыта», и она
+    # обязана лежать там же, где остальные переходы, иначе появится второй источник правды.
+    # Разделитель следа из основания вычищается: иначе основание с ` · ` внутри развалило бы
+    # разбор строки на поля.
+    _source = "queue.set_status"
+    if new_status == AGENT_CLOSABLE_STATUS and closed_by and evidence:
+        _clean = str(evidence).replace(TRAIL_SEP.strip(), "-").replace("\n", " ").strip()
+        _source = f"queue.set_status/closed_by:{closed_by}/evidence:{_clean[:200]}"
     _text = stamp_trail("".join(lines), old=_old_status, new=new_status,
-                        source="queue.set_status")
+                        source=_source)
     atomic_save_text(_text, str(p))
     # Кто перевёл карточку — в журнал. Импорт наверху, а не здесь: аудит держится
     # на одной stdlib и кольца не создаёт, а «на всякий случай локальный» импорт —
@@ -505,12 +567,15 @@ def create_card(
     disambiguate, and made IDs opaque — owner feedback inbox-task-readable-card-ids). A
     short numeric suffix is appended ONLY on collision (``-2``, ``-3`` …). The date is
     still recorded in the ``created:`` frontmatter field.
-    Never sets ``owner-done`` / ``owner-accepted`` (owner-only) — callers create in an
-    open state.
+    Never sets ``owner-done`` / ``owner-accepted`` — callers create in an open state.
+    This stays true after ADR-144 let agents CLOSE cards: closing demands a checked
+    acceptance criterion, and a newborn card has nothing checked yet. A card born closed
+    is a question that was never actually asked.
     """
-    if status in OWNER_ONLY_STATUSES:
+    if status in UNCREATABLE_STATUSES:
         raise OwnerDoneForbidden(
-            f"create_card must not set '{status}' (owner-only, invariant #14).")
+            f"create_card must not set '{status}': a card is never born closed "
+            "(invariant #14, ADR-144). Create it open, then close it with evidence.")
     d = Path(tracker_dir) if tracker_dir is not None else TRACKER_DIR
     d.mkdir(parents=True, exist_ok=True)
     dt = now or datetime.now(timezone.utc)
