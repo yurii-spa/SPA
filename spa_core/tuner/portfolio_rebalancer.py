@@ -69,17 +69,7 @@ REBALANCER_VERSION = "v1.0"
 #     t2_max           = 45%  (ADR-019 допускает 50% — берём строже)
 #     cash_min         = 7%   (политика требует ≥5% — берём строже)
 #     max_protocols    = 7    (политика допускает 8 — запас 1)
-_DEFAULT_CONSTRAINTS = TunerConstraints(
-    t1_min=0.0,
-    t2_max=0.45,
-    per_protocol_max=0.25,
-    tvl_floor_usd=5_000_000.0,
-    min_protocols=3,
-    max_protocols=7,
-    cash_min=0.07,
-    apy_min=1.0,
-    apy_max=30.0,
-)
+_DEFAULT_CONSTRAINTS = TunerConstraints()  # решение владельца 26.08: зеркало политики, один источник правды — дефолты класса
 
 # Safe fallback portfolio — used when tuner cannot produce a policy-compliant
 # allocation (e.g., insufficient T1 adapters in orchestrator data).

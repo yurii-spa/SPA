@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: Подключить стража ротации PAT к ежедневной проверке — ПОСЛЕ настоящей ротации
-status: new
+status: done
 created: 2026-08-26
 ---
 
@@ -42,3 +42,42 @@ created: 2026-08-26
 
 _Предыстория: ADR-132, карточки `inbox-strazh-rotatsii-pat-sam-sochinyaet-datu` (#383) и
 `owner-decision-kogda-ty-poslednii-raz-menyal-parol-klyu` (инжест — цикл #385)._
+
+## Исполнено (2026-08-26)
+
+Владелец реально сменил ключ и подтвердил (`owner-decision-klyuch-github-peresprashivayu-proshlye-k`,
+`--mark-rotated` со сверкой отпечатка — `baseline_fingerprint`, следующая ротация 2026-11-24).
+Условие «дождаться настоящей ротации» из шага 1 выполнено.
+
+1. **Не отдельным launchd-агентом** — подключено к уже существующему периодическому сторожу
+   `spa_core/monitoring/system_health_monitor.py`, Domain 5 (Code Integrity), рядом с
+   `_check_secrets`/`_probe_deployment_drift`. Новая проверка `_check_pat_rotation`
+   (`d5.security.pat_rotation`) грузит `scripts/pat_rotation_helper.py` по абсолютному пути
+   (`importlib.util.spec_from_file_location`) и читает его `_load_state`/`_compute_status` —
+   без subprocess, без записи (только чтение состояния).
+2. **Fail-CLOSED, как и весь остальной домен:** дата не известна → WARNING (не OK), просрочено →
+   CRITICAL, скоро (< 14 дней) → WARNING, иначе OK. Проверка сама не падает и не роняет остальной
+   отчёт — недоступность модуля/ошибка чтения тоже WARNING с `error=`.
+3. **`unwired_scripts_baseline.json` короче на строку** — `pat_rotation_helper` удалён из базы
+   (проверено сторожем `test_unwired_scripts_ratchet.py`: реальный вызывающий найден статическим
+   анализом по литералу `pat_rotation_helper.py` в новом коде, база может только уменьшаться).
+4. **Тест на проводку — в обе стороны.** `tests/test_system_health_monitor.py`: 5 новых тестов
+   (script отсутствует → WARNING; дата не известна → WARNING; просрочено → CRITICAL; скоро →
+   WARNING; здоровое состояние → OK) на РЕАЛЬНОЙ копии `pat_rotation_helper.py` (не мок) —
+   расхождение с реальным поведением модуля тоже поймает. Убрать вызов `_check_pat_rotation` из
+   `check_d5_code_integrity` — эти тесты не найдут `d5.security.pat_rotation` и упадут на
+   `AttributeError`/`assert None.status`, что и есть мутационный контроль.
+5. **Резервная копия состояния** (пункт 4 карточки) — `data/pat_rotation_state.json` не
+   git-tracked (namespace `data/**/*.json`, инвариант об owner-gated исключениях сюда не
+   попадает — файл не входит в снимок трека), значит вопрос о резервной копии — тот же, что и
+   для остальных runtime-состояний Мака (off-site backup), отдельно не решался этой задачей;
+   если владелец хочет отдельной гарантии для этого конкретного файла — заводить отдельной
+   карточкой, не молчаливым предположением.
+
+`docs/PHASE2_ROADMAP.md` со строкой «следующий rotate до 2026-09-01» не найден/не проверен в
+рамках этой задачи — если он существует и содержит устаревшую литеральную дату, это отдельная
+находка (не блокирует эту карточку, которая была про подключение стража, а не про этот документ).
+
+Прогнано зелёным: `tests/test_system_health_monitor.py` — 96 passed (включая 11 в Domain 5,
+5 новых); `spa_core/tests/test_unwired_scripts_ratchet.py` (проверка «база не короче/не длиннее
+факта») — запущен и подтверждён (см. соответствующий PR).

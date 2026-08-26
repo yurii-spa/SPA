@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent-task
 title: "Сторож доски карточек и `--check` живут ТОЛЬКО на ветке — карточка владельцу описывала их как готовые"
-status: backlog
+status: done
 source: цикл #357 (находка при исполнении ADR-128, решение владельца вариант А)
 created: 2026-08-23
 priority: medium
@@ -53,3 +53,26 @@ tags: [tracker-board, guard, adr-128, branch-only]
 `owner-accepted` остаётся вторым в `STATUS_ORDER` и вне `TERMINAL_STATUSES` (обратный контроль на
 регрессию ADR-124); §1 `CLAUDE.md` дописывается ссылкой на реально существующую гарантию —
 и только тогда.
+
+## Исполнено (2026-08-26)
+
+Изменение (не копия файла) перенесено с `origin/claude/work-status-check-xfnbew` на `main`:
+`collect_cards`/`render_board`/`board_status_map`/`board_drift`/`--check`/`--tracker-dir` — из
+ветки, ровно как требовала карточка; `STATUS_ORDER` и `TERMINAL_STATUSES` — версия `main`
+(ADR-124, `owner-accepted` вторым и вне терминальных) не откачена. Сторож
+`spa_core/tests/test_tracker_board_matches_cards.py` перенесён целиком, все 11 тестов зелёные
+на `main`, включая живой храповик `test_live_board_matches_live_cards` (сразу поймал реальный
+дрейф — статус `agent-drift-number-is-mostly-noise.md` был `backlog` при факте `done`; доска
+пересобрана).
+
+Заодно найдена и исправлена вторая, ранее не описанная часть того же класса: `cmd_set_status`
+в `orchestrator_queue.py` пересобирал доску СВОЕГО дерева через `_rebuild_board()` без
+`tracker_dir`, а не дерева, куда указывает `args.path` — на worktree-сценарии (карточка
+меняется в соседнем дереве) доска осталась бы врать. Закрыто одной строкой
+(`tracker_dir=Path(args.path).resolve().parent`), закреплено тестом
+`test_set_status_rebuilds_the_board_of_the_cards_own_tracker` (был в переносимом наборе,
+раньше падал бы на этой версии `main` — не проверялось, потому что теста тоже не было).
+
+§1 `CLAUDE.md` переписан: вместо «сторожа на main пока НЕТ» — ссылка на реальные
+`--check` + сторож. 350+11 смежных тестов (`orchestrator_queue`, `tracker_board`,
+`owner_queue`, card-claim/delivery/carry) прогнаны зелёными.

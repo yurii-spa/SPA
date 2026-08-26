@@ -731,6 +731,91 @@ def test_d5_secrets_lock_excluded(good_dir, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
+# DOMAIN 5 — PAT rotation guard (inbox-podklyuchit-strazha-rotatsii-pat-k-ezhed)
+#
+# The real scripts/pat_rotation_helper.py is copied into the fixture's project
+# root so the check exercises the ACTUAL module (`_load_state`/`_compute_status`),
+# not a stand-in — a copy that drifts from the source would pass while the real
+# wiring is broken. Its STATE_FILE resolves relative to its own __file__, so
+# writing tmp_path/data/pat_rotation_state.json controls what it reads.
+# ---------------------------------------------------------------------------
+def _install_pat_helper(root: Path) -> None:
+    real = Path(__file__).resolve().parents[1] / "scripts" / "pat_rotation_helper.py"
+    dest_dir = root / "scripts"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    (dest_dir / "pat_rotation_helper.py").write_text(
+        real.read_text(encoding="utf-8"), encoding="utf-8")
+
+
+def _write_pat_state(root: Path, **fields) -> None:
+    _write(root / "data", "pat_rotation_state.json", fields)
+
+
+def test_d5_pat_rotation_unavailable_when_script_missing(good_dir, monkeypatch):
+    """No copy installed ⇒ WARNING, never a crash and never OK-by-default."""
+    mon = make_mon(good_dir)
+    monkeypatch.setattr(mon, "_run_import", lambda code: (True, ""))
+    prelude(mon)
+    res = mon.check_d5_code_integrity()
+    r = by_id(res, "d5.security.pat_rotation")
+    assert r.status == WARNING
+    assert "unavailable" in r.title.lower()
+
+
+def test_d5_pat_rotation_date_unknown_is_warning_not_ok(good_dir, monkeypatch):
+    """No state file at all ⇒ date NOT KNOWN ⇒ WARNING (fail-CLOSED, never OK)."""
+    _install_pat_helper(good_dir)
+    mon = make_mon(good_dir)
+    monkeypatch.setattr(mon, "_run_import", lambda code: (True, ""))
+    prelude(mon)
+    res = mon.check_d5_code_integrity()
+    r = by_id(res, "d5.security.pat_rotation")
+    assert r.status == WARNING
+    assert "NOT KNOWN" in r.title
+
+
+def test_d5_pat_rotation_overdue_critical(good_dir, monkeypatch):
+    _install_pat_helper(good_dir)
+    _write_pat_state(good_dir, last_rotation="2026-01-01", next_rotation="2026-04-01",
+                     keychain_service="GITHUB_PAT_SPA", rotation_evidence="observed_change")
+    mon = make_mon(good_dir)
+    monkeypatch.setattr(mon, "_run_import", lambda code: (True, ""))
+    prelude(mon)
+    res = mon.check_d5_code_integrity()
+    r = by_id(res, "d5.security.pat_rotation")
+    assert r.status == CRITICAL
+    assert "overdue" in r.title.lower()
+
+
+def test_d5_pat_rotation_due_soon_warning(good_dir, monkeypatch):
+    soon = (date.today() + timedelta(days=5)).isoformat()
+    _install_pat_helper(good_dir)
+    _write_pat_state(good_dir, last_rotation="2026-01-01", next_rotation=soon,
+                     keychain_service="GITHUB_PAT_SPA", rotation_evidence="observed_change")
+    mon = make_mon(good_dir)
+    monkeypatch.setattr(mon, "_run_import", lambda code: (True, ""))
+    prelude(mon)
+    res = mon.check_d5_code_integrity()
+    r = by_id(res, "d5.security.pat_rotation")
+    assert r.status == WARNING
+    assert "due soon" in r.title.lower()
+
+
+def test_d5_pat_rotation_ok(good_dir, monkeypatch):
+    future = (date.today() + timedelta(days=60)).isoformat()
+    _install_pat_helper(good_dir)
+    _write_pat_state(good_dir, last_rotation=date.today().isoformat(), next_rotation=future,
+                     keychain_service="GITHUB_PAT_SPA", rotation_evidence="observed_change")
+    mon = make_mon(good_dir)
+    monkeypatch.setattr(mon, "_run_import", lambda code: (True, ""))
+    prelude(mon)
+    res = mon.check_d5_code_integrity()
+    r = by_id(res, "d5.security.pat_rotation")
+    assert r.status == OK
+    assert future in r.title
+
+
+# ---------------------------------------------------------------------------
 # DOMAIN 6 — Risk Gates
 # ---------------------------------------------------------------------------
 def _patch_killswitch(mon, monkeypatch, triggered=False):
