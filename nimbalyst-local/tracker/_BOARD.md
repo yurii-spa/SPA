@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-26T17:10:18Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-26T18:40:32Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **688** · ждёт владельца: **1** · занято сессиями: **6**.
+> Всего карточек: **692** · ждёт владельца: **1** · занято сессиями: **6**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -199,7 +199,7 @@
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (329)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (333)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -477,6 +477,7 @@
 - CI main КРАСНЫЙ: сторож rootdir дочернего pytest сторожит механизм, которого больше нет  ·  `inbox-ci-main-krasnyi-storozh-rootdir-docherne.md` · 2026-08-26
 - CIO: этап-1 (диагностика) готов документом — исполнять гэпы G1→G4, осколки 13.08 закрыть как дубли  ·  `inbox-cio-etap1-diagnostika-gotova-ispolnyat-g1-g4.md` · 2026-08-19
 - CLMM «79%»: research (часть 1 ADR-070 п.20) готов документом — остаётся часть 2 (ADR допуска с хеджем)  ·  `inbox-clmm-research-chast1-gotova-adr-070-p20.md` · 2026-08-19
+- Critical-карточка голодает 4 дня при 40+ циклах: подъёмы/находки вытесняют верх очереди — нужно правило анти-голодания  ·  `inbox-critical-kartochka-goloda-et-4-dnya-pri-40-tsiklah.md` · 2026-08-26
 - Демоушен книг Aggressive по ОТНОСИТЕЛЬНОМУ рангу (решение владельца 09.08, вариант A)  ·  `inbox-demoushen-knig-aggressive-po-otnositelno.md` · 2026-08-09
 - Долгоживущие агенты не подхватывают доставленный код — и никто об этом не говорит  ·  `inbox-dolgozhivuschie-agenty-ne-podhvatyvayut.md` · 2026-08-08
 - Два теста краснеют оттого, что владелец ОТВЕТИЛ: очередь CLI судит о главном дереве  ·  `inbox-dva-testa-krasneyut-ottogo-chto-vladelet.md` · 2026-08-19
@@ -501,6 +502,7 @@
 - ОТЛОЖЕНО · Looping Strategy «до +50%» — отдельный трек, вернуться после расчистки бэклога  ·  `inbox-otlozheno-looping-strategy-do-50-otdelny.md` · 2026-08-23
 - Оживить фиды вне Ethereum — путь к снятию остатка кэша (решение владельца 08.08)  ·  `inbox-ozhivit-fidy-vne-ethereum-put-k-snyatiyu.md` · 2026-08-08
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
+- Перемерить записи #35–#76 после починки курса (вторая половина варианта 1, ADR-139)  ·  `inbox-peremerit-zapisi-35-76-posle-pochinki-ku.md` · 2026-08-26
 - Починить писателей живого data/ по карте замера — класс обнесён храповиком, но не закрыт  ·  `inbox-pochinit-pisatelei-zhivogo-data-po-karte.md` · 2026-08-23
 - Под ключом stusd объявлены ДВА разных контракта с одинаковым vanity-префиксом — проверить on-chain  ·  `inbox-pod-klyuchom-stusd-obyavleny-dva-raznyh.md` · 2026-08-18
 - Подготовить ADR: пересмотр лимита одной цепочки 90% (решение владельца — за ним)  ·  `inbox-podgotovit-adr-peresmotr-limita-odnoi-ts.md` · 2026-08-08
@@ -509,6 +511,7 @@
 - Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md` · 2026-08-20 · 🔒 `cycle-352`
 - Проработать расширение whitelist для настоящих ~20% в Aggressive (advisory, владельцу на решение)  ·  `inbox-prorabotat-rasshirenie-whitelist-dlya-na.md` · 2026-08-23
 - Protection Lab фазы 6–8: AI-генератор параметров, перебор adversarial-комбинаций, страница сайта (owner-gated)  ·  `inbox-protection-lab-fazy-6-8-ai-generator-par.md` · 2026-08-22
+- Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
 - Разобрать 52 карточки с ветки work-status-check, потом удалить ветку (решение владельца 20.08, вариант 1)  ·  `inbox-razobrat-52-kartochki-s-vetki-work-statu.md` · 2026-08-20 · 🔒 `pid85035`
 - Сбалансированный трек: ноль профинансированных дней из 40 при 920 отработанных циклах  ·  `inbox-sbalansirovannyi-trek-nol-profinansirova.md` · 2026-08-08
 - scripts/system_health_check.py заменён монитором два месяца назад, но остался в дереве  ·  `inbox-scripts-system-health-check-py-zamenen-m.md` · 2026-08-25
@@ -530,6 +533,7 @@
 - Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md` · 2026-08-06
 - Три отправителя стоп-крана в обход канонической двери (найдено #313)  ·  `inbox-tri-otpravitelya-stop-krana-v-obhod-kano.md` · 2026-08-20
 - Вердикт деска по sUSDS стоит на СНЯТОЙ причине — а книга этот актив держит  ·  `inbox-verdikt-deska-po-susds-stoit-na-snyatoi.md` · 2026-08-25
+- Закрепить morpho_blue_base за конкретным хранилищем (сейчас берётся «крупнейшее сегодня»)  ·  `inbox-zakrepit-morpho-blue-base-za-konkretnym.md` · 2026-08-26
 - Замер обмена «доходность ↔ концентрация» на T2 (20/25/30%) — решение владельца A, задачи не было  ·  `inbox-zamer-obmena-dohodnost-kontsentratsiya-n.md` · 2026-08-08
 - Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07 · 🔒 `cycle-81141`
 - Заслон изоляции data/ в тестах покрывает 1 модуль из 209 — вердикт теста решает живой файл хоста  ·  `inbox-zaslon-izolyatsii-data-v-testah-pokryvae.md` · 2026-08-23
@@ -553,7 +557,6 @@
 - Подстановка выдуманного APY живёт ещё в 15 адаптерах — у 14 она доходит до оркестратора  ·  `agent-fake-fallback-v-15-adapterah.md` · 2026-08-08
 - Панель идеи #17 на 6 книгах из 10 состоит из неподвижных марок — кросс-секцию на ней измерить нельзя  ·  `agent-idea17-needs-a-panel-with-daily-marks.md` · 2026-08-02
 - morpho_steakhouse — 40 % книги — отсутствует в реестре риск-скоров, и три теста краснеют на main из-за этого  ·  `agent-morpho-steakhouse-bez-risk-score.md` · 2026-08-08
-- Мягкая ступень стоп-крана: перестать подавать её как защиту (решение владельца 19.08, вариант Б1)  ·  `agent-myagkaya-stupen-perestat-nazyvat-zaschitoi.md` · 2026-08-20
 - Мягкая ступень просадки (5–10 %) должна действовать в МИНУТАХ, а не на следующем суточном цикле (ADR-129)  ·  `agent-myagkii-tir-vnutri-dnya-v-minutah.md` · 2026-08-23
 - Просадку вычислить не из чего — НАРАЩИВАНИЕ запрещено (решение владельца, ADR-129)  ·  `agent-nevychislimaya-prosadka-zapret-naraschivaniya.md` · 2026-08-23
 - Осиротевшая работа вернулась после закрытия своей карточки — циклы #97 и #98 умерли не доставив, второй прямо на подъёме работы первого  ·  `agent-orphaned-work-recurred-after-its-card-was-closed.md` · 2026-08-03
@@ -617,6 +620,7 @@
 - Q6: уведомления о заявках  ·  `agent-lead-pings.md` · 2026-07-16
 - Утренний дайджест отчитывается «отправлено» о сообщении, которое не ушло — и называет «тихим» день, чьи источники не смог прочитать  ·  `agent-morning-digest-claims-delivery-it-never-made.md` · 2026-08-01
 - Утренний дайджест 9:00  ·  `agent-morning-digest.md` · 2026-07-16
+- Мягкая ступень стоп-крана: перестать подавать её как защиту (решение владельца 19.08, вариант Б1)  ·  `agent-myagkaya-stupen-perestat-nazyvat-zaschitoi.md` · 2026-08-20
 - Список сетевого стража копится за весь прогон — краснит охранный тест только в полной сюите  ·  `agent-network-guard-attempts-never-reset.md` · 2026-08-04
 - Офлайн-набор всё равно платит полный retry-backoff — 26 из 28 секунд теста уходят в sleep между попытками, которые не могут удаться  ·  `agent-offline-suite-still-pays-full-retry-backoff.md` · 2026-08-03
 - Отказ off-site бэкапа живого трека записывается — и не читается НИКЕМ; последний рубеж восстановления может отказывать молча  ·  `agent-offsite-backup-refusal-is-recorded-and-unread.md` · 2026-08-05

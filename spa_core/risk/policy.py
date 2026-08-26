@@ -211,6 +211,19 @@ class PortfolioState:
         return l2_total / self.total_capital_usd
 
 
+# ─── Требуемый ответ на вердикт (ADR-134) ────────────────────────────────────
+# Отдельная ось от ``approved``. «Книга вне политики» и «книгу надо распродать» —
+# РАЗНЫЕ утверждения, и до ADR-134 они были одним: ``engine.rebalance`` закрывал
+# ВСЁ по любому ``approved=False``. Замер, на котором это вскрылось: просадка 6 %
+# (SOFT-тир) даёт нарушение с текстом «NOT all-cash» — и приводила ровно к
+# all-cash, вопреки ADR-050.
+RESPONSE_NONE = "NONE"          # книга в пределах политики
+RESPONSE_HALT_NEW = "HALT_NEW"  # не покупать / не наращивать; держать, снижать
+                                # долю и ВЫХОДИТЬ — можно всегда
+RESPONSE_ALL_CASH = "ALL_CASH"  # полный выход в кэш: HARD-кил, критический
+                                # депег, fail-closed guard'ы — и только они
+
+
 @dataclass
 class RiskCheckResult:
     """Результат риск-проверки."""
@@ -229,6 +242,36 @@ class RiskCheckResult:
     # de-risk (allow withdraw/reduce) from a HARD all-cash close. Filled by
     # check_portfolio_health; default "NONE".
     drawdown_tier: str = "NONE"
+    # ADR-134: требуемый ответ на вердикт — RESPONSE_NONE / RESPONSE_HALT_NEW /
+    # RESPONSE_ALL_CASH. Заполняет check_portfolio_health. Тот, кто ЗАКРЫВАЕТ
+    # позиции, обязан спрашивать это поле, а не ``not approved``.
+    required_response: str = RESPONSE_NONE
+    # Причины, по которым потребован полный выход в кэш (пусто ⇔ распродажи нет).
+    all_cash_reasons: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        # ADR-134. Вердикт, собранный вручную (тесты, соседние модули), не обязан
+        # знать про новую ось — но и не смеет получиться внутренне противоречивым:
+        # «книга вне политики» с ответом «ничего не делать». Достраиваем в
+        # БЕЗОПАСНУЮ сторону: отказ без явного требования = HALT_NEW.
+        # ``ALL_CASH`` не выводится НИКОГДА и ниоткуда — распродажу можно только
+        # потребовать явно, назвав причину.
+        if not self.approved and self.required_response == RESPONSE_NONE:
+            self.required_response = RESPONSE_HALT_NEW
+
+    @property
+    def blocks_exit(self) -> bool:
+        """Мешает ли вердикт ВЫЙТИ из позиции или снизить долю.
+
+        Условие владельца 2026-08-25 к варианту А: «выход из позиций не
+        блокируется никогда». Расширение охвата проверки книги добавляет поводы
+        сказать ``approved=False``, и ни один из них не смеет закрыть дверь
+        наружу. Свойство существует, чтобы это было УТВЕРЖДЕНИЕМ, закреплённым
+        тестом, а не устной договорённостью: сегодня выход структурно нигде не
+        гейтится (``close_position`` риск-политику не спрашивает), и константа
+        ниже — то место, которое покраснеет, если однажды загейтят.
+        """
+        return False
 
     def __str__(self) -> str:
         status = "APPROVED" if self.approved else "REJECTED"
@@ -532,14 +575,37 @@ class RiskPolicy:
         """
         violations = []
         warnings = []
+        # ADR-134: причины, требующие ПОЛНОГО выхода в кэш. Список пуст у любого
+        # нарушения охвата — распродажу вызывает только настоящий кил.
+        all_cash_reasons: list[str] = []
 
         # 0. FAIL-CLOSED finiteness guard (architect P5-1). A non-finite portfolio
         #    drawdown (e.g. total_capital_usd or pnl corrupted to NaN/Inf) would
         #    make the kill-switch comparison below always False → the kill switch
         #    silently never fires. Treat a non-finite drawdown as the UNSAFE state:
         #    trip the kill switch (violation → approved=False), never bypass.
+        #    ADR-134 — ЗАМЕР, вскрывший дыру в самом этом guard'е: его комментарий
+        #    обещает поймать «pnl corrupted to NaN», а NaN сюда НЕ ДОХОДИТ.
+        #    ``total_drawdown_pct`` возвращает ``max(0.0, -pnl/capital)``, и
+        #    ``max(0.0, nan)`` в Python равен **0.0** (сравнение с NaN всегда
+        #    False, начальное значение остаётся). То есть испорченный pnl читался
+        #    как «просадки нет» — ровно инвариант #17 наизнанку: не измерено
+        #    выглядело как измерено и хорошо. Поэтому нефинитность спрашиваем и у
+        #    ИСХОДНЫХ величин, а не только у производной от них.
         _dd = state.total_drawdown_pct
+        _dd_inputs_finite = all(
+            isinstance(_v, (int, float)) and not isinstance(_v, bool) and math.isfinite(_v)
+            for _v in (state.total_pnl_usd, state.total_capital_usd)
+        )
+        if not _dd_inputs_finite:
+            all_cash_reasons.append("non-finite pnl/capital (fail-closed)")
+            violations.append(
+                f"KILL SWITCH (fail-closed): non-finite pnl/capital "
+                f"(pnl={state.total_pnl_usd!r}, capital={state.total_capital_usd!r}) — "
+                f"drawdown cannot be verified, close all positions."
+            )
         if not isinstance(_dd, (int, float)) or not math.isfinite(_dd):
+            all_cash_reasons.append("non-finite drawdown (fail-closed)")
             violations.append(
                 f"KILL SWITCH (fail-closed): non-finite portfolio drawdown "
                 f"({_dd!r}) — cannot verify safety, close all positions."
@@ -562,6 +628,7 @@ class RiskPolicy:
         if math.isfinite(_dd):
             drawdown_tier, _dd_reason = self._classify_drawdown(state.total_drawdown_pct)
             if drawdown_tier == TIER_HARD_KILL:
+                all_cash_reasons.append(f"HARD kill: {_dd_reason}")
                 violations.append(
                     f"KILL SWITCH TRIGGERED (HARD): {_dd_reason}. Close all positions."
                 )
@@ -591,6 +658,7 @@ class RiskPolicy:
             for _sym, _px in stablecoin_prices.items():
                 if not isinstance(_px, (int, float)) or isinstance(_px, bool) \
                         or not math.isfinite(_px):
+                    all_cash_reasons.append(f"non-finite price for {_sym} (fail-closed)")
                     violations.append(
                         f"DEPEG KILL SWITCH (fail-closed): non-finite price for "
                         f"{_sym} ({_px!r}) — cannot verify peg, close exposed positions"
@@ -606,11 +674,13 @@ class RiskPolicy:
                 # → escalate to kill, never format-crash or silently pass.
                 if not (isinstance(price, (int, float)) and math.isfinite(price)
                         and isinstance(dev, (int, float)) and math.isfinite(dev)):
+                    all_cash_reasons.append(f"non-finite depeg metric for {sym} (fail-closed)")
                     violations.append(
                         f"DEPEG KILL SWITCH (fail-closed): non-finite depeg metric "
                         f"for {sym} (price={price!r}, dev={dev!r}) — close exposed positions"
                     )
                 elif severity == "CRITICAL":
+                    all_cash_reasons.append(f"CRITICAL depeg: {sym}")
                     violations.append(
                         f"DEPEG KILL SWITCH: {sym} at ${price:.4f} ({dev:+.2f}%) — "
                         f"CRITICAL depeg, close exposed positions"
@@ -645,10 +715,122 @@ class RiskPolicy:
                     f"(threshold: {-self.config.max_single_position_drawdown:.1%})"
                 )
 
-        # Кэш-буфер
+        # ── СИММЕТРИЯ С ПРОВЕРКОЙ ПЕРЕД СДЕЛКОЙ (ADR-134, решение владельца 25.08,
+        #    вариант А) ──────────────────────────────────────────────────────────
+        # Пороги НЕ меняются ни на цифру — читаются из того же ``self.config``,
+        # что и в ``check_new_position``. Меняется ТОЛЬКО охват: книга, собранная
+        # не через сделки (переезд тира куратором, дрейф APY, просевший пул),
+        # раньше объявлялась здоровой, потому что второй гейт этих порогов не
+        # спрашивал вовсе.
+        #
+        # Замер до правки (та же книга, $100k, T1 35 % + три T2 по 20 %):
+        #     перед сделкой  -> approved=False (Total T2 allocation 60.0% > 50.0%)
+        #     на книге       -> approved=True, violations=[], warnings=[]
+        #
+        # ОТВЕТ на нарушение — не распродажа. Все нарушения этого блока дают
+        # ``required_response = HALT_NEW`` (не покупать / не наращивать), а
+        # ``ALL_CASH`` остаётся только за HARD-килом, депегом и fail-closed
+        # guard'ами — см. вычисление ``required_response`` ниже.
+
+        # T2 совокупно (блок 8 входной проверки). Единственный порог, который
+        # книга способна нарушить БЕЗ ЕДИНОЙ СДЕЛКИ: тир динамический (ADR-055),
+        # куратор двигает протокол T1→T2 и доля рисковых растёт сама.
+        _t2_total = state.t2_allocation_pct()
+        if _t2_total > self.config.max_total_t2_allocation:
+            violations.append(
+                f"Total T2 allocation {_t2_total:.1%} exceeds "
+                f"limit {self.config.max_total_t2_allocation:.1%}"
+            )
+
+        # L2 суммарно (блок 10 входной проверки).
+        _l2_total = state.l2_allocation_pct()
+        if _l2_total > self.config.max_l2_total_allocation:
+            violations.append(
+                f"Total L2 allocation {_l2_total:.1%} exceeds "
+                f"L2 combined limit {self.config.max_l2_total_allocation:.1%}"
+            )
+
+        # Концентрация на одну сеть (блок 9 входной проверки).
+        for _chain in sorted({(p.chain or "ethereum").lower() for p in state.positions}):
+            _chain_alloc = state.chain_allocation_pct(_chain)
+            if _chain_alloc > self.config.max_single_chain_allocation:
+                violations.append(
+                    f"Chain concentration on {_chain} {_chain_alloc:.1%} exceeds "
+                    f"single-chain limit {self.config.max_single_chain_allocation:.1%}"
+                )
+
+        # Кэш-буфер (блок 5 входной проверки). Раньше здесь стояло предупреждение,
+        # то есть отчёт говорил «портфель здоров», а буфер был пробит.
         if state.cash_pct < self.config.min_cash_pct:
-            warnings.append(
+            violations.append(
                 f"Cash buffer {state.cash_pct:.1%} below minimum {self.config.min_cash_pct:.1%}"
+            )
+
+        # Коридор доходности 1…30 % (блок 2 входной проверки), ПОПОЗИЦИОННО.
+        #
+        # Инвариант #17: «не измерено» обязано отличаться от «измерено».
+        # Производитель числа здесь именно этим и грешит —
+        # ``engine._load_portfolio_state`` пишет
+        # ``current_apy = snap["apy_total"] if snap else (net_apy_annualized or 0.0)``,
+        # то есть отсутствие снимка приходит сюда НУЛЁМ. Судить по такому нулю
+        # «APY ниже 1 % ⇒ нарушение» значило бы объявить нарушением молчание
+        # фида. Поэтому: неположительное / нефинитное APY — ОТДЕЛЬНЫЙ исход
+        # (предупреждение «не измерено»), а нарушением становится только
+        # измеренное значение вне коридора.
+        _apy_unchecked: list[str] = []
+        for pos in state.positions:
+            _apy = pos.current_apy
+            if not isinstance(_apy, (int, float)) or isinstance(_apy, bool) \
+                    or not math.isfinite(_apy) or _apy <= 0:
+                _apy_unchecked.append(pos.protocol_key)
+                continue
+            if _apy > self.config.max_apy_for_new_position:
+                violations.append(
+                    f"Held APY {pos.protocol_key} {_apy:.1f}% exceeds maximum "
+                    f"{self.config.max_apy_for_new_position:.1f}% (risk too high)"
+                )
+            elif _apy < self.config.min_apy_for_new_position:
+                violations.append(
+                    f"Held APY {pos.protocol_key} {_apy:.1f}% below minimum "
+                    f"{self.config.min_apy_for_new_position:.1f}%"
+                )
+        if _apy_unchecked:
+            warnings.append(
+                "APY_UNCHECKED: доходность не измерена для "
+                f"{', '.join(sorted(set(_apy_unchecked)))} — коридор "
+                f"{self.config.min_apy_for_new_position:.0f}…"
+                f"{self.config.max_apy_for_new_position:.0f}% по ним НЕ проверен "
+                "(инв. #17: не измерено ≠ пройдено)"
+            )
+
+        # Минимальный размер пула (блок 3 входной проверки), ПОПОЗИЦИОННО.
+        #
+        # У книги нет собственного TVL — его приносит вызывающий в ``tvl_map``.
+        # Карточка владельца зафиксировала это как «SILENT (аргумента нет вовсе)»;
+        # аргумент есть, просто его никто не спрашивал. Отсутствие карты — это
+        # НЕ «порог пройден», а «порог не проверен» (инв. #17).
+        #
+        # Нарушение здесь НЕ означает продажу: forced-sell по просевшему пулу
+        # запрещён (`.claude/rules/risk-engine.md` — заморозка per-pool,
+        # cap-at-held / drop). Ответ — HALT_NEW, как и у всего этого блока.
+        _tvl_unchecked: list[str] = []
+        for pos in state.positions:
+            _tvl = (tvl_map or {}).get(pos.protocol_key)
+            if not isinstance(_tvl, (int, float)) or isinstance(_tvl, bool) \
+                    or not math.isfinite(_tvl):
+                _tvl_unchecked.append(pos.protocol_key)
+                continue
+            if _tvl < self.config.min_tvl_usd:
+                violations.append(
+                    f"Held TVL {pos.protocol_key} ${_tvl:,.0f} below minimum "
+                    f"${self.config.min_tvl_usd:,.0f}"
+                )
+        if _tvl_unchecked:
+            warnings.append(
+                "TVL_FLOOR_UNCHECKED: живой TVL не предъявлен для "
+                f"{', '.join(sorted(set(_tvl_unchecked)))} — пол "
+                f"${self.config.min_tvl_usd:,.0f} по ним НЕ проверен "
+                "(инв. #17: не измерено ≠ пройдено)"
             )
 
         # MP-208: оси риска (credit/peg/duration/bridge) — опционально
@@ -690,6 +872,18 @@ class RiskPolicy:
                 log.warning("chain_limits portfolio check failed (non-blocking): %s", _exc)
 
         approved = len(violations) == 0
+        # ADR-134. ``approved`` отвечает на вопрос «книга в пределах политики?» и
+        # своего смысла не меняет. ``required_response`` отвечает на ДРУГОЙ вопрос —
+        # «что с этим делать?» — и именно его обязан спрашивать тот, кто закрывает
+        # позиции. Раньше вопрос был один на двоих, и любое нарушение книги
+        # означало распродажу; после расширения охвата это превратило бы просевший
+        # APY удерживаемой позиции в принудительный выход в кэш.
+        if all_cash_reasons:
+            required_response = RESPONSE_ALL_CASH
+        elif violations:
+            required_response = RESPONSE_HALT_NEW
+        else:
+            required_response = RESPONSE_NONE
         result = RiskCheckResult(
             approved=approved,
             violations=violations,
@@ -697,6 +891,8 @@ class RiskPolicy:
             check_name="portfolio_health",
             axis_checks=axis_checks,
             capacity_check=capacity_check,
+            required_response=required_response,
+            all_cash_reasons=all_cash_reasons,
             drawdown_tier=drawdown_tier,
         )
         self._log_result(result)

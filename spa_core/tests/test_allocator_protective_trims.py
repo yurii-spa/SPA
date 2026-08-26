@@ -53,14 +53,25 @@ class TestProtectiveTrimSignal(unittest.TestCase):
 
     def test_no_trim_no_signal(self):
         # ДВА T1-якоря впитывают излишек T2-капа целиком (headroom 2×(40−16.7)%
-        # > срезанных 16.7%): тримы в кэш не срезали ничего → сигнала нет
-        # (пустой dict, нет ложной тревоги).
+        # > срезанных 16.7%): ПО ПУТИ ТИРОВ в кэш не срезано ничего → ложной
+        # тревоги нет. Предмет теста — именно это.
+        #
+        # ADR-136: правка утверждения НАМЕРЕННАЯ (инв. #16). Все шесть
+        # протоколов книги — Ethereum, то есть раскладка выходила 100 % в одной
+        # сети при потолке политики 90 %. Гейт такую книгу ОТВЕРГАЕТ
+        # (`single_chain_max_pct`), так что прежнее `protective_trims == {}`
+        # закрепляло раскладку, которую цикл не смог бы применить. Утверждение
+        # про отсутствие ТИРОВОГО трима сохранено дословно и усилено проверкой,
+        # что книга теперь укладывается в сетевой потолок.
         res = _alloc(four_t2() + [
             {"protocol": "aave_v3", "apy_pct": 5.2, "tvl_usd": 9e8, "tier": "T1"},
             {"protocol": "compound_v3", "apy_pct": 4.8, "tvl_usd": 8e8, "tier": "T1"},
         ]).allocate(model="equal_weight")
-        self.assertEqual(res.protective_trims, {})
-        self.assertFalse(any("Защитные тримы" in n for n in res.notes))
+        self.assertNotIn("t2_total_cap", res.protective_trims)
+        self.assertNotIn("t3_total_cap", res.protective_trims)
+        self.assertLessEqual(sum(res.target_weights.values()),
+                             StrategyAllocator.SINGLE_CHAIN_CAP + 1e-9,
+                             "книга целиком на одной сети превышает потолок политики")
 
     def test_signal_matches_actual_cash(self):
         # Сигнал обязан сходиться с фактическим кэшем: сумма срезов ≤ кэш.

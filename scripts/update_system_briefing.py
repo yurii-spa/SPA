@@ -583,6 +583,101 @@ def track_integrity_cell(st: dict) -> str:
     return f"⚠️ {div}/{cmp_} дат расходятся{worst_txt}{live}"
 
 
+
+def source_discovery_state(d: dict, *, now: datetime | None = None,
+                           max_age_days: float = 8.0) -> dict:
+    """Состояние поиска новых источников доходности (ADR-142).
+
+    Инструмент `scripts/find_defillama_sources.py` был рабочим, покрыт 30
+    тестами — и **его результат не читал НИКТО**. Файл без читателя ловит наш же
+    сторож соответствия (ADR-066), и это ровно тот случай. Решение владельца
+    2026-08-25 (вариант A): поставить поиск на расписание И завести НАСТОЯЩЕГО
+    читателя находок в сводке. Эта функция — читатель.
+
+    Три исхода, а не два (инв. #17):
+
+    * ``fresh``   — файл есть и моложе ``max_age_days``;
+    * ``stale``   — файл есть и старше: сколько именно суток, названо числом;
+    * ``missing`` — файла нет. Это НЕ «кандидатов не нашлось».
+
+    Порог 8 суток при недельном расписании: один пропуск не звенит, замолчавший
+    агент звенит. Время — ВХОД, а не окружение.
+    """
+    now = now or datetime.now(timezone.utc)
+    if not isinstance(d, dict) or not d:
+        return {"state": "missing", "age_days": None, "found_total": None,
+                "protocols": [], "max_age_days": max_age_days}
+    summary = d.get("summary") if isinstance(d.get("summary"), dict) else {}
+    protocols = []
+    total = 0
+    for name, row in sorted(summary.items()):
+        if not isinstance(row, dict):
+            continue
+        found = row.get("found")
+        found = int(found) if isinstance(found, int) else 0
+        total += found
+        protocols.append({"name": str(name), "found": found,
+                          "top_pool_id": row.get("top_pool_id")})
+    age_days = None
+    gen = d.get("generated_at")
+    if isinstance(gen, str):
+        try:
+            ts = datetime.fromisoformat(gen.replace("Z", "+00:00"))
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            age_days = (now - ts).total_seconds() / 86400.0
+        except ValueError:
+            age_days = None
+    state = "fresh"
+    if age_days is None:
+        state = "unchecked"        # файл есть, но когда снят — не сказано
+    elif age_days > max_age_days:
+        state = "stale"
+    return {"state": state, "age_days": None if age_days is None else round(age_days, 2),
+            "found_total": total, "protocols": protocols, "max_age_days": max_age_days}
+
+
+def build_source_discovery_section() -> str:
+    """Кандидаты в новые источники доходности — читатель `source_discovery.json`.
+
+    Раздел существует, чтобы у файла БЫЛ читатель: инструмент годами складывал
+    находки, которые никто не открывал, и о новых источниках мы узнавали
+    случайно — «если кто-нибудь вспомнит запустить скрипт».
+    """
+    st = source_discovery_state(read_json("source_discovery.json"))
+    lines = ["## 🔎 Кандидаты в источники доходности (advisory)"]
+    state = st["state"]
+    if state == "missing":
+        lines.append(
+            "- `data/source_discovery.json` **отсутствует** — поиск ни разу не "
+            "отработал в этом дереве. Это НЕ «кандидатов нет» (инв. #17). "
+            "Агент `com.spa.source_discovery` подготовлен, установка — за владельцем "
+            "(ADR-142)."
+        )
+        return "\n".join(lines)
+    if state == "unchecked":
+        lines.append("- файл есть, но **без отметки времени** — свежесть НЕ измерена.")
+    elif state == "stale":
+        lines.append(
+            f"- ⚠️ находки **протухли**: {st['age_days']} сут при пороге "
+            f"{st['max_age_days']:.0f} — поиск замолчал."
+        )
+    else:
+        lines.append(f"- свежесть: {st['age_days']} сут (порог {st['max_age_days']:.0f}).")
+    lines.append(f"- всего найдено пулов: **{st['found_total']}** "
+                 f"по {len(st['protocols'])} протоколам.")
+    if st["protocols"]:
+        lines.append("")
+        lines.append("| протокол | найдено | лучший пул |")
+        lines.append("|---|---:|---|")
+        for row in st["protocols"][:12]:
+            lines.append(f"| {row['name']} | {row['found']} | "
+                         f"{row['top_pool_id'] or '—'} |")
+    lines.append("")
+    lines.append("_Advisory: кандидаты НЕ становятся адаптерами сами — это список для "
+                 "человека. Источник: `data/source_discovery.json` (ADR-142)._")
+    return "\n".join(lines)
+
 def build_track_integrity_section() -> str:
     """Do the two records of the same money agree? (own-32)
 
@@ -845,6 +940,7 @@ def main() -> None:
         build_launchd_section() + "\n",
         build_portfolio_section() + "\n",
         build_track_integrity_section() + "\n",
+        build_source_discovery_section() + "\n",
         build_system_health_section() + "\n",
         build_resilience_section() + "\n",
         build_sprint_section() + "\n",

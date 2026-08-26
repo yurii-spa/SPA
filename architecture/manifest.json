@@ -1814,6 +1814,36 @@
    }
   },
   {
+   "label": "com.spa.source_discovery",
+   "plist_source": "repo:launchd/com.spa.source_discovery.plist",
+   "reboot_safe": false,
+   "schedule": "interval:604800s",
+   "program": "agent_source_discovery.sh",
+   "layer": "product",
+   "role": "research",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/source_discovery.json",
+     "slo_hours": 192
+    }
+   ],
+   "consumes": [],
+   "consumer_required": true,
+   "governed_by": [
+    "ADR-142"
+   ],
+   "curation": "complete",
+   "notes": "поиск новых источников доходности раз в неделю — ПОДГОТОВЛЕН, не установлен (ADR-142, решение владельца 25.08 вар.A; установка руками владельца, инв. #12). Читатель находок: раздел «Кандидаты в источники доходности» в SYSTEM_BRIEFING",
+   "passport": {
+    "goal": "искать кандидатов в новые источники доходности по бирже DeFiLlama.",
+    "quality_metric": "data/source_discovery.json свежее 8 суток и ПРОЧИТАН разделом сводки",
+    "escalation": "молчанием: протухшие находки называет сам раздел сводки (fresh/stale/missing)",
+    "rights": "читать публичную ручку DeFiLlama; писать data/source_discovery.json",
+    "limits": "LLM запрещён; не импортирует execution; кандидат НЕ становится адаптером сам — это список для человека"
+   }
+  },
+  {
    "label": "com.spa.strategy_lab_paper",
    "plist_source": "launch_agents",
    "reboot_safe": true,
@@ -2264,6 +2294,32 @@
     "escalation": "",
     "rights": "",
     "limits": ""
+   }
+  },
+  {
+   "label": "com.spa.tracker_status_sentinel",
+   "plist_source": "repo:launchd/com.spa.tracker_status_sentinel.plist",
+   "reboot_safe": false,
+   "schedule": "interval:3600s",
+   "program": "agent_tracker_status_sentinel.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [
+    "ADR-141",
+    "ADR-129"
+   ],
+   "curation": "complete",
+   "notes": "сторож переходов статусов трекера — ПОДГОТОВЛЕН, не установлен (ADR-141, решение владельца 25.08 вар.1; установка руками владельца, инв. #12)",
+   "passport": {
+    "goal": "сторож переходов статусов в трекере — «этот переход кто-нибудь объяснил?».",
+    "quality_metric": "каждый переход статуса покрыт записью журнала либо следом в карточке; неатрибутированный уход из needs-owner = CRITICAL",
+    "escalation": "кодом возврата: 0 — OK · 1 — WARN · 2 — CRITICAL либо НЕ ИЗМЕРЕНО (fail-CLOSED)",
+    "rights": "читать трекер и снимок статусов; писать свой снимок и отчёт",
+    "limits": "LLM запрещён; не импортирует execution; ничего не чинит — только называет"
    }
   },
   {

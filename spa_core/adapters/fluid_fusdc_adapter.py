@@ -8,8 +8,9 @@ Vault address: 0x9Fb7b4477576Fe5B32be4C1843aFB1e55F251B33
 - APY читается из data/adapter_status.json → fluid_fusdc.apy, fallback=6.5%
 - Spike protection: если raw APY > 15% — нормализовать до 9% (исторические спайки
   при DEX activity могут давать аномалии до 22%)
-- GSM compliance gate: gsm_hours >= 48 обязателен перед активацией
-- is_eligible() = gsm_compliant AND apy in [MIN_APY, MAX_APY]
+- ADR-137: GSM-гейт «48 часов» СНЯТ — это правило Maker/Sky, к Fluid
+  (Instadapp) неприменимое; допуск по общему ключу
+- is_eligible() = живой APY in [MIN_APY, MAX_APY] AND живой TVL (fail-CLOSED)
 - Сравнительные методы: vs_morpho_gap, vs_spark_gap
 - Только stdlib Python (json, os, math, pathlib, time)
 - Атомарные записи (mkstemp + os.replace) для adapter_status.json
@@ -17,7 +18,8 @@ Vault address: 0x9Fb7b4477576Fe5B32be4C1843aFB1e55F251B33
 - Не импортировать из execution / feed_health / risk
 
 ADR-019: T2 total cap 50%, single adapter cap 20%.
-GSM gate аналогичен Spark sUSDS — protects against governance exploits.
+ADR-137 (решение владельца 25.08, вариант A): чужой GSM-гейт снят,
+Fluid конкурирует за капитал наравне — но только при ЖИВОМ наблюдении.
 """
 from __future__ import annotations
 
@@ -30,7 +32,11 @@ from typing import Optional
 
 from .base_adapter import BaseAdapter, YieldInfo
 # ADR-063 (D1): единый читатель схемы adapter_status.json.
-from spa_core.adapters.status_reader import gsm_confirmed, read_live_apy_pct, read_status_block
+from spa_core.adapters.status_reader import (
+    read_live_apy_pct,
+    read_live_tvl_usd,
+    read_status_block,
+)
 from spa_core.utils.atomic import atomic_save
 
 logger = logging.getLogger(__name__)
@@ -51,8 +57,8 @@ class FluidFUSDCAdapter(BaseAdapter):
     до SPIKE_NORM_PCT (9.0), чтобы портфель не перекашивался на аномалиях
     DEX trading activity.
 
-    GSM gate: is_gsm_compliant() → gsm_hours >= 48 (аналог Spark sUSDS).
-    Только when gsm_compliant AND apy in range → is_eligible() = True.
+    ADR-137: гейт «48 часов» снят как правило чужого протокола.
+    is_eligible() = живой APY в диапазоне И живой TVL (оба fail-CLOSED).
     """
 
     # ── идентичность ─────────────────────────────────────────────────────
@@ -173,34 +179,54 @@ class FluidFUSDCAdapter(BaseAdapter):
             return False   # ADR-063: нет наблюдения ⇒ спайка нет (нечему быть аномальным)
         return raw > self.SPIKE_THRESHOLD_PCT
 
-    # ── GSM compliance ───────────────────────────────────────────────────
-
-    def is_gsm_compliant(self) -> bool:
-        """True если Fluid Protocol прошёл GSM gate (gsm_hours >= 48).
-
-        Читает adapter_status.json → fluid_fusdc.gsm_hours.
-        При отсутствии поля считает gsm_hours = 0 → False.
-
-        GSM (Governance Security Module) gate защищает от governance exploits —
-        аналогичен правилу для Spark sUSDS в SPA.
-        """
-        return gsm_confirmed(self._read_status_block(), 48.0)
+    # ── GSM gate СНЯТ: это было правило другого протокола (ADR-137) ──────
+    #
+    # Здесь стоял ``is_gsm_compliant()`` = «задержка управления ≥ 48 ч».
+    # 48 часов — правило **Maker/Sky**: число читается из контракта Maker
+    # ``DSPause`` и к Fluid (команда Instadapp) отношения не имеет. Собственную
+    # задержку управления Fluid мы не читали никогда — ни в коде, ни в данных её
+    # нет. Проверка поэтому отвечала «не подтверждено» ВСЕГДА, и протокол на
+    # $150.3M живого размера при 4.82 % годовых был закрыт для капитала не по
+    # риску, а по чужому имени правила.
+    #
+    # Странность была и уже: гейт стоял на ОДНОЙ строке (``fluid_fusdc``), а
+    # соседний ``fluid_usdc`` того же протокола проходил свободно — правило
+    # защищало строку, а не протокол.
+    #
+    # Решение владельца 2026-08-25, вариант A: снять как неприменимое и
+    # допускать Fluid общим ключом — живое наблюдение доходности И живой размер
+    # пула, тем же, что у остальных адаптеров. **Метод удалён, а не оставлен
+    # возвращающим True:** гейт, который не может отказать, — это литерал
+    # ``True`` в одежде проверки риска (тот же класс дефекта, что описан в
+    # ``status_reader.tvl_floor_verdict``). Аллокатор спрашивает гейт через
+    # ``hasattr(cls, "is_gsm_compliant")`` — отсутствие метода означает «у этого
+    # протокола такого гейта нет», а не «гейт пройден».
 
     # ── eligibility ──────────────────────────────────────────────────────
 
     def is_eligible(self) -> bool:
         """True если адаптер готов к аллокации.
 
-        Conditions (обе должны выполняться):
-        1. is_gsm_compliant() — GSM gate пройден
-        2. MIN_APY_PCT <= get_apy() <= MAX_APY_PCT — APY в допустимом диапазоне
+        ADR-137 (решение владельца 2026-08-25, вариант A) — общий ключ вместо
+        чужого правила. Три условия, все fail-CLOSED:
+
+        1. **живая доходность** — ``get_apy()`` не ``None``;
+        2. APY в допустимом диапазоне адаптера (feed-sanity, не порог политики);
+        3. **живой размер пула** — ``read_live_tvl_usd`` вернул наблюдение.
+           Литерал не наблюдение, чем бы он ни был подписан: ``tvl_source``
+           обязан быть ``"live"`` (ADR-064). ``TVL_USD`` — константа класса, и
+           судить по ней «пул большой» — ровно тот дефект, из-за которого
+           ``moonwell_base`` предъявлял $500M против $2.6M наблюдаемых.
+
+        Без наблюдения Fluid по-прежнему НЕ финансируется — снят чужой гейт, а
+        не осторожность.
         """
-        if not self.is_gsm_compliant():
-            return False
         apy = self.get_apy()
         if apy is None:
             return False   # ADR-063: нет наблюдения ⇒ не eligible (fail-CLOSED)
-        return self.MIN_APY_PCT <= apy <= self.MAX_APY_PCT
+        if not (self.MIN_APY_PCT <= apy <= self.MAX_APY_PCT):
+            return False
+        return read_live_tvl_usd(self.PROTOCOL, self._data_dir) is not None
 
     # ── сравнительный анализ ─────────────────────────────────────────────
 
@@ -363,7 +389,8 @@ class FluidFUSDCAdapter(BaseAdapter):
             tier, t2_cap_total, t2_cap_single, asset, risk_score,
             exit_latency_hours, tvl_usd, raw_apy_pct, apy_pct, apy_decimal,
             spike_detected, spike_threshold_pct, spike_norm_pct,
-            gsm_compliant, eligible, min_apy_pct, max_apy_pct,
+            gsm_gate (ADR-137: "not_applicable"), live_tvl_usd,
+            eligible, min_apy_pct, max_apy_pct,
             vs_morpho_gap, vs_spark_gap, health, allocated.
         """
         raw = self.get_raw_apy()
@@ -388,7 +415,13 @@ class FluidFUSDCAdapter(BaseAdapter):
             "spike_detected": self.is_spike(),
             "spike_threshold_pct": self.SPIKE_THRESHOLD_PCT,
             "spike_norm_pct": self.SPIKE_NORM_PCT,
-            "gsm_compliant": self.is_gsm_compliant(),
+            # ADR-137: гейт снят как правило чужого протокола. Ключ оставлен и
+            # НАЗЫВАЕТ исход словом: молча исчезнувшее поле читатель принял бы за
+            # «проверка прошла», а `True` здесь было бы враньём (инв. #17).
+            "gsm_gate": "not_applicable (Maker/Sky rule, ADR-137)",
+            # Живой размер пула — второе условие общего ключа. `None` = не
+            # наблюдался, и это отличается от нуля.
+            "live_tvl_usd": read_live_tvl_usd(self.PROTOCOL, self._data_dir),
             "eligible": self.is_eligible(),
             "min_apy_pct": self.MIN_APY_PCT,
             "max_apy_pct": self.MAX_APY_PCT,
