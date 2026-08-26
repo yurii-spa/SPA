@@ -2,10 +2,13 @@
 trackerStatus:
   type: owner-decision
 title: Два помощника готовы, но включить их можешь только ты — они стоят вторые сутки
-status: needs-owner
+status: ingested
 source: agent
 created: 2026-08-26
 priority: medium
+owner_choice: 1
+owner_answered_at: 2026-08-26T22:06:25.414161+00:00
+owner_answer_via: session-chat
 ---
 
 ## Что случилось и почему это важно
@@ -54,3 +57,24 @@ priority: medium
 Вариант 1 или 2 — ставлю через гейт, показываю коды выхода и первые артефакты, дальше они
 работают сами. Вариант 3 — правлю карту архитектуры, пишу ADR со ссылкой на это решение, и
 возвращаюсь к вопросу, когда ты скажешь.
+
+## Ответ владельца (2026-08-26, session-chat)
+
+**Вариант 1 — поставить обоих.**
+
+⚠️ Эта сессия — облачная (GitHub-remote), у неё нет доступа к твоему Маку и к `launchctl`.
+Сама установка (`scripts/check_agent_before_deploy.sh` + `launchctl bootstrap` для каждого
+агента) должна пройти на Маке — либо следующим плановым циклом оркестратора, который читает
+эту карточку и `owner_choice` из неё, либо тобой вручную по инструкции ниже, если не хочешь
+ждать цикла:
+
+```
+bash scripts/check_agent_before_deploy.sh tracker_status_sentinel && \
+  launchctl bootstrap gui/$(id -u) launchd/com.spa.tracker_status_sentinel.plist
+bash scripts/check_agent_before_deploy.sh source_discovery && \
+  launchctl bootstrap gui/$(id -u) launchd/com.spa.source_discovery.plist
+launchctl list | grep -E 'tracker_status_sentinel|source_discovery'
+```
+
+Решение записано (`owner_choice: 1`), карточка переведена в `ingested` — она больше не висит
+в очереди «ждёт владельца». Раздел «Исполнено» допишет тот, кто реально выполнит установку.
