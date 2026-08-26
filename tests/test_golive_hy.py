@@ -321,7 +321,7 @@ class TestRunGoLiveCheckHY:
         """run_golive_check_hy() возвращает HYGoLiveReport."""
         report = golive_module["run_golive_check_hy"]()
         assert report is not None
-        assert report.total == 6
+        assert report.total == 7   # +CHECK-HY-007 (решение владельца 25.08)
 
     def test_overall_status_valid(self, golive_module):
         """overall_status один из PASS / FAIL / PENDING."""
@@ -379,7 +379,7 @@ class TestRunGoLiveCheckHY:
         golive_module["run_golive_check_hy"]()
         report_path = project_root / "data" / "golive_hy_report.json"
         data = json.loads(report_path.read_text())
-        assert len(data["checks"]) == 6
+        assert len(data["checks"]) == 7
 
     def test_ready_for_golive_false_without_data(self, golive_module):
         """Без 14 дней трека ready_for_golive = False."""
@@ -443,3 +443,25 @@ class TestLLMForbidden:
         # Минимум 6 вхождений LLM_FORBIDDEN (по одному на каждую проверку + верхний уровень)
         count = content.count("LLM_FORBIDDEN")
         assert count >= 6, f"LLM_FORBIDDEN встречается только {count} раз (ожидалось >= 6)"
+
+
+# ── CHECK-HY-007: книга не пуста (решение владельца 25.08, вариант A) ─────────
+# Положительный контроль: до этой проверки ни одна из HY-001…006 не спрашивала,
+# держит ли книга хоть что-нибудь — пустая книга предъявлялась готовой.
+
+class TestCheckHY007BookNotEmpty:
+    def test_empty_book_fails(self):
+        import spa_core.monitoring.golive_checker_hy as gm
+        check = gm._check_book_not_empty({"positions": []})
+        assert check.check_id == "CHECK-HY-007"
+        assert check.status == "FAIL"
+
+    def test_missing_key_fails(self):
+        import spa_core.monitoring.golive_checker_hy as gm
+        assert gm._check_book_not_empty({}).status == "FAIL"
+
+    def test_book_with_positions_passes(self):
+        import spa_core.monitoring.golive_checker_hy as gm
+        check = gm._check_book_not_empty({"positions": [{"protocol": "susde"}]})
+        assert check.status == "PASS"
+        assert check.value == 1

@@ -1,13 +1,14 @@
 """
 GoLiveChecker-LP — Engine C (LP/Liquidity) readiness checks — EPIC-2 S2.2.
 
-6 проверок перед переходом Engine C в production:
+7 проверок перед переходом Engine C в production:
   CHECK-LP-001  14+ дней paper tracking в daily_history
   CHECK-LP-002  max IL drawdown never < -25% (kill threshold — Aggressive-бюджет)
   CHECK-LP-003  policy_lp.evaluate_lp_position() без ошибок (импортируется)
   CHECK-LP-004  UniswapV3LPAdapter.read_state() без ошибок
   CHECK-LP-005  data/lp_paper_trading.json существует
   CHECK-LP-006  Все позиции delta-neutral (или нет позиций — OK)
+  CHECK-LP-007  Книга держит хотя бы одну позицию (пустая книга = НЕ готова)
 
 LLM_FORBIDDEN: никаких AI-вызовов.
 fail-closed: ошибка проверки → статус ERROR, overall NOT_READY.
@@ -117,9 +118,9 @@ def _check_lp_001_track_days(state: dict) -> LPCheck:
 
 def _check_lp_002_max_il_drawdown(state: dict) -> LPCheck:
     """
-    CHECK-LP-002: максимальный IL drawdown не превысил -12% ни разу.
+    CHECK-LP-002: максимальный IL drawdown не превысил -25% ни разу (Aggressive-бюджет).
     Сканирует весь daily_history и текущий il_drawdown_pct.
-    PASS если worst IL >= -12%, FAIL если был хотя бы один < -12%.
+    PASS если worst IL >= -25%, FAIL если был хотя бы один < -25%.
     LLM_FORBIDDEN.
     """
     # LLM_FORBIDDEN
@@ -137,7 +138,7 @@ def _check_lp_002_max_il_drawdown(state: dict) -> LPCheck:
         if worst_il < _IL_KILL_THRESHOLD:
             return LPCheck(
                 check_id="CHECK-LP-002",
-                description="max IL drawdown не превысил -12%",
+                description="max IL drawdown не превысил -25%",
                 status="FAIL",
                 detail=f"Worst IL drawdown: {worst_il:.2%} (порог {_IL_KILL_THRESHOLD:.0%})",
                 blocking=True,
@@ -145,7 +146,7 @@ def _check_lp_002_max_il_drawdown(state: dict) -> LPCheck:
         else:
             return LPCheck(
                 check_id="CHECK-LP-002",
-                description="max IL drawdown не превысил -12%",
+                description="max IL drawdown не превысил -25%",
                 status="PASS",
                 detail=f"Worst IL drawdown: {worst_il:.2%} — в пределах нормы",
                 blocking=True,
@@ -153,7 +154,7 @@ def _check_lp_002_max_il_drawdown(state: dict) -> LPCheck:
     except Exception as exc:
         return LPCheck(
             check_id="CHECK-LP-002",
-            description="max IL drawdown не превысил -12%",
+            description="max IL drawdown не превысил -25%",
             status="ERROR",
             detail=f"Ошибка: {exc}",
             blocking=True,
@@ -387,9 +388,54 @@ def _check_lp_006_delta_neutral(state: dict) -> LPCheck:
         )
 
 
+def _check_lp_007_book_not_empty(state: dict) -> LPCheck:
+    """
+    CHECK-LP-007: книга держит хотя бы одну позицию.
+
+    Решение владельца 2026-08-25 (вариант A, карточка «Пустая книга проходит чек-лист
+    go-live целиком»). До неё чек-лист полностью проходился на ПУСТОЙ книге: CHECK-LP-006
+    на нуле позиций отвечал «требование выполнено», а спросить «держит ли книга хоть
+    что-нибудь» не догадывался никто. Опустевшая книга — из-за отказа фидов, сработавшего
+    стоп-крана или ошибки отбора — предъявлялась готовой к живым деньгам.
+
+    Ноль позиций ⇒ FAIL (блокирующий), а не PASS и не предупреждение: предупреждение в
+    чек-листе go-live ничего не блокирует, то есть было бы тем же «оставить как есть».
+    Пороги RiskPolicy v1.0 и стоп-кран НЕ трогаются — это проверка наполнения, не риска.
+    fail-closed: state нечитаем ⇒ позиций ноль ⇒ FAIL.
+    LLM_FORBIDDEN.
+    """
+    # LLM_FORBIDDEN
+    try:
+        positions = state.get("positions") or []
+        n = len(positions)
+        if n <= 0:
+            return LPCheck(
+                check_id="CHECK-LP-007",
+                description="Книга держит хотя бы одну позицию",
+                status="FAIL",
+                detail="Книга ПУСТА (0 позиций) — go-live этого пакета не проходит",
+                blocking=True,
+            )
+        return LPCheck(
+            check_id="CHECK-LP-007",
+            description="Книга держит хотя бы одну позицию",
+            status="PASS",
+            detail=f"Открытых позиций: {n}",
+            blocking=True,
+        )
+    except Exception as exc:  # noqa: BLE001 — fail-closed
+        return LPCheck(
+            check_id="CHECK-LP-007",
+            description="Книга держит хотя бы одну позицию",
+            status="ERROR",
+            detail=f"Ошибка: {exc}",
+            blocking=True,
+        )
+
+
 def run_golive_check_lp(write_report: bool = True) -> LPGoLiveReport:
     """
-    Запускает все 6 GoLive проверок Engine C и формирует отчёт.
+    Запускает все 7 GoLive проверок Engine C и формирует отчёт.
 
     Если write_report=True → атомарная запись в data/golive_lp_report.json.
     fail-closed: ошибка любой проверки → статус ERROR, overall NOT_READY.
@@ -409,6 +455,7 @@ def run_golive_check_lp(write_report: bool = True) -> LPGoLiveReport:
         _check_lp_004_uniswap_adapter(),
         _check_lp_005_data_file_exists(),
         _check_lp_006_delta_neutral(state),
+        _check_lp_007_book_not_empty(state),
     ]
 
     passed = sum(1 for c in checks if c.status == "PASS")

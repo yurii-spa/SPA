@@ -309,6 +309,7 @@ class TestRunGoLiveCheckLP:
         monkeypatch.setattr(gm, "_check_lp_004_uniswap_adapter", lambda: gm.LPCheck("CHECK-LP-004", "mock", "PASS", "ok"))
         monkeypatch.setattr(gm, "_check_lp_005_data_file_exists", lambda: gm.LPCheck("CHECK-LP-005", "mock", "PASS", "ok"))
         monkeypatch.setattr(gm, "_check_lp_006_delta_neutral", _pass_check("CHECK-LP-006"))
+        monkeypatch.setattr(gm, "_check_lp_007_book_not_empty", _pass_check("CHECK-LP-007"))
 
         report = gm.run_golive_check_lp(write_report=False)
 
@@ -325,6 +326,7 @@ class TestRunGoLiveCheckLP:
         monkeypatch.setattr(gm, "_check_lp_004_uniswap_adapter", lambda: gm.LPCheck("CHECK-LP-004", "m", "PASS", "ok"))
         monkeypatch.setattr(gm, "_check_lp_005_data_file_exists", lambda: gm.LPCheck("CHECK-LP-005", "m", "PASS", "ok"))
         monkeypatch.setattr(gm, "_check_lp_006_delta_neutral", lambda s: gm.LPCheck("CHECK-LP-006", "m", "PASS", "ok"))
+        monkeypatch.setattr(gm, "_check_lp_007_book_not_empty", lambda s: gm.LPCheck("CHECK-LP-007", "m", "PASS", "ok"))
 
         report = gm.run_golive_check_lp(write_report=False)
 
@@ -365,8 +367,8 @@ class TestRunGoLiveCheckLP:
     def test_report_has_6_checks(self, gm):
         """run_golive_check_lp возвращает ровно 6 проверок"""
         report = gm.run_golive_check_lp(write_report=False)
-        assert report.total == 6
-        assert len(report.checks) == 6
+        assert report.total == 7   # +CHECK-LP-007 (решение владельца 25.08)
+        assert len(report.checks) == 7
 
     def test_report_check_ids_present(self, gm):
         """Все 6 check_id присутствуют в отчёте"""
@@ -375,6 +377,7 @@ class TestRunGoLiveCheckLP:
         expected = {
             "CHECK-LP-001", "CHECK-LP-002", "CHECK-LP-003",
             "CHECK-LP-004", "CHECK-LP-005", "CHECK-LP-006",
+            "CHECK-LP-007",   # решение владельца 25.08 — «книга не пуста»
         }
         assert check_ids == expected
 
@@ -412,10 +415,11 @@ class TestLPGoLiveReport:
         monkeypatch.setattr(gm, "_check_lp_004_uniswap_adapter", lambda: gm.LPCheck("CHECK-LP-004", "m", "PASS", "ok"))
         monkeypatch.setattr(gm, "_check_lp_005_data_file_exists", lambda: gm.LPCheck("CHECK-LP-005", "m", "PASS", "ok"))
         monkeypatch.setattr(gm, "_check_lp_006_delta_neutral", _pass("CHECK-LP-006"))
+        monkeypatch.setattr(gm, "_check_lp_007_book_not_empty", _pass("CHECK-LP-007"))
 
         report = gm.run_golive_check_lp(write_report=False)
 
-        assert report.passed == 6
+        assert report.passed == 7
         assert report.overall_status == "READY"
 
 
@@ -440,3 +444,42 @@ class TestGoLiveLPLLMForbidden:
         """GOLIVE_LP_VERSION определён"""
         assert hasattr(gm, "GOLIVE_LP_VERSION")
         assert "golive_lp" in gm.GOLIVE_LP_VERSION
+
+
+# ── 7. CHECK-LP-007: книга не пуста (решение владельца 25.08, вариант A) ──────
+# Положительный контроль класса: до этой проверки ПУСТАЯ книга проходила чек-лист
+# go-live целиком (CHECK-LP-006 на нуле позиций отвечал «требование выполнено»).
+# Тесты ниже краснеют на коде без CHECK-LP-007 — это и есть та самая авария.
+
+class TestCheckLP007BookNotEmpty:
+    def test_empty_book_fails(self, gm):
+        """Ноль позиций → FAIL и блокирует go-live (была PASS до 25.08)."""
+        check = gm._check_lp_007_book_not_empty({"positions": []})
+        assert check.check_id == "CHECK-LP-007"
+        assert check.status == "FAIL"
+        assert check.blocking is True
+
+    def test_missing_positions_key_fails(self, gm):
+        """State без ключа positions → FAIL (fail-closed, не «наверное всё хорошо»)."""
+        assert gm._check_lp_007_book_not_empty({}).status == "FAIL"
+
+    def test_book_with_positions_passes(self, gm):
+        """Есть позиции → PASS."""
+        state = {"positions": [{"pool_id": "susde"}, {"pool_id": "pendle"}]}
+        check = gm._check_lp_007_book_not_empty(state)
+        assert check.status == "PASS"
+        assert "2" in check.detail
+
+    def test_empty_book_makes_whole_report_not_ready(self, gm, monkeypatch, tmp_path):
+        """Сквозной контроль: на пустой книге ВЕСЬ отчёт больше не READY."""
+        monkeypatch.setattr(gm, "_load_lp_state_safe", lambda: {
+            "sleeve": "C", "positions": [], "daily_history": [
+                {"date": f"2026-08-{d:02d}", "il_drawdown_pct": 0.0} for d in range(1, 16)
+            ],
+            "il_drawdown_pct": 0.0,
+        })
+        report = gm.run_golive_check_lp(write_report=False)
+        assert report.overall_status != "READY"
+        ids = [c.check_id for c in report.checks]
+        assert "CHECK-LP-007" in ids           # проверка реально в наборе
+        assert report.total == 7

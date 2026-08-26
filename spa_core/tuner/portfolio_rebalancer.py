@@ -53,14 +53,24 @@ _DEFAULT_DATA_DIR = _REPO_ROOT / "data"
 POSITIONS_FILENAME = "current_positions.json"
 REBALANCER_VERSION = "v1.0"
 
-# TunerConstraints, выровненные с policy_enforcer RULES:
-#   per_protocol_max = 25%  (RULES["per_protocol_max_pct"] = 25.0)
-#   t1_min = 55%            (RULES["t1_min_pct"] = 55.0)
-#   t2_max = 45%            (консервативнее ADR-019 cap 50%)
-#   cash_min = 7%           (выше 5% minimum для запаса)
-#   max_protocols = 7       (< RULES["max_protocols"] = 8, запас 1)
+# TunerConstraints ребалансера. Здесь ДВА разных класса чисел, и раньше они были
+# перепутаны — комментарий выдавал осознанный запас за «зеркало правил» и при этом
+# называл числа, которых в политике нет (решение владельца 2026-08-25, вариант A):
+#
+#   ЗЕРКАЛО ПОЛИТИКИ (обязано совпадать):
+#     t1_min = 0%     — в RiskPolicy T1-пола НЕТ. `policy_enforcer.RULES["t1_min_pct"]`
+#                       и `rules_watchdog` сведены к 0.0 ещё 2026-07-08; ребалансер
+#                       остался единственным, кто держал копию удалённого правила
+#                       (t1_min=0.55). Это и был фантом — снят.
+#
+#   ОСОЗНАННЫЙ ЗАПАС ребалансера (строже политики НАМЕРЕННО — подушка между тем, что
+#   предложено, и тем, что гейт ещё пропустит; владелец решил оставить):
+#     per_protocol_max = 25%  (политика допускает 40% для T1 — берём строже)
+#     t2_max           = 45%  (ADR-019 допускает 50% — берём строже)
+#     cash_min         = 7%   (политика требует ≥5% — берём строже)
+#     max_protocols    = 7    (политика допускает 8 — запас 1)
 _DEFAULT_CONSTRAINTS = TunerConstraints(
-    t1_min=0.55,
+    t1_min=0.0,
     t2_max=0.45,
     per_protocol_max=0.25,
     tvl_floor_usd=5_000_000.0,

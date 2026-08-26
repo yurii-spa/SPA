@@ -114,6 +114,11 @@ def test_anchor_pins_rootdir_even_for_a_path_under_the_system_temp(tmp_path):
     )
 
 
+def _is_fs_root(p: Path) -> bool:
+    """Корень файловой системы. У pytest на него СВОЯ защита — см. ниже."""
+    return p.parent == p
+
+
 def test_unanchored_rootdir_is_what_lets_collect_reach_the_system_temp(tmp_path):
     """Обратная сторона: НЕзаякоренный вызов для того же файла берёт rootdir выше /tmp.
 
@@ -121,6 +126,20 @@ def test_unanchored_rootdir_is_what_lets_collect_reach_the_system_temp(tmp_path)
     того, где лежит cwd), поэтому он проверяет УТВЕРЖДЕНИЕ, а не окружение:
     если общий предок действительно накрывает системный /tmp, то и rootdir
     накрывает его — то есть механизм именно тот, что назван в карточке.
+
+    Уточнение 2026-08-26 (замер, CI main был красным из-за этого теста): у самого
+    pytest есть ВСТРОЕННАЯ защита от корня файловой системы — `determine_setup`
+    содержит `if is_fs_root(rootdir): rootdir = ancestor`, то есть при общем
+    предке «/» pytest отказывается брать его и откатывается на предка аргументов.
+    Поэтому там, где общий предок — корень (на Linux-CI это ВСЕГДА так: cwd в
+    /home/runner/…, аргумент в /tmp), опасная форма не возникает вовсе, и
+    утверждение теста ложно не потому, что механизм исчез, а потому, что оно не
+    учитывало эту защиту. Ветка ниже сузилась ровно на этот случай.
+
+    Утверждение НЕ ослаблено (инв. #16): там, где общий предок глубже корня и
+    накрывает системный temp (macOS `/private`, а также воспроизводимо на любой
+    ОС — см. следующий тест), assert работает как прежде. Форма из карточки
+    теперь ещё и воспроизводится намеренно, а не по везению раскладки машины.
     """
     f = tmp_path / "test_child_probe.py"
     f.write_text("def test_ok():\n    assert True\n", encoding="utf-8")
@@ -131,17 +150,69 @@ def test_unanchored_rootdir_is_what_lets_collect_reach_the_system_temp(tmp_path)
     # общий предок cwd и аргумента — то, из чего pytest и считает rootdir
     common = Path(os.path.commonpath([str(REPO_ROOT), str(f)]))
 
-    if system_tmp.is_relative_to(common):
-        assert system_tmp.is_relative_to(plain), (
-            f"общий предок {common} накрывает {system_tmp}, а rootdir {plain} — нет: "
-            "объяснение из карточки перестало соответствовать поведению pytest, "
-            "и линт ниже сторожит уже не тот механизм"
+    if _is_fs_root(common):
+        pytest.skip(
+            f"общий предок cwd ({REPO_ROOT}) и аргумента ({f}) — корень {common}; "
+            "pytest сам отказывается брать его как rootdir (determine_setup: "
+            "is_fs_root → откат на предка аргументов), поэтому опасная форма здесь "
+            "невозможна ПО УСТРОЙСТВУ pytest. Намеренное воспроизведение формы — "
+            "в test_unanchored_rootdir_covers_system_temp_when_ancestor_is_deeper"
         )
-    else:
+
+    if not system_tmp.is_relative_to(common):
         pytest.skip(
             f"на этой машине cwd ({REPO_ROOT}) и системный /tmp ({system_tmp}) "
             "не имеют общего предка выше /tmp — опасная форма здесь не возникает"
         )
+
+    assert system_tmp.is_relative_to(plain), (
+        f"общий предок {common} накрывает {system_tmp}, а rootdir {plain} — нет: "
+        "объяснение из карточки перестало соответствовать поведению pytest, "
+        "и линт ниже сторожит уже не тот механизм"
+    )
+
+
+def test_unanchored_rootdir_covers_system_temp_when_ancestor_is_deeper(tmp_path):
+    """Положительный контроль: опасная форма ВОСПРОИЗВОДИТСЯ намеренно, на любой ОС.
+
+    Прежний тест утверждал что-либо только если раскладке машины повезло дать
+    общий предок глубже корня — на Linux-CI не везло никогда, и класс оставался
+    непроверенным. Здесь форма строится специально: и «cwd», и аргумент лежат под
+    системным temp, поэтому их общий предок — сам системный temp (НЕ корень,
+    защита pytest не срабатывает), и rootdir честно накрывает его целиком.
+
+    Именно этот rootdir и заставляет `Dir.collect` идти scandir'ом по всему
+    системному temp — те самые 300 с из карточки #315. Если однажды pytest
+    перестанет так делать, красным станет ЭТОТ тест, и тогда якорь можно будет
+    пересматривать осознанно, а не обнаружить его бесполезность случайно.
+    """
+    system_tmp = Path(tempfile.gettempdir()).resolve()
+
+    arg_dir = Path(tempfile.mkdtemp(dir=system_tmp)).resolve()
+    invocation_dir = Path(tempfile.mkdtemp(dir=system_tmp)).resolve()
+    f = arg_dir / "test_child_probe.py"
+    f.write_text("def test_ok():\n    assert True\n", encoding="utf-8")
+
+    common = Path(os.path.commonpath([str(invocation_dir), str(f)]))
+    assert not _is_fs_root(common), (
+        f"общий предок {common} оказался корнем — форма построена неверно, "
+        "тест перестал проверять то, ради чего написан"
+    )
+
+    plain = _rootdir_for(f, invocation_dir)
+
+    assert system_tmp.is_relative_to(plain), (
+        f"незаякоренный rootdir {plain} больше НЕ накрывает системный temp "
+        f"{system_tmp} даже при общем предке {common} глубже корня: механизм из "
+        "карточки #315 исчез, и якорь `--rootdir` защищает уже не от него — "
+        "пересмотреть договорённость набора осознанно"
+    )
+
+    # И обратная сторона на той же форме: якорь её снимает.
+    anchored = _rootdir_for(f, invocation_dir, rootdir_cmd_arg=arg_dir)
+    assert not system_tmp.is_relative_to(anchored), (
+        f"якорь не помог: rootdir {anchored} всё ещё накрывает {system_tmp}"
+    )
 
 
 # ---------------------------------------------------------------------------

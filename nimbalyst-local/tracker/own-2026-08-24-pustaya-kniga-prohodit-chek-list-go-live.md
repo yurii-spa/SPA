@@ -2,12 +2,22 @@
 trackerStatus:
   type: owner-decision
 title: Пустая книга проходит чек-лист go-live целиком — проверка «все позиции безопасны» на нуле позиций отвечает «да»
-status: needs-owner
+status: ingested
 priority: medium
 owner: yuriycooleshov@gmail.com
 related: owner-decision-sbalansirovannyi-paket-ne-pokupaet-niche (ветка work-status-check-xfnbew)
 created: 2026-08-24
 source: разбор ветки work-status-check-xfnbew, пачка 3 (цикл #372)
+resolved: 2026-08-25
+---
+
+## ✅ Ответ владельца (2026-08-25): вариант A
+
+Владелец одобрил все 17 накопившихся решений разом («все одобряю», сводка-страница
+очереди решений от 25.08). По этой карточке принят **вариант A** — добавить в оба чек-листа блокирующую проверку «книга не пуста»: ноль позиций ⇒ КРАСНЫЙ, go-live не проходит. Пороги RiskPolicy не трогаются.
+
+Исполнение — отдельной задачей агента; капитал не двигается до её приёмки.
+
 ---
 
 ## Что случилось и почему это важно
