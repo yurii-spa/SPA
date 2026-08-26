@@ -27,6 +27,19 @@ from pathlib import Path
 
 from spa_core.paper_trading import cycle_reporting as cr
 
+#: Корень репозитория ОТ ФАЙЛА, а не от текущего каталога.
+#
+# Первая редакция брала пути относительно CWD (``Path("attic/MANIFEST.md")``), и
+# CI это поймал: `ci.yml` запускает набор как ``cd spa_core && pytest tests/``,
+# а `test.yml` — как ``pytest spa_core/tests/``. В первом случае CWD равен
+# ``spa_core/``, и относительный путь искал ``spa_core/attic/MANIFEST.md``.
+#
+# Хуже самого падения был СОСЕД: ``test_no_new_agent_was_introduced`` перебирал
+# ``Path("launchd").glob("*.plist")`` — под тем же CWD каталог не находился,
+# список выходил пустым, цикл не выполнялся ни разу, и тест ЗЕЛЕНЕЛ, ничего не
+# проверив. Молчаливый проход опаснее красного: он неотличим от работы.
+REPO = Path(__file__).resolve().parents[2]
+
 NOW = datetime(2026, 8, 26, 12, 0, tzinfo=timezone.utc)  # FROZEN-DATE-OK: injected-clock — часы инъектируются ПАРОЙ
 # с отметками: `now=NOW` уходит входом, а возраст файла ставится относительно
 # того же NOW. Обе стороны закреплены, поэтому сдвиг календаря тест не трогает.
@@ -51,8 +64,17 @@ class TheStepIsActuallyCalled(unittest.TestCase):
                       inspect.getsource(cycle_runner.run_cycle))
 
     def test_no_new_agent_was_introduced(self):
-        """Условие владельца дословно: «без нового агента»."""
-        plists = sorted(Path("launchd").glob("*.plist")) if Path("launchd").is_dir() else []
+        """Условие владельца дословно: «без нового агента».
+
+        Проверка НЕ смеет пройти на пустом списке: первая редакция брала
+        ``Path("launchd")`` относительно CWD, под `ci.yml` каталог не находился,
+        и тест зеленел, не посмотрев ни на один plist. Поэтому непустота
+        утверждается ОТДЕЛЬНО и первой.
+        """
+        plist_dir = REPO / "launchd"
+        self.assertTrue(plist_dir.is_dir(), f"каталог plist'ов не найден: {plist_dir}")
+        plists = sorted(plist_dir.glob("*.plist"))
+        self.assertTrue(plists, "plist'ов не найдено — проверка ничего не значит")
         for pl in plists:
             with self.subTest(plist=pl.name):
                 self.assertNotIn("evidence_report", pl.read_text(encoding="utf-8"),
@@ -150,24 +172,24 @@ class TheOtherTwoAreArchived(unittest.TestCase):
     """Недельный и ежедневный — в `attic/`, с записью, откуда их достать."""
 
     def test_weekly_left_scripts(self):
-        self.assertFalse(Path("scripts/weekly_evidence_report.py").exists(),
+        self.assertFalse((REPO / "scripts/weekly_evidence_report.py").exists(),
                          "недельный отчёт всё ещё в scripts/")
-        self.assertTrue(Path("attic/scripts/weekly_evidence_report.py").exists())
+        self.assertTrue((REPO / "attic/scripts/weekly_evidence_report.py").exists())
 
     def test_daily_telegram_left_alerts(self):
-        self.assertFalse(Path("spa_core/alerts/daily_evidence_report.py").exists(),
+        self.assertFalse((REPO / "spa_core/alerts/daily_evidence_report.py").exists(),
                          "ежедневный отчёт всё ещё в spa_core/alerts/")
-        self.assertTrue(Path("attic/alerts/daily_evidence_report.py").exists())
+        self.assertTrue((REPO / "attic/alerts/daily_evidence_report.py").exists())
 
     def test_manifest_says_where_to_get_them_back(self):
-        text = Path("attic/MANIFEST.md").read_text(encoding="utf-8")
+        text = (REPO / "attic/MANIFEST.md").read_text(encoding="utf-8")
         self.assertIn("weekly_evidence_report.py", text)
         self.assertIn("daily_evidence_report.py", text)
         self.assertIn("git mv attic/", text, "не сказано, как достать обратно")
 
     def test_the_thirty_day_report_stayed(self):
         """Обратный контроль: в архив уехали ДВА отчёта, а не три."""
-        self.assertTrue(Path("scripts/generate_evidence_report.py").exists())
+        self.assertTrue((REPO / "scripts/generate_evidence_report.py").exists())
 
     def test_the_dead_root_was_left_alone_and_says_why(self):
         """Корень цепочки НЕ архивирован — он не входит в тройку отчётов.
@@ -177,9 +199,9 @@ class TheOtherTwoAreArchived(unittest.TestCase):
         подключённым только потому, что его зовёт скрипт, который сам не зовёт
         никто. Отдельная находка и отдельное решение.
         """
-        self.assertTrue(Path("scripts/run_daily_simulation.py").exists())
-        self.assertTrue(Path("scripts/run_health_check.py").exists())
-        wrapper = Path("scripts/run_daily_simulation.py").read_text(encoding="utf-8")
+        self.assertTrue((REPO / "scripts/run_daily_simulation.py").exists())
+        self.assertTrue((REPO / "scripts/run_health_check.py").exists())
+        wrapper = (REPO / "scripts/run_daily_simulation.py").read_text(encoding="utf-8")
         self.assertIn("ADR-140", wrapper,
                       "снятый шаг не назван — молча исчезнувший шаг неотличим от небывшего")
 
