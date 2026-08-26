@@ -91,6 +91,26 @@ def state_overdue(tmp_state_file):
     return data
 
 
+@pytest.fixture()
+def fake_keychain(monkeypatch):
+    """Поддельная связка ключей: читатель — ВХОД, а не хост.
+
+    Нужна с 26.08: `--mark-rotated` подтверждает ротацию отпечатком ключа. Без подмены
+    тест спрашивал бы настоящую связку машины (на Linux-CI её нет вовсе), то есть судил
+    бы о хосте. `box["secret"] = None` ⇒ читатель отвечает «наблюдения нет».
+    """
+    box = {"secret": "ghp_token_AAA", "reason": "в связке ключей нет записи", "asked": []}
+
+    def reader(service):
+        box["asked"].append(service)
+        if box["secret"] is None:
+            return None, box["reason"]
+        return box["secret"], None
+
+    monkeypatch.setattr(prh, "_read_keychain_secret", reader)
+    return box
+
+
 # ────────────────────────────────────────────────────────────────────────────
 # 1. Отсутствующее состояние = «НЕ ИЗВЕСТНО», а не «ротация была сегодня»
 #
@@ -181,11 +201,19 @@ def test_state_without_any_usable_date_is_unknown(tmp_state_file):
 
 
 def test_mark_rotated_is_the_only_writer(tmp_state_file):
-    """Обе стороны: до отметки — отказ, после отметки — счётчик идёт (обратный контроль)."""
+    """Обе стороны: до отметки — отказ, после отметки — счётчик идёт (обратный контроль).
+
+    НАМЕРЕННАЯ ПРАВКА (инв. #16, цикл #385): добавлена инъекция `secret_reader`. С 26.08
+    `--mark-rotated` подтверждает ротацию отпечатком ключа в связке, и без инъекции этот
+    тест спрашивал бы НАСТОЯЩУЮ связку хоста — то есть судил бы о машине, а не о коде
+    (тот же класс, что литеральный pid/дата). Проверка не ослаблена: обе стороны
+    закреплены, читатель — вход.
+    """
     assert prh.main(["--check"]) == 1
     assert not tmp_state_file.exists()
 
-    prh.cmd_mark_rotated(now=date(2026, 8, 25), state_file=tmp_state_file)
+    prh.cmd_mark_rotated(now=date(2026, 8, 25), state_file=tmp_state_file,
+                         secret_reader=lambda service: ("ghp_new_token", None))
 
     assert tmp_state_file.exists()
     written = json.loads(tmp_state_file.read_text())
@@ -306,7 +334,7 @@ def test_overdue_triggers_warning(state_overdue):
 # 4. --mark-rotated
 # ────────────────────────────────────────────────────────────────────────────
 
-def test_mark_rotated_updates_last_rotation(tmp_state_file, state_ok, capsys):
+def test_mark_rotated_updates_last_rotation(tmp_state_file, state_ok, fake_keychain, capsys):
     """--mark-rotated sets last_rotation to today."""
     exit_code = prh.main(["--mark-rotated"])
     assert exit_code == 0
@@ -314,7 +342,7 @@ def test_mark_rotated_updates_last_rotation(tmp_state_file, state_ok, capsys):
     assert state["last_rotation"] == date.today().isoformat()
 
 
-def test_mark_rotated_sets_next_rotation_90_days(tmp_state_file, state_ok, capsys):
+def test_mark_rotated_sets_next_rotation_90_days(tmp_state_file, state_ok, fake_keychain, capsys):
     """--mark-rotated sets next_rotation to today + 90 days."""
     prh.main(["--mark-rotated"])
     state = json.loads(tmp_state_file.read_text())
@@ -322,14 +350,33 @@ def test_mark_rotated_sets_next_rotation_90_days(tmp_state_file, state_ok, capsy
     assert state["next_rotation"] == expected
 
 
-def test_mark_rotated_preserves_keychain_service(tmp_state_file, state_ok, capsys):
-    """--mark-rotated preserves the keychain_service from existing state."""
+def test_mark_rotated_writes_the_name_delivery_reads_not_the_one_in_old_state(
+        tmp_state_file, state_ok, fake_keychain, capsys):
+    """Имя связки из СТАРОГО состояния не побеждает имя, по которому доставка ищет токен.
+
+    НАМЕРЕННАЯ ПРАВКА ТЕСТА (инвариант #16; обоснование здесь, в теле коммита и в
+    `docs/journal/2026-W35.md`). Прежний `test_mark_rotated_preserves_keychain_service`
+    требовал ровно обратного — «сохрани `keychain_service` из состояния», — и тем самым
+    ЗАКРЕПЛЯЛ дефект: состояние несло имя `spa-claude-pat`, которого нет ни в связке
+    ключей, ни у одного читателя токена (`push_to_github.py`, `spa_core/utils/keychain.py`,
+    `auto_push.py` берут `GITHUB_PAT_SPA`). Починить константу и оставить старое имя жить
+    в данных значило бы починить половину: чеклист снова назвал бы владельцу имя, по
+    которому доставка не смотрит.
+
+    Проверка не ослаблена, а РАЗВЁРНУТА: вместо «старое имя сохраняется» проверяется
+    «побеждает имя доставки И расхождение названо вслух». Положительный контроль: на
+    origin-версии модуля тест краснеет (там в состояние уезжает `spa-claude-pat`).
+    """
+    assert state_ok["keychain_service"] == "spa-claude-pat"  # предусловие: старое имя
     prh.main(["--mark-rotated"])
     state = json.loads(tmp_state_file.read_text())
-    assert state["keychain_service"] == state_ok["keychain_service"]
+    assert state["keychain_service"] == prh.KEYCHAIN_SERVICE == "GITHUB_PAT_SPA"
+    out = capsys.readouterr().out
+    assert "spa-claude-pat" in out and "GITHUB_PAT_SPA" in out, (
+        "расхождение имён обязано быть НАЗВАНО, а не молча исправлено")
 
 
-def test_mark_rotated_atomic_write(tmp_state_file, state_ok, monkeypatch, capsys):
+def test_mark_rotated_atomic_write(tmp_state_file, state_ok, fake_keychain, monkeypatch, capsys):
     """_atomic_write produces no leftover tmp file after successful write."""
     prh.main(["--mark-rotated"])
     tmp_files = list(tmp_state_file.parent.glob(".pat_rotation_tmp_*"))
@@ -437,3 +484,269 @@ def test_keychain_read_never_called_during_status(tmp_state_file, state_ok, monk
     prh.main(["--status"])
     keychain_calls = [c for c in calls if "security" in str(c)]
     assert keychain_calls == [], f"Unexpected keychain calls: {keychain_calls}"
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# 9. Имя связки и чеклист: страж вёл ключ НЕ ТУДА (цикл #385, 26.08)
+#
+# Разбор при инжесте решения владельца 25.08 22:22Z (вариант 1 — «поменяю ключ сейчас»):
+# чеклист, по которому владелец собрался действовать, называл связку `spa-claude-pat`
+# (такой записи на машине нет, и это имя не читает НИКТО) и команду
+# `security-update-keychain` (не существует). Исполнение дословно клало новый токен туда,
+# куда доставка не смотрит, а шаг «удали старый токен на GitHub» отбирал единственный
+# работающий. Каждый тест ниже — положительный контроль: на origin-версии модуля
+# (sha 1209a53be8… → предшественник) он краснеет.
+# ────────────────────────────────────────────────────────────────────────────
+
+def _service_names_read_by_delivery():
+    """Имена связки, по которым токен ищет НАСТОЯЩАЯ доставка — разобраны из ИСХОДНИКОВ.
+
+    Сверять с копией константы бессмысленно (класс «сторож сверяется сам с собой»):
+    имя `spa-claude-pat` прожило месяцы ровно потому, что жило в стороже и в его же
+    тестах. Поэтому имена вынимаются из кода читателей.
+    """
+    import re
+    names = set()
+
+    keychain_src = (_PROJECT_ROOT / "spa_core" / "utils" / "keychain.py").read_text(encoding="utf-8")
+    for m in re.finditer(r'^GITHUB_PAT_SPA\s*=\s*"([^"]+)"', keychain_src, re.M):
+        names.add(m.group(1))
+
+    pusher_src = (_PROJECT_ROOT / "push_to_github.py").read_text(encoding="utf-8")
+    for m in re.finditer(
+            r'find-generic-password"\s*,\s*"-s"\s*,\s*"([^"]+)"', pusher_src):
+        names.add(m.group(1))
+
+    return names
+
+
+def test_delivery_readers_are_parseable_at_all():
+    """Предусловие: имена доставки вообще нашлись — иначе следующий тест зелен по слепоте."""
+    names = _service_names_read_by_delivery()
+    assert names, ("ни в spa_core/utils/keychain.py, ни в push_to_github.py не разобрано "
+                   "ни одного имени связки — сверять не с чем, и это находка, а не «ok»")
+    assert len(names) == 1, f"читатели доставки называют РАЗНЫЕ связки: {sorted(names)}"
+
+
+def test_keychain_service_matches_the_name_delivery_actually_reads():
+    """Страж обязан называть ту же связку, из которой доставка берёт токен.
+
+    Положительный контроль: на origin-версии здесь `spa-claude-pat` против
+    `GITHUB_PAT_SPA` — тест краснеет.
+    """
+    names = _service_names_read_by_delivery()
+    assert prh.KEYCHAIN_SERVICE in names, (
+        f"страж ротации называет связку {prh.KEYCHAIN_SERVICE!r}, а доставка читает "
+        f"{sorted(names)}: ключ, положенный по чеклисту, доставке не достанется")
+
+
+def test_checklist_names_a_real_security_subcommand(tmp_state_file, state_warning, capsys):
+    """В чеклисте — настоящая команда macOS, а не выдуманная `security-update-keychain`."""
+    prh.main([])
+    out = capsys.readouterr().out
+    assert "security add-generic-password" in out
+    assert "security-update-keychain" not in out, (
+        "чеклист печатает команду, которой не существует ни в macOS, ни у нас")
+
+
+def test_checklist_names_the_service_the_pusher_reads(tmp_state_file, state_warning, capsys):
+    """Чеклист называет владельцу ровно то имя, по которому токен читает доставка.
+
+    Фикстура `state_warning` намеренно несёт СТАРОЕ имя `spa-claude-pat` в файле
+    состояния: имя в данных не должно диктовать инструкцию. Положительный контроль —
+    origin-версия печатает команду именно с ним.
+    """
+    assert state_warning["keychain_service"] == "spa-claude-pat"
+    prh.main([])
+    out = capsys.readouterr().out
+    command = [ln for ln in out.splitlines() if "security add-generic-password" in ln]
+    assert len(command) == 1, out
+    for name in _service_names_read_by_delivery():
+        assert f"-s {name}" in command[0]
+    assert "spa-claude-pat" not in command[0], (
+        "команда владельцу кладёт токен под именем, которого не читает никто")
+
+
+def test_stale_service_name_in_state_is_named_out_loud(tmp_state_file, state_warning, capsys):
+    """Расхождение имён не исправляется молча: владельцу сказано, что в состоянии не то имя."""
+    prh.main([])
+    out = capsys.readouterr().out
+    assert "spa-claude-pat" in out
+    assert "не читает НИ ОДИН потребитель" in out
+
+
+def test_checklist_puts_the_key_in_before_deleting_the_old_one(tmp_state_file,
+                                                               state_warning, capsys):
+    """Порядок шагов — часть безопасности: старый токен удаляют ПОСЛЕ проверки нового."""
+    prh.main([])
+    out = capsys.readouterr().out
+    put = out.index("security add-generic-password")
+    check = out.index("push_to_github.py --dry-run")
+    delete = out.index("удалить старый токен")
+    assert put < check < delete, "чеклист предлагает удалить работающий токен раньше проверки"
+
+
+def test_refusal_also_prints_the_checklist(tmp_state_file, capsys):
+    """Отказ «дата НЕ ИЗВЕСТНА» обязан говорить, ЧТО делать — с правильным именем связки."""
+    assert prh.main([]) == 1
+    out = capsys.readouterr().out
+    assert "security add-generic-password" in out
+    assert prh.KEYCHAIN_SERVICE in out
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# 10. «Поменял» — наблюдение, а не слово (цикл #385)
+#
+# #383 закрыл сочинение даты СТРАЖЕМ. Здесь закрывается сочинение даты ЧЕЛОВЕКОМ:
+# отметка ротации сверяет отпечаток ключа в связке. Все тесты ниже, кроме отдельно
+# помеченных, — положительные контроли: origin-версия `cmd_mark_rotated` пишет дату
+# всегда и возвращает 0.
+# ────────────────────────────────────────────────────────────────────────────
+
+def test_mark_rotated_refuses_when_the_key_is_not_observable(tmp_state_file, fake_keychain,
+                                                             capsys):
+    """Ключа в связке нет (или нет самой `security`) ⇒ ОТКАЗ, код 2, файла нет."""
+    fake_keychain["secret"] = None
+    assert prh.main(["--mark-rotated"]) == 2
+    assert not tmp_state_file.exists(), "отказ всё-таки записал дату"
+    out = capsys.readouterr().out
+    assert "ОТКАЗ" in out
+    assert "нет записи" in out
+
+
+def test_mark_rotated_refuses_when_the_key_did_not_change(tmp_state_file, fake_keychain,
+                                                          capsys):
+    """Тот же ключ ⇒ ротации не было ⇒ отказ; прежняя дата НЕ отодвигается на 90 дней."""
+    prh.cmd_mark_rotated(now=date(2026, 5, 1), state_file=tmp_state_file,
+                         secret_reader=lambda s: ("ghp_token_AAA", None))
+    before = json.loads(tmp_state_file.read_text())
+    assert before["last_rotation"] == "2026-05-01"
+
+    fake_keychain["secret"] = "ghp_token_AAA"          # тот же самый токен
+    assert prh.main(["--mark-rotated"]) == 2
+
+    after = json.loads(tmp_state_file.read_text())
+    assert after == before, "отказ переписал состояние"
+    out = capsys.readouterr().out
+    assert "ОТКАЗ" in out and "тот же" in out
+
+
+def test_mark_rotated_accepts_a_changed_key_and_records_the_evidence(tmp_state_file,
+                                                                     fake_keychain, capsys):
+    """Другой ключ ⇒ ротация НАБЛЮДЕНА: дата ставится, основание записано (обратный контроль)."""
+    prh.cmd_mark_rotated(now=date(2026, 5, 1), state_file=tmp_state_file,
+                         secret_reader=lambda s: ("ghp_token_AAA", None))
+    old_fp = json.loads(tmp_state_file.read_text())["token_fingerprint"]
+
+    fake_keychain["secret"] = "ghp_token_BBB"           # ключ действительно другой
+    assert prh.main(["--mark-rotated"]) == 0
+
+    state = json.loads(tmp_state_file.read_text())
+    assert state["rotation_evidence"] == "observed_change"
+    assert state["token_fingerprint"] != old_fp
+    assert state["previous_token_fingerprint"] == old_fp
+
+
+def test_first_mark_is_honestly_labelled_baseline(tmp_state_file, fake_keychain):
+    """Первая отметка: прошлого отпечатка не было ⇒ основание названо `baseline_fingerprint`.
+
+    Дата тут всё ещё на слове человека, и состояние ГОВОРИТ об этом, вместо того чтобы
+    выдавать её за подтверждённую.
+    """
+    assert prh.main(["--mark-rotated"]) == 0
+    state = json.loads(tmp_state_file.read_text())
+    assert state["rotation_evidence"] == "baseline_fingerprint"
+    assert "previous_token_fingerprint" not in state
+    assert state["token_fingerprint"] == prh._fingerprint("ghp_token_AAA")
+
+
+def test_bypass_records_that_the_date_is_unverified(tmp_state_file, fake_keychain):
+    """Обход возможен, но НЕ бесшумен: состояние помечено `unverified`."""
+    fake_keychain["secret"] = None
+    assert prh.main(["--mark-rotated", "--allow-unverified-keychain"]) == 0
+    state = json.loads(tmp_state_file.read_text())
+    assert state["rotation_evidence"] == "unverified"
+    assert "token_fingerprint" not in state
+
+
+def test_bypass_over_an_unchanged_key_is_also_unverified(tmp_state_file, fake_keychain):
+    """Обход поверх НЕизменившегося ключа не превращается в «наблюдено»."""
+    prh.cmd_mark_rotated(now=date(2026, 5, 1), state_file=tmp_state_file,
+                         secret_reader=lambda s: ("ghp_token_AAA", None))
+    fake_keychain["secret"] = "ghp_token_AAA"
+    assert prh.main(["--mark-rotated", "--allow-unverified-keychain"]) == 0
+    assert json.loads(tmp_state_file.read_text())["rotation_evidence"] == "unverified"
+
+
+def test_state_never_stores_the_token_itself(tmp_state_file, fake_keychain):
+    """Страж моего собственного изменения (не положительный контроль): секрета в файле нет.
+
+    Инвариант #7 — токены не живут в файлах. В состояние уезжает ОТПЕЧАТОК: необратимые
+    16 hex-символов sha256, по которым токен не восстанавливается.
+    """
+    secret = "ghp_super_secret_value_123456"
+    fake_keychain["secret"] = secret
+    prh.main(["--mark-rotated"])
+    raw = tmp_state_file.read_text(encoding="utf-8")
+    assert secret not in raw
+    for size in (8, 12, 16):
+        assert secret[:size] not in raw, f"в состоянии лежит префикс токена длиной {size}"
+    assert json.loads(raw)["token_fingerprint"] == prh._fingerprint(secret)
+    assert len(prh._fingerprint(secret)) == prh.FINGERPRINT_CHARS
+
+
+def test_missing_security_binary_is_a_refusal_not_a_crash(tmp_state_file, monkeypatch):
+    """Не-macOS (нет `security`) — это «не измерено», а не исключение и не зелёный ответ."""
+    def boom(*a, **kw):
+        raise FileNotFoundError("security")
+    monkeypatch.setattr(prh.subprocess, "run", boom)
+    secret, reason = prh._read_keychain_secret("GITHUB_PAT_SPA")
+    assert secret is None
+    assert "security" in reason
+    assert prh.main(["--mark-rotated"]) == 2
+    assert not tmp_state_file.exists()
+
+
+def test_nonzero_exit_from_security_is_a_refusal(tmp_state_file, monkeypatch):
+    """`security` ответил кодом ≠ 0 (записи нет) ⇒ отказ с названной причиной."""
+    class R:
+        returncode = 44
+        stdout = ""
+    monkeypatch.setattr(prh.subprocess, "run", lambda *a, **kw: R())
+    secret, reason = prh._read_keychain_secret("GITHUB_PAT_SPA")
+    assert secret is None
+    assert "GITHUB_PAT_SPA" in reason
+    assert prh.main(["--mark-rotated"]) == 2
+
+
+def test_status_reports_the_evidence_when_state_has_it(tmp_state_file, fake_keychain, capsys):
+    """Основание даты видно читателю статуса — иначе «подтверждено» неотличимо от «на слово»."""
+    prh.cmd_mark_rotated(now=date(2026, 8, 25), state_file=tmp_state_file,
+                         secret_reader=lambda s: ("ghp_token_AAA", None))
+    capsys.readouterr()
+    assert prh.main(["--status"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["rotation_evidence"] == "baseline_fingerprint"
+    assert data["token_fingerprint"] == prh._fingerprint("ghp_token_AAA")
+
+
+def test_status_invents_no_evidence_for_old_state(tmp_state_file, state_ok, capsys):
+    """Состояние, записанное до 26.08, основания не знает — и ключа-суждения не получает."""
+    assert prh.main(["--status"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert "rotation_evidence" not in data
+    assert "token_fingerprint" not in data
+
+
+def test_read_commands_still_never_touch_the_keychain(tmp_state_file, state_ok, monkeypatch):
+    """Страж моего изменения: сверка отпечатка живёт ТОЛЬКО в --mark-rotated.
+
+    Расширение старого `test_keychain_read_never_called_during_status` на все три
+    читающих режима: читателю статуса секрет не нужен ни при каких условиях.
+    """
+    calls = []
+    monkeypatch.setattr(prh, "_read_keychain_secret",
+                        lambda *a, **kw: calls.append(a) or (None, "не должно быть вызвано"))
+    for argv in ([], ["--check"], ["--status"]):
+        prh.main(argv)
+    assert calls == [], f"режим чтения полез в связку ключей: {calls}"

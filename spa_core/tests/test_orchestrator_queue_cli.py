@@ -266,7 +266,8 @@ def test_notify_check_builds_message_without_sending(cli, tracker, monkeypatch, 
     assert "BUILT" in capsys.readouterr().out
 
 
-def test_notify_send_reports_ok(cli, tracker, monkeypatch, capsys):
+def _notify_cli(cli, tracker, monkeypatch, verdict):
+    """Общая обвязка: отправку подменяем, ИСХОД задаём вердиктом журнала."""
     p = _write(tracker, "own-9.md", CARD)
     calls = {}
 
@@ -276,10 +277,92 @@ def test_notify_send_reports_ok(cli, tracker, monkeypatch, capsys):
         return "sent"
 
     monkeypatch.setattr(cli, "notify_needs_owner", _fake)
+    monkeypatch.setattr(cli, "delivery_verdict", lambda path, **kw: verdict)
+    return p, calls
+
+
+def test_notify_send_reports_ok_when_the_message_actually_left(cli, tracker, monkeypatch,
+                                                               capsys):
+    """Доставлено ⇒ код 0 и «OK», с ИЗМЕРЕННОЙ подробностью.
+
+    НАМЕРЕННАЯ ПРАВКА ТЕСТА (инвариант #16; обоснование здесь, в теле коммита и в
+    `docs/journal/2026-W35.md`). Прежний `test_notify_send_reports_ok` требовал «OK» и код 0
+    БЕЗУСЛОВНО — то есть закреплял отчёт о НАМЕРЕНИИ отправить. Между `notify_needs_owner`
+    и владельцем стоит `guard_outbound` (дедуп по тексту 30 мин + лимит потока), который
+    роняет сообщение молча; живой случай цикла #385 — два гашения подряд, оба раза «OK».
+    Проверка не ослаблена, а РАЗВЁРНУТА на три исхода (см. два теста ниже), которых не было
+    вовсе.
+    """
+    p, calls = _notify_cli(cli, tracker, monkeypatch, (True, "доставлено, message_ids=[42]"))
     rc = cli.main(["notify", str(p)])
     assert rc == 0
     assert calls == {"path": str(p), "dry_run": False}
-    assert "OK: notified" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "OK: notified" in out
+    assert "message_ids=[42]" in out
+
+
+def test_notify_reports_failure_when_the_sender_dropped_it(cli, tracker, monkeypatch, capsys):
+    """Заслон погасил отправку ⇒ код 1 и «НЕ ОТПРАВЛЕНО», а не «OK».
+
+    Положительный контроль: на origin-версии команды здесь код 0 и «OK: notified».
+    """
+    p, _ = _notify_cli(cli, tracker, monkeypatch, (False, "дедуп по тексту (30 мин)"))
+    rc = cli.main(["notify", str(p)])
+    assert rc == 1
+    out = capsys.readouterr().out
+    assert "НЕ ОТПРАВЛЕНО" in out
+    assert "дедуп" in out
+    assert "OK: notified" not in out
+
+
+def test_notify_reports_unmeasured_as_its_own_outcome(cli, tracker, monkeypatch, capsys):
+    """Исхода в журнале нет ⇒ код 2 («не измерено»), а не 0 и не 1.
+
+    Третий исход отдельным именем: «не знаю, дошло ли» — это не «дошло» и не «не дошло».
+    """
+    p, _ = _notify_cli(cli, tracker, monkeypatch, (None, "записи об этой карточке нет"))
+    rc = cli.main(["notify", str(p)])
+    assert rc == 2
+    out = capsys.readouterr().out
+    assert "НЕ ИЗМЕРЕНО" in out
+    assert "OK: notified" not in out
+
+
+def test_notify_never_reports_ok_for_a_send_the_journal_never_saw(cli, tracker,
+                                                                   monkeypatch, capsys):
+    """Сквозной положительный контроль: подменён только ЖУРНАЛ, ничего из новых имён.
+
+    Остальные тесты этого раздела на origin-версии краснеют `AttributeError` — «такой
+    способности нет», а это более слабый класс контроля, чем «способность врёт». Здесь
+    подменяется существующий и на origin `owner_decisions._push_by_card_id`, поэтому тест
+    исполним ОБЕИМИ версиями: origin отвечает «OK: notified» с кодом 0 на отправку, о
+    которой журнал не знает ничего, — ровно тот отчёт о намерении, ради которого правка и
+    делалась.
+    """
+    from spa_core.telegram import owner_decisions
+
+    p = _write(tracker, "own-9.md", CARD)
+    monkeypatch.setattr(cli, "notify_needs_owner", lambda path, dry_run=False: "sent")
+    monkeypatch.setattr(owner_decisions, "_push_by_card_id", lambda *a, **kw: None)
+    rc = cli.main(["notify", str(p)])
+    out = capsys.readouterr().out
+    assert rc != 0, "команда отчиталась успехом об отправке, которой журнал не видел"
+    assert "OK: notified" not in out
+    assert "НЕ ИЗМЕРЕНО" in out
+
+
+def test_notify_dry_run_never_asks_about_delivery(cli, tracker, monkeypatch, capsys):
+    """`--check` ничего не отправляет ⇒ спрашивать журнал о доставке нечего (код 0)."""
+    p = _write(tracker, "own-9.md", CARD)
+    monkeypatch.setattr(cli, "notify_needs_owner", lambda path, dry_run=False: "BUILT-MSG")
+    asked = []
+    monkeypatch.setattr(cli, "delivery_verdict",
+                        lambda path, **kw: asked.append(path) or (None, "не должно быть вызвано"))
+    rc = cli.main(["notify", str(p), "--check"])
+    assert rc == 0
+    assert asked == [], "сухой прогон спросил журнал о доставке несуществующей отправки"
+    assert "BUILT-MSG" in capsys.readouterr().out
 
 
 # ----------------------------------------------------------------------------- main

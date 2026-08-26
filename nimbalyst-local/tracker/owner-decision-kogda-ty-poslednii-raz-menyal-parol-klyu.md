@@ -2,12 +2,18 @@
 trackerStatus:
   type: owner-decision
 title: Когда ты последний раз менял пароль-ключ для GitHub? Машина этого не знает, а срок — через 7 дней
-status: needs-owner
+status: ingested
 created: 2026-08-25
 owner_choice: 1
 owner_answered_at: 2026-08-25T22:22:18.330530+00:00
 owner_answer_via: telegram
 owner_answered_by: 258651137
+owner_answer_kind: option
+claimed_by: cycle-385
+claimed_at: 2026-08-26T09:50:01Z
+status_trail:
+  - "2026-08-25T22:22:18.330846+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-08-26T09:59:25.248651+00:00 owner-done -> ingested · queue.set_status · cycle-87229"
 ---
 
 
@@ -48,3 +54,11 @@ owner_answered_by: 258651137
 его нельзя: он будет справедливо краснеть каждый день, а на постоянно красного сторожа
 перестают смотреть. Источник: карточка `inbox-strazh-rotatsii-pat-sam-sochinyaet-datu`
 (починка — цикл #383, 25.08).
+
+---
+
+## Решение владельца
+
+**Вариант 1** — Просто поменяй ключ сейчас — 5 минут, и отсчёт пойдёт от честной
+
+_Ответ владельца получен 2026-08-25T22:22:18.330530+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._

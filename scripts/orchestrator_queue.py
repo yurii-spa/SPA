@@ -50,7 +50,7 @@ from spa_core.owner_queue.queue import (
     list_cards,
     set_status,
 )
-from spa_core.owner_queue.notify import notify_needs_owner
+from spa_core.owner_queue.notify import delivery_verdict, notify_needs_owner
 from spa_core.owner_queue.owner_answer import (
     AnswerConflict,
     CARRY_ALREADY_PRESENT,
@@ -627,12 +627,32 @@ def cmd_promotions(args) -> int:
 
 
 def cmd_notify(args) -> int:
+    """Отправить вопрос владельцу и ОТЧИТАТЬСЯ ИЗМЕРЕННЫМ исходом, а не намерением.
+
+    До 26.08 здесь стояло безусловное «OK: notified» и код 0 — при том, что между этой
+    строкой и владельцем стоит `guard_outbound` (дедуп по тексту 30 мин + лимит потока
+    12/мин), который роняет сообщение молча. Живой случай цикла #385: две попытки подряд
+    погашены дедупом, оба раза команда ответила «OK», и вопрос владельцу остался
+    незаданным. Журнал отправок исход знает с #309 — не знал его только тот, кто читает
+    вывод команды.
+
+    Коды: **0** — доставлено · **1** — НЕ отправлено (заслон/отказ отправителя) ·
+    **2** — не измерено (конвенция репозитория; «не знаю» не есть «ок»).
+    """
     msg = notify_needs_owner(args.path, dry_run=args.check)
     if args.check:
         print(msg)
-    else:
-        print(f"OK: notified for {args.path}")
-    return 0
+        return 0
+
+    delivered, detail = delivery_verdict(args.path)
+    if delivered is True:
+        print(f"OK: notified for {args.path} — {detail}")
+        return 0
+    if delivered is False:
+        print(f"НЕ ОТПРАВЛЕНО: {args.path}\n  {detail}")
+        return 1
+    print(f"НЕ ИЗМЕРЕНО, отправлено ли: {args.path}\n  {detail}")
+    return 2
 
 
 def cmd_resend_open(args) -> int:

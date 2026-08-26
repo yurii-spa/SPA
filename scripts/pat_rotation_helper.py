@@ -29,15 +29,49 @@ PAT НИКОГДА не читается и не хранится в коде �
   дефект и держался: наивный `if status["needs_rotation_soon"]` прочитал бы `None` как
   «всё хорошо». `KeyError` громкий, `None` — нет.
 
+**Что починено сверх этого (цикл #385, 26.08, инжест решения владельца 25.08 22:22Z,
+вариант 1 «поменяю ключ сейчас»).** Чеклист, по которому владелец собрался действовать,
+вёл ключ НЕ ТУДА:
+
+- `KEYCHAIN_SERVICE` называл связку `spa-claude-pat`. Такой записи на машине нет вовсе,
+  и это имя не читает НИКТО: `push_to_github.py:307`, `spa_core/utils/keychain.py`,
+  `auto_push.py` и `scripts/setup_pat.sh` берут токен по имени `GITHUB_PAT_SPA`. Имя
+  жило ровно в двух местах — в этом файле и в его собственных тестах, то есть страж
+  сверялся сам с собой (класс «сторож отвечает не на тот вопрос»).
+- Шаг 3 чеклиста печатал команду `security-update-keychain` — такой команды не
+  существует ни в macOS, ни у нас.
+
+Исполнение чеклиста ДОСЛОВНО клало новый токен под именем, которого никто не читает, а
+шаг 6 («удали старый токен на GitHub») отбирал тот единственный, который работал: цена
+ошибки — обесточенная доставка, и обнаружилась бы она первым же пушем ночью. Теперь имя
+связки — то же, по которому токен ищет доставка, и оно закреплено тестом ПРОТИВ ИСТОЧНИКА
+(разбор `push_to_github.py` / `keychain.py`, не копия константы).
+
+**И «поменял» перестало быть словом.** `--mark-rotated` больше не записывает дату по
+одному лишь утверждению человека: он читает связку и сверяет ОТПЕЧАТОК ключа
+(`sha256[:16]`, необратим, секретом не является и в состоянии хранится вместо токена —
+инвариант #7 цел). Отпечаток совпал с предыдущим ⇒ ротации НЕ БЫЛО ⇒ ОТКАЗ (код 2), а не
+свежая дата. Ключа в связке нет / нет самой `security` ⇒ тоже ОТКАЗ: наблюдения нет.
+Осознанный обход — `--allow-unverified-keychain`, и он ЗАПИСЫВАЕТ в состояние, что дата
+не подтверждена (`rotation_evidence: unverified`), а не делает вид, что подтверждена.
+Первая отметка при пустом состоянии честно помечается `baseline_fingerprint`: дата ещё
+на слове человека, но отпечаток уже наблюдение — со следующей ротации ложь становится
+невозможной.
+
+`--status` и `--check` связку ключей НЕ ТРОГАЮТ (закреплено тестом с самого MP-071):
+читателю статуса секрет не нужен.
+
 Коды возврата: **0** — ротация не нужна · **1** — нужна ротация ИЛИ дата НЕ ИЗВЕСТНА
 (`--check`, требование карточки) · **2** — `--status` при неизмеренном состоянии
 (конвенция репозитория «2 = не измерено»: репортёр, отвечающий 0 на «я не знаю», — тот
-же fail-OPEN, только тише).
+же fail-OPEN, только тише) ИЛИ `--mark-rotated`, которому нечем подтвердить ротацию.
 """
 
 import argparse
+import hashlib
 import json
 import os
+import subprocess
 import sys
 import tempfile
 from datetime import date, datetime, timedelta
@@ -46,7 +80,23 @@ from pathlib import Path
 # ── константы ────────────────────────────────────────────────────────────────
 ROTATION_INTERVAL_DAYS = 90
 WARNING_THRESHOLD_DAYS = 14
-KEYCHAIN_SERVICE = "spa-claude-pat"
+
+# Имя записи в связке ключей, под которым токен ищет НАСТОЯЩАЯ доставка
+# (`push_to_github.py:307`, `spa_core/utils/keychain.py`, `auto_push.py`,
+# `scripts/setup_pat.sh`). Менять это имя в одиночку нельзя: тест
+# `test_keychain_service_matches_the_name_delivery_actually_reads` разбирает исходники
+# читателей и требует совпадения. До 26.08 здесь стояло `spa-claude-pat` — имя, которого
+# нет ни в связке, ни у одного читателя; чеклист ротации вёл владельца именно по нему.
+KEYCHAIN_SERVICE = "GITHUB_PAT_SPA"
+
+# Имя, под которым страж жил до 26.08. Хранится, чтобы старое состояние на диске было
+# УЗНАНО и названо вслух, а не молча принято за истину.
+LEGACY_KEYCHAIN_SERVICE = "spa-claude-pat"
+
+# Длина отпечатка токена (hex-символов от sha256). Отпечаток — НЕ секрет: он необратим,
+# а 64 бита от sha256 по случайному токену GitHub не дают ни восстановления, ни
+# практической проверки догадок. В состоянии хранится он, токен — никогда (инвариант #7).
+FINGERPRINT_CHARS = 16
 
 # Путь к state-файлу относительно корня проекта (2 уровня вверх от scripts/)
 _SCRIPT_DIR = Path(__file__).resolve().parent
@@ -71,6 +121,46 @@ def _atomic_write(path: Path, data: dict) -> None:
         except OSError:
             pass
         raise
+
+
+def _read_keychain_secret(service: str, runner=None):
+    """Читает секрет из связки ключей. Возвращает ``(secret|None, reason|None)``.
+
+    ЕДИНСТВЕННЫЙ вызывающий — `--mark-rotated`. Ни `--status`, ни `--check`, ни режим по
+    умолчанию связку не трогают: читателю статуса секрет не нужен, и это закреплено
+    тестом `test_keychain_read_never_called_during_status` с самого MP-071.
+
+    Отсутствие записи, отсутствие самой `security` и любой сбой чтения — РАЗНЫЕ причины,
+    но один вид: наблюдения нет. Причина возвращается словами, чтобы отказ было чем
+    объяснить, а не «что-то пошло не так».
+    """
+    runner = runner or subprocess.run
+    try:
+        result = runner(
+            ["security", "find-generic-password", "-s", service, "-w"],
+            capture_output=True, text=True, timeout=5,
+        )
+    except FileNotFoundError:
+        return None, ("команды `security` на этой машине нет (не macOS) — "
+                      "связка ключей не наблюдаема отсюда")
+    except Exception as exc:  # taймаут, права, что угодно — вид один: не измерено
+        return None, f"чтение связки не удалось ({exc.__class__.__name__})"
+
+    if getattr(result, "returncode", 1) != 0:
+        return None, f"в связке ключей нет записи с именем сервиса `{service}`"
+    value = (result.stdout or "").strip()
+    if not value:
+        return None, f"запись `{service}` в связке ключей пуста"
+    return value, None
+
+
+def _fingerprint(secret: str) -> str:
+    """Отпечаток токена: первые ``FINGERPRINT_CHARS`` hex-символов sha256.
+
+    Нужен ровно для одного вопроса: «ключ ДРУГОЙ, чем в прошлый раз?». Сам токен не
+    хранится и не печатается никогда (инвариант #7); отпечаток необратим.
+    """
+    return hashlib.sha256(secret.encode("utf-8")).hexdigest()[:FINGERPRINT_CHARS]
 
 
 def _load_state(state_file: Path = None):
@@ -145,7 +235,7 @@ def _compute_status(state, now: date = None, state_file: Path = None) -> dict:
     is_overdue = days_until < 0
     needs_rotation = days_until < WARNING_THRESHOLD_DAYS
 
-    return {
+    status = {
         "today": now.isoformat(),
         "rotation_date_known": True,
         "last_rotation": state.get("last_rotation"),
@@ -155,6 +245,13 @@ def _compute_status(state, now: date = None, state_file: Path = None) -> dict:
         "needs_rotation_soon": needs_rotation,
         "keychain_service": state.get("keychain_service", KEYCHAIN_SERVICE),
     }
+    # Основание даты показывается ТОЛЬКО если оно записано: состояние, отмеченное до
+    # 26.08, основания не знает, и выдумывать ему «подтверждено» нельзя.
+    if state.get("rotation_evidence"):
+        status["rotation_evidence"] = state["rotation_evidence"]
+    if state.get("token_fingerprint"):
+        status["token_fingerprint"] = state["token_fingerprint"]
+    return status
 
 
 def _print_unknown(status: dict) -> None:
@@ -167,8 +264,9 @@ def _print_unknown(status: dict) -> None:
     print("  1. Если ротацию делали — вспомнить когда её делали НА САМОМ ДЕЛЕ;")
     print("     файл состояния восстанавливается только настоящей датой.")
     print("  2. Если не делали (или дата потеряна) — сделать ротацию сейчас "
-          "и отметить её:")
-    print("     python3 scripts/pat_rotation_helper.py --mark-rotated")
+          "по чеклисту ниже.")
+    print()
+    _print_checklist(_delivery_service_or_warn(status.get("keychain_service")))
     print()
     print(f"  Ожидаемый файл состояния: {STATE_FILE}")
 
@@ -177,7 +275,7 @@ def _print_warning(status: dict) -> None:
     """Печатает WARNING с полным checklist."""
     days = status["days_until_rotation"]
     deadline = status["next_rotation"]
-    service = status["keychain_service"]
+    service = _delivery_service_or_warn(status.get("keychain_service"))
 
     if status["is_overdue"]:
         header = f"🚨  PAT ROTATION OVERDUE BY {abs(days)} DAYS (was due: {deadline})"
@@ -186,16 +284,54 @@ def _print_warning(status: dict) -> None:
 
     print(header)
     print()
-    print("Checklist:")
-    print("  1. GitHub → Settings → Developer settings → PATs → Fine-grained tokens")
-    print("  2. Создай новый PAT с правами: Contents (read/write), Workflows (read/write)")
-    print(f"  3. security-update-keychain '<new_token>' {service}   ← НЕ ЗАПУСКАЙ через код")
-    print("  4. Протестируй: python3 push_to_github.py --dry-run")
-    print("  5. Обнови pat_rotation_state.json: python3 scripts/pat_rotation_helper.py --mark-rotated")
-    print("  6. Удали старый PAT на GitHub")
+    _print_checklist(service)
     print()
     print(f"  Last rotation: {status['last_rotation']}")
     print(f"  State file:    {STATE_FILE}")
+
+
+def _delivery_service_or_warn(named: str = None) -> str:
+    """Всегда возвращает имя связки, из которой токен берёт ДОСТАВКА; расхождение называет.
+
+    Имя в файле состояния — не источник правды: состояние, записанное до 26.08, несёт
+    `spa-claude-pat`, и если печатать чеклист по нему, страж продолжит диктовать владельцу
+    имя, по которому доставка не смотрит, — сколько бы констант в коде мы ни починили.
+    """
+    if named and named != KEYCHAIN_SERVICE:
+        legacy = " — имя стража до 26.08" if named == LEGACY_KEYCHAIN_SERVICE else ""
+        print(f"⚠️   в файле состояния записана связка `{named}`{legacy}: "
+              f"её не читает НИ ОДИН потребитель токена.")
+        print(f"     Доставка (push_to_github.py, spa_core/utils/keychain.py, auto_push.py) "
+              f"берёт `{KEYCHAIN_SERVICE}` — чеклист ниже именно про него.")
+        print()
+    return KEYCHAIN_SERVICE
+
+
+def _print_checklist(service: str = None) -> None:
+    """Чеклист ротации — ОДИН на все режимы печати.
+
+    До 26.08 здесь стояли имя связки, которого нет ни у одного читателя токена, и
+    несуществующая команда `security-update-keychain`. Исполнение шагов дословно клало
+    новый токен туда, куда доставка не смотрит, а шаг «удали старый токен» отбирал
+    работающий. Поэтому и имя, и команда закреплены тестами-положительными контролями.
+    """
+    service = service or KEYCHAIN_SERVICE
+    print("Чеклист ротации:")
+    print("  1. GitHub → Settings → Developer settings → Personal access tokens →")
+    print("     Fine-grained tokens → Generate new token")
+    print("  2. Права: Contents (read/write), Workflows (read/write); срок — 90 дней")
+    print("  3. Положить токен в связку ключей Мака ИМЕННО под тем именем,")
+    print("     по которому его ищет доставка:")
+    print(f"     security add-generic-password -U -a \"$USER\" -s {service} -w '<новый токен>'")
+    print(f"     (`{service}` — не украшение: под этим именем токен читают")
+    print("      push_to_github.py, spa_core/utils/keychain.py и auto_push.py.")
+    print("      Положить под другим именем = доставка останется со старым токеном")
+    print("      и умрёт на шаге 6.)")
+    print("  4. Проверить доставку ДО удаления старого токена:")
+    print("     python3 push_to_github.py --dry-run")
+    print("  5. Отметить ротацию: python3 scripts/pat_rotation_helper.py --mark-rotated")
+    print("     (команда сама сверит отпечаток ключа — слову «поменял» она не верит)")
+    print("  6. Только теперь удалить старый токен на GitHub")
 
 
 # ── команды ───────────────────────────────────────────────────────────────────
@@ -233,24 +369,94 @@ def cmd_status(status: dict) -> int:
     return 0 if status.get("rotation_date_known") else 2
 
 
-def cmd_mark_rotated(now: date = None, state_file: Path = None) -> int:
-    """--mark-rotated: ЕДИНСТВЕННЫЙ путь, которым дата ротации попадает в состояние."""
+def cmd_mark_rotated(now: date = None, state_file: Path = None,
+                     secret_reader=None, allow_unverified: bool = False) -> int:
+    """--mark-rotated: ЕДИНСТВЕННЫЙ путь, которым дата ротации попадает в состояние.
+
+    И этот путь больше не верит на слово. #383 закрыл сочинение даты СТРАЖЕМ; здесь
+    закрывается сочинение даты ЧЕЛОВЕКОМ: «поменял» проверяется отпечатком ключа в
+    связке. Отпечаток тот же, что был, ⇒ ротации не было ⇒ ОТКАЗ (код 2), потому что
+    записанная сейчас дата отодвинула бы следующее напоминание на 90 дней — ровно то
+    молчание, ради которого страж и существует.
+
+    Виды исхода, каждый называется в состоянии ключом `rotation_evidence`:
+      · `observed_change`      — отпечаток отличается от прошлого: ротация НАБЛЮДЕНА;
+      · `baseline_fingerprint` — прошлого отпечатка не было; дата ещё на слове человека,
+                                 но отпечаток записан, и следующая ложь уже невозможна;
+      · `unverified`           — осознанный обход `--allow-unverified-keychain`:
+                                 наблюдения нет, и состояние ГОВОРИТ об этом.
+    """
     now = now or date.today()
     path = state_file or STATE_FILE
     next_rotation = now + timedelta(days=ROTATION_INTERVAL_DAYS)
 
-    # Загружаем существующее состояние чтобы сохранить keychain_service
-    existing = _load_state(path)
-    keychain_service = (existing or {}).get("keychain_service", KEYCHAIN_SERVICE)
+    existing = _load_state(path) or {}
+    named = existing.get("keychain_service")
+    if named and named != KEYCHAIN_SERVICE:
+        # Старое состояние могло сохранить имя, которого не читает никто (до 26.08 —
+        # `spa-claude-pat`). Молча принять его значило бы починить константу и оставить
+        # дефект в данных; поэтому имя доставки побеждает, а расхождение НАЗЫВАЕТСЯ.
+        legacy = " (имя стража до 26.08)" if named == LEGACY_KEYCHAIN_SERVICE else ""
+        print(f"ℹ️  в состоянии записано имя связки `{named}`{legacy}, "
+              f"а доставка читает `{KEYCHAIN_SERVICE}` — сверяю по имени доставки")
+
+    reader = secret_reader or _read_keychain_secret
+    secret, reason = reader(KEYCHAIN_SERVICE)
+    previous_fp = existing.get("token_fingerprint")
+
+    if secret is None:
+        if not allow_unverified:
+            print("⛔️  ОТКАЗ: подтвердить ротацию нечем — ключ не наблюдаем")
+            print(f"    Причина: {reason}")
+            print()
+            _print_checklist(KEYCHAIN_SERVICE)
+            print()
+            print("    Осознанный обход (дата ляжет с пометкой «не подтверждена»):")
+            print("      python3 scripts/pat_rotation_helper.py --mark-rotated "
+                  "--allow-unverified-keychain")
+            return 2
+        fingerprint, evidence = None, "unverified"
+    else:
+        fingerprint = _fingerprint(secret)
+        if previous_fp and fingerprint == previous_fp and not allow_unverified:
+            print("⛔️  ОТКАЗ: ротации НЕ БЫЛО — ключ в связке тот же самый")
+            print(f"    Отпечаток под `{KEYCHAIN_SERVICE}` не изменился "
+                  f"с прошлой отметки ({previous_fp}).")
+            print(f"    Дата последней ротации остаётся прежней: "
+                  f"{existing.get('last_rotation', 'НЕ ИЗВЕСТНА')}")
+            print()
+            print("    Если токен действительно новый — он лёг под ДРУГИМ именем.")
+            print("    Правильное имя и команда:")
+            print()
+            _print_checklist(KEYCHAIN_SERVICE)
+            return 2
+        if allow_unverified and previous_fp and fingerprint == previous_fp:
+            evidence = "unverified"
+        elif previous_fp:
+            evidence = "observed_change"
+        else:
+            evidence = "baseline_fingerprint"
 
     state = {
         "last_rotation": now.isoformat(),
         "next_rotation": next_rotation.isoformat(),
-        "keychain_service": keychain_service,
+        "keychain_service": KEYCHAIN_SERVICE,
+        "rotation_evidence": evidence,
     }
+    if fingerprint:
+        state["token_fingerprint"] = fingerprint
+    if previous_fp:
+        state["previous_token_fingerprint"] = previous_fp
     _atomic_write(path, state)
 
+    verdicts = {
+        "observed_change": "ротация НАБЛЮДЕНА: ключ в связке отличается от прошлого",
+        "baseline_fingerprint": ("дата записана со слов, отпечаток ключа — записан "
+                                 "впервые; со следующей ротации сверка станет доказательной"),
+        "unverified": "дата записана БЕЗ подтверждения (обход) — так и помечена в состоянии",
+    }
     print(f"✅  PAT rotation marked. Next rotation due: {next_rotation.isoformat()}")
+    print(f"    Основание: {verdicts[evidence]}")
     print(f"    State file updated: {path}")
     return 0
 
@@ -286,10 +492,17 @@ Examples:
         dest="mark_rotated",
         help="Обновить дату ротации на сегодня",
     )
+    parser.add_argument(
+        "--allow-unverified-keychain",
+        action="store_true",
+        dest="allow_unverified_keychain",
+        help=("Осознанный обход сверки отпечатка при --mark-rotated: дата будет "
+              "записана с пометкой «не подтверждена» (rotation_evidence=unverified)"),
+    )
     args = parser.parse_args(argv)
 
     if args.mark_rotated:
-        return cmd_mark_rotated()
+        return cmd_mark_rotated(allow_unverified=args.allow_unverified_keychain)
 
     state = _load_state()
     status = _compute_status(state)
