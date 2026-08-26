@@ -62,7 +62,6 @@
     "findings_to_cards": "текст докстринга-описания в spa_core/monitoring/findings_bridge_c125.py:335; живой мост зовут как модуль (spa_core.monitoring.findings_bridge --run из scripts/agent_decision_loop.sh), этот скрипт не зовёт никто",
     "optimizer_ab": "текст ошибки: spa_core/api/routers/optimizer.py:67 советует «Run scripts/optimizer_ab.py», когда артефакта нет",
     "ots_anchor": "однофамилец: spa_core/audit/ots_anchor.py упоминал сам себя",
-    "pat_rotation_helper": "груз пуша: scripts/push_all_session.sh:123 отправляет scripts/pat_rotation_helper.py на origin списком `--files`, а не запускает; настоящего вызывающего нет ни одного",
     "perf_budget": "подстрочная коллизия: имя целиком лежит внутри scripts/dfb_perf_budget.py",
     "restore_spa_data": "груз пуша: scripts/run_cpa_wave9_pushes.sh:58 отправляет scripts/restore_spa_data.py на origin списком `--files`; вызывающего нет ПО УСТРОЙСТВУ — это ручной инструмент восстановления, парный scripts/backup_spa_data.py (авто-восстановления быть не должно)",
     "run_stress_tests": "докстринг: spa_core/stress/stress_engine.py («atomic writes … run_stress_tests.py»)",

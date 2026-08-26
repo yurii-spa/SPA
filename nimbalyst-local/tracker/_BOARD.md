@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **696** · ждёт владельца: **1** · занято сессиями: **6**.
+> Всего карточек: **697** · ждёт владельца: **1** · занято сессиями: **6**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
-- **Ключ GitHub: переспрашиваю — прошлые кнопки были моей ошибкой**  ·  `owner-decision-klyuch-github-peresprashivayu-proshlye-k.md`
+- **Тюнер зеркалит политику БЕЗ запасов — решение владельца 26.08 (cloud, кнопка), ОТМЕНЯЕТ «запас оставить» от 25.08; реализация доставлена** · _high_  ·  `own-tuner-zerkalit-politiku-zapasy-snyaty.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
@@ -19,10 +19,10 @@
 - **Разобрать 52 карточки с ветки work-status-check, потом удалить ветку (решение владельца 20.08, вариант 1)** — держит `pid85035` · с 2026-08-25T00:20:38Z  ·  `inbox-razobrat-52-kartochki-s-vetki-work-statu.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (172)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (173)
 
 ### · needs-owner
-- Ключ GitHub: переспрашиваю — прошлые кнопки были моей ошибкой  ·  `owner-decision-klyuch-github-peresprashivayu-proshlye-k.md` · 2026-08-26
+- Тюнер зеркалит политику БЕЗ запасов — решение владельца 26.08 (cloud, кнопка), ОТМЕНЯЕТ «запас оставить» от 25.08; реализация доставлена  ·  `own-tuner-zerkalit-politiku-zapasy-snyaty.md` · 2026-08-26
 ### · blocked
 - Наблюдённая угроза до тебя не доезжает, а наша собственная остановка доезжает каждый день  ·  `own-red-team-nablyudennaya-ugroza-ne-doezzhaet.md` · 2026-08-18
 ### · ingested
@@ -120,6 +120,7 @@
 - Главная рекламирует бесплатный чекап, которого больше нет: снять секции или поднимать сервис?  ·  `owner-decision-glavnaya-reklamiruet-besplatnyi-chekap-k.md` · 2026-08-16
 - Хвост maple ты принял на доле 15%, а фактическая доля — 20%: принятый убыток на треть больше  ·  `owner-decision-hvost-maple-ty-prinyal-na-dole-15-a-fakt.md` · 2026-08-22
 - Кэш системы — тот же USDC: замер показал, что наивная корзина кэша не лечит, а вредит  ·  `owner-decision-kesh-sistemy-tot-zhe-usdc-zamer-pokazal.md` · 2026-08-22
+- Ключ GitHub: переспрашиваю — прошлые кнопки были моей ошибкой  ·  `owner-decision-klyuch-github-peresprashivayu-proshlye-k.md` · 2026-08-26
 - Ключ GitHub: вот ПРАВИЛЬНАЯ команда — вчерашняя вела ключ не туда  ·  `owner-decision-klyuch-github-vot-pravilnaya-komanda-vch.md` · 2026-08-26
 - Книги aggressive_lab переписывают свою историю — и это отложенно заденет числа на сайте  ·  `owner-decision-knigi-aggressive-lab-perepisyvayut-svoyu.md` · 2026-08-01
 - Когда ты последний раз менял пароль-ключ для GitHub? Машина этого не знает, а срок — через 7 дней  ·  `owner-decision-kogda-ty-poslednii-raz-menyal-parol-klyu.md` · 2026-08-25
@@ -320,6 +321,7 @@
 - owner-gate краснеет на СВОЕЙ ежедневной автоматике: сдвиг снимка трека на один цент = owner-gated  ·  `inbox-owner-gate-krasneet-na-svoei-ezhednevnoi.md` · 2026-08-13
 - Owner-gate заводит дубль карточки на каждый заблокированный пуш одних и тех же файлов  ·  `inbox-owner-gate-zavodit-dubl-kartochki-na-kaz.md` · 2026-08-08
 - Песочница тестов общая на весь хост: пять тестов краснеют, если набор гоняли в последние 6 часов  ·  `inbox-pesochnitsa-testov-obschaya-na-ves-host.md` · 2026-08-20
+- Подключить стража ротации PAT к ежедневной проверке — ПОСЛЕ настоящей ротации  ·  `inbox-podklyuchit-strazha-rotatsii-pat-k-ezhed.md` · 2026-08-26
 - Подними приоритет inbox-task-portfolio-cio-dynamic-capital-alloc на high. Шесть…  ·  `inbox-podnimi-prioritet-inbox-task-portfolio-c.md` · 2026-08-19
 - Понял, бери все в работу  ·  `inbox-ponyal-beri-vse-v-rabotu.md` · 2026-08-12
 - прислыай задчи для меня будем разбирать  ·  `inbox-prislyai-zadchi-dlya-menya-budem-razbira.md` · 2026-08-19
@@ -507,7 +509,6 @@
 - Починить писателей живого data/ по карте замера — класс обнесён храповиком, но не закрыт  ·  `inbox-pochinit-pisatelei-zhivogo-data-po-karte.md` · 2026-08-23
 - Под ключом stusd объявлены ДВА разных контракта с одинаковым vanity-префиксом — проверить on-chain  ·  `inbox-pod-klyuchom-stusd-obyavleny-dva-raznyh.md` · 2026-08-18
 - Подготовить ADR: пересмотр лимита одной цепочки 90% (решение владельца — за ним)  ·  `inbox-podgotovit-adr-peresmotr-limita-odnoi-ts.md` · 2026-08-08
-- Подключить стража ротации PAT к ежедневной проверке — ПОСЛЕ настоящей ротации  ·  `inbox-podklyuchit-strazha-rotatsii-pat-k-ezhed.md` · 2026-08-26
 - Пошаговая инструкция в карточке уезжает владельцу как ПЯТЬ кнопок-вариантов  ·  `inbox-poshagovaya-instruktsiya-v-kartochke-uez.md` · 2026-08-26
 - Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md` · 2026-08-20 · 🔒 `cycle-352`
 - Проработать расширение whitelist для настоящих ~20% в Aggressive (advisory, владельцу на решение)  ·  `inbox-prorabotat-rasshirenie-whitelist-dlya-na.md` · 2026-08-23

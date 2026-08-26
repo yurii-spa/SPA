@@ -2,8 +2,12 @@
 trackerStatus:
   type: owner-decision
 title: "Ключ GitHub: переспрашиваю — прошлые кнопки были моей ошибкой"
-status: needs-owner
+status: ingested
 created: 2026-08-26
+owner_choice: 1
+owner_answered_at: 2026-08-26T19:05:17.895105+00:00
+owner_answer_via: session-chat
+owner_answer_kind: action-confirmed
 ---
 
 ## Что случилось и почему это важно
@@ -50,3 +54,22 @@ _Предыстория: `owner-decision-kogda-ty-poslednii-raz-menyal-parol-kly
 и `owner-decision-klyuch-github-vot-pravilnaya-komanda-vch` (испорченные кнопки, ответ 26.08
 10:03:59Z не считаю решением). Дефект оформления — карточка
 `inbox-poshagovaya-instruktsiya-v-kartochke-uez`, цикл #385._
+
+## ✅ Исполнено (2026-08-26, вариант 1)
+
+Ответ получен не кнопкой, а прямо в этом чате (`owner_answer_via: session-chat`) — владелец
+прошёл все пять шагов и прислал вывод терминала как доказательство, а не только слово «поменял»:
+
+```
+(base) yuriikulieshov@Mac SPA_Claude % python3 scripts/pat_rotation_helper.py --mark-rotated
+✅  PAT rotation marked. Next rotation due: 2026-11-24
+    Основание: дата записана со слов, отпечаток ключа — записан впервые; со следующей ротации сверка станет доказательной
+    State file updated: /Users/yuriikulieshov/Documents/SPA_Claude/data/pat_rotation_state.json
+```
+
+Ровно то, что требовал критерий приёмки: `--mark-rotated` сам сверил отпечаток ключа в связке
+(инвариант #17 — «не измерено» отличимо от «измерено», здесь впервые получена
+`baseline_fingerprint`-отметка, а не голое слово). Следующая ротация — 2026-11-24.
+
+Далее — то, что обещано в «Что будет после»: страж подключён к ежедневной проверке
+(`inbox-podklyuchit-strazha-rotatsii-pat-k-ezhed`, см. её собственную запись исполнения).

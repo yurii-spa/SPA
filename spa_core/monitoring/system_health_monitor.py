@@ -964,7 +964,56 @@ class SystemHealthMonitor:
         out.append(self._probe_import_cycle_runner(D))
         out.append(self._check_secrets(D))
         out.append(self._probe_deployment_drift(D))
+        out.append(self._check_pat_rotation(D))
         return out
+
+    def _check_pat_rotation(self, D: str) -> CheckResult:
+        """Is the GitHub PAT (the key that pushes our own code) overdue for rotation?
+
+        Until 2026-08-26 nothing called ``scripts/pat_rotation_helper.py`` at all — it
+        sat in ``unwired_scripts_baseline.json`` as a guard with no caller
+        (`inbox-podklyuchit-strazha-rotatsii-pat-k-ezhed`). A stale credential going
+        unnoticed is exactly the kind of silent failure this domain exists to catch.
+
+        Fail-CLOSED per this repo's convention: "date not known" is WARNING, not OK —
+        an unmeasured rotation date must never read as a healthy one.
+        """
+        name = "d5.security.pat_rotation"
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location(
+                "_pat_rotation_helper_probe",
+                str(self.project_root / "scripts" / "pat_rotation_helper.py"),
+            )
+            prh = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(prh)
+        except Exception as exc:  # noqa: BLE001
+            return CheckResult(name, D, WARNING,
+                               "PAT rotation guard unavailable in this checkout — "
+                               "rotation date is UNVERIFIED",
+                               error="{}: {}".format(type(exc).__name__, exc))
+        try:
+            status = prh._compute_status(prh._load_state())
+        except Exception as exc:  # noqa: BLE001 — a probe never breaks the monitor
+            return CheckResult(name, D, WARNING,
+                               "PAT rotation check raised — rotation date is UNVERIFIED",
+                               error="{}: {}".format(type(exc).__name__, exc))
+        if not status.get("rotation_date_known"):
+            return CheckResult(name, D, WARNING,
+                               "PAT rotation date NOT KNOWN — run "
+                               "`python3 scripts/pat_rotation_helper.py --mark-rotated` "
+                               "after the next real rotation",
+                               error=status.get("unknown_reason"))
+        if status["is_overdue"]:
+            return CheckResult(name, D, CRITICAL,
+                               f"PAT rotation overdue since {status['next_rotation']}")
+        if status["needs_rotation_soon"]:
+            return CheckResult(name, D, WARNING,
+                               f"PAT rotation due soon: {status['next_rotation']} "
+                               f"({status['days_until_rotation']} days)")
+        return CheckResult(name, D, OK,
+                           f"PAT rotation OK — next due {status['next_rotation']} "
+                           f"({status['days_until_rotation']} days)")
 
     def _probe_deployment_drift(self, D: str) -> CheckResult:
         """Is the code running here the code that was delivered? (2026-08-03)
