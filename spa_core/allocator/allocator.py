@@ -515,6 +515,133 @@ def _adapter_class_gate(protocol: str) -> tuple[bool, str | None]:
     return True, None
 
 
+PROTECTIVE_TRIM_SCHEMA = "protective-trim-v1"
+
+# Ниже этого — шум округления, а не решение (доли капитала).
+_TRIM_EPS = 1e-9
+
+
+def measure_protective_trim(
+    stages: "list[dict]", capital_usd: float
+) -> dict:
+    """Сколько капитала СРЕЗАЛИ ЗАЩИТЫ аллокатора и оставили кэшем — ПО ФЛАГУ.
+
+    Зачем это существует (карточка «ADR-072 не сработал: трим происходит в
+    АЛЛОКАТОРЕ, не в гейте»). Защитные тримы — потолки тира, суммарный T2
+    (MP-011), суммарный T3 (ADR-020), capacity-cap (MP-209) — срабатывают
+    ВНУТРИ :meth:`StrategyAllocator.allocate`, поэтому гейт получает уже
+    урезанную книгу. Предохранитель ADR-072 считал освобождённый бюджет как
+    ``asked − deployed`` по СУММАМ вокруг гейта и честно получал ноль: срезали
+    не там, где он смотрел. Итог замера 08.08 — кэш 25 % (20 п.п. сверх буфера)
+    без единой строки, называющей причину.
+
+    **Судим по ФЛАГУ, а не по разнице сумм.** Разница сумм не отличает защитный
+    трим от честного cap-bound остатка оптимизатора: обе величины выглядят как
+    «денег стало меньше». Поэтому стадия обязана САМА объявить ``fired`` —
+    ``was_capped`` / ``t2_total_cap_enforced`` / ``t3_total_cap_enforced`` /
+    ``capacity_capped``. Разница сумм используется только как ВЕЛИЧИНА уже
+    признанного тримa.
+
+    Fail-CLOSED: если сумма упала, а флаг стадии молчит, доллары уходят в
+    ``unnamed_usd``, а ``measured`` становится ``False`` — «не измерено» обязано
+    отличаться от «причин нет» (тот же принцип, что в ``build_gate_ledger``).
+
+    ``stages`` — список словарей ``{stage, rule_ref, flag, fired, before, after}``,
+    где ``before``/``after`` — СУММЫ ВЕСОВ (доли капитала) до и после стадии.
+
+    ЧИСТАЯ НАБЛЮДАЕМОСТЬ: функция ничего не мутирует, ничего не размещает и
+    ничего не гейтит. stdlib, без LLM, без обращения к часам.
+    """
+    try:
+        cap = float(capital_usd)
+    except (TypeError, ValueError):
+        cap = 0.0
+    if not math.isfinite(cap) or cap < 0:
+        cap = 0.0
+
+    out_stages: list[dict] = []
+    total = 0.0
+    unnamed = 0.0
+    restored = 0.0
+    measured = True
+    flags: dict[str, bool] = {}
+
+    for st in stages or []:
+        if not isinstance(st, dict):
+            measured = False
+            continue
+        name = str(st.get("stage") or "?")
+        flag = str(st.get("flag") or "?")
+        fired = bool(st.get("fired"))
+        flags[flag] = fired
+        try:
+            before = float(st.get("before", 0.0))
+            after = float(st.get("after", 0.0))
+        except (TypeError, ValueError):
+            before = after = float("nan")
+        if not (math.isfinite(before) and math.isfinite(after)):
+            measured = False
+            out_stages.append({
+                "stage": name, "rule_ref": st.get("rule_ref"), "flag": flag,
+                "fired": fired, "usd_left_as_cash": None,
+                "status": "not_measured",
+                "evidence": "non-finite weight sum around the stage",
+            })
+            continue
+        delta = before - after
+        if delta > _TRIM_EPS:
+            if fired:
+                usd = delta * cap
+                total += usd
+                out_stages.append({
+                    "stage": name, "rule_ref": st.get("rule_ref"), "flag": flag,
+                    "fired": True, "usd_left_as_cash": round(usd, 2),
+                    "status": "named", "evidence": f"allocator flag {flag}=True",
+                })
+            else:
+                usd = delta * cap
+                unnamed += usd
+                measured = False
+                out_stages.append({
+                    "stage": name, "rule_ref": st.get("rule_ref"), "flag": flag,
+                    "fired": False, "usd_left_as_cash": round(usd, 2),
+                    "status": "not_measured",
+                    "evidence": ("weight left the book but the stage flag stayed "
+                                 "False — cause NOT named"),
+                })
+        elif delta < -_TRIM_EPS:
+            restored += -delta * cap
+            out_stages.append({
+                "stage": name, "rule_ref": st.get("rule_ref"), "flag": flag,
+                "fired": fired, "usd_left_as_cash": 0.0,
+                "usd_returned_to_book": round(-delta * cap, 2),
+                "status": "added",
+                "evidence": "stage returned weight to the book (headroom fill)",
+            })
+        else:
+            out_stages.append({
+                "stage": name, "rule_ref": st.get("rule_ref"), "flag": flag,
+                "fired": fired, "usd_left_as_cash": 0.0,
+                "status": "named" if fired else "no_change",
+                "evidence": ("stage fired but redistributed inside the book — "
+                             "nothing left as cash") if fired else "stage did not fire",
+            })
+
+    return {
+        "schema": PROTECTIVE_TRIM_SCHEMA,
+        "note": ("OBSERVABILITY ONLY: how much the allocator's protective trims "
+                 "left as cash. Judged by the stage FLAG, not by a sum diff. "
+                 "Moves no capital and gates nothing."),
+        "capital_usd": round(cap, 2),
+        "stages": out_stages,
+        "flags": flags,
+        "total_usd": round(total, 2),
+        "unnamed_usd": round(unnamed, 2),
+        "returned_to_book_usd": round(restored, 2),
+        "measured": bool(measured),
+    }
+
+
 @dataclass
 class AllocationResult:
     """Результат расчёта целевого распределения."""
@@ -563,6 +690,12 @@ class AllocationResult:
     evidence_gate_applied: bool = False
     blocked_protocols: dict[str, str] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
+    # Карточка «ADR-072 не сработал: трим происходит в АЛЛОКАТОРЕ, не в гейте».
+    # Сколько КАПИТАЛА защитные тримы аллокатора оставили кэшем, по стадиям и
+    # ПО ФЛАГУ стадии (см. :func:`measure_protective_trim`). Поле добавлено В
+    # КОНЕЦ намеренно: позиционные конструкторы существующих тестов не сдвигаются.
+    # ЧИСТАЯ НАБЛЮДАЕМОСТЬ — ни одна ветка money-path его не читает.
+    protective_trim: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -903,13 +1036,50 @@ class StrategyAllocator:
                 # the observation that won the freshness tie-break), else on the
                 # snapshot value. The pre-ADR-061 path preferred ``live_apy``,
                 # which for 12 adapters is a hardcoded literal (D1).
-                snap_apy = float(a.get("apy_pct", 0.0))
+                snap_apy_raw = a.get("apy_pct")
                 if protocol in evidence:
                     apy_pct = round(evidence[protocol] * 100.0, 4)
                 elif protocol in live_apy:
                     apy_pct = round(live_apy[protocol] * 100.0, 4)
                 else:
-                    apy_pct = snap_apy
+                    # ``float(a.get("apy_pct", 0.0))`` used to stand here, and it
+                    # read a MISSING observation as the number 0.0 — the class the
+                    # owner card 08.08 reported as "аномальный APY 0.00 %".
+                    # Worse: the orchestrator writes ``apy_pct: null`` whenever the
+                    # adapter refused, so the same expression could raise
+                    # ``TypeError: float(None)`` and take the whole money-path load
+                    # down with it. Fail-CLOSED and NAMED: an absent/unusable
+                    # number is not ranked and not silently zeroed.
+                    #
+                    # A NUMERIC non-positive value is deliberately left alone: the
+                    # orchestrator only writes it when the adapter actually
+                    # OBSERVED a non-positive yield (status "partial", warning
+                    # "non-positive APY"). That is a measurement, and refusing to
+                    # fund it is RiskPolicy's job (MIN_APY 1 %), not the loader's.
+                    #
+                    # NaN/inf are deliberately NOT refused here, and that is a
+                    # decision, not an oversight: ``test_allocator_properties``
+                    # contracts the allocator to survive them, and its tier map
+                    # is built from the RAW snapshot — so dropping a NaN row
+                    # makes a duplicate protocol name resolve to a different tier
+                    # and reports a cap "breach" that never happened (measured:
+                    # case 128, ``proto_2`` listed twice as t1/14.43% and as
+                    # T3/NaN). The source is closed where it belongs instead:
+                    # ``adapters/pool_selection.pool_apy_pct`` refuses NaN, so an
+                    # adapter can no longer emit one. Left named here so the next
+                    # session does not "fix" it back and redden four tests.
+                    if (
+                        not isinstance(snap_apy_raw, (int, float))
+                        or isinstance(snap_apy_raw, bool)
+                    ):
+                        self._blocked[protocol] = "apy_not_observed"
+                        log.warning(
+                            "ADR-063: %s apy_pct=%r is not an observation — "
+                            "excluded from ranking (never read as 0.0%%)",
+                            protocol, snap_apy_raw,
+                        )
+                        continue
+                    apy_pct = float(snap_apy_raw)
                 # ADR-053 (allocator side): TVL provenance. "live" only when the
                 # orchestrator record DECLARES it (adapter fetched TVL from the
                 # feed). A numeric TVL without the declaration is a committed
@@ -1613,7 +1783,30 @@ class StrategyAllocator:
         # _apply_caps перераспределит на них excess, а _fill_remainder — остаток.
         weights_for_alloc = {p: w for p, w in raw_weights.items() if p not in excluded}
 
+        # Наблюдаемость защитных тримов (см. measure_protective_trim): каждая
+        # стадия ниже кладёт сюда СВОЙ флаг и суммы весов вокруг себя. Читается
+        # только в конце allocate() — money-path эти записи не видит.
+        _trim_stages: list[dict] = []
+
+        def _wsum(d: dict) -> float:
+            s = 0.0
+            for v in d.values():
+                try:
+                    fv = float(v)
+                except (TypeError, ValueError):
+                    return float("nan")
+                if not math.isfinite(fv):
+                    return float("nan")
+                s += fv
+            return s
+
+        _before_caps = _wsum(weights_for_alloc)
         capped, was_capped = self._apply_caps(weights_for_alloc, tier_map)
+        _trim_stages.append({
+            "stage": "tier_caps", "rule_ref": "RiskPolicy v1.0 (T1≤40% / T2≤20%)",
+            "flag": "was_capped", "fired": bool(was_capped),
+            "before": _before_caps, "after": _wsum(capped),
+        })
         if was_capped:
             notes.append("Веса ограничены cap'ами по тирам (T1≤40%, T2≤20%).")
 
@@ -1626,17 +1819,29 @@ class StrategyAllocator:
         # T1-first water-fill here would only RE-INTRODUCE the low-yield T1 drag
         # this optimizer exists to remove. Skip it — the optimizer's remainder is
         # genuine, cap-bound cash, not a fillable T1 anchor.
+        _before_fill = _wsum(capped)
         if optimizer_applied:
             filled = False
         else:
             capped, filled = self._fill_remainder(
                 capped, tier_map, apy_map, exclude=excluded
             )
+        _trim_stages.append({
+            "stage": "headroom_fill", "rule_ref": "SPA-V405",
+            "flag": "remainder_filled", "fired": bool(filled),
+            "before": _before_fill, "after": _wsum(capped),
+        })
 
         # MP-011: совокупный T2-кап ПОСЛЕ всех перераспределений (caps +
         # remainder-fill могут поднять суммарный T2 выше 35%) — финальный
         # инвариант перед возвратом: sum(T2) ≤ 35%.
+        _before_t2 = _wsum(capped)
         capped, t2_cap_enforced = self._enforce_t2_total_cap(capped, tier_map)
+        _trim_stages.append({
+            "stage": "t2_total_cap", "rule_ref": "MP-011 / ADR-019",
+            "flag": "t2_total_cap_enforced", "fired": bool(t2_cap_enforced),
+            "before": _before_t2, "after": _wsum(capped),
+        })
         if t2_cap_enforced:
             notes.append(
                 f"MP-011: суммарный T2 срезан до {self.T2_TOTAL_CAP * 100:.0f}% "
@@ -1647,7 +1852,13 @@ class StrategyAllocator:
         # never enforced this, so optimized_yield could pour 30% into T3 (susde + extra_finance).
         # Re-applied here against the CANONICAL tier_map; the trimmed weight stays cash (never moved
         # to a riskier tier). Makes the go-live book compliant with the T3 cap the policy layer asserts.
+        _before_t3 = _wsum(capped)
         capped, t3_cap_enforced = self._enforce_t3_total_cap(capped)
+        _trim_stages.append({
+            "stage": "t3_total_cap", "rule_ref": "ADR-020",
+            "flag": "t3_total_cap_enforced", "fired": bool(t3_cap_enforced),
+            "before": _before_t3, "after": _wsum(capped),
+        })
         if t3_cap_enforced:
             notes.append(
                 f"ADR-020: суммарный T3 срезан до {self.T3_TOTAL_CAP * 100:.0f}% "
@@ -1688,6 +1899,8 @@ class StrategyAllocator:
         # Если TVL map пустой → пропускаем (fail-safe).
         capacity_capped = False
         capacity_check_result: dict = {}
+        _cap_denom = float(self.CAPITAL) if float(self.CAPITAL) > 0 else 1.0
+        _before_capacity = sum(float(v) for v in target_usd.values()) / _cap_denom
         try:
             from spa_core.risk.capacity_limits import (  # lazy import, без цикл. зависимостей
                 apply_capacity_caps,
@@ -1727,6 +1940,34 @@ class StrategyAllocator:
         except Exception as _cap_exc:
             # Capacity check не должен валить аллокацию (fail-safe)
             log.warning("MP-209: capacity_cap ошибка (%s) — пропущен", _cap_exc)
+        _trim_stages.append({
+            "stage": "capacity_cap", "rule_ref": "MP-209 / ADR-009",
+            "flag": "capacity_capped", "fired": bool(capacity_capped),
+            "before": _before_capacity,
+            "after": sum(float(v) for v in target_usd.values()) / _cap_denom,
+        })
+
+        # ADR-055: кэш сверх буфера обязан быть ОБЪЯСНЁН каждый цикл. Здесь
+        # объяснение ВЫЧИСЛЯЕТСЯ и НАЗЫВАЕТСЯ; перераспределением оно не
+        # становится (это money-path — решение владельца, карточка
+        # `own-pererazdavat-li-srezannoe-zaschitami`).
+        protective_trim = measure_protective_trim(_trim_stages, float(self.CAPITAL))
+        if protective_trim.get("total_usd", 0.0) > 0:
+            notes.append(
+                "ADR-055 protective_trim: защиты аллокатора оставили кэшем "
+                f"${protective_trim['total_usd']:,.0f} — "
+                + "; ".join(
+                    f"{s['stage']} ({s['rule_ref']}) ${s['usd_left_as_cash']:,.0f}"
+                    for s in protective_trim.get("stages", [])
+                    if s.get("status") == "named" and (s.get("usd_left_as_cash") or 0) > 0
+                )
+            )
+        if not protective_trim.get("measured", True):
+            notes.append(
+                "ADR-055 protective_trim: НЕ ИЗМЕРЕНО — "
+                f"${protective_trim.get('unnamed_usd', 0.0):,.0f} ушли из книги без "
+                "флага стадии (не то же самое, что «причин нет»)"
+            )
 
         # APY портфеля: веса как доли капитала; нераспределённый кэш = 0% APY.
         # FAIL-CLOSED (property-test PROP-NAN): non-finite per-protocol APY
@@ -1782,6 +2023,7 @@ class StrategyAllocator:
             evidence_gate_applied=self._evidence_gate_applied,
             blocked_protocols=dict(self._blocked),
             notes=notes,
+            protective_trim=protective_trim,
         )
 
     # ── сохранение ────────────────────────────────────────────────────────

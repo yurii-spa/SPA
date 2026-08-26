@@ -39,6 +39,7 @@ from typing import Optional
 
 from spa_core.adapters.status_reader import tvl_floor_verdict
 from .base_adapter import BaseAdapter, YieldInfo
+from .pool_selection import SelectionTally, pool_apy_pct
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +128,10 @@ class SiloArbitrumUSDCAdapter(BaseAdapter):
     ) -> None:
         super().__init__(asset)
         self.tier = self.TIER
+        # Причина последнего отказа фида — словами. ``None`` = последнее
+        # обращение дало наблюдение. Читается ``get_write_state``/``to_dict``:
+        # отказ обязан быть ВИДЕН, а не жить только в логе.
+        self.last_refusal: Optional[str] = None
         if data_dir is None:
             self._data_dir: Path = Path(__file__).resolve().parents[2] / "data"
         else:
@@ -171,12 +176,22 @@ class SiloArbitrumUSDCAdapter(BaseAdapter):
             logger.warning("silo_arbitrum: DeFiLlama fetch ошибка: %s", exc)
             return None
 
-    def _find_best_usdc_pool(self, pools: list[dict]) -> Optional[dict]:
-        """Находит лучший USDC-пул Silo на Arbitrum (по максимальному TVL)."""
+    def _find_best_usdc_pool(
+        self, pools: list[dict]
+    ) -> tuple[Optional[dict], Optional[str]]:
+        """Находит лучший USDC-пул Silo на Arbitrum (по максимальному TVL).
+
+        Возвращает ``(пул, None)`` при успехе и ``(None, причина)`` при отказе.
+        Причина обязательна: раньше возвращался голый ``None``, а «пул платит
+        0.00 %» уходило ТОЛЬКО в лог — снаружи отказ был неотличим от «фид не
+        ответил» (необъявленный отказ, инвариант 2 CLAUDE.md).
+        """
         best: Optional[dict] = None
         best_tvl: float = float("-inf")
+        tally = SelectionTally()
 
         for pool in pools:
+            tally.scanned += 1
             if not isinstance(pool, dict):
                 continue
             if str(pool.get("chain", "")).lower() != "arbitrum":
@@ -187,27 +202,34 @@ class SiloArbitrumUSDCAdapter(BaseAdapter):
             symbol = str(pool.get("symbol", "")).upper().strip()
             if symbol not in _USDC_SYMBOLS:
                 continue
+            tally.matched += 1
             tvl = pool.get("tvlUsd")
-            if not isinstance(tvl, (int, float)):
+            if not isinstance(tvl, (int, float)) or isinstance(tvl, bool):
+                tally.no_tvl += 1
                 continue
             tvl = float(tvl)
             if tvl < _MIN_POOL_TVL:
+                tally.thin_tvl += 1
                 continue
-            apy = pool.get("apy")
-            if not isinstance(apy, (int, float)):
+            # Отсутствующее поле apy — НЕ ноль (см. pool_selection).
+            apy = pool_apy_pct(pool)
+            if apy is None:
+                tally.bad_apy += 1
                 continue
-            apy = float(apy)
             if apy < _APY_MIN or apy > _APY_MAX:
                 logger.warning(
                     "silo_arbitrum: пул %s имеет аномальный APY %.2f%% — пропускаем",
                     pool.get("pool", "?"),
                     apy,
                 )
+                tally.reject_anomalous_apy(apy)
                 continue
             if tvl > best_tvl:
                 best_tvl = tvl
                 best = pool
-        return best
+        if best is None:
+            return None, tally.reason("silo_arbitrum: USDC-пул Silo на Arbitrum")
+        return best, None
 
     def _fetch_live_pool(self) -> Optional[dict]:
         """Возвращает лучший живой USDC-пул (dict DeFiLlama) или None при ошибке.
@@ -218,16 +240,20 @@ class SiloArbitrumUSDCAdapter(BaseAdapter):
         """
         pools = self._fetch_pools_raw()
         if pools is None:
-            return None
-        best = self._find_best_usdc_pool(pools)
-        if best is None:
-            logger.warning(
-                "silo_arbitrum: подходящий USDC-пул не найден в DeFiLlama"
+            self.last_refusal = (
+                "silo_arbitrum: фид DeFiLlama не ответил — наблюдения нет (не ноль)"
             )
+            logger.warning("%s", self.last_refusal)
             return None
+        best, reason = self._find_best_usdc_pool(pools)
+        if best is None:
+            self.last_refusal = reason
+            logger.warning("%s", reason)
+            return None
+        self.last_refusal = None
         logger.info(
             "silo_arbitrum: live APY=%.3f%% из пула %s (TVL=%.0f)",
-            float(best.get("apy", 0.0)),
+            pool_apy_pct(best),
             best.get("pool", "?"),
             best.get("tvlUsd", 0),
         )
@@ -238,7 +264,7 @@ class SiloArbitrumUSDCAdapter(BaseAdapter):
         best = self._fetch_live_pool()
         if best is None:
             return None
-        return float(best.get("apy", 0.0))
+        return pool_apy_pct(best)
 
     # ------------------------------------------------------------------ #
     # Публичные методы (BaseAdapter interface)                             #
@@ -250,8 +276,9 @@ class SiloArbitrumUSDCAdapter(BaseAdapter):
         if live is not None:
             return live
         logger.warning(
-            "%s: живого APY нет — возвращаю None (подстановки больше нет)",
+            "%s: живого APY нет — возвращаю None (подстановки больше нет). Причина: %s",
             self.PROTOCOL,
+            self.last_refusal or "не названа",
         )
         # 2026-08-08, решение владельца «делать все 15» (карточка
         # `agent-fake-fallback-v-15-adapterah`): подстановка литерала УДАЛЕНА.
@@ -275,9 +302,7 @@ class SiloArbitrumUSDCAdapter(BaseAdapter):
             if best is not None and isinstance(best.get("tvlUsd"), (int, float))
             else None
         )
-        apy_pct = (
-            float(best.get("apy", 0.0)) if best is not None else None
-        )
+        apy_pct = pool_apy_pct(best) if best is not None else None
         return YieldInfo(
             protocol=self.PROTOCOL,
             asset=self.asset,
@@ -308,6 +333,9 @@ class SiloArbitrumUSDCAdapter(BaseAdapter):
             "t2_cap_pct": self.T2_CAP_PCT,
             "write_state": "read_only",
             "pool_id": self.pool_id,
+            # Отказ обязан назвать себя: ``apy_pct: None`` без причины
+            # неотличим от «фид не ответил».
+            "refusal_reason": self.last_refusal,
             "last_updated": time.strftime("%Y-%m-%d", time.gmtime()),
         }
 
@@ -346,6 +374,7 @@ class SiloArbitrumUSDCAdapter(BaseAdapter):
             "exit_latency_hours": self.EXIT_LATENCY_HOURS,
             "gas_l2_usd": GAS_L2_USD,
             "gas_advantage_usd": GAS_ADVANTAGE_USD,
+            "refusal_reason": self.last_refusal,
             "l2_note": (
                 "Silo Finance (Arbitrum L2): isolated-market lending — каждый "
                 "рынок изолирован, плохой долг не заражает остальные. Газ ~10x "

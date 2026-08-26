@@ -37,6 +37,7 @@ from typing import Optional
 
 from spa_core.adapters.status_reader import tvl_floor_verdict
 from .base_adapter import BaseAdapter, YieldInfo
+from .pool_selection import SelectionTally, pool_apy_pct
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +149,10 @@ class MorphoBlueBaseAdapter(BaseAdapter):
     ) -> None:
         super().__init__(asset)
         self.tier = self.TIER
+        # Причина последнего отказа фида — словами. ``None`` означает «последнее
+        # обращение дало наблюдение». Заполняется в ``_fetch_live_pool``; читается
+        # ``get_write_state``/``to_dict``, чтобы отказ был ВИДЕН, а не только в логе.
+        self.last_refusal: Optional[str] = None
 
         if data_dir is None:
             # spa_core/adapters/morpho_blue_base_adapter.py → repo root / data
@@ -198,7 +203,7 @@ class MorphoBlueBaseAdapter(BaseAdapter):
 
     def _find_best_usdc_pool(
         self, pools: list[dict]
-    ) -> Optional[dict]:
+    ) -> tuple[Optional[dict], Optional[str]]:
         """Находит лучший USDC-пул Morpho Blue на Base.
 
         Фильтрация:
@@ -209,11 +214,18 @@ class MorphoBlueBaseAdapter(BaseAdapter):
           - apy в диапазоне [_APY_MIN, _APY_MAX]
 
         Среди кандидатов выбирается пул с максимальным TVL.
+
+        Возвращает ``(пул, None)`` при успехе и ``(None, причина)`` при отказе.
+        Причина обязательна: раньше здесь возвращался голый ``None``, а
+        «пул платит 0.00 %» уходило ТОЛЬКО в лог — снаружи отказ был
+        неотличим от «фид не ответил» (необъявленный отказ, инвариант 2).
         """
         best: Optional[dict] = None
         best_tvl: float = float("-inf")
+        tally = SelectionTally()
 
         for pool in pools:
+            tally.scanned += 1
             if not isinstance(pool, dict):
                 continue
 
@@ -232,32 +244,39 @@ class MorphoBlueBaseAdapter(BaseAdapter):
             if symbol not in _USDC_SYMBOLS and _USDC_SUBSTRING not in symbol:
                 continue
 
+            tally.matched += 1
+
             # Проверяем TVL
             tvl = pool.get("tvlUsd")
-            if not isinstance(tvl, (int, float)):
+            if not isinstance(tvl, (int, float)) or isinstance(tvl, bool):
+                tally.no_tvl += 1
                 continue
             tvl = float(tvl)
             if tvl < _MIN_POOL_TVL:
+                tally.thin_tvl += 1
                 continue
 
-            # Проверяем APY
-            apy = pool.get("apy")
-            if not isinstance(apy, (int, float)):
+            # Проверяем APY. Отсутствующее поле — НЕ ноль: см. pool_selection.
+            apy = pool_apy_pct(pool)
+            if apy is None:
+                tally.bad_apy += 1
                 continue
-            apy = float(apy)
             if apy < _APY_MIN or apy > _APY_MAX:
                 logger.warning(
                     "morpho_blue_base: пул %s имеет аномальный APY %.2f%% — пропускаем",
                     pool.get("pool", "?"),
                     apy,
                 )
+                tally.reject_anomalous_apy(apy)
                 continue
 
             if tvl > best_tvl:
                 best_tvl = tvl
                 best = pool
 
-        return best
+        if best is None:
+            return None, tally.reason("morpho_blue_base: USDC-пул Morpho на Base")
+        return best, None
 
     def _fetch_live_pool(self) -> Optional[dict]:
         """Возвращает лучший живой USDC-пул (dict DeFiLlama) или None при ошибке.
@@ -268,17 +287,21 @@ class MorphoBlueBaseAdapter(BaseAdapter):
         """
         pools = self._fetch_pools_raw()
         if pools is None:
-            return None
-        best = self._find_best_usdc_pool(pools)
-        if best is None:
-            logger.warning(
-                "morpho_blue_base: подходящий USDC-пул Morpho на Base "
-                "не найден в DeFiLlama"
+            self.last_refusal = (
+                "morpho_blue_base: фид DeFiLlama не ответил — наблюдения нет "
+                "(не ноль)"
             )
+            logger.warning("%s", self.last_refusal)
             return None
+        best, reason = self._find_best_usdc_pool(pools)
+        if best is None:
+            self.last_refusal = reason
+            logger.warning("%s", reason)
+            return None
+        self.last_refusal = None
         logger.info(
             "morpho_blue_base: live APY=%.3f%% из пула %s (TVL=%.0f)",
-            float(best.get("apy", 0.0)),
+            pool_apy_pct(best),
             best.get("pool", "?"),
             best.get("tvlUsd", 0),
         )
@@ -289,7 +312,7 @@ class MorphoBlueBaseAdapter(BaseAdapter):
         best = self._fetch_live_pool()
         if best is None:
             return None
-        return float(best.get("apy", 0.0))
+        return pool_apy_pct(best)
 
     # ------------------------------------------------------------------ #
     # Публичные методы (BaseAdapter interface)                             #
@@ -308,8 +331,9 @@ class MorphoBlueBaseAdapter(BaseAdapter):
         if live is not None:
             return live
         logger.warning(
-            "%s: живого APY нет — возвращаю None (подстановки больше нет)",
+            "%s: живого APY нет — возвращаю None (подстановки больше нет). Причина: %s",
             self.PROTOCOL,
+            self.last_refusal or "не названа",
         )
         # 2026-08-08, решение владельца «делать все 15» (карточка
         # `agent-fake-fallback-v-15-adapterah`): подстановка литерала УДАЛЕНА.
@@ -331,9 +355,7 @@ class MorphoBlueBaseAdapter(BaseAdapter):
             if best is not None and isinstance(best.get("tvlUsd"), (int, float))
             else None
         )
-        apy_pct = (
-            float(best.get("apy", 0.0)) if best is not None else None
-        )
+        apy_pct = pool_apy_pct(best) if best is not None else None
         return YieldInfo(
             protocol=self.PROTOCOL,
             asset=self.asset,
@@ -371,6 +393,10 @@ class MorphoBlueBaseAdapter(BaseAdapter):
             "t2_cap_pct": self.T2_CAP_PCT,
             "write_state": "read_only",
             "pool_id": self.pool_id,
+            # Отказ обязан назвать себя: ``apy_pct: None`` без причины
+            # неотличим от «фид не ответил» — именно на этом молчании
+            # «аномальный APY 0.00 %» жил только в логе.
+            "refusal_reason": self.last_refusal,
             "last_updated": time.strftime("%Y-%m-%d", time.gmtime()),
         }
 
@@ -380,10 +406,14 @@ class MorphoBlueBaseAdapter(BaseAdapter):
         Returns
         -------
         bool
-            True если apy_pct > 0 и tvl_usd > 0, иначе False.
+            True если наблюдение получено и apy_pct > 0 и tvl_usd > 0,
+            иначе False. Отсутствие наблюдения (``None``) — это НЕ ноль и НЕ
+            успех: адаптер честно объявляет себя непроверенным.
         """
         try:
             apy_pct = self.get_apy()
+            if apy_pct is None:
+                return False
             return bool(apy_pct > 0 and self.TVL_USD > 0)
         except Exception:  # noqa: BLE001
             return False
@@ -428,6 +458,7 @@ class MorphoBlueBaseAdapter(BaseAdapter):
             "exit_latency_hours": self.EXIT_LATENCY_HOURS,
             "gas_base_usd": GAS_BASE_USD,
             "gas_advantage_usd": GAS_ADVANTAGE_USD,
+            "refusal_reason": self.last_refusal,
             "l2_note": (
                 "Base (Coinbase L2): газ ~20x дешевле Ethereum mainnet "
                 "($0.005 vs $0.10 за tx). Finality: 2 сек (OP-stack). "

@@ -718,6 +718,49 @@ def _lookup_live_pool(
     return None
 
 
+def _pin_refusal(adapter_key: str, by_id: dict[str, dict]) -> Optional[str]:
+    """Why the PIN did not resolve, in words — or ``None`` if it did (or none exists).
+
+    A pin is the gate-class identity (ADR-064): the fuzzy project/chain/symbol
+    hint may rank, but only a pinned UUID may stamp ``tvl_source: "live"``. So a
+    pin that fails to resolve is a material event, and until now it was
+    **completely silent**: :func:`_lookup_live_pool` fell through to the hint and
+    the row reported ``pool_match: "hint"`` with ``pool_match_refused: None`` —
+    indistinguishable from a key that never had a pin. For the seven pinned keys
+    that carry NO hint (``sky_susds``, ``ondo_usdy``, ``susde``, ``sfrax``,
+    ``sdai``, ``scrvusd``, ``extra_finance_base``) the whole row went to ``null``
+    with no reason at all.
+
+    Two distinct failures, both named here rather than merged into one null:
+
+    * the pinned UUID is **absent from the feed** (pool delisted / re-keyed) — the
+      identity we audited no longer exists;
+    * the pinned pool **is present but carries no usable APY** — in particular
+      ``apy == 0.0``, which :func:`_valid_apy` correctly refuses. That refusal is
+      exactly the "0.00 %" the owner card reported: an observation of nothing,
+      never a yield of zero.
+
+    Reports only; changes no verdict. The APY/TVL resolution is untouched, so this
+    function cannot make a frozen pool eligible or an eligible pool frozen.
+    """
+    raw_id = _POOL_ID_LOOKUP.get(adapter_key, "")
+    if not raw_id:
+        return None
+    pool = by_id.get(raw_id.lower())
+    if pool is None:
+        return (
+            f"pinned pool {raw_id} is ABSENT from this feed response — the pinned "
+            f"identity (ADR-064) did not resolve; any number below came from a "
+            f"fuzzy hint, not from the audited pool"
+        )
+    if _valid_apy(pool) is None:
+        return (
+            f"pinned pool {raw_id} resolved but carries no usable APY "
+            f"(apy={pool.get('apy')!r}) — refused as UNOBSERVED, never read as 0.00%"
+        )
+    return None
+
+
 def _lookup_live_apy(
     adapter_key: str,
     by_id: dict[str, dict],
@@ -925,6 +968,13 @@ def generate(
         match_kind: Optional[str] = None
         match_refused: Optional[str] = None
         if pools:
+            # A pin that failed to resolve must SAY SO — even when the hint then
+            # resolved and the row looks healthy. Silently downgrading the
+            # gate-class identity (ADR-064) to a fuzzy match is the same class of
+            # defect as reading a missing observation as 0.00%: the record shows
+            # success where a measurement was lost. Reporting only; the verdict
+            # below is unchanged.
+            pin_refused = _pin_refusal(key, by_id)
             _match = _lookup_live_pool(key, by_id, by_pcs)
             if _match is not None:
                 live_pool, match_kind = _match
@@ -934,6 +984,11 @@ def generate(
                 # only candidates were a different asset" are different facts, and
                 # a null alone reports them identically.
                 _, match_refused = _hint_pool(key, by_pcs)
+            if pin_refused:
+                match_refused = (
+                    pin_refused if not match_refused
+                    else f"{pin_refused}; hint: {match_refused}"
+                )
             if live_apy is not None:
                 live_count += 1
 
