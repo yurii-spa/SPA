@@ -2,10 +2,12 @@
 trackerStatus:
   type: inbox
 title: "main красный с 9cb8a7823: 28 тестов захвата карточек падают на UnmeasurableClaim (нет SPA_SESSION_PID)"
-status: new
+status: done
 created: 2026-08-26
 priority: high
 tags: [ci, card-claim, regression]
+status_trail:
+  - "2026-08-26T21:05:34.623848+00:00 new -> done · queue.set_status"
 ---
 
 ## Что случилось и почему это важно
@@ -55,3 +57,32 @@ spa_core/tests/test_session_state_shared_root.py` — 0 failed на `origin/main
 
 Полный CI (`test`/`test (3.12)`/`test (3.11)`) снова зелёный на всех открытых PR без ручных
 комментариев «не моё».
+
+
+---
+
+## ✅ Закрыто агентом 2026-08-26 (ADR-144)
+
+Прошлая сессия чинить отказалась справедливо — «чужие тесты вслепую не трогаю» (инв. #16). Но
+вслепую и не пришлось: карточка сама назвала лекарство, а в `test_card_claim_guard.py` уже жил
+канонический образец — `TestGuardUnderADeclaredDurableProcess` объявляет `SPA_SESSION_PID` через
+`monkeypatch` с ЯВНОЙ проверкой предусловия (красной, а не skip).
+
+**Что сделано.** Та же фикстура добавлена туда, где тесты проверяют механику захвата, а не
+поведение «голого» ярлыка: `test_card_claim_takeover.py` и `test_session_state_shared_root.py`
+(модульная, autouse) и — точечно — классы `TestClaimAndRelease` и `TestCli` в
+`test_card_claim_guard.py`. Ни одно утверждение не изменено.
+
+**Гейт НЕ ослаблен, и это доказано мутацией, а не заявлено.** Фикстура намеренно НЕ повешена на
+весь `test_card_claim_guard.py`: там живёт `TestClaimSaysWhenItHasNoIdentity` — положительный
+контроль самого гейта. Замер: обезвредил `raise UnmeasurableClaim` →
+
+| набор | под мутацией |
+|---|---|
+| `TestClaimSaysWhenItHasNoIdentity` (контроль гейта) | **3 failed** — краснеет, не замаскирован |
+| `TestClaimAndRelease` + `TestCli` (починенные) | 18 passed — они и правда про другое |
+
+Гейт восстановлен побайтово (`git diff` по `scripts/check_card_claim.py` пуст).
+
+**Критерий приёмки карточки** («три файла — 0 failed») **ПРОВЕРЕН**: было 28 failed / 169 passed,
+стало **197 passed, 0 failed**.

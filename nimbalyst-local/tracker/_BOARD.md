@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-26T20:38:45Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-26T21:05:34Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
 > Всего карточек: **699** · ждёт владельца: **1** · занято сессиями: **6**.
 
@@ -249,6 +249,7 @@
 - Брифинг считает снимок флота протухшим раньше, чем писатель его переписывает (35 мин против такта 60)  ·  `inbox-brifing-schitaet-snimok-flota-protuhshim.md` · 2026-08-15
 - Чекап ушёл с главной, но остался в МЕНЮ: раздел назван по несуществующему продукту (остаток ADR-089 §5)  ·  `inbox-chekap-ushel-s-glavnoi-no-ostalsya-v-men.md` · 2026-08-20
 - CI 'SPA Tests' красный минимум 8 коммитов подряд, и этого никто не видит: цикл прогоняет только spa_core/tests  ·  `inbox-ci-spa-tests-krasnyi-minimum-8-kommitov.md` · 2026-08-09
+- main красный с 9cb8a7823: 28 тестов захвата карточек падают на UnmeasurableClaim (нет SPA_SESSION_PID)  ·  `inbox-commit-9cb8a7823-krasit-28-testov-zahvata.md` · 2026-08-26
 - давай разберем задачу - Решение ADR-104 записано, но до машины не доехало: CIO…  ·  `inbox-davai-razberem-zadachu-reshenie-adr-104.md` · 2026-08-22
 - Давай так и сделаем  ·  `inbox-davai-tak-i-sdelaem.md` · 2026-07-20
 - Длинный документ владельца приехал СЕМЬЮ карточками, и шесть из них — не задачи, а куски предложений  ·  `inbox-dlinnyi-dokument-vladeltsa-priehal-semyu.md` · 2026-08-13
@@ -482,7 +483,6 @@
 - CI main КРАСНЫЙ: сторож rootdir дочернего pytest сторожит механизм, которого больше нет  ·  `inbox-ci-main-krasnyi-storozh-rootdir-docherne.md` · 2026-08-26
 - CIO: этап-1 (диагностика) готов документом — исполнять гэпы G1→G4, осколки 13.08 закрыть как дубли  ·  `inbox-cio-etap1-diagnostika-gotova-ispolnyat-g1-g4.md` · 2026-08-19
 - CLMM «79%»: research (часть 1 ADR-070 п.20) готов документом — остаётся часть 2 (ADR допуска с хеджем)  ·  `inbox-clmm-research-chast1-gotova-adr-070-p20.md` · 2026-08-19
-- main красный с 9cb8a7823: 28 тестов захвата карточек падают на UnmeasurableClaim (нет SPA_SESSION_PID)  ·  `inbox-commit-9cb8a7823-krasit-28-testov-zahvata.md` · 2026-08-26
 - Critical-карточка голодает 4 дня при 40+ циклах: подъёмы/находки вытесняют верх очереди — нужно правило анти-голодания  ·  `inbox-critical-kartochka-goloda-et-4-dnya-pri-40-tsiklah.md` · 2026-08-26
 - Демоушен книг Aggressive по ОТНОСИТЕЛЬНОМУ рангу (решение владельца 09.08, вариант A)  ·  `inbox-demoushen-knig-aggressive-po-otnositelno.md` · 2026-08-09
 - Долгоживущие агенты не подхватывают доставленный код — и никто об этом не говорит  ·  `inbox-dolgozhivuschie-agenty-ne-podhvatyvayut.md` · 2026-08-08
