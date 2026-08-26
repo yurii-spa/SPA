@@ -84,6 +84,9 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                     "escalated", "sources_unread", "open_cards", "delivery",
                                     "owner_answer_delivery"),
     "loop_retro.json": ("findings", "outcomes_completeness"),
+    "adapter_feed_divergence.json": ("overall", "counts.critical", "counts.warn",
+                                     "counts.info", "counts.unchecked", "findings",
+                                     "unchecked", "compared_protocols"),
 }
 
 # Отметка времени в шапке md-артефакта: `Auto-updated: **2026-08-09 05:44 UTC**`.
@@ -112,6 +115,7 @@ _PRODUCER: dict[str, str] = {
     "house_view_gap.json": "spa_core/monitoring/house_view_gap.py",
     "findings_bridge_report.json": "spa_core/monitoring/findings_bridge.py",
     "loop_retro.json": "spa_core/monitoring/loop_retro.py",
+    "adapter_feed_divergence.json": "spa_core/monitoring/adapter_feed_divergence.py",
 }
 
 
@@ -459,6 +463,29 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             out.append(f"   [измерено с {p.get('ref')}] {p.get('label')}: "
                        f"{p.get('plist')} — в прод-дереве файла нет, "
                        f"{'сошлось' if p.get('agrees') else 'РАСХОДИТСЯ'}")
+    elif name == "adapter_feed_divergence.json":
+        # Сверка ДВУХ артефактов адаптеров об одном протоколе (ADR-060 D6).
+        # Рода расхождений печатаются РАЗНЫМИ словами намеренно: «оба фида
+        # наблюдают и не сходятся» (инвариант 2, fail-CLOSED) и «одна сторона
+        # подставила литерал, потому что не наблюдала» — разные аварии с разной
+        # починкой, и одинаковая формулировка увела бы починку не туда.
+        c = data.get("counts") or {}
+        findings = data.get("findings") or []
+        out.append(f"   сверка двух фидов адаптеров: {data.get('overall') or _UNMEASURED} "
+                   f"(critical={_num(c, 'critical')} warn={_num(c, 'warn')} "
+                   f"info={_num(c, 'info')} unchecked={_num(c, 'unchecked')}); "
+                   f"протоколов сверено: {len(data.get('compared_protocols') or [])}")
+        for f in [x for x in findings if x.get("severity") in ("CRITICAL", "WARN")][:8]:
+            out.append(f"   [{f.get('severity')}] {f.get('message')}")
+        # INFO-строки (расхождение ПРОВЕНАНСА TVL) не печатаются поимённо: их
+        # шесть каждый день, состояние уже названо и решено (ADR-053), и вынос
+        # их в обязательный шаг научил бы читателя пролистывать весь блок.
+        info_n = sum(1 for x in findings if x.get("severity") == "INFO")
+        if info_n:
+            out.append(f"   … и {info_n} INFO-строк(и) о провенансе TVL "
+                       f"(константа против живого — состояние названо, ADR-053)")
+        for u in (data.get("unchecked") or [])[:4]:
+            out.append(f"   [НЕ ИЗМЕРЕНО] {u}")
     elif name == "house_view_gap.json":
         # Схема ВЫМЕРЕНА по производителю (`monitoring/house_view_gap.py`):
         # расхождения лежат в `gaps`, счётчики — `warn`/`info`/`unchecked`.

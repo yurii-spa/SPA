@@ -465,6 +465,22 @@ def main(argv=None) -> int:
     if not args.skip_gap:
         from spa_core.monitoring import house_view_gap
         house_view_gap.run(root=args.root)
+    # Сверка двух артефактов адаптеров (D6 ADR-060): считается ЗДЕСЬ, а не отдельным
+    # агентом — вопрос «сходятся ли фиды» родствен house_view_gap («сходится ли офис с
+    # книгой») и стоит миллисекунды. Новый launchd-агент ради него означал бы деплой,
+    # то есть решение владельца, и сторож ушёл бы в очередь вместо того, чтобы работать.
+    # Мост находок его пока НЕ читает намеренно: потребитель — шаг 0-офис оркестратора,
+    # то есть решение принимает сессия, а не авто-карточка (выбор числа для 20 % книги —
+    # money-path, ADR-060 D6 ждёт владельца).
+    try:
+        from spa_core.monitoring import adapter_feed_divergence
+        afd = adapter_feed_divergence.run(root=args.root)
+        print(f"adapter_feed_divergence: {afd['overall']} "
+              f"(critical={afd['counts']['critical']} warn={afd['counts']['warn']} "
+              f"unchecked={afd['counts']['unchecked']}), "
+              f"протоколов сверено {len(afd['compared_protocols'])}")
+    except Exception as e:  # noqa: BLE001 — сверка фидов не смеет валить мост
+        print(f"adapter_feed_divergence: пропущено ({e})")
     # Цикл 3 ADR-067: правая половина hit-rate — строка исхода за сегодня
     # (идемпотентно по дате; 4 шанса в день догнать evidenced-бар).
     try:

@@ -662,6 +662,10 @@
     {
      "artifact": "data/investment_os/outcomes.jsonl",
      "slo_hours": 31
+    },
+    {
+     "artifact": "data/adapter_feed_divergence.json",
+     "slo_hours": 7
     }
    ],
    "consumes": [
@@ -678,7 +682,7 @@
    "notes": "петля решений: пересчёт house_view_gap + мост находка→карточка (Фаза 3)",
    "passport": {
     "goal": "мост «находка → карточка» (ADR-066, Фаза 3, C2).",
-    "quality_metric": "data/house_view_gap.json свежее 7 ч; data/findings_bridge_report.json свежее 7 ч; data/loop_health.json свежее 7 ч; data/loop_retro.json свежее 192 ч; data/investment_os/outcomes.jsonl свежее 31 ч",
+    "quality_metric": "data/house_view_gap.json свежее 7 ч; data/findings_bridge_report.json свежее 7 ч; data/loop_health.json свежее 7 ч; data/loop_retro.json свежее 192 ч; data/investment_os/outcomes.jsonl свежее 31 ч; data/adapter_feed_divergence.json свежее 7 ч",
     "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/house_view_gap.json, data/findings_bridge_report.json, data/loop_health.json …",
     "limits": "LLM запрещён; не импортирует execution"
@@ -2679,6 +2683,16 @@
    "slo_hours": 31,
    "status": "active",
    "notes": "цикл 3 ADR-067: правая половина hit-rate — исходы по дням (идемпотентно по дате)"
+  },
+  {
+   "path": "data/adapter_feed_divergence.json",
+   "producer": "com.spa.decision_loop",
+   "consumers": [
+    "orchestrator_protocol"
+   ],
+   "slo_hours": 7,
+   "status": "active",
+   "notes": "ADR-060 D6: сходятся ли adapter_status и adapter_orchestrator_status об ОДНОМ протоколе; сторож только НАЗЫВАЕТ — выбор победившего источника owner-gated"
   }
  ],
  "designed_architectures": [
