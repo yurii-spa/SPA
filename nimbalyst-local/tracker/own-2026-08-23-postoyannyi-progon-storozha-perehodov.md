@@ -63,3 +63,35 @@ resolved: 2026-08-25
 **деплой, за владельцем**: автономно агентов не грузим». То есть та карточка этот вопрос НЕ
 задавала, а откладывала до владельца. Здесь он наконец задан. Дубля нет: там задача агенту
 (поймать первого немого писателя), тут — решение владельца о деплое.
+
+---
+
+## 🛠 ПОДГОТОВЛЕНО 2026-08-26 — ADR-141 · ЖДЁТ ТВОИХ РУК
+
+Вариант 1 подготовлен полностью. **Агент НЕ установлен** — деплой это твоё действие (инв. #12),
+я готовлю и жду, как и обещал в карточке.
+
+Что лежит готовым:
+- `launchd/com.spa.tracker_status_sentinel.plist` — раз в час (`StartInterval` 3600), логи в
+  `/tmp`, запуск через bash-обёртку;
+- `scripts/agent_tracker_status_sentinel.sh` — канонический шаблон, режим **755 в индексе git**
+  (не на диске: 644 у запускаемого скрипта = мёртвый агент, и этого не видно ни по одному пульсу).
+
+Агент **расписанный, а не долгожитель**: `KeepAlive` не выставлен, поэтому его можно проверять
+запуском и доставка кода доходит до него сама.
+
+**Порядок установки, когда решишь:**
+
+```bash
+bash scripts/check_agent_before_deploy.sh tracker_status_sentinel
+python3 -m spa_core.monitoring.deployment_acceptance          # ДО
+cp launchd/com.spa.tracker_status_sentinel.plist ~/Library/LaunchAgents/
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.spa.tracker_status_sentinel.plist
+python3 -m spa_core.monitoring.deployment_acceptance          # ПОСЛЕ
+launchctl list | grep tracker_status_sentinel                 # код выхода, а не «вроде запустилось»
+```
+
+**Приёмка подготовки:** `spa_core/tests/test_tracker_status_sentinel_agent.py` — 11 тестов +
+4 subtests, и каждый держит аварию, которая в проекте уже была (exit-78 от прямого вызова
+python, режим 644, логи в `~/Documents`, `KeepAlive` по наличию ключа вместо значения).
+Проверки «агент загружен» в наборе НЕТ намеренно — она толкала бы агента установить себя сам.

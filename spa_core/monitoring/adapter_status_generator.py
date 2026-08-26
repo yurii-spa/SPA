@@ -589,12 +589,17 @@ def _lookup_live_apy(
 
 # Which protocol keys may inherit the Sky/Maker governance pause delay.
 #
-# Deliberately ONE key. ``fluid_fusdc`` also carries an ``is_gsm_compliant()``
-# gate, and its docstring calls the rule "analogous to Spark sUSDS" — but Fluid
-# is a different protocol with its own governance, and stamping Maker's DSPause
-# delay onto it would attribute another protocol's safety parameter. That is the
-# same class of fabrication the evidence gate exists to stop, so Fluid stays
-# unconfirmed until its OWN timelock is read (agent-fluid-timelock-source).
+# Deliberately ONE key, and it stays one. Fluid is a different protocol with its
+# own governance; stamping Maker's DSPause delay onto it would attribute another
+# protocol's safety parameter — the same class of fabrication the evidence gate
+# exists to stop.
+#
+# ADR-137 (owner, 2026-08-25, option A) resolved the OTHER half of that problem:
+# ``fluid_fusdc`` used to carry an ``is_gsm_compliant()`` gate demanding ≥48h —
+# Maker's number — which it could therefore never satisfy, so a $150.3M pool was
+# closed to capital by an alien rule rather than by risk. That gate is REMOVED;
+# Fluid is now admitted by the common key (live APY + live TVL). Nothing here
+# changed: Fluid never inherited Sky's delay and still does not.
 _GSM_INHERITS_SKY = ("spark_susds",)
 
 

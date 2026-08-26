@@ -75,6 +75,15 @@ try:
 except Exception:  # pragma: no cover — разметка ещё не сгенерирована
     UNSOURCED_MODULES = frozenset()
 
+# Списанные Tier-C модули (решение владельца 2026-08-25, вариант 1А, ADR-133):
+# выдают КОНСТАНТУ на всех протоколах, то есть не читают, о каком протоколе их
+# спросили. Не исполняются и в avg_score не попадают. Имя → измеренная причина.
+# Отсутствие файла = пустой набор (тогда поведение ровно прежнее).
+try:
+    from spa_core.analytics._tier_c_writeoff import WRITTEN_OFF as TIER_C_WRITTEN_OFF
+except Exception:  # pragma: no cover — реестр ещё не построен
+    TIER_C_WRITTEN_OFF = {}
+
 log = logging.getLogger("spa.analytics.signal_aggregator")
 
 # ─── Configuration ────────────────────────────────────────────────────────────
@@ -869,7 +878,25 @@ class SignalAggregator:
         ``protocol_specific`` (true/false/None) — чтобы потребитель, читающий
         только число, не был введён в заблуждение его формой.
         """
-        modules = registry.get_tier_modules("C")
+        # Решение владельца 2026-08-25, вариант 1А (ADR-133): девять модулей,
+        # выдающих КОНСТАНТУ на всех протоколах, списаны — не исполняются и в
+        # avg_score не попадают. Они были единственными отвечающими в Tier-C,
+        # то есть публикуемое число целиком складывалось из них и к протоколу
+        # не относилось («константа, притворяющаяся замером, хуже пустоты»).
+        # Списанные НЕ исчезают молча: каждый пишется в module_status со своим
+        # статусом и причиной — иначе «не исполняем» стало бы неотличимо от
+        # «модуля нет» (инвариант #17: отсутствие наблюдения — отдельное
+        # значение, а не пустота).
+        all_modules = registry.get_tier_modules("C")
+        modules = []
+        for m in all_modules:
+            name = m.get("module") or m.get("name") or ""
+            reason = TIER_C_WRITTEN_OFF.get(name)
+            if reason is None:
+                modules.append(m)
+            else:
+                self._record(name, "written_off", reason)
+
         per_proto: Dict[str, Any] = {}
         for proto in protocols:
             per_proto[proto] = self._tier_c_pass(modules, proto, context)

@@ -29,8 +29,9 @@ from __future__ import annotations
 
 import datetime
 import math
+import statistics
 import time
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, List, Optional
 
 from spa_core.strategy_lab.base import InvalidDataError
 from spa_core.strategy_lab.data._http import http_fetch
@@ -70,6 +71,19 @@ CHART_URL = "https://coins.llama.fi/chart/{id}?span={span}&period=1d"
 # on very large span). period=1d → one point per UTC day. FREE keyless endpoint.
 CHART_RANGE_URL = "https://coins.llama.fi/chart/{id}?start={start}&span={span}&period=1d"
 MAX_SPAN = 365              # days per chart call (API rejects very large spans → ~400)
+
+# ── ADR-139: курс считается по отметке времени, а не по календарному дню ──────
+#: Максимальный разрыв между отметками двух принтов, при котором частное ещё
+#: считается КУРСОМ, а не рассинхроном. Час — потому что дневная точка
+#: DeFiLlama это последний внутридневной принт, и у ликвидных токенов они
+#: расходятся минутами; расхождение в часы означает, что мы сравниваем разные
+#: моменты рынка. День с бо́льшим разрывом не считается вовсе (инв. #17:
+#: «не измерено» ≠ «курс такой»).
+MAX_PAIR_GAP_S = 3600.0
+#: ВРЕМЕННАЯ мера решения владельца (вариант 1): причинная медиана за N дней.
+#: Замер: 5 работает (замороженных книг панели 40 % → 20 %), 3 уже НЕ хватает —
+#: становится хуже, чем без сглаживания. 0 выключает.
+RATIO_MEDIAN_WINDOW = 5
 PAGE_DELAY_S = 0.25         # polite delay between page fetches
 MAX_PAGES = 12              # safety cap (12 * 365 ≈ 12y) per token
 
@@ -170,11 +184,25 @@ class PriceFeed:
         chunks (the API 400s on huge spans) until the window is covered, merging by date (last
         wins). Schema-validates each page; a token with no usable price points raises
         InvalidDataError (fail-closed)."""
+        return {sym: {d: pv[0] for d, pv in series.items()}
+                for sym, series in self.history_points(
+                    span=span, start_date=start_date, end_date=end_date).items()}
+
+    def history_points(
+        self,
+        span: int = 90,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> Dict[str, Dict[str, tuple]]:
+        """То же, что :meth:`history`, но с отметкой времени: ``{sym: {date: (price, ts)}}``.
+
+        ADR-139: курс считается ПО ЭТОЙ форме, а не по дневным ценам, — иначе
+        делятся цены, снятые в разные моменты суток."""
         if start_date is None and end_date is None:
-            out: Dict[str, Dict[str, float]] = {}
+            out: Dict[str, Dict[str, tuple]] = {}
             for sym, addr in TOKENS.items():
                 payload = self._fetch(CHART_URL.format(id=_coin_id(addr), span=span))
-                out[sym] = _parse_chart(payload, addr, sym)
+                out[sym] = _parse_chart_points(payload, addr, sym)
             return out
 
         if start_date is None or end_date is None:
@@ -195,10 +223,10 @@ class PriceFeed:
     def _paginate_chart(
         self, addr: str, sym: str, d0: datetime.date, d1: datetime.date,
         start_date: str, end_date: str,
-    ) -> Dict[str, float]:
+    ) -> Dict[str, tuple]:
         """Walk forward from d0 in ≤MAX_SPAN-day chunks, merging schema-validated pages.
         Keeps only dates within [start_date, end_date]."""
-        merged: Dict[str, float] = {}
+        merged: Dict[str, tuple] = {}
         cursor = d0
         for _ in range(self._max_pages):
             if cursor > d1:
@@ -206,7 +234,7 @@ class PriceFeed:
             remaining = (d1 - cursor).days + 1
             span = min(MAX_SPAN, remaining)
             url = CHART_RANGE_URL.format(id=_coin_id(addr), start=_to_unix(cursor), span=span)
-            page = _parse_chart(self._fetch(url), addr, sym)  # schema-validates / raises
+            page = _parse_chart_points(self._fetch(url), addr, sym)  # schema-validates / raises
             for d, p in page.items():
                 if start_date <= d <= end_date:
                     merged[d] = p
@@ -230,45 +258,141 @@ class PriceFeed:
         span: int = 90,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
+        max_pair_gap_s: Optional[float] = None,
+        median_window: Optional[int] = None,
     ) -> Dict[str, Dict[str, float]]:
-        """Return {lrt_sym: {date: lrt/eth ratio}} aligned on shared dates with eth."""
-        hist = self.history(span=span, start_date=start_date, end_date=end_date)
-        eth = hist.get("eth", {})
-        ratios: Dict[str, Dict[str, float]] = {}
-        for sym in RATIO_SYMBOLS:
-            series = hist.get(sym, {})
-            ratios[sym] = {
-                d: round(series[d] / eth[d], 8)
-                for d in series
-                if d in eth and eth[d]
-            }
-        return ratios
+        """``{lrt_sym: {date: lrt/eth ratio}}``, спаренный ПО ОТМЕТКЕ ВРЕМЕНИ.
+
+        ADR-139 (решение владельца 2026-08-25, вариант 1 — «чинить источник»).
+        Раньше здесь делились две ДНЕВНЫЕ цены: последний внутридневной принт
+        токена на последний внутридневной принт эфира. У разных токенов эти
+        принты приходятся на разные моменты суток, поэтому в день, когда эфир
+        ходит на 5–10 %, частное подхватывало не отвязку, а рассинхрон отметок.
+
+        Замер по 565 дням: курс stETH/ETH «ходил» на 3.5 % в день, худшие
+        отметки −17 % и **+33 % за сутки**; **59 дней из 565 двигались больше
+        5 %** — ровно тот порог, по которому лаборатория объявляет отвязку и
+        убивает книгу; десять дней — больше 12.5 %, порога ликвидации плечевой
+        книги. Отличие шума от события: 46–57 % каждого крупного движения
+        отыгрывалось назад уже на следующий день (у самой цены эфира — того же
+        источника, тех же дней — 2 %). Средний УРОВЕНЬ при этом был правильный
+        (0.9994 при должном 1.0000) — врал разброс, поэтому полтора года никто
+        не замечал.
+
+        Теперь: день учитывается, только если оба принта сняты не дальше
+        ``max_pair_gap_s`` друг от друга (по умолчанию :data:`MAX_PAIR_GAP_S`).
+        День с расхождением отметок **выбрасывается**, а не считается: это
+        «не измерено», а не «курс такой» (инв. #17), и потребитель ниже по
+        течению fail-CLOSE'ится на отсутствующем курсе.
+
+        ``median_window`` — ВРЕМЕННАЯ мера того же решения: причинная (только
+        прошлое, без подглядывания вперёд) медиана за N дней. По умолчанию
+        :data:`RATIO_MEDIAN_WINDOW` = 5; замер показал, что 5 работает
+        (замороженных книг панели 40 % → 20 %), а 3 уже НЕ хватает. ``0``
+        выключает сглаживание. Мера временная потому, что настоящее лечение —
+        одна котировка курса; её доступность НЕ проверена (сети из контейнера
+        нет), и если её негде взять, вариант 1 схлопывается в «медиана
+        навсегда» — это записано в ADR-139, а не подразумевается.
+        """
+        hist = self.history_points(span=span, start_date=start_date, end_date=end_date)
+        return _ratios_from_points(
+            hist, "eth", RATIO_SYMBOLS,
+            max_pair_gap_s=max_pair_gap_s,
+            median_window=median_window,
+        )
 
     def history_btc_ratios(
         self,
         span: int = 90,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
+        max_pair_gap_s: Optional[float] = None,
+        median_window: Optional[int] = None,
     ) -> Dict[str, Dict[str, float]]:
         """Return {wrapper_sym: {date: wrapper/btc ratio}} aligned on shared dates with the BTC
         reference. The wrapper-depeg signal for btc_neutral. A wrapper/reference with no shared
         dates is simply an empty series (the sleeve fail-CLOSEs on a missing ratio downstream)."""
-        hist = self.history(span=span, start_date=start_date, end_date=end_date)
-        btc = hist.get(BTC_REF_SYMBOL, {})
-        ratios: Dict[str, Dict[str, float]] = {}
-        for sym in BTC_WRAPPER_SYMBOLS:
-            series = hist.get(sym, {})
-            ratios[sym] = {
-                d: round(series[d] / btc[d], 8)
-                for d in series
-                if d in btc and btc[d]
-            }
-        return ratios
+        hist = self.history_points(span=span, start_date=start_date, end_date=end_date)
+        # ADR-139: тот же источник, тот же дефект — спариваем по отметке времени.
+        return _ratios_from_points(
+            hist, BTC_REF_SYMBOL, BTC_WRAPPER_SYMBOLS,
+            max_pair_gap_s=max_pair_gap_s,
+            median_window=median_window,
+        )
 
 
-def _parse_chart(payload: object, addr: str, symbol: str) -> Dict[str, float]:
-    """DeFiLlama /chart → {date(ISO): price}. One point per UTC day (last wins). Raises if no
-    valid point is found."""
+
+def _causal_median(series: Dict[str, float], window: int) -> Dict[str, float]:
+    """Причинная медиана по возрастанию дат: только ПРОШЛОЕ, без подглядывания.
+
+    Окно неполно в начале ряда — берём то, что есть (медиана одного значения =
+    само значение). Скользящее среднее здесь не годится: одиночный выброс в
+    +33 % оно размажет по всему окну, а медиана его просто отвергнет.
+    """
+    if window <= 1 or not series:
+        return dict(series)
+    out: Dict[str, float] = {}
+    buf: List[float] = []
+    for d in sorted(series):
+        buf.append(series[d])
+        if len(buf) > window:
+            buf.pop(0)
+        out[d] = round(statistics.median(buf), 8)
+    return out
+
+
+def _ratios_from_points(
+    hist: Dict[str, Dict[str, tuple]],
+    ref_symbol: str,
+    symbols,
+    max_pair_gap_s: Optional[float] = None,
+    median_window: Optional[int] = None,
+) -> Dict[str, Dict[str, float]]:
+    """``{sym: {date: ratio}}`` — спаривание ПО ОТМЕТКЕ ВРЕМЕНИ (ADR-139).
+
+    День попадает в ряд, только если оба принта сняты не дальше ``max_pair_gap_s``
+    друг от друга. Иначе день ВЫБРАСЫВАЕТСЯ: частное двух моментов рынка — не
+    курс, и подать его курсом значит выдать рассинхрон за отвязку.
+    """
+    gap = MAX_PAIR_GAP_S if max_pair_gap_s is None else float(max_pair_gap_s)
+    window = RATIO_MEDIAN_WINDOW if median_window is None else int(median_window)
+    ref = hist.get(ref_symbol, {})
+    out: Dict[str, Dict[str, float]] = {}
+    for sym in symbols:
+        series = hist.get(sym, {})
+        raw: Dict[str, float] = {}
+        for d, pv in series.items():
+            ref_pv = ref.get(d)
+            if not ref_pv:
+                continue
+            price, ts = pv
+            ref_price, ref_ts = ref_pv
+            if not ref_price:
+                continue
+            if gap >= 0 and abs(ts - ref_ts) > gap:
+                continue   # отметки разъехались ⇒ день НЕ измерен, а не «курс такой»
+            raw[d] = round(price / ref_price, 8)
+        out[sym] = _causal_median(raw, window)
+    return out
+
+
+def _parse_chart_points(
+    payload: object, addr: str, symbol: str
+) -> Dict[str, tuple]:
+    """DeFiLlama /chart → ``{date(ISO): (price, timestamp)}``.
+
+    ADR-139. Отметка времени возвращается ВМЕСТЕ с ценой, и это не украшение.
+    Дневная точка — ПОСЛЕДНИЙ внутридневной принт, а у разных токенов последний
+    принт приходится на разные моменты суток. Пока отметка выбрасывалась,
+    ``history_ratios`` делила цену токена на цену эфира, снятые в разное время,
+    и получала не курс, а рассинхрон: замер по 565 дням дал −17 % и **+33 % за
+    сутки** у stETH/ETH, при том что настоящий stETH так против эфира не ходил
+    никогда. Отличие шума от события — 46–57 % каждого крупного «движения»
+    отыгрывалось назад на следующий день (у самой цены эфира, того же источника
+    и тех же дней — 2 %).
+
+    Один пункт на календарный день UTC (последний выигрывает). Бросает, если ни
+    одной валидной точки нет."""
     if not isinstance(payload, dict):
         raise InvalidDataError(f"coins chart: expected object for {symbol}")
     coins = payload.get("coins")
@@ -280,7 +404,7 @@ def _parse_chart(payload: object, addr: str, symbol: str) -> Dict[str, float]:
     points = entry.get("prices")
     if not isinstance(points, list) or not points:
         raise InvalidDataError(f"coins chart: 'prices' missing/empty for {symbol}")
-    series: Dict[str, float] = {}
+    series: Dict[str, tuple] = {}
     for pt in points:
         if not isinstance(pt, dict):
             continue
@@ -295,10 +419,15 @@ def _parse_chart(payload: object, addr: str, symbol: str) -> Dict[str, float]:
         d = datetime.datetime.fromtimestamp(
             ts, tz=datetime.timezone.utc
         ).date().isoformat()
-        series[d] = float(price)  # last point on a day wins
+        series[d] = (float(price), float(ts))  # last point on a day wins
     if not series:
         raise InvalidDataError(f"coins chart: no valid price points for {symbol}")
     return series
+
+
+def _parse_chart(payload: object, addr: str, symbol: str) -> Dict[str, float]:
+    """DeFiLlama /chart → {date(ISO): price}. Проекция :func:`_parse_chart_points`."""
+    return {d: pv[0] for d, pv in _parse_chart_points(payload, addr, symbol).items()}
 
 
 if __name__ == "__main__":  # manual real-network smoke test (run on the Mac)

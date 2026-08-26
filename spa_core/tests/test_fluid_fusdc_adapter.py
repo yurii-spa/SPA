@@ -29,14 +29,23 @@ from spa_core.adapters.fluid_fusdc_adapter import FluidFUSDCAdapter
 from spa_core.tests._freshness import ts
 
 
-def _make_data_dir(apy: float = 6.5, gsm_hours: float = 0) -> Path:
-    """Creates a temporary directory with adapter_status.json for testing."""
+def _make_data_dir(apy: float = 6.5, gsm_hours: float = 0,
+                   live_tvl: bool = True) -> Path:
+    """Creates a temporary directory with adapter_status.json for testing.
+
+    ADR-137: ``live_tvl`` управляет ВТОРОЙ половиной общего ключа допуска —
+    наблюдался ли размер пула. Литерал наблюдением не считается, поэтому
+    решает ``tvl_source == "live"`` (ADR-064), а не величина числа. По
+    умолчанию True: подавляющее большинство тестов файла проверяют не допуск,
+    и им нужен рабочий адаптер, а не отказ по несмежной причине.
+    """
     tmp = tempfile.mkdtemp()
     status = {
         "fluid_fusdc": {
             "apy": apy,
             "tier": "T2",
             "tvl_usd": 2_000_000_000,
+            **({"tvl_source": "live"} if live_tvl else {}),
             "chain": "ethereum",
             "vault_address": "0x9Fb7b4477576Fe5B32be4C1843aFB1e55F251B33",
             "gsm_hours": gsm_hours,
@@ -58,8 +67,10 @@ def _make_data_dir(apy: float = 6.5, gsm_hours: float = 0) -> Path:
     return Path(tmp)
 
 
-def _make_adapter(apy: float = 6.5, gsm_hours: float = 0) -> FluidFUSDCAdapter:
-    return FluidFUSDCAdapter(data_dir=_make_data_dir(apy=apy, gsm_hours=gsm_hours))
+def _make_adapter(apy: float = 6.5, gsm_hours: float = 0,
+                  live_tvl: bool = True) -> FluidFUSDCAdapter:
+    return FluidFUSDCAdapter(
+        data_dir=_make_data_dir(apy=apy, gsm_hours=gsm_hours, live_tvl=live_tvl))
 
 
 def _make_empty_data_dir() -> Path:
@@ -249,52 +260,48 @@ class TestFluidSpike(unittest.TestCase):
 # TestFluidGSM — 10 tests
 # ─────────────────────────────────────────────────────────────────────────────
 
-class TestFluidGSM(unittest.TestCase):
-    """GSM compliance gate: gsm_hours threshold."""
+class TestFluidGSMGateRemoved(unittest.TestCase):
+    """Гейт «48 часов» СНЯТ — решение владельца 2026-08-25, вариант A (ADR-137).
 
-    def test_gsm_zero_false(self):
-        a = _make_adapter(gsm_hours=0)
-        self.assertFalse(a.is_gsm_compliant())
+    ПРАВКА НАМЕРЕННАЯ (инвариант #16). Раньше здесь было десять тестов на пороге
+    48 часов. Порог был правилом **Maker/Sky** (число из контракта Maker
+    ``DSPause``), а не Fluid: собственную задержку управления Fluid мы не читали
+    никогда — ни в коде, ни в данных её нет. Проверка поэтому отвечала «не
+    подтверждено» ВСЕГДА, и протокол на $150.3M живого размера при 4.82 %
+    годовых был закрыт для капитала не по риску, а по чужому имени правила.
+    Владелец снял её как неприменимую.
 
-    def test_gsm_47_false(self):
-        a = _make_adapter(gsm_hours=47)
-        self.assertFalse(a.is_gsm_compliant())
+    Утверждения не выброшены, а ЗАМЕНЕНЫ на утверждения о снятии: тесты ниже
+    краснеют, если гейт вернётся молча — в любом из двух видов, которыми такое
+    обычно возвращается.
+    """
 
-    def test_gsm_48_true(self):
-        a = _make_adapter(gsm_hours=48)
-        self.assertTrue(a.is_gsm_compliant())
+    def test_the_alien_gate_is_gone_from_the_class(self):
+        """Не «возвращает True», а ОТСУТСТВУЕТ.
 
-    def test_gsm_49_true(self):
-        a = _make_adapter(gsm_hours=49)
-        self.assertTrue(a.is_gsm_compliant())
+        Оставить метод, всегда отвечающий True, было бы литералом ``True`` в
+        одежде проверки риска — ровно тот класс дефекта, который описан в
+        ``status_reader.tvl_floor_verdict``. Аллокатор к тому же спрашивает гейт
+        через ``hasattr``: метод-пустышка означал бы «гейт есть и пройден».
+        """
+        self.assertFalse(hasattr(FluidFUSDCAdapter, "is_gsm_compliant"),
+                         "чужой гейт вернулся на адаптер")
 
-    def test_gsm_100_true(self):
-        a = _make_adapter(gsm_hours=100)
-        self.assertTrue(a.is_gsm_compliant())
+    def test_gsm_hours_in_data_changes_nothing(self):
+        """Даже если производитель снова начнёт писать поле — оно не судит Fluid."""
+        for hours in (0, 47, 48, 1000):
+            with self.subTest(gsm_hours=hours):
+                a = _make_adapter(apy=6.5, gsm_hours=hours)
+                self.assertTrue(a.is_eligible(),
+                                f"gsm_hours={hours} всё ещё влияет на допуск")
 
-    def test_gsm_missing_file_false(self):
-        a = FluidFUSDCAdapter(data_dir=_make_empty_data_dir())
-        self.assertFalse(a.is_gsm_compliant())
-
-    def test_gsm_missing_key_false(self):
-        tmp = tempfile.mkdtemp()
-        path = Path(tmp) / "adapter_status.json"
-        with open(path, "w") as fh:
-            json.dump({"fluid_fusdc": {"apy": 6.5}}, fh)  # no gsm_hours key
-        a = FluidFUSDCAdapter(data_dir=tmp)
-        self.assertFalse(a.is_gsm_compliant())
-
-    def test_gsm_returns_bool(self):
-        a = _make_adapter(gsm_hours=48)
-        self.assertIsInstance(a.is_gsm_compliant(), bool)
-
-    def test_gsm_47_point_9_false(self):
-        a = _make_adapter(gsm_hours=47.9)
-        self.assertFalse(a.is_gsm_compliant())
-
-    def test_gsm_48_point_0_true(self):
-        a = _make_adapter(gsm_hours=48.0)
-        self.assertTrue(a.is_gsm_compliant())
+    def test_report_names_the_gate_as_not_applicable(self):
+        """Инв. #17: исчезнувшее поле читатель принял бы за «проверка прошла»."""
+        d = _make_adapter().to_dict()
+        self.assertIn("gsm_gate", d)
+        self.assertIn("not_applicable", d["gsm_gate"])
+        self.assertNotIn("gsm_compliant", d,
+                         "старый ключ вернулся — читатель решит, что гейт жив")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -302,47 +309,52 @@ class TestFluidGSM(unittest.TestCase):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestFluidEligibility(unittest.TestCase):
-    """is_eligible matrix: GSM gate × APY range."""
+    """Общий ключ допуска (ADR-137): живая доходность И живой размер пула.
 
-    def test_not_eligible_no_gsm(self):
-        # gsm=0 → not eligible regardless of APY
-        a = _make_adapter(apy=6.5, gsm_hours=0)
-        self.assertFalse(a.is_eligible())
+    ПРАВКА НАМЕРЕННАЯ (инв. #16): матрица «GSM × APY» заменена матрицей
+    «живой APY × живой TVL». Ни одно утверждение не ослаблено — без наблюдения
+    Fluid по-прежнему НЕ финансируется; снят чужой гейт, а не осторожность.
+    """
 
-    def test_not_eligible_gsm_ok_apy_too_low(self):
-        # gsm ok but APY < MIN_APY
-        a = _make_adapter(apy=2.0, gsm_hours=48)
-        self.assertFalse(a.is_eligible())
+    def test_not_eligible_apy_too_low(self):
+        self.assertFalse(_make_adapter(apy=2.0).is_eligible())
 
-    def test_not_eligible_gsm_ok_apy_too_high(self):
-        # gsm ok but APY > MAX_APY (but ≤ spike threshold)
-        # 12.0 > MAX_APY=10.0 but ≤ 15.0 spike → get_apy() = 12.0 → not eligible
-        a = _make_adapter(apy=12.0, gsm_hours=48)
-        self.assertFalse(a.is_eligible())
+    def test_not_eligible_apy_too_high(self):
+        # 12.0 > MAX_APY=10.0, но ≤ 15.0 spike → get_apy() = 12.0 → не eligible
+        self.assertFalse(_make_adapter(apy=12.0).is_eligible())
 
-    def test_eligible_gsm_ok_apy_in_range(self):
-        a = _make_adapter(apy=6.5, gsm_hours=48)
-        self.assertTrue(a.is_eligible())
+    def test_eligible_apy_in_range_with_live_tvl(self):
+        self.assertTrue(_make_adapter(apy=6.5).is_eligible())
 
     def test_eligible_at_min_apy(self):
-        a = _make_adapter(apy=3.0, gsm_hours=48)
-        self.assertTrue(a.is_eligible())
+        self.assertTrue(_make_adapter(apy=3.0).is_eligible())
 
     def test_eligible_at_max_apy(self):
-        a = _make_adapter(apy=10.0, gsm_hours=48)
-        self.assertTrue(a.is_eligible())
+        self.assertTrue(_make_adapter(apy=10.0).is_eligible())
 
-    def test_not_eligible_spike_apy_with_gsm(self):
-        # spike APY > 15 → get_apy() = 9.0 (in range), BUT raw was spike
-        # HOWEVER: get_apy() returns 9.0 which IS in [3.0, 10.0]
-        # and gsm is 48 → eligible = True (spike normalized APY is still valid)
-        a = _make_adapter(apy=20.0, gsm_hours=48)
-        # After normalization 9.0 is in [3.0, 10.0] → eligible
-        self.assertTrue(a.is_eligible())
+    def test_spike_apy_normalised_into_range_is_eligible(self):
+        # raw 20.0 > 15.0 spike → get_apy() = 9.0 ∈ [3.0, 10.0] → eligible
+        self.assertTrue(_make_adapter(apy=20.0).is_eligible())
 
-    def test_not_eligible_gsm_47_apy_in_range(self):
-        a = _make_adapter(apy=7.0, gsm_hours=47)
+    def test_not_eligible_without_live_apy(self):
+        """Fail-CLOSED: нет наблюдения доходности ⇒ капитал не идёт."""
+        a = FluidFUSDCAdapter(data_dir=_make_empty_data_dir())
+        self.assertIsNone(a.get_apy())
         self.assertFalse(a.is_eligible())
+
+    def test_not_eligible_without_live_tvl(self):
+        """Вторая половина ключа. Литерал $2 млрд наблюдением НЕ является.
+
+        Тот же дефект, что у ``moonwell_base``: константа класса $500M против
+        $2.6M наблюдаемых. Размер пула обязан быть НАБЛЮДЁН (``tvl_source ==
+        "live"``, ADR-064), иначе допуска нет.
+        """
+        a = _make_adapter(apy=6.5, live_tvl=False)
+        self.assertIsNotNone(a.get_apy(), "APY должен быть живым — предмет теста в TVL")
+        self.assertFalse(a.is_eligible())
+        self.assertEqual(a.TVL_USD, 2_000_000_000,
+                         "константа на месте — и всё равно не открывает ворота")
+
 
     def test_eligible_returns_bool(self):
         a = _make_adapter(apy=6.5, gsm_hours=48)
@@ -532,7 +544,9 @@ class TestFluidToDict(unittest.TestCase):
         "tier", "t2_cap_total", "t2_cap_single", "asset", "risk_score",
         "exit_latency_hours", "tvl_usd", "raw_apy_pct", "apy_pct",
         "apy_decimal", "spike_detected", "spike_threshold_pct", "spike_norm_pct",
-        "gsm_compliant", "eligible", "min_apy_pct", "max_apy_pct",
+        # ADR-137: "gsm_compliant" заменён на "gsm_gate" (называет исход словом)
+        # и добавлен "live_tvl_usd" — вторая половина общего ключа допуска.
+        "gsm_gate", "live_tvl_usd", "eligible", "min_apy_pct", "max_apy_pct",
         "vs_morpho_gap", "vs_spark_gap", "health", "allocated",
     ]
 
@@ -558,20 +572,29 @@ class TestFluidToDict(unittest.TestCase):
         d = a.to_dict()
         self.assertTrue(d["spike_detected"])
 
-    def test_gsm_compliant_false(self):
-        self.assertFalse(self.d["gsm_compliant"])
+    def test_gsm_gate_is_named_not_applicable(self):
+        """ADR-137: гейта нет, и отчёт говорит это СЛОВОМ, а не молчанием."""
+        self.assertIn("not_applicable", self.d["gsm_gate"])
 
-    def test_gsm_compliant_true(self):
-        a = _make_adapter(apy=6.5, gsm_hours=48)
-        d = a.to_dict()
-        self.assertTrue(d["gsm_compliant"])
+    def test_live_tvl_is_none_when_not_observed(self):
+        """Инв. #17: не наблюдался ≠ ноль."""
+        d = _make_adapter(apy=6.5, live_tvl=False).to_dict()
+        self.assertIsNone(d["live_tvl_usd"])
+        self.assertFalse(d["eligible"])
 
-    def test_eligible_false_no_gsm(self):
-        self.assertFalse(self.d["eligible"])
+    def test_eligible_false_without_live_observation(self):
+        """ADR-137: правка НАМЕРЕННАЯ (инв. #16).
+
+        Утверждение «не eligible» сохранено дословно, изменилась ПРИЧИНА:
+        раньше её давал чужой гейт (``gsm_hours=0``), теперь — отсутствие
+        наблюдения. Отказ по-прежнему обязан происходить, и он происходит.
+        """
+        a = FluidFUSDCAdapter(data_dir=_make_empty_data_dir())
+        self.assertFalse(a.to_dict()["eligible"])
 
     def test_eligible_true_when_conditions_met(self):
-        a = _make_adapter(apy=6.5, gsm_hours=48)
-        d = a.to_dict()
+        # Условия допуска теперь: живой APY в диапазоне И живой TVL.
+        d = _make_adapter(apy=6.5).to_dict()
         self.assertTrue(d["eligible"])
 
     def test_apy_decimal_consistent(self):
