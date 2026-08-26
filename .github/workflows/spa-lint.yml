@@ -1,6 +1,10 @@
 name: SPA Lint — LLM forbidden
 
 on:
+  # Ручной вход добавлен 2026-08-26 (ADR-145): 26.08 событие `pull_request` не создало
+  # НИ ОДНОГО прогона на PR #46, и добрать проверку было нечем — пустой коммит и
+  # «закрыть-открыть PR» запрещены прямо. Сторож живости — pr-ci-liveness.yml.
+  workflow_dispatch:
   push:
     branches: [main]
   pull_request:

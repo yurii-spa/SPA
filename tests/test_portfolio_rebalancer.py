@@ -1004,3 +1004,7 @@ class TestT1FloorMirrorsPolicy:
         # обратное плечо: ужесточение по-прежнему возможно ОДНИМ полем, формула min() жива
         from spa_core.tuner.allocation_tuner import TunerConstraints
         assert TunerConstraints(per_protocol_max=0.25).protocol_cap("T1") == 0.25
+        # …и вторая половина того же: потолок ТИРА T2 под узким конвертом тоже действует.
+        # Без неё min() проверен лишь с одной стороны — ужесточение видно, а потолок
+        # политики мог бы молча исчезнуть.
+        assert TunerConstraints(per_protocol_max=0.25).protocol_cap("T2") == 0.20

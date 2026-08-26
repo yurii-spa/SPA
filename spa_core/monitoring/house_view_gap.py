@@ -58,6 +58,24 @@ GAP_PATH = os.path.join(REPO_ROOT, "data", "house_view_gap.json")
 
 _RED_TOKENS = ("RED", "CRITICAL")
 
+#: Слова, поднимающие находку по АНАЛИТИКУ (не по постуре офиса). Шире `_RED_TOKENS` ровно на
+#: `THREATS_PRESENT` — решение владельца 2026-08-26 «карточки закрывай сам», вариант А карточки
+#: `own-red-team-nablyudennaya-ugroza-ne-doezzhaet` (ADR-146).
+#
+# Замер 18.08, четыре состояния подряд: разведка НАШЛА угрозу (`THREATS_PRESENT`) — карточка НЕ
+# заводилась; мы сами остановлены выключателем (`kill_switch_already_active` ⇒ `CRITICAL`) —
+# заводилась КАЖДЫЙ цикл. Канал был перевёрнут: эхо нашей же остановки шумело ежедневно, а
+# настоящая наблюдённая угроза молчала. Это fail-OPEN в канале тревоги, а не косметика.
+#
+# ПОЧЕМУ ОТДЕЛЬНЫЙ НАБОР, А НЕ ОДНА СТРОКА В `_RED_TOKENS`. Тот кортеж читают ТРИ места, и
+# второе из них — `posture_vs_book` над `overall_posture` ОФИСА. Офис синтезирует свою постуру
+# из режима и угрозы (`_synthesise_posture`), поэтому `overall_posture` умеет быть буквально
+# `THREATS_PRESENT` — а в таблице `_RANK` у него ранг **2**, наравне с `YELLOW`/`COMPRESSION`, и
+# ниже `RED`/`CRITICAL` (ранг 3). Дописав слово в общий кортеж, мы молча приравняли бы ранг 2 к
+# ранг-3 в ЧУЖОЙ лестнице и завели вторую находку, которой карточка не просила. Ровно тот класс,
+# что мы чиним весь пакет: правка, сделанная не там, где её видно.
+_ANALYST_RED_TOKENS = _RED_TOKENS + ("THREATS_PRESENT",)
+
 #: Машинные коды причин красной постуры → человеческий русский. Незнакомый код НЕ выбрасывается,
 #: а печатается ВЕРБАТИМ: сверка обязана быть ШИРЕ подопечного, иначе она его эхо (#197). Аналитик
 #: волен назвать причину, о которой сверка не знает, — и читатель обязан её увидеть.
@@ -331,7 +349,7 @@ def compute_gaps(chief: dict | None,
 
     for name, data in sorted(analysts.items()):
         tokens = {str(data.get(k) or "").upper() for k in ("posture", "status", "combined_posture")}
-        if tokens & set(_RED_TOKENS):
+        if tokens & set(_ANALYST_RED_TOKENS):
             # Ключ НЕ трогать: `gap:analyst_red:<name>` — тот же, что вчера, иначе мост заведёт
             # карточку-дубль на ту же находку. Меняется только ТЕКСТ: в нём названа ПРИЧИНА (#197)
             # и — с #222 — ВОЗРАСТ снимка: «аналитик кричит CRITICAL» суточной давности читается
@@ -350,7 +368,7 @@ def compute_gaps(chief: dict | None,
                          "type": "analyst_red", "severity": "WARN",
                          "posture_reason": reasons,
                          "input_ages": {f"analyst:{name}": analyst_age},
-                         "message": f"аналитик {name}: {' / '.join(sorted(tokens & set(_RED_TOKENS)))} "
+                         "message": f"аналитик {name}: {' / '.join(sorted(tokens & set(_ANALYST_RED_TOKENS)))} "
                                     f"({cause_phrase(reasons)}) "
                                     f"— требует реакции (карточка/решение), не пролистывания "
                                     f"[снимок {bare_age(analyst_age)}]"})

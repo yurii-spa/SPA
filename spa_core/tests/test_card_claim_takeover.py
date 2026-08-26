@@ -70,6 +70,40 @@ def sibling(guard):
     return guard.load_sibling()
 
 
+# ── Объявленный долгоживущий процесс: без него захват НЕ состоится (цикл #387) ────
+#
+# Коммит `9cb8a7823` ввёл fail-CLOSED отказ `UnmeasurableClaim`: захват под ярлыком, у
+# которого нет объявленного долгоживущего процесса, не записывается вовсе. Причина
+# осознанная и записана в самом гейте — такой захват НЕ СТАРЕЕТ (`session_state` отдаёт
+# UNKNOWN необратимо, а подъём разрешён только на `stale`), поэтому карточка залипла бы
+# навсегда.
+#
+# Тесты этого файла проверяют механику захвата/освобождения, а не поведение «голого»
+# ярлыка, и просто звали инструмент без переменной — на CI все они покраснели, и красным
+# стал ВЕСЬ main (карточка `inbox-commit-9cb8a7823-krasit-28-testov-zahvata`).
+#
+# **Гейт не ослаблен ни на йоту.** Фикстура ставит тесты в ту же законную конфигурацию, в
+# которой карточки берутся в проде: `scripts/agent_orchestrator.sh` выставляет
+# `SPA_SESSION_PID` перед первым объявлением. Отказ на НЕобъявленном ярлыке проверяется
+# отдельно и остаётся красным — см. `test_card_claim_guard.py`.
+#
+# `os.getpid()` годится по построению: этот процесс выполняется, значит `ps` его видит.
+# Предусловие проверяется ЯВНО и при неудаче КРАСНОЕ, а не пропущенное: скип превратил бы
+# «не измерено» в «прошло» — ровно то, что запрещает инвариант #17.
+@pytest.fixture(autouse=True)
+def _declared_durable_process(monkeypatch):
+    import os as _os
+    monkeypatch.setenv("SPA_SESSION_PID", str(_os.getpid()))
+    monkeypatch.setenv("SPA_SESSION_ID", "cycle-under-test")
+    announcer = _load("_takeover_announcer", "scripts/log_session_change.py")
+    proc, why = announcer.durable_process()
+    assert proc.get("session_pid") == _os.getpid(), (
+        "предусловие не выполнено: долгоживущий процесс не измерен "
+        f"({why!r}) — без него файл проверял бы отказ гейта вместо своей механики, "
+        "поэтому это КРАСНЫЙ, а не skip")
+    return proc
+
+
 @pytest.fixture()
 def tracker(tmp_path):
     d = tmp_path / "tracker"

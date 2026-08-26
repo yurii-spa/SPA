@@ -68,7 +68,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from spa_core.owner_queue.queue import OWNER_ONLY_STATUSES
+from spa_core.owner_queue.queue import ATTRIBUTION_CRITICAL_STATUSES, OWNER_ONLY_STATUSES
 from spa_core.owner_queue.status_audit import read_audit, read_status, trail_explains
 from spa_core.utils.atomic import atomic_save
 
@@ -133,12 +133,18 @@ def _parse_ts(value) -> Optional[dt.datetime]:
 
 
 def _severity(old: str, new: str) -> str:
-    # Приход в ЛЮБОЙ owner-only статус мимо писателя — обход инварианта #14, и он
-    # обязан быть слышен одинаково громко: `owner-accepted` закрывает вопрос из
-    # очереди владельца ровно так же, как `owner-done` (#350).
-    if new in OWNER_ONLY_STATUSES:
+    # Приход в ЛЮБОЙ закрывающий статус МИМО ПИСАТЕЛЯ обязан быть слышен одинаково громко.
+    #
+    # Читается ATTRIBUTION_CRITICAL_STATUSES, а не OWNER_ONLY_STATUSES: после ADR-146 второй
+    # сузился до одного имени (агенту разрешено ЗАКРЫВАТЬ карточки), и сторож, оставшийся на
+    # нём, замолчал бы ровно о `owner-done` — самом терминальном из всех. Вопрос сторожа не
+    # «кому МОЖНО», а «ОСТАЛАСЬ ЛИ ЗАПИСЬ»: след — единственное, чем закрытие отличается от
+    # пропажи вопроса, и рука тут ни при чём (авария #350 была рукой ВЛАДЕЛЬЦА).
+    if new in ATTRIBUTION_CRITICAL_STATUSES:
         return "CRITICAL"
-    if old == OWNER_WAITING and new not in OWNER_ONLY_STATUSES:
+    # Уход из ожидания владельца куда угодно, кроме закрытия, — вопрос выбыл из очереди,
+    # не будучи закрытым. Тот же набор по той же причине.
+    if old == OWNER_WAITING and new not in ATTRIBUTION_CRITICAL_STATUSES:
         return "CRITICAL"
     return "WARN"
 

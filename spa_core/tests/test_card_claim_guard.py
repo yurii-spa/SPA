@@ -571,6 +571,33 @@ class TestCycle49FalseBusy:
 # ── взятие / освобождение карточки ───────────────────────────────────────────
 
 class TestClaimAndRelease:
+
+    # ── объявленный долгоживущий процесс (цикл #387) ──────────────────────────
+    #
+    # Коммит `9cb8a7823` ввёл fail-CLOSED `UnmeasurableClaim`: захват под ярлыком без
+    # объявленного долгоживущего процесса не записывается вовсе — такой захват НЕ СТАРЕЕТ,
+    # и карточка залипла бы навсегда. Тесты НИЖЕ проверяют механику захвата/освобождения,
+    # а не поведение «голого» ярлыка, и звали инструмент без переменной — покраснели все и
+    # покрасили ВЕСЬ main (карточка `inbox-commit-9cb8a7823-krasit-28-testov-zahvata`).
+    #
+    # **Гейт не ослаблен.** Фикстура ставит класс в ту же законную конфигурацию, в которой
+    # карточки берутся в проде (`scripts/agent_orchestrator.sh` выставляет `SPA_SESSION_PID`).
+    # Сам отказ на НЕобъявленном ярлыке проверяет `TestClaimSaysWhenItHasNoIdentity` в этом
+    # же файле, и он намеренно оставлен БЕЗ этой фикстуры — иначе положительный контроль
+    # гейта был бы замаскирован, то есть мы починили бы красноту, сломав проверку.
+    #
+    # `os.getpid()` жив по построению. Предусловие — КРАСНОЕ, а не skip (инв. #17).
+    @pytest.fixture(autouse=True)
+    def _declared_durable_process(self, monkeypatch):
+        import os as _os
+        monkeypatch.setenv("SPA_SESSION_PID", str(_os.getpid()))
+        monkeypatch.setenv("SPA_SESSION_ID", "cycle-under-test")
+        announcer = _load("_guard_announcer", "scripts/log_session_change.py")
+        proc, why = announcer.durable_process()
+        assert proc.get("session_pid") == _os.getpid(), (
+            "предусловие не выполнено: долгоживущий процесс не измерен "
+            f"({why!r}) — без него класс проверял бы отказ гейта вместо своей механики, "
+            "поэтому это КРАСНЫЙ, а не skip")
     def test_claim_writes_fields_and_preserves_the_rest(self, guard, sibling, tracker, log):
         p = write_card(tracker, "agent-x", extra_body="## Тело\n\nстрока 1\nстрока 2\n")
         before = p.read_text(encoding="utf-8")
@@ -669,6 +696,33 @@ class TestClaimAndRelease:
 # ── CLI и коды возврата ──────────────────────────────────────────────────────
 
 class TestCli:
+
+    # ── объявленный долгоживущий процесс (цикл #387) ──────────────────────────
+    #
+    # Коммит `9cb8a7823` ввёл fail-CLOSED `UnmeasurableClaim`: захват под ярлыком без
+    # объявленного долгоживущего процесса не записывается вовсе — такой захват НЕ СТАРЕЕТ,
+    # и карточка залипла бы навсегда. Тесты НИЖЕ проверяют механику захвата/освобождения,
+    # а не поведение «голого» ярлыка, и звали инструмент без переменной — покраснели все и
+    # покрасили ВЕСЬ main (карточка `inbox-commit-9cb8a7823-krasit-28-testov-zahvata`).
+    #
+    # **Гейт не ослаблен.** Фикстура ставит класс в ту же законную конфигурацию, в которой
+    # карточки берутся в проде (`scripts/agent_orchestrator.sh` выставляет `SPA_SESSION_PID`).
+    # Сам отказ на НЕобъявленном ярлыке проверяет `TestClaimSaysWhenItHasNoIdentity` в этом
+    # же файле, и он намеренно оставлен БЕЗ этой фикстуры — иначе положительный контроль
+    # гейта был бы замаскирован, то есть мы починили бы красноту, сломав проверку.
+    #
+    # `os.getpid()` жив по построению. Предусловие — КРАСНОЕ, а не skip (инв. #17).
+    @pytest.fixture(autouse=True)
+    def _declared_durable_process(self, monkeypatch):
+        import os as _os
+        monkeypatch.setenv("SPA_SESSION_PID", str(_os.getpid()))
+        monkeypatch.setenv("SPA_SESSION_ID", "cycle-under-test")
+        announcer = _load("_guard_announcer", "scripts/log_session_change.py")
+        proc, why = announcer.durable_process()
+        assert proc.get("session_pid") == _os.getpid(), (
+            "предусловие не выполнено: долгоживущий процесс не измерен "
+            f"({why!r}) — без него класс проверял бы отказ гейта вместо своей механики, "
+            "поэтому это КРАСНЫЙ, а не skip")
     def _run(self, guard, argv):
         return guard.main(argv)
 
