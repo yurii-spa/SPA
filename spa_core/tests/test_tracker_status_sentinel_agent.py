@@ -123,19 +123,54 @@ class TheWrapperTargetsTheRightModule(unittest.TestCase):
                 self.assertNotIn(forbidden, src)
 
 
-class InstallationIsTheOwnersHands(unittest.TestCase):
-    """Инвариант #12: агент подготовлен, но НЕ установлен.
+class InstallationIsDeclared(unittest.TestCase):
+    """Владелец дал разрешение 2026-08-26 — агент подключён в установщик (ADR-143).
 
-    Здесь нет проверки «агент загружен» намеренно: загрузка — действие владельца,
-    и тест, требующий её, толкал бы агента установить себя сам.
+    **Намеренная правка теста (инвариант #16), обоснование здесь и в журнале W35.**
+    Прежний тест назывался `test_no_install_script_loads_it_automatically` и
+    утверждал ОБРАТНОЕ: ярлыка в `install_all_agents.sh` быть не должно, потому что
+    «это деплой без владельца». Утверждение было верным ровно до тех пор, пока
+    разрешения не было. Правило `.claude/rules/deployment.md` п. 6 говорит «прод-дерево
+    — только С РАЗРЕШЕНИЯ владельца», а не «никогда»; разрешение дано прямой
+    формулировкой («сам это всё сделай, разрешаю полностью») и записано в ADR-143.
+    Поэтому тест не ослаблен и не снят, а ПЕРЕВЁРНУТ: он по-прежнему сторожит
+    подключение агента к установщику, только с другой стороны.
+
+    Чего здесь по-прежнему НЕТ и намеренно: проверки «агент ЗАГРУЖЕН». Её нельзя
+    снять честно — `launchctl` существует только на прод-Маке, а в контейнере CI
+    его нет вовсе, так что такой тест был бы либо вечно красным, либо вечно
+    пропущенным, то есть неотличимым от непроверенного (инв. #17).
     """
 
-    def test_no_install_script_loads_it_automatically(self):
+    def _installer(self) -> str:
         installer = REPO / "scripts" / "install_all_agents.sh"
-        if not installer.is_file():
-            self.skipTest("install_all_agents.sh отсутствует в этом дереве")
-        self.assertNotIn(LABEL, installer.read_text(encoding="utf-8"),
-                         "агент прописан в массовую установку — это деплой без владельца")
+        self.assertTrue(installer.is_file(), "установщик флота не найден")
+        return installer.read_text(encoding="utf-8")
+
+    def test_the_installer_declares_it(self):
+        self.assertIn(LABEL, self._installer(),
+                      "агента нет в установщике — он снова сирота, которую флот "
+                      "потеряет при первой чистой переустановке")
+
+    def test_the_installer_points_at_the_plist_that_exists(self):
+        """Строка установщика, указывающая в никуда, = [FAIL] при установке.
+
+        Ровно этот класс ловит `fleet_parity_check.py` как
+        `broken_declared_no_plist`; проверяем его здесь на своём агенте.
+        """
+        self.assertIn(f"launchd/{LABEL}.plist", self._installer())
+        self.assertTrue(PLIST.is_file(), f"установщик указывает на отсутствующий {PLIST}")
+
+    def test_it_is_declared_optional_so_a_stale_tree_skips_instead_of_failing(self):
+        """Прод-дерево дрейфует от origin по построению.
+
+        Если plist'а там ещё нет, агент обязан дать [SKIP], а не [FAIL]: иначе
+        одна отстающая копия дерева роняет установку ВСЕГО флота.
+        """
+        text = self._installer()
+        idx = text.index(LABEL)
+        tail = text[idx:idx + 200]
+        self.assertIn('"1"', tail, "агент объявлен обязательным — отстающее дерево уронит весь флот")
 
 
 if __name__ == "__main__":

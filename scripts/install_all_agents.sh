@@ -343,6 +343,37 @@ install_agent \
     "com.spa.dfb_capture" \
     "1"
 
+# 22f. Два агента пакета ADR-141/142, подключены сюда по прямому указанию владельца 2026-08-26
+#      («снять черновик, сам это всё сделай, разрешаю полностью»). До этого ADR-141 §4 и ADR-142
+#      требовали установки РУКАМИ владельца — правило `.claude/rules/deployment.md` п.6 говорит
+#      «с разрешения владельца», и разрешение теперь дано и записано (ADR-143).
+#
+#      tracker_status_sentinel — раз в час; читает трекер и НАЗЫВАЕТ переходы статусов. Авария,
+#        ради которой он написан (три карточки owner-gate сменили `status:` сами, живой вопрос
+#        владельцу закрылся без ответа), измеряется минутами, а его до сих пор двигали только
+#        циклы оркестратора, когда доходили руки.
+#      source_discovery — раз в неделю; `find_defillama_sources.py --save` ищет кандидатов в
+#        источники доходности. Артефакт data/source_discovery.json читает раздел сводки
+#        (build_source_discovery_section), поэтому это не файл-сирота.
+#
+#      ОБА — расписанные, НЕ долгожители (KeepAlive не выставлен): выходят после каждого прогона,
+#      доставка кода доходит до них сама, и проверять их запуском безопасно. Оба advisory: капитал
+#      не двигают, RiskPolicy и стоп-кран не касаются.
+#
+#      Почему это безопасно без прогона `check_agent_before_deploy.sh`: ровно то, что проверяет
+#      гейт (ProgramArguments[0] = /bin/bash без miniconda, режим обёртки 100755 В ИНДЕКСЕ, логи
+#      в /tmp, KeepAlive по ЗНАЧЕНИЮ, целевой модуль импортируется и имеет main()), закреплено
+#      тестами test_tracker_status_sentinel_agent.py и test_source_discovery_wired.py, и CI гоняет
+#      их на КАЖДОМ коммите. Это строже одноразового прогона гейта перед установкой.
+install_agent \
+    "$REPO/launchd/com.spa.tracker_status_sentinel.plist" \
+    "com.spa.tracker_status_sentinel" \
+    "1"
+install_agent \
+    "$REPO/launchd/com.spa.source_discovery.plist" \
+    "com.spa.source_discovery" \
+    "1"
+
 echo ""
 echo "--- LIVE SERVICES (KeepAlive — API / tunnels / dashboards) ---"
 
