@@ -23,10 +23,17 @@
 * основание уезжает и в журнал, и во frontmatter карточки: карточка попадает на origin,
   журнал — нет.
 
-Тесты герметичны: свой каталог карточек, свой журнал, `ps` подменён, время подаётся явно.
+Тесты герметичны: свой каталог карточек, свой журнал, `ps` подменён, время подаётся явно —
+и с цикла #388 ЯКОРЬ ЛИЧНОСТИ тоже подаётся явно (`_claim`/`_release` ниже). Раньше эта
+строка была неверна ровно в одном месте: `claim_card` брал долгоживущий процесс из
+`SPA_SESSION_PID` окружения ПРОГОНА, и девять тестов файла падали в CI, оставаясь
+зелёными на машине с запущенным оркестратором, а ещё четыре зеленели ВХОЛОСТУЮ — текст
+`UnmeasurableClaim` содержит и `unchecked`, и ``stale``, и `--takeover`, поэтому их
+assert'ы ловили СОВСЕМ ДРУГОЙ отказ, случившийся на шаг раньше предмета проверки.
 """
 import importlib.util
 import json
+import os
 from datetime import timedelta, timezone
 from pathlib import Path
 
@@ -100,6 +107,31 @@ def _orphaned(tracker, cid="agent-x"):
                  claimed_at=_fmt(NOW - timedelta(hours=17)))
 
 
+#: Якорь долгоживущего процесса для герметичных проверок: фиксированная пара
+#: (pid, «старт verbatim»), которую никто не меряет через `ps` — она сравнивается только
+#: с такими же парами внутри журнала самого теста. Литеральный pid безопасен именно
+#: потому, что живым процессом он не притворяется.
+SELF_ANCHOR = (41721, "Sat Aug  1 13:37:28 2026")
+
+
+def _claim(guard, *args, **kw):
+    """`claim_card` с ЯВНЫМ якорем личности.
+
+    Умолчание `claim_card` (`_ENV_ANCHOR`) меряет `SPA_SESSION_PID` из окружения прогона,
+    а с коммита 9cb8a7823 пустой якорь = отказ `UnmeasurableClaim` ДО всякой проверки
+    предмета. Помощник, а не kwarg на каждом вызове, — чтобы следующий тест файла не мог
+    унаследовать эту зависимость молча: забыть помощника заметнее, чем забыть аргумент.
+    """
+    kw.setdefault("self_anchor", SELF_ANCHOR)
+    return guard.claim_card(*args, **kw)
+
+
+def _release(guard, *args, **kw):
+    """`release_card` с тем же якорем — снимает захват та же личность, что его ставила."""
+    kw.setdefault("self_anchor", SELF_ANCHOR)
+    return guard.release_card(*args, **kw)
+
+
 DEAD = lambda pid: (1, "")                                          # noqa: E731
 ALIVE = lambda pid: (0, (NOW - timedelta(hours=48)).astimezone()    # noqa: E731
                      .strftime("%a %b %d %H:%M:%S %Y") + "\n")
@@ -120,7 +152,7 @@ def test_stale_still_refuses_without_a_reason_and_names_the_way_out(guard, sibli
     """
     card = _orphaned(tracker)
     with pytest.raises(guard.ClaimError) as exc:
-        guard.claim_card("agent-x", session="cycle-358", tracker_dir=tracker, now=NOW,
+        _claim(guard, "agent-x", session="cycle-358", tracker_dir=tracker, now=NOW,
                          sibling=sibling, log=log, ps=DEAD)
     msg = str(exc.value)
     assert "`stale`" in msg
@@ -133,7 +165,7 @@ def test_an_empty_reason_is_not_a_reason(guard, sibling, tracker, log):
     _orphaned(tracker)
     for empty in ("", "   ", "\n"):
         with pytest.raises(guard.ClaimError):
-            guard.claim_card("agent-x", session="cycle-358", tracker_dir=tracker, now=NOW,
+            _claim(guard, "agent-x", session="cycle-358", tracker_dir=tracker, now=NOW,
                              sibling=sibling, log=log, ps=DEAD, takeover_reason=empty)
 
 
@@ -145,7 +177,7 @@ def test_takeover_lifts_the_orphaned_claim_and_records_the_reason(guard, sibling
     """Живой случай #358: осиротевший захват перебит, основание лежит В КАРТОЧКЕ."""
     card = _orphaned(tracker)
 
-    res = guard.claim_card("agent-x", session="cycle-358", tracker_dir=tracker, now=NOW,
+    res = _claim(guard, "agent-x", session="cycle-358", tracker_dir=tracker, now=NOW,
                            sibling=sibling, log=log, ps=DEAD, takeover_reason=REASON)
 
     assert res["claimed_by"] == "cycle-358"
@@ -162,7 +194,7 @@ def test_the_takeover_is_announced_in_the_shared_log_with_its_reason(guard, sibl
     """Журнал виден без пуша — и подъём обязан быть виден в нём, а не только в файле."""
     _orphaned(tracker)
 
-    guard.claim_card("agent-x", session="cycle-358", tracker_dir=tracker, now=NOW,
+    _claim(guard, "agent-x", session="cycle-358", tracker_dir=tracker, now=NOW,
                      sibling=sibling, log=log, ps=DEAD, takeover_reason=REASON)
 
     rows = [e for e in _entries(log) if e.get("card") == "agent-x"]
@@ -177,7 +209,7 @@ def test_the_body_of_the_card_is_untouched_by_a_takeover(guard, sibling, tracker
     card = _orphaned(tracker)
     before = card.read_text(encoding="utf-8")
 
-    guard.claim_card("agent-x", session="cycle-358", tracker_dir=tracker, now=NOW,
+    _claim(guard, "agent-x", session="cycle-358", tracker_dir=tracker, now=NOW,
                      sibling=sibling, log=log, ps=DEAD, takeover_reason=REASON)
 
     assert card.read_text(encoding="utf-8").split("---", 2)[2] == before.split("---", 2)[2]
@@ -188,7 +220,7 @@ def test_a_multiline_reason_is_folded_so_the_frontmatter_stays_parseable(guard, 
     """Frontmatter читается построчно: многострочная причина развалила бы его у ВСЕХ."""
     card = _orphaned(tracker)
 
-    guard.claim_card("agent-x", session="cycle-358", tracker_dir=tracker, now=NOW,
+    _claim(guard, "agent-x", session="cycle-358", tracker_dir=tracker, now=NOW,
                      sibling=sibling, log=log, ps=DEAD,
                      takeover_reason="первая строка\nвторая  строка\n\nтретья")
 
@@ -201,10 +233,10 @@ def test_a_multiline_reason_is_folded_so_the_frontmatter_stays_parseable(guard, 
 def test_releasing_a_lifted_card_clears_the_reason_too(guard, sibling, tracker, log):
     """Основание снимается вместе с захватом: объяснение без предмета — то же враньё."""
     card = _orphaned(tracker)
-    guard.claim_card("agent-x", session="cycle-358", tracker_dir=tracker, now=NOW,
+    _claim(guard, "agent-x", session="cycle-358", tracker_dir=tracker, now=NOW,
                      sibling=sibling, log=log, ps=DEAD, takeover_reason=REASON)
 
-    guard.release_card("agent-x", session="cycle-358", tracker_dir=tracker, log=log)
+    _release(guard, "agent-x", session="cycle-358", tracker_dir=tracker, log=log)
 
     text = card.read_text(encoding="utf-8")
     assert "claim_takeover_reason" not in text
@@ -227,7 +259,7 @@ def test_takeover_does_not_touch_a_card_held_by_a_LIVE_session(guard, sibling, t
                               ensure_ascii=False) + "\n", encoding="utf-8")
 
     with pytest.raises(guard.ClaimError) as exc:
-        guard.claim_card("agent-x", session="cycle-358", tracker_dir=tracker, now=NOW,
+        _claim(guard, "agent-x", session="cycle-358", tracker_dir=tracker, now=NOW,
                          sibling=sibling, log=log, ps=ALIVE, takeover_reason=REASON)
 
     assert "claimed" in str(exc.value)
@@ -238,7 +270,7 @@ def test_takeover_does_not_override_unchecked(guard, sibling, tracker, tmp_path)
     """«Занятость не измерена» ⇒ отказ (инв. #2): подъём — решение ПОСЛЕ измерения."""
     _card(tracker, "agent-x")
     with pytest.raises(guard.ClaimError) as exc:
-        guard.claim_card("agent-x", session="cycle-358", tracker_dir=tracker, now=NOW,
+        _claim(guard, "agent-x", session="cycle-358", tracker_dir=tracker, now=NOW,
                          sibling=sibling, log=tmp_path / "журнала-нет.jsonl", ps=DEAD,
                          takeover_reason=REASON)
     assert "unchecked" in str(exc.value)
@@ -249,7 +281,7 @@ def test_a_free_card_is_claimed_plainly_and_carries_no_takeover_trace(guard, sib
     """Свободную карточку флаг не превращает в «подъём»: поднимать было нечего."""
     card = _card(tracker, "agent-x")
 
-    res = guard.claim_card("agent-x", session="cycle-358", tracker_dir=tracker, now=NOW,
+    res = _claim(guard, "agent-x", session="cycle-358", tracker_dir=tracker, now=NOW,
                            sibling=sibling, log=log, ps=DEAD, takeover_reason=REASON)
 
     assert "takeover_reason" not in res
@@ -261,7 +293,7 @@ def test_an_ordinary_claim_still_writes_exactly_two_lines(guard, sibling, tracke
     card = _card(tracker, "agent-x")
     before = card.read_text(encoding="utf-8").splitlines()
 
-    guard.claim_card("agent-x", session="pid1", tracker_dir=tracker, now=NOW,
+    _claim(guard, "agent-x", session="pid1", tracker_dir=tracker, now=NOW,
                      sibling=sibling, log=log, ps=DEAD)
 
     after = card.read_text(encoding="utf-8").splitlines()
@@ -272,8 +304,14 @@ def test_an_ordinary_claim_still_writes_exactly_two_lines(guard, sibling, tracke
 # ── проводка CLI: флаг, который не дошёл до `claim_card`, — украшение ─────────
 
 
-def test_the_cli_flag_actually_reaches_the_writer(guard, tracker, log, capsys):
+def test_the_cli_flag_actually_reaches_the_writer(guard, tracker, log, capsys, monkeypatch):
     """`claim <карточка> --takeover "…"` через main(): подъём происходит и назван."""
+    # У `main` флага якоря нет — он берёт долгоживущий процесс ТОЛЬКО из окружения.
+    # Объявляем его явно, и им является сам pytest (подтверждается настоящим `ps`).
+    # Без этой строки оба теста ниже отвечали не о своём предмете: в CI первый падал на
+    # `UnmeasurableClaim`, а второй ЗЕЛЕНЕЛ на нём же — искомая подстрока `--takeover`
+    # есть и в тексте этого отказа (#388).
+    monkeypatch.setenv("SPA_SESSION_PID", str(os.getpid()))
     card = _orphaned(tracker)
 
     code = guard.main(["--tracker-dir", str(tracker), "--log", str(log),
@@ -286,13 +324,22 @@ def test_the_cli_flag_actually_reaches_the_writer(guard, tracker, log, capsys):
     assert guard.frontmatter(card.read_text(encoding="utf-8"))["claimed_by"] == "cycle-358"
 
 
-def test_the_cli_without_the_flag_still_refuses_a_stale_card(guard, tracker, log, capsys):
+def test_the_cli_without_the_flag_still_refuses_a_stale_card(guard, tracker, log, capsys,
+                                                             monkeypatch):
     """Обратный контроль проводки: без флага поведение CLI прежнее (код 1, отказ)."""
+    # У `main` флага якоря нет — он берёт долгоживущий процесс ТОЛЬКО из окружения.
+    # Объявляем его явно, и им является сам pytest (подтверждается настоящим `ps`).
+    # Без этой строки оба теста ниже отвечали не о своём предмете: в CI первый падал на
+    # `UnmeasurableClaim`, а второй ЗЕЛЕНЕЛ на нём же — искомая подстрока `--takeover`
+    # есть и в тексте этого отказа (#388).
+    monkeypatch.setenv("SPA_SESSION_PID", str(os.getpid()))
     _orphaned(tracker)
 
     code = guard.main(["--tracker-dir", str(tracker), "--log", str(log),
                        "claim", "agent-x", "--session", "cycle-358"])
 
-    assert code != 0
+    assert code == 1, "код 1 — «занята»; код 2 был бы «занятость не измерена», другой отказ"
     # Отказ печатается в stdout (так же, как и до этой правки) — проверяем то, что есть.
-    assert "--takeover" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "--takeover" in out
+    assert "`stale`" in out, "отказ обязан назвать ИМЕННО вердикт stale, а не любой отказ"

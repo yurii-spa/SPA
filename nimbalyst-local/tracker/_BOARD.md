@@ -2,13 +2,13 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-26T20:05:32Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-26T21:10:50Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **698** · ждёт владельца: **1** · занято сессиями: **6**.
+> Всего карточек: **699** · ждёт владельца: **1** · занято сессиями: **6**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
-- **Тюнер зеркалит политику БЕЗ запасов — решение владельца 26.08 (cloud, кнопка), ОТМЕНЯЕТ «запас оставить» от 25.08; реализация доставлена** · _high_  ·  `own-tuner-zerkalit-politiku-zapasy-snyaty.md`
+- **Два помощника готовы, но включить их можешь только ты — они стоят вторые сутки** · _medium_  ·  `owner-decision-dva-pomoschnika-gotovy-no-vklyuchit-ih-m.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
@@ -21,10 +21,10 @@
 - **Разобрать 52 карточки с ветки work-status-check, потом удалить ветку (решение владельца 20.08, вариант 1)** — держит `pid85035` · с 2026-08-25T00:20:38Z  ·  `inbox-razobrat-52-kartochki-s-vetki-work-statu.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (173)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (174)
 
 ### · needs-owner
-- Тюнер зеркалит политику БЕЗ запасов — решение владельца 26.08 (cloud, кнопка), ОТМЕНЯЕТ «запас оставить» от 25.08; реализация доставлена  ·  `own-tuner-zerkalit-politiku-zapasy-snyaty.md` · 2026-08-26
+- Два помощника готовы, но включить их можешь только ты — они стоят вторые сутки  ·  `owner-decision-dva-pomoschnika-gotovy-no-vklyuchit-ih-m.md` · 2026-08-26
 ### · blocked
 - Наблюдённая угроза до тебя не доезжает, а наша собственная остановка доезжает каждый день  ·  `own-red-team-nablyudennaya-ugroza-ne-doezzhaet.md` · 2026-08-18
 ### · ingested
@@ -83,6 +83,7 @@
 - Нашлось правило, которое снижает просадку почти бесплатно — но менять его на живом ничего не надо, вопрос только «куда его записать»  ·  `own-rnd-xvd-vol-rank-second-arm.md` · 2026-08-08
 - Ручной инструмент поиска новых источников доходности никто не запускает — оставить, поставить на расписание или списать  ·  `own-ruchnoy-instrument-poiska-istochnikov.md` · 2026-08-17
 - own-tsena-nashego-limita-20-na-odno-imya-izme  ·  `own-tsena-nashego-limita-20-na-odno-imya-izme.md` · 2026-08-17
+- Тюнер зеркалит политику БЕЗ запасов — решение владельца 26.08 (cloud, кнопка), ОТМЕНЯЕТ «запас оставить» от 25.08; реализация доставлена  ·  `own-tuner-zerkalit-politiku-zapasy-snyaty.md` · 2026-08-26
 - Внешнее якорение трека не работало 43 дня — я его починил, нужен твой взгляд на два хвоста  ·  `own-yakorenie-treka-ne-rabotalo-43-dnya.md` · 2026-08-15
 - 10% денег стоят без работы: причина найдена — 11 протоколов закрыты из-за отсутствия живого фида, нужен твой выбор  ·  `owner-decision-10-deneg-stoyat-bez-raboty-prichina-naid.md` · 2026-08-05
 - ТЕСТ: подтверди, что очередь работает — переведи в Owner Done  ·  `owner-decision-20260715-124956-owner-done.md` · 2026-07-15T00:00:00.000Z
@@ -248,6 +249,7 @@
 - Брифинг считает снимок флота протухшим раньше, чем писатель его переписывает (35 мин против такта 60)  ·  `inbox-brifing-schitaet-snimok-flota-protuhshim.md` · 2026-08-15
 - Чекап ушёл с главной, но остался в МЕНЮ: раздел назван по несуществующему продукту (остаток ADR-089 §5)  ·  `inbox-chekap-ushel-s-glavnoi-no-ostalsya-v-men.md` · 2026-08-20
 - CI 'SPA Tests' красный минимум 8 коммитов подряд, и этого никто не видит: цикл прогоняет только spa_core/tests  ·  `inbox-ci-spa-tests-krasnyi-minimum-8-kommitov.md` · 2026-08-09
+- main красный с 9cb8a7823: 28 тестов захвата карточек падают на UnmeasurableClaim (нет SPA_SESSION_PID)  ·  `inbox-commit-9cb8a7823-krasit-28-testov-zahvata.md` · 2026-08-26
 - давай разберем задачу - Решение ADR-104 записано, но до машины не доехало: CIO…  ·  `inbox-davai-razberem-zadachu-reshenie-adr-104.md` · 2026-08-22
 - Давай так и сделаем  ·  `inbox-davai-tak-i-sdelaem.md` · 2026-07-20
 - Длинный документ владельца приехал СЕМЬЮ карточками, и шесть из них — не задачи, а куски предложений  ·  `inbox-dlinnyi-dokument-vladeltsa-priehal-semyu.md` · 2026-08-13
@@ -481,7 +483,6 @@
 - CI main КРАСНЫЙ: сторож rootdir дочернего pytest сторожит механизм, которого больше нет  ·  `inbox-ci-main-krasnyi-storozh-rootdir-docherne.md` · 2026-08-26
 - CIO: этап-1 (диагностика) готов документом — исполнять гэпы G1→G4, осколки 13.08 закрыть как дубли  ·  `inbox-cio-etap1-diagnostika-gotova-ispolnyat-g1-g4.md` · 2026-08-19
 - CLMM «79%»: research (часть 1 ADR-070 п.20) готов документом — остаётся часть 2 (ADR допуска с хеджем)  ·  `inbox-clmm-research-chast1-gotova-adr-070-p20.md` · 2026-08-19
-- main красный с 9cb8a7823: 28 тестов захвата карточек падают на UnmeasurableClaim (нет SPA_SESSION_PID)  ·  `inbox-commit-9cb8a7823-krasit-28-testov-zahvata.md` · 2026-08-26
 - Critical-карточка голодает 4 дня при 40+ циклах: подъёмы/находки вытесняют верх очереди — нужно правило анти-голодания  ·  `inbox-critical-kartochka-goloda-et-4-dnya-pri-40-tsiklah.md` · 2026-08-26
 - Демоушен книг Aggressive по ОТНОСИТЕЛЬНОМУ рангу (решение владельца 09.08, вариант A)  ·  `inbox-demoushen-knig-aggressive-po-otnositelno.md` · 2026-08-09
 - Долгоживущие агенты не подхватывают доставленный код — и никто об этом не говорит  ·  `inbox-dolgozhivuschie-agenty-ne-podhvatyvayut.md` · 2026-08-08

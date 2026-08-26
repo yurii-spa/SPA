@@ -741,3 +741,24 @@ def pytest_sessionstart(session):                # noqa: D401 — хук pytest
 def pytest_sessionfinish(session, exitstatus):   # noqa: D401 — хук pytest
     """Отчёт сторожа живого `data/` — и красный прогон, если состояние поехало."""
     live_data_write_guard.session_finish(session)
+
+
+# ---------------------------------------------------------------------------
+# Ни один тест не судит по ОКРУЖЕНИЮ прогона: `SPA_SESSION_PID`/`SPA_SESSION_ID`
+# снимаются на время каждого теста. Замер 26.08 (#388): один и тот же sha
+# 2a9489d84 давал `197 passed` на Маке под оркестратором и `28 failed` в CI —
+# разница ровно в этих двух переменных, и четыре теста при этом зеленели ВХОЛОСТУЮ
+# (текст `UnmeasurableClaim` содержит слова, которые они искали в другом отказе).
+# Разбор, замеры и почему это НЕ ослабление — spa_core/tests/ambient_session_guard.py.
+# Загружается по пути к файлу (как сторожа выше): тот же модуль подключается из
+# ОБОИХ корней conftest, второй копии быть не должно.
+# ---------------------------------------------------------------------------
+_AMBIENT_GUARD_PATH = Path(__file__).resolve().parent / "ambient_session_guard.py"
+ambient_session_guard = sys.modules.get("spa_ambient_session_guard")
+if ambient_session_guard is None:
+    _amb_spec = _ilu.spec_from_file_location("spa_ambient_session_guard", _AMBIENT_GUARD_PATH)
+    ambient_session_guard = _ilu.module_from_spec(_amb_spec)   # type: ignore[arg-type]
+    _amb_spec.loader.exec_module(ambient_session_guard)        # type: ignore[union-attr]
+    sys.modules["spa_ambient_session_guard"] = ambient_session_guard
+
+_no_ambient_session_identity = ambient_session_guard._no_ambient_session_identity

@@ -977,10 +977,30 @@ class TestT1FloorMirrorsPolicy:
         from spa_core.tuner.portfolio_rebalancer import _DEFAULT_CONSTRAINTS
         assert _DEFAULT_CONSTRAINTS.t1_min != 0.55
 
-    def test_deliberate_margins_kept(self):
-        """Осознанный запас владелец решил ОСТАВИТЬ — он не должен уехать вместе с фантомом."""
+    def test_margins_mirror_policy_after_the_owner_reversed_himself(self):
+        """Запасов больше нет: поля — ЗЕРКАЛО живого RiskConfig (ADR-144, реш. владельца 26.08).
+
+        ИЗМЕНЕНИЕ ТЕСТА НАМЕРЕННОЕ (инв. #16), обоснование здесь и в
+        `docs/journal/2026-W35.md`. Прежняя версия называлась
+        `test_deliberate_margins_kept` и пинила запасы 0.25 / 0.45 / 0.07 / 7 по решению
+        владельца **25.08 «запас оставить»**. **26.08 владелец это решение ОТМЕНИЛ** кнопкой
+        «Зеркалить политику» (карточка `own-tuner-zerkalit-politiku-zapasy-snyaty`, ADR-144),
+        и реализация уехала на `origin/main` коммитом `b6f426f88`. Автор той правки обновил три
+        пина в `spa_core/tests/`, а этот — четвёртый, в ДРУГОМ корне (`tests/`) — не увидел,
+        и с 26.08 он красил `main` в одиночку (замер цикла #388: полный прогон CI-командой на
+        чистом `origin/main` = ровно 1 failed, и это он).
+
+        Проверка не ослаблена, а перенесена на источник правды: раньше она сверяла литералы с
+        литералами (класс «эхо»), теперь — поля тюнера с ЖИВЫМ `RiskConfig`. Изменится
+        политика — зеркало обязано поехать следом, иначе тест краснеет.
+        """
         from spa_core.tuner.portfolio_rebalancer import _DEFAULT_CONSTRAINTS as c
-        assert c.per_protocol_max == 0.25
-        assert c.t2_max == 0.45
-        assert c.cash_min == 0.07
-        assert c.max_protocols == 7
+        from spa_core.risk.policy import RiskConfig
+        cfg = RiskConfig()
+        assert c.per_protocol_max == cfg.max_concentration_t1
+        assert c.t2_max == cfg.max_total_t2_allocation
+        assert c.cash_min == cfg.min_cash_pct
+        assert c.max_protocols == cfg.max_protocols
+        # обратное плечо: ужесточение по-прежнему возможно ОДНИМ полем, формула min() жива
+        from spa_core.tuner.allocation_tuner import TunerConstraints
+        assert TunerConstraints(per_protocol_max=0.25).protocol_cap("T1") == 0.25
