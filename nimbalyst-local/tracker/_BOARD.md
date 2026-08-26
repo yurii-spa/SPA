@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **680** · ждёт владельца: **17** · занято сессиями: **6**.
+> Всего карточек: **681** · ждёт владельца: **17** · занято сессиями: **6**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -211,7 +211,7 @@
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (323)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (324)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -503,6 +503,7 @@
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
 - Находка петли: аналитик red_team: CRITICAL — требует реакции (карточка/решение), не п  ·  `inbox-nahodka-petli-analitik-red-team-critical.md` · 2026-08-10
 - Находка петли: возможность aave_v3 4.0586% (evidence L4) доступна книге, не держится  ·  `inbox-nahodka-petli-vozmozhnost-aave-v3-4-0586.md` · 2026-08-25
+- Находка петли: возможность fluid_fusdc 5.11% (evidence L3) доступна книге, не держитс  ·  `inbox-nahodka-petli-vozmozhnost-fluid-fusdc-5-2.md` · 2026-08-26
 - Обещанная перепроверка DNS checkup осталась без исполнителя: карточку закрыли, критерий не выполнен  ·  `inbox-obeschannaya-pereproverka-dns-checkup-os.md` · 2026-08-22
 - Окно до 6 часов: ответ владельца между нажатием кнопки и прогоном моста живёт в одном экземпляре  ·  `inbox-okno-do-6-chasov-otvet-vladeltsa-mezhdu.md` · 2026-08-15
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08
@@ -551,7 +552,6 @@
 - Включить redteam_rotation: 1021 строка состязательных сценариев написана и не бегает ни разу  ·  `agent-vklyuchit-redteam-rotation.md` · 2026-08-21
 ### · backlog
 - Аллокатор слеп к лимиту сети — предлагает 95 % на Ethereum, и гейт блокирует ВСЮ раскладку  ·  `agent-allocator-slep-k-limitu-seti.md` · 2026-08-08
-- Генератор changelog'а не зовёт никто — файл на сайте не обновляется 23 дня  ·  `agent-changelog-generator-never-called.md` · 2026-08-09
 - День с пустой книгой не считается доказанным (решение владельца 19.08, вариант 1)  ·  `agent-den-s-pustoi-knigoi-ne-dokazannyi.md` · 2026-08-20
 - Долгоживущие агенты крутят код многонедельной давности — перезапустить (полномочие ADR-078)  ·  `agent-dolgozhivuschie-agenty-krutyat-staryi-kod.md` · 2026-08-09
 - «303 файла разошлись» — почти всё это шум по построению, и я пять раз докладывал его как риск  ·  `agent-drift-number-is-mostly-noise.md` · 2026-08-10
@@ -591,6 +591,7 @@
 - Две автономные сессии взяли ОДНУ карточку одновременно — занятость карточки ничем не проверяется  ·  `agent-card-claim-collision-guard.md` · 2026-07-30
 - Шаг 0b считает карточку занятой по файлам сессии, которая уже объявила «done»  ·  `agent-card-claim-file-overlap-ignores-done.md` · 2026-07-30
 - Правка чужой карточки запирает её на 3 часа — даже когда сессия прямо назвала в объявлении ДРУГУЮ карточку  ·  `agent-card-file-in-ownership-locks-a-card-it-doesnt-claim.md` · 2026-08-01
+- Генератор changelog'а не зовёт никто — файл на сайте не обновляется 23 дня  ·  `agent-changelog-generator-never-called.md` · 2026-08-09
 - checkpoint-7day не проходит гейт деплоя: он выходит с кодом 1, когда НАХОДИТ проблему, а не когда сломан  ·  `agent-checkpoint-7day-gate-conflict.md` · 2026-08-08
 - Чекпойнт-доставка падает 404 на ПЕРВОМ вызове в сессии — и её вообще не вызывают  ·  `agent-checkpoint-tool-crashes-on-first-use.md` · 2026-08-02
 - CI красный на main — 14 тестов зависят от git-ignored файлов data/  ·  `agent-ci-data-dependent-red-tests.md` · 2026-07-29
