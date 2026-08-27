@@ -1,0 +1,17 @@
+---
+trackerStatus:
+  type: inbox
+title: "Находка петли: манифест ↔ факты: com.spa.source_discovery: plist_source 'repo:launchd"
+status: new
+source: nimbalyst
+created: 2026-08-27
+finding_key: "B5:drift:com.spa.source_discovery"
+---
+
+Находка петли ADR-066 (architecture_conformance, WARN, подтверждена 2 прогонами подряд):
+
+манифест ↔ факты: com.spa.source_discovery: plist_source 'repo:launchd/com.spa.source_discovery.plist' → 'launch_agents'; reboot_safe False → True
+
+Сделано = находка исчезает из отчёта источника при следующем прогоне (мост закроет карточку сам).
+
+_finding_key: `B5:drift:com.spa.source_discovery` · ADR-066_
