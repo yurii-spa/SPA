@@ -2,7 +2,9 @@
 trackerStatus:
   type: agent-task
 title: "Просадку вычислить не из чего — НАРАЩИВАНИЕ запрещено (решение владельца, ADR-129)"
-status: backlog
+status: in-progress
+claimed_by: interactive-session-2026-08-27
+claimed_note: "владелец 27.08 закрепил блок внутридневной просадки за интерактивной сессией; оркестратор берёт ОСТАЛЬНОЕ"
 source: owner-decision-slepaya-prosadka-i-pokupki-naraschivat-l (вариант 1, 2026-08-23 20:00:51Z)
 created: 2026-08-23
 priority: high
