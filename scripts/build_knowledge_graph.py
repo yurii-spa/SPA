@@ -95,10 +95,24 @@ def build(root: str | None = None) -> dict:
         by_name[base] += n
         if not base.endswith(".md"):
             by_name[base + ".md"] += n
-    orphans = sorted(x for x in node_set
+    # Что НЕ является знанием и потому не участвует в счёте связности:
+    #   nimbalyst-local/ — очередь задач (531 «сирота» на замере 27.08);
+    #   data/            — runtime-артефакты, их пишут агенты, а не люди (68);
+    #   reports/         — разовые выгрузки.
+    # Смысл вычета один: метрика, состоящая из НОРМЫ, учит себя не читать — тот же
+    # дефект был у сторожа дрейфа. Каталоги названы ЯВНО, а не отфильтрованы по
+    # признаку: иначе завтра под правило попадёт настоящее знание и исчезнет молча.
+    NOT_KNOWLEDGE = ("nimbalyst-local", "data", "reports")
+    knowledge = {x for x in node_set if x.split(os.sep)[0] not in NOT_KNOWLEDGE}
+    orphans = sorted(x for x in knowledge
                      if not deg_in.get(x) and not by_name.get(os.path.basename(x)))
+    # Разбивка по областям — чтобы кучу можно было разбирать, а не смотреть.
+    by_area: dict[str, int] = {}
+    for x in orphans:
+        area = x.split(os.sep)[0] if os.sep in x else "(корень)"
+        by_area[area] = by_area.get(area, 0) + 1
 
-    linked = len(node_set) - len(orphans)
+    linked = len(knowledge) - len(orphans)
     # Обязательные правила — отдельно от общей связности. Общая может быть любой;
     # НЕДОСТИЖИМОЕ ПРАВИЛО — дефект: сессия узнает о нём только угадав путь.
     # `CLAUDE.md` в список НЕ входит: он корень, его загружают по соглашению, а не по
@@ -108,14 +122,16 @@ def build(root: str | None = None) -> dict:
     unreachable = [n for n in mandatory
                    if not deg_in.get(n) and not by_name.get(os.path.basename(n))]
     return {
-        "notes": len(node_set),
+        "notes": len(knowledge),
+        "notes_all": len(node_set),
+        "orphans_by_area": dict(sorted(by_area.items(), key=lambda kv: -kv[1])),
         "mandatory_rules": len(mandatory),
         "mandatory_unreachable": unreachable,
         "links": len(edges),
         "linked": linked,
         "orphans": len(orphans),
         # Одно число для брифинга: доля документов, до которых ведёт хоть одна ссылка.
-        "connectivity_pct": round(100.0 * linked / len(node_set), 1) if node_set else 0.0,
+        "connectivity_pct": round(100.0 * linked / len(knowledge), 1) if knowledge else 0.0,
         "hubs": [{"note": f, "out": n} for f, n in deg_out.most_common(8)],
         "most_cited": [{"note": str(f), "in": n} for f, n in deg_in.most_common(8)],
         "orphan_sample": orphans[:40],
