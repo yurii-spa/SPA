@@ -140,6 +140,9 @@ def durable_process(env=None, ps=None):
 
     mod = _load_resolver()
     probe = ps or (getattr(mod, "_ps_lstart", None) if mod else None)
+    anchor_kind = getattr(mod, "anchor_kind", None) if mod else None
+    ANCHOR_TIMER = getattr(mod, "ANCHOR_TIMER", "proves_nothing") if mod else "proves_nothing"
+    ANCHOR_UNMEASURED = getattr(mod, "ANCHOR_UNMEASURED", "unmeasured") if mod else "unmeasured"
     if probe is None:
         return {}, "измерить старт процесса нечем (`check_undelivered_work` не загружен)"
     try:
@@ -149,6 +152,26 @@ def durable_process(env=None, ps=None):
     if rc != 0 or not str(out).strip():
         return {}, (f"процесса pid{pid} сейчас нет (rc={rc}) — объявленный долгоживущий "
                     f"процесс не подтверждён, поле не записано")
+
+    # Процесс есть — но СПОСОБЕН ЛИ он быть сессией? Довод абзацем выше («shell outlives the
+    # work by days ⇒ вечный ложный ACTIVE») отвергает ppid, и ровно он же отвергает будильник:
+    # фоновый `sleep 36000` живёт свои 10 часов независимо от того, работает сессия или умерла
+    # ночью. Замер #393: сессии #390 и #391 объявили якорем именно такой `sleep`, их процессы
+    # `claude` завершились, а шаг 0a ПРОПУСТИЛ оба дерева как «сессия подтверждённо активна» —
+    # недоставленная работа (ADR-148, data_dir_guard) стала невидимой до истечения таймера.
+    # Отказ здесь — тот же контракт `({}, причина)`, что и у неподтверждённого процесса: запись
+    # просто уходит без якоря, а не с якорем, который лжёт.
+    kind, cmd = (ANCHOR_UNMEASURED, "")
+    if anchor_kind is not None:
+        try:
+            kind, cmd = anchor_kind(pid)
+        except (OSError, ValueError, TypeError):                        # pragma: no cover
+            kind, cmd = ANCHOR_UNMEASURED, ""
+    if kind == ANCHOR_TIMER:
+        return {}, (f"SPA_SESSION_PID={pid} указывает на `{cmd}` — процесс выходит ПО ТАЙМЕРУ, "
+                    f"а не вместе с сессией, и живым читается ещё долго после её смерти "
+                    f"(замер #393). Якорь не записан: объявляй СВОЙ процесс "
+                    f"(`SPA_SESSION_PID=$$` из долгоживущей оболочки сессии)")
     return {"session_pid": pid, "session_pid_start": str(out).strip()}, ""
 
 

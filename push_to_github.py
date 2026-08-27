@@ -1499,6 +1499,71 @@ def batch_push(pat: str, file_args: list, message: str, repo: str, branch: str,
             "skipped_files": [p for p, _, _ in unchanged]}
 
 
+ADR_INTERLOCK_EXIT = 7
+
+
+class AdrNumberCollision(Exception):
+    """Набор доставки берёт номер ADR, который уже занят другим решением."""
+
+
+def enforce_adr_numbers(all_files, allow: bool = False,
+                        runner_file: Optional[str] = None) -> bool:
+    """Отказать, если уезжающие решения сталкиваются номерами. ОДНА реализация на ВСЕ CLI.
+
+    Возвращает True, если интерлок отработал и претензий нет; False — если в наборе
+    решений нет вовсе (сторожу нечего сказать). Бросает :class:`AdrNumberCollision`
+    при находке; ``allow=True`` — осознанное продолжение (печатается, не молчит).
+
+    **Почему функция, а не блок в `main()`.** До 2026-08-27 интерлок жил строками ВНУТРИ
+    `push_to_github.py::main()`, а `push_to_github_batch.py::main()` — drop-in CLI на ту же
+    `batch_push`, под которым стоит `safe_site_push.py`, — этих строк не имел. Замер
+    (сухой прогон, один и тот же набор, origin/main `48c26e30f`): корневой CLI даёт
+    ОТКАЗ rc=7, batch-CLI печатает «DRY OK: 1 файл попал бы в 1 коммит» и rc=0. Через
+    эту дверь 26.08 и уехал второй `ADR-145`: `ADR-145-pr-ci-liveness-guard` приземлился
+    в 20:35:47Z, `ADR-145-orchestrator-two-concurrent-cycles` — в 23:15:36Z, и с этого
+    момента `main` красный (`test_adr_number_allocator.py`, два падения).
+
+    Файл `push_to_github_batch.py` в собственной шапке объясняет, что реализация доставки
+    у обоих CLI ОДНА, «поэтому x-бит и идемпотентность нельзя починить в одном пушере и
+    забыть в другом». Ровно это и произошло — с проверкой, а не с доставкой: правило
+    соблюдали для функций и не соблюдали для интерлоков. Поэтому здесь не «добавлена
+    вторая копия блока», а вынесена одна реализация, и обе двери зовут её.
+
+    Отбор `docs/decisions/ADR-` — ТРИГГЕР (пуш без решений интерлок не трогает), а порция
+    сторожу отдаётся полная: см. :func:`adr_interlock_payload`.
+    """
+    adr = [f for f in all_files
+           if "docs/decisions/ADR-" in str(f).replace("\\", "/")]
+    if not adr:
+        return False
+
+    base = os.path.dirname(os.path.abspath(runner_file or __file__))
+    guard = os.path.join(base, "scripts", "adr_number.py")
+    if not os.path.isfile(guard):
+        msg = (f"ОТКАЗ (номера ADR): сторож {guard} не найден — столкновение номеров "
+               f"НЕ измерено, а решения в наборе есть (fail-CLOSED). "
+               f"Осознанно продолжить: --allow-adr-collision.")
+        if allow:
+            print(msg + "\n(продолжаю: столкновение номеров разрешено явно)", file=sys.stderr)
+            return True
+        print(msg, file=sys.stderr)
+        raise AdrNumberCollision(msg)
+
+    rc = subprocess.run([sys.executable, guard, "check",
+                         "--files", *adr_interlock_payload(all_files)]).returncode
+    if rc == 0:
+        return True
+
+    msg = (f"ОТКАЗ (номера ADR, rc={rc}): набор не доставлен. Свободный номер — "
+           f"`python3 scripts/adr_number.py next`; осознанно продолжить — "
+           f"--allow-adr-collision (или SPA_PUSH_ALLOW_ADR_COLLISION=1).")
+    if allow:
+        print(msg + "\n(продолжаю: столкновение номеров разрешено явно)", file=sys.stderr)
+        return True
+    print(msg, file=sys.stderr)
+    raise AdrNumberCollision(msg)
+
+
 def adr_interlock_payload(all_files):
     """Что именно ПОКАЗАТЬ сторожу номеров ADR: ВЕСЬ набор доставки, а не одни решения.
 
@@ -1594,24 +1659,12 @@ def main():
     # предсуществующий дубль ADR-067 не запирает посторонние доставки. Не привязан к
     # SPA_AUTONOMOUS: столкновение номеров — объективное измерение, а не суждение владельца,
     # и attended-сессии сталкивались ровно так же.
-    _adr = [f for f in all_files
-            if "docs/decisions/ADR-" in str(f).replace("\\", "/")]
-    if _adr and not allow_adr:
-        _adr_guard = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                  "scripts", "adr_number.py")
-        if not os.path.isfile(_adr_guard):
-            print(f"ОТКАЗ (номера ADR): сторож {_adr_guard} не найден — столкновение номеров "
-                  f"НЕ измерено, а решения в наборе есть (fail-CLOSED). "
-                  f"Осознанно продолжить: --allow-adr-collision.", file=sys.stderr)
-            sys.exit(7)
-        _rc = subprocess.run([sys.executable, _adr_guard, "check",
-                              "--files", *adr_interlock_payload(all_files)]).returncode
-        if _rc != 0:
-            print(f"ОТКАЗ (номера ADR, rc={_rc}): набор не доставлен. Свободный номер — "
-                  f"`python3 scripts/adr_number.py next`; осознанно продолжить — "
-                  f"--allow-adr-collision (или SPA_PUSH_ALLOW_ADR_COLLISION=1).",
-                  file=sys.stderr)
-            sys.exit(7)
+    # Реализация — ОДНА (`enforce_adr_numbers`), её же зовёт push_to_github_batch.py:
+    # блок строками жил здесь и только здесь, а вторая дверь пропускала столкновения.
+    try:
+        enforce_adr_numbers(all_files, allow=allow_adr)
+    except AdrNumberCollision:
+        sys.exit(ADR_INTERLOCK_EXIT)
 
     # ── OWNER-GATE INTERLOCK (ADR-OWN-2026-07) — autonomous context ONLY ──────────
     # In the autonomous orchestrator (SPA_AUTONOMOUS=1) any push touching landing/ MUST

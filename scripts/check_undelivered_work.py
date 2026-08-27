@@ -256,6 +256,85 @@ def _ps_lstart(pid: int):
     return p.returncode, p.stdout
 
 
+
+# ── чем ЯКОРЬ вообще может быть ──────────────────────────────────────────────
+
+#: Команды, существование которых НИЧЕГО не говорит о жизни сессии. Список растёт
+#: только ИЗМЕРЕНИЕМ, а не подозрением: сюда попадает то, что уже читалось как живая
+#: сессия при мёртвой сессии.
+#:
+#: `sleep` — замер цикла #393 (27.08). Сессии #390 и #391 объявили якорем `sleep 36000`,
+#: запущенный фоном. Их процессы `claude` завершились ночью, работа (`ADR-148`
+#: entrypoint_import_probe; `spa_core/tests/data_dir_guard.py`) осталась только в
+#: `/tmp/spa_c390` и `/tmp/spa_c391` и на `origin/main` не попала, — а шаг 0a
+#: ПРОПУСТИЛ оба дерева со словами «сессия подтверждённо активна, расхождение там
+#: норма»: `ps -p 42391` показывал живой `sleep`. Осиротевшая работа была невидима
+#: ровно потому, что сторож смотрел на будильник вместо работника, и оставалась бы
+#: невидимой до 12:13/13:51, когда таймер сам истечёт.
+ANCHOR_PROVES_NOTHING = ("sleep",)
+
+#: Исходы измерения якоря. `UNMEASURED` — честное «нечем спросить», НЕ обвинение.
+ANCHOR_SESSION_CAPABLE = "session_capable"
+ANCHOR_TIMER = "proves_nothing"
+ANCHOR_UNMEASURED = "unmeasured"
+
+
+def _ps_command(pid: int):
+    """(rc, stdout) для `ps -p <pid> -o command=`. rc=1 — процесса нет; 127 — `ps` не отработал."""
+    try:
+        p = subprocess.run(["ps", "-p", str(pid), "-o", "command="],
+                           capture_output=True, text=True)
+    except (OSError, subprocess.SubprocessError):
+        return 127, ""
+    return p.returncode, p.stdout
+
+
+def anchor_kind(pid, cmd_probe=_ps_command):
+    """(исход, команда) — способен ли процесс `pid` БЫТЬ сессией.
+
+    **Почему вопрос вообще задаётся.** Якорь придуман потому, что `session` по умолчанию —
+    pid однократной CLI-команды, умирающей вместе с ней (карточка `agent-durable-session-id`).
+    Лекарство — процесс, который живёт дольше команды; но «дольше команды» и «ровно столько,
+    сколько живёт сессия» — РАЗНЫЕ свойства, и второе никем не проверялось. Фоновый
+    `sleep 36000` удовлетворяет первому и переживает сессию на часы: он выходит по таймеру,
+    а не вместе с работником. Собственный docstring `log_session_change.durable_process`
+    отвергает ppid ровно этим доводом («shell outlives the work by days ⇒ вечный ложный
+    ACTIVE ⇒ шаг 0a замолчит о недоставленной работе») — таймер здесь тот же fail-OPEN
+    в другой одежде.
+
+    **Почему по имени команды, а не по родству.** Замер #393: у фонового `sleep`, запущенного
+    ЖИВОЙ сессией, ppid тоже равен 1 (проверено на своём же процессе) — по родителю живой
+    якорь неотличим от осиротевшего, и проверка ppid дала бы ложные находки. Имя команды
+    отличает их честно: `sleep` не является сессией НИКОГДА, ни живой, ни мёртвой.
+
+    `UNMEASURED` намеренно НЕ понижает вердикт: «нечем спросить» — это не «поймали», и
+    выдавать одно за другое здесь значило бы завести ровно тот класс лжи, против которого
+    написана функция."""
+    try:
+        rc, out = cmd_probe(pid)
+    except (OSError, ValueError, TypeError):                            # pragma: no cover
+        return ANCHOR_UNMEASURED, ""
+    if rc != 0 or not str(out).strip():
+        return ANCHOR_UNMEASURED, ""
+    cmd = str(out).strip()
+    head = cmd.split()[0] if cmd.split() else ""
+    base = os.path.basename(head)
+    if base in ANCHOR_PROVES_NOTHING:
+        return ANCHOR_TIMER, cmd
+    return ANCHOR_SESSION_CAPABLE, cmd
+
+
+def _anchor_verdict(pid, cmd_probe):
+    """None — якорь может быть сессией (или измерить нечем); иначе (UNKNOWN, измерение словами)."""
+    kind, cmd = anchor_kind(pid, cmd_probe=cmd_probe) if cmd_probe else (ANCHOR_UNMEASURED, "")
+    if kind != ANCHOR_TIMER:
+        return None
+    return UNKNOWN, (f"якорь pid{pid} — это `{cmd}`: процесс выходит ПО ТАЙМЕРУ, а не вместе "
+                     f"с сессией, поэтому его существование о жизни сессии не говорит НИЧЕГО "
+                     f"(замер #393). Активность НЕ ИЗМЕРЕНА — сверить руками "
+                     f"(`ps` по процессу самой сессии) и, если сессия мертва, поднять её работу")
+
+
 # ── разбор журнала объявлений ────────────────────────────────────────────────
 
 def read_entries(log_path, last):
@@ -682,7 +761,7 @@ def borrow_durable(entry, anchors, kin_source=None):
                                  f"{fields.get('session_pid_start')}): в самой записи её нет")
 
 
-def _durable_state(entry, ts, ps):
+def _durable_state(entry, ts, ps, cmd_probe=_ps_command):
     """None — сессия долгоживущего процесса не объявляла; иначе (state, измерение словами).
 
     **Основной критерий активности** (карточка `agent-durable-session-id`). `session` по
@@ -723,6 +802,9 @@ def _durable_state(entry, ts, ps):
         if started > ts + CLOCK_SKEW:
             return NOT_CONFIRMED, (f"pid{pid} занят ДРУГИМ процессом: старт "
                                    f"{started.isoformat()} позже объявления {ts.isoformat()}")
+        timer = _anchor_verdict(pid, cmd_probe)
+        if timer is not None:
+            return timer
         return ACTIVE, f"долгоживущий процесс сессии pid{pid} жив (старт {started.isoformat()})"
     recorded = _parse_lstart(str(recorded_raw))
     if recorded is None:
@@ -731,11 +813,14 @@ def _durable_state(entry, ts, ps):
     if abs((started - recorded).total_seconds()) > CLOCK_SKEW.total_seconds():
         return NOT_CONFIRMED, (f"pid{pid} занят ДРУГИМ процессом: старт {started.isoformat()} "
                                f"вместо записанного {recorded.isoformat()}")
+    timer = _anchor_verdict(pid, cmd_probe)
+    if timer is not None:
+        return timer
     return ACTIVE, (f"долгоживущий процесс сессии pid{pid} жив — тот же процесс "
                     f"(старт {started.isoformat()})")
 
 
-def durable_process_gone(entry, ps=_ps_lstart):
+def durable_process_gone(entry, ps=_ps_lstart, cmd_probe=_ps_command):
     """True — сессия ОБЪЯВЛЯЛА долгоживущий процесс, и его измеренно больше нет.
 
     Единственное основание снять окно ожидания досрочно (см. докстринг модуля). Условие
@@ -757,12 +842,12 @@ def durable_process_gone(entry, ps=_ps_lstart):
     ts = _parse_ts(entry.get("ts"))
     if ts is None:
         return False                       # метка времени не разобрана → это UNKNOWN, не смерть
-    durable = _durable_state(entry, ts, ps)
+    durable = _durable_state(entry, ts, ps, cmd_probe=cmd_probe)
     return durable is not None and durable[0] == NOT_CONFIRMED
 
 
 def session_state(entry, self_session, ps=_ps_lstart, self_session_trusted=True,
-                  label_identity_disproved=False):
+                  label_identity_disproved=False, cmd_probe=_ps_command):
     """(ACTIVE|NOT_CONFIRMED|UNKNOWN, измерение словами).
 
     ACTIVE — активность ПОДТВЕРЖДЕНА (это мы сами; объявленный сессией долгоживущий процесс
@@ -790,13 +875,15 @@ def session_state(entry, self_session, ps=_ps_lstart, self_session_trusted=True,
         if self_session_trusted:
             return ACTIVE, "это текущая сессия"
         state, why = _measured_session_state(
-            entry, session, ps, label_identity_disproved=label_identity_disproved)
+            entry, session, ps, label_identity_disproved=label_identity_disproved,
+            cmd_probe=cmd_probe)
         return state, (f"идентификатор совпал с личностью этой проверки ({self_session}), но "
                        f"она выведена из pid однократного процесса и доверенной не является "
                        f"(нет SPA_SESSION_ID) — меряем запись как чужую: {why}")
 
     return _measured_session_state(entry, session, ps,
-                                   label_identity_disproved=label_identity_disproved)
+                                   label_identity_disproved=label_identity_disproved,
+                                   cmd_probe=cmd_probe)
 
 
 def pid_from_label(session):
@@ -861,14 +948,15 @@ def pid_from_label(session):
     return pid, "label", ""
 
 
-def _measured_session_state(entry, session, ps=_ps_lstart, label_identity_disproved=False):
+def _measured_session_state(entry, session, ps=_ps_lstart, label_identity_disproved=False,
+                            cmd_probe=_ps_command):
     """Измерение активности записи без ветки «это мы сами» (см. `session_state`)."""
     ts = _parse_ts(entry.get("ts"))
     if ts is None:
         return UNKNOWN, (f"метка времени записи не разобрана: {entry.get('ts')!r} — "
                          "возраст объявления не измерен")
 
-    durable = _durable_state(entry, ts, ps)
+    durable = _durable_state(entry, ts, ps, cmd_probe=cmd_probe)
     if durable is not None:
         return durable
 
@@ -905,6 +993,9 @@ def _measured_session_state(entry, session, ps=_ps_lstart, label_identity_dispro
     if started > ts + CLOCK_SKEW:
         return NOT_CONFIRMED, (f"{named} занят ДРУГИМ процессом: старт {started.isoformat()} "
                                f"позже объявления {ts.isoformat()}")
+    timer = _anchor_verdict(pid, cmd_probe)
+    if timer is not None:
+        return timer
     return ACTIVE, f"{named} жив (старт {started.isoformat()})"
 
 
@@ -2467,7 +2558,7 @@ def add_witness(record, who) -> bool:
 def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                  malformed_lines=0, log_path=None, now=None,
                  grace_hours=DEFAULT_GRACE_HOURS, self_session_trusted=True,
-                 shared_trees=None):
+                 shared_trees=None, cmd_probe=_ps_command):
     root = Path(root)
     now = now or datetime.now(timezone.utc)
     grace = timedelta(hours=grace_hours)
@@ -2613,7 +2704,8 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
         entry, borrowed = borrow_durable(entry, anchors, kin)
         state, why = session_state(
             entry, self_session, ps=ps, self_session_trusted=self_session_trusted,
-            label_identity_disproved=str(entry.get("session") or "").strip() in disproved)
+            label_identity_disproved=str(entry.get("session") or "").strip() in disproved,
+            cmd_probe=cmd_probe)
         if borrowed:
             why = f"{why} [{borrowed}]"
         if state == ACTIVE:
@@ -2638,7 +2730,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
             # Окно ждёт ЖИВУЮ сессию. Если объявленный сессией долгоживущий процесс измеренно
             # завершился — ждать некого, и запись меряется сейчас же (карточка
             # `inbox-shag-0a-svezhee-obyavlenie-mertvoi-sessi`, замер 14.08 / цикл #231).
-            if not durable_process_gone(entry, ps=ps):
+            if not durable_process_gone(entry, ps=ps, cmd_probe=cmd_probe):
                 fresh.append({"session": entry.get("session"), "ts": entry.get("ts"),
                               "age_hours": age_h,
                               "files": len(entry.get("files") or []),

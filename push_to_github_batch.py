@@ -122,6 +122,16 @@ toolchain_verdict = _root_push.toolchain_verdict
 ToolchainMismatch = _root_push.ToolchainMismatch
 TOOLCHAIN_FILES = _root_push.TOOLCHAIN_FILES
 
+# Интерлок номеров ADR (карточка `inbox-nomera-adr-stalkivayutsya-dva-raza-za-de`) — тоже
+# ОДНА реализация. До 27.08 её здесь не было ВОВСЕ: блок строками жил внутри
+# `push_to_github.py::main()`, а этот CLI — drop-in на ту же `batch_push`, и под ним стоит
+# `safe_site_push.py`. Замер (сухой прогон, один набор): корневой CLI rc=7 ОТКАЗ, этот —
+# rc=0 «DRY OK». Через эту дверь 26.08 уехал ВТОРОЙ `ADR-145`.
+enforce_adr_numbers = _root_push.enforce_adr_numbers
+AdrNumberCollision = _root_push.AdrNumberCollision
+ADR_INTERLOCK_EXIT = _root_push.ADR_INTERLOCK_EXIT
+adr_interlock_payload = _root_push.adr_interlock_payload
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -141,12 +151,17 @@ def main():
     parser.add_argument("--allow-toolchain-mismatch", action="store_true",
                         help="ОСОЗНАННО пушить инструментом, который разошёлся с копией в дереве "
                              "отправляемых файлов")
+    parser.add_argument("--allow-adr-collision", action="store_true",
+                        help="ОСОЗНАННО доставить решение под номером, уже занятым на origin, "
+                             "или вне реестра INDEX.md (по умолчанию такой пуш отклоняется)")
     args = parser.parse_args()
 
     allow_overwrite = bool(args.allow_overwrite) or \
         os.environ.get("SPA_PUSH_ALLOW_OVERWRITE") == "1"
     allow_toolchain = bool(args.allow_toolchain_mismatch) or \
         os.environ.get("SPA_PUSH_ALLOW_TOOLCHAIN_MISMATCH") == "1"
+    allow_adr = bool(args.allow_adr_collision) or \
+        os.environ.get("SPA_PUSH_ALLOW_ADR_COLLISION") == "1"
 
     all_files: list = []
     if args.files_pos:
@@ -169,6 +184,15 @@ def main():
         enforce_delivery_toolchain(all_files, allow=allow_toolchain, runner_file=__file__)
     except ToolchainMismatch:
         sys.exit(5)
+
+    # ── ИНТЕРЛОК НОМЕРОВ ADR — до сети, для ЛЮБОГО контекста ─────────────────────
+    # Тот же вызов, что и в push_to_github.py: реализация одна, дверей две. Про
+    # `runner_file`: сторож `scripts/adr_number.py` берётся рядом с ЗАПУЩЕННЫМ CLI,
+    # а не рядом с модулем, который он загрузил, — иначе подмена в тестах врала бы.
+    try:
+        enforce_adr_numbers(all_files, allow=allow_adr, runner_file=__file__)
+    except AdrNumberCollision:
+        sys.exit(ADR_INTERLOCK_EXIT)
 
     # ── OWNER-GATE INTERLOCK (ADR-OWN-2026-07) — autonomous context ONLY ──────────
     # Same guard as push_to_github.py: in the autonomous orchestrator (SPA_AUTONOMOUS=1)

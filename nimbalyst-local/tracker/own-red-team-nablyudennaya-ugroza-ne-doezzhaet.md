@@ -2,13 +2,14 @@
 trackerStatus:
   type: owner-decision
 title: Наблюдённая угроза до тебя не доезжает, а наша собственная остановка доезжает каждый день
-status: owner-done
+status: ingested
 priority: medium
 owner: yuriycooleshov@gmail.com
 created: 2026-08-18
 source: inbox-nahodka-petli-analitik-red-team-critical
 status_trail:
   - "2026-08-26T19:04:22.602076+00:00 blocked -> owner-done · queue.set_status/closed_by:agent/evidence:вариант А исполнен; критерий карточки проверен сквозным прогоном: THREATS_PRESENT 0 находок на main -> 1 после правки, CRITICAL остался 1; test_red_team_finding_loop.py 15 passed"
+  - "2026-08-27T05:24:13.780277+00:00 owner-done -> ingested · queue.set_status · cycle-78841"
 ---
 
 ## Что случилось и почему это важно

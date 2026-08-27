@@ -2,11 +2,12 @@
 trackerStatus:
   type: owner-decision
 title: CI молча не запустился на PR — зелёная галочка означала «не проверяли»
-status: owner-done
+status: ingested
 source: nimbalyst
 created: 2026-08-26
 status_trail:
   - "2026-08-26T20:34:03.051680+00:00 needs-owner -> owner-done · queue.set_status/closed_by:agent/evidence:варианты А+Б исполнены (ADR-145); критерий карточки проверен положительным контролем: head c7586a5 с одной галочкой Cloudflare даёт no_runs и код 1; test_pr_ci_liveness.py 20 passed / 11 subtests"
+  - "2026-08-27T05:24:14.004252+00:00 owner-done -> ingested · queue.set_status · cycle-78841"
 ---
 
 ## Что случилось и почему это важно
