@@ -678,6 +678,47 @@ def build_source_discovery_section() -> str:
                  "человека. Источник: `data/source_discovery.json` (ADR-142)._")
     return "\n".join(lines)
 
+def build_git_index_lag_section() -> str:
+    """Отставание git-индекса рабочего дерева от origin (ADR-152).
+
+    Замерено 27.08: сессия честно доложила «последний ADR — 078», тогда как на origin
+    их 129 — включая ADR-125 о старте трёх пакетов. Сессия не проглядела: у неё
+    физически не было файла. Индекс отставал на 1139 коммитов.
+
+    Отставание — ШТАТНОЕ свойство, а не поломка: пуши уходят в origin напрямую через
+    API и локального индекса не касаются, а синхронизация возит только spa_core/,
+    scripts/, tests/, architecture/. Поэтому строка не тревога, а указатель: читать
+    ADR/STATE/карточки надо из зеркала.
+    """
+    def _git(*args, cwd=PROJECT_ROOT):
+        try:
+            r = subprocess.run(["git", *args], cwd=cwd, capture_output=True,
+                               text=True, timeout=20)
+            return r.stdout.strip() if r.returncode == 0 else None
+        except Exception:  # noqa: BLE001
+            return None
+
+    lines = ["## 🪞 Git index vs origin"]
+    behind = _git("rev-list", "--count", "HEAD..origin/main")
+    if behind is None:
+        # «Не смогли посмотреть» ≠ «отставания нет» (инвариант #17).
+        lines.append("- отставание: **НЕ ИЗМЕРЕНО** (git недоступен или нет origin/main)")
+        return "\n".join(lines) + "\n"
+
+    mirror = os.path.join(os.path.expanduser("~"), "Documents", "SPA_mirror")
+    m_head = (_git("rev-parse", "--short", "HEAD", cwd=mirror)
+              if os.path.isdir(os.path.join(mirror, ".git")) else None)
+    lines.append(f"- рабочее дерево отстаёт от origin/main на **{behind}** коммит(ов) — "
+                 f"это штатно (пуши идут в origin через API, минуя локальный индекс)")
+    if m_head:
+        lines.append(f"- зеркало `~/Documents/SPA_mirror` @ `{m_head}` — "
+                     f"**ADR / STATE / карточки читать оттуда**")
+    else:
+        lines.append("- зеркало `~/Documents/SPA_mirror` **отсутствует** — "
+                     "локальные `docs/` могут быть устаревшими, сверяться не с чем")
+    return "\n".join(lines) + "\n"
+
+
 def build_track_integrity_section() -> str:
     """Do the two records of the same money agree? (own-32)
 
@@ -940,6 +981,7 @@ def main() -> None:
         build_launchd_section() + "\n",
         build_portfolio_section() + "\n",
         build_track_integrity_section() + "\n",
+        build_git_index_lag_section() + "\n",
         build_source_discovery_section() + "\n",
         build_system_health_section() + "\n",
         build_resilience_section() + "\n",
