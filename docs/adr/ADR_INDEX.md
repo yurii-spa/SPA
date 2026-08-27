@@ -42,7 +42,6 @@ ADR-файлы хранятся в двух местах: `docs/adr/` (осно�
 | [ADR-047-site-privacy-hardening.md](ADR-047-site-privacy-hardening.md) | ADR-047: Site Privacy Hardening (earn-defi.com) |
 | [ADR_001_initial_risk_policy.md](ADR_001_initial_risk_policy.md) | ADR-001: Initial Risk Policy v1.0 — Stable Lending Core |
 | [ADR_002_pendle_pt_integration.md](ADR_002_pendle_pt_integration.md) | ADR-002: Pendle PT Integration |
-| [ADR-053-tvl-floor-fail-closed.md](ADR-053-tvl-floor-fail-closed.md) | ADR-053: TVL-floor становится fail-CLOSED (провенанс TVL + отмена $20M-фабрикации) |
 | [ADR_009_capacity_limits.md](ADR_009_capacity_limits.md) | ADR-009 — Capacity Limits Enforcement (MP-209) |
 | [ADR_TEMPLATE.md](ADR_TEMPLATE.md) | ADR-XXX: [Short Decision Title] |
 
@@ -73,3 +72,20 @@ ADR-файлы хранятся в двух местах: `docs/adr/` (осно�
 | [ADR_018_bull_cycle_detector.md](../ADR_018_bull_cycle_detector.md) | ADR-018: Bull Cycle Detector + Dynamic Tier Allocation (FEAT-STRAT-001) |
 | [ADR_E2E_FORK_HARNESS.md](../ADR_E2E_FORK_HARNESS.md) | ADR: E2E Fork-Harness (MP-401) |
 | [ADR_TOKEN_VS_EQUITY.md](../ADR_TOKEN_VS_EQUITY.md) | ADR: Token vs Equity Round — Модель монетизации SPA |
+
+<!-- Внесены 2026-08-27: были на диске, но ни в одном реестре — то есть
+     находились только угадыванием имени файла (ADR-154, аудит сирот). -->
+- [ADR-049](ADR-049-maple-tier-evaluation.md) — ADR-049: Maple Finance Tier Evaluation (T2 vs T1) + Centrifuge RWA Watchlist
+- [ADR-051](ADR-051-fx-protocol-t3-watchlist.md) — ADR-051: f(x) Protocol — T3 Watchlist
+- [ADR-052](ADR-052-pendle-pt-vs-yt-distinction.md) — ADR-052: Pendle PT vs YT Risk Classification Distinction
+- [ADR-ACAD-001](ADR-ACAD-001.md) — ADR-ACAD-001: Academy Accounts & On-chain Verified Learning
+- [ADR-YL-001](ADR-YL-001-existing-spa-core-preserved.md) — ADR-YL-001: Existing SPA Core is preserved, not replaced
+- [ADR-YL-002](ADR-YL-002-llm-forbidden-in-execution-path.md) — ADR-YL-002: LLM is forbidden in the risk / execution / monitoring / kill path
+- [ADR-YL-003](ADR-YL-003-yield-lab-added-as-research-layer.md) — ADR-YL-003: Yield Lab is added as a closed research layer
+- [ADR-YL-004](ADR-YL-004-risk-scoring-v2-is-advisory-not-execution-gate.md) — ADR-YL-004: Risk Scoring v2 is advisory, not an execution gate
+- [ADR-YL-005](ADR-YL-005-execution-support-is-non-custodial.md) — ADR-YL-005: Execution Support is non-custodial and human-in-the-loop
+- [ADR-YL-006](ADR-YL-006-apy-claims-require-evidence-levels.md) — ADR-YL-006: APY claims require an evidence level (L0–L6)
+- [ADR-YL-007](ADR-YL-007-btc-eth-cycle-modules-are-decision-support-not-autotrading.md) — ADR-YL-007: BTC / ETH cycle modules are decision-support, not auto-trading
+- [ADR-YL-008](ADR-YL-008-unified-yield-lab-mandate.md) — ADR-YL-008 — Unified Yield Lab Mandate (spread-over-floor, every point risk-explained)
+- [ADR-YL-009](ADR-YL-009-canonical-documentation-structure.md) — ADR-YL-009 — Canonical documentation structure (single source per concept)
+- [ADR-YL-010](ADR-YL-010-external-timestamp-anchoring.md) — ADR-YL-010 — External timestamp anchoring (OpenTimestamps / Bitcoin)
