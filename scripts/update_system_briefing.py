@@ -678,6 +678,28 @@ def build_source_discovery_section() -> str:
                  "человека. Источник: `data/source_discovery.json` (ADR-142)._")
     return "\n".join(lines)
 
+def build_knowledge_graph_section() -> str:
+    """Связность базы знаний (ADR-154).
+
+    27.08 сессия трижды не нашла существующее и трижды сказала «этого нет» вместо
+    «не знаю, где смотреть». Причина: к этим файлам не ведёт ни одной ссылки.
+    Замер при введении: 17.9 % связности при 903 сиротах.
+    """
+    d = read_json("knowledge_graph.json")
+    if not d:
+        return ("## 🕸 Связность знаний\n- **НЕ ИЗМЕРЕНО** — нет "
+                "`data/knowledge_graph.json` (`scripts/build_knowledge_graph.py`)\n")
+    lines = ["## 🕸 Связность знаний",
+             f"- связность: **{d.get('connectivity_pct')}%** "
+             f"({d.get('linked')} из {d.get('notes')} заметок достижимы по ссылкам)",
+             f"- сирот: **{d.get('orphans')}** — находятся только угадыванием имени"]
+    hubs = d.get("hubs") or []
+    if hubs:
+        lines.append(f"- главный концентратор: `{hubs[0].get('note')}` "
+                     f"({hubs[0].get('out')} исходящих) — его устаревание рвёт доступ")
+    return "\n".join(lines) + "\n"
+
+
 def build_git_index_lag_section() -> str:
     """Отставание git-индекса рабочего дерева от origin (ADR-152).
 
@@ -982,6 +1004,7 @@ def main() -> None:
         build_portfolio_section() + "\n",
         build_track_integrity_section() + "\n",
         build_git_index_lag_section() + "\n",
+        build_knowledge_graph_section() + "\n",
         build_source_discovery_section() + "\n",
         build_system_health_section() + "\n",
         build_resilience_section() + "\n",
