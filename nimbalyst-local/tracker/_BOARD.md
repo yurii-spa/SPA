@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-27T07:11:33Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-27T08:28:05Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **708** · ждёт владельца: **1** · занято сессиями: **6**.
+> Всего карточек: **714** · ждёт владельца: **1** · занято сессиями: **7**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -15,6 +15,7 @@
 > Ставится `scripts/check_card_claim.py claim`, снимается `release` (и не действует после `done`/`ingested`). Перед взятием карточки — `check_card_claim.py check <карточка>`.
 
 - **Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать** — держит `cycle-28258` · с 2026-08-05T12:28:28Z  ·  `agent-fleet-parity-guard-never-scheduled.md`
+- **Просадку вычислить не из чего — НАРАЩИВАНИЕ запрещено (решение владельца, ADR-129)** — держит `interactive-session-2026-08-27`  ·  `agent-nevychislimaya-prosadka-zapret-naraschivaniya.md`
 - **а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…** — держит `pid43119` · с 2026-08-14T11:52:34Z  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md`
 - **Храповик считает упоминание в докстринге за проводку — и это лишь одна из трёх слепот** — держит `pid66130` · с 2026-08-16T03:49:44Z  ·  `inbox-hrapovik-schitaet-upominanie-v-dokstring.md`
 - **Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения** — держит `cycle-352` · с 2026-08-23T03:25:59Z  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md`
@@ -202,7 +203,7 @@
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (345)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (351)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -510,10 +511,16 @@
 - Книги за прошлый день нет в архиве: дозапись исходов навсегда несёт null в позициях  ·  `inbox-knigi-za-proshlyi-den-net-v-arhive-dozap.md` · 2026-08-17
 - Консолидация четырёх стресс-движков + дрейф порога в stress_engine v1  ·  `inbox-konsolidatsiya-chetyreh-stress-dvizhkov.md` · 2026-08-22
 - Крупнейшая позиция книги стоит на константе: у aave_v3 (Ethereum, 40%) TVL «не измерено», а пул в фиде есть  ·  `inbox-krupneishaya-pozitsiya-knigi-stoit-na-ko.md` · 2026-08-09
+- Локальные сессии на Маке рассуждают по устаревшим docs/ — зеркало origin + SessionStart-хук  ·  `inbox-lokalnye-sessii-rassuzhdayut-po-ustarevshim-docs.md` · 2026-08-26
 - Модуль #39: третьей рукой обязана быть ПРИЧИННАЯ статика, иначе через 30 дней форвард снова не отличит тайминг от недовеса  ·  `inbox-modul-39-tretei-rukoi-obyazana-byt-prich.md` · 2026-08-09
 - Модуль bot_commands заменён, но жив: свой getUpdates-поллер и свои двери в чат  ·  `inbox-modul-bot-commands-zamenen-no-zhiv-svoi.md` · 2026-08-13
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
 - Находка петли: аналитик red_team: CRITICAL — требует реакции (карточка/решение), не п  ·  `inbox-nahodka-petli-analitik-red-team-critical.md` · 2026-08-10
+- Находка петли: com.spa.source_discovery работает, но plist не персистентен (repo:laun  ·  `inbox-nahodka-petli-com-spa-source-discovery-r.md` · 2026-08-27
+- Находка петли: com.spa.tracker_status_sentinel работает, но plist не персистентен (re  ·  `inbox-nahodka-petli-com-spa-tracker-status-sen.md` · 2026-08-27
+- Находка петли: манифест ↔ факты: com.spa.source_discovery: plist_source 'repo:launchd  ·  `inbox-nahodka-petli-manifest-fakty-com-spa-sou.md` · 2026-08-27
+- Находка петли: манифест ↔ факты: com.spa.tracker_status_sentinel: plist_source 'repo:  ·  `inbox-nahodka-petli-manifest-fakty-com-spa-tra.md` · 2026-08-27
+- Находка петли: возможность spark_susds 3.8367% (evidence L4) доступна книге, не держи  ·  `inbox-nahodka-petli-vozmozhnost-spark-susds-3-2.md` · 2026-08-27
 - Обещанная перепроверка DNS checkup осталась без исполнителя: карточку закрыли, критерий не выполнен  ·  `inbox-obeschannaya-pereproverka-dns-checkup-os.md` · 2026-08-22
 - Окно до 6 часов: ответ владельца между нажатием кнопки и прогоном моста живёт в одном экземпляре  ·  `inbox-okno-do-6-chasov-otvet-vladeltsa-mezhdu.md` · 2026-08-15
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08
@@ -561,6 +568,7 @@
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
 - Чистка репо (мёртвый код) фазами  ·  `agent-cleanup.md` · 2026-07-16
 - Внутридневной paper-актор: ребаланс между суточными циклами (следующий шаг ADR-104)  ·  `agent-intraday-paper-actor.md` · 2026-08-21
+- Просадку вычислить не из чего — НАРАЩИВАНИЕ запрещено (решение владельца, ADR-129)  ·  `agent-nevychislimaya-prosadka-zapret-naraschivaniya.md` · 2026-08-23 · 🔒 `interactive-session-2026-08-27`
 - Q&A бэклог (12 ответов) + видимость задач  ·  `agent-qa-backlog.md` · 2026-07-16
 - Включить redteam_rotation: 1021 строка состязательных сценариев написана и не бегает ни разу  ·  `agent-vklyuchit-redteam-rotation.md` · 2026-08-21
 ### · backlog
@@ -574,7 +582,6 @@
 - Панель идеи #17 на 6 книгах из 10 состоит из неподвижных марок — кросс-секцию на ней измерить нельзя  ·  `agent-idea17-needs-a-panel-with-daily-marks.md` · 2026-08-02
 - morpho_steakhouse — 40 % книги — отсутствует в реестре риск-скоров, и три теста краснеют на main из-за этого  ·  `agent-morpho-steakhouse-bez-risk-score.md` · 2026-08-08
 - Мягкая ступень просадки (5–10 %) должна действовать в МИНУТАХ, а не на следующем суточном цикле (ADR-129)  ·  `agent-myagkii-tir-vnutri-dnya-v-minutah.md` · 2026-08-23
-- Просадку вычислить не из чего — НАРАЩИВАНИЕ запрещено (решение владельца, ADR-129)  ·  `agent-nevychislimaya-prosadka-zapret-naraschivaniya.md` · 2026-08-23
 - Осиротевшая работа вернулась после закрытия своей карточки — циклы #97 и #98 умерли не доставив, второй прямо на подъёме работы первого  ·  `agent-orphaned-work-recurred-after-its-card-was-closed.md` · 2026-08-03
 - Оживить четыре мёртвые книги исследовательской панели — починить фиды (решение владельца 19.08, вариант 1)  ·  `agent-ozhivit-chetyre-mertvye-knigi-paneli.md` · 2026-08-20
 - Довести пейпер-тест до уровня основного пакета во ВСЕХ пакетах (aggressive_lab / rates_desk / swarm / rwa_backstop / liquidator / underwriting / BTC)  ·  `agent-paper-test-parity-all-packages.md` · 2026-08-22
