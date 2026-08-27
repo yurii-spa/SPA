@@ -3,7 +3,7 @@
   "generator": "scripts/generate_track_snapshot.py",
   "note": "Build-time static fallback for the public pages. Live values come from api.earn-defi.com and override these client-side; this is the last honest snapshot for offline / crawlers. real_track_days = EVIDENCED bars only. Missing value => 'data unavailable', never a stale number.",
   "as_of": "2026-08-27",
-  "generated_at": "2026-08-27T15:42:17Z",
+  "generated_at": "2026-08-27T16:27:27Z",
   "degraded": false,
   "real_track_days": 65,
   "go_live_target": "2026-07-21",
@@ -11,11 +11,11 @@
   "days_needed": 30,
   "gates_passed": 29,
   "gates_total": 29,
-  "end_equity": 101092.98,
-  "nav_usd": 101092.98,
-  "paper_apy_pct": 5.3996,
+  "end_equity": 101094.49,
+  "nav_usd": 101094.49,
+  "paper_apy_pct": 5.4084,
   "max_drawdown_pct": -0.0257,
-  "total_return_pct": 1.093,
+  "total_return_pct": 1.0945,
   "packages": {
     "conservative": {
       "apy_pct": 3.0,
@@ -35,9 +35,9 @@
       "status": "paper_test_running",
       "days_with_positions": 65,
       "days_funded": 65,
-      "apy_pct": 5.4,
+      "apy_pct": 5.41,
       "dd_pct": -0.0257,
-      "nav_usd": 101092.98,
+      "nav_usd": 101094.49,
       "positions_count": null,
       "evidence": "paper"
     },
@@ -2575,24 +2575,25 @@
     {
       "date": "2026-08-27",
       "open_equity": 101078.85,
-      "close_equity": 101092.98,
-      "high_equity": 101092.98,
+      "close_equity": 101094.49,
+      "high_equity": 101094.49,
       "low_equity": 101078.85,
       "snapshots": 1,
-      "daily_return_pct": 0.013982,
-      "cumulative_return_pct": 1.092983,
+      "daily_return_pct": 0.015478,
+      "cumulative_return_pct": 1.094495,
       "drawdown_pct": 0.0,
-      "equity": 101092.98,
-      "apy_today": 5.1028,
-      "daily_yield_usd": 14.1333,
+      "equity": 101094.49,
+      "apy_today": 5.6485,
+      "daily_yield_usd": 15.6446,
       "positions": {
         "pendle": 18947.37,
         "maple": 18947.37,
-        "morpho_steakhouse": 37894.74
+        "morpho_steakhouse": 40000.0,
+        "compound_v3": 12105.26
       },
       "source": "cycle",
       "evidenced": true,
-      "accrual_source": "fallback"
+      "accrual_source": "live"
     }
   ]
 }
