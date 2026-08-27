@@ -109,3 +109,71 @@ class TestBriefingSection(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestMandatoryRulesReachable(unittest.TestCase):
+    """Обязательное правило обязано быть достижимо по ссылке (ADR-154).
+
+    Замер 27.08: 22 инструкции из 38 недостижимы, и среди них **все четыре правила
+    `.claude/rules/`** — те, которые `CLAUDE.md` объявляет обязательными к прочтению.
+    Они были упомянуты обратными кавычками, то есть как текст пути: для графа, для
+    Obsidian и для любого обхода по связям их не существовало.
+
+    Отдельно — дефект самого генератора: каталоги с точки исключались, поэтому
+    `.claude/rules/` не попадали в замер ВООБЩЕ. Связность 17.9 % была посчитана без
+    самых обязывающих документов.
+
+    Общая связность может быть любой — база знаний растёт быстрее, чем связывается.
+    Недостижимое ПРАВИЛО — дефект: сессия узнает о нём, только угадав путь, а
+    угадывание сегодня подвело четыре раза подряд.
+    """
+
+    def setUp(self):
+        self.m = _mod()
+
+    def test_dot_claude_is_not_excluded(self):
+        """Сердце дефекта генератора: правила обязаны попадать в замер."""
+        self.assertNotIn(".claude", self.m.SKIP_DIRS)
+        with TemporaryDirectory() as t:
+            d = Path(t, ".claude", "rules")
+            d.mkdir(parents=True)
+            (d / "x.md").write_text("правило", encoding="utf-8")
+            g = self.m.build(t)
+        self.assertEqual(g["notes"], 1, "правило в .claude/ обязано быть посчитано")
+
+    def test_the_root_itself_is_not_required_to_be_linked(self):
+        """`CLAUDE.md` — корень: его загружают по соглашению, а не по ссылке.
+
+        Требовать ссылку на корень значило бы искать вход в дом изнутри дома, и
+        метрика вечно показывала бы один ложный дефект.
+        """
+        with TemporaryDirectory() as t:
+            Path(t, "CLAUDE.md").write_text("корень", encoding="utf-8")
+            g = self.m.build(t)
+        self.assertEqual(g["mandatory_unreachable"], [])
+
+    def test_an_unlinked_rule_is_reported_by_name(self):
+        """Отказ обязан называть, ЧТО недостижимо — иначе чинить вслепую."""
+        with TemporaryDirectory() as t:
+            d = Path(t, ".claude", "rules"); d.mkdir(parents=True)
+            (d / "risk.md").write_text("правило", encoding="utf-8")
+            Path(t, "CLAUDE.md").write_text("текст без ссылок", encoding="utf-8")
+            g = self.m.build(t)
+        self.assertIn(".claude/rules/risk.md", g["mandatory_unreachable"])
+
+    def test_a_linked_rule_is_reachable(self):
+        """Обратный контроль: со ссылкой правило перестаёт быть недостижимым."""
+        with TemporaryDirectory() as t:
+            d = Path(t, ".claude", "rules"); d.mkdir(parents=True)
+            (d / "risk.md").write_text("правило", encoding="utf-8")
+            Path(t, "CLAUDE.md").write_text(
+                "см. [risk](.claude/rules/risk.md)", encoding="utf-8")
+            g = self.m.build(t)
+        self.assertEqual(g["mandatory_unreachable"], [])
+
+    def test_the_live_repo_has_all_rules_reachable(self):
+        """Положительный контроль на ЖИВОМ дереве — иначе тест проверял бы фикстуру."""
+        g = self.m.build()
+        self.assertGreaterEqual(g["mandatory_rules"], 4, "правила обязаны находиться")
+        self.assertEqual(g["mandatory_unreachable"], [],
+                         "недостижимое обязательное правило — дефект")

@@ -693,6 +693,14 @@ def build_knowledge_graph_section() -> str:
              f"- связность: **{d.get('connectivity_pct')}%** "
              f"({d.get('linked')} из {d.get('notes')} заметок достижимы по ссылкам)",
              f"- сирот: **{d.get('orphans')}** — находятся только угадыванием имени"]
+    # Обязательные правила — отдельной строкой. Общая связность может быть любой,
+    # недостижимое ПРАВИЛО — дефект: сессия узнает о нём, только угадав путь.
+    unreach = d.get("mandatory_unreachable")
+    if unreach:
+        lines.append(f"- ⚠️ **НЕДОСТИЖИМЫ обязательные правила ({len(unreach)}):** "
+                     + ", ".join(f"`{x}`" for x in unreach[:5]))
+    elif d.get("mandatory_rules"):
+        lines.append(f"- обязательные правила: **все {d.get('mandatory_rules')} достижимы**")
     hubs = d.get("hubs") or []
     if hubs:
         lines.append(f"- главный концентратор: `{hubs[0].get('note')}` "

@@ -47,7 +47,11 @@ _LINK = re.compile(r"\[\[([^\]|#]+)|\]\(([^)]+?\.md)[^)]*\)")
 
 def _iter_notes(root: str) -> Iterable[str]:
     for cur, dirs, files in os.walk(root):
-        dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.startswith(".")]
+        # `.claude/` НЕ исключается: там живут обязательные правила, и без них замер
+        # считал бы связность всего, кроме главного (замер 27.08 — четыре правила
+        # безопасности не попадали в граф вовсе). Остальные скрытые каталоги пропускаем.
+        dirs[:] = [d for d in dirs
+                   if d not in SKIP_DIRS and (d == ".claude" or not d.startswith("."))]
         for fn in files:
             if fn.endswith(".md"):
                 yield os.path.relpath(os.path.join(cur, fn), root)
@@ -95,8 +99,18 @@ def build(root: str | None = None) -> dict:
                      if not deg_in.get(x) and not by_name.get(os.path.basename(x)))
 
     linked = len(node_set) - len(orphans)
+    # Обязательные правила — отдельно от общей связности. Общая может быть любой;
+    # НЕДОСТИЖИМОЕ ПРАВИЛО — дефект: сессия узнает о нём только угадав путь.
+    # `CLAUDE.md` в список НЕ входит: он корень, его загружают по соглашению, а не по
+    # ссылке — требовать ссылку на него значило бы искать вход в дом изнутри дома.
+    # Меряем то, что от корня достижимо: правила области.
+    mandatory = sorted(n for n in node_set if n.startswith(".claude/rules/"))
+    unreachable = [n for n in mandatory
+                   if not deg_in.get(n) and not by_name.get(os.path.basename(n))]
     return {
         "notes": len(node_set),
+        "mandatory_rules": len(mandatory),
+        "mandatory_unreachable": unreachable,
         "links": len(edges),
         "linked": linked,
         "orphans": len(orphans),

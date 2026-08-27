@@ -41,7 +41,7 @@ SPA — автономный DeFi yield-optimizer на стадии **paper trad
    - `docs/SYSTEM_BRIEFING.md` — живой оперативный статус (auto, 30 мин). Без него нельзя утверждать
      «всё работает / агенты живы / portfolio в порядке».
 2. **Перед изменением risk-логики** (`spa_core/risk/`, kill-switch, gates) — прочитать
-   соответствующий ADR в `docs/decisions/` и правило `.claude/rules/risk-engine.md`.
+   соответствующий ADR в `docs/decisions/` и правило [`.claude/rules/risk-engine.md`](.claude/rules/risk-engine.md).
 3. **В конце цикла оркестратор ОБЯЗАН** обновить `docs/STATE.md` и дописать `docs/journal/<неделя>.md`.
 4. **Ничего «в воздухе» — фиксировать до конца сессии.** Если в ЛЮБОЙ сессии (интерактивной или
    фоновой) с владельцем принято решение, достигнута договорённость или высказано пожелание — сессия
@@ -51,8 +51,8 @@ SPA — автономный DeFi yield-optimizer на стадии **paper trad
    - **идея** → `docs/ideas/<дата-slug>.md`.
    Устных договорённостей быть не должно. **Не записано — работа сессии НЕ считается завершённой.**
 5. **Path-специфичные правила** — читать перед работой в области:
-   `.claude/rules/risk-engine.md` · `.claude/rules/site-copy.md` · `.claude/rules/adapters.md` ·
-   `.claude/rules/deployment.md` (любое изменение прод-дерева: acceptance до и после, каталогами
+   [`.claude/rules/risk-engine.md`](.claude/rules/risk-engine.md) · [`.claude/rules/site-copy.md`](.claude/rules/site-copy.md) · [`.claude/rules/adapters.md`](.claude/rules/adapters.md) ·
+   [`.claude/rules/deployment.md`](.claude/rules/deployment.md) (любое изменение прод-дерева: acceptance до и после, каталогами
    целиком, права — часть доставки).
 
 ## 🧭 Маршрутизация «идея ≠ инструкция»
