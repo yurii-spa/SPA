@@ -109,6 +109,11 @@ def _rebuild_board(tracker_dir=None) -> None:
 # хост-дерево выдало 2 карточки `owner-done`, обе на origin уже `ingested`.
 VERDICT_AGREES = "agrees"                     # дерево и origin совпали
 VERDICT_STALE = "stale_read_from_origin"      # карточка перечитана с origin
+# Файла в дереве нет ВОВСЕ, а на origin карточка есть. До цикла #395 такая карточка
+# в список не попадала: компенсация read-through умела только «локальная копия устарела».
+# Замер 27.08 (цикл #393/#395): прод-дерево отвечало `inbox/new` = 42 при 89 на origin и
+# `owner-done` = 0 при 2 — уверенный НОЛЬ там, где верный ответ «очередь неполна».
+VERDICT_HIDDEN = "hidden_read_from_origin"
 VERDICT_UNDELIVERED = "undelivered_not_on_origin"
 VERDICT_DIVERGED = "diverged_unmeasured"      # своя правка, кто новее не измерено
 VERDICT_MAYBE_INGESTED = "answer_may_be_already_ingested"
@@ -159,8 +164,12 @@ def _card_dict(c, verdict: dict | None = None) -> dict:
 
 
 def _origin_read_through(cards: list, tracker_dir=None,
-                         ref: str | None = None) -> tuple[list, dict[str, dict]]:
+                         ref: str | None = None) -> tuple[list, dict[str, dict], list[str]]:
     """Сверить читаемый трекер с `origin/main` и ГРОМКО назвать расхождение (шаг 1-пред).
+
+    Возвращает `(карточки, вердикты, непрочитанные-невидимые)`. Третий элемент — имена
+    карточек, которые есть на `origin`, файла в дереве нет И прочитать их не удалось:
+    по нему `cmd_list` отвечает кодом 2, потому что СОСТАВ списка не измерен.
 
     **Зачем.** Список карточек читается из трекера ТОГО дерева, чья копия этого скрипта
     запущена. Циклы работают в изолированных worktree и пушат прямо на origin — хост-дерево
@@ -202,19 +211,19 @@ def _origin_read_through(cards: list, tracker_dir=None,
         import check_tracker_drift as drift
     except Exception as exc:  # noqa: BLE001 — сторож не должен ломать саму очередь
         print(f"❓ сверка с origin НЕ ИЗМЕРЕНА: сторож не импортировался ({exc})", file=sys.stderr)
-        return cards, verdicts
+        return cards, verdicts, []
     try:
         report = drift.analyze(tracker_dir, ref or drift.DEFAULT_REF)
     except drift.Unmeasured as exc:
         print(f"❓ сверка трекера с origin/main НЕ ИЗМЕРЕНА — {exc}\n"
               f"    список ниже НЕ подтверждён: он может показывать закрытое и прятать новое.",
               file=sys.stderr)
-        return cards, verdicts
+        return cards, verdicts, []
     # Сверка состоялась ⇒ у всех карточек вердикт по умолчанию «совпало»; ниже он
     # уточняется поимённо для тех, у кого есть находка.
     verdicts = {c.id: {"origin_check": VERDICT_AGREES} for c in cards}
     if not report.findings:
-        return cards, verdicts
+        return cards, verdicts, []
 
     try:
         root = drift.repo_root_of(Path(report.tracker_dir))
@@ -223,7 +232,7 @@ def _origin_read_through(cards: list, tracker_dir=None,
         # Сторож не имеет права уронить саму очередь: сверка — довесок к списку, а не его условие.
         print(f"❓ расхождение найдено, но версию с origin взять неоткуда ({exc})", file=sys.stderr)
         # Расхождение ЕСТЬ, а разобрать его нечем ⇒ «совпало» здесь было бы враньём.
-        return cards, {c.id: {"origin_check": VERDICT_UNMEASURED} for c in cards}
+        return cards, {c.id: {"origin_check": VERDICT_UNMEASURED} for c in cards}, []
     by_id = {c.id: c for c in cards}
     for f in report.of_kind(drift.KIND_STALE):
         local = by_id.get(f.card_id)
@@ -239,6 +248,46 @@ def _origin_read_through(cards: list, tracker_dir=None,
         fresh.path = local.path  # путь остаётся местный: по нему работает set-status
         by_id[f.card_id] = fresh
         verdicts[f.card_id] = {"origin_check": VERDICT_STALE}
+
+    # ── «локальной копии НЕТ» — тот же вопрос «что на origin», что и «копия устарела» ──
+    #
+    # Замер 27.08 (циклы #393/#395). Протокол велит делать шаги 1 и 2 из прод-дерева.
+    # Оттуда `list --type inbox --status new` отвечал **42**, а тот же вопрос чистому
+    # `origin/main` на том же sha — **89**; `owner-done` — **0** против **2**. Причина не
+    # в статусах: файлов этих карточек в прод-дереве нет ВООБЩЕ. Компенсация read-through
+    # умела ровно одно — «локальная копия устарела» (`KIND_STALE`) — и карточка, которой
+    # в дереве нет, в неё не попадала: `by_id.get(...)` отдавал `None`, и цикл её пропускал.
+    #
+    # Опасна была ФОРМА ответа: инструмент печатал уверенное ЧИСЛО, а не «не измерено».
+    # `owner-done: 0` читается как «очередь разобрана» — молчание, неотличимое от одобрения,
+    # ровно тот класс, который проект ловит у сторожей. Решение владельца могло ждать
+    # инжеста сутками, и заметить это было некому.
+    #
+    # Чиним ПРИЧИНУ, а не симптом: у одного инструмента не может быть двух разных ответов
+    # на один вопрос «что на origin». Карточка дочитывается с origin и ВХОДИТ в список.
+    # Путь остаётся тем, каким он был бы в этом дереве, — файла по нему нет, поэтому
+    # `set-status` откажет ГРОМКО (это верно: править надо из worktree на origin/main).
+    hidden_cards: list = []
+    hidden_unread: list[str] = []
+    for f in report.of_kind(drift.KIND_HIDDEN):
+        if f.card_id in by_id:  # в дереве файл всё-таки есть — не наш случай
+            continue
+        try:
+            fresh = drift.read_origin_card(root, report.ref, f"{rel}/{f.card_id}.md")
+        except drift.Unmeasured as exc:
+            print(f"❓ {f.card_id}: есть на {report.ref}, в дереве файла нет, и версию с "
+                  f"origin прочитать не удалось ({exc})", file=sys.stderr)
+            hidden_unread.append(f.card_id)
+            continue
+        fresh.path = Path(report.tracker_dir) / f"{f.card_id}.md"
+        hidden_cards.append(fresh)
+        verdicts[f.card_id] = {
+            "origin_check": VERDICT_HIDDEN,
+            "origin_check_note": (
+                f"файла в этом дереве нет — карточка прочитана с {report.ref}; "
+                f"`set-status` по этому пути откажет, работайте из worktree от {report.ref}"
+            ),
+        }
 
     for f in report.of_kind(drift.KIND_UNDELIVERED):
         if f.card_id in verdicts:
@@ -292,16 +341,22 @@ def _origin_read_through(cards: list, tracker_dir=None,
     def _ids(kind):
         return ", ".join(sorted(x.card_id for x in report.of_kind(kind))) or "—"
 
-    stale, hidden = report.of_kind(drift.KIND_STALE), report.of_kind(drift.KIND_HIDDEN)
+    stale = report.of_kind(drift.KIND_STALE)
     diverged, undelivered = report.of_kind(drift.KIND_DIVERGED), report.of_kind(drift.KIND_UNDELIVERED)
     print(f"⚠️  трекер этого дерева РАСХОДИТСЯ с {report.ref} ({report.ref_sha[:9] or '?'}): "
           f"в дереве {report.tree_count}, на {report.ref} {report.origin_count}", file=sys.stderr)
     if stale:
         print(f"    · устарели и прочитаны С ORIGIN ({len(stale)}): {_ids(drift.KIND_STALE)}",
               file=sys.stderr)
-    if hidden:
-        print(f"    · ЕСТЬ НА ORIGIN, В ДЕРЕВЕ НЕТ ({len(hidden)}) — в список ниже НЕ попали, "
-              f"работайте из worktree от {report.ref}: {_ids(drift.KIND_HIDDEN)}", file=sys.stderr)
+    if hidden_cards:
+        print(f"    · ЕСТЬ НА ORIGIN, В ДЕРЕВЕ НЕТ ({len(hidden_cards)}) — ПРОЧИТАНЫ С "
+              f"{report.ref} и ВОШЛИ в список ниже; файла в дереве нет, поэтому "
+              f"`set-status` по ним откажет — работайте из worktree от {report.ref}: "
+              f"{', '.join(sorted(c.id for c in hidden_cards))}", file=sys.stderr)
+    if hidden_unread:
+        print(f"    · 🔴 ЕСТЬ НА ORIGIN, В ДЕРЕВЕ НЕТ и ПРОЧИТАТЬ НЕ УДАЛОСЬ "
+              f"({len(hidden_unread)}) — список ниже НЕПОЛОН по составу: "
+              f"{', '.join(sorted(hidden_unread))}", file=sys.stderr)
     if diverged:
         print(f"    · своя правка в дереве ({len(diverged)}) — кто новее НЕ измерено, сверьте "
               f"руками: {_ids(drift.KIND_DIVERGED)}", file=sys.stderr)
@@ -318,7 +373,7 @@ def _origin_read_through(cards: list, tracker_dir=None,
     if undelivered:
         print(f"    · есть в дереве, на {report.ref} нет ({len(undelivered)}) — не доставлены: "
               f"{_ids(drift.KIND_UNDELIVERED)}", file=sys.stderr)
-    return [by_id[c.id] for c in cards], verdicts
+    return [by_id[c.id] for c in cards] + hidden_cards, verdicts, hidden_unread
 
 
 def _tracker_dir_of(args):
@@ -395,9 +450,10 @@ def _cross_tree_owner_answers(tracker_dir, now=None):
 def cmd_list(args) -> int:
     cards = list_cards(tracker_dir=getattr(args, "tracker_dir", None))
     verdicts: dict[str, dict] = {}
+    hidden_unread: list[str] = []
     if getattr(args, "origin_check", True):
-        cards, verdicts = _origin_read_through(cards, _tracker_dir_of(args),
-                                               getattr(args, "ref", None))
+        cards, verdicts, hidden_unread = _origin_read_through(
+            cards, _tracker_dir_of(args), getattr(args, "ref", None))
     else:
         # Сверку выключили явным флагом. Это НЕ «совпало» — это «не измерено»,
         # и в машинном контракте оно обязано выглядеть именно так.
@@ -458,6 +514,15 @@ def cmd_list(args) -> int:
     if cross_verdict == CROSS_UNMEASURED and not rows:
         print("❓ список ПУСТ и НЕ ПОДТВЕРЖДЁН: «решений нет» здесь не измерено (код 2).",
               file=sys.stderr)
+        return 2
+    # Карточка есть на origin, файла в дереве нет, И прочитать её с origin не удалось ⇒
+    # СОСТАВ списка не измерен. Число здесь врало бы ровно тем способом, ради которого
+    # написана вся эта сверка: уверенный ответ там, где верный ответ — «не знаю».
+    # Фильтры к непрочитанной карточке неприменимы (её `type`/`status` неизвестны), поэтому
+    # код возврата не зависит от `--type`/`--status`: fail-CLOSED к составу всей очереди.
+    if hidden_unread:
+        print(f"❓ СОСТАВ списка НЕ ИЗМЕРЕН: {len(hidden_unread)} карточк(и) есть на origin, "
+              f"в дереве их нет, и прочитать с origin не удалось (код 2).", file=sys.stderr)
         return 2
     return 0
 

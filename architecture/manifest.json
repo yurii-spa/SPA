@@ -1458,6 +1458,31 @@
    }
   },
   {
+   "label": "com.spa.orchestrator2",
+   "plist_source": "repo:launchd/com.spa.orchestrator2.plist",
+   "reboot_safe": false,
+   "schedule": "calendar:minute:30",
+   "program": "agent_orchestrator.sh",
+   "layer": "dev",
+   "role": "research",
+   "intent": "designed",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [
+    "ADR-149"
+   ],
+   "curation": "complete",
+   "notes": "второй headless-цикл оркестратора: ТОТ ЖЕ scripts/agent_orchestrator.sh, что у com.spa.orchestrator, со сдвигом на :30 и SPA_ORCHESTRATOR_MAX_CONCURRENT=2 — эффективный такт разгрузки очереди 30 мин вместо 60. ПОДГОТОВЛЕН, не установлен (ADR-149: «код готов; активация — отдельное действие владельца на хосте», инв. #12). intent=designed, а не unresolved: намерение решено ADR-149, не решён только момент установки.",
+   "passport": {
+    "goal": "разгружать очередь оркестратора вторым независимым циклом, не создавая намеренной одновременности.",
+    "quality_metric": "оба цикла берут РАЗНЫЕ карточки (захват scripts/check_card_claim.py) и не роняют пуш друг друга; замок ADR-070 п.9 выдаёт до 2 слотов",
+    "escalation": "кодом возврата обёртки agent_orchestrator.sh, как у сиблинга; занятые слоты замка ⇒ вежливый выход 0",
+    "rights": "те же, что у com.spa.orchestrator — протокол docs/ORCHESTRATOR_PROTOCOL.md",
+    "limits": "LLM в risk/execution запрещён; инварианты CLAUDE.md не расширяются; owner-gated классы — только карточкой"
+   }
+  },
+  {
    "label": "com.spa.peg_monitor",
    "plist_source": "launch_agents",
    "reboot_safe": true,
@@ -1819,8 +1844,8 @@
   },
   {
    "label": "com.spa.source_discovery",
-   "plist_source": "repo:launchd/com.spa.source_discovery.plist",
-   "reboot_safe": false,
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
    "schedule": "interval:604800s",
    "program": "agent_source_discovery.sh",
    "layer": "product",
@@ -1838,7 +1863,7 @@
     "ADR-142"
    ],
    "curation": "complete",
-   "notes": "поиск новых источников доходности раз в неделю — ПОДГОТОВЛЕН, не установлен (ADR-142, решение владельца 25.08 вар.A; установка руками владельца, инв. #12). Читатель находок: раздел «Кандидаты в источники доходности» в SYSTEM_BRIEFING",
+   "notes": "поиск новых источников доходности раз в неделю — УСТАНОВЛЕН владельцем 2026-08-27 (ADR-142, решение владельца 25.08 вар.A; установка руками владельца, инв. #12). Читатель находок: раздел «Кандидаты в источники доходности» в SYSTEM_BRIEFING",
    "passport": {
     "goal": "искать кандидатов в новые источники доходности по бирже DeFiLlama.",
     "quality_metric": "data/source_discovery.json свежее 8 суток и ПРОЧИТАН разделом сводки",
@@ -2302,8 +2327,8 @@
   },
   {
    "label": "com.spa.tracker_status_sentinel",
-   "plist_source": "repo:launchd/com.spa.tracker_status_sentinel.plist",
-   "reboot_safe": false,
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
    "schedule": "interval:3600s",
    "program": "agent_tracker_status_sentinel.sh",
    "layer": "product",
@@ -2317,7 +2342,7 @@
     "ADR-129"
    ],
    "curation": "complete",
-   "notes": "сторож переходов статусов трекера — ПОДГОТОВЛЕН, не установлен (ADR-141, решение владельца 25.08 вар.1; установка руками владельца, инв. #12)",
+   "notes": "сторож переходов статусов трекера — УСТАНОВЛЕН владельцем 2026-08-27 (ADR-141, решение владельца 25.08 вар.1; установка руками владельца, инв. #12)",
    "passport": {
     "goal": "сторож переходов статусов в трекере — «этот переход кто-нибудь объяснил?».",
     "quality_metric": "каждый переход статуса покрыт записью журнала либо следом в карточке; неатрибутированный уход из needs-owner = CRITICAL",

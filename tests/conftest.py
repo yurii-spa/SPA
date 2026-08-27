@@ -127,8 +127,28 @@ def require_live_data(*relpaths, allow_empty=False):
 # pytest.ini ([pytest] markers=...), so no pytest_configure hook is needed here.
 
 
+# ---------------------------------------------------------------------------
+# Runtime data-dir isolation. The POLICY lives in ONE module
+# (spa_core/tests/data_dir_guard.py) loaded by absolute path, for the same
+# reason the three guards below are: this root and spa_core/tests/ are
+# SIBLINGS, and until cycle #391 this fixture reached only this one — ~96 950
+# checks in the other root ran with SPA_DATA_DIR unset (measured, #386).
+# The fixture DECLARATION has to be repeated (pytest discovers fixtures per
+# conftest module); its body must not be.
+# ---------------------------------------------------------------------------
+import importlib.util as _ilu_ddg
+
+_DATA_DIR_GUARD_PATH = _ROOT / "spa_core" / "tests" / "data_dir_guard.py"
+data_dir_guard = sys.modules.get("spa_data_dir_guard")
+if data_dir_guard is None:
+    _ddg_spec = _ilu_ddg.spec_from_file_location("spa_data_dir_guard", _DATA_DIR_GUARD_PATH)
+    data_dir_guard = _ilu_ddg.module_from_spec(_ddg_spec)    # type: ignore[arg-type]
+    _ddg_spec.loader.exec_module(data_dir_guard)             # type: ignore[union-attr]
+    sys.modules["spa_data_dir_guard"] = data_dir_guard
+
+
 @_pytest.fixture(autouse=True)
-def _isolate_data_dir(request, tmp_path, monkeypatch):
+def _isolate_data_dir(request, tmp_path_factory, monkeypatch):
     """Default-isolate the runtime data dir to a per-test tmp dir.
 
     Any module resolving its data dir from the SPA_DATA_DIR env (the canonical
@@ -136,14 +156,7 @@ def _isolate_data_dir(request, tmp_path, monkeypatch):
     mutate the live go-live track.  Tests marked ``live_data`` opt out and keep
     the real environment (they guard their own reads with require_live_data).
     """
-    if request.node.get_closest_marker("live_data"):
-        return
-    # Use a DEDICATED subdir name (NOT "data") so we never collide with tests
-    # that create their own ``tmp_path / "data"`` via .mkdir() (without
-    # exist_ok) — a collision there would raise FileExistsError and break them.
-    d = tmp_path / "_spa_isolated_data"
-    d.mkdir(exist_ok=True)
-    monkeypatch.setenv("SPA_DATA_DIR", str(d))
+    data_dir_guard.isolate(request, tmp_path_factory, monkeypatch)
 
 
 # ---------------------------------------------------------------------------

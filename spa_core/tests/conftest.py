@@ -618,6 +618,42 @@ def _no_live_telegram(request):
 # REAL firing take the "still bad → silent" branch. Rationale + measurements:
 # spa_core/tests/push_state_guard.py.
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# No test may read or write the LIVE repo-root data/ (2026-08-27, cycle #391).
+#
+# The isolation is not new — tests/conftest.py has pointed SPA_DATA_DIR at a
+# per-test tmp dir for a long time. What cycle #386 MEASURED is that it never
+# reached HERE: spa_core/tests/ is a SIBLING of tests/, not a descendant, so
+# that conftest cannot cover it by construction. The same probe test placed in
+# both roots read `…/_spa_isolated_data` from one and **None** from the other,
+# and ~96 950 of the suite's checks live in this root — i.e. essentially the
+# whole set judged, and could write, the host's real data/.
+#
+# Fixed the way the three guards below are: the policy lives in ONE module
+# loaded by absolute path from BOTH conftests, so the roots cannot drift.
+# Rationale + what it does NOT cover: spa_core/tests/data_dir_guard.py.
+# ---------------------------------------------------------------------------
+_DATA_DIR_GUARD_PATH = Path(__file__).resolve().parent / "data_dir_guard.py"
+data_dir_guard = sys.modules.get("spa_data_dir_guard")
+if data_dir_guard is None:
+    _ddg_spec = _ilu.spec_from_file_location("spa_data_dir_guard", _DATA_DIR_GUARD_PATH)
+    data_dir_guard = _ilu.module_from_spec(_ddg_spec)        # type: ignore[arg-type]
+    _ddg_spec.loader.exec_module(data_dir_guard)             # type: ignore[union-attr]
+    sys.modules["spa_data_dir_guard"] = data_dir_guard
+
+
+@pytest.fixture(autouse=True)
+def _isolate_data_dir(request, tmp_path_factory, monkeypatch):
+    """Default-isolate the runtime data dir to a per-test tmp dir.
+
+    Any module resolving its data dir from the SPA_DATA_DIR env (the canonical
+    runtime hook) gets a throwaway dir, so a stray dev/CI run can never read or
+    mutate the live go-live track. Tests marked ``live_data`` opt out and keep
+    the real environment (they guard their own reads themselves).
+    """
+    data_dir_guard.isolate(request, tmp_path_factory, monkeypatch)
+
+
 _PUSH_GUARD_PATH = Path(__file__).resolve().parent / "push_state_guard.py"
 push_state_guard = sys.modules.get("spa_push_state_guard")
 if push_state_guard is None:

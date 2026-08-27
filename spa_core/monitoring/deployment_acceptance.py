@@ -18,7 +18,20 @@ That is this module's only job, and it asks it in the three ways that failed:
 
 1. every launchd entrypoint exists and is EXECUTABLE;
 2. the packages the agents import actually import;
-3. the artifacts scheduled work is supposed to produce are not overdue.
+3. the artifacts scheduled work is supposed to produce are not overdue;
+4. КАЖДЫЙ агент способен импортировать СВОЮ цель так, как её запускает launchd.
+
+Проверка №4 добавлена по аварии 2026-08-26 и закрывает разрыв между №1 и №2.
+`com.spa.source_discovery` падал КАЖДЫЙ запуск на `ModuleNotFoundError: No module
+named 'spa_core'`, а приёмка отвечала «85 entrypoints executable, 6 modules import» —
+по букве верно: обёртка исполняема (№1), а шесть модулей из `CRITICAL_IMPORTS` к
+этому агенту отношения не имеют (№2). launchd зовёт СКРИПТ ПО ПУТИ, и `sys.path[0]`
+у него — каталог скрипта, а не корень репозитория; модель проверки №2 (`import X`
+с `cwd=<корень>`) не способна воспроизвести это в принципе.
+
+Пер-агентный гейт тоже не отвечал: `agent_static_probe.sh` даёт скриптовой цели
+только `py_compile` — измерено 2026-08-27, зонд сказал `✅ STATIC PROBE PASSED` про
+агента, который умирает при каждом запуске. Такт агента — раз в неделю.
 
 Read-only. Fixes nothing, deploys nothing — it refuses to certify. Fail-CLOSED:
 whatever cannot be established is CRITICAL, never a quiet pass.
@@ -39,6 +52,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
+from spa_core.monitoring.entrypoint_import_probe import (
+    FAILED as PROBE_FAILED,
+    OK as PROBE_OK,
+    probe_wrapper,
+)
 from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.monitoring.deployment_acceptance")
@@ -107,6 +125,10 @@ class AcceptanceReport:
     entrypoints_total: int = 0
     entrypoints_broken: List[dict] = field(default_factory=list)
     imports_failed: List[dict] = field(default_factory=list)
+    entrypoint_imports_ok: int = 0
+    entrypoint_imports_failed: List[dict] = field(default_factory=list)
+    entrypoint_imports_unchecked: List[dict] = field(default_factory=list)
+    entrypoint_imports_structural: List[dict] = field(default_factory=list)
     artifacts_overdue: List[dict] = field(default_factory=list)
     artifacts_unchecked: Optional[str] = None
     reasons: List[str] = field(default_factory=list)
@@ -238,6 +260,59 @@ def check_imports(
     return failed
 
 
+def check_entrypoint_imports(
+    agent_dir: Optional[Path] = None,
+    *,
+    repo_root: Optional[Path] = None,
+    prober: Optional[Callable[[str], dict]] = None,
+    timeout: float = 60.0,
+) -> List[dict]:
+    """Может ли КАЖДЫЙ агент импортировать свою цель так, как его запускает launchd.
+
+    Разрыв, который это закрывает: `check_entrypoints` судит ОБЁРТКУ (существует,
+    исполняема), `check_imports` — ШЕСТЬ модулей из чужого списка. Между ними лежит
+    вопрос «а сама цель этого агента импортируется?», и 2026-08-26 ответ был «нет»
+    при зелёном вердикте обеих проверок.
+
+    Цель достаётся РАЗБОРОМ обёртки, обёртка НЕ запускается. Причина измерена в тот
+    же день: обёртка `exec`ает шаблон боевого дерева, и если поддержки режима пробы
+    в том дереве нет, флаг игнорируется и запускается НАСТОЯЩИЙ АГЕНТ — шесть таких
+    «проб» отработали как обычные запуски за 86.6 с.
+
+    Fail-CLOSED: цель не разобрана ⇒ `unchecked` с названной причиной, не зачёт.
+    """
+    out: List[dict] = []
+    root = str(Path(repo_root) if repo_root else _REPO_ROOT)
+    run = prober or (lambda w: probe_wrapper(w, default_repo_root=root, timeout=timeout))
+    for entry in _entrypoints_from_plists(agent_dir or DEFAULT_AGENT_DIR):
+        label, script = entry.get("label"), entry.get("script")
+        if entry.get("problem") or not script:
+            out.append({"label": label, "status": "unchecked", "target": script or "",
+                        "failures": [], "structural": False,
+                        "reason": entry.get("problem") or "точка входа не названа"})
+            continue
+        if not str(script).endswith(".sh"):
+            # plist зовёт python напрямую — обёртки нет, разбирать нечего.
+            out.append({"label": label, "status": "unchecked", "target": str(script),
+                        "failures": [], "structural": True,
+                        "reason": "точка входа не bash-обёртка — цель не выводится разбором"})
+            continue
+        try:
+            res = run(str(script))
+        except Exception as exc:  # noqa: BLE001 — падение пробы не есть зачёт
+            out.append({"label": label, "status": "unchecked", "target": str(script),
+                        "failures": [], "structural": False,
+                        "reason": "проба сама упала: {}: {}".format(type(exc).__name__, exc)})
+            continue
+        out.append({"label": label, "status": res.get("status", "unchecked"),
+                    "target": res.get("target") or str(script),
+                    "kind": res.get("kind", ""),
+                    "failures": res.get("failures") or [],
+                    "structural": bool(res.get("structural")),
+                    "reason": res.get("reason", "")})
+    return out
+
+
 def _data_dir_for(data_dir: Optional[Path], repo_root: Optional[Path]) -> Path:
     """Каталог, О КОТОРОМ выносится вердикт. Решается ОДИН раз, для всех проверок.
 
@@ -303,6 +378,7 @@ def run_acceptance(
     modules=CRITICAL_IMPORTS,
     artifacts: Optional[Dict[str, float]] = None,
     import_runner: Optional[Callable[[str], tuple]] = None,
+    entrypoint_prober: Optional[Callable[[str], dict]] = None,
     write: bool = True,
 ) -> dict:
     """Run all three checks and produce a verdict. Never raises."""
@@ -312,6 +388,17 @@ def run_acceptance(
         rep.entrypoints_total = len(entries)
         rep.entrypoints_broken = check_entrypoints(agent_dir)
         rep.imports_failed = check_imports(modules, import_runner, repo_root)
+        probes = check_entrypoint_imports(agent_dir, repo_root=repo_root,
+                                          prober=entrypoint_prober)
+        rep.entrypoint_imports_ok = sum(1 for p in probes if p["status"] == PROBE_OK)
+        rep.entrypoint_imports_failed = [p for p in probes if p["status"] == PROBE_FAILED]
+        blind = [p for p in probes if p["status"] not in (PROBE_OK, PROBE_FAILED)]
+        # СТРУКТУРНАЯ слепота (обёртка — собственный сценарий, а не агент с одной
+        # целью) названа, посчитана и вердикт НЕ красит: она неустранима и постоянна,
+        # а сторож, который не может стать зелёным ни при каком значении, перестают
+        # читать. Всё ОСТАЛЬНОЕ «не проверено» — находка: мы могли измерить и не смогли.
+        rep.entrypoint_imports_structural = [p for p in blind if p.get("structural")]
+        rep.entrypoint_imports_unchecked = [p for p in blind if not p.get("structural")]
         if data_dir is None and measuring_from_worktree(repo_root):
             # Не измеряем то, о чём не можем судить. «Не измерено» — честный ответ;
             # уверенное «протухло» про чужое дерево было бы ложной тревогой, а
@@ -334,6 +421,25 @@ def run_acceptance(
             rep.reasons.append(
                 "{} critical module(s) do not import — agents using them die on start: {}".format(
                     len(rep.imports_failed), [m["module"] for m in rep.imports_failed]))
+        if rep.entrypoint_imports_failed:
+            rep.reasons.append(
+                "{} агент(ов) НЕ МОГУТ импортировать свою цель так, как их запускает launchd — "
+                "они умирают при каждом запуске (exit 1), а пульс покажет «запускался»: {}".format(
+                    len(rep.entrypoint_imports_failed),
+                    [p["label"] for p in rep.entrypoint_imports_failed[:8]]))
+        if rep.entrypoint_imports_unchecked:
+            rep.reasons.append(
+                "у {} агент(ов) цель запуска измерить БЫЛО МОЖНО, и не вышло — "
+                "про них не проверено ничего (это не зачёт): {}".format(
+                    len(rep.entrypoint_imports_unchecked),
+                    [p["label"] for p in rep.entrypoint_imports_unchecked[:8]]))
+        if rep.entrypoint_imports_structural:
+            rep.reasons.append(
+                "{} точ(ки/ек) входа — собственные сценарии, а не агенты с одной целью "
+                "запуска: цель не выводится разбором, и это НАЗВАНО, а не выдано за "
+                "проверку: {}".format(
+                    len(rep.entrypoint_imports_structural),
+                    [p["label"] for p in rep.entrypoint_imports_structural[:8]]))
         if rep.artifacts_overdue:
             rep.reasons.append(
                 "{} scheduled artifact(s) overdue — the job did not run: {}".format(
@@ -342,9 +448,10 @@ def run_acceptance(
         if rep.artifacts_unchecked:
             rep.reasons.append(rep.artifacts_unchecked)
 
-        if rep.entrypoints_broken or rep.imports_failed:
+        if rep.entrypoints_broken or rep.imports_failed or rep.entrypoint_imports_failed:
             rep.status = CRITICAL
-        elif rep.artifacts_overdue or rep.artifacts_unchecked:
+        elif (rep.artifacts_overdue or rep.artifacts_unchecked
+              or rep.entrypoint_imports_unchecked):
             rep.status = WARNING
         elif rep.entrypoints_total == 0:
             # No entrypoints found at all is not a clean bill of health: it means
@@ -354,8 +461,9 @@ def run_acceptance(
         else:
             rep.status = OK
             rep.reasons.append(
-                "{} entrypoints executable, {} modules import, artifacts fresh".format(
-                    rep.entrypoints_total, len(modules)))
+                "{} entrypoints executable, {} modules import, {} агент(ов) импортируют "
+                "свою цель, artifacts fresh".format(
+                    rep.entrypoints_total, len(modules), rep.entrypoint_imports_ok))
     except Exception as exc:  # noqa: BLE001 — fail-CLOSED, never a quiet pass
         rep.status = CRITICAL
         rep.reasons.append("acceptance check itself failed: {}: {}".format(type(exc).__name__, exc))
@@ -384,6 +492,12 @@ def format_report_text(doc: dict) -> str:
              "  entrypoints : {} checked, {} broken".format(
                  doc.get("entrypoints_total"), len(doc.get("entrypoints_broken", []))),
              "  imports     : {} failed".format(len(doc.get("imports_failed", []))),
+             "  цели агентов: {} импортируются, {} НЕ импортируются, {} не измерено, "
+             "{} вне разбора (сценарии)".format(
+                 doc.get("entrypoint_imports_ok", 0),
+                 len(doc.get("entrypoint_imports_failed", [])),
+                 len(doc.get("entrypoint_imports_unchecked", [])),
+                 len(doc.get("entrypoint_imports_structural", []))),
              "  artifacts   : {}".format(
                  doc.get("artifacts_unchecked")
                  or "{} overdue".format(len(doc.get("artifacts_overdue", []))))]
@@ -391,6 +505,10 @@ def format_report_text(doc: dict) -> str:
         lines.append("    ✗ {}: {}".format(e.get("label"), e.get("problem")))
     for m in doc.get("imports_failed", [])[:5]:
         lines.append("    ✗ import {}: {}".format(m.get("module"), str(m.get("error"))[:80]))
+    for p in doc.get("entrypoint_imports_failed", [])[:10]:
+        first = (p.get("failures") or [{}])[0]
+        lines.append("    ✗ {}: {} → {}".format(
+            p.get("label"), p.get("target"), str(first.get("error"))[:80]))
     for a in doc.get("artifacts_overdue", [])[:5]:
         lines.append("    ✗ {}: {} (limit {}h)".format(
             a.get("artifact"), a.get("problem"), a.get("max_hours")))

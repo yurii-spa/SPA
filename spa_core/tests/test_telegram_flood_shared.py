@@ -55,15 +55,25 @@ def test_the_rate_limit_state_lives_in_the_live_tree():
     # потому, что ожидание считалось от cwd. Ожидание, зависящее от cwd, проверяет
     # не то, что написано в его имени.
     live = live_data_dir(Path(tc.__file__).resolve().parents[2])
-    assert tc._RATE_STATE.parent == live
-    assert tc._HISTORY_STATE.parent == live
+    # ИЗМЕНЕНО НАМЕРЕННО (цикл #394, инв. #16) — проверка УСИЛЕНА, а не ослаблена.
+    # Раньше здесь стояло `tc._RATE_STATE.parent`, то есть значение, вычисленное ОДИН раз
+    # на импорте модуля. Ожидание же (`live`) считается в момент утверждения, поэтому тест
+    # проверял равенство двух РАЗНЫХ моментов и краснел в полном прогоне по причине, к
+    # предмету теста отношения не имеющей: если модуль импортировался под чужой песочницей
+    # `SPA_DATA_DIR`, путь навсегда прибивался к ней (журнал W35, 14 падений с
+    # `_spa_isolated_data`). Теперь обе стороны разрешаются в один момент — утверждение
+    # «состояние живёт в ЖИВОМ дереве» стало верным при ЛЮБОМ порядке тестов, а не только
+    # при удачном.
+    assert tc._rate_state_path().parent == live
+    assert tc._history_state_path().parent == live
+    assert tc._outbound_lock_path().parent == live
     # и то же самое без явного якоря — разрешение обязано быть cwd-независимым
     assert live_data_dir(None) == live
 
 
 def test_history_and_rate_state_share_one_tree():
     """Разъедься они — «кто шлёт» опять станет неотвечаемым вопросом."""
-    assert tc._RATE_STATE.parent == tc._HISTORY_STATE.parent
+    assert tc._rate_state_path().parent == tc._history_state_path().parent
 
 
 def test_identical_text_within_the_window_is_a_duplicate(tmp_path, monkeypatch):

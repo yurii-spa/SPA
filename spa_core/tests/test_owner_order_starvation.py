@@ -15,6 +15,13 @@ stdlib-only, без сети.
 """
 import importlib.util
 from datetime import datetime, timezone
+
+# FROZEN-DATE-OK: injected-clock — часы здесь ВХОД, а не окружение: NOW передаётся в
+# age_hours() и starving_owner_orders() каждым тестом, а даты в телах карточек — сам
+# ПРЕДМЕТ проверки (сторож разбирает маркер «## УКАЗАНИЕ ВЛАДЕЛЬЦА <дата>» и считает
+# возраст от него). Обе стороны закреплены одним якорем, календарь вердикт сдвинуть не
+# может — это преференция #1 правила .claude/rules/deployment.md, а не глушение
+# храповика. Решение и его основание записаны в docs/journal/2026-W35.md (цикл #391).
 from pathlib import Path
 
 import pytest

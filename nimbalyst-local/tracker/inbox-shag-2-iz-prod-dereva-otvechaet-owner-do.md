@@ -2,9 +2,13 @@
 trackerStatus:
   type: inbox
 title: "Шаг 2 из прод-дерева отвечает «owner-done: 0», а на origin их 2 — очередь неполна по СОСТАВУ"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-27
+claimed_by: cycle-92234
+claimed_at: 2026-08-27T09:26:42Z
+status_trail:
+  - "2026-08-27T09:42:07.019381+00:00 new -> done · queue.set_status · cycle-92234"
 ---
 
 ## Замер (цикл #393, 27.08)
@@ -72,3 +76,37 @@ owner-done: 2
 
 Шаг 2, запущенный из прод-дерева и из чистого worktree на одном sha, даёт **одинаковый**
 список `owner-done`; расхождение состава трекера с origin даёт код возврата, а не тихий ноль.
+
+---
+
+## Исполнено циклом #395 (2026-08-27) — ADR-153
+
+Решение: `docs/decisions/ADR-153-queue-blind-by-composition.md`.
+Код: `scripts/orchestrator_queue.py` (`_origin_read_through`, `cmd_list`).
+Тесты: `spa_core/tests/test_orchestrator_queue_hidden_cards.py` (9), плюс НАМЕРЕННО
+перевёрнутый на новый контракт `test_tracker_drift_guard.py::test_hidden_cards_are_named_out_loud_by_the_queue`
+(инв. #16 — обоснование в теле теста и в ADR-153).
+
+По пунктам карточки:
+
+1. **Fail-CLOSED вместо числа** — сделано узко и точно: невидимую карточку **дочитываем**
+   с origin (это лучше кода возврата — список становится верным, а не просто отказным);
+   код **2** остаётся на случай, когда дочитать НЕ удалось. Широкая ветка «сверка не
+   состоялась целиком ⇒ код 0» намеренно не тронута — карточка
+   `inbox-nesostoyavshayasya-sverka-s-origin-daet`.
+2. **Компенсация распространена** со «стало устаревшим» на «файла нет» — да, это ядро правки.
+3. **Положительный контроль** — `test_owner_done_only_on_origin_is_no_longer_answered_as_zero`
+   воспроизводит случай 27.08 дословно; две мутации красят свои цели (6 и 2 теста).
+4. **`promotions` и `_BOARD.md` проверены:**
+   * `promotions` слепоту **НЕ наследует** — читает `docs/ideas/` и `docs/rules-draft/`,
+     а не трекер (`queue.scan_promotions`);
+   * `_BOARD.md` **наследует по построению** (`build_tracker_board.py:23` читает файлы с
+     диска ⇒ в хост-дереве максимум 525 из 714) — карточка
+     `inbox-doska-board-md-nasleduet-slepotu-po-sost`.
+
+**Критерий «как понять, что готово» — замерен на живом прод-дереве:**
+`inbox/new` было **42**, стало **97**; множество карточек с `origin/main` (89) теперь
+целиком входит в ответ прод-дерева. Превышение 97 над 89 — 9 местных карточек, которых на
+origin ещё нет, и это верно. Единственная карточка, оставшаяся за пределами совпадения, —
+`inbox-nahodka-petli-analitik-red-team-critical`: в дереве `done`, на origin `new`, то есть
+`KIND_DIVERGED` («кто новее НЕ измерено»), а не слепота; инструмент это печатает и не гадает.

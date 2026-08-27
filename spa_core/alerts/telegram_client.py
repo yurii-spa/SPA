@@ -49,8 +49,34 @@ RETRIES = 1  # one retry on network error → two attempts total
 # был СВОЙ бюджет 12 сообщений в минуту: «общий межпроцессный лимит» из докстринга
 from spa_core.utils.live_paths import live_data_dir
 
+
+def _live_state(name: str) -> Path:
+    """Путь состояния в ЖИВОМ дереве, разрешаемый В МОМЕНТ ВЫЗОВА, а не на импорте.
+
+    Замер циклов #391/#394: три пути ниже вычислялись на ИМПОРТЕ модуля, а
+    ``live_data_dir()`` первым делом читает ``SPA_DATA_DIR``. Импорт случается ОДИН раз —
+    на сборе тестов или на первом тесте, который модуль тянет, — поэтому значение
+    прибивалось к окружению одного случайного момента и дальше не менялось: под изоляцией
+    это песочница ЧУЖОГО теста (следующие тесты видят каталог, которого уже нет), без
+    изоляции — прод-дерево владельца. Форма «разрешать каждый вызов» уже живёт в
+    ``spa_core/audit/hash_chain.py::_chain_path``; здесь она вдобавок ПЕРЕЧИТЫВАЕТ
+    окружение, иначе смена песочницы после импорта остаётся незамеченной.
+
+    В проде поведение НЕ меняется: ``SPA_DATA_DIR`` там не выставлен, и каждый вызов даёт
+    ровно тот же живой каталог, что и прежняя константа.
+    """
+    return live_data_dir(Path(__file__).resolve().parents[2]) / name
+
+
 # существовал только на словах, а на деле умножался на число деревьев.
-_RATE_STATE = live_data_dir(Path(__file__).resolve().parents[2]) / ".telegram_rate.json"
+#: Точка подмены для тестов. ``None`` ⇒ путь разрешается в момент вызова (``_live_state``);
+#: тест, подменивший переменную через ``monkeypatch.setattr``, по-прежнему выигрывает.
+_RATE_STATE: Path | None = None
+
+
+def _rate_state_path() -> Path:
+    """Файл общего межпроцессного лимита потока. См. ``_live_state``."""
+    return Path(_RATE_STATE) if _RATE_STATE is not None else _live_state(".telegram_rate.json")
 MAX_MSGS_PER_MIN = 12
 
 #: Сколько символов текста кладём в историю как «превью». ОДНА константа на модуль:
@@ -90,7 +116,13 @@ def _dedup_preview(text: str) -> str:
 # pytest unless SPA_ALERT_HISTORY_TEST is set (so tests don't pollute the live file).
 # История — туда же: пока она была по-дереву, поток из чужого дерева НЕ ВИДЕН в проде,
 # и разбор «кто это шлёт» упирался в пустоту (потрачено два круга 08–09.08).
-_HISTORY_STATE = live_data_dir(Path(__file__).resolve().parents[2]) / "alert_history.json"
+#: Точка подмены для тестов — см. ``_RATE_STATE``.
+_HISTORY_STATE: Path | None = None
+
+
+def _history_state_path() -> Path:
+    """Файл журнала отправок (он же источник дедупа). См. ``_live_state``."""
+    return Path(_HISTORY_STATE) if _HISTORY_STATE is not None else _live_state("alert_history.json")
 HISTORY_MAX = 500
 
 # ── Cross-process outbound lock (карточка `inbox-critical-kartochka-goloda-...`, замер
@@ -107,7 +139,14 @@ HISTORY_MAX = 500
 # гонку целиком: держится и под pytest (иначе тест на конкуренцию ничего бы не проверял),
 # путь — тем же `live_data_dir`, что и история/лимит потока, так что тест и прод лочатся
 # на один и тот же файл своего дерева.
-_OUTBOUND_LOCK_PATH = live_data_dir(Path(__file__).resolve().parents[2]) / ".telegram_outbound.lock"
+#: Точка подмены для тестов — см. ``_RATE_STATE``.
+_OUTBOUND_LOCK_PATH: Path | None = None
+
+
+def _outbound_lock_path() -> Path:
+    """Файл межпроцессного лока отправки. См. ``_live_state``."""
+    return (Path(_OUTBOUND_LOCK_PATH) if _OUTBOUND_LOCK_PATH is not None
+            else _live_state(".telegram_outbound.lock"))
 
 
 @contextlib.contextmanager
@@ -119,9 +158,10 @@ def outbound_lock():
     открытия/лока (диск недоступен и т.п.) — тот же fail-open принцип, что у остальной
     защиты в этом модуле, поэтому падение лока не имеет права уронить отправку владельцу.
     """
-    _OUTBOUND_LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = _outbound_lock_path()
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
     try:
-        fh = open(_OUTBOUND_LOCK_PATH, "a+")
+        fh = open(lock_path, "a+")
     except OSError:
         yield
         return
@@ -202,7 +242,7 @@ def _record_history(text: str, ok: bool, message_id=None, error: str | None = No
             entry["error"] = str(error)[:200]
 
         try:
-            doc = json.loads(_HISTORY_STATE.read_text())
+            doc = json.loads(_history_state_path().read_text())
             if not isinstance(doc, dict):
                 doc = {}
         except Exception:
@@ -221,11 +261,12 @@ def _record_history(text: str, ok: bool, message_id=None, error: str | None = No
             "max_entries": HISTORY_MAX,
             "entries": entries,
         }
-        _HISTORY_STATE.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=str(_HISTORY_STATE.parent), prefix=".alerthist_")
+        hist_path = _history_state_path()
+        hist_path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=str(hist_path.parent), prefix=".alerthist_")
         with os.fdopen(fd, "w") as f:
             json.dump(doc, f, ensure_ascii=False, indent=2)
-        os.replace(tmp, _HISTORY_STATE)
+        os.replace(tmp, hist_path)
     except Exception:  # noqa: BLE001 — observability must never break a send
         log.debug("alert_history record failed", exc_info=True)
 
@@ -238,7 +279,7 @@ def _rate_limit_ok(text: str = "") -> bool:
     try:
         now = time.time()
         try:
-            hist = json.loads(_RATE_STATE.read_text())
+            hist = json.loads(_rate_state_path().read_text())
             if not isinstance(hist, list):
                 hist = []
         except Exception:
@@ -249,11 +290,12 @@ def _rate_limit_ok(text: str = "") -> bool:
                         MAX_MSGS_PER_MIN, (text or "")[:100])
             return False
         hist.append(now)
-        _RATE_STATE.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=str(_RATE_STATE.parent), prefix=".tgrate_")
+        rate_path = _rate_state_path()
+        rate_path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=str(rate_path.parent), prefix=".tgrate_")
         with os.fdopen(fd, "w") as f:
             json.dump(hist, f)
-        os.replace(tmp, _RATE_STATE)
+        os.replace(tmp, rate_path)
         return True
     except Exception:
         return True  # fail-open: never block a legitimate send on a guard error
@@ -328,7 +370,7 @@ def _duplicate_recently(text: str) -> bool:
         window = float(os.environ.get("SPA_TELEGRAM_DUP_WINDOW_S", DUPLICATE_WINDOW_S))
         if window <= 0:
             return False
-        doc = json.loads(_HISTORY_STATE.read_text())
+        doc = json.loads(_history_state_path().read_text())
         entries = doc if isinstance(doc, list) else doc.get("entries") or []
         now = datetime.now(timezone.utc)
         # Окно считаем по ТЕМ ЖЕ записям, среди которых ищем повтор. С #215 в историю

@@ -158,6 +158,22 @@ def test_card_only_on_origin_is_reported_hidden_not_silence(repo):
 
 
 def test_hidden_cards_are_named_out_loud_by_the_queue(repo, capsys):
+    """НАМЕРЕННОЕ изменение проверки (инв. #16), цикл #395 — обоснование ниже.
+
+    Прежняя редакция требовала `"inbox-hidden" not in out.out` с доводом «файла нет —
+    путь-фантом сломал бы set-status». Довод оказался дороже беды, от которой защищал:
+    невидимая карточка не попадала в машинный контракт ВООБЩЕ, а его читают шаги 1 и 2
+    протокола. Замер 27.08 (циклы #393/#395) на живом прод-дереве: `inbox/new` = **42**
+    при **89** на origin; `owner-done` = **0** при **2**. Решение владельца могло ждать
+    инжеста сутками, и заметить это было некому.
+
+    «Путь-фантом сломал бы set-status» — не сломал бы МОЛЧА: `set-status` по
+    несуществующему файлу отказывает ГРОМКО и кодом 1 (закреплено отдельным тестом в
+    `test_orchestrator_queue_hidden_cards.py`), а это и есть верный ответ — править надо
+    из worktree на origin/main. Проверка не ослаблена, а ПЕРЕВЁРНУТА на новый контракт и
+    УСИЛЕНА: теперь она требует и stderr-строку, и присутствие в stdout, и вердикт
+    `hidden_read_from_origin` в машинном поле, чего прежняя не проверяла.
+    """
     import orchestrator_queue as oq
 
     _write(repo, "inbox-hidden", _card(status="new"))
@@ -166,11 +182,16 @@ def test_hidden_cards_are_named_out_loud_by_the_queue(repo, capsys):
     (_tracker(repo) / "inbox-hidden.md").unlink()
 
     args = oq.build_parser().parse_args(
-        ["list", "--type", "inbox", "--status", "new", "--tracker-dir", str(_tracker(repo)), "--ref", REF])
+        ["list", "--type", "inbox", "--status", "new", "--json",
+         "--tracker-dir", str(_tracker(repo)), "--ref", REF])
     oq.cmd_list(args)
     out = capsys.readouterr()
     assert "inbox-hidden" in out.err, "невидимая карточка обязана быть НАЗВАНА, а не пропущена молча"
-    assert "inbox-hidden" not in out.out, "файла нет — путь-фантом сломал бы set-status"
+    rows = {c["id"]: c for c in __import__("json").loads(out.out)}
+    assert "inbox-hidden" in rows, "невидимая карточка обязана ВОЙТИ в список — её читает шаг 2"
+    assert rows["inbox-hidden"]["origin_check"] == oq.VERDICT_HIDDEN, (
+        "в машинном контракте обязано стоять «прочитана с origin», а не «совпало»")
+    assert "inbox-here" in rows, "живую карточку сторож выбрасывать не смеет"
 
 
 # --------------------------------------------------------------------------------------

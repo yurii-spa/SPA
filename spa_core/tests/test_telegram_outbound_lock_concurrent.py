@@ -13,7 +13,7 @@
 у ДВУХ ОТДЕЛЬНЫХ ОС-процессов, только у последовательных вызовов внутри одного.
 
 Метод: два настоящих ``python3`` процесса (``subprocess.Popen``, не ``fork`` — иначе
-``_OUTBOUND_LOCK_PATH`` унаследовался бы уже вычисленным из родителя и тест проверял бы
+путь лока унаследовался бы уже вычисленным из родителя и тест проверял бы
 не то) входят в ``outbound_lock()`` на один и тот же файл (``SPA_DATA_DIR`` общий), каждый
 спит внутри критической секции и пишет свои метки времени входа/выхода. Тест сравнивает
 интервалы — они обязаны НЕ пересекаться. Часы — ``time.time()`` (wall clock), сравнимы
@@ -92,7 +92,7 @@ class TestOutboundLockRealConcurrency:
         script = (
             "import sys; sys.path.insert(0, {root!r})\n"
             "from spa_core.alerts import telegram_client as tc\n"
-            "print(tc._OUTBOUND_LOCK_PATH)\n"
+            "print(tc._outbound_lock_path())\n"
         ).format(root=str(ROOT))
         env = dict(os.environ)
         env["SPA_DATA_DIR"] = str(tmp_path)

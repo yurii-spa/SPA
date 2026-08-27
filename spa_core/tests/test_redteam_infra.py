@@ -254,6 +254,14 @@ def test_anchored_report_appends_to_chain_and_verifies(tmp_path, monkeypatch):
     block records a valid chain. We redirect the chain file to a tmp path so live data/ is untouched."""
     from spa_core.audit import hash_chain
 
+    # `rotation.run(anchor=True)` НАМЕРЕННО перенаправляет цепочку в активный
+    # каталог данных, если он объявлен (`SPA_DATA_DIR`) — чтобы герметичный прогон
+    # не якорился в живой audit_chain.jsonl. С цикла #391 заслон объявляет его в
+    # КАЖДОМ тесте этого корня, поэтому один monkeypatch `_CHAIN` больше не решает:
+    # прод-путь победил бы и запись ушла бы в песочницу. Объявляем ОБА редиректа на
+    # один и тот же файл — тест проверяет ровно то же, но по тому же пути, каким
+    # идёт прод.
+    monkeypatch.setenv("SPA_DATA_DIR", str(tmp_path))
     chain_file = tmp_path / "audit_chain.jsonl"
     monkeypatch.setattr(hash_chain, "_CHAIN", chain_file)
 
@@ -276,6 +284,14 @@ def test_anchored_report_chain_breaks_if_tampered(tmp_path, monkeypatch):
     """Tampering the anchored verdict row breaks the hash_chain (the anchor is real tamper-evidence,
     not decoration)."""
     from spa_core.audit import hash_chain
+    # `rotation.run(anchor=True)` НАМЕРЕННО перенаправляет цепочку в активный
+    # каталог данных, если он объявлен (`SPA_DATA_DIR`) — чтобы герметичный прогон
+    # не якорился в живой audit_chain.jsonl. С цикла #391 заслон объявляет его в
+    # КАЖДОМ тесте этого корня, поэтому один monkeypatch `_CHAIN` больше не решает:
+    # прод-путь победил бы и запись ушла бы в песочницу. Объявляем ОБА редиректа на
+    # один и тот же файл — тест проверяет ровно то же, но по тому же пути, каким
+    # идёт прод.
+    monkeypatch.setenv("SPA_DATA_DIR", str(tmp_path))
     chain_file = tmp_path / "audit_chain.jsonl"
     monkeypatch.setattr(hash_chain, "_CHAIN", chain_file)
 

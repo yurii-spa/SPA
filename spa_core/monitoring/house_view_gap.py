@@ -268,10 +268,44 @@ def compute_gaps(chief: dict | None,
     else:
         unchecked.append({"input": "current_positions", "reason": "нет данных — гэпы по книге не измеримы"})
 
-    explained_protocols: set[str] = set()
+    # Регистры, в которых аллокатор НАЗЫВАЕТ отказ. Их три, и до 27.08 сверка читала
+    # два: `below_median_cap` (потолок ниже медианы) и предупреждения теневого решения.
+    # Третий — `cash.policy_refusals` — пишет тот же цикл и в тот же файл: там лежит
+    # протокол, ПРИЧИНА и снятая с цели сумма. Замер 27.08 (цикл #394):
+    # `spark_susds` числился «безымянным простоем» (WARN, мост завёл карточку), а в
+    # `cash.policy_refusals` про него стояло `tvl_unverified_policy_gate`, $37 894.74
+    # снято с цели — отказ был назван, просто НЕ ТАМ, куда смотрел сторож. Это ровно
+    # тот класс, ради которого сторожей и разделяют: честный ответ на свой вопрос,
+    # прочитанный как ответ на нужный. Ложная находка тратит внимание владельца.
+    explained_protocols: dict = {}
     if rationale:
         for e in rationale.get("below_median_cap") or []:
-            explained_protocols.add(_norm(e.get("protocol")))
+            explained_protocols.setdefault(_norm(e.get("protocol")), "")
+        # Чтение РАЗЛИЧАЕТ три исхода (инв. #17): раздела `cash` нет · раздел есть,
+        # а отказов в нём нет · отказы есть. Форма `(… or {}).get(…) or []` склеила бы
+        # первые два в один и была бы членом класса «отсутствия наблюдения не
+        # существует» — храповик `test_absent_observation_ratchet` поймал её на первом
+        # же прогоне подъёма (цикл #396). Здесь ветка «раздела нет» просто не даёт
+        # объяснённых отказов, и это ЕДИНСТВЕННЫЙ читатель — уверенности она не
+        # добавляет никому.
+        cash_block = rationale.get("cash")
+        refusals = cash_block.get("policy_refusals") if isinstance(cash_block, dict) else None
+        for r in refusals if isinstance(refusals, list) else []:
+            if not isinstance(r, dict):
+                continue                     # мусор не выдаём за названный отказ
+            proto = _norm(r.get("protocol"))
+            reason = str(r.get("reason") or "").strip()
+            if not proto or not reason:
+                continue                     # отказ без ПРИЧИНЫ ничего не объясняет
+            removed = r.get("usd_removed_from_target")
+            if isinstance(removed, (int, float)) and not isinstance(removed, bool):
+                # Разряды разделяем пробелом ТОЛЬКО внутри числа: `.replace` по всей
+                # строке съел бы и запятую после причины (замерено на первом прогоне).
+                amount = f"{removed:,.0f}".replace(",", " ")
+                named = f"{reason}, снято с цели ${amount}"
+            else:
+                named = reason
+            explained_protocols[proto] = named
         shadow = rationale.get("decision_shadow") or {}
         blob = json.dumps(shadow.get("warnings") or [], ensure_ascii=False).lower()
     else:
@@ -321,10 +355,16 @@ def compute_gaps(chief: dict | None,
                     "input_ages": {"chief_investment": chief_age,
                                    "current_positions": book_age}}
             if proto in explained_protocols or proto in blob:
+                # Ключ НЕ трогать: он же был у этой ветки вчера. Меняется только ТЕКСТ —
+                # в нём теперь стоит САМА причина, а не отсылка «см. rationale»: читатель
+                # находки не обязан ходить в файл, чтобы узнать, чем отказ обоснован.
+                named = explained_protocols.get(proto) or ""
                 gaps.append({"key": f"gap:opportunity_explained:{proto}",
                              "type": "opportunity_unheld", "severity": "INFO",
+                             "refusal": named or None,
                              "message": f"возможность {proto} {v.get('apy_pct')}% не в книге — "
-                                        f"отказ НАЗВАН в rationale", **base})
+                                        f"отказ НАЗВАН в rationale"
+                                        + (f": {named}" if named else ""), **base})
             elif registry_keys is None:
                 gaps.append({"key": f"gap:opportunity_unclassified:{proto}",
                              "type": "opportunity_unheld", "severity": "INFO",

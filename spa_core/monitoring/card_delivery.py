@@ -162,6 +162,12 @@ SEEN_ON_ORIGIN_FIELDS = (b"owner_choice", b"owner_answered_at", b"owner_answered
 
 _STATUS_LINE = re.compile(rb"(?m)^status:[^\n]*\n")
 
+#: Ключ следа переходов во frontmatter. Байтовая копия
+#: ``spa_core.owner_queue.status_audit.TRAIL_KEY``: здесь карточка ещё БАЙТЫ, до
+#: всякого декодирования, а расхождение двух копий закреплено тестом
+#: (``test_card_delivery_carries_status_trail.py::test_trail_key_matches_the_writer``).
+_TRAIL_KEY = b"status_trail"
+
 
 def _now(now: dt.datetime | None = None) -> dt.datetime:
     return now or dt.datetime.now(dt.timezone.utc)
@@ -298,15 +304,74 @@ def _covered_lines(ours: bytes, theirs: bytes) -> tuple:
     return True, [e for e in extra if e.strip()]
 
 
+def split_trail_block(fm: bytes) -> tuple:
+    """frontmatter → ``(без блока status_trail, сам блок)``. Блока нет ⇒ ``(fm, b"")``.
+
+    Блок — строка ключа ``status_trail:`` плюс идущие за ней отступные строки, ровно
+    как их пишет ``status_audit.stamp_trail``. Разбор построчный и байтовый: YAML сюда
+    тащить нельзя (рантайм — только stdlib), а «примерно распарсить» карточку значило бы
+    решать судьбу чужой правки по догадке.
+    """
+    kept: list = []
+    block: list = []
+    inside = False
+    for line in fm.splitlines(keepends=True):
+        if line[:1] not in (b" ", b"\t"):
+            inside = line.split(b":", 1)[0].strip() == _TRAIL_KEY if b":" in line else False
+            (block if inside else kept).append(line)
+            continue
+        (block if inside else kept).append(line)
+    return b"".join(kept), b"".join(block)
+
+
+def _trail_items(block: bytes) -> list:
+    """Строки-записи следа (отступные ``- …``) в порядке записи."""
+    return [ln for ln in block.splitlines(keepends=True) if ln[:1] in (b" ", b"\t")]
+
+
+def trail_only_appends(ours: bytes, theirs: bytes) -> bool:
+    """Наш след — след origin ПЛЮС дописанное? (порядок сохранён)
+
+    След append-only по построению (``stamp_trail`` дописывает в конец). Значит
+    законная разница ровно одна: у нас есть записи, которых origin ещё не видел.
+    Запись, которая есть на origin и которой нет у нас, означает обратное — мы
+    отстали, — и переносить наш след поверх нельзя: он стёр бы чужой переход.
+    Fail-CLOSED: сомнение решается отказом, а отказ разбирается руками.
+    """
+    mine = _trail_items(ours)
+    i = 0
+    for line in _trail_items(theirs):
+        while i < len(mine) and mine[i] != line:
+            i += 1
+        if i >= len(mine):
+            return False
+        i += 1
+    return True
+
+
 def rebase_card(local: bytes, remote: bytes) -> tuple:
     """Перенести НАШУ правку карточки на версию с origin → ``(bytes|None, причина)``.
 
-    Правка моста над существующей карточкой — это РОВНО одна строка ``status:``
-    (``owner_queue.queue.set_status`` меняет только её, остальное сохраняет
-    байт в байт). Поэтому перенос доказуем без слияния «по смыслу»: берём
-    remote, подставляем НАШУ строку ``status:`` — результат обязан совпасть с
-    нашим файлом побайтово. Совпал ⇒ ничего чужого мы не теряем. Не совпал ⇒
-    на origin есть что-то, чего мы не видели, и перезаписывать это нельзя.
+    Правка моста над существующей карточкой — это строка ``status:`` И след
+    перехода ``status_trail:``: ``owner_queue.queue.set_status`` пишет обе части
+    ОДНОЙ записью (``status_audit.stamp_trail``), иначе падение между двумя
+    записями породило бы неатрибутированный переход. Всё остальное сохраняется
+    байт в байт. Поэтому перенос доказуем без слияния «по смыслу»: берём remote,
+    подставляем НАШУ строку ``status:`` и НАШ блок следа — результат обязан
+    совпасть с нашим файлом побайтово. Совпал ⇒ ничего чужого мы не теряем.
+    Не совпал ⇒ на origin есть что-то, чего мы не видели, и перезаписывать это
+    нельзя.
+
+    **Замер 27.08 (цикл #394).** Прежняя посылка «правка — РОВНО одна строка
+    ``status:``» устарела в тот день, когда след поехал вместе с карточкой
+    (решение владельца, вариант 1). С тех пор КАЖДОЕ закрытие карточки, сделанное
+    ``set_status``, шло мимо переноса: карточка
+    ``inbox-nahodka-petli-vozmozhnost-fluid-fusdc-5-2`` получила
+    «расхождение … не сводится к одной строке status:» шесть прогонов подряд,
+    и шаг 0-офис каждый раз печатал долг доставки. Отказ был честен по своему
+    контракту и отвечал не на тот вопрос — тот самый класс, ради которого сторожа
+    и разделяют. Отказ здесь по-прежнему не ослаблен: расширена ровно посылка о
+    том, ЧТО пишет наш писатель, а доказательство осталось побайтовым.
 
     Отказ НАЗЫВАЕТ причину: «сделали не то» и «мы ослепли» — разные аварии.
     """
@@ -325,14 +390,31 @@ def rebase_card(local: bytes, remote: bytes) -> tuple:
     candidate = remote[:4] + _STATUS_LINE.sub(ours.group(0), r_fm, count=1) + remote[4 + len(r_fm):]
     if candidate == local:
         return candidate, ""
+    # Вторая попытка — та же правка, но с нашим следом перехода. Порядок именно
+    # такой: карточка БЕЗ следа (созданная до решения о следе, правленная руками)
+    # обязана переноситься ровно как раньше, и первая ветка это и делает.
+    l_rest, l_trail = split_trail_block(l_fm)
+    r_rest, r_trail = split_trail_block(r_fm)
+    if l_trail and l_trail != r_trail:
+        if not trail_only_appends(l_trail, r_trail):
+            return None, ("на origin есть записи следа status_trail, которых нет в нашей "
+                          "копии — наш след не дописан к чужому, а разошёлся с ним; "
+                          "перенос стёр бы чужой переход")
+        # Блок следа `stamp_trail` всегда кладёт В КОНЕЦ frontmatter; строим кандидата
+        # ровно так же и требуем побайтового совпадения — иначе на origin лежит форма,
+        # которой мы не видели, и это снова отказ, а не догадка.
+        merged_fm = _STATUS_LINE.sub(ours.group(0), r_rest, count=1) + l_trail
+        candidate = remote[:4] + merged_fm + remote[4 + len(r_fm):]
+        if candidate == local:
+            return candidate, ""
     seen = [f.decode() for f in SEEN_ON_ORIGIN_FIELDS
             if re.search(rb"(?m)^" + f + rb":", r_fm) and not re.search(rb"(?m)^" + f + rb":", l_fm)]
     if seen:
         return None, (f"на origin карточку УЖЕ увидели (поля: {', '.join(seen)}) — "
                       f"наша слепая копия не смеет это стереть; закрытие отменено")
-    return None, ("расхождение с origin не сводится к одной строке status: — "
-                  "перенести правку автоматически нечем; сделать это вручную из "
-                  "worktree на origin/main")
+    return None, ("расхождение с origin не сводится к строке status: и следу "
+                  "status_trail: — перенести правку автоматически нечем; сделать это "
+                  "вручную из worktree на origin/main")
 
 
 def _load_pusher_module(root: str):
