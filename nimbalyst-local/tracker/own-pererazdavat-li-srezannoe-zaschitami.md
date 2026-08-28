@@ -7,6 +7,10 @@ priority: high
 owner: yuriycooleshov@gmail.com
 blocks: ""
 created: 2026-08-26
+owner_choice: 2
+owner_answered_at: 2026-08-28T06:47:16.359399+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно
