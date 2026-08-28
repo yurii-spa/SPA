@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-28T01:09:01Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-28T02:20:05Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **725** · ждёт владельца: **3** · занято сессиями: **9**.
+> Всего карточек: **726** · ждёт владельца: **3** · занято сессиями: **9**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -209,7 +209,7 @@
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (354)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (355)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -308,6 +308,7 @@
 - Мандат «3 трека параллельно» — поднять в top-приоритет. Порядок: шаг 1 (фикс пе…  ·  `inbox-mandat-3-treka-parallelno-podnyat-v-top.md` · 2026-08-19
 - Манифест архитектуры отстал от РЕАЛЬНОСТИ: три агента стали reboot-safe, тест красный на чистом origin  ·  `inbox-manifest-arhitektury-otstal-ot-realnosti.md` · 2026-08-06
 - Маячок бота объявляет ОДНУ способность, а решает за ДВЕ — найдено #194, не чинил  ·  `inbox-mayachok-obyavlyaet-odnu-sposobnost-gejtit-dve.md` · 2026-08-10
+- Мост доставки вечно должен пять карточек, которые origin закрыл РАНЬШЕ нас  ·  `inbox-most-dostavki-vechno-dolzhen-pyat-kartoc.md` · 2026-08-28
 - Мост находок может РОДИТЬ карточку на origin, но не может её ОБНОВИТЬ — закрытия не доезжают никогда  ·  `inbox-most-nahodok-mozhet-rodit-kartochku-na-o.md` · 2026-08-12
 - Мост не может закрыть собственную CRITICAL-карточку: close_card закрывает только status=new, а CRITICAL рождается needs-owner  ·  `inbox-most-ne-mozhet-zakryt-sobstvennuyu-criti.md` · 2026-08-08
 - Наблюдённый ноль подменяется литералом: stusd печатается 6.0% вместо замеренных 0.0%  ·  `inbox-nablyudennyi-nol-podmenyaetsya-literalom.md` · 2026-08-09

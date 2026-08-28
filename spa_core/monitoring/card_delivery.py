@@ -168,6 +168,16 @@ _STATUS_LINE = re.compile(rb"(?m)^status:[^\n]*\n")
 #: (``test_card_delivery_carries_status_trail.py::test_trail_key_matches_the_writer``).
 _TRAIL_KEY = b"status_trail"
 
+#: Разделитель полей ВНУТРИ строки следа. Байтовая копия
+#: ``status_audit.TRAIL_SEP`` — по той же причине и с тем же обязательством:
+#: расхождение копий закреплено тестом против НАСТОЯЩЕГО писателя
+#: (``trail_line``), а не против литерала, переписанного сюда по памяти.
+_TRAIL_SEP = " · ".encode("utf-8")
+
+#: Голова строки следа: ``<ts> <old> -> <new>``. Байтовая копия
+#: ``status_audit._TRAIL_LINE_RE``; пинится тем же тестом.
+_TRAIL_ARROW = re.compile(rb"^(?P<ts>\S+)[ \t]+(?P<old>\S+)[ \t]*->[ \t]*(?P<new>\S+)$")
+
 
 def _now(now: dt.datetime | None = None) -> dt.datetime:
     return now or dt.datetime.now(dt.timezone.utc)
@@ -349,6 +359,102 @@ def trail_only_appends(ours: bytes, theirs: bytes) -> bool:
     return True
 
 
+def trail_arrow(item: bytes):
+    """Переход, записанный строкой следа → ``(old, new)`` или ``None``.
+
+    Разбор ровно тот же, что у читателя следа (``status_audit.read_trail``):
+    снять отступ и дефис, снять кавычки, взять ДО первого ``·`` (дальше идут
+    ``source``/``session`` — они к переходу не относятся) и прочесть стрелку.
+    Нечитаемая строка отдаёт ``None``, а не догадку: выдуманный переход здесь
+    решал бы судьбу чужой правки.
+    """
+    raw = item.strip()
+    if raw.startswith(b"-"):
+        raw = raw[1:].strip()
+    if len(raw) >= 2 and raw[:1] == raw[-1:] and raw[:1] in (b'"', b"'"):
+        raw = raw[1:-1]
+    m = _TRAIL_ARROW.match(raw.split(_TRAIL_SEP)[0].strip())
+    return (m.group("old"), m.group("new")) if m else None
+
+
+def origin_reached_same_outcome(local: bytes, remote: bytes) -> tuple:
+    """Origin пришёл к ТОМУ ЖЕ исходу своим путём? → ``(да/нет, причина)``.
+
+    Последний вопрос семьи, и задавать его можно ТОЛЬКО после отказа
+    :func:`rebase_card` — иначе он заслонил бы работающий перенос:
+
+    * ``remote == local`` — «файлы совпали побайтово»;
+    * :func:`origin_covers_card` — «origin содержит всё наше и сверх того»;
+    * :func:`rebase_card` — «нашу правку можно перенести на свежий origin»;
+    * здесь — «origin содержит всё наше КРОМЕ следа, а наш след не несёт
+      перехода, которого у origin нет», то есть везти вообще нечего.
+
+    **Замер 28.08 (цикл #406).** Пять живых карточек ``inbox-nahodka-petli-*``
+    получали отказ ``trail_only_appends`` каждый прогон: на origin лежала запись
+    ``new -> done`` от 10:41Z (``cycle-14899``), а в прод-дереве — своя,
+    ``new -> done`` от 19:15Z. Отказ верен и остаётся: наш след ЧУЖОЙ не
+    дописывает, он с ним разошёлся, и перенос стёр бы чужой переход. Неверен был
+    ВЫВОД: путь уходил в долг доставки, долг по ADR-081 запрещает ``IDLE`` ⇒
+    красная строка шага 0-офис каждый цикл. А везти было нечего — origin уже
+    ``done``, тот же переход, записанный РАНЬШЕ и другой сессией; наша запись —
+    повторное закрытие уже закрытой карточки, и доставка добавила бы ВТОРУЮ
+    запись об одном переходе. Сойтись копии не могут по построению: прод-дерево
+    не синкает ``nimbalyst-local/`` (CLAUDE.md §1) ⇒ ложный долг вечен, а вечный
+    ложный долг топит настоящий — ровно та слепота, ради которой ADR-081 заведён.
+
+    Ветка НИЧЕГО НЕ ПИШЕТ и пушер не зовёт — ослабить п.3 ADR-080 («ответ
+    владельца отменяет закрытие») она не может по построению.
+
+    Доказательство узкое и полное, каждое условие закрывает свой обход:
+
+    1. вне следа версия origin содержит всё наше (frontmatter и тело — ПОРОЗНЬ,
+       той же подпоследовательностью, что :func:`origin_covers_card`). Отсюда же
+       следует равенство ``status:``: изменённая на origin строка в нашей не
+       найдётся;
+    2. КАЖДАЯ наша запись следа, которой на origin нет ДОСЛОВНО, называет
+       переход, который на origin УЖЕ записан. Наш ``in-progress -> done`` при
+       чужом ``new -> done`` покрытия не даёт: это разные переходы, а не разные
+       отметки времени одного;
+    3. таких записей есть хотя бы одна — иначе утверждать нечего, и вопрос
+       принадлежит вёдрам выше.
+
+    Условий ровно три, и это тоже решение. Первая редакция несла ещё четыре —
+    «след есть у нас», «след есть у origin», «следы не совпали», отдельный отказ
+    на неразобранную строку, — и НИ ОДНО из них мутация не покрасила: каждое уже
+    следовало из правил 2 и 3 (пустой чужой след не даёт ни одной стрелки;
+    пустой наш и совпавший не дают ни одной СВОЕЙ записи; мусор не даёт стрелки
+    и не совпадает ни с чем). Сторож, который не может сработать, — украшение,
+    и держать его значит выдавать длину проверки за её силу.
+    """
+    lp, rp = card_parts(local), card_parts(remote)
+    if lp is None or rp is None:
+        return False, ""
+    l_fm, l_body = lp
+    r_fm, r_body = rp
+    l_rest, l_trail = split_trail_block(l_fm)
+    r_rest, r_trail = split_trail_block(r_fm)
+    if not _covered_lines(l_rest, r_rest)[0] or not _covered_lines(l_body, r_body)[0]:
+        return False, ""
+    theirs_items = _trail_items(r_trail)
+    theirs = {a for a in (trail_arrow(i) for i in theirs_items) if a is not None}
+    ours_only: list = []
+    for item in _trail_items(l_trail):
+        if item in theirs_items:
+            continue
+        arrow = trail_arrow(item)
+        if arrow not in theirs:      # `None` сюда попадает и отказывает вместе с мусором
+            return False, ""
+        ours_only.append(f"{arrow[0].decode()} -> {arrow[1].decode()}")
+    if not ours_only:
+        return False, ""
+    return True, ("origin пришёл к тому же исходу РАНЬШЕ нас: переход(ы) "
+                  + ", ".join(sorted(set(ours_only)))
+                  + " уже записаны на origin другой сессией, а наша запись следа — "
+                    "повторное закрытие уже закрытой карточки; вне следа версия origin "
+                    "содержит всё наше. Везти нечего — доставка добавила бы вторую "
+                    "запись об одном переходе")
+
+
 def rebase_card(local: bytes, remote: bytes) -> tuple:
     """Перенести НАШУ правку карточки на версию с origin → ``(bytes|None, причина)``.
 
@@ -465,11 +571,13 @@ def _default_remote_reader(root: str, repo_path: str) -> tuple:
 def plan_batch(root: str, paths: list, reader=_default_remote_reader) -> dict:
     """Что делать с каждой карточкой пачки ДО пуша.
 
-    ``{to_push, rebased, refused, already_on_origin, unmeasured, held}`` — ни
-    один путь не исчезает молча: он либо в пачке, либо назван в одном из списков.
+    ``{to_push, rebased, refused, already_on_origin, covered_by_origin,
+    same_outcome_on_origin, unmeasured, held}`` — ни один путь не исчезает
+    молча: он либо в пачке, либо назван в одном из списков.
     """
     plan = {"to_push": [], "rebased": [], "refused": [],
             "already_on_origin": [], "covered_by_origin": [],
+            "same_outcome_on_origin": [],
             "unmeasured": [], "held": []}
     for absolute in paths:
         repo_path = _rel(root, absolute).replace(os.sep, "/")
@@ -502,6 +610,16 @@ def plan_batch(root: str, paths: list, reader=_default_remote_reader) -> dict:
             continue
         merged, reason = rebase_card(local, remote)
         if merged is None:
+            # Отказ переноса верен — но он отвечает на вопрос «можно ли перенести
+            # НАШУ правку», а не на вопрос «а надо ли её вообще везти». Второй
+            # вопрос задаётся ТОЛЬКО здесь, после отказа: до него он заслонил бы
+            # работающий перенос. Ведро отдельное от `covered_by_origin` — судьба
+            # общая (везти нечего, долга нет), утверждения РАЗНЫЕ: там origin
+            # содержит наш след, здесь origin записал тот же переход СВОЕЙ строкой.
+            same, why = origin_reached_same_outcome(local, remote)
+            if same:
+                plan["same_outcome_on_origin"].append({"path": repo_path, "reason": why})
+                continue
             plan["refused"].append({"path": repo_path, "reason": reason})
             continue
         plan["rebased"].append({"path": repo_path, "remote_sha": blob_sha(remote)[:8],
@@ -574,10 +692,12 @@ def arrived_paths(receipt: dict) -> set:
     """
     if not isinstance(receipt, dict):
         return set()
-    return (set(receipt.get("delivered") or [])
-            | set(receipt.get("already_on_origin") or [])
-            | {c.get("path") for c in (receipt.get("covered_by_origin") or [])
-               if isinstance(c, dict) and c.get("path")})
+    arrived = (set(receipt.get("delivered") or [])
+               | set(receipt.get("already_on_origin") or []))
+    for key in ("covered_by_origin", "same_outcome_on_origin"):
+        arrived |= {c.get("path") for c in (receipt.get(key) or [])
+                    if isinstance(c, dict) and c.get("path")}
+    return arrived
 
 
 def _read_json(path: str):
@@ -735,7 +855,8 @@ def deliver(paths, root: str = REPO_ROOT, now: dt.datetime | None = None,
     receipt = {"generated_at": ts.isoformat(), "adr": "ADR-066",
                "attempted": [], "delivered": [], "refused": [],
                "rebased": [], "rebase_refused": [], "already_on_origin": [],
-               "covered_by_origin": [], "rebase_unmeasured": [], "held": [],
+               "covered_by_origin": [], "same_outcome_on_origin": [],
+               "rebase_unmeasured": [], "held": [],
                "status": UNCHECKED, "reason": "", "returncode": None, "output": ""}
     debt: dict = {}
     dropped: list = []
@@ -770,6 +891,7 @@ def deliver(paths, root: str = REPO_ROOT, now: dt.datetime | None = None,
             receipt["rebase_refused"] = plan["refused"]
             receipt["already_on_origin"] = plan["already_on_origin"]
             receipt["covered_by_origin"] = plan["covered_by_origin"]
+            receipt["same_outcome_on_origin"] = plan["same_outcome_on_origin"]
             receipt["rebase_unmeasured"] = plan["unmeasured"]
             receipt["held"] = plan["held"]
             # Застряло = не переносится ЛИБО придержано под чужим `--allow-overwrite`.
@@ -786,10 +908,14 @@ def deliver(paths, root: str = REPO_ROOT, now: dt.datetime | None = None,
                     # побайтово и «наше уже там, origin ушёл вперёд» — разные факты.
                     same = len(plan["already_on_origin"])
                     covered = len(plan["covered_by_origin"])
+                    outcome = len(plan["same_outcome_on_origin"])
                     receipt["reason"] = ("везти нечего — "
                                          + f"совпадают с нашими: {same}"
                                          + (f"; наша правка уже на origin (origin ушёл "
-                                            f"вперёд): {covered}" if covered else ""))
+                                            f"вперёд): {covered}" if covered else "")
+                                         + (f"; origin пришёл к тому же исходу раньше нас "
+                                            f"(повторное закрытие): {outcome}"
+                                            if outcome else ""))
             else:
                 msg = message or build_message(root, plan["to_push"])
                 receipt["message"] = msg

@@ -536,8 +536,16 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                 # иначе прогон, где везти было нечего потому, что всё уже там,
                 # читается как прогон, где везти было нечего вообще (#268).
                 covered = len(d.get("covered_by_origin") or [])
+                # «Origin пришёл к тому же исходу раньше нас» — ТРЕТЬЕ основание
+                # «везти нечего», и названо оно отдельно от второго: там origin
+                # содержит нашу запись, здесь он записал тот же переход СВОЕЙ
+                # строкой (наше закрытие оказалось повторным). Схлопнув их, шаг
+                # 0-офис перестал бы отличать «мы отстали» от «мы сделали дважды».
+                outcome = len(d.get("same_outcome_on_origin") or [])
                 out.append(f"   доставка карточек: {st} ({len(d.get('delivered') or [])} на origin"
                            + (f"; уже на origin, origin ушёл вперёд: {covered}" if covered else "")
+                           + (f"; origin закрыл раньше нас (повторное закрытие): {outcome}"
+                              if outcome else "")
                            + ")")
             else:
                 out.append(f"   ⚠️ ДОСТАВКА КАРТОЧЕК {st}: {d.get('reason')} "
