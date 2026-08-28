@@ -132,6 +132,15 @@ from spa_core.paper_trading.cycle_reporting import (  # noqa: F401 — re-export
     save_dashboard_snapshot,
 )
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода — вывести производителя разбором нельзя
+#: (замер 28.08: верно 13 из 27, одна ошибка, семья harness недостижима).
+#: Сверяется с фактической записью — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/allocation_rationale_history.jsonl",
+    "data/shadow_trigger_evaluation.json",
+)
+
 # ADR-025 — Base chain gas kill-switch monitor (fail-safe optional import)
 _BASE_GAS_MONITOR_CLASS: type[Any] | None
 try:

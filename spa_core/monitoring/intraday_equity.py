@@ -40,6 +40,14 @@ from spa_core.governance.kill_switch import (
 )
 from spa_core.monitoring.architecture_conformance import REPO_ROOT, _parse_iso
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода — вывести производителя разбором нельзя
+#: (замер 28.08: верно 13 из 27, одна ошибка, семья harness недостижима).
+#: Сверяется с фактической записью — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/intraday_equity.json",
+)
+
 REPORT_REL = os.path.join("data", "intraday_equity.json")
 
 PEG_MAX_AGE_MIN = 30.0      # peg_report старше — НЕ ИЗМЕРЕНО (peg_monitor ходит каждые 5м)

@@ -38,6 +38,19 @@ import sys
 
 from spa_core.monitoring.architecture_conformance import REPO_ROOT
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода — вывести производителя разбором нельзя
+#: (замер 28.08: верно 13 из 27, одна ошибка, семья harness недостижима).
+#: Сверяется с фактической записью — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/adapter_feed_divergence.json",
+    "data/findings_bridge_report.json",
+    "data/house_view_gap.json",
+    "data/investment_os/outcomes.jsonl",
+    "data/loop_health.json",
+    "data/loop_retro.json",
+)
+
 STATE_REL = os.path.join("data", "findings_bridge_state.json")
 REPORT_REL = os.path.join("data", "findings_bridge_report.json")
 

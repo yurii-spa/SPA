@@ -36,6 +36,14 @@ from spa_core.adapters.apy_aggregator import (
 )
 from spa_core.investment_os.harness import ProductAgent, UNKNOWN
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода — вывести производителя разбором нельзя
+#: (замер 28.08: верно 13 из 27, одна ошибка, семья harness недостижима).
+#: Сверяется с фактической записью — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/investment_os/stablecoin_yield.json",
+)
+
 log = logging.getLogger("spa.investment_os.stablecoin_yield")
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]

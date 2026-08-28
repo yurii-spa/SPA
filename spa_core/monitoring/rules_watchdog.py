@@ -49,6 +49,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода — вывести производителя разбором нельзя
+#: (замер 28.08: верно 13 из 27, одна ошибка, семья harness недостижима).
+#: Сверяется с фактической записью — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/watchdog_report.json",
+)
+
 log = logging.getLogger("spa.monitoring.rules_watchdog")
 
 _REPO = Path(__file__).resolve().parents[2]

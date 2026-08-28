@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-28T07:03:08Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-28T08:46:36Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **732** · ждёт владельца: **3** · занято сессиями: **9**.
+> Всего карточек: **734** · ждёт владельца: **3** · занято сессиями: **9**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -210,7 +210,7 @@
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (358)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (359)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -546,6 +546,7 @@
 - Починить писателей живого data/ по карте замера — класс обнесён храповиком, но не закрыт  ·  `inbox-pochinit-pisatelei-zhivogo-data-po-karte.md` · 2026-08-23
 - Под ключом stusd объявлены ДВА разных контракта с одинаковым vanity-префиксом — проверить on-chain  ·  `inbox-pod-klyuchom-stusd-obyavleny-dva-raznyh.md` · 2026-08-18
 - Подготовить ADR: пересмотр лимита одной цепочки 90% (решение владельца — за ним)  ·  `inbox-podgotovit-adr-peresmotr-limita-odnoi-ts.md` · 2026-08-08
+- Подключить сверку контрактов агентов к сторожу архитектуры — когда объявлений станет большинство  ·  `inbox-podklyuchit-sverku-kontraktov-k-storozhu.md` · 2026-08-28
 - Полные прогоны мёртвой сессии продолжают жить и морят машину — третий случай за сутки, а сторож этого класса сам осиротел  ·  `inbox-polnye-progony-mertvoi-sessii-zhivut-i-morya.md` · 2026-08-28
 - Пошаговая инструкция в карточке уезжает владельцу как ПЯТЬ кнопок-вариантов  ·  `inbox-poshagovaya-instruktsiya-v-kartochke-uez.md` · 2026-08-26
 - Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md` · 2026-08-20 · 🔒 `cycle-352`
@@ -576,8 +577,10 @@
 - Запись ЗА другую сессию уезжает с якорем ЖИВОГО процесса писателя — чужой ярлык читается как ACTIVE  ·  `inbox-zapis-za-druguyu-sessiyu-uezzhaet-s-yako.md` · 2026-08-26
 - Заслон от шторма считает попытки, а не доставки — вопрос владельцу можно запереть, ни разу не показав  ·  `inbox-zaslon-ot-shtorma-schitaet-popytki-a-ne.md` · 2026-08-26
 
-## 🤖 Agent Tasks (что делает агент)  (134)
+## 🤖 Agent Tasks (что делает агент)  (135)
 
+### · blocked
+- Две роли по согласованию расставляют сроки годности артефактов (ADR-158)  ·  `agent-dve-roli-rasstavlyayut-sroki-godnosti.md` · 2026-08-28
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
 - Чистка репо (мёртвый код) фазами  ·  `agent-cleanup.md` · 2026-07-16
@@ -592,7 +595,6 @@
 - День с пустой книгой не считается доказанным (решение владельца 19.08, вариант 1)  ·  `agent-den-s-pustoi-knigoi-ne-dokazannyi.md` · 2026-08-20
 - Долгоживущие агенты крутят код многонедельной давности — перезапустить (полномочие ADR-078)  ·  `agent-dolgozhivuschie-agenty-krutyat-staryi-kod.md` · 2026-08-09
 - Два артефакта одного цикла втрое расходятся в оценке потерь: 451 б.п. против 132 б.п.  ·  `agent-dva-artefakta-odnogo-tsikla-raskhodyatsya-vtroe.md` · 2026-08-08
-- Две роли по согласованию расставляют сроки годности артефактов (ADR-158)  ·  `agent-dve-roli-rasstavlyayut-sroki-godnosti.md` · 2026-08-28
 - Две записи о деньгах, причина 1: доказательная база на повторную дату молча возвращает СТАРУЮ строку  ·  `agent-dve-zapisi-o-dengah-prichina-1-semantika-povtornoi-zapisi.md` · 2026-08-23
 - Две записи о деньгах, причина 2: разрыв цепочки 10.06 и пересчёт июня (владелец разрешил переписывание)  ·  `agent-dve-zapisi-o-dengah-prichina-2-razryv-treka-10-06.md` · 2026-08-23
 - Подстановка выдуманного APY живёт ещё в 15 адаптерах — у 14 она доходит до оркестратора  ·  `agent-fake-fallback-v-15-adapterah.md` · 2026-08-08
@@ -600,6 +602,7 @@
 - Минимальный пакет передачи работы вместо голой карточки (ADR-154)  ·  `agent-minimalnyi-paket-peredachi.md` · 2026-08-27
 - morpho_steakhouse — 40 % книги — отсутствует в реестре риск-скоров, и три теста краснеют на main из-за этого  ·  `agent-morpho-steakhouse-bez-risk-score.md` · 2026-08-08
 - Мягкая ступень просадки (5–10 %) должна действовать в МИНУТАХ, а не на следующем суточном цикле (ADR-129)  ·  `agent-myagkii-tir-vnutri-dnya-v-minutah.md` · 2026-08-23
+- Объявить PRODUCES оставшимся 53 агентам (ADR-158, дополнение)  ·  `agent-obyavlenie-produces-ostavshimsya-agentam.md` · 2026-08-28
 - Осиротевшая работа вернулась после закрытия своей карточки — циклы #97 и #98 умерли не доставив, второй прямо на подъёме работы первого  ·  `agent-orphaned-work-recurred-after-its-card-was-closed.md` · 2026-08-03
 - Оживить четыре мёртвые книги исследовательской панели — починить фиды (решение владельца 19.08, вариант 1)  ·  `agent-ozhivit-chetyre-mertvye-knigi-paneli.md` · 2026-08-20
 - Довести пейпер-тест до уровня основного пакета во ВСЕХ пакетах (aggressive_lab / rates_desk / swarm / rwa_backstop / liquidator / underwriting / BTC)  ·  `agent-paper-test-parity-all-packages.md` · 2026-08-22

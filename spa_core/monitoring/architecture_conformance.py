@@ -82,6 +82,14 @@ import os
 import subprocess
 import sys
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода — вывести производителя разбором нельзя
+#: (замер 28.08: верно 13 из 27, одна ошибка, семья harness недостижима).
+#: Сверяется с фактической записью — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/architecture_conformance.json",
+)
+
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 MANIFEST_PATH = os.path.join(REPO_ROOT, "architecture", "manifest.json")
 REPORT_PATH = os.path.join(REPO_ROOT, "data", "architecture_conformance.json")
