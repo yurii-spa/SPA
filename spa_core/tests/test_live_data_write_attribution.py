@@ -40,6 +40,7 @@ from pathlib import Path
 import pytest
 
 from spa_core.tests import _child_pytest
+from spa_core.tests._freshness import ts
 
 guard = sys.modules.get("spa_live_data_write_guard")
 if guard is None:                                   # прямой запуск без conftest
@@ -205,7 +206,13 @@ def _rows(out_path):
 def decoy(tree):
     path = tree / "data" / DECOY_NAME
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"updated_at": "2026-08-04T08:30:45", "count": 26}),
+    # Отметка ОТНОСИТЕЛЬНАЯ (`.claude/rules/deployment.md`, приём #2). Содержимое
+    # улики к предмету не относится вовсе — сторож смотрит, ИЗМЕНИЛСЯ ли файл, а не
+    # что в нём, — но литеральная дата рядом со словами о свежести кладёт файл в
+    # закрытый класс храповика (`test_frozen_date_ratchet`), и он покраснел на main
+    # 28.08. Форму настоящего артефакта (поле-отметка) сохраняем: улика обязана быть
+    # похожа на то, что живёт в `data/`.
+    path.write_text(json.dumps({"updated_at": ts(hours_ago=1), "count": 26}),
                     encoding="utf-8")
     try:
         yield path

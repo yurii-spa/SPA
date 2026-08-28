@@ -9,11 +9,19 @@ findings_bridge (карточки) и Шаг 0-офис оркестратора
   opportunity_unheld  офис называет возможность (evidence-level сохранён),
                       книга её не держит, и отказ НЕ назван нигде:
                         - held в positions                       → нет гэпа
-                        - в below_median_cap / warnings rationale → explained (INFO)
+                        - назван в ЛЮБОМ из ЧЕТЫРЁХ регистров    → explained (INFO),
+                          и текст находки несёт САМУ причину:
+                            1. `below_median_cap`      (потолок ниже медианы)
+                            2. `cash.policy_refusals`  (снято гейтом политики)
+                            3. `cash.ineligible_rooms` (ЧТО именно биндит: фид /
+                               порог / режим — см. `humanize_why`)
+                            4. `decision_shadow.warnings`
                         - протокола нет в ADAPTER_REGISTRY        → explained (INFO:
                           входа технически нет — нужен адаптер + промоушен)
                         - иначе                                   → WARN (безымянный
-                          простой возможности — нарушение духа ADR-055)
+                          простой возможности — нарушение духа ADR-055), и находка
+                          НАЗЫВАЕТ все четыре опрошенных регистра: «не назван» —
+                          это ИЗМЕРЕНИЕ по поимённому списку, а не общее место
   posture_vs_book     постура офиса RED, книга развёрнута (cash < 50%) → WARN
                       (YELLOW — информационно, гэпом не является)
   analyst_red         аналитик с posture/status RED|CRITICAL → WARN. В тексте находки
@@ -115,6 +123,86 @@ def cause_phrase(reasons) -> str:
     """Готовая вставка в текст находки: «причина: …» либо честное «причина НЕ НАЗВАНА аналитиком»."""
     codes = list(reasons or [])
     return f"причина: {humanize_reasons(codes)}" if codes else NO_REASON_RU
+
+
+#: ЧЕТВЁРТЫЙ регистр названных отказов — `cash.ineligible_rooms` (`rebalance_economics`).
+#: Его словарь отвечает ровно на вопрос карточки `inbox-retsidiv-4-nahodok-iz-odnogo-klassa-kart`
+#: (пункт 1): КАКОЙ потолок / фид / режим биндит возможность. Коды — машинные, читателю
+#: находки нужен русский; машинный код остаётся В СКОБКАХ, потому что грепают именно его.
+_WHY_RU = {
+    "tvl_not_live": "живого размера пула нет — фид молчит",
+    "tvl_unmeasured": "размер пула не измерен",
+    "tvl_non_finite": "размер пула — не число",
+    "tvl_floor_unresolved": "порог размера пула не прочитан",
+    "apy_not_live": "доходность не из живого фида",
+    "apy_source_missing": "источника доходности нет вовсе",
+}
+
+#: Коды с хвостом после двоеточия. Хвост — ИЗМЕРЕННЫЕ числа самого аллокатора
+#: (`tvl_below_floor:$2,691,225<$5,000,000`), и он проходит ВЕРБАТИМ: пересказывать
+#: чужой замер своими словами — способ разойтись с ним однажды молча.
+_WHY_PREFIX_RU = {
+    "tvl_below_floor": "размер пула ниже порога политики",
+    "apy_below_min": "доходность ниже нижней границы политики",
+    "blocked": "закрыт режимом",
+}
+
+#: Поимённый список регистров в тексте WARN. «Отказ НЕ назван» без него — утверждение
+#: без предмета: читатель не может ни проверить его, ни узнать, где искать. Именно на
+#: этом дважды подряд (#394 — третий регистр, сегодня — четвёртый) находка оказывалась
+#: ЛОЖНОЙ: причина была названа, просто не там, куда смотрел сторож.
+REGISTERS_RU = ("below_median_cap · cash.policy_refusals · cash.ineligible_rooms · "
+                "decision_shadow.warnings")
+
+
+def humanize_why(codes) -> str:
+    """Коды непригодности → одна русская строка (пустой/нечитаемый вход → `""`).
+
+    Незнакомый код проходит ВЕРБАТИМ, как и в `humanize_reasons`: сверка обязана быть
+    ШИРЕ подопечного. Аллокатор волен завести код, о котором она не знает, — и читатель
+    обязан увидеть его, а не потерять в молчаливом `.get(code, "")`.
+
+    Пустая строка — это «причина НЕ названа», и вызывающий обязан отличать её от
+    названной: запись без причины не объясняет ничего (тот же контракт, что у
+    `policy_refusals`, где отказ без `reason` пропускается).
+    """
+    if isinstance(codes, str):
+        codes = [codes]
+    if not isinstance(codes, (list, tuple)):
+        return ""
+    parts: list[str] = []
+    for raw in codes:
+        code = str(raw or "").strip()
+        if not code:
+            continue
+        ru = _WHY_RU.get(code)
+        if ru is None:
+            head, sep, tail = code.partition(":")
+            if sep and tail.strip() and head in _WHY_PREFIX_RU:
+                ru = f"{_WHY_PREFIX_RU[head]} ({tail.strip()})"
+        parts.append(f"{ru} [{code}]" if ru else code)
+    return "; ".join(parts)
+
+
+def room_phrase(row) -> str:
+    """«; заперта комната $40 000 (40.0% капитала)» — СКОЛЬКО связано этой причиной.
+
+    Сумма — не украшение: «фид молчит» без денег читается как мелочь, а на замере
+    28.08 за `spark_susds:tvl_not_live` стояли $40 000 = 40 % капитала. Числа нет
+    или оно не число ⇒ фразы нет (ноль вместо неизмеренного не подставляем).
+    """
+    if not isinstance(row, dict):
+        return ""
+    room = row.get("room_usd")
+    if not isinstance(room, (int, float)) or isinstance(room, bool):
+        return ""
+    # Разряды разделяем пробелом ТОЛЬКО внутри числа (урок соседней ветки: `.replace`
+    # по всей строке съедает и запятую после причины).
+    amount = f"{room:,.0f}".replace(",", " ")
+    pct = row.get("pct_of_capital")
+    tail = (f" ({pct:.1f}% капитала)"
+            if isinstance(pct, (int, float)) and not isinstance(pct, bool) else "")
+    return f"; заперта комната ${amount}{tail}"
 
 
 #: Потолок возраста входа. Берётся у монитора здоровья САМОГО офиса — одна константа на репо.
@@ -306,6 +394,37 @@ def compute_gaps(chief: dict | None,
             else:
                 named = reason
             explained_protocols[proto] = named
+
+        # ЧЕТВЁРТЫЙ регистр — `cash.ineligible_rooms`. Тот же файл, тот же цикл, и
+        # именно он отвечает на вопрос «ЧТО биндит»: аллокатор публикует туда провенанс
+        # непригодности ВСЕГДА, отдельно от долларов (`rebalance_economics`, карточка
+        # 07.08), потому что бакет с деньгами появляется не в каждом цикле.
+        #
+        # Замер 28.08 (эта карточка): `spark_susds` третьи сутки шёл как «безымянный
+        # простой» (WARN, мост завёл карточку, находка ВЕРНУЛАСЬ после закрытия), а в
+        # `cash.ineligible_rooms` про него стояло `why: ["tvl_not_live"]`, комната
+        # $40 000 = 40 % капитала. Это ТОТ ЖЕ класс, что и #394 месяцем раньше, только
+        # регистром дальше: сторож честно отвечал на свой вопрос, а читали его как ответ
+        # на нужный. Разница между двумя случаями — не в коде, а в том, что список
+        # опрошенных регистров нигде не был назван; теперь он назван (`REGISTERS_RU`).
+        #
+        # Три исхода различены (инв. #17), как и у `policy_refusals` выше: раздела нет
+        # (старая форма rationale — ведём себя как раньше) · раздел есть и пуст
+        # (непригодных нет — измеренный ноль) · записи есть.
+        rooms = cash_block.get("ineligible_rooms") if isinstance(cash_block, dict) else None
+        for row in rooms if isinstance(rooms, list) else []:
+            if not isinstance(row, dict):
+                continue                     # мусор не выдаём за названную причину
+            proto = _norm(row.get("protocol"))
+            named = humanize_why(row.get("why"))
+            if not proto or not named:
+                continue                     # запись без ПРИЧИНЫ ничего не объясняет
+            # Уже названный отказ НЕ переписываем: `policy_refusals` говорит, что гейт
+            # снял с цели, и это ближе к деньгам, чем «почему протокол непригоден».
+            # А пустую строку от `below_median_cap` — ЗАМЕЩАЕМ: она объяснением не была.
+            if not explained_protocols.get(proto):
+                explained_protocols[proto] = named + room_phrase(row)
+
         shadow = rationale.get("decision_shadow") or {}
         blob = json.dumps(shadow.get("warnings") or [], ensure_ascii=False).lower()
     else:
@@ -382,8 +501,9 @@ def compute_gaps(chief: dict | None,
                              "type": "opportunity_unheld", "severity": "WARN",
                              "message": f"возможность {proto} {v.get('apy_pct')}% "
                                         f"(evidence {opp.get('evidence_level')}) доступна книге, "
-                                        f"не держится и отказ НЕ назван — безымянный простой "
-                                        f"(дух ADR-055) [{ticks}]", **base})
+                                        f"не держится и отказ НЕ назван НИ В ОДНОМ из четырёх "
+                                        f"регистров аллокатора ({REGISTERS_RU}) — безымянный "
+                                        f"простой (дух ADR-055) [{ticks}]", **base})
     else:
         unchecked.append({"input": "chief_investment", "reason": "house_view недоступен — сверка невозможна"})
 
