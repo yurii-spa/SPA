@@ -215,7 +215,7 @@ def load_sibling(path=SIBLING):
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     for attr in ("session_state", "read_entries", "_parse_ts", "ACTIVE", "UNKNOWN",
-                 "shared_log", "main_worktree", "worktree_of"):
+                 "shared_log", "main_worktree", "worktree_of", "last_voice_by_session"):
         if not hasattr(mod, attr):
             raise ImportError(f"{p}: нет ожидаемого символа {attr!r}")
     return mod
@@ -508,6 +508,9 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
     # на «моё ли это?» одинаково — иначе собственное второе объявление, не блокируя как захват,
     # блокировало бы как пересечение по файлам (один дефект, починенный наполовину).
     selves = self_identities(entries, self_session, self_anchor, sibling)
+    # Когда каждый ярлык в последний раз подавал голос — см. `last_voice_by_session`.
+    # Нужен вердикту: ПОДТВЕРЖДЁННАЯ жизнь якоря больше не держит карточку вечно.
+    voices = sibling.last_voice_by_session(entries, sibling._parse_ts)
     # Личность держателя карточки берётся из ТОГО ЖЕ журнала: `claim` объявляет захват, и в
     # записи лежит долгоживущий процесс. Без этого захват из frontmatter под ярлыком без pid
     # уходил в «не измерено» навсегда — см. `durable_by_session`. Родня по ярлыку (#293) —
@@ -636,8 +639,57 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
         # по-прежнему код 2. Меняется ровно один исход: свежий сильный захват сессии, чья
         # смерть ИЗМЕРЕНА, становится `stale` — «кандидат на ручной подъём», а не «свободна»
         # и не «занята». Авто-захвата тут нет и не появляется.
-        if state == sibling.ACTIVE or (fresh and strength == STRONG and not orphaned):
+        # ── ЖИВОЙ ЯКОРЬ БОЛЬШЕ НЕ ЗНАЧИТ «ДЕРЖИТ ВЕЧНО» (цикл #412, живой замер) ──
+        # `state == ACTIVE` стояло здесь БЕЗ окна: подтверждённо живой якорь блокировал
+        # карточку бессрочно. Пока якорем был процесс самой сессии, это было верно — он
+        # умирал вместе с ней. Замер 28.08: цикл #410 объявил якорем pid10980 — процесс
+        # `claude` ДЕСКТОПНОГО приложения (ppid=1533 = Claude.app), который хостит идущие
+        # одна за другой сессии и переживает каждую. Цикл #410 умер (его же прогон приёмки
+        # осиротел, ppid=1), работа осталась в `/tmp/spa_c410` и на origin не уехала, а
+        # карточка `own-pererazdavat-li-srezannoe-zaschitami` — с ОТВЕТОМ ВЛАДЕЛЬЦА
+        # (вариант 2, 06:47Z) — стала неберущейся НАВСЕГДА: `ps -p 10980` будет отвечать
+        # «жив» и завтра, и через неделю. Тот же класс, что `sleep`-якорь (#393), но
+        # проверка `anchor_kind` его не ловит и поймать по имени команды не может: `claude`
+        # ИНОГДА и есть процесс сессии (headless `-p`), а иногда — её хост.
+        #
+        # Лекарство не в опознании якоря, а в том, чтобы жизнь якоря перестала быть
+        # БЕССРОЧНЫМ доводом. Живой якорь + сессия подавала голос в окне ⇒ держит, как и
+        # раньше. Живой якорь + сессия молчит дольше окна ⇒ `stale`: «кандидат на ручной
+        # подъём», а НЕ «свободна». Ослаблением это не является — `stale` по-прежнему
+        # запрещает взять карточку молча: нужен явный `--takeover` с письменной причиной,
+        # авто-захвата здесь нет и не появляется. Меняется ровно один исход: вечная
+        # блокировка становится разбираемой находкой.
+        #
+        # Голос берётся ПО ВСЕМУ журналу, а не по этой карточке (`last_voice_by_session`),
+        # и никогда не бывает старше самого захвата: сессия, работающая долго и объявляющая
+        # по дороге, остаётся свежей.
+        voice = voices.get(session)
+        if session in kin:
+            kin_voice = voices.get(kin[session])
+            if kin_voice is not None and (voice is None or kin_voice > voice):
+                voice = kin_voice
+        if ts is not None and (voice is None or ts > voice):
+            voice = ts
+        rec["last_voice"] = _fmt_ts(voice) if voice else None
+        silent_h = (now - voice).total_seconds() / 3600.0 if voice else None
+        rec["silent_hours"] = round(silent_h, 2) if silent_h is not None else None
+        speaking = voice is not None and (now - voice) <= grace
+        if (state == sibling.ACTIVE and speaking) or (fresh and strength == STRONG
+                                                      and not orphaned):
             rec["state"] = "fresh"
+            report["claims"].append(rec)
+            return
+        if state == sibling.ACTIVE and strength == STRONG:
+            # Якорь жив, но сессия молчит дольше окна. Смерть НЕ измерена — поэтому и не
+            # утверждается; говорится ровно измеренное, и вердикт `stale` зовёт сверить
+            # руками (порядок шага 0a), а не отдаёт карточку.
+            rec["state"] = "stale"
+            rec["session_state"] = (
+                f"{why}; НО объявлений от сессии нет {rec['silent_hours']}ч при окне "
+                f"{grace_hours}ч — живой якорь сам по себе о работе НАД ЭТОЙ КАРТОЧКОЙ не "
+                f"говорит ничего (замер #412: якорем был процесс-ХОСТ десктопного "
+                f"приложения, переживающий сессию). Сверить руками и, если сессия мертва, "
+                f"поднять её работу (`claim --takeover \"<чем сверил>\"`)")
             report["claims"].append(rec)
             return
         if state == sibling.UNKNOWN and strength == STRONG:

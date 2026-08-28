@@ -305,11 +305,26 @@ class TestStep0bAgreesWithStep0aAboutDeath:
         assert r["unmeasured"] == []
 
     def test_a_live_session_still_blocks(self, guard, sibling, tracker, log, ps_alive):
-        """Обратный контроль: та же форма журнала, но процесс ЖИВ ⇒ карточка занята.
-        Родство усиливает и эту сторону — раньше живой держатель под голым ярлыком тоже не
-        измерялся, он блокировал лишь пока свеж."""
+        """Обратный контроль: та же форма журнала, но процесс ЖИВ ⇒ карточку НЕ отдают.
+
+        **Правка намеренная (инвариант #16, цикл #412).** Утверждение о КОДЕ ВОЗВРАТА — то,
+        ради чего тест написан, — не тронуто: очередь закрыта, взять карточку нельзя.
+        Изменился ярлык исхода: голос сессии в этой фикстуре старше окна (200 мин при окне
+        3ч), а живой якорь с 28.08 больше не держит карточку БЕССРОЧНО — иначе якорь-хост
+        десктопного приложения запирает карточку навсегда (см. `test_card_claim_host_anchor`).
+        Живой И говорящий держатель по-прежнему даёт `claimed` — это проверяет тест ниже."""
         write_card(tracker, "agent-x")
         self._journal(log, anchor=ANCHOR, claim_age_min=200)
+        r = run(guard, sibling, tracker, log, "agent-x", ps=ps_alive)
+        assert r["verdict"] == guard.STALE
+        assert guard.exit_code(r) == 1
+        assert r["verdict"] != guard.FREE
+
+    def test_a_live_and_speaking_session_still_blocks(self, guard, sibling, tracker, log,
+                                                      ps_alive):
+        """Та же фикстура, но захват в окне ⇒ `claimed`, как и до цикла #412."""
+        write_card(tracker, "agent-x")
+        self._journal(log, anchor=ANCHOR, claim_age_min=30)
         r = run(guard, sibling, tracker, log, "agent-x", ps=ps_alive)
         assert r["verdict"] == guard.CLAIMED
         assert guard.exit_code(r) == 1

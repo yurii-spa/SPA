@@ -184,10 +184,38 @@ class TestVerdicts:
         # порядок прежний: подъём осиротевшей работы — ручной, авто-захвата нет
         assert "вручную" in guard.render(r).lower()
 
-    def test_old_claim_but_session_alive_still_blocks(self, guard, sibling, tracker, log, ps_alive):
-        """Сессия работает дольше окна ожидания — подтверждённая активность важнее возраста."""
+    def test_old_claim_but_session_alive_goes_stale_not_claimed(
+            self, guard, sibling, tracker, log, ps_alive):
+        """Живой якорь + МОЛЧАНИЕ дольше окна ⇒ `stale`, а не вечное «занята» (цикл #412).
+
+        **Изменение теста намеренное, инвариант #16.** Раньше здесь стояло
+        `verdict == CLAIMED` под заголовком «подтверждённая активность важнее возраста».
+        Замер 28.08 показал цену этого «важнее»: цикл #410 объявил якорем процесс `claude`
+        ДЕСКТОПНОГО приложения (хост, переживающий сессию), сам умер, а карточка с ОТВЕТОМ
+        ВЛАДЕЛЬЦА стала неберущейся НАВСЕГДА — `ps` отвечал бы «жив» и через неделю.
+
+        **Что тест защищает по-прежнему, и это главное:** карточку живой сессии НЕ отдают.
+        Код возврата остаётся 1 («не бери»), авто-захвата нет; меняется ровно ярлык исхода —
+        вечная блокировка становится разбираемой находкой, у которой есть документированный
+        выход (`claim --takeover "<чем сверил>"`) после ручной сверки по шагу 0a."""
         write_card(tracker, "agent-x", claimed_by="pid999",
                    claimed_at=_fmt(NOW - timedelta(hours=9)))
+        r = run(guard, tracker, log, "agent-x", ps=ps_alive, sibling=sibling)
+        assert r["verdict"] == guard.STALE
+        assert r["claims"][0]["state"] == "stale"
+        # Не ослабление: очередь по-прежнему закрыта, «свободна» не сказано.
+        assert guard.exit_code(r) == 1
+        assert r["verdict"] != guard.FREE
+
+    def test_live_and_speaking_session_still_blocks(self, guard, sibling, tracker, log, ps_alive):
+        """Обратный контроль к предыдущему: живой якорь + СВЕЖИЙ голос ⇒ занята, как и был."""
+        write_card(tracker, "agent-x", claimed_by="pid999",
+                   claimed_at=_fmt(NOW - timedelta(hours=9)))
+        # Сессия работает долго, но по дороге объявляется — это и есть «она ещё здесь».
+        log.write_text(json.dumps({
+            "ts": _fmt(NOW - timedelta(minutes=10)), "session": "pid999",
+            "summary": "всё ещё копаю", "files": ["/x/y.py"],
+        }) + "\n", encoding="utf-8")
         r = run(guard, tracker, log, "agent-x", ps=ps_alive, sibling=sibling)
         assert r["verdict"] == guard.CLAIMED
         assert r["claims"][0]["state"] == "fresh"

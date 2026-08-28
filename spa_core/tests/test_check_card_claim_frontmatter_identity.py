@@ -159,12 +159,34 @@ class TestDeadHolderIsMeasuredNotLocked:
         r = run(guard, sibling, tracker, log, "inbox-x", now=now, ps=lambda pid: (1, ""))
         assert "вручную" in guard.render(r).lower()
 
-    def test_live_holder_blocks_stronger_than_before(self, guard, sibling, tracker, log, now):
-        """Обратное направление: живой держатель теперь БЛОКИРУЕТ (раньше — «не измерено»)."""
+    def test_live_holder_is_measured_not_unmeasured(self, guard, sibling, tracker, log, now):
+        """Обратное направление: живой держатель ИЗМЕРЕН (раньше — «не измерено»).
+
+        **Правка намеренная (инвариант #16, цикл #412).** То, ради чего тест написан —
+        «личность держателя берётся из журнала, и „не измерено" больше не возвращается» —
+        закреплено сильнее прежнего: `unmeasured` пуст, код возврата 1, карточка не отдана.
+        Изменился ярлык исхода: захват здесь старше окна (8.7ч при 3ч) и голоса моложе у
+        сессии нет, а живой якорь с 28.08 не держит карточку бессрочно. Живой И говорящий
+        держатель по-прежнему `claimed` — тест ниже."""
         started = now - timedelta(hours=12)
         write_card(tracker, "inbox-x", claimed_by=HOLDER,
                    claimed_at=_fmt(now - timedelta(hours=8.7)))
         write_log(log, [claim_entry(HOLDER, now - timedelta(hours=8.7),
+                                    pid=HOLDER_PID, started=started)])
+        r = run(guard, sibling, tracker, log, "inbox-x", now=now,
+                ps=lambda pid: (0, _lstart(started) + "\n"))
+
+        assert r["verdict"] == guard.STALE
+        assert guard.exit_code(r) == 1
+        assert r["claims"][0]["state"] == "stale"
+        assert r["unmeasured"] == [], "личность держателя измерена — это и защищает тест"
+
+    def test_live_and_speaking_holder_blocks(self, guard, sibling, tracker, log, now):
+        """Та же форма, но захват в окне ⇒ `claimed` и `fresh`, как до цикла #412."""
+        started = now - timedelta(hours=12)
+        write_card(tracker, "inbox-x", claimed_by=HOLDER,
+                   claimed_at=_fmt(now - timedelta(hours=0.5)))
+        write_log(log, [claim_entry(HOLDER, now - timedelta(hours=0.5),
                                     pid=HOLDER_PID, started=started)])
         r = run(guard, sibling, tracker, log, "inbox-x", now=now,
                 ps=lambda pid: (0, _lstart(started) + "\n"))

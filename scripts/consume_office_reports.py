@@ -675,6 +675,34 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         elif rec:
             out.append(f"   🔴 РЕЦИДИВ: {rec} находк(а/и) ВЕРНУЛИСЬ после закрытия — "
                        "по производителю это системная причина, а не случайность")
+            # Голое число объявляло причину системной и не называло НИ ОДНОЙ
+            # находки: действовать по такой строке нечем, и она возвращалась
+            # каждый цикл нетронутой. Производитель теперь называет класс и
+            # ключи (loop_health._recurrence_detail) — печатаем их, а если полей
+            # нет (отчёт старого образца), говорим это вслух, а не молчим.
+            by_class = data.get("recurrences_by_class")
+            recurring = data.get("recurring_findings")
+            if not isinstance(by_class, dict) or not isinstance(recurring, list):
+                out.append(f"      ⚠️ ЧТО именно вернулось {_UNMEASURED}: в отчёте нет "
+                           "recurring_findings/recurrences_by_class (отчёт старого "
+                           "образца) — действовать по этой строке нечем")
+            else:
+                if len(by_class) == 1:
+                    cls, n = next(iter(by_class.items()))
+                    out.append(f"      причина ОДНА, а не пять: весь рецидив из класса "
+                               f"`{cls}` ({n}) — чинить класс, а не находки поштучно")
+                else:
+                    out.append("      по классам: " + " · ".join(
+                        f"`{c}` {n}" for c, n in list(by_class.items())[:4]))
+                uncarded = [r for r in recurring if not r.get("carded")]
+                if uncarded:
+                    out.append(f"      🔴 вернулись и карточки СЕЙЧАС НЕТ ({len(uncarded)}): "
+                               + " · ".join(f"{r.get('key')} ×{r.get('recurrences')}"
+                                            for r in uncarded[:4]))
+                for r in recurring[:4]:
+                    out.append(f"      - {r.get('key')} ×{r.get('recurrences')} "
+                               f"(статус {r.get('status')}, карточка "
+                               f"{'есть' if r.get('carded') else 'НЕТ'})")
         for key, label in (("latency_finding_to_card", "находка→карточка"),
                            ("latency_card_to_close", "карточка→закрытие")):
             lat = data.get(key)

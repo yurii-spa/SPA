@@ -8,7 +8,11 @@
   taken     судьба карточек моста: new (лежит) / in-progress|done руками /
             closed автозакрытием — «доля взятых» и есть пульс петли;
   recurrence сколько находок ВЕРНУЛИСЬ после закрытия (рецидив = системная
-            причина, не случайность).
+            причина, не случайность) — и ПОИМЁННО какие: `recurring_findings`
+            (ключ, число возвратов, есть ли живая карточка) и свёртка по классу
+            находки `recurrences_by_class`. Голая сумма объявляла причину
+            системной, не называя ни одной находки, — действовать по ней было
+            нечем.
 
 Выход: data/loop_health.json. Считается при каждом прогоне моста (дёшево).
 LLM_FORBIDDEN. Только stdlib. Время — вход (now=).
@@ -34,8 +38,43 @@ def _hours(a: str | None, b: str | None) -> float | None:
     return round((tb - ta).total_seconds() / 3600.0, 2)
 
 
+def _recurrence_detail(findings: dict) -> tuple[list[dict], dict[str, int]]:
+    """Назвать ПОИМЁННО, какие находки вернулись после закрытия (и чьи они).
+
+    `recurrences_total` — голая сумма: она объявляет рецидив системной причиной
+    и не называет ни одной. Читатель (шаг 0-офис) печатал «🔴 РЕЦИДИВ: 5 находок
+    ВЕРНУЛИСЬ» и требовал действия, по которому действовать было нечем: ни ключа,
+    ни производителя, ни ответа на главный вопрос — есть ли у рецидива живая
+    карточка. Замер 28.08: все 5 рецидивов пришли из ОДНОГО класса
+    (`gap:opportunity_unnamed:*`), а из отчёта это было неизвлекаемо.
+
+    Класс находки — ключ без последнего сегмента (`gap:opportunity_unnamed:aave_v3`
+    → `gap:opportunity_unnamed`): именно он и есть «производитель», о котором
+    говорит формулировка о системной причине.
+
+    `carded=False` при возврате — самый острый случай: находка вернулась, и
+    карточки под неё сейчас нет.
+    """
+    recurring: list[dict] = []
+    for key, e in (findings or {}).items():
+        n = int(e.get("recurrences", 0) or 0)
+        if n <= 0:
+            continue
+        recurring.append({"key": key, "recurrences": n,
+                          "status": e.get("status"),
+                          "carded": bool(e.get("card"))})
+    recurring.sort(key=lambda r: (-r["recurrences"], r["key"]))
+    by_class: dict[str, int] = {}
+    for r in recurring:
+        cls = r["key"].rsplit(":", 1)[0] if ":" in r["key"] else r["key"]
+        by_class[cls] = by_class.get(cls, 0) + r["recurrences"]
+    by_class = dict(sorted(by_class.items(), key=lambda kv: (-kv[1], kv[0])))
+    return recurring, by_class
+
+
 def compute(state: dict, status_of, now: dt.datetime) -> dict:
-    entries = (state.get("findings") or {}).values()
+    findings = state.get("findings") or {}
+    entries = findings.values()
     to_card = [h for e in entries
                if (h := _hours(e.get("first_seen"), e.get("carded_at"))) is not None]
     to_close = [h for e in entries
@@ -67,11 +106,15 @@ def compute(state: dict, status_of, now: dt.datetime) -> dict:
                 else {"median_h": None, "max_h": None, "n": 0})
 
     open_cards = sum(1 for e in entries if e.get("status") == "carded")
+    _recurring, _by_class = _recurrence_detail(findings)
     return {"generated_at": now.isoformat(), "adr": "ADR-066",
             "open_cards": open_cards,
             "latency_finding_to_card": _agg(to_card),
             "latency_card_to_close": _agg(to_close),
             "recurrences_total": recurrences,
+            # ADR-066: рецидив, названный поимённо (см. _recurrence_detail).
+            "recurring_findings": _recurring,
+            "recurrences_by_class": _by_class,
             "cards_fate": taken,
             "note": ("мало истории — медианы по n<5 не интерпретировать"
                      if len(to_card) < 5 else "")}

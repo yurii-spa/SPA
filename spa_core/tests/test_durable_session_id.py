@@ -288,13 +288,46 @@ class TestStep0bSeesTheDurableProcess:
         return entry(ts=NOW - timedelta(hours=ts_hours_ago), card="agent-x",
                      card_state="claim", **kw)
 
-    def test_live_process_makes_an_old_claim_a_real_claim(self, claim_guard, tmp_path):
-        """Старый захват + ЖИВОЙ процесс = сессия работает, а не бросила работу."""
+    def test_live_process_and_silence_makes_an_old_claim_stale(self, claim_guard, tmp_path):
+        """Старый захват + живой процесс + МОЛЧАНИЕ дольше окна ⇒ `stale`, не «занята».
+
+        **Изменение теста намеренное, инвариант #16 (цикл #413).** Раньше здесь стояло
+        `verdict == CLAIMED` под заголовком «живой процесс = сессия работает, а не бросила
+        работу». Замер 28.08 показал цену этого равенства: цикл #410 объявил якорем pid10980 —
+        процесс `claude` ДЕСКТОПНОГО приложения (ppid=1533 = Claude.app), который хостит идущие
+        одна за другой сессии и переживает каждую. Сессия умерла, работа осталась в `/tmp`, а
+        карточка с ОТВЕТОМ ВЛАДЕЛЬЦА стала неберущейся НАВСЕГДА: `ps` отвечал бы «жив» и через
+        неделю. «Процесс существует» и «сессия работает» — разные утверждения, и первое не
+        доказывает второго.
+
+        **Что тест защищает по-прежнему, и это главное:** карточку НЕ отдают — код возврата
+        остаётся 1, `free` не произносится, авто-захвата нет; подъём требует явного
+        `--takeover` с письменной причиной. Меняется ровно ярлык исхода: вечная блокировка
+        становится разбираемой находкой. Личность держателя по-прежнему НАЗЫВАЕТСЯ.
+
+        Обратный контроль — тест ниже: живой И говорящий держатель даёт `claimed`, как раньше.
+        """
         r = self._run(claim_guard, tmp_path, [self._claim(9, pid=4242, start=STARTED_BEFORE)],
                       ps=ps_alive)
+        assert r["verdict"] == claim_guard.STALE
+        assert r["claims"][0]["state"] == "stale"
+        assert claim_guard.exit_code(r) == 1, "очередь закрыта: карточку брать нельзя"
+        assert r["verdict"] != claim_guard.FREE
+        assert "pid4242" in r["claims"][0]["session_state"]
+
+    def test_live_and_speaking_process_still_claims(self, claim_guard, tmp_path):
+        """Обратный контроль: тот же живой процесс, но сессия подала голос в окне ⇒ `claimed`.
+
+        Это и есть граница, проведённая циклом #413: держит не существование процесса, а
+        измеренное присутствие сессии. Сессия, копающая одну задачу девятый час и объявляющая
+        по дороге, остаётся свежей — и её карточку по-прежнему не отдают.
+        """
+        rows = [self._claim(9, pid=4242, start=STARTED_BEFORE),
+                entry(ts=NOW - timedelta(minutes=10), pid=4242, start=STARTED_BEFORE)]
+        r = self._run(claim_guard, tmp_path, rows, ps=ps_alive)
         assert r["verdict"] == claim_guard.CLAIMED
         assert r["claims"][0]["state"] == "fresh"
-        assert "pid4242" in r["claims"][0]["session_state"]
+        assert claim_guard.exit_code(r) == 1
 
     def test_dead_process_makes_it_stale_instead_of_unmeasured(self, claim_guard, tmp_path):
         """До правки id без pid давал `unchecked` — «брать нельзя», и это не проходило."""
