@@ -21,976 +21,6 @@
     "most_vibrant": "Aave",
     "average_composite_score": 15.0,
     "thriving_count": 0,
-    "timestamp": 1785661866.5016348
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 0,
-        "social_presence_score": 0,
-        "developer_activity_score": 0,
-        "community_investment_score": 0,
-        "security_trust_score": 100,
-        "composite_score": 15,
-        "sentiment_label": "AT_RISK",
-        "flags": [
-          "INACTIVE_GOVERNANCE",
-          "LOW_ENGAGEMENT",
-          "NO_DEVELOPMENT"
-        ],
-        "recommendation": "Community at risk. 3 red flags. Deep due diligence required."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 15.0,
-    "thriving_count": 0,
-    "timestamp": 1785661866.506384
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 0,
-        "social_presence_score": 0,
-        "developer_activity_score": 0,
-        "community_investment_score": 0,
-        "security_trust_score": 100,
-        "composite_score": 15,
-        "sentiment_label": "AT_RISK",
-        "flags": [
-          "INACTIVE_GOVERNANCE",
-          "LOW_ENGAGEMENT",
-          "NO_DEVELOPMENT"
-        ],
-        "recommendation": "Community at risk. 3 red flags. Deep due diligence required."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 15.0,
-    "thriving_count": 0,
-    "timestamp": 1785661866.510705
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 0,
-        "social_presence_score": 0,
-        "developer_activity_score": 0,
-        "community_investment_score": 0,
-        "security_trust_score": 100,
-        "composite_score": 15,
-        "sentiment_label": "AT_RISK",
-        "flags": [
-          "INACTIVE_GOVERNANCE",
-          "LOW_ENGAGEMENT",
-          "NO_DEVELOPMENT"
-        ],
-        "recommendation": "Community at risk. 3 red flags. Deep due diligence required."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 15.0,
-    "thriving_count": 0,
-    "timestamp": 1785661866.515107
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 0,
-        "social_presence_score": 0,
-        "developer_activity_score": 0,
-        "community_investment_score": 0,
-        "security_trust_score": 100,
-        "composite_score": 15,
-        "sentiment_label": "AT_RISK",
-        "flags": [
-          "INACTIVE_GOVERNANCE",
-          "LOW_ENGAGEMENT",
-          "NO_DEVELOPMENT"
-        ],
-        "recommendation": "Community at risk. 3 red flags. Deep due diligence required."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 15.0,
-    "thriving_count": 0,
-    "timestamp": 1785661866.5196478
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 0,
-        "social_presence_score": 0,
-        "developer_activity_score": 0,
-        "community_investment_score": 0,
-        "security_trust_score": 100,
-        "composite_score": 15,
-        "sentiment_label": "AT_RISK",
-        "flags": [
-          "INACTIVE_GOVERNANCE",
-          "LOW_ENGAGEMENT",
-          "NO_DEVELOPMENT"
-        ],
-        "recommendation": "Community at risk. 3 red flags. Deep due diligence required."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 15.0,
-    "thriving_count": 0,
-    "timestamp": 1785661866.524104
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 100,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 100,
-        "security_trust_score": 100,
-        "composite_score": 88,
-        "sentiment_label": "THRIVING",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Highly active community. 100 commits/mo, 12% voter participation."
-      },
-      {
-        "name": "NewCo",
-        "governance_health_score": 24,
-        "social_presence_score": 1,
-        "developer_activity_score": 0,
-        "community_investment_score": 0,
-        "security_trust_score": 0,
-        "composite_score": 6,
-        "sentiment_label": "AT_RISK",
-        "flags": [
-          "INACTIVE_GOVERNANCE",
-          "LOW_ENGAGEMENT",
-          "NO_DEVELOPMENT",
-          "RECENT_EXPLOIT"
-        ],
-        "recommendation": "Community at risk. 4 red flags. Deep due diligence required."
-      },
-      {
-        "name": "MidProto",
-        "governance_health_score": 69,
-        "social_presence_score": 40,
-        "developer_activity_score": 60,
-        "community_investment_score": 20,
-        "security_trust_score": 100,
-        "composite_score": 58,
-        "sentiment_label": "STABLE",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Adequate community. Monitor engagement (1.5% rate)."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 50.666666666666664,
-    "thriving_count": 1,
-    "timestamp": 1785661866.5286808
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 100,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 100,
-        "security_trust_score": 100,
-        "composite_score": 88,
-        "sentiment_label": "THRIVING",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Highly active community. 100 commits/mo, 12% voter participation."
-      },
-      {
-        "name": "NewCo",
-        "governance_health_score": 24,
-        "social_presence_score": 1,
-        "developer_activity_score": 0,
-        "community_investment_score": 0,
-        "security_trust_score": 0,
-        "composite_score": 6,
-        "sentiment_label": "AT_RISK",
-        "flags": [
-          "INACTIVE_GOVERNANCE",
-          "LOW_ENGAGEMENT",
-          "NO_DEVELOPMENT",
-          "RECENT_EXPLOIT"
-        ],
-        "recommendation": "Community at risk. 4 red flags. Deep due diligence required."
-      },
-      {
-        "name": "MidProto",
-        "governance_health_score": 69,
-        "social_presence_score": 40,
-        "developer_activity_score": 60,
-        "community_investment_score": 20,
-        "security_trust_score": 100,
-        "composite_score": 58,
-        "sentiment_label": "STABLE",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Adequate community. Monitor engagement (1.5% rate)."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 50.666666666666664,
-    "thriving_count": 1,
-    "timestamp": 1785661866.5334332
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 100,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 100,
-        "security_trust_score": 100,
-        "composite_score": 88,
-        "sentiment_label": "THRIVING",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Highly active community. 100 commits/mo, 12% voter participation."
-      },
-      {
-        "name": "NewCo",
-        "governance_health_score": 24,
-        "social_presence_score": 1,
-        "developer_activity_score": 0,
-        "community_investment_score": 0,
-        "security_trust_score": 0,
-        "composite_score": 6,
-        "sentiment_label": "AT_RISK",
-        "flags": [
-          "INACTIVE_GOVERNANCE",
-          "LOW_ENGAGEMENT",
-          "NO_DEVELOPMENT",
-          "RECENT_EXPLOIT"
-        ],
-        "recommendation": "Community at risk. 4 red flags. Deep due diligence required."
-      },
-      {
-        "name": "MidProto",
-        "governance_health_score": 69,
-        "social_presence_score": 40,
-        "developer_activity_score": 60,
-        "community_investment_score": 20,
-        "security_trust_score": 100,
-        "composite_score": 58,
-        "sentiment_label": "STABLE",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Adequate community. Monitor engagement (1.5% rate)."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 50.666666666666664,
-    "thriving_count": 1,
-    "timestamp": 1785661866.5377364
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 100,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 100,
-        "security_trust_score": 100,
-        "composite_score": 88,
-        "sentiment_label": "THRIVING",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Highly active community. 100 commits/mo, 12% voter participation."
-      },
-      {
-        "name": "NewCo",
-        "governance_health_score": 24,
-        "social_presence_score": 1,
-        "developer_activity_score": 0,
-        "community_investment_score": 0,
-        "security_trust_score": 0,
-        "composite_score": 6,
-        "sentiment_label": "AT_RISK",
-        "flags": [
-          "INACTIVE_GOVERNANCE",
-          "LOW_ENGAGEMENT",
-          "NO_DEVELOPMENT",
-          "RECENT_EXPLOIT"
-        ],
-        "recommendation": "Community at risk. 4 red flags. Deep due diligence required."
-      },
-      {
-        "name": "MidProto",
-        "governance_health_score": 69,
-        "social_presence_score": 40,
-        "developer_activity_score": 60,
-        "community_investment_score": 20,
-        "security_trust_score": 100,
-        "composite_score": 58,
-        "sentiment_label": "STABLE",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Adequate community. Monitor engagement (1.5% rate)."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 50.666666666666664,
-    "thriving_count": 1,
-    "timestamp": 1785661866.5424407
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 100,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 100,
-        "security_trust_score": 100,
-        "composite_score": 88,
-        "sentiment_label": "THRIVING",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Highly active community. 100 commits/mo, 12% voter participation."
-      },
-      {
-        "name": "NewCo",
-        "governance_health_score": 24,
-        "social_presence_score": 1,
-        "developer_activity_score": 0,
-        "community_investment_score": 0,
-        "security_trust_score": 0,
-        "composite_score": 6,
-        "sentiment_label": "AT_RISK",
-        "flags": [
-          "INACTIVE_GOVERNANCE",
-          "LOW_ENGAGEMENT",
-          "NO_DEVELOPMENT",
-          "RECENT_EXPLOIT"
-        ],
-        "recommendation": "Community at risk. 4 red flags. Deep due diligence required."
-      },
-      {
-        "name": "MidProto",
-        "governance_health_score": 69,
-        "social_presence_score": 40,
-        "developer_activity_score": 60,
-        "community_investment_score": 20,
-        "security_trust_score": 100,
-        "composite_score": 58,
-        "sentiment_label": "STABLE",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Adequate community. Monitor engagement (1.5% rate)."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 50.666666666666664,
-    "thriving_count": 1,
-    "timestamp": 1785661866.5469296
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 99,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 50,
-        "security_trust_score": 100,
-        "composite_score": 80,
-        "sentiment_label": "THRIVING",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 80.0,
-    "thriving_count": 1,
-    "timestamp": 1785661866.5943475
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 99,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 50,
-        "security_trust_score": 100,
-        "composite_score": 80,
-        "sentiment_label": "THRIVING",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 80.0,
-    "thriving_count": 1,
-    "timestamp": 1785661866.5995617
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 99,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 50,
-        "security_trust_score": 100,
-        "composite_score": 80,
-        "sentiment_label": "THRIVING",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 80.0,
-    "thriving_count": 1,
-    "timestamp": 1785661866.604547
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 99,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 50,
-        "security_trust_score": 100,
-        "composite_score": 80,
-        "sentiment_label": "THRIVING",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 80.0,
-    "thriving_count": 1,
-    "timestamp": 1785661866.6099615
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 99,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 50,
-        "security_trust_score": 100,
-        "composite_score": 80,
-        "sentiment_label": "THRIVING",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 80.0,
-    "thriving_count": 1,
-    "timestamp": 1785661866.6153653
-  },
-  {
-    "protocols": [
-      {
-        "name": "P1",
-        "governance_health_score": 100,
-        "social_presence_score": 100,
-        "developer_activity_score": 100,
-        "community_investment_score": 100,
-        "security_trust_score": 100,
-        "composite_score": 100,
-        "sentiment_label": "THRIVING",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Highly active community. 34 commits/mo, 50% voter participation."
-      },
-      {
-        "name": "P2",
-        "governance_health_score": 100,
-        "social_presence_score": 100,
-        "developer_activity_score": 100,
-        "community_investment_score": 100,
-        "security_trust_score": 100,
-        "composite_score": 100,
-        "sentiment_label": "THRIVING",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Highly active community. 34 commits/mo, 50% voter participation."
-      }
-    ],
-    "most_vibrant": "P1",
-    "average_composite_score": 100.0,
-    "thriving_count": 2,
-    "timestamp": 1785661866.620704
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 99,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 50,
-        "security_trust_score": 100,
-        "composite_score": 80,
-        "sentiment_label": "THRIVING",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 80.0,
-    "thriving_count": 1,
-    "timestamp": 1785661866.6259606
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 24,
-        "social_presence_score": 15,
-        "developer_activity_score": 0,
-        "community_investment_score": 0,
-        "security_trust_score": 100,
-        "composite_score": 24,
-        "sentiment_label": "AT_RISK",
-        "flags": [
-          "INACTIVE_GOVERNANCE",
-          "NO_DEVELOPMENT"
-        ],
-        "recommendation": "Community at risk. 2 red flags. Deep due diligence required."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 24.0,
-    "thriving_count": 0,
-    "timestamp": 1785661866.6312673
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 99,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 50,
-        "security_trust_score": 0,
-        "composite_score": 65,
-        "sentiment_label": "HEALTHY",
-        "flags": [
-          "RECENT_EXPLOIT",
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Strong community. Score: 65. 5 governance proposals."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 65.0,
-    "thriving_count": 0,
-    "timestamp": 1785661866.636335
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 99,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 50,
-        "security_trust_score": 50,
-        "composite_score": 72,
-        "sentiment_label": "HEALTHY",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Strong community. Score: 72. 5 governance proposals."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 72.0,
-    "thriving_count": 0,
-    "timestamp": 1785661866.6413133
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 99,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 50,
-        "security_trust_score": 0,
-        "composite_score": 65,
-        "sentiment_label": "HEALTHY",
-        "flags": [
-          "RECENT_EXPLOIT",
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Strong community. Score: 65. 5 governance proposals."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 65.0,
-    "thriving_count": 0,
-    "timestamp": 1785661866.6462102
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 99,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 50,
-        "security_trust_score": 20,
-        "composite_score": 68,
-        "sentiment_label": "HEALTHY",
-        "flags": [
-          "RECENT_EXPLOIT",
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Strong community. Score: 68. 5 governance proposals."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 68.0,
-    "thriving_count": 0,
-    "timestamp": 1785661866.6517446
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 99,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 50,
-        "security_trust_score": 20,
-        "composite_score": 68,
-        "sentiment_label": "HEALTHY",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Strong community. Score: 68. 5 governance proposals."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 68.0,
-    "thriving_count": 0,
-    "timestamp": 1785661866.657199
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 99,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 50,
-        "security_trust_score": 20,
-        "composite_score": 68,
-        "sentiment_label": "HEALTHY",
-        "flags": [
-          "RECENT_EXPLOIT",
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Strong community. Score: 68. 5 governance proposals."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 68.0,
-    "thriving_count": 0,
-    "timestamp": 1785661866.6623077
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 99,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 50,
-        "security_trust_score": 20,
-        "composite_score": 68,
-        "sentiment_label": "HEALTHY",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Strong community. Score: 68. 5 governance proposals."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 68.0,
-    "thriving_count": 0,
-    "timestamp": 1785661866.6671298
-  },
-  {
-    "protocols": [],
-    "most_vibrant": null,
-    "average_composite_score": 0.0,
-    "thriving_count": 0,
-    "timestamp": 1785833436.4277978
-  },
-  {
-    "protocols": [],
-    "most_vibrant": null,
-    "average_composite_score": 0.0,
-    "thriving_count": 0,
-    "timestamp": 1785833436.435615
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 99,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 50,
-        "security_trust_score": 100,
-        "composite_score": 80,
-        "sentiment_label": "THRIVING",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 80.0,
-    "thriving_count": 1,
-    "timestamp": 1785833436.442107
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 99,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 50,
-        "security_trust_score": 100,
-        "composite_score": 80,
-        "sentiment_label": "THRIVING",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 80.0,
-    "thriving_count": 1,
-    "timestamp": 1785833436.4486217
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 99,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 50,
-        "security_trust_score": 100,
-        "composite_score": 80,
-        "sentiment_label": "THRIVING",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 80.0,
-    "thriving_count": 1,
-    "timestamp": 1785833436.4550614
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 99,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 50,
-        "security_trust_score": 100,
-        "composite_score": 80,
-        "sentiment_label": "THRIVING",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 80.0,
-    "thriving_count": 1,
-    "timestamp": 1785833436.4613721
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 99,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 50,
-        "security_trust_score": 100,
-        "composite_score": 80,
-        "sentiment_label": "THRIVING",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 80.0,
-    "thriving_count": 1,
-    "timestamp": 1785833436.4676747
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 99,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 50,
-        "security_trust_score": 100,
-        "composite_score": 80,
-        "sentiment_label": "THRIVING",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 80.0,
-    "thriving_count": 1,
-    "timestamp": 1785833436.4741209
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 99,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 50,
-        "security_trust_score": 100,
-        "composite_score": 80,
-        "sentiment_label": "THRIVING",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 80.0,
-    "thriving_count": 1,
-    "timestamp": 1785833436.480597
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 99,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 50,
-        "security_trust_score": 100,
-        "composite_score": 80,
-        "sentiment_label": "THRIVING",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 80.0,
-    "thriving_count": 1,
-    "timestamp": 1785833436.4869297
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 99,
-        "social_presence_score": 40,
-        "developer_activity_score": 100,
-        "community_investment_score": 50,
-        "security_trust_score": 100,
-        "composite_score": 80,
-        "sentiment_label": "THRIVING",
-        "flags": [
-          "GRANT_FUNDED"
-        ],
-        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 80.0,
-    "thriving_count": 1,
-    "timestamp": 1785833436.4929771
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "governance_health_score": 0,
-        "social_presence_score": 0,
-        "developer_activity_score": 0,
-        "community_investment_score": 0,
-        "security_trust_score": 100,
-        "composite_score": 15,
-        "sentiment_label": "AT_RISK",
-        "flags": [
-          "INACTIVE_GOVERNANCE",
-          "LOW_ENGAGEMENT",
-          "NO_DEVELOPMENT"
-        ],
-        "recommendation": "Community at risk. 3 red flags. Deep due diligence required."
-      }
-    ],
-    "most_vibrant": "Aave",
-    "average_composite_score": 15.0,
-    "thriving_count": 0,
     "timestamp": 1785833436.4993553
   },
   {
@@ -2696,5 +1726,975 @@
     "average_composite_score": 68.0,
     "thriving_count": 0,
     "timestamp": 1787647480.4554443
+  },
+  {
+    "protocols": [],
+    "most_vibrant": null,
+    "average_composite_score": 0.0,
+    "thriving_count": 0,
+    "timestamp": 1787909029.2109044
+  },
+  {
+    "protocols": [],
+    "most_vibrant": null,
+    "average_composite_score": 0.0,
+    "thriving_count": 0,
+    "timestamp": 1787909029.2673576
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 99,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 50,
+        "security_trust_score": 100,
+        "composite_score": 80,
+        "sentiment_label": "THRIVING",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 80.0,
+    "thriving_count": 1,
+    "timestamp": 1787909029.3237233
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 99,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 50,
+        "security_trust_score": 100,
+        "composite_score": 80,
+        "sentiment_label": "THRIVING",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 80.0,
+    "thriving_count": 1,
+    "timestamp": 1787909029.380021
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 99,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 50,
+        "security_trust_score": 100,
+        "composite_score": 80,
+        "sentiment_label": "THRIVING",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 80.0,
+    "thriving_count": 1,
+    "timestamp": 1787909029.4362855
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 99,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 50,
+        "security_trust_score": 100,
+        "composite_score": 80,
+        "sentiment_label": "THRIVING",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 80.0,
+    "thriving_count": 1,
+    "timestamp": 1787909029.4923043
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 99,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 50,
+        "security_trust_score": 100,
+        "composite_score": 80,
+        "sentiment_label": "THRIVING",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 80.0,
+    "thriving_count": 1,
+    "timestamp": 1787909029.5487862
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 99,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 50,
+        "security_trust_score": 100,
+        "composite_score": 80,
+        "sentiment_label": "THRIVING",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 80.0,
+    "thriving_count": 1,
+    "timestamp": 1787909029.6047993
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 99,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 50,
+        "security_trust_score": 100,
+        "composite_score": 80,
+        "sentiment_label": "THRIVING",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 80.0,
+    "thriving_count": 1,
+    "timestamp": 1787909029.6608863
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 99,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 50,
+        "security_trust_score": 100,
+        "composite_score": 80,
+        "sentiment_label": "THRIVING",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 80.0,
+    "thriving_count": 1,
+    "timestamp": 1787909029.719034
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 99,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 50,
+        "security_trust_score": 100,
+        "composite_score": 80,
+        "sentiment_label": "THRIVING",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 80.0,
+    "thriving_count": 1,
+    "timestamp": 1787909029.774889
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 0,
+        "social_presence_score": 0,
+        "developer_activity_score": 0,
+        "community_investment_score": 0,
+        "security_trust_score": 100,
+        "composite_score": 15,
+        "sentiment_label": "AT_RISK",
+        "flags": [
+          "INACTIVE_GOVERNANCE",
+          "LOW_ENGAGEMENT",
+          "NO_DEVELOPMENT"
+        ],
+        "recommendation": "Community at risk. 3 red flags. Deep due diligence required."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 15.0,
+    "thriving_count": 0,
+    "timestamp": 1787909029.8317254
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 0,
+        "social_presence_score": 0,
+        "developer_activity_score": 0,
+        "community_investment_score": 0,
+        "security_trust_score": 100,
+        "composite_score": 15,
+        "sentiment_label": "AT_RISK",
+        "flags": [
+          "INACTIVE_GOVERNANCE",
+          "LOW_ENGAGEMENT",
+          "NO_DEVELOPMENT"
+        ],
+        "recommendation": "Community at risk. 3 red flags. Deep due diligence required."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 15.0,
+    "thriving_count": 0,
+    "timestamp": 1787909029.8882594
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 0,
+        "social_presence_score": 0,
+        "developer_activity_score": 0,
+        "community_investment_score": 0,
+        "security_trust_score": 100,
+        "composite_score": 15,
+        "sentiment_label": "AT_RISK",
+        "flags": [
+          "INACTIVE_GOVERNANCE",
+          "LOW_ENGAGEMENT",
+          "NO_DEVELOPMENT"
+        ],
+        "recommendation": "Community at risk. 3 red flags. Deep due diligence required."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 15.0,
+    "thriving_count": 0,
+    "timestamp": 1787909029.9448047
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 0,
+        "social_presence_score": 0,
+        "developer_activity_score": 0,
+        "community_investment_score": 0,
+        "security_trust_score": 100,
+        "composite_score": 15,
+        "sentiment_label": "AT_RISK",
+        "flags": [
+          "INACTIVE_GOVERNANCE",
+          "LOW_ENGAGEMENT",
+          "NO_DEVELOPMENT"
+        ],
+        "recommendation": "Community at risk. 3 red flags. Deep due diligence required."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 15.0,
+    "thriving_count": 0,
+    "timestamp": 1787909030.00141
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 0,
+        "social_presence_score": 0,
+        "developer_activity_score": 0,
+        "community_investment_score": 0,
+        "security_trust_score": 100,
+        "composite_score": 15,
+        "sentiment_label": "AT_RISK",
+        "flags": [
+          "INACTIVE_GOVERNANCE",
+          "LOW_ENGAGEMENT",
+          "NO_DEVELOPMENT"
+        ],
+        "recommendation": "Community at risk. 3 red flags. Deep due diligence required."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 15.0,
+    "thriving_count": 0,
+    "timestamp": 1787909030.0580158
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 0,
+        "social_presence_score": 0,
+        "developer_activity_score": 0,
+        "community_investment_score": 0,
+        "security_trust_score": 100,
+        "composite_score": 15,
+        "sentiment_label": "AT_RISK",
+        "flags": [
+          "INACTIVE_GOVERNANCE",
+          "LOW_ENGAGEMENT",
+          "NO_DEVELOPMENT"
+        ],
+        "recommendation": "Community at risk. 3 red flags. Deep due diligence required."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 15.0,
+    "thriving_count": 0,
+    "timestamp": 1787909030.1150055
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 100,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 100,
+        "security_trust_score": 100,
+        "composite_score": 88,
+        "sentiment_label": "THRIVING",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Highly active community. 100 commits/mo, 12% voter participation."
+      },
+      {
+        "name": "NewCo",
+        "governance_health_score": 24,
+        "social_presence_score": 1,
+        "developer_activity_score": 0,
+        "community_investment_score": 0,
+        "security_trust_score": 0,
+        "composite_score": 6,
+        "sentiment_label": "AT_RISK",
+        "flags": [
+          "INACTIVE_GOVERNANCE",
+          "LOW_ENGAGEMENT",
+          "NO_DEVELOPMENT",
+          "RECENT_EXPLOIT"
+        ],
+        "recommendation": "Community at risk. 4 red flags. Deep due diligence required."
+      },
+      {
+        "name": "MidProto",
+        "governance_health_score": 69,
+        "social_presence_score": 40,
+        "developer_activity_score": 60,
+        "community_investment_score": 20,
+        "security_trust_score": 100,
+        "composite_score": 58,
+        "sentiment_label": "STABLE",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Adequate community. Monitor engagement (1.5% rate)."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 50.666666666666664,
+    "thriving_count": 1,
+    "timestamp": 1787909030.1716359
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 100,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 100,
+        "security_trust_score": 100,
+        "composite_score": 88,
+        "sentiment_label": "THRIVING",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Highly active community. 100 commits/mo, 12% voter participation."
+      },
+      {
+        "name": "NewCo",
+        "governance_health_score": 24,
+        "social_presence_score": 1,
+        "developer_activity_score": 0,
+        "community_investment_score": 0,
+        "security_trust_score": 0,
+        "composite_score": 6,
+        "sentiment_label": "AT_RISK",
+        "flags": [
+          "INACTIVE_GOVERNANCE",
+          "LOW_ENGAGEMENT",
+          "NO_DEVELOPMENT",
+          "RECENT_EXPLOIT"
+        ],
+        "recommendation": "Community at risk. 4 red flags. Deep due diligence required."
+      },
+      {
+        "name": "MidProto",
+        "governance_health_score": 69,
+        "social_presence_score": 40,
+        "developer_activity_score": 60,
+        "community_investment_score": 20,
+        "security_trust_score": 100,
+        "composite_score": 58,
+        "sentiment_label": "STABLE",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Adequate community. Monitor engagement (1.5% rate)."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 50.666666666666664,
+    "thriving_count": 1,
+    "timestamp": 1787909030.2280374
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 100,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 100,
+        "security_trust_score": 100,
+        "composite_score": 88,
+        "sentiment_label": "THRIVING",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Highly active community. 100 commits/mo, 12% voter participation."
+      },
+      {
+        "name": "NewCo",
+        "governance_health_score": 24,
+        "social_presence_score": 1,
+        "developer_activity_score": 0,
+        "community_investment_score": 0,
+        "security_trust_score": 0,
+        "composite_score": 6,
+        "sentiment_label": "AT_RISK",
+        "flags": [
+          "INACTIVE_GOVERNANCE",
+          "LOW_ENGAGEMENT",
+          "NO_DEVELOPMENT",
+          "RECENT_EXPLOIT"
+        ],
+        "recommendation": "Community at risk. 4 red flags. Deep due diligence required."
+      },
+      {
+        "name": "MidProto",
+        "governance_health_score": 69,
+        "social_presence_score": 40,
+        "developer_activity_score": 60,
+        "community_investment_score": 20,
+        "security_trust_score": 100,
+        "composite_score": 58,
+        "sentiment_label": "STABLE",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Adequate community. Monitor engagement (1.5% rate)."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 50.666666666666664,
+    "thriving_count": 1,
+    "timestamp": 1787909030.2848306
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 100,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 100,
+        "security_trust_score": 100,
+        "composite_score": 88,
+        "sentiment_label": "THRIVING",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Highly active community. 100 commits/mo, 12% voter participation."
+      },
+      {
+        "name": "NewCo",
+        "governance_health_score": 24,
+        "social_presence_score": 1,
+        "developer_activity_score": 0,
+        "community_investment_score": 0,
+        "security_trust_score": 0,
+        "composite_score": 6,
+        "sentiment_label": "AT_RISK",
+        "flags": [
+          "INACTIVE_GOVERNANCE",
+          "LOW_ENGAGEMENT",
+          "NO_DEVELOPMENT",
+          "RECENT_EXPLOIT"
+        ],
+        "recommendation": "Community at risk. 4 red flags. Deep due diligence required."
+      },
+      {
+        "name": "MidProto",
+        "governance_health_score": 69,
+        "social_presence_score": 40,
+        "developer_activity_score": 60,
+        "community_investment_score": 20,
+        "security_trust_score": 100,
+        "composite_score": 58,
+        "sentiment_label": "STABLE",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Adequate community. Monitor engagement (1.5% rate)."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 50.666666666666664,
+    "thriving_count": 1,
+    "timestamp": 1787909030.3421316
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 100,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 100,
+        "security_trust_score": 100,
+        "composite_score": 88,
+        "sentiment_label": "THRIVING",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Highly active community. 100 commits/mo, 12% voter participation."
+      },
+      {
+        "name": "NewCo",
+        "governance_health_score": 24,
+        "social_presence_score": 1,
+        "developer_activity_score": 0,
+        "community_investment_score": 0,
+        "security_trust_score": 0,
+        "composite_score": 6,
+        "sentiment_label": "AT_RISK",
+        "flags": [
+          "INACTIVE_GOVERNANCE",
+          "LOW_ENGAGEMENT",
+          "NO_DEVELOPMENT",
+          "RECENT_EXPLOIT"
+        ],
+        "recommendation": "Community at risk. 4 red flags. Deep due diligence required."
+      },
+      {
+        "name": "MidProto",
+        "governance_health_score": 69,
+        "social_presence_score": 40,
+        "developer_activity_score": 60,
+        "community_investment_score": 20,
+        "security_trust_score": 100,
+        "composite_score": 58,
+        "sentiment_label": "STABLE",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Adequate community. Monitor engagement (1.5% rate)."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 50.666666666666664,
+    "thriving_count": 1,
+    "timestamp": 1787909030.3984768
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 99,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 50,
+        "security_trust_score": 100,
+        "composite_score": 80,
+        "sentiment_label": "THRIVING",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 80.0,
+    "thriving_count": 1,
+    "timestamp": 1787909030.7557955
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 99,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 50,
+        "security_trust_score": 100,
+        "composite_score": 80,
+        "sentiment_label": "THRIVING",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 80.0,
+    "thriving_count": 1,
+    "timestamp": 1787909030.8119736
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 99,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 50,
+        "security_trust_score": 100,
+        "composite_score": 80,
+        "sentiment_label": "THRIVING",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 80.0,
+    "thriving_count": 1,
+    "timestamp": 1787909030.8683789
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 99,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 50,
+        "security_trust_score": 100,
+        "composite_score": 80,
+        "sentiment_label": "THRIVING",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 80.0,
+    "thriving_count": 1,
+    "timestamp": 1787909030.9257505
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 99,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 50,
+        "security_trust_score": 100,
+        "composite_score": 80,
+        "sentiment_label": "THRIVING",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 80.0,
+    "thriving_count": 1,
+    "timestamp": 1787909030.981952
+  },
+  {
+    "protocols": [
+      {
+        "name": "P1",
+        "governance_health_score": 100,
+        "social_presence_score": 100,
+        "developer_activity_score": 100,
+        "community_investment_score": 100,
+        "security_trust_score": 100,
+        "composite_score": 100,
+        "sentiment_label": "THRIVING",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Highly active community. 34 commits/mo, 50% voter participation."
+      },
+      {
+        "name": "P2",
+        "governance_health_score": 100,
+        "social_presence_score": 100,
+        "developer_activity_score": 100,
+        "community_investment_score": 100,
+        "security_trust_score": 100,
+        "composite_score": 100,
+        "sentiment_label": "THRIVING",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Highly active community. 34 commits/mo, 50% voter participation."
+      }
+    ],
+    "most_vibrant": "P1",
+    "average_composite_score": 100.0,
+    "thriving_count": 2,
+    "timestamp": 1787909031.0417337
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 99,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 50,
+        "security_trust_score": 100,
+        "composite_score": 80,
+        "sentiment_label": "THRIVING",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Highly active community. 80 commits/mo, 12% voter participation."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 80.0,
+    "thriving_count": 1,
+    "timestamp": 1787909031.1001194
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 24,
+        "social_presence_score": 15,
+        "developer_activity_score": 0,
+        "community_investment_score": 0,
+        "security_trust_score": 100,
+        "composite_score": 24,
+        "sentiment_label": "AT_RISK",
+        "flags": [
+          "INACTIVE_GOVERNANCE",
+          "NO_DEVELOPMENT"
+        ],
+        "recommendation": "Community at risk. 2 red flags. Deep due diligence required."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 24.0,
+    "thriving_count": 0,
+    "timestamp": 1787909031.156903
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 99,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 50,
+        "security_trust_score": 0,
+        "composite_score": 65,
+        "sentiment_label": "HEALTHY",
+        "flags": [
+          "RECENT_EXPLOIT",
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Strong community. Score: 65. 5 governance proposals."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 65.0,
+    "thriving_count": 0,
+    "timestamp": 1787909031.2135165
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 99,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 50,
+        "security_trust_score": 50,
+        "composite_score": 72,
+        "sentiment_label": "HEALTHY",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Strong community. Score: 72. 5 governance proposals."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 72.0,
+    "thriving_count": 0,
+    "timestamp": 1787909031.270992
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 99,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 50,
+        "security_trust_score": 0,
+        "composite_score": 65,
+        "sentiment_label": "HEALTHY",
+        "flags": [
+          "RECENT_EXPLOIT",
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Strong community. Score: 65. 5 governance proposals."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 65.0,
+    "thriving_count": 0,
+    "timestamp": 1787909031.3286781
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 99,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 50,
+        "security_trust_score": 20,
+        "composite_score": 68,
+        "sentiment_label": "HEALTHY",
+        "flags": [
+          "RECENT_EXPLOIT",
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Strong community. Score: 68. 5 governance proposals."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 68.0,
+    "thriving_count": 0,
+    "timestamp": 1787909031.3860788
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 99,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 50,
+        "security_trust_score": 20,
+        "composite_score": 68,
+        "sentiment_label": "HEALTHY",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Strong community. Score: 68. 5 governance proposals."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 68.0,
+    "thriving_count": 0,
+    "timestamp": 1787909031.4439375
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 99,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 50,
+        "security_trust_score": 20,
+        "composite_score": 68,
+        "sentiment_label": "HEALTHY",
+        "flags": [
+          "RECENT_EXPLOIT",
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Strong community. Score: 68. 5 governance proposals."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 68.0,
+    "thriving_count": 0,
+    "timestamp": 1787909031.5016527
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "governance_health_score": 99,
+        "social_presence_score": 40,
+        "developer_activity_score": 100,
+        "community_investment_score": 50,
+        "security_trust_score": 20,
+        "composite_score": 68,
+        "sentiment_label": "HEALTHY",
+        "flags": [
+          "GRANT_FUNDED"
+        ],
+        "recommendation": "Strong community. Score: 68. 5 governance proposals."
+      }
+    ],
+    "most_vibrant": "Aave",
+    "average_composite_score": 68.0,
+    "thriving_count": 0,
+    "timestamp": 1787909031.5584633
   }
 ]

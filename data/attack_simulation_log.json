@@ -1,357 +1,5 @@
 [
   {
-    "timestamp": 1785661891.05306,
-    "protocol_count": 2,
-    "most_secure": "Secure",
-    "most_vulnerable": "Vulnerable",
-    "average_security_score": 50.0,
-    "critical_count": 1
-  },
-  {
-    "timestamp": 1785661891.0551887,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 100.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785661891.0573149,
-    "protocol_count": 3,
-    "most_secure": "A",
-    "most_vulnerable": "A",
-    "average_security_score": 78.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785661891.0593855,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 78.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785661891.061437,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 83.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785661891.063439,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 60.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785661891.065557,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 48.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785661891.0676842,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 48.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785661891.0697858,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 78.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785661891.0717797,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 78.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785661891.0729926,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 78.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785661891.074071,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 78.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.31988,
-    "protocol_count": 0,
-    "most_secure": null,
-    "most_vulnerable": null,
-    "average_security_score": 0.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.3233106,
-    "protocol_count": 0,
-    "most_secure": null,
-    "most_vulnerable": null,
-    "average_security_score": 0.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.326474,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 78.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.3297362,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 78.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.3327982,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 78.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.3363333,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 78.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.3398273,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 78.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.3429008,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 78.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.3459635,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 78.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.3489544,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 78.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.3519747,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 78.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.3551729,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 78.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.3582375,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 78.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.3611746,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 78.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.3641953,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 78.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.3671703,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 78.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.37024,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 78.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.3733842,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 63.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.3765762,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 48.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.3796656,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 68.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.3827271,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 88.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.3857784,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 100.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.388758,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 78.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.3918698,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 73.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.3952909,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 78.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.3985362,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 63.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.4016492,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 60.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.4045796,
-    "protocol_count": 1,
-    "most_secure": "TestProtocol",
-    "most_vulnerable": "TestProtocol",
-    "average_security_score": 68.0,
-    "critical_count": 0
-  },
-  {
-    "timestamp": 1785833474.4077237,
-    "protocol_count": 2,
-    "most_secure": "Secure",
-    "most_vulnerable": "Vulnerable",
-    "average_security_score": 50.0,
-    "critical_count": 1
-  },
-  {
-    "timestamp": 1785833474.4107857,
-    "protocol_count": 2,
-    "most_secure": "Secure",
-    "most_vulnerable": "Vulnerable",
-    "average_security_score": 50.0,
-    "critical_count": 1
-  },
-  {
-    "timestamp": 1785833474.4138346,
-    "protocol_count": 2,
-    "most_secure": "Secure",
-    "most_vulnerable": "Vulnerable",
-    "average_security_score": 50.0,
-    "critical_count": 1
-  },
-  {
-    "timestamp": 1785833474.4168692,
-    "protocol_count": 2,
-    "most_secure": "Secure",
-    "most_vulnerable": "Vulnerable",
-    "average_security_score": 50.0,
-    "critical_count": 1
-  },
-  {
     "timestamp": 1785833474.419883,
     "protocol_count": 2,
     "most_secure": "Secure",
@@ -793,6 +441,358 @@
   },
   {
     "timestamp": 1787647527.1807597,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 78.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909661.627182,
+    "protocol_count": 0,
+    "most_secure": null,
+    "most_vulnerable": null,
+    "average_security_score": 0.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909661.6912282,
+    "protocol_count": 0,
+    "most_secure": null,
+    "most_vulnerable": null,
+    "average_security_score": 0.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909661.7553957,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 78.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909661.8228147,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 78.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909661.885167,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 78.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909661.9491894,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 78.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909662.0131783,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 78.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909662.0748103,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 78.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909662.1427658,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 78.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909662.206791,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 78.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909662.27029,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 78.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909662.3338296,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 78.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909662.3954966,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 78.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909662.4568608,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 78.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909662.5179763,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 78.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909662.579366,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 78.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909662.640079,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 78.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909662.7480552,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 63.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909662.8224602,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 48.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909662.8848112,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 68.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909662.9502418,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 88.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909663.01338,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 100.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909663.0746686,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 78.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909663.136371,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 73.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909663.1979256,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 78.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909663.2586253,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 63.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909663.319289,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 60.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909663.3807704,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 68.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909663.4431503,
+    "protocol_count": 2,
+    "most_secure": "Secure",
+    "most_vulnerable": "Vulnerable",
+    "average_security_score": 50.0,
+    "critical_count": 1
+  },
+  {
+    "timestamp": 1787909663.5072606,
+    "protocol_count": 2,
+    "most_secure": "Secure",
+    "most_vulnerable": "Vulnerable",
+    "average_security_score": 50.0,
+    "critical_count": 1
+  },
+  {
+    "timestamp": 1787909663.5701847,
+    "protocol_count": 2,
+    "most_secure": "Secure",
+    "most_vulnerable": "Vulnerable",
+    "average_security_score": 50.0,
+    "critical_count": 1
+  },
+  {
+    "timestamp": 1787909663.6336393,
+    "protocol_count": 2,
+    "most_secure": "Secure",
+    "most_vulnerable": "Vulnerable",
+    "average_security_score": 50.0,
+    "critical_count": 1
+  },
+  {
+    "timestamp": 1787909663.6970096,
+    "protocol_count": 2,
+    "most_secure": "Secure",
+    "most_vulnerable": "Vulnerable",
+    "average_security_score": 50.0,
+    "critical_count": 1
+  },
+  {
+    "timestamp": 1787909663.76056,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 100.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909663.8232725,
+    "protocol_count": 3,
+    "most_secure": "A",
+    "most_vulnerable": "A",
+    "average_security_score": 78.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909663.8860102,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 78.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909663.9490926,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 83.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909664.0113494,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 60.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909664.0736434,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 48.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909664.135109,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 48.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909664.1979382,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 78.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909664.2602994,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 78.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909664.2620509,
+    "protocol_count": 1,
+    "most_secure": "TestProtocol",
+    "most_vulnerable": "TestProtocol",
+    "average_security_score": 78.0,
+    "critical_count": 0
+  },
+  {
+    "timestamp": 1787909664.2634916,
     "protocol_count": 1,
     "most_secure": "TestProtocol",
     "most_vulnerable": "TestProtocol",
