@@ -263,9 +263,18 @@ class BridgeHandsItsCardsToDelivery(unittest.TestCase):
         очередь показывает работу, которой нет (класс #147)."""
         with tempfile.TemporaryDirectory() as td:
             self._findings(td, [])
+            # `absent_count: 1` — фикстура, а не послабление (инв. #16, цикл #417).
+            # ADR-161 ввёл гистерезис ЗАКРЫТИЯ: карточка закрывается только после
+            # ДВУХ прогонов подряд без находки. Предмет ЭТОГО теста — «закрытая
+            # карточка попадает в доставку», а не «сколько молчаний нужно для
+            # закрытия» (о втором есть свой тест,
+            # `test_one_silent_run_does_not_close_the_card`). Без этой строки тест
+            # проверял бы гистерезис вместо доставки и зеленел бы, ничего не сказав
+            # о своём предмете — ровно класс «сторож не проверен, когда умолчание
+            # делает его избыточным». Ни один assert не снят и не сужен.
             state = {"findings": {"gone": {"first_seen": NOW.isoformat(), "seen_count": 3,
                                            "severity": "WARN", "card": os.path.join(td, "old.md"),
-                                           "status": "carded"}}, "daily": {}}
+                                           "status": "carded", "absent_count": 1}}, "daily": {}}
             json.dump(state, open(os.path.join(td, fb.STATE_REL), "w"))
             seen = {}
 
