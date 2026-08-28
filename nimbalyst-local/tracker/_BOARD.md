@@ -2,14 +2,12 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-28T09:10:19Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-28T14:55:31Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **735** · ждёт владельца: **3** · занято сессиями: **9**.
+> Всего карточек: **738** · ждёт владельца: **1** · занято сессиями: **9**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
-- **Деньги, срезанные защитами аллокатора, теперь ПОСЧИТАНЫ и НАЗВАНЫ — включать ли их обратно в работу?** · _high_  ·  `own-pererazdavat-li-srezannoe-zaschitami.md`
-- **Пятая часть денег стоит на числе, о котором две наши системы спорят (Pendle)**  ·  `owner-decision-pyataya-chast-deneg-stoit-na-chisle-o-ko.md`
 - **Второй цикл оркестратора не переживёт перезагрузку — его записка лежит не в той папке**  ·  `owner-decision-vtoroi-tsikl-orkestratora-ne-perezhivet.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
@@ -29,8 +27,6 @@
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (179)
 
 ### · needs-owner
-- Деньги, срезанные защитами аллокатора, теперь ПОСЧИТАНЫ и НАЗВАНЫ — включать ли их обратно в работу?  ·  `own-pererazdavat-li-srezannoe-zaschitami.md` · 2026-08-26
-- Пятая часть денег стоит на числе, о котором две наши системы спорят (Pendle)  ·  `owner-decision-pyataya-chast-deneg-stoit-na-chisle-o-ko.md` · 2026-08-26
 - Второй цикл оркестратора не переживёт перезагрузку — его записка лежит не в той папке  ·  `owner-decision-vtoroi-tsikl-orkestratora-ne-perezhivet.md` · 2026-08-27
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
@@ -80,6 +76,7 @@
 - Нажми, чтобы на сайте появилась строка «идёт paper-тест» по Balanced и Aggressive  ·  `own-cio-i-paper-cifry-tri-mandata-vladeltsa.md` · 2026-08-21
 - Fluid закрыт для капитала по правилу другого протокола — нужно твоё решение  ·  `own-fluid-gsm-gate-chuzhoy-parametr.md` · 2026-08-18
 - МАНДАТ АВТОНОМИИ ВОЗОБНОВЛЁН на 30 дней (решение владельца 2026-08-20, cloud-сессия) — вернуться к темпу ADR-078  ·  `own-mandat-avtonomii-vozobnovlen-30-dnei.md` · 2026-08-20
+- Деньги, срезанные защитами аллокатора, теперь ПОСЧИТАНЫ и НАЗВАНЫ — включать ли их обратно в работу?  ·  `own-pererazdavat-li-srezannoe-zaschitami.md` · 2026-08-26
 - Наблюдённая угроза до тебя не доезжает, а наша собственная остановка доезжает каждый день  ·  `own-red-team-nablyudennaya-ugroza-ne-doezzhaet.md` · 2026-08-18
 - Нашлось правило, которое впервые даёт И доход выше, И просадку меньше — строить ли под него paper-модуль  ·  `own-rnd-cdr-demotion-readmission-paper-module.md` · 2026-08-06
 - Все семь правил «выключать слабую книгу» на самом деле крутят ОДНУ ручку — концентрацию. И наш же лимит 20% срезает её ровно там, где она начинает платить  ·  `own-rnd-duty-is-concentration-adr055.md` · 2026-08-07
@@ -159,6 +156,7 @@
 - Проверь одно поле: доходят ли до тебя заявки с сайта (одна минута)  ·  `owner-decision-prover-odno-pole-dohodyat-li-do-tebya-za.md` · 2026-08-22
 - Проверка книги слабее проверки перед сделкой — 60 % в рисковом уровне проходит как «здоровый портфель»  ·  `owner-decision-proverka-knigi-slabee-proverki-pered-sde.md` · 2026-08-18
 - Публичная страница «проверь нас» показывает замеры месячной давности — выбери, как их обновлять  ·  `owner-decision-publichnaya-stranitsa-prover-nas-pokazyv.md` · 2026-07-29
+- Пятая часть денег стоит на числе, о котором две наши системы спорят (Pendle)  ·  `owner-decision-pyataya-chast-deneg-stoit-na-chisle-o-ko.md` · 2026-08-26
 - Рабочая копия проекта на маке отстала от GitHub на 345 коммитов — из-за этого очередь заданий показывает старое  ·  `owner-decision-rabochaya-kopiya-proekta-na-make-otstala.md` · 2026-07-31
 - Решение ADR-070 п.6 исполнить нельзя: «один вольт — один риск» упирается в тир morpho_steakhouse (40% → 20%)  ·  `owner-decision-reshenie-adr-070-p-6-ispolnit-nelzya-odi.md` · 2026-08-10
 - Решение ADR-104 записано, но до машины не доехало: CIO обязан смотреть раз в 5 минут, а смотрит раз в сутки  ·  `owner-decision-reshenie-adr-104-zapisano-no-do-mashiny.md` · 2026-08-21
@@ -210,7 +208,7 @@
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (360)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (362)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -533,6 +531,7 @@
 - Модуль bot_commands заменён, но жив: свой getUpdates-поллер и свои двери в чат  ·  `inbox-modul-bot-commands-zamenen-no-zhiv-svoi.md` · 2026-08-13
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
 - Находка петли: аналитик red_team: CRITICAL — требует реакции (карточка/решение), не п  ·  `inbox-nahodka-petli-analitik-red-team-critical.md` · 2026-08-10
+- Находка петли: возможность spark_susds 3.9431% (evidence L4) доступна книге, не держи  ·  `inbox-nahodka-petli-vozmozhnost-spark-susds-3-3.md` · 2026-08-28
 - Несостоявшаяся сверка с origin даёт код 0: list печатает уверенное число там, где не измерено ничего  ·  `inbox-nesostoyavshayasya-sverka-s-origin-daet.md` · 2026-08-27
 - Обещанная перепроверка DNS checkup осталась без исполнителя: карточку закрыли, критерий не выполнен  ·  `inbox-obeschannaya-pereproverka-dns-checkup-os.md` · 2026-08-22
 - Обязательное правило design-docs недостижимо по ссылкам — сторож связности красный на main  ·  `inbox-obyazatelnoe-pravilo-design-docs-nedostizhimo.md` · 2026-08-28
@@ -577,8 +576,9 @@
 - Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07 · 🔒 `cycle-81141`
 - Запись ЗА другую сессию уезжает с якорем ЖИВОГО процесса писателя — чужой ярлык читается как ACTIVE  ·  `inbox-zapis-za-druguyu-sessiyu-uezzhaet-s-yako.md` · 2026-08-26
 - Заслон от шторма считает попытки, а не доставки — вопрос владельцу можно запереть, ни разу не показав  ·  `inbox-zaslon-ot-shtorma-schitaet-popytki-a-ne.md` · 2026-08-26
+- Живость дневного цикла судится по файлу, которого нет в его объявленном контракте  ·  `inbox-zhivost-dnevnogo-tsikla-suditsya-po-chuzhomu-failu.md` · 2026-08-28
 
-## 🤖 Agent Tasks (что делает агент)  (135)
+## 🤖 Agent Tasks (что делает агент)  (136)
 
 ### · blocked
 - Две роли по согласованию расставляют сроки годности артефактов (ADR-158)  ·  `agent-dve-roli-rasstavlyayut-sroki-godnosti.md` · 2026-08-28
@@ -621,6 +621,7 @@
 - Права на origin нечем починить: пушер по построению сохраняет режим remote, а правило требует чинить режим на origin  ·  `agent-task-prava-na-origin-nechem-pochinit-pusher-p.md` · 2026-08-07
 - Прогон тестов пачкает git-tracked фикстуры — «чистое дерево» перестало быть сигналом  ·  `agent-test-run-dirties-tracked-fixtures.md` · 2026-08-04
 - 20 модулей Tier-B помечены `unsourced` — поднять их обратно можно только источником, не правкой разметки  ·  `agent-tier-b-20-unsourced-modules-need-sources.md` · 2026-08-06
+- Включить перераздачу срезанного капитала БЕЗ возврата в срезанные пулы (ADR-160)  ·  `agent-vklyuchit-pererazdachu-bez-vozvrata-v-srezannye.md` · 2026-08-28
 - Включить агента com.spa.site_freshness — код по ADR-098 доставлен, тело не загружено  ·  `agent-vklyuchit-site-freshness-posle-adr-098.md` · 2026-08-20
 - Живой источник цен для внутридневной оценки позиций — владелец выбрал его вместо ограничения книги стейблами (ADR-129)  ·  `agent-zhivoi-istochnik-tsen-dlya-vnutridnevnoi-otsenki.md` · 2026-08-23
 ### · done
