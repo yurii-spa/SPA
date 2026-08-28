@@ -1265,3 +1265,46 @@ def test_ratchet_baseline_is_not_stale() -> None:
     assert not orphan, (
         f"в базе храповика есть имена, которых нет в конституции: {orphan} — "
         "храповик стережёт то, чего система уже не производит")
+
+
+# ── 4c. гистерезис ЗАКРЫТИЯ обязан быть СЛЫШЕН на шаге 0-офис (ADR-161, #417) ──
+#
+# ADR-161 научил мост не закрывать карточку по одному молчаливому прогону. Но
+# сам шаг 0-офис про это ждание молчал: «создано 0 · закрыто 0» неотличимо от
+# «мост ничего не сделал». Это ровно та болезнь, которую ADR-161 лечит ВНУТРИ
+# моста, воспроизведённая одним уровнем выше.
+
+def _bridge_report_c417(**extra):
+    return dict({"generated_at": "2026-08-28T17:31:40.867625+00:00",
+                 "created": [], "closed": [], "deferred": [], "waiting_hysteresis": [],
+                 "escalated": [], "sources_unread": [], "open_cards": 1,
+                 "delivery": {"status": "IDLE", "delivered": []}}, **extra)
+
+
+def test_closing_hysteresis_is_named_with_the_card_and_the_streak() -> None:
+    """Ждущая закрытия карточка НАЗВАНА, и назван счёт прогонов подряд."""
+    out = _text(MOD._summarize_json("data/findings_bridge_report.json", _bridge_report_c417(
+        closing_hysteresis=[{"key": "gap:opportunity_unnamed:spark_susds",
+                             "card": "nimbalyst-local/tracker/inbox-spark.md",
+                             "absent_count": 1, "required": 2}])))
+    assert "ждут ЗАКРЫТИЯ по гистерезису: 1" in out, out
+    assert "inbox-spark.md" in out, out
+    assert "1/2" in out, out
+
+
+def test_report_written_before_adr_161_raises_no_schema_alarm() -> None:
+    """Обратный контроль: ключа нет — это НЕ расхождение схемы.
+
+    Отчёты, написанные до ADR-161, законно не имеют `closing_hysteresis`.
+    Внести его в `_READ_SCHEMA` значило бы поднять «СХЕМА РАЗОШЛАСЬ» на
+    собственной доставке — класс «сторож краснеет на нашей же правке»."""
+    out = _text(MOD._summarize_json("data/findings_bridge_report.json", _bridge_report_c417()))
+    assert "СХЕМА РАЗОШЛАСЬ" not in out, out
+    assert "ждут ЗАКРЫТИЯ" not in out, out
+
+
+def test_empty_closing_list_stays_silent() -> None:
+    """Пустой список — измеренный ноль, а не повод печатать строку ожидания."""
+    out = _text(MOD._summarize_json("data/findings_bridge_report.json",
+                                    _bridge_report_c417(closing_hysteresis=[])))
+    assert "ждут ЗАКРЫТИЯ" not in out, out
