@@ -933,3 +933,335 @@ def test_old_health_report_without_the_source_still_prints() -> None:
                                     _health_with_house_view(), now=NOW))
     assert "дом-вью (chief_investment): STALE" in out, out
     assert "НЕ из конституции" not in out, out
+
+
+# ── 6. loop_health: пульс петли ADR-066 доходил до сессии как «(пусто)» ──────
+#
+# Четвёртый рецидив ОДНОГО класса в этом файле (#170 findings_bridge · #176
+# house_view_gap · #248 _health · и ветка loop_retro, заведённая со словами «до
+# неё ретро печаталось как (пусто)»). Здесь он повторился на СИБЛИНГЕ того
+# самого файла: `data/loop_health.json` пишет тот же контур ADR-066, объявлен в
+# конституции с потребителем `orchestrator` (то есть читать его ОБЯЗАНЫ), но
+# ветки у него не было — а generic-ветка ищет `status`/`overall`/`posture`/
+# `reason`/`summary`, и loop_health не пишет НИ ОДНОГО из них.
+#
+# Снимок ниже — verbatim прод (`data/loop_health.json`, 2026-08-27T23:30:46Z),
+# ровно те байты, о которых обязательный шаг цикла #407 напечатал «(пусто)» и
+# засчитал их в «прочитано 22, не прочитано 0». Тест, написанный по памяти,
+# повторил бы дефект.
+LOOP_HEALTH_PROD = {
+    "generated_at": "2026-08-27T23:30:46.133076+00:00",
+    "adr": "ADR-066",
+    "open_cards": 0,
+    "latency_finding_to_card": {"median_h": 6.0, "max_h": 6.01, "n": 27},
+    "latency_card_to_close": {"median_h": 12.02, "max_h": 66.01, "n": 22},
+    "recurrences_total": 3,
+    "cards_fate": {"new": 0, "in_progress": 0, "done_by_human": 1,
+                   "auto_closed": 22, "unreadable": 4},
+    "note": "",
+}
+
+# Часы инъектируются вместе с отметкой снимка — обе стороны закреплены.
+NOW_LH = at("2026-08-28T03:30:00+00:00")
+
+
+def _lh(**over) -> dict:
+    doc = json.loads(json.dumps(LOOP_HEALTH_PROD))
+    doc.update(over)
+    return doc
+
+
+def test_loop_health_prod_snapshot_is_no_longer_rendered_as_empty() -> None:
+    """Положительный контроль: ТЕ ЖЕ байты, что дали «(пусто)» 28.08."""
+    out = _text(MOD._summarize_json("data/loop_health.json", LOOP_HEALTH_PROD,
+                                    now=NOW_LH))
+    assert "(пусто)" not in out, out
+    assert "петля ADR-066" in out, out
+
+
+def test_loop_health_recurrences_reach_the_session_context() -> None:
+    """Рецидив — СИСТЕМНАЯ причина по словам самого производителя.
+
+    Три находки вернулись после закрытия, и обязательный шаг молчал об этом.
+    """
+    out = _text(MOD._summarize_json("data/loop_health.json", LOOP_HEALTH_PROD,
+                                    now=NOW_LH))
+    assert "🔴 РЕЦИДИВ: 3" in out, out
+
+
+def test_loop_health_unreadable_cards_are_named_unmeasured_not_summed() -> None:
+    """`unreadable` — ТРЕТИЙ исход: ни «взята», ни «лежит».
+
+    Сложить его с любой из двух долей значит выдать неизмеренное за
+    благополучие — ровно тот fail-OPEN, ради которого заведён весь файл.
+    """
+    out = _text(MOD._summarize_json("data/loop_health.json", LOOP_HEALTH_PROD,
+                                    now=NOW_LH))
+    assert "статус 4 карточк(и) моста НЕ ИЗМЕРЕНО" in out, out
+    assert "не взято 0" in out, out
+
+
+def test_loop_health_latency_tail_is_printed_not_just_the_median() -> None:
+    """Максимум 66ч — это хвост, ради которого метрику и завели."""
+    out = _text(MOD._summarize_json("data/loop_health.json", LOOP_HEALTH_PROD,
+                                    now=NOW_LH))
+    assert "латентность карточка→закрытие: медиана 12.02ч · максимум 66.01ч" in out, out
+    assert "латентность находка→карточка: медиана 6.0ч · максимум 6.01ч" in out, out
+
+
+def test_loop_health_producer_caveat_is_not_swallowed() -> None:
+    """Оговорка «медианы по n<5 не интерпретировать» — часть показания.
+
+    Без неё числа читаются увереннее, чем их написал автор.
+    """
+    out = _text(MOD._summarize_json(
+        "data/loop_health.json",
+        _lh(note="мало истории — медианы по n<5 не интерпретировать",
+            latency_finding_to_card={"median_h": 6.0, "max_h": 6.0, "n": 2}),
+        now=NOW_LH))
+    assert "оговорка производителя: мало истории" in out, out
+
+
+def test_loop_health_quiet_loop_is_not_narrated_as_alarm() -> None:
+    """Обратный контроль: здоровая петля не должна печатать ни 🔴, ни НЕ ИЗМЕРЕНО."""
+    out = _text(MOD._summarize_json(
+        "data/loop_health.json",
+        _lh(recurrences_total=0,
+            cards_fate={"new": 0, "in_progress": 1, "done_by_human": 1,
+                        "auto_closed": 3, "unreadable": 0}),
+        now=NOW_LH))
+    assert "(пусто)" not in out, out
+    assert "🔴" not in out, out
+    assert "НЕ ИЗМЕРЕНО" not in out, out
+    assert "петля ADR-066" in out, out
+
+
+def test_loop_health_old_report_without_cards_fate_says_unmeasured() -> None:
+    """Отчёт СТАРОГО образца обязан читаться как «не измерено», а не как ноль."""
+    doc = _lh()
+    doc.pop("cards_fate")
+    doc.pop("recurrences_total")
+    out = _text(MOD._summarize_json("data/loop_health.json", doc, now=NOW_LH))
+    assert "судьба карточек петли НЕ ИЗМЕРЕНО" in out, out
+    assert "рецидивы НЕ ИЗМЕРЕНО" in out, out
+    assert "(пусто)" not in out, out
+
+
+def test_loop_health_empty_latency_says_nothing_to_measure() -> None:
+    """n=0 — «измерять нечего», а не «мгновенно»: ноль ≠ отсутствие."""
+    out = _text(MOD._summarize_json(
+        "data/loop_health.json",
+        _lh(latency_card_to_close={"median_h": None, "max_h": None, "n": 0}),
+        now=NOW_LH))
+    assert "латентность карточка→закрытие: измерять нечего (n=0)" in out, out
+    assert "медиана None" not in out, out
+
+
+# ── 7. «(пусто)» ЗАСЧИТЫВАЛОСЬ В «ПРОЧИТАНО» — и писало квитанцию ────────────
+#
+# Разбор находки цикла #408. Ветку `loop_health` (раздел 6) можно было чинить
+# бесконечно по одному артефакту: класс жив, пока пустой разбор неотличим от
+# успешного чтения. 28.08 обязательный шаг напечатал про `data/loop_health.json`
+# «(пусто)», ЗАСЧИТАЛ его в «прочитано 22, не прочитано 0» и написал за него
+# КВИТАНЦИЮ ПОТРЕБЛЕНИЯ — при том, что в артефакте лежали 3 рецидива и 4
+# карточки со статусом «не измерено».
+#
+# Квитанция — не оформление: на ней стоит проверка B3 сторожа архитектуры
+# («офис читают?»), и правило самого модуля квитанций сказано прямо — «ресит
+# пишется ТОЛЬКО после фактического успешного чтения, иначе B3 превращается в
+# театр». Пустой разбор эту норму нарушал: доказательством чтения становилось
+# эхо собственного молчания. Отсюда ТРЕТИЙ исход — «прочитан вхолостую»: не
+# «прочитан» и не «не прочитан», квитанции нет, в итоге отдельное число.
+#
+# Артефакт-образец ниже — сиблинг с формой, которой у шага нет ветки: ровно то
+# положение, в котором `loop_health` прожил незамеченным (у него не было ни
+# `status`, ни `overall`, ни `posture`, ни `reason`, ни `summary`).
+UNKNOWN_SHAPE = {
+    "generated_at": "2026-08-27T23:30:46.133076+00:00",
+    "adr": "ADR-066",
+    "open_cards": 0,
+    "recurrences_total": 3,
+    "cards_fate": {"new": 0, "unreadable": 4},
+}
+
+
+def _tree_with(root, artifacts: dict, *, extra_manifest=()) -> None:
+    """Дерево из одного манифеста и его артефактов (пути относительные)."""
+    (root / "architecture").mkdir(exist_ok=True)
+    rows = [{"path": rel, "status": "active",
+             "consumers": ["orchestrator_protocol"]} for rel in artifacts]
+    rows.extend(extra_manifest)
+    (root / "architecture" / "manifest.json").write_text(
+        json.dumps({"artifacts": rows}), encoding="utf-8")
+    for rel, doc in artifacts.items():
+        full = root / rel
+        full.parent.mkdir(parents=True, exist_ok=True)
+        full.write_text(json.dumps(doc), encoding="utf-8")
+
+
+def test_unparseable_shape_is_named_hollow_not_empty() -> None:
+    """«(пусто)» читается глазом как «в файле ничего нет». Это другое.
+
+    Файл разобран НЕ БЫЛ — и обязан сказать об этом словами, а не пробелом.
+    """
+    out = _text(MOD._summarize_json("data/loop_pulse_v2.json", UNKNOWN_SHAPE,
+                                    now=NOW_LH))
+    assert "РАЗОБРАТЬ НЕЧЕМ" in out, out
+    assert "(пусто)" not in out, out
+
+
+def test_hollow_artifact_writes_no_consumption_receipt(tmp_path) -> None:
+    """Главное утверждение: квитанция — это «я прочитал», и её быть не должно.
+
+    Положительный контроль к аварии 28.08: на неисправленном шаге ЭТОТ ЖЕ вход
+    даёт строку квитанции, то есть B3 получает доказательство чтения того, что
+    прочитано не было.
+    """
+    _tree_with(tmp_path, {"data/loop_pulse_v2.json": UNKNOWN_SHAPE,
+                          "data/investment_os/_health.json": HEALTH_REAL})
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = MOD.main(["--root", str(tmp_path)], now=NOW)
+    out = buf.getvalue()
+    assert rc == 0, out
+
+    receipts = tmp_path / "data" / "consumption_receipts.jsonl"
+    written = [json.loads(ln) for ln in
+               receipts.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    artifacts = {r["artifact"] for r in written}
+    assert "data/investment_os/_health.json" in artifacts, written
+    assert "data/loop_pulse_v2.json" not in artifacts, (
+        "за разбор, из которого не прочитано ничего, написана квитанция — "
+        "проверка B3 «офис читают?» кормится собственным эхом")
+
+
+def test_hollow_is_counted_apart_from_read_and_unread(tmp_path) -> None:
+    """Третий исход обязан быть ЧИСЛОМ в итоге, а не тоном строки выше."""
+    _tree_with(tmp_path, {"data/loop_pulse_v2.json": UNKNOWN_SHAPE,
+                          "data/investment_os/_health.json": HEALTH_REAL})
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        MOD.main(["--root", str(tmp_path), "--no-receipts"], now=NOW)
+    out = buf.getvalue()
+    assert "ПРОЧИТАН ВХОЛОСТУЮ" in out, out
+    assert "ВХОЛОСТУЮ 1" in out, out
+    assert "прочитано 1" in out, out
+    assert "прочитано 2" not in out, (
+        "вхолостую сложено с прочитанным — итог снова утверждает больше, "
+        f"чем измерено:\n{out}")
+
+
+def test_healthy_tally_line_is_unchanged(tmp_path) -> None:
+    """Обратный контроль: без вхолостую итог ДОСЛОВНО прежний.
+
+    Новый счётчик не имеет права переписывать строку, которую сверяют соседние
+    тесты, — иначе «починка» оплачивается ослаблением чужой проверки (инв. #16).
+    """
+    _tree_with(tmp_path, {"data/house_view_gap.json": HOUSE_VIEW_GAP_REAL,
+                          "data/investment_os/_health.json": HEALTH_REAL})
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        MOD.main(["--root", str(tmp_path), "--no-receipts"], now=NOW)
+    out = buf.getvalue()
+    assert "— итог: прочитано 2, не прочитано 0." in out, out
+    assert "ВХОЛОСТУЮ" not in out, out
+
+
+def test_missing_file_is_still_unread_not_hollow(tmp_path) -> None:
+    """Два исхода не сливаются: «файла нет» ≠ «файл есть, разобрать нечем».
+
+    Первое — авария производителя, второе — дыра в читателе. Одно число на оба
+    стёрло бы адресата починки.
+    """
+    _tree_with(tmp_path, {"data/investment_os/_health.json": HEALTH_REAL},
+               extra_manifest=[{"path": "data/house_view_gap.json",
+                                "status": "active",
+                                "consumers": ["orchestrator_protocol"]}])
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        MOD.main(["--root", str(tmp_path), "--no-receipts"], now=NOW)
+    out = buf.getvalue()
+    assert "❌ НЕ ПРОЧИТАН" in out, out
+    assert "прочитано 1, не прочитано 1" in out, out
+    assert "ВХОЛОСТУЮ" not in out, out
+
+
+def test_loop_health_today_is_read_for_real_not_hollow(tmp_path) -> None:
+    """Сшивка разделов 6 и 7 на ТЕХ САМЫХ байтах 28.08.
+
+    Раздел 6 научил шаг читать `loop_health`; раздел 7 отнимает у пустого
+    разбора право называться чтением. Здесь проверяется, что первое не
+    держится на втором: артефакт читается ПО-НАСТОЯЩЕМУ — квитанция есть,
+    вхолостую нет, рецидивы названы.
+    """
+    _tree_with(tmp_path, {"data/loop_health.json": LOOP_HEALTH_PROD})
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        MOD.main(["--root", str(tmp_path)], now=NOW_LH)
+    out = buf.getvalue()
+    assert "🔴 РЕЦИДИВ: 3" in out, out
+    assert "ВХОЛОСТУЮ" not in out, out
+    receipts = (tmp_path / "data" / "consumption_receipts.jsonl").read_text(encoding="utf-8")
+    assert "data/loop_health.json" in receipts, receipts
+
+
+# ── 8. храповик: объявленный читатель нельзя снять молча ─────────────────────
+#
+# Найдено мутацией в цикле #408 и записано как измеренный факт, а не как
+# подозрение: снятие строки из `_READ_SCHEMA` НЕ КРАСИТ НИЧЕГО. Причина —
+# `test_declared_schema_matches_the_live_producer` параметризован ПО САМОМУ
+# `_READ_SCHEMA`, то есть проверка живёт внутри того, что проверяет: убрал
+# объявление — убрал и его проверку. Это тот же класс, что весь ADR-157
+# (доказательством служило эхо собственного молчания), только этажом ниже.
+#
+# Правдоподобный сценарий, ради которого храповик и заводится: производитель
+# сменил форму, `test_declared_schema_matches_the_live_producer[X]` покраснел,
+# и «починка» — снять строку X. CI зелёный, артефакт снова читается generic-
+# веткой, и мы возвращаемся ровно в то состояние, из которого `loop_health`
+# выбирался четыре рецидива подряд. Инвариант #16 запрещает такое ослабление
+# молча — храповик делает его громким.
+#
+# База ТОЛЬКО РАСТЁТ (как `frozen_date_baseline.json` — только вниз): новую
+# ветку добавлять свободно, снимать существующую — осознанно и с записью в
+# журнал. Порога «у каждого артефакта конституции обязана быть ветка» здесь
+# НЕТ и намеренно: активных артефактов с потребителем `orchestrator_protocol`
+# 22, персональная ветка есть у 8, остальным 14 generic-ветка печатает
+# осмысленное. Запрет в лоб покрасил бы 14 живых строк и был бы отключён.
+SCHEMA_BASELINE = frozenset({
+    "_health.json",
+    "adapter_feed_divergence.json",
+    "architecture_conformance.json",
+    "chief_investment.json",
+    "findings_bridge_report.json",
+    "house_view_gap.json",
+    "loop_health.json",
+    "loop_retro.json",
+})
+
+
+def test_declared_readers_ratchet_only_grows() -> None:
+    """Снять артефакт из `_READ_SCHEMA` = снять его проверку. Только осознанно."""
+    lost = sorted(SCHEMA_BASELINE - set(MOD._READ_SCHEMA))
+    assert not lost, (
+        f"из `_READ_SCHEMA` пропали объявленные читатели: {lost}. Вместе с "
+        "каждым пропала и его проверка формы производителя "
+        "(`test_declared_schema_matches_the_live_producer` параметризован по "
+        "`_READ_SCHEMA`), а артефакт вернулся на generic-ветку. Если снятие "
+        "намеренно — обосновать в теле изменения и записать в "
+        "`docs/journal/<неделя>.md` (инв. #16), затем опустить базу здесь.")
+
+
+def test_ratchet_baseline_is_not_stale() -> None:
+    """Обратный контроль: база — про ЭТОТ модуль, а не про его прошлое.
+
+    База, в которой завёлся артефакт, уже снятый из `_READ_SCHEMA`, молча
+    краснела бы навсегда; база, отставшая от кода, — усыпляла бы. Обе стороны
+    закреплены: всё из базы есть в модуле (тест выше) и всё из базы объявлено
+    в конституции (здесь).
+    """
+    manifest = json.loads((_REPO / "architecture" / "manifest.json").read_text(encoding="utf-8"))
+    declared = {a["path"].split("/")[-1] for a in manifest.get("artifacts", [])}
+    orphan = sorted(SCHEMA_BASELINE - declared)
+    assert not orphan, (
+        f"в базе храповика есть имена, которых нет в конституции: {orphan} — "
+        "храповик стережёт то, чего система уже не производит")

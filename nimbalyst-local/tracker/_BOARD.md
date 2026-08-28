@@ -2,13 +2,14 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-28T02:20:05Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-28T04:58:35Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **726** · ждёт владельца: **3** · занято сессиями: **9**.
+> Всего карточек: **728** · ждёт владельца: **4** · занято сессиями: **9**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Паспорта агентов: кто назначает срок годности файла, который агент обновляет** · _high_  ·  `own-35-srok-godnosti-artefakta-agenta.md`
+- **Деньги, срезанные защитами аллокатора, теперь ПОСЧИТАНЫ и НАЗВАНЫ — включать ли их обратно в работу?** · _high_  ·  `own-pererazdavat-li-srezannoe-zaschitami.md`
 - **Пятая часть денег стоит на числе, о котором две наши системы спорят (Pendle)**  ·  `owner-decision-pyataya-chast-deneg-stoit-na-chisle-o-ko.md`
 - **Второй цикл оркестратора не переживёт перезагрузку — его записка лежит не в той папке**  ·  `owner-decision-vtoroi-tsikl-orkestratora-ne-perezhivet.md`
 
@@ -26,10 +27,11 @@
 - **Разобрать 52 карточки с ветки work-status-check, потом удалить ветку (решение владельца 20.08, вариант 1)** — держит `pid85035` · с 2026-08-25T00:20:38Z  ·  `inbox-razobrat-52-kartochki-s-vetki-work-statu.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (178)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (179)
 
 ### · needs-owner
 - Паспорта агентов: кто назначает срок годности файла, который агент обновляет  ·  `own-35-srok-godnosti-artefakta-agenta.md` · 2026-08-28
+- Деньги, срезанные защитами аллокатора, теперь ПОСЧИТАНЫ и НАЗВАНЫ — включать ли их обратно в работу?  ·  `own-pererazdavat-li-srezannoe-zaschitami.md` · 2026-08-26
 - Пятая часть денег стоит на числе, о котором две наши системы спорят (Pendle)  ·  `owner-decision-pyataya-chast-deneg-stoit-na-chisle-o-ko.md` · 2026-08-26
 - Второй цикл оркестратора не переживёт перезагрузку — его записка лежит не в той папке  ·  `owner-decision-vtoroi-tsikl-orkestratora-ne-perezhivet.md` · 2026-08-27
 ### · ingested
@@ -209,7 +211,7 @@
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (355)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (356)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -548,6 +550,7 @@
 - Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md` · 2026-08-20 · 🔒 `cycle-352`
 - Проработать расширение whitelist для настоящих ~20% в Aggressive (advisory, владельцу на решение)  ·  `inbox-prorabotat-rasshirenie-whitelist-dlya-na.md` · 2026-08-23
 - Protection Lab фазы 6–8: AI-генератор параметров, перебор adversarial-комбинаций, страница сайта (owner-gated)  ·  `inbox-protection-lab-fazy-6-8-ai-generator-par.md` · 2026-08-22
+- Пульс петли ADR-066 прочитан впервые: 3 рецидива одного класса и 4 карточки со статусом «не измерено»  ·  `inbox-puls-petli-adr-066-prochitan-vpervye-3-r.md` · 2026-08-28
 - Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
 - Разобрать 52 карточки с ветки work-status-check, потом удалить ветку (решение владельца 20.08, вариант 1)  ·  `inbox-razobrat-52-kartochki-s-vetki-work-statu.md` · 2026-08-20 · 🔒 `pid85035`
 - Реестр решений INDEX.md — общая тетрадь без защиты общей памяти (guard_entry_loss её строк не видит)  ·  `inbox-reestr-reshenii-index-md-obschaya-tetrad.md` · 2026-08-27

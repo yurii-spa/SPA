@@ -84,6 +84,9 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                     "escalated", "sources_unread", "open_cards", "delivery",
                                     "owner_answer_delivery"),
     "loop_retro.json": ("findings", "outcomes_completeness"),
+    "loop_health.json": ("open_cards", "recurrences_total", "cards_fate",
+                         "latency_finding_to_card", "latency_card_to_close",
+                         "note"),
     "adapter_feed_divergence.json": ("overall", "counts.critical", "counts.warn",
                                      "counts.info", "counts.unchecked", "findings",
                                      "unchecked", "compared_protocols"),
@@ -115,6 +118,7 @@ _PRODUCER: dict[str, str] = {
     "house_view_gap.json": "spa_core/monitoring/house_view_gap.py",
     "findings_bridge_report.json": "spa_core/monitoring/findings_bridge.py",
     "loop_retro.json": "spa_core/monitoring/loop_retro.py",
+    "loop_health.json": "spa_core/monitoring/loop_health.py",
     "adapter_feed_divergence.json": "spa_core/monitoring/adapter_feed_divergence.py",
 }
 
@@ -630,6 +634,59 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         else:
             out.append(f"   архив исходов полон: {_num(comp, 'expected_days')} закрыт(ых) "
                        f"evidenced-дн(я/ей) с якоря {comp.get('anchor_date')}, дыр нет")
+    elif name == "loop_health.json":
+        # СИБЛИНГ loop_retro.json, и та же авария — на файле, который её уже
+        # объяснил. Ветка ретро заведена со словами «до неё ретро печаталось
+        # как (пусто)»; пульс той же петли остался в generic-ветке, а она ищет
+        # status/overall/posture/reason/summary, которых loop_health не пишет
+        # ни одного. Живой замер 2026-08-28 03:2xZ: артефакт нёс recurrences
+        # 3, cards_fate.unreadable 4 и card→close max 66.01ч, обязательный шаг
+        # напечатал про него «(пусто)» и засчитал в «прочитано 22, не
+        # прочитано 0». Артефакт объявлен в конституции с потребителем
+        # `orchestrator` — то есть читать его ОБЯЗАНЫ, а прочитанного в нём не
+        # было ничего.
+        #
+        # Что печатаем и почему именно это (порядок — по цене ошибки):
+        #   * `unreadable` — статус карточки НЕ ИЗМЕРЕН: третий исход, который
+        #     нельзя складывать ни с «взята», ни с «лежит» (иначе неизмеренное
+        #     читается как благополучие);
+        #   * `recurrences_total` — производитель сам называет рецидив
+        #     СИСТЕМНОЙ причиной, а не случайностью;
+        #   * `new` — карточки моста, которые никто не взял: это и есть пульс;
+        #   * `note` производителя — его собственная оговорка «медианы по n<5
+        #     не интерпретировать»; без неё числа читаются увереннее, чем их
+        #     написал автор.
+        fate = data.get("cards_fate")
+        if not isinstance(fate, dict):
+            out.append(f"   ⚠️ судьба карточек петли {_UNMEASURED}: в отчёте нет "
+                       "блока cards_fate (отчёт старого образца)")
+        else:
+            out.append(f"   петля ADR-066: открытых карточек {_num(data, 'open_cards')} · "
+                       f"не взято {_num(fate, 'new')} · в работе {_num(fate, 'in_progress')} · "
+                       f"закрыто человеком {_num(fate, 'done_by_human')} · "
+                       f"автозакрыто {_num(fate, 'auto_closed')}")
+            if fate.get("unreadable"):
+                out.append(f"   ⚠️ статус {fate['unreadable']} карточк(и) моста "
+                           f"{_UNMEASURED}: карточка не прочитана (files-first очередь "
+                           "не отдала статус) — это НЕ «взята» и НЕ «лежит»")
+        rec = data.get("recurrences_total")
+        if rec is None:
+            out.append(f"   ⚠️ рецидивы {_UNMEASURED}: в отчёте нет recurrences_total")
+        elif rec:
+            out.append(f"   🔴 РЕЦИДИВ: {rec} находк(а/и) ВЕРНУЛИСЬ после закрытия — "
+                       "по производителю это системная причина, а не случайность")
+        for key, label in (("latency_finding_to_card", "находка→карточка"),
+                           ("latency_card_to_close", "карточка→закрытие")):
+            lat = data.get(key)
+            if not isinstance(lat, dict):
+                out.append(f"   ⚠️ латентность {label} {_UNMEASURED}: в отчёте нет {key}")
+            elif not lat.get("n"):
+                out.append(f"   латентность {label}: измерять нечего (n=0)")
+            else:
+                out.append(f"   латентность {label}: медиана {lat.get('median_h')}ч · "
+                           f"максимум {lat.get('max_h')}ч (n={lat.get('n')})")
+        if data.get("note"):
+            out.append(f"   оговорка производителя: {str(data['note'])[:160]}")
     elif name == "owner_decision_pending.json":
         out.append(f"   статус: {data.get('status')}")
         if data.get("reason"):
@@ -764,7 +821,25 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         reason = data.get("reason") or data.get("summary")
         if reason:
             out.append(f"   {str(reason)[:160]}")
-    return head + (out or ["   (пусто)"])
+    return head + (out or [
+        f"{_HOLLOW_MARK}: ни ветки в `_summarize_json`, ни строки в "
+        "`_READ_SCHEMA`, а generic-ветка не нашла ни `status`/`overall`/"
+        "`posture`, ни `reason`/`summary`. Прочитано НИЧЕГО — это НЕ «пусто, "
+        "всё в порядке» и НЕ «в файле ничего нет»: файл разобран не был."])
+
+
+# Пустой разбор — ТРЕТИЙ исход, а не «прочитано». Четвёртый рецидив класса в этом
+# файле (findings_bridge · house_view_gap · _health · loop_retro) прожил дольше
+# всех остальных именно потому, что «(пусто)» ЗАСЧИТЫВАЛОСЬ в «прочитано»: 28.08
+# шаг напечатал про `data/loop_health.json` «(пусто)», написал за него КВИТАНЦИЮ
+# потребления и подвёл итог «прочитано 22, не прочитано 0» — при том, что в
+# артефакте лежали 3 рецидива и 4 карточки со статусом «не измерено». Квитанция —
+# это утверждение «я это прочитал», и на ней стоит проверка B3 сторожа
+# архитектуры; правило самого модуля квитанций сказано прямо: «ресит пишется
+# ТОЛЬКО после фактического успешного чтения — иначе B3 превращается в театр».
+# Разобрать было нечем ⇒ читать было нечего ⇒ квитанции нет, и в итоге стоит
+# отдельное число. Молчаливым «прочитано» этот исход больше не притворяется.
+_HOLLOW_MARK = "   ⚠️ РАЗОБРАТЬ НЕЧЕМ"
 
 
 def _summarize_md(full: str, *, now: dt.datetime | None = None) -> list[str]:
@@ -957,7 +1032,7 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
               "находка о состоянии офиса — измерять нечем из этого дерева. —")
         return 3
 
-    consumed = failed = 0
+    consumed = failed = hollow = 0
     for rel in sorted(targets):
         full = _resolve(rel, root=args.root, data_dir=data_dir)
         lines: list[str]
@@ -975,7 +1050,13 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
             lines = _summarize_md(full, now=now)
             ok = bool(lines) and not any(
                 ln.startswith("   (md не прочитан") for ln in lines)
-        if ok:
+        if ok and any(ln.startswith(_HOLLOW_MARK) for ln in lines):
+            # Ресит НЕ пишется: см. `_HOLLOW_MARK`. Файл открылся и разобрался
+            # как JSON — но прочитано из него не было ничего, и утверждать
+            # обратное значит кормить проверку B3 собственным эхом.
+            mark = "⚠️ ПРОЧИТАН ВХОЛОСТУЮ (ресит НЕ пишется)"
+            hollow += 1
+        elif ok:
             receipted = True if args.no_receipts else write_receipt(
                 rel, args.consumer, root=receipt_root)
             mark = "✅" if receipted else "⚠️ (ресит НЕ записан)"
@@ -986,7 +1067,13 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
         print(f"{mark} {rel}")
         for ln in lines:
             print(ln)
-    print(f"— итог: прочитано {consumed}, не прочитано {failed}. "
+    # Клауза о вхолостую ДОПИСЫВАЕТСЯ, а не переписывает итог: в здоровом
+    # состоянии (hollow=0) строка та же, что и была, — соседние тесты сверяют её
+    # дословно, и ослаблять их ради нового счётчика было бы нечестно.
+    hollow_clause = (f", ⚠️ ВХОЛОСТУЮ {hollow} (разобрать нечем, ресит не "
+                     f"записан — артефакт объявлен читаемым, а прочитано "
+                     f"ничего)" if hollow else "")
+    print(f"— итог: прочитано {consumed}{hollow_clause}, не прочитано {failed}. "
           f"Красные строки выше = действовать (карточки), это не декорация. —")
     return 0
 
