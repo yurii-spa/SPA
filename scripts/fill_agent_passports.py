@@ -55,6 +55,60 @@ _MODULE_PATTERNS = (
     re.compile(r"-m\s+([\w][\w.]*\.[\w]+)"),
 )
 
+# ─── точка входа, названная ПУТЁМ К ФАЙЛУ ─────────────────────────────────────
+# Замер 2026-08-28: из 26 агентов без деловой цели у 19 докстринг автора ЛЕЖАЛ НА
+# МЕСТЕ — его не читали, потому что все три образца выше требуют записи
+# `пакет.модуль`, а обёртки называют точку входа файлом:
+# `agent_template.sh golive_freshness /Users/…/scripts/golive_freshness_cycle.py`.
+# Ловушка «я не нашёл» ⇒ «этого нет»: список звался «нужен автор», хотя автор всё написал.
+#
+# ОДНАКО путь к .py в обёртке — ещё не точка входа. Первый (наивный) вариант этой
+# правки читал ЛЮБОЕ упоминание .py и выдал двум агентам (`inbox_watch`,
+# `novel_edge_rnd`) цель «записать изменение сессии» — докстринг служебного
+# `log_session_change.py`, который они дёргают для бухгалтерии. Ровно та беда, от
+# которой защищает правило «больше одной точки входа ⇒ None»: чужая цель выглядит
+# как знание и потому хуже пустой. Поэтому засчитываются только ОБЪЯВЛЕННЫЕ позиции:
+#   * `export RUN_SCRIPT=…` / `export MODULE=…` — объявление;
+#   * второй позиционный у `agent_template.sh <имя> <точка входа>` — объявление;
+#   * строка с `exec` — процесс, которым агент СТАНОВИТСЯ;
+#   * `-m пакет.модуль` — объявление модуля.
+# Рядовой `"$PY" scripts/foo.py` в середине обёртки — ШАГ, а не цель агента.
+# Хвост берётся и от АБСОЛЮТНОГО пути: обёртки пишут точку входа полным путём
+# (`/Users/…/SPA_Claude/scripts/x.py`), поэтому запрет на `/` слева отрезал бы
+# ровно основной случай — шесть агентов молча остались бы «без автора».
+_EXPORT_MODULE_RX = _MODULE_PATTERNS[0]
+_SCRIPT_PATH_RX = re.compile(r"(?<![\w])((?:scripts|spa_core|tests)/[\w/]+)\.py\b")
+_UVICORN_RX = re.compile(r"uvicorn\s+([\w][\w.]*):\w+")
+_RUN_SCRIPT_RX = re.compile(r'export\s+RUN_SCRIPT\s*=')
+#: Строки, в которых путь к .py засчитывается как ОБЪЯВЛЕННАЯ точка входа.
+_DECLARING_RX = re.compile(r"(?:^|\s)exec\s|agent_template\.sh|export\s+RUN_SCRIPT\s*=")
+
+
+def _logical_lines(text: str) -> list[str]:
+    """Строки обёртки со склеенными переносами `\\` и без комментариев.
+
+    Без склейки `exec` и его аргумент оказываются в разных строках, и позиция
+    «объявление» теряется: так записан `agent_site_freshness.sh` — `exec …
+    agent_template.sh \\` на одной строке, путь к монитору на следующей.
+    """
+    out: list[str] = []
+    buf = ""
+    for raw in text.splitlines():
+        t = raw.strip()
+        if buf:
+            buf = buf[:-1].rstrip() + " " + t
+        elif not t or t.startswith("#"):
+            continue
+        else:
+            buf = t
+        if buf.endswith("\\"):
+            continue
+        out.append(buf)
+        buf = ""
+    if buf:
+        out.append(buf.rstrip("\\").strip())
+    return out
+
 
 def module_of(program: str | None) -> str | None:
     """Python-модуль агента по его launchd-обёртке. Комментарии игнорируются.
@@ -62,6 +116,13 @@ def module_of(program: str | None) -> str | None:
     Комментарий — не свидетельство: строка «Generated from agent_template.sh»
     есть почти в каждой обёртке и при наивном поиске выдавала модуль
     «(canonical bash» для сорока агентов сразу.
+
+    Точка входа записана в обёртках тремя способами, и читаются все три: модуль
+    (`-m` / `export MODULE=`), путь к файлу и `uvicorn пакет.модуль:app`. Но
+    веса у них РАЗНЫЕ, и порядок здесь — не стиль, а защита от регрессии:
+    путь к файлу спрашивается ТОЛЬКО тогда, когда модуля не нашлось вовсе.
+    Поэтому ни один агент, у которого цель выводилась раньше, не может её
+    потерять из-за нового источника (проверено сравнением по всем 95: 0 потерь).
     """
     if not program:
         return None
@@ -69,27 +130,48 @@ def module_of(program: str | None) -> str | None:
     if not wrapper.is_file():
         return None
     try:
-        lines = wrapper.read_text(encoding="utf-8", errors="replace").splitlines()
+        lines = _logical_lines(wrapper.read_text(encoding="utf-8", errors="replace"))
     except OSError:
         return None
-    found: list[str] = []
-    for line in lines:
-        t = line.strip()
-        if not t or t.startswith("#"):
-            continue
+
+    modules: list[str] = []   # прежний источник: точечная запись пакет.модуль
+    declared: list[str] = []  # объявление обёртки о себе: export RUN_SCRIPT=
+    paths: list[str] = []     # новый источник: путь к .py в объявляющей позиции
+    for t in lines:
         for rx in _MODULE_PATTERNS:
             m = rx.search(t)
-            if m and m.group(1) not in found:
-                found.append(m.group(1))
-    if not found:
+            if m and m.group(1) not in modules:
+                modules.append(m.group(1))
+        if _RUN_SCRIPT_RX.search(t):
+            for m in _SCRIPT_PATH_RX.finditer(t):
+                cand = m.group(1).replace("/", ".")
+                if cand not in declared:
+                    declared.append(cand)
+        if not _DECLARING_RX.search(t):
+            continue
+        for m in _SCRIPT_PATH_RX.finditer(t):
+            # `scripts/foo.py` → `scripts.foo`: путь к файлу дальше собирает
+            # `_module_file`, второго способа это делать не заводим.
+            cand = m.group(1).replace("/", ".")
+            if cand not in paths:
+                paths.append(cand)
+        m = _UVICORN_RX.search(t)
+        if m and m.group(1) not in paths:
+            paths.append(m.group(1))
+
+    if modules:
+        # Прежнее поведение слово в слово, включая отказ на многошаговой обёртке
+        # (`export MODULE=…` + `python3 -m …rollup`): взять ПЕРВЫЙ — значит с
+        # ощутимой вероятностью описать агента чужим докстрингом. Чужая цель
+        # хуже пустой: пустую видно в списке «нужен автор», а чужую — нет.
+        return modules[0] if len(modules) == 1 else None
+    # Модуля нет вовсе. Своё объявление (`export RUN_SCRIPT=`) старше пути,
+    # выведенного из команды: `agent_strategy_lab_paper.sh` объявляет свой
+    # скрипт экспортом, а запускает его безымянный `agent_template.sh`.
+    chosen = declared or paths
+    if not chosen:
         return None
-    if len(found) > 1:
-        # Многошаговая обёртка (основной модуль + добивка вроде rollup-скрипта):
-        # взять ПЕРВЫЙ — значит с ощутимой вероятностью описать агента чужим
-        # докстрингом. Деловая цель, взятая не у того модуля, хуже пустой:
-        # пустую видно в списке «нужен автор», а чужую — нет. Fail-CLOSED.
-        return None
-    return found[0]
+    return chosen[0] if len(chosen) == 1 else None
 
 
 def _module_file(module: str) -> Path | None:

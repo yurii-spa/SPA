@@ -123,11 +123,11 @@
    "curation": "partial",
    "notes": "",
    "passport": {
-    "goal": "",
+    "goal": "SPA FastAPI server — real-time data API (v0.17).",
     "quality_metric": "",
     "escalation": "",
     "rights": "",
-    "limits": ""
+    "limits": "не импортирует execution"
    }
   },
   {
@@ -301,11 +301,11 @@
    "curation": "partial",
    "notes": "",
    "passport": {
-    "goal": "",
+    "goal": "BTS Feed Runner — LaunchAgent entry point for perp_funding_feed.",
     "quality_metric": "",
     "escalation": "",
     "rights": "",
-    "limits": ""
+    "limits": "не импортирует execution"
    }
   },
   {
@@ -324,11 +324,11 @@
    "curation": "partial",
    "notes": "",
    "passport": {
-    "goal": "",
+    "goal": "LaunchAgent runner for BTS Monitor.",
     "quality_metric": "",
     "escalation": "",
     "rights": "",
-    "limits": ""
+    "limits": "не импортирует execution"
    }
   },
   {
@@ -370,11 +370,11 @@
    "curation": "complete",
    "notes": "похоронен решением владельца 2026-08-06 (ADR-067): эпоха прошла",
    "passport": {
-    "goal": "",
+    "goal": "SPA 7-Day Checkpoint — MP-434 Автоматическая валидация после 7 дней paper trading (2026-06-19).",
     "quality_metric": "",
-    "escalation": "",
-    "rights": "",
-    "limits": ""
+    "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
+    "rights": "слать CRITICAL владельцу через push_policy",
+    "limits": "не импортирует execution"
    }
   },
   {
@@ -773,11 +773,11 @@
    "curation": "partial",
    "notes": "",
    "passport": {
-    "goal": "",
+    "goal": "FastAPI app factory для Family Fund Investor Cabinet.",
     "quality_metric": "",
     "escalation": "",
     "rights": "",
-    "limits": ""
+    "limits": "не импортирует execution"
    }
   },
   {
@@ -819,11 +819,11 @@
    "curation": "partial",
    "notes": "",
    "passport": {
-    "goal": "",
+    "goal": "Go-live freshness cycle — the body of com.spa.golive_freshness (Q1-11).",
     "quality_metric": "",
     "escalation": "",
     "rights": "",
-    "limits": ""
+    "limits": "advisory — капитал не двигает"
    }
   },
   {
@@ -1682,11 +1682,11 @@
    "curation": "partial",
    "notes": "",
    "passport": {
-    "goal": "",
+    "goal": "Resilience cycle — the body of com.spa.resilience.",
     "quality_metric": "",
     "escalation": "",
     "rights": "",
-    "limits": ""
+    "limits": "не импортирует execution"
    }
   },
   {
@@ -1812,11 +1812,11 @@
    "curation": "complete",
    "notes": "ADR-085 (решение владельца 14.08, вариант 1). intent=designed СОЗНАТЕЛЬНО: код доставлен, агент ещё НЕ загружен — launchctl это решение владельца (карточка owner-decision-vklyuchit-novogo-storozha-saita-na-make). ПРИ ЗАГРУЗКЕ перевести intent в active ТЕМ ЖЕ шагом, иначе сторож даст CRITICAL «активация мимо ADR» на верное действие владельца. produces начнёт наполняться только после загрузки.",
    "passport": {
-    "goal": "",
+    "goal": "Site Custodian block 2+3 (ADR-YL-011): the INDEPENDENT checker.",
     "quality_metric": "data/site_freshness_report.json свежее 13 ч",
     "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/site_freshness_report.json",
-    "limits": ""
+    "limits": "LLM запрещён; не импортирует execution"
    }
   },
   {
@@ -1888,11 +1888,11 @@
    "curation": "partial",
    "notes": "",
    "passport": {
-    "goal": "",
+    "goal": "scripts/strategy_lab_paper.py — the ONE-COMMAND CLI for the Strategy-Lab live paper service.",
     "quality_metric": "",
     "escalation": "",
     "rights": "",
-    "limits": ""
+    "limits": "LLM запрещён; не импортирует execution"
    }
   },
   {
@@ -2088,11 +2088,11 @@
    "curation": "complete",
    "notes": "",
    "passport": {
-    "goal": "",
+    "goal": "SPA System Briefing Auto-Updater",
     "quality_metric": "docs/SYSTEM_BRIEFING.md свежее 2 ч",
     "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать docs/SYSTEM_BRIEFING.md",
-    "limits": ""
+    "limits": "не импортирует execution"
    }
   },
   {

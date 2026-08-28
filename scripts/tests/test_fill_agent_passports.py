@@ -345,5 +345,99 @@ class TestWrapperAmbiguityAndPrefixTrim(unittest.TestCase):
         self.assertEqual(got, "у каждого агента.")
 
 
+class TestEntrypointNamedByPath(unittest.TestCase):
+    """Обёртка называет точку входа ПУТЁМ, а не модулем (замер 2026-08-28).
+
+    Из 26 агентов без деловой цели у 19 докстринг автора лежал на месте — его
+    никто не читал, потому что прежние образцы требуют записи `пакет.модуль`,
+    а обёртки пишут `agent_template.sh имя /Users/…/scripts/x.py`. Список
+    назывался «нужен автор», хотя автор всё написал: ловушка «я не нашёл» ⇒
+    «этого нет».
+
+    Каждый тест ниже — авария, пойманная сравнением старого и нового разбора
+    по всем 95 агентам ДО правки манифеста, а не догадка о возможной поломке.
+    """
+
+    @staticmethod
+    def _wrap(td, body: str):
+        """Обёртка в изолированном дереве; настоящий репозиторий не трогаем."""
+        root = Path(td)
+        (root / "scripts").mkdir(exist_ok=True)
+        (root / "scripts" / "agent_x.sh").write_text(body, encoding="utf-8")
+        return root
+
+    def _module_of(self, body: str):
+        f = _load("_fap", "scripts/fill_agent_passports.py")
+        with tempfile.TemporaryDirectory() as td:
+            f.REPO = self._wrap(td, body)
+            return f.module_of("agent_x.sh")
+
+    def test_absolute_path_entrypoint_is_read(self):
+        """Первый вариант правки запрещал `/` слева от `scripts/` — и отрезал
+        ровно основной случай: обёртки пишут точку входа ПОЛНЫМ путём."""
+        got = self._module_of(
+            "#!/bin/bash\nexec /bin/bash /repo/scripts/agent_template.sh gf "
+            "/Users/u/Documents/SPA_Claude/scripts/golive_freshness_cycle.py\n")
+        self.assertEqual(got, "scripts.golive_freshness_cycle")
+
+    def test_entrypoint_split_by_line_continuation_is_read(self):
+        """`agent_site_freshness.sh`: `exec … agent_template.sh \\` на одной
+        строке, путь к монитору на следующей. Без склейки переносов позиция
+        «объявление» теряется и агент остаётся без цели."""
+        got = self._module_of(
+            "#!/bin/bash\nexec /bin/bash /repo/scripts/agent_template.sh \\\n"
+            "    site_freshness \\\n"
+            "    /Users/u/Documents/SPA_Claude/scripts/site_freshness_monitor.py\n")
+        self.assertEqual(got, "scripts.site_freshness_monitor")
+
+    def test_uvicorn_entrypoint_is_read(self):
+        """`uvicorn пакет.модуль:app` — точка входа сервера мимо `-m`."""
+        got = self._module_of(
+            "#!/bin/bash\nexec /bin/bash /repo/scripts/agent_template.sh api "
+            "uvicorn spa_core.api.server:app --port 8765\n")
+        self.assertEqual(got, "spa_core.api.server")
+
+    def test_export_run_script_is_read(self):
+        """`agent_strategy_lab_paper.sh` объявляет скрипт экспортом, а запускает
+        его безымянный `agent_template.sh`."""
+        got = self._module_of(
+            '#!/bin/bash\nexport RUN_SCRIPT="/Users/u/x/scripts/strategy_lab_paper.py"\n'
+            "exec /bin/bash /repo/scripts/agent_template.sh\n")
+        self.assertEqual(got, "scripts.strategy_lab_paper")
+
+    def test_helper_call_in_the_middle_is_not_an_entrypoint(self):
+        """САМАЯ дорогая из пойманных: наивная правка читала ЛЮБОЕ упоминание
+        .py и выдала `inbox_watch` и `novel_edge_rnd` цель «записать изменение
+        сессии» — докстринг служебного `log_session_change.py`, который они
+        дёргают для бухгалтерии. Чужая цель выглядит как знание и потому хуже
+        пустой; рядовой вызов в середине обёртки — ШАГ, а не цель агента."""
+        got = self._module_of(
+            '#!/bin/bash\nOUT=$(some-intake-command)\n'
+            '"$PY" scripts/log_session_change.py --summary "EVENT INTAKE" '
+            '>/dev/null 2>&1 || true\n')
+        self.assertIsNone(got)
+
+    def test_module_source_wins_and_extra_path_cannot_take_the_goal_away(self):
+        """`agent_rates_desk_paper.sh`: объявленный модуль + ЧУЖОЙ следующий шаг
+        (`agent_template.sh rates_desk_proof_refresh …/refresh_published_proof.py`).
+        Новый источник спрашивается только там, где модуля нет вовсе, — иначе
+        агент, у которого цель выводилась годом раньше, молча её терял."""
+        got = self._module_of(
+            '#!/bin/bash\nexport MODULE="spa_core.strategy_lab.rates_desk.paper_rates"\n'
+            "/bin/bash /repo/scripts/agent_template.sh\n"
+            "exec /bin/bash /repo/scripts/agent_template.sh rates_desk_proof_refresh "
+            "/Users/u/x/scripts/refresh_published_proof.py\n")
+        self.assertEqual(got, "spa_core.strategy_lab.rates_desk.paper_rates")
+
+    def test_two_paths_without_a_declaration_are_ambiguous(self):
+        """Обратный контроль: многошаговая обёртка без объявления (образец
+        `agent_orchestrator.sh`) обязана ОТКАЗАТЬ, а не брать первый путь."""
+        got = self._module_of(
+            "#!/bin/bash\nexec /bin/bash /repo/scripts/agent_template.sh a "
+            "/x/scripts/one.py\n"
+            "exec /bin/bash /repo/scripts/agent_template.sh b /x/scripts/two.py\n")
+        self.assertIsNone(got)
+
+
 if __name__ == "__main__":
     unittest.main()

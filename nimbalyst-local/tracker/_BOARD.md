@@ -2,12 +2,13 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-27T13:54:06Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-28T01:09:01Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **719** · ждёт владельца: **2** · занято сессиями: **7**.
+> Всего карточек: **725** · ждёт владельца: **3** · занято сессиями: **9**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
+- **Паспорта агентов: кто назначает срок годности файла, который агент обновляет** · _high_  ·  `own-35-srok-godnosti-artefakta-agenta.md`
 - **Пятая часть денег стоит на числе, о котором две наши системы спорят (Pendle)**  ·  `owner-decision-pyataya-chast-deneg-stoit-na-chisle-o-ko.md`
 - **Второй цикл оркестратора не переживёт перезагрузку — его записка лежит не в той папке**  ·  `owner-decision-vtoroi-tsikl-orkestratora-ne-perezhivet.md`
 
@@ -17,15 +18,18 @@
 
 - **Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать** — держит `cycle-28258` · с 2026-08-05T12:28:28Z  ·  `agent-fleet-parity-guard-never-scheduled.md`
 - **Просадку вычислить не из чего — НАРАЩИВАНИЕ запрещено (решение владельца, ADR-129)** — держит `interactive-session-2026-08-27`  ·  `agent-nevychislimaya-prosadka-zapret-naraschivaniya.md`
+- **Паспорт агента — обязательное поле манифеста (ADR-154)** — держит `interactive-session-2026-08-28`  ·  `agent-passport-obyazatelen-dlya-agenta.md`
+- **ДОРОЖНАЯ КАРТА ADR-154 — контракты раньше оркестрации (все задачи, чтобы не потерять)** — держит `interactive-session-2026-08-27`  ·  `agent-roadmap-adr154-contracts.md`
 - **а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…** — держит `pid43119` · с 2026-08-14T11:52:34Z  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md`
 - **Храповик считает упоминание в докстринге за проводку — и это лишь одна из трёх слепот** — держит `pid66130` · с 2026-08-16T03:49:44Z  ·  `inbox-hrapovik-schitaet-upominanie-v-dokstring.md`
 - **Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения** — держит `cycle-352` · с 2026-08-23T03:25:59Z  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md`
 - **Разобрать 52 карточки с ветки work-status-check, потом удалить ветку (решение владельца 20.08, вариант 1)** — держит `pid85035` · с 2026-08-25T00:20:38Z  ·  `inbox-razobrat-52-kartochki-s-vetki-work-statu.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (177)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (178)
 
 ### · needs-owner
+- Паспорта агентов: кто назначает срок годности файла, который агент обновляет  ·  `own-35-srok-godnosti-artefakta-agenta.md` · 2026-08-28
 - Пятая часть денег стоит на числе, о котором две наши системы спорят (Pendle)  ·  `owner-decision-pyataya-chast-deneg-stoit-na-chisle-o-ko.md` · 2026-08-26
 - Второй цикл оркестратора не переживёт перезагрузку — его записка лежит не в той папке  ·  `owner-decision-vtoroi-tsikl-orkestratora-ne-perezhivet.md` · 2026-08-27
 ### · ingested
@@ -567,14 +571,16 @@
 - Запись ЗА другую сессию уезжает с якорем ЖИВОГО процесса писателя — чужой ярлык читается как ACTIVE  ·  `inbox-zapis-za-druguyu-sessiyu-uezzhaet-s-yako.md` · 2026-08-26
 - Заслон от шторма считает попытки, а не доставки — вопрос владельцу можно запереть, ни разу не показав  ·  `inbox-zaslon-ot-shtorma-schitaet-popytki-a-ne.md` · 2026-08-26
 
-## 🤖 Agent Tasks (что делает агент)  (127)
+## 🤖 Agent Tasks (что делает агент)  (132)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
 - Чистка репо (мёртвый код) фазами  ·  `agent-cleanup.md` · 2026-07-16
 - Внутридневной paper-актор: ребаланс между суточными циклами (следующий шаг ADR-104)  ·  `agent-intraday-paper-actor.md` · 2026-08-21
 - Просадку вычислить не из чего — НАРАЩИВАНИЕ запрещено (решение владельца, ADR-129)  ·  `agent-nevychislimaya-prosadka-zapret-naraschivaniya.md` · 2026-08-23 · 🔒 `interactive-session-2026-08-27`
+- Паспорт агента — обязательное поле манифеста (ADR-154)  ·  `agent-passport-obyazatelen-dlya-agenta.md` · 2026-08-27 · 🔒 `interactive-session-2026-08-28`
 - Q&A бэклог (12 ответов) + видимость задач  ·  `agent-qa-backlog.md` · 2026-07-16
+- ДОРОЖНАЯ КАРТА ADR-154 — контракты раньше оркестрации (все задачи, чтобы не потерять)  ·  `agent-roadmap-adr154-contracts.md` · 2026-08-27 · 🔒 `interactive-session-2026-08-27`
 - Включить redteam_rotation: 1021 строка состязательных сценариев написана и не бегает ни разу  ·  `agent-vklyuchit-redteam-rotation.md` · 2026-08-21
 ### · backlog
 - Аллокатор слеп к лимиту сети — предлагает 95 % на Ethereum, и гейт блокирует ВСЮ раскладку  ·  `agent-allocator-slep-k-limitu-seti.md` · 2026-08-08
@@ -585,6 +591,7 @@
 - Две записи о деньгах, причина 2: разрыв цепочки 10.06 и пересчёт июня (владелец разрешил переписывание)  ·  `agent-dve-zapisi-o-dengah-prichina-2-razryv-treka-10-06.md` · 2026-08-23
 - Подстановка выдуманного APY живёт ещё в 15 адаптерах — у 14 она доходит до оркестратора  ·  `agent-fake-fallback-v-15-adapterah.md` · 2026-08-08
 - Панель идеи #17 на 6 книгах из 10 состоит из неподвижных марок — кросс-секцию на ней измерить нельзя  ·  `agent-idea17-needs-a-panel-with-daily-marks.md` · 2026-08-02
+- Минимальный пакет передачи работы вместо голой карточки (ADR-154)  ·  `agent-minimalnyi-paket-peredachi.md` · 2026-08-27
 - morpho_steakhouse — 40 % книги — отсутствует в реестре риск-скоров, и три теста краснеют на main из-за этого  ·  `agent-morpho-steakhouse-bez-risk-score.md` · 2026-08-08
 - Мягкая ступень просадки (5–10 %) должна действовать в МИНУТАХ, а не на следующем суточном цикле (ADR-129)  ·  `agent-myagkii-tir-vnutri-dnya-v-minutah.md` · 2026-08-23
 - Осиротевшая работа вернулась после закрытия своей карточки — циклы #97 и #98 умерли не доставив, второй прямо на подъёме работы первого  ·  `agent-orphaned-work-recurred-after-its-card-was-closed.md` · 2026-08-03
@@ -594,6 +601,8 @@
 - Цель аллокатора ДО гейта нигде не сохраняется — ни один вопрос «а что он просил?» не проверяем задним числом  ·  `agent-predgateovaya-tsel-ne-sohranyaetsya.md` · 2026-08-08
 - Относительный путь в пушере читает ХОСТ-дерево, а не дерево отправки — набор уезжает как «OK, pushed=0»  ·  `agent-pusher-relative-path-silently-reads-the-host-tree.md` · 2026-08-04
 - Построить advisory paper-модуль под ранговое правило демоушена (вариант C владельца 2026-08-08)  ·  `agent-rank-demotion-paper-module.md` · 2026-08-08
+- Разбор входящих отделить от исполнения — разные типы процесса (ADR-154)  ·  `agent-razbor-otdelit-ot-ispolneniya.md` · 2026-08-27
+- Разобрать 177 документов docs/, на которые никто не ссылается (ADR-154)  ·  `agent-razbor-sirot-docs.md` · 2026-08-27
 - Реестр свежести не знает о кривой трека и golive_status — их git-копии замерли на 04.07, и полтора месяца об этом никто не сказал  ·  `agent-reestr-svezhesti-slep-k-krivoi-treka.md` · 2026-08-23
 - Слепота внутридневного сенсора 30 минут подряд — разбудить владельца (число владельца, ADR-129)  ·  `agent-slepota-sensora-30-minut-trevoga.md` · 2026-08-23
 - Сторож чисел сайта: тихий проход только по двум условиям сразу (решение владельца 19.08, вариант 1)  ·  `agent-storozh-chisel-tihii-prohod-po-dvum-usloviyam.md` · 2026-08-20
