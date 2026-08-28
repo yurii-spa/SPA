@@ -7,6 +7,9 @@ priority: high
 source: ADR-154
 answered: 2026-08-28
 decision: ADR-158
+owner_choice: 2
+owner_answered_at: 2026-08-28T14:00:00+00:00
+owner_answer_via: interactive-session
 ---
 
 # Паспорта агентов: кто назначает срок годности файла, который агент обновляет

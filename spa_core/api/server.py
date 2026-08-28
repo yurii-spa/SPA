@@ -185,6 +185,14 @@ from spa_core.api.routers import (  # noqa: E402
     v1,
 )
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: пути заданы явно в spa_core/api/routers/ (interest.py, analytics.py): parents[3]/'data'/<имя>
+PRODUCES = (
+    "data/interest.jsonl",
+    "data/pilot_requests.jsonl",
+    "data/site_analytics.jsonl",
+)
+
 app.include_router(misc.router)
 app.include_router(agents.router)
 app.include_router(analytics.router)

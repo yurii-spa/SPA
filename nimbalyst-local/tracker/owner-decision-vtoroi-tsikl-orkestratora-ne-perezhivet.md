@@ -5,6 +5,10 @@ title: Второй цикл оркестратора не переживёт п
 status: ingested
 source: nimbalyst
 created: 2026-08-27
+owner_choice: 2
+owner_answered_at: 2026-08-28T14:00:00+00:00
+owner_answer_via: interactive-session
+decision: ADR-154
 ---
 
 ## Что случилось и почему это важно

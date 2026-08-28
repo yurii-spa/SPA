@@ -26,6 +26,13 @@ from spa_core.strategy_lab.aggressive_lab import feeds as af
 from spa_core.strategy_lab.aggressive_lab.feeds import AggressiveFeeds
 from spa_core.strategy_lab.aggressive_lab.harness import PaperService, run_backtest
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: ПУСТО — это ОТВЕТ «артефактов не произвожу», а не незаполненное поле.
+#: Проверено чтением модуля и его пакета 28.08: печатает результат в stdout.
+#: Следствие (ADR-154): раз свежесть файла тут ни при чём, метрикой качества
+#: должен стать другой признак — доступность/факт отправки. Открыто карточкой.
+PRODUCES = ()
+
 
 def _real_history_feeds() -> AggressiveFeeds:
     """Build an AggressiveFeeds backed by the REAL deep history feeds (2024–2026):

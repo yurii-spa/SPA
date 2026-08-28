@@ -39,6 +39,7 @@ from spa_core.monitoring.artifact_io_scan import WRITE, scan_file
 DECLARATION = "PRODUCES"
 
 CONFIRMED = "confirmed"
+DECLARED_NONE = "declared_none"
 UNMEASURED = "unmeasured"
 CONTRADICTION = "contradiction"
 UNDECLARED = "undeclared"
@@ -98,6 +99,13 @@ def check_agent(label: str, module: str, repo: Path) -> dict:
     if decl is None:
         return {"label": label, "module": module, "verdict": UNDECLARED,
                 "declared": None, "note": "нет объявления PRODUCES — контракт не высказан"}
+    if decl == ():
+        # Автор ОТВЕТИЛ «ничего не произвожу». Это не то же, что «измерить не удалось»:
+        # первое закрывает вопрос, второе его заводит. Без отдельного исхода шесть
+        # агентов с ясным ответом выглядели бы как невыясненные (замер 28.08).
+        return {"label": label, "module": module, "verdict": DECLARED_NONE, "declared": [],
+                "note": "объявлено ЯВНО: артефактов не производит — метрикой качества "
+                        "обязан стать другой признак (доступность / факт отправки)"}
     written = _written_here(module, repo)
     # ПРЕДЕЛ, который надо знать читателю вердикта: сравнение идёт по БАЗОВОМУ имени,
     # потому что в коде путь чаще всего собирается на лету (`ddir / "x.json"`), и
@@ -166,7 +174,7 @@ def main() -> int:
         print(_json.dumps(r, ensure_ascii=False, indent=2))
         return 0
     print(f"агентов с читаемой точкой входа: {r['total']}")
-    for k in (CONFIRMED, UNMEASURED, CONTRADICTION, UNDECLARED):
+    for k in (CONFIRMED, DECLARED_NONE, UNMEASURED, CONTRADICTION, UNDECLARED):
         print(f"  {k:14} {r['counts'].get(k, 0)}")
     for row in r["rows"]:
         if row["verdict"] == CONTRADICTION:

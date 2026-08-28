@@ -17,6 +17,12 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from .middleware import rate_limit_middleware, request_id_middleware
 from .routes import admin, auth, health, portfolio, users, yield_history
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: spa_core/family_fund/registry.py пишет реестр инвесторов (mkstemp + os.replace)
+PRODUCES = (
+    "data/investors.json",
+)
+
 logger = logging.getLogger("family_fund.api")
 
 ALLOWED_ORIGINS = [

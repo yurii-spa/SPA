@@ -30,6 +30,13 @@ if str(_REPO_ROOT) not in sys.path:
 
 from spa_core.strategy_lab.paper import PaperService  # noqa: E402
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: делегирует в spa_core/strategy_lab/paper.py: STATE_DIR + STATUS_NAME/KILLS_NAME; поимённые <id>_state.json НЕ объявлены — имя шаблонное
+PRODUCES = (
+    "data/strategy_lab_paper/kills.jsonl",
+    "data/strategy_lab_paper/status.json",
+)
+
 log = logging.getLogger("spa.strategy_lab.paper.cli")
 
 

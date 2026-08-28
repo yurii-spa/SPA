@@ -134,6 +134,16 @@ class TestThreeOutcomes(unittest.TestCase):
             self.assertEqual(r["verdict"], ac.CONTRADICTION)
             self.assertIn("surprise.json", r["undeclared_writes"])
 
+    def test_explicit_empty_is_an_ANSWER_not_unmeasured(self):
+        """`PRODUCES = ()` — автор сказал «ничего». Замер 28.08: без отдельного исхода
+        шесть агентов с ясным ответом попадали в `unmeasured`, то есть ясный ответ
+        выглядел как невыясненный."""
+        with tempfile.TemporaryDirectory() as td:
+            root = self._agent(td, "PRODUCES = ()\n")
+            r = ac.check_agent("a", "pkg.a", root)
+            self.assertEqual(r["verdict"], ac.DECLARED_NONE)
+            self.assertNotEqual(r["verdict"], ac.UNMEASURED)
+
     def test_undeclared_is_its_own_answer(self):
         with tempfile.TemporaryDirectory() as td:
             root = self._agent(td, 'atomic_save(d, "data/x.json")\n')

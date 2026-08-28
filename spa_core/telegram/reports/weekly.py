@@ -31,6 +31,13 @@ from spa_core.reporting.weekly_telegram_report import (
 )
 from spa_core.utils.atomic import atomic_load, atomic_save
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: ПУСТО — это ОТВЕТ «артефактов не произвожу», а не незаполненное поле.
+#: Проверено чтением модуля и его пакета 28.08: пишет единственный сторожевой dot-файл .last_weekly_digest (защита от повторной отправки), артефактов не производит.
+#: Следствие (ADR-154): раз свежесть файла тут ни при чём, метрикой качества
+#: должен стать другой признак — доступность/факт отправки. Открыто карточкой.
+PRODUCES = ()
+
 log = logging.getLogger("spa.telegram.reports.weekly")
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]

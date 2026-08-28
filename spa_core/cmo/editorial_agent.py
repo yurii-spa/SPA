@@ -26,6 +26,13 @@ from typing import Any, Optional
 from spa_core.cmo.pipeline import run_pipeline
 from spa_core.cmo.draft_store import DraftStore
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: ПУСТО — это ОТВЕТ «артефактов не произвожу», а не незаполненное поле.
+#: Проверено чтением модуля и его пакета 28.08: печатает черновик в stdout.
+#: Следствие (ADR-154): раз свежесть файла тут ни при чём, метрикой качества
+#: должен стать другой признак — доступность/факт отправки. Открыто карточкой.
+PRODUCES = ()
+
 log = logging.getLogger("spa.cmo.editorial_agent")
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]

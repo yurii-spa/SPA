@@ -5,6 +5,10 @@ title: Пятая часть денег стоит на числе, о кото�
 status: ingested
 source: nimbalyst
 created: 2026-08-26
+owner_choice: 2
+owner_answered_at: 2026-08-28T14:00:00+00:00
+owner_answer_via: interactive-session
+decision: ADR-159
 ---
 
 ## Что случилось и почему это важно
