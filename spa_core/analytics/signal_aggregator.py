@@ -59,6 +59,15 @@ from typing import Any, Deque, Dict, List, Optional, Tuple
 
 from spa_core.analytics import _module_registry as registry
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода. Источники: запись, видимая в этом модуле,
+#: и авторская карта AGENT_OUTPUT_FILES в spa_core/monitoring/uptime_monitor.py.
+#: Сверка — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/analytics_report_full.json",
+    "data/analytics_signals_advisory.json",
+)
+
 # Эмпирическая разметка протокол-слепых Tier-B модулей (дифференциальный
 # аудит scripts/audit_protocol_blindness.py). Отсутствие файла = пустой набор.
 try:

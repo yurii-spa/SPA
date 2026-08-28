@@ -31,6 +31,14 @@ from typing import Optional
 
 from spa_core.monitoring import analytics_audit_freshness, manifest_slo
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода. Источники: запись, видимая в этом модуле,
+#: и авторская карта AGENT_OUTPUT_FILES в spa_core/monitoring/uptime_monitor.py.
+#: Сверка — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/artifact_freshness.json",
+)
+
 # ── status vocabulary (fail-CLOSED: only FRESH is a clean pass) ──────────────────────
 FRESH = "FRESH"
 STALE = "STALE"          # exists + parseable, but older than max_age_hours

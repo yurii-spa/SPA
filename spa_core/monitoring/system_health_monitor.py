@@ -132,6 +132,14 @@ from spa_core.monitoring import offsite_backup_observability as _offsite
 # while the authoritative gate divides by TOTAL capital (policy.concentration_pct) — the
 # denominator mismatch produced false alarms (morpho 40% of total == 47.1% of deployed).
 from spa_core.risk.policy import RiskConfig as _RC
+
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода. Источники: запись, видимая в этом модуле,
+#: и авторская карта AGENT_OUTPUT_FILES в spa_core/monitoring/uptime_monitor.py.
+#: Сверка — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/system_health.json",
+)
 ALLOC_CAP_T1_PCT = _RC.max_concentration_t1 * 100.0   # 40% of TOTAL capital
 ALLOC_CAP_T2_PCT = _RC.max_concentration_t2 * 100.0   # 20% of TOTAL capital
 ALLOC_CAP_APPROACH = 0.85                              # INFO above 85% of cap (mirrors policy.py)

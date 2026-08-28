@@ -20,6 +20,14 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from spa_core.utils.atomic import atomic_save
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода. Источники: запись, видимая в этом модуле,
+#: и авторская карта AGENT_OUTPUT_FILES в spa_core/monitoring/uptime_monitor.py.
+#: Сверка — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/peg_report.json",
+)
+
 log = logging.getLogger("spa.monitoring.peg_monitor")
 
 # ---------------------------------------------------------------------------

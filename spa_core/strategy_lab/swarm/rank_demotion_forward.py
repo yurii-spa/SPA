@@ -62,6 +62,14 @@ from spa_core.strategy_lab.swarm.dwell_hysteresis_forward import (
 )
 from spa_core.utils.atomic import atomic_save
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода. Источники: запись, видимая в этом модуле,
+#: и авторская карта AGENT_OUTPUT_FILES в spa_core/monitoring/uptime_monitor.py.
+#: Сверка — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/swarm/rank_demotion_status.json",
+)
+
 __all__ = [
     "run_forward_tick", "compute_arms", "rank_flags", "drift_scores", "vol_scores",
     "LOOKBACK", "RANK_K", "READMIT_M", "ARMS", "BOOK_NAME", "STATUS_NAME",

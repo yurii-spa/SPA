@@ -50,6 +50,14 @@ from spa_core.strategy_lab.swarm.common import (
 )
 from spa_core.utils.atomic import atomic_save
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода. Источники: запись, видимая в этом модуле,
+#: и авторская карта AGENT_OUTPUT_FILES в spa_core/monitoring/uptime_monitor.py.
+#: Сверка — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/swarm/guardian_forward.json",
+)
+
 # GENESIS_HASH — re-export, not a dead import: the proof-chain test reads it THROUGH this
 # module (``gf.GENESIS_HASH``, spa_core/tests/test_swarm_guardian_forward.py), so the name is
 # part of this module's surface. It was missing from ``__all__``, which is why the unused-import

@@ -72,6 +72,15 @@ from spa_core.owner_queue.queue import ATTRIBUTION_CRITICAL_STATUSES, OWNER_ONLY
 from spa_core.owner_queue.status_audit import read_audit, read_status, trail_explains
 from spa_core.utils.atomic import atomic_save
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода. Источники: запись, видимая в этом модуле,
+#: и авторская карта AGENT_OUTPUT_FILES в spa_core/monitoring/uptime_monitor.py.
+#: Сверка — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/tracker_status_sentinel.json",
+    "data/tracker_status_snapshot.json",
+)
+
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 TRACKER_REL = os.path.join("nimbalyst-local", "tracker")

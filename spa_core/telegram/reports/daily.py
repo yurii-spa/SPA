@@ -44,6 +44,14 @@ from spa_core.reporting.daily_telegram_report import (
 from spa_core.telegram import push_policy
 from spa_core.utils.atomic import atomic_load, atomic_save
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода. Источники: запись, видимая в этом модуле,
+#: и авторская карта AGENT_OUTPUT_FILES в spa_core/monitoring/uptime_monitor.py.
+#: Сверка — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/telegram_alert_state.json",
+)
+
 log = logging.getLogger("spa.telegram.reports.daily")
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]

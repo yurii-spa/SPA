@@ -101,6 +101,14 @@ from typing import Any, Iterable, Optional
 # with SEVERITIES here so a rename here propagates to consumers automatically.
 from spa_core.alerts.severity import SEV_WARN, SEV_CRITICAL, SEVERITIES as _SEVERITIES
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода. Источники: запись, видимая в этом модуле,
+#: и авторская карта AGENT_OUTPUT_FILES в spa_core/monitoring/uptime_monitor.py.
+#: Сверка — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/red_flags.json",
+)
+
 log = logging.getLogger("spa.alerts.red_flag_monitor")
 
 MONITOR_VERSION = "1.0"

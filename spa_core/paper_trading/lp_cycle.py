@@ -28,6 +28,14 @@ import os
 from spa_core.utils import clock
 from spa_core.paper_trading import sleeve_book
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода. Источники: запись, видимая в этом модуле,
+#: и авторская карта AGENT_OUTPUT_FILES в spa_core/monitoring/uptime_monitor.py.
+#: Сверка — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/lp_paper_trading.json",
+)
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _LP_DATA_PATH = _PROJECT_ROOT / "data" / "lp_paper_trading.json"
 

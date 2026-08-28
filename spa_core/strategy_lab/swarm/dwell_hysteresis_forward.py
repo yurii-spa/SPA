@@ -50,6 +50,14 @@ from typing import Dict, List, Optional, Sequence, Tuple
 from spa_core.strategy_lab.swarm.common import append_daily_proof, apy_pct, max_drawdown_pct
 from spa_core.utils.atomic import atomic_save
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода. Источники: запись, видимая в этом модуле,
+#: и авторская карта AGENT_OUTPUT_FILES в spa_core/monitoring/uptime_monitor.py.
+#: Сверка — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/swarm/dwell_hysteresis_status.json",
+)
+
 __all__ = [
     "run_forward_tick", "load_panel", "sig_ecdr", "overlay_weights", "compute_arms",
     "ECDR_FAST", "ECDR_SLOW", "DWELL_K", "EXPECTED_BOOKS",
