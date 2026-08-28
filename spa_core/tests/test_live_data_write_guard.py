@@ -92,6 +92,15 @@ def _run_child(test_file, with_guard, env_extra=None):
     env.pop(guard.AUDIT_ENV, None)
     env.pop(guard.AUDIT_OUT_ENV, None)
     env.update(env_extra or {})
+    # Каталог объявлений — СВОЙ у каждого дочернего прогона (цикл #411).
+    # Иначе дочерний замер видит объявление РОДИТЕЛЬСКОГО набора в том же дереве
+    # и честно отвечает «атрибуция НЕ ИЗМЕРЕНА» вместо nodeid: у сторожа нет
+    # способа узнать, что родитель в этот момент стоит и ждёт `subprocess.run`.
+    # Это НЕ ослабление проверки (инв. #16): предмет теста ниже — «режим замера
+    # ДОБАВЛЯЕТ имя виновника», и здесь просто явно объявлено условие, при
+    # котором имя вообще можно назвать. Что бывает, когда сосед настоящий,
+    # проверяет spa_core/tests/test_live_data_write_attribution.py.
+    env.setdefault(guard.RUNS_DIR_ENV, str(Path(test_file).parent / "runs"))
     extra = ["-q", "-p", "no:cacheprovider"]
     if with_guard:
         extra += ["-p", "live_data_write_guard"]

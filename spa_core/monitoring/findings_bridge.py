@@ -9,8 +9,10 @@
                подряд наблюдения (флаппинг не рождает мусор); CRITICAL — сразу;
   rate-limit   ≤ MAX_CARDS_PER_DAY карточек/сутки; излишек — в отчёт с
                пометкой deferred, ГРОМКО, не молча (правило «no silent caps»);
-  авто-закрытие исчезнувшая находка закрывает свою карточку, но ТОЛЬКО если
-               карточка НЕТРОНУТА: `new` для inbox, `needs-owner` без следа
+  авто-закрытие исчезнувшая находка закрывает свою карточку, но ТОЛЬКО после
+               REQUIRED_ABSENCES прогонов подряд без неё (молчание ОДНОГО
+               прогона не есть починка — иначе находка возвращается, и это
+               измерено) и ТОЛЬКО если карточка НЕТРОНУТА: `new` для inbox, `needs-owner` без следа
                владельца для owner-decision (цикл #172 — раньше правило знало
                лишь `new`, и вопрос владельца не закрывался никогда); взятую
                в работу не трогаем. Закрытие уведомлённой карточки уходит
@@ -55,6 +57,14 @@ STATE_REL = os.path.join("data", "findings_bridge_state.json")
 REPORT_REL = os.path.join("data", "findings_bridge_report.json")
 
 REQUIRED_SIGHTINGS = 2
+#: Столько прогонов ПОДРЯД находка обязана отсутствовать, чтобы её карточка
+#: закрылась. Зеркало REQUIRED_SIGHTINGS: рождение карточки уже требовало
+#: повтора, а закрытие обходилось ОДНИМ молчаливым прогоном — асимметрия и
+#: была механизмом рецидива (замер loop_health 28.08: 4 находки вернулись
+#: после закрытия, ВСЕ из класса `gap:opportunity_unnamed`; условие при этом
+#: не менялось — менялось лишь то, попал ли протокол в top_opportunities
+#: конкретного суточного снимка офиса). Молчание одного прогона — не починка.
+REQUIRED_ABSENCES = 2
 MAX_CARDS_PER_DAY = 5
 SUBPROC_TIMEOUT = 60
 
@@ -376,6 +386,7 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
     created_today = int(daily.get(today, 0))
 
     created, deferred, closed, waiting, escalated = [], [], [], [], []
+    closing: list[dict] = []
     withdrawn: list[dict] = []
 
     for key, f in sorted(current.items()):
@@ -393,6 +404,9 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
                          recurrences=int(entry.get("recurrences", 0)) + 1)
         entry["seen_count"] = int(entry.get("seen_count", 0)) + 1
         entry["last_seen"] = now.isoformat()
+        # Находка на месте ⇒ счётчик отсутствий обнуляется: закрытия требует
+        # РЯД молчаливых прогонов подряд, а не их сумма за всю историю.
+        entry["absent_count"] = 0
 
         esc = (f["severity"] == "CRITICAL" and entry.get("severity") != "CRITICAL"
                and entry.get("status") == "carded")
@@ -424,6 +438,18 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
     for key in sorted(set(st_findings) - set(current)):
         entry = st_findings[key]
         if entry.get("status") == "carded" and entry.get("card"):
+            # Гистерезис закрытия — зеркало гистерезиса рождения. Источник,
+            # промолчавший ОДИН раз, ничего не чинит: суточный снимок офиса
+            # перетасовывает top_opportunities, находка выпадает из отчёта,
+            # карточка закрывается, назавтра находка возвращается дословно.
+            # Счётчик виден в отчёте — «жду подтверждения» не должно выглядеть
+            # как «ничего не происходит».
+            entry["absent_count"] = int(entry.get("absent_count", 0)) + 1
+            if entry["absent_count"] < REQUIRED_ABSENCES:
+                closing.append({"key": key, "card": entry["card"],
+                                "absent_count": entry["absent_count"],
+                                "required": REQUIRED_ABSENCES})
+                continue
             if close(root, entry["card"]):
                 entry["status"] = "closed"
                 entry["closed_at"] = now.isoformat()
@@ -450,6 +476,11 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
               "created": created, "deferred": deferred, "closed": closed,
               "withdrawn": withdrawn,
               "waiting_hysteresis": waiting, "escalated": escalated,
+              # Карточки, у которых находка пропала, но ряд молчаливых прогонов
+              # ещё не набран. Ждать МОЛЧА нельзя: иначе «мост ничего не сделал»
+              # неотличимо от «мост ждёт подтверждения» — та же болезнь, что
+              # лечится в rate-limit'е словом deferred.
+              "closing_hysteresis": closing,
               "sources_unread": unread, "reconciled_from_tracker": reconciled,
               "open_cards": sum(1 for e in st_findings.values() if e.get("status") == "carded"),
               "rate_limit": {"max_per_day": MAX_CARDS_PER_DAY, "used_today": created_today}}
@@ -531,6 +562,7 @@ def main(argv=None) -> int:
         print(f"loop_health: пропущено ({e})")
     print(f"findings_bridge: created={len(r['created'])} closed={len(r['closed'])} "
           f"deferred={len(r['deferred'])} waiting={len(r['waiting_hysteresis'])} "
+          f"closing={len(r.get('closing_hysteresis') or [])} "
           f"open_cards={r['open_cards']} unread={r['sources_unread']}")
     for c in r["created"]:
         print(f"  + [{c['severity']}] {os.path.basename(c['card'])}")
@@ -544,6 +576,11 @@ def main(argv=None) -> int:
         print("  " + render_delivery(r.get("delivery") or {}))
     except Exception as e:  # noqa: BLE001
         print(f"  card_delivery: ⚠️ квитанция не прочитана ({e})")
+    for c in r.get("closing_hysteresis") or []:
+        # Вслух: карточка ЖИВА намеренно, а не по недосмотру.
+        print(f"  ⏳ {os.path.basename(c['card'])}: находка пропала "
+              f"{c['absent_count']}/{c['required']} прогон(а) подряд — "
+              f"закрытия ЖДЁМ (молчание одного прогона не есть починка)")
     if r["deferred"]:
         print(f"  ⚠️ ОТЛОЖЕНО rate-limit'ом ({MAX_CARDS_PER_DAY}/сутки): {r['deferred']}")
     return 0

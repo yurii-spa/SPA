@@ -256,10 +256,16 @@ class Bridge(unittest.TestCase):
         self.assertEqual(r3["created"], [])
         self.assertEqual(r3["open_cards"], 1)
         self.put_conformance([])                      # находка исчезла
+        # Гистерезис ЗАКРЫТИЯ (цикл #416): один молчаливый прогон не закрывает —
+        # карточка жива и об ожидании сказано вслух.
         r4 = self.run_bridge(NOW + dt.timedelta(hours=18))
-        self.assertEqual([c["card"] for c in r4["closed"]], [card])
+        self.assertEqual(r4["closed"], [])
+        self.assertEqual([c["card"] for c in r4["closing_hysteresis"]], [card])
+        self.assertEqual(fb.card_status(card), "new")
+        r5 = self.run_bridge(NOW + dt.timedelta(hours=24))   # второй подряд — закрытие
+        self.assertEqual([c["card"] for c in r5["closed"]], [card])
         self.assertEqual(fb.card_status(card), "done")
-        self.assertEqual(r4["open_cards"], 0)
+        self.assertEqual(r5["open_cards"], 0)
 
     def test_critical_skips_hysteresis_and_notifies(self):
         self.put_conformance([{"key": "B1:dead:com.spa.a", "severity": "CRITICAL",
@@ -287,8 +293,13 @@ class Bridge(unittest.TestCase):
         text = open(card, encoding="utf-8").read().replace("status: new", "status: in-progress")
         open(card, "w", encoding="utf-8").write(text)
         self.put_conformance([])
-        r = self.run_bridge(NOW + dt.timedelta(hours=12))
+        # Прогонов отсутствия ДВА, а не один: после введения гистерезиса закрытия
+        # (#416) одного хватило бы, чтобы тест зеленел по ГИСТЕРЕЗИСУ, ничего не
+        # сказав о своём предмете — «взятую в работу не трогаем». Ось ровно одна.
+        self.run_bridge(NOW + dt.timedelta(hours=12))
+        r = self.run_bridge(NOW + dt.timedelta(hours=18))
         self.assertEqual(r["closed"], [])
+        self.assertEqual(r["closing_hysteresis"], [])
         self.assertEqual(fb.card_status(card), "in-progress")
 
     def test_flapping_finding_never_becomes_card(self):
@@ -318,14 +329,94 @@ class Bridge(unittest.TestCase):
         self.run_bridge()
         self.run_bridge(NOW + dt.timedelta(hours=6))          # карточка №1
         self.put_conformance([])
-        self.run_bridge(NOW + dt.timedelta(hours=12))         # авто-закрытие
+        self.run_bridge(NOW + dt.timedelta(hours=12))         # 1-е отсутствие: ждём
+        self.run_bridge(NOW + dt.timedelta(hours=18))         # 2-е подряд: авто-закрытие
         self.put_conformance([self.warn()])                    # РЕЦИДИВ
-        self.run_bridge(NOW + dt.timedelta(hours=18))          # гистерезис заново
-        r = self.run_bridge(NOW + dt.timedelta(hours=24))
+        self.run_bridge(NOW + dt.timedelta(hours=24))          # гистерезис заново
+        r = self.run_bridge(NOW + dt.timedelta(hours=30))
         self.assertEqual(len(r["created"]), 1)                 # карточка №2
         state = json.load(open(os.path.join(self.root, "data",
                                             "findings_bridge_state.json")))
         self.assertEqual(state["findings"]["B1:reboot_unsafe:com.spa.x"]["recurrences"], 1)
+
+    def test_one_silent_run_does_not_close_the_card(self):
+        """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ рецидива 28.08 (замер `data/loop_health.json`):
+        «4 находки ВЕРНУЛИСЬ после закрытия, причина ОДНА — класс
+        `gap:opportunity_unnamed`». Механизм был в асимметрии моста: рождение
+        карточки требовало РЯДА наблюдений, а закрытие обходилось ОДНИМ
+        молчаливым прогоном. Источник (суточный house_view) перетасовывает
+        top_opportunities — находка выпадает из одного отчёта, карточка
+        закрывается, назавтра находка возвращается ДОСЛОВНО, условие при этом
+        не менялось ни разу.
+
+        Здесь ось ровно одна: находка пропадает на ОДИН прогон и возвращается.
+        На неисправленном мосте карточка к этому моменту уже `done`, а
+        `recurrences` вырос — то есть тест краснеет на настоящей аварии.
+        """
+        self.put_conformance([self.warn()])
+        self.run_bridge()
+        card = self.run_bridge(NOW + dt.timedelta(hours=6))["created"][0]["card"]
+
+        self.put_conformance([])                               # источник промолчал ОДИН раз
+        r = self.run_bridge(NOW + dt.timedelta(hours=12))
+        self.assertEqual(r["closed"], [], "один молчаливый прогон закрыл карточку")
+        self.assertEqual(fb.card_status(card), "new")
+
+        self.put_conformance([self.warn()])                    # находка вернулась дословно
+        r = self.run_bridge(NOW + dt.timedelta(hours=18))
+        self.assertEqual(r["created"], [], "родился ДУБЛЬ на ту же находку")
+        self.assertEqual(r["open_cards"], 1)
+        state = json.load(open(os.path.join(self.root, "data",
+                                            "findings_bridge_state.json")))
+        entry = state["findings"]["B1:reboot_unsafe:com.spa.x"]
+        self.assertEqual(entry.get("recurrences", 0), 0,
+                         "мигание источника засчитано рецидивом")
+        self.assertEqual(entry["absent_count"], 0, "счётчик отсутствий не сброшен")
+
+    def test_waiting_to_close_is_said_out_loud_not_silently(self):
+        """Ожидание обязано быть ВИДНО: иначе «мост ничего не сделал» неотличимо
+        от «мост ждёт подтверждения» — та же болезнь, от которой в rate-limit'е
+        лечит слово `deferred`. Молчаливый порог и есть то, что глушит сторожа."""
+        self.put_conformance([self.warn()])
+        self.run_bridge()
+        card = self.run_bridge(NOW + dt.timedelta(hours=6))["created"][0]["card"]
+        self.put_conformance([])
+        r = self.run_bridge(NOW + dt.timedelta(hours=12))
+        self.assertEqual(r["closing_hysteresis"],
+                         [{"key": "B1:reboot_unsafe:com.spa.x", "card": card,
+                           "absent_count": 1, "required": fb.REQUIRED_ABSENCES}])
+
+    def test_absence_streak_must_be_consecutive_not_cumulative(self):
+        """Обратный контроль к самому счётчику: два отсутствия, РАЗДЕЛЁННЫЕ
+        наблюдением, — это не ряд. Считай мост их суммой, карточка закрылась бы
+        ровно на мигающем источнике, то есть починка вернула бы исходный дефект
+        под другим именем."""
+        self.put_conformance([self.warn()])
+        self.run_bridge()
+        card = self.run_bridge(NOW + dt.timedelta(hours=6))["created"][0]["card"]
+        self.put_conformance([])
+        self.run_bridge(NOW + dt.timedelta(hours=12))          # отсутствие №1
+        self.put_conformance([self.warn()])
+        self.run_bridge(NOW + dt.timedelta(hours=18))          # находка на месте — счёт сброшен
+        self.put_conformance([])
+        r = self.run_bridge(NOW + dt.timedelta(hours=24))      # отсутствие №1 заново
+        self.assertEqual(r["closed"], [])
+        self.assertEqual(fb.card_status(card), "new")
+
+    def test_genuinely_gone_finding_still_closes(self):
+        """Обратный контроль ко всему изменению: сторож, который перестал
+        закрывать, вреднее прежнего. Находка ушла НАСОВСЕМ — карточка обязана
+        закрыться, и ровно на REQUIRED_ABSENCES-м прогоне, не позже."""
+        self.put_conformance([self.warn()])
+        self.run_bridge()
+        card = self.run_bridge(NOW + dt.timedelta(hours=6))["created"][0]["card"]
+        self.put_conformance([])
+        for i in range(fb.REQUIRED_ABSENCES - 1):
+            self.assertEqual(
+                self.run_bridge(NOW + dt.timedelta(hours=12 + 6 * i))["closed"], [])
+        r = self.run_bridge(NOW + dt.timedelta(hours=12 + 6 * (fb.REQUIRED_ABSENCES - 1)))
+        self.assertEqual([c["card"] for c in r["closed"]], [card])
+        self.assertEqual(fb.card_status(card), "done")
 
     def test_state_loss_reconciles_from_tracker_no_duplicate_cards(self):
         """Инцидент 2026-08-05 23:55: состояние моста исчезло между прогонами.
@@ -344,7 +435,8 @@ class Bridge(unittest.TestCase):
         self.assertEqual(r2["created"], [])
         self.assertEqual(r2["open_cards"], 1)
         self.put_conformance([])                       # находка исчезла
-        r3 = self.run_bridge(NOW + dt.timedelta(hours=12))
+        self.run_bridge(NOW + dt.timedelta(hours=12))  # 1-е отсутствие: гистерезис (#416)
+        r3 = self.run_bridge(NOW + dt.timedelta(hours=18))
         self.assertEqual([c["card"] for c in r3["closed"]], [card])  # авто-закрытие живо
         self.assertEqual(fb.card_status(card), "done")
 
@@ -359,7 +451,8 @@ class Bridge(unittest.TestCase):
         card = r1["created"][0]["card"]
         self.assertEqual(fb.card_status(card), "needs-owner")   # именно вопрос владельцу
         self.put_conformance([])                                # находка оказалась ложной
-        r2 = self.run_bridge(NOW + dt.timedelta(hours=6))
+        self.run_bridge(NOW + dt.timedelta(hours=6))            # 1-е отсутствие: ждём (#416)
+        r2 = self.run_bridge(NOW + dt.timedelta(hours=12))      # 2-е подряд: закрытие
         self.assertEqual([c["card"] for c in r2["closed"]], [card])
         self.assertEqual(fb.card_status(card), "done")
         self.assertEqual(r2["open_cards"], 0)
@@ -371,8 +464,11 @@ class Bridge(unittest.TestCase):
         card = self.run_bridge()["created"][0]["card"]
         self.q.set_field(card, "owner_choice", "2")
         self.put_conformance([])
-        r = self.run_bridge(NOW + dt.timedelta(hours=6))
+        # Два отсутствия подряд — чтобы гистерезис закрытия (#416) не заслонял предмет.
+        self.run_bridge(NOW + dt.timedelta(hours=6))
+        r = self.run_bridge(NOW + dt.timedelta(hours=12))
         self.assertEqual(r["closed"], [])
+        self.assertEqual(r["closing_hysteresis"], [])
         self.assertEqual(fb.card_status(card), "needs-owner")
 
     def test_owner_card_taken_into_work_is_never_auto_closed(self):
@@ -383,8 +479,11 @@ class Bridge(unittest.TestCase):
                                                            "status: ingested")
         open(card, "w", encoding="utf-8").write(text)
         self.put_conformance([])
-        r = self.run_bridge(NOW + dt.timedelta(hours=6))
+        # Два отсутствия подряд — иначе зеленело бы по гистерезису закрытия (#416).
+        self.run_bridge(NOW + dt.timedelta(hours=6))
+        r = self.run_bridge(NOW + dt.timedelta(hours=12))
         self.assertEqual(r["closed"], [])
+        self.assertEqual(r["closing_hysteresis"], [])
         self.assertEqual(fb.card_status(card), "ingested")
 
     def test_closing_a_notified_question_sends_a_withdrawal(self):
@@ -394,7 +493,8 @@ class Bridge(unittest.TestCase):
         card = self.run_bridge()["created"][0]["card"]
         self.assertEqual(self.q.notified, [card])
         self.put_conformance([])
-        r = self.run_bridge(NOW + dt.timedelta(hours=6))
+        self.run_bridge(NOW + dt.timedelta(hours=6))         # 1-е отсутствие (#416)
+        r = self.run_bridge(NOW + dt.timedelta(hours=12))
         self.assertEqual(self.q.retracted, [card])
         self.assertEqual(r["withdrawn"], [{"key": "B1:zombie:com.spa.x",
                                            "card": card, "sent": True}])
@@ -405,7 +505,8 @@ class Bridge(unittest.TestCase):
         self.run_bridge()
         self.run_bridge(NOW + dt.timedelta(hours=6))
         self.put_conformance([])
-        r = self.run_bridge(NOW + dt.timedelta(hours=12))
+        self.run_bridge(NOW + dt.timedelta(hours=12))        # 1-е отсутствие (#416)
+        r = self.run_bridge(NOW + dt.timedelta(hours=18))
         self.assertEqual(len(r["closed"]), 1)
         self.assertEqual(self.q.retracted, [])
         self.assertEqual(r["withdrawn"], [])
@@ -415,7 +516,8 @@ class Bridge(unittest.TestCase):
         self.put_conformance([self.critical()])
         card = self.run_bridge()["created"][0]["card"]
         self.put_conformance([])
-        r = fb.run_bridge(self.root, now=NOW + dt.timedelta(hours=6),
+        self.run_bridge(NOW + dt.timedelta(hours=6))         # 1-е отсутствие (#416)
+        r = fb.run_bridge(self.root, now=NOW + dt.timedelta(hours=12),
                           create=self.q.create, close=self.q._close,
                           notify=self.q.notify, retract=lambda root, p: False)
         self.assertEqual(r["withdrawn"], [{"key": "B1:zombie:com.spa.x",
