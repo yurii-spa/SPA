@@ -35,7 +35,37 @@ READ = "read"
 #: он встречается в не-state коде, поэтому учитывается тоже).
 _WRITERS = {"atomic_save": 1, "atomic_save_text": 1, "write_text": 0, "dump": 1}
 #: Вызовы, которые ЧИТАЮТ. `json.load(open(p))` разбирается через вложенный `open`.
-_READERS = {"read_text": 0, "load": 0, "loads": 0, "open": 0}
+_READERS = {"read_text": 0, "load": 0, "loads": 0, "open": 0, "_read_json": 0, "atomic_load": 0}
+
+#: Помощники записи, у которых путь стоит на РАЗНОЙ позиции у разных авторов
+#: (`_atomic_write_json(path, obj)` в одном модуле и `(data, path)` в другом),
+#: поэтому просматриваются ВСЕ аргументы.
+#:
+#: Замер 2026-08-28: этих имён во флоте больше, чем канонического `atomic_save` —
+#: `_atomic_write(` 656 вызовов, `_write_json(` 530, `_atomic_write_json(` 331.
+#: Первая редакция сканера знала только `atomic_save`/`open(...,"w")` и потому не
+#: видела ОСНОВНОЙ способ записи: из-за этого, например, оставалась невидимой
+#: запись стоп-крана (`kill_switch_active.json`) телеграм-ботом. Низкое покрытие
+#: на эталоне объяснялось не только вычисляемыми именами, как я решил сначала,
+#: но и незнанием словаря записи.
+_WRITE_ANY_ARG = {
+    "_atomic_write", "_atomic_write_json", "_atomic_write_text", "_atomic_write_jsonl",
+    "_atomic_write_rows", "atomic_write", "atomic_write_json", "atomic_write_text",
+    "atomic_write_via_tmp", "_write_json", "write_json", "_save_json", "save_json",
+}
+
+#: Завершение атомарной записи, написанной вручную: `tmp` + `os.replace(tmp, dst)`.
+#: Так пишут `self_heal.py`, `watchdog.py` и другие — и без этого идиома их продукт
+#: не виден вовсе, хотя автор объявил его в докстринге. Имя `replace` берётся ТОЛЬКО
+#: у `os`/`shutil`: голое `replace` — это `str.replace`, и оно встречается повсюду.
+_RENAME_CALLS = {"replace", "rename", "move"}
+_RENAME_MODULES = {"os", "shutil"}
+
+
+def _is_rename_call(node: ast.Call) -> bool:
+    f = node.func
+    return (isinstance(f, ast.Attribute) and f.attr in _RENAME_CALLS
+            and isinstance(f.value, ast.Name) and f.value.id in _RENAME_MODULES)
 
 _SUFFIXES = (".json", ".jsonl")
 
@@ -196,6 +226,14 @@ def scan_source(src: str) -> dict[str, set[str]]:
                     kind = WRITE if _open_mode_is_write(node) else READ
                     if node.args:
                         mark(_names_in(node.args[0], table), kind)
+                elif _is_rename_call(node):
+                    # Назначение — второй аргумент; временный файл первым не мешает
+                    # (`x.json.tmp` не проходит проверку основы имени).
+                    for arg in node.args:
+                        mark(_names_in(arg, table), WRITE)
+                elif fname in _WRITE_ANY_ARG:
+                    for arg in list(node.args) + [k.value for k in node.keywords]:
+                        mark(_names_in(arg, table), WRITE)
                 elif fname in _WRITERS:
                     if fname == "write_text":
                         if isinstance(node.func, ast.Attribute):

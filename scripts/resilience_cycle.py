@@ -20,6 +20,16 @@ import subprocess
 import sys
 from pathlib import Path
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода. Источник — запись, видимая в этом модуле,
+#: и/или прямое утверждение автора в докстринге/константах модуля.
+#: Сверка — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/dr_offsite_status.json",
+    "data/fleet_drill_status.json",
+    "data/restore_drill_status.json",
+)
+
 ROOT = Path(__file__).resolve().parent.parent
 PY = sys.executable
 

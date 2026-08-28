@@ -48,6 +48,17 @@ from spa_core.strategy_lab.rates_desk.contracts import (
 from spa_core.strategy_lab.rates_desk.sleeves import FixedCarrySleeve
 from spa_core.utils.atomic import atomic_load, atomic_save
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода: имена собраны из констант модуля
+#: (SLEEVE_ID/STATE_NAME/SERIES_NAME/STATUS_NAME), каталог подтверждён наличием
+#: файлов ровно по этому пути в прод-дереве.
+#: Сверка — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/rates_desk/paper/rates_desk_fixed_carry_series.json",
+    "data/rates_desk/paper/rates_desk_fixed_carry_state.json",
+    "data/rates_desk/paper/status.json",
+)
+
 log = logging.getLogger("spa.rates_desk.paper")
 
 _ROOT = Path(__file__).resolve().parents[3]

@@ -41,6 +41,15 @@ from typing import List, Optional
 from spa_core.strategy_lab.rates_desk import _io
 from spa_core.strategy_lab.rates_desk import realized_at_size as RAS
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода. Источник — запись, видимая в этом модуле,
+#: и/или прямое утверждение автора в докстринге/константах модуля.
+#: Сверка — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/rates_desk/paper/realized_at_size_track.jsonl",
+    "data/rates_desk/realized_at_size.json",
+)
+
 _ROOT = Path(__file__).resolve().parents[3]
 _PAPER_DIR = _ROOT / "data" / "rates_desk" / "paper"
 _TRACK = _PAPER_DIR / "realized_at_size_track.jsonl"

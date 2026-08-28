@@ -47,6 +47,14 @@ from spa_core.redteam.base import Surface
 from spa_core.redteam.registry import REGISTRY, covered_surfaces, scenarios_for_surface
 from spa_core.redteam.runner import run_all
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода. Источник — запись, видимая в этом модуле,
+#: и/или прямое утверждение автора в докстринге/константах модуля.
+#: Сверка — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/redteam_status.json",
+)
+
 _ROOT = Path(__file__).resolve().parents[2]
 
 REPORT_HASH_EVENT = "redteam_verdict"

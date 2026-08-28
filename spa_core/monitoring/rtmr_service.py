@@ -16,6 +16,15 @@ from spa_core.monitoring import actions as A
 from spa_core.monitoring import sense_loop as SL
 from spa_core.monitoring.sensors.build import register_default_sensors
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода: имена собраны из констант модуля
+#: (SLEEVE_ID/STATE_NAME/SERIES_NAME/STATUS_NAME), каталог подтверждён наличием
+#: файлов ровно по этому пути в прод-дереве.
+#: Сверка — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/monitoring/signals/latest.json",
+)
+
 
 _SEV_RANK = {"info": 0, "warn": 1, "critical": 2}
 

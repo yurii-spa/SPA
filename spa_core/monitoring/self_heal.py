@@ -89,6 +89,15 @@ from spa_core.monitoring.agent_health_monitor import (  # noqa: E402
     requires_residency,
 )
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода. Источник — запись, видимая в этом модуле,
+#: и/или прямое утверждение автора в докстринге/константах модуля.
+#: Сверка — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/self_heal_revivals.json",
+    "data/self_heal_status.json",
+)
+
 # Always-on servers (KeepAlive) — if loaded but PID 0, kickstart them.
 # bot_commands is RETIRED (replaced by com.spa.telegram_bot, identical module —
 # two long-polls would 409-conflict); telegram_bot is the live KeepAlive bot.

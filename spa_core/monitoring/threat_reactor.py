@@ -41,6 +41,15 @@ import tempfile
 from pathlib import Path
 from typing import List
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода. Источник — запись, видимая в этом модуле,
+#: и/или прямое утверждение автора в докстринге/константах модуля.
+#: Сверка — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/kill_switch_active.json",
+    "data/threat_reactor_status.json",
+)
+
 _ROOT = Path(__file__).resolve().parents[2]
 _DATA = _ROOT / "data"
 _STATUS = _DATA / "threat_reactor_status.json"

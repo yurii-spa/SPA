@@ -22,6 +22,14 @@ from spa_core.dfb import PoolOverlay, RiskClass
 from spa_core.dfb import history as dfb_history
 from spa_core.dfb import risk_overlay
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода. Источник — запись, видимая в этом модуле,
+#: и/или прямое утверждение автора в докстринге/константах модуля.
+#: Сверка — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/dfb/pools.json",
+)
+
 
 def run_tick(capture_date=None) -> dict:
     """One capture tick. Returns a small summary dict. Idempotent per UTC day on the history chain."""

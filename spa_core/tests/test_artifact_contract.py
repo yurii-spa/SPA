@@ -140,5 +140,54 @@ class TestThreeOutcomes(unittest.TestCase):
             self.assertEqual(ac.check_agent("a", "pkg.a", root)["verdict"], ac.UNDECLARED)
 
 
+class TestWriteHelperVocabulary(unittest.TestCase):
+    """Флот пишет НЕ каноническим `atomic_save`, а локальными помощниками.
+
+    Замер 28.08: `_atomic_write(` — 656 вызовов, `_write_json(` — 530,
+    `_atomic_write_json(` — 331, против `atomic_save(` — 680 но сосредоточенных.
+    Первая редакция сканера знала только `atomic_save`/`open(...,"w")` и потому не
+    видела ОСНОВНОЙ способ записи — из-за этого оставалась невидимой, например,
+    запись стоп-крана `kill_switch_active.json` телеграм-ботом.
+    """
+
+    def test_local_helper_write_is_seen(self):
+        got = scan_source('_atomic_write_json(ddir / "kill_switch_active.json", payload)\n')
+        self.assertEqual(got.get("kill_switch_active.json"), {WRITE})
+
+    def test_helper_with_path_as_SECOND_argument_is_seen(self):
+        """Сигнатуры расходятся у разных авторов: `(path, obj)` и `(data, path)`.
+        Поэтому просматриваются ВСЕ аргументы, а не фиксированная позиция."""
+        got = scan_source('_atomic_write_json(payload, "data/x.json")\n')
+        self.assertEqual(got.get("data/x.json"), {WRITE})
+
+    def test_read_helper_is_not_a_write(self):
+        """Обратный контроль: `_read_json` — чтение, и оно не должно стать записью."""
+        got = scan_source('doc = _read_json(KILL, {})\nKILL = "kill_switch_active.json"\n')
+        self.assertEqual(got.get("kill_switch_active.json"), {READ})
+
+
+class TestBasenameComparisonIsNamedNotHidden(unittest.TestCase):
+    """Одинаковые имена в разных каталогах существуют, и это НЕ ошибка кода.
+
+    `data/market_regime.json` пишет дневной цикл в свой ddir (MP-534), а
+    `data/investment_os/market_regime.json` — аналитик `io_market_regime`. Сверка
+    сравнивает базовые имена (каталог статически неизвестен), и предел назван в коде.
+    Тест стережёт, чтобы совпадение имени НЕ выдавалось за совпадение пути.
+    """
+
+    def test_same_basename_different_directory_does_not_raise_contradiction(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "pkg").mkdir()
+            (root / "pkg" / "__init__.py").write_text("", encoding="utf-8")
+            (root / "pkg" / "a.py").write_text(
+                'PRODUCES = ("data/investment_os/market_regime.json",)\n'
+                '_atomic_write_json(ddir / "market_regime.json", r)\n', encoding="utf-8")
+            r = ac.check_agent("a", "pkg.a", root)
+            self.assertEqual(r["verdict"], ac.CONFIRMED,
+                             "совпадение базового имени не обязано давать противоречие")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -99,6 +99,14 @@ def check_agent(label: str, module: str, repo: Path) -> dict:
         return {"label": label, "module": module, "verdict": UNDECLARED,
                 "declared": None, "note": "нет объявления PRODUCES — контракт не высказан"}
     written = _written_here(module, repo)
+    # ПРЕДЕЛ, который надо знать читателю вердикта: сравнение идёт по БАЗОВОМУ имени,
+    # потому что в коде путь чаще всего собирается на лету (`ddir / "x.json"`), и
+    # каталог статически не известен. В репозитории есть одноимённые файлы в разных
+    # каталогах — `data/market_regime.json` пишет дневной цикл «в свой ddir» (MP-534,
+    # cycle_runner.py), а `data/investment_os/market_regime.json` — аналитик
+    # `io_market_regime`. Поэтому `confirmed` здесь значит «имя совпало», а НЕ
+    # «каталог проверен»; для `contradiction` этого достаточно (написано имя, которого
+    # нет в контракте вовсе), для полной сверки путей нужен рантайм.
     decl_base = {d.split("/")[-1] for d in decl}
     extra = sorted(a for a in written - decl_base if a)
     if extra:

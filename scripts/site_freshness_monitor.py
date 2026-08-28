@@ -34,6 +34,15 @@ import sys
 import urllib.request
 from pathlib import Path
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода. Источник — запись, видимая в этом модуле,
+#: и/или прямое утверждение автора в докстринге/константах модуля.
+#: Сверка — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/site_freshness_report.json",
+    "landing/src/data/track_snapshot.json",
+)
+
 _ROOT = Path(__file__).resolve().parents[1]
 #: Место снимка ВНУТРИ репозитория. Вынесено отдельно от `_SNAP` не для красоты:
 #: публикация идёт из свежей копии (ADR-098), и адрес файла в НЕЙ — это факт репозитория,

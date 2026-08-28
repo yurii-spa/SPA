@@ -137,7 +137,10 @@ from spa_core.paper_trading.cycle_reporting import (  # noqa: F401 — re-export
 #: (замер 28.08: верно 13 из 27, одна ошибка, семья harness недостижима).
 #: Сверяется с фактической записью — spa_core/monitoring/artifact_contract.py.
 PRODUCES = (
+    "data/allocation_rationale.json",
     "data/allocation_rationale_history.jsonl",
+    "data/current_positions.json",
+    "data/equity_curve_daily.json",
     "data/shadow_trigger_evaluation.json",
 )
 

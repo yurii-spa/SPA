@@ -61,6 +61,15 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from spa_core.utils.atomic import atomic_save
 
+#: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
+#: Объявление, а не вывод из кода. Источник — запись, видимая в этом модуле,
+#: и/или прямое утверждение автора в докстринге/константах модуля.
+#: Сверка — spa_core/monitoring/artifact_contract.py.
+PRODUCES = (
+    "data/kill_switch_active.json",
+    "data/tg_bot_v2_offset.json",
+)
+
 log = logging.getLogger("spa.telegram.bot")
 
 BASE_DIR = Path(__file__).resolve().parents[2]
