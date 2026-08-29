@@ -130,6 +130,19 @@ def _compliant_target(
         return target_usd, False
 
 
+def _sequential_remainder(capital: float, target: dict[str, float]) -> float:
+    """Остаток так, КАК ЕГО СЧИТАЕТ ГЕЙТ: по одной ноге, в его порядке.
+
+    Порядок гейта — по убыванию суммы, затем по имени (см. `_apply_risk_policy_gate`).
+    Совпадение с ним обязательно: спор об отказе идёт о последних битах, и другой
+    порядок сложения даёт другой ответ на том же наборе чисел.
+    """
+    cash = float(capital)
+    for _pool, usd in sorted(target.items(), key=lambda kv: (-kv[1], kv[0])):
+        cash -= float(usd)
+    return cash
+
+
 def redistribution_refusal_record(target_usd: dict[str, float],
                                   capital_usd: float,
                                   added: dict[str, float] | None,
@@ -146,8 +159,16 @@ def redistribution_refusal_record(target_usd: dict[str, float],
     Возвращает то, чего не хватало: САМУ поданную цель, её сумму, капитал (знаменатель
     буфера) и добавленные ноги. Ничего не решает — только называет.
     """
-    tgt = {k: round(float(v), 2) for k, v in sorted((target_usd or {}).items())}
-    total = round(sum(tgt.values()), 2)
+    # НЕ ОКРУГЛЯТЬ. Первая версия записи (29.08) округляла ноги до центов — и
+    # первый же живой отказ стал невоспроизводимым: сумма вышла ровно 95 000.00,
+    # остаток ровно 5 000.00 = 5.0 %, а гейт при этом отказал. Спор идёт о
+    # ПОСЛЕДНИХ БИТАХ (ноги — точные девятнадцатые доли вроде 6578.947368421053),
+    # и округление стёрло ровно ту улику, ради которой запись и строилась.
+    # Округлённые числа остаются рядом — они для человека, сырые для арифметики.
+    raw = {k: float(v) for k, v in sorted((target_usd or {}).items())}
+    raw_total = sum(raw.values())
+    tgt = {k: round(v, 2) for k, v in raw.items()}
+    total = round(raw_total, 2)
     cap = float(capital_usd)
     return {
         "capital_usd": round(cap, 2),
@@ -156,8 +177,21 @@ def redistribution_refusal_record(target_usd: dict[str, float],
         "submitted_target": tgt,
         "added": {k: round(float(v), 2) for k, v in sorted((added or {}).items())},
         # Остаток и его доля — ровно те числа, о которых спорит отказ.
-        "remaining_cash_usd": round(cap - total, 2),
-        "remaining_cash_pct": (round((cap - total) / cap * 100.0, 4) if cap else None),
+        "remaining_cash_usd": round(cap - raw_total, 2),
+        "remaining_cash_pct": (round((cap - raw_total) / cap * 100.0, 4) if cap else None),
+        # Сырьё для арифметики до последнего бита: по этим числам отказ обязан
+        # воспроизводиться повторным вычитанием, иначе спорить не о чем.
+        "raw_target": {k: repr(v) for k, v in raw.items()},
+        "raw_sum": repr(raw_total),
+        # ДВА РАЗНЫХ ЧИСЛА, и в этом весь смысл. «Сложить и вычесть один раз» и
+        # «вычитать по одной ноге» расходятся в последних битах, а гейт вычитает
+        # ПОСЛЕДОВАТЕЛЬНО, в своём порядке (по убыванию суммы, затем по имени).
+        # Первая версия записи считала первым способом и потому показывала чистые
+        # 5 000.00 там, где гейт видел меньше, — запись оправдывала цель, которую
+        # гейт отверг. Теперь записываются оба, и спорить есть о чём предметно.
+        "raw_remaining_naive": repr(cap - raw_total),
+        "raw_remaining_sequential": repr(_sequential_remainder(cap, raw)),
+        "raw_remaining_frac": (repr(_sequential_remainder(cap, raw) / cap) if cap else None),
         "violations": list(violations or []),
         "error": error,
     }

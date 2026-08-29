@@ -56,6 +56,43 @@ class TheRecordCarriesWhatWasMissing(unittest.TestCase):
         self.assertIsNone(rec({"a": 1.0}, 0.0, {}, [])["remaining_cash_pct"])
 
 
+class RoundingWouldEraseTheEvidence(unittest.TestCase):
+    """Первая версия записи округляла до центов — и стёрла улику (29.08).
+
+    Первый же живой отказ пришёл с суммой ровно 95 000.00 и остатком ровно 5 000.00 = 5.0 %,
+    то есть по записи отказывать было НЕ ЗА ЧТО. Настоящие ноги — точные девятнадцатые доли
+    (6578.947368421053), спор идёт о последних битах, и округление их убило.
+    """
+
+    LEGS = {"aave_v3": 420000 / 19.0, "compound_v3": 720000 / 19.0,
+            "maple": 360000 / 19.0, "fluid_usdc": 180000 / 19.0,
+            "morpho_blue_base": 125000 / 19.0}
+
+    def test_raw_values_survive_untouched(self):
+        r = rec(self.LEGS, 100000.0, {}, [])
+        self.assertEqual(r["raw_target"]["morpho_blue_base"], repr(125000 / 19.0))
+        self.assertNotEqual(r["raw_target"]["morpho_blue_base"], "6578.95")
+
+    def test_the_refusal_can_be_recomputed_from_the_record_alone(self):
+        """Смысл записи: по ней и только по ней отказ обязан пересчитываться."""
+        r = rec(self.LEGS, 100000.0, {}, [])
+        cash = r["capital_usd"]
+        for _p, v in sorted(r["raw_target"].items(), key=lambda kv: (-float(kv[1]), kv[0])):
+            cash -= float(v)
+        self.assertEqual(repr(cash), r["raw_remaining_sequential"])
+
+    def test_the_two_ways_of_counting_are_both_recorded(self):
+        """Они РАСХОДЯТСЯ, и запись обязана показывать оба — иначе спор беспредметен."""
+        r = rec(self.LEGS, 100000.0, {}, [])
+        self.assertIn("raw_remaining_naive", r)
+        self.assertIn("raw_remaining_sequential", r)
+
+    def test_human_readable_numbers_are_still_there(self):
+        r = rec(self.LEGS, 100000.0, {}, [])
+        self.assertEqual(r["submitted_sum_usd"], 95000.0)
+        self.assertEqual(r["remaining_cash_usd"], 5000.0)
+
+
 class TheRecordIsWiredIntoTheRefusalBranch(unittest.TestCase):
     """Проводка, а не деталь: функция может быть исправна и никем не вызвана."""
 
