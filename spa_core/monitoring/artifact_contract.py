@@ -139,6 +139,16 @@ def audit(entry_modules: dict[str, str], repo: Path) -> dict:
     return {"total": len(rows), "counts": counts, "rows": rows}
 
 
+def audit_fleet(repo: Path | None = None) -> dict:
+    """Аудит контрактов всего флота. Публичная точка входа для сторожей.
+
+    Живой потребитель — `architecture_conformance` (проверка B7): он берёт отсюда
+    ТОЛЬКО противоречия как находки, остальные исходы кладёт строкой отчёта.
+    """
+    r = repo or Path(__file__).resolve().parents[2]
+    return audit(_entry_modules(r), r)
+
+
 def _entry_modules(repo: Path) -> dict[str, str]:
     """Точки входа агентов — тем же разбором обёрток, что и паспорт (одно имя — один объект)."""
     import importlib.util
@@ -159,9 +169,11 @@ def _entry_modules(repo: Path) -> dict[str, str]:
 def main() -> int:
     """Отчёт о состоянии контрактов флота. Ничего не пишет и никого не гасит.
 
-    Сознательно НЕ вшит ни в один живой сторож: сейчас 53 агента без объявления,
-    и новый сигнал такого объёма в `architecture_conformance` — это поток находок
-    владельцу. Подключение — отдельное решение, карточкой.
+    Подключено к живому сторожу 29.08 (`architecture_conformance`, проверка B7),
+    после того как объявления появились у большинства флота. Условие подключения
+    было именно таким: пока объявлений не было, сигнал такого объёма стал бы
+    потоком находок владельцу. В сторож уходят ТОЛЬКО противоречия; `unmeasured`
+    и `undeclared` — строка отчёта, не тревога.
     """
     import argparse
     import json as _json
@@ -169,7 +181,7 @@ def main() -> int:
     ap.add_argument("--json", action="store_true", help="машинный вывод")
     args = ap.parse_args()
     repo = Path(__file__).resolve().parents[2]
-    r = audit(_entry_modules(repo), repo)
+    r = audit_fleet(repo)
     if args.json:
         print(_json.dumps(r, ensure_ascii=False, indent=2))
         return 0

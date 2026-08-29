@@ -45,6 +45,15 @@
         (plist и запись манифеста), а провенанс лежит в `mechanics_from_ref`.
         Прочитать с ref нечем ⇒ по-прежнему UNCHECKED, не «сошлось».
   B6  локальная курация ↔ `origin/main` (замер 2026-08-08, цикл #168/#169)
+  B7  КОНТРАКТ агента (ADR-154 «контракты раньше оркестрации», ADR-158):
+        объявление `PRODUCES` в точке входа против того, что модуль реально пишет,
+        и против манифеста — плюс сверка срока годности с `uptime_monitor`.
+        Находка — ТОЛЬКО противоречие и расхождение множеств. `unmeasured` /
+        `undeclared` / `not_compared` — состояние РАБОТЫ, а не авария: они лежат
+        строкой в блоке `contracts` и НЕ красят вердикт. Причина названа вслух:
+        unchecked даёт UNCHECKED (exit 1), и 31 агент без объявления навсегда
+        стёр бы разницу между «измерено и чисто» и «не смотрели» — сторож,
+        который всегда жёлтый, перестают читать.
 
 Откуда берётся КУРАЦИЯ (`intent` и родня) — отдельный вопрос от «какие plist'ы
 лежат на диске». Механика (`plist_source`/`reboot_safe`/`schedule`/`program`)
@@ -113,10 +122,41 @@ CURATED_FIELDS = ("layer", "role", "intent", "produces", "consumes",
                   # курация, и расхождение с локальной копией НАЗЫВАЕТСЯ.
                   "passport")
 
+# «Не спрашивали» — не то же, что «спросили и не смогли». Без этого различия один
+# новый аргумент судил бы и те вызовы, которые о нём не знают: шесть тестов про B1/B3
+# покраснели бы на ИСПРАВНОМ дереве и перестали называть свою цель. Тот же приём уже
+# принят здесь для `drift_unmeasurable`. Живой путь (`main`) передаёт значение ВСЕГДА —
+# явный None ⇒ честный UNCHECKED; это закреплено test_main_passes_contracts_into_the_report.
+_NOT_REQUESTED: dict = {"__not_requested__": True}
+
 EXIT_BY_OVERALL = {"OK": 0, "UNCHECKED": 1, "WARN": 1, "CRITICAL": 2}
 
 
 # ── сбор фактов (в тестах всё инъектируется) ─────────────────────────────────
+
+def gather_contracts() -> dict:
+    """Три сверки контрактов. НИКОГДА не бросает и падает по одной, а не всем скопом.
+
+    Каждая обёрнута отдельно НАМЕРЕННО: сломанная сверка обязана ослепить только
+    себя. Не выполнилась ⇒ None ⇒ честный UNCHECKED у своей проверки, а не тишина,
+    неотличимая от «сошлось» (инвариант 2).
+    """
+    out: dict = {"contract": None, "manifest_parity": None, "freshness_parity": None,
+                 "errors": {}}
+    for key, call in (
+        ("contract", lambda: __import__(
+            "spa_core.monitoring.artifact_contract", fromlist=["x"]).audit_fleet()),
+        ("manifest_parity", lambda: __import__(
+            "spa_core.monitoring.contract_manifest_parity", fromlist=["x"]).audit()),
+        ("freshness_parity", lambda: __import__(
+            "spa_core.monitoring.freshness_threshold_parity", fromlist=["x"]).audit()),
+    ):
+        try:
+            out[key] = call()
+        except Exception as e:                      # noqa: BLE001 — сторож не падает
+            out["errors"][key] = f"{type(e).__name__}: {e}"
+    return out
+
 
 def gather_fleet() -> set[str] | None:
     """Метки com.spa.*, реально загруженные в launchd. None = НЕ ИЗМЕРЕНО."""
@@ -511,7 +551,10 @@ def run_checks(manifest: dict,
                curation: dict | None = None,
                drift_unmeasurable: list[str] | None = None,
                drift_from_ref: list[dict] | None = None,
-               inputs: list[dict] | None = None) -> dict:
+               inputs: list[dict] | None = None,
+               contract_audit: dict | None = _NOT_REQUESTED,
+               manifest_parity: dict | None = _NOT_REQUESTED,
+               freshness_parity: dict | None = _NOT_REQUESTED) -> dict:
     findings: list[dict] = []
     unchecked: list[dict] = []
     agents = manifest.get("agents", [])
@@ -686,6 +729,74 @@ def run_checks(manifest: dict,
                     f"(решения живут в git), но прод-дерево `architecture/` при "
                     f"синхронизации не получает — стёртая память вернётся"))
 
+    # ── B7 — контракты (ADR-154/158) ────────────────────────────────────────
+    # Три сверки, написанные 28.08 и до сих пор никем не вызванные — дословно та
+    # патология, ради которой писался ADR-154. Правило подключения одно на все три:
+    # находка = ПРОТИВОРЕЧИЕ или расхождение множеств; всё остальное — строка отчёта.
+    # Вердикты сверок держатся здесь литералами НАМЕРЕННО: сторож не должен падать
+    # из-за импорта того, что он проверяет. Литералы связаны с константами сверок
+    # тестом (test_conformance_contract_wiring.py) — расхождение домов краснеет.
+    contracts_report: dict = {}
+
+    if contract_audit is _NOT_REQUESTED:
+        pass                                    # проверка не запрашивалась
+    elif contract_audit is None:
+        unchecked.append({"check": "B7_contract",
+                          "reason": "сверка контрактов НЕ ВЫПОЛНИЛАСЬ — объявления не прочитаны"})
+    else:
+        contracts_report["contract"] = {"total": contract_audit.get("total"),
+                                        "counts": dict(contract_audit.get("counts") or {})}
+        for r in (contract_audit.get("rows") or []):
+            if r.get("verdict") != "contradiction":
+                continue
+            decl = ", ".join(r.get("declared") or []) or "—"
+            extra = ", ".join(r.get("undeclared_writes") or []) or "—"
+            findings.append(_finding(
+                f"B7:contradiction:{r['label']}", "B7", "WARN", "strong",
+                f"{r['label']}: объявлено PRODUCES ({decl}), а собственный модуль пишет "
+                f"ещё и ({extra}) — объявление и код расходятся, и читатель продукта "
+                f"опирается на неверный контракт"))
+
+    if manifest_parity is _NOT_REQUESTED:
+        pass                                    # проверка не запрашивалась
+    elif manifest_parity is None:
+        unchecked.append({"check": "B7_manifest_parity",
+                          "reason": "сверка объявлений с манифестом НЕ ВЫПОЛНИЛАСЬ"})
+    else:
+        contracts_report["manifest_parity"] = {
+            "compared": manifest_parity.get("compared"),
+            "verdict": manifest_parity.get("verdict")}
+        for row in (manifest_parity.get("findings") or []):
+            only_d = ", ".join(row.get("declared_only") or []) or "—"
+            only_m = ", ".join(row.get("manifest_only") or []) or "—"
+            findings.append(_finding(
+                f"B7:manifest_parity:{row['label']}", "B7", "WARN", "strong",
+                f"{row['label']}: код и манифест называют РАЗНЫЙ продукт "
+                f"(только в объявлении: {only_d}; только в манифесте: {only_m}) — "
+                f"{row.get('note', '')}"))
+
+    if freshness_parity is _NOT_REQUESTED:
+        pass                                    # проверка не запрашивалась
+    elif freshness_parity is None:
+        unchecked.append({"check": "B7_freshness_parity",
+                          "reason": "сверка сроков годности с uptime_monitor НЕ ВЫПОЛНИЛАСЬ"})
+    else:
+        contracts_report["freshness_parity"] = {
+            "compared": freshness_parity.get("compared"),
+            "verdict": freshness_parity.get("verdict")}
+        for row in (freshness_parity.get("findings") or []):
+            if row.get("verdict") == "different_artifact":
+                msg = (f"{row['label']}: манифест и uptime_monitor считают продуктом РАЗНЫЕ "
+                       f"файлы (монитор: {row.get('monitor_artifact')}; манифест: "
+                       f"{', '.join(row.get('manifest_artifacts') or []) or '—'}) — "
+                       f"чью-то свежесть никто не сторожит")
+            else:
+                msg = (f"{row['label']}: у {row.get('artifact')} два разных срока годности "
+                       f"(манифест {row.get('manifest_hours')}ч, монитор "
+                       f"{row.get('monitor_hours')}ч) — тревога сработает по случайному из них")
+            findings.append(_finding(
+                f"B7:freshness_parity:{row['label']}", "B7", "WARN", "strong", msg))
+
     # первое появление + старение слабых
     prev_first_seen = prev_first_seen or {}
     now_iso = now.isoformat()
@@ -730,6 +841,9 @@ def run_checks(manifest: dict,
         # предмет с тех пор менялся?» — иначе `OK` о прежнем манифесте
         # неотличим от `OK` о текущем.
         "inputs": list(inputs or []),
+        # Состояние контрактов (B7). Мягкие исходы живут ЗДЕСЬ, а не в findings и
+        # не в unchecked: их место — отчёт, их адресат — очередь работ, не тревога.
+        "contracts": contracts_report,
         "slo_budgets": slo_budgets,
         "consumption_budgets": consumption_budgets,
         "findings": kept,
@@ -774,6 +888,7 @@ def main(argv=None) -> int:
     receipts = load_receipts()
     b5 = _manifest_drift_problems()
     now = dt.datetime.now(dt.timezone.utc)
+    contracts = gather_contracts()
     report = run_checks(manifest, fleet, artifact_timestamp, receipts, now,
                         prev_first_seen=_prev_first_seen(args.report),
                         drift_problems=(b5 or {}).get("drift"),
@@ -781,7 +896,10 @@ def main(argv=None) -> int:
                         drift_unmeasurable=(b5 or {}).get("unmeasurable"),
                         drift_from_ref=(b5 or {}).get("measured_from_ref"),
                         inputs=subject_inputs(),
-                        curation=curation)
+                        curation=curation,
+                        contract_audit=contracts["contract"],
+                        manifest_parity=contracts["manifest_parity"],
+                        freshness_parity=contracts["freshness_parity"])
 
     from spa_core.utils.atomic import atomic_save
     atomic_save(report, args.report)
@@ -791,6 +909,16 @@ def main(argv=None) -> int:
           f"warn={c['warn']} aged={c['aged']} unchecked={c['unchecked']} "
           f"(флот {report['fleet_size']}, манифест {report['manifest_agents']}, "
           f"курация {curation['source']})")
+    cr = report.get("contracts") or {}
+    if cr.get("contract"):
+        cc = cr["contract"]["counts"]
+        print("  контракты: " + " · ".join(f"{k}={v}" for k, v in sorted(cc.items()))
+              + f" (из {cr['contract']['total']})")
+    for k in ("manifest_parity", "freshness_parity"):
+        if cr.get(k):
+            print(f"  {k}: {cr[k]['verdict']} (сопоставлено {cr[k]['compared']})")
+    for k, why in (contracts.get("errors") or {}).items():
+        print(f"  [UNCHECKED] сверка {k} не выполнилась: {why}")
     for f in report["findings"][:30]:
         print(f"  [{f['severity']}] {f['message']}")
     return 0 if args.exit_zero else report["exit_code"]
