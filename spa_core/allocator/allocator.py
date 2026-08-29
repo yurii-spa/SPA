@@ -59,6 +59,21 @@ _EPS = 1e-12
 # incident. min_protocols is 3, so fewer than 3 could not be allocated anyway.
 _EVIDENCE_MIN_COVERAGE = 3
 
+# ADR-169: ВТОРОЕ условие того же отказа — обвал покрытия ОТНОСИТЕЛЬНО того,
+# сколько протоколов производители вообще перечислили.
+#
+# Абсолютный порог выше срабатывает только когда ослепли ВСЕ, кроме двух: при
+# 18 наблюдаемых протоколах он молчит вплоть до 16 ослепших. А ослепнуть разом
+# больше чем наполовину протоколы не могут независимо друг от друга — у них
+# разные сети, разные пулы, разные источники. Одновременная потеря половины
+# наблюдений почти всегда означает поломку НАШЕГО производителя, и тогда
+# «протокол не наблюдается» — неверное утверждение о мире: эвакуировать книгу
+# из здоровых протоколов по нашей же поломке нельзя.
+#
+# Замер 2026-08-29: перечислено 34 адаптера, наблюдено 23 (68 %). До порога
+# в половину — запас; поломка, гасящая половину наблюдений, его пробивает.
+_EVIDENCE_MIN_COVERAGE_FRACTION = 0.5
+
 # How long an observation stays evidence (ADR-060 §3, paper column). An observation
 # is not invalidated by the next fetch failing — only by AGE. Before this window
 # existed the rule was binary, so one failed HTTP request blanked live_apy for all
@@ -206,6 +221,59 @@ def _default_live_apy_provider() -> dict[str, float]:
 
 
 # ─── ADR-061: evidence of an OBSERVED APY (D1/D2) ────────────────────────────
+
+
+def _required_coverage(attempted: int) -> int:
+    """Сколько наблюдений нужно, чтобы гейт доказательств вообще применялся.
+
+    БОЛЬШЕЕ из абсолютного минимума (ADR-061) и половины перечисленного
+    (ADR-169). Знаменатель не измерен ⇒ правило доли молчит, остаётся абсолют:
+    незнание не должно ужесточать money-path сильнее, чем знание.
+
+    Отдельная функция, а не выражение внутри метода, намеренно: иначе тест
+    вынужден пересчитывать порог сам и проверяет собственную копию правила.
+    """
+    if attempted <= 0:
+        return _EVIDENCE_MIN_COVERAGE
+    by_fraction = math.ceil(_EVIDENCE_MIN_COVERAGE_FRACTION * attempted)
+    return max(_EVIDENCE_MIN_COVERAGE, by_fraction)
+
+
+def _observation_attempts(
+    orchestrator_path: Path,
+    adapter_status_path: Path | None = None,
+) -> int:
+    """Сколько протоколов производители ВООБЩЕ перечислили (ADR-169).
+
+    Знаменатель покрытия. Считаются записи, а не наблюдения: адаптер, который
+    производитель перечислил и не смог опросить, — это попытка, и именно она
+    отличает «мир затих» от «наш производитель сломался».
+
+    Никогда не бросает: нечитаемый источник вносит ноль, и правило доли просто
+    не применяется (остаётся абсолютный порог).
+    """
+    names: set[str] = set()
+    for path in (orchestrator_path, adapter_status_path):
+        if path is None:
+            continue
+        try:
+            doc = json.loads(Path(path).read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001 — знаменатель best-effort, как и числитель
+            continue
+        if not isinstance(doc, dict):
+            continue
+        block = doc.get("adapters", doc)
+        if isinstance(block, dict):
+            names.update(str(k) for k in block.keys())
+        elif isinstance(block, list):
+            for entry in block:
+                if isinstance(entry, dict):
+                    nm = entry.get("name") or entry.get("protocol") or entry.get("adapter")
+                    if nm:
+                        names.add(str(nm))
+    # Ключи-метаданные верхнего уровня — не протоколы.
+    return len(names - {"generated_at", "schema_version", "source", "execution_mode",
+                        "run_ts", "duration_sec", "adapters"})
 
 
 def _load_evidenced_apy(
@@ -899,12 +967,30 @@ class StrategyAllocator:
         # Fail-safe: too little evidence means the SOURCE is broken, not that the
         # world is unfundable. Ranking then keeps the legacy universe (loudly
         # noted) instead of collapsing the book to all-cash on an unreadable file.
-        self._evidence_gate_applied = len(evidence) >= _EVIDENCE_MIN_COVERAGE
+        # ADR-169: порог — БОЛЬШЕЕ из абсолютного (3) и половины перечисленных.
+        # В режиме инъекции провайдер САМ является доказательством: производителя,
+        # который мог бы сломаться, там нет, поэтому знаменатель — то, что он дал.
+        if self._live_apy_provider is not None:
+            attempts = len(live_apy)
+        else:
+            attempts = _observation_attempts(
+                self.status_path, self._adapter_status_path
+            )
+        required = _required_coverage(attempts)
+        self._evidence_coverage = {
+            "evidenced": len(evidence),
+            "attempted": attempts,
+            "required": required,
+            "gate_applied": len(evidence) >= required,
+        }
+        self._evidence_gate_applied = len(evidence) >= required
         if not self._evidence_gate_applied:
             log.warning(
-                "ADR-061: only %d evidenced APYs (< %d) — evidence gate NOT applied, "
-                "ranking on the legacy universe",
-                len(evidence), _EVIDENCE_MIN_COVERAGE,
+                "ADR-061/169: only %d evidenced APYs of %d attempted (< %d required) "
+                "— evidence gate NOT applied, ranking on the legacy universe. "
+                "Покрытие обвалилось: это симптом поломки производителя, а не "
+                "сигнал уходить из здоровых протоколов",
+                len(evidence), attempts, required,
             )
 
         def _fundable(protocol: str) -> bool:

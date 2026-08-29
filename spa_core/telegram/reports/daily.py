@@ -121,6 +121,10 @@ def build_digest_message(
     if factory:
         message += "\n" + factory
 
+    oversight = _build_oversight_section(ddir)
+    if oversight:
+        message += "\n" + oversight
+
     gaps = _standard_gaps(message)
     data["report_standard_gaps"] = gaps
     if gaps:
@@ -191,7 +195,84 @@ _REQUIRED_BLOCKS: "list[tuple[str, str]]" = [
     ("Цех", "экономика цеха"),
     ("Паспорта агентов", "паспорта агентов"),
     ("3 трека", "3 трека (Cons/Bal/Agg)"),
+    # Мандат владельца 29.08: надзор должен быть ВИДЕН каждый день, а не
+    # лежать в data/, куда не смотрит ни один читатель.
+    ("Надзор аллокации", "надзор аллокации"),
+    ("Доказанность APY", "доказанность APY"),
+    ("Скачки APY", "сторож скачков APY"),
 ]
+
+
+def _build_oversight_section(ddir: Path) -> str:
+    """Три строки надзора в отчёт владельцу (AI1, мандат владельца 29.08).
+
+    Сторож, который говорит только в файл, — это файл. Аудитор аллокации и
+    доказанность APY писали свои вердикты в `data/`, где их не читал НИКТО:
+    на весь отчётный слой было ноль упоминаний обоих. Сторож скачков APY имел
+    верный порог (8 % для compound_v3, и он сработал бы на 9.2007 %), но его
+    не звал вообще никто.
+
+    Владелец выбрал: не новый канал в Telegram, а три строки в том отчёте,
+    который он и так читает каждый день.
+
+    Скачки считаются ВЫЗОВОМ `check_spikes()` — она читает `adapter_status` и
+    ничего не пишет (ни телеграма, ни диска), поэтому отчёту можно её звать.
+    Never raises; недоступность источника — честная строка, не молчание.
+    """
+    lines: list[str] = []
+
+    # 1. Аудитор аллокации (ADR-055 / allocation_auditor)
+    try:
+        raw = json.loads((ddir / "allocation_audit_daily.json").read_text(encoding="utf-8"))
+        counts = raw.get("counts") or {}
+        verdict = str(raw.get("verdict") or "?")
+        # Ключи именно такие: `rule_id`/`verdict` (см. allocation_auditor).
+        # Первая редакция читала `rule`/`status` и молча давала пустой хвост —
+        # строка выглядела рабочей, а самого нарушения не называла.
+        bad = [f"{f.get('rule_id')} ({f.get('subject')})"
+               for f in (raw.get("findings") or [])
+               if isinstance(f, dict) and f.get("verdict") == "VIOLATION"]
+        mark = {"OK": "✅", "VIOLATION": "❌", "UNCHECKED": "❓"}.get(verdict, "❓")
+        tail = f" · нарушено: {_esc(', '.join(str(b) for b in bad[:3]))}" if bad else ""
+        lines.append(
+            f"🔎 Надзор аллокации: {mark} <b>{_esc(verdict)}</b> — "
+            f"норм {_esc(counts.get('OK', 0))} · нарушений {_esc(counts.get('VIOLATION', 0))} · "
+            f"не измерено {_esc(counts.get('UNCHECKED', 0))}{tail}")
+    except Exception:  # noqa: BLE001
+        lines.append("🔎 Надзор аллокации: нет данных — это сигнал "
+                     "(allocation_auditor не отработал)")
+
+    # 2. Доказанность APY (ADR-061 / apy_evidencer)
+    try:
+        raw = json.loads((ddir / "apy_evidence.json").read_text(encoding="utf-8"))
+        counts = raw.get("counts") or {}
+        pct = raw.get("quotable_pct")
+        pct_s = f"{float(pct):.0f}%" if isinstance(pct, (int, float)) else "не измерено"
+        lines.append(
+            f"📐 Доказанность APY: цитировать можно <b>{_esc(pct_s)}</b> чисел "
+            f"(наблюдено {_esc(counts.get('L2', 0))} · косвенно {_esc(counts.get('L1', 0))} · "
+            f"литерал {_esc(counts.get('L0', 0))} · не измерено {_esc(counts.get('UNCHECKED', 0))})")
+    except Exception:  # noqa: BLE001
+        lines.append("📐 Доказанность APY: нет данных — это сигнал "
+                     "(apy_evidencer не отработал)")
+
+    # 3. Скачки APY (сторож был написан и не позван ни разу)
+    try:
+        from spa_core.alerts.apy_spike_monitor import APYSpikeMonitor
+
+        spikes = APYSpikeMonitor(base_dir=str(ddir.parent)).check_spikes()
+        if not spikes:
+            lines.append("⚡ Скачки APY: порогов никто не превысил")
+        else:
+            named = ", ".join(
+                f"{s.protocol} {s.current_apy:.2f}% > {s.threshold:.2f}%"
+                for s in spikes[:3])
+            more = f" +{len(spikes) - 3}" if len(spikes) > 3 else ""
+            lines.append(f"⚡ Скачки APY: <b>{len(spikes)}</b> — {_esc(named)}{_esc(more)}")
+    except Exception:  # noqa: BLE001
+        lines.append("⚡ Скачки APY: не измерено — это сигнал (сторож не отработал)")
+
+    return "\n".join(lines)
 
 
 def _standard_gaps(message: str) -> "list[str]":
