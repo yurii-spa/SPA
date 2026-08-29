@@ -18,6 +18,7 @@ import ast
 import json
 from pathlib import Path
 
+from spa_core.tests._freshness import ts
 from spa_core.allocator import allocator as A
 from spa_core.allocator.allocator import StrategyAllocator
 
@@ -37,7 +38,8 @@ def _allocator(tmp_path: Path, evidence=None) -> StrategyAllocator:
         "compound_v3": {"status": "active", "tier": 1, "fallback_apy": 0.050,
                         "chain": "ethereum"},
     }})
-    _write(tmp_path / "orch.json", {"generated_at": "2030-01-01T00:00:00Z",
+    # Относительная отметка вместо литерала (см. _freshness и правило доставки).
+    _write(tmp_path / "orch.json", {"generated_at": ts(hours_ago=1),
                                     "adapters": []})
     _write(tmp_path / "scores.json", {})
     return StrategyAllocator(

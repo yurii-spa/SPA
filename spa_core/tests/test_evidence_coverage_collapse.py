@@ -17,11 +17,15 @@ import math
 
 import pytest
 
+from spa_core.tests._freshness import ts
 from spa_core.allocator import allocator as A
 
 
 def _write(path, adapters: dict) -> None:
-    path.write_text(json.dumps({"generated_at": "2030-01-01T00:00:00Z",
+    # Отметка ОТНОСИТЕЛЬНАЯ (_freshness.ts): литеральная дата рядом с понятием
+    # свежести — бомба замедленного действия, .claude/rules/deployment.md.
+    # Часы сюда не инъектируются, поэтому вариант 2 из правила.
+    path.write_text(json.dumps({"generated_at": ts(hours_ago=1),
                                 "adapters": adapters}), encoding="utf-8")
 
 
