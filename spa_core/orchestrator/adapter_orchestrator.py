@@ -42,6 +42,7 @@ from spa_core.adapters import (
     YearnV3Adapter,
 )
 from spa_core.adapters.morpho_steakhouse_adapter import MorphoSteakhouseAdapter
+from spa_core.adapters.aave_v3_base_adapter import AaveV3BaseAdapter
 from spa_core.adapters.morpho_blue_base_adapter import MorphoBlueBaseAdapter
 from spa_core.adapters.fluid_fusdc_adapter import FluidFUSDCAdapter
 from spa_core.orchestrator.health_score import (
@@ -91,6 +92,26 @@ POLLED_ADAPTERS: list[tuple[str, str, type]] = [
     ("yearn_v3", "T2", YearnV3Adapter),
     ("euler_v2", "T2", EulerV2Adapter),
     ("maple", "T2", MapleAdapter),
+    # ── ADR-076 / карточка `inbox-rasshirit-oprashivaemyi-nabor-adapterov`,
+    # ШАГ 1 расширения (решение владельца: шагами, с замером в песочнице).
+    # ПОЧЕМУ ИМЕННО ЭТИ ДВА. Замер 29.08 показал, что «все живые кандидаты сидят на
+    # Ethereum» — неверно: снимок оркестратора знал 8 протоколов, все L1, тогда как
+    # `adapter_status.json` знал 34, включая 7 живых вне Ethereum. Не рынок, а состав
+    # опроса держал книгу на одной цепочке.
+    #
+    # Замер В ПЕСОЧНИЦЕ (run_orchestrator(write=False) → аллокатор), 8 против 10:
+    #   книга 6 → 8 протоколов · кэш 10 % → 0 % · ожидаемая APY 3.47 % → 3.87 %
+    #   трим `chain_caps: 0.10` ИСЧЕЗ — потолок «одна цепочка ≤ 90 %» больше не связывает.
+    # ALLOC-002 отработал осознанным отбором лучших восьми (ADR-138), а не обвалом в
+    # аварийный фолбэк — именно этого не хватало при откате 08.08, когда расширение до
+    # 10 адаптеров уронило доходность 6.03 % → 3.51 %.
+    #
+    # `aave_arbitrum` в этот шаг НЕ взят СОЗНАТЕЛЬНО: адаптер отдаёт `tvl_source="static"`
+    # (литерал $1.2 млрд), а порог TVL проверяется ТОЛЬКО живым числом
+    # (.claude/rules/risk-engine.md, ADR-053). В песочнице он забирал самый большой вес
+    # книги, опираясь на константу — карточка на живой фид заведена отдельно.
+    ("aave_v3_base", "T2", AaveV3BaseAdapter),
+    ("morpho_blue_base", "T2", MorphoBlueBaseAdapter),
     # MP-201: Pendle PT stablecoin markets — T2/T3 dynamic tier, fixed-rate APY
     # via the Pendle V2 REST API. Declared T2 here as registry-level default.
     ("pendle", "T2", PendleAdapter),

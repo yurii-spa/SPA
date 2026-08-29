@@ -56,12 +56,20 @@ class OrchestratorCoverage(unittest.TestCase):
         chain_map = get_default_chain_map()
         non_eth = [k for k in self.orch_keys
                    if str(chain_map.get(k, "ethereum")).lower() != "ethereum"]
-        self.assertIsInstance(non_eth, list)
-        if not non_eth:
-            self.assertLessEqual(
-                len(self.orch_keys), 8,
-                "снимок расширен, но покрытие вне Ethereum нулевое — либо "
-                "вернуть не-Ethereum кандидата, либо не раздувать снимок")
+        # ХРАПОВИК ВОЗВРАЩЁН 2026-08-29 (инв. 16 — обоснование здесь и в журнале W35).
+        # Условие, названное в тексте выше, ВЫПОЛНЕНО: осознанный отбор лучших восьми
+        # приземлён (ADR-138), и замер это подтвердил — при расширении снимка 8 → 10
+        # ALLOC-002 отсёк худшего осознанно, а не уронил книгу в аварийный фолбэк,
+        # как 08.08. Прямой замер в песочнице (run_orchestrator(write=False) → аллокатор):
+        #   книга 6 → 8 протоколов · кэш 10 % → 0 % · ожидаемая APY 3.47 % → 3.87 % ·
+        #   трим `chain_caps: 0.10` ИСЧЕЗ.
+        # Поэтому требование снова становится ТРЕБОВАНИЕМ: ноль не считается нормой.
+        self.assertGreaterEqual(
+            len(non_eth), 1,
+            "покрытие вне Ethereum вернулось к НУЛЮ. Пока опрос из одних L1-протоколов, "
+            "потолок «одна цепочка ≤ 90 %» связывает книгу и держит капитал в кэше "
+            "(замер 29.08: 10 % простоя и −0.40 п.п. доходности). Вернуть не-Ethereum "
+            f"кандидата с ЖИВЫМ TVL. Сейчас в снимке: {sorted(non_eth)}")
 
     def test_classes_are_instantiable_types(self):
         for k, _tier, cls in ORCH:
