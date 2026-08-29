@@ -19,7 +19,7 @@
 | **2.2** APY Evidencer | `agent-ai1-22-apy-evidencer` | ✅ `done` | доставлен; 11 из 33 чисел ранжирования — L0, весь топ по доходности литералы |
 | **2.3** Критерии тиров | `agent-ai1-23-kriterii-tirov` | ✅ `done` | стандарт `docs/tier_criteria.md` + сторож; найдено недоставленное решение владельца |
 | **2.4** Tier Validator | `agent-ai1-24-tier-validator` | ✅ `done` | валидатор УЖЕ существует (`tier_curator`) и подключён; доставлен сторож источника тира |
-| **3.1** Rebalance Engine | `agent-ai1-31-rebalance-engine-dry-run` | 📋 `backlog` | **разблокирована**: 1.1 доставлена, вопрос 2 закрыт `TriggerParams.for_mode()` |
+| **3.1** Rebalance Engine | `agent-ai1-31-rebalance-engine-dry-run` | ✅ `done` | план уже существовал (`allocation_rationale`, shadow); замер вскрыл churn 5.3× капитала в неделю |
 
 **Месяц 1 доставлен, оба стандарта месяца 2 закрыты за один день.** Свободны теперь
 **2.2** и **2.4** — обе реализации, обе с записанным основанием. 3.1 ждёт ответа владельца.

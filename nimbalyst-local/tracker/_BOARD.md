@@ -2,15 +2,16 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-29T18:33:41Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-29T18:59:43Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **787** · ждёт владельца: **10** · занято сессиями: **8**.
+> Всего карточек: **788** · ждёт владельца: **11** · занято сессиями: **8**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x**  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md`
 - **Aave на Arbitrum: мы смотрим на опустевший рынок —  тыс. вместо заявленного .2 млрд**  ·  `owner-decision-aave-na-arbitrum-my-smotrim-na-opustevsh.md`
 - **Я задал тебе неверный вопрос про слепые протоколы — проверил, и всё оказалось наоборот** · _high_  ·  `owner-decision-derisk-vopros-byl-postavlen-neverno-2026-08-29.md`
+- **Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз** · _high_  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md`
 - **Партия 2 карантина: кандидатов четыре, и по ним у меня разные рекомендации**  ·  `owner-decision-partiya-2-karantina-kandidatov-chetyre-i.md`
 - **Security-скан risk-гейта нашёл два расхождения между ADR и реальным кодом: оси риска не подключены, тир протокола не сверяется** · _high_  ·  `owner-decision-security-skan-risk-geita-nashel-dva-rash.md`
 - **Tier-B: 84 модуля отвечают одинаково даже несуществующему протоколу — списать?**  ·  `owner-decision-tier-b-84-modulya-otvechayut-odinakovo-d.md`
@@ -32,11 +33,12 @@
 - **РЕЦИДИВ 28.08: тест судит о ХОСТЕ по литеральному pid — 98535 (siriactionsd), теперь 999 (NetFS) в test_card_claim_takeover** — держит `cycle-51123` · с 2026-08-22T08:45:00Z  ·  `inbox-test-sudit-o-hoste-literalnyi-pid-98535.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (194)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (195)
 
 ### · needs-owner
 - Aave на Arbitrum: мы смотрим на опустевший рынок —  тыс. вместо заявленного .2 млрд  ·  `owner-decision-aave-na-arbitrum-my-smotrim-na-opustevsh.md` · 2026-08-29
 - Я задал тебе неверный вопрос про слепые протоколы — проверил, и всё оказалось наоборот  ·  `owner-decision-derisk-vopros-byl-postavlen-neverno-2026-08-29.md` · 2026-08-29
+- Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md` · 2026-08-29
 - Партия 2 карантина: кандидатов четыре, и по ним у меня разные рекомендации  ·  `owner-decision-partiya-2-karantina-kandidatov-chetyre-i.md` · 2026-08-29
 - Security-скан risk-гейта нашёл два расхождения между ADR и реальным кодом: оси риска не подключены, тир протокола не сверяется  ·  `owner-decision-security-skan-risk-geita-nashel-dva-rash.md` · 2026-08-29
 - Tier-B: 84 модуля отвечают одинаково даже несуществующему протоколу — списать?  ·  `owner-decision-tier-b-84-modulya-otvechayut-odinakovo-d.md` · 2026-08-29
@@ -784,7 +786,6 @@
 ### · backlog
 - adapter_status_generator никогда не подключал живой фид для pendle/pendle_pt — запасное число статичный литерал  ·  `agent-adapter-status-generator-pendle-never-wired-to-live.md` · 2026-08-29
 - Advisory / сигнальный трек (вариант C) — отложен владельцем, держать в бэклоге  ·  `agent-advisory-signals-track-c.md` · 2026-07-23
-- AI1-3.1 · Rebalance Engine (только план, без исполнения)  ·  `agent-ai1-31-rebalance-engine-dry-run.md` · 2026-08-29
 - 11 протоколов закрыты для капитала из-за отсутствия живого фида — вселенная выбора сужена, 10% кэша стоят под 0%  ·  `agent-blocked-protocols-need-live-feeds.md` · 2026-08-05
 - Сверка цикла 04.08 — первый прогон на новом коде даст БОЛЬШОЙ ребаланс, это ожидаемо (не чинить)  ·  `agent-cycle-reconciliation-2026-08-04.md` · 2026-08-03
 - Де-риск по слепоте: решение принято, канал построен — осталось подключить к ребалансу  ·  `agent-derisk-po-slepote-podklyuchit-k-rebalansu.md` · 2026-08-29
@@ -822,6 +823,7 @@
 - AI1-2.2 · APY Evidencer доставлен: треть чисел ранжирования нельзя показывать, и весь топ по доходности — литералы  ·  `agent-ai1-22-apy-evidencer.md` · 2026-08-29
 - AI1-2.3 · Критерии тиров: стандарт написан, найдено недоставленное решение владельца  ·  `agent-ai1-23-kriterii-tirov.md` · 2026-08-29
 - AI1-2.4 · Tier Validator уже существует и работает — но судит по неверному источнику тира  ·  `agent-ai1-24-tier-validator.md` · 2026-08-29
+- AI1-3.1 · План перекладки УЖЕ существует (shadow) — и замер вскрыл churn 5.3× капитала в неделю  ·  `agent-ai1-31-rebalance-engine-dry-run.md` · 2026-08-29
 - AUD-18 — пять доходных стратегий турнира без собственных тестов (замер показал другой пробел, чем в задании)  ·  `agent-aud18-strategy-unit-tests.md` · 2026-08-05
 - Проверка целостности резерва гонится с перегенерацией артефактов — «порча», которой нет  ·  `agent-backup-integrity-races-the-cycle.md` · 2026-08-05
 - Подписка checkup отвечает ok:true, даже если письмо не отправилось — поломка жила незамеченной с июля  ·  `agent-checkup-waitlist-fail-open-ok-true.md` · 2026-08-02
