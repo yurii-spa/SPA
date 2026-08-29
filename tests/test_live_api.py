@@ -164,6 +164,112 @@ def test_data_file_rejects_non_json(client):
     assert r.status_code == 400
 
 
+# ─── books (SPA CIO oversight, phase B) ─────────────────────────────────────
+
+def test_books_all_missing(client):
+    r = client.get("/api/live/books")
+    assert r.status_code == 200
+    body = r.json()
+    for key in ("conservative", "balanced", "aggressive"):
+        assert body["books"][key]["available"] is False
+    assert body["combined"]["books_available"] == 0
+    assert body["combined"]["total_equity_usd"] is None
+    assert "_fetched_at" in body
+
+
+def test_books_all_present_combined_sum(client):
+    _write(client, "equity_curve_daily.json", {"summary": {
+        "start_equity": 100000.0, "end_equity": 101123.06,
+        "total_return_pct": 1.1231, "num_days": 99,
+        "first_date": "2026-06-22", "last_date": "2026-08-29",
+    }})
+    _write(client, "hy_paper_trading.json", {
+        "seed_equity": 100000.0, "equity": 100174.78,
+        "start_date": "2026-06-22", "last_cycle_at": "2026-08-29T09:27:15Z",
+    })
+    _write(client, "lp_paper_trading.json", {
+        "seed_equity": 100000.0, "equity": 100213.89,
+        "start_date": "2026-06-22", "last_cycle_at": "2026-08-29T09:27:15Z",
+    })
+    r = client.get("/api/live/books")
+    assert r.status_code == 200
+    body = r.json()
+
+    assert body["books"]["conservative"]["available"] is True
+    assert body["books"]["conservative"]["equity"] == 101123.06
+    assert body["books"]["balanced"]["equity"] == 100174.78
+    assert body["books"]["aggressive"]["equity"] == 100213.89
+
+    combined = body["combined"]
+    assert combined["books_available"] == 3
+    assert combined["total_seed_usd"] == 300000.0
+    assert combined["total_equity_usd"] == round(101123.06 + 100174.78 + 100213.89, 2)
+    # combined return must reflect the SUM, not an average of per-book percents
+    expected = round((combined["total_equity_usd"] / 300000.0 - 1.0) * 100.0, 4)
+    assert combined["combined_return_pct"] == expected
+
+
+def test_books_partial_availability_named_not_silently_dropped(client):
+    # only Balanced present — Conservative/Aggressive must show up as unavailable,
+    # not vanish from the response (a reader must be able to tell the total is partial).
+    _write(client, "hy_paper_trading.json", {
+        "seed_equity": 100000.0, "equity": 105000.0, "start_date": "2026-06-22",
+    })
+    body = client.get("/api/live/books").json()
+    assert body["books"]["balanced"]["available"] is True
+    assert body["books"]["conservative"]["available"] is False
+    assert body["books"]["aggressive"]["available"] is False
+    assert body["combined"]["books_available"] == 1
+    assert body["combined"]["books_total"] == 3
+    # partial total must still be the ONE available book's numbers, not None
+    assert body["combined"]["total_equity_usd"] == 105000.0
+
+
+def test_books_corrupt_file_degrades_not_500(client):
+    (client._data_dir / "hy_paper_trading.json").write_text("{not valid", encoding="utf-8")
+    r = client.get("/api/live/books")
+    assert r.status_code == 200
+    assert r.json()["books"]["balanced"]["available"] is False
+
+
+def test_books_zero_seed_equity_excluded_from_combined_not_divide_by_zero(client):
+    _write(client, "hy_paper_trading.json", {"seed_equity": 0.0, "equity": 500.0, "start_date": "2026-06-22"})
+    r = client.get("/api/live/books")
+    assert r.status_code == 200  # must not 500 on division by zero
+    body = r.json()
+    assert body["books"]["balanced"]["return_pct"] is None
+    assert body["combined"]["books_available"] == 0
+
+
+def test_books_combined_return_is_dollar_weighted_not_simple_average(client):
+    # Equal seeds would make "sum of dollars" and "average of per-book %" agree by
+    # coincidence — use UNEQUAL seeds so a naive average-of-percents mutation is
+    # distinguishable from the correct dollar-weighted combined return.
+    _write(client, "hy_paper_trading.json", {
+        "seed_equity": 100000.0, "equity": 110000.0, "start_date": "2026-06-22",
+    })  # +10%
+    _write(client, "lp_paper_trading.json", {
+        "seed_equity": 300000.0, "equity": 303000.0, "start_date": "2026-06-22",
+    })  # +1%
+    body = client.get("/api/live/books").json()
+    combined = body["combined"]
+    # simple average of +10% and +1% would be +5.5% — the correct dollar-weighted
+    # figure is (110000+303000)/(100000+300000) - 1 = 3.25%
+    assert combined["combined_return_pct"] == 3.25
+    assert combined["combined_return_pct"] != 5.5
+
+
+def test_books_annualized_apy_computed_from_return_and_days(client):
+    _write(client, "hy_paper_trading.json", {
+        "seed_equity": 100000.0, "equity": 101000.0, "start_date": "2026-06-22",
+    })
+    body = client.get("/api/live/books").json()
+    apy = body["books"]["balanced"]["annualized_apy_pct"]
+    assert isinstance(apy, (int, float))
+    # 1% over ~68 days annualizes to well above 1% — sanity bound, not exact pin
+    assert apy > 1.0
+
+
 def test_data_file_rejects_traversal(client):
     # encoded slash / parent refs must never escape the data dir
     for bad in ["..%2f..%2fetc%2fpasswd", "%2e%2e%2fconfig.json"]:

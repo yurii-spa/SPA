@@ -324,6 +324,133 @@ async def live_portfolio():
     return JSONResponse(result, headers=NO_CACHE_HEADERS)
 
 
+def _annualized_pct(return_pct: float | None, num_days: float | None) -> float | None:
+    """Annualize a cumulative return over `num_days`. None if either input is unusable."""
+    if not isinstance(return_pct, (int, float)) or not isinstance(num_days, (int, float)):
+        return None
+    if num_days <= 0:
+        return None
+    growth = 1.0 + return_pct / 100.0
+    if growth <= 0:
+        return None
+    return round((growth ** (365.0 / num_days) - 1.0) * 100.0, 4)
+
+
+def _book_from_seed_equity(label: str, doc: dict) -> dict:
+    """Balanced/Aggressive book shape: seed_equity + equity + start_date (ADR-125 sleeves)."""
+    seed = doc.get("seed_equity")
+    equity = doc.get("equity")
+    start_date = doc.get("start_date")
+    return_pct = (
+        round((equity / seed - 1.0) * 100.0, 4)
+        if isinstance(seed, (int, float)) and seed and isinstance(equity, (int, float))
+        else None
+    )
+    num_days = None
+    if isinstance(start_date, str):
+        try:
+            start = datetime.fromisoformat(start_date).replace(tzinfo=timezone.utc)
+            num_days = max((datetime.now(timezone.utc) - start).days, 1)
+        except ValueError:
+            num_days = None
+    return {
+        "label": label,
+        "available": True,
+        "seed_equity": seed,
+        "equity": equity,
+        "return_pct": return_pct,
+        "annualized_apy_pct": _annualized_pct(return_pct, num_days),
+        "start_date": start_date,
+        "last_update": doc.get("last_cycle_at"),
+    }
+
+
+def _book_from_equity_curve(label: str, doc: dict) -> dict:
+    """Conservative book shape: equity_curve_daily.json's own `summary` block."""
+    summary = doc.get("summary") if isinstance(doc, dict) else None
+    if not isinstance(summary, dict):
+        return {"label": label, "available": False, "reason": "no_summary"}
+    return_pct = summary.get("total_return_pct")
+    num_days = summary.get("num_days")
+    return {
+        "label": label,
+        "available": True,
+        "seed_equity": summary.get("start_equity"),
+        "equity": summary.get("end_equity"),
+        "return_pct": return_pct,
+        "annualized_apy_pct": _annualized_pct(return_pct, num_days),
+        "start_date": summary.get("first_date"),
+        "last_update": summary.get("last_date"),
+    }
+
+
+def _combine_books(books: dict[str, dict]) -> dict:
+    """Sum seed/equity across books with a numeric seed+equity — never blends
+    per-book risk/mandate, purely a display total (SPA CIO oversight, phase B).
+    A book missing or unreadable is excluded from the sum, not treated as zero —
+    `books_available` tells the reader the total may be partial."""
+    usable = [
+        b for b in books.values()
+        if b.get("available")
+        and isinstance(b.get("seed_equity"), (int, float))
+        and b.get("seed_equity")
+        and isinstance(b.get("equity"), (int, float))
+    ]
+    total_seed = sum(b["seed_equity"] for b in usable)
+    total_equity = sum(b["equity"] for b in usable)
+    combined_return_pct = (
+        round((total_equity / total_seed - 1.0) * 100.0, 4) if total_seed else None
+    )
+    return {
+        "total_seed_usd": round(total_seed, 2) if usable else None,
+        "total_equity_usd": round(total_equity, 2) if usable else None,
+        "combined_return_pct": combined_return_pct,
+        "books_available": len(usable),
+        "books_total": len(books),
+    }
+
+
+@router.get("/api/live/books")
+async def live_books():
+    """Aggregate NAV/return across the three independent paper-trading books.
+
+    SPA CIO oversight, phase B (docs/ideas/2026-08-29-cio-oversight-layer.md) — pure
+    display. Each book (Conservative/Balanced/Aggressive) keeps its own seed capital,
+    risk limits and kill-switch; this endpoint only sums for the combined-view number,
+    it never moves capital or blends one book's risk into another's.
+    """
+    _dd = data_dir()
+    books: dict[str, dict] = {}
+
+    async def _read(fname: str) -> dict | None:
+        p = _dd / fname
+        if not await aio_exists(p):
+            return None
+        try:
+            return await aio_read_json(p)
+        except Exception as e:  # noqa: BLE001 — degrade this one book, never 5xx
+            return {"_error": str(e)}
+
+    sources = [
+        ("conservative", "Conservative", "equity_curve_daily.json", _book_from_equity_curve),
+        ("balanced", "Balanced", "hy_paper_trading.json", _book_from_seed_equity),
+        ("aggressive", "Aggressive", "lp_paper_trading.json", _book_from_seed_equity),
+    ]
+    for key, label, fname, parser in sources:
+        doc = await _read(fname)
+        if doc is None:
+            books[key] = {"label": label, "available": False, "reason": "file_missing"}
+        elif isinstance(doc, dict) and "_error" in doc:
+            books[key] = {"label": label, "available": False, "reason": doc["_error"]}
+        else:
+            books[key] = parser(label, doc)
+
+    return JSONResponse(
+        {"books": books, "combined": _combine_books(books), "_fetched_at": _time.time()},
+        headers=NO_CACHE_HEADERS,
+    )
+
+
 @router.get("/api/live/system")
 async def live_system():
     """Live system-health bundle — merges available health/watcher/log files."""
