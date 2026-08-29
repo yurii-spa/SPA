@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 
 from spa_core.monitoring import freshness_threshold_parity as p
 
@@ -149,3 +150,35 @@ class TwoNumbersAnswerTwoDifferentQuestions(unittest.TestCase):
         """Сужение не тронуло предмет, где разногласие настоящее — тождество файла."""
         r = p.compare({"a": {"data/x.json": 26.0}}, {"a": ("data/y.json", 26.0)})
         self.assertEqual([f["verdict"] for f in r["findings"]], [p.DIFFERENT_ARTIFACT])
+
+
+class LiveTreeDailyCycleHousesAgree(unittest.TestCase):
+    """Последняя находка B7 первого прогона, закрытая по существу (29.08).
+
+    `uptime_monitor` судил живость `com.spa.daily_cycle` по `paper_trading_status.json`,
+    а контракт агента о нём молчал: два дома называли продуктом дневного цикла РАЗНЫЕ
+    файлы. Что файл принадлежит циклу, доказывает он сам — внутри `"source":
+    "cycle_runner"`; статическим разбором запись не видна, имя собирается на лету.
+
+    Тест связывает дома НАПРЯМУЮ, а не через вердикт сверки: так он краснеет и в том
+    случае, если сверку однажды снова сузят.
+    """
+
+    def test_the_file_uptime_watches_is_in_the_agents_contract(self):
+        from spa_core.monitoring.artifact_contract import declared_produces
+        from spa_core.monitoring.uptime_monitor import AGENT_OUTPUT_FILES
+        watched = (AGENT_OUTPUT_FILES.get("com.spa.daily_cycle") or (None, 0))[0]
+        self.assertIsNotNone(watched, "монитор перестал следить за дневным циклом")
+        decl = declared_produces(
+            Path(__file__).resolve().parents[2] / "spa_core/paper_trading/cycle_runner.py")
+        self.assertIn(watched, decl or (),
+                      "монитор судит живость по файлу, которого нет в контракте агента")
+
+    def test_the_manifest_knows_it_too(self):
+        """Третий дом: без записи в конституции у файла нет ни срока, ни потребителя."""
+        import json
+        root = Path(__file__).resolve().parents[2]
+        man = json.loads((root / "architecture" / "manifest.json").read_text(encoding="utf-8"))
+        entry = next(a for a in man["agents"] if a["label"] == "com.spa.daily_cycle")
+        arts = {p["artifact"] for p in (entry.get("produces") or [])}
+        self.assertIn("data/paper_trading_status.json", arts)

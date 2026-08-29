@@ -638,6 +638,10 @@
     {
      "artifact": "data/track_persist_status.json",
      "slo_hours": 26
+    },
+    {
+     "artifact": "data/paper_trading_status.json",
+     "slo_hours": 26
     }
    ],
    "consumes": [],
