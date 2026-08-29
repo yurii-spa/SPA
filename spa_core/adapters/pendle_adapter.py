@@ -206,10 +206,12 @@ class PendleAdapter(BaseAdapter):
         return round(pct / 100.0, 8)
 
     def get_yield_info(self) -> YieldInfo:
-        """Return a :class:`YieldInfo` for the best eligible Pendle PT market.
+        """Return a :class:`YieldInfo` for the best TIER-ELIGIBLE Pendle PT market.
 
         ``apy`` is a decimal (e.g. 0.089 == 8.9%).
-        Returns ``apy=None`` when no live data is available.
+        Returns ``apy=None`` when no live data is available, OR when every
+        eligible-by-fetch market fails Pendle's own stricter tier floor
+        (ADR-159/ADR-16x — see the note below); it never fabricates a tier.
         """
         markets = self._fetch_eligible()
         if not markets:
@@ -223,9 +225,29 @@ class PendleAdapter(BaseAdapter):
                 exit_latency_hours=self.EXIT_LATENCY_HOURS,
             )
 
-        best = markets[0]
+        # ADR-159 reversal (2026-08-29): `_fetch_eligible()` only enforces the
+        # $5M RiskPolicy-baseline floor (`PENDLE_MIN_TVL_USD`, in pendle_pt.py)
+        # — Pendle's OWN tier floors here are stricter ($20M for T3, $100M for
+        # T2). The old code took markets[0] (best APY among the $5M-floor set)
+        # unconditionally and coerced a below-$20M TVL's `_classify_tier()`
+        # `None` into "T3" — a label, not a refusal, on a pool a third the
+        # size of our own threshold. `get_markets()` (below) already filters
+        # correctly; this mirrors that filter instead of trusting `or "T3"`.
+        tiered = [m for m in markets if _classify_tier(m.tvl_usd) is not None]
+        if not tiered:
+            return YieldInfo(
+                protocol=self.PROTOCOL,
+                asset=self.asset,
+                apy=None,
+                tvl_usd=None,
+                tier=self.tier,
+                risk_score=self.RISK_SCORE,
+                exit_latency_hours=self.EXIT_LATENCY_HOURS,
+            )
+
+        best = tiered[0]  # still APY-sorted — filtering preserves order
         tvl = best.tvl_usd
-        tier = _classify_tier(tvl) or "T3"
+        tier = _classify_tier(tvl)  # guaranteed non-None: `tiered` was filtered on it
         self.tier = tier  # update instance tier based on live data
 
         apy_decimal = round(best.implied_apy / 100.0, 8)

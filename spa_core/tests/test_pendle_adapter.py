@@ -334,6 +334,105 @@ class TestGetYieldInfo(unittest.TestCase):
         yi = a.get_yield_info()
         self.assertEqual(yi.asset, "USDC")
 
+    # ── ADR-159 reversal (2026-08-29): below-T3-floor markets must be
+    # REFUSED (apy=None), never coerced to a "T3" label. `_fetch_eligible()`
+    # only enforces the looser $5M RiskPolicy-baseline floor — a market
+    # between $5M and $20M clears that gate but is NOT tier-eligible.
+
+    def test_below_t3_floor_refuses_instead_of_coercing_tier(self):
+        # $6.15M — clears the $5M fetch floor, fails Pendle's own $20M T3
+        # floor. Old code: tier = _classify_tier(tvl) or "T3" -> "T3" (a
+        # label on a pool a third the size of our threshold). Fixed code
+        # must refuse the whole reading, not paper over it.
+        m = _make_market(tvl_usd=6_150_000.0, implied_apy=13.85)
+        a = _adapter_with_markets([m])
+        yi = a.get_yield_info()
+        self.assertIsNone(yi.apy)
+
+    def test_below_t3_floor_tvl_also_none(self):
+        m = _make_market(tvl_usd=6_150_000.0, implied_apy=13.85)
+        a = _adapter_with_markets([m])
+        self.assertIsNone(a.get_yield_info().tvl_usd)
+
+    def test_below_t3_floor_never_returns_tier_t3(self):
+        # The exact coercion this reverses: tier must never be "T3" for a
+        # market _classify_tier() itself refused.
+        m = _make_market(tvl_usd=6_150_000.0, implied_apy=13.85)
+        a = _adapter_with_markets([m])
+        self.assertNotEqual(a.get_yield_info().tier, "T3")
+
+    def test_picks_next_tiered_market_when_best_apy_is_below_floor(self):
+        # markets[0] by APY is below floor (refused); markets[1] clears T3
+        # and has the SECOND-best APY. Correct behaviour: return markets[1],
+        # not "no data at all" — this proves it is a real filter+pick, not
+        # a naive "give up if markets[0] fails" shortcut.
+        below_floor = _make_market(
+            address="0xBELOW", implied_apy=20.0, tvl_usd=6_150_000.0,
+        )
+        tiered = _make_market(
+            address="0xTIERED", implied_apy=9.0, tvl_usd=25_000_000.0,
+        )
+        a = _adapter_with_markets([below_floor, tiered])  # pre-sorted by APY desc
+        yi = a.get_yield_info()
+        self.assertTrue(_approx_equal(yi.apy, 0.09))
+        self.assertEqual(yi.tier, "T3")
+
+    def test_among_multiple_tiered_markets_picks_highest_apy_not_just_first(self):
+        # Three markets, two of them clear the tier floor with DIFFERENT
+        # APYs. Must pick the higher-APY tiered one — not merely "the first
+        # tiered market encountered" (which a bug like picking tiered[-1]
+        # or an unsorted subset could satisfy by accident).
+        below_floor = _make_market(
+            address="0xBELOW", implied_apy=30.0, tvl_usd=6_000_000.0,
+        )
+        tiered_lower_apy = _make_market(
+            address="0xLOW", implied_apy=7.0, tvl_usd=150_000_000.0,
+        )
+        tiered_higher_apy = _make_market(
+            address="0xHIGH", implied_apy=11.0, tvl_usd=25_000_000.0,
+        )
+        # Pre-sorted by APY desc, as the real _fetch_eligible() guarantees.
+        a = _adapter_with_markets([below_floor, tiered_higher_apy, tiered_lower_apy])
+        yi = a.get_yield_info()
+        self.assertTrue(_approx_equal(yi.apy, 0.11))
+        self.assertEqual(yi.tvl_usd, 25_000_000.0)
+
+    def test_all_markets_below_floor_refuses_entirely(self):
+        # Real production shape from ADR-159 (cycle #408, 28.08): three
+        # eligible-by-fetch markets, ALL below the $20M T3 floor.
+        markets = [
+            _make_market(address="0xA", tvl_usd=6_100_000.0, implied_apy=13.85),
+            _make_market(address="0xB", tvl_usd=10_200_000.0, implied_apy=11.0),
+            _make_market(address="0xC", tvl_usd=5_500_000.0, implied_apy=9.5),
+        ]
+        a = _adapter_with_markets(markets)
+        yi = a.get_yield_info()
+        self.assertIsNone(yi.apy)
+        self.assertIsNone(yi.tvl_usd)
+
+    def test_get_markets_still_excludes_below_floor(self):
+        # Regression: get_markets() already filtered this correctly before
+        # the fix — confirms the fix did not change that (independent path).
+        below_floor = _make_market(tvl_usd=6_150_000.0)
+        a = _adapter_with_markets([below_floor])
+        self.assertEqual(a.get_markets(), [])
+
+    def test_t3_eligible_market_still_works_after_fix(self):
+        # Non-regression: a genuinely eligible T3 market must be unaffected.
+        m = _make_market(tvl_usd=25_000_000.0, implied_apy=9.0)
+        a = _adapter_with_markets([m])
+        yi = a.get_yield_info()
+        self.assertTrue(_approx_equal(yi.apy, 0.09))
+        self.assertEqual(yi.tier, "T3")
+
+    def test_t2_eligible_market_still_works_after_fix(self):
+        # Non-regression: a genuinely eligible T2 market must be unaffected.
+        m = _make_market(tvl_usd=150_000_000.0, implied_apy=8.9)
+        a = _adapter_with_markets([m])
+        yi = a.get_yield_info()
+        self.assertTrue(_approx_equal(yi.apy, 0.089))
+        self.assertEqual(yi.tier, "T2")
+
 
 # ── 6. get_best_pt ────────────────────────────────────────────────────────────
 
