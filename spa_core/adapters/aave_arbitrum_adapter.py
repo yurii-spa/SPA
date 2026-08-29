@@ -168,6 +168,43 @@ class AaveArbitrumAdapter(BaseAdapter):
             )
         return None
 
+    def _fetch_live_pool(self) -> Optional[dict]:
+        """Живой пул Aave V3 на Arbitrum для НАШЕГО резерва — по АДРЕСУ, не по имени.
+
+        Тождество берётся из собственного объявления адаптера (`USDC_ADDRESS`), а не
+        из совпадения символа. Это принципиально: у `aave-v3` на Arbitrum ДВА пула с
+        символом `USDC`, и они разные резервы —
+
+            0xaf88d065… нативный USDC : $43.1 млн, 2.29 %
+            0xff970a61… USDC.e (мост) : $252 тыс., 3.47 %   ← наш
+
+        Замер 29.08: константа `TVL_USD` объявляла $1.2 млрд, то есть завышала
+        глубину НАШЕГО рынка примерно в 4800 раз. Сопоставление по символу выбрало
+        бы пул покрупнее и «подтвердило» бы литерал — ровно так в этой сессии
+        родились четыре ложных отождествления подряд.
+        """
+        try:
+            from spa_core.feeds.defi_llama_feed import DefiLlamaFeed
+            pools = DefiLlamaFeed()._load_pools() or []
+        except Exception as exc:                      # noqa: BLE001 — адаптер не падает
+            logger.debug("aave_arbitrum: пулы недоступны: %s", exc)
+            return None
+        want = self.USDC_ADDRESS.lower()
+        best = None
+        for r in pools:
+            if not isinstance(r, dict):
+                continue
+            if str(r.get("project", "")).lower() != "aave-v3":
+                continue
+            if r.get("chain") != "Arbitrum":
+                continue
+            if want not in [str(x).lower() for x in (r.get("underlyingTokens") or [])]:
+                continue
+            tvl = r.get("tvlUsd")
+            if best is None or (isinstance(tvl, (int, float)) and tvl > (best.get("tvlUsd") or 0)):
+                best = r
+        return best
+
     def get_apy(self) -> Optional[float]:
         """Возвращает APY в процентах (напр. 4.1 означает 4.1%) либо ``None``.
 
@@ -194,12 +231,21 @@ class AaveArbitrumAdapter(BaseAdapter):
         данных и fail-CLOSED, а не будет ранжировать капитал по константе.
         """
         apy_pct = self.get_apy()
+        pool = self._fetch_live_pool()
+        live_tvl = (float(pool["tvlUsd"])
+                    if pool is not None and isinstance(pool.get("tvlUsd"), (int, float))
+                    else None)
+        if apy_pct is None and pool is not None and isinstance(pool.get("apy"), (int, float)):
+            apy_pct = float(pool["apy"])
         return YieldInfo(
             protocol=self.PROTOCOL,
             asset=self.asset,
             # YieldInfo.apy — decimal (0.041 для 4.1%)
             apy=None if apy_pct is None else apy_pct / 100.0,
-            tvl_usd=float(self.TVL_USD),
+            # ADR-053: живое число называется живым, константа — статикой. Флаг берётся
+            # ДО подстановки `TVL_USD`, иначе литерал уехал бы под ярлыком «живое».
+            tvl_usd=live_tvl if live_tvl is not None else float(self.TVL_USD),
+            tvl_source="live" if live_tvl is not None else "static",
             tier=self.tier,
             risk_score=self.RISK_SCORE,
             exit_latency_hours=self.EXIT_LATENCY_HOURS,
