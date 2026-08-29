@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-29T16:49:09Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-29T17:17:57Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
 > Всего карточек: **787** · ждёт владельца: **10** · занято сессиями: **8**.
 
@@ -16,7 +16,7 @@
 - **Tier-B: 84 модуля отвечают одинаково даже несуществующему протоколу — списать?**  ·  `owner-decision-tier-b-84-modulya-otvechayut-odinakovo-d.md`
 - **Tier-B: ещё 82 модуля различий не показали — списать или заморозить?**  ·  `owner-decision-tier-b-esche-82-modulya-razlichii-ne-pok.md`
 - **Треть флота нельзя проверить: у служб и демонов метрика «свежесть файла» не работает, а замены нет**  ·  `owner-decision-tret-flota-nelzya-proverit-u-sluzhb-i-de.md`
-- **Треть капитала встала без работы: книга не совпадает с целью, а гейт отказывает арифметикой 5.0% < 5.0%**  ·  `owner-decision-tret-kapitala-vstala-bez-raboty-kniga-ne.md`
+- **Треть капитала встала без работы: перераздачу отклонил гейт, и отказ невозможно проверить**  ·  `owner-decision-tret-kapitala-vstala-bez-raboty-kniga-ne.md`
 - **Твоё решение от 10 августа про Morpho Steakhouse не действует в коде: потолок 40 % вместо 20 %**  ·  `owner-decision-tvoe-reshenie-ot-10-avgusta-pro-morpho-s.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
@@ -42,7 +42,7 @@
 - Tier-B: 84 модуля отвечают одинаково даже несуществующему протоколу — списать?  ·  `owner-decision-tier-b-84-modulya-otvechayut-odinakovo-d.md` · 2026-08-29
 - Tier-B: ещё 82 модуля различий не показали — списать или заморозить?  ·  `owner-decision-tier-b-esche-82-modulya-razlichii-ne-pok.md` · 2026-08-29
 - Треть флота нельзя проверить: у служб и демонов метрика «свежесть файла» не работает, а замены нет  ·  `owner-decision-tret-flota-nelzya-proverit-u-sluzhb-i-de.md` · 2026-08-29
-- Треть капитала встала без работы: книга не совпадает с целью, а гейт отказывает арифметикой 5.0% < 5.0%  ·  `owner-decision-tret-kapitala-vstala-bez-raboty-kniga-ne.md` · 2026-08-29
+- Треть капитала встала без работы: перераздачу отклонил гейт, и отказ невозможно проверить  ·  `owner-decision-tret-kapitala-vstala-bez-raboty-kniga-ne.md` · 2026-08-29
 - Твоё решение от 10 августа про Morpho Steakhouse не действует в коде: потолок 40 % вместо 20 %  ·  `owner-decision-tvoe-reshenie-ot-10-avgusta-pro-morpho-s.md` · 2026-08-29
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
@@ -798,7 +798,6 @@
 - Манифест архитектуры не знает об агенте morning_digest — тест красный на origin  ·  `agent-manifest-drift-morning-digest.md` · 2026-08-06
 - Кэп на протокол не видит общего куратора — Steakhouse держится и на Ethereum, и на Base  ·  `agent-morpho-curator-concentration.md` · 2026-08-05
 - Паспорта агентов заполнены из источников (0 → 18 полных, 63 с целью); остаток — работа куратора, а не скрипта  ·  `agent-pasporta-zapolneny-chastichno-ostalos-kuratoru.md` · 2026-08-20
-- Ранжирование считает три протокола дважды, и у одного побеждает выдуманное число  ·  `agent-rangirovanie-schitaet-protokol-dvazhdy.md` · 2026-08-29
 - Линия время-рядов для 18 форкастеров (поток 3 own-27)  ·  `agent-relocate-forecasters-to-timeseries-lane.md` · 2026-08-04
 - Переселить 13 оптимизаторов в советники аллокатора (поток 1 own-27)  ·  `agent-relocate-optimizers-to-allocator-advisory.md` · 2026-08-04
 - Переселить 9 трекеров в слой отчётности (поток 2 own-27)  ·  `agent-relocate-trackers-to-reporting.md` · 2026-08-04
@@ -839,6 +838,7 @@
 - НЕ ВОСПРОИЗВОДИТСЯ — два offsite-падения оказались разовыми, моё утверждение о порядке снято  ·  `agent-offsite-tests-order-dependent.md` · 2026-08-06
 - Относительный путь в объявлении навсегда лишает запись права быть оправданной — шаг 0a не знает, из какого дерева она сделана  ·  `agent-otnositelnyi-put-v-obyavlenii-teryaet-derevo.md` · 2026-08-24
 - Пути состояния вычисляются на ИМПОРТЕ — под изоляцией они прибиваются к песочнице ОДНОГО случайного теста  ·  `agent-puti-sostoyaniya-vychislyayutsya-na-impo.md` · 2026-08-27
+- ИСПРАВЛЕНО: ранжирование больше не считает протокол дважды  ·  `agent-rangirovanie-schitaet-protokol-dvazhdy.md` · 2026-08-29
 - У реестра агентов нет продюсера — он протух на 475 часов и никто не заметил  ·  `agent-registry-has-no-producer.md` · 2026-08-05
 - Учение по восстановлению проверяет ОДИН архив из двух серий — умерший производитель бэкапов останется невидим за зелёным all_ok  ·  `agent-restore-drill-single-series-blind.md` · 2026-08-05
 - Аварийный портфель обходит гейты адаптеров — финансирует spark_susds, который запрещён инвариантом 10  ·  `agent-safe-fallback-bypasses-adapter-gates.md` · 2026-08-02
