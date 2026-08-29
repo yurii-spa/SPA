@@ -2,23 +2,19 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-29T20:40:07Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-29T20:55:34Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **790** · ждёт владельца: **12** · занято сессиями: **8**.
+> Всего карточек: **790** · ждёт владельца: **8** · занято сессиями: **8**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x**  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md`
-- **Aave на Arbitrum: мы смотрим на опустевший рынок —  тыс. вместо заявленного .2 млрд**  ·  `owner-decision-aave-na-arbitrum-my-smotrim-na-opustevsh.md`
 - **Я задал тебе неверный вопрос про слепые протоколы — проверил, и всё оказалось наоборот** · _high_  ·  `owner-decision-derisk-vopros-byl-postavlen-neverno-2026-08-29.md`
 - **Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз** · _high_  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md`
-- **Партия 2 карантина: кандидатов четыре, и по ним у меня разные рекомендации**  ·  `owner-decision-partiya-2-karantina-kandidatov-chetyre-i.md`
 - **Security-скан risk-гейта нашёл два расхождения между ADR и реальным кодом: оси риска не подключены, тир протокола не сверяется** · _high_  ·  `owner-decision-security-skan-risk-geita-nashel-dva-rash.md`
 - **Сторож всплесков доходности написан, порог верный, сработал бы 25 августа — и его не зовёт никто** · _high_  ·  `owner-decision-storozh-vspleskov-apy-nikto-ne-zovet-2026-08-29.md`
 - **Tier-B: 84 модуля отвечают одинаково даже несуществующему протоколу — списать?**  ·  `owner-decision-tier-b-84-modulya-otvechayut-odinakovo-d.md`
 - **Tier-B: ещё 82 модуля различий не показали — списать или заморозить?**  ·  `owner-decision-tier-b-esche-82-modulya-razlichii-ne-pok.md`
-- **Треть флота нельзя проверить: у служб и демонов метрика «свежесть файла» не работает, а замены нет**  ·  `owner-decision-tret-flota-nelzya-proverit-u-sluzhb-i-de.md`
-- **Треть капитала встала без работы: перераздачу отклонил гейт, и отказ невозможно проверить**  ·  `owner-decision-tret-kapitala-vstala-bez-raboty-kniga-ne.md`
 - **Твоё решение от 10 августа про Morpho Steakhouse не действует в коде: потолок 40 % вместо 20 %**  ·  `owner-decision-tvoe-reshenie-ot-10-avgusta-pro-morpho-s.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
@@ -37,16 +33,12 @@
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (196)
 
 ### · needs-owner
-- Aave на Arbitrum: мы смотрим на опустевший рынок —  тыс. вместо заявленного .2 млрд  ·  `owner-decision-aave-na-arbitrum-my-smotrim-na-opustevsh.md` · 2026-08-29
 - Я задал тебе неверный вопрос про слепые протоколы — проверил, и всё оказалось наоборот  ·  `owner-decision-derisk-vopros-byl-postavlen-neverno-2026-08-29.md` · 2026-08-29
 - Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md` · 2026-08-29
-- Партия 2 карантина: кандидатов четыре, и по ним у меня разные рекомендации  ·  `owner-decision-partiya-2-karantina-kandidatov-chetyre-i.md` · 2026-08-29
 - Security-скан risk-гейта нашёл два расхождения между ADR и реальным кодом: оси риска не подключены, тир протокола не сверяется  ·  `owner-decision-security-skan-risk-geita-nashel-dva-rash.md` · 2026-08-29
 - Сторож всплесков доходности написан, порог верный, сработал бы 25 августа — и его не зовёт никто  ·  `owner-decision-storozh-vspleskov-apy-nikto-ne-zovet-2026-08-29.md` · 2026-08-29
 - Tier-B: 84 модуля отвечают одинаково даже несуществующему протоколу — списать?  ·  `owner-decision-tier-b-84-modulya-otvechayut-odinakovo-d.md` · 2026-08-29
 - Tier-B: ещё 82 модуля различий не показали — списать или заморозить?  ·  `owner-decision-tier-b-esche-82-modulya-razlichii-ne-pok.md` · 2026-08-29
-- Треть флота нельзя проверить: у служб и демонов метрика «свежесть файла» не работает, а замены нет  ·  `owner-decision-tret-flota-nelzya-proverit-u-sluzhb-i-de.md` · 2026-08-29
-- Треть капитала встала без работы: перераздачу отклонил гейт, и отказ невозможно проверить  ·  `owner-decision-tret-kapitala-vstala-bez-raboty-kniga-ne.md` · 2026-08-29
 - Твоё решение от 10 августа про Morpho Steakhouse не действует в коде: потолок 40 % вместо 20 %  ·  `owner-decision-tvoe-reshenie-ot-10-avgusta-pro-morpho-s.md` · 2026-08-29
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
@@ -117,6 +109,7 @@
 - Живой пилот k на пакет 1 (~22 июля) — запускать? + сверщик живое/бумага  ·  `owner-decision-20260716-082215-k-1-22.md` · 2026-07-16
 - Программа аудита системы + архитектурной памяти («швейцарские часы») — утвердить приоритет  ·  `owner-decision-20260716-084859-note.md` · 2026-07-16
 - ОТВЕЧЕНО: правила вложений записаны, владелец выбрал вариант 1 по последнему вопросу  ·  `owner-decision-AI1-approach-2026-08-29.md` · 2026-08-29
+- Aave на Arbitrum: мы смотрим на опустевший рынок —  тыс. вместо заявленного .2 млрд  ·  `owner-decision-aave-na-arbitrum-my-smotrim-na-opustevsh.md` · 2026-08-29
 - Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда  ·  `owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira.md` · 2026-08-01
 - Аллокатор ранжирует пулы на невыверенном TVL ($50M-литерал) — исключать ли их из свежих целей?  ·  `owner-decision-allokator-ranzhiruet-puly-na-vydumannom-tvl.md` · 2026-08-02
 - Аварийная остановка ТЕРЯЕТСЯ при восстановлении из резерва (выбери, как убрать файлы состояния из git)  ·  `owner-decision-avariinaya-ostanovka-teryaetsya-pri-vosst.md` · 2026-08-18
@@ -171,6 +164,7 @@
 - Отчёт готовности говорит «ГОТОВЫ», хотя трек не добран (26/30) — публичный API противоречит сам себе  ·  `owner-decision-otchet-gotovnosti-govorit-gotovy-hotya-t.md` · 2026-07-17
 - Отчёт «эту карточку я НЕ беру» больше не считается захватом — подтверди или откати  ·  `owner-decision-otchet-o-zanyatosti-kartochki-bolshe-ne-sc.md` · 2026-08-01
 - СНЯТО ЗАМЕРОМ: ветку уже вернули без тебя — команду из этой карточки выполнять НЕЛЬЗЯ  ·  `owner-decision-otkat-vetki-1249-kommitov-2026-08-29.md` · 2026-08-29
+- Партия 2 карантина: кандидатов четыре, и по ним у меня разные рекомендации  ·  `owner-decision-partiya-2-karantina-kandidatov-chetyre-i.md` · 2026-08-29
 - Переспрашиваю: судьба сторожа telegram_watcher — твой ответ 15.08 потерялся вместе с закрытой веткой  ·  `owner-decision-peresprashivayu-sudba-storozha-telegram.md` · 2026-08-21
 - Перезапустить сторожа реального времени, чтобы починка начала работать (одна команда)  ·  `owner-decision-perezapustit-storozha-realnogo-vremeni-c.md` · 2026-08-02
 - Поиск новых протоколов не идёт: программу, которая его делает, никто не запускает  ·  `owner-decision-poisk-novyh-protokolov-ne-idet-programmu.md` · 2026-08-18
@@ -207,6 +201,8 @@
 - Стратегия S23 никогда не видит живой Pendle — адаптер «похоронен», ошибка глотается молча (выбери, как чинить)  ·  `owner-decision-strategiya-s23-nikogda-ne-vidit-zhivoi-p.md` · 2026-07-30
 - Табличка честности не доезжает до сайта — публично видно 5.2% там, где живой расчёт даёт 4.8%  ·  `owner-decision-tablichka-chestnosti-ne-doezzhaet-do-sai.md` · 2026-08-08
 - ИСПОЛНЕНО: решение от 7 августа доведено до конца — тир Morpho Steakhouse исправлен  ·  `owner-decision-tier-steakhouse-2026-08-29.md` · 2026-08-29
+- Треть флота нельзя проверить: у служб и демонов метрика «свежесть файла» не работает, а замены нет  ·  `owner-decision-tret-flota-nelzya-proverit-u-sluzhb-i-de.md` · 2026-08-29
+- Треть капитала встала без работы: перераздачу отклонил гейт, и отказ невозможно проверить  ·  `owner-decision-tret-kapitala-vstala-bez-raboty-kniga-ne.md` · 2026-08-29
 - Третья проверка кода сломалась и 8 часов этого никто не видел — нужен сторож за всеми проверками  ·  `owner-decision-tretya-proverka-koda-slomalas-i-8-chasov.md` · 2026-08-03
 - Тревога о стоп-кране до тебя больше не дойдёт — событие застряло в «плохо» с 4 июля (выбери, как чинить)  ·  `owner-decision-trevoga-o-stop-krane-do-tebya-bolshe-ne.md` · 2026-07-31
 - Три отчёта о доказательной базе трека молчат 2 месяца — оживить или убрать в архив  ·  `owner-decision-tri-otcheta-o-dokazatelnoi-baze-treka-mo.md` · 2026-08-24
