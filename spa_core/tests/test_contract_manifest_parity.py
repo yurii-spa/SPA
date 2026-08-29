@@ -65,3 +65,36 @@ class TestLiveTree(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AgentWithoutProducesIsStillCompared(unittest.TestCase):
+    """Фильтр гасил ровно ту находку, ради которой сверка написана (замер 29.08).
+
+    `manifest_produces` пропускал агента, у которого `produces` пуст, — и пересечение
+    домов выбрасывало его целиком. Объявление в коде оставалось не сверенным НИ С ЧЕМ.
+    Так молчали четыре агента: apiserver, familyfund, rtmr_sense, telegram_bot. У
+    последнего среди необъявленного — `data/kill_switch_active.json`, файл стоп-крана
+    с тремя читателями: конституция не знала, кто его производит.
+    """
+
+    def test_empty_produces_is_an_answer_not_an_absence(self):
+        man = {"agents": [{"label": "com.spa.x", "produces": []}]}
+        self.assertEqual(p.manifest_produces(man), {"com.spa.x": set()})
+
+    def test_declaration_against_empty_manifest_is_a_finding(self):
+        r = p.compare({"com.spa.x": {"data/a.json"}}, {"com.spa.x": set()})
+        self.assertEqual(r["compared"], 1)
+        self.assertEqual(r["verdict"], p.DECLARED_NOT_IN_MANIFEST)
+        self.assertEqual(r["findings"][0]["declared_only"], ["data/a.json"])
+
+    def test_agent_absent_from_the_manifest_entirely_is_still_not_compared(self):
+        """Граница не сдвинута: про кого решения не принимали — тот не сопоставим."""
+        r = p.compare({"com.spa.ghost": {"data/a.json"}}, {"com.spa.x": set()})
+        self.assertEqual(r["compared"], 0)
+        self.assertEqual(r["verdict"], p.NOT_COMPARED)
+
+    def test_agreement_still_reads_as_agreement(self):
+        r = p.compare({"com.spa.x": {"data/a.json"}}, {"com.spa.x": {"data/a.json"}})
+        self.assertEqual(r["verdict"], p.AGREES)
+        self.assertEqual(r["findings"], [])
+

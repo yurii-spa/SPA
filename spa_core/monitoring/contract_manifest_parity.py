@@ -40,11 +40,23 @@ _REPO = Path(__file__).resolve().parents[2]
 
 
 def manifest_produces(manifest: dict) -> dict[str, set[str]]:
+    """Что манифест считает продуктом каждого агента. ПУСТО — тоже ответ.
+
+    Раньше агент без `produces` сюда не попадал вовсе, и пересечение домов его
+    выбрасывало: объявление в коде оставалось НЕ СВЕРЕННЫМ НИ С ЧЕМ. Замер 29.08 —
+    четыре таких (`apiserver`, `familyfund`, `rtmr_sense`, `telegram_bot`): все
+    объявляют артефакты кодом, манифест о них не знает, и сверка молчала. Это в
+    точности та находка, ради которой она написана («артефакт объявлен кодом, но
+    манифест его не знает — он без SLO и без объявленного потребителя»), и фильтр
+    её же и гасил. Агент, которого нет в манифесте ВООБЩЕ, по-прежнему не
+    сопоставим — про него решения не принимали.
+    """
     out: dict[str, set[str]] = {}
     for a in manifest.get("agents") or []:
-        arts = {p.get("artifact") for p in (a.get("produces") or []) if p.get("artifact")}
-        if arts:
-            out[a["label"]] = arts
+        if not a.get("label"):
+            continue
+        out[a["label"]] = {p.get("artifact") for p in (a.get("produces") or [])
+                           if p.get("artifact")}
     return out
 
 
