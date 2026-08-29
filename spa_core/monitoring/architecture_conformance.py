@@ -810,9 +810,10 @@ def run_checks(manifest: dict,
                        f"{', '.join(row.get('manifest_artifacts') or []) or '—'}) — "
                        f"чью-то свежесть никто не сторожит")
             else:
-                msg = (f"{row['label']}: у {row.get('artifact')} два разных срока годности "
-                       f"(манифест {row.get('manifest_hours')}ч, монитор "
-                       f"{row.get('monitor_hours')}ч) — тревога сработает по случайному из них")
+                msg = (f"{row['label']}: продукт {row.get('artifact')} объявлен протухающим "
+                       f"через {row.get('manifest_hours')}ч, а тревога о молчании агента "
+                       f"сработает только через {row.get('monitor_hours')}ч — в этом окне "
+                       f"файл уже негоден, а сигнала ещё нет")
             findings.append(_finding(
                 f"B7:freshness_parity:{row['label']}", "B7", "WARN", "strong", msg))
 
