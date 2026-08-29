@@ -2,13 +2,14 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-29T10:38:52Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-29T10:57:39Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **755** · ждёт владельца: **1** · занято сессиями: **10**.
+> Всего карточек: **756** · ждёт владельца: **2** · занято сессиями: **10**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
-- **Правила вложений теперь записаны на бумаге, а не в голове — прочитай и ответь на 5 вопросов** · _high_  ·  `owner-decision-AI1-approach-2026-08-29.md`
+- **Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x**  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md`
+- **Правила вложений записаны на бумаге, проверяющий уже нашёл три расхождения — нужны твои ответы** · _high_  ·  `owner-decision-AI1-approach-2026-08-29.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
@@ -28,7 +29,7 @@
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (182)
 
 ### · needs-owner
-- Правила вложений теперь записаны на бумаге, а не в голове — прочитай и ответь на 5 вопросов  ·  `owner-decision-AI1-approach-2026-08-29.md` · 2026-08-29
+- Правила вложений записаны на бумаге, проверяющий уже нашёл три расхождения — нужны твои ответы  ·  `owner-decision-AI1-approach-2026-08-29.md` · 2026-08-29
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -212,8 +213,10 @@
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (374)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (375)
 
+### · needs-owner
+- Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md` · 2026-08-29
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
 - Храповик считает упоминание в докстринге за проводку — и это лишь одна из трёх слепот  ·  `inbox-hrapovik-schitaet-upominanie-v-dokstring.md` · 2026-08-14 · 🔒 `pid66130`
