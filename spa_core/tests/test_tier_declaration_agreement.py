@@ -15,6 +15,9 @@
 """
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from spa_core.adapters import ADAPTER_REGISTRY
@@ -169,3 +172,76 @@ def test_a_planted_wrong_tier_is_caught():
 def test_tier_bands_are_the_documented_ones(score, tier):
     """Полосы из docs/tier_criteria.md §1.1 — границы проверяются поимённо."""
     assert _band_of(score) == tier
+
+
+# ── пятый источник тира: `data/adapter_registry.json` ────────────────────
+# Найден 2026-08-29, когда я гнался за «откуда `ethena_susde` взял T3».
+# Цепочка: файл данных → `adapter_status_generator` копирует `tier` в
+# `data/adapter_status.json` → `tier_curator` читает. Мой прежний сторож
+# сверял РЕЕСТР В КОДЕ (`ADAPTER_REGISTRY`) и одноимённый файл в данных
+# не видел: два разных объекта с одним именем.
+#
+# `ethena_susde`: файл говорит T3, канон — T2. Файл СТРОЖЕ (T3 совокупно ≤ 15 %
+# против T2 ≤ 50 %), поэтому приводить его к канону значило бы ПОСЛАБИТЬ —
+# это решение владельца, а не механическая правка. Оставлено намеренно.
+DATA_REGISTRY_KNOWN = {"ethena_susde"}
+
+
+def _data_registry_tiers(path) -> dict:
+    """{протокол: 'T1'|'T2'|'T3'} из файла данных; целые числа переводятся."""
+    import json
+    doc = json.loads(Path(path).read_text(encoding="utf-8"))
+    rows = doc.get("adapters") or doc
+    out = {}
+    if isinstance(rows, dict):
+        for k, v in rows.items():
+            if not isinstance(v, dict):
+                continue
+            raw = v.get("tier")
+            if isinstance(raw, bool) or raw is None:
+                continue
+            if isinstance(raw, (int, float)) and int(raw) in (1, 2, 3):
+                out[k] = f"T{int(raw)}"
+            elif isinstance(raw, str) and raw.strip().upper() in ("T1", "T2", "T3"):
+                out[k] = raw.strip().upper()
+    return out
+
+
+def _data_registry_disagreements(tiers: dict) -> dict:
+    return {p: (t, PROTOCOL_RISK_SCORES[p]["tier"])
+            for p, t in tiers.items()
+            if p in PROTOCOL_RISK_SCORES and t != PROTOCOL_RISK_SCORES[p]["tier"]}
+
+
+def test_data_registry_logic_catches_a_planted_mismatch(tmp_path):
+    """Логика работает БЕЗ живого data/ — иначе в CI тест молча пропускался бы."""
+    import json
+    proto = next(p for p, v in PROTOCOL_RISK_SCORES.items() if v["tier"] == "T2")
+    f = tmp_path / "reg.json"
+    f.write_text(json.dumps({"adapters": {proto: {"tier": 1}}}), encoding="utf-8")
+    assert _data_registry_disagreements(_data_registry_tiers(f)) == {proto: ("T1", "T2")}
+
+    f.write_text(json.dumps({"adapters": {proto: {"tier": 2}}}), encoding="utf-8")
+    assert _data_registry_disagreements(_data_registry_tiers(f)) == {}
+
+    f.write_text(json.dumps({"adapters": {proto: {"tier": None}, "чужой": {"tier": 1}}}),
+                 encoding="utf-8")
+    assert _data_registry_disagreements(_data_registry_tiers(f)) == {}, \
+        "пустой тир и протокол вне канона — не расхождения"
+
+
+def test_live_data_registry_agrees_with_the_canon():
+    """Второй слой — по живому файлу там, где он есть."""
+    import pytest
+    root = Path(__file__).resolve().parents[2]
+    f = root / "data" / "adapter_registry.json"
+    if not f.exists():
+        pytest.skip("data/ отсутствует (worktree/CI) — логика проверена на фикстуре выше")
+    bad = _data_registry_disagreements(_data_registry_tiers(f))
+    new = sorted(set(bad) - DATA_REGISTRY_KNOWN)
+    assert not new, (
+        f"data/adapter_registry.json разошёлся с каноном: "
+        f"{ {p: bad[p] for p in new} }. Этот файл — вход "
+        "adapter_status_generator, и его тир доезжает до куратора.")
+    fixed = sorted(DATA_REGISTRY_KNOWN - set(bad))
+    assert not fixed, f"расхождение закрыто для {fixed} — убери из DATA_REGISTRY_KNOWN"
