@@ -200,3 +200,40 @@ def test_multiselect_card_keeps_its_honest_explanation(tmp_path, monkeypatch):
     msg = notify_needs_owner(card, dry_run=True)
     assert "НЕСКОЛЬКО пунктов" in msg
     assert "переведи карточку" not in msg
+
+
+def test_notify_skips_ingested_card(tmp_path, monkeypatch):
+    """Карточка со статусом ingested (уже решена) — не отправляем уведомление.
+
+    Проблема (2026-08-29): Telegram bot отправлял уведомления обо ВСЕХ owner-decision
+    карточках, включая давно решённые. После решения bot молчит для ingested/done/других.
+    """
+    card = tmp_path / "own-solved.md"
+    card.write_text(
+        "---\ntrackerStatus:\n  type: owner-decision\ntitle: \"Already solved\"\n"
+        "status: ingested\n---\n" + CARD_TEXT.split("---\n", 2)[2],
+        encoding="utf-8")
+
+    def _boom(*a, **k):
+        raise AssertionError("bot must not be called for ingested card")
+
+    _install_fake_bot(monkeypatch, factory=_boom)
+    msg = notify_needs_owner(card)
+    # Должно вернуться молча с сообщением о пропуске, без вызова бота
+    assert "skip" in msg or "ingested" in msg.lower()
+
+
+def test_notify_skips_done_card(tmp_path, monkeypatch):
+    """Карточка со статусом done (закрыта) — не отправляем уведомление."""
+    card = tmp_path / "own-closed.md"
+    card.write_text(
+        "---\ntrackerStatus:\n  type: owner-decision\ntitle: \"Closed\"\n"
+        "status: done\n---\n" + CARD_TEXT.split("---\n", 2)[2],
+        encoding="utf-8")
+
+    def _boom(*a, **k):
+        raise AssertionError("bot must not be called for done card")
+
+    _install_fake_bot(monkeypatch, factory=_boom)
+    msg = notify_needs_owner(card)
+    assert "skip" in msg or "done" in msg.lower()

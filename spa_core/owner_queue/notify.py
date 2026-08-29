@@ -79,6 +79,10 @@ def notify_needs_owner(path: str | Path, *, dry_run: bool = False,
     except Exception as exc:  # noqa: BLE001 — обновление не важнее самого уведомления
         log.warning("notify_needs_owner: refresh from ref failed for %s: %s", path, exc)
     card = load_card(path)
+    # Отправляем только карточки со статусом needs-owner.
+    # Ingested / done / другие статусы — молчим.
+    if card.status != "needs-owner":
+        return f"[skip] карточка уже не ждёт владельца (статус: {card.status})"
     # Анти-шторм (инцидент 2026-08-20: 200+ копий одного решения за ночь): та же
     # карточка без ответа не уходит чаще окна и потолка попыток. Сухой прогон
     # (--check, тесты) гейт не трогает — он ничего не отправляет.
