@@ -2,16 +2,18 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-29T11:37:16Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-29T12:22:19Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **767** · ждёт владельца: **4** · занято сессиями: **10**.
+> Всего карточек: **769** · ждёт владельца: **6** · занято сессиями: **10**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x**  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md`
 - **Правила вложений записаны на бумаге, проверяющий уже нашёл три расхождения — нужны твои ответы** · _high_  ·  `owner-decision-AI1-approach-2026-08-29.md`
+- **Ветку откатили на 1249 коммитов — нужна одна команда от тебя, чтобы вернуть** · _high_  ·  `owner-decision-otkat-vetki-1249-kommitov-2026-08-29.md`
 - **Security-скан risk-гейта нашёл два расхождения между ADR и реальным кодом: оси риска не подключены, тир протокола не сверяется** · _high_  ·  `owner-decision-security-skan-risk-geita-nashel-dva-rash.md`
 - **Твоё решение от 7 августа доехало не везде: один протокол до сих пор числится не тем тиром** · _high_  ·  `owner-decision-tier-steakhouse-2026-08-29.md`
+- **Одиннадцать мест в коде утверждают, что мы торговали реальными деньгами. Мы не торговали** · _high_  ·  `owner-decision-urovni-dokazatelnosti-2026-08-29.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
@@ -28,12 +30,14 @@
 - **РЕЦИДИВ 28.08: тест судит о ХОСТЕ по литеральному pid — 98535 (siriactionsd), теперь 999 (NetFS) в test_card_claim_takeover** — держит `cycle-51123` · с 2026-08-22T08:45:00Z  ·  `inbox-test-sudit-o-hoste-literalnyi-pid-98535.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (184)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (186)
 
 ### · needs-owner
 - Правила вложений записаны на бумаге, проверяющий уже нашёл три расхождения — нужны твои ответы  ·  `owner-decision-AI1-approach-2026-08-29.md` · 2026-08-29
+- Ветку откатили на 1249 коммитов — нужна одна команда от тебя, чтобы вернуть  ·  `owner-decision-otkat-vetki-1249-kommitov-2026-08-29.md` · 2026-08-29
 - Security-скан risk-гейта нашёл два расхождения между ADR и реальным кодом: оси риска не подключены, тир протокола не сверяется  ·  `owner-decision-security-skan-risk-geita-nashel-dva-rash.md` · 2026-08-29
 - Твоё решение от 7 августа доехало не везде: один протокол до сих пор числится не тем тиром  ·  `owner-decision-tier-steakhouse-2026-08-29.md` · 2026-08-29
+- Одиннадцать мест в коде утверждают, что мы торговали реальными деньгами. Мы не торговали  ·  `owner-decision-urovni-dokazatelnosti-2026-08-29.md` · 2026-08-29
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -750,7 +754,6 @@
 
 ### · blocked
 - AI1-1.1 · Allocation Auditor: доставлен, в дневной цикл НЕ подключён  ·  `agent-ai1-11-allocation-auditor.md` · 2026-08-29
-- AI1-2.2 · APY Evidencer: проставлять уровень доказательности каждому числу доходности  ·  `agent-ai1-22-apy-evidencer.md` · 2026-08-29
 - AI1-3.1 · Rebalance Engine (только план, без исполнения)  ·  `agent-ai1-31-rebalance-engine-dry-run.md` · 2026-08-29
 - Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать  ·  `agent-fleet-parity-guard-never-scheduled.md` · 2026-08-05 · 🔒 `cycle-28258`
 ### · in-progress
@@ -766,7 +769,7 @@
 ### · backlog
 - adapter_status_generator никогда не подключал живой фид для pendle/pendle_pt — запасное число статичный литерал  ·  `agent-adapter-status-generator-pendle-never-wired-to-live.md` · 2026-08-29
 - Advisory / сигнальный трек (вариант C) — отложен владельцем, держать в бэклоге  ·  `agent-advisory-signals-track-c.md` · 2026-07-23
-- AI1-2.1 · Стандарт уровней доказательности APY (L0–L6): сегодня уровни называют, но нигде не определяют  ·  `agent-ai1-21-standart-urovnei-dokazatelnosti.md` · 2026-08-29
+- AI1-2.2 · APY Evidencer: проставлять уровень доказательности каждому числу доходности  ·  `agent-ai1-22-apy-evidencer.md` · 2026-08-29
 - AI1-2.4 · Tier Validator: чек-лист для перевода протокола между тирами  ·  `agent-ai1-24-tier-validator.md` · 2026-08-29
 - 11 протоколов закрыты для капитала из-за отсутствия живого фида — вселенная выбора сужена, 10% кэша стоят под 0%  ·  `agent-blocked-protocols-need-live-feeds.md` · 2026-08-05
 - Сверка цикла 04.08 — первый прогон на новом коде даст БОЛЬШОЙ ребаланс, это ожидаемо (не чинить)  ·  `agent-cycle-reconciliation-2026-08-04.md` · 2026-08-03
@@ -798,6 +801,7 @@
 - Поле gsm_hours не производит ни один агент — GSM-гейт двух адаптеров невозможно пройти в принципе  ·  `agent-gsm-hours-never-produced.md` · 2026-08-02
 ### · done
 - AI1-1.0 · Явные правила аллокации: выписаны из кода, ждут ревью владельца  ·  `agent-ai1-10-pravila-allokatsii-yavno.md` · 2026-08-29
+- AI1-2.1 · Уровни доказательности: стандарт был, не было надзора — найдено 12 заявок о том, чего не было  ·  `agent-ai1-21-standart-urovnei-dokazatelnosti.md` · 2026-08-29
 - AI1-2.3 · Критерии тиров: стандарт написан, найдено недоставленное решение владельца  ·  `agent-ai1-23-kriterii-tirov.md` · 2026-08-29
 - AUD-18 — пять доходных стратегий турнира без собственных тестов (замер показал другой пробел, чем в задании)  ·  `agent-aud18-strategy-unit-tests.md` · 2026-08-05
 - Проверка целостности резерва гонится с перегенерацией артефактов — «порча», которой нет  ·  `agent-backup-integrity-races-the-cycle.md` · 2026-08-05

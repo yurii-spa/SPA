@@ -69,14 +69,35 @@ def test_t3_excluded_but_counted(tmp_path):
 
 
 def test_evidence_tags_present(tmp_path):
+    """Наблюдённое число из фида — ровно L2, и НИКОГДА выше.
+
+    ИЗМЕНЕНО НАМЕРЕННО 2026-08-29 (инвариант 16: обоснование здесь + запись
+    в docs/journal/2026-W35.md). Тест раньше требовал ``T1 → "L4", T2 → "L3"``
+    и тем самым ЗАКРЕПЛЯЛ ложное утверждение: по каноническому стандарту
+    ``docs/37_apy_realism_and_evidence_standard.md`` **L4 = «исполнено реальным,
+    хоть и небольшим, капиталом; наблюдались проскальзывание, газ, наполнение
+    заявки»**. Реального капитала не было ни разу — система на paper-стадии.
+    Живой артефакт ``data/investment_os/stablecoin_yield.json`` носил ``L4``
+    на числах из публичного API.
+
+    Проверка не ослаблена, а УСИЛЕНА: раньше допускалась пара значений и
+    связь уровня с ТИРОМ (разные оси — тир про риск протокола, уровень про
+    зрелость нашего знания); теперь требуется точное L2 И отдельно
+    запрещается любое L4+, чего старый тест не проверял вовсе.
+    """
     a = StablecoinYieldAgent(ranking_path=_ranking(tmp_path), data_dir=tmp_path)
     picks = a.analyze()["top_stablecoin_yields"]
+    assert picks, "без выборок проверка была бы вакуумной"
     for p in picks:
-        assert p["evidence_level"] in ("L3", "L4")
+        assert p["evidence_level"] == "L2", (
+            f"{p['value'].get('protocol')}: наблюдённое число из фида — это L2 "
+            "(«источник тянется нашим кодом, проверен по схеме и свежести»)")
         assert "apy_ranking.json" in p["source"]
-    # T1 → L4, T2 → L3
+    # Уровень НЕ зависит от тира: T1 и T2 получают одно и то же.
     by_proto = {p["value"]["protocol"]: p["evidence_level"] for p in picks}
-    assert by_proto["aave_usdc"] == "L4" and by_proto["morpho_usdc"] == "L3"
+    assert by_proto["aave_usdc"] == by_proto["morpho_usdc"] == "L2"
+    # Класс запрета целиком: заявка об исполнении капиталом до go-live невозможна.
+    assert not [p for p in picks if p["evidence_level"] in ("L4", "L5", "L6")]
 
 
 def test_missing_feed_is_unknown(tmp_path):

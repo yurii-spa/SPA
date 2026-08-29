@@ -95,10 +95,31 @@ def _unobserved_reason(row: dict) -> Optional[str]:
     return f"apy_provenance_unchecked ({src})"
 
 
-def _evidence_level_for_tier(tier: str) -> str:
-    # Feed APYs are live external (DeFiLlama-derived), not our own evidenced track (that would be L6).
-    # T1 conservative pools = L4 (live external, held-eligible); T2 = L3 (live external, advisory).
-    return "L4" if tier == "T1" else "L3"
+def _evidence_level_for_observed_feed(tier: str) -> str:
+    """Уровень доказательности для наблюдённого числа из фида — всегда **L2**.
+
+    Канон уровней — ``docs/37_apy_realism_and_evidence_standard.md`` (переопределять
+    их запрещено самим документом). L2 там: «источник данных воспроизводимо тянется
+    НАШИМ кодом, проверен по схеме и по свежести» — это ровно то, чем является строка
+    ``data/apy_ranking.json``, и ровно то, что мы можем доказать.
+
+    Раньше здесь стояло ``"L4" if tier == "T1" else "L3"``, и это было ДВЕ ошибки сразу.
+
+    1. **L4 по канону — «исполнено реальным, хоть и небольшим, капиталом; наблюдались
+       проскальзывание, газ, наполнение заявки».** Реального капитала не было ни разу:
+       система на paper-стадии, внешний капитал закрыт до legal-clearance (инвариант 8).
+       Живой артефакт ``data/investment_os/stablecoin_yield.json`` носил ``L4`` на числах,
+       пришедших из публичного API и не торговавшихся никогда. Правило 2 документа 37
+       («никогда не называть paper проверенным или live-tested») нарушалось в коде.
+    2. **Уровень выводился из ТИРА.** Тир — оценка риска протокола, уровень — зрелость
+       нашего ЗНАНИЯ о числе. Это разные оси: T1 не делает наблюдение доказаннее, а T2 —
+       слабее. Из «протокол надёжный» не следует «мы это торговали».
+
+    Выше L2 это число подняться не может, пока за ним не встанет наш собственный трек
+    (L3 — paper-tracked) или реальное исполнение (L4+). Ниже — может: строка, чьё APY
+    не наблюдалось, до сюда не доходит, её отсеивает ``_refusal_reason``.
+    """
+    return "L2"
 
 
 class StablecoinYieldAgent(ProductAgent):
@@ -159,7 +180,7 @@ class StablecoinYieldAgent(ProductAgent):
                     "risk_score": r.get("risk_score"),
                     "tvl_usd": r.get("tvl_usd"),
                 },
-                _evidence_level_for_tier(tier),
+                _evidence_level_for_observed_feed(tier),
                 "data/apy_ranking.json (live cycle · DeFiLlama-derived)",
                 last_verified=r.get("last_updated"),
             ))
