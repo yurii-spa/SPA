@@ -172,20 +172,31 @@ class TestLoad:
         d = write_status_json(tmp_path, BASE_STATUS)
         agg = APYAggregator.load(d)
         protocols = {s.protocol for s in agg.snapshots()}
-        assert "morpho-blue-steakhouse" in protocols
+        # ИЗМЕНЕНО НАМЕРЕННО 2026-08-29 (инвариант 16: обоснование здесь + журнал).
+        # Тест закреплял СЛАГ-ключ. Тот же протокол приходил и из ``adapters``
+        # под каноническим именем, дедуп сравнивал сырые строки и пару не
+        # схлопывал: 33 строки при 30 протоколах, а `by_apy` читают три
+        # потребителя без фильтра по провенансу. Ключ приводится к каноническому.
+        assert "morpho_steakhouse" in protocols
+        assert "morpho-blue-steakhouse" not in protocols
 
     def test_load_morpho_apy_from_bps_gain(self, tmp_path):
         """APY Morpho вычисляется из bps_gain: 3.2 + 200/100 = 5.2."""
         d = write_status_json(tmp_path, BASE_STATUS)
         agg = APYAggregator.load(d)
-        morpho = next(s for s in agg.snapshots() if s.protocol == "morpho-blue-steakhouse")
+        morpho = next(s for s in agg.snapshots() if s.protocol == "morpho_steakhouse")
         assert abs(morpho.apy_pct - 5.2) < 1e-9
 
     def test_load_aave_arbitrum_snapshot(self, tmp_path):
         """Aave Arbitrum создаёт отдельный снимок с network=arbitrum."""
         d = write_status_json(tmp_path, BASE_STATUS)
         agg = APYAggregator.load(d)
-        arb = next((s for s in agg.snapshots() if s.protocol == "aave-v3-arbitrum"), None)
+        # ИЗМЕНЕНО НАМЕРЕННО 2026-08-29 (инвариант 16: обоснование здесь + журнал).
+        # Тест закреплял СЛАГ-ключ. Тот же протокол приходил и из ``adapters``
+        # под каноническим именем, дедуп сравнивал сырые строки и пару не
+        # схлопывал: 33 строки при 30 протоколах, а `by_apy` читают три
+        # потребителя без фильтра по провенансу. Ключ приводится к каноническому.
+        arb = next((s for s in agg.snapshots() if s.protocol == "aave_arbitrum"), None)
         assert arb is not None
         assert arb.network == "arbitrum"
         assert arb.apy_pct == 4.1

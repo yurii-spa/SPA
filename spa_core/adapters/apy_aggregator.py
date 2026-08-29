@@ -95,6 +95,32 @@ OBSERVED_APY_SOURCES = frozenset({APY_SOURCE_LIVE})
 # Вспомогательные функции (приватные)
 # ---------------------------------------------------------------------------
 
+def _canonical_key(name: str) -> str:
+    """Слаг DeFiLlama → канонический ключ реестра; иначе имя как есть.
+
+    Секции 2–4 ниже кладут строку под СВОИМ написанием ключа
+    (``morpho-blue-steakhouse``, ``aave-v3-arbitrum``, ``pendle-pt``), а те же
+    протоколы уже пришли из ``adapters`` под каноническими именами. Дедуп
+    сравнивал сырые строки и пару не схлопывал — в ранжировании оказывалось
+    33 строки при 30 протоколах.
+
+    Замер 2026-08-29, почему это не косметика: `by_apy` читают ТРИ потребителя
+    (`risk_budget`, `capital_efficiency`, `_apy_series`), и НИ ОДИН не фильтрует
+    по провенансу. Дубль `pendle-pt` с литералом 8.0 % входил в их расчёты
+    вторым экземпляром протокола, настоящее наблюдение по которому — 4.70 %.
+
+    Таблица соответствий не заводится здесь заново: она уже есть в
+    ``adapters.tier_map._ALIASES`` — единственный дом для слаг→ключ.
+    Импорт локальный: пакет ``spa_core.adapters`` собирает реестр на импорте.
+    """
+    try:
+        from spa_core.adapters.tier_map import _ALIASES
+    except Exception:  # noqa: BLE001 — карта недоступна ⇒ имя как есть
+        return name
+    target = _ALIASES.get(str(name).strip().lower())
+    return target[0] if target else name
+
+
 def _best_apy_from_mock(mock_apy: dict) -> float:
     """Извлекает лучший (USDC-приоритетный) APY из секции mock_apy.
 
@@ -403,7 +429,7 @@ class APYAggregator:
 
             # Строим уникальный ключ для Steakhouse vault
             base_key: str = morpho.get("protocol_key", "morpho-blue")
-            morpho_key: str = base_key + "-steakhouse"
+            morpho_key: str = _canonical_key(base_key + "-steakhouse")
 
             if morpho_key not in seen_protocols:
                 snap = AdapterSnapshot(
@@ -423,7 +449,7 @@ class APYAggregator:
         # Отдельный T1-адаптер на L2; хранится в собственном ключе
         arb: dict = raw.get("aave_arbitrum", {})
         if arb:
-            arb_key = "aave-v3-arbitrum"
+            arb_key = _canonical_key("aave-v3-arbitrum")
             if arb_key not in seen_protocols:
                 tier = str(arb.get("tier", "T1"))
                 snap = AdapterSnapshot(
@@ -444,7 +470,7 @@ class APYAggregator:
         # иначе создаём снимок на основе top-level записи
         pendle: dict = raw.get("pendle_pt", {})
         if pendle:
-            pendle_key: str = str(pendle.get("protocol_key", "pendle-pt"))
+            pendle_key: str = _canonical_key(str(pendle.get("protocol_key", "pendle-pt")))
             if pendle_key not in seen_protocols:
                 tier = str(pendle.get("tier", "T2"))
                 snap = AdapterSnapshot(
