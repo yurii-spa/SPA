@@ -2,13 +2,13 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-29T00:20:58Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-29T01:25:06Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **749** · ждёт владельца: **0** · занято сессиями: **10**.
+> Всего карточек: **748** · ждёт владельца: **1** · занято сессиями: **10**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
-_Пусто — открытых решений на владельце нет._
+- **Две роли сошлись по 37 срокам годности — применять?** · _high_  ·  `own-37-primenit-37-srokov-godnosti.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
@@ -25,8 +25,10 @@ _Пусто — открытых решений на владельце нет._
 - **РЕЦИДИВ 28.08: тест судит о ХОСТЕ по литеральному pid — 98535 (siriactionsd), теперь 999 (NetFS) в test_card_claim_takeover** — держит `cycle-51123` · с 2026-08-22T08:45:00Z  ·  `inbox-test-sudit-o-hoste-literalnyi-pid-98535.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (180)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (181)
 
+### · needs-owner
+- Две роли сошлись по 37 срокам годности — применять?  ·  `own-37-primenit-37-srokov-godnosti.md` · 2026-08-29
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -209,16 +211,19 @@ _Пусто — открытых решений на владельце нет._
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (371)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (369)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
 - Храповик считает упоминание в докстринге за проводку — и это лишь одна из трёх слепот  ·  `inbox-hrapovik-schitaet-upominanie-v-dokstring.md` · 2026-08-14 · 🔒 `pid66130`
 - Храповик STATE.md снова красный на main: 164 строки при собственном пределе 150 — разовое сокращение классом не лечится  ·  `inbox-hrapovik-state-md-snova-krasnyi-na-main.md` · 2026-08-28
 - Полные прогоны мёртвой сессии продолжают жить и морят машину — третий случай за сутки, а сторож этого класса сам осиротел  ·  `inbox-polnye-progony-mertvoi-sessii-zhivut-i-morya.md` · 2026-08-28
+- Рецидив 4 находок из ОДНОГО класса: карточки моста закрываются по «источник промолчал», а причина простоя так и не названа  ·  `inbox-retsidiv-4-nahodok-iz-odnogo-klassa-kart.md` · 2026-08-28
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
 - TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
+### · backlog
+- Храповик литеральных дат снова КРАСНЫЙ на main — test_owner_order_starvation.py (приехал 26.08)  ·  `inbox-hrapovik-literalnyh-dat-snova-krasnyi-na.md` · 2026-08-27
 ### · ingested
 - Очередь владельца показывает 20 карточек из 23: три вопроса не доезжают до него из-за формы frontmatter  ·  `inbox-ochered-vladeltsa-pokazyvaet-20-kartoche.md` · 2026-08-07
 ### · done
@@ -288,7 +293,6 @@ _Пусто — открытых решений на владельце нет._
 - Гэп-анализ офиса сравнивает имена протоколов с КОРТЕЖАМИ — обе ветки мертвы, реальные возможности объявлены недостижимыми  ·  `inbox-gep-analiz-ofisa-sravnivaet-imena-protok.md` · 2026-08-12
 - Храповик литеральных дат метит ОБРАЗЦОВЫЙ паттерн: тест по преференции №1 правила (инъекция часов) не проходит сторожа  ·  `inbox-hrapovik-literalnyh-dat-metit-obraztsovy.md` · 2026-08-06
 - Храповик литеральных дат не видит даты, записанные конструктором — половина класса вне поля зрения  ·  `inbox-hrapovik-literalnyh-dat-ne-vidit-daty-za.md` · 2026-08-06
-- Храповик литеральных дат снова КРАСНЫЙ на main — test_owner_order_starvation.py (приехал 26.08)  ·  `inbox-hrapovik-literalnyh-dat-snova-krasnyi-na.md` · 2026-08-27
 - Храповик неиспользуемых импортов красный на чистом origin: 38 при потолке 36  ·  `inbox-hrapovik-neispolzuemyh-importov-krasnyi.md` · 2026-08-10
 - Храповик неподключённых скриптов не отличает мёртвый код от ручного R&D — и краснеет на честной работе  ·  `inbox-hrapovik-nepodklyuchennyh-skriptov-ne-ot.md` · 2026-08-10
 - Храповик неподключённых скриптов считает проводкой упоминание имени в тексте сообщения  ·  `inbox-hrapovik-nepodklyuchennyh-skriptov-schit-2.md` · 2026-08-16
@@ -373,7 +377,6 @@ _Пусто — открытых решений на владельце нет._
 - Раздел находок шага 0a называет автора записи её же свидетелем: also_declared_by эхом повторяет одну сессию  ·  `inbox-razdel-nahodok-shaga-0a-nazyvaet-avtora.md` · 2026-08-19
 - «red_team: CRITICAL» — это ЭХО нашей же остановки, а не находка разведки; причина нигде не названа  ·  `inbox-red-team-critical-eto-eho-ostanovki-a-ne-nahodka.md` · 2026-08-10
 - Ремонт кнопок не спрашивает источник правды: лекарство от отставшей живой копии есть, но до УЖЕ доставленного вопроса не доедет никогда  ·  `inbox-remont-knopok-ne-sprashivaet-istochnik-p.md` · 2026-08-22
-- Рецидив 4 находок из ОДНОГО класса: карточки моста закрываются по «источник промолчал», а причина простоя так и не названа  ·  `inbox-retsidiv-4-nahodok-iz-odnogo-klassa-kart.md` · 2026-08-28
 - Рецидив: сетевой страж снова краснеет ТОЛЬКО в полном прогоне (3 теста, чистый origin)  ·  `inbox-retsidiv-setevoi-strazh-snova-krasneet-t.md` · 2026-08-08
 - Ряд дней offsite-бэкапа ключуется ЛОКАЛЬНОЙ датой, а читается по UTC — между 00 и 02 UTC серия рвётся  ·  `inbox-ryad-dnei-offsite-bekapa-klyuchuetsya-lo.md` · 2026-08-09
 - Сбалансированный трек: ноль профинансированных дней из 40 при 920 отработанных циклах  ·  `inbox-sbalansirovannyi-trek-nol-profinansirova.md` · 2026-08-08
@@ -525,7 +528,6 @@ _Пусто — открытых решений на владельце нет._
 - Гейт перед установкой агента КОМПИЛИРУЕТ скрипт вместо импорта — и сказал «PASSED» про агента, который умирает при каждом запуске  ·  `inbox-geit-pered-ustanovkoi-agenta-kompiliruet.md` · 2026-08-27
 - Голый ответ владельца («1», «2») при вопросе БЕЗ вариантов молча превращается в задачу — решение не применяется  ·  `inbox-golyi-otvet-vladeltsa-1-2-pri-voprose-be.md` · 2026-08-22
 - Храповик импортов советует затянуть себя по замеру, которого не было  ·  `inbox-hrapovik-importov-sovetuet-zatyanut-seby.md` · 2026-08-17
-- Храповик литеральных дат ловит класс ТОЛЬКО после пуша — три экземпляра, каждый чинила следующая сессия  ·  `inbox-hrapovik-literalnyh-dat-lovit-klass-tolk.md` · 2026-08-28
 - Исчерпание лимитов Claude невидимо: цех молча стоит, владелец гадает «работает ли» — нужен явный сигнал «нет топлива»  ·  `inbox-ischerpanie-limitov-claude-nevidimo-tsehu.md` · 2026-08-22
 - Карточку моста закрыли руками — живая находка осиротела: мост считает её открытой и новую не заведёт  ·  `inbox-kartochku-mosta-zakryli-rukami-zhivaya-n.md` · 2026-08-17
 - Книги за прошлый день нет в архиве: дозапись исходов навсегда несёт null в позициях  ·  `inbox-knigi-za-proshlyi-den-net-v-arhive-dozap.md` · 2026-08-17
@@ -537,7 +539,6 @@ _Пусто — открытых решений на владельце нет._
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
 - Находка петли: аналитик red_team: CRITICAL — требует реакции (карточка/решение), не п  ·  `inbox-nahodka-petli-analitik-red-team-critical.md` · 2026-08-10
 - Находка петли: возможность spark_susds 3.9431% (evidence L4) доступна книге, не держи  ·  `inbox-nahodka-petli-vozmozhnost-spark-susds-3-3.md` · 2026-08-28
-- Нечитаемый rationale читается как «отказ НЕ назван» — сверка утверждает то, чего не измеряла (fail-OPEN)  ·  `inbox-nechitaemyi-rationale-chitaetsya-kak-otk.md` · 2026-08-28
 - Несостоявшаяся сверка с origin даёт код 0: list печатает уверенное число там, где не измерено ничего  ·  `inbox-nesostoyavshayasya-sverka-s-origin-daet.md` · 2026-08-27
 - Обещанная перепроверка DNS checkup осталась без исполнителя: карточку закрыли, критерий не выполнен  ·  `inbox-obeschannaya-pereproverka-dns-checkup-os.md` · 2026-08-22
 - Обязательное правило design-docs недостижимо по ссылкам — сторож связности красный на main  ·  `inbox-obyazatelnoe-pravilo-design-docs-nedostizhimo.md` · 2026-08-28
@@ -589,11 +590,10 @@ _Пусто — открытых решений на владельце нет._
 
 ## 🤖 Agent Tasks (что делает агент)  (137)
 
-### · blocked
-- Две роли по согласованию расставляют сроки годности артефактов (ADR-158)  ·  `agent-dve-roli-rasstavlyayut-sroki-godnosti.md` · 2026-08-28
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
 - Чистка репо (мёртвый код) фазами  ·  `agent-cleanup.md` · 2026-07-16
+- Две роли по согласованию расставляют сроки годности артефактов (ADR-158)  ·  `agent-dve-roli-rasstavlyayut-sroki-godnosti.md` · 2026-08-28
 - Внутридневной paper-актор: ребаланс между суточными циклами (следующий шаг ADR-104)  ·  `agent-intraday-paper-actor.md` · 2026-08-21
 - Просадку вычислить не из чего — НАРАЩИВАНИЕ запрещено (решение владельца, ADR-129)  ·  `agent-nevychislimaya-prosadka-zapret-naraschivaniya.md` · 2026-08-23 · 🔒 `interactive-session-2026-08-27`
 - Паспорт агента — обязательное поле манифеста (ADR-154)  ·  `agent-passport-obyazatelen-dlya-agenta.md` · 2026-08-27 · 🔒 `interactive-session-2026-08-28`
@@ -765,6 +765,7 @@ _Пусто — открытых решений на владельце нет._
 - Переселить 9 трекеров в слой отчётности (поток 2 own-27)  ·  `agent-relocate-trackers-to-reporting.md` · 2026-08-04
 - ПРОДОЛЖИТЬ ОТСЮДА — дорожная карта по приоритету (сессия может оборваться, работа не должна)  ·  `agent-roadmap-continue-here.md` · 2026-08-05
 - S76 угадывает единицу измерения доходности по величине числа — настоящие 0.5 % превращаются в 50 %  ·  `agent-s76-apy-unit-guess.md` · 2026-08-05
+- Аварийный портфель обходит гейты адаптеров — финансирует spark_susds, который запрещён инвариантом 10  ·  `agent-safe-fallback-bypasses-adapter-gates.md` · 2026-08-02
 - Числа на сайте и обход owner-гейта — одна причина, чинить вместе (СТАРТ после утреннего апдейта)  ·  `agent-site-numbers-and-gate.md` · 2026-08-06
 - spark_susds наблюдает чужой инструмент (sparklend lending vs sUSDS vault) — развести идентичности до допуска Sky  ·  `agent-spark-susds-identity-split.md` · 2026-08-05
 - Тесты ходят в живую сеть (Telegram + аналитика) — полный набор не проходит целиком, когда сеть медленная  ·  `agent-tests-do-live-network-io.md` · 2026-08-02
@@ -795,7 +796,6 @@ _Пусто — открытых решений на владельце нет._
 - Пути состояния вычисляются на ИМПОРТЕ — под изоляцией они прибиваются к песочнице ОДНОГО случайного теста  ·  `agent-puti-sostoyaniya-vychislyayutsya-na-impo.md` · 2026-08-27
 - У реестра агентов нет продюсера — он протух на 475 часов и никто не заметил  ·  `agent-registry-has-no-producer.md` · 2026-08-05
 - Учение по восстановлению проверяет ОДИН архив из двух серий — умерший производитель бэкапов останется невидим за зелёным all_ok  ·  `agent-restore-drill-single-series-blind.md` · 2026-08-05
-- Аварийный портфель обходит гейты адаптеров — финансирует spark_susds, который запрещён инвариантом 10  ·  `agent-safe-fallback-bypasses-adapter-gates.md` · 2026-08-02
 - Дыра в треке разобрана — не 14 дней, а 2; сторож дыр был слеп по построению  ·  `agent-track-hole-rootcause.md` · 2026-08-05
 - Проверка порога TVL в 11 адаптерах тождественно истинна — считается от зашитой константы  ·  `agent-tvl-floor-constant-true.md` · 2026-08-05
 - TVL-floor проходят по литералу $50M — правило «только живой TVL» ссылается на поле, которого никто не пишет  ·  `agent-tvl-floor-passes-on-literals.md` · 2026-08-02

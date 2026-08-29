@@ -80,7 +80,7 @@
     "goal": "Агрегирует сигналы аналитических модулей (ADR-031).",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/analytics_report_full.json, data/analytics_signals_advisory.json",
     "limits": "не импортирует execution"
    }
   },
@@ -103,7 +103,7 @@
     "goal": "Агрегирует сигналы аналитических модулей (ADR-031).",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/analytics_report_full.json, data/analytics_signals_advisory.json",
     "limits": "не импортирует execution"
    }
   },
@@ -126,7 +126,7 @@
     "goal": "SPA FastAPI server — real-time data API (v0.17).",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/interest.jsonl, data/pilot_requests.jsonl, data/site_analytics.jsonl",
     "limits": "не импортирует execution"
    }
   },
@@ -179,7 +179,7 @@
     "goal": "SPA Artifact Freshness Registry — single source of truth for \"what must stay fresh\".",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/artifact_freshness.json",
     "limits": "LLM запрещён; не импортирует execution"
    }
   },
@@ -248,7 +248,7 @@
     "goal": "spa_core/monitoring/base_gas_monitor.py ======================================== Base chain gas price monitor — ADR-025 kill-switch condition.",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/base_gas_history.json",
     "limits": "LLM запрещён; не импортирует execution"
    }
   },
@@ -304,7 +304,7 @@
     "goal": "BTS Feed Runner — LaunchAgent entry point for perp_funding_feed.",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/perp_funding_rates.json",
     "limits": "не импортирует execution"
    }
   },
@@ -327,7 +327,7 @@
     "goal": "LaunchAgent runner for BTS Monitor.",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/basis_trade_opportunities.json",
     "limits": "не импортирует execution"
    }
   },
@@ -513,7 +513,7 @@
     "goal": "spa_core/monitoring/cycle_health_monitor.py ============================================ Monitors paper trading cycle health (MP-cycle-health).",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/cycle_health.json",
     "limits": "LLM запрещён; не импортирует execution"
    }
   },
@@ -707,7 +707,7 @@
     "goal": "spa_core/dfb/paper_dfb.py — WS-1.5: the DFB daily capture AGENT entrypoint (one tick).",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/dfb/pools.json",
     "limits": "LLM запрещён; не импортирует execution"
    }
   },
@@ -730,7 +730,7 @@
     "goal": "spa_core/telegram/reports/daily.py — THE one daily digest (Tier 2).",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/telegram_alert_state.json",
     "limits": "advisory — капитал не двигает; не импортирует execution"
    }
   },
@@ -776,7 +776,7 @@
     "goal": "FastAPI app factory для Family Fund Investor Cabinet.",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/investors.json",
     "limits": "не импортирует execution"
    }
   },
@@ -822,7 +822,7 @@
     "goal": "Go-live freshness cycle — the body of com.spa.golive_freshness (Q1-11).",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/golive_freshness.json",
     "limits": "advisory — капитал не двигает"
    }
   },
@@ -845,7 +845,7 @@
     "goal": "Governance Watcher — FEAT-MON-002 (Sprint v3.18).",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/governance_proposals.json",
     "limits": "не импортирует execution"
    }
   },
@@ -868,7 +868,7 @@
     "goal": "Engine B (HY/Carry) paper trading cycle — EPIC-1 S1.3.",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/hy_paper_trading.json",
     "limits": "LLM запрещён; не импортирует execution"
    }
   },
@@ -1331,7 +1331,7 @@
     "goal": "Engine C (LP/Liquidity) paper trading cycle — EPIC-2 S2.2.",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/lp_paper_trading.json",
     "limits": "LLM запрещён; не импортирует execution"
    }
   },
@@ -1524,7 +1524,7 @@
     "goal": "Portfolio drift monitoring module for SPA (MP-578).",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/monitor_snapshots.json, data/portfolio_health.json",
     "limits": "не импортирует execution"
    }
   },
@@ -1547,7 +1547,7 @@
     "goal": "spa_core/strategy_lab/rates_desk/paper_rates.py — LIVE paper-trading service for the rates-desk FixedCarry sleeve (the VALIDATED one).",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/rates_desk/paper/rates_desk_fixed_carry_series.json, data/rates_desk/paper/rates_desk_fixed_carry_state.json, data/rates_desk/paper/status.json",
     "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
    }
   },
@@ -1570,7 +1570,7 @@
     "goal": "spa_core/strategy_lab/rates_desk/paper_realized_at_size.py — Lane B B2.6: the STANDING forward-measurement agent for the realized-at-size killer test.",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/rates_desk/paper/realized_at_size_track.jsonl, data/rates_desk/realized_at_size.json",
     "limits": "LLM запрещён; не импортирует execution"
    }
   },
@@ -1616,7 +1616,7 @@
     "goal": "Red Flag Monitor — FEAT-MON-001 (Sprint v3.16).",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/red_flags.json",
     "limits": "не импортирует execution"
    }
   },
@@ -1639,7 +1639,7 @@
     "goal": "spa_core/redteam/rotation.py — the rotating red-team scheduler + the hash-ANCHORED report.",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/redteam_status.json",
     "limits": "LLM запрещён; не импортирует execution"
    }
   },
@@ -1662,7 +1662,7 @@
     "goal": "spa_core/strategy_lab/rates_desk/refusal_engine.py — PRODUCTION advisory refusal engine.",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/refusal_status.json",
     "limits": "LLM запрещён; не импортирует execution"
    }
   },
@@ -1685,7 +1685,7 @@
     "goal": "Resilience cycle — the body of com.spa.resilience.",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/dr_offsite_status.json, data/fleet_drill_status.json, data/restore_drill_status.json",
     "limits": "не импортирует execution"
    }
   },
@@ -1708,7 +1708,7 @@
     "goal": "spa_core/monitoring/rtmr_service.py — RTMR (ADR-053) sense+emergency service entrypoint.",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/monitoring/signals/latest.json",
     "limits": "LLM запрещён; не импортирует execution"
    }
   },
@@ -1838,7 +1838,7 @@
     "goal": "Sky/sUSDS GSM Pause Delay Monitor.",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/sky_status.json, data/sky_upgrade_needed.json",
     "limits": "не импортирует execution"
    }
   },
@@ -1891,7 +1891,7 @@
     "goal": "scripts/strategy_lab_paper.py — the ONE-COMMAND CLI for the Strategy-Lab live paper service.",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/strategy_lab_paper/kills.jsonl, data/strategy_lab_paper/status.json",
     "limits": "LLM запрещён; не импортирует execution"
    }
   },
@@ -1914,7 +1914,7 @@
     "goal": "Swarm block 2 — the FORWARD 3-desk blend paper portfolio (validated idea #3 made live).",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/swarm/blend_forward.json",
     "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
    }
   },
@@ -1962,7 +1962,7 @@
     "goal": "FORWARD paper book for the dwell-hysteresis latch (registry idea #36's control).",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/swarm/dwell_hysteresis_status.json",
     "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
    }
   },
@@ -1985,7 +1985,7 @@
     "goal": "Swarm block 1 — L2 position guardians on the LIVE aggressive_lab forward paper track.",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/swarm/guardian_forward.json",
     "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
    }
   },
@@ -2160,7 +2160,7 @@
     "goal": "SPA Telegram Bot v2.1.",
     "quality_metric": "",
     "escalation": "",
-    "rights": "",
+    "rights": "писать data/kill_switch_active.json, data/tg_bot_v2_offset.json",
     "limits": "не импортирует execution"
    }
   },

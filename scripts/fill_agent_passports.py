@@ -239,6 +239,31 @@ def escalation_from_code(module: str | None, entry: dict) -> str:
     return ""
 
 
+def _declared_artifacts(module: str | None) -> list[str]:
+    """`PRODUCES` из модуля агента. Читается РАЗБОРОМ (импорт исполнил бы агента).
+
+    Зачем: 28.08 объявления довели до 71 агента из 72, но паспорта не сдвинулись с 26 —
+    заполнитель читал только манифест и про объявления в коде не знал. Одно знание,
+    два учёта: «71 из 72» звучало как «почти готово», пока паспорт стоял на 26.
+    Пустой кортеж (`PRODUCES = ()`) — это ОТВЕТ «ничего не произвожу», и прав на запись
+    он не даёт; None (объявления нет) — тоже пусто, но по другой причине.
+    """
+    if not module:
+        return []
+    try:
+        sys.path.insert(0, str(REPO))
+        from spa_core.monitoring.artifact_contract import declared_produces
+    except Exception:                                    # noqa: BLE001
+        return []                                        # нет модуля сверки — прав не выдумываем
+    f = _module_file(module)
+    if not f:
+        return []
+    try:
+        return list(declared_produces(f) or [])
+    except Exception:                                    # noqa: BLE001
+        return []
+
+
 def rights_from_manifest(module: str | None, entry: dict) -> str:
     """Что агенту МОЖНО — выведено из фактов манифеста/кода, не из пожеланий.
 
@@ -247,6 +272,12 @@ def rights_from_manifest(module: str | None, entry: dict) -> str:
     """
     parts: list[str] = []
     arts = [p.get("artifact") for p in (entry.get("produces") or []) if p.get("artifact")]
+    if not arts:
+        # Манифест молчит — спрашиваем ОБЪЯВЛЕНИЕ агента о себе (`PRODUCES`, ADR-158).
+        # Порядок именно такой: курированный манифест старше, объявление лишь
+        # закрывает пробел. Так у прав не может появиться регрессия из-за нового
+        # источника — тот же порядок, что спас `module_of` от потери 12 целей.
+        arts = _declared_artifacts(module)
     if arts:
         shown = ", ".join(arts[:3]) + (" …" if len(arts) > 3 else "")
         parts.append(f"писать {shown}")
