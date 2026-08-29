@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-29T15:54:08Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-29T16:11:27Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
 > Всего карточек: **782** · ждёт владельца: **7** · занято сессиями: **8**.
 
@@ -763,7 +763,6 @@
 ## agent  (71)
 
 ### · blocked
-- AI1-1.1 · Allocation Auditor: доставлен, в дневной цикл НЕ подключён  ·  `agent-ai1-11-allocation-auditor.md` · 2026-08-29
 - AI1-3.1 · Rebalance Engine (только план, без исполнения)  ·  `agent-ai1-31-rebalance-engine-dry-run.md` · 2026-08-29
 - Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать  ·  `agent-fleet-parity-guard-never-scheduled.md` · 2026-08-05
 ### · in-progress
@@ -811,6 +810,7 @@
 - Поле gsm_hours не производит ни один агент — GSM-гейт двух адаптеров невозможно пройти в принципе  ·  `agent-gsm-hours-never-produced.md` · 2026-08-02
 ### · done
 - AI1-1.0 · Явные правила аллокации: выписаны из кода, ждут ревью владельца  ·  `agent-ai1-10-pravila-allokatsii-yavno.md` · 2026-08-29
+- AI1-1.1 · Allocation Auditor: доставлен и подключён к дневному циклу  ·  `agent-ai1-11-allocation-auditor.md` · 2026-08-29
 - AI1-2.1 · Уровни доказательности: стандарт был, не было надзора — найдено 12 заявок о том, чего не было  ·  `agent-ai1-21-standart-urovnei-dokazatelnosti.md` · 2026-08-29
 - AI1-2.2 · APY Evidencer доставлен: треть чисел ранжирования нельзя показывать, и весь топ по доходности — литералы  ·  `agent-ai1-22-apy-evidencer.md` · 2026-08-29
 - AI1-2.3 · Критерии тиров: стандарт написан, найдено недоставленное решение владельца  ·  `agent-ai1-23-kriterii-tirov.md` · 2026-08-29
