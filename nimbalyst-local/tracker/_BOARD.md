@@ -2,17 +2,17 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-29T12:57:04Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-29T13:21:32Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **769** · ждёт владельца: **6** · занято сессиями: **10**.
+> Всего карточек: **774** · ждёт владельца: **6** · занято сессиями: **10**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x**  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md`
 - **Правила вложений записаны на бумаге, проверяющий уже нашёл три расхождения — нужны твои ответы** · _high_  ·  `owner-decision-AI1-approach-2026-08-29.md`
-- **Ветку откатили на 1249 коммитов — нужна одна команда от тебя, чтобы вернуть** · _high_  ·  `owner-decision-otkat-vetki-1249-kommitov-2026-08-29.md`
 - **Security-скан risk-гейта нашёл два расхождения между ADR и реальным кодом: оси риска не подключены, тир протокола не сверяется** · _high_  ·  `owner-decision-security-skan-risk-geita-nashel-dva-rash.md`
 - **Твоё решение от 7 августа доехало не везде: один протокол до сих пор числится не тем тиром** · _high_  ·  `owner-decision-tier-steakhouse-2026-08-29.md`
+- **Твоё решение от 10 августа про Morpho Steakhouse не действует в коде: потолок 40 % вместо 20 %**  ·  `owner-decision-tvoe-reshenie-ot-10-avgusta-pro-morpho-s.md`
 - **Одиннадцать мест в коде утверждают, что мы торговали реальными деньгами. Мы не торговали** · _high_  ·  `owner-decision-urovni-dokazatelnosti-2026-08-29.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
@@ -30,13 +30,13 @@
 - **РЕЦИДИВ 28.08: тест судит о ХОСТЕ по литеральному pid — 98535 (siriactionsd), теперь 999 (NetFS) в test_card_claim_takeover** — держит `cycle-51123` · с 2026-08-22T08:45:00Z  ·  `inbox-test-sudit-o-hoste-literalnyi-pid-98535.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (186)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (187)
 
 ### · needs-owner
 - Правила вложений записаны на бумаге, проверяющий уже нашёл три расхождения — нужны твои ответы  ·  `owner-decision-AI1-approach-2026-08-29.md` · 2026-08-29
-- Ветку откатили на 1249 коммитов — нужна одна команда от тебя, чтобы вернуть  ·  `owner-decision-otkat-vetki-1249-kommitov-2026-08-29.md` · 2026-08-29
 - Security-скан risk-гейта нашёл два расхождения между ADR и реальным кодом: оси риска не подключены, тир протокола не сверяется  ·  `owner-decision-security-skan-risk-geita-nashel-dva-rash.md` · 2026-08-29
 - Твоё решение от 7 августа доехало не везде: один протокол до сих пор числится не тем тиром  ·  `owner-decision-tier-steakhouse-2026-08-29.md` · 2026-08-29
+- Твоё решение от 10 августа про Morpho Steakhouse не действует в коде: потолок 40 % вместо 20 %  ·  `owner-decision-tvoe-reshenie-ot-10-avgusta-pro-morpho-s.md` · 2026-08-29
 - Одиннадцать мест в коде утверждают, что мы торговали реальными деньгами. Мы не торговали  ·  `owner-decision-urovni-dokazatelnosti-2026-08-29.md` · 2026-08-29
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
@@ -159,6 +159,7 @@
 - Общая память проекта стирается пушем из рабочей копии на маке — сегодня так пропало 1729 строк истории  ·  `owner-decision-obschaya-pamyat-stiraetsya-pushem-iz-rabo.md` · 2026-08-02
 - Отчёт готовности говорит «ГОТОВЫ», хотя трек не добран (26/30) — публичный API противоречит сам себе  ·  `owner-decision-otchet-gotovnosti-govorit-gotovy-hotya-t.md` · 2026-07-17
 - Отчёт «эту карточку я НЕ беру» больше не считается захватом — подтверди или откати  ·  `owner-decision-otchet-o-zanyatosti-kartochki-bolshe-ne-sc.md` · 2026-08-01
+- СНЯТО ЗАМЕРОМ: ветку уже вернули без тебя — команду из этой карточки выполнять НЕЛЬЗЯ  ·  `owner-decision-otkat-vetki-1249-kommitov-2026-08-29.md` · 2026-08-29
 - Переспрашиваю: судьба сторожа telegram_watcher — твой ответ 15.08 потерялся вместе с закрытой веткой  ·  `owner-decision-peresprashivayu-sudba-storozha-telegram.md` · 2026-08-21
 - Перезапустить сторожа реального времени, чтобы починка начала работать (одна команда)  ·  `owner-decision-perezapustit-storozha-realnogo-vremeni-c.md` · 2026-08-02
 - Поиск новых протоколов не идёт: программу, которая его делает, никто не запускает  ·  `owner-decision-poisk-novyh-protokolov-ne-idet-programmu.md` · 2026-08-18
@@ -221,7 +222,7 @@
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (377)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (381)
 
 ### · needs-owner
 - Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md` · 2026-08-29
@@ -563,11 +564,13 @@
 - Окно до 6 часов: ответ владельца между нажатием кнопки и прогоном моста живёт в одном экземпляре  ·  `inbox-okno-do-6-chasov-otvet-vladeltsa-mezhdu.md` · 2026-08-15
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08
 - Остатки инжеста 21.08: гейт доказанности APY в аварийной книге и якорь архива исходов — сначала ЗАМЕР  ·  `inbox-ostatki-inzhesta-21-08-geit-dokazannosti.md` · 2026-08-21
+- Отбор лучших восьми протоколов не бережёт T1-якорь: два хороших кандидата вместе ухудшают книгу  ·  `inbox-otbor-luchshih-vosmi-protokolov-ne-berez.md` · 2026-08-29
 - ОТЛОЖЕНО · Looping Strategy «до +50%» — отдельный трек, вернуться после расчистки бэклога  ·  `inbox-otlozheno-looping-strategy-do-50-otdelny.md` · 2026-08-23
 - Оживить фиды вне Ethereum — путь к снятию остатка кэша (решение владельца 08.08)  ·  `inbox-ozhivit-fidy-vne-ethereum-put-k-snyatiyu.md` · 2026-08-08
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
 - Перемерить записи #35–#76 после починки курса (вторая половина варианта 1, ADR-139)  ·  `inbox-peremerit-zapisi-35-76-posle-pochinki-ku.md` · 2026-08-26
 - Перепись 18 статических адаптеров: где литерал, где живой пул и сколько там доходности  ·  `inbox-perepis-18-staticheskih-adapterov.md` · 2026-08-29
+- Перепись закончена: опрошены все 36 адаптеров своими фидами — доступная доходность из нашего набора исчерпана, кроме трёх статических меток  ·  `inbox-perepis-zakonchena-oprosheny-vse-36-adap.md` · 2026-08-29
 - Починить писателей живого data/ по карте замера — класс обнесён храповиком, но не закрыт  ·  `inbox-pochinit-pisatelei-zhivogo-data-po-karte.md` · 2026-08-23
 - Под ключом stusd объявлены ДВА разных контракта с одинаковым vanity-префиксом — проверить on-chain  ·  `inbox-pod-klyuchom-stusd-obyavleny-dva-raznyh.md` · 2026-08-18
 - Подготовить ADR: пересмотр лимита одной цепочки 90% (решение владельца — за ним)  ·  `inbox-podgotovit-adr-peresmotr-limita-odnoi-ts.md` · 2026-08-08
@@ -584,6 +587,7 @@
 - Сессия теряет доступ на ЧТЕНИЕ прод-дерева, а запись продолжает работать — второй случай из двух аудитов  ·  `inbox-sessiya-teryaet-dostup-na-chtenie-prod-de.md` · 2026-08-26
 - Шаг 0a МОЛЧИТ о дереве по живому якорю-хосту — так 28.08 была скрыта недоставленная работа  ·  `inbox-shag-0a-molchit-o-dereve-po-zhivomu-yako.md` · 2026-08-28
 - Шаг 0a зовёт поднять файл, который в прод-дереве ОТСТАЁТ на 1672 строки — подъём стёр бы 14 записей реестра  ·  `inbox-shag-0a-zovet-podnyat-fail-kotoryi-v-pro.md` · 2026-08-21
+- Шаг 1б читает предупреждение «не действовать без #promote» как сам #promote — ложное разрешение исполнить идею  ·  `inbox-shag-1b-chitaet-preduprezhdenie-ne-deist.md` · 2026-08-29
 - Шторм повторов одного решения владельцу (200+ копий за ночь) — анти-шторм доставлен, корень (слепой предикат «отправлено») остаётся  ·  `inbox-shtorm-povtorov-odnogo-resheniya-vladeltsu.md` · 2026-08-20
 - Шторм решений ПРОДОЛЖАЕТСЯ после анти-шторма: карточки живут ТОЛЬКО в хост-дереве, заголовок дрейфует → дубли, владелец измотан  ·  `inbox-shtorm-prodolzhaetsya-kartochki-tolko-v-host-dereve.md` · 2026-08-20
 - Скан кандидатов работает каждый цикл по реестру, которого никто не пишет: discovery не подключён ни одним агентом  ·  `inbox-skan-kandidatov-rabotaet-kazhdyi-tsikl-p.md` · 2026-08-18
@@ -593,6 +597,7 @@
 - Смена номинации ПОЗИЦИЙ как единственный рычаг против депега своего же кэша (решение владельца 22.08, вариант 3)  ·  `inbox-smena-nominatsii-pozitsii-kak-edinstvenn.md` · 2026-08-22
 - Снять переходное послабление маячка: решения обязаны гейтиться СВОИМ умением  ·  `inbox-snyat-perehodnoe-poslablenie-mayachka-re.md` · 2026-08-17
 - Сторож «способен ли флот стартовать» никем не запускается — у deployment_acceptance нет ни расписания, ни артефакта  ·  `inbox-storozh-sposoben-li-flot-startovat-nikem.md` · 2026-08-29
+- Сторож вопросов владельцу не измеряет, ЖИВ ЛИ ещё вопрос — и звал отправить команду, ставшую разрушительной  ·  `inbox-storozh-voprosov-vladeltsu-ne-izmeryaet.md` · 2026-08-29
 - Строка Risk Gate дневного лимита убытка жила только в отключённом скрипте — в отчёт владельцу она не переехала  ·  `inbox-stroka-risk-gate-dnevnogo-limita-ubytka.md` · 2026-08-14
 - Табличка честности: дать ей дорогу на сайт (решение владельца 09.08)  ·  `inbox-tablichka-chestnosti-dat-ei-dorogu-na-sa.md` · 2026-08-08
 - РЕЦИДИВ 28.08: тест судит о ХОСТЕ по литеральному pid — 98535 (siriactionsd), теперь 999 (NetFS) в test_card_claim_takeover  ·  `inbox-test-sudit-o-hoste-literalnyi-pid-98535.md` · 2026-08-22 · 🔒 `cycle-51123`
