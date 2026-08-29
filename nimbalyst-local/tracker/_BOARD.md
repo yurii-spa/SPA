@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-29T14:39:31Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-29T14:46:46Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **779** · ждёт владельца: **6** · занято сессиями: **10**.
+> Всего карточек: **781** · ждёт владельца: **8** · занято сессиями: **8**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -12,6 +12,8 @@
 - **Правила вложений записаны на бумаге, проверяющий уже нашёл три расхождения — нужны твои ответы** · _high_  ·  `owner-decision-AI1-approach-2026-08-29.md`
 - **Партия 2 карантина: кандидатов четыре, и по ним у меня разные рекомендации**  ·  `owner-decision-partiya-2-karantina-kandidatov-chetyre-i.md`
 - **Security-скан risk-гейта нашёл два расхождения между ADR и реальным кодом: оси риска не подключены, тир протокола не сверяется** · _high_  ·  `owner-decision-security-skan-risk-geita-nashel-dva-rash.md`
+- **Tier-B: 84 модуля отвечают одинаково даже несуществующему протоколу — списать?**  ·  `owner-decision-tier-b-84-modulya-otvechayut-odinakovo-d.md`
+- **Tier-B: ещё 82 модуля различий не показали — списать или заморозить?**  ·  `owner-decision-tier-b-esche-82-modulya-razlichii-ne-pok.md`
 - **Твоё решение от 10 августа про Morpho Steakhouse не действует в коде: потолок 40 % вместо 20 %**  ·  `owner-decision-tvoe-reshenie-ot-10-avgusta-pro-morpho-s.md`
 - **Одиннадцать мест в коде утверждают, что мы торговали реальными деньгами. Мы не торговали** · _high_  ·  `owner-decision-urovni-dokazatelnosti-2026-08-29.md`
 
@@ -19,23 +21,23 @@
 
 > Ставится `scripts/check_card_claim.py claim`, снимается `release` (и не действует после `done`/`ingested`). Перед взятием карточки — `check_card_claim.py check <карточка>`.
 
-- **Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать** — держит `cycle-28258` · с 2026-08-05T12:28:28Z  ·  `agent-fleet-parity-guard-never-scheduled.md`
 - **Просадку вычислить не из чего — НАРАЩИВАНИЕ запрещено (решение владельца, ADR-129)** — держит `interactive-session-2026-08-27`  ·  `agent-nevychislimaya-prosadka-zapret-naraschivaniya.md`
 - **Паспорт агента — обязательное поле манифеста (ADR-154)** — держит `interactive-session-2026-08-28`  ·  `agent-passport-obyazatelen-dlya-agenta.md`
 - **ДОРОЖНАЯ КАРТА ADR-154 — контракты раньше оркестрации (все задачи, чтобы не потерять)** — держит `interactive-session-2026-08-27`  ·  `agent-roadmap-adr154-contracts.md`
 - **а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…** — держит `pid43119` · с 2026-08-14T11:52:34Z  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md`
 - **Храповик считает упоминание в докстринге за проводку — и это лишь одна из трёх слепот** — держит `pid66130` · с 2026-08-16T03:49:44Z  ·  `inbox-hrapovik-schitaet-upominanie-v-dokstring.md`
 - **Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения** — держит `cycle-352` · с 2026-08-23T03:25:59Z  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md`
-- **Разобрать 52 карточки с ветки work-status-check, потом удалить ветку (решение владельца 20.08, вариант 1)** — держит `pid85035` · с 2026-08-25T00:20:38Z  ·  `inbox-razobrat-52-kartochki-s-vetki-work-statu.md`
 - **РЕЦИДИВ 28.08: тест судит о ХОСТЕ по литеральному pid — 98535 (siriactionsd), теперь 999 (NetFS) в test_card_claim_takeover** — держит `cycle-51123` · с 2026-08-22T08:45:00Z  ·  `inbox-test-sudit-o-hoste-literalnyi-pid-98535.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (188)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (190)
 
 ### · needs-owner
 - Правила вложений записаны на бумаге, проверяющий уже нашёл три расхождения — нужны твои ответы  ·  `owner-decision-AI1-approach-2026-08-29.md` · 2026-08-29
 - Партия 2 карантина: кандидатов четыре, и по ним у меня разные рекомендации  ·  `owner-decision-partiya-2-karantina-kandidatov-chetyre-i.md` · 2026-08-29
 - Security-скан risk-гейта нашёл два расхождения между ADR и реальным кодом: оси риска не подключены, тир протокола не сверяется  ·  `owner-decision-security-skan-risk-geita-nashel-dva-rash.md` · 2026-08-29
+- Tier-B: 84 модуля отвечают одинаково даже несуществующему протоколу — списать?  ·  `owner-decision-tier-b-84-modulya-otvechayut-odinakovo-d.md` · 2026-08-29
+- Tier-B: ещё 82 модуля различий не показали — списать или заморозить?  ·  `owner-decision-tier-b-esche-82-modulya-razlichii-ne-pok.md` · 2026-08-29
 - Твоё решение от 10 августа про Morpho Steakhouse не действует в коде: потолок 40 % вместо 20 %  ·  `owner-decision-tvoe-reshenie-ot-10-avgusta-pro-morpho-s.md` · 2026-08-29
 - Одиннадцать мест в коде утверждают, что мы торговали реальными деньгами. Мы не торговали  ·  `owner-decision-urovni-dokazatelnosti-2026-08-29.md` · 2026-08-29
 ### · ingested
@@ -583,7 +585,7 @@
 - Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md` · 2026-08-20 · 🔒 `cycle-352`
 - Проработать расширение whitelist для настоящих ~20% в Aggressive (advisory, владельцу на решение)  ·  `inbox-prorabotat-rasshirenie-whitelist-dlya-na.md` · 2026-08-23
 - Protection Lab фазы 6–8: AI-генератор параметров, перебор adversarial-комбинаций, страница сайта (owner-gated)  ·  `inbox-protection-lab-fazy-6-8-ai-generator-par.md` · 2026-08-22
-- Разобрать 52 карточки с ветки work-status-check, потом удалить ветку (решение владельца 20.08, вариант 1)  ·  `inbox-razobrat-52-kartochki-s-vetki-work-statu.md` · 2026-08-20 · 🔒 `pid85035`
+- Разобрать 52 карточки с ветки work-status-check, потом удалить ветку (решение владельца 20.08, вариант 1)  ·  `inbox-razobrat-52-kartochki-s-vetki-work-statu.md` · 2026-08-20
 - Реестр решений INDEX.md — общая тетрадь без защиты общей памяти (guard_entry_loss её строк не видит)  ·  `inbox-reestr-reshenii-index-md-obschaya-tetrad.md` · 2026-08-27
 - scripts/system_health_check.py заменён монитором два месяца назад, но остался в дереве  ·  `inbox-scripts-system-health-check-py-zamenen-m.md` · 2026-08-25
 - Семь скриптов, вскрытых строгим сканером: разобрать поштучно (подключить / списать / вывести класс правилом)  ·  `inbox-sem-skriptov-vskrytyh-strogim-skanerom-r.md` · 2026-08-16
@@ -764,7 +766,7 @@
 ### · blocked
 - AI1-1.1 · Allocation Auditor: доставлен, в дневной цикл НЕ подключён  ·  `agent-ai1-11-allocation-auditor.md` · 2026-08-29
 - AI1-3.1 · Rebalance Engine (только план, без исполнения)  ·  `agent-ai1-31-rebalance-engine-dry-run.md` · 2026-08-29
-- Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать  ·  `agent-fleet-parity-guard-never-scheduled.md` · 2026-08-05 · 🔒 `cycle-28258`
+- Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать  ·  `agent-fleet-parity-guard-never-scheduled.md` · 2026-08-05
 ### · in-progress
 - Аллокатор заморожен на неоптимальной доходности — ребаланс только по нарушению, нет триггера «заработать больше»  ·  `agent-allocator-yield-frozen-rootcause.md` · 2026-07-23
 - Аллокатор ранжирует капитал по зашитым константам, помеченным как «live» — честный провенанс APY (D1+D2)  ·  `agent-apy-evidence-provenance.md` · 2026-08-02

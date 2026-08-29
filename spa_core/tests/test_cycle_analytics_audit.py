@@ -85,6 +85,38 @@ if args.emit_markup:
 sys.exit(int(os.environ.get("FAKE_AUDIT_RC", "0")))
 '''
 
+#: Подделка ПЕРЕПИСИ внетировых модулей (шаг обзавёлся ею 2026-08-29, аудит 90 %).
+#: Дерево, в котором её нет, шаг честно отвергает: перепись отвечает на вопрос «кого
+#: мы не меряем вовсе», и молча пропустить её значило бы вернуть исходный дефект —
+#: корпус растёт незамеченным (67 модулей вне тиров 20.08, 83 к 29.08).
+_FAKE_CENSUS = '''\
+import argparse, json, os, sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+
+ap = argparse.ArgumentParser()
+ap.add_argument("--out")
+ap.add_argument("--emit-markup", action="store_true")
+args = ap.parse_args()
+
+if args.out:
+    Path(args.out).write_text(json.dumps({"untiered": 0}), encoding="utf-8")
+
+if args.emit_markup:
+    body = os.environ.get("FAKE_CENSUS_BODY", "")
+    census = ROOT / "spa_core" / "analytics" / "_untiered_census.py"
+    census.parent.mkdir(parents=True, exist_ok=True)
+    census.write_text(
+        "AUDIT_GENERATED_AT = " + repr(os.environ.get("FAKE_CENSUS_STAMP", "")) + "\\n"
+        "OUT_OF_DENOMINATOR = frozenset()\\n"
+        "WIRABLE = {}\\n"
+        "# " + body + "\\n",
+        encoding="utf-8")
+
+sys.exit(int(os.environ.get("FAKE_CENSUS_RC", "0")))
+'''
+
 #: Подделка, которая ОТЧИТЫВАЕТСЯ об успехе, но разметки не оставляет —
 #: «прогон был, продукта нет». Молчаливым «ок» это быть не должно.
 _FAKE_AUDIT_NO_MARKUP = '''\
@@ -101,11 +133,19 @@ sys.exit(0)
 
 
 def _make_tree(root: Path, *, markup_age_h: float | None = 1.0,
-               audit_src: str = _FAKE_AUDIT) -> Path:
-    """Поддельное дерево: аудит, разметка с отметкой заданного возраста, состояние."""
+               audit_src: str = _FAKE_AUDIT,
+               census_src: str | None = _FAKE_CENSUS) -> Path:
+    """Поддельное дерево: аудит, перепись, разметка нужного возраста, состояние.
+
+    `census_src=None` — дерево БЕЗ переписи; так проверяется, что шаг её отсутствие
+    замечает, а не молча пропускает.
+    """
     (root / "scripts").mkdir(parents=True, exist_ok=True)
     (root / "scripts" / "audit_protocol_blindness.py").write_text(
         audit_src, encoding="utf-8")
+    if census_src is not None:
+        (root / "scripts" / "audit_untiered_analytics.py").write_text(
+            census_src, encoding="utf-8")
     (root / "spa_core" / "analytics").mkdir(parents=True, exist_ok=True)
     if markup_age_h is not None:
         (root / "spa_core" / "analytics" / "_protocol_blindness.py").write_text(
@@ -428,3 +468,76 @@ def test_cli_json_output_is_machine_readable(tmp_path, env_stamp, capsys):
     assert payload["exit_code"] == step.OK
     assert payload["llm_forbidden"] is True
     assert payload["advisory"] is True
+
+
+# ───── авария 4: корпус растёт за пределы измеряемого, и этого никто не видит ──
+#
+# Аудит тиров отвечает «как работают те, кого мы меряем», и на вопрос «кого мы не
+# меряем вовсе» не отвечает НИКОГДА — он его не задаёт. Замеры аудита 90 %: модулей
+# вне всех тиров было 67 (20.08), 82 (27.08), 83 (29.08). Знаменатель метрики
+# дрейфовал три недели, и ни один сторож не покраснел. С 2026-08-29 перепись —
+# часть того же шага, чтобы вопрос задавался с той же частотой, что и основной.
+
+def test_census_output_travels_back_too(tmp_path, env_stamp, monkeypatch):
+    """Перепись обязана ДОЕЗЖАТЬ в дерево, а не оставаться в песочнице.
+
+    Положительный контроль проводки: до 29.08 файла не было вовсе, и «перепись
+    прогнали» ничем не отличалось от «переписи нет»."""
+    monkeypatch.setenv("FAKE_CENSUS_BODY", "census-arrived")
+    src = _make_tree(tmp_path / "src", markup_age_h=99.0)
+    env_stamp(hours_ago=0.0, body="fresh-run")
+
+    report = step.run_step(src, src, sandbox=tmp_path / "box")
+
+    assert report["census_returncode"] == 0
+    assert report["census_changed"] is True
+    text = (src / "spa_core" / "analytics" / "_untiered_census.py").read_text(
+        encoding="utf-8")
+    assert "census-arrived" in text
+
+
+def test_a_failing_census_refuses_the_step(tmp_path, env_stamp, monkeypatch):
+    """Перепись упала ⇒ шаг ОТКАЗЫВАЕТ (fail-CLOSED), а не отчитывается об успехе.
+
+    Мера против самого дешёвого способа потерять проверку: «прогнали, не получилось,
+    поехали дальше». Знаменатель, посчитанный без переписи, — не оценка."""
+    src = _make_tree(tmp_path / "src", markup_age_h=99.0)
+    env_stamp(hours_ago=0.0)
+    monkeypatch.setenv("FAKE_CENSUS_RC", "3")
+
+    report = step.run_step(src, src, sandbox=tmp_path / "box")
+
+    assert report["exit_code"] == step.REFUSED
+    assert "перепись" in report["error"]
+
+
+def test_a_tree_without_the_census_tool_is_refused(tmp_path, env_stamp):
+    """Инструмента нет ⇒ отказ. «Нечем мерить» не равно «мерить нечего»."""
+    src = _make_tree(tmp_path / "src", markup_age_h=99.0, census_src=None)
+    env_stamp(hours_ago=0.0)
+
+    report = step.run_step(src, src, sandbox=tmp_path / "box")
+
+    assert report["exit_code"] == step.REFUSED
+
+
+def test_the_writeoff_selfcheck_has_a_third_outcome(tmp_path, env_stamp):
+    """У самопроверки генератора три исхода, а не два.
+
+    Инструмента в дереве нет (поддельное дерево его не несёт) — вердикт обязан быть
+    «НЕ ИЗМЕРЕНО», и он обязан ОТЛИЧАТЬСЯ от «сошлось». Иначе отсутствие проверки
+    неотличимо от её успеха — известный класс fail-open, из-за которого сторожа
+    перестают что-либо значить.
+
+    Отдельно проверяется, что этот исход шаг НЕ роняет: самопроверка соседнего
+    инструмента не имеет права глушить ежедневный замер слепоты."""
+    src = _make_tree(tmp_path / "src", markup_age_h=99.0)
+    env_stamp(hours_ago=0.0)
+
+    report = step.run_step(src, src, sandbox=tmp_path / "box")
+
+    assert report["writeoff_selfcheck_returncode"] is None
+    assert "НЕ ИЗМЕРЕНО" in report["writeoff_selfcheck"]
+    assert "воспроизводит" not in report["writeoff_selfcheck"]
+    assert report["exit_code"] != step.REFUSED, (
+        "самопроверка соседа уронила ежедневный замер слепоты")

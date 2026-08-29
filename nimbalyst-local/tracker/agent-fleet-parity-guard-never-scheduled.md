@@ -7,8 +7,6 @@ source: session-2026-08-05-daily-90pct-audit
 created: 2026-08-05
 priority: medium
 domain: monitoring / деплой (advisory, НЕ money-path)
-claimed_by: cycle-28258
-claimed_at: 2026-08-05T12:28:28Z
 ---
 
 ## Что нашли (замер 2026-08-05, аудит 90%)

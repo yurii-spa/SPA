@@ -1,0 +1,2020 @@
+{
+ "counts": {
+  "blind_constant": 9,
+  "dormant": 4,
+  "failed": 5,
+  "unchecked": 162
+ },
+ "generated_at": "2026-08-29T10:26:53.198176Z",
+ "module_count": 180,
+ "results": [
+  {
+   "classification": "blind_constant",
+   "module": "airdrop_farming_value_estimator",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "alert_threshold_manager",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "analytics_pipeline",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "analytics_runner",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "auto_compounder_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "basis_trade_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(inp: BasisTradeInput); raised AttributeError: 'dict' object has no attribute 'spot_yield_annual'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "benchmark",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "benchmark_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "borrow_rate_optimizer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "borrowing_cost_optimizer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "calmar",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "capital_deployment_pacer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "capital_efficiency_benchmarker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "capital_efficiency_report",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "capital_efficiency_scorer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "capital_efficiency_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=dict)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "capital_rotation_advisor",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "chain_exposure_report",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "compounding_strategy_selector",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "covariance_estimator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "covariance_export",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "cross_chain_opportunity",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "daily_digest",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=dict)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "daily_operations_report",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "daily_pnl_reconciler",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "debt_ceiling_monitor",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: monitor(protocols: List[ProtocolDebtInput]); raised AttributeError: 'str' object has no attribute 'current_debt_usd'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "debt_ratio_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(pos: DebtPosition); raised AttributeError: 'dict' object has no attribute 'gross_assets_usd'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_amm_impermanent_loss_simulator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_borrow_cost_optimizer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(borrow_markets: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_cycle_phase_detector",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_fixed_rate_duration_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(instruments: list); raised TypeError: instruments must be a list",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_funding_rate_arbitrage_detector",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(opportunities: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_impermanent_loss_breakeven_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(positions: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_impermanent_loss_hedging_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(positions: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_lending_rate_spread_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(markets: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_leverage_looping_optimizer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(pools: list); raised TypeError: pools must be a list",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_leverage_safety_monitor",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(positions: list[dict]); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_lockup_opportunity_cost_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(positions: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_mev_exposure_estimator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_option_strategy_payoff_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_perpetual_funding_rate_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(markets: List); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_points_program_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(programs: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_points_to_token_conversion_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(programs: list[dict]); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_adoption_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_airdrop_farming_detector",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_auto_compounding_frequency_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_dependency_mapper",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(protocols: List); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "failed",
+   "module": "defi_protocol_flash_loan_attack_surface_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "ValueError: Missing required keys: ['protocol_name', 'tvl_usd', 'single_block_borrowable_usd', 'price_oracle_type', 'reentrancy_guards', 'has_price_manipulation_check', 'audit_count', 'days_since_last_audit', 'historical_flash_loan_attacks', 'total_value_lost_usd']",
+     "score": null,
+     "status": "failed"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_funding_rate_arbitrage_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_interest_rate_model_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_interest_rate_sensitivity_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_lending_rate_spread_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_moat_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(protocols: List); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_net_interest_margin_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_reserve_factor_economics_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_sandwich_attack_exposure_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 45.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_sandwich_attack_vulnerability_scorer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: score(transactions: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_slippage_impact_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_supply_cap_proximity_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_token_unlock_impact_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(schedules: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_token_unlock_price_impact_estimator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_token_velocity_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(tokens: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_token_vesting_overhang_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_treasury_diversification_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 100.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "defi_protocol_validator_set_decentralization_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=dict)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_vault_strategy_diversification_scorer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: score(allocations: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_sentiment_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_slippage_impact_estimator",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(trades: List[Dict[str, Any]]); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_tax_lot_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(positions: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_vault_rebalancing_cost_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(vaults: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_vault_strategy_comparator",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(strategies: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_whale_impact_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(pools: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "drawdown",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "drawdown_recovery_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "drawdown_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(points: List); raised AttributeError: 'str' object has no attribute 'value_usd'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "exit_timing_optimizer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "funding_rate_arbitrage_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "funding_rate_arbitrage_detector",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: detect(markets: List[Dict[str, Any]]); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "funding_rate_monitor",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "honest_metrics",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "impermanent_loss_calculator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "impermanent_loss_hedger",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "impermanent_loss_predictor",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(positions: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "impermanent_loss_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "leverage_ratio_monitor",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: monitor(positions: List); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "monthly_summary_report",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "multi_chain_monitor",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "network_congestion_monitor",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(snapshot: NetworkSnapshot); raised AttributeError: 'dict' object has no attribute 'network'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "performance_attribution",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "performance_benchmark_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "performance_regression_detector",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "failed",
+   "module": "protocol_adoption_scorer",
+   "runs": {
+    "aave_v3": {
+     "detail": "KeyError: 'unique_users_30d'",
+     "score": null,
+     "status": "failed"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_adoption_velocity_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(protocols: List); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_airdrop_eligibility_optimizer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_community_sentiment_scorer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(protocols: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_cross_chain_bridge_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_cross_protocol_contagion_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_dao_treasury_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_aave_efficiency_mode_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_borrow_rate_mode_optimizer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_borrow_rate_stability_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_debt_ceiling_proximity_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "failed",
+   "module": "protocol_defi_interest_rate_kink_proximity_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "TypeError: analyze() got an unexpected keyword argument 'context'",
+     "score": null,
+     "status": "failed"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_points_program_value_estimator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_points_system_valuation_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_price_impact_depth_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "failed",
+   "module": "protocol_defi_protocol_maturity_score_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "ValueError: Missing required fields: ['audit_count', 'bug_bounty_usd', 'chain_count', 'github_commits_90d', 'has_dao', 'launch_date_days_ago', 'num_security_incidents', 'protocol_name', 'token_market_cap_usd', 'total_loss_usd', 'tvl_peak_usd', 'tvl_usd', 'unique_users_30d']",
+     "score": null,
+     "status": "failed"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_protocol_revenue_sustainability_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(protocols: list); raised TypeError: protocols must be a list",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_real_world_asset_bridge_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(rwa_protocols: List); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_smart_money_flow_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "protocol_defi_strategy_rebalancing_cost_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=dict)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_token_buyback_impact_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_token_unlock_pressure_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_treasury_runway_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "failed",
+   "module": "protocol_defi_validator_slashing_exposure_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "TypeError: analyze() got an unexpected keyword argument 'context'",
+     "score": null,
+     "status": "failed"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_ve_token_lock_optimizer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_developer_activity_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(protocols: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_dominance_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_dominance_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(protocols: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_economic_attack_simulator",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(protocols: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_hack_recovery_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_incentive_decay_monitor",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_incentive_sustainability_scorer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: score(programs: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_insider_activity_monitor",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(protocols: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_maturity_scorer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_network_effect_scorer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(protocols: List[Dict[str, Any]]); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_network_effect_strength_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(protocols: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "protocol_partnership_network_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_registry",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_reputation_scorer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(protocols: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_revenue_diversification_scorer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: score(protocols: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_revenue_predictor",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_revenue_quality_scorer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: score(protocols: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "protocol_revenue_share_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 40.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_revenue_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_security_incident_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_smart_contract_age_scorer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(contracts: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_smart_contract_complexity_scorer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: score(contracts: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_smart_money_flow_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(protocols: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_stress_tester",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_token_buyback_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(protocols: List[Dict]); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_token_distribution_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(tokens: List[Dict]); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_token_unlock_schedule_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(tokens: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_tokenomics_stress_tester",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_total_value_secured_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_treasury_runway_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(protocols: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_upgrade_impact_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_upgrade_impact_assessor",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: assess(upgrades: List); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_user_incentive_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_validator_economics_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(validators: list); raised AttributeError: 'str' object has no attribute 'get'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_vetoken_bribe_efficiency_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(gauges: list); raised TypeError: gauges must be a list",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_volume_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_whale_wallet_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "quarterly_summary_report",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "rate_sensitivity_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(inp: AdapterRateInput); raised AttributeError: 'dict' object has no attribute 'base_apy'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "scenario_simulator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "sharpe",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "sharpe_ratio_calculator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "slippage_impact_estimator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "slippage_model_advisor",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "slippage_simulator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "smart_money_flow_detector",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "smart_money_flow_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "sortino_ratio_calculator",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: analyze(returns: list); raised ValueError: could not convert string to float: 'source'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "strategy_comparison_matrix",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "strategy_drawdown_guard",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "strategy_promoter",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "strategy_tournament",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "streak",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "system_config_validator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "telegram_daily_digest",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "tier_exposure_report",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "time_weighted_return_calculator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "token_price_impact_estimator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "token_unlock_monitor",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: monitor(unlock_events: List); raised ValueError: Missing field 'protocol' in unlock event: source",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "token_vesting_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "vault_migration_advisor",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "vault_share_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "weekly_summary_report",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "whale_alert_detector",
+   "runs": {
+    "aave_v3": {
+     "detail": "entrypoint requires non-mapping input, adapter supplies Mapping: detect(tx: Transaction); raised AttributeError: 'dict' object has no attribute 'amount_usd'",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  }
+ ],
+ "tier": "C"
+}

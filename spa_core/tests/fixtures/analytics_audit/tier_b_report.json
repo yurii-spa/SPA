@@ -1,0 +1,5773 @@
+{
+ "counts": {
+  "blind_constant": 84,
+  "blind_equal": 82,
+  "blind_equal_wide_ok": 19,
+  "dormant": 48,
+  "sensitive": 106,
+  "unchecked": 140
+ },
+ "generated_at": "2026-08-29T10:26:13.963269Z",
+ "module_count": 479,
+ "results": [
+  {
+   "classification": "sensitive",
+   "module": "apy_anomaly_detector",
+   "runs": {
+    "aave_v3": {
+     "score": 16.04,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "apy_forecast_v2",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "apy_forecaster",
+   "runs": {
+    "aave_v3": {
+     "score": 48.42,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "apy_history_bridge",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "apy_milestone_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "apy_momentum",
+   "runs": {
+    "aave_v3": {
+     "score": 40.12,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "apy_momentum_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "apy_normalization_engine",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "apy_percentile_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "apy_persistence_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 64.1899067142212,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "apy_prediction_interval",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "apy_tracker",
+   "runs": {
+    "aave_v3": {
+     "score": 42.02,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "apy_volatility_forecaster",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal_wide_ok",
+   "module": "bridge_risk_assessor",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": "aave_arbitrum",
+    "ok_runs_until_differ": 1,
+    "trio_score": 0.0,
+    "wide_score": 56.0
+   }
+  },
+  {
+   "classification": "blind_equal_wide_ok",
+   "module": "chain_concentration",
+   "runs": {
+    "aave_v3": {
+     "score": 93.75,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": "aave_arbitrum",
+    "ok_runs_until_differ": 1,
+    "trio_score": 93.75,
+    "wide_score": 0.0
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "collateral_diversification_scorer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "collateral_health_monitor",
+   "runs": {
+    "aave_v3": {
+     "score": 10.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "collateral_ratio_monitor",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "concentrated_liquidity_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "concentration",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "concentration_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "cross_chain_bridge_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "cross_chain_yield_arbitrage",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "cross_chain_yield_comparator",
+   "runs": {
+    "aave_v3": {
+     "score": 73.89,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "cross_protocol_yield_optimizer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "data_feed_health_scoreboard",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_borrow_rate_forecaster",
+   "runs": {
+    "aave_v3": {
+     "score": 20.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal_wide_ok",
+   "module": "defi_collateral_health_monitor",
+   "runs": {
+    "aave_v3": {
+     "score": 10.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": "extra_finance_base",
+    "ok_runs_until_differ": 11,
+    "trio_score": 10.0,
+    "wide_score": 88.0
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_collateral_quality_assessor",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_correlation_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 100.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_cross_chain_yield_comparator",
+   "runs": {
+    "aave_v3": {
+     "score": 10.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "defi_gas_cost_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_gas_cost_yield_drag_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 82.6963,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_governance_token_utility_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_insurance_calculator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_insurance_cost_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_insurance_coverage_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_insurance_protocol_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_lending_health_monitor",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_lending_market_utilization_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 20.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_liquid_staking_premium_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 56.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_liquidity_concentration_risk_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 4.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "defi_liquidity_migration_detector",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_oracle_risk_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 50.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "defi_pool_fee_tier_optimizer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "defi_portfolio_attribution_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_portfolio_health_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 44.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_portfolio_rebalancer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_portfolio_rebalancing_trigger_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_portfolio_stress_tester",
+   "runs": {
+    "aave_v3": {
+     "score": 100.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_position_health_score_aggregator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "defi_position_pnl_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "defi_position_rebalancing_trigger",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_position_size_recommender",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_autocompound_keeper_reliability_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_borrow_rate_volatility_forecaster",
+   "runs": {
+    "aave_v3": {
+     "score": 43.12500002466469,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_borrower_concentration_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 78.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_borrowing_power_utilization_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 10.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_cdp_stability_fee_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 100.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_collateral_efficiency_ratio_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 23.5833,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_collateral_efficiency_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 69.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_composability_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 39.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_cross_asset_correlation_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 100.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_cross_chain_bridge_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "defi_protocol_cross_chain_yield_basis_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "defi_protocol_cross_chain_yield_comparator",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_deposit_cap_headroom_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_depositor_concentration_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_emergency_withdrawal_pause_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 23.75,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_fixed_vs_floating_yield_decision_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 44.56808620962562,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_flash_loan_risk_assessor",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_gas_cost_breakeven_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 80.53333333333333,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_gas_cost_sensitivity_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_gauge_emission_decay_forecaster",
+   "runs": {
+    "aave_v3": {
+     "score": 78.87055720839061,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_governance_proposal_impact_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 2.322,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_insurance_coverage_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_insurance_fund_adequacy_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_lending_market_health_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 42.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_lending_utilization_cliff_detector",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_lending_utilization_elasticity_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 45.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "defi_protocol_leverage_loop_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_liquidity_bootstrapping_pool_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_liquidity_fragmentation_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_liquidity_incentive_efficiency_scorer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "defi_protocol_liquidity_provider_pnl_decomposer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_mev_protection_effectiveness_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_minimum_profitable_position_size_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 75.8,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_nft_collateral_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_oracle_manipulation_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 60.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_oracle_manipulation_risk_scorer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_oracle_price_freshness_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_performance_fee_crystallization_frequency_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_performance_fee_high_water_mark_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_points_to_token_conversion_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 65.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_real_yield_sustainability_rater",
+   "runs": {
+    "aave_v3": {
+     "score": 31.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_real_yield_vs_incentive_yield_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 55.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_rebase_token_yield_normalizer",
+   "runs": {
+    "aave_v3": {
+     "score": 9.375,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_regulatory_risk_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 41.25,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_rehypothecation_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 13.72,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_restaking_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 10.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_reward_claim_timing_optimizer",
+   "runs": {
+    "aave_v3": {
+     "score": 55.98367072552004,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_reward_dilution_velocity_tracker",
+   "runs": {
+    "aave_v3": {
+     "score": 6.382978723404255,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_risk_adjusted_yield_hurdle_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 54.76,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_stablecoin_basket_composition_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 10.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_stablecoin_par_redemption_capacity_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_stablecoin_peg_arbitrage_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_stablecoin_yield_basis_spread_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 1.2999999999999998,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_staking_penalty_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_staking_withdrawal_queue_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_staking_yield_sustainability_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_token_price_impact_on_yield_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_total_value_at_risk_aggregator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_tvl_momentum_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_tvl_yield_elasticity_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 81.86271386008444,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_vault_apr_annualization_basis_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_vault_apr_lookback_window_selection_bias_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 45.4,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_vault_apr_quote_staleness_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 18.02,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_apr_source_dispersion_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_apy_compounding_basis_overstatement_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_boost_tier_headline_realization_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_bribe_dependency_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_capacity_dilution_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_denomination_currency_yield_basis_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_depeg_recovery_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_deployment_ramp_drag_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_deposit_activation_lag_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_depositor_exit_velocity_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_dollar_weighted_return_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_early_exit_yield_forfeiture_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_entry_exit_fee_amortization_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_entry_fee_amortization_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_failed_harvest_gas_drag_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_funding_rate_carry_persistence_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_equal_wide_ok",
+   "module": "defi_protocol_vault_gas_breakeven_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 3.36,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": "aave_arbitrum",
+    "ok_runs_until_differ": 1,
+    "trio_score": 3.36,
+    "wide_score": 0.06
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_harvest_cycle_entry_timing_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_harvest_timing_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_harvest_yield_concentration_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_vault_headline_spot_snapshot_vs_twap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 6.65,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_headline_yield_honesty_composite_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_idle_cash_drag_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_instant_exit_nav_discount_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_leveraged_carry_spread_compression_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_vault_loss_socialization_exposure_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal_wide_ok",
+   "module": "defi_protocol_vault_management_fee_accrual_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": "frax",
+    "ok_runs_until_differ": 15,
+    "trio_score": 0.0,
+    "wide_score": 31.5
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_management_fee_on_idle_capital_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_marginal_deposit_apr_dilution_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_maturity_track_record_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_net_of_loss_yield_realization_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_pending_harvest_premium_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_performance_fee_catch_up_clause_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_performance_fee_cross_sleeve_netting_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_avs_operator_fee_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_bad_debt_socialization_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_blob_fee_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_boost_fee_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_borrow_cost_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_bridge_fee_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_bundler_fee_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_cost_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_crosschain_message_fee_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_curator_fee_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_deposit_fee_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_equal_wide_ok",
+   "module": "defi_protocol_vault_performance_fee_gross_of_early_withdrawal_penalty_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": "usual_usd0pp",
+    "ok_runs_until_differ": 29,
+    "trio_score": 0.0,
+    "wide_score": 3.86
+   }
+  },
+  {
+   "classification": "blind_equal_wide_ok",
+   "module": "defi_protocol_vault_performance_fee_gross_of_exit_slippage_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": "frax",
+    "ok_runs_until_differ": 15,
+    "trio_score": 0.0,
+    "wide_score": 0.51
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_flash_loan_fee_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_funding_cost_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_harvest_bounty_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_impermanent_loss_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_insurance_fund_premium_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_insurance_premium_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_intent_solver_fee_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_keeper_fee_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_l1_data_fee_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_liquidation_penalty_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal_wide_ok",
+   "module": "defi_protocol_vault_performance_fee_gross_of_management_fee_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": "frax",
+    "ok_runs_until_differ": 15,
+    "trio_score": 0.0,
+    "wide_score": 5.2
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_mev_tax_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_oracle_update_fee_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_priority_fee_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_rebalancing_cost_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_referral_fee_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_reserve_contribution_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_slashing_loss_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal_wide_ok",
+   "module": "defi_protocol_vault_performance_fee_gross_of_swap_fee_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": "usual_usd0pp",
+    "ok_runs_until_differ": 29,
+    "trio_score": 0.0,
+    "wide_score": 3.86
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_validator_commission_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_performance_fee_gross_of_validator_mev_tax_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_vault_performance_fee_gross_of_vote_incentive_fee_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal_wide_ok",
+   "module": "defi_protocol_vault_performance_fee_gross_of_withdrawal_fee_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": "usual_usd0pp",
+    "ok_runs_until_differ": 29,
+    "trio_score": 0.0,
+    "wide_score": 3.86
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_performance_fee_hurdle_rate_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_performance_fee_management_fee_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_performance_fee_protocol_revenue_share_base_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_performance_fee_subscription_timing_equalization_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_performance_fee_unrealized_gain_clawback_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_performance_fee_volatility_tax_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_price_return_contamination_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_range_uptime_fee_realization_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_vault_redemption_cooldown_exposure_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_vault_relative_yield_outlier_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 26.1,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_reward_autosell_slippage_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_reward_emission_expiry_cliff_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_reward_lock_discount_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_reward_sell_pressure_runway_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_reward_token_price_exposure_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_vault_round_trip_cost_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 6.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_share_inflation_attack_exposure_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_share_price_drawdown_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_share_price_premium_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_share_price_staleness_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_strategy_migration_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_trading_fee_apr_volatility_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_trailing_window_boost_backdating_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_unclaimed_reward_forfeiture_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_utilization_peak_headline_revert_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_vault_withdrawal_fee_decay_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_vault_yield_realization_gap_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 6.65,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_vault_yield_variance_drag_realization_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 11.45,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_volume_to_tvl_efficiency_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "defi_protocol_voting_power_concentration_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 100.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_wrapped_asset_peg_deviation_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_yield_after_tax_drag_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 62.8,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_yield_bearing_collateral_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 50.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_yield_compounding_optimizer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_yield_fee_structure_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_yield_optimizer_fee_drag_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_yield_reserve_buffer_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 69.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_protocol_yield_source_diversification_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_protocol_yield_source_quality_rater",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_yield_term_structure_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 56.32789552558336,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_protocol_yield_tokenization_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 55.31,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_restaking_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_revenue_yield_calculator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "defi_reward_harvesting_optimizer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_reward_token_sell_pressure_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 100.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_risk_adjusted_yield_comparator",
+   "runs": {
+    "aave_v3": {
+     "score": 16.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_stablecoin_reserve_quality_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 5.6,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_staking_reward_tracker",
+   "runs": {
+    "aave_v3": {
+     "score": 50.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_staking_rewards_optimizer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_token_governance_power_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 51.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_vault_strategy_risk_decomposer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "defi_volatility_surface_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_yield_aggregation_efficiency_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal_wide_ok",
+   "module": "defi_yield_aggregator_fee_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 20.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": "frax",
+    "ok_runs_until_differ": 15,
+    "trio_score": 20.0,
+    "wide_score": 78.0
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_yield_bearing_collateral_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 10.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_yield_curve_position_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_yield_farming_risk_scorer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "defi_yield_optimizer_allocation_scorer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_yield_source_diversification_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "defi_yield_source_verifier",
+   "runs": {
+    "aave_v3": {
+     "score": 100.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "defi_yield_sustainability_rater",
+   "runs": {
+    "aave_v3": {
+     "score": 7.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "defi_yield_tokenization_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "dex_routing_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.45,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "emission_schedule_forecaster",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "fee_impact_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "fee_market_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "fee_revenue_comparator",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal_wide_ok",
+   "module": "flash_loan_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 5.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": "extra_finance_base",
+    "ok_runs_until_differ": 11,
+    "trio_score": 5.0,
+    "wide_score": 50.0
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "flash_loan_risk_detector",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "full_portfolio_report",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "gas_cost_profiler",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "gas_cost_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "gas_price_forecaster",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "governance_token_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.1125,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal_wide_ok",
+   "module": "gross_of.defi_protocol_vault_performance_fee_gross_of_basis_risk_premium_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": "frax",
+    "ok_runs_until_differ": 15,
+    "trio_score": 0.0,
+    "wide_score": 1.01
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "gross_of.defi_protocol_vault_performance_fee_gross_of_bridge_delay_opportunity_cost_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "gross_of.defi_protocol_vault_performance_fee_gross_of_counterparty_default_risk_premium_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "gross_of.defi_protocol_vault_performance_fee_gross_of_governance_attack_risk_premium_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "gross_of.defi_protocol_vault_performance_fee_gross_of_impermanent_loss_premium_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "gross_of.defi_protocol_vault_performance_fee_gross_of_liquidity_mining_opportunity_cost_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal_wide_ok",
+   "module": "gross_of.defi_protocol_vault_performance_fee_gross_of_lp_amm_fee_drag_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": "usual_usd0pp",
+    "ok_runs_until_differ": 29,
+    "trio_score": 0.0,
+    "wide_score": 3.86
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "gross_of.defi_protocol_vault_performance_fee_gross_of_lst_peg_slippage_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "gross_of.defi_protocol_vault_performance_fee_gross_of_oracle_manipulation_risk_premium_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "gross_of.defi_protocol_vault_performance_fee_gross_of_rebalancing_transaction_cost_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "gross_of.defi_protocol_vault_performance_fee_gross_of_referral_affiliate_fee_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "gross_of.defi_protocol_vault_performance_fee_gross_of_regulatory_risk_premium_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "gross_of.defi_protocol_vault_performance_fee_gross_of_token_vesting_unlock_pressure_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "gross_of.defi_protocol_vault_performance_fee_gross_of_yield_aggregator_platform_fee_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "gross_of.sequencer_tip",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 23
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "integrated_risk_dashboard",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal_wide_ok",
+   "module": "lending_market_efficiency_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 60.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": "aave_v3_base",
+    "ok_runs_until_differ": 2,
+    "trio_score": 60.0,
+    "wide_score": 59.0
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "lending_pool_utilization_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 82.5,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "liquidation_price_calculator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal_wide_ok",
+   "module": "liquidation_price_monitor",
+   "runs": {
+    "aave_v3": {
+     "score": 10.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": "extra_finance_base",
+    "ok_runs_until_differ": 11,
+    "trio_score": 10.0,
+    "wide_score": 60.0
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "liquidation_risk_heatmap",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "liquidity_crisis_detector",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "liquidity_depth_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "liquidity_exit_simulator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "liquidity_incentive_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "liquidity_migration_advisor",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "liquidity_pool_depth_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.99998,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "liquidity_runway_calculator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "liquidity_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 3.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "liquidity_stress_simulator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "mev_risk_detector",
+   "runs": {
+    "aave_v3": {
+     "score": 20.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "oracle_price_deviation_detector",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "oracle_price_monitor",
+   "runs": {
+    "aave_v3": {
+     "score": 15.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 30
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "portfolio_attribution_engine",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "portfolio_concentration_optimizer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "portfolio_diversification_advisor",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "portfolio_heat_map",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "portfolio_rebalancing_scheduler",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "portfolio_stress_scenario_runner",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "portfolio_stress_tester",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "position_age_optimizer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "position_profitability_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "position_sizing_engine",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_audit_coverage_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 26.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "protocol_concentration_monitor",
+   "runs": {
+    "aave_v3": {
+     "score": 95.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_cross_chain_bridge_risk_monitor",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_cross_chain_fee_comparator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_cross_chain_yield_arbitrage_detector",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "protocol_decay_risk_monitor",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_amm_impermanent_loss_forecaster",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "protocol_defi_apy_decomposition_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 100.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "protocol_defi_collateral_health_factor_simulator",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_collateral_quality_scorer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_concentrated_liquidity_range_optimizer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_cross_chain_bridge_fee_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_defi_cross_chain_yield_normalizer",
+   "runs": {
+    "aave_v3": {
+     "score": 32.36,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "protocol_defi_cross_protocol_contagion_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_defi_cross_protocol_yield_arbitrage_detector",
+   "runs": {
+    "aave_v3": {
+     "score": 2.5,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_defi_cross_protocol_yield_arbitrage_scanner",
+   "runs": {
+    "aave_v3": {
+     "score": 22.42,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal_wide_ok",
+   "module": "protocol_defi_depeg_contagion_modeler",
+   "runs": {
+    "aave_v3": {
+     "score": 42.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": "cbbtc_lending",
+    "ok_runs_until_differ": 6,
+    "trio_score": 42.0,
+    "wide_score": 9.0
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "protocol_defi_emission_schedule_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 30.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_epoch_reward_timing_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_exit_liquidity_depth_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_defi_gas_optimization_yield_impact_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 82.9333,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_defi_governance_attack_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 40.8357,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_governance_attack_surface_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_defi_isolated_margin_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 39.5,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_liquidation_cascade_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "protocol_defi_liquidity_bootstrapping_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_defi_liquidity_depth_impact_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 5.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_liquidity_mining_decay_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "protocol_defi_liquidity_mining_dilution_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 100.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_lp_fee_vs_il_breakeven_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_defi_mercenary_capital_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 6.289583333333335,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "protocol_defi_options_vault_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 12.5,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "protocol_defi_position_health_monitor",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_position_sizing_optimizer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_protocol_concentration_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "protocol_defi_protocol_fee_revenue_sustainability_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 50.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "protocol_defi_protocol_insurance_coverage_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_defi_protocol_upgrade_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 22.5,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "protocol_defi_protocol_version_migration_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_defi_reward_token_lockup_discount_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 89.82600949210997,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_smart_contract_upgrade_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_defi_stable_yield_consistency_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 68.51,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "protocol_defi_stablecoin_health_monitor",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_tvl_momentum_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal_wide_ok",
+   "module": "protocol_defi_vault_fee_structure_breakeven_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 100.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": "frax",
+    "ok_runs_until_differ": 15,
+    "trio_score": 100.0,
+    "wide_score": 70.0
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_defi_vetoken_governance_power_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 11.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_whale_concentration_monitor",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "protocol_defi_wrapped_asset_backing_verifier",
+   "runs": {
+    "aave_v3": {
+     "score": 40.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_defi_yield_aggregator_strategy_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 40.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "protocol_defi_yield_bearing_stablecoin_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 70.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "protocol_defi_yield_compounding_efficiency_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_yield_curve_position_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_defi_yield_duration_mismatch_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.75,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_defi_yield_farming_exit_timing_advisor",
+   "runs": {
+    "aave_v3": {
+     "score": 8.75,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_yield_farming_roi_calculator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_defi_yield_seasonality_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 15.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_defi_yield_smoothing_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 25.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "protocol_defi_yield_source_dependency_graph_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_defi_yield_source_sustainability_ranker",
+   "runs": {
+    "aave_v3": {
+     "score": 30.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "protocol_defi_yield_strip_pricing_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 35.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_defi_yield_strip_pt_yt_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_ecosystem_health_scorecard",
+   "runs": {
+    "aave_v3": {
+     "score": 57.86,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "protocol_emission_schedule_impact_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_exit_liquidity_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 100.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_exit_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_fee_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "protocol_fee_revenue_projector",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "protocol_fee_revenue_sustainability_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 10.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "protocol_fee_revenue_trend_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "protocol_fee_structure_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "protocol_fee_switch_impact_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "protocol_fee_tier_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "protocol_fee_tier_migration_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 50.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_governance_attack_resistance_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 15.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_governance_health_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 100.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "protocol_governance_voter_apathy_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_insurance_assessor",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_insurance_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 67.7143,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_liquidation_history_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 3.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "protocol_liquidity_depth_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_liquidity_depth_stress_tester",
+   "runs": {
+    "aave_v3": {
+     "score": 10.11,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_liquidity_fragmentation_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "protocol_liquidity_migration_detector",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_liquidity_provider_profitability_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "protocol_market_cap_to_tvl_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal_wide_ok",
+   "module": "protocol_multi_chain_risk_assessor",
+   "runs": {
+    "aave_v3": {
+     "score": 5.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": "aave_arbitrum",
+    "ok_runs_until_differ": 1,
+    "trio_score": 5.0,
+    "wide_score": 10.0
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_oracle_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 33.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "protocol_ponzi_risk_screener",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "protocol_real_yield_vs_paper_yield_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_regulatory_risk_assessor",
+   "runs": {
+    "aave_v3": {
+     "score": 33.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_risk_scorecard",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_risk_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 6.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_security_audit_tracker",
+   "runs": {
+    "aave_v3": {
+     "score": 5.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "protocol_token_emission_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_tvl_composition_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "protocol_tvl_concentration_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_tvl_filter",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_tvl_momentum_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_upgrade_risk_assessor",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "protocol_upgrade_risk_monitor",
+   "runs": {
+    "aave_v3": {
+     "score": 23.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "protocol_version_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 28.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "protocol_version_risk_assessor",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_vetoken_bribe_market_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "protocol_yield_curve_arbitrage_detector",
+   "runs": {
+    "aave_v3": {
+     "score": 50.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "protocol_yield_farming_lifecycle_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "protocol_yield_source_authenticity_checker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "real_yield_extractor",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "rebalance_cost",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "rebalance_cost_estimator",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=dict)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "rebalance_cost_optimizer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "rebalance_trigger_engine",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "blind_constant",
+   "module": "restaking_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 20.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "reward_emission_decay_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "reward_token_liquidity_scorer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "reward_token_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "risk_adjusted_ranker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "risk_budget",
+   "runs": {
+    "aave_v3": {
+     "score": 2.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "risk_weighted_capital_allocator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "stablecoin_depeg_monitor",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "stablecoin_peg_deviation_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "stablecoin_risk_assessor",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "staking_apy_ranker",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "staking_rewards_optimizer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "token_price_volatility_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "tokenomics_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "tvl_trend_monitor",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "volatility",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "volatility_regime_detector",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "withdrawal_queue_risk_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_aggregation_engine",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_aggregator_comparator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "yield_aggregator_fee_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 100.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "yield_aggregator_strategy_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 10.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_attribution_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_attribution_splitter",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "yield_bearing_stablecoin_comparator",
+   "runs": {
+    "aave_v3": {
+     "score": 53.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_benchmark_comparator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_booster_detector",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_breakeven_calculator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "yield_calendar_scheduler",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_compounding_calculator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "yield_compressor_score",
+   "runs": {
+    "aave_v3": {
+     "score": 42.8,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "yield_curve_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "yield_curve_spread_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 20.0,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "yield_curve_steepness_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_curve_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_decay_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_decay_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "yield_dilution_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 20.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_farming_calendar",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_farming_risk_assessor",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "yield_farming_roi_calculator",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "yield_farming_roi_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_forecast",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "yield_forecast_engine",
+   "runs": {
+    "aave_v3": {
+     "score": 50.22,
+     "status": "ok"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_momentum_tracker",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_opportunity_scanner",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "yield_opportunity_scorer",
+   "runs": {
+    "aave_v3": {
+     "score": 30.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_optimization_summary",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_recycler_engine",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_reinvestment_engine",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_runway_estimator",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_sentiment_scorer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_smoothing_filter",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_source_classifier",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "yield_source_concentration_risk",
+   "runs": {
+    "aave_v3": {
+     "score": 100.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "yield_source_diversifier",
+   "runs": {
+    "aave_v3": {
+     "score": 0.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "yield_spread_analyzer",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "yield_spread_arbitrage_detector",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "blind_equal",
+   "module": "yield_spread_zscore_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 50.0,
+     "status": "ok"
+    }
+   },
+   "wide": {
+    "differs_at": null,
+    "ok_runs": 32
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_stability_scorer",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "dormant",
+   "module": "yield_strategy_backtester",
+   "runs": {
+    "aave_v3": {
+     "detail": "result not coercible to score (type=NoneType)",
+     "score": null,
+     "status": "dormant"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_sustainability_index",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "unchecked",
+   "module": "yield_volatility_surface",
+   "runs": {
+    "aave_v3": {
+     "detail": "no context-accepting entrypoint",
+     "score": null,
+     "status": "unchecked"
+    }
+   }
+  },
+  {
+   "classification": "sensitive",
+   "module": "yield_volatility_surface_analyzer",
+   "runs": {
+    "aave_v3": {
+     "score": 15.0,
+     "status": "ok"
+    }
+   }
+  }
+ ],
+ "tier": "B"
+}

@@ -361,6 +361,26 @@ def _docstring_nodes(tree: "ast.AST") -> set:
     return out
 
 
+def _is_generated_markup(tree: "ast.AST") -> bool:
+    """Файл — СГЕНЕРИРОВАННАЯ разметка: объявляет `AUDIT_GENERATED_AT` на верхнем уровне.
+
+    Признак машинный, а не список имён: отметку замера ставит инструмент
+    (`--emit-markup`), и такой файл состоит из ИЗМЕРЕННЫХ ДАННЫХ — имён модулей и
+    причин. Сегодня признаку удовлетворяют пять файлов (`_protocol_blindness`,
+    `_protocol_key_coverage`, `_tier_c_writeoff`, `_tier_b_writeoff`,
+    `_untiered_census`), и следующий появится ровно тем же способом."""
+    for node in getattr(tree, "body", []):
+        targets = []
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+        elif isinstance(node, ast.AnnAssign):
+            targets = [node.target]
+        for t in targets:
+            if isinstance(t, ast.Name) and t.id == "AUDIT_GENERATED_AT":
+                return True
+    return False
+
+
 def _mentions_curator_in_code(text: str) -> bool:
     """Читает ли модуль отчёт куратора / импортирует ли curate() — В КОДЕ.
 
@@ -379,6 +399,17 @@ def _mentions_curator_in_code(text: str) -> bool:
     except SyntaxError:
         return "tier_curator" in text          # неразбираемое — судим строго
     docs = _docstring_nodes(tree)
+    # СГЕНЕРИРОВАННАЯ РАЗМЕТКА (добавлено 2026-08-29, ADR-165 — намеренно, инв. #16).
+    # У неё строковые константы и есть данные: `_untiered_census.py` — машинная
+    # перепись ВСЕХ модулей аналитики вне тиров, и `tier_curator` попал в неё
+    # законно, в набор «не модуль сигнала» (у него нет ни одного класса). Ничего он
+    # при этом не импортирует и отчёта не читает — сторож краснел на ВЕРНОМ
+    # состоянии, ровно как на прозе `apy_evidencer` днём раньше.
+    #
+    # Зубы сохранены и здесь: для разметки по-прежнему ловятся импорт, обращение к
+    # атрибуту и строка, называющая ОТЧЁТ (путь, который строят, чтобы его прочесть).
+    # Разрешено ровно одно — голое имя модуля как элемент данных.
+    markup = _is_generated_markup(tree)
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             if any("tier_curator" in a.name for a in node.names):
@@ -389,8 +420,11 @@ def _mentions_curator_in_code(text: str) -> bool:
             if any("tier_curator" in a.name for a in node.names):
                 return True
         elif isinstance(node, ast.Constant) and isinstance(node.value, str):
-            if "tier_curator" in node.value and id(node) not in docs:
-                return True
+            if "tier_curator" not in node.value or id(node) in docs:
+                continue
+            if markup and "tier_curator_report" not in node.value:
+                continue          # имя модуля как ДАННЫЕ разметки — не потребление
+            return True
         elif isinstance(node, ast.Attribute) and "tier_curator" in node.attr:
             return True
     return False
@@ -447,3 +481,33 @@ def test_the_consumer_guard_tells_code_from_prose():
 
     unparseable = "def broken(:\n  tier_curator\n"
     assert _mentions_curator_in_code(unparseable), "неразбираемое судится строго"
+
+
+def test_generated_markup_names_modules_as_data_but_keeps_its_teeth():
+    """Контроль сужения для СГЕНЕРИРОВАННОЙ разметки — в обе стороны (ADR-165).
+
+    Перепись `_untiered_census.py` называет ВСЕ модули аналитики вне тиров, и
+    `tier_curator` в ней законен: у него нет ни одного класса, он в наборе «не модуль
+    сигнала». Голое имя как элемент данных потреблением не является.
+
+    Послабление не смеет открыть дверь, поэтому проверяются ОБЕ стороны: разметка,
+    которая импортирует куратора или строит путь к его ОТЧЁТУ, ловится по-прежнему;
+    и тот же самый текст БЕЗ отметки замера остаётся нарушением — иначе сужение
+    расползлось бы на рукописные модули."""
+    stamp = "AUDIT_GENERATED_AT = '2026-01-01T00:00:00Z'\n"
+    data = "NOT_A_SIGNAL_MODULE = {'tier_curator': 'нет публичного класса с входом'}\n"
+
+    assert not _mentions_curator_in_code(stamp + data), (
+        "имя модуля как ДАННЫЕ разметки объявлено потреблением — сужение не работает")
+
+    assert _mentions_curator_in_code(
+        stamp + data + "from spa_core.analytics.tier_curator import curate\n"), (
+        "разметка с настоящим импортом прошла — это дыра")
+
+    assert _mentions_curator_in_code(
+        stamp + "P = 'data/tier_curator_report.json'\n"), (
+        "разметка, строящая путь к отчёту, прошла — зубы потеряны")
+
+    assert _mentions_curator_in_code(data), (
+        "тот же текст БЕЗ отметки замера перестал быть нарушением — сужение "
+        "расползлось за класс сгенерированной разметки")

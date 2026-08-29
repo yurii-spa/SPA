@@ -5,8 +5,6 @@ title: "Это почини - 🛡️ Сайт-сторож: нашёл проб
 status: done
 source: telegram
 created: 2026-08-08
-claimed_by: pid6764
-claimed_at: 2026-08-08T14:39:44Z
 ---
 
 ## Задание (из Telegram)

@@ -75,6 +75,26 @@ SANDBOX_DIRS = ("spa_core", "scripts", "data")
 MARKUP_REL = "spa_core/analytics/_protocol_blindness.py"
 AUDIT_REL = "scripts/audit_protocol_blindness.py"
 
+# ── Перепись внетировых модулей (аудит 90 % от 2026-08-29) ────────────────────
+#
+# Аудит тиров отвечает «как работают те, кого мы меряем». Он НЕ отвечает, кого мы
+# не меряем вовсе, — и три недели подряд это число росло незамеченным: модулей вне
+# всех тиров было 67 (20.08), 82 (27.08), 83 (29.08). Пока они не названы, знаменатель
+# метрики 90 % — не оценка, а незнание, выдающее себя за оценку.
+#
+# Перепись живёт в ТОМ ЖЕ шаге и в ТОЙ ЖЕ песочнице по одной причине: вопрос
+# «вырос ли корпус за пределы измеряемого» обязан задаваться ровно так же часто,
+# как основной замер. Отдельный агент был бы четвёртым сторожем, который однажды
+# молча встанет, — ровно тем, из-за чего этот шаг и появился.
+CENSUS_REL = "spa_core/analytics/_untiered_census.py"
+CENSUS_TOOL_REL = "scripts/audit_untiered_analytics.py"
+
+# Самопроверка генератора реестров списания: `--verify C` требует, чтобы генератор
+# воспроизвёл доставленный руками `_tier_c_writeoff.py` ПОИМЁННО. Гоняется ежедневно
+# не ради ритуала: разойтись могут обе стороны — и генератор, и реестр, — а узнать об
+# этом надо ДО того, как тем же генератором разметят следующий тир.
+WRITEOFF_TOOL_REL = "scripts/generate_tier_writeoff.py"
+
 # Не копируем мусор сборки: он и объёмнее исходников, и делает песочницу
 # недетерминированной (чужой `.pyc` старше правки — известный класс).
 COPY_IGNORE = shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store")
@@ -210,6 +230,70 @@ def deliver_markup(sandbox: Path, into: Path) -> bool:
     return True
 
 
+def deliver_file(sandbox: Path, into: Path, rel: str) -> bool:
+    """Перенести ОДИН сгенерированный файл из песочницы в дерево. → изменился ли он.
+
+    Обобщение `deliver_markup`: та же атомарность и та же граница «переносится ровно
+    один файл, остальное умирает вместе с песочницей». Заведено, чтобы перепись
+    доставлялась тем же способом, а не своей копией правил."""
+    produced = Path(sandbox).resolve() / rel
+    if not produced.is_file():
+        raise AuditStepError(f"прогон не оставил {rel} в песочнице — он не состоялся")
+    target = Path(into).resolve() / rel
+    new_text = produced.read_text(encoding="utf-8")
+    old_text = target.read_text(encoding="utf-8") if target.is_file() else None
+    if old_text == new_text:
+        return False
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_suffix(target.suffix + ".tmp")
+    tmp.write_text(new_text, encoding="utf-8")
+    os.replace(tmp, target)                     # атомарно, инвариант #5
+    return True
+
+
+def run_census(sandbox: Path, *, python: Optional[str] = None,
+               timeout: float = 900.0) -> subprocess.CompletedProcess:
+    """Перепись внетировых модулей ВНУТРИ песочницы (она тоже исполняет модули)."""
+    box = Path(sandbox).resolve()
+    cmd = [python or sys.executable, str(box / CENSUS_TOOL_REL),
+           "--out", str(box / "untiered_census_report.json"), "--emit-markup"]
+    env = dict(os.environ)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    return subprocess.run(cmd, cwd=str(box), capture_output=True, text=True,
+                          timeout=timeout, env=env)
+
+
+def run_writeoff_selfcheck(sandbox: Path, *, python: Optional[str] = None,
+                           timeout: float = 900.0) -> subprocess.CompletedProcess:
+    """Положительный контроль генератора реестров: воспроизводит ли он Tier-C."""
+    box = Path(sandbox).resolve()
+    cmd = [python or sys.executable, str(box / WRITEOFF_TOOL_REL), "--verify", "C"]
+    env = dict(os.environ)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    return subprocess.run(cmd, cwd=str(box), capture_output=True, text=True,
+                          timeout=timeout, env=env)
+
+
+def writeoff_selfcheck_verdict(sandbox: Path, *, python: Optional[str] = None) -> tuple:
+    """→ (код, текст вердикта). Не бросает: самопроверка соседа шаг не роняет.
+
+    Три исхода, а не два: сошлось · НЕ сошлось · НЕ ИЗМЕРЕНО (инструмента нет,
+    прогон не запустился). Третий обязателен — иначе отсутствие проверки было бы
+    неотличимо от её успеха, и это ровно тот fail-open, из-за которого сторожа
+    и перестают что-либо значить."""
+    tool = Path(sandbox).resolve() / WRITEOFF_TOOL_REL
+    if not tool.is_file():
+        return None, f"НЕ ИЗМЕРЕНО: в дереве нет {WRITEOFF_TOOL_REL}"
+    try:
+        proc = run_writeoff_selfcheck(sandbox, python=python)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return None, f"НЕ ИЗМЕРЕНО: {type(exc).__name__}: {exc}"
+    if proc.returncode == 0:
+        return 0, "воспроизводит доставленный _tier_c_writeoff.py"
+    return proc.returncode, (
+        f"НЕ СОШЁЛСЯ: {(proc.stderr or proc.stdout or '').strip()[-400:]}")
+
+
 def freshness(source: Path, *, now: Optional[datetime] = None,
               budget_hours: Optional[float] = None) -> dict:
     """Вердикт сторожа свежести о судимом дереве (импорт отложен: stdlib-путь)."""
@@ -293,7 +377,30 @@ def run_step(source: Path, into: Path, *, sandbox: Optional[Path] = None,
         report["markup_stamp_after"] = markup_stamp(box)
         changed = deliver_markup(box, dst)
         report["markup_changed"] = changed
-        report["exit_code"] = NEEDS_DELIVERY if changed else OK
+
+        # ── перепись внетировых: кого мы не меряем вовсе ──────────────────────
+        census = run_census(box, python=python)
+        report["census_returncode"] = census.returncode
+        report["census_stdout"] = (census.stdout or "").strip()[-600:]
+        if census.returncode != 0:
+            report["exit_code"] = REFUSED
+            report["error"] = (
+                f"перепись внетировых вернула код {census.returncode}: "
+                f"{(census.stderr or '').strip()[-600:]}")
+            return report
+        census_changed = deliver_file(box, dst, CENSUS_REL)
+        report["census_changed"] = census_changed
+
+        # ── самопроверка генератора реестров списания ─────────────────────────
+        # Отказ здесь НЕ роняет шаг: генератор ничего не производит в этом прогоне,
+        # и обрушить ежедневный замер слепоты из-за его самопроверки значило бы
+        # заглушить нужный сигнал ради соседнего. Но вердикт записывается, и он
+        # виден — «не измерено» здесь не притворяется «сошлось».
+        rc, verdict = writeoff_selfcheck_verdict(box, python=python)
+        report["writeoff_selfcheck_returncode"] = rc
+        report["writeoff_selfcheck"] = verdict
+
+        report["exit_code"] = (NEEDS_DELIVERY if (changed or census_changed) else OK)
     except AuditStepError as exc:
         report["exit_code"] = REFUSED
         report["error"] = str(exc)

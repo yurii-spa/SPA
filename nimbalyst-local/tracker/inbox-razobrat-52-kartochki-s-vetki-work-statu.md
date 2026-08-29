@@ -5,9 +5,6 @@ title: Разобрать 52 карточки с ветки work-status-check, �
 status: new
 source: nimbalyst
 created: 2026-08-20
-claimed_by: pid85035
-claimed_at: 2026-08-25T00:20:38Z
-claim_takeover_reason: шаг 0a код 0: работа cycle-27502 (#372) ДОСТАВЛЕНА — пачка 3 лежит на origin/main в теле карточки (git show origin/main проверен мной), дерево /tmp/spa_c372 снято квитанцией 19:30:56Z, процесс pid27502 мёртв, захват сам снят двумя объявлениями card_state=done. Поднимаю СЛЕДУЮЩУЮ пачку (4), а не чужую незавершённую
 ---
 
 ## Что случилось
