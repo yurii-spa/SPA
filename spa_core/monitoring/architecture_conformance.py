@@ -598,6 +598,7 @@ def run_checks(manifest: dict,
 
     # B2 — свежесть активных артефактов + выполнимость самого SLO
     slo_budgets: list[dict] = []
+    slo_unassigned: list[dict] = []
     for art in manifest.get("artifacts", []):
         if art.get("status") != "active":
             continue
@@ -617,6 +618,46 @@ def run_checks(manifest: dict,
                             "satisfiable": (None if floor_h is None
                                             else not unsatisfiable),
                             "reason": floor["reason"]})
+
+        if not declared:
+            # СРОК НЕ НАЗНАЧЕН — и до цикла #426 это состояние было НЕМЫМ.
+            #
+            # `declared = float(art.get("slo_hours") or 0)` превращает пустое
+            # поле в ноль, а ниже стоит `if budget and age_h > budget` — при
+            # нулевом бюджете условие не срабатывает НИКОГДА. Замер #426:
+            # активный артефакт, не менявшийся 40 суток, не даёт ни находки,
+            # ни `unchecked`; единственный след — строка `slo_budgets` с
+            # `budget_h: None`, которую не читает ни один потребитель отчёта.
+            # Итог: «срок никто не назначил» неотличимо от «свежесть в порядке».
+            #
+            # И это не экзотика, а ШТАТНЫЙ покой по ADR-158: срок назначают ДВЕ
+            # роли по согласованию, а fail-CLOSED исход «не сошлись» — ровно
+            # пустое поле («агент остаётся в списке „нужен автор“, а не получает
+            # выдуманное число»). То есть состояние, объявленное честным,
+            # сторож читал как чистое.
+            #
+            # Эскалации здесь НЕТ намеренно (ADR-164 п.2): состояние работы,
+            # загнанное в `unchecked`, делает сторожа вечно жёлтым, и разница
+            # между «измерено и чисто» и «мы туда не смотрели» исчезает. Исход
+            # НАЗЫВАЕТСЯ и СЧИТАЕТСЯ, вердикт не трогает.
+            #
+            # Возраст мерится ВСЁ РАВНО: срока нет, но факт есть — и это ровно
+            # тот вход, по которому две роли назначают срок («через сколько
+            # молчание становится опасным», ADR-158). Без него у ролей нет
+            # ничего, кроме расписания, а его владелец как основание отклонил.
+            seen = ts_of(path)
+            slo_unassigned.append({
+                "path": path,
+                "producer": art.get("producer"),
+                "consumers": list(art.get("consumers") or []),
+                "exists": seen is not None,
+                "observed_age_h": (None if seen is None else
+                                   round((now - seen).total_seconds() / 3600.0, 2)),
+                "reason": "срок годности не назначен (ADR-158 — назначают две "
+                          "роли по согласованию); свежесть НЕ ИЗМЕРЕНА, "
+                          "а не в порядке",
+            })
+
         if unsatisfiable:
             findings.append(_finding(
                 f"B2:slo_unsatisfiable:{path}", "B2", "WARN", "strong",
@@ -848,7 +889,13 @@ def run_checks(manifest: dict,
         "exit_code": EXIT_BY_OVERALL[overall],
         "counts": {"critical": sum(1 for f in kept if f["severity"] == "CRITICAL"),
                    "warn": sum(1 for f in kept if f["severity"] == "WARN"),
-                   "aged": len(aged), "unchecked": len(unchecked)},
+                   "aged": len(aged), "unchecked": len(unchecked),
+                   # Считается ОТДЕЛЬНЫМ числом и намеренно НЕ входит ни в
+                   # `warn`, ни в `unchecked`: это не находка и не сбой
+                   # проверки, а названный пробел в контракте (ADR-158).
+                   # Счётчик существует затем, чтобы «ноль назначенных сроков»
+                   # нельзя было прочитать как «все сроки на месте».
+                   "slo_unassigned": len(slo_unassigned)},
         "fleet_size": (len(fleet) if fleet is not None else None),
         "manifest_agents": len(agents),
         "curation": curation,
@@ -865,6 +912,13 @@ def run_checks(manifest: dict,
         # не в unchecked: их место — отчёт, их адресат — очередь работ, не тревога.
         "contracts": contracts_report,
         "slo_budgets": slo_budgets,
+        # Активные артефакты, которым срок годности ещё НЕ НАЗНАЧЕН (ADR-158).
+        # Раньше это состояние было различимо только по `budget_h: None` внутри
+        # `slo_budgets` — то есть по ОТСУТСТВИЮ значения в служебной строке;
+        # отдельный список существует потому, что отсутствие не читают.
+        # Наблюдённый возраст лежит рядом СПЕЦИАЛЬНО: он и есть тот факт, по
+        # которому две роли назначают срок.
+        "slo_unassigned": slo_unassigned,
         "consumption_budgets": consumption_budgets,
         "findings": kept,
         "aged": aged,
@@ -949,6 +1003,14 @@ def main(argv=None) -> int:
             print(f"  {k}: {cr[k]['verdict']} (сопоставлено {cr[k]['compared']})")
     for k, why in (contracts.get("errors") or {}).items():
         print(f"  [UNCHECKED] сверка {k} не выполнилась: {why}")
+    # Печатается ВСЕГДА, когда пробел есть: блок в JSON, который не звучит в
+    # выводе, — это тот же немой исход, только этажом выше (урок #426).
+    for u in report.get("slo_unassigned") or []:
+        age = ("файла нет на диске" if not u["exists"] else
+               f"наблюдённый возраст {u['observed_age_h']:g}ч")
+        print(f"  [СРОК НЕ НАЗНАЧЕН] {u['path']} (производитель "
+              f"{u['producer']}): свежесть НЕ ИЗМЕРЕНА, {age} — срок обязаны "
+              f"назначить две роли (ADR-158)")
     for f in report["findings"][:30]:
         print(f"  [{f['severity']}] {f['message']}")
     return 0 if args.exit_zero else report["exit_code"]

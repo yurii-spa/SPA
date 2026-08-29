@@ -6,7 +6,8 @@
   3. get_status (6)
   4. validate (5)
   5. health_check (5)
-  6. get_yield_info (6)
+  6. yield_details — подробный словарь (6)
+  6b. get_yield_info — канонический контракт базового класса (5)
   + Bonus: Registry integration (5)
 
 Запуск: python3 tests/test_extra_finance_base_adapter.py -v
@@ -423,17 +424,36 @@ class TestExtraFinanceBaseHealthCheck(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestExtraFinanceBaseYieldInfo(unittest.TestCase):
-    """Группа 6: get_yield_info() — структура и значения."""
+    """Группа 6: `yield_details()` — структура и значения.
+
+    ПЕРЕНАПРАВЛЕНО (цикл #426, 2026-08-29). Коммит `91b5d888f` того же дня привёл
+    `get_yield_info()` к каноническому контракту базового класса: адаптер был
+    ЕДИНСТВЕННЫМ из 36, кто возвращал отсюда `dict`, и потому его нельзя было
+    опросить в принципе. Прежний подробный словарь сохранён ВЕРБАТИМ как
+    `yield_details()` (исследовательская поверхность phase1_monitoring), но
+    тест-файл на него не перенаправили — и `tests/`, каталог, которым гейтится
+    CI, остался красным на 10 падений.
+
+    **Инвариант #16 соблюдён: ни одно утверждение не ослаблено и не снято.**
+    Предмет группы — тот самый подробный словарь; меняется ТОЛЬКО адресат вызова
+    (`get_yield_info` → `yield_details`), потому что словарь переехал под другое
+    имя. Значения (9.0 %, живой TVL 15M, static-фолбэк 135M, три аудита,
+    `tvl_usdc_lending`) проверяются те же и теми же числами.
+
+    Обратная сторона добавлена ниже отдельным классом: у самого канонического
+    контракта не было НИ ОДНОГО теста — поэтому поломку не поймали и с той
+    стороны тоже.
+    """
 
     def setUp(self):
         self.adapter = ExtraFinanceBaseAdapter()
 
     def _yield_info(self) -> dict:
         with _patch_urlopen([_make_pool(apy=9.0)]):
-            return self.adapter.get_yield_info()
+            return self.adapter.yield_details()
 
     def test_get_yield_info_returns_dict(self):
-        """get_yield_info() возвращает dict."""
+        """yield_details() возвращает dict."""
         self.assertIsInstance(self._yield_info(), dict)
 
     def test_get_yield_info_apy_pct(self):
@@ -457,7 +477,7 @@ class TestExtraFinanceBaseYieldInfo(unittest.TestCase):
     def test_get_yield_info_tvl_static_fallback_when_feed_down(self):
         """ADR-053: фид недоступен → константа TVL_USD, помеченная static."""
         with _patch_urlopen_error(urllib.error.URLError("timeout")):
-            yi = self.adapter.get_yield_info()
+            yi = self.adapter.yield_details()
         self.assertAlmostEqual(yi["tvl_usd"], 135_000_000.0, places=0)
         self.assertEqual(yi["tvl_source"], "static")
 
@@ -480,7 +500,7 @@ class TestExtraFinanceBaseYieldInfo(unittest.TestCase):
     def test_get_yield_info_fallback(self):
         """При сетевой ошибке get_yield_info() использует fallback APY."""
         with _patch_urlopen_error(urllib.error.URLError("timeout")):
-            yi = self.adapter.get_yield_info()
+            yi = self.adapter.yield_details()
         self.assertAlmostEqual(yi["apy_pct"], APY_FALLBACK, places=5)
 
     def test_get_yield_info_audits(self):
@@ -494,6 +514,68 @@ class TestExtraFinanceBaseYieldInfo(unittest.TestCase):
         yi = self._yield_info()
         self.assertIn("tvl_usdc_lending", yi)
         self.assertAlmostEqual(yi["tvl_usdc_lending"], 15_000_000.0, places=0)
+
+
+# ---------------------------------------------------------------------------
+# Group 6b: get_yield_info() — КАНОНИЧЕСКИЙ контракт базового класса
+# ---------------------------------------------------------------------------
+
+class TestExtraFinanceBaseCanonicalYieldInfo(unittest.TestCase):
+    """Обратная сторона починки #426: у канонического аксессора не было НИ ОДНОГО теста.
+
+    Поэтому поломку не поймали и со второй стороны. Коммит `91b5d888f` (29.08)
+    менял ровно этот контракт — адаптер был единственным из 36, кто возвращал
+    отсюда `dict`, и любой опрос падал с
+    `AttributeError: 'dict' object has no attribute 'tvl_usd'`. Красным тогда
+    стал только чужой предмет (группа 6, смотревшая на подробный словарь), а сам
+    новый контракт остался непроверенным.
+
+    Здесь закрепляются ровно те свойства, ради которых он менялся, включая два,
+    в которых легко ошибиться молча:
+
+      * `apy` — ДЕСЯТИЧНАЯ дробь, а не проценты (в репозитории единицы APY
+        непоследовательны по построению, и путаница здесь стоит порядка);
+      * при мёртвом фиде `apy` — `None`, а НЕ `APY_FALLBACK`: подстановка
+        литерала под видом наблюдения снята решением владельца 2026-08-08
+        (карточка `agent-fake-fallback-v-15-adapterah`). Подробный словарь свой
+        фолбэк сохраняет — это разные поверхности, и тест сторожит границу.
+    """
+
+    def setUp(self):
+        self.adapter = ExtraFinanceBaseAdapter()
+
+    def test_returns_the_base_class_contract_not_a_dict(self):
+        with _patch_urlopen([_make_pool(apy=9.0)]):
+            yi = self.adapter.get_yield_info()
+        self.assertNotIsInstance(yi, dict)
+        self.assertEqual(yi.protocol, ADAPTER_ID)
+        self.assertEqual(yi.tier, TIER)
+        self.assertAlmostEqual(yi.risk_score, RISK_SCORE, places=5)
+
+    def test_apy_is_a_decimal_fraction_not_percent(self):
+        with _patch_urlopen([_make_pool(apy=9.0)]):
+            yi = self.adapter.get_yield_info()
+        self.assertAlmostEqual(yi.apy, 0.09, places=6)
+
+    def test_live_tvl_is_named_live(self):
+        with _patch_urlopen([_make_pool(apy=9.0)]):
+            yi = self.adapter.get_yield_info()
+        self.assertAlmostEqual(yi.tvl_usd, 15_000_000.0, places=0)
+        self.assertEqual(yi.tvl_source, "live")
+
+    def test_dead_feed_refuses_instead_of_substituting_the_fallback(self):
+        """Отказ, а не выдумка: `apy=None`, а константа TVL честно помечена static."""
+        with _patch_urlopen_error(urllib.error.URLError("timeout")):
+            yi = self.adapter.get_yield_info()
+        self.assertIsNone(yi.apy)
+        self.assertAlmostEqual(yi.tvl_usd, float(TVL_USD), places=0)
+        self.assertEqual(yi.tvl_source, "static")
+
+    def test_the_detailed_dict_keeps_its_own_fallback(self):
+        """Граница двух поверхностей: у исследовательской фолбэк ОСТАЁТСЯ."""
+        with _patch_urlopen_error(urllib.error.URLError("timeout")):
+            details = self.adapter.yield_details()
+        self.assertAlmostEqual(details["apy_pct"], APY_FALLBACK, places=5)
 
 
 # ---------------------------------------------------------------------------
@@ -551,6 +633,7 @@ if __name__ == "__main__":
         TestExtraFinanceBaseValidate,
         TestExtraFinanceBaseHealthCheck,
         TestExtraFinanceBaseYieldInfo,
+        TestExtraFinanceBaseCanonicalYieldInfo,
         TestExtraFinanceBaseRegistry,
     ]
     for cls in test_classes:

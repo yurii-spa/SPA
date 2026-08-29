@@ -468,6 +468,17 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # лезть в JSON руками, чтобы узнать, ЧТО именно не измерено.
         for u in (data.get("unchecked") or [])[:4]:
             out.append(f"   [НЕ ИЗМЕРЕНО] {u.get('check')}: {u.get('reason')}")
+        # Пробел в контракте, а не находка (ADR-158 · ADR-164 п.2): срок
+        # годности назначают две роли, и «не сошлись» ⇒ поле пустое. В шаг 0
+        # это выносится ОТДЕЛЬНОЙ строкой потому, что до цикла #426 состояние
+        # было немым насквозь: ни находки, ни `unchecked`, ни счётчика — и
+        # активный артефакт, протухший на сорок суток, читался как исправный.
+        for u in (data.get("slo_unassigned") or [])[:6]:
+            age = ("файла нет на диске" if not u.get("exists")
+                   else f"наблюдённый возраст {u.get('observed_age_h')}ч")
+            out.append(f"   [СРОК НЕ НАЗНАЧЕН] {u.get('path')} "
+                       f"(производитель {u.get('producer')}): свежесть НЕ "
+                       f"ИЗМЕРЕНА, {age} — назначить обязаны две роли (ADR-158)")
         for p in (data.get("mechanics_from_ref") or [])[:4]:
             out.append(f"   [измерено с {p.get('ref')}] {p.get('label')}: "
                        f"{p.get('plist')} — в прод-дереве файла нет, "
