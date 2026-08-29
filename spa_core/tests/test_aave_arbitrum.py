@@ -117,7 +117,24 @@ class TestNetworkConstants:
         assert AaveArbitrumAdapter.POOL_ADDRESS == "0x794a61358D6845594F94dc1DB02A252b5b4814aD"
 
     def test_usdc_address(self):
-        assert AaveArbitrumAdapter.USDC_ADDRESS == "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
+        """ИЗМЕНЁН НАМЕРЕННО 29.08 (инв. #16): рынок переведён с USDC.e на нативный USDC
+        решением владельца (вариант 1, ADR-172).
+
+        Тест закреплял адрес МОСТОВОГО USDC.e. По адресу контракта замерено: этот рынок
+        держит $252 тыс. при константе `TVL_USD` = $1.2 млрд, то есть глубина была
+        завышена примерно в 4800 раз, а адаптер числился якорем T1 с потолком 40 %
+        капитала. Ликвидность Arbitrum давно в нативном USDC ($43.1 млн).
+
+        Смысл теста сохранён и усилен: адрес по-прежнему закреплён, и прежний адрес
+        закреплён тоже — чтобы «переезд» нельзя было тихо откатить или потерять.
+        """
+        assert AaveArbitrumAdapter.USDC_ADDRESS == "0xaf88d065e77c8cc2239327c5edb3a432268e5831"
+
+    def test_previous_market_is_still_recorded(self):
+        """Покинутый рынок обязан остаться названным: иначе через месяц никто не вспомнит,
+        ЧТО именно мы покинули и почему адаптер зовётся так, как зовётся."""
+        from spa_core.adapters.aave_arbitrum_adapter import _USDC_ADDRESS_BRIDGED
+        assert _USDC_ADDRESS_BRIDGED == "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
 
     def test_protocol_key(self):
         assert AaveArbitrumAdapter.PROTOCOL == "aave_arbitrum"

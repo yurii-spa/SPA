@@ -26,9 +26,9 @@ NATIVE = {"project": "aave-v3", "chain": "Arbitrum", "symbol": "USDC",
 BRIDGED = {"project": "aave-v3", "chain": "Arbitrum", "symbol": "USDC",
            "tvlUsd": 251_894.0, "apy": 3.47252,
            "underlyingTokens": ["0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"]}
-OTHER_CHAIN = {"project": "aave-v3", "chain": "Ethereum", "symbol": "USDC",
-               "tvlUsd": 900_000_000.0, "apy": 9.0,
-               "underlyingTokens": ["0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"]}
+NATIVE_OTHER_CHAIN = {"project": "aave-v3", "chain": "Ethereum", "symbol": "USDC",
+                      "tvlUsd": 900_000_000.0, "apy": 9.0,
+                      "underlyingTokens": ["0xaf88d065e77c8cc2239327c5edb3a432268e5831"]}
 
 
 def _with_pools(pools):
@@ -57,24 +57,43 @@ class IdentityIsAnAddressNotAName(unittest.TestCase):
         a._load_apy_from_status = lambda: None      # статуса нет — смотрим на пул
         return a.get_yield_info()
 
-    def test_the_bigger_same_named_pool_is_NOT_taken(self):
-        """Положительный контроль: оба пула зовутся USDC, наш — меньший."""
+    def test_the_pool_matching_OUR_address_is_taken(self):
+        """ИЗМЕНЁН НАМЕРЕННО 29.08 (инв. #16) вместе со сменой рынка (ADR-172).
+
+        Прежняя редакция утверждала «наш — МЕНЬШИЙ пул». Верно по факту, неверно как
+        принцип: размер ни при чём, решает адрес. После перевода на нативный USDC наш
+        пул стал БОЛЬШИМ — и тест, привязанный к размеру, покраснел бы на ВЕРНОМ
+        состоянии. Проверяется то, что и должно: берётся пул, чей `underlyingTokens`
+        совпадает с объявленным адресом адаптера, каким бы он ни был.
+        """
         info = self._info([NATIVE, BRIDGED])
-        self.assertEqual(info.tvl_usd, 251_894.0,
-                         "выбран нативный USDC — это ЧУЖОЙ резерв, отождествление по имени")
+        self.assertEqual(info.tvl_usd, 43_117_610.0,
+                         "взят не наш резерв: тождество решает АДРЕС, не имя и не размер")
         self.assertEqual(info.tvl_source, "live")
 
+    def test_a_same_named_pool_with_a_FOREIGN_address_is_refused(self):
+        """Обратный контроль, и он главный: символ тот же, адрес чужой."""
+        info = self._info([BRIDGED])          # USDC.e нам больше НЕ свой
+        self.assertEqual(info.tvl_usd, float(AaveArbitrumAdapter.TVL_USD))
+        self.assertEqual(info.tvl_source, "static",
+                         "чужой пул принят за свой — отождествление по имени")
+
     def test_same_address_on_another_chain_is_not_ours(self):
-        info = self._info([OTHER_CHAIN, BRIDGED])
-        self.assertEqual(info.tvl_usd, 251_894.0)
+        info = self._info([NATIVE_OTHER_CHAIN, NATIVE])
+        self.assertEqual(info.tvl_usd, 43_117_610.0)
 
     def test_live_tvl_replaces_the_literal(self):
-        """Константа $1.2 млрд завышала НАШ рынок примерно в 4800 раз."""
-        info = self._info([BRIDGED])
-        self.assertLess(info.tvl_usd, AaveArbitrumAdapter.TVL_USD / 1000)
+        """Константа $1.2 млрд завышала прежний рынок примерно в 4800 раз."""
+        info = self._info([NATIVE])
+        self.assertLess(info.tvl_usd, AaveArbitrumAdapter.TVL_USD / 10)
 
-    def test_apy_falls_back_to_the_pool_when_status_is_silent(self):
-        self.assertAlmostEqual(self._info([BRIDGED]).apy, 0.0347252)
+    def test_live_pool_apy_wins_over_the_literal_in_the_status_file(self):
+        """После смены рынка литерал 4.1 из adapter_status.json дошёл бы до аллокации
+        как доходность рынка, который даёт 2.29 % — пул ведь теперь проходит порог."""
+        a = AaveArbitrumAdapter()
+        self._real = _with_pools([NATIVE])
+        a._load_apy_from_status = lambda: 4.1
+        self.assertAlmostEqual(a.get_yield_info().apy, 0.0228554)
 
 
 class LiteralIsNeverCalledLive(unittest.TestCase):
@@ -84,7 +103,7 @@ class LiteralIsNeverCalledLive(unittest.TestCase):
         _restore(self._real)
 
     def test_no_matching_pool_keeps_the_literal_but_labels_it_static(self):
-        self._real = _with_pools([NATIVE])          # только чужой пул
+        self._real = _with_pools([BRIDGED])         # только чужой (уже) пул USDC.e
         a = AaveArbitrumAdapter()
         a._load_apy_from_status = lambda: 4.1
         info = a.get_yield_info()

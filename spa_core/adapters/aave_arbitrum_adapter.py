@@ -1,6 +1,7 @@
 """Aave V3 Arbitrum USDC адаптер — T1 anchor на L2 (MP-356).
 
-Первый T1-классифицированный L2-адаптер SPA. Отслеживает рынок USDC.e
+Первый T1-классифицированный L2-адаптер SPA. Отслеживает рынок нативного USDC
+(до 29.08 — USDC.e; смена рынка по решению владельца, ADR-172)
 на Aave V3 Arbitrum (TVL > $1.2B, Arbitrum network).
 
 Ключевые L2-преимущества:
@@ -46,7 +47,18 @@ _CHAIN_ID = 42161
 
 # Контрактные адреса (read-only — только для метаданных, реальных вызовов нет)
 _POOL_ADDRESS = "0x794a61358D6845594F94dc1DB02A252b5b4814aD"   # Aave V3 Arbitrum Pool
-_USDC_ADDRESS = "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"   # USDC.e на Arbitrum
+# РЕШЕНИЕ ВЛАДЕЛЬЦА 29.08 (вариант 1): рынок переведён с USDC.e на НАТИВНЫЙ USDC.
+# Причина замерена: у `aave-v3` на Arbitrum ДВА резерва с символом `USDC`, и решает
+# адрес, а не имя —
+#     0xff970a61…  USDC.e (мост) : $252 тыс., 3.47 %   ← был наш, рынок опустел
+#     0xaf88d065…  нативный USDC : $43.1 млн, 2.29 %   ← стал наш
+# Константа `TVL_USD` объявляла $1.2 млрд, то есть завышала глубину ПРЕЖНЕГО рынка
+# примерно в 4800 раз, и адаптер числился якорем T1 (потолок 40 % капитала) на этой
+# константе. USDC.e — уходящий формат: ликвидность Arbitrum переехала в нативный USDC,
+# а адаптер остался смотреть на опустевший рынок. Прежний адрес сохранён рядом
+# НАМЕРЕННО — он документирует, что именно мы покинули (ADR-172).
+_USDC_ADDRESS_BRIDGED = "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"   # USDC.e, до 29.08
+_USDC_ADDRESS = "0xaf88d065e77c8cc2239327c5edb3a432268e5831"   # нативный USDC на Arbitrum
 
 # ---------------------------------------------------------------------------
 # Газовые параметры L2 vs mainnet
@@ -80,7 +92,7 @@ class AaveArbitrumAdapter(BaseAdapter):
     NETWORK        : "arbitrum"
     CHAIN_ID       : 42161
     POOL_ADDRESS   : адрес контракта Aave V3 Pool на Arbitrum
-    USDC_ADDRESS   : адрес USDC.e на Arbitrum
+    USDC_ADDRESS   : адрес НАТИВНОГО USDC (USDC.e — в `_USDC_ADDRESS_BRIDGED`)
     TIER           : "T1"
     T1_CAP         : 0.40 (максимум 40% портфеля)
     RISK_SCORE     : 0.22 (T1 L2 — ниже риска чем T2)
@@ -176,7 +188,8 @@ class AaveArbitrumAdapter(BaseAdapter):
         символом `USDC`, и они разные резервы —
 
             0xaf88d065… нативный USDC : $43.1 млн, 2.29 %
-            0xff970a61… USDC.e (мост) : $252 тыс., 3.47 %   ← наш
+            0xaf88d065… нативный USDC : $43.1 млн, 2.29 %   ← наш (с 29.08)
+            0xff970a61… USDC.e (мост) : $252 тыс., 3.47 %   ← был наш до 29.08
 
         Замер 29.08: константа `TVL_USD` объявляла $1.2 млрд, то есть завышала
         глубину НАШЕГО рынка примерно в 4800 раз. Сопоставление по символу выбрало
@@ -230,13 +243,20 @@ class AaveArbitrumAdapter(BaseAdapter):
         Наблюдения нет ⇒ ``apy=None``: оркестратор запишет отсутствие живых
         данных и fail-CLOSED, а не будет ранжировать капитал по константе.
         """
-        apy_pct = self.get_apy()
         pool = self._fetch_live_pool()
+        # ЖИВОЕ НАБЛЮДЕНИЕ ПЕРЕД ЗАПИСЬЮ В ФАЙЛЕ. До 29.08 порядок был обратным, и это
+        # было безобидно ровно потому, что пул не проходил порог TVL и число никуда не
+        # шло. После перевода на нативный USDC пул порог ПРОХОДИТ — и литерал 4.1 из
+        # `adapter_status.json` (там круглые константы: apy 4.1, tvl 1.2 млрд) дошёл бы
+        # до аллокации как доходность рынка, который даёт 2.29 %. Это ровно тот дефект,
+        # что закрывали решением владельца 2026-08-08 («делать все 15»): подстановка под
+        # видом наблюдения. Файл остаётся ЗАПАСНЫМ источником.
+        apy_pct = (float(pool["apy"])
+                   if pool is not None and isinstance(pool.get("apy"), (int, float))
+                   else self.get_apy())
         live_tvl = (float(pool["tvlUsd"])
                     if pool is not None and isinstance(pool.get("tvlUsd"), (int, float))
                     else None)
-        if apy_pct is None and pool is not None and isinstance(pool.get("apy"), (int, float)):
-            apy_pct = float(pool["apy"])
         return YieldInfo(
             protocol=self.PROTOCOL,
             asset=self.asset,
