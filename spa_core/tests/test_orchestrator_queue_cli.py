@@ -237,6 +237,7 @@ def test_promotions_json_uses_scan_output(cli, monkeypatch, capsys):
         snippet = "do it #promote"
 
     monkeypatch.setattr(cli, "scan_promotions", lambda: [_P()])
+    monkeypatch.setattr(cli, "scan_promotion_mentions", lambda: [])
     rc = cli.main(["promotions", "--json"])
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
@@ -245,6 +246,7 @@ def test_promotions_json_uses_scan_output(cli, monkeypatch, capsys):
 
 def test_promotions_human_empty(cli, monkeypatch, capsys):
     monkeypatch.setattr(cli, "scan_promotions", lambda: [])
+    monkeypatch.setattr(cli, "scan_promotion_mentions", lambda: [])
     rc = cli.main(["promotions"])
     assert rc == 0
     assert "no #promote" in capsys.readouterr().out
@@ -479,3 +481,20 @@ def test_an_explicit_tracker_dir_still_wins_for_both_halves(
     # Заглушка выше отвечает «не измерено», а список пуст ⇒ код 2 — ЭТО ВЕРНО
     # («решений нет» здесь не измерено). Правило не ослабляем, а закрепляем.
     assert rc == 2
+
+
+def test_promotions_names_rejected_mentions_on_stderr(cli, monkeypatch, capsys):
+    """Отвергнутая цитата слышна, но НЕ попадает в машинный stdout (--json)."""
+    class _M:
+        path = Path("docs/ideas/cio.md")
+        title = "Слой надзора CIO"
+        snippet = "> ... без промоушена (владелец, `#promote`, CLAUDE.md §7.3)"
+
+    monkeypatch.setattr(cli, "scan_promotions", lambda: [])
+    monkeypatch.setattr(cli, "scan_promotion_mentions", lambda: [_M()])
+    rc = cli.main(["promotions", "--json"])
+    assert rc == 0
+    cap = capsys.readouterr()
+    assert json.loads(cap.out) == []
+    assert "docs/ideas/cio.md" in cap.err
+    assert "НЕ промоушен" in cap.err

@@ -45,6 +45,7 @@ from spa_core.owner_queue.queue import (
     create_card,
     ingest_notes,
     load_card,
+    scan_promotion_mentions,
     scan_promotions,
     first_instruction_line,
     list_cards,
@@ -682,6 +683,12 @@ def cmd_ingest_notes(args) -> int:
 
 
 def cmd_promotions(args) -> int:
+    """Шаг 1б: что владелец ПОМЕТИЛ к промоушену — и что лишь ГОВОРИТ о метке.
+
+    Второе печатается в stderr рядом с первым (машинный контракт stdout не меняется):
+    отказ читать цитату как метку обязан быть слышен, иначе fail-CLOSED «нет»
+    неотличимо от «ничего не нашли» и настоящее пожелание владельца утонет молча.
+    """
     proms = scan_promotions()
     if args.json:
         print(json.dumps([{"path": str(p.path), "title": p.title, "snippet": p.snippet} for p in proms],
@@ -691,6 +698,9 @@ def cmd_promotions(args) -> int:
             print("(no #promote tags found in docs/ideas/ or docs/rules-draft/)")
         for p in proms:
             print(f"#promote  {p.path}  —  {p.title}")
+    for m in scan_promotion_mentions():
+        print(f"ℹ️  разговор О метке, НЕ промоушен (действовать нельзя): {m.path} — {m.snippet}",
+              file=sys.stderr)
     return 0
 
 

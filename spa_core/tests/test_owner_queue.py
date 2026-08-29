@@ -14,6 +14,7 @@ from spa_core.owner_queue.queue import (
     OwnerDoneForbidden,
     create_card,
     ingest_notes,
+    scan_promotion_mentions,
     scan_promotions,
     first_instruction_line,
     list_cards,
@@ -273,3 +274,87 @@ def test_scan_promotions(tmp_path):
     assert proms[0].path.name == "a.md"
     assert proms[0].title == "Тёмная тема"
     assert "#promote" in proms[0].snippet
+
+
+# --------------------------------------------------- шаг 1б: метка или разговор О метке
+#
+# Положительный контроль аварии 2026-08-29: шапка-предупреждение, которую просят ставить
+# в КАЖДУЮ идею, содержит `#promote` — и сканер назвал непромоутенную идею кандидатом.
+# Строка, ЗАПРЕЩАЮЩАЯ действовать, стала поводом действовать; удар пришёлся ровно в
+# инвариант протокола №3 и в сторону разрешения. Шапка ниже — дословно из
+# docs/ideas/2026-08-29-cio-oversight-layer.md.
+
+WARNING_HEADER = (
+    "# Слой надзора CIO\n"
+    "\n"
+    "> **Идея, не инструкция.** Агенты по этому файлу не действуют без промоушена "
+    "(владелец, `#promote`, CLAUDE.md §7.3)\n"
+    "\n"
+    "Хорошо бы свести ёмкость и решения в один слой.\n"
+)
+
+
+def test_promotions_reject_the_warning_header(tmp_path):
+    """Шапка «не действовать без #promote» — НЕ промоушен (авария 2026-08-29).
+
+    Честно про охват: эта строка защищена ДВУМЯ условиями сразу (цитата `>` И обратные
+    кавычки), поэтому снятие любого ОДНОГО оставляет тест зелёным — условия заслоняют
+    друг друга. Пооосевой контроль — `test_promotions_reject_quoted_fenced_and_indented_tags`,
+    где каждый файл включает ровно одну ось. Здесь проверяется ИСХОД на настоящем тексте.
+    """
+    ideas = tmp_path / "ideas"
+    ideas.mkdir()
+    (ideas / "cio.md").write_text(WARNING_HEADER, encoding="utf-8")
+
+    assert scan_promotions(dirs=[ideas]) == []
+
+
+def test_rejected_mention_is_named_not_swallowed(tmp_path):
+    """Отказ обязан быть слышен: fail-CLOSED «нет» ≠ «ничего не нашли»."""
+    ideas = tmp_path / "ideas"
+    ideas.mkdir()
+    (ideas / "cio.md").write_text(WARNING_HEADER, encoding="utf-8")
+
+    mentions = scan_promotion_mentions(dirs=[ideas])
+    assert [m.path.name for m in mentions] == ["cio.md"]
+    assert "#promote" in mentions[0].snippet
+
+
+def test_promotions_reject_quoted_fenced_and_indented_tags(tmp_path):
+    """Цитата, блок кода и отступ — разговор О метке во всех трёх формах."""
+    ideas = tmp_path / "ideas"
+    ideas.mkdir()
+    (ideas / "quoted.md").write_text("# Идея\n> ставьте #promote в заметку\n", encoding="utf-8")
+    (ideas / "fenced.md").write_text("# Идея\n```\n#promote\n```\n", encoding="utf-8")
+    (ideas / "indented.md").write_text("# Идея\n\n    grep -rl '#promote' docs/ideas\n", encoding="utf-8")
+    (ideas / "inline.md").write_text("# Идея\nметка называется `#promote` и ставится владельцем\n",
+                                     encoding="utf-8")
+
+    assert scan_promotions(dirs=[ideas]) == []
+    assert sorted(m.path.name for m in scan_promotion_mentions(dirs=[ideas])) == [
+        "fenced.md", "indented.md", "inline.md", "quoted.md",
+    ]
+
+
+def test_promotions_accept_frontmatter_promote_true(tmp_path):
+    """Оговорённое место: метку ОБЪЯВЛЯЮТ во frontmatter, а не выводят из текста."""
+    ideas = tmp_path / "ideas"
+    ideas.mkdir()
+    (ideas / "d.md").write_text(
+        "---\ntitle: Идея\npromote: true\n---\n\n> тут даже цитата про `#promote` не мешает\n",
+        encoding="utf-8",
+    )
+
+    proms = scan_promotions(dirs=[ideas])
+    assert [p.path.name for p in proms] == ["d.md"]
+    assert scan_promotion_mentions(dirs=[ideas]) == []
+
+
+def test_promotions_accept_a_bare_tag_in_prose(tmp_path):
+    """Обратный контроль: настоящая метка владельца распознаётся по-прежнему."""
+    ideas = tmp_path / "ideas"
+    ideas.mkdir()
+    (ideas / "e.md").write_text("# Идея\nдавай сделаем это #promote\n", encoding="utf-8")
+    (ideas / "f.md").write_text("---\ntitle: Идея\n---\n\n#promote\n", encoding="utf-8")
+
+    assert sorted(p.path.name for p in scan_promotions(dirs=[ideas])) == ["e.md", "f.md"]

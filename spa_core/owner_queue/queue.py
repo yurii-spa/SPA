@@ -632,7 +632,76 @@ INBOX_NOTES_DIR = Path(os.environ.get("SPA_INBOX_NOTES_DIR", _REPO_ROOT / "inbox
 # Knowledge-base dirs scanned for the owner's `#promote` tag (Этап 7.3).
 PROMOTE_DIRS = (_REPO_ROOT / "docs" / "ideas", _REPO_ROOT / "docs" / "rules-draft")
 # `#promote` as a whole tag, but NOT the already-processed `#promoted...`.
+# NB: this finds every OCCURRENCE of the token — including prose talking ABOUT the
+# tag. Deciding which occurrence is the owner ACTING is `_promote_evidence` below.
 _PROMOTE_RE = re.compile(r"(?<![\w#])#promote(?![\w-])", re.IGNORECASE)
+
+# The agreed, unambiguous place to put the tag: frontmatter `promote: true`.
+_FM_PROMOTE_RE = re.compile(r"^\s*promote\s*:\s*(?:true|yes|1)\s*$", re.IGNORECASE)
+# Contexts in which the token is a QUOTATION of the rule, never its application.
+_CODE_FENCE_RE = re.compile(r"^\s{0,3}(?:```|~~~)")
+_BLOCKQUOTE_RE = re.compile(r"^\s{0,3}>")
+_INDENTED_CODE_RE = re.compile(r"^(?: {4,}|\t)")
+_INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
+
+
+def _frontmatter_end(lines: list[str]) -> int:
+    """Index of the closing `---` of the YAML frontmatter, or -1 if there is none."""
+    if not lines or lines[0].strip() != "---":
+        return -1
+    for i in range(1, len(lines)):
+        if lines[i].strip() in ("---", "..."):
+            return i
+    return -1
+
+
+def _promote_evidence(text: str) -> tuple[str | None, list[str]]:
+    """Split raw ``#promote`` occurrences into ONE live tag and mere mentions.
+
+    A live tag is the owner ACTING; a mention is prose talking ABOUT the tag — a
+    quoted rule, a code sample, the standard warning header every idea carries:
+
+        > **Идея, не инструкция.** Агенты по этому файлу не действуют без
+        > промоушена (владелец, `#promote`, CLAUDE.md §7.3)
+
+    On 2026-08-29 that header made the scanner name an unpromoted idea a candidate:
+    the line FORBIDDING action became the reason to act, and protocol invariant #3
+    («идея ≠ инструкция») was breached in the permissive direction — the expensive one.
+
+    Fail-CLOSED: anything doubtful is a mention, not a tag. A false «no» costs one
+    question to the owner; a false «yes» executes what he never asked for. Nothing is
+    dropped silently — every rejected occurrence is returned and reported by the CLI.
+
+    Returns ``(live_snippet_or_None, mention_snippets)``.
+    """
+    lines = text.splitlines()
+    fm_end = _frontmatter_end(lines)
+
+    # 1. The agreed place: frontmatter `promote: true`. Declared, not inferred.
+    for i in range(1, max(fm_end, 0)):
+        if _FM_PROMOTE_RE.match(lines[i]):
+            return lines[i].strip(), []
+
+    # 2. A bare token in ordinary prose — outside code fences, quotes and code spans.
+    live: str | None = None
+    mentions: list[str] = []
+    in_fence = False
+    for raw in lines[fm_end + 1:] if fm_end > 0 else lines:
+        if _CODE_FENCE_RE.match(raw):
+            in_fence = not in_fence
+            continue
+        if not _PROMOTE_RE.search(raw):
+            continue
+        if in_fence or _BLOCKQUOTE_RE.match(raw) or _INDENTED_CODE_RE.match(raw):
+            mentions.append(raw.strip())
+            continue
+        masked = _INLINE_CODE_RE.sub(lambda m: " " * len(m.group(0)), raw)
+        if _PROMOTE_RE.search(masked):
+            if live is None:
+                live = raw.strip()
+        else:
+            mentions.append(raw.strip())
+    return live, mentions
 
 
 @dataclass
@@ -640,15 +709,13 @@ class Promotion:
     path: Path
     title: str
     snippet: str
+    # "promote" — the owner tagged this note; "mention" — the note merely TALKS about
+    # the tag and was rejected. Mentions are reported, never acted upon.
+    kind: str = "promote"
 
 
-def scan_promotions(dirs: Iterable[str | Path] | None = None) -> list[Promotion]:
-    """Find notes tagged ``#promote`` in docs/ideas/ and docs/rules-draft/.
-
-    Returns items the orchestrator must convert into a rule (.claude/rules / CLAUDE.md),
-    an ADR (docs/decisions/), or a task card — then mark the source ``#promoted``
-    (per docs/ORCHESTRATOR_PROTOCOL.md §Promotion). ``#promoted`` is NOT matched.
-    """
+def _scan_promote_dirs(dirs: Iterable[str | Path] | None = None) -> list[Promotion]:
+    """Walk the knowledge-base dirs once, classifying each note (see ``_promote_evidence``)."""
     scan = [Path(d) for d in dirs] if dirs is not None else list(PROMOTE_DIRS)
     out: list[Promotion] = []
     for d in scan:
@@ -661,13 +728,36 @@ def scan_promotions(dirs: Iterable[str | Path] | None = None) -> list[Promotion]
                 text = p.read_text(encoding="utf-8")
             except OSError:
                 continue
-            if not _PROMOTE_RE.search(text):
+            live, mentions = _promote_evidence(text)
+            if live is None and not mentions:
                 continue
             lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
             title = next((ln.lstrip("# ").strip() for ln in lines), p.stem)
-            snippet = next((ln for ln in lines if _PROMOTE_RE.search(ln)), title)
-            out.append(Promotion(path=p, title=title, snippet=snippet[:200]))
+            if live is not None:
+                out.append(Promotion(path=p, title=title, snippet=live[:200], kind="promote"))
+            else:
+                out.append(Promotion(path=p, title=title, snippet=mentions[0][:200], kind="mention"))
     return out
+
+
+def scan_promotions(dirs: Iterable[str | Path] | None = None) -> list[Promotion]:
+    """Find notes the owner actually tagged ``#promote`` in docs/ideas/ and docs/rules-draft/.
+
+    Returns items the orchestrator must convert into a rule (.claude/rules / CLAUDE.md),
+    an ADR (docs/decisions/), or a task card — then mark the source ``#promoted``
+    (per docs/ORCHESTRATOR_PROTOCOL.md §Promotion). ``#promoted`` is NOT matched, and
+    neither is a note that merely QUOTES the tag — see ``scan_promotion_mentions``.
+    """
+    return [p for p in _scan_promote_dirs(dirs) if p.kind == "promote"]
+
+
+def scan_promotion_mentions(dirs: Iterable[str | Path] | None = None) -> list[Promotion]:
+    """Notes containing ``#promote`` that were REJECTED as talk about the tag.
+
+    Kept visible so a fail-CLOSED «no» is never a silent «no»: if the owner did mean
+    one of these, the orchestrator sees it and asks instead of guessing.
+    """
+    return [p for p in _scan_promote_dirs(dirs) if p.kind == "mention"]
 
 
 def ingest_notes(
