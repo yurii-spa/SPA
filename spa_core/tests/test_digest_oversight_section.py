@@ -128,3 +128,49 @@ def test_the_section_writes_nothing(ddir):
     D._build_oversight_section(ddir)
     after = {p.name: p.read_bytes() for p in ddir.iterdir()}
     assert before == after, "сборка отчёта изменила состояние на диске"
+
+
+# --- Строка гейта доказательств (ADR-169) -----------------------------------
+#
+# Самое опасное состояние аллокатора — гейт доказательств ВЫКЛЮЧЕН: покрытие
+# обвалилось, мы подозреваем свою поломку, и капитал в этот цикл раскладывался
+# по устаревшей вселенной. Раньше об этом знал только `log.warning`.
+
+def _with_coverage(ddir, cov: dict) -> None:
+    (ddir / "current_positions.json").write_text(
+        json.dumps({"feed_coverage": {"evidence_coverage": cov}}), encoding="utf-8")
+
+
+def test_a_disabled_gate_is_shouted_not_whispered(ddir):
+    _with_coverage(ddir, {"evidenced": 8, "attempted": 34, "required": 17,
+                          "gate_applied": False})
+    out = D._build_oversight_section(ddir)
+    assert "НЕ применён" in out
+    assert "8" in out and "34" in out and "17" in out, "числа не названы"
+    assert "производителя" in out, "не сказано, что подозревается НАША поломка"
+
+
+def test_an_applied_gate_still_shows_its_numbers(ddir):
+    _with_coverage(ddir, {"evidenced": 23, "attempted": 34, "required": 17,
+                          "gate_applied": True})
+    out = D._build_oversight_section(ddir)
+    assert "применён" in out and "23" in out and "34" in out
+    assert "НЕ применён" not in out
+
+
+def test_a_missing_coverage_field_is_unmeasured_not_fine(ddir):
+    """Артефакт от СТАРОГО кода поля не несёт — это «не измерено», а не «всё хорошо».
+
+    Ровно это состояние и наблюдалось в проде в момент доставки: аллокатор ещё
+    не отработал новый цикл. Третий исход обязан существовать.
+    """
+    (ddir / "current_positions.json").write_text(
+        json.dumps({"feed_coverage": {"live": 23, "total": 34}}), encoding="utf-8")
+    out = D._build_oversight_section(ddir)
+    assert "Гейт доказательств: не измерен" in out
+    assert "применён" not in out.split("Гейт доказательств")[1].split("\n")[0]
+
+
+def test_the_gate_line_is_in_the_report_standard():
+    markers = {m for m, _ in D._REQUIRED_BLOCKS}
+    assert "Гейт доказательств" in markers

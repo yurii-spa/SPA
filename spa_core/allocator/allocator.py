@@ -972,6 +972,15 @@ class StrategyAllocator:
         # который мог бы сломаться, там нет, поэтому знаменатель — то, что он дал.
         if self._live_apy_provider is not None:
             attempts = len(live_apy)
+        elif os.environ.get("PYTEST_CURRENT_TEST"):
+            # Тот же заслон, что стоит на загрузке доказательств двумя блоками
+            # выше, и по той же причине: тест не читает живой  репозитория.
+            # Без него знаменатель брался с ХОСТА, и вердикт теста начинал
+            # зависеть от того, сколько адаптеров лежит в дереве разработчика —
+            # на CI и на Маке это разные числа. Числитель под pytest пуст по
+            # построению, поэтому знаменатель здесь не «ноль адаптеров», а
+            # НЕ ИЗМЕРЕН: правило доли молчит, остаётся абсолютный порог.
+            attempts = 0
         else:
             attempts = _observation_attempts(
                 self.status_path, self._adapter_status_path
@@ -1221,6 +1230,13 @@ class StrategyAllocator:
             # ADR-061: was funding restricted to OBSERVED APYs this run, and who
             # was blocked (advisory / not_eligible / unevidenced) and why.
             "evidence_gate_applied": self._evidence_gate_applied,
+            # ADR-169: ПОЧЕМУ гейт применён или нет — числами, а не одним флагом.
+            # Флаг отвечает «применён ли», но не отличает «мир затих» от «наш
+            # производитель сломался»; отличают это наблюдено/перечислено.
+            # Поле пишется в артефакт намеренно: ADR-169 обещает, что состояние
+            # покрытия доходит до дневного отчёта, а атрибут в памяти объекта
+            # туда дойти не может.
+            "evidence_coverage": dict(getattr(self, "_evidence_coverage", {}) or {}),
             "blocked": dict(self._blocked),
         }
 
