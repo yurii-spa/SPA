@@ -17,10 +17,19 @@ LLM forbidden. Pure stdlib. Deterministic: same inputs → same verdict.
 # LLM_FORBIDDEN
 from __future__ import annotations
 
+import logging
+import os
 from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Optional, Tuple
 
 from spa_core.risk.tvl_floor import floor_is_resolved, floor_reason
+
+log = logging.getLogger("spa.allocator.rebalance_economics")
+
+#: Значения ``SPA_CAPITAL_MODE``, означающие РЕАЛЬНЫЕ деньги (строгая колонка
+#: ADR-060 §3). Всё, что не ``paper`` и не пусто, тоже получает строгую колонку —
+#: см. :meth:`TriggerParams.for_mode`.
+_PILOT_MODES = frozenset({"pilot", "live", "real"})
 
 # Per-move cost inputs are REUSED from the existing Tier-1 cost model rather than
 # re-invented, so a gas/slippage assumption exists in exactly one place.
@@ -47,8 +56,16 @@ class TriggerParams:
     """Owner-gated dials (ADR-060 §3). NOT RiskPolicy thresholds.
 
     These decide whether a PERMITTED move is worth making; they can never widen a
-    cap. Paper defaults below; the real-capital column of ADR-060 §3 is applied by
-    passing an explicit instance.
+    cap. Значения ниже — колонка **paper** из ADR-060 §3.
+
+    Колонка «реальный пилот» до 2026-08-29 существовала только в тексте ADR:
+    применить её можно было «передачей явного экземпляра», но НИ ОДИН вызывающий
+    этого не делал и переключателя не было. На живых деньгах система поехала бы
+    на бумажных порогах, если бы никто не вспомнил. Теперь колонку выбирает
+    :meth:`for_mode` по ``SPA_CAPITAL_MODE``.
+
+    **Построить ≠ включить.** По умолчанию режим остаётся ``paper``; переход на
+    ``pilot`` — решение владельца, а не следствие этой правки.
     """
     min_gain_pp: float = 0.50            # min blended-APY gain, pp of TOTAL capital
     max_payback_days: float = 30.0       # cost must repay within this horizon
@@ -60,6 +77,39 @@ class TriggerParams:
     reversal_window_days: int = 14       # window in which a reversal is penalised
     reversal_escalation: float = 1.5     # gain threshold ×N when reversing
     below_median_cap_factor: float = 0.5  # below-median yield ⇒ ≤ half the tier cap
+
+    @classmethod
+    def for_mode(cls, mode: Optional[str] = None) -> "TriggerParams":
+        """Колонка порогов по режиму капитала (ADR-060 §3).
+
+        ``mode`` → аргумент, иначе ``SPA_CAPITAL_MODE``, иначе ``paper``.
+
+        **Незнакомое значение даёт СТРОГУЮ колонку, а не мягкую.** Опечатка
+        (``piolt``) на реальных деньгах не имеет права сделать систему
+        снисходительнее — сомнение трактуется против сделки, как и везде
+        в этом слое. Выбор громко логируется в обоих случаях.
+        """
+        raw = mode if mode is not None else os.environ.get("SPA_CAPITAL_MODE", "paper")
+        key = str(raw).strip().lower()
+        if key in ("paper", ""):
+            return cls()
+        if key not in _PILOT_MODES:
+            log.warning(
+                "SPA_CAPITAL_MODE=%r не распознан — применяю СТРОГУЮ колонку "
+                "(реальный пилот, ADR-060 §3). Мягкая колонка по опечатке не выдаётся.",
+                raw)
+        return cls(
+            min_gain_pp=0.75,
+            max_payback_days=45.0,
+            min_hold_days=7,
+            act_cooldown_days=7,
+            max_turnover_per_move=0.10,
+            max_turnover_per_week=0.15,
+            min_leg_frac=0.01,
+            reversal_window_days=21,
+            reversal_escalation=2.0,
+            below_median_cap_factor=0.5,   # одинаков в обеих колонках
+        )
 
 
 @dataclass
@@ -191,7 +241,7 @@ def evaluate(
     named reason, never an optimistic guess. ``ACT`` means only "the economics
     justify this move"; admissibility was already decided upstream.
     """
-    p = params or TriggerParams()
+    p = params or TriggerParams.for_mode()
     d = Decision(decision="HOLD")
 
     if capital_usd <= 0:

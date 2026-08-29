@@ -302,7 +302,7 @@ def write_shadow_rationale(
     """Compute the shadow verdict and (optionally) persist it. Never raises."""
     try:
         now = now or datetime.now(timezone.utc)
-        p = params or TriggerParams()
+        p = params or TriggerParams.for_mode()
 
         # Evidence comes from the allocator's own provenance, which ADR-061/063 made
         # truthful: "live" now means observed, not "a literal we dressed up".
