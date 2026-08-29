@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-29T02:23:33Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-29T09:02:06Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **750** · ждёт владельца: **0** · занято сессиями: **10**.
+> Всего карточек: **751** · ждёт владельца: **0** · занято сессиями: **10**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -588,7 +588,7 @@ _Пусто — открытых решений на владельце нет._
 - Заявки с сайта пишутся, но их нет ни в манифесте, ни под сторожем свежести  ·  `inbox-zayavki-s-saita-nikto-ne-storozhit.md` · 2026-08-28
 - Живость дневного цикла судится по файлу, которого нет в его объявленном контракте  ·  `inbox-zhivost-dnevnogo-tsikla-suditsya-po-chuzhomu-failu.md` · 2026-08-28
 
-## 🤖 Agent Tasks (что делает агент)  (137)
+## 🤖 Agent Tasks (что делает агент)  (138)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -633,6 +633,7 @@ _Пусто — открытых решений на владельце нет._
 - 20 модулей Tier-B помечены `unsourced` — поднять их обратно можно только источником, не правкой разметки  ·  `agent-tier-b-20-unsourced-modules-need-sources.md` · 2026-08-06
 - Включить перераздачу срезанного капитала БЕЗ возврата в срезанные пулы (ADR-160)  ·  `agent-vklyuchit-pererazdachu-bez-vozvrata-v-srezannye.md` · 2026-08-28
 - Включить агента com.spa.site_freshness — код по ADR-098 доставлен, тело не загружено  ·  `agent-vklyuchit-site-freshness-posle-adr-098.md` · 2026-08-20
+- Замер G1 с хоста: какая доля капитала стоит на НАБЛЮДЁННЫХ числах (приёмка §5 диагностики CIO)  ·  `agent-zamer-g1-dolya-kapitala-na-nablyudennyh-chislah.md` · 2026-08-29
 - Живой источник цен для внутридневной оценки позиций — владелец выбрал его вместо ограничения книги стейблами (ADR-129)  ·  `agent-zhivoi-istochnik-tsen-dlya-vnutridnevnoi-otsenki.md` · 2026-08-23
 ### · done
 - Дашборд управления агентами /admin/agents  ·  `agent-agent-dashboard.md` · 2026-07-16
