@@ -1,3 +1,76 @@
 {
-  "quarantined": {}
+  "quarantined": {
+    "com.spa.bts-feed": {
+      "at": "2026-08-29T02:20:42Z",
+      "reason": "продукт не потребляет никто: ни код, ни квитанции, ни манифест, ни владелец (замер 29.08, решение владельца own-36/вариант 4 + партия 1)",
+      "measurement": {
+        "label": "com.spa.bts-feed",
+        "measured": true,
+        "consumers": 0,
+        "by_channel": {
+          "code": [],
+          "receipts": [],
+          "manifest": [],
+          "owner": []
+        },
+        "note": "продукт не потребляет никто: ни код, ни квитанции, ни манифест, ни владелец",
+        "declared": [
+          "data/perp_funding_rates.json"
+        ]
+      },
+      "was_loaded": true,
+      "plist_in_attic": "attic/agents/com.spa.bts-feed.plist",
+      "restore": "python3 scripts/agent_quarantine.py restore com.spa.bts-feed",
+      "schedule_was": "interval:900s",
+      "role": "monitoring"
+    },
+    "com.spa.bts-monitor": {
+      "at": "2026-08-29T02:20:49Z",
+      "reason": "продукт не потребляет никто: ни код, ни квитанции, ни манифест, ни владелец (замер 29.08, решение владельца own-36/вариант 4 + партия 1)",
+      "measurement": {
+        "label": "com.spa.bts-monitor",
+        "measured": true,
+        "consumers": 0,
+        "by_channel": {
+          "code": [],
+          "receipts": [],
+          "manifest": [],
+          "owner": []
+        },
+        "note": "продукт не потребляет никто: ни код, ни квитанции, ни манифест, ни владелец",
+        "declared": [
+          "data/basis_trade_opportunities.json"
+        ]
+      },
+      "was_loaded": true,
+      "plist_in_attic": "attic/agents/com.spa.bts-monitor.plist",
+      "restore": "python3 scripts/agent_quarantine.py restore com.spa.bts-monitor",
+      "schedule_was": "interval:900s",
+      "role": "monitoring"
+    },
+    "com.spa.governance_watcher": {
+      "at": "2026-08-29T02:20:55Z",
+      "reason": "продукт не потребляет никто: ни код, ни квитанции, ни манифест, ни владелец (замер 29.08, решение владельца own-36/вариант 4 + партия 1)",
+      "measurement": {
+        "label": "com.spa.governance_watcher",
+        "measured": true,
+        "consumers": 0,
+        "by_channel": {
+          "code": [],
+          "receipts": [],
+          "manifest": [],
+          "owner": []
+        },
+        "note": "продукт не потребляет никто: ни код, ни квитанции, ни манифест, ни владелец",
+        "declared": [
+          "data/governance_proposals.json"
+        ]
+      },
+      "was_loaded": true,
+      "plist_in_attic": "attic/agents/com.spa.governance_watcher.plist",
+      "restore": "python3 scripts/agent_quarantine.py restore com.spa.governance_watcher",
+      "schedule_was": "interval:900s",
+      "role": "monitoring"
+    }
+  }
 }

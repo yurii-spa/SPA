@@ -70,7 +70,16 @@
    "layer": "product",
    "role": "monitoring",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/analytics_report_full.json",
+     "slo_hours": 3.0
+    },
+    {
+     "artifact": "data/analytics_signals_advisory.json",
+     "slo_hours": 3.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -78,8 +87,8 @@
    "notes": "",
    "passport": {
     "goal": "Агрегирует сигналы аналитических модулей (ADR-031).",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/analytics_report_full.json свежее 3.0 ч; data/analytics_signals_advisory.json свежее 3.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/analytics_report_full.json, data/analytics_signals_advisory.json",
     "limits": "не импортирует execution"
    }
@@ -93,7 +102,16 @@
    "layer": "product",
    "role": "monitoring",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/analytics_report_full.json",
+     "slo_hours": 26.0
+    },
+    {
+     "artifact": "data/analytics_signals_advisory.json",
+     "slo_hours": 26.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -101,8 +119,8 @@
    "notes": "",
    "passport": {
     "goal": "Агрегирует сигналы аналитических модулей (ADR-031).",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/analytics_report_full.json свежее 26.0 ч; data/analytics_signals_advisory.json свежее 26.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/analytics_report_full.json, data/analytics_signals_advisory.json",
     "limits": "не импортирует execution"
    }
@@ -169,7 +187,12 @@
    "layer": "product",
    "role": "monitoring",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/artifact_freshness.json",
+     "slo_hours": 26.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -177,8 +200,8 @@
    "notes": "РАБОТАЕТ, но загружен из repo:scripts/ — НЕ переживёт ребут (находка 2026-08-05); в agent_registry отсутствует",
    "passport": {
     "goal": "SPA Artifact Freshness Registry — single source of truth for \"what must stay fresh\".",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/artifact_freshness.json свежее 26.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/artifact_freshness.json",
     "limits": "LLM запрещён; не импортирует execution"
    }
@@ -238,7 +261,12 @@
    "layer": "product",
    "role": "monitoring",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/base_gas_history.json",
+     "slo_hours": 168.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -246,8 +274,8 @@
    "notes": "",
    "passport": {
     "goal": "spa_core/monitoring/base_gas_monitor.py ======================================== Base chain gas price monitor — ADR-025 kill-switch condition.",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/base_gas_history.json свежее 168.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/base_gas_history.json",
     "limits": "LLM запрещён; не импортирует execution"
    }
@@ -265,6 +293,10 @@
     {
      "artifact": "data/btc_paper_trading.json",
      "slo_hours": 26
+    },
+    {
+     "artifact": "data/btc_cycle/target_share.json",
+     "slo_hours": 168.0
     }
    ],
    "consumes": [
@@ -287,46 +319,56 @@
   },
   {
    "label": "com.spa.bts-feed",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
+   "plist_source": "repo:scripts/com.spa.bts-feed.plist",
+   "reboot_safe": false,
    "schedule": "interval:900s",
    "program": "agent_bts-feed.sh",
    "layer": "product",
    "role": "monitoring",
-   "intent": "active",
-   "produces": [],
+   "intent": "unresolved",
+   "produces": [
+    {
+     "artifact": "data/perp_funding_rates.json",
+     "slo_hours": 168.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": "",
+   "notes": "В КАРАНТИНЕ с 2026-08-29 (решение владельца own-36, партия 1): продукт не потребляет никто — ни код, ни квитанции, ни манифест, ни владелец. НЕ удалён: plist лежит в attic/agents/, возврат одной командой `python3 scripts/agent_quarantine.py restore <label>`. Если кто-то закричит — вернуть; молчание две недели считается доказательством ненужности.",
    "passport": {
     "goal": "BTS Feed Runner — LaunchAgent entry point for perp_funding_feed.",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/perp_funding_rates.json свежее 168.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/perp_funding_rates.json",
     "limits": "не импортирует execution"
    }
   },
   {
    "label": "com.spa.bts-monitor",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
+   "plist_source": "repo:scripts/com.spa.bts-monitor.plist",
+   "reboot_safe": false,
    "schedule": "interval:900s",
    "program": "agent_bts-monitor.sh",
    "layer": "product",
    "role": "monitoring",
-   "intent": "active",
-   "produces": [],
+   "intent": "unresolved",
+   "produces": [
+    {
+     "artifact": "data/basis_trade_opportunities.json",
+     "slo_hours": 168.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": "",
+   "notes": "В КАРАНТИНЕ с 2026-08-29 (решение владельца own-36, партия 1): продукт не потребляет никто — ни код, ни квитанции, ни манифест, ни владелец. НЕ удалён: plist лежит в attic/agents/, возврат одной командой `python3 scripts/agent_quarantine.py restore <label>`. Если кто-то закричит — вернуть; молчание две недели считается доказательством ненужности.",
    "passport": {
     "goal": "LaunchAgent runner for BTS Monitor.",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/basis_trade_opportunities.json свежее 168.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/basis_trade_opportunities.json",
     "limits": "не импортирует execution"
    }
@@ -434,7 +476,12 @@
    "layer": "product",
    "role": "research",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/competitive_watch.json",
+     "slo_hours": 26.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -442,7 +489,7 @@
    "notes": "оживлён решением владельца 2026-08-06 (ADR-067): мониторинг конкурентов (09:30)",
    "passport": {
     "goal": "SPA Competitive Early-Warning Monitor (Proof-of-Risk WS-E).",
-    "quality_metric": "",
+    "quality_metric": "data/competitive_watch.json свежее 26.0 ч",
     "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
     "rights": "слать CRITICAL владельцу через push_policy",
     "limits": "LLM запрещён; не импортирует execution"
@@ -480,7 +527,12 @@
    "layer": "product",
    "role": "monitoring",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/cycle_gap_state.json",
+     "slo_hours": 26.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -488,7 +540,7 @@
    "notes": "",
    "passport": {
     "goal": "144: Cycle Gap Monitor — detects missed daily cycles and sends a Telegram alert.",
-    "quality_metric": "",
+    "quality_metric": "data/cycle_gap_state.json свежее 26.0 ч",
     "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
     "rights": "слать CRITICAL владельцу через push_policy",
     "limits": "не импортирует execution"
@@ -503,7 +555,12 @@
    "layer": "product",
    "role": "monitoring",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/cycle_health.json",
+     "slo_hours": 26.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -511,8 +568,8 @@
    "notes": "",
    "passport": {
     "goal": "spa_core/monitoring/cycle_health_monitor.py ============================================ Monitors paper trading cycle health (MP-cycle-health).",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/cycle_health.json свежее 26.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/cycle_health.json",
     "limits": "LLM запрещён; не импортирует execution"
    }
@@ -697,7 +754,12 @@
    "layer": "product",
    "role": "research",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/dfb/pools.json",
+     "slo_hours": 168.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -705,8 +767,8 @@
    "notes": "",
    "passport": {
     "goal": "spa_core/dfb/paper_dfb.py — WS-1.5: the DFB daily capture AGENT entrypoint (one tick).",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/dfb/pools.json свежее 168.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/dfb/pools.json",
     "limits": "LLM запрещён; не импортирует execution"
    }
@@ -720,7 +782,12 @@
    "layer": "product",
    "role": "reporting",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/telegram_alert_state.json",
+     "slo_hours": 26.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -728,8 +795,8 @@
    "notes": "",
    "passport": {
     "goal": "spa_core/telegram/reports/daily.py — THE one daily digest (Tier 2).",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/telegram_alert_state.json свежее 26.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/telegram_alert_state.json",
     "limits": "advisory — капитал не двигает; не импортирует execution"
    }
@@ -812,7 +879,12 @@
    "layer": "product",
    "role": "monitoring",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/golive_freshness.json",
+     "slo_hours": 168.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -820,31 +892,36 @@
    "notes": "",
    "passport": {
     "goal": "Go-live freshness cycle — the body of com.spa.golive_freshness (Q1-11).",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/golive_freshness.json свежее 168.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/golive_freshness.json",
     "limits": "advisory — капитал не двигает"
    }
   },
   {
    "label": "com.spa.governance_watcher",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
+   "plist_source": "repo:scripts/com.spa.governance_watcher.plist",
+   "reboot_safe": false,
    "schedule": "interval:900s",
    "program": "agent_governance_watcher.sh",
    "layer": "product",
    "role": "monitoring",
-   "intent": "active",
-   "produces": [],
+   "intent": "unresolved",
+   "produces": [
+    {
+     "artifact": "data/governance_proposals.json",
+     "slo_hours": 168.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": "",
+   "notes": "В КАРАНТИНЕ с 2026-08-29 (решение владельца own-36, партия 1): продукт не потребляет никто — ни код, ни квитанции, ни манифест, ни владелец. НЕ удалён: plist лежит в attic/agents/, возврат одной командой `python3 scripts/agent_quarantine.py restore <label>`. Если кто-то закричит — вернуть; молчание две недели считается доказательством ненужности.",
    "passport": {
     "goal": "Governance Watcher — FEAT-MON-002 (Sprint v3.18).",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/governance_proposals.json свежее 168.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/governance_proposals.json",
     "limits": "не импортирует execution"
    }
@@ -858,7 +935,12 @@
    "layer": "product",
    "role": "allocation",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/hy_paper_trading.json",
+     "slo_hours": 26.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -866,8 +948,8 @@
    "notes": "",
    "passport": {
     "goal": "Engine B (HY/Carry) paper trading cycle — EPIC-1 S1.3.",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/hy_paper_trading.json свежее 26.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/hy_paper_trading.json",
     "limits": "LLM запрещён; не импортирует execution"
    }
@@ -1321,7 +1403,12 @@
    "layer": "product",
    "role": "allocation",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/lp_paper_trading.json",
+     "slo_hours": 26.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -1329,8 +1416,8 @@
    "notes": "",
    "passport": {
     "goal": "Engine C (LP/Liquidity) paper trading cycle — EPIC-2 S2.2.",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/lp_paper_trading.json свежее 26.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/lp_paper_trading.json",
     "limits": "LLM запрещён; не импортирует execution"
    }
@@ -1491,7 +1578,12 @@
    "layer": "product",
    "role": "monitoring",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/peg_report.json",
+     "slo_hours": 26.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -1499,7 +1591,7 @@
    "notes": "",
    "passport": {
     "goal": "MP-601 PegStabilityMonitor.",
-    "quality_metric": "",
+    "quality_metric": "data/peg_report.json свежее 26.0 ч",
     "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
     "rights": "слать CRITICAL владельцу через push_policy",
     "limits": "LLM запрещён; не импортирует execution"
@@ -1514,7 +1606,16 @@
    "layer": "product",
    "role": "monitoring",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/monitor_snapshots.json",
+     "slo_hours": 168.0
+    },
+    {
+     "artifact": "data/portfolio_health.json",
+     "slo_hours": 168.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -1522,8 +1623,8 @@
    "notes": "",
    "passport": {
     "goal": "Portfolio drift monitoring module for SPA (MP-578).",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/monitor_snapshots.json свежее 168.0 ч; data/portfolio_health.json свежее 168.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/monitor_snapshots.json, data/portfolio_health.json",
     "limits": "не импортирует execution"
    }
@@ -1537,7 +1638,20 @@
    "layer": "product",
    "role": "allocation",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/rates_desk/paper/rates_desk_fixed_carry_series.json",
+     "slo_hours": 3.0
+    },
+    {
+     "artifact": "data/rates_desk/paper/rates_desk_fixed_carry_state.json",
+     "slo_hours": 3.0
+    },
+    {
+     "artifact": "data/rates_desk/paper/status.json",
+     "slo_hours": 3.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -1545,8 +1659,8 @@
    "notes": "",
    "passport": {
     "goal": "spa_core/strategy_lab/rates_desk/paper_rates.py — LIVE paper-trading service for the rates-desk FixedCarry sleeve (the VALIDATED one).",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/rates_desk/paper/rates_desk_fixed_carry_series.json свежее 3.0 ч; data/rates_desk/paper/rates_desk_fixed_carry_state.json свежее 3.0 ч; data/rates_desk/paper/status.json свежее 3.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/rates_desk/paper/rates_desk_fixed_carry_series.json, data/rates_desk/paper/rates_desk_fixed_carry_state.json, data/rates_desk/paper/status.json",
     "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
    }
@@ -1560,7 +1674,16 @@
    "layer": "product",
    "role": "research",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/rates_desk/paper/realized_at_size_track.jsonl",
+     "slo_hours": 168.0
+    },
+    {
+     "artifact": "data/rates_desk/realized_at_size.json",
+     "slo_hours": 168.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -1568,8 +1691,8 @@
    "notes": "",
    "passport": {
     "goal": "spa_core/strategy_lab/rates_desk/paper_realized_at_size.py — Lane B B2.6: the STANDING forward-measurement agent for the realized-at-size killer test.",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/rates_desk/paper/realized_at_size_track.jsonl свежее 168.0 ч; data/rates_desk/realized_at_size.json свежее 168.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/rates_desk/paper/realized_at_size_track.jsonl, data/rates_desk/realized_at_size.json",
     "limits": "LLM запрещён; не импортирует execution"
    }
@@ -1606,7 +1729,12 @@
    "layer": "product",
    "role": "monitoring",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/red_flags.json",
+     "slo_hours": 3.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -1614,8 +1742,8 @@
    "notes": "",
    "passport": {
     "goal": "Red Flag Monitor — FEAT-MON-001 (Sprint v3.16).",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/red_flags.json свежее 3.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/red_flags.json",
     "limits": "не импортирует execution"
    }
@@ -1629,7 +1757,12 @@
    "layer": "product",
    "role": "unknown",
    "intent": "retired",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/redteam_status.json",
+     "slo_hours": 168.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -1637,8 +1770,8 @@
    "notes": "похоронен решением владельца 2026-08-06 (ADR-067): red-team живёт в research-слое",
    "passport": {
     "goal": "spa_core/redteam/rotation.py — the rotating red-team scheduler + the hash-ANCHORED report.",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/redteam_status.json свежее 168.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/redteam_status.json",
     "limits": "LLM запрещён; не импортирует execution"
    }
@@ -1652,7 +1785,12 @@
    "layer": "product",
    "role": "research",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/refusal_status.json",
+     "slo_hours": 168.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -1660,8 +1798,8 @@
    "notes": "",
    "passport": {
     "goal": "spa_core/strategy_lab/rates_desk/refusal_engine.py — PRODUCTION advisory refusal engine.",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/refusal_status.json свежее 168.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/refusal_status.json",
     "limits": "LLM запрещён; не импортирует execution"
    }
@@ -1675,7 +1813,20 @@
    "layer": "product",
    "role": "monitoring",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/dr_offsite_status.json",
+     "slo_hours": 26.0
+    },
+    {
+     "artifact": "data/fleet_drill_status.json",
+     "slo_hours": 26.0
+    },
+    {
+     "artifact": "data/restore_drill_status.json",
+     "slo_hours": 26.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -1683,8 +1834,8 @@
    "notes": "",
    "passport": {
     "goal": "Resilience cycle — the body of com.spa.resilience.",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/dr_offsite_status.json свежее 26.0 ч; data/fleet_drill_status.json свежее 26.0 ч; data/restore_drill_status.json свежее 26.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/dr_offsite_status.json, data/fleet_drill_status.json, data/restore_drill_status.json",
     "limits": "не импортирует execution"
    }
@@ -1772,7 +1923,16 @@
    "layer": "product",
    "role": "monitoring",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/self_heal_revivals.json",
+     "slo_hours": 26.0
+    },
+    {
+     "artifact": "data/self_heal_status.json",
+     "slo_hours": 26.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -1780,7 +1940,7 @@
    "notes": "",
    "passport": {
     "goal": "spa_core/monitoring/self_heal.py — active self-healing watchdog (MP-SELFHEAL).",
-    "quality_metric": "",
+    "quality_metric": "data/self_heal_revivals.json свежее 26.0 ч; data/self_heal_status.json свежее 26.0 ч",
     "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
     "rights": "слать CRITICAL владельцу через push_policy",
     "limits": "LLM запрещён; не импортирует execution"
@@ -1799,6 +1959,10 @@
     {
      "artifact": "data/site_freshness_report.json",
      "slo_hours": 13
+    },
+    {
+     "artifact": "landing/src/data/track_snapshot.json",
+     "slo_hours": 26.0
     }
    ],
    "consumes": [
@@ -1828,7 +1992,16 @@
    "layer": "product",
    "role": "monitoring",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/sky_status.json",
+     "slo_hours": 26.0
+    },
+    {
+     "artifact": "data/sky_upgrade_needed.json",
+     "slo_hours": 26.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -1836,8 +2009,8 @@
    "notes": "",
    "passport": {
     "goal": "Sky/sUSDS GSM Pause Delay Monitor.",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/sky_status.json свежее 26.0 ч; data/sky_upgrade_needed.json свежее 26.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/sky_status.json, data/sky_upgrade_needed.json",
     "limits": "не импортирует execution"
    }
@@ -1881,7 +2054,16 @@
    "layer": "product",
    "role": "allocation",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/strategy_lab_paper/kills.jsonl",
+     "slo_hours": 3.0
+    },
+    {
+     "artifact": "data/strategy_lab_paper/status.json",
+     "slo_hours": 3.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -1889,8 +2071,8 @@
    "notes": "",
    "passport": {
     "goal": "scripts/strategy_lab_paper.py — the ONE-COMMAND CLI for the Strategy-Lab live paper service.",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/strategy_lab_paper/kills.jsonl свежее 3.0 ч; data/strategy_lab_paper/status.json свежее 3.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/strategy_lab_paper/kills.jsonl, data/strategy_lab_paper/status.json",
     "limits": "LLM запрещён; не импортирует execution"
    }
@@ -1904,7 +2086,12 @@
    "layer": "product",
    "role": "allocation",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/swarm/blend_forward.json",
+     "slo_hours": 168.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -1912,8 +2099,8 @@
    "notes": "",
    "passport": {
     "goal": "Swarm block 2 — the FORWARD 3-desk blend paper portfolio (validated idea #3 made live).",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/swarm/blend_forward.json свежее 168.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/swarm/blend_forward.json",
     "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
    }
@@ -1950,7 +2137,12 @@
    "layer": "product",
    "role": "swarm",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/swarm/dwell_hysteresis_status.json",
+     "slo_hours": 168.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [
@@ -1960,8 +2152,8 @@
    "notes": "РАБОТАЕТ, но загружен из repo:launchd/ — НЕ переживёт ребут (находка 2026-08-05); в agent_registry отсутствует",
    "passport": {
     "goal": "FORWARD paper book for the dwell-hysteresis latch (registry idea #36's control).",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/swarm/dwell_hysteresis_status.json свежее 168.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/swarm/dwell_hysteresis_status.json",
     "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
    }
@@ -1975,7 +2167,12 @@
    "layer": "product",
    "role": "monitoring",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/swarm/guardian_forward.json",
+     "slo_hours": 168.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -1983,8 +2180,8 @@
    "notes": "",
    "passport": {
     "goal": "Swarm block 1 — L2 position guardians on the LIVE aggressive_lab forward paper track.",
-    "quality_metric": "",
-    "escalation": "",
+    "quality_metric": "data/swarm/guardian_forward.json свежее 168.0 ч",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/swarm/guardian_forward.json",
     "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
    }
@@ -2104,7 +2301,12 @@
    "layer": "product",
    "role": "monitoring",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/system_health.json",
+     "slo_hours": 26.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -2112,7 +2314,7 @@
    "notes": "",
    "passport": {
     "goal": "SPA end-to-end SYSTEM health monitor (12-hourly).",
-    "quality_metric": "",
+    "quality_metric": "data/system_health.json свежее 26.0 ч",
     "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
     "rights": "слать CRITICAL владельцу через push_policy",
     "limits": "LLM запрещён; не импортирует execution"
@@ -2127,7 +2329,12 @@
    "layer": "product",
    "role": "monitoring",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/system_health.json",
+     "slo_hours": 26.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -2135,7 +2342,7 @@
    "notes": "",
    "passport": {
     "goal": "SPA end-to-end SYSTEM health monitor (12-hourly).",
-    "quality_metric": "",
+    "quality_metric": "data/system_health.json свежее 26.0 ч",
     "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
     "rights": "слать CRITICAL владельцу через push_policy",
     "limits": "LLM запрещён; не импортирует execution"
@@ -2173,7 +2380,12 @@
    "layer": "product",
    "role": "unknown",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/telegram_health.json",
+     "slo_hours": 26.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -2181,7 +2393,7 @@
    "notes": "",
    "passport": {
     "goal": "Сторож Телеграма: замечает поломку и чинит ЕДИНСТВЕННЫМ безопасным способом.",
-    "quality_metric": "",
+    "quality_metric": "data/telegram_health.json свежее 26.0 ч",
     "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
     "rights": "слать CRITICAL владельцу через push_policy",
     "limits": "не импортирует execution"
@@ -2196,7 +2408,12 @@
    "layer": "product",
    "role": "reporting",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/milestone_telegram_state.json",
+     "slo_hours": 26.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -2204,7 +2421,7 @@
    "notes": "",
    "passport": {
     "goal": "Smart milestone Telegram alerts for SPA paper trading.",
-    "quality_metric": "",
+    "quality_metric": "data/milestone_telegram_state.json свежее 26.0 ч",
     "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
     "rights": "слать CRITICAL владельцу через push_policy",
     "limits": "не импортирует execution"
@@ -2242,7 +2459,16 @@
    "layer": "product",
    "role": "monitoring",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/kill_switch_active.json",
+     "slo_hours": 3.0
+    },
+    {
+     "artifact": "data/threat_reactor_status.json",
+     "slo_hours": 3.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -2250,7 +2476,7 @@
    "notes": "",
    "passport": {
     "goal": "spa_core/monitoring/threat_reactor.py — intraday protective reactor (MP-REACT).",
-    "quality_metric": "",
+    "quality_metric": "data/kill_switch_active.json свежее 3.0 ч; data/threat_reactor_status.json свежее 3.0 ч",
     "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
     "rights": "слать CRITICAL владельцу через push_policy",
     "limits": "LLM запрещён; не импортирует execution"
@@ -2334,7 +2560,16 @@
    "layer": "product",
    "role": "monitoring",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/tracker_status_sentinel.json",
+     "slo_hours": 168.0
+    },
+    {
+     "artifact": "data/tracker_status_snapshot.json",
+     "slo_hours": 168.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [
@@ -2360,7 +2595,16 @@
    "layer": "product",
    "role": "monitoring",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/uptime_prev_state.json",
+     "slo_hours": 26.0
+    },
+    {
+     "artifact": "data/uptime_status.json",
+     "slo_hours": 26.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -2368,7 +2612,7 @@
    "notes": "",
    "passport": {
     "goal": "spa_core/monitoring/uptime_monitor.py ====================================== SPA Uptime Monitor — 24/7 availability checks (MP-211).",
-    "quality_metric": "",
+    "quality_metric": "data/uptime_prev_state.json свежее 26.0 ч; data/uptime_status.json свежее 26.0 ч",
     "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
     "rights": "слать CRITICAL владельцу через push_policy",
     "limits": "LLM запрещён; не импортирует execution"
@@ -2383,7 +2627,16 @@
    "layer": "product",
    "role": "monitoring",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/watchdog_alerts.json",
+     "slo_hours": 26.0
+    },
+    {
+     "artifact": "data/watchdog_status.json",
+     "slo_hours": 26.0
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -2391,7 +2644,7 @@
    "notes": "",
    "passport": {
     "goal": "spa_core/monitoring/watchdog.py — watchdog-over-watchdog guardian (Self-Healing Plane 1.7).",
-    "quality_metric": "",
+    "quality_metric": "data/watchdog_alerts.json свежее 26.0 ч; data/watchdog_status.json свежее 26.0 ч",
     "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
     "rights": "слать CRITICAL владельцу через push_policy",
     "limits": "LLM запрещён; не импортирует execution"
