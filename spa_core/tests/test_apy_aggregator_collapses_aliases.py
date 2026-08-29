@@ -24,6 +24,8 @@ from pathlib import Path
 import pytest
 
 from spa_core.adapters.apy_aggregator import APYAggregator, _canonical_key
+from spa_core.tests._freshness import ts   # отметки — ВОЗРАСТ, а не календарь
+
 
 
 @pytest.mark.parametrize("slug,canon", [
@@ -45,7 +47,7 @@ def test_a_name_that_is_not_an_alias_passes_through(name):
 def test_the_pair_collapses_and_the_observed_row_survives(tmp_path):
     """Положительный контроль: ровно форма аварии — слаг рядом с каноном."""
     (tmp_path / "adapter_status.json").write_text(json.dumps({
-        "generated_at": "2030-01-01T00:00:00+00:00",
+        "generated_at": ts(hours_ago=1),
         "adapters": {
             "pendle_pt_susde": {"apy": 4.70, "live_apy": 4.70, "tier": 2, "active": True},
             "aave_v3": {"apy": 5.0, "live_apy": 5.0, "tier": 1, "active": True},
@@ -68,7 +70,7 @@ def test_the_pair_collapses_and_the_observed_row_survives(tmp_path):
 def test_legacy_block_still_lands_when_there_is_no_canonical_row(tmp_path):
     """Обратный контроль: схлопывание не должно ГЛОТАТЬ протокол целиком."""
     (tmp_path / "adapter_status.json").write_text(json.dumps({
-        "generated_at": "2030-01-01T00:00:00+00:00",
+        "generated_at": ts(hours_ago=1),
         "adapters": {"aave_v3": {"apy": 5.0, "live_apy": 5.0, "tier": 1, "active": True}},
         "pendle_pt": {"protocol_key": "pendle-pt", "apy": 8.0, "tier": "T2"},
     }), encoding="utf-8")
@@ -79,7 +81,7 @@ def test_legacy_block_still_lands_when_there_is_no_canonical_row(tmp_path):
 
 def test_unrelated_protocols_are_untouched(tmp_path):
     (tmp_path / "adapter_status.json").write_text(json.dumps({
-        "generated_at": "2030-01-01T00:00:00+00:00",
+        "generated_at": ts(hours_ago=1),
         "adapters": {
             "aave_v3": {"apy": 5.0, "live_apy": 5.0, "tier": 1, "active": True},
             "compound_v3": {"apy": 4.0, "live_apy": 4.0, "tier": 1, "active": True},

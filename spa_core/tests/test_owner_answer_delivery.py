@@ -363,6 +363,105 @@ class OwnerAnswerDeliveryTest(unittest.TestCase):
         self.assertEqual(saved["delivered"], ["owner-decision-morfo.md"])
 
 
+# ── авария цикла #427: НЕОТВЕЧЕННАЯ карточка читалась как несущая ответ ───────
+# Форма снята с прод-дерева 29.08 дословно. Штатная карточка владельца рождается
+# со строкой `owner_choice: ""` и носит её, пока владелец не ответил. Сторож
+# читает БАЙТЫ frontmatter, и двухсимвольный токен `""` попадал в след как
+# ЗНАЧЕНИЕ — то есть неотвеченная карточка предъявлялась как несущая ответ.
+UNANSWERED_CARD = b"""---
+trackerStatus:
+  type: owner-decision
+title: "\xd0\xa2\xd0\xb8\xd1\x80"
+status: needs-owner
+priority: high
+owner: yuriycooleshov@gmail.com
+owner_choice: ""
+blocks: ""
+created: 2026-08-29
+---
+
+## \xd0\xa7\xd1\x82\xd0\xbe \xd1\x81\xd0\xbb\xd1\x83\xd1\x87\xd0\xb8\xd0\xbb\xd0\xbe\xd1\x81\xd1\x8c
+
+\xd0\x92\xd0\xbe\xd0\xbf\xd1\x80\xd0\xbe\xd1\x81 \xd0\xb2\xd0\xbb\xd0\xb0\xd0\xb4\xd0\xb5\xd0\xbb\xd1\x8c\xd1\x86\xd1\x83, \xd0\xbe\xd1\x82\xd0\xb2\xd0\xb5\xd1\x82\xd0\xb0 \xd0\xb5\xd1\x89\xd1\x91 \xd0\xbd\xd0\xb5\xd1\x82.
+"""
+
+# Та же карточка на origin: владелец ОТВЕТИЛ, сессия разобрала, статус терминальный.
+ANSWERED_ON_ORIGIN = UNANSWERED_CARD.replace(
+    b'status: needs-owner\n', b'status: ingested\n').replace(
+    b'owner_choice: ""\n', b'owner_choice: "2"\n')
+
+
+class UnansweredCardIsNotAnAnswerTest(unittest.TestCase):
+    """Пустой YAML-скаляр — ОТСУТСТВИЕ значения, а не значение.
+
+    Каждый тест — положительный контроль замера 29.08 (цикл #427) на живом
+    прод-дереве: из 68 карточек, которые сторож считал несущими ответ владельца,
+    у 10 ответа не было вовсе.
+    """
+
+    CARD = "owner-decision-tier-steakhouse-2026-08-29.md"
+
+    def setUp(self):
+        import tempfile
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = self._tmp.name
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_empty_owner_choice_is_not_a_trace(self):
+        """`owner_choice: ""` — это «ответа ещё нет», а не ответ со значением `""`."""
+        self.assertEqual(oad.trace_fields(UNANSWERED_CARD), {},
+                         "неотвеченная карточка предъявлена как несущая след ответа")
+
+    def test_real_answer_is_still_a_trace(self):
+        """Обратный контроль: починка не должна ослепить сторожа на настоящем ответе."""
+        self.assertEqual(oad.trace_fields(ANSWERED_ON_ORIGIN).get("owner_choice"), '"2"')
+
+    def test_unanswered_local_vs_answered_origin_is_not_a_conflict(self):
+        """Замер 29.08 дословно: три карточки звали человека там, где спора нет.
+
+        Наша копия просто не отвечена, origin отвечен и `ingested`. Шаг 0-офис
+        печатал «⛔ ДВА РАЗНЫХ ОТВЕТА ВЛАДЕЛЬЦА, нужен человек» КАЖДЫЙ цикл.
+        """
+        merged, reason, _ = oad.merge_trace(UNANSWERED_CARD, ANSWERED_ON_ORIGIN)
+        self.assertIsNone(merged, "везти с неотвеченной карточки нечего")
+        self.assertNotIn("ДРУГОЙ ответ владельца", reason)
+        self.assertIn("нет следа ответа владельца", reason)
+
+    def test_unanswered_card_is_skipped_by_scan_entirely(self):
+        """Она не попадает НИ в один вердикт: следа нет — карточка не наша."""
+        e = _Env(self.tmp, {self.CARD: UNANSWERED_CARD},
+                 {f"{TRACKER}/{self.CARD}": ANSWERED_ON_ORIGIN})
+        self.assertEqual([i for i in oad.scan(e.root, reader=e.reader)
+                          if i.get("card") == self.CARD], [])
+
+    def test_unanswered_card_absent_on_origin_is_never_delivered(self):
+        """Тихая половина аварии: доставка ответа, которого владелец не давал.
+
+        Карточки на origin нет ⇒ вердикт был `absent_on_origin`, и она уехала бы
+        туда под коммитом «след решения владельца → origin».
+        """
+        e = _Env(self.tmp, {self.CARD: UNANSWERED_CARD}, {})
+        oad.run(root=e.root, now=NOW, reader=e.reader, pusher=e.pusher,
+                write_status=False)
+        self.assertEqual(e.pushed, [], "неотвеченная карточка уехала на origin как ответ")
+
+    def test_genuine_two_answers_still_call_for_a_human(self):
+        """Обратный контроль сторожа: настоящий спор двух ответов остаётся CONFLICT."""
+        ours = UNANSWERED_CARD.replace(b'owner_choice: ""\n', b'owner_choice: "1"\n')
+        _, reason, _ = oad.merge_trace(ours, ANSWERED_ON_ORIGIN)
+        self.assertIn("ДРУГОЙ ответ владельца", reason)
+
+    def test_empty_supersede_register_covers_nothing(self):
+        """Пустой регистр вытеснения не «покрывает» расхождение, а молчит о нём."""
+        remote = ANSWERED_ON_ORIGIN.replace(
+            b'blocks: ""\n', b'blocks: ""\nowner_choice_superseded: ""\n')
+        ok, why = oad.clash_superseded({"owner_choice": ('"2"', '"1"')}, remote)
+        self.assertFalse(ok)
+        self.assertIn("owner_choice_superseded", why)
+
+
 class VerifyTraceOnlyTest(unittest.TestCase):
     """Независимое доказательство переноса. Конструктор себе не судья."""
 
