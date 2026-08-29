@@ -136,8 +136,14 @@ python3 -m spa_core.paper_trading.golive_checker
 python3 -m spa_core.monitoring.system_health_monitor
 # Обновить SYSTEM_BRIEFING сейчас:
 python3 scripts/update_system_briefing.py
-# Все тесты:
-python3 -m pytest spa_core/tests/ -v
+# Все тесты — ровно то, что гейтит CI: ЧЕТЫРЕ каталога И окружение CI.
+# Урезать до одного каталога («мой набор зелёный») — тот самый отчёт, при котором
+# восемь коммитов подряд уехали на красный main (цикл #189). Переменные — часть
+# команды: PYTHONHASHSEED фиксирует порядок обхода множеств, SPA_ENV=ci включает
+# ci-ветки; без них прогон отвечает на СВОЙ вопрос, а не на нужный (цикл #421).
+# Расхождение этой строки с воркфлоу краснит spa_core/tests/test_prescribed_run_matches_ci.py.
+# Перенос строки здесь ЗАПРЕЩЁН: разбор команды идёт по строке, и `\` обрывает список каталогов.
+SPA_ENV=ci PYTHONHASHSEED=0 python3 -m pytest tests/ spa_core/tests/ scripts/tests/ spa_core/analytics/gross_of/ research/cards/ -q --tb=short -p no:randomly
 # Статус агентов:
 launchctl list | grep spa    ·    bash scripts/verify_fleet_after_reboot.sh
 # Переустановить агентов:

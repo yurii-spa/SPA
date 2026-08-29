@@ -148,6 +148,11 @@ _SUBJECT: dict[str, tuple[str, ...]] = {
 }
 
 
+def _basename(path) -> str:
+    """Имя файла карточки для строки отчёта: путь целиком не читаем, а имя — адрес."""
+    return os.path.basename(str(path or "")) or "(без имени)"
+
+
 def _sha256(path: str) -> str | None:
     import hashlib
     try:
@@ -687,16 +692,55 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                        f"не взято {_num(fate, 'new')} · в работе {_num(fate, 'in_progress')} · "
                        f"закрыто человеком {_num(fate, 'done_by_human')} · "
                        f"автозакрыто {_num(fate, 'auto_closed')}")
+            # Три строки — три РАЗНЫХ утверждения (#421). Раньше они были одной:
+            # `unreadable` копил и «статуса не отдали», и «статус есть, но не из
+            # перечисления», и живой замер 29.08 показал, что ВСЕ четыре карточки
+            # были второго рода (`ingested`) — то есть шаг четвёртые сутки звал
+            # разбирать слепое пятно, которого не было. Имена печатаются всегда:
+            # число без имён — строка, по которой действовать нечем.
+            if fate.get("other_status"):
+                named = data.get("cards_other_status")
+                tail = (" — " + " · ".join(f"{_basename(c.get('card'))} ({c.get('status')})"
+                                           for c in named[:4])
+                        if isinstance(named, list) and named else
+                        f" — КАКИЕ именно, {_UNMEASURED}: в отчёте нет cards_other_status")
+                out.append(f"   ℹ️ {fate['other_status']} карточк(и) моста живут в статусе "
+                           f"ВНЕ перечисления петли (прочитаны, но это не new/in-progress/"
+                           f"done){tail}")
             if fate.get("unreadable"):
+                named = data.get("cards_unreadable")
+                tail = (" — " + " · ".join(_basename(c.get("card")) for c in named[:4])
+                        if isinstance(named, list) and named else
+                        f" — КАКИЕ именно, {_UNMEASURED}: в отчёте нет cards_unreadable")
                 out.append(f"   ⚠️ статус {fate['unreadable']} карточк(и) моста "
-                           f"{_UNMEASURED}: карточка не прочитана (files-first очередь "
-                           "не отдала статус) — это НЕ «взята» и НЕ «лежит»")
+                           f"{_UNMEASURED}: статуса не отдали вовсе — это НЕ «взята», "
+                           f"НЕ «лежит» и НЕ «закрыта»{tail}")
         rec = data.get("recurrences_total")
         if rec is None:
             out.append(f"   ⚠️ рецидивы {_UNMEASURED}: в отчёте нет recurrences_total")
         elif rec:
-            out.append(f"   🔴 РЕЦИДИВ: {rec} находк(а/и) ВЕРНУЛИСЬ после закрытия — "
-                       "по производителю это системная причина, а не случайность")
+            # Настоящее время — только для живых. Замер 29.08: из 4 рецидивов 2
+            # закрыты и молчат с 25–26.08, а строка кричала о всех четырёх как о
+            # сегодняшнем событии. Счётчик `recurrences` не стареет никогда, и
+            # такая строка перестаёт быть сигналом ровно потому, что верна всегда.
+            live = data.get("recurrence_liveness")
+            if not isinstance(live, dict):
+                out.append(f"   🔴 РЕЦИДИВ: {rec} находк(а/и) ВЕРНУЛИСЬ после закрытия — "
+                           "по производителю это системная причина, а не случайность")
+                out.append(f"      ⚠️ живой рецидив от исторического {_UNMEASURED}: "
+                           "в отчёте нет recurrence_liveness (отчёт старого образца)")
+            elif live.get("live"):
+                hist = (f" · ещё {live['historical']} исторических (закрыты и молчат "
+                        f"с {str(live.get('historical_last_seen') or '')[:10]})"
+                        if live.get("historical") else "")
+                out.append(f"   🔴 РЕЦИДИВ ЖИВОЙ: {live['live']} находк(а/и) вернулись и "
+                           f"СЕЙЧАС на доске{hist} — по производителю это системная "
+                           f"причина, а не случайность")
+            else:
+                out.append(f"   ℹ️ рецидивов на доске СЕЙЧАС нет; {live.get('historical')} "
+                           f"исторических (последний раз "
+                           f"{str(live.get('historical_last_seen') or 'НЕ ИЗМЕРЕНО')[:10]}) — "
+                           f"запись остаётся, требования к действию сегодня нет")
             # Голое число объявляло причину системной и не называло НИ ОДНОЙ
             # находки: действовать по такой строке нечем, и она возвращалась
             # каждый цикл нетронутой. Производитель теперь называет класс и

@@ -6,7 +6,11 @@
 
   latency   находка → карточка (медиана/максимум, часы) и карточка → закрытие;
   taken     судьба карточек моста: new (лежит) / in-progress|done руками /
-            closed автозакрытием — «доля взятых» и есть пульс петли;
+            closed автозакрытием — «доля взятых» и есть пульс петли; статус,
+            прочитанный, но не из этого перечисления (`ingested`, `needs-owner`,
+            …), считается ОТДЕЛЬНО (`other_status`) и называется поимённо —
+            складывать его с «не измерено» значило бы объявлять слепым пятном
+            измеренное состояние (#421);
   recurrence сколько находок ВЕРНУЛИСЬ после закрытия (рецидив = системная
             причина, не случайность) — и ПОИМЁННО какие: `recurring_findings`
             (ключ, число возвратов, есть ли живая карточка) и свёртка по классу
@@ -60,8 +64,18 @@ def _recurrence_detail(findings: dict) -> tuple[list[dict], dict[str, int]]:
         n = int(e.get("recurrences", 0) or 0)
         if n <= 0:
             continue
+        # `live` — находка СЕЙЧАС на доске (мост её не закрыл). Замер 29.08 (цикл
+        # #421): из четырёх «вернувшихся» две — `aave_v3` (last_seen 25.08) и
+        # `fluid_fusdc` (26.08) — закрыты и с тех пор не появлялись ни разу, а
+        # обязательный шаг 0-офис четвёртые сутки печатал про них «🔴 РЕЦИДИВ: 4
+        # находки ВЕРНУЛИСЬ» в НАСТОЯЩЕМ времени и требовал действия. Счётчик
+        # `recurrences` только растёт и не стареет НИКОГДА — ровно то, чего боялась
+        # карточка `inbox-puls-petli-adr-066-prochitan-vpervye-3-r`: «счётчик
+        # рецидивов навсегда ненулевой и перестаёт быть сигналом».
         recurring.append({"key": key, "recurrences": n,
                           "status": e.get("status"),
+                          "last_seen": e.get("last_seen"),
+                          "live": e.get("status") != "closed",
                           "carded": bool(e.get("card"))})
     recurring.sort(key=lambda r: (-r["recurrences"], r["key"]))
     by_class: dict[str, int] = {}
@@ -70,6 +84,28 @@ def _recurrence_detail(findings: dict) -> tuple[list[dict], dict[str, int]]:
         by_class[cls] = by_class.get(cls, 0) + r["recurrences"]
     by_class = dict(sorted(by_class.items(), key=lambda kv: (-kv[1], kv[0])))
     return recurring, by_class
+
+
+def _recurrence_liveness(recurring: list[dict]) -> dict:
+    """Рецидив ЖИВОЙ (находка на доске) отдельно от ИСТОРИЧЕСКОГО (закрыта и молчит).
+
+    **Чего здесь намеренно НЕТ.** Карточка просила отделить рецидив, порождённый
+    ТАКТОМ самого сторожа (суточный снимок офиса тасует `top_opportunities`, находка
+    выпадает и возвращается, хотя условие не менялось), от рецидива «починили и
+    вернулось». Разделить их по этому признаку НЕЧЕМ: `findings_bridge_state.json`
+    не записывает, ЧТО изменилось между закрытием и возвратом, а `absent_count`
+    (ADR-161) обнуляется при каждом наблюдении и потому маркером эпохи не является.
+    Изобрести прокси значило бы предъявить как измерение то, чего никто не мерил —
+    ровно класс, против которого написана вся эта петля. Поэтому разделение сделано
+    по признаку, который в данных ЕСТЬ, и он же снимает названный картой вред:
+    вечно ненулевой счётчик перестаёт звучать в настоящем времени.
+    """
+    live = sum(r["recurrences"] for r in recurring if r.get("live"))
+    return {"live": live,
+            "historical": sum(r["recurrences"] for r in recurring) - live,
+            "historical_last_seen": max(
+                (r.get("last_seen") for r in recurring
+                 if not r.get("live") and r.get("last_seen")), default=None)}
 
 
 def compute(state: dict, status_of, now: dt.datetime) -> dict:
@@ -81,9 +117,22 @@ def compute(state: dict, status_of, now: dt.datetime) -> dict:
                 if (h := _hours(e.get("carded_at"), e.get("closed_at"))) is not None]
     recurrences = sum(int(e.get("recurrences", 0)) for e in entries)
 
+    # ЧЕТЫРЕ исхода, а не три. До #421 всё, что не `new`/`in-progress`/`done`,
+    # падало в `unreadable` — «статус НЕ ИЗМЕРЕН». Замер 29.08 на живом состоянии:
+    # все четыре «неизмеренные» карточки читались прекрасно и несли статус
+    # `ingested` (карточки owner-decision, разобранные по протоколу) —
+    # `owner-decision-kritichnaya-nahodka-petli-com-spa-{telegr,digest,tier1,weekly}`.
+    # То есть «не измерено» стояло на ИЗМЕРЕННОМ состоянии, которого просто не было
+    # в перечислении, и шаг 0-офис требовал разбирать четверть выборки как слепое
+    # пятно. Направление ошибки обратное обычному, но класс тот же: утверждение о
+    # мере, которой не делали. Теперь статус, прочитанный и не попавший в
+    # перечисление, называется собой (`other_status`), а `unreadable` означает
+    # ровно то, что говорит: статуса не отдали вовсе.
     taken = {"new": 0, "in_progress": 0, "done_by_human": 0, "auto_closed": 0,
-             "unreadable": 0}
-    for e in entries:
+             "other_status": 0, "unreadable": 0}
+    cards_other_status: list[dict] = []
+    cards_unreadable: list[dict] = []
+    for key, e in (findings or {}).items():
         card = e.get("card")
         if not card:
             continue
@@ -97,8 +146,14 @@ def compute(state: dict, status_of, now: dt.datetime) -> dict:
             taken["in_progress"] += 1
         elif st == "done":
             taken["done_by_human"] += 1
+        elif st:
+            taken["other_status"] += 1
+            cards_other_status.append({"key": key, "card": card, "status": st})
         else:
+            # Названо ПОИМЁННО: «четыре карточки не прочитаны» без имён — строка,
+            # по которой действовать нечем, и она возвращается каждый цикл целой.
             taken["unreadable"] += 1
+            cards_unreadable.append({"key": key, "card": card})
 
     def _agg(xs):
         return ({"median_h": round(statistics.median(xs), 2),
@@ -115,7 +170,10 @@ def compute(state: dict, status_of, now: dt.datetime) -> dict:
             # ADR-066: рецидив, названный поимённо (см. _recurrence_detail).
             "recurring_findings": _recurring,
             "recurrences_by_class": _by_class,
+            "recurrence_liveness": _recurrence_liveness(_recurring),
             "cards_fate": taken,
+            "cards_other_status": cards_other_status,
+            "cards_unreadable": cards_unreadable,
             "note": ("мало истории — медианы по n<5 не интерпретировать"
                      if len(to_card) < 5 else "")}
 

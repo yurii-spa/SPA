@@ -38,6 +38,18 @@ def positions(held=("pendle",), cash=15000.0, capital=100000.0):
             "cash_usd": cash, "capital_usd": capital}
 
 
+def registers_silent():
+    """rationale, в котором ВСЕ ЧЕТЫРЕ регистра отказов ПРОЧИТАНЫ и молчат.
+
+    Не то же самое, что `{}` (цикл #421): пустой словарь означает «читать было нечего»,
+    и вывод «отказ НЕ назван» из него не следует. Тесты, чей предмет — безымянный простой,
+    обязаны стоять на ИЗМЕРЕННОМ молчании, иначе они проверяют утверждение, которого сверка
+    не имела права делать."""
+    return {"below_median_cap": [],
+            "cash": {"policy_refusals": [], "ineligible_rooms": []},
+            "decision_shadow": {"warnings": []}}
+
+
 class HouseViewGap(unittest.TestCase):
     def test_held_opportunity_is_not_a_gap(self):
         r = hvg.compute_gaps(chief(opportunities=("pendle",)), positions(),
@@ -45,11 +57,21 @@ class HouseViewGap(unittest.TestCase):
         self.assertEqual(r["gaps"], [])
 
     def test_available_unheld_unnamed_is_warn(self):
-        """Ядро ADR-055: безымянный простой возможности."""
+        """Ядро ADR-055: безымянный простой возможности.
+
+        Фикстура изменена НАМЕРЕННО (инв. #16, цикл #421, карточка
+        `inbox-nechitaemyi-rationale-chitaetsya-kak-otk`): было `{}` — регистры отказов
+        не прочитаны ни одного, и WARN выносился на неизмеренном основании. Предмет теста
+        («доступна, не держится, отказ не назван ⇒ WARN») сохранён дословно; изменилось
+        то, что теперь он стоит на ИЗМЕРЕННОМ молчании всех четырёх регистров, а не на их
+        отсутствии. Проверка при этом УСИЛЕНА: сверяется и то, что сверка перечисляет
+        прочитанные регистры."""
         r = hvg.compute_gaps(chief(opportunities=("maple",)), positions(),
-                             {}, {"pendle", "maple"}, {}, NOW)
+                             registers_silent(), {"pendle", "maple"}, {}, NOW)
         self.assertEqual(r["counts"]["warn"], 1)
         self.assertIn("отказ НЕ назван", r["gaps"][0]["message"])
+        self.assertEqual(r["gaps"][0]["key"], "gap:opportunity_unnamed:maple")
+        self.assertEqual(list(r["gaps"][0]["registers_read"]), list(hvg.REGISTER_NAMES))
 
     def test_named_refusal_downgrades_to_info(self):
         rationale = {"below_median_cap": [{"protocol": "maple"}]}

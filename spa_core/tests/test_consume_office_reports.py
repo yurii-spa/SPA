@@ -1057,6 +1057,112 @@ def test_loop_health_empty_latency_says_nothing_to_measure() -> None:
     assert "медиана None" not in out, out
 
 
+# ── 6a. «не измерено» и «рецидив» — оба звучали НЕ ТЕМИ словами (цикл #421) ──
+#
+# Обе находки — из живого замера 29.08, обе одного класса «сторож отвечает не на
+# тот вопрос», только в РАЗНЫЕ стороны:
+#
+#   * `unreadable = 4` стояло на четырёх карточках, которые читались прекрасно и
+#     несли `ingested` — измеренное состояние объявлялось слепым пятном, и шаг
+#     четвёртые сутки звал разбирать пустоту. Печатать имена обязательно: число
+#     без имён — строка, по которой действовать нечем, и она возвращается целой;
+#   * «🔴 РЕЦИДИВ: 4 ВЕРНУЛИСЬ» в НАСТОЯЩЕМ времени, при том что две из четырёх
+#     находок закрыты и молчат с 25–26.08. `recurrences` не стареет никогда;
+#     строка, верная всегда, сигналом быть перестаёт.
+
+LOOP_HEALTH_TODAY = {
+    "generated_at": "2026-08-29T05:32:48.795333+00:00",
+    "adr": "ADR-066",
+    "open_cards": 1,
+    "latency_finding_to_card": {"median_h": 6.0, "max_h": 6.01, "n": 26},
+    "latency_card_to_close": {"median_h": 12.02, "max_h": 66.01, "n": 21},
+    "recurrences_total": 4,
+    "recurrences_by_class": {"gap:opportunity_unnamed": 4},
+    "recurring_findings": [
+        {"key": "gap:opportunity_unnamed:spark_susds", "recurrences": 2,
+         "status": "carded", "live": True, "carded": True,
+         "last_seen": "2026-08-28T23:32:03+00:00"},
+        {"key": "gap:opportunity_unnamed:aave_v3", "recurrences": 1,
+         "status": "closed", "live": False, "carded": True,
+         "last_seen": "2026-08-25T19:12:11+00:00"},
+        {"key": "gap:opportunity_unnamed:fluid_fusdc", "recurrences": 1,
+         "status": "closed", "live": False, "carded": True,
+         "last_seen": "2026-08-26T19:13:52+00:00"},
+    ],
+    "recurrence_liveness": {"live": 2, "historical": 2,
+                            "historical_last_seen": "2026-08-26T19:13:52+00:00"},
+    "cards_fate": {"new": 1, "in_progress": 0, "done_by_human": 1,
+                   "auto_closed": 20, "other_status": 4, "unreadable": 0},
+    "cards_other_status": [
+        {"key": "B1:unknown:com.spa.telegram_health", "status": "ingested",
+         "card": "/x/nimbalyst-local/tracker/owner-decision-kritichnaya-nahodka-petli-com-spa-telegr.md"},
+    ],
+    "cards_unreadable": [],
+    "note": "",
+}
+
+NOW_LH_TODAY = at("2026-08-29T07:15:00+00:00")
+
+
+def test_loop_health_out_of_enumeration_status_is_not_called_unmeasured() -> None:
+    """Положительный контроль: `ingested` — измеренное состояние, а не слепое пятно."""
+    out = _text(MOD._summarize_json("data/loop_health.json", LOOP_HEALTH_TODAY,
+                                    now=NOW_LH_TODAY))
+    assert "НЕ ИЗМЕРЕНО" not in out, out
+    assert "ВНЕ перечисления петли" in out, out
+
+
+def test_loop_health_out_of_enumeration_cards_are_named_with_their_status() -> None:
+    out = _text(MOD._summarize_json("data/loop_health.json", LOOP_HEALTH_TODAY,
+                                    now=NOW_LH_TODAY))
+    assert "owner-decision-kritichnaya-nahodka-petli-com-spa-telegr.md (ingested)" in out, out
+    assert "/x/nimbalyst-local/" not in out, "путь целиком не читается — печатаем имя"
+
+
+def test_loop_health_live_recurrence_is_told_apart_from_historical() -> None:
+    """Настоящее время — только для находок, которые СЕЙЧАС на доске."""
+    out = _text(MOD._summarize_json("data/loop_health.json", LOOP_HEALTH_TODAY,
+                                    now=NOW_LH_TODAY))
+    assert "РЕЦИДИВ ЖИВОЙ: 2" in out, out
+    assert "ещё 2 исторических (закрыты и молчат с 2026-08-26)" in out, out
+
+
+def test_loop_health_no_live_recurrence_stops_demanding_action() -> None:
+    """Счётчик ненулевой, а на доске пусто — именно это делало строку вечной."""
+    doc = _clone(LOOP_HEALTH_TODAY)
+    doc["recurrence_liveness"] = {"live": 0, "historical": 4,
+                                  "historical_last_seen": "2026-08-26T19:13:52+00:00"}
+    out = _text(MOD._summarize_json("data/loop_health.json", doc, now=NOW_LH_TODAY))
+    assert "рецидивов на доске СЕЙЧАС нет" in out, out
+    assert "🔴" not in out, out
+
+
+def test_loop_health_old_report_says_liveness_is_unmeasured_not_silent() -> None:
+    """Положительный контроль по НАПРАВЛЕНИЮ: отчёт без нового поля обязан СКАЗАТЬ
+    это вслух, а не молчать. Красный на старом читателе — он такого слова не знал."""
+    doc = _clone(LOOP_HEALTH_TODAY)
+    doc.pop("recurrence_liveness")
+    out = _text(MOD._summarize_json("data/loop_health.json", doc, now=NOW_LH_TODAY))
+    assert "🔴 РЕЦИДИВ: 4" in out, out
+    assert "живой рецидив от исторического НЕ ИЗМЕРЕНО" in out, out
+
+
+def test_loop_health_genuinely_unreadable_card_is_still_loud_and_named() -> None:
+    """Положительный контроль по НАПРАВЛЕНИЮ: настоящее «статуса не отдали» починка
+    гасить не смеет — и обязана назвать карточку. Красный на старом читателе: имён у него нет."""
+    doc = _clone(LOOP_HEALTH_TODAY)
+    doc["cards_fate"] = dict(doc["cards_fate"], other_status=0, unreadable=1)
+    doc["cards_other_status"] = []
+    doc["cards_unreadable"] = [{"key": "B1:zombie:com.spa.x", "card": "/x/inbox-propala.md"}]
+    out = _text(MOD._summarize_json("data/loop_health.json", doc, now=NOW_LH_TODAY))
+    assert "статус 1 карточк(и) моста НЕ ИЗМЕРЕНО" in out, out
+    assert "inbox-propala.md" in out, out
+
+
+def _clone(doc: dict) -> dict:
+    return json.loads(json.dumps(doc))
+
+
 # ── 7. «(пусто)» ЗАСЧИТЫВАЛОСЬ В «ПРОЧИТАНО» — и писало квитанцию ────────────
 #
 # Разбор находки цикла #408. Ветку `loop_health` (раздел 6) можно было чинить

@@ -151,8 +151,15 @@ _WHY_PREFIX_RU = {
 #: без предмета: читатель не может ни проверить его, ни узнать, где искать. Именно на
 #: этом дважды подряд (#394 — третий регистр, сегодня — четвёртый) находка оказывалась
 #: ЛОЖНОЙ: причина была названа, просто не там, куда смотрел сторож.
-REGISTERS_RU = ("below_median_cap · cash.policy_refusals · cash.ineligible_rooms · "
-                "decision_shadow.warnings")
+REGISTER_NAMES = ("below_median_cap", "cash.policy_refusals",
+                  "cash.ineligible_rooms", "decision_shadow.warnings")
+REGISTERS_RU = " · ".join(REGISTER_NAMES)
+
+#: Ключ находки «регистры отказов НЕ ПРОЧИТАНЫ». Отдельный от `gap:opportunity_unnamed`
+#: НАМЕРЕННО: мост ADR-066 узнаёт находку по ключу, и если бы смена смысла («не названо»
+#: → «не измерено») ехала под старым ключом, мост принял бы её за ту же находку и не
+#: заметил, что утверждение стало другим.
+KEY_REFUSAL_UNMEASURED = "gap:opportunity_refusal_unmeasured"
 
 
 def humanize_why(codes) -> str:
@@ -366,7 +373,14 @@ def compute_gaps(chief: dict | None,
     # тот класс, ради которого сторожей и разделяют: честный ответ на свой вопрос,
     # прочитанный как ответ на нужный. Ложная находка тратит внимание владельца.
     explained_protocols: dict = {}
-    if rationale:
+    # Регистры, которые сверка РЕАЛЬНО прочитала. Пустой список ⇒ о том, назван отказ
+    # или нет, сказать нечего — и утверждать «НЕ назван» тогда запрещено (см. развилку
+    # `registers_read` ниже). Присутствие ключа, а не его непустота: раздел есть и пуст —
+    # это ИЗМЕРЕННЫЙ ноль (инв. #17), а раздела нет — не измерение вовсе.
+    registers_read: list[str] = []
+    if isinstance(rationale, dict) and rationale:
+        if "below_median_cap" in rationale:
+            registers_read.append("below_median_cap")
         for e in rationale.get("below_median_cap") or []:
             explained_protocols.setdefault(_norm(e.get("protocol")), "")
         # Чтение РАЗЛИЧАЕТ три исхода (инв. #17): раздела `cash` нет · раздел есть,
@@ -377,6 +391,8 @@ def compute_gaps(chief: dict | None,
         # объяснённых отказов, и это ЕДИНСТВЕННЫЙ читатель — уверенности она не
         # добавляет никому.
         cash_block = rationale.get("cash")
+        if isinstance(cash_block, dict) and "policy_refusals" in cash_block:
+            registers_read.append("cash.policy_refusals")
         refusals = cash_block.get("policy_refusals") if isinstance(cash_block, dict) else None
         for r in refusals if isinstance(refusals, list) else []:
             if not isinstance(r, dict):
@@ -411,6 +427,8 @@ def compute_gaps(chief: dict | None,
         # Три исхода различены (инв. #17), как и у `policy_refusals` выше: раздела нет
         # (старая форма rationale — ведём себя как раньше) · раздел есть и пуст
         # (непригодных нет — измеренный ноль) · записи есть.
+        if isinstance(cash_block, dict) and "ineligible_rooms" in cash_block:
+            registers_read.append("cash.ineligible_rooms")
         rooms = cash_block.get("ineligible_rooms") if isinstance(cash_block, dict) else None
         for row in rooms if isinstance(rooms, list) else []:
             if not isinstance(row, dict):
@@ -426,7 +444,15 @@ def compute_gaps(chief: dict | None,
                 explained_protocols[proto] = named + room_phrase(row)
 
         shadow = rationale.get("decision_shadow") or {}
+        if isinstance(shadow, dict) and "warnings" in shadow:
+            registers_read.append("decision_shadow.warnings")
         blob = json.dumps(shadow.get("warnings") or [], ensure_ascii=False).lower()
+        if not registers_read:
+            # rationale есть, но НИ ОДНОГО из четырёх регистров в нём нет — читать было
+            # нечего. Молча это выглядело бы точно как «прочитали и там пусто».
+            unchecked.append({"input": "allocation_rationale",
+                              "reason": f"ни один из регистров отказов не найден "
+                                        f"({REGISTERS_RU}) — назван отказ или нет, НЕ ИЗМЕРЕНО"})
     else:
         blob = ""
         unchecked.append({"input": "allocation_rationale", "reason": "нет данных — именованные отказы не видны"})
@@ -496,13 +522,40 @@ def compute_gaps(chief: dict | None,
                                         f"(evidence {opp.get('evidence_level')}) вне реестра "
                                         f"адаптеров — входа технически нет (адаптер + промоушен)",
                              **base})
+            elif not registers_read:
+                # ГЛАВНАЯ развилка этой ветки (карточка `inbox-nechitaemyi-rationale-…`,
+                # цикл #421). До неё сверка при отсутствующем или нечитаемом `rationale`
+                # выдавала WARN «отказ НЕ назван НИ В ОДНОМ из четырёх регистров», НЕ
+                # прочитав НИ ОДНОГО, — утверждение, которого никто не измерял, и ровно в
+                # ту сторону, куда ошибаться дороже всего: мост ADR-066 заводит владельцу
+                # карточку на находку, которой, возможно, нет. Дважды подряд (#394 — третий
+                # регистр, #418 — четвёртый) находка этого класса УЖЕ оказывалась ложной,
+                # но там регистр читался и молчал; здесь он не читается вовсе.
+                # Ключ и степень другие намеренно: это ДРУГОЕ утверждение.
+                gaps.append({"key": f"{KEY_REFUSAL_UNMEASURED}:{proto}",
+                             "type": "opportunity_unheld", "severity": "INFO",
+                             "registers_read": [],
+                             "message": f"возможность {proto} {v.get('apy_pct')}% "
+                                        f"(evidence {opp.get('evidence_level')}) доступна книге "
+                                        f"и не держится; регистры отказов не прочитаны "
+                                        f"({REGISTERS_RU}) — назван отказ или нет, НЕ ИЗМЕРЕНО "
+                                        f"[{ticks}]", **base})
             else:
+                # Сюда попадает только ИЗМЕРЕННОЕ молчание: хотя бы один регистр прочитан
+                # и ни в одном прочитанном протокол не назван. Сколько именно прочитано —
+                # в тексте: «не назван в четырёх» и «не назван в одном прочитанном» — разной
+                # силы утверждения, и склеивать их значило бы вернуть тот же fail-OPEN мягче.
+                read_ru = " · ".join(registers_read)
+                scope = (f"НИ В ОДНОМ из четырёх регистров аллокатора ({REGISTERS_RU})"
+                         if len(registers_read) == len(REGISTER_NAMES)
+                         else f"ни в одном из ПРОЧИТАННЫХ регистров аллокатора "
+                              f"({len(registers_read)} из {len(REGISTER_NAMES)}: {read_ru})")
                 gaps.append({"key": f"gap:opportunity_unnamed:{proto}",
                              "type": "opportunity_unheld", "severity": "WARN",
+                             "registers_read": list(registers_read),
                              "message": f"возможность {proto} {v.get('apy_pct')}% "
                                         f"(evidence {opp.get('evidence_level')}) доступна книге, "
-                                        f"не держится и отказ НЕ назван НИ В ОДНОМ из четырёх "
-                                        f"регистров аллокатора ({REGISTERS_RU}) — безымянный "
+                                        f"не держится и отказ НЕ назван {scope} — безымянный "
                                         f"простой (дух ADR-055) [{ticks}]", **base})
     else:
         unchecked.append({"input": "chief_investment", "reason": "house_view недоступен — сверка невозможна"})
