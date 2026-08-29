@@ -2249,9 +2249,14 @@ def run_cycle(
             log.warning("audit trade_blocked failed (%s)", _aexc4)
     else:
         effective_positions = dict(current_positions) if current_positions else dict(target_usd)
-        notes.append(
-            f"no rebalance: |Δ|=${diff_usd:,.0f} ≤ ${threshold_usd:,.0f} threshold."
-        )
+        # Причина удержания НАЗЫВАЕТСЯ настоящая: удержаний четыре, а строка писалась
+        # одна и та же. Замер 30.08: «|Δ|=$28,684 ≤ $200 threshold» при дельте 28 684 —
+        # ложь, державшая читателя в стороне от настоящей причины (анти-черн, 72 ч).
+        from spa_core.paper_trading.risk_gate import hold_reason
+        notes.append(hold_reason(
+            diff_usd, threshold_usd,
+            churn_allowed=_churn.allowed, churn_detail=_churn.detail,
+            safety_failed=_safety_failed, policy_blocked=policy_blocked))
 
     # ── ALLOC-002: enforce protocol-count / T1 floor on the FINAL allocation ──
     # The StrategyAllocator + RiskPolicy gate (policy.py) cap per-protocol

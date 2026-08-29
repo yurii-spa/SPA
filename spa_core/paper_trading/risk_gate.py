@@ -130,6 +130,29 @@ def _compliant_target(
         return target_usd, False
 
 
+def hold_reason(diff_usd: float, threshold_usd: float, *, churn_allowed: bool,
+                churn_detail: str = "", safety_failed: bool = False,
+                policy_blocked: bool = False) -> str:
+    """Почему книга НЕ переложена — настоящая причина, а не первая попавшаяся.
+
+    Замер 30.08: цикл печатал «no rebalance: |Δ|=$28,684 ≤ $200 threshold» — утверждение
+    ложное ($28 684 не меньше $200). Строка писалась БЕЗУСЛОВНО в else-ветке, хотя
+    удержаний четыре: не прошла проверка безопасности, заблокировала политика, дельта
+    ниже порога и не пустил анти-черн (ADR-168). Настоящей в тот раз была четвёртая.
+
+    Читатель такого отчёта чинит не то. Меня самого эта строка едва не увела: я искал
+    ошибку в вычислении дельты там, где капитал держал 72-часовой демпфер.
+    """
+    if safety_failed:
+        return "не переложено: проверка безопасности не выполнилась — держим позиции (LAW 1)"
+    if policy_blocked:
+        return "не переложено: заблокировано политикой риска"
+    if not churn_allowed:
+        return (f"не переложено: анти-черн не пустил (ADR-168) — {churn_detail}; "
+                f"перераздача одобрена и ждёт, |Δ|=${diff_usd:,.0f}")
+    return f"no rebalance: |Δ|=${diff_usd:,.0f} ≤ ${threshold_usd:,.0f} threshold."
+
+
 def _sequential_remainder(capital: float, target: dict[str, float]) -> float:
     """Остаток так, КАК ЕГО СЧИТАЕТ ГЕЙТ: по одной ноге, в его порядке.
 
