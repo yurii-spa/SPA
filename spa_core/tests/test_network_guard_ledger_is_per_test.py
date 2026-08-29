@@ -83,8 +83,17 @@ def _conftest_module():
 # first fills the LIVE ledger, the second states what the next test must see.
 # Without the autouse fixture the second one fails — that is the regression.
 # ---------------------------------------------------------------------------
+#: Поднимается `test_a`. `test_c` проверяет АРХИВ его отказа, то есть зависит от
+#: того, что `test_a` в этом прогоне вообще выполнялся. Флаг отличает «архив пуст,
+#: потому что предшественник не запускался» от «архив пуст, потому что отказ
+#: потеряли» — это разные вещи, и вторая обязана краснеть, а первая нет.
+_TEST_A_RAN = False
+
+
 def test_a_a_refused_call_lands_in_the_live_ledger():
     """Positive control: without this, the pin below would pass vacuously."""
+    global _TEST_A_RAN
+    _TEST_A_RAN = True
     assert _live_net is not None, "conftest did not install network_guard"
     try:
         urllib.request.urlopen(_LIVE_URL)
@@ -113,6 +122,18 @@ def test_c_the_previous_tests_refusal_was_archived_not_discarded():
     would silently drop 2745 measurements, which is the exact failure class
     (#29/#31/#35-#38, #40) this repo keeps closing.
     """
+    if not _TEST_A_RAN:
+        # Замер 2026-08-29: фильтр `-k "refusal"` выбирает ЭТОТ тест и отбрасывает
+        # `test_a_a_refused_call_lands_in_the_live_ledger` (в его имени «refused»,
+        # а не «refusal»). Архив тогда пуст законно, а красный вердикт — выдумка
+        # фильтра. Одна сессия уже потратила на такую «находку» отдельный заход
+        # и записала её в журнал как «зависимость от порядка тестов», чем она
+        # не является. Зубы сохранены: если предшественник ВЫПОЛНЯЛСЯ, а отказа
+        # в архиве нет — тест краснеет, как и раньше.
+        import pytest as _pytest
+
+        _pytest.skip("test_a не выполнялся в этом прогоне (отбор -k) — "
+                     "архив пуст законно, проверять нечего")
     archived = _live_net.archived()
     mine = [
         (nodeid, items)
