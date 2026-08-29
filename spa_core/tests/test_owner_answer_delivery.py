@@ -92,6 +92,25 @@ status: new
 """
 
 
+# ── авария цикла #419: расхождение, которое УЖЕ разобрано ────────────────────
+# Форма снята с живой карточки `own-pererazdavat-li-srezannoe-zaschitami`:
+# телеграм-ответ владельца вытеснен более поздним ответом интерактивной сессии
+# (ADR-160), и origin называет вытесненное ТРЕМЯ полями, поле в поле с нашим.
+# Значения здесь — из фикстуры аварии 08.08 выше, а не «сегодня».
+_SUPERSEDE_REGISTER = (b"owner_choice_superseded: 1\n"
+                       b"owner_choice_superseded_at: 2026-08-08T21:11:37.367367+00:00\n"
+                       b"owner_choice_superseded_via: telegram\n")
+
+_LATER_ANSWER = (b"owner_choice: 2\n"
+                 b"owner_answered_at: 2026-08-09T10:00:00+00:00\n"
+                 b"owner_answer_via: interactive-session\n")
+
+
+def _origin_with(extra: bytes) -> bytes:
+    """ORIGIN_CARD плюс строки frontmatter — форма origin в этой аварии."""
+    return ORIGIN_CARD.replace(b"priority: high\n", b"priority: high\n" + extra)
+
+
 class _Env:
     """Дерево на диске + управляемый origin. Ничего живого не трогает."""
 
@@ -209,6 +228,64 @@ class OwnerAnswerDeliveryTest(unittest.TestCase):
         self.assertEqual(len(r["conflicts"]), 1)
         self.assertIn("ДРУГОЙ ответ владельца", r["conflicts"][0]["reason"])
         self.assertEqual(e.pushed, [], "при конфликте наружу не должно уйти ничего")
+
+    # ── третий исход: расходились, и владелец УЖЕ решил (цикл #419) ──────────
+
+    def test_superseded_answer_is_not_a_conflict(self):
+        """origin называет НАШ ответ вытесненным — звать человека не на что.
+
+        Положительный контроль настоящей аварии 29.08: шаг 0-офис каждый цикл
+        печатал «⛔ ДВА РАЗНЫХ ОТВЕТА ВЛАДЕЛЬЦА, нужен человек» по карточке, где
+        владелец ответил вариантом 3 (ADR-160), а вытесненный вариант 2 записан
+        на origin поимённо. До правки этот тест краснеет: вердикт `conflict`.
+        """
+        origin = _origin_with(_LATER_ANSWER + _SUPERSEDE_REGISTER)
+        e = self.env(remote={f"{TRACKER}/owner-decision-morfo.md": origin})
+        r = oad.run(root=e.root, now=NOW, reader=e.reader, pusher=e.pusher,
+                    write_status=False)
+        self.assertEqual(r["conflicts"], [], "разобранное расхождение — не конфликт")
+        self.assertEqual(len(r["superseded"]), 1)
+        self.assertEqual(r["status"], oad.IDLE, "везти нечего и никто не блокирует")
+        self.assertIn("ВЫТЕСНЕН", r["superseded"][0]["reason"])
+        self.assertEqual(e.pushed, [],
+                         "вытесненный ответ наружу не везётся: он вытесненный")
+
+    def test_partial_supersede_is_still_a_conflict(self):
+        """Покрыто ЧАСТИЧНО — это спор, а не разобранный спор (fail-CLOSED)."""
+        origin = _origin_with(_LATER_ANSWER + b"owner_choice_superseded: 1\n")
+        e = self.env(remote={f"{TRACKER}/owner-decision-morfo.md": origin})
+        r = oad.run(root=e.root, now=NOW, reader=e.reader, pusher=e.pusher,
+                    write_status=False)
+        self.assertEqual(r["superseded"], [])
+        self.assertEqual(len(r["conflicts"]), 1)
+        reason = r["conflicts"][0]["reason"]
+        self.assertIn("ДРУГОЙ ответ владельца", reason)
+        self.assertIn("owner_choice_superseded_at", reason,
+                      "непокрытое поле обязано быть названо поимённо")
+        self.assertEqual(e.pushed, [])
+
+    def test_supersede_naming_another_value_is_still_a_conflict(self):
+        """Регистр называет НЕ наш ответ — вытеснили что-то другое, спор жив."""
+        register = _SUPERSEDE_REGISTER.replace(b"owner_choice_superseded: 1\n",
+                                               b"owner_choice_superseded: 9\n")
+        origin = _origin_with(_LATER_ANSWER + register)
+        e = self.env(remote={f"{TRACKER}/owner-decision-morfo.md": origin})
+        r = oad.run(root=e.root, now=NOW, reader=e.reader, pusher=e.pusher,
+                    write_status=False)
+        self.assertEqual(r["superseded"], [])
+        self.assertEqual(len(r["conflicts"]), 1)
+        self.assertIn("origin вытеснил", r["conflicts"][0]["reason"])
+
+    def test_supersede_does_not_silence_an_untouched_field(self):
+        """Регистр покрывает выбор, но НЕ канал — молчать по каналу нельзя."""
+        origin = _origin_with(_LATER_ANSWER
+                              + b"owner_choice_superseded: 1\n"
+                              + b"owner_choice_superseded_at: 2026-08-08T21:11:37.367367+00:00\n")
+        e = self.env(remote={f"{TRACKER}/owner-decision-morfo.md": origin})
+        r = oad.run(root=e.root, now=NOW, reader=e.reader, pusher=e.pusher,
+                    write_status=False)
+        self.assertEqual(len(r["conflicts"]), 1)
+        self.assertIn("owner_choice_superseded_via", r["conflicts"][0]["reason"])
 
     def test_unmeasured_origin_is_not_green(self):
         """Прочитать origin не удалось — это НЕ «след на месте»."""
@@ -455,6 +532,17 @@ class OfficeStepReaderTest(unittest.TestCase):
         self.assertIn("ДВА РАЗНЫХ ОТВЕТА ВЛАДЕЛЬЦА", text)
         self.assertIn("own-x.md", text)
 
+    def test_superseded_is_printed_but_not_as_a_conflict(self):
+        """Вытеснение видно — и НЕ зовёт человека (авария цикла #419)."""
+        text = "\n".join(self._lines({"status": "IDLE", "reason": "r", "pending": [],
+                                      "already_on_origin": [], "conflicts": [],
+                                      "superseded": [{"card": "own-z.md",
+                                                      "reason": "ВЫТЕСНЕН вариантом 3"}],
+                                      "unmeasured": []}))
+        self.assertIn("own-z.md", text)
+        self.assertIn("ВЫТЕСНЕН", text)
+        self.assertNotIn("ДВА РАЗНЫХ ОТВЕТА ВЛАДЕЛЬЦА", text)
+
     def test_unmeasured_is_printed(self):
         text = "\n".join(self._lines({"status": "REFUSED", "reason": "r", "pending": [],
                                       "already_on_origin": [], "conflicts": [],
@@ -469,6 +557,11 @@ class RenderTest(unittest.TestCase):
     def test_delivered_render_names_count(self):
         line = oad.render({"status": oad.DELIVERED, "delivered": ["a.md", "b.md"]})
         self.assertIn("2", line)
+
+    def test_superseded_render_names_count(self):
+        line = oad.render({"status": oad.IDLE, "already_on_origin": [],
+                           "superseded": [{"card": "x"}]})
+        self.assertIn("ВЫТЕСНЕНО", line)
 
     def test_refused_render_shows_reason(self):
         line = oad.render({"status": oad.REFUSED, "reason": "ДРУГОЙ ответ",

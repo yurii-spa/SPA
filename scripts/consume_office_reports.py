@@ -617,6 +617,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             for c in (oad.get("conflicts") or [])[:5]:
                 out.append(f"   ⛔ ДВА РАЗНЫХ ОТВЕТА ВЛАДЕЛЬЦА, нужен человек: "
                            f"{c.get('card')} — {c.get('reason')}")
+            # Третий исход (цикл #419): расходились, и владелец УЖЕ решил — origin
+            # называет вытесненный ответ поимённо. Не ⛔ (звать некого) и не
+            # молчание: невидимое вытеснение ничем не отличалось бы от того, что
+            # сторож просто перестал смотреть на это поле.
+            for s in (oad.get("superseded") or [])[:5]:
+                out.append(f"   ↩︎ ответ ВЫТЕСНЕН более поздним, человек не нужен: "
+                           f"{s.get('card')} — {s.get('reason')}")
             for u in (oad.get("unmeasured") or [])[:5]:
                 out.append(f"   ⚠️ след НЕ ИЗМЕРЕН: {u.get('card')} — {u.get('reason')}")
     elif name == "loop_retro.json":

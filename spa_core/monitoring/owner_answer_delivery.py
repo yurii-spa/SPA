@@ -116,6 +116,34 @@ PUSHER_REL = "push_to_github.py"
 #: Выключатель владельца — одна команда, без правки кода.
 ENV_FLAG = "SPA_OWNER_ANSWER_DELIVERY"
 
+#: Регистр вытеснения: НАШЕ поле следа → поле на origin, где владелец (точнее,
+#: разобравшая ответ сессия) ДОСЛОВНО называет вытесненное значение.
+#:
+#: Зачем отдельный регистр, а не «origin новее, значит origin прав». Дата у нас
+#: тоже есть, и по ней решать нельзя: расходящиеся отметки — ровно то, о чём
+#: спорят копии, судить спор его же предметом значит не судить вовсе. Регистр
+#: устроен иначе: он НАЗЫВАЕТ вытесненный ответ поимённо, и совпадение с нашим
+#: значением проверяется байт в байт. Не «чья-то копия новее», а «этот самый
+#: ответ разобран, вот он».
+#:
+#: Замер 29.08 (цикл #419): `own-pererazdavat-li-srezannoe-zaschitami` —
+#: телеграм-вариант 2 (28.08 06:47) вытеснен вариантом 3 интерактивной сессии
+#: (28.08 14:00, ADR-160), и на origin это записано всеми тремя полями.
+#: Слова для этого у сторожа не было: `grep owner_choice_superseded` по
+#: `spa_core/` и `scripts/` давал НОЛЬ попаданий, а шаг 0-офис каждый цикл
+#: печатал «⛔ ДВА РАЗНЫХ ОТВЕТА ВЛАДЕЛЬЦА, нужен человек» на состоянии, где
+#: человек уже всё решил.
+SUPERSEDED_FIELDS = {
+    "owner_choice": "owner_choice_superseded",
+    "owner_answered_at": "owner_choice_superseded_at",
+    "owner_answer_via": "owner_choice_superseded_via",
+}
+
+#: Начало причины, по которому :func:`scan` узнаёт третий исход. Константа, а не
+#: литерал в двух местах: вердикт, зависящий от подстроки, которую можно
+#: переписать в одном из мест, — это следующая авария, а не защита.
+SUPERSEDED_MARK = "наш след ВЫТЕСНЕН"
+
 DELIVERED = "DELIVERED"
 IDLE = "IDLE"
 REFUSED = "REFUSED"
@@ -132,6 +160,7 @@ NEEDS_TRACE = "needs_trace"            # след есть у нас, на origi
 ALREADY_ON_ORIGIN = "already_on_origin"
 CREATE_ON_ORIGIN = "absent_on_origin"  # карточки на origin нет вовсе
 CONFLICT = "conflict"                  # origin несёт ДРУГОЙ ответ владельца
+SUPERSEDED = "superseded"              # расходились, и origin называет НАШ ответ вытесненным
 UNMEASURED = "unmeasured"              # origin прочитать не удалось
 
 
@@ -159,12 +188,17 @@ def trace_fields(blob: bytes) -> dict:
     против текста): имена полей берутся из одного списка ``OWNER_ANSWER_FIELDS``,
     второй копии имён здесь нет.
     """
+    return _read_fields(blob, OWNER_ANSWER_FIELDS)
+
+
+def _read_fields(blob: bytes, keys) -> dict:
+    """Непустые верхнеуровневые поля frontmatter из ``keys`` (пусто — их нет)."""
     parts = card_parts(blob)
     if parts is None:
         return {}
     fm = parts[0]
     out: dict = {}
-    for key in OWNER_ANSWER_FIELDS:
+    for key in keys:
         m = _field_re(key).search(fm)
         if m is None:
             continue
@@ -172,6 +206,40 @@ def trace_fields(blob: bytes) -> dict:
         if value:
             out[key] = value
     return out
+
+
+def superseded_fields(blob: bytes) -> dict:
+    """Регистр вытеснения из БАЙТОВ карточки: что именно объявлено вытесненным."""
+    return _read_fields(blob, SUPERSEDED_FIELDS.values())
+
+
+def clash_superseded(clash: dict, remote: bytes) -> tuple:
+    """``(bool, причина)`` — назвал ли origin КАЖДОЕ расхождение вытесненным.
+
+    Fail-CLOSED и намеренно узко. ``True`` только если по всем расходящимся
+    полям регистр origin (а) существует, (б) совпадает с НАШИМ значением байт в
+    байт. Хоть одна дыра ⇒ ``False``, и дыра названа поимённо: «покрыто
+    частично» — это спор двух ответов, а не разобранный спор, и молчание по
+    непокрытому полю было бы выбором стороны молча.
+    """
+    reg = superseded_fields(remote)
+    covered, gaps = [], []
+    for key, (theirs, ours) in sorted(clash.items()):
+        reg_key = SUPERSEDED_FIELDS.get(key)
+        if reg_key is None:
+            gaps.append(f"{key}: поля вытеснения для него не объявлено вовсе")
+            continue
+        got = reg.get(reg_key)
+        if got is None:
+            gaps.append(f"{key}: на origin нет {reg_key}")
+        elif got != ours:
+            gaps.append(f"{key}: origin вытеснил {got!r}, а у нас {ours!r}")
+        else:
+            covered.append(f"{key}: {ours!r} → {theirs!r}")
+    if gaps or not covered:
+        return False, ("вытеснение НЕ покрывает расхождение: " + "; ".join(gaps)
+                       if gaps else "регистра вытеснения на origin нет")
+    return True, "; ".join(covered)
 
 
 def merge_trace(local: bytes, remote: bytes) -> tuple:
@@ -195,8 +263,17 @@ def merge_trace(local: bytes, remote: bytes) -> tuple:
     clash = {k: (theirs[k], mine[k]) for k in mine if k in theirs and theirs[k] != mine[k]}
     if clash:
         named = "; ".join(f"{k}: на origin {o!r}, у нас {m!r}" for k, (o, m) in sorted(clash.items()))
+        resolved, why = clash_superseded(clash, remote)
+        if resolved:
+            # Третий исход. «Совпало» и «не совпало» — не весь мир: бывает
+            # «расходились, и владелец уже решил, вот чем именно». Везти при
+            # этом по-прежнему НЕЧЕГО (наш ответ — вытесненный), но и звать
+            # человека не на что.
+            return None, (f"{SUPERSEDED_MARK} более поздним ответом владельца, и origin "
+                          f"называет вытесненное поимённо ({why}) — везти нечего, "
+                          f"сторону выбрал владелец"), {}
         return None, (f"на origin ДРУГОЙ ответ владельца ({named}) — две копии несут разные "
-                      f"решения, выбирать сторону молча нельзя; сверьте руками"), {}
+                      f"решения, выбирать сторону молча нельзя; сверьте руками [{why}]"), {}
 
     added = {k: v for k, v in mine.items() if k not in theirs}
     if not added:
@@ -303,8 +380,14 @@ def scan(root: str = REPO_ROOT, reader=_default_remote_reader) -> list:
 
         merged, reason, added = merge_trace(local, remote)
         if merged is None:
-            verdict = ALREADY_ON_ORIGIN if "след уже на origin" in reason else (
-                CONFLICT if "ДРУГОЙ ответ владельца" in reason else REFUSED)
+            if "след уже на origin" in reason:
+                verdict = ALREADY_ON_ORIGIN
+            elif reason.startswith(SUPERSEDED_MARK):
+                verdict = SUPERSEDED
+            elif "ДРУГОЙ ответ владельца" in reason:
+                verdict = CONFLICT
+            else:
+                verdict = REFUSED
             out.append({"card": name, "path": absolute, "repo_path": repo_path,
                         "verdict": verdict, "answer": mine, "reason": reason})
             continue
@@ -383,7 +466,7 @@ def run(root: str = REPO_ROOT, now: dt.datetime | None = None,
     ts = _now(now)
     receipt = {"generated_at": ts.isoformat(), "adr": "ADR-086",
                "scanned": 0, "delivered": [], "already_on_origin": [],
-               "refused": [], "unmeasured": [], "conflicts": [],
+               "refused": [], "unmeasured": [], "conflicts": [], "superseded": [],
                "status": UNCHECKED, "reason": "", "commit": None}
     try:
         findings = scan(root, reader=reader)
@@ -397,6 +480,11 @@ def run(root: str = REPO_ROOT, now: dt.datetime | None = None,
                                  for f in by.get(UNMEASURED, [])]
         receipt["conflicts"] = [{"card": f["card"], "reason": f["reason"]}
                                 for f in by.get(CONFLICT, [])]
+        # Вытесненные НЕ попадают в blocked: везти по ним нечего ровно так же,
+        # как по already_on_origin, и держать из-за них статус в REFUSED значило
+        # бы чинить громкость, оставив вердикт врать.
+        receipt["superseded"] = [{"card": f["card"], "reason": f["reason"]}
+                                 for f in by.get(SUPERSEDED, [])]
         receipt["refused"] = [{"card": f["card"], "reason": f["reason"]}
                               for f in by.get(REFUSED, [])]
 
@@ -418,8 +506,10 @@ def run(root: str = REPO_ROOT, now: dt.datetime | None = None,
                                      + "; ".join(f"{b['card']}: {b['reason']}" for b in blocked))
             else:
                 receipt["status"] = IDLE
+                sup = len(receipt["superseded"])
                 receipt["reason"] = (f"весь след решений владельца на origin "
-                                     f"({len(receipt['already_on_origin'])} карточк(и))")
+                                     f"({len(receipt['already_on_origin'])} карточк(и))"
+                                     + (f"; вытеснено более поздним ответом: {sup}" if sup else ""))
         elif dry_run:
             receipt["status"] = UNCHECKED
             receipt["reason"] = (f"сухой прогон: доставить нужно {len(todo)} карточк(и) — "
@@ -470,6 +560,8 @@ def render(receipt: dict) -> str:
         tail += f" · НЕ ИЗМЕРЕНО: {len(receipt['unmeasured'])}"
     if receipt.get("conflicts"):
         tail += f" · РАЗНЫЕ ОТВЕТЫ: {len(receipt['conflicts'])}"
+    if receipt.get("superseded"):
+        tail += f" · ВЫТЕСНЕНО: {len(receipt['superseded'])}"
     if st == DELIVERED:
         return (f"owner_answer_delivery: ✅ след решения владельца доставлен "
                 f"({len(receipt.get('delivered') or [])}) → origin/main{tail}")
