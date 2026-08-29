@@ -108,7 +108,12 @@ def test_list_json_emits_card_dicts(cli, tracker, capsys):
     _write(tracker, "own-1.md", CARD)
     _write(tracker, "inbox-1.md", INBOX_CARD)
 
-    rc = cli.main(["list", "--json"])
+    # `--no-origin-check` — НЕ послабление, а разделение осей (ADR-166). Предмет теста —
+    # ФОРМА словаря, на которую опираются дашборд и вызывающие. В tmp-репозитории фикстуры
+    # `origin/main` не разрешается, сверка честно не состаивается, и с ADR-166 это код 2 —
+    # он мерил бы чужую ось и прятал бы поломку формы за красным кодом состава. Сам код 2
+    # закреплён отдельно и в обе стороны: `test_orchestrator_queue_origin_verdict.py`.
+    rc = cli.main(["list", "--json", "--no-origin-check"])
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
     assert len(out) == 2
@@ -122,7 +127,9 @@ def test_list_filters_by_type_and_status(cli, tracker, capsys):
     _write(tracker, "own-2.md", CARD.replace("status: needs-owner", "status: owner-done"))
     _write(tracker, "inbox-1.md", INBOX_CARD)
 
-    rc = cli.main(["list", "--type", "owner-decision", "--status", "needs-owner", "--json"])
+    # Предмет теста — ФИЛЬТР, не сверка с origin (ADR-166, см. комментарий выше).
+    rc = cli.main(["list", "--type", "owner-decision", "--status", "needs-owner", "--json",
+                   "--no-origin-check"])
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
     assert len(out) == 1
@@ -131,7 +138,8 @@ def test_list_filters_by_type_and_status(cli, tracker, capsys):
 
 
 def test_list_human_empty(cli, tracker, capsys):
-    rc = cli.main(["list"])
+    # Предмет теста — человекочитаемый вывод пустого списка (ADR-166, см. выше).
+    rc = cli.main(["list", "--no-origin-check"])
     assert rc == 0
     assert "(no matching cards)" in capsys.readouterr().out
 

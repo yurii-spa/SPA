@@ -165,12 +165,19 @@ def _card_dict(c, verdict: dict | None = None) -> dict:
 
 
 def _origin_read_through(cards: list, tracker_dir=None,
-                         ref: str | None = None) -> tuple[list, dict[str, dict], list[str]]:
+                         ref: str | None = None) -> tuple[list, dict[str, dict], list[str], bool]:
     """Сверить читаемый трекер с `origin/main` и ГРОМКО назвать расхождение (шаг 1-пред).
 
-    Возвращает `(карточки, вердикты, непрочитанные-невидимые)`. Третий элемент — имена
-    карточек, которые есть на `origin`, файла в дереве нет И прочитать их не удалось:
-    по нему `cmd_list` отвечает кодом 2, потому что СОСТАВ списка не измерен.
+    Возвращает `(карточки, вердикты, непрочитанные-невидимые, состоялась-ли-сверка)`.
+    Третий элемент — имена карточек, которые есть на `origin`, файла в дереве нет И
+    прочитать их не удалось: по нему `cmd_list` отвечает кодом 2, потому что СОСТАВ
+    списка не измерен.
+
+    Четвёртый элемент — ОТВЕТ НА ВОПРОС «сверка вообще состоялась?» (ADR-166). Он
+    существует потому, что три ветки ниже возвращают пустые находки по двум РАЗНЫМ
+    причинам, неотличимым по возвращаемому значению: «сверил и расхождений нет» и
+    «сверить не удалось вовсе». Первое — измеренная тишина, второе — незнание, и
+    выдавать второе за первое значит ровно то, ради чего вся эта сверка написана.
 
     **Зачем.** Список карточек читается из трекера ТОГО дерева, чья копия этого скрипта
     запущена. Циклы работают в изолированных worktree и пушат прямо на origin — хост-дерево
@@ -212,19 +219,19 @@ def _origin_read_through(cards: list, tracker_dir=None,
         import check_tracker_drift as drift
     except Exception as exc:  # noqa: BLE001 — сторож не должен ломать саму очередь
         print(f"❓ сверка с origin НЕ ИЗМЕРЕНА: сторож не импортировался ({exc})", file=sys.stderr)
-        return cards, verdicts, []
+        return cards, verdicts, [], False
     try:
         report = drift.analyze(tracker_dir, ref or drift.DEFAULT_REF)
     except drift.Unmeasured as exc:
         print(f"❓ сверка трекера с origin/main НЕ ИЗМЕРЕНА — {exc}\n"
               f"    список ниже НЕ подтверждён: он может показывать закрытое и прятать новое.",
               file=sys.stderr)
-        return cards, verdicts, []
+        return cards, verdicts, [], False
     # Сверка состоялась ⇒ у всех карточек вердикт по умолчанию «совпало»; ниже он
     # уточняется поимённо для тех, у кого есть находка.
     verdicts = {c.id: {"origin_check": VERDICT_AGREES} for c in cards}
     if not report.findings:
-        return cards, verdicts, []
+        return cards, verdicts, [], True
 
     try:
         root = drift.repo_root_of(Path(report.tracker_dir))
@@ -233,7 +240,7 @@ def _origin_read_through(cards: list, tracker_dir=None,
         # Сторож не имеет права уронить саму очередь: сверка — довесок к списку, а не его условие.
         print(f"❓ расхождение найдено, но версию с origin взять неоткуда ({exc})", file=sys.stderr)
         # Расхождение ЕСТЬ, а разобрать его нечем ⇒ «совпало» здесь было бы враньём.
-        return cards, {c.id: {"origin_check": VERDICT_UNMEASURED} for c in cards}, []
+        return cards, {c.id: {"origin_check": VERDICT_UNMEASURED} for c in cards}, [], False
     by_id = {c.id: c for c in cards}
     for f in report.of_kind(drift.KIND_STALE):
         local = by_id.get(f.card_id)
@@ -374,7 +381,7 @@ def _origin_read_through(cards: list, tracker_dir=None,
     if undelivered:
         print(f"    · есть в дереве, на {report.ref} нет ({len(undelivered)}) — не доставлены: "
               f"{_ids(drift.KIND_UNDELIVERED)}", file=sys.stderr)
-    return [by_id[c.id] for c in cards] + hidden_cards, verdicts, hidden_unread
+    return [by_id[c.id] for c in cards] + hidden_cards, verdicts, hidden_unread, True
 
 
 def _tracker_dir_of(args):
@@ -452,12 +459,23 @@ def cmd_list(args) -> int:
     cards = list_cards(tracker_dir=getattr(args, "tracker_dir", None))
     verdicts: dict[str, dict] = {}
     hidden_unread: list[str] = []
+    #: Сверка НЕ СОСТОЯЛАСЬ не по воле вызывающего ⇒ код 2 (ADR-166). См. блок в конце.
+    origin_unmeasured = False
     if getattr(args, "origin_check", True):
-        cards, verdicts, hidden_unread = _origin_read_through(
+        cards, verdicts, hidden_unread, origin_measured = _origin_read_through(
             cards, _tracker_dir_of(args), getattr(args, "ref", None))
+        origin_unmeasured = not origin_measured
     else:
         # Сверку выключили явным флагом. Это НЕ «совпало» — это «не измерено»,
-        # и в машинном контракте оно обязано выглядеть именно так.
+        # и в машинном контракте оно обязано выглядеть именно так: у каждой карточки
+        # в JSON стоит `origin_check: unmeasured` (`_card_dict` ставит его по умолчанию).
+        #
+        # Код возврата при ЭТОМ отказе остаётся 0 — и это решение, а не недосмотр
+        # (ADR-166). Красный код на состояние, которое вызывающий заказал сам, — это
+        # проверка, срабатывающая на штатном входе; она не добавляет знания (тот, кто
+        # написал флаг, уже знает, что не мерил) и учит гасить сигнал. Ровно этот довод
+        # закреплён в `.claude/rules/deployment.md` про храповик литеральных дат:
+        # «запрет в лоб покрасил бы половину набора, научив всех его отключать».
         print("❓ сверка с origin ОТКЛЮЧЕНА флагом --no-origin-check: список не подтверждён",
               file=sys.stderr)
 
@@ -524,6 +542,27 @@ def cmd_list(args) -> int:
     if hidden_unread:
         print(f"❓ СОСТАВ списка НЕ ИЗМЕРЕН: {len(hidden_unread)} карточк(и) есть на origin, "
               f"в дереве их нет, и прочитать с origin не удалось (код 2).", file=sys.stderr)
+        return 2
+    # Сверка с origin не состоялась ЦЕЛИКОМ (сторож не импортировался · `analyze` бросил
+    # `Unmeasured` · находки есть, а версию с origin взять неоткуда). ADR-153 закрыл узкую
+    # ветку — одну невидимую карточку; эта ветка ШИРЕ и опаснее: не измерено НИЧЕГО.
+    #
+    # Почему код 2 здесь НЕ зависит от пустоты списка, в отличие от `cross_tree_check`.
+    # Непроведённый опрос главного дерева может только НЕ ДОБАВИТЬ карточек — те, что
+    # показаны, остаются верными, поэтому там опасна ровно пустота. Несостоявшаяся сверка
+    # с origin врёт в ОБЕ стороны сразу (сторож так и говорит: «может показывать закрытое
+    # и прятать новое»), и непустой список подтверждён ровно настолько же, насколько
+    # пустой, — то есть никак. Фильтры `--type`/`--status` тем более ничего не спасают:
+    # они применяются к статусам, которые и не измерены.
+    #
+    # Замер до починки (цикл #425, 29.08, на чистом `origin/main` a0a9e6e93):
+    # `list --tracker-dir <каталог вне git> --type inbox --status new --json` печатал одну
+    # карточку и возвращал 0 — `| jq length` давал уверенное число, код возврата давал
+    # «всё хорошо», а в stderr стояло «сверка НЕ ИЗМЕРЕНА».
+    if origin_unmeasured:
+        print("❓ СВЕРКА С ORIGIN НЕ СОСТОЯЛАСЬ — состав списка не измерен ни в одну "
+              "сторону: он может показывать закрытое и прятать новое (код 2).",
+              file=sys.stderr)
         return 2
     return 0
 

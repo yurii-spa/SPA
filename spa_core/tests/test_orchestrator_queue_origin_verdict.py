@@ -61,6 +61,13 @@ for _p in (str(_REPO_ROOT), str(_SCRIPTS)):
 
 import check_tracker_drift as drift  # noqa: E402
 import orchestrator_queue as oq  # noqa: E402
+# Берётся из НАСТОЯЩЕГО дома вердикта, а не из `oq`: `orchestrator_queue` импортирует
+# только `CROSS_FOUND`/`CROSS_UNMEASURED`, и `oq.CROSS_AGREES` — несуществующее имя.
+# Первая редакция заглушки ниже писала именно его: `AttributeError` съедался
+# `except Exception` внутри `_cross_tree_owner_answers`, вердикт молча становился
+# `unmeasured`, и тест на ПУСТОЙ список зеленел от ЧУЖОЙ ветки кода 2 (мутация это
+# и вскрыла: тест пережил снятие починки).
+from spa_core.owner_queue.owner_answer import CROSS_AGREES  # noqa: E402
 
 REF = "main"
 
@@ -304,3 +311,173 @@ def test_card_missing_on_origin_is_marked_undelivered(repo, capsys):
     cards = _capture(capsys)
     assert [c["id"] for c in cards] == ["owner-decision-new"]
     assert cards[0]["origin_check"] == oq.VERDICT_UNDELIVERED
+
+
+# ── ADR-166: КОД ВОЗВРАТА `list` отвечает на вопрос «состав измерен?» ────────
+#
+# Авария, воспроизведённая здесь, — замер цикла #425 (29.08) на чистом `origin/main`
+# (a0a9e6e93), она же карточка `inbox-nesostoyavshayasya-sverka-s-origin-daet`:
+#
+#     $ python3 scripts/orchestrator_queue.py list --tracker-dir <каталог вне git> \
+#           --type inbox --status new --json ; echo $?
+#     ❓ сверка трекера с origin/main НЕ ИЗМЕРЕНА — путь не принадлежит git-репозиторию
+#         список ниже НЕ подтверждён: он может показывать закрытое и прятать новое.
+#     [ { ... "origin_check": "unmeasured" } ]
+#     0                      ← ВОТ ДЕФЕКТ
+#
+# `| jq length` давал уверенное число, код возврата давал «всё хорошо». ADR-153 закрыл
+# УЗКУЮ ветку (одна невидимая карточка ⇒ 2); эта — шире: не измерено вообще ничего.
+#
+# Каждый тест ниже мерит РОВНО ОДНУ ось: остальные условия кода 2 (пустой список при
+# неизмеренном опросе главного дерева, непрочитанная скрытая карточка) заглушаются
+# явно, иначе зелёный/красный ничего не говорил бы о починенной ветке.
+
+def _cross_measured(monkeypatch):
+    """Заглушить СОСЕДНЮЮ причину кода 2: опрос главного дерева состоялся и пуст.
+
+    Без этого тест на пустой список красил бы себя чужой веткой (`cross_verdict ==
+    unmeasured and not rows` тоже возвращает 2), и починку было бы нечем отличить.
+    """
+    monkeypatch.setattr(oq, "scan_owner_answers_elsewhere",
+                        lambda *a, **k: (CROSS_AGREES, [], None))
+
+
+def _list_rc(repo_root, *, type_="owner-decision", status="owner-done", extra_argv=()):
+    """Тот же вызов, что `_list_json`, но возвращает КОД — предмет этих тестов."""
+    argv = ["list", "--type", type_, "--status", status,
+            "--tracker-dir", str(_tracker(repo_root)), "--ref", REF, "--json", *extra_argv]
+    return oq.cmd_list(oq.build_parser().parse_args(argv))
+
+
+def test_unmeasured_origin_check_gives_code_2_even_with_a_nonempty_list(
+        repo, capsys, monkeypatch):
+    """ЯДРО ДЕФЕКТА, дословный замер #425: список НЕ пуст, а сверки не было.
+
+    До починки здесь стоял 0 — тот самый уверенный ответ там, где верный ответ «не знаю».
+    Непустой список подтверждён ровно настолько же, насколько пустой: несостоявшаяся
+    сверка врёт в ОБЕ стороны (сторож сам это и печатает).
+    """
+    _cross_measured(monkeypatch)
+    _bot_answered(repo, "owner-decision-x")
+    monkeypatch.setattr(drift, "analyze",
+                        lambda *a, **k: (_ for _ in ()).throw(drift.Unmeasured("нет ref")))
+
+    rc = _list_rc(repo)
+    out = capsys.readouterr()
+    assert json.loads(out.out), "предпосылка теста: список обязан быть НЕПУСТЫМ"
+    assert rc == 2, "несостоявшаяся сверка не имеет права выглядеть измеренной"
+    assert "СВЕРКА С ORIGIN НЕ СОСТОЯЛАСЬ" in out.err
+
+
+def test_measured_origin_check_still_gives_code_0(repo, capsys, monkeypatch):
+    """ОБРАТНЫЙ КОНТРОЛЬ. Без него тест выше зеленел бы и от «всегда 2».
+
+    Сверка состоялась ⇒ состав измерен ⇒ 0. Именно этот исход и есть рабочий режим
+    шагов 1 и 2 протокола, и ослабить его починкой нельзя.
+    """
+    _cross_measured(monkeypatch)
+    _bot_answered(repo, "owner-decision-x")
+
+    rc = _list_rc(repo)
+    assert json.loads(capsys.readouterr().out), "предпосылка: карточка обязана найтись"
+    assert rc == 0, "измеренная сверка обязана давать 0, иначе код перестанет что-то значить"
+
+
+def test_unmeasured_origin_check_gives_code_2_on_an_empty_list_too(
+        repo, capsys, monkeypatch):
+    """Отличие от правила `cross_tree_check`, и оно НАМЕРЕННОЕ.
+
+    Непроведённый опрос главного дерева может только НЕ ДОБАВИТЬ карточек — показанные
+    остаются верными, поэтому там опасна ровно пустота. Здесь не так: не измерен САМ
+    состав. Фильтр (`--status ingested`) оставляет список пустым — код всё равно 2.
+    """
+    _cross_measured(monkeypatch)
+    _bot_answered(repo, "owner-decision-x")
+    monkeypatch.setattr(drift, "analyze",
+                        lambda *a, **k: (_ for _ in ()).throw(drift.Unmeasured("нет ref")))
+
+    rc = _list_rc(repo, status="ingested")
+    out = capsys.readouterr()
+    assert json.loads(out.out) == [], "предпосылка теста: список ПУСТ"
+    assert "список ПУСТ и НЕ ПОДТВЕРЖДЁН" not in out.err, (
+        "код 2 обязан прийти от НЕСОСТОЯВШЕЙСЯ СВЕРКИ, а не от соседнего правила "
+        "про неизмеренный опрос главного дерева — иначе тест мерит не свою ось"
+    )
+    assert rc == 2
+    assert "СВЕРКА С ORIGIN НЕ СОСТОЯЛАСЬ" in out.err
+
+
+def test_guard_that_did_not_import_is_code_2_as_well(repo, capsys, monkeypatch):
+    """Вторая ветка того же незнания: сторож не импортировался.
+
+    Портим `sys.modules`, а не файл: `_origin_read_through` берёт сторожа именно
+    импортом внутри функции, и подмена атрибута эту ветку не задевает.
+    """
+    _cross_measured(monkeypatch)
+    _bot_answered(repo, "owner-decision-x")
+    monkeypatch.setitem(sys.modules, "check_tracker_drift", None)
+
+    rc = _list_rc(repo)
+    out = capsys.readouterr()
+    assert json.loads(out.out), "предпосылка: список НЕПУСТ"
+    assert rc == 2
+    assert "сторож не импортировался" in out.err
+
+
+def test_findings_without_a_way_to_read_origin_is_code_2(repo, capsys, monkeypatch):
+    """Третья ветка: расхождение НАЙДЕНО, а версию с origin взять неоткуда.
+
+    Вердикт у всех карточек `unmeasured` — значит и состав отфильтрованного списка
+    не измерен (фильтр судит по статусу, который как раз и не измерен).
+
+    Ломаем `repo_root_of` ТОЛЬКО после того, как `analyze` отработал: `analyze` зовёт
+    его же, и глобальная поломка увела бы тест в СОСЕДНЮЮ ветку (её мерит
+    `test_unmeasured_origin_check_gives_code_2_even_with_a_nonempty_list`). Первая
+    редакция этого теста в неё и ушла — зелёный код 2 приходил не оттуда, откуда ждали.
+    """
+    _cross_measured(monkeypatch)
+    _bot_answered(repo, "owner-decision-x")
+    real_analyze, real_root = drift.analyze, drift.repo_root_of
+    state = {"analyzed": False}
+
+    def _analyze(*a, **k):
+        report = real_analyze(*a, **k)
+        state["analyzed"] = True
+        return report
+
+    def _root(*a, **k):
+        if state["analyzed"]:
+            raise drift.Unmeasured("нет корня")
+        return real_root(*a, **k)
+
+    monkeypatch.setattr(drift, "analyze", _analyze)
+    monkeypatch.setattr(drift, "repo_root_of", _root)
+
+    rc = _list_rc(repo)
+    out = capsys.readouterr()
+    cards = json.loads(out.out)
+    assert cards and cards[0]["origin_check"] == oq.VERDICT_UNMEASURED
+    assert rc == 2
+    assert "версию с origin взять неоткуда" in out.err
+
+
+def test_explicit_opt_out_keeps_code_0_and_says_unmeasured(repo, capsys, monkeypatch):
+    """РЕШЕНИЕ, а не недосмотр (ADR-166): явный отказ вызывающего остаётся кодом 0.
+
+    Красный код на состояние, которое вызывающий заказал сам, не добавляет знания
+    (написавший флаг уже знает, что не мерил) и учит гасить сигнал — довод дословно
+    из `.claude/rules/deployment.md` про храповик литеральных дат. Незнание при этом
+    не прячется: оно едет в машинный контракт полем `origin_check: unmeasured` у
+    КАЖДОЙ карточки, и это здесь же и проверяется — иначе «0» стало бы молчанием.
+    """
+    _cross_measured(monkeypatch)
+    _bot_answered(repo, "owner-decision-x")
+
+    rc = _list_rc(repo, extra_argv=("--no-origin-check",))
+    out = capsys.readouterr()
+    cards = json.loads(out.out)
+    assert rc == 0, "явный отказ вызывающего — это его решение, а не отказ измерения"
+    assert cards and cards[0]["origin_check"] == oq.VERDICT_UNMEASURED, (
+        "код 0 разрешён здесь ТОЛЬКО потому, что незнание названо в самом ответе"
+    )
+    assert "ОТКЛЮЧЕНА флагом --no-origin-check" in out.err
