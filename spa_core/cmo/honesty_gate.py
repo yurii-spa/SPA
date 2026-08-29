@@ -4,7 +4,9 @@ The FIRST layer of the CMO Editorial pipeline (spec docs/CMO_EDITORIAL_LAYER.md 
 Guards every draft before it can enter the approval queue:
 
   (1) Numbers match     — every number in the draft must appear in source_facts.
-                          No invented figures; tolerance ±2% for rounded values.
+                          No invented figures; tolerance ±2% relative OR ±0.05 absolute
+                          (whichever is more permissive — the absolute floor covers 1-decimal
+                          display rounding on small percentages, see _ABS_TOLERANCE).
   (2) Disclaimers       — required disclosure phrases must be present (paper / not-a-guarantee /
                           tail-shown / evidence-tagged). At least one from each category.
   (3) No promissory     — blocklist of guaranteed-return / will-earn language. One hit → REJECT.
@@ -92,6 +94,15 @@ LIVE_OFFER_PATTERNS: list[str] = [
 # ── numeric extraction ──────────────────────────────────────────────────────────────────────────
 _NUM_RE = re.compile(r"[\$€£]?\s*(\d[\d,_]*(?:\.\d+)?)\s*%?", re.IGNORECASE)
 _TOLERANCE = 0.02  # 2% relative tolerance for rounding
+# Absolute floor for the tolerance check, alongside the relative one (numpy.isclose-style
+# atol+rtol). template_rewriter.py formats every percentage as f"{v:.1f}%" — half the width
+# of that rounding step is 0.05, and a RELATIVE-only tolerance breaks down at small values:
+# cumulative_return_pct=0.2095 rounds to "0.2%", a 4.5% relative gap that a 2% relative
+# tolerance rejects even though the draft is byte-for-byte the template's own rounding of a
+# real source fact. Measured 2026-08-28: every one of 43 CMO drafts since 2026-07-16 failed
+# the gate on exactly this field, for exactly this reason — not a content problem, a
+# tolerance-math problem that only shows up once the tracked return is small.
+_ABS_TOLERANCE = 0.05
 
 
 def _extract_numbers(text: str) -> list[float]:
@@ -140,7 +151,7 @@ def _number_allowed(val: float, source_nums: list[float]) -> bool:
     for s in source_nums:
         if s == 0:
             continue
-        if abs(val - s) / max(abs(s), 1e-9) <= _TOLERANCE:
+        if abs(val - s) <= max(_TOLERANCE * abs(s), _ABS_TOLERANCE):
             return True
     return False
 

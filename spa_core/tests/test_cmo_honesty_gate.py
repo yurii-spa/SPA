@@ -122,6 +122,24 @@ class TestNumberAllowed:
     def test_no_source_numbers(self):
         assert not _number_allowed(999.0, [])
 
+    def test_small_value_rounding_regression(self):
+        # Real bug, measured 2026-08-28: template_rewriter formats every percentage as
+        # f"{v:.1f}%" — cumulative_return_pct=0.2095 renders as "0.2%" in the draft. A
+        # RELATIVE-only 2% tolerance rejects this (|0.2-0.2095|/0.2095 ≈ 4.5%), even though
+        # it is the template's own honest rounding of a real source fact. This is the exact
+        # field/value that failed the gate on 43/43 CMO drafts from 2026-07-16 to 2026-08-27.
+        assert _number_allowed(0.2, [0.2095])
+
+    def test_small_value_rounding_does_not_swallow_real_divergence(self):
+        # The absolute floor (0.05) must stay narrow: a genuinely wrong small number must
+        # still be rejected, not just anything "close to zero".
+        assert not _number_allowed(0.5, [0.2095])  # 0.3 off — well past the 0.05 floor
+
+    def test_absolute_floor_does_not_loosen_large_values(self):
+        # For values where 2% relative already exceeds 0.05, the floor must not matter —
+        # confirms the fix is additive (max of the two), not a global loosening.
+        assert not _number_allowed(12.875, [12.5])  # unchanged from test_outside_tolerance
+
 
 # ── check_draft — happy path ───────────────────────────────────────────────────
 
@@ -137,6 +155,30 @@ class TestCheckDraftPass:
     def test_no_violations_on_pass(self):
         result = check_draft(GOOD_DRAFT, GOOD_FACTS)
         assert result.violations == []
+
+    def test_real_43_drafts_regression(self):
+        # Byte-for-byte the shape of data/cmo_drafts/cmo_20260804_000.json (and 42 siblings,
+        # 2026-07-16..2026-08-27) — every one of them failed 'number-not-in-source: 0.2' on
+        # this exact field before the tolerance fix. Confirms the end-to-end check_draft()
+        # path, not just the internal _number_allowed() unit.
+        facts = {
+            "n_evidenced_days": 19,
+            "days_needed": 30,
+            "cumulative_return_pct": 0.2095,
+            "max_drawdown_from_peak_pct": 0.0,
+            "refusal_count": 886,
+            "decision_count": 2000,
+        }
+        draft = (
+            "Week 2026-08-04: Paper track reaches 19/30 evidenced days — cumulative return "
+            "0.2%, maximum drawdown 0.0% from peak. The refusal engine made 886 of 2000 yield "
+            "opportunities declined on risk grounds (high-tail compensation, depeg exposure, "
+            "or insufficient liquidity). Simulated paper results only — not real capital. "
+            "Past performance is no guarantee. All yield carries risk: drawdown and loss of "
+            "principal are possible. This is not financial advice."
+        )
+        result = check_draft(draft, facts)
+        assert result.passed, result.violations
 
 
 # ── (1) numbers-match check ────────────────────────────────────────────────────
