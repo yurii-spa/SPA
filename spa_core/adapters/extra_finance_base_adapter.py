@@ -325,8 +325,43 @@ class ExtraFinanceBaseAdapter(BaseAdapter):
         # Нет наблюдения ⇒ None (ADR-063 п.3, .claude/rules/adapters.md).
         return None
 
-    def get_yield_info(self) -> dict:
-        """Возвращает полную информацию о доходности.
+    def get_yield_info(self) -> YieldInfo:
+        """Канонический аксессор доходности — КОНТРАКТ базового класса.
+
+        Замер 29.08 (перепись всех 36 адаптеров): этот адаптер был ЕДИНСТВЕННЫМ из
+        36, кто возвращал отсюда `dict`. Любая попытка его опросить падала с
+        `AttributeError: 'dict' object has no attribute 'tvl_usd'` — то есть
+        адаптер не мог быть опрошен в принципе, и живым вызовом его никогда не
+        проверяли. Дефект спящий (T3, в POLLED_ADAPTERS не входит), но он означал,
+        что кандидатом в опрос адаптер быть не мог, а причина этого нигде не
+        значилась.
+
+        `apy` здесь — ДЕСЯТИЧНАЯ дробь и `None` при мёртвом фиде. Литерал
+        `APY_FALLBACK` в канонический аксессор НЕ протаскивается: подстановка под
+        видом наблюдения — ровно то, что снято решением владельца 2026-08-08
+        («делать все 15», карточка `agent-fake-fallback-v-15-adapterah`). Прежний
+        словарь со своим фолбэком сохранён как `yield_details()` — исследовательская
+        поверхность phase1_monitoring, её поведение я не меняю.
+        """
+        best = self._fetch_live_pool()
+        live_tvl = (
+            float(best["tvlUsd"])
+            if best is not None and isinstance(best.get("tvlUsd"), (int, float))
+            else None
+        )
+        apy_raw = best.get("apy") if best is not None else None
+        return YieldInfo(
+            protocol=ADAPTER_ID,
+            asset=self.asset,
+            apy=(float(apy_raw) / 100.0 if isinstance(apy_raw, (int, float)) else None),
+            tvl_usd=live_tvl if live_tvl is not None else float(TVL_USD),
+            tvl_source="live" if live_tvl is not None else "static",
+            tier=TIER,
+            risk_score=RISK_SCORE,
+        )
+
+    def yield_details(self) -> dict:
+        """Подробный словарь исследовательской поверхности (было `get_yield_info`).
 
         Returns
         -------
