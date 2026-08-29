@@ -212,6 +212,86 @@ def goal_from_docstring(module: str | None) -> str:
     return first[:300]
 
 
+# Строки, которые описывают МЕХАНИЗМ запуска, а не дело агента. Такая «цель»
+# ХУЖЕ пустой: она выглядит как знание и не отвечает на вопрос «зачем он есть»
+# (тот же класс, что цель из докстринга служебного `log_session_change`, замер
+# 28.08). Поэтому выводитель обязан уметь ОТКАЗАТЬСЯ — и у `com.spa.dashboard`
+# он отказывается: там весь заголовок про то, что launchd не умеет exec'ить
+# miniconda-python, и ни слова о деле.
+_MECHANISM_RX = re.compile(
+    r"launchd\s+wrapper|bash[- ]wrapper|wrapper\s+for\s+com\.spa|generated\s+from"
+    r"|launchd\s+cannot|plist\s+must\s+call|обёртка\s+launchd|обёртка\s+для"
+    r"|canonical\s+bash", re.I)
+
+# `# scripts/foo.sh — прозa` / `# foo.sh - прозa`: техническое имя слева убрать.
+_WRAPPER_NAME_RX = re.compile(r"^(?:[\w./-]+/)?[\w.-]+\.(?:sh|py)\s*[—–-]\s*")
+_DECOR_RX = re.compile(r"^[=\-*_\s]*$")
+
+
+def _program_file(program: str | None) -> Path | None:
+    """Файл самой обёртки. `scripts/` — по умолчанию, путь в имени уважается."""
+    if not program or program in ("python3", "bash", "/bin/bash"):
+        return None
+    cand = REPO / program if "/" in program else REPO / "scripts" / program
+    return cand if cand.is_file() else None
+
+
+def goal_from_wrapper_header(program: str | None) -> str:
+    """Заголовочный комментарий обёртки — формулировка автора, как и docstring.
+
+    Спрашивается ТОЛЬКО там, где docstring не дал ничего (см. `derive`): новый
+    источник не может отнять уже выведенную цель, регрессия невозможна по
+    построению, а не по внимательности (урок 28.08 — наивный вариант отнял цель
+    у `daily_cycle` и `rates_desk_paper`).
+    """
+    f = _program_file(program)
+    if f is None:
+        return ""
+    try:
+        lines = f.read_text(encoding="utf-8", errors="replace").splitlines()[:40]
+    except OSError:
+        return ""
+    if f.suffix == ".py":                      # программа-скрипт: у неё свой docstring
+        m = _DOC_RX.search("\n".join(lines))
+        body = (m.group("body").strip() if m else "")
+        block = body.split("\n\n")[0].replace("\n", " ").strip() if body else ""
+    else:
+        block, started = "", False
+        for raw in lines:
+            line = raw.strip()
+            if line.startswith("#!"):
+                continue
+            if not line.startswith("#"):
+                if started:
+                    break
+                continue
+            text = _WRAPPER_NAME_RX.sub("", line.lstrip("#").strip())
+            if _DECOR_RX.match(text):          # рамка из ===, не проза
+                continue
+            if _MECHANISM_RX.search(text):     # про запуск, а не про дело
+                if started:
+                    break
+                continue
+            # Перенос строки бывает двух видов, и путать их нельзя. Строчная буква
+            # в начале — продолжение той же фразы («…finds cloudflared» + «binary
+            # across…»), её надо доклеить. Прописная — уже НОВАЯ фраза, и склейка
+            # без знака препинания сшила бы два утверждения в одно нечитаемое;
+            # дописать точку самому — выдумать пунктуацию автора. Поэтому
+            # останавливаемся и отдаём то, что автор написал одной строкой.
+            if started and not re.search(r"\.(?:\s|$)", block) and text[:1].isupper():
+                break
+            started = True
+            block = f"{block} {text}".strip()
+            if re.search(r"\.(?:\s|$)", block):
+                break
+    if not block:
+        return ""
+    cut = re.search(r"\.(?:\s|$)", block)
+    if cut:
+        block = block[: cut.start() + 1]
+    return re.sub(r"\s{2,}", " ", block).strip()[:300]
+
+
 def quality_metric_from_produces(entry: dict) -> str:
     """Измеримая метрика из манифеста: артефакт + его SLO. Без SLO — пусто."""
     parts = []
@@ -322,7 +402,10 @@ def limits_from_code(module: str | None, entry: dict) -> str:
 def derive(entry: dict) -> dict:
     module = module_of(entry.get("program"))
     return {
-        "goal": goal_from_docstring(module),
+        # ПОРЯДОК ИСТОЧНИКОВ, а не заплатка: заголовок обёртки спрашивается лишь
+        # там, где докстринг молчит. Так новый источник может только добавить.
+        "goal": (goal_from_docstring(module)
+                 or goal_from_wrapper_header(entry.get("program"))),
         "quality_metric": quality_metric_from_produces(entry),
         "escalation": escalation_from_code(module, entry),
         "rights": rights_from_manifest(module, entry),

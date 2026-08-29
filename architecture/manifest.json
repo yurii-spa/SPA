@@ -222,7 +222,7 @@
    "curation": "complete",
    "notes": "похоронен решением владельца 2026-08-06 (ADR-067): дубль autopush",
    "passport": {
-    "goal": "",
+    "goal": "Automatic sequential push of all pending push_v*.sh scripts",
     "quality_metric": "",
     "escalation": "",
     "rights": "",
@@ -245,7 +245,7 @@
    "curation": "partial",
    "notes": "",
    "passport": {
-    "goal": "",
+    "goal": "Automatic sequential push of all pending push_v*.sh scripts",
     "quality_metric": "",
     "escalation": "",
     "rights": "",
@@ -389,7 +389,7 @@
    "curation": "partial",
    "notes": "",
    "passport": {
-    "goal": "",
+    "goal": "claude-code-kanban backup monitor (ENV_SETUP v3 §4.1)",
     "quality_metric": "",
     "escalation": "",
     "rights": "",
@@ -435,7 +435,7 @@
    "curation": "partial",
    "notes": "",
    "passport": {
-    "goal": "",
+    "goal": "reads tunnel token from Keychain, finds cloudflared binary across common install paths, and execs the tunnel.",
     "quality_metric": "",
     "escalation": "",
     "rights": "",
@@ -590,7 +590,7 @@
    "curation": "partial",
    "notes": "",
    "passport": {
-    "goal": "",
+    "goal": "DAILY snapshot of ALL data/*.json into data/backups/.",
     "quality_metric": "",
     "escalation": "",
     "rights": "",
@@ -863,7 +863,7 @@
    "curation": "complete",
    "notes": "похоронен решением владельца 2026-08-06 (ADR-067): предок familyfund",
    "passport": {
-    "goal": "",
+    "goal": "MP-443: SPA Fund API Server Minimal HTTP server (stdlib only) для investor portal.",
     "quality_metric": "",
     "escalation": "",
     "rights": "",
@@ -970,7 +970,7 @@
    "curation": "partial",
    "notes": "",
    "passport": {
-    "goal": "",
+    "goal": "событийный ЛЁГКИЙ интейк Inbox (owner-approved 2026-07-15)",
     "quality_metric": "",
     "escalation": "",
     "rights": "",
@@ -1514,7 +1514,7 @@
    "curation": "partial",
    "notes": "оживлён решением владельца 2026-08-06 (ADR-067): standing-директива R&D edge (Вт/Пт 04:00)",
    "passport": {
-    "goal": "",
+    "goal": "headless R&D \"opportunity finder\" agent.",
     "quality_metric": "",
     "escalation": "",
     "rights": "",
@@ -1537,7 +1537,7 @@
    "curation": "partial",
    "notes": "",
    "passport": {
-    "goal": "",
+    "goal": "headless orchestrator agent (ENV_SETUP v3 §3.5)",
     "quality_metric": "",
     "escalation": "",
     "rights": "",
@@ -1713,7 +1713,7 @@
    "curation": "partial",
    "notes": "оживлён решением владельца 2026-08-06 (ADR-067): проверка флота после ребута (RunAtLoad)",
    "passport": {
-    "goal": "",
+    "goal": "Runs scripts/verify_fleet_after_reboot.sh once at LOGIN (RunAtLoad), so the post-reboot fleet heal + its auditable status JSON (data/fleet_reboot_status .json) are produced automatically — \"probably recovered\" becomes proven+dated without a human remembering to run the command.",
     "quality_metric": "",
     "escalation": "",
     "rights": "",
@@ -2666,7 +2666,7 @@
    "curation": "partial",
    "notes": "развёрнут 2026-08-08 по решению владельца «четыре — ставить» (own-31); гейт check_agent_before_deploy пройден, last exit=0",
    "passport": {
-    "goal": "",
+    "goal": "Weekly SPA_Claude backup — runs every Saturday at 10:00 AM",
     "quality_metric": "",
     "escalation": "",
     "rights": "",
@@ -2689,7 +2689,7 @@
    "curation": "partial",
    "notes": "",
    "passport": {
-    "goal": "",
+    "goal": "«Что сделано за вчера» (РАБОТА/девелопмент, простым языком) → Telegram, 09:00.",
     "quality_metric": "",
     "escalation": "",
     "rights": "",
