@@ -18,6 +18,9 @@
 """
 from __future__ import annotations
 
+import ast
+import re
+
 import subprocess
 from pathlib import Path
 
@@ -27,9 +30,23 @@ _ROOT = Path(__file__).resolve().parents[2]
 _DIRS = ("spa_core/alerts", "spa_core/monitoring", "spa_core/governance")
 
 #: Перепись на 2026-08-29. Каждый — кандидат «подключить или вывести».
-KNOWN_UNWIRED = {
+#: Найдено УЖЕСТОЧЕНИЕМ детектора 30.08, а не написано в этот день.
+#:
+#: Пока детектор искал имя во всём тексте, `golive_checker_hy` выглядел
+#: подключённым из-за ОДНОЙ фразы в докстроке соседа: «Аналог
+#: golive_checker_hy.py для Engine B». Настоящих вызовов нет ни одного.
+#:
+#: Это переякорение после починки сторожа, а не ослабление: детектор стал
+#: строже, перепись выросла на пред-существовавшую сироту, которой он раньше
+#: не видел. Карточка на подключение —
+#: `agent-golive-checker-hy-sirota-naidena-uzhestocheniem`.
+#: Правило «в KNOWN_UNWIRED не добавлять» остаётся в силе для НОВЫХ модулей.
+_FOUND_BY_STRICTER_DETECTOR = {
+    "spa_core/monitoring/golive_checker_hy.py",
+}
+
+KNOWN_UNWIRED = _FOUND_BY_STRICTER_DETECTOR | {
     "spa_core/alerts/adaptive_monitor.py",
-    "spa_core/alerts/apy_spike_monitor.py",
     "spa_core/monitoring/arbitrum_gas_monitor.py",
     "spa_core/monitoring/data_freshness_monitor.py",
     "spa_core/monitoring/findings_bridge_c125.py",
@@ -44,6 +61,42 @@ KNOWN_UNWIRED = {
 
 def has_entrypoint(text: str) -> bool:
     return "__main__" in text or "def main(" in text
+
+
+def _code_only(text: str) -> str:
+    """Текст .py БЕЗ прозы: докстроки и комментарии вырезаны.
+
+    Детектор искал имя модуля во ВСЁМ тексте, и упоминание
+    `slo_proposal.architect_floor` в ДОКСТРОКЕ чужого скрипта объявило сироту
+    «подключённой»: сторож сам себя ослепил чужой прозой. Третий случай этого
+    класса за сутки — проводка проверяется формой вызова, а не появлением имени
+    в тексте.
+
+    Не-Python оставляем как есть: обёртка `.sh`, plist и манифест ссылаются на
+    модуль именно строкой, и там имя — это и есть вызов.
+
+    Комментарии режутся грубо (`#` до конца строки), в том числе внутри строк.
+    Ошибка идёт в сторону «меньше упоминаний» ⇒ БОЛЬШЕ сирот в переписи —
+    fail-CLOSED, как и положено сторожу.
+    """
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return text
+    drop: set[int] = set()
+    for node in ast.walk(tree):
+        body = getattr(node, "body", None)
+        if not isinstance(node, (ast.Module, ast.ClassDef,
+                                 ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        if (body and isinstance(body[0], ast.Expr)
+                and isinstance(body[0].value, ast.Constant)
+                and isinstance(body[0].value.value, str)):
+            d = body[0]
+            drop.update(range(d.lineno, (d.end_lineno or d.lineno) + 1))
+    kept = ["" if (i + 1) in drop else re.sub(r"#.*$", "", line)
+            for i, line in enumerate(text.splitlines())]
+    return "\n".join(kept)
 
 
 def _tree_texts() -> dict:
@@ -68,9 +121,10 @@ def _tree_texts() -> dict:
             if "/tests/" in rel or "/archive/" in rel:
                 continue
             try:
-                out[rel] = f.read_text(encoding="utf-8", errors="replace")
+                body = f.read_text(encoding="utf-8", errors="replace")
             except OSError:
                 continue
+            out[rel] = _code_only(body) if f.suffix == ".py" else body
     return out
 
 
@@ -114,7 +168,10 @@ def test_no_new_guard_module_is_left_unwired():
         f"новый сторож с точкой входа, которого никто не зовёт: {new}. "
         "Написать проверку и не позвать её — то же, что не написать: "
         "apy_spike_monitor так пропустил всплеск 9.2 % при пороге 8 %. "
-        "В KNOWN_UNWIRED НЕ добавлять — подключить или вывести карточкой.")
+        "В KNOWN_UNWIRED НЕ добавлять — подключить или вывести карточкой. "
+        "Исключение ровно одно и оно названо: если сироту вскрыло УЖЕСТОЧЕНИЕ "
+        "детектора, это переякорение — заводится отдельным множеством "
+        "`_FOUND_BY_STRICTER_DETECTOR` с датой, причиной и карточкой.")
 
 
 def test_fixed_modules_leave_the_census():
@@ -137,3 +194,20 @@ def test_detector_needs_an_entrypoint_not_just_a_file():
     assert has_entrypoint("if __name__ == '__main__':\n    main()\n")
     assert has_entrypoint("def main(argv=None):\n    return 0\n")
     assert not has_entrypoint("def helper():\n    return 1\n")
+
+
+def test_prose_is_not_wiring():
+    """Положительный контроль к починке 30.08: упоминание в докстроке — не вызов.
+
+    Ровно так `slo_proposal` объявлялся «починенным», а `golive_checker_hy`
+    прятался в переписи: у обоих единственное упоминание было прозой.
+    """
+    src = '"""Аналог zzz_orphan_module.py для Engine B."""\nx = 1  # и ещё zzz_orphan_module\n'
+    assert "zzz_orphan_module" not in _code_only(src), (
+        "проза снова читается как проводка — сторож слепнет от чужой докстроки")
+
+
+def test_a_real_call_survives_the_prose_strip():
+    """Обратный контроль: настоящий импорт вырезать нельзя."""
+    src = '"""Докстрока про zzz_orphan_module."""\nfrom spa_core.x import zzz_orphan_module\n'
+    assert "zzz_orphan_module" in _code_only(src)
