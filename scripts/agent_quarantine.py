@@ -108,6 +108,20 @@ def check_protected(label: str, entry: dict) -> None:
             raise Refused(f"{label}: в имени/цели слово «{w}» — соседство с деньгами или треком, отказ")
 
 
+def check_daemon(label: str, entry: dict) -> None:
+    """У демона потребитель приходит ПО СЕТИ, а не по файлу.
+
+    Замер 29.08 предложил в кандидаты `com.spa.familyfund` — сервер API инвесторов:
+    его `data/investors.json` действительно никто не читает из кода, потому что
+    читают его по HTTP, а такого канала у нас нет вовсе. Отсутствие читателей файла
+    у демона не доказывает НИЧЕГО, и выключение стоило бы живой службы.
+    """
+    if str(entry.get("schedule") or "").strip().lower() == "daemon":
+        raise Refused(
+            f"{label}: это демон — его потребитель приходит по сети, а не по файлу; "
+            f"отсутствие читателей артефакта о нужности не говорит")
+
+
 def check_unconsumed(label: str, measure) -> dict:
     """`measure(label)` обязана вернуть {'consumers': N, 'measured': bool}."""
     try:
@@ -116,6 +130,11 @@ def check_unconsumed(label: str, measure) -> dict:
         raise Refused(f"{label}: потребление НЕ измерено ({exc}) — «не знаю» это не «никто»") from exc
     if not m.get("measured"):
         raise Refused(f"{label}: потребление НЕ измерено — fail-CLOSED, отказ")
+    if m.get("applicable") is False:
+        raise Refused(
+            f"{label}: агент объявил, что артефактов не производит — «ноль читателей» "
+            f"у ничего это тавтология, а не улика. Годность такой службы мерится "
+            f"доступностью/фактом отправки, и вопрос к владельцу другой")
     if m.get("consumers"):
         raise Refused(f"{label}: продукт потребляют ({m['consumers']}) — карантин отменён")
     return m
@@ -125,6 +144,7 @@ def quarantine(label: str, reason: str, measure, *, now=None, runner=subprocess.
                dry_run: bool = False) -> dict:
     entry = agent_entry(label)
     check_protected(label, entry)
+    check_daemon(label, entry)
     m = check_unconsumed(label, measure)
     if dry_run:
         # Проверка инструмента не имеет права ДЕЙСТВОВАТЬ: см. докстринг `_live_measure`.

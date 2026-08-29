@@ -102,6 +102,81 @@ class TestRefusals(unittest.TestCase):
             self.assertIn("уже в карантине", str(e.exception))
 
 
+class TestZeroConsumersIsNotAlwaysEvidence(unittest.TestCase):
+    """Замер 29.08: два кандидата из шести оказались ложными ПО ПОСТРОЕНИЮ.
+
+    Оба — один класс: «ноль читателей файла» доказывает что-то только там, где файл
+    вообще есть и потребляют его через файл. Без этих двух отказов вторая партия
+    предложила бы владельцу выключить `com.spa.familyfund` — живой API инвесторов.
+    """
+
+    def test_agent_producing_nothing_is_refused_not_quarantined(self):
+        """`cmo_editorial`: PRODUCES = () ⇒ ноль читателей у НИЧЕГО — тавтология."""
+        with TemporaryDirectory() as td, _Env(td) as env:
+            _manifest(env.tmp)
+            produces_nothing = lambda _l: {"measured": True, "applicable": False,
+                                           "consumers": 0, "declared": []}
+            with self.assertRaises(q.Refused) as e:
+                q.quarantine("com.spa.x", "r", produces_nothing, runner=env.runner)
+            self.assertIn("тавтология", str(e.exception))
+
+    def test_daemon_is_refused_because_its_consumer_arrives_over_the_network(self):
+        """`familyfund`: сервер API — его читают по HTTP, канала «сеть» у нас нет."""
+        with TemporaryDirectory() as td, _Env(td) as env:
+            (env.tmp / "architecture").mkdir(parents=True, exist_ok=True)
+            (env.tmp / "architecture" / "manifest.json").write_text(json.dumps(
+                {"agents": [{"label": "com.spa.x", "role": "infra",
+                             "schedule": "daemon"}]}), encoding="utf-8")
+            with self.assertRaises(q.Refused) as e:
+                q.quarantine("com.spa.x", "r", NOBODY, runner=env.runner)
+            self.assertIn("демон", str(e.exception))
+
+    def test_a_real_unconsumed_file_producer_is_still_quarantinable(self):
+        """Обратная сторона: отказы не должны обессмыслить прибор."""
+        with TemporaryDirectory() as td, _Env(td) as env:
+            _manifest(env.tmp)
+            r = q.quarantine("com.spa.x", "r", NOBODY, runner=env.runner, dry_run=True)
+            self.assertTrue(r)
+
+
+class TestTheFlagItselfIsMeasured(unittest.TestCase):
+    """Отказ выше проверен на ПОДСТАВНОМ замере — значит настоящий замер не проверен.
+
+    Мутация 29.08 это показала: сняв развилку в `consumers_of`, набор остался ЗЕЛЁНЫМ,
+    потому что тесты карантина подсовывают свою `measure`. Сторож был бы зелёным, а
+    проводка мёртвой — `applicable` никогда не стал бы False в проде.
+    """
+
+    def _measure(self, declared):
+        from spa_core.monitoring import artifact_consumers as ac
+        from spa_core.monitoring import artifact_contract as acon
+        e, d = acon._entry_modules, acon.declared_produces
+        try:
+            acon._entry_modules = lambda _r: {"com.spa.x": "spa_core.monitoring.artifact_consumers"}
+            acon.declared_produces = lambda _f: declared
+            return ac.consumers_of("com.spa.x", Path(__file__).resolve().parents[2])
+        finally:
+            acon._entry_modules, acon.declared_produces = e, d
+
+    def test_empty_produces_makes_the_question_inapplicable(self):
+        r = self._measure(())
+        self.assertTrue(r["measured"], "замер СОСТОЯЛСЯ — это не «не знаю»")
+        self.assertIs(r["applicable"], False)
+        self.assertIn("НЕПРИМЕНИМО", r["note"])
+
+    def test_declared_artifact_keeps_the_question_applicable(self):
+        """Обратная сторона: у агента с продуктом вопрос остаётся законным."""
+        r = self._measure(("data/nikto_ne_chitaet_etot_fail.json",))
+        self.assertIs(r["applicable"], True)
+        self.assertTrue(r["measured"])
+
+    def test_unreadable_declaration_is_not_measured_at_all(self):
+        """И третий исход не потерян: объявления нет ⇒ «не измерено», не «неприменимо»."""
+        r = self._measure(None)
+        self.assertFalse(r["measured"])
+        self.assertIs(r["applicable"], True)
+
+
 class TestDryRunCannotAct(unittest.TestCase):
     """Авария 2: моя же «проба отказа» отложила живого агента."""
 

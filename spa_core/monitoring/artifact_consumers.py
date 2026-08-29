@@ -116,7 +116,8 @@ def reaches_owner(module: str, repo: Path | None = None, depth: int = 1) -> bool
 def consumers_of(label: str, repo: Path | None = None) -> dict:
     """Полный ответ по агенту. Никогда не бросает — но честно ставит measured=False."""
     repo = repo or _REPO
-    out = {"label": label, "measured": False, "consumers": 0, "by_channel": {}, "note": ""}
+    out = {"label": label, "measured": False, "applicable": True,
+           "consumers": 0, "by_channel": {}, "note": ""}
     try:
         from spa_core.monitoring.artifact_contract import _entry_modules, declared_produces
         mods = _entry_modules(repo)
@@ -128,6 +129,18 @@ def consumers_of(label: str, repo: Path | None = None) -> dict:
         declared = declared_produces(f) if f.is_file() else None
         if declared is None:
             out["note"] = "агент не объявил PRODUCES — что он производит, неизвестно"
+            return out
+        if not declared:
+            # ЧЕТВЁРТЫЙ исход, и он не «никто». Агент ЯВНО объявил, что артефактов
+            # не производит (`PRODUCES = ()`), — значит потребления файлов у него
+            # нет по построению, и ноль читателей ничего о его нужности не говорит.
+            # Без этой развилки замер выдавал «продукт не потребляет никто» там, где
+            # продукта нет вовсе, и `cmo_editorial` попал в кандидаты на отключение
+            # по тавтологии (замер 29.08). Годность такой службы меряется другим
+            # признаком — доступностью или фактом отправки (ADR-154).
+            out.update(measured=True, applicable=False, declared=[],
+                       note="агент ЯВНО объявил PRODUCES = () — потребление файлов "
+                            "к нему НЕПРИМЕНИМО; годность мерится доступностью/фактом отправки")
             return out
         arts = set(declared)
         manifest = json.loads((repo / "architecture" / "manifest.json").read_text(encoding="utf-8"))
