@@ -109,6 +109,9 @@ from spa_core.paper_trading.risk_gate import (  # noqa: F401 — re-exported
     _compliant_target,
     _record_policy_block,
 )
+from spa_core.governance.churn_damper import (  # ADR-168
+    decide as _churn_decide,
+)
 from spa_core.paper_trading.cycle_exit import (  # noqa: F401 — re-exported
     EXIT_LOCK_REFUSED as _EXIT_LOCK_REFUSED,
     describe_exit as _describe_exit,
@@ -2123,10 +2126,32 @@ def run_cycle(
         trades = []
     diff_usd = _allocation_diff_usd(current_positions, target_usd)
     threshold_usd = trade_threshold_pct * capital_usd
+    # ── ADR-168: ограничитель частоты перекладок на ЖИВОМ пути ───────────
+    # ADR-060 §3 задавал минимальный срок удержания и недельный бюджет оборота,
+    # но они управляли теневым каналом. Замер 29.08: 22 перекладки за 7 дней,
+    # оборот 5.3 капитала, издержки $1288/нед при недельном заработке книги $87.
+    # Решение владельца: ограничить живой путь той же колонкой ADR-060.
+    #
+    # Ход, который только СОКРАЩАЕТ позиции, не задерживается никогда — де-риск,
+    # kill-switch и реакция на просадку обязаны проходить мгновенно. Ограничитель
+    # не гейт безопасности: не смог решить ⇒ пропускает (замороженная книга хуже
+    # одной лишней перекладки).
+    _churn = _churn_decide(
+        current_positions, target_usd, trades, capital_usd,
+    )
+    echo_line = (
+        f"[{datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}] "
+        f"churn_damper {_churn.decision} ({_churn.reason}): {_churn.detail}"
+    )
+    log.info(echo_line)
+    if not _churn.allowed:
+        notes.append(f"churn_damper: перекладка отложена — {_churn.detail} (ADR-168)")
+
     # LAW 1 (fail-safe): if a safety check could not be evaluated, suppress ALL
     # new deployment/rebalancing this cycle — hold current positions. This takes
     # priority over the normal trade decision and over policy_blocked.
-    traded = (not _safety_failed) and (not policy_blocked) and diff_usd > threshold_usd
+    traded = ((not _safety_failed) and (not policy_blocked)
+              and diff_usd > threshold_usd and _churn.allowed)
     trade_id: str | None = None
 
     if _safety_failed:
