@@ -115,3 +115,32 @@ class TheRecordIsWiredIntoTheRefusalBranch(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WhatTheGateItselfWorkedWith(unittest.TestCase):
+    """Живой отказ 29.08 опроверг арифметику по ПОДАННОЙ цели, и это сузило вопрос.
+
+    Сырые числа из прода: остаток ровно `5000.0`, доля ровно `0.05`. А `0.05 < 0.05`
+    ложно — значит на поданной цели отказывать было НЕ ЗА ЧТО. Остаётся одно: внутри
+    гейт работает с изменённым набором (потолки ёмкости, заморозка непроверенного TVL,
+    подрезка под буфер). Поэтому запись несёт и то, что гейт ВЕРНУЛ, и поимённую
+    разницу с поданным.
+    """
+
+    def test_the_gate_target_is_carried(self):
+        r = rec({"a": 10.0}, 100.0, {}, [], gate_target={"a": 7.5})
+        self.assertEqual(r["gate_target"], {"a": repr(7.5)})
+        self.assertEqual(r["gate_sum"], repr(7.5))
+
+    def test_the_difference_is_named_leg_by_leg(self):
+        r = rec({"a": 10.0, "b": 20.0}, 100.0, {}, [], gate_target={"a": 10.0, "b": 15.0})
+        self.assertEqual(r["gate_differs_from_submitted"], {"b": [repr(20.0), repr(15.0)]})
+
+    def test_identical_sets_report_no_difference(self):
+        """Обратная сторона: совпало — значит дело НЕ в изменении набора."""
+        r = rec({"a": 10.0}, 100.0, {}, [], gate_target={"a": 10.0})
+        self.assertEqual(r["gate_differs_from_submitted"], {})
+
+    def test_absent_gate_target_is_None_not_empty(self):
+        """«Не передали» ≠ «совпало» — иначе отсутствие данных читалось бы как согласие."""
+        self.assertIsNone(rec({"a": 10.0}, 100.0, {}, [])["gate_differs_from_submitted"])

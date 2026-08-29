@@ -146,7 +146,8 @@ def _sequential_remainder(capital: float, target: dict[str, float]) -> float:
 def redistribution_refusal_record(target_usd: dict[str, float],
                                   capital_usd: float,
                                   added: dict[str, float] | None,
-                                  violations, error=None) -> dict:
+                                  violations, error=None,
+                                  gate_target: dict[str, float] | None = None) -> dict:
     """Машинный след отказа повторного гейта (ADR-072). Отказ обязан быть ПРОВЕРЯЕМЫМ.
 
     Замер 29.08: три цикла подряд отказ «cash buffer 5.0% < minimum 5.0%» оставлял
@@ -194,6 +195,20 @@ def redistribution_refusal_record(target_usd: dict[str, float],
         "raw_remaining_frac": (repr(_sequential_remainder(cap, raw) / cap) if cap else None),
         "violations": list(violations or []),
         "error": error,
+        # ЧТО ГЕЙТ ВЕРНУЛ САМ. Живой отказ 29.08 дал остаток РОВНО 5000.0 и долю РОВНО
+        # 0.05 — а `0.05 < 0.05` ложь, то есть на ПОДАННОЙ цели отказывать было не за
+        # что. Значит внутри гейт работает с изменённым набором (потолки ёмкости,
+        # заморозка непроверенного TVL, подрезка под буфер). Пока не видно, чем именно
+        # он отличается, спор упирается в невидимое.
+        "gate_target": ({k: repr(float(v)) for k, v in sorted(gate_target.items())}
+                        if gate_target else None),
+        "gate_sum": (repr(sum(float(v) for v in gate_target.values()))
+                     if gate_target else None),
+        "gate_differs_from_submitted": (
+            None if gate_target is None
+            else {k: [repr(raw.get(k)), repr(float(v))]
+                  for k, v in sorted(gate_target.items())
+                  if k not in raw or float(v) != raw[k]}),
     }
 
 

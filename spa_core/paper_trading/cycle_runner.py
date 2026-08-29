@@ -1935,7 +1935,8 @@ def run_cycle(
                             redistribution_refusal_record)
                         _rec = redistribution_refusal_record(
                             _re["target_usd"], capital_usd, _re["added"],
-                            _gate2["violations"], _gate2["error"])
+                            _gate2["violations"], _gate2["error"],
+                            gate_target=_gate2.get("target_usd"))
                         _t2 = _re["target_usd"]
                         log.warning("ADR-072 REJECTED: %s", _rec)
                         notes.append(
