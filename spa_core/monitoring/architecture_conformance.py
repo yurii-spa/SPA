@@ -554,7 +554,8 @@ def run_checks(manifest: dict,
                inputs: list[dict] | None = None,
                contract_audit: dict | None = _NOT_REQUESTED,
                manifest_parity: dict | None = _NOT_REQUESTED,
-               freshness_parity: dict | None = _NOT_REQUESTED) -> dict:
+               freshness_parity: dict | None = _NOT_REQUESTED,
+               prev_contract_labels: list[str] | None = None) -> dict:
     findings: list[dict] = []
     unchecked: list[dict] = []
     agents = manifest.get("agents", [])
@@ -744,8 +745,26 @@ def run_checks(manifest: dict,
         unchecked.append({"check": "B7_contract",
                           "reason": "сверка контрактов НЕ ВЫПОЛНИЛАСЬ — объявления не прочитаны"})
     else:
+        now_labels = sorted(r["label"] for r in (contract_audit.get("rows") or []))
         contracts_report["contract"] = {"total": contract_audit.get("total"),
-                                        "counts": dict(contract_audit.get("counts") or {})}
+                                        "counts": dict(contract_audit.get("counts") or {}),
+                                        "labels": now_labels}
+        # ВЫБЫВШИЕ ИЗ ПЕРЕПИСИ. Класс пойман 29.08 на самом важном агенте системы:
+        # `run_daily_paper_cycle.sh` получил третий и четвёртый шаги, целей стало
+        # четыре, вывод точки входа честно отказал — и `com.spa.daily_cycle` исчез
+        # из переписи ВМЕСТЕ СО СВОИМ ПРОТИВОРЕЧИЕМ. Ни одной находки при этом не
+        # появилось: счётчик просто стал 71 вместо 72. Отказ был верным, молчание —
+        # нет. «Больше не измеряется» обязано быть событием, а не убылью в счётчике.
+        gone = sorted(set(prev_contract_labels or []) - set(now_labels))
+        for label in gone:
+            a = by_label.get(label)
+            if a is None or a.get("intent") != "active":
+                continue          # агента вывели из строя — это другой вопрос, B1
+            findings.append(_finding(
+                f"B7:left_census:{label}", "B7", "WARN", "strong",
+                f"{label} БЫЛ в переписи контрактов, теперь его там нет: точка входа "
+                f"перестала выводиться (обёртка изменилась?). Вместе с агентом пропали "
+                f"и все его находки — объявить точку входа в обёртке (# AGENT_MODULE:)"))
         for r in (contract_audit.get("rows") or []):
             if r.get("verdict") != "contradiction":
                 continue
@@ -866,6 +885,15 @@ def _prev_first_seen(report_path: str = REPORT_PATH) -> dict[str, str]:
         return {}
 
 
+def _prev_contract_labels(report_path: str = REPORT_PATH) -> list[str]:
+    """Кого перепись контрактов видела в прошлый раз. Нет отчёта ⇒ пусто, не авария."""
+    try:
+        prev = json.load(open(report_path))
+        return list(((prev.get("contracts") or {}).get("contract") or {}).get("labels") or [])
+    except Exception:                                   # noqa: BLE001
+        return []
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="ADR-066 architecture conformance watchdog")
     ap.add_argument("--run", "--once", action="store_true", dest="run",
@@ -899,7 +927,8 @@ def main(argv=None) -> int:
                         curation=curation,
                         contract_audit=contracts["contract"],
                         manifest_parity=contracts["manifest_parity"],
-                        freshness_parity=contracts["freshness_parity"])
+                        freshness_parity=contracts["freshness_parity"],
+                        prev_contract_labels=_prev_contract_labels(args.report))
 
     from spa_core.utils.atomic import atomic_save
     atomic_save(report, args.report)

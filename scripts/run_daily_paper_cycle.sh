@@ -28,6 +28,12 @@
 
 PYTHON=/Users/yuriikulieshov/miniconda3/bin/python3
 
+# AGENT_MODULE: spa_core.paper_trading.cycle_runner
+# Точка входа, НЕСУЩАЯ КОНТРАКТ этого агента (его PRODUCES). Шагов в скрипте
+# несколько (движок, аудитор аллокации, evidencer APY, снимок сайта), и вывести
+# один модуль из четырёх нельзя — перепись контрактов честно отказывала, а вместе
+# с отказом агент молча пропадал из неё целиком. Объявление снимает догадку.
+
 cd ~/Documents/SPA_Claude
 
 LOG_DIR=~/Documents/SPA_Claude/logs

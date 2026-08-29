@@ -81,6 +81,16 @@ _SCRIPT_PATH_RX = re.compile(r"(?<![\w])((?:scripts|spa_core|tests)/[\w/]+)\.py\
 _UVICORN_RX = re.compile(r"uvicorn\s+([\w][\w.]*):\w+")
 _RUN_SCRIPT_RX = re.compile(r'export\s+RUN_SCRIPT\s*=')
 #: Строки, в которых путь к .py засчитывается как ОБЪЯВЛЕННАЯ точка входа.
+# ОБЪЯВЛЕНИЕ обёртки о своей точке входа. Читается ПЕРВЫМ и бьёт любой вывод.
+# Это не «комментарий как свидетельство» (тот запрет остаётся: «Generated from
+# agent_template.sh» есть почти везде и выдавал модуль «(canonical bash» сорока
+# агентам сразу) — это ЗАРЕЗЕРВИРОВАННЫЙ ключ, которым автор говорит прямо.
+# Понадобился 29.08: `run_daily_paper_cycle.sh` получил третий и четвёртый шаги
+# (allocation_auditor, apy_evidencer), целей стало четыре, вывод честно отказал —
+# и САМЫЙ ВАЖНЫЙ агент системы молча выпал из переписи контрактов вместе со своим
+# противоречием. Отказ был верным; неверно было то, что сказать правду оказалось нечем.
+_AGENT_MODULE_RX = re.compile(r"#\s*AGENT_MODULE:\s*([\w][\w.]*)")
+
 _DECLARING_RX = re.compile(r"(?:^|\s)exec\s|agent_template\.sh|export\s+RUN_SCRIPT\s*=")
 
 
@@ -130,9 +140,15 @@ def module_of(program: str | None) -> str | None:
     if not wrapper.is_file():
         return None
     try:
-        lines = _logical_lines(wrapper.read_text(encoding="utf-8", errors="replace"))
+        raw = wrapper.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return None
+    # Объявление старше любого вывода — но проверяется на существование: опечатка
+    # в объявлении обязана дать ОТКАЗ, а не тихо приписать агенту чужой модуль.
+    decl = _AGENT_MODULE_RX.search(raw)
+    if decl and _module_file(decl.group(1)) is not None:
+        return decl.group(1)
+    lines = _logical_lines(raw)
 
     modules: list[str] = []   # прежний источник: точечная запись пакет.модуль
     declared: list[str] = []  # объявление обёртки о себе: export RUN_SCRIPT=

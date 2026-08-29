@@ -83,6 +83,54 @@ class GoalIsReadFromTheWrapperHeader(unittest.TestCase):
                          "claude-code-kanban backup monitor (ENV_SETUP v3 §4.1)")
 
 
+class WrapperDeclaresItsEntryPoint(unittest.TestCase):
+    """`# AGENT_MODULE:` — объявление обёртки о своей точке входа (29.08).
+
+    Понадобилось, когда `run_daily_paper_cycle.sh` получил третий и четвёртый шаги:
+    целей стало четыре, вывод честно отказал, и самый важный агент системы молча
+    выпал из переписи контрактов вместе со своим противоречием. Отказ был верным —
+    неверно было то, что сказать правду оказалось нечем.
+    """
+
+    def setUp(self):
+        self._repo = fap.REPO
+        import tempfile
+        self.tmp = Path(tempfile.mkdtemp())
+        (self.tmp / "spa_core" / "paper_trading").mkdir(parents=True)
+        (self.tmp / "spa_core" / "paper_trading" / "cycle_runner.py").write_text("x = 1\n")
+
+    def tearDown(self):
+        fap.REPO = self._repo
+
+    def test_declaration_beats_ambiguous_inference(self):
+        n = _wrapper(self.tmp, "m.sh", """
+            #!/bin/bash
+            # AGENT_MODULE: spa_core.paper_trading.cycle_runner
+            "$PYTHON" -m spa_core.paper_trading.cycle_runner
+            "$PYTHON" -m spa_core.agents.allocation_auditor
+            "$PYTHON" -m spa_core.agents.apy_evidencer
+        """)
+        self.assertEqual(fap.module_of(n), "spa_core.paper_trading.cycle_runner")
+
+    def test_without_the_declaration_ambiguity_still_refuses(self):
+        """Обратная сторона: объявление ДОБАВЛЯЕТ ответ, а не отменяет отказ."""
+        n = _wrapper(self.tmp, "n.sh", """
+            #!/bin/bash
+            "$PYTHON" -m spa_core.paper_trading.cycle_runner
+            "$PYTHON" -m spa_core.agents.allocation_auditor
+        """)
+        self.assertIsNone(fap.module_of(n))
+
+    def test_typo_in_declaration_refuses_instead_of_mislabelling(self):
+        """Опечатка обязана дать ОТКАЗ, а не приписать агенту несуществующий модуль."""
+        n = _wrapper(self.tmp, "o.sh", """
+            #!/bin/bash
+            # AGENT_MODULE: spa_core.paper_trading.cycle_runnerr
+            "$PYTHON" -m spa_core.paper_trading.cycle_runner
+        """)
+        self.assertEqual(fap.module_of(n), "spa_core.paper_trading.cycle_runner")
+
+
 class RefusalIsTheMainFeature(unittest.TestCase):
     """Выводитель ОБЯЗАН отказываться: чужая/механическая цель хуже пустой."""
 

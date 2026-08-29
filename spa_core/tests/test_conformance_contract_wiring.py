@@ -158,6 +158,67 @@ class GuardDidNotRun(unittest.TestCase):
         self.assertEqual(run(**self.FAILED)["overall"], "UNCHECKED")   # спросили, не смогли
 
 
+class LeavingTheCensusIsAnEvent(unittest.TestCase):
+    """Настоящее событие 29.08, и оно НЕ дало ни одной находки.
+
+    В `run_daily_paper_cycle.sh` добавили третий и четвёртый шаги. Целей стало
+    четыре, вывод точки входа честно ОТКАЗАЛ — и `com.spa.daily_cycle`, самый
+    важный агент системы, исчез из переписи контрактов вместе со своим
+    противоречием. Счётчик стал 71 вместо 72, и всё. Отказ был верным; молчание
+    об убыли — нет. Родственное: «не измерено» ≠ «никто».
+    """
+
+    AGENT = {"label": "com.spa.daily_cycle", "intent": "active", "reboot_safe": True,
+             "plist_source": "launch_agents", "schedule": "calendar:08:00",
+             "program": "x.sh", "layer": "product", "role": "monitoring",
+             "produces": [], "consumes": [], "consumer_required": False,
+             "governed_by": [], "curation": "partial", "notes": ""}
+
+    def _run(self, rows, prev, agent=None):
+        man = {"schema_version": 1, "agents": [agent or self.AGENT],
+               "artifacts": [], "designed_architectures": []}
+        return ac.run_checks(man, {"com.spa.daily_cycle"}, lambda p: NOW, {}, NOW,
+                             drift_measured=True, contract_audit=ok_audit(rows),
+                             manifest_parity=SILENT["manifest_parity"],
+                             freshness_parity=SILENT["freshness_parity"],
+                             prev_contract_labels=prev)
+
+    def test_agent_that_left_the_census_is_a_finding(self):
+        r = self._run([], ["com.spa.daily_cycle"])
+        self.assertEqual([f["key"] for f in b7(r)], ["B7:left_census:com.spa.daily_cycle"])
+        self.assertIn("AGENT_MODULE", b7(r)[0]["message"])
+
+    def test_agent_still_measured_is_silent(self):
+        row = {"label": "com.spa.daily_cycle", "module": "m", "verdict": "confirmed",
+               "declared": ["data/x.json"]}
+        self.assertEqual(b7(self._run([row], ["com.spa.daily_cycle"])), [])
+
+    def test_retired_agent_leaving_is_not_this_finding(self):
+        """Агента вывели из строя — это вопрос B1, а не «перепись потеряла его»."""
+        retired = dict(self.AGENT, intent="retired")
+        self.assertEqual(b7(self._run([], ["com.spa.daily_cycle"], agent=retired)), [])
+
+    def test_report_carries_the_population_for_the_NEXT_run(self):
+        """КРУГ, а не деталь: сторож сравнивает с прошлым отчётом — значит отчёт
+        обязан это прошлое нести. Мутация «не писать labels» оставляла набор
+        зелёным, а сторожа — навсегда немым: сравнивать было бы не с чем."""
+        row = {"label": "com.spa.daily_cycle", "module": "m", "verdict": "confirmed",
+               "declared": ["data/x.json"]}
+        r = self._run([row], [])
+        self.assertEqual(r["contracts"]["contract"]["labels"], ["com.spa.daily_cycle"])
+        d = tempfile.mkdtemp()
+        rep = os.path.join(d, "r.json")
+        json.dump(r, open(rep, "w"))
+        self.assertEqual(ac._prev_contract_labels(rep), ["com.spa.daily_cycle"])
+
+    def test_missing_previous_report_reads_as_empty_not_crash(self):
+        self.assertEqual(ac._prev_contract_labels("/nope/never/r.json"), [])
+
+    def test_first_run_without_history_is_silent(self):
+        """Прошлого отчёта нет ⇒ убыли не бывает; пустая история не авария."""
+        self.assertEqual(b7(self._run([], [])), [])
+
+
 class TwoHousesOfMyOwnWiring(unittest.TestCase):
     """Сторож сравнивает вердикты ЛИТЕРАЛАМИ — значит литералы обязаны быть связаны.
 
