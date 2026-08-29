@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-29T13:21:32Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-29T13:47:54Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **774** · ждёт владельца: **6** · занято сессиями: **10**.
+> Всего карточек: **776** · ждёт владельца: **6** · занято сессиями: **10**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -222,7 +222,7 @@
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (381)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (383)
 
 ### · needs-owner
 - Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md` · 2026-08-29
@@ -603,6 +603,8 @@
 - РЕЦИДИВ 28.08: тест судит о ХОСТЕ по литеральному pid — 98535 (siriactionsd), теперь 999 (NetFS) в test_card_claim_takeover  ·  `inbox-test-sudit-o-hoste-literalnyi-pid-98535.md` · 2026-08-22 · 🔒 `cycle-51123`
 - Три отправителя стоп-крана в обход канонической двери (найдено #313)  ·  `inbox-tri-otpravitelya-stop-krana-v-obhod-kano.md` · 2026-08-20
 - Контракт в коде и контракт в манифесте разошлись у трёх агентов — один за несколько часов  ·  `inbox-tri-rashozhdeniya-kontrakta-s-manifestom.md` · 2026-08-28
+- Цикл считает покрытие фидов 100% живым, а aave_arbitrum читает круглые константы из adapter_status.json  ·  `inbox-tsikl-schitaet-pokrytie-fidov-100-zhivym.md` · 2026-08-29
+- usual_usd0pp отдаёт число ЧУЖОГО актива: отбор по подстроке приземляется на BUSD0, а пула USD0++ в фиде нет  ·  `inbox-usual-usd0pp-otdaet-chislo-chuzhogo-akti.md` · 2026-08-29
 - Вердикт деска по sUSDS стоит на СНЯТОЙ причине — а книга этот актив держит  ·  `inbox-verdikt-deska-po-susds-stoit-na-snyatoi.md` · 2026-08-25
 - Закрепить morpho_blue_base за конкретным хранилищем (сейчас берётся «крупнейшее сегодня»)  ·  `inbox-zakrepit-morpho-blue-base-za-konkretnym.md` · 2026-08-26
 - Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07 · 🔒 `cycle-81141`
@@ -774,7 +776,6 @@
 ### · backlog
 - adapter_status_generator никогда не подключал живой фид для pendle/pendle_pt — запасное число статичный литерал  ·  `agent-adapter-status-generator-pendle-never-wired-to-live.md` · 2026-08-29
 - Advisory / сигнальный трек (вариант C) — отложен владельцем, держать в бэклоге  ·  `agent-advisory-signals-track-c.md` · 2026-07-23
-- AI1-2.2 · APY Evidencer: проставлять уровень доказательности каждому числу доходности  ·  `agent-ai1-22-apy-evidencer.md` · 2026-08-29
 - 11 протоколов закрыты для капитала из-за отсутствия живого фида — вселенная выбора сужена, 10% кэша стоят под 0%  ·  `agent-blocked-protocols-need-live-feeds.md` · 2026-08-05
 - Сверка цикла 04.08 — первый прогон на новом коде даст БОЛЬШОЙ ребаланс, это ожидаемо (не чинить)  ·  `agent-cycle-reconciliation-2026-08-04.md` · 2026-08-03
 - Найти источники данных для семи протоколов без фида (владелец выбрал «искать дальше»)  ·  `agent-find-feeds-for-seven-protocols.md` · 2026-08-05
@@ -806,6 +807,7 @@
 ### · done
 - AI1-1.0 · Явные правила аллокации: выписаны из кода, ждут ревью владельца  ·  `agent-ai1-10-pravila-allokatsii-yavno.md` · 2026-08-29
 - AI1-2.1 · Уровни доказательности: стандарт был, не было надзора — найдено 12 заявок о том, чего не было  ·  `agent-ai1-21-standart-urovnei-dokazatelnosti.md` · 2026-08-29
+- AI1-2.2 · APY Evidencer доставлен: треть чисел ранжирования нельзя показывать, и весь топ по доходности — литералы  ·  `agent-ai1-22-apy-evidencer.md` · 2026-08-29
 - AI1-2.3 · Критерии тиров: стандарт написан, найдено недоставленное решение владельца  ·  `agent-ai1-23-kriterii-tirov.md` · 2026-08-29
 - AI1-2.4 · Tier Validator уже существует и работает — но судит по неверному источнику тира  ·  `agent-ai1-24-tier-validator.md` · 2026-08-29
 - AUD-18 — пять доходных стратегий турнира без собственных тестов (замер показал другой пробел, чем в задании)  ·  `agent-aud18-strategy-unit-tests.md` · 2026-08-05
