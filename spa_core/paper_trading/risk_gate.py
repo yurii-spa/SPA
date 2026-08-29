@@ -465,6 +465,7 @@ def redistribute_freed_budget(
     max_protocols: int = 8,
     max_single_chain_pct: "float | None" = None,
     max_l2_total_pct: "float | None" = None,
+    allocator_trims_by_protocol: "dict[str, float] | None" = None,
 ) -> dict:
     """Перераздаёт бюджет, СРЕЗАННЫЙ гейтом, в оставшихся честных кандидатов.
 
@@ -487,6 +488,13 @@ def redistribute_freed_budget(
         (≤ max_protocols) соблюдаются здесь И перепроверяются повторным
         проходом самого гейта у вызывающего — ГЕЙТ ОСТАЁТСЯ ПОСЛЕДНИМ СЛОВОМ
         (инвариант 1); буфер min_cash неприкосновенен;
+      * ADR-160 (решение владельца 28.08, вариант 3): срезанное ВНУТРИ аллокатора
+        (потолки протокола, суммарные T2/T3, потолки сети) тоже перераздаётся —
+        раньше оно было невидимо, потому что `freed` считался разницей сумм ГЕЙТА
+        и для этих тримов давал ноль. Пулы, чей потолок и срезал вес, капитала НЕ
+        получают: вернуть деньги туда — инерция, а ADR-055 требует, чтобы
+        концентрация следовала за доходностью и риском. Владелец выбрал это
+        СТРОЖЕ рекомендации автора карточки;
       * каждое размещение возвращается именованным (ADR-055 provenance).
 
     Возвращает ``{"target_usd", "added": {proto: usd}, "freed_usd", "notes"}``;
@@ -513,7 +521,7 @@ def redistribute_freed_budget(
             max_l2_total_pct = _l2_cap
 
     out = {"target_usd": dict(gate_target), "added": {}, "freed_usd": 0.0,
-           "notes": []}
+           "notes": [], "freed_from_allocator_usd": 0.0, "blocked_by_allocator": []}
     try:
         cap = float(capital_usd)
         if not math.isfinite(cap) or cap <= 0:
@@ -525,8 +533,17 @@ def redistribute_freed_budget(
         # и никогда сверх буфера. Недобор самого аллокатора (маленькая книга по
         # его собственному решению) — не наш предмет: заполнять его значило бы
         # отменять решение модели, а не спасать срезанный бюджет.
-        freed = min(deployable_max - deployed, max(0.0, asked - deployed))
+        gate_cut = max(0.0, asked - deployed)
+        # ADR-160: тримы аллокатора приходят ДОЛЯМИ капитала — переводим в USD.
+        # Без этого слагаемого перезаполнитель видел ноль там, где реально срезано
+        # 20 п.п. (замер 08.08: 25 % в кэше при буфере 5 %).
+        alloc_trims = {str(k): float(v) for k, v in (allocator_trims_by_protocol or {}).items()
+                       if float(v) > 0}
+        alloc_cut = sum(alloc_trims.values()) * cap
+        freed = min(deployable_max - deployed, gate_cut + alloc_cut)
         out["freed_usd"] = round(max(0.0, freed), 2)
+        out["freed_from_allocator_usd"] = round(alloc_cut, 2)
+        out["blocked_by_allocator"] = sorted(alloc_trims)
         if freed <= cap * 0.005:  # < 0.5% капитала — не гоняем копейки
             return out
 
@@ -535,7 +552,11 @@ def redistribute_freed_budget(
             p for p, pre in pre_gate_target.items()
             if float(pre) - float(gate_target.get(p, 0.0)) > 1e-6
         }
-        blocked = frozen | reduced_by_gate
+        # ADR-160, вариант 3: к срезанным гейтом добавляются срезанные АЛЛОКАТОРОМ.
+        # Оба списка — «кому потолок только что отказал»; вернуть им капитал значило бы
+        # частично отменить решение защиты.
+        reduced_by_allocator = set(alloc_trims)
+        blocked = frozen | reduced_by_gate | reduced_by_allocator
 
         # ADR-072.1: цепочка кандидата — из снимка, иначе из канонической карты,
         # иначе КОНСЕРВАТИВНО «ethereum» (занижает headroom, не завышает).

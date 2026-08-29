@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-29T02:23:33Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-29T02:34:32Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
 > Всего карточек: **750** · ждёт владельца: **0** · занято сессиями: **10**.
 
@@ -631,7 +631,6 @@ _Пусто — открытых решений на владельце нет._
 - Права на origin нечем починить: пушер по построению сохраняет режим remote, а правило требует чинить режим на origin  ·  `agent-task-prava-na-origin-nechem-pochinit-pusher-p.md` · 2026-08-07
 - Прогон тестов пачкает git-tracked фикстуры — «чистое дерево» перестало быть сигналом  ·  `agent-test-run-dirties-tracked-fixtures.md` · 2026-08-04
 - 20 модулей Tier-B помечены `unsourced` — поднять их обратно можно только источником, не правкой разметки  ·  `agent-tier-b-20-unsourced-modules-need-sources.md` · 2026-08-06
-- Включить перераздачу срезанного капитала БЕЗ возврата в срезанные пулы (ADR-160)  ·  `agent-vklyuchit-pererazdachu-bez-vozvrata-v-srezannye.md` · 2026-08-28
 - Включить агента com.spa.site_freshness — код по ADR-098 доставлен, тело не загружено  ·  `agent-vklyuchit-site-freshness-posle-adr-098.md` · 2026-08-20
 - Живой источник цен для внутридневной оценки позиций — владелец выбрал его вместо ограничения книги стейблами (ADR-129)  ·  `agent-zhivoi-istochnik-tsen-dlya-vnutridnevnoi-otsenki.md` · 2026-08-23
 ### · done
@@ -726,6 +725,7 @@ _Пусто — открытых решений на владельце нет._
 - Разбор базы храповика: 24 скрипта не упомянуты НИГДЕ — и это не значит «мусор»  ·  `agent-unwired-baseline-triage.md` · 2026-08-09
 - Верификация длиннее бюджета цикла ⇒ работа осиротевает по построению  ·  `agent-verification-outlives-cycle-budget.md` · 2026-07-31
 - Q9: git-тег verifier-v1.2  ·  `agent-verifier-tag.md` · 2026-07-16
+- Включить перераздачу срезанного капитала БЕЗ возврата в срезанные пулы (ADR-160)  ·  `agent-vklyuchit-pererazdachu-bez-vozvrata-v-srezannye.md` · 2026-08-28
 - Сторож сторожей записывает «предупредил» о сообщении, доставку которого не измеряет — и молчит уже 16 дней  ·  `agent-watchdog-alert-delivery-unmeasured.md` · 2026-08-02
 - Упоминание карточки в тексте объявления запирает её НАВСЕГДА — шаг 0b отвечает «не измерено» и после старения  ·  `agent-weak-mention-locks-card-forever.md` · 2026-07-31
 - Q11: разбор ветки yield-lab  ·  `agent-yield-lab-branch.md` · 2026-07-16

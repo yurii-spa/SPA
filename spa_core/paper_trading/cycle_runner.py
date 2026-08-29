@@ -1873,8 +1873,14 @@ def run_cycle(
             # словом (инвариант 1). Отказ второго гейта = перераздача отменена.
             try:
                 from spa_core.paper_trading.risk_gate import redistribute_freed_budget
+                # ADR-160: аллокатор передаёт ПОИМЁННО, у кого срезали защиты.
+                # Без этого `freed` считался разницей сумм ГЕЙТА и для тримов
+                # внутри аллокатора давал ноль — замер 08.08: 25 % в кэше при
+                # обязательном буфере 5 %, и ни одна строка не объясняла почему.
+                _alloc_trims = dict(getattr(alloc, "protective_trims_by_protocol", {}) or {})
                 _re = redistribute_freed_budget(
-                    target_usd, _pre_gate_target, capital_usd, adapters, gate)
+                    target_usd, _pre_gate_target, capital_usd, adapters, gate,
+                    allocator_trims_by_protocol=_alloc_trims)
                 if _re["added"]:
                     _gate2 = _apply_risk_policy_gate(
                         _re["target_usd"], capital_usd, adapters, ddir=ddir,
@@ -1894,6 +1900,18 @@ def run_cycle(
                             "ADR-072: перераздача ОТКЛОНЕНА повторным гейтом "
                             f"({'; '.join(_gate2['violations']) or _gate2['error'] or 'not approved'}) "
                             "— принято слово гейта, кэш остался")
+                elif _re["freed_usd"] > 0:
+                    # ADR-055: молчаливый простой ЗАПРЕЩЁН. Срезанное есть, а разместить
+                    # его некуда — цикл обязан НАЗВАТЬ причину, а не оставить пустоту.
+                    # Замер 29.08 на живых данных: дельта ноль, книга 90 % при кэше 10 %,
+                    # и держит её потолок цепочки (все живые кандидаты на Ethereum,
+                    # ADR-076), а не защитные тримы.
+                    notes.append(
+                        f"ADR-160: срезано ${_re['freed_usd']:,.0f} "
+                        f"(из них аллокатором ${_re['freed_from_allocator_usd']:,.0f}), "
+                        "разместить НЕКУДА под потолками; не получают капитал как "
+                        "только что срезанные: "
+                        + (", ".join(_re["blocked_by_allocator"]) or "—"))
             except Exception as _re_exc:  # noqa: BLE001 — не смеет валить цикл
                 log.warning("ADR-072 redistribution failed (%s) — cycle continues",
                             _re_exc)

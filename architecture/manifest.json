@@ -325,7 +325,7 @@
    "program": "agent_bts-feed.sh",
    "layer": "product",
    "role": "monitoring",
-   "intent": "unresolved",
+   "intent": "retired",
    "produces": [
     {
      "artifact": "data/perp_funding_rates.json",
@@ -336,7 +336,7 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": "В КАРАНТИНЕ с 2026-08-29 (решение владельца own-36, партия 1): продукт не потребляет никто — ни код, ни квитанции, ни манифест, ни владелец. НЕ удалён: plist лежит в attic/agents/, возврат одной командой `python3 scripts/agent_quarantine.py restore <label>`. Если кто-то закричит — вернуть; молчание две недели считается доказательством ненужности.",
+   "notes": "В КАРАНТИНЕ с 2026-08-29 (решение владельца own-36, партия 1): продукт не потребляет никто — ни код, ни квитанции, ни манифест, ни владелец. НЕ удалён: plist лежит в attic/agents/, возврат одной командой `python3 scripts/agent_quarantine.py restore <label>`. Если кто-то закричит — вернуть; молчание две недели считается доказательством ненужности. intent=retired, а НЕ unresolved: «unresolved» значит «никто не решал», а решение как раз есть — владельца (own-36). Возврат делает агента снова active.",
    "passport": {
     "goal": "BTS Feed Runner — LaunchAgent entry point for perp_funding_feed.",
     "quality_metric": "data/perp_funding_rates.json свежее 168.0 ч",
@@ -353,7 +353,7 @@
    "program": "agent_bts-monitor.sh",
    "layer": "product",
    "role": "monitoring",
-   "intent": "unresolved",
+   "intent": "retired",
    "produces": [
     {
      "artifact": "data/basis_trade_opportunities.json",
@@ -364,7 +364,7 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": "В КАРАНТИНЕ с 2026-08-29 (решение владельца own-36, партия 1): продукт не потребляет никто — ни код, ни квитанции, ни манифест, ни владелец. НЕ удалён: plist лежит в attic/agents/, возврат одной командой `python3 scripts/agent_quarantine.py restore <label>`. Если кто-то закричит — вернуть; молчание две недели считается доказательством ненужности.",
+   "notes": "В КАРАНТИНЕ с 2026-08-29 (решение владельца own-36, партия 1): продукт не потребляет никто — ни код, ни квитанции, ни манифест, ни владелец. НЕ удалён: plist лежит в attic/agents/, возврат одной командой `python3 scripts/agent_quarantine.py restore <label>`. Если кто-то закричит — вернуть; молчание две недели считается доказательством ненужности. intent=retired, а НЕ unresolved: «unresolved» значит «никто не решал», а решение как раз есть — владельца (own-36). Возврат делает агента снова active.",
    "passport": {
     "goal": "LaunchAgent runner for BTS Monitor.",
     "quality_metric": "data/basis_trade_opportunities.json свежее 168.0 ч",
@@ -906,7 +906,7 @@
    "program": "agent_governance_watcher.sh",
    "layer": "product",
    "role": "monitoring",
-   "intent": "unresolved",
+   "intent": "retired",
    "produces": [
     {
      "artifact": "data/governance_proposals.json",
@@ -917,7 +917,7 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": "В КАРАНТИНЕ с 2026-08-29 (решение владельца own-36, партия 1): продукт не потребляет никто — ни код, ни квитанции, ни манифест, ни владелец. НЕ удалён: plist лежит в attic/agents/, возврат одной командой `python3 scripts/agent_quarantine.py restore <label>`. Если кто-то закричит — вернуть; молчание две недели считается доказательством ненужности.",
+   "notes": "В КАРАНТИНЕ с 2026-08-29 (решение владельца own-36, партия 1): продукт не потребляет никто — ни код, ни квитанции, ни манифест, ни владелец. НЕ удалён: plist лежит в attic/agents/, возврат одной командой `python3 scripts/agent_quarantine.py restore <label>`. Если кто-то закричит — вернуть; молчание две недели считается доказательством ненужности. intent=retired, а НЕ unresolved: «unresolved» значит «никто не решал», а решение как раз есть — владельца (own-36). Возврат делает агента снова active.",
    "passport": {
     "goal": "Governance Watcher — FEAT-MON-002 (Sprint v3.18).",
     "quality_metric": "data/governance_proposals.json свежее 168.0 ч",

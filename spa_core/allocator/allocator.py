@@ -576,6 +576,11 @@ class AllocationResult:
     # срезали ЗАЩИТНЫЕ тримы внутри аллокатора (доли, по шагам). Явный сигнал
     # для перезаполнения/атрибуции кэша — вместо вычитания сумм на глаз.
     protective_trims: dict[str, float] = field(default_factory=dict)
+    #: ADR-160: то же срезанное, но ПОИМЁННО {протокол: доля}. Нужно перераздаче:
+    #: по решению владельца (вариант 3) деньги НЕ возвращаются в пулы, чей потолок
+    #: их только что и срезал — это была бы инерция, а ADR-055 требует, чтобы
+    #: концентрация следовала за доходностью и риском.
+    protective_trims_by_protocol: dict[str, float] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -1837,6 +1842,10 @@ class StrategyAllocator:
         # remainder-fill могут поднять суммарный T2 выше 35%) — финальный
         # инвариант перед возвратом: sum(T2) ≤ 35%.
         _sum_before_t2 = sum(capped.values())
+        # ADR-160: срез ПЕРЕД каждым защитным шагом. Сумма отвечает «сколько срезали»,
+        # но перераздача по варианту 3 владельца обязана знать «У КОГО» — вернуть деньги
+        # туда, откуда их только что срезал потолок, значит отменить решение защиты.
+        _by_proto_before_t2 = dict(capped)
         capped, t2_cap_enforced = self._enforce_t2_total_cap(capped, tier_map)
         if t2_cap_enforced:
             notes.append(
@@ -1849,6 +1858,7 @@ class StrategyAllocator:
         # Re-applied here against the CANONICAL tier_map; the trimmed weight stays cash (never moved
         # to a riskier tier). Makes the go-live book compliant with the T3 cap the policy layer asserts.
         _sum_before_t3 = sum(capped.values())
+        _by_proto_before_t3 = dict(capped)
         capped, t3_cap_enforced = self._enforce_t3_total_cap(capped)
         if t3_cap_enforced:
             notes.append(
@@ -1862,6 +1872,7 @@ class StrategyAllocator:
         # сделок. Срезанное остаётся кэшем и попадает в protective_trims ниже,
         # чтобы перезаполнитель и атрибуция кэша видели ЧИСЛО, а не догадку.
         _sum_before_chain = sum(capped.values())
+        _by_proto_before_chain = dict(capped)
         capped, chain_notes = self._enforce_chain_caps(capped)
         for _n in chain_notes:
             notes.append(f"ADR-136 (сетевые потолки): {_n}")
@@ -1879,6 +1890,17 @@ class StrategyAllocator:
             protective_trims["t2_total_cap"] = round(_t2_cut, 8)
         if _t3_cut > 1e-9:
             protective_trims["t3_total_cap"] = round(_t3_cut, 8)
+        # ADR-160: та же дельта, но ПОИМЁННО. Считается тем же способом — разностью
+        # факта до и после шага, а не выводится из флагов: перераздача должна опираться
+        # на число, а не на догадку, кого именно урезали.
+        protective_trims_by_protocol: dict[str, float] = {}
+        for _before in (_by_proto_before_t2, _by_proto_before_t3, _by_proto_before_chain):
+            for _proto, _w in _before.items():
+                _cut = float(_w) - float(capped.get(_proto, 0.0))
+                if _cut > 1e-9:
+                    protective_trims_by_protocol[_proto] = round(
+                        protective_trims_by_protocol.get(_proto, 0.0) + _cut, 8)
+
         if protective_trims:
             _total_cut = sum(protective_trims.values())
             notes.append(
@@ -2008,6 +2030,7 @@ class StrategyAllocator:
             total_deployed_pct=round(allocated, 6),
             risk_model_applied=risk_model_applied,
             protective_trims=protective_trims,
+            protective_trims_by_protocol=protective_trims_by_protocol,
             risk_breakdown=risk_breakdown,
             strategy_loop_active=strategy_loop_active,
             selected_strategy_id=selected_strategy_id,
