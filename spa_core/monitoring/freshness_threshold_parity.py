@@ -33,6 +33,9 @@ AGREES = "agrees"
 THRESHOLD_MISMATCH = "threshold_mismatch"
 DIFFERENT_ARTIFACT = "different_artifact"
 NOT_COMPARED = "not_compared"
+# Монитор строже манифеста — ЗАКОННОЕ состояние, а не находка. Отдельный исход,
+# чтобы «проверено и нормально» не сливалось с «не проверяли».
+MONITOR_STRICTER = "monitor_stricter"
 
 _REPO = Path(__file__).resolve().parents[2]
 
@@ -71,6 +74,7 @@ def compare(man: dict[str, dict[str, float]],
     величину, — находка, даже если «почти совпадает».
     """
     findings: list[dict] = []
+    stricter: list[dict] = []
     compared = 0
     for label, (path, hours) in sorted(mon.items()):
         arts = man.get(label)
@@ -83,15 +87,38 @@ def compare(man: dict[str, dict[str, float]],
                              "manifest_artifacts": sorted(arts),
                              "note": "два дома называют РАЗНЫЕ файлы продуктом одного агента"})
             continue
-        if abs(arts[path] - hours) > tolerance_hours:
+        # ДВА ЧИСЛА ОТВЕЧАЮТ НА РАЗНЫЕ ВОПРОСЫ, и это выяснилось 29.08, когда сверка
+        # выдала 12 «расхождений» на исправном флоте. `uptime_monitor` меряет «ЖИВ ЛИ
+        # АГЕНТ»: его порог выводится из расписания с запасом в 2–3 такта, чтобы один
+        # пропуск не мигал. Манифест объявляет «СВЕЖ ЛИ ПРОДУКТ ДЛЯ ПОТРЕБИТЕЛЯ»:
+        # срок назначают две роли по цене опоздания (ADR-158). Требовать их совпадения
+        # значит требовать, чтобы ответ на один вопрос совпал с ответом на другой —
+        # ровно та ошибка, о которой предупреждает таблица в .claude/rules/deployment.md.
+        #
+        # Монитор СТРОЖЕ манифеста (168 ч продукт против 1 ч живости) — норма: агента
+        # проверяют чаще, чем нужен его продукт. Дефект — ОБРАТНОЕ: продукт объявлен
+        # протухающим через N часов, а тревога о молчании агента срабатывает только
+        # через M > N. Тогда продукт успевает протухнуть, и об этом никто не узнает.
+        # Из 12 «расхождений» такими оказались ДВА: analytics_tier_c (26 ч продукт /
+        # 36 ч живость) и sky_monitor (26 / 30). Остальные 10 были исправны.
+        if hours - arts[path] > tolerance_hours:
             findings.append({"label": label, "verdict": THRESHOLD_MISMATCH, "artifact": path,
                              "manifest_hours": arts[path], "monitor_hours": hours,
-                             "note": "один файл, два разных срока годности"})
+                             "note": "продукт объявлен протухающим раньше, чем сторож "
+                                     "живости вообще подаст голос — окно, в котором файл "
+                                     "уже негоден, а тревоги ещё нет"})
+        elif arts[path] - hours > tolerance_hours:
+            stricter.append({"label": label, "verdict": MONITOR_STRICTER, "artifact": path,
+                             "manifest_hours": arts[path], "monitor_hours": hours,
+                             "note": "живость проверяется чаще, чем нужен продукт — норма"})
     return {
         "manifest_agents": len(man),
         "monitor_agents": len(mon),
         "compared": compared,
         "findings": findings,
+        # Отчётная строка, не тревога: сколько агентов проверяются строже, чем нужен
+        # их продукт. Ноль здесь означал бы, что сверка вообще ничего не различает.
+        "monitor_stricter": stricter,
         # Пустое пересечение — СВОЙ исход, а не успех.
         "verdict": (NOT_COMPARED if compared == 0
                     else (AGREES if not findings else findings[0]["verdict"])),

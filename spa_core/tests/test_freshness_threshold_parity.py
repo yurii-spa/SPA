@@ -87,3 +87,51 @@ class TestLiveTreeStillHasTheKnownFinding(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TwoNumbersAnswerTwoDifferentQuestions(unittest.TestCase):
+    """Сверка выдала 12 «расхождений» на ИСПРАВНОМ флоте — дефект был в ней самой.
+
+    `uptime_monitor` меряет «ЖИВ ЛИ АГЕНТ»: порог выводится из расписания с запасом
+    в 2–3 такта, чтобы один пропуск не мигал. Манифест объявляет «СВЕЖ ЛИ ПРОДУКТ
+    ДЛЯ ПОТРЕБИТЕЛЯ»: срок назначают две роли по цене опоздания (ADR-158). Требовать
+    совпадения этих чисел — требовать, чтобы ответ на один вопрос совпал с ответом на
+    другой; ровно об этом предупреждает таблица в .claude/rules/deployment.md.
+
+    Из 12 «находок» настоящими оказались ДВЕ. Проверка не ослаблена, а сужена до
+    своего предмета — и предмет закреплён с обеих сторон.
+    """
+
+    def test_monitor_looser_than_the_product_slo_is_a_finding(self):
+        """Настоящий дефект: analytics_tier_c — продукт 26 ч, живость 36 ч.
+
+        Десять часов файл уже негоден, а тревоги о молчании агента ещё нет.
+        """
+        r = p.compare({"a": {"data/x.json": 26.0}}, {"a": ("data/x.json", 36.0)})
+        self.assertEqual([f["verdict"] for f in r["findings"]], [p.THRESHOLD_MISMATCH])
+        self.assertIn("тревоги ещё нет", r["findings"][0]["note"])
+
+    def test_monitor_stricter_is_normal_not_a_finding(self):
+        """bts-feed: продукт нужен раз в неделю, живость проверяется раз в час."""
+        r = p.compare({"a": {"data/x.json": 168.0}}, {"a": ("data/x.json", 1.0)})
+        self.assertEqual(r["findings"], [])
+        self.assertEqual(r["verdict"], p.AGREES)
+        self.assertEqual([x["verdict"] for x in r["monitor_stricter"]],
+                         [p.MONITOR_STRICTER])
+
+    def test_stricter_case_is_recorded_not_swallowed(self):
+        """«Проверено и нормально» не должно быть неотличимо от «не смотрели»."""
+        r = p.compare({"a": {"data/x.json": 168.0}}, {"a": ("data/x.json", 1.0)})
+        self.assertEqual(r["compared"], 1)
+        self.assertEqual(len(r["monitor_stricter"]), 1)
+
+    def test_equal_numbers_are_silent_in_both_lists(self):
+        r = p.compare({"a": {"data/x.json": 26.0}}, {"a": ("data/x.json", 26.0)})
+        self.assertEqual(r["findings"], [])
+        self.assertEqual(r["monitor_stricter"], [])
+
+    def test_different_file_is_still_a_finding(self):
+        """Сужение не тронуло второй предмет: дома называют РАЗНЫЕ файлы продуктом."""
+        r = p.compare({"a": {"data/x.json": 26.0}}, {"a": ("data/y.json", 26.0)})
+        self.assertEqual([f["verdict"] for f in r["findings"]], [p.DIFFERENT_ARTIFACT])
+
