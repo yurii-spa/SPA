@@ -55,7 +55,7 @@
    "notes": "",
    "passport": {
     "goal": "spa_core/strategy_lab/aggressive_lab/run.py — the Aggressive Lab CLI / standing-tick entrypoint.",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию interval:86400s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": "LLM запрещён; не импортирует execution"
@@ -142,7 +142,7 @@
    "notes": "",
    "passport": {
     "goal": "SPA FastAPI server — real-time data API (v0.17).",
-    "quality_metric": "",
+    "quality_metric": "процесс загружен в launchd и держит pid (data/agent_health.json: loaded=true, pid≠0)",
     "escalation": "",
     "rights": "писать data/interest.jsonl, data/pilot_requests.jsonl, data/site_analytics.jsonl",
     "limits": "не импортирует execution"
@@ -223,7 +223,7 @@
    "notes": "похоронен решением владельца 2026-08-06 (ADR-067): дубль autopush",
    "passport": {
     "goal": "Automatic sequential push of all pending push_v*.sh scripts",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию interval:5400s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": ""
@@ -246,7 +246,7 @@
    "notes": "",
    "passport": {
     "goal": "Automatic sequential push of all pending push_v*.sh scripts",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию interval:5400s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": ""
@@ -390,7 +390,7 @@
    "notes": "",
    "passport": {
     "goal": "claude-code-kanban backup monitor (ENV_SETUP v3 §4.1)",
-    "quality_metric": "",
+    "quality_metric": "процесс загружен в launchd и держит pid (data/agent_health.json: loaded=true, pid≠0)",
     "escalation": "",
     "rights": "",
     "limits": ""
@@ -413,7 +413,7 @@
    "notes": "похоронен решением владельца 2026-08-06 (ADR-067): эпоха прошла",
    "passport": {
     "goal": "SPA 7-Day Checkpoint — MP-434 Автоматическая валидация после 7 дней paper trading (2026-06-19).",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию calendar:10:00 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
     "rights": "слать CRITICAL владельцу через push_policy",
     "limits": "не импортирует execution"
@@ -436,7 +436,7 @@
    "notes": "",
    "passport": {
     "goal": "reads tunnel token from Keychain, finds cloudflared binary across common install paths, and execs the tunnel.",
-    "quality_metric": "",
+    "quality_metric": "процесс загружен в launchd и держит pid (data/agent_health.json: loaded=true, pid≠0)",
     "escalation": "",
     "rights": "",
     "limits": ""
@@ -461,7 +461,7 @@
    "notes": "",
    "passport": {
     "goal": "spa_core/cmo/editorial_agent.py — CMO editorial DRAFT runner (the live agent).",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию interval:86400s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": "LLM запрещён; не импортирует execution"
@@ -512,7 +512,7 @@
    "notes": "похоронен решением владельца 2026-08-06 (ADR-067): легаси CPA-волн",
    "passport": {
     "goal": "",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию calendar:09:00 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": ""
@@ -591,7 +591,7 @@
    "notes": "",
    "passport": {
     "goal": "DAILY snapshot of ALL data/*.json into data/backups/.",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию calendar:05:30 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": ""
@@ -677,7 +677,7 @@
    "notes": "",
    "passport": {
     "goal": "",
-    "quality_metric": "",
+    "quality_metric": "процесс загружен в launchd и держит pid (data/agent_health.json: loaded=true, pid≠0)",
     "escalation": "",
     "rights": "",
     "limits": ""
@@ -700,7 +700,7 @@
    "notes": "",
    "passport": {
     "goal": "spa_core/monitoring/dashboard_watcher.py",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию interval:300s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": "не импортирует execution"
@@ -834,7 +834,7 @@
    "notes": "развёрнут 2026-08-08 по решению владельца «четыре — ставить» (own-31); гейт check_agent_before_deploy пройден, last exit=0",
    "passport": {
     "goal": "spa_core/telegram/reports/weekly.py — THE one weekly digest (Tier 2).",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию calendar:wd0·10:00 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": "не импортирует execution"
@@ -857,7 +857,7 @@
    "notes": "",
    "passport": {
     "goal": "FastAPI app factory для Family Fund Investor Cabinet.",
-    "quality_metric": "",
+    "quality_metric": "процесс загружен в launchd и держит pid (data/agent_health.json: loaded=true, pid≠0)",
     "escalation": "",
     "rights": "писать data/investors.json",
     "limits": "не импортирует execution"
@@ -880,7 +880,7 @@
    "notes": "похоронен решением владельца 2026-08-06 (ADR-067): предок familyfund",
    "passport": {
     "goal": "MP-443: SPA Fund API Server Minimal HTTP server (stdlib only) для investor portal.",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию manual и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": ""
@@ -987,7 +987,7 @@
    "notes": "",
    "passport": {
     "goal": "событийный ЛЁГКИЙ интейк Inbox (owner-approved 2026-07-15)",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию event:watchpaths и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": ""
@@ -1455,7 +1455,7 @@
    "notes": "",
    "passport": {
     "goal": "spa_core/backtesting/tier1/data_integrity.py — historical-data integrity / no-lookahead.",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию calendar:06:30 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": ""
@@ -1531,7 +1531,7 @@
    "notes": "оживлён решением владельца 2026-08-06 (ADR-067): standing-директива R&D edge (Вт/Пт 04:00)",
    "passport": {
     "goal": "headless R&D \"opportunity finder\" agent.",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию calendar:04:00 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": ""
@@ -1554,7 +1554,7 @@
    "notes": "",
    "passport": {
     "goal": "headless orchestrator agent (ENV_SETUP v3 §3.5)",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию interval:3600s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": ""
@@ -1730,7 +1730,7 @@
    "notes": "оживлён решением владельца 2026-08-06 (ADR-067): проверка флота после ребута (RunAtLoad)",
    "passport": {
     "goal": "Runs scripts/verify_fleet_after_reboot.sh once at LOGIN (RunAtLoad), so the post-reboot fleet heal + its auditable status JSON (data/fleet_reboot_status .json) are produced automatically — \"probably recovered\" becomes proven+dated without a human remembering to run the command.",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию manual и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": ""
@@ -1873,7 +1873,7 @@
    "notes": "",
    "passport": {
     "goal": "spa_core/monitoring/rtmr_service.py — RTMR (ADR-053) sense+emergency service entrypoint.",
-    "quality_metric": "",
+    "quality_metric": "процесс загружен в launchd и держит pid (data/agent_health.json: loaded=true, pid≠0)",
     "escalation": "",
     "rights": "писать data/monitoring/signals/latest.json",
     "limits": "LLM запрещён; не импортирует execution"
@@ -1924,7 +1924,7 @@
    "notes": "",
    "passport": {
     "goal": "spa_core/strategy_lab/rwa_backstop/safety_board.py — the RWA Collateral Safety Board.",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию calendar:05:50 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": ""
@@ -2138,7 +2138,7 @@
    "notes": "",
    "passport": {
     "goal": "Swarm block 4 — L3 Dynamic Leverage Guardian, forward (the brain that sizes risk to weather).",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию interval:3600s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": ""
@@ -2219,7 +2219,7 @@
    "notes": "",
    "passport": {
     "goal": "Swarm block 5 — L4 immune layer: the agent that watches the swarm itself.",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию interval:3600s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": ""
@@ -2274,7 +2274,7 @@
    "notes": "",
    "passport": {
     "goal": "Swarm block 3 — L1 funding-regime classifier (GREEN / YELLOW / RED carry weather).",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию interval:3600s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": ""
@@ -2381,7 +2381,7 @@
    "notes": "",
    "passport": {
     "goal": "SPA Telegram Bot v2.1.",
-    "quality_metric": "",
+    "quality_metric": "процесс загружен в launchd и держит pid (data/agent_health.json: loaded=true, pid≠0)",
     "escalation": "",
     "rights": "писать data/kill_switch_active.json, data/tg_bot_v2_offset.json",
     "limits": "не импортирует execution"
@@ -2460,7 +2460,7 @@
    "notes": "похоронен решением владельца 2026-08-06 (ADR-067): предок dashboard_watcher",
    "passport": {
     "goal": "",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию interval:300s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": ""
@@ -2515,7 +2515,7 @@
    "notes": "развёрнут 2026-08-08 по решению владельца «четыре — ставить» (own-31); гейт check_agent_before_deploy пройден, last exit=0",
    "passport": {
     "goal": "spa_core/reporting/tier1_digest.py — weekly Tier-1 validation digest to Telegram.",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию calendar:wd0·09:30 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": "LLM запрещён; не импортирует execution"
@@ -2538,7 +2538,7 @@
    "notes": "",
    "passport": {
     "goal": "SPA Single Source of Truth (SSOT) MANIFEST + presentation validator.",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию calendar:07:15 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": ""
@@ -2561,7 +2561,7 @@
    "notes": "",
    "passport": {
     "goal": "SPA Tournament Engine v1.0 spa_core/tournament/tournament_engine.py",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию calendar:09:00 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": ""
@@ -2683,7 +2683,7 @@
    "notes": "развёрнут 2026-08-08 по решению владельца «четыре — ставить» (own-31); гейт check_agent_before_deploy пройден, last exit=0",
    "passport": {
     "goal": "Weekly SPA_Claude backup — runs every Saturday at 10:00 AM",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию calendar:wd6·10:00 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": ""
@@ -2706,7 +2706,7 @@
    "notes": "",
    "passport": {
     "goal": "«Что сделано за вчера» (РАБОТА/девелопмент, простым языком) → Telegram, 09:00.",
-    "quality_metric": "",
+    "quality_metric": "запускается по расписанию calendar:09:00 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "",
     "rights": "",
     "limits": ""

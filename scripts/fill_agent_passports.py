@@ -318,6 +318,39 @@ def quality_metric_from_produces(entry: dict) -> str:
     return "; ".join(parts)
 
 
+def quality_metric_from_availability(entry: dict) -> str:
+    """Метрика для служб, у которых продукт НЕ ФАЙЛ (решение владельца 29.08, вариант 1).
+
+    «Файл свежее N часов» подходит агенту, который раз в такт пишет отчёт. Для демона,
+    обёртки или headless-сессии она бессмысленна: у демона файла может не быть неделями
+    и это норма, а продукт обёртки — выполненная работа. Замер 29.08: у 33 агентов из 95
+    метрики не было, и это не 33 задачи, а один недостающий признак.
+
+    Наше же правило это знало: расчёт срока годности для расписания `daemon` возвращает
+    «такта нет — срока не назначить» (`slo_proposal.architect_floor`). Оно честно
+    говорило «свежесть тут не метрика», а замены у него не было.
+
+    Источники существуют, строить нечего — `data/agent_health.json` пишет по каждому
+    агенту `loaded`, `pid`, `last_exit`, `log_age_min`. Отсюда две формулы:
+
+      демон       → загружен и ДЕРЖИТ процесс (`loaded=true`, `pid≠0`);
+      по расписанию → запускается и выходит кодом 0 (`loaded=true`, `last_exit=0`).
+
+    Спрашивается ТОЛЬКО там, где `produces` пуст (см. `derive`), поэтому у агента с
+    артефактом метрика не может смениться — регрессия невозможна по построению.
+    """
+    if entry.get("produces"):
+        return ""
+    sched = str(entry.get("schedule") or "").strip().lower()
+    if not sched:
+        return ""
+    if sched == "daemon":
+        return ("процесс загружен в launchd и держит pid "
+                "(data/agent_health.json: loaded=true, pid≠0)")
+    return (f"запускается по расписанию {entry.get('schedule')} и завершается кодом 0 "
+            f"(data/agent_health.json: loaded=true, last_exit=0)")
+
+
 def escalation_from_code(module: str | None, entry: dict) -> str:
     """Как об отказе узнаёт человек. Только то, что видно в коде/манифесте."""
     f = _module_file(module) if module else None
@@ -422,7 +455,10 @@ def derive(entry: dict) -> dict:
         # там, где докстринг молчит. Так новый источник может только добавить.
         "goal": (goal_from_docstring(module)
                  or goal_from_wrapper_header(entry.get("program"))),
-        "quality_metric": quality_metric_from_produces(entry),
+        # ПОРЯДОК ИСТОЧНИКОВ: доступность спрашивается лишь там, где артефакта нет.
+        # Агент с продуктом сохраняет метрику по свежести слово в слово.
+        "quality_metric": (quality_metric_from_produces(entry)
+                           or quality_metric_from_availability(entry)),
         "escalation": escalation_from_code(module, entry),
         "rights": rights_from_manifest(module, entry),
         "limits": limits_from_code(module, entry),
