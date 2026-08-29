@@ -2,14 +2,15 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-29T11:33:13Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-29T11:37:16Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **766** · ждёт владельца: **3** · занято сессиями: **10**.
+> Всего карточек: **767** · ждёт владельца: **4** · занято сессиями: **10**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x**  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md`
 - **Правила вложений записаны на бумаге, проверяющий уже нашёл три расхождения — нужны твои ответы** · _high_  ·  `owner-decision-AI1-approach-2026-08-29.md`
+- **Security-скан risk-гейта нашёл два расхождения между ADR и реальным кодом: оси риска не подключены, тир протокола не сверяется** · _high_  ·  `owner-decision-security-skan-risk-geita-nashel-dva-rash.md`
 - **Твоё решение от 7 августа доехало не везде: один протокол до сих пор числится не тем тиром** · _high_  ·  `owner-decision-tier-steakhouse-2026-08-29.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
@@ -27,10 +28,11 @@
 - **РЕЦИДИВ 28.08: тест судит о ХОСТЕ по литеральному pid — 98535 (siriactionsd), теперь 999 (NetFS) в test_card_claim_takeover** — держит `cycle-51123` · с 2026-08-22T08:45:00Z  ·  `inbox-test-sudit-o-hoste-literalnyi-pid-98535.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (183)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (184)
 
 ### · needs-owner
 - Правила вложений записаны на бумаге, проверяющий уже нашёл три расхождения — нужны твои ответы  ·  `owner-decision-AI1-approach-2026-08-29.md` · 2026-08-29
+- Security-скан risk-гейта нашёл два расхождения между ADR и реальным кодом: оси риска не подключены, тир протокола не сверяется  ·  `owner-decision-security-skan-risk-geita-nashel-dva-rash.md` · 2026-08-29
 - Твоё решение от 7 августа доехало не везде: один протокол до сих пор числится не тем тиром  ·  `owner-decision-tier-steakhouse-2026-08-29.md` · 2026-08-29
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
@@ -348,6 +350,7 @@
 - Находка петли: возможность moonwell_base 10.7382% (evidence L3) доступна книге, не де  ·  `inbox-nahodka-petli-vozmozhnost-moonwell-base.md` · 2026-08-14
 - Находка петли: возможность morpho_steakhouse 4.1292% (evidence L4) доступна книге, не  ·  `inbox-nahodka-petli-vozmozhnost-morpho-steakho.md` · 2026-08-24
 - Находка петли: возможность spark_susds 3.8367% (evidence L4) доступна книге, не держи  ·  `inbox-nahodka-petli-vozmozhnost-spark-susds-3-2.md` · 2026-08-27
+- Находка петли: возможность spark_susds 3.9431% (evidence L4) доступна книге, не держи  ·  `inbox-nahodka-petli-vozmozhnost-spark-susds-3-3.md` · 2026-08-28
 - Находка петли: возможность spark_susds 3.6765% (evidence L4) доступна книге, не держи  ·  `inbox-nahodka-petli-vozmozhnost-spark-susds-3.md` · 2026-08-23
 - Нечёткое совпадение отдаёт APY ЧУЖОГО актива: USDC.e ранжирует капитал как USDC — и платит БОЛЬШЕ настоящего  ·  `inbox-nechetkoe-sovpadenie-otdaet-apy-chuzhogo.md` · 2026-08-09
 - Нечитаемый rationale читается как «отказ НЕ назван» — сверка утверждает то, чего не измеряла (fail-OPEN)  ·  `inbox-nechitaemyi-rationale-chitaetsya-kak-otk.md` · 2026-08-28
@@ -550,7 +553,6 @@
 - Модуль bot_commands заменён, но жив: свой getUpdates-поллер и свои двери в чат  ·  `inbox-modul-bot-commands-zamenen-no-zhiv-svoi.md` · 2026-08-13
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
 - Находка петли: аналитик red_team: CRITICAL — требует реакции (карточка/решение), не п  ·  `inbox-nahodka-petli-analitik-red-team-critical.md` · 2026-08-10
-- Находка петли: возможность spark_susds 3.9431% (evidence L4) доступна книге, не держи  ·  `inbox-nahodka-petli-vozmozhnost-spark-susds-3-3.md` · 2026-08-28
 - Несостоявшаяся сверка с origin даёт код 0: list печатает уверенное число там, где не измерено ничего  ·  `inbox-nesostoyavshayasya-sverka-s-origin-daet.md` · 2026-08-27
 - Обещанная перепроверка DNS checkup осталась без исполнителя: карточку закрыли, критерий не выполнен  ·  `inbox-obeschannaya-pereproverka-dns-checkup-os.md` · 2026-08-22
 - Обязательное правило design-docs недостижимо по ссылкам — сторож связности красный на main  ·  `inbox-obyazatelnoe-pravilo-design-docs-nedostizhimo.md` · 2026-08-28
