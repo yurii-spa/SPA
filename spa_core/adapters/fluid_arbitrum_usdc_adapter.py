@@ -243,6 +243,15 @@ class FluidArbitrumUsdcAdapter(BaseAdapter):
             apy = dl["apy"]
             source = "defillama"
         record["tvl"] = dl["tvl"]
+        # ADR-053: живость TVL — ОТДЕЛЬНЫЙ сигнал от `live_data` (тот про APY).
+        # Замер 29.08: адаптер брал живой TVL ($52.2 млн, пул 4c45cc9e — тождество
+        # доказано ТОЧНЫМ uuid, а не совпадением имени), но не объявлял этого, и
+        # умолчание `tvl_source="static"` делало пул НЕ проходящим порог: живое
+        # число носило метку литерала. Тот же дефект, что у `fluid_usdc` и
+        # `ethena_susde` (починен 29.08, коммит 5c67ee84).
+        # Флаг снимается ДО подстановки константы ниже: иначе фолбэк ($36.6 млн)
+        # уехал бы под ярлыком «живое» — это дефект ADR-126, только наоборот.
+        record["tvl_live"] = dl["tvl"] is not None
 
         if apy is None:
             # 2026-08-08, решение владельца «делать все 15» (карточка
@@ -279,6 +288,7 @@ class FluidArbitrumUsdcAdapter(BaseAdapter):
             asset=self.asset,
             apy=data["apy"],
             tvl_usd=data["tvl"],
+            tvl_source="live" if data.get("tvl_live") else "static",
             tier=self.tier,
             risk_score=self.RISK_SCORE,
             exit_latency_hours=self.EXIT_LATENCY_HOURS,

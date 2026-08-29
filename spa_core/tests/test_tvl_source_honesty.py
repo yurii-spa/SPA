@@ -18,7 +18,28 @@ from __future__ import annotations
 import pytest
 
 from spa_core.adapters.ethena_susde_adapter import EthenaSusdeAdapter
+from spa_core.adapters.fluid_arbitrum_usdc_adapter import FluidArbitrumUsdcAdapter
 from spa_core.tests.test_ethena_susde_adapter import _make_http
+
+_ARB_POOL = FluidArbitrumUsdcAdapter.POOL_ID
+
+
+def _arb_http(dl_tvl, *, dl_fail=False):
+    """Шов http_get адаптера. Первичный API Fluid всегда молчит — предмет здесь TVL.
+
+    Пул отдаётся ПОД ТОЧНЫМ uuid: тождество этого адаптера доказано адресом, а не
+    совпадением имени, и тест обязан проверять именно ту ветку отбора (три ложные
+    строки переписи 29.08 родились ровно из совпадения по имени).
+    """
+    def get(url, timeout=None):
+        if "llama" not in url:
+            raise OSError("primary down")
+        if dl_fail:
+            raise OSError("defillama down")
+        return {"data": [{"pool": _ARB_POOL, "project": "fluid-lending",
+                          "chain": "Arbitrum", "symbol": "USDC",
+                          "apy": 4.56, "tvlUsd": dl_tvl}]}
+    return get
 
 
 class TestLiveTvlIsCalledLive:
@@ -50,4 +71,29 @@ class TestFallbackIsNeverCalledLive:
     def test_none_tvl_from_pool_is_static(self):
         a = EthenaSusdeAdapter(http_get=_make_http(primary_value=12.0, dl_tvl=None))
         info = a.get_yield_info()
+        assert info.tvl_source == "static"
+
+
+class TestFluidArbitrumLabel:
+    """Тот же дефект метки, найденный переписью 29.08 у третьего адаптера.
+
+    `fluid_arbitrum` отдавал живые $52.2 млн (пул 4c45cc9e, тождество по uuid) под
+    меткой `static` — то есть не проходил порог TVL по причине, не имеющей отношения
+    к его глубине.
+    """
+
+    def test_live_pool_tvl_is_labelled_live(self):
+        info = FluidArbitrumUsdcAdapter(http_get=_arb_http(52_206_953.0)).get_yield_info()
+        assert info.tvl_source == "live"
+        assert info.tvl_usd == pytest.approx(52_206_953.0)
+
+    def test_fallback_is_never_called_live(self):
+        """Обратный контроль: подстановка $36.6 млн не смеет зваться живой."""
+        info = FluidArbitrumUsdcAdapter(http_get=_arb_http(None, dl_fail=True)).get_yield_info()
+        assert info.tvl_source == "static"
+        assert info.tvl_usd == pytest.approx(FluidArbitrumUsdcAdapter.FALLBACK_TVL_USD)
+
+    def test_pool_without_tvl_is_static_though_pool_was_found(self):
+        """Пул нашёлся, а TVL в нём пуст — это НЕ живое число (шов между двумя сигналами)."""
+        info = FluidArbitrumUsdcAdapter(http_get=_arb_http(None)).get_yield_info()
         assert info.tvl_source == "static"
