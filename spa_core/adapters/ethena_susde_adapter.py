@@ -248,6 +248,13 @@ class EthenaSusdeAdapter(BaseAdapter):
             apy = dl["apy"]
             source = "defillama"
         record["tvl"] = dl["tvl"]
+        # ADR-053: живость TVL — ОТДЕЛЬНЫЙ сигнал от `live_data` (тот про APY).
+        # Замер 29.08: адаптер брал живой TVL у DeFiLlama (совпадает с пулом до
+        # доллара), но не объявлял этого, и умолчание `tvl_source="static"` делало
+        # пул НЕ проходящим порог — то есть живое число носило метку литерала.
+        # Флаг снимается ДО подстановки константы ниже: иначе фолбэк уехал бы под
+        # ярлыком «живое», а это ровно дефект ADR-126, только наоборот.
+        record["tvl_live"] = dl["tvl"] is not None
 
         if apy is None:
             # 2026-08-08, решение владельца «делать все 15» (карточка
@@ -297,6 +304,7 @@ class EthenaSusdeAdapter(BaseAdapter):
             asset=self.asset,
             apy=data["apy"],
             tvl_usd=data["tvl"],
+            tvl_source="live" if data.get("tvl_live") else "static",
             tier=self.tier,
             risk_score=self.RISK_SCORE,
             exit_latency_hours=self.EXIT_LATENCY_HOURS,
