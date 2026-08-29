@@ -28,6 +28,7 @@ Methods:
     _format_section(section)        → str
     build_portfolio_section()       → DigestSection
     build_alert_section()           → DigestSection
+    build_starvation_section()      → DigestSection
     build_progress_section()        → DigestSection
     build_paper_trading_section()   → DigestSection
     build_forecast_section()        → DigestSection
@@ -249,6 +250,87 @@ class TelegramDailyDigest:
 
         return DigestSection(title="Alerts", emoji="🚨", lines=lines)
 
+    #: Отчёт сторожа голодания старше этого срока читается как «замер не состоялся».
+    #: Порог — двое суток, а не сутки: сторож пишет отчёт из цикла, а цикл ходит не строго
+    #: раз в день, и суточный порог краснел бы на штатном такте (тот же класс, что #242 —
+    #: срок годности, спрошенный не у того).
+    STARVATION_REPORT_MAX_AGE_H = 48.0
+
+    def build_starvation_section(self) -> DigestSection:
+        """Голодающий приказ владельца — в канал, который смерть сессии не выключает.
+
+        **Зачем секция (цикл #422).** Сторож `scripts/check_owner_order_starvation.py`
+        говорил ровно одному адресату — промпту той сессии, которая и голодит очередь.
+        Сессии здесь умирают регулярно, а мёртвая сессия промпт не читает: находка о
+        простоявшем приказе владельца исчезала вместе с ней, не оставив следа нигде.
+        Дайджест пишет ДРУГОЙ процесс и по своему такту, поэтому у находки появляется
+        путь к владельцу, не зависящий от живости цикла.
+
+        Три исхода, и они РАЗНЫЕ (инв. #17):
+
+        * отчёта нет или он старше `STARVATION_REPORT_MAX_AGE_H` — «НЕ ИЗМЕРЕНО»;
+          это НЕ «голода нет». Именно молчание на неизмеренном и есть та авария, из-за
+          которой critical-приказ простоял четверо суток при 40+ прошедших циклах;
+        * отчёт свежий, находок нет — короткая строка, что мерили и чисто;
+        * есть находки — строка «⏳ голодает: …» дословно по карточке-заказчику,
+          с числом прошедших мимо циклов (или честным «НЕ ИЗМЕРЕНО» вместо него).
+
+        Data source: ``data/owner_order_starvation.json``
+        """
+        lines: List[str] = []
+        data = self._load_json("owner_order_starvation.json")
+
+        if not isinstance(data, dict):
+            return DigestSection(
+                title="Приказы владельца", emoji="⏳",
+                lines=["голодание НЕ ИЗМЕРЕНО: отчёта сторожа нет "
+                       "(owner_order_starvation.json) — это не «всё в порядке»"])
+
+        age_h = self._report_age_hours(data.get("generated_at"))
+        if age_h is None:
+            lines.append("голодание НЕ ИЗМЕРЕНО: у отчёта сторожа нет разбираемой "
+                         "отметки времени")
+        elif age_h > self.STARVATION_REPORT_MAX_AGE_H:
+            lines.append(f"голодание НЕ ИЗМЕРЕНО: замер устарел на {age_h:.0f}ч "
+                         f"(порог {self.STARVATION_REPORT_MAX_AGE_H:.0f}ч) — "
+                         f"сторожа некому было запустить")
+
+        findings = data.get("findings")
+        findings = findings if isinstance(findings, list) else []
+        for f in findings:
+            if not isinstance(f, dict):
+                continue
+            cycles = f.get("cycles_passed")
+            cycles_ru = (f"{cycles} циклов мимо" if isinstance(cycles, int)
+                         else "циклов мимо: НЕ ИЗМЕРЕНО")
+            age = f.get("age_hours")
+            age_ru = f"{age:.0f}ч" if isinstance(age, (int, float)) else "возраст НЕ ИЗМЕРЕН"
+            lines.append(f"⏳ голодает: {f.get('title') or f.get('path') or '(без имени)'} "
+                         f"— {age_ru}, {cycles_ru}")
+
+        if not findings and age_h is not None and age_h <= self.STARVATION_REPORT_MAX_AGE_H:
+            lines.append(f"голодающих приказов нет (мерили {age_h:.0f}ч назад)")
+
+        return DigestSection(title="Приказы владельца", emoji="⏳", lines=lines)
+
+    def _report_age_hours(self, generated_at) -> Optional[float]:
+        """Возраст отметки в часах; None — отметка не разбирается (НЕ ИЗМЕРЕНО, не ноль).
+
+        Отметка из БУДУЩЕГО НЕ зажимается в ноль (урок #291: испорченные часы и чужой
+        часовой пояс приходили к проверкам «самой свежей правдой») — отрицательный
+        возраст возвращается как есть и порог свежести его пропускает, но такой отчёт
+        уже не выглядит только что снятым.
+        """
+        if not isinstance(generated_at, str) or not generated_at.strip():
+            return None
+        try:
+            when = datetime.fromisoformat(generated_at.strip().replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            return None
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=timezone.utc)
+        return (datetime.now(tz=timezone.utc) - when).total_seconds() / 3600.0
+
     def build_progress_section(self) -> DigestSection:
         """Load go-live progress and build the Progress section.
 
@@ -377,6 +459,7 @@ class TelegramDailyDigest:
         sections = [
             self.build_portfolio_section(),
             self.build_alert_section(),
+            self.build_starvation_section(),
             self.build_progress_section(),
             self.build_paper_trading_section(),
             self.build_forecast_section(),
