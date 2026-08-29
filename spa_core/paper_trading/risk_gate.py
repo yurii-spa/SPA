@@ -130,6 +130,39 @@ def _compliant_target(
         return target_usd, False
 
 
+def redistribution_refusal_record(target_usd: dict[str, float],
+                                  capital_usd: float,
+                                  added: dict[str, float] | None,
+                                  violations, error=None) -> dict:
+    """Машинный след отказа повторного гейта (ADR-072). Отказ обязан быть ПРОВЕРЯЕМЫМ.
+
+    Замер 29.08: три цикла подряд отказ «cash buffer 5.0% < minimum 5.0%» оставлял
+    33.7 % капитала без работы (дневная доходность 4.21 % → 3.17 %), и воспроизвести
+    его снаружи не удалось НИ РАЗУ: три независимые реконструкции дают остаток
+    5000.000000000001, а вызов настоящего гейта на восстановленной цели — APPROVED.
+    Значит гейт судил по цели, которой в отчёте не было. Мандат владельца 29.08:
+    сделать отказ проверяемым.
+
+    Возвращает то, чего не хватало: САМУ поданную цель, её сумму, капитал (знаменатель
+    буфера) и добавленные ноги. Ничего не решает — только называет.
+    """
+    tgt = {k: round(float(v), 2) for k, v in sorted((target_usd or {}).items())}
+    total = round(sum(tgt.values()), 2)
+    cap = float(capital_usd)
+    return {
+        "capital_usd": round(cap, 2),
+        "submitted_sum_usd": total,
+        "legs": len(tgt),
+        "submitted_target": tgt,
+        "added": {k: round(float(v), 2) for k, v in sorted((added or {}).items())},
+        # Остаток и его доля — ровно те числа, о которых спорит отказ.
+        "remaining_cash_usd": round(cap - total, 2),
+        "remaining_cash_pct": (round((cap - total) / cap * 100.0, 4) if cap else None),
+        "violations": list(violations or []),
+        "error": error,
+    }
+
+
 def _apply_risk_policy_gate(
     target_usd: dict[str, float],
     capital_usd: float,
