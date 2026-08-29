@@ -37,7 +37,11 @@ def test_both_feeds_ok(tmp_path):
     assert out["status"] == "ok"
     assert out["yield_regime"]["value"]["regime"] == "STABLE"
     assert out["funding_regime"]["value"]["regime"] == "GREEN"
-    assert out["yield_regime"]["evidence_level"] == "L4"
+    # ИЗМЕНЕНО НАМЕРЕННО 2026-08-29 (инвариант 16: обоснование здесь + журнал).
+    # Тест закреплял L4 — по канону docs/37 это «исполнено реальным капиталом»,
+    # чего не было НИ РАЗУ: система на paper-стадии, внешний капитал закрыт.
+    # Честный уровень: L2 — живое измерение цикла.
+    assert out["yield_regime"]["evidence_level"] == "L2"
     assert out["combined_posture"] == "STABLE"     # STABLE(1) more cautious than GREEN(0)
 
 

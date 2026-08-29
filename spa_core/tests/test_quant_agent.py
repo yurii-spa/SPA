@@ -30,7 +30,11 @@ def test_strong_fit_no_concern(tmp_path):
     assert out["status"] == "ok"
     assert out["model_trust"]["value"]["rank_correlation"] == 0.85
     assert out["concern"] == "NONE_SURFACED"
-    assert out["model_trust"]["evidence_level"] == "L5"
+    # ИЗМЕНЕНО НАМЕРЕННО 2026-08-29 (инвариант 16: обоснование здесь + журнал).
+    # Тест закреплял L5 — по канону docs/37 это «исполнено значимым капиталом через полный вход/выход»,
+    # чего не было НИ РАЗУ: система на paper-стадии, внешний капитал закрыт.
+    # Честный уровень: L2 — канон дословно: «a backtest is not live-tested… never L4+».
+    assert out["model_trust"]["evidence_level"] == "L2"
 
 
 def test_weak_fit_flags(tmp_path):

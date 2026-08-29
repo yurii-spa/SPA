@@ -77,7 +77,7 @@ class MarketStructureAgent(ProductAgent):
                     "most_diversified": latest.get("most_diversified"),
                     "portfolio_count": latest.get("portfolio_count"),
                 },
-                "L4", "data/cross_asset_correlation_log.json (live correlation measurement)",
+                "L2", "data/cross_asset_correlation_log.json (live correlation measurement)",
                 last_verified=latest.get("ts"),
             ),
             "note": ("Advisory. Cross-asset correlation risk — a highly correlated book is a "

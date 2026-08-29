@@ -79,7 +79,7 @@ class YieldQualityAgent(ProductAgent):
                     "apy_quality_score": latest.get("apy_quality_score"),
                     "incentive_decay_risk_pct": decay,
                 },
-                "L4", "data/apy_decomposition_log.json (live yield decomposition)",
+                "L2", "data/apy_decomposition_log.json (live yield decomposition)",
                 last_verified=latest.get("ts"),
             ),
             "note": ("Advisory. Honest yield decomposition — advertised vs SUSTAINABLE (real cash-flow) "

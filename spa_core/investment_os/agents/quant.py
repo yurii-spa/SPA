@@ -79,7 +79,7 @@ class QuantBacktestAgent(ProductAgent):
                     "summary": data.get("summary"),
                     "threshold_rho": _WEAK_CORRELATION,
                 },
-                "L5", "data/backtest_vs_paper.json (backtest↔paper correlation)",
+                "L2", "data/backtest_vs_paper.json (backtest↔paper correlation)",
                 last_verified=data.get("generated_at"),
             ),
             "note": ("Advisory. Does the BACKTEST predict the live PAPER track (rank correlation ρ)? "

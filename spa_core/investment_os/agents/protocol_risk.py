@@ -66,7 +66,7 @@ class ProtocolRiskAgent(ProductAgent):
             out["protocol_risk"] = self.evidence(
                 {"count": rmap.get("count"), "count_by_tier": rmap.get("count_by_tier"),
                  "map_version": rmap.get("map_version")},
-                "L4", "data/protocol_risk_map.json (live risk map)",
+                "L2", "data/protocol_risk_map.json (live risk map)",
                 last_verified=rmap.get("generated_at"),
             )
         else:
@@ -78,7 +78,7 @@ class ProtocolRiskAgent(ProductAgent):
                  "critical": peg.get("critical"), "warning": peg.get("warning"),
                  "caution": peg.get("caution"), "stable": peg.get("stable"),
                  "worst_adapter": peg.get("worst_adapter"), "worst_deviation_pct": peg.get("worst_deviation_pct")},
-                "L4", "data/peg_report.json (live peg monitor)",
+                "L2", "data/peg_report.json (live peg monitor)",
                 last_verified=peg.get("generated_at"),
             )
         else:

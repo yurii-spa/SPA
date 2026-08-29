@@ -39,7 +39,11 @@ def test_consumes_both_and_flags_none(tmp_path):
     assert out["protocol_risk"]["value"]["count"] == 33
     assert out["peg_health"]["value"]["total_monitored"] == 12
     assert out["concern"] == "NONE_SURFACED"
-    assert out["protocol_risk"]["evidence_level"] == "L4"
+    # ИЗМЕНЕНО НАМЕРЕННО 2026-08-29 (инвариант 16: обоснование здесь + журнал).
+    # Тест закреплял L4 — по канону docs/37 это «исполнено реальным капиталом»,
+    # чего не было НИ РАЗУ: система на paper-стадии, внешний капитал закрыт.
+    # Честный уровень: L2 — источник тянет и проверяет наш код.
+    assert out["protocol_risk"]["evidence_level"] == "L2"
 
 
 def test_critical_peg_surfaces_concern(tmp_path):

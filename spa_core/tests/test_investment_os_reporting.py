@@ -39,7 +39,11 @@ def test_surfaces_track_with_l6_evidence(tmp_path):
     lp, dp = _seed(tmp_path)
     out = ReportingAgent(ledger_path=lp, day30_path=dp, data_dir=tmp_path).analyze()
     assert out["status"] == "ok"
-    assert out["track"]["evidence_level"] == "L6"
+    # ИЗМЕНЕНО НАМЕРЕННО 2026-08-29 (инвариант 16: обоснование здесь + журнал).
+    # Тест закреплял L6 — по канону docs/37 это «пережито несколько рыночных циклов на ЖИВОМ капитале»,
+    # чего не было НИ РАЗУ: система на paper-стадии, внешний капитал закрыт.
+    # Честный уровень: L3 — «paper-tracked», и канон прямо называет наш evidenced-трек ЭТАЛОНОМ L3.
+    assert out["track"]["evidence_level"] == "L3"
     assert out["track"]["value"]["n_evidenced_days"] == 19
     assert out["track"]["value"]["cumulative_return_pct"] == 0.2095
     assert out["review_readiness"]["value"]["state"] == "ACCUMULATING"

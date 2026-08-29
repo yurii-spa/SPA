@@ -71,7 +71,7 @@ class MarketRegimeAgent(ProductAgent):
                     "apy_std_dev": yr.get("apy_std_dev"),
                     "recommendation": yr.get("recommendation"),
                 },
-                "L4", "data/market_regime.json (live cycle)",
+                "L2", "data/market_regime.json (live cycle)",
                 last_verified=yr.get("detected_at"),
             )
         else:
@@ -85,7 +85,7 @@ class MarketRegimeAgent(ProductAgent):
                     "per_symbol": {s: v.get("regime") for s, v in (fr.get("symbols") or {}).items()
                                    if isinstance(v, dict)},
                 },
-                "L4", "data/swarm/funding_regime.json (swarm L1, advisory)",
+                "L2", "data/swarm/funding_regime.json (swarm L1, advisory)",
                 last_verified=fr.get("as_of_utc"),
             )
         else:

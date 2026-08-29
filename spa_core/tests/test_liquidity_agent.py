@@ -44,7 +44,11 @@ def test_consumes_latest_entry(tmp_path):
     assert v["n_positions"] == 3
     assert v["by_exit_label"] == {"INSTANT": 2, "SLOW": 1}
     assert v["top_bottlenecks"]["MARKET_DEPTH"] == 2
-    assert out["exit_liquidity"]["evidence_level"] == "L4"
+    # ИЗМЕНЕНО НАМЕРЕННО 2026-08-29 (инвариант 16: обоснование здесь + журнал).
+    # Тест закреплял L4 — по канону docs/37 это «исполнено реальным капиталом»,
+    # чего не было НИ РАЗУ: система на paper-стадии, внешний капитал закрыт.
+    # Честный уровень: L2 — живое измерение цикла.
+    assert out["exit_liquidity"]["evidence_level"] == "L2"
 
 
 def test_missing_log_is_unknown(tmp_path):

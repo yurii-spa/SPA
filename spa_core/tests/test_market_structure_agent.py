@@ -28,7 +28,11 @@ def test_consumes_latest_none_concern(tmp_path):
     assert out["status"] == "ok"
     assert out["market_structure"]["value"]["avg_correlation_risk"] == 28.0
     assert out["concern"] == "NONE_SURFACED"
-    assert out["market_structure"]["evidence_level"] == "L4"
+    # ИЗМЕНЕНО НАМЕРЕННО 2026-08-29 (инвариант 16: обоснование здесь + журнал).
+    # Тест закреплял L4 — по канону docs/37 это «исполнено реальным капиталом»,
+    # чего не было НИ РАЗУ: система на paper-стадии, внешний капитал закрыт.
+    # Честный уровень: L2 — живое измерение цикла, источник тянет наш код.
+    assert out["market_structure"]["evidence_level"] == "L2"
 
 
 def test_dangerous_correlation_flags(tmp_path):

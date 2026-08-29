@@ -70,7 +70,7 @@ class ReportingAgent(ProductAgent):
                 "first_evidenced_date": led.get("first_evidenced_date"),
                 "last_evidenced_date": led.get("last_evidenced_date"),
             },
-            "L6", "data/track_ledger.json (evidenced-only, our own live paper track)",
+            "L3", "data/track_ledger.json (evidenced-only, our own live paper track)",
             last_verified=led.get("last_evidenced_date"),
         )
 
@@ -86,7 +86,7 @@ class ReportingAgent(ProductAgent):
                     "remaining_days": d30.get("remaining_days"),
                     "min_track_days": d30.get("min_track_days"),
                 },
-                "L6", "data/riskwire/day30_review.json (inert readiness gate)",
+                "L3", "data/riskwire/day30_review.json (inert readiness gate)",
                 last_verified=d30.get("generated_at"),
             )
         else:

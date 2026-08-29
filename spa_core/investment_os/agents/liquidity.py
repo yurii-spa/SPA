@@ -81,7 +81,7 @@ class LiquidityAgent(ProductAgent):
                     "by_exit_label": by_label,
                     "top_bottlenecks": dict(sorted(bottlenecks.items(), key=lambda kv: -kv[1])[:4]),
                 },
-                "L4", "data/exit_liquidity_log.json (live cycle exit-liquidity measurement)",
+                "L2", "data/exit_liquidity_log.json (live cycle exit-liquidity measurement)",
             ),
             "note": ("Advisory. Portfolio exit-liquidity posture — how fast held positions can be exited "
                      "and where the bottlenecks are. Surfaces the desk's own measurement; computes nothing "

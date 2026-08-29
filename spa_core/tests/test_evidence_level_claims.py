@@ -41,18 +41,14 @@ HIGH_LEVELS = {"L4", "L5", "L6"}
 # `файл:строка` ломается от любой вставки выше и уже стоил проекту цикла.
 # Список может ТОЛЬКО СОКРАЩАТЬСЯ. Пополнять его, чтобы погасить падение,
 # запрещено — это ровно то, ради чего сторож написан.
-KNOWN_HIGH_CLAIMS: dict[str, int] = {
-    "spa_core/investment_os/agents/liquidity.py": 1,
-    "spa_core/investment_os/agents/market_regime.py": 2,
-    "spa_core/investment_os/agents/market_structure.py": 1,
-    "spa_core/investment_os/agents/protocol_risk.py": 2,
-    "spa_core/investment_os/agents/quant.py": 1,
-    "spa_core/investment_os/agents/red_team.py": 1,
-    "spa_core/investment_os/agents/reporting.py": 2,
-    "spa_core/investment_os/agents/yield_quality.py": 1,
-    "spa_core/strategy_lab/rates_desk/refusal_value.py": 1,
-}
-
+# ПУСТО с 2026-08-29. Перепись была 12 заявок в 9 файлах; все понижены до честных
+# уровней (полный мандат владельца): живые измерения цикла → L2, бэктест → L2
+# (канон дословно: «a backtest is not live-tested… never L4+»), наш paper-трек → L3
+# (канон называет его ЭТАЛОНОМ L3, а не L6).
+#
+# Список задуман сокращающимся, и он сократился до нуля. Пока система не исполняла
+# реальный капитал, ЛЮБОЕ имя здесь — регресс, а не «известное состояние».
+KNOWN_HIGH_CLAIMS: dict[str, int] = {}
 
 def _level_of(raw: str) -> str | None:
     """«L4» и «L4 — пояснение» это заявка; «L40», «L4x» — нет."""
@@ -119,23 +115,25 @@ def test_the_premise_still_holds_in_the_canon():
 
 def test_no_new_file_claims_l4_or_above():
     census = _census()
-    new = sorted(set(census) - set(KNOWN_HIGH_CLAIMS))
+    new = sorted(set(census) - set(KNOWN_HIGH_CLAIMS))  # KNOWN пуст ⇒ любое имя новое
     assert not new, (
         f"новые заявки L4+ в {new}. L4 по канону — исполнение РЕАЛЬНЫМ капиталом, "
         "которого не было ни разу. Для наблюдённого источника уровень — L2. "
         "В KNOWN_HIGH_CLAIMS НЕ добавлять.")
 
 
-def test_known_claims_never_grow():
+def test_nothing_in_the_codebase_claims_l4_or_above():
+    """Полный запрет, а не храповик: с 29.08 таких заявок НОЛЬ.
+
+    Тест перевёрнут намеренно — раньше он сторожил, чтобы известный список
+    не рос. Список опустел, и охранять стало нечего, кроме самого правила:
+    пока система не исполняла реальный капитал, L4+ не вправе заявить никто.
+    """
     census = _census()
-    grew = {f: (census[f], KNOWN_HIGH_CLAIMS[f])
-            for f in KNOWN_HIGH_CLAIMS if census.get(f, 0) > KNOWN_HIGH_CLAIMS[f]}
-    assert not grew, f"число заявок L4+ выросло: {grew}"
-    fixed = {f: KNOWN_HIGH_CLAIMS[f] - census.get(f, 0)
-             for f in KNOWN_HIGH_CLAIMS if census.get(f, 0) < KNOWN_HIGH_CLAIMS[f]}
-    assert not fixed, (
-        f"заявок стало меньше — обнови KNOWN_HIGH_CLAIMS: {fixed}. "
-        "Перепись сокращается вместе с починкой, иначе перестаёт что-либо значить.")
+    assert census == {}, (
+        f"заявки L4+ вернулись: {census}. L4 по канону — исполнение РЕАЛЬНЫМ "
+        "капиталом, которого не было ни разу. Живое измерение цикла — L2, "
+        "наш paper-трек — L3, бэктест — L2 (docs/apy_evidence_enforcement.md).")
 
 
 def test_the_yield_surface_is_already_clean():

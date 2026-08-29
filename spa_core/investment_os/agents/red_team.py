@@ -111,7 +111,7 @@ class RedTeamAgent(ProductAgent):
             "threat_posture": self.evidence(
                 {"clear": clear, "n_threats": len(threats), "threats": threats,
                  "kill_switch_already_active": kill_active},
-                "L4", "data/threat_reactor_status.json (live threat-reactor)",
+                "L2", "data/threat_reactor_status.json (live threat-reactor)",
                 last_verified=threat.get("ts"),
             ),
             "attack_surface": self.evidence(

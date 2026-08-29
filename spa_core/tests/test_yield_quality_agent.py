@@ -36,7 +36,11 @@ def test_decomposes_latest(tmp_path):
     assert v["total_advertised_apy_pct"] == 6.0
     assert v["sustainability_ratio"] == 0.9
     assert out["concern"] == "NONE_SURFACED"
-    assert out["yield_quality"]["evidence_level"] == "L4"
+    # ИЗМЕНЕНО НАМЕРЕННО 2026-08-29 (инвариант 16: обоснование здесь + журнал).
+    # Тест закреплял L4 — по канону docs/37 это «исполнено реальным капиталом»,
+    # чего не было НИ РАЗУ: система на paper-стадии, внешний капитал закрыт.
+    # Честный уровень: L2 — живое измерение цикла.
+    assert out["yield_quality"]["evidence_level"] == "L2"
 
 
 def test_low_sustainability_flags(tmp_path):

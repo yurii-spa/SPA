@@ -133,7 +133,7 @@ def build_report(write: bool = True) -> dict:
         "is_advisory": True,
         "deterministic": True,
         "llm_forbidden": True,
-        "evidence_level": "L4 — real historical peg series (prices_deep) + real advertised implied_yield "
+        "evidence_level": "L2 — real historical peg series (prices_deep) + real advertised implied_yield "
                           "(pendle_pt_history); avoided loss is a CONSERVATIVE LOWER BOUND (no pt_price MtM)",
         "reference_allocation_usd": _REF_ALLOC_USD,
         "rwa_floor_pct": _RWA_FLOOR_PCT,
