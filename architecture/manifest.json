@@ -626,6 +626,18 @@
     {
      "artifact": "data/shadow_trigger_evaluation.json",
      "slo_hours": 26
+    },
+    {
+     "artifact": "data/emergency_status.json",
+     "slo_hours": 26
+    },
+    {
+     "artifact": "data/market_regime.json",
+     "slo_hours": 26
+    },
+    {
+     "artifact": "data/track_persist_status.json",
+     "slo_hours": 26
     }
    ],
    "consumes": [],

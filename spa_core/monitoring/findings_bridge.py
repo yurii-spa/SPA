@@ -53,6 +53,13 @@ PRODUCES = (
     "data/loop_retro.json",
 )
 
+# Запись есть, продуктом не является (ADR-154): собственная память моста между
+# прогонами (что уже видено, что уже стало карточкой). Её потребитель — сам мост
+# на следующем запуске, а не читатель продукта; в коде читателей ноль (замер 29.08).
+INTERNAL_WRITES = (
+    "data/findings_bridge_state.json",
+)
+
 STATE_REL = os.path.join("data", "findings_bridge_state.json")
 REPORT_REL = os.path.join("data", "findings_bridge_report.json")
 

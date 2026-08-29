@@ -37,6 +37,19 @@ from pathlib import Path
 from spa_core.monitoring.artifact_io_scan import WRITE, scan_file
 
 DECLARATION = "PRODUCES"
+# Второе объявление: файлы, которые модуль ПИШЕТ, но продуктом не являются —
+# собственное состояние между прогонами, разовая копия при миграции, демо-ветка.
+# Понадобилось 29.08: `findings_bridge` пишет своё состояние `findings_bridge_state.json`,
+# а `cycle_runner` — `equity_curve_daily.demo_backup.json`, которого в проде НЕТ ВОВСЕ
+# (пишется только при переходе с демо-кривой на настоящую). Объявить их продуктами
+# значило бы завести вечную находку о протухании файла, которого никто не ждёт;
+# промолчать — оставить вечное противоречие. Верный ответ — третье: СКАЗАТЬ, что
+# запись есть и продуктом не является.
+#
+# Это МОЖЕТ стать глушилкой, и потому: (1) список виден грепом в одном месте,
+# (2) его размер лежит в отчёте рядом с вердиктом, (3) артефакт, попавший в ОБА
+# объявления сразу, — сам по себе противоречие (автор не решил, продукт это или нет).
+INTERNAL = "INTERNAL_WRITES"
 
 CONFIRMED = "confirmed"
 DECLARED_NONE = "declared_none"
@@ -51,6 +64,15 @@ def declared_produces(py_file: str | Path) -> tuple[str, ...] | None:
     Разница существенна: `PRODUCES = ()` значит «автор сказал: ничего не произвожу»,
     а отсутствие значит «никто не высказывался». Второе — работа, первое — ответ.
     """
+    return _declared_tuple(py_file, DECLARATION)
+
+
+def _declared_tuple(py_file: str | Path, name: str) -> tuple[str, ...] | None:
+    """Кортеж строк, объявленный именем `name` на верхнем уровне модуля.
+
+    None — имени нет вовсе; пустой кортеж — есть и пуст. Разбор `ast`, не импорт:
+    импортировать точку входа агента значит его ЗАПУСТИТЬ.
+    """
     p = Path(py_file)
     try:
         tree = ast.parse(p.read_text(encoding="utf-8", errors="replace"))
@@ -59,7 +81,7 @@ def declared_produces(py_file: str | Path) -> tuple[str, ...] | None:
     for node in tree.body:
         targets = node.targets if isinstance(node, ast.Assign) else (
             [node.target] if isinstance(node, ast.AnnAssign) else [])
-        if not any(isinstance(t, ast.Name) and t.id == DECLARATION for t in targets):
+        if not any(isinstance(t, ast.Name) and t.id == name for t in targets):
             continue
         val = node.value
         if isinstance(val, (ast.Tuple, ast.List)):
@@ -69,6 +91,12 @@ def declared_produces(py_file: str | Path) -> tuple[str, ...] | None:
         if isinstance(val, ast.Constant) and isinstance(val.value, str):
             return (val.value,)
     return None
+
+
+def declared_internal(py_file: str | Path) -> tuple[str, ...]:
+    """`INTERNAL_WRITES` модуля — разбором, не импортом (импорт исполнил бы агента)."""
+    got = _declared_tuple(py_file, INTERNAL)
+    return got or ()
 
 
 def _written_here(module: str, repo: Path) -> set[str]:
@@ -107,6 +135,13 @@ def check_agent(label: str, module: str, repo: Path) -> dict:
                 "note": "объявлено ЯВНО: артефактов не производит — метрикой качества "
                         "обязан стать другой признак (доступность / факт отправки)"}
     written = _written_here(module, repo)
+    internal = declared_internal(f) if f.is_file() else ()
+    both = sorted({d.split("/")[-1] for d in decl} & {i.split("/")[-1] for i in internal})
+    if both:
+        return {"label": label, "module": module, "verdict": CONTRADICTION,
+                "declared": list(decl), "undeclared_writes": both,
+                "note": "артефакт объявлен И продуктом, И внутренней записью — "
+                        "автор не решил, чем он является"}
     # ПРЕДЕЛ, который надо знать читателю вердикта: сравнение идёт по БАЗОВОМУ имени,
     # потому что в коде путь чаще всего собирается на лету (`ddir / "x.json"`), и
     # каталог статически не известен. В репозитории есть одноимённые файлы в разных
@@ -116,14 +151,15 @@ def check_agent(label: str, module: str, repo: Path) -> dict:
     # «каталог проверен»; для `contradiction` этого достаточно (написано имя, которого
     # нет в контракте вовсе), для полной сверки путей нужен рантайм.
     decl_base = {d.split("/")[-1] for d in decl}
-    extra = sorted(a for a in written - decl_base if a)
+    internal_base = {i.split("/")[-1] for i in internal}
+    extra = sorted(a for a in written - decl_base - internal_base if a)
     if extra:
         return {"label": label, "module": module, "verdict": CONTRADICTION,
                 "declared": list(decl), "undeclared_writes": extra,
                 "note": "собственный модуль агента пишет артефакт, которого нет в объявлении"}
     if decl_base & written:
         return {"label": label, "module": module, "verdict": CONFIRMED,
-                "declared": list(decl),
+                "declared": list(decl), "internal_writes": sorted(internal),
                 "note": "объявление подтверждено записью, видной в коде"}
     return {"label": label, "module": module, "verdict": UNMEASURED,
             "declared": list(decl),

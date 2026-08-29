@@ -142,6 +142,22 @@ PRODUCES = (
     "data/current_positions.json",
     "data/equity_curve_daily.json",
     "data/shadow_trigger_evaluation.json",
+    # Добавлены 29.08 по находке проверки B7: модуль их ПИСАЛ, а контракт о них
+    # молчал — то есть читатель этих файлов опирался на объявление, которого нет.
+    # Срок годности 26 ч назначен теми же двумя ролями, что и у соседей выше
+    # (ADR-158): пол архитектора — такт 24 ч + запас 2 ч на один пропуск;
+    # потолок Head-of-Investment не строже. Роли согласны.
+    "data/emergency_status.json",
+    "data/market_regime.json",
+    "data/track_persist_status.json",
+)
+
+# Запись есть, продуктом не является (ADR-154). Разовая копия старой кривой в момент
+# перехода с демо на настоящий трек: в проде этого файла НЕТ ВОВСЕ. Объявить его
+# продуктом значило бы завести вечную находку о протухании файла, которого никто не
+# ждёт; промолчать — оставить вечное противоречие. Верно — сказать вслух.
+INTERNAL_WRITES = (
+    "data/equity_curve_daily.demo_backup.json",
 )
 
 # ADR-025 — Base chain gas kill-switch monitor (fail-safe optional import)

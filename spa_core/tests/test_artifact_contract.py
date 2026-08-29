@@ -150,6 +150,71 @@ class TestThreeOutcomes(unittest.TestCase):
             self.assertEqual(ac.check_agent("a", "pkg.a", root)["verdict"], ac.UNDECLARED)
 
 
+class TestInternalWritesIsSaidAloudNotHidden(unittest.TestCase):
+    """`INTERNAL_WRITES` — третий ответ на «модуль пишет файл, которого нет в контракте».
+
+    Замер 29.08 нашёл два таких: `findings_bridge` пишет собственную память между
+    прогонами, а `cycle_runner` — разовую копию кривой при переходе с демо на
+    настоящий трек, которой в проде НЕТ ВОВСЕ. Объявить их продуктами значило бы
+    завести вечную находку о протухании файла, которого никто не ждёт; промолчать —
+    оставить вечное противоречие. Верный ответ третий: сказать, что запись есть и
+    продуктом не является.
+
+    Опасность приёма очевидна — это потенциальная ГЛУШИЛКА. Поэтому здесь
+    проверяется не только что она работает, но и что она НЕ всесильна.
+    """
+
+    def _agent(self, td, src):
+        root = Path(td)
+        (root / "pkg").mkdir(exist_ok=True)
+        (root / "pkg" / "__init__.py").write_text("", encoding="utf-8")
+        (root / "pkg" / "a.py").write_text(src, encoding="utf-8")
+        return root
+
+    def test_declared_internal_write_is_not_a_contradiction(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = self._agent(td, 'PRODUCES = ("data/x.json",)\n'
+                                   'INTERNAL_WRITES = ("data/state.json",)\n'
+                                   'atomic_save(d, "data/x.json")\n'
+                                   'atomic_save(s, "data/state.json")\n')
+            self.assertEqual(ac.check_agent("a", "pkg.a", root)["verdict"], ac.CONFIRMED)
+
+    def test_it_cannot_hide_a_write_it_did_not_name(self):
+        """Глушилка не всесильна: НЕназванная запись по-прежнему противоречие."""
+        with tempfile.TemporaryDirectory() as td:
+            root = self._agent(td, 'PRODUCES = ("data/x.json",)\n'
+                                   'INTERNAL_WRITES = ("data/state.json",)\n'
+                                   'atomic_save(d, "data/x.json")\n'
+                                   'atomic_save(z, "data/surprise.json")\n')
+            r = ac.check_agent("a", "pkg.a", root)
+            self.assertEqual(r["verdict"], ac.CONTRADICTION)
+            self.assertEqual(r["undeclared_writes"], ["surprise.json"])
+
+    def test_being_in_both_declarations_is_itself_a_contradiction(self):
+        """Автор не решил, продукт это или внутренняя запись — вопрос открыт, не закрыт."""
+        with tempfile.TemporaryDirectory() as td:
+            root = self._agent(td, 'PRODUCES = ("data/x.json",)\n'
+                                   'INTERNAL_WRITES = ("data/x.json",)\n'
+                                   'atomic_save(d, "data/x.json")\n')
+            r = ac.check_agent("a", "pkg.a", root)
+            self.assertEqual(r["verdict"], ac.CONTRADICTION)
+            self.assertIn("не решил", r["note"])
+
+    def test_absent_declaration_changes_nothing(self):
+        """Обратная сторона: без объявления поведение прежнее слово в слово."""
+        with tempfile.TemporaryDirectory() as td:
+            root = self._agent(td, 'PRODUCES = ("data/x.json",)\n'
+                                   'atomic_save(d, "data/x.json")\n'
+                                   'atomic_save(z, "data/state.json")\n')
+            self.assertEqual(ac.check_agent("a", "pkg.a", root)["verdict"], ac.CONTRADICTION)
+
+    def test_prose_mentioning_internal_writes_is_not_a_declaration(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "m.py"
+            p.write_text('"""This module INTERNAL_WRITES nothing."""\nx = 1\n', encoding="utf-8")
+            self.assertEqual(ac.declared_internal(p), ())
+
+
 class TestWriteHelperVocabulary(unittest.TestCase):
     """Флот пишет НЕ каноническим `atomic_save`, а локальными помощниками.
 
