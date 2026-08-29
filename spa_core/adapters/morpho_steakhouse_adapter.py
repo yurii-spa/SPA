@@ -1,4 +1,4 @@
-"""Morpho Blue Steakhouse USDC vault adapter (T1) — MP-355 + own-29 live feed.
+"""Morpho Blue Steakhouse USDC vault adapter (T2) — MP-355 + own-29 live feed.
 
 Конкретный адаптер для хранилища Steakhouse USDC на Morpho Blue Mainnet.
 Vault address: 0xBEEF01735c132Ada46AA9aA4c54623cAA92A64CB.
@@ -11,7 +11,7 @@ own-29 (2026-08-05): добавлен ЖИВОЙ путь TVL/APY через DeF
 константа НИКОГДА не подставляется в TVL-floor.
 
 Ключевые характеристики:
-- Tier T1 — лимит 40% портфеля
+- Tier T2 — лимит 20% портфеля (ADR-070 п.6: один vault — один риск, оценка 0.30)
 - APY (``get_apy_pct`` / ``get_apy``): живой фид → data/adapter_status.json
   (поле morpho_steakhouse.apy) → **None**. Подстановка 6.5 % удалена 2026-08-08
   решением владельца (ADR-063 п.3 доведён до конца); ``switch_recommended()``
@@ -47,7 +47,7 @@ _DEFAULT_DATA_DIR = _REPO_ROOT / "data"
 
 
 class MorphoSteakhouseAdapter(BaseAdapter):
-    """Read-only advisory адаптер для Morpho Blue Steakhouse USDC vault (T1).
+    """Read-only advisory адаптер для Morpho Blue Steakhouse USDC vault (T2).
 
     APY берётся из живого DeFiLlama-фида, затем из ``data/adapter_status.json``
     → ``morpho_steakhouse.apy`` (значение в процентах). При отсутствии обоих
@@ -63,10 +63,27 @@ class MorphoSteakhouseAdapter(BaseAdapter):
     VAULT_NAME = "Steakhouse USDC"
 
     # ── тир / риск ───────────────────────────────────────────────────────
-    TIER = "T1"
-    T1_CAP = 0.40          # макс 40% портфеля в этом протоколе
-    RISK_SCORE = 0.22      # чуть выше Aave T1 (0.20) — vault-слой добавляет
-                           # незначительный смарт-контрактный риск
+    # ИСПРАВЛЕНО 2026-08-29: здесь стояло TIER="T1", T1_CAP=0.40, RISK_SCORE=0.22.
+    #
+    # Решение владельца **ADR-070 п.6** (07.08): «morpho_steakhouse риск-оценка =
+    # оценка morpho_blue — один vault, один риск». Оценка morpho_blue = 0.30, а по
+    # контракту тиров (`protocol_risk_map.TIER_BANDS`: T1 < 0.25) это обязывает T2.
+    #
+    # Решение доехало до ТРЁХ источников из четырёх — `PROTOCOL_RISK_SCORES`,
+    # `ADAPTER_REGISTRY`, `tier_map` — и не доехало сюда. А снимок оркестратора
+    # берёт тир именно отсюда, аллокатор строит из снимка свои потолки, и
+    # `validation_summary` дневного цикла печатал T1 55 % / T2 35 % вместо
+    # T1 40 % / T2 **50 %**: цикл видел 15 пунктов запаса в T2, которых нет.
+    #
+    # Числа НЕ выбраны здесь: они читаются из канона (`PROTOCOL_RISK_SCORES`),
+    # чтобы четвёртая копия не завелась заново. Тир объявляется в одном месте —
+    # `docs/tier_criteria.md` §2.
+    TIER = "T2"
+    RISK_SCORE = 0.30      # = оценка morpho_blue (ADR-070 п.6)
+    # Совместимость: часть кода читает `T1_CAP` как «потолок этого протокола».
+    # Имя историческое и теперь вводит в заблуждение, поэтому значение —
+    # потолок T2, а не T1.
+    T1_CAP = 0.20          # потолок T2 (RiskConfig.max_concentration_t2)
 
     # SPA-V412: instant exit — позиция ликвидна на уровне Morpho Blue lending
     EXIT_LATENCY_HOURS = 0.0

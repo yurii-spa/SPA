@@ -14,6 +14,7 @@ advisory-отчёт кураторов).
 from __future__ import annotations
 
 import json
+import ast
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -348,6 +349,53 @@ def test_curator_never_imports_execution_or_gate_domains():
         assert forbidden not in text, forbidden
 
 
+def _docstring_nodes(tree: "ast.AST") -> set:
+    """Узлы-докстроки модуля, классов и функций — по id объекта."""
+    out = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            body = getattr(node, "body", None)
+            if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant) \
+                    and isinstance(body[0].value.value, str):
+                out.add(id(body[0].value))
+    return out
+
+
+def _mentions_curator_in_code(text: str) -> bool:
+    """Читает ли модуль отчёт куратора / импортирует ли curate() — В КОДЕ.
+
+    Раньше здесь стояла проверка подстроки ``"tier_curator" in text``, и она
+    краснела на ПРОЗЕ: `spa_core/agents/apy_evidencer.py` перечисляет в своей
+    докстроке артефакты, записывающие APY, и среди них `tier_curator_report.json`.
+    Модуль отчёт не читает и тиры не меняет — сторож краснел на верное состояние.
+
+    По правилу доставки такой сторож чинится, а не отключается. Теперь считаются
+    только ИМПОРТЫ модуля и строковые константы вне докстрок (путь, который
+    собирают, чтобы файл прочитать). Зубы сохранены: модуль, строящий
+    ``"data/tier_curator_report.json"`` для чтения, по-прежнему ловится.
+    """
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return "tier_curator" in text          # неразбираемое — судим строго
+    docs = _docstring_nodes(tree)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            if any("tier_curator" in a.name for a in node.names):
+                return True
+        elif isinstance(node, ast.ImportFrom):
+            if node.module and "tier_curator" in node.module:
+                return True
+            if any("tier_curator" in a.name for a in node.names):
+                return True
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+            if "tier_curator" in node.value and id(node) not in docs:
+                return True
+        elif isinstance(node, ast.Attribute) and "tier_curator" in node.attr:
+            return True
+    return False
+
+
 def test_no_module_consumes_report_to_mutate_tiers():
     """Никто в runtime-коде не ЧИТАЕТ tier_curator_report.json и не импортирует
     curate() для смены тира: упоминания допустимы только в самом модуле
@@ -358,8 +406,12 @@ def test_no_module_consumes_report_to_mutate_tiers():
     for py in SPA_CORE.rglob("*.py"):
         if py.parts and "tests" in py.parts:
             continue
+        if py in allowed:
+            continue
         text = py.read_text(encoding="utf-8", errors="replace")
-        if "tier_curator" in text and py not in allowed:
+        if "tier_curator" not in text:
+            continue
+        if _mentions_curator_in_code(text):
             offenders.append(str(py))
     assert offenders == [], offenders
     # cycle_runner: только write_report, самого файла отчёта он не читает
@@ -380,3 +432,18 @@ def test_cycle_hook_is_non_critical():
         r"write_report", runner)
     assert m, "tier_curator import must live inside a try-block"
     assert "tier_curator report failed (non-critical)" in runner
+
+
+def test_the_consumer_guard_tells_code_from_prose():
+    """Контроль в обе стороны: проза не ловится, чтение отчёта — ловится."""
+    prose = '"""Читает apy_ranking.json, а не data/tier_curator_report.json."""\nX = 1\n'
+    assert not _mentions_curator_in_code(prose), "докстрока — не потребление"
+
+    reads = 'p = "data/tier_curator_report.json"\nopen(p)\n'
+    assert _mentions_curator_in_code(reads), "построение пути для чтения обязано ловиться"
+
+    imports = "from spa_core.analytics.tier_curator import curate\n"
+    assert _mentions_curator_in_code(imports), "импорт curate() обязан ловиться"
+
+    unparseable = "def broken(:\n  tier_curator\n"
+    assert _mentions_curator_in_code(unparseable), "неразбираемое судится строго"

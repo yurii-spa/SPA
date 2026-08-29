@@ -107,14 +107,28 @@ class TestIdentity(unittest.TestCase):
     def test_vault_name(self):
         self.assertEqual(MorphoSteakhouseAdapter.VAULT_NAME, "Steakhouse USDC")
 
-    def test_tier_constant_is_t1(self):
-        self.assertEqual(MorphoSteakhouseAdapter.TIER, "T1")
+    def test_tier_constant_is_t2(self):
+        """ИЗМЕНЕНО НАМЕРЕННО 2026-08-29 (инвариант 16: обоснование здесь + журнал).
 
-    def test_instance_tier_is_t1(self):
-        self.assertEqual(_default().tier, "T1")
+        Тест закреплял T1 — тир, ОТМЕНЁННЫЙ решением владельца ADR-070 п.6 (07.08):
+        «morpho_steakhouse риск-оценка = оценка morpho_blue» (0.30), а контракт
+        тиров (T1 < 0.25) обязывает T2. Решение доехало до канона, реестра и
+        разрешателя имён — и не доехало до класса; закреплял это именно данный тест.
+        Проверка не ослаблена: значение сверяется с КАНОНОМ, а не с литералом.
+        """
+        from spa_core.risk.protocol_risk_map import PROTOCOL_RISK_SCORES
+        self.assertEqual(MorphoSteakhouseAdapter.TIER, "T2")
+        self.assertEqual(MorphoSteakhouseAdapter.TIER,
+                         PROTOCOL_RISK_SCORES["morpho_steakhouse"]["tier"])
 
-    def test_t1_cap_is_040(self):
-        self.assertAlmostEqual(MorphoSteakhouseAdapter.T1_CAP, 0.40)
+    def test_instance_tier_is_t2(self):
+        self.assertEqual(_default().tier, "T2")
+
+    def test_cap_is_the_t2_ceiling(self):
+        """Имя `T1_CAP` историческое; значение обязано быть потолком T2."""
+        from spa_core.risk.policy import RiskConfig
+        self.assertAlmostEqual(MorphoSteakhouseAdapter.T1_CAP,
+                               RiskConfig().max_concentration_t2)
 
     def test_is_base_adapter_subclass(self):
         self.assertIsInstance(_default(), BaseAdapter)
@@ -329,9 +343,9 @@ class TestHealthCheck(unittest.TestCase):
         hc = _default().health_check()
         self.assertEqual(hc["vault"], MorphoSteakhouseAdapter.VAULT_ADDRESS)
 
-    def test_health_check_tier_t1(self):
+    def test_health_check_tier_t2(self):
         hc = _default().health_check()
-        self.assertEqual(hc["tier"], "T1")
+        self.assertEqual(hc["tier"], "T2")
 
     def test_health_check_quick_win_true(self):
         hc = _default().health_check()
@@ -369,11 +383,12 @@ class TestToDict(unittest.TestCase):
     def test_to_dict_has_vault_name(self):
         self.assertEqual(self._d()["vault_name"], "Steakhouse USDC")
 
-    def test_to_dict_tier_is_t1(self):
-        self.assertEqual(self._d()["tier"], "T1")
+    def test_to_dict_tier_is_t2(self):
+        self.assertEqual(self._d()["tier"], "T2")
 
-    def test_to_dict_t1_cap(self):
-        self.assertAlmostEqual(self._d()["t1_cap"], 0.40)
+    def test_to_dict_cap(self):
+        from spa_core.risk.policy import RiskConfig
+        self.assertAlmostEqual(self._d()["t1_cap"], RiskConfig().max_concentration_t2)
 
     def test_to_dict_quick_win_true(self):
         self.assertTrue(self._d()["quick_win"])
@@ -485,8 +500,8 @@ class TestGetYieldInfo(unittest.TestCase):
     def test_get_yield_info_asset_usdc(self):
         self.assertEqual(_default().get_yield_info().asset, "USDC")
 
-    def test_get_yield_info_tier_t1(self):
-        self.assertEqual(_default().get_yield_info().tier, "T1")
+    def test_get_yield_info_tier_t2(self):
+        self.assertEqual(_default().get_yield_info().tier, "T2")
 
     def test_get_yield_info_apy_is_decimal(self):
         # own-29 (2026-08-05, намеренное изменение с обоснованием — инв.16):
