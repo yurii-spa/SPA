@@ -76,10 +76,27 @@ class RoundingWouldEraseTheEvidence(unittest.TestCase):
     def test_the_refusal_can_be_recomputed_from_the_record_alone(self):
         """Смысл записи: по ней и только по ней отказ обязан пересчитываться."""
         r = rec(self.LEGS, 100000.0, {}, [])
-        cash = r["capital_usd"]
+        # ИЗМЕНЁН НАМЕРЕННО 29.08 (инв. #16): пересчёт приведён к арифметике ГЕЙТА.
+        # Прежняя редакция вычитала последовательно и на реальных числах давала ровно
+        # 5000.0 — то есть «доказывала», что отказывать не за что, тогда как гейт
+        # считает `капитал − sum(предыдущие) − сумма` и получает 4999.999999999996.
+        # Тест, считающий не тем способом, оправдывал бы цель, которую гейт отверг.
+        prior = []
+        cash = None
         for _p, v in sorted(r["raw_target"].items(), key=lambda kv: (-float(kv[1]), kv[0])):
-            cash -= float(v)
+            cash = r["capital_usd"] - sum(prior) - float(v)
+            prior.append(float(v))
         self.assertEqual(repr(cash), r["raw_remaining_sequential"])
+
+    def test_the_record_reproduces_the_real_refusal_of_29_aug(self):
+        """Положительный контроль: на сырых числах прода запись обязана уйти НИЖЕ порога."""
+        real = {"aave_v3": 22105.260000000006, "compound_v3": 37894.74,
+                "fluid_usdc": 9473.68, "maple": 18947.37,
+                "morpho_blue_base": 6578.950000000001}
+        r = rec(real, 100000.0, {}, ["cash buffer"])
+        self.assertLess(float(r["raw_remaining_frac"]), 0.05)
+        self.assertEqual(r["remaining_cash_usd"], 5000.0,
+                         "округлённое число обязано остаться читаемым для человека")
 
     def test_the_two_ways_of_counting_are_both_recorded(self):
         """Они РАСХОДЯТСЯ, и запись обязана показывать оба — иначе спор беспредметен."""
