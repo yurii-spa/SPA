@@ -105,6 +105,22 @@ print(CPACycleWithEvidence(base_dir='.').run())
 " >> "$LOG_FILE" 2>&1 \
   || echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] evidence report failed (non-fatal)" >> "$LOG_FILE"
 
+# ── Step 2b: Allocation Auditor (AI1-1.1) — соответствует ли СЕГОДНЯШНЯЯ книга
+# записанной политике (docs/allocation_logic_explicit.md). Только читает и сообщает:
+# капитал не двигает, ничего не гейтит. Код выхода 0/1/2 (норма / не измерено /
+# нарушения) ЛОГИРУЕТСЯ и намеренно НЕ влияет на цикл — надзор не имеет права
+# останавливать трек. Подключено с разрешения владельца 2026-08-29.
+"$PYTHON" -m spa_core.agents.allocation_auditor >> "$LOG_FILE" 2>&1
+ALLOC_AUDIT_EXIT=$?
+echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] allocation_auditor exit=$ALLOC_AUDIT_EXIT (0=норма, 1=не измерено, 2=нарушения; НЕ гейт)" | tee -a "$LOG_FILE"
+
+# ── Step 2c: APY Evidencer (AI1-2.2) — уровень доказательности каждому записанному
+# числу доходности (ADR-YL-006: APY нельзя записывать без уровня). Тоже read-only,
+# тоже не гейт.
+"$PYTHON" -m spa_core.agents.apy_evidencer >> "$LOG_FILE" 2>&1
+APY_EVIDENCE_EXIT=$?
+echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] apy_evidencer exit=$APY_EVIDENCE_EXIT (0=всё наблюдаемо, 1=есть непроцитируемые, 2=есть неизмеримые; НЕ гейт)" | tee -a "$LOG_FILE"
+
 # ── Step 3: Site Custodian auto-deploy (ADR-YL-011) — regenerate the public track_snapshot from the
 # fresh golive/equity state and push it if changed, triggering deploy-landing.yml (landing/** trigger).
 # Non-fatal: a deploy hiccup must never fail the cycle. Result: fresh snapshot -> fresh site, <=30 min lag.
