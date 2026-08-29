@@ -165,6 +165,7 @@ nimbalyst-local/tracker/
 
 | Компонент | Статус | Файл |
 |-----------|--------|------|
+| Allocation Auditor | ✅ | `spa_core/agents/allocation_auditor.py` |
 | RiskPolicy v1.0 | ✅ | `spa_core/risk/policy.py` |
 | Kill-Switch | ✅ | `spa_core/governance/kill_switch.py` |
 | Allocation Logic | ✅ | `spa_core/allocator/allocator.py` |
@@ -180,7 +181,7 @@ nimbalyst-local/tracker/
 | Task | Кто | Статус | Сроки |
 |------|-----|--------|-------|
 | 1.0: allocation_logic_explicit | Owner + Claude | 🟡 черновик готов, ждёт ревью владельца | ✅ 2026-08-29 |
-| 1.1: Allocation Auditor | Claude | ❌ | W3-W4 |
+| 1.1: Allocation Auditor | Claude | ✅ доставлен, ждёт подключения в цикл | ✅ 2026-08-29 |
 | 2.1: Evidence-levels std | Claude | ❌ | W5-W6 |
 | 2.2: APY Evidencer | Claude | ❌ | W6-W9 |
 | 2.3: Tier criteria std | Claude | ❌ | W6-W9 |
