@@ -44,6 +44,7 @@ from spa_core.adapters import (
 from spa_core.adapters.morpho_steakhouse_adapter import MorphoSteakhouseAdapter
 from spa_core.adapters.aave_v3_base_adapter import AaveV3BaseAdapter
 from spa_core.adapters.morpho_blue_base_adapter import MorphoBlueBaseAdapter
+from spa_core.adapters.fluid_usdc_adapter import FluidUSDCAdapter
 from spa_core.adapters.fluid_fusdc_adapter import FluidFUSDCAdapter
 from spa_core.orchestrator.health_score import (
     compute_health_score,
@@ -112,6 +113,26 @@ POLLED_ADAPTERS: list[tuple[str, str, type]] = [
     # книги, опираясь на константу — карточка на живой фид заведена отдельно.
     ("aave_v3_base", "T2", AaveV3BaseAdapter),
     ("morpho_blue_base", "T2", MorphoBlueBaseAdapter),
+    # ── ШАГ 2 расширения (29.08). Кандидатов было два, взят ОДИН — так показал замер.
+    #
+    # Песочница (run_orchestrator(write=False) → аллокатор), 10 против вариантов:
+    #   +fluid_usdc  : APY 3.87 % → 4.04 %, размещено 100 %, тримов нет
+    #   +ethena_susde: APY 3.87 % → 4.05 %, размещено 100 %, тримов нет
+    #   +ОБА         : APY 3.87 % → 3.80 %, размещено 90 %, трим t2_total_cap 0.10
+    #
+    # Оба вместе ХУЖЕ каждого по отдельности, и это не парадокс: отбор лучших восьми
+    # (ALLOC-002/ADR-138) идёт по доходности и не бережёт T1-якорь — при 12 кандидатах
+    # `aave_v3` (вес 0.22) вытесняется из книги, после чего потолок «T2 всего ≤ 50 %»
+    # связывает, и 10 % капитала остаются неразмещёнными. Тот же класс, что обвал
+    # 08.08, только мягче: «больше кандидатов» ≠ «лучше книга». Наблюдение о якоре
+    # записано карточкой — это money-path и решается ADR, а не правкой на ходу.
+    #
+    # ПОЧЕМУ fluid, а не ethena, при равной доходности (разница 0.01 п.п. — шум):
+    # `RISK_SCORE` 0.45 против 0.55. Fluid — обычный рынок кредитования, как и вся
+    # остальная книга; sUSDe — синтетический доллар (delta-neutral базис, депег
+    # доминирует в риске), то есть НОВЫЙ класс риска. За 0.01 п.п. класс риска не
+    # меняют. ethena_susde остаётся кандидатом следующего шага, отдельным замером.
+    ("fluid_usdc", "T2", FluidUSDCAdapter),
     # MP-201: Pendle PT stablecoin markets — T2/T3 dynamic tier, fixed-rate APY
     # via the Pendle V2 REST API. Declared T2 here as registry-level default.
     ("pendle", "T2", PendleAdapter),
