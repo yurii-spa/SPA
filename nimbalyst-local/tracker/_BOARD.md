@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-29T19:24:10Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-29T19:47:55Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **788** · ждёт владельца: **11** · занято сессиями: **8**.
+> Всего карточек: **789** · ждёт владельца: **12** · занято сессиями: **8**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -14,6 +14,7 @@
 - **Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз** · _high_  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md`
 - **Партия 2 карантина: кандидатов четыре, и по ним у меня разные рекомендации**  ·  `owner-decision-partiya-2-karantina-kandidatov-chetyre-i.md`
 - **Security-скан risk-гейта нашёл два расхождения между ADR и реальным кодом: оси риска не подключены, тир протокола не сверяется** · _high_  ·  `owner-decision-security-skan-risk-geita-nashel-dva-rash.md`
+- **Сторож всплесков доходности написан, порог верный, сработал бы 25 августа — и его не зовёт никто** · _high_  ·  `owner-decision-storozh-vspleskov-apy-nikto-ne-zovet-2026-08-29.md`
 - **Tier-B: 84 модуля отвечают одинаково даже несуществующему протоколу — списать?**  ·  `owner-decision-tier-b-84-modulya-otvechayut-odinakovo-d.md`
 - **Tier-B: ещё 82 модуля различий не показали — списать или заморозить?**  ·  `owner-decision-tier-b-esche-82-modulya-razlichii-ne-pok.md`
 - **Треть флота нельзя проверить: у служб и демонов метрика «свежесть файла» не работает, а замены нет**  ·  `owner-decision-tret-flota-nelzya-proverit-u-sluzhb-i-de.md`
@@ -33,7 +34,7 @@
 - **РЕЦИДИВ 28.08: тест судит о ХОСТЕ по литеральному pid — 98535 (siriactionsd), теперь 999 (NetFS) в test_card_claim_takeover** — держит `cycle-51123` · с 2026-08-22T08:45:00Z  ·  `inbox-test-sudit-o-hoste-literalnyi-pid-98535.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (195)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (196)
 
 ### · needs-owner
 - Aave на Arbitrum: мы смотрим на опустевший рынок —  тыс. вместо заявленного .2 млрд  ·  `owner-decision-aave-na-arbitrum-my-smotrim-na-opustevsh.md` · 2026-08-29
@@ -41,6 +42,7 @@
 - Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md` · 2026-08-29
 - Партия 2 карантина: кандидатов четыре, и по ним у меня разные рекомендации  ·  `owner-decision-partiya-2-karantina-kandidatov-chetyre-i.md` · 2026-08-29
 - Security-скан risk-гейта нашёл два расхождения между ADR и реальным кодом: оси риска не подключены, тир протокола не сверяется  ·  `owner-decision-security-skan-risk-geita-nashel-dva-rash.md` · 2026-08-29
+- Сторож всплесков доходности написан, порог верный, сработал бы 25 августа — и его не зовёт никто  ·  `owner-decision-storozh-vspleskov-apy-nikto-ne-zovet-2026-08-29.md` · 2026-08-29
 - Tier-B: 84 модуля отвечают одинаково даже несуществующему протоколу — списать?  ·  `owner-decision-tier-b-84-modulya-otvechayut-odinakovo-d.md` · 2026-08-29
 - Tier-B: ещё 82 модуля различий не показали — списать или заморозить?  ·  `owner-decision-tier-b-esche-82-modulya-razlichii-ne-pok.md` · 2026-08-29
 - Треть флота нельзя проверить: у служб и демонов метрика «свежесть файла» не работает, а замены нет  ·  `owner-decision-tret-flota-nelzya-proverit-u-sluzhb-i-de.md` · 2026-08-29
