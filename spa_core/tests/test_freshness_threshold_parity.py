@@ -19,11 +19,24 @@ from spa_core.monitoring import freshness_threshold_parity as p
 
 
 class TestFindsRealDivergence(unittest.TestCase):
-    def test_same_artifact_different_hours_is_a_finding(self):
+    def test_same_artifact_different_hours_is_recorded_not_alarmed(self):
+        """ИЗМЕНЁН НАМЕРЕННО 29.08 (инв. #16), прежнее имя —
+        `test_same_artifact_different_hours_is_a_finding`.
+
+        Тест закреплял правило «разные числа = находка». Правило оказалось неверным:
+        окно живости и срок годности продукта отвечают на РАЗНЫЕ вопросы, а свежесть
+        продукта против `slo_hours` сторожит проверка B2 напрямую, каждые 6 ч. Посылка
+        «продукт протухнет незамеченным» ложна. На исправном флоте правило давало 12
+        находок из 12 — то есть краснело на ВЕРНОЕ состояние.
+
+        Проверка не отключена: числа считаются и лежат в отчёте, а предмет сверки сужен
+        до тождества файла (`different_artifact`), где разногласие настоящее.
+        """
         r = p.compare({"a": {"data/x.json": 3.0}}, {"a": ("data/x.json", 6.0)})
-        self.assertEqual(r["verdict"], p.THRESHOLD_MISMATCH)
-        self.assertEqual(r["findings"][0]["manifest_hours"], 3.0)
-        self.assertEqual(r["findings"][0]["monitor_hours"], 6.0)
+        self.assertEqual(r["verdict"], p.AGREES)
+        self.assertEqual(r["findings"], [])
+        self.assertEqual(r["threshold_notes"][0]["manifest_hours"], 3.0)
+        self.assertEqual(r["threshold_notes"][0]["monitor_hours"], 6.0)
 
     def test_different_artifact_for_the_same_agent_is_a_finding(self):
         """Авария, найденная на живом дереве: живость `daily_cycle` судят по файлу,
@@ -60,9 +73,16 @@ class TestToleranceIsForArithmeticNotForSlack(unittest.TestCase):
         self.assertEqual(r["verdict"], p.AGREES)
 
     def test_a_real_difference_is_not_swallowed(self):
-        """Обратный контроль: «почти совпадает» — всё равно находка."""
+        """ИЗМЕНЁН НАМЕРЕННО 29.08 (инв. #16) вместе с тестом выше — та же причина.
+
+        Смысл контроля сохранён и даже усилен: настоящая разница чисел не должна
+        ПРОПАДАТЬ. Она и не пропадает — она записана. Изменилось только то, кем
+        она считается: наблюдением, а не аварией. Допуск по-прежнему защищает лишь
+        от арифметики с плавающей точкой, а не даёт люфт.
+        """
         r = p.compare({"a": {"data/x.json": 0.5}}, {"a": ("data/x.json", 0.6)})
-        self.assertEqual(r["verdict"], p.THRESHOLD_MISMATCH)
+        self.assertEqual(r["findings"], [])
+        self.assertEqual(len(r["threshold_notes"]), 1)
 
 
 class TestMonitorParsing(unittest.TestCase):
@@ -92,46 +112,40 @@ if __name__ == "__main__":
 class TwoNumbersAnswerTwoDifferentQuestions(unittest.TestCase):
     """Сверка выдала 12 «расхождений» на ИСПРАВНОМ флоте — дефект был в ней самой.
 
-    `uptime_monitor` меряет «ЖИВ ЛИ АГЕНТ»: порог выводится из расписания с запасом
-    в 2–3 такта, чтобы один пропуск не мигал. Манифест объявляет «СВЕЖ ЛИ ПРОДУКТ
-    ДЛЯ ПОТРЕБИТЕЛЯ»: срок назначают две роли по цене опоздания (ADR-158). Требовать
-    совпадения этих чисел — требовать, чтобы ответ на один вопрос совпал с ответом на
-    другой; ровно об этом предупреждает таблица в .claude/rules/deployment.md.
+    Порог `uptime_monitor` отвечает «ЖИВ ЛИ АГЕНТ» и выводится из расписания с запасом
+    1.25–1.5 такта, чтобы один пропуск не мигал. `slo_hours` манифеста отвечает «СВЕЖ ЛИ
+    ПРОДУКТ ДЛЯ ПОТРЕБИТЕЛЯ» и назначается двумя ролями по цене опоздания (ADR-158).
 
-    Из 12 «находок» настоящими оказались ДВЕ. Проверка не ослаблена, а сужена до
-    своего предмета — и предмет закреплён с обеих сторон.
+    Я сузил проверку дважды за день. Сначала счёл дефектом случай «монитор лояльнее»:
+    продукт протухает через 26 ч, а тревога о молчании — через 36 ч. Посылка «десять
+    часов никто не знает» оказалась ЛОЖНОЙ: свежесть продукта против `slo_hours`
+    сторожит проверка B2 каждые 6 ч и напрямую. Соотношения между окнами не требуется
+    ни в какую сторону — это ровно ошибка «три вопроса — три сторожа» из
+    .claude/rules/deployment.md, допущенная в собственной проверке.
     """
 
-    def test_monitor_looser_than_the_product_slo_is_a_finding(self):
-        """Настоящий дефект: analytics_tier_c — продукт 26 ч, живость 36 ч.
-
-        Десять часов файл уже негоден, а тревоги о молчании агента ещё нет.
-        """
+    def test_looser_monitor_is_not_a_finding_because_B2_watches_the_product(self):
         r = p.compare({"a": {"data/x.json": 26.0}}, {"a": ("data/x.json", 36.0)})
-        self.assertEqual([f["verdict"] for f in r["findings"]], [p.THRESHOLD_MISMATCH])
-        self.assertIn("тревоги ещё нет", r["findings"][0]["note"])
+        self.assertEqual(r["findings"], [])
+        self.assertEqual(len(r["threshold_notes"]), 1)
 
-    def test_monitor_stricter_is_normal_not_a_finding(self):
-        """bts-feed: продукт нужен раз в неделю, живость проверяется раз в час."""
+    def test_stricter_monitor_is_not_a_finding_either(self):
         r = p.compare({"a": {"data/x.json": 168.0}}, {"a": ("data/x.json", 1.0)})
         self.assertEqual(r["findings"], [])
         self.assertEqual(r["verdict"], p.AGREES)
-        self.assertEqual([x["verdict"] for x in r["monitor_stricter"]],
-                         [p.MONITOR_STRICTER])
 
-    def test_stricter_case_is_recorded_not_swallowed(self):
-        """«Проверено и нормально» не должно быть неотличимо от «не смотрели»."""
-        r = p.compare({"a": {"data/x.json": 168.0}}, {"a": ("data/x.json", 1.0)})
+    def test_the_difference_is_recorded_so_checked_is_not_unchecked(self):
+        """«Сверено, соотношение такое-то» не должно быть неотличимо от «не сверяли»."""
+        r = p.compare({"a": {"data/x.json": 26.0}}, {"a": ("data/x.json", 36.0)})
         self.assertEqual(r["compared"], 1)
-        self.assertEqual(len(r["monitor_stricter"]), 1)
+        self.assertIn("НОРМА", r["threshold_notes"][0]["note"])
 
-    def test_equal_numbers_are_silent_in_both_lists(self):
+    def test_equal_numbers_produce_no_note_at_all(self):
         r = p.compare({"a": {"data/x.json": 26.0}}, {"a": ("data/x.json", 26.0)})
+        self.assertEqual(r["threshold_notes"], [])
         self.assertEqual(r["findings"], [])
-        self.assertEqual(r["monitor_stricter"], [])
 
-    def test_different_file_is_still_a_finding(self):
-        """Сужение не тронуло второй предмет: дома называют РАЗНЫЕ файлы продуктом."""
+    def test_different_file_is_the_one_real_subject_left(self):
+        """Сужение не тронуло предмет, где разногласие настоящее — тождество файла."""
         r = p.compare({"a": {"data/x.json": 26.0}}, {"a": ("data/y.json", 26.0)})
         self.assertEqual([f["verdict"] for f in r["findings"]], [p.DIFFERENT_ARTIFACT])
-
