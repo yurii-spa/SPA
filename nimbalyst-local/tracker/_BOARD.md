@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-30T03:20:07Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-30T03:24:44Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **806** · ждёт владельца: **4** · занято сессиями: **9**.
+> Всего карточек: **807** · ждёт владельца: **4** · занято сессиями: **9**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -229,7 +229,7 @@
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (396)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (397)
 
 ### · needs-owner
 - Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md` · 2026-08-29
@@ -626,6 +626,7 @@
 - Цикл считает покрытие фидов 100% живым, а aave_arbitrum читает круглые константы из adapter_status.json  ·  `inbox-tsikl-schitaet-pokrytie-fidov-100-zhivym.md` · 2026-08-29
 - usual_usd0pp отдаёт число ЧУЖОГО актива: отбор по подстроке приземляется на BUSD0, а пула USD0++ в фиде нет  ·  `inbox-usual-usd0pp-otdaet-chislo-chuzhogo-akti.md` · 2026-08-29
 - Вердикт деска по sUSDS стоит на СНЯТОЙ причине — а книга этот актив держит  ·  `inbox-verdikt-deska-po-susds-stoit-na-snyatoi.md` · 2026-08-25
+- Вердикт сторожа архитектуры относится к манифесту, которого больше нет — а 492 строки нового лежат в прод-дереве незакоммиченными  ·  `inbox-verdikt-storozha-arhitektury-otnositsya.md` · 2026-08-30
 - Закрепить morpho_blue_base за конкретным хранилищем (сейчас берётся «крупнейшее сегодня»)  ·  `inbox-zakrepit-morpho-blue-base-za-konkretnym.md` · 2026-08-26
 - Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07 · 🔒 `cycle-81141`
 - Запись ЗА другую сессию уезжает с якорем ЖИВОГО процесса писателя — чужой ярлык читается как ACTIVE  ·  `inbox-zapis-za-druguyu-sessiyu-uezzhaet-s-yako.md` · 2026-08-26
