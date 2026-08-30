@@ -402,8 +402,8 @@
     "goal": "claude-code-kanban backup monitor (ENV_SETUP v3 §4.1)",
     "quality_metric": "процесс загружен в launchd и держит pid (data/agent_health.json: loaded=true, pid≠0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
-    "limits": ""
+    "rights": "запускать внешние: npm, npx",
+    "limits": "ни один шаг не импортирует execution; питоновских шагов нет — внешняя программа под launchd"
    }
   },
   {
@@ -448,8 +448,8 @@
     "goal": "reads tunnel token from Keychain, finds cloudflared binary across common install paths, and execs the tunnel.",
     "quality_metric": "процесс загружен в launchd и держит pid (data/agent_health.json: loaded=true, pid≠0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
-    "limits": ""
+    "rights": "запускать внешние: cloudflared",
+    "limits": "ни один шаг не импортирует execution; питоновских шагов нет — внешняя программа под launchd"
    }
   },
   {
@@ -603,7 +603,7 @@
     "goal": "DAILY snapshot of ALL data/*.json into data/backups/.",
     "quality_metric": "запускается по расписанию calendar:05:30 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
+    "rights": "запускать 1 шаг(ов): scripts.daily_backup",
     "limits": "LLM запрещён; не импортирует execution"
    }
   },
@@ -1471,8 +1471,8 @@
     "goal": "spa_core/backtesting/tier1/data_integrity.py — historical-data integrity / no-lookahead.",
     "quality_metric": "запускается по расписанию calendar:06:30 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
-    "limits": ""
+    "rights": "запускать 20 шаг(ов): scripts.fetch_historical_apy, spa_core.backtesting.mass_tournament, spa_core.backtesting.strategy_tournament_runner …",
+    "limits": "ни один шаг не импортирует execution; LLM запрещён"
    }
   },
   {
@@ -1570,8 +1570,8 @@
     "goal": "headless orchestrator agent (ENV_SETUP v3 §3.5)",
     "quality_metric": "запускается по расписанию interval:3600s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
-    "limits": ""
+    "rights": "запускать 6 шаг(ов): scripts.check_owner_order_starvation, scripts.consume_office_reports, scripts.cycle_analytics_audit …; запускать внешние: open",
+    "limits": "ни один шаг не импортирует execution; LLM запрещён"
    }
   },
   {
@@ -2158,8 +2158,8 @@
     "goal": "Swarm block 4 — L3 Dynamic Leverage Guardian, forward (the brain that sizes risk to weather).",
     "quality_metric": "запускается по расписанию interval:3600s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
-    "limits": ""
+    "rights": "запускать 2 шаг(ов): spa_core., spa_core.strategy_lab.swarm.swarm_book",
+    "limits": "ни один шаг не импортирует execution; LLM запрещён"
    }
   },
   {
@@ -2239,8 +2239,8 @@
     "goal": "Swarm block 5 — L4 immune layer: the agent that watches the swarm itself.",
     "quality_metric": "запускается по расписанию interval:3600s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
-    "limits": ""
+    "rights": "запускать 2 шаг(ов): spa_core.strategy_lab.swarm.chaos_drill, spa_core.strategy_lab.swarm.leadtime_evidence",
+    "limits": "ни один шаг не импортирует execution; LLM запрещён"
    }
   },
   {
@@ -2294,7 +2294,7 @@
     "goal": "Swarm block 3 — L1 funding-regime classifier (GREEN / YELLOW / RED carry weather).",
     "quality_metric": "запускается по расписанию interval:3600s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
+    "rights": "запускать 1 шаг(ов): spa_core.strategy_lab.swarm.eyc_allocator",
     "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
    }
   },
@@ -2565,8 +2565,8 @@
     "goal": "SPA Single Source of Truth (SSOT) MANIFEST + presentation validator.",
     "quality_metric": "запускается по расписанию calendar:07:15 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
-    "limits": ""
+    "rights": "запускать 6 шаг(ов): spa_core.backtesting.tier1.dr_backup, spa_core.backtesting.tier1.reverse_stress, spa_core.execution.readiness_audit …",
+    "limits": "ТРОГАЕТ execution — money-path, требует отдельного внимания; LLM запрещён"
    }
   },
   {
@@ -2733,7 +2733,7 @@
     "goal": "«Что сделано за вчера» (РАБОТА/девелопмент, простым языком) → Telegram, 09:00.",
     "quality_metric": "запускается по расписанию calendar:09:00 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
+    "rights": "запускать 1 шаг(ов): scripts.morning_work_digest",
     "limits": "не импортирует execution"
    }
   }

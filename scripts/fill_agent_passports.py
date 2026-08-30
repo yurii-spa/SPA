@@ -486,6 +486,97 @@ def limits_from_code(module: str | None, entry: dict) -> str:
     return "; ".join(lims)
 
 
+_EXTERNAL_RX = re.compile(r"\b(cloudflared|node|npm|npx|open|curl|caffeinate)\b")
+
+
+def shell_targets(program: str | None) -> tuple[list[str], list[str]]:
+    """Что обёртка ЗАПУСКАЕТ: python-цели и внешние программы.
+
+    Многошаговая обёртка не имеет одного модуля — она ЕСТЬ конвейер, и её права с
+    ограничениями складываются из шагов. Замер 30.08: 15 живых агентов не имели ни
+    прав, ни ограничений именно потому, что у них спрашивали модуль, а спрашивать
+    надо было СКРИПТ. `log_session_change` из целей исключён намеренно — это общая
+    бухгалтерия сессий, а не шаг агента (28.08 он уже подсунул двум агентам чужую цель).
+    """
+    if not program:
+        return [], []
+    f = _program_file(program)
+    if f is None or f.suffix == ".py":
+        return [], []
+    try:
+        txt = f.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return [], []
+    # ГЛУБЖЕ ОДНОГО УРОВНЯ НЕ ИДЁМ, и это решение, а не лень. Попытка 30.08 читать
+    # вложенные скрипты выдала права вида «запускать scripts.foo, target» — это
+    # ПРИМЕРЫ из докстринга канонического `agent_template.sh`, а не шаги агента.
+    # Восемь агентов запускают именно его, и их настоящая цель лежит в `export
+    # RUN_SCRIPT=` внешней обёртки (её читает `module_of`). Ложное право хуже пустого
+    # поля: пустое видно в списке пробелов, а ложное выглядит знанием.
+    mods = set(re.findall(r"-m\s+([a-z_][a-z0-9_.]*)", txt))
+    mods |= {m.replace("/", ".")[:-3] for m in re.findall(r"(scripts/[a-z_0-9]+\.py)", txt)}
+    mods = {m for m in mods if not m.endswith("log_session_change")}
+    ext = set(_EXTERNAL_RX.findall(txt))
+    return sorted(mods), sorted(ext)
+
+
+def rights_from_shell(program: str | None) -> str:
+    """Права конвейера = что он запускает плюс объединение продуктов его шагов."""
+    mods, ext = shell_targets(program)
+    if not mods and not ext:
+        return ""
+    parts: list[str] = []
+    if mods:
+        shown = ", ".join(mods[:3]) + (" …" if len(mods) > 3 else "")
+        parts.append(f"запускать {len(mods)} шаг(ов): {shown}")
+    if ext:
+        parts.append("запускать внешние: " + ", ".join(ext))
+    arts: list[str] = []
+    for m in mods:
+        arts.extend(_declared_artifacts(m))
+    if arts:
+        uniq = sorted(dict.fromkeys(arts))
+        parts.append("писать " + ", ".join(uniq[:3]) + (" …" if len(uniq) > 3 else ""))
+    return "; ".join(parts)
+
+
+def limits_from_shell(program: str | None) -> str:
+    """Ограничения конвейера — по ОБЪЕДИНЕНИЮ шагов, а не по одному из них.
+
+    «Не импортирует execution» пишется только если execution не трогает НИ ОДИН шаг.
+    Замер 30.08: `run_tier1_governance.sh` запускает `spa_core.execution.readiness_audit`
+    — обёртка, о которой было бы написано «execution не трогает», врала бы.
+    """
+    mods, ext = shell_targets(program)
+    if not mods and not ext:
+        return ""
+    srcs: list[str] = []
+    f = _program_file(program)
+    if f is not None:
+        try:
+            srcs.append(f.read_text(encoding="utf-8", errors="replace"))
+        except OSError:
+            pass
+    for m in mods:
+        mf = _module_file(m)
+        if mf:
+            try:
+                srcs.append(mf.read_text(encoding="utf-8", errors="replace"))
+            except OSError:
+                pass
+    blob = "\n".join(srcs)
+    lims: list[str] = []
+    if "spa_core.execution" in blob or "spa_core/execution" in blob:
+        lims.append("ТРОГАЕТ execution — money-path, требует отдельного внимания")
+    else:
+        lims.append("ни один шаг не импортирует execution")
+    if "LLM_FORBIDDEN" in blob or "LLM FORBIDDEN" in blob:
+        lims.append("LLM запрещён")
+    if not mods and ext:
+        lims.append("питоновских шагов нет — внешняя программа под launchd")
+    return "; ".join(lims)
+
+
 def derive(entry: dict) -> dict:
     module = module_of(entry.get("program"))
     return {
@@ -498,8 +589,12 @@ def derive(entry: dict) -> dict:
         "quality_metric": (quality_metric_from_produces(entry)
                            or quality_metric_from_availability(entry)),
         "escalation": escalation_from_code(module, entry),
-        "rights": rights_from_manifest(module, entry),
-        "limits": limits_from_code(module, entry),
+        # ПОРЯДОК: модуль старше конвейера. Обёртку спрашиваем лишь там, где модуля
+        # нет вовсе, поэтому у агента с модулем права и ограничения не меняются.
+        "rights": (rights_from_manifest(module, entry)
+                   or rights_from_shell(entry.get("program"))),
+        "limits": (limits_from_code(module, entry)
+                   or limits_from_shell(entry.get("program"))),
     }
 
 
