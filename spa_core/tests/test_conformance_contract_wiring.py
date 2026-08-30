@@ -268,10 +268,16 @@ class WiredIntoMain(unittest.TestCase):
         ac.origin_manifest = lambda *a, **k: (None, "тест")
         ac._manifest_drift_problems = lambda *a, **k: None
         ac.subject_inputs = lambda *a, **k: []
-        ac.gather_contracts = lambda: {
-            "contract": ok_audit([row]), "errors": {},
-            "manifest_parity": {"compared": 1, "findings": [], "verdict": "agrees"},
-            "freshness_parity": {"compared": 1, "findings": [], "verdict": "agrees"}}
+        # Изменение НАМЕРЕННОЕ (инв. #16), и оно УСИЛИВАЕТ, а не ослабляет: сигнатура
+        # `gather_contracts` получила сведённый манифест (замер #431 — сверки читали
+        # диск вторым чтением и судили не тот манифест). Стенд теперь ещё и ловит,
+        # что до сверок доехал именно он, а не None.
+        handed = {}
+        ac.gather_contracts = lambda manifest=None: (
+            handed.setdefault("manifest", manifest),
+            {"contract": ok_audit([row]), "errors": {},
+             "manifest_parity": {"compared": 1, "findings": [], "verdict": "agrees"},
+             "freshness_parity": {"compared": 1, "findings": [], "verdict": "agrees"}})[1]
         try:
             ac.main(["--run", "--exit-zero", "--report", rep])
         finally:
@@ -280,7 +286,82 @@ class WiredIntoMain(unittest.TestCase):
         report = json.load(open(rep))
         self.assertIn("B7:contradiction:com.spa.zzz", {f["key"] for f in report["findings"]})
         self.assertEqual(report["contracts"]["manifest_parity"]["verdict"], "agrees")
+        self.assertEqual(handed.get("manifest"), EMPTY,
+                         "до сверок контрактов доехал НЕ сведённый манифест этого "
+                         "прогона — они снова судят свою копию")
 
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ParityChecksJudgeTheReconciledManifestNotTheDisk(unittest.TestCase):
+    """Замер #431: обе parity-сверки читали манифест С ДИСКА ВТОРЫМ, независимым чтением.
+
+    Курация (в т.ч. `produces`) живёт в git и берётся с `origin/main` — прод-дерево
+    каталог `architecture/` при синхронизации НЕ получает, о чём сторож сам предупреждает
+    строкой B6 «стёртая память вернётся». Но `gather_contracts()` звал `audit()` без
+    аргументов, и сверка судила ЛОКАЛЬНЫЙ файл, пока соседние B1/B2/B5 в том же прогоне
+    судили сведённый.
+
+    Цена измерена на живой системе, а не предположена: курация четырёх агентов, доставленная
+    на `origin/main`, не гасила находку в проде ВООБЩЕ — при устаревшей локальной копии старый
+    путь давал 4 находки, новый 0. «Доставлено на origin» и «работает в проде» разошлись ровно
+    на этом втором чтении (.claude/rules/deployment.md: это два разных события).
+
+    Проверяется ФОРМА ВЫЗОВА, а не имя: сверке подсовывается манифест, которого на диске нет,
+    и вердикт обязан следовать ЕМУ.
+    """
+
+    DECLARED = {"com.spa.x": {"data/x.json"}}
+
+    def _manifest(self, produces):
+        return {"schema_version": 1, "agents": [
+            {"label": "com.spa.x", "produces": [{"artifact": a} for a in produces]}],
+            "artifacts": [], "designed_architectures": []}
+
+    def test_passed_manifest_decides_the_verdict_not_the_file_on_disk(self):
+        from spa_core.monitoring import contract_manifest_parity as p
+        # отставшая копия (как в прод-дереве) против сведённой (курация с origin/main)
+        r_stale = p.compare(self.DECLARED, p.manifest_produces(self._manifest([])))
+        r_fresh = p.compare(self.DECLARED, p.manifest_produces(self._manifest(["data/x.json"])))
+        self.assertEqual(r_stale["verdict"], p.DECLARED_NOT_IN_MANIFEST,
+                         "отставшая копия обязана давать находку")
+        self.assertEqual(r_fresh["verdict"], p.AGREES,
+                         "сведённая копия обязана её гасить — иначе курацию нечем доставить")
+
+    def test_gather_contracts_hands_the_manifest_to_both_parity_checks(self):
+        """Проводка: то, что дали `gather_contracts`, обязано доехать до ОБЕИХ сверок."""
+        import unittest.mock as m
+        sentinel = self._manifest(["data/x.json"])
+        seen: dict[str, object] = {}
+
+        def fake_parity(manifest_path=None, manifest=None):
+            seen["manifest_parity"] = manifest
+            return {"compared": 1, "findings": [], "verdict": "agrees"}
+
+        def fake_fresh(manifest_path=None, manifest=None):
+            seen["freshness_parity"] = manifest
+            return {"compared": 1, "findings": [], "verdict": "agrees"}
+
+        from spa_core.monitoring import contract_manifest_parity as cmp_mod
+        from spa_core.monitoring import freshness_threshold_parity as ftp_mod
+        with m.patch.object(cmp_mod, "audit", fake_parity), \
+             m.patch.object(ftp_mod, "audit", fake_fresh):
+            ac.gather_contracts(sentinel)
+
+        self.assertIs(seen.get("manifest_parity"), sentinel,
+                      "сверка объявлений судит НЕ тот манифест, что остальной прогон")
+        self.assertIs(seen.get("freshness_parity"), sentinel,
+                      "сверка сроков годности судит НЕ тот манифест, что остальной прогон")
+
+    def test_audit_without_manifest_still_reads_the_file(self):
+        """Обратный контроль: без аргумента поведение прежнее — чтение с диска."""
+        from spa_core.monitoring import contract_manifest_parity as p
+        with tempfile.TemporaryDirectory() as d:
+            f = os.path.join(d, "m.json")
+            with open(f, "w", encoding="utf-8") as fh:
+                json.dump(self._manifest(["data/only-on-disk.json"]), fh)
+            r = p.audit(manifest_path=f)
+        self.assertIsInstance(r, dict)
+        self.assertIn("verdict", r)

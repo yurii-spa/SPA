@@ -89,10 +89,21 @@ def compare(declared: dict[str, set[str]], manifest: dict[str, set[str]]) -> dic
                         else AGREES if not findings else findings[0]["verdict"])}
 
 
-def audit(manifest_path: Path | None = None) -> dict:
+def audit(manifest_path: Path | None = None, manifest: dict | None = None) -> dict:
+    """`manifest` — УЖЕ СВЕДЁННЫЙ манифест вызывающего; читать свою копию с диска нельзя.
+
+    Замер #431: курация (в т.ч. `produces`) живёт в git и берётся с `origin/main` —
+    прод-дерево каталог `architecture/` при синхронизации НЕ получает, о чём сам сторож
+    и предупреждает строкой B6. Но эта сверка читала манифест С ДИСКА вторым, независимым
+    чтением, и потому судила ДРУГОЙ манифест, чем соседние B1/B2/B5 в том же прогоне.
+    Следствие измерено на живой системе: курация четырёх агентов, доставленная на origin,
+    не гасила находку в проде вовсе — «доставлено» и «работает» разошлись ровно на этом
+    втором чтении.
+    """
     from spa_core.monitoring.artifact_contract import _entry_modules, declared_produces
-    path = manifest_path or _REPO / "architecture" / "manifest.json"
-    manifest = json.loads(Path(path).read_text(encoding="utf-8"))
+    if manifest is None:
+        path = manifest_path or _REPO / "architecture" / "manifest.json"
+        manifest = json.loads(Path(path).read_text(encoding="utf-8"))
     decl: dict[str, set[str]] = {}
     for label, module in _entry_modules(_REPO).items():
         f = _REPO / (module.replace(".", "/") + ".py")

@@ -131,10 +131,16 @@ def compare(man: dict[str, dict[str, float]],
     }
 
 
-def audit(manifest_path: Path | None = None) -> dict:
+def audit(manifest_path: Path | None = None, manifest: dict | None = None) -> dict:
+    """`manifest` — УЖЕ СВЕДЁННЫЙ манифест вызывающего (см. `contract_manifest_parity.audit`).
+
+    Тот же класс: своё, второе чтение с диска судило бы не тот манифест, что соседние
+    проверки того же прогона.
+    """
     from spa_core.monitoring.uptime_monitor import AGENT_OUTPUT_FILES
-    path = manifest_path or _REPO / "architecture" / "manifest.json"
-    manifest = json.loads(Path(path).read_text(encoding="utf-8"))
+    if manifest is None:
+        path = manifest_path or _REPO / "architecture" / "manifest.json"
+        manifest = json.loads(Path(path).read_text(encoding="utf-8"))
     return compare(manifest_thresholds(manifest), monitor_thresholds(AGENT_OUTPUT_FILES))
 
 

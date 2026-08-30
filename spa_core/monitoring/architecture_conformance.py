@@ -138,12 +138,19 @@ EXIT_BY_OVERALL = {"OK": 0, "UNCHECKED": 1, "WARN": 1, "CRITICAL": 2}
 
 # ── сбор фактов (в тестах всё инъектируется) ─────────────────────────────────
 
-def gather_contracts() -> dict:
+def gather_contracts(manifest: dict | None = None) -> dict:
     """Три сверки контрактов. НИКОГДА не бросает и падает по одной, а не всем скопом.
 
     Каждая обёрнута отдельно НАМЕРЕННО: сломанная сверка обязана ослепить только
     себя. Не выполнилась ⇒ None ⇒ честный UNCHECKED у своей проверки, а не тишина,
     неотличимая от «сошлось» (инвариант 2).
+
+    `manifest` — СВЕДЁННЫЙ манифест этого прогона (`reconcile_curation`), и он обязан
+    доехать до сверок. Замер #431: обе parity-сверки делали своё, второе чтение файла
+    с диска и потому судили ДРУГОЙ манифест, чем B1/B2/B5 рядом. На живой системе это
+    значило, что курация, доставленная на `origin/main`, не гасит находку в проде
+    ВООБЩЕ: прод-дерево каталог `architecture/` при синхронизации не получает — ровно
+    то, о чём предупреждает строка B6 этого же сторожа.
     """
     out: dict = {"contract": None, "manifest_parity": None, "freshness_parity": None,
                  "errors": {}}
@@ -151,9 +158,11 @@ def gather_contracts() -> dict:
         ("contract", lambda: __import__(
             "spa_core.monitoring.artifact_contract", fromlist=["x"]).audit_fleet()),
         ("manifest_parity", lambda: __import__(
-            "spa_core.monitoring.contract_manifest_parity", fromlist=["x"]).audit()),
+            "spa_core.monitoring.contract_manifest_parity",
+            fromlist=["x"]).audit(manifest=manifest)),
         ("freshness_parity", lambda: __import__(
-            "spa_core.monitoring.freshness_threshold_parity", fromlist=["x"]).audit()),
+            "spa_core.monitoring.freshness_threshold_parity",
+            fromlist=["x"]).audit(manifest=manifest)),
     ):
         try:
             out[key] = call()
@@ -976,7 +985,7 @@ def main(argv=None) -> int:
     receipts = load_receipts()
     b5 = _manifest_drift_problems()
     now = dt.datetime.now(dt.timezone.utc)
-    contracts = gather_contracts()
+    contracts = gather_contracts(manifest)
     report = run_checks(manifest, fleet, artifact_timestamp, receipts, now,
                         prev_first_seen=_prev_first_seen(args.report),
                         drift_problems=(b5 or {}).get("drift"),
