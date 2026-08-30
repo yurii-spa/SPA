@@ -2,17 +2,15 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-30T18:46:33Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-30T21:00:22Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **819** · ждёт владельца: **5** · занято сессиями: **9**.
+> Всего карточек: **823** · ждёт владельца: **3** · занято сессиями: **9**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x**  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md`
-- **Два твоих ответа от 29 августа записаны по-разному — и на одну кнопку ты смотрел с перевёрнутой подсказкой**  ·  `owner-decision-dva-tvoih-otveta-ot-29-avgusta-zapisany.md`
-- **Два твоих вчерашних ответа записаны в двух версиях и говорят разное — нужен один** · _high_  ·  `owner-decision-dva-tvoih-vcherashnih-otveta-zapisany-v.md`
+- **Где живёт первый пилот на реальных деньгах: посчитано, при каком размере книга перестаёт проедать себя комиссиями** · _high_  ·  `owner-decision-gde-zhivet-pervyi-pilot-na-realnyh-dengah-2026-08-30.md`
 - **Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз** · _high_  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md`
-- **Сторож всплесков доходности написан, порог верный, сработал бы 25 августа — и его не зовёт никто** · _high_  ·  `owner-decision-storozh-vspleskov-apy-nikto-ne-zovet-2026-08-29.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
@@ -28,13 +26,11 @@
 - **РЕЦИДИВ 28.08: тест судит о ХОСТЕ по литеральному pid — 98535 (siriactionsd), теперь 999 (NetFS) в test_card_claim_takeover** — держит `cycle-51123` · с 2026-08-22T08:45:00Z  ·  `inbox-test-sudit-o-hoste-literalnyi-pid-98535.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (198)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (199)
 
 ### · needs-owner
-- Два твоих ответа от 29 августа записаны по-разному — и на одну кнопку ты смотрел с перевёрнутой подсказкой  ·  `owner-decision-dva-tvoih-otveta-ot-29-avgusta-zapisany.md` · 2026-08-30
-- Два твоих вчерашних ответа записаны в двух версиях и говорят разное — нужен один  ·  `owner-decision-dva-tvoih-vcherashnih-otveta-zapisany-v.md` · 2026-08-30
+- Где живёт первый пилот на реальных деньгах: посчитано, при каком размере книга перестаёт проедать себя комиссиями  ·  `owner-decision-gde-zhivet-pervyi-pilot-na-realnyh-dengah-2026-08-30.md` · 2026-08-30
 - Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md` · 2026-08-29
-- Сторож всплесков доходности написан, порог верный, сработал бы 25 августа — и его не зовёт никто  ·  `owner-decision-storozh-vspleskov-apy-nikto-ne-zovet-2026-08-29.md` · 2026-08-29
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -131,7 +127,9 @@
 - Два дня трека помечены доказанными, хотя в эти дни система не держала ничего  ·  `owner-decision-dva-dnya-treka-pomecheny-dokazannymi-hot.md` · 2026-08-10
 - Два помощника готовы, но включить их можешь только ты — они стоят вторые сутки  ·  `owner-decision-dva-pomoschnika-gotovy-no-vklyuchit-ih-m.md` · 2026-08-26
 - Два цикла оркестратора работали одновременно — карточки защищены, сам цикл нет  ·  `owner-decision-dva-tsikla-orkestratora-rabotali-odnovre.md` · 2026-08-01
+- Два твоих ответа от 29 августа записаны по-разному — и на одну кнопку ты смотрел с перевёрнутой подсказкой  ·  `owner-decision-dva-tvoih-otveta-ot-29-avgusta-zapisany.md` · 2026-08-30
 - Два твоих решения от 18.08 не исполнены — а ветку, где они записаны, мы закрываем как «повторы»  ·  `owner-decision-dva-tvoih-resheniya-ot-18-08-ne-ispolnen.md` · 2026-08-23
+- Два твоих вчерашних ответа записаны в двух версиях и говорят разное — нужен один  ·  `owner-decision-dva-tvoih-vcherashnih-otveta-zapisany-v.md` · 2026-08-30
 - Две записи о деньгах: причина найдена и измерена — выбрать, чем чинить  ·  `owner-decision-dve-zapisi-o-dengah-prichina-naidena-i-i.md` · 2026-08-17
 - Аварийный выключатель EB-02 сравнивает живой рынок с одиннадцатью числами, вписанными в код  ·  `owner-decision-eb02-sravnivaet-zhivoe-s-konstantoi.md` · 2026-08-10
 - Ежедневную проверку аналитики некому гонять — выбери, кто это делает  ·  `owner-decision-ezhednevnuyu-proverku-analitiki-nekomu-g.md` · 2026-08-24
@@ -194,6 +192,7 @@
 - Сторож пропущенного цикла молчит до 10:00 UTC, хотя цикл стартует в 06:00 UTC — опустить порог?  ·  `owner-decision-storozh-propuschennogo-tsikla-molchit-do.md` · 2026-07-30
 - Сторож расхождения флота не запускался 21 день — его никто не зовёт  ·  `owner-decision-storozh-rashozhdeniya-flota-ne-zapuskals.md` · 2026-08-01
 - Сторож сайта: «одной команды» не хватило — рабочая папка отстала на 665 коммитов, и публикация отказана  ·  `owner-decision-storozh-saita-odnoi-komandy-ne-hvatilo-r.md` · 2026-08-19
+- Сторож всплесков доходности написан, порог верный, сработал бы 25 августа — и его не зовёт никто  ·  `owner-decision-storozh-vspleskov-apy-nikto-ne-zovet-2026-08-29.md` · 2026-08-29
 - Страница трека четвёртый день прячет цифры — снять табличку честности некому  ·  `owner-decision-stranitsa-treka-chetvertyi-den-pryachet.md` · 2026-08-14
 - Стратегия S23 никогда не видит живой Pendle — адаптер «похоронен», ошибка глотается молча (выбери, как чинить)  ·  `owner-decision-strategiya-s23-nikogda-ne-vidit-zhivoi-p.md` · 2026-07-30
 - Табличка честности не доезжает до сайта — публично видно 5.2% там, где живой расчёт даёт 4.8%  ·  `owner-decision-tablichka-chestnosti-ne-doezzhaet-do-sai.md` · 2026-08-08
@@ -231,7 +230,7 @@
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (408)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (410)
 
 ### · needs-owner
 - Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md` · 2026-08-29
@@ -244,6 +243,9 @@
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
 - TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
+### · backlog
+- L2-мониторы газа молча предъявляют fallback-константу как живое чтение  ·  `inbox-l2-gas-monitory-molcha-predyavlyayut-fallback.md` · 2026-08-30
+- Вторая нога маятника проходит как «размещение кэша» после частичного де-риска  ·  `inbox-vtoraya-noga-mayatnika-prohodit-kak-razmeschenie.md` · 2026-08-30
 ### · ingested
 - Очередь владельца показывает 20 карточек из 23: три вопроса не доезжают до него из-за формы frontmatter  ·  `inbox-ochered-vladeltsa-pokazyvaet-20-kartoche.md` · 2026-08-07
 ### · done
@@ -791,7 +793,7 @@
 ### · new
 - У руки демоушена (#39 CDR) нет ветки «отметка не пришла» — сегодня тёмный фид ЗАЩИЩАЕТ книгу, и это нигде не записано  ·  `agent-rnd51-stale-branch-for-demotion-arm.md` · 2026-08-14
 
-## agent  (76)
+## agent  (77)
 
 ### · blocked
 - Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать  ·  `agent-fleet-parity-guard-never-scheduled.md` · 2026-08-05
@@ -834,6 +836,7 @@
 - Сторож скачков APY зовут раз в сутки из отчёта — своего расписания у него по-прежнему нет  ·  `agent-storozh-skachkov-apy-bez-svoego-raspisaniya.md` · 2026-08-29
 - Тесты ходят в живую сеть (Telegram + аналитика) — полный набор не проходит целиком, когда сеть медленная  ·  `agent-tests-do-live-network-io.md` · 2026-08-02
 - 222 теста дёргают живой фид — 9 268 отказов за прогон; набор зелёный по неверной причине  ·  `agent-tests-reach-live-feed-222.md` · 2026-08-08
+- При каком капитале стратегия перестаёт проедать себя комиссиями — и где должен жить первый пилот  ·  `agent-tochka-bezubytochnosti-po-kapitalu-i-gde-zhivet-pilot.md` · 2026-08-30
 - Сделать турнир стратегий ДОВЕРЯЕМЫМ — ранжировать по net-of-cost APY на реальных исторических данных (не Sharpe на mock)  ·  `agent-tournament-trustworthy-real-apy.md` · 2026-07-23
 - Guard — track-данные в git не должны молча протухать / молча пропускаться в CI  ·  `agent-track-data-git-durability-guard.md` · 2026-07-23
 - track_ledger.json (источник /changelog) отстал от equity_curve_daily.json на 7 недель — 19 против 67 evidenced-дней  ·  `agent-track-ledger-diverged-from-equity-curve.md` · 2026-08-29
