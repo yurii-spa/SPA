@@ -2,13 +2,16 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-30T21:33:44Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-30T23:02:04Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **824** · ждёт владельца: **2** · занято сессиями: **9**.
+> Сверено с `origin/main` (70419fef0) · ещё **1** карточ(ка/ки) есть на ref, а файла в этом дереве нет — их в списках ниже НЕТ · у **1** своя правка, кто новее — не измерено.
+>
+> Всего карточек: **828** · ждёт владельца: **3** · занято сессиями: **9**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x**  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md`
+- **Один из агентов раздавал весь проект в домашнюю сеть — закрыл; в интернет не выходило, остался один вопрос**  ·  `own-dashboard-razdaval-repozitorii-v-set.md`
 - **Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз** · _high_  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
@@ -25,9 +28,10 @@
 - **РЕЦИДИВ 28.08: тест судит о ХОСТЕ по литеральному pid — 98535 (siriactionsd), теперь 999 (NetFS) в test_card_claim_takeover** — держит `cycle-51123` · с 2026-08-22T08:45:00Z  ·  `inbox-test-sudit-o-hoste-literalnyi-pid-98535.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (199)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (201)
 
 ### · needs-owner
+- Один из агентов раздавал весь проект в домашнюю сеть — закрыл; в интернет не выходило, остался один вопрос  ·  `own-dashboard-razdaval-repozitorii-v-set.md` · 2026-08-30
 - Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md` · 2026-08-29
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
@@ -80,6 +84,7 @@
 - Fluid закрыт для капитала по правилу другого протокола — нужно твоё решение  ·  `own-fluid-gsm-gate-chuzhoy-parametr.md` · 2026-08-18
 - МАНДАТ АВТОНОМИИ ВОЗОБНОВЛЁН на 30 дней (решение владельца 2026-08-20, cloud-сессия) — вернуться к темпу ADR-078  ·  `own-mandat-avtonomii-vozobnovlen-30-dnei.md` · 2026-08-20
 - Деньги, срезанные защитами аллокатора, теперь ПОСЧИТАНЫ и НАЗВАНЫ — включать ли их обратно в работу?  ·  `own-pererazdavat-li-srezannoe-zaschitami.md` · 2026-08-26
+- Размещение свободных денег останавливает перекладку книги на трое суток — я это сделал вчера, надо решить  ·  `own-razmeshenie-kesha-perezapuskaet-72-chasa.md` · 2026-08-30
 - Наблюдённая угроза до тебя не доезжает, а наша собственная остановка доезжает каждый день  ·  `own-red-team-nablyudennaya-ugroza-ne-doezzhaet.md` · 2026-08-18
 - Нашлось правило, которое впервые даёт И доход выше, И просадку меньше — строить ли под него paper-модуль  ·  `own-rnd-cdr-demotion-readmission-paper-module.md` · 2026-08-06
 - Все семь правил «выключать слабую книгу» на самом деле крутят ОДНУ ручку — концентрацию. И наш же лимит 20% срезает её ровно там, где она начинает платить  ·  `own-rnd-duty-is-concentration-adr055.md` · 2026-08-07
@@ -229,7 +234,7 @@
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (411)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (413)
 
 ### · needs-owner
 - Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md` · 2026-08-29
@@ -538,6 +543,7 @@
 ### · new
 - 25 модулей получили вечный вердикт «покрытие не измерено» — контекст-путь нечем мерить  ·  `inbox-25-modulei-poluchili-vechnyi-verdikt-pok.md` · 2026-08-06
 - 3 трека параллельно: Conservative + Balanced + Aggressive (мандат владельца)  ·  `inbox-3-treka-parallelno-conservative-balanced.md` · 2026-08-08
+- 307 карточек живут на origin, а в прод-дереве их файла нет — доска называет их числом, но не показывает  ·  `inbox-307-kartochek-nevidimy-prod-derevu.md` · 2026-08-30
 - 60% отправок владельцу не помечены message_id — чем послано сообщение без кнопок, неизмеримо  ·  `inbox-60-otpravok-vladeltsu-ne-pomecheny-messa.md` · 2026-08-22
 - aave_arbitrum отдаёт СТАТИЧЕСКИЙ TVL — литерал $1.2 млрд вместо живого числа  ·  `inbox-aave-arbitrum-otdaet-staticheskii-tvl.md` · 2026-08-29
 - ADR-060 §3: колонка «реальный пилот» для EVIDENCE_MAX_AGE_H/HARD_STALE_H не подключена (в отличие от TriggerParams)  ·  `inbox-adr-060-3-kolonka-realnyi-pilot-dlya-evi.md` · 2026-08-29
@@ -632,6 +638,7 @@
 - Сторож «способен ли флот стартовать» никем не запускается — у deployment_acceptance нет ни расписания, ни артефакта  ·  `inbox-storozh-sposoben-li-flot-startovat-nikem.md` · 2026-08-29
 - Сторож вопросов владельцу не измеряет, ЖИВ ЛИ ещё вопрос — и звал отправить команду, ставшую разрушительной  ·  `inbox-storozh-voprosov-vladeltsu-ne-izmeryaet.md` · 2026-08-29
 - Строка Risk Gate дневного лимита убытка жила только в отключённом скрипте — в отчёт владельцу она не переехала  ·  `inbox-stroka-risk-gate-dnevnogo-limita-ubytka.md` · 2026-08-14
+- Сверка трекера с origin стоит 84 секунды — её платит каждый обязательный шаг протокола  ·  `inbox-sverka-trekera-s-origin-stoit-84-sekundy.md` · 2026-08-30
 - Табличка честности: дать ей дорогу на сайт (решение владельца 09.08)  ·  `inbox-tablichka-chestnosti-dat-ei-dorogu-na-sa.md` · 2026-08-08
 - Тест паспортов краснеет на main оттого, что курацию ДОВЕЛИ: он требует, чтобы работа оставалась незаконченной (91 из 91)  ·  `inbox-test-pasportov-krasneet-na-main-ottogo-c.md` · 2026-08-30
 - РЕЦИДИВ 28.08: тест судит о ХОСТЕ по литеральному pid — 98535 (siriactionsd), теперь 999 (NetFS) в test_card_claim_takeover  ·  `inbox-test-sudit-o-hoste-literalnyi-pid-98535.md` · 2026-08-22 · 🔒 `cycle-51123`
