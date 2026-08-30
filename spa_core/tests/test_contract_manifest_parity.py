@@ -98,3 +98,32 @@ class AgentWithoutProducesIsStillCompared(unittest.TestCase):
         self.assertEqual(r["verdict"], p.AGREES)
         self.assertEqual(r["findings"], [])
 
+
+
+class NoAgentDeclaresWhatTheManifestDoesNotKnow(unittest.TestCase):
+    """Храповик по ЖИВОМУ дереву: класс `declared_not_in_manifest` обязан быть пуст.
+
+    `TestLiveTree.test_live_audit_runs` выше принимает ЛЮБОЙ вердикт из четырёх —
+    он проверяет, что сверка выполняется, а не что дома сошлись. Поэтому четыре
+    расхождения (apiserver, familyfund, rtmr_sense, telegram_bot) жили при зелёном
+    наборе: сторож честно писал WARN каждую ночь в `data/architecture_conformance.json`,
+    а тесты про это молчали — единственным читателем находки был шаг 0-офис, то есть
+    человек. Цикл #431 закурировал манифест; здесь — заслон, чтобы курация не утекла
+    обратно молча.
+
+    Красное здесь НЕ чинится правкой теста: код объявил `PRODUCES`, которого нет в
+    конституции, — дописать артефакт агенту в `architecture/manifest.json`
+    (`produces[].artifact`). Срок годности (`slo_hours`) при этом назначают ДВЕ роли
+    по согласованию (ADR-158), и на объявление продукта он не влияет.
+    """
+
+    def test_declared_not_in_manifest_class_is_empty_on_the_live_tree(self):
+        r = p.audit()
+        self.assertGreater(r["compared"], 0,
+                           "сопоставлять нечего — зелёное на пустом множестве не вердикт")
+        offenders = {f["label"]: f.get("declared_only")
+                     for f in r["findings"] if f.get("declared_only")}
+        self.assertEqual(offenders, {},
+                         "код объявляет продукт, которого манифест не знает: артефакт "
+                         "живёт без объявленного производителя в конституции. Чинить "
+                         "манифест, а не этот тест")

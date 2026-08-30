@@ -134,7 +134,17 @@
    "layer": "infra",
    "role": "infra",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/interest.jsonl"
+    },
+    {
+     "artifact": "data/pilot_requests.jsonl"
+    },
+    {
+     "artifact": "data/site_analytics.jsonl"
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -849,7 +859,11 @@
    "layer": "infra",
    "role": "infra",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/investors.json"
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -1865,7 +1879,11 @@
    "layer": "product",
    "role": "monitoring",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/monitoring/signals/latest.json"
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
@@ -2373,7 +2391,14 @@
    "layer": "infra",
    "role": "reporting",
    "intent": "active",
-   "produces": [],
+   "produces": [
+    {
+     "artifact": "data/kill_switch_active.json"
+    },
+    {
+     "artifact": "data/tg_bot_v2_offset.json"
+    }
+   ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
