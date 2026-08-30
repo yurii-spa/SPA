@@ -125,6 +125,102 @@ def test_history_record_prices_only_evidenced_protocols() -> None:
     assert rec["apy_unevidenced"] == ["maple"]
 
 
+# ═══════ CIO oversight phase F: Investment Decision Object ═══════
+#
+# decision_id / policy_version / mode / legs / gates — none of these are new
+# computation, they only make already-computed identity and rationale part of
+# the durable ledger instead of the overwritten-every-cycle rationale file.
+
+
+def test_decision_id_is_deterministic_and_dated() -> None:
+    doc = {"cycle_date": "2026-08-02", "generated_at": "x",
+           "decision_shadow": {"decision": "HOLD"}}
+    rec = build_history_record(
+        doc, apy_pct=APY, apy_sources=SRC,
+        current_positions=BOOK, target_positions=BOOK, capital_usd=CAPITAL)
+    assert rec["decision_id"] == "adr060-shadow-2026-08-02"
+
+
+def test_decision_id_is_none_without_a_cycle_date() -> None:
+    """Never raises on a missing key — an unidentifiable decision stays None,
+    it does not fabricate an id out of the string "None"."""
+    doc = {"generated_at": "x", "decision_shadow": {"decision": "HOLD"}}
+    rec = build_history_record(
+        doc, apy_pct=APY, apy_sources=SRC,
+        current_positions=BOOK, target_positions=BOOK, capital_usd=CAPITAL)
+    assert rec["decision_id"] is None
+
+
+def test_policy_identity_flows_from_params_into_the_ledger() -> None:
+    doc = {"cycle_date": "2026-08-02", "generated_at": "x",
+           "decision_shadow": {"decision": "ACT"},
+           "params": {"policy_version": "v1.0", "mode": "pilot"}}
+    rec = build_history_record(
+        doc, apy_pct=APY, apy_sources=SRC,
+        current_positions=BOOK, target_positions=BOOK, capital_usd=CAPITAL)
+    assert rec["policy_version"] == "v1.0"
+    assert rec["mode"] == "pilot"
+
+
+def test_policy_identity_is_unchecked_not_fabricated_without_params() -> None:
+    doc = {"cycle_date": "2026-08-02", "generated_at": "x",
+           "decision_shadow": {"decision": "HOLD"}}  # no "params" key at all
+    rec = build_history_record(
+        doc, apy_pct=APY, apy_sources=SRC,
+        current_positions=BOOK, target_positions=BOOK, capital_usd=CAPITAL)
+    assert rec["policy_version"] is None
+    assert rec["mode"] is None
+
+
+def test_legs_and_gates_are_the_ledgers_alternative_record() -> None:
+    """legs/gates are the honest reading of 'considered and rejected
+    alternatives' — the trigger evaluates one proposed move per cycle, and
+    `gates` names exactly which criterion accepted or rejected it."""
+    doc = {"cycle_date": "2026-08-02", "generated_at": "x",
+           "decision_shadow": {
+               "decision": "HOLD",
+               "legs": [{"protocol": "maple", "delta_usd": 5000.0,
+                         "direction": "increase"}],
+               "gates": {"gain_above_band": False, "payback_within_horizon": True},
+           }}
+    rec = build_history_record(
+        doc, apy_pct=APY, apy_sources=SRC,
+        current_positions=BOOK, target_positions=BOOK, capital_usd=CAPITAL)
+    assert rec["legs"] == [{"protocol": "maple", "delta_usd": 5000.0,
+                            "direction": "increase"}]
+    assert rec["gates"] == {"gain_above_band": False, "payback_within_horizon": True}
+
+
+def test_legs_and_gates_default_to_empty_not_missing() -> None:
+    doc = {"cycle_date": "2026-08-02", "generated_at": "x",
+           "decision_shadow": {"decision": "HOLD"}}
+    rec = build_history_record(
+        doc, apy_pct=APY, apy_sources=SRC,
+        current_positions=BOOK, target_positions=BOOK, capital_usd=CAPITAL)
+    assert rec["legs"] == []
+    assert rec["gates"] == {}
+
+
+def test_history_schema_bumped_for_the_new_fields() -> None:
+    assert ar.HISTORY_SCHEMA == "shadow-hist-v2"
+
+
+def test_full_writer_stamps_the_history_line_with_the_investment_decision_fields(
+        tmp_path: Path) -> None:
+    """End-to-end: write_shadow_rationale → JSONL line carries phase F fields,
+    sourced from the SAME params object that decided the verdict."""
+    write_shadow_rationale(
+        data_dir=tmp_path, current_positions=BOOK, target_positions=BOOK,
+        apy_pct=APY, apy_sources=SRC, capital_usd=CAPITAL,
+        cycle_date="2026-08-02", run_ts=NOW.isoformat(), now=NOW)
+    lines = _lines(tmp_path / HISTORY_FILENAME)
+    row = json.loads(lines[0])
+    assert row["decision_id"] == "adr060-shadow-2026-08-02"
+    assert row["policy_version"] == "v1.0"
+    assert row["mode"] == "paper"
+    assert "legs" in row and "gates" in row
+
+
 # ═══════════════════════ evaluator: hand-checked arithmetic ═══════════════════
 #
 # Timeline d01..d10, capital $100k, APYs constant: A = 2 %, B = 8 %, C never

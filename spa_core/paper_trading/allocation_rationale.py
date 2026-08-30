@@ -47,7 +47,7 @@ SHADOW_VERSION = "shadow-v1"
 # line (idempotent), lines for other dates are preserved BYTE-FOR-BYTE —
 # including unparseable ones (we never destroy history we cannot read).
 HISTORY_FILENAME = "allocation_rationale_history.jsonl"
-HISTORY_SCHEMA = "shadow-hist-v1"
+HISTORY_SCHEMA = "shadow-hist-v2"
 HISTORY_MAX_LINES = 1000  # ~3 years of daily cycles; guards against unbounded growth
 
 
@@ -67,16 +67,38 @@ def build_history_record(
     ``shadow_trigger_eval`` needs for the counterfactual. Deterministic; never
     raises on missing keys (a hole becomes ``None``, which the evaluator treats
     as UNCHECKED, not zero).
+
+    CIO oversight phase F (Investment Decision Object,
+    docs/ideas/2026-08-29-cio-oversight-layer.md): every field below already
+    existed elsewhere in ``doc``/``dec`` before this phase — it only makes them
+    part of the durable record instead of the overwritten-every-cycle
+    ``allocation_rationale.json``. ``decision_id`` is a deterministic label
+    (``adr060-shadow-<cycle_date>``), not a new identity system.
+    ``policy_version``/``mode`` are the ADR-060 §3 mandate identity phase E
+    already stamped on ``doc["params"]``, carried into the append-only ledger
+    so a verdict from 40 cycles ago still names which version decided it.
+    ``legs``/``gates`` are the move phase E's ``evaluate()`` already computed
+    and scored — the closest honest reading of "рассмотренные и отклонённые
+    альтернативы" the idea note calls for, since the trigger evaluates ONE
+    proposed reallocation per cycle rather than a multi-candidate slate
+    (`gates` records exactly which criterion accepted or rejected it).
     """
     dec = doc.get("decision_shadow") or {}
+    params = doc.get("params") or {}
+    cycle_date = doc.get("cycle_date")
     universe = sorted(set(current_positions or {}) | set(target_positions or {}))
     evidenced = {p for p, s in (apy_sources or {}).items() if s == "live"}
     return {
         "schema": HISTORY_SCHEMA,
-        "cycle_date": doc.get("cycle_date"),
+        "decision_id": f"adr060-shadow-{cycle_date}" if cycle_date else None,
+        "cycle_date": cycle_date,
         "generated_at": doc.get("generated_at"),
+        "policy_version": params.get("policy_version"),
+        "mode": params.get("mode"),
         "verdict": dec.get("decision"),
         "reasons": list(dec.get("reasons") or []),
+        "legs": list(dec.get("legs") or []),
+        "gates": dict(dec.get("gates") or {}),
         "capital_usd": capital_usd,
         "current_positions": {p: round(float(v), 2)
                               for p, v in (current_positions or {}).items()},
