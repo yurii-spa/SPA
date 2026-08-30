@@ -5,6 +5,10 @@ title: Один из агентов раздавал весь проект в д
 status: needs-owner
 source: agent
 created: 2026-08-30
+owner_choice: 1
+owner_answered_at: 2026-08-30T21:56:29.261498+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно
