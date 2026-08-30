@@ -271,14 +271,29 @@ OWNER_ANSWER_FIELDS = (
     "owner_answered_by",
 )
 
-#: Поля, по которым ОТЛИЧАЮТСЯ два разных ответа владельца (выбор и момент). ``via`` /
-#: ``by`` — про канал и отправителя: они могут дополниться позже и конфликтом не являются.
+#: Поля, по которым доказывается, что две копии несут ОДИН И ТОТ ЖЕ записанный ответ
+#: (выбор И момент). Регистр отвечает на вопрос «это та же самая запись?» — им пользуется
+#: доказательство разобранности (`orchestrator_queue._same_owner_answer`), и там строгость
+#: намеренная: совпасть должно и то, и другое, иначе «доказано» станет догадкой.
+#: **Это НЕ регистр спора** — см. ``_DISPUTE_FIELDS`` ниже (ADR-179).
 _IDENTITY_FIELDS = ("owner_choice", "owner_answered_at")
+
+#: ЧЕМ определяется СПОР о решении владельца — и только им (ADR-179, продолжение ADR-175).
+#: Один и тот же кортеж ``_IDENTITY_FIELDS`` отвечал на ДВА разных вопроса: «та же запись?»
+#: и «спорят ли копии о решении?». На первый ответ «нужны оба поля» верен, на второй —
+#: нет: момент записи говорит, КАК ответ попал в файл, а не КАКОЙ он.
+_DISPUTE_FIELDS = ("owner_choice",)
+
+#: Провенанс: как и через что ответ попал в файл. Расхождение здесь — не спор о решении,
+#: но и не пустяк: выбрать одну отметку значит затереть другую, поэтому провенанс
+#: НЕ переносится никуда и называется вслух отдельным исходом.
+_PROVENANCE_FIELDS = tuple(f for f in OWNER_ANSWER_FIELDS if f not in _DISPUTE_FIELDS)
 
 CARRY_ALREADY_PRESENT = "already_present"      # след уже в этой копии — переносить нечего
 CARRY_CARRIED = "carried"                      # перенесён из другой копии
 CARRY_NO_ANSWER = "no_answer_recorded"         # следа нет НИГДЕ (владелец ответил руками)
 CARRY_CONFLICT = "conflict"                    # две копии дают РАЗНЫЙ ответ — не выбираем
+CARRY_PROVENANCE = "provenance"                # решение ОДНО, разошлись отметка/канал
 CARRY_UNMEASURED = "unmeasured"                # искать было нечем — это не «ок»
 
 
@@ -376,10 +391,39 @@ def answer_disagreements(copies) -> dict:
 
     Fail-CLOSED там, где спор настоящий: если поле НАЗВАНО больше чем в одной копии и
     значения разные, оно попадает в результат и закрывать карточку по-прежнему нельзя.
+    **Сужение до `owner_choice` (30.08, цикл #434, ADR-179).** До него спором считалось и
+    расхождение `owner_answered_at`. Замер по ВСЕЙ популяции карточек решений прод-дерева:
+    расхождение было у пяти карточек, спор о решении — у трёх; у `aave-na-arbitrum` и
+    `tret-flota-nelzya-proverit` владелец ответил ОДИНАКОВО (вариант 1) и разошлась одна
+    отметка — пачечная `20:30:00Z` текстовой сессии против посекундной телеграмной. Эти две
+    висели в прод-дереве `owner-done` и не могли быть закрыты НИ ОДНИМ агентом никогда:
+    каждый цикл шаг 2 предъявлял их как неразобранный ответ владельца, и следующая сессия
+    разбирала их заново. Соседний сторож (`monitoring/owner_answer_delivery`) то же правило
+    получил решением ADR-175 — здесь оно доезжает до второго.
+    """
+    return _named_divergences(copies, _DISPUTE_FIELDS)
+
+
+def answer_provenance_divergences(copies) -> dict:
+    """``{поле: [различающиеся НАЗВАННЫЕ значения]}`` — по чему копии расходятся в ПРОВЕНАНСЕ.
+
+    Провенанс (`owner_answered_at`, `owner_answer_via`, `owner_answered_by`) отвечает на
+    вопрос «как ответ попал в файл», а не «какой он». Расхождение здесь человека не зовёт
+    (ADR-175/ADR-179), но и не молчит: поле НЕ переносится ни в какую сторону — выбрать одну
+    отметку значит затереть другую, а чужой провенанс не наша собственность.
+    """
+    return _named_divergences(copies, _PROVENANCE_FIELDS)
+
+
+def _named_divergences(copies, keys) -> dict:
+    """Общая единица правила: НАЗВАННЫЕ значения ``keys``, различающиеся между копиями.
+
+    Одна реализация на оба регистра: вторая копия этой логики разошлась бы с первой ровно
+    так же, как разошлись два сторожа одного дома (#434).
     """
     named: dict = {}
     for fields in copies:
-        for key in _IDENTITY_FIELDS:
+        for key in keys:
             value = str(fields.get(key, "")).strip()
             if value:
                 named.setdefault(key, set()).add(value)
@@ -400,7 +444,7 @@ def carry_owner_answer(card_path: str | Path,
         text = p.read_text(encoding="utf-8")
     except OSError as exc:
         return {"verdict": CARRY_UNMEASURED, "detail": f"карточка не прочитана: {exc}",
-                "path": str(p), "fields": {}}
+                "path": str(p), "fields": {}, "provenance": {}}
 
     mine = read_answer_fields(text)
     copies = find_answer_copies(p, extra_dirs)
@@ -417,21 +461,39 @@ def carry_owner_answer(card_path: str | Path,
             f"Выбрать сторону молча нельзя — сверьте руками."
         )
 
+    # Решение ОДНО, а записано по-разному: провенанс не спор (ADR-179), человека не зовём —
+    # но и не переносим, потому что выбрать одну отметку значит затереть другую.
+    provenance = answer_provenance_divergences(
+        [f for _, f in copies] + ([mine] if mine else []))
+    prov_named = "; ".join(f"{k}: {v}" for k, v in provenance.items())
+
     if all(mine.get(k) for k in _IDENTITY_FIELDS):
+        if provenance:
+            return {"verdict": CARRY_PROVENANCE, "path": str(p), "fields": mine,
+                    "provenance": provenance, "added": {},
+                    "detail": f"решение ОДНО, разошёлся лишь провенанс ({prov_named}) — "
+                              f"переносить нечего"}
         return {"verdict": CARRY_ALREADY_PRESENT, "path": str(p), "fields": mine,
-                "detail": "след решения уже в этой копии"}
+                "provenance": {}, "detail": "след решения уже в этой копии"}
     if not copies:
         return {"verdict": CARRY_NO_ANSWER, "path": str(p), "fields": mine,
-                "detail": "следа ответа нет ни в одной копии карточки "
-                          "(владелец мог ответить правкой статуса руками)"}
+                "provenance": {}, "detail": "следа ответа нет ни в одной копии карточки "
+                                            "(владелец мог ответить правкой статуса руками)"}
 
     source, fields = copies[0]
-    merged = dict(fields)
+    # Спорное поле провенанса не переносится НИКУДА: у нас нет основания предпочесть одну
+    # его запись другой, а запись затирает.
+    merged = {k: v for k, v in fields.items() if k not in provenance}
     merged.update(mine)  # уже записанное здесь главнее: свой файл не переписываем
     added = {k: v for k, v in merged.items() if mine.get(k) != v}
     if not added:
+        if provenance:
+            return {"verdict": CARRY_PROVENANCE, "path": str(p), "fields": mine,
+                    "provenance": provenance, "added": {},
+                    "detail": f"решение ОДНО, разошёлся лишь провенанс ({prov_named}) — "
+                              f"переносить нечего"}
         return {"verdict": CARRY_ALREADY_PRESENT, "path": str(p), "fields": mine,
-                "detail": "след решения уже в этой копии"}
+                "provenance": {}, "detail": "след решения уже в этой копии"}
 
     lines = text.splitlines(keepends=True)
     start = end = None
@@ -446,14 +508,20 @@ def carry_owner_answer(card_path: str | Path,
                 break
     if start is None or end is None:
         return {"verdict": CARRY_UNMEASURED, "path": str(p), "fields": mine,
+                "provenance": provenance,
                 "detail": "во frontmatter карточки некуда писать след решения"}
 
     for key in OWNER_ANSWER_FIELDS:      # порядок полей — стабильный, не словарный
         if key in added:
             end = _set_frontmatter_field(lines, start, end, key, added[key])
     atomic_save_text("".join(lines), str(p))
+    if provenance:
+        return {"verdict": CARRY_PROVENANCE, "path": str(p), "fields": merged,
+                "added": added, "source": str(source), "provenance": provenance,
+                "detail": f"перенесено: {', '.join(sorted(added))}; спорный провенанс "
+                          f"({prov_named}) НЕ перенесён — источник {source}"}
     return {"verdict": CARRY_CARRIED, "path": str(p), "fields": merged,
-            "added": added, "source": str(source),
+            "added": added, "source": str(source), "provenance": {},
             "detail": f"след решения перенесён из {source}"}
 
 

@@ -57,6 +57,7 @@ from spa_core.owner_queue.owner_answer import (
     CARRY_ALREADY_PRESENT,
     CARRY_CARRIED,
     CARRY_NO_ANSWER,
+    CARRY_PROVENANCE,
     CARRY_UNMEASURED,
     CROSS_FOUND,
     CROSS_UNMEASURED,
@@ -621,8 +622,22 @@ def _carry_answer_before_closing(args) -> int | None:
               f"копии карточки — в git уедет закрытая карточка без машинно проверяемого "
               f"следа решения. Так бывает, когда владелец ответил правкой статуса руками, "
               f"а не кнопкой; но молчать об этом нельзя.", file=sys.stderr)
+    elif verdict == CARRY_PROVENANCE:
+        named = "; ".join(f"{k}: {v}" for k, v in (report.get("provenance") or {}).items())
+        carried = ", ".join(sorted(report.get("added") or {}))
+        print(f"✅ решение владельца ОДНО (`owner_choice` совпал) — человек не нужен; "
+              f"разошёлся лишь ПРОВЕНАНС ({named}) и НЕ перенесён ни в какую сторону: "
+              f"выбрать одну отметку значит затереть другую"
+              + (f". Перенесено: {carried}" if carried else ""), file=sys.stderr)
     elif verdict == CARRY_UNMEASURED:
         print(f"❓ перенос следа решения НЕ ИЗМЕРЕН: {report.get('detail')}", file=sys.stderr)
+    else:
+        # Цепочка без `else` глушила бы незнакомый вердикт: новый исход, добавленный в
+        # `carry_owner_answer` и забытый здесь, уходил бы в тишину — а тишина здесь
+        # неотличима от «перенос отработал». Молчать нельзя даже о собственном незнании.
+        print(f"❓ перенос следа решения: НЕЗНАКОМЫЙ вердикт `{verdict}` — эта дверь его не "
+              f"знает, поэтому НИЧЕГО не утверждает о переносе ({report.get('detail')})",
+              file=sys.stderr)
     return None
 
 

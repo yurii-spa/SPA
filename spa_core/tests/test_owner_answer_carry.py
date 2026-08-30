@@ -453,11 +453,21 @@ def test_two_named_choices_still_refuse(trees, capsys):
     assert "owner_choice" in err, "спорное поле обязано быть названо поимённо"
 
 
-def test_two_named_stamps_still_refuse(trees, capsys):
+def test_two_named_stamps_are_provenance_not_a_disagreement(trees, capsys):
     """`aave-na-arbitrum`: вариант один, а момент назван РАЗНЫЙ в обеих копиях.
 
-    Правка снимает только молчание, не расхождение: если обе копии НАЗЫВАЮТ поле и
-    значения разные — это по-прежнему спор, и карточка не закрывается.
+    **Намеренное изменение теста (инвариант #16).** Цикл #428 написал его как границу
+    СВОЕЙ правки: «правка снимает только молчание, не расхождение — если обе копии
+    НАЗЫВАЮТ поле и значения разные, это по-прежнему спор». Ту границу двигает РЕШЕНИЕ,
+    а не подгонка под зелёный: ADR-175 (сторож доставки) и ADR-179 (этот сторож)
+    постановили, что спор о решении определяется `owner_choice`, и только им, — а момент
+    записи говорит, КАК ответ попал в файл, а не КАКОЙ он. Цена старой границы измерена:
+    `aave-na-arbitrum` и `tret-flota-nelzya-proverit` отвечены владельцем ОДИНАКОВО
+    (вариант 1) и не могли быть закрыты ни одним агентом НИКОГДА. Запись — журнал W35.
+
+    Утверждений здесь стало БОЛЬШЕ, а не меньше: расхождение по-прежнему НЕ замолчано,
+    по-прежнему не называет совпавший вариант, и дополнительно проверено, что спорная
+    отметка не переносится и что карточка теперь закрывается.
     """
     host, wt = trees
     other = wt.parent.parent / "other4" / drift.TRACKER_REL
@@ -469,10 +479,196 @@ def test_two_named_stamps_still_refuse(trees, capsys):
     rc = oq.main(["set-status", str(card), "ingested",
                   "--answer-from", str(host), "--answer-from", str(other)])
 
-    assert rc == 2
+    assert rc == 0, "решение одно — закрывать карточку больше ничто не мешает"
+    assert "status: ingested" in card.read_text(encoding="utf-8")
     err = capsys.readouterr().err
+    assert "ПРОВЕНАНС" in err, "расхождение обязано быть НАЗВАНО, а не замолчано"
     assert "owner_answered_at" in err
-    assert "owner_choice" not in err, "вариант совпал — спора по нему нет и называть нечего"
+    assert "РАЗНЫЕ ответы владельца" not in err, "это не спор о решении"
+
+
+def test_the_disputed_stamp_is_carried_into_no_copy(trees):
+    """Обратный контроль: спорную отметку нельзя записать НИ В ОДНУ сторону.
+
+    Выбрать одну из двух записей значит затереть другую — а чужой провенанс не наша
+    собственность. Проверяются все три файла: целевой и оба источника.
+    """
+    host, wt = trees
+    other = wt.parent.parent / "other5" / drift.TRACKER_REL
+    other.mkdir(parents=True)
+    (other / "owner-decision-x.md").write_text(
+        _answered_by_bot(stamp="2026-08-29T20:30:00Z"), encoding="utf-8")
+    card = wt / "owner-decision-x.md"
+    before = {f: f.read_text(encoding="utf-8")
+              for f in (host / "owner-decision-x.md", other / "owner-decision-x.md")}
+
+    report = oa.carry_owner_answer(card, extra_dirs=(host, other))
+
+    assert report["verdict"] == oa.CARRY_PROVENANCE
+    assert report["provenance"] == {
+        "owner_answered_at": sorted([STAMP, "2026-08-29T20:30:00Z"])}
+    for f, text in before.items():
+        assert f.read_text(encoding="utf-8") == text, f"источник {f} переписан — а не должен"
+    assert "owner_answered_at" not in _fields(card), (
+        "спорная отметка не имеет права оказаться в целевой копии")
+
+
+def test_a_full_local_trace_still_names_a_divergent_provenance(trees, capsys):
+    """Карточка УЖЕ несёт свой след — и всё равно обязана назвать расхождение провенанса.
+
+    Ровно живой случай `aave-na-arbitrum`: worktree взят с `origin/main`, где текстовая
+    сессия проставила вариант 1 и пачечную отметку `20:30:00Z`, а хост-копия несёт тот же
+    вариант с посекундной телеграмной отметкой. Переносить тут нечего — и до #434 эта ветка
+    отвечала `след уже в этой копии`, то есть молчала о расхождении вовсе. Молчание
+    неотличимо от «сверено и сошлось»: мутация «не объявлять провенанс здесь» не красила
+    ни одного теста, пока не появился этот.
+    """
+    host, wt = trees
+    card = wt / "owner-decision-x.md"
+    card.write_text(_answered_by_bot(stamp="2026-08-29T20:30:00Z")
+                    .replace("owner_answer_via: telegram", "owner_answer_via: interactive")
+                    .replace("status: owner-done", "status: needs-owner"), encoding="utf-8")
+    before = card.read_text(encoding="utf-8")
+
+    report = oa.carry_owner_answer(card, extra_dirs=(host,))
+
+    assert report["verdict"] == oa.CARRY_PROVENANCE, "молчать об этом нельзя"
+    assert "owner_answered_at" in report["provenance"]
+    assert report["added"] == {}, "переносить действительно нечего"
+    assert card.read_text(encoding="utf-8") == before, "целевая копия не тронута"
+
+    rc = oq.main(["set-status", str(card), "ingested", "--answer-from", str(host)])
+    assert rc == 0, "карточка обязана закрываться — решение одно"
+    assert "ПРОВЕНАНС" in capsys.readouterr().err
+
+
+def test_the_agreed_choice_still_travels_while_the_stamp_disputes(trees):
+    """Спор о провенансе не должен блокировать перенос ТОГО, о чём копии согласны."""
+    host, wt = trees
+    other = wt.parent.parent / "other6" / drift.TRACKER_REL
+    other.mkdir(parents=True)
+    (other / "owner-decision-x.md").write_text(
+        _answered_by_bot(stamp="2026-08-29T20:30:00Z"), encoding="utf-8")
+    card = wt / "owner-decision-x.md"
+
+    report = oa.carry_owner_answer(card, extra_dirs=(host, other))
+
+    assert report["verdict"] == oa.CARRY_PROVENANCE
+    assert _fields(card).get("owner_choice") == CHOICE, "вариант согласован — он обязан доехать"
+    assert "owner_answered_at" not in report["added"]
+
+
+def test_a_third_named_stamp_is_still_only_provenance(trees, capsys):
+    """Три копии, три разные отметки, ОДИН вариант — человека звать по-прежнему не на что."""
+    host, wt = trees
+    for n, stamp in (("other7", "2026-08-29T20:30:00Z"), ("other8", "2026-08-29T22:00:00Z")):
+        d = wt.parent.parent / n / drift.TRACKER_REL
+        d.mkdir(parents=True)
+        (d / "owner-decision-x.md").write_text(_answered_by_bot(stamp=stamp), encoding="utf-8")
+    card = wt / "owner-decision-x.md"
+
+    rc = oq.main(["set-status", str(card), "ingested", "--answer-from", str(host),
+                  "--answer-from", str(wt.parent.parent / "other7" / drift.TRACKER_REL),
+                  "--answer-from", str(wt.parent.parent / "other8" / drift.TRACKER_REL)])
+
+    assert rc == 0
+    assert "ПРОВЕНАНС" in capsys.readouterr().err
+
+
+def test_a_divergent_channel_alone_is_provenance_too(trees, capsys):
+    """`owner_answer_via` (telegram против interactive) — тоже КАК, а не КАКОЙ."""
+    host, wt = trees
+    other = wt.parent.parent / "other9" / drift.TRACKER_REL
+    other.mkdir(parents=True)
+    (other / "owner-decision-x.md").write_text(
+        _answered_by_bot().replace("owner_answer_via: telegram",
+                                   "owner_answer_via: interactive"), encoding="utf-8")
+    card = wt / "owner-decision-x.md"
+
+    rc = oq.main(["set-status", str(card), "ingested",
+                  "--answer-from", str(host), "--answer-from", str(other)])
+
+    assert rc == 0
+    err = capsys.readouterr().err
+    assert "owner_answer_via" in err and "ПРОВЕНАНС" in err
+
+
+def test_all_three_real_choice_disputes_still_refuse(trees, capsys):
+    """Обратный контроль формой аварии целиком: ВСЕ ТРИ настоящих спора 30.08.
+
+    `partiya-2-karantina` (1 против 4) · `tier-steakhouse` (1 против 2) ·
+    `own-pererazdavat-li-srezannoe-zaschitami` (2 против 3). Ни один из них правка
+    #434 не имеет права погасить.
+    """
+    host, wt = trees
+    card = wt / "owner-decision-x.md"
+    original = card.read_text(encoding="utf-8")
+    for i, (ours, theirs) in enumerate((("1", "4"), ("1", "2"), ("2", "3"))):
+        card.write_text(original, encoding="utf-8")
+        (host / "owner-decision-x.md").write_text(_answered_by_bot(choice=ours),
+                                                  encoding="utf-8")
+        other = wt.parent.parent / f"dispute{i}" / drift.TRACKER_REL
+        other.mkdir(parents=True)
+        (other / "owner-decision-x.md").write_text(_answered_by_bot(choice=theirs),
+                                                   encoding="utf-8")
+
+        rc = oq.main(["set-status", str(card), "ingested",
+                      "--answer-from", str(host), "--answer-from", str(other)])
+
+        assert rc == 2, f"спор {ours} против {theirs} обязан отказывать"
+        assert "status: needs-owner" in card.read_text(encoding="utf-8")
+        err = capsys.readouterr().err
+        assert "РАЗНЫЕ ответы владельца" in err and "owner_choice" in err
+
+
+def test_a_choice_dispute_is_not_softened_by_an_agreeing_stamp(trees, capsys):
+    """Совпавший провенанс не имеет права смягчить спор о ВАРИАНТЕ."""
+    host, wt = trees
+    other = wt.parent.parent / "other10" / drift.TRACKER_REL
+    other.mkdir(parents=True)
+    (other / "owner-decision-x.md").write_text(_answered_by_bot(choice="Z"),
+                                               encoding="utf-8")
+    card = wt / "owner-decision-x.md"
+
+    rc = oq.main(["set-status", str(card), "ingested",
+                  "--answer-from", str(host), "--answer-from", str(other)])
+
+    assert rc == 2
+    assert "owner_choice" in capsys.readouterr().err
+
+
+def test_an_unknown_verdict_is_never_swallowed(trees, capsys, monkeypatch):
+    """Цепочка вердиктов обязана иметь `else`: незнакомый исход — не тишина.
+
+    До #434 ветка `elif` без `else` глушила бы любой новый вердикт, добавленный в
+    `carry_owner_answer` и забытый в двери, — а тишина здесь неотличима от «перенос
+    отработал». Положительный контроль: подставляем заведомо чужой вердикт.
+    """
+    host, wt = trees
+    card = wt / "owner-decision-x.md"
+    monkeypatch.setattr(oq, "carry_owner_answer",
+                        lambda *a, **k: {"verdict": "какой-то новый исход",
+                                         "detail": "деталь", "path": str(card)})
+
+    rc = oq.main(["set-status", str(card), "ingested", "--answer-from", str(host)])
+
+    assert rc == 0
+    err = capsys.readouterr().err
+    assert "НЕЗНАКОМЫЙ вердикт" in err and "какой-то новый исход" in err
+
+
+def test_provenance_divergences_reports_only_named_values():
+    """Единица правила отдельно от двери — и она НЕ пересекается со спором."""
+    assert oa.answer_provenance_divergences([{"owner_answered_at": "a"}, {}]) == {}
+    assert oa.answer_provenance_divergences(
+        [{"owner_choice": "1"}, {"owner_choice": "4"}]) == {}, (
+        "вариант в провенанс не входит: иначе спор считался бы дважды")
+    assert oa.answer_provenance_divergences(
+        [{"owner_answer_via": "telegram"}, {"owner_answer_via": "interactive"}]) == {
+        "owner_answer_via": ["interactive", "telegram"]}
+    assert oa.answer_disagreements(
+        [{"owner_answered_at": "a"}, {"owner_answered_at": "b"}]) == {}, (
+        "отметка времени — не спор о решении (ADR-179)")
 
 
 def test_disagreements_reports_only_named_values():
