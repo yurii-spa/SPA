@@ -316,7 +316,9 @@
    "passport": {
     "goal": "Постоянное измерение цены газа (ethereum/base/arbitrum/optimism) и ETH/USD с провенансом live|unchecked; advisory-режим стоимости хода для экономики пилота (ADR-182/183).",
     "quality_metric": "data/gas_price_history.json свежее 1.5 ч (после активации); доля live-чтений по ethereum",
-    "escalation": "нет (advisory; затяжной unchecked виден в самом артефакте и в отчётном слое после подключения)"
+    "escalation": "нет (advisory; затяжной unchecked виден в самом артефакте и в отчётном слое после подключения)",
+    "rights": "писать data/gas_price_history.json",
+    "limits": "LLM запрещён; не импортирует execution"
    }
   },
   {
@@ -715,7 +717,7 @@
    "curation": "partial",
    "notes": "",
    "passport": {
-    "goal": "",
+    "goal": "Отдаёт файлы проекта по HTTP на 127.0.0.1:8767 — локальная витрина для просмотра артефактов с этого же компьютера; единственный измеренный потребитель — сторож самолечения (self_heal.py), для которого ответ 200 = признак жизни агента.",
     "quality_metric": "процесс загружен в launchd и держит pid (data/agent_health.json: loaded=true, pid≠0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
     "rights": "запускать 1 шаг(ов): http.server",

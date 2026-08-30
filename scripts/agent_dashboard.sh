@@ -4,7 +4,7 @@
 # launchd CANNOT exec miniconda-python directly (exit 78 EX_CONFIG); this
 # bash wrapper runs it correctly. Log: /tmp/spa_dashboard.log
 # Plist must call: ProgramArguments = [/bin/bash, <abs path to this file>]
-# ЦЕЛЬ: отдаёт файлы проекта по HTTP на 127.0.0.1:8767 — локальная витрина для
+# Отдаёт файлы проекта по HTTP на 127.0.0.1:8767 — локальная витрина для
 # просмотра артефактов с этого же компьютера; единственный измеренный потребитель —
 # сторож самолечения (self_heal.py), для которого ответ 200 = признак жизни агента.
 #
