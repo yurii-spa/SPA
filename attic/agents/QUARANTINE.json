@@ -71,6 +71,81 @@
       "restore": "python3 scripts/agent_quarantine.py restore com.spa.governance_watcher",
       "schedule_was": "interval:900s",
       "role": "monitoring"
+    },
+    "com.spa.dfb_capture": {
+      "at": "2026-08-30T21:17:48Z",
+      "reason": "партия 2, решение владельца 30.08 (кнопка Телеграма, вариант 1): продукт не потребляет никто — ни код, ни квитанции, ни манифест, ни владелец; возврат одной командой",
+      "measurement": {
+        "label": "com.spa.dfb_capture",
+        "measured": true,
+        "applicable": true,
+        "consumers": 0,
+        "by_channel": {
+          "code": [],
+          "receipts": [],
+          "manifest": [],
+          "owner": []
+        },
+        "note": "продукт не потребляет никто: ни код, ни квитанции, ни манифест, ни владелец",
+        "declared": [
+          "data/dfb/pools.json"
+        ]
+      },
+      "was_loaded": true,
+      "plist_in_attic": "attic/agents/com.spa.dfb_capture.plist",
+      "restore": "python3 scripts/agent_quarantine.py restore com.spa.dfb_capture",
+      "schedule_was": "calendar:09:30",
+      "role": "research"
+    },
+    "com.spa.source_discovery": {
+      "at": "2026-08-30T21:17:55Z",
+      "reason": "партия 2, решение владельца 30.08 (кнопка Телеграма, вариант 1): продукт не потребляет никто — ни код, ни квитанции, ни манифест, ни владелец; возврат одной командой",
+      "measurement": {
+        "label": "com.spa.source_discovery",
+        "measured": true,
+        "applicable": true,
+        "consumers": 0,
+        "by_channel": {
+          "code": [],
+          "receipts": [],
+          "manifest": [],
+          "owner": []
+        },
+        "note": "продукт не потребляет никто: ни код, ни квитанции, ни манифест, ни владелец",
+        "declared": [
+          "data/source_discovery.json"
+        ]
+      },
+      "was_loaded": true,
+      "plist_in_attic": "attic/agents/com.spa.source_discovery.plist",
+      "restore": "python3 scripts/agent_quarantine.py restore com.spa.source_discovery",
+      "schedule_was": "interval:604800s",
+      "role": "research"
+    },
+    "com.spa.swarm_dwell": {
+      "at": "2026-08-30T21:18:02Z",
+      "reason": "партия 2, решение владельца 30.08 (кнопка Телеграма, вариант 1): продукт не потребляет никто — ни код, ни квитанции, ни манифест, ни владелец; возврат одной командой",
+      "measurement": {
+        "label": "com.spa.swarm_dwell",
+        "measured": true,
+        "applicable": true,
+        "consumers": 0,
+        "by_channel": {
+          "code": [],
+          "receipts": [],
+          "manifest": [],
+          "owner": []
+        },
+        "note": "продукт не потребляет никто: ни код, ни квитанции, ни манифест, ни владелец",
+        "declared": [
+          "data/swarm/dwell_hysteresis_status.json"
+        ]
+      },
+      "was_loaded": true,
+      "plist_in_attic": "attic/agents/com.spa.swarm_dwell.plist",
+      "restore": "python3 scripts/agent_quarantine.py restore com.spa.swarm_dwell",
+      "schedule_was": "interval:3600s",
+      "role": "swarm"
     }
   }
 }
