@@ -564,9 +564,17 @@ def write_shadow_rationale(
                 )
             except Exception as hist_exc:  # noqa: BLE001 — reporting never breaks the cycle
                 log.warning("Y3 history append failed (%s) — rationale intact", hist_exc)
+        # `required_gain_pp` по умолчанию 0.0, а присваивается ПОСЛЕ раннего выхода
+        # «нет материальных ног». Печатать в этом случае «need 0.000» — значит
+        # сообщать, что порог равен нулю, тогда как его вообще НЕ СПРАШИВАЛИ:
+        # двигать нечего, гейт не участвовал. «Не спрашивали» и «спросили и
+        # получили ноль» — разные исходы, и путать их нельзя (замер 30.08: строка
+        # с `need 0.000` читается как отключённый порог, то есть как fail-open).
+        _need = (f"{decision.required_gain_pp:.3f}" if decision.legs
+                 else "не оценивался — двигать нечего")
         log.info(
-            "ADR-060 SHADOW: %s | gain %.3fpp (need %.3f) | cost $%.2f | payback %s | cash %s",
-            decision.decision, decision.gain_pp, decision.required_gain_pp,
+            "ADR-060 SHADOW: %s | gain %.3fpp (need %s) | cost $%.2f | payback %s | cash %s",
+            decision.decision, decision.gain_pp, _need,
             decision.cost_usd, decision.payback_days, cash.get("status"),
         )
         return doc
