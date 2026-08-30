@@ -457,6 +457,31 @@ def write_shadow_rationale(
             tier_caps=_caps, capital_usd=capital_usd,
             evidenced=evidenced, factor=p.below_median_cap_factor)
 
+        # ADR-055 запрещает МАКСИТЬ концентрацию на протоколе с доходностью ниже
+        # медианы. Это утверждение о ходе, который делается, а не о книге, из
+        # которой уходят. Спрошенное только про `current_positions`, правило
+        # структурно не видит собственного предмета: 2026-08-30 в книге не было
+        # aave_v3 вовсе, проверка честно вернула [], и тот же цикл открыл в нём
+        # $22 105 (22.1 % капитала) под 3.26 % при медиане 4.93 %. Аудитор
+        # сообщил ECON-10 наутро, когда позиция уже стояла.
+        # Потолки — по ОБЪЕДИНЕНИЮ: у протокола, которого в книге ещё нет,
+        # потолка бы не нашлось, и правило сработало бы с нулевой границей,
+        # то есть по неверной причине.
+        # Здесь тоже advisory: ход не останавливается, цель лишь СПРОШЕНА.
+        _caps_target = tier_caps or _resolve_tier_caps(
+            sorted(set(current_positions or {}) | set(target_positions or {})))
+        below_median_target = below_median_cap_violations(
+            positions=target_positions or {}, apy_pct=apy_pct or {},
+            tier_caps=_caps_target, capital_usd=capital_usd,
+            evidenced=evidenced, factor=p.below_median_cap_factor)
+        _introduced = sorted(
+            {r.get("protocol") for r in below_median_target}
+            - {r.get("protocol") for r in below_median})
+        if _introduced:
+            log.warning(
+                "ADR-055: ход СОЗДАЁТ концентрацию ниже медианы — %s "
+                "(правило advisory, ход не остановлен)", ", ".join(_introduced))
+
         doc = {
             "generated_at": run_ts,
             "cycle_date": cycle_date,
@@ -470,6 +495,11 @@ def write_shadow_rationale(
             "decision_shadow": decision.to_dict(),
             "cash": cash,
             "below_median_cap": below_median,
+            # Книга ДО хода / книга, которую ход СОЗДАЁТ / что появилось именно
+            # из-за хода. Три разных вопроса — три разных поля, иначе «правило
+            # молчит» неотличимо от «правило смотрело не туда» (ADR-055).
+            "below_median_cap_target": below_median_target,
+            "below_median_cap_introduced": _introduced,
             "history": {**hist, "position_age_days": ages},
             "params": {
                 "min_gain_pp": p.min_gain_pp,
