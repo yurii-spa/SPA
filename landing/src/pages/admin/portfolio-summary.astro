@@ -1,10 +1,13 @@
 ---
-// /admin/portfolio-summary — SPA CIO oversight, phase B (docs/ideas/2026-08-29-cio-oversight-layer.md).
+// /admin/portfolio-summary — SPA CIO oversight, phase B + phase C (docs/ideas/2026-08-29-cio-oversight-layer.md).
 // Read-only combined view across the three INDEPENDENT paper-trading books (Conservative/Balanced/
 // Aggressive). Does NOT move capital, does NOT blend risk/mandate between books — each book keeps
 // its own seed, limits and kill-switch; this page only sums for the overview number. Live from
-// /api/live/books (poll ~20s). admin={true} -> noindex/nofollow + slim operator bar. Fail-safe: API
-// offline shows "офлайн" honestly, never a fabricated number.
+// /api/live/books (poll ~20s) + /api/live/books/brief (phase C — WHERE/HOW MUCH/WHY/WHY-NOW per
+// book, best-effort: a brief-fetch failure never blanks the NAV numbers above it). admin={true} ->
+// noindex/nofollow + slim operator bar. Fail-safe: API offline shows "офлайн" honestly, never a
+// fabricated number. Balanced/Aggressive have no decision-record producer wired yet — their brief
+// honestly says so instead of guessing.
 import Layout from '../../layouts/Layout.astro';
 ---
 <Layout title="Operator · Portfolio Summary" admin={true}>
@@ -41,11 +44,12 @@ import Layout from '../../layouts/Layout.astro';
 
     var BOOK_ORDER=[['conservative','Conservative'],['balanced','Balanced'],['aggressive','Aggressive']];
 
-    function renderGrid(books){
+    function renderGrid(books,briefs){
       var grid=document.getElementById('ps-grid');grid.innerHTML='';
       BOOK_ORDER.forEach(function(pair){
         var key=pair[0],fallbackLabel=pair[1];
         var b=books[key]||{available:false};
+        var br=(briefs||{})[key]||{available:false};
         var card=document.createElement('div');
         card.className='ps-card'+(b.available?'':' off');
         if(!b.available){
@@ -56,7 +60,10 @@ import Layout from '../../layouts/Layout.astro';
             '<div class="ps-row"><span class="l">Капитал</span><span>'+fmtUsd(b.seed_equity)+'</span></div>'+
             '<div class="ps-row"><span class="l">NAV сейчас</span><span>'+fmtUsd(b.equity)+'</span></div>'+
             '<div class="ps-row"><span class="l">Годовых (расч.)</span><span>'+fmtPct(b.annualized_apy_pct)+'</span></div>'+
-            '<div class="ps-row"><span class="l">С</span><span class="mut">'+esc(b.start_date||'—')+'</span></div>';
+            '<div class="ps-row"><span class="l">С</span><span class="mut">'+esc(b.start_date||'—')+'</span></div>'+
+            (br.available
+              ? '<div class="ps-why">'+esc(br.why_now||'')+' '+esc(br.why||'')+'</div>'
+              : '<div class="ps-why mut">нет записи решений для этой книги</div>');
         }
         grid.appendChild(card);
       });
@@ -73,7 +80,9 @@ import Layout from '../../layouts/Layout.astro';
         retEl.textContent=fmtPct(c.combined_return_pct);
         retEl.parentElement.className='ps-kpi '+pctTone(c.combined_return_pct);
         document.getElementById('ps-avail').textContent=(c.books_available||0)+' из '+(c.books_total||3);
-        renderGrid(data.books||{});
+        var briefs={};
+        try{briefs=(await jget('/api/live/books/brief')).books||{};}catch(e){/* brief is best-effort — NAV numbers above already landed */}
+        renderGrid(data.books||{},briefs);
         document.getElementById('ps-gen').textContent='обновлено '+new Date().toLocaleTimeString();
       }catch(e){setOffline(true);}
     }
@@ -107,6 +116,8 @@ import Layout from '../../layouts/Layout.astro';
   .p{font-family:var(--font-mono,monospace);font-size:.78rem;padding:2px 8px;border-radius:6px}
   .p.ok{background:#34d39918;color:#34d399}.p.bad{background:#f8717118;color:#f87171}.p.muted{background:#8a8f9818;color:#8a8f98}
   .ps-card-d{font-size:.8rem;color:var(--text-muted,#8a8f98)}
+  .ps-why{font-size:.78rem;color:var(--text-muted,#8a8f98);margin-top:8px;padding-top:8px;border-top:1px solid var(--border,#26282e);line-height:1.4}
+  .ps-why.mut{color:var(--text-faint,#6a6f78)}
   .mut{color:var(--text-faint,#6a6f78)}
   .ps-offline{margin-top:20px;padding:14px;border:1px solid #f8717155;border-radius:10px;color:#f87171;font-size:.85rem}
 </style>

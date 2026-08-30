@@ -451,6 +451,36 @@ async def live_books():
     )
 
 
+@router.get("/api/live/books/brief")
+async def live_books_brief():
+    """Human-readable WHERE/HOW MUCH/WHY/WHY-NOW per book.
+
+    SPA CIO oversight, phase C (docs/ideas/2026-08-29-cio-oversight-layer.md) — pure
+    display over decisions already recorded by phase F's append-only
+    ``allocation_rationale_history.jsonl``. Separate endpoint (not folded into
+    ``/api/live/books``, polled every ~20s for fast NAV numbers): this brief only
+    changes once per cycle and is heavier, so it gets its own cadence rather than
+    adding cost to a stable, tested, fast-polled endpoint.
+
+    Balanced/Aggressive have no decision-record producer wired today — they report
+    an explicit ``no_decision_record_for_book`` state, never a fabricated brief.
+    """
+    from spa_core.paper_trading.cio_brief import build_books_brief
+
+    _dd = data_dir()
+    try:
+        books = await asyncio.wait_for(
+            asyncio.to_thread(build_books_brief, _dd), timeout=2.0,
+        )
+    except Exception as e:  # noqa: BLE001 — degrade the whole brief, never 5xx
+        books = {"_error": str(e)}
+
+    return JSONResponse(
+        {"books": books, "_fetched_at": _time.time()},
+        headers=NO_CACHE_HEADERS,
+    )
+
+
 @router.get("/api/live/system")
 async def live_system():
     """Live system-health bundle — merges available health/watcher/log files."""

@@ -283,6 +283,49 @@ def test_data_file_corrupt_502(client):
     assert r.status_code == 502
 
 
+# ─── books brief (SPA CIO oversight, phase C) ───────────────────────────────
+
+def _write_history_line(client, record):
+    p = client._data_dir / "allocation_rationale_history.jsonl"
+    with p.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(record) + "\n")
+
+
+def test_books_brief_no_history_all_no_record(client):
+    r = client.get("/api/live/books/brief")
+    assert r.status_code == 200
+    books = r.json()["books"]
+    for key in ("conservative", "balanced", "aggressive"):
+        assert books[key]["available"] is False
+        assert books[key]["reason"] == "no_decision_record_for_book"
+
+
+def test_books_brief_conservative_available_others_never_fabricated(client):
+    _write_history_line(client, {
+        "schema": "shadow-hist-v2", "decision_id": "adr060-shadow-2026-08-30",
+        "cycle_date": "2026-08-30", "policy_version": "v1.0", "mode": "paper",
+        "verdict": "HOLD", "reasons": [], "legs": [], "gates": {},
+        "current_positions": {"maple": 40000.0},
+    })
+    r = client.get("/api/live/books/brief")
+    assert r.status_code == 200
+    books = r.json()["books"]
+    assert books["conservative"]["available"] is True
+    assert books["conservative"]["verdict"] == "HOLD"
+    assert books["balanced"]["available"] is False
+    assert books["aggressive"]["available"] is False
+
+
+def test_books_brief_corrupt_history_degrades_not_500(client):
+    (client._data_dir / "allocation_rationale_history.jsonl").write_text(
+        "{not valid json\n", encoding="utf-8")
+    r = client.get("/api/live/books/brief")
+    assert r.status_code == 200
+    # a corrupt line is tolerated by load_history() — falls back to an empty,
+    # not-fabricated conservative brief, same as no file at all.
+    assert r.json()["books"]["conservative"]["available"] is False
+
+
 # ─── health (track-accrual freshness, P4-2) ───────────────────────────────────
 
 def _equity_with_bar(date, evidenced=True):
