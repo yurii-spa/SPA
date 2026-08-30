@@ -2,10 +2,12 @@
 trackerStatus:
   type: inbox
 title: "Находка петли: возможность morpho_steakhouse 4.125% (evidence L4) доступна книге, не "
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-29
 finding_key: "gap:opportunity_unnamed:morpho_steakhouse"
+status_trail:
+  - "2026-08-30T11:34:48.783822+00:00 new -> done · queue.set_status"
 ---
 
 Находка петли ADR-066 (house_view_gap, WARN, подтверждена 2 прогонами подряд):
