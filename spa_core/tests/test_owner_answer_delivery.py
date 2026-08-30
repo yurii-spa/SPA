@@ -821,5 +821,179 @@ class RenderTest(unittest.TestCase):
         self.assertIn("РАЗНЫЕ ОТВЕТЫ", line)
 
 
+class TreeUnderJudgementTest(unittest.TestCase):
+    """О КАКОМ дереве сторож выносит вердикт — и не подменяет ли он его своим.
+
+    Авария 2026-08-30 (цикл #429), обе стороны замерены в одну минуту одним кодом:
+
+        из /tmp/spa_c429 (git-worktree на origin/main):  IDLE — «весь след решений
+                                                         владельца на origin (78 карточк(и))»
+        тот же код, --root прод-дерева:                  UNCHECKED — недоставлено 4
+
+    Четыре ответа владельца (AI1-approach · otkat-vetki-1249 · morpho-steakhouse ·
+    urovni-dokazatelnosti) лежали ВНЕ git, а протокольная проверка показывала
+    зелёное. Причина не в пути, а в ДЕФОЛТЕ: ``REPO_ROOT`` — каталог, где случайно
+    лежит файл модуля. Worktree на ``origin/main`` сверялся сам с собой и совпасть
+    мог только полностью, а зелёная строка читается как «ответы владельца в git».
+
+    Работать из изолированного worktree ТРЕБУЕТ сам протокол (§3.4) — значит эту
+    зелень видел именно тот, кто проверяет по правилам.
+    """
+
+    def setUp(self):
+        import tempfile
+        self._ours = tempfile.TemporaryDirectory()
+        self._live = tempfile.TemporaryDirectory()
+        self.ours, self.live = self._ours.name, self._live.name
+        self._saved_env = os.environ.get("SPA_LIVE_ROOT")
+        from spa_core.utils import live_paths
+        self._lp = live_paths
+        self._saved_default = live_paths.DEFAULT_LIVE_ROOT
+
+    def tearDown(self):
+        self._lp.DEFAULT_LIVE_ROOT = self._saved_default
+        if self._saved_env is None:
+            os.environ.pop("SPA_LIVE_ROOT", None)
+        else:
+            os.environ["SPA_LIVE_ROOT"] = self._saved_env
+        self._ours.cleanup()
+        self._live.cleanup()
+
+    def _no_live_tree(self):
+        from pathlib import Path
+        os.environ.pop("SPA_LIVE_ROOT", None)
+        self._lp.DEFAULT_LIVE_ROOT = Path(os.path.join(self.ours, "no-such-prod-tree"))
+
+    # ── ГЛАВНЫЙ положительный контроль ────────────────────────────────────────
+
+    def test_unnamed_root_judges_the_live_tree_not_our_own(self):
+        """Авария 30.08 дословно: ответ лежит в ЖИВОМ дереве, а сверяют наше.
+
+        Наше дерево пусто (worktree на origin/main — там сверять нечего), живое
+        несёт карточку, чей след на origin отсутствует. ``root`` не назван.
+        До починки сторож брал каталог собственного кода и отвечал IDLE.
+        """
+        name = "owner-decision-morfo.md"
+        _Env(self.ours, {}, {})                                   # наше дерево: пусто
+        env = _Env(self.live, {name: LOCAL_CARD},
+                   {f"{TRACKER}/{name}": ORIGIN_CARD})            # живое: след не на origin
+        os.environ["SPA_LIVE_ROOT"] = self.live
+
+        r = oad.run(now=NOW, reader=env.reader, pusher=env.pusher, write_status=False)
+
+        self.assertEqual([f["card"] for f in r["pending"]], [name],
+                         "сторож не увидел недоставленный след ЖИВОГО дерева — "
+                         "значит судил не то дерево (авария 30.08)")
+        self.assertEqual(r["root"], self.live)
+        self.assertEqual(r["root_source"], oad.ROOT_LIVE)
+        self.assertNotEqual(r["status"], oad.IDLE)
+
+    def test_no_live_tree_and_no_root_is_not_green(self):
+        """Живого дерева не видно, никто его не назвал — «не измерено», не IDLE.
+
+        Fail-CLOSED. «Везти нечего» на дереве собственного кода означает
+        «сравнивать было нечего»: оно совпадает с origin ПО ПОСТРОЕНИЮ.
+        """
+        self._no_live_tree()
+        env = _Env(self.ours, {}, {})
+
+        r = oad.run(now=NOW, reader=env.reader, pusher=env.pusher, write_status=False)
+
+        self.assertEqual(r["root_source"], oad.ROOT_OWN_TREE)
+        self.assertEqual(r["status"], oad.UNCHECKED,
+                         "пустой замер выдан за доставленный след — ровно форма аварии 30.08")
+        self.assertIn("НЕ ИЗМЕРЕНО", r["reason"])
+        # Отказ обязан стоять ДО перечисления и ДО пуша: иначе сторож повёз бы на
+        # origin след из дерева, которое никто не выбирал.
+        self.assertEqual(r["scanned"], 0)
+        self.assertEqual(env.pushed, [], "отказ наступил ПОСЛЕ пуша — это не отказ")
+
+    def test_named_tree_with_nothing_to_carry_is_still_idle(self):
+        """Обратный контроль: настоящее «всё доставлено» не перекрашено в отказ.
+
+        Без него починка могла бы «покраснеть всегда» и этим ничего не измерять.
+        """
+        name = "owner-decision-morfo.md"
+        env = _Env(self.live, {name: LOCAL_CARD},
+                   {f"{TRACKER}/{name}": LOCAL_CARD})   # след УЖЕ на origin
+        os.environ["SPA_LIVE_ROOT"] = self.live
+
+        r = oad.run(now=NOW, reader=env.reader, pusher=env.pusher, write_status=False)
+
+        self.assertEqual(r["status"], oad.IDLE)
+        self.assertEqual(r["root_source"], oad.ROOT_LIVE)
+
+    def test_explicit_root_is_taken_verbatim(self):
+        """Кто назвал дерево — тот его и выбрал; живое дерево его не перебивает.
+
+        Контроль против ПЕРЕ-починки: мост (`findings_bridge`) зовёт сторожа с
+        явным ``root``, и подмена этого корня живым деревом увела бы прод-прогон
+        в другое дерево — новый дефект вместо старого.
+        """
+        os.environ["SPA_LIVE_ROOT"] = self.live
+        _Env(self.live, {"owner-decision-morfo.md": LOCAL_CARD}, {})
+        env = _Env(self.ours, {}, {})
+
+        r = oad.run(root=self.ours, now=NOW, reader=env.reader,
+                    pusher=env.pusher, write_status=False)
+
+        self.assertEqual(r["root"], self.ours)
+        self.assertEqual(r["root_source"], oad.ROOT_EXPLICIT)
+        self.assertEqual(r["pending"], [])
+
+    def test_scan_alone_also_resolves_the_tree(self):
+        """``scan`` — публичная дверь, и у неё был ТОТ ЖЕ дефолт.
+
+        Починка только в ``run`` оставила бы вторую дверь с прежним поведением
+        (урок «одна снятая точка вызова оставила 1364 теста зелёными»).
+        """
+        name = "owner-decision-morfo.md"
+        env = _Env(self.live, {name: LOCAL_CARD},
+                   {f"{TRACKER}/{name}": ORIGIN_CARD})
+        os.environ["SPA_LIVE_ROOT"] = self.live
+
+        found = oad.scan(reader=env.reader)
+
+        self.assertEqual([f["card"] for f in found], [name])
+
+    def test_scan_refuses_an_unnamed_tree_instead_of_listing_its_own(self):
+        """У ``scan`` тот же отказ, и он не перечисляет каталог своего кода.
+
+        Без этого условие в ``scan`` было бы неокрашиваемым: ``run`` отказывает
+        раньше и до ветки не доводит, а дверь-то публичная.
+        """
+        self._no_live_tree()
+        env = _Env(self.ours, {}, {})
+
+        found = oad.scan(reader=env.reader)
+
+        self.assertEqual([f["verdict"] for f in found], [oad.UNMEASURED])
+        self.assertIn("НЕ ИЗМЕРЕНО", found[0]["reason"])
+
+    def test_judged_tree_is_named_in_receipt_and_line(self):
+        """Провенанс виден снаружи: чьё дерево сверено — часть вердикта.
+
+        Иначе «весь след на origin», сказанное о worktree, снова читается как
+        «ответы владельца в git» — и отличить одно от другого нечем.
+        """
+        env = _Env(self.ours, {}, {})
+        r = oad.run(root=self.ours, now=NOW, reader=env.reader,
+                    pusher=env.pusher, write_status=False)
+
+        line = oad.render(r)
+        self.assertIn(self.ours, line)
+        self.assertIn(oad.ROOT_EXPLICIT, line)
+
+    def test_live_tree_is_not_announced_as_a_foreign_one(self):
+        """И обратно: у живого дерева хвоста «дерево: …» нет — иначе шум в каждой строке."""
+        name = "owner-decision-morfo.md"
+        env = _Env(self.live, {name: LOCAL_CARD}, {f"{TRACKER}/{name}": LOCAL_CARD})
+        os.environ["SPA_LIVE_ROOT"] = self.live
+
+        line = oad.render(oad.run(now=NOW, reader=env.reader,
+                                  pusher=env.pusher, write_status=False))
+
+        self.assertNotIn("дерево:", line)
+
 if __name__ == "__main__":
     unittest.main()

@@ -77,6 +77,17 @@ CLI пушера отправляет БАЙТЫ ФАЙЛА С ДИСКА, а м
 которой мы читали, поэтому чужой пуш в окне между чтением и записью получает
 отказ от самого GitHub (не-fast-forward), а не тихую перезапись.
 
+О КАКОМ дереве сторож говорит (цикл #429, 30.08)
+------------------------------------------------------------------------------
+Предмет сторожа — ЖИВОЕ дерево, и это не вкус, а построение: ``record_owner_answer``
+пишет ответ владельца туда и больше никуда. Дефолт же брал каталог, где лежит файл
+модуля, — а протокол ТРЕБУЕТ работать из изолированного worktree (§3.4). Worktree на
+``origin/main`` сверялся сам с собой и печатал IDLE «весь след решений владельца на
+origin» ровно тогда, когда четыре ответа владельца лежали вне git. Теперь ``root=None``
+значит «реши сам» и решается ``utils.live_paths.live_root``; живого дерева нет и никто
+его не назвал ⇒ ОТКАЗ до перечисления и до пуша, а не зелёная строка. Подробности и
+замер — у :func:`resolve_root`.
+
 Owner-gate не обойдён: единственный разрешённый префикс путей —
 `nimbalyst-local/tracker/`, `landing/**` этот модуль не умеет отправить в
 принципе (проверка до, а не после).
@@ -109,6 +120,7 @@ from spa_core.monitoring.card_delivery import (
     card_parts,
 )
 from spa_core.owner_queue.owner_answer import OWNER_ANSWER_FIELDS
+from spa_core.utils.live_paths import LIVE_ROOT_ENV, live_root
 
 STATUS_REL = os.path.join("data", "owner_answer_delivery_status.json")
 PUSHER_REL = "push_to_github.py"
@@ -188,6 +200,69 @@ CREATE_ON_ORIGIN = "absent_on_origin"  # карточки на origin нет в�
 CONFLICT = "conflict"                  # origin несёт ДРУГОЙ ответ владельца
 SUPERSEDED = "superseded"              # расходились, и origin называет НАШ ответ вытесненным
 UNMEASURED = "unmeasured"              # origin прочитать не удалось
+
+# ── КАКОЕ дерево судим и откуда мы это узнали ────────────────────────────────
+#
+# Предмет этого сторожа — ЖИВОЕ дерево, и не по вкусу, а по построению:
+# ``record_owner_answer`` пишет ответ владельца туда и больше никуда (бот другого
+# дерева не знает). Значит вопрос «доехал ли след на origin» осмыслен ровно для
+# живого дерева, а для любого другого он не задан.
+#
+# Замер 2026-08-30 (цикл #429). Прогон из git-worktree, выписанного на
+# ``origin/main`` — то есть ровно так, как ТРЕБУЕТ протокол (§3.4, «одна задача →
+# изолированный worktree»):
+#
+#   из /tmp/spa_c429 (worktree на origin/main):  IDLE — «весь след решений
+#                                                владельца на origin (78 карточк(и))»
+#   тот же код, та же минута, --root прод-дерева: UNCHECKED — недоставлено 4
+#     (AI1-approach · otkat-vetki-1249 · morpho-steakhouse · urovni-dokazatelnosti)
+#
+# Первый ответ не «неточен» — он вакуумный: worktree на ``origin/main`` сверялся
+# сам с собой, и совпасть мог только полностью. Опаснее всего его ФОРМА: зелёная
+# строка «весь след на origin» читается как «ответы владельца в git», тогда как
+# четыре ответа лежали вне git. Тот же родовой класс, что 12.08 у шага 0-офис
+# (карточка `inbox-shag-0-ofis-iz-worktree-dokladyvaet-ne-p`), но с обратным
+# знаком: там из worktree сыпались ЛОЖНЫЕ находки, здесь — ложное СПОКОЙСТВИЕ.
+#
+# Корень — не путь, а ДЕФОЛТ: ``REPO_ROOT`` это каталог, где случайно лежит файл
+# модуля, а не решение о предмете. Поэтому ``root=None`` теперь значит «реши
+# сам» и решается ЖИВЫМ деревом (`utils.live_paths.live_root` — тот самый модуль,
+# написанный 08.08 против этого же класса), а явный ``--root`` остаётся дословным:
+# кто назвал дерево — тот его и выбрал.
+ROOT_EXPLICIT = "explicit"   # дерево назвал вызывающий — берём дословно
+ROOT_LIVE = "live"           # нашли живое дерево (SPA_LIVE_ROOT / прод-каталог)
+ROOT_OWN_TREE = "own_tree"   # живого дерева не видно и никто его не назвал
+
+#: Проба «живого дерева нет». ``live_root`` отдаёт fallback ДОСЛОВНО и только
+#: когда не нашлось ни ``SPA_LIVE_ROOT``, ни прод-каталога; отличить этот исход
+#: чтением кода `live_root` значило бы держать его копию (а копия слепа к
+#: расхождению с источником), поэтому спрашиваем сам ``live_root``.
+_NO_LIVE_TREE = "\x00-spa-no-live-tree"
+
+
+def _UNNAMED_TREE_REASON(root: str) -> str:
+    """Один текст на обе двери (``scan`` и ``run``) — расходиться им незачем."""
+    return (f"НЕ ИЗМЕРЕНО: живого дерева не видно ({LIVE_ROOT_ENV} не задан, "
+            f"прод-каталога нет) и --root не назван — судить пришлось бы дерево "
+            f"собственного кода {root}, а оно совпадает с origin по построению; "
+            f"«весь след на origin» здесь значило бы «сравнивать было нечего». "
+            f"Назовите дерево: --root <прод-дерево> либо {LIVE_ROOT_ENV}=<путь>")
+
+
+def resolve_root(root=None) -> tuple:
+    """``(дерево, откуда оно взялось)`` — см. блок выше.
+
+    ``root=None`` НЕ означает «каталог этого файла»: см. замер 30.08. Возврат —
+    всегда пара, чтобы вердикт мог отличить «сверено живое дерево» от «сверено
+    дерево собственного кода», а не выдавать второе за первое.
+    """
+    if root is not None:
+        return str(root), ROOT_EXPLICIT
+    from pathlib import Path
+    found = live_root(Path(_NO_LIVE_TREE))
+    if str(found) == _NO_LIVE_TREE:
+        return REPO_ROOT, ROOT_OWN_TREE
+    return str(found), ROOT_LIVE
 
 
 def _now(now: dt.datetime | None = None) -> dt.datetime:
@@ -454,13 +529,19 @@ def _tracker_dir(root: str) -> str:
     return os.path.join(root, TRACKER_REL)
 
 
-def scan(root: str = REPO_ROOT, reader=_default_remote_reader) -> list:
+def scan(root: str | None = None, reader=_default_remote_reader) -> list:
     """Карточки дерева ``root``, чей след ответа владельца на origin не полон.
 
     Список строится ЗАНОВО каждый прогон — отсюда повтор без отдельного долга.
     Ни одна карточка со следом не исчезает молча: она попадает ровно в один
     вердикт, включая ``unmeasured``.
     """
+    root, root_source = resolve_root(root)
+    if root_source == ROOT_OWN_TREE:
+        # Дерево не назвал никто, живого не видно. Перечислять каталог
+        # собственного кода нельзя: он совпадает с origin по построению, и любой
+        # вердикт по нему — вердикт о вопросе, которого не задавали (замер 30.08).
+        return [{"card": None, "verdict": UNMEASURED, "reason": _UNNAMED_TREE_REASON(root)}]
     out: list = []
     tracker = _tracker_dir(root)
     try:
@@ -575,7 +656,7 @@ def _default_pusher(root: str, items: list, message: str) -> tuple:
         return False, f"{type(e).__name__}: {e}"
 
 
-def run(root: str = REPO_ROOT, now: dt.datetime | None = None,
+def run(root: str | None = None, now: dt.datetime | None = None,
         reader=_default_remote_reader, pusher=_default_pusher, env=None,
         write_status: bool = True, dry_run: bool = False) -> dict:
     """Найти недоставленный след решения владельца и довезти его. Квитанция.
@@ -584,10 +665,20 @@ def run(root: str = REPO_ROOT, now: dt.datetime | None = None,
     молчит — любой исход попадает в ``status``.
     """
     ts = _now(now)
+    root, root_source = resolve_root(root)
     receipt = {"generated_at": ts.isoformat(), "adr": "ADR-086",
+               "root": root, "root_source": root_source,
                "scanned": 0, "delivered": [], "already_on_origin": [],
                "refused": [], "unmeasured": [], "conflicts": [], "superseded": [],
-               "status": UNCHECKED, "reason": "", "commit": None}
+               "pending": [], "status": UNCHECKED, "reason": "", "commit": None}
+    if root_source == ROOT_OWN_TREE:
+        # Отказ ДО перечисления и ДО пуша. Не «мы посмотрели и всё хорошо», а
+        # «смотреть было не на что»: дерево не назвал никто. Отдельно важно, что
+        # отказ стоит перед пушем — иначе сторож повёз бы на origin след из
+        # дерева, которое никто не выбирал.
+        receipt["reason"] = _UNNAMED_TREE_REASON(root)
+        receipt["unmeasured"] = [{"card": None, "reason": receipt["reason"]}]
+        return receipt
     try:
         findings = scan(root, reader=reader)
         receipt["scanned"] = len(findings)
@@ -682,6 +773,11 @@ def render(receipt: dict) -> str:
         tail += f" · РАЗНЫЕ ОТВЕТЫ: {len(receipt['conflicts'])}"
     if receipt.get("superseded"):
         tail += f" · ВЫТЕСНЕНО: {len(receipt['superseded'])}"
+    # Чьё дерево сверено — часть вердикта, а не деталь: «весь след на origin»,
+    # сказанное о worktree, читается как «ответы владельца в git» (замер 30.08).
+    src = receipt.get("root_source")
+    if src and src != ROOT_LIVE:
+        tail += f" · дерево: {receipt.get('root')} ({src})"
     if st == DELIVERED:
         return (f"owner_answer_delivery: ✅ след решения владельца доставлен "
                 f"({len(receipt.get('delivered') or [])}) → origin/main{tail}")
@@ -693,7 +789,9 @@ def render(receipt: dict) -> str:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--root", default=REPO_ROOT)
+    ap.add_argument("--root", default=None,
+                    help="дерево, о котором выносится вердикт; "
+                         "по умолчанию — ЖИВОЕ дерево, а не каталог этого файла")
     ap.add_argument("--dry-run", action="store_true",
                     help="только измерить, ничего не отправлять")
     ap.add_argument("--show", action="store_true", help="показать последнюю квитанцию")
@@ -702,7 +800,7 @@ def main(argv=None) -> int:
 
     if args.show:
         try:
-            with open(os.path.join(args.root, STATUS_REL), encoding="utf-8") as f:
+            with open(os.path.join(resolve_root(args.root)[0], STATUS_REL), encoding="utf-8") as f:
                 print(json.dumps(json.load(f), ensure_ascii=False, indent=2))
             return 0
         except OSError as e:  # noqa: BLE001
