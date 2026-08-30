@@ -9,6 +9,9 @@ owner_choice: "1"
 blocks: ""
 created: 2026-08-29
 resolved: 2026-08-29
+owner_answered_at: 2026-08-29T21:00:14.472042+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 > ## ✅ ОТВЕТ ВЛАДЕЛЬЦА (2026-08-29)

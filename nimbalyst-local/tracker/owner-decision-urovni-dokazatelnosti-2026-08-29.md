@@ -8,6 +8,9 @@ owner: yuriycooleshov@gmail.com
 owner_choice: "1"
 blocks: "Задача AI1-2.2 (APY Evidencer); честность меток на аналитическом слое"
 created: 2026-08-29
+owner_answered_at: 2026-08-29T21:00:50.140672+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 > **ЗАКРЫТО 2026-08-29, вариант 1.** Полный мандат владельца. Понижены **все двенадцать**

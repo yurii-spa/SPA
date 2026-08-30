@@ -10,6 +10,10 @@ blocks: ""
 created: 2026-08-29
 closed_by: cycle-423
 closed_reason: "вопрос перестал существовать: main восстановлен циклом #422; команда из карточки СЕЙЧАС уничтожила бы 5 коммитов"
+owner_choice: ack
+owner_answered_at: 2026-08-29T21:00:22.150394+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно
