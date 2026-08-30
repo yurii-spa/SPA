@@ -2,13 +2,17 @@
 trackerStatus:
   type: owner-decision
 title: "Tier-B: 84 модуля отвечают одинаково даже несуществующему протоколу — списать?"
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-29
 owner_choice: 1
 owner_answered_at: 2026-08-29T21:01:04.328218+00:00
 owner_answer_via: telegram
 owner_answered_by: 258651137
+owner_answer_kind: option
+status_trail:
+  - "2026-08-29T21:01:04.328291+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-08-30T00:59:31.437005+00:00 owner-done -> ingested · queue.set_status · cycle-84821"
 ---
 
 ## Что случилось и почему это важно
@@ -45,3 +49,11 @@ owner_answered_by: 258651137
 Получив ответ, я подключаю разметку к агрегатору одной строкой — так же, как это было сделано
 для Tier-C, — прогоняю тесты и показываю сигнал по восьми протоколам до и после.
 Метрика работающего слоя сдвинется с 21,7 % до 34,2 %.
+
+---
+
+## Решение владельца
+
+**Вариант 1** — списать
+
+_Ответ владельца получен 2026-08-29T21:01:04.328218+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._

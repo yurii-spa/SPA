@@ -462,6 +462,158 @@ class UnansweredCardIsNotAnAnswerTest(unittest.TestCase):
         self.assertIn("owner_choice_superseded", why)
 
 
+# ── авария цикла #428: `1` и `"1"` объявлялись ДВУМЯ РАЗНЫМИ ответами ────────
+# Замер 30.08 на живом прод-дереве против origin `a04fd645e`: расхождений шесть,
+# из них ДВА состоят РОВНО из кавычек, ещё у двух кавычки дают одно расхождение
+# из трёх. Настоящий спор — ОДИН. Формы ниже сняты с тех самых карточек.
+
+#: `owner-decision-AI1-approach-2026-08-29`: на origin `"1"`, у нас `1`. Ответ
+#: владельца ОДИН и тот же (вариант 1), спора нет ни в каком виде.
+QUOTED_ONE_ON_ORIGIN = UNANSWERED_CARD.replace(
+    b'status: needs-owner\n', b'status: ingested\n').replace(
+    b'owner_choice: ""\n', b'owner_choice: "1"\n')
+
+#: Наша копия той же карточки: кнопка бота пишет скаляр БЕЗ кавычек.
+BARE_ONE_LOCAL = UNANSWERED_CARD.replace(
+    b'status: needs-owner\n', b'status: owner-done\n').replace(
+    b'owner_choice: ""\n',
+    b"owner_choice: 1\n"
+    b"owner_answered_at: 2026-08-29T21:00:14.472042+00:00\n"
+    b"owner_answer_via: telegram\n")
+
+
+class QuotingIsNotADisagreementTest(unittest.TestCase):
+    """Кавычки вокруг скаляра — способ записи, а не другой ответ владельца.
+
+    Каждый тест — положительный контроль замера 30.08 (цикл #428): шаг 0-офис
+    печатал `⛔ ДВА РАЗНЫХ ОТВЕТА ВЛАДЕЛЬЦА, нужен человек` по карточкам, где обе
+    копии несут ОДИН вариант. Обратные контроли (склейка) стоят рядом: сторож
+    обязан остаться громким там, где ответы действительно разные.
+    """
+
+    def test_quoted_and_bare_one_is_not_a_conflict(self):
+        """`owner-decision-AI1-approach` дословно: `"1"` против `1`.
+
+        До правки: вердикт `conflict` и призыв человека каждый цикл.
+        """
+        _, reason, _ = oad.merge_trace(BARE_ONE_LOCAL, QUOTED_ONE_ON_ORIGIN)
+        self.assertNotIn("ДРУГОЙ ответ владельца", reason)
+
+    def test_matching_variant_unblocks_the_missing_provenance(self):
+        """Спор снят — и наружу уезжает ровно то, чего на origin не было.
+
+        Замер живой карточки: у нас, кроме варианта, есть отметка времени и канал,
+        а на origin их нет. Пока вариант читался спорным, они не ехали НИКОГДА —
+        ложный ⛔ держал доставку. Проверяем не только молчание сторожа, но и то,
+        что после него доставка делает свою работу и не трогает чужого.
+        """
+        merged, reason, added = oad.merge_trace(BARE_ONE_LOCAL, QUOTED_ONE_ON_ORIGIN)
+        self.assertEqual(reason, "")
+        self.assertEqual(sorted(added), ["owner_answer_via", "owner_answered_at"])
+        self.assertNotIn("owner_choice", added,
+                         "совпавший вариант переписывать нечем и незачем")
+        self.assertIn(b'owner_choice: "1"\n', merged,
+                      "написание origin остаётся origin'ным — своё мы не навязываем")
+
+    def test_trace_fully_on_origin_in_quotes_is_already_delivered(self):
+        """Наш след целиком на origin, отличается только написанием — везти нечего."""
+        ours = UNANSWERED_CARD.replace(b'owner_choice: ""\n', b"owner_choice: 1\n")
+        merged, reason, added = oad.merge_trace(ours, QUOTED_ONE_ON_ORIGIN)
+        self.assertIsNone(merged)
+        self.assertEqual(added, {})
+        self.assertIn("уже на origin", reason)
+
+    def test_quoted_conflict_disappears_from_scan_verdicts(self):
+        """Сквозь `scan`, а не только через `merge_trace`: вердикт больше не `conflict`."""
+        card = "owner-decision-AI1-approach-2026-08-29.md"
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            e = _Env(tmp, {card: BARE_ONE_LOCAL},
+                     {f"{TRACKER}/{card}": QUOTED_ONE_ON_ORIGIN})
+            verdicts = [i["verdict"] for i in oad.scan(e.root, reader=e.reader)
+                        if i.get("card") == card]
+            self.assertEqual(verdicts, [oad.NEEDS_TRACE],
+                             "кавычки сняты с вердикта, а не сам вердикт")
+
+    def test_single_quotes_are_the_same_scalar_too(self):
+        """YAML знает два написания кавычек — сторож обязан знать оба."""
+        origin = QUOTED_ONE_ON_ORIGIN.replace(b'owner_choice: "1"\n',
+                                              b"owner_choice: '1'\n")
+        _, reason, _ = oad.merge_trace(BARE_ONE_LOCAL, origin)
+        self.assertNotIn("ДРУГОЙ ответ владельца", reason)
+
+    def test_quoted_supersede_register_still_covers_the_clash(self):
+        """Регистр вытеснения нормализуется ТЕМ ЖЕ сравнением, иначе — новый класс ⛔.
+
+        Если бы кавычки снимались только в `merge_trace`, вытеснение, объявленное
+        на origin в кавычках, перестало бы покрывать наше расхождение — сторож
+        сменил бы один ложный призыв человека на другой.
+        """
+        ok, why = oad.clash_superseded(
+            {"owner_choice": ('"2"', "1")},
+            ANSWERED_ON_ORIGIN.replace(b'blocks: ""\n',
+                                       b'blocks: ""\nowner_choice_superseded: "1"\n'))
+        self.assertTrue(ok, why)
+
+    # ── обратные контроли: склеить два РАЗНЫХ ответа правка не смеет ─────────
+
+    def test_different_variants_in_quotes_still_call_for_a_human(self):
+        """`owner-decision-partiya-2-karantina` дословно: на origin `"4"`, у нас `1`.
+
+        Единственный НАСТОЯЩИЙ спор из шести. Он обязан пережить эту правку — ради
+        него она и сделана: до неё он лежал в одном ряду с четырьмя ложными.
+        """
+        origin = QUOTED_ONE_ON_ORIGIN.replace(b'owner_choice: "1"\n',
+                                              b'owner_choice: "4"\n')
+        _, reason, _ = oad.merge_trace(BARE_ONE_LOCAL, origin)
+        self.assertIn("ДРУГОЙ ответ владельца", reason)
+        self.assertIn('"4"', reason, "спорное значение обязано быть названо дословно")
+
+    def test_inner_whitespace_is_not_stripped(self):
+        """`"1 "` против `1` — РАЗНЫЕ скаляры: снимается пара кавычек, не содержимое."""
+        origin = QUOTED_ONE_ON_ORIGIN.replace(b'owner_choice: "1"\n',
+                                              b'owner_choice: "1 "\n')
+        _, reason, _ = oad.merge_trace(BARE_ONE_LOCAL, origin)
+        self.assertIn("ДРУГОЙ ответ владельца", reason)
+
+    def test_channel_divergence_survives_the_quoting_fix(self):
+        """`aave-na-arbitrum`/`tret-flota`: вариант один, а канал и отметка разные.
+
+        Правка про кавычки, и только про них: расхождение по существу остаётся
+        расхождением. Разбор «провенанс ответа ≠ ответ» — другой корень.
+        """
+        origin = QUOTED_ONE_ON_ORIGIN.replace(
+            b'owner_choice: "1"\n',
+            b'owner_choice: "1"\n'
+            b'owner_answered_at: "2026-08-29T20:30:00Z"\n'
+            b'owner_answer_via: "interactive"\n')
+        _, reason, _ = oad.merge_trace(BARE_ONE_LOCAL, origin)
+        self.assertIn("ДРУГОЙ ответ владельца", reason)
+        self.assertNotIn("owner_choice:", reason,
+                         "вариант совпал — по нему спора нет и называть его нечего")
+
+    def test_unparseable_quoting_is_refused_not_guessed(self):
+        """Fail-CLOSED: чего функция не берётся разобрать, то остаётся неравным."""
+        self.assertEqual(oad.unquote_scalar('"a\\nb"'), '"a\\nb"',
+                         "экранирование помимо \\\\ и \\\" разбирать не беремся")
+        self.assertEqual(oad.unquote_scalar('"a"b"'), '"a"b"',
+                         "кавычка внутри двойных без экрана — это не один скаляр")
+        self.assertEqual(oad.unquote_scalar('"недописанный'), '"недописанный')
+        self.assertFalse(oad.same_scalar('"a\\nb"', "a\\nb"))
+
+    def test_quoted_null_is_a_value_not_an_absence(self):
+        """Порядок проверок: пустой скаляр судится по СЫРОМУ написанию.
+
+        Нормализуй мы раньше, строка `"null"` (настоящее значение) стала бы
+        неотличима от `null` (объявленное отсутствие ответа).
+        """
+        card = UNANSWERED_CARD.replace(b'owner_choice: ""\n',
+                                       b'owner_choice: "null"\n')
+        self.assertEqual(oad.trace_fields(card).get("owner_choice"), '"null"')
+        bare = UNANSWERED_CARD.replace(b'owner_choice: ""\n', b"owner_choice: null\n")
+        self.assertEqual(oad.trace_fields(bare), {})
+
+
 class VerifyTraceOnlyTest(unittest.TestCase):
     """Независимое доказательство переноса. Конструктор себе не судья."""
 

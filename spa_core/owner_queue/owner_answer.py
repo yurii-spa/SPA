@@ -351,8 +351,39 @@ def find_answer_copies(card_path: str | Path,
     return out
 
 
-def _answer_identity(fields: dict) -> tuple:
-    return tuple(fields.get(k, "") for k in _IDENTITY_FIELDS)
+def answer_disagreements(copies) -> dict:
+    """``{поле: [различающиеся НАЗВАННЫЕ значения]}`` — по чему копии спорят на самом деле.
+
+    ``copies`` — последовательность словарей полей (своя копия и найденные чужие).
+
+    **Отсутствие поля не спорит ни с чем.** До цикла #428 сравнивались КОРТЕЖИ
+    (``_answer_identity``, снята), где недостающее поле подставлялось пустой строкой и дальше
+    участвовало как ЗНАЧЕНИЕ. Копия, где записан вариант 1 и не записан момент, и копия, где
+    записаны вариант 1 И момент, давали ``('1', '')`` против ``('1', '<отметка>')`` — разные
+    кортежи, то есть, по букве этого кода, «два разных ответа владельца».
+
+    Замер 30.08 (цикл #428) на живом прод-дереве: шаг 2 протокола (инжест ответов владельца)
+    отказал по ЧЕТЫРЁМ карточкам из семи, и по двум из них — ``owner-decision-AI1-approach``
+    и ``owner-decision-urovni-dokazatelnosti`` — ответ владельца во ВСЕХ копиях был один и тот
+    же, вариант 1; расходилось ровно то, что в части копий отметки времени просто нет.
+    Цена выше, чем у шумной строки в отчёте: ``set-status … ingested`` возвращал 2 и карточка
+    не закрывалась, то есть разобранное решение владельца оставалось в очереди как
+    неразобранное — и следующая сессия разбирала его заново.
+
+    Тот же корень, что у пустого скаляра ``owner_choice: ""`` (цикл #427) и у сравнения
+    ``1`` против ``"1"`` в сторожe доставки (цикл #428): **сторож принимает «не сказано» за
+    сказанное.** Третье место, третья форма записи — поэтому чинится правилом, а не случаем.
+
+    Fail-CLOSED там, где спор настоящий: если поле НАЗВАНО больше чем в одной копии и
+    значения разные, оно попадает в результат и закрывать карточку по-прежнему нельзя.
+    """
+    named: dict = {}
+    for fields in copies:
+        for key in _IDENTITY_FIELDS:
+            value = str(fields.get(key, "")).strip()
+            if value:
+                named.setdefault(key, set()).add(value)
+    return {k: sorted(v) for k, v in sorted(named.items()) if len(v) > 1}
 
 
 def carry_owner_answer(card_path: str | Path,
@@ -374,15 +405,15 @@ def carry_owner_answer(card_path: str | Path,
     mine = read_answer_fields(text)
     copies = find_answer_copies(p, extra_dirs)
 
-    # Разные ответы среди источников — стоп до любой записи.
-    identities = {_answer_identity(f) for _, f in copies}
-    if mine:
-        identities.add(_answer_identity(mine))
-    if len(identities) > 1:
+    # Разные ответы среди источников — стоп до любой записи. Спор считается по
+    # НАЗВАННЫМ значениям: копия, где поля нет, молчит о нём, а не возражает.
+    disagreements = answer_disagreements([f for _, f in copies] + ([mine] if mine else []))
+    if disagreements:
         where = ", ".join(str(src) for src, _ in copies) or "—"
+        named = "; ".join(f"{k}: {v}" for k, v in disagreements.items())
         raise AnswerConflict(
             f"{p.name}: копии карточки несут РАЗНЫЕ ответы владельца "
-            f"({sorted(identities)}); источники: {where}. "
+            f"({named}); источники: {where}. "
             f"Выбрать сторону молча нельзя — сверьте руками."
         )
 

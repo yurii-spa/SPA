@@ -2,10 +2,17 @@
 trackerStatus:
   type: owner-decision
 title: "Я задал тебе неверный вопрос про слепые протоколы — проверил, и всё оказалось наоборот"
-status: needs-owner
+status: ingested
 priority: high
 owner: yuriycooleshov@gmail.com
-owner_choice: ""
+owner_choice: 1
+owner_answered_at: 2026-08-29T21:01:53.025928+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
+owner_answer_kind: option
+status_trail:
+  - "2026-08-29T21:01:53.026124+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-08-30T00:59:31.774326+00:00 owner-done -> ingested · queue.set_status · cycle-84821"
 blocks: "Реализация ADR-167; понимание того, как книга ведёт себя при потере фидов"
 created: 2026-08-29
 ---
@@ -83,3 +90,11 @@ created: 2026-08-29
    в одно место три разных числа возраста наблюдения, которые жили порознь
    (36 ч в аллокаторе, 48 ч в кураторе без ADR, 168 ч в тексте решения без кода).
    Но подключать его как ВТОРОЙ механизм сокращения нельзя — первый уже работает.
+
+---
+
+## Решение владельца
+
+**Вариант 1** — Поднять порог защиты
+
+_Ответ владельца получен 2026-08-29T21:01:53.025928+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._

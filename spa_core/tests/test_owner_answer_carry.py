@@ -364,3 +364,121 @@ def test_a_genuinely_fresh_owner_answer_is_never_marked_proven(tmp_path, capsys)
         "свежий ответ владельца пропал из очереди — решение потеряно"
     )
     assert cards[0]["origin_check"] != oq.VERDICT_ANSWER_INGESTED_PROVEN
+
+
+# ── авария №3 (цикл #428): «поле не записано» читалось как «записано другое» ──
+#
+# Замер 30.08 на живом прод-дереве: шаг 2 протокола отказал по ЧЕТЫРЁМ карточкам
+# из семи. По двум из них — `owner-decision-AI1-approach-2026-08-29` и
+# `owner-decision-urovni-dokazatelnosti-2026-08-29` — ответ владельца во ВСЕХ
+# копиях был ОДИН (вариант 1); расходилось лишь то, что в части копий отметки
+# времени нет вовсе. `set-status … ingested` возвращал 2, карточка не
+# закрывалась, и разобранное решение оставалось в очереди как неразобранное.
+
+
+def test_missing_stamp_does_not_contradict_a_recorded_one(trees):
+    """`owner-decision-AI1-approach` дословно: везде вариант 1, отметка не везде.
+
+    До правки — `AnswerConflict`: кортежи `('1', '')` и `('1', '<отметка>')`
+    считались двумя разными ответами владельца.
+    """
+    host, wt = trees
+    partial = wt.parent.parent / "partial" / drift.TRACKER_REL
+    partial.mkdir(parents=True)
+    (partial / "owner-decision-x.md").write_text(
+        _owner_card(status="ingested", extra=f"owner_choice: {CHOICE}\n"), encoding="utf-8")
+    card = wt / "owner-decision-x.md"
+
+    report = oa.carry_owner_answer(card, extra_dirs=[host, partial])
+
+    assert report["verdict"] == oa.CARRY_CARRIED
+    assert _fields(card)["owner_choice"] == CHOICE
+
+
+def test_step2_closes_the_card_when_only_the_stamp_is_missing(trees, capsys):
+    """Сквозь ту же дверь, что и авария: `set-status ingested` обязан закрыть карточку."""
+    host, wt = trees
+    partial = wt.parent.parent / "partial2" / drift.TRACKER_REL
+    partial.mkdir(parents=True)
+    (partial / "owner-decision-x.md").write_text(
+        _owner_card(status="ingested", extra=f"owner_choice: {CHOICE}\n"), encoding="utf-8")
+    card = wt / "owner-decision-x.md"
+
+    rc = oq.main(["set-status", str(card), "ingested",
+                  "--answer-from", str(host), "--answer-from", str(partial)])
+
+    assert rc == 0, capsys.readouterr().err
+    assert "status: ingested" in card.read_text(encoding="utf-8")
+
+
+def test_a_copy_naming_nothing_at_all_never_reaches_the_comparison(trees):
+    """Копия совсем без полей отсеивается ДО спора — и это второй, отдельный заслон.
+
+    Через `carry_owner_answer` этот случай не покрасить ни при какой правке
+    `answer_disagreements`: `find_answer_copies` выбрасывает такие копии раньше.
+    Поэтому утверждение адресовано ИМЕННО фильтру — иначе тест был бы украшением,
+    неотличимым от контроля правки #428.
+    """
+    host, wt = trees
+    silent = wt.parent.parent / "silent" / drift.TRACKER_REL
+    silent.mkdir(parents=True)
+    (silent / "owner-decision-x.md").write_text(_owner_card(), encoding="utf-8")
+
+    copies = oa.find_answer_copies(wt / "owner-decision-x.md", extra_dirs=[host, silent])
+
+    assert [p.parent for p, _ in copies] == [host], (
+        "копия без единого поля ответа не источник и не сторона спора"
+    )
+
+
+# ── обратные контроли: настоящий спор обязан пережить правку ─────────────────
+
+
+def test_two_named_choices_still_refuse(trees, capsys):
+    """`owner-decision-partiya-2-karantina` дословно: вариант 4 против варианта 1."""
+    host, wt = trees
+    other = wt.parent.parent / "other3" / drift.TRACKER_REL
+    other.mkdir(parents=True)
+    (other / "owner-decision-x.md").write_text(
+        _answered_by_bot(choice="4"), encoding="utf-8")
+    card = wt / "owner-decision-x.md"
+
+    rc = oq.main(["set-status", str(card), "ingested",
+                  "--answer-from", str(host), "--answer-from", str(other)])
+
+    assert rc == 2
+    assert "status: needs-owner" in card.read_text(encoding="utf-8")
+    err = capsys.readouterr().err
+    assert "РАЗНЫЕ ответы владельца" in err
+    assert "owner_choice" in err, "спорное поле обязано быть названо поимённо"
+
+
+def test_two_named_stamps_still_refuse(trees, capsys):
+    """`aave-na-arbitrum`: вариант один, а момент назван РАЗНЫЙ в обеих копиях.
+
+    Правка снимает только молчание, не расхождение: если обе копии НАЗЫВАЮТ поле и
+    значения разные — это по-прежнему спор, и карточка не закрывается.
+    """
+    host, wt = trees
+    other = wt.parent.parent / "other4" / drift.TRACKER_REL
+    other.mkdir(parents=True)
+    (other / "owner-decision-x.md").write_text(
+        _answered_by_bot(stamp="2026-08-29T20:30:00Z"), encoding="utf-8")
+    card = wt / "owner-decision-x.md"
+
+    rc = oq.main(["set-status", str(card), "ingested",
+                  "--answer-from", str(host), "--answer-from", str(other)])
+
+    assert rc == 2
+    err = capsys.readouterr().err
+    assert "owner_answered_at" in err
+    assert "owner_choice" not in err, "вариант совпал — спора по нему нет и называть нечего"
+
+
+def test_disagreements_reports_only_named_values():
+    """Единица правила отдельно от двери: отсутствие не попадает в спор ни в каком виде."""
+    assert oa.answer_disagreements([{"owner_choice": "1"}, {}]) == {}
+    assert oa.answer_disagreements([{"owner_choice": "1"},
+                                    {"owner_choice": "", "owner_answered_at": "  "}]) == {}
+    assert oa.answer_disagreements([{"owner_choice": "1"}, {"owner_choice": "4"}]) == {
+        "owner_choice": ["1", "4"]}

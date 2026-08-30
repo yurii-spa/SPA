@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Security-скан risk-гейта нашёл два расхождения между ADR и реальным кодом: оси риска не подключены, тир протокола не сверяется"
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-29
 priority: high
@@ -10,6 +10,10 @@ owner_choice: A
 owner_answered_at: 2026-08-29T21:00:34.356411+00:00
 owner_answer_via: telegram
 owner_answered_by: 258651137
+owner_answer_kind: option
+status_trail:
+  - "2026-08-29T21:00:34.356589+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-08-30T01:05:14.905699+00:00 owner-done -> ingested · queue.set_status · cycle-84821"
 ---
 
 ## Что случилось и почему это важно
@@ -69,3 +73,11 @@ owner_answered_by: 258651137
 готовлю патч-файлы для каждой находки отдельно, добавляю регрессионный тест на реальном гейте
 (`risk_gate.py`/`cycle_runner.py`), показываю тебе диф до применения. При варианте C — фиксирую
 решение в ADR и в `docs/STATE.md`, ничего в коде не меняю.
+
+---
+
+## Решение владельца
+
+**Вариант A** — почини обе, отдельными ADR, в связке
+
+_Ответ владельца получен 2026-08-29T21:00:34.356411+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._
