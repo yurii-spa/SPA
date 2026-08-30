@@ -640,6 +640,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             for s in (oad.get("superseded") or [])[:5]:
                 out.append(f"   ↩︎ ответ ВЫТЕСНЕН более поздним, человек не нужен: "
                            f"{s.get('card')} — {s.get('reason')}")
+            # Четвёртый исход (цикл #429): выбор владельца ОДИН, разошлись канал и
+            # отметка. Не ⛔ — стороны выбирать не надо, спора о решении нет; но и
+            # не молчание: 30.08 ровно половина «нужен человек» была об этом, и
+            # настоящий спор тонул среди ложных.
+            for pv in (oad.get("provenance") or [])[:5]:
+                out.append(f"   ≈ тот же ВЫБОР владельца, разный провенанс "
+                           f"(человек не нужен): {pv.get('card')} — {pv.get('reason')}")
             for u in (oad.get("unmeasured") or [])[:5]:
                 out.append(f"   ⚠️ след НЕ ИЗМЕРЕН: {u.get('card')} — {u.get('reason')}")
     elif name == "loop_retro.json":

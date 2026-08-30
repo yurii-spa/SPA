@@ -576,19 +576,37 @@ class QuotingIsNotADisagreementTest(unittest.TestCase):
         _, reason, _ = oad.merge_trace(BARE_ONE_LOCAL, origin)
         self.assertIn("ДРУГОЙ ответ владельца", reason)
 
-    def test_channel_divergence_survives_the_quoting_fix(self):
+    def test_channel_divergence_is_provenance_not_a_disagreement(self):
         """`aave-na-arbitrum`/`tret-flota`: вариант один, а канал и отметка разные.
 
-        Правка про кавычки, и только про них: расхождение по существу остаётся
-        расхождением. Разбор «провенанс ответа ≠ ответ» — другой корень.
+        **НАМЕРЕННОЕ изменение утверждения (инвариант #16), ADR-175.** Этот тест
+        написан циклом #428 как ГРАНИЦА его правки: «правка про кавычки, и только
+        про них; разбор „провенанс ответа ≠ ответ“ — другой корень». Тот корень
+        разобран циклом #429, и предмет теста сдвинут решением, а не подгонкой под
+        зелёный. Замер 30.08 на живом дереве: из ЧЕТЫРЁХ «⛔ нужен человек» два
+        были спором о решении (origin «4» против «1»; «2» против «1»), а два —
+        вот этой формой: один и тот же вариант, разные канал и отметка. Звать
+        человека выбирать сторону там, где сторона одна, — шум, в котором тонет
+        настоящий спор (тот же счёт, что у кавычек в #428).
+
+        Что тест продолжает держать, слово в слово и БОЛЬШЕ прежнего:
+        расхождение не замолчано (причина есть и называет разошедшиеся поля),
+        совпавший `owner_choice` в ней не назван, и — новое — по такой карточке
+        НИЧЕГО не везётся: наша отметка затёрла бы origin'ную.
         """
         origin = QUOTED_ONE_ON_ORIGIN.replace(
             b'owner_choice: "1"\n',
             b'owner_choice: "1"\n'
             b'owner_answered_at: "2026-08-29T20:30:00Z"\n'
             b'owner_answer_via: "interactive"\n')
-        _, reason, _ = oad.merge_trace(BARE_ONE_LOCAL, origin)
-        self.assertIn("ДРУГОЙ ответ владельца", reason)
+        merged, reason, _ = oad.merge_trace(BARE_ONE_LOCAL, origin)
+
+        self.assertIsNone(merged, "провенанс origin затёрт нашей отметкой")
+        self.assertTrue(reason.startswith(oad.PROVENANCE_MARK), reason)
+        self.assertNotIn("ДРУГОЙ ответ владельца", reason,
+                         "вариант один — человека звать не на что")
+        self.assertIn("owner_answer_via", reason,
+                      "расхождение замолчано — невидимое хуже ложного")
         self.assertNotIn("owner_choice:", reason,
                          "вариант совпал — по нему спора нет и называть его нечего")
 
@@ -800,6 +818,24 @@ class OfficeStepReaderTest(unittest.TestCase):
                                       "unmeasured": [{"card": "own-y.md", "reason": "сеть"}]}))
         self.assertIn("own-y.md", text)
 
+    def test_provenance_is_printed_but_never_as_a_disagreement(self):
+        """Читатель провенанса — обязательный шаг цикла, и он не зовёт человека зря.
+
+        Именно шаг 0-офис печатал «⛔ ДВА РАЗНЫХ ОТВЕТА ВЛАДЕЛЬЦА, нужен человек»
+        по `aave-na-arbitrum` и `tret-flota` 30.08, где вариант был ОДИН (ADR-175).
+        """
+        text = "\n".join(self._lines(
+            {"status": oad.IDLE, "already_on_origin": [], "delivered": [], "pending": [],
+             "conflicts": [], "unmeasured": [], "superseded": [],
+             "provenance": [{"card": "owner-decision-aave.md",
+                             "reason": "тот же ВЫБОР владельца, разошёлся лишь провенанс"}],
+             "reason": "тест"}))
+
+        self.assertIn("owner-decision-aave.md", text)
+        self.assertIn("человек не нужен", text)
+        self.assertNotIn("ДВА РАЗНЫХ ОТВЕТА", text,
+                         "провенанс напечатан как спор — ровно шум 30.08")
+
 
 class RenderTest(unittest.TestCase):
     def test_missing_receipt_is_not_silence(self):
@@ -994,6 +1030,107 @@ class TreeUnderJudgementTest(unittest.TestCase):
                                   pusher=env.pusher, write_status=False))
 
         self.assertNotIn("дерево:", line)
+
+class ProvenanceIsNotADisagreementTest(unittest.TestCase):
+    """«Как записан ответ» ≠ «какой ответ». ADR-175.
+
+    Замер 30.08 (цикл #429), прод-дерево против `origin/main`: сторож поднял ЧЕТЫРЕ
+    «⛔ ДВА РАЗНЫХ ОТВЕТА ВЛАДЕЛЬЦА, нужен человек».
+
+      настоящий спор о решении (2): `partiya-2-karantina` origin «4» против нашей «1»
+                                    `tier-steakhouse`     origin «2» против нашей «1»
+      один и тот же выбор   (2): `aave-na-arbitrum`, `tret-flota` — вариант «1» с обеих
+                                    сторон, разошлись канал (`interactive`/`telegram`) и
+                                    отметка (пачечная 20:30:00Z против посекундной 21:01:5xZ)
+
+    Ровно половина эскалаций была ни о чём — тот же счёт, что 30.08 у кавычек
+    (ADR-173), и та же цена: настоящий спор тонет среди ложных. Граница узкая:
+    расходится `owner_choice` ⇒ по-прежнему человек, сторону не выбирает никто.
+    """
+
+    def setUp(self):
+        import tempfile
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = self._tmp.name
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    @staticmethod
+    def _origin_with(choice: bytes) -> bytes:
+        """Копия origin: свой канал, своя отметка и НАЗВАННЫЙ вариант."""
+        return QUOTED_ONE_ON_ORIGIN.replace(
+            b'owner_choice: "1"\n',
+            b'owner_choice: ' + choice + b'\n'
+            b'owner_answered_at: "2026-08-29T20:30:00Z"\n'
+            b'owner_answer_via: "interactive"\n')
+
+    # ── ГЛАВНЫЙ положительный контроль ────────────────────────────────────────
+
+    def test_same_choice_other_channel_is_not_a_conflict(self):
+        """`aave-na-arbitrum` дословно: вариант «1» с обеих сторон, канал разный."""
+        env = _Env(self.tmp, {"owner-decision-aave.md": BARE_ONE_LOCAL},
+                   {f"{TRACKER}/owner-decision-aave.md": self._origin_with(b'"1"')})
+
+        found = oad.scan(root=self.tmp, reader=env.reader)
+
+        self.assertEqual([f["verdict"] for f in found], [oad.PROVENANCE],
+                         "один и тот же выбор владельца объявлен спором о решении")
+
+    def test_different_choice_still_calls_a_human(self):
+        """ОБРАТНЫЙ контроль: `partiya-2-karantina` — origin «4» против нашей «1».
+
+        Без него починка могла бы «перестать звать человека» вообще и этим
+        сломать единственное, чего сторожу нельзя, — выбор стороны молча.
+        """
+        env = _Env(self.tmp, {"owner-decision-partiya.md": BARE_ONE_LOCAL},
+                   {f"{TRACKER}/owner-decision-partiya.md": self._origin_with(b'"4"')})
+
+        found = oad.scan(root=self.tmp, reader=env.reader)
+
+        self.assertEqual([f["verdict"] for f in found], [oad.CONFLICT])
+        self.assertIn("ДРУГОЙ ответ владельца", found[0]["reason"])
+
+    def test_live_shape_of_2026_08_30_splits_two_and_two(self):
+        """Форма аварии целиком: четыре расхождения ⇒ два спора и два провенанса.
+
+        Поштучные тесты выше не отвечают на вопрос, ради которого правка делалась:
+        сколько ложных эскалаций уходит и сколько настоящих ОСТАЁТСЯ.
+        """
+        cards, remote = {}, {}
+        for name, choice in (("aave", b'"1"'), ("tret-flota", b'"1"'),
+                             ("partiya", b'"4"'), ("steakhouse", b'"2"')):
+            fn = f"owner-decision-{name}.md"
+            cards[fn] = BARE_ONE_LOCAL
+            remote[f"{TRACKER}/{fn}"] = self._origin_with(choice)
+        env = _Env(self.tmp, cards, remote)
+
+        r = oad.run(root=self.tmp, now=NOW, reader=env.reader,
+                    pusher=env.pusher, write_status=False)
+
+        self.assertEqual(len(r["conflicts"]), 2, r["conflicts"])
+        self.assertEqual(len(r["provenance"]), 2, r["provenance"])
+        self.assertEqual(env.pushed, [], "по спорному/провенансному следу везти нечего")
+
+    def test_provenance_does_not_block_the_verdict_but_is_named(self):
+        """Как вытеснение: не держит статус в отказе, но и не исчезает.
+
+        Невидимое расхождение ничем не отличалось бы от того, что сторож перестал
+        смотреть на эти поля.
+        """
+        env = _Env(self.tmp, {"owner-decision-aave.md": BARE_ONE_LOCAL},
+                   {f"{TRACKER}/owner-decision-aave.md": self._origin_with(b'"1"')})
+
+        r = oad.run(root=self.tmp, now=NOW, reader=env.reader,
+                    pusher=env.pusher, write_status=False)
+
+        self.assertEqual(r["status"], oad.IDLE)
+        self.assertEqual(r["conflicts"], [])
+        self.assertEqual(len(r["provenance"]), 1)
+        self.assertIn("провенанс", r["reason"])
+        self.assertIn("ПРОВЕНАНС", oad.render(r))
+        self.assertNotIn("РАЗНЫЕ ОТВЕТЫ", oad.render(r))
+
 
 if __name__ == "__main__":
     unittest.main()

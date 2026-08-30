@@ -182,6 +182,27 @@ EMPTY_SCALARS = ('""', "''", "~", "null", "Null", "NULL")
 #: переписать в одном из мест, — это следующая авария, а не защита.
 SUPERSEDED_MARK = "наш след ВЫТЕСНЕН"
 
+#: Метка четвёртого исхода: копии несут ОДИН И ТОТ ЖЕ ``owner_choice``, а разошлись
+#: тем, КАК и КОГДА он записан (`owner_answer_via` / `owner_answered_at` /
+#: `owner_answered_by`).
+#:
+#: Замер 30.08 (цикл #429), прод-дерево против `origin/main`: сторож поднял ЧЕТЫРЕ
+#: «⛔ ДВА РАЗНЫХ ОТВЕТА ВЛАДЕЛЬЦА, нужен человек». Настоящих споров о решении из них
+#: ДВА (`partiya-2-karantina`: origin «4» против «1»; `tier-steakhouse`: origin «2»
+#: против «1»). Другие два — `aave-na-arbitrum` и `tret-flota` — несут ОДИН И ТОТ ЖЕ
+#: вариант, а расходятся каналом (`interactive` против `telegram`) и отметкой
+#: (20:30:00Z пачкой против посекундной 21:01:5xZ): владелец ответил дважды одинаково.
+#:
+#: Звать человека «выбрать сторону» там, где сторона одна, — не осторожность, а шум:
+#: половина эскалаций была ни о чём, и настоящий спор тонул среди них (тот же счёт,
+#: что 30.08 у кавычек, ADR-173). Провенанс при этом НЕ выбрасывается: везти мы
+#: по-прежнему ничего не будем — наша отметка затёрла бы origin'ную, — но и молчать
+#: не станем, иначе расхождение стало бы невидимым.
+#:
+#: Граница узкая и намеренно такая: расходится ``owner_choice`` ⇒ это по-прежнему
+#: CONFLICT и по-прежнему человек. Сторону не выбирает никто, кроме владельца.
+PROVENANCE_MARK = "тот же ВЫБОР владельца"
+
 DELIVERED = "DELIVERED"
 IDLE = "IDLE"
 REFUSED = "REFUSED"
@@ -199,6 +220,7 @@ ALREADY_ON_ORIGIN = "already_on_origin"
 CREATE_ON_ORIGIN = "absent_on_origin"  # карточки на origin нет вовсе
 CONFLICT = "conflict"                  # origin несёт ДРУГОЙ ответ владельца
 SUPERSEDED = "superseded"              # расходились, и origin называет НАШ ответ вытесненным
+PROVENANCE = "provenance"              # ВЫБОР тот же, разошлись канал/отметка
 UNMEASURED = "unmeasured"              # origin прочитать не удалось
 
 # ── КАКОЕ дерево судим и откуда мы это узнали ────────────────────────────────
@@ -467,6 +489,15 @@ def merge_trace(local: bytes, remote: bytes) -> tuple:
             return None, (f"{SUPERSEDED_MARK} более поздним ответом владельца, и origin "
                           f"называет вытесненное поимённо ({why}) — везти нечего, "
                           f"сторону выбрал владелец"), {}
+        if "owner_choice" not in clash:
+            # Четвёртый исход. Обе копии называют ОДИН И ТОТ ЖЕ выбор владельца
+            # (или наша не называет никакого) — расходятся лишь канал и отметка.
+            # Спора о решении нет, значит и стороны выбирать не надо: звать
+            # человека тут не на что. Везти всё равно НЕЧЕГО — наша отметка
+            # затёрла бы origin'ную запись о том, как ответ пришёл туда.
+            return None, (f"{PROVENANCE_MARK}, разошёлся лишь провенанс ({named}) — "
+                          f"везти нечего (наша отметка затёрла бы origin'ную), "
+                          f"человек не нужен"), {}
         return None, (f"на origin ДРУГОЙ ответ владельца ({named}) — две копии несут разные "
                       f"решения, выбирать сторону молча нельзя; сверьте руками [{why}]"), {}
 
@@ -585,6 +616,8 @@ def scan(root: str | None = None, reader=_default_remote_reader) -> list:
                 verdict = ALREADY_ON_ORIGIN
             elif reason.startswith(SUPERSEDED_MARK):
                 verdict = SUPERSEDED
+            elif reason.startswith(PROVENANCE_MARK):
+                verdict = PROVENANCE
             elif "ДРУГОЙ ответ владельца" in reason:
                 verdict = CONFLICT
             else:
@@ -670,6 +703,7 @@ def run(root: str | None = None, now: dt.datetime | None = None,
                "root": root, "root_source": root_source,
                "scanned": 0, "delivered": [], "already_on_origin": [],
                "refused": [], "unmeasured": [], "conflicts": [], "superseded": [],
+               "provenance": [],
                "pending": [], "status": UNCHECKED, "reason": "", "commit": None}
     if root_source == ROOT_OWN_TREE:
         # Отказ ДО перечисления и ДО пуша. Не «мы посмотрели и всё хорошо», а
@@ -696,6 +730,10 @@ def run(root: str | None = None, now: dt.datetime | None = None,
         # бы чинить громкость, оставив вердикт врать.
         receipt["superseded"] = [{"card": f["card"], "reason": f["reason"]}
                                  for f in by.get(SUPERSEDED, [])]
+        # Провенанс — рядом с вытеснением и по той же причине: везти нечего и
+        # звать некого, но невидимым расхождение оставлять нельзя.
+        receipt["provenance"] = [{"card": f["card"], "reason": f["reason"]}
+                                 for f in by.get(PROVENANCE, [])]
         receipt["refused"] = [{"card": f["card"], "reason": f["reason"]}
                               for f in by.get(REFUSED, [])]
 
@@ -718,9 +756,11 @@ def run(root: str | None = None, now: dt.datetime | None = None,
             else:
                 receipt["status"] = IDLE
                 sup = len(receipt["superseded"])
+                prov = len(receipt["provenance"])
                 receipt["reason"] = (f"весь след решений владельца на origin "
                                      f"({len(receipt['already_on_origin'])} карточк(и))"
-                                     + (f"; вытеснено более поздним ответом: {sup}" if sup else ""))
+                                     + (f"; вытеснено более поздним ответом: {sup}" if sup else "")
+                                     + (f"; тот же выбор, разный провенанс: {prov}" if prov else ""))
         elif dry_run:
             receipt["status"] = UNCHECKED
             receipt["reason"] = (f"сухой прогон: доставить нужно {len(todo)} карточк(и) — "
@@ -773,6 +813,8 @@ def render(receipt: dict) -> str:
         tail += f" · РАЗНЫЕ ОТВЕТЫ: {len(receipt['conflicts'])}"
     if receipt.get("superseded"):
         tail += f" · ВЫТЕСНЕНО: {len(receipt['superseded'])}"
+    if receipt.get("provenance"):
+        tail += f" · ПРОВЕНАНС: {len(receipt['provenance'])}"
     # Чьё дерево сверено — часть вердикта, а не деталь: «весь след на origin»,
     # сказанное о worktree, читается как «ответы владельца в git» (замер 30.08).
     src = receipt.get("root_source")
