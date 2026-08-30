@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>HOME</key>
+		<string>/Users/yuriikulieshov</string>
+		<key>PATH</key>
+		<string>/Users/yuriikulieshov/miniconda3/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+	</dict>
+	<key>Label</key>
+	<string>com.spa.gas_price_agent</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_gas_price.sh</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>/tmp/spa_gas_price.launchd.err</string>
+	<key>StandardOutPath</key>
+	<string>/tmp/spa_gas_price.launchd.out</string>
+	<key>StartInterval</key>
+	<integer>1800</integer>
+	<key>ThrottleInterval</key>
+	<integer>30</integer>
+	<key>WorkingDirectory</key>
+	<string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+</dict>
+</plist>

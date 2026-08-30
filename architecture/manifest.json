@@ -291,6 +291,35 @@
    }
   },
   {
+   "label": "com.spa.gas_price_agent",
+   "plist_source": "repo:launchd/com.spa.gas_price_agent.plist",
+   "reboot_safe": false,
+   "schedule": "interval:1800s",
+   "program": "agent_gas_price.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "designed",
+   "produces": [
+    {
+     "artifact": "data/gas_price_history.json",
+     "slo_hours": 1.5
+    }
+   ],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [
+    "ADR-183",
+    "ADR-182"
+   ],
+   "curation": "complete",
+   "notes": "решение владельца 30.08 (ADR-183): постоянный агент цены газа вместо разового замера — 4 сети + спот ETH каждые 30 мин, отказ источников = unchecked (fallback-констант нет), режим cheap/normal/expensive по перцентилю собственной live-истории. ПОСТРОЕН, не установлен: intent=designed, активация — деплой-гейт на хосте (инв. #12), до неё SLO не судится. Advisory: не гейтит, де-риска не касается (ADR-168). Заменяет собой трёх сирот-газ-мониторов из переписи KNOWN_UNWIRED — их вывод из обращения отдельной карточкой (имена там; здесь не называю, чтобы упоминание не читалось детектором проводки как вызов)",
+   "passport": {
+    "goal": "Постоянное измерение цены газа (ethereum/base/arbitrum/optimism) и ETH/USD с провенансом live|unchecked; advisory-режим стоимости хода для экономики пилота (ADR-182/183).",
+    "quality_metric": "data/gas_price_history.json свежее 1.5 ч (после активации); доля live-чтений по ethereum",
+    "escalation": "нет (advisory; затяжной unchecked виден в самом артефакте и в отчётном слое после подключения)"
+   }
+  },
+  {
    "label": "com.spa.btc_nav",
    "plist_source": "repo:launchd/com.spa.btc_nav.plist",
    "reboot_safe": false,
