@@ -86,6 +86,47 @@ def _set_frontmatter_field(lines: list[str], start: int, end: int,
     return end + 1
 
 
+def _superseded_register(fm_lines: list[str]) -> dict:
+    """Регистр вытеснения по ПРЕДЫДУЩЕМУ ответу владельца в этой карточке.
+
+    Пусто ⇒ вытеснять нечего: карточка либо не отвечена вовсе, либо носит пустой скаляр
+    (:data:`EMPTY_SCALARS`) — «ответа нет», а не «ответ пустой».
+
+    **Почему регистр пишется, хотя ADR-163 сказал «автоматической записи нет».** Довод
+    ADR-163 — «бот вытеснения не наблюдает, он видит только свой канал» — верен для
+    МЕЖканального случая: ответ интерактивной сессии боту действительно не виден. Но
+    ровно тот случай, который бот производит САМ, он наблюдает непосредственно: владелец
+    жмёт вторую кнопку под той же карточкой, и старое значение у писателя в руках —
+    строкой выше он читает его для проверки идемпотентности. Живой замер (прод-дерево,
+    ``owner-decision-mandat-samostoyatelnoi-raboty-konchaetsy``, 19.08): вариант 1 в
+    21:52:36.7, вариант 3 в 21:52:40.2 — 3.5 секунды, один канал, один бот. В машинном
+    следе от первого ответа не осталось ничего.
+
+    **Провенанс не выдумывается.** Отвеченная руками карточка может нести ``owner_choice``
+    без ``owner_answered_at``/``owner_answer_via``; тогда регистр выходит НЕПОЛНЫМ, и это
+    честно: сторож доставки читает неполное покрытие как «вытеснение расхождения не
+    покрывает» и по-прежнему зовёт человека (fail-CLOSED). Дописать сюда сегодняшнюю
+    отметку значило бы приписать вытесненному ответу момент, которого у него не было.
+    """
+    fm = _parse_frontmatter(fm_lines)
+    register: dict = {}
+    for field, reg_key in SUPERSEDED_FIELDS.items():
+        value = fm.get(field)
+        if not isinstance(value, str):
+            # ``owner_choice: ""`` разбирается как начало вложенного блока (dict) —
+            # это ОТСУТСТВИЕ значения, и попасть в регистр оно не должно.
+            continue
+        value = value.strip()
+        if not value or value in EMPTY_SCALARS:
+            continue
+        register[reg_key] = value
+    # Без самого вытесненного ВЫБОРА регистр бессмыслен: провенанс без решения не
+    # называет вытесненный ответ, а сторож сверяет именно решение.
+    if SUPERSEDED_FIELDS["owner_choice"] not in register:
+        return {}
+    return register
+
+
 #: Ответ владельца — ВЫБОР варианта, вычитанного из карточки.
 KIND_OPTION = "option"
 #: Ответ владельца — ПОДТВЕРЖДЕНИЕ поручения: вариантов карточка не предлагала,
@@ -194,8 +235,14 @@ def record_owner_answer(
     if start is None or end is None:
         raise ValueError(f"{p}: could not locate frontmatter bounds")
 
+    # Вытесняемый ответ — ДО перезаписи: строкой ниже его значения перестанут
+    # существовать где бы то ни было, кроме прозы тела (ADR-180).
+    superseded = _superseded_register(fm_lines)
+
     new_status = status_for_answer(kind, choice_num)
     end = _set_frontmatter_field(lines, start, end, "status", new_status)
+    for reg_key, reg_value in superseded.items():   # порядок — объявленный, не словарный
+        end = _set_frontmatter_field(lines, start, end, reg_key, reg_value)
     end = _set_frontmatter_field(lines, start, end, "owner_choice", str(choice_num))
     end = _set_frontmatter_field(lines, start, end, "owner_answered_at", stamp)
     end = _set_frontmatter_field(lines, start, end, "owner_answer_via", via)
@@ -231,7 +278,8 @@ def record_owner_answer(
     record_status_write(p, old=old_status, new=new_status,
                         source="owner_answer.record_owner_answer", now=now)
     return {"path": str(p), "choice": choice_num, "already": False,
-            "answered_at": stamp, "status": new_status}
+            "answered_at": stamp, "status": new_status,
+            "superseded": superseded}
 
 
 # ── перенос следа решения владельца в ту копию карточки, которая уедет в git ──
@@ -261,6 +309,30 @@ def record_owner_answer(
 # прозу инжеста — сессия, и склеивать их значило бы плодить два рассказа об одном решении.
 # Не перезаписывает уже записанный ответ: расхождение полей — это ДВА разных ответа
 # владельца, и выбирать между ними молча запрещено (``AnswerConflict``, fail-CLOSED).
+
+#: Написания ПУСТОГО YAML-скаляра. Пустое значение — это ОТСУТСТВИЕ ответа, а не ответ
+#: со значением «пусто»: штатная карточка владельца рождается со строкой ``owner_choice: ""``
+#: и носит её, пока владелец не ответил.
+#:
+#: **Живёт здесь, а не у сторожа (ADR-180).** До #435 список был объявлен в
+#: ``monitoring.owner_answer_delivery`` — там, где след ЧИТАЮТ. Теперь его же вопрос
+#: («это ответ или его отсутствие?») задаёт и ПИСАТЕЛЬ, решая, есть ли что вытеснять.
+#: Две копии списка разошлись бы молча и в разные стороны: писатель счёл бы ``~`` ответом
+#: и записал бы вытеснение пустоты, читатель — нет. Сторож импортирует отсюда.
+EMPTY_SCALARS = ('""', "''", "~", "null", "Null", "NULL")
+
+#: Регистр вытеснения (ADR-163): поле следа → поле, в котором ДОСЛОВНО назван вытесненный
+#: им ответ. Сторож доставки читает его, чтобы отличить разобранное расхождение от спора.
+#:
+#: **Живёт здесь, а не у сторожа (ADR-180)** — по той же причине, по какой здесь живёт
+#: :data:`OWNER_ANSWER_FIELDS`: с #435 регистр не только читают, но и ПИШУТ (см.
+#: :func:`record_owner_answer`), а ADR-163 прямо предупреждает: «Другое имя = сторож снова
+#: слеп». Одно имя в двух модулях достигается импортом, а не второй записью.
+SUPERSEDED_FIELDS = {
+    "owner_choice": "owner_choice_superseded",
+    "owner_answered_at": "owner_choice_superseded_at",
+    "owner_answer_via": "owner_choice_superseded_via",
+}
 
 #: Поля, которыми ``record_owner_answer`` метит ответ владельца. Один список на весь
 #: модуль: вторая копия имён — ровно тот дефект, за который проект платил в #143–#145.

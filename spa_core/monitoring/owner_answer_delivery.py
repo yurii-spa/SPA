@@ -119,7 +119,11 @@ from spa_core.monitoring.card_delivery import (
     _default_remote_reader,
     card_parts,
 )
-from spa_core.owner_queue.owner_answer import OWNER_ANSWER_FIELDS
+from spa_core.owner_queue.owner_answer import (
+    EMPTY_SCALARS,
+    OWNER_ANSWER_FIELDS,
+    SUPERSEDED_FIELDS,
+)
 from spa_core.utils.live_paths import LIVE_ROOT_ENV, live_root
 
 STATUS_REL = os.path.join("data", "owner_answer_delivery_status.json")
@@ -145,11 +149,9 @@ ENV_FLAG = "SPA_OWNER_ANSWER_DELIVERY"
 #: `spa_core/` и `scripts/` давал НОЛЬ попаданий, а шаг 0-офис каждый цикл
 #: печатал «⛔ ДВА РАЗНЫХ ОТВЕТА ВЛАДЕЛЬЦА, нужен человек» на состоянии, где
 #: человек уже всё решил.
-SUPERSEDED_FIELDS = {
-    "owner_choice": "owner_choice_superseded",
-    "owner_answered_at": "owner_choice_superseded_at",
-    "owner_answer_via": "owner_choice_superseded_via",
-}
+#: Имена полей объявлены в ``owner_queue.owner_answer`` и ИМПОРТИРОВАНЫ сюда (ADR-180):
+#: с #435 регистр не только читают здесь, но и пишут там, а «другое имя = сторож снова
+#: слеп» — предупреждение выше относится и к двум копиям одного словаря.
 
 #: Написания ПУСТОГО YAML-скаляра. Пустое значение — это ОТСУТСТВИЕ ответа, а не
 #: ответ со значением «пусто»: штатная карточка владельца рождается со строкой
@@ -174,7 +176,9 @@ SUPERSEDED_FIELDS = {
 #: проверяется по СЫРОМУ написанию, ДО всякой нормализации, иначе строка ``"null"``
 #: (настоящее значение в кавычках) стала бы неотличима от ``null`` (объявленное
 #: отсутствие значения).
-EMPTY_SCALARS = ('""', "''", "~", "null", "Null", "NULL")
+#: Написания объявлены в ``owner_queue.owner_answer`` и ИМПОРТИРОВАНЫ сюда (ADR-180):
+#: тот же вопрос («ответ это или его отсутствие?») задаёт писатель, решая, есть ли что
+#: вытеснять. Разойдясь, две копии списка разошлись бы молча и в разные стороны.
 
 
 #: Начало причины, по которому :func:`scan` узнаёт третий исход. Константа, а не
@@ -302,6 +306,19 @@ def is_enabled(env=None) -> bool:
 def _field_re(key: str):
     """Верхнеуровневое поле frontmatter: без отступа (вложенное ``type:`` — не оно)."""
     return re.compile(rb"(?m)^" + re.escape(key.encode()) + rb":[ \t]*(.*)$")
+
+
+#: Полный след ответа владельца в порядке записи: САМ ответ и — сразу за ним — регистр
+#: вытеснения (ADR-180). Порядок объявленный, не словарный: он определяет содержимое
+#: коммита, и словарный сделал бы его зависящим от порядка чтения.
+#:
+#: **Почему регистр возится, но НЕ участвует в споре.** Спор о решении — это только
+#: ``owner_choice`` (ADR-175/179). Внеси регистр в :func:`trace_fields`, и его расхождение
+#: само стало бы «двумя разными ответами владельца» — новый класс ложных ⛔ ровно того
+#: вида, который ADR-175 снимал. Поэтому у регистра одна роль: доехать до origin, где
+#: :func:`clash_superseded` его и читает. Без этой строки писатель (ADR-180) пишет регистр
+#: в прод-дерево, а сторож ищет его на origin — две половины, не смыкающиеся никогда.
+CARRIED_FIELDS = OWNER_ANSWER_FIELDS + tuple(SUPERSEDED_FIELDS.values())
 
 
 def trace_fields(blob: bytes) -> dict:
@@ -517,6 +534,10 @@ def merge_trace(local: bytes, remote: bytes) -> tuple:
                       f"решения, выбирать сторону молча нельзя; сверьте руками [{why}]"), {}
 
     added = {k: v for k, v in mine.items() if k not in theirs}
+    # Регистр вытеснения не спорит (см. `CARRIED_FIELDS`), но доехать обязан: сторож
+    # читает его ТОЛЬКО на origin.
+    reg_mine, reg_theirs = superseded_fields(local), superseded_fields(remote)
+    added.update({k: v for k, v in reg_mine.items() if k not in reg_theirs})
     if not added:
         return None, "след уже на origin — везти нечего", {}
 
@@ -533,7 +554,9 @@ def merge_trace(local: bytes, remote: bytes) -> tuple:
     # (`verify_trace_only`). Такое решение делается своим циклом и своим ADR, а не
     # довеском. Здесь — отказ с названной причиной: карточка
     # `inbox-perenos-sleda-umeet-tolko-dopisyvat-pust`.
-    dup = sorted(k for k in added if k in present_keys(remote, OWNER_ANSWER_FIELDS))
+    # Спрашиваем про ИМЕННО ТЕ ключи, которые собираемся дописать, а не про заранее
+    # выбранный список: разойдясь, второй молча перестал бы покрывать первый.
+    dup = sorted(k for k in added if k in present_keys(remote, added))
     if dup:
         return None, ("на origin поле уже НАПИСАНО, но пустым скаляром "
                       f"({', '.join(dup)}) — дописать рядом второе значит сделать "
@@ -542,10 +565,10 @@ def merge_trace(local: bytes, remote: bytes) -> tuple:
                       "переноса допускает только ДОБАВЛЕННЫЕ строки). Чинить руками"), {}
 
     r_fm, r_body = rp
-    # Дописываем в КОНЕЦ frontmatter в стабильном порядке OWNER_ANSWER_FIELDS —
+    # Дописываем в КОНЕЦ frontmatter в стабильном порядке CARRIED_FIELDS —
     # словарный порядок сделал бы содержимое коммита зависящим от порядка чтения.
     lines = b"".join(f"{k}: {added[k]}\n".encode()
-                     for k in OWNER_ANSWER_FIELDS if k in added)
+                     for k in CARRIED_FIELDS if k in added)
     candidate = remote[:4] + r_fm + lines + b"---\n" + r_body
 
     ok, why = verify_trace_only(remote, candidate)
@@ -570,7 +593,7 @@ def verify_trace_only(remote: bytes, candidate: bytes) -> tuple:
         return False, "тело отличается от origin — модуль не смеет трогать тело карточки"
 
     r_lines, c_lines = r_fm.splitlines(True), c_fm.splitlines(True)
-    allowed = {k.encode() for k in OWNER_ANSWER_FIELDS}
+    allowed = {k.encode() for k in CARRIED_FIELDS}
     extra: list = []
     i = 0
     for line in c_lines:

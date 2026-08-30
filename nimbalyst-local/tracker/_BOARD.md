@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-30T13:50:32Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-30T18:46:33Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **816** · ждёт владельца: **5** · занято сессиями: **9**.
+> Всего карточек: **819** · ждёт владельца: **5** · занято сессиями: **9**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -231,7 +231,7 @@
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (405)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (408)
 
 ### · needs-owner
 - Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md` · 2026-08-29
@@ -343,9 +343,13 @@
 - Наблюдённый ноль подменяется литералом: stusd печатается 6.0% вместо замеренных 0.0%  ·  `inbox-nablyudennyi-nol-podmenyaetsya-literalom.md` · 2026-08-09
 - Находка петли: аналитик _health: каденция 0% < 50% окна 14д; ни одной датированной вы  ·  `inbox-nahodka-petli-analitik-health-kadentsiya.md` · 2026-08-05
 - Находка петли: архив вердиктов отстаёт от выработки: аналитики _health, liquidity, ma  ·  `inbox-nahodka-petli-arhiv-verdiktov-otstaet-ot.md` · 2026-08-06
+- Находка петли: com.spa.apiserver: код и манифест называют РАЗНЫЙ продукт (только в об  ·  `inbox-nahodka-petli-com-spa-apiserver-kod-i-ma.md` · 2026-08-29
 - Находка петли: com.spa.artifact_freshness работает, но plist не персистентен (repo:sc  ·  `inbox-nahodka-petli-com-spa-artifact-freshness.md` · 2026-08-05
+- Находка петли: com.spa.familyfund: код и манифест называют РАЗНЫЙ продукт (только в о  ·  `inbox-nahodka-petli-com-spa-familyfund-kod-i-m.md` · 2026-08-29
+- Находка петли: com.spa.rtmr_sense: код и манифест называют РАЗНЫЙ продукт (только в о  ·  `inbox-nahodka-petli-com-spa-rtmr-sense-kod-i-m.md` · 2026-08-29
 - Находка петли: com.spa.source_discovery работает, но plist не персистентен (repo:laun  ·  `inbox-nahodka-petli-com-spa-source-discovery-r.md` · 2026-08-27
 - Находка петли: com.spa.swarm_dwell работает, но plist не персистентен (repo:launchd/c  ·  `inbox-nahodka-petli-com-spa-swarm-dwell-rabota.md` · 2026-08-05
+- Находка петли: com.spa.telegram_bot: код и манифест называют РАЗНЫЙ продукт (только в  ·  `inbox-nahodka-petli-com-spa-telegram-bot-kod-i.md` · 2026-08-29
 - Находка петли: com.spa.tracker_status_sentinel работает, но plist не персистентен (re  ·  `inbox-nahodka-petli-com-spa-tracker-status-sen.md` · 2026-08-27
 - Находка петли: data/agent_registry.json: возраст 477.2ч > SLO 26ч (класс agent_regist  ·  `inbox-nahodka-petli-data-agent-registry-json-v.md` · 2026-08-05
 - Находка петли: data/investment_os/chief_investment.json: последний ресит старше SLO 1  ·  `inbox-nahodka-petli-data-investment-os-chief-i-2.md` · 2026-08-22
@@ -497,6 +501,7 @@
 - Вот обе задачи, оформленные подробно и по отдельности — в стиле карточек проект…  ·  `inbox-vot-obe-zadachi-oformlennye-podrobno-i-p.md` · 2026-08-05
 - Вторая ветка с решением и карточками владельца: unreadable-description-ltyucb — измерить, жива ли, и разобрать  ·  `inbox-vtoraya-vetka-s-resheniem-i-kartochkami.md` · 2026-08-20
 - Второй исследовательский агент считает охваченным то, что оркестратор ОПРОСИЛ: 8 имён вместо 36, и пустой список платит +15 баллов дублям  ·  `inbox-vtoroi-issledovatelskii-agent-schitaet-o.md` · 2026-08-17
+- Второй ответ владельца кнопкой молча стирает первый — регистр вытеснения читают, но никто не пишет  ·  `inbox-vtoroi-otvet-vladeltsa-knopkoi-molcha-st.md` · 2026-08-30
 - Второй ручной литерал такта: artifact_freshness судит дом-вью по 30ч, которых больше нет в конституции  ·  `inbox-vtoroi-ruchnoi-literal-takta-artifact-fr.md` · 2026-08-22
 - Второй сторож кнопок повторяет диагноз, снятый ADR-177: «чинить РАЗБОР карточки» на многовыборной карточке  ·  `inbox-vtoroi-storozh-knopok-povtoryaet-diagnoz.md` · 2026-08-30
 - Второй сторож ответа владельца не знает правила #429: расхождение ОТМЕТКИ ВРЕМЕНИ считается спором о решении, и две карточки нельзя закрыть никогда  ·  `inbox-vtoroi-storozh-otveta-vladeltsa-ne-znaet.md` · 2026-08-30
@@ -578,12 +583,9 @@
 - Модуль bot_commands заменён, но жив: свой getUpdates-поллер и свои двери в чат  ·  `inbox-modul-bot-commands-zamenen-no-zhiv-svoi.md` · 2026-08-13
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
 - Находка петли: аналитик red_team: CRITICAL — требует реакции (карточка/решение), не п  ·  `inbox-nahodka-petli-analitik-red-team-critical.md` · 2026-08-10
-- Находка петли: com.spa.apiserver: код и манифест называют РАЗНЫЙ продукт (только в об  ·  `inbox-nahodka-petli-com-spa-apiserver-kod-i-ma.md` · 2026-08-29
-- Находка петли: com.spa.familyfund: код и манифест называют РАЗНЫЙ продукт (только в о  ·  `inbox-nahodka-petli-com-spa-familyfund-kod-i-m.md` · 2026-08-29
-- Находка петли: com.spa.rtmr_sense: код и манифест называют РАЗНЫЙ продукт (только в о  ·  `inbox-nahodka-petli-com-spa-rtmr-sense-kod-i-m.md` · 2026-08-29
-- Находка петли: com.spa.telegram_bot: код и манифест называют РАЗНЫЙ продукт (только в  ·  `inbox-nahodka-petli-com-spa-telegram-bot-kod-i.md` · 2026-08-29
 - Обещанная перепроверка DNS checkup осталась без исполнителя: карточку закрыли, критерий не выполнен  ·  `inbox-obeschannaya-pereproverka-dns-checkup-os.md` · 2026-08-22
 - Объявление с пустым списком файлов рождает в шаге 0a находку, которую нельзя снять никогда  ·  `inbox-obyavlenie-s-pustym-spiskom-failov-rozhd.md` · 2026-08-30
+- Один спор — два вопроса владельцу за 9.5 часов: обе карточки живы, обе с кнопками (ADR-084)  ·  `inbox-odin-spor-dva-voprosa-vladeltsu-za-9-5-c.md` · 2026-08-30
 - Окно до 6 часов: ответ владельца между нажатием кнопки и прогоном моста живёт в одном экземпляре  ·  `inbox-okno-do-6-chasov-otvet-vladeltsa-mezhdu.md` · 2026-08-15
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08
 - Остатки инжеста 21.08: гейт доказанности APY в аварийной книге и якорь архива исходов — сначала ЗАМЕР  ·  `inbox-ostatki-inzhesta-21-08-geit-dokazannosti.md` · 2026-08-21
@@ -622,6 +624,7 @@
 - «Слепой» модуль может быть зрячим: 2 из 167 различают протоколы, а коэрция агрегатора теряет это различие  ·  `inbox-slepota-mozhet-byt-poteryannoi-koerciei.md` · 2026-08-17
 - Смена номинации ПОЗИЦИЙ как единственный рычаг против депега своего же кэша (решение владельца 22.08, вариант 3)  ·  `inbox-smena-nominatsii-pozitsii-kak-edinstvenn.md` · 2026-08-22
 - Снять переходное послабление маячка: решения обязаны гейтиться СВОИМ умением  ·  `inbox-snyat-perehodnoe-poslablenie-mayachka-re.md` · 2026-08-17
+- Сторож читает регистр вытеснения только на стороне origin — второе нажатие после доставки снова зовёт человека  ·  `inbox-storozh-chitaet-registr-vytesneniya-tolk.md` · 2026-08-30
 - Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md` · 2026-08-30 · 🔒 `cycle-84821`
 - Сторож параллельных прогонов кричит «СТОЛКНОВЕНИЕ» на ОДИН правильный прогон: обёртка и её же дочерний pytest считаются двумя  ·  `inbox-storozh-parallelnyh-progonov-krichit-sto.md` · 2026-08-30
 - Сторож «способен ли флот стартовать» никем не запускается — у deployment_acceptance нет ни расписания, ни артефакта  ·  `inbox-storozh-sposoben-li-flot-startovat-nikem.md` · 2026-08-29
