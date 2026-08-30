@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-30T03:18:34Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-30T03:20:07Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **806** · ждёт владельца: **5** · занято сессиями: **9**.
+> Всего карточек: **806** · ждёт владельца: **4** · занято сессиями: **9**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -12,7 +12,6 @@
 - **Два твоих вчерашних ответа записаны в двух версиях и говорят разное — нужен один** · _high_  ·  `owner-decision-dva-tvoih-vcherashnih-otveta-zapisany-v.md`
 - **Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз** · _high_  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md`
 - **Сторож всплесков доходности написан, порог верный, сработал бы 25 августа — и его не зовёт никто** · _high_  ·  `owner-decision-storozh-vspleskov-apy-nikto-ne-zovet-2026-08-29.md`
-- **Твоё решение от 10 августа про Morpho Steakhouse не действует в коде: потолок 40 % вместо 20 %**  ·  `owner-decision-tvoe-reshenie-ot-10-avgusta-pro-morpho-s.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
@@ -34,7 +33,6 @@
 - Два твоих вчерашних ответа записаны в двух версиях и говорят разное — нужен один  ·  `owner-decision-dva-tvoih-vcherashnih-otveta-zapisany-v.md` · 2026-08-30
 - Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md` · 2026-08-29
 - Сторож всплесков доходности написан, порог верный, сработал бы 25 августа — и его не зовёт никто  ·  `owner-decision-storozh-vspleskov-apy-nikto-ne-zovet-2026-08-29.md` · 2026-08-29
-- Твоё решение от 10 августа про Morpho Steakhouse не действует в коде: потолок 40 % вместо 20 %  ·  `owner-decision-tvoe-reshenie-ot-10-avgusta-pro-morpho-s.md` · 2026-08-29
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -207,6 +205,7 @@
 - Три отчёта о доказательной базе трека молчат 2 месяца — оживить или убрать в архив  ·  `owner-decision-tri-otcheta-o-dokazatelnoi-baze-treka-mo.md` · 2026-08-24
 - Три пакета начали реальный paper-тест — Balanced и Aggressive пошли (нужно да/нет по двум пунктам)  ·  `owner-decision-tri-paketa-nachali-realnyi-paper-test-ba.md` · 2026-08-23
 - Три выведенных агента остались в системе и красят сверку архитектуры  ·  `owner-decision-tri-vyvedennyh-agenta-ostalis-v-sisteme.md` · 2026-08-08
+- Твоё решение от 10 августа про Morpho Steakhouse не действует в коде: потолок 40 % вместо 20 %  ·  `owner-decision-tvoe-reshenie-ot-10-avgusta-pro-morpho-s.md` · 2026-08-29
 - Твой ответ «Ответ 1» сегодня не применился — теперь можно отвечать прямо на сообщение с вопросом  ·  `owner-decision-tvoi-otvet-otvet-1-segodnya-ne-primenils.md` · 2026-08-20
 - Твои решения от 23 июля 11 дней не лежали в git — доставил, подтверди что в силе  ·  `owner-decision-tvoi-resheniya-ot-23-iyulya-11-dnei-ne-l.md` · 2026-08-02
 - Один лишний файл в рабочей папке не даёт запустить ТЕСТЫ на твоей машине — убрать его  ·  `owner-decision-ubrat-slomannyi-ostatok-v-rabochei-papke.md` · 2026-08-19

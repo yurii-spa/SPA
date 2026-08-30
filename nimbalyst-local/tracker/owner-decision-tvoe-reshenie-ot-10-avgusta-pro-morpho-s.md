@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Твоё решение от 10 августа про Morpho Steakhouse не действует в коде: потолок 40 % вместо 20 %"
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-29
 decision: ADR-070
@@ -10,6 +10,8 @@ owner_choice: 1
 owner_answered_at: 2026-08-29T21:01:00.970347+00:00
 owner_answer_via: telegram
 owner_answered_by: 258651137
+status_trail:
+  - "2026-08-30T03:20:07.865411+00:00 needs-owner -> ingested · queue.set_status · cycle-17286"
 ---
 
 ## Что случилось и почему это важно
