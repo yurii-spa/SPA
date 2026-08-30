@@ -110,6 +110,7 @@ from spa_core.paper_trading.risk_gate import (  # noqa: F401 — re-exported
     _record_policy_block,
 )
 from spa_core.governance.churn_damper import (  # ADR-168
+    one_sided_turnover,
     decide as _churn_decide,
 )
 from spa_core.paper_trading.cycle_exit import (  # noqa: F401 — re-exported
@@ -2126,6 +2127,13 @@ def run_cycle(
     if not isinstance(trades, list):
         trades = []
     diff_usd = _allocation_diff_usd(current_positions, target_usd)
+    # Размер хода — по ОДНОМУ объявленному определению (демпфер, ADR-168):
+    # max(добавлено, изъято). Прежнее diff_usd/2 верно лишь для двусторонней
+    # перекладки: L1 считается по ключам ПРОТОКОЛОВ, а у кэша ключа нет,
+    # поэтому одностороннее размещение делилось пополам. Оба потребителя
+    # суммируют это как недельный оборот, то есть занижение было
+    # послаблением риск-контроля: 30.08 ход $28 684 записан как $14 342.
+    move_usd = one_sided_turnover(current_positions, target_usd)
     threshold_usd = trade_threshold_pct * capital_usd
     # ── ADR-168: ограничитель частоты перекладок на ЖИВОМ пути ───────────
     # ADR-060 §3 задавал минимальный срок удержания и недельный бюджет оборота,
@@ -2196,7 +2204,7 @@ def run_cycle(
                 # A and entering pool B is counted once, not twice). Used downstream
                 # to estimate transaction cost / slippage. ~0 on a stable cycle
                 # (no phantom churn after ALLOC-002), >0 on a real rebalance.
-                "delta_abs": round(diff_usd / 2.0, 2),
+                "delta_abs": round(move_usd, 2),
                 "reason": "orchestrator_cycle",
                 "model_used": model_used,
                 "strategy_loop_active": strategy_loop_active,
@@ -2219,7 +2227,7 @@ def run_cycle(
                 {
                     "trade_id": trade_id,
                     "diff_usd": round(diff_usd, 2),
-                    "delta_abs": round(diff_usd / 2.0, 2),
+                    "delta_abs": round(move_usd, 2),
                     "from_allocation": {p: round(v, 2) for p, v in current_positions.items()},
                     "to_allocation": {p: round(v, 2) for p, v in target_usd.items()},
                 },

@@ -109,8 +109,20 @@ def test_trade_records_delta_abs_not_none(tmp_path):
     assert isinstance(t["delta_abs"], (int, float))
     # First-ever cycle deploys the full book from cash → real turnover > 0.
     assert t["delta_abs"] > 0
-    # Semantics: one-sided gross turnover = L1 distance / 2.
-    assert t["delta_abs"] == pytest.approx(t["diff_usd"] / 2.0)
+    # ИЗМЕНЕНО 2026-08-30 (инв. 16, обоснование — здесь и в журнале W35).
+    # Прежняя строка утверждала `delta_abs == diff_usd / 2` ИМЕННО в этой
+    # фикстуре, которая двумя строками выше объявлена как «первый цикл
+    # разворачивает всю книгу ИЗ КЭША» — то есть ход односторонний. L1
+    # считается по ключам ПРОТОКОЛОВ, у кэша ключа нет, продающей ноги не
+    # возникает, и деление пополам занижает оборот ровно вдвое. Тест
+    # закреплял дефект в единственной фикстуре, где тот проявляется.
+    # Тождество `L1/2` для ДВУСТОРОННЕЙ перекладки не отменено и проверяется
+    # соседним test_delta_abs_equals_real_dollars_moved — он зелёный.
+    from spa_core.governance.churn_damper import one_sided_turnover
+    assert t["delta_abs"] == pytest.approx(
+        round(one_sided_turnover(t["from_allocation"], t["to_allocation"]), 2))
+    assert t["delta_abs"] == pytest.approx(t["diff_usd"]), (
+        "первый цикл разворачивает книгу из кэша: одна нога, оборот равен L1")
 
 
 def test_delta_abs_equals_real_dollars_moved(tmp_path):
