@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-30T10:57:19Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-30T12:22:29Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
 > Всего карточек: **815** · ждёт владельца: **5** · занято сессиями: **9**.
 
@@ -363,6 +363,7 @@
 - Находка петли: возможность fluid_fusdc 5.11% (evidence L3) доступна книге, не держитс  ·  `inbox-nahodka-petli-vozmozhnost-fluid-fusdc-5-2.md` · 2026-08-26
 - Находка петли: возможность fluid_fusdc 5.03% (evidence L3) доступна книге, не держитс  ·  `inbox-nahodka-petli-vozmozhnost-fluid-fusdc-5.md` · 2026-08-13
 - Находка петли: возможность moonwell_base 10.7382% (evidence L3) доступна книге, не де  ·  `inbox-nahodka-petli-vozmozhnost-moonwell-base.md` · 2026-08-14
+- Находка петли: возможность morpho_steakhouse 4.125% (evidence L4) доступна книге, не  ·  `inbox-nahodka-petli-vozmozhnost-morpho-steakho-2.md` · 2026-08-29
 - Находка петли: возможность morpho_steakhouse 4.1292% (evidence L4) доступна книге, не  ·  `inbox-nahodka-petli-vozmozhnost-morpho-steakho.md` · 2026-08-24
 - Находка петли: возможность spark_susds 3.8367% (evidence L4) доступна книге, не держи  ·  `inbox-nahodka-petli-vozmozhnost-spark-susds-3-2.md` · 2026-08-27
 - Находка петли: возможность spark_susds 3.9431% (evidence L4) доступна книге, не держи  ·  `inbox-nahodka-petli-vozmozhnost-spark-susds-3-3.md` · 2026-08-28
@@ -497,6 +498,7 @@
 - Вторая ветка с решением и карточками владельца: unreadable-description-ltyucb — измерить, жива ли, и разобрать  ·  `inbox-vtoraya-vetka-s-resheniem-i-kartochkami.md` · 2026-08-20
 - Второй исследовательский агент считает охваченным то, что оркестратор ОПРОСИЛ: 8 имён вместо 36, и пустой список платит +15 баллов дублям  ·  `inbox-vtoroi-issledovatelskii-agent-schitaet-o.md` · 2026-08-17
 - Второй ручной литерал такта: artifact_freshness судит дом-вью по 30ч, которых больше нет в конституции  ·  `inbox-vtoroi-ruchnoi-literal-takta-artifact-fr.md` · 2026-08-22
+- Второй сторож кнопок повторяет диагноз, снятый ADR-177: «чинить РАЗБОР карточки» на многовыборной карточке  ·  `inbox-vtoroi-storozh-knopok-povtoryaet-diagnoz.md` · 2026-08-30
 - Карточка предлагает выбор «**1 — …**», а разбор его не знает — владелец не может ответить нажатием  ·  `inbox-vybor-1-tire-razbor-ne-znaet-etoi-formy.md` · 2026-08-24
 - WHY IT EXISTS  ·  `inbox-why-it-exists.md` · 2026-08-13
 - Я хочу, чтобы ты взял 6 часов спринта. Сейчас у нас 3 часа ночи по Испании до 9…  ·  `inbox-ya-hochu-chtoby-ty-vzyal-6-chasov-sprint.md` · 2026-07-17
@@ -579,7 +581,6 @@
 - Находка петли: com.spa.familyfund: код и манифест называют РАЗНЫЙ продукт (только в о  ·  `inbox-nahodka-petli-com-spa-familyfund-kod-i-m.md` · 2026-08-29
 - Находка петли: com.spa.rtmr_sense: код и манифест называют РАЗНЫЙ продукт (только в о  ·  `inbox-nahodka-petli-com-spa-rtmr-sense-kod-i-m.md` · 2026-08-29
 - Находка петли: com.spa.telegram_bot: код и манифест называют РАЗНЫЙ продукт (только в  ·  `inbox-nahodka-petli-com-spa-telegram-bot-kod-i.md` · 2026-08-29
-- Находка петли: возможность morpho_steakhouse 4.125% (evidence L4) доступна книге, не  ·  `inbox-nahodka-petli-vozmozhnost-morpho-steakho-2.md` · 2026-08-29
 - Обещанная перепроверка DNS checkup осталась без исполнителя: карточку закрыли, критерий не выполнен  ·  `inbox-obeschannaya-pereproverka-dns-checkup-os.md` · 2026-08-22
 - Окно до 6 часов: ответ владельца между нажатием кнопки и прогоном моста живёт в одном экземпляре  ·  `inbox-okno-do-6-chasov-otvet-vladeltsa-mezhdu.md` · 2026-08-15
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08
@@ -634,7 +635,6 @@
 - Вердикт деска по sUSDS стоит на СНЯТОЙ причине — а книга этот актив держит  ·  `inbox-verdikt-deska-po-susds-stoit-na-snyatoi.md` · 2026-08-25
 - Вердикт сторожа архитектуры относится к манифесту, которого больше нет — а 492 строки нового лежат в прод-дереве незакоммиченными  ·  `inbox-verdikt-storozha-arhitektury-otnositsya.md` · 2026-08-30
 - Внести артефакт в манифест «без срока» нельзя: B5 требует положительный slo_hours — предпосылка замера #426 верна только для B2  ·  `inbox-vnesti-artefakt-v-manifest-bez-sroka-nel.md` · 2026-08-30
-- Второй сторож кнопок повторяет диагноз, снятый ADR-177: «чинить РАЗБОР карточки» на многовыборной карточке  ·  `inbox-vtoroi-storozh-knopok-povtoryaet-diagnoz.md` · 2026-08-30
 - Второй сторож ответа владельца не знает правила #429: расхождение ОТМЕТКИ ВРЕМЕНИ считается спором о решении, и две карточки нельзя закрыть никогда  ·  `inbox-vtoroi-storozh-otveta-vladeltsa-ne-znaet.md` · 2026-08-30
 - Закрепить morpho_blue_base за конкретным хранилищем (сейчас берётся «крупнейшее сегодня»)  ·  `inbox-zakrepit-morpho-blue-base-za-konkretnym.md` · 2026-08-26
 - Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07 · 🔒 `cycle-81141`

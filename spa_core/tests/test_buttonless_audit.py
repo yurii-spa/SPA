@@ -333,8 +333,20 @@ def _sent(mid, *, ts="2026-08-21T22:06:45+00:00"):
 class ButtonlessCauseTests(unittest.TestCase):
     """Одинаковые с виду строки лечатся по-разному — причина обязана стоять рядом."""
 
-    def test_own_door_without_options_names_the_parser(self):
-        """Наша дверь, вариантов в журнале нет ⇒ чинить РАЗБОР карточки."""
+    def test_own_door_without_options_names_the_fact_not_the_remedy(self):
+        """Наша дверь, вариантов в журнале нет ⇒ называем ФАКТ, лекарство не назначаем.
+
+        НАМЕРЕННОЕ изменение утверждения (инвариант #16, ADR-178, цикл #433; разбор в
+        `docs/journal/2026-W35.md`). Прежняя строка требовала `assertIn("РАЗБОР", …)`,
+        то есть закрепляла ровно тот призыв, который 30.08 в одном отчёте противоречил
+        соседнему вердикту: `buttonless_reason` на ТОЙ ЖЕ карточке отвечал
+        `multiselect_card` — «разбор НЕ трогать, он отказывает верно». Этот модуль тела
+        карточки не читает по построению и назначать её лечение не вправе.
+
+        Измерение теста не ослаблено: код причины и `card_id` проверяются как прежде,
+        а строка отчёта теперь обязана нести ФАКТ и адрес того, кто вправе судить.
+        Полная проверка класса — `test_buttonless_audit_names_no_remedy.py`.
+        """
         pushes = [{"card_id": "own-33", "message_ids": [8342],
                    "buttons": False, "options": []}]
 
@@ -342,7 +354,10 @@ class ButtonlessCauseTests(unittest.TestCase):
 
         self.assertEqual(out["buttonless"][0]["cause"]["code"], JOIN_OWN_NO_OPTIONS)
         self.assertEqual(out["buttonless"][0]["cause"]["card_id"], "own-33")
-        self.assertIn("РАЗБОР", summary_line(out))
+        line = summary_line(out)
+        self.assertIn("вариантов в журнале нет", line)
+        self.assertIn("buttonless_reason", line)
+        self.assertNotIn("чинить РАЗБОР", line)
 
     def test_own_door_that_claims_buttons_is_a_different_defect(self):
         """Журнал говорит «кнопки были», канал — «не было»: чинить путь до отправки."""
