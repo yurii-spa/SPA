@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-30T06:11:01Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-30T07:33:14Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **811** · ждёт владельца: **4** · занято сессиями: **10**.
+> Всего карточек: **811** · ждёт владельца: **4** · занято сессиями: **9**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -23,7 +23,6 @@
 - **а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…** — держит `pid43119` · с 2026-08-14T11:52:34Z  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md`
 - **Храповик считает упоминание в докстринге за проводку — и это лишь одна из трёх слепот** — держит `pid66130` · с 2026-08-16T03:49:44Z  ·  `inbox-hrapovik-schitaet-upominanie-v-dokstring.md`
 - **Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения** — держит `cycle-352` · с 2026-08-23T03:25:59Z  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md`
-- **Сторож кнопок зовёт сломать ВЕРНЫЙ отказ: многовыборная карточка объявлена «наш дефект разбора»** — держит `pid70430` · с 2026-08-30T04:40:23Z  ·  `inbox-storozh-knopok-zovet-slomat-vernyi-otkaz.md`
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
 - **РЕЦИДИВ 28.08: тест судит о ХОСТЕ по литеральному pid — 98535 (siriactionsd), теперь 999 (NetFS) в test_card_claim_takeover** — держит `cycle-51123` · с 2026-08-22T08:45:00Z  ·  `inbox-test-sudit-o-hoste-literalnyi-pid-98535.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
@@ -441,6 +440,7 @@
 - Сторож доставки может ПРОПУСТИТЬ чужую работу, если pid его собственного процесса совпал с чужим идентификатором  ·  `inbox-storozh-dostavki-mozhet-propustit-chuzhu.md` · 2026-08-14
 - Сторож доставки решений владельца судил дерево, ИЗ КОТОРОГО ЗАПУЩЕН: из worktree он говорил «весь след на origin», пока 4 ответа лежали вне git  ·  `inbox-storozh-dostavki-reshenii-vladeltsa-sudi.md` · 2026-08-30
 - Сторож кнопок объявляет «в карточке нет вариантов» там, где они есть: has_unparsed_options=False при looks_like_a_choice=True и parse_options=[]  ·  `inbox-storozh-knopok-obyavlyaet-v-kartochke-ne.md` · 2026-08-22
+- Сторож кнопок зовёт сломать ВЕРНЫЙ отказ: многовыборная карточка объявлена «наш дефект разбора»  ·  `inbox-storozh-knopok-zovet-slomat-vernyi-otkaz.md` · 2026-08-30
 - Сторож недоставляемых зависимостей краснеет на docs/research/cio_g4_repro.py — второй нарушитель за первым  ·  `inbox-storozh-nedostavlyaemyh-zavisimostei-kra.md` · 2026-08-20
 - Сторож ответа владельца не знает слова «расхождение уже разобрано» — кричит «нужен человек» на закрытом вопросе  ·  `inbox-storozh-otveta-vladeltsa-ne-znaet-slova.md` · 2026-08-29
 - Сторож расхождений судит по СТАРОМУ снимку постуры: кричит CRITICAL, когда офис уже YELLOW  ·  `inbox-storozh-rashozhdenii-sudit-po-staromu-sn.md` · 2026-08-12
@@ -617,7 +617,6 @@
 - «Слепой» модуль может быть зрячим: 2 из 167 различают протоколы, а коэрция агрегатора теряет это различие  ·  `inbox-slepota-mozhet-byt-poteryannoi-koerciei.md` · 2026-08-17
 - Смена номинации ПОЗИЦИЙ как единственный рычаг против депега своего же кэша (решение владельца 22.08, вариант 3)  ·  `inbox-smena-nominatsii-pozitsii-kak-edinstvenn.md` · 2026-08-22
 - Снять переходное послабление маячка: решения обязаны гейтиться СВОИМ умением  ·  `inbox-snyat-perehodnoe-poslablenie-mayachka-re.md` · 2026-08-17
-- Сторож кнопок зовёт сломать ВЕРНЫЙ отказ: многовыборная карточка объявлена «наш дефект разбора»  ·  `inbox-storozh-knopok-zovet-slomat-vernyi-otkaz.md` · 2026-08-30 · 🔒 `pid70430`
 - Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md` · 2026-08-30 · 🔒 `cycle-84821`
 - Сторож параллельных прогонов кричит «СТОЛКНОВЕНИЕ» на ОДИН правильный прогон: обёртка и её же дочерний pytest считаются двумя  ·  `inbox-storozh-parallelnyh-progonov-krichit-sto.md` · 2026-08-30
 - Сторож «способен ли флот стартовать» никем не запускается — у deployment_acceptance нет ни расписания, ни артефакта  ·  `inbox-storozh-sposoben-li-flot-startovat-nikem.md` · 2026-08-29
