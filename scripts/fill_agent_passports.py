@@ -684,7 +684,18 @@ def run(*, write: bool) -> dict:
         "gaps": {f: len(v) for f, v in gaps.items()},
         "metric_gap_due_to_uncurated_manifest": uncurated,
         "stale": sorted(set(stale)),
-        "needs_author": sorted(set(gaps["goal"])),
+        # Похороненному агенту деловая цель не нужна — у него нет дела. Смешивать
+        # его с настоящим пробелом нельзя: список «нужен автор» тогда НИКОГДА не
+        # опустеет, а список, который не может опустеть, приучают не читать.
+        # Замер 31.08: все три «без цели» оказались intent=retired, двое — прямым
+        # решением владельца (ADR-067, 06.08). Настоящих пробелов было НОЛЬ, а
+        # отчёт говорил «трое».
+        "needs_author": sorted({a["label"] for a in agents
+                                if a["label"] in set(gaps["goal"])
+                                and a.get("intent") != "retired"}),
+        "retired_without_goal": sorted({a["label"] for a in agents
+                                        if a["label"] in set(gaps["goal"])
+                                        and a.get("intent") == "retired"}),
     }
     if write:
         sys.path.insert(0, str(REPO))
@@ -708,6 +719,11 @@ def main() -> int:
             print("  ·", label)
         print("\nЭто НЕ ошибка скрипта, а честный список: цель такому агенту "
               "должен написать его автор или владелец.")
+    if r.get("retired_without_goal"):
+        print(f"\nбез цели, но ПОХОРОНЕНЫ ({len(r['retired_without_goal'])}) — "
+              "дела нет, цель не требуется, автора звать не за чем:")
+        for label in r["retired_without_goal"]:
+            print("  ·", label)
     if args.check and r["stale"]:
         print(f"\nМАНИФЕСТ ОТСТАЛ ОТ ИСТОЧНИКОВ ({len(r['stale'])}): у этих агентов "
               "выводится больше, чем записано.", file=sys.stderr)
