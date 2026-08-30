@@ -2,19 +2,16 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-30T00:47:42Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-30T03:18:34Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **793** · ждёт владельца: **8** · занято сессиями: **8**.
+> Всего карточек: **806** · ждёт владельца: **5** · занято сессиями: **9**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x**  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md`
-- **Я задал тебе неверный вопрос про слепые протоколы — проверил, и всё оказалось наоборот** · _high_  ·  `owner-decision-derisk-vopros-byl-postavlen-neverno-2026-08-29.md`
+- **Два твоих вчерашних ответа записаны в двух версиях и говорят разное — нужен один** · _high_  ·  `owner-decision-dva-tvoih-vcherashnih-otveta-zapisany-v.md`
 - **Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз** · _high_  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md`
-- **Security-скан risk-гейта нашёл два расхождения между ADR и реальным кодом: оси риска не подключены, тир протокола не сверяется** · _high_  ·  `owner-decision-security-skan-risk-geita-nashel-dva-rash.md`
 - **Сторож всплесков доходности написан, порог верный, сработал бы 25 августа — и его не зовёт никто** · _high_  ·  `owner-decision-storozh-vspleskov-apy-nikto-ne-zovet-2026-08-29.md`
-- **Tier-B: 84 модуля отвечают одинаково даже несуществующему протоколу — списать?**  ·  `owner-decision-tier-b-84-modulya-otvechayut-odinakovo-d.md`
-- **Tier-B: ещё 82 модуля различий не показали — списать или заморозить?**  ·  `owner-decision-tier-b-esche-82-modulya-razlichii-ne-pok.md`
 - **Твоё решение от 10 августа про Morpho Steakhouse не действует в коде: потолок 40 % вместо 20 %**  ·  `owner-decision-tvoe-reshenie-ot-10-avgusta-pro-morpho-s.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
@@ -27,18 +24,16 @@
 - **а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…** — держит `pid43119` · с 2026-08-14T11:52:34Z  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md`
 - **Храповик считает упоминание в докстринге за проводку — и это лишь одна из трёх слепот** — держит `pid66130` · с 2026-08-16T03:49:44Z  ·  `inbox-hrapovik-schitaet-upominanie-v-dokstring.md`
 - **Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения** — держит `cycle-352` · с 2026-08-23T03:25:59Z  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md`
+- **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
 - **РЕЦИДИВ 28.08: тест судит о ХОСТЕ по литеральному pid — 98535 (siriactionsd), теперь 999 (NetFS) в test_card_claim_takeover** — держит `cycle-51123` · с 2026-08-22T08:45:00Z  ·  `inbox-test-sudit-o-hoste-literalnyi-pid-98535.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (196)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (197)
 
 ### · needs-owner
-- Я задал тебе неверный вопрос про слепые протоколы — проверил, и всё оказалось наоборот  ·  `owner-decision-derisk-vopros-byl-postavlen-neverno-2026-08-29.md` · 2026-08-29
+- Два твоих вчерашних ответа записаны в двух версиях и говорят разное — нужен один  ·  `owner-decision-dva-tvoih-vcherashnih-otveta-zapisany-v.md` · 2026-08-30
 - Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md` · 2026-08-29
-- Security-скан risk-гейта нашёл два расхождения между ADR и реальным кодом: оси риска не подключены, тир протокола не сверяется  ·  `owner-decision-security-skan-risk-geita-nashel-dva-rash.md` · 2026-08-29
 - Сторож всплесков доходности написан, порог верный, сработал бы 25 августа — и его не зовёт никто  ·  `owner-decision-storozh-vspleskov-apy-nikto-ne-zovet-2026-08-29.md` · 2026-08-29
-- Tier-B: 84 модуля отвечают одинаково даже несуществующему протоколу — списать?  ·  `owner-decision-tier-b-84-modulya-otvechayut-odinakovo-d.md` · 2026-08-29
-- Tier-B: ещё 82 модуля различий не показали — списать или заморозить?  ·  `owner-decision-tier-b-esche-82-modulya-razlichii-ne-pok.md` · 2026-08-29
 - Твоё решение от 10 августа про Morpho Steakhouse не действует в коде: потолок 40 % вместо 20 %  ·  `owner-decision-tvoe-reshenie-ot-10-avgusta-pro-morpho-s.md` · 2026-08-29
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
@@ -125,6 +120,7 @@
 - CI на main красный: новый протокол без оценки риска (40% книги) и два теста, отставших от честного TVL  ·  `owner-decision-ci-na-main-krasnyi-novyi-protokol-bez-ot.md` · 2026-08-06
 - Данные трека в git: файл доказательств заморожен на 21.06, файла бэктест-гейта нет вовсе — реши, что коммитить  ·  `owner-decision-dannye-treka-v-git-fail-dokazatelstv-zam.md` · 2026-07-29
 - Деньги стоят не из-за лени системы: все живые протоколы — на одной цепочке  ·  `owner-decision-dengi-stoyat-ne-iz-za-leni-sistemy-vse-z.md` · 2026-08-08
+- Я задал тебе неверный вопрос про слепые протоколы — проверил, и всё оказалось наоборот  ·  `owner-decision-derisk-vopros-byl-postavlen-neverno-2026-08-29.md` · 2026-08-29
 - Девять агентов висят нерешёнными: закрыть или включить  ·  `owner-decision-devyat-agentov-visyat-nereshennymi-zakry.md` · 2026-08-05
 - Дневной лимит убытка: а если сама проверка УПАЛА — торгуем или нет? (второй вопрос той же карточки, ответа нет)  ·  `owner-decision-dnevnoi-limit-ubytka-a-esli-sama-proverk.md` · 2026-08-21
 - Дневной цикл сегодня запускали 8 раз не по расписанию — и кто именно, система не записывает  ·  `owner-decision-dnevnoi-tsikl-segodnya-zapuskali-8-raz-n.md` · 2026-08-08
@@ -184,6 +180,7 @@
 - Сайт: автономная правка задела owner-gated область — нужно решение  ·  `owner-decision-sait-avtonomnaya-pravka-zadela-owner-gat-3.md` · 2026-08-08
 - Сайт: автономная правка задела owner-gated область — нужно решение  ·  `owner-decision-sait-avtonomnaya-pravka-zadela-owner-gat.md` · 2026-08-08
 - Сбалансированный тир: на сайте «идёт paper-трек», а в книге ноль позиций  ·  `owner-decision-sbalansirovannyi-tir-na-saite-idet-paper.md` · 2026-08-13
+- Security-скан risk-гейта нашёл два расхождения между ADR и реальным кодом: оси риска не подключены, тир протокола не сверяется  ·  `owner-decision-security-skan-risk-geita-nashel-dva-rash.md` · 2026-08-29
 - Шесть находок за день оказались ОДНОЙ болезнью: где наблюдения нет, система говорит «всё хорошо» вместо «не знаю»  ·  `owner-decision-shest-nahodok-za-den-okazalis-odnoi-bole.md` · 2026-08-18
 - Система остановлена аварийным выключателем: он сравнивает живую доходность с числами, вписанными в код  ·  `owner-decision-sistema-ostanovlena-avariinym-vyklyuchat.md` · 2026-08-10
 - Сколько минут слепоты внутридневного сенсора — уже повод тебя разбудить  ·  `owner-decision-skolko-minut-slepoty-vnutridnevnogo-sens.md` · 2026-08-23
@@ -200,6 +197,8 @@
 - Страница трека четвёртый день прячет цифры — снять табличку честности некому  ·  `owner-decision-stranitsa-treka-chetvertyi-den-pryachet.md` · 2026-08-14
 - Стратегия S23 никогда не видит живой Pendle — адаптер «похоронен», ошибка глотается молча (выбери, как чинить)  ·  `owner-decision-strategiya-s23-nikogda-ne-vidit-zhivoi-p.md` · 2026-07-30
 - Табличка честности не доезжает до сайта — публично видно 5.2% там, где живой расчёт даёт 4.8%  ·  `owner-decision-tablichka-chestnosti-ne-doezzhaet-do-sai.md` · 2026-08-08
+- Tier-B: 84 модуля отвечают одинаково даже несуществующему протоколу — списать?  ·  `owner-decision-tier-b-84-modulya-otvechayut-odinakovo-d.md` · 2026-08-29
+- Tier-B: ещё 82 модуля различий не показали — списать или заморозить?  ·  `owner-decision-tier-b-esche-82-modulya-razlichii-ne-pok.md` · 2026-08-29
 - ИСПОЛНЕНО: решение от 7 августа доведено до конца — тир Morpho Steakhouse исправлен  ·  `owner-decision-tier-steakhouse-2026-08-29.md` · 2026-08-29
 - Треть флота нельзя проверить: у служб и демонов метрика «свежесть файла» не работает, а замены нет  ·  `owner-decision-tret-flota-nelzya-proverit-u-sluzhb-i-de.md` · 2026-08-29
 - Треть капитала встала без работы: перераздачу отклонил гейт, и отказ невозможно проверить  ·  `owner-decision-tret-kapitala-vstala-bez-raboty-kniga-ne.md` · 2026-08-29
@@ -231,7 +230,7 @@
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (385)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (396)
 
 ### · needs-owner
 - Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md` · 2026-08-29
@@ -395,6 +394,7 @@
 - Прогон тестов ПЕРЕПИСЫВАЕТ три git-фикстуры сегодняшней датой: самообновляющаяся фикстура протухнуть не может  ·  `inbox-progon-testov-perepisyvaet-tri-git-fikst.md` · 2026-08-13
 - Простой капитала снова НЕ объяснён: 10% при закрытой карточке «объяснён полностью» — нарушение действующего правила ADR-055  ·  `inbox-prostoi-kapitala-snova-ne-obyasnen-10-pr.md` · 2026-08-07
 - Провал доставки карточек некому повторить — и через два часа он сам станет зелёным  ·  `inbox-proval-dostavki-kartochek-nekomu-povtori.md` · 2026-08-12
+- Провенанс ответа выдавался за сам ответ: половина «нужен человек» была о канале и отметке, а не о решении  ·  `inbox-provenans-otveta-vydavalsya-za-sam-otvet.md` · 2026-08-30
 - проверь own-54 в _BOARD.md напрямую и пришли мне её с вариантами ответа  ·  `inbox-prover-own-54-v-board-md-napryamuyu-i-pr.md` · 2026-08-19
 - Проверь прям сейчас все ли ок  ·  `inbox-prover-pryam-seichas-vse-li-ok.md` · 2026-08-05
 - Проверь систему, сделай аудит, все ли ок?  ·  `inbox-prover-sistemu-sdelai-audit-vse-li-ok.md` · 2026-07-26
@@ -439,6 +439,7 @@
 - Сторож архитектуры кричит CRITICAL о четырёх агентах — и все четыре обвинения ложные: прод читает манифест, который доставка никогда не обновляет  ·  `inbox-storozh-arhitektury-krichit-critical-o-c.md` · 2026-08-08
 - Сторож архитектуры навсегда «не измерил» механику агента, чей plist лежит в репо  ·  `inbox-storozh-arhitektury-navsegda-ne-izmeril.md` · 2026-08-18
 - Сторож доставки может ПРОПУСТИТЬ чужую работу, если pid его собственного процесса совпал с чужим идентификатором  ·  `inbox-storozh-dostavki-mozhet-propustit-chuzhu.md` · 2026-08-14
+- Сторож доставки решений владельца судил дерево, ИЗ КОТОРОГО ЗАПУЩЕН: из worktree он говорил «весь след на origin», пока 4 ответа лежали вне git  ·  `inbox-storozh-dostavki-reshenii-vladeltsa-sudi.md` · 2026-08-30
 - Сторож кнопок объявляет «в карточке нет вариантов» там, где они есть: has_unparsed_options=False при looks_like_a_choice=True и parse_options=[]  ·  `inbox-storozh-knopok-obyavlyaet-v-kartochke-ne.md` · 2026-08-22
 - Сторож недоставляемых зависимостей краснеет на docs/research/cio_g4_repro.py — второй нарушитель за первым  ·  `inbox-storozh-nedostavlyaemyh-zavisimostei-kra.md` · 2026-08-20
 - Сторож ответа владельца не знает слова «расхождение уже разобрано» — кричит «нужен человек» на закрытом вопросе  ·  `inbox-storozh-otveta-vladeltsa-ne-znaet-slova.md` · 2026-08-29
@@ -572,6 +573,11 @@
 - Модуль bot_commands заменён, но жив: свой getUpdates-поллер и свои двери в чат  ·  `inbox-modul-bot-commands-zamenen-no-zhiv-svoi.md` · 2026-08-13
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
 - Находка петли: аналитик red_team: CRITICAL — требует реакции (карточка/решение), не п  ·  `inbox-nahodka-petli-analitik-red-team-critical.md` · 2026-08-10
+- Находка петли: com.spa.apiserver: код и манифест называют РАЗНЫЙ продукт (только в об  ·  `inbox-nahodka-petli-com-spa-apiserver-kod-i-ma.md` · 2026-08-29
+- Находка петли: com.spa.familyfund: код и манифест называют РАЗНЫЙ продукт (только в о  ·  `inbox-nahodka-petli-com-spa-familyfund-kod-i-m.md` · 2026-08-29
+- Находка петли: com.spa.rtmr_sense: код и манифест называют РАЗНЫЙ продукт (только в о  ·  `inbox-nahodka-petli-com-spa-rtmr-sense-kod-i-m.md` · 2026-08-29
+- Находка петли: com.spa.telegram_bot: код и манифест называют РАЗНЫЙ продукт (только в  ·  `inbox-nahodka-petli-com-spa-telegram-bot-kod-i.md` · 2026-08-29
+- Находка петли: возможность morpho_steakhouse 4.125% (evidence L4) доступна книге, не  ·  `inbox-nahodka-petli-vozmozhnost-morpho-steakho-2.md` · 2026-08-29
 - Обещанная перепроверка DNS checkup осталась без исполнителя: карточку закрыли, критерий не выполнен  ·  `inbox-obeschannaya-pereproverka-dns-checkup-os.md` · 2026-08-22
 - Окно до 6 часов: ответ владельца между нажатием кнопки и прогоном моста живёт в одном экземпляре  ·  `inbox-okno-do-6-chasov-otvet-vladeltsa-mezhdu.md` · 2026-08-15
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08
@@ -581,14 +587,17 @@
 - Оживить фиды вне Ethereum — путь к снятию остатка кэша (решение владельца 08.08)  ·  `inbox-ozhivit-fidy-vne-ethereum-put-k-snyatiyu.md` · 2026-08-08
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
 - Перемерить записи #35–#76 после починки курса (вторая половина варианта 1, ADR-139)  ·  `inbox-peremerit-zapisi-35-76-posle-pochinki-ku.md` · 2026-08-26
+- Перенос следа умеет только ДОПИСЫВАТЬ: пустое поле на origin надо заменять на месте (две карточки уже испортили и починили)  ·  `inbox-perenos-sleda-umeet-tolko-dopisyvat-pust.md` · 2026-08-30
 - Перепись 18 статических адаптеров: где литерал, где живой пул и сколько там доходности  ·  `inbox-perepis-18-staticheskih-adapterov.md` · 2026-08-29
 - Перепись закончена: опрошены все 36 адаптеров своими фидами — доступная доходность из нашего набора исчерпана, кроме трёх статических меток  ·  `inbox-perepis-zakonchena-oprosheny-vse-36-adap.md` · 2026-08-29
 - Починить писателей живого data/ по карте замера — класс обнесён храповиком, но не закрыт  ·  `inbox-pochinit-pisatelei-zhivogo-data-po-karte.md` · 2026-08-23
 - Под ключом stusd объявлены ДВА разных контракта с одинаковым vanity-префиксом — проверить on-chain  ·  `inbox-pod-klyuchom-stusd-obyavleny-dva-raznyh.md` · 2026-08-18
 - Подготовить ADR: пересмотр лимита одной цепочки 90% (решение владельца — за ним)  ·  `inbox-podgotovit-adr-peresmotr-limita-odnoi-ts.md` · 2026-08-08
+- Подключить оси риска ADR-008: проверка написана, но её никто не вызывает (решение владельца — ADR-173)  ·  `inbox-podklyuchit-osi-riska-adr-008-proverka-n.md` · 2026-08-30
 - Подключить ТРИ сверки контрактов к сторожу архитектуры — сейчас их никто не зовёт  ·  `inbox-podklyuchit-sverku-kontraktov-k-storozhu.md` · 2026-08-28
 - Порог свежести артефакта живёт в ДВУХ местах и они не пересекаются — расхождение никем не проверяется  ·  `inbox-porog-svezhesti-zhivet-v-dvuh-mestah.md` · 2026-08-28
 - Пошаговая инструкция в карточке уезжает владельцу как ПЯТЬ кнопок-вариантов  ·  `inbox-poshagovaya-instruktsiya-v-kartochke-uez.md` · 2026-08-26
+- Предписанный прогон КРАСНЫЙ на чистом main: 17 падений, замер на пришпиленном af1d972eb  ·  `inbox-predpisannyi-progon-krasnyi-na-chistom-m.md` · 2026-08-29
 - Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md` · 2026-08-20 · 🔒 `cycle-352`
 - Проработать расширение whitelist для настоящих ~20% в Aggressive (advisory, владельцу на решение)  ·  `inbox-prorabotat-rasshirenie-whitelist-dlya-na.md` · 2026-08-23
 - Protection Lab фазы 6–8: AI-генератор параметров, перебор adversarial-комбинаций, страница сайта (owner-gated)  ·  `inbox-protection-lab-fazy-6-8-ai-generator-par.md` · 2026-08-22
@@ -607,6 +616,7 @@
 - «Слепой» модуль может быть зрячим: 2 из 167 различают протоколы, а коэрция агрегатора теряет это различие  ·  `inbox-slepota-mozhet-byt-poteryannoi-koerciei.md` · 2026-08-17
 - Смена номинации ПОЗИЦИЙ как единственный рычаг против депега своего же кэша (решение владельца 22.08, вариант 3)  ·  `inbox-smena-nominatsii-pozitsii-kak-edinstvenn.md` · 2026-08-22
 - Снять переходное послабление маячка: решения обязаны гейтиться СВОИМ умением  ·  `inbox-snyat-perehodnoe-poslablenie-mayachka-re.md` · 2026-08-17
+- Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md` · 2026-08-30 · 🔒 `cycle-84821`
 - Сторож «способен ли флот стартовать» никем не запускается — у deployment_acceptance нет ни расписания, ни артефакта  ·  `inbox-storozh-sposoben-li-flot-startovat-nikem.md` · 2026-08-29
 - Сторож вопросов владельцу не измеряет, ЖИВ ЛИ ещё вопрос — и звал отправить команду, ставшую разрушительной  ·  `inbox-storozh-voprosov-vladeltsu-ne-izmeryaet.md` · 2026-08-29
 - Строка Risk Gate дневного лимита убытка жила только в отключённом скрипте — в отчёт владельцу она не переехала  ·  `inbox-stroka-risk-gate-dnevnogo-limita-ubytka.md` · 2026-08-14
@@ -768,7 +778,7 @@
 ### · new
 - У руки демоушена (#39 CDR) нет ветки «отметка не пришла» — сегодня тёмный фид ЗАЩИЩАЕТ книгу, и это нигде не записано  ·  `agent-rnd51-stale-branch-for-demotion-arm.md` · 2026-08-14
 
-## agent  (75)
+## agent  (76)
 
 ### · blocked
 - Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать  ·  `agent-fleet-parity-guard-never-scheduled.md` · 2026-08-05
@@ -792,6 +802,7 @@
 - Свежая полная инвентаризация флота (73 агента) — что делает / жив ли / нужен ли / расход  ·  `agent-fleet-inventory-73.md` · 2026-07-23
 - Fluid гейтится по чужому параметру — нужен собственный таймлок, а не задержка Maker  ·  `agent-fluid-timelock-source.md` · 2026-08-05
 - Нет сторожа «профинансирован протокол, которого нет в реестре» — остаточная дыра кэпов по цепочкам  ·  `agent-funded-protocol-not-in-registry.md` · 2026-08-02
+- Сирота `golive_checker_hy` пряталась за одной фразой в докстроке соседа — вскрыта ужесточением детектора  ·  `agent-golive-checker-hy-sirota-naidena-uzhestocheniem.md` · 2026-08-30
 - GO-LIVE — внутридневной контроль просадки (частый, не раз в сутки)  ·  `agent-golive-intraday-drawdown-monitor.md` · 2026-07-23
 - Завести производителя gsm_hours (on-chain GSM Pause Delay) — чтобы GSM-гейт перестал быть вечным замком  ·  `agent-gsm-hours-producer.md` · 2026-08-02
 - Построить слой инвест-агентов «Head of Investment» (кураторы тиров + капитал-по-тирам + максимизаторы + решающий)  ·  `agent-head-of-investment-layer.md` · 2026-07-23

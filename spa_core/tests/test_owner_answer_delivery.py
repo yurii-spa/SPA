@@ -1132,5 +1132,79 @@ class ProvenanceIsNotADisagreementTest(unittest.TestCase):
         self.assertNotIn("РАЗНЫЕ ОТВЕТЫ", oad.render(r))
 
 
+class EmptyKeyOnOriginIsNotAnAbsentLineTest(unittest.TestCase):
+    """`owner_choice: ""` — ОТСУТСТВИЕ ОТВЕТА, но НЕ отсутствие строки. ADR-176.
+
+    Авария 30.08 (цикл #429), и она НАША: сторож впервые запустили на доставку
+    после правки #428 («пустой скаляр = ответа нет»), и он дописал `owner_choice`
+    рядом с уже существующей пустой строкой. На `origin/main` получилось:
+
+        owner_choice: ""          ← была
+        decision: ADR-070
+        owner_choice: 1           ← дописали мы
+
+    Читатель берёт ПЕРВОЕ вхождение, оно пустое ⇒ ``trace_fields`` возвращает
+    словарь БЕЗ `owner_choice`: ответ владельца уехал на origin и стал НЕВИДИМ.
+    Хуже, чем было: раньше его просто не было. И `added` на следующем прогоне
+    снова содержит `owner_choice` — цикл дописывания без предела (замерено на
+    двух карточках: `tvoe-reshenie-ot-10-avgusta-pro-morpho-s`, `otkat-vetki-1249`).
+    """
+
+    def setUp(self):
+        import tempfile
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = self._tmp.name
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    @staticmethod
+    def _origin_with_empty_choice() -> bytes:
+        """origin: строка есть, значение пустое — «владелец ещё не ответил»."""
+        return ORIGIN_CARD.replace(b"status: ingested\n",
+                                   b"status: needs-owner\nowner_choice: \"\"\n")
+
+    def test_empty_key_is_refused_not_appended_beside(self):
+        merged, reason, added = oad.merge_trace(LOCAL_CARD, self._origin_with_empty_choice())
+
+        self.assertIsNone(merged, "дописали вторую строку с тем же ключом")
+        self.assertEqual(added, {})
+        self.assertIn("owner_choice", reason)
+        self.assertIn("пустым скаляром", reason)
+
+    def test_refusal_is_a_named_verdict_not_silence(self):
+        name = "owner-decision-morfo.md"
+        env = _Env(self.tmp, {name: LOCAL_CARD},
+                   {f"{TRACKER}/{name}": self._origin_with_empty_choice()})
+
+        r = oad.run(root=self.tmp, now=NOW, reader=env.reader,
+                    pusher=env.pusher, write_status=False)
+
+        self.assertEqual([f["card"] for f in r["refused"]], [name])
+        self.assertEqual(env.pushed, [], "противоречивый frontmatter уехал бы на origin")
+        self.assertNotEqual(r["status"], oad.IDLE, "отказ выдан за «всё доставлено»")
+
+    def test_absent_line_is_still_delivered(self):
+        """ОБРАТНЫЙ контроль: строки НЕТ вовсе — везём, как везли.
+
+        Без него отказ мог бы съесть главный случай, ради которого модуль написан
+        (авария 08.08: следа на origin нет ни минуты).
+        """
+        merged, reason, added = oad.merge_trace(LOCAL_CARD, ORIGIN_CARD)
+
+        self.assertIsNotNone(merged, reason)
+        self.assertIn("owner_choice", added)
+
+    def test_only_the_empty_key_blocks_its_own_delivery(self):
+        """Граница узкая: пустой `owner_choice` не отменяет доставку ОСТАЛЬНЫХ полей?
+
+        Отменяет — и это осознанно. Частичный перенос дал бы карточку, где отметка
+        и канал уехали, а ВЫБОР нет: «ответ доставлен» стало бы правдой про всё,
+        кроме самого ответа. Отказ целиком честнее; починка — в карточке.
+        """
+        merged, _, added = oad.merge_trace(LOCAL_CARD, self._origin_with_empty_choice())
+        self.assertIsNone(merged)
+        self.assertEqual(added, {})
+
 if __name__ == "__main__":
     unittest.main()

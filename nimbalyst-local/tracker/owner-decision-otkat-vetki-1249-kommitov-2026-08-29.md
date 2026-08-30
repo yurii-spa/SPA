@@ -5,7 +5,6 @@ title: "СНЯТО ЗАМЕРОМ: ветку уже вернули без те�
 status: ingested
 priority: high
 owner: yuriycooleshov@gmail.com
-owner_choice: ""
 blocks: ""
 created: 2026-08-29
 closed_by: cycle-423

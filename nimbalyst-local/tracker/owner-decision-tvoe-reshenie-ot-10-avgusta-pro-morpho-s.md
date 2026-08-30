@@ -5,7 +5,6 @@ title: "Твоё решение от 10 августа про Morpho Steakhouse 
 status: needs-owner
 source: nimbalyst
 created: 2026-08-29
-owner_choice: ""
 decision: ADR-070
 owner_choice: 1
 owner_answered_at: 2026-08-29T21:01:00.970347+00:00
