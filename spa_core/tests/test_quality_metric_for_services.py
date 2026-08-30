@@ -103,3 +103,61 @@ class TheLiveFleetIsActuallyCovered(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EscalationForServicesIsNamedNotLeftEmpty(unittest.TestCase):
+    """У службы без артефакта эскалация не выводилась вовсе — 32 пустых поля (30.08).
+
+    Пустое поле читается как «об отказе никто не узнает». Это неправда: `agent_health`
+    проверяет загруженность в launchctl и код выхода и шлёт владельцу в Телеграм. Путь
+    существует — значит его надо НАЗВАТЬ.
+
+    Проверено по коду сторожа, а не предположено, и здесь это закреплено отдельным
+    тестом: метрика, называющая несуществующий источник, хуже пустой.
+    """
+
+    SERVICE = {"schedule": "daemon", "produces": []}
+
+    def test_service_escalation_names_agent_health(self):
+        e = fap.escalation_from_code(None, self.SERVICE)
+        self.assertIn("agent_health", e)
+        self.assertIn("launchctl", e)
+        self.assertIn("Телеграм", e)
+
+    def test_the_named_watcher_really_watches_that(self):
+        """Контроль самого утверждения: сторож обязан уметь то, что мы ему приписали."""
+        src = (_REPO / "spa_core" / "monitoring" / "agent_health_monitor.py").read_text(
+            encoding="utf-8", errors="replace")
+        self.assertIn("not loaded into launchctl", src)
+        self.assertIn("last_exit", src)
+        self.assertIn("telegram", src.lower())
+
+    def test_agent_with_an_artifact_keeps_the_freshness_escalation(self):
+        """Обратная сторона: у кого есть продукт — прежний текст слово в слово."""
+        entry = {"schedule": "daemon",
+                 "produces": [{"artifact": "data/x.json", "slo_hours": 26}]}
+        self.assertIn("протухший артефакт", fap.escalation_from_code(None, entry))
+
+    def test_no_schedule_and_no_artifact_stays_empty(self):
+        """Мерить нечем и звать некому ⇒ пусто честнее выдумки."""
+        self.assertEqual(fap.escalation_from_code(None, {"produces": []}), "")
+
+    def test_push_critical_still_wins(self):
+        """Прямая эскалация важнее косвенной — и проверяется ТЕКСТОМ, а не «непусто».
+
+        Первая редакция утверждала лишь `assertTrue(e)`, и мутация «перестать замечать
+        push_critical» осталась зелёной: запасной источник тоже даёт непустой текст.
+        Проверка «что-то вернулось» не отличает прямой путь от косвенного.
+        """
+        watchdog = _REPO / "spa_core" / "monitoring" / "watchdog.py"
+        self.assertIn("push_critical", watchdog.read_text(encoding="utf-8", errors="replace"),
+                      "образец сменился — тест стал бы проверять пустоту")
+        entry = {"schedule": "daemon", "produces": []}
+        real = fap._module_file
+        try:
+            fap._module_file = lambda _m: watchdog
+            e = fap.escalation_from_code("spa_core.monitoring.watchdog", entry)
+        finally:
+            fap._module_file = real
+        self.assertIn("push_policy", e)
+        self.assertNotIn("agent_health", e, "прямая эскалация подменена косвенной")
