@@ -432,7 +432,32 @@ def rights_from_manifest(module: str | None, entry: dict) -> str:
             src = ""
     if "push_critical" in src:
         parts.append("слать CRITICAL владельцу через push_policy")
+    if not parts and _declares_nothing(module):
+        # ЯВНОЕ «ничего не произвожу» — это ОТВЕТ, а пустое поле читается как
+        # «неизвестно, что ему можно». Замер 30.08: у 28 агентов прав не выводилось,
+        # и пять из них объявили `PRODUCES = ()` прямым текстом. Разница между
+        # «автор сказал: ничего» и «никто не высказывался» — ровно та, ради которой
+        # в контракте заведён отдельный исход `declared_none` (ADR-158).
+        return "прав на запись артефактов нет — автор объявил PRODUCES = () явно"
     return "; ".join(parts)
+
+
+def _declares_nothing(module: str | None) -> bool:
+    """Модуль ЯВНО объявил пустой `PRODUCES`. None (объявления нет) — это НЕ то же."""
+    if not module:
+        return False
+    try:
+        sys.path.insert(0, str(REPO))
+        from spa_core.monitoring.artifact_contract import declared_produces
+    except Exception:                                    # noqa: BLE001
+        return False
+    f = _module_file(module)
+    if not f:
+        return False
+    try:
+        return declared_produces(f) == ()
+    except Exception:                                    # noqa: BLE001
+        return False
 
 
 def limits_from_code(module: str | None, entry: dict) -> str:

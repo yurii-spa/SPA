@@ -57,7 +57,7 @@
     "goal": "spa_core/strategy_lab/aggressive_lab/run.py — the Aggressive Lab CLI / standing-tick entrypoint.",
     "quality_metric": "запускается по расписанию interval:86400s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
+    "rights": "прав на запись артефактов нет — автор объявил PRODUCES = () явно",
     "limits": "LLM запрещён; не импортирует execution"
    }
   },
@@ -463,7 +463,7 @@
     "goal": "spa_core/cmo/editorial_agent.py — CMO editorial DRAFT runner (the live agent).",
     "quality_metric": "запускается по расписанию interval:86400s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
+    "rights": "прав на запись артефактов нет — автор объявил PRODUCES = () явно",
     "limits": "LLM запрещён; не импортирует execution"
    }
   },
@@ -702,7 +702,7 @@
     "goal": "spa_core/monitoring/dashboard_watcher.py",
     "quality_metric": "запускается по расписанию interval:300s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
+    "rights": "прав на запись артефактов нет — автор объявил PRODUCES = () явно",
     "limits": "не импортирует execution"
    }
   },
@@ -836,7 +836,7 @@
     "goal": "spa_core/telegram/reports/weekly.py — THE one weekly digest (Tier 2).",
     "quality_metric": "запускается по расписанию calendar:wd0·10:00 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
+    "rights": "прав на запись артефактов нет — автор объявил PRODUCES = () явно",
     "limits": "не импортирует execution"
    }
   },
@@ -2517,7 +2517,7 @@
     "goal": "spa_core/reporting/tier1_digest.py — weekly Tier-1 validation digest to Telegram.",
     "quality_metric": "запускается по расписанию calendar:wd0·09:30 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
+    "rights": "прав на запись артефактов нет — автор объявил PRODUCES = () явно",
     "limits": "LLM запрещён; не импортирует execution"
    }
   },

@@ -161,3 +161,51 @@ class EscalationForServicesIsNamedNotLeftEmpty(unittest.TestCase):
             fap._module_file = real
         self.assertIn("push_policy", e)
         self.assertNotIn("agent_health", e, "прямая эскалация подменена косвенной")
+
+
+class ExplicitNothingIsAnAnswerNotABlank(unittest.TestCase):
+    """`PRODUCES = ()` — это ОТВЕТ «ничего не произвожу», и права обязаны его назвать.
+
+    Замер 30.08: прав не выводилось у 28 агентов, и пять из них объявили пустой
+    `PRODUCES` прямым текстом. Пустое поле читается как «неизвестно, что ему можно» —
+    хотя автор уже ответил. Та же разница, ради которой в контракте заведён отдельный
+    исход `declared_none` (ADR-158): «сказал: ничего» ≠ «никто не высказывался».
+    """
+
+    def _rights(self, src: str) -> str:
+        import tempfile
+        tmp = Path(tempfile.mkdtemp())
+        (tmp / "pkg").mkdir()
+        (tmp / "pkg" / "__init__.py").write_text("", encoding="utf-8")
+        (tmp / "pkg" / "a.py").write_text(src, encoding="utf-8")
+        real = fap.REPO
+        try:
+            fap.REPO = tmp
+            return fap.rights_from_manifest("pkg.a", {"produces": []})
+        finally:
+            fap.REPO = real
+
+    def test_empty_produces_is_named(self):
+        r = self._rights("PRODUCES = ()\n")
+        self.assertIn("PRODUCES = ()", r)
+        self.assertIn("нет", r)
+
+    def test_absent_declaration_stays_blank(self):
+        """Обратная сторона: никто не высказывался ⇒ поле пустое, не выдуманное."""
+        self.assertEqual(self._rights("x = 1\n"), "")
+
+    def test_it_never_swallows_a_real_right(self):
+        """Опасный случай: агент объявил `PRODUCES = ()` И умеет звать владельца.
+
+        Тогда «прав нет» — ЛОЖЬ: право слать CRITICAL у него есть. Первая редакция
+        набора этого случая не содержала, и мутация «вернуть 'ничего' безусловно»
+        осталась зелёной: без такого агента подмену нечем заметить.
+        """
+        r = self._rights('PRODUCES = ()\npush_critical("boom")\n')
+        self.assertIn("push_policy", r)
+        self.assertNotIn("прав на запись артефактов нет", r)
+
+    def test_a_real_artifact_still_wins(self):
+        r = self._rights('PRODUCES = ("data/x.json",)\n')
+        self.assertIn("писать", r)
+        self.assertNotIn("PRODUCES = ()", r)
