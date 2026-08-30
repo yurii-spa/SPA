@@ -66,6 +66,18 @@ class TriggerParams:
 
     **Построить ≠ включить.** По умолчанию режим остаётся ``paper``; переход на
     ``pilot`` — решение владельца, а не следствие этой правки.
+
+    **Именование и версия контракта (Investment Policy Objective Contract, CIO
+    oversight phase E).** Эти пороги — единственное содержимое инвестиционного
+    мандата, которое реально исполняется: ``version``/``version_date`` фиксируют
+    решение владельца при приёмке ADR-060 (2026-08-02, «дизайн принят без
+    изменений»), а ``mode`` называет, какая колонка ADR-060 §3 применена к ЭТОМУ
+    экземпляру. Ни одно число не менялось и не изобреталось этой правкой — она
+    только даёт уже действующему мандату имя и версию, которые видно в каждом
+    записанном вердикте (``data/allocation_rationale.json`` →
+    ``params.policy_version``/``params.mode``). Смена любого порога — новый ADR
+    и новое значение ``version`` (тот же протокол, что у ``RiskConfig``,
+    :mod:`spa_core.risk.policy`).
     """
     min_gain_pp: float = 0.50            # min blended-APY gain, pp of TOTAL capital
     max_payback_days: float = 30.0       # cost must repay within this horizon
@@ -77,6 +89,9 @@ class TriggerParams:
     reversal_window_days: int = 14       # window in which a reversal is penalised
     reversal_escalation: float = 1.5     # gain threshold ×N when reversing
     below_median_cap_factor: float = 0.5  # below-median yield ⇒ ≤ half the tier cap
+    version: str = "v1.0"                # ADR-060 acceptance — bump on any threshold change
+    version_date: str = "2026-08-02"     # owner acceptance date (ADR-060 header)
+    mode: str = "paper"                  # which ADR-060 §3 column this instance is
 
     @classmethod
     def for_mode(cls, mode: Optional[str] = None) -> "TriggerParams":
@@ -109,6 +124,7 @@ class TriggerParams:
             reversal_window_days=21,
             reversal_escalation=2.0,
             below_median_cap_factor=0.5,   # одинаков в обеих колонках
+            mode="pilot",
         )
 
 

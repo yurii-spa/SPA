@@ -38,6 +38,29 @@ def test_pilot_column_matches_the_adr(field, expect):
     assert getattr(TriggerParams.for_mode("pilot"), field) == pytest.approx(expect)
 
 
+# ── CIO oversight phase E: the contract is NAMED, not just numeric ─────────
+#
+# Phase E's job (docs/ideas/2026-08-29-cio-oversight-layer.md) is not to invent
+# new dials — it is to give the already-accepted ADR-060 §3 mandate a version
+# an artifact can carry. These tests pin that identity, independent of the
+# numeric thresholds pinned above.
+
+
+def test_both_columns_carry_the_same_accepted_policy_version():
+    """paper vs pilot is a COLUMN choice, not a different accepted policy."""
+    paper, pilot = TriggerParams.for_mode("paper"), TriggerParams.for_mode("pilot")
+    assert paper.version == pilot.version == "v1.0"
+    assert paper.version_date == pilot.version_date == "2026-08-02"  # ADR-060 header
+
+
+def test_mode_names_which_column_was_resolved():
+    assert TriggerParams.for_mode("paper").mode == "paper"
+    assert TriggerParams.for_mode("pilot").mode == "pilot"
+    # A typo still gets the strict column (see test above) AND is honestly
+    # labelled as such — "mode" must never claim "paper" for a pilot column.
+    assert TriggerParams.for_mode("piolt").mode == "pilot"
+
+
 def test_pilot_is_stricter_on_every_dial_that_differs():
     """Смысловая проверка поверх чисел: пилот нигде не мягче бумаги."""
     p, q = TriggerParams.for_mode("paper"), TriggerParams.for_mode("pilot")

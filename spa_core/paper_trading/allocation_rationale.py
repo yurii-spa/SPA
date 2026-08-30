@@ -460,6 +460,13 @@ def write_shadow_rationale(
                 "reversal_window_days": p.reversal_window_days,
                 "reversal_escalation": p.reversal_escalation,
                 "below_median_cap_factor": p.below_median_cap_factor,
+                # CIO oversight phase E (Investment Policy Objective Contract):
+                # names+versions the ADR-060 §3 column this cycle ran under, so
+                # every recorded verdict is traceable to an accepted mandate
+                # version instead of a bare, unattributed number set.
+                "policy_version": p.version,
+                "policy_version_date": p.version_date,
+                "mode": p.mode,
             },
         }
 

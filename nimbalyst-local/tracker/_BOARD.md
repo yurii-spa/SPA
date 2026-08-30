@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-29T21:09:48Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-30T00:47:42Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Всего карточек: **791** · ждёт владельца: **8** · занято сессиями: **8**.
+> Всего карточек: **793** · ждёт владельца: **8** · занято сессиями: **8**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -231,7 +231,7 @@
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (384)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (385)
 
 ### · needs-owner
 - Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md` · 2026-08-29
@@ -527,6 +527,7 @@
 - 3 трека параллельно: Conservative + Balanced + Aggressive (мандат владельца)  ·  `inbox-3-treka-parallelno-conservative-balanced.md` · 2026-08-08
 - 60% отправок владельцу не помечены message_id — чем послано сообщение без кнопок, неизмеримо  ·  `inbox-60-otpravok-vladeltsu-ne-pomecheny-messa.md` · 2026-08-22
 - aave_arbitrum отдаёт СТАТИЧЕСКИЙ TVL — литерал $1.2 млрд вместо живого числа  ·  `inbox-aave-arbitrum-otdaet-staticheskii-tvl.md` · 2026-08-29
+- ADR-060 §3: колонка «реальный пилот» для EVIDENCE_MAX_AGE_H/HARD_STALE_H не подключена (в отличие от TriggerParams)  ·  `inbox-adr-060-3-kolonka-realnyi-pilot-dlya-evi.md` · 2026-08-29
 - ADR-070.12: BTS честный порог, затем включить TG  ·  `inbox-adr-070-12-bts-chestnyi-porog-zatem-vkly.md` · 2026-08-07
 - ADR-070.14: governance watchlist = наш вайтлист  ·  `inbox-adr-070-14-governance-watchlist-nash-vai.md` · 2026-08-07
 - ADR-070.17-18: frax удалить, notional_v3 вывести  ·  `inbox-adr-070-17-18-frax-udalit-notional-v3-vy.md` · 2026-08-07
@@ -767,7 +768,7 @@
 ### · new
 - У руки демоушена (#39 CDR) нет ветки «отметка не пришла» — сегодня тёмный фид ЗАЩИЩАЕТ книгу, и это нигде не записано  ·  `agent-rnd51-stale-branch-for-demotion-arm.md` · 2026-08-14
 
-## agent  (74)
+## agent  (75)
 
 ### · blocked
 - Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать  ·  `agent-fleet-parity-guard-never-scheduled.md` · 2026-08-05
@@ -806,6 +807,7 @@
 - Числа на сайте и обход owner-гейта — одна причина, чинить вместе (СТАРТ после утреннего апдейта)  ·  `agent-site-numbers-and-gate.md` · 2026-08-06
 - Снять у классов адаптеров право объявлять тир — чинить причину, а не экземпляр  ·  `agent-snyat-u-klassov-pravo-obyavlyat-tir.md` · 2026-08-29
 - spark_susds наблюдает чужой инструмент (sparklend lending vs sUSDS vault) — развести идентичности до допуска Sky  ·  `agent-spark-susds-identity-split.md` · 2026-08-05
+- Сторож скачков APY зовут раз в сутки из отчёта — своего расписания у него по-прежнему нет  ·  `agent-storozh-skachkov-apy-bez-svoego-raspisaniya.md` · 2026-08-29
 - Тесты ходят в живую сеть (Telegram + аналитика) — полный набор не проходит целиком, когда сеть медленная  ·  `agent-tests-do-live-network-io.md` · 2026-08-02
 - 222 теста дёргают живой фид — 9 268 отказов за прогон; набор зелёный по неверной причине  ·  `agent-tests-reach-live-feed-222.md` · 2026-08-08
 - Сделать турнир стратегий ДОВЕРЯЕМЫМ — ранжировать по net-of-cost APY на реальных исторических данных (не Sharpe на mock)  ·  `agent-tournament-trustworthy-real-apy.md` · 2026-07-23

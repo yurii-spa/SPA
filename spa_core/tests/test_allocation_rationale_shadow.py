@@ -54,6 +54,16 @@ def test_artifact_is_written_and_labelled_advisory(tmp_path: Path) -> None:
     assert doc["decision_shadow"]["decision"] in ("ACT", "HOLD")
 
 
+def test_params_carry_the_investment_policy_contract_identity(tmp_path: Path) -> None:
+    """CIO oversight phase E: every cycle's verdict is traceable to a named,
+    versioned mandate (ADR-060 §3), not a bare, unattributed number set."""
+    doc = _write(tmp_path)
+    params = doc["params"]
+    assert params["policy_version"] == "v1.0"
+    assert params["policy_version_date"] == "2026-08-02"
+    assert params["mode"] == "paper"  # default column — no SPA_CAPITAL_MODE set here
+
+
 def test_writer_never_raises_on_broken_input(tmp_path: Path) -> None:
     """A reporting layer must not be able to break the cycle that feeds the track."""
     doc = write_shadow_rationale(
