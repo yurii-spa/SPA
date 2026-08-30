@@ -5,9 +5,6 @@ status: new
 created: 2026-08-28
 priority: high
 source: ADR-154
-claimed_by: cycle-56506
-claimed_at: 2026-08-30T08:41:15Z
-claim_takeover_reason: шаг 0a: cycle-63180 (pid63180 мёртв 13.95ч) объявляла scripts/consume_office_reports.py и ДОСТАВИЛА его — своё дерево совпадает с origin/main, недоставленного у объявившего нет; работа того захода видна в теле карточки на origin («Замер цикла #426»), поднимать нечего
 ---
 
 # Заявки с сайта никто не сторожит
