@@ -235,8 +235,8 @@
     "goal": "Automatic sequential push of all pending push_v*.sh scripts",
     "quality_metric": "запускается по расписанию interval:5400s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
-    "limits": ""
+    "rights": "запускать внешние: накопленные скрипты доставки push_v*.sh",
+    "limits": "ни один шаг не импортирует execution; питоновских шагов нет — внешняя программа под launchd"
    }
   },
   {
@@ -258,8 +258,8 @@
     "goal": "Automatic sequential push of all pending push_v*.sh scripts",
     "quality_metric": "запускается по расписанию interval:5400s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
-    "limits": ""
+    "rights": "запускать внешние: накопленные скрипты доставки push_v*.sh",
+    "limits": "ни один шаг не импортирует execution; питоновских шагов нет — внешняя программа под launchd"
    }
   },
   {
@@ -689,8 +689,8 @@
     "goal": "",
     "quality_metric": "процесс загружен в launchd и держит pid (data/agent_health.json: loaded=true, pid≠0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
-    "limits": ""
+    "rights": "запускать 1 шаг(ов): http.server",
+    "limits": "ни один шаг не импортирует execution"
    }
   },
   {
@@ -1003,8 +1003,8 @@
     "goal": "событийный ЛЁГКИЙ интейк Inbox (owner-approved 2026-07-15)",
     "quality_metric": "запускается по расписанию event:watchpaths и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
-    "limits": ""
+    "rights": "запускать 1 шаг(ов): spa_core.owner_queue.intake",
+    "limits": "ни один шаг не импортирует execution"
    }
   },
   {
@@ -1547,8 +1547,8 @@
     "goal": "headless R&D \"opportunity finder\" agent.",
     "quality_metric": "запускается по расписанию calendar:04:00 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
-    "limits": ""
+    "rights": "запускать внешние: headless-сессия Claude (работа — не модуль, а выполненное задание)",
+    "limits": "ни один шаг не импортирует execution; питоновских шагов нет — внешняя программа под launchd"
    }
   },
   {
@@ -1746,8 +1746,8 @@
     "goal": "Runs scripts/verify_fleet_after_reboot.sh once at LOGIN (RunAtLoad), so the post-reboot fleet heal + its auditable status JSON (data/fleet_reboot_status .json) are produced automatically — \"probably recovered\" becomes proven+dated without a human remembering to run the command.",
     "quality_metric": "запускается по расписанию manual и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
-    "limits": ""
+    "rights": "запускать внешние: вложенный скрипт scripts/verify_fleet_after_reboot.sh",
+    "limits": "ни один шаг не импортирует execution; питоновских шагов нет — внешняя программа под launchd"
    }
   },
   {
@@ -1944,8 +1944,8 @@
     "goal": "spa_core/strategy_lab/rwa_backstop/safety_board.py — the RWA Collateral Safety Board.",
     "quality_metric": "запускается по расписанию calendar:05:50 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
-    "limits": ""
+    "rights": "запускать 1 шаг(ов): spa_core.strategy_lab.rwa_backstop.nav_proof",
+    "limits": "ни один шаг не импортирует execution; LLM запрещён"
    }
   },
   {
@@ -2588,8 +2588,8 @@
     "goal": "SPA Tournament Engine v1.0 spa_core/tournament/tournament_engine.py",
     "quality_metric": "запускается по расписанию calendar:09:00 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
-    "limits": ""
+    "rights": "запускать 2 шаг(ов): spa_core.tournament.tournament_engine, spa_core.tournament.tournament_proof_chain",
+    "limits": "ни один шаг не импортирует execution; LLM запрещён"
    }
   },
   {
@@ -2710,8 +2710,8 @@
     "goal": "Weekly SPA_Claude backup — runs every Saturday at 10:00 AM",
     "quality_metric": "запускается по расписанию calendar:wd6·10:00 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
-    "rights": "",
-    "limits": ""
+    "rights": "запускать внешние: архивирование (tar/rsync)",
+    "limits": "ни один шаг не импортирует execution; питоновских шагов нет — внешняя программа под launchd"
    }
   },
   {

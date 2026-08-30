@@ -513,10 +513,36 @@ def shell_targets(program: str | None) -> tuple[list[str], list[str]]:
     # Восемь агентов запускают именно его, и их настоящая цель лежит в `export
     # RUN_SCRIPT=` внешней обёртки (её читает `module_of`). Ложное право хуже пустого
     # поля: пустое видно в списке пробелов, а ложное выглядит знанием.
-    mods = set(re.findall(r"-m\s+([a-z_][a-z0-9_.]*)", txt))
+    # ЦЕЛЬ ШАБЛОННОГО АГЕНТА — ВТОРОЙ АРГУМЕНТ вызова, а не содержимое шаблона.
+    # `agent_template.sh <имя> <модуль-или-скрипт>` — соглашение записано в самом
+    # шаблоне (строки 83–88: `AGENT_NAME="$1"; shift`, затем `*.py` → RUN_SCRIPT,
+    # иначе MODULE). Первая попытка 30.08 читала ВНУТРЕННОСТИ шаблона и вытащила
+    # оттуда примеры из докстринга (`scripts.foo`, `target`) — ложные права. Читать
+    # надо строку ВЫЗОВА: там цель названа однозначно и без угадывания.
+    tmpl = re.findall(r"agent_template\.sh\s+(\S+)\s+(\S+)", txt)
+    mods = {t for _name, t in tmpl if not t.endswith(".py") and re.fullmatch(r"[a-z_][a-z0-9_.]*", t)}
+    mods |= {t.replace("/", ".")[:-3] for _n, t in tmpl if t.endswith(".py")}
+    mods |= set(re.findall(r"-m\s+([a-z_][a-z0-9_.]*)", txt))
+    # Инлайн-цель: `python -c "from spa_core.x.y import run"`. Такой вызов называет
+    # модуль так же однозначно, как `-m`, и `agent_inbox_intake.sh` работает именно так.
+    mods |= set(re.findall(r"-c\s+[\"']\s*from\s+([a-z_][a-z0-9_.]*)\s+import", txt))
     mods |= {m.replace("/", ".")[:-3] for m in re.findall(r"(scripts/[a-z_0-9]+\.py)", txt)}
     mods = {m for m in mods if not m.endswith("log_session_change")}
     ext = set(_EXTERNAL_RX.findall(txt))
+    # Обёртки БЕЗ питоновской цели — тоже читаемы, просто их работа не модуль.
+    # Каждый признак берётся из текста самой обёртки, без захода в чужие файлы.
+    if "CLAUDE_BIN" in txt or re.search(r"\bclaude\b\s+(-p|--print|chat)", txt):
+        ext.add("headless-сессия Claude (работа — не модуль, а выполненное задание)")
+    if re.search(r"push_v\*?\.sh|push_v[0-9]", txt):
+        ext.add("накопленные скрипты доставки push_v*.sh")
+    if re.search(r"\b(tar|rsync)\b", txt):
+        ext.add("архивирование (tar/rsync)")
+    # Вложенный shell по переменной: `INNER="$REPO/scripts/x.sh"` … `bash "$INNER"`.
+    # Называем ИМЯ скрипта — это шаг конвейера, а не догадка. В сам файл не заходим:
+    # именно заход выдал 30.08 права вида «scripts.foo» из примеров шаблона.
+    for inner in re.findall(r"=\s*\"?\$\{?REPO\}?/scripts/([a-z_0-9]+\.sh)", txt):
+        if (REPO / "scripts" / inner).is_file():
+            ext.add(f"вложенный скрипт scripts/{inner}")
     return sorted(mods), sorted(ext)
 
 

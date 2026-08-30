@@ -127,3 +127,41 @@ class TheLiveFleetIsCovered(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EveryWayAnAgentNamesItsWork(unittest.TestCase):
+    """Четыре формы запуска, и все читаются из ТЕКСТА ВЫЗОВА (30.08).
+
+    Восемь живых агентов оставались без прав, потому что их работа названа не через
+    `-m`. Каждая форма закреплена своим живым примером — иначе завтра кто-то упростит
+    разбор и не заметит, что половина флота снова онемела.
+    """
+
+    def test_template_argument_is_the_target(self):
+        """`agent_template.sh <имя> <модуль>` — соглашение самого шаблона (строки 83–88)."""
+        mods, _ = fap.shell_targets("agent_dashboard.sh")
+        self.assertEqual(mods, ["http.server"])
+
+    def test_inline_import_is_a_target(self):
+        """`python -c "from spa_core.x import run"` называет модуль так же однозначно."""
+        mods, _ = fap.shell_targets("agent_inbox_intake.sh")
+        self.assertIn("spa_core.owner_queue.intake", mods)
+
+    def test_nested_script_is_named_but_not_entered(self):
+        """Имя вложенного скрипта — факт; его СОДЕРЖИМОЕ мы не читаем (см. класс выше)."""
+        _, ext = fap.shell_targets("agent_reboot_verify.sh")
+        self.assertTrue([e for e in ext if "verify_fleet_after_reboot.sh" in e])
+
+    def test_headless_session_is_named_as_such(self):
+        """Работа такого агента — не модуль, а выполненное задание. Так и написано."""
+        _, ext = fap.shell_targets("agent_novel_edge_rnd.sh")
+        self.assertTrue([e for e in ext if "Claude" in e])
+
+    def test_live_coverage_is_at_least_nine_in_ten(self):
+        import json
+        from spa_core.monitoring.agent_passport import REQUIRED_FIELDS
+        man = json.loads((_REPO / "architecture" / "manifest.json").read_text(encoding="utf-8"))
+        live = [a for a in man["agents"] if a.get("intent") == "active"]
+        full = [a for a in live if all((a.get("passport") or {}).get(f) for f in REQUIRED_FIELDS)]
+        self.assertGreaterEqual(len(full) / len(live), 0.9,
+                                f"покрытие живых упало: {len(full)}/{len(live)}")
