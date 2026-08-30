@@ -1,4 +1,8 @@
 #!/bin/bash
+# AGENT_MODULE: scripts.morning_work_digest
+# Точка входа, НЕСУЩАЯ КОНТРАКТ агента. Объявлено 30.08: без неё паспорт не
+# может назвать ни права, ни ограничения — их читают ИЗ МОДУЛЯ, а вывести его
+# из многошаговой обёртки нельзя. Основание: единственная цель: строка 46 запускает scripts/morning_work_digest.py.
 # scripts/agent_work_digest.sh — launchd wrapper for com.spa.work_digest
 # «Что сделано за вчера» (РАБОТА/девелопмент, простым языком) → Telegram, 09:00.
 # Owner-requested 2026-07-16. DISTINCT from com.spa.digest_daily (that one = PORTFOLIO

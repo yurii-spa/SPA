@@ -594,7 +594,7 @@
     "quality_metric": "запускается по расписанию calendar:05:30 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
     "rights": "",
-    "limits": ""
+    "limits": "LLM запрещён; не импортирует execution"
    }
   },
   {
@@ -883,7 +883,7 @@
     "quality_metric": "запускается по расписанию manual и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
     "rights": "",
-    "limits": ""
+    "limits": "не импортирует execution"
    }
   },
   {
@@ -2277,7 +2277,7 @@
     "quality_metric": "запускается по расписанию interval:3600s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
     "rights": "",
-    "limits": ""
+    "limits": "advisory — капитал не двигает; LLM запрещён; не импортирует execution"
    }
   },
   {
@@ -2709,7 +2709,7 @@
     "quality_metric": "запускается по расписанию calendar:09:00 и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
     "rights": "",
-    "limits": ""
+    "limits": "не импортирует execution"
    }
   }
  ],

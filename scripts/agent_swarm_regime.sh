@@ -1,4 +1,8 @@
 #!/bin/bash
+# AGENT_MODULE: spa_core.strategy_lab.swarm.eyc_allocator
+# Точка входа, НЕСУЩАЯ КОНТРАКТ агента. Объявлено 30.08: без неё паспорт не
+# может назвать ни права, ни ограничения — их читают ИЗ МОДУЛЯ, а вывести его
+# из многошаговой обёртки нельзя. Основание: единственная цель: строка 18 запускает `-m spa_core.strategy_lab.swarm.eyc_allocator`.
 # scripts/agent_swarm_regime.sh — launchd wrapper for com.spa.swarm_regime
 # Generated from scripts/agent_template.sh (canonical bash-wrapper pattern).
 # SWARM block 3 (docs/SWARM_ARCHITECTURE.md): L1 funding-regime classifier — GREEN/YELLOW/RED

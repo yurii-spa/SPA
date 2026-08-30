@@ -1,4 +1,8 @@
 #!/bin/bash
+# AGENT_MODULE: scripts.daily_backup
+# Точка входа, НЕСУЩАЯ КОНТРАКТ агента. Объявлено 30.08: без неё паспорт не
+# может назвать ни права, ни ограничения — их читают ИЗ МОДУЛЯ, а вывести его
+# из многошаговой обёртки нельзя. Основание: единственная питоновская цель обёртки: строка 17 запускает scripts/daily_backup.py.
 # scripts/daily_backup.sh — DAILY snapshot of ALL data/*.json into data/backups/.
 #
 # Runs BEFORE the 06:00 UTC daily_cycle so a pre-cycle snapshot always exists. Wraps

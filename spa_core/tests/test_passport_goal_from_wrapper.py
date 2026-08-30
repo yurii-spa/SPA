@@ -194,3 +194,44 @@ class SourceOrderMakesRegressionImpossible(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LiveWrappersDeclareTheirEntryPoint(unittest.TestCase):
+    """Объявления `# AGENT_MODULE:` в живом дереве — и они обязаны РАЗРЕШАТЬСЯ.
+
+    Права и ограничения агента читаются ИЗ МОДУЛЯ; вывести его из многошаговой обёртки
+    нельзя, поэтому у 23 агентов поле `limits` было пустым. Объявлены четыре обёртки, у
+    которых питоновская цель ровно одна — там объявление не суждение, а факт (замер
+    30.08: 4 однозначных, 5 многоцелевых, 14 вообще без питона).
+
+    Тест держит две вещи сразу: объявление на месте И оно указывает на существующий
+    модуль. Опечатка в объявлении даёт молчаливый откат к пустому паспорту.
+    """
+
+    DECLARED = {
+        "daily_backup.sh": "scripts.daily_backup",
+        "agent_swarm_regime.sh": "spa_core.strategy_lab.swarm.eyc_allocator",
+        "agent_work_digest.sh": "scripts.morning_work_digest",
+        "fund_api_server.py": "scripts.fund_api_server",
+    }
+
+    def test_each_declaration_resolves_to_a_real_module(self):
+        for program, expected in self.DECLARED.items():
+            with self.subTest(program=program):
+                self.assertEqual(fap.module_of(program), expected,
+                                 f"{program}: объявление точки входа пропало или врёт")
+                self.assertIsNotNone(fap._module_file(expected),
+                                     f"{expected}: объявлен модуль, которого нет")
+
+    def test_limits_are_actually_derived_for_them(self):
+        """Смысл объявления — не само объявление, а появившееся ограничение."""
+        import json
+        man = json.loads((_REPO / "architecture" / "manifest.json").read_text(encoding="utf-8"))
+        by_prog = {a.get("program"): a for a in man["agents"]}
+        for program in self.DECLARED:
+            entry = by_prog.get(program)
+            if entry is None:
+                continue
+            with self.subTest(program=program):
+                self.assertTrue(fap.limits_from_code(fap.module_of(program), entry),
+                                f"{program}: ограничения снова не выводятся")

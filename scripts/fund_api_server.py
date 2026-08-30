@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# AGENT_MODULE: scripts.fund_api_server
+# Точка входа, НЕСУЩАЯ КОНТРАКТ агента. Объявлено 30.08: без неё паспорт не
+# может назвать ни права, ни ограничения — их читают ИЗ МОДУЛЯ, а вывести его
+# из многошаговой обёртки нельзя. Основание: программа агента — сам этот файл (launchd зовёт его напрямую).
 """
 MP-443: SPA Fund API Server
 Minimal HTTP server (stdlib only) для investor portal.
