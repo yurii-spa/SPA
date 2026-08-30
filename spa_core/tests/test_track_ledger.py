@@ -5,6 +5,7 @@ drawdown-from-running-peak is computed correctly, the summary counts + days_rema
 missing/malformed equity file yields an empty ledger fail-closed (never a fabricated day). Deterministic.
 """
 import json
+from unittest.mock import patch
 
 import pytest
 
@@ -68,7 +69,83 @@ def test_missing_file_fail_closed(tmp_path):
     assert rep["cumulative_return_pct"] == 0.0
 
 
+def test_out_path_override_writes_there_not_to_real_data_dir(tmp_path, monkeypatch):
+    # Regression: build_ledger() used to always write to the module-level _OUT
+    # (the real data/track_ledger.json) regardless of equity_path — a caller
+    # sandboxing INPUT via equity_path could still silently write the REAL
+    # track. Guard against the real data/track_ledger.json ever being touched
+    # by this test by monkeypatching _OUT to a path that must stay untouched.
+    sentinel = tmp_path / "must_not_be_written.json"
+    monkeypatch.setattr(tl, "_OUT", sentinel)
+
+    bars = [_bar("2026-06-22", 100000)]
+    equity_p = _equity_file(tmp_path, bars)
+    real_out = tmp_path / "sandbox_out" / "track_ledger.json"
+    real_out.parent.mkdir()
+
+    tl.build_ledger(equity_path=equity_p, out_path=real_out, write=True)
+
+    assert real_out.exists()
+    assert not sentinel.exists()
+
+
 def test_deterministic(tmp_path):
     bars = [_bar("2026-06-22", 100000), _bar("2026-06-23", 100200)]
     p = _equity_file(tmp_path, bars)
     assert tl.build_ledger(equity_path=p, write=False) == tl.build_ledger(equity_path=p, write=False)
+
+
+# ── Wiring into the daily cycle (Q2-18 step 7 in _run_smart_modules) ───────────
+#
+# Found orphaned 2026-08-29/30: build_ledger() reads the SAME primitive
+# golive_checker uses, but nothing called it — data/track_ledger.json sat
+# frozen at n_evidenced_days=19 (2026-07-10) for 7 weeks while the real
+# evidenced count moved to 68. These tests guard the wiring itself, not the
+# ledger math (already covered above) — a regression here would silently
+# orphan the module again.
+
+class TestWiredIntoSmartModules:
+    def test_run_smart_modules_writes_track_ledger(self, tmp_path):
+        from spa_core.paper_trading.cycle_runner import _run_smart_modules
+
+        bars = [_bar("2026-06-22", 100000), _bar("2026-06-23", 100300)]
+        _equity_file(tmp_path, bars)
+
+        _run_smart_modules(data_dir=str(tmp_path), send_telegram=False)
+
+        out = tmp_path / "track_ledger.json"
+        assert out.exists()
+        written = json.loads(out.read_text())
+        assert written["n_evidenced_days"] == 2
+        assert written["generated_at"] is not None  # main()'s own None-timestamp bug not repeated here
+
+    def test_build_ledger_failure_does_not_crash_remaining_steps(self, tmp_path):
+        # Same fail-safe contract as every other MP-* step in this function:
+        # a raise inside track_ledger must be swallowed, not propagate.
+        from spa_core.paper_trading.cycle_runner import _run_smart_modules
+
+        bars = [_bar("2026-06-22", 100000)]
+        _equity_file(tmp_path, bars)
+
+        with patch(
+            "spa_core.paper_trading.track_ledger.build_ledger",
+            side_effect=RuntimeError("boom"),
+        ):
+            _run_smart_modules(data_dir=str(tmp_path), send_telegram=False)  # must not raise
+
+        assert not (tmp_path / "track_ledger.json").exists()
+
+    def test_run_smart_modules_passes_the_right_equity_path(self, tmp_path):
+        # Regression guard for a plausible mistake: pointing at the wrong
+        # data_dir (e.g. the default `data/` instead of the cycle's own dir)
+        # would silently read someone else's track.
+        from spa_core.paper_trading.cycle_runner import _run_smart_modules
+
+        bars = [_bar("2026-06-22", 100000), _bar("2026-06-23", 100100), _bar("2026-06-24", 100400)]
+        _equity_file(tmp_path, bars)
+
+        _run_smart_modules(data_dir=str(tmp_path), send_telegram=False)
+
+        written = json.loads((tmp_path / "track_ledger.json").read_text())
+        assert written["n_evidenced_days"] == 3
+        assert written["last_evidenced_date"] == "2026-06-24"

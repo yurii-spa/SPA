@@ -2814,6 +2814,30 @@ def _run_smart_modules(data_dir=None, send_telegram: bool = True) -> None:
     except Exception as _e:  # noqa: BLE001
         log.warning("MP-1263 T2 concentration monitor failed (non-critical): %s", _e)
 
+    # 7. Evidenced-track ledger refresh (Q2-18) — found orphaned 2026-08-29/30:
+    #    the module reads THE SAME primitive (track_evidence.evidenced_bars over
+    #    equity_curve_daily.json) golive_checker uses, but had no caller anywhere
+    #    — data/track_ledger.json sat frozen at n_evidenced_days=19 (2026-07-10)
+    #    for 7 weeks while the real evidenced count (golive_status.json,
+    #    equity_curve_daily.json) moved to 68. Four downstream readers
+    #    (investment_os/agents/reporting.py, cmo/editorial_agent.py,
+    #    api/routers/readiness.py, generate_research_changelog.py) were all
+    #    silently showing the stale number. Read-only over the committed track,
+    #    moves no capital, deterministic — safe to run every cycle.
+    try:
+        from spa_core.paper_trading.track_ledger import build_ledger as _build_ledger
+        _equity_path = (_Path(data_dir) / "equity_curve_daily.json") if data_dir else None
+        _ledger_out_path = (_Path(data_dir) / "track_ledger.json") if data_dir else None
+        _now_iso = datetime.now(timezone.utc).isoformat()
+        _ledger = _build_ledger(
+            equity_path=_equity_path, out_path=_ledger_out_path,
+            write=True, now_iso=_now_iso,
+        )
+        print(f"  track_ledger: {_ledger['n_evidenced_days']}/{_ledger['days_needed']} evidenced days "
+              f"({_ledger['first_evidenced_date']} → {_ledger['last_evidenced_date']})")
+    except Exception as _e:  # noqa: BLE001
+        log.warning("Q2-18 track_ledger refresh failed (non-critical): %s", _e)
+
 
 def _run_analytics_pipeline(data_dir: "str | os.PathLike | None" = None) -> None:
     """Run analytics pipeline post-cycle. Non-blocking — failures are logged."""

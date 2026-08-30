@@ -45,8 +45,18 @@ def _f(v: Any, default: float = 0.0) -> float:
         return default
 
 
-def build_ledger(*, equity_path: Optional[Path] = None, write: bool = True,
-                 now_iso: Optional[str] = None) -> dict:
+def build_ledger(*, equity_path: Optional[Path] = None, out_path: Optional[Path] = None,
+                 write: bool = True, now_iso: Optional[str] = None) -> dict:
+    """Build (and optionally write) the evidenced-track ledger.
+
+    ``out_path`` defaults to the module-level ``_OUT`` (real ``data/track_ledger.json``)
+    for backward compatibility with existing callers (``main()``, tests). A caller that
+    also overrides ``equity_path`` to a sandbox dir MUST pass a matching ``out_path`` —
+    otherwise the ledger reads a sandbox but writes the real track (found 2026-08-30
+    wiring this into ``cycle_runner._run_smart_modules``: the write-interlock sandbox
+    redirect that protects the live track from a stray dev-shell run would have been
+    silently bypassed by this module alone).
+    """
     daily = _load_daily(equity_path or _EQUITY)
     bars = ev.evidenced_bars(daily)   # the ONE real-series segregation point (warmup/backfill excluded)
 
@@ -96,7 +106,7 @@ def build_ledger(*, equity_path: Optional[Path] = None, write: bool = True,
                  "Advisory / read-only — reproduces the committed track, moves no capital."),
     }
     if write:
-        atomic_save(report, str(_OUT))
+        atomic_save(report, str(out_path or _OUT))
     return report
 
 
