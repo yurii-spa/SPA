@@ -805,7 +805,7 @@
   {
    "label": "com.spa.dfb_capture",
    "plist_source": "repo:launchd/com.spa.dfb_capture.plist",
-   "reboot_safe": true,
+   "reboot_safe": false,
    "schedule": "calendar:09:30",
    "program": "agent_dfb_capture.sh",
    "layer": "product",
@@ -2083,7 +2083,7 @@
   {
    "label": "com.spa.source_discovery",
    "plist_source": "repo:launchd/com.spa.source_discovery.plist",
-   "reboot_safe": true,
+   "reboot_safe": false,
    "schedule": "interval:604800s",
    "program": "agent_source_discovery.sh",
    "layer": "product",
@@ -2196,7 +2196,7 @@
   {
    "label": "com.spa.swarm_dwell",
    "plist_source": "repo:launchd/com.spa.swarm_dwell.plist",
-   "reboot_safe": true,
+   "reboot_safe": false,
    "schedule": "interval:3600s",
    "program": "agent_swarm_dwell.sh",
    "layer": "product",
