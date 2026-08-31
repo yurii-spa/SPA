@@ -91,6 +91,7 @@ def run_note_intake(now: datetime | None = None) -> dict:
         list_cards,
         set_status,
     )
+    from spa_core.owner_queue.history_check import SOURCE_TEXT_CLOSE, SOURCE_TEXT_OPEN
     from spa_core.telegram import ask_router
     from spa_core.telegram.ask_router import classify_and_answer
     from spa_core.utils.atomic import atomic_save_text
@@ -177,11 +178,14 @@ def run_note_intake(now: datetime | None = None) -> dict:
                 _queue_notice(f"💡 Записал как идею: <b>{html.escape(card.title)}</b>{partial_tg}")
             elif kind == "unclear":
                 q = resp or "Уточни: это вопрос или задача?"
+                # Дословный текст пишется маркером, ОБЪЯВЛЕННЫМ в history_check: по нему
+                # же следующий заход узнаёт точный повтор (цикл #446). Литерал здесь
+                # означал бы формат в двух местах — он бы разошёлся молча.
                 create_card(
                     "owner-decision",
                     f"Уточнение по заметке: {card.title}",
                     body=(f"## Что случилось и почему это важно\nПришло сообщение, непонятно — вопрос это или задача.\n\n"
-                          f"Текст: «{body}»{partial_body}\n\n## Что от тебя нужно\n{q}\n\n"
+                          f"{SOURCE_TEXT_OPEN}{body}{SOURCE_TEXT_CLOSE}{partial_body}\n\n## Что от тебя нужно\n{q}\n\n"
                           f"## Как понять, что готово\nТы уточнил.\n\n## Что будет после\nОбработаю по твоему ответу."),
                     status="needs-owner", source="intake",
                 )

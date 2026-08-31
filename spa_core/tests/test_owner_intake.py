@@ -317,3 +317,39 @@ def test_large_batch_collapses_into_one_summary(tmp_path, monkeypatch):
     assert "Задача 11" not in notes[0], "сводка не должна выродиться в ту же ленту"
     assert len(res["processed"]) == 12, "сводка не должна отменять саму обработку"
     assert all(Q.load_card(p).status == "in-progress" for p in paths)
+
+
+def test_unclear_card_records_the_source_text_readably(tmp_path, monkeypatch):
+    """Круг замкнут: то, что интейк ЗАПИСАЛ, следующий заход обязан ПРОЧИТАТЬ.
+
+    Положительный контроль к циклу #446. Детерминированная сверка «этот текст уже
+    становился вопросом» стоит на дословной записи исходного текста в теле карточки.
+    Обе половины — писатель (интейк) и читатель (`recorded_source_text`) — верны
+    поодиночке и бесполезны порознь: смени интейк форму записи, и сверка молча
+    перестанет находить что-либо ВООБЩЕ, не покраснев ни одним тестом.
+    """
+    from spa_core.owner_queue.history_check import exact_prior_ask, recorded_source_text
+
+    text = ("## Задание (из Telegram)\n\n"
+            "По двум чистым снимкам подряд (решение владельца 2026-08-07, ADR-070 п.13)")
+    path = Q.create_card("inbox", "ADR-070.13", body=text, status="new",
+                         tracker_dir=tmp_path / "tracker")
+    card = Q.load_card(path)
+    _wire(monkeypatch, tmp_path, card=card, kind="unclear")
+
+    I.run_note_intake()
+
+    owner_cards = [p for p in (tmp_path / "tracker").glob("owner-decision-*.md")]
+    assert owner_cards, "unclear обязан завести карточку владельцу"
+    body = Q.load_card(owner_cards[0]).body
+    assert recorded_source_text(body) == text, (
+        "читатель обязан достать РОВНО тот текст, который записал интейк")
+
+    # …и тот же текст, придя снова после закрытия карточки, обязан быть узнан повтором.
+    # `_wire` подменяет `list_cards` одной карточкой — снимаем подмену, иначе сверка
+    # смотрела бы в харнесс, а не в трекер (сторож судил бы не тот предмет).
+    monkeypatch.undo()
+    Q.set_status(owner_cards[0], "done", closed_by="test", evidence="контроль #446")
+    hit = exact_prior_ask(text, tracker_dir=tmp_path / "tracker")
+    assert hit is not None and hit["status"] == "done", (
+        "повтор дословного текста обязан находиться по записи, сделанной интейком")
