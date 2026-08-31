@@ -2,17 +2,18 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-31T01:37:26Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-31T06:43:33Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (142ac1bf8).
+> Сверено с `origin/main` (34b109ad3).
 >
-> Всего карточек: **835** · ждёт владельца: **7** · занято сессиями: **9**.
+> Всего карточек: **847** · ждёт владельца: **8** · занято сессиями: **9**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x**  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md`
-- **Один из агентов раздавал весь проект в домашнюю сеть — закрыл; в интернет не выходило, остался один вопрос**  ·  `own-dashboard-razdaval-repozitorii-v-set.md`
-- **Четверть книги уехала в самый низкодоходный протокол — нашёл причину, чинить или нет**  ·  `own-dengi-uehali-v-samyi-nizkodohodnyi-protokol.md`
+- **Cloudflare проверять не нужно — я измерил сам; остался один вопрос про локальный сервер**  ·  `own-chto-dolzhen-pokazyvat-lokalnyi-server.md`
+- **Пятая часть денег стояла без работы из-за старого потолка — починил; остался один вопрос по правилу**  ·  `own-dengi-stoyat-iz-za-starogo-potolka.md`
+- **Доизмерили те 82 модуля, как ты просил: 71 подтвердился слепым вторым инструментом**  ·  `owner-decision-doizmerili-te-82-modulya-kak-ty-prosil-7.md`
 - **Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз** · _high_  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md`
 - **Критичная находка петли: com.spa.dfb_capture: intent=active, но НЕ загружен во флоте**  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-dfb-ca.md`
 - **Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте**  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md`
@@ -32,11 +33,12 @@
 - **РЕЦИДИВ 28.08: тест судит о ХОСТЕ по литеральному pid — 98535 (siriactionsd), теперь 999 (NetFS) в test_card_claim_takeover** — держит `cycle-51123` · с 2026-08-22T08:45:00Z  ·  `inbox-test-sudit-o-hoste-literalnyi-pid-98535.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (207)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (210)
 
 ### · needs-owner
-- Один из агентов раздавал весь проект в домашнюю сеть — закрыл; в интернет не выходило, остался один вопрос  ·  `own-dashboard-razdaval-repozitorii-v-set.md` · 2026-08-30
-- Четверть книги уехала в самый низкодоходный протокол — нашёл причину, чинить или нет  ·  `own-dengi-uehali-v-samyi-nizkodohodnyi-protokol.md` · 2026-08-31
+- Cloudflare проверять не нужно — я измерил сам; остался один вопрос про локальный сервер  ·  `own-chto-dolzhen-pokazyvat-lokalnyi-server.md` · 2026-08-31
+- Пятая часть денег стояла без работы из-за старого потолка — починил; остался один вопрос по правилу  ·  `own-dengi-stoyat-iz-za-starogo-potolka.md` · 2026-08-31
+- Доизмерили те 82 модуля, как ты просил: 71 подтвердился слепым вторым инструментом  ·  `owner-decision-doizmerili-te-82-modulya-kak-ty-prosil-7.md` · 2026-08-31
 - Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md` · 2026-08-29
 - Критичная находка петли: com.spa.dfb_capture: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-dfb-ca.md` · 2026-08-30
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
@@ -89,6 +91,8 @@
 - Вторая задача из твоего сообщения (волатильный ETH-пул с доходностью «79%») — сам её не беру, нужно твоё решение  ·  `own-aud19-volatile-clmm-vvodim-li-klass.md` · 2026-08-05
 - BTC-движок не помещается под наш стоп-кран — выбери, как быть: отдельный NAV, маленькая доля или только research  ·  `own-btc-dvizhok-ne-vlezaet-pod-stop-kran.md` · 2026-08-20
 - Нажми, чтобы на сайте появилась строка «идёт paper-тест» по Balanced и Aggressive  ·  `own-cio-i-paper-cifry-tri-mandata-vladeltsa.md` · 2026-08-21
+- Один из агентов раздавал весь проект в домашнюю сеть — закрыто, в интернет не выходило  ·  `own-dashboard-razdaval-repozitorii-v-set.md` · 2026-08-30
+- Четверть книги уехала в самый низкодоходный протокол — нашёл причину, чинить или нет  ·  `own-dengi-uehali-v-samyi-nizkodohodnyi-protokol.md` · 2026-08-31
 - Fluid закрыт для капитала по правилу другого протокола — нужно твоё решение  ·  `own-fluid-gsm-gate-chuzhoy-parametr.md` · 2026-08-18
 - МАНДАТ АВТОНОМИИ ВОЗОБНОВЛЁН на 30 дней (решение владельца 2026-08-20, cloud-сессия) — вернуться к темпу ADR-078  ·  `own-mandat-avtonomii-vozobnovlen-30-dnei.md` · 2026-08-20
 - Деньги, срезанные защитами аллокатора, теперь ПОСЧИТАНЫ и НАЗВАНЫ — включать ли их обратно в работу?  ·  `own-pererazdavat-li-srezannoe-zaschitami.md` · 2026-08-26
@@ -244,7 +248,7 @@
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (414)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (423)
 
 ### · needs-owner
 - Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md` · 2026-08-29
@@ -258,8 +262,11 @@
 - TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 ### · backlog
+- 23 работающих агента установщик не вернёт — флот не соберётся заново с одного хоста  ·  `agent-23-rabotayushih-agentov-ustanovshik-ne-vernet.md` · 2026-08-31
 - Анти-шторм не отличает ПОПРАВКУ от повтора — отзыв ложной тревоги подавляется на 6 часов  ·  `agent-antishtorm-ne-otlichaet-popravku-ot-povtora.md` · 2026-08-31
+- Два списка отставных агентов расходятся — сторож чётности не знает ни одного из манифеста  ·  `agent-dva-spiska-otstavnyh-agentov-rashodyatsya.md` · 2026-08-31
 - Агент цены газа построен (ADR-183) — активировать на хосте после доезда синка  ·  `agent-gas-price-agent-postroen-zhdet-aktivacii.md` · 2026-08-30
+- Размещение кэша связано в одном ходе с невыгодной перекладкой и ждёт вместе с ней  ·  `agent-razmeshenie-kesha-svyazano-s-nevygodnoi-perekladkoi.md` · 2026-08-31
 - L2-мониторы газа молча предъявляют fallback-константу как живое чтение  ·  `inbox-l2-gas-monitory-molcha-predyavlyayut-fallback.md` · 2026-08-30
 - Вторая нога маятника проходит как «размещение кэша» после частичного де-риска  ·  `inbox-vtoraya-noga-mayatnika-prohodit-kak-razmeschenie.md` · 2026-08-30
 ### · ingested
@@ -408,6 +415,7 @@
 - Ответ владельца живёт только в хост-дереве: бот пишет туда, инжест пушит на origin, копии расходятся навсегда  ·  `inbox-otvet-vladeltsa-zhivet-tolko-v-host-dereve.md` · 2026-08-09
 - owner-gate краснеет на СВОЕЙ ежедневной автоматике: сдвиг снимка трека на один цент = owner-gated  ·  `inbox-owner-gate-krasneet-na-svoei-ezhednevnoi.md` · 2026-08-13
 - Owner-gate заводит дубль карточки на каждый заблокированный пуш одних и тех же файлов  ·  `inbox-owner-gate-zavodit-dubl-kartochki-na-kaz.md` · 2026-08-08
+- Перенос следа умеет только ДОПИСЫВАТЬ: пустое поле на origin надо заменять на месте (две карточки уже испортили и починили)  ·  `inbox-perenos-sleda-umeet-tolko-dopisyvat-pust.md` · 2026-08-30
 - Песочница тестов общая на весь хост: пять тестов краснеют, если набор гоняли в последние 6 часов  ·  `inbox-pesochnitsa-testov-obschaya-na-ves-host.md` · 2026-08-20
 - Подключить стража ротации PAT к ежедневной проверке — ПОСЛЕ настоящей ротации  ·  `inbox-podklyuchit-strazha-rotatsii-pat-k-ezhed.md` · 2026-08-26
 - Подними приоритет inbox-task-portfolio-cio-dynamic-capital-alloc на high. Шесть…  ·  `inbox-podnimi-prioritet-inbox-task-portfolio-c.md` · 2026-08-19
@@ -574,6 +582,7 @@
 - ADR-107: 295 файлов состояния в git — разобрать по КЛАССАМ, не пачкой  ·  `inbox-adr-107-295-failov-sostoyaniya-v-git-raz.md` · 2026-08-21
 - ADR-109: витринная просадка считается по РЕАЛЬНЫМ дням — шесть путей одним помощником  ·  `inbox-adr-109-vitrinnaya-prosadka-schitaetsya.md` · 2026-08-21
 - ADR-110: личность актива в общем фиде — доставка ТОЛЬКО после показа владельцу списка потерь  ·  `inbox-adr-110-lichnost-aktiva-v-obschem-fide-d.md` · 2026-08-21
+- Агент может написать owner_choice — ответ владельца подделывается без единого отказа  ·  `inbox-agent-mozhet-napisat-owner-choice-otvet.md` · 2026-08-31
 - scripts/agent_quarantine.py вызывается РУКАМИ по построению — объяснение для храповика несвязанных скриптов  ·  `inbox-agent-quarantine-zapuskaetsya-rukami-po-postroeniyu.md` · 2026-08-28
 - AI1 (книга владельца): три внедрения доставлены — экономика цеха, паспорта агентов, стандарт отчёта; циклам — заполнить паспорта и подключить генератор  ·  `inbox-ai1-tri-vnedreniya-ekonomika-pasporta-standart.md` · 2026-08-20
 - Бот на прямой вопрос владельца отрицает существующую needs-owner карточку (own-54) — ответ про очередь обязан читаться из доски, не из контекст-брифа  ·  `inbox-bot-otritsaet-suschestvuyuschuyu-own-kartochku.md` · 2026-08-19
@@ -602,6 +611,9 @@
 - Модуль bot_commands заменён, но жив: свой getUpdates-поллер и свои двери в чат  ·  `inbox-modul-bot-commands-zamenen-no-zhiv-svoi.md` · 2026-08-13
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
 - Находка петли: аналитик red_team: CRITICAL — требует реакции (карточка/решение), не п  ·  `inbox-nahodka-petli-analitik-red-team-critical.md` · 2026-08-10
+- Находка петли: манифест ↔ факты: com.spa.dfb_capture: plist_source 'launch_agents' →  ·  `inbox-nahodka-petli-manifest-fakty-com-spa-dfb.md` · 2026-08-31
+- Находка петли: манифест ↔ факты: com.spa.source_discovery: plist_source 'launch_agent  ·  `inbox-nahodka-petli-manifest-fakty-com-spa-sou-2.md` · 2026-08-31
+- Находка петли: манифест ↔ факты: com.spa.swarm_dwell: plist_source 'launch_agents' →  ·  `inbox-nahodka-petli-manifest-fakty-com-spa-swa.md` · 2026-08-31
 - Обещанная перепроверка DNS checkup осталась без исполнителя: карточку закрыли, критерий не выполнен  ·  `inbox-obeschannaya-pereproverka-dns-checkup-os.md` · 2026-08-22
 - Объявление с пустым списком файлов рождает в шаге 0a находку, которую нельзя снять никогда  ·  `inbox-obyavlenie-s-pustym-spiskom-failov-rozhd.md` · 2026-08-30
 - Один спор — два вопроса владельцу за 9.5 часов: обе карточки живы, обе с кнопками (ADR-084)  ·  `inbox-odin-spor-dva-voprosa-vladeltsu-za-9-5-c.md` · 2026-08-30
@@ -613,7 +625,6 @@
 - Оживить фиды вне Ethereum — путь к снятию остатка кэша (решение владельца 08.08)  ·  `inbox-ozhivit-fidy-vne-ethereum-put-k-snyatiyu.md` · 2026-08-08
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
 - Перемерить записи #35–#76 после починки курса (вторая половина варианта 1, ADR-139)  ·  `inbox-peremerit-zapisi-35-76-posle-pochinki-ku.md` · 2026-08-26
-- Перенос следа умеет только ДОПИСЫВАТЬ: пустое поле на origin надо заменять на месте (две карточки уже испортили и починили)  ·  `inbox-perenos-sleda-umeet-tolko-dopisyvat-pust.md` · 2026-08-30
 - Перепись 18 статических адаптеров: где литерал, где живой пул и сколько там доходности  ·  `inbox-perepis-18-staticheskih-adapterov.md` · 2026-08-29
 - Перепись закончена: опрошены все 36 адаптеров своими фидами — доступная доходность из нашего набора исчерпана, кроме трёх статических меток  ·  `inbox-perepis-zakonchena-oprosheny-vse-36-adap.md` · 2026-08-29
 - Починить писателей живого data/ по карте замера — класс обнесён храповиком, но не закрыт  ·  `inbox-pochinit-pisatelei-zhivogo-data-po-karte.md` · 2026-08-23
@@ -635,6 +646,7 @@
 - Сессия теряет доступ на ЧТЕНИЕ прод-дерева, а запись продолжает работать — второй случай из двух аудитов  ·  `inbox-sessiya-teryaet-dostup-na-chtenie-prod-de.md` · 2026-08-26
 - Шаг 0a МОЛЧИТ о дереве по живому якорю-хосту — так 28.08 была скрыта недоставленная работа  ·  `inbox-shag-0a-molchit-o-dereve-po-zhivomu-yako.md` · 2026-08-28
 - Шаг 0a зовёт поднять файл, который в прод-дереве ОТСТАЁТ на 1672 строки — подъём стёр бы 14 записей реестра  ·  `inbox-shag-0a-zovet-podnyat-fail-kotoryi-v-pro.md` · 2026-08-21
+- Шаг 2 протокола заблокирован: очередь считает спором ответ, который владелец уже пересмотрел  ·  `inbox-shag-2-protokola-zablokirovan-ochered-sc.md` · 2026-08-31
 - Шторм повторов одного решения владельцу (200+ копий за ночь) — анти-шторм доставлен, корень (слепой предикат «отправлено») остаётся  ·  `inbox-shtorm-povtorov-odnogo-resheniya-vladeltsu.md` · 2026-08-20
 - Шторм решений ПРОДОЛЖАЕТСЯ после анти-шторма: карточки живут ТОЛЬКО в хост-дереве, заголовок дрейфует → дубли, владелец измотан  ·  `inbox-shtorm-prodolzhaetsya-kartochki-tolko-v-host-dereve.md` · 2026-08-20
 - Скан кандидатов работает каждый цикл по реестру, которого никто не пишет: discovery не подключён ни одним агентом  ·  `inbox-skan-kandidatov-rabotaet-kazhdyi-tsikl-p.md` · 2026-08-18
@@ -660,6 +672,7 @@
 - Вердикт деска по sUSDS стоит на СНЯТОЙ причине — а книга этот актив держит  ·  `inbox-verdikt-deska-po-susds-stoit-na-snyatoi.md` · 2026-08-25
 - Вердикт сторожа архитектуры относится к манифесту, которого больше нет — а 492 строки нового лежат в прод-дереве незакоммиченными  ·  `inbox-verdikt-storozha-arhitektury-otnositsya.md` · 2026-08-30
 - Внести артефакт в манифест «без срока» нельзя: B5 требует положительный slo_hours — предпосылка замера #426 верна только для B2  ·  `inbox-vnesti-artefakt-v-manifest-bez-sroka-nel.md` · 2026-08-30
+- Вопрос владельца жив на origin, а в дереве та же карточка старая и закрытая — сторож считает его видимым по ИМЕНИ файла  ·  `inbox-vopros-vladeltsa-zhiv-na-origin-a-v-dere.md` · 2026-08-31
 - Закрепить morpho_blue_base за конкретным хранилищем (сейчас берётся «крупнейшее сегодня»)  ·  `inbox-zakrepit-morpho-blue-base-za-konkretnym.md` · 2026-08-26
 - Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07 · 🔒 `cycle-81141`
 - Запись ЗА другую сессию уезжает с якорем ЖИВОГО процесса писателя — чужой ярлык читается как ACTIVE  ·  `inbox-zapis-za-druguyu-sessiyu-uezzhaet-s-yako.md` · 2026-08-26
