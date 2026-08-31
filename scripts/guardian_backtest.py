@@ -14,9 +14,21 @@ Method (deterministic, on the SAME 2.5yr real-history fixture the lab uses, no n
   • small parameter sweep -> report the best (by Calmar) guarded config per strategy.
 
 stdlib-only, LLM-forbidden, deterministic. Advisory research; touches no live track.
+
+``--real [DIR]`` (CIO oversight phase D prep, 2026-08-31): run the SAME overlay sweep on the
+REAL aggressive-lab books instead of the fixture — the combination that was never run (the
+fixture roster carries susde_dn/lrt_carry/leverage_loop/points_farm/variant_d; the real
+``pendle_pt_levered`` book, the tournament's 50%-sleeve anchor, only exists in
+``data/aggressive_lab/``). In real mode the sweep calls the CANONICAL overlay module
+(``spa_core.strategy_lab.aggressive_lab.guardian``) — the copies below predate it and lack
+``min_vol``/``roundtrip_cost``; fixture mode keeps using the local copies ON PURPOSE so the
+published fixture table stays byte-reproducible. DIR defaults to the repo's own
+``data/aggressive_lab`` — from a worktree pass the prod tree's dir explicitly (the panel is
+untracked and absent in worktrees by construction).
 """
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -193,10 +205,12 @@ def leverage_frontier(loaded, base_id="susde_dn"):
         print("  if it liquidates / DD blows up, the full-history frontier was in-sample-timing fantasy.")
 
 
-def out_of_sample(loaded, split_date="2026-01-01"):
+def out_of_sample(loaded, split_date="2026-01-01", fn_vol=None):
     """Honest overfitting check: pick the best vol-guardian params on the TRAIN half (dates < split),
     then apply those FIXED params to the unseen TEST half and see if the improvement HOLDS. If it
     collapses out-of-sample, the in-sample win was curve-fit."""
+    if fn_vol is None:
+        fn_vol = lambda e, vm, fr: apply_guardian_vol(e, vol_mult=vm, derisk_frac=fr)  # noqa: E731
     vgrid = [(vm, fr) for vm in (1.5, 2.0, 3.0) for fr in (0.0, 0.25, 0.5)]
 
     def f(x):
@@ -215,23 +229,49 @@ def out_of_sample(loaded, split_date="2026-01-01"):
         # fit on train
         best = None
         for vm, fr in vgrid:
-            _, tdd, tcal = _metrics(apply_guardian_vol(train, vol_mult=vm, derisk_frac=fr))
+            _, tdd, tcal = _metrics(fn_vol(train, vm, fr))
             key = tcal if isinstance(tcal, (int, float)) else -1e9
             if best is None or key > best[0]:
                 best = (key, vm, fr)
         _, vm, fr = best
         # apply FIXED params to test
         r_apy, r_dd, r_cal = _metrics(test)
-        g_apy, g_dd, g_cal = _metrics(apply_guardian_vol(test, vol_mult=vm, derisk_frac=fr))
+        g_apy, g_dd, g_cal = _metrics(fn_vol(test, vm, fr))
         holds = (isinstance(g_cal, (int, float)) and isinstance(r_cal, (int, float)) and g_cal >= r_cal) \
             or (isinstance(g_dd, (int, float)) and isinstance(r_dd, (int, float)) and g_dd <= r_dd)
         print(f"{sid:20} {f(r_dd)+'/'+f(r_cal):>16}   {f(g_dd)+'/'+f(g_cal):>20}   ({vm},{fr}){'':>4}  {'HOLDS' if holds else 'overfit'}")
 
 
-def main():
-    tmp = Path(__import__("tempfile").mkdtemp(prefix="guardian_bt_"))
-    fx.materialize(tmp)
-    loaded = ld.load_all(data_dir=tmp)
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument(
+        "--real", nargs="?", const="", metavar="DIR", default=None,
+        help="run on the REAL aggressive-lab books (DIR, default: repo's data/aggressive_lab) "
+             "with the CANONICAL guardian module, instead of the documented fixture")
+    args = ap.parse_args(argv)
+
+    if args.real is not None:
+        from spa_core.strategy_lab.aggressive_lab import AGGRESSIVE_LAB_DIR
+        from spa_core.strategy_lab.aggressive_lab import guardian as g
+        root = Path(args.real) if args.real else AGGRESSIVE_LAB_DIR
+        loaded = ld.load_all(data_dir=root)
+        if not loaded:
+            # A worktree's data/aggressive_lab is empty BY CONSTRUCTION (untracked panel) —
+            # refuse loudly instead of printing an empty table that reads as "no books".
+            print(f"REAL mode: no books found under {root} — pass the prod tree's "
+                  f"data/aggressive_lab explicitly (the panel is untracked, absent in worktrees).",
+                  file=sys.stderr)
+            return 2
+        print(f"REAL books from {root} — canonical guardian module "
+              f"(fixture copies below are NOT used in this mode)")
+        fn_dd = lambda e, dd, fr: g.apply_guardian_drawdown(e, derisk_dd=dd, derisk_frac=fr)  # noqa: E731
+        fn_vol = lambda e, vm, fr: g.apply_guardian_vol(e, vol_mult=vm, derisk_frac=fr)  # noqa: E731
+    else:
+        tmp = Path(__import__("tempfile").mkdtemp(prefix="guardian_bt_"))
+        fx.materialize(tmp)
+        loaded = ld.load_all(data_dir=tmp)
+        fn_dd = lambda e, dd, fr: apply_guardian(e, derisk_dd=dd, derisk_frac=fr)  # noqa: E731
+        fn_vol = lambda e, vm, fr: apply_guardian_vol(e, vol_mult=vm, derisk_frac=fr)  # noqa: E731
 
     grid = [(dd, fr) for dd in (0.02, 0.03, 0.04, 0.06) for fr in (0.0, 0.2, 0.35, 0.5)]
     vgrid = [(vm, fr) for vm in (1.5, 2.0, 3.0) for fr in (0.0, 0.25, 0.5)]
@@ -242,12 +282,12 @@ def main():
     def best_over(eq, fn, params):
         best = None
         for p in params:
-            g = fn(eq, *p)
-            a, d, c = _metrics(g)
+            g_ = fn(eq, *p)
+            a, d, c = _metrics(g_)
             key = c if isinstance(c, (int, float)) else -1e9
             if best is None or key > best[0]:
                 best = (key, a, d, c, p)
-        return best[1], best[2], best[3]  # apy, dd, cal
+        return best[1], best[2], best[3], best[4]  # apy, dd, cal, params
 
     print(f"{'strategy':20} {'RAW apy/dd/cal':>18}   {'REACTIVE(dd) apy/dd/cal':>26}   {'PRE-EMPTIVE(vol) apy/dd/cal':>28}")
     print("-" * 100)
@@ -257,19 +297,24 @@ def main():
         if len(eq) < 30:
             continue
         r_apy, r_dd, r_cal = _metrics(eq)
-        d_apy, d_dd, d_cal = best_over(eq, lambda e, dd, fr: apply_guardian(e, derisk_dd=dd, derisk_frac=fr), grid)
-        v_apy, v_dd, v_cal = best_over(eq, lambda e, vm, fr: apply_guardian_vol(e, vol_mult=vm, derisk_frac=fr), vgrid)
+        d_apy, d_dd, d_cal, d_p = best_over(eq, fn_dd, grid)
+        v_apy, v_dd, v_cal, v_p = best_over(eq, fn_vol, vgrid)
+        # winning params printed only in real mode — the fixture table is published
+        # in docs/DYNAMIC_LEVERAGE_GUARDIAN.md and stays byte-reproducible.
+        suffix = f"   [dd{d_p} vol{v_p}]" if args.real is not None else ""
         print(f"{sid:20} {f(r_apy)+'/'+f(r_dd)+'/'+f(r_cal):>18}   "
-              f"{f(d_apy)+'/'+f(d_dd)+'/'+f(d_cal):>26}   {f(v_apy)+'/'+f(v_dd)+'/'+f(v_cal):>28}")
+              f"{f(d_apy)+'/'+f(d_dd)+'/'+f(d_cal):>26}   {f(v_apy)+'/'+f(v_dd)+'/'+f(v_cal):>28}"
+              f"{suffix}")
     print()
     print("REACTIVE = de-risk after drawdown breaches a threshold. PRE-EMPTIVE = de-risk when own realized")
     print("vol spikes above baseline (a regime signal that often LEADS the loss). Higher Calmar = better")
     print("risk-adjusted. Honest limits: gap moves are still unavoidable; a real RTMR guardian would use")
     print("exogenous vol/funding/liquidity (not in this equity-only fixture) — potentially earlier still.")
 
-    out_of_sample(loaded)
+    out_of_sample(loaded, fn_vol=fn_vol)
     leverage_frontier(loaded)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
