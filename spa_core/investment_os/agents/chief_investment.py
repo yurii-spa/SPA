@@ -50,6 +50,26 @@ class ChiefInvestmentAgent(ProductAgent):
         path = self.data_dir / f"{agent}.json"
         return self.read_feed(lambda: json.loads(path.read_text()))
 
+    def _load_books(self) -> Any:
+        """Восьмой вход (директива владельца 2026-08-31, карточка
+        `inbox-sliv-aggressive-cio-obyazan-kurirovat-pr`): три независимые книги +
+        совокупная ёмкость пулов. Вливается в СУЩЕСТВУЮЩИЙ контур тем же
+        ``read_feed``-механизмом (прецедент газ-агента — не второй копией CIO).
+
+        До этого входа CIO был слеп к книгам: его семь аналитиков —
+        протокольные, а Balanced/Aggressive ведут реальный трек с 23.08
+        (ADR-125). Книги живут уровнем выше ``investment_os/`` — в ``data/``.
+        """
+        def _loader() -> dict:
+            from spa_core.reporting.books_summary import collect_books_summary
+            from spa_core.risk.capacity_coordinator import read_books_capacity_check
+            root = self.data_dir.parent  # data/investment_os → data/
+            return {
+                "summary": collect_books_summary(root),
+                "capacity": read_books_capacity_check(root),
+            }
+        return self.read_feed(_loader)
+
     def analyze(self) -> dict:
         inputs: dict[str, Any] = {}
         for a in _INPUTS:
@@ -84,6 +104,20 @@ class ChiefInvestmentAgent(ProductAgent):
         track = (inputs.get("reporting") or {}).get("track")
         exitliq = (inputs.get("liquidity") or {}).get("exit_liquidity")
 
+        # ── восьмой вход: книги + ёмкость (директива владельца 31.08) ──
+        # Строго ВНЕ постуры: координатор ёмкости — warn-only по решению владельца
+        # 30.08 (owner_choice в карточке `owner-decision-koordinator-emkosti-...`);
+        # пропусти его в _synthesise_posture — и предупреждение стало бы гейтом
+        # через чёрный ход (постура ранга 3 включает no_increase в directive.py).
+        # Не входит и в n_analysts: покрытие считает СЕМЬ продукт-агентов с их
+        # артефактами; книги — прямой read_feed без артефакта-посредника.
+        books = self._load_books()
+        books_ok = isinstance(books, dict)
+        capacity_violations: list = []
+        if books_ok:
+            capacity_violations = list(
+                ((books.get("capacity") or {}).get("violations")) or [])
+
         # honest coverage: which analysts were available vs UNKNOWN/missing.
         available = sorted(inputs.keys())
         missing = [a for a in _INPUTS if a not in inputs]
@@ -98,13 +132,19 @@ class ChiefInvestmentAgent(ProductAgent):
                 "exit_liquidity": exitliq,
                 "threat_posture": threat,
                 "regime": regime,
+                "books": books if books_ok else UNKNOWN,
                 "risk_concerns": {
                     "protocol_risk": (inputs.get("protocol_risk") or {}).get("concern"),
                     "yield_quality": (inputs.get("yield_quality") or {}).get("concern"),
+                    # Совокупная ёмкость трёх книг (phase A): warn-only —
+                    # называется здесь, НИКОГДА не поднимает постуру.
+                    "cross_book_capacity": (
+                        capacity_violations if books_ok else UNKNOWN),
                 },
             },
             "coverage": {"available": available, "missing_or_unknown": missing,
-                         "n_analysts": len(inputs)},
+                         "n_analysts": len(inputs),
+                         "books_input": "available" if books_ok else "unknown"},
             "owner_gate": True,
             "note": ("Advisory HOUSE-VIEW synthesis. RECOMMENDS only — it NEVER decides and moves NO "
                      "capital; any allocation change is the OWNER's decision (owner-gate). Conflicts are "

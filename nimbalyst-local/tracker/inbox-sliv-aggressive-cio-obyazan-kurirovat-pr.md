@@ -55,3 +55,13 @@ vm=2.0) 50.4%/7.6%DD/Calmar 6.6; OOS-2026 HOLDS. Якорь слива пров�
    В ГРАНИЦАХ (границу назвать в ADR; за границей — карточка владельцу); каждый пересмотр
    через анти-churn ADR-060 + запись с decision_id (паттерн Phase F). Owner-gate CIO не
    трогается: он рекомендует, исполняет машина, решает владелец.
+
+**Шаг 1 плана ВЫПОЛНЕН (31.08, вечер):** восьмой вход доставлен — `_load_books()` в
+`chief_investment.py` читает `collect_books_summary()` + `read_books_capacity_check()`
+через штатный `read_feed`; в house_view появились `books` и
+`risk_concerns.cross_book_capacity`; в coverage — `books_input` (НЕ в `n_analysts`).
+Ёмкость строго ВНЕ постуры (warn-only решение владельца 30.08 — утечка в постуру
+включила бы no_increase через directive.py, закреплено тестом
+`test_capacity_violation_NEVER_raises_the_posture` + мутацией). Живой replay на данных
+хоста: books 3/3, $301,670 (+0.56%), capacity ok, постура не сдвинулась.
+Остались шаги 2-3: ADR слива (теневая книга) + рычаг пропорций.
