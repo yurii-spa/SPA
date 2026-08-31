@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-31T06:48:04Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-31T07:06:04Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (1dda0fd9d) · у **3** своя правка, кто новее — не измерено.
+> ⚠️ Сверка с origin **НЕ ИЗМЕРЕНА** (сверка не запрашивалась (--no-origin-check)) — статусы ниже прочитаны только из этого дерева и могут показывать закрытое как открытое.
 >
 > Всего карточек: **847** · ждёт владельца: **8** · занято сессиями: **9**.
 
@@ -520,6 +520,7 @@
 - Ветка unreadable-description-ltyucb СНОВА несёт вопросы владельца, хотя карточка о ней закрыта: 3 ADR + 4 карточки  ·  `inbox-vetka-unreadable-description-ltyucb-snov.md` · 2026-08-21
 - Включённый ночью source_discovery падает через раз, а манифест архитектуры красит main  ·  `inbox-vklyuchennyi-nochyu-source-discovery-pad.md` · 2026-08-26
 - Вопрос с ДВУМЯ решениями нечем ответить с телефона: кнопок нет по построению, а он висит девять дней  ·  `inbox-vopros-s-dvumya-resheniyami-nechem-otvet.md` · 2026-08-19
+- Вопрос владельца жив на origin, а в дереве та же карточка старая и закрытая — сторож считает его видимым по ИМЕНИ файла  ·  `inbox-vopros-vladeltsa-zhiv-na-origin-a-v-dere.md` · 2026-08-31
 - Вопрос владельцу велел прочитать поле, которого в коде нет — и ответ пришёл: инструкцию владельцу никто не проверяет  ·  `inbox-vopros-vladeltsu-velel-prochitat-pole-ko.md` · 2026-08-22
 - Вопрос владельцу, живущий ТОЛЬКО на ветке, невидим и сторожу, и отправителю — 18 таких, один заперт в своём же PR  ·  `inbox-vopros-vladeltsu-zhivuschii-tolko-na-vet.md` · 2026-08-23
 - Вопросы владельцу снова уезжают БЕЗ кнопок — две карточки 'починено' стоят done, а замер 21.08 показывает обратное  ·  `inbox-voprosy-vladeltsu-snova-uezzhayut-bez-kn.md` · 2026-08-21
@@ -672,7 +673,6 @@
 - Вердикт деска по sUSDS стоит на СНЯТОЙ причине — а книга этот актив держит  ·  `inbox-verdikt-deska-po-susds-stoit-na-snyatoi.md` · 2026-08-25
 - Вердикт сторожа архитектуры относится к манифесту, которого больше нет — а 492 строки нового лежат в прод-дереве незакоммиченными  ·  `inbox-verdikt-storozha-arhitektury-otnositsya.md` · 2026-08-30
 - Внести артефакт в манифест «без срока» нельзя: B5 требует положительный slo_hours — предпосылка замера #426 верна только для B2  ·  `inbox-vnesti-artefakt-v-manifest-bez-sroka-nel.md` · 2026-08-30
-- Вопрос владельца жив на origin, а в дереве та же карточка старая и закрытая — сторож считает его видимым по ИМЕНИ файла  ·  `inbox-vopros-vladeltsa-zhiv-na-origin-a-v-dere.md` · 2026-08-31
 - Закрепить morpho_blue_base за конкретным хранилищем (сейчас берётся «крупнейшее сегодня»)  ·  `inbox-zakrepit-morpho-blue-base-za-konkretnym.md` · 2026-08-26
 - Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07 · 🔒 `cycle-81141`
 - Запись ЗА другую сессию уезжает с якорем ЖИВОГО процесса писателя — чужой ярлык читается как ACTIVE  ·  `inbox-zapis-za-druguyu-sessiyu-uezzhaet-s-yako.md` · 2026-08-26

@@ -381,13 +381,13 @@ def _scan_origin_gap(tracker_dir: Path, pushes_by_card: dict[str, list[dict]]) -
     дереве, ни в журнале, — это и есть потерянный вопрос (`own-34`, 10.08–17.08).
     """
     try:
-        from spa_core.owner_queue.origin_view import Unmeasured, hidden_cards
+        from spa_core.owner_queue.origin_view import Unmeasured, unreachable_cards
     except Exception as exc:  # noqa: BLE001 — сторож не роняет отчёт из-за импорта
         return {"measured": False, "reason": f"сверка с {ORIGIN_REF} недоступна: {exc}"}
     try:
-        cards, sha = hidden_cards(Path(tracker_dir), ref=ORIGIN_REF,
-                                  tracker_type=_QUEUE_CARD_TYPE,
-                                  status=_OPEN_CARD_STATUS)
+        cards, sha = unreachable_cards(Path(tracker_dir), ref=ORIGIN_REF,
+                                       tracker_type=_QUEUE_CARD_TYPE,
+                                       status=_OPEN_CARD_STATUS)
     except Unmeasured as exc:
         return {"measured": False, "reason": f"очередь на {ORIGIN_REF} не прочитана: {exc}"}
     except Exception as exc:  # noqa: BLE001 — неожиданное тоже «не измерено», не «чисто»
@@ -397,7 +397,13 @@ def _scan_origin_gap(tracker_dir: Path, pushes_by_card: dict[str, list[dict]]) -
         "ref": ORIGIN_REF,
         "ref_sha": sha,
         "count": len(cards),
-        "hidden": [{"card_id": c.card_id, "title": c.title,
+        # Ключ остался прежним — его читают три места отчёта и шаг 0-офис, — но
+        # ВОПРОС под ним теперь верный: не «есть ли файл с таким именем», а «дойдёт
+        # ли живой вопрос до владельца и туда ли попадёт ответ» (цикл #439). Поэтому
+        # у каждой записи есть `kind`: чинятся исходы по-разному, и слепить их в одно
+        # число значило бы повторить ту же ошибку этажом выше.
+        "hidden": [{"card_id": c.card_id, "title": c.title, "kind": c.kind,
+                    "tree_status": c.tree_status, "detail": c.detail,
                     "delivered": bool(pushes_by_card.get(c.card_id))}
                    for c in cards],
     }
@@ -589,6 +595,21 @@ def _buttonless_reason(tracker_dir: Path, card_id: str, *,
         return {"code": "unmeasured", "measured": False,
                 "text": f"измеритель причины не выполнился: {exc}",
                 "remedy": "разобрать вручную"}
+
+
+def _kinds_summary(cards) -> str:
+    """«чем именно не доходят» — словами, по исходам.
+
+    Три исхода чинятся по-разному (файла нет · лежит другой текст · ответ пережил
+    вопрос), и одно общее число про них лгало бы тем же способом, каким лгало
+    `hidden: []`: честный ответ на свой вопрос, прочитанный как ответ на нужный.
+    """
+    from collections import Counter
+    names = {"absent": "файла в дереве нет",
+             "differs": "в дереве ДРУГОЙ текст",
+             "answer_outlived_question": "ответ пережил свой вопрос"}
+    counts = Counter(str(c.get("kind") or "?") for c in cards)
+    return ", ".join(f"{names.get(k, k)}: {n}" for k, n in sorted(counts.items()))
 
 
 def check_pending_owner_decisions(*,
@@ -879,8 +900,9 @@ def check_pending_owner_decisions(*,
         issues.append(
             f"owner_decision_pending: очередь этого дерева НЕПОЛНА — "
             f"{len(gap_cards)} вопрос(ов) владельцу `{_OPEN_CARD_STATUS}` живут на "
-            f"{origin_gap['ref']} ({origin_gap['ref_sha'][:9]}), а файла в дереве нет: "
-            f"здешние счётчики про них не знают ВООБЩЕ{tail}: {names}{more}")
+            f"{origin_gap['ref']} ({origin_gap['ref_sha'][:9]}) и до владельца из "
+            f"этого дерева НЕ доходят ({_kinds_summary(gap_cards)}): здешние счётчики "
+            f"про них не знают ВООБЩЕ{tail}: {names}{more}")
         status = _worst(status, CRITICAL if halted else WARNING)
 
     # --- H9: ОТПРАВЛЕННЫЙ вопрос жив на origin, а файла в дереве нет ---------

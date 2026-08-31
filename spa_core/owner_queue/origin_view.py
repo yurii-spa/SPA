@@ -295,6 +295,135 @@ def hidden_cards(tracker_dir: Path, *, ref: str = DEFAULT_REF,
     return cards, sha
 
 
+#: Исходы достижимости вопроса владельца из ЭТОГО дерева (см. :func:`unreachable_cards`).
+REACH_ABSENT = "absent"      # файла в дереве нет вовсе — прежний вопрос `hidden_cards`
+REACH_DIFFERS = "differs"    # файл есть, но это ДРУГОЕ содержимое: старый текст или чужой статус
+REACH_STALE_ANSWER = "answer_outlived_question"  # живой вопрос несёт ответ на ПРЕЖНИЙ
+
+
+@dataclass(frozen=True)
+class Reach:
+    """Вопрос владельца и то, ЧЕМ именно он до владельца не доходит."""
+    card_id: str
+    title: str
+    kind: str
+    tree_status: str = ""
+    origin_status: str = ""
+    detail: str = ""
+
+
+#: Поле, которое в живом вопросе означает «ответ пережил свой вопрос».
+_ANSWER_FIELD = "owner_choice"
+_EMPTY_ANSWER = ('""', "''", "~", "null", "Null", "NULL", "")
+_ANSWER_RE = re.compile(r"^owner_choice:[ \t]*(.*)$", re.MULTILINE)
+
+
+def _live_answer(text: str) -> str:
+    """Непустой ``owner_choice`` карточки, либо ``""``.
+
+    Пустой скаляр — объявленное ОТСУТСТВИЕ ответа, а не ответ (ADR-176/188); читать
+    его как значение значило бы объявить находкой каждую нормальную карточку.
+    """
+    m = _ANSWER_RE.search(text)
+    if m is None:
+        return ""
+    value = m.group(1).strip()
+    return "" if value in _EMPTY_ANSWER else value
+
+
+def unreachable_cards(tracker_dir: Path, *, ref: str = DEFAULT_REF,
+                      tracker_type: str | None = None,
+                      status: str | None = None) -> tuple[list[Reach], str]:
+    """Вопросы, до которых владелец из ЭТОГО дерева НЕ дотянется. → (находки, sha ref).
+
+    **Зачем шире, чем :func:`hidden_cards` (цикл #439, карточка
+    `inbox-vopros-vladeltsa-zhiv-na-origin-a-v-dere`).** Сторож очереди владельца
+    печатал «очередь полна: невидимых дереву вопросов нет» и `hidden: []`, спрашивая
+    у дерева **имя файла**: есть файл с таким именем — значит вопрос виден. Замер
+    30–31.08 показал, на что этот ответ не отвечает. `own-dashboard-razdaval-repozitorii-v-set`:
+    на `origin/main` (5fd2db03a, 30.08 22:06Z) карточка в `needs-owner` и несёт НОВЫЙ
+    вопрос владельцу; в прод-дереве лежала версия от 21:51Z — старый вопрос, в
+    терминальном статусе. Файл с таким именем был, вопрос считался видимым, а кнопка
+    владельца пишет ответ именно в прод-копию — то есть ответ на новый вопрос лёг бы
+    под текстом старого.
+
+    Тот же класс, что ведётся в `STATE.md` отдельным разделом: сторож честно отвечает
+    на СВОЙ вопрос («есть ли файл с таким именем?») и читается как ответ на нужный
+    («дойдёт ли живой вопрос до владельца и туда ли попадёт его ответ?»).
+
+    **Три исхода находки**, а не один — потому что чинятся они по-разному:
+
+    ``absent``                    файла в дереве нет (прежний вопрос `hidden_cards`);
+    ``differs``                   файл есть, содержимое ДРУГОЕ — владелец читает не тот
+                                  текст, а его ответ ляжет не под тот вопрос;
+    ``answer_outlived_question``  живой вопрос несёт непустой ``owner_choice`` — поле
+                                  ответа пережило вопрос, к которому относилось.
+
+    **Расхождение НЕ делится на «дерево отстало» и «у дерева своя правка».** Это
+    деление стоит обхода истории пути (`check_tracker_drift._proven_behind`, замер
+    ADR-184: 84 с и 1041 процесс git на полном трекере), а на вопрос ЭТОГО сторожа не
+    влияет: и там и там владелец видит не тот текст. Кому нужно деление — тот зовёт
+    сверку трекера; второй копии её доказательства здесь нет намеренно (урок #47).
+
+    **Сравнение — по содержимому, а не по факту наличия**, и именно это отличает
+    находку от прежнего `hidden: []`. Байт в байт совпавшая копия находкой НЕ является
+    никогда: иначе сторож залил бы очередь шумом и его перестали бы читать.
+
+    Fail-CLOSED: любая неизмеримость — :class:`Unmeasured`, и вызывающий обязан
+    отличить её от «находок нет». Пустой список при неизмеренной сверке означал бы
+    «дереву видно всё» — ровно наоборот.
+    """
+    tdir = Path(tracker_dir)
+    root, rel, sha = _locate(tdir, ref)
+    origin = snapshot(root, ref, rel)
+    if not origin:
+        return [], sha
+
+    cards = read_cards(root, origin)
+    if tracker_type is not None:
+        cards = [c for c in cards if c.tracker_type == tracker_type]
+    if status is not None:
+        cards = [c for c in cards if c.status == status]
+    if not cards:
+        return [], sha
+
+    texts = read_texts(root, {c.card_id: origin[c.card_id] for c in cards})
+    out: list[Reach] = []
+    for card in cards:
+        path = tdir / f"{card.card_id}.md"
+        origin_text = texts.get(card.card_id, "")
+        answer = _live_answer(origin_text)
+        if answer:
+            # Отдельный исход, а не приписка к другому: вопрос может быть достижим
+            # и при этом нести ответ на ПРЕЖНИЙ себя. Замер 31.08 по origin/main
+            # 63a2f501a: живых вопросов 7, несущих непустой owner_choice — 0.
+            # Механизма увода такого поля в регистр вытеснения здесь нет НАМЕРЕННО:
+            # строить его на популяции из нуля значило бы угадывать форму, которой в
+            # природе нет (тот же fail-CLOSED, что в ADR-188). Сторож эту форму
+            # НАЗЫВАЕТ — молчать о ней он больше не может.
+            out.append(Reach(card_id=card.card_id, title=card.title,
+                             kind=REACH_STALE_ANSWER, origin_status=card.status,
+                             detail=f"живой вопрос несёт owner_choice: {answer} — "
+                                    f"поле ответа пережило вопрос, к которому относилось"))
+        if not path.is_file():
+            out.append(Reach(card_id=card.card_id, title=card.title,
+                             kind=REACH_ABSENT, origin_status=card.status,
+                             detail=f"есть на {ref}, файла в дереве нет — вопрос "
+                                    f"этому дереву невидим вовсе"))
+            continue
+        tree_text = path.read_text(encoding="utf-8")
+        if tree_text == origin_text:
+            continue                      # совпало — не находка, и это обратный контроль
+        tree_card = load_card_text(tree_text, path.name)
+        out.append(Reach(
+            card_id=card.card_id, title=card.title, kind=REACH_DIFFERS,
+            tree_status=tree_card.status, origin_status=card.status,
+            detail=(f"на {ref} вопрос {card.status!r}, а в дереве лежит ДРУГОЕ "
+                    f"содержимое (статус {tree_card.status!r}) — владелец читает не тот "
+                    f"текст, и его ответ ляжет не под тот вопрос")))
+    return out, sha
+
+
 #: Пространство удалённых веток, в котором ищем вопросы владельца. Локальные копии
 #: ref'ов, `git fetch` отсюда НЕ вызывается (общее правило модуля): ответ — про те
 #: ветки, что уже лежат локально, и sha каждой печатается, чтобы «сверено с веткой»

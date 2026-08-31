@@ -824,12 +824,21 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         elif not gap.get("measured"):
             out.append(f"   ⚠️ полнота очереди НЕ ИЗМЕРЕНА: {gap.get('reason')}")
         elif gap.get("count"):
-            names = ", ".join(str(c.get("card_id")) for c in (gap.get("hidden") or []))
+            # Исход печатается ПОИМЁННО у каждой карточки (цикл #439). До него строка
+            # говорила «файла в дереве нет» про любую находку — а с #439 их три, и
+            # чинятся они по-разному: файла нет · в дереве ДРУГОЙ текст (кнопка
+            # владельца ответит под чужим вопросом) · ответ пережил свой вопрос.
+            _kind_words = {"absent": "файла в дереве нет",
+                           "differs": "в дереве ДРУГОЙ текст",
+                           "answer_outlived_question": "ответ пережил свой вопрос"}
+            names = ", ".join(
+                f"{c.get('card_id')} [{_kind_words.get(str(c.get('kind')), c.get('kind') or 'исход не назван')}]"
+                for c in (gap.get("hidden") or []))
             out.append(f"   ⚠️ очередь дерева НЕПОЛНА: {gap['count']} вопрос(ов) владельцу "
-                       f"есть на {gap.get('ref')} ({str(gap.get('ref_sha'))[:9]}), "
-                       f"файла в дереве нет — {names}")
+                       f"есть на {gap.get('ref')} ({str(gap.get('ref_sha'))[:9]}) и до "
+                       f"владельца из этого дерева НЕ доходят — {names}")
         else:
-            out.append(f"   очередь полна: невидимых дереву вопросов нет "
+            out.append(f"   очередь полна: живые вопросы владельца достижимы из дерева "
                        f"({gap.get('ref')} {str(gap.get('ref_sha'))[:9]})")
         # Третье плечо той же полноты (#351): вопрос владельцу, живущий ТОЛЬКО на
         # ВЕТКЕ. Его не видит ни строка выше (сверяет дерево с `origin/main`), ни

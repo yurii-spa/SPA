@@ -367,7 +367,16 @@ def test_options_living_only_on_origin_reach_the_report_as_a_stale_tree(tmp_path
     reason = doc["pending"][0]["buttons_reason"]
     assert reason["code"] == "card_stale_vs_origin", reason["text"]
     assert reason["measured"] is True
-    assert "card_stale_vs_origin" in doc["issues"][0]
+    # НАМЕРЕННАЯ правка утверждения (цикл #439, инвариант #16): проверялось
+    # `doc["issues"][0]`, то есть ПОРЯДОК, а не предмет. Порядок сместился по верной
+    # причине: эта же фикстура — живой пример находки, которую сторож раньше не видел
+    # вовсе (на origin вопрос `needs-owner`, в дереве ДРУГОЙ текст), и H8 теперь о ней
+    # говорит. Утверждение не ослаблено, а РАСШИРЕНО: предмет по-прежнему обязан
+    # доехать до отчёта, и вдобавок обязана появиться новая находка о том же файле.
+    assert any("card_stale_vs_origin" in i for i in doc["issues"]), doc["issues"]
+    assert any("до владельца из этого дерева НЕ доходят" in i for i in doc["issues"]), \
+        doc["issues"]
+    assert any("в дереве ДРУГОЙ текст" in i for i in doc["issues"]), doc["issues"]
 
 
 def test_halt_line_comes_first_even_when_buttons_are_missing_too(tree):
