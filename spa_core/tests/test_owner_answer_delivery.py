@@ -218,9 +218,25 @@ class OwnerAnswerDeliveryTest(unittest.TestCase):
     # ── границы: где сторож обязан ОТКАЗАТЬ ──────────────────────────────────
 
     def test_conflicting_answer_on_origin_refuses(self):
-        """На origin ДРУГОЙ выбор владельца — выбирать сторону молча запрещено."""
-        other = ORIGIN_CARD.replace(b"priority: high\n",
-                                    b"priority: high\nowner_choice: 2\n")
+        """На origin ДРУГОЙ выбор владельца — выбирать сторону молча запрещено.
+
+        **Фикстура намеренно исправлена (цикл #437, инвариант #16 — правка теста
+        осознанная и записана в журнал W35).** Она объявляла «другой ответ
+        ВЛАДЕЛЬЦА», а строила голое `owner_choice: 2` без единого признака
+        авторства — то есть ровно форму пятого исхода
+        (:data:`oad.UNATTRIBUTED_MARK`), а не ответ владельца. Проверка НЕ
+        ослаблена: вердикт по-прежнему CONFLICT, наружу по-прежнему не уходит
+        ничего — origin теперь несёт ту атрибуцию, которую докстринг и обещал.
+        Безымянное значение на origin проверяет
+        `UnattributedChoiceIsNotAnOwnerAnswerTest`.
+        """
+        other = ORIGIN_CARD.replace(
+            b"priority: high\n",
+            b"priority: high\n"
+            b"owner_choice: 2\n"
+            b"owner_answered_at: 2026-08-09T10:00:00+00:00\n"
+            b"owner_answer_via: interactive\n"
+            b"owner_answered_by: 258651137\n")
         e = self.env(remote={f"{TRACKER}/owner-decision-morfo.md": other})
         r = oad.run(root=e.root, now=NOW, reader=e.reader, pusher=e.pusher,
                     write_status=False)
@@ -1208,3 +1224,210 @@ class EmptyKeyOnOriginIsNotAnAbsentLineTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ── авария цикла #437: ответ владельца НАПИСАЛ АГЕНТ ─────────────────────────
+# `owner-decision-tier-steakhouse-2026-08-29`, замер 31.08 по ВСЕЙ популяции
+# origin/main: карточек 832, с непустым `owner_choice` — 86, БЕЗ единого признака
+# авторства — ровно ОДНА, эта. Она и есть последний ⛔, который шаг 0-офис печатал
+# каждый прогон, и разрешить его человек не может: ему предъявляют выбор между его
+# собственным ответом и записью, которой он не делал.
+#
+# Как появилась (`git show 765363a8e`, 2026-08-29 14:41Z): карточка была
+# `needs-owner` с `owner_choice: ""`, и сессия одним коммитом поставила
+# `status: ingested` + `owner_choice: "2"`. Её же проза в том же коммите:
+# «Выбран **вариант 1** … **Вариант 2 — НЕ сделан**». Владелец ответил на 6 ч 20 мин
+# ПОЗЖЕ кнопкой — и ответил 1.
+
+#: Копия origin дословно: вариант объявлен, автора нет ни одного.
+#: `ANSWERED_ON_ORIGIN` — ровно эта форма, поэтому фикстура не дублируется.
+AGENT_WROTE_CHOICE_ON_ORIGIN = ANSWERED_ON_ORIGIN
+
+#: Наша копия: то, что пишет штатный писатель `record_owner_answer` — ВСЕ поля
+#: провенанса плюс отметка в журнале переходов.
+OWNER_ANSWERED_LOCAL = UNANSWERED_CARD.replace(
+    b'status: needs-owner\n', b'status: owner-done\n').replace(
+    b'owner_choice: ""\n',
+    b"owner_choice: 1\n"
+    b"owner_answered_at: 2026-08-29T21:00:44.966430+00:00\n"
+    b"owner_answer_via: telegram\n"
+    b"owner_answered_by: 258651137\n"
+    b"owner_answer_kind: option\n"
+    b"status_trail:\n"
+    b'  - "2026-08-29T21:00:44.966648+00:00 needs-owner -> owner-done'
+    b' \xc2\xb7 owner_answer.record_owner_answer"\n')
+
+
+class UnattributedChoiceIsNotAnOwnerAnswerTest(unittest.TestCase):
+    """Значение без автора — не второй ответ владельца. Пятый исход.
+
+    Третий случай подряд одного класса: кавычки (ADR-173) и провенанс (ADR-175)
+    сняли ложные эскалации, у которых спор был мнимым. Здесь спор мнимый по другой
+    причине — вторая сторона вообще не ответ владельца, её написал агент.
+
+    Граница асимметрична НАМЕРЕННО: нужен полный провенанс у нас и полное его
+    отсутствие на origin. Обратные контроли ниже держат каждое из условий.
+    """
+
+    def setUp(self):
+        import tempfile
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = self._tmp.name
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    # ── ГЛАВНЫЙ положительный контроль ────────────────────────────────────────
+
+    def test_agent_written_choice_is_not_called_a_second_owner_answer(self):
+        """`tier-steakhouse` дословно: origin «2» без автора, у нас «1» с автором."""
+        _, reason, _ = oad.merge_trace(OWNER_ANSWERED_LOCAL,
+                                       AGENT_WROTE_CHOICE_ON_ORIGIN)
+        self.assertTrue(reason.startswith(oad.UNATTRIBUTED_MARK), reason)
+        self.assertNotIn("ДРУГОЙ ответ владельца", reason)
+        self.assertIn("запись без автора", reason)
+
+    def test_scan_gives_its_own_verdict_not_conflict(self):
+        """Сквозь `scan`: вердикт отдельный, а не переименованный CONFLICT."""
+        card = "owner-decision-tier-steakhouse-2026-08-29.md"
+        e = _Env(self.tmp, {card: OWNER_ANSWERED_LOCAL},
+                 {f"{TRACKER}/{card}": AGENT_WROTE_CHOICE_ON_ORIGIN})
+        self.assertEqual([i["verdict"] for i in oad.scan(e.root, reader=e.reader)],
+                         [oad.UNATTRIBUTED])
+
+    def test_the_finding_stays_blocked_and_nothing_is_carried(self):
+        """Громкость не гасится: везти нечего, статус НЕ «доставлено».
+
+        Здесь, в отличие от вытеснения и провенанса, запись на origin НЕВЕРНА —
+        объявить прогон доставленным значило бы соврать. Правка меняет ИМЯ
+        находки, а не её вес.
+        """
+        card = "owner-decision-tier-steakhouse-2026-08-29.md"
+        e = _Env(self.tmp, {card: OWNER_ANSWERED_LOCAL},
+                 {f"{TRACKER}/{card}": AGENT_WROTE_CHOICE_ON_ORIGIN})
+
+        r = oad.run(root=e.root, now=NOW, reader=e.reader, pusher=e.pusher,
+                    write_status=False)
+
+        self.assertEqual(r["conflicts"], [], "человека звать не на что")
+        self.assertEqual(len(r["unattributed"]), 1, r)
+        self.assertEqual(e.pushed, [], "сторону выбирать нельзя — везти нечего")
+        self.assertNotEqual(r["status"], oad.DELIVERED)
+        self.assertIn("БЕЗ АВТОРА", oad.render(r))
+        self.assertNotIn("РАЗНЫЕ ОТВЕТЫ", oad.render(r))
+
+    def test_unattributed_keeps_the_run_from_calling_itself_delivered(self):
+        """Находка обязана ДЕРЖАТЬ вердикт, а не только называться.
+
+        Тест написан по мутации M7 (цикл #437): вынь `unattributed` из `blocked` —
+        и все проверки выше остаются ЗЕЛЁНЫМИ, потому что при единственной
+        карточке везти нечего и статус всё равно не `DELIVERED`. Утверждение было
+        истинным и при снятой проводке, то есть не проверяло ничего. Нужна
+        карточка, которую УВОЗЯТ: тогда `blocked` решает, `PARTIAL` это или
+        `DELIVERED`, — и «наш след на origin не доехал» перестаёт быть вопросом
+        формулировки.
+        """
+        good, bad = "owner-decision-aave.md", "owner-decision-tier-steakhouse.md"
+        e = _Env(self.tmp,
+                 {good: BARE_ONE_LOCAL, bad: OWNER_ANSWERED_LOCAL},
+                 {f"{TRACKER}/{good}": QUOTED_ONE_ON_ORIGIN,
+                  f"{TRACKER}/{bad}": AGENT_WROTE_CHOICE_ON_ORIGIN})
+
+        r = oad.run(root=e.root, now=NOW, reader=e.reader, pusher=e.pusher,
+                    write_status=False)
+
+        self.assertEqual([i["card"] for i in e.pushed], [good],
+                         "уехать обязана ровно бесспорная карточка")
+        self.assertEqual(r["status"], oad.PARTIAL,
+                         "запись без автора на origin — это НЕ доставленный след")
+        self.assertIn(bad, r["reason"])
+
+    def test_office_step_stops_calling_a_human_and_names_the_real_defect(self):
+        """Шаг 0-офис — единственный читатель этих строк; молчание = потеря находки.
+
+        Тот же вопрос, что у `OfficeStepReaderTest`, и его же помощники: у находки
+        обязан быть читатель, иначе исход существует только в JSON.
+        """
+        text = "\n".join(OfficeStepReaderTest()._lines({
+            "status": oad.PARTIAL, "reason": "-", "pending": [{}],
+            "unattributed": [{"card": "owner-decision-tier-steakhouse-2026-08-29.md",
+                              "reason": f"{oad.UNATTRIBUTED_MARK}: ни одного признака"}],
+        }))
+        self.assertIn("БЕЗ АВТОРА", text)
+        self.assertIn("чинить ЗАПИСЬ", text)
+        self.assertNotIn("ДВА РАЗНЫХ ОТВЕТА ВЛАДЕЛЬЦА", text)
+
+    # ── ОБРАТНЫЕ контроли: каждое условие держит свой ────────────────────────
+
+    def test_both_sides_attributed_is_still_a_dispute(self):
+        """Два НАСТОЯЩИХ ответа владельца остаются спором и зовут человека."""
+        origin = AGENT_WROTE_CHOICE_ON_ORIGIN.replace(
+            b'owner_choice: "2"\n',
+            b'owner_choice: "2"\n'
+            b'owner_answered_at: "2026-08-29T20:30:00Z"\n'
+            b'owner_answer_via: "interactive"\n'
+            b'owner_answered_by: "258651137"\n')
+        _, reason, _ = oad.merge_trace(OWNER_ANSWERED_LOCAL, origin)
+        self.assertIn("ДРУГОЙ ответ владельца", reason)
+
+    def test_partial_provenance_on_origin_is_not_absence(self):
+        """Одно поле из трёх — это НЕ «автора нет»: чем написано, мы не знаем."""
+        origin = AGENT_WROTE_CHOICE_ON_ORIGIN.replace(
+            b'owner_choice: "2"\n',
+            b'owner_choice: "2"\nowner_answer_via: "interactive"\n')
+        _, reason, _ = oad.merge_trace(OWNER_ANSWERED_LOCAL, origin)
+        self.assertIn("ДРУГОЙ ответ владельца", reason)
+
+    def test_status_trail_alone_is_attribution(self):
+        """Полей нет, но журнал называет писателя поимённо — этого довольно."""
+        origin = AGENT_WROTE_CHOICE_ON_ORIGIN.replace(
+            b'owner_choice: "2"\n',
+            b'owner_choice: "2"\nstatus_trail:\n'
+            b'  - "2026-08-29T14:41:00+00:00 needs-owner -> ingested'
+            b' \xc2\xb7 owner_answer.record_owner_answer"\n')
+        _, reason, _ = oad.merge_trace(OWNER_ANSWERED_LOCAL, origin)
+        self.assertIn("ДРУГОЙ ответ владельца", reason)
+
+    def test_our_own_unattributed_choice_cannot_launder_itself(self):
+        """Зеркало: без автора НАША копия — исход не применяется.
+
+        Иначе пятым исходом можно было бы отмыть собственную безымянную запись,
+        объявив чужой настоящий ответ владельца «не спором».
+        """
+        ours = UNANSWERED_CARD.replace(b'owner_choice: ""\n', b'owner_choice: 1\n')
+        origin = AGENT_WROTE_CHOICE_ON_ORIGIN.replace(
+            b'owner_choice: "2"\n',
+            b'owner_choice: "2"\n'
+            b'owner_answered_at: "2026-08-29T20:30:00Z"\n'
+            b'owner_answer_via: "telegram"\n'
+            b'owner_answered_by: "258651137"\n')
+        self.assertFalse(oad.unattributed_remote(ours, origin))
+        _, reason, _ = oad.merge_trace(ours, origin)
+        self.assertIn("ДРУГОЙ ответ владельца", reason)
+
+    def test_partial_provenance_on_our_side_is_not_a_full_owner_answer(self):
+        """Наша копия с ОДНИМ полем из трёх — не «ответ владельца целиком».
+
+        Условие на нашей стороне держится `all`, а не `any`: полупровенанс
+        означает, что и нашу запись писал не штатный писатель, а тогда сравнивать
+        «настоящий против безымянного» не с чем.
+        """
+        ours = UNANSWERED_CARD.replace(
+            b'owner_choice: ""\n',
+            b"owner_choice: 1\nowner_answer_via: telegram\n")
+        self.assertFalse(oad.unattributed_remote(ours, AGENT_WROTE_CHOICE_ON_ORIGIN))
+        _, reason, _ = oad.merge_trace(ours, AGENT_WROTE_CHOICE_ON_ORIGIN)
+        self.assertIn("ДРУГОЙ ответ владельца", reason)
+
+    def test_same_choice_never_reaches_the_fifth_outcome(self):
+        """Совпал вариант — исхода нет вовсе: он живёт только внутри спора."""
+        origin = AGENT_WROTE_CHOICE_ON_ORIGIN.replace(b'owner_choice: "2"\n',
+                                                      b'owner_choice: "1"\n')
+        merged, reason, added = oad.merge_trace(OWNER_ANSWERED_LOCAL, origin)
+        self.assertNotIn(oad.UNATTRIBUTED_MARK, reason)
+        self.assertIsNotNone(merged, "спора нет — след обязан поехать")
+
+    def test_field_registry_is_imported_not_copied(self):
+        """ADR-180: имена полей провенанса — ОДИН список, а не второй экземпляр."""
+        from spa_core.owner_queue import owner_answer as oa
+        self.assertIs(oad.PROVENANCE_FIELDS, oa._PROVENANCE_FIELDS)

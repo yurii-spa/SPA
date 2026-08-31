@@ -647,6 +647,15 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             for pv in (oad.get("provenance") or [])[:5]:
                 out.append(f"   ≈ тот же ВЫБОР владельца, разный провенанс "
                            f"(человек не нужен): {pv.get('card')} — {pv.get('reason')}")
+            # Пятый исход (цикл #437): на origin `owner_choice` стоит, а автора у
+            # него нет ни одного — его написал агент. Не ⛔ «два ответа владельца»:
+            # ответ владельца ровно ОДИН, и звать его выбирать между собой и
+            # агентской записью нельзя — этого он разрешить не может. Но и не
+            # молчание: запись на origin НЕВЕРНА, чинить её надо.
+            for ua in (oad.get("unattributed") or [])[:5]:
+                out.append(f"   ✍︎ на origin owner_choice БЕЗ АВТОРА (не второй ответ "
+                           f"владельца — запись без автора; чинить ЗАПИСЬ, не спрашивать "
+                           f"владельца): {ua.get('card')} — {ua.get('reason')}")
             for u in (oad.get("unmeasured") or [])[:5]:
                 out.append(f"   ⚠️ след НЕ ИЗМЕРЕН: {u.get('card')} — {u.get('reason')}")
     elif name == "loop_retro.json":

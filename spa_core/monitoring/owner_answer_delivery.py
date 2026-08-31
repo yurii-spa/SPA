@@ -123,6 +123,7 @@ from spa_core.owner_queue.owner_answer import (
     EMPTY_SCALARS,
     OWNER_ANSWER_FIELDS,
     SUPERSEDED_FIELDS,
+    _PROVENANCE_FIELDS as PROVENANCE_FIELDS,
 )
 from spa_core.utils.live_paths import LIVE_ROOT_ENV, live_root
 
@@ -207,6 +208,46 @@ SUPERSEDED_MARK = "наш след ВЫТЕСНЕН"
 #: CONFLICT и по-прежнему человек. Сторону не выбирает никто, кроме владельца.
 PROVENANCE_MARK = "тот же ВЫБОР владельца"
 
+#: Метка ПЯТОГО исхода: на origin ``owner_choice`` стоит, а автора у него НЕТ ни
+#: одного — ни поля провенанса, ни записи журнала переходов. Такое значение не
+#: является вторым ответом владельца: его написал агент.
+#:
+#: Замер 31.08 (цикл #437) по ВСЕЙ популяции ``origin/main``: карточек 832, с
+#: непустым ``owner_choice`` — 86, и ровно **ОДНА** несёт его без единого признака
+#: авторства — ``owner-decision-tier-steakhouse-2026-08-29``. Это и есть тот самый
+#: последний ⛔, который шаг 0-офис печатал каждый прогон.
+#:
+#: Как он появился (``git show 765363a8e``, 2026-08-29 14:41Z): карточка была
+#: ``needs-owner`` с ``owner_choice: ""`` — владелец ещё НЕ отвечал, — и сессия
+#: одним коммитом поставила ``status: ingested`` и ``owner_choice: "2"``. Её же
+#: проза в том же коммите говорит обратное: «Выбран **вариант 1**… **Вариант 2 —
+#: НЕ сделан**». Владелец ответил на 6 ч 20 мин ПОЗЖЕ, кнопкой (21:00:44Z,
+#: `owner_answer_kind: option`) — и ответил **1**.
+#:
+#: Поэтому «⛔ ДВА РАЗНЫХ ОТВЕТА ВЛАДЕЛЬЦА, нужен человек» здесь неверно дважды:
+#: ответ владельца ровно один, а человек, которого зовут, разрешить это не может —
+#: ему предъявляют выбор между его собственным ответом и записью, которую он не
+#: делал. Третий случай подряд одного класса (кавычки — ADR-173, провенанс —
+#: ADR-175): сторож, зовущий человека на не-спор, глохнет как fail-OPEN монитор.
+#:
+#: **Сторону при этом НЕ выбирает никто.** Везти по-прежнему нечего (строка на
+#: origin существует, а перенос умеет только ДОписывать), исход остаётся в
+#: `blocked`, статус — не «доставлено». Меняется РОВНО формулировка: находка
+#: называется тем, что она есть, — записью без автора, которую чинят правкой
+#: записи, а не арбитражем владельца.
+#:
+#: **Граница узкая и асимметричная намеренно** (см. :func:`unattributed_remote`):
+#: нужен полный провенанс у НАС и полное его отсутствие на origin. Обратный случай
+#: (наша копия без автора) остаётся CONFLICT — иначе этим исходом можно было бы
+#: отмыть собственную неатрибутированную запись.
+UNATTRIBUTED_MARK = "на origin owner_choice БЕЗ АВТОРА"
+
+#: Признак того, что ответ владельца записал штатный писатель: журнал переходов
+#: карточки называет :func:`owner_answer.record_owner_answer` поимённо. Читается
+#: как ДОПОЛНИТЕЛЬНЫЙ признак авторства (fail-CLOSED): нашли — значит атрибуция
+#: есть, и пятый исход не применяется, даже если полей провенанса не видно.
+ANSWER_WRITER_MARK = b"owner_answer.record_owner_answer"
+
 DELIVERED = "DELIVERED"
 IDLE = "IDLE"
 REFUSED = "REFUSED"
@@ -225,6 +266,7 @@ CREATE_ON_ORIGIN = "absent_on_origin"  # карточки на origin нет в�
 CONFLICT = "conflict"                  # origin несёт ДРУГОЙ ответ владельца
 SUPERSEDED = "superseded"              # расходились, и origin называет НАШ ответ вытесненным
 PROVENANCE = "provenance"              # ВЫБОР тот же, разошлись канал/отметка
+UNATTRIBUTED = "unattributed"          # на origin owner_choice написан БЕЗ автора
 UNMEASURED = "unmeasured"              # origin прочитать не удалось
 
 # ── КАКОЕ дерево судим и откуда мы это узнали ────────────────────────────────
@@ -490,6 +532,47 @@ def clash_superseded(clash: dict, remote: bytes) -> tuple:
     return True, "; ".join(covered)
 
 
+def attribution_keys(blob: bytes) -> set:
+    """Признаки авторства ответа владельца в копии карточки.
+
+    Множество имён — не «да/нет»: частичная атрибуция (одно поле из трёх) обязана
+    отличаться от полного её отсутствия, иначе пятый исход поглотил бы форму, о
+    которой мы ничего не знаем.
+
+    Читаются те же поля, которыми метит ответ штатный писатель
+    (``owner_answer._PROVENANCE_FIELDS``, ИМПОРТИРОВАНЫ — ADR-180: вторая копия
+    имён и есть тот дефект), плюс отметка журнала переходов
+    (:data:`ANSWER_WRITER_MARK`): она называет писателя прямо, и по ней атрибуция
+    видна даже там, где полей нет.
+    """
+    keys = set(_read_fields(blob, PROVENANCE_FIELDS))
+    if ANSWER_WRITER_MARK in blob:
+        keys.add("status_trail")
+    return keys
+
+
+def unattributed_remote(local: bytes, remote: bytes) -> bool:
+    """Пятый исход: у НАС ответ владельца с автором, на origin — значение без автора.
+
+    Fail-CLOSED и асимметрично (см. :data:`UNATTRIBUTED_MARK`). Все три условия
+    обязательны, и каждое закрыто своим обратным контролем:
+
+    1. на origin нет НИ ОДНОГО признака авторства — ни поля, ни отметки журнала;
+    2. у нас есть ВСЕ поля провенанса: наша сторона — полноценная запись ответа,
+       а не такая же безымянная;
+    3. (следствие 1 и 2) сравнивать «кто из двух ответов владельца верен» не с чем:
+       ответ владельца здесь ровно один.
+
+    Хоть одно нарушено ⇒ False, и расхождение остаётся спором для человека. Так,
+    origin с частичным провенансом (одно поле) — по-прежнему CONFLICT: мы не знаем,
+    чем он написан, а догадка в пользу «это агент» стоила бы затёртого ответа.
+    """
+    if attribution_keys(remote):
+        return False
+    mine = _read_fields(local, PROVENANCE_FIELDS)
+    return all(k in mine for k in PROVENANCE_FIELDS)
+
+
 def merge_trace(local: bytes, remote: bytes) -> tuple:
     """``(bytes|None, причина, добавленные_поля)`` — remote плюс НАШ след.
 
@@ -530,6 +613,19 @@ def merge_trace(local: bytes, remote: bytes) -> tuple:
             return None, (f"{PROVENANCE_MARK}, разошёлся лишь провенанс ({named}) — "
                           f"везти нечего (наша отметка затёрла бы origin'ную), "
                           f"человек не нужен"), {}
+        if unattributed_remote(local, remote):
+            # Пятый исход. Спорить не с чем: ответ владельца ровно один — наш, с
+            # автором. На origin стоит значение, которого владелец не давал и под
+            # которым никто не подписан. Везти по-прежнему НЕЧЕГО (строка там
+            # есть, а перенос умеет только дописывать) и в `blocked` это остаётся —
+            # меняется только имя находки: чинить надо ЗАПИСЬ, а не звать владельца
+            # выбирать между собой и агентом.
+            return None, (f"{UNATTRIBUTED_MARK}: ни одного признака авторства "
+                          f"(ни {', '.join(PROVENANCE_FIELDS)}, ни отметки писателя в "
+                          f"status_trail), а наша копия несёт ответ владельца целиком "
+                          f"({named}) — это не второй ответ владельца, а запись без "
+                          f"автора; сторону выбирать не надо, чинить надо запись на "
+                          f"origin [{why}]"), {}
         return None, (f"на origin ДРУГОЙ ответ владельца ({named}) — две копии несут разные "
                       f"решения, выбирать сторону молча нельзя; сверьте руками [{why}]"), {}
 
@@ -677,6 +773,8 @@ def scan(root: str | None = None, reader=_default_remote_reader) -> list:
                 verdict = SUPERSEDED
             elif reason.startswith(PROVENANCE_MARK):
                 verdict = PROVENANCE
+            elif reason.startswith(UNATTRIBUTED_MARK):
+                verdict = UNATTRIBUTED
             elif "ДРУГОЙ ответ владельца" in reason:
                 verdict = CONFLICT
             else:
@@ -762,7 +860,7 @@ def run(root: str | None = None, now: dt.datetime | None = None,
                "root": root, "root_source": root_source,
                "scanned": 0, "delivered": [], "already_on_origin": [],
                "refused": [], "unmeasured": [], "conflicts": [], "superseded": [],
-               "provenance": [],
+               "provenance": [], "unattributed": [],
                "pending": [], "status": UNCHECKED, "reason": "", "commit": None}
     if root_source == ROOT_OWN_TREE:
         # Отказ ДО перечисления и ДО пуша. Не «мы посмотрели и всё хорошо», а
@@ -793,11 +891,19 @@ def run(root: str | None = None, now: dt.datetime | None = None,
         # звать некого, но невидимым расхождение оставлять нельзя.
         receipt["provenance"] = [{"card": f["card"], "reason": f["reason"]}
                                  for f in by.get(PROVENANCE, [])]
+        # Пятый исход — НЕ рядом с вытеснением и провенансом, а рядом с отказом:
+        # там запись на origin ВЕРНА и просто иная, здесь она НЕВЕРНА. Наш след на
+        # origin не доехал, и называть прогон доставленным было бы враньём — поэтому
+        # `unattributed` остаётся в `blocked`. Правка меняет ИМЯ находки, а не её
+        # громкость: гасить проверку, которая мешает, запрещено правилом доставки.
+        receipt["unattributed"] = [{"card": f["card"], "reason": f["reason"]}
+                                   for f in by.get(UNATTRIBUTED, [])]
         receipt["refused"] = [{"card": f["card"], "reason": f["reason"]}
                               for f in by.get(REFUSED, [])]
 
         todo = by.get(NEEDS_TRACE, []) + by.get(CREATE_ON_ORIGIN, [])
-        blocked = receipt["conflicts"] + receipt["refused"] + receipt["unmeasured"]
+        blocked = (receipt["conflicts"] + receipt["unattributed"]
+                   + receipt["refused"] + receipt["unmeasured"])
         receipt["pending"] = [{"card": f["card"], "answer": f["answer"],
                                "added": sorted(f.get("added") or {}),
                                "verdict": f["verdict"]} for f in todo]
@@ -874,6 +980,8 @@ def render(receipt: dict) -> str:
         tail += f" · ВЫТЕСНЕНО: {len(receipt['superseded'])}"
     if receipt.get("provenance"):
         tail += f" · ПРОВЕНАНС: {len(receipt['provenance'])}"
+    if receipt.get("unattributed"):
+        tail += f" · БЕЗ АВТОРА: {len(receipt['unattributed'])}"
     # Чьё дерево сверено — часть вердикта, а не деталь: «весь след на origin»,
     # сказанное о worktree, читается как «ответы владельца в git» (замер 30.08).
     src = receipt.get("root_source")
