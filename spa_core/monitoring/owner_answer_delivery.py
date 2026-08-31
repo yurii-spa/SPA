@@ -110,6 +110,7 @@ import datetime as dt
 import json
 import os
 import re
+import subprocess
 import sys
 
 from spa_core.monitoring.architecture_conformance import REPO_ROOT
@@ -129,6 +130,7 @@ from spa_core.owner_queue.owner_answer import (
     _PROVENANCE_FIELDS as PROVENANCE_FIELDS,
 )
 from spa_core.utils.live_paths import LIVE_ROOT_ENV, live_root
+from spa_core.utils.atomic import atomic_save_text
 
 STATUS_REL = os.path.join("data", "owner_answer_delivery_status.json")
 PUSHER_REL = "push_to_github.py"
@@ -761,6 +763,188 @@ def merge_trace(local: bytes, remote: bytes) -> tuple:
     return candidate, "", added
 
 
+#: Регистр, в который уезжает СНЯТОЕ безымянное значение ``owner_choice``.
+#:
+#: Намеренно НЕ :data:`SUPERSEDED_FIELDS`. Тот регистр означает «владелец отвечал так,
+#: а потом ответил иначе» (ADR-160/180), и записать в него агентскую подделку значило бы
+#: утверждать, что владелец однажды дал ответ, которого он не давал, — то есть починить
+#: враньё вторым враньём. Здесь имя говорит ровно то, что произошло: значение стояло,
+#: автора у него не было, оно снято, и вот оно.
+UNATTRIBUTED_REMOVED_FIELDS = {
+    "owner_choice": "owner_choice_unattributed_removed",
+}
+
+#: Поле-отметка: КОГДА безымянное значение снято. Отдельно от значения, потому что
+#: «что сняли» и «когда сняли» — два разных вопроса, и второй нужен разбору инцидента.
+UNATTRIBUTED_REMOVED_AT = "owner_choice_unattributed_removed_at"
+
+
+def repair_unattributed_choice(local: bytes, remote: bytes, now=None) -> tuple:
+    """``(bytes|None, причина, поля)`` — origin, у которого безымянный ``owner_choice``
+    заменён ОТВЕТОМ ВЛАДЕЛЬЦА из нашей копии.
+
+    **Зачем маршрут вообще нужен (цикл #439, пункт 3 карточки
+    `inbox-agent-mozhet-napisat-owner-choice-otvet` — «решать НЕ молча»).**
+    ADR-186 научил сторожа НАЗЫВАТЬ пятый исход: на origin стоит ``owner_choice``, под
+    которым не подписан никто, а ответ владельца целиком лежит у нас. Сторож при этом
+    говорит «чинить надо ЗАПИСЬ на origin» — и до сих пор чинить её было нечем, кроме
+    правки файла руками. С цикла #439 ручная правка отклоняется интерлоком пушера
+    (``push_to_github.enforce_owner_choice_authorship``), значит без названного маршрута
+    сторож остался бы с находкой, которую нельзя закрыть НИКАК. Проверку, мешающую
+    верной работе, обходят — и тогда она не поймает настоящую подделку
+    (`.claude/rules/deployment.md`). Поэтому гасится МАРШРУТ, а не проверка.
+
+    **Почему это НЕ выбор стороны за владельца.** Все условия :func:`unattributed_remote`
+    обязаны держаться: на origin НЕТ НИ ОДНОГО признака авторства, а у нас есть ВСЕ поля
+    провенанса. Значит ответов владельца здесь не два, а один — наш; второе значение
+    написал агент. Функция не решает спор, она снимает подделку и ставит на её место
+    подписанный ответ. Обратный случай (безымянная запись у НАС) не проходит по
+    построению — иначе этим маршрутом можно было бы отмыть собственную подделку.
+
+    **Ничего не стирается молча.** Снятое значение уезжает в
+    :data:`UNATTRIBUTED_REMOVED_FIELDS` вместе с отметкой времени: разбирающий инцидент
+    обязан увидеть, ЧТО стояло, а не только то, что стоит.
+
+    **Тело origin не трогается** — как и у :func:`merge_trace`: этот модуль правит след
+    ответа владельца, а не текст решения.
+
+    Отказ всегда назван, и «сделали не то» отделено от «мы ослепли».
+    """
+    lp, rp = card_parts(local), card_parts(remote)
+    if lp is None:
+        return None, "наша копия не карточка (нет frontmatter) — чинить нечем", {}
+    if rp is None:
+        return None, "версия на origin не карточка (нет frontmatter) — чинить нечего", {}
+
+    mine = _read_fields(local, OWNER_ANSWER_FIELDS)
+    ours = mine.get("owner_choice")
+    if ours is None:
+        return None, "в нашей копии ответа владельца нет — подставлять нечего", {}
+    theirs = _read_fields(remote, ("owner_choice",)).get("owner_choice")
+    if theirs is None:
+        return None, ("на origin owner_choice не написан вовсе — это не безымянная "
+                      "запись, а отсутствие следа; его везёт merge_trace"), {}
+    if same_scalar(str(theirs), str(ours)):
+        return None, "owner_choice на origin совпал с нашим — чинить нечего", {}
+    if not unattributed_remote(local, remote):
+        return None, (f"условия пятого исхода НЕ держатся: на origin есть признаки "
+                      f"авторства ({', '.join(sorted(attribution_keys(remote))) or 'нет'}) "
+                      f"либо у нас неполный провенанс — это спор двух ответов, и сторону "
+                      f"здесь не выбирает никто, кроме владельца"), {}
+
+    # Ключ, написанный на origin дважды, — испорченный файл: какое вхождение несёт
+    # значение, отсюда не видно, а заменить не то значит оставить подделку читателю.
+    # Тот же fail-CLOSED, что у merge_trace (ADR-188), и по той же причине.
+    doubled = sorted(k for k in (("owner_choice",) + tuple(UNATTRIBUTED_REMOVED_FIELDS.values())
+                                 + (UNATTRIBUTED_REMOVED_AT,))
+                     if key_occurrences(remote, k) > 1)
+    if doubled:
+        return None, (f"на origin ключ написан НЕСКОЛЬКО раз ({', '.join(doubled)}) — "
+                      "какое вхождение читает читатель, отсюда не видно; чинить руками"), {}
+    if present_keys(remote, UNATTRIBUTED_REMOVED_FIELDS.values()):
+        return None, ("на origin уже стоит регистр снятой безымянной записи — эту карточку "
+                      "чинили, второй раз молча поверх не пишем"), {}
+
+    stamp = (now or dt.datetime.now(dt.timezone.utc)).isoformat()
+    written = {"owner_choice": str(ours),
+               UNATTRIBUTED_REMOVED_FIELDS["owner_choice"]: str(theirs),
+               UNATTRIBUTED_REMOVED_AT: stamp}
+    written.update({k: v for k, v in mine.items() if k in PROVENANCE_FIELDS})
+
+    r_fm, r_body = rp
+    replace = {k for k in written if k in present_keys(remote, written)}
+    out_lines = []
+    for line in r_fm.splitlines(True):
+        key = line.split(b":", 1)[0].decode("utf-8", "replace") if b":" in line else ""
+        if not line[:1].isspace() and key in replace:
+            out_lines.append(f"{key}: {written[key]}\n".encode())
+        else:
+            out_lines.append(line)
+    # Порядок дописываемых строк — ОБЪЯВЛЕННЫЙ, а не словарный: иначе содержимое
+    # коммита зависело бы от порядка чтения (тот же довод, что у CARRIED_FIELDS).
+    order = ("owner_choice", *PROVENANCE_FIELDS,
+             UNATTRIBUTED_REMOVED_FIELDS["owner_choice"], UNATTRIBUTED_REMOVED_AT)
+    tail = b"".join(f"{k}: {written[k]}\n".encode()
+                    for k in order if k in written and k not in replace)
+    candidate = remote[:4] + b"".join(out_lines) + tail + b"---\n" + r_body
+
+    ok, why = verify_repair(remote, candidate, written)
+    if not ok:
+        return None, f"починка не доказана: {why}", {}
+    return candidate, (f"безымянный owner_choice {theirs!r} снят и записан в "
+                       f"{UNATTRIBUTED_REMOVED_FIELDS['owner_choice']}; на его месте — "
+                       f"ответ владельца {ours!r} с провенансом "
+                       f"({', '.join(sorted(k for k in written if k in PROVENANCE_FIELDS))})"), written
+
+
+def verify_repair(remote: bytes, candidate: bytes, written: dict) -> tuple:
+    """``(bool, причина)`` — кандидат починки судится по ИСХОДУ, а не по конструкции.
+
+    Кандидат разбирается заново, как будто его прислал кто-то другой: конструктор,
+    проверяющий сам себя, повторяет свою же ошибку (тот же довод, что у
+    :func:`verify_trace_only`, и проект на этом уже горел).
+
+    Проверяется ровно то, чем авария и была:
+
+    1. **тело origin не тронуто** — байт в байт;
+    2. **каждая написанная нами строка ЧИТАЕТСЯ читателем** (``_read_fields`` /
+       ``present_keys``), а не просто присутствует в файле;
+    3. **ни один написанный ключ не стоит дважды** — читатель берёт первое вхождение,
+       и второе было бы невидимой записью (авария 30.08);
+    4. **ни одна строка origin, которую мы не называли, не изменилась и не пропала** —
+       иначе починка записи стала бы правкой чужого решения;
+    5. **снятое значение видно** в регистре: молча стёртая подделка неотличима от
+       подделки, которой не было.
+    """
+    rp, cp = card_parts(remote), card_parts(candidate)
+    if rp is None or cp is None:
+        return False, "одна из версий не карточка"
+    r_fm, r_body = rp
+    c_fm, c_body = cp
+    if c_body != r_body:
+        return False, "тело отличается от origin — модуль не смеет трогать тело карточки"
+
+    named = set(written)
+    r_lines, c_lines = r_fm.splitlines(True), c_fm.splitlines(True)
+    i = 0
+    for line in c_lines:
+        if i < len(r_lines) and line == r_lines[i]:
+            i += 1
+            continue
+        key = (line.split(b":", 1)[0].decode("utf-8", "replace")
+               if b":" in line and not line[:1].isspace() else "")
+        if key not in named:
+            return False, (f"кандидат несёт строку, которой мы не называли: {line!r} — "
+                           "починка записи не смеет править ничего сверх названного")
+        # Строка на месте origin'ной: origin'ная обязана быть тем же ключом (замена),
+        # иначе мы затёрли чужую строку.
+        if i < len(r_lines):
+            r_key = (r_lines[i].split(b":", 1)[0].decode("utf-8", "replace")
+                     if b":" in r_lines[i] and not r_lines[i][:1].isspace() else "")
+            if r_key == key:
+                i += 1
+    if i != len(r_lines):
+        return False, ("строки frontmatter с origin изменены или пропали — починка "
+                       "записи заменяет только названные ключи")
+
+    readable = _read_fields(candidate, tuple(named))
+    for key, value in written.items():
+        if key not in readable:
+            return False, f"написанное {key} читателю НЕ видно — строка есть, ответа нет"
+        if not same_scalar(str(readable[key]), str(value)):
+            return False, (f"читатель видит у {key} значение {readable[key]!r}, "
+                           f"а написано {value!r}")
+        if key_occurrences(candidate, key) != 1:
+            return False, (f"ключ {key} стоит в кандидате "
+                           f"{key_occurrences(candidate, key)} раз(а) — читатель берёт "
+                           "первое вхождение, остальные были бы невидимой записью")
+    removed = UNATTRIBUTED_REMOVED_FIELDS["owner_choice"]
+    if removed not in readable:
+        return False, ("снятое безымянное значение нигде не названо — молча стёртая "
+                       "подделка неотличима от подделки, которой не было")
+    return True, "тело origin цело, все написанные строки читаются по одному разу"
+
+
 def verify_trace_only(remote: bytes, candidate: bytes) -> tuple:
     """``(bool, причина)`` — кандидат отличается от remote ТОЛЬКО следом.
 
@@ -1118,6 +1302,34 @@ def render(receipt: dict) -> str:
             f"{receipt.get('reason', '')}")
 
 
+def repair_card_from_trees(card: str, tree_root: str, live_root_dir: str,
+                           ref: str = "origin/main", now=None) -> tuple:
+    """``(bytes|None, причина)`` — собрать починку для карточки, назвав обе стороны.
+
+    ЯВНАЯ команда, а не шаг какого-либо агента. Починка записи ответа владельца —
+    поступок, который обязан быть у кого-то в руках: автоматический перезаписыватель
+    поля ``owner_choice`` был бы ровно тем, что этот модуль и ловит.
+
+    ``tree_root``  дерево, куда лечь результату (обычно worktree цикла на ``origin/main``);
+    ``live_root``  ЖИВОЕ дерево, где лежит копия с ответом владельца — его пишет бот и
+                   больше никто (см. шапку модуля).
+    """
+    name = os.path.basename(card)
+    live = os.path.join(live_root_dir, TRACKER_REL, name)
+    if not os.path.isfile(live):
+        return None, (f"копии с ответом владельца нет в живом дереве ({live}) — "
+                      "чинить нечем: ответ владельца рождается только там")
+    rel = f"{TRACKER_REL}/{name}"
+    proc = subprocess.run(["git", "show", f"{ref}:{rel}"],
+                          capture_output=True, cwd=tree_root)
+    if proc.returncode != 0:
+        return None, f"версию {ref}:{rel} прочитать не удалось — сравнивать не с чем"
+    with open(live, "rb") as f:
+        local = f.read()
+    candidate, why, _fields = repair_unattributed_choice(local, proc.stdout, now=now)
+    return candidate, why
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--root", default=None,
@@ -1127,7 +1339,30 @@ def main(argv=None) -> int:
                     help="только измерить, ничего не отправлять")
     ap.add_argument("--show", action="store_true", help="показать последнюю квитанцию")
     ap.add_argument("--json", action="store_true", help="квитанция целиком в stdout")
+    ap.add_argument("--repair-unattributed", metavar="КАРТОЧКА", default=None,
+                    help="ЯВНО починить безымянный owner_choice на origin: взять ответ "
+                         "владельца из живого дерева, поставить его на место записи без "
+                         "автора, снятое значение записать в регистр. Пишет файл в "
+                         "--tree-root, доставку делает сессия своим пушем")
+    ap.add_argument("--tree-root", default=None,
+                    help="дерево, куда лечь починенной карточке (по умолчанию — CWD)")
     args = ap.parse_args(argv)
+
+    if args.repair_unattributed:
+        tree_root = os.path.abspath(args.tree_root or os.getcwd())
+        candidate, why = repair_card_from_trees(
+            args.repair_unattributed, tree_root, resolve_root(args.root)[0])
+        if candidate is None:
+            print(f"ОТКАЗ: {why}", file=sys.stderr)
+            return 2
+        out = os.path.join(tree_root, TRACKER_REL,
+                           os.path.basename(args.repair_unattributed))
+        if args.dry_run:
+            print(f"СУХОЙ ПРОГОН — написал бы {out}\n{why}")
+            return 0
+        atomic_save_text(candidate.decode("utf-8"), out)
+        print(f"починено: {out}\n{why}")
+        return 0
 
     if args.show:
         try:

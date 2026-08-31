@@ -1564,6 +1564,79 @@ def enforce_adr_numbers(all_files, allow: bool = False,
     raise AdrNumberCollision(msg)
 
 
+OWNER_CHOICE_INTERLOCK_EXIT = 8
+
+
+class OwnerChoiceUnattributed(Exception):
+    """Набор доставки пишет ответ владельца, под которым никто не подписан."""
+
+
+def enforce_owner_choice_authorship(all_files, allow: bool = False,
+                                    runner_file: Optional[str] = None) -> bool:
+    """Отказать, если пуш ставит ``owner_choice`` без единого признака авторства.
+
+    Возвращает True — интерлок отработал и претензий нет; False — карточек в наборе нет
+    вовсе (сторожу нечего сказать). Бросает :class:`OwnerChoiceUnattributed` при находке;
+    ``allow=True`` — осознанное продолжение (печатается, не молчит).
+
+    **Зачем именно ЗДЕСЬ (цикл #439, карточка `inbox-agent-mozhet-napisat-owner-choice-otvet`).**
+    ``owner_choice`` — запись ОТВЕТА ВЛАДЕЛЬЦА, и до сих пор написать в неё мог кто угодно.
+    2026-08-29 сессия одним коммитом (``765363a8e``) поставила ``status: ingested`` и
+    ``owner_choice: "2"`` карточке, которая стояла в ``needs-owner`` с пустым полем —
+    владелец ответил кнопкой на 6 ч 20 мин ПОЗЖЕ и ответил **1**. Проза того же коммита
+    говорит «Выбран вариант 1». Дальше обязательный шаг 0-офис прогон за прогоном звал
+    человека разрешить спор, которого не было.
+
+    **Двери посчитаны, а не выбраны.** В рантайме поле пишет ровно один модуль —
+    ``spa_core/owner_queue/owner_answer.py``; ``queue.set_status`` трогает только строку
+    ``status:``, остальные упоминания — чтение. Заслон на API был бы сторожем у двери, в
+    которую никто не ходит. Авария прошла через ПУШ, значит проверка стоит на пуше.
+
+    **Реализация одна, дверей две** — как у интерлока номеров ADR (см.
+    :func:`enforce_adr_numbers`): ``push_to_github_batch.py`` зовёт эту же функцию, потому
+    что 26.08 вторая дверь уже пропустила то, что первая отклоняла.
+
+    Отбор карточек — ТРИГГЕР (пуш без карточек интерлок не будит), но порция сторожу
+    отдаётся ПОЛНАЯ: тот же довод, что у :func:`adr_interlock_payload` — фильтровать
+    вход за сторожа значит однажды скрыть от него нужный файл.
+    """
+    cards = [f for f in all_files
+             if "nimbalyst-local/tracker/" in str(f).replace("\\", "/")
+             and str(f).endswith(".md")]
+    if not cards:
+        return False
+
+    base = os.path.dirname(os.path.abspath(runner_file or __file__))
+    guard = os.path.join(base, "scripts", "check_owner_choice_authorship.py")
+    if not os.path.isfile(guard):
+        msg = (f"ОТКАЗ (запись ответа владельца): сторож {guard} не найден — подделку "
+               f"записи измерить нечем, а карточки в наборе есть (fail-CLOSED). "
+               f"Осознанно продолжить: --allow-owner-choice-write.")
+        if allow:
+            print(msg + "\n(продолжаю: запись owner_choice разрешена явно)", file=sys.stderr)
+            return True
+        print(msg, file=sys.stderr)
+        raise OwnerChoiceUnattributed(msg)
+
+    rc = subprocess.run([sys.executable, guard, "--root", base,
+                         "--files", *[str(f) for f in all_files]]).returncode
+    if rc == 0:
+        return True
+
+    msg = (f"ОТКАЗ (запись ответа владельца, rc={rc}): набор не доставлен. Ответ владельца "
+           f"пишет ТОЛЬКО владелец — кнопкой, через "
+           f"`owner_answer.record_owner_answer` (инвариант #14). Безымянное значение на "
+           f"origin чинится названным маршрутом "
+           f"(`spa_core/owner_queue/owner_answer.repair_unattributed_choice`), а не правкой "
+           f"файла руками; осознанно продолжить — --allow-owner-choice-write "
+           f"(или SPA_PUSH_ALLOW_OWNER_CHOICE_WRITE=1).")
+    if allow:
+        print(msg + "\n(продолжаю: запись owner_choice разрешена явно)", file=sys.stderr)
+        return True
+    print(msg, file=sys.stderr)
+    raise OwnerChoiceUnattributed(msg)
+
+
 def adr_interlock_payload(all_files):
     """Что именно ПОКАЗАТЬ сторожу номеров ADR: ВЕСЬ набор доставки, а не одни решения.
 
@@ -1612,6 +1685,9 @@ def main():
     parser.add_argument("--allow-toolchain-mismatch", action="store_true",
                         help="ОСОЗНАННО пушить инструментом, который разошёлся с копией в дереве "
                              "отправляемых файлов (по умолчанию такой пуш отклоняется)")
+    parser.add_argument("--allow-owner-choice-write", action="store_true",
+                        help="ОСОЗНАННО доставить карточку, ставящую owner_choice без единого "
+                             "признака авторства (по умолчанию такой пуш отклоняется)")
     parser.add_argument("--allow-adr-collision", action="store_true",
                         help="ОСОЗНАННО доставить решение под номером, уже занятым на origin, "
                              "или вне реестра INDEX.md (по умолчанию такой пуш отклоняется)")
@@ -1623,6 +1699,8 @@ def main():
         os.environ.get("SPA_PUSH_ALLOW_TOOLCHAIN_MISMATCH") == "1"
     allow_adr = bool(args.allow_adr_collision) or \
         os.environ.get("SPA_PUSH_ALLOW_ADR_COLLISION") == "1"
+    allow_owner_choice = bool(args.allow_owner_choice_write) or \
+        os.environ.get("SPA_PUSH_ALLOW_OWNER_CHOICE_WRITE") == "1"
 
     # Собираем все файлы из всех источников
     all_files: list = []
@@ -1665,6 +1743,18 @@ def main():
         enforce_adr_numbers(all_files, allow=allow_adr)
     except AdrNumberCollision:
         sys.exit(ADR_INTERLOCK_EXIT)
+
+    # ── ИНТЕРЛОК ЗАПИСИ ОТВЕТА ВЛАДЕЛЬЦА — до сети, для ЛЮБОГО контекста ─────────
+    # `owner_choice` — запись ОТВЕТА ВЛАДЕЛЬЦА, и до цикла #439 написать в неё мог кто
+    # угодно: 2026-08-29 коммит 765363a8e поставил `owner_choice: "2"` карточке, где
+    # владелец ещё не отвечал (он ответил кнопкой 1 на 6 ч 20 мин позже). Единственная
+    # дверь, через которую ручная правка попадает на origin, — этот пуш. Не привязан к
+    # SPA_AUTONOMOUS: подпись именем владельца одинаково неверна в любом контексте, и
+    # аварию совершила attended-сессия. Реализация ОДНА, её же зовёт batch-CLI.
+    try:
+        enforce_owner_choice_authorship(all_files, allow=allow_owner_choice)
+    except OwnerChoiceUnattributed:
+        sys.exit(OWNER_CHOICE_INTERLOCK_EXIT)
 
     # ── OWNER-GATE INTERLOCK (ADR-OWN-2026-07) — autonomous context ONLY ──────────
     # In the autonomous orchestrator (SPA_AUTONOMOUS=1) any push touching landing/ MUST

@@ -5,10 +5,15 @@ title: "ИСПОЛНЕНО: решение от 7 августа доведен�
 status: ingested
 priority: high
 owner: yuriycooleshov@gmail.com
-owner_choice: "2"
+owner_choice: 1
 blocks: ""
 created: 2026-08-29
 resolved: 2026-08-29
+owner_answered_at: 2026-08-29T21:00:44.966430+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
+owner_choice_unattributed_removed: "2"
+owner_choice_unattributed_removed_at: 2026-08-31T06:29:32.878760+00:00
 ---
 
 > **ЗАКРЫТО 2026-08-29.** Владелец дал полный мандат действовать самостоятельно, и

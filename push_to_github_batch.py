@@ -132,6 +132,14 @@ AdrNumberCollision = _root_push.AdrNumberCollision
 ADR_INTERLOCK_EXIT = _root_push.ADR_INTERLOCK_EXIT
 adr_interlock_payload = _root_push.adr_interlock_payload
 
+# Интерлок записи ответа владельца (карточка `inbox-agent-mozhet-napisat-owner-choice-otvet`)
+# — по тому же правилу ОДНА реализация. Урок ADR-номеров дословно: блок, живущий строками
+# в одном CLI, вторая дверь не исполняет, и через неё уезжает ровно то, что первая
+# отклоняла. Под этим CLI стоит `safe_site_push.py`.
+enforce_owner_choice_authorship = _root_push.enforce_owner_choice_authorship
+OwnerChoiceUnattributed = _root_push.OwnerChoiceUnattributed
+OWNER_CHOICE_INTERLOCK_EXIT = _root_push.OWNER_CHOICE_INTERLOCK_EXIT
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -151,6 +159,9 @@ def main():
     parser.add_argument("--allow-toolchain-mismatch", action="store_true",
                         help="ОСОЗНАННО пушить инструментом, который разошёлся с копией в дереве "
                              "отправляемых файлов")
+    parser.add_argument("--allow-owner-choice-write", action="store_true",
+                        help="ОСОЗНАННО доставить карточку, ставящую owner_choice без единого "
+                             "признака авторства (по умолчанию такой пуш отклоняется)")
     parser.add_argument("--allow-adr-collision", action="store_true",
                         help="ОСОЗНАННО доставить решение под номером, уже занятым на origin, "
                              "или вне реестра INDEX.md (по умолчанию такой пуш отклоняется)")
@@ -162,6 +173,8 @@ def main():
         os.environ.get("SPA_PUSH_ALLOW_TOOLCHAIN_MISMATCH") == "1"
     allow_adr = bool(args.allow_adr_collision) or \
         os.environ.get("SPA_PUSH_ALLOW_ADR_COLLISION") == "1"
+    allow_owner_choice = bool(args.allow_owner_choice_write) or \
+        os.environ.get("SPA_PUSH_ALLOW_OWNER_CHOICE_WRITE") == "1"
 
     all_files: list = []
     if args.files_pos:
@@ -193,6 +206,15 @@ def main():
         enforce_adr_numbers(all_files, allow=allow_adr, runner_file=__file__)
     except AdrNumberCollision:
         sys.exit(ADR_INTERLOCK_EXIT)
+
+    # ── ИНТЕРЛОК ЗАПИСИ ОТВЕТА ВЛАДЕЛЬЦА — тот же вызов, что и в push_to_github.py ──
+    # Реализация одна, дверей две. `runner_file` — дерево ЗАПУЩЕННОГО CLI, а не модуля,
+    # который он загрузил: сторож берётся рядом с ним.
+    try:
+        enforce_owner_choice_authorship(all_files, allow=allow_owner_choice,
+                                        runner_file=__file__)
+    except OwnerChoiceUnattributed:
+        sys.exit(OWNER_CHOICE_INTERLOCK_EXIT)
 
     # ── OWNER-GATE INTERLOCK (ADR-OWN-2026-07) — autonomous context ONLY ──────────
     # Same guard as push_to_github.py: in the autonomous orchestrator (SPA_AUTONOMOUS=1)
