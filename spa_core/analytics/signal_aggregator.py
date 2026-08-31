@@ -93,6 +93,25 @@ try:
 except Exception:  # pragma: no cover — реестр ещё не построен
     TIER_C_WRITTEN_OFF = {}
 
+# Списанные Tier-B модули (решение владельца 2026-08-29 21:01Z, вариант 1 по
+# карточке `owner-decision-tier-b-84-modulya-otvechayut-odinakovo-d`, ADR-189):
+# 84 модуля отдают одно и то же число ВСЕМ протоколам, включая несуществующий
+# контрольный, — протокол, которого нет, не может дать тот же осмысленный ответ,
+# что настоящий. Имя → измеренная причина. Отсутствие файла = пустой набор.
+#
+# ПОЧЕМУ ОТДЕЛЬНО ОТ `PROTOCOL_BLIND_MODULES`, хотя сегодня набор вложен в него.
+# Разметка слепоты — АРТЕФАКТ ЗАМЕРА: её перезаписывает любой прогон
+# `audit_protocol_blindness.py --emit-markup`. Реестр списания — РЕШЕНИЕ
+# ВЛАДЕЛЬЦА: меняется только новым решением. Пока исключение опиралось лишь на
+# разметку, перегенерация, в которой модуль перестал числиться слепым, молча
+# вернула бы его в советующий сигнал ВОПРЕКИ принятому решению. Проверка
+# списания идёт ПЕРВОЙ именно поэтому — и это единственное поведенческое
+# отличие правки (см. положительный контроль в `test_tier_b_writeoff.py`).
+try:
+    from spa_core.analytics._tier_b_writeoff import WRITTEN_OFF as TIER_B_WRITTEN_OFF
+except Exception:  # pragma: no cover — реестр ещё не построен
+    TIER_B_WRITTEN_OFF = {}
+
 log = logging.getLogger("spa.analytics.signal_aggregator")
 
 # ─── Configuration ────────────────────────────────────────────────────────────
@@ -683,6 +702,21 @@ class SignalAggregator:
         громкий статус "unsourced", исключены из composite И из числителя
         confidence. Модуль в обоих наборах получает "blind" — вердикт старше и
         строже.
+
+        Списание Tier-B (решение владельца 2026-08-29, вариант 1, ADR-189):
+        84 модуля из ``TIER_B_WRITTEN_OFF`` получают статус ``written_off`` с
+        измеренной причиной — тем же словом, что и Tier-C (ADR-133), чтобы
+        «списано владельцем» не читалось как «замерено слепым». Проверка идёт
+        ПЕРЕД разметкой слепоты: разметку перезаписывает любой прогон аудита,
+        а решение владельца — только новое решение владельца.
+
+        Числа сигнала эта правка НЕ двигает, и это измерено:
+        ``PROTOCOL_BLIND_MODULES`` тождественно ``WRITTEN_OFF |
+        BLIND_ACROSS_WIDE``, то есть все 166 уже не исполнялись. Меняется, на
+        чём держится исключение 84 (решение, а не артефакт замера) и как они
+        названы в ``_meta.module_status``. Оставшиеся 82 сохраняют статус
+        ``blind``: по ним владелец выбрал вариант 3 — «сначала доизмерить»,
+        решения нет, и ярлык не должен утверждать обратное.
         """
         modules = registry.get_tier_modules("B")
         total_modules = max(1, len(modules))
@@ -694,8 +728,18 @@ class SignalAggregator:
             contributors: List[Dict[str, Any]] = []
             runnable = []
             for m in modules:
-                name = m.get("module")
-                if name in PROTOCOL_BLIND_MODULES:
+                name = m.get("module") or m.get("name") or ""
+                written_off = TIER_B_WRITTEN_OFF.get(name)
+                if written_off is not None:
+                    # Решение владельца старше и устойчивее машинной разметки:
+                    # проверяется ПЕРВЫМ, чтобы перегенерация `_protocol_
+                    # blindness.py` не могла вернуть списанный модуль в сигнал.
+                    self._record(m["module"], "written_off", written_off)
+                elif name in PROTOCOL_BLIND_MODULES:
+                    # Замерено слепым, но решения по ним НЕТ: по второй карточке
+                    # (82 модуля) владелец 2026-08-29 выбрал вариант 3 —
+                    # «сначала доизмерить». Ярлык остаётся описанием замера и
+                    # НЕ притворяется принятым решением.
                     self._record(m["module"], "blind",
                                  "protocol-blind constant (audit markup)")
                 elif name in UNSOURCED_MODULES:

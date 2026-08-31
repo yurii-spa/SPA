@@ -249,21 +249,123 @@ class TierBRegistryContents(unittest.TestCase):
                              f"{bucket_name} захватил честно прошедшие: {overlap}")
 
 
-class TierBRegistryIsNotWiredYet(unittest.TestCase):
-    """Граница решения: разметка есть, отключения — нет, пока владелец не ответил."""
+class TierBRegistryIsWiredAfterTheOwnerAnswered(unittest.TestCase):
+    """Граница решения СДВИНУЛАСЬ: владелец ответил 2026-08-29 21:01Z.
 
-    def test_aggregator_does_not_consume_the_tier_b_registry(self):
-        """Списание Tier-C стало действовать ПОСЛЕ ответа владельца (ADR-133).
+    Прежняя версия этого класса называлась `TierBRegistryIsNotWiredYet` и
+    требовала ОБРАТНОГО — чтобы агрегатор реестр НЕ потреблял. Это была верная
+    проверка ровно до ответа владельца: она защищала живой советующий сигнал от
+    тихого отключения 166 модулей без решения. Ответ получен (карточка
+    `owner-decision-tier-b-84-modulya-otvechayut-odinakovo-d`, `owner_choice: 1`
+    «списать», инжест 2026-08-30 00:59Z), и предпосылка сторожа истекла: теперь
+    он охранял бы НЕисполнение прямого решения владельца.
 
-        Для Tier-B ответа ещё нет. Реестр обязан оставаться описанием, а не тихим
-        отключением 166 модулей из живого советующего сигнала: это изменило бы
-        `analytics_signals_advisory.json` по восьми протоколам без решения."""
+    Инвариант №16 соблюдён: ни одна проверка не снята и не ослаблена. Класс
+    развёрнут в противоположную сторону вместе с предметом, а к нему добавлены
+    положительные контроли, которых у прежней версии не было (обоснование —
+    ADR-189, запись в `docs/journal/2026-W36.md`).
+
+    ВАЖНО про вторую карточку: по 82 модулям `BLIND_ACROSS_WIDE` владелец выбрал
+    вариант 3 — «сначала доизмерить». Это НЕ списание, и тест ниже держит их вне
+    `written_off`."""
+
+    def _run_b(self, infos, written_off, blind):
+        """Прогон Tier-B на подставном реестре → {module: status}."""
+        from unittest import mock
+        from spa_core.analytics import signal_aggregator as sa
+        import tempfile
+        with tempfile.TemporaryDirectory() as td, \
+                mock.patch.object(sa.registry, "get_tier_modules",
+                                  lambda tier: infos), \
+                mock.patch.object(sa, "TIER_B_WRITTEN_OFF", written_off), \
+                mock.patch.object(sa, "PROTOCOL_BLIND_MODULES", frozenset(blind)), \
+                mock.patch.object(sa, "UNSOURCED_MODULES", frozenset()):
+            agg = sa.SignalAggregator(data_dir=Path(td))
+            out = agg.run_tier_b(["aave_v3"], {})
+            return out["_meta"]["module_status"], agg._module_status
+
+    def test_aggregator_consumes_the_tier_b_registry(self):
+        """Решение владельца обязано быть ИСПОЛНЕНО, а не только записано.
+
+        Проверяется ФОРМА ВЫЗОВА (разобранный `import`), а не вхождение имени в
+        текст. Первая версия этого теста искала подстроку `_tier_b_writeoff` —
+        и оставалась ЗЕЛЁНОЙ на мутации, снявшей проводку целиком, потому что
+        имя упоминает соседний КОММЕНТАРИЙ в том же файле. Проверка, которую
+        удовлетворяет проза о ней самой, ничего не проверяет."""
+        import ast
         source = (REPO_ROOT / "spa_core" / "analytics"
                   / "signal_aggregator.py").read_text(encoding="utf-8")
-        self.assertNotIn(
-            "_tier_b_writeoff", source,
-            "агрегатор уже потребляет реестр Tier-B — это решение владельца, "
-            "а оно не принято; см. карточку и ADR")
+        imported = {
+            (node.module, alias.name)
+            for node in ast.walk(ast.parse(source))
+            if isinstance(node, ast.ImportFrom)
+            for alias in node.names
+        }
+        self.assertIn(
+            ("spa_core.analytics._tier_b_writeoff", "WRITTEN_OFF"), imported,
+            "агрегатор не импортирует реестр списания Tier-B — решение "
+            "владельца от 2026-08-29 (вариант 1, «списать») осталось "
+            "неисполненным; ADR-189")
+
+    def test_written_off_survives_a_markup_that_forgot_it(self):
+        """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ — ровно то, ради чего правка сделана.
+
+        `_protocol_blindness.py` перезаписывает любой прогон аудита с
+        `--emit-markup`. Если исключение держится ТОЛЬКО на разметке, то
+        перегенерация, в которой модуль перестал числиться слепым, молча вернёт
+        его в советующий сигнал вопреки решению владельца. Здесь разметка
+        ПУСТА, а модуль обязан остаться списанным."""
+        infos = [{"module": "spisannyi", "weight": 1.0}]
+        summary, _ = self._run_b(infos,
+                                 {"spisannyi": "константа всем протоколам"},
+                                 blind=[])
+        self.assertEqual(summary["counts"], {"written_off": 1})
+        self.assertEqual(summary["not_ok"]["written_off"], ["spisannyi"])
+
+    def test_owner_decision_outranks_the_measurement_markup(self):
+        """Модуль в ОБОИХ наборах называется решением владельца, не замером.
+
+        «Списано владельцем» и «замерено слепым» — разные утверждения, и первое
+        сильнее: замер повторяем, решение — нет. Порядок веток в агрегаторе
+        держит именно это."""
+        infos = [{"module": "oba", "weight": 1.0}]
+        summary, _ = self._run_b(infos, {"oba": "константа"}, blind=["oba"])
+        self.assertEqual(summary["counts"], {"written_off": 1},
+                         "модуль в обоих наборах получил ярлык замера вместо "
+                         "решения владельца — порядок веток нарушен")
+
+    def test_pending_remeasure_is_not_written_off(self):
+        """82 модуля второй карточки НЕ списаны: владелец выбрал «доизмерить».
+
+        Ярлык не имеет права утверждать решение, которого нет."""
+        from spa_core.analytics import _tier_b_writeoff as reg
+        pending = sorted(reg.BLIND_ACROSS_WIDE)[:3]
+        self.assertTrue(pending, "набор ожидающих доизмерения пуст — тест "
+                                 "потерял предмет")
+        for name in pending:
+            self.assertNotIn(name, reg.WRITTEN_OFF,
+                             f"{name} ждёт доизмерения, а числится списанным")
+        infos = [{"module": n, "weight": 1.0} for n in pending]
+        summary, _ = self._run_b(infos, dict(reg.WRITTEN_OFF), blind=pending)
+        self.assertEqual(summary["counts"], {"blind": len(pending)})
+
+    def test_wiring_moves_no_numbers_today(self):
+        """Подключение — БУХГАЛТЕРИЯ, а не изменение живого сигнала.
+
+        Сегодня `WRITTEN_OFF` целиком вложен в разметку слепоты, то есть все 84
+        и так не исполнялись: правка меняет, на чём держится их исключение и как
+        они названы, но ни одного числа в `analytics_signals_advisory.json` не
+        двигает. Если этот тест покраснеет — списание начало убирать из сигнала
+        модуль, который в нём УЧАСТВОВАЛ; числа по восьми протоколам поедут, и
+        это надо сказать владельцу, а не узнать постфактум."""
+        from spa_core.analytics import _tier_b_writeoff as reg
+        from spa_core.analytics import _protocol_blindness as markup
+        leaking = sorted(frozenset(reg.WRITTEN_OFF)
+                         - frozenset(markup.PROTOCOL_BLIND_MODULES))
+        self.assertEqual(
+            leaking, [],
+            "списание убирает из живого сигнала модули, которые исполнялись: "
+            f"{leaking} — advisory-числа изменятся, нужна строка владельцу")
 
 
 class _tempfile_report:
