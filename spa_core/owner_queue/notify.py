@@ -86,6 +86,45 @@ def notify_needs_owner(path: str | Path, *, dry_run: bool = False,
     # Анти-шторм (инцидент 2026-08-20: 200+ копий одного решения за ночь): та же
     # карточка без ответа не уходит чаще окна и потолка попыток. Сухой прогон
     # (--check, тесты) гейт не трогает — он ничего не отправляет.
+    # Карточку, уже уехавшую владельцу, ПЕРЕПИСЫВАТЬ нельзя: кнопки у него на руках
+    # означают ПРЕЖНИЙ текст. Авария 30–31.08: я переписал карточку про открытый порт,
+    # вариант 1 сменил смысл с «загляни в Cloudflare» на «сузить каталог», и владелец
+    # нажал 1 — по старому тексту. Журнал отправок при этом хранил уже НОВЫЕ варианты,
+    # то есть перестал быть свидетельством того, что владелец видел.
+    #
+    # Верный приём (и он же применён вручную): закрыть старую карточку и завести новую
+    # с совпадающими кнопками. Здесь он делается ВИДИМЫМ: отправка отклоняется, а отказ
+    # называет, что делать. Отклоняется только неоднозначный случай — карточка уже
+    # уходила, ответа нет, а название или варианты с тех пор изменились.
+    if not dry_run and not owner_requested:
+        try:
+            from spa_core.telegram.owner_decisions import (
+                _push_by_card_id, prepare_push,
+            )
+
+            _rec = _push_by_card_id(Path(path).stem)
+            if isinstance(_rec, dict) and not (_rec.get("choice") or _rec.get("withdrawn_at")):
+                _prep = prepare_push(card.path, card.title or card.id, card.body)
+                _now_opts = [str(o.label) for o in (_prep.options or [])]
+                _old_opts = [str(o.get("label")) for o in (_rec.get("options") or [])
+                             if isinstance(o, dict)]
+                _changed = []
+                if str(_rec.get("title") or "") != str(card.title or card.id or ""):
+                    _changed.append("название")
+                if _old_opts and _now_opts != _old_opts:
+                    _changed.append("варианты")
+                if _changed:
+                    why = ("карточка уже уходила владельцу, ответа нет, а с тех пор "
+                           f"изменились: {', '.join(_changed)}. Кнопки у владельца "
+                           "означают ПРЕЖНИЙ текст — ответ будет неоднозначным. "
+                           "Закрой эту карточку и заведи новую с совпадающими "
+                           "вариантами, а в старой оставь пометку, что объяснение "
+                           "снято.")
+                    log.warning("notify_needs_owner SUPPRESSED for %s: %s", path, why)
+                    return f"[переписана] отправка отклонена: {why}"
+        except Exception as exc:  # noqa: BLE001 — проверка не важнее уведомления
+            log.warning("notify_needs_owner rewrite check failed (%s) — шлю", exc)
+
     if not dry_run and not owner_requested:
         try:
             from spa_core.telegram.owner_decisions import throttle_state
