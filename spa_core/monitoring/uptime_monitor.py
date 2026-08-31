@@ -113,6 +113,9 @@ AGENT_OUTPUT_FILES: dict[str, tuple[str | None, int]] = {
     # 90-minute autopush → allow 4.5 h (3× schedule).
     "com.spa.autopush":            ("logs/auto_push.log", 16200),
 
+    # 30-minute gas price agent (ADR-183) → allow 1.5 h (3× schedule).
+    "com.spa.gas_price_agent":     ("data/gas_price_history.json", 5400),
+
     # Calendar-interval (daily / event-driven) agents → allow ~30 h.
     "com.spa.base_gas_monitor":    ("data/base_gas_history.json", 108000),
     "com.spa.sky_monitor":         ("data/sky_status.json", 108000),
@@ -740,6 +743,7 @@ LAUNCHD_SERVICES = [
     "com.spa.autopush",
     "com.spa.daily_cycle",
     "com.spa.base_gas_monitor",
+    "com.spa.gas_price_agent",
     "com.spa.sky_monitor",
     "com.spa.daily-paper-report",
     "com.spa.checkpoint-7day",

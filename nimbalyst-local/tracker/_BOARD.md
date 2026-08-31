@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-31T19:49:24Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-31T19:57:32Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (544188455) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (0bcc61bff) · у **1** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **856** · ждёт владельца: **3** · занято сессиями: **10**.
 
@@ -263,7 +263,6 @@
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 ### · backlog
 - 23 работающих агента установщик не вернёт — флот не соберётся заново с одного хоста  ·  `agent-23-rabotayushih-agentov-ustanovshik-ne-vernet.md` · 2026-08-31
-- Агент цены газа построен (ADR-183) — активировать на хосте после доезда синка  ·  `agent-gas-price-agent-postroen-zhdet-aktivacii.md` · 2026-08-30
 - Контракт называет производителем агента, который не развёрнут — срок свежести невыполним по построению  ·  `agent-kontrakt-nazyvaet-proizvoditelem-nerazvernutogo-agenta.md` · 2026-08-31
 - Размещение кэша связано в одном ходе с невыгодной перекладкой и ждёт вместе с ней  ·  `agent-razmeshenie-kesha-svyazano-s-nevygodnoi-perekladkoi.md` · 2026-08-31
 - L2-мониторы газа молча предъявляют fallback-константу как живое чтение  ·  `inbox-l2-gas-monitory-molcha-predyavlyayut-fallback.md` · 2026-08-30
@@ -273,6 +272,7 @@
 ### · done
 - Анти-шторм не отличает ПОПРАВКУ от повтора — отзыв ложной тревоги подавляется на 6 часов  ·  `agent-antishtorm-ne-otlichaet-popravku-ot-povtora.md` · 2026-08-31
 - Два списка отставных агентов расходятся — сторож чётности не знает ни одного из манифеста  ·  `agent-dva-spiska-otstavnyh-agentov-rashodyatsya.md` · 2026-08-31
+- Агент цены газа построен (ADR-183) — активировать на хосте после доезда синка  ·  `agent-gas-price-agent-postroen-zhdet-aktivacii.md` · 2026-08-30
 - «Кнопок нету» — вторая половина жалобы 14.08: какое сообщение приходит с вариантами, но без кнопок  ·  `agent-knopki-pod-resheniem-vtoraya-polovina.md` · 2026-08-14
 - На карточку-поручение владелец не может ответить НИЧЕМ, кроме слов — пять висят с 08.08  ·  `agent-porucheniya-bez-vybora-nechem-otvetit.md` · 2026-08-10
 - 1  ·  `inbox-1-2.md` · 2026-08-22
