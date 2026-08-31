@@ -572,10 +572,10 @@ def redistribute_freed_budget(
     gate_result: dict,
     *,
     min_cash_pct: float = 0.05,
-    t1_cap_pct: float = 0.40,
-    t2_cap_pct: float = 0.20,
-    t2_total_cap_pct: float = 0.35,
-    max_protocols: int = 8,
+    t1_cap_pct: "float | None" = None,
+    t2_cap_pct: "float | None" = None,
+    t2_total_cap_pct: "float | None" = None,
+    max_protocols: "int | None" = None,
     max_single_chain_pct: "float | None" = None,
     max_l2_total_pct: "float | None" = None,
     allocator_trims_by_protocol: "dict[str, float] | None" = None,
@@ -597,7 +597,8 @@ def redistribute_freed_budget(
       * пулы, которые гейт ТОЛЬКО ЧТО срезал или заморозил
         (pre_gate > gate_target, tvl_unverified), капитал НЕ получают —
         перераздача не смеет отменять слово гейта;
-      * потолки тиров (T1 40% / T2 20%), суммарный T2 (35%) и ALLOC-002
+      * потолки тиров и суммарный T2 — ЗЕРКАЛО RiskConfig (ADR-144),
+        не собственные литералы; ALLOC-002
         (≤ max_protocols) соблюдаются здесь И перепроверяются повторным
         проходом самого гейта у вызывающего — ГЕЙТ ОСТАЁТСЯ ПОСЛЕДНИМ СЛОВОМ
         (инвариант 1); буфер min_cash неприкосновенен;
@@ -632,6 +633,44 @@ def redistribute_freed_budget(
             max_single_chain_pct = _chain_cap
         if max_l2_total_pct is None:
             max_l2_total_pct = _l2_cap
+
+    # ADR-144 (решение владельца 26.08): «два источника лимитов в одной системе —
+    # не двойная страховка, а гарантированный разъезд; ужесточение только через
+    # изменение САМОЙ политики». Тогда зеркало навели у тюнера и ребалансера, а
+    # здесь остался литерал `t2_total_cap_pct = 0.35` — ровно то число, которое
+    # ADR-144 и называл. Политика разрешает 0.50.
+    #
+    # Замер 31.08, цена расхождения: гейт срезал ethereum до его потолка 90 %,
+    # свободной осталась только сеть base, а добавка туда упёрлась в 35 % —
+    # книга стояла на T2 = 35.00 %, то есть ровно на ЭТОМ умолчании, при
+    # политике 50 %. $17 368 (17.4 % капитала) остались в кэше под 0 % при живых
+    # кандидатах 4.2–5.2 %. Именно это следствие ADR-144 и предсказывал.
+    #
+    # Граница риска не здесь: после перераздачи цикл ПОВТОРНО прогоняет
+    # RiskPolicy (`_gate2`) и принимает результат, только если он APPROVED без
+    # нарушений (инвариант #1). Зеркало не ослабляет гейт, оно лишь перестаёт
+    # запрещать то, что политика разрешает.
+    if (t1_cap_pct is None or t2_cap_pct is None
+            or t2_total_cap_pct is None or max_protocols is None):
+        _t1, _t2, _t2tot, _maxp = 0.40, 0.20, 0.50, 8
+        try:
+            from spa_core.risk.policy import RiskConfig
+
+            _c = RiskConfig()
+            _t1 = float(_c.max_concentration_t1)
+            _t2 = float(_c.max_concentration_t2)
+            _t2tot = float(_c.max_total_t2_allocation)
+            _maxp = int(_c.max_protocols)
+        except Exception:  # noqa: BLE001 — RiskConfig недоступен ⇒ консервативно
+            log.warning("ADR-144: RiskConfig недоступен — потолки тиров по умолчанию")
+        if t1_cap_pct is None:
+            t1_cap_pct = _t1
+        if t2_cap_pct is None:
+            t2_cap_pct = _t2
+        if t2_total_cap_pct is None:
+            t2_total_cap_pct = _t2tot
+        if max_protocols is None:
+            max_protocols = _maxp
 
     out = {"target_usd": dict(gate_target), "added": {}, "freed_usd": 0.0,
            "notes": [], "freed_from_allocator_usd": 0.0, "blocked_by_allocator": []}
