@@ -306,6 +306,23 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
     if not dry_run:
         save_lp_state(state)
 
+    # ── ADR-201: тень слива 50/30/20 (advisory, fail-open) ──────────────────
+    # Прецедент — shadow-блок ADR-060 в cycle_runner: отчётная тень не имеет
+    # права валить цикл. Капитал не двигает, ничего не гейтит (IS_ADVISORY).
+    if not dry_run:
+        try:
+            from spa_core.strategy_lab.sleeve.composer import run_sleeve_shadow
+            _root = Path(__file__).resolve().parents[2]
+            run_sleeve_shadow(
+                data_dir=_root / "data",
+                panel_dir=_root / "data" / "aggressive_lab",
+                date_str=today,
+            )
+        except Exception as _sleeve_exc:  # noqa: BLE001
+            import logging as _logging
+            _logging.getLogger("spa.lp_cycle").warning(
+                "ADR-201 sleeve shadow failed (%s) — cycle unaffected", _sleeve_exc)
+
     return {
         "sleeve": "C",
         "cycle_skipped": False,
