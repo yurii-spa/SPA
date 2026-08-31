@@ -2482,15 +2482,14 @@
    "intent": "active",
    "produces": [
     {
-     "artifact": "data/milestone_telegram_state.json",
-     "slo_hours": 26.0
+     "artifact": "data/milestone_telegram_state.json"
     }
    ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": "",
+   "notes": "Артефакт СОБЫТИЙНЫЙ: `last_run` пишется только когда веха реально отправлена (`if result[\"sent\"]` в alert_on_milestone). Все четыре вехи разосланы, новых нет — файл законно не менялся с 08.08. Срок свежести 26 ч был невыполним по построению и снят 31.08 по конвенции манифеста (7 других событийных артефактов объявлены без slo_hours).",
    "passport": {
     "goal": "Smart milestone Telegram alerts for SPA paper trading.",
     "quality_metric": "data/milestone_telegram_state.json свежее 26.0 ч",
