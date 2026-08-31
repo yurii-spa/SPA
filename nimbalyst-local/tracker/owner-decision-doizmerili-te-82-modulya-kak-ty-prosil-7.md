@@ -5,6 +5,10 @@ title: "Доизмерили те 82 модуля, как ты просил: 71 
 status: needs-owner
 source: nimbalyst
 created: 2026-08-31
+owner_choice: 3
+owner_answered_at: 2026-08-31T08:33:24.367000+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно
