@@ -2,10 +2,12 @@
 trackerStatus:
   type: owner-decision
 title: "Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте"
-status: needs-owner
+status: done
 source: nimbalyst
 created: 2026-08-30
 finding_key: "B1:dead:com.spa.swarm_dwell"
+status_trail:
+  - "2026-08-31T17:37:46.777578+00:00 needs-owner -> done · queue.set_status"
 ---
 
 ## Что случилось и почему это важно
