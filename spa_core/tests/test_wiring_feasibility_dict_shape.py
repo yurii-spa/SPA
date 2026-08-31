@@ -173,7 +173,14 @@ def test_dict_shaped_rejection_is_raises_with_verbatim_reason(feas, monkeypatch)
 # ─── обратные контроли: граница «не выдумываем вызов» на месте ───────────────
 
 def test_typed_domain_input_is_still_not_probed(feas, monkeypatch):
-    """Чужой доменный тип по-прежнему НЕ зовётся — урок #133/#136."""
+    """Чужой доменный тип по-прежнему НЕ зовётся — урок #133/#136.
+
+    ИНВ. #16, намеренная правка (цикл #440): охраняемое утверждение — вызова
+    НЕТ (`raise` в теле движка) — стоит дословно на месте. Поправлено только
+    имя вердикта: объявленный доменный вход даёт `DECLARED_INPUT_NOT_A_RECORD`
+    («провести ЧЕРЕЗ ЭТОТ ВХОД нельзя») вместо `SHAPE_NOT_PROBED` («форма
+    неизвестна»). Про способность модуля читать протокол ИНЫМ путём ни один
+    из двух вердиктов не говорит — ADR-194 замерил 8 контрпримеров. Обоснование — ADR-195, журнал `docs/journal/2026-W36.md`."""
     class BasisTradeInput:  # noqa: D401 — доменный тип движка
         pass
 
@@ -181,7 +188,7 @@ def test_typed_domain_input_is_still_not_probed(feas, monkeypatch):
         raise AssertionError("движок чужой формы не должен быть вызван")
 
     out = _probe(feas, monkeypatch, analyze)
-    assert out["verdict"] == "SHAPE_NOT_PROBED"
+    assert out["verdict"] == "DECLARED_INPUT_NOT_A_RECORD"
     assert out["call_shape"] == "typed"
 
 

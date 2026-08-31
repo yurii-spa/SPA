@@ -239,15 +239,27 @@ def test_dict_taking_engine_is_not_miscalled_as_a_list(feas, monkeypatch):
 
 
 def test_typed_input_engine_is_not_probed(feas, monkeypatch):
-    """Движок с типизированным входом (dataclass) — тоже не наша форма."""
+    """Движок с типизированным входом (dataclass) — тоже не наша форма.
+
+    ИНВ. #16, намеренная правка (цикл #440): охраняемое поведение — «движок
+    чужой формы НЕ вызывается» — не ослаблено, а закреплено ЯВНО (`called`
+    ниже; раньше невызов подразумевался). Изменилось ИМЯ вердикта: объявленный
+    доменный вход теперь `DECLARED_INPUT_NOT_A_RECORD` — это ЗАМЕР («мне нужен не
+    профиль протокола»), а не `SHAPE_NOT_PROBED` («форма неизвестна»). Обмен
+    состоялся ровно в одну сторону: строк, разрешающих вызов, не добавлено.
+    Обоснование — ADR-195, журнал `docs/journal/2026-W36.md`."""
     class BasisTradeInput:
         pass
 
+    called = []
+
     def analyze(inp: BasisTradeInput):
+        called.append(inp)
         return {"risk_score": 1.0}
 
     out = _probe(feas, monkeypatch, analyze)
-    assert out["verdict"] == "SHAPE_NOT_PROBED", out
+    assert not called, "движок чужой доменной формы не должен быть вызван"
+    assert out["verdict"] == "DECLARED_INPUT_NOT_A_RECORD", out
     assert out["call_shape"] == "typed"
     assert out["annotation"] == "BasisTradeInput"
 

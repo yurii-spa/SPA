@@ -2,21 +2,21 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-31T07:29:14Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-31T12:20:08Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (ba28b1a45).
+> Сверено с `origin/main` (e352554a5) · статусов дочитано оттуда: **2** (копия в дереве — прежняя версия того же файла) · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **851** · ждёт владельца: **7** · занято сессиями: **9**.
+> Всего карточек: **853** · ждёт владельца: **7** · занято сессиями: **9**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x**  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md`
 - **Cloudflare проверять не нужно — я измерил сам; остался один вопрос про локальный сервер**  ·  `own-chto-dolzhen-pokazyvat-lokalnyi-server.md`
-- **Доизмерили те 82 модуля, как ты просил: 71 подтвердился слепым вторым инструментом**  ·  `owner-decision-doizmerili-te-82-modulya-kak-ty-prosil-7.md`
 - **Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз** · _high_  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md`
 - **Критичная находка петли: com.spa.dfb_capture: intent=active, но НЕ загружен во флоте**  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-dfb-ca.md`
 - **Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте**  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md`
 - **Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте**  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md`
+- **Все 82 измерены, кроме одного — и девять из одиннадцати «сломанных» оказались не сломаны**  ·  `owner-decision-vse-82-izmereny-krome-odnogo-i-devyat-iz.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
@@ -32,15 +32,15 @@
 - **РЕЦИДИВ 28.08: тест судит о ХОСТЕ по литеральному pid — 98535 (siriactionsd), теперь 999 (NetFS) в test_card_claim_takeover** — держит `cycle-51123` · с 2026-08-22T08:45:00Z  ·  `inbox-test-sudit-o-hoste-literalnyi-pid-98535.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (210)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (211)
 
 ### · needs-owner
 - Cloudflare проверять не нужно — я измерил сам; остался один вопрос про локальный сервер  ·  `own-chto-dolzhen-pokazyvat-lokalnyi-server.md` · 2026-08-31
-- Доизмерили те 82 модуля, как ты просил: 71 подтвердился слепым вторым инструментом  ·  `owner-decision-doizmerili-te-82-modulya-kak-ty-prosil-7.md` · 2026-08-31
 - Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md` · 2026-08-29
 - Критичная находка петли: com.spa.dfb_capture: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-dfb-ca.md` · 2026-08-30
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
+- Все 82 измерены, кроме одного — и девять из одиннадцати «сломанных» оказались не сломаны  ·  `owner-decision-vse-82-izmereny-krome-odnogo-i-devyat-iz.md` · 2026-08-31
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -136,6 +136,7 @@
 - Дневной цикл сегодня запускали 8 раз не по расписанию — и кто именно, система не записывает  ·  `owner-decision-dnevnoi-tsikl-segodnya-zapuskali-8-raz-n.md` · 2026-08-08
 - Дневной лимит убытка считает «не знаю» за «убытка нет» — и в этот день цикл торгует  ·  `owner-decision-dnevnoy-limit-ubytka-schitaet-neizvestn.md` · 2026-08-18
 - Договор называет старый потолок T2 — 35 % при живых 50 %  ·  `owner-decision-dogovor-nazyvaet-staryi-potolok-t2-35-pr.md` · 2026-08-25
+- Доизмерили те 82 модуля, как ты просил: 71 подтвердился слепым вторым инструментом  ·  `owner-decision-doizmerili-te-82-modulya-kak-ty-prosil-7.md` · 2026-08-31
 - Доска карточек обещает больше, чем даёт: поправить одну фразу в CLAUDE.md  ·  `owner-decision-doska-kartochek-obeschaet-bolshe-chem-da.md` · 2026-08-17
 - Два агента не переживут перезагрузку — разрешить доустановить их в системную папку  ·  `owner-decision-dva-agenta-ne-perezhivut-perezagruzku-ra.md` · 2026-08-06
 - Два дня трека помечены доказанными, хотя в эти дни система не держала ничего  ·  `owner-decision-dva-dnya-treka-pomecheny-dokazannymi-hot.md` · 2026-08-10
@@ -247,7 +248,7 @@
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (427)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (428)
 
 ### · needs-owner
 - Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md` · 2026-08-29
@@ -262,15 +263,16 @@
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 ### · backlog
 - 23 работающих агента установщик не вернёт — флот не соберётся заново с одного хоста  ·  `agent-23-rabotayushih-agentov-ustanovshik-ne-vernet.md` · 2026-08-31
-- Анти-шторм не отличает ПОПРАВКУ от повтора — отзыв ложной тревоги подавляется на 6 часов  ·  `agent-antishtorm-ne-otlichaet-popravku-ot-povtora.md` · 2026-08-31
-- Два списка отставных агентов расходятся — сторож чётности не знает ни одного из манифеста  ·  `agent-dva-spiska-otstavnyh-agentov-rashodyatsya.md` · 2026-08-31
 - Агент цены газа построен (ADR-183) — активировать на хосте после доезда синка  ·  `agent-gas-price-agent-postroen-zhdet-aktivacii.md` · 2026-08-30
+- Контракт называет производителем агента, который не развёрнут — срок свежести невыполним по построению  ·  `agent-kontrakt-nazyvaet-proizvoditelem-nerazvernutogo-agenta.md` · 2026-08-31
 - Размещение кэша связано в одном ходе с невыгодной перекладкой и ждёт вместе с ней  ·  `agent-razmeshenie-kesha-svyazano-s-nevygodnoi-perekladkoi.md` · 2026-08-31
 - L2-мониторы газа молча предъявляют fallback-константу как живое чтение  ·  `inbox-l2-gas-monitory-molcha-predyavlyayut-fallback.md` · 2026-08-30
 - Вторая нога маятника проходит как «размещение кэша» после частичного де-риска  ·  `inbox-vtoraya-noga-mayatnika-prohodit-kak-razmeschenie.md` · 2026-08-30
 ### · ingested
 - Очередь владельца показывает 20 карточек из 23: три вопроса не доезжают до него из-за формы frontmatter  ·  `inbox-ochered-vladeltsa-pokazyvaet-20-kartoche.md` · 2026-08-07
 ### · done
+- Анти-шторм не отличает ПОПРАВКУ от повтора — отзыв ложной тревоги подавляется на 6 часов  ·  `agent-antishtorm-ne-otlichaet-popravku-ot-povtora.md` · 2026-08-31
+- Два списка отставных агентов расходятся — сторож чётности не знает ни одного из манифеста  ·  `agent-dva-spiska-otstavnyh-agentov-rashodyatsya.md` · 2026-08-31
 - «Кнопок нету» — вторая половина жалобы 14.08: какое сообщение приходит с вариантами, но без кнопок  ·  `agent-knopki-pod-resheniem-vtoraya-polovina.md` · 2026-08-14
 - На карточку-поручение владелец не может ответить НИЧЕМ, кроме слов — пять висят с 08.08  ·  `agent-porucheniya-bez-vybora-nechem-otvetit.md` · 2026-08-10
 - 1  ·  `inbox-1-2.md` · 2026-08-22

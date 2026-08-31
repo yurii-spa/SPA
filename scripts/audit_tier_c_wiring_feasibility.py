@@ -67,11 +67,36 @@ audit_tier_c_wiring_feasibility.py — можно ли ЧЕСТНО провес
   RAISES           движок отверг профиль исключением (контракт не удовлетворён);
   UNCOVERED        различает, но профиль не даёт части ключей — «различается не
                    тем»: проводка дала бы правдоподобное, но не по делу число;
-  SHAPE_NOT_PROBED вход объявлен ни списком записей, ни записью — инструмент НЕ
-                   измеряет и говорит почему (см. `call_shape`: вызов чужой формы
-                   дал бы падение по вине инструмента, а не модуля);
+  DECLARED_INPUT_NOT_A_RECORD
+                   вход ОБЪЯВЛЕН и объявлен не записью (`OracleFeed`,
+                   `List[float]`, `List[PositionExposure]` …) — вызова нет, но
+                   вердикт ЕСТЬ: провести движок ЧЕРЕЗ ЭТОТ ВХОД нельзя.
+                   **Это НЕ утверждение, что модуль не читает протокол** —
+                   см. `cross_instrument_caveat` (цикл #440);
+  SHAPE_NOT_PROBED контракта нет вовсе (`unannotated` / `no_param` / `unknown`) —
+                   инструмент НЕ измеряет и говорит почему (см. `call_shape`:
+                   вызов выдуманной формы дал бы падение по вине инструмента,
+                   а не модуля);
   NO_ENTRY         не нашли entrypoint с позиционным параметром;
   IMPORT_ERR       модуль не импортируется.
+
+**Вердикт ≠ «измерено» — считать это обязан код (цикл #440).** Отчёт печатал
+плоский `counts`, и читатель делил статусы на `BLIND` и «прочее = не измерено».
+Так 11 модулей из 82 уехали к владельцу как «вердикта нет», хотя у пяти он был:
+движок отверг переданную запись (`RAISES`) либо его выход вовсе не несёт оценки
+протокола (`NO_SCORE`) — это ответ «нет», а не молчание. Теперь отчёт несёт
+`measured` у каждой строки и `measured_count` / `unmeasured` в шапке
+(`MEASURED_VERDICTS` — единственное место, где это решается).
+
+**«Измерено» ≠ «можно списывать» — и это тоже в отчёте (ADR-194 + ADR-195).**
+Отчёт читают, чтобы решать о списании, а вердикты этого инструмента такого
+решения не выдерживают: на эталоне из 115 работающих протокол-различающих
+модулей он выносит `BLIND` девяти (7,8 %) и `DECLARED_INPUT_NOT_A_RECORD`
+восьми. Причина не в поломке: инструменты кормят движок РАЗНЫМИ входами —
+первый контекстом агрегатора (тем, что в проде), этот синтетическим
+`generic_profile_for`, — и модуль с объявленным доменным входом вправе брать
+факты сам на контекст-пути ADR-031. Поэтому `CROSS_INSTRUMENT_CAVEAT` едет в
+шапку каждого отчёта, а списание по вердикту ОДНОГО инструмента запрещено.
 
 **Область применимости.** Инструмент отвечает ровно на один вопрос — «даст ли
 `_protocol_facts` честный вход движку», и задаёт его тем движкам, чей вызов
@@ -121,7 +146,7 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, FrozenSet, List, Optional, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -193,24 +218,66 @@ def _utc_now_iso() -> str:
 #: инструмент зовёт как `fn([profile])`.
 _LIST_ANNOTATIONS = ("list", "typing.list", "sequence", "iterable", "tuple")
 
+#: Имена ЭЛЕМЕНТА списка, роль которого профиль протокола сыграть может: это
+#: запись, а не доменный объект и не скаляр. Смысл тот же, что у
+#: `signal_aggregator._MAPPING_ANNOTATION_NAMES`, — расхождение закреплено
+#: тестом, иначе два места разошлись бы молча.
+_RECORD_ELEMENT_NAMES = frozenset({
+    "dict", "mapping", "mutablemapping", "ordereddict", "defaultdict",
+    "any", "object",
+})
+
 #: Формы входа, для которых вызов ОПРЕДЕЛЁН контрактом самого движка, а значит
 #: инструмент вправе его сделать. Обе зовутся ровно тем, что движок объявил:
-#: `list` → `fn([profile])`, `dict` → `fn(profile)`. Всё остальное (`typed`,
-#: `unannotated`, `no_param`) остаётся SHAPE_NOT_PROBED — там вызов пришлось бы
-#: ВЫДУМАТЬ, а падение от своей же ошибки вызова инструмент записал бы модулю.
+#: `list` → `fn([profile])`, `dict` → `fn(profile)`. Остаток делится надвое:
+#: `typed` / `list_of_nonrecords` — вход ОБЪЯВЛЕН и объявлен НЕ записью
+#: протокола (это ЗАМЕР, вердикт `DECLARED_INPUT_NOT_A_RECORD`); `unannotated` /
+#: `no_param` / `unknown` — контракта нет вовсе, и это честное «не измерено»
+#: (`SHAPE_NOT_PROBED`): там вызов пришлось бы ВЫДУМАТЬ, а падение от своей же
+#: ошибки вызова инструмент записал бы модулю.
 _PROBEABLE_SHAPES = ("list", "dict")
+
+#: Формы, про которые вердикт ЕСТЬ, хотя вызова не было: движок сам объявил,
+#: что берёт не запись протокола.
+_DECLARED_NONRECORD_SHAPES = ("typed", "list_of_nonrecords")
+
+
+def _element_text(annotation: Any) -> Optional[str]:
+    """Текст объявленного ЭЛЕМЕНТА списочной аннотации, либо None.
+
+    None означает «элемент не объявлен» (`list`, `List`, `Sequence`) — это НЕ
+    то же самое, что «объявлен не записью»: судить там не по чему, и прежнее
+    поведение (пробуем как список записей) остаётся.
+    """
+    text = str(annotation)
+    if "[" not in text or not text.rstrip().endswith("]"):
+        return None
+    inner = text[text.index("[") + 1:text.rstrip().rindex("]")].strip()
+    if not inner:
+        return None
+    # `List[Dict[str, Any]]` — берём голову вложенной аннотации, а не всё нутро.
+    head = inner.split("[", 1)[0].split(",", 1)[0].strip()
+    return head.rsplit(".", 1)[-1] or None
 
 
 def call_shape(fn: Any) -> Tuple[str, Optional[str]]:
     """Какой формой входа движок объявляет свой контракт → (shape, annotation).
 
-    Инструмент зовёт ТОЛЬКО `list`-образные движки. Причина не в удобстве:
-    вызвать dict-принимающий движок как `fn([profile])` — значит получить
-    исключение от СВОЕЙ ошибки вызова и записать её в отчёт как «модуль
-    падает». Кросс-прогон по Tier-B (цикл #133) дал так 268 ложных RAISES —
-    ровно тот класс, который инструмент и создан ловить, только в исполнении
-    самого инструмента. Поэтому форма выводится из аннотации, а всё, что не
-    список, получает ЧЕСТНЫЙ не-пробованный вердикт, а не выдуманное падение.
+    Инструмент зовёт ТОЛЬКО те формы, которые движок объявил сам. Причина не в
+    удобстве: вызвать dict-принимающий движок как `fn([profile])` — значит
+    получить исключение от СВОЕЙ ошибки вызова и записать её в отчёт как
+    «модуль падает». Кросс-прогон по Tier-B (цикл #133) дал так 268 ложных
+    RAISES — ровно тот класс, который инструмент и создан ловить, только в
+    исполнении самого инструмента.
+
+    **Список — это список ЧЕГО (цикл #440).** До 31.08 форма выводилась по
+    ГОЛОВЕ аннотации: `List[float]` и `List[PositionExposure]` читались как
+    «список записей», инструмент клал туда профиль протокола и записывал
+    падение движка как RAISES. Это тот же дефект #133, просто на один уровень
+    глубже: `TypeError: type RecordingProfile doesn't define __round__` —
+    вина вызова, а не модуля. Элемент, объявленный НЕ записью, даёт отдельную
+    форму `list_of_nonrecords`; вызова нет, но вердикт ЕСТЬ — движок сам
+    сказал, чего он ждёт.
     """
     try:
         params = [
@@ -223,13 +290,32 @@ def call_shape(fn: Any) -> Tuple[str, Optional[str]]:
         return "no_param", None
     ann = params[0].annotation
     if ann is inspect.Parameter.empty:
+        # Остаток НАЗВАН, а не закрыт (замер #440). У 29 модулей Tier-B
+        # первый параметр называется `context` и по умолчанию `None` — это
+        # контракт ADR-031, и прод зовёт их каждый цикл как `fn(context_dict)`
+        # (`_annotation_accepts_mapping` неаннотированный параметр пропускает).
+        # Звать их отсюда БЫЛО БЫ вернее, но замер показал цену: плечо coverage
+        # считает ВСЕ спрошенные ключи, включая служебный `data_dir`, которого
+        # в профиле протокола нет и быть не должно, — и 18 модулей, сегодня
+        # ИСПОЛНЯЮЩИХСЯ в советующем сигнале, получили бы `UNCOVERED` из-за
+        # ключа, не имеющего отношения к фактам протокола. `--emit-markup`
+        # исключил бы их молча. Сперва coverage обязан отличать факт от
+        # проводки; до тех пор здесь честное «не измерено».
         return "unannotated", None
-    text = (getattr(ann, "__name__", None) or str(ann)).lower()
+    shown = getattr(ann, "__name__", None) or str(ann)
+    text = shown.lower()
     if any(text.startswith(t) for t in _LIST_ANNOTATIONS):
-        return "list", (getattr(ann, "__name__", None) or str(ann))
+        element = _element_text(ann)
+        if element is not None and element.lower() not in _RECORD_ELEMENT_NAMES:
+            # Показываем аннотацию ЦЕЛИКОМ, а не `__name__`: у
+            # `typing.List[PositionExposure]` короткое имя — «List», и вердикт
+            # «вход объявлен как `List`» нечем перепроверить, хотя вся улика
+            # лежит ровно в элементе.
+            return "list_of_nonrecords", str(ann)
+        return "list", shown
     if text.startswith("dict") or text.startswith("typing.dict") or text == "any":
-        return "dict", (getattr(ann, "__name__", None) or str(ann))
-    return "typed", (getattr(ann, "__name__", None) or str(ann))
+        return "dict", shown
+    return "typed", shown
 
 
 def resolve_entry(obj: Any) -> Tuple[Optional[str], Optional[Any]]:
@@ -275,8 +361,25 @@ def probe_module(module_info: Dict[str, Any],
                 "detail": "нет entrypoint с позиционным параметром"}
 
     shape, annotation = call_shape(fn)
+    if shape in _DECLARED_NONRECORD_SHAPES:
+        # Вызова нет — и не надо: движок САМ объявил, чего ждёт, и это не
+        # запись протокола. Ответ на вопрос инструмента («даст ли
+        # `_protocol_facts` честный вход») получен из контракта: не даст.
+        # Это ЗАМЕР, а не пропуск, и путать его с «не измерено» нельзя —
+        # именно на этой путанице 9 модулей из 82 три недели числились
+        # непроверенными (цикл #440).
+        return {"module": name, "entry": entry,
+                "verdict": "DECLARED_INPUT_NOT_A_RECORD",
+                "call_shape": shape, "annotation": annotation,
+                "detail": f"вход объявлен как `{annotation or shape}` — профиль "
+                          "протокола такой записью не является, поэтому ЧЕРЕЗ "
+                          "ЭТОТ ВХОД провести его нельзя, а вызов пришлось бы "
+                          "выдумать. О том, читает ли модуль протокол ИНЫМ "
+                          "путём (контекст ADR-031, свой фид), этот инструмент "
+                          "НЕ ГОВОРИТ НИЧЕГО — см. cross_instrument_caveat"}
     if shape not in _PROBEABLE_SHAPES:
-        # Не пробуем — и говорим, ПОЧЕМУ. Молчаливая попытка вызвать чужую
+        # Контракта нет вовсе (`unannotated` / `no_param` / `unknown`). Не
+        # пробуем — и говорим, ПОЧЕМУ. Молчаливая попытка вызвать чужую
         # форму дала бы падение по вине инструмента (см. `call_shape`).
         return {"module": name, "entry": entry, "verdict": "SHAPE_NOT_PROBED",
                 "call_shape": shape, "annotation": annotation,
@@ -360,6 +463,45 @@ def probe_module(module_info: Dict[str, Any],
     return out
 
 
+#: Вердикты, которые ОТВЕЧАЮТ на вопрос инструмента («даст ли
+#: `_protocol_facts` честный вход этому движку»), пусть и отрицательно.
+#: Остальные — `COVERAGE_UNMEASURED`, `SHAPE_NOT_PROBED`, `NO_ENTRY`,
+#: `IMPORT_ERR` — вопроса не решают, и это надо называть вслух.
+#: **Зачем поле (цикл #440).** Отчёт печатал плоский `counts`, и читатель делил
+#: вердикты на «BLIND» и «всё остальное = не измерено». Так 11 модулей из 82
+#: попали к владельцу как «вердикта нет», хотя у 5 из них ответ был: движок
+#: отверг переданную запись (RAISES) либо его выход вовсе не несёт оценки
+#: протокола (NO_SCORE). Число «не измерено» обязано считаться кодом, а не
+#: глазом по списку статусов.
+MEASURED_VERDICTS: FrozenSet[str] = frozenset({
+    "WIRABLE", "BLIND", "UNCOVERED", "NO_SCORE", "RAISES", "DECLARED_INPUT_NOT_A_RECORD",
+})
+
+#: **Границы вердикта, названные в самом отчёте (ADR-194 + ADR-195).** Отчёт
+#: читают, чтобы решать о СПИСАНИИ, а вердикт этого инструмента такого решения
+#: не выдерживает — и это ИЗМЕРЕНО, а не осторожность:
+#: ADR-194 замерил у `BLIND` собственную цену ошибки 7,8 % (9 из 115 модулей,
+#: которые ПЕРВЫЙ инструмент под реальным входом агрегатора видит
+#: протокол-различающими); тем же эталоном замерено, что
+#: `DECLARED_INPUT_NOT_A_RECORD` получают **8** таких работающих модулей —
+#: объявленный доменный вход НЕ означает, что модуль не читает протокол, он
+#: берёт факты сам на контекст-пути ADR-031.
+#: Строка едет в шапку отчёта, чтобы её нельзя было не прочитать.
+CROSS_INSTRUMENT_CAVEAT = (
+    "вердикт ЭТОГО инструмента — про проводку ЧЕРЕЗ ОБЪЯВЛЕННЫЙ ВХОД, а не про "
+    "способность модуля читать протокол. Замер ADR-194: на эталоне из 115 "
+    "работающих протокол-различающих модулей этот инструмент выносит BLIND "
+    "девяти (7,8 %) и DECLARED_INPUT_NOT_A_RECORD — восьми. СПИСЫВАТЬ по "
+    "вердикту ОДНОГО инструмента запрещено (ADR-194 п.2): нужно согласие двух "
+    "на ОДНОМ входе либо ручной разбор."
+)
+
+
+def is_measured(verdict: str) -> bool:
+    """Отвечает ли этот вердикт на вопрос инструмента (пусть и «нет»)."""
+    return verdict in MEASURED_VERDICTS
+
+
 def run_audit(tier: str = "C",
               only_modules: Optional[List[str]] = None,
               min_coverage: float = DEFAULT_MIN_COVERAGE) -> Dict[str, Any]:
@@ -368,7 +510,10 @@ def run_audit(tier: str = "C",
         wanted = set(only_modules)
         modules = [m for m in modules if m.get("module") in wanted]
     results = [probe_module(m, min_coverage=min_coverage) for m in modules]
+    for r in results:
+        r["measured"] = is_measured(r["verdict"])
     counts = collections.Counter(r["verdict"] for r in results)
+    unmeasured = sorted(r["module"] for r in results if not r["measured"])
     return {
         "generated_at": _utc_now_iso(),
         "tier": tier,
@@ -376,6 +521,10 @@ def run_audit(tier: str = "C",
         "probe_protocols": list(PROBE_PROTOCOLS),
         "module_count": len(results),
         "counts": dict(counts),
+        "measured_count": sum(1 for r in results if r["measured"]),
+        "unmeasured_count": len(unmeasured),
+        "unmeasured": unmeasured,
+        "cross_instrument_caveat": CROSS_INSTRUMENT_CAVEAT,
         "wirable": sorted(r["module"] for r in results if r["verdict"] == "WIRABLE"),
         "results": results,
         "method": (
@@ -504,6 +653,9 @@ def main(argv: Optional[List[str]] = None) -> int:
                     / "_protocol_key_coverage.py")
 
     print(f"modules={report['module_count']} counts={report['counts']}")
+    print(f"измерено={report['measured_count']} · НЕ измерено="
+          f"{report['unmeasured_count']}"
+          + (f": {', '.join(report['unmeasured'])}" if report['unmeasured'] else ""))
     print(f"wirable={len(report['wirable'])}"
           + (f" → {', '.join(report['wirable'])}" if report["wirable"] else ""))
     print(f"report → {args.out}")
