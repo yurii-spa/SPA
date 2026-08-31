@@ -142,6 +142,23 @@ class RunAndPersistence(unittest.TestCase):
             self.assertEqual(st["chains"]["ethereum"]["source"], g.LIVE)
 
 
+class DataDirSandbox(unittest.TestCase):
+    """Боевой путь (base_dir=None) уважает SPA_DATA_DIR: песочный прогон
+    пред-деплойного гейта не пишет в живой data/. Если модуль перестанет
+    спрашивать переменную, файл уедет в ./data текущего каталога и этот
+    тест покраснеет (autouse-фикстура выставляет SPA_DATA_DIR каждому тесту)."""
+
+    def test_default_run_writes_into_spa_data_dir_sandbox(self):
+        import os
+        sandbox = os.environ.get("SPA_DATA_DIR", "").strip()
+        self.assertTrue(sandbox, "autouse-фикстура должна выставлять SPA_DATA_DIR")
+        gas = fetcher_returning({u: 0.07 for us in g.CHAIN_SOURCES.values() for u in us})
+        g.run(None, gas, lambda url: 2491.0, now=T0)
+        self.assertTrue((Path(sandbox) / "gas_price_history.json").exists())
+        self.assertFalse(Path("data/gas_price_history.json").exists(),
+                         "боевой путь написал в живой data/ мимо песочницы")
+
+
 class AdvisoryBoundary(unittest.TestCase):
     """Агент — advisory: не гейтит, капитал не двигает, execution не знает."""
 

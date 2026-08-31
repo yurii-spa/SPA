@@ -40,6 +40,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.data_dir import own_data_dir
 
 log = logging.getLogger("spa.monitoring.gas_price_agent")
 
@@ -238,15 +239,24 @@ def build_snapshot(readings: Dict[str, dict], eth_usd: dict,
             "eth_usd": eth_usd, "chains": chains}
 
 
-def run(base_dir: str = ".",
+def run(base_dir: Optional[str] = None,
         gas_fetcher: Callable[[str], Optional[float]] = fetch_gas_gwei,
         spot_fetcher: Callable[[str], Optional[float]] = fetch_eth_usd,
         now: Optional[datetime] = None,
         write: bool = True) -> dict:
-    """Один такт агента: измерить → рассудить → дописать историю (атомарно)."""
+    """Один такт агента: измерить → рассудить → дописать историю (атомарно).
+
+    ``base_dir=None`` (боевой путь) уважает ``SPA_DATA_DIR``: песочный прогон
+    пред-деплойного гейта и герметичные тесты НЕ пишут в живой ``data/``
+    (класс «тест судит хост через живой data/»). Явный ``base_dir`` (тесты со
+    своим каталогом) — сильнее.
+    """
     now = now or datetime.now(timezone.utc)
     now_iso = now.strftime("%Y-%m-%dT%H:%M:%SZ")
-    out = Path(base_dir) / OUTPUT_PATH
+    if base_dir is None:
+        out = own_data_dir(Path("data")) / Path(OUTPUT_PATH).name
+    else:
+        out = Path(base_dir) / OUTPUT_PATH
 
     state: dict = {"history": {}}
     try:
