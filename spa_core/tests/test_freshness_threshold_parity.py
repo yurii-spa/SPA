@@ -182,3 +182,152 @@ class LiveTreeDailyCycleHousesAgree(unittest.TestCase):
         entry = next(a for a in man["agents"] if a["label"] == "com.spa.daily_cycle")
         arts = {p["artifact"] for p in (entry.get("produces") or [])}
         self.assertIn("data/paper_trading_status.json", arts)
+
+
+class SilentlyDroppedAgentsAreTheSameDiseaseOneLevelDown(unittest.TestCase):
+    """Замер цикла #444 (2026-08-31) — положительные контроли на НАСТОЯЩИЙ пропуск.
+
+    Модуль написан ради правила «„сравнивать нечего“ не имеет права выглядеть зелёным»,
+    и исполнял его ровно для одного случая: когда пересечение пусто ЦЕЛИКОМ. По каждому
+    агенту стояло безмолвное `continue` — у монитора срок есть, манифест не дал ни одного,
+    и агент не попадал НИ В ОДИН исход отчёта. Печаталось «сошлись все сопоставимые
+    пороги», и это была правда о МЕНЬШЕМ множестве, чем звучало: 14 из 16.
+
+    На живом дереве так пропадали `com.spa.autopush` (intent=active, curation=partial,
+    produces: []) и `com.spa.checkpoint-7day` (intent=retired). Первый — острый край:
+    монитор судит его живость по `logs/auto_push.log`, а манифест не объявляет за ним
+    ни одного продукта; это ровно разногласие о тождестве, ради которого модуль написан,
+    отброшенное до того, как его можно было увидеть.
+
+    Каждый тест ниже КРАСНЕЕТ на коде до правки.
+    """
+
+    def test_monitor_label_without_a_manifest_threshold_is_named(self):
+        """Прежде — молчание. Теперь — исход с именем агента и причиной."""
+        r = p.compare({}, {"com.spa.x": ("logs/x.log", 4.5)},
+                      meta={"com.spa.x": {"intent": "active", "curation": "partial",
+                                          "declares_produces": False}})
+        self.assertEqual(len(r["uncompared"]), 1)
+        row = r["uncompared"][0]
+        self.assertEqual(row["label"], "com.spa.x")
+        self.assertEqual(row["reason"], p.UNCOMPARED_NO_THRESHOLD)
+        self.assertEqual(row["monitor_artifact"], "logs/x.log")
+        self.assertEqual(row["monitor_hours"], 4.5)
+
+    def test_every_monitor_label_lands_in_exactly_one_outcome(self):
+        """Тождество учёта — то, что делает немой пропуск невозможным ПО ПОСТРОЕНИЮ.
+
+        Пока `compared + не сверено == меток монитора со сроком`, отбросить агента
+        молча нельзя: он обязан где-то лежать.
+        """
+        mon = {"a": ("data/x.json", 1.0), "b": ("data/y.json", 2.0), "c": ("logs/z.log", 3.0)}
+        r = p.compare({"a": {"data/x.json": 1.0}, "b": {"data/other.json": 2.0}}, mon, meta={})
+        self.assertEqual(r["compared"] + len(r["uncompared"]), len(mon))
+
+    def test_absent_label_and_unthresholded_label_do_not_sound_alike(self):
+        """Разные адресаты починки: курация флота против назначения срока (ADR-158)."""
+        meta = {"known": {"intent": "active", "curation": "partial", "declares_produces": False}}
+        absent = p.compare({}, {"unknown": ("logs/a.log", 1.0)}, meta=meta)["uncompared"][0]
+        present = p.compare({}, {"known": ("logs/b.log", 1.0)}, meta=meta)["uncompared"][0]
+        self.assertEqual(absent["reason"], p.UNCOMPARED_ABSENT)
+        self.assertEqual(present["reason"], p.UNCOMPARED_NO_THRESHOLD)
+        self.assertNotEqual(absent["note"], present["note"])
+
+    def test_without_meta_the_reason_is_not_guessed(self):
+        """Fail-CLOSED: не измерили причину — так и сказать, а не выбрать правдоподобную."""
+        row = p.compare({}, {"a": ("logs/a.log", 1.0)})["uncompared"][0]
+        self.assertEqual(row["reason"], p.UNCOMPARED_UNKNOWN)
+        self.assertIn("не измерено", row["note"])
+
+    def test_retired_agent_carries_its_intent_so_it_reads_differently(self):
+        """Пустой контракт у отставного агента законен; у активного — пробел курации.
+        Сверка не выбирает виноватого, но обязана дать читателю различить эти два."""
+        meta = {"r": {"intent": "retired", "curation": "complete", "declares_produces": False},
+                "a": {"intent": "active", "curation": "partial", "declares_produces": False}}
+        rows = p.compare({}, {"r": ("logs/r.log", 1.0), "a": ("logs/a.log", 1.0)},
+                         meta=meta)["uncompared"]
+        by = {x["label"]: x for x in rows}
+        self.assertEqual(by["r"]["manifest_intent"], "retired")
+        self.assertEqual(by["a"]["manifest_intent"], "active")
+
+    def test_full_overlap_leaves_the_block_empty(self):
+        """Обратный контроль: сверили всех — блок пуст, и он не выдумывает пробел."""
+        r = p.compare({"a": {"data/x.json": 1.0}}, {"a": ("data/x.json", 1.0)}, meta={})
+        self.assertEqual(r["uncompared"], [])
+        self.assertEqual(r["verdict"], p.AGREES)
+
+
+class LiveTreeReplaysTheDroppedAgents(unittest.TestCase):
+    """Тот же замер на ЖИВОМ дереве — иначе тест проверял бы фикстуру.
+
+    Множество не приколочено именами: агенту могут назначить срок завтра, и тест обязан
+    пережить это, не покраснев по календарю. Приколочено СВОЙСТВО: кого сверка не смогла
+    сопоставить, того она обязана НАЗВАТЬ — всех до одного.
+    """
+
+    def test_audit_names_every_label_it_could_not_compare(self):
+        from spa_core.monitoring.uptime_monitor import AGENT_OUTPUT_FILES
+        import json
+        root = Path(__file__).resolve().parents[2]
+        man = json.loads((root / "architecture" / "manifest.json").read_text(encoding="utf-8"))
+        expected = {lbl for lbl in p.monitor_thresholds(AGENT_OUTPUT_FILES)
+                    if lbl not in p.manifest_thresholds(man)}
+        r = p.audit()
+        self.assertEqual({u["label"] for u in r["uncompared"]}, expected)
+        self.assertEqual(r["compared"] + len(r["uncompared"]), r["monitor_agents"],
+                         "метка монитора со сроком обязана лежать РОВНО в одном исходе")
+
+    def test_the_gap_is_spoken_not_only_stored(self):
+        """Блок в JSON, который не звучит в выводе, — тот же немой исход (урок #426).
+
+        Ожидание считается из ДВУХ ДОМОВ напрямую, а не из отчёта сверки: иначе тест
+        краснел бы на отсутствие ключа (подготовка), а не на то, что читатель пробела
+        не увидел (поведение). На коде до правки этот тест краснеет ровно потому, что
+        `com.spa.autopush` не звучит в выводе ни разу.
+        """
+        import contextlib, io, json
+        from spa_core.monitoring.uptime_monitor import AGENT_OUTPUT_FILES
+        root = Path(__file__).resolve().parents[2]
+        man = json.loads((root / "architecture" / "manifest.json").read_text(encoding="utf-8"))
+        expected = {lbl for lbl in p.monitor_thresholds(AGENT_OUTPUT_FILES)
+                    if lbl not in p.manifest_thresholds(man)}
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            p.main()
+        out = buf.getvalue()
+        for label in expected:
+            self.assertIn(label, out, "не сверённый агент обязан ЗВУЧАТЬ в выводе")
+        if expected:
+            self.assertIn("не сверено", out,
+                          "итоговая строка обязана называть размер несверённого множества")
+
+
+class TheArchitectureGuardCarriesTheGapUp(unittest.TestCase):
+    """Пробел, доехавший до отчёта сверки и умерший там, читателя не достигает.
+    Единственный обязательный читатель B7 — шаг 0-офис через `architecture_conformance`."""
+
+    def test_report_carries_uncompared_into_the_office_step(self):
+        import datetime as dt
+        from spa_core.monitoring import architecture_conformance as ac
+        parity = p.compare({}, {"com.spa.x": ("logs/x.log", 4.5)},
+                           meta={"com.spa.x": {"intent": "active", "curation": "partial",
+                                               "declares_produces": False}})
+        report = ac.run_checks(
+            manifest={"agents": []}, fleet=set(), ts_of=lambda _p: None, receipts={},
+            now=dt.datetime(2026, 8, 31, tzinfo=dt.timezone.utc), freshness_parity=parity)
+        block = (report.get("contracts") or {}).get("freshness_parity") or {}
+        self.assertEqual([u["label"] for u in block.get("uncompared") or []], ["com.spa.x"],
+                         "пробел, умерший в отчёте сверки, читателя не достигает")
+        self.assertEqual(block.get("monitor_agents"), 1)
+
+    def test_the_gap_is_not_promoted_to_a_finding(self):
+        """Сознательно НЕ тревога (инструкция карточки): ни одна из двух сторон отсюда
+        не признаётся виноватой, а сторож, кричащий на пробел курации, учит себя
+        игнорировать. Предмет — видимость, а не эскалация."""
+        import datetime as dt
+        from spa_core.monitoring import architecture_conformance as ac
+        parity = p.compare({}, {"com.spa.x": ("logs/x.log", 4.5)}, meta={})
+        report = ac.run_checks(
+            manifest={"agents": []}, fleet=set(), ts_of=lambda _p: None, receipts={},
+            now=dt.datetime(2026, 8, 31, tzinfo=dt.timezone.utc), freshness_parity=parity)
+        self.assertEqual([f for f in report["findings"] if "freshness_parity" in f["key"]], [])

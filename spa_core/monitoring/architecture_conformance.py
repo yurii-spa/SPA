@@ -857,7 +857,13 @@ def run_checks(manifest: dict,
     else:
         contracts_report["freshness_parity"] = {
             "compared": freshness_parity.get("compared"),
-            "verdict": freshness_parity.get("verdict")}
+            "verdict": freshness_parity.get("verdict"),
+            # Замер #444: сверка молча отбрасывала агентов, которым манифест не дал
+            # срока (2 из 16), и печатала «сошлись все сопоставимые». Пробел НЕ
+            # находка — ни одна из сторон отсюда не виновата, — но и не зелёное:
+            # он обязан доехать до читателя. Тот же приём, что у `slo_unassigned`.
+            "monitor_agents": freshness_parity.get("monitor_agents"),
+            "uncompared": freshness_parity.get("uncompared") or []}
         for row in (freshness_parity.get("findings") or []):
             if row.get("verdict") == "different_artifact":
                 msg = (f"{row['label']}: манифест и uptime_monitor считают продуктом РАЗНЫЕ "
@@ -1015,6 +1021,13 @@ def main(argv=None) -> int:
     for k in ("manifest_parity", "freshness_parity"):
         if cr.get(k):
             print(f"  {k}: {cr[k]['verdict']} (сопоставлено {cr[k]['compared']})")
+    # Блок в JSON, который не звучит в выводе, — тот же немой исход этажом выше (#426).
+    for u in (cr.get("freshness_parity") or {}).get("uncompared") or []:
+        intent = u.get("manifest_intent")
+        tail = f", манифест: intent={intent}" if intent else ""
+        print(f"  [ПОРОГ НЕ СВЕРЕН] {u['label']}: монитор судит живость по "
+              f"{u['monitor_artifact']} (окно {u['monitor_hours']:g}ч), "
+              f"а манифест сравнить не с чем — {u['reason']}{tail}")
     for k, why in (contracts.get("errors") or {}).items():
         print(f"  [UNCHECKED] сверка {k} не выполнилась: {why}")
     # Печатается ВСЕГДА, когда пробел есть: блок в JSON, который не звучит в

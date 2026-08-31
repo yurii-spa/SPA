@@ -1,10 +1,12 @@
 ---
 type: inbox
 title: "Живость дневного цикла судится по файлу, которого нет в его объявленном контракте"
-status: new
+status: done
 created: 2026-08-28
 priority: high
 source: ADR-158
+status_trail:
+  - "2026-08-31T18:06:57.780965+00:00 new -> done · queue.set_status · cycle-42991"
 ---
 
 # Живость `com.spa.daily_cycle` судится по чужому файлу
@@ -48,3 +50,29 @@ source: ADR-158
 
 Это money-path-соседство: по этому сигналу решают, работает ли цикл, который двигает книгу.
 Правка требует автора и приёмки, а не догадки сверки.
+
+---
+
+## Закрыто циклом #444 (2026-08-31) — перемерено, оба дома сведены
+
+Карточка требовала автора, а не догадки сверки. Автор высказался 29.08, ещё до этого цикла;
+здесь только ЗАМЕР результата, а не новая правка:
+
+1. **Кто прав — установлено, и доказательством послужил сам файл.** Продуктом дневного цикла
+   признан `data/paper_trading_status.json`: внутри него `"source": "cycle_runner"`. Ошибался
+   манифест — файл забыли объявить, монитор смотрел верно.
+2. **Дома сведены (проверено на `origin/main` 3ebbd4492):**
+   * `spa_core/paper_trading/cycle_runner.py` → `PRODUCES` содержит
+     `data/paper_trading_status.json` (с записанной причиной: статическим разбором запись не
+     видна, имя собирается на лету через `STATUS_FILENAME`, — это `unmeasured`, а не «не пишем»);
+   * `architecture/manifest.json` → `com.spa.daily_cycle.produces` содержит его же,
+     `slo_hours: 26`, как у соседей.
+3. **Критерий п.3 карточки выполнен:** `python3 -m spa_core.monitoring.freshness_threshold_parity`
+   даёт `agrees`, находки `different_artifact` по `com.spa.daily_cycle` больше нет.
+4. Связь домов закреплена тестами НАПРЯМУЮ, а не через вердикт сверки (чтобы контроль пережил
+   очередное сужение): `LiveTreeDailyCycleHousesAgree` в
+   `spa_core/tests/test_freshness_threshold_parity.py`.
+
+Money-path не тронут: правка была объявлением контракта, а не изменением поведения цикла.
+
+status → done.
