@@ -39,6 +39,8 @@ from spa_core.utils.atomic import atomic_save  # noqa: E402
 _INSTALLER = ROOT / "scripts" / "install_all_agents.sh"
 _PLIST_DIRS = (ROOT / "scripts", ROOT / "launchd")
 _OUT = ROOT / "data" / "fleet_parity.json"
+# Манифест — источник правды о судьбе агента (`intent`); см. retired_labels().
+_MANIFEST = ROOT / "architecture" / "manifest.json"
 
 # a quoted "com.spa.<label>" token that is NOT a path and NOT a .plist filename = an install label
 _LABEL_RE = re.compile(r'"(com\.spa\.[a-z0-9_-]+)"')
@@ -70,9 +72,41 @@ def plist_labels() -> set:
     return out
 
 
+def manifest_intents() -> dict:
+    """{label: intent} из манифеста — ЕДИНЫЙ источник правды о судьбе агента.
+
+    Читается мягко: манифест недоступен ⇒ пустая карта, поведение прежнее.
+    Сторож не вправе упасть из-за файла, который лишь уточняет его знание.
+    """
+    try:
+        import json
+        return {a["label"]: a.get("intent")
+                for a in json.loads(_MANIFEST.read_text(encoding="utf-8"))["agents"]
+                if isinstance(a, dict) and a.get("label")}
+    except Exception:  # noqa: BLE001 — уточнение не важнее самой проверки
+        return {}
+
+
 def retired_labels() -> set:
-    from spa_core.monitoring.agent_health_monitor import RETIRED_LABELS
-    return set(RETIRED_LABELS)
+    """Похороненные = константа ∪ манифест (`intent: retired`).
+
+    ADR-144: два источника лимитов в одной системе — гарантированный разъезд.
+    Здесь ровно он и случился: замер 31.08 показал ШЕСТЬ «сирот» из девяти,
+    помеченных `retired` в манифесте, и НИ ОДНОГО из них в константе на 10 имён.
+    Две трети находок — шум; список, где большинство находок ложные, читать
+    перестают, и в нём утонет настоящая. Оставленный у агента plist — это
+    документированная часть карантина («НЕ удалён: plist лежит в репозитории,
+    команда возврата в attic/agents/QUARANTINE.json»), а не непорядок.
+
+    ОБЪЕДИНЕНИЕ, а не замена: знание может только прибавиться. Константа
+    остаётся источником для имён, которых в манифесте нет вовсе.
+    """
+    try:
+        from spa_core.monitoring.agent_health_monitor import RETIRED_LABELS
+        out = set(RETIRED_LABELS)
+    except Exception:  # noqa: BLE001
+        out = set()
+    return out | {l for l, i in manifest_intents().items() if i == "retired"}
 
 
 def _live_labels():
@@ -99,7 +133,13 @@ def build_report(write: bool = True) -> dict:
     retired = retired_labels()
 
     broken = sorted(declared - plist)                      # installed but no plist file
-    orphan = sorted(plist - declared - retired)            # plist exists, not installed, not retired
+    # Спроектированный, но не развёрнутый агент: plist в репозитории есть,
+    # установки нет — это его ШТАТНОЕ состояние, а не сирота. Выносится
+    # отдельной строкой, а НЕ прячется: «сверено и нормально» обязано остаться
+    # отличимым от «не сверяли».
+    designed = {l for l, i in manifest_intents().items() if i == "designed"}
+    orphan = sorted(plist - declared - retired - designed)  # plist exists, not installed, not retired
+    designed_not_deployed = sorted((plist - declared) & designed)
     retired_installed = sorted(declared & retired)         # retired yet still installed → hazard
 
     live = _live_labels()
@@ -124,6 +164,10 @@ def build_report(write: bool = True) -> dict:
         "n_retired": len(retired),
         "broken_declared_no_plist": broken,
         "orphan_plist_not_declared": orphan,
+        # Штатное состояние, а не находка: спроектирован, plist в репозитории
+        # есть, установки нет. Видим отдельной строкой, чтобы «сверено и
+        # нормально» осталось отличимо от «не сверяли».
+        "designed_not_deployed": designed_not_deployed,
         "retired_but_installed": retired_installed,
         "live": live_block,
         "note": (
