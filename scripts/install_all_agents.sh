@@ -21,8 +21,11 @@
 
 set -uo pipefail  # -e убрано намеренно: каждый агент обрабатывается независимо
 
-LAUNCHD_DIR="$HOME/Library/LaunchAgents"
-REPO="/Users/yuriikulieshov/Documents/SPA_Claude"
+# Пути переопределяемы окружением — инертно в проде (переменных нет), но без
+# этого у проверки карантина не может быть настоящего контроля: тест обязан
+# прогнать НАСТОЯЩИЙ установщик, а не свою копию его логики.
+LAUNCHD_DIR="${SPA_LAUNCHD_DIR:-$HOME/Library/LaunchAgents}"
+REPO="${SPA_REPO:-/Users/yuriikulieshov/Documents/SPA_Claude}"
 
 # Счётчики и лог результатов
 declare -a RESULTS=()
@@ -36,11 +39,58 @@ mkdir -p "$LAUNCHD_DIR"
 # install_agent <src_plist> <label> [optional]
 #   optional=1 → SKIP если файл не найден (вместо FAIL)
 # ---------------------------------------------------------------------------
+
+# ── Карантин: отложенный агент не воскресает штатной переустановкой ──────────
+# Замер 31.08: установщик не знал про реестр карантина вовсе и явно ставил
+# пятерых из шести отложенных. `bash scripts/install_all_agents.sh` —
+# документированный в CLAUDE.md способ переустановки; одна обычная команда
+# отменяла бы карантин и вместе с ним весь замер «кто закричит», ради которого
+# агентов и отложили (вердикт по первой партии — 12.09).
+#
+# Асимметрия намеренная:
+#   • реестра НЕТ            ⇒ ставим всё (обычный случай: никто не отложен);
+#   • реестр есть, но битый  ⇒ ОТКАЗ целиком, потому что мы не знаем, кого
+#                              нельзя ставить, а молчаливое воскрешение — ровно
+#                              тот вред, который эта проверка предотвращает.
+QUARANTINE_FILE="$REPO/attic/agents/QUARANTINE.json"
+QUARANTINED=""
+if [[ -f "$QUARANTINE_FILE" ]]; then
+    QUARANTINED="$(/usr/bin/env python3 - "$QUARANTINE_FILE" <<'PYQ' 2>/dev/null
+import json, sys
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+rows = data.get("quarantined", data) if isinstance(data, dict) else data
+if isinstance(rows, dict):
+    names = list(rows)
+else:
+    names = [r.get("label") or r.get("agent") or r.get("name") for r in rows]
+print(" ".join(n if str(n).startswith("com.spa.") else "com.spa." + str(n)
+                for n in names if n))
+PYQ
+)" || {
+        echo "ОТКАЗ: реестр карантина $QUARANTINE_FILE не читается." >&2
+        echo "Не зная, кого нельзя ставить, установщик воскресил бы отложенных." >&2
+        exit 2
+    }
+    if [[ -n "$QUARANTINED" ]]; then
+        echo "Карантин (не будут установлены): $QUARANTINED"
+    fi
+fi
+
 install_agent() {
     local src="$1"
     local label="$2"
     local optional="${3:-0}"
     local dst="$LAUNCHD_DIR/${label}.plist"
+
+    # Отложенный агент не устанавливается — карантин сильнее установщика.
+    for _q in $QUARANTINED; do
+        if [[ "$_q" == "$label" ]]; then
+            RESULTS+=("[SKIP] $label — отложен в карантин (attic/agents/QUARANTINE.json)")
+            (( SKIP_COUNT++ )) || true
+            return
+        fi
+    done
 
     # Файл не найден
     if [[ ! -f "$src" ]]; then
