@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-31T15:13:14Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-31T16:37:51Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (6738b669c) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (64444720b) · у **1** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **855** · ждёт владельца: **6** · занято сессиями: **9**.
 
@@ -479,6 +479,7 @@
 - Сторож недоставляемых зависимостей краснеет на docs/research/cio_g4_repro.py — второй нарушитель за первым  ·  `inbox-storozh-nedostavlyaemyh-zavisimostei-kra.md` · 2026-08-20
 - Сторож ответа владельца не знает слова «расхождение уже разобрано» — кричит «нужен человек» на закрытом вопросе  ·  `inbox-storozh-otveta-vladeltsa-ne-znaet-slova.md` · 2026-08-29
 - Сторож расхождений судит по СТАРОМУ снимку постуры: кричит CRITICAL, когда офис уже YELLOW  ·  `inbox-storozh-rashozhdenii-sudit-po-staromu-sn.md` · 2026-08-12
+- Сторож «способен ли флот стартовать» никем не запускается — у deployment_acceptance нет ни расписания, ни артефакта  ·  `inbox-storozh-sposoben-li-flot-startovat-nikem.md` · 2026-08-29
 - Сторож вопросов владельца говорит «не измерено» там, где ответ лежит на origin — механика (origin_view) уже есть  ·  `inbox-storozh-voprosov-vladeltsa-govorit-ne-iz.md` · 2026-08-17
 - Сторож «вопросы владельца на ветке» не знает слова «прочитано и осознанно не везём» — счёт не дойдёт до нуля никогда  ·  `inbox-storozh-voprosy-vladeltsa-na-vetke-ne-zn.md` · 2026-08-23
 - Сторож «вопросы владельцу» слеп к вопросу, который не отправляли — очередь 5, он говорит 3  ·  `inbox-storozh-voprosy-vladeltsu-slep-k-voprosu.md` · 2026-08-10
@@ -665,7 +666,6 @@
 - Сторож читает регистр вытеснения только на стороне origin — второе нажатие после доставки снова зовёт человека  ·  `inbox-storozh-chitaet-registr-vytesneniya-tolk.md` · 2026-08-30
 - Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md` · 2026-08-30 · 🔒 `cycle-84821`
 - Сторож параллельных прогонов кричит «СТОЛКНОВЕНИЕ» на ОДИН правильный прогон: обёртка и её же дочерний pytest считаются двумя  ·  `inbox-storozh-parallelnyh-progonov-krichit-sto.md` · 2026-08-30
-- Сторож «способен ли флот стартовать» никем не запускается — у deployment_acceptance нет ни расписания, ни артефакта  ·  `inbox-storozh-sposoben-li-flot-startovat-nikem.md` · 2026-08-29
 - Сторож вопросов владельцу не измеряет, ЖИВ ЛИ ещё вопрос — и звал отправить команду, ставшую разрушительной  ·  `inbox-storozh-voprosov-vladeltsu-ne-izmeryaet.md` · 2026-08-29
 - Строка Risk Gate дневного лимита убытка жила только в отключённом скрипте — в отчёт владельцу она не переехала  ·  `inbox-stroka-risk-gate-dnevnogo-limita-ubytka.md` · 2026-08-14
 - Сверка трекера с origin стоит 84 секунды — её платит каждый обязательный шаг протокола  ·  `inbox-sverka-trekera-s-origin-stoit-84-sekundy.md` · 2026-08-30

@@ -139,6 +139,12 @@ from spa_core.risk.policy import RiskConfig as _RC
 #: Сверка — spa_core/monitoring/artifact_contract.py.
 PRODUCES = (
     "data/system_health.json",
+    # #443: домен d5 зовёт обоих деплой-сторожей их ПЕРСИСТЯЩИМИ входами, поэтому
+    # квитанции — тоже продукт этого агента. Контракт ОБЪЯВЛЯЮТ, а не выводят из
+    # кода (ADR-154/158): не дописать сюда — значит завести артефакт, у которого
+    # по бумагам нет производителя, и спросить о его свежести будет не с кого.
+    "data/deployment_acceptance.json",
+    "data/deployment_drift.json",
 )
 ALLOC_CAP_T1_PCT = _RC.max_concentration_t1 * 100.0   # 40% of TOTAL capital
 ALLOC_CAP_T2_PCT = _RC.max_concentration_t2 * 100.0   # 20% of TOTAL capital
@@ -972,6 +978,11 @@ class SystemHealthMonitor:
         out.append(self._probe_import_cycle_runner(D))
         out.append(self._check_secrets(D))
         out.append(self._probe_deployment_drift(D))
+        # «Это тот код, который мы приняли?» и «способен ли флот стартовать?» —
+        # два РАЗНЫХ вопроса (`.claude/rules/deployment.md`), и до #443 второй
+        # никто не задавал по расписанию. Порядок соседства намеренный: рядом
+        # видно, что зелёный drift ничего не говорит о способности стартовать.
+        out.append(self._probe_deployment_acceptance(D))
         out.append(self._check_pat_rotation(D))
         return out
 
@@ -1040,7 +1051,7 @@ class SystemHealthMonitor:
                 CRITICAL as _DRIFT_CRITICAL,
                 OK as _DRIFT_OK,
                 UNCHECKED as _DRIFT_UNCHECKED,
-                check_deployment_drift,
+                run_deployment_drift_monitor,
             )
         except Exception as exc:  # noqa: BLE001
             return CheckResult(
@@ -1049,24 +1060,123 @@ class SystemHealthMonitor:
                 "version of the running code is UNVERIFIED",
                 error="{}: {}".format(type(exc).__name__, exc))
         try:
-            rep = check_deployment_drift()
+            # Персистящий вариант, а НЕ `check_deployment_drift`. Замер 31.08 (#443):
+            # `data/deployment_drift.json` протух на 19 суток (12.08) — проверка жила
+            # внутри этого зонда, а файл, по которому её видно снаружи, не обновлял
+            # никто. Артефакт с этого момента пишет тот, кто проверку и запускает.
+            # Каталог назван ЯВНО, в отличие от приёмки ниже: у дрейфа `data_dir`
+            # — это только «куда писать», никакой свежести по нему не судят, а
+            # `run_deployment_drift_monitor` при `None` берёт корень СВОЕГО модуля
+            # и промахивается мимо дерева, о котором спросили.
+            doc = run_deployment_drift_monitor(
+                data_dir=Path(self.data_dir), repo_root=self.project_root)
         except Exception as exc:  # noqa: BLE001 — a probe never breaks the monitor
             return CheckResult(name, D, WARNING,
                                "deployment-drift check raised — version UNVERIFIED",
                                error="{}: {}".format(type(exc).__name__, exc))
 
-        detail = "; ".join(rep.reasons) or (rep.unchecked_reason or "")
-        if rep.status == _DRIFT_OK:
+        unchecked_reason = doc.get("unchecked_reason")
+        detail = "; ".join(doc.get("reasons") or []) or (unchecked_reason or "")
+        status = doc.get("status")
+        if status == _DRIFT_OK:
             return CheckResult(name, D, OK,
-                               "running code matches {}".format(rep.remote_ref))
-        if rep.status == _DRIFT_UNCHECKED:
+                               "running code matches {}".format(doc.get("remote_ref")))
+        if status == _DRIFT_UNCHECKED:
             return CheckResult(name, D, WARNING,
                                "deployment drift UNCHECKED — version unverified",
-                               error=rep.unchecked_reason)
-        if rep.status == _DRIFT_CRITICAL:
+                               error=unchecked_reason)
+        if status == _DRIFT_CRITICAL:
             return CheckResult(name, D, CRITICAL,
                                "running code is NOT the delivered code", error=detail)
         return CheckResult(name, D, WARNING, "delivered work is not running here",
+                           error=detail)
+
+    def _acceptance_data_dir(self):
+        """Каталог для приёмки — и когда его НЕ называть.
+
+        `None` означает «спроси у `repo_root`», и это не мелочь: `run_acceptance`
+        решает по `data_dir is None`, мерит ли она живое дерево прода или
+        git-checkout (`measuring_from_worktree`). Назвать каталог явно, когда он
+        и так дефолтный, значит снять этот вопрос — и получить уверенное
+        «просроченных артефактов нет», посчитанное по worktree, где mtime свеж
+        ПО ПОСТРОЕНИЮ (см. `deployment_acceptance._data_dir_for`). Явный каталог
+        передаётся только тогда, когда вызывающий действительно указал другой
+        (тесты, песочница), — иначе адресат тот же, а заслон остался бы снят.
+        """
+        default = self.project_root / "data"
+        return None if Path(self.data_dir) == default else Path(self.data_dir)
+
+    def _probe_deployment_acceptance(self, D: str) -> CheckResult:
+        """Способен ли этот флот вообще СТАРТОВАТЬ? (2026-08-31, цикл #443)
+
+        Третий из трёх деплой-вопросов `.claude/rules/deployment.md`, и до сегодня
+        единственный без вызывающего: замер 28.08 (`inbox-storozh-sposoben-li-flot-
+        startovat-nikem`) не нашёл ни launchd-агента, ни шага цикла, ни workflow —
+        `deployment_acceptance` работал ровно тогда, когда о нём вспоминала живая
+        сессия. Соседи по вопросу подключены оба (`deployment_drift` — этим же
+        доменом, `agent_health` — своим агентом), так что дыра была именно здесь.
+
+        Правило само говорит, что ни один из трёх не заменяет другого: «это тот
+        код, который мы приняли» (drift), «способен ли флот стартовать»
+        (acceptance) и «агенты реально работают» (health) — три разных вопроса.
+        Зелёный ответ на один никогда не есть ответ на два других; на этом
+        04.08 потеряли пять часов при 67 мёртвых агентах из 69.
+
+        Установка отдельного launchd-агента автономному циклу запрещена (инв. 12),
+        поэтому сторож зовётся шагом уже существующего дважды-в-сутки прогона.
+        Стоимость измерена 31.08 в проде: d5 без него 1.6–2.7 с, сама приёмка
+        4.6 с ⇒ ~6.3 с при бюджете домена 30 с. Бюджет НЕ трогаем: подкрутить
+        циферблат под новую проверку — это починить отчёт, а не систему.
+
+        Fail-CLOSED: всё, что не удалось установить, — не зачёт.
+        """
+        name = "d5.deployment.acceptance"
+        try:
+            from spa_core.monitoring.deployment_acceptance import (
+                CRITICAL as _ACC_CRITICAL,
+                OK as _ACC_OK,
+                WARNING as _ACC_WARNING,
+                run_acceptance,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return CheckResult(
+                name, D, WARNING,
+                "deployment-acceptance guard unavailable in this checkout — "
+                "whether the fleet can start is UNVERIFIED",
+                error="{}: {}".format(type(exc).__name__, exc))
+        try:
+            # write=True: квитанция `data/deployment_acceptance.json` и есть то,
+            # чем сторожа видно снаружи. Без файла «сторож молчит» неотличимо от
+            # «сторож согласен» — ровно та слепота, из-за которой он и завёлся.
+            doc = run_acceptance(data_dir=self._acceptance_data_dir(),
+                                 repo_root=self.project_root, write=True)
+        except Exception as exc:  # noqa: BLE001 — a probe never breaks the monitor
+            return CheckResult(name, D, WARNING,
+                               "deployment-acceptance check raised — whether the "
+                               "fleet can start is UNVERIFIED",
+                               error="{}: {}".format(type(exc).__name__, exc))
+
+        status = doc.get("status")
+        detail = "; ".join(doc.get("reasons") or [])
+        if status == _ACC_OK:
+            return CheckResult(
+                name, D, OK,
+                "fleet can start: {} entrypoints executable, {} agent(s) import "
+                "their launch target".format(doc.get("entrypoints_total"),
+                                             doc.get("entrypoint_imports_ok")),
+                evidence=detail or None)
+        if status == _ACC_CRITICAL:
+            return CheckResult(name, D, CRITICAL,
+                               "fleet CANNOT start — agents are dead or die on launch",
+                               error=detail)
+        if status == _ACC_WARNING:
+            return CheckResult(name, D, WARNING,
+                               "fleet start-ability only PARTLY established",
+                               error=detail)
+        # Незнакомый статус — не зачёт (fail-CLOSED, инв. #2).
+        return CheckResult(name, D, WARNING,
+                           "deployment acceptance returned an unknown verdict "
+                           "{!r} — treated as UNVERIFIED".format(status),
                            error=detail)
 
     def _run_import(self, code: str) -> tuple[bool, str]:

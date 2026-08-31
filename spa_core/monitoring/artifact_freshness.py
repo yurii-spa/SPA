@@ -93,6 +93,24 @@ ARTIFACT_REGISTRY: tuple = (
     Artifact("analytics_90pct_status", analytics_audit_freshness.STATUS_FILENAME,
              "audit_protocol_blindness (--emit-markup, sandbox-прогон цикла)",
              analytics_audit_freshness.DEFAULT_BUDGET_HOURS, allow_mtime=False),
+    # 2026-08-31 (#443): квитанции ДВУХ деплой-сторожей. Оба зовутся доменом d5
+    # прогона `com.spa.system_health_{morning,evening}` (08:00 и 20:00 local ⇒
+    # такт 12 ч, замерено по `StartCalendarInterval` обоих plist'ов) — бюджет
+    # 15 ч = такт + 3 ч запаса, как у суточных производителей выше.
+    #
+    # Зачем ОБА и почему это не дубль: правило `.claude/rules/deployment.md`
+    # называет три РАЗНЫХ вопроса, и зелёный ответ на один не есть ответ на
+    # другой. `drift` — «это тот код, который мы приняли?»; `acceptance` —
+    # «способен ли флот стартовать?». Без записи здесь молчание любого из них
+    # неотличимо от согласия: ровно так `deployment_drift.json` простоял
+    # протухшим 19 суток (12.08 → 31.08), а `deployment_acceptance` до #443 не
+    # запускался вовсе. ЧЕСТНО: первая запись покраснеет сразу и будет красной,
+    # пока новый код не доедет до прод-дерева и там не отработает ближайший
+    # прогон, — это верное описание состояния, а не поломка сторожа.
+    Artifact("deployment_acceptance", "deployment_acceptance.json",
+             "com.spa.system_health_morning/evening (d5.deployment.acceptance)", 15.0),
+    Artifact("deployment_drift", "deployment_drift.json",
+             "com.spa.system_health_morning/evening (d5.deployment.drift)", 15.0),
     # KNOWN-STALE 2026-07-23 (producer without schedule) — registry makes them RED, not silent:
     Artifact("riskwire_measurements", "riskwire/measurements.json", "riskwire_facade(NEW)", 30.0, public=True),
     Artifact("rates_desk_rate_surface", "rates_desk/rate_surface.json", "rates_desk", 30.0, public=True),
