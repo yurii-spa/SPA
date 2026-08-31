@@ -618,6 +618,112 @@ install_agent \
     "1"
 
 # ===========================================================================
+# ВОССТАНОВИМОСТЬ ФЛОТА (добавлено 31.08 по data/fleet_parity.json)
+# ---------------------------------------------------------------------------
+# Эти агенты РАБОТАЛИ на хосте, но установщик их не знал: объявлено 60 при 79
+# работающих. Переустановка вернула бы 56 из 79 — почти треть флота не поднялась
+# бы, а заметить это было бы нечем: сторожа здоровья знают лишь объявленных, и
+# `artifact_freshness`, который заметил бы протухшие артефакты остальных, сам был
+# среди невозвращаемых. Хост у нас один.
+#
+# Перед добавлением сверено побайтово: копия каждого plist в репозитории
+# совпадает с установленной (sha256, 23 из 23), поэтому переустановка не меняет
+# конфигурацию ни одному работающему агенту. Все 23 объявлены `intent=active`
+# в манифесте — ни одного отставного.
+# ===========================================================================
+install_agent \
+    "$REPO/launchd/com.spa.architecture_conformance.plist" \
+    "com.spa.architecture_conformance"
+
+install_agent \
+    "$REPO/scripts/com.spa.artifact_freshness.plist" \
+    "com.spa.artifact_freshness"
+
+install_agent \
+    "$REPO/launchd/com.spa.cmo_editorial.plist" \
+    "com.spa.cmo_editorial"
+
+install_agent \
+    "$REPO/launchd/com.spa.competitive_watch.plist" \
+    "com.spa.competitive_watch"
+
+install_agent \
+    "$REPO/launchd/com.spa.decision_loop.plist" \
+    "com.spa.decision_loop"
+
+install_agent \
+    "$REPO/launchd/com.spa.intraday_equity.plist" \
+    "com.spa.intraday_equity"
+
+install_agent \
+    "$REPO/launchd/com.spa.io_chief_investment.plist" \
+    "com.spa.io_chief_investment"
+
+install_agent \
+    "$REPO/launchd/com.spa.io_health.plist" \
+    "com.spa.io_health"
+
+install_agent \
+    "$REPO/launchd/com.spa.io_liquidity.plist" \
+    "com.spa.io_liquidity"
+
+install_agent \
+    "$REPO/launchd/com.spa.io_market_regime.plist" \
+    "com.spa.io_market_regime"
+
+install_agent \
+    "$REPO/launchd/com.spa.io_market_structure.plist" \
+    "com.spa.io_market_structure"
+
+install_agent \
+    "$REPO/launchd/com.spa.io_onchain.plist" \
+    "com.spa.io_onchain"
+
+install_agent \
+    "$REPO/launchd/com.spa.io_protocol_risk.plist" \
+    "com.spa.io_protocol_risk"
+
+install_agent \
+    "$REPO/launchd/com.spa.io_quant.plist" \
+    "com.spa.io_quant"
+
+install_agent \
+    "$REPO/launchd/com.spa.io_red_team.plist" \
+    "com.spa.io_red_team"
+
+install_agent \
+    "$REPO/launchd/com.spa.io_reporting.plist" \
+    "com.spa.io_reporting"
+
+install_agent \
+    "$REPO/launchd/com.spa.io_stablecoin_yield.plist" \
+    "com.spa.io_stablecoin_yield"
+
+install_agent \
+    "$REPO/launchd/com.spa.io_yield_quality.plist" \
+    "com.spa.io_yield_quality"
+
+install_agent \
+    "$REPO/launchd/com.spa.monthly_statement.plist" \
+    "com.spa.monthly_statement"
+
+install_agent \
+    "$REPO/launchd/com.spa.novel_edge_rnd.plist" \
+    "com.spa.novel_edge_rnd"
+
+install_agent \
+    "$REPO/scripts/com.spa.reboot_verify.plist" \
+    "com.spa.reboot_verify"
+
+install_agent \
+    "$REPO/launchd/com.spa.swarm_rank_demotion.plist" \
+    "com.spa.swarm_rank_demotion"
+
+install_agent \
+    "$REPO/launchd/com.spa.work_digest.plist" \
+    "com.spa.work_digest"
+
+# ===========================================================================
 # ИТОГОВАЯ ТАБЛИЦА
 # ===========================================================================
 echo ""
