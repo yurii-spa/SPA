@@ -374,10 +374,13 @@ install_agent \
 #      against live data/ (scenarios use tmp sandboxes; the runner snapshots live files before/after
 #      and FAILS CLOSED if any changed). On-standard (bash-wrapper + /tmp logs), passed the deploy
 #      gate (CHECK_ONLY: exit 0, log written, canonical track untouched). ADVISORY.
-install_agent \
-    "$REPO/scripts/com.spa.redteam_rotation.plist" \
-    "com.spa.redteam_rotation" \
-    "1"
+# ПОХОРОНЕН решением владельца 2026-08-06 (ADR-067): red-team живёт в research-слое.
+# Установка снята 31.08 — переустановка воскрешала бы закрытое владельцем решение.
+# Строку не удаляю совсем, чтобы следующий читатель не завёл агента заново по незнанию.
+# install_agent \
+#     "$REPO/scripts/com.spa.redteam_rotation.plist" \
+#     "com.spa.redteam_rotation" \
+#     "1"
 
 # 22e. DFB (DeFi Board, Lane 2) daily capture — daily 09:30 UTC; builds the pool universe,
 #      overlays every pool through the SPA risk engine (proof-chained), atomically refreshes the
