@@ -810,7 +810,7 @@
    "program": "agent_dfb_capture.sh",
    "layer": "product",
    "role": "research",
-   "intent": "active",
+   "intent": "retired",
    "produces": [
     {
      "artifact": "data/dfb/pools.json",
@@ -821,7 +821,7 @@
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": "",
+   "notes": "В КАРАНТИНЕ с 2026-08-30 (решение владельца, партия 2, вариант «отложить троих»): замер перед снятием по четырём каналам дал НОЛЬ потребителей — ни код, ни квитанции, ни манифест, ни владелец. НЕ удалён: plist лежит в репозитории, команда возврата записана в attic/agents/QUARANTINE.json. Вердикт — около 12.09: закричавших вернуть и записать, КТО их звал; молчавших предложить удалить.",
    "passport": {
     "goal": "spa_core/dfb/paper_dfb.py — WS-1.5: the DFB daily capture AGENT entrypoint (one tick).",
     "quality_metric": "data/dfb/pools.json свежее 168.0 ч",
@@ -2088,7 +2088,7 @@
    "program": "agent_source_discovery.sh",
    "layer": "product",
    "role": "research",
-   "intent": "active",
+   "intent": "retired",
    "produces": [
     {
      "artifact": "data/source_discovery.json",
@@ -2201,7 +2201,7 @@
    "program": "agent_swarm_dwell.sh",
    "layer": "product",
    "role": "swarm",
-   "intent": "active",
+   "intent": "retired",
    "produces": [
     {
      "artifact": "data/swarm/dwell_hysteresis_status.json",
