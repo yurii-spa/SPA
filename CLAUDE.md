@@ -87,7 +87,10 @@ SPA — автономный DeFi yield-optimizer на стадии **paper trad
    до legal-clearance. Не выдавать paper/backtest за live; каждая APY-claim имеет
    evidence-level (L0–L6, `docs/37`) + источник + risk-категория + last-verified дата.
 9. **IS_ADVISORY=True** для всех новых стратегий/sleeve'ов T2/T3 до go-live.
-10. **Sky/sUSDS = 0%** до подтверждённого GSM Pause Delay ≥ 48h on-chain.
+10. **Sky/sUSDS — запрет СНЯТ как ИСПОЛНЕННЫЙ:** условие выполнено 2026-08-05
+    (`DSPause.delay()` = 48.00 ч, три согласных RPC), `sky_susds` WL/0 → T1,
+    [ADR-065](docs/decisions/ADR-065-sky-susds-promoted-to-t1.md). Номер 10 сохранён за
+    строкой — на него ссылаются код и тесты; гейт `is_gsm_compliant()` НЕ ослаблен.
 11. **Атомарный KANBAN** — перечитывать с диска перед записью (конкурентный писатель — цикл).
 12. **Деплой агента только через gate** — `scripts/check_agent_before_deploy.sh <name>` перед
     `launchctl bootstrap`; bash-wrapper (не прямой `python3 -m`), логи в `/tmp/` (не `~/Documents`)

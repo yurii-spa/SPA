@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-31T18:15:40Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-31T19:49:24Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (8915fba70) · у **2** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (544188455) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **855** · ждёт владельца: **3** · занято сессиями: **10**.
+> Всего карточек: **856** · ждёт владельца: **3** · занято сессиями: **10**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -247,7 +247,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (429)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (430)
 
 ### · needs-owner
 - Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md` · 2026-08-29
@@ -684,6 +684,7 @@
 - Запись ЗА другую сессию уезжает с якорем ЖИВОГО процесса писателя — чужой ярлык читается как ACTIVE  ·  `inbox-zapis-za-druguyu-sessiyu-uezzhaet-s-yako.md` · 2026-08-26
 - Заслон от шторма считает попытки, а не доставки — вопрос владельцу можно запереть, ни разу не показав  ·  `inbox-zaslon-ot-shtorma-schitaet-popytki-a-ne.md` · 2026-08-26
 - Заявки с сайта пишутся, но их нет ни в манифесте, ни под сторожем свежести  ·  `inbox-zayavki-s-saita-nikto-ne-storozhit.md` · 2026-08-28
+- Живой вопрос владельцу существует в двух редакциях: пересмотр рекомендации до него не доехал, а звезда стоит на отменённом варианте  ·  `inbox-zhivoi-vopros-vladeltsu-suschestvuet-v-d.md` · 2026-08-31
 
 ## 🤖 Agent Tasks (что делает агент)  (137)
 

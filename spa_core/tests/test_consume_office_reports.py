@@ -1414,3 +1414,204 @@ def test_empty_closing_list_stays_silent() -> None:
     out = _text(MOD._summarize_json("data/findings_bridge_report.json",
                                     _bridge_report_c417(closing_hysteresis=[])))
     assert "ждут ЗАКРЫТИЯ" not in out, out
+
+
+# ── Цикл #445: «не измерено» у сверки фидов живёт в ДВУХ контейнерах ─────────
+#
+# Замер 2026-08-31 на живом `data/adapter_feed_divergence.json` (снимок ниже —
+# verbatim, сокращены только INFO-строки о провенансе TVL):
+#
+#     overall: UNCHECKED · counts.unchecked: 1 · unchecked: []   ← список ПУСТ
+#     findings: … {"severity": "UNCHECKED", "protocol": "pendle", …}
+#
+# Вердикт ВСЕЙ сверки — самый сильный, какой этот производитель умеет, и
+# поднят он ровно одной находкой. Обязательный шаг 0-офис печатал о ней НОЛЬ
+# слов: фильтр находок стоял на `("CRITICAL", "WARN")`, а печатался общий
+# список `unchecked`, который в этот день был пуст. Читатель видел
+# «UNCHECKED … unchecked=1» и не имел способа узнать, ЧТО не измерено.
+#
+# Второго читателя у этого артефакта нет: `findings_bridge.collect_findings`
+# собирает находки из `architecture_conformance`, `house_view_gap` и
+# `loop_retro` — `adapter_feed_divergence` в списке источников отсутствует.
+# То есть немым был единственный канал.
+#
+# Класс уже чинили дважды в ЭТОМ ЖЕ файле — #236 (`architecture_conformance`:
+# голое `unchecked=1` без причины) и #426 (`slo_unassigned`). Оба раза починка
+# была сделана для ОДНОГО контейнера и не доехала до второго контейнера того
+# же слова.
+
+_AFD_NOW = at("2026-08-31T17:40:00+00:00")
+
+#: `data/adapter_feed_divergence.json` на 2026-08-31T17:37:45Z, verbatim.
+AFD_PROD_UNCHECKED = {
+    "generated_at": "2026-08-31T17:37:45.757585+00:00",
+    "generated_by": "spa_core/monitoring/adapter_feed_divergence.py",
+    "schema_version": 1,
+    "overall": "UNCHECKED",
+    "counts": {"critical": 0, "warn": 1, "info": 6, "unchecked": 1},
+    "compared_protocols": ["aave_v3", "aave_v3_base", "compound_v3", "euler_v2",
+                           "fluid_usdc", "maple", "morpho_blue", "morpho_blue_base",
+                           "morpho_steakhouse", "pendle", "yearn_v3"],
+    "findings": [
+        {"protocol": "aave_v3", "kind": "tvl_provenance", "severity": "INFO",
+         "message": "aave_v3: живой TVL есть только у стороны orchestrator"},
+        {"protocol": "fluid_usdc", "kind": "apy_literal_vs_live", "severity": "WARN",
+         "message": "fluid_usdc: orchestrator наблюдает 5.72 пп, а adapter_status "
+                    "предъявляет литерал 5.5 пп (разница 0.22 пп). Это НЕ спор двух "
+                    "наблюдений — вторая сторона не наблюдала ничего; починка — дать "
+                    "ей фид, а не выбрать число",
+         "live_apy": 5.72, "literal_apy": 5.5, "delta_pp": 0.22},
+        {"protocol": "pendle", "kind": "apy", "severity": "UNCHECKED",
+         "message": "pendle: доходность не измерена — adapter_status=8.0, "
+                    "orchestrator=нет числа",
+         "adapter_status_apy": 8.0, "orchestrator_apy": None},
+    ],
+    "unchecked": [],
+    "inputs": {
+        "adapter_status": {"path": "adapter_status.json",
+                           "generated_at": "2026-08-31T15:17:21.117988+00:00",
+                           "age_s": 8424.6},
+        "orchestrator": {"path": "adapter_orchestrator_status.json",
+                         "generated_at": "2026-08-31T15:17:21.801007+00:00",
+                         "age_s": 8424.0},
+    },
+}
+
+
+def _afd(data) -> str:
+    return _text(MOD._summarize_json("data/adapter_feed_divergence.json",
+                                     data, now=_AFD_NOW))
+
+
+def test_unchecked_finding_is_named_in_the_mandatory_step() -> None:
+    """Авария #445 дословно: причина вердикта UNCHECKED не звучала ни словом.
+
+    Тест ПОВЕДЕНЧЕСКИЙ: он спрашивает не «есть ли ключ», а «узнал ли читатель,
+    что именно не измерено». Приколочен предмет (`pendle`) и слова находки, а
+    не форма строки — оформление можно менять, немоту нельзя.
+    """
+    out = _afd(AFD_PROD_UNCHECKED)
+    assert "UNCHECKED" in out and "unchecked=1" in out, out
+    assert "pendle" in out, (
+        "вердикт всей сверки = UNCHECKED, и поднят он ОДНОЙ находкой; читатель "
+        "обязательного шага не имеет способа узнать, о каком протоколе речь:\n" + out)
+    assert "доходность не измерена" in out, out
+
+
+def test_counter_and_named_causes_agree() -> None:
+    """`unchecked=N` в шапке и число названных причин — об одном и том же.
+
+    До правки шапка говорила `unchecked=1` при НУЛЕ названных причин: счётчик
+    складывал два контейнера, печатался один. Расхождение счётчика с тем, что
+    читатель видит глазами, — это и есть немой пропуск.
+    """
+    out = _afd(AFD_PROD_UNCHECKED)
+    named = sum(1 for line in out.splitlines() if "[НЕ ИЗМЕРЕНО]" in line)
+    assert named == AFD_PROD_UNCHECKED["counts"]["unchecked"], (
+        f"названо причин: {named}, а счётчик обещает "
+        f"{AFD_PROD_UNCHECKED['counts']['unchecked']}:\n{out}")
+
+
+def test_both_containers_of_the_same_word_are_spoken() -> None:
+    """Общий `unchecked` и поагентная находка — оба, а не «который-нибудь».
+
+    Обратный контроль к предыдущему: починка «печатать находки вместо списка»
+    была бы такой же однобокой, как исходный дефект.
+    """
+    data = json.loads(json.dumps(AFD_PROD_UNCHECKED))
+    data["unchecked"] = ["adapter_status: снимку 30.1 ч при потолке 26.0 ч (stale_input)"]
+    data["counts"]["unchecked"] = 2
+    out = _afd(data)
+    assert "stale_input" in out, out
+    assert "pendle" in out, out
+
+
+def test_every_severity_the_producer_can_emit_reaches_the_reader() -> None:
+    """Храповик: род находки, который производитель умеет писать, обязан звучать.
+
+    Набор тяжестей берётся ИЗ САМОГО ПРОИЗВОДИТЕЛЯ (константы, чьё значение
+    равно имени), а не переписывается сюда по памяти: добавят пятую — тест
+    узнает о ней сам. Ровно на «починили один род, забыли второй» и построена
+    авария #445.
+
+    Проверка — на ЧУВСТВИТЕЛЬНОСТЬ вывода, а не на присутствие ключа: находка
+    обязана изменить то, что видит читатель (названа поимённо либо сосчитана
+    вслух). INFO намеренно агрегируется, и это тоже изменение вывода.
+    """
+    from spa_core.monitoring import adapter_feed_divergence as AFD
+
+    severities = sorted({v for k, v in vars(AFD).items()
+                         if k.isupper() and isinstance(v, str) and v == k})
+    assert severities, "у производителя не нашлось ни одной константы тяжести"
+
+    empty = {"generated_at": AFD_PROD_UNCHECKED["generated_at"],
+             "overall": "OK", "counts": {"critical": 0, "warn": 0, "info": 0,
+                                         "unchecked": 0},
+             "compared_protocols": ["pendle"], "findings": [], "unchecked": []}
+    base = _afd(empty)
+    for sev in severities:
+        data = json.loads(json.dumps(empty))
+        data["findings"] = [{"protocol": "pendle", "kind": "apy", "severity": sev,
+                             "message": f"метка-{sev.lower()}-для-читателя"}]
+        out = _afd(data)
+        assert out != base, (
+            f"находка тяжести {sev} НЕ изменила вывод обязательного шага — "
+            f"читатель её не увидит вовсе:\n{out}")
+        if sev != AFD.INFO:
+            assert f"метка-{sev.lower()}-для-читателя" in out, (
+                f"находка тяжести {sev} сосчитана, но не названа:\n{out}")
+
+
+def test_unknown_severity_is_named_not_swallowed() -> None:
+    """Тяжесть, о которой ветка не знает, ЗВУЧИТ — а не исчезает молча.
+
+    Немой `else` был бы тем же дефектом, отложенным до следующего рода находки.
+    """
+    data = json.loads(json.dumps(AFD_PROD_UNCHECKED))
+    data["findings"].append({"protocol": "maple", "kind": "новый_род",
+                             "severity": "NOTICE",
+                             "message": "maple: род находки, заведённый после этой правки"})
+    out = _afd(data)
+    assert "род находки, заведённый после этой правки" in out, out
+
+
+def test_info_stays_aggregated_by_design() -> None:
+    """Обратный контроль: шесть ежедневных INFO по-прежнему НЕ поимённо.
+
+    Решение #389 (провенанс TVL уже назван и решён ADR-053) не отменяется
+    починкой видимости: сторож, печатающий шесть одинаковых строк каждый день,
+    учит пролистывать весь блок — включая ту единственную, ради которой он есть.
+    """
+    data = json.loads(json.dumps(AFD_PROD_UNCHECKED))
+    data["findings"] = [
+        {"protocol": f"p{i}", "kind": "tvl_provenance", "severity": "INFO",
+         "message": f"p{i}: живой TVL есть только у стороны orchestrator"}
+        for i in range(6)
+    ]
+    data["counts"] = {"critical": 0, "warn": 0, "info": 6, "unchecked": 0}
+    data["overall"] = "OK"
+    out = _afd(data)
+    assert "и 6 INFO-строк" in out, out
+    assert "p3: живой TVL" not in out, ("INFO снова печатаются поимённо — "
+                                        "решение #389 отменено молча:\n" + out)
+
+
+def test_overflow_of_unchecked_names_the_remainder() -> None:
+    """Усечение списка — тоже пропуск, если о нём не сказано числом."""
+    data = json.loads(json.dumps(AFD_PROD_UNCHECKED))
+    data["findings"] = [
+        {"protocol": f"p{i}", "kind": "apy", "severity": "UNCHECKED",
+         "message": f"p{i}: доходность не измерена"} for i in range(9)
+    ]
+    data["counts"] = {"critical": 0, "warn": 0, "info": 0, "unchecked": 9}
+    out = _afd(data)
+    assert "ещё 3 находк" in out, out
+
+
+def test_clean_report_gains_no_extra_words() -> None:
+    """Обратный контроль: сошлось — значит сошлось, лишних строк не появилось."""
+    out = _afd({"generated_at": AFD_PROD_UNCHECKED["generated_at"], "overall": "OK",
+                "counts": {"critical": 0, "warn": 0, "info": 0, "unchecked": 0},
+                "compared_protocols": ["pendle"], "findings": [], "unchecked": []})
+    assert "[НЕ ИЗМЕРЕНО]" not in out, out
+    assert "ещё" not in out, out

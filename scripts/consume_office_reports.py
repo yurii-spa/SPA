@@ -495,15 +495,52 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                    f"(critical={_num(c, 'critical')} warn={_num(c, 'warn')} "
                    f"info={_num(c, 'info')} unchecked={_num(c, 'unchecked')}); "
                    f"протоколов сверено: {len(data.get('compared_protocols') or [])}")
-        for f in [x for x in findings if x.get("severity") in ("CRITICAL", "WARN")][:8]:
+        # Слово «не измерено» у этого производителя живёт в ДВУХ контейнерах:
+        # общий на всю сверку (`unchecked`, ниже) и ПОАГЕНТНЫЙ — находка с
+        # `severity: UNCHECKED`. Счётчик `counts.unchecked` складывает оба, и
+        # вердикт всей сверки поднимается до UNCHECKED от любого из них
+        # (`adapter_feed_divergence.run`: `if counts["unchecked"]` — первым, то
+        # есть ВЫШЕ CRITICAL). Печатался же только первый: фильтр находок стоял
+        # на `("CRITICAL", "WARN")`. Замер 31.08 (цикл #445) на живом артефакте:
+        # `overall: UNCHECKED`, `counts.unchecked: 1`, список `unchecked` ПУСТ,
+        # и единственная причина вердикта — `pendle: доходность не измерена` —
+        # не звучала в обязательном шаге ни словом. `pendle` — это 20 % книги и
+        # дословно тот протокол, ради которого модуль написан (его docstring).
+        # Класс — тот же, что чинили в #236 для `architecture_conformance`
+        # (голое число вместо причины) и в #426 для `slo_unassigned`: починка
+        # была сделана ОДИН раз для ОДНОГО контейнера и не доехала до второго.
+        # Порядок печати повторяет ранжирование самого производителя: «не
+        # измерено» идёт первым, потому что первым же поднимает вердикт.
+        by_sev: dict[str, list] = {}
+        for x in findings:
+            if isinstance(x, dict):
+                by_sev.setdefault(str(x.get("severity") or _UNMEASURED), []).append(x)
+        unchecked_f = by_sev.pop("UNCHECKED", [])
+        for f in unchecked_f[:6]:
+            out.append(f"   [НЕ ИЗМЕРЕНО] {f.get('message')}")
+        if unchecked_f[6:]:
+            out.append(f"   … ещё {len(unchecked_f) - 6} находк(и) «не измерено» в отчёте")
+        loud = by_sev.pop("CRITICAL", []) + by_sev.pop("WARN", [])
+        for f in loud[:8]:
             out.append(f"   [{f.get('severity')}] {f.get('message')}")
+        if loud[8:]:
+            out.append(f"   … ещё {len(loud) - 8} наход(ок) CRITICAL/WARN в отчёте")
         # INFO-строки (расхождение ПРОВЕНАНСА TVL) не печатаются поимённо: их
         # шесть каждый день, состояние уже названо и решено (ADR-053), и вынос
         # их в обязательный шаг научил бы читателя пролистывать весь блок.
-        info_n = sum(1 for x in findings if x.get("severity") == "INFO")
+        # Это осознанная агрегация, а не пропуск: число звучит.
+        info_n = len(by_sev.pop("INFO", []))
         if info_n:
             out.append(f"   … и {info_n} INFO-строк(и) о провенансе TVL "
                        f"(константа против живого — состояние названо, ADR-053)")
+        # Остаток — тяжесть, о которой эта ветка не знает. Немой `continue`
+        # здесь и был бы рецидивом: разбор обязан быть ИСЧЕРПЫВАЮЩИМ, иначе
+        # новый род находки у производителя молча исчезнет из единственного
+        # обязательного читателя (у этого артефакта другого нет — мост
+        # `findings_bridge` его находки не собирает вовсе).
+        for sev in sorted(by_sev):
+            for f in by_sev[sev][:4]:
+                out.append(f"   [{sev}] {f.get('message')}")
         for u in (data.get("unchecked") or [])[:4]:
             out.append(f"   [НЕ ИЗМЕРЕНО] {u}")
     elif name == "house_view_gap.json":
