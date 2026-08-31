@@ -237,14 +237,20 @@ class WriterAndReaderAgree(unittest.TestCase):
             self.assertNotIn(oad.SUPERSEDED_MARK, why)
 
 
-    def test_register_written_empty_on_origin_refuses_instead_of_duplicating(self):
-        """Fail-CLOSED ADR-176 обязан покрывать и регистр, а не только поля ответа.
+    def test_register_written_empty_on_origin_is_replaced_not_duplicated(self):
+        """Замена ADR-188 обязана покрывать и регистр, а не только поля ответа.
 
         Строка ``owner_choice_superseded: ""`` физически есть на origin ⇒ дописать рядом
         вторую с тем же ключом значит сделать frontmatter противоречивым: читатель берёт
         ПЕРВОЕ вхождение, и вытеснение уехало бы в git невидимым. Проверка обязана
-        спрашивать про ТЕ ключи, которые дописываются, — иначе она покрывает только
-        половину, которую помнила, когда её писали.
+        спрашивать про ТЕ ключи, которые пишутся, — иначе она покрывает только половину,
+        которую помнила, когда её писали.
+
+        **Правка утверждения НАМЕРЕННА (инвариант #16, журнал W36).** До ADR-188 здесь
+        стоял ОТКАЗ (ADR-176) — верный как первая помощь, но ценой «вытеснение не уезжает
+        в git никогда». Утверждение НЕ ослаблено: проверяется ровно та опасность, ради
+        которой тест писался, — сколько раз ключ написан и что видит ЧИТАТЕЛЬ, — и обе
+        стороны теперь закреплены положительно, а не через отказ.
         """
         with TemporaryDirectory() as tmp:
             prod = _card(tmp)
@@ -253,9 +259,16 @@ class WriterAndReaderAgree(unittest.TestCase):
 
             origin = ORIGIN_CARD.replace(b"created: 2026-08-19\n",
                                          b'created: 2026-08-19\nowner_choice_superseded: ""\n')
-            merged, why, _ = oad.merge_trace(prod.read_bytes(), origin)
-            self.assertIsNone(merged, "дописывать второй ключ рядом с пустым запрещено")
-            self.assertIn("owner_choice_superseded", why, why)
+            merged, why, added = oad.merge_trace(prod.read_bytes(), origin)
+            self.assertIsNotNone(merged, why)
+            self.assertIn("owner_choice_superseded", added)
+            self.assertEqual(oad.key_occurrences(merged, "owner_choice_superseded"), 1,
+                             "ключ написан дважды — читатель взял бы ПУСТОЕ вхождение")
+            self.assertEqual(oad.superseded_fields(merged).get("owner_choice_superseded"),
+                             added["owner_choice_superseded"],
+                             "вытеснение уехало в git и осталось невидимым")
+            self.assertEqual(oad.card_parts(merged)[1], oad.card_parts(origin)[1],
+                             "тело карточки тронуто")
 
 
 class OneVocabularyForBothHalves(unittest.TestCase):

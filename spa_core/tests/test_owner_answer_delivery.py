@@ -702,6 +702,147 @@ class VerifyTraceOnlyTest(unittest.TestCase):
         self.assertIsNone(merged)
         self.assertIn("не карточка", why)
 
+    # ── ADR-188: доказательство теперь допускает и ЗАМЕНУ пустого скаляра ────
+    # Каждый тест ниже строит кандидата РУКАМИ, минуя `merge_trace`: смысл
+    # независимого доказательства в том, что оно судит присланное, а не намерение
+    # того, кто прислал.
+
+    @staticmethod
+    def _origin_empty_choice() -> bytes:
+        return ORIGIN_CARD.replace(b"priority: high\n",
+                                   b'priority: high\nowner_choice: ""\n')
+
+    def test_accepts_replacement_of_an_empty_scalar(self):
+        origin = self._origin_empty_choice()
+        candidate = origin.replace(b'owner_choice: ""\n', b"owner_choice: 1\n")
+        ok, why = oad.verify_trace_only(origin, candidate)
+        self.assertTrue(ok, why)
+
+    def test_rejects_replacement_of_a_non_empty_value(self):
+        """Ответ владельца не затирается НИКОГДА — даже кандидатом «извне»."""
+        origin = ORIGIN_CARD.replace(b"priority: high\n",
+                                     b"priority: high\nowner_choice: 2\n")
+        candidate = origin.replace(b"owner_choice: 2\n", b"owner_choice: 1\n")
+        ok, why = oad.verify_trace_only(origin, candidate)
+        self.assertFalse(ok, "затёрли непустое значение на origin")
+        self.assertIn("изменены или пропали", why)
+
+    def test_rejects_replacement_of_a_line_outside_the_trace(self):
+        """Замена разрешена только ключам следа: `status` ею не прикрыть."""
+        origin = ORIGIN_CARD.replace(b"status: ingested\n", b'status: ""\n')
+        candidate = origin.replace(b'status: ""\n', b"status: owner-done\n")
+        ok, why = oad.verify_trace_only(origin, candidate)
+        self.assertFalse(ok, "перенос статуса прошёл под видом замены следа")
+        self.assertIn("изменены или пропали", why)
+
+    def test_rejects_the_accident_form_key_written_twice(self):
+        """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ: дословная форма аварии 30.08.
+
+            owner_choice: ""          ← была на origin
+            created: 2026-08-02
+            owner_choice: 1           ← дописали рядом
+
+        Читатель берёт первое вхождение. Доказательство обязано это отвергать,
+        даже если строки формально «только добавлены».
+        """
+        origin = self._origin_empty_choice()
+        candidate = origin.replace(b"---\n\n## ", b"owner_choice: 1\n---\n\n## ", 1)
+        self.assertEqual(oad.key_occurrences(candidate, "owner_choice"), 2,
+                         "фикстура не воспроизводит аварию")
+        ok, why = oad.verify_trace_only(origin, candidate)
+        self.assertFalse(ok, "форма аварии 30.08 признана законной")
+        self.assertEqual(oad.trace_fields(candidate).get("owner_choice"), None,
+                         "фикстура не воспроизводит НЕВИДИМОСТЬ ответа")
+
+    def test_rejects_two_readable_lines_of_the_same_trace_key(self):
+        """Ось «ключ дважды» отдельно от читаемости: первое вхождение ЧИТАЕТСЯ.
+
+        В форме аварии 30.08 первое вхождение пустое, и её ловит проверка
+        читаемости — то есть проверку «дважды» там не покрасить. Здесь первое
+        вхождение несёт значение: читатель доволен, а вторая строка молча спорит
+        с первой, и решать этот спор переносу нечем.
+        """
+        origin = self._origin_empty_choice()
+        candidate = origin.replace(b'owner_choice: ""\n', b"owner_choice: 1\n") \
+                          .replace(b"---\n\n## ", b"owner_choice: 2\n---\n\n## ", 1)
+        self.assertEqual(oad.trace_fields(candidate).get("owner_choice"), "1",
+                         "фикстура не изолирует ось: первое вхождение нечитаемо")
+        ok, why = oad.verify_trace_only(origin, candidate)
+        self.assertFalse(ok)
+        self.assertIn("дважды", why)
+
+    def test_rejects_replacement_that_leaves_the_field_unreadable(self):
+        """Замена пустого на пустое — не починка, а тот же невидимый ответ."""
+        origin = self._origin_empty_choice()
+        candidate = origin.replace(b'owner_choice: ""\n', b"owner_choice: null\n")
+        ok, why = oad.verify_trace_only(origin, candidate)
+        self.assertFalse(ok)
+        self.assertIn("не читается", why)
+
+    def test_rejects_an_added_line_the_reader_cannot_see(self):
+        """Ось «читатель видит» отдельно от замены: ДОПИСАННОЕ пустое поле.
+
+        Ключ законный, строка добавлена, форма безупречна — а доставлять нечего.
+        Без этого контроля проверка читаемости не красится в одиночку: на замене
+        её заслоняет разбор строки, и мутация снимала бы любую из двух.
+        """
+        candidate = ORIGIN_CARD.replace(b"priority: high\n",
+                                        b'priority: high\nowner_choice: ""\n')
+        ok, why = oad.verify_trace_only(ORIGIN_CARD, candidate)
+        self.assertFalse(ok, "дописали поле, которого читатель следа не увидит")
+        self.assertIn("не читается", why)
+
+    def test_nested_key_of_the_same_name_is_not_a_replaceable_line(self):
+        """Вложенный `owner_choice` — не то поле: ключ приходит с отступом.
+
+        Границу держит сверка ключа с `CARRIED_FIELDS`, а не отдельный запрет
+        отступа: у вложенной строки ключ буквально другой.
+        """
+        origin = ORIGIN_CARD.replace(b"  type: owner-decision\n",
+                                     b'  type: owner-decision\n  owner_choice: ""\n')
+        candidate = origin.replace(b'  owner_choice: ""\n', b"  owner_choice: 1\n")
+        ok, why = oad.verify_trace_only(origin, candidate)
+        self.assertFalse(ok, "заменили ВЛОЖЕННОЕ поле как если бы это был след")
+        self.assertIn("изменены или пропали", why)
+
+    def test_blank_line_in_frontmatter_does_not_crash_the_proof(self):
+        """Строка без двоеточия существует — и попадает НА МЕСТО сверки.
+
+        Контроль должен строить кандидата так, чтобы разбор пустой строки реально
+        случился: если она совпадает с origin построчно, до сверки дело не дойдёт
+        и проверка окажется вхолостую. Здесь пустая строка origin ЗАМЕНЕНА —
+        разбор её увидит, и разбор обязан отказать, а не упасть.
+        """
+        origin = ORIGIN_CARD.replace(b"priority: high\n", b"\npriority: high\n")
+        candidate = origin.replace(b"\npriority: high\n",
+                                   b"owner_choice: 1\npriority: high\n")
+        ok, why = oad.verify_trace_only(origin, candidate)
+        self.assertFalse(ok, "пустая строка origin исчезла под видом замены")
+        self.assertIn("изменены или пропали", why)
+
+    def test_a_different_trace_key_does_not_replace_an_empty_line(self):
+        """Замена — про ОДИН И ТОТ ЖЕ ключ: иначе строка origin молча исчезает.
+
+        Без сверки ключа `owner_answer_via: telegram` «заменил» бы
+        `owner_choice: ""`, и строка выбора пропала бы из frontmatter вовсе —
+        доставка, теряющая строку origin, это ровно то, чего модуль не делает.
+        """
+        origin = self._origin_empty_choice()
+        candidate = origin.replace(b'owner_choice: ""\n',
+                                   b"owner_answer_via: telegram\n")
+        ok, why = oad.verify_trace_only(origin, candidate)
+        self.assertFalse(ok)
+        self.assertIn("изменены или пропали", why)
+
+    def test_replacement_still_refuses_a_changed_body(self):
+        """Границы, снятой заменой, нет: тело по-прежнему неприкосновенно."""
+        origin = self._origin_empty_choice()
+        candidate = origin.replace(b'owner_choice: ""\n', b"owner_choice: 1\n") \
+                          .replace(b"OTVET VLADELTSA", b"PODMENA")
+        ok, why = oad.verify_trace_only(origin, candidate)
+        self.assertFalse(ok)
+        self.assertIn("тело", why)
+
 
 class OwnerGateTest(unittest.TestCase):
     """Отправитель не умеет отправить `landing/**` — проверка ДО, а не после."""
@@ -1149,7 +1290,7 @@ class ProvenanceIsNotADisagreementTest(unittest.TestCase):
 
 
 class EmptyKeyOnOriginIsNotAnAbsentLineTest(unittest.TestCase):
-    """`owner_choice: ""` — ОТСУТСТВИЕ ОТВЕТА, но НЕ отсутствие строки. ADR-176.
+    """`owner_choice: ""` — ОТСУТСТВИЕ ОТВЕТА, но НЕ отсутствие строки. ADR-176 → ADR-188.
 
     Авария 30.08 (цикл #429), и она НАША: сторож впервые запустили на доставку
     после правки #428 («пустой скаляр = ответа нет»), и он дописал `owner_choice`
@@ -1164,6 +1305,15 @@ class EmptyKeyOnOriginIsNotAnAbsentLineTest(unittest.TestCase):
     Хуже, чем было: раньше его просто не было. И `added` на следующем прогоне
     снова содержит `owner_choice` — цикл дописывания без предела (замерено на
     двух карточках: `tvoe-reshenie-ot-10-avgusta-pro-morpho-s`, `otkat-vetki-1249`).
+
+    **ADR-188 меняет ответ этого класса, и правка утверждений НАМЕРЕННА
+    (инвариант #16, запись в журнале W36).** ADR-176 закрыл аварию ОТКАЗОМ — верно
+    как первая помощь, но ценой: ответ владельца по такой карточке не уезжал в git
+    никогда, и сторож повторял ту же причину каждый прогон. Теперь строка с пустым
+    скаляром ЗАМЕНЯЕТСЯ на месте. Утверждения ниже переписаны на новое поведение,
+    но ни одно НЕ ослаблено: каждое проверяет ровно то, чем авария и была — сколько
+    раз ключ написан и что видит ЧИТАТЕЛЬ, — и обратные контроли (непустое значение
+    не заменяется, тело не тронуто) добавлены, а не сняты.
     """
 
     def setUp(self):
@@ -1180,15 +1330,43 @@ class EmptyKeyOnOriginIsNotAnAbsentLineTest(unittest.TestCase):
         return ORIGIN_CARD.replace(b"status: ingested\n",
                                    b"status: needs-owner\nowner_choice: \"\"\n")
 
-    def test_empty_key_is_refused_not_appended_beside(self):
+    def test_empty_key_is_replaced_in_place_not_appended_beside(self):
+        """ГЛАВНОЕ утверждение класса: ключ ОДИН, и читатель видит ответ.
+
+        Проверяется исход аварии, а не форма починки: сколько раз `owner_choice`
+        написан во frontmatter и что возвращает читатель следа. Дописывание рядом
+        (поведение до ADR-176) красит первое; отказ (ADR-176) — второе.
+        """
         merged, reason, added = oad.merge_trace(LOCAL_CARD, self._origin_with_empty_choice())
 
-        self.assertIsNone(merged, "дописали вторую строку с тем же ключом")
-        self.assertEqual(added, {})
-        self.assertIn("owner_choice", reason)
-        self.assertIn("пустым скаляром", reason)
+        self.assertIsNotNone(merged, reason)
+        self.assertEqual(oad.key_occurrences(merged, "owner_choice"), 1,
+                         "ключ написан дважды — читатель взял бы ПУСТОЕ вхождение")
+        self.assertEqual(oad.trace_fields(merged).get("owner_choice"), "1",
+                         "ответ владельца уехал и остался невидимым")
+        self.assertIn("owner_choice", added)
 
-    def test_refusal_is_a_named_verdict_not_silence(self):
+    def test_replacement_keeps_the_body_and_every_other_line_of_origin(self):
+        """Заменяется РОВНО одна строка: тело и остальной frontmatter — origin'ные."""
+        origin = self._origin_with_empty_choice()
+        merged, reason, _ = oad.merge_trace(LOCAL_CARD, origin)
+        self.assertIsNotNone(merged, reason)
+
+        self.assertEqual(oad.card_parts(merged)[1], oad.card_parts(origin)[1],
+                         "тело карточки тронуто — проза сессии была бы потеряна")
+        r_lines = oad.card_parts(origin)[0].splitlines(True)
+        c_lines = oad.card_parts(merged)[0].splitlines(True)
+        gone = [l for l in r_lines if l not in c_lines]
+        self.assertEqual(gone, [b'owner_choice: ""\n'],
+                         "исчезла строка origin, которой мы не касались")
+
+    def test_delivery_is_a_named_success_not_a_repeated_refusal(self):
+        """Через `run`: карточка уезжает, и пуш несёт читаемый ответ.
+
+        До ADR-188 здесь стоял отказ. Цена отказа названа в карточке
+        `inbox-perenos-sleda-umeet-tolko-dopisyvat-pust`: ответ владельца не
+        уезжал в git НИКОГДА, и тот же вердикт повторялся каждый прогон.
+        """
         name = "owner-decision-morfo.md"
         env = _Env(self.tmp, {name: LOCAL_CARD},
                    {f"{TRACKER}/{name}": self._origin_with_empty_choice()})
@@ -1196,31 +1374,69 @@ class EmptyKeyOnOriginIsNotAnAbsentLineTest(unittest.TestCase):
         r = oad.run(root=self.tmp, now=NOW, reader=env.reader,
                     pusher=env.pusher, write_status=False)
 
-        self.assertEqual([f["card"] for f in r["refused"]], [name])
-        self.assertEqual(env.pushed, [], "противоречивый frontmatter уехал бы на origin")
-        self.assertNotEqual(r["status"], oad.IDLE, "отказ выдан за «всё доставлено»")
+        self.assertEqual(r["refused"], [], "класс всё ещё отказывает")
+        sent = env.pushed_by(name)
+        self.assertIsNotNone(sent, "карточка не уехала")
+        self.assertEqual(oad.key_occurrences(sent, "owner_choice"), 1)
+        self.assertEqual(oad.trace_fields(sent).get("owner_choice"), "1")
 
     def test_absent_line_is_still_delivered(self):
         """ОБРАТНЫЙ контроль: строки НЕТ вовсе — везём, как везли.
 
-        Без него отказ мог бы съесть главный случай, ради которого модуль написан
-        (авария 08.08: следа на origin нет ни минуты).
+        Без него замена могла бы съесть главный случай, ради которого модуль
+        написан (авария 08.08: следа на origin нет ни минуты).
         """
         merged, reason, added = oad.merge_trace(LOCAL_CARD, ORIGIN_CARD)
 
         self.assertIsNotNone(merged, reason)
         self.assertIn("owner_choice", added)
 
-    def test_only_the_empty_key_blocks_its_own_delivery(self):
-        """Граница узкая: пустой `owner_choice` не отменяет доставку ОСТАЛЬНЫХ полей?
+    def test_non_empty_value_on_origin_is_never_replaced(self):
+        """ОБРАТНЫЙ контроль и единственное, чего переносу нельзя.
 
-        Отменяет — и это осознанно. Частичный перенос дал бы карточку, где отметка
-        и канал уехали, а ВЫБОР нет: «ответ доставлен» стало бы правдой про всё,
-        кроме самого ответа. Отказ целиком честнее; починка — в карточке.
+        Непустое значение на origin — решение владельца (или спор о нём). Замена
+        такой строки была бы затиранием ответа владельца, и это запрещено любым
+        путём: и конструктором, и независимым доказательством.
         """
-        merged, _, added = oad.merge_trace(LOCAL_CARD, self._origin_with_empty_choice())
+        origin = ORIGIN_CARD.replace(b"status: ingested\n",
+                                     b"status: ingested\nowner_choice: 2\n")
+        merged, reason, added = oad.merge_trace(LOCAL_CARD, origin)
+
+        self.assertIsNone(merged, "затёрли ответ владельца на origin")
+        self.assertEqual(added, {})
+        self.assertIn("owner_choice", reason)
+
+    def test_key_already_written_twice_on_origin_is_refused(self):
+        """Пункт 2 карточки: испорченный файл — fail-CLOSED, а не догадка.
+
+        Схлопывать вхождения можно только когда непустое ровно одно и совпадает с
+        нашим. Замер origin/main 31.08 (841 карточка) дал таких файлов НОЛЬ,
+        поэтому реализуется отказ с названной причиной, и вот его контроль.
+        """
+        origin = ORIGIN_CARD.replace(
+            b"status: ingested\n",
+            b'status: ingested\nowner_choice: ""\ncreated: 2026-08-02\nowner_choice: ""\n')
+        merged, reason, added = oad.merge_trace(LOCAL_CARD, origin)
+
         self.assertIsNone(merged)
         self.assertEqual(added, {})
+        self.assertIn("НЕСКОЛЬКО раз", reason)
+
+    def test_whole_trace_travels_together_with_the_replaced_key(self):
+        """Замена не разрывает след: выбор и провенанс уезжают одним коммитом.
+
+        До ADR-188 пустой `owner_choice` отменял доставку ОСТАЛЬНЫХ полей целиком
+        (частичный перенос дал бы «ответ доставлен» про всё, кроме самого ответа).
+        Теперь везётся всё, и это проверяется поимённо.
+        """
+        merged, reason, added = oad.merge_trace(LOCAL_CARD, self._origin_with_empty_choice())
+        self.assertIsNotNone(merged, reason)
+        self.assertEqual(sorted(added),
+                         ["owner_answer_via", "owner_answered_at",
+                          "owner_answered_by", "owner_choice"])
+        read = oad.trace_fields(merged)
+        for key in added:
+            self.assertEqual(read.get(key), added[key], key)
 
 if __name__ == "__main__":
     unittest.main()
