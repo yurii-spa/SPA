@@ -326,6 +326,31 @@ def test_books_brief_corrupt_history_degrades_not_500(client):
     assert r.json()["books"]["conservative"]["available"] is False
 
 
+# ─── capacity (SPA CIO oversight, phase A) ──────────────────────────────────
+
+def test_books_brief_carries_capacity_field_no_files_is_ok(client):
+    r = client.get("/api/live/books/brief")
+    assert r.status_code == 200
+    cap = r.json()["capacity"]
+    assert cap["ok"] is True
+    assert cap["books_included"] == []
+
+
+def test_books_brief_capacity_flags_aggregate_violation_across_books(client):
+    _write(client, "current_positions.json", {"positions": {"maple": 4_000.0}})
+    _write(client, "hy_paper_trading.json", {"positions": [
+        {"protocol": "maple", "notional_usd": 4_000.0}]})
+    _write(client, "lp_paper_trading.json", {"positions": [
+        {"protocol": "maple", "notional_usd": 4_000.0}]})
+    _write(client, "adapter_orchestrator_status.json", {"adapters": [
+        {"protocol": "maple", "tvl_usd": 1_000_000.0}]})  # 1% cap = $10k, sum = $12k
+    r = client.get("/api/live/books/brief")
+    assert r.status_code == 200
+    cap = r.json()["capacity"]
+    assert cap["ok"] is False
+    assert sorted(cap["books_included"]) == ["aggressive", "balanced", "conservative"]
+
+
 # ─── health (track-accrual freshness, P4-2) ───────────────────────────────────
 
 def _equity_with_bar(date, evidenced=True):

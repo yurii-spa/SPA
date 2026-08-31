@@ -1,13 +1,14 @@
 ---
-// /admin/portfolio-summary — SPA CIO oversight, phase B + phase C (docs/ideas/2026-08-29-cio-oversight-layer.md).
+// /admin/portfolio-summary — SPA CIO oversight, phases B + C + A (docs/ideas/2026-08-29-cio-oversight-layer.md).
 // Read-only combined view across the three INDEPENDENT paper-trading books (Conservative/Balanced/
 // Aggressive). Does NOT move capital, does NOT blend risk/mandate between books — each book keeps
 // its own seed, limits and kill-switch; this page only sums for the overview number. Live from
 // /api/live/books (poll ~20s) + /api/live/books/brief (phase C — WHERE/HOW MUCH/WHY/WHY-NOW per
-// book, best-effort: a brief-fetch failure never blanks the NAV numbers above it). admin={true} ->
-// noindex/nofollow + slim operator bar. Fail-safe: API offline shows "офлайн" honestly, never a
-// fabricated number. Balanced/Aggressive have no decision-record producer wired yet — their brief
-// honestly says so instead of guessing.
+// book, best-effort: a brief-fetch failure never blanks the NAV numbers above it; also carries
+// phase A's cross-book capacity warning — warn-only, owner decision 2026-08-30, never blocks a
+// trade). admin={true} -> noindex/nofollow + slim operator bar. Fail-safe: API offline shows
+// "офлайн" honestly, never a fabricated number. Balanced/Aggressive have no decision-record
+// producer wired yet — their brief honestly says so instead of guessing.
 import Layout from '../../layouts/Layout.astro';
 ---
 <Layout title="Operator · Portfolio Summary" admin={true}>
@@ -26,6 +27,8 @@ import Layout from '../../layouts/Layout.astro';
 
     <div class="ps-sec-h">По книгам</div>
     <div class="ps-grid" id="ps-grid"></div>
+
+    <div class="ps-cap" id="ps-cap" hidden></div>
 
     <div class="ps-offline" id="ps-offline" hidden>API офлайн — сводка сейчас недоступна. Ничего не выдумываем; повтор через 20с.</div>
   </div></main>
@@ -69,6 +72,15 @@ import Layout from '../../layouts/Layout.astro';
       });
     }
 
+    function renderCapacity(cap){
+      var el=document.getElementById('ps-cap');
+      var violations=(cap||{}).violations||[];
+      if(!violations.length){el.hidden=true;return;}
+      el.hidden=false;
+      el.innerHTML='<b>Совокупная ёмкость:</b> три книги вместе занимают больше безопасной доли пула — '+
+        violations.map(esc).join('; ')+'. Только предупреждение, сделки не блокируются (решение владельца 30.08).';
+    }
+
     async function tick(){
       try{
         var data=await jget('/api/live/books');
@@ -80,9 +92,10 @@ import Layout from '../../layouts/Layout.astro';
         retEl.textContent=fmtPct(c.combined_return_pct);
         retEl.parentElement.className='ps-kpi '+pctTone(c.combined_return_pct);
         document.getElementById('ps-avail').textContent=(c.books_available||0)+' из '+(c.books_total||3);
-        var briefs={};
-        try{briefs=(await jget('/api/live/books/brief')).books||{};}catch(e){/* brief is best-effort — NAV numbers above already landed */}
-        renderGrid(data.books||{},briefs);
+        var briefResp={};
+        try{briefResp=await jget('/api/live/books/brief');}catch(e){/* brief is best-effort — NAV numbers above already landed */}
+        renderGrid(data.books||{},briefResp.books||{});
+        renderCapacity(briefResp.capacity);
         document.getElementById('ps-gen').textContent='обновлено '+new Date().toLocaleTimeString();
       }catch(e){setOffline(true);}
     }
@@ -119,5 +132,6 @@ import Layout from '../../layouts/Layout.astro';
   .ps-why{font-size:.78rem;color:var(--text-muted,#8a8f98);margin-top:8px;padding-top:8px;border-top:1px solid var(--border,#26282e);line-height:1.4}
   .ps-why.mut{color:var(--text-faint,#6a6f78)}
   .mut{color:var(--text-faint,#6a6f78)}
+  .ps-cap{margin-top:12px;padding:14px;border:1px solid #fbbf2455;border-radius:10px;color:#fbbf24;font-size:.85rem;line-height:1.4}
   .ps-offline{margin-top:20px;padding:14px;border:1px solid #f8717155;border-radius:10px;color:#f87171;font-size:.85rem}
 </style>

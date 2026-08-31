@@ -464,6 +464,12 @@ async def live_books_brief():
 
     Balanced/Aggressive have no decision-record producer wired today — they report
     an explicit ``no_decision_record_for_book`` state, never a fabricated brief.
+
+    Also carries ``capacity``: SPA CIO oversight phase A — the three books' proposed/
+    held positions summed per protocol and checked against the SAME capacity
+    threshold each book already applies to itself (``spa_core.risk.capacity_limits``,
+    unchanged). Owner decision 2026-08-30: warn-only — this never blocks a book's
+    trade, it only surfaces a cross-book concentration that no single book can see.
     """
     from spa_core.paper_trading.cio_brief import build_books_brief
 
@@ -475,8 +481,16 @@ async def live_books_brief():
     except Exception as e:  # noqa: BLE001 — degrade the whole brief, never 5xx
         books = {"_error": str(e)}
 
+    try:
+        from spa_core.risk.capacity_coordinator import read_books_capacity_check
+        capacity = await asyncio.wait_for(
+            asyncio.to_thread(read_books_capacity_check, _dd), timeout=2.0,
+        )
+    except Exception as e:  # noqa: BLE001 — capacity is best-effort, never 5xx
+        capacity = {"_error": str(e)}
+
     return JSONResponse(
-        {"books": books, "_fetched_at": _time.time()},
+        {"books": books, "capacity": capacity, "_fetched_at": _time.time()},
         headers=NO_CACHE_HEADERS,
     )
 
