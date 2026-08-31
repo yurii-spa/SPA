@@ -8,7 +8,7 @@ _protocol_key_coverage.py — эмпирическая разметка Tier-B �
         --out /tmp/feas_b.json --emit-markup
 (в sandbox-чекауте, не в живом репо — модули пишут data/*-логи).
 
-Замер 2026-08-06T18:46:04.014316Z: каждый Tier-B модуль прогнан на
+Замер 2026-08-31T13:43:32.304211Z: каждый Tier-B модуль прогнан на
 `_protocol_facts.generic_profile_for` для ['aave_v3', 'maple', 'pendle', 'morpho', 'spark', 'compound_v3'];
 запись подменена на `RecordingProfile`, который помнит, какие ключи у неё
 спрашивали. Модуль попадает сюда, если его score РАЗЛИЧАЕТСЯ между
@@ -34,7 +34,7 @@ RiskPolicy её не видит.
 """
 from typing import Dict, FrozenSet, Tuple
 
-AUDIT_GENERATED_AT = "2026-08-06T18:46:04.014316Z"
+AUDIT_GENERATED_AT = "2026-08-31T13:43:32.304211Z"
 MIN_COVERAGE = 1.0
 
 #: module_name -> {"coverage": доля отданных ключей, "missing_keys": чего нет}
@@ -79,18 +79,6 @@ UNSOURCED_DETAIL: Dict[str, Dict[str, object]] = {
         "coverage": 0.3571,
         "missing_keys": ("dao_governance", "defi_category", "entity_incorporated", "front_end_geo_restrictions", "regulator_action_history", "sanctions_screening", "settlement_layer", "stablecoin_exposure_pct", "team_public"),
     },
-    "defi_protocol_vault_apr_lookback_window_selection_bias_analyzer": {
-        "coverage": 0.5,
-        "missing_keys": ("data_dir",),
-    },
-    "defi_protocol_vault_apr_quote_staleness_analyzer": {
-        "coverage": 0.5,
-        "missing_keys": ("data_dir",),
-    },
-    "defi_protocol_vault_headline_spot_snapshot_vs_twap_analyzer": {
-        "coverage": 0.5,
-        "missing_keys": ("data_dir",),
-    },
     "defi_protocol_vault_instant_exit_nav_discount_analyzer": {
         "coverage": 0.2222,
         "missing_keys": ("instant_exit_discount_pct", "instant_exit_price_usd", "nav_per_share_usd", "redeploy_apr_pct", "token", "vault", "vault_apr_pct"),
@@ -99,21 +87,9 @@ UNSOURCED_DETAIL: Dict[str, Dict[str, object]] = {
         "coverage": 0.3333,
         "missing_keys": ("daily_volatility_pct", "earns_during_cooldown", "exit_urgency_days", "token", "vault", "vault_apr_pct"),
     },
-    "defi_protocol_vault_relative_yield_outlier_analyzer": {
-        "coverage": 0.5,
-        "missing_keys": ("data_dir",),
-    },
     "defi_protocol_vault_round_trip_cost_analyzer": {
         "coverage": 0.4444,
         "missing_keys": ("apr_advantage_pct", "deposit_fee_pct", "expected_holding_days", "token", "vault"),
-    },
-    "defi_protocol_vault_yield_realization_gap_analyzer": {
-        "coverage": 0.5,
-        "missing_keys": ("data_dir",),
-    },
-    "defi_protocol_vault_yield_variance_drag_realization_analyzer": {
-        "coverage": 0.5,
-        "missing_keys": ("data_dir",),
     },
     "defi_token_governance_power_analyzer": {
         "coverage": 0.5714,

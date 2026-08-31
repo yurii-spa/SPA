@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-31T12:20:08Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-31T13:52:07Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (e352554a5) · статусов дочитано оттуда: **2** (копия в дереве — прежняя версия того же файла) · у **2** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (ef32d06f5) · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **853** · ждёт владельца: **7** · занято сессиями: **9**.
+> Всего карточек: **855** · ждёт владельца: **7** · занято сессиями: **9**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -16,7 +16,7 @@
 - **Критичная находка петли: com.spa.dfb_capture: intent=active, но НЕ загружен во флоте**  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-dfb-ca.md`
 - **Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте**  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md`
 - **Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте**  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md`
-- **Все 82 измерены, кроме одного — и девять из одиннадцати «сломанных» оказались не сломаны**  ·  `owner-decision-vse-82-izmereny-krome-odnogo-i-devyat-iz.md`
+- **Ноль «не измерено» этим инструментом недостижим — выяснилось, пока я исполнял твоё решение**  ·  `owner-decision-nol-ne-izmereno-etim-instrumentom-nedost.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
@@ -32,7 +32,7 @@
 - **РЕЦИДИВ 28.08: тест судит о ХОСТЕ по литеральному pid — 98535 (siriactionsd), теперь 999 (NetFS) в test_card_claim_takeover** — держит `cycle-51123` · с 2026-08-22T08:45:00Z  ·  `inbox-test-sudit-o-hoste-literalnyi-pid-98535.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (211)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (212)
 
 ### · needs-owner
 - Cloudflare проверять не нужно — я измерил сам; остался один вопрос про локальный сервер  ·  `own-chto-dolzhen-pokazyvat-lokalnyi-server.md` · 2026-08-31
@@ -40,7 +40,7 @@
 - Критичная находка петли: com.spa.dfb_capture: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-dfb-ca.md` · 2026-08-30
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
-- Все 82 измерены, кроме одного — и девять из одиннадцати «сломанных» оказались не сломаны  ·  `owner-decision-vse-82-izmereny-krome-odnogo-i-devyat-iz.md` · 2026-08-31
+- Ноль «не измерено» этим инструментом недостижим — выяснилось, пока я исполнял твоё решение  ·  `owner-decision-nol-ne-izmereno-etim-instrumentom-nedost.md` · 2026-08-31
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -238,6 +238,7 @@
 - Включить нового сторожа сайта на Маке — одна команда, и табличка снимется сама  ·  `owner-decision-vklyuchit-novogo-storozha-saita-na-make.md` · 2026-08-14
 - Внутридневная просадка: мягкий тир внутри дня — действовать в минутах или как сейчас  ·  `owner-decision-vnutridnevnaya-prosadka-slepota-teper-sl.md` · 2026-08-18
 - Возить ли каталог решений об агентах на рабочую машину — или оставить как сейчас (сторож уже читает их из git)  ·  `owner-decision-vozit-li-katalog-reshenii-ob-agentah-na.md` · 2026-08-08
+- Все 82 измерены, кроме одного — и девять из одиннадцати «сломанных» оказались не сломаны  ·  `owner-decision-vse-82-izmereny-krome-odnogo-i-devyat-iz.md` · 2026-08-31
 - Второй цикл оркестратора не переживёт перезагрузку — его записка лежит не в той папке  ·  `owner-decision-vtoroi-tsikl-orkestratora-ne-perezhivet.md` · 2026-08-27
 - Выдуманная казна протокола в оценке страховки — оставить или отказываться?  ·  `owner-decision-vydumannaya-kazna-protokola-v-otsenke-st.md` · 2026-08-04
 - Я откатил 116 файлов живого состояния в боевом дереве — 114 вернул из резерва, дыра 19,5 часов осталась  ·  `owner-decision-ya-otkatil-116-failov-zhivogo-sostoyaniy.md` · 2026-08-23
@@ -248,7 +249,7 @@
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (428)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (429)
 
 ### · needs-owner
 - Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md` · 2026-08-29
@@ -658,6 +659,7 @@
 - Сканер назвал 136 файлов работы, которой никто не объявлял, в 11 деревьях — разобрать по одному дереву  ·  `inbox-skaner-nazval-136-failov-raboty-kotoroi.md` · 2026-08-21
 - Сканер НЕобъявленного не видит, что тот же файл лежит на базе под другим путём — 41% списка это переезд каталога  ·  `inbox-skaner-neobyavlennogo-ne-vidit-chto-tot.md` · 2026-08-21
 - «Слепой» модуль может быть зрячим: 2 из 167 различают протоколы, а коэрция агрегатора теряет это различие  ·  `inbox-slepota-mozhet-byt-poteryannoi-koerciei.md` · 2026-08-17
+- Слив Aggressive: CIO обязан курировать пропорции постоянно — директива владельца 31.08  ·  `inbox-sliv-aggressive-cio-obyazan-kurirovat-pr.md` · 2026-08-31
 - Смена номинации ПОЗИЦИЙ как единственный рычаг против депега своего же кэша (решение владельца 22.08, вариант 3)  ·  `inbox-smena-nominatsii-pozitsii-kak-edinstvenn.md` · 2026-08-22
 - Снять переходное послабление маячка: решения обязаны гейтиться СВОИМ умением  ·  `inbox-snyat-perehodnoe-poslablenie-mayachka-re.md` · 2026-08-17
 - Спор об ответе владельца НЕ разрешается уборкой: старую сторону держат чужие живые деревья, а у сторожа нет слова «вытеснено ПОЗЖЕ»  ·  `inbox-spor-ob-otvete-vladeltsa-ne-razreshaetsy.md` · 2026-08-31
