@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-08-31T19:57:32Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-08-31T20:02:41Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (0bcc61bff) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (6959a357f) · у **1** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **856** · ждёт владельца: **3** · занято сессиями: **10**.
 
