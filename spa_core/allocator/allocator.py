@@ -649,6 +649,18 @@ class AllocationResult:
     #: их только что и срезал — это была бы инерция, а ADR-055 требует, чтобы
     #: концентрация следовала за доходностью и риском.
     protective_trims_by_protocol: dict[str, float] = field(default_factory=dict)
+    #: Решение владельца 31.08 (карточка `own-dengi-stoyat-iz-za-starogo-potolka`,
+    #: вариант «нет, не считать»): срез по СОВОКУПНОМУ признаку — сети — не есть
+    #: приговор каждому протоколу на ней. Он говорит «здесь суммарно много», а не
+    #: «этот протокол плох». Поэтому сетевые срезы выделены ПОИМЁННО отдельно от
+    #: остальных защитных тримов: перераздача исключает из получателей только тех,
+    #: кого срезали ПО СУЩЕСТВУ (непроверённый TVL, тир), а не за компанию с сетью.
+    #: Замер 30.08: из-за общего списка капитал ушёл в единственный не исключённый
+    #: ethereum-адрес `aave_v3` под 3.26 % — худший из десяти при медиане 4.93 %,
+    #: тогда как `compound_v3` под 7.87 % был исключён именно сетевым срезом.
+    #: Потолок сети при этом остаётся железным: запас считается отдельно, в самой
+    #: перераздаче, и больше 90 % на сеть не уйдёт.
+    chain_trims_by_protocol: dict[str, float] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -1996,6 +2008,15 @@ class StrategyAllocator:
         # факта до и после шага, а не выводится из флагов: перераздача должна опираться
         # на число, а не на догадку, кого именно урезали.
         protective_trims_by_protocol: dict[str, float] = {}
+        # То же вычитание, но ТОЛЬКО по сетевому шагу — чтобы отличить срез
+        # «сеть переполнена» от среза по существу протокола (см. поле
+        # `chain_trims_by_protocol`). Считается разностью факта до и после шага,
+        # а не выводится из флагов.
+        chain_trims_by_protocol: dict[str, float] = {}
+        for _proto, _w in _by_proto_before_chain.items():
+            _cut = float(_w) - float(capped.get(_proto, 0.0))
+            if _cut > 1e-9:
+                chain_trims_by_protocol[_proto] = round(_cut, 8)
         for _before in (_by_proto_before_t2, _by_proto_before_t3, _by_proto_before_chain):
             for _proto, _w in _before.items():
                 _cut = float(_w) - float(capped.get(_proto, 0.0))
@@ -2133,6 +2154,7 @@ class StrategyAllocator:
             risk_model_applied=risk_model_applied,
             protective_trims=protective_trims,
             protective_trims_by_protocol=protective_trims_by_protocol,
+            chain_trims_by_protocol=chain_trims_by_protocol,
             risk_breakdown=risk_breakdown,
             strategy_loop_active=strategy_loop_active,
             selected_strategy_id=selected_strategy_id,

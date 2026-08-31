@@ -579,6 +579,7 @@ def redistribute_freed_budget(
     max_single_chain_pct: "float | None" = None,
     max_l2_total_pct: "float | None" = None,
     allocator_trims_by_protocol: "dict[str, float] | None" = None,
+    chain_trims_by_protocol: "dict[str, float] | None" = None,
 ) -> dict:
     """Перераздаёт бюджет, СРЕЗАННЫЙ гейтом, в оставшихся честных кандидатов.
 
@@ -708,6 +709,24 @@ def redistribute_freed_budget(
         # Оба списка — «кому потолок только что отказал»; вернуть им капитал значило бы
         # частично отменить решение защиты.
         reduced_by_allocator = set(alloc_trims)
+        # Решение владельца 31.08 (карточка `own-dengi-stoyat-iz-za-starogo-potolka`,
+        # вариант «нет, не считать»): срез по СОВОКУПНОМУ признаку — сети — не есть
+        # приговор каждому протоколу на ней. Он говорит «здесь суммарно много», а не
+        # «этот протокол плох», поэтому такие протоколы остаются в получателях.
+        #
+        # Замер 30.08, ради которого правка: гейт снял `fluid_fusdc`, у сети появился
+        # запас — но `compound_v3` (7.87 %) и `fluid_usdc` были исключены как срезанные
+        # СЕТЕВЫМ потолком, и капитал ушёл в единственный не исключённый ethereum-адрес
+        # `aave_v3` под 3.26 %, худший из десяти при медиане 4.93 %. Так и родилось
+        # нарушение ECON-10.
+        #
+        # Потолок сети НЕ ослаблен: ниже, в цикле, запас каждого кандидата отдельно
+        # ограничен `cap * max_single_chain_pct - chain_usd[chain]`, а после перераздачи
+        # цикл ПОВТОРНО прогоняет RiskPolicy (инвариант #1). Меняется лишь то, кого
+        # считать наказанным, а не сколько ему можно.
+        _chain_only = {str(k) for k, v in (chain_trims_by_protocol or {}).items()
+                       if float(v) > 0}
+        reduced_by_allocator -= _chain_only
         blocked = frozen | reduced_by_gate | reduced_by_allocator
 
         # ADR-072.1: цепочка кандидата — из снимка, иначе из канонической карты,

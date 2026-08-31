@@ -1905,9 +1905,13 @@ def run_cycle(
                 # внутри аллокатора давал ноль — замер 08.08: 25 % в кэше при
                 # обязательном буфере 5 %, и ни одна строка не объясняла почему.
                 _alloc_trims = dict(getattr(alloc, "protective_trims_by_protocol", {}) or {})
+                # Сетевые срезы передаются ОТДЕЛЬНО: по решению владельца 31.08
+                # они не считаются приговором протоколу (см. risk_gate).
+                _chain_trims = dict(getattr(alloc, "chain_trims_by_protocol", {}) or {})
                 _re = redistribute_freed_budget(
                     target_usd, _pre_gate_target, capital_usd, adapters, gate,
-                    allocator_trims_by_protocol=_alloc_trims)
+                    allocator_trims_by_protocol=_alloc_trims,
+                    chain_trims_by_protocol=_chain_trims)
                 if _re["added"]:
                     _gate2 = _apply_risk_policy_gate(
                         _re["target_usd"], capital_usd, adapters, ddir=ddir,
