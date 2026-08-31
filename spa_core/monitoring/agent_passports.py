@@ -71,10 +71,24 @@ def audit(
         out["note"] = f"манифест не прочитан ({exc}) — не измерено"
         return out
 
-    out["total"] = len(entries)
-    missing = [str(e.get("label") or "?") for e in entries if not _has_passport(e)]
-    out["with_passport"] = len(entries) - len(missing)
+    # Похороненному агенту паспорт не нужен — у него нет дела. Считать его
+    # пробелом значит показывать владельцу число, которое НИКОГДА не станет
+    # полным, и три имени, не требующих ничего. Замер 31.08: строка дневного
+    # отчёта говорила «93/96 · без паспорта: cpa_daily, morning_digest,
+    # telegram_watcher», и все трое — intent=retired. Строку, которая не может
+    # позеленеть, перестают читать.
+    live = [e for e in entries if e.get("intent") != "retired"]
+    retired_missing = sorted(str(e.get("label") or "?")
+                             for e in entries
+                             if e.get("intent") == "retired" and not _has_passport(e))
+    out["total"] = len(live)
+    missing = [str(e.get("label") or "?") for e in live if not _has_passport(e)]
+    out["with_passport"] = len(live) - len(missing)
     out["missing"] = sorted(missing)
+    # Сузить — не спрятать: похороненные без паспорта остаются ВИДИМЫ отдельным
+    # полем, иначе «сверено и нормально» станет неотличимо от «не сверяли».
+    out["retired_without_passport"] = retired_missing
+    out["retired_excluded"] = len(entries) - len(live)
     if missing:
         out["note"] = ("агент без паспорта = непонятный бот (AI1 гл.24); "
                        "заполнять блок passport в manifest.json")
