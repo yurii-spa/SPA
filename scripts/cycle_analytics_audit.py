@@ -95,6 +95,11 @@ CENSUS_TOOL_REL = "scripts/audit_untiered_analytics.py"
 # этом надо ДО того, как тем же генератором разметят следующий тир.
 WRITEOFF_TOOL_REL = "scripts/generate_tier_writeoff.py"
 
+#: Второй инструмент и замер ЕГО цены ошибки (ADR-194). Оба гоняются в песочнице:
+#: они исполняют прод-модули аналитики.
+FEAS_TOOL_REL = "scripts/audit_tier_c_wiring_feasibility.py"
+ERROR_RATE_TOOL_REL = "scripts/audit_instrument_error_rate.py"
+
 # Не копируем мусор сборки: он и объёмнее исходников, и делает песочницу
 # недетерминированной (чужой `.pyc` старше правки — известный класс).
 COPY_IGNORE = shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store")
@@ -294,6 +299,70 @@ def writeoff_selfcheck_verdict(sandbox: Path, *, python: Optional[str] = None) -
         f"НЕ СОШЁЛСЯ: {(proc.stderr or proc.stdout or '').strip()[-400:]}")
 
 
+def reference_modules(blindness_report: Path) -> List[str]:
+    """Эталон для ADR-194: модули, которые ПЕРВЫЙ инструмент под реальным входом
+    измеряет как протокол-различающие. Только `sensitive` — `blind_equal_wide_ok`
+    равны на тройке по построению, и вменять их второму инструменту нельзя."""
+    try:
+        data = json.loads(Path(blindness_report).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    return sorted(r["module"] for r in data.get("results", [])
+                  if r.get("classification") == "sensitive")
+
+
+def instrument_error_rate_verdict(sandbox: Path, *, tier: str = "B",
+                                  python: Optional[str] = None,
+                                  timeout: float = 900.0) -> tuple:
+    """→ (доля ложных BLIND, текст вердикта). Не бросает: замер соседа шаг не роняет.
+
+    Три исхода, как у самопроверки генератора: измерено · инструмента нет ·
+    НЕ ИЗМЕРЕНО. Третий обязателен — иначе несостоявшийся замер был бы
+    неотличим от «ошибок нет», а это ровно тот fail-open, ради которого
+    ADR-194 и написан.
+    """
+    box = Path(sandbox).resolve()
+    for rel in (FEAS_TOOL_REL, ERROR_RATE_TOOL_REL):
+        if not (box / rel).is_file():
+            return None, f"НЕ ИЗМЕРЕНО: в дереве нет {rel}"
+    blind_report = box / "analytics_audit_report.json"
+    reference = reference_modules(blind_report)
+    if not reference:
+        return None, ("НЕ ИЗМЕРЕНО: эталон пуст — первый инструмент не назвал "
+                      "ни одного протокол-различающего модуля")
+    env = dict(os.environ)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    feas_out = box / "feasibility_on_reference.json"
+    try:
+        # `--only` идёт ПОСЛЕДНИМ: nargs="*" иначе съедает соседний флаг.
+        proc = subprocess.run(
+            [python or sys.executable, str(box / FEAS_TOOL_REL),
+             "--tier", tier, "--out", str(feas_out), "--only", *reference],
+            cwd=str(box), capture_output=True, text=True, timeout=timeout, env=env)
+        if proc.returncode != 0:
+            return None, (f"НЕ ИЗМЕРЕНО: второй инструмент вернул "
+                          f"{proc.returncode}: {(proc.stderr or '').strip()[-300:]}")
+        rate_out = box / "instrument_error_rate.json"
+        proc = subprocess.run(
+            [python or sys.executable, str(box / ERROR_RATE_TOOL_REL),
+             "--blindness", str(blind_report),
+             "--feasibility", str(feas_out), "--out", str(rate_out)],
+            cwd=str(box), capture_output=True, text=True, timeout=timeout, env=env)
+        if proc.returncode != 0:
+            return None, (f"НЕ ИЗМЕРЕНО: замер вернул {proc.returncode}: "
+                          f"{(proc.stderr or proc.stdout or '').strip()[-300:]}")
+        rep = json.loads(rate_out.read_text(encoding="utf-8"))
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        return None, f"НЕ ИЗМЕРЕНО: {type(exc).__name__}: {exc}"
+    rate = rep.get("false_blind_rate")
+    if rate is None:
+        return None, "НЕ ИЗМЕРЕНО: эталон пуст после очистки"
+    n = rep.get("reference_size")
+    k = len(rep.get("false_blind") or [])
+    return rate, (f"ложный BLIND второго инструмента: {k} из {n} = {100 * rate:.1f}% "
+                  f"(ADR-194: списывать по одному инструменту нельзя)")
+
+
 def freshness(source: Path, *, now: Optional[datetime] = None,
               budget_hours: Optional[float] = None) -> dict:
     """Вердикт сторожа свежести о судимом дереве (импорт отложен: stdlib-путь)."""
@@ -399,6 +468,13 @@ def run_step(source: Path, into: Path, *, sandbox: Optional[Path] = None,
         rc, verdict = writeoff_selfcheck_verdict(box, python=python)
         report["writeoff_selfcheck_returncode"] = rc
         report["writeoff_selfcheck"] = verdict
+
+        # ── цена ошибки подтверждающего инструмента (ADR-194) ─────────────────
+        # Тоже НЕ роняет шаг: это замер о соседнем инструменте, а не о слепоте.
+        # Но «не измерено» здесь не притворяется «ошибок нет».
+        rate, rate_verdict = instrument_error_rate_verdict(box, python=python)
+        report["instrument_false_blind_rate"] = rate
+        report["instrument_error_rate"] = rate_verdict
 
         report["exit_code"] = (NEEDS_DELIVERY if (changed or census_changed) else OK)
     except AuditStepError as exc:
