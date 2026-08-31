@@ -103,6 +103,18 @@ Tier-B дал ровно это — **18** модулей, сегодня исп
 `measured` у каждой строки и `measured_count` / `unmeasured` в шапке
 (`MEASURED_VERDICTS` — единственное место, где это решается).
 
+**У графы «не измерено» есть ПОЛ, и ноль ею не цель (ADR-197, решение
+владельца 31.08, вариант 1).** `COVERAGE_UNMEASURED` — это модули, которые
+берут факты из `_protocol_facts` САМИ, мимо переданной записи; покрытие ЭТОЙ
+записи у них не измеримо ПО ПОСТРОЕНИЮ, и ноль достижим только подлогом.
+Поэтому графа разобрана в отчёте на ПОЛ (`unmeasured_floor` — предмет ВТОРОГО
+инструмента, `scripts/audit_protocol_blindness.py`, который зовёт модули так же,
+как прод) и ОСТАТОК (`unmeasured_reducible`: `NO_ENTRY` / `SHAPE_NOT_PROBED` /
+`IMPORT_ERR` — сокращается объявленным входом самого модуля, ADR-158). Замер
+31.08 на Tier-B: 130 = пол 55 + остаток 75. Рост числа деградацией сам по себе
+НЕ является: замена неверного вердикта на честный его увеличивает (ADR-196 §6,
+126 → 130).
+
 **«Измерено» ≠ «можно списывать» — и это тоже в отчёте (ADR-194 + ADR-195).**
 Отчёт читают, чтобы решать о списании, а вердикты этого инструмента такого
 решения не выдерживают: на эталоне из 115 работающих протокол-различающих
@@ -586,6 +598,82 @@ def is_measured(verdict: str) -> bool:
     return verdict in MEASURED_VERDICTS
 
 
+#: **Пол графы «не измерено»: ноль ЭТИМ инструментом недостижим по построению**
+#: (решение владельца 2026-08-31, вариант 1 — ADR-197).
+#: `COVERAGE_UNMEASURED` означает: движок берёт факты из `_protocol_facts` САМ,
+#: мимо переданной записи (контекст-путь ADR-031), и покрытие ПЕРЕДАННОЙ записи
+#: у него не измеримо не потому, что мы поленились, а потому, что он её не
+#: читает. Ноль в этой графе достижим ровно одним способом — назвать
+#: неизмеренное измеренным, то есть тем подлогом, ради поимки которого
+#: инструмент и написан (ADR-196 §6: замер #441 честно поднял число 126 → 130,
+#: заменив НЕВЕРНЫЙ `UNCOVERED` на верное «не измерено»).
+#: **Зачем поле.** Голое `unmeasured_count` читается как показатель здоровья,
+#: который надо гнать к нулю: ровно так оно и попало в критерий приёмки
+#: карточки владельца («строка „не измерено“ станет нулём»), где выполнено быть
+#: не могло. Разбор графы на ПОЛ и ОСТАТОК возвращает числу смысл: пол — предмет
+#: ВТОРОГО инструмента (аудит слепоты зовёт эти модули так же, как прод),
+#: остаток — предмет правки САМОГО МОДУЛЯ (объявить вход, ADR-158), и ни то ни
+#: другое не чинится послаблением этого инструмента.
+UNMEASURED_FLOOR_VERDICTS: FrozenSet[str] = frozenset({"COVERAGE_UNMEASURED"})
+
+#: Второй инструмент, отвечающий про модули пола: он зовёт их РЕАЛЬНЫМ входом
+#: агрегатора, а не синтетической записью (ADR-194 — у него своя цена ошибки,
+#: поэтому он именно ВТОРОЙ, а не замена).
+SECOND_INSTRUMENT = "scripts/audit_protocol_blindness.py"
+
+UNMEASURED_FLOOR_CAVEAT = (
+    "ноль в графе «не измерено» ЭТИМ инструментом НЕДОСТИЖИМ по построению и "
+    "целью не является (решение владельца 2026-08-31, вариант 1; ADR-197). "
+    "ПОЛ (`unmeasured_floor`, вердикт COVERAGE_UNMEASURED) — движок берёт факты "
+    "из _protocol_facts САМ, мимо переданной записи, поэтому покрытие ЭТОЙ "
+    "записи у него не измеримо; про эти модули отвечает ВТОРОЙ инструмент — "
+    f"аудит слепоты ({SECOND_INSTRUMENT}, ежедневный шаг протокола "
+    "scripts/cycle_analytics_audit.py), который зовёт их так же, как прод. "
+    "ОСТАТОК (`unmeasured_reducible`: NO_ENTRY / SHAPE_NOT_PROBED / IMPORT_ERR) "
+    "сокращается правкой САМОГО МОДУЛЯ — объявленным входом (ADR-158), а не "
+    "послаблением инструмента. Рост числа «не измерено» сам по себе НЕ является "
+    "деградацией: замена неверного вердикта на честный увеличивает его."
+)
+
+
+def is_unmeasured_floor(verdict: str) -> bool:
+    """Не измеримо ЭТИМ инструментом по построению (а не по недоделке)."""
+    return verdict in UNMEASURED_FLOOR_VERDICTS
+
+
+def summarize_unmeasured(results: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Разбор графы «не измерено» на ПОЛ и ОСТАТОК — по вердикту каждой строки.
+
+    Считается КОДОМ, а не глазом по сводке `counts`: сводка сходится и при
+    переставленных модулях, а вопрос «какие именно модули не убрать никогда»
+    решается поимённо.
+
+    Требует у строки поле `measured` (его проставляет `run_audit` по
+    `MEASURED_VERDICTS`): судить «измерено ли» по вердикту ДВАЖДЫ, в двух
+    местах и по-разному, — ровно тот способ, которым два ответа расходятся.
+    """
+    by_verdict: Dict[str, List[str]] = {}
+    for r in results:
+        if r.get("measured"):
+            continue
+        by_verdict.setdefault(r["verdict"], []).append(r["module"])
+    for names in by_verdict.values():
+        names.sort()
+    floor = sorted(m for v, names in by_verdict.items()
+                   if is_unmeasured_floor(v) for m in names)
+    reducible = sorted(m for v, names in by_verdict.items()
+                       if not is_unmeasured_floor(v) for m in names)
+    return {
+        "unmeasured_by_verdict": by_verdict,
+        "unmeasured_floor": floor,
+        "unmeasured_floor_count": len(floor),
+        "unmeasured_reducible": reducible,
+        "unmeasured_reducible_count": len(reducible),
+        "unmeasured_floor_caveat": UNMEASURED_FLOOR_CAVEAT,
+        "second_instrument": SECOND_INSTRUMENT,
+    }
+
+
 def run_audit(tier: str = "C",
               only_modules: Optional[List[str]] = None,
               min_coverage: float = DEFAULT_MIN_COVERAGE) -> Dict[str, Any]:
@@ -598,6 +686,7 @@ def run_audit(tier: str = "C",
         r["measured"] = is_measured(r["verdict"])
     counts = collections.Counter(r["verdict"] for r in results)
     unmeasured = sorted(r["module"] for r in results if not r["measured"])
+    breakdown = summarize_unmeasured(results)
     return {
         "generated_at": _utc_now_iso(),
         "tier": tier,
@@ -608,6 +697,9 @@ def run_audit(tier: str = "C",
         "measured_count": sum(1 for r in results if r["measured"]),
         "unmeasured_count": len(unmeasured),
         "unmeasured": unmeasured,
+        # Графа «не измерено» разобрана: сколько её НЕ убрать этим инструментом
+        # никогда (пол) и сколько сокращается правкой самого модуля (остаток).
+        **breakdown,
         "cross_instrument_caveat": CROSS_INSTRUMENT_CAVEAT,
         # Послабление плеча coverage названо В ОТЧЁТЕ, а не только в коде:
         # читатель артефакта обязан видеть, какие ключи с плеча сняты, не
@@ -710,6 +802,36 @@ def emit_markup(report: Dict[str, Any], path: Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def format_summary(report: Dict[str, Any]) -> List[str]:
+    """Строки, которые видит ЧЕЛОВЕК, запустивший аудит.
+
+    Отдельная функция, а не печать по месту: разбор графы «не измерено»,
+    живущий только в JSON, читателя не достигает — а читают именно вывод.
+    Сторож, говорящий в канал, которого никто не читает, эквивалентен молчанию.
+    """
+    lines = [f"modules={report['module_count']} counts={report['counts']}"]
+    lines.append(
+        f"измерено={report['measured_count']} · НЕ измерено="
+        f"{report['unmeasured_count']}"
+        + (f": {', '.join(report['unmeasured'])}" if report["unmeasured"] else ""))
+    floor = report.get("unmeasured_floor") or []
+    reducible = report.get("unmeasured_reducible") or []
+    by_verdict = report.get("unmeasured_by_verdict") or {}
+    lines.append(
+        f"  ├─ ПОЛ (этим инструментом недостижим): {len(floor)}"
+        + (f" · {', '.join(sorted(v for v in by_verdict if v in UNMEASURED_FLOOR_VERDICTS))}"
+           if floor else "")
+        + f" → отвечает ВТОРОЙ инструмент: {report.get('second_instrument', SECOND_INSTRUMENT)}")
+    lines.append(
+        f"  └─ ОСТАТОК (сокращается объявленным входом модуля): {len(reducible)}"
+        + (f" · {', '.join(f'{v}={len(m)}' for v, m in sorted(by_verdict.items()) if v not in UNMEASURED_FLOOR_VERDICTS)}"
+           if reducible else ""))
+    lines.append(f"  ⓘ {report.get('unmeasured_floor_caveat', UNMEASURED_FLOOR_CAVEAT)}")
+    lines.append(f"wirable={len(report['wirable'])}"
+                 + (f" → {', '.join(report['wirable'])}" if report["wirable"] else ""))
+    return lines
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     ap.add_argument("--out", required=True, help="куда положить JSON-отчёт")
@@ -743,12 +865,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         emit_markup(report, ROOT / "spa_core" / "analytics"
                     / "_protocol_key_coverage.py")
 
-    print(f"modules={report['module_count']} counts={report['counts']}")
-    print(f"измерено={report['measured_count']} · НЕ измерено="
-          f"{report['unmeasured_count']}"
-          + (f": {', '.join(report['unmeasured'])}" if report['unmeasured'] else ""))
-    print(f"wirable={len(report['wirable'])}"
-          + (f" → {', '.join(report['wirable'])}" if report["wirable"] else ""))
+    for line in format_summary(report):
+        print(line)
     print(f"report → {args.out}")
 
     # Пустой скан — НЕ чистый проход: нечего было мерить, значит вердикта нет.
