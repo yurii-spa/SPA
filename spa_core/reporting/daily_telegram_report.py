@@ -375,6 +375,12 @@ def build_report_data(
 
     base_chain = _collect_base_chain(adapter_doc, ddir)
 
+    # Все три пакета + общая картина (запрос владельца 2026-08-31; те же числа,
+    # что на /admin/portfolio-summary). Fail-closed: недоступная книга видна
+    # как «недоступно», никогда не как выдуманный ноль.
+    from spa_core.reporting.books_summary import collect_books_summary
+    books_summary = collect_books_summary(ddir)
+
     return {
         "date": date_str,
         "generated_at": now_dt.isoformat(),
@@ -396,6 +402,7 @@ def build_report_data(
         "risk_policy_approved": risk_approved,
         "risk_blocks_today": risk_blocks,
         "base_chain": base_chain,
+        "books_summary": books_summary,
     }
 
 
@@ -437,6 +444,38 @@ def format_daily_message(data: dict) -> str:
         napy = best.get("net_apy")
         lines.append(f"🏆 Best strategy today: {_esc(sid)} ({_fmt_pct(napy)} APY)")
     lines.append("")
+
+    # Три независимых пакета + общая картина (owner request 2026-08-31).
+    # Числа те же, что на /admin/portfolio-summary; недоступная книга видна
+    # честно, а не выдуманным нулём и не молчаливым пропуском.
+    bs = data.get("books_summary")
+    if isinstance(bs, dict) and bs.get("books"):
+        lines.append("📚 <b>Пакеты (3 независимые книги)</b>")
+        for key in ("conservative", "balanced", "aggressive"):
+            b = bs["books"].get(key) or {}
+            label = b.get("label") or key.capitalize()
+            if not b.get("available"):
+                lines.append(f"  • {_esc(label)}: недоступно ({_esc(b.get('reason', '?'))})")
+                continue
+            ret = b.get("return_pct")
+            ret_str = f"{ret:+.2f}%" if isinstance(ret, (int, float)) else "—"
+            lines.append(
+                f"  • {_esc(label)}: {_fmt_money(b.get('equity'))} ({ret_str})"
+            )
+        c = bs.get("combined") or {}
+        n_avail = c.get("books_available")
+        n_total = c.get("books_total")
+        comb_ret = c.get("combined_return_pct")
+        comb_str = f"{comb_ret:+.2f}%" if isinstance(comb_ret, (int, float)) else "—"
+        partial = (
+            f" — сумма ЧАСТИЧНАЯ ({n_avail} из {n_total} книг)"
+            if isinstance(n_avail, int) and isinstance(n_total, int) and n_avail < n_total
+            else ""
+        )
+        lines.append(
+            f"  Σ Всего: {_fmt_money(c.get('total_equity_usd'))} ({comb_str}){partial}"
+        )
+        lines.append("")
 
     # Positions block — sorted by USD descending, cash last.
     positions = data.get("positions") or {}
