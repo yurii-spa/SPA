@@ -1,3 +1,10 @@
+# FROZEN-DATE-OK: injected-clock — build_ledger() принимает часы ВХОДОМ
+# (`now_iso=`), а `days_remaining` считается как `DAYS_NEEDED - n`, то есть из
+# СЧЁТА баров, не из календаря. Даты ниже — синтетические ярлыки баров в файле
+# доходности, ни одно утверждение не сравнивает их с «сейчас». Проверено
+# ЗАМЕРОМ, а не объявлено: под часами, сдвинутыми на +365 дней, весь файл даёт
+# 9 passed. Якорь трека 2026-06-22 при этом ПРЕДМЕТ проверки — до-якорный
+# прогрев и обратная засыпка обязаны исключаться именно по нему.
 """Tests for the Q2-18 evidenced-track ledger (spa_core/paper_trading/track_ledger.py).
 
 Verifies: only EVIDENCED bars are counted (warmup/backfill excluded via the single segregation point),
