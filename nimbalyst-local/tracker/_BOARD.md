@@ -2,18 +2,17 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-01T22:10:59Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-01T23:49:17Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (ae90e7d75) · у **3** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (418095fc8) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **865** · ждёт владельца: **6** · занято сессиями: **10**.
+> Всего карточек: **865** · ждёт владельца: **5** · занято сессиями: **10**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x**  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md`
 - **Cloudflare проверять не нужно — я измерил сам; остался один вопрос про локальный сервер**  ·  `own-chto-dolzhen-pokazyvat-lokalnyi-server.md`
 - **Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз** · _high_  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md`
-- **Новый порог сторожа просадки готов и проверен — нужно твоё «да» на доставку в прод и перезапуск агента** · _medium_  ·  `owner-decision-novyi-porog-storozha-prosadki-gotov-i-pr.md`
 - **Уточнение по заметке: 1**  ·  `owner-decision-utochnenie-po-zametke-1.md`
 - **Уточнение по заметке: ADR-070.13: тревогу core-agent-down гасит agent_health**  ·  `owner-decision-utochnenie-po-zametke-adr-070-13-trevogu-2.md`
 
@@ -37,7 +36,6 @@
 ### · needs-owner
 - Cloudflare проверять не нужно — я измерил сам; остался один вопрос про локальный сервер  ·  `own-chto-dolzhen-pokazyvat-lokalnyi-server.md` · 2026-08-31
 - Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md` · 2026-08-29
-- Новый порог сторожа просадки готов и проверен — нужно твоё «да» на доставку в прод и перезапуск агента  ·  `owner-decision-novyi-porog-storozha-prosadki-gotov-i-pr.md` · 2026-09-01
 - Уточнение по заметке: 1  ·  `owner-decision-utochnenie-po-zametke-1.md` · 2026-08-31
 - Уточнение по заметке: ADR-070.13: тревогу core-agent-down гасит agent_health  ·  `owner-decision-utochnenie-po-zametke-adr-070-13-trevogu-2.md` · 2026-08-31
 ### · ingested
@@ -173,6 +171,7 @@
 - Наступила Фаза 2 (1 августа) — включаем, сдвигаем или осознанно откладываем?  ·  `owner-decision-nastupila-faza-2-1-avgusta-vklyuchaem-sd.md` · 2026-07-31
 - Ночью одну задачу сделали дважды — из-за этого main был красным; выбери, какую версию оставляем  ·  `owner-decision-nochyu-odnu-zadachu-sdelali-dvazhdy-moya.md` · 2026-08-05
 - Ноль «не измерено» этим инструментом недостижим — выяснилось, пока я исполнял твоё решение  ·  `owner-decision-nol-ne-izmereno-etim-instrumentom-nedost.md` · 2026-08-31
+- Новый порог сторожа просадки готов и проверен — нужно твоё «да» на доставку в прод и перезапуск агента  ·  `owner-decision-novyi-porog-storozha-prosadki-gotov-i-pr.md` · 2026-09-01
 - Общая память проекта стирается пушем из рабочей копии на маке — сегодня так пропало 1729 строк истории  ·  `owner-decision-obschaya-pamyat-stiraetsya-pushem-iz-rabo.md` · 2026-08-02
 - Отчёт готовности говорит «ГОТОВЫ», хотя трек не добран (26/30) — публичный API противоречит сам себе  ·  `owner-decision-otchet-gotovnosti-govorit-gotovy-hotya-t.md` · 2026-07-17
 - Отчёт «эту карточку я НЕ беру» больше не считается захватом — подтверди или откати  ·  `owner-decision-otchet-o-zanyatosti-kartochki-bolshe-ne-sc.md` · 2026-08-01
