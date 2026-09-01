@@ -26,6 +26,19 @@
 действия (`.claude/rules/deployment.md`).
 
 Границы: чистые sandbox-файлы, сети нет, LLM нет, прод-`data/` не читается и не пишется.
+
+ИЗМЕНЕНО НАМЕРЕННО (инв. #16, цикл #451; обоснование — в журнале `docs/journal/2026-W36.md`).
+Ожидаемое ИМЯ протокола в трёх проверках изменено `pendle-pt` → `pendle_pt_susde`. Это не
+ослабление: проверяемое ПОВЕДЕНИЕ то же (legacy-блок без `live_apy` уходит как `unchecked`,
+литерал 8.0 % в возможности не попадает и отказ назван), сменился ровно идентификатор строки.
+Производитель канонизирует объявленный блоком `protocol_key` через `adapters.tier_map._ALIASES`
+(`_canonical_key`, введён 29.08 намеренно: дубль `pendle-pt` с литералом 8.0 % входил вторым
+экземпляром протокола в расчёты ТРЁХ потребителей `by_apy`, давая 33 строки при 30 протоколах).
+Тест отстал от этой починки и краснел на `origin/main` **два цикла подряд** (#450, #451),
+причём одна из трёх проверок (`"pendle-pt" not in picks`) успела стать ВАКУУМНОЙ — искомого
+имени в списке не было уже никогда, и утверждение перестало проверять что-либо. Переименование
+её ВОССТАНАВЛИВАЕТ. Входная фикстура (`protocol_key: "pendle-pt"`) намеренно НЕ тронута: именно
+её канонизация и является предметом.
 """
 # LLM_FORBIDDEN
 from __future__ import annotations
@@ -96,8 +109,23 @@ def _ranking(tmp_path: Path) -> Path:
 
 
 def _row(path: Path, protocol: str) -> dict:
+    """Строка рейтинга по КАНОНИЧЕСКОМУ имени протокола.
+
+    ``next`` без ``default`` бросал голый ``StopIteration``, и внутри генератора
+    он превращался в ``RuntimeError: generator raised StopIteration`` — падение,
+    которое не называет НИ искомого имени, НИ того, что реально лежит в файле.
+    Именно так выглядела авария 29.08 (канонизация ключей переименовала строку):
+    три теста покраснели, и ни один не сказал, какое имя теперь у строки.
+    """
     doc = json.loads(path.read_text())
-    return next(r for r in doc["by_risk_adjusted"] if r["protocol"] == protocol)
+    rows = doc["by_risk_adjusted"]
+    for r in rows:
+        if r["protocol"] == protocol:
+            return r
+    raise AssertionError(
+        f"в by_risk_adjusted нет строки {protocol!r}; есть: "
+        f"{sorted(r['protocol'] for r in rows)}. Если производитель переименовал "
+        f"протокол намеренно (см. _canonical_key), обнови ОЖИДАНИЕ, а не проверку")
 
 
 # ── производитель: провенанс каждой строки ───────────────────────────────────
@@ -172,7 +200,7 @@ def test_the_substitution_class_still_has_a_judge(tmp_path):
 
 def test_legacy_toplevel_block_is_unchecked_not_live(tmp_path):
     """У legacy-блока нет `live_apy` ⇒ честный ответ «не измерено», не «наблюдение»."""
-    row = _row(_ranking(tmp_path), "pendle-pt")
+    row = _row(_ranking(tmp_path), "pendle_pt_susde")
     assert row["apy_source"] == APY_SOURCE_UNCHECKED
 
 
@@ -195,12 +223,12 @@ def test_only_the_laundered_number_moves(tmp_path):
     assert {r["protocol"]: r["apy_pct"] for r in doc["by_risk_adjusted"]} == {
         "aerodrome_usdc_lp": 8.5, "moonwell_base": 8.4035,
         "stusd": 0.0,            # ← единственное изменение: было 6.0 (литерал)
-        "pendle-pt": 8.0,
+        "pendle_pt_susde": 8.0,
     }
     assert {r["protocol"]: r["risk_adjusted_apy"] for r in doc["by_risk_adjusted"]} == {
         "aerodrome_usdc_lp": 6.5385, "moonwell_base": 6.4642,
         "stusd": 0.0,            # ← было 4.6154, производная от того же литерала
-        "pendle-pt": 6.1538,
+        "pendle_pt_susde": 6.1538,
     }
 
 
@@ -211,7 +239,7 @@ def test_office_refuses_to_publish_a_literal_as_an_opportunity(tmp_path):
     out = StablecoinYieldAgent(ranking_path=_ranking(tmp_path), data_dir=tmp_path).analyze()
     picks = [p["value"]["protocol"] for p in out["top_stablecoin_yields"]]
     assert "aerodrome_usdc_lp" not in picks
-    assert "pendle-pt" not in picks
+    assert "pendle_pt_susde" not in picks
     assert "stusd" not in picks
     # ушло НЕ молча — причина каждого отказа названа
     excluded = " | ".join(out["excluded_unobserved"])
@@ -221,7 +249,7 @@ def test_office_refuses_to_publish_a_literal_as_an_opportunity(tmp_path):
     # Причина сменилась вместе с починкой производителя — молчаливо он не исчез
     # ни на секунду, и это ровно то, что здесь проверяется.
     assert "stusd(0.0%): observed_non_positive (pool pays 0.0%)" in excluded
-    assert "pendle-pt(8.0%): apy_provenance_unchecked" in excluded
+    assert "pendle_pt_susde(8.0%): apy_provenance_unchecked" in excluded
 
 
 def test_the_observed_pool_is_what_the_office_actually_recommends(tmp_path):
