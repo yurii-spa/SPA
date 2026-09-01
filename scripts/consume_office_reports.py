@@ -1273,6 +1273,24 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
         print(f"{mark} {rel}")
         for ln in lines:
             print(ln)
+    # ── критерии открытых карточек (ADR-208) ────────────────────────────────
+    # Печатается ДО итоговой строки намеренно: «красные строки выше = действовать»
+    # обязано покрывать и эту находку. Карточка, чей собственный критерий уже
+    # выполнен, — единственный класс, которого не видит НИ мост (у ручной карточки
+    # нет `finding_key`), НИ петля: её находил только тот, кто случайно брал
+    # карточку в работу и перемерял (замер #450: 3 из 6).
+    print()
+    try:
+        from spa_core.monitoring import card_acceptance
+        _tracker = os.path.join(receipt_root, "nimbalyst-local", "tracker")
+        for _ln in card_acceptance.report_lines(card_acceptance.audit(_tracker)):
+            print(_ln)
+    except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
+        print("— критерии открытых карточек —")
+        print(f"   [{_UNMEASURED}] сверка критериев не выполнена: "
+              f"{type(_exc).__name__}: {_exc}")
+    print()
+
     # Клауза о вхолостую ДОПИСЫВАЕТСЯ, а не переписывает итог: в здоровом
     # состоянии (hollow=0) строка та же, что и была, — соседние тесты сверяют её
     # дословно, и ослаблять их ради нового счётчика было бы нечестно.

@@ -1,10 +1,13 @@
 ---
 type: inbox
 title: "Дневной цикл пишет четыре артефакта мимо своего контракта — среди них аварийный статус"
-status: new
+status: done
 created: 2026-08-28
 priority: high
 source: ADR-158
+acceptance_probe: artifact_contract_confirmed:com.spa.daily_cycle
+status_trail:
+  - "2026-09-01T22:07:10.090737+00:00 new -> done · queue.set_status · cycle-48847"
 ---
 
 # `com.spa.daily_cycle` пишет мимо контракта
@@ -51,3 +54,33 @@ source: ADR-158
 
 Money-path модуль; определить, что здесь продукт, а что внутреннее состояние, обязан автор.
 Сверка своё сделала — назвала расхождение поимённо.
+
+---
+
+## Закрыто ЗАМЕРОМ, цикл #450 (2026-09-01)
+
+Критерий карточки (п.3): «после разбора `artifact_contract` по `daily_cycle` обязан
+давать `confirmed`, а не `contradiction`». Перемерено на `origin/main` (ae90e7d75):
+
+```
+com.spa.daily_cycle  →  verdict: confirmed
+declared:  data/allocation_rationale.json · data/allocation_rationale_history.jsonl ·
+           data/current_positions.json · data/equity_curve_daily.json ·
+           data/shadow_trigger_evaluation.json · data/emergency_status.json ·
+           data/market_regime.json · data/track_persist_status.json ·
+           data/paper_trading_status.json
+internal_writes: data/equity_curve_daily.demo_backup.json
+```
+
+Разбор по каждому из четырёх (п.1 карточки) СДЕЛАН и виден в самом объявлении:
+`emergency_status.json`, `market_regime.json`, `track_persist_status.json` признаны
+ПРОДУКТОМ и объявлены в `PRODUCES`; `equity_curve_daily.demo_backup.json` назван
+внутренним состоянием (`INTERNAL_WRITES`) — то есть молчание заменено явным словом,
+ровно как требовал п.1. Аварийный статус (п.2) разобран первым и стоит среди продуктов.
+
+По всему флоту `contradiction = 0` (77 агентов с читаемой точкой входа).
+
+Карточка стояла `new` четверо суток после того, как её критерий стал выполнен.
+Разрыв закрыт отдельно — ADR-208: у карточки теперь есть
+`acceptance_probe: artifact_contract_confirmed:com.spa.daily_cycle`, и шаг 0-офис
+перемеряет критерий каждый прогон.
