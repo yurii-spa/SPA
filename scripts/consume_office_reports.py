@@ -89,7 +89,9 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                          "note"),
     "adapter_feed_divergence.json": ("overall", "counts.critical", "counts.warn",
                                      "counts.info", "counts.unchecked", "findings",
-                                     "unchecked", "compared_protocols"),
+                                     "unchecked", "compared_protocols",
+                                     "history.status", "history.by_key",
+                                     "history.blind_snapshots", "history.window_truncated"),
 }
 
 # Отметка времени в шапке md-артефакта: `Auto-updated: **2026-08-09 05:44 UTC**`.
@@ -533,6 +535,43 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         if info_n:
             out.append(f"   … и {info_n} INFO-строк(и) о провенансе TVL "
                        f"(константа против живого — состояние названо, ADR-053)")
+        # ПАМЯТЬ (ADR-206): один снимок отвечает «расходятся ли СЕЙЧАС», и до
+        # 01.09 другого ответа не было вовсе — отчёт перезаписывался, и «мигает
+        # или живёт» решалось тем, кто случайно посмотрел в нужную секунду
+        # (замер карточки: 27.08 1.69 пп → через 4 ч сошлись → 31.08 6.04 пп со
+        # СМЕНОЙ ЗНАКА). Здесь звучит рецидив, а не мгновение.
+        # Блока `history` НЕТ — здесь молчим НАМЕРЕННО. Ответ на «почему его нет»
+        # даёт `_schema_gap` по объявлению в `_READ_SCHEMA`, и только он умеет
+        # отличить «производитель его не пишет» (расхождение) от «отчёт написан
+        # ДО доставки ключа» (ждём такта). Собственная строка здесь повторила бы
+        # аварию #248: находка о полностью здоровом контуре теми же словами, что
+        # настоящая, — и читатель перестаёт верить обеим.
+        hist = data.get("history")
+        if isinstance(hist, dict) and hist.get("status") != "OK":
+            out.append(f"   [НЕ ИЗМЕРЕНО] память расхождений: "
+                       f"{hist.get('reason') or _UNMEASURED} — это НЕ «расхождений не было»")
+        elif isinstance(hist, dict):
+            rows = hist.get("by_key") or {}
+            trunc = (" ⚠️ окно обрезано возрастом журнала: покрыто "
+                     f"{hist.get('covered_days')} сут из {hist.get('window_days')}"
+                     if hist.get("window_truncated") else "")
+            if rows:
+                out.append(f"   память за {hist.get('window_days')} сут: "
+                           f"{len(rows)} род(а/ов) расхождений{trunc}")
+                for row in sorted(rows.values(),
+                                  key=lambda r: -(r.get("snapshots_diverged") or 0))[:4]:
+                    out.append(f"      ↺ {row.get('protocol')}/{row.get('kind')}: "
+                               f"разошлись на {row.get('snapshots_diverged')} снимк(е/ах), "
+                               f"разница пп {row.get('delta_pp_min')}…{row.get('delta_pp_max')} "
+                               f"(медиана {row.get('delta_pp_median')}), последний раз "
+                               f"{row.get('last_seen')}")
+            else:
+                out.append(f"   память за {hist.get('window_days')} сут: расхождений не "
+                           f"записано{trunc}")
+            if hist.get("blind_snapshots"):
+                out.append(f"   [НЕ ИЗМЕРЕНО] снимков, о которых сторож отказался судить: "
+                           f"{hist.get('blind_snapshots')} — «расхождений нет» о них не "
+                           f"сказано, сказано «судить было нечем»")
         # Остаток — тяжесть, о которой эта ветка не знает. Немой `continue`
         # здесь и был бы рецидивом: разбор обязан быть ИСЧЕРПЫВАЮЩИМ, иначе
         # новый род находки у производителя молча исчезнет из единственного

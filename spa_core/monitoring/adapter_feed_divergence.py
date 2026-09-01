@@ -69,6 +69,38 @@
 
 Время — ВХОД (``now=``), а не окружение: правило `.claude/rules/deployment.md`.
 
+Память о расхождениях (ADR-206): «мигает» и «живёт» — РАЗНЫЕ ответы
+=================================================================
+Отчёт ``data/adapter_feed_divergence.json`` перезаписывается каждым прогоном
+(``atomic_save`` поверх). Пока это был единственный след, вопрос **«сколько раз за
+последние N суток два ЖИВЫХ наблюдения одного пула разошлись и на сколько»** был
+неразрешим ПО ПОСТРОЕНИЮ — не «мы не считали», а «считать нечем». Замер карточки
+`inbox-critical-storozha-fidov-migaet-aave-v3-r` это и показал: 27.08 01:14Z у
+``aave_v3`` было 1.69 пп, в 05:27Z — сошлись, 31.08 — 6.04 пп со СМЕНОЙ ЗНАКА,
+01.09 — 6.23 пп. Три точки собраны РУКАМИ трёх разных циклов, каждый мерил заново,
+и вывод «мигание само гаснет» дожил до опровержения только потому, что кто-то
+случайно посмотрел в нужную секунду.
+
+Поэтому каждая находка ``CRITICAL``/``WARN`` дописывается в append-only журнал
+``data/adapter_feed_divergence_log.jsonl``; ``history()`` отвечает на вопрос карточки
+ЧИСЛОМ. Три решения, без которых журнал врал бы:
+
+* **Единица счёта — СНИМОК, а не прогон.** Оба входа пишет дневной цикл (раз в
+  сутки), а сторожа зовёт ``com.spa.decision_loop`` (часто). Без ключа снимка
+  «расходились 24 раза» означало бы «мы 24 раза посмотрели на ОДНО наблюдение».
+  Ключ — пара отметок ``generated_at`` обоих входов; повтор того же снимка в журнал
+  НЕ попадает.
+* **Слепота записывается ОТДЕЛЬНОЙ строкой** (``kind: "unchecked"``). Иначе «за трое
+  суток расхождений нет» было бы неотличимо от «трое суток сторож отказывался
+  судить» — инвариант #17 ровно об этом. Согласие строки НЕ пишет (это условие
+  приёмки карточки), а вот отказ судить — пишет.
+* **Окно ответа обрезается возрастом журнала.** ``history(days=30)`` по журналу
+  возрастом двое суток возвращает ``covered_days: 2`` и ``window_truncated: True``:
+  «0 расхождений за 30 суток» на двухдневном журнале — не хорошая новость, а
+  ненаблюдение, и оно обязано называться.
+
+Ротация: ``LOG_MAX_LINES`` самых свежих строк, перезапись через tmp + ``os.replace``.
+
 Fail-CLOSED
 ===========
 Файла нет / JSON битый / нет секции адаптеров ⇒ ``UNCHECKED`` и код возврата 2.
@@ -92,6 +124,7 @@ from spa_core.monitoring.architecture_conformance import REPO_ROOT, _parse_iso
 from spa_core.utils.atomic import atomic_save
 
 REPORT_REL = os.path.join("data", "adapter_feed_divergence.json")
+LOG_REL = os.path.join("data", "adapter_feed_divergence_log.jsonl")
 STATUS_REL = os.path.join("data", "adapter_status.json")
 ORCH_REL = os.path.join("data", "adapter_orchestrator_status.json")
 
@@ -116,6 +149,23 @@ APY_TOLERANCE_PP = 0.01
 TVL_TOLERANCE_FRAC = 0.01
 
 CRITICAL, WARN, INFO, UNCHECKED = "CRITICAL", "WARN", "INFO", "UNCHECKED"
+
+#: Потолок журнала расхождений, строк. При такте дневного цикла (1 снимок в сутки)
+#: и 8-11 сверяемых протоколах это годы истории; ограничение стоит не ради места,
+#: а чтобы файл не рос неограниченно на аварийном режиме (каждый прогон — новый
+#: снимок). Ротация оставляет САМЫЕ СВЕЖИЕ строки.
+LOG_MAX_LINES = 5000
+
+#: Рода находок, попадающих в журнал. Согласие строки не пишет — это условие приёмки
+#: карточки `inbox-critical-storozha-fidov-migaet-aave-v3-r`. INFO не пишется тоже:
+#: `tvl_provenance` — состояние УЖЕ названное и решённое (ADR-053), и в журнале
+#: рецидивов ему делать нечего.
+LOGGED_SEVERITIES = (CRITICAL, WARN)
+
+#: Окно, за которое отчёт носит ответ «сколько раз и на сколько» с собой. Семь суток —
+#: тот же порядок, что `slo_hours: 7` у самого артефакта в манифесте: вопрос карточки
+#: про «мигает или живёт», а такое различие видно на днях, не на часах.
+HISTORY_WINDOW_DAYS = 7.0
 
 
 def _load(rel: str, root: str):
@@ -304,6 +354,220 @@ def _protocols(status_doc, orch_doc) -> tuple[dict, dict, list[str]]:
     return s_map, o_map, reasons
 
 
+# ── Журнал расхождений: память, без которой «мигает» и «живёт» неразличимы ────────────
+
+
+def log_path(base: str) -> str:
+    return os.path.join(base, os.path.basename(LOG_REL))
+
+
+def _snapshot_key(inputs: dict, now: dt.datetime) -> str:
+    """Отпечаток НАБЛЮДЕНИЯ, а не прогона.
+
+    Оба входа пишет дневной цикл; сторожа зовёт ``com.spa.decision_loop`` во много раз
+    чаще. Ключ по паре отметок ``generated_at`` делает единицей счёта снимок: повторный
+    взгляд на то же наблюдение в журнал не попадает, и «расходились N раз» отвечает на
+    вопрос карточки, а не на «сколько раз мы смотрели».
+
+    Отметку, которую прочитать не удалось, подменяет ``?<дата now>``: тогда единицей
+    становится сутки, и слепота не размножается построчно, но и не исчезает.
+    """
+    parts = []
+    for key in ("adapter_status", "orchestrator"):
+        stamp = (inputs.get(key) or {}).get("generated_at")
+        parts.append(str(stamp) if stamp else f"?{now.date().isoformat()}")
+    return "|".join(parts)
+
+
+def _journal_records(report: dict, now: dt.datetime) -> list[dict]:
+    """Строки, которые этот отчёт обязан оставить в памяти.
+
+    Пишутся ТОЛЬКО ``CRITICAL``/``WARN`` (``LOGGED_SEVERITIES``) — согласие строки не
+    оставляет — плюс ОТДЕЛЬНАЯ строка ``unchecked``, когда сторож отказался судить.
+    Без второй «за трое суток расхождений нет» было бы неотличимо от «трое суток мы
+    были слепы», а это разные новости (инвариант #17).
+    """
+    key = _snapshot_key(report.get("inputs") or {}, now)
+    stamp = now.isoformat()
+    out: list[dict] = []
+    for f in report.get("findings") or []:
+        if f.get("severity") not in LOGGED_SEVERITIES:
+            continue
+        rec = {
+            "observed_at": stamp,
+            "snapshot_key": key,
+            "protocol": f.get("protocol"),
+            "kind": f.get("kind"),
+            "severity": f.get("severity"),
+            "message": f.get("message"),
+        }
+        for extra in ("delta_pp", "adapter_status_apy", "orchestrator_apy",
+                      "adapter_status_tvl", "orchestrator_tvl",
+                      "adapter_status_tier", "orchestrator_tier"):
+            if extra in f:
+                rec[extra] = f[extra]
+        out.append(rec)
+    if report.get("overall") == UNCHECKED:
+        out.append({
+            "observed_at": stamp,
+            "snapshot_key": key,
+            "protocol": "-",
+            "kind": "unchecked",
+            "severity": UNCHECKED,
+            "message": "сверка не вынесена — сторож отказался судить",
+            "reasons": list(report.get("unchecked") or []),
+        })
+    return out
+
+
+def read_journal(base: str) -> tuple[list[dict], str]:
+    """``(записи, причина_нечитаемости)``. Битые строки пропускаются ПОИМЁННО в причине."""
+    path = log_path(base)
+    records: list[dict] = []
+    bad = 0
+    try:
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except ValueError:
+                    bad += 1
+                    continue
+                if isinstance(rec, dict):
+                    records.append(rec)
+                else:
+                    bad += 1
+    except FileNotFoundError:
+        return [], f"журнала нет на диске: {path}"
+    except OSError as e:  # noqa: BLE001
+        return [], f"журнал не прочитан: {e}"
+    return records, (f"пропущено нечитаемых строк: {bad}" if bad else "")
+
+
+def append_history(report: dict, base: str, now: dt.datetime) -> list[dict]:
+    """Дописать память об ЭТОМ наблюдении. Возвращает реально записанные строки.
+
+    Повтор того же снимка (тот же ``snapshot_key`` + протокол + род) не пишется —
+    иначе счёт расхождений считал бы наши взгляды, а не наблюдения фидов.
+    """
+    fresh = _journal_records(report, now)
+    known, _ = read_journal(base)
+    path = log_path(base)
+    if not os.path.exists(path):
+        # ОТКРЫТИЕ журнала — отдельная запись, и она обязательна. Без неё пустой файл
+        # («смотрим третью неделю, расхождений не было») был бы неотличим от файла,
+        # которого нет («память тут никогда не работала»): обе картины дают ноль строк
+        # и ноль суток покрытия. Дата открытия — единственное, чем эти два состояния
+        # различаются, и она записывается ДО первой находки, а не выводится из неё.
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps({
+                "observed_at": now.isoformat(), "snapshot_key": "-", "protocol": "-",
+                "kind": "journal_opened", "severity": INFO,
+                "message": "журнал расхождений открыт — с этой отметки считается "
+                           "покрытие окна (ADR-207)"}, ensure_ascii=False) + "\n")
+        known, _ = read_journal(base)
+    if not fresh:
+        return []
+    seen = {(r.get("snapshot_key"), r.get("protocol"), r.get("kind")) for r in known}
+    new = [r for r in fresh
+           if (r["snapshot_key"], r["protocol"], r["kind"]) not in seen]
+    if not new:
+        return []
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "a", encoding="utf-8") as fh:  # O_APPEND: короткие строки атомарны
+        for rec in new:
+            fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    total = len(known) + len(new)
+    if total > LOG_MAX_LINES:
+        kept = (known + new)[-LOG_MAX_LINES:]
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            for rec in kept:
+                fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        os.replace(tmp, path)
+    return new
+
+
+def history(base: str, *, days: float = 7.0, now: dt.datetime | None = None) -> dict:
+    """Ответ ЧИСЛОМ на вопрос карточки: сколько раз за N суток и на сколько.
+
+    Считаются РАЗНЫЕ снимки (``snapshot_key``), а не строки: один снимок, прочитанный
+    сторожем двадцать раз, — одно расхождение.
+
+    ``covered_days`` и ``window_truncated`` обязательны: «0 расхождений за 30 суток» по
+    двухдневному журналу — не хорошая новость, а ненаблюдение, и оно обязано называться
+    здесь, а не додумываться читателем.
+    """
+    now = now or dt.datetime.now(dt.timezone.utc)
+    records, reason = read_journal(base)
+    if reason and not records:
+        return {"status": UNCHECKED, "reason": reason, "window_days": days,
+                "covered_days": None, "window_truncated": None, "by_key": {},
+                "blind_snapshots": 0, "records": 0}
+
+    since = now - dt.timedelta(days=days)
+    stamps = [_parse_iso(r.get("observed_at")) for r in records]
+    stamps = [x for x in stamps if x]
+    oldest = min(stamps) if stamps else None
+    covered = round((now - oldest).total_seconds() / 86400.0, 2) if oldest else 0.0
+
+    by_key: dict = {}
+    blind: set = set()
+    for rec in records:
+        at = _parse_iso(rec.get("observed_at"))
+        if at is None or at < since:
+            continue
+        if rec.get("kind") == "unchecked":
+            blind.add(rec.get("snapshot_key"))
+            continue
+        if rec.get("severity") not in LOGGED_SEVERITIES:
+            continue
+        key = f"{rec.get('protocol')}:{rec.get('kind')}"
+        slot = by_key.setdefault(key, {
+            "protocol": rec.get("protocol"), "kind": rec.get("kind"),
+            "severity": rec.get("severity"), "snapshots": set(), "deltas_pp": [],
+            "first_seen": None, "last_seen": None})
+        slot["snapshots"].add(rec.get("snapshot_key"))
+        delta = _num(rec.get("delta_pp"))
+        if delta is not None:
+            slot["deltas_pp"].append(delta)
+        iso = at.isoformat()
+        slot["first_seen"] = min(slot["first_seen"] or iso, iso)
+        slot["last_seen"] = max(slot["last_seen"] or iso, iso)
+
+    summary = {}
+    for key, slot in sorted(by_key.items()):
+        deltas = sorted(slot["deltas_pp"])
+        summary[key] = {
+            "protocol": slot["protocol"], "kind": slot["kind"],
+            "severity": slot["severity"],
+            "snapshots_diverged": len(slot["snapshots"]),
+            "first_seen": slot["first_seen"], "last_seen": slot["last_seen"],
+            "delta_pp_min": deltas[0] if deltas else None,
+            "delta_pp_max": deltas[-1] if deltas else None,
+            "delta_pp_median": (deltas[len(deltas) // 2] if len(deltas) % 2
+                                else round((deltas[len(deltas) // 2 - 1]
+                                            + deltas[len(deltas) // 2]) / 2, 4))
+            if deltas else None,
+        }
+    return {
+        "status": "OK",
+        "window_days": days,
+        "covered_days": covered,
+        "window_truncated": covered < days,
+        "records": len(records),
+        "blind_snapshots": len(blind),
+        "by_key": summary,
+        "note": (f"журнал моложе запрошенного окна: покрыто {covered} сут из {days} — "
+                 f"«расхождений нет» здесь означает «нечем судить о более раннем»")
+        if covered < days else "",
+    }
+
+
 def run(root: str = REPO_ROOT, now: dt.datetime | None = None,
         write: bool = True, data_dir: str | None = None) -> dict:
     """Сверить два артефакта и вернуть отчёт (он же пишется в ``REPORT_REL``)."""
@@ -400,6 +664,14 @@ def run(root: str = REPO_ROOT, now: dt.datetime | None = None,
         "unchecked": unchecked,
         "inputs": inputs,
     }
+    # Память ДОПИСЫВАЕТСЯ до сборки ответа, чтобы сегодняшнее наблюдение уже входило
+    # в него: отчёт, знающий о рецидиве меньше, чем журнал рядом, — третье мнение.
+    report["history_appended"] = len(append_history(report, base, now)) if write else 0
+    # Ответ на вопрос карточки едет В ЗАРЕГИСТРИРОВАННОМ артефакте, а не только в
+    # журнале: у журнала нет обязательного читателя, у этого отчёта — есть (шаг
+    # 0-офис каждого цикла). Сторож, чью память надо спрашивать отдельной командой,
+    # неотличим от сторожа без памяти.
+    report["history"] = history(base, days=HISTORY_WINDOW_DAYS, now=now)
     if write:
         atomic_save(report, os.path.join(base, os.path.basename(REPORT_REL)))
     return report
@@ -434,7 +706,36 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
                          "(обычно <прод>/data)")
     ap.add_argument("--no-write", action="store_true", help="только печать, без артефакта")
     ap.add_argument("--json", action="store_true", help="печатать отчёт как JSON")
+    ap.add_argument("--history", action="store_true",
+                    help="не сверять, а ОТВЕТИТЬ ПО ПАМЯТИ: сколько раз за --days суток "
+                         "два наблюдения одного пула разошлись и на сколько")
+    ap.add_argument("--days", type=float, default=7.0,
+                    help="окно вопроса для --history, суток (по умолчанию 7)")
     args = ap.parse_args(argv)
+
+    if args.history:
+        base = args.data_dir or os.path.join(args.root, "data")
+        hist = history(base, days=args.days, now=now)
+        if args.json:
+            print(json.dumps(hist, ensure_ascii=False, indent=2))
+            return 0 if hist["status"] == "OK" else 2
+        if hist["status"] != "OK":
+            print(f"память расхождений: НЕ ИЗМЕРЕНО — {hist['reason']}")
+            return 2
+        print(f"память расхождений за {hist['window_days']} сут: строк {hist['records']}, "
+              f"покрыто {hist['covered_days']} сут"
+              + (" ⚠️ ОКНО ОБРЕЗАНО ВОЗРАСТОМ ЖУРНАЛА" if hist["window_truncated"] else ""))
+        if hist["blind_snapshots"]:
+            print(f"   [СЛЕПОТА] снимков, о которых сторож отказался судить: "
+                  f"{hist['blind_snapshots']} — это НЕ «расхождений не было»")
+        for key, row in hist["by_key"].items():
+            print(f"   [{row['severity']}] {key}: разошлись на {row['snapshots_diverged']} "
+                  f"снимк(е/ах); разница пп мин {row['delta_pp_min']} · медиана "
+                  f"{row['delta_pp_median']} · макс {row['delta_pp_max']}; "
+                  f"впервые {row['first_seen']} · последний раз {row['last_seen']}")
+        if not hist["by_key"] and not hist["blind_snapshots"]:
+            print("   расхождений в памяти нет — и слепых снимков тоже нет")
+        return 0
 
     report = run(root=args.root, now=now, write=not args.no_write,
                  data_dir=args.data_dir)

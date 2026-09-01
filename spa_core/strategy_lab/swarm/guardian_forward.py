@@ -19,6 +19,12 @@ Design decisions (honest, restart-proof):
     derisk_frac=0.0 full exit, calm_mult=1.2, roundtrip_cost=0.0015 honest churn drag).
   • Fail-CLOSED: a book with no readable series or no forward days gets state NO_FORWARD and no
     invented numbers. Guardians are DE-RISK-ONLY by construction (exposure ∈ {derisk_frac, 1.0}).
+  • ПОРОГ ПРИМЕНИМОСТИ (ADR-206, решение владельца 01.09, вариант 1): на книге, чья собственная
+    просадка окна наблюдения МЕЛЬЧЕ стоимости одного круга сторожа, оверлей не срабатывает вовсе
+    и честно пишет `NOTHING_TO_PROTECT`. Замер 01.09: `susde_dn` — своя просадка 0.05 %, сторож
+    даёт 0.31 % (в шесть раз глубже охраняемого). Это про МЕСТО применения, а не про цену круга:
+    при любой ненулевой комиссии такой оверлей может только добавить. Порог считается из уже
+    существующих чисел и самопроверяем — станет книга волатильной, сторож включится сам.
 
 TIER PORT — S1 SHADOW DOMAINS (charter «Тир-перенос», owner-requested 2026-07-11): the same
 pre-emptive vol-guardian also watches, SIGNAL-ONLY, (a) every Strategy-Lab sleeve forward series
@@ -63,7 +69,8 @@ PRODUCES = (
 # part of this module's surface. It was missing from ``__all__``, which is why the unused-import
 # ratchet counted it; adding it says the intent in the form pyflakes reads (цикл #74,
 # карточка agent-ci-never-runs-scripts-tests-dir).
-__all__ = ["vol_guardian_trace", "run_forward_guardian", "GUARDIAN_PARAMS", "GENESIS_HASH"]
+__all__ = ["vol_guardian_trace", "run_forward_guardian", "guardian_applicability",
+           "GUARDIAN_PARAMS", "GENESIS_HASH", "NOTHING_TO_PROTECT"]
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 AGGRESSIVE_LAB_DIR = REPO_ROOT / "data" / "aggressive_lab"
@@ -141,6 +148,75 @@ GUARDIAN_PARAMS = {
 }
 # Warm-up tail taken from the backtest phase: baseline window (4×lookback) + recent window + 1.
 WARMUP_POINTS = 4 * GUARDIAN_PARAMS["lookback"] + GUARDIAN_PARAMS["lookback"] + 1
+
+
+# ── Порог применимости: где оверлею запрещено срабатывать (ADR-206, вариант 1 владельца) ──────
+#: Состояние книги, на которой сторож ОТКАЗАЛСЯ действовать, потому что защищать нечего.
+#: Это НЕ `ARMED` (взведён и ждёт) и НЕ `WARMUP` (данных мало): книга измерена, и измерение
+#: говорит, что круг сторожа дороже всей просадки, от которой он охраняет.
+NOTHING_TO_PROTECT = "NOTHING_TO_PROTECT"
+
+
+def round_trip_cost_pct(roundtrip_cost: float = GUARDIAN_PARAMS["roundtrip_cost"],
+                        derisk_frac: float = GUARDIAN_PARAMS["derisk_frac"]) -> float:
+    """Стоимость ОДНОГО круга «вышел и вернулся», в процентах капитала книги.
+
+    Берётся из тех же параметров, которыми оверлей эту стоимость и списывает
+    (`vol_guardian_trace`: ``guarded[-1] *= 1 - roundtrip_cost * abs(prev - exposure)``),
+    а не заводится вторым числом: второе число разошлось бы с первым в первый же день.
+    """
+    return 100.0 * roundtrip_cost * abs(1.0 - derisk_frac)
+
+
+def guardian_applicability(raw_window: Sequence[float], *,
+                           roundtrip_cost: float = GUARDIAN_PARAMS["roundtrip_cost"],
+                           derisk_frac: float = GUARDIAN_PARAMS["derisk_frac"]) -> dict:
+    """Годится ли оверлей этой книге вообще — решение владельца 2026-09-01 (вариант 1).
+
+    **Замер, из которого выросло правило** (01.09, 852 дня, 10 книг, карточка
+    `own-storozh-sam-sozdaet-prosadku-na-rovnykh-knigakh`): у книги `susde_dn` собственная
+    просадка **0.05 %**, сторож срабатывает ~4 раза в год, и его же комиссии дают просадку
+    **0.31 %** — в шесть раз глубже той, от которой он охраняет. Это не промах в настройке
+    цены: при ЛЮБОЙ ненулевой комиссии оверлей на книге, чья просадка меньше стоимости его
+    круга, может только ДОБАВИТЬ просадку. Вопрос был про МЕСТО применения, и владелец
+    выбрал вариант 1 — не пускать сторожа на ровные книги.
+
+    **Порог самопроверяемый и без новых констант:** сравниваются два числа, которые уже
+    считает этот же модуль — фактическая просадка окна наблюдения и цена одного круга
+    (`round_trip_cost_pct`). Станет книга волатильной — сторож включится сам, списка
+    исключений вести не нужно (ровно этим вариант 1 отличается от варианта 3).
+
+    **Отсутствие измерения НИКОГДА не глушит защиту.** Снять сторожа с книги можно только
+    по положительному измерению «просадка меньше круга»; окно, по которому просадку
+    посчитать нельзя, оставляет сторожа ВЗВЕДЁННЫМ и называет причину (`dd_unmeasured`).
+    Обратное правило означало бы, что пустой ряд обезоруживает защиту, — тот самый класс,
+    ради которого стоит инвариант #17.
+    """
+    cost_pct = round_trip_cost_pct(roundtrip_cost, derisk_frac)
+    window = [float(v) for v in raw_window]
+    # Окно короче горизонта, на котором сам оверлей вообще выносит решение, НЕ является
+    # измерением ровности: «просадки 0.00 %» на трёх точках означает «истории нет», а не
+    # «книга спокойна». Порог — тот же `lookback + 2`, которым модуль уже отделяет
+    # «данных хватает» от WARMUP; второго числа для одного смысла здесь не заводится.
+    if len(window) < GUARDIAN_PARAMS["lookback"] + 2 or window[0] <= 0:
+        return {"applicable": True, "reason": "dd_unmeasured",
+                "raw_max_dd_pct": None, "round_trip_cost_pct": round(cost_pct, 4),
+                "min_points": GUARDIAN_PARAMS["lookback"] + 2, "points": len(window),
+                "note": "просадку окна посчитать нечем (окно короче горизонта решений "
+                        "оверлея) — сторож остаётся взведённым; снять его может только "
+                        "положительное измерение, а не его отсутствие"}
+    raw_dd_pct = _max_drawdown_pct(window)  # отрицательный процент
+    depth = abs(raw_dd_pct)
+    if depth < cost_pct:
+        return {"applicable": False, "reason": "nothing_to_protect",
+                "raw_max_dd_pct": raw_dd_pct, "round_trip_cost_pct": round(cost_pct, 4),
+                "note": f"собственная просадка книги {depth:.4f} % мельче одного круга "
+                        f"сторожа {cost_pct:.4f} % — защищать нечего, а платить есть чем; "
+                        f"оверлей на этой книге НЕ срабатывает (решение владельца "
+                        f"2026-09-01, вариант 1). Станет книга волатильнее круга — "
+                        f"включится сам, списка исключений нет"}
+    return {"applicable": True, "reason": "dd_exceeds_round_trip",
+            "raw_max_dd_pct": raw_dd_pct, "round_trip_cost_pct": round(cost_pct, 4)}
 
 
 def vol_guardian_trace(
@@ -244,6 +320,15 @@ def _guard_book(book_dir: Path) -> dict:
     grd_w = [v / guarded[fs] for v in guarded[fs:]]
     fwd_days = len(forward)
 
+    # Порог применимости (решение владельца 2026-09-01, вариант 1): судится ТО ЖЕ окно,
+    # которое книга предъявляет в отчёте (`raw`), — иначе критерий готовности карточки
+    # («просадка susde_dn в отчёте роя равна её собственной») проверял бы не то число.
+    applicability = guardian_applicability(raw_w)
+    if not applicability["applicable"]:
+        grd_w = raw_w                       # оверлей не срабатывал ⇒ книга равна себе
+        exposures = [1.0] * len(exposures)  # ни одного выхода
+        events = []                         # и, значит, ни одной уплаченной комиссии
+
     # Live signal snapshot (same trailing windows the guardian uses).
     rets = [combined[i] / combined[i - 1] - 1.0 for i in range(1, len(combined)) if combined[i - 1]]
     lb = GUARDIAN_PARAMS["lookback"]
@@ -263,7 +348,10 @@ def _guard_book(book_dir: Path) -> dict:
     ]
     return {
         **base,
-        "state": ("WARMUP" if not warmed else ("DERISKED" if exposure_now < 1.0 else "ARMED")),
+        "state": (NOTHING_TO_PROTECT if not applicability["applicable"]
+                  else ("WARMUP" if not warmed
+                        else ("DERISKED" if exposure_now < 1.0 else "ARMED"))),
+        "applicability": applicability,
         "forward_days": fwd_days,
         "forward_window": {"start": fwd_dates[0], "end": fwd_dates[-1]},
         "raw": {"equity_usd": round(fwd_eq[-1], 2),
@@ -347,6 +435,12 @@ def _guard_shadow(dates: List[str], equity: List[float], *, domain: str) -> dict
         return {"domain": domain, "state": "WARMUP", "days": len(equity),
                 "note": f"needs ≥{GUARDIAN_PARAMS['lookback'] + 2} daily points"}
     guarded, exposures, events = vol_guardian_trace(equity)
+    # Тот же порог применимости, что у книг: причина («круг дороже всей просадки») от
+    # тени не зависит, а её числа тоже читают при отборе — тень, показывающая «защита
+    # сработала» там, где она ухудшила обе метрики, врёт ровно так же.
+    applicability = guardian_applicability(equity)
+    if not applicability["applicable"]:
+        guarded, exposures, events = list(equity), [1.0] * len(exposures), []
     rets = [equity[i] / equity[i - 1] - 1.0 for i in range(1, len(equity)) if equity[i - 1]]
     lb = GUARDIAN_PARAMS["lookback"]
     i = len(rets) - 1
@@ -355,7 +449,9 @@ def _guard_shadow(dates: List[str], equity: List[float], *, domain: str) -> dict
     raw0 = equity[0] or 1.0
     return {
         "domain": domain,
-        "state": "DERISKED" if (exposures and exposures[-1] < 1.0) else "ARMED",
+        "state": (NOTHING_TO_PROTECT if not applicability["applicable"]
+                  else ("DERISKED" if (exposures and exposures[-1] < 1.0) else "ARMED")),
+        "applicability": applicability,
         "days": len(equity),
         "window": {"start": dates[0], "end": dates[-1]},
         "signal": {"recent_vol": round(recent, 8), "baseline_vol": round(baseline, 8),
