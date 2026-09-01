@@ -6,13 +6,26 @@ US Treasury bills. USD0++ is the staked/bonded form that earns the Treasury yiel
 signs, never moves capital and never imports from ``execution/`` or ``risk/``
 (FORBIDDEN policy). Pure stdlib only.
 
-Data sourcing (layered, first hit wins):
+Data sourcing (layered, first hit wins) — **тождество актива закрепляется, а не
+угадывается** (замер 29.08, карточка ``inbox-usual-usd0pp-otdaet-chislo-chuzhogo-akti``):
   1. Usual public rates API (best-effort; endpoints are unstable):
-     https://api.usual.money/v1/rates  (fallback: https://app.usual.money/api/rates)
-  2. DeFiLlama yields pools (project ``usual-usd0``) — primary live source in
-     practice; also yields TVL.
-  3. Cached constant ``FALLBACK_APY`` (5.0%) flagged ``stale=True`` /
-     ``live_data=False`` when every live source is unreachable.
+     https://api.usual.money/v1/rates  (fallback: https://app.usual.money/api/rates).
+     Принимаются только поля, названные ПО НАШЕМУ активу (``usd0pp_apy`` …) либо
+     строки с ТОЧНЫМ символом из ``ACCEPTED_SYMBOLS``. Безымянный ``apy`` верхнего
+     уровня и «максимум по всем строкам» отброшены: в оба попадал чужой актив.
+  2. DeFiLlama yields pools — сначала ТОЧНЫЙ ``DEFILLAMA_POOL_ID``, иначе точная
+     тройка (project, chain, symbol). Подстроки нет: ``"USD0" in symbol``
+     приземлялся на ``BUSD0`` ($505.7 млн, 3.41 %) и отдавал ЕГО число как наше.
+  3. Наблюдения нет ⇒ ``apy=None`` и ``tvl=None``, ``stale=True`` /
+     ``live_data=False``. Литеральной подстановки нет НИ для доходности
+     (снята 2026-08-08, «делать все 15»), НИ для TVL (снята 2026-09-01: тот же
+     литерал под ярлыком ``live_data=True`` проходил бы порог TVL RiskPolicy
+     числом, которого никто не наблюдал — ADR-053/ADR-126).
+
+Кредитного пула USD0++ в фиде на 29.08 нет вовсе (актив встречается только как
+LP-пара ``USD0++-USD0``, другой класс риска), поэтому ``DEFILLAMA_POOL_ID`` пока
+``None``: адаптер отказывает, а не подбирает похожее. Это осознанный fail-CLOSED —
+взять его в опрос можно будет, когда появится пул с доказанным тождеством.
 
 Note on exit latency: USD0++ is a bond-like position with an early-unbond floor;
 liquid exit is via secondary AMM liquidity. A conservative non-zero exit latency
@@ -65,9 +78,6 @@ class UsualUSD0PPAdapter(BaseAdapter):
     # Bond-like; liquid exit only via secondary AMM. Conservative 24h declared.
     EXIT_LATENCY_HOURS = 24.0
 
-    FALLBACK_APY = 0.05             # 5.0% decimal
-    FALLBACK_TVL_USD = 350_000_000.0
-
     MIN_APY = 0.0
     MAX_APY = 0.50
 
@@ -76,7 +86,18 @@ class UsualUSD0PPAdapter(BaseAdapter):
         "https://app.usual.money/api/rates",
     )
     DEFILLAMA_PROJECT = "usual-usd0"
-    DEFILLAMA_SYMBOL = "USD0"  # matches USD0++, USD0, SUSD0 etc.
+    DEFILLAMA_CHAIN = "Ethereum"
+    # Точный символ, НЕ подстрока. `BUSD0` / `USD0A` / `SUSD0` / `USD0++-USD0`
+    # содержат "USD0" и содержат его законно — это другие активы.
+    DEFILLAMA_SYMBOL = "USD0++"
+    # Тождество пула — адрес, а не имя (как в `fluid_arbitrum_usdc`). Кредитного
+    # пула USD0++ в фиде нет ⇒ id не объявлен, и отбор остаётся точным по тройке.
+    DEFILLAMA_POOL_ID: Optional[str] = None
+    # Имена, под которыми НАШ актив приходит из rates-API Usual.
+    ACCEPTED_SYMBOLS = ("USD0++", "USD0PP")
+    # Ключи rates-API, названные по НАШЕМУ активу. Безымянные `apy`/`rate`
+    # сюда не входят: у эмитента их несколько активов.
+    PRIMARY_APY_KEYS = ("usd0pp_apy", "usd0ppApy", "usd0PpApy")
 
     RISKS = {
         "depeg_risk": "MEDIUM",
@@ -121,30 +142,45 @@ class UsualUSD0PPAdapter(BaseAdapter):
                 return apy
         return None
 
+    @classmethod
+    def _is_ours(cls, row: Any) -> bool:
+        """Строка rates-API описывает ИМЕННО наш актив?
+
+        Сравнение точное. Подстрока ``"USD0" in symbol`` (как было до 01.09)
+        принимала ``BUSD0``, ``USD0A``, ``SUSD0`` — чужие активы, чьё число
+        уезжало под именем USD0++.
+        """
+        if not isinstance(row, dict):
+            return False
+        for field in ("symbol", "token", "asset"):
+            if (row.get(field) or "").strip().upper() in cls.ACCEPTED_SYMBOLS:
+                return True
+        return False
+
     def _parse_primary(self, data: Any) -> Optional[float]:
-        """Best-effort parse of a Usual rates payload for the USD0++ APY."""
+        """Доходность USD0++ из payload rates-API — только при доказанном тождестве.
+
+        Отказ (``None``) здесь честнее числа: у эмитента несколько активов, и
+        безымянное поле ``apy`` верхнего уровня не говорит, чьё оно.
+        """
+        rows: Any = None
         if isinstance(data, dict):
-            # Direct fields some rates endpoints expose.
-            for key in ("usd0pp_apy", "usd0ppApy", "apy", "rate"):
+            # Поля, названные по НАШЕМУ активу, — тождество в самом имени ключа.
+            for key in self.PRIMARY_APY_KEYS:
                 cand = self._norm_apy(data.get(key))
                 if cand is not None:
                     return cand
             rows = data.get("data") or data.get("rates") or data.get("result")
-            if isinstance(rows, list):
-                for r in rows:
-                    if not isinstance(r, dict):
-                        continue
-                    sym = (r.get("symbol") or r.get("token") or r.get("asset") or "").upper()
-                    if "USD0" not in sym:
-                        continue
-                    cand = self._norm_apy(r.get("apy") or r.get("rate") or r.get("apr"))
+        elif isinstance(data, list):
+            rows = data
+        if isinstance(rows, list):
+            for r in rows:
+                if not self._is_ours(r):
+                    continue
+                for field in ("apy", "rate", "apr"):
+                    cand = self._norm_apy(r.get(field))
                     if cand is not None:
                         return cand
-        elif isinstance(data, list):
-            cands = [self._norm_apy(r.get("apy")) for r in data if isinstance(r, dict)]
-            cands = [c for c in cands if c is not None]
-            if cands:
-                return max(cands)
         return None
 
     def _fetch_defillama(self) -> Dict[str, Optional[float]]:
@@ -161,9 +197,18 @@ class UsualUSD0PPAdapter(BaseAdapter):
         for r in rows:
             if not isinstance(r, dict):
                 continue
+            # Адрес пула бьёт любое имя — если он объявлен, ничем ошибиться нельзя.
+            if self.DEFILLAMA_POOL_ID and r.get("pool") == self.DEFILLAMA_POOL_ID:
+                best = r
+                break
             if (r.get("project") or "").lower() != self.DEFILLAMA_PROJECT:
                 continue
-            if self.DEFILLAMA_SYMBOL not in (r.get("symbol") or "").upper():
+            if (r.get("chain") or "").strip() != self.DEFILLAMA_CHAIN:
+                continue
+            # ТОЧНОЕ равенство. Подстрока брала крупнейшего из подходящих под
+            # "USD0" — 29.08 это был `BUSD0` ($505.7 млн, 3.41 %), а LP-пара
+            # `USD0++-USD0` — вообще другой класс риска.
+            if (r.get("symbol") or "").strip().upper() != self.DEFILLAMA_SYMBOL:
                 continue
             tvl = r.get("tvlUsd")
             if best is None or (isinstance(tvl, (int, float)) and tvl > (best.get("tvlUsd") or 0)):
@@ -224,8 +269,13 @@ class UsualUSD0PPAdapter(BaseAdapter):
         else:
             record["live_data"] = True
 
-        if record["tvl"] is None:
-            record["tvl"] = self.FALLBACK_TVL_USD
+        # 2026-09-01: здесь стоял литерал `FALLBACK_TVL_USD = 350_000_000`.
+        # Решение владельца 2026-08-08 («делать все 15») сняло подстановку
+        # доходности, но подстановка TVL осталась в ТОЙ ЖЕ записи — и уезжала
+        # с `live_data=True`, когда доходность пришла, а глубина нет. Порог TVL
+        # RiskPolicy ($5 млн) такое число проходит, ничего не наблюдав
+        # (ADR-053: «never stamp `live` on a constant»; ADR-126 — тот же класс).
+        # Не наблюдали ⇒ None; отсутствие называется отсутствием.
 
         record["apy"] = self._clamp(apy)
         record["source"] = source

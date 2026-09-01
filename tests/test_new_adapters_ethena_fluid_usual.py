@@ -312,6 +312,7 @@ class TestFluidUSDCAdapter(unittest.TestCase):
 
 # ===========================================================================
 # 3. UsualUSD0PPAdapter — 15 tests
+#    (тождество пула по адресу/точному символу — spa_core/tests/test_usual_usd0pp_identity_by_pool.py)
 # ===========================================================================
 
 class TestUsualUSD0PPAdapter(unittest.TestCase):
@@ -352,10 +353,23 @@ class TestUsualUSD0PPAdapter(unittest.TestCase):
         a = UsualUSD0PPAdapter(http_get=_usual_live)
         self.assertGreater(a.get_tvl(), 0.0)
 
-    def test_get_tvl_fallback_positive(self):
+    def test_get_tvl_is_none_on_failure(self):
+        """ИЗМЕНЁН НАМЕРЕННО 2026-09-01 (инв. №16): ожидался литерал FALLBACK_TVL_USD.
+
+        Обоснование — ровно то же решение владельца 2026-08-08 «делать все 15»
+        (`agent-fake-fallback-v-15-adapterah`), которое сняло подстановку
+        ДОХОДНОСТИ: подстановка ГЛУБИНЫ осталась в той же `fetch()` и уезжала
+        с `live_data=True`, когда ставка пришла, а пула в фиде нет. Порог TVL
+        RiskPolicy ($5 млн) такой литерал ($350 млн) проходит, ничего не
+        наблюдав — ADR-053 «never stamp `live` on a constant», ADR-126 (тот же
+        класс). Ветка проверяется ТА ЖЕ (все живые источники недоступны) —
+        изменилось ожидаемое значение: отсутствие называется отсутствием.
+        Проверка не ослаблена: `assertIsNone` строже, чем `> 0`.
+        Разбор и положительные контроли — `spa_core/tests/test_usual_usd0pp_identity_by_pool.py`,
+        карточка `inbox-usual-usd0pp-otdaet-chislo-chuzhogo-akti`.
+        """
         a = UsualUSD0PPAdapter(http_get=_fail)
-        self.assertEqual(a.get_tvl(), UsualUSD0PPAdapter.FALLBACK_TVL_USD)
-        self.assertGreater(a.get_tvl(), 0.0)
+        self.assertIsNone(a.get_tvl())
 
     def test_get_yield_info(self):
         yi = UsualUSD0PPAdapter(http_get=_usual_live).get_yield_info()
