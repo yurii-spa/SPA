@@ -18,6 +18,40 @@ from spa_core.owner_queue.queue import Card, first_instruction_line, load_card
 
 log = logging.getLogger(__name__)
 
+# ── Отказ ДО отправки: в ЭТОМ прогоне сообщения владельцу НЕ БЫЛО ────────────────
+# Три гейта `notify_needs_owner` возвращают причину вместо текста сообщения. Маркеры
+# объявлены здесь ОДИН раз и подставляются в сами возвраты (контракт объявляют, а не
+# выводят из прозы, ADR-154): читателю возврата нужно РАЗЛИЧАТЬ «не отправляли» и
+# «отправили, но не дошло» — исходы разные, и путь наверх у них разный.
+#
+# Замер 2026-09-01 (цикл #447), из-за которого это понадобилось: `orchestrator_queue.py
+# notify` выбрасывал этот возврат и судил об исходе по ЛЮБОЙ записи журнала отправок —
+# в том числе о посылке ЧУЖОГО отправителя девятью минутами раньше. Анти-шторм отказал,
+# журнал остался байт-в-байт прежним, а команда напечатала «OK: notified — доставлено»
+# и вернула 0. Объявленный в её же docstring код 1 («НЕ отправлено — заслон») был
+# недостижим для всех трёх гейтов.
+REFUSAL_SKIP = "[skip]"
+REFUSAL_ANTI_STORM = "[anti-storm]"
+REFUSAL_REWRITTEN = "[переписана]"
+REFUSAL_PREFIXES = (REFUSAL_SKIP, REFUSAL_ANTI_STORM, REFUSAL_REWRITTEN)
+
+
+def refusal_reason(message: str) -> str | None:
+    """Причина отказа гейта, если ``notify_needs_owner`` НИЧЕГО не отправлял.
+
+    ``None`` — возврат не является отказом (сообщение собрано и отправка состоялась либо
+    была предпринята; дошло ли оно — отдельный вопрос, на него отвечает
+    :func:`delivery_verdict`).
+
+    Разделение существенно: «заслон подавил» и «отправитель не отдал» ведут к разным
+    действиям, а «доставлено раньше и по другому поводу» не есть ни то, ни другое.
+    """
+    text = str(message or "").lstrip()
+    for prefix in REFUSAL_PREFIXES:
+        if text.startswith(prefix):
+            return text[len(prefix):].strip() or prefix
+    return None
+
 
 def build_message(card: Card) -> str:
     """Запасной вид уведомления: заголовок, первая строка задания, путь к карточке.
@@ -82,7 +116,8 @@ def notify_needs_owner(path: str | Path, *, dry_run: bool = False,
     # Отправляем только карточки со статусом needs-owner.
     # Ingested / done / другие статусы — молчим.
     if card.status != "needs-owner":
-        return f"[skip] карточка уже не ждёт владельца (статус: {card.status})"
+        return (f"{REFUSAL_SKIP} карточка уже не ждёт владельца "
+                f"(статус: {card.status})")
     # Анти-шторм (инцидент 2026-08-20: 200+ копий одного решения за ночь): та же
     # карточка без ответа не уходит чаще окна и потолка попыток. Сухой прогон
     # (--check, тесты) гейт не трогает — он ничего не отправляет.
@@ -121,7 +156,7 @@ def notify_needs_owner(path: str | Path, *, dry_run: bool = False,
                            "вариантами, а в старой оставь пометку, что объяснение "
                            "снято.")
                     log.warning("notify_needs_owner SUPPRESSED for %s: %s", path, why)
-                    return f"[переписана] отправка отклонена: {why}"
+                    return f"{REFUSAL_REWRITTEN} отправка отклонена: {why}"
         except Exception as exc:  # noqa: BLE001 — проверка не важнее уведомления
             log.warning("notify_needs_owner rewrite check failed (%s) — шлю", exc)
 
@@ -132,7 +167,7 @@ def notify_needs_owner(path: str | Path, *, dry_run: bool = False,
             allowed, why = throttle_state(Path(path).stem)
             if not allowed:
                 log.warning("notify_needs_owner SUPPRESSED for %s: %s", path, why)
-                return f"[anti-storm] отправка подавлена: {why}"
+                return f"{REFUSAL_ANTI_STORM} отправка подавлена: {why}"
         except Exception as exc:  # noqa: BLE001 — защита не важнее уведомления
             log.warning("notify_needs_owner throttle check failed (%s) — шлю", exc)
     keyboard = None
