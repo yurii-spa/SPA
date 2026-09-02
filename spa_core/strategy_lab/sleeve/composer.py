@@ -116,9 +116,11 @@ def review_proportions(
         if current_weights.get(comp, 0.0) <= 0:
             continue
         eq = trailing_equity.get(comp)
-        if not eq or len(eq) < 2:
+        if not eq or len(eq) < config.trailing_window_days:
             return {"status": "HOLD_UNMEASURED", "component": comp,
-                    "reason": f"нет trailing-серии для {comp} — HOLD, не угадываем"}
+                    "reason": f"forward-история {comp}: {len(eq or [])}/"
+                              f"{config.trailing_window_days}д — короче "
+                              f"trailing-окна, HOLD, не угадываем"}
         dd = _max_drawdown_pct(eq[-config.trailing_window_days:])
         threshold = max(config.dd_breach_mult * base_dd, config.dd_floor_pct)
         if dd is not None and dd > threshold:
@@ -220,16 +222,24 @@ def _guarded_daily_return(equity: List[float]) -> Optional[float]:
     return guarded[-1] / guarded[-2] - 1.0
 
 
-def _component_series(panel_dir: Path, sid: str) -> tuple[List[float], List[str]]:
-    """(equity разогрев+forward, forward-даты) компонента из phase-aware loader'а."""
+def _component_series(panel_dir: Path, sid: str) -> tuple[List[float], List[str], int]:
+    """(equity разогрев+forward, forward-даты, длина bt-хвоста) из phase-aware loader'а.
+
+    bt-хвост нужен ТОЛЬКО как разогрев guardian'а (rolling-vol lookback,
+    ``_guarded_daily_return``) — backtest и forward не на одной базе капитала
+    (backtest у левериджа кончается выросшим, forward стартует с сид-капитала),
+    поэтому склеенный ``eq`` НЕЛЬЗЯ использовать для trailing-DD ревью:
+    один день 31.08.2026 читал разрыв бэктест→форвард как 72.7% просадки при
+    двух положительных доходностях в тот день (найдено в проде, UPD ниже)."""
     from spa_core.strategy_lab.aggressive_lab import loader as ld
     s = ld.load_strategy(sid, data_dir=Path(panel_dir))
     bt = [p for p in s.backtest.series if isinstance(p.get("equity_usd"), (int, float))]
     fwd = [p for p in s.forward.series if isinstance(p.get("equity_usd"), (int, float))]
-    eq = [float(p["equity_usd"]) for p in bt[-GUARDIAN_WARMUP_DAYS:]] + \
+    bt_tail = bt[-GUARDIAN_WARMUP_DAYS:]
+    eq = [float(p["equity_usd"]) for p in bt_tail] + \
          [float(p["equity_usd"]) for p in fwd]
     dates = [str(p.get("date")) for p in fwd]
-    return eq, dates
+    return eq, dates, len(bt_tail)
 
 
 def run_sleeve_shadow(
@@ -254,7 +264,7 @@ def run_sleeve_shadow(
         comp_returns: Dict[str, Optional[float]] = {}
         trailing: Dict[str, List[float]] = {}
         for comp in cfg.guarded_backtest_dd_pct:
-            eq, fwd_dates = _component_series(Path(panel_dir), comp)
+            eq, fwd_dates, bt_count = _component_series(Path(panel_dir), comp)
             if date_str not in fwd_dates:
                 comp_returns[comp] = None   # нет forward-точки ⇒ UNCHECKED
                 trailing[comp] = []
@@ -266,7 +276,11 @@ def run_sleeve_shadow(
             else:
                 comp_returns[comp] = (series[-1] / series[-2] - 1.0
                                       if len(series) >= 2 and series[-2] else None)
-            trailing[comp] = series[-cfg.trailing_window_days:]
+            # Ревью смотрит ТОЛЬКО forward: bt-хвост — чужая база капитала,
+            # склейка с ним читается как фиктивная просадка (см. docstring
+            # _component_series). guardian-разогрев (comp_returns выше) —
+            # отдельный, легитимный, случай использования bt-хвоста.
+            trailing[comp] = series[bt_count:][-cfg.trailing_window_days:]
 
         days_since = None
         for rec in reversed(ledger):

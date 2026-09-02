@@ -175,6 +175,83 @@ def test_run_shadow_never_raises_on_empty_panel(tmp_path):
     assert rec.get("is_advisory") is True  # fail-open, цикл не пострадает
 
 
+# ── регрессия: bt-хвост не должен читаться как trailing-просадка (прод 31.08) ──
+
+
+def _seed_panel_with_discontinuity(panel, sid, bt_days=60, fwd_days=5,
+                                   bt_daily=0.0225, fwd_daily=0.0003,
+                                   start="2026-05-01"):
+    """Bt заканчивается выросшей позицией (рычаг), forward стартует с сид-капитала
+    заново — точная форма прод-разрыва 31.08 (367K → 100K)."""
+    from datetime import date, timedelta
+    d = panel / sid
+    d.mkdir(parents=True)
+    d0 = date.fromisoformat(start)
+    lines = []
+    eq = 100000.0
+    for i in range(bt_days):
+        eq *= (1.0 + bt_daily)
+        lines.append(json.dumps({
+            "date": (d0 + timedelta(days=i)).isoformat(),
+            "equity_usd": round(eq, 4), "phase": "backtest"}))
+    fwd_eq = 100000.0
+    for i in range(fwd_days):
+        fwd_eq *= (1.0 + fwd_daily)
+        lines.append(json.dumps({
+            "date": (d0 + timedelta(days=bt_days + i)).isoformat(),
+            "equity_usd": round(fwd_eq, 4), "phase": "forward"}))
+    (d / "realized_series.jsonl").write_text("\n".join(lines) + "\n")
+    return (d0 + timedelta(days=bt_days + fwd_days - 1)).isoformat()
+
+
+def test_short_forward_never_reads_the_backtest_seam_as_a_drawdown(tmp_path):
+    """31.08 в проде: bt хвост вырос в 3.7×, forward стартовал заново с сид-
+    капитала; короткий forward (5д) склеенный с bt читался как −72.7% просадка
+    при двух положительных дневных доходностях. Ревью ОБЯЗАН сказать
+    HOLD_UNMEASURED (короче trailing-окна), а не предложить сдвиг на фиктивном
+    сигнале."""
+    panel = tmp_path / "panel"
+    last = _seed_panel_with_discontinuity(panel, "pendle_pt_levered")
+    _seed_panel_with_discontinuity(panel, ANCHOR, bt_daily=0.0, fwd_daily=0.0003)
+    rec = run_sleeve_shadow(data_dir=tmp_path, panel_dir=panel, date_str=last)
+    assert rec["review"]["status"] == "HOLD_UNMEASURED"
+    assert rec["weights"] == SleeveConfig().base_weights  # не сдвинуто
+    assert rec["checked"] is True  # день честно посчитан, не UNCHECKED
+
+
+def test_genuine_forward_only_breach_still_detected_after_fix(tmp_path):
+    """Фикс не должен ослепить ревью целиком: реальная просадка ПОСЛЕДНИХ 30
+    forward-дней (без bt в окне) обязана предложить сдвиг, как раньше."""
+    panel = tmp_path / "panel"
+    d = panel / "pendle_pt_levered"
+    d.mkdir(parents=True)
+    from datetime import date, timedelta
+    d0 = date.fromisoformat("2026-05-01")
+    lines = []
+    eq = 100000.0
+    for i in range(60):  # bt-разогрев, ровный
+        eq *= 1.001
+        lines.append(json.dumps({"date": (d0 + timedelta(days=i)).isoformat(),
+                                  "equity_usd": round(eq, 4), "phase": "backtest"}))
+    fwd_eq = 100000.0
+    fwd_days = 35
+    for i in range(fwd_days):
+        if i < fwd_days - 5:
+            fwd_eq *= 1.001
+        else:
+            fwd_eq *= 0.95  # реальная просадка в хвосте forward
+        lines.append(json.dumps({
+            "date": (d0 + timedelta(days=60 + i)).isoformat(),
+            "equity_usd": round(fwd_eq, 4), "phase": "forward"}))
+    (d / "realized_series.jsonl").write_text("\n".join(lines) + "\n")
+    last = (d0 + timedelta(days=60 + fwd_days - 1)).isoformat()
+    _seed_panel_with_discontinuity(panel, ANCHOR, bt_daily=0.0, fwd_daily=0.0003,
+                                   fwd_days=fwd_days)
+    rec = run_sleeve_shadow(data_dir=tmp_path, panel_dir=panel, date_str=last)
+    assert rec["review"]["status"] == "PROPOSE_APPLIED"
+    assert rec["review"]["component"] == "pendle_pt_levered"
+
+
 def test_wiring_lp_cycle_calls_the_shadow():
     """Проводка по ФОРМЕ вызова (урок «wiring-check-by-call-form»)."""
     from pathlib import Path
