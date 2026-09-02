@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-02T04:21:10Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-02T05:58:21Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (2828e2ac5).
+> Сверено с `origin/main` (a98c2bd07) · у **1** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **869** · ждёт владельца: **6** · занято сессиями: **9**.
 
@@ -412,6 +412,7 @@
 - Находка петли: возможность spark_susds 3.8367% (evidence L4) доступна книге, не держи  ·  `inbox-nahodka-petli-vozmozhnost-spark-susds-3-2.md` · 2026-08-27
 - Находка петли: возможность spark_susds 3.9431% (evidence L4) доступна книге, не держи  ·  `inbox-nahodka-petli-vozmozhnost-spark-susds-3-3.md` · 2026-08-28
 - Находка петли: возможность spark_susds 3.6765% (evidence L4) доступна книге, не держи  ·  `inbox-nahodka-petli-vozmozhnost-spark-susds-3.md` · 2026-08-23
+- Находка петли: возможность spark_susds 4.0121% (evidence L2) доступна книге, не держи  ·  `inbox-nahodka-petli-vozmozhnost-spark-susds-4.md` · 2026-09-01
 - Нечёткое совпадение отдаёт APY ЧУЖОГО актива: USDC.e ранжирует капитал как USDC — и платит БОЛЬШЕ настоящего  ·  `inbox-nechetkoe-sovpadenie-otdaet-apy-chuzhogo.md` · 2026-08-09
 - Нечитаемый rationale читается как «отказ НЕ назван» — сверка утверждает то, чего не измеряла (fail-OPEN)  ·  `inbox-nechitaemyi-rationale-chitaetsya-kak-otk.md` · 2026-08-28
 - Несостоявшаяся сверка с origin даёт код 0: list печатает уверенное число там, где не измерено ничего  ·  `inbox-nesostoyavshayasya-sverka-s-origin-daet.md` · 2026-08-27
@@ -502,6 +503,7 @@
 - Страж перезаписи считает переименование заголовка потерей записи — и его список «что пропадёт» неполон  ·  `inbox-strazh-perezapisi-schitaet-pereimenovani.md` · 2026-08-07
 - Страж ротации PAT сам сочиняет дату, которую сторожит (и его никто не зовёт)  ·  `inbox-strazh-rotatsii-pat-sam-sochinyaet-datu.md` · 2026-08-25
 - Сухой прогон уведомления (--check) пишет в живой реестр решений владельца  ·  `inbox-suhoi-progon-uvedomleniya-check-pishet-v.md` · 2026-08-09
+- Сверка трекера с origin стоит 84 секунды — её платит каждый обязательный шаг протокола  ·  `inbox-sverka-trekera-s-origin-stoit-84-sekundy.md` · 2026-08-30
 - Свести две реализации перезаполнения бюджета в одну (ADR-072 vs версия параллельной сессии)  ·  `inbox-svesti-dve-realizatsii-perezapolneniya-b.md` · 2026-08-08
 - Свежесть артефактов молчит там, где обязана краснеть: пустое дерево получает artifacts_overdue=[] вместо вердикта  ·  `inbox-svezhest-artefaktov-molchit-tam-gde-obya.md` · 2026-08-09
 - Так почини  ·  `inbox-tak-pochini.md` · 2026-08-08
@@ -635,7 +637,6 @@
 - Находка петли: аналитик red_team: CRITICAL — требует реакции (карточка/решение), не п  ·  `inbox-nahodka-petli-analitik-red-team-critical.md` · 2026-08-10
 - Находка петли: com.spa.gas_price_agent работает, но plist не персистентен (repo:launc  ·  `inbox-nahodka-petli-com-spa-gas-price-agent-ra.md` · 2026-09-01
 - Находка петли: манифест ↔ факты: com.spa.gas_price_agent: plist_source 'repo:launchd/  ·  `inbox-nahodka-petli-manifest-fakty-com-spa-gas.md` · 2026-09-01
-- Находка петли: возможность spark_susds 4.0121% (evidence L2) доступна книге, не держи  ·  `inbox-nahodka-petli-vozmozhnost-spark-susds-4.md` · 2026-09-01
 - Обещанная перепроверка DNS checkup осталась без исполнителя: карточку закрыли, критерий не выполнен  ·  `inbox-obeschannaya-pereproverka-dns-checkup-os.md` · 2026-08-22
 - Объявление с пустым списком файлов рождает в шаге 0a находку, которую нельзя снять никогда  ·  `inbox-obyavlenie-s-pustym-spiskom-failov-rozhd.md` · 2026-08-30
 - «Очередь полна» верна ровно настолько, насколько свеж локальный ref: в проде origin/main отстал, и отставание не мерит никто  ·  `inbox-ochered-polna-verna-rovno-nastolko-nasko.md` · 2026-08-31
@@ -686,7 +687,6 @@
 - Сторож вопросов владельцу не измеряет, ЖИВ ЛИ ещё вопрос — и звал отправить команду, ставшую разрушительной  ·  `inbox-storozh-voprosov-vladeltsu-ne-izmeryaet.md` · 2026-08-29
 - Строка Risk Gate дневного лимита убытка жила только в отключённом скрипте — в отчёт владельцу она не переехала  ·  `inbox-stroka-risk-gate-dnevnogo-limita-ubytka.md` · 2026-08-14
 - Сверка ответа владельца берёт в популяцию МЁРТВЫЕ worktree — отказ навсегда и не сказано, что расходятся живое и труп  ·  `inbox-sverka-otveta-vladeltsa-schitaet-mertvye-derevya.md` · 2026-09-01
-- Сверка трекера с origin стоит 84 секунды — её платит каждый обязательный шаг протокола  ·  `inbox-sverka-trekera-s-origin-stoit-84-sekundy.md` · 2026-08-30
 - Табличка честности: дать ей дорогу на сайт (решение владельца 09.08)  ·  `inbox-tablichka-chestnosti-dat-ei-dorogu-na-sa.md` · 2026-08-08
 - Тест паспортов краснеет на main оттого, что курацию ДОВЕЛИ: он требует, чтобы работа оставалась незаконченной (91 из 91)  ·  `inbox-test-pasportov-krasneet-na-main-ottogo-c.md` · 2026-08-30
 - Три отправителя стоп-крана в обход канонической двери (найдено #313)  ·  `inbox-tri-otpravitelya-stop-krana-v-obhod-kano.md` · 2026-08-20

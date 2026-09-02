@@ -101,15 +101,16 @@ def _rebuild_board(tracker_dir=None) -> None:
         # stdout is a machine-readable contract (create prints ONLY the card
         # path; callers read stdout to obtain it), so keep the builder's chatter
         # off our stdout.
-        # `--no-origin-check`: пересборка идёт ПОСЛЕ КАЖДОЙ мутации карточки (в том числе
-        # из бота, отвечающего владельцу), а сверка с origin стоит ~84 с на живом трекере —
-        # 1041 процесс git, из них 261 обход истории (замер #436). Ждать их на создании
-        # карточки нельзя. Доска при этом НЕ врёт: без сверки она печатает в шапке
-        # «Сверка с origin НЕ ИЗМЕРЕНА (сверка не запрашивалась)», а полную доску собирает
-        # явный прогон `python3 scripts/build_tracker_board.py`. Ускорение самой сверки
-        # названо карточкой `inbox-sverka-trekera-s-origin-stoit-84-sekundy`.
+        # Сверка с origin ВКЛЮЧЕНА (умолчание сборщика) — с цикла #454 она стоит ~2.5 с
+        # вместо ~84 с: один обход истории каталога вместо `rev-list` на карточку и один
+        # `cat-file --batch` вместо `git show` на находку (`check_tracker_drift.HistoryIndex`;
+        # набор находок сверен ПОИМЕННО, 551 = 551). До этого пересборка после КАЖДОЙ мутации
+        # карточки — в том числе из бота, отвечающего владельцу, — шла с `--no-origin-check`,
+        # и живая доска бо́льшую часть времени писала в шапке «Сверка с origin НЕ ИЗМЕРЕНА»:
+        # число «ждёт владельца» в файле, который CLAUDE.md §1 велит читать ПЕРВЫМ, было
+        # числом неизвестного происхождения (ADR-184). Цена сторожа выключала сторожа.
         with contextlib.redirect_stdout(io.StringIO()):
-            mod.main(["--no-origin-check"])
+            mod.main([])
     except Exception:  # noqa: BLE001
         pass
 

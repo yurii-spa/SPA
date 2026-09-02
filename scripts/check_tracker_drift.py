@@ -143,6 +143,115 @@ def _git(root: Path, args: list[str], stdin_text: str | None = None) -> tuple[in
     return res.returncode, res.stdout
 
 
+def _git_bytes(root: Path, args: list[str], stdin_bytes: bytes | None = None) -> tuple[int, bytes]:
+    """То же, но БЕЗ декодирования. Нужен `cat-file --batch`: его заголовок объявляет размер
+    в БАЙТАХ, и по декодированной строке отрезать содержимое нельзя — русская карточка весит
+    больше символов, чем занимает в тексте, и разбор уехал бы на первой же кириллице."""
+    try:
+        res = subprocess.run(
+            ["git", "-C", str(root), *args],
+            capture_output=True, timeout=120, input=stdin_bytes,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise Unmeasured(f"git не выполнился ({' '.join(args[:2])}): {exc}") from exc
+    return res.returncode, res.stdout
+
+
+def batch_blob_texts(root: Path, shas) -> dict[str, str]:
+    """{blob_sha: текст} одним процессом git вместо процесса на каждый blob.
+
+    Отсутствующий/непрочитанный blob в словарь НЕ попадает — «не измерено» здесь остаётся
+    отличимым от «пусто», и решение, что с этим делать, принимает вызывающий.
+    """
+    wanted = [s for s in dict.fromkeys(shas) if s]
+    if not wanted:
+        return {}
+    rc, out = _git_bytes(root, ["cat-file", "--batch"],
+                         stdin_bytes=("".join(f"{s}\n" for s in wanted)).encode())
+    if rc != 0:
+        raise Unmeasured(f"`git cat-file --batch` вернул код {rc}")
+    texts: dict[str, str] = {}
+    pos = 0
+    while pos < len(out):
+        nl = out.find(b"\n", pos)
+        if nl < 0:
+            break
+        parts = out[pos:nl].split()
+        pos = nl + 1
+        if len(parts) != 3 or parts[1] != b"blob":
+            continue  # `<oid> missing` / не blob — молча не подставляем пустоту
+        try:
+            size = int(parts[2])
+        except ValueError:
+            raise Unmeasured(f"`git cat-file --batch` вернул неразбираемый размер: {parts!r}")
+        texts[parts[0].decode()] = out[pos:pos + size].decode("utf-8", "replace")
+        pos += size + 1  # содержимое + завершающий перевод строки
+    return texts
+
+
+class HistoryIndex:
+    """Версии blob'а КАЖДОГО пути каталога, снятые ОДНИМ обходом истории (новые первыми).
+
+    **Зачем.** `historical_blobs`/`historical_texts` спрашивали `git rev-list <ref> -- <путь>`
+    для каждой разошедшейся карточки, и каждый такой вызов проходил историю в 1900+ коммитов:
+    замер 30.08 — 84 с и 1041 процесс git на одну сверку, которую платит КАЖДЫЙ обязательный
+    шаг протокола (`orchestrator_queue.py list` зовёт `analyze` всегда). Из-за этой цены живая
+    доска собирается БЕЗ сверки и честно пишет «сверка НЕ ИЗМЕРЕНА» — то есть цена сторожа
+    выключила сторожа.
+
+    **Почему `-m` обязателен.** Без него `--raw` не печатает по merge-коммиту НИЧЕГО, и версия
+    карточки, пришедшая мёржем, пропала бы из истории пути молча. В истории трекера на 02.09
+    таких коммитов **35** из 864 — это не гипотетическая ветка. `-m` показывает merge отдельным
+    diff'ом против каждого родителя; повтор одного и того же post-image снимается дедупликацией
+    по (коммит, путь).
+
+    **Fail-CLOSED.** Путь, который git отдал в кавычках (не-ASCII / спецсимвол в имени), не
+    разбирается наугад — `Unmeasured` с именем строки: молча потерянная версия пути превращает
+    «своя правка» в «отстаёт» и наоборот.
+    """
+
+    def __init__(self, per_path: dict[str, list[str]]):
+        self._per_path = per_path
+
+    def blobs(self, rel_path: str) -> list[str]:
+        return self._per_path.get(rel_path, [])
+
+    @classmethod
+    def build(cls, root: Path, ref: str, tracker_rel: str) -> "HistoryIndex":
+        rc, out = _git(root, ["-c", "core.quotePath=false", "log", "--format=%x00%H",
+                              "--raw", "--no-abbrev", "--no-renames", "-m", ref,
+                              "--", tracker_rel])
+        if rc != 0:
+            raise Unmeasured(f"`git log --raw {ref} -- {tracker_rel}` вернул код {rc}")
+        per_path: dict[str, list[str]] = {}
+        seen: set[tuple[str, str]] = set()
+        commit = ""
+        for line in out.splitlines():
+            if line.startswith("\0"):
+                commit = line[1:].strip()
+                continue
+            if not line.startswith(":"):
+                continue
+            meta, tab, path = line.partition("\t")
+            if not tab:
+                continue
+            if path.startswith('"'):
+                raise Unmeasured(
+                    f"путь в истории отдан в кавычках и не разобран однозначно: {line!r}")
+            parts = meta.split()
+            if len(parts) < 3:
+                continue
+            status, dst = parts[-1], parts[-2]
+            if status.startswith("D") or set(dst) == {"0"}:
+                continue  # удаление: blob'а этого пути в этом коммите нет
+            key = (commit, path)
+            if key in seen:
+                continue  # `-m` повторяет merge по каждому родителю — post-image один
+            seen.add(key)
+            per_path.setdefault(path, []).append(dst)
+        return cls(per_path)
+
+
 def repo_root_of(path: Path) -> Path:
     """Корень рабочего дерева, которому принадлежит путь. Не измерилось ⇒ Unmeasured."""
     rc, out = _git(path if path.is_dir() else path.parent, ["rev-parse", "--show-toplevel"])
@@ -194,8 +303,15 @@ def tree_snapshot(tracker_dir: Path) -> dict[str, tuple[Path, str]]:
     return out
 
 
-def historical_blobs(root: Path, rel_path: str, ref: str) -> set[str]:
-    """Все версии blob'а этого ПУТИ в истории ref. Пусто = путь на ref не жил никогда."""
+def historical_blobs(root: Path, rel_path: str, ref: str,
+                     index: "HistoryIndex | None" = None) -> set[str]:
+    """Все версии blob'а этого ПУТИ в истории ref. Пусто = путь на ref не жил никогда.
+
+    С `index` — из одного общего обхода истории каталога; без него — прежним запросом на путь
+    (одиночный вызов остаётся рабочим: у него свои вызывающие и свои тесты).
+    """
+    if index is not None:
+        return set(index.blobs(rel_path))
     rc, out = _git(root, ["rev-list", ref, "--", rel_path])
     if rc != 0:
         raise Unmeasured(f"`git rev-list {ref} -- {rel_path}` вернул код {rc}")
@@ -246,8 +362,15 @@ def strip_claim_keys(text: str) -> str:
     return "".join(out)
 
 
-def historical_texts(root: Path, rel_path: str, ref: str) -> tuple[list[str], bool]:
+def historical_texts(root: Path, rel_path: str, ref: str,
+                     index: "HistoryIndex | None" = None) -> tuple[list[str], bool]:
     """Тексты версий пути на ref (новые первыми) + флаг «упёрлись в потолок»."""
+    if index is not None:
+        shas = index.blobs(rel_path)
+        capped = len(shas) > _HISTORY_PROBE_CAP
+        head = shas[:_HISTORY_PROBE_CAP]
+        by_sha = batch_blob_texts(root, head)
+        return [by_sha[s] for s in head if s in by_sha], capped
     rc, out = _git(root, ["rev-list", ref, "--", rel_path])
     if rc != 0:
         raise Unmeasured(f"`git rev-list {ref} -- {rel_path}` вернул код {rc}")
@@ -261,12 +384,18 @@ def historical_texts(root: Path, rel_path: str, ref: str) -> tuple[list[str], bo
     return texts, capped
 
 
-def read_origin_card(root: Path, ref: str, rel_path: str):
-    """Карточка в версии ref — тем же единственным парсером, что и файл на диске."""
-    rc, out = _git(root, ["show", f"{ref}:{rel_path}"])
-    if rc != 0:
-        raise Unmeasured(f"`git show {ref}:{rel_path}` вернул код {rc}")
-    return load_card_text(out, Path(rel_path).name)
+def read_origin_card(root: Path, ref: str, rel_path: str, text: str | None = None):
+    """Карточка в версии ref — тем же единственным парсером, что и файл на диске.
+
+    `text` — уже добытое содержимое (см. `batch_blob_texts`): снимок каталога уже знает blob
+    каждой карточки, и спрашивать его вторым процессом `git show` не за чем.
+    """
+    if text is None:
+        rc, out = _git(root, ["show", f"{ref}:{rel_path}"])
+        if rc != 0:
+            raise Unmeasured(f"`git show {ref}:{rel_path}` вернул код {rc}")
+        text = out
+    return load_card_text(text, Path(rel_path).name)
 
 
 def analyze(tracker_dir: Path | None = None, ref: str = DEFAULT_REF) -> Report:
@@ -286,12 +415,18 @@ def analyze(tracker_dir: Path | None = None, ref: str = DEFAULT_REF) -> Report:
     report = Report(ref=ref, ref_sha=ref_sha, tracker_dir=str(tracker_dir),
                     tree_count=len(tree), origin_count=len(origin))
 
+    # Один обход истории каталога на всю сверку вместо `rev-list` на каждую карточку, и один
+    # `cat-file --batch` на все тексты origin вместо `git show` на каждую находку. Вердикты от
+    # этого не меняются — меняется число процессов git (замер #454: 1041 → единицы).
+    index = HistoryIndex.build(root, ref, tracker_rel)
+    origin_texts = batch_blob_texts(root, origin.values())
+
     for card_id in sorted(set(tree) | set(origin)):
         rel_path = f"{tracker_rel}/{card_id}.md"
         in_tree, in_origin = card_id in tree, card_id in origin
 
         if in_origin and not in_tree:
-            card = read_origin_card(root, ref, rel_path)
+            card = read_origin_card(root, ref, rel_path, origin_texts.get(origin[card_id]))
             report.findings.append(Finding(
                 kind=KIND_HIDDEN, card_id=card_id,
                 detail=f"есть на {ref}, в дереве файла нет — задание невидимо этому дереву",
@@ -302,7 +437,7 @@ def analyze(tracker_dir: Path | None = None, ref: str = DEFAULT_REF) -> Report:
         tree_card = load_card_text(path.read_text(encoding="utf-8"), path.name)
 
         if not in_origin:
-            history = historical_blobs(root, rel_path, ref)
+            history = historical_blobs(root, rel_path, ref, index)
             if history:
                 report.findings.append(Finding(
                     kind=KIND_DELETED, card_id=card_id,
@@ -318,8 +453,8 @@ def analyze(tracker_dir: Path | None = None, ref: str = DEFAULT_REF) -> Report:
         if tree_sha == origin[card_id]:
             continue  # совпадает байт-в-байт — не находка
 
-        origin_card = read_origin_card(root, ref, rel_path)
-        proven, why = _proven_behind(root, rel_path, ref, path, tree_sha)
+        origin_card = read_origin_card(root, ref, rel_path, origin_texts.get(origin[card_id]))
+        proven, why = _proven_behind(root, rel_path, ref, path, tree_sha, index)
         if proven:
             report.findings.append(Finding(
                 kind=KIND_STALE, card_id=card_id, detail=why,
@@ -334,7 +469,7 @@ def analyze(tracker_dir: Path | None = None, ref: str = DEFAULT_REF) -> Report:
 
 
 def _proven_behind(root: Path, rel_path: str, ref: str, path: Path,
-                   tree_sha: str) -> tuple[bool, str]:
+                   tree_sha: str, index: "HistoryIndex | None" = None) -> tuple[bool, str]:
     """Доказано ли, что копия дерева — ПРЕЖНЯЯ версия этого же пути на ref.
 
     Две ступени, обе доказательные, ни одна не «похоже старее»:
@@ -343,10 +478,10 @@ def _proven_behind(root: Path, rel_path: str, ref: str, path: Path,
 
     Не доказано — так и говорим (`diverged`), а не выбираем сторону молча.
     """
-    if tree_sha in historical_blobs(root, rel_path, ref):
+    if tree_sha in historical_blobs(root, rel_path, ref, index):
         return True, (f"содержимое дерева найдено в истории {ref} для этого пути ⇒ дерево "
                       f"строго ОТСТАЁТ, авторитетен {ref}")
-    texts, capped = historical_texts(root, rel_path, ref)
+    texts, capped = historical_texts(root, rel_path, ref, index)
     tree_norm = strip_claim_keys(path.read_text(encoding="utf-8"))
     for text in texts:
         if strip_claim_keys(text) == tree_norm:

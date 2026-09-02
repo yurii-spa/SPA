@@ -360,30 +360,55 @@ def test_disabled_check_names_itself_in_the_header(repo) -> None:
     assert "НЕ ИЗМЕРЕНА" in text and "не запрашивалась" in text, text[:600]
 
 
-def test_card_mutation_does_not_pay_for_the_origin_check(tmp_path: Path) -> None:
-    """ПРОВОДКА горячего пути: пересборка доски после мутации карточки идёт БЕЗ сверки.
+def test_card_mutation_carries_the_origin_check_and_pays_one_history_walk(
+        repo, monkeypatch) -> None:
+    """ПРОВОДКА горячего пути: пересборка доски после мутации карточки идёт СО сверкой.
 
-    Это отдельный тест, а не следствие предыдущего. Мутация «убрать `--no-origin-check`
-    из `_rebuild_board`» оставляла ЗЕЛЁНЫМИ все одиннадцать проверок выше: они меряют
-    флаг, а не то, что его кто-то передаёт. Цена промаха измерима — сверка стоит ~84 с
-    на живом трекере, и платил бы её КАЖДЫЙ ответ бота владельцу.
+    **Тест намеренно развёрнут (цикл #454, инвариант #16 — обоснование обязано быть здесь.)**
+    До #454 он требовал ОБРАТНОГО: `_rebuild_board` обязан звать сборщик с
+    `--no-origin-check`. Основанием была цена — сверка стоила ~84 с на живом трекере
+    (1041 процесс git, из них 261 обход истории по пути), и платить её на каждый ответ бота
+    владельцу было нельзя. Цена измерена заново после того, как `check_tracker_drift` стал
+    делать ОДИН обход истории каталога вместо обхода на карточку: **2.5 с** при поимённо том
+    же наборе находок (551 = 551). Основание отпало, а вред остался на другой стороне:
+    живая доска — файл, который `CLAUDE.md` §1 велит читать ПЕРВЫМ, — бо́льшую часть времени
+    писала «Сверка с origin НЕ ИЗМЕРЕНА» и показывала закрытое как открытое (ADR-184).
 
-    Различить два «не измерено» позволяет ПРИЧИНА: у выключенной флагом сверки она своя,
-    и подделать её нечем.
+    Проверка не ослаблена, а переставлена на то же свойство с другой стороны: сверка обязана
+    СОСТОЯТЬСЯ, и обязана стоить ОДИН обход истории. Второй assert и есть бывший сторож цены:
+    вернись обход по карточке — счётчик `git log` вырастет вместе с числом карточек, и тест
+    покраснеет ровно там, где раньше.
     """
+    import check_tracker_drift as drift
+
     spec = importlib.util.spec_from_file_location(
         "_queue_cli_under_test", REPO_ROOT / "scripts" / "orchestrator_queue.py")
     assert spec and spec.loader
     cli = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(cli)
 
-    tracker = tmp_path / "tracker"
-    tracker.mkdir()
-    (tracker / "inbox-a.md").write_text(_card_text("new", "карточка"), encoding="utf-8")
+    root, tracker = repo
+    for i in range(8):
+        (tracker / f"inbox-{i}.md").write_text(_card_text("new", f"карточка {i}"),
+                                               encoding="utf-8")
+    _commit_as_origin(root)
+    # мутация карточки в дереве — ровно то, после чего бот пересобирает доску
+    (tracker / "inbox-0.md").write_text(_card_text("done", "карточка 0"), encoding="utf-8")
 
+    walks = []
+    real = drift._git
+
+    def counting(git_root, args, stdin_text=None):
+        walks.append(args[0] if args[0] != "-c" else args[2])
+        return real(git_root, args, stdin_text)
+
+    monkeypatch.setattr(drift, "_git", counting)
     cli._rebuild_board(tracker_dir=tracker)
 
     text = (tracker / "_BOARD.md").read_text(encoding="utf-8")
-    assert "не запрашивалась" in text, (
-        "пересборка после мутации карточки обязана идти с --no-origin-check; "
-        f"шапка доски: {text.splitlines()[:9]}")
+    assert "не запрашивалась" not in text, (
+        "пересборка после мутации карточки обязана НЕСТИ сверку с origin, иначе живая доска "
+        f"пишет «не измерено» всегда; шапка доски: {text.splitlines()[:9]}")
+    assert walks.count("log") <= 1, (
+        f"обход истории обязан быть один на всю сверку, а не на карточку: {walks}")
+    assert walks.count("rev-list") == 0, f"обход истории по ПУТИ вернулся: {walks}"
