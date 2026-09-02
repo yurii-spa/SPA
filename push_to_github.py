@@ -714,11 +714,51 @@ def _common_prefix_at_line_boundary(base: bytes, local: bytes, remote: bytes) ->
 # ══════════════════════════════════════════════════════════════════════════════
 
 #: Документы, которые ДОПИСЫВАЮТ все сессии подряд (протокол §«Шаг 3»).
-APPEND_ONLY_DOCS = ("docs/STATE.md",)
+APPEND_ONLY_DOCS = ("docs/STATE.md", "docs/decisions/INDEX.md")
 APPEND_ONLY_PREFIXES = ("docs/journal/",)
 
 #: Заголовок ЗАПИСИ: `## …` в журнале и блок-цитата `> **…` в `docs/STATE.md`.
 ENTRY_HEADER_RE = re.compile(rb"^(?:##[ \t]+\S.*|>[ \t]*\*\*.+)$", re.M)
+
+# ── реестр решений: запись — СТРОКА ТАБЛИЦЫ, а не заголовок ──────────────────
+#
+# `docs/decisions/INDEX.md` — общая тетрадь ровно в том же смысле, что `STATE.md`
+# и журнал: каждый цикл дописывает в неё строку, и параллельных писателей у неё
+# столько же. Но её запись выглядит иначе — `| ADR-NNN | … |`, — и потому
+# `ENTRY_HEADER_RE` не видел её вовсе: пропажа строки реестра пропажей записи для
+# стража не была.
+#
+# ЗАМЕР (цикл #459, по всей истории файла — 143 коммита): строки реестра
+# исчезали в 7 коммитах, каждый раз при параллельных писателях, и каждый раз их
+# возвращал СЛЕДУЮЩИЙ цикл через час-полтора — то есть реестр врал ровно столько
+# времени. Поимённо: ADR-102/103/104 (дважды, 21.08), ADR-116, ADR-117, ADR-118
+# (22.08), ADR-125 (23.08), ADR-145 (26.08).
+#
+# Восьмой случай — `ADR-074 (проект)` 08.08 — НЕ авария: черновая строка была
+# заменена принятой намеренно («два файла одного ADR в разных статусах ломают
+# реестр»). Поэтому тождество записи здесь — НОМЕР ADR, а не текст ячейки
+# целиком: иначе страж краснел бы на штатное превращение черновика в решение.
+#
+#: Документы, чья запись опознаётся строкой таблицы реестра.
+REGISTRY_DOCS = ("docs/decisions/INDEX.md",)
+
+#: Строка реестра. Тождество записи — номер (`ADR-197`, `ADR-YL-011`,
+#: `ADR-OWN-2026-07`, `ADR-TEST`), а не вся ячейка: правка описания записи не
+#: трогает, удаление строки — трогает.
+REGISTRY_ROW_RE = re.compile(
+    rb"^\|[ \t]*\**[ \t]*(?P<id>ADR(?:-[A-Za-z0-9]+)+)[^|]*\|", re.M)
+
+
+def entry_pattern(repo_path: str):
+    """Чем в ЭТОМ файле опознаётся запись. Реестр — строкой, остальные — заголовком."""
+    return REGISTRY_ROW_RE if repo_path in REGISTRY_DOCS else ENTRY_HEADER_RE
+
+
+def _entry_key(match) -> bytes:
+    """Тождество записи: именованная группа `id`, если она есть, иначе всё совпадение."""
+    if "id" in match.re.groupindex:
+        return match.group("id").strip()
+    return match.group(0).strip()
 
 
 class EntryLossRefused(DivergenceRefused):
@@ -774,7 +814,12 @@ def is_append_only_doc(repo_path: str) -> bool:
 # ══════════════════════════════════════════════════════════════════════════════
 
 #: Общая память проекта: по этим файлам судят, что было сделано.
-SHARED_MEMORY_DOCS = ("docs/STATE.md", "nimbalyst-local/tracker/_BOARD.md")
+#: `docs/decisions/INDEX.md` — единственный индекс, по которому находят ADR:
+#: потерянная строка не ломает ни один тест сразу (файл решения на месте), но
+#: делает решение ненаходимым, а `check_memory_in_git --links` покраснеет у
+#: СЛЕДУЮЩЕГО цикла — причиной в чужом пуше (цикл #459).
+SHARED_MEMORY_DOCS = ("docs/STATE.md", "nimbalyst-local/tracker/_BOARD.md",
+                      "docs/decisions/INDEX.md")
 SHARED_MEMORY_PREFIXES = ("docs/journal/",)
 
 
@@ -790,19 +835,23 @@ def is_shared_memory_doc(repo_path: str) -> bool:
             and repo_path.endswith(".md"))
 
 
-def entry_headers(blob: Optional[bytes]) -> list:
+def entry_headers(blob: Optional[bytes], pattern=ENTRY_HEADER_RE) -> list:
     """Заголовки записей в порядке появления. ``None`` → пустой список.
 
     Кратность значима: одинаковые заголовки в разных записях встречаются, и
     пропажа ОДНОГО из двух — тоже пропажа записи. Поэтому сравнение идёт
     мультимножеством, а не множеством.
+
+    ``pattern`` — чем опознаётся запись в конкретном файле (:func:`entry_pattern`).
+    Умолчание оставлено прежним намеренно: вызывающие, которым файл безразличен,
+    продолжают получать поведение до этой правки.
     """
     if not blob:
         return []
-    return [m.group(0).strip() for m in ENTRY_HEADER_RE.finditer(blob)]
+    return [_entry_key(m) for m in pattern.finditer(blob)]
 
 
-def entry_blocks(blob: Optional[bytes]) -> list:
+def entry_blocks(blob: Optional[bytes], pattern=ENTRY_HEADER_RE) -> list:
     """``[(заголовок, тело)]`` в порядке появления; тело — до следующего заголовка.
 
     Нужно затем, чтобы отличить ПЕРЕИМЕНОВАНИЕ записи от её ИСЧЕЗНОВЕНИЯ: по
@@ -812,15 +861,16 @@ def entry_blocks(blob: Optional[bytes]) -> list:
     """
     if not blob:
         return []
-    heads = list(ENTRY_HEADER_RE.finditer(blob))
+    heads = list(pattern.finditer(blob))
     out = []
     for i, m in enumerate(heads):
         end = heads[i + 1].start() if i + 1 < len(heads) else len(blob)
-        out.append((m.group(0).strip(), blob[m.end():end].strip()))
+        out.append((_entry_key(m), blob[m.end():end].strip()))
     return out
 
 
-def classify_missing_entries(remote: Optional[bytes], ours: Optional[bytes]) -> tuple:
+def classify_missing_entries(remote: Optional[bytes], ours: Optional[bytes],
+                            pattern=ENTRY_HEADER_RE) -> tuple:
     """``(потеряно, переименовано)`` — записи remote, чьего заголовка у нас нет.
 
     Замер цикла #150: доставка отказала на двух строках `2026-W29.md`, которые
@@ -840,8 +890,8 @@ def classify_missing_entries(remote: Optional[bytes], ours: Optional[bytes]) -> 
     исчезает содержимое записи. Сужается ровно тот случай, где содержимое
     доказанно на месте, — и он всё равно НАЗЫВАЕТСЯ (нота, а не молчание).
     """
-    theirs = entry_blocks(remote)
-    unmatched_mine = entry_blocks(ours)
+    theirs = entry_blocks(remote, pattern)
+    unmatched_mine = entry_blocks(ours, pattern)
 
     only_on_remote = []
     for header, body in theirs:
@@ -868,13 +918,14 @@ def classify_missing_entries(remote: Optional[bytes], ours: Optional[bytes]) -> 
     return lost, renamed
 
 
-def dropped_entries(remote: Optional[bytes], ours: Optional[bytes]) -> list:
+def dropped_entries(remote: Optional[bytes], ours: Optional[bytes],
+                    pattern=ENTRY_HEADER_RE) -> list:
     """Записи, которые есть на remote и которых НЕ будет после нашего пуша.
 
     Переименование заголовка при побайтово уцелевшем теле сюда НЕ попадает —
     см. :func:`classify_missing_entries`.
     """
-    return classify_missing_entries(remote, ours)[0]
+    return classify_missing_entries(remote, ours, pattern)[0]
 
 
 def guard_entry_loss(repo_path: str, remote_bytes: Optional[bytes],
@@ -900,7 +951,8 @@ def guard_entry_loss(repo_path: str, remote_bytes: Optional[bytes],
             f"Что делать: повторить (Contents API не отдаёт содержимое файлов >1 МБ); "
             f"осознанная перезапись — `--allow-overwrite`.")
 
-    lost, renamed = classify_missing_entries(remote_bytes, content_bytes)
+    lost, renamed = classify_missing_entries(remote_bytes, content_bytes,
+                                             entry_pattern(repo_path))
 
     # Переименование НАЗЫВАЕТСЯ отдельным классом, а не молчит: тело записи на
     # месте побайтово, терять нечего — но заголовок общей тетради всё-таки
