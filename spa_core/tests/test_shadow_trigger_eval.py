@@ -447,3 +447,41 @@ def test_format_summary_is_printable(tmp_path: Path) -> None:
     _seed_timeline(tmp_path)
     text = format_summary(evaluate_window(tmp_path, write=False))
     assert "NOT_READY" in text and "Критерии включения" in text
+
+
+# ── book scoping: load_history reads the SAME file the writer routed to ───────
+
+
+def test_load_history_without_book_id_is_unaffected_by_scoping(tmp_path: Path) -> None:
+    """Every pre-existing caller of load_history() calls it with no book_id —
+    that must keep reading the original filename exactly as before."""
+    append_rationale_history(_rec("2026-08-01"), tmp_path)
+    records, bad = load_history(tmp_path)
+    assert len(records) == 1 and bad == 0
+
+
+def test_load_history_with_book_id_reads_that_books_own_file(tmp_path: Path) -> None:
+    write_shadow_rationale(
+        data_dir=tmp_path, current_positions=BOOK, target_positions=BOOK,
+        apy_pct=APY, apy_sources=SRC, capital_usd=CAPITAL,
+        cycle_date="2026-08-02", run_ts=NOW.isoformat(), now=NOW,
+        book_id="balanced")
+    conservative_records, _ = load_history(tmp_path)
+    balanced_records, _ = load_history(tmp_path, book_id="balanced")
+    assert conservative_records == []          # writer never touched this file
+    assert len(balanced_records) == 1
+    assert balanced_records[0]["book_id"] == "balanced"
+
+
+def test_load_history_for_a_book_with_no_ledger_yet_is_empty_not_an_error(
+        tmp_path: Path) -> None:
+    """A book whose cycle has never run (or never called the writer) must
+    read as an empty, valid history — not raise, not silently read a
+    DIFFERENT book's file."""
+    write_shadow_rationale(
+        data_dir=tmp_path, current_positions=BOOK, target_positions=BOOK,
+        apy_pct=APY, apy_sources=SRC, capital_usd=CAPITAL,
+        cycle_date="2026-08-02", run_ts=NOW.isoformat(), now=NOW,
+        book_id="balanced")
+    records, bad = load_history(tmp_path, book_id="aggressive")
+    assert records == [] and bad == 0

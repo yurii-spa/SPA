@@ -50,6 +50,54 @@ HISTORY_FILENAME = "allocation_rationale_history.jsonl"
 HISTORY_SCHEMA = "shadow-hist-v2"
 HISTORY_MAX_LINES = 1000  # ~3 years of daily cycles; guards against unbounded growth
 
+# ── Book scoping (three independent paper books, one shadow writer) ───────────
+# Conservative (``cycle_runner.py``) was the only caller until Balanced
+# (``hy_cycle.py``) / Aggressive (``lp_cycle.py``) were wired in. Giving every
+# book its own file — rather than adding a "book" field inside one shared
+# file — keeps the append-only-by-cycle-date invariant intact per book (two
+# books rebalancing the same calendar date must not overwrite each other's
+# line) and needs no migration: Conservative's ``book_id`` normalizes to
+# ``DEFAULT_BOOK_ID`` and keeps writing the EXACT original filenames, so the
+# already-running book and every existing reader/test of that file are
+# untouched. Only Balanced/Aggressive get a suffixed filename.
+DEFAULT_BOOK_ID = "conservative"
+
+
+def _normalize_book_id(book_id: Optional[str]) -> str:
+    bid = str(book_id or "").strip().lower()
+    return bid or DEFAULT_BOOK_ID
+
+
+def history_filename(book_id: Optional[str] = None) -> str:
+    """Book-scoped filename for the append-only verdict ledger.
+
+    ``book_id`` unset / ``None`` / ``"conservative"`` → the original
+    ``HISTORY_FILENAME`` (no back-compat break). Any other book id →
+    ``allocation_rationale_history_<book_id>.jsonl``. Public because
+    :mod:`shadow_trigger_eval` (the reader) needs the SAME routing the writer
+    uses — reimplementing the suffix rule there would be a second, driftable
+    copy of this one.
+    """
+    bid = _normalize_book_id(book_id)
+    if bid == DEFAULT_BOOK_ID:
+        return HISTORY_FILENAME
+    return f"allocation_rationale_history_{bid}.jsonl"
+
+
+def _rationale_filename(book_id: Optional[str]) -> str:
+    """Book-scoped filename for the single-cycle (overwritten) rationale doc.
+
+    Same rule as :func:`history_filename`. Kept private: unlike the ledger,
+    the per-cycle snapshot has no cross-module reader today (``cio_brief``
+    reads only the ledger via ``load_history``); Conservative's existing
+    readers (``capital_efficiency.py``, ``house_view_gap*.py``) all hardcode
+    the unscoped ``RATIONALE_FILENAME`` and are therefore unaffected either way.
+    """
+    bid = _normalize_book_id(book_id)
+    if bid == DEFAULT_BOOK_ID:
+        return RATIONALE_FILENAME
+    return f"allocation_rationale_{bid}.json"
+
 
 def build_history_record(
     doc: dict,
@@ -59,6 +107,7 @@ def build_history_record(
     current_positions: Dict[str, float],
     target_positions: Dict[str, float],
     capital_usd: float,
+    book_id: Optional[str] = None,
 ) -> dict:
     """One compact line of shadow track-record: enough to replay the verdict later.
 
@@ -90,6 +139,7 @@ def build_history_record(
     evidenced = {p for p, s in (apy_sources or {}).items() if s == "live"}
     return {
         "schema": HISTORY_SCHEMA,
+        "book_id": _normalize_book_id(book_id),
         "decision_id": f"adr060-shadow-{cycle_date}" if cycle_date else None,
         "cycle_date": cycle_date,
         "generated_at": doc.get("generated_at"),
@@ -121,7 +171,8 @@ def build_history_record(
     }
 
 
-def append_rationale_history(record: dict, data_dir: Path) -> int:
+def append_rationale_history(record: dict, data_dir: Path,
+                              book_id: Optional[str] = None) -> int:
     """Append *record* to the JSONL accumulator; idempotent by ``cycle_date``.
 
     - Same-date line is REPLACED (latest run of the day wins) — a manual re-run
@@ -130,10 +181,13 @@ def append_rationale_history(record: dict, data_dir: Path) -> int:
       may drop nothing it did not write this call.
     - Atomic via tmp+``os.replace`` (invariant 5); capped at HISTORY_MAX_LINES
       (oldest lines fall off first).
+    - ``book_id`` routes to that book's OWN file (:func:`history_filename`) —
+      Conservative's file is untouched by a Balanced/Aggressive append and
+      vice versa.
 
     Returns the number of lines now in the file.
     """
-    path = Path(data_dir) / HISTORY_FILENAME
+    path = Path(data_dir) / history_filename(book_id)
     date = record.get("cycle_date")
     kept: List[str] = []
     if path.exists():
@@ -320,8 +374,18 @@ def write_shadow_rationale(
     params: Optional[TriggerParams] = None,
     blocked_protocols: Optional[Dict[str, str]] = None,
     policy_refusals: Optional[List[dict]] = None,
+    book_id: Optional[str] = None,
 ) -> dict:
-    """Compute the shadow verdict and (optionally) persist it. Never raises."""
+    """Compute the shadow verdict and (optionally) persist it. Never raises.
+
+    ``book_id`` — which of the three independent paper books this call is
+    for (``"conservative"`` / ``"balanced"`` / ``"aggressive"``). Unset stays
+    ``"conservative"`` for back-compat with the original single-book caller
+    (``cycle_runner.py``). Routes BOTH the per-cycle overwrite doc and the
+    append-only ledger to that book's own file (:func:`_rationale_filename`,
+    :func:`history_filename`) so the three books' records never collide.
+    """
+    _bid = _normalize_book_id(book_id)
     try:
         now = now or datetime.now(timezone.utc)
         p = params or TriggerParams.for_mode()
@@ -485,6 +549,7 @@ def write_shadow_rationale(
         doc = {
             "generated_at": run_ts,
             "cycle_date": cycle_date,
+            "book_id": _bid,
             "mode": "SHADOW",
             "version": SHADOW_VERSION,
             "note": (
@@ -546,7 +611,7 @@ def write_shadow_rationale(
                                     "recommendations": []}
 
         if write:
-            atomic_save(doc, str(Path(data_dir) / RATIONALE_FILENAME))
+            atomic_save(doc, str(Path(data_dir) / _rationale_filename(_bid)))
             # Y3: the per-cycle file is overwritten — the accumulator is the
             # ONLY durable record of the shadow's verdicts. Its failure must not
             # cost us the rationale itself (already saved above), hence own guard.
@@ -559,8 +624,10 @@ def write_shadow_rationale(
                         current_positions=current_positions or {},
                         target_positions=target_positions or {},
                         capital_usd=capital_usd,
+                        book_id=_bid,
                     ),
                     Path(data_dir),
+                    book_id=_bid,
                 )
             except Exception as hist_exc:  # noqa: BLE001 — reporting never breaks the cycle
                 log.warning("Y3 history append failed (%s) — rationale intact", hist_exc)
@@ -580,4 +647,4 @@ def write_shadow_rationale(
         return doc
     except Exception as exc:  # noqa: BLE001 — a reporting layer never breaks the cycle
         log.warning("ADR-060 shadow rationale failed (%s) — cycle continues", exc)
-        return {"error": type(exc).__name__, "mode": "SHADOW"}
+        return {"error": type(exc).__name__, "mode": "SHADOW", "book_id": _bid}

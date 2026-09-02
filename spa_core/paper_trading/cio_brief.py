@@ -6,10 +6,14 @@ via :func:`spa_core.paper_trading.shadow_trigger_eval.load_history`) and turns t
 record into short RU prose. Computes nothing new: every number/flag used here already
 exists in the ledger (phase E's ``policy_version``/``mode``, phase F's ``legs``/``gates``).
 
-Scoping fact this module must respect: ``write_shadow_rationale``/``build_history_record``
-is called ONLY from the Conservative book's cycle (``cycle_runner.py``). Balanced
-(``hy_cycle.py``) and Aggressive (``lp_cycle.py``) never produce a decision record — this
-module reports that plainly (:func:`no_record_brief`) rather than inventing one.
+Book scoping: ``write_shadow_rationale`` now runs from all three cycles
+(``cycle_runner.py`` / ``hy_cycle.py`` / ``lp_cycle.py``), each into its OWN
+append-only ledger (:func:`spa_core.paper_trading.allocation_rationale.history_filename`).
+This module reads each book's ledger separately via ``load_history(data_dir, book_id=...)``
+and briefs it from ITS OWN latest record. A book whose ledger genuinely does not exist
+yet (or is empty) still reports that plainly (:func:`no_record_brief`) rather than
+inventing one — that fallback used to be unconditional for Balanced/Aggressive because
+neither cycle called the writer at all; now it fires only on a genuinely empty ledger.
 
 Pure display layer: never mutates a position, never gates a trade. Read-only, fail-open —
 a bug here must degrade to a safe dict, never raise into the caller (matches
@@ -145,23 +149,52 @@ def brief_from_history(records: List[dict]) -> dict:
     }
 
 
+#: (output key, book_id passed to write_shadow_rationale/load_history,
+#: display label for the no-record fallback). ``book_id=None`` for
+#: Conservative resolves to the default/original filename inside
+#: ``load_history`` — same as before book scoping existed.
+#: ``label=None`` for Conservative means "never use the fixed
+#: no_record_brief shape" (see ``_book_brief``). Order matches the
+#: returned dict's key order.
+_BOOKS = (
+    ("conservative", None, None),
+    ("balanced", "balanced", "Balanced"),
+    ("aggressive", "aggressive", "Aggressive"),
+)
+
+
+def _book_brief(data_dir: Path, book_id: Optional[str], label: Optional[str]) -> dict:
+    """One book's brief: its own ledger, briefed from its own latest record.
+
+    ``label`` is ``None`` for Conservative — it never used the fixed
+    ``no_record_brief`` shape (its empty-history case predates book scoping
+    and existing readers depend on that exact shape,
+    ``brief_from_history([])`` — no ``"label"`` key). Balanced/Aggressive fall
+    back to :func:`no_record_brief` ONLY when their ledger is genuinely empty
+    (file missing or has zero parsed lines) — not unconditionally, now that
+    both cycles actually call the writer.
+    """
+    records, _ = load_history(data_dir, book_id=book_id)
+    if not records and label is not None:
+        return no_record_brief(label)
+    return brief_from_history(records)
+
+
 def build_books_brief(data_dir: Path) -> dict:
     """The one public entrypoint: {conservative, balanced, aggressive} → brief dict.
 
     Never raises — a brief-generation bug must not break the caller (matches
-    ``spa_core.alerts.daily_report``'s fail-open-for-reporting contract).
+    ``spa_core.alerts.daily_report``'s fail-open-for-reporting contract). Each
+    book is briefed independently and a failure/empty-ledger in one book must
+    not blank out the other two, so each is wrapped in its own try/except
+    rather than one try around all three.
     """
-    try:
-        records, _ = load_history(data_dir)
-        return {
-            "conservative": brief_from_history(records),
-            "balanced": no_record_brief("Balanced"),
-            "aggressive": no_record_brief("Aggressive"),
-        }
-    except Exception as exc:  # noqa: BLE001 — reporting layer never breaks the caller
-        log.warning("cio_brief: build_books_brief failed (%s) — degraded response", exc)
-        return {
-            "conservative": {"available": False, "reason": "brief_generation_failed"},
-            "balanced": no_record_brief("Balanced"),
-            "aggressive": no_record_brief("Aggressive"),
-        }
+    out: dict = {}
+    for key, book_id, label in _BOOKS:
+        try:
+            out[key] = _book_brief(data_dir, book_id, label)
+        except Exception as exc:  # noqa: BLE001 — reporting layer never breaks the caller
+            log.warning("cio_brief: %s brief failed (%s) — degraded response", key, exc)
+            out[key] = (no_record_brief(label) if label is not None
+                       else {"available": False, "reason": "brief_generation_failed"})
+    return out

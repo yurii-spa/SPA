@@ -35,6 +35,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from spa_core.paper_trading.allocation_rationale import (
+    history_filename as _history_filename,
+)
 from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.paper_trading.shadow_trigger_eval")
@@ -58,13 +61,20 @@ ASSUMED_COST_BPS_OF_TURNOVER = 15.0  # conservative gas+slippage assumption (vs 
 MATERIAL_TURNOVER_USD = 100.0     # below this a "move" is noise, the HOLD is trivial
 
 
-def load_history(data_dir: Path) -> Tuple[List[dict], int]:
+def load_history(data_dir: Path, book_id: Optional[str] = None) -> Tuple[List[dict], int]:
     """Parsed history lines sorted by cycle_date (last line wins per date).
+
+    ``book_id`` reads that book's own ledger (:func:`allocation_rationale.
+    history_filename` — the SAME routing the writer uses, so reader and writer
+    can never drift apart on the filename rule). Unset / ``None`` /
+    ``"conservative"`` keeps reading the original ``HISTORY_FILENAME``,
+    unchanged from before books existed — every pre-existing caller of this
+    function is unaffected.
 
     Returns ``(records, unparseable_count)``. Never raises: a missing file is an
     empty history, a corrupt line is counted, not fatal.
     """
-    path = Path(data_dir) / HISTORY_FILENAME
+    path = Path(data_dir) / _history_filename(book_id)
     by_date: Dict[str, dict] = {}
     bad = 0
     if not path.exists():

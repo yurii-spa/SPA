@@ -261,6 +261,10 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
     # Каждая позиция начисляет по СВОЕМУ живому APY; нет живых данных ⇒ держим, доход 0
     # (fail-closed). IL по-прежнему не моделируется (нужен прайс-фид) — il_drawdown 0.
     existing_dates = {entry.get("date") for entry in state.get("daily_history", [])}
+    # Захватываем книгу ДО сегодняшнего ребаланса — ниже (CIO Brief SHADOW) это
+    # «текущая» позиция хода, а ветка ниже перезапишет и `state["positions"]`, и
+    # локальную `positions`.
+    _legs_before = list(positions)
     if today not in existing_dates:
         from spa_core.investment_os.directive import cio_allows_new_positions
         rows = sleeve_book.load_ranking_rows()
@@ -295,6 +299,52 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
             "accrual_basis": sleeve_book.ACCRUAL_BASIS,
             "delta_neutral_ok": True,
         })
+
+    # ── CIO Brief SHADOW (ADR-060 phase 0 инструментация Aggressive) ─────────
+    # Тот же fail-open паттерн, что Step 2f у cycle_runner.py (Conservative) и
+    # ADR-201 sleeve-тень ниже: отчётный слой не имеет права ломать цикл,
+    # который несёт трек. Ничего не решает и не двигает — записывает
+    # сегодняшнее решение (уже принятое веткой выше) в СВОЮ книгу истории
+    # (`book_id="aggressive"`), чтобы cio_brief.build_books_brief() мог его
+    # прочитать. current/target — список ног этой книги, схлопнутый в
+    # плоский словарь (`sleeve_book.collapse_legs_to_flat`) — писатель ждёт
+    # ту же форму, что у Conservative-аллокатора. apy_pct/apy_sources/
+    # tvl_sources/tvl_usd — из сырых строк ранжирования
+    # (`sleeve_book.apy_provenance_from_rows`): у Aggressive нет объекта-
+    # аллокатора с провенансом, единственный источник — сама живая строка
+    # ранжирования (ADR-053/061/063, «live» = наблюдение).
+    # blocked_protocols/policy_refusals НЕ передаются: у Aggressive нет
+    # RiskPolicy-гейта над аллокатором, который бы их производил — честнее
+    # промолчать (None), чем выдумать пустой список, будто гейт отработал.
+    try:
+        from spa_core.paper_trading.allocation_rationale import write_shadow_rationale
+        _rows = sleeve_book.load_ranking_rows()
+        _apy_pct, _apy_sources, _tvl_sources, _tvl_usd = (
+            sleeve_book.apy_provenance_from_rows(_rows))
+        write_shadow_rationale(
+            # _LP_DATA_PATH.parent, НЕ _PROJECT_ROOT / "data": первое
+            # monkeypatch-нутое тестами (fixture `lp` в
+            # test_sleeve_book_and_cio_directive.py) переводит его в tmp_path;
+            # второе — жёсткий путь на боевой data/, который тест бы обошёл
+            # молча и записал в живое состояние (запрещено, .claude/rules/deployment.md).
+            data_dir=_LP_DATA_PATH.parent,
+            current_positions=sleeve_book.collapse_legs_to_flat(_legs_before),
+            target_positions=sleeve_book.collapse_legs_to_flat(positions),
+            apy_pct=_apy_pct,
+            apy_sources=_apy_sources,
+            tvl_sources=_tvl_sources,
+            tvl_usd=_tvl_usd,
+            capital_usd=equity,
+            cycle_date=today,
+            run_ts=now.isoformat() + "Z",
+            trades=[],
+            book_id="aggressive",
+            write=not dry_run,
+        )
+    except Exception as _shadow_exc:  # noqa: BLE001 — advisory only, never breaks the cycle
+        import logging as _logging
+        _logging.getLogger("spa.lp_cycle").warning(
+            "CIO Brief SHADOW skipped (%s) — cycle continues", _shadow_exc)
 
     # ── обновляем state ──────────────────────────────────────────────────────
     state["peak_equity"] = peak

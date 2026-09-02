@@ -67,6 +67,47 @@ def load_ranking_rows(path: Optional[Path] = None) -> List[dict]:
         return []
 
 
+def apy_provenance_from_rows(
+    rows: Optional[List[dict]],
+) -> Tuple[dict, dict, dict, dict]:
+    """Сырые строки ``by_apy`` → (apy_pct, apy_sources, tvl_sources, tvl_usd).
+
+    Питает ``allocation_rationale.write_shadow_rationale``'s ``apy_pct`` /
+    ``apy_sources`` / ``tvl_sources`` / ``tvl_usd`` для Balanced/Aggressive:
+    у этих циклов нет объекта-аллокатора с провенансом, как у Conservative
+    (``cycle_runner.py``) — единственный источник провенанса на этом пути —
+    сами строки ранжирования, которые пишет ``apy_aggregator.py`` с полями
+    ``apy_source``/``tvl_source`` (ADR-053/061/063, «live» = наблюдение).
+    ``load_ranking_rows``/``_dedup_best`` этот провенанс не несут — они режут
+    строку до ``{"protocol", "apy_pct"}`` для отбора кандидатов, поэтому
+    читать нужно СЫРЫЕ строки, до дедупа.
+
+    Fail-closed по построению: поле, которого в строке нет (в том числе у
+    старой/замороженной фикстуры без ``apy_source``/``tvl_source`` вовсе),
+    просто не попадает в соответствующую карту — протокол не засчитывается
+    «живым» по умолчанию, «нет провенанса» никогда не читается как «live».
+    """
+    apy_pct: dict = {}
+    apy_sources: dict = {}
+    tvl_sources: dict = {}
+    tvl_usd: dict = {}
+    for r in rows or []:
+        if not isinstance(r, dict):
+            continue
+        proto = str(r.get("protocol") or "").strip()
+        if not proto:
+            continue
+        if r.get("apy_pct") is not None:
+            apy_pct[proto] = float(r["apy_pct"])
+        if r.get("apy_source"):
+            apy_sources[proto] = str(r["apy_source"])
+        if r.get("tvl_source"):
+            tvl_sources[proto] = str(r["tvl_source"])
+        if r.get("tvl_usd") is not None:
+            tvl_usd[proto] = r["tvl_usd"]
+    return apy_pct, apy_sources, tvl_sources, tvl_usd
+
+
 def _dedup_best(rows: List[dict]) -> List[dict]:
     """Один протокол — одна строка (лучший APY). Сортировка (−apy, name) = детерминизм."""
     best: dict[str, float] = {}
@@ -198,3 +239,30 @@ def book_weighted_apy_pct(positions: List[dict]) -> float:
         if not p.get("stale"):
             num += notional * float(p.get("apy_pct") or 0.0)
     return round(num / den, 4) if den > 0 else 0.0
+
+
+def collapse_legs_to_flat(positions: Optional[List[dict]]) -> dict:
+    """Ногу-список книги ({"protocol", "notional_usd", ...}) → {protocol: usd}.
+
+    Balanced/Aggressive держат книгу списком ног (эта форма), а
+    ``allocation_rationale.write_shadow_rationale`` / ``build_history_record``
+    ждут плоский словарь (та же форма, что и у Conservative-аллокатора) —
+    единственный вход, который у них есть. Конвертация живёт здесь, а не в
+    самом ``allocation_rationale``, чтобы не заводить вторую форму входа в
+    писателе ради одного из трёх вызывающих.
+
+    Один протокол может встретиться в книге дважды (двух циклов подряд не
+    бывает, но защититься дёшево) — суммируем, не перезаписываем. Ноги без
+    ``protocol`` или с нулевым/отсутствующим ``notional_usd`` пропускаются
+    (кэш-остаток книги, а не позиция).
+    """
+    flat: dict = {}
+    for leg in positions or []:
+        if not isinstance(leg, dict):
+            continue
+        proto = str(leg.get("protocol") or "").strip()
+        notional = leg.get("notional_usd")
+        if not proto or notional is None:
+            continue
+        flat[proto] = round(flat.get(proto, 0.0) + float(notional), 2)
+    return flat

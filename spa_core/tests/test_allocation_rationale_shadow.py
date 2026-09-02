@@ -13,10 +13,13 @@ from pathlib import Path
 import pytest
 
 from spa_core.paper_trading.allocation_rationale import (
+    HISTORY_FILENAME,
     RATIONALE_FILENAME,
     _history_from_trades,
     _position_ages,
+    _rationale_filename,
     _resolve_tier_caps,
+    history_filename,
     write_shadow_rationale,
 )
 
@@ -196,3 +199,103 @@ def test_malformed_trade_rows_are_skipped_not_fatal() -> None:
     hist = _history_from_trades(
         ["junk", {"type": "rebalance", "ts": "not-a-date"}, None], NOW)  # type: ignore[list-item]
     assert hist["days_since_last_act"] is None
+
+
+# ── book scoping (Balanced/Aggressive instrumentation) ─────────────────────
+#
+# Three independent paper books now call write_shadow_rationale — Conservative
+# from cycle_runner.py (unchanged), Balanced/Aggressive newly from
+# hy_cycle.py/lp_cycle.py. Each book gets its OWN ledger file so a same-date
+# write from one book can never clobber another's line.
+
+
+def test_history_filename_defaults_to_the_original_conservative_name() -> None:
+    """No book_id at all — the caller predating book scoping (cycle_runner.py
+    as it always called it) must keep writing the EXACT original filename."""
+    assert history_filename() == HISTORY_FILENAME == "allocation_rationale_history.jsonl"
+    assert history_filename(None) == HISTORY_FILENAME
+    assert history_filename("conservative") == HISTORY_FILENAME
+
+
+def test_history_filename_is_suffixed_for_other_books() -> None:
+    assert history_filename("balanced") == "allocation_rationale_history_balanced.jsonl"
+    assert history_filename("aggressive") == "allocation_rationale_history_aggressive.jsonl"
+
+
+def test_history_filename_normalizes_case() -> None:
+    """A caller passing "Balanced" (display casing) must route to the SAME
+    file as "balanced" — otherwise the writer and a careless reader could
+    silently split one book's ledger across two files."""
+    assert history_filename("Balanced") == history_filename("balanced")
+
+
+def test_rationale_filename_follows_the_same_rule_as_the_ledger() -> None:
+    assert _rationale_filename(None) == RATIONALE_FILENAME == "allocation_rationale.json"
+    assert _rationale_filename("balanced") == "allocation_rationale_balanced.json"
+    assert _rationale_filename("aggressive") == "allocation_rationale_aggressive.json"
+
+
+def test_write_with_book_id_goes_to_its_own_ledger_not_conservatives(
+        tmp_path: Path) -> None:
+    _write(tmp_path, book_id="balanced")
+    assert (tmp_path / "allocation_rationale_history_balanced.jsonl").exists()
+    assert not (tmp_path / HISTORY_FILENAME).exists()
+    assert not (tmp_path / RATIONALE_FILENAME).exists()
+    assert (tmp_path / "allocation_rationale_balanced.json").exists()
+
+
+def test_write_without_book_id_keeps_writing_conservatives_original_files(
+        tmp_path: Path) -> None:
+    """Back-compat: the original single-book caller (no book_id kwarg at all)
+    must be byte-for-byte unaffected by book scoping."""
+    _write(tmp_path)
+    assert (tmp_path / HISTORY_FILENAME).exists()
+    assert (tmp_path / RATIONALE_FILENAME).exists()
+    assert not (tmp_path / "allocation_rationale_history_conservative.jsonl").exists()
+
+
+def test_three_books_writing_the_same_cycle_date_do_not_collide(
+        tmp_path: Path) -> None:
+    """The scenario book scoping exists to prevent: all three books rebalance
+    on the SAME calendar date. Without per-book files this would be three
+    same-date writes to one ledger — idempotent replace means only the LAST
+    one would survive, silently losing the other two books' verdicts."""
+    for book_id in (None, "balanced", "aggressive"):
+        _write(tmp_path, book_id=book_id, cycle_date="2026-08-02")
+
+    conservative_lines = (tmp_path / HISTORY_FILENAME).read_text().splitlines()
+    balanced_lines = (tmp_path / "allocation_rationale_history_balanced.jsonl").read_text().splitlines()
+    aggressive_lines = (tmp_path / "allocation_rationale_history_aggressive.jsonl").read_text().splitlines()
+    assert len(conservative_lines) == len(balanced_lines) == len(aggressive_lines) == 1
+
+    for raw, expected_book in ((conservative_lines[0], "conservative"),
+                               (balanced_lines[0], "balanced"),
+                               (aggressive_lines[0], "aggressive")):
+        rec = json.loads(raw)
+        assert rec["book_id"] == expected_book
+        assert rec["cycle_date"] == "2026-08-02"
+
+
+# FROZEN-DATE-OK: build_history_record is a pure dict transform — cycle_date/
+# generated_at below are opaque strings threaded straight into the returned
+# record, never compared against a clock or a freshness window (same reasoning
+# already on record for this exact pattern in test_shadow_trigger_eval.py).
+def test_history_record_is_stamped_with_its_book_id() -> None:
+    from spa_core.paper_trading.allocation_rationale import build_history_record
+    doc = {"cycle_date": "2026-08-02", "generated_at": "x",
+           "decision_shadow": {"decision": "HOLD"}}
+    rec = build_history_record(
+        doc, apy_pct=APY, apy_sources=SRC,
+        current_positions=BOOK, target_positions=BOOK, capital_usd=100_000.0,
+        book_id="aggressive")
+    assert rec["book_id"] == "aggressive"
+
+
+def test_history_record_defaults_book_id_to_conservative() -> None:
+    from spa_core.paper_trading.allocation_rationale import build_history_record
+    doc = {"cycle_date": "2026-08-02", "generated_at": "x",
+           "decision_shadow": {"decision": "HOLD"}}
+    rec = build_history_record(
+        doc, apy_pct=APY, apy_sources=SRC,
+        current_positions=BOOK, target_positions=BOOK, capital_usd=100_000.0)
+    assert rec["book_id"] == "conservative"

@@ -8,6 +8,7 @@ coincidentally-empty one.
 """
 from __future__ import annotations
 
+from spa_core.paper_trading.allocation_rationale import write_shadow_rationale
 from spa_core.paper_trading.cio_brief import (
     brief_from_history,
     build_books_brief,
@@ -152,3 +153,76 @@ def test_why_now_uses_not_equal_for_verdict_change_detection():
     records = [_rec("2026-08-29", verdict="HOLD"), _rec("2026-08-30", verdict="HOLD")]
     brief = brief_from_history(records)
     assert "изменился" not in brief["why_now"]
+
+
+# ─── book scoping: Balanced/Aggressive brief from THEIR OWN ledger ─────────
+#
+# hy_cycle.py/lp_cycle.py now call write_shadow_rationale (book_id="balanced"/
+# "aggressive") into their OWN files. build_books_brief must read each book's
+# OWN latest record — not Conservative's, and not another book's.
+
+
+def _seed_book(tmp_path, book_id, cycle_date, **kw):
+    kw.setdefault("current_positions", {})
+    kw.setdefault("target_positions", {})
+    kw.setdefault("apy_pct", {})
+    kw.setdefault("apy_sources", {})
+    kw.setdefault("capital_usd", 100_000.0)
+    write_shadow_rationale(
+        data_dir=tmp_path, cycle_date=cycle_date,
+        run_ts=f"{cycle_date}T12:00:00+00:00", book_id=book_id, **kw)
+
+
+def test_each_book_is_briefed_from_its_own_latest_record_not_conservatives(tmp_path):
+    _seed_book(tmp_path, None, "2026-08-30",
+               current_positions={"maple": 40_000.0})
+    _seed_book(tmp_path, "balanced", "2026-08-30",
+               current_positions={"pendle": 55_000.0})
+    _seed_book(tmp_path, "aggressive", "2026-08-30",
+               current_positions={"aerodrome": 60_000.0})
+
+    result = build_books_brief(tmp_path)
+    assert "maple" in result["conservative"]["where"]
+    assert "pendle" in result["balanced"]["where"]
+    assert "aerodrome" in result["aggressive"]["where"]
+    # никакая из трёх не подмешала чужие имена
+    assert "pendle" not in result["conservative"]["where"]
+    assert "aerodrome" not in result["balanced"]["where"]
+    assert "maple" not in result["aggressive"]["where"]
+
+
+def test_a_book_with_a_genuinely_empty_ledger_still_gets_no_record_brief(tmp_path):
+    """Only Conservative has a ledger — Balanced/Aggressive have none at all
+    (their cycle never ran during this stretch). Same shape as before wiring."""
+    _seed_book(tmp_path, None, "2026-08-30", current_positions={"maple": 40_000.0})
+    result = build_books_brief(tmp_path)
+    assert result["conservative"]["available"] is True
+    assert result["balanced"] == no_record_brief("Balanced")
+    assert result["aggressive"] == no_record_brief("Aggressive")
+
+
+def test_a_book_with_an_unparseable_ledger_also_falls_back_to_no_record(tmp_path):
+    """File EXISTS but has zero parseable lines — load_history reports that as
+    an empty history (bad=1, records=[]), and the brief must degrade the same
+    way as a missing file, not raise or fabricate availability."""
+    (tmp_path / "allocation_rationale_history_balanced.jsonl").write_text(
+        "not json at all\n", encoding="utf-8")
+    result = build_books_brief(tmp_path)
+    assert result["balanced"] == no_record_brief("Balanced")
+
+
+def test_second_cycle_updates_only_the_book_that_ran(tmp_path):
+    """A second cycle for Balanced must not touch Conservative's or
+    Aggressive's brief — three independent books, three independent files."""
+    _seed_book(tmp_path, None, "2026-08-30", current_positions={"maple": 1.0})
+    _seed_book(tmp_path, "balanced", "2026-08-30", current_positions={"pendle": 1.0})
+    _seed_book(tmp_path, "aggressive", "2026-08-30", current_positions={"aerodrome": 1.0})
+    before = build_books_brief(tmp_path)
+
+    _seed_book(tmp_path, "balanced", "2026-08-31", current_positions={"susde": 2.0})
+    after = build_books_brief(tmp_path)
+
+    assert after["conservative"] == before["conservative"]
+    assert after["aggressive"] == before["aggressive"]
+    assert after["balanced"] != before["balanced"]
+    assert "susde" in after["balanced"]["where"]
