@@ -1,21 +1,5 @@
 [
   {
-    "ts": "2026-08-02T09:18:29.195985+00:00",
-    "protocol_name": "UNKNOWN",
-    "position_type": "vault",
-    "net_pnl_usd": 0.0,
-    "position_risk_score": 0.0,
-    "position_label": "THRIVING"
-  },
-  {
-    "ts": "2026-08-02T09:18:29.473732+00:00",
-    "protocol_name": "UNKNOWN",
-    "position_type": "vault",
-    "net_pnl_usd": 0.0,
-    "position_risk_score": 0.0,
-    "position_label": "THRIVING"
-  },
-  {
     "ts": "2026-08-02T09:18:29.756897+00:00",
     "protocol_name": "UNKNOWN",
     "position_type": "vault",
@@ -793,6 +777,22 @@
   },
   {
     "ts": "2026-08-28T09:28:55.968808+00:00",
+    "protocol_name": "Aave",
+    "position_type": "vault",
+    "net_pnl_usd": 450.0,
+    "position_risk_score": 0.9524,
+    "position_label": "THRIVING"
+  },
+  {
+    "ts": "2026-09-02T10:20:19.093862+00:00",
+    "protocol_name": "Aave",
+    "position_type": "lending",
+    "net_pnl_usd": 450.0,
+    "position_risk_score": 9.7759,
+    "position_label": "THRIVING"
+  },
+  {
+    "ts": "2026-09-02T10:20:19.875526+00:00",
     "protocol_name": "Aave",
     "position_type": "vault",
     "net_pnl_usd": 450.0,
