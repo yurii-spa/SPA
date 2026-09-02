@@ -725,8 +725,9 @@ def build_git_index_lag_section() -> str:
 
     Отставание — ШТАТНОЕ свойство, а не поломка: пуши уходят в origin напрямую через
     API и локального индекса не касаются, а синхронизация возит только spa_core/,
-    scripts/, tests/, architecture/. Поэтому строка не тревога, а указатель: читать
-    ADR/STATE/карточки надо из зеркала.
+    scripts/, tests/, architecture/ — и, с ADR-214 (02.09), CLAUDE.md с
+    .claude/rules/. Поэтому строка не тревога, а указатель: читать ADR/STATE/
+    карточки надо из зеркала.
     """
     def _git(*args, cwd=PROJECT_ROOT):
         try:

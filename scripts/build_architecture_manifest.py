@@ -405,7 +405,8 @@ def unmeasurable_missing_plist(cur_entry: dict, new_entry: dict,
 
     Замер 2026-08-16 (прод, цикл #267): `com.spa.site_freshness` объявлен как
     `repo:launchd/com.spa.site_freshness.plist`; на origin файл есть, в прод-дереве
-    нет — `code_sync_from_origin.sh` возит только `spa_core/ scripts/ tests/`.
+    нет — `code_sync_from_origin.sh` возит не всё дерево (список — `CODE_PATHS`
+    в самом скрипте; с ADR-214 в нём ещё и `CLAUDE.md` с `.claude/rules/`).
     Сторож печатал три строки «→ None» и звучал как дрейф механики, хотя мерил
     ГРАНИЦУ СИНХРОНИЗАЦИИ. Ложная находка кормит мост карточками владельцу.
 
@@ -425,7 +426,8 @@ def unmeasurable_missing_plist(cur_entry: dict, new_entry: dict,
     if not _path_on_ref(root, ref, rel):
         return None
     return (f"{rel} есть на {ref}, но НЕТ в этом рабочем дереве — механика "
-            f"НЕ ИЗМЕРЕНА (синхронизация возит только spa_core/ scripts/ tests/). "
+            f"НЕ ИЗМЕРЕНА (синхронизация возит не всё дерево — список в "
+            f"scripts/code_sync_from_origin.sh). "
             f"Это свойство дерева, а не факт о флоте")
 
 
