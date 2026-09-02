@@ -413,13 +413,29 @@ def find_answer_copies(card_path: str | Path,
     пишет бот), затем остальные. Сама целевая карточка в список не попадает — переносить
     из себя в себя нечего.
     """
+    out: list[tuple[Path, dict]] = []
+    for resolved, text in _answer_copy_texts(card_path, extra_dirs):
+        fields = read_answer_fields(text)
+        if fields:
+            out.append((resolved, fields))
+    return out
+
+
+def _answer_copy_texts(card_path: str | Path,
+                       extra_dirs: tuple | list = ()) -> list[tuple[Path, str]]:
+    """Пути копий этой карточки и их текст. ОДИН обход на всех читателей.
+
+    Вынесено затем, что читателей у одного набора копий стало двое — сам ответ и
+    регистр вытеснения. Второй обход разошёлся бы с первым по составу источников, и
+    спор считался бы по одному множеству копий, а разрешался по другому.
+    """
     target = Path(card_path).resolve()
     name = target.name
     candidates: list[Path] = [Path(d) / name for d in extra_dirs]
     for wt in _worktree_dirs(target.parent):
         candidates.append(wt / "nimbalyst-local" / "tracker" / name)
 
-    out: list[tuple[Path, dict]] = []
+    out: list[tuple[Path, str]] = []
     seen: set[Path] = {target}
     for cand in candidates:
         try:
@@ -430,15 +446,50 @@ def find_answer_copies(card_path: str | Path,
             continue
         seen.add(resolved)
         try:
-            fields = read_answer_fields(resolved.read_text(encoding="utf-8"))
+            out.append((resolved, resolved.read_text(encoding="utf-8")))
         except (OSError, UnicodeDecodeError):
             continue  # нечитаемая копия — не находка и не источник
-        if fields:
-            out.append((resolved, fields))
     return out
 
 
-def answer_disagreements(copies) -> dict:
+def read_superseded_values(text: str) -> dict:
+    """``{поле спора: значение, ОБЪЯВЛЕННОЕ вытесненным}`` — из ТЕКСТА одной копии.
+
+    Регистр объявлен ровно один раз (:data:`SUPERSEDED_FIELDS`) и читается отсюда же:
+    второй список полей разошёлся бы с первым — это и есть класс, которым уже болели
+    два сторожа одного дома.
+    """
+    fm = _parse_frontmatter(_split_frontmatter(text)[0])
+    out: dict = {}
+    for field, reg_key in SUPERSEDED_FIELDS.items():
+        value = fm.get(reg_key)
+        if isinstance(value, str) and value.strip() and value.strip() not in EMPTY_SCALARS:
+            out[field] = value.strip()
+    return out
+
+
+def retired_answer_values(card_path: str | Path,
+                          extra_dirs: tuple | list = ()) -> dict:
+    """``{поле: {значения, объявленные вытесненными}}`` по ВСЕМ копиям карточки.
+
+    Вытеснение — ОБЪЯВЛЕНИЕ, а не вывод: значение попадает сюда, только если какая-то
+    копия прямо назвала его вытесненным в своём регистре. Ничего не объявлено ⇒ словарь
+    пуст ⇒ прежний отказ остаётся дословно (fail-CLOSED сохранён).
+    """
+    retired: dict = {}
+    for _, text in _answer_copy_texts(card_path, extra_dirs):
+        for field, value in read_superseded_values(text).items():
+            retired.setdefault(field, set()).add(value)
+    try:
+        own = read_superseded_values(Path(card_path).read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError):
+        own = {}
+    for field, value in own.items():
+        retired.setdefault(field, set()).add(value)
+    return retired
+
+
+def answer_disagreements(copies, retired: dict | None = None) -> dict:
     """``{поле: [различающиеся НАЗВАННЫЕ значения]}`` — по чему копии спорят на самом деле.
 
     ``copies`` — последовательность словарей полей (своя копия и найденные чужие).
@@ -473,7 +524,7 @@ def answer_disagreements(copies) -> dict:
     разбирала их заново. Соседний сторож (`monitoring/owner_answer_delivery`) то же правило
     получил решением ADR-175 — здесь оно доезжает до второго.
     """
-    return _named_divergences(copies, _DISPUTE_FIELDS)
+    return _named_divergences(copies, _DISPUTE_FIELDS, retired)
 
 
 def answer_provenance_divergences(copies) -> dict:
@@ -487,17 +538,18 @@ def answer_provenance_divergences(copies) -> dict:
     return _named_divergences(copies, _PROVENANCE_FIELDS)
 
 
-def _named_divergences(copies, keys) -> dict:
+def _named_divergences(copies, keys, retired: dict | None = None) -> dict:
     """Общая единица правила: НАЗВАННЫЕ значения ``keys``, различающиеся между копиями.
 
     Одна реализация на оба регистра: вторая копия этой логики разошлась бы с первой ровно
     так же, как разошлись два сторожа одного дома (#434).
     """
+    retired = retired or {}
     named: dict = {}
     for fields in copies:
         for key in keys:
             value = str(fields.get(key, "")).strip()
-            if value:
+            if value and value not in retired.get(key, ()):
                 named.setdefault(key, set()).add(value)
     return {k: sorted(v) for k, v in sorted(named.items()) if len(v) > 1}
 
@@ -523,7 +575,14 @@ def carry_owner_answer(card_path: str | Path,
 
     # Разные ответы среди источников — стоп до любой записи. Спор считается по
     # НАЗВАННЫМ значениям: копия, где поля нет, молчит о нём, а не возражает.
-    disagreements = answer_disagreements([f for _, f in copies] + ([mine] if mine else []))
+    # Регистр вытеснения спрашивается ДО того, как расхождение будет названо спором:
+    # значение, которое карточка сама объявила вытесненным, не возражает — владелец уже
+    # выбрал сторону (ADR-163). Соседний сторож доставки это правило знал, а эта дверь —
+    # нет, и шаг 2 звал человека на РАЗОБРАННЫЙ спор (ADR-210). Fail-CLOSED цел: ничего
+    # не объявлено ⇒ `retired` пуст ⇒ отказ прежний дословно.
+    retired = retired_answer_values(p, extra_dirs)
+    disagreements = answer_disagreements([f for _, f in copies] + ([mine] if mine else []),
+                                         retired)
     if disagreements:
         where = ", ".join(str(src) for src, _ in copies) or "—"
         named = "; ".join(f"{k}: {v}" for k, v in disagreements.items())

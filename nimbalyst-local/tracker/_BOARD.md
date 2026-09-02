@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-02T01:39:35Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-02T02:02:42Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (6871cb1ef) · у **2** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (b5508f376) · у **1** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **866** · ждёт владельца: **5** · занято сессиями: **10**.
 
@@ -477,6 +477,7 @@
 - Шаг 1б читает предупреждение «не действовать без #promote» как сам #promote — ложное разрешение исполнить идею  ·  `inbox-shag-1b-chitaet-preduprezhdenie-ne-deist.md` · 2026-08-29
 - Шаг 2 из прод-дерева отвечает «owner-done: 0», а на origin их 2 — очередь неполна по СОСТАВУ  ·  `inbox-shag-2-iz-prod-dereva-otvechaet-owner-do.md` · 2026-08-27
 - Шаг 2 из worktree на origin НЕ ВИДИТ ответ владельца: два цикла прошли мимо живого решения  ·  `inbox-shag-2-iz-worktree-na-origin-ne-vidit-ot.md` · 2026-08-14
+- Шаг 2 протокола заблокирован: очередь считает спором ответ, который владелец уже пересмотрел  ·  `inbox-shag-2-protokola-zablokirovan-ochered-sc.md` · 2026-08-31
 - Шесть ADR (090-095) живут на удалённой ветке, которой main не знает — номера заняты, а решения, возможно, не доставлены  ·  `inbox-shest-adr-090-095-zhivut-na-udalennoi-ve.md` · 2026-08-20
 - Шесть тестов — это 15% стены всей приёмки, и стена уходит в ядро на создание потоков  ·  `inbox-shest-testov-eto-15-steny-vsei-priemki-i.md` · 2026-08-18
 - Сличение имён протоколов ПОДСТРОКОЙ выросло с 8 имён до 56: ложный отказ в бонусе стал в семь раз вероятнее  ·  `inbox-slichenie-imen-protokolov-podstrokoi-vyr.md` · 2026-08-17
@@ -665,7 +666,6 @@
 - Сетевая подрезка не должна быть приговором протоколу (решение владельца ADR-193, вариант 1)  ·  `inbox-setevaya-podrezka-ne-dolzhna-byt-prigovo.md` · 2026-08-31
 - Шаг 0a МОЛЧИТ о дереве по живому якорю-хосту — так 28.08 была скрыта недоставленная работа  ·  `inbox-shag-0a-molchit-o-dereve-po-zhivomu-yako.md` · 2026-08-28
 - Шаг 0a зовёт поднять файл, который в прод-дереве ОТСТАЁТ на 1672 строки — подъём стёр бы 14 записей реестра  ·  `inbox-shag-0a-zovet-podnyat-fail-kotoryi-v-pro.md` · 2026-08-21
-- Шаг 2 протокола заблокирован: очередь считает спором ответ, который владелец уже пересмотрел  ·  `inbox-shag-2-protokola-zablokirovan-ochered-sc.md` · 2026-08-31
 - Шторм повторов одного решения владельцу (200+ копий за ночь) — анти-шторм доставлен, корень (слепой предикат «отправлено») остаётся  ·  `inbox-shtorm-povtorov-odnogo-resheniya-vladeltsu.md` · 2026-08-20
 - Шторм решений ПРОДОЛЖАЕТСЯ после анти-шторма: карточки живут ТОЛЬКО в хост-дереве, заголовок дрейфует → дубли, владелец измотан  ·  `inbox-shtorm-prodolzhaetsya-kartochki-tolko-v-host-dereve.md` · 2026-08-20
 - Скан кандидатов работает каждый цикл по реестру, которого никто не пишет: discovery не подключён ни одним агентом  ·  `inbox-skan-kandidatov-rabotaet-kazhdyi-tsikl-p.md` · 2026-08-18
