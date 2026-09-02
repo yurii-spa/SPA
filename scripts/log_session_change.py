@@ -15,6 +15,15 @@ mode (< PIPE_BUF ⇒ atomic on POSIX, so concurrent sessions never clobber each 
     python3 scripts/log_session_change.py --tail          # last 20
     python3 scripts/log_session_change.py --tail 50
 
+**Announcing a tracker CARD FILE without ``--card`` is a REFUSAL** (``refuse_card_files_without_card``,
+cycle #457): step 0b reads a card file in declared ownership as "this card is held", and a record
+carrying no ``card:`` field gives it nothing to correct that with. Measured 2026-09-02: a cycle that
+finished its work and left the NEXT cycle two cards for the named leftovers announced their files —
+it was delivering them to origin — and by that very act locked both. For a pidless label
+(``cycle-NNN``) the lock is INDEFINITE, not one freshness window: ``session_state`` returns UNKNOWN
+irreversibly, so waiting never clears it. Name the card the work belongs to (``--card <id>``, plus ``--card-state done`` when you are
+announcing a delivery rather than holding it).
+
 ``--card`` makes the announce↔card link EXPLICIT. Without it the link exists only in free text,
 so "is this card already taken?" could only be answered by eye — and on 2026-07-30 that failed:
 two sessions took `agent-ci-ignores-golive-gate-tests` an hour apart and did the same work twice
@@ -194,6 +203,62 @@ class DroppedWithoutReason(ValueError):
     """`--dropped` без причины. Отказ, а не пустая запись — см. ``normalize_dropped``."""
 
 
+class CardFileWithoutCard(ValueError):
+    """Файл карточки трекера объявлен во владении, а `--card` не назван. См. ``tracker_cards_in``."""
+
+
+def tracker_cards_in(files) -> list:
+    """Объявленные пути, которые являются ФАЙЛАМИ КАРТОЧЕК трекера (в порядке объявления).
+
+    Карточка — `*.md` НЕПОСРЕДСТВЕННО в каталоге `…/nimbalyst-local/tracker/`. Имена,
+    начинающиеся с `_`, исключены: там живёт авто-индекс доски (`_BOARD.md`), он не карточка,
+    и объявлять его без `--card` совершенно законно (замер 02.09: это единственный такой файл
+    в каталоге). Проверка идёт по СТРОКЕ пути — файловая система не спрашивается: объявляют
+    пути из чужого одноразового worktree, которого у читателя может уже не быть."""
+    out = []
+    for f in files or ():
+        text = str(f).replace("\\", "/")
+        parts = [p for p in text.split("/") if p]
+        if len(parts) < 2 or not parts[-1].endswith(".md") or parts[-1].startswith("_"):
+            continue
+        if parts[-2] == "tracker" and "nimbalyst-local" in parts[:-1]:
+            out.append(str(f))
+    return out
+
+
+def refuse_card_files_without_card(files, card) -> None:
+    """Объявляешь файл карточки — назови карточку. Иначе ОТКАЗ (цикл #457, вариант 1).
+
+    **Зачем.** Шаг 0b (`check_card_claim.entry_hit`) читает файл карточки в объявленном
+    владении как признак того, что карточку ДЕРЖАТ. Запись без поля `card:` не даёт ему
+    ничего, чем этот вывод можно поправить, и цена измерена: цикл, который довёл работу до
+    конца и оставил СЛЕДУЮЩЕМУ циклу карточки на названные остатки, объявляет их файлы —
+    он их везёт на origin — и этим же действием запирает их. У ярлыка без pid (`cycle-NNN`)
+    замок БЕССРОЧНЫЙ, а не на окно свежести: `session_state` отдаёт UNKNOWN необратимо. Запись `cycle-84717` от 2026-09-02T04:22:01Z сделала неберущимися обе оставленные
+    ею карточки; вердикт перебивали руками, то есть обесценивали сторожа.
+
+    Это **единственная дверь**, через которую объявления пишутся (`check_card_claim.claim`
+    ходит сюда же и всегда несёт `card=`), поэтому отказ здесь закрывает форму целиком —
+    в отличие от правила «не забывай передавать `--card`», которое уже отказало трижды.
+
+    Назвать нужно ОДНУ карточку — ту, которой принадлежит работа; `--card-state done` для
+    объявления доставки. Остальные объявленные карточки после этого читаются слабым
+    признаком автоматически (правило #262: «запись машинно называет ДРУГУЮ карточку»).
+
+    Чинит только БУДУЩИЕ записи — уже написанные разбирает вторая половина той же доставки
+    (`entry_hit(..., card_claimed=False)`)."""
+    cards = tracker_cards_in(files)
+    if not cards or str(card or "").strip():
+        return
+    names = ", ".join(Path(c).name for c in cards)
+    raise CardFileWithoutCard(
+        f"в --files объявлены файлы карточек трекера ({names}), а --card не назван. "
+        f"Шаг 0b прочитает это как «карточку держат» и запрёт её — а у ярлыка без pid "
+        f"(`cycle-NNN`) БЕССРОЧНО, не на окно свежести: `session_state` отдаёт UNKNOWN "
+        f"необратимо. Запись не пишется (fail-CLOSED). Взял карточку в работу: --card <id>. "
+        f"Довёз/создал для следующего цикла: --card <id> --card-state done")
+
+
 def normalize_dropped(pairs) -> list:
     """[(путь, причина)] → [{"path":…, "reason":…}]. Бросает ``DroppedWithoutReason``.
 
@@ -248,6 +313,8 @@ def record(summary: str, files: list, verified: str,
     ``agent-self-claim-blocked-by-own-second-identity``: that fix ties together the several
     auto-derived ``pid<N>`` labels of ONE process, and those entries pass ``session=""`` (or the
     session's own ``SPA_SESSION_ID``), so they keep their anchor and keep being recognised."""
+    # ДО построения записи: отказ обязан случиться раньше, чем что-либо попадёт в журнал.
+    refuse_card_files_without_card(files, card)
     own_id = _session_id()
     label = str(session).strip() or own_id
     entry = {
@@ -333,7 +400,10 @@ def main(argv=None) -> int:
     ap.add_argument("--summary", help="one-line description of the change + why")
     ap.add_argument("--files", nargs="*", default=[], help="absolute paths changed")
     ap.add_argument("--verified", default="", help="how it was verified (tests/build exit codes)")
-    ap.add_argument("--card", default="", help="tracker card this work belongs to (id or path)")
+    ap.add_argument("--card", default="",
+                    help="tracker card this work belongs to (id or path). ОБЯЗАТЕЛЕН, если в "
+                         "--files есть файл карточки трекера — иначе ОТКАЗ (шаг 0b прочитал бы "
+                         "запись как захват и запер карточку)")
     ap.add_argument("--card-state", default="claim", choices=CARD_STATES,
                     help="claim = taking/holding the card (default); done = claim released")
     ap.add_argument("--tail", nargs="?", type=int, const=20, help="print the last N entries (default 20)")
@@ -365,7 +435,7 @@ def main(argv=None) -> int:
     try:
         e = record(args.summary, args.files, args.verified, args.card, args.card_state,
                    process=(proc, why), dropped=args.dropped)
-    except DroppedWithoutReason as exc:
+    except (DroppedWithoutReason, CardFileWithoutCard) as exc:
         print(f"ОТКАЗ: {exc}", file=sys.stderr)
         return 2
     card = f" card={e['card']}({e['card_state']})" if e.get("card") else ""

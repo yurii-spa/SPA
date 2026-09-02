@@ -291,14 +291,39 @@ class TestAnnounceLink:
         assert r["claims"][0]["strength"] == guard.STRONG
         assert "card:" in r["claims"][0]["detail"]
 
-    def test_card_file_in_declared_files_blocks(self, guard, sibling, tracker, log, ps_dead):
-        """Ровно форма реального столкновения #46: карточка объявлена в списке файлов."""
-        write_card(tracker, "agent-x")
+    def test_card_file_in_declared_files_blocks_when_the_card_is_really_taken(
+            self, guard, sibling, tracker, log, ps_dead):
+        """ИЗМЕНЁН НАМЕРЕННО (цикл #457, карточка
+        `inbox-shag-0b-zapiraet-na-3-chasa-kartochki-ko`), инв. #16.
+
+        Раньше назывался `test_card_file_in_declared_files_blocks` и требовал `CLAIMED` от
+        ОДНОГО лишь файла карточки в объявленном владении. Замер 02.09 показал цену такого
+        вывода: цикл, довёзший работу и оставивший СЛЕДУЮЩЕМУ циклу карточки на названные
+        остатки, объявляет их файлы (он их везёт на origin) — и этим запирает их, а циклы
+        идут раз в час. Форма записи-виновника — `cycle-84717` 04:22:01Z, поля `card:` нет
+        вовсе; вердикт перебивали руками, то есть обесценивали сторожа.
+
+        Признак не отменён, а **спрошен у самой карточки**: настоящий захват пишет
+        `claimed_by` (`check_card_claim.py claim`). Есть он — файл во владении по-прежнему
+        СИЛЬНЫЙ признак (первая половина теста); нет ни его, ни поля `card:` — признак
+        СЛАБЫЙ (вторая половина). Форма без `--card` с 02.09 вообще не может появиться:
+        `log_session_change.py` её ОТКАЗЫВАЕТ писать.
+        Полный разбор и репро аварии — `test_announce_of_card_file_is_not_a_claim.py`.
+        """
+        write_card(tracker, "agent-x", claimed_by="pid999",
+                   claimed_at=_fmt(NOW - timedelta(minutes=30)))
         write_log(log, [announce("pid999", NOW - timedelta(minutes=30),
                                  files=["/repo/nimbalyst-local/tracker/agent-x.md"])])
         r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
         assert r["verdict"] == guard.CLAIMED
-        assert r["claims"][0]["strength"] == guard.STRONG
+        assert any(c["strength"] == guard.STRONG and c["source"] == "announce-log"
+                   for c in r["claims"]), r["claims"]
+
+        # Та же запись при НЕвзятой карточке — уже не захват (и в отчёте не исчезает).
+        write_card(tracker, "agent-x")
+        r2 = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
+        assert r2["verdict"] == guard.FREE
+        assert any(h["strength"] == guard.WEAK for h in r2["history"]), r2["history"]
 
     def test_text_mention_blocks_only_while_the_session_is_alive(
             self, guard, sibling, tracker, log, ps_alive):
@@ -1072,8 +1097,18 @@ class TestRealCollision:
                          planned_files=["/Users/y/SPA/.github/workflows/ci.yml"],
                          ps=lambda pid: (1, ""))
         assert r["verdict"] == guard.CLAIMED
-        assert r["claims"][0]["session"] == "pid6621"
+        # ИЗМЕНЁН НАМЕРЕННО (цикл #457), инв. #16: здесь стояло
+        # `r["claims"][0]["session"] == "pid6621"` — то есть столкновение ловилось файлом
+        # карточки в объявленном владении. С #457 этот признак спрашивает саму карточку
+        # (`claimed_by`), а в записи 2026-07-30 его быть не могло: инструмента захвата
+        # тогда не существовало. Столкновение #46 при этом ловится ПО-ПРЕЖНЕМУ и двумя
+        # независимыми измерениями сразу — пересечением по объявленным файлам (`ci.yml`,
+        # ровно тот файл, который обе сессии и правили) и упоминанием карточки в тексте
+        # объявления. Оба названы поимённо ниже, чтобы «поймано» не держалось на одном.
         assert r["overlaps"] and "ci.yml" in r["overlaps"][0]["files"][0]
+        assert r["overlaps"][0]["session"] == "pid6621"
+        assert any(h["session"] == "pid6621" and h["strength"] == guard.WEAK
+                   for h in r["history"]), r["history"]
 
     def test_after_the_grace_window_it_becomes_a_manual_pickup(self, guard, sibling, tracker, log):
         """Та же запись сутки спустя — не «занята», а кандидат на ручной подъём."""
@@ -1233,8 +1268,17 @@ class TestWeakMentionAgesOutEvenWhenActivityUnmeasurable:
 
     def test_old_strong_file_ownership_by_pidless_session_stays_unchecked(
             self, guard, sibling, tracker, log, ps_dead):
-        """Второй сильный признак — файл карточки в объявленном владении."""
-        write_card(tracker, "agent-x")
+        """Второй сильный признак — файл карточки в объявленном владении.
+
+        ИЗМЕНЁН НАМЕРЕННО (цикл #457, карточка
+        `inbox-shag-0b-zapiraet-na-3-chasa-kartochki-ko`), инв. #16. Карточке добавлен `claimed_by`: с #457 файл во владении
+        считается СИЛЬНЫМ признаком, только если карточка И ПРАВДА взята (иначе это
+        объявление доставки, а не работы, — авария `cycle-84717` 02.09). Проверяемое здесь
+        свойство от этого не меняется: СИЛЬНЫЙ признак от сессии без pid не стареет и
+        по-прежнему даёт `unchecked`, а не «свободна» (fail-CLOSED).
+        """
+        write_card(tracker, "agent-x", claimed_by="cycle49",
+                   claimed_at=_fmt(NOW - timedelta(hours=9)))
         write_log(log, [announce(
             "cycle49", NOW - timedelta(hours=9),
             files=["/repo/nimbalyst-local/tracker/agent-x.md"])])
@@ -1373,8 +1417,16 @@ class TestFreshWeakMentionDoesNotDeadlockTheQueue:
 
     def test_fresh_strong_file_ownership_still_blocks(
             self, guard, sibling, tracker, log, ps_dead):
-        """Второй сильный признак — файл карточки в объявленном владении."""
-        write_card(tracker, "agent-x")
+        """Второй сильный признак — файл карточки в объявленном владении.
+
+        ИЗМЕНЁН НАМЕРЕННО (цикл #457, карточка
+        `inbox-shag-0b-zapiraet-na-3-chasa-kartochki-ko`), инв. #16. Карточке добавлен `claimed_by` — по той же причине, что и
+        соседу выше: файл во владении силён ровно тогда, когда карточка И ПРАВДА взята.
+        Свойство, ради которого тест написан (свежий СИЛЬНЫЙ признак блокирует), стоит
+        нетронутым.
+        """
+        write_card(tracker, "agent-x", claimed_by="cycle99",
+                   claimed_at=_fmt(NOW - timedelta(minutes=30)))
         write_log(log, [announce(
             "cycle99", NOW - timedelta(minutes=30),
             files=["/repo/nimbalyst-local/tracker/agent-x.md"])])
@@ -1955,13 +2007,25 @@ class TestExplicitCardFieldBeatsTheCardFile:
         assert "файл карточки объявлен во владении" in hist[0]["detail"]
 
     def test_entry_without_card_field_still_blocks(self, guard, sibling, tracker, log, ps_dead):
-        """Обратный контроль №1: записи БЕЗ поля `card:` правка не касается вовсе."""
-        write_card(tracker, "agent-x")
+        """Обратный контроль №1 правки #262: записи БЕЗ поля `card:` она не касается вовсе.
+
+        ИЗМЕНЁН НАМЕРЕННО (цикл #457, карточка
+        `inbox-shag-0b-zapiraet-na-3-chasa-kartochki-ko`), инв. #16. Утверждение #262 («записи без `card:` не трогаются»)
+        осталось верным ДЛЯ #262 и было пересмотрено СЛЕДУЮЩЕЙ правкой: именно эта, намеренно
+        оставленная, форма 02.09 заперла две карточки, оставленные предыдущим циклом для
+        следующего. Поэтому карточке добавлен `claimed_by` — тогда запись без `card:`
+        блокирует ровно как прежде, и обратный контроль #262 продолжает измерять своё.
+        Форма «файл карточки во владении при НЕвзятой карточке» проверяется в
+        `test_announce_of_card_file_is_not_a_claim.py`.
+        """
+        write_card(tracker, "agent-x", claimed_by="pid999",
+                   claimed_at=_fmt(NOW - timedelta(minutes=30)))
         write_log(log, [announce("pid999", NOW - timedelta(minutes=30),
                                  files=["/repo/nimbalyst-local/tracker/agent-x.md"])])
         r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
         assert r["verdict"] == guard.CLAIMED         # свежий СИЛЬНЫЙ захват — как и раньше
-        assert r["claims"][0]["strength"] == guard.STRONG
+        assert any(c["strength"] == guard.STRONG and c["source"] == "announce-log"
+                   for c in r["claims"]), r["claims"]
 
     def test_card_field_naming_this_card_still_blocks(self, guard, sibling, tracker, log,
                                                       ps_dead):
