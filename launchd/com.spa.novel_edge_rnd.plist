@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.spa.novel_edge_rnd — headless Claude R&D session (backtests, worktree, commits).
+
+  Weekday 2/5 = Tue/Fri, 04:00. Owner-decided 2026-07-23 (agent-fleet-inventory-73):
+  cloud R&D downgraded from daily to 2x/week for token economy — this local agent never
+  got that downgrade, StartCalendarInterval had no Weekday key and ran every day (~3.5x
+  the intended Claude invocations, found+fixed 2026-09-02, Fleet Cadence Audit decision 1).
+-->
 <plist version="1.0">
 <dict>
 	<key>EnvironmentVariables</key>
@@ -21,12 +29,24 @@
 	<key>StandardOutPath</key>
 	<string>/tmp/spa_novel_edge_rnd.plist.out.log</string>
 	<key>StartCalendarInterval</key>
-	<dict>
-		<key>Hour</key>
-		<integer>4</integer>
-		<key>Minute</key>
-		<integer>0</integer>
-	</dict>
+	<array>
+		<dict>
+			<key>Weekday</key>
+			<integer>2</integer>
+			<key>Hour</key>
+			<integer>4</integer>
+			<key>Minute</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>Weekday</key>
+			<integer>5</integer>
+			<key>Hour</key>
+			<integer>4</integer>
+			<key>Minute</key>
+			<integer>0</integer>
+		</dict>
+	</array>
 	<key>WorkingDirectory</key>
 	<string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
 </dict>

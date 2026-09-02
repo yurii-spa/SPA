@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.spa.io_chief_investment — synthesizes 11 IO-analysts into one house-view
+  (deterministic, LLM_FORBIDDEN, reads JSON only).
+
+  StartInterval 3600 (1h), was 300 (5m). Owner-decided 2026-09-02 (Fleet Cadence Audit
+  decision 2): 10 of 11 input analysts refresh every 24h (io_health every 12h), so at 5m
+  ~287 of 288 daily runs recomputed an identical house-view — pure CPU/log churn, no
+  LLM cost either way. 1h aligns with the rest of the advisory allocation tick (swarm/
+  hy_cycle/lp_cycle/rates_desk_paper).
+-->
 <plist version="1.0">
 <dict>
     <key>Label</key>
@@ -10,7 +20,7 @@
         <string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_io_chief_investment.sh</string>
     </array>
     <key>StartInterval</key>
-    <integer>300</integer>
+    <integer>3600</integer>
     <key>RunAtLoad</key>
     <true/>
     <key>ThrottleInterval</key>
