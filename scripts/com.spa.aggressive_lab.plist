@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.spa.aggressive_lab — advances the Aggressive Lab forward paper track by one
+  idempotent-per-UTC-day tick per run (spa_core/strategy_lab/aggressive_lab/harness.py).
+
+  4x/day (00/06/12/18 UTC), calendar-anchored — was StartInterval=86400 (drifted from
+  the previous run, single-shot per day, no retry). Owner-decided 2026-09-02 (Fleet
+  Cadence Audit follow-up): the tick is idempotent per calendar day, so hourly would
+  add zero new track points, only more live-feed hits for no gain. But a single daily
+  attempt has no retry — one feed hiccup gaps the WHOLE day of the forward track that
+  Balanced/Aggressive's "trustworthy" evidence depends on (real incident 2026-08-05),
+  and ADR-201's sleeve composer sometimes can't see "today's" point because lp_cycle
+  (hourly) polls before the once-a-day tick lands. 4x/day self-heals a failed attempt
+  within ~6h instead of losing a day, and shrinks that same-day-visibility gap for the
+  sleeve, without the 24x-for-nothing waste of literal hourly.
+-->
 <plist version="1.0">
 <dict>
     <key>Label</key>
@@ -9,8 +24,33 @@
         <string>/bin/bash</string>
         <string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_aggressive_lab.sh</string>
     </array>
-    <key>StartInterval</key>
-    <integer>86400</integer>
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Hour</key>
+            <integer>0</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Hour</key>
+            <integer>6</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Hour</key>
+            <integer>12</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Hour</key>
+            <integer>18</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+    </array>
     <key>RunAtLoad</key>
     <true/>
     <key>ThrottleInterval</key>

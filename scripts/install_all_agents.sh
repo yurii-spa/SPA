@@ -335,15 +335,23 @@ install_agent \
     "com.spa.rwa_safety_board" \
     "1"
 
-# 22c. Rates-Desk live paper service — hourly single-tick; paper-trades the VALIDATED FixedCarry
-#      sleeve (thesis-#1 GO) on the LIVE rate-surface into a growing forward carry track + proof
-#      chain; restart-survival (book restored, not zeroed), idempotent per UTC day, fail-CLOSED.
-#      ADVISORY ONLY: simulates carry, moves no live capital, never touches the go-live track.
+# 22c. Aggressive Lab forward paper track — one idempotent-per-UTC-day tick per run, 4x/day
+#      calendar-anchored (00/06/12/18 UTC; was a drifting 24h single-shot with no retry —
+#      Fleet Cadence Audit follow-up, 2026-09-02). Builds the growing forward track that lets
+#      Balanced/Aggressive reach `trustworthy` evidence (proven with the tail shown), and feeds
+#      ADR-201's sleeve composer. ADVISORY ONLY: moves no capital, never touches go-live.
+#      NOTE (fixed 2026-09-02): this comment previously described rates_desk_paper below by
+#      mistake — misplaced by proximity, not a real decision about aggressive_lab's cadence.
 install_agent \
     "$REPO/scripts/com.spa.aggressive_lab.plist" \
     "com.spa.aggressive_lab" \
     "1"
 
+# 22c-rates. Rates-Desk live paper service — hourly single-tick; paper-trades the VALIDATED
+#       FixedCarry sleeve (thesis-#1 GO) on the LIVE rate-surface into a growing forward carry
+#       track + proof chain; restart-survival (book restored, not zeroed), idempotent per UTC
+#       day, fail-CLOSED. ADVISORY ONLY: simulates carry, moves no live capital, never touches
+#       the go-live track.
 install_agent \
     "$REPO/scripts/com.spa.rates_desk_paper.plist" \
     "com.spa.rates_desk_paper" \
