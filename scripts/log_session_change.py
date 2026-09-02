@@ -109,7 +109,7 @@ def _session_id() -> str:
     return os.environ.get("SPA_SESSION_ID") or f"pid{os.getpid()}"
 
 
-def durable_process(env=None, ps=None):
+def durable_process(env=None, ps=None, cmd_probe=None):
     """``({"session_pid": N, "session_pid_start": "<ps lstart>"} , "")`` or ``({}, reason)``.
 
     The pid comes ONLY from an explicit ``SPA_SESSION_PID`` — never from ``os.getppid()``, and
@@ -126,7 +126,14 @@ def durable_process(env=None, ps=None):
 
     Returns ``({}, reason)`` — never a half-written pair — whenever the declared pid is not a
     process we can see right now: recording a pid we could not confirm would be exactly the
-    plausible-looking number this repo keeps having to delete."""
+    plausible-looking number this repo keeps having to delete.
+
+    BOTH probes are inputs, and the second one is why: ``ps`` answers "when did it start",
+    ``cmd_probe`` answers "what IS it". Until #453 only the first was injectable, so a caller
+    could pin the start time and still have the *command* fetched from the live machine — and
+    that is precisely the literal-pid time bomb of `.claude/rules/deployment.md`: the verdict
+    was decided by whatever process happened to hold that number today. ``None`` on either =
+    ask the real OS, so production behaviour is unchanged."""
     env = os.environ if env is None else env
     raw = str(env.get("SPA_SESSION_PID") or "").strip()
     if not raw:
@@ -164,7 +171,12 @@ def durable_process(env=None, ps=None):
     kind, cmd = (ANCHOR_UNMEASURED, "")
     if anchor_kind is not None:
         try:
-            kind, cmd = anchor_kind(pid)
+            # Умолчание `cmd_probe=None` = спросить настоящую ОС (как было). Проброс нужен
+            # ради тестов: до #453 инъекция была ПОЛОВИНЧАТОЙ — `ps` принимался параметром, а
+            # команда бралась у живой машины, и `test_announce_refuses_to_record_a_timer_as_the_anchor`
+            # краснел/зеленел от того, кто сегодня занял номер 42391, а не от кода.
+            kind, cmd = (anchor_kind(pid) if cmd_probe is None
+                         else anchor_kind(pid, cmd_probe=cmd_probe))
         except (OSError, ValueError, TypeError):                        # pragma: no cover
             kind, cmd = ANCHOR_UNMEASURED, ""
     if kind == ANCHOR_TIMER:

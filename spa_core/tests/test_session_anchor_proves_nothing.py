@@ -232,20 +232,56 @@ def test_announce_refuses_to_record_a_timer_as_the_anchor(writer):
 
     Контракт прежний (`({}, причина)`, как у неподтверждённого процесса) — запись просто
     уходит без якоря вместо якоря, который лжёт. Причина обязана НАЗЫВАТЬ, что делать.
+
+    **Обе пробы инъектированы (#453).** Раньше здесь подавалась только `ps` (старт), а
+    КОМАНДУ процесса писатель спрашивал у живой машины — и вердикт решал не код, а то, кто
+    сегодня занял номер 42391. Тест был КРАСНЫМ на чистом `origin/main` 61d203a4f ровно
+    поэтому: номер свободен, `anchor_kind` отвечал «спросить нечем», будильник не опознавался.
     """
     fields, why = writer.durable_process(env={"SPA_SESSION_PID": "42391"},
-                                         ps=lambda pid: (0, STARTED))
+                                         ps=lambda pid: (0, STARTED),
+                                         cmd_probe=_cmd(TIMER_CMD))
     assert fields == {}
     assert "sleep 36000" in why or "ПО ТАЙМЕРУ" in why
     assert "SPA_SESSION_PID" in why
 
 
-def test_announce_still_records_a_real_session_anchor(writer, monkeypatch):
-    """Обратный контроль писателя: настоящий процесс сессии записывается как прежде."""
-    mod = _load("_test_anchor_step0a_w", "scripts/check_undelivered_work.py")
-    monkeypatch.setattr(mod, "_ps_command", _cmd(SESSION_CMD), raising=False)
-    monkeypatch.setattr(writer, "_load_resolver", lambda: mod)
+def test_announce_still_records_a_real_session_anchor(writer):
+    """Обратный контроль писателя: настоящий процесс сессии записывается как прежде.
+
+    Раньше обратный контроль добывал ту же инъекцию окольно — подменял ЦЕЛИКОМ
+    `_load_resolver`, чтобы подсунуть модулю свой `_ps_command`. Обход работал, но означал,
+    что параметра нет: соседний (прямой) тест такого обхода не делал и потому судил о хосте.
+    """
     fields, why = writer.durable_process(env={"SPA_SESSION_PID": "29988"},
-                                         ps=lambda pid: (0, STARTED))
+                                         ps=lambda pid: (0, STARTED),
+                                         cmd_probe=_cmd(SESSION_CMD))
     assert why == ""
     assert fields["session_pid"] == 29988
+
+
+def test_the_command_probe_actually_reaches_the_anchor_check(writer):
+    """Положительный контроль ПРОВОДКИ: уроните проброс — тест покраснеет на ЛЮБОМ хосте.
+
+    Якорем объявлен `os.getpid()` — процесс, живой по построению на любой машине, и его
+    настоящая команда (`python3 -m pytest …`) будильником НЕ является. Поэтому:
+
+    * проброс есть  ⇒ судит поданная проба (`sleep 36000`) ⇒ отказ;
+    * проброс снят  ⇒ судит настоящая ОС (`pytest`) ⇒ якорь записан ⇒ КРАСНЫЙ.
+
+    Обе стороны не зависят от того, какие номера заняты на машине: это и есть разница
+    между «повезло» и «измерено» (`.claude/rules/deployment.md`, «ЛИЧНОСТЬ ПРОЦЕССА»).
+    """
+    import os as _os
+
+    fields, why = writer.durable_process(env={"SPA_SESSION_PID": str(_os.getpid())},
+                                         ps=lambda pid: (0, STARTED),
+                                         cmd_probe=_cmd(TIMER_CMD))
+    assert fields == {}, "поданная проба команды не доехала до проверки якоря"
+    assert "ПО ТАЙМЕРУ" in why
+
+    ok, why_ok = writer.durable_process(env={"SPA_SESSION_PID": str(_os.getpid())},
+                                        ps=lambda pid: (0, STARTED),
+                                        cmd_probe=_cmd(SESSION_CMD))
+    assert why_ok == "" and ok["session_pid"] == _os.getpid(), (
+        "обратная сторона: с пробой «это сессия» якорь обязан записаться")

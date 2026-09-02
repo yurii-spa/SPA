@@ -89,6 +89,19 @@ def ps_reused(_pid):
     return 0, STARTED_AFTER + "\n"
 
 
+def cmd_session(_pid):
+    """`ps -o command=` — процесс СПОСОБЕН быть якорем сессии.
+
+    Вторая проба обязана быть подана вместе с `ps` (#453): писатель спрашивает не только
+    «когда стартовал», но и «что это вообще такое», и без инъекции второй вопрос уходил
+    ЖИВОЙ машине. Тогда вердикт про литеральный `4242` зависел бы от того, кто сегодня
+    занял этот номер: окажись там фоновый `sleep`, якорь был бы отвергнут как будильник и
+    тесты ниже покраснели бы, не изменившись ни на байт
+    (`.claude/rules/deployment.md`, «ЛИЧНОСТЬ ПРОЦЕССА в тестах»).
+    """
+    return 0, "/Users/x/.local/bin/claude -p оркестратор"
+
+
 def entry(session="cycle62", *, ts=None, pid=None, start=None, **extra):
     e = {"ts": _fmt(ts or (NOW - timedelta(hours=6))), "session": session,
          "summary": "работа", "files": [], "verified": ""}
@@ -104,7 +117,8 @@ def entry(session="cycle62", *, ts=None, pid=None, start=None, **extra):
 
 class TestWriterRecordsOnlyConfirmedProcess:
     def test_declared_live_process_is_recorded_with_its_start(self, writer):
-        proc, why = writer.durable_process(env={"SPA_SESSION_PID": "4242"}, ps=ps_alive)
+        proc, why = writer.durable_process(env={"SPA_SESSION_PID": "4242"}, ps=ps_alive,
+                                          cmd_probe=cmd_session)
         assert why == ""
         assert proc == {"session_pid": 4242, "session_pid_start": STARTED_BEFORE}
 
@@ -116,19 +130,22 @@ class TestWriterRecordsOnlyConfirmedProcess:
 
     def test_declared_process_that_is_already_gone_is_not_recorded(self, writer):
         """Записать pid, которого нет, — это и есть правдоподобное число ни о чём."""
-        proc, why = writer.durable_process(env={"SPA_SESSION_PID": "4242"}, ps=ps_dead)
+        proc, why = writer.durable_process(env={"SPA_SESSION_PID": "4242"}, ps=ps_dead,
+                                          cmd_probe=cmd_session)
         assert proc == {}
         assert "pid4242" in why
 
     def test_unmeasurable_ps_is_not_recorded(self, writer):
-        proc, why = writer.durable_process(env={"SPA_SESSION_PID": "4242"}, ps=ps_broken)
+        proc, why = writer.durable_process(env={"SPA_SESSION_PID": "4242"}, ps=ps_broken,
+                                          cmd_probe=cmd_session)
         assert proc == {}
         assert "rc=127" in why
 
     @pytest.mark.parametrize("raw", ["", "   ", "abc", "12x", "-5", "0", "1"])
     def test_garbage_or_init_pid_is_refused(self, writer, raw):
         """pid 1 (launchd) жив всегда и не принадлежит сессии ⇒ вечный ложный ACTIVE."""
-        proc, _why = writer.durable_process(env={"SPA_SESSION_PID": raw}, ps=ps_alive)
+        proc, _why = writer.durable_process(env={"SPA_SESSION_PID": raw}, ps=ps_alive,
+                                           cmd_probe=cmd_session)
         assert proc == {}
 
     def test_parent_pid_is_never_used_as_the_durable_process(self, writer):
