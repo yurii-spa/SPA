@@ -4,8 +4,6 @@ trackerStatus:
 title: Шаг 0b запирает на 3 часа карточки, которые цикл сам создал для СЛЕДУЮЩЕГО цикла
 status: done
 created: 2026-09-02
-claimed_by: cycle-94928
-claimed_at: 2026-09-02T10:16:44Z
 status_trail:
   - "2026-09-02T10:43:19.510148+00:00 new -> done · queue.set_status · cycle-94928"
 ---
