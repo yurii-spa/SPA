@@ -336,8 +336,25 @@ def _annualized_pct(return_pct: float | None, num_days: float | None) -> float |
     return round((growth ** (365.0 / num_days) - 1.0) * 100.0, 4)
 
 
-def _book_from_seed_equity(label: str, doc: dict) -> dict:
-    """Balanced/Aggressive book shape: seed_equity + equity + start_date (ADR-125 sleeves)."""
+def _accrual_anchor_date(doc: dict) -> str | None:
+    """Первый день с реальной записью доходности — не номинальный ``start_date``
+    книги (тот заводится задолго до того, как в книгу реально открывают
+    позиции; см. одноимённую функцию в ``spa_core.reporting.books_summary``,
+    откуда синхронизирована — та же аннуализация, тот же баг-класс что
+    ADR-109/ADR-201 §4)."""
+    history = doc.get("daily_history")
+    if isinstance(history, list) and history:
+        first = history[0]
+        if isinstance(first, dict) and isinstance(first.get("date"), str):
+            return first["date"]
+    start_date = doc.get("start_date")
+    return start_date if isinstance(start_date, str) else None
+
+
+def _book_from_seed_equity(label: str, doc: dict, *, now: datetime | None = None) -> dict:
+    """Balanced/Aggressive book shape: seed_equity + equity + start_date (ADR-125 sleeves).
+
+    ``now`` — вход, не окружение: по умолчанию реальные часы, тесты пинят."""
     seed = doc.get("seed_equity")
     equity = doc.get("equity")
     start_date = doc.get("start_date")
@@ -346,11 +363,13 @@ def _book_from_seed_equity(label: str, doc: dict) -> dict:
         if isinstance(seed, (int, float)) and seed and isinstance(equity, (int, float))
         else None
     )
+    now_dt = now or datetime.now(timezone.utc)
     num_days = None
-    if isinstance(start_date, str):
+    anchor_date = _accrual_anchor_date(doc)
+    if anchor_date:
         try:
-            start = datetime.fromisoformat(start_date).replace(tzinfo=timezone.utc)
-            num_days = max((datetime.now(timezone.utc) - start).days, 1)
+            start = datetime.fromisoformat(anchor_date).replace(tzinfo=timezone.utc)
+            num_days = max((now_dt - start).days, 1)
         except ValueError:
             num_days = None
     return {

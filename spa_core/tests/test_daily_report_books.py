@@ -138,6 +138,78 @@ def test_report_numbers_match_the_dashboard_endpoint(tmp_path, monkeypatch):
     assert ours["combined"]["combined_return_pct"] == theirs["combined"]["combined_return_pct"]
 
 
+def test_annualized_anchor_logic_matches_between_the_two_copies():
+    """``annualized_apy_pct`` зависит от ``now`` — сравнивать через живой
+    FastAPI-эндпоинт (два независимых чтения часов) флаково на границе суток.
+    Пинуем НАПРЯМУЮ: те же вход + тот же явный ``now`` в обе копии функции
+    ``_book_from_seed_equity`` (books_summary.py и live.py) обязаны выдать
+    одно и то же — дрейф якорной логики между копиями краснит здесь, не в
+    полночь по UTC где-то в CI."""
+    from spa_core.api.routers.live import _book_from_seed_equity as live_parser
+    from spa_core.reporting.books_summary import _book_from_seed_equity as report_parser
+    doc = {
+        "seed_equity": 100000.0, "equity": 100291.48, "start_date": "2026-06-22",
+        "daily_history": [{"date": "2026-08-24"}, {"date": "2026-09-01"}],
+    }
+    ours = report_parser("Balanced", doc, now=NOW)
+    theirs = live_parser("Balanced", doc, now=NOW)
+    assert ours["annualized_apy_pct"] is not None
+    # Разные формулы (books_summary: линейная; live.py: сложная) расходятся на
+    # короткого окна на пару пп — это НЕ предмет теста. Предмет — якорь: если
+    # бы одна копия молча вернулась к start_date (63д простоя), а другая
+    # осталась на daily_history (9д), разрыв был бы на ПОРЯДОК (~15% vs ~1.5%),
+    # не в разы. Порог с большим запасом от формульного шума (замерено: 1.19пп).
+    assert abs(ours["annualized_apy_pct"] - theirs["annualized_apy_pct"]) < 5.0
+
+
+# ─── аннуализация: якорь — реальный первый день, не номинальный start_date ──
+
+
+def test_annualized_rate_uses_real_accrual_anchor_not_stale_start_date(tmp_path):
+    """Прод-разрыв 02.09.2026: ``start_date`` книги — 2026-06-22, а позиции
+    реально открылись только 2026-08-24 (63 дня простоя между ними). Старая
+    аннуализация делила накопленный % на весь интервал ОТ start_date — это
+    превращало реальную ставку ~10-13% годовых в видимость ~1.5%. Фикс:
+    якорь — первый день ``daily_history``, а не ``start_date``. ``now``
+    пинуется явно (время — вход, не окружение, deployment.md)."""
+    (tmp_path / "hy_paper_trading.json").write_text(json.dumps({
+        "seed_equity": 100000.0, "equity": 100291.48, "start_date": "2026-06-22",
+        "daily_history": [{"date": "2026-08-24"}, {"date": "2026-09-01"}],
+    }), encoding="utf-8")
+    result = collect_books_summary(tmp_path, now=NOW.replace(day=2, month=9))
+    ann = result["books"]["balanced"]["annualized_apy_pct"]
+    assert ann is not None
+    # 9 дней от якоря 2026-08-24 до запиненного «сейчас» 2026-09-02 — на
+    # 63-дневном (start_date) якоре число было бы < 2%; на реальном — двузначное.
+    assert ann > 8.0, ann
+
+
+def test_annualized_rate_falls_back_to_start_date_when_no_history(tmp_path):
+    """Без daily_history (день открытия книги == первый учётный день) —
+    старое поведение сохраняется, не регрессия."""
+    (tmp_path / "hy_paper_trading.json").write_text(json.dumps({
+        "seed_equity": 100000.0, "equity": 100050.0, "start_date": "2026-08-31",
+    }), encoding="utf-8")
+    result = collect_books_summary(tmp_path, now=NOW)
+    assert result["books"]["balanced"]["annualized_apy_pct"] is not None
+
+
+def test_daily_message_shows_annualized_rate_next_to_cumulative(tmp_path):
+    """Дневной отчёт обязан показывать годовую ставку РЯДОМ с накопленным %,
+    иначе за 9 дней трека +0.29% выглядит «смешно», хотя ставка нормальная."""
+    (tmp_path / "equity_curve_daily.json").write_text(json.dumps({"summary": {
+        "start_equity": 100000.0, "end_equity": 101123.06,
+        "total_return_pct": 1.1231, "num_days": 70,
+    }}), encoding="utf-8")
+    (tmp_path / "hy_paper_trading.json").write_text(json.dumps({
+        "seed_equity": 100000.0, "equity": 100291.48, "start_date": "2026-06-22",
+        "daily_history": [{"date": "2026-08-24"}],
+    }), encoding="utf-8")
+    data = build_report_data("2026-08-31", data_dir=tmp_path, now=NOW)
+    msg = format_daily_message(data)
+    assert "год." in msg  # годовая ставка подписана, не только накопленный %
+
+
 # ─── format_daily_message (доставка владельцу) ──────────────────────────────
 
 

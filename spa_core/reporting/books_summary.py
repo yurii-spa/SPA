@@ -54,8 +54,29 @@ def _book_from_equity_curve(label: str, doc: Any) -> dict:
     }
 
 
-def _book_from_seed_equity(label: str, doc: Any) -> dict:
-    """Balanced/Aggressive shape: ``seed_equity`` + ``equity`` + ``start_date``."""
+def _accrual_anchor_date(doc: dict) -> Optional[str]:
+    """Первый день, за который ЕСТЬ реальная запись доходности — не номинальный
+    ``start_date`` книги. У Balanced/Aggressive книга заводится (``start_date``)
+    задолго до того, как в неё реально открывают позиции: 02.09.2026 разрыв —
+    ``start_date`` 2026-06-22, первая запись ``daily_history`` — 2026-08-24 (63д
+    простоя). Аннуализация по ``start_date`` делит накопленный % на 63 лишних
+    дня простоя и превращает нормальную ставку (~10-13% годовых по факту) в
+    видимость нуля — тот же класс, что ADR-109 / ADR-201 §4 (шов синтетики и
+    реальности читается агрегатом как часть реальности)."""
+    history = doc.get("daily_history")
+    if isinstance(history, list) and history:
+        first = history[0]
+        if isinstance(first, dict) and isinstance(first.get("date"), str):
+            return first["date"]
+    start_date = doc.get("start_date")
+    return start_date if isinstance(start_date, str) else None
+
+
+def _book_from_seed_equity(label: str, doc: Any, *, now: Optional[datetime] = None) -> dict:
+    """Balanced/Aggressive shape: ``seed_equity`` + ``equity`` + ``start_date``.
+
+    ``now`` — вход, не окружение (паттерн deployment.md «время — вход»): по
+    умолчанию реальные часы, тесты пинят фиксированный момент."""
     if not isinstance(doc, dict):
         return {"label": label, "available": False, "reason": "bad_shape"}
     seed = doc.get("seed_equity")
@@ -65,12 +86,13 @@ def _book_from_seed_equity(label: str, doc: Any) -> dict:
         if isinstance(seed, (int, float)) and seed and isinstance(equity, (int, float))
         else None
     )
+    now_dt = now or datetime.now(timezone.utc)
     num_days = None
-    start_date = doc.get("start_date")
-    if isinstance(start_date, str):
+    anchor_date = _accrual_anchor_date(doc)
+    if anchor_date:
         try:
-            start = datetime.fromisoformat(start_date).replace(tzinfo=timezone.utc)
-            num_days = max((datetime.now(timezone.utc) - start).days, 1)
+            start = datetime.fromisoformat(anchor_date).replace(tzinfo=timezone.utc)
+            num_days = max((now_dt - start).days, 1)
         except ValueError:
             num_days = None
     return {
@@ -106,14 +128,22 @@ def _combine_books(books: Dict[str, dict]) -> dict:
     }
 
 
-def collect_books_summary(data_dir: Path) -> dict:
-    """{books: {conservative|balanced|aggressive}, combined: {...}} — never raises."""
+def collect_books_summary(data_dir: Path, *, now: Optional[datetime] = None) -> dict:
+    """{books: {conservative|balanced|aggressive}, combined: {...}} — never raises.
+
+    ``now`` — вход, не окружение: по умолчанию реальные часы (см.
+    ``_book_from_seed_equity``, единственный потребитель — Conservative
+    считает ``num_days`` сам, из своего ``summary``)."""
     try:
         ddir = Path(data_dir)
+        now_dt = now or datetime.now(timezone.utc)
         sources = [
-            ("conservative", "Conservative", "equity_curve_daily.json", _book_from_equity_curve),
-            ("balanced", "Balanced", "hy_paper_trading.json", _book_from_seed_equity),
-            ("aggressive", "Aggressive", "lp_paper_trading.json", _book_from_seed_equity),
+            ("conservative", "Conservative", "equity_curve_daily.json",
+             lambda label, doc: _book_from_equity_curve(label, doc)),
+            ("balanced", "Balanced", "hy_paper_trading.json",
+             lambda label, doc: _book_from_seed_equity(label, doc, now=now_dt)),
+            ("aggressive", "Aggressive", "lp_paper_trading.json",
+             lambda label, doc: _book_from_seed_equity(label, doc, now=now_dt)),
         ]
         books: Dict[str, dict] = {}
         for key, label, fname, parser in sources:

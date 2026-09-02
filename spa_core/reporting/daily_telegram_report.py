@@ -379,7 +379,7 @@ def build_report_data(
     # что на /admin/portfolio-summary). Fail-closed: недоступная книга видна
     # как «недоступно», никогда не как выдуманный ноль.
     from spa_core.reporting.books_summary import collect_books_summary
-    books_summary = collect_books_summary(ddir)
+    books_summary = collect_books_summary(ddir, now=now_dt)
 
     return {
         "date": date_str,
@@ -459,8 +459,10 @@ def format_daily_message(data: dict) -> str:
                 continue
             ret = b.get("return_pct")
             ret_str = f"{ret:+.2f}%" if isinstance(ret, (int, float)) else "—"
+            ann = b.get("annualized_apy_pct")
+            ann_str = f", ~{ann:.1f}% год." if isinstance(ann, (int, float)) else ""
             lines.append(
-                f"  • {_esc(label)}: {_fmt_money(b.get('equity'))} ({ret_str})"
+                f"  • {_esc(label)}: {_fmt_money(b.get('equity'))} ({ret_str}{ann_str})"
             )
         c = bs.get("combined") or {}
         n_avail = c.get("books_available")
