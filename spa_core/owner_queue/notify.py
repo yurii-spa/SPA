@@ -104,12 +104,31 @@ def notify_needs_owner(path: str | Path, *, dry_run: bool = False,
     # — через 52 минуты; спрошен четыре раза, все четыре честно без кнопок). Обновление
     # обязано случиться ДО `load_card`, иначе починится следующая отправка, а не эта.
     # Оно узкое и доказуемо ничего не теряющее — все условия в `refresh_live_copy_from_ref`.
+    # Расхождение, которое переписать НЕЛЬЗЯ, обязано быть НАЗВАНО. Живая копия может
+    # отставать от источника правды телом, а не вариантами: `nimbalyst-local/` не возит
+    # НИКАКОЙ синк (CLAUDE.md §1), то есть отставание не «ещё не доехало», а не доедет.
+    # Замер #461 на `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29`:
+    # прод-копия 140 строк против 192 на origin, и в недостающих 52 — раздел, дословно
+    # отменяющий совет, который владелец видит. Переписать вопрос задним числом мы права
+    # не имеем (инвариант #14, ADR-075), молчать — тоже: владелец отвечает по тексту,
+    # который у него перед глазами.
+    notices: list[str] = []
     try:
-        from spa_core.telegram.owner_decisions import refresh_live_copy_from_ref
+        from spa_core.telegram.owner_decisions import (
+            REFRESH_BODY_DIVERGED, REFRESH_DONE, refresh_live_copy_from_ref,
+        )
 
         rep = refresh_live_copy_from_ref(path)
-        if rep.get("verdict") == "refreshed_from_ref":
+        if rep.get("verdict") == REFRESH_DONE:
             log.warning("notify_needs_owner: %s", rep.get("detail"))
+        elif rep.get("verdict") == REFRESH_BODY_DIVERGED:
+            log.warning("notify_needs_owner: %s", rep.get("detail"))
+            extra = rep.get("lines_only_on_ref") or 0
+            sha = rep.get("ref_sha") or "origin/main"
+            notices.append(
+                f"Передо мной НЕ самая свежая редакция этого вопроса: на origin/main "
+                f"({sha}) карточка длиннее на {extra} строк(и). Переписать её за автора "
+                f"я не имею права. Прочитай карточку на origin, прежде чем отвечать.")
     except Exception as exc:  # noqa: BLE001 — обновление не важнее самого уведомления
         log.warning("notify_needs_owner: refresh from ref failed for %s: %s", path, exc)
     card = load_card(path)
@@ -184,9 +203,11 @@ def notify_needs_owner(path: str | Path, *, dry_run: bool = False,
         # тестов ЗАГЛУШИЛ живой чат» (#180): сухая проверка меняет живое состояние.
         # ТЕКСТ при этом обязан остаться тем же самым — иначе сухой прогон показывал бы
         # не то, что уедет; за это отвечает общий `prepare_push`.
-        prep = (owner_decisions.prepare_push(card.path, card.title or card.id, card.body)
+        prep = (owner_decisions.prepare_push(card.path, card.title or card.id, card.body,
+                                             notices=notices)
                 if dry_run else
-                owner_decisions.register_push(card.path, card.title or card.id, card.body))
+                owner_decisions.register_push(card.path, card.title or card.id, card.body,
+                                              notices=notices))
         # Берём подготовленный текст ВСЕГДА, а не только когда есть варианты.
         # Раньше при пустом списке уходил старый служебный вид — и многовыборная карточка
         # («можно взять несколько», вариантов намеренно ноль) теряла ЧЕСТНОЕ объяснение

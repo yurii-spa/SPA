@@ -44,6 +44,7 @@ pre_cutover_gate — всё на месте).
 from __future__ import annotations
 
 import hashlib
+import difflib
 import html
 import json
 import os
@@ -51,7 +52,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from spa_core.owner_queue.owner_answer import (
     ACK_ACCEPT_CHOICE as _ACK_ACCEPT_CHOICE,
@@ -521,11 +522,20 @@ def _fold_wrapped_bold(lines: List[str]) -> List[str]:
     return out
 
 
-def _section_lines(body: str) -> List[str]:
-    """Строки секции «Что от тебя нужно». Пустой список — секции нет."""
-    out: List[str] = []
+def _section_numbered(body: str) -> List[Tuple[int, str]]:
+    """Строки секции «Что от тебя нужно» ВМЕСТЕ с их номерами в теле карточки.
+
+    Номер нужен второму читателю секции — :func:`unnumbered_recommendations`, который
+    обязан различать «внутри перечня» и «вне его». Различать по СОДЕРЖИМОМУ строки
+    нельзя: одинаковый текст встречается и там и там, а свёртка переносов
+    (``_fold_wrapped_bold``) склеивает строки, после чего исходной строки в наборе
+    уже нет. Правило «где начинается и кончается секция» живёт здесь в одном
+    экземпляре — вторая копия разошлась бы с первой ровно так же, как разошлись бы
+    два определения варианта.
+    """
+    out: List[Tuple[int, str]] = []
     inside = False
-    for ln in body.splitlines():
+    for i, ln in enumerate(body.splitlines()):
         stripped = ln.strip()
         if stripped.startswith("##"):
             low = stripped.lower()
@@ -534,8 +544,13 @@ def _section_lines(body: str) -> List[str]:
             inside = any(low.startswith(h) for h in _NEED_HEADINGS)
             continue
         if inside:
-            out.append(ln)
-    return _fold_wrapped_bold(out)
+            out.append((i, ln))
+    return out
+
+
+def _section_lines(body: str) -> List[str]:
+    """Строки секции «Что от тебя нужно». Пустой список — секции нет."""
+    return _fold_wrapped_bold([ln for _, ln in _section_numbered(body)])
 
 
 def _capitalize(text: str) -> str:
@@ -664,6 +679,88 @@ def _named_recommendation(
     if len(found) > 1 or found[0] not in valid:
         return None, True
     return found[0], False
+
+
+# ── Рекомендация ПРОЗОЙ, не привязанная ни к какому номеру ───────────────────────
+# Замер #445 на живой `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29`
+# (`needs-owner` с 29.08): в теле карточки ДВЕ рекомендации. Одна — разметкой, пометка
+# `*(рекомендую)*` на «Варианте 1 — Сначала выяснить причину». Вторая — отдельным
+# разделом «ПЕРЕСМОТР РЕКОМЕНДАЦИИ», который первую ДОСЛОВНО отменяет: «Посчитал — совет
+# был осторожен не там… **Новая рекомендация: ставить ограничение сразу, а причину
+# выяснять параллельно.**» Номера варианта новая рекомендация не называет вовсе.
+#
+# Почему это не чинится разбором. `_named_recommendation` умеет ровно обратное — взять
+# номер, КОТОРЫЙ НАЗВАН, и переставить звезду на него. Здесь называть нечего: подобрать
+# номер за автора значило бы выдумать владельцу выбор (ADR-075). Единственный честный
+# исход — НАЗВАТЬ, что рекомендаций две, и позвать читать карточку целиком.
+#
+# Замер населения ДО написания (цикл #461, 879 карточек трекера на origin/main): под это
+# определение попадают 14, и ни одна из них — не «упоминание вскользь». Требования,
+# которыми отсечено остальное, и цена каждого:
+#   * ДЕКЛАРАЦИЯ, а не упоминание: «Рекомендация: …» / «Новая рекомендация — …» /
+#     «Рекомендую …» началом предложения. Без этого сюда попадал бы любой абзац со
+#     словом «рекомендую» — в том числе объяснения «почему рекомендую вариант 1».
+#   * ВНЕ перечня вариантов: пометку внутри пункта читает `_marks_recommendation`,
+#     и вторая рука на том же тексте поставила бы оговорку под каждой карточкой со
+#     звездой.
+#     Заголовок раздела отсекается ЭТИМ ЖЕ требованием, а не отдельным: «## ПЕРЕСМОТР
+#     РЕКОМЕНДАЦИИ (поздний вечер)» — оглавление, двоеточия/тире после слова там нет.
+#     Отдельное исключение по `#` в первой редакции стояло и было МЁРТВЫМ: мутация,
+#     снявшая его, не покрасила ни одного теста, а замер по 879 карточкам дал те же 10
+#     попаданий и НИ ОДНОГО заголовка. Снято намеренно: оно не только не работало, но и
+#     было дырой в другую сторону — «## Рекомендация: закрыть без действий» есть
+#     полноценная декларация, и молча ронять её нельзя.
+#   * НОМЕР НЕ НАЗВАН: «Рекомендация: вариант 2» — забота `_named_recommendation`,
+#     здесь ей делать нечего (иначе один совет предъявлялся бы владельцу дважды).
+#   * ОТРИЦАНИЕ сильнее: «не рекомендую» — тот же приём, что в `_marks_recommendation`.
+# `_LINE_START` — начало строки ВМЕСТЕ с markdown-оформлением: заголовок (`##`), пункт
+# списка (`-`/`*`), цитата (`>`), жирное начертание. Без него «## Рекомендация: закрыть
+# без действий» (живая форма четырёх карточек `owner-decision-kritichnaya-nahodka-petli-*`)
+# не читалась как декларация вовсе — то есть отсев шёл по оформлению, а не по смыслу.
+_LINE_START = r"(?:^[#*>\-\s]*|[.!?»)]\s+\**\s*)"
+_RECOMMEND_DECLARED_RE = re.compile(
+    _LINE_START + r"(?:нов\w+\s+|пересмотренн\w+\s+|итогов\w+\s+)?"
+    r"рекомендаци\w*\s*[:—–-]"                 # «Новая рекомендация: …», «Рекомендация — …»
+    + r"|" + _LINE_START + r"рекомендую\b",       # «Рекомендую …» началом предложения
+    re.IGNORECASE,
+)
+
+# Номер варианта, названный ГДЕ УГОДНО в строке. Шире `_RECOMMEND_NAMED_RE` намеренно:
+# тому нужна связка «рекомендация ↔ номер» (он звезду переставляет), а здесь достаточно
+# факта «номер в строке есть» — значит совет к нему привязан и вопрос не наш.
+_OPTION_REF_RE = re.compile(
+    r"(?<![А-Яа-яЁёA-Za-z])вариант\w*\s*[—–:-]?\s*\d{1,2}"
+    r"|\(\s*[A-Za-zА-Яа-я\d]\s*\)",
+    re.IGNORECASE,
+)
+
+
+def unnumbered_recommendations(body: str) -> List[str]:
+    """Рекомендации ПРОЗОЙ, не привязанные ни к одному номеру варианта.
+
+    Пустой список — обычный случай: рекомендация одна и стоит на пункте перечня.
+    Непустой — в карточке есть совет, который разбор НЕ ИМЕЕТ ПРАВА превратить в звезду,
+    и владельцу об этом надо сказать словами (см. :func:`build_message`).
+
+    Fail-CLOSED в сторону молчания, а не в сторону оговорки: сомнительная строка сюда не
+    попадает. Цена ошибки несимметрична — лишняя оговорка под каждым вопросом обесценит
+    её саму, а пропущенная возвращает нас ровно в исходное состояние, где владелец видел
+    отменённый совет и не знал об этом.
+    """
+    section = {i for i, _ in _section_numbered(body)}
+    out: List[str] = []
+    for i, ln in enumerate(body.splitlines()):
+        stripped = ln.strip()
+        if not stripped or i in section:
+            continue
+        if _RECOMMEND_NEGATED_RE.search(stripped):
+            continue
+        if not _RECOMMEND_DECLARED_RE.search(stripped):
+            continue
+        if _OPTION_REF_RE.search(stripped) or _RECOMMEND_NAMED_RE.search(stripped):
+            continue
+        out.append(stripped)
+    return out
 
 
 #: Отказ собрать кнопки, потому что карточка задаёт НЕ ОДИН вопрос: номер повторился ·
@@ -1063,7 +1160,8 @@ def summarize(body: str, limit: int = SUMMARY_MAX) -> str:
 
 def build_message(title: str, body: str, options: List[ParsedOption],
                   *, has_buttons: bool = True, card_name: str = "",
-                  ack_buttons: bool = False) -> str:
+                  ack_buttons: bool = False,
+                  notices: Sequence[str] = ()) -> str:
     """HTML-сообщение владельцу: заголовок, суть, перечень вариантов.
 
     HTML, а не Markdown: в карточках сплошь пути с подчёркиваниями (`agent_health`),
@@ -1073,6 +1171,11 @@ def build_message(title: str, body: str, options: List[ParsedOption],
     кнопку», и владелец получил решение с этой фразой и без единой кнопки (замер 08.08).
     Обещать несуществующее хуже, чем не обещать ничего: владелец решает, что сломан бот,
     и перестаёт верить всему каналу. Текст и клавиатура должны говорить ОДНО.
+
+    ``notices`` — ИЗМЕРЕННЫЕ оговорки, которые чистая функция снять не может (сверка
+    живой копии с ``origin/main`` ходит в git). Их меряет тот, у кого есть путь к файлу,
+    ровно как ``allow_ack``. Оговорка, выводимая из одного тела карточки, здесь и
+    считается — плодить её вторую копию у вызывающего незачем.
     """
     parts = [
         "🧑‍⚖️ <b>Нужно твоё решение</b>",
@@ -1150,6 +1253,19 @@ def build_message(title: str, body: str, options: List[ParsedOption],
                 if has_buttons else
                 "Вариантов в карточке не нашёл — открой её в трекере.")
         parts += ["", tail]
+    # ── Оговорки: то, что машина решить за автора НЕ ИМЕЕТ ПРАВА ──────────────────
+    # Стоят ПОСЛЕ вариантов и ПЕРЕД именем карточки: владелец читает сверху вниз, и
+    # предупреждение «звезда может быть не той» обязано попасться ему до того, как он
+    # нажмёт кнопку, а не после имени файла в конце.
+    every = list(notices)
+    for phrase in unnumbered_recommendations(body):
+        every.append(
+            "В карточке есть рекомендация, не привязанная к номеру варианта: "
+            f"«{_shorten(_plain(phrase), 160)}». Какой это вариант — автор не назвал, "
+            "и подбирать номер за него я не буду. Прочитай карточку целиком.")
+    if every:
+        parts.append("")
+        parts += [f"⚠️ {html.escape(n)}" for n in every]
     if card_name:
         # Имя карточки нужно всегда: без кнопок это ЕДИНСТВЕННЫЙ способ найти её в трекере,
         # а с кнопками — способ сослаться на неё в разговоре. Раньше оно было только в
@@ -1368,6 +1484,7 @@ def prepare(
     now: Optional[datetime] = None,
     beacon_path: Optional[str | Path] = None,
     allow_ack: bool = False,
+    notices: Sequence[str] = (),
 ) -> Prepared:
     """Собрать сообщение и клавиатуру. Текст уходит ВСЕГДА, кнопки — по условиям.
 
@@ -1420,7 +1537,8 @@ def prepare(
     # только по второму — иначе повторится 08.08 («Нажми кнопку» без единой кнопки).
     text = build_message(title, body, options, has_buttons=keyboard is not None,
                          card_name=card_name or card_id,
-                         ack_buttons=ack and keyboard is not None)
+                         ack_buttons=ack and keyboard is not None,
+                         notices=notices)
     return Prepared(pid=pid, text=text, keyboard=keyboard, options=options, ack=ack)
 
 
@@ -1482,7 +1600,11 @@ def _live_tracker_dir(override: Optional[str | Path] = None) -> Optional[Path]:
 NEEDS_OWNER_STATUS = "needs-owner"
 
 REFRESH_DONE = "refreshed_from_ref"        # живая копия обновлена с ref
-REFRESH_NOT_STALE = "not_stale"            # ref не богаче — обновлять нечего
+REFRESH_NOT_STALE = "not_stale"            # ref не богаче И тело то же — обновлять нечего
+#: Вариантов на ref не больше, а ТЕЛО расходится. Не «нечего обновлять»: обновлять есть
+#: что, а права переписать вопрос владельца у нас нет (ADR-075, инвариант #14) — поэтому
+#: расхождение НАЗЫВАЕТСЯ в самом сообщении, а живая копия остаётся нетронутой.
+REFRESH_BODY_DIVERGED = "body_diverged"
 REFRESH_OWNER_ANSWER = "owner_answer_present"   # есть след ответа — НЕ трогаем
 REFRESH_STATUS = "status_not_needs_owner"  # вопрос уже не на владельце
 REFRESH_ABSENT_ON_REF = "absent_on_ref"    # на ref карточки нет — сверять не с чем
@@ -1561,10 +1683,47 @@ def refresh_live_copy_from_ref(card_path: str | Path, *,
 
     remote_options = parse_options(remote.body or "")
     if not remote_options or parse_options(local.body or ""):
+        # Число разобранных вариантов — ПРОКСИ, и он слеп ровно там, где расхождение
+        # дороже всего. Замер #461 на живой `owner-decision-knigu-perekladyvayut-22-raza-
+        # za-nedelyu-2026-08-29` (`needs-owner` с 29.08, четвёртый день без ответа):
+        # форма перечня в ней разбору неизвестна, поэтому вариантов НОЛЬ и на ref, и в
+        # живой копии — а тело на ref длиннее на 52 строки, и в этих строках лежит раздел
+        # «ПЕРЕСМОТР РЕКОМЕНДАЦИИ», дословно отменяющий тот совет, который владелец видит.
+        # Прежний вердикт при этом утверждал «ref не богаче, обновлять нечего» — то есть
+        # сторож ГОВОРИЛ НЕПРАВДУ о состоянии, которое сам же и измерил.
+        #
+        # Переписывать живую копию мы всё равно не станем: у карточки, уехавшей владельцу,
+        # текст на руках, и подмена вопроса задним числом — ровно то, что запрещают
+        # инвариант #14 и ADR-075. Меняется ОДНО: состояние получает своё имя и своё
+        # число, а `notify_needs_owner` называет расхождение владельцу словами.
+        # Что именно считается «живая копия отстала». НЕ «тексты различаются»: копия
+        # может быть и БОГАЧЕ ref (сессия дописала её в дереве и ещё не запушила), и
+        # может быть его переписью, а не усечением. Сказать владельцу «передо мной не
+        # самая свежая редакция» в этих двух случаях значило бы соврать в другую сторону.
+        #
+        # Класс, который здесь измерен и который единственный даёт право на оговорку:
+        # на ref есть строки, которых тут НЕТ, и обратных строк не существует вовсе —
+        # то есть живая копия ЕСТЬ ref, из которого выпал кусок. Ровно такова живая
+        # `owner-decision-knigu-perekladyvayut-…`: `diff` даёт чистое `113,138d112`.
+        local_lines = (local.body or "").strip().splitlines()
+        remote_lines = (remote.body or "").strip().splitlines()
+        diff = list(difflib.unified_diff(local_lines, remote_lines, lineterm="", n=0))
+        only_on_ref = [d for d in diff if d.startswith("+") and not d.startswith("+++")]
+        only_here = [d for d in diff if d.startswith("-") and not d.startswith("---")]
+        if only_on_ref and not only_here:
+            rep = _refresh_verdict(
+                REFRESH_BODY_DIVERGED,
+                f"живая копия — это `{ref}` ({short}) БЕЗ {len(only_on_ref)} строк(и); "
+                f"своего текста в ней нет ни строки. Переписывать вопрос владельца "
+                f"нельзя — расхождение будет НАЗВАНО в сообщении", p)
+            rep["lines_only_on_ref"] = len(only_on_ref)
+            rep["ref_sha"] = short
+            return rep
         return _refresh_verdict(
             REFRESH_NOT_STALE,
             f"на `{ref}` ({short}) вариантов {len(remote_options)}, в живой копии "
-            f"{len(parse_options(local.body or ''))} — ref не богаче, обновлять нечего", p)
+            f"{len(parse_options(local.body or ''))}; своего текста в живой копии "
+            f"{len(only_here)} строк(и) — она не усечённый `{ref}`, обновлять нечего", p)
 
     # Перечитываем ПЕРЕД записью: между проверкой и записью владелец мог нажать кнопку.
     try:
@@ -1631,6 +1790,7 @@ def prepare_push(
     *,
     now: Optional[datetime] = None,
     beacon_path: Optional[str | Path] = None,
+    notices: Sequence[str] = (),
 ) -> Prepared:
     """То же сообщение, что уйдёт владельцу, но БЕЗ единой записи в живое состояние.
 
@@ -1650,7 +1810,7 @@ def prepare_push(
     # и в git не ходит. Отказ сверки — молчание, а не подтверждение (fail-CLOSED).
     allow_ack, _why = ack_allowed(p, body)
     return prepare(title, body, p.stem, card_name=p.name, now=now,
-                   beacon_path=beacon_path, allow_ack=allow_ack)
+                   beacon_path=beacon_path, allow_ack=allow_ack, notices=notices)
 
 
 # ── Анти-шторм отправок решений (инцидент 2026-08-20: 200+ копий одной карточки) ──
@@ -1709,6 +1869,7 @@ def register_push(
     state_path: Optional[str | Path] = None,
     beacon_path: Optional[str | Path] = None,
     live_root: Optional[str | Path] = None,
+    notices: Sequence[str] = (),
 ) -> Prepared:
     """Подготовить сообщение и запомнить карточку под её ``pid``.
 
@@ -1722,7 +1883,8 @@ def register_push(
     предназначена :func:`prepare_push`.
     """
     p = Path(card_path)
-    prep = prepare_push(card_path, title, body, now=now, beacon_path=beacon_path)
+    prep = prepare_push(card_path, title, body, now=now, beacon_path=beacon_path,
+                        notices=notices)
     dt = now or datetime.now(timezone.utc)
     path_obj = _state_path(state_path)
     doc = _load(path_obj)
