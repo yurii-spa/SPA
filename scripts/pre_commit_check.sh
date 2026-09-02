@@ -25,6 +25,10 @@ echo "Date: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 echo ""
 
 # ── [1/6] No bare exceptions ─────────────────────────────────────────────────
+# A line marked "# drill: intentional fault injection" is deliberate fault-
+# injection test scaffolding (pre_cutover_gate.py, eth_signer.py), not the
+# sloppy error handling this gate exists to catch — excluded by that marker,
+# not by path, so a NEW unmarked bare exception still fails here.
 echo "[1/6] Checking for bare exceptions..."
 if grep -rn \
      --include="*.py" \
@@ -33,10 +37,10 @@ if grep -rn \
      --exclude-dir=scripts \
      --exclude-dir=".git" \
      -E "raise\s+(Exception|RuntimeError)\s*\(" \
-     spa_core/ 2>/dev/null | grep -q .; then
+     spa_core/ 2>/dev/null | grep -v '# drill:' | grep -q .; then
   echo "❌ FAIL: Bare exceptions found in spa_core/"
-  grep -rn --include="*.py" --exclude-dir=__pycache__ \
-    -E "raise\s+(Exception|RuntimeError)\s*\(" spa_core/ 2>/dev/null | head -5
+  grep -rn --include="*.py" --exclude-dir=__pycache__ --exclude-dir=tests --exclude-dir=scripts \
+    -E "raise\s+(Exception|RuntimeError)\s*\(" spa_core/ 2>/dev/null | grep -v '# drill:' | head -5
   exit 1
 fi
 echo "✅ PASS: No bare exceptions"

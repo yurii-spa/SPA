@@ -12,6 +12,7 @@ No external dependencies — pure stdlib.
 """
 
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -163,6 +164,52 @@ class TestInstallHookContent(unittest.TestCase):
 
     def test_install_has_success_echo(self):
         self.assertIn("✅", self.content)
+
+
+class TestBareExceptionGateBehavior(unittest.TestCase):
+    """Positive control for gate [1/6] (found in the wild 2026-09-02): the gate's
+    own display grep lacked --exclude-dir=tests/scripts (already fixed by the
+    decision grep having them), and it had no way to tell a genuine bare
+    exception from explicitly-marked drill/fault-injection scaffolding
+    (spa_core/paper_trading/pre_cutover_gate.py, spa_core/execution/eth_signer.py)
+    — the gate failed on EVERY commit regardless of what was actually staged.
+    Fix: lines carrying the literal ``# drill:`` marker are excluded from the
+    match, by marker text, not by path — a NEW unmarked bare exception must
+    still fail this gate."""
+
+    def _gate_would_fail(self, tmp_path: Path) -> bool:
+        """Runs the exact grep pipeline gate [1/6] uses against a synthetic tree."""
+        result = subprocess.run(
+            ["bash", "-c",
+             'grep -rn --include="*.py" --exclude-dir=__pycache__ --exclude-dir=tests '
+             '--exclude-dir=scripts --exclude-dir=".git" '
+             r'-E "raise\s+(Exception|RuntimeError)\s*\(" spa_core/ 2>/dev/null '
+             '| grep -v "# drill:" | grep -q .'],
+            cwd=tmp_path,
+        )
+        return result.returncode == 0  # grep -q found something ⇒ gate fails
+
+    def test_real_unmarked_bare_exception_still_fails_the_gate(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp_path = Path(td)
+            d = tmp_path / "spa_core" / "risk"
+            d.mkdir(parents=True)
+            (d / "policy.py").write_text('raise RuntimeError("boom")\n', encoding="utf-8")
+            self.assertTrue(self._gate_would_fail(tmp_path))
+
+    def test_drill_marked_fault_injection_does_not_fail_the_gate(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp_path = Path(td)
+            d = tmp_path / "spa_core" / "paper_trading"
+            d.mkdir(parents=True)
+            (d / "pre_cutover_gate.py").write_text(
+                'raise RuntimeError("signer failure")  # drill: intentional fault injection\n',
+                encoding="utf-8")
+            self.assertFalse(self._gate_would_fail(tmp_path))
+
+    def test_pre_commit_check_sh_carries_the_drill_marker_exclusion(self):
+        content = _read(PRE_COMMIT)
+        self.assertIn("# drill:", content)
 
 
 if __name__ == "__main__":
