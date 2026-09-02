@@ -2,10 +2,12 @@
 trackerStatus:
   type: inbox
 title: "Находка петли: возможность spark_susds 4.0121% (evidence L2) доступна книге, не держи"
-status: new
+status: done
 source: nimbalyst
 created: 2026-09-01
 finding_key: "gap:opportunity_unnamed:spark_susds"
+status_trail:
+  - "2026-09-02T05:41:43.642505+00:00 new -> done · queue.set_status"
 ---
 
 Находка петли ADR-066 (house_view_gap, WARN, подтверждена 2 прогонами подряд):
