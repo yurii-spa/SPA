@@ -5,8 +5,6 @@ title: "Задача разобраться что поломалось и по�
 status: done
 source: telegram
 created: 2026-09-02
-claimed_by: cycle-88784
-claimed_at: 2026-09-02T18:31:43Z
 status_trail:
   - "2026-09-02T18:47:22.107352+00:00 new -> done · queue.set_status · cycle-88784"
 ---
