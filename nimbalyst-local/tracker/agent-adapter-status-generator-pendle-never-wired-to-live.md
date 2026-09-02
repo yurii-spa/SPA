@@ -7,6 +7,7 @@ source: session-2026-08-29 (найдено при ADR-162)
 created: 2026-08-29
 priority: low
 domain: adapters
+acceptance_probe: adapter_status_live_apy:pendle+pendle_pt
 ---
 
 ## Что случилось

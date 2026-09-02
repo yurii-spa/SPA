@@ -548,6 +548,45 @@ def _open_twin(d: Path, base: str, tracker_type: str, body: str) -> Path | None:
     return None
 
 
+def set_acceptance_probe(path: str | Path, spec: str) -> str | None:
+    """Записать/заменить `acceptance_probe:` во frontmatter СУЩЕСТВУЮЩЕЙ карточки.
+
+    Нужна затем, что бэклог уже написан: без этой двери проба доступна только карточке,
+    рождающейся сегодня, и 85 открытых карточек остаются вне машинной приёмки навсегда —
+    ровно тот «читатель без писателя», из-за которого сторож ADR-208 сутки простоял без
+    единого предмета (ADR-209).
+
+    Меняется ОДНА строка frontmatter; тело и остальные поля сохраняются побайтно.
+    Возврат — прежнее значение поля (None, если поля не было).
+    """
+    p = Path(path)
+    text = p.read_text(encoding="utf-8")
+    lines = text.splitlines(keepends=True)
+    start = end = None
+    seen = 0
+    for i, ln in enumerate(lines):
+        if ln.strip() == "---":
+            seen += 1
+            if seen == 1:
+                start = i
+            elif seen == 2:
+                end = i
+                break
+    if start is None or end is None:
+        raise ValueError(f"{p}: could not locate frontmatter bounds")
+    previous = None
+    for i in range(start + 1, end):
+        if lines[i].startswith("acceptance_probe:"):
+            previous = lines[i].split(":", 1)[1].strip()
+            newline = "\n" if lines[i].endswith("\n") else ""
+            lines[i] = f"acceptance_probe: {spec}{newline}"
+            break
+    else:
+        lines.insert(end, f"acceptance_probe: {spec}\n")
+    atomic_save_text("".join(lines), str(p))
+    return previous
+
+
 def create_card(
     tracker_type: str,
     title: str,

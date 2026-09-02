@@ -60,11 +60,16 @@ import json
 import os
 import re
 import sys
+from datetime import datetime, timezone
 from typing import Callable
 
 SATISFIED = "satisfied"
 NOT_SATISFIED = "not_satisfied"
 UNMEASURED = "unmeasured"
+#: Карточка закрыта — пробу не гоняли ВОВСЕ. Это не «не измерено» (мерить было нечего:
+#: вопрос снят) и не вердикт по критерию. Отдельное слово, чтобы счётчик `unmeasured`
+#: не разбавлялся сведённой работой и не терял способность быть находкой.
+NOT_PROBED = "not_probed"
 
 #: Статусы, при которых карточка считается ОТКРЫТОЙ работой.
 OPEN_STATUSES = frozenset({"new", "backlog", "in-progress", "blocked"})
@@ -75,7 +80,10 @@ NEVER_PROBED_STATUSES = frozenset({"needs-owner", "owner-done"})
 
 _FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---", re.S)
 #: Аргумент пробы — ключ, а не выражение: буквы, цифры, точка, тире, подчёркивание.
-_ARG_RE = re.compile(r"^[A-Za-z0-9_.\-]{1,64}$")
+#: `+` разделяет НЕСКОЛЬКО ключей одного критерия («живое APY у pendle И у pendle_pt»):
+#: критерий карточки часто называет пару, и проба на один ключ была бы зелёной ложью о
+#: втором. Форма остаётся ключевой — ни пробелов, ни путей, ни метасимволов оболочки.
+_ARG_RE = re.compile(r"^[A-Za-z0-9_.+\-]{1,128}$")
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -124,11 +132,124 @@ def _probe_lead_channel_wiring(arg: str | None) -> tuple[str, str]:
     return NOT_SATISFIED, detail
 
 
+#: Старше этого — `adapter_status.json` уже не наблюдение, а снимок. Производитель
+#: обновляет его в каждом дневном цикле, поэтому сутки — это «пропущен хотя бы один».
+ADAPTER_STATUS_MAX_AGE_H = 24.0
+
+
+def _probe_adapter_status_live_apy(arg: str | None, *, now: "datetime | None" = None) -> tuple[str, str]:
+    """Критерий: у ключа `arg` в `data/adapter_status.json` есть ЖИВОЕ APY.
+
+    Разбор именно артефакта, а не адаптера: карточки этого класса спрашивают «доехал ли
+    живой фид ДО потребителя», а не «умеет ли адаптер ходить в сеть». Живой запрос сюда
+    не годится вдвойне — сеть мерила бы окружение прогона (докстринг реестра), и на CI
+    проба давала бы `unmeasured` по построению.
+
+    **Возраст артефакта — часть вопроса, и это измерено, а не предположено.** `data/`
+    частично лежит в git, поэтому в worktree и на CI файл ЕСТЬ — но это замороженный
+    канон origin. Замер 2026-09-02: копия в worktree от 28.08 объявляла `aave_v3`
+    `live_apy=null`, тогда как живой прод в ту же секунду показывал 3.319. Проба без
+    проверки возраста выдавала бы ПРОТИВОПОЛОЖНЫЕ вердикты в двух деревьях и краснела бы
+    на почленённом — тот самый класс, из-за которого сторож судит о дереве, а не о
+    предмете. Протухший артефакт ⇒ `unmeasured`, НИКОГДА не `not_satisfied`.
+
+    Время — вход (`now`), а не окружение: обе стороны сравнения закрепляются в тесте.
+    """
+    if not arg:
+        return UNMEASURED, "пробе нужен ключ адаптера (acceptance_probe: adapter_status_live_apy:<key>)"
+    path = os.path.join(REPO_ROOT, "data", "adapter_status.json")
+    rel = os.path.relpath(path, REPO_ROOT)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except FileNotFoundError:
+        return UNMEASURED, f"{rel} нет в этом дереве — предмет не измерен"
+    except (OSError, ValueError) as exc:
+        return UNMEASURED, f"{rel} не разобран: {type(exc).__name__}: {exc}"
+    if not isinstance(doc, dict):
+        return UNMEASURED, f"форма {rel} не разобрана ({type(doc).__name__})"
+
+    stamp = doc.get("generated_at")
+    if not stamp:
+        return UNMEASURED, f"{rel} без generated_at — возраст не измерен, судить нечем"
+    try:
+        made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except ValueError:
+        return UNMEASURED, f"{rel}: generated_at {stamp!r} не разобран — возраст не измерен"
+    if made.tzinfo is None:
+        made = made.replace(tzinfo=timezone.utc)
+    age_h = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
+    if age_h > ADAPTER_STATUS_MAX_AGE_H:
+        return UNMEASURED, (f"{rel} протух: возраст {age_h:.1f}ч при пределе "
+                            f"{ADAPTER_STATUS_MAX_AGE_H:.0f}ч (снимок, не наблюдение) — "
+                            f"мерить надо из дерева с живым data/")
+
+    rows = doc.get("adapters")
+    if rows is None:
+        rows = doc
+    if not isinstance(rows, (dict, list)):
+        return UNMEASURED, f"форма {rel} не разобрана ({type(rows).__name__})"
+    keys = [k for k in arg.split("+") if k]
+    verdicts, details = [], []
+    for key in keys:
+        if isinstance(rows, dict):
+            row = rows.get(key)
+        else:
+            row = next((r for r in rows if isinstance(r, dict) and r.get("key") == key), None)
+        if not isinstance(row, dict):
+            verdicts.append(UNMEASURED)
+            details.append(f"{key}: ключа нет в {rel} — предмет не измерен")
+            continue
+        live = row.get("live_apy")
+        if live is None:
+            verdicts.append(NOT_SATISFIED)
+            details.append(f"{key}: live_apy=null, предъявляется запасной литерал "
+                           f"{row.get('fallback_apy')} (tvl_source={row.get('tvl_source')})")
+        else:
+            verdicts.append(SATISFIED)
+            details.append(f"{key}: live_apy={live} (pool_match={row.get('pool_match')})")
+    detail = " · ".join(details)
+    # Порядок строгий и в этом весь смысл многоключевой формы: «не измерено» съедает
+    # «выполнено» (нельзя объявить критерий закрытым, не проверив вторую половину), а
+    # «не выполнено» съедает всё остальное. Критерий из двух ключей выполнен ТОЛЬКО
+    # когда выполнены оба.
+    if NOT_SATISFIED in verdicts:
+        return NOT_SATISFIED, detail
+    if UNMEASURED in verdicts:
+        return UNMEASURED, detail
+    return SATISFIED, detail
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
     "artifact_contract_confirmed": _probe_artifact_contract,
     "lead_channel_wiring_ok": _probe_lead_channel_wiring,
+    "adapter_status_live_apy": _probe_adapter_status_live_apy,
 }
+
+
+def validate_spec(spec: str) -> str | None:
+    """Разобрать ОБЪЯВЛЕНИЕ пробы, не исполняя её. Возврат: None — годится, иначе причина.
+
+    Существует затем, чтобы отказ случился при РОЖДЕНИИ карточки, а не через сутки в
+    отчёте. `run_probe` на незарегистрированное имя честно отвечает `unmeasured` — но
+    `unmeasured` в отчёте выглядит как «нечем проверить сегодня», а на самом деле значит
+    «этот критерий не будет измерен НИКОГДА». Разница видна только тому, кто помнит
+    реестр наизусть, поэтому её ловит писатель, а не читатель.
+    """
+    spec = (spec or "").strip()
+    if not spec:
+        return "проба пуста"
+    name, _, arg = spec.partition(":")
+    name, arg = name.strip(), arg.strip()
+    if not name:
+        return "у пробы нет имени"
+    if name not in PROBES:
+        return (f"проба {name!r} не зарегистрирована. Известные: "
+                f"{', '.join(sorted(PROBES))}")
+    if arg and not _ARG_RE.match(arg):
+        return f"аргумент пробы отвергнут (не ключ): {arg!r}"
+    return None
 
 
 # ── разбор карточек ──────────────────────────────────────────────────────────
@@ -204,17 +325,28 @@ def audit(tracker_dir: str | None = None) -> dict:
             status = (fm.get("status") or "?").strip()
             if status in NEVER_PROBED_STATUSES:
                 continue
-            verdict, detail = run_probe(spec)
+            is_open = status in OPEN_STATUSES
+            # Пробу гоняем ТОЛЬКО у открытой карточки. Предмет модуля — «открытая
+            # карточка, чей критерий уже выполнен»; у закрытой этот вопрос не стоит,
+            # а вердикт по ней стоил бы времени и производил бы `[НЕ ИЗМЕРЕНО]` о
+            # СВЕДЁННОЙ работе — шум, неотличимый по форме от настоящей находки.
+            # Объявление при этом не теряется: закрытые считаются отдельно.
+            if is_open:
+                verdict, detail = run_probe(spec)
+            else:
+                verdict, detail = NOT_PROBED, f"карточка закрыта ({status}) — вопрос снят"
             rows.append({
                 "card": name[:-3],
                 "status": status,
-                "open": status in OPEN_STATUSES,
+                "open": is_open,
                 "probe": spec,
                 "verdict": verdict,
                 "detail": detail,
             })
     counts = {
         "declared": len(rows),
+        "declared_open": sum(1 for r in rows if r["open"]),
+        "declared_closed": sum(1 for r in rows if not r["open"]),
         "satisfied_but_open": sum(1 for r in rows if r["open"] and r["verdict"] == SATISFIED),
         "not_satisfied": sum(1 for r in rows if r["verdict"] == NOT_SATISFIED),
         "unmeasured": sum(1 for r in rows if r["verdict"] == UNMEASURED),
@@ -232,7 +364,15 @@ def report_lines(result: dict) -> list[str]:
         out.append(f"   проб не объявлено ни на одной из {result.get('scanned', 0)} карточек "
                    f"— критерии живут прозой, машинно не перемеряются (ADR-208)")
         return out
-    out.append(f"   объявлено проб {c.get('declared', 0)} · "
+    # «Проб 3, открытых 0» и «проб не объявлено» — РАЗНЫЕ состояния с одинаковым
+    # следствием (сторож ничего не меряет). Не сказать этого вслух значит выдать
+    # ноль предметов за здоровье: ровно так модуль прожил первые сутки (ADR-209).
+    if not c.get("declared_open"):
+        out.append(f"   ⚠️ проб объявлено {c.get('declared', 0)}, но ВСЕ на закрытых карточках "
+                   f"— открытых предметов НОЛЬ, сторожу нечего мерить (ADR-209)")
+        return out
+    out.append(f"   объявлено проб {c.get('declared', 0)} (открытых {c.get('declared_open', 0)}, "
+               f"на закрытых {c.get('declared_closed', 0)}) · "
                f"КРИТЕРИЙ ВЫПОЛНЕН при открытой карточке {c.get('satisfied_but_open', 0)} · "
                f"ещё не выполнен {c.get('not_satisfied', 0)} · не измерено {c.get('unmeasured', 0)}")
     for r in result["rows"]:

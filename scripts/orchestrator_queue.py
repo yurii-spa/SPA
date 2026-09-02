@@ -49,6 +49,7 @@ from spa_core.owner_queue.queue import (
     scan_promotions,
     first_instruction_line,
     list_cards,
+    set_acceptance_probe,
     set_status,
 )
 from spa_core.owner_queue.notify import (
@@ -709,6 +710,33 @@ def _warn_if_foreign_tree(path: Path) -> None:
               f"либо добавьте {path} в пуш явно.", file=sys.stderr)
 
 
+def _validate_acceptance_probe(extra: dict) -> str | None:
+    """Проба обязана быть ЗАРЕГИСТРИРОВАННОЙ уже при рождении карточки (ADR-209).
+
+    Реестр ОДИН — `card_acceptance.PROBES`; второй копии здесь нет намеренно (класс
+    «два реестра под одним именем»): писатель и читатель обязаны спорить о том же
+    списке, иначе валидация разрешит имя, которого у читателя нет.
+
+    Почему отказ, а не предупреждение: `run_probe` на незарегистрированное имя честно
+    отвечает `unmeasured`, и в отчёте это читается как «нечем проверить сегодня», тогда
+    как значит «этот критерий не будет измерен НИКОГДА». Опечатку видно только тому, кто
+    помнит реестр наизусть.
+
+    Возврат: None — годится (в том числе когда пробы нет вовсе), иначе причина отказа.
+    Нечем проверить (модуль не импортируется) — тоже отказ: пустить непроверенное имя
+    значило бы сделать валидацию fail-OPEN ровно там, где она нужна.
+    """
+    spec = extra.get("acceptance_probe")
+    if spec is None:
+        return None
+    try:
+        from spa_core.monitoring.card_acceptance import validate_spec
+    except Exception as exc:  # noqa: BLE001 — «нечем проверить» ≠ «годится»
+        return (f"проба объявлена, но проверить её нечем: {type(exc).__name__}: {exc}. "
+                f"Реестр проб недоступен — карточку с непроверенной пробой не создаём")
+    return validate_spec(spec)
+
+
 def cmd_create(args) -> int:
     body = args.body or ""
     if args.body_file:
@@ -719,6 +747,12 @@ def cmd_create(args) -> int:
         k, _, v = kv.partition("=")
         if k:
             extra[k.strip()] = v.strip()
+    if getattr(args, "acceptance_probe", None):
+        extra["acceptance_probe"] = args.acceptance_probe.strip()
+    reason = _validate_acceptance_probe(extra)
+    if reason is not None:
+        print(f"REFUSED: acceptance_probe — {reason}", file=sys.stderr)
+        return 2
     try:
         path = create_card(
             args.type, args.title, body,
@@ -731,6 +765,35 @@ def cmd_create(args) -> int:
     print(str(path))
     _warn_if_foreign_tree(Path(path))
     _rebuild_board(tracker_dir=args.tracker_dir)
+    return 0
+
+
+def cmd_probe(args) -> int:
+    """Прикрепить машинный критерий приёмки к УЖЕ написанной карточке (ADR-209)."""
+    reason = _validate_acceptance_probe({"acceptance_probe": args.probe})
+    if reason is not None:
+        print(f"REFUSED: acceptance_probe — {reason}", file=sys.stderr)
+        return 2
+    path = Path(args.path)
+    if not path.is_file():
+        print(f"ERROR: карточки нет: {path}", file=sys.stderr)
+        return 1
+    try:
+        previous = set_acceptance_probe(path, args.probe.strip())
+    except Exception as exc:  # noqa: BLE001
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    was = f" (было: {previous})" if previous else ""
+    print(f"OK: {path} -> acceptance_probe: {args.probe.strip()}{was}")
+    # Сразу назвать вердикт: молча записанная проба неотличима от записанной с опечаткой
+    # в аргументе — имя реестр проверил, а КЛЮЧ проверить может только сама проба.
+    try:
+        from spa_core.monitoring.card_acceptance import run_probe
+        verdict, detail = run_probe(args.probe.strip())
+        print(f"    проба сейчас даёт: {verdict} — {detail}")
+    except Exception as exc:  # noqa: BLE001 — это справка, а не гейт
+        print(f"    [НЕ ИЗМЕРЕНО] пробу не удалось прогнать: {type(exc).__name__}: {exc}")
+    _rebuild_board(tracker_dir=path.resolve().parent)
     return 0
 
 
@@ -920,10 +983,19 @@ def build_parser() -> argparse.ArgumentParser:
     pc.add_argument("--status", default=None)
     pc.add_argument("--source", default=None, help="nimbalyst|obsidian|telegram|voice")
     pc.add_argument("--field", action="append", help="extra frontmatter k=v (repeatable)")
+    pc.add_argument("--acceptance-probe", default=None,
+                    help="машинный критерий приёмки: <проба> либо <проба>:<ключ> "
+                         "(реестр — spa_core.monitoring.card_acceptance.PROBES). "
+                         "Незарегистрированное имя ⇒ ОТКАЗ, а не тихое «не измерено»")
     pc.add_argument("--tracker-dir", default=None,
                     help="куда положить карточку (по умолчанию — трекер ДЕРЕВА ЭТОГО СКРИПТА; "
                          "работая в worktree, указывайте свой, иначе карточка не попадёт в пуш)")
     pc.set_defaults(func=cmd_create)
+
+    pb = sub.add_parser("probe", help="attach a machine acceptance criterion to an existing card (ADR-209)")
+    pb.add_argument("path", help="путь к карточке")
+    pb.add_argument("probe", help="<проба> либо <проба>:<ключ>; незарегистрированное имя ⇒ ОТКАЗ")
+    pb.set_defaults(func=cmd_probe)
 
     pi = sub.add_parser("ingest-notes", help="convert loose Obsidian inbox/ notes → Inbox cards")
     pi.add_argument("--dir", default=None, help="notes dir (default: repo inbox/)")
