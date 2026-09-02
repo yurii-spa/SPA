@@ -1,124 +1,137 @@
 {
   "all_ok": false,
-  "ts": 1782021124.126431,
+  "ts": 1788341002.1656566,
   "checks": {
     "launchd_httpserver": {
-      "running": true,
-      "pid": 70647,
-      "last_exit": 0,
-      "error": null,
-      "method": "launchctl_pid"
+      "running": false,
+      "pid": null,
+      "last_exit": null,
+      "error": "launchctl not found (non-macOS?)",
+      "method": "launchctl_no_pid"
     },
     "launchd_cloudflared": {
-      "running": true,
-      "pid": 49646,
-      "last_exit": 0,
-      "error": null,
-      "method": "launchctl_pid"
+      "running": false,
+      "pid": null,
+      "last_exit": null,
+      "error": "launchctl not found (non-macOS?)",
+      "method": "launchctl_no_pid"
     },
     "launchd_fund-api": {
       "running": false,
       "pid": null,
-      "last_exit": 0,
-      "error": null,
+      "last_exit": null,
+      "error": "launchctl not found (non-macOS?)",
       "method": "no_output_file"
     },
     "launchd_uptime_monitor": {
-      "running": true,
-      "pid": 2728,
-      "last_exit": 0,
-      "error": null,
-      "method": "launchctl_pid"
-    },
-    "launchd_cycle_health": {
-      "running": true,
+      "running": false,
       "method": "output_file_age",
-      "file": "data/cycle_health.json",
-      "age_seconds": 16,
+      "file": "data/uptime_status.json",
+      "age_seconds": 695228,
       "max_age": 1800,
       "launchctl_pid": null,
-      "launchctl_last_exit": 0,
-      "launchctl_error": null
+      "launchctl_last_exit": null,
+      "launchctl_error": "launchctl not found (non-macOS?)"
+    },
+    "launchd_cycle_health": {
+      "running": false,
+      "method": "output_file_age",
+      "file": "data/cycle_health.json",
+      "age_seconds": 695228,
+      "max_age": 1800,
+      "launchctl_pid": null,
+      "launchctl_last_exit": null,
+      "launchctl_error": "launchctl not found (non-macOS?)"
     },
     "launchd_cycle_gap_monitor": {
       "running": false,
       "method": "output_file_age",
       "file": "data/cycle_gap_state.json",
-      "age_seconds": 16119,
+      "age_seconds": 695228,
       "max_age": 1800,
       "launchctl_pid": null,
-      "launchctl_last_exit": 0,
-      "launchctl_error": null
+      "launchctl_last_exit": null,
+      "launchctl_error": "launchctl not found (non-macOS?)"
     },
     "launchd_portfolio_monitor": {
-      "running": true,
+      "running": false,
       "method": "output_file_age",
       "file": "data/monitor_snapshots.json",
-      "age_seconds": 16,
+      "age_seconds": 695228,
       "max_age": 1800,
       "launchctl_pid": null,
-      "launchctl_last_exit": 0,
-      "launchctl_error": null
+      "launchctl_last_exit": null,
+      "launchctl_error": "launchctl not found (non-macOS?)"
     },
     "launchd_peg_monitor": {
-      "running": true,
+      "running": false,
       "method": "output_file_age",
       "file": "data/peg_report.json",
-      "age_seconds": 16,
+      "age_seconds": 695228,
       "max_age": 1800,
       "launchctl_pid": null,
-      "launchctl_last_exit": 0,
-      "launchctl_error": null
+      "launchctl_last_exit": null,
+      "launchctl_error": "launchctl not found (non-macOS?)"
     },
     "launchd_red_flag_monitor": {
-      "running": true,
+      "running": false,
       "method": "output_file_age",
       "file": "data/red_flags.json",
-      "age_seconds": 6,
+      "age_seconds": 695228,
       "max_age": 1800,
       "launchctl_pid": null,
-      "launchctl_last_exit": 0,
-      "launchctl_error": null
+      "launchctl_last_exit": null,
+      "launchctl_error": "launchctl not found (non-macOS?)"
     },
     "launchd_governance_watcher": {
-      "running": true,
+      "running": false,
       "method": "output_file_age",
       "file": "data/governance_proposals.json",
-      "age_seconds": 869,
+      "age_seconds": 695228,
       "max_age": 2700,
       "launchctl_pid": null,
-      "launchctl_last_exit": 0,
-      "launchctl_error": null
+      "launchctl_last_exit": null,
+      "launchctl_error": "launchctl not found (non-macOS?)"
     },
     "launchd_autopush": {
-      "running": true,
-      "method": "output_file_age",
+      "running": false,
+      "method": "output_file_missing",
       "file": "logs/auto_push.log",
-      "age_seconds": 5723,
-      "max_age": 14400,
+      "age_seconds": null,
+      "max_age": 16200,
       "launchctl_pid": null,
-      "launchctl_last_exit": 0,
-      "launchctl_error": null
+      "launchctl_last_exit": null,
+      "launchctl_error": "launchctl not found (non-macOS?)"
     },
     "launchd_daily_cycle": {
       "running": false,
       "method": "output_file_age",
       "file": "data/paper_trading_status.json",
-      "age_seconds": 16120,
-      "max_age": 5400,
-      "launchctl_pid": null,
-      "launchctl_last_exit": 0,
-      "launchctl_error": null
-    },
-    "launchd_base_gas_monitor": {
-      "running": true,
-      "method": "output_file_age",
-      "file": "data/base_gas_history.json",
-      "age_seconds": 6720,
+      "age_seconds": 695228,
       "max_age": 108000,
       "launchctl_pid": null,
-      "launchctl_last_exit": 0,
-      "launchctl_error": null
+      "launchctl_last_exit": null,
+      "launchctl_error": "launchctl not found (non-macOS?)"
+    },
+    "launchd_base_gas_monitor": {
+      "running": false,
+      "method": "output_file_age",
+      "file": "data/base_gas_history.json",
+      "age_seconds": 695228,
+      "max_age": 108000,
+      "launchctl_pid": null,
+      "launchctl_last_exit": null,
+      "launchctl_error": "launchctl not found (non-macOS?)"
+    },
+    "launchd_gas_price_agent": {
+      "running": false,
+      "method": "output_file_missing",
+      "file": "data/gas_price_history.json",
+      "age_seconds": null,
+      "max_age": 5400,
+      "launchctl_pid": null,
+      "launchctl_last_exit": null,
+      "launchctl_error": "launchctl not found (non-macOS?)"
     },
     "launchd_sky_monitor": {
       "running": false,
@@ -127,69 +140,66 @@
       "age_seconds": null,
       "max_age": 108000,
       "launchctl_pid": null,
-      "launchctl_last_exit": 0,
-      "launchctl_error": null
+      "launchctl_last_exit": null,
+      "launchctl_error": "launchctl not found (non-macOS?)"
     },
     "launchd_daily-paper-report": {
-      "running": true,
-      "method": "output_file_age",
-      "file": "data/paper_trading_status.json",
-      "age_seconds": 16120,
-      "max_age": 108000,
-      "launchctl_pid": null,
-      "launchctl_last_exit": null,
-      "launchctl_error": "launchctl exit 113: Could not find service \"com.spa.daily-paper-report\" in domain for port"
+      "running": false,
+      "pid": null,
+      "last_exit": null,
+      "error": "launchctl not found (non-macOS?)",
+      "method": "no_output_file"
     },
     "launchd_checkpoint-7day": {
-      "running": true,
-      "method": "output_file_age",
+      "running": false,
+      "method": "output_file_missing",
       "file": "logs/checkpoint_7day.log",
-      "age_seconds": 165122,
+      "age_seconds": null,
       "max_age": 691200,
       "launchctl_pid": null,
-      "launchctl_last_exit": 0,
-      "launchctl_error": null
+      "launchctl_last_exit": null,
+      "launchctl_error": "launchctl not found (non-macOS?)"
     },
     "launchd_weekly_backup": {
       "running": false,
       "pid": null,
-      "last_exit": 0,
-      "error": null,
+      "last_exit": null,
+      "error": "launchctl not found (non-macOS?)",
       "method": "no_output_file"
     },
     "launchd_analytics_tier_c": {
-      "running": true,
+      "running": false,
       "method": "output_file_age",
       "file": "data/analytics_report_full.json",
-      "age_seconds": 10319,
+      "age_seconds": 695228,
       "max_age": 129600,
       "launchctl_pid": null,
-      "launchctl_last_exit": 0,
-      "launchctl_error": null
+      "launchctl_last_exit": null,
+      "launchctl_error": "launchctl not found (non-macOS?)"
     },
     "launchd_bot_commands": {
-      "running": true,
-      "pid": 44244,
-      "last_exit": 0,
-      "error": null,
-      "method": "launchctl_pid"
+      "running": false,
+      "pid": null,
+      "last_exit": null,
+      "error": "launchctl not found (non-macOS?)",
+      "method": "launchctl_no_pid"
     },
     "http_server": {
       "ok": false,
-      "status_code": 404,
-      "latency_ms": 20.94,
-      "error": "HTTP 404: File not found"
+      "status_code": null,
+      "latency_ms": null,
+      "error": "OSError: offline — network disabled in test suite"
     },
     "cycle_freshness": {
       "ok": false,
-      "last_run_ts": 1782005000.828924,
-      "stale_hours": 4.479,
+      "last_run_ts": 1783144801.839195,
+      "stale_hours": 1443.389,
       "error": null
     },
     "git_push": {
       "ok": false,
-      "last_push_ts": 1781962941.0,
-      "stale_hours": 16.162,
+      "last_push_ts": 1788242523.0,
+      "stale_hours": 27.355,
       "error": null
     }
   }

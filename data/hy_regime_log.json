@@ -1,8 +1,173 @@
 {
   "version": "1.0",
-  "description": "Engine B (Carry/HY) regime change log — RS-003",
-  "created": "2026-06-22",
-  "current_state": "EXIT",
-  "last_updated": null,
-  "entries": []
+  "description": "Engine B (Carry/HY) regime change log",
+  "current_state": "ENTER",
+  "last_updated": "2026-09-02T09:20:34.615843Z",
+  "entries": [
+    {
+      "state": "ENTER",
+      "reason": "funding_rate 7.50% > 5.0%, depeg 0.000% < 0.3%",
+      "signals": {
+        "funding_rate": 0.075,
+        "depeg_pct": 0.0,
+        "drawdown_pct": 0.0
+      },
+      "timestamp": "2026-09-02T09:20:34.270804Z",
+      "previous_state": "EXIT"
+    },
+    {
+      "state": "ENTER",
+      "reason": "funding_rate 7.50% > 5.0%, depeg 0.000% < 0.3%",
+      "signals": {
+        "funding_rate": 0.075,
+        "depeg_pct": 0.0,
+        "drawdown_pct": 0.0
+      },
+      "timestamp": "2026-09-02T09:20:34.272223Z",
+      "previous_state": "EXIT"
+    },
+    {
+      "state": "ENTER",
+      "reason": "funding_rate 7.50% > 5.0%, depeg 0.000% < 0.3%",
+      "signals": {
+        "funding_rate": 0.075,
+        "depeg_pct": 0.0,
+        "drawdown_pct": 0.0
+      },
+      "timestamp": "2026-09-02T09:20:34.273065Z",
+      "previous_state": "EXIT"
+    },
+    {
+      "state": "ENTER",
+      "reason": "funding_rate 7.50% > 5.0%, depeg 0.000% < 0.3%",
+      "signals": {
+        "funding_rate": 0.075,
+        "depeg_pct": 0.0,
+        "drawdown_pct": 0.0
+      },
+      "timestamp": "2026-09-02T09:20:34.285034Z",
+      "previous_state": "EXIT"
+    },
+    {
+      "state": "ENTER",
+      "reason": "funding_rate 7.50% > 5.0%, depeg 0.000% < 0.3%",
+      "signals": {
+        "funding_rate": 0.075,
+        "depeg_pct": 0.0,
+        "drawdown_pct": 0.0
+      },
+      "timestamp": "2026-09-02T09:20:34.296107Z",
+      "previous_state": "EXIT"
+    },
+    {
+      "state": "ENTER",
+      "reason": "funding_rate 7.50% > 5.0%, depeg 0.000% < 0.3%",
+      "signals": {
+        "funding_rate": 0.075,
+        "depeg_pct": 0.0,
+        "drawdown_pct": 0.0
+      },
+      "timestamp": "2026-09-02T09:20:34.306343Z",
+      "previous_state": "EXIT"
+    },
+    {
+      "state": "ENTER",
+      "reason": "funding_rate 7.50% > 5.0%, depeg 0.000% < 0.3%",
+      "signals": {
+        "funding_rate": 0.075,
+        "depeg_pct": 0.0,
+        "drawdown_pct": 0.0
+      },
+      "timestamp": "2026-09-02T09:20:34.316509Z",
+      "previous_state": "EXIT"
+    },
+    {
+      "state": "ENTER",
+      "reason": "funding_rate 7.50% > 5.0%, depeg 0.000% < 0.3%",
+      "signals": {
+        "funding_rate": 0.075,
+        "depeg_pct": 0.0,
+        "drawdown_pct": 0.0
+      },
+      "timestamp": "2026-09-02T09:20:34.326924Z",
+      "previous_state": "EXIT"
+    },
+    {
+      "state": "ENTER",
+      "reason": "funding_rate 7.50% > 5.0%, depeg 0.000% < 0.3%",
+      "signals": {
+        "funding_rate": 0.075,
+        "depeg_pct": 0.0,
+        "drawdown_pct": 0.0
+      },
+      "timestamp": "2026-09-02T09:20:34.337065Z",
+      "previous_state": "EXIT"
+    },
+    {
+      "state": "ENTER",
+      "reason": "funding_rate 7.50% > 5.0%, depeg 0.000% < 0.3%",
+      "signals": {
+        "funding_rate": 0.075,
+        "depeg_pct": 0.0,
+        "drawdown_pct": 0.0
+      },
+      "timestamp": "2026-09-02T09:20:34.415265Z",
+      "previous_state": "EXIT"
+    },
+    {
+      "state": "ENTER",
+      "reason": "funding_rate 7.50% > 5.0%, depeg 0.000% < 0.3%",
+      "signals": {
+        "funding_rate": 0.075,
+        "depeg_pct": 0.0,
+        "drawdown_pct": 0.0
+      },
+      "timestamp": "2026-09-02T09:20:34.504702Z",
+      "previous_state": "EXIT"
+    },
+    {
+      "state": "ENTER",
+      "reason": "funding_rate 7.50% > 5.0%, depeg 0.000% < 0.3%",
+      "signals": {
+        "funding_rate": 0.075,
+        "depeg_pct": 0.0,
+        "drawdown_pct": 0.0
+      },
+      "timestamp": "2026-09-02T09:20:34.514889Z",
+      "previous_state": "EXIT"
+    },
+    {
+      "state": "ENTER",
+      "reason": "funding_rate 7.50% > 5.0%, depeg 0.000% < 0.3%",
+      "signals": {
+        "funding_rate": 0.075,
+        "depeg_pct": 0.0,
+        "drawdown_pct": 0.0
+      },
+      "timestamp": "2026-09-02T09:20:34.525405Z",
+      "previous_state": "EXIT"
+    },
+    {
+      "state": "ENTER",
+      "reason": "funding_rate 7.50% > 5.0%, depeg 0.000% < 0.3%",
+      "signals": {
+        "funding_rate": 0.075,
+        "depeg_pct": 0.0,
+        "drawdown_pct": 0.0
+      },
+      "timestamp": "2026-09-02T09:20:34.604638Z",
+      "previous_state": "EXIT"
+    },
+    {
+      "state": "ENTER",
+      "reason": "funding_rate 7.50% > 5.0%, depeg 0.000% < 0.3%",
+      "signals": {
+        "funding_rate": 0.075,
+        "depeg_pct": 0.0,
+        "drawdown_pct": 0.0
+      },
+      "timestamp": "2026-09-02T09:20:34.615681Z",
+      "previous_state": "ENTER"
+    }
+  ]
 }
