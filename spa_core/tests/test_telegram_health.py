@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -49,7 +49,7 @@ def no_real_system(monkeypatch):
                         lambda label=TH.LABEL: pytest.fail("kickstart вызван неожиданно"))
 
 
-def _beacon(tmp_path: Path, *, age_s: int = 10, caps=("alert_actions",)) -> Path:
+def _beacon(tmp_path: Path, *, age_s: float = 10, caps=("alert_actions",)) -> Path:
     p = tmp_path / "beacon.json"
     p.write_text(json.dumps({
         "schema_version": 1, "source": "telegram_bot", "pid": 4242,
@@ -61,6 +61,17 @@ def _beacon(tmp_path: Path, *, age_s: int = 10, caps=("alert_actions",)) -> Path
 
 def _status_of(rep, check_name):
     return next(f.status for f in rep.findings if f.check == check_name)
+
+
+def _detail_of(rep, check_name):
+    return next(f.detail for f in rep.findings if f.check == check_name)
+
+
+def rep_future(tmp_path: Path):
+    """Отчёт с маячком, отметка которого ЗА допуском в будущем (разошлись часы)."""
+    return TH.check(now=NOW,
+                    beacon_path=_beacon(tmp_path,
+                                        age_s=-(TH.BEACON_FUTURE_TOLERANCE_S + 60)))
 
 
 # ── проверка ─────────────────────────────────────────────────────────────────
@@ -105,6 +116,84 @@ def test_stale_beacon_means_the_loop_is_wedged(tmp_path):
     """Процесс есть, а цикл не крутится: нажатия обрабатывать некому."""
     rep = TH.check(now=NOW, beacon_path=_beacon(tmp_path, age_s=TH.BEACON_MAX_AGE_S + 60))
     assert _status_of(rep, "маячок") == TH.CRITICAL
+
+
+# ── отметка маячка из БУДУЩЕГО (ADR-216) ────────────────────────────────────
+#
+# Авария 31.08 16:42Z и 02.09 17:04Z, обе в журнале `/tmp/spa_telegram_health.log`:
+# сторож перезапустил ЖИВОГО долгожителя, объявив «маячку -0с (норма ≤ 300) — процесс
+# есть, но цикл не крутится». Цикл крутился безупречно — это он и написал маячок. `now`
+# берётся в начале прогона, маячок читается ПОСЛЕ опроса launchctl и ps, и бот успевает
+# вписать отметку ПОЗЖЕ нашей точки отсчёта. Замер 02.09: окно 0.030с ⇒ 0.10 % прогонов;
+# при 288 прогонах в сутки это 0.29 ложных срабатываний в день, а в журнале за 6.0 сут их
+# ровно 2 (0.33/сут) — механизм не предположен, а сошёлся с наблюдением.
+
+
+def test_beacon_stamped_a_moment_ahead_is_fresh_not_wedged(tmp_path):
+    """ГЛАВНЫЙ положительный контроль: ровно та отметка, что стоила двух перезапусков."""
+    rep = TH.check(now=NOW, beacon_path=_beacon(tmp_path, age_s=-0.3))
+    assert _status_of(rep, "маячок") == TH.OK
+    # И печатать «свежий (-0с)» тоже больше нельзя — с этой строки начался вопрос владельца.
+    assert "-0с" not in _detail_of(rep, "маячок")
+
+
+def test_future_tolerance_covers_the_worst_measurement_window(tmp_path):
+    """Не «маловероятно», а НЕВОЗМОЖНО: допуск обязан покрывать худшее окно замера.
+
+    Окно — время от взятия `now` до чтения маячка, то есть два подпроцесса по
+    ``SUBPROC_TIMEOUT``. Допуск меньше него вернул бы аварию, просто пореже; этот тест
+    покраснеет на любой такой «оптимизации».
+    """
+    worst_window_s = 2 * TH.SUBPROC_TIMEOUT
+    assert TH.BEACON_FUTURE_TOLERANCE_S >= worst_window_s
+    rep = TH.check(now=NOW, beacon_path=_beacon(tmp_path, age_s=-worst_window_s))
+    assert _status_of(rep, "маячок") == TH.OK
+
+
+def test_a_beacon_far_in_the_future_still_reddens(tmp_path):
+    """Обратная сторона: допуск — не глушилка. Разошедшиеся часы обязаны быть видны."""
+    rep = TH.check(now=NOW, beacon_path=_beacon(tmp_path,
+                                                age_s=-(TH.BEACON_FUTURE_TOLERANCE_S + 60)))
+    assert _status_of(rep, "маячок") == TH.CRITICAL
+
+
+def test_a_beacon_from_the_future_is_not_diagnosed_as_a_wedged_loop(tmp_path):
+    """Диагноз обязан быть верным, а не просто красным: цикл КРУТИТСЯ, раз написал маячок."""
+    detail = _detail_of(rep_future(tmp_path), "маячок")
+    assert "цикл не крутится" not in detail
+    assert "БУДУЩЕМ" in detail
+
+
+def test_a_beacon_from_the_future_is_never_healed_by_a_restart(tmp_path, monkeypatch):
+    """Перезапуск не двигает часы. Дёрнуть долгожителя тут — навредить, а не починить.
+
+    `kickstart` в автофикстуре падает тестом при вызове: проверяется НЕ намерение, а то,
+    что его действительно не позвали.
+    """
+    rep = TH.heal(rep_future(tmp_path), now=NOW, state_path=tmp_path / "state.json",
+                  beacon_path=tmp_path / "b.json", wait_for_beacon=False)
+    assert not any("перезапущен" in a for a in rep.actions)
+    assert any("не лечится" in a or "не применён" in a for a in rep.actions)
+
+
+def test_freshness_is_decided_in_one_place(tmp_path):
+    """`check` и ожидание после перезапуска обязаны отвечать ОДИНАКОВО.
+
+    Граница была написана дважды и одинаково неверно; двойник чинился бы отдельно и,
+    как это у нас бывало, не чинился бы вовсе. Тест спрашивает ПОВЕДЕНИЕ обоих, а не имя
+    общей функции: отметка на 30с впереди — свежая для `check`, значит и маячок «вернулся».
+    """
+    # `_beacon_came_back` часы НЕ принимает — спрашивает настоящие. Значит и отметку надо
+    # ставить от настоящих, иначе тест померил бы, сколько прогон шёл от импорта модуля.
+    real_now = datetime.now(timezone.utc)
+    ahead = tmp_path / "ahead.json"
+    ahead.write_text(json.dumps({
+        "schema_version": 1, "source": "telegram_bot", "pid": 4242,
+        "updated_at": (real_now + timedelta(seconds=30)).isoformat(),
+        "capabilities": ["alert_actions"],
+    }), encoding="utf-8")
+    assert _status_of(TH.check(now=real_now, beacon_path=ahead), "маячок") == TH.OK
+    assert TH._beacon_came_back(ahead, deadline_s=1) is True
 
 
 def test_old_bot_without_the_capability_is_critical(tmp_path):
