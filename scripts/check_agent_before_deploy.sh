@@ -486,6 +486,13 @@ info "bootstrapped (from persistent path)"
 # For KeepAlive agents, RunAtLoad/KeepAlive already starts the job; we DON'T
 # force-restart (-k) it (that races the supervisor and can hang). For others we
 # kickstart -k under a hard timeout.
+#
+# 2026-09-03 (churn investigation): a `kickstart -k` here is a REAL, unsandboxed run of the
+# target agent — for a calendar-scheduled agent (e.g. daily_cycle) it is indistinguishable in
+# the agent's own log from its next scheduled fire (same ppid=1/launchd signature). Every gate
+# pass for such an agent is therefore an extra live run nobody sees as one. Log it here, once,
+# so a scheduled-agent's own log can be cross-referenced against gate timing after the fact.
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) gate-kickstart label=$LABEL keepalive=$IS_KEEPALIVE" >> /tmp/spa_deploy_gate_kickstarts.log
 if [ "$IS_KEEPALIVE" -eq 1 ]; then
     info "KeepAlive agent — relying on bootstrap/RunAtLoad to start it (no -k restart)"
     run_with_timeout "$KICKSTART_TIMEOUT" launchctl kickstart "$GUI/$LABEL" >/dev/null 2>&1 || \
