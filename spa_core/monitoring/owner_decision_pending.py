@@ -543,6 +543,110 @@ def _resolve_missing_on_origin(tracker_dir: Path, card_ids: list[str]) -> dict:
     return out
 
 
+def _closed_on_origin_while_open_here(tracker_dir: Path, card_ids: list[str]) -> dict:
+    """Какие из карточек, ОТКРЫТЫХ в этом дереве, на ``origin/main`` уже закрыты.
+
+    Вопрос, которого модуль не задавал: сверка с origin (:func:`_resolve_missing_on_origin`)
+    прикладывалась ИСКЛЮЧИТЕЛЬНО к карточкам, которых в дереве НЕТ, а карточке, которая в
+    дереве ЕСТЬ, верили на слово. Замер 2026-09-03 (цикл #472): три карточки
+    ``owner-decision-kritichnaya-nahodka-petli-com-spa-{digest,tier1,weekly}-2`` на
+    ``origin/main`` стоят в ``ingested`` с 15:46Z — ответ владельца получен, исполнен
+    (`launchctl bootstrap` каждому, `deployment_acceptance` OK до и после), статус переведён
+    циклом #470, — а артефакт, снятый в 18:21Z, всё равно объявлял две из них «принято
+    владельцем, НЕ ИСПОЛНЕНО: ждут агента», а третью держал живым вопросом владельцу.
+
+    Расхождение по построению ВЕЧНОЕ: ``nimbalyst-local/`` в прод не синкает никто (#193),
+    а протокол §3.4 обязывает агента работать из изолированного worktree — значит каждый
+    разбор шага 2 оставляет прод-копию устаревшей. Цена — не косметика: обязательный шаг
+    0-офис ПРИКАЗЫВАЕТ переделать сделанное (ровно на этом цикл #471 потерял работу, ADR-220),
+    а закрытый вопрос остаётся в очереди владельца.
+
+    **Направление проверяется, а не предполагается.** Прод-дерево — ПИСАТЕЛЬ ответов
+    владельца: бот пишет туда, минуя git. Поэтому «на origin закрыто» само по себе ничего не
+    решает — решает, чья отметка позже (:func:`~spa_core.owner_queue.status_audit.latest_change_at`,
+    одна мерка на обе копии). Наша новее ⇒ это поздний ответ владельца, карточка остаётся
+    ровно там, где стоит (случай ``inbox-pozdnii-prinyato-voskreshaet-kartochku-z``).
+
+    Fail-CLOSED и никогда не бросает наружу. Исходов четыре, и все различимы:
+    ``drift`` — origin закрыл и он впереди · молчание — origin не закрыл, карточки там нет,
+    либо наша отметка новее · ``unchecked`` — сверка не выполнилась ЛИБО порядок двух отметок
+    не устанавливается. «Не смогли посмотреть» не имеет права выглядеть как «дрейф».
+    """
+    out: dict = {"asked": len(card_ids), "ref": ORIGIN_REF, "drift": [], "unchecked": []}
+    if not card_ids:
+        # Ноль и «не мерили» обязаны различаться и здесь: спрашивать было нечего.
+        out.update({"measured": False,
+                    "reason": "открытых карточек в дереве нет — сверка не требовалась"})
+        return out
+    try:
+        from spa_core.owner_queue.origin_view import Unmeasured, card_sources
+        from spa_core.owner_queue.queue import load_card_text
+        from spa_core.owner_queue.status_audit import latest_change_at
+    except Exception as exc:  # noqa: BLE001 — сторож не роняет отчёт из-за импорта
+        out.update({"measured": False, "reason": f"сверка с {ORIGIN_REF} недоступна: {exc}"})
+        return out
+    try:
+        texts, sha = card_sources(Path(tracker_dir), card_ids, ref=ORIGIN_REF)
+    except Unmeasured as exc:
+        reason = f"очередь на {ORIGIN_REF} не прочитана: {exc}"
+        out.update({"measured": False, "reason": reason})
+        return out
+    except Exception as exc:  # noqa: BLE001 — неожиданное тоже «не измерено», не «чисто»
+        reason = f"сверка с {ORIGIN_REF} не выполнена: {exc}"
+        out.update({"measured": False, "reason": reason})
+        return out
+
+    out.update({"measured": True, "ref_sha": sha})
+    for card_id in card_ids:
+        origin_text = texts.get(card_id)
+        if origin_text is None:
+            continue                       # карточки на ref нет — это факт, а не сбой
+        try:
+            origin_status = (load_card_text(origin_text, f"{card_id}.md").status or "").strip()
+        except Exception as exc:  # noqa: BLE001 — нечитаемая версия = НЕ измерено
+            out["unchecked"].append({
+                "check": f"open_card_vs_origin:{card_id}",
+                "reason": f"версия карточки на {ORIGIN_REF} не разобралась ({exc}) — "
+                          "закрыта ли она там, НЕ ИЗМЕРЕНО",
+            })
+            continue
+        if origin_status not in _TERMINAL_CARD_STATUS:
+            continue                       # origin её не закрывал — сравнивать нечего
+        local_path = Path(tracker_dir) / f"{card_id}.md"
+        try:
+            local_text = local_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            out["unchecked"].append({
+                "check": f"open_card_vs_origin:{card_id}",
+                "reason": f"карточка дерева не прочиталась ({exc}) — чья отметка позже, "
+                          "НЕ ИЗМЕРЕНО",
+            })
+            continue
+        local_at = latest_change_at(local_text)
+        origin_at = latest_change_at(origin_text)
+        if local_at is None:
+            # Свидетельств движения в НАШЕЙ копии нет вовсе: карточка стоит там, где
+            # родилась. Порядок установлен — origin впереди.
+            pass
+        elif origin_at is None:
+            out["unchecked"].append({
+                "check": f"open_card_vs_origin:{card_id}",
+                "reason": f"на {ORIGIN_REF} статус `{origin_status}`, но отметки времени "
+                          "там нет, а у нас есть — чья версия новее, НЕ ИЗМЕРЕНО; "
+                          "карточка ОСТАЁТСЯ открытой (молчание было бы fail-OPEN)",
+            })
+            continue
+        elif local_at > origin_at:
+            # Наша копия новее закрытия: в прод-дерево писал бот. Вопрос ЖИВОЙ.
+            continue
+        out["drift"].append({"card_id": card_id, "origin_status": origin_status,
+                             "origin_change_at": (origin_at.isoformat()
+                                                  if origin_at else None),
+                             "local_change_at": (local_at.isoformat()
+                                                 if local_at else None)})
+    return out
+
+
 CHANNEL_HISTORY = "alert_history.json"
 
 
@@ -767,6 +871,21 @@ def check_pending_owner_decisions(*,
     # настоящими — значит показывать владельцу очередь, которой у него нет.
     phantom_cards = [c for c in queue_cards if c.get("phantom")]
     queue_cards = [c for c in queue_cards if not c.get("phantom")]
+
+    # Карточки, открытые ЗДЕСЬ, но закрытые на origin (#472). Вынимаем ДО подсчётов
+    # по той же причине, что и фантомы: это не вопросы владельцу и не поручения
+    # агенту — это дрейф прод↔origin, и складывать его с живой очередью значит
+    # заказывать сделанную работу и переспрашивать отвеченное.
+    open_here = ([c["card_id"] for c in queue_cards]
+                 + [c["card_id"] for c in accepted_cards])
+    closed_elsewhere = _closed_on_origin_while_open_here(tdir, open_here)
+    unchecked.extend(closed_elsewhere.get("unchecked") or [])
+    drifted_ids = {str(d.get("card_id"))
+                   for d in (closed_elsewhere.get("drift") or [])}
+    queue_drifted = [c for c in queue_cards if c["card_id"] in drifted_ids]
+    accepted_drifted = [c for c in accepted_cards if c["card_id"] in drifted_ids]
+    queue_cards = [c for c in queue_cards if c["card_id"] not in drifted_ids]
+    accepted_cards = [c for c in accepted_cards if c["card_id"] not in drifted_ids]
 
     pending: list[dict] = []
     for card in queue_cards:
@@ -1028,6 +1147,17 @@ def check_pending_owner_decisions(*,
         # владельца из-за НАШЕГО невыполненного обещания — ровно наоборот.
         "accepted": accepted_cards,
         "accepted_count": len(accepted_cards),
+        # Дрейф прод↔origin ВТОРОГО рода (#472): файл в дереве ЕСТЬ и открыт, а на
+        # origin карточка уже закрыта, и закрытие там ПОЗЖЕ последнего движения нашей
+        # копии. Не находка и не молчание — отдельная названная строка: молчание
+        # вернуло бы приказ переделать сделанное, а находка звала бы чинить то, что
+        # чинится синхронизацией каталога, которого не возит никто.
+        "closed_on_origin_open_here": closed_elsewhere,
+        "closed_on_origin_open_here_count": (len(drifted_ids)
+                                             if closed_elsewhere.get("measured")
+                                             else None),
+        "drifted_pending": queue_drifted,
+        "drifted_accepted": accepted_drifted,
         "channel_buttons": channel,
         "pending": pending,
         "issues": issues,

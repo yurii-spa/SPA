@@ -1165,6 +1165,31 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                            f"поручени(е/я) ждут агента — {names}")
             else:
                 out.append("   принятых и неисполненных поручений нет")
+        # Дрейф прод↔origin ВТОРОГО рода (#472): карточка ЗДЕСЬ открыта, а на origin
+        # закрыта и закрыта позже нашего последнего движения. Печатаем ВСЕГДА — и
+        # находку, и «не измерено»: молчание об этой оси и есть тот дефект, ради
+        # которого строка заведена (шаг 0-офис 2.6 ч заказывал сделанную работу).
+        drift_here = data.get("closed_on_origin_open_here")
+        if not isinstance(drift_here, dict):
+            out.append("   ⚠️ закрытые на origin, открытые здесь, НЕ ИЗМЕРЕНЫ: в отчёте "
+                       "нет блока closed_on_origin_open_here (отчёт старого образца)")
+        elif not drift_here.get("measured"):
+            out.append("   ⚠️ закрыты ли на origin открытые здесь карточки — НЕ ИЗМЕРЕНО: "
+                       f"{drift_here.get('reason', 'причина не названа')}")
+        else:
+            drifted = drift_here.get("drift") or []
+            if drifted:
+                names = ", ".join(
+                    f"{d.get('card_id')} (`{d.get('origin_status')}` на origin "
+                    f"с {str(d.get('origin_change_at') or 'когда — не записано')[:19]})"
+                    for d in drifted if isinstance(d, dict))
+                out.append(
+                    f"   дрейф прод↔origin: {len(drifted)} карточк(а/и) открыт(а/ы) в этом "
+                    f"дереве, а на origin УЖЕ ЗАКРЫТ(а/ы) — {names}. Это НЕ поручение и НЕ "
+                    f"вопрос владельцу: работа сделана, устарела прод-копия "
+                    f"(`nimbalyst-local/` в прод не возит никто)")
+            else:
+                out.append("   открытых здесь карточек, закрытых на origin, нет")
         accepted_origin = data.get("accepted_on_origin")
         if isinstance(accepted_origin, list) and accepted_origin:
             names = ", ".join(str(c.get("card_id")) for c in accepted_origin

@@ -395,3 +395,65 @@ def read_audit(root: str | Path) -> tuple[list[dict], list[str]]:
         else:
             broken.append(f"строка {num}")
     return entries, broken
+
+
+#: Поля frontmatter, чья отметка тоже означает «с карточкой что-то произошло».
+#: След пишет НАШ код; ``owner_answered_at`` пишет бот в прод-дерево, и он может быть
+#: НОВЕЕ любого следа: поздний `ack` открывает карточку, закрытую агентом (карточка
+#: ``inbox-pozdnii-prinyato-voskreshaet-kartochku-z``). Читать один только след значило бы
+#: объявить такую карточку устаревшей копией и увести ЖИВОЙ ответ владельца из очереди.
+CHANGE_STAMP_FIELDS = ("owner_answered_at",)
+
+
+def _parse_stamp(value) -> Optional[datetime]:
+    """ISO-отметка → datetime в UTC. Непарсимое — ``None``, а не «эпоха»."""
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    if raw.endswith(("Z", "z")):
+        raw = raw[:-1] + "+00:00"
+    try:
+        stamp = datetime.fromisoformat(raw)
+    except ValueError:
+        return None
+    return stamp if stamp.tzinfo else stamp.replace(tzinfo=timezone.utc)
+
+
+def frontmatter_value(text: str, key: str) -> Optional[str]:
+    """Скалярное поле верхнего уровня из frontmatter карточки. Нет поля ⇒ ``None``."""
+    lines = text.splitlines()
+    start, end = _frontmatter_bounds(lines)
+    if start is None or end is None:
+        return None
+    for ln in lines[start + 1:end]:
+        if ln[:1].isspace() or ":" not in ln:
+            continue
+        name, _, value = ln.partition(":")
+        if name.strip() == key:
+            return _unquote_trail(value.strip()) or None
+    return None
+
+
+def latest_change_at(text: str) -> Optional[datetime]:
+    """Самая поздняя отметка «с этой карточкой что-то произошло» — по её ТЕКСТУ.
+
+    Функция принимает ТЕКСТ, а не путь, ровно затем, чтобы одна и та же мерка
+    прикладывалась к обеим копиям карточки — к файлу в дереве и к версии на
+    ``origin/main``. Копия мерки для второй стороны разъехалась бы с первой молча
+    (урок ADR-220: у общего решения параметр, а не второй экземпляр).
+
+    Отметок две породы, и обе обязательны:
+
+    * след переходов (``status_trail``) — его пишет наш код при каждом ``set_status``;
+    * :data:`CHANGE_STAMP_FIELDS` — ответ владельца, который пишет бот прямо в
+      прод-дерево, минуя git.
+
+    ``None`` означает «никаких свидетельств о движении карточки в тексте нет» — это
+    ФАКТ (карточка не двигалась с рождения), а не сбой разбора: непарсимая отметка
+    отбрасывается по отдельности, и если хоть одна разобралась, вернётся она.
+    """
+    stamps = [_parse_stamp(item.get("ts")) for item in read_trail(text)]
+    stamps.extend(_parse_stamp(frontmatter_value(text, key))
+                  for key in CHANGE_STAMP_FIELDS)
+    measured = [s for s in stamps if s is not None]
+    return max(measured) if measured else None
