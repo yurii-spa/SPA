@@ -135,6 +135,29 @@ DEPLOYED_BPS = 1e4 * gf.GUARDIAN_PARAMS["roundtrip_cost"]
 #: The branch's canonical out-of-sample boundary, unchanged since #79.
 SPLIT_DATE = "2025-06-30"
 
+#: Where the money goes when the ceiling FORCES the benchmark to sell part of a winner.
+#: Both are conventions, neither is a measurement, and until 2026-09-03 only one of them
+#: existed — `"prorata"` was not chosen, it was simply the first thing the code did (#98 TPD).
+#:
+#:   "cash"     the proceeds leave the risk book into a 0 %-yield sleeve and are NEVER
+#:              redeployed. "We do not force-buy anybody because somebody else grew."
+#:   "prorata"  the proceeds are pushed back into the under-cap books in proportion to their
+#:              current weight — including books that lose money.
+TRIM_DESTINATIONS: Tuple[str, ...] = ("cash", "prorata")
+
+#: The convention THIS benchmark is built with. Owner decision 2026-09-03, option 1
+#: (card `owner-decision-etalonnaya-planka-issledovanii-nasilno-d`, ADR-218), taken on the
+#: measurement in registry entry #98: out of sample `cash` returns the same income at a 20 %
+#: shallower drawdown (12.20 % / −1.82 % against 12.20 % / −2.29 %) and wins 16 of 16 cells of
+#: the boundary × ceiling grid. It has no parameter to fit, which is the reason it is quotable
+#: at all — #98 §3 proved this dial cannot be chosen by fitting history.
+BENCHMARK_CONVENTION = "cash"
+
+#: The convention entries #86 and #96 were PUBLISHED under. Their numbers are NOT rewritten
+#: (owner decision, same card): this stays as the control column beside the benchmark, forever
+#: printed next to it, so no reader has to guess which convention a number came from.
+PUBLISHED_CONVENTION = "prorata"
+
 
 # --------------------------------------------------------------------------------------------
 # equity / return plumbing (same conventions as #93, so the two entries are comparable)
@@ -687,35 +710,69 @@ def section5_pba(book_rets, params) -> Dict[str, object]:
     out["raw"] = {"apy": apy, "mdd": dd, "calmar": cal}
     print(f"{'NO OVERLAY AT ALL (raw EW)':>28}{apy:>10.2f}{dd:>10.2f}{fmt(cal):>10}"
           f"{fmt(cal - organ_cal) if organ_cal is not None else '—':>15}")
-    bh = capped_buy_and_hold(book_rets, live, cap=0.20, cost=cost)
-    apy, dd, cal = mh._apy(bh) * 100.0, mh._mdd(bh) * 100.0, mh._calmar(bh)
-    out["capped_bh_20"] = {"apy": apy, "mdd": dd, "calmar": cal}
-    print(f"{'#86 BENCHMARK capped BH 20%':>28}{apy:>10.2f}{dd:>10.2f}{fmt(cal):>10}"
-          f"{fmt(cal - organ_cal) if organ_cal is not None else '—':>15}")
-    print("\n   The last row is MANDATORY for this family since #86: equal-weight daily")
+    # BOTH conventions, always, side by side. The key is NEVER the bare `capped_bh_20` any
+    # more: an unlabelled benchmark number is precisely how a convention came to be quoted as
+    # a measurement for two entries running (#98). Whoever reads these numbers reads which
+    # convention produced them in the same breath.
+    for dest, label in ((BENCHMARK_CONVENTION, f"#86 BENCHMARK BH 20% {BENCHMARK_CONVENTION}"),
+                        (PUBLISHED_CONVENTION, f"#86 control BH 20% {PUBLISHED_CONVENTION}")):
+        bh = capped_buy_and_hold(book_rets, live, cap=0.20, cost=cost, destination=dest)
+        apy, dd, cal = mh._apy(bh) * 100.0, mh._mdd(bh) * 100.0, mh._calmar(bh)
+        out[f"capped_bh_20_{dest}"] = {"apy": apy, "mdd": dd, "calmar": cal}
+        print(f"{label:>28}{apy:>10.2f}{dd:>10.2f}{fmt(cal):>10}"
+              f"{fmt(cal - organ_cal) if organ_cal is not None else '—':>15}")
+    print("\n   The last two rows are MANDATORY for this family since #86: equal-weight daily")
     print("   rebalancing destroys the panel's natural anti-momentum, so beating it is not an")
     print("   achievement. Capped buy-and-hold at the T2 ceiling of 20 %/book is investable and")
     print("   is the bar. Any policy above that does not clear it has not found anything.")
+    print(f"   The bar is built with the {BENCHMARK_CONVENTION!r} convention since 2026-09-03")
+    print(f"   (owner decision, ADR-218): a forced sale does not force-buy anybody. The")
+    print(f"   {PUBLISHED_CONVENTION!r} row is the convention #86/#96 were PUBLISHED under and is")
+    print("   kept beside it — those numbers are not rewritten, they are labelled.")
     return out
 
 
-def capped_buy_and_hold(book_rets, live, *, cap: float, cost: float) -> List[float]:
+def capped_buy_and_hold(book_rets, live, *, cap: float, cost: float,
+                        destination: str = BENCHMARK_CONVENTION) -> List[float]:
     """#86's base 2, the family's mandatory benchmark: buy and hold, trimmed back whenever a
     book drifts past the T2 concentration ceiling. Turnover of the trim is charged at `cost`.
 
     #86 measured that the naive winner (uncapped EW buy-and-hold) is NOT INVESTABLE — it ends
     with 34.76 % in one name against a 20 % ceiling. Quoting it as a benchmark would be
     comparing against a portfolio the risk policy forbids.
+
+    `destination` says where the FORCED sale proceeds go, and it is the reason this signature
+    grew a parameter on 2026-09-03: until #98 TPD asked, the answer was `"prorata"` and it was
+    never a decision — it was the first thing the code did, quoted ever since as a measurement.
+    The default is now `BENCHMARK_CONVENTION`; `PUBLISHED_CONVENTION` reproduces #86/#96
+    bitwise and is kept forever as the control column.
+
+    TOLL. A redistributing destination pays BOTH legs (sell + buy). `"cash"` has no buy leg and
+    pays one. That is itself a choice; #98 printed the two-leg variant of `cash` beside it and
+    the verdict does not depend on it (Calmar 6.69 against 6.70).
     """
-    if len(live) * cap < 1.0 - 1e-12:
+    if destination not in TRIM_DESTINATIONS:
+        raise ValueError(
+            f"unknown trim destination {destination!r} — the benchmark refuses to guess where "
+            f"forced sale proceeds go. Known: {', '.join(TRIM_DESTINATIONS)}.")
+    # Feasibility is a property OF THE DESTINATION, not of the ceiling alone: under `cash` the
+    # capital a tight ceiling cannot hold simply leaves the risk book, so a cap that `prorata`
+    # cannot satisfy is perfectly well defined here. Refusing both would be a refusal copied
+    # rather than reasoned.
+    if destination == "prorata" and len(live) * cap < 1.0 - 1e-12:
         raise ValueError(
             f"a {cap:.0%} cap over {len(live)} books cannot hold 100 % of the capital. "
             "Returning a silently-breached path would put an infeasible portfolio in the "
             "benchmark column, which is worse than refusing.")
     n = len(book_rets[live[0]])
     w = {b: 1.0 / len(live) for b in live}
+    cash = 0.0
     out = [1.0]
     for i in range(n):
+        # `w` are fractions of TOTAL NAV and the cash sleeve earns exactly 0, so it contributes
+        # nothing to the day's return and simply dilutes. A cash yield of 0 is a CONVENTION and
+        # not a measurement (#98): the tree's stable sleeve is not zero, and quoting any number
+        # for it would put an invented figure inside the benchmark.
         r = sum(w[b] * book_rets[b][i] for b in live)
         nav = out[-1] * (1.0 + r)
         if 1.0 + r <= 0:
@@ -723,14 +780,26 @@ def capped_buy_and_hold(book_rets, live, *, cap: float, cost: float) -> List[flo
             break
         for b in live:
             w[b] = w[b] * (1.0 + book_rets[b][i]) / (1.0 + r)
-        traded = trim_to_cap(w, cap)
+        cash = cash / (1.0 + r)
+        traded, moved = _trim(w, cap, destination)
+        cash += moved
+        # The cash sleeve is CHECKED, not merely tracked. Written down because the first
+        # version of this function tracked it and never read it: dropping the dilution line
+        # above then changed nothing any test could see, which is a benchmark quietly holding
+        # more than 100 % of its own capital. Weights are NAV fractions, so books plus sleeve
+        # must be exactly one, every day, under both conventions.
+        if abs(sum(w.values()) + cash - 1.0) > 1e-9:
+            raise ValueError(
+                f"capital is not conserved on day {i}: books {sum(w.values()):.12f} + cash "
+                f"{cash:.12f} != 1. Refusing rather than printing a benchmark that invented "
+                "or lost capital.")
         if max(w.values()) > cap + 1e-9:
             raise ValueError(
                 f"the cap was still breached after trimming on day {i} "
                 f"(max weight {max(w.values()):.4f} > {cap:.2f}). A benchmark that breaches the "
                 "T2 ceiling is not the investable benchmark #86 requires — refusing to print it.")
         if traded:
-            nav *= (1.0 - cost * 2.0 * traded)
+            nav *= (1.0 - cost * (1.0 if destination == "cash" else 2.0) * traded)
         out.append(nav)
     return [out[i + 1] / out[i] - 1.0 for i in range(len(out) - 1) if out[i] > 0]
 
@@ -738,18 +807,40 @@ def capped_buy_and_hold(book_rets, live, *, cap: float, cost: float) -> List[flo
 def trim_to_cap(w: Dict[str, float], cap: float) -> float:
     """Trim every over-cap weight back to `cap`, pro-rata into the rest. Returns the amount moved.
 
-    Iterated to a fixed point ON PURPOSE: one pass can push a previously under-cap book OVER the
-    cap, and a single pass would then leave the portfolio silently in breach. `capped_buy_and_hold`
-    re-checks the invariant after calling this and REFUSES rather than print a breached benchmark.
+    The PUBLISHED convention of #86/#96, kept under its own honest name. New code should call
+    `_trim(w, cap, destination)` and say which convention it means.
     """
+    traded, to_cash = _trim(w, cap, "prorata")
+    assert to_cash == 0.0, "pro-rata redistribution must not leak capital into cash"
+    return traded
+
+
+def _trim(w: Dict[str, float], cap: float, destination: str) -> Tuple[float, float]:
+    """Trim every over-cap weight back to `cap` and send the excess where `destination` says.
+
+    Returns (traded, to_cash). Iterated to a fixed point ON PURPOSE: one pass can push a
+    previously under-cap book OVER the cap, and a single pass would then leave the portfolio
+    silently in breach. `capped_buy_and_hold` re-checks the invariant after calling this and
+    REFUSES rather than print a breached benchmark.
+    """
+    if destination not in TRIM_DESTINATIONS:
+        raise ValueError(f"unknown trim destination {destination!r}")
     live = list(w)
     traded = 0.0
+    to_cash = 0.0
     for _ in range(len(live) + 1):
         over = {b: w[b] - cap for b in live if w[b] > cap + 1e-15}
         if not over:
             break
         excess = sum(over.values())
         traded += excess
+        for b in over:
+            w[b] = cap
+        if destination == "cash":
+            # The proceeds leave the risk book. Nothing can be pushed over the ceiling by a
+            # payment that never happens, so this branch converges on the first pass.
+            to_cash += excess
+            continue
         # Receivers must be STRICTLY below the cap. Paying into a book that already sits AT
         # the cap pushes it over again on the next pass, and the loop then oscillates instead
         # of converging — caught by the two-pass fixture in the acceptance tests.
@@ -759,11 +850,9 @@ def trim_to_cap(w: Dict[str, float], cap: float) -> float:
             raise ValueError(
                 "every book is at the cap and capital is still over-allocated — the cap cannot "
                 "hold this portfolio. Refusing rather than printing a breached benchmark.")
-        for b in over:
-            w[b] = cap
         for b in under:
             w[b] += excess * w[b] / base
-    return traded
+    return traded, to_cash
 
 
 def section6_verdict(res) -> None:

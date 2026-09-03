@@ -345,29 +345,40 @@ def _split_index(dates: Sequence[datetime.date], boundary: str) -> int:
 # sections
 # --------------------------------------------------------------------------------------------
 def section0_identity(book_rets, live) -> Dict[str, object]:
-    """POSITIVE CONTROL of the whole file: destination=prorata IS the deployed benchmark.
+    """POSITIVE CONTROL of the whole file: this file's mechanism IS the deployed benchmark.
 
-    Bitwise, on the real panel, at every toll convention. If this ever stops holding, every
-    number below is about a different portfolio than the one #96 published, and the file has to
-    stop rather than print a contrast against a benchmark it did not reproduce.
+    Bitwise, on the real panel, at every toll convention, for BOTH conventions the benchmark
+    now offers. If either ever stops holding, every number below is about a different portfolio
+    than the one `oda` builds, and the file has to stop rather than print a contrast against a
+    benchmark it did not reproduce.
+
+    UPDATED 2026-09-03 (owner decision, ADR-218). Before that date `oda.capped_buy_and_hold`
+    had ONE convention and this check named it by omission — it compared against the default.
+    A default is not a name: once the default moved to `cash`, the same code would silently
+    have compared `prorata` against `cash` and reported a difference as a defect of this file.
+    Both sides are now SAID OUT LOUD, and both conventions are pinned, which is strictly more
+    than was checked before.
     """
     print("\n" + "─" * 100)
-    print("0. IDENTITY — destination=prorata must BE the benchmark #96 published, bitwise.")
+    print("0. IDENTITY — each destination must BE the same-named oda convention, bitwise.")
     out: Dict[str, object] = {}
-    for bps in CONVENTIONS_BPS:
-        theirs = oda.capped_buy_and_hold(book_rets, live, cap=0.20, cost=bps / 1e4)
-        mine = capped_bh(book_rets, live, cap=0.20, cost=bps / 1e4, destination="prorata")
-        same = len(theirs) == len(mine) and all(a == b for a, b in zip(theirs, mine))
-        out[f"bps{bps}"] = same
-        print(f"   {bps:>3} bps · identical to oda.capped_buy_and_hold: {same}")
-        if not same:
-            raise SystemExit(
-                "REFUSING: the reimplementation is not the deployed benchmark. Every contrast "
-                "below would be against a portfolio #96 never published.")
+    for dest in (oda.PUBLISHED_CONVENTION, oda.BENCHMARK_CONVENTION):
+        for bps in CONVENTIONS_BPS:
+            theirs = oda.capped_buy_and_hold(book_rets, live, cap=0.20, cost=bps / 1e4,
+                                             destination=dest)
+            mine = capped_bh(book_rets, live, cap=0.20, cost=bps / 1e4, destination=dest)
+            same = len(theirs) == len(mine) and all(a == b for a, b in zip(theirs, mine))
+            out[f"{dest}_bps{bps}"] = same
+            print(f"   {dest:>8} · {bps:>3} bps · identical to oda.capped_buy_and_hold: {same}")
+            if not same:
+                raise SystemExit(
+                    "REFUSING: the reimplementation is not the deployed benchmark under "
+                    f"{dest!r}. Every contrast below would be against a portfolio oda never "
+                    "builds.")
     a, d, c = metrics(capped_bh(book_rets, live, cap=0.20, cost=DEPLOYED_BPS / 1e4))
     out["published"] = {"apy": a, "mdd": d, "calmar": c}
     print(f"   reproduced #96 headline: APY {a:.2f} · maxDD {d:.2f} · Calmar {c:.2f}"
-          f"   (published: 26.61 / −3.60 / 7.39)")
+          f"   (published: 26.61 / −3.60 / 7.39, {oda.PUBLISHED_CONVENTION!r} convention)")
     return out
 
 

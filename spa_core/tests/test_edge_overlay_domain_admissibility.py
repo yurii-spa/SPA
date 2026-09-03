@@ -20,6 +20,8 @@ it cannot pass vacuously. Three of them matter more than the rest:
 # LLM_FORBIDDEN
 from __future__ import annotations
 
+import contextlib
+import io
 import sys
 import unittest
 from pathlib import Path
@@ -329,16 +331,134 @@ class TestPortfolioBenchmark(unittest.TestCase):
                            "uncapped buy-and-hold never drifted past the cap — the test is inert")
 
     def test_refuses_an_infeasible_cap_by_name(self):
-        """Fail-CLOSED: 3 books cannot hold 100 % under a 20 % cap.
+        """Fail-CLOSED: 3 books cannot hold 100 % under a 20 % cap — UNDER `prorata`.
 
         The message is asserted, not just the exception type: the post-trim invariant guard
         also raises ValueError, and a test that accepted either would pass while the
         feasibility check was gone.
+
+        The convention is now named (2026-09-03, ADR-218) instead of being inherited from the
+        default. That is not a softening — the refusal it guards is unchanged and still
+        asserted by message. It is a correction of what the test was ever entitled to say:
+        infeasibility is a property OF THE DESTINATION. Under `cash` this same panel is
+        perfectly well defined, and the sibling test below measures what it does instead of
+        leaving the branch unexercised.
         """
         books = {b: [0.001] * 50 for b in ("a", "b", "c")}
         with self.assertRaises(ValueError) as ctx:
-            oda.capped_buy_and_hold(books, sorted(books), cap=0.20, cost=0.0)
+            oda.capped_buy_and_hold(books, sorted(books), cap=0.20, cost=0.0,
+                                    destination="prorata")
         self.assertIn("cannot hold 100", str(ctx.exception))
+
+    def test_cash_holds_a_cap_prorata_calls_infeasible_and_parks_the_rest(self):
+        """The mirror of the refusal above, and the reason it had to be named.
+
+        Under `cash` the capital a tight ceiling cannot hold LEAVES the risk book, so the same
+        3-book / 20 % panel is feasible. Asserted on the NUMBER, not merely on "it did not
+        raise": from day 1 on, 60 % of NAV sits in books returning 0.1 %/day and 40 % is parked
+        at 0 %, so the daily return must be 0.0006. A benchmark that quietly kept the money
+        invested would show 0.001 instead.
+
+        DAY 0 IS 0.001, AND THAT IS NAMED HERE RATHER THAN FIXED. The harness trims at the END
+        of each day, so the opening equal weights are held for one day even when they already
+        breach the ceiling. That is the shape #98 measured and published; changing it here
+        would silently redo #98's numbers while claiming to implement the owner's decision.
+        """
+        books = {b: [0.001] * 50 for b in ("a", "b", "c")}
+        rets = oda.capped_buy_and_hold(books, sorted(books), cap=0.20, cost=0.0,
+                                       destination="cash")
+        self.assertEqual(len(rets), 50, "the cash convention stopped early")
+        self.assertAlmostEqual(rets[0], 0.001, 9,
+                               "day 0 is not the opening equal-weight return — the harness no "
+                               "longer trims at the END of the day")
+        self.assertAlmostEqual(rets[1], 0.0006, 9,
+                               "day 1 return is not 60 % invested — the cash sleeve is not "
+                               "diluting NAV, or the trim never left the book")
+
+    def test_section5_reports_both_conventions_and_no_unlabelled_benchmark(self):
+        """The defect #98 found, closed AT THE READER'S DOOR rather than in a docstring.
+
+        `capped_bh_20` used to be one key holding one number under an unnamed convention. Two
+        registry entries then quoted it as a measurement. The section now returns BOTH
+        conventions under names that say which is which, and the bare key must be GONE — a
+        reader who gets `capped_bh_20` cannot tell which portfolio it describes, and that is
+        the whole failure.
+        """
+        books = {"win": [0.05] * 300}
+        for j in range(9):
+            books[f"b{j}"] = [0.0001 * (j - 4)] * 300
+        with contextlib.redirect_stdout(io.StringIO()):
+            out = oda.section5_pba(books, PARAMS)
+        self.assertNotIn("capped_bh_20", out,
+                         "an unlabelled benchmark number reached the caller again")
+        for dest in (oda.BENCHMARK_CONVENTION, oda.PUBLISHED_CONVENTION):
+            self.assertIn(f"capped_bh_20_{dest}", out,
+                          f"the {dest!r} column is missing — the owner's decision keeps BOTH")
+        self.assertNotEqual(
+            out[f"capped_bh_20_{oda.BENCHMARK_CONVENTION}"],
+            out[f"capped_bh_20_{oda.PUBLISHED_CONVENTION}"],
+            "both columns carry the same numbers — this panel cannot tell the conventions "
+            "apart, so the assertions above prove nothing")
+
+    def test_capital_is_conserved_under_both_conventions(self):
+        """Books + cash sleeve = 1, every day. The POSITIVE CONTROL of the conservation guard.
+
+        This exists because the guard was added in response to a surviving mutation: the cash
+        sleeve was tracked and never read, so removing its NAV dilution changed nothing any
+        test could see. `capped_buy_and_hold` now refuses on a broken sum, and this asserts the
+        refusal fires — a guard never seen failing is decoration.
+        """
+        books = {"win": [0.05] * 120}
+        for j in range(9):
+            books[f"b{j}"] = [0.0001 * (j - 4)] * 120
+        live = sorted(books)
+        for dest in oda.TRIM_DESTINATIONS:
+            self.assertEqual(
+                len(oda.capped_buy_and_hold(books, live, cap=0.20, cost=0.0015,
+                                            destination=dest)), 120,
+                f"{dest!r} tripped its own conservation guard on a well-formed panel")
+
+        # MUTATION: a trim that pays into the books AND into cash creates capital out of thin
+        # air. The guard must catch it; if it does not, it is not checking anything.
+        real_trim = oda._trim
+
+        def leaky(w, cap, destination):
+            traded, to_cash = real_trim(w, cap, "prorata")
+            return traded, to_cash + traded
+        oda._trim = leaky
+        try:
+            with self.assertRaises(ValueError) as ctx:
+                oda.capped_buy_and_hold(books, live, cap=0.20, cost=0.0015, destination="cash")
+            self.assertIn("capital is not conserved", str(ctx.exception))
+        finally:
+            oda._trim = real_trim
+
+    def test_the_benchmark_convention_is_the_owner_decided_one(self):
+        """The default IS the decision. ADR-218 (owner option 1, 2026-09-03): the family's bar
+        does not force-buy anybody with the proceeds of a forced sale.
+
+        Pinned as a VALUE and as BEHAVIOUR, because either alone is weak: a constant nobody
+        reads is decoration, and a behaviour with no named constant is a convention quoted as
+        a measurement — the exact defect #98 found.
+        """
+        self.assertEqual(oda.BENCHMARK_CONVENTION, "cash")
+        self.assertEqual(oda.PUBLISHED_CONVENTION, "prorata")
+        self.assertIn(oda.BENCHMARK_CONVENTION, oda.TRIM_DESTINATIONS)
+        self.assertIn(oda.PUBLISHED_CONVENTION, oda.TRIM_DESTINATIONS)
+
+        books = {"win": [0.05] * 200}
+        for j in range(9):
+            books[f"b{j}"] = [0.0001 * (j - 4)] * 200
+        live = sorted(books)
+        default = oda.capped_buy_and_hold(books, live, cap=0.20, cost=0.0015)
+        named = oda.capped_buy_and_hold(books, live, cap=0.20, cost=0.0015,
+                                        destination=oda.BENCHMARK_CONVENTION)
+        published = oda.capped_buy_and_hold(books, live, cap=0.20, cost=0.0015,
+                                            destination=oda.PUBLISHED_CONVENTION)
+        self.assertEqual(default, named, "the default is not BENCHMARK_CONVENTION")
+        self.assertNotEqual(default, published,
+                            "the two conventions produced the same path — this fixture cannot "
+                            "tell them apart and the assertion above proves nothing")
 
 
 class TestHarnessDiscipline(unittest.TestCase):

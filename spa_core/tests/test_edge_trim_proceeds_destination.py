@@ -73,38 +73,85 @@ class TestFixture(unittest.TestCase):
 
 
 class TestIdentityWithTheDeployedBenchmark(unittest.TestCase):
-    """destination=prorata must BE `oda.capped_buy_and_hold`, or §1 contrasts a portfolio #96
-    never published."""
+    """Each destination must BE the same-named `oda` convention, or §1 contrasts a portfolio
+    `oda` never builds.
 
-    def test_prorata_is_the_deployed_benchmark(self):
+    CHANGED DELIBERATELY 2026-09-03 (owner decision option 1, ADR-218, invariant #16 — the
+    reason is here and in docs/journal/2026-W36.md). Before that date `oda.capped_buy_and_hold`
+    had exactly ONE convention, so these assertions named it by OMISSION: they compared against
+    whatever the default was. A default is not a name. The moment the default moved to `cash`,
+    the unchanged assertions would have compared `prorata` against `cash` and reported the
+    owner's decision as a defect of this file. Both sides are now said out loud and BOTH
+    conventions are pinned — strictly more coverage than before, not less.
+    """
+
+    def test_prorata_is_the_published_benchmark(self):
         panel = _panel()
         live = _live(panel)
         for bps in tpd.CONVENTIONS_BPS:
-            theirs = oda.capped_buy_and_hold(panel, live, cap=0.20, cost=bps / 1e4)
+            theirs = oda.capped_buy_and_hold(panel, live, cap=0.20, cost=bps / 1e4,
+                                             destination="prorata")
             mine = tpd.capped_bh(panel, live, cap=0.20, cost=bps / 1e4, destination="prorata")
             self.assertEqual(len(theirs), len(mine))
             for i, (a, b) in enumerate(zip(theirs, mine)):
                 self.assertEqual(a, b, f"day {i} differs at {bps} bps — not the same benchmark")
 
+    def test_cash_is_the_benchmark_oda_now_builds_by_default(self):
+        """The NEW convention, pinned in the same shape and against the DEFAULT.
+
+        Against the default on purpose: the owner's decision was about which portfolio the
+        family is measured against when nobody says a convention out loud, and that is exactly
+        what the default answers. A test that always passed `destination=` would leave the one
+        number a careless caller gets unpinned.
+        """
+        panel = _panel()
+        live = _live(panel)
+        for bps in tpd.CONVENTIONS_BPS:
+            theirs = oda.capped_buy_and_hold(panel, live, cap=0.20, cost=bps / 1e4)
+            mine = tpd.capped_bh(panel, live, cap=0.20, cost=bps / 1e4, destination="cash")
+            self.assertEqual(len(theirs), len(mine))
+            for i, (a, b) in enumerate(zip(theirs, mine)):
+                self.assertEqual(a, b, f"day {i} differs at {bps} bps — default is not 'cash'")
+
     def test_identity_holds_at_several_ceilings(self):
         panel = _panel()
         live = _live(panel)
-        for cap in (0.25, 0.33, 0.50):
-            theirs = oda.capped_buy_and_hold(panel, live, cap=cap, cost=0.0015)
-            mine = tpd.capped_bh(panel, live, cap=cap, cost=0.0015, destination="prorata")
-            self.assertEqual(theirs, mine, f"ceiling {cap} differs")
+        for dest in ("prorata", "cash"):
+            for cap in (0.25, 0.33, 0.50):
+                theirs = oda.capped_buy_and_hold(panel, live, cap=cap, cost=0.0015,
+                                                 destination=dest)
+                mine = tpd.capped_bh(panel, live, cap=cap, cost=0.0015, destination=dest)
+                self.assertEqual(theirs, mine, f"ceiling {cap} differs under {dest!r}")
 
     def test_identity_is_not_vacuous(self):
-        """THE MUTATION. A destination that redirects money must BREAK the equality above."""
+        """THE MUTATION. A destination that redirects money must BREAK the equality above.
+
+        Run against BOTH oda conventions, so neither identity can be passing because the two
+        sides collapsed onto one portfolio.
+        """
         panel = _panel()
         live = _live(panel)
-        theirs = oda.capped_buy_and_hold(panel, live, cap=0.20, cost=0.0015)
-        for dest in ("equal", "to_min", "to_max", "cash"):
-            mine = tpd.capped_bh(panel, live, cap=0.20, cost=0.0015, destination=dest)
-            self.assertNotEqual(
-                theirs, mine,
-                f"destination {dest!r} produced the deployed path exactly — either it is a "
-                f"no-op or the identity test above proves nothing")
+        for anchor in ("prorata", "cash"):
+            theirs = oda.capped_buy_and_hold(panel, live, cap=0.20, cost=0.0015,
+                                             destination=anchor)
+            for dest in ("prorata", "equal", "to_min", "to_max", "cash"):
+                if dest == anchor:
+                    continue
+                mine = tpd.capped_bh(panel, live, cap=0.20, cost=0.0015, destination=dest)
+                self.assertNotEqual(
+                    theirs, mine,
+                    f"destination {dest!r} produced the {anchor!r} path exactly — either it is "
+                    f"a no-op or the identity test above proves nothing")
+
+    def test_oda_refuses_a_destination_it_does_not_know(self):
+        """Fail-CLOSED on the name. A benchmark that quietly fell back to some convention when
+        handed an unknown one would be the very defect #98 found, re-created at the door."""
+        panel = _panel()
+        live = _live(panel)
+        for bad in ("to_min", "equal", "", "PRORATA"):
+            with self.assertRaises(ValueError) as ctx:
+                oda.capped_buy_and_hold(panel, live, cap=0.20, cost=0.0015, destination=bad)
+            self.assertIn("unknown trim destination", str(ctx.exception))
 
 
 class TestRedistribution(unittest.TestCase):
