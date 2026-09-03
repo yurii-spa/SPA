@@ -54,3 +54,17 @@ python3 -m spa_core.monitoring.deployment_acceptance      # ПОСЛЕ
 
 Второй вариант — если агент больше не нужен: сказать это, и тогда правится **манифест**
 (`intent: retired`), а находка исчезает честно, а не замалчивается.
+
+---
+
+## Исполнено (интерактивная сессия, 2026-09-03T13:41Z)
+
+Владелец ответил в чате (не Telegram): «Да, перезагрузить все три сейчас». Выполнено:
+```
+python3 -m spa_core.monitoring.deployment_acceptance      # ДО  -> OK
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.spa.digest_weekly.plist
+python3 -m spa_core.monitoring.deployment_acceptance      # ПОСЛЕ -> OK
+```
+Все три подтверждены `launchctl list` (0 = не запущен ни разу, ждёт расписания — штатно для только что
+загруженного calendar-агента). Находка должна исчезнуть из `data/architecture_conformance.json`
+при следующем прогоне сторожа петли.
