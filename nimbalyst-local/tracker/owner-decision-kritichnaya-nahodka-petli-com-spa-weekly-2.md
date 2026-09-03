@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Критичная находка петли: com.spa.weekly_backup: intent=active, но НЕ загружен во флоте"
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-09-02
 finding_key: "B1:dead:com.spa.weekly_backup"
@@ -10,6 +10,8 @@ owner_choice: ack
 owner_answered_at: 2026-09-03T10:10:47.176119+00:00
 owner_answer_via: telegram
 owner_answered_by: 258651137
+status_trail:
+  - "2026-09-03T15:46:17.022328+00:00 needs-owner -> ingested · queue.set_status · cycle-63347"
 ---
 
 ## Что случилось и почему это важно
@@ -72,3 +74,23 @@ python3 -m spa_core.monitoring.deployment_acceptance      # ПОСЛЕ -> OK
 Все три подтверждены `launchctl list` (0 = не запущен ни разу, ждёт расписания — штатно для только что
 загруженного calendar-агента). Находка должна исчезнуть из `data/architecture_conformance.json`
 при следующем прогоне сторожа петли.
+
+---
+
+## ЗАМЕР цикла #470 (2026-09-03T15:4xZ) — карточка переведена в `ingested`
+
+Разбор шага 2: **ответ владельца получен И ИСПОЛНЕН**, а статус карточки этого не показывал.
+
+| вопрос | замер |
+|---|---|
+| ответ владельца есть? | да — `owner_choice: ack` (Telegram 10:10Z) и прямое «Да, перезагрузить все три сейчас» в чате |
+| исполнено? | да — интерактивная сессия 13:41Z, `deployment_acceptance` OK до и после |
+| загружен ли агент СЕЙЧАС | **да** — `launchctl list` в 15:4xZ знает все три (`- 0 com.spa.digest_weekly` · `tier1_digest` · `weekly_backup`; `0` = ни разу не запускался, ждёт расписания — штатно для только что загруженного calendar-агента) |
+| почему шаг 0-офис третьи сутки печатает CRITICAL | артефакт сторожа `data/architecture_conformance.json` снят **11:30Z**, то есть за 2.2 ч ДО починки. Это **вердикт о прежнем предмете**, а не живая находка |
+
+**`owner-done` не ставлю** (инвариант #14 — только владелец). Перевод `needs-owner → ingested`
+разрешён агенту протоколом, шаг 2 п.4: ответ владельца разобран и исполнен.
+
+Отдельная строка, чтобы не потерялось: мост закрыть эту карточку не мог по построению —
+`close_card` умеет только `status: new`, а CRITICAL рождается сразу `needs-owner`
+(карточка `inbox-most-ne-mozhet-zakryt-sobstvennuyu-criti`).

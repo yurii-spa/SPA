@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-03T13:46:23Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-03T16:02:12Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (bd9422251) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (c3735515e) · у **3** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **882** · ждёт владельца: **10** · занято сессиями: **11**.
+> Всего карточек: **883** · ждёт владельца: **7** · занято сессиями: **11**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -15,9 +15,6 @@
 - **Частота 80 агентов флота: 2 находки по токенам/CPU, остальное — оставить** · _high_  ·  `owner-decision-chastota-80-agentov-flota-2-nahodki-po-t.md`
 - **Карта агентов в проде устаревает навсегда: её некому пересобирать**  ·  `owner-decision-karta-agentov-v-prode-ustarevaet-navsegd.md`
 - **Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз** · _high_  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md`
-- **Критичная находка петли: com.spa.digest_weekly: intent=active, но НЕ загружен во флоте**  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-digest-2.md`
-- **Критичная находка петли: com.spa.tier1_digest: intent=active, но НЕ загружен во флоте**  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-tier1-2.md`
-- **Критичная находка петли: com.spa.weekly_backup: intent=active, но НЕ загружен во флоте**  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-weekly-2.md`
 - **Уточнение по заметке: 1**  ·  `owner-decision-utochnenie-po-zametke-1.md`
 - **Уточнение по заметке: ADR-070.13: тревогу core-agent-down гасит agent_health**  ·  `owner-decision-utochnenie-po-zametke-adr-070-13-trevogu-2.md`
 
@@ -44,9 +41,6 @@
 - Частота 80 агентов флота: 2 находки по токенам/CPU, остальное — оставить  ·  `owner-decision-chastota-80-agentov-flota-2-nahodki-po-t.md` · 2026-09-02
 - Карта агентов в проде устаревает навсегда: её некому пересобирать  ·  `owner-decision-karta-agentov-v-prode-ustarevaet-navsegd.md` · 2026-09-02
 - Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md` · 2026-08-29
-- Критичная находка петли: com.spa.digest_weekly: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-digest-2.md` · 2026-09-02
-- Критичная находка петли: com.spa.tier1_digest: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-tier1-2.md` · 2026-09-02
-- Критичная находка петли: com.spa.weekly_backup: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-weekly-2.md` · 2026-09-02
 - Уточнение по заметке: 1  ·  `owner-decision-utochnenie-po-zametke-1.md` · 2026-08-31
 - Уточнение по заметке: ADR-070.13: тревогу core-agent-down гасит agent_health  ·  `owner-decision-utochnenie-po-zametke-adr-070-13-trevogu-2.md` · 2026-08-31
 ### · ingested
@@ -172,9 +166,12 @@
 - Когда ты последний раз менял пароль-ключ для GitHub? Машина этого не знает, а срок — через 7 дней  ·  `owner-decision-kogda-ty-poslednii-raz-menyal-parol-klyu.md` · 2026-08-25
 - Координатор ёмкости пулов между тремя книгами: блокировать жёстко или предупреждать?  ·  `owner-decision-koordinator-emkosti-pulov-mezhdu-tremya.md` · 2026-08-30
 - Координатор ёмкости пулов: свой порог для суммы трёх книг или текущий RiskPolicy?  ·  `owner-decision-koordinator-emkosti-pulov-svoi-porog-dly.md` · 2026-08-30
+- Критичная находка петли: com.spa.digest_weekly: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-digest-2.md` · 2026-09-02
 - Критичная находка петли: com.spa.digest_weekly работает при intent=retired  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-digest.md` · 2026-08-08
 - Критичная находка петли: com.spa.telegram_health загружен, в манифесте ОТСУТСТВУЕТ (класс swarm  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-telegr.md` · 2026-08-08
+- Критичная находка петли: com.spa.tier1_digest: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-tier1-2.md` · 2026-09-02
 - Критичная находка петли: com.spa.tier1_digest работает при intent=retired  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-tier1.md` · 2026-08-08
+- Критичная находка петли: com.spa.weekly_backup: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-weekly-2.md` · 2026-09-02
 - Критичная находка петли: com.spa.weekly_backup работает при intent=retired  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-weekly.md` · 2026-08-08
 - Мандат самостоятельной работы кончается сегодня — продлеваем, сужаем или закрываем?  ·  `owner-decision-mandat-samostoyatelnoi-raboty-konchaetsy.md` · 2026-08-19
 - Maple 15% книги: дефолт приходит без предупреждения — что делаем с кредитным каналом  ·  `owner-decision-maple-15-knigi-defolt-prihodit-bez-predu.md` · 2026-08-22
@@ -268,7 +265,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (443)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (444)
 
 ### · needs-owner
 - Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md` · 2026-08-29
@@ -391,6 +388,7 @@
 - Маячок бота объявляет ОДНУ способность, а решает за ДВЕ — найдено #194, не чинил  ·  `inbox-mayachok-obyavlyaet-odnu-sposobnost-gejtit-dve.md` · 2026-08-10
 - Мост доставки вечно должен пять карточек, которые origin закрыл РАНЬШЕ нас  ·  `inbox-most-dostavki-vechno-dolzhen-pyat-kartoc.md` · 2026-08-28
 - Мост находок может РОДИТЬ карточку на origin, но не может её ОБНОВИТЬ — закрытия не доезжают никогда  ·  `inbox-most-nahodok-mozhet-rodit-kartochku-na-o.md` · 2026-08-12
+- Мост не может довезти закрытие, потому что origin ОБОГНАЛ нашу копию на 67 строк тела (доказательство переноса требует равенства)  ·  `inbox-most-ne-mozhet-dovezti-zakrytie-potomu-c.md` · 2026-09-03
 - Мост не может закрыть собственную CRITICAL-карточку: close_card закрывает только status=new, а CRITICAL рождается needs-owner  ·  `inbox-most-ne-mozhet-zakryt-sobstvennuyu-criti.md` · 2026-08-08
 - Наблюдённый ноль подменяется литералом: stusd печатается 6.0% вместо замеренных 0.0%  ·  `inbox-nablyudennyi-nol-podmenyaetsya-literalom.md` · 2026-08-09
 - Находка петли: аналитик _health: каденция 0% < 50% окна 14д; ни одной датированной вы  ·  `inbox-nahodka-petli-analitik-health-kadentsiya.md` · 2026-08-05

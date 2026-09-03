@@ -162,6 +162,18 @@ SEEN_ON_ORIGIN_FIELDS = (b"owner_choice", b"owner_answered_at", b"owner_answered
 
 _STATUS_LINE = re.compile(rb"(?m)^status:[^\n]*\n")
 
+#: Блок захвата карточки (шаг 0b протокола): КТО держит карточку, с какого
+#: момента и по какому основанию перебил чужой захват. Единственные поля, по
+#: которым перенос на обогнавший origin вправе взять ЧУЖОЕ значение вместо
+#: нашего (:func:`rebase_onto_ahead_origin`): решения владельца они не несут,
+#: работы не несут, а наша слепая копия их не получит НИКОГДА (прод-дерево не
+#: синкает ``nimbalyst-local/``, CLAUDE.md §1) — и на закрытой карточке захват
+#: не действует вовсе (протокол, шаг 0b: «он и так не действует после
+#: done/ingested»).
+CLAIM_BLOCK_FIELDS = (b"claimed_by", b"claimed_at", b"claim_takeover_reason")
+
+_CLAIM_LINE = re.compile(rb"(?m)^(?:" + b"|".join(CLAIM_BLOCK_FIELDS) + rb"):[^\n]*\n")
+
 #: Ключ следа переходов во frontmatter. Байтовая копия
 #: ``spa_core.owner_queue.status_audit.TRAIL_KEY``: здесь карточка ещё БАЙТЫ, до
 #: всякого декодирования, а расхождение двух копий закреплено тестом
@@ -455,6 +467,173 @@ def origin_reached_same_outcome(local: bytes, remote: bytes) -> tuple:
                     "запись об одном переходе")
 
 
+def _claim_stamp(fm: bytes):
+    """``claimed_at`` из frontmatter → ``datetime`` · ``None`` (нет) · ``False`` (нечитаемо).
+
+    Три исхода, а не два: «захвата нет» и «отметка есть, но её не разобрать» —
+    разные состояния, и второе обязано вести к отказу, а не к молчаливому
+    «считаем, что нет» (тот же принцип, что у ``REMOTE_UNMEASURED``).
+    """
+    m = re.search(rb"(?m)^claimed_at:[^\n]*\n", fm)
+    if m is None:
+        return None
+    raw = m.group(0).split(b":", 1)[1].strip().strip(b'"').strip(b"'")
+    if not raw:
+        return False
+    try:
+        stamp = dt.datetime.fromisoformat(raw.decode("utf-8").replace("Z", "+00:00"))
+    except (ValueError, UnicodeDecodeError):
+        return False
+    return stamp if stamp.tzinfo else stamp.replace(tzinfo=dt.timezone.utc)
+
+
+def claim_on_origin_is_not_older(l_fm: bytes, r_fm: bytes) -> tuple:
+    """Захват на origin НЕ старше нашего? → ``(да/нет, причина отказа)``.
+
+    Условие ветки :func:`rebase_onto_ahead_origin`: она берёт origin'ное значение
+    блока захвата вместо нашего, и делать это позволено ровно тогда, когда наше
+    заведомо устарело. Обратный случай (на origin захват СТАРШЕ) означает, что
+    вперёд ушли МЫ, — тогда перенос затёр бы более свежую отметку своей, и это
+    отказ, а не выбор «по смыслу».
+    """
+    ours, theirs = _claim_stamp(l_fm), _claim_stamp(r_fm)
+    if ours is None:
+        return True, ""                      # нам терять нечего
+    if ours is False or theirs is False:
+        return False, ("отметка захвата claimed_at нечитаема (у нас или на origin) — "
+                       "какая копия свежее, НЕ ИЗМЕРЕНО")
+    if theirs is None:
+        return False, ("у нас захват есть, а на origin его нет — вперёд ушли МЫ, "
+                       "и перенос потерял бы нашу отметку")
+    if theirs < ours:
+        return False, (f"захват на origin СТАРШЕ нашего ({theirs.isoformat()} против "
+                       f"{ours.isoformat()}) — перенос затёр бы более свежую отметку")
+    return True, ""
+
+
+def _status_value(fm: bytes):
+    """Значение строки ``status:`` → bytes или ``None``, если строки нет."""
+    m = _STATUS_LINE.search(fm)
+    return m.group(0).split(b":", 1)[1].strip() if m else None
+
+
+def _appended_trail_items(l_trail: bytes, r_trail: bytes) -> list:
+    """Записи следа, дописанные НАМИ поверх origin → список или ``None``.
+
+    Требование СИЛЬНЕЕ, чем :func:`trail_only_appends`: след origin обязан быть
+    НАЧАЛОМ нашего, а не просто подпоследовательностью. ``stamp_trail`` пишет
+    строго в конец, поэтому у честной пары копий это выполняется всегда; любая
+    другая форма означает, что мы не понимаем, что видел origin, — и тогда
+    отвечать «вот что мы дописали» нельзя (``None`` ⇒ отказ у вызывающего).
+    """
+    mine, theirs = _trail_items(l_trail), _trail_items(r_trail)
+    if mine[:len(theirs)] != theirs:
+        return None
+    return mine[len(theirs):]
+
+
+def rebase_onto_ahead_origin(local: bytes, remote: bytes) -> tuple:
+    """Перенос НАШЕЙ правки на ОБОГНАВШИЙ origin → ``(bytes|None, причина)``.
+
+    Третья попытка :func:`rebase_card`. Первые две доказывают перенос
+    ПОБАЙТОВЫМ равенством ``candidate == local``, и это доказательство
+    недостижимо навсегда, как только origin ушёл вперёд по ТЕЛУ карточки:
+    прод-дерево не синкает ``nimbalyst-local/`` (CLAUDE.md §1), значит дописанный
+    на origin разбор в нашу копию не попадёт НИКОГДА, а чем богаче origin — тем
+    вернее отказ. Кандидат при этом строится ИЗ ``remote`` и всё это уже несёт.
+
+    **Замер 03.09 (цикл #470), два живых пути.** Мост закрыл
+    ``inbox-nahodka-petli-com-spa-gas-price-agent-ra`` и
+    ``inbox-nahodka-petli-manifest-fakty-com-spa-gas`` (находка исчезла из отчёта
+    сторожа) и ЧЕТЫРЕ прогона подряд не смог довезти закрытие: на origin тело
+    богаче на **67 строк** (разборы циклов #462/#463/#464) и лежит новейший
+    захват (``cycle-32111``, 01:13:24Z против нашего ``cycle-94385``, 23:40:00Z).
+    Квитанция звала переносить руками — то есть предлагала человеку сделать
+    ровно то, что доказуемо и машинно.
+
+    Доказательство здесь — ПОКРЫТИЕ (:func:`_covered_lines`), а не равенство:
+    каждая наша строка обязана лежать в кандидате. Ослаблений нет; наоборот,
+    ветка требует ДВУХ проверок, которых у побайтовых ветвей не было:
+
+    1. **origin обязан стоять в статусе, ИЗ которого идёт наш переход.** Наша
+       строка ``status:`` подставляется поверх origin'ной, поэтому без этого
+       условия слепая копия откатила бы чужой статус (владелец двинул карточку —
+       мы бы вернули её назад). Источник и цель читаются из НАШИХ дописанных
+       записей следа, а сами записи обязаны состыковываться в цепочку.
+    2. **блок захвата на origin обязан быть НЕ СТАРШЕ нашего** — единственные
+       поля, где ветка берёт чужое значение вместо своего
+       (:data:`CLAIM_BLOCK_FIELDS`): решения владельца они не несут, работы не
+       несут, а на закрытой карточке захват не действует вовсе.
+
+    Отказ «на origin карточку УЖЕ увидели» (ответ владельца или захват, которого
+    у нас НЕТ ВОВСЕ) остаётся выше этой ветки и не ослаблен: ветка работает
+    только там, где захват виден ОБЕИМ копиям и расходятся лишь значения.
+    """
+    lp, rp = card_parts(local), card_parts(remote)
+    if lp is None or rp is None:
+        return None, "одна из копий не карточка — переносить нечего"
+    l_fm, l_body = lp
+    r_fm, r_body = rp
+    l_rest, l_trail = split_trail_block(l_fm)
+    r_rest, r_trail = split_trail_block(r_fm)
+    if not l_trail:
+        return None, "в нашей копии нет следа перехода — что именно мы правили, НЕ ИЗМЕРЕНО"
+    appended = _appended_trail_items(l_trail, r_trail)
+    if appended is None:
+        return None, ("след origin не является началом нашего — что мы дописали, "
+                      "неизвестно; перенос стёр бы чужой переход")
+    if not appended:
+        return None, "мы не дописали ни одной записи следа, а статус разошёлся — переход не объяснён"
+    arrows = [trail_arrow(item) for item in appended]
+    if any(a is None for a in arrows):
+        return None, "запись следа нечитаема — выдумывать переход нельзя"
+    for prev, nxt in zip(arrows, arrows[1:]):
+        if prev[1] != nxt[0]:
+            return None, ("наши записи следа не состыковываются в цепочку переходов — "
+                          f"{prev[1].decode()} != {nxt[0].decode()}")
+    ours_status, theirs_status = _status_value(l_rest), _status_value(r_rest)
+    if ours_status is None or theirs_status is None:
+        return None, "в одной из копий нет строки status: — правка не опознана"
+    if ours_status != arrows[-1][1]:
+        return None, (f"наш status: ({ours_status.decode()}) не совпадает с целью нашего же "
+                      f"следа ({arrows[-1][1].decode()}) — копия непоследовательна")
+    if theirs_status != arrows[0][0]:
+        return None, (f"origin стоит в статусе {theirs_status.decode()}, а наш переход идёт из "
+                      f"{arrows[0][0].decode()} — origin двинули без нас, перенос откатил бы это")
+    claim_ok, why = claim_on_origin_is_not_older(l_rest, r_rest)
+    if not claim_ok:
+        return None, why
+    # Подставляем НАШУ строку целиком, байт в байт — а не пересобранную из
+    # значения: пересборка молча нормализовала бы форму строки, и «покрытие»
+    # доказывалось бы про строку, которой у нас нет.
+    cand_rest = _STATUS_LINE.sub(_STATUS_LINE.search(l_rest).group(0), r_rest, count=1)
+    candidate = remote[:4] + cand_rest + l_trail + remote[4 + len(r_fm):]
+    # Доказательство: вне блока захвата (и вне следа, который мы подставили сами)
+    # каждая НАША строка обязана лежать в кандидате, а тело — в теле origin.
+    fm_ok, fm_extra = _covered_lines(_CLAIM_LINE.sub(b"", l_rest),
+                                     _CLAIM_LINE.sub(b"", cand_rest))
+    if not fm_ok:
+        return None, ("вне блока захвата frontmatter origin не содержит наших строк — "
+                      "это расхождение, а не обгон")
+    # Обгонять origin вправе ТЕЛОМ, но не МАШИННОЙ частью карточки. Frontmatter
+    # читают программы (статус, ответ владельца, захват, finding_key, проба
+    # приёмки), и незнакомое поле там способно изменить СМЫСЛ карточки — ровно
+    # поэтому прежний отказ «на origin поле, которого мы не видели» и стоит
+    # (test_card_delivery_carries_status_trail.py::
+    # test_refuses_when_origin_gained_a_field_we_never_saw). Он НЕ ослаблен:
+    # ветка молчит, пока кто-нибудь не объяснит переносу, что это за поле.
+    # Тело же — проза для человека, машинного вердикта она не меняет.
+    if fm_extra:
+        return None, ("на origin есть поля frontmatter, которых мы не видели "
+                      f"({'; '.join(fm_extra)[:120]}) — обгонять машинную часть карточки "
+                      "ветка не берётся, это разбор руками")
+    body_ok, _extra = _covered_lines(l_body, r_body)
+    if not body_ok:
+        return None, ("тело origin не содержит наших строк — это расхождение, а не обгон; "
+                      "перенос стёр бы чужой текст")
+    return candidate, ""
+
+
 def rebase_card(local: bytes, remote: bytes) -> tuple:
     """Перенести НАШУ правку карточки на версию с origin → ``(bytes|None, причина)``.
 
@@ -518,9 +697,16 @@ def rebase_card(local: bytes, remote: bytes) -> tuple:
     if seen:
         return None, (f"на origin карточку УЖЕ увидели (поля: {', '.join(seen)}) — "
                       f"наша слепая копия не смеет это стереть; закрытие отменено")
+    # Третья попытка — origin УШЁЛ ВПЕРЁД по телу/захвату, и побайтовое равенство
+    # там недостижимо ПО ПОСТРОЕНИЮ (см. rebase_onto_ahead_origin). Ветка стоит
+    # ПОСЛЕ отказа `seen`: «захвата/ответа не видели вовсе» остаётся отказом.
+    carried, why_ahead = rebase_onto_ahead_origin(local, remote)
+    if carried is not None:
+        return carried, ""
     return None, ("расхождение с origin не сводится к строке status: и следу "
                   "status_trail: — перенести правку автоматически нечем; сделать это "
-                  "вручную из worktree на origin/main")
+                  f"вручную из worktree на origin/main (перенос на обогнавший origin "
+                  f"тоже отказал: {why_ahead})")
 
 
 def _load_pusher_module(root: str):
