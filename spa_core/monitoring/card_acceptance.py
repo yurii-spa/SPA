@@ -297,16 +297,97 @@ def run_probe(spec: str) -> tuple[str, str]:
     return verdict, detail
 
 
-def audit(tracker_dir: str | None = None) -> dict:
+#: Ветка доставки, с которой дочитывается невидимая часть популяции.
+ORIGIN_REF = "origin/main"
+
+#: Каталог карточек внутри репозитория — адрес один и тот же в любом дереве.
+TRACKER_REL = "nimbalyst-local/tracker"
+
+
+def _git(args: list, *, repo_root: str, timeout: float = 20.0):
+    """`git` в указанном дереве. `None` — команда не удалась (это НЕ «пусто»)."""
+    import subprocess
+    try:
+        r = subprocess.run(["git", "-C", repo_root] + args, capture_output=True,
+                           text=True, timeout=timeout)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return r.stdout if r.returncode == 0 else None
+
+
+def _repo_root_for(tracker_dir: str) -> str:
+    """Дерево, которому принадлежит этот каталог карточек (`…/nimbalyst-local/tracker`)."""
+    return os.path.dirname(os.path.dirname(os.path.abspath(tracker_dir)))
+
+
+def _is_git_repo(path: str) -> bool:
+    """Есть ли тут репозиторий вообще. Отличать от «есть, но не прочитался»."""
+    return _git(["rev-parse", "--git-dir"], repo_root=path) is not None
+
+
+def cards_declaring_a_probe_on_ref(*, repo_root: str, ref: str = ORIGIN_REF):
+    """`{имя карточки: текст}` для карточек, объявивших пробу на `ref`. `None` ⇒ не измерено.
+
+    ЗАЧЕМ ЭТО ЕСТЬ. `audit()` читал ТОЛЬКО каталог того дерева, в котором запущен, —
+    а обязательный шаг 0-офис ходит из прод-дерева, куда `nimbalyst-local/` не
+    синхронизируется. Замер 03.09: в проде 599 карточек, на `origin/main` — 882;
+    283 сторож не видел ВООБЩЕ и о слепоте не говорил, называя число прочитанных
+    как полное. Живое следствие: из пяти объявленных на origin проб прод-дерево
+    видело ОДНУ. Тот же класс уже чинили в очереди (ADR-153).
+
+    ПОЧЕМУ ТАК ДЁШЕВО. Дочитывать всю популяцию не нужно и вредно: сверка трекера
+    с origin однажды стоила 107 с и ~1041 процесс git, и цена сторожа его же и
+    выключила (ADR-211). Здесь предмет узкий — карточки, объявившие пробу, — и он
+    добывается ОДНОЙ командой `git grep` по ref (замер 03.09: **0.17 с**, 5 файлов),
+    после чего читается ровно столько блобов, сколько невидимо локально.
+
+    `None` — «не измерено» (нет git, нет ref, сеть/индекс недоступны), и вызывающий
+    ОБЯЗАН сказать это вслух: молчание здесь неотличимо от «все на месте».
+    """
+    listing = _git(["grep", "-l", "^acceptance_probe:", ref, "--", TRACKER_REL + "/"],
+                   repo_root=repo_root)
+    if listing is None:
+        return None
+    out: dict = {}
+    for line in listing.splitlines():
+        # формат строки: `<ref>:<путь>`
+        _, _, path = line.partition(":")
+        if not path.endswith(".md") or os.path.basename(path).startswith("_"):
+            continue
+        blob = _git(["show", f"{ref}:{path}"], repo_root=repo_root)
+        if blob is None:
+            return None              # частично прочитанная популяция — не популяция
+        out[os.path.basename(path)] = blob
+    return out
+
+
+def audit(tracker_dir: str | None = None, *, origin_readthrough: bool = True,
+          ref: str = ORIGIN_REF, repo_root: str | None = None) -> dict:
     """Пройти карточки трекера и вынести вердикт по объявленным критериям.
 
-    Возврат: `{"tracker_dir", "scanned", "counts", "rows"}`. `rows` — только те
-    карточки, у которых проба ОБЪЯВЛЕНА (остальные тут не предмет: у них критерия
+    Возврат: `{"tracker_dir", "scanned", "counts", "rows", "origin"}`. `rows` — только
+    те карточки, у которых проба ОБЪЯВЛЕНА (остальные тут не предмет: у них критерия
     в машинной форме нет, и молчать о них честнее, чем считать их выполненными).
+
+    `origin_readthrough` дочитывает с `ref` карточки, которых в этом дереве нет
+    (см. :func:`cards_declaring_a_probe_on_ref`). Блок `origin` описывает исход
+    дочитывания ТРЕМЯ состояниями: `read` (сколько добрано), `unmeasured`
+    (дочитать не удалось — назвать вслух) и `off` (не просили). Слепота, о которой
+    не сказано, — та же слепота.
     """
     tracker_dir = tracker_dir or os.path.join(REPO_ROOT, "nimbalyst-local", "tracker")
+    # Дерево для дочитывания выводится ИЗ САМОГО tracker_dir, а не берётся у
+    # живого репозитория. Первая редакция брала `REPO_ROOT` — и тогда вызов с
+    # чужим каталогом карточек дочитывал популяцию НЕ ТОГО дерева: четыре
+    # соседних теста, читавших временный каталог, получили пять живых карточек
+    # с `origin/main`. Их герметичность была ЗАНЯТА у субъекта (он читал только
+    # свой каталог) и исчезла вместе с этой правкой — класс известен, поэтому
+    # чинится связь, а не тесты.
+    repo_root = repo_root or _repo_root_for(tracker_dir)
     rows: list[dict] = []
     scanned = 0
+    local_names: set = set()
+    sources: list = []
     if os.path.isdir(tracker_dir):
         for name in sorted(os.listdir(tracker_dir)):
             if not name.endswith(".md") or name.startswith("_"):
@@ -318,6 +399,32 @@ def audit(tracker_dir: str | None = None) -> dict:
             except OSError:
                 continue
             scanned += 1
+            local_names.add(name)
+            sources.append((name, text, False))
+
+    origin: dict = {"state": "off", "read": 0, "ref": ref}
+    if origin_readthrough and not _is_git_repo(repo_root):
+        # ТРЕТИЙ исход, а не «не измерено»: у каталога карточек, лежащего вне
+        # репозитория, ветки доставки нет ПО ПОСТРОЕНИЮ — дочитывать не с чего.
+        # Смешать это с «репозиторий есть, а прочитать не вышло» значит либо
+        # утопить настоящий отказ в шуме, либо (наоборот) промолчать о нём.
+        origin = {"state": "no_repo", "read": 0, "ref": ref,
+                  "reason": f"{repo_root} — не git-репозиторий: ветки `{ref}` "
+                            f"здесь нет по построению, дочитывать не с чего"}
+    elif origin_readthrough:
+        remote = cards_declaring_a_probe_on_ref(repo_root=repo_root, ref=ref)
+        if remote is None:
+            origin = {"state": "unmeasured", "read": 0, "ref": ref,
+                      "reason": f"популяцию с `{ref}` дочитать не удалось (нет git, "
+                                f"нет ref или чтение прервалось) — сколько карточек "
+                                f"этому дереву невидимо, НЕ ИЗМЕРЕНО"}
+        else:
+            added = [(n, t) for n, t in sorted(remote.items()) if n not in local_names]
+            sources.extend((n, t, True) for n, t in added)
+            origin = {"state": "read", "read": len(added), "ref": ref,
+                      "declared_on_ref": len(remote)}
+
+    for name, text, from_origin in sources:
             fm = parse_frontmatter(text)
             spec = fm.get("acceptance_probe")
             if not spec:
@@ -342,6 +449,10 @@ def audit(tracker_dir: str | None = None) -> dict:
                 "probe": spec,
                 "verdict": verdict,
                 "detail": detail,
+                # Провенанс, а не украшение: строка про карточку, которой в этом
+                # дереве нет, иначе читается как «файл рядом, посмотри» — и
+                # следующая сессия идёт искать его на диске.
+                "from_origin": from_origin,
             })
     counts = {
         "declared": len(rows),
@@ -351,7 +462,9 @@ def audit(tracker_dir: str | None = None) -> dict:
         "not_satisfied": sum(1 for r in rows if r["verdict"] == NOT_SATISFIED),
         "unmeasured": sum(1 for r in rows if r["verdict"] == UNMEASURED),
     }
-    return {"tracker_dir": tracker_dir, "scanned": scanned, "counts": counts, "rows": rows}
+    counts["from_origin"] = sum(1 for r in rows if r.get("from_origin"))
+    return {"tracker_dir": tracker_dir, "scanned": scanned, "counts": counts,
+            "rows": rows, "origin": origin}
 
 
 def report_lines(result: dict) -> list[str]:
@@ -360,6 +473,18 @@ def report_lines(result: dict) -> list[str]:
     c = result.get("counts") or {}
     where = result.get("tracker_dir")
     out = [f"— критерии открытых карточек (трекер: {where}) —"]
+    # ПОПУЛЯЦИЯ — ПЕРВОЙ строкой, до любых вердиктов. До #467 сторож читал только
+    # своё дерево и называл число прочитанных как ПОЛНОЕ: из прод-дерева, откуда
+    # ходит обязательный шаг 0-офис, он видел 599 карточек из 882 и о 283
+    # невидимых не говорил ничего. «Прочитано столько» и «столько и есть» — разные
+    # утверждения, и подменять второе первым нельзя даже молча.
+    origin = result.get("origin") or {}
+    if origin.get("state") == "unmeasured":
+        out.append(f"   [{'НЕ ИЗМЕРЕНО'}] {origin.get('reason')}")
+    elif origin.get("state") == "read" and origin.get("read"):
+        out.append(f"   популяция дочитана с `{origin.get('ref')}`: +{origin['read']} "
+                   f"карточк(и) с объявленной пробой, которых в этом дереве НЕТ "
+                   f"(на ref объявлено {origin.get('declared_on_ref')})")
     if not (result.get("rows") or []):
         out.append(f"   проб не объявлено ни на одной из {result.get('scanned', 0)} карточек "
                    f"— критерии живут прозой, машинно не перемеряются (ADR-208)")
@@ -376,11 +501,13 @@ def report_lines(result: dict) -> list[str]:
                f"КРИТЕРИЙ ВЫПОЛНЕН при открытой карточке {c.get('satisfied_but_open', 0)} · "
                f"ещё не выполнен {c.get('not_satisfied', 0)} · не измерено {c.get('unmeasured', 0)}")
     for r in result["rows"]:
+        where_from = " [дочитана с origin, файла в этом дереве нет]" if r.get("from_origin") else ""
         if r["open"] and r["verdict"] == SATISFIED:
             out.append(f"   🟩 КРИТЕРИЙ ВЫПОЛНЕН, а карточка открыта ({r['status']}): "
-                       f"{r['card']} — {r['detail']}. Перемерить и закрыть, а не делать заново")
+                       f"{r['card']}{where_from} — {r['detail']}. Перемерить и закрыть, "
+                       f"а не делать заново")
         elif r["verdict"] == UNMEASURED:
-            out.append(f"   [НЕ ИЗМЕРЕНО] {r['card']}: {r['detail']}")
+            out.append(f"   [НЕ ИЗМЕРЕНО] {r['card']}{where_from}: {r['detail']}")
     return out
 
 
