@@ -537,6 +537,32 @@ def _normalize_tree(path):
     return p.rstrip("/") or "/"
 
 
+def announced_files(entry):
+    """Объявленные записью пути — БЕЗ того, что путём не является.
+
+    **Зачем** (карточка `inbox-obyavlenie-s-pustym-spiskom-failov-rozhd`, замер #433).
+    Пустая строка в `files` разрешается питоном в `.` (`Path("") == Path(".")`), то есть
+    в КОРЕНЬ репозитория, и `resolve_rel` честно отдаёт `"."`. Дальше сторож спрашивает
+    «лежит ли `.` на origin/main под этим именем» — вопрос без ответа по построению:
+    корень не появится на базе как файл ни при какой доставке. Находка `[отсутствует] .`
+    поэтому **не снимается ничем**, кроме подлога, а верхнего горизонта у сканера нет
+    (сказано в его собственной шапке) — строка живёт в самой читаемой секции
+    обязательного шага 0a до конца жизни журнала.
+
+    Отбрасывается РОВНО не-путь: пустая строка и строка из одних пробелов. Непустой
+    относительный путь остаётся путём и судится прежним порядком — сужать класс шире
+    значило бы глушить сторожа под видом починки.
+
+    Читатель чинится ОТДЕЛЬНО от писателя намеренно: писатель (`log_session_change.py`)
+    закрывает только будущие записи, а уже написанные (замер #462: их три, две за
+    последние сутки) снимаются лишь здесь — переписать журнал задним числом нельзя.
+
+    Одна функция на все места потребления `files`: две копии правила разошлись бы, а
+    этот модуль такого избегает намеренно.
+    """
+    return [f for f in (entry or {}).get("files") or () if str(f).strip()]
+
+
 def tree_of_path(path):
     """Корень рабочего дерева, читаемый из объявленного АБСОЛЮТНОГО пути, либо None.
 
@@ -587,7 +613,7 @@ def worktree_of(entry):
     называют ОДНО дерево. Запись, объявившая файлы в двух деревьях (в журнале таких ярлыков
     26 из 630), дерева не имеет — угадывать, какое из них «настоящее», инструмент не станет."""
     roots = set()
-    for f in (entry or {}).get("files") or ():
+    for f in announced_files(entry):
         root = tree_of_path(f)
         if root:
             roots.add(root)
@@ -1782,7 +1808,7 @@ def declared_rel_paths(entries, checkouts=()):
                    key=len, reverse=True)
     declared = set()
     for entry in entries or ():
-        for f in (entry or {}).get("files") or ():
+        for f in announced_files(entry):
             raw = _normalize_tree(str(f))
             if not raw:
                 continue
@@ -2297,7 +2323,7 @@ def delivered_by_session(session, entries, root, base_ref, git=_git, diff_sets=N
     mine.sort(key=lambda e: 0 if (e.get("card_state") == "done") else 1)
     found, seen = [], set()
     for entry in mine:
-        for raw in entry.get("files") or []:
+        for raw in announced_files(entry):
             rel, err = resolve_rel(raw, root, git=git)
             if rel is None or rel in seen:
                 continue
@@ -2766,7 +2792,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
             if not durable_process_gone(entry, ps=ps, cmd_probe=cmd_probe):
                 fresh.append({"session": entry.get("session"), "ts": entry.get("ts"),
                               "age_hours": age_h,
-                              "files": len(entry.get("files") or []),
+                              "files": len(announced_files(entry)),
                               "reason": f"{why}; объявлено {age_h}ч "
                                         f"назад — окно ожидания {grace_hours}ч ещё не истекло"})
                 continue
@@ -2778,7 +2804,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
 
         why = f"{why}; объявлено {age_h}ч назад"
         report["sessions_checked"] += 1
-        for raw in entry.get("files") or []:
+        for raw in announced_files(entry):
             foreign_only = False           # расхождение живёт только в ЧУЖИХ деревьях
             rel, err = resolve_rel(raw, root, git=git)
             if rel is None:
@@ -3094,7 +3120,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                              len(card_closed), len(deleted), len(on_branch),
                              len(dropped)) == produced_before:
             fresh.append({"session": entry.get("session"), "ts": entry.get("ts"),
-                          "age_hours": age_h, "files": len(entry.get("files") or []),
+                          "age_hours": age_h, "files": len(announced_files(entry)),
                           "reason": f"{why} — объявленное на {base_ref} есть, находки нет"})
 
     # Пятое вместилище недоставленного — расхождение, которого НИКТО не объявлял (карточка

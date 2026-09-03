@@ -259,6 +259,43 @@ def refuse_card_files_without_card(files, card) -> None:
         f"Довёз/создал для следующего цикла: --card <id> --card-state done")
 
 
+def drop_non_paths(files) -> list:
+    """Объявленные пути без того, что путём не является. Отброшенное — на stderr.
+
+    **Зачем** (карточка `inbox-obyavlenie-s-pustym-spiskom-failov-rozhd`, замер #433).
+    Писатель записывал в `files` что дали, не спрашивая, путь ли это. Пустая строка
+    проходила насквозь, а читатель (`check_undelivered_work.py`) разрешает её в `.` —
+    в КОРЕНЬ репозитория, — и получает находку `[отсутствует] .`, которую нельзя снять
+    ничем: корень не появится на origin/main как файл ни при какой доставке.
+
+    Объявление без файлов — состояние ЗАКОННОЕ (сессия сообщает о ходе работ), поэтому
+    здесь не отказ, а отбрасывание. Но **не молчаливое**: признак, который можно поставить
+    молчанием, ничего не даёт читателю — тот же довод, что у ``normalize_dropped``. Сессия
+    обязана узнать сейчас, что объявила не то, а не обнаружить пропажу через сутки чужим
+    шагом 0a.
+
+    Сужение — РОВНО до не-пути (пустая строка, одни пробелы). Непустой относительный путь
+    записывается как прежде: контракт «пути НЕ переписываются» не задет — переписывать
+    нечего, речь о том, чтобы не записывать НЕ-путь.
+
+    Форма записи при непустом `--files` остаётся байт в байт прежней (это контракт, его
+    пиннят `test_card_claim_guard::TestAnnounceLogField` и
+    `test_durable_session_id::TestWriterEntrySchema`).
+
+    Чинит только БУДУЩИЕ записи; уже написанные разбирает вторая половина той же
+    доставки — ``check_undelivered_work.announced_files``.
+    """
+    kept, dropped = [], []
+    for f in files or ():
+        (kept if str(f).strip() else dropped).append(f)
+    if dropped:
+        print(f"log_session_change: отброшено объявленных не-путей: {len(dropped)} "
+              f"(пустая строка — не путь; читатель разрешил бы её в корень репозитория "
+              f"и получил бы неснимаемую находку `[отсутствует] .`). "
+              f"В записи остаётся файлов: {len(kept)}", file=sys.stderr)
+    return kept
+
+
 def normalize_dropped(pairs) -> list:
     """[(путь, причина)] → [{"path":…, "reason":…}]. Бросает ``DroppedWithoutReason``.
 
@@ -315,6 +352,7 @@ def record(summary: str, files: list, verified: str,
     session's own ``SPA_SESSION_ID``), so they keep their anchor and keep being recognised."""
     # ДО построения записи: отказ обязан случиться раньше, чем что-либо попадёт в журнал.
     refuse_card_files_without_card(files, card)
+    files = drop_non_paths(files)
     own_id = _session_id()
     label = str(session).strip() or own_id
     entry = {

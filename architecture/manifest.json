@@ -42,7 +42,7 @@
    "label": "com.spa.aggressive_lab",
    "plist_source": "launch_agents",
    "reboot_safe": true,
-   "schedule": "interval:86400s",
+   "schedule": "calendar:00:00,06:00,12:00,18:00",
    "program": "agent_aggressive_lab.sh",
    "layer": "product",
    "role": "allocation",
@@ -287,37 +287,6 @@
     "quality_metric": "data/base_gas_history.json свежее 168.0 ч",
     "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/base_gas_history.json",
-    "limits": "LLM запрещён; не импортирует execution"
-   }
-  },
-  {
-   "label": "com.spa.gas_price_agent",
-   "plist_source": "repo:launchd/com.spa.gas_price_agent.plist",
-   "reboot_safe": false,
-   "schedule": "interval:1800s",
-   "program": "agent_gas_price.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [
-    {
-     "artifact": "data/gas_price_history.json",
-     "slo_hours": 1.5
-    }
-   ],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [
-    "ADR-183",
-    "ADR-182"
-   ],
-   "curation": "complete",
-   "notes": "решение владельца 30.08 (ADR-183): постоянный агент цены газа вместо разового замера — 4 сети + спот ETH каждые 30 мин, отказ источников = unchecked (fallback-констант нет), режим cheap/normal/expensive по перцентилю собственной live-истории. АКТИВИРОВАН 31.08 деплой-гейтом (решение владельца; acceptance до/после OK, первый тик live 4/4 сетей). Advisory: не гейтит, де-риска не касается (ADR-168). Заменяет собой трёх сирот-газ-мониторов из переписи KNOWN_UNWIRED — их вывод из обращения отдельной карточкой (имена там; здесь не называю, чтобы упоминание не читалось детектором проводки как вызов)",
-   "passport": {
-    "goal": "Постоянное измерение цены газа (ethereum/base/arbitrum/optimism) и ETH/USD с провенансом live|unchecked; advisory-режим стоимости хода для экономики пилота (ADR-182/183).",
-    "quality_metric": "data/gas_price_history.json свежее 1.5 ч (после активации); доля live-чтений по ethereum",
-    "escalation": "нет (advisory; затяжной unchecked виден в самом артефакте и в отчётном слое после подключения)",
-    "rights": "писать data/gas_price_history.json",
     "limits": "LLM запрещён; не импортирует execution"
    }
   },
@@ -932,6 +901,37 @@
    }
   },
   {
+   "label": "com.spa.gas_price_agent",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:1800s",
+   "program": "agent_gas_price.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/gas_price_history.json",
+     "slo_hours": 1.5
+    }
+   ],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [
+    "ADR-183",
+    "ADR-182"
+   ],
+   "curation": "complete",
+   "notes": "решение владельца 30.08 (ADR-183): постоянный агент цены газа вместо разового замера — 4 сети + спот ETH каждые 30 мин, отказ источников = unchecked (fallback-констант нет), режим cheap/normal/expensive по перцентилю собственной live-истории. АКТИВИРОВАН 31.08 деплой-гейтом (решение владельца; acceptance до/после OK, первый тик live 4/4 сетей). Advisory: не гейтит, де-риска не касается (ADR-168). Заменяет собой трёх сирот-газ-мониторов из переписи KNOWN_UNWIRED — их вывод из обращения отдельной карточкой (имена там; здесь не называю, чтобы упоминание не читалось детектором проводки как вызов)",
+   "passport": {
+    "goal": "Постоянное измерение цены газа (ethereum/base/arbitrum/optimism) и ETH/USD с провенансом live|unchecked; advisory-режим стоимости хода для экономики пилота (ADR-182/183).",
+    "quality_metric": "data/gas_price_history.json свежее 1.5 ч (после активации); доля live-чтений по ethereum",
+    "escalation": "нет (advisory; затяжной unchecked виден в самом артефакте и в отчётном слое после подключения)",
+    "rights": "писать data/gas_price_history.json",
+    "limits": "LLM запрещён; не импортирует execution"
+   }
+  },
+  {
    "label": "com.spa.golive_freshness",
    "plist_source": "launch_agents",
    "reboot_safe": true,
@@ -1077,7 +1077,7 @@
    "label": "com.spa.io_chief_investment",
    "plist_source": "launch_agents",
    "reboot_safe": true,
-   "schedule": "interval:300s",
+   "schedule": "interval:3600s",
    "program": "agent_io_chief_investment.sh",
    "layer": "product",
    "role": "analytics",
@@ -1563,7 +1563,7 @@
    "label": "com.spa.novel_edge_rnd",
    "plist_source": "launch_agents",
    "reboot_safe": true,
-   "schedule": "calendar:04:00",
+   "schedule": "calendar:wd2·04:00,wd5·04:00",
    "program": "agent_novel_edge_rnd.sh",
    "layer": "product",
    "role": "research",
