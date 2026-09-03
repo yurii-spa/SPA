@@ -38,7 +38,7 @@ import os
 import subprocess
 import sys
 
-from spa_core.monitoring.architecture_conformance import REPO_ROOT
+from spa_core.monitoring.architecture_conformance import REPO_ROOT, subject_inputs
 
 #: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
 #: Объявление, а не вывод из кода — вывести производителя разбором нельзя
@@ -62,6 +62,22 @@ INTERNAL_WRITES = (
 
 STATE_REL = os.path.join("data", "findings_bridge_state.json")
 REPORT_REL = os.path.join("data", "findings_bridge_report.json")
+
+#: ПРЕДМЕТ вердикта моста об отказе доставки — не карточки, а РЕШАТЕЛЬ: именно
+#: `card_delivery` решает «переносим правку на origin» или «перенести нечем,
+#: сделайте руками». Карточки — живое состояние, их в провенанс объявлять
+#: нельзя (комментарий `_SUBJECT` в `scripts/consume_office_reports.py`: тогда
+#: находку давал бы каждый прогон); решатель — код, и он меняется редко.
+#:
+#: Замер цикла #471 (03.09), ADR-220. Отчёт 11:46:08Z объявил PARTIAL и звал
+#: перенести ВРУЧНУЮ две карточки `…gas-price-agent…`; в 16:04:31Z коммит
+#: 3425bd28 (ADR-219, цикл #470) научил `rebase_onto_ahead_origin` везти ровно
+#: этот случай. Перемерено в 17:2xZ: `rebase_card()` строит кандидата для ОБЕИХ.
+#: Обязательный шаг 0-офис печатал требование ручной работы 4.3 ч после того,
+#: как машина научилась делать её сама, — и отличить «нечем» от «уже есть чем»
+#: читателю было НЕЧЕМ: у отчёта есть возраст, но возраст меряет, давно ли
+#: ходил мост, а не сменился ли под ним тот, кто выносит вердикт.
+DECIDER_REL = "spa_core/monitoring/card_delivery.py"
 
 REQUIRED_SIGHTINGS = 2
 #: Столько прогонов ПОДРЯД находка обязана отсутствовать, чтобы её карточка
@@ -478,6 +494,9 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
     # отдельный модуль, исключений не бросает и о своём исходе не молчит.
     delivery = _deliver_touched(root, created, closed, now, deliver)
     report = {"generated_at": now.isoformat(), "adr": "ADR-066",
+              # Провенанс предмета в ТОЙ ЖЕ форме, что у architecture_conformance
+              # (одна функция на обоих) — читает `_subject_drift` шага 0-офис.
+              "inputs": subject_inputs(root, (DECIDER_REL,)),
               "delivery": delivery,
               "owner_answer_delivery": _deliver_owner_answers(root, now, deliver_answers),
               "created": created, "deferred": deferred, "closed": closed,

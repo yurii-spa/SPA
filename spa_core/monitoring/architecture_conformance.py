@@ -436,7 +436,8 @@ def _manifest_drift_problems() -> dict | None:
                 "unmeasurable": [], "measured_from_ref": []}
 
 
-def subject_inputs(root: str = REPO_ROOT) -> list[dict]:
+def subject_inputs(root: str = REPO_ROOT,
+                   rels: tuple[str, ...] = (MANIFEST_REL,)) -> list[dict]:
     """Провенанс ПРЕДМЕТА: по какой именно копии конституции вынесен вердикт.
 
     Зачем (замер цикла #337). 21.08 07:44Z решение ADR-104 сменило такт
@@ -455,12 +456,19 @@ def subject_inputs(root: str = REPO_ROOT) -> list[dict]:
     `test_idempotent_write`). Поэтому читатель судит по содержимому, а mtime
     остаётся для отчёта и для старых отчётов без `inputs`.
 
+    `rels` — какой именно предмет описывать; по умолчанию конституция. Параметр
+    появился в цикле #471 ради ВТОРОГО потребителя (`findings_bridge`, ADR-220):
+    у отчёта моста предмет отказа — не карточки (живое состояние, сюда не
+    годится), а САМ РЕШАТЕЛЬ `card_delivery.py`. Форма провенанса у обоих
+    обязана быть ОДНА: её читает один и тот же `_subject_drift` шага 0-офис,
+    и вторая копия этой функции разъехалась бы с читателем молча.
+
     Fail-CLOSED: нечитаемый предмет — `measured: false` с причиной, а НЕ
     молчание и не «сошлось».
     """
     import hashlib
     rows: list[dict] = []
-    for rel in (MANIFEST_REL,):
+    for rel in rels:
         path = os.path.join(root, rel)
         row: dict = {"path": rel, "role": "subject", "measured": False,
                      "mtime": None, "sha256": None, "reason": ""}
