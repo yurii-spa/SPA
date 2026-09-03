@@ -96,10 +96,57 @@ MONEY_PATH_DIRS = [
 CEILING = 36
 
 
-def _unused_import_count() -> int:
-    """Run pyflakes over the money-path dirs; count 'imported but unused'."""
+class PyflakesUnavailable(RuntimeError):
+    """Инструмент замера недоступен — «не смотрели» ≠ «нечего смотреть» (#465).
+
+    До #465 отсутствие `pyflakes` давало ЧИСЛО 0, и оба производных теста читали
+    его как замер:
+
+    * `test_money_path_unused_imports_le_ceiling` **ЗЕЛЕНЕЛ** (`0 <= 36`) — храповик
+      молча переставал кусаться, ничего не измерив. Это fail-OPEN, и он тише
+      красного теста, поэтому опаснее;
+    * `test_ceiling_is_tight` КРАСНЕЛ с советом «Lower CEILING to 0 so the ratchet
+      stays tight» — то есть предлагал зафиксировать ноль, которого никто не мерил.
+      Послушавшийся получил бы ЛОЖНО ЗАТЯНУТЫЙ храповик: на машине с pyflakes он
+      краснеет на 36 настоящих импортах, и его выключают. Ловушка инварианта #16
+      наоборот — не ослабление, а фальшивое усиление.
+
+    Тот же класс, что и `_free_pid` в `spa_core/tests/test_cycle_lock_watch.py`
+    (тот же цикл): предпосылка не обеспечена ⇒ говорим об этом ВСЛУХ, а не судим.
+
+    Карточка `inbox-hrapovik-importov-sovetuet-zatyanut-seby` числила это
+    починенным циклом #278 — перемер #465 показал, что на `origin/main` правки нет
+    ВОВСЕ (последнее касание файла — #191). Отчёту карточки не верить, мерить.
+    """
+
+
+def _pyflakes_probe(run=None):
+    """`(есть ли инструмент, чем именно отказал)`. `run` — ВХОД, умолчание = настоящий ОС-вызов."""
+    runner = run if run is not None else subprocess.run
+    try:
+        proc = runner(
+            [sys.executable, "-m", "pyflakes", "--version"],
+            capture_output=True, text=True, timeout=30,
+        )
+    except OSError as exc:                              # интерпретатор/среда не отвечают
+        return False, f"{exc.__class__.__name__}: {exc}"
+    if proc.returncode != 0:
+        return False, (proc.stderr or proc.stdout or "").strip() or f"rc={proc.returncode}"
+    return True, ""
+
+
+def _unused_import_count(run=None) -> int:
+    """Run pyflakes over the money-path dirs; count 'imported but unused'.
+
+    Инструмента нет ⇒ `PyflakesUnavailable`, а НЕ ноль (см. класс выше).
+    """
+    runner = run if run is not None else subprocess.run
+    ok, why = _pyflakes_probe(run=runner)
+    if not ok:
+        raise PyflakesUnavailable(
+            f"pyflakes недоступен — считать неиспользуемые импорты нечем: {why}")
     targets = [str(REPO / d) for d in MONEY_PATH_DIRS]
-    result = subprocess.run(
+    result = runner(
         [sys.executable, "-m", "pyflakes", *targets],
         capture_output=True,
         text=True,
@@ -109,6 +156,20 @@ def _unused_import_count() -> int:
     # pyflakes exits non-zero when it finds warnings — that's expected.
     out = result.stdout
     return sum(1 for line in out.splitlines() if "imported but unused" in line)
+
+
+def _count_or_refuse_to_judge(run=None) -> int:
+    """Число — либо ОТКАЗ СУДИТЬ с названной причиной. Молчания здесь нет.
+
+    Отказ не создаёт дыры: сосед `test_pyflakes_available` продолжает краснеть на
+    отсутствие инструмента — это и есть fail-CLOSED. Здесь же важно ДРУГОЕ: ни один
+    вердикт о потолке не выносится по непроведённому замеру.
+    """
+    try:
+        return _unused_import_count(run=run)
+    except PyflakesUnavailable as exc:
+        pytest.fail(f"НЕ ИЗМЕРЕНО: {exc}. Потолок CEILING={CEILING} не подтверждён и "
+                    f"не опровергнут — менять его по этому прогону НЕЛЬЗЯ.")
 
 
 class TestUnusedImportRatchet:
@@ -132,7 +193,7 @@ class TestUnusedImportRatchet:
         unused imports were introduced on the capital-moving code path — remove
         them (do NOT raise CEILING).
         """
-        count = _unused_import_count()
+        count = _count_or_refuse_to_judge()
         assert count <= CEILING, (
             f"Unused-import count on money-path dirs rose to {count} "
             f"(ceiling {CEILING}). New dead imports were introduced — remove them. "
@@ -145,8 +206,84 @@ class TestUnusedImportRatchet:
         If the real count has dropped well below CEILING, LOWER the ceiling so
         the ratchet keeps biting. Allow a small buffer (4) for transient churn.
         """
-        count = _unused_import_count()
+        count = _count_or_refuse_to_judge()
         assert count >= CEILING - 4, (
             f"Unused-import count dropped to {count}, well under the ceiling "
             f"{CEILING}. Lower CEILING to {count} so the ratchet stays tight."
         )
+
+
+# ── Положительные контроли к третьему исходу «НЕ ИЗМЕРЕНО» (#465) ────────────
+#
+# Метод тот же, что у `_free_pid` в `spa_core/tests/test_cycle_lock_watch.py`
+# (тот же цикл): двери к окружению — ВХОД, поэтому «инструмента нет» можно
+# воспроизвести, не ломая машину. Умолчание `run=None` = настоящий `subprocess.run`,
+# так что штатный прогон побайтово прежний.
+
+class _Proc:
+    def __init__(self, returncode=0, stdout="", stderr=""):
+        self.returncode, self.stdout, self.stderr = returncode, stdout, stderr
+
+
+def _tool_missing(cmd, **kw):
+    """Окружение без pyflakes — дословно то, что печатает python3 -m pyflakes."""
+    return _Proc(returncode=1, stderr="No module named pyflakes\n")
+
+
+def _tool_present(count):
+    """Окружение С pyflakes, докладывающее ровно `count` неиспользуемых импортов."""
+    def run(cmd, **kw):
+        if "--version" in cmd:
+            return _Proc(returncode=0, stdout="3.4.0\n")
+        body = "".join(f"x.py:{i}:1 'os' imported but unused\n" for i in range(count))
+        return _Proc(returncode=1 if count else 0, stdout=body)
+    return run
+
+
+def test_missing_tool_is_refused_not_counted_as_zero():
+    """Ядро находки: без инструмента был ЧИСЛОМ 0, стал ОТКАЗОМ."""
+    with pytest.raises(PyflakesUnavailable) as err:
+        _unused_import_count(run=_tool_missing)
+    assert "No module named pyflakes" in str(err.value)
+
+
+def test_unmeasured_run_never_advises_lowering_the_ceiling():
+    """Совет «Lower CEILING to 0» по непроведённому замеру больше не звучит.
+
+    Ловим `BaseException`: и `pytest.fail`, и `pytest.skip` поднимают потомков
+    `BaseException`, а не `AssertionError`. Если сюда однажды вернут `skip`, исход
+    стал бы «skipped» — контроль замолчал бы ровно от того дефекта, против которого
+    написан.
+    """
+    try:
+        got = _count_or_refuse_to_judge(run=_tool_missing)
+    except BaseException as exc:                        # noqa: B036 — см. докстринг
+        msg = str(exc)
+        assert "НЕ ИЗМЕРЕНО" in msg, f"отказ обязан НАЗЫВАТЬ себя, а сказал: {msg!r}"
+        assert "Lower CEILING" not in msg, (
+            "вердикт о потолке вынесен по непроведённому замеру — ровно находка карточки")
+        assert type(exc).__name__ != "Skipped", (
+            "«не измерено» снова стало неотличимо от «прошло»: вернулся скип")
+    else:
+        raise AssertionError(
+            f"без pyflakes счёт не измеряется, а вернулось число {got} — fail-OPEN жив")
+
+
+def test_ceiling_verdicts_still_bite_when_the_tool_is_there():
+    """Обратная сторона: «всегда отказывать» было бы зелёным на контроле выше.
+
+    С инструментом счёт настоящий, и оба вердикта выносятся как раньше.
+    """
+    assert _count_or_refuse_to_judge(run=_tool_present(36)) == 36
+    assert _count_or_refuse_to_judge(run=_tool_present(0)) == 0
+
+
+def test_probe_separates_absent_tool_from_a_noisy_but_working_one():
+    """`pyflakes` пишет находки в stdout и выходит НЕнулевым — это не «его нет».
+
+    Проба спрашивает `--version` именно поэтому: путать «инструмент нашёл 36 штук»
+    с «инструмента нет» — значит вернуть ту же подмену с другой стороны.
+    """
+    assert _pyflakes_probe(run=_tool_present(36))[0] is True
+    ok, why = _pyflakes_probe(run=_tool_missing)
+    assert ok is False and "No module named pyflakes" in why

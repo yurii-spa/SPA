@@ -255,17 +255,123 @@ def test_pid_alive_measures_a_real_process():
     assert _pid_alive(os.getpid()) is True
 
 
+# ── свободный номер: ИЗМЕРЯЕМ, а не предполагаем (#465) ─────────────────────
+
+def _free_pid(probe=None) -> int:
+    """Номер процесса, которого СЕЙЧАС нет, — измеренный у той же двери (#465).
+
+    Здесь стоял литерал `4_194_303` и ветка «номер занят ⇒ `pytest.skip`». Оба —
+    класс `.claude/rules/deployment.md` «ЛИЧНОСТЬ ПРОЦЕССА в тестах», и каждый со
+    своей стороны:
+
+    * **Литерал.** `4_194_303` недостижим на macOS (`PID_MAX` 99999), но равен
+      `pid_max - 1` на 64-битном Linux по умолчанию — то есть на CI
+      (`ubuntu-latest`) вполне достижим. Ровно та ловушка, из-за которой #453
+      переписал `_dead_pid()` в `test_cycle_lock_holder_liveness.py`.
+    * **Скип.** Он был ИЗМЕРЕН и НАЗВАН (инв. #16 не нарушен), но направление
+      неверное: единственная проверка «`_pid_alive` отвечает `False` на
+      отсутствующий процесс» ИСЧЕЗАЛА ровно в тот день, когда ОС ведёт себя
+      необычно, — когда она нужнее всего. «Не измерено» снова становилось
+      неотличимо от «прошло» — тот же довод, по которому #343 снял скип в
+      `test_cycle_lock_refusal_verdict.py`. Найдено дифференциальным замером
+      класса (#453): при подмене обеих дверей к ОС на «любой номер жив» тест не
+      краснел и не проходил — он ИСЧЕЗАЛ. Замер #465 на том же методе:
+      до правки «27 passed, 1 skipped», после — «30 passed, 1 failed».
+
+    Дверь здесь ТА ЖЕ, которой потом ответит проверяемый код: `_pid_alive`
+    спрашивает `os.kill(pid, 0)`, поэтому и свободу мы спрашиваем у `os.kill`, а
+    не у `ps` (у соседнего файла предмет другой — там `_acquire_cycle_lock` идёт
+    через `ps`, и `_dead_pid()` спрашивает `ps`).
+
+    Диапазон 90000..99000 действителен на ОБЕИХ платформах (macOS `PID_MAX`
+    99999; Linux `pid_max` по умолчанию 4194304 — 99000 внутри него).
+
+    Направление отказа: не нашли свободного во всём диапазоне ⇒ падаем ГРОМКО.
+    Тест, не обеспечивший свою предпосылку, обязан сказать это вслух, а не
+    снимать проверку и не судить о живом номере как о мёртвом.
+
+    ``probe`` — ВХОД (умолчание `None` = спросить настоящую ОС, поэтому обычный
+    прогон побайтово прежний). Без него положительный контроль «враждебная ОС»
+    был бы невозможен: обе двери к ОС обязаны быть закрыты для того пути, которым
+    идёт контроль (`.claude/rules/deployment.md`, «половина инъекции — та же
+    бомба»).
+    """
+    kill = probe if probe is not None else os.kill
+    unmeasurable = 0
+    for pid in range(99_000, 90_000, -1):
+        try:
+            kill(pid, 0)
+        except ProcessLookupError:
+            return pid                      # процесса нет — это и есть предпосылка
+        except PermissionError:
+            continue                        # процесс ЕСТЬ, сигнал не наш ⇒ занят
+        except OSError:
+            unmeasurable += 1               # живость номера измерить нечем
+            continue
+    raise AssertionError(
+        "предпосылка теста не обеспечена: свободного номера процесса в диапазоне "
+        f"90000..99000 не нашлось (номеров, о которых судить было нечем: {unmeasurable}); "
+        "судить о мёртвом процессе нечем — проверка НЕ снимается, а падает")
+
+
 def test_pid_alive_reports_a_missing_process_as_dead():
-    # Заведомо свободный номер: берём большой и убеждаемся, что его нет.
-    ghost = 4_194_303
+    assert _pid_alive(_free_pid()) is False
+
+
+def test_free_pid_refuses_loudly_when_every_number_is_alive():
+    """Положительный контроль класса: под враждебной ОС проверка КРАСНЕЕТ, не исчезает.
+
+    Контроль обязан ловить и возврат скипа: `pytest.skip` поднимает
+    `Skipped(BaseException)`, поэтому `pytest.raises(AssertionError)` его не
+    поймал бы — исход стал бы «skipped», и контроль замолчал бы ровно от того
+    дефекта, против которого написан. Ловим `BaseException` и переводим в отказ.
+    """
+    hostile = lambda pid, sig: None         # noqa: E731 — любой номер «жив»
     try:
-        os.kill(ghost, 0)
-        pytest.skip("номер занят на этой машине — проверка неинформативна")
-    except ProcessLookupError:
-        pass
-    except OSError:
-        pytest.skip("живость этого номера измерить нельзя")
-    assert _pid_alive(ghost) is False
+        got = _free_pid(probe=hostile)
+    except AssertionError as exc:
+        assert "предпосылка теста не обеспечена" in str(exc)
+    except BaseException as exc:            # noqa: B036 — скип тоже обязан покраснеть
+        raise AssertionError(
+            "под враждебной ОС предпосылка обязана падать ГРОМКО, а вышла через "
+            f"{type(exc).__name__}: {exc}") from exc
+    else:
+        raise AssertionError(
+            f"под враждебной ОС _free_pid вернул номер {got} — свободу не измеряли")
+
+
+def test_free_pid_takes_the_first_number_the_os_calls_missing():
+    """Обратная сторона: свободный номер найден ⇒ он и возвращается, молча.
+
+    Без этого «починка» вида «всегда падать» была бы зелёной на контроле выше.
+    """
+    seen = []
+
+    def door(pid, sig):
+        seen.append(pid)
+        if pid == 95_000:
+            raise ProcessLookupError(pid)
+        raise PermissionError(pid)          # остальные заняты чужим пользователем
+
+    assert _free_pid(probe=door) == 95_000
+    assert seen[0] == 99_000, "обход обязан идти от 99000 вниз"
+
+
+def test_free_pid_does_not_mistake_an_unmeasurable_number_for_a_free_one():
+    """`OSError` — «измерить нечем», а не «свободен»: судить о нём нельзя.
+
+    Ровно та ошибка, которую делал прежний код: любой `OSError` уводил тест в
+    скип, а обратная подстановка («значит, свободен») сделала бы `_pid_alive`
+    зелёным на номере, о котором ОС ничего не сказала.
+    """
+    # errno 22 (EINVAL) — намеренно: у errno 1/3 Python подставляет ПОДКЛАСС
+    # (`PermissionError`/`ProcessLookupError`), и «неизмеримый» тихо превратился бы
+    # в «занят» или «свободен» — та же подмена, что и в предмете теста.
+    blind = lambda pid, sig: (_ for _ in ()).throw(OSError(22, "nope"))  # noqa: E731
+    with pytest.raises(AssertionError) as err:
+        _free_pid(probe=blind)
+    # Отказ НАЗЫВАЕТ счёт неизмеримых номеров, а не выдаёт их за свободные.
+    assert "номеров, о которых судить было нечем: 9000" in str(err.value)
 
 
 @pytest.mark.parametrize("bad", [0, -1, None])
