@@ -87,6 +87,8 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "loop_health.json": ("open_cards", "recurrences_total", "cards_fate",
                          "latency_finding_to_card", "latency_card_to_close",
                          "note"),
+    "code_sync_status.json": ("timestamp", "result", "detail", "origin_main",
+                             "files_changed", "retired_instructions"),
     "adapter_feed_divergence.json": ("overall", "counts.critical", "counts.warn",
                                      "counts.info", "counts.unchecked", "findings",
                                      "unchecked", "compared_protocols",
@@ -122,7 +124,38 @@ _PRODUCER: dict[str, str] = {
     "loop_retro.json": "spa_core/monitoring/loop_retro.py",
     "loop_health.json": "spa_core/monitoring/loop_health.py",
     "adapter_feed_divergence.json": "spa_core/monitoring/adapter_feed_divergence.py",
+    # Единственный производитель-СКРИПТ. Ключи он всё-таки пишет питоном —
+    # heredoc'ом внутри shell, — поэтому сверка схемы здесь настоящая, а не
+    # «неприменима»: разбирает встроенный питон (`_embedded_python`), а не
+    # ищет имя ключа подстрокой по shell-тексту.
+    "code_sync_status.json": "scripts/code_sync_from_origin.sh",
 }
+
+
+# ЧЕМ производитель называет собственное время. Умолчание — `generated_at`;
+# отклонения объявляются здесь ДАННЫМИ, а не угадываются перебором ключей.
+#
+# ЗАЧЕМ. Артефакт, у которого возраст «НЕ ИЗМЕРЕН» ПО ПОСТРОЕНИЮ, — необратимое
+# «не измерено» (класс #267): никакое состояние системы не сделает строку
+# измеренной, а объявленный в манифесте `slo_hours` становится украшением —
+# протухший артефакт неотличим от свежего. Живой замер #467: `code_sync_status.json`
+# пишет `timestamp`, и первая же его печать дала «производитель не пишет
+# generated_at» при отчёте возрастом шесть минут.
+#
+# Перебирать «ну хоть какое-нибудь похожее поле» ЗАПРЕЩЕНО намеренно: угаданное
+# поле может означать не время производства, а что-то своё, и тогда возраст
+# станет уверенно НЕВЕРНЫМ — хуже, чем честно неизмеренным. Здесь только то,
+# что сверено с исходником производителя (тест `test_ts_field_matches_producer`).
+_TS_FIELD: dict[str, str] = {
+    "code_sync_status.json": "timestamp",
+}
+
+
+def _produced_at(name: str, data):
+    """Отметка времени производства — по объявлению, иначе `generated_at`."""
+    if not isinstance(data, dict):
+        return None
+    return data.get(_TS_FIELD.get(name, "generated_at"))
 
 
 # О ЧЁМ вынесен вердикт — предмет проверки, в отличие от `_PRODUCER` (кто её
@@ -186,7 +219,7 @@ def _subject_drift(name: str, data, *, root: str | None = None,
     if not subjects:
         return []
     root = root or REPO_ROOT
-    art_ts = _parse_ts(data.get("generated_at"))
+    art_ts = _parse_ts(_produced_at(name, data))
     recorded = {r.get("path"): r for r in (data.get("inputs") or [])
                 if isinstance(r, dict)}
     lines: list[str] = []
@@ -240,6 +273,79 @@ def _has_path(data, path: str) -> bool:
     return True
 
 
+#: Heredoc с питоном внутри shell-производителя: `python3 - <<'PYEOF' … PYEOF`.
+#: Метка произвольная, закрывающая строка — та же метка с начала строки.
+_PY_HEREDOC_RE = re.compile(
+    r"""^(?P<cmd>[^\n]*?)"""
+    r"""<<[-]?\s*['"]?(?P<tag>[A-Za-z_][A-Za-z0-9_]*)['"]?\s*\n"""
+    r"""(?P<body>.*?)\n(?P=tag)\s*$""",
+    re.S | re.M)
+
+#: `ИМЯ=значение` в shell — чтобы узнать питон, спрятанный за переменной.
+_SH_ASSIGN_RE = re.compile(r"^\s*(?P<var>[A-Za-z_][A-Za-z0-9_]*)=(?P<val>\S+)",
+                           re.M)
+_PYTHON_RE = re.compile(r"\bpython[0-9.]*\b")
+
+
+def _python_vars(text: str) -> set:
+    """Переменные скрипта, значение которых — питон (`PYTHON=/…/python3`)."""
+    return {m.group("var") for m in _SH_ASSIGN_RE.finditer(text)
+            if _PYTHON_RE.search(m.group("val"))}
+
+
+def _launches_python(cmd: str, pyvars: set) -> bool:
+    """Зовёт ли эта команда питон — прямо или через переменную скрипта.
+
+    Прямое имя (`python3 - <<'PY'`) и переменная (`"$PYTHON" - <<'PYEOF'`) —
+    один и тот же способ запуска; различать их значило бы объявить настоящего
+    производителя неизмеримым по форме записи. Живой замер: именно так и
+    устроен `code_sync_from_origin.sh` (`PYTHON=/…/python3`, затем `"$PYTHON"`).
+    """
+    if _PYTHON_RE.search(cmd):
+        return True
+    return any(re.search(r"\$\{?" + re.escape(v) + r"\b", cmd) for v in pyvars)
+
+
+def _embedded_python(text: str) -> list:
+    """Куски питона внутри shell-исходника — те, что действительно разбираются.
+
+    ЗАЧЕМ. `_source_keys` спрашивала у `ast` весь файл целиком, поэтому у
+    производителя-СКРИПТА (`scripts/code_sync_from_origin.sh`) сверка схемы
+    отвечала `SyntaxError` ⇒ `None` ⇒ громкое «не измерено» на КАЖДОМ прогоне.
+    Это честно, но бесполезно: строка «не измерено», которая не может стать
+    измеренной ни при каком состоянии системы, — шум, а не сторож (тот же урок,
+    что у необратимого `UNCHECKED`, #267).
+
+    Мерить тут ЕСТЬ что: артефакт `data/code_sync_status.json` пишет питон,
+    встроенный в скрипт heredoc'ом, и имена ключей — обычные питоновские
+    литералы. Разбираем именно их, а НЕ ищем имя ключа подстрокой по всему
+    shell-тексту: подстрока зачла бы упоминание в комментарии за проводку —
+    капкан #227, из-за которого объяснение «этого тут нет» молча снимало вопрос.
+
+    Граница названа честно и меряется КОМАНДОЙ, а не разбором. Первая редакция
+    брала любой heredoc, который питон сумел разобрать, — и это оказалось ложным
+    признаком: тело обычного текстового heredoc'а вида ``retired_instructions``
+    разбирается как валидное выражение-имя, то есть произвольный shell-текст
+    выдавал бы себя за исходник производителя. Признаком служит СТРОКА ЗАПУСКА:
+    heredoc берётся, только если его открывает команда, зовущая `python`.
+    Разбор остаётся вторым ситом (не разобралось ⇒ не наш кусок). Если
+    питоновских кусков не нашлось вовсе, вызывающий получает пустой список и
+    обязан сказать «НЕ ИЗМЕРЕНО» — не «пусто».
+    """
+    out = []
+    pyvars = _python_vars(text)
+    for m in _PY_HEREDOC_RE.finditer(text):
+        if not _launches_python(m.group("cmd"), pyvars):
+            continue                # heredoc не питона — не наш кусок
+        body = m.group("body")
+        try:
+            ast.parse(body)
+        except (SyntaxError, ValueError):
+            continue                # объявлен питоном, но не разбирается
+        out.append(body)
+    return out
+
+
 def _source_keys(path: str):
     """Строковые литералы исходника — или None, если измерить нечем.
 
@@ -251,14 +357,24 @@ def _source_keys(path: str):
     так). None ⇒ «не измерено», НИКОГДА не «в порядке».
     """
     try:
-        tree = ast.parse(_read_text(path))
-    except (OSError, SyntaxError, ValueError):
+        text = _read_text(path)
+    except OSError:
         return None
-    bare = {id(n.value) for n in ast.walk(tree)
-            if isinstance(n, ast.Expr) and isinstance(n.value, ast.Constant)}
-    return {n.value for n in ast.walk(tree)
-            if isinstance(n, ast.Constant) and isinstance(n.value, str)
-            and id(n) not in bare}
+    sources = [text] if not path.endswith(".sh") else _embedded_python(text)
+    if not sources:
+        return None                 # bash без python-heredoc — измерять нечем
+    keys: set = set()
+    for src in sources:
+        try:
+            tree = ast.parse(src)
+        except (SyntaxError, ValueError):
+            return None             # разобрать не смогли ⇒ НЕ ИЗМЕРЕНО, а не «пусто»
+        bare = {id(n.value) for n in ast.walk(tree)
+                if isinstance(n, ast.Expr) and isinstance(n.value, ast.Constant)}
+        keys |= {n.value for n in ast.walk(tree)
+                 if isinstance(n, ast.Constant) and isinstance(n.value, str)
+                 and id(n) not in bare}
+    return keys
 
 
 def _read_text(path: str) -> str:
@@ -292,7 +408,7 @@ def _schema_drift(name: str, data, *, root: str | None = None) -> list[str]:
             if src else None
     except OSError:
         mtime = None
-    art_ts = _parse_ts(data.get("generated_at"))
+    art_ts = _parse_ts(_produced_at(name, data))
 
     if rel is None:
         why = "производитель не объявлен в _PRODUCER"
@@ -363,7 +479,7 @@ def _parse_ts(value):
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=dt.timezone.utc)
 
 
-def _age_line(ts_value, now: dt.datetime) -> str:
+def _age_line(ts_value, now: dt.datetime, *, field: str = "generated_at") -> str:
     """Возраст артефакта — безусловно, для КАЖДОГО артефакта.
 
     Отдельная строка, а не свойство generic-ветки: до #176 возраст печатался
@@ -372,13 +488,13 @@ def _age_line(ts_value, now: dt.datetime) -> str:
     признака возраста (замер: 19.4 ч, и три «возможности» в нём были дофиксовые).
     """
     if ts_value is None:
-        return "   ⚠️ возраст НЕ ИЗМЕРЕН: производитель не пишет generated_at"
+        return f"   ⚠️ возраст НЕ ИЗМЕРЕН: производитель не пишет {field}"
     parsed = _parse_ts(ts_value)
     if parsed is None:
-        return f"   ⚠️ возраст НЕ ИЗМЕРЕН: generated_at не разобран ({ts_value!r})"
+        return f"   ⚠️ возраст НЕ ИЗМЕРЕН: {field} не разобран ({ts_value!r})"
     hours = (now - parsed).total_seconds() / 3600.0
     mark = "  ⚠️ старше суток" if hours >= STALE_HOURS else ""
-    return f"   generated_at: {ts_value} (возраст {hours:.1f}ч){mark}"
+    return f"   {field}: {ts_value} (возраст {hours:.1f}ч){mark}"
 
 
 def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
@@ -399,7 +515,7 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         return [f"   (не-dict JSON, {type(data).__name__})"]
     now = now or dt.datetime.now(dt.timezone.utc)
     head: list[str] = _schema_drift(name, data, root=root)
-    head.append(_age_line(data.get("generated_at"), now))
+    head.append(_age_line(_produced_at(name, data), now, field=_TS_FIELD.get(name, "generated_at")))
     # ПОСЛЕ возраста и ДО вердикта: читатель должен узнать, что предмет сменился,
     # раньше, чем прочтёт вердикт о нём.
     head.extend(_subject_drift(name, data, root=(artifact_root or root), now=now))
@@ -485,6 +601,48 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             out.append(f"   [измерено с {p.get('ref')}] {p.get('label')}: "
                        f"{p.get('plist')} — в прод-дереве файла нет, "
                        f"{'сошлось' if p.get('agrees') else 'РАСХОДИТСЯ'}")
+    elif name == "code_sync_status.json":
+        # ЗАЧЕМ ЭТА ВЕТКА. Поле `retired_instructions` (ADR-214, цикл #458)
+        # писалось и не читалось НИКЕМ — писатель без потребителя, зеркало
+        # ADR-209. Смысл поля прямой: `git checkout <ref> -- <путь>` НЕ удаляет,
+        # поэтому правило, снятое владельцем на origin, продолжает лежать в
+        # прод-дереве и управлять агентами, которые читают его ПЕРЕД работой
+        # (CLAUDE.md §5). Молчание тут неотличимо от «всё в порядке».
+        #
+        # Население класса на день заведения читателя — НОЛЬ (03.09: `CLAUDE.md`
+        # и все пять `.claude/rules/*.md` в прод-дереве побайтово совпадают с
+        # origin). Сказано вслух намеренно: читатель заводится на предмет,
+        # которого сейчас нет, и это не повод считать его лишним — он и нужен
+        # ровно к тому дню, когда владелец правило снимет. Обратная сторона
+        # (совпало ⇒ тишина) закреплена отдельным тестом, иначе «нечего
+        # называть» неотличимо от «называть разучились».
+        #
+        # `_SUBJECT` здесь СОЗНАТЕЛЬНО не объявлен: предмет этого вердикта —
+        # живое дерево, а не git-файл; объявить его значило бы давать находку
+        # на каждую запись цикла (см. комментарий к `_SUBJECT`).
+        result = data.get("result")
+        out.append(f"   синхронизация кода с origin: {result}"
+                     f" · origin_main {str(data.get('origin_main') or '?')[:9]}"
+                     f" · файлов сменилось {_num(data, 'files_changed')}")
+        if result not in (None, "SYNCED", "IN_SYNC"):
+            out.append(f"   ⚠️  последняя синхронизация НЕ удалась: "
+                         f"{data.get('detail') or 'причина не названа'} — дерево "
+                         f"работает на ПРЕЖНЕМ коде")
+        retired = data.get("retired_instructions")
+        if retired is None:
+            out.append(f"   [{_UNMEASURED}] снятые инструкции: поля нет в отчёте — "
+                         f"сказать, не действует ли в дереве отменённое правило, НЕЧЕМ")
+        elif retired:
+            out.append(f"   🔴 ИНСТРУКЦИЙ, КОТОРЫХ НА origin БОЛЬШЕ НЕТ, а в дереве "
+                         f"лежат: {len(retired)} — их продолжают читать ПЕРЕД работой, "
+                         f"хотя владелец их снял (`git checkout` не удаляет):")
+            for f in retired:
+                out.append(f"      ! {f}")
+            out.append(f"      удаление из прод-дерева — действие владельца "
+                         f"(.claude/rules/deployment.md §6), сторож только НАЗЫВАЕТ")
+        else:
+            out.append("   снятых инструкций нет: состав `CLAUDE.md` + "
+                         "`.claude/rules/` в дереве совпадает с origin")
     elif name == "adapter_feed_divergence.json":
         # Сверка ДВУХ артефактов адаптеров об одном протоколе (ADR-060 D6).
         # Рода расхождений печатаются РАЗНЫМИ словами намеренно: «оба фида

@@ -2786,6 +2786,16 @@
  ],
  "artifacts": [
   {
+   "path": "data/code_sync_status.json",
+   "producer": "com.spa.orchestrator",
+   "consumers": [
+    "orchestrator_protocol"
+   ],
+   "slo_hours": 2,
+   "status": "active",
+   "notes": "ADR-214: инструкции доставляются как код. Поле retired_instructions называет файлы CLAUDE.md/.claude/rules, которые лежат в прод-дереве, а на origin их больше нет — `git checkout <ref> -- <путь>` не удаляет, поэтому снятое владельцем правило продолжает управлять агентами, читающими его ПЕРЕД работой. slo_hours=2 ИЗМЕРЕН, а не выбран: за 7 суток 2303 прогона производителя, максимальный разрыв 0.51 ч при медиане <0.01 ч — порог с запасом ~4x к худшему наблюдённому, срабатывает только когда производитель реально встал. Производитель — скрипт scripts/code_sync_from_origin.sh: ключи пишет питон внутри heredoc, поэтому сверка схемы настоящая (цикл #467)"
+  },
+  {
    "path": "data/investment_os/chief_investment.json",
    "producer": "com.spa.io_chief_investment",
    "consumers": [
