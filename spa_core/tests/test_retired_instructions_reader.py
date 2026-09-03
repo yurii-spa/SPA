@@ -32,6 +32,13 @@ office = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(office)
 
 NAME = "code_sync_status.json"
+# FROZEN-DATE-OK: injected-clock — приём #1 `.claude/rules/deployment.md`: часы здесь ВХОД,
+# а не окружение. Литерал ровно один — якорь `NOW`, и он передаётся `now=NOW` в КАЖДЫЙ
+# вызов, читающий время (`office._summarize_json`, `office._age_line`); все отметки фикстур
+# выведены из него относительно (`NOW - timedelta(...)`). Обе стороны закреплены, поэтому
+# календарь на вердикт не влияет. Заменить литерал на живые часы здесь НЕЛЬЗЯ: тогда откат
+# кода к окружающим часам дал бы примерно те же возрасты и тест перестал бы быть
+# положительным контролем на саму инъекцию. Пропущено при доставке #467, дописано #468.
 NOW = dt.datetime(2026, 9, 3, 12, 0, tzinfo=dt.timezone.utc)
 
 
