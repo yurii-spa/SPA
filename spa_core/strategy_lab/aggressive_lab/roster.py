@@ -763,7 +763,7 @@ _TIER_DESCRIPTORS: Dict[str, dict] = {
     "pendle_pt_levered":{"tier": "aggressive", "leverage": 3.0, "hedged": False, "uses_points_lrt_loops": True},
     "lrt_neutral":      {"tier": "aggressive", "leverage": 1.0, "hedged": True,  "uses_points_lrt_loops": True},
     "eth_directional":  {"tier": "balanced",   "leverage": 1.0, "hedged": False, "uses_points_lrt_loops": False},
-    "leverage_loop":    {"tier": "aggressive", "leverage": 3.0, "hedged": False, "uses_points_lrt_loops": True},
+    "leverage_loop":    {"tier": "aggressive", "leverage": 2.0, "hedged": False, "uses_points_lrt_loops": True},
     "points_farm":      {"tier": "aggressive", "leverage": 1.0, "hedged": False, "uses_points_lrt_loops": True},
     "lp_eth_stable":    {"tier": "aggressive", "leverage": 1.0, "hedged": False, "uses_points_lrt_loops": False},
     "levered_restaking":{"tier": "aggressive", "leverage": 3.0, "hedged": False, "uses_points_lrt_loops": True},
