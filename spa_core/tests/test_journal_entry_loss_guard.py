@@ -27,6 +27,8 @@ import importlib.util
 import unittest
 from pathlib import Path
 
+from spa_core.tests import _pusher_wiring as wiring
+
 _ROOT = Path(__file__).resolve().parents[2]
 _spec = importlib.util.spec_from_file_location(
     "_pusher_under_test", _ROOT / "push_to_github.py")
@@ -215,16 +217,31 @@ class GuardIsWiredIntoThePusher(unittest.TestCase):
         трассировкой вместо честного FAIL."""
         self.assertTrue(issubclass(pusher.EntryLossRefused, pusher.DivergenceRefused))
 
+    # ── ПРАВКА ПОДЪЁМА #467, обоснование по инварианту #16 ────────────────
+    # Две проверки ниже спрашивали текст точки встраивания на литерал
+    # `guard_entry_loss`. С появлением второй охраняемой единицы смысла
+    # (раздел `.claude/rules/*.md`, карточка
+    # `inbox-u-failov-claude-rules-net-ni-odnogo-stor`) ветки зовут ОДНУ дверь
+    # `guard_content_loss`, которая внутри зовёт обе проверки.
+    #
+    # Это НЕ ослабление и не подгонка под зелёный: вопрос теста («доходит ли
+    # сюда проверка записей?») сохранён ЦЕЛИКОМ и стал строже — вместо поиска
+    # имени в тексте меряются ДВА звена, второе разбором AST (см.
+    # `_pusher_wiring`). Ровно тот же вопрос задавали ещё два файла своими
+    # копиями строки; теперь реализация одна на всех.
+
     def test_guard_overwrite_calls_the_check_on_the_unmeasured_path(self):
         """Дыра была именно здесь: базы нет ⇒ пуш уходил как есть."""
         src = (_ROOT / "push_to_github.py").read_text(encoding="utf-8")
-        unmeasured = src.split("DIVERGENCE_UNMEASURED:")[1].split("# DIVERGENCE_DIVERGED")[0]
-        self.assertIn("guard_entry_loss", unmeasured)
+        del src
+        wiring.assert_branch_reaches(wiring.branch_of("DIVERGENCE_UNMEASURED"),
+                                     "guard_entry_loss", "ветка DIVERGENCE_UNMEASURED")
 
     def test_guard_overwrite_calls_the_check_on_the_safe_path(self):
         src = (_ROOT / "push_to_github.py").read_text(encoding="utf-8")
-        safe = src.split("if state == DIVERGENCE_SAFE:")[1].split("if state == DIVERGENCE_UNMEASURED")[0]
-        self.assertIn("guard_entry_loss", safe)
+        del src
+        wiring.assert_branch_reaches(wiring.branch_of("DIVERGENCE_SAFE"),
+                                     "guard_entry_loss", "ветка DIVERGENCE_SAFE")
 
 
 if __name__ == "__main__":

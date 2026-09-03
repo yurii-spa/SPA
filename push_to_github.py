@@ -774,6 +774,137 @@ def is_append_only_doc(repo_path: str) -> bool:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# ПРАВИЛА (`.claude/rules/`): ИСЧЕЗНОВЕНИЕ РАЗДЕЛА = ОТКАЗ
+#
+# ЗАЧЕМ. Замер цикла #453 (02.09): `.claude/rules/deployment.md` потерял 104
+# строки от ОДНОЙ доставки — `ba66e1bd3` (30.08) принёс свой пункт 8 поверх
+# УСТАРЕВШЕЙ копии файла и унёс с собой всё, что добавили после неё: разделы
+# «Четыре вопроса — четыре разных сторожа» (файл откатился к редакции «Три
+# вопроса»), «Долгоживущий агент держит код с момента старта», запрет проверять
+# долгожителя запуском и «ЛИЧНОСТЬ ПРОЦЕССА в тестах». Шесть дней этих правил
+# не существовало, при том что карточка, `docs/STATE.md` и журнал хором
+# утверждали «класс закрыт ПРАВИЛОМ». Пропажу нашёл НЕ сторож, а случайность:
+# правило понадобилось процитировать, и его не оказалось на месте.
+#
+# Ни один существующий механизм на этот вопрос не отвечал: у `docs/STATE.md`
+# есть храповик длины, у `docs/decisions/INDEX.md` — `guard_entry_loss`, а у
+# правил не было ничего. Цена ошибки здесь ВЫШЕ, чем у журнала: правило читают
+# ПЕРЕД тем, как трогать прод (CLAUDE.md §5), и стёртое правило не краснеет —
+# оно просто перестаёт существовать.
+#
+# ЧТО ДЕЛАЕМ. Единица смысла правила — РАЗДЕЛ (`##`/`###`). Уезжающая копия, в
+# которой раздела с origin больше нет, — отказ у единственной двери доставки.
+# Логика «пропажа или переименование» НЕ дублируется: это тот же
+# `classify_missing_entries`, которому передан другой разделитель.
+#
+# ЦЕНА ОШИБКИ, ИЗМЕРЕННАЯ А НЕ ПРЕДПОЛОЖЕННАЯ (вся история `.claude/rules/`,
+# 16 коммитов, где файл существовал и в родителе): отказов 3 — `ba66e1bd3`
+# (настоящая авария, 4 раздела) и ДВА законных переписывания одного и того же
+# заголовка вместе с телом (`7ed5b3da4`, `2828e2ac5`: «Три вопроса» → «Четыре
+# вопроса»). Переименование, при котором изменились И заголовок, И тело,
+# неотличимо от пропажи ПО ПОСТРОЕНИЮ — поэтому оно не гасится молча, а
+# РАЗРЕШАЕТСЯ человеком: отказ называет и пропавшие разделы, и появившиеся
+# взамен, и рост/усадку файла в строках. Этих трёх улик хватает, чтобы отличить
+# переименование от потери одним взглядом; осознанное сокращение — как и везде
+# у пушера, `--allow-overwrite`.
+#
+# ПОДЪЁМ #467: сама плоскость параметра здесь БОЛЬШЕ НЕ ВВОДИТСЯ. Пока работа
+# #456 лежала в мёртвом дереве, цикл #459 завёл `pattern=` у тех же четырёх
+# функций (реестр решений — строка таблицы) и вдобавок `_entry_key`. Принесённый
+# сюда патч подменил бы это своей копией с `pattern=None` — ровно та авария,
+# против которой пишется этот сторож. Взято только НОВОЕ.
+# ══════════════════════════════════════════════════════════════════════════════
+
+#: Файлы правил, которые сессия обязана прочитать ПЕРЕД работой в области.
+RULES_PREFIXES = (".claude/rules/",)
+
+#: Единица смысла ПРАВИЛА — раздел. `#` не берём: это заголовок всего файла.
+RULES_SECTION_RE = re.compile(rb"^#{2,3}[ \t]+\S.*$", re.M)
+
+
+class RulesSectionLossRefused(DivergenceRefused):
+    """Пуш стёр бы раздел правила, который есть на remote."""
+
+
+def is_rules_doc(repo_path: str) -> bool:
+    """Файл правил (`.claude/rules/*.md`), у которого единица смысла — раздел."""
+    return (any(repo_path.startswith(p) for p in RULES_PREFIXES)
+            and repo_path.endswith(".md"))
+
+
+def guard_rules_section_loss(repo_path: str, remote_bytes: Optional[bytes],
+                             content_bytes: bytes, remote_sha: Optional[str],
+                             allow_overwrite: bool = False) -> str:
+    """Отказать, если пуш стирает раздел правила. Возвращает ноту (может быть пустой).
+
+    Порядок — тот же fail-CLOSED, что у :func:`guard_entry_loss`: не правило /
+    явное ``--allow-overwrite`` / файла на remote нет ⇒ терять нечего; файл на
+    remote ЕСТЬ, а содержимое не прочитано ⇒ это не «всё в порядке», а
+    неизмеренная потеря.
+    """
+    if allow_overwrite or not is_rules_doc(repo_path):
+        return ""
+    if remote_sha is None:
+        return ""                    # файла на remote нет — терять нечего
+    if remote_bytes is None:
+        raise RulesSectionLossRefused(
+            f"{repo_path}: содержимое на remote НЕ ПРОЧИТАНО (sha {remote_sha[:8]} "
+            f"есть), а это файл правил — значит нельзя сказать, не стираем ли мы "
+            f"чужой раздел. Пуш отменён (fail-CLOSED, инвариант #2).\n"
+            f"Что делать: повторить (Contents API не отдаёт содержимое файлов "
+            f">1 МБ); осознанное сокращение — `--allow-overwrite`.")
+
+    lost, renamed = classify_missing_entries(remote_bytes, content_bytes,
+                                             RULES_SECTION_RE)
+    if not lost:
+        if renamed:
+            pairs = ", ".join(f"{a.decode('utf-8', 'replace')} → "
+                              f"{b.decode('utf-8', 'replace')}" for a, b in renamed)
+            return (f"ℹ️  {repo_path}: раздел(ы) переименованы, тело уцелело "
+                    f"побайтово — {pairs}")
+        return ""
+
+    # Улики для человека: что пропало, что появилось взамен, куда поехал объём.
+    appeared = [h for h in entry_headers(content_bytes, RULES_SECTION_RE)
+                if h not in entry_headers(remote_bytes, RULES_SECTION_RE)]
+    delta = content_bytes.count(b"\n") - remote_bytes.count(b"\n")
+    named = "\n".join(f"  ! {h.decode('utf-8', 'replace')}" for h in lost)
+    new_named = ("\n".join(f"  + {h.decode('utf-8', 'replace')}" for h in appeared)
+                 or "  (ни одного)")
+    raise RulesSectionLossRefused(
+        f"{repo_path}: пуш стёр бы {len(lost)} раздел(ов) правила, которые есть "
+        f"на remote (sha {remote_sha[:8]}):\n{named}\n"
+        f"Появилось взамен:\n{new_named}\n"
+        f"Объём файла: {delta:+d} строк(и) НЕТТО к remote.\n"
+        f"Так 30.08 `ba66e1bd3` унёс 104 строки `.claude/rules/deployment.md` — "
+        f"доставка принесла свой раздел поверх УСТАРЕВШЕЙ копии, и шесть дней "
+        f"правил не существовало. Пуш отменён (fail-CLOSED, инвариант #2).\n"
+        f"Что делать: перечитать файл со свежего origin, перенести свою правку "
+        f"на него (дописывать ПОВЕРХ origin-версии, а не подменять своей копией) "
+        f"и запушить снова. Если раздел убирается ОСОЗНАННО — `--allow-overwrite`, "
+        f"и напиши в теле коммита, что именно и почему снято.")
+
+
+def guard_content_loss(repo_path: str, remote_bytes: Optional[bytes],
+                       content_bytes: bytes, remote_sha: Optional[str],
+                       allow_overwrite: bool = False) -> str:
+    """Одна дверь для проверок «наш пуш стирает чужое содержимое».
+
+    Диспетчер, а не третья реализация: у общей тетради единица смысла — ЗАПИСЬ
+    (:func:`guard_entry_loss`), у файла правил — РАЗДЕЛ
+    (:func:`guard_rules_section_loss`). Файл может быть только чем-то одним, но
+    вызываются обе: молчание проверки, которой файл не по адресу, стоит ноль, а
+    забытый вызов у новой двери — ровно тот способ, которым сторож перестаёт
+    существовать, оставаясь в коде.
+    """
+    notes = [guard_entry_loss(repo_path, remote_bytes, content_bytes, remote_sha,
+                              allow_overwrite=allow_overwrite),
+             guard_rules_section_loss(repo_path, remote_bytes, content_bytes,
+                                      remote_sha, allow_overwrite=allow_overwrite)]
+    return "\n".join(n for n in notes if n)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # ОБЩАЯ ПАМЯТЬ: НЕИЗМЕРИМАЯ БАЗА = ОТКАЗ (решение владельца ADR-070 п.7)
 #
 # ЗАЧЕМ. Страж перезаписи выше по умолчанию НЕ блокирует `DIVERGENCE_UNMEASURED`
@@ -1008,8 +1139,8 @@ def guard_overwrite(pat: str, repo: str, branch: str, repo_path: str, abs_path,
         # remote == база ⇒ содержимое remote у нас уже на руках, сеть не нужна.
         # Проверять всё равно надо: «чужого тут нет» не значит «своего не теряем»
         # (`f35ff96ed` уронил запись `STATE.md` ровно на этом пути).
-        note = guard_entry_loss(repo_path, verdict.get("base"), local_bytes, remote_sha,
-                                allow_overwrite=allow_overwrite)
+        note = guard_content_loss(repo_path, verdict.get("base"), local_bytes,
+                                  remote_sha, allow_overwrite=allow_overwrite)
         return local_bytes, note
 
     if state == DIVERGENCE_UNMEASURED:
@@ -1021,11 +1152,12 @@ def guard_overwrite(pat: str, repo: str, branch: str, repo_path: str, abs_path,
                 f"Пуш отменён (fail-CLOSED).")
         # ЗДЕСЬ И БЫЛА ДЫРА: базы нет ⇒ раньше уходило как есть. Проверка записей
         # базы не требует — только содержимого remote, и берёт его сама.
-        if not allow_overwrite and is_append_only_doc(repo_path) and remote_sha is not None:
-            entry_note = guard_entry_loss(repo_path,
-                                          get_file_content(pat, repo, repo_path, branch),
-                                          local_bytes, remote_sha,
-                                          allow_overwrite=allow_overwrite)
+        watched = is_append_only_doc(repo_path) or is_rules_doc(repo_path)
+        if not allow_overwrite and watched and remote_sha is not None:
+            entry_note = guard_content_loss(repo_path,
+                                            get_file_content(pat, repo, repo_path, branch),
+                                            local_bytes, remote_sha,
+                                            allow_overwrite=allow_overwrite)
             if entry_note:
                 note = f"{note}\n{entry_note}"
         # Общая память (ADR-070 п.7). Стоит ПОСЛЕ проверки записей намеренно: обе
@@ -1056,8 +1188,8 @@ def guard_overwrite(pat: str, repo: str, branch: str, repo_path: str, abs_path,
         # Пере-база сохраняет remote целиком ПО ПОСТРОЕНИЮ (remote — префикс
         # результата). Проверка здесь бесплатна (remote уже прочитан) и стоит
         # ровно затем, чтобы регрессия `rebase_append` не проехала молча.
-        entry_note = guard_entry_loss(repo_path, remote_bytes, rebased, remote_sha,
-                                      allow_overwrite=allow_overwrite)
+        entry_note = guard_content_loss(repo_path, remote_bytes, rebased, remote_sha,
+                                        allow_overwrite=allow_overwrite)
         rebase_note = (f"🔀 пере-база {repo_path}: наша добавка наложена на свежее "
                        f"содержимое remote (обе записи сохранены)")
         return rebased, (f"{rebase_note}\n{entry_note}" if entry_note else rebase_note)

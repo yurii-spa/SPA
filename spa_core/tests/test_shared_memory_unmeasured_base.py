@@ -41,6 +41,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from spa_core.tests import _pusher_wiring as wiring
+
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -407,8 +409,11 @@ def test_guard_is_wired_into_the_unmeasured_branch(ptg):
     unmeasured = src.split("DIVERGENCE_UNMEASURED:")[1].split("# DIVERGENCE_DIVERGED")[0]
     assert "is_shared_memory_doc" in unmeasured, (
         "страж не встроен в ветку, ради которой написан")
-    assert "guard_entry_loss" in unmeasured, (
-        "проверка записей выпала из неизмеренной ветки — защита #139 потеряна")
+    # Подъём #467: с появлением второй охраняемой единицы смысла ветка зовёт
+    # дверь `guard_content_loss`. Вопрос («доходит ли сюда проверка записей?»)
+    # тот же и стал строже — второе звено меряется разбором AST, а не текстом.
+    wiring.assert_branch_reaches(unmeasured, "guard_entry_loss",
+                                 "неизмеренная ветка (защита #139)")
 
 
 def test_batch_push_of_shared_memory_aborts_the_whole_set(ptg, monkeypatch, plain):

@@ -32,6 +32,8 @@ import importlib.util
 import unittest
 from pathlib import Path
 
+from spa_core.tests import _pusher_wiring as wiring
+
 _ROOT = Path(__file__).resolve().parents[2]
 _spec = importlib.util.spec_from_file_location(
     "_pusher_rename_under_test", _ROOT / "push_to_github.py")
@@ -251,9 +253,14 @@ class RenameNoteReachesTheHuman(unittest.TestCase):
     """Нота бесполезна, если её никто не печатает — сверяем ПРОВОДКУ."""
 
     def test_safe_path_returns_the_note(self):
-        src = (_ROOT / "push_to_github.py").read_text(encoding="utf-8")
-        safe = src.split("if state == DIVERGENCE_SAFE:")[1].split("if state == DIVERGENCE_UNMEASURED")[0]
-        self.assertIn("note = guard_entry_loss", safe)
+        # Проводка меряется общим `_pusher_wiring` (подъём #467): с появлением
+        # второй охраняемой единицы смысла ветка зовёт дверь `guard_content_loss`,
+        # а не проверку напрямую. Утверждение «нота присваивается и возвращается»
+        # сохранено рядом — вместе они и есть прежний вопрос, только без
+        # привязки к одному конкретному имени вызываемого.
+        safe = wiring.branch_of("DIVERGENCE_SAFE")
+        wiring.assert_branch_reaches(safe, "guard_entry_loss", "ветка DIVERGENCE_SAFE")
+        self.assertRegex(safe, r"note = guard_\w+\(")
         self.assertNotIn('return local_bytes, ""', safe)
 
     def test_unmeasured_path_appends_the_note(self):
