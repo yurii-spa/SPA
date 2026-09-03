@@ -201,6 +201,8 @@ _REQUIRED_BLOCKS: "list[tuple[str, str]]" = [
     ("Доказанность APY", "доказанность APY"),
     ("Гейт доказательств", "гейт доказательств (ADR-169)"),
     ("Скачки APY", "сторож скачков APY"),
+    # ADR-183: цена газа должна быть видна владельцу каждый день.
+    ("Цена газа", "цена газа (ADR-183)"),
 ]
 
 
@@ -300,6 +302,38 @@ def _build_oversight_section(ddir: Path) -> str:
             lines.append(f"⚡ Скачки APY: <b>{len(spikes)}</b> — {_esc(named)}{_esc(more)}")
     except Exception:  # noqa: BLE001
         lines.append("⚡ Скачки APY: не измерено — это сигнал (сторож не отработал)")
+
+    # 4. Цена газа (ADR-183): агент меряет каждые 30 мин — отчёт показывает.
+    # Затяжное «не измерено» обязано быть видно владельцу, а не только файлу:
+    # отказ источников агент честно пишет как unchecked, и эта строка — его
+    # единственный человеческий читатель до подключения алертов.
+    try:
+        raw = json.loads((ddir / "gas_price_history.json").read_text(encoding="utf-8"))
+        chains = raw.get("chains") or {}
+        if not chains:
+            lines.append("⛽ Цена газа: нет данных — это сигнал "
+                         "(gas_price_agent не отработал)")
+        else:
+            _REGIME_RU = {"cheap": "дёшево", "normal": "обычно",
+                          "expensive": "ДОРОГО", "insufficient_history": "мало истории",
+                          "unmeasured": "не измерено"}
+            parts: list[str] = []
+            dark: list[str] = []
+            for c in ("ethereum", "base", "arbitrum", "optimism"):
+                e = chains.get(c) or {}
+                if e.get("source") == "live":
+                    leg = e.get("usd_per_leg")
+                    leg_s = (f" ${float(leg):.2f}/ногу"
+                             if isinstance(leg, (int, float)) else "")
+                    parts.append(f"{c[:3]} {_REGIME_RU.get(e.get('regime'), '?')}{leg_s}")
+                else:
+                    dark.append(c)
+            body = " · ".join(parts) if parts else "все сети не измерены — это сигнал"
+            tail = f" · не измерено: {', '.join(dark)}" if dark else ""
+            lines.append(f"⛽ Цена газа: {_esc(body + tail)}")
+    except Exception:  # noqa: BLE001
+        lines.append("⛽ Цена газа: нет данных — это сигнал "
+                     "(gas_price_agent не отработал)")
 
     return "\n".join(lines)
 

@@ -174,3 +174,48 @@ def test_a_missing_coverage_field_is_unmeasured_not_fine(ddir):
 def test_the_gate_line_is_in_the_report_standard():
     markers = {m for m, _ in D._REQUIRED_BLOCKS}
     assert "Гейт доказательств" in markers
+
+
+# ── Четвёртая строка: цена газа (ADR-183) ────────────────────────────────────
+# Единственный человеческий читатель артефакта gas_price_agent до подключения
+# алертов — эта строка. Затяжное «не измерено» обязано быть видно владельцу.
+
+def _write_gas(ddir, eth_source="live", regime="normal"):
+    eth = {"source": eth_source, "sources_ok": 4, "sources_total": 5}
+    if eth_source == "live":
+        eth.update({"gwei": 0.126, "regime": regime, "usd_per_leg": 0.078})
+    (ddir / "gas_price_history.json").write_text(json.dumps({
+        "generated_at": "generated-at-is-inert-here-freshness-is-judged-by-mtime",
+        "eth_usd": {"source": "live", "usd": 2481.0},
+        "chains": {
+            "ethereum": eth,
+            "base": {"source": "live", "gwei": 0.006, "regime": "normal",
+                     "usd_per_leg": 0.004, "sources_ok": 2, "sources_total": 2},
+        },
+    }), encoding="utf-8")
+
+
+def test_gas_line_is_present_and_names_the_regime(ddir):
+    _write_gas(ddir, regime="expensive")
+    out = D._build_oversight_section(ddir)
+    assert "Цена газа" in out
+    assert "ДОРОГО" in out          # режим назван словом, не кодом
+    assert "$0.08/ногу" in out      # и переведён в цену хода
+
+
+def test_unchecked_chain_is_named_not_hidden(ddir):
+    # Авария-образец: источники Ethereum молчат — строка называет сеть, а не
+    # рисует вчерашнее число и не пропадает.
+    _write_gas(ddir, eth_source="unchecked")
+    out = D._build_oversight_section(ddir)
+    assert "не измерено: ethereum" in out
+
+
+def test_missing_gas_file_says_so_out_loud(ddir):
+    out = D._build_oversight_section(ddir)
+    assert "Цена газа: нет данных — это сигнал" in out
+
+
+def test_gas_marker_is_required_in_the_report():
+    # Маркер в _REQUIRED_BLOCKS: пропадёт строка — отчёт сам назовёт дыру.
+    assert any(m == "Цена газа" for m, _ in D._REQUIRED_BLOCKS)

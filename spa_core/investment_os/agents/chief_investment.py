@@ -70,6 +70,32 @@ class ChiefInvestmentAgent(ProductAgent):
             }
         return self.read_feed(_loader)
 
+    def _load_gas(self) -> Any:
+        """Девятый вход (ADR-183, план читателей карточки активации): режим цены
+        газа от com.spa.gas_price_agent — тем же ``read_feed``-контуром, что и
+        книги. Строго ВНЕ постуры: газ-агент advisory и не гейтит (ADR-168 —
+        де-риск не задерживается при любом газе); режим влияет только на
+        house_view. Протухший файл (старше 3 тактов по 30 мин) ⇒ UNKNOWN —
+        вчерашний газ хуже честного «не знаю».
+        """
+        path = self.data_dir.parent / "gas_price_history.json"
+
+        def _loader() -> dict:
+            raw = json.loads(path.read_text())
+            chains = raw.get("chains") or {}
+            if not chains:
+                raise ValueError("gas_price_history: пустые chains")
+            keep = ("source", "gwei", "regime", "usd_per_leg", "advice")
+            return {
+                "generated_at": raw.get("generated_at"),
+                "eth_usd": (raw.get("eth_usd") or {}).get("usd"),
+                "chains": {c: {k: e[k] for k in keep if k in e}
+                           for c, e in chains.items() if isinstance(e, dict)},
+            }
+
+        mtime = path.stat().st_mtime if path.exists() else None
+        return self.read_feed(_loader, max_age_s=5400, mtime=mtime)
+
     def analyze(self) -> dict:
         inputs: dict[str, Any] = {}
         for a in _INPUTS:
@@ -118,6 +144,22 @@ class ChiefInvestmentAgent(ProductAgent):
             capacity_violations = list(
                 ((books.get("capacity") or {}).get("violations")) or [])
 
+        # ── девятый вход: цена газа (ADR-183) — строго вне постуры ──
+        # Advisory-агент не гейтит: режим газа НЕ участвует в _synthesise_posture
+        # и в n_analysts (прямой read_feed без артефакта-посредника, как книги);
+        # он только называется в house_view — решает по-прежнему владелец и
+        # детерминированные гейты.
+        gas = self._load_gas()
+        gas_ok = isinstance(gas, dict)
+        if gas_ok:
+            try:
+                from spa_core.monitoring.consumption_receipts import write_receipt
+                write_receipt("data/gas_price_history.json",
+                              "com.spa.io_chief_investment",
+                              root=str(self.data_dir.parent.parent))
+            except Exception:  # noqa: BLE001
+                pass
+
         # honest coverage: which analysts were available vs UNKNOWN/missing.
         available = sorted(inputs.keys())
         missing = [a for a in _INPUTS if a not in inputs]
@@ -133,6 +175,7 @@ class ChiefInvestmentAgent(ProductAgent):
                 "threat_posture": threat,
                 "regime": regime,
                 "books": books if books_ok else UNKNOWN,
+                "gas": gas if gas_ok else UNKNOWN,
                 "risk_concerns": {
                     "protocol_risk": (inputs.get("protocol_risk") or {}).get("concern"),
                     "yield_quality": (inputs.get("yield_quality") or {}).get("concern"),
@@ -144,7 +187,8 @@ class ChiefInvestmentAgent(ProductAgent):
             },
             "coverage": {"available": available, "missing_or_unknown": missing,
                          "n_analysts": len(inputs),
-                         "books_input": "available" if books_ok else "unknown"},
+                         "books_input": "available" if books_ok else "unknown",
+                         "gas_input": "available" if gas_ok else "unknown"},
             "owner_gate": True,
             "note": ("Advisory HOUSE-VIEW synthesis. RECOMMENDS only — it NEVER decides and moves NO "
                      "capital; any allocation change is the OWNER's decision (owner-gate). Conflicts are "
