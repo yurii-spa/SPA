@@ -88,7 +88,7 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                          "latency_finding_to_card", "latency_card_to_close",
                          "note", "closure_drift"),
     "code_sync_status.json": ("timestamp", "result", "detail", "origin_main",
-                             "files_changed", "retired_instructions"),
+                             "files_changed", "retired_instructions", "retired_code"),
     "adapter_feed_divergence.json": ("overall", "counts.critical", "counts.warn",
                                      "counts.info", "counts.unchecked", "findings",
                                      "unchecked", "compared_protocols",
@@ -655,6 +655,27 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         else:
             out.append("   снятых инструкций нет: состав `CLAUDE.md` + "
                          "`.claude/rules/` в дереве совпадает с origin")
+        # Та же ветка про КОД (цикл #482). Отдельной строкой, а не припиской к
+        # инструкциям, потому что это разные предметы и разная починка: снятое
+        # правило продолжает УПРАВЛЯТЬ агентами, а снятый код лежит и числится
+        # вечным дрейфом — из-за него синк каждые 10 минут снимал архив всего
+        # кода (1300 архивов, 70 ГБ в /tmp на 04.09). Население класса в день
+        # заведения строки — 13 (у инструкций тогда же было 0).
+        retired_code = data.get("retired_code")
+        if retired_code is None:
+            out.append(f"   [{_UNMEASURED}] снятый код: поля нет в отчёте — сказать, "
+                         f"не лежит ли в дереве код, удалённый на origin, НЕЧЕМ")
+        elif retired_code:
+            out.append(f"   🔴 КОДА, КОТОРОГО НА origin БОЛЬШЕ НЕТ, а в дереве лежит: "
+                         f"{len(retired_code)} — чекаут его не удалит никогда, поэтому "
+                         f"дрейфом он больше НЕ считается (иначе синк не сходится вечно):")
+            for f in retired_code:
+                out.append(f"      ! {f}")
+            out.append(f"      удаление из прод-дерева — действие владельца "
+                         f"(.claude/rules/deployment.md §6), сторож только НАЗЫВАЕТ")
+        else:
+            out.append("   снятого кода нет: всё, что расходится с origin, "
+                         "чекаут способен свести")
     elif name == "adapter_feed_divergence.json":
         # Сверка ДВУХ артефактов адаптеров об одном протоколе (ADR-060 D6).
         # Рода расхождений печатаются РАЗНЫМИ словами намеренно: «оба фида

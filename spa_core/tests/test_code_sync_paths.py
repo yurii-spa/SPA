@@ -112,6 +112,23 @@ class TestTheRuleIsWrittenDown(unittest.TestCase):
         self.assertIn("ADR-214", text)
 
 
+
+def _logical_line(text: str, needle: str) -> str | None:
+    """Строка вызова целиком, включая продолжения через обратный слэш.
+
+    Прежняя регулярка обрывалась на конце физической строки: вызов, перенесённый
+    ради ширины, читался как «поле не передано» — сторож молчал бы о том, о чём
+    написан (или, наоборот, краснел на исправном коде).
+    """
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if needle in line:
+            out = [line]
+            while out[-1].rstrip().endswith("\\") and i + len(out) < len(lines):
+                out.append(lines[i + len(out)])
+            return "\n".join(out)
+    return None
+
 class TestRetiredInstructionsAreNamed(unittest.TestCase):
     """`git checkout <ref> -- <путь>` НЕ УДАЛЯЕТ.
 
@@ -166,14 +183,40 @@ class TestRetiredInstructionsAreNamed(unittest.TestCase):
 
         Проверяется ФОРМА вызова: поле в статус-файле и передача `$RETIRED` во все
         ветки, кроме `FETCH_FAILED` (там origin не опрошен — судить нечем).
+
+        **Правка цикла #482, ОСОЗНАННАЯ (инв. #16), и она УСИЛИВАЕТ, а не ослабляет.**
+        Проверка не снята и не сужена: (а) форма записи поля сменилась
+        (`retired.split()` → `named(retired)`, потому что «не измерено» и «измерено и
+        пусто» перестали быть одним ответом), и утверждение переписано под новую форму;
+        (б) к списку веток добавлены две новые (`CHECKOUT_FAILED`, `NOT_CONVERGED`);
+        (в) добавлено второе поле `$RETIRED_CODE` — тот же класс про КОД; (г) регулярка
+        научилась читать вызов, перенесённый обратным слэшем, — прежняя обрывалась на
+        конце строки и о таком вызове молчала бы.
         """
         text = _script_text()
-        self.assertIn('"retired_instructions": retired.split()', text)
-        for verdict in ("IN_SYNC", "SNAPSHOT_FAILED", "SYNCED", "ROLLED_BACK", "CRITICAL"):
-            m = re.search(rf'write_status "{verdict}".*', text)
-            self.assertIsNotNone(m, f"ветка {verdict} пропала")
-            self.assertIn('"$RETIRED"', m.group(0),
+        self.assertIn('"retired_instructions": named(retired)', text)
+        self.assertIn('"retired_code": named(retired_code)', text)
+        self.assertIn('return None if value == "-" else value.split()', text,
+                      "исчез знак «не измерено» — пустой список снова выдаётся за замер")
+        verdicts = ("IN_SYNC", "SNAPSHOT_FAILED", "CHECKOUT_FAILED", "SYNCED",
+                    "NOT_CONVERGED", "ROLLED_BACK", "CRITICAL")
+        for verdict in verdicts:
+            call = _logical_line(text, f'write_status "{verdict}"')
+            self.assertIsNotNone(call, f"ветка {verdict} пропала")
+            self.assertIn('"$RETIRED"', call,
                           f"вердикт {verdict} пишется без списка снятых инструкций")
+            self.assertIn('"$RETIRED_CODE"', call,
+                          f"вердикт {verdict} пишется без списка снятого кода")
+
+    def test_fetch_failure_declares_the_lists_unmeasured(self):
+        """origin не опрошен ⇒ `-`, а не пустые списки.
+
+        Пустой список здесь читался бы потребителем как «ничего не снято» — замер,
+        которого не было. Третий исход обязателен (правило доставки).
+        """
+        m = re.search(r'write_status "FETCH_FAILED".*', _script_text())
+        self.assertIsNotNone(m)
+        self.assertIn('"-" "-"', m.group(0))
 
 
 if __name__ == "__main__":

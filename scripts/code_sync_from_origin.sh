@@ -35,6 +35,13 @@
 #     living here. That is this card's own failure class (an obsolete ban still
 #     obeyed), so the sync NAMES such files in the log and in the status file — it
 #     does not remove them. Naming, not guessing; removal is the owner's call.
+#   * The same is true of retired CODE, and that half went unmeasured until 2026-09-04
+#     (cycle #482). Because a checkout cannot delete, a file origin deleted stays here
+#     and `git diff` calls it drift FOREVER: the whole 13-file drift of that day was
+#     retired code, so `CHANGED` could never reach 0 and a 56 MB pre-sync snapshot was
+#     taken every ten minutes — 1300 archives, 70 GB in /tmp against 55 GB free. Drift
+#     is therefore only what a checkout CAN converge (present on origin); the rest is
+#     named in `retired_code` and left alone.
 #   * Whole dirs, never single files — a point-copied file with a new dependency broke
 #     the entire adapters package import on 2026-08-03.
 #   * Exec-bit safety net after checkout — origin stored agent scripts 100644 once and
@@ -45,31 +52,57 @@
 #   * Never git reset / never touches git refs — only `checkout origin/main -- <paths>`.
 #
 # Status file: data/code_sync_status.json (atomic). Log: /tmp/spa_code_sync.log.
-# Exit: 0 = in sync or synced+verified; 1 = sync failed and was rolled back.
+# Exit: 0 = in sync or synced+verified; 1 = sync failed (snapshot / checkout / not
+# converged / rolled back). A non-zero `git checkout` is NEVER reported as SYNCED,
+# and SYNCED itself is a re-measurement, not the checkout's own exit code.
 
 main() {
-    PYTHON=/Users/yuriikulieshov/miniconda3/bin/python3
-    REPO="$HOME/Documents/SPA_Claude"
+    # Пути и питон — переменными окружения с УМОЛЧАНИЯМИ, равными прежним литералам.
+    # Зачем: у этого скрипта не было ни одного теста ПО ПОСТРОЕНИЮ — он ходил
+    # ровно в одно дерево на одном Маке, и любая его ветка проверялась только
+    # тем, что однажды случилась в проде. Флот ничего из этого не выставляет,
+    # поведение в проде побайтово прежнее; знаки нужны положительным контролям
+    # (`scripts/tests/test_code_sync_from_origin.py`) на синтетическом git-репо.
+    PYTHON="${SPA_SYNC_PYTHON:-/Users/yuriikulieshov/miniconda3/bin/python3}"
+    REPO="${SPA_SYNC_REPO:-$HOME/Documents/SPA_Claude}"
     CODE_PATHS=(spa_core scripts tests architecture push_to_github.py push_to_github_batch.py CLAUDE.md .claude/rules)
-    LOG=/tmp/spa_code_sync.log
+    LOG="${SPA_SYNC_LOG:-/tmp/spa_code_sync.log}"
+    SNAP_DIR="${SPA_SYNC_SNAP_DIR:-/tmp}"
+    SNAP_KEEP="${SPA_SYNC_SNAP_KEEP:-10}"
     cd "$REPO" || exit 1
 
     log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*" | tee -a "$LOG"; }
 
-    write_status() {  # $1=result $2=detail $3=files_changed $4=exec_fixed $5=retired (space-separated)
-        "$PYTHON" - "$1" "$2" "$3" "$4" "${5-}" <<'PYEOF'
+    write_status() {  # $1=result $2=detail $3=files_changed $4=exec_fixed $5=retired $6=retired_code
+        "$PYTHON" - "$1" "$2" "$3" "$4" "${5-}" "${6-}" <<'PYEOF'
 import sys, datetime, subprocess
 from spa_core.utils.atomic import atomic_save
-result, detail, changed, exec_fixed, retired = sys.argv[1:6]
+result, detail, changed, exec_fixed, retired, retired_code = sys.argv[1:7]
 sha = subprocess.run(["git", "rev-parse", "origin/main"], capture_output=True,
                      text=True).stdout.strip()
+
+
+def named(value):
+    """`-` = НЕ ИЗМЕРЕНО (None), пусто = измерено и пусто (список).
+
+    Разные утверждения, и до #482 они были одним. При упавшем `git fetch`
+    список снятых файлов не меряли вовсе, а в отчёт уходил `[]` — читатель
+    (шаг 0-офис) печатал «снятых инструкций нет», то есть выдавал неизмеренное
+    за чистый результат. Ровно тот fail-OPEN, который правило доставки требует
+    разводить третьим исходом."""
+    return None if value == "-" else value.split()
+
+
 atomic_save({
     "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     "result": result, "detail": detail, "origin_main": sha,
     "files_changed": int(changed or 0), "exec_bits_fixed": int(exec_fixed or 0),
     # Instruction files that live here but no longer on origin. A checkout cannot
     # delete, so a retired rule keeps being obeyed — say so instead of staying quiet.
-    "retired_instructions": retired.split(),
+    "retired_instructions": named(retired),
+    # То же самое, но про КОД (цикл #482). Класс тот же, население — разное:
+    # у инструкций на день заведения читателя было 0, у кода в тот же день 13.
+    "retired_code": named(retired_code),
     "source": "code_sync_from_origin",
 }, "data/code_sync_status.json")
 PYEOF
@@ -89,32 +122,101 @@ PYEOF
         done
     }
 
+    # Дрейф, который чекаут СПОСОБЕН свести, и остаток, который не сведёт никогда.
+    #
+    # ЗАЧЕМ (замер 2026-09-04, цикл #482). `git diff --name-only origin/main` честно
+    # называет расхождением и файл, который на origin УДАЛЁН осознанно, — а
+    # `git checkout <ref> -- <путь>` удалять не умеет. В тот день ВЕСЬ дрейф прод-дерева
+    # (13 файлов) состоял ровно из таких: `retire(2/2)`, `cleanup: удалён мёртвый
+    # aggressive_lab`, `changelog: генератор в attic`. Значит `CHANGED` не мог стать
+    # нулём НИКОГДА: каждые 10 минут снимался пре-синк-архив всего кода, и в /tmp
+    # накопилось 1300 архивов на 70 ГБ при 55 ГБ свободных. Вечный дрейф здесь не
+    # сигнал, а свойство измерения — его и чиним.
+    #
+    # `-c core.fileMode=false` пришпилен НАМЕРЕННО: сам этот скрипт ниже ставит
+    # `chmod +x` на каждый `scripts/*.sh`, а на origin 73 из 181 таких файлов лежат
+    # как 100644 (режимы правились в проде руками и в git не уезжали). На хосте, где
+    # git различает режимы, расхождение по режиму создаём МЫ САМИ и осознанно —
+    # считать его дрейфом значило бы завести второй вечный, несводимый источник ровно
+    # того же класса. Предмет синка — содержимое; бит исполнения — отдельная страховка.
+    drift_split() {  # $1=convergeable|retired — печатает пути по одному в строке
+        local diff_f origin_f
+        diff_f=$(mktemp) || return 1
+        origin_f=$(mktemp) || return 1
+        git -c core.fileMode=false diff --name-only origin/main -- "${CODE_PATHS[@]}" \
+            2>>"$LOG" | sort > "$diff_f"
+        git ls-tree -r --name-only origin/main -- "${CODE_PATHS[@]}" \
+            2>>"$LOG" | sort > "$origin_f"
+        if [ "$1" = "convergeable" ]; then
+            comm -12 "$diff_f" "$origin_f"
+        else
+            # Файлы инструкций тут исключены не по забывчивости: о них отдельным
+            # полем говорит `retired_instructions` (ADR-214), и один и тот же файл,
+            # названный дважды двумя строками, читается как две находки.
+            comm -23 "$diff_f" "$origin_f" | grep -v -e '^CLAUDE\.md$' -e '^\.claude/rules/'
+        fi
+        rm -f "$diff_f" "$origin_f"
+    }
+
+    # Ретенция пре-синк-архивов. Точка отката осмысленна для ТЕКУЩЕГО прогона:
+    # rollback-ветка ниже распаковывает `$SNAP`, снятый минуту назад, и ни разу —
+    # чужой. Копятся они при этом вечно: 1300 штук по 56-59 МБ (замер 04.09).
+    # Считается ДО раннего возврата «уже в синке» намеренно — иначе починка дрейфа
+    # закрыла бы единственную дорогу к уборке.
+    prune_snapshots() {
+        local old_n
+        old_n=$(ls -t "$SNAP_DIR"/spa_code_presync_*.tgz 2>/dev/null | tail -n +$((SNAP_KEEP + 1)) | wc -l | tr -d ' ')
+        [ "${old_n:-0}" -gt 0 ] || return 0
+        ls -t "$SNAP_DIR"/spa_code_presync_*.tgz 2>/dev/null | tail -n +$((SNAP_KEEP + 1)) \
+            | while IFS= read -r f; do rm -f "$f"; done
+        log "code-sync: pruned $old_n stale pre-sync snapshot(s), kept $SNAP_KEEP newest"
+    }
+
     log "code-sync: fetch origin/main"
     if ! git fetch origin main -q 2>>"$LOG"; then
         log "code-sync: FETCH FAILED (offline?) — keeping current code (fail-open for the cycle, loud)"
-        write_status "FETCH_FAILED" "git fetch origin failed; cycle runs on previous code" 0 0 ""
+        # `-` вместо пустых списков: origin недоступен, значит снятые файлы НЕ
+        # МЕРЯЛИ. Пустой список здесь читался бы как «ничего не снято».
+        write_status "FETCH_FAILED" "git fetch origin failed; cycle runs on previous code" 0 0 "-" "-"
         return 0   # do not block the cycle on a network blip; drift monitor stays the alarm
     fi
 
     RETIRED=$(retired_instructions)
     [ -n "$RETIRED" ] && log "code-sync: instruction file(s) origin no longer carries — NOT deleted, named: $RETIRED"
 
-    CHANGED=$(git diff --name-only origin/main -- "${CODE_PATHS[@]}" | wc -l | tr -d ' ')
+    prune_snapshots
+
+    RETIRED_CODE=$(drift_split retired | tr '\n' ' ')
+    [ -n "$RETIRED_CODE" ] && log "code-sync: code file(s) origin no longer carries — NOT deleted, named: $RETIRED_CODE"
+
+    CHANGED=$(drift_split convergeable | wc -l | tr -d ' ')
     if [ "$CHANGED" = "0" ]; then
         log "code-sync: already in sync with origin/main"
-        write_status "IN_SYNC" "no code drift" 0 0 "$RETIRED"
+        write_status "IN_SYNC" "no code drift" 0 0 "$RETIRED" "$RETIRED_CODE"
         return 0
     fi
 
-    SNAP="/tmp/spa_code_presync_$(date -u +%Y%m%dT%H%M%SZ).tgz"
+    SNAP="$SNAP_DIR/spa_code_presync_$(date -u +%Y%m%dT%H%M%SZ).tgz"
     log "code-sync: $CHANGED file(s) drifted — snapshot to $SNAP, then whole-dir checkout"
     if ! tar czf "$SNAP" "${CODE_PATHS[@]}" 2>>"$LOG"; then
         log "code-sync: SNAPSHOT FAILED — refusing to sync without a rollback point"
-        write_status "SNAPSHOT_FAILED" "tar failed; sync refused (fail-closed)" "$CHANGED" 0 "$RETIRED"
+        write_status "SNAPSHOT_FAILED" "tar failed; sync refused (fail-closed)" "$CHANGED" 0 "$RETIRED" "$RETIRED_CODE"
         return 1
     fi
 
-    git checkout origin/main -- "${CODE_PATHS[@]}" 2>>"$LOG"
+    # Код возврата чекаута ПРОВЕРЯЕТСЯ. До #482 он игнорировался, и это был
+    # fail-OPEN: 04.09 в 10:57:13Z и 11:07:16Z параллельные запуски подрались за
+    # `.git/index.lock`, чекаут написал в лог `fatal: Unable to create index.lock`
+    # и не доставил НИЧЕГО — а следующей строкой уходило `synced 15 file(s) +
+    # import probe OK` и в артефакт `SYNCED`. Импорт-проба на этот вопрос не
+    # отвечает по построению: она меряет «дерево импортируется», и СТАРОЕ дерево
+    # импортировалось прекрасно.
+    if ! git checkout origin/main -- "${CODE_PATHS[@]}" 2>>"$LOG"; then
+        log "code-sync: CHECKOUT FAILED — nothing delivered; refusing to report SYNCED"
+        write_status "CHECKOUT_FAILED" "git checkout failed; tree still on previous code" \
+                     "$CHANGED" 0 "$RETIRED" "$RETIRED_CODE"
+        return 1
+    fi
 
     # Exec-bit safety net (fleet-killer class, 2026-08-04): every *.sh under scripts/ must be +x.
     EXEC_FIXED=0
@@ -126,19 +228,30 @@ PYEOF
     # Verification: the synced tree must IMPORT. Version alone is not workability
     # (deployment_drift showed 0 drift while imports were broken on 2026-08-03).
     if "$PYTHON" -c "import spa_core.adapters, spa_core.risk.policy, spa_core.paper_trading.cycle_runner" 2>>"$LOG"; then
-        log "code-sync: synced $CHANGED file(s) + import probe OK"
-        write_status "SYNCED" "whole-dir checkout + import probe OK" "$CHANGED" "$EXEC_FIXED" "$RETIRED"
-        return 0
+        # Вердикт выводится из ПЕРЕМЕРА, а не из того, что команда не ругнулась.
+        # Нулевой код возврата — заявление о намерении; сведён ли дрейф, отвечает
+        # только повторное измерение того же самого дрейфа.
+        RESIDUAL=$(drift_split convergeable | wc -l | tr -d ' ')
+        if [ "$RESIDUAL" = "0" ]; then
+            log "code-sync: synced $CHANGED file(s) + import probe OK + drift re-measured 0"
+            write_status "SYNCED" "whole-dir checkout + import probe OK + drift re-measured 0" \
+                         "$CHANGED" "$EXEC_FIXED" "$RETIRED" "$RETIRED_CODE"
+            return 0
+        fi
+        log "code-sync: NOT CONVERGED — checkout returned 0 but $RESIDUAL file(s) still differ from origin"
+        write_status "NOT_CONVERGED" "checkout exited 0 but $RESIDUAL file(s) still differ" \
+                     "$CHANGED" "$EXEC_FIXED" "$RETIRED" "$RETIRED_CODE"
+        return 1
     fi
 
     log "code-sync: IMPORT PROBE FAILED after sync — ROLLING BACK from $SNAP"
     tar xzf "$SNAP" -C "$REPO" 2>>"$LOG"
     if "$PYTHON" -c "import spa_core.adapters" 2>>"$LOG"; then
         log "code-sync: rollback verified — cycle will run on PREVIOUS code; origin needs a fix"
-        write_status "ROLLED_BACK" "post-sync import failed; restored pre-sync code" "$CHANGED" "$EXEC_FIXED" "$RETIRED"
+        write_status "ROLLED_BACK" "post-sync import failed; restored pre-sync code" "$CHANGED" "$EXEC_FIXED" "$RETIRED" "$RETIRED_CODE"
     else
         log "code-sync: CRITICAL — rollback import probe ALSO failed; manual intervention required"
-        write_status "CRITICAL" "sync and rollback both failed import probe" "$CHANGED" "$EXEC_FIXED" "$RETIRED"
+        write_status "CRITICAL" "sync and rollback both failed import probe" "$CHANGED" "$EXEC_FIXED" "$RETIRED" "$RETIRED_CODE"
     fi
     return 1
 }

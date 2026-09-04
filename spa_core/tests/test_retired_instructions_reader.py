@@ -53,6 +53,11 @@ def status(**over) -> dict:
         "files_changed": 13,
         "exec_bits_fixed": 0,
         "retired_instructions": [],
+        # Поле цикла #482 — в фикстуре с самого начала намеренно. Отчёт без него
+        # производитель СЕГОДНЯ не пишет, и шаг 0-офис справедливо назвал бы такую
+        # фикстуру «отчётом старого образца» (класс #248) — тест судил бы о своей
+        # собственной устарелости, а не о читателе.
+        "retired_code": [],
         "source": "code_sync_from_origin",
     }
     base.update(over)
@@ -101,6 +106,54 @@ class NothingRetiredIsSilence(unittest.TestCase):
         self.assertIn(office._UNMEASURED, out)
         self.assertNotIn("совпадает с origin", out)
 
+
+class RetiredCodeIsNamed(unittest.TestCase):
+    """То же самое про КОД — и здесь население класса НЕ ноль (цикл #482).
+
+    Замер 04.09: дрейф прод-дерева = 13 файлов, и ВСЕ 13 на origin удалены
+    осознанно (`retire(2/2)`, `cleanup: удалён мёртвый aggressive_lab`,
+    `changelog: генератор в attic`). Отличие от инструкций не косметическое:
+    снятое правило продолжает УПРАВЛЯТЬ агентами, а снятый код просто лежит —
+    но именно он делал дрейф несводимым, и синк каждые 10 минут снимал архив
+    всего кода (1300 архивов, 70 ГБ в /tmp при 55 ГБ свободных).
+    """
+
+    def test_retired_code_is_named_by_path(self):
+        out = read(status(retired_code=["spa_core/strategy_lab/aggressive_lab_runner.py"]))
+        self.assertIn("spa_core/strategy_lab/aggressive_lab_runner.py", out)
+        self.assertIn("🔴", out)
+
+    def test_every_retired_code_file_is_named_not_just_counted(self):
+        files = ["scripts/day30_review.py", "tests/test_weekly_evidence_report.py",
+                 "spa_core/alerts/daily_evidence_report.py"]
+        out = read(status(retired_code=files))
+        for f in files:
+            self.assertIn(f, out, f"{f} не назван поимённо")
+
+    def test_the_line_says_who_may_remove_it(self):
+        out = read(status(retired_code=["scripts/day30_review.py"]))
+        self.assertIn("владельца", out)
+
+    def test_empty_list_produces_no_finding(self):
+        """Обратный контроль: «нечего называть» ≠ «называть разучились»."""
+        out = read(status(retired_code=[]))
+        self.assertNotIn("🔴", out)
+        self.assertIn("снятого кода нет", out)
+
+    def test_missing_field_is_unmeasured_not_ok(self):
+        """Поля нет ⇒ громкое «не измерено» (при упавшем fetch производитель шлёт `-`)."""
+        data = status()
+        del data["retired_code"]
+        out = read(data)
+        self.assertIn(office._UNMEASURED, out)
+        self.assertNotIn("снятого кода нет", out)
+
+    def test_the_two_classes_are_named_by_different_lines(self):
+        """Одна строка на два предмета увела бы починку не туда."""
+        out = read(status(retired_instructions=[".claude/rules/gone.md"],
+                          retired_code=["scripts/gone.py"]))
+        lines = [l for l in out.splitlines() if "🔴" in l]
+        self.assertEqual(len(lines), 2, out)
 
 class FailedSyncIsLoud(unittest.TestCase):
     """Неудавшаяся синхронизация — дерево работает на ПРЕЖНЕМ коде."""
