@@ -86,7 +86,7 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "loop_retro.json": ("findings", "outcomes_completeness"),
     "loop_health.json": ("open_cards", "recurrences_total", "cards_fate",
                          "latency_finding_to_card", "latency_card_to_close",
-                         "note"),
+                         "note", "closure_drift"),
     "code_sync_status.json": ("timestamp", "result", "detail", "origin_main",
                              "files_changed", "retired_instructions"),
     "adapter_feed_divergence.json": ("overall", "counts.critical", "counts.warn",
@@ -1054,6 +1054,41 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                            f"максимум {lat.get('max_h')}ч (n={lat.get('n')})")
         if data.get("note"):
             out.append(f"   оговорка производителя: {str(data['note'])[:160]}")
+        # Пятый исход судьбы карточки: мост закрыл её в ПРОДЕ, а на `origin/main`
+        # она осталась открытой — и закрытие наверх не возвращается ничем
+        # (bridge_closure_drift). `cards_fate` про это не знает по построению:
+        # он читает диск ЭТОГО дерева, а очередь по протоколу §3.4 читается из
+        # worktree на origin. Цена измерена #480: карточку, снятую 25 дней назад,
+        # цикл взял как открытую работу и дошёл до правды только через два
+        # gitignored-артефакта. Молчание тут читалось бы как «расхождений нет».
+        #
+        # Отсутствие блока эта ветка НЕ комментирует СОЗНАТЕЛЬНО. На него уже
+        # отвечает объявленная схема (`_READ_SCHEMA` + `_PRODUCER`), и отвечает
+        # точнее: она различает «производитель ключа не пишет» и «артефакт
+        # произведён РАНЬШЕ доставки ключа». Своя строка здесь означала бы
+        # красное на здоровом контуре в каждый цикл до следующего такта
+        # производителя — ровно та ложная тревога, которую сняли в #248.
+        drift = data.get("closure_drift")
+        if isinstance(drift, dict) and drift.get("verdict") == "unmeasured":
+            out.append(f"   ⚠️ закрытия моста против origin/main {_UNMEASURED}: "
+                       f"{drift.get('unmeasured_reason')}")
+        elif isinstance(drift, dict) and drift.get("open_on_origin"):
+            rows = drift["open_on_origin"]
+            out.append(f"   🔴 ЗАКРЫТО В ПРОДЕ, ОТКРЫТО НА origin/main: "
+                       f"{len(rows)} карточк(и) моста — очередь предъявляет циклам "
+                       f"работу, снятую ранее (сверено с {str(drift.get('ref_sha'))[:9]})")
+            for row in rows[:4]:
+                out.append(f"      - {row.get('card_id')} (`{row.get('origin_status')}` "
+                           f"наверху, ключ {row.get('key')}, закрыта "
+                           f"{str(row.get('closed_at') or _UNMEASURED)[:10]})")
+        elif isinstance(drift, dict):
+            absent = drift.get("absent_on_origin") or []
+            tail = (f" · на origin/main нет вовсе: {len(absent)} (направление "
+                    f"РОЖДЕНИЯ, своя карточка)" if absent else "")
+            out.append(f"   закрытия моста сверены с origin/main "
+                       f"({str(drift.get('ref_sha') or _UNMEASURED)[:9]}): "
+                       f"{_num(drift, 'checked')} закрыт(ых), сошлось "
+                       f"{_num(drift, 'agreed')}{tail}")
     elif name == "owner_decision_pending.json":
         out.append(f"   статус: {data.get('status')}")
         if data.get("reason"):

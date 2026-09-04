@@ -25,12 +25,12 @@ LLM_FORBIDDEN. Только stdlib. Время — вход (now=).
 from __future__ import annotations
 
 import datetime as dt
-import json
 import os
 import statistics
 
+from spa_core.monitoring import bridge_closure_drift
 from spa_core.monitoring.architecture_conformance import REPO_ROOT, _parse_iso
-from spa_core.monitoring.findings_bridge import STATE_REL, card_status
+from spa_core.monitoring.findings_bridge import card_status
 
 HEALTH_REL = os.path.join("data", "loop_health.json")
 
@@ -108,7 +108,8 @@ def _recurrence_liveness(recurring: list[dict]) -> dict:
                  if not r.get("live") and r.get("last_seen")), default=None)}
 
 
-def compute(state: dict, status_of, now: dt.datetime) -> dict:
+def compute(state: dict, status_of, now: dt.datetime, *,
+            origin_lookup=None, state_read: bool = True) -> dict:
     findings = state.get("findings") or {}
     entries = findings.values()
     to_card = [h for e in entries
@@ -174,17 +175,27 @@ def compute(state: dict, status_of, now: dt.datetime) -> dict:
             "cards_fate": taken,
             "cards_other_status": cards_other_status,
             "cards_unreadable": cards_unreadable,
+            # Пятый исход судьбы карточки, которого в `cards_fate` нет и быть не
+            # может: мост закрыл её ЗДЕСЬ, а наверху она осталась открытой —
+            # `status_of` читает диск ЭТОГО дерева и о второй копии не знает.
+            # Три исхода внутри (`ok` / `findings` / `unmeasured`), см.
+            # bridge_closure_drift: ноль без сверки был бы fail-OPEN.
+            "closure_drift": bridge_closure_drift.scan(
+                findings, origin_lookup, state_read=state_read),
             "note": ("мало истории — медианы по n<5 не интерпретировать"
                      if len(to_card) < 5 else "")}
 
 
-def run(root: str = REPO_ROOT, now: dt.datetime | None = None) -> dict:
+def run(root: str = REPO_ROOT, now: dt.datetime | None = None,
+        origin_lookup=None) -> dict:
     now = now or dt.datetime.now(dt.timezone.utc)
-    try:
-        state = json.load(open(os.path.join(root, STATE_REL)))
-    except Exception:
-        state = {}
-    report = compute(state, card_status, now)
+    # Прочитано ли состояние — САМОСТОЯТЕЛЬНЫЙ факт, а не «оно пустое». Прежняя
+    # запись (`except: state = {}`) стирала разницу: в worktree, где `data/` нет
+    # ПО ПОСТРОЕНИЮ, любая сверка по этому состоянию отвечала бы «расхождений 0».
+    state, state_read = bridge_closure_drift.read_state(root)
+    report = compute(state, card_status, now,
+                     origin_lookup=origin_lookup or bridge_closure_drift.origin_lookup_for(root),
+                     state_read=state_read)
     from spa_core.utils.atomic import atomic_save
     atomic_save(report, os.path.join(root, HEALTH_REL))
     return report
