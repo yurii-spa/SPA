@@ -146,7 +146,29 @@ class TestRender:
 
 class TestMainExitCode:
     def test_exit_0_on_empty_tracker(self, guard, tmp_path):
-        assert guard.main(["--tracker-dir", str(tmp_path)]) == 0
+        """Пустая очередь — код 0. ПРЕДПОСЫЛКА СТАЛА ЯВНОЙ (#484).
+
+        НАМЕРЕННОЕ изменение теста (инв. #16), обоснование — здесь и в
+        `docs/journal/2026-W36.md`. Раньше строка была
+        `main(["--tracker-dir", tmp_path]) == 0` без флага `--ref`, и с появлением сверки
+        с ref она стала спрашивать ДВЕ вещи разом: «пустая очередь ⇒ 0?» и «а можно ли
+        вообще прочитать вторую копию очереди?». Во временном каталоге git-репозитория
+        нет, вторая копия не читается — и ответ «0» означал бы «голода нет» там, где
+        верно «искать было негде». Ровно этот fail-OPEN и чинит #484: сторож, читающий
+        одну копию из двух, отвечает про КАТАЛОГ, а читается как ответ про ОЧЕРЕДЬ.
+
+        Проверка не ослаблена, а РАЗДЕЛЕНА на два вопроса: здесь — «пустая очередь ⇒ 0»
+        (сверка с ref явно выключена `--ref ""`), ниже — «ref не прочитан ⇒ 2, а не 0».
+        """
+        assert guard.main(["--tracker-dir", str(tmp_path), "--ref", ""]) == 0
+
+    def test_exit_2_when_the_second_copy_of_the_queue_cannot_be_read(self, guard, tmp_path):
+        """Вторая половина того же разделения: «не измерено» ≠ «голода нет».
+
+        Каталог не в git-репозитории ⇒ очередь на ref не прочитана. Код 2 (fail-CLOSED,
+        как у `check_undelivered_work` и `check_card_claim`), а не успокоительный 0.
+        """
+        assert guard.main(["--tracker-dir", str(tmp_path)]) == 2
 
     def test_exit_1_when_starving_card_on_disk(self, guard, tmp_path):
         (tmp_path / "inbox-x.md").write_text(
