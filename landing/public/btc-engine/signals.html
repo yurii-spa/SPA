@@ -1,0 +1,113 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Signal cards · earn-defi</title><style>
+body{font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;line-height:1.5;color:#222;background:#fff}
+nav a{margin-right:1rem}table{border-collapse:collapse;margin:1rem 0}td,th{border:1px solid #ddd;padding:.35rem .6rem;text-align:left;font-size:.95em}
+code{background:#f4f4f4;padding:.1em .3em;border-radius:3px;font-size:.9em}.ok{color:#187a2b}.bad{color:#b00020}.muted{color:#666}
+.badge{display:inline-block;padding:.1em .5em;border:1px solid #999;border-radius:1em;font-size:.8em;margin-left:.4em}
+pre{background:#f7f7f7;padding:.7rem;overflow-x:auto}h1,h2,h3{line-height:1.2}
+</style></head><body><nav><a href="/btc-engine/index.html">Methodology</a><a href="/btc-engine/signals.html">Signal cards</a></nav><h1>Signal cards</h1><h1>Signal Card 1 · MVRV percentile</h1>
+<p><strong>Version:</strong> v0.2 (window 1460 days, min history 730 days) · first used 2026-09-02 · owner: engine config</p>
+<h2>What it measures and why it relates to the regime</h2>
+<p>MVRV is the ratio of Bitcoin's market value (price × supply) to its realized value (every coin valued at the price it last moved on-chain). Realized value is the aggregate cost basis of all holders, so MVRV tells how far the market price sits above or below what holders paid. Historically MVRV is high near cycle tops (holders sit on large unrealised profit and start distributing) and low near bottoms (the average coin is under water and selling dries up).</p>
+<p>The raw ratio is not comparable across cycles: peaks of 4–5 in 2013–2017 gave way to ~3 in 2021 as the market matured. We therefore use the <strong>rank percentile of today's MVRV inside a trailing four-year window</strong> (one halving cycle): "today's MVRV is higher than X% of the days in the last four years". Percentile makes the thresholds regime boundaries rather than magic numbers tied to one cycle.</p>
+<h2>Rule</h2>
+<pre>mvrv_percentile = share of days d in the last 1460 days with MVRV(d) &lt;= MVRV(today)</pre>
+<p>Regime boundaries (config v0.2, PROPOSED):</p>
+<table><tr><th>percentile</th><th>regime</th><th>base BTC weight (before M2 modifier and k)</th></tr><tr><td>&lt; 0.25</td><td>ACCUMULATION</td><td>1.00</td></tr><tr><td>0.25 – 0.75</td><td>NEUTRAL</td><td>0.80</td></tr><tr><td>0.75 – 0.90</td><td>OVERHEATED</td><td>0.50</td></tr><tr><td>≥ 0.90</td><td>EUPHORIA</td><td>0.20</td></tr></table>
+<p>CAPITULATION (price below realized price, see card 2) takes precedence over the percentile. If fewer than 730 days of history are available the signal is null and the engine holds.</p>
+<h2>Data source and frequency</h2>
+<p>Primary: Coin Metrics Community API, metric <code>CapMVRVCur</code>, daily (end of day UTC), free tier. Shadow source (B1): bitcoin-data.com <code>mvrv</code>, daily; divergence above 3% blocks the decision. Updated once per day after the UTC day closes; the engine acts on the last complete day.</p>
+<h2>Version history</h2>
+<ul><li>v0.1 (2026-09-02): rank percentile, window 1460 d, min history 730 d, boundaries 0.25/0.75/0.90.</li><li>v0.2 (2026-09-04): unchanged; shadow reconciliation added.</li></ul>
+<h2>Known limitations</h2>
+<ul><li>Slow signal: in a multi-month sideways market the percentile drifts as the window rolls even if</li></ul>
+<p>  nothing happens. Regime flips near a boundary are damped only by the 5 pp rebalance threshold.</p>
+<ul><li>Realized value counts lost coins and dormant supply at very old prices, biasing MVRV upward in</li></ul>
+<p>  absolute terms; the percentile normalises the level but not changes in the composition of supply.</p>
+<ul><li>Fewer than 4 years of history in the window means the percentile is measured against a shorter,</li></ul>
+<p>  possibly one-sided, sample.</p>
+<ul><li>The window is trailing: it cannot know that a new cycle has begun; a first-ever move above the</li></ul>
+<p>  previous window's range always reads as "≥ 0.90".</p>
+<hr>
+<h2>RU · Перцентиль MVRV</h2>
+<p><strong>Что измеряет.</strong> MVRV — отношение рыночной стоимости биткоина (цена × предложение) к реализованной стоимости (каждая монета учтена по цене последнего ончейн‑движения). Реализованная стоимость — это совокупная себестоимость держателей, поэтому MVRV показывает, насколько цена выше или ниже того, что заплатили держатели. Исторически MVRV высок у вершин цикла и низок у дна.</p>
+<p>Сырой коэффициент несопоставим между циклами (пики 4–5 в 2013–2017 против ~3 в 2021), поэтому мы берём <strong>ранговую перцентиль сегодняшнего MVRV внутри скользящего окна в четыре года</strong> (один цикл халвинга): «сегодняшний MVRV выше, чем в X % дней за последние четыре года».</p>
+<p><strong>Правило.</strong> Доля дней окна с MVRV ≤ сегодняшнего. Границы режимов (v0.2, предложение): &lt; 0.25 — ACCUMULATION (вес 1.00) · 0.25–0.75 — NEUTRAL (0.80) · 0.75–0.90 — OVERHEATED (0.50) · ≥ 0.90 — EUPHORIA (0.20). CAPITULATION (цена ниже realized price) имеет приоритет. Меньше 730 дней истории — сигнал пуст, движок держит вес.</p>
+<p><strong>Источник.</strong> Coin Metrics Community API (<code>CapMVRVCur</code>), ежедневно; теневая сверка с bitcoin-data.com, расхождение выше 3 % блокирует решение.</p>
+<p><strong>Ограничения.</strong> Медленный сигнал: в долгом боковике перцентиль дрейфует просто от движения окна; реализованная стоимость учитывает потерянные монеты; окно не знает о начале нового цикла — первый выход выше диапазона окна всегда читается как «≥ 0.90».</p><hr><h1>Signal Card 2 · Realized price</h1>
+<p><strong>Version:</strong> v0.2 · first used 2026-09-02 · owner: engine config</p>
+<h2>What it measures and why it relates to the regime</h2>
+<p>Realized price is realized value divided by circulating supply: the average on-chain cost basis of one bitcoin. When the market price falls below it, the average holder is at a loss. Such periods (2015, late 2018 – early 2019, mid 2022) have marked the deepest part of every bear market so far: forced sellers are exhausted, long-term holders are under water and stop selling. The engine treats "price below realized price" as its own regime, CAPITULATION, checked before the MVRV percentile.</p>
+<h2>Rule</h2>
+<pre>realized_price = market_cap / MVRV / supply           (realized cap = market cap / MVRV)
+price_below_realized = price &lt; realized_price  →  regime CAPITULATION, base weight 1.00</pre>
+<p>The base weight is still subject to the trend gate (card 3): in a downtrend the engine will not *increase* its weight, so CAPITULATION does not mean buying a falling knife — it means the engine is allowed to be fully weighted once the trend turns.</p>
+<h2>Data source and frequency</h2>
+<p>Primary: Coin Metrics Community API — derived from <code>CapMrktCurUSD</code>, <code>CapMVRVCur</code>, <code>SplyCur</code> (the realized-cap metric itself is not in the free tier; the identity above is exact). Daily. Shadow source: bitcoin-data.com <code>realized-price</code>; divergence above 3% blocks the decision. Measured 2026-09-02: 53,087 (derived) vs 52,680 (bitcoin-data), 0.8% apart — different realized-cap methodologies, well inside tolerance.</p>
+<h2>Version history</h2>
+<ul><li>v0.1 (2026-09-02): derived realized price, strict "below" rule.</li><li>v0.2 (2026-09-04): unchanged; shadow reconciliation and a 5%/day rate-of-change sanity bound added.</li></ul>
+<h2>Known limitations</h2>
+<ul><li>Binary rule: a price 1% below realized price and 40% below it are the same regime. The depth is</li></ul>
+<p>  reported (<code>price_to_realized</code>) but not used in the weight.</p>
+<ul><li>Realized cap methodologies differ between providers by up to a few percent (dormant / lost coin</li></ul>
+<p>  treatment); the shadow check tolerates 3%.</p>
+<ul><li>Price can cross realized price several times in a bottoming process; each crossing is a regime</li></ul>
+<p>  change and therefore a rebalance trigger (limited by the trend gate and the cost model).</p>
+<hr>
+<h2>RU · Realized price (реализованная цена)</h2>
+<p><strong>Что измеряет.</strong> Реализованная стоимость, делённая на предложение: средняя ончейн‑себестоимость одного биткоина. Когда рыночная цена опускается ниже неё, средний держатель в убытке. Такие периоды (2015, конец 2018 — начало 2019, середина 2022) пока всегда были самой глубокой частью медвежьего рынка. Движок выделяет «цена ниже realized price» в отдельный режим CAPITULATION, который проверяется раньше перцентили MVRV.</p>
+<p><strong>Правило.</strong> realized_price = market cap / MVRV / supply; цена ниже — режим CAPITULATION, базовый вес 1.00. Вес по‑прежнему подчинён trend gate: при нисходящем тренде движок не *увеличивает* вес — это не покупка падающего ножа, а разрешение быть полностью в позиции, когда тренд развернётся.</p>
+<p><strong>Источник.</strong> Coin Metrics Community API (вывод из трёх бесплатных метрик, тождество точное); теневая сверка с bitcoin-data.com (замер 02.09: расхождение 0.8 %).</p>
+<p><strong>Ограничения.</strong> Правило бинарное (глубина фиксируется, но не влияет на вес); методологии реализованной капитализации у провайдеров расходятся на проценты; у дна цена может пересечь уровень несколько раз, и каждое пересечение — смена режима.</p><hr><h1>Signal Card 3 · Trend gate</h1>
+<p><strong>Version:</strong> v0.2 (SMA 200) · first used 2026-09-02 · owner: engine config</p>
+<h2>What it measures and why it relates to the regime</h2>
+<p>Valuation signals (cards 1–2) say *where* price is relative to holders' cost basis; they say nothing about *whether the decline has stopped*. A cheap market can get cheaper for months. The trend gate is a coarse filter for that: the 200-day simple moving average of price is the most widely watched long-term trend line, and price below it is the textbook definition of a downtrend.</p>
+<p>The gate is a <strong>gate, not a weight</strong>: it never sets the target, it only blocks *increases* of BTC weight while the trend is down. Reductions always pass. This protects against premature entry against the trend (docs/02 §2) without delaying risk-off decisions.</p>
+<h2>Rule</h2>
+<pre>trend_up = price &gt;= SMA200(price)
+if trend_up is False and target_weight &gt; current_weight:
+    target_weight = current_weight        # increase blocked; the decision records gated = true</pre>
+<p>The gate applies after the regime target and the M2 modifier and after the k scalar.</p>
+<h2>Data source and frequency</h2>
+<p>Coin Metrics Community API <code>PriceUSD</code> (daily reference rate, end of day UTC). The SMA needs 200 days of history; with less the signal is null and the engine holds.</p>
+<h2>Version history</h2>
+<ul><li>v0.1 (2026-09-02): SMA 200, blocks increases only.</li><li>v0.2 (2026-09-04): unchanged.</li></ul>
+<h2>Known limitations</h2>
+<ul><li>Whipsaw: in a sideways market price crosses the SMA200 repeatedly; each crossing can unblock or</li></ul>
+<p>  block an increase. Trades still need the 5 pp deviation or a regime change to trigger.</p>
+<ul><li>Lag: a 200-day average turns months after the bottom. In CAPITULATION the engine will typically</li></ul>
+<p>  stay at its previous weight for a while after the low — accepted as the price of not catching   knives. The backtest's Calmar advantage (docs/02) already includes this lag.</p>
+<ul><li>A single moving-average rule; no slope or distance filter. Kept deliberately simple so the rule</li></ul>
+<p>  is fully explainable.</p>
+<hr>
+<h2>RU · Trend gate (трендовый фильтр)</h2>
+<p><strong>Что измеряет.</strong> Оценочные сигналы говорят, *где* цена относительно себестоимости держателей, но не говорят, *остановилось ли падение*. Дешёвый рынок может дешеветь месяцами. Фильтр — 200‑дневная простая скользящая средняя: цена ниже неё — нисходящий тренд по учебнику.</p>
+<p><strong>Это гейт, а не вес:</strong> он никогда не задаёт цель, а только запрещает *увеличение* веса BTC при нисходящем тренде. Сокращения проходят всегда. Так закрывается преждевременный вход против тренда без задержки решений на снижение риска.</p>
+<p><strong>Правило.</strong> trend_up = цена ≥ SMA200. Если тренд вниз и целевой вес больше текущего — цель ограничивается текущим весом, в решении пишется <code>gated = true</code>. Применяется после режима, модификатора M2 и k.</p>
+<p><strong>Источник.</strong> Coin Metrics <code>PriceUSD</code>, ежедневно; нужно 200 дней истории.</p>
+<p><strong>Ограничения.</strong> Пила в боковике; запаздывание — средняя разворачивается через месяцы после дна, и в CAPITULATION движок какое‑то время держит прежний вес (цена того, чтобы не ловить ножи); намеренно простое правило без фильтров наклона.</p><hr><h1>Signal Card 4 · M2 acceleration</h1>
+<p><strong>Version:</strong> v0.2 (yoy 12 m, lag 3 m, deadband 0.25 pp, modifier ±10 pp) · first used 2026-09-02</p>
+<h2>What it measures and why it relates to the regime</h2>
+<p>Bitcoin has been the most liquidity-sensitive large asset: its big moves have followed turns in global money growth with a lag of a few months. Rather than the level of M2 (which only grows) the engine watches whether money growth is <strong>speeding up or slowing down</strong> — the second derivative. We use US M2 (seasonally adjusted) as the single, freely available, monthly proxy. It is a *modifier*, not a regime: it nudges the regime's base weight by ±10 percentage points, never overrides it.</p>
+<h2>Rule</h2>
+<pre>yoy(t)    = M2(t) / M2(t − 12 months) − 1
+accel(t)  = yoy(t) − yoy(t − 3 months)
+state     = accelerating if accel &gt; +0.25 pp · decelerating if accel &lt; −0.25 pp · flat otherwise
+modifier  = +0.10 / 0.00 / −0.10 added to the regime&#x27;s base weight, clamped to [0, 1], before k</pre>
+<p>For a given day the engine uses the latest M2 observation dated on or before that day.</p>
+<h2>Data source and frequency</h2>
+<p>FRED series <code>M2SL</code> (Board of Governors, billions USD, SA), monthly, published with roughly a three-week lag, downloaded as CSV without an API key. Data errors or a missing series make the state null → modifier 0 (the engine does not guess).</p>
+<h2>Version history</h2>
+<ul><li>v0.1 (2026-09-02): 12-month yoy, 3-month acceleration, deadband 0.25 pp, modifier ±0.10.</li><li>v0.2 (2026-09-04): unchanged; a 5% month-over-month sanity bound added.</li></ul>
+<h2>Known limitations</h2>
+<ul><li>US-only proxy for global liquidity; no China/EU/Japan aggregates in v0.x.</li><li>FRED serves the revised series, not point-in-time vintages: a replay uses today's revised values,</li></ul>
+<p>  which can differ slightly from what was known at the time. Accepted for the paper stage   (DECISIONS D-07); a vintage feed is a candidate for a later config version.</p>
+<ul><li>Monthly cadence and publication lag mean the modifier changes at most once a month and always with</li></ul>
+<p>  old information; it is deliberately small (±10 pp) for that reason.</p>
+<ul><li>The relationship between liquidity and BTC is statistical, not mechanical; 2022 showed the lag can</li></ul>
+<p>  be long.</p>
+<hr>
+<h2>RU · Ускорение M2</h2>
+<p><strong>Что измеряет.</strong> Биткоин — самый чувствительный к ликвидности крупный актив: его большие движения следовали за разворотами роста денежной массы с лагом в несколько месяцев. Движок смотрит не на уровень M2 (он только растёт), а на то, <strong>ускоряется или замедляется</strong> рост — вторую производную. Прокси — американский M2 (с сезонной корректировкой), единственный бесплатный месячный ряд. Это *модификатор*, а не режим: он сдвигает базовый вес режима на ±10 п.п. и никогда его не отменяет.</p>
+<p><strong>Правило.</strong> yoy = M2(t)/M2(t−12 мес) − 1; accel = yoy(t) − yoy(t−3 мес); ускорение при accel &gt; +0.25 п.п., замедление при &lt; −0.25 п.п., иначе плоско; модификатор +0.10 / 0 / −0.10 к базовому весу, с ограничением [0, 1], до умножения на k. Берётся последнее наблюдение с датой не позже дня сигнала.</p>
+<p><strong>Источник.</strong> FRED <code>M2SL</code>, месячно, лаг публикации около трёх недель, CSV без ключа. Ошибка данных — состояние пустое, модификатор 0.</p>
+<p><strong>Ограничения.</strong> Только США; FRED отдаёт ревизованный ряд без винтажей (принято для paper‑этапа, D‑07); месячный шаг и лаг — поэтому модификатор намеренно мал; связь ликвидности и BTC статистическая, 2022 год показал, что лаг бывает долгим.</p><hr><p class="muted">Generated 2026-09-04T08:59:59Z from hash-chained records. Research paper track — not an offer, not investment advice. Commercial terms only after go-live and legal review.</p></body></html>
