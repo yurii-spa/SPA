@@ -128,7 +128,13 @@ VERDICT_STALE = "stale_read_from_origin"      # карточка перечит�
 # `owner-done` = 0 при 2 — уверенный НОЛЬ там, где верный ответ «очередь неполна».
 VERDICT_HIDDEN = "hidden_read_from_origin"
 VERDICT_UNDELIVERED = "undelivered_not_on_origin"
-VERDICT_DIVERGED = "diverged_unmeasured"      # своя правка, кто новее не измерено
+VERDICT_DIVERGED = "diverged_unmeasured"      # своя правка, кто новее НЕ УСТАНОВЛЕН
+# Своя правка, и порядок отметок УСТАНОВЛЕН (`check_tracker_drift.mark_order`, одна мерка
+# на обе копии). До цикла #483 все три исхода назывались одним словом `diverged_unmeasured`,
+# и совет в stderr был «сверьте руками» — на 132 карточки разом. Замер 04.09: порядок
+# устанавливается у 35 из них, и глухое «не измерено» стояло на измеримом.
+VERDICT_DIVERGED_TREE_NEWER = "diverged_tree_newer"
+VERDICT_DIVERGED_ORIGIN_NEWER = "diverged_origin_newer"
 VERDICT_MAYBE_INGESTED = "answer_may_be_already_ingested"
 # ДОКАЗАНО, а не «скорее всего»: на origin у карточки терминальный статус И тот же самый
 # след решения владельца (`owner_choice` + `owner_answered_at`), что в дереве. Это возможно
@@ -319,11 +325,26 @@ def _origin_read_through(cards: list, tracker_dir=None,
     # остаток, который бот больше никогда не перепишет.
     already_ingested: list[str] = []
     proven_ingested: list[str] = []
+    #: Разошедшиеся карточки по ПОРЯДКУ ОТМЕТОК — имена раскладываются по исходу в stderr.
+    by_order: dict[str, list[str]] = {}
+    #: Закрыто у нас, открыто на ref, И наша отметка ИЗМЕРЕННО позже ⇒ закрытие есть только
+    #: здесь. Единственная группа, у которой этот сторож называет ДЕЙСТВИЕ, а не только исход.
+    undelivered_closure: list[str] = []
     for f in report.of_kind(drift.KIND_DIVERGED):
         local = by_id.get(f.card_id)
         if local is None:
             continue
         verdict = {"origin_check": VERDICT_DIVERGED}
+        # Вердикт о порядке приходит ИЗ СТОРОЖА, который его измерил, а не пересчитывается
+        # здесь второй раз: два экземпляра одной мерки расходятся молча (ADR-220).
+        if f.order:
+            verdict["origin_order"] = f.order
+            verdict["origin_order_detail"] = f.order_detail
+            by_order.setdefault(f.order, []).append(f.card_id)
+            if f.order == drift.ORDER_TREE_NEWER:
+                verdict["origin_check"] = VERDICT_DIVERGED_TREE_NEWER
+            elif f.order == drift.ORDER_ORIGIN_NEWER:
+                verdict["origin_check"] = VERDICT_DIVERGED_ORIGIN_NEWER
         try:
             origin_card = drift.read_origin_card(root, report.ref, f"{rel}/{f.card_id}.md")
         except drift.Unmeasured as exc:
@@ -331,6 +352,21 @@ def _origin_read_through(cards: list, tracker_dir=None,
             verdicts[f.card_id] = verdict
             continue
         verdict["origin_status"] = origin_card.status
+        # ЗАКРЫТИЕ, КОТОРОЕ ЕСТЬ ТОЛЬКО ЗДЕСЬ. Закрыто здесь, открыто на ref, и наша отметка
+        # ИЗМЕРЕННО позже ⇒ это не «две редакции», а работа, о которой ref не знает.
+        # Направление обязано быть измерено: прод-дерево — писатель ответов владельца
+        # (бот пишет туда мимо git), поэтому «у нас закрыто» само по себе не решает
+        # ничего — ровно тем же порядком судит `owner_decision_pending`.
+        if (f.order == drift.ORDER_TREE_NEWER
+                and local.status in _TERMINAL_ON_ORIGIN
+                and origin_card.status not in _TERMINAL_ON_ORIGIN):
+            undelivered_closure.append(f.card_id)
+            verdict["origin_check_note"] = (
+                f"закрыта здесь (`{local.status}`), на {report.ref} открыта "
+                f"(`{origin_card.status}`), и наша отметка позже — закрытие есть ТОЛЬКО "
+                f"здесь. Исходов ДВА, и сторож не выбирает между ними: либо закрытие надо "
+                f"довезти, либо оно неверно — читать ТЕЛО обеих копий"
+            )
         if local.status == "owner-done" and origin_card.status in _TERMINAL_ON_ORIGIN:
             if _same_owner_answer(local, origin_card):
                 # След решения владельца ДОЕХАЛ до git и совпал с деревом ⇒ это не догадка,
@@ -378,8 +414,39 @@ def _origin_read_through(cards: list, tracker_dir=None,
               f"({len(hidden_unread)}) — список ниже НЕПОЛОН по составу: "
               f"{', '.join(sorted(hidden_unread))}", file=sys.stderr)
     if diverged:
-        print(f"    · своя правка в дереве ({len(diverged)}) — кто новее НЕ измерено, сверьте "
-              f"руками: {_ids(drift.KIND_DIVERGED)}", file=sys.stderr)
+        # Раньше здесь стоял ОДИН список всех имён под советом «сверьте руками». Замер
+        # 04.09: имён 132, и совет на 132 позиции исполнить нельзя — совет, а не имена,
+        # и был шумом (урок #243). Поэтому имена ОСТАЮТСЯ — расхождение обязано быть
+        # названо, и это отдельный инвариант (`test_genuine_local_edit_is_diverged_and_
+        # never_silently_overridden`), — но раскладываются по исходу, а действие
+        # называется отдельной строкой ниже, на той единственной группе, где оно есть.
+        print(f"    · своя правка в дереве ({len(diverged)}) — по порядку отметок:",
+              file=sys.stderr)
+        for key, name in ((drift.ORDER_TREE_NEWER, "наша отметка ПОЗЖЕ"),
+                          (drift.ORDER_ORIGIN_NEWER, "отметка ref ПОЗЖЕ"),
+                          (drift.ORDER_UNMEASURED, "порядок НЕ УСТАНОВЛЕН")):
+            group = by_order.get(key)
+            if group:
+                print(f"        · {name} ({len(group)}): {', '.join(sorted(group))}",
+                      file=sys.stderr)
+        unordered = sorted(f.card_id for f in diverged if not f.order)
+        if unordered:
+            # Сторож о порядке не спросили вовсе — это НЕ «не установлен».
+            print(f"        · порядок не мерился ({len(unordered)}): "
+                  f"{', '.join(unordered)}", file=sys.stderr)
+    if undelivered_closure:
+        # Формулировка НАМЕРЕННО не говорит «довезите». Замер 04.09 на первой же живой
+        # находке (`inbox-task-portfolio-cio-dynamic-capital-alloc`): прод-копия закрыта
+        # 31.08 однострочником `python3 -c` в ходе массового закрытия, её след знает только
+        # `new -> done` и не знает о переходе `-> in-progress`, а копия на ref несёт
+        # `priority: critical` и блок «УКАЗАНИЕ ВЛАДЕЛЬЦА: ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ»,
+        # которого в прод-копии НЕТ ВООБЩЕ. Довезти такое закрытие значило бы стереть
+        # приказ владельца с origin. Сторож меряет ПОРЯДОК ОТМЕТОК и говорит ровно о нём;
+        # какой из двух исходов верен, решает тот, кто прочтёт тело.
+        print(f"    · 🔴 ЗАКРЫТО ТОЛЬКО ЗДЕСЬ ({len(undelivered_closure)}) — закрыты в этом "
+              f"дереве, на {report.ref} открыты, и наша отметка ИЗМЕРЕННО позже. Исходов "
+              f"ДВА: закрытие надо ДОВЕЗТИ либо оно НЕВЕРНО — читать тело обеих копий: "
+              f"{', '.join(sorted(undelivered_closure))}", file=sys.stderr)
     if already_ingested:
         print(f"    · из них ОТВЕТ ВЛАДЕЛЬЦА УЖЕ РАЗОБРАН ({len(already_ingested)}): "
               f"{', '.join(sorted(already_ingested))} — в дереве `owner-done`, на "

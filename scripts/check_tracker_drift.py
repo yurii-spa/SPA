@@ -56,6 +56,11 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from spa_core.owner_queue.queue import TRACKER_DIR, load_card_text  # noqa: E402
+# Мерка «когда с этой карточкой в последний раз что-то произошло» — ОДНА на обе копии, и
+# берётся ОТТУДА, ГДЕ ЕЁ ПИШУТ (урок ADR-220: у общего решения параметр, а не второй
+# экземпляр мерки). Своя копия разъехалась бы с писателем молча — ровно так уже трижды
+# платили (#143–#145).
+from spa_core.owner_queue.status_audit import latest_change_at  # noqa: E402
 # Имена полей захвата берём ОТТУДА, ГДЕ ИХ ПИШУТ, а не переписываем сюда: список из двух строк
 # кажется безобидным для копии ровно до того дня, когда в захват добавят третье поле, и этот
 # сторож молча начнёт считать захваченную карточку «разошедшейся». Проект уже дважды заплатил
@@ -79,6 +84,73 @@ KIND_HIDDEN = "hidden"
 KIND_UNDELIVERED = "undelivered"
 KIND_DELETED = "deleted_on_origin"
 
+# ── ПОРЯДОК ОТМЕТОК у разошедшейся карточки ──────────────────────────────────
+#
+# `diverged` означает ровно одно: содержимого дерева нет в истории origin. Кто из двух
+# копий НОВЕЕ, из этого не следует, и до цикла #483 сторож так и говорил — одной глухой
+# строкой «кто новее НЕ измерено, сверьте руками» на ВСЕ находки разом. Замер 04.09 на
+# живом входе: таких карточек **132**, и совет «сверьте руками» на 132 позиции исполнить
+# нельзя — это не сигнал, а шум, которым сторожа и глохнут (урок #243).
+#
+# При этом мерка порядка в проекте УЖЕ БЫЛА: `status_audit.latest_change_at` читает
+# и след переходов (`status_trail`, его пишет наш код на каждом `set_status`), и отметку
+# ответа владельца (`owner_answered_at`, её пишет бот прямо в прод-дерево мимо git).
+# Её звал ОДИН потребитель — `owner_decision_pending` — и ровно для зеркального случая
+# («открыто здесь, закрыто на origin»). Здесь она не звалась НИКОГДА: источник без
+# потребителя, класс ADR-209.
+#
+# Замер того же дня: из 132 разошедшихся порядок устанавливается у **35**, и одна из них —
+# настоящая недоставленная закрытость `inbox-task-portfolio-cio-dynamic-capital-alloc`
+# (`done` в прод-дереве, `in-progress` на origin), ТА САМАЯ карточка, ради которой написан
+# шаг 0a-голод протокола.
+#
+# Соглашения об исходах — те же, что у `owner_decision_pending`, и это НЕ совпадение: две
+# разные мерки одного порядка разошлись бы молча.
+ORDER_TREE_NEWER = "tree_newer"       # наша отметка позже — впереди дерево
+ORDER_ORIGIN_NEWER = "origin_newer"   # отметка на ref позже — впереди origin
+ORDER_UNMEASURED = "unmeasured"       # порядок НЕ установлен, и причина названа
+
+
+def mark_order(tree_text: str, origin_text: str) -> tuple[str, str]:
+    """Порядок отметок двух копий карточки → (вердикт, причина словами).
+
+    Одна мерка (:func:`~spa_core.owner_queue.status_audit.latest_change_at`) прикладывается
+    к ОБОИМ текстам ПАРАМЕТРОМ. Исходов три, и третий обязателен: «не измерено» с названной
+    причиной — самостоятельный ответ, а не молчание и не выбор стороны наугад.
+
+    Разбор случаев, когда отметки есть не у обеих сторон:
+
+    * **у нас отметок нет, на ref есть** ⇒ порядок УСТАНОВЛЕН, впереди origin: наша копия
+      стои́т там, где родилась, а на ref карточку двигали. Ровно так же судит
+      `owner_decision_pending`.
+    * **у нас есть, на ref нет** ⇒ **НЕ ИЗМЕРЕНО** (fail-CLOSED). Соблазн прочитать это как
+      «мы новее» велик и неверен: отсутствие следа на ref означает лишь, что ту версию писал
+      код, следа не оставлявший, — а не что она старше. Замер 04.09: таких **62** из 132, то
+      есть неверная догадка здесь стоила бы дороже всей остальной находки.
+    * **отметок нет ни у кого** ⇒ НЕ ИЗМЕРЕНО: обе копии молчат о своём движении.
+    """
+    tree_at = latest_change_at(tree_text)
+    origin_at = latest_change_at(origin_text)
+    if tree_at is None and origin_at is None:
+        return ORDER_UNMEASURED, ("ни одна из копий не несёт отметки о своём движении "
+                                  "(ни следа переходов, ни ответа владельца)")
+    if tree_at is None:
+        return ORDER_ORIGIN_NEWER, (f"наша копия отметок о движении не несёт вовсе, а на ref "
+                                    f"карточку двигали ({origin_at.isoformat()}) — "
+                                    f"впереди ref")
+    if origin_at is None:
+        return ORDER_UNMEASURED, (f"наша копия помечена ({tree_at.isoformat()}), а копия на ref "
+                                  f"отметок не несёт — это НЕ значит, что она старше: "
+                                  f"её мог писать код, следа не оставлявший")
+    if tree_at > origin_at:
+        return ORDER_TREE_NEWER, (f"наша отметка {tree_at.isoformat()} позже отметки ref "
+                                  f"{origin_at.isoformat()}")
+    if tree_at < origin_at:
+        return ORDER_ORIGIN_NEWER, (f"отметка ref {origin_at.isoformat()} позже нашей "
+                                    f"{tree_at.isoformat()}")
+    return ORDER_UNMEASURED, (f"обе отметки в один и тот же момент ({tree_at.isoformat()}) — "
+                              f"порядок этим не устанавливается")
+
 
 class Unmeasured(RuntimeError):
     """Сверка не выполнилась. Вердикт — «не измерено» (код 2), а не «расхождений нет»."""
@@ -92,6 +164,13 @@ class Finding:
     tree_status: str = ""
     origin_status: str = ""
     tracker_type: str = ""
+    #: Порядок отметок двух копий (см. :func:`mark_order`). Заполняется только для
+    #: `diverged` — это единственный класс, у которого «кто новее» и был открытым
+    #: вопросом; у `stale` порядок ДОКАЗАН историей, у `hidden`/`undelivered` второй
+    #: копии нет вовсе. Пустая строка означает «этот класс о порядке не спрашивают»,
+    #: а не «спросили и не узнали»: второе — это `ORDER_UNMEASURED` с причиной.
+    order: str = ""
+    order_detail: str = ""
 
     def as_dict(self) -> dict:
         return {
@@ -101,6 +180,8 @@ class Finding:
             "tree_status": self.tree_status,
             "origin_status": self.origin_status,
             "tracker_type": self.tracker_type,
+            "order": self.order,
+            "order_detail": self.order_detail,
         }
 
 
@@ -434,7 +515,8 @@ def analyze(tracker_dir: Path | None = None, ref: str = DEFAULT_REF) -> Report:
             continue
 
         path, tree_sha = tree[card_id]
-        tree_card = load_card_text(path.read_text(encoding="utf-8"), path.name)
+        tree_text = path.read_text(encoding="utf-8")
+        tree_card = load_card_text(tree_text, path.name)
 
         if not in_origin:
             history = historical_blobs(root, rel_path, ref, index)
@@ -461,10 +543,17 @@ def analyze(tracker_dir: Path | None = None, ref: str = DEFAULT_REF) -> Report:
                 tree_status=tree_card.status, origin_status=origin_card.status,
                 tracker_type=origin_card.tracker_type))
         else:
+            # Тексты обеих копий уже в руках — порядок отметок меряется ЗДЕСЬ, без
+            # второго прохода git. Цена сторожа однажды уже выключила сторожа (#454:
+            # доска гоняла сверку с `--no-origin-check`, потому что та стоила 84 с),
+            # и платить процессом на карточку ради этой строки нельзя.
+            order, order_detail = mark_order(
+                tree_text, origin_texts.get(origin[card_id]) or "")
             report.findings.append(Finding(
                 kind=KIND_DIVERGED, card_id=card_id, detail=why,
                 tree_status=tree_card.status, origin_status=origin_card.status,
-                tracker_type=origin_card.tracker_type))
+                tracker_type=origin_card.tracker_type,
+                order=order, order_detail=order_detail))
     return report
 
 
