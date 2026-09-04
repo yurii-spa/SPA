@@ -94,6 +94,18 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                      "unchecked", "compared_protocols",
                                      "history.status", "history.by_key",
                                      "history.blind_snapshots", "history.window_truncated"),
+    "pool_identity_collision.json": ("overall", "counts.critical", "counts.warn",
+                                    "counts.info", "counts.unchecked", "keys_compared",
+                                    "collisions", "unreachable_refusals", "findings",
+                                    "unchecked"),
+    "capital_evidence_coverage.json": ("verdict", "capital_coverage_pct", "target_pct",
+                                       "baseline_pct", "deployed_usd", "usd.evidenced",
+                                       "usd.literal", "usd.unmeasured", "by_protocol",
+                                       "adapters_live_pct", "divergence_pp", "unchecked",
+                                       "history.status", "history.covered_days",
+                                       "history.window_truncated", "history.books_measured",
+                                       "history.books_unmeasured", "history.coverage_pct_min",
+                                       "history.coverage_pct_max"),
 }
 
 # Отметка времени в шапке md-артефакта: `Auto-updated: **2026-08-09 05:44 UTC**`.
@@ -124,6 +136,8 @@ _PRODUCER: dict[str, str] = {
     "loop_retro.json": "spa_core/monitoring/loop_retro.py",
     "loop_health.json": "spa_core/monitoring/loop_health.py",
     "adapter_feed_divergence.json": "spa_core/monitoring/adapter_feed_divergence.py",
+    "capital_evidence_coverage.json": "spa_core/monitoring/capital_evidence_coverage.py",
+    "pool_identity_collision.json": "spa_core/monitoring/pool_identity_collision.py",
     # Единственный производитель-СКРИПТ. Ключи он всё-таки пишет питоном —
     # heredoc'ом внутри shell, — поэтому сверка схемы здесь настоящая, а не
     # «неприменима»: разбирает встроенный питон (`_embedded_python`), а не
@@ -773,6 +787,86 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                 out.append(f"   [{sev}] {f.get('message')}")
         for u in (data.get("unchecked") or [])[:4]:
             out.append(f"   [НЕ ИЗМЕРЕНО] {u}")
+    elif name == "pool_identity_collision.json":
+        # ДВА ключа — ОДИН контракт. Потолок концентрации считает ключи разными
+        # предметами риска; если они ранжируются на одном пуле DeFiLlama, книга
+        # берёт удвоенную долю одного контракта, а КАЖДЫЙ потолок при этом
+        # честно доложит, что не нарушен. Пин («не запинен, потому что коллизия
+        # известна») тождества не отменяет: незапиненный ключ по-прежнему
+        # резолвится, ранжируется и финансируется — «не измерен», а не «не
+        # подвержен».
+        c = data.get("counts") or {}
+        out.append(f"   тождество пулов: {data.get('overall') or _UNMEASURED} "
+                   f"(critical={_num(c, 'critical')} warn={_num(c, 'warn')} "
+                   f"info={_num(c, 'info')} unchecked={_num(c, 'unchecked')}); "
+                   f"ключей сверено: {len(data.get('keys_compared') or [])}")
+        for col in (data.get("collisions") or []):
+            if isinstance(col, dict):
+                out.append(f"   [{col.get('severity')}] {col.get('message')}")
+        # Отказ реестра, до которого не доходит исполнение. INFO-строки
+        # («расходится, но ветка достижима — отказ состоится») поимённо не
+        # печатаются: их восемь, вреда сегодня нет, и вынос их сюда научил бы
+        # читателя пролистывать блок. Число звучит — это агрегация, не пропуск.
+        loud = [u for u in (data.get("unreachable_refusals") or [])
+                if isinstance(u, dict) and u.get("severity") in ("CRITICAL", "WARN")]
+        for u in loud[:6]:
+            out.append(f"   [{u.get('severity')}] {u.get('message')}")
+        quiet = len(data.get("unreachable_refusals") or []) - len(loud)
+        if quiet > 0:
+            out.append(f"   … и {quiet} INFO-строк(и): реестр и класс адаптера объявляют "
+                       f"отказ по-разному, но ключ не опрашивается ⇒ отказ состоится")
+        for u in (data.get("unchecked") or [])[:6]:
+            out.append(f"   [НЕ ИЗМЕРЕНО] {u}")
+    elif name == "capital_evidence_coverage.json":
+        # Приёмка §5 ТЗ владельца «Portfolio CIO»: какая доля НАШИХ ДЕНЕГ стоит
+        # на наблюдении. До ADR-226 у числа не было производителя вовсе — его
+        # выводили руками 02.08 (25 %), 19.08 и 04.09 (100 %), и приёмкой оно
+        # быть не могло: то, что каждый раз считают заново, не краснеет.
+        #
+        # Число-ДВОЙНИК печатается рядом НАМЕРЕННО. `feed_coverage.live_pct`
+        # читается как ответ и им не является: он считает АДАПТЕРЫ вселенной,
+        # приёмка — ДОЛЛАРЫ развёрнутой книги. На 04.09 оба равны 100 %, и
+        # именно поэтому подмену легко не заметить — расхождение в пп говорит
+        # вслух, насколько два вопроса разошлись сегодня.
+        usd = data.get("usd") or {}
+        hist = data.get("history")
+        out.append(f"   доля КАПИТАЛА, ранжированного по наблюдённым числам: "
+                   f"{_num(data, 'capital_coverage_pct')}% (цель {_num(data, 'target_pct')}%, "
+                   f"было {_num(data, 'baseline_pct')}% на 02.08) — вердикт "
+                   f"{data.get('verdict') or _UNMEASURED}")
+        out.append(f"   развёрнуто ${_num(data, 'deployed_usd')}: наблюдением "
+                   f"${_num(usd, 'evidenced')} · помеченным литералом "
+                   f"${_num(usd, 'literal')} · НЕ ИЗМЕРЕНО ${_num(usd, 'unmeasured')}")
+        alp = data.get("adapters_live_pct")
+        out.append(f"   рядом: живых АДАПТЕРОВ вселенной "
+                   f"{alp if alp is not None else _UNMEASURED}% — это ДРУГОЙ вопрос "
+                   f"(расхождение {_num(data, 'divergence_pp')} пп)")
+        # Доллар без провенанса называется ПОИМЁННО и с причиной: «не 100 %» не
+        # говорит, ЧТО чинить, а именно это и есть предмет гэпа G1.
+        for row in (data.get("by_protocol") or []):
+            if isinstance(row, dict) and row.get("message"):
+                tag = _UNMEASURED if row.get("bucket") == "unmeasured" else "WARN"
+                out.append(f"   [{tag}] {row.get('message')}")
+        for u in (data.get("unchecked") or [])[:6]:
+            out.append(f"   [НЕ ИЗМЕРЕНО] {u}")
+        # ТРЕНД, а не мгновение: ТЗ спрашивает «стало ли лучше и держится ли».
+        # Окно считается по РАЗНЫМ книгам, а не по прогонам сторожа, и обрезка
+        # окна возрастом журнала говорится вслух — «100 % за 30 суток» по
+        # двухдневному журналу это ненаблюдение, а не хорошая новость.
+        if isinstance(hist, dict) and hist.get("status") != "OK":
+            out.append(f"   [НЕ ИЗМЕРЕНО] память покрытия: "
+                       f"{hist.get('reason') or _UNMEASURED} — это НЕ «покрытие держалось»")
+        elif isinstance(hist, dict):
+            trunc = (" ⚠️ окно обрезано возрастом журнала: покрыто "
+                     f"{hist.get('covered_days')} сут из {hist.get('window_days')}"
+                     if hist.get("window_truncated") else "")
+            out.append(f"   память: книг измерено {hist.get('books_measured')}, "
+                       f"покрытие {hist.get('coverage_pct_min')}…"
+                       f"{hist.get('coverage_pct_max')} %{trunc}")
+            if hist.get("books_unmeasured"):
+                out.append(f"   [НЕ ИЗМЕРЕНО] книг без числа покрытия: "
+                           f"{hist.get('books_unmeasured')} — ряд с дырами и ряд без "
+                           f"дыр это разные новости")
     elif name == "house_view_gap.json":
         # Схема ВЫМЕРЕНА по производителю (`monitoring/house_view_gap.py`):
         # расхождения лежат в `gaps`, счётчики — `warn`/`info`/`unchecked`.

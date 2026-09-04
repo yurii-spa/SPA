@@ -46,6 +46,8 @@ from spa_core.monitoring.architecture_conformance import REPO_ROOT, subject_inpu
 #: Сверяется с фактической записью — spa_core/monitoring/artifact_contract.py.
 PRODUCES = (
     "data/adapter_feed_divergence.json",
+    "data/capital_evidence_coverage.json",
+    "data/pool_identity_collision.json",
     "data/findings_bridge_report.json",
     "data/house_view_gap.json",
     "data/investment_os/outcomes.jsonl",
@@ -551,6 +553,36 @@ def main(argv=None) -> int:
               f"протоколов сверено {len(afd['compared_protocols'])}")
     except Exception as e:  # noqa: BLE001 — сверка фидов не смеет валить мост
         print(f"adapter_feed_divergence: пропущено ({e})")
+    # Приёмка §5 ТЗ «Portfolio CIO» (ADR-226): доля КАПИТАЛА, ранжированного по
+    # наблюдённым числам. Считается ЗДЕСЬ по той же причине, что и сверка фидов:
+    # вопрос родствен («сходится ли то, чем мы объясняем книгу, с самой книгой»),
+    # стоит миллисекунды, а отдельный launchd-агент означал бы деплой — решение
+    # владельца, — и приёмка ушла бы в очередь вместо того, чтобы работать.
+    # Мост находок его НЕ читает намеренно: потребитель — шаг 0-офис, то есть
+    # решение принимает сессия. Автокарточка здесь была бы вредна: «не 100 %»
+    # почти всегда означает работу над ФИДАМИ, у которой уже есть свои карточки.
+    try:
+        from spa_core.monitoring import capital_evidence_coverage
+        cec = capital_evidence_coverage.run(root=args.root)
+        print(f"capital_evidence_coverage: {cec['verdict']} "
+              f"({cec['capital_coverage_pct']}% капитала по наблюдению, "
+              f"развёрнуто {cec['deployed_usd']}, "
+              f"не измерено {(cec.get('usd') or {}).get('unmeasured')})")
+    except Exception as e:  # noqa: BLE001 — приёмка не смеет валить мост
+        print(f"capital_evidence_coverage: пропущено ({e})")
+    # Тождество пулов (гэп G1): считается тем же прогоном и по той же причине —
+    # вопрос родствен сверке фидов, стоит миллисекунды, новый агент означал бы
+    # деплой. Сторож только НАЗЫВАЕТ: снятие ключа с финансирования и правка
+    # потолков — money-path, а значит решение владельца, не авто-карточка.
+    try:
+        from spa_core.monitoring import pool_identity_collision
+        pic = pool_identity_collision.run(root=args.root)
+        print(f"pool_identity_collision: {pic['overall']} "
+              f"(critical={pic['counts']['critical']} warn={pic['counts']['warn']} "
+              f"unchecked={pic['counts']['unchecked']}), "
+              f"ключей сверено {len(pic['keys_compared'])}")
+    except Exception as e:  # noqa: BLE001 — сверка тождества не смеет валить мост
+        print(f"pool_identity_collision: пропущено ({e})")
     # Цикл 3 ADR-067: правая половина hit-rate — строка исхода за сегодня
     # (идемпотентно по дате; 4 шанса в день догнать evidenced-бар).
     try:
