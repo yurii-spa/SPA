@@ -186,6 +186,9 @@ def _run_one_adapter(
         "tier": tier,
         "apy_pct": None,
         "tvl_usd": None,
+        # ADR-233: поле присутствует ВСЕГДА, в том числе на отказных путях.
+        # `None` читается как «личность не измерена», а не «пул тот же».
+        "pool_id": None,
         "status": "error",
         "last_updated": run_ts,
         "error": None,
@@ -218,6 +221,21 @@ def _run_one_adapter(
         if _self_name and str(_self_name) != protocol_key:
             record["adapter_self_name"] = str(_self_name)
         record["tier"] = getattr(info, "tier", tier) or tier
+        # ADR-233: ЛИЧНОСТЬ пула, из которого взято число этого вызова. Как и
+        # `adapter_self_name` выше — записывается для диагностики и властью над
+        # идентичностью НЕ обладает: ключ снимка по-прежнему реестровый.
+        #
+        # До этого поля вопрос «а на один ли пул смотрят два производителя»
+        # был неразрешим ПО ПОСТРОЕНИЮ — снимок оркестратора не нёс о пуле
+        # ничего. Цена измерена 05.09 на 40 % книги: `aave_v3` разошёлся с
+        # `adapter_status` на 2.68 пп при отметках наблюдения врозь на 2.16 с —
+        # ровно столько же, сколько у ВОСЬМИ сошедшихся протоколов того же
+        # снимка. Наблюдения были верны оба и относились к разным пулам.
+        #
+        # `None` = «не измерено», и это НЕ «пул тот же»: адаптер, не умеющий
+        # назвать пул, обязан выпадать из сверки НАЗВАННО, а не молча.
+        _pool_id = getattr(info, "pool_id", None)
+        record["pool_id"] = str(_pool_id) if isinstance(_pool_id, str) and _pool_id else None
         record["tvl_usd"] = tvl_usd
         if tvl_usd is not None:
             _declared = getattr(info, "tvl_source", None)
@@ -275,6 +293,7 @@ def _collect_adapter_statuses(
                     "tier": tier,
                     "apy_pct": None,
                     "tvl_usd": None,
+                    "pool_id": None,   # ADR-233: не измерено, а не «тот же пул»
                     "status": "timeout",
                     "last_updated": run_ts,
                     "error": f"timeout after {timeout}s",
@@ -291,6 +310,7 @@ def _collect_adapter_statuses(
                     "tier": tier,
                     "apy_pct": None,
                     "tvl_usd": None,
+                    "pool_id": None,   # ADR-233: не измерено, а не «тот же пул»
                     "status": "error",
                     "last_updated": run_ts,
                     "error": f"{type(exc).__name__}: {exc}",

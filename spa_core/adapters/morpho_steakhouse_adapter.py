@@ -38,6 +38,7 @@ from .base_adapter import BaseAdapter, YieldInfo
 from .defillama_feed import DeFiLlamaFeed
 from spa_core.utils.errors import safe_call
 from spa_core.utils.data_dir import own_data_dir
+from spa_core.adapters._pool_identity import resolved_pool_id
 
 logger = logging.getLogger(__name__)
 
@@ -191,6 +192,12 @@ class MorphoSteakhouseAdapter(BaseAdapter):
             self.DEFILLAMA_PROJECT, self.DEFILLAMA_SYMBOL, self.DEFILLAMA_CHAIN,
             default=None, log_error=False,
         )
+        # ADR-233: какой ИМЕННО пул выиграл отбор — тем же снимком и тем же
+        # правилом, что apy/tvl выше. `pool_id` рядом — рукописный слаг.
+        record["resolved_pool_id"] = resolved_pool_id(
+            self.feed,
+            self.DEFILLAMA_PROJECT, self.DEFILLAMA_SYMBOL, self.DEFILLAMA_CHAIN,
+        )
 
         record["tvl"] = float(tvl) if isinstance(tvl, (int, float)) else None
         if not isinstance(apy, (int, float)):
@@ -260,6 +267,7 @@ class MorphoSteakhouseAdapter(BaseAdapter):
             risk_score=self.RISK_SCORE,
             exit_latency_hours=self.EXIT_LATENCY_HOURS,
             tvl_source="live" if _tvl_live else None,
+            pool_id=live.get("resolved_pool_id"),
         )
 
     # ── switch-рекомендация ──────────────────────────────────────────────

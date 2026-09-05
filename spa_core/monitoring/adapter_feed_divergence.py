@@ -35,9 +35,52 @@
 ==============================================================
 Свалить всё в «фиды разошлись» значило бы соврать в двух местах сразу.
 
-* ``live_vs_live`` — **обе** стороны заявляют живое наблюдение, а числа разные.
-  Только это — противоречие двух наблюдений, и только оно поднимает инвариант 2
-  (fail-CLOSED при расхождении фидов). CRITICAL.
+* ``live_vs_live`` — **обе** стороны заявляют живое наблюдение ОДНОГО И ТОГО ЖЕ
+  пула, а числа разные. Только это — противоречие двух наблюдений, и только оно
+  поднимает инвариант 2 (fail-CLOSED при расхождении фидов). CRITICAL.
+* ``apy_identity_mismatch`` — обе стороны наблюдали живое, но **РАЗНЫЕ ПУЛЫ**
+  (ADR-233). Наблюдения при этом ВЕРНЫ ОБА, и «противоречие фидов» — неверный
+  диагноз: чинится ЗАКРЕПЛЕНИЕМ пула за ключом, а fail-CLOSED не лечит ничего.
+  CRITICAL — тяжесть та же, адрес починки другой.
+
+  Замер 2026-09-05 (цикл #492), ``aave_v3`` — 40 % книги, крупнейшая позиция.
+  У ключа в живом фиде ЧЕТЫРЕ кандидата ``aave-v3``/Ethereum/USDC::
+
+      aa70268e…  $153.55M  3.587 пп  ядро рынка, underlying USDC
+      6f00d46b…  $ 58.62M  5.247 пп  "Umbrella", underlying 0xD4fa… — НЕ USDC,
+                                     1.66 пп из них — эмиссия (apyReward)
+      effcb4a4…  $  1.53M  2.580 пп  "Prime Instance"
+      27296bf9…  $  0.65M  4.372 пп  "Aave Horizon Market"
+
+  Стороны отбирают из РАЗНЫХ множеств: генератор ``adapter_status`` фильтрует по
+  каноническому underlying (``_CANONICAL_UNDERLYING``) и «Umbrella» отвергает,
+  а путь адаптера (``DeFiLlamaFeed.get_pool``, точное совпадение символа) про
+  underlying не спрашивает вовсе. Пока ядро рынка в снимке есть, побеждает оно у
+  обоих и расхождения нет. Стоит ядру из снимка выпасть — генератор падает на
+  ``effcb4a4…`` (2.58), адаптер на ``6f00d46b…`` (5.25). Воспроизведено удалением
+  одного пула из живого фида ЧЕРЕЗ НАСТОЯЩИХ ВЫЗЫВАЮЩИХ: 2.58038 против 5.24713,
+  разрыв 2.6668 пп — против записанных в снимке 06:00Z 2.5804 против 5.2651
+  (2.6847 пп).
+
+  **Прежний диагноз этого расхождения (цикл #470, 03.09) замером ОПРОВЕРГНУТ.**
+  Он гласил: «числа расходятся ровно тогда, когда расходятся ОТМЕТКИ НАБЛЮДЕНИЯ»,
+  и предлагал переименовать находку в ``apy_stale_copy_vs_live`` (WARN). В снимке
+  05.09 06:00Z отметки наблюдения разошлись на 2.16 с у ВСЕХ ДЕВЯТИ общих
+  протоколов, восемь из девяти сошлись до четвёртого знака, и разошёлся ровно
+  один — ``aave_v3``. Разрыв отметок есть свойство пары АРТЕФАКТОВ (их пишет один
+  дневной цикл), а не протокола, и объяснить им расхождение ОДНОГО из девяти
+  нельзя. Переименование в WARN понизило бы тяжесть настоящего дефекта по
+  неверной причине — поэтому не сделано.
+* ``pool_identity_mismatch`` — пулы разные, а числа сегодня совпали. WARN: это
+  совпадение, а не согласие, и завтрашний порядок TVL решит иначе.
+
+**Личность едет ПОЛЕМ ``identity`` (``same``/``different``/``unchecked``), а не
+новым именем рода.** Ключ журнала (ADR-207) — «протокол:род»; переименуй род для
+артефактов без метки — и накопленный с 01.09 ряд ``aave_v3:apy_live_vs_live``
+разорвался бы надвое, счётчик рецидива молча начался бы с нуля, а шаг 0-офис
+перестал бы печатать ``↺``. Третий исход при этом не теряется: при
+``identity="unchecked"`` сообщение прямо говорит, что адрес починки НЕ ИЗМЕРЕН,
+потому что «личность не названа» и «пул тот же» — разные ответы.
 * ``literal_vs_live`` — одна сторона живая, вторая подставила ``fallback``, потому
   что не получила чтения. Это **не** спор наблюдений: вторая сторона не наблюдала
   ничего. Ровно это уточнение стоит дословно в карточке D6
@@ -224,6 +267,32 @@ def _observed_apy_orch(entry: dict) -> tuple[float | None, float | None]:
     return (shown if entry.get("live_data") is True else None), shown
 
 
+def _resolved_pool(entry: dict) -> str | None:
+    """Личность пула, РАЗРЕШЁННОГО этой стороной, или ``None`` («не измерено»).
+
+    Обе стороны пишут её в поле ``pool_id``: ``adapter_status`` — с ADR-230,
+    снимок оркестратора — с ADR-233. Пустая строка личностью не считается.
+    """
+    value = entry.get("pool_id")
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    return value or None
+
+
+def _identity_verdict(s: dict, o: dict) -> tuple[str, str | None, str | None]:
+    """``("same"|"different"|"unchecked", пул_status, пул_orchestrator)``.
+
+    ``unchecked`` — когда ХОТЯ БЫ одна сторона личность не назвала. Это третий
+    исход, а не «пул тот же»: молчание о личности неотличимо от согласия только
+    для того, кто согласие и хотел увидеть.
+    """
+    s_pool, o_pool = _resolved_pool(s), _resolved_pool(o)
+    if s_pool is None or o_pool is None:
+        return "unchecked", s_pool, o_pool
+    return ("same" if s_pool.lower() == o_pool.lower() else "different"), s_pool, o_pool
+
+
 def _finding(protocol: str, kind: str, severity: str, message: str, **extra) -> dict:
     rec = {"protocol": protocol, "kind": kind, "severity": severity, "message": message}
     rec.update(extra)
@@ -246,15 +315,67 @@ def _compare_protocol(protocol: str, s: dict, o: dict) -> list[dict]:
             adapter_status_apy=s_shown, orchestrator_apy=o_shown))
     elif s_live is not None and o_live is not None:
         delta = abs(s_live - o_live)
+        # ADR-233. «Оба наблюдали и разошлись» — это ДВА разных дефекта с
+        # ПРОТИВОПОЛОЖНОЙ починкой, и до сих пор они звались одним именем:
+        #   • один пул, два числа  ⇒ противоречие наблюдений, инвариант 2, fail-CLOSED;
+        #   • два пула, два числа  ⇒ наблюдения ВЕРНЫ ОБА, они о разных инструментах;
+        #     чинится закреплением пула, а fail-CLOSED тут не лечит ничего.
+        # Тяжесть у всех исходов одна (CRITICAL) — меняется адрес починки, а не
+        # громкость. Ослабления здесь нет и быть не должно.
+        identity, s_pool, o_pool = _identity_verdict(s, o)
         if delta > APY_TOLERANCE_PP:
+            if identity == "different":
+                out.append(_finding(
+                    protocol, "apy_identity_mismatch", CRITICAL,
+                    f"{protocol}: стороны наблюдали РАЗНЫЕ ПУЛЫ и потому разошлись — "
+                    f"adapter_status {s_live} пп (пул {s_pool}) против orchestrator "
+                    f"{o_live} пп (пул {o_pool}), разница {round(delta, 4)} пп. "
+                    f"Это НЕ противоречие двух наблюдений: оба верны, но об разных "
+                    f"инструментах. Починка — ЗАКРЕПИТЬ пул за ключом, а не выбрать "
+                    f"число; fail-CLOSED здесь не лечит ничего",
+                    adapter_status_apy=s_live, orchestrator_apy=o_live,
+                    delta_pp=round(delta, 4), identity=identity,
+                    adapter_status_pool=s_pool, orchestrator_pool=o_pool))
+            else:
+                # ИМЯ РОДА здесь НЕ меняется — ни при `same`, ни при `unchecked`.
+                # Ключ журнала (ADR-207) — «протокол:род», и переименование рода
+                # для непомеченных артефактов разорвало бы накопленный ряд
+                # `aave_v3:apy_live_vs_live` (с 01.09) на два: счётчик рецидива
+                # молча начался бы с нуля, а шаг 0-офис перестал бы печатать `↺`.
+                # Сторож, чинящий диагноз ценой потери памяти о рецидиве, лечит
+                # одно и ломает другое. Поэтому личность едет ПОЛЕМ, а третий
+                # исход говорится СЛОВАМИ в том же сообщении.
+                if identity == "same":
+                    tail = (f"Стороны наблюдают ОДИН пул ({s_pool}), значит это "
+                            f"противоречие ДВУХ наблюдений: инвариант 2 требует "
+                            f"fail-CLOSED, а потребитель выбирает молча")
+                else:
+                    silent = "adapter_status" if s_pool is None else "orchestrator"
+                    tail = (f"ЛИЧНОСТЬ ПУЛА не названа стороной {silent} ⇒ НЕ ИЗМЕРЕНО, "
+                            f"об одном ли инструменте спор. Пока это не измерено, "
+                            f"адрес починки (закрепить пул против fail-CLOSED) "
+                            f"назвать нельзя — «не названа» и «пул тот же» это "
+                            f"разные ответы")
+                out.append(_finding(
+                    protocol, "apy_live_vs_live", CRITICAL,
+                    f"{protocol}: ОБА фида заявляют живое наблюдение и не сходятся — "
+                    f"adapter_status {s_live} пп против orchestrator {o_live} пп "
+                    f"(разница {round(delta, 4)} пп). {tail}",
+                    adapter_status_apy=s_live, orchestrator_apy=o_live,
+                    delta_pp=round(delta, 4), identity=identity,
+                    adapter_status_pool=s_pool, orchestrator_pool=o_pool))
+        elif identity == "different":
+            # Числа сегодня сошлись, а пулы разные — совпадение, а не согласие:
+            # ключ не закреплён, и завтрашний порядок TVL даст другое число.
             out.append(_finding(
-                protocol, "apy_live_vs_live", CRITICAL,
-                f"{protocol}: ОБА фида заявляют живое наблюдение и не сходятся — "
-                f"adapter_status {s_live} пп против orchestrator {o_live} пп "
-                f"(разница {round(delta, 4)} пп). Это противоречие ДВУХ наблюдений: "
-                f"инвариант 2 требует fail-CLOSED, а потребитель выбирает молча",
+                protocol, "pool_identity_mismatch", WARN,
+                f"{protocol}: стороны разрешают ключ в РАЗНЫЕ пулы "
+                f"(adapter_status {s_pool}, orchestrator {o_pool}), а числа сегодня "
+                f"сошлись ({s_live} пп против {o_live} пп). Это совпадение, а не "
+                f"согласие: ключ не закреплён, и порядок TVL решает за нас",
                 adapter_status_apy=s_live, orchestrator_apy=o_live,
-                delta_pp=round(delta, 4)))
+                delta_pp=round(delta, 4), identity=identity,
+                adapter_status_pool=s_pool, orchestrator_pool=o_pool))
     elif s_live is None and o_live is None:
         out.append(_finding(
             protocol, "apy_both_literal", INFO,

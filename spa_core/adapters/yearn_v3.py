@@ -16,6 +16,7 @@ from typing import Optional
 from .base_adapter import BaseAdapter, YieldInfo
 from spa_core.feeds.defi_llama_feed import DefiLlamaFeed
 from spa_core.utils.errors import safe_call
+from spa_core.adapters._pool_identity import resolved_pool_id
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +66,12 @@ class YearnV3Adapter(BaseAdapter):
             default=None, log_error=False,
         )
 
+        # ADR-233: какой ИМЕННО пул выиграл отбор — тем же снимком и тем же
+        # правилом, что apy/tvl выше. `pool_id` рядом — рукописный слаг.
+        record["resolved_pool_id"] = resolved_pool_id(
+            self.feed, self.DEFILLAMA_PROJECT, self.DEFILLAMA_SYMBOL,
+        )
+
         record["tvl"] = float(tvl) if isinstance(tvl, (int, float)) else None
         if not isinstance(apy, (int, float)):
             logger.warning("%s: DeFiLlama APY unavailable — reporting no live data", self.PROTOCOL)
@@ -93,6 +100,7 @@ class YearnV3Adapter(BaseAdapter):
             risk_score=self.RISK_SCORE,
             exit_latency_hours=self.EXIT_LATENCY_HOURS,
             tvl_source="live" if _tvl_live else None,
+            pool_id=data.get("resolved_pool_id"),
         )
 
     # end of class

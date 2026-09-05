@@ -545,6 +545,34 @@ class DefiLlamaFeed:
         result = self.get_pool(project, asset, chain, symbol_mode=symbol_mode)
         return result["tvl_usd"] if result is not None else None
 
+    def get_pool_id(
+        self,
+        project: str,
+        asset: str = "USDC",
+        chain: str = "Ethereum",
+        symbol_mode: str = "exact",
+    ) -> Optional[str]:
+        """UUID пула, который ЭТОТ ЖЕ отбор выбрал, или ``None`` (ADR-233).
+
+        Тезка-близнец `DeFiLlamaFeed.get_pool_id` из
+        ``spa_core/adapters/defillama_feed.py``. Классов ДВА, и они не
+        взаимозаменяемы: этим пользуются `morpho_blue`, `yearn_v3`, `euler_v2`,
+        `maple`, тем — `aave_v3` и `morpho_steakhouse`. Метод обязан быть у
+        ОБОИХ, иначе четыре из семи опрашиваемых адаптеров личность не назовут
+        никогда, а сверка тождества для них выродится в вечное «не измерено» —
+        то есть в украшение (замер 05.09, цикл #492).
+
+        ``None`` возможен штатно: при откате на CoinGecko пула нет вовсе, и
+        выдумывать личность в этом случае нельзя.
+        """
+        result = self.get_pool(project, asset, chain, symbol_mode=symbol_mode)
+        if result is None:
+            return None
+        pool_id = result.get("pool_id")
+        if not isinstance(pool_id, str) or not pool_id.strip():
+            return None
+        return pool_id.strip()
+
     def invalidate_cache(self) -> None:
         """Force the next call to re-fetch from the API (useful in tests)."""
         self._cache = None

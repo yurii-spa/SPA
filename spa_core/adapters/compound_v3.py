@@ -163,6 +163,13 @@ class CompoundV3Adapter:
         tvl = pool.get("tvlUsd")
         result["apy"] = float(apy) if isinstance(apy, (int, float)) else None
         result["tvl"] = float(tvl) if isinstance(tvl, (int, float)) else None
+        # ADR-233: личность пула, ВЫИГРАВШЕГО отбор в этом вызове. Отбор здесь
+        # свой (`_select_pool`), но вопрос тот же, что у соседей: `pool_id`
+        # выше — рукописный слаг, одинаковый при любом исходе.
+        _resolved = pool.get("pool")
+        result["resolved_pool_id"] = (
+            _resolved.strip() if isinstance(_resolved, str) and _resolved.strip() else None
+        )
         result["status"] = "ok"
         return result
 
@@ -205,6 +212,7 @@ class CompoundV3Adapter:
             # ADR-053: TVL действительно получен из живого фида в этом вызове;
             # при сбое фида tvl_usd=None → провенанс не декларируется.
             tvl_source="live" if tvl_usd is not None else None,
+            pool_id=snap.get("resolved_pool_id"),
         )
 
     # end of class

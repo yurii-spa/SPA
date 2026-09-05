@@ -51,6 +51,15 @@ class YieldInfo:
     # ADR-053: TVL provenance — "live" (fetched this call) | "static" (committed
     # constant) | None (undeclared → treated as static/unverified, fail-closed).
     tvl_source: Optional[str] = None
+    # ADR-233: ЛИЧНОСТЬ пула, разрешённого в ЭТОМ вызове, — UUID фида, а не имя
+    # и не рукописный слаг. Строго аддитивно (default None), поэтому все
+    # существующие YieldInfo(...) продолжают работать без правки.
+    #
+    # ``None`` означает «личность НЕ ИЗМЕРЕНА», и это НЕ то же самое, что «пул
+    # тот же»: потребитель обязан развести эти два исхода. Ключ, у которого
+    # личность не записана, выпадает из сверки тождества по построению —
+    # сравнивать нечего, — и сверка обязана СКАЗАТЬ это, а не промолчать.
+    pool_id: Optional[str] = None
 
 
 class BaseAdapter(ABC):
