@@ -5,6 +5,10 @@ title: Четыре тысячи долларов едут в токен-фер�
 status: needs-owner
 source: nimbalyst
 created: 2026-09-05
+owner_choice: А
+owner_answered_at: 2026-09-05T09:46:35.756453+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно
