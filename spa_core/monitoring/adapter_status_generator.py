@@ -157,6 +157,20 @@ _POOL_ID_LOOKUP: dict[str, str] = {
     #
     # Ethereum / sky-lending / SUSDS — $4.75B @ 3.52%
     "sky_susds":         "d8c4eff5-c8a9-46fc-a888-057c4c668e72",
+    # Ethereum / sparklend / USDS — $243.4M @ 2.318 %, ставка ЦЕЛИКОМ `apyBase`.
+    # РЕШЕНИЕ ВЛАДЕЛЬЦА 2026-09-05, вариант А (карточка
+    # `owner-decision-chetyre-tysyachi-dollarov-edut-v-token-f`, ADR-232):
+    # `spark_susds` для нас — кредитный рынок, а не ферма.
+    #
+    # Пин здесь ОБЯЗАТЕЛЕН, а не удобен. Хинт ("spark", "USDS", "Ethereum")
+    # допускает ДВА пула одного проекта на одном каноническом активе USDS, и
+    # выигрывает больший по TVL — сегодня это `54e9b138…` «SPK Farming Pool»,
+    # $562.7M @ 4.062 %, где `apyBase` пуст, а вся ставка есть раздача токена SPK
+    # (ADR-230). `_CANONICAL_UNDERLYING` их не различает по построению: актив у
+    # обоих один и тот же (0xdC03…384F). То есть без пина ключ ранжирует капитал
+    # эмиссией чужого токена под видом кредитной ставки, и «оживление фида» по
+    # открытой карточке 08.08 закрепило бы именно ферму.
+    "spark_susds":       "0ed981dc-b49d-426d-ade5-6014728b1ef9",
     # Ethereum / ondo-yield-assets / USDY — $1.11B @ 3.55%
     "ondo_usdy":         "ac61ee82-2fe4-4f9b-a9cd-7fb33f598859",
     # Ethereum / ethena-usde / SUSDE — $1.56B @ 3.94%. Observation only; susde

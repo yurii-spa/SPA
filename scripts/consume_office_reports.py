@@ -103,7 +103,11 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                     "counts.info", "counts.unchecked", "keys_compared",
                                     "collisions", "unreachable_refusals", "findings",
                                     "unchecked"),
-    "capital_evidence_coverage.json": ("verdict", "capital_coverage_pct", "target_pct",
+    "capital_evidence_coverage.json": ("verdict", "verdict_live_track", "population",
+                                       "all_books.verdict", "all_books.coverage_pct",
+                                       "all_books.books_measured", "all_books.books_unmeasured",
+                                       "books",
+                                       "capital_coverage_pct", "target_pct",
                                        "baseline_pct", "deployed_usd", "usd.evidenced",
                                        "usd.literal", "usd.unmeasured", "by_protocol",
                                        "adapters_live_pct", "divergence_pp", "unchecked",
@@ -878,7 +882,33 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         out.append(f"   доля КАПИТАЛА, ранжированного по наблюдённым числам: "
                    f"{_num(data, 'capital_coverage_pct')}% (цель {_num(data, 'target_pct')}%, "
                    f"было {_num(data, 'baseline_pct')}% на 02.08) — вердикт "
-                   f"{data.get('verdict') or _UNMEASURED}")
+                   f"{data.get('verdict_live_track') or data.get('verdict') or _UNMEASURED}"
+                   f" · популяция: {data.get('population') or _UNMEASURED}")
+        # ВСЕ книги (ADR-231). До цикла #490 строка выше была единственной, и
+        # «100 %» читалось как ответ про весь капитал, будучи ответом про книгу
+        # живого трека: рукава Balanced/Aggressive держали $200 778 на литералах
+        # и в знаменатель не входили вовсе.
+        agg = data.get("all_books") or {}
+        if agg:
+            measured = agg.get("books_measured") or []
+            declared = agg.get("books_declared") or []
+            out.append(f"   ВСЕ КНИГИ ({len(measured)} из {len(declared)} померены): "
+                       f"покрытие {_num(agg, 'coverage_pct')}% — вердикт "
+                       f"{agg.get('verdict') or _UNMEASURED}")
+            for rec in (data.get("books") or []):
+                if not isinstance(rec, dict):
+                    continue
+                busd = rec.get("usd") or {}
+                out.append(f"   · {rec.get('book')}: {_num(rec, 'coverage_pct')}% из "
+                           f"${_num(rec, 'deployed_usd')} (литералом ${_num(busd, 'literal')}"
+                           f" · НЕ ИЗМЕРЕНО ${_num(busd, 'unmeasured')}) — "
+                           f"{rec.get('verdict') or _UNMEASURED}")
+                for row in (rec.get("by_protocol") or [])[:6]:
+                    if isinstance(row, dict) and row.get("message"):
+                        tag = _UNMEASURED if row.get("bucket") == "unmeasured" else "WARN"
+                        out.append(f"       [{tag}] {row.get('message')}")
+                for u in (rec.get("unchecked") or [])[:3]:
+                    out.append(f"       [{_UNMEASURED}] {u}")
         out.append(f"   развёрнуто ${_num(data, 'deployed_usd')}: наблюдением "
                    f"${_num(usd, 'evidenced')} · помеченным литералом "
                    f"${_num(usd, 'literal')} · НЕ ИЗМЕРЕНО ${_num(usd, 'unmeasured')}")

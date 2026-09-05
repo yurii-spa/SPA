@@ -388,3 +388,277 @@ class TestPrintedLines(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ADR-231 · популяция приёмки — ТРИ книги, а не одна (цикл #490)
+#
+# Каждый тест ниже — положительный контроль замера 05.09: советательные рукава
+# держали $200 778 в шести поимённых позициях, и все шесть строк ранжирования
+# были помечены `apy_source: "fallback"` при пустом `observed_apy_pct`. Приёмка
+# при этом печатала 100 %, потому что её знаменателем была одна книга из трёх.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def rank(rows, *, hours_ago=0.0):
+    """`apy_ranking.json` формой живого артефакта: провенанс лежит В СТРОКЕ."""
+    return {
+        "generated_at": ts(hours_ago),
+        "count": len(rows),
+        "by_apy": list(rows),
+    }
+
+
+#: «Не задано» отличается от «задано пустым»: тест про штамп `live` БЕЗ
+#: наблюдения обязан уметь передать именно ``None``, иначе помощник сам подставит
+#: число и погасит проверку.
+_AUTO = object()
+
+
+def row(protocol, apy, *, source="live", observed=_AUTO, tier="T2"):
+    if observed is _AUTO:
+        observed = apy if source == "live" else None
+    return {
+        "protocol": protocol, "tier": tier, "apy_pct": apy,
+        "apy_source": source,
+        "observed_apy_pct": observed,
+        "tvl_usd": 0.0, "tvl_source": "static",
+    }
+
+
+def sleeve(positions, *, hours_ago=0.0, **extra):
+    doc = {"sleeve": "B", "last_cycle_at": ts(hours_ago), "positions": list(positions)}
+    doc.update(extra)
+    return doc
+
+
+def pos(protocol, usd, apy):
+    return {"protocol": protocol, "opened": "2026-08-24",
+            "apy_pct": apy, "notional_usd": usd, "stale": False}
+
+
+# Замер 05.09, живые `data/hy_paper_trading.json` и `data/lp_paper_trading.json`.
+REAL_HY = sleeve([
+    pos("pendle_yt_susde", 25087.47, 14.0),
+    pos("ethena_susde", 25087.47, 12.0),
+    pos("aerodrome_usdc_lp", 25087.47, 8.5),
+    pos("pendle", 25087.47, 8.0),
+])
+REAL_LP = sleeve([
+    pos("pendle_yt_susde", 50214.12, 14.0),
+    pos("ethena_susde", 50214.12, 12.0),
+])
+# Замер 05.09, живой `data/apy_ranking.json`: верх ранжирования — литералы.
+REAL_RANK = rank([
+    row("pendle_yt_susde", 14.0, source="fallback", observed=None, tier="T3"),
+    row("ethena_susde", 12.0, source="fallback", observed=None, tier="T3"),
+    row("aerodrome_usdc_lp", 8.5, source="fallback", observed=None),
+    row("pendle", 8.0, source="fallback", observed=None),
+    row("maple", 5.0318, source="live", observed=5.0318),
+])
+
+_SLEEVE_KW = dict(book="balanced", label="Balanced", source="hy_paper_trading.json",
+                  provenance="apy_ranking.apy_source")
+
+
+class TestSleeveBookOnLiterals(unittest.TestCase):
+    def test_todays_real_balanced_sleeve_reads_zero_percent(self):
+        """Четыре позиции, четыре литерала — покрытие 0 %, а не «нет данных»."""
+        rec = cec.measure_sleeve(REAL_HY, REAL_RANK, now=NOW, **_SLEEVE_KW)
+        self.assertEqual(rec["verdict"], cec.WARN)
+        self.assertEqual(rec["coverage_pct"], 0.0)
+        self.assertEqual(rec["deployed_usd"], 100349.88)
+        self.assertEqual(rec["usd"]["literal"], 100349.88)
+        self.assertEqual(rec["usd"]["evidenced"], 0.0)
+        self.assertEqual(rec["usd"]["unmeasured"], 0.0)
+
+    def test_todays_real_aggressive_sleeve_reads_zero_percent(self):
+        rec = cec.measure_sleeve(REAL_LP, REAL_RANK, now=NOW, **_SLEEVE_KW)
+        self.assertEqual(rec["verdict"], cec.WARN)
+        self.assertEqual(rec["deployed_usd"], 100428.24)
+        self.assertEqual(rec["usd"]["literal"], 100428.24)
+
+    def test_each_literal_dollar_is_named_with_its_rate(self):
+        """Сумма без имени ставки не даёт починить: чинится КОНКРЕТНЫЙ фид."""
+        rec = cec.measure_sleeve(REAL_HY, REAL_RANK, now=NOW, **_SLEEVE_KW)
+        said = " ".join(r.get("message", "") for r in rec["by_protocol"])
+        for protocol in ("pendle_yt_susde", "ethena_susde", "aerodrome_usdc_lp", "pendle"):
+            self.assertIn(protocol, said)
+        self.assertIn("14.0", said)
+
+    def test_an_observed_row_is_evidenced(self):
+        rec = cec.measure_sleeve(
+            sleeve([pos("maple", 1000.0, 5.0318)]), REAL_RANK, now=NOW, **_SLEEVE_KW)
+        self.assertEqual(rec["verdict"], cec.OK)
+        self.assertEqual(rec["coverage_pct"], 100.0)
+
+    def test_row_calling_itself_live_without_an_observation_is_unmeasured(self):
+        """Штамп без наблюдения — не наблюдение. Иначе fail-OPEN на одном поле."""
+        r = rank([row("maple", 5.0, source="live", observed=None)])
+        rec = cec.measure_sleeve(sleeve([pos("maple", 1000.0, 5.0)]), r, now=NOW, **_SLEEVE_KW)
+        self.assertEqual(rec["verdict"], cec.UNCHECKED)
+        self.assertEqual(rec["usd"]["unmeasured"], 1000.0)
+
+    def test_position_without_a_ranking_row_is_unmeasured_not_literal(self):
+        """«Строки нет» и «строка помечена литералом» чинятся по-разному."""
+        rec = cec.measure_sleeve(
+            sleeve([pos("ghost_protocol", 500.0, 9.0)]), REAL_RANK, now=NOW, **_SLEEVE_KW)
+        self.assertEqual(rec["verdict"], cec.UNCHECKED)
+        self.assertEqual(rec["usd"]["unmeasured"], 500.0)
+        self.assertEqual(rec["usd"]["literal"], 0.0)
+
+    def test_unknown_provenance_label_is_unmeasured_not_evidenced(self):
+        r = rank([row("maple", 5.0, source="ГДЕ-ТО_ВЗЯЛИ", observed=5.0)])
+        rec = cec.measure_sleeve(sleeve([pos("maple", 1000.0, 5.0)]), r, now=NOW, **_SLEEVE_KW)
+        self.assertEqual(rec["verdict"], cec.UNCHECKED)
+
+    def test_unmeasured_outranks_literal_in_the_sleeve_verdict(self):
+        rec = cec.measure_sleeve(
+            sleeve([pos("pendle", 100.0, 8.0), pos("ghost", 1.0, 1.0)]),
+            REAL_RANK, now=NOW, **_SLEEVE_KW)
+        self.assertEqual(rec["verdict"], cec.UNCHECKED)
+
+    def test_bool_notional_is_not_a_dollar_amount(self):
+        bad = sleeve([{"protocol": "pendle", "notional_usd": True, "apy_pct": 8.0}])
+        rec = cec.measure_sleeve(bad, REAL_RANK, now=NOW, **_SLEEVE_KW)
+        self.assertEqual(rec["verdict"], cec.UNCHECKED)
+
+    def test_empty_sleeve_is_unchecked_not_a_hundred(self):
+        rec = cec.measure_sleeve(sleeve([]), REAL_RANK, now=NOW, **_SLEEVE_KW)
+        self.assertEqual(rec["verdict"], cec.UNCHECKED)
+        self.assertIsNone(rec["coverage_pct"])
+
+    def test_stale_sleeve_book_refuses_to_speak_in_the_present_tense(self):
+        rec = cec.measure_sleeve(
+            sleeve([pos("maple", 1000.0, 5.0)], hours_ago=48.0), REAL_RANK,
+            now=NOW, **_SLEEVE_KW)
+        self.assertEqual(rec["verdict"], cec.UNCHECKED)
+        self.assertTrue(any("stale_input" in u for u in rec["unchecked"]))
+
+    def test_sleeve_book_without_a_timestamp_is_unchecked(self):
+        doc = sleeve([pos("maple", 1000.0, 5.0)])
+        doc.pop("last_cycle_at")
+        rec = cec.measure_sleeve(doc, REAL_RANK, now=NOW, **_SLEEVE_KW)
+        self.assertEqual(rec["verdict"], cec.UNCHECKED)
+
+
+class TestRankingIsTheProvenanceSource(unittest.TestCase):
+    def test_stale_ranking_is_unmeasured_not_no_literals(self):
+        """Протухшее ранжирование НЕ означает «литералов нет»."""
+        rec = cec.measure_sleeve(
+            REAL_HY, rank([row("pendle", 8.0)], hours_ago=48.0), now=NOW, **_SLEEVE_KW)
+        self.assertEqual(rec["verdict"], cec.UNCHECKED)
+        self.assertTrue(any("stale_input" in u for u in rec["unchecked"]))
+
+    def test_absent_ranking_is_unmeasured(self):
+        rec = cec.measure_sleeve(REAL_HY, None, now=NOW, **_SLEEVE_KW)
+        self.assertEqual(rec["verdict"], cec.UNCHECKED)
+
+    def test_ranking_without_by_apy_is_named(self):
+        idx, why = cec.ranking_index({"generated_at": ts()}, now=NOW)
+        self.assertIsNone(idx)
+        self.assertIn("by_apy", why)
+
+    def test_ranking_without_a_timestamp_is_refused(self):
+        idx, why = cec.ranking_index({"by_apy": [row("maple", 5.0)]}, now=NOW)
+        self.assertIsNone(idx)
+        self.assertIn("generated_at", why)
+
+    def test_ranking_with_no_readable_rows_is_refused(self):
+        idx, why = cec.ranking_index(rank([{"no": "protocol"}]), now=NOW)
+        self.assertIsNone(idx)
+
+
+class TestPopulationIsThreeBooks(unittest.TestCase):
+    """Тот самый дефект: ответ «100 %» был верен для трети капитала."""
+
+    def _base(self, tmp, *, sleeves=True, ranking=True):
+        base = Path(tmp) / "data"
+        base.mkdir(parents=True, exist_ok=True)
+        (base / "current_positions.json").write_text(
+            json.dumps(book({"aave_v3": 95000.0}, {"aave_v3": "live"})), encoding="utf-8")
+        if sleeves:
+            (base / "hy_paper_trading.json").write_text(json.dumps(REAL_HY), encoding="utf-8")
+            (base / "lp_paper_trading.json").write_text(json.dumps(REAL_LP), encoding="utf-8")
+        if ranking:
+            (base / "apy_ranking.json").write_text(json.dumps(REAL_RANK), encoding="utf-8")
+        return str(base)
+
+    def test_live_track_reads_100_while_all_books_read_a_third(self):
+        with TemporaryDirectory() as tmp:
+            rep = cec.run(data_dir=self._base(tmp), now=NOW, write=False)
+            self.assertEqual(rep["capital_coverage_pct"], 100.0)
+            self.assertEqual(rep["verdict_live_track"], cec.OK)
+            self.assertEqual(rep["all_books"]["coverage_pct"], 32.12)
+            self.assertEqual(rep["all_books"]["usd"]["literal"], 200778.12)
+
+    def test_report_verdict_covers_all_books_not_just_the_live_track(self):
+        """Храповик на молчание: вердикт отчёта обязан услышать рукава."""
+        with TemporaryDirectory() as tmp:
+            rep = cec.run(data_dir=self._base(tmp), now=NOW, write=False)
+            self.assertEqual(rep["verdict"], cec.WARN)
+            self.assertEqual(cec.exit_code(rep), 1)
+
+    def test_population_is_named_in_the_artifact(self):
+        with TemporaryDirectory() as tmp:
+            rep = cec.run(data_dir=self._base(tmp), now=NOW, write=False)
+            self.assertIn("current_positions.json", rep["population"])
+            self.assertEqual(len(rep["books"]), 3)
+            self.assertEqual(rep["all_books"]["books_declared"],
+                             ["conservative", "balanced", "aggressive"])
+
+    def test_declared_book_absent_is_unchecked_not_a_clean_pass(self):
+        """Двух книг нет на диске — это НЕ «в обеих всё в порядке»."""
+        with TemporaryDirectory() as tmp:
+            rep = cec.run(data_dir=self._base(tmp, sleeves=False), now=NOW, write=False)
+            self.assertEqual(rep["verdict"], cec.UNCHECKED)
+            self.assertEqual(cec.exit_code(rep), 2)
+            self.assertEqual(sorted(rep["all_books"]["books_unmeasured"]),
+                             ["aggressive", "balanced"])
+            absent = [b for b in rep["books"] if b["book"] == "balanced"][0]
+            self.assertFalse(absent["present"])
+            self.assertTrue(absent["unchecked"])
+
+    def test_absent_ranking_makes_the_sleeves_unmeasured_not_clean(self):
+        with TemporaryDirectory() as tmp:
+            rep = cec.run(data_dir=self._base(tmp, ranking=False), now=NOW, write=False)
+            self.assertEqual(rep["verdict"], cec.UNCHECKED)
+            bal = [b for b in rep["books"] if b["book"] == "balanced"][0]
+            self.assertEqual(bal["verdict"], cec.UNCHECKED)
+
+    def test_printed_lines_name_the_sleeve_books(self):
+        """Проводка печати: убрав раздел книг, находка исчезла бы из шага 0-офис."""
+        with TemporaryDirectory() as tmp:
+            rep = cec.run(data_dir=self._base(tmp), now=NOW, write=False)
+            text = "\n".join(cec._lines(rep))
+            self.assertIn("balanced", text)
+            self.assertIn("aggressive", text)
+            self.assertIn("pendle_yt_susde", text)
+
+    def test_journal_carries_the_aggregate_not_only_the_live_track(self):
+        with TemporaryDirectory() as tmp:
+            base = self._base(tmp)
+            cec.run(data_dir=base, now=NOW)
+            records, _ = cec.read_journal(base)
+            measurement = [r for r in records if r.get("kind") == "measurement"][0]
+            self.assertEqual(measurement["all_books_coverage_pct"], 32.12)
+            self.assertEqual(measurement["verdict_live_track"], cec.OK)
+
+
+class TestWorstVerdictWins(unittest.TestCase):
+    def test_worst_of_a_mixed_set(self):
+        self.assertEqual(cec.worst_verdict([cec.OK, cec.WARN]), cec.WARN)
+        self.assertEqual(cec.worst_verdict([cec.WARN, cec.UNCHECKED]), cec.UNCHECKED)
+        self.assertEqual(cec.worst_verdict([cec.OK, cec.OK]), cec.OK)
+
+    def test_worst_of_an_empty_set_is_unchecked_not_ok(self):
+        """Судить было не о чем — это третий исход, а не зачёт."""
+        self.assertEqual(cec.worst_verdict([]), cec.UNCHECKED)
+        self.assertEqual(cec.worst_verdict([None, "чепуха"]), cec.UNCHECKED)
+
+    def test_aggregate_of_no_measured_book_has_no_percentage(self):
+        agg = cec.aggregate_books([
+            {"book": "balanced", "deployed_usd": None, "verdict": cec.UNCHECKED},
+        ])
+        self.assertIsNone(agg["coverage_pct"])
+        self.assertEqual(agg["verdict"], cec.UNCHECKED)

@@ -565,10 +565,15 @@ def main(argv=None) -> int:
     try:
         from spa_core.monitoring import capital_evidence_coverage
         cec = capital_evidence_coverage.run(root=args.root)
+        agg = cec.get("all_books") or {}
         print(f"capital_evidence_coverage: {cec['verdict']} "
-              f"({cec['capital_coverage_pct']}% капитала по наблюдению, "
+              f"(живой трек {cec['capital_coverage_pct']}% по наблюдению, "
               f"развёрнуто {cec['deployed_usd']}, "
-              f"не измерено {(cec.get('usd') or {}).get('unmeasured')})")
+              f"не измерено {(cec.get('usd') or {}).get('unmeasured')}; "
+              f"ВСЕ книги {agg.get('coverage_pct')}% — "
+              f"литералом {(agg.get('usd') or {}).get('literal')}, "
+              f"книг померено {len(agg.get('books_measured') or [])}"
+              f"/{len(agg.get('books_declared') or [])})")
     except Exception as e:  # noqa: BLE001 — приёмка не смеет валить мост
         print(f"capital_evidence_coverage: пропущено ({e})")
     # Состав ставки (ADR-230): доход операции или раздача токена. Считается тем же

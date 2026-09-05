@@ -41,6 +41,8 @@ from spa_core.monitoring.adapter_status_generator import (
     _hint_ranking,
     _hint_rivals,
     _lookup_live_apy,
+    _lookup_live_pool,
+    _POOL_ID_LOOKUP,
     _valid_apy,
     generate,
     run_and_write,
@@ -683,3 +685,62 @@ class TestHintRivals(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSparkPinIsTheCreditMarket(unittest.TestCase):
+    """Решение владельца 2026-09-05, вариант А (ADR-232).
+
+    Положительный контроль воспроизводит ровно то состояние, в котором ключ вёл
+    себя неверно: ОБА пула Spark в фиде, у фермы TVL больше — и хинт отдал бы
+    ключ ей. Пин обязан победить хинт.
+    """
+
+    def _idx(self, pools):
+        return _build_pool_indexes(pools)
+
+    def test_pin_wins_over_the_bigger_farm_pool(self):
+        by_id, by_pcs = self._idx([_SPARK_FARM, _SPARK_LEND, _SPARK_WRAPPER])
+        found = _lookup_live_pool("spark_susds", by_id, by_pcs)
+        self.assertIsNotNone(found)
+        pool, kind = found
+        self.assertEqual(kind, "pinned")
+        self.assertEqual(pool["pool"], "0ed981dc-b49d-426d-ade5-6014728b1ef9")
+        self.assertEqual(pool["apy"], 2.31839)
+
+    def test_without_the_pin_the_hint_would_have_taken_the_farm(self):
+        """Контроль к самому контролю: без пина ключ уезжает в SPK-ферму.
+
+        Без этой проверки тест выше проходил бы и в мире, где хинт и так
+        выбирает верный пул, — то есть не измерял бы ничего.
+        """
+        by_id, by_pcs = self._idx([_SPARK_FARM, _SPARK_LEND, _SPARK_WRAPPER])
+        with patch.dict(_POOL_ID_LOOKUP, {}, clear=False):
+            _POOL_ID_LOOKUP.pop("spark_susds")
+            found = _lookup_live_pool("spark_susds", by_id, by_pcs)
+        pool, kind = found
+        self.assertEqual(kind, "hint")
+        self.assertEqual(pool["pool"], "54e9b138-3146-4c1f-8dce-1cb948f5ef96")
+
+    def test_the_pinned_pool_pays_no_emission(self):
+        """Смысл решения владельца — ставка из процентов, а не из раздачи."""
+        comp = _apy_composition(_SPARK_LEND)
+        self.assertEqual(comp["reward_share"], 0.0)
+        self.assertIsNone(comp["unmeasured_reason"])
+
+    def test_pinned_pool_carries_the_canonical_usds(self):
+        """Пин сверен с активом, а не только с UUID: чужой пул тем же UUID —
+        не наш инструмент."""
+        self.assertEqual(
+            [t.lower() for t in _SPARK_LEND["underlyingTokens"]],
+            ["0xdc035d45d973e3ec169d2276ddab16f1e407384f"],
+        )
+
+    def test_a_vanished_pin_falls_back_to_the_hint_not_to_nothing(self):
+        """Пин `moonwell_base` из фида ИСЧЕЗ (замер 05.09) — поэтому хинт снят
+        быть не может: он остаётся единственной дорогой, когда пин протухает."""
+        by_id, by_pcs = self._idx([_SPARK_FARM, _SPARK_WRAPPER])  # закреплённого пула НЕТ
+        found = _lookup_live_pool("spark_susds", by_id, by_pcs)
+        self.assertIsNotNone(found)
+        pool, kind = found
+        self.assertEqual(kind, "hint")
+        self.assertEqual(pool["pool"], "54e9b138-3146-4c1f-8dce-1cb948f5ef96")

@@ -67,13 +67,45 @@
 независимой проверкой провенанса НЕЛЬЗЯ. Оно отвечает на свой вопрос: сколько
 долларов книги стои́т на том, что система САМА называет наблюдением.
 
+Популяция — ТРИ книги, и до 05.09 их была одна (ADR-231)
+========================================================
+Этот модуль отвечал «100 %», и ответ был ВЕРЕН — для книги живого трека. Рядом
+живут ещё две, советательные: рукав B (Balanced/HY) и рукав C (Aggressive/LP).
+Они держат ПОИМЕННЫЕ paper-позиции, начисляют по ставке каждой и публикуют
+получившуюся годовую доходность — `house_view.books` и страница пакетов сайта.
+В популяцию приёмки они не входили вовсе.
+
+Замер 05.09 (цикл #490), обе книги из живого `data/`::
+
+    Balanced   $100 349.88  4 позиции  pendle_yt_susde 14.0 · ethena_susde 12.0
+                                       · aerodrome_usdc_lp 8.5 · pendle 8.0
+    Aggressive $100 428.24  2 позиции  pendle_yt_susde 14.0 · ethena_susde 12.0
+
+**У всех шести строка `apy_ranking.json` помечена `apy_source: "fallback"`, а
+`observed_apy_pct` пуст.** То есть $200 778 советательного капитала ранжированы
+числами, которых не наблюдал никто, и обе доходности (11.53 % и 14.11 %
+годовых) — их следствие. Приёмка при этом честно печатала 100 %: её знаменателем
+была одна книга из трёх.
+
+Само ранжирование не врёт — провенанс в нём проставлен построчно. И потребитель
+его даже ЧИТАЕТ, но не на той дороге, где выбирает: отбор идёт через
+`load_ranking_rows` → `_dedup_best`, который режет строку до
+`{"protocol", "apy_pct"}` ещё до фильтрации, а провенанс читает отдельная
+`apy_provenance_from_rows` — и кладёт его в ОБЪЯСНЕНИЕ (теневой rationale).
+Система объясняет свой выбор тем провенансом, которым отказалась выбирать, хотя
+собственная докстрока рукава обещает «живой APY» и fail-closed «нет данных ⇒ нет
+дохода». Отказ ОБЪЯВЛЕН и недостижим для тех самых строк, ради которых написан.
+
 Что этот модуль НЕ делает
 =========================
 Не выбирает APY, не ранжирует, не двигает капитал, не гейтит исполнение, не
 трогает RiskPolicy и не пишет ни в один чужой артефакт. **Только меряет и
-называет.** Read-only: единственный вход — `data/current_positions.json`
-(его пишет дневной цикл), единственный выход — собственный отчёт и собственный
-журнал.
+называет.** Чинить рукав он не вправе: доходности пакетов публикуются, а
+публикуемые числа — решение владельца (`.claude/rules/site-copy.md`), поэтому
+починка ушла карточкой, а не правкой. Read-only: входы —
+`data/current_positions.json`, `data/hy_paper_trading.json`,
+`data/lp_paper_trading.json` и `data/apy_ranking.json` (провенанс строк);
+выход — собственный отчёт и собственный журнал.
 
 Три исхода на доллар, а не два
 ==============================
@@ -145,6 +177,55 @@ UNCHECKED = "UNCHECKED"
 # Метки провенанса, которые аллокатор ставит сам себе (ADR-061/063).
 SRC_LIVE = "live"
 SRC_STALE = "fallback_stale"
+
+# Метка литерала в СТРОКЕ ранжирования (`data/apy_ranking.json`). Имя другое, чем
+# у книги живого трека, и это не синоним, который можно свернуть: один штамп
+# ставит аллокатор себе, второй — производитель ранжирования. Свернув их в одно
+# имя, сторож перестал бы различать, ЧЕЙ штамп он читает.
+SRC_RANK_FALLBACK = ("fallback", "fallback_stale", "static")
+
+RANKING_BASENAME = "apy_ranking.json"
+
+#: Книги paper-слоя — ТРИ, а не одна. Объявление, а не вывод из каталога: книга,
+#: чьего артефакта на диске нет, обязана отличаться от книги, которой не бывает.
+#:
+#: Замер 05.09 (цикл #490, голодающий приказ «Portfolio CIO», остаток G1). Этот
+#: модуль отвечал «100 %», и ответ был ВЕРЕН — для одной книги из трёх. Рукава B
+#: (Balanced/HY) и C (Aggressive/LP) держат поимённые paper-позиции, начисляют по
+#: их ставке и публикуют получившуюся годовую доходность (`house_view.books`,
+#: страница пакетов сайта). В популяцию приёмки §5 они не входили вовсе, и это
+#: «не измерено» читалось как «измерено и хорошо» — ровно тот класс, против
+#: которого написан весь контур.
+#:
+#: Провенанс у рукава ДРУГОЙ, и это не оттенок. У живого трека штамп ставит сам
+#: аллокатор (`feed_coverage.apy_sources`); рукав берёт строку из
+#: `data/apy_ranking.json`, где провенанс уже проставлен построчно (`apy_source`
+#: + `observed_apy_pct`). Оба ЧИТАЮТСЯ, а не добываются: своей цены ошибки у
+#: измерителя как не было, так и нет (см. раздел выше) — он лишь перестаёт
+#: МОЛЧАТЬ о двух третях капитала.
+BOOKS = (
+    ("conservative", "Conservative — живой paper-трек",
+     os.path.basename(POSITIONS_REL), "feed_coverage.apy_sources"),
+    ("balanced", "Balanced — рукав B (HY), советательный",
+     "hy_paper_trading.json", "apy_ranking.apy_source"),
+    ("aggressive", "Aggressive — рукав C (LP), советательный",
+     "lp_paper_trading.json", "apy_ranking.apy_source"),
+)
+
+LIVE_TRACK_BOOK = "conservative"
+
+#: Порядок строгости: худший вердикт побеждает. «Не измерено» строже «литерала»
+#: по той же причине, что и внутри одной книги — про неизмеренный доллар мы не
+#: знаем даже того, что он литерал.
+_VERDICT_RANK = {OK: 0, WARN: 1, UNCHECKED: 2}
+
+
+def worst_verdict(verdicts) -> str:
+    """Худший из вердиктов. Пустой набор — НЕ ``OK``: судить было не о чем."""
+    ranked = [v for v in verdicts if v in _VERDICT_RANK]
+    if not ranked:
+        return UNCHECKED
+    return max(ranked, key=lambda v: _VERDICT_RANK[v])
 
 
 def _num(value):
@@ -305,6 +386,237 @@ def measure(doc, *, now):
     )
 
 
+def ranking_index(doc, *, now):
+    """Строки ``apy_ranking.json`` по протоколу — ``(индекс, причина_отказа)``.
+
+    Отказ ГОВОРИТСЯ, а не подразумевается: без ранжирования провенанс позиции
+    рукава не измерен, и это не «нет литералов», а «не измерено».
+    """
+    if not isinstance(doc, dict):
+        return None, "ранжирование не является объектом JSON"
+    rows = doc.get("by_apy")
+    if not isinstance(rows, list):
+        return None, "в ранжировании нет списка `by_apy` — по чему рукав выбирал, не сказано"
+    stamp = _parse_iso(doc.get("generated_at"))
+    if stamp is None:
+        return None, "у ранжирования не прочитана отметка `generated_at` — о СЕГОДНЯШНЕМ ли ранжировании речь, нечем сказать"
+    age_s = (now - stamp).total_seconds()
+    if age_s > MAX_AGE_S:
+        return None, (
+            f"ранжированию {round(age_s / 3600, 1)} ч при потолке {round(MAX_AGE_S / 3600, 1)} ч —"
+            " провенанс позиции по вчерашней строке не измеряется (stale_input)"
+        )
+    index = {}
+    for row in rows:
+        if isinstance(row, dict) and isinstance(row.get("protocol"), str):
+            index.setdefault(row["protocol"], row)
+    if not index:
+        return None, "в `by_apy` нет ни одной читаемой строки — сверять провенанс не с чем"
+    return index, None
+
+
+def _sleeve_bucket(protocol, usd, row):
+    """Корзина ОДНОЙ позиции рукава и причина, если она не ``evidenced``.
+
+    Три исхода, а не два (инвариант «не измерено»): строки нет вовсе, строка
+    помечена литералом, строка называет себя живой — и не несёт наблюдения.
+    """
+    if row is None:
+        return "unmeasured", (
+            f"{protocol}: ${usd:,.0f} стоят в рукаве, а строки в `{RANKING_BASENAME}` нет вовсе —"
+            " чем ранжирован этот доллар, НЕ ИЗМЕРЕНО"
+        )
+    src = row.get("apy_source")
+    observed = _num(row.get("observed_apy_pct"))
+    if src == SRC_LIVE:
+        if observed is None:
+            return "unmeasured", (
+                f"{protocol}: ${usd:,.0f} — строка называет себя `live`, а `observed_apy_pct` пуст;"
+                " назвать доллар наблюдённым по штампу без наблюдения значило бы угадать"
+            )
+        return "evidenced", None
+    if src in SRC_RANK_FALLBACK:
+        return "literal", (
+            f"{protocol}: ${usd:,.0f} ранжированы ЛИТЕРАЛОМ (`{src}`, наблюдения нет)"
+            f" — рукав начисляет по ставке {row.get('apy_pct')} пп, которую не наблюдал никто"
+        )
+    if src is None:
+        return "unmeasured", (
+            f"{protocol}: ${usd:,.0f} — в строке ранжирования нет поля `apy_source`;"
+            " провенанс доллара НЕ ИЗМЕРЕН"
+        )
+    return "unmeasured", (
+        f"{protocol}: ${usd:,.0f} — провенанс `{src}` сторожу неизвестен;"
+        " назвать доллар наблюдённым по незнакомой метке значило бы угадать"
+    )
+
+
+def measure_sleeve(doc, ranking, *, now, book, label, source, provenance):
+    """Померить книгу РУКАВА. Чистая функция: ни файлов, ни часов внутри.
+
+    Отличие от :func:`measure` — не в вопросе (он тот же: сколько наших долларов
+    стои́т на наблюдении), а в том, ЧЕЙ штамп читается. У рукава своего штампа
+    нет: он берёт строку живого ранжирования, и провенанс лежит там.
+    """
+    rec = {
+        "book": book, "label": label, "source": source, "provenance": provenance,
+        "present": True, "deployed_usd": None, "coverage_pct": None,
+        "usd": {"evidenced": None, "literal": None, "unmeasured": None},
+        "by_protocol": [], "verdict": UNCHECKED, "unchecked": [],
+        "book_generated_at": None, "book_age_s": None,
+    }
+    if not isinstance(doc, dict):
+        rec["unchecked"].append("книга рукава не является объектом JSON")
+        return rec
+
+    stamp = None
+    for field in ("last_cycle_at", "generated_at"):
+        stamp = _parse_iso(doc.get(field))
+        if stamp is not None:
+            break
+    rec["book_generated_at"] = stamp.isoformat() if stamp else None
+    if stamp is None:
+        rec["unchecked"].append(
+            "у книги рукава не прочитана отметка времени — сказать, о СЕГОДНЯШНЕЙ ли книге речь, нечем"
+        )
+    else:
+        age_s = round((now - stamp).total_seconds(), 1)
+        rec["book_age_s"] = age_s
+        if age_s > MAX_AGE_S:
+            rec["unchecked"].append(
+                f"книге рукава {round(age_s / 3600, 1)} ч при потолке {round(MAX_AGE_S / 3600, 1)} ч"
+                " — сторож не говорит в настоящем времени о вчерашней книге (stale_input)"
+            )
+
+    positions = doc.get("positions")
+    if not isinstance(positions, list):
+        rec["unchecked"].append(
+            "в книге рукава нет списка `positions` — из чего состоит капитал, не сказано"
+        )
+    index, why = ranking_index(ranking, now=now)
+    if index is None:
+        rec["unchecked"].append(f"{RANKING_BASENAME}: {why}")
+    if rec["unchecked"]:
+        return rec
+
+    buckets = {"evidenced": 0.0, "literal": 0.0, "unmeasured": 0.0}
+    deployed = 0.0
+    bad = []
+    for pos in positions:
+        if not isinstance(pos, dict):
+            bad.append(repr(pos)[:40])
+            continue
+        protocol = pos.get("protocol")
+        usd = _num(pos.get("notional_usd"))
+        if not isinstance(protocol, str) or usd is None:
+            bad.append(str(protocol))
+            continue
+        if usd <= 0:
+            continue
+        deployed += usd
+        bucket, why = _sleeve_bucket(protocol, usd, index.get(protocol))
+        buckets[bucket] += usd
+        row = {
+            "protocol": protocol,
+            "usd": round(usd, 2),
+            "bucket": bucket,
+            "apy_source": (index.get(protocol) or {}).get("apy_source"),
+            "apy_pct": _num(pos.get("apy_pct")),
+        }
+        if why:
+            row["message"] = why
+        rec["by_protocol"].append(row)
+
+    if bad:
+        rec["unchecked"].append(
+            "позиция рукава не разобрана у: " + ", ".join(sorted(bad))
+            + " — доля капитала не считается по нечисловому знаменателю"
+        )
+        return rec
+    if deployed <= 0:
+        rec["unchecked"].append(
+            "книга рукава пуста: развёрнуто $0, доля наблюдённого капитала НЕ ОПРЕДЕЛЕНА (0 из 0)"
+        )
+        return rec
+
+    rec["deployed_usd"] = round(deployed, 2)
+    rec["usd"] = {k: round(v, 2) for k, v in buckets.items()}
+    rec["coverage_pct"] = _pct(buckets["evidenced"], deployed)
+    if buckets["unmeasured"] > 0:
+        rec["verdict"] = UNCHECKED
+    elif buckets["literal"] > 0:
+        rec["verdict"] = WARN
+    else:
+        rec["verdict"] = OK
+    return rec
+
+
+def _live_track_record(report: dict) -> dict:
+    """Отчёт живого трека — той же формой, что и запись рукава.
+
+    Одна форма на все книги нужна не для красоты: без неё агрегат считался бы по
+    двум разным схемам, и «книга из другой схемы» молча выпадала бы из суммы.
+    """
+    return {
+        "book": LIVE_TRACK_BOOK,
+        "label": BOOKS[0][1],
+        "source": BOOKS[0][2],
+        "provenance": BOOKS[0][3],
+        "present": report.get("book_generated_at") is not None or bool(report.get("by_protocol")),
+        "deployed_usd": report.get("deployed_usd"),
+        "coverage_pct": report.get("capital_coverage_pct"),
+        "usd": dict(report.get("usd") or {}),
+        "by_protocol": list(report.get("by_protocol") or []),
+        "verdict": report.get("verdict"),
+        "unchecked": list(report.get("unchecked") or []),
+        "book_generated_at": report.get("book_generated_at"),
+        "book_age_s": report.get("book_age_s"),
+    }
+
+
+def aggregate_books(records) -> dict:
+    """Свести книги в ОДИН ответ, назвав популяцию вслух.
+
+    Книга, объявленная в :data:`BOOKS` и не найденная на диске, входит в ответ
+    как ``UNCHECKED`` — иначе «двух книг нет» читалось бы как «обе в порядке»,
+    то есть ровно как fail-OPEN, ради которого весь модуль и написан.
+    """
+    deployed = 0.0
+    buckets = {"evidenced": 0.0, "literal": 0.0, "unmeasured": 0.0}
+    measured, unmeasured_books = [], []
+    for rec in records:
+        if rec.get("deployed_usd") is None:
+            unmeasured_books.append(rec.get("book"))
+            continue
+        measured.append(rec.get("book"))
+        deployed += float(rec["deployed_usd"])
+        for k in buckets:
+            buckets[k] += float((rec.get("usd") or {}).get(k) or 0.0)
+    verdict = worst_verdict([r.get("verdict") for r in records])
+    return {
+        "books_declared": [b[0] for b in BOOKS],
+        "books_measured": measured,
+        "books_unmeasured": unmeasured_books,
+        "deployed_usd": round(deployed, 2) if measured else None,
+        "usd": {k: round(v, 2) for k, v in buckets.items()} if measured else
+               {"evidenced": None, "literal": None, "unmeasured": None},
+        "coverage_pct": _pct(buckets["evidenced"], deployed) if measured else None,
+        "verdict": verdict,
+    }
+
+
+def _read_json(path: str):
+    """``(документ, причина)``. Причина ГОВОРИТСЯ — проглоченная ошибка чтения
+    превратила бы «файл битый» в «книги нет», а «книги нет» — в тишину."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh), None
+    except FileNotFoundError:
+        return None, f"файла нет на диске ({path})"
+    except (OSError, ValueError) as e:
+        return None, f"не прочитан — {e}"
+
+
 def _report(now: dt.datetime, *, unchecked=None, verdict=None, stamp=None, age_s=None, **fields) -> dict:
     rep = {
         "generated_at": now.isoformat(),
@@ -322,6 +634,13 @@ def _report(now: dt.datetime, *, unchecked=None, verdict=None, stamp=None, age_s
         "divergence_pp": None,
         "blocked": {},
         "unchecked": list(unchecked or []),
+        # Популяция ГОВОРИТСЯ рядом с числом. До цикла #490 её не было в отчёте
+        # вовсе, и `capital_coverage_pct` читался как ответ про весь капитал,
+        # будучи ответом про одну книгу из трёх.
+        "population": f"{LIVE_TRACK_BOOK} ({os.path.basename(POSITIONS_REL)})",
+        "verdict_live_track": verdict or (UNCHECKED if unchecked else OK),
+        "books": [],
+        "all_books": None,
         # Цель приёмки едет В отчёте: читатель не ходит за ней в документ.
         "target_pct": 100.0,
         "baseline_pct": 25.0,
@@ -412,7 +731,14 @@ def append_history(report: dict, base: str, now: dt.datetime) -> list[dict]:
         "snapshot_key": key,
         "kind": "measurement",
         "verdict": report.get("verdict"),
+        "verdict_live_track": report.get("verdict_live_track"),
         "capital_coverage_pct": report.get("capital_coverage_pct"),
+        # Единицей памяти остаётся снимок книги ЖИВОГО ТРЕКА (её пишет дневной
+        # цикл); рукава пересобираются чаще, и ключевать по ним значило бы
+        # считать взгляды, а не книги. Но числа агрегата едут в ту же строку —
+        # иначе ряд «стало ли лучше» отвечал бы про треть капитала.
+        "all_books_coverage_pct": (report.get("all_books") or {}).get("coverage_pct"),
+        "all_books_usd": (report.get("all_books") or {}).get("usd"),
         "adapters_live_pct": report.get("adapters_live_pct"),
         "deployed_usd": report.get("deployed_usd"),
         "usd": report.get("usd"),
@@ -509,7 +835,47 @@ def run(
     else:
         report = measure(doc, now=now)
 
-    report["input"] = {"path": os.path.basename(POSITIONS_REL)}
+    # Живой трек посчитан. Теперь — ОСТАЛЬНЫЕ книги: до цикла #490 их не было в
+    # популяции, и молчание про них читалось как зачёт.
+    report["verdict_live_track"] = report.get("verdict")
+    records = [_live_track_record(report)]
+    ranking_doc, ranking_err = _read_json(os.path.join(base, RANKING_BASENAME))
+    for key, label, fname, provenance in BOOKS[1:]:
+        doc_s, err = _read_json(os.path.join(base, fname))
+        if err is not None:
+            records.append({
+                "book": key, "label": label, "source": fname, "provenance": provenance,
+                "present": False, "deployed_usd": None, "coverage_pct": None,
+                "usd": {"evidenced": None, "literal": None, "unmeasured": None},
+                "by_protocol": [], "verdict": UNCHECKED,
+                "unchecked": [
+                    f"{fname}: {err} — книга ОБЪЯВЛЕНА, а померить её нечем;"
+                    " «книги нет» не есть «в книге всё в порядке»"
+                ],
+                "book_generated_at": None, "book_age_s": None,
+            })
+            continue
+        rec = measure_sleeve(
+            doc_s,
+            ranking_doc if ranking_err is None else None,
+            now=now, book=key, label=label, source=fname, provenance=provenance,
+        )
+        if ranking_err is not None:
+            rec["unchecked"].append(f"{RANKING_BASENAME}: {ranking_err}")
+        records.append(rec)
+
+    report["books"] = records
+    report["all_books"] = aggregate_books(records)
+    # Вердикт отчёта — про ВЕСЬ измеренный капитал. Прежнее значение сохранено
+    # отдельным полем `verdict_live_track`: сузить смысл поля молча значило бы
+    # сделать ровно то, за что этот модуль и написан.
+    report["verdict"] = report["all_books"]["verdict"]
+
+    report["input"] = {
+        "path": os.path.basename(POSITIONS_REL),
+        "books": [b[2] for b in BOOKS],
+        "ranking": RANKING_BASENAME,
+    }
     report["history_appended"] = len(append_history(report, base, now)) if write else 0
     report["history"] = history(base, days=HISTORY_WINDOW_DAYS, now=now)
     if write:
@@ -536,8 +902,31 @@ def _lines(report: dict) -> list[str]:
     out = [
         f"доля КАПИТАЛА, ранжированного по наблюдённым числам: {report.get('capital_coverage_pct')}%"
         f" (цель {report.get('target_pct')}%, было {report.get('baseline_pct')}% на 02.08)"
-        f" — вердикт {report.get('verdict')}"
+        f" — вердикт {report.get('verdict_live_track')}"
+        f" · популяция: {report.get('population')}"
     ]
+    agg = report.get("all_books") or {}
+    if agg:
+        out.append(
+            f"  ВСЕ КНИГИ ({len(agg.get('books_measured') or [])} из"
+            f" {len(agg.get('books_declared') or [])} померены): покрытие"
+            f" {agg.get('coverage_pct')}% — вердикт {agg.get('verdict')}"
+        )
+        for rec in report.get("books") or []:
+            usd = rec.get("usd") or {}
+            head = (f"  · {rec.get('book')}: {rec.get('coverage_pct')}%"
+                    f" из ${rec.get('deployed_usd') or 0:,.0f}"
+                    f" (наблюдением ${usd.get('evidenced') or 0:,.0f}"
+                    f" · литералом ${usd.get('literal') or 0:,.0f}"
+                    f" · НЕ ИЗМЕРЕНО ${usd.get('unmeasured') or 0:,.0f})"
+                    f" — {rec.get('verdict')}")
+            out.append(head)
+            for row in rec.get("by_protocol") or []:
+                if row.get("message"):
+                    tag = "НЕ ИЗМЕРЕНО" if row.get("bucket") == "unmeasured" else "WARN"
+                    out.append(f"      [{tag}] {row.get('message')}")
+            for reason in rec.get("unchecked") or []:
+                out.append(f"      [НЕ ИЗМЕРЕНО] {reason}")
     usd = report.get("usd") or {}
     if report.get("deployed_usd"):
         out.append(
@@ -552,12 +941,15 @@ def _lines(report: dict) -> list[str]:
             f"  рядом: живых АДАПТЕРОВ вселенной {alp}% — это ДРУГОЙ вопрос"
             f" (расхождение {report.get('divergence_pp')} пп)"
         )
-    for row in report.get("by_protocol") or []:
-        if row.get("message"):
-            tag = "НЕ ИЗМЕРЕНО" if row.get("bucket") == "unmeasured" else "WARN"
-            out.append(f"  [{tag}] {row.get('message')}")
-    for reason in report.get("unchecked") or []:
-        out.append(f"  [НЕ ИЗМЕРЕНО] {reason}")
+    if not report.get("books"):
+        # Отчёт без раздела книг (например, собранный старым вызовом `measure`)
+        # печатает свои строки сам — иначе находка живого трека исчезла бы.
+        for row in report.get("by_protocol") or []:
+            if row.get("message"):
+                tag = "НЕ ИЗМЕРЕНО" if row.get("bucket") == "unmeasured" else "WARN"
+                out.append(f"  [{tag}] {row.get('message')}")
+        for reason in report.get("unchecked") or []:
+            out.append(f"  [НЕ ИЗМЕРЕНО] {reason}")
     return out
 
 
