@@ -730,6 +730,119 @@ def _lookup_live_pool(
     return None
 
 
+# ── ТОЖДЕСТВО, КОТОРОЕ ОБЪЯВИЛ САМ АДАПТЕР (ADR-237) ────────────────────────
+#
+# Вопрос, на который до 2026-09-06 не отвечал никто: **какой пул означает ключ,
+# который фид никто не спрашивал.** Таких ключей 12 из 34 (замер 05.09 по живому
+# `data/adapter_status.json`): у них `pool_match: null` И `pool_match_refused:
+# null` — то есть ни пина, ни хинта, ранжируются литералом `fallback_apy`.
+#
+# «Не резолвится» читалось как «тождества нет». Это неверно: тождество ОБЪЯВЛЕНО
+# — константами КЛАССА адаптера, — и таблица `_DEFILLAMA_HINTS` выше их никогда
+# не читала, потому что она ПАРАЛЛЕЛЬНОЕ объявление того же факта, набираемое
+# руками. Замер 06.09:
+#
+#   EthenaSusdeAdapter.DEFILLAMA_PROJECT = "ethena-usde"
+#   EthenaSusdeAdapter.DEFILLAMA_SYMBOL  = "SUSDE"      CHAIN = "ethereum"
+#       → в фиде РОВНО ОДИН пул: 66985a81-… ($1.41 млрд @ 4.53 %)
+#       → и это ТОТ ЖЕ UUID, что `_POOL_ID_LOOKUP["susde"]`.
+#
+# То есть `ethena_susde` и `susde` — один контракт (Ethena sUSDe, ERC-4626 волт
+# 0x9D39A5DE…3497), два ключа, два потолка концентрации (20 % + 10 %) и две
+# разные цены: `susde` наблюдает 4.48 пп, `ethena_susde` предъявляет литерал
+# 12.0 пп, и на нём стои́т $75 301 советательного капитала. Сторож тождества
+# `pool_identity_collision` этой пары не видел ПО ПОСТРОЕНИЮ: его популяция —
+# ключи, которые РЕЗОЛВЯТСЯ в пул.
+#
+# ``alpha_agent`` ещё 17.08 назвал это отдельной задачей дословно: ложная пара
+# ``pendle_pt_susde ↔ susde`` «по ФОРМЕ ИМЕНИ неотличима от верной
+# ``ethena_susde ↔ susde``… разделяет только личность пула (UUID)». Здесь она и
+# разделяется: `pendle_pt_susde` запинен на `fc9a73bc…` — ДРУГОЙ UUID.
+#
+# ЧТО ЭТО НЕ ДЕЛАЕТ. Не пинит, не оживляет TVL, не меняет ни apy, ни live_apy,
+# ни tvl_source, ни pool_match — ни одного числа, по которому ранжируется или
+# фондируется капитал. Записывается ОДНО: чем ключ ЯВЛЯЕТСЯ. Урок ADR-230/232
+# ровно об этом — пин есть решение о СМЫСЛЕ ключа и потому money-path и
+# owner-gated; тождество же можно назвать, не двигая ни цента.
+#
+# ПОЧЕМУ ПРАВИЛО — «РОВНО ОДИН». Объявление, допускающее несколько пулов,
+# тождества НЕ определяет: победителя выбрал бы сегодняшний порядок TVL, а это
+# ровно та ловушка, на которой `spark_susds` едва не уехал в SPK-ферму (ADR-230).
+# Поэтому ≥2 кандидатов ⇒ ОТКАЗ с названным числом, а не «берём крупнейший».
+# Замер 06.09 показывает, что правило не переусердствует и в другую сторону:
+# `fluid_usdc` объявляет ("fluid-lending", "USDC", ethereum), под это подходят
+# ЧЕТЫРЕ пула одного актива — тождество отказано, и пару `fluid_usdc +
+# fluid_fusdc` по-прежнему держит род `observed` того же сторожа. У двух родов
+# слепые пятна разные, и ни один не заменяет другой.
+#
+# ТРЕТИЙ ИСХОД ОБЯЗАТЕЛЕН. Фид не ответил · класс ничего не объявляет · импорт
+# не состоялся ⇒ ``identity_refused`` с причиной СЛОВАМИ, никогда не молчаливый
+# ``None``: «не измерено» и «измерено, тождества нет» — разные факты.
+_IDENTITY_ATTRS = ("DEFILLAMA_PROJECT", "DEFILLAMA_SYMBOL", "CHAIN")
+
+
+def _declared_search(adapter_key: str) -> tuple[Optional[tuple[str, str, str]], Optional[str]]:
+    """Что ключ ОБЪЯВЛЯЕТ о своём инструменте — читая КЛАСС, а не таблицу выше.
+
+    Возвращает ``((project, symbol, chain), None)`` либо ``(None, причина)``.
+    Класс, объявивший не все три константы, объявил НЕ ПОИСК — достраивать за
+    него запрещено (это была бы догадка, а не объявление).
+    """
+    try:
+        from spa_core.adapters import ADAPTER_REGISTRY
+    except Exception as exc:  # noqa: BLE001 — импорт может не состояться
+        return None, f"реестр адаптеров не импортируется — {exc}"
+    cls = None
+    for entry in ADAPTER_REGISTRY:
+        if isinstance(entry, (list, tuple)) and len(entry) >= 3 and entry[0] == adapter_key:
+            cls = entry[2]
+            break
+    if cls is None:
+        return None, "ключа нет в ADAPTER_REGISTRY — класс не объявляет ничего"
+    vals = []
+    for attr in _IDENTITY_ATTRS:
+        v = getattr(cls, attr, None)
+        if not isinstance(v, str) or not v.strip():
+            return None, (f"{cls.__name__} не объявляет {attr} — поиск не объявлен, "
+                          f"достраивать за класс запрещено")
+        vals.append(v.strip())
+    return (vals[0], vals[1], vals[2]), None
+
+
+def _identity_pool(
+    adapter_key: str,
+    by_pcs: dict[tuple[str, str, str], list[dict]],
+) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    """UUID инструмента, объявленного классом ключа.
+
+    Возвращает ``(pool_uuid, кем объявлено, причина отказа)``. Ровно одно из
+    первого и третьего заполнено — молчаливого ``None`` без причины не бывает.
+    """
+    search, why = _declared_search(adapter_key)
+    if search is None:
+        return None, None, why
+    proj, sym, chain = search
+    declared_by = (f"{proj}/{sym}/{chain} — объявлено константами класса "
+                   f"{'/'.join(_IDENTITY_ATTRS)}")
+    proj_l, chain_l, sym_u = proj.lower(), chain.lower(), sym.upper()
+    hits: list[dict] = []
+    for (p, c, s), rows in by_pcs.items():
+        if p == proj_l and c == chain_l and sym_u in s:
+            hits.extend(rows)
+    if not hits:
+        return None, declared_by, (f"объявленному поиску ({proj}, {sym}, {chain}) "
+                                   f"не отвечает ни один пул фида")
+    if len(hits) > 1:
+        return None, declared_by, (
+            f"объявленному поиску ({proj}, {sym}, {chain}) отвечают {len(hits)} "
+            f"пул(ов) — тождество решал бы сегодняшний порядок TVL, а не "
+            f"объявление; отказ (ADR-230)")
+    pid = str(hits[0].get("pool") or "").strip()
+    if not pid:
+        return None, declared_by, "единственный кандидат без поля `pool` — UUID не назван"
+    return pid, declared_by, None
+
+
 def _lookup_live_apy(
     adapter_key: str,
     by_id: dict[str, dict],
@@ -983,6 +1096,22 @@ def generate(
         hint_rivals = (_hint_rivals(_hint_ranking(key, by_pcs)[0])
                        if match_kind == "hint" else None)
 
+        # Тождество ключа, который фид никто не спрашивал (ADR-237). Считается
+        # ТОЛЬКО когда собственный путь ключа не разрешился: у разрешённого UUID
+        # уже записан в ``pool_id``, и второе поле о том же означало бы два
+        # ответа на один вопрос. Ни одно число этой веткой не меняется.
+        identity_pool_id: Optional[str] = None
+        identity_declared_by: Optional[str] = None
+        identity_refused: Optional[str] = None
+        if match_kind is not None:
+            identity_refused = (f"ключ разрешён сам (pool_match={match_kind!r}) — "
+                                f"тождество записано в `pool_id`")
+        elif not pools:
+            identity_refused = "фид не ответил в этом прогоне — тождество НЕ ИЗМЕРЕНО"
+        else:
+            identity_pool_id, identity_declared_by, identity_refused = _identity_pool(
+                key, by_pcs)
+
         tvl = _TVL_ESTIMATES.get(key, 0.0)
         tvl_source = "static"
         tvl_pool_id: Optional[str] = None
@@ -1030,6 +1159,15 @@ def generate(
             # Why it resolved to nothing, when a hint existed and refused. None
             # whenever a pool WAS matched, or when the key has no hint at all.
             "pool_match_refused": match_refused,
+            # ЧЕМ ключ ЯВЛЯЕТСЯ, по объявлению СВОЕГО класса (ADR-237) —
+            # отдельно от того, чем он ФОНДИРУЕТСЯ. Заполняется только для
+            # ключей, чей собственный путь не разрешился; никогда не влияет ни
+            # на apy/live_apy, ни на tvl/tvl_source, ни на pool_match.
+            # ``identity_refused`` заполнен ВСЕГДА, когда UUID пуст: «не
+            # измерено» и «измерено, тождества нет» — разные факты.
+            "identity_pool_id":    identity_pool_id,
+            "identity_declared_by": identity_declared_by,
+            "identity_refused":    identity_refused,
             "tier":             tier_raw,
             "chain":            chain,
             "per_protocol_cap": per_cap,

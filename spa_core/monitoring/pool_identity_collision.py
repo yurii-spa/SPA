@@ -155,6 +155,15 @@ TVL_TOLERANCE_FRAC = 1e-6
 
 CRITICAL, WARN, INFO, UNCHECKED = "CRITICAL", "WARN", "INFO", "UNCHECKED"
 
+#: ЧЕМ ключ назвал свой пул. Три источника чинятся по-разному, поэтому в находке
+#: они не сливаются: пин — «снять лишний пин»; наблюдение — «закрепить тождество»;
+#: объявление класса (ADR-237) — ключ на этот пул НЕ ранжируется вовсе, он им
+#: ЯВЛЯЕТСЯ, а ранжируется литералом, и чинится это решением владельца о том,
+#: какой из двух ключей остаётся.
+NAMED_BY_PIN = "пин"
+NAMED_BY_OBSERVATION = "наблюдение"
+NAMED_BY_CLASS = "объявление класса"
+
 #: Статусы записи оркестратора, при которых наблюдение считается состоявшимся.
 _OK_STATUSES = ("ok", "partial")
 
@@ -263,17 +272,63 @@ def _same_pool(a: dict, b: dict) -> bool:
     return abs(a["apy_pct"] - b["apy_pct"]) <= APY_TOLERANCE_PP
 
 
-def _declared_pairs(obs: dict[str, dict], pins: dict[str, str]) -> dict[str, list[str]]:
-    """Ключи, НАЗЫВАЮЩИЕ один UUID: пин реестра генератора + наблюдённый ``tvl_pool_id``."""
+def _identities(status: dict) -> dict[str, str]:
+    """Тождества, объявленные КЛАССОМ ключа (ADR-237) — ``identity_pool_id``.
+
+    Третий источник имени пула, и единственный, который видит ключ, чей путь к
+    фиду не разрешился вовсе. Пин и наблюдение оба требуют, чтобы ключ УЖЕ
+    резолвился; ключ, ранжируемый литералом, не резолвится по построению — и
+    потому в популяцию двух прежних родов не входил (замер 06.09: таких ключей
+    12 из 34, на них $200 778 советательного капитала).
+
+    Отсутствие поля — не пустота, а старый артефакт: генератор пишет его с
+    ADR-237. Читатель просто не находит тождеств, и это честно видно по
+    ``keys_compared``.
+    """
+    out: dict[str, str] = {}
+    rows = status.get("adapters")
+    if not isinstance(rows, dict):
+        return out
+    for key, row in rows.items():
+        if not isinstance(key, str) or not isinstance(row, dict):
+            continue
+        pid = row.get("identity_pool_id")
+        if isinstance(pid, str) and pid:
+            out[key] = pid
+    return out
+
+
+def _declared_pairs(obs: dict[str, dict], pins: dict[str, str],
+                    identities: dict[str, str] | None = None) -> dict[str, list[str]]:
+    """Ключи, НАЗЫВАЮЩИЕ один UUID.
+
+    Три источника имени, и они не взаимозаменяемы: пин реестра генератора ·
+    наблюдённый ``tvl_pool_id`` · объявленное классом ``identity_pool_id``
+    (ADR-237). Третий добавлен потому, что первые два видят только ключ, который
+    уже резолвится в пул, — а ``ethena_susde`` не резолвится и при этом означает
+    ТОТ ЖЕ контракт, что запинённый ``susde``.
+   
+    Возвращает ``(пары, чем назвал каждый ключ)``. Второе — не украшение: у трёх
+    источников РАЗНЫЕ починки, и находка, не назвавшая источник, отправляет
+    чинить не туда.
+    """
     by_pool: dict[str, list[str]] = defaultdict(list)
+    named_by: dict[str, dict[str, str]] = defaultdict(dict)
     for key, pid in pins.items():
         if isinstance(pid, str) and pid:
             by_pool[pid].append(key)
+            named_by[pid][key] = NAMED_BY_PIN
     for key, o in obs.items():
         pid = o.get("pool_id")
         if pid and key not in by_pool[pid]:
             by_pool[pid].append(key)
-    return {pid: sorted(keys) for pid, keys in by_pool.items() if len(keys) > 1}
+            named_by[pid].setdefault(key, NAMED_BY_OBSERVATION)
+    for key, pid in (identities or {}).items():
+        if key not in by_pool[pid]:
+            by_pool[pid].append(key)
+            named_by[pid].setdefault(key, NAMED_BY_CLASS)
+    pairs = {pid: sorted(keys) for pid, keys in by_pool.items() if len(keys) > 1}
+    return pairs, {pid: named_by[pid] for pid in pairs}
 
 
 def _observed_groups(obs: dict[str, dict]) -> list[list[str]]:
@@ -452,14 +507,16 @@ def run(root: str = REPO_ROOT, now: dt.datetime | None = None,
                         unchecked.append(book_err)
                         book = {}
 
-                    declared = _declared_pairs(obs, pins)
+                    declared, named_by = _declared_pairs(
+                        obs, pins, _identities(status))
                     groups = _observed_groups(obs)
 
                     # Слить оба рода в один список коллизий, помечая, чем найдено.
                     merged: dict[tuple[str, ...], dict] = {}
                     for pid, keys in declared.items():
                         merged[tuple(sorted(keys))] = {
-                            "keys": sorted(keys), "kind": "declared", "pool_id": pid}
+                            "keys": sorted(keys), "kind": "declared", "pool_id": pid,
+                            "named_by": dict(named_by.get(pid, {}))}
                     for keys in groups:
                         t = tuple(sorted(keys))
                         if t in merged:
@@ -496,6 +553,19 @@ def run(root: str = REPO_ROOT, now: dt.datetime | None = None,
                                    f"пригодными к финансированию — структурный предел "
                                    f"пары вдвое выше объявленного потолка; найдено "
                                    f"родом `{row['kind']}`")
+                        # Ключ, назвавший пул ОБЪЯВЛЕНИЕМ КЛАССА, на этом пуле
+                        # не ранжируется — он им ЯВЛЯЕТСЯ, а ранжируется своим
+                        # литералом. Сказать про него «ранжируется на одном пуле»
+                        # значило бы соврать в ту же сторону, против которой
+                        # написан модуль, поэтому оговорка дописывается ЯВНО.
+                        by_class = sorted(k for k, how in row.get("named_by", {}).items()
+                                          if how == NAMED_BY_CLASS)
+                        if by_class:
+                            msg += (f". Оговорка: {', '.join(by_class)} на этот пул НЕ "
+                                    f"ранжируется — он его ОБЪЯВЛЯЕТ (константы класса, "
+                                    f"ADR-237), а ранжируется собственным литералом. "
+                                    f"Тождество от этого не слабее: потолок концентрации "
+                                    f"всё равно считает их разными предметами риска")
                         row["message"] = msg
                         collisions.append(row)
                         findings.append({"severity": sev, "kind": "pool_collision",
