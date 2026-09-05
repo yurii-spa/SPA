@@ -245,3 +245,258 @@ def test_live_data_registry_agrees_with_the_canon():
         "adapter_status_generator, и его тир доезжает до куратора.")
     fixed = sorted(DATA_REGISTRY_KNOWN - set(bad))
     assert not fixed, f"расхождение закрыто для {fixed} — убери из DATA_REGISTRY_KNOWN"
+
+
+# ── шестой источник тира: КЛАСС БЕЗ АТРИБУТА `TIER` ──────────────────────
+#
+# Замер 2026-09-05 (цикл #488, остаток G1 приказа Portfolio CIO). Всё, что
+# выше, спрашивает у класса ОДНО: `getattr(cls, "TIER", None)`. Каждое
+# сравнение стои́т под `if ct is not None`, поэтому класс, который тир не
+# ОБЪЯВЛЯЕТ атрибутом, а ПРИСВАИВАЕТ (`self.tier = ...`) или передаёт
+# аргументом (`YieldInfo(tier=...)`), из сверки выпадает целиком — молча,
+# как «нечего сравнивать».
+#
+# Таких классов пять из тридцати шести: `morpho_blue`, `yearn_v3`,
+# `euler_v2`, `maple`, `pendle`. И все пятеро — в `POLLED_ADAPTERS`, то есть
+# ровно на том пути, который докстрока этого файла объявляет защищённым
+# («ТИР класса доходит до денег через снимок оркестратора — здесь допуск
+# нулевой»). Сторож с нулевым допуском не видел почти половины предмета.
+#
+# Четверо из пяти присваивают КОНСТАНТУ, совпадающую с каноном, — их
+# невидимость ничего не стоила. Пятый, `pendle`, тир ВЫЧИСЛЯЕТ:
+# `_classify_tier(tvl)` (TVL ≥ $100M → T2, ≥ $20M → T3) и кладёт результат
+# в `YieldInfo.tier`; оркестратор пишет `record["tier"] = getattr(info,
+# "tier", tier) or tier` — то есть адаптер выигрывает у реестра, — а
+# `allocator._load_adapters` читает `a.get("tier")` в `tier_map`. Замер
+# 04.09: снимок несёт `pendle: T3` при каноне T2, и в этом протоколе стои́т
+# $20 000 книги.
+#
+# Почему это НЕ авария сегодня — сказано числом, а не надеждой:
+# `_cap_for` возвращает `T1_CAP` только для «T1», всё остальное — `T2_CAP`,
+# то есть 0.20 и для T2, и для T3; а совокупный потолок T3 (ADR-020, 15 %)
+# считает `_enforce_t3_total_cap` по КАНОНУ (`tier_map.tier_of`), а не по
+# снимку. Потолок сегодня совпадает по обоим путям. Но держится это на
+# схлопывании T3→T2_CAP, которое комментарий самого аллокатора (строка ~700)
+# называет прежней ошибкой, а не защитой. Утверждение карточки CIO «два
+# разных потолка на один капитал» замером НЕ подтвердилось — расхождение
+# есть, денежного эффекта у него сегодня нет.
+#
+# Правка самого `PendleAdapter` сюда НЕ входит: `_classify_tier` — не только
+# ярлык, но и ФИЛЬТР пригодности (TVL < $20M ⇒ рынок не берётся вовсе), и
+# снятие вывода тира меняет состав рынков на денежном пути. Это решение
+# владельца — тем же порядком, каким `ethena_susde` оставлен строже канона.
+# Карточка: `owner-decision-pendle-sam-naznachaet-sebe-uroven-riska`.
+
+#: Протоколы, чей класс ВЫВОДИТ тир из живых данных вместо чтения канона.
+#: База установлена замером 05.09 и может ТОЛЬКО СОКРАЩАТЬСЯ. Дописывать
+#: сюда имя, чтобы погасить падение, запрещено — это ровно тот дефект, ради
+#: которого проверка написана (тот же порядок, что у `frozen_date_baseline`).
+TIER_DERIVED_AT_RUNTIME: set[str] = {"pendle"}
+
+#: Выражения, которые тир не ОБЪЯВЛЯЮТ, а лишь перечитывают уже объявленный:
+#: `tier=self.tier`, `tier=self.TIER`, `tier=TIER`. Считать их выводом значило
+#: бы назвать нарушителями тридцать классов и утопить единственного настоящего.
+_TIER_ECHO_ATTRS = {"tier", "TIER"}
+
+#: ГОЛОЕ имя — перечитывание только в ВЕРХНЕМ регистре (`tier=TIER`, модульная
+#: константа `extra_finance_base`). Строчное `tier` — ЛОКАЛЬНАЯ переменная, и
+#: у `pendle` в ней лежит ровно результат `_classify_tier(tvl)`. Первая
+#: редакция держала здесь оба регистра и потому объявила единственного
+#: настоящего нарушителя перечитыванием самого себя: слово стало своей же
+#: меткой. Поймано положительным контролем ниже, а не чтением.
+_TIER_ECHO_BARE_NAMES = {"TIER"}
+
+
+def _is_tier_echo(node) -> bool:
+    """`self.tier` / `self.TIER` / голое `TIER` — перечитывание, не объявление."""
+    import ast as _ast
+    if isinstance(node, _ast.Attribute) and node.attr in _TIER_ECHO_ATTRS:
+        return isinstance(node.value, _ast.Name) and node.value.id == "self"
+    return isinstance(node, _ast.Name) and node.id in _TIER_ECHO_BARE_NAMES
+
+
+def _tier_declarations(source: str, class_name: str, class_attr: str | None):
+    """Все тиры, которые класс способен отдать в ``YieldInfo``.
+
+    Возвращает ``(literals, derived, measured)``:
+
+    * ``literals`` — множество констант (атрибут класса + константные
+      присваивания ``self.tier`` + константные аргументы ``tier=``);
+    * ``derived``  — места, где тир приходит из вычисления (список
+      ``(строка, краткое описание)``);
+    * ``measured`` — нашлось ли ХОТЬ ОДНО объявление. ``False`` — это третий
+      исход «не измерено», а не «расхождений нет»: молчать о классе, о
+      котором нечего сказать, — ровно та ошибка, что здесь и чинится.
+
+    Граница метода названа вслух: разбирается ТЕЛО САМОГО класса плюс
+    атрибут ``TIER`` со всей цепочки наследования (``getattr``). Класс,
+    который сам не объявляет ничего, а получает ``get_yield_info`` с
+    ``tier=`` от базового, здесь виден не будет — но и не пройдёт молча: у
+    него нет ни одного объявления, значит ``measured=False``, то есть
+    громкое «НЕ ИЗМЕРЕНО». Дыры это не оставляет; сегодня таких классов
+    в реестре нет (замер 05.09: `tbtc_lending`/`cbbtc_lending` берут
+    ``TIER`` с базы, и он читается).
+    """
+    import ast as _ast
+
+    tree = _ast.parse(source)
+    cd = next((n for n in _ast.walk(tree)
+               if isinstance(n, _ast.ClassDef) and n.name == class_name), None)
+    if cd is None:
+        return set(), [], False
+
+    literals: set[str] = set()
+    derived: list[tuple[int, str]] = []
+    if isinstance(class_attr, str) and class_attr.strip():
+        literals.add(class_attr.strip().upper())
+
+    def _take(value, lineno: int, where: str) -> None:
+        if isinstance(value, _ast.Constant) and isinstance(value.value, str):
+            literals.add(value.value.strip().upper())
+        elif _is_tier_echo(value):
+            return  # перечитывание уже объявленного
+        else:
+            derived.append((lineno, where))
+
+    for n in _ast.walk(cd):
+        if isinstance(n, _ast.Assign):
+            for t in n.targets:
+                if (isinstance(t, _ast.Attribute) and t.attr in _TIER_ECHO_ATTRS
+                        and isinstance(t.value, _ast.Name) and t.value.id == "self"):
+                    _take(n.value, n.lineno, f"self.{t.attr} = …")
+        elif isinstance(n, _ast.Call):
+            for kw in (n.keywords or []):
+                if kw.arg == "tier":
+                    _take(kw.value, n.lineno, "tier=… в вызове")
+
+    return literals, derived, bool(literals or derived)
+
+
+def _declared_rows():
+    """(протокол, literals, derived, measured, запись канона) по ВСЕМ классам."""
+    import inspect
+    out = []
+    for entry in ADAPTER_REGISTRY:
+        try:
+            proto, cls = entry[0], entry[2]
+        except Exception:  # noqa: BLE001 — кривая строка реестра
+            continue
+        auth = PROTOCOL_RISK_SCORES.get(proto)
+        if auth is None:
+            continue
+        try:
+            src = Path(inspect.getsourcefile(cls)).read_text(encoding="utf-8")
+        except Exception as exc:  # noqa: BLE001
+            out.append((proto, set(), [(0, f"исходник нечитаем: {exc}")], False, auth))
+            continue
+        lit, der, measured = _tier_declarations(
+            src, cls.__name__, getattr(cls, "TIER", None))
+        out.append((proto, lit, der, measured, auth))
+    return out
+
+
+def test_every_adapter_class_tier_declaration_is_measured():
+    """Третий исход. «Не нашли объявления» — не «объявлений нет»."""
+    rows = _declared_rows()
+    assert len(rows) >= 30, f"популяция сжалась до {len(rows)} — сверка ослабла"
+    unmeasured = sorted(p for p, _, _, measured, _ in rows if not measured)
+    assert not unmeasured, (
+        f"тир {len(unmeasured)} классов НЕ ИЗМЕРЕН: {unmeasured}. Это третий исход, "
+        "а не зелёный: до 2026-09-05 такие классы молча выпадали из всей сверки.")
+
+
+def test_class_tier_agrees_with_the_canon_however_it_is_declared():
+    """Сверка по ФАКТУ объявления, а не по его форме (закрытие слепоты #488)."""
+    bad = {}
+    for proto, lit, _, _, auth in _declared_rows():
+        off = sorted(t for t in lit if t != auth["tier"])
+        if off:
+            bad[proto] = (off, auth["tier"])
+    new = sorted(set(bad) - KNOWN_TIER_DISAGREEMENT)
+    assert not new, (
+        f"класс объявляет тир мимо канона: { {p: bad[p] for p in new} }. Форма "
+        "объявления (атрибут / self.tier / аргумент) значения не имеет — тир "
+        "задаётся в PROTOCOL_RISK_SCORES и только там (docs/tier_criteria.md §2).")
+
+
+def test_no_class_derives_its_tier_from_live_data():
+    """Тир — решение политики, а не наблюдение. Ратчет, только вниз."""
+    rows = _declared_rows()
+    derived = {p for p, _, der, _, _ in rows if der}
+    new = sorted(derived - TIER_DERIVED_AT_RUNTIME)
+    assert not new, (
+        f"класс ВЫЧИСЛЯЕТ свой тир из живых данных: {new}. Тир задаёт потолок "
+        "концентрации; выводить его из фида значит назначать себе потолок "
+        "наблюдением. В TIER_DERIVED_AT_RUNTIME не дописывать.")
+    fixed = sorted(TIER_DERIVED_AT_RUNTIME - derived)
+    assert not fixed, (
+        f"вывод тира снят у {fixed} — убери из TIER_DERIVED_AT_RUNTIME. База "
+        "сокращается вместе с починкой, иначе перестаёт что-либо значить.")
+
+
+def test_the_derived_tier_baseline_names_a_real_disagreement():
+    """База не абстрактна: у `pendle` вывод тира и правда расходится с каноном.
+
+    Без этого ратчет мог бы стеречь пустое место — «положительный контроль
+    может быть украшением» (журнал W33).
+    """
+    from spa_core.adapters.pendle_adapter import _classify_tier, _TIER_T3_TVL
+    assert PROTOCOL_RISK_SCORES["pendle"]["tier"] == "T2", "канон по pendle изменился"
+    assert _classify_tier(_TIER_T3_TVL) == "T3", (
+        "класс перестал выводить T3 из TVL — перепроверь TIER_DERIVED_AT_RUNTIME")
+
+
+def test_a_class_declaring_its_tier_without_the_attribute_is_caught():
+    """Положительный контроль слепоты: ИМЕННО эта форма и была невидима.
+
+    Контроль прежнего теста (`test_a_planted_wrong_tier_is_caught`) подкладывал
+    атрибут `TIER` — единственную форму, которая слепой НЕ была.
+    """
+    src = (
+        "class Blind:\n"
+        "    def __init__(self):\n"
+        "        self.tier = 'T1'\n"
+    )
+    lit, der, measured = _tier_declarations(src, "Blind", None)
+    assert measured and lit == {"T1"} and not der, (lit, der, measured)
+
+
+def test_a_computed_tier_is_told_apart_from_a_re_read_one():
+    """Вывод отличается от перечитывания — иначе тридцать ложных и один утоплен."""
+    echo = (
+        "class Echo:\n"
+        "    TIER = 'T2'\n"
+        "    def get_yield_info(self):\n"
+        "        return YieldInfo(tier=self.tier)\n"
+    )
+    _, der, _ = _tier_declarations(echo, "Echo", "T2")
+    assert not der, f"перечитывание принято за вывод: {der}"
+
+    computed = (
+        "class Computed:\n"
+        "    def get_yield_info(self):\n"
+        "        return YieldInfo(tier=_classify(self.tvl))\n"
+    )
+    lit, der, measured = _tier_declarations(computed, "Computed", None)
+    assert measured and der and not lit, (lit, der, measured)
+
+    # Форма самого `pendle`: вычисленное значение проходит через ЛОКАЛЬНУЮ
+    # переменную с именем `tier`. Пока строчное имя числилось перечитыванием,
+    # ратчет молчал именно о нём — контроль стоит здесь, чтобы это не вернулось.
+    via_local = (
+        "class ViaLocal:\n"
+        "    def get_yield_info(self):\n"
+        "        tier = _classify(self.tvl)\n"
+        "        self.tier = tier\n"
+        "        return YieldInfo(tier=tier)\n"
+    )
+    lit, der, measured = _tier_declarations(via_local, "ViaLocal", None)
+    assert measured and der and not lit, (
+        f"вычисленный тир, прошедший через локальную `tier`, принят за "
+        f"перечитывание: {(lit, der, measured)}")
+
+
+def test_a_class_with_no_tier_declaration_at_all_is_unmeasured():
+    """Молчащий класс обязан стать «не измерено», а не «сошлось»."""
+    lit, der, measured = _tier_declarations("class Mute:\n    pass\n", "Mute", None)
+    assert not measured and not lit and not der
