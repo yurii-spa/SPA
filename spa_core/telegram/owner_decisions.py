@@ -328,6 +328,58 @@ _OPTION_LETTERED_PLAIN_RE = re.compile(
     r"(?!\*\*)(?P<plain>\S.*)$",
 )
 
+# ЧЕТВЁРТЫЙ явный диалект — буквенная метка С ТОЧКОЙ под жирной головкой, БЕЗ скобок:
+#     **А. Закрепить основной рынок Aave навсегда (моя рекомендация).**
+#     - **A. Оставить как есть (10:00 UTC).** Ничего не делаем…
+#     - **B.** Оставить как есть, но признать это явно: числа сайта подтверждаются…
+# Точка после одиночной буквы — такая же метка перечня, как скобка у `(а)`, и по тому же
+# основанию (ADR-075) голое «- **Текст**» разбору по-прежнему НЕ поддаётся: отличает
+# помеченный пункт именно метка.
+#
+# Замер по живой очереди (`origin/main` 176e57b47, секция «Что от тебя нужно», ≥2 пунктов
+# этой формы) — ЧЕТЫРЕ карточки, и три из них теряли ВЕСЬ выбор:
+#   `owner-decision-chisla-treka-na-saite-ne-podtverzhdayuts`  написано 2, разобрано 0
+#   `owner-decision-dannye-treka-v-git-fail-dokazatelstv-zam`  написано 3, разобрано 0
+#   `owner-decision-sorok-protsentov-knigi-stoyat-na-rynke-k`  написано 3, разобрано 0
+#   `owner-decision-storozh-propuschennogo-tsikla-molchit-do`  написано 3, разобрано 1
+#
+# Четвёртая — ХУДШИЙ исход и причина, по которой диалект учится вместе со сверкой
+# «написано ↔ взято» (ниже): у неё разбор отдавал ОДНУ кнопку из трёх, а сторож
+# `has_unparsed_options` при этом молчал — он спрашивает «разобрано ХОТЬ ЧТО-ТО?», а не
+# «разобрано ВСЁ», и непустой список закрывал ему рот. Владелец видел один вариант там,
+# где предложено три, и узнать об остальных ему было НЕОТКУДА: отсутствие кнопок видно,
+# потерянный пункт — нет (то же основание, что у `_OPTION_BOLD_NUM_HEAD_RE`).
+#
+# Первая карточка этого класса, пойманная живой: `…sorok-protsentov…` ушла владельцу
+# 05.09 16:17Z (message 9653) прозой с тремя вариантами и `buttons: false`.
+#
+# Диалект — ДВА выражения, а не альтернатива в одном: подпись стои́т либо ВНУТРИ жирного
+# («**A. Оставить как есть.**»), либо СРАЗУ ЗА ним («**B.** Оставить как есть»), и
+# альтернатива внутри одного выражения перехватывала бы первую форму второй (та же
+# причина, по которой разведены `_OPTION_LETTERED_RE` и `_OPTION_LETTERED_PLAIN_RE`).
+_OPTION_LETTERED_DOT_RE = re.compile(
+    r"^\s*(?:[*\-+]\s+)?\*\*\s*(?P<num>[A-Za-zА-Яа-я])\.\s+"
+    r"(?P<label>\S.*?)"               # подпись НЕПУСТА — пустая «**B.**» уходит форме ниже
+    r"\s*\.?\s*\*\*"
+    r"(?P<tail>.*)$",
+)
+
+# Та же метка, подпись — ЗА жирным: «- **B.** Оставить как есть, но признать это явно…»
+_OPTION_LETTERED_DOT_PLAIN_RE = re.compile(
+    r"^\s*(?:[*\-+]\s+)?\*\*\s*(?P<num>[A-Za-zА-Яа-я])\.\s*\*\*\s*"
+    r"(?!\*\*)(?P<plain>\S.*)$",
+)
+
+# ТА ЖЕ форма ИЗДАЛЕКА — посчитать, сколько пунктов автор НАПИСАЛ, чтобы сверить с тем,
+# сколько разбор ВЗЯЛ. Требования к подписи здесь нет намеренно: мера, делящая слепое
+# пятно с тем, что она меряет, не меряет ничего (см. `_OPTION_MENTION_RE`).
+#
+# В `has_unparsed_options` это выражение НЕ дописано — там оно было бы мёртвым:
+# `_UNREAD_CHOICE_RE` видит все 13 строк этой формы, найденные в живом корпусе.
+_OPTION_LETTERED_DOT_HEAD_RE = re.compile(
+    r"^\s*(?:[*\-+]\s+)?\*\*\s*[A-Za-zА-Яа-я]\.(?:\s|\*\*)",
+)
+
 # Подпись, состоящая ИЗ ОДНОЙ ПОМЕТКИ: «(а) — рекомендую.» Кнопка «рекомендую» не
 # называет варианта — суть стоит сразу за жирным, и берётся она оттуда же, откуда для
 # «**Вариант N (рекомендую)**». Пометка тут не теряется: её читает `_marks_recommendation`
@@ -640,6 +692,12 @@ def has_unparsed_options(body: str) -> bool:
     """
     if parse_options(body):
         return False
+    # Буквенный пункт с точкой (`_OPTION_LETTERED_DOT_HEAD_RE`) сюда НЕ дописан
+    # намеренно: замер 05.09 по живому корпусу — 13 строк этой формы, и `_UNREAD_CHOICE_RE`
+    # видит ВСЕ 13. Строка была бы мёртвой, а мутация, её снимающая, не покраснела бы
+    # ни на одном тесте — то есть сторож стоял бы непроверенным. Именно поэтому три
+    # карточки этого диалекта доезжали до владельца как «варианты есть, кнопок нет»,
+    # а не как «выбора не предлагали».
     return any(_OPTION_MENTION_RE.match(ln) or _UNREAD_CHOICE_RE.search(ln)
                or _OPTION_BOLD_NUM_HEAD_RE.match(ln)
                for ln in _section_lines(body))
@@ -886,12 +944,20 @@ def _parse_options_measured(
     # списком (`own-31`: «Два решения: 1. …? 2. …?»), разбираются как раньше.
     explicit_dialect = any(_OPTION_RE.match(ln) or _OPTION_LETTERED_RE.match(ln)
                            or _OPTION_LETTERED_PLAIN_RE.match(ln)
+                           or _OPTION_LETTERED_DOT_RE.match(ln)
+                           or _OPTION_LETTERED_DOT_PLAIN_RE.match(ln)
                            or _OPTION_BOLD_NUM_RE.match(ln)
                            or _plain_word_option(ln) for ln in section)
 
     # Сколько пунктов жирного числового диалекта автор НАПИСАЛ (см. `_OPTION_BOLD_NUM_HEAD_RE`).
     bold_num_written = sum(1 for ln in section if _OPTION_BOLD_NUM_HEAD_RE.match(ln))
     bold_num_taken = 0
+
+    # То же для буквенного пункта с точкой — и по той же причине: живая карточка
+    # `owner-decision-storozh-propuschennogo-tsikla-molchit-do` отдавала ОДНУ кнопку из
+    # трёх, а сторож молчал, потому что список был непуст.
+    dot_written = sum(1 for ln in section if _OPTION_LETTERED_DOT_HEAD_RE.match(ln))
+    dot_taken = 0
 
     options: List[ParsedOption] = []
     seen: set[str] = set()
@@ -901,6 +967,14 @@ def _parse_options_measured(
     last_key: Optional[str] = None
     for ln in section:
         m = _OPTION_RE.match(ln) or _OPTION_LETTERED_RE.match(ln)
+        # «Взято» считается по САМОМУ ПУНКТУ, а не по победившему выражению: строку
+        # буквенного пункта может разобрать и более ранний диалект, и тогда счёт по
+        # «кто выиграл» объявил бы перечень прочитанным НЕ ПОЛНОСТЬЮ там, где он прочитан
+        # весь, — отказ на верном состоянии. Замер: `…storozh-propuschennogo…`, три
+        # пункта, один из них перехватывал `_OPTION_RE`.
+        dot = _OPTION_LETTERED_DOT_HEAD_RE.match(ln) is not None
+        if m is None:
+            m = _OPTION_LETTERED_DOT_RE.match(ln)
         # Подпись жирного числового пункта лежит в `label`, как у жирных диалектов выше,
         # поэтому `numbered` (он означает «подпись в `plain`») остаётся False.
         bold_num = False
@@ -913,6 +987,8 @@ def _parse_options_measured(
             # из `plain`, как у нумерованного без жирного; флаг `numbered` здесь и означает
             # «подпись в `plain`», а не «метка — цифра».
             m = _OPTION_LETTERED_PLAIN_RE.match(ln)
+            if m is None:
+                m = _OPTION_LETTERED_DOT_PLAIN_RE.match(ln)
             if m is None:
                 m = _plain_word_option(ln)
             numbered = m is not None
@@ -984,6 +1060,8 @@ def _parse_options_measured(
         seen.add(key)
         if bold_num:
             bold_num_taken += 1
+        if dot:
+            dot_taken += 1
         options.append(ParsedOption(num=num, label=label, recommended=recommended))
 
     # Взяли не все написанные пункты жирного числового диалекта ⇒ отказ целиком.
@@ -992,6 +1070,12 @@ def _parse_options_measured(
     # а не через `MultiQuestion`: «вопросов несколько» — это ДРУГОЙ диагноз, и подменять
     # им «разобрал не всё» значило бы назвать владельцу не ту причину.
     if bold_num_written and bold_num_taken != bold_num_written:
+        return [], None
+
+    # Тот же fail-CLOSED для буквенного пункта с точкой: показать часть перечня хуже,
+    # чем не показать ничего. Причину назовёт `has_unparsed_options` — теперь он этот
+    # диалект видит.
+    if dot_written and dot_taken != dot_written:
         return [], None
 
     # Составная метка выдаёт ВТОРОЙ вопрос там, где правило «дубль номера ⇒ fail-CLOSED»
