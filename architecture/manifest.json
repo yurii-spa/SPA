@@ -759,6 +759,10 @@
      "slo_hours": 7
     },
     {
+     "artifact": "data/evidence_staleness.json",
+     "slo_hours": 7
+    },
+    {
      "artifact": "data/apy_composition.json",
      "slo_hours": 7
     }
@@ -779,7 +783,7 @@
    "notes": "петля решений: пересчёт house_view_gap + мост находка→карточка (Фаза 3)",
    "passport": {
     "goal": "мост «находка → карточка» (ADR-066, Фаза 3, C2).",
-    "quality_metric": "data/house_view_gap.json свежее 7 ч; data/findings_bridge_report.json свежее 7 ч; data/loop_health.json свежее 7 ч; data/loop_retro.json свежее 192 ч; data/investment_os/outcomes.jsonl свежее 31 ч; data/adapter_feed_divergence.json свежее 7 ч; data/capital_evidence_coverage.json свежее 7 ч; data/pool_identity_collision.json свежее 7 ч; data/apy_composition.json свежее 7 ч",
+    "quality_metric": "data/house_view_gap.json свежее 7 ч; data/findings_bridge_report.json свежее 7 ч; data/loop_health.json свежее 7 ч; data/loop_retro.json свежее 192 ч; data/investment_os/outcomes.jsonl свежее 31 ч; data/adapter_feed_divergence.json свежее 7 ч; data/capital_evidence_coverage.json свежее 7 ч; data/pool_identity_collision.json свежее 7 ч; data/apy_composition.json свежее 7 ч; data/evidence_staleness.json свежее 7 ч",
     "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/house_view_gap.json, data/findings_bridge_report.json, data/loop_health.json …",
     "limits": "LLM запрещён; не импортирует execution"
@@ -3103,6 +3107,16 @@
    "slo_hours": 7,
    "status": "active",
    "notes": "Гэп G1 ТЗ «Portfolio CIO»: два КЛЮЧА протокола, ранжирующиеся на ОДНОМ пуле DeFiLlama (потолок концентрации считает их разными предметами риска), и отказ реестра, недостижимый для опрашиваемых ключей. Сторож только НАЗЫВАЕТ — правка гейта и потолков money-path, owner-gated"
+  },
+  {
+   "path": "data/evidence_staleness.json",
+   "producer": "com.spa.decision_loop",
+   "consumers": [
+    "orchestrator_protocol"
+   ],
+   "slo_hours": 7,
+   "status": "active",
+   "notes": "ADR-167 (решение владельца 29.08, вариант 1): лестница устаревания наблюдения 36/168 ч на ЖИВОЙ книге. До #494 канал `governance/evidence_staleness.py` не имел НИ ОДНОГО вызова вне тестов — объявленная владельцем тревога по массовой слепоте не могла прозвучать. Сторож только НАЗЫВАЕТ: MASS_BLINDNESS капитал не трогает (эвакуировать книгу по своей же аварии хуже), исполнение де-риска — money-path, owner-gated, карточка `agent-derisk-po-slepote-podklyuchit-k-rebalansu`. Отдельно называет деньги в стадии UNKNOWN_AGE: их лестница не видит ПО ПОСТРОЕНИЮ"
   },
   {
    "path": "data/apy_composition.json",

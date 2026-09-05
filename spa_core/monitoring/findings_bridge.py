@@ -48,6 +48,7 @@ PRODUCES = (
     "data/adapter_feed_divergence.json",
     "data/capital_evidence_coverage.json",
     "data/pool_identity_collision.json",
+    "data/evidence_staleness.json",
     "data/apy_composition.json",
     "data/findings_bridge_report.json",
     "data/house_view_gap.json",
@@ -605,6 +606,23 @@ def main(argv=None) -> int:
               f"ключей сверено {len(pic['keys_compared'])}")
     except Exception as e:  # noqa: BLE001 — сверка тождества не смеет валить мост
         print(f"pool_identity_collision: пропущено ({e})")
+    # Устаревание наблюдения (ADR-167): считается тем же прогоном и по той же
+    # причине — вопрос родствен сверке фидов, стоит миллисекунды, новый агент
+    # означал бы деплой. До #494 канал `governance/evidence_staleness.py` НИКТО
+    # не спрашивал: решение владельца от 29.08 было принято, канал написан и
+    # покрыт тестами, а объявленная им тревога по массовой слепоте прозвучать
+    # не могла. Сторож только НАЗЫВАЕТ: MASS_BLINDNESS капитал не трогает
+    # намеренно, а исполнение де-риска — money-path, то есть решение владельца
+    # (карточка `agent-derisk-po-slepote-podklyuchit-k-rebalansu`), не авто-карточка.
+    try:
+        from spa_core.monitoring import evidence_staleness_monitor
+        ev = evidence_staleness_monitor.run(root=args.root)
+        c = ev["counts"]
+        print(f"evidence_staleness: {ev['overall']} (действие {ev['action']}) — "
+              f"свежих {c['fresh']} мягких {c['soft_stale']} жёстких {c['hard_stale']} "
+              f"без часов {c['unknown_age']}; без наблюдения ${ev['usd']['unknown_age']:,.0f}")
+    except Exception as e:  # noqa: BLE001 — лестница устаревания не смеет валить мост
+        print(f"evidence_staleness: пропущено ({e})")
     # Цикл 3 ADR-067: правая половина hit-rate — строка исхода за сегодня
     # (идемпотентно по дате; 4 шанса в день догнать evidenced-бар).
     try:

@@ -103,6 +103,13 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                     "counts.info", "counts.unchecked", "keys_compared",
                                     "collisions", "unreachable_refusals", "findings",
                                     "unchecked"),
+    "evidence_staleness.json": ("overall", "action", "reason", "counts.fresh",
+                                "counts.soft_stale", "counts.hard_stale",
+                                "counts.unknown_age", "counts.unchecked",
+                                "usd.fresh", "usd.soft_stale", "usd.hard_stale",
+                                "usd.unknown_age", "usd.total", "protocols",
+                                "to_derisk", "unchecked", "ladder.soft_stale_h",
+                                "ladder.hard_stale_h"),
     "capital_evidence_coverage.json": ("verdict", "verdict_live_track", "population",
                                        "all_books.verdict", "all_books.coverage_pct",
                                        "all_books.books_measured", "all_books.books_unmeasured",
@@ -147,6 +154,7 @@ _PRODUCER: dict[str, str] = {
     "adapter_feed_divergence.json": "spa_core/monitoring/adapter_feed_divergence.py",
     "capital_evidence_coverage.json": "spa_core/monitoring/capital_evidence_coverage.py",
     "pool_identity_collision.json": "spa_core/monitoring/pool_identity_collision.py",
+    "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     # Единственный производитель-СКРИПТ. Ключи он всё-таки пишет питоном —
     # heredoc'ом внутри shell, — поэтому сверка схемы здесь настоящая, а не
@@ -866,6 +874,44 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                        f"отказ по-разному, но ключ не опрашивается ⇒ отказ состоится")
         for u in (data.get("unchecked") or [])[:6]:
             out.append(f"   [НЕ ИЗМЕРЕНО] {u}")
+    elif name == "evidence_staleness.json":
+        # Лестница ADR-167 на ЖИВОЙ книге. Читается как «сколько наших денег
+        # система ещё ВИДИТ». Три вещи звучат отдельно, потому что это три
+        # разных события с разными правильными реакциями:
+        #   MASS_BLINDNESS — ослепли ВСЕ разом ⇒ это НАША поломка, а не рынок:
+        #     чинить фид, капитал не трогать (эвакуация по своей же аварии хуже);
+        #   де-риск НАЗВАН — протокол невидим > 168 ч; исполнение money-path и
+        #     owner-gated, поэтому строка зовёт к карточке, а не к правке;
+        #   БЕЗ ЧАСОВ — у ключа нет отметки наблюдения вовсе, и лестница его не
+        #     видит ПО ПОСТРОЕНИЮ (сокращать по незнанию возраста — угадывание).
+        #     Эти деньги не станут видимы и после подключения money-path-ноги.
+        c = data.get("counts") or {}
+        u = data.get("usd") or {}
+        out.append(f"   устаревание наблюдения (ADR-167): "
+                   f"{data.get('overall') or _UNMEASURED} · действие "
+                   f"{data.get('action') or _UNMEASURED} — свежих {_num(c, 'fresh')} "
+                   f"мягких {_num(c, 'soft_stale')} жёстких {_num(c, 'hard_stale')} "
+                   f"без часов {_num(c, 'unknown_age')}")
+        if data.get("action") == "MASS_BLINDNESS":
+            out.append(f"   [ТРЕВОГА] {data.get('reason')}")
+            out.append("   капитал НЕ трогаем намеренно: ослепли все разом ⇒ "
+                       "симптом НАШЕЙ поломки, чинить фид (ADR-167)")
+        for r in (data.get("to_derisk") or [])[:6]:
+            if isinstance(r, dict):
+                out.append(f"   [ДЕ-РИСК НАЗВАН] {r.get('protocol')}: "
+                           f"${r.get('held_usd', 0):,.0f} — {r.get('reason')}")
+        if data.get("to_derisk"):
+            out.append("   исполнение — money-path, owner-gated: карточка "
+                       "`agent-derisk-po-slepote-podklyuchit-k-rebalansu`")
+        if _num(c, "unknown_age"):
+            names = ", ".join(sorted(
+                str(r.get("protocol")) for r in (data.get("protocols") or [])
+                if isinstance(r, dict) and r.get("stage") == "UNKNOWN_AGE"))
+            out.append(f"   [БЕЗ ЧАСОВ] ${u.get('unknown_age', 0):,.0f} стоит на ключах "
+                       f"без отметки наблюдения ({names}) — лестница их не видит "
+                       f"ПО ПОСТРОЕНИЮ")
+        for line in (data.get("unchecked") or [])[:6]:
+            out.append(f"   [НЕ ИЗМЕРЕНО] {line}")
     elif name == "capital_evidence_coverage.json":
         # Приёмка §5 ТЗ владельца «Portfolio CIO»: какая доля НАШИХ ДЕНЕГ стоит
         # на наблюдении. До ADR-226 у числа не было производителя вовсе — его
