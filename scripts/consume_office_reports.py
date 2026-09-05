@@ -1365,6 +1365,29 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             except Exception as exc:  # noqa: BLE001
                 line = (f"⚠️ кнопки в канале НЕ ИЗМЕРЕНЫ: строку не собрать ({exc})")
             out.append(f"   {line}")
+    elif name == "shadow_trigger_evaluation.json":
+        # До цикла #487 этот артефакт попадал в generic-ветку и говорил ровно одно
+        # слово — `NOT_READY`. Слово верное и бесполезное: оно одинаково звучит на
+        # «копим дни» и на «взвод недостижим никаким ожиданием», а это два разных
+        # ответа, и второй требует решения владельца.
+        out.append(f"   статус: {data.get('status')} (готов к взводу: "
+                   f"{'да' if data.get('ready_to_arm') else 'нет'}) · "
+                   f"дней наблюдения {data.get('observation_days')} · "
+                   f"ACT {(data.get('counts') or {}).get('act')}")
+        for c in (data.get("criteria") or []):
+            if c.get("status") != "PASS":
+                out.append(f"   [{c.get('status')}] критерий {c.get('criterion')} "
+                           f"{c.get('threshold')} (факт: {c.get('actual')})")
+        try:
+            from spa_core.paper_trading.shadow_trigger_eval import format_blockade
+
+            blockade_lines = format_blockade(data.get("arming_blockade"))
+        except Exception as exc:  # noqa: BLE001
+            # Тот же приём, что у кнопок ниже: обязательный шаг 0-офис не имеет
+            # права упасть из-за строчки оформления — упавший шаг это НЕ
+            # прочитанный офис.
+            blockade_lines = [f"Достижимость взвода: ⚠️ НЕ ИЗМЕРЕНА ({exc})"]
+        out.extend(f"   {line}" for line in blockade_lines)
     else:
         status = data.get("status") or data.get("overall") or data.get("posture")
         if status is not None:

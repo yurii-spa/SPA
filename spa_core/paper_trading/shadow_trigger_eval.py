@@ -252,6 +252,186 @@ def _evaluate_verdict(rec: dict, forward: List[dict],
     return out
 
 
+# ── Which gate refused, and can arming EVER be reached? (ADR-060 §приёмка) ─────
+# Каждый ложный гейт `rebalance_economics.explain_move` печатает СВОЮ строку
+# причины. Отображение нужно потому, что история двухсхемная: строки
+# ``shadow-hist-v1`` несут только ``reasons``, поле ``gates`` появилось лишь в
+# ``shadow-hist-v2`` (30.08). Читать ТОЛЬКО ``gates`` значило бы объявить 24 из 30
+# наблюдённых дней несуществующими; читать ТОЛЬКО ``reasons`` — понизить
+# инструмент там, где есть точный. Поэтому: ``gates`` когда есть, вывод из
+# ``reasons`` когда нет, и ИСТОЧНИК каждого дня называется в отчёте.
+#
+# Храповик на полноту отображения — `test_shadow_arming_blockade.py`: он зовёт
+# настоящий `explain_move` и требует, чтобы у КАЖДОГО ключа `gates` был здесь
+# префикс. Новый гейт без строки причины иначе молча считался бы пройденным на
+# всей истории v1, то есть занижал бы ровно ту величину, ради которой блок написан.
+GATE_BY_REASON_PREFIX = {
+    "no_material_legs": "has_legs",
+    "gain_below_band": "gain_above_band",
+    "payback_too_long": "payback_within_horizon",
+    "cooldown_active": "cooldown_ok",
+    "positions_below_min_hold": "min_hold_ok",
+    "move_turnover_over_budget": "move_turnover_ok",
+    "week_turnover_over_budget": "week_turnover_ok",
+    "target_contains_unevidenced": "target_fully_evidenced",
+}
+#: Гейт, который не отказывает, а лишь ПОДНИМАЕТ планку (`required_gain_pp`), —
+#: не отказ, и в перепись не идёт: он виден как `gain_below_band` тогда и только
+#: тогда, когда действительно отказал.
+_NON_GATE_REASON_PREFIXES = ("reversal_of_recent_move",)
+_ALL_GATES = frozenset(GATE_BY_REASON_PREFIX.values())
+
+BLOCKADE_UNREACHABLE = "UNREACHABLE_UNTIL_CHANGED"
+BLOCKADE_NO_SINGLE = "NO_SINGLE_BLOCKER"
+BLOCKADE_ACCUMULATING = "ACCUMULATING"
+BLOCKADE_NOT_BLOCKED = "NOT_BLOCKED"
+BLOCKADE_UNMEASURED = "UNMEASURED"
+
+
+def gate_state(rec: dict) -> Tuple[Optional[Dict[str, bool]], str]:
+    """Состояние гейтов одной строки истории + ЧЕМ оно получено.
+
+    Возвращает ``(None, "unmeasured")``, когда строка не несёт ни ``gates``, ни
+    ``reasons``: «гейты прошли» из отсутствия записи НЕ выводится (иначе молчание
+    строки читалось бы как согласие всех гейтов — ровно та подмена «не измерено»
+    на «в порядке», против которой написан весь этот блок).
+    """
+    gates = rec.get("gates")
+    if isinstance(gates, dict) and gates:
+        return {str(k): bool(v) for k, v in gates.items()}, "gates"
+    reasons = rec.get("reasons")
+    if isinstance(reasons, list):
+        state: Dict[str, bool] = {g: True for g in _ALL_GATES}
+        for raw in reasons:
+            text = str(raw)
+            if text.startswith(_NON_GATE_REASON_PREFIXES):
+                continue
+            for prefix, gate in GATE_BY_REASON_PREFIX.items():
+                if text.startswith(prefix):
+                    state[gate] = False
+        return state, "reasons"
+    return None, "unmeasured"
+
+
+def arming_blockade(records: List[dict], *, observed_days: int, min_days: int,
+                    acts_scored: int) -> dict:
+    """Почему взвод недостижим — и достижим ли он вообще ожиданием.
+
+    Вопрос, которого не было ни у одного сторожа. Критерий №3 мандата владельца
+    (ADR-067, ``net_bps_if_followed > 0``) может быть закрыт ТОЛЬКО оценённым
+    вердиктом ACT. Пока ACT нет, критерий стоит ``UNCHECKED`` со словом «yet» —
+    и это читается как «ещё не набрали дней». Замер 2026-09-05 (цикл #487):
+    окно ПОЛНО (30/30 дней), а ACT не было НИ РАЗУ, потому что гейт
+    ``week_turnover_ok`` отказал на 17 из 17 существенных дней. Ожидание тут не
+    поможет никогда — и разница между «ещё копим» и «недостижимо без решения»
+    это единственное, ради чего блок существует.
+
+    Мера — ПОКРЫТИЕ, а не «единственный виновник». Гейты отказывают пачками
+    (на реальных 17 днях ни один не был единственным), поэтому «sole blocker»
+    честно даёт нули и один сам по себе ничего не доказывает. Гейт, отказавший
+    на 100 % существенных дней, — НЕОБХОДИМОЕ (не достаточное) условие любого
+    будущего ACT: не сняв его, ACT получить нельзя, сняв — ещё не факт. Так и
+    называется: ``necessary_blockers``.
+
+    Ничего не гейтит, ``ready_to_arm`` не трогает: критерии взвода — мандат
+    владельца, а этот блок только НАЗЫВАЕТ, почему они стоят.
+    """
+    material: List[dict] = []
+    unmeasured_days: List[str] = []
+    source_counts = {"gates": 0, "reasons": 0, "unmeasured": 0}
+    agree_both = 0
+    agree_ok = 0
+
+    for rec in records:
+        state, source = gate_state(rec)
+        source_counts[source] += 1
+        date = str(rec.get("cycle_date") or "")
+        if state is None:
+            unmeasured_days.append(date)
+            continue
+        # Своя цена ошибки у вывода из `reasons`: там, где есть ОБА источника,
+        # они сверяются, и согласие печатается числом. Инструмент, чья точность
+        # не измерена, подтверждать другой инструмент не вправе.
+        if source == "gates" and isinstance(rec.get("reasons"), list):
+            derived, _ = gate_state({"reasons": rec["reasons"]})
+            if derived is not None:
+                agree_both += 1
+                if all(derived.get(k) == v for k, v in state.items()
+                       if k in _ALL_GATES):
+                    agree_ok += 1
+        if not state.get("has_legs", True):
+            continue          # тривиальный HOLD: решать было нечего
+        material.append({"date": date, "state": state})
+
+    census: Dict[str, Dict[str, int]] = {
+        g: {"refused_days": 0, "sole_blocker_days": 0} for g in sorted(_ALL_GATES)
+        if g != "has_legs"
+    }
+    for row in material:
+        refused = [g for g, ok in row["state"].items()
+                   if g != "has_legs" and not ok and g in census]
+        for g in refused:
+            census[g]["refused_days"] += 1
+        if len(refused) == 1:
+            census[refused[0]]["sole_blocker_days"] += 1
+
+    n = len(material)
+    necessary = [g for g, c in census.items() if n and c["refused_days"] == n]
+
+    if acts_scored > 0:
+        verdict = BLOCKADE_NOT_BLOCKED
+        reason = ("оценённый ACT есть — вопрос «достижим ли взвод» не стоит: "
+                  "критерий №3 может быть посчитан")
+    elif observed_days < min_days:
+        verdict = BLOCKADE_ACCUMULATING
+        reason = (f"окно наблюдения ещё не полно ({observed_days}/{min_days} дн.) — "
+                  "ожидание пока имеет смысл")
+    elif unmeasured_days:
+        verdict = BLOCKADE_UNMEASURED
+        reason = (f"{len(unmeasured_days)} дн. истории не несут ни `gates`, ни "
+                  "`reasons` — перепись отказов неполна, и «блокады нет» о них "
+                  "не сказано")
+    elif n == 0:
+        verdict = BLOCKADE_UNMEASURED
+        reason = ("окно полно, но существенных предложений в нём НЕ БЫЛО ни одного: "
+                  "гейты не отказывали — им нечего было отказывать")
+    elif necessary:
+        verdict = BLOCKADE_UNREACHABLE
+        reason = (f"окно полно ({observed_days}/{min_days} дн.), ACT не было ни разу, "
+                  f"и гейт(ы) {', '.join(necessary)} отказал(и) на {n} из {n} "
+                  "существенных дней (100 %) — ожидание не изменит этого никогда, "
+                  "нужен ответ владельца")
+    else:
+        verdict = BLOCKADE_NO_SINGLE
+        reason = (f"окно полно, ACT не было, но ни один гейт не отказал на всех "
+                  f"{n} существенных днях — блокирует переменный набор")
+
+    return {
+        "verdict": verdict,
+        "reason": reason,
+        "material_days": n,
+        "necessary_blockers": necessary,
+        "gate_census": [
+            {"gate": g,
+             "refused_days": c["refused_days"],
+             "refused_pct": round(100.0 * c["refused_days"] / n, 1) if n else None,
+             "sole_blocker_days": c["sole_blocker_days"],
+             "necessary_blocker": g in necessary}
+            for g, c in sorted(census.items(),
+                               key=lambda kv: (-kv[1]["refused_days"], kv[0]))
+        ],
+        "gate_state_source": source_counts,
+        "unmeasured_days": unmeasured_days,
+        "reason_deriver_agreement": {
+            "days_with_both_sources": agree_both,
+            "agreed": agree_ok,
+            "note": ("вывод гейтов из строк причин сверен с полем `gates` там, где "
+                     "есть оба; согласие ниже 100 % означает, что перепись по "
+                     "старым строкам занижена — это НЕ повод ей верить молча"),
+        },
+    }
+
+
 def _criterion(name: str, threshold, actual, status: str, note: str = "") -> dict:
     c = {"criterion": name, "threshold": threshold, "actual": actual, "status": status}
     if note:
@@ -341,6 +521,16 @@ def evaluate_window(
 
     ready = all(c["status"] == "PASS" for c in criteria)
 
+    # Перепись отказов считается по ТЕМ ЖЕ дням, что и вердикты: окно уже
+    # обрезано выше, и брать для неё всю историю значило бы ответить на другой
+    # вопрос («когда-нибудь») вместо заданного («в оценённом окне»).
+    _window_dates = {r.get("cycle_date") for r in per_verdict}
+    blockade = arming_blockade(
+        [rec for rec in history if rec.get("cycle_date") in _window_dates],
+        observed_days=observed_days, min_days=min_days,
+        acts_scored=len(acts_scored),
+    )
+
     doc = {
         "generated_at": None,  # filled below; kept out of the hash-relevant zone
         "version": EVAL_VERSION,
@@ -362,6 +552,10 @@ def evaluate_window(
         "net_bps_if_followed": net_bps_if_followed,
         "hold_missed_usd_total": hold_missed_usd,
         "criteria": criteria,
+        # НЕ критерий и не гейт: `ready_to_arm` выше считается ровно по мандату
+        # владельца и этим блоком не меняется. Блок отвечает на соседний вопрос —
+        # «достижим ли взвод ожиданием» — который до цикла #487 не задавал никто.
+        "arming_blockade": blockade,
         "params": {
             "horizon_days": horizon_days,
             "min_observation_days": min_days,
@@ -390,6 +584,40 @@ def evaluate_window(
     return doc
 
 
+def format_blockade(blockade: Optional[dict]) -> List[str]:
+    """Строки про достижимость взвода — общие для CLI и шага 0-офис.
+
+    Отсутствие блока — ТРЕТИЙ исход, а не «блокады нет»: отчёт старого образца
+    молчал бы ровно так же, как здоровый, и молчание читалось бы согласием.
+    """
+    if not isinstance(blockade, dict):
+        return ["Достижимость взвода: ⚠️ НЕ ИЗМЕРЕНА — в отчёте нет блока "
+                "`arming_blockade` (отчёт старого образца)"]
+    mark = "🔴" if blockade.get("verdict") == BLOCKADE_UNREACHABLE else "•"
+    out = [f"Достижимость взвода: {mark} {blockade.get('verdict')} — "
+           f"{blockade.get('reason')}"]
+    for row in (blockade.get("gate_census") or []):
+        if not row.get("refused_days"):
+            continue
+        flag = " ← НЕОБХОДИМЫЙ" if row.get("necessary_blocker") else ""
+        out.append(
+            f"  отказ {row['gate']}: {row['refused_days']} дн. "
+            f"({row['refused_pct']} % существенных), единственной причиной "
+            f"{row['sole_blocker_days']} дн.{flag}")
+    src_counts = blockade.get("gate_state_source") or {}
+    if src_counts.get("reasons"):
+        agree = blockade.get("reason_deriver_agreement") or {}
+        out.append(
+            f"  источник состояния гейтов: поле `gates` {src_counts.get('gates', 0)} дн. · "
+            f"вывод из строк причин {src_counts['reasons']} дн. "
+            f"(сверено на {agree.get('days_with_both_sources')} общих дн., "
+            f"сошлось {agree.get('agreed')})")
+    if src_counts.get("unmeasured"):
+        out.append(f"  ⚠️ НЕ ИЗМЕРЕНО дней: {src_counts['unmeasured']} — "
+                   "перепись отказов по ним не велась")
+    return out
+
+
 def format_summary(doc: dict) -> str:
     """Human-readable stdout summary (RU — owner-facing)."""
     lines = [
@@ -409,6 +637,7 @@ def format_summary(doc: dict) -> str:
         note = f" — {c['note']}" if c.get("note") else ""
         lines.append(f"  [{c['status']:>9}] {c['criterion']} {c['threshold']} "
                      f"(факт: {c['actual']}){note}")
+    lines.extend(format_blockade(doc.get("arming_blockade")))
     lines.append("Включение — отдельное owner-решение (pre_cutover_gate + ADR); "
                  "этот отчёт капитал не двигает.")
     return "\n".join(lines)
