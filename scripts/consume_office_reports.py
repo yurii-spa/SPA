@@ -1780,6 +1780,26 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
               f"{type(_exc).__name__}: {_exc}")
     print()
 
+    # ── пины против гейта финансирования (ADR-236) ──────────────────────────
+    # Проводка при рождении. Состояние СТОЯЧЕЕ и молчаливое: запинённый ключ,
+    # которого нет в снимке оркестратора, гейт отклоняет как
+    # `TVL unverified (missing)` при любом пине и любом живом TVL, то есть
+    # решение владельца о смысле ключа невидимо тому, кто решает о деньгах.
+    # Дёшево — два файла, без сети и без прогона аллокатора.
+    try:
+        from scripts.measure_pin_placement_effect import (
+            gate_visibility_report_lines as _pin_lines,
+            pins_invisible_to_the_gate as _pins_vs_gate,
+        )
+        _pin_ddir = data_dir or os.path.join(receipt_root, "data")
+        for _ln in _pin_lines(_pins_vs_gate(_pin_ddir)):
+            print(_ln)
+    except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
+        print("— пины против гейта финансирования (ADR-236) —")
+        print(f"   [{_UNMEASURED}] сверка не выполнена: "
+              f"{type(_exc).__name__}: {_exc}")
+    print()
+
     # Клауза о вхолостую ДОПИСЫВАЕТСЯ, а не переписывает итог: в здоровом
     # состоянии (hollow=0) строка та же, что и была, — соседние тесты сверяют её
     # дословно, и ослаблять их ради нового счётчика было бы нечестно.
