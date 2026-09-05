@@ -48,6 +48,7 @@ PRODUCES = (
     "data/adapter_feed_divergence.json",
     "data/capital_evidence_coverage.json",
     "data/pool_identity_collision.json",
+    "data/apy_composition.json",
     "data/findings_bridge_report.json",
     "data/house_view_gap.json",
     "data/investment_os/outcomes.jsonl",
@@ -570,6 +571,22 @@ def main(argv=None) -> int:
               f"не измерено {(cec.get('usd') or {}).get('unmeasured')})")
     except Exception as e:  # noqa: BLE001 — приёмка не смеет валить мост
         print(f"capital_evidence_coverage: пропущено ({e})")
+    # Состав ставки (ADR-230): доход операции или раздача токена. Считается тем же
+    # прогоном и по той же причине, что сверка фидов: вопрос родствен («чем именно
+    # платит пул, число которого ранжирует капитал»), стоит миллисекунды, а новый
+    # launchd-агент означал бы деплой — решение владельца, — и сторож ушёл бы в
+    # очередь вместо того, чтобы работать. Мост находок его НЕ читает намеренно:
+    # считать ли эмиссию доходностью и какой из двух пулов есть `spark_susds` —
+    # money-path, то есть решение владельца, а не авто-карточка.
+    try:
+        from spa_core.monitoring import apy_composition
+        apyc = apy_composition.run(root=args.root)
+        print(f"apy_composition: {apyc['overall']} "
+              f"(critical={apyc['counts']['critical']} warn={apyc['counts']['warn']} "
+              f"unchecked={apyc['counts']['unchecked']}), "
+              f"ключей с наблюдением {len(apyc['observed_adapters'])}")
+    except Exception as e:  # noqa: BLE001 — состав ставки не смеет валить мост
+        print(f"apy_composition: пропущено ({e})")
     # Тождество пулов (гэп G1): считается тем же прогоном и по той же причине —
     # вопрос родствен сверке фидов, стоит миллисекунды, новый агент означал бы
     # деплой. Сторож только НАЗЫВАЕТ: снятие ключа с финансирования и правка

@@ -94,6 +94,11 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                      "unchecked", "compared_protocols",
                                      "history.status", "history.by_key",
                                      "history.blind_snapshots", "history.window_truncated"),
+    "apy_composition.json": ("overall", "counts.critical", "counts.warn",
+                            "counts.unchecked", "observed_adapters", "findings",
+                            "unchecked", "book_note", "history.status",
+                            "history.by_adapter", "history.covered_days",
+                            "history.window_truncated", "history.blind_snapshots"),
     "pool_identity_collision.json": ("overall", "counts.critical", "counts.warn",
                                     "counts.info", "counts.unchecked", "keys_compared",
                                     "collisions", "unreachable_refusals", "findings",
@@ -138,6 +143,7 @@ _PRODUCER: dict[str, str] = {
     "adapter_feed_divergence.json": "spa_core/monitoring/adapter_feed_divergence.py",
     "capital_evidence_coverage.json": "spa_core/monitoring/capital_evidence_coverage.py",
     "pool_identity_collision.json": "spa_core/monitoring/pool_identity_collision.py",
+    "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     # Единственный производитель-СКРИПТ. Ключи он всё-таки пишет питоном —
     # heredoc'ом внутри shell, — поэтому сверка схемы здесь настоящая, а не
     # «неприменима»: разбирает встроенный питон (`_embedded_python`), а не
@@ -787,6 +793,45 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                 out.append(f"   [{sev}] {f.get('message')}")
         for u in (data.get("unchecked") or [])[:4]:
             out.append(f"   [НЕ ИЗМЕРЕНО] {u}")
+    elif name == "apy_composition.json":
+        # Из чего ставка СОСТОИТ (ADR-230). Два рода печатаются разными словами
+        # намеренно: «ставка держится на раздаче токена» и «пул выбран сегодняшним
+        # порядком TVL» — разные предметы с разной починкой, и одинаковая
+        # формулировка увела бы её не туда. «Не измерено» идёт ПЕРВЫМ, потому что
+        # первым же поднимает вердикт у производителя.
+        c = data.get("counts") or {}
+        out.append(f"   состав ставок адаптеров: {data.get('overall') or _UNMEASURED} "
+                   f"(critical={_num(c, 'critical')} warn={_num(c, 'warn')} "
+                   f"unchecked={_num(c, 'unchecked')}); ключей с наблюдением этого "
+                   f"прогона: {len(data.get('observed_adapters') or [])}")
+        for line in (data.get("unchecked") or []):
+            out.append(f"   [НЕ ИЗМЕРЕНО] {line}")
+        for f in (data.get("findings") or []):
+            out.append(f"   [{f.get('severity') or _UNMEASURED}] "
+                       f"{f.get('message') or _UNMEASURED}")
+        if data.get("book_note"):
+            out.append(f"   ℹ️ книга не прочитана ({data['book_note']}) — находки НЕ "
+                       f"поднимались до CRITICAL; это ограничение, а не зачёт")
+        hist = data.get("history") or {}
+        if hist.get("status") != "OK":
+            out.append(f"   память состава: {_UNMEASURED} — "
+                       f"{hist.get('reason') or 'причина не названа'}")
+        else:
+            changed = {k: v for k, v in (hist.get("by_adapter") or {}).items()
+                       if v.get("winner_changes")}
+            trunc = (" ⚠️ окно обрезано возрастом журнала"
+                     if hist.get("window_truncated") else "")
+            if changed:
+                out.append(f"   память: победитель хинта менялся у "
+                           f"{len(changed)} ключ(а/ей) за {hist.get('covered_days')} сут"
+                           f"{trunc}")
+                for k, v in changed.items():
+                    out.append(f"      ↺ {k}: смен {v['winner_changes']}, разных пулов "
+                               f"{v['distinct_pools']}, ставка "
+                               f"{v['apy_min']}…{v['apy_max']}")
+            if hist.get("blind_snapshots"):
+                out.append(f"   [СЛЕПОТА] снимков со строкой «не измерено»: "
+                           f"{hist['blind_snapshots']} — это НЕ «состав сходился»")
     elif name == "pool_identity_collision.json":
         # ДВА ключа — ОДИН контракт. Потолок концентрации считает ключи разными
         # предметами риска; если они ранжируются на одном пуле DeFiLlama, книга

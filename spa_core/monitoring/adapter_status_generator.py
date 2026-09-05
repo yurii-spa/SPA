@@ -457,11 +457,11 @@ def _pool_underlying(pool: dict) -> Optional[str]:
     return token.strip().lower()
 
 
-def _hint_pool(
+def _hint_ranking(
     adapter_key: str,
     by_pcs: dict[tuple[str, str, str], list[dict]],
-) -> tuple[Optional[dict], Optional[str]]:
-    """Resolve *adapter_key* by fuzzy hint — return ``(pool, refusal_reason)``.
+) -> tuple[Optional[list[dict]], Optional[str]]:
+    """Rank the pools *adapter_key*'s hint admits — return ``(ranked, refusal_reason)``.
 
     Exactly one of the two is set. The reason exists because a silent ``None`` is
     indistinguishable from "the feed was empty", and the difference decides
@@ -506,8 +506,7 @@ def _hint_pool(
             continue
         candidates.extend(pool_list)
 
-    best: Optional[dict] = None
-    best_tvl = -1.0
+    survivors: list[dict] = []
     rejected_foreign = 0
     for cand in candidates:
         if _valid_apy(cand) is None:
@@ -515,19 +514,161 @@ def _hint_pool(
         if _pool_underlying(cand) != expected:
             rejected_foreign += 1
             continue
-        tvl = float(cand.get("tvlUsd", 0) or 0)
-        if tvl > best_tvl:
-            best_tvl = tvl
-            best = cand
+        survivors.append(cand)
 
-    if best is not None:
-        return best, None
+    if survivors:
+        # "Best TVL wins" — the ordering is returned in full, not collapsed to a
+        # winner, because who the winner BEAT is the measure of how stable the
+        # identity is. See :func:`_hint_rivals`.
+        survivors.sort(key=lambda c: float(c.get("tvlUsd", 0) or 0), reverse=True)
+        return survivors, None
     if rejected_foreign:
         return None, (
             f"{rejected_foreign} pool(s) matched the hint strings but none carried "
             f"underlying {expected} — a foreign asset is refused, not ranked"
         )
     return None, "no pool matched the hint"
+
+
+def _hint_pool(
+    adapter_key: str,
+    by_pcs: dict[tuple[str, str, str], list[dict]],
+) -> tuple[Optional[dict], Optional[str]]:
+    """Winner of the hint for *adapter_key* — thin wrapper over the ranking."""
+    ranked, reason = _hint_ranking(adapter_key, by_pcs)
+    if not ranked:
+        return None, reason
+    return ranked[0], None
+
+
+def _hint_rivals(ranked: Optional[list[dict]]) -> Optional[dict]:
+    """Who the hint winner BEAT, and by how much APY — ``None`` when it ran alone.
+
+    "Best TVL wins" is a ranking, not an identity, and the module comment above
+    says so: the right pool wins "only because it happens to be the largest —
+    a property of this week's numbers, not of the rule". Until now nothing in
+    the record said whether a key had rivals at all, so the difference between
+    "one candidate, unambiguous" and "two candidates, decided by this week's TVL"
+    was invisible to every consumer.
+
+    Measured on the live feed 2026-09-05 — the case that prompted this: the
+    ``spark_susds`` hint resolves to TWO SparkLend pools carrying the SAME
+    canonical underlying (USDS ``0xdc03…384f``), so ``_CANONICAL_UNDERLYING`` —
+    the guard built for exactly this class — cannot separate them:
+
+        54e9b138…  $562.9M  4.066%  poolMeta "SPK Farming Pool"  (apyBase null)
+        0ed981dc…  $260.2M  2.318%  poolMeta null                (apyReward null)
+
+    1.75pp apart, and the winner is whichever is bigger today. The runner-up is
+    the one that takes over if the order flips, so it — not the widest-spread
+    rival — is the number recorded.
+    """
+    if not ranked or len(ranked) < 2:
+        return None
+    chosen, runner_up = ranked[0], ranked[1]
+    chosen_apy = _valid_apy(chosen)
+    runner_apy = _valid_apy(runner_up)
+    spread = (round(abs(chosen_apy - runner_apy), 4)
+              if chosen_apy is not None and runner_apy is not None else None)
+    return {
+        "count": len(ranked) - 1,
+        "runner_up_pool": str(runner_up.get("pool") or "") or None,
+        "runner_up_apy": runner_apy,
+        "runner_up_tvl_usd": float(runner_up.get("tvlUsd", 0) or 0),
+        "runner_up_pool_meta": runner_up.get("poolMeta"),
+        "apy_spread_pp": spread,
+    }
+
+
+#: Допуск сверки «база + эмиссия == итог», процентных пунктов. Фид печатает три
+#: числа независимо, и на округлении они расходятся в единицах 1e-5. Порог на два
+#: порядка выше шума и на два порядка ниже наблюдённого разрыва (1.75 пп).
+_APY_PARTS_TOLERANCE_PP = 0.01
+
+
+def _apy_composition(pool: dict) -> dict:
+    """Разложить ставку пула на БАЗУ и ЭМИССИЮ — по числам, уже лежащим в записи.
+
+    ``apyBase`` (доход от самой операции: проценты заёмщиков, комиссии) и
+    ``apyReward`` (раздача токена протокола) приходят от DeFiLlama ОТДЕЛЬНЫМИ
+    полями в той же записи, которую мы и так забираем. На этом пути их не читал
+    НИКТО (замер 2026-09-05: во всём репозитории ``apyReward`` читают только
+    ``spa_core/data_pipeline`` и ``spa_core/dfb``, и ни один из них в дневной цикл
+    не входит; ``_valid_apy`` берёт агрегат ``apy``). После сложения «4 % с
+    заёмщиков» неотличимы от «4 % раздачей собственного токена», а это разные
+    вещи: у второго другой актив (не стейблкоин), своя цена, свой график и конец.
+
+    Ровно та же форма, что у ``underlyingTokens`` в ``_hint_pool``: данные лежали
+    в каждой записи фида, их просто не читали.
+
+    **Третий исход обязателен и не сливается с нулём.** Фид может не сказать о
+    составе ничего, и «эмиссии 0 %» было бы тогда выдумкой, а не измерением —
+    тот самый класс «не измерено, выданное за ответ» (`.claude/rules/deployment.md`).
+    Поэтому ``reward_share`` равен ``None``, когда состав не измерен, и причина
+    называется словами.
+    """
+    total = _valid_apy(pool)
+    out: dict = {
+        "base_pct": None,
+        "reward_pct": None,
+        "reward_share": None,
+        "reward_tokens": None,
+        "unmeasured_reason": None,
+    }
+
+    tokens = pool.get("rewardTokens")
+    if isinstance(tokens, (list, tuple)):
+        addrs = [t.strip().lower() for t in tokens
+                 if isinstance(t, str) and t.strip()]
+        out["reward_tokens"] = addrs or None
+
+    if total is None:
+        out["unmeasured_reason"] = "ставка пула не прочитана — раскладывать нечего"
+        return out
+
+    base = _num_or_none(pool.get("apyBase"))
+    reward = _num_or_none(pool.get("apyReward"))
+
+    if base is None and reward is None:
+        out["unmeasured_reason"] = (
+            "фид не сообщил ни apyBase, ни apyReward — состав ставки НЕ ИЗМЕРЕН "
+            "(это не «эмиссии нет»)")
+        return out
+
+    # Одна половина отсутствует: считать её нулём можно ТОЛЬКО если вторая сама
+    # покрывает итог. Иначе недостающее — не ноль, а неизвестное.
+    if base is None:
+        if abs(reward - total) > _APY_PARTS_TOLERANCE_PP:
+            out["unmeasured_reason"] = (
+                f"apyBase не сообщён, а apyReward ({reward}) не покрывает итог "
+                f"({total}) — остаток неизвестен, нулём не считаем")
+            return out
+        base = 0.0
+    elif reward is None:
+        if abs(base - total) > _APY_PARTS_TOLERANCE_PP:
+            out["unmeasured_reason"] = (
+                f"apyReward не сообщён, а apyBase ({base}) не покрывает итог "
+                f"({total}) — остаток неизвестен, нулём не считаем")
+            return out
+        reward = 0.0
+    elif abs(base + reward - total) > _APY_PARTS_TOLERANCE_PP:
+        out["unmeasured_reason"] = (
+            f"apyBase ({base}) + apyReward ({reward}) не сходятся с итогом "
+            f"({total}) — состав записи противоречив, состав НЕ ИЗМЕРЕН")
+        return out
+
+    parts = base + reward
+    out["base_pct"] = round(base, 4)
+    out["reward_pct"] = round(reward, 4)
+    out["reward_share"] = round(reward / parts, 4) if parts > 0 else 0.0
+    return out
+
+
+def _num_or_none(value) -> Optional[float]:
+    """``float`` для настоящего числа, иначе ``None`` (``bool`` числом НЕ считается)."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value)
 
 
 def _lookup_live_pool(
@@ -815,6 +956,19 @@ def generate(
         # the APY (ranking, guarded by the evidence gate), but its TVL stays
         # "static": the $5M floor is a policy gate, and a gate must not rest on an
         # identity that "best TVL wins" can silently move to a different vault.
+        # Состав ставки и соперники хинта — записываются РЯДОМ с числом, которое
+        # они объясняют. Только про наблюдение ЭТОГО прогона: перенесённая с
+        # прошлого раза ставка (``live_apy_fresh=False``) состава не имеет — фида
+        # в этом прогоне не было, и «эмиссии 0 %» о ней было бы выдумкой.
+        comp = (_apy_composition(live_pool) if live_pool is not None else {
+            "base_pct": None, "reward_pct": None, "reward_share": None,
+            "reward_tokens": None,
+            "unmeasured_reason": ("пул этого прогона не разрешён — состав ставки "
+                                  "измерять не на чем"),
+        })
+        hint_rivals = (_hint_rivals(_hint_ranking(key, by_pcs)[0])
+                       if match_kind == "hint" else None)
+
         tvl = _TVL_ESTIMATES.get(key, 0.0)
         tvl_source = "static"
         tvl_pool_id: Optional[str] = None
@@ -842,6 +996,23 @@ def generate(
             "tvl_pool_id":      tvl_pool_id,
             # How the pool was resolved: "pinned" (UUID), "hint" (fuzzy), None.
             "pool_match":       match_kind,
+            # WHICH pool was resolved — for a hint match too, where ``tvl_pool_id``
+            # stays None because a fuzzy match may not stamp TVL "live". Without
+            # it the question "did the hint winner change between snapshots" is
+            # unanswerable by construction, not merely uncounted.
+            "pool_id":          (str(live_pool.get("pool") or "") or None
+                                 if live_pool is not None else None),
+            # Из чего ставка СОСТОИТ: доход операции против раздачи токена
+            # (ADR-230). ``apy_reward_share=None`` = состав НЕ ИЗМЕРЕН, и это
+            # третий исход, а не ноль — причина в ``apy_composition_unmeasured``.
+            "apy_base":         comp["base_pct"],
+            "apy_reward":       comp["reward_pct"],
+            "apy_reward_share": comp["reward_share"],
+            "apy_composition_unmeasured": comp["unmeasured_reason"],
+            "reward_tokens":    comp["reward_tokens"],
+            # Кого победитель хинта обошёл и на сколько пп. None = соперников не
+            # было (тождество однозначно) либо ключ разрешён пином.
+            "hint_rivals":      hint_rivals,
             # Why it resolved to nothing, when a hint existed and refused. None
             # whenever a pool WAS matched, or when the key has no hint at all.
             "pool_match_refused": match_refused,

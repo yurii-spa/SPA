@@ -1,7 +1,8 @@
-"""Проводка двух сторожей приказа «Portfolio CIO» — измеряется, а не подразумевается.
+"""Проводка сторожей приказа «Portfolio CIO» — измеряется, а не подразумевается.
 
-Оба модуля (`capital_evidence_coverage` — приёмка §5 ТЗ, `pool_identity_collision`
-— гэп G1) ничего не гейтят: они МЕРЯЮТ и НАЗЫВАЮТ. Значит вся их польза живёт в
+Все три модуля (`capital_evidence_coverage` — приёмка §5 ТЗ,
+`pool_identity_collision` и `apy_composition` — гэп G1) ничего не гейтят: они
+МЕРЯЮТ и НАЗЫВАЮТ. Значит вся их польза живёт в
 проводке — кто их вызывает и кто читает результат, — и ровно она обычно и
 пропадает молча.
 
@@ -42,6 +43,11 @@ NOW = dt.datetime(2026, 9, 4, 18, tzinfo=dt.timezone.utc)
 SUBJECTS = {
     "capital_evidence_coverage": "data/capital_evidence_coverage.json",
     "pool_identity_collision": "data/pool_identity_collision.json",
+    # ADR-230. Добавлен циклом #489 тем же порядком: мутация проводки (вызов из
+    # `findings_bridge.main` заменён литералом) НЕ покрасила ни одного теста
+    # набора — 114 passed до, 114 passed после. Класс жив ровно до тех пор, пока
+    # каждый новый сторож не вписан СЮДА, поэтому список и общий.
+    "apy_composition": "data/apy_composition.json",
 }
 
 
@@ -72,7 +78,7 @@ def _called_modules_in_main(source: str) -> set[str]:
 
 
 class TestTheDecisionLoopActuallyCallsThem(unittest.TestCase):
-    def test_both_guards_are_run_by_the_decision_loop(self):
+    def test_every_guard_is_run_by_the_decision_loop(self):
         source = open(
             os.path.join(REPO_ROOT, "spa_core", "monitoring", "findings_bridge.py"),
             encoding="utf-8",
@@ -169,6 +175,34 @@ class TestTheOfficeStepReadsThem(unittest.TestCase):
         )
         self.assertIn("тождество пулов", text)
         self.assertIn("ОДНОМ пуле", text)
+
+    def test_apy_composition_has_a_named_branch_not_the_generic_fallback(self):
+        mod = _load_office_reader()
+        report = {
+            "generated_at": NOW.isoformat(),
+            "overall": "WARN",
+            "counts": {"critical": 0, "warn": 2, "info": 0, "unchecked": 0},
+            "observed_adapters": ["spark_susds"],
+            "findings": [
+                {"adapter": "spark_susds", "kind": "emission_dominated",
+                 "severity": "WARN",
+                 "message": "spark_susds: 100.0 % ставки — раздача токена"},
+                {"adapter": "spark_susds", "kind": "identity_by_tvl_only",
+                 "severity": "WARN",
+                 "message": "spark_susds: пул выбран правилом «побеждает крупнейший TVL»"},
+            ],
+            "unchecked": [],
+            "book_note": None,
+            "history": {"status": "OK", "by_adapter": {}, "covered_days": 0.3,
+                        "window_truncated": True, "blind_snapshots": 0},
+        }
+        text = "\n".join(
+            mod._summarize_json("data/apy_composition.json", report, now=NOW)
+        )
+        self.assertIn("состав ставок адаптеров", text)
+        # Оба рода обязаны звучать РАЗНЫМИ словами: у них разная починка.
+        self.assertIn("раздача токена", text)
+        self.assertIn("крупнейший TVL", text)
 
 
 if __name__ == "__main__":

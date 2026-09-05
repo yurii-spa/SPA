@@ -34,8 +34,12 @@ from unittest.mock import MagicMock, patch
 
 from spa_core.monitoring.adapter_status_generator import (
     SCHEMA_VERSION,
+    _apy_composition,
     _build_pool_indexes,
     _fetch_defillama,
+    _hint_pool,
+    _hint_ranking,
+    _hint_rivals,
     _lookup_live_apy,
     _valid_apy,
     generate,
@@ -525,6 +529,156 @@ class TestRunAndWrite(unittest.TestCase):
             self.assertIn("aave_arbitrum", loaded)
             # Return value is the doc dict
             self.assertEqual(doc["schema_version"], 2)
+
+
+# ── ADR-230: из чего СОСТОИТ ставка, и кого победитель хинта обошёл ─────────
+#
+# Каждый тест ниже — положительный контроль на замер живого фида 2026-09-05
+# (17 057 пулов): три записи SparkLend, из которых две несут ОДИН канонический
+# USDS, и победитель между ними решается сегодняшним TVL.
+
+#: Пул-победитель `spark_susds` ДОСЛОВНО из фида 05.09 — SPK-ферма.
+_SPARK_FARM = {
+    "chain": "Ethereum", "project": "sparklend", "symbol": "USDS",
+    "tvlUsd": 562871285, "apyBase": None, "apyReward": 4.06595, "apy": 4.06595,
+    "rewardTokens": ["0xc20059e0317DE91738d13af027DfC4a50781b066"],
+    "pool": "54e9b138-3146-4c1f-8dce-1cb948f5ef96",
+    "poolMeta": "SPK Farming Pool",
+    "underlyingTokens": ["0xdC035D45d973E3EC169d2276DDab16f1e407384F"],
+}
+#: Настоящий кредитный рынок USDS — тот же проект, сеть, символ и АКТИВ.
+_SPARK_LEND = {
+    "chain": "Ethereum", "project": "sparklend", "symbol": "USDS",
+    "tvlUsd": 260194395, "apyBase": 2.31839, "apyReward": None, "apy": 2.31839,
+    "rewardTokens": None, "pool": "0ed981dc-b49d-426d-ade5-6014728b1ef9",
+    "poolMeta": None,
+    "underlyingTokens": ["0xdC035D45d973E3EC169d2276DDab16f1e407384F"],
+}
+#: Обёртка SUSDS — чужой актив, отбрасывается `_CANONICAL_UNDERLYING`.
+_SPARK_WRAPPER = {
+    "chain": "Ethereum", "project": "sparklend", "symbol": "SUSDS",
+    "tvlUsd": 3300778, "apyBase": 0, "apyReward": None, "apy": 0,
+    "rewardTokens": None, "pool": "d3694b72-5bc4-44c9-8ab6-1fc7941d216a",
+    "poolMeta": None,
+    "underlyingTokens": ["0xa3931d71877C0E7a3148CB7Eb4463524FEc27fbD"],
+}
+
+
+class TestApyComposition(unittest.TestCase):
+    """`apyBase` / `apyReward` лежали в каждой записи и не читались никем."""
+
+    def test_emission_only_pool_is_decomposed(self):
+        comp = _apy_composition(_SPARK_FARM)
+        self.assertEqual(comp["base_pct"], 0.0)
+        self.assertEqual(comp["reward_pct"], 4.0659)
+        self.assertEqual(comp["reward_share"], 1.0)
+        self.assertEqual(comp["reward_tokens"],
+                         ["0xc20059e0317de91738d13af027dfc4a50781b066"])
+        self.assertIsNone(comp["unmeasured_reason"])
+
+    def test_base_only_pool_is_decomposed(self):
+        comp = _apy_composition(_SPARK_LEND)
+        self.assertEqual(comp["reward_share"], 0.0)
+        self.assertEqual(comp["base_pct"], 2.3184)
+
+    def test_silent_feed_is_unmeasured_not_zero_emission(self):
+        """Фид не сказал НИЧЕГО о составе ⇒ третий исход, а не «эмиссии нет».
+
+        Ноль здесь был бы измерением, которого не делали, — тот самый класс
+        «не измерено, выданное за ответ».
+        """
+        comp = _apy_composition({"apy": 4.0, "pool": "x"})
+        self.assertIsNone(comp["reward_share"])
+        self.assertIn("НЕ ИЗМЕРЕН", comp["unmeasured_reason"])
+
+    def test_half_reported_half_missing_is_unmeasured(self):
+        """apyBase есть, но итога не покрывает ⇒ остаток НЕИЗВЕСТЕН, не ноль."""
+        comp = _apy_composition({"apy": 9.0, "apyBase": 4.0, "apyReward": None})
+        self.assertIsNone(comp["reward_share"])
+        self.assertIn("остаток неизвестен", comp["unmeasured_reason"])
+
+    def test_contradictory_parts_are_refused(self):
+        comp = _apy_composition({"apy": 9.0, "apyBase": 4.0, "apyReward": 1.0})
+        self.assertIsNone(comp["reward_share"])
+        self.assertIn("не сходятся", comp["unmeasured_reason"])
+
+    def test_bool_is_not_a_number(self):
+        comp = _apy_composition({"apy": 4.0, "apyBase": True, "apyReward": None})
+        self.assertIsNone(comp["reward_share"])
+
+
+class TestHintRivals(unittest.TestCase):
+    """«Побеждает крупнейший TVL» — это ранжирование, а не тождество."""
+
+    def _by_pcs(self, pools):
+        return _build_pool_indexes(pools)[1]
+
+    def test_two_pools_same_canonical_asset_are_both_admitted(self):
+        """Замер 05.09: сторож на чужой актив здесь НЕ помогает — актив один."""
+        ranked, reason = _hint_ranking(
+            "spark_susds", self._by_pcs([_SPARK_LEND, _SPARK_FARM, _SPARK_WRAPPER]))
+        self.assertIsNone(reason)
+        self.assertEqual([p["pool"] for p in ranked],
+                         ["54e9b138-3146-4c1f-8dce-1cb948f5ef96",
+                          "0ed981dc-b49d-426d-ade5-6014728b1ef9"])
+
+    def test_runner_up_is_the_next_by_tvl(self):
+        """Замер 05.09: соперник ровно один, и он же следующий по TVL."""
+        ranked, _ = _hint_ranking(
+            "spark_susds", self._by_pcs([_SPARK_LEND, _SPARK_FARM, _SPARK_WRAPPER]))
+        rivals = _hint_rivals(ranked)
+        self.assertEqual(rivals["count"], 1)
+        self.assertEqual(rivals["runner_up_pool"],
+                         "0ed981dc-b49d-426d-ade5-6014728b1ef9")
+        self.assertEqual(rivals["apy_spread_pp"], 1.7475)
+
+    def test_runner_up_is_the_next_by_tvl_not_the_widest_spread(self):
+        """Соперник — тот, кто заберёт ключ при смене порядка, а не самый далёкий.
+
+        Двух кандидатов замера 05.09 для этой проверки НЕ ХВАТАЕТ: при них
+        «следующий по TVL» и «последний в ранжировании» — один и тот же пул, и
+        подмена одного другим тест не красит (измерено мутацией по координате).
+        Поэтому третий кандидат здесь СКОНСТРУИРОВАН — тот же проект/сеть/актив,
+        TVL меньше обоих, ставка дальше всех.
+        """
+        tail = dict(_SPARK_LEND, pool="ffffffff-0000-0000-0000-000000000000",
+                    tvlUsd=1_000_000, apy=40.0, apyBase=40.0)
+        ranked, _ = _hint_ranking(
+            "spark_susds", self._by_pcs([_SPARK_LEND, _SPARK_FARM, tail]))
+        rivals = _hint_rivals(ranked)
+        self.assertEqual(rivals["count"], 2)
+        self.assertEqual(rivals["runner_up_pool"],
+                         "0ed981dc-b49d-426d-ade5-6014728b1ef9")
+        self.assertEqual(rivals["apy_spread_pp"], 1.7475)
+
+    def test_single_candidate_has_no_rivals(self):
+        ranked, _ = _hint_ranking("spark_susds",
+                                  self._by_pcs([_SPARK_FARM, _SPARK_WRAPPER]))
+        self.assertIsNone(_hint_rivals(ranked))
+
+    def test_hint_pool_still_returns_the_winner(self):
+        """Обёртка над ранжированием не сменила поведение старого потребителя."""
+        best, reason = _hint_pool(
+            "spark_susds", self._by_pcs([_SPARK_LEND, _SPARK_FARM]))
+        self.assertIsNone(reason)
+        self.assertEqual(best["pool"], "54e9b138-3146-4c1f-8dce-1cb948f5ef96")
+
+    def test_wrapper_pool_is_dropped_by_its_zero_apy_before_the_asset_check(self):
+        """Обёртка SUSDS отсеивается НУЛЕВОЙ ставкой, а не сторожем на актив.
+
+        Различие не косметическое: причина отказа решает, куда идти чинить, и
+        приписать здесь заслугу `_CANONICAL_UNDERLYING` значило бы считать его
+        проверенным там, где он не срабатывал.
+        """
+        best, reason = _hint_pool("spark_susds", self._by_pcs([_SPARK_WRAPPER]))
+        self.assertIsNone(best)
+        self.assertEqual(reason, "no pool matched the hint")
+
+    def test_foreign_asset_with_a_live_rate_is_refused_by_the_asset_check(self):
+        foreign = dict(_SPARK_WRAPPER, apy=3.5, apyBase=3.5)
+        best, reason = _hint_pool("spark_susds", self._by_pcs([foreign]))
+        self.assertIsNone(best)
+        self.assertIn("foreign asset is refused", reason)
 
 
 if __name__ == "__main__":
