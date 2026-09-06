@@ -24,6 +24,7 @@ import urllib.error
 import urllib.request
 from typing import Any, Callable, Dict, List, Optional
 
+from spa_core.adapters._pool_identity import selected_pool_id
 from .base_adapter import BaseAdapter, YieldInfo
 
 logger = logging.getLogger(__name__)
@@ -154,8 +155,14 @@ class FluidUSDCAdapter(BaseAdapter):
                 return apy, util
         return None, None
 
-    def _fetch_defillama(self) -> Dict[str, Optional[float]]:
-        out: Dict[str, Optional[float]] = {"apy": None, "tvl": None}
+    def _fetch_defillama(self) -> Dict[str, Any]:
+        # ADR-238: возвращает и ЛИЧНОСТЬ выбранной строки (`pool_id`), а не
+        # только два числа из неё. Отбор здесь «крупнейший по TVL сегодня»,
+        # и замер 06.09 говорит, почему это важно: на
+        # fluid-lending/Ethereum/USDC живут ЧЕТЫРЕ пула с одинаковой ставкой
+        # 4.45 пп и TVL от $12 тыс. до $149 млн — какой из них наш, из двух
+        # чисел не восстановить никогда.
+        out: Dict[str, Any] = {"apy": None, "tvl": None, "pool_id": None}
         try:
             payload = self._get_json(_DEFILLAMA_POOLS_URL)
         except Exception as exc:  # noqa: BLE001
@@ -181,6 +188,7 @@ class FluidUSDCAdapter(BaseAdapter):
             out["apy"] = self._norm_apy(best.get("apy"))
             tvl = best.get("tvlUsd")
             out["tvl"] = float(tvl) if isinstance(tvl, (int, float)) else None
+            out["pool_id"] = selected_pool_id(best)
         return out
 
     @classmethod
@@ -205,6 +213,8 @@ class FluidUSDCAdapter(BaseAdapter):
             "tvl": None,
             "utilization": None,
             "source": None,
+            # ADR-238: ключ существует ВСЕГДА; None здесь — «не измерено».
+            "pool_id": None,
             "live_data": False,
             "stale": False,
             "status": "ok",
@@ -229,6 +239,20 @@ class FluidUSDCAdapter(BaseAdapter):
         # Флаг снимается ДО подстановки константы ниже: иначе фолбэк уехал бы под
         # ярлыком «живое», а это ровно дефект ADR-126, только наоборот.
         record["tvl_live"] = dl["tvl"] is not None
+        # ADR-238 — подпись ставится ТОЛЬКО когда ранжирующее число пришло
+        # ОТТУДА ЖЕ. Источники здесь слоёные: APY может дать собственный API
+        # Fluid, а TVL всегда даёт DeFiLlama. Назвать пул DeFiLlama личностью
+        # строки, чью ставку наблюдал другой инструмент, значило бы подписать
+        # чужое наблюдение — ровно дефект ADR-126, только по личности вместо
+        # провенанса. Разные источники ⇒ личность НЕ ИЗМЕРЕНА (None).
+        #
+        # Замер 06.09: ОБА объявленных первичных endpoint'а Fluid
+        # (`/v2/lending`, `/v2/1/lending`) отвечают HTTP 404, то есть слой
+        # «первичный источник, кто первый — тот и прав» сегодня не срабатывает
+        # ни разу и ставка всегда приходит от DeFiLlama. Это ЗАМЕР, а не
+        # контракт: ветка остаётся, и подпись обязана исчезнуть сама, если
+        # endpoint оживёт.
+        record["pool_id"] = None if source == "fluid_api" else dl["pool_id"]
 
         if apy is None:
             # 2026-08-08, решение владельца «делать все 15» (карточка
@@ -269,4 +293,5 @@ class FluidUSDCAdapter(BaseAdapter):
             tier=self.tier,
             risk_score=self.RISK_SCORE,
             exit_latency_hours=self.EXIT_LATENCY_HOURS,
+            pool_id=data.get("pool_id"),
         )

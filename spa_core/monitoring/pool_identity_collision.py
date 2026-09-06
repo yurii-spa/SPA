@@ -80,9 +80,12 @@
 ======================================================
 Ни один из них не полон сам по себе, и у них разные слепые пятна.
 
-* ``declared`` — два ключа НАЗЫВАЮТ один UUID (пин в ``_POOL_ID_LOOKUP`` или
-  ``tvl_pool_id`` наблюдения). Точно и проверяемо, но видит только запиненное —
-  то есть ровно то, что уже видит существующий тест.
+* ``declared`` — два ключа НАЗЫВАЮТ один UUID (пин в ``_POOL_ID_LOOKUP``,
+  ``tvl_pool_id`` наблюдения, ``pool_id`` снимка оркестратора — ADR-233/238 —
+  или ``identity_pool_id`` класса — ADR-237). Точно и проверяемо. До 06.09
+  четвёртого источника здесь не было, и род видел только запиненное; ключ,
+  наблюдение которого приходит от оркестратора, выпадал из него ПО ПОСТРОЕНИЮ —
+  а это все одиннадцать опрашиваемых.
 * ``observed`` — два ключа в ОДНОМ такте предъявили ОДИНАКОВЫЕ живой TVL и живой
   APY. Это улика, а не подпись: независимые пулы не совпадают до цента. Именно
   она находит незапиненное (обе пары выше найдены ею), и именно она ловит
@@ -212,15 +215,37 @@ def _num(v: Any) -> float | None:
     return f if f == f and abs(f) != float("inf") else None
 
 
-def _observations(orch: dict, status: dict) -> dict[str, dict]:
+def _observations(orch: dict, status: dict) -> tuple[dict[str, dict], list[str]]:
     """Живые наблюдения по ключу протокола, СЛИТЫЕ из ОБОИХ артефактов.
 
     Пара Fluid живёт в разных файлах — сторож, читающий один артефакт, её не
     увидит по построению. Ключ, объявленный обоими, берётся от оркестратора
     (это первичный опрос); значение второго артефакта не затирает первое, а
-    расхождение между ними — предмет ДРУГОГО сторожа (``adapter_feed_divergence``).
+    расхождение ЧИСЕЛ между ними — предмет ДРУГОГО сторожа
+    (``adapter_feed_divergence``).
+
+    ADR-238 — ПОДПИСЬ ЧИТАЕТСЯ И СО СТОРОНЫ ОРКЕСТРАТОРА. До 06.09 здесь стояло
+    жёсткое ``"pool_id": None`` с оговоркой «пул-UUID оттуда не приходит
+    никогда». Оговорка была верна ровно до ADR-233 (05.09), который научил
+    снимок оркестратора нести ``pool_id`` на всех путях, включая отказные, —
+    и перестала быть верной, не изменившись ни на символ. Производитель есть,
+    потребитель говорит ``None``: род ``declared`` был слеп ко ВСЕМ одиннадцати
+    опрашиваемым ключам, потому что их наблюдение приходит именно отсюда.
+
+    Почему это не косметика. Род ``observed`` — улика, а не подпись: он требует
+    совпадения живых TVL и APY с точностью ``1e-6`` / ``0.001`` пп. Два
+    производителя опрашивают фид в РАЗНЫЕ моменты, и настоящая коллизия
+    становится ему невидима просто оттого, что пул сдвинулся между двумя
+    запросами. Подпись этим не сбить — но её выбрасывали здесь.
+
+    Возвращает ``(наблюдения, строки «не измерено»)``. Второе — не украшение:
+    если ДВА артефакта называют для одного ключа РАЗНЫЕ пулы, тождество этого
+    ключа не установлено, и молча взять первое значило бы выдать «не измерено»
+    за ответ. Такой ключ теряет подпись (``pool_id=None``, род ``observed``
+    продолжает его видеть) и получает названную строку.
     """
     out: dict[str, dict] = {}
+    unchecked: list[str] = []
 
     rows = orch.get("adapters")
     if isinstance(rows, list):
@@ -237,8 +262,10 @@ def _observations(orch: dict, status: dict) -> dict[str, dict]:
             tvl, apy = _num(row.get("tvl_usd")), _num(row.get("apy_pct"))
             if tvl is None or apy is None or tvl <= 0:
                 continue
+            pid = row.get("pool_id")
+            pid = pid.strip() if isinstance(pid, str) else None
             out[key] = {"tvl_usd": tvl, "apy_pct": apy,
-                        "pool_id": None, "source": "orchestrator"}
+                        "pool_id": pid or None, "source": "orchestrator"}
 
     rows2 = status.get("adapters")
     if isinstance(rows2, dict):
@@ -253,15 +280,26 @@ def _observations(orch: dict, status: dict) -> dict[str, dict]:
             pool_id = row.get("tvl_pool_id")
             pool_id = pool_id if isinstance(pool_id, str) and pool_id else None
             if key in out:
-                # Ключ уже взят от оркестратора. Пул-UUID оттуда не приходит
-                # никогда, поэтому подпись тождества здесь ДОПОЛНЯЕТ наблюдение,
-                # а не спорит с ним.
-                if out[key]["pool_id"] is None and pool_id:
-                    out[key]["pool_id"] = pool_id
+                # Ключ уже взят от оркестратора. С ADR-238 подпись может прийти
+                # с ОБЕИХ сторон, поэтому здесь три исхода, а не два.
+                theirs = out[key]["pool_id"]
+                if theirs is None:
+                    if pool_id:
+                        out[key]["pool_id"] = pool_id      # дополняет
+                elif pool_id and pool_id != theirs:
+                    # Спор подписей: два артефакта называют РАЗНЫЕ пулы за одним
+                    # ключом. Это и есть находка ADR-233 (`aave_v3`), и разрешать
+                    # её выбором стороны сторож не вправе — тождество ключа НЕ
+                    # УСТАНОВЛЕНО, пока спор не разрешён.
+                    out[key]["pool_id"] = None
+                    unchecked.append(
+                        f"{key}: артефакты называют РАЗНЫЕ пулы — оркестратор "
+                        f"{theirs}, adapter_status {pool_id}; подпись тождества "
+                        f"НЕ ИЗМЕРЕНА (род `declared` этот ключ не берёт)")
                 continue
             out[key] = {"tvl_usd": tvl, "apy_pct": apy,
                         "pool_id": pool_id, "source": "adapter_status"}
-    return out
+    return out, unchecked
 
 
 def _same_pool(a: dict, b: dict) -> bool:
@@ -487,7 +525,10 @@ def run(root: str = REPO_ROOT, now: dt.datetime | None = None,
                     f"{MAX_SKEW_S:.0f} с — это два РАЗНЫХ такта, тождество по ним "
                     f"не измеряется")
             else:
-                obs = _observations(orch, status)
+                obs, obs_unchecked = _observations(orch, status)
+                # ADR-238: спор подписей — самостоятельная строка «не измерено»,
+                # а не молчание. Ключ при этом остаётся в сверке родом `observed`.
+                unchecked.extend(obs_unchecked)
                 rows = orch.get("adapters")
                 if isinstance(rows, list):
                     orch_keys = {r.get("protocol") for r in rows

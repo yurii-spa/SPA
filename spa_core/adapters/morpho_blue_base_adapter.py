@@ -36,6 +36,7 @@ from pathlib import Path
 from typing import Optional
 
 from spa_core.adapters.status_reader import tvl_floor_verdict
+from spa_core.adapters._pool_identity import selected_pool_id
 from .base_adapter import BaseAdapter, YieldInfo
 
 logger = logging.getLogger(__name__)
@@ -345,6 +346,13 @@ class MorphoBlueBaseAdapter(BaseAdapter):
             risk_score=self.RISK_SCORE,
             exit_latency_hours=self.EXIT_LATENCY_HOURS,
             tvl_source="live" if live_tvl is not None else "static",
+            # ADR-238: личность ВЫБРАННОГО пула. Не путать с ``self.pool_id`` —
+            # тот рукописный слаг-константа, одинаковый при любом исходе отбора;
+            # здесь UUID той строки фида, которую отбор выбрал в ЭТОМ вызове.
+            # Отбор идёт «крупнейший по TVL сегодня», поэтому запись — не
+            # украшение: без неё завтрашний перескок на соседний волт неотличим
+            # от вчерашнего пула.
+            pool_id=selected_pool_id(best),
         )
 
     # ------------------------------------------------------------------ #

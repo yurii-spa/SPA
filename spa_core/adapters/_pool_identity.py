@@ -32,3 +32,23 @@ def resolved_pool_id(feed, *args, **kwargs) -> Optional[str]:
         return None
     return resolved.strip()
 
+
+
+def selected_pool_id(pool: object) -> Optional[str]:
+    """UUID пула из СЫРОЙ строки фида DeFiLlama, выбранной в этом вызове (ADR-238).
+
+    Три опрашиваемых адаптера (``aave_v3_base``, ``morpho_blue_base``,
+    ``fluid_usdc``) ходят в ``yields.llama.fi/pools`` своим запросом, а не через
+    :class:`DeFiLlamaFeed`, поэтому :func:`resolved_pool_id` им не подходит: у
+    них нет объекта-фида, у них на руках уже ВЫБРАННАЯ строка. Личность при
+    этом лежит прямо в ней (``pool``) — и до 06.09 выбрасывалась.
+
+    ``None`` — «личность НЕ ИЗМЕРЕНА» (строки нет, поле пустое, тип не тот), а
+    не «пул тот же». Потребитель обязан различать эти два исхода.
+    """
+    if not isinstance(pool, dict):
+        return None
+    raw = pool.get("pool")
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    return raw.strip()
