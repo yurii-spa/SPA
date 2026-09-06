@@ -52,6 +52,7 @@ PRODUCES = (
     "data/marginal_apy_at_size.json",
     "data/rebalance_cost_evidence.json",
     "data/apy_forecast_accuracy.json",
+    "data/cio_shadow_replay.json",
     "data/evidence_staleness.json",
     "data/apy_composition.json",
     "data/findings_bridge_report.json",
@@ -624,6 +625,19 @@ def main(argv=None) -> int:
               f"unchecked={frep['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — замер прогноза не смеет валить мост
         print(f"apy_forecast_accuracy: пропущено ({e})")
+    # §38 ТЗ CIO «Historical replay»: прогон Current Strategy против CIO-тени по
+    # девяти метрикам. Мост находок его НЕ читает по той же причине, что и
+    # четырёх соседей выше: единственное действие по итогам прогона — тронуть
+    # порог оборота или стоимость хода, то есть money-path и решение владельца,
+    # а не строка автокарточки. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import cio_shadow_replay
+        rrep = cio_shadow_replay.run(root=args.root)
+        print(f"cio_shadow_replay: {rrep['overall']} "
+              f"(critical={rrep['counts']['critical']} warn={rrep['counts']['warn']} "
+              f"unchecked={rrep['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — исторический прогон не смеет валить мост
+        print(f"cio_shadow_replay: пропущено ({e})")
     try:
         from spa_core.monitoring import capital_evidence_coverage
         cec = capital_evidence_coverage.run(root=args.root)

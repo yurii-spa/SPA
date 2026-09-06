@@ -785,6 +785,10 @@
     {
      "artifact": "data/apy_composition.json",
      "slo_hours": 7
+    },
+    {
+     "artifact": "data/cio_shadow_replay.json",
+     "slo_hours": 7
     }
    ],
    "consumes": [
@@ -3197,6 +3201,16 @@
    "slo_hours": 7,
    "status": "active",
    "notes": "ADR-230, гэп G1 ТЗ «Portfolio CIO»: из чего СОСТОИТ ставка адаптера — доход операции (apyBase) или раздача токена протокола (apyReward), и не решается ли тождество пула сегодняшним порядком TVL. Сторож только НАЗЫВАЕТ — считать ли эмиссию доходностью money-path, owner-gated"
+  },
+  {
+   "path": "data/cio_shadow_replay.json",
+   "producer": "com.spa.decision_loop",
+   "consumers": [
+    "orchestrator_protocol"
+   ],
+   "slo_hours": 7,
+   "status": "active",
+   "notes": "§38 ТЗ «Portfolio CIO» (Historical replay: прогнать без look-ahead bias и сравнить Current Strategy против Portfolio CIO Shadow Strategy по девяти метрикам — Net APY, Realized Return, Gas, Fees, Turnover, Risk Events, Max Concentration, False Rebalances, Missed Opportunities). До цикла #505 критерий читался закрытым ПО ИМЕНИ: модуль spa_core/paper_trading/historical_replay.py носит то же слово, но гоняет три учебные стратегии по синтетическому data/historical_apy.json, которого в живом дереве нет, и вызывающих в проде у него ноль. Замер 06.09 на живой истории ADR-060: общих сверенных дней 7 из 31 (замороженной руке нет цен на протоколы, из которых книга ушла — интерполяция запрещена). На этих днях чистая APY: живая книга −5.29 %, CIO-тень (не перекладывать) +5.41 %, оптимум тюнера без гейтов −4.86 %; валовые доходности расходятся лишь на 0.22 пп — разницу создала плата за оборот, а не выбор ставок. 12 из 13 проверяемых перекладок живой книги не окупаются за 30 дн.; на НАБЛЮДЁННОМ газе (ADR-243) — 9 из 13, то есть вывод не держится на литерале. ADVISORY, капитал не двигает. slo_hours=7 как у соседей того же производителя"
   }
  ],
  "designed_architectures": [

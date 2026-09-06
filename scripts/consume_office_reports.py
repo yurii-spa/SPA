@@ -141,6 +141,14 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                    "counts.info", "counts.unchecked",
                                    "population", "magnitude", "gate_relation",
                                    "sign_disagreements", "findings", "unchecked"),
+    # §38 ТЗ CIO «Historical replay». `population` объявлена рядом с вердиктом по
+    # той же причине, что у соседа: прогон, снятый на семи общих днях, и он же на
+    # тридцати — утверждения разной силы. `columns` — обе колонки стоимости:
+    # вывод, живущий только на заряженном газе, ADR-243 уже опроверг.
+    "cio_shadow_replay.json": ("overall", "counts.critical", "counts.warn",
+                               "counts.info", "counts.unchecked", "population",
+                               "columns", "comparison", "false_rebalances",
+                               "missed_opportunities", "findings", "unchecked"),
     "evidence_staleness.json": ("overall", "action", "reason", "counts.fresh",
                                 "counts.soft_stale", "counts.hard_stale",
                                 "counts.unknown_age", "counts.unchecked",
@@ -196,6 +204,7 @@ _PRODUCER: dict[str, str] = {
     "marginal_apy_at_size.json": "spa_core/monitoring/marginal_apy_at_size.py",
     "rebalance_cost_evidence.json": "spa_core/monitoring/rebalance_cost_evidence.py",
     "apy_forecast_accuracy.json": "spa_core/monitoring/apy_forecast_accuracy.py",
+    "cio_shadow_replay.json": "spa_core/monitoring/cio_shadow_replay.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1043,6 +1052,48 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         out.append("   ADVISORY: прогноз и гейты `gain_above_band` / "
                    "`payback_within_horizon` НЕ трогаются — подстройка прогноза "
                    "меняет решение о движении капитала, это money-path")
+    elif name == "cio_shadow_replay.json":
+        # §38 ТЗ CIO «Historical replay». Печатаем ТРИ руки в ДВУХ колонках
+        # стоимости, а не один «лучший» ответ: вопрос ТЗ — не «какая доходность
+        # выше», а «улучшился ли risk-adjusted realized NET return», и разница
+        # между валовой и чистой доходностью здесь и есть весь предмет.
+        c = data.get("counts") or {}
+        out.append(f"   исторический прогон CIO-тени: "
+                   f"{data.get('overall') or _UNMEASURED} "
+                   f"(critical={_num(c, 'critical')} warn={_num(c, 'warn')} "
+                   f"info={_num(c, 'info')} unchecked={_num(c, 'unchecked')})")
+        pop = data.get("population") or {}
+        if pop:
+            out.append(f"   популяция: наблюдено {pop.get('days_observed')} дн., "
+                       f"общих сверенных {pop.get('common_scored_days')} из "
+                       f"{pop.get('day_pairs')}; вердикты {pop.get('verdicts')}")
+        for column, block in (data.get("comparison") or {}).items():
+            if not isinstance(block, dict):
+                continue
+            if block.get("verdict"):
+                out.append(f"   [{column}] {_UNMEASURED} — {block.get('reason')}")
+                continue
+            net = block.get("net_apy_pct") or {}
+            out.append(f"   [{column}] чистая APY: книга {net.get('current')} % · "
+                       f"тень {net.get('cio_hold')} % · оптимум {net.get('cio_opt')} % "
+                       f"⇒ лучшая рука {block.get('best_net_arm')}; валовые "
+                       f"расходятся на {block.get('gross_spread_pp')} пп")
+        fr = data.get("false_rebalances") or {}
+        if fr.get("checked"):
+            out.append(f"   ложных перекладок {fr.get('false')} из "
+                       f"{fr.get('checked')} проверяемых (не окупаются за "
+                       f"{fr.get('max_payback_days')} дн.); не сверено "
+                       f"{fr.get('unchecked')}")
+        elif fr.get("verdict"):
+            out.append(f"   ложные перекладки: {_UNMEASURED} — {fr.get('reason')}")
+        for f in (data.get("findings") or []):
+            if isinstance(f, dict) and f.get("severity") in ("CRITICAL", "WARN"):
+                out.append(f"   [{f['severity']}] {f.get('message')}")
+        for u in (data.get("unchecked") or [])[:6]:
+            out.append(f"   [НЕ ИЗМЕРЕНО] {u}")
+        out.append("   ADVISORY: прогон НИЧЕГО не двигает — порог оборота, "
+                   "стоимость хода и гейты ADR-060 остаются как есть; правка по "
+                   "его итогам money-path и решение владельца")
     elif name == "pool_identity_collision.json":
         # ДВА ключа — ОДИН контракт. Потолок концентрации считает ключи разными
         # предметами риска; если они ранжируются на одном пуле DeFiLlama, книга
