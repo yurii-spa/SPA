@@ -793,6 +793,10 @@
     {
      "artifact": "data/decision_audit_trail.json",
      "slo_hours": 7
+    },
+    {
+     "artifact": "data/cio_failure_modes.json",
+     "slo_hours": 7
     }
    ],
    "consumes": [
@@ -3225,6 +3229,16 @@
    "slo_hours": 7,
    "status": "active",
    "notes": "§43 ТЗ «Portfolio CIO» (Audit trail: «каждое решение должно быть воспроизводимо»; сохранять market snapshot, portfolio snapshot, policy version, configuration version, optimizer version, decision, calculations, execution result, post-trade result; «через месяц должно быть возможно ответить: почему система 13 августа переместила $12,000 из Aave в Morpho? Не через память AI. Через данные»). Замер 06.09 по 44 реальным перекладкам живого трека (audit_trail.jsonl, 2026-06-12…2026-08-31): отвечают данными 3 поля из 9 (portfolio snapshot, decision, execution result); НЕ восстановимы market snapshot, policy version, configuration version и calculations; частично — optimizer version (записано ИМЯ модели, не версия) и post-trade result (книга следующего дня есть, вклада самого хода не считает никто). Полностью объяснимых перекладок 0 из 44, при том что 19 уже старше месяца. Отдельно: trade_id НЕ однозначен — 12 из 30 значений названы дважды и более (T003 это и $1,163 12.06, и $151,872 20.06), а вопрос владельца поставлен ЧЕРЕЗ ход. Поле snapshot_id именует ПРОГОН, а не содержимое снимка — доказано опытом над производителем (два вызова на одном входе дают разные значения). ADVISORY, капитал не двигает; дописать поле в запись решения — money-path и решение владельца. slo_hours=7 как у соседей того же производителя"
+  },
+  {
+   "path": "data/cio_failure_modes.json",
+   "producer": "com.spa.decision_loop",
+   "consumers": [
+    "orchestrator_protocol"
+   ],
+   "slo_hours": 7,
+   "status": "active",
+   "notes": "§47 ТЗ «Portfolio CIO» (Failure modes: при missing APY, stale data, conflicting sources, missing liquidity, simulation failure, risk service unavailable, unknown Tier, unknown protocol, unknown asset, price uncertainty — НЕ выполнять automatic rebalance, использовать DEFER или соответствующее safe состояние). Отдельные двери были проверены поимённо, но ПОКРЫТИЕ — на скольких из десяти названных деградаций путь решения отказывает — не мерил никто ни разу. Замер 06.09 опытом над ЖИВЫМИ функциями (_apply_risk_policy_gate + rebalance_economics.evaluate), каждая проба с положительным контролем: отказывает 3 из 10 (missing liquidity, risk service unavailable, price uncertainty), частично 1 (unknown protocol — отказ даёт отсутствие живого TVL, а не незнакомое имя), НЕ отказывает 5, не измерено 1 (simulation failure — шага симуляции в paper-контуре нет вовсе). Главное: пропажа ставки (или её живого источника) у ПОКИДАЕМОГО пула СОЗДАЁТ перекладку: HOLD → ACT от одной пропавшей величины (правило ADR-060 «ненаблюдаемое = 0» симметрично по замыслу, но не по эффекту); спор двух источников об ОДНОМ пуле решается порядком строк; незнакомый тир молча получает потолок T2; актив пула не спрашивается ни разу. ADVISORY, капитал не двигает; построить недостающую дверь — money-path и решение владельца. slo_hours=7 как у соседей того же производителя"
   }
  ],
  "designed_architectures": [

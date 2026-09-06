@@ -54,6 +54,7 @@ PRODUCES = (
     "data/apy_forecast_accuracy.json",
     "data/cio_shadow_replay.json",
     "data/decision_audit_trail.json",
+    "data/cio_failure_modes.json",
     "data/evidence_staleness.json",
     "data/apy_composition.json",
     "data/findings_bridge_report.json",
@@ -652,6 +653,21 @@ def main(argv=None) -> int:
               f"unchecked={arep['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — сверка трейла не смеет валить мост
         print(f"decision_audit_trail: пропущено ({e})")
+    # §47 ТЗ CIO «Failure modes»: отказывает ли путь решения на десяти
+    # названных владельцем деградациях входа. Мост находок его НЕ читает по той
+    # же причине, что и шесть соседей выше: построить недостающую дверь значит
+    # изменить путь, по которому двигается капитал, — money-path и решение
+    # владельца, а не строка автокарточки. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import cio_failure_modes
+        frep = cio_failure_modes.run(root=args.root)
+        t = frep["tally"]
+        print(f"cio_failure_modes: {frep['overall']} "
+              f"(отказывает {t['REFUSES']}/{frep['conditions_total']}, "
+              f"частично {t['PARTIAL']}, не отказывает {t['PROCEEDS']}, "
+              f"не измерено {t['UNCHECKED']})")
+    except Exception as e:  # noqa: BLE001 — замер §47 не смеет валить мост
+        print(f"cio_failure_modes: пропущено ({e})")
     try:
         from spa_core.monitoring import capital_evidence_coverage
         cec = capital_evidence_coverage.run(root=args.root)

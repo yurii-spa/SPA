@@ -157,6 +157,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                   "counts.info", "counts.unchecked", "population",
                                   "owner_fields", "identity", "snapshot_id_probe",
                                   "findings", "unchecked"),
+    # §47 ТЗ CIO «Failure modes». `tally` объявлен рядом с вердиктом намеренно:
+    # вопрос владельца — не «сколько находок», а «на скольких из ДЕСЯТИ
+    # названных им деградаций путь решения отказывает». `probes` — потому что
+    # «частично» и «отказывает» в отчёте о fail-safe читаются одинаково, а
+    # значат разное.
+    "cio_failure_modes.json": ("overall", "counts.critical", "counts.warn",
+                               "counts.info", "counts.unchecked",
+                               "conditions_total", "tally", "probes",
+                               "thresholds_provenance", "findings", "unchecked"),
     "evidence_staleness.json": ("overall", "action", "reason", "counts.fresh",
                                 "counts.soft_stale", "counts.hard_stale",
                                 "counts.unknown_age", "counts.unchecked",
@@ -214,6 +223,7 @@ _PRODUCER: dict[str, str] = {
     "apy_forecast_accuracy.json": "spa_core/monitoring/apy_forecast_accuracy.py",
     "cio_shadow_replay.json": "spa_core/monitoring/cio_shadow_replay.py",
     "decision_audit_trail.json": "spa_core/monitoring/decision_audit_trail.py",
+    "cio_failure_modes.json": "spa_core/monitoring/cio_failure_modes.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1103,6 +1113,35 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         out.append("   ADVISORY: прогон НИЧЕГО не двигает — порог оборота, "
                    "стоимость хода и гейты ADR-060 остаются как есть; правка по "
                    "его итогам money-path и решение владельца")
+    elif name == "cio_failure_modes.json":
+        # §47 ТЗ CIO «Failure modes». Печатаем ПОКРЫТИЕ, а не число находок:
+        # вопрос ТЗ — «на скольких из десяти названных деградаций система НЕ
+        # перекладывает книгу», и «отказывает на 3 из 10» с «5 находок»
+        # читаются совершенно по-разному.
+        c = data.get("counts") or {}
+        t = data.get("tally") or {}
+        total = data.get("conditions_total")
+        out.append(f"   отказ пути решения на деградации входа: "
+                   f"{data.get('overall') or _UNMEASURED} "
+                   f"(critical={_num(c, 'critical')} warn={_num(c, 'warn')} "
+                   f"info={_num(c, 'info')} unchecked={_num(c, 'unchecked')})")
+        if t:
+            out.append(f"   из {total} названных владельцем деградаций: "
+                       f"отказывает {t.get('REFUSES')} · частично "
+                       f"{t.get('PARTIAL')} · НЕ отказывает {t.get('PROCEEDS')} · "
+                       f"не измерено {t.get('UNCHECKED')}")
+        for pr in (data.get("probes") or []):
+            if pr.get("outcome") in ("PROCEEDS", "PARTIAL"):
+                out.append(f"   [{pr['outcome']}] «{pr.get('owner_wording')}» — "
+                           f"{pr.get('detail')}")
+        for f in (data.get("findings") or []):
+            if f.get("severity") in ("CRITICAL", "WARN"):
+                out.append(f"   [{f['severity']}] {f.get('message')}")
+        for u in (data.get("unchecked") or [])[:6]:
+            out.append(f"   [НЕ ИЗМЕРЕНО] {u}")
+        out.append("   ADVISORY: ни одна дверь этим замером не строится — "
+                   "добавить отказ в путь решения значит изменить путь, по "
+                   "которому двигается капитал, это решение владельца")
     elif name == "decision_audit_trail.json":
         # §43 ТЗ CIO «Audit trail». Печатаем ДЕВЯТЬ полей владельца поимённо, а
         # не одно число находок: вопрос ТЗ — «через месяц ответить ЧЕРЕЗ ДАННЫЕ»,
