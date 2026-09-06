@@ -49,6 +49,7 @@ PRODUCES = (
     "data/capital_evidence_coverage.json",
     "data/pool_identity_collision.json",
     "data/decision_reproducibility.json",
+    "data/marginal_apy_at_size.json",
     "data/evidence_staleness.json",
     "data/apy_composition.json",
     "data/findings_bridge_report.json",
@@ -583,6 +584,18 @@ def main(argv=None) -> int:
               f"unchecked={rep['counts']['unchecked']}), прогонов {rep['runs']}")
     except Exception as e:  # noqa: BLE001 — замер воспроизводимости не смеет валить мост
         print(f"decision_reproducibility: пропущено ({e})")
+    # §12/§49 ТЗ CIO: влияет ли НАШ размер на ставку, по которой нас ранжируют.
+    # Мост находок его НЕ читает — по той же причине, что и соседа выше: линейность
+    # целевой функции это разбор архитектуры и решение владельца (money-path), а не
+    # строка автокарточки. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import marginal_apy_at_size
+        mrep = marginal_apy_at_size.run(root=args.root)
+        print(f"marginal_apy_at_size: {mrep['overall']} "
+              f"(critical={mrep['counts']['critical']} warn={mrep['counts']['warn']} "
+              f"unchecked={mrep['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — замер маржинальности не смеет валить мост
+        print(f"marginal_apy_at_size: пропущено ({e})")
     try:
         from spa_core.monitoring import capital_evidence_coverage
         cec = capital_evidence_coverage.run(root=args.root)

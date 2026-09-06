@@ -115,6 +115,14 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                       "counts.info", "counts.unchecked", "runs",
                                       "subjects_measured", "measurements",
                                       "findings", "unchecked"),
+    # §12/§49 ТЗ CIO. `unmeasured_capital_pct` объявлен рядом с вердиктом
+    # НАМЕРЕННО: разбавление считается делением на TVL, и доля книги, стоящей на
+    # литеральном знаменателе, — не деталь, а граница применимости всего отчёта.
+    "marginal_apy_at_size.json": ("overall", "counts.critical", "counts.warn",
+                                  "counts.info", "counts.unchecked",
+                                  "unmeasured_capital_pct", "measurements",
+                                  "policy_bound", "scale_ceiling", "findings",
+                                  "unchecked"),
     "evidence_staleness.json": ("overall", "action", "reason", "counts.fresh",
                                 "counts.soft_stale", "counts.hard_stale",
                                 "counts.unknown_age", "counts.unchecked",
@@ -167,6 +175,7 @@ _PRODUCER: dict[str, str] = {
     "capital_evidence_coverage.json": "spa_core/monitoring/capital_evidence_coverage.py",
     "pool_identity_collision.json": "spa_core/monitoring/pool_identity_collision.py",
     "decision_reproducibility.json": "spa_core/monitoring/decision_reproducibility.py",
+    "marginal_apy_at_size.json": "spa_core/monitoring/marginal_apy_at_size.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -888,6 +897,43 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                 out.append(f"   [{f['severity']}] {f.get('message')}")
         out.append("   ADVISORY: капитал по этому вердикту НЕ двигается — замер идёт "
                    "в песочнице (копия снимка), живое data/ не меняется")
+    elif name == "marginal_apy_at_size.json":
+        # §12 ТЗ CIO: «если vault показывает 8% APY, это не означает, что $40k
+        # можно разместить под 8%». Ответ «учитывается ли» — НЕТ, целевая функция
+        # линейна по ставке. Печатаем не только сегодняшнюю ошибку (она мала), но
+        # и ГРАНИЦУ, которую держит сама политика, и капитал, на котором граница
+        # догоняет требуемую выгоду перекладки: сегодняшняя малость — свойство
+        # масштаба, а не свойство расчёта, и читаться как «вопрос закрыт» она не
+        # должна.
+        c = data.get("counts") or {}
+        out.append(f"   влияние нашего размера на ставку: "
+                   f"{data.get('overall') or _UNMEASURED} "
+                   f"(critical={_num(c, 'critical')} warn={_num(c, 'warn')} "
+                   f"info={_num(c, 'info')} unchecked={_num(c, 'unchecked')})")
+        upct = data.get("unmeasured_capital_pct")
+        if upct:
+            out.append(f"   [СЛЕПОТА] {upct} % развёрнутого капитала стоит в пулах с "
+                       f"ЛИТЕРАЛЬНЫМ TVL — знаменателя разбавления там нет")
+        b = data.get("policy_bound") or {}
+        if b:
+            out.append(f"   граница политики: позиция ${b.get('position_usd', 0):,.0f} "
+                       f"в пуле на TVL-floor ${b.get('tvl_floor_usd', 0):,.0f} ⇒ доля "
+                       f"{b.get('worst_case_share_pct')} %, приведённая ошибка "
+                       f"{b.get('worst_case_error_pp_blended')} пп")
+        sc = data.get("scale_ceiling") or {}
+        if sc.get("capital_usd_at_crossing"):
+            out.append(f"   потолок масштаба: приведённая ошибка догоняет требуемую "
+                       f"выгоду {sc.get('min_gain_pp')} пп при капитале "
+                       f"${sc['capital_usd_at_crossing']:,.0f}")
+        elif sc.get("reason"):
+            out.append(f"   потолок масштаба: {_UNMEASURED} — {sc['reason']}")
+        for f in (data.get("findings") or []):
+            if isinstance(f, dict) and f.get("severity") in ("CRITICAL", "WARN"):
+                out.append(f"   [{f['severity']}] {f.get('message')}")
+        for u in (data.get("unchecked") or [])[:6]:
+            out.append(f"   [НЕ ИЗМЕРЕНО] {u}")
+        out.append("   ADVISORY: целевая функция оптимизатора НЕ трогается — правка "
+                   "ранжирующего числа money-path, решение владельца")
     elif name == "pool_identity_collision.json":
         # ДВА ключа — ОДИН контракт. Потолок концентрации считает ключи разными
         # предметами риска; если они ранжируются на одном пуле DeFiLlama, книга

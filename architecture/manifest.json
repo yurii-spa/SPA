@@ -767,6 +767,10 @@
      "slo_hours": 7
     },
     {
+     "artifact": "data/marginal_apy_at_size.json",
+     "slo_hours": 7
+    },
+    {
      "artifact": "data/evidence_staleness.json",
      "slo_hours": 7
     },
@@ -3135,6 +3139,16 @@
    "slo_hours": 7,
    "status": "active",
    "notes": "§49 ТЗ «Portfolio CIO» (Determinism: calculations reproducible) и дословный опыт владельца «100 запусков на одном snapshot → идентичный output». До цикла #501 вопрос не задавал НИ ОДИН сторож. N процессов с разными PYTHONHASHSEED на ОДНОМ снимке в песочнице; часы производителя объявлены ПОИМЁННО (наивный хеш всего ответа дал 12 разных из 12 и объявил бы ложный CRITICAL — замер 06.09). ADVISORY, капитал не двигает. slo_hours=7 как у соседей того же производителя"
+  },
+  {
+   "path": "data/marginal_apy_at_size.json",
+   "producer": "com.spa.decision_loop",
+   "consumers": [
+    "orchestrator_protocol"
+   ],
+   "slo_hours": 7,
+   "status": "active",
+   "notes": "§12 «Marginal APY» и §49 «Marginal return» ТЗ «Portfolio CIO». Целевая функция оптимизатора линейна по ставке пула: размер нашей позиции ставку не меняет. Модель разбавления не дублируется — переиспользован MP-911 yield_dilution_analyzer. Из трёх величин ошибки ФАКТ только definitional; литеральный TVL знаменателем не является (UNCHECKED, замер 06.09: 68.4 % развёрнутого капитала). ADVISORY, капитал не двигает. slo_hours=7 как у соседей того же производителя"
   },
   {
    "path": "data/evidence_staleness.json",
