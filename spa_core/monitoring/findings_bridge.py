@@ -50,6 +50,7 @@ PRODUCES = (
     "data/pool_identity_collision.json",
     "data/decision_reproducibility.json",
     "data/marginal_apy_at_size.json",
+    "data/rebalance_cost_evidence.json",
     "data/evidence_staleness.json",
     "data/apy_composition.json",
     "data/findings_bridge_report.json",
@@ -596,6 +597,19 @@ def main(argv=None) -> int:
               f"unchecked={mrep['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — замер маржинальности не смеет валить мост
         print(f"marginal_apy_at_size: пропущено ({e})")
+    # §49 ТЗ CIO «Costs»: газ/комиссии/проскальзывание в решении о перекладке.
+    # Мост находок его НЕ читает — по той же причине, что и два соседа выше:
+    # подстановка наблюдённого газа в `_move_cost_usd` меняет гейт, решающий о
+    # движении капитала, то есть money-path и решение владельца, а не строка
+    # автокарточки. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import rebalance_cost_evidence
+        crep = rebalance_cost_evidence.run(root=args.root)
+        print(f"rebalance_cost_evidence: {crep['overall']} "
+              f"(critical={crep['counts']['critical']} warn={crep['counts']['warn']} "
+              f"unchecked={crep['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — замер стоимости не смеет валить мост
+        print(f"rebalance_cost_evidence: пропущено ({e})")
     try:
         from spa_core.monitoring import capital_evidence_coverage
         cec = capital_evidence_coverage.run(root=args.root)

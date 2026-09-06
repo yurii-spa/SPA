@@ -123,6 +123,14 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                   "unmeasured_capital_pct", "measurements",
                                   "policy_bound", "scale_ceiling", "findings",
                                   "unchecked"),
+    # §49 ТЗ CIO «Costs». `substitution` объявлена рядом с вердиктом НАМЕРЕННО:
+    # сам по себе вердикт «CRITICAL» не говорит, В КАКУЮ СТОРОНУ ошибается
+    # стоимость, а сторона здесь и есть смысл — заряженная дороже наблюдённой
+    # держит книгу неподвижной, то есть ровно та жалоба, с которой начато ТЗ.
+    "rebalance_cost_evidence.json": ("overall", "counts.critical", "counts.warn",
+                                     "counts.info", "counts.unchecked",
+                                     "charged", "substitution", "slippage_check",
+                                     "findings", "unchecked"),
     "evidence_staleness.json": ("overall", "action", "reason", "counts.fresh",
                                 "counts.soft_stale", "counts.hard_stale",
                                 "counts.unknown_age", "counts.unchecked",
@@ -176,6 +184,7 @@ _PRODUCER: dict[str, str] = {
     "pool_identity_collision.json": "spa_core/monitoring/pool_identity_collision.py",
     "decision_reproducibility.json": "spa_core/monitoring/decision_reproducibility.py",
     "marginal_apy_at_size.json": "spa_core/monitoring/marginal_apy_at_size.py",
+    "rebalance_cost_evidence.json": "spa_core/monitoring/rebalance_cost_evidence.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -934,6 +943,50 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             out.append(f"   [НЕ ИЗМЕРЕНО] {u}")
         out.append("   ADVISORY: целевая функция оптимизатора НЕ трогается — правка "
                    "ранжирующего числа money-path, решение владельца")
+    elif name == "rebalance_cost_evidence.json":
+        # §49 ТЗ CIO «Costs». Печатаем не только вердикт, но и РАЗЛОЖЕНИЕ и
+        # СТОРОНУ ошибки: «стоимость учитывается» — правда, но она заряжается
+        # тремя литералами, а газ при этом наблюдается живьём в той же единице.
+        # Заряженная дороже наблюдённой означает ложные отказы перекладки, то
+        # есть неподвижную книгу — ровно ту жалобу, с которой начато ТЗ.
+        c = data.get("counts") or {}
+        out.append(f"   стоимость перекладки в решении: "
+                   f"{data.get('overall') or _UNMEASURED} "
+                   f"(critical={_num(c, 'critical')} warn={_num(c, 'warn')} "
+                   f"info={_num(c, 'info')} unchecked={_num(c, 'unchecked')})")
+        ch = data.get("charged") or {}
+        if ch:
+            out.append(f"   заряжено ${ch.get('total_usd', 0):,.2f} = газ "
+                       f"${ch.get('gas_usd', 0):,.2f} + слиппедж "
+                       f"${ch.get('slippage_usd', 0):,.2f} + мост "
+                       f"${ch.get('bridge_usd', 0):,.2f}"
+                       + ("" if ch.get("consistent") else
+                          "  ⚠️ разложение РАЗОШЛОСЬ с `_move_cost_usd`"))
+        s = data.get("substitution") or {}
+        if s:
+            out.append(f"   газ: заряжено ${s.get('gas_usd_charged', 0):,.2f} против "
+                       f"наблюдённых ${s.get('gas_usd_observed', 0):.4f} "
+                       f"(×{s.get('gas_ratio_charged_over_observed')})")
+            out.append(f"   payback {s.get('payback_days_charged')} → "
+                       f"{s.get('payback_days_on_observed_gas')} дн. при горизонте "
+                       f"{s.get('max_payback_days')}; зазор гейта "
+                       f"×{s.get('gate_flip_margin')}; вердикт переворачивается: "
+                       f"{s.get('verdict_would_flip')}")
+            band = s.get("false_refusal_band_days")
+            if band:
+                out.append(f"   [СЛЕПОТА] полоса ложного отказа: при заряженном "
+                           f"payback от {band[0]} до {band[1]} дн. решение говорит "
+                           f"HOLD на стоимости, которой цепь не берёт")
+        elif not (data.get("unchecked") or []):
+            out.append(f"   подстановка наблюдённого газа: {_UNMEASURED}")
+        for f in (data.get("findings") or []):
+            if isinstance(f, dict) and f.get("severity") in ("CRITICAL", "WARN"):
+                out.append(f"   [{f['severity']}] {f.get('message')}")
+        for u in (data.get("unchecked") or [])[:6]:
+            out.append(f"   [НЕ ИЗМЕРЕНО] {u}")
+        out.append("   ADVISORY: `_move_cost_usd` и пороги демпфера НЕ трогаются — "
+                   "подстановка наблюдённого газа меняет гейт, решающий о движении "
+                   "капитала, это money-path и решение владельца")
     elif name == "pool_identity_collision.json":
         # ДВА ключа — ОДИН контракт. Потолок концентрации считает ключи разными
         # предметами риска; если они ранжируются на одном пуле DeFiLlama, книга
