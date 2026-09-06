@@ -108,6 +108,13 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                     "counts.info", "counts.unchecked", "keys_compared",
                                     "collisions", "unreachable_refusals", "findings",
                                     "unchecked"),
+    # §49 ТЗ CIO. `runs` объявлен НАМЕРЕННО рядом с вердиктом: «воспроизводимо»
+    # на 3 прогонах и на 100 — разной силы утверждение, и отчёт, не называющий
+    # число, читался бы как дословный опыт владельца, которым он не является.
+    "decision_reproducibility.json": ("overall", "counts.critical", "counts.warn",
+                                      "counts.info", "counts.unchecked", "runs",
+                                      "subjects_measured", "measurements",
+                                      "findings", "unchecked"),
     "evidence_staleness.json": ("overall", "action", "reason", "counts.fresh",
                                 "counts.soft_stale", "counts.hard_stale",
                                 "counts.unknown_age", "counts.unchecked",
@@ -159,6 +166,7 @@ _PRODUCER: dict[str, str] = {
     "adapter_feed_divergence.json": "spa_core/monitoring/adapter_feed_divergence.py",
     "capital_evidence_coverage.json": "spa_core/monitoring/capital_evidence_coverage.py",
     "pool_identity_collision.json": "spa_core/monitoring/pool_identity_collision.py",
+    "decision_reproducibility.json": "spa_core/monitoring/decision_reproducibility.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -853,6 +861,33 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             if hist.get("blind_snapshots"):
                 out.append(f"   [СЛЕПОТА] снимков со строкой «не измерено»: "
                            f"{hist['blind_snapshots']} — это НЕ «состав сходился»")
+    elif name == "decision_reproducibility.json":
+        # Вопрос §49 ТЗ CIO: один снимок, N процессов — тот же ли ответ. Число
+        # прогонов печатается ВСЕГДА и рядом с вердиктом: «воспроизводимо на 3»
+        # и «воспроизводимо на 100» — разные утверждения, и умолчание 3 не смеет
+        # читаться как дословный опыт владельца.
+        c = data.get("counts") or {}
+        out.append(f"   воспроизводимость расчёта: {data.get('overall') or _UNMEASURED} "
+                   f"(critical={_num(c, 'critical')} warn={_num(c, 'warn')} "
+                   f"info={_num(c, 'info')} unchecked={_num(c, 'unchecked')}); "
+                   f"прогонов на снимок: {data.get('runs') or _UNMEASURED}")
+        for m in (data.get("measurements") or []):
+            if not isinstance(m, dict):
+                continue
+            v = m.get("verdict") or _UNMEASURED
+            if v == "UNCHECKED":
+                out.append(f"   [НЕ ИЗМЕРЕНО] {m.get('key')}: {m.get('reason')}")
+            elif v != "OK":
+                out.append(f"   [{v}] {m.get('key')}: {m.get('distinct_outputs')} "
+                           f"разных ответа(ов) на {m.get('runs_completed')} прогонах "
+                           f"ОДНОГО снимка")
+                for d in (m.get("differences") or [])[:3]:
+                    out.append(f"      {d}")
+        for f in (data.get("findings") or []):
+            if isinstance(f, dict) and f.get("severity") in ("WARN", "INFO"):
+                out.append(f"   [{f['severity']}] {f.get('message')}")
+        out.append("   ADVISORY: капитал по этому вердикту НЕ двигается — замер идёт "
+                   "в песочнице (копия снимка), живое data/ не меняется")
     elif name == "pool_identity_collision.json":
         # ДВА ключа — ОДИН контракт. Потолок концентрации считает ключи разными
         # предметами риска; если они ранжируются на одном пуле DeFiLlama, книга

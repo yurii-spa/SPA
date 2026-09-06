@@ -763,6 +763,10 @@
      "slo_hours": 7
     },
     {
+     "artifact": "data/decision_reproducibility.json",
+     "slo_hours": 7
+    },
+    {
      "artifact": "data/evidence_staleness.json",
      "slo_hours": 7
     },
@@ -3121,6 +3125,16 @@
    "slo_hours": 7,
    "status": "active",
    "notes": "Гэп G1 ТЗ «Portfolio CIO»: два КЛЮЧА протокола, ранжирующиеся на ОДНОМ пуле DeFiLlama (потолок концентрации считает их разными предметами риска), и отказ реестра, недостижимый для опрашиваемых ключей. Сторож только НАЗЫВАЕТ — правка гейта и потолков money-path, owner-gated"
+  },
+  {
+   "path": "data/decision_reproducibility.json",
+   "producer": "com.spa.decision_loop",
+   "consumers": [
+    "orchestrator_protocol"
+   ],
+   "slo_hours": 7,
+   "status": "active",
+   "notes": "§49 ТЗ «Portfolio CIO» (Determinism: calculations reproducible) и дословный опыт владельца «100 запусков на одном snapshot → идентичный output». До цикла #501 вопрос не задавал НИ ОДИН сторож. N процессов с разными PYTHONHASHSEED на ОДНОМ снимке в песочнице; часы производителя объявлены ПОИМЁННО (наивный хеш всего ответа дал 12 разных из 12 и объявил бы ложный CRITICAL — замер 06.09). ADVISORY, капитал не двигает. slo_hours=7 как у соседей того же производителя"
   },
   {
    "path": "data/evidence_staleness.json",

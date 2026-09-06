@@ -48,6 +48,7 @@ PRODUCES = (
     "data/adapter_feed_divergence.json",
     "data/capital_evidence_coverage.json",
     "data/pool_identity_collision.json",
+    "data/decision_reproducibility.json",
     "data/evidence_staleness.json",
     "data/apy_composition.json",
     "data/findings_bridge_report.json",
@@ -563,6 +564,25 @@ def main(argv=None) -> int:
     # Мост находок его НЕ читает намеренно: потребитель — шаг 0-офис, то есть
     # решение принимает сессия. Автокарточка здесь была бы вредна: «не 100 %»
     # почти всегда означает работу над ФИДАМИ, у которой уже есть свои карточки.
+    # §49 ТЗ «Portfolio CIO»: воспроизводим ли расчёт вообще. Считается ЗДЕСЬ по
+    # той же причине, что соседи выше: отдельный launchd-агент означал бы деплой,
+    # то есть решение владельца, и приёмка ушла бы в очередь вместо того, чтобы
+    # работать. Цена ИЗМЕРЕНА на живом снимке 06.09 (544 файла): 3 прогона × 2
+    # субъекта = 6 полных расчётов за 1.24 с — дороже соседних миллисекунд,
+    # поэтому число прогонов держится минимальным (расхождение от соли хеша
+    # видно на ЛЮБОЙ паре разных солей, сотни ему не нужны), а дословные 100
+    # прогонов владельца доступны командой `--runs 100`.
+    # Мост находок его НЕ читает намеренно: потребитель — шаг 0-офис, то есть
+    # решение принимает сессия. Невоспроизводимый расчёт — это разбор архитектуры,
+    # а не строка в автокарточке.
+    try:
+        from spa_core.monitoring import decision_reproducibility
+        rep = decision_reproducibility.run(root=args.root)
+        print(f"decision_reproducibility: {rep['overall']} "
+              f"(critical={rep['counts']['critical']} warn={rep['counts']['warn']} "
+              f"unchecked={rep['counts']['unchecked']}), прогонов {rep['runs']}")
+    except Exception as e:  # noqa: BLE001 — замер воспроизводимости не смеет валить мост
+        print(f"decision_reproducibility: пропущено ({e})")
     try:
         from spa_core.monitoring import capital_evidence_coverage
         cec = capital_evidence_coverage.run(root=args.root)
