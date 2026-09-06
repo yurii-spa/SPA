@@ -131,6 +131,16 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                      "counts.info", "counts.unchecked",
                                      "charged", "substitution", "slippage_check",
                                      "findings", "unchecked"),
+    # §49 ТЗ CIO «Forecast accuracy». `population` объявлена рядом с вердиктом
+    # НАМЕРЕННО: калибровка, снятая на одном полностью сверенном дне, и она же
+    # на тридцати — утверждения разной силы, а вердикт «CRITICAL»/«WARN» их не
+    # различает. `gate_relation` — по той же причине, что `substitution` у
+    # соседа: сама величина ошибки ничего не решает, решает её отношение к
+    # зазору, которым проходит гейт.
+    "apy_forecast_accuracy.json": ("overall", "counts.critical", "counts.warn",
+                                   "counts.info", "counts.unchecked",
+                                   "population", "magnitude", "gate_relation",
+                                   "sign_disagreements", "findings", "unchecked"),
     "evidence_staleness.json": ("overall", "action", "reason", "counts.fresh",
                                 "counts.soft_stale", "counts.hard_stale",
                                 "counts.unknown_age", "counts.unchecked",
@@ -185,6 +195,7 @@ _PRODUCER: dict[str, str] = {
     "decision_reproducibility.json": "spa_core/monitoring/decision_reproducibility.py",
     "marginal_apy_at_size.json": "spa_core/monitoring/marginal_apy_at_size.py",
     "rebalance_cost_evidence.json": "spa_core/monitoring/rebalance_cost_evidence.py",
+    "apy_forecast_accuracy.json": "spa_core/monitoring/apy_forecast_accuracy.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -987,6 +998,51 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         out.append("   ADVISORY: `_move_cost_usd` и пороги демпфера НЕ трогаются — "
                    "подстановка наблюдённого газа меняет гейт, решающий о движении "
                    "капитала, это money-path и решение владельца")
+    elif name == "apy_forecast_accuracy.json":
+        # §49 ТЗ CIO «Forecast accuracy». Печатаем ТРИ разных ответа, потому что
+        # это три разных утверждения и одно не заменяет другого: (1) на какой
+        # популяции вообще снята калибровка, (2) насколько прогноз врёт по
+        # величине и КУДА, (3) хватает ли этой ошибки, чтобы перевернуть гейт.
+        # Один только вердикт читался бы как «прогноз проверен», тогда как
+        # полностью сверенных дней может быть один на всю историю.
+        c = data.get("counts") or {}
+        out.append(f"   точность прогноза перекладки: "
+                   f"{data.get('overall') or _UNMEASURED} "
+                   f"(critical={_num(c, 'critical')} warn={_num(c, 'warn')} "
+                   f"info={_num(c, 'info')} unchecked={_num(c, 'unchecked')})")
+        pop = data.get("population") or {}
+        if pop:
+            out.append(f"   популяция: наблюдено {pop.get('days_observed')} дн., "
+                       f"сверено {pop.get('scoreable')}, существенных "
+                       f"{pop.get('band_material')}, ПОЛНОСТЬЮ сверено "
+                       f"{pop.get('fully_checked')} (горизонт "
+                       f"{pop.get('horizon_days')} дн.)")
+        mag = data.get("magnitude") or {}
+        if mag.get("n"):
+            out.append(f"   обещано/вышло на {mag['n']} существенных дн.: "
+                       f"{mag.get('min')}…{mag.get('max')} при медиане "
+                       f"{mag.get('median')}")
+        elif mag.get("reason"):
+            out.append(f"   обещано/вышло: {_UNMEASURED} — {mag['reason']}")
+        g = data.get("gate_relation") or {}
+        if g.get("tightest_gate_margin"):
+            out.append(f"   худшее завышение ×{g.get('worst_ratio_observed')} против "
+                       f"самого узкого зазора гейта ×{g.get('tightest_gate_margin')} "
+                       f"({g.get('margin_consumed_pct')} % зазора); гейт "
+                       f"переворачивается: {g.get('error_exceeds_margin')}")
+        for d in (data.get("sign_disagreements") or [])[:3]:
+            out.append(f"   [СТОРОНА] {d.get('cycle_date')}: обещано "
+                       f"{d.get('claimed_usd_per_day')} $/дн., вышло "
+                       f"{d.get('realised_usd_per_day')} $/дн. — прогноз и факт "
+                       f"разошлись ЗНАКОМ")
+        for f in (data.get("findings") or []):
+            if isinstance(f, dict) and f.get("severity") in ("CRITICAL", "WARN"):
+                out.append(f"   [{f['severity']}] {f.get('message')}")
+        for u in (data.get("unchecked") or [])[:6]:
+            out.append(f"   [НЕ ИЗМЕРЕНО] {u}")
+        out.append("   ADVISORY: прогноз и гейты `gain_above_band` / "
+                   "`payback_within_horizon` НЕ трогаются — подстройка прогноза "
+                   "меняет решение о движении капитала, это money-path")
     elif name == "pool_identity_collision.json":
         # ДВА ключа — ОДИН контракт. Потолок концентрации считает ключи разными
         # предметами риска; если они ранжируются на одном пуле DeFiLlama, книга

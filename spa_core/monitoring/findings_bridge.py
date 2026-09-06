@@ -51,6 +51,7 @@ PRODUCES = (
     "data/decision_reproducibility.json",
     "data/marginal_apy_at_size.json",
     "data/rebalance_cost_evidence.json",
+    "data/apy_forecast_accuracy.json",
     "data/evidence_staleness.json",
     "data/apy_composition.json",
     "data/findings_bridge_report.json",
@@ -610,6 +611,19 @@ def main(argv=None) -> int:
               f"unchecked={crep['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — замер стоимости не смеет валить мост
         print(f"rebalance_cost_evidence: пропущено ({e})")
+    # §49 ТЗ CIO «Forecast accuracy»: ошибка прогноза APY и break-even. Мост
+    # находок его НЕ читает по той же причине, что и трёх соседей выше:
+    # подстройка прогноза меняет гейты `gain_above_band` и
+    # `payback_within_horizon`, то есть money-path и решение владельца, а не
+    # строка автокарточки. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import apy_forecast_accuracy
+        frep = apy_forecast_accuracy.run(root=args.root)
+        print(f"apy_forecast_accuracy: {frep['overall']} "
+              f"(critical={frep['counts']['critical']} warn={frep['counts']['warn']} "
+              f"unchecked={frep['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — замер прогноза не смеет валить мост
+        print(f"apy_forecast_accuracy: пропущено ({e})")
     try:
         from spa_core.monitoring import capital_evidence_coverage
         cec = capital_evidence_coverage.run(root=args.root)
