@@ -55,6 +55,7 @@ PRODUCES = (
     "data/cio_shadow_replay.json",
     "data/decision_audit_trail.json",
     "data/cio_failure_modes.json",
+    "data/cio_explainability.json",
     "data/evidence_staleness.json",
     "data/apy_composition.json",
     "data/findings_bridge_report.json",
@@ -668,6 +669,25 @@ def main(argv=None) -> int:
               f"не измерено {t['UNCHECKED']})")
     except Exception as e:  # noqa: BLE001 — замер §47 не смеет валить мост
         print(f"cio_failure_modes: пропущено ({e})")
+    # §44 ТЗ CIO «Explainability»: из чего состоит объяснение, которое система
+    # даёт владельцу о своём решении. Мост находок его НЕ читает по той же
+    # причине, что и соседи выше: дописать факт во фразу значит изменить то,
+    # что система говорит о движении денег, — решение владельца, а не строка
+    # автокарточки. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import cio_explainability
+        xrep = cio_explainability.run(root=args.root)
+        t = xrep.get("tally") or {}
+        if not xrep["control"]["passed"]:
+            print(f"cio_explainability: {xrep['overall']} "
+                  f"(положительный контроль не пройден — счёт не читать)")
+        else:
+            print(f"cio_explainability: {xrep['overall']} "
+                  f"(произносится {t.get('SPOKEN')}/{xrep['facts_total']}, "
+                  f"измерено но молчим {t.get('SILENT')}, "
+                  f"не считает никто {t.get('ABSENT')})")
+    except Exception as e:  # noqa: BLE001 — замер §44 не смеет валить мост
+        print(f"cio_explainability: пропущено ({e})")
     try:
         from spa_core.monitoring import capital_evidence_coverage
         cec = capital_evidence_coverage.run(root=args.root)

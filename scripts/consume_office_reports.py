@@ -166,6 +166,17 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                "counts.info", "counts.unchecked",
                                "conditions_total", "tally", "probes",
                                "thresholds_provenance", "findings", "unchecked"),
+    # §44 ТЗ CIO «Explainability». `tally` рядом с вердиктом по той же причине,
+    # что у соседа: вопрос владельца — не «сколько находок», а «сколько из
+    # ВОСЬМИ названных им фактов объяснение произносит». `control` в схеме
+    # обязателен: без пройденного контроля счёт «произносится 2» означает не
+    # неполноту объяснения, а неисправность измерителя, и читать его как
+    # находку нельзя.
+    "cio_explainability.json": ("overall", "counts.critical", "counts.warn",
+                                "counts.info", "counts.unchecked",
+                                "facts_total", "tally", "control",
+                                "subject_book", "books", "explanation_layer",
+                                "findings", "unchecked"),
     "evidence_staleness.json": ("overall", "action", "reason", "counts.fresh",
                                 "counts.soft_stale", "counts.hard_stale",
                                 "counts.unknown_age", "counts.unchecked",
@@ -224,6 +235,7 @@ _PRODUCER: dict[str, str] = {
     "cio_shadow_replay.json": "spa_core/monitoring/cio_shadow_replay.py",
     "decision_audit_trail.json": "spa_core/monitoring/decision_audit_trail.py",
     "cio_failure_modes.json": "spa_core/monitoring/cio_failure_modes.py",
+    "cio_explainability.json": "spa_core/monitoring/cio_explainability.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1142,6 +1154,44 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         out.append("   ADVISORY: ни одна дверь этим замером не строится — "
                    "добавить отказ в путь решения значит изменить путь, по "
                    "которому двигается капитал, это решение владельца")
+    elif name == "cio_explainability.json":
+        # §44 ТЗ CIO «Explainability». Печатаем СОСТАВ объяснения, а не число
+        # находок: вопрос ТЗ — «сколько из восьми названных владельцем фактов
+        # система произносит о своём решении», и «произносит 2 из 8» с «5
+        # находок» читаются совершенно по-разному. Отдельной строкой — разрез
+        # SILENT/ABSENT: «измерено, но молчим» чинится предложением, «не
+        # считает никто» — измерителем, и путать их дорого.
+        c = data.get("counts") or {}
+        t = data.get("tally") or {}
+        ctrl = data.get("control") or {}
+        out.append(f"   состав объяснения владельцу: "
+                   f"{data.get('overall') or _UNMEASURED} "
+                   f"(critical={_num(c, 'critical')} warn={_num(c, 'warn')} "
+                   f"info={_num(c, 'info')} unchecked={_num(c, 'unchecked')})")
+        if not ctrl.get("passed"):
+            out.append(f"   [НЕ ИЗМЕРЕНО] положительный контроль не пройден — "
+                       f"{ctrl.get('reason') or 'причина не названа'}; счёт по "
+                       f"фактам не читать")
+        elif t:
+            out.append(f"   книга «{data.get('subject_book')}»: из "
+                       f"{data.get('facts_total')} фактов владельца "
+                       f"произносится {t.get('SPOKEN')} · измерено, но молчим "
+                       f"{t.get('SILENT')} · не считает никто {t.get('ABSENT')} "
+                       f"· объяснять нечего {t.get('UNCHECKED')}")
+        layer = data.get("explanation_layer") or {}
+        if layer:
+            out.append(f"   читатели объяснения: "
+                       f"{', '.join(layer.get('consumers') or []) or 'НЕТ НИ ОДНОГО'}"
+                       f" · в ежедневном отчёте: "
+                       f"{'да' if layer.get('in_daily_channel') else 'НЕТ'}")
+        for f in (data.get("findings") or []):
+            if f.get("severity") in ("CRITICAL", "WARN"):
+                out.append(f"   [{f['severity']}] {f.get('message')}")
+        for u in (data.get("unchecked") or [])[:6]:
+            out.append(f"   [НЕ ИЗМЕРЕНО] {u}")
+        out.append("   ADVISORY: ни одно предложение во фразу владельцу этим "
+                   "замером не дописывается — что система говорит о движении "
+                   "денег, решает владелец")
     elif name == "decision_audit_trail.json":
         # §43 ТЗ CIO «Audit trail». Печатаем ДЕВЯТЬ полей владельца поимённо, а
         # не одно число находок: вопрос ТЗ — «через месяц ответить ЧЕРЕЗ ДАННЫЕ»,
