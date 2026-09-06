@@ -53,6 +53,7 @@ PRODUCES = (
     "data/rebalance_cost_evidence.json",
     "data/apy_forecast_accuracy.json",
     "data/cio_shadow_replay.json",
+    "data/decision_audit_trail.json",
     "data/evidence_staleness.json",
     "data/apy_composition.json",
     "data/findings_bridge_report.json",
@@ -638,6 +639,19 @@ def main(argv=None) -> int:
               f"unchecked={rrep['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — исторический прогон не смеет валить мост
         print(f"cio_shadow_replay: пропущено ({e})")
+    # §43 ТЗ CIO «Audit trail»: отвечают ли ДАННЫЕ на вопрос о прошлой перекладке
+    # («почему 13 августа переложили $12 000»), или на него отвечает только память
+    # сессии. Мост находок его НЕ читает по той же причине, что и пять соседей
+    # выше: дописать поле в запись решения значит изменить путь, по которому
+    # двигается капитал, — money-path и решение владельца. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import decision_audit_trail
+        arep = decision_audit_trail.run(root=args.root)
+        print(f"decision_audit_trail: {arep['overall']} "
+              f"(critical={arep['counts']['critical']} warn={arep['counts']['warn']} "
+              f"unchecked={arep['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — сверка трейла не смеет валить мост
+        print(f"decision_audit_trail: пропущено ({e})")
     try:
         from spa_core.monitoring import capital_evidence_coverage
         cec = capital_evidence_coverage.run(root=args.root)

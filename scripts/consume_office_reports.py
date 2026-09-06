@@ -149,6 +149,14 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                "counts.info", "counts.unchecked", "population",
                                "columns", "comparison", "false_rebalances",
                                "missed_opportunities", "findings", "unchecked"),
+    # §43 ТЗ CIO «Audit trail». `owner_fields` объявлено рядом с вердиктом
+    # намеренно: вопрос владельца — не «сколько находок», а «на какие из ДЕВЯТИ
+    # его полей отвечают данные». `identity` — потому что вопрос поставлен через
+    # ход, и join по неоднозначному имени отвечает двумя ходами сразу.
+    "decision_audit_trail.json": ("overall", "counts.critical", "counts.warn",
+                                  "counts.info", "counts.unchecked", "population",
+                                  "owner_fields", "identity", "snapshot_id_probe",
+                                  "findings", "unchecked"),
     "evidence_staleness.json": ("overall", "action", "reason", "counts.fresh",
                                 "counts.soft_stale", "counts.hard_stale",
                                 "counts.unknown_age", "counts.unchecked",
@@ -205,6 +213,7 @@ _PRODUCER: dict[str, str] = {
     "rebalance_cost_evidence.json": "spa_core/monitoring/rebalance_cost_evidence.py",
     "apy_forecast_accuracy.json": "spa_core/monitoring/apy_forecast_accuracy.py",
     "cio_shadow_replay.json": "spa_core/monitoring/cio_shadow_replay.py",
+    "decision_audit_trail.json": "spa_core/monitoring/decision_audit_trail.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1094,6 +1103,53 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         out.append("   ADVISORY: прогон НИЧЕГО не двигает — порог оборота, "
                    "стоимость хода и гейты ADR-060 остаются как есть; правка по "
                    "его итогам money-path и решение владельца")
+    elif name == "decision_audit_trail.json":
+        # §43 ТЗ CIO «Audit trail». Печатаем ДЕВЯТЬ полей владельца поимённо, а
+        # не одно число находок: вопрос ТЗ — «через месяц ответить ЧЕРЕЗ ДАННЫЕ»,
+        # и «6 из 9 не восстановимы» и «6 находок» читаются совершенно по-разному.
+        c = data.get("counts") or {}
+        out.append(f"   объяснимость прошлой перекладки по данным: "
+                   f"{data.get('overall') or _UNMEASURED} "
+                   f"(critical={_num(c, 'critical')} warn={_num(c, 'warn')} "
+                   f"info={_num(c, 'info')} unchecked={_num(c, 'unchecked')})")
+        pop = data.get("population") or {}
+        if pop:
+            out.append(f"   перекладок в трейле {pop.get('moves')} "
+                       f"({pop.get('oldest_move_date')}…{pop.get('newest_move_date')}); "
+                       f"объяснимы ПОЛНОСТЬЮ {pop.get('fully_answerable')}; старше "
+                       f"месяца {pop.get('moves_older_than_owner_horizon')}")
+        fields = data.get("owner_fields") or {}
+        if fields:
+            answering = [v.get("owner_wording") for v in fields.values()
+                         if isinstance(v, dict)
+                         and (v.get("counts") or {}).get("present") == pop.get("moves")]
+            out.append(f"   девять полей §43: отвечают данными {len(answering)} из "
+                       f"{len(fields)} — " + (", ".join(answering) or "ни одного"))
+            for key, v in fields.items():
+                if not isinstance(v, dict):
+                    continue
+                cc = v.get("counts") or {}
+                if cc.get("present"):
+                    continue
+                out.append(f"   · {v.get('owner_wording')}: нет вовсе {cc.get('absent')}, "
+                           f"частично {cc.get('partial')}, не измерено "
+                           f"{cc.get('unmeasured')} — {v.get('detail')}")
+        ident = data.get("identity") or {}
+        if ident.get("reused_ids"):
+            out.append(f"   тождество хода: {ident.get('reused_ids')} из "
+                       f"{ident.get('distinct_ids')} значений trade_id названы больше "
+                       f"одного раза — join по имени хода отвечает не одним ходом")
+        probe = data.get("snapshot_id_probe") or {}
+        if probe.get("measured") and not probe.get("content_addressed"):
+            out.append("   snapshot_id адресует ПРОГОН, а не содержимое снимка "
+                       "(опыт: два вызова производителя на одном входе разошлись)")
+        for f in (data.get("findings") or []):
+            if isinstance(f, dict) and f.get("severity") == "CRITICAL":
+                out.append(f"   [{f['severity']}] {f.get('message')}")
+        for u in (data.get("unchecked") or [])[:6]:
+            out.append(f"   [НЕ ИЗМЕРЕНО] {u}")
+        out.append("   ADVISORY: схема трейла НЕ трогается — дописать поле в запись "
+                   "решения значит изменить путь движения капитала, это money-path")
     elif name == "pool_identity_collision.json":
         # ДВА ключа — ОДИН контракт. Потолок концентрации считает ключи разными
         # предметами риска; если они ранжируются на одном пуле DeFiLlama, книга
