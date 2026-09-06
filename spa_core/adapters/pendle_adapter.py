@@ -197,9 +197,27 @@ class PendleAdapter(BaseAdapter):
             return list(self._cache)
 
     def _market_to_dict(self, m: PendleMarketData) -> dict:
-        """Convert a PendleMarketData to the public market dict schema."""
+        """Convert a PendleMarketData to the public market dict schema.
+
+        ``tier`` может быть ``None`` — и это ОТВЕТ, а не пропуск: рынок ниже
+        собственного порога Pendle ($20M для T3) не классифицирован, потому что
+        классифицировать его нечем.
+
+        Раньше здесь стояло ``_classify_tier(tvl) or "T3"``. ADR-159 (28.08)
+        снял ровно такую коэрцию в `get_yield_info` — там она ставила ЯРЛЫК
+        вместо отказа на пул втрое меньше нашего же порога, — но `get_markets`
+        отфильтровывал такие рынки ПОСЛЕ сборки словаря, и в этой функции
+        коэрция уцелела. `get_best_pt` фильтра тира не делает вовсе (его порог
+        $500K), поэтому рынок на $6M уезжал из неё с ярлыком «T3».
+
+        Замер 06.09: у `PendleAdapter.get_best_pt`/`get_markets` производственных
+        вызывающих сегодня НЕТ (money-path зовёт другой класс,
+        `data_pipeline.pendle_fetcher.PendleFetcher`), поэтому дефект латентный —
+        и чинится, пока он латентный. Отказ, потерянный коэрцией, тем и опасен,
+        что выглядит как ответ.
+        """
         tvl = m.tvl_usd
-        tier = _classify_tier(tvl) or "T3"
+        tier = _classify_tier(tvl)
         return {
             "market_address": m.market_address,
             "pt_address": "",          # not surfaced by the /markets endpoint

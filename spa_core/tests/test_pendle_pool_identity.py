@@ -428,3 +428,34 @@ class TestTheGuardCanNowSeeIt(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+class TestTierIsMeasuredNotCoerced(unittest.TestCase):
+    """Ярлык тира не выдумывается для рынка ниже собственного порога Pendle.
+
+    ADR-159 снял коэрцию `_classify_tier(tvl) or "T3"` в `get_yield_info`, но в
+    `_market_to_dict` она уцелела: `get_markets` отфильтровывал такие рынки
+    ПОСЛЕ сборки словаря, а `get_best_pt` тира не фильтрует вовсе (его порог
+    $500K). Рынок на $6M уезжал из `get_best_pt` с ярлыком «T3» — при том, что
+    собственный порог T3 у Pendle $20M.
+
+    Замер 06.09: производственных вызывающих у этих двух методов сегодня нет
+    (money-path зовёт `data_pipeline.pendle_fetcher.PendleFetcher`), дефект
+    латентный — и чинится, пока он латентный.
+    """
+
+    def test_below_the_floor_the_tier_is_not_invented(self):
+        a = _adapter([_market(tvl_usd=6_000_000.0, implied_apy=30.0)], PENDLE_POOLS)
+        best = a.get_best_pt(min_tvl_usd=500_000.0, min_apy=0.01)
+        self.assertIsNotNone(best)
+        self.assertIsNone(
+            best["tier"],
+            "рынок втрое меньше собственного порога T3 не классифицирован — "
+            "ярлык здесь был бы отказом, потерянным коэрцией")
+
+    def test_above_the_floor_the_tier_is_still_measured(self):
+        # Обратный контроль: починка не съела законную классификацию.
+        a = _adapter([_market(tvl_usd=25_000_000.0)], PENDLE_POOLS)
+        self.assertEqual(a.get_best_pt(min_tvl_usd=500_000.0, min_apy=0.01)["tier"], "T3")
+        a2 = _adapter([_market(tvl_usd=150_000_000.0)], PENDLE_POOLS)
+        self.assertEqual(a2.get_markets()[0]["tier"], "T2")
