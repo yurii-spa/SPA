@@ -652,6 +652,10 @@
     {
      "artifact": "data/paper_trading_status.json",
      "slo_hours": 26
+    },
+    {
+     "artifact": "data/rebalance_trigger.json",
+     "slo_hours": 26
     }
    ],
    "consumes": [],
@@ -3046,6 +3050,16 @@
    "slo_hours": 26,
    "status": "active",
    "notes": "ADR-060/067: arming-evidence (критерий 30д+net>0+hit≥60%); оркестратор читает ежедневно"
+  },
+  {
+   "path": "data/rebalance_trigger.json",
+   "producer": "com.spa.daily_cycle",
+   "consumers": [
+    "orchestrator_protocol"
+   ],
+   "slo_hours": 26,
+   "status": "active",
+   "notes": "ADR-031/ADR-240: вердикт слоя триггеров ребаланса RT-01..RT-05 — вопрос №2 приказа CIO «оправдан ли переход сейчас». Писался с MP-1577 и до цикла #500 не жил НИ В ОДНОМ доме (ни здесь, ни в PRODUCES дневного цикла, ни у одного потребителя): SLO не было, протухание назвать было некому. ADVISORY — капитал по нему не двигается, живой ход решают аллокатор + ADR-060 + демпфер ADR-168. slo_hours=26 как у соседей того же производителя: такт 24 ч плюс запас на один пропуск"
   },
   {
    "path": "data/allocation_rationale_history.jsonl",

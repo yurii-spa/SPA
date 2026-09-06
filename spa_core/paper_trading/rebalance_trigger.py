@@ -45,6 +45,11 @@ _DEFAULT_APY_OPPORTUNITY_BPS: float = 50.0      # RT-02 threshold (bps)
 _DEFAULT_APY_SPREAD_TRIGGER_PCT: float = 1.5    # RT-05 threshold (% APY)
                                                 # (MP-1577 / Improvement 2)
 
+#: Статусы записи DL-03, означающие «предел нарушен» (ADR-240). `DailyLimitsChecker`
+#: пишет `FAIL` для DL-03/04/05 и агрегирует их в `warn_reasons`; ключа `triggered`
+#: у его записей нет вовсе.
+_DL_FIRED_STATUSES = frozenset({"FAIL", "WARN", "HALT"})
+
 
 class RebalanceTrigger:
     """Evaluates ADR-031 rebalancing trigger conditions.
@@ -121,6 +126,11 @@ class RebalanceTrigger:
             "max_drift_pct": round(max_drift, 6),
             "max_drift_adapter": max_drift_adapter,
             "threshold": self.drift_trigger_pct,
+            # Пустая цель ДВУСМЫСЛЕННА: это может быть «цель — весь кэш» и может
+            # быть «цели никто не дал». Различить их отсюда нечем, поэтому
+            # пометку ставит ЧИТАТЕЛЬ (`check_all(input_gaps=…)`, ADR-240).
+            "measured": True,
+            "unmeasured_reason": None,
         }
 
     # ------------------------------------------------------------------
@@ -161,11 +171,22 @@ class RebalanceTrigger:
         gain_above_threshold = float(apy_gain_bps) > self.apy_opportunity_bps
         triggered = regime_changed and gain_above_threshold
 
+        # ADR-240: ОБА конца пары пусты ⇒ смену режима не спрашивали вовсе.
+        # «Режим не менялся» и «режим никто не называл» — разные ответы, и
+        # первый из них живой путь произносил четыре месяца, ни разу не
+        # получив ни одного лейбла.
+        measured = bool(current_regime) or bool(new_regime)
+
         return {
             "triggered": triggered,
             "regime_changed": regime_changed,
             "apy_gain_bps": float(apy_gain_bps),
             "threshold_bps": self.apy_opportunity_bps,
+            "measured": measured,
+            "unmeasured_reason": None if measured else (
+                "ни текущий, ни новый режим не переданы — смену режима НЕ "
+                "СПРАШИВАЛИ; это не «режим не менялся»"
+            ),
         }
 
     # ------------------------------------------------------------------
@@ -184,6 +205,23 @@ class RebalanceTrigger:
         * ``{"dl03_fired": True}``  (direct flag)
         * ``{"checks": {"DL-03": {"triggered": True}}}``  (nested checks map)
         * ``{"checks": {"dl_03": {"triggered": True}}}``  (snake_case variant)
+        * ``{"checks": [{"id": "DL-03", "status": "FAIL"}]}``  — **the shape
+          `DailyLimitsChecker` actually writes** (ADR-240)
+        * ``{"warn_reasons": ["DL-03 Adapter Concentration: …"]}`` — same file,
+          aggregated line
+
+        Замер 2026-09-06, цикл #500: три первых макета — единственное, что
+        читалось, и НИ ОДИН из них не есть то, что производит
+        ``DailyLimitsChecker.save_result``. Тот пишет ``checks`` СПИСКОМ
+        записей ``{"id": "DL-03", "status": "FAIL"}``, без ключа ``triggered``
+        вовсе. Поэтому два артефакта ОДНОГО прогона расходились:
+        ``risk_limits_check.json`` (06:00:27) — ``DL-03 … compound_v3 at 42.1 %
+        exceeds limit 40.0 %``, а ``rebalance_trigger.json`` (06:01:32) —
+        ``rt03.dl03_fired: false``.
+
+        Отсутствие входа — ТРЕТИЙ ИСХОД, а не «не сработал». ``None`` и пустой
+        словарь означают «DailyLimitsChecker не спрашивали», и молчаливое
+        ``triggered: False`` читается как «спросили, всё в порядке».
 
         Parameters
         ----------
@@ -193,25 +231,62 @@ class RebalanceTrigger:
         Returns
         -------
         dict
-            ``{triggered, dl03_fired}``
+            ``{triggered, dl03_fired, measured, unmeasured_reason}``
         """
-        if not daily_limits_result:
-            return {"triggered": False, "dl03_fired": False}
+        if not daily_limits_result or not isinstance(daily_limits_result, dict):
+            return {
+                "triggered": False,
+                "dl03_fired": False,
+                "measured": False,
+                "unmeasured_reason": (
+                    "вердикт DailyLimitsChecker не передан — DL-03 НЕ СПРАШИВАЛИ; "
+                    "это не «не сработал»"
+                ),
+            }
 
         # --- direct flag ---
         dl03 = bool(daily_limits_result.get("dl03_fired", False))
 
-        # --- nested under "checks" key ---
+        checks = daily_limits_result.get("checks")
+
+        # --- nested under "checks" as a MAP ---
+        if not dl03 and isinstance(checks, dict):
+            for key in ("DL-03", "dl_03", "DL03"):
+                entry = checks.get(key)
+                if isinstance(entry, dict) and entry.get("triggered"):
+                    dl03 = True
+                    break
+
+        # --- "checks" as a LIST of records — the shape actually written ---
+        if not dl03 and isinstance(checks, list):
+            for entry in checks:
+                if not isinstance(entry, dict):
+                    continue
+                if str(entry.get("id") or "").upper().replace("_", "-") != "DL-03":
+                    continue
+                # `triggered` when present wins; otherwise the recorded status.
+                if entry.get("triggered"):
+                    dl03 = True
+                    break
+                if str(entry.get("status") or "").upper() in _DL_FIRED_STATUSES:
+                    dl03 = True
+                    break
+
+        # --- aggregated reason lines of the same document ---
         if not dl03:
-            checks = daily_limits_result.get("checks")
-            if isinstance(checks, dict):
-                for key in ("DL-03", "dl_03", "DL03"):
-                    entry = checks.get(key)
-                    if isinstance(entry, dict) and entry.get("triggered"):
+            reasons = daily_limits_result.get("warn_reasons")
+            if isinstance(reasons, (list, tuple)):
+                for line in reasons:
+                    if isinstance(line, str) and line.strip().upper().startswith("DL-03"):
                         dl03 = True
                         break
 
-        return {"triggered": dl03, "dl03_fired": dl03}
+        return {
+            "triggered": dl03,
+            "dl03_fired": dl03,
+            "measured": True,
+            "unmeasured_reason": None,
+        }
 
     # ------------------------------------------------------------------
     # RT-04: Calendar
@@ -281,6 +356,8 @@ class RebalanceTrigger:
             "days_since": days_since,
             "max_drift_pct": round(max_drift, 6),
             "threshold_days": self.calendar_trigger_days,
+            "measured": True,
+            "unmeasured_reason": None,
         }
 
     # ------------------------------------------------------------------
@@ -344,6 +421,22 @@ class RebalanceTrigger:
             spread = 0.0
         triggered = spread > self.apy_spread_trigger_pct
 
+        # ADR-240: пустая вселенная доходностей даёт `best = cur` и разрыв 0.0 —
+        # число, неотличимое от «мы посмотрели и ничего лучше нет». Замер 06.09:
+        # живой путь читал `data/adapter_snapshot.json`, которого НЕ ПИШЕТ НИКТО,
+        # и печатал ровно такой ноль каждым циклом.
+        has_universe = bool(available_apys) and isinstance(
+            available_apys, (dict, list, tuple))
+        measured = has_universe and current_apy_pct is not None
+
+        if not has_universe:
+            reason = ("вселенная доступных доходностей пуста — сравнивать не с чем; "
+                      "разрыв 0.0 здесь НЕ означает «лучше нет»")
+        elif current_apy_pct is None:
+            reason = "текущая доходность книги не передана — разрыв меряется не от чего"
+        else:
+            reason = None
+
         return {
             "triggered": triggered,
             "current_apy_pct": round(cur, 6),
@@ -351,6 +444,8 @@ class RebalanceTrigger:
             "best_protocol": best_protocol,
             "spread_pct": round(spread, 6),
             "threshold_pct": self.apy_spread_trigger_pct,
+            "measured": measured,
+            "unmeasured_reason": reason,
         }
 
     # ------------------------------------------------------------------
@@ -369,6 +464,7 @@ class RebalanceTrigger:
         last_rebalance_date: Optional[str] = None,
         current_apy_pct: Optional[float] = None,
         available_apys=None,
+        input_gaps: Optional[Dict[str, str]] = None,
     ) -> dict:
         """Run all 4 trigger checks and aggregate the result.
 
@@ -413,28 +509,49 @@ class RebalanceTrigger:
         rt04 = self.check_rt04_calendar(last_rebalance_date, current_weights, target_weights)
         rt05 = self.check_rt05_apy_spread(current_apy_pct, available_apys)
 
+        checks = {"rt01": rt01, "rt02": rt02, "rt03": rt03,
+                  "rt04": rt04, "rt05": rt05}
+
+        # ADR-240: читатель называет входы, которых у него НЕ БЫЛО. Проверка
+        # без входа не «не сработала» — она не состоялась, и сказать это может
+        # только тот, кто пытался вход добыть.
+        for key, reason in (input_gaps or {}).items():
+            entry = checks.get(str(key).lower().replace("-", ""))
+            if entry is None or not reason:
+                continue
+            entry["measured"] = False
+            entry["unmeasured_reason"] = str(reason)
+            # Проверка, у которой не было входа, НЕ ИМЕЕТ ПРАВА срабатывать:
+            # иначе «не измерено» превратилось бы в утверждение.
+            entry["triggered"] = False
+
         fired: List[str] = []
-        if rt01["triggered"]:
-            fired.append("RT-01")
-        if rt02["triggered"]:
-            fired.append("RT-02")
-        if rt03["triggered"]:
-            fired.append("RT-03")
-        if rt04["triggered"]:
-            fired.append("RT-04")
-        if rt05["triggered"]:
-            fired.append("RT-05")
+        unmeasured: List[str] = []
+        for code, key in (("RT-01", "rt01"), ("RT-02", "rt02"), ("RT-03", "rt03"),
+                          ("RT-04", "rt04"), ("RT-05", "rt05")):
+            entry = checks[key]
+            if entry.get("triggered"):
+                fired.append(code)
+            if entry.get("measured") is False:
+                unmeasured.append(code)
+
+        # ТРИ исхода, а не два. `should_rebalance: false` при непустом
+        # `unmeasured` означает «повода не нашли ТАМ, ГДЕ СМОТРЕЛИ», и это не
+        # то же самое, что «повода нет». Замер 06.09 (цикл #500): все пять
+        # проверок были не измерены, а файл говорил ровно `false`.
+        if fired:
+            verdict = "REBALANCE"
+        elif unmeasured:
+            verdict = "UNCHECKED"
+        else:
+            verdict = "NO_TRIGGER"
 
         return {
             "should_rebalance": bool(fired),
             "triggered": fired,
-            "checks": {
-                "rt01": rt01,
-                "rt02": rt02,
-                "rt03": rt03,
-                "rt04": rt04,
-                "rt05": rt05,
-            },
+            "unmeasured": unmeasured,
+            "verdict": verdict,
+            "checks": checks,
             "checked_at": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -537,6 +654,8 @@ def smart_rebalance_check(
     available_apys=None,
     last_rebalance_date: Optional[str] = None,
     trigger: Optional["RebalanceTrigger"] = None,
+    daily_limits_result: Optional[dict] = None,
+    input_gaps: Optional[Dict[str, str]] = None,
 ) -> dict:
     """High-level advisory check combining drift (RT-01/04) and APY spread (RT-05).
 
@@ -553,6 +672,8 @@ def smart_rebalance_check(
         last_rebalance_date=last_rebalance_date,
         current_apy_pct=current_apy_pct,
         available_apys=available_apys,
+        daily_limits_result=daily_limits_result,
+        input_gaps=input_gaps,
     )
 
 
@@ -592,44 +713,187 @@ def _extract_available_apys(snapshot) -> Dict[str, float]:
     return out
 
 
-def evaluate_from_state(data_dir: str = "data") -> dict:
-    """Read live snapshots and run the smart check. Fail-safe (exit-0 friendly)."""
-    base = Path(data_dir)
-    status: dict = {}
-    adapters = {}
-    target: dict = {}
+def _read_json(base: Path, name: str):
+    """Прочитать артефакт или вернуть ``None``. Отсутствие — это ответ, а не ноль."""
     try:
-        status = json.loads((base / "paper_trading_status.json").read_text("utf-8"))
-    except Exception:  # noqa: BLE001
-        status = {}
-    try:
-        adapters = json.loads((base / "adapter_snapshot.json").read_text("utf-8"))
-    except Exception:  # noqa: BLE001
-        adapters = {}
-    try:
-        target = json.loads((base / "target_allocation.json").read_text("utf-8"))
-    except Exception:  # noqa: BLE001
-        target = {}
+        return json.loads((base / name).read_text("utf-8"))
+    except Exception:  # noqa: BLE001 — читатель не смеет валить цикл
+        return None
 
-    current_positions = status.get("current_positions", {}) if isinstance(status, dict) else {}
-    current_apy = status.get("apy_today_pct") if isinstance(status, dict) else None
-    target_positions = {}
-    if isinstance(target, dict):
-        target_positions = (
-            target.get("target_positions")
-            or target.get("positions")
-            or target.get("allocation")
-            or {}
-        )
+
+def _observed_apys(adapter_status) -> Dict[str, float]:
+    """``{ключ: доходность}`` ТОЛЬКО по наблюдениям этого прогона (ADR-240).
+
+    Литеральный ``fallback_apy`` сюда не попадает намеренно: RT-05 сравнивает
+    книгу с тем, что МОЖНО купить по наблюдённому числу. Подставить литерал
+    значило бы предложить перекладку по ставке, которую никто не видел, —
+    ровно тот дефект, который считает `capital_evidence_coverage` (ADR-226).
+    """
+    out: Dict[str, float] = {}
+    if not isinstance(adapter_status, dict):
+        return out
+    adapters = adapter_status.get("adapters")
+    if not isinstance(adapters, dict):
+        return out
+    for key, entry in adapters.items():
+        if not isinstance(entry, dict) or not entry.get("live_apy_fresh"):
+            continue
+        val = entry.get("live_apy")
+        if isinstance(val, bool) or not isinstance(val, (int, float)):
+            continue
+        out[str(key)] = float(val)
+    return out
+
+
+def _target_from_rationale(rationale, current_positions: Dict[str, float]):
+    """Цель аллокатора = текущая книга + ноги теневого решения (ADR-240).
+
+    ``allocation_rationale.json`` пишет ТОТ ЖЕ цикл и в нём лежит оптимум,
+    посчитанный аллокатором (`decision_shadow.legs` — поимённые дельты). До
+    ADR-240 читатель искал `data/target_allocation.json`, которого не пишет
+    НИКТО, тихо подставлял текущую книгу вместо цели и печатал дрейф 0.0.
+    """
+    if not isinstance(rationale, dict):
+        return None
+    shadow = rationale.get("decision_shadow")
+    if not isinstance(shadow, dict):
+        return None
+    legs = shadow.get("legs")
+    if not isinstance(legs, list) or not legs:
+        return None
+    target = {str(k): float(v) for k, v in (current_positions or {}).items()
+              if isinstance(v, (int, float)) and not isinstance(v, bool)}
+    seen = False
+    for leg in legs:
+        if not isinstance(leg, dict):
+            continue
+        proto = leg.get("protocol")
+        delta = leg.get("delta_usd")
+        if proto is None or isinstance(delta, bool) or not isinstance(delta, (int, float)):
+            continue
+        target[str(proto)] = target.get(str(proto), 0.0) + float(delta)
+        seen = True
+    return target if seen else None
+
+
+def _last_rebalance_date(trades) -> Optional[str]:
+    """``YYYY-MM-DD`` последней перекладки из журнала сделок, иначе ``None``."""
+    rows = trades if isinstance(trades, list) else (
+        trades.get("trades") if isinstance(trades, dict) else None)
+    if not isinstance(rows, list):
+        return None
+    latest: Optional[datetime] = None
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        raw = row.get("ts") or row.get("timestamp")
+        if not isinstance(raw, str) or not raw.strip():
+            continue
+        try:
+            when = datetime.fromisoformat(raw.strip().replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=timezone.utc)
+        if latest is None or when > latest:
+            latest = when
+    return latest.date().isoformat() if latest else None
+
+
+def evaluate_from_state(data_dir: str = "data") -> dict:
+    """Прочитать живые артефакты и прогнать проверки. Fail-safe (exit-0 friendly).
+
+    ADR-240. Читатель называет КАЖДЫЙ вход и КАЖДЫЙ пробел. До этого он читал
+    два файла, которых не пишет ни один производитель
+    (``adapter_snapshot.json``, ``target_allocation.json``), не передавал
+    вердикт дневных лимитов, режим и дату последней перекладки — и все пять
+    проверок отвечали ``triggered: false`` ИЗ ПУСТОТЫ. Прежние имена файлов
+    читаются по-прежнему и имеют приоритет: они старше и на них стоят тесты.
+    """
+    base = Path(data_dir)
+    status = _read_json(base, "paper_trading_status.json") or {}
+    if not isinstance(status, dict):
+        status = {}
+
+    current_positions = status.get("current_positions") or {}
+    if not isinstance(current_positions, dict):
+        current_positions = {}
+    current_apy = status.get("apy_today_pct")
+
+    inputs: Dict[str, str] = {}
+    gaps: Dict[str, str] = {}
+
+    # ── цель аллокатора ──────────────────────────────────────────────────
+    target_positions: Dict[str, float] = {}
+    legacy_target = _read_json(base, "target_allocation.json")
+    if isinstance(legacy_target, dict):
+        candidate = (legacy_target.get("target_positions")
+                     or legacy_target.get("positions")
+                     or legacy_target.get("allocation"))
+        if isinstance(candidate, dict) and candidate:
+            target_positions = candidate
+            inputs["target"] = "target_allocation.json"
+    if not target_positions:
+        rationale = _read_json(base, "allocation_rationale.json")
+        from_legs = _target_from_rationale(rationale, current_positions)
+        if from_legs:
+            target_positions = from_legs
+            inputs["target"] = "allocation_rationale.json:decision_shadow.legs"
     if not target_positions:
         target_positions = current_positions
+        gap = ("цель аллокатора не прочитана (нет ни `target_allocation.json`, ни "
+               "`decision_shadow.legs` в `allocation_rationale.json`) — за цель "
+               "принята текущая книга, поэтому дрейф 0.0 ЗДЕСЬ НИЧЕГО НЕ ЗНАЧИТ")
+        gaps["rt01"] = gap
+        gaps["rt04"] = gap
 
-    return smart_rebalance_check(
+    # ── вселенная доходностей ────────────────────────────────────────────
+    available_apys = _extract_available_apys(
+        _read_json(base, "adapter_snapshot.json") or {})
+    if available_apys:
+        inputs["apys"] = "adapter_snapshot.json"
+    else:
+        available_apys = _observed_apys(_read_json(base, "adapter_status.json"))
+        if available_apys:
+            inputs["apys"] = "adapter_status.json:live_apy(fresh)"
+
+    # ── вердикт дневных лимитов (RT-03) ──────────────────────────────────
+    daily_limits = _read_json(base, "risk_limits_check.json")
+    if isinstance(daily_limits, dict) and daily_limits:
+        inputs["daily_limits"] = "risk_limits_check.json"
+    else:
+        daily_limits = None
+
+    # ── дата последней перекладки (RT-04) ────────────────────────────────
+    last_rebalance = _last_rebalance_date(_read_json(base, "trades.json"))
+    if last_rebalance:
+        inputs["last_rebalance"] = "trades.json"
+
+    # ── режим рынка (RT-02) ──────────────────────────────────────────────
+    # `market_regime.json` несёт ОДНУ метку. Смена режима — это ДВЕ метки, и
+    # второй в системе нет: истории режимов никто не пишет. Поэтому здесь
+    # честный пробел, а не выдуманное «режим не менялся».
+    regime_doc = _read_json(base, "market_regime.json")
+    regime_now = regime_doc.get("regime") if isinstance(regime_doc, dict) else None
+    if regime_now:
+        inputs["regime"] = "market_regime.json (одна метка)"
+    gaps["rt02"] = (
+        "смена режима требует ДВУХ отметок; `market_regime.json` несёт одну"
+        + (f" ({regime_now})" if regime_now else " и её тоже нет")
+        + " — истории режимов не пишет никто"
+    )
+
+    verdict = smart_rebalance_check(
         current_positions=current_positions,
         target_positions=target_positions,
         current_apy_pct=current_apy,
-        available_apys=_extract_available_apys(adapters),
+        available_apys=available_apys,
+        last_rebalance_date=last_rebalance,
+        daily_limits_result=daily_limits,
+        input_gaps=gaps,
     )
+    verdict["inputs"] = inputs
+    return verdict
 
 
 # ---------------------------------------------------------------------------

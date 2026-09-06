@@ -84,6 +84,11 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                     "escalated", "sources_unread", "open_cards", "delivery",
                                     "owner_answer_delivery"),
     "loop_retro.json": ("findings", "outcomes_completeness"),
+    # ADR-240. `should_rebalance` объявлен НАМЕРЕННО рядом с `verdict` и
+    # `unmeasured`: до цикла #500 файл нёс ТОЛЬКО первое поле, и `false` в нём
+    # читалось как «повода нет», хотя все пять проверок отвечали из пустоты.
+    "rebalance_trigger.json": ("should_rebalance", "triggered", "unmeasured",
+                               "verdict", "checks", "checked_at"),
     "loop_health.json": ("open_cards", "recurrences_total", "cards_fate",
                          "latency_finding_to_card", "latency_card_to_close",
                          "note", "closure_drift"),
@@ -156,6 +161,7 @@ _PRODUCER: dict[str, str] = {
     "pool_identity_collision.json": "spa_core/monitoring/pool_identity_collision.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
+    "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
     # Единственный производитель-СКРИПТ. Ключи он всё-таки пишет питоном —
     # heredoc'ом внутри shell, — поэтому сверка схемы здесь настоящая, а не
     # «неприменима»: разбирает встроенный питон (`_embedded_python`), а не
@@ -179,6 +185,9 @@ _PRODUCER: dict[str, str] = {
 # станет уверенно НЕВЕРНЫМ — хуже, чем честно неизмеренным. Здесь только то,
 # что сверено с исходником производителя (тест `test_ts_field_matches_producer`).
 _TS_FIELD: dict[str, str] = {
+    # Свой отметчик времени: слой триггеров пишет `checked_at` (ADR-031).
+    # Без этой строки возраст артефакта был бы «НЕ ИЗМЕРЕН» по построению.
+    "rebalance_trigger.json": "checked_at",
     "code_sync_status.json": "timestamp",
 }
 
@@ -1486,6 +1495,38 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             except Exception as exc:  # noqa: BLE001
                 line = (f"⚠️ кнопки в канале НЕ ИЗМЕРЕНЫ: строку не собрать ({exc})")
             out.append(f"   {line}")
+    elif name == "rebalance_trigger.json":
+        # ADR-240. Generic-ветка печатала бы отсюда ОДНО слово — и слова этого
+        # у файла нет вовсе (`status`/`overall`/`posture` он не пишет), то есть
+        # артефакт уходил бы в «пустую» строку. Но главное не оформление:
+        # `should_rebalance: false` при непустом `unmeasured` означает «повода
+        # не нашли ТАМ, ГДЕ СМОТРЕЛИ», и это НЕ «повода нет».
+        verdict = data.get("verdict")
+        fired = data.get("triggered") or []
+        unmeasured = data.get("unmeasured")
+        mark = {"REBALANCE": "🔁", "UNCHECKED": "❓"}.get(str(verdict), "✅")
+        out.append(f"   {mark} триггеры ребаланса (ADR-031): {verdict or 'ПОЛЕ НЕ НАЙДЕНО'}"
+                   f" · сработали: {', '.join(fired) or '—'}")
+        if unmeasured is None:
+            out.append("   [СЛЕПОТА] поля `unmeasured` нет — файл писан до ADR-240: "
+                       "`should_rebalance` там не отличает «повода нет» от «не смотрели»")
+        elif unmeasured:
+            out.append(f"   [НЕ ИЗМЕРЕНО] {len(unmeasured)} проверк(и) из 5 без входа: "
+                       f"{', '.join(str(x) for x in unmeasured)}")
+        for key, entry in sorted((data.get("checks") or {}).items()):
+            if not isinstance(entry, dict):
+                continue
+            if entry.get("measured") is False:
+                out.append(f"   · {key.upper()}: НЕ ИЗМЕРЕНО — "
+                           f"{entry.get('unmeasured_reason') or 'причина не названа'}")
+            elif entry.get("triggered"):
+                out.append(f"   · {key.upper()}: сработал")
+        srcs = data.get("inputs")
+        if isinstance(srcs, dict) and srcs:
+            out.append("   входы названы: "
+                       + " · ".join(f"{k}={v}" for k, v in sorted(srcs.items())))
+        out.append("   ADVISORY: капитал по этому вердикту НЕ двигается — живой ход "
+                   "решают аллокатор + ADR-060 + демпфер ADR-168")
     elif name == "shadow_trigger_evaluation.json":
         # До цикла #487 этот артефакт попадал в generic-ветку и говорил ровно одно
         # слово — `NOT_READY`. Слово верное и бесполезное: оно одинаково звучит на

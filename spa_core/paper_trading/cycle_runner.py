@@ -161,6 +161,11 @@ PRODUCES = (
     # запись не видна (имя собирается на лету через STATUS_FILENAME соседних
     # модулей отчётности) — это `unmeasured`, а не «не пишем».
     "data/paper_trading_status.json",
+    # ADR-240 (цикл #500). Файл писался с MP-1577 и не жил НИ В ОДНОМ доме:
+    # ни в манифесте, ни здесь, ни у одного потребителя — то есть SLO у него
+    # не было, и протухни он навсегда, об этом не сказал бы никто. Срок
+    # годности 26 ч — тот же, что у соседей: такт 24 ч + запас на один пропуск.
+    "data/rebalance_trigger.json",
 )
 
 # Запись есть, продуктом не является (ADR-154). Разовая копия старой кривой в момент
@@ -2771,8 +2776,14 @@ def _run_smart_modules(data_dir=None, send_telegram: bool = True) -> None:
         verdict = evaluate_from_state(_data_path)
         from spa_core.utils.atomic import atomic_save as _atomic_save
         _atomic_save(verdict, str(_Path(_data_path) / "rebalance_trigger.json"))
-        print(f"  rebalance?  : {verdict.get('should_rebalance')} "
-              f"{verdict.get('triggered') or ''}")
+        # ADR-240: печатаем ТРИ исхода, а не два. Голое `False` здесь четыре
+        # месяца читалось как «повода нет», хотя все пять проверок отвечали из
+        # пустоты; `UNCHECKED` и число неизмеренных различают эти состояния.
+        _unmeasured = verdict.get("unmeasured") or []
+        print(f"  rebalance?  : {verdict.get('verdict') or verdict.get('should_rebalance')} "
+              f"{verdict.get('triggered') or ''}"
+              + (f" · НЕ ИЗМЕРЕНО: {', '.join(str(x) for x in _unmeasured)}"
+                 if _unmeasured else ""))
     except Exception as _e:  # noqa: BLE001
         log.warning("MP-1577 rebalance_trigger failed (non-critical): %s", _e)
 
