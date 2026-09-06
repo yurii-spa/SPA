@@ -225,27 +225,72 @@ class PolledAdaptersDeclareTheirPool(unittest.TestCase):
 
 
 class PendleKeepsItsNamespaceApart(unittest.TestCase):
-    """Личность есть, но не того рода — поле пустое СОЗНАТЕЛЬНО."""
+    """Адрес рынка Pendle не смеет попасть в поле UUID DeFiLlama.
+
+    Утверждение переписано 2026-09-06 (цикл #499, ADR-239) — ОБОСНОВАНИЕ ЗДЕСЬ,
+    и запись есть в `docs/journal/2026-W36.md` (инвариант #16).
+
+    Что было: `assertIsNone(info.pool_id)` при живом (ADR-238) состоянии, когда
+    `pendle` личности не называл вовсе. Утверждение звучало как «адрес сюда не
+    попадает», а проверяло «поле пустое» — то есть запрещало ЛЮБУЮ личность,
+    включая законную. ADR-239 свёл пространства имён замером (инструмент =
+    базовый актив + срок + нога PT), и с этого дня `pendle` называет НАСТОЯЩИЙ
+    UUID DeFiLlama.
+
+    Хуже другое: тест стал ВАКУУМНЫМ. Он проходил не потому, что адаптер
+    отказывается, а потому что в наборе закрыта сеть, второй фид недостижим и
+    личность не измеряется. Проверка, зелёная от недоступности внешнего
+    источника, — не проверка. Теперь фид инжектируется, и оба исхода прожимаются
+    явно: назван UUID (и это НЕ адрес рынка) · фида нет ⇒ отказ С ПРИЧИНОЙ.
+    """
+
+    _MARKET = dict(
+        market_address="0x" + "ab" * 20,
+        name="PT-sUSDe-25DEC2026", underlying_asset="sUSDe",
+        pt_apy=14.0414, underlying_apy=9.0,
+        maturity_date="2026-12-25", days_to_maturity=110,
+        tvl_usd=30_000_000.0, is_expired=False,
+        liquidity_usd=30_000_000.0, implied_apy=14.0414,
+    )
+    _POOL = "11111111-2222-3333-4444-555555555555"
+    _ROWS = [{
+        "pool": _POOL, "project": "pendle-v2", "chain": "Ethereum",
+        "symbol": "SUSDE", "tvlUsd": 30_000_000.0, "apy": 14.0414,
+        "poolMeta": "For buying PT-sUSDe-25DEC2026",
+    }]
+
+    def _info(self, pools):
+        from spa_core.adapters import pendle_adapter as pa
+        from spa_core.adapters.defillama_feed import DeFiLlamaFeed
+        from spa_core.adapters.pendle_pt import PendleMarketData
+
+        class _Feed(DeFiLlamaFeed):
+            def __init__(self):
+                super().__init__(enabled=False)
+
+            def _fetch_pools(self):
+                return pools
+
+        a = pa.PendleAdapter(_defillama_feed=_Feed())
+        a._fetch_eligible = lambda: [PendleMarketData(**self._MARKET)]
+        return a.get_yield_info()
 
     def test_pendle_does_not_put_a_market_address_into_a_uuid_field(self):
-        from spa_core.adapters import pendle_adapter as pa
-        from spa_core.adapters.pendle_pt import PendleMarketData
-        market = PendleMarketData(
-            market_address="0x" + "ab" * 20,
-            name="PT-sUSDe-25DEC2026", underlying_asset="sUSDe",
-            pt_apy=14.0414, underlying_apy=9.0,
-            maturity_date="2026-12-25", days_to_maturity=110,
-            tvl_usd=30_000_000.0, is_expired=False,
-            liquidity_usd=30_000_000.0, implied_apy=14.0414,
-        )
-        a = pa.PendleAdapter()
-        a._fetch_eligible = lambda: [market]
-        info = a.get_yield_info()
+        info = self._info(self._ROWS)
         self.assertEqual(info.protocol, "pendle")
-        self.assertIsNone(
-            info.pool_id,
+        self.assertEqual(info.pool_id, self._POOL)
+        self.assertNotEqual(
+            info.pool_id, self._MARKET["market_address"],
             "адрес рынка Pendle — ДРУГОЕ пространство имён, чем UUID DeFiLlama; "
             "положив его в это поле, сторож сравнил бы несравнимое")
+
+    def test_without_the_second_feed_identity_is_refused_WITH_A_REASON(self):
+        info = self._info(None)
+        self.assertIsNone(info.pool_id)
+        self.assertTrue(
+            info.pool_id_refused,
+            "пустая личность без причины неотличима от адаптера, который про "
+            "пулы не умеет вовсе — это разные состояния с разной починкой")
 
 
 if __name__ == "__main__":  # pragma: no cover

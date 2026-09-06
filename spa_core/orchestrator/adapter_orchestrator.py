@@ -189,6 +189,10 @@ def _run_one_adapter(
         # ADR-233: поле присутствует ВСЕГДА, в том числе на отказных путях.
         # `None` читается как «личность не измерена», а не «пул тот же».
         "pool_id": None,
+        # ADR-239: ПРИЧИНА пустой личности, если адаптер её назвал. Отсутствие
+        # причины при пустом `pool_id` означает «адаптер про пулы не отвечает
+        # вовсе» — это ДРУГОЙ исход, чем «спросили и честно не смогли».
+        "pool_id_refused": None,
         "status": "error",
         "last_updated": run_ts,
         "error": None,
@@ -236,6 +240,11 @@ def _run_one_adapter(
         # назвать пул, обязан выпадать из сверки НАЗВАННО, а не молча.
         _pool_id = getattr(info, "pool_id", None)
         record["pool_id"] = str(_pool_id) if isinstance(_pool_id, str) and _pool_id else None
+        _refused = getattr(info, "pool_id_refused", None)
+        record["pool_id_refused"] = (
+            str(_refused) if record["pool_id"] is None and isinstance(_refused, str) and _refused
+            else None
+        )
         record["tvl_usd"] = tvl_usd
         if tvl_usd is not None:
             _declared = getattr(info, "tvl_source", None)

@@ -37,6 +37,7 @@ from spa_core.adapters.pendle_adapter import (
     PendleAdapter,
     _classify_tier,
 )
+from spa_core.adapters.defillama_feed import DeFiLlamaFeed
 from spa_core.adapters.pendle_pt import PendleMarketData
 
 
@@ -72,11 +73,29 @@ def _make_market(
     )
 
 
+class _OfflineFeed(DeFiLlamaFeed):
+    """Второй фид (ADR-239) БЕЗ сети: снимок пулов не прочитан.
+
+    С ADR-239 `get_yield_info()` задаёт добавочный вопрос о ЛИЧНОСТИ пула
+    второму источнику. Тесты этого файла про личность ничего не утверждают, и
+    ходить за ней в живой DeFiLlama им незачем (`.claude/rules/adapters.md`:
+    живой фид офлайн падает — инжектить). Пустой снимок ⇒ крест имён честно
+    откажет с причиной, а ЧИСЛО адаптера от этого не меняется — что и
+    проверяют утверждения ниже.
+    """
+
+    def __init__(self):
+        super().__init__(enabled=False)
+
+    def _fetch_pools(self):
+        return None
+
+
 def _adapter_with_markets(markets: list) -> PendleAdapter:
     """Return a PendleAdapter whose internal PendlePTAdapter is mocked."""
     mock_pt = MagicMock()
     mock_pt.get_top_markets.return_value = markets
-    return PendleAdapter(_pendle_pt_adapter=mock_pt)
+    return PendleAdapter(_pendle_pt_adapter=mock_pt, _defillama_feed=_OfflineFeed())
 
 
 def _adapter_raising() -> PendleAdapter:

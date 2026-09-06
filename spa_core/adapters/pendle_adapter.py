@@ -36,6 +36,12 @@ import time
 from typing import Optional
 
 from .base_adapter import BaseAdapter, YieldInfo
+from .defillama_feed import DeFiLlamaFeed
+from .pendle_pool_identity import (
+    DIVERGENT,
+    PoolIdentity,
+    resolve_pool_identity,
+)
 from .pendle_pt import (
     PENDLE_MIN_TVL_USD,
     PendlePTAdapter as _PendlePTAdapter,
@@ -57,6 +63,27 @@ STABLECOIN_FILTER: frozenset[str] = frozenset(
 # Tier thresholds (TVL in USD).
 _TIER_T2_TVL = 100_000_000.0   # >= $100M → T2
 _TIER_T3_TVL = 20_000_000.0    # >= $20M  → T3
+
+# ADR-239: сеть в именах DeFiLlama. Незнакомый chain_id ⇒ пустая строка ⇒ ни
+# один пул не совпадёт, и крест честно откажет с причиной, вместо того чтобы
+# опознать инструмент в чужой сети (fail-CLOSED).
+_LLAMA_CHAIN_BY_ID: dict[int, str] = {1: "Ethereum"}
+
+# ADR-239: общий на процесс клиент второго фида + память о его отказе. Оба —
+# ради ЦЕНЫ добавочного вопроса, а не ради ответа: `DeFiLlamaFeed` кэширует
+# только удачу, поэтому без памяти каждый опрос офлайн платил бы сетевой
+# таймаут заново, а опрашивают адаптер каждый такт.
+_SHARED_LLAMA: Optional[DeFiLlamaFeed] = None
+_LLAMA_FAILED_AT: float = 0.0
+_LLAMA_FAILURE_MEMO_SEC: float = 300.0
+
+
+def _shared_llama() -> DeFiLlamaFeed:
+    """Один клиент DeFiLlama на процесс (TTL-кэш у него на экземпляр)."""
+    global _SHARED_LLAMA
+    if _SHARED_LLAMA is None:
+        _SHARED_LLAMA = DeFiLlamaFeed()
+    return _SHARED_LLAMA
 
 # Minimum days to maturity accepted for a new position.
 _MIN_DAYS_TO_MATURITY = 7
@@ -119,6 +146,7 @@ class PendleAdapter(BaseAdapter):
         max_retries: int = 1,
         *,
         _pendle_pt_adapter: Optional[_PendlePTAdapter] = None,
+        _defillama_feed: Optional[DeFiLlamaFeed] = None,
     ) -> None:
         super().__init__(asset)
         self.tier = "T2"   # default; may be updated after first live fetch
@@ -131,6 +159,13 @@ class PendleAdapter(BaseAdapter):
             timeout=timeout,
             max_retries=max_retries,
         )
+        # ADR-239: ВТОРОЙ источник — только ради ЛИЧНОСТИ пула, никогда ради
+        # числа. Доходность как читалась из Pendle V2 REST, так и читается
+        # (докстрока модуля объясняет, почему именно оттуда); DeFiLlama здесь
+        # отвечает на другой вопрос — как этот же инструмент зовётся в той
+        # вселенной имён, в которой сверяется тождество пулов.
+        self._llama_injected = _defillama_feed is not None
+        self._llama: DeFiLlamaFeed = _defillama_feed or _shared_llama()
         # Cache: list of PendleMarketData from the last successful API call.
         self._cache: list[PendleMarketData] = []
         # Timestamp of the last successful fetch (monotonic).
@@ -251,18 +286,25 @@ class PendleAdapter(BaseAdapter):
         self.tier = tier  # update instance tier based on live data
 
         apy_decimal = round(best.implied_apy / 100.0, 8)
-        # ADR-238 — ЛИЧНОСТЬ ЗДЕСЬ ЕСТЬ, но она НЕ ТОГО РОДА, и поле остаётся
+        # ADR-238 — ЛИЧНОСТЬ ЗДЕСЬ ЕСТЬ, но она НЕ ТОГО РОДА, и поле оставалось
         # пустым СОЗНАТЕЛЬНО. `best.market_address` называет рынок Pendle
         # однозначно, однако `YieldInfo.pool_id` по контракту (ADR-233) несёт
         # UUID пула DeFiLlama, а Pendle читается своим API и в той вселенной
-        # UUID не имеет вовсе. Положив сюда адрес, мы дали бы сторожу тождества
-        # сравнивать строки из ДВУХ РАЗНЫХ пространств имён: `pendle` и
-        # запинённый на DeFiLlama-UUID `pendle_pt_susde` разошлись бы как
+        # UUID не имеет вовсе. Положить сюда адрес значило бы дать сторожу
+        # тождества сравнивать строки из ДВУХ РАЗНЫХ пространств имён: `pendle`
+        # и запинённый на DeFiLlama-UUID `pendle_pt_susde` разошлись бы как
         # «разные пулы» даже на одном и том же рынке — вердикт, которого никто
-        # не мерил, выданный за ответ. Честный исход — `None` = НЕ ИЗМЕРЕНО,
-        # и он ЗАПИСАН здесь причиной, а не оставлен умолчанием.
-        # Свести два пространства имён — отдельная задача (карточка), и она
-        # начинается с вопроса «один ли это рынок», а не с записи адреса.
+        # не мерил, выданный за ответ.
+        #
+        # ADR-239 — пространства СВЕДЕНЫ, и сведены ЗАМЕРОМ, а не объявлением:
+        # инструмент опознаётся парой (базовый актив, дата погашения) на ноге
+        # «For buying PT-», потому что ни TVL (у ног он байт в байт один), ни
+        # цена (дрейфует между опросами), ни срок сам по себе (в один день
+        # гасятся разные активы) этого семейства не разделяют. Совпал ровно
+        # один пул ⇒ личность названа; ноль или несколько ⇒ по-прежнему
+        # `None` = НЕ ИЗМЕРЕНО, но теперь с ЗАПИСАННОЙ причиной рядом
+        # (`pool_id_refused`), а не молчанием.
+        identity = self._resolve_pool_identity(best)
         return YieldInfo(
             protocol=self.PROTOCOL,
             asset=self.asset,
@@ -272,7 +314,67 @@ class PendleAdapter(BaseAdapter):
             risk_score=self.RISK_SCORE,
             exit_latency_hours=self.EXIT_LATENCY_HOURS,
             tvl_source="live" if isinstance(tvl, (int, float)) else None,
+            pool_id=identity.pool_id,
+            pool_id_refused=None if identity.pool_id else identity.reason,
         )
+
+    def _resolve_pool_identity(self, market: PendleMarketData) -> PoolIdentity:
+        """Личность рынка *market* во вселенной имён DeFiLlama (ADR-239).
+
+        Отказ фида НИКОГДА не отменяет числа: доходность этого вызова уже
+        наблюдена своим источником, а личность — отдельный, добавочный ответ.
+        Поэтому любая ошибка второго источника гасится здесь в НАЗВАННЫЙ отказ,
+        а не поднимается наверх.
+        """
+        pools = self._llama_pools()
+        identity = resolve_pool_identity(
+            underlying_asset=market.underlying_asset,
+            maturity_date=market.maturity_date,
+            implied_apy_pct=market.implied_apy,
+            pools=pools,
+            chain=_LLAMA_CHAIN_BY_ID.get(self._chain_id, ""),
+        )
+        if identity.pool_id is None:
+            logger.info("pendle: личность пула НЕ ИЗМЕРЕНА — %s", identity.reason)
+        elif identity.corroboration == DIVERGENT:
+            logger.info(
+                "pendle: пул %s опознан, но цены двух источников расходятся на %s пп",
+                identity.pool_id,
+                identity.apy_delta_pp,
+            )
+        return identity
+
+    def _llama_pools(self) -> Optional[list]:
+        """Снимок пулов DeFiLlama для КРЕСТА ИМЁН, с памятью об отказе.
+
+        Фид не кэширует ОТКАЗ: офлайн каждый вызов платит полный сетевой
+        таймаут заново (`.claude/rules/adapters.md` — живой DeFiLlama офлайн
+        падает, потому тесты и инжектят фид). Личность здесь — ДОБАВОЧНЫЙ
+        ответ к уже наблюдённому числу, и платить за неё вторым таймаутом на
+        каждом опросе нельзя. Поэтому провал общего фида запоминается на тот же
+        TTL, что и удача.
+
+        Инжектированный фид этой памятью не пользуется: там источником
+        распоряжается вызывающий, и «отказ» — часть его сценария.
+        """
+        global _LLAMA_FAILED_AT
+        if self._llama_injected:
+            try:
+                return self._llama._fetch_pools()
+            except Exception as exc:                  # noqa: BLE001
+                logger.debug("pendle: снимок DeFiLlama недоступен: %s", exc)
+                return None
+        now = time.monotonic()
+        if _LLAMA_FAILED_AT and (now - _LLAMA_FAILED_AT) < _LLAMA_FAILURE_MEMO_SEC:
+            return None
+        try:
+            pools = self._llama._fetch_pools()
+        except Exception as exc:                      # noqa: BLE001
+            logger.debug("pendle: снимок DeFiLlama недоступен: %s", exc)
+            pools = None
+        if not pools:
+            _LLAMA_FAILED_AT = now
+        return pools
 
     # ── Extra public methods ──────────────────────────────────────────────────
 
