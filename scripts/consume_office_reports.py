@@ -242,6 +242,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                "stages_present", "stages_total", "edges",
                                "edges_wired", "edges_total", "orchestrators",
                                "findings"),
+    # §48. `knobs` объявлен рядом со счётом НАМЕРЕННО: «ослаблено 1» нечем
+    # прочитать без того, КАКОЕ поле и с какого значения — а «не менялось 11»
+    # без состава неотличимо от молчания прибора.
+    "cio_policy_change_procedure.json": ("overall", "counts.critical",
+                                         "counts.warn", "counts.info",
+                                         "counts.unchecked", "positive_control",
+                                         "knobs", "knobs_total", "knobs_relaxed",
+                                         "knobs_added", "knobs_unchanged",
+                                         "proposals", "homes", "findings"),
     "evidence_staleness.json": ("overall", "action", "reason", "counts.fresh",
                                 "counts.soft_stale", "counts.hard_stale",
                                 "counts.unknown_age", "counts.unchecked",
@@ -306,6 +315,7 @@ _PRODUCER: dict[str, str] = {
     "cio_target_producers.json": "spa_core/monitoring/cio_target_producers.py",
     "cio_architecture_constraints.json": "spa_core/monitoring/cio_architecture_constraints.py",
     "cio_component_map.json": "spa_core/monitoring/cio_component_map.py",
+    "cio_policy_change_procedure.json": "spa_core/monitoring/cio_policy_change_procedure.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1412,6 +1422,35 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         out.append("   ADVISORY: разорванный стык этим замером НЕ соединяется и "
                    "ни одна ступень не переносится — это money-path и решение "
                    "владельца")
+    elif name == "cio_policy_change_procedure.json":
+        # §48 ТЗ CIO. Печатаются ДВА ответа порознь, потому что требование
+        # владельца из двух половин: «не ослаблять молча» (что изменилось и в
+        # какую сторону) и «сформировать proposal» (находят ли решение по тому
+        # пути, который называет инструкция). Ослабление с достижимым решением
+        # находкой не является — иначе строка кричала бы о выполненной процедуре.
+        c = data.get("counts") or {}
+        ctrl = data.get("positive_control") or {}
+        relaxed = data.get("knobs_relaxed") or []
+        out.append(f"   правки Risk Policy (§48): {data.get('overall') or _UNMEASURED} "
+                   f"(critical={_num(c, 'critical')} warn={_num(c, 'warn')} "
+                   f"info={_num(c, 'info')} unchecked={_num(c, 'unchecked')})")
+        if not ctrl.get("passed"):
+            failed = [x.get("name") for x in (ctrl.get("checks") or [])
+                      if not x.get("passed")]
+            out.append("   [НЕ ИЗМЕРЕНО] положительный контроль не пройден "
+                       f"({', '.join(filter(None, failed)) or 'причина не названа'}) "
+                       "— счёт по §48 не читать")
+        else:
+            out.append(f"   против снимка v1.0: ослаблено {len(relaxed)}"
+                       f"{' (' + ', '.join(relaxed) + ')' if relaxed else ''}, "
+                       f"добавлено {len(data.get('knobs_added') or [])}, "
+                       f"не менялось {data.get('knobs_unchanged')} из "
+                       f"{data.get('knobs_total')}")
+        for f in (data.get("findings") or [])[:6]:
+            out.append(f"   [{(f.get('severity') or '').upper()}] {f.get('text')}"[:400])
+        out.append("   ADVISORY: ни один порог этим замером НЕ меняется и ни одно "
+                   "решение не переносится — правка порога это money-path и "
+                   "решение владельца")
     elif name == "cio_architecture_constraints.json":
         # §45 ТЗ CIO. Печатаем ДВА ответа порознь — концентрацию и LLM, — потому
         # что владелец назвал их в одном пункте, а нарушаются они независимо.

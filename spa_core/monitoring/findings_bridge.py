@@ -66,6 +66,7 @@ PRODUCES = (
     "data/cio_target_producers.json",
     "data/cio_architecture_constraints.json",
     "data/cio_component_map.json",
+    "data/cio_policy_change_procedure.json",
     "data/evidence_staleness.json",
     "data/apy_composition.json",
     "data/findings_bridge_report.json",
@@ -804,6 +805,24 @@ def main(argv=None) -> int:
                   f"critical={cmap['counts']['critical']})")
     except Exception as e:  # noqa: BLE001 — замер §46 не смеет валить мост
         print(f"cio_component_map: пропущено ({e})")
+    # §48 ТЗ CIO «Изменения Risk Policy»: не ослаблена ли политика МОЛЧА и
+    # находят ли решение, которым правку объясняют. Мост находок его НЕ читает:
+    # и правка порога, и перенос дома решений — не автоматическое действие.
+    # Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import cio_policy_change_procedure
+        pcp = cio_policy_change_procedure.run(root=args.root)
+        if not pcp["positive_control"]["passed"]:
+            print("cio_policy_change_procedure: "
+                  f"{pcp['overall']} (положительный контроль не пройден — счёт не читать)")
+        else:
+            print(f"cio_policy_change_procedure: {pcp['overall']} "
+                  f"(ослаблено {len(pcp['knobs_relaxed'])}, "
+                  f"добавлено {len(pcp['knobs_added'])}, "
+                  f"не менялось {pcp['knobs_unchanged']} из {pcp['knobs_total']}, "
+                  f"critical={pcp['counts']['critical']})")
+    except Exception as e:  # noqa: BLE001 — замер §48 не смеет валить мост
+        print(f"cio_policy_change_procedure: пропущено ({e})")
     try:
         from spa_core.monitoring import capital_evidence_coverage
         cec = capital_evidence_coverage.run(root=args.root)
