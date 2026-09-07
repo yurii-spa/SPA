@@ -233,6 +233,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                           "layers_declared", "concentration",
                                           "llm", "modules_parsed",
                                           "findings", "unchecked"),
+    # §46. `stages_declared` объявлен рядом с замером НАМЕРЕННО: без него
+    # «ступеней 10/10» нечем прочитать — не видно, ЧТО именно объявлено
+    # эквивалентом, и устаревшее объявление стало бы неотличимо от здорового.
+    "cio_component_map.json": ("overall", "counts.critical", "counts.warn",
+                               "counts.info", "counts.unchecked",
+                               "positive_control", "stages_declared", "stages",
+                               "stages_present", "stages_total", "edges",
+                               "edges_wired", "edges_total", "orchestrators",
+                               "findings"),
     "evidence_staleness.json": ("overall", "action", "reason", "counts.fresh",
                                 "counts.soft_stale", "counts.hard_stale",
                                 "counts.unknown_age", "counts.unchecked",
@@ -296,6 +305,7 @@ _PRODUCER: dict[str, str] = {
     "cio_auto_execution_limits.json": "spa_core/monitoring/cio_auto_execution_limits.py",
     "cio_target_producers.json": "spa_core/monitoring/cio_target_producers.py",
     "cio_architecture_constraints.json": "spa_core/monitoring/cio_architecture_constraints.py",
+    "cio_component_map.json": "spa_core/monitoring/cio_component_map.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1373,6 +1383,35 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         out.append("   ADVISORY: недостающее ограничение этим замером НЕ "
                    "строится и ни один порог не меняется — это money-path и "
                    "решение владельца")
+    elif name == "cio_component_map.json":
+        # §46 ТЗ CIO. Два ответа порознь, потому что вопросов в §46 два:
+        # «есть ли эквивалент» (чтобы не строить второй) и «несёт ли цепь ход».
+        # Печатать только первое значило бы отчитаться «карта построена» о
+        # ступени, чей продукт никто не читает.
+        c = data.get("counts") or {}
+        ctrl = data.get("positive_control") or {}
+        out.append(f"   карта компонентов (§46): {data.get('overall') or _UNMEASURED} "
+                   f"(critical={_num(c, 'critical')} warn={_num(c, 'warn')} "
+                   f"info={_num(c, 'info')} unchecked={_num(c, 'unchecked')})")
+        if not ctrl.get("passed"):
+            failed = [k for k, v in (ctrl.get("checks") or {}).items() if not v]
+            out.append("   [НЕ ИЗМЕРЕНО] положительный контроль не пройден "
+                       f"({', '.join(failed) or 'причина не названа'}) — счёт "
+                       "по §46 не читать")
+        else:
+            out.append(f"   эквивалент есть у {data.get('stages_present')} из "
+                       f"{data.get('stages_total')} ступеней владельца; "
+                       f"стыков несут ход {data.get('edges_wired')} из "
+                       f"{data.get('edges_total')}")
+            for e in (data.get("edges") or []):
+                if e.get("verdict") in ("ONE_WAY", "DEAD_END", "UNCHECKED"):
+                    out.append(f"   [{e['verdict']}] {e.get('from_name')} → "
+                               f"{e.get('to_name')}: {e.get('note') or ''}"[:400])
+        for f in (data.get("findings") or [])[:6]:
+            out.append(f"   [{(f.get('severity') or '').upper()}] {f.get('text')}"[:400])
+        out.append("   ADVISORY: разорванный стык этим замером НЕ соединяется и "
+                   "ни одна ступень не переносится — это money-path и решение "
+                   "владельца")
     elif name == "cio_architecture_constraints.json":
         # §45 ТЗ CIO. Печатаем ДВА ответа порознь — концентрацию и LLM, — потому
         # что владелец назвал их в одном пункте, а нарушаются они независимо.

@@ -65,6 +65,7 @@ PRODUCES = (
     # проверки `architecture_conformance`.
     "data/cio_target_producers.json",
     "data/cio_architecture_constraints.json",
+    "data/cio_component_map.json",
     "data/evidence_staleness.json",
     "data/apy_composition.json",
     "data/findings_bridge_report.json",
@@ -784,6 +785,25 @@ def main(argv=None) -> int:
                   f"{len(arep['llm']['doors'])})")
     except Exception as e:  # noqa: BLE001 — замер §45 не смеет валить мост
         print(f"cio_architecture_constraints: пропущено ({e})")
+    # §46 ТЗ CIO «Минимальный proposed component map»: у каких из ДЕСЯТИ
+    # названных владельцем ступеней есть эквивалент в дереве и НЕСЁТ ли цепь
+    # ход через него. Мост находок его НЕ читает: соединить разорванный стык
+    # значит изменить путь решения о капитале — money-path и решение владельца.
+    # Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import cio_component_map
+        cmap = cio_component_map.run(root=args.root)
+        if not cmap["positive_control"]["passed"]:
+            print(f"cio_component_map: {cmap['overall']} "
+                  f"(положительный контроль не пройден — счёт не читать)")
+        else:
+            print(f"cio_component_map: {cmap['overall']} "
+                  f"(ступеней с эквивалентом "
+                  f"{cmap['stages_present']}/{cmap['stages_total']}, "
+                  f"стыков несут ход {cmap['edges_wired']}/{cmap['edges_total']}, "
+                  f"critical={cmap['counts']['critical']})")
+    except Exception as e:  # noqa: BLE001 — замер §46 не смеет валить мост
+        print(f"cio_component_map: пропущено ({e})")
     try:
         from spa_core.monitoring import capital_evidence_coverage
         cec = capital_evidence_coverage.run(root=args.root)
