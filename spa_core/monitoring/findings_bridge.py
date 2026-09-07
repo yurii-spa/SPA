@@ -56,6 +56,7 @@ PRODUCES = (
     "data/decision_audit_trail.json",
     "data/cio_failure_modes.json",
     "data/cio_explainability.json",
+    "data/cio_kill_switch_controls.json",
     "data/evidence_staleness.json",
     "data/apy_composition.json",
     "data/findings_bridge_report.json",
@@ -688,6 +689,27 @@ def main(argv=None) -> int:
                   f"не считает никто {t.get('ABSENT')})")
     except Exception as e:  # noqa: BLE001 — замер §44 не смеет валить мост
         print(f"cio_explainability: пропущено ({e})")
+    # §42 ТЗ CIO «Kill switch»: сколько из трёх названных владельцем органов
+    # остановки у него есть, что каждый делает с книгой и переживают ли
+    # наблюдение с отчётом нажатие. Мост находок его НЕ читает по той же
+    # причине, что и соседи выше: дать владельцу ручку, которая останавливает
+    # движение денег, — money-path и решение владельца, а не строка
+    # автокарточки. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import cio_kill_switch_controls
+        krep = cio_kill_switch_controls.run(root=args.root)
+        t = krep.get("tally") or {}
+        if not krep["control"]["passed"]:
+            print(f"cio_kill_switch_controls: {krep['overall']} "
+                  f"(положительный контроль не пройден — счёт не читать)")
+        else:
+            print(f"cio_kill_switch_controls: {krep['overall']} "
+                  f"(есть {t.get('PRESENT')}/{krep['controls_total']}, "
+                  f"подменено {t.get('CONFLATED')}, "
+                  f"нет {t.get('ABSENT')}; отделимость "
+                  f"{(krep.get('separability') or {}).get('verdict')})")
+    except Exception as e:  # noqa: BLE001 — замер §42 не смеет валить мост
+        print(f"cio_kill_switch_controls: пропущено ({e})")
     try:
         from spa_core.monitoring import capital_evidence_coverage
         cec = capital_evidence_coverage.run(root=args.root)

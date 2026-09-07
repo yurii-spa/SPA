@@ -52,6 +52,12 @@ STALE_HOURS = 24.0
 
 _UNMEASURED = "НЕ ИЗМЕРЕНО"
 
+# Исходы §42 (`cio_kill_switch_controls`). Имена держатся здесь строками, а не
+# импортом из модуля-производителя: шаг 0-офис читает ОТЧЁТ, а не код, и должен
+# печатать его и тогда, когда производитель из этого дерева не импортируется.
+_PRESENT, _CONFLATED, _ABSENT = "PRESENT", "CONFLATED", "ABSENT"
+_UNCHECKED_KEY = "UNCHECKED"
+
 # ЧТО каждая именованная ветка читает у производителя — объявлено ДАННЫМИ, а не
 # спрятано в теле ветки, и сверяется с настоящим артефактом на каждом прогоне.
 #
@@ -177,6 +183,18 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                 "facts_total", "tally", "control",
                                 "subject_book", "books", "explanation_layer",
                                 "findings", "unchecked"),
+    # §42 ТЗ CIO «Kill switch». `tally` рядом с вердиктом по той же причине,
+    # что у соседей: вопрос владельца — не «сколько находок», а «сколько из ТРЁХ
+    # названных им органов остановки у него есть». `control` обязателен: без
+    # пройденного контроля «есть 1 из 3» означает не нехватку органов, а
+    # неисправность измерителя. `separability` отдельно — это ВТОРОЕ требование
+    # §42, и слить его с первым значит потерять половину вопроса.
+    "cio_kill_switch_controls.json": ("overall", "counts.critical", "counts.warn",
+                                      "counts.info", "counts.unchecked",
+                                      "controls_total", "tally", "control",
+                                      "owner_channel", "controls",
+                                      "decision_layer_under_door",
+                                      "separability", "findings", "unchecked"),
     "evidence_staleness.json": ("overall", "action", "reason", "counts.fresh",
                                 "counts.soft_stale", "counts.hard_stale",
                                 "counts.unknown_age", "counts.unchecked",
@@ -236,6 +254,7 @@ _PRODUCER: dict[str, str] = {
     "decision_audit_trail.json": "spa_core/monitoring/decision_audit_trail.py",
     "cio_failure_modes.json": "spa_core/monitoring/cio_failure_modes.py",
     "cio_explainability.json": "spa_core/monitoring/cio_explainability.py",
+    "cio_kill_switch_controls.json": "spa_core/monitoring/cio_kill_switch_controls.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1192,6 +1211,43 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         out.append("   ADVISORY: ни одно предложение во фразу владельцу этим "
                    "замером не дописывается — что система говорит о движении "
                    "денег, решает владелец")
+    elif name == "cio_kill_switch_controls.json":
+        # §42 ТЗ CIO «Kill switch». Печатаем СОСТАВ органов остановки, а не
+        # число находок: вопрос ТЗ — «сколько из трёх названных владельцем
+        # ручек у него есть и что каждая делает», и «есть 1 из 3, одна подменена»
+        # с «4 находки» читаются совершенно по-разному. Отдельной строкой —
+        # отделимость: это ВТОРОЕ требование §42, у него свой ответ.
+        c = data.get("counts") or {}
+        t = data.get("tally") or {}
+        ctrl = data.get("control") or {}
+        out.append(f"   органы остановки у владельца: "
+                   f"{data.get('overall') or _UNMEASURED} "
+                   f"(critical={_num(c, 'critical')} warn={_num(c, 'warn')} "
+                   f"info={_num(c, 'info')} unchecked={_num(c, 'unchecked')})")
+        if not ctrl.get("passed"):
+            out.append(f"   [НЕ ИЗМЕРЕНО] положительный контроль не пройден — "
+                       f"{ctrl.get('reason') or 'причина не названа'}; счёт по "
+                       f"органам не читать")
+        else:
+            out.append(f"   из {data.get('controls_total')} названных владельцем: "
+                       f"есть {t.get(_PRESENT)} · подменены другим эффектом "
+                       f"{t.get(_CONFLATED)} · отсутствуют {t.get(_ABSENT)} · "
+                       f"не измерено {t.get(_UNCHECKED_KEY)}")
+            for ctl in (data.get("controls") or []):
+                if ctl.get("outcome") in (_CONFLATED, _ABSENT):
+                    out.append(f"   [{ctl['outcome']}] «{ctl.get('owner_wording')}» — "
+                               f"{ctl.get('detail')}")
+            sep = data.get("separability") or {}
+            out.append(f"   остановка без остановки наблюдения: "
+                       f"{sep.get('verdict') or _UNMEASURED} — {sep.get('reason')}")
+        for f in (data.get("findings") or []):
+            if f.get("severity") in ("CRITICAL", "WARN"):
+                out.append(f"   [{f['severity']}] {f.get('message')}")
+        for u in (data.get("unchecked") or [])[:6]:
+            out.append(f"   [НЕ ИЗМЕРЕНО] {u}")
+        out.append("   ADVISORY: ни один орган остановки этим замером не "
+                   "строится — дать владельцу ручку, меняющую движение денег, "
+                   "это решение владельца")
     elif name == "decision_audit_trail.json":
         # §43 ТЗ CIO «Audit trail». Печатаем ДЕВЯТЬ полей владельца поимённо, а
         # не одно число находок: вопрос ТЗ — «через месяц ответить ЧЕРЕЗ ДАННЫЕ»,
