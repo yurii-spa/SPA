@@ -2,8 +2,16 @@
 trackerStatus:
   type: owner-decision
 title: Подписывающие адаптеры делают четыре дела из твоих пяти в одном файле — чинить сейчас или поставить условием перехода на реальные деньги
-status: needs-owner
+status: ingested
 created: 2026-09-07
+owner_choice: 2
+owner_answered_at: 2026-09-07T19:13:10.431584+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
+owner_answer_kind: option
+status_trail:
+  - "2026-09-07T19:13:10.431834+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-09-07T19:37:19.039804+00:00 owner-done -> ingested · queue.set_status · cycle-91425"
 ---
 
 ## Что случилось и почему это важно
@@ -59,3 +67,11 @@ sky_susds, maple, euler_v2).
 модуль `spa_core/monitoring/cio_architecture_constraints.py`, 41 тест,
 [ADR-252](../../docs/decisions/ADR-252-architecture-constraints-guard-blind-to-the-real-door.md).
 Ни один порог не изменён, ни одна строка рабочего контура не тронута.
+
+---
+
+## Решение владельца
+
+**Вариант 2** — Не трогать сейчас, а поставить условием перехода
+
+_Ответ владельца получен 2026-09-07T19:13:10.431584+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._

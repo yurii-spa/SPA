@@ -67,6 +67,7 @@ PRODUCES = (
     "data/cio_architecture_constraints.json",
     "data/cio_component_map.json",
     "data/cio_policy_change_procedure.json",
+    "data/cio_post_trade_verification.json",
     "data/evidence_staleness.json",
     "data/apy_composition.json",
     "data/findings_bridge_report.json",
@@ -823,6 +824,27 @@ def main(argv=None) -> int:
                   f"critical={pcp['counts']['critical']})")
     except Exception as e:  # noqa: BLE001 — замер §48 не смеет валить мост
         print(f"cio_policy_change_procedure: пропущено ({e})")
+    # §5 ТЗ CIO, ступень `post-trade verification`: есть ли предмет сверки и
+    # подают ли ей наблюдённый исход. Мост находок его НЕ читает: подать
+    # ступени фактическую книгу значит изменить путь решения о капитале —
+    # money-path и решение владельца. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import cio_post_trade_verification
+        ptv = cio_post_trade_verification.run(root=args.root)
+        if not ptv["positive_control"]["passed"]:
+            print("cio_post_trade_verification: "
+                  f"{ptv['overall']} (положительный контроль не пройден — "
+                  "счёт не читать)")
+        else:
+            print(f"cio_post_trade_verification: {ptv['overall']} "
+                  f"(предмет {ptv['subject']['verdict']}, "
+                  f"ходов книги {ptv['subject'].get('moves')}, "
+                  f"вызовов сверки вне тестов {ptv['inputs']['sites_production']} "
+                  f"из них с наблюдённым исходом "
+                  f"{ptv['inputs']['counts']['OBSERVED']}, "
+                  f"critical={ptv['counts']['critical']})")
+    except Exception as e:  # noqa: BLE001 — замер §5 не смеет валить мост
+        print(f"cio_post_trade_verification: пропущено ({e})")
     try:
         from spa_core.monitoring import capital_evidence_coverage
         cec = capital_evidence_coverage.run(root=args.root)

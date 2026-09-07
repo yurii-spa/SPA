@@ -245,6 +245,14 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # §48. `knobs` объявлен рядом со счётом НАМЕРЕННО: «ослаблено 1» нечем
     # прочитать без того, КАКОЕ поле и с какого значения — а «не менялось 11»
     # без состава неотличимо от молчания прибора.
+    # §5 ТЗ CIO, последняя ступень цепи. `subject` объявлен рядом с вердиктом
+    # НАМЕРЕННО: «ступень молчит» и «верифицировать нечего» — разные состояния,
+    # и без предмета вторая строка читалась бы как поломка там, где её нет.
+    "cio_post_trade_verification.json": ("overall", "counts.critical",
+                                         "counts.warn", "counts.info",
+                                         "counts.unchecked", "positive_control",
+                                         "subject", "stage", "inputs", "content",
+                                         "findings"),
     "cio_policy_change_procedure.json": ("overall", "counts.critical",
                                          "counts.warn", "counts.info",
                                          "counts.unchecked", "positive_control",
@@ -316,6 +324,7 @@ _PRODUCER: dict[str, str] = {
     "cio_architecture_constraints.json": "spa_core/monitoring/cio_architecture_constraints.py",
     "cio_component_map.json": "spa_core/monitoring/cio_component_map.py",
     "cio_policy_change_procedure.json": "spa_core/monitoring/cio_policy_change_procedure.py",
+    "cio_post_trade_verification.json": "spa_core/monitoring/cio_post_trade_verification.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1422,6 +1431,38 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         out.append("   ADVISORY: разорванный стык этим замером НЕ соединяется и "
                    "ни одна ступень не переносится — это money-path и решение "
                    "владельца")
+    elif name == "cio_post_trade_verification.json":
+        # §5 ТЗ CIO, ступень `post-trade verification`. Печатаются ТРИ ответа
+        # порознь, потому что они и есть три разных вопроса: есть ли предмет ·
+        # подают ли ступени наблюдённый исход · про ту ли книгу её последнее
+        # слово. Предмет идёт ПЕРВЫМ намеренно: «верифицировать нечего» —
+        # полный и честный ответ, и остальные строки при нём не находки.
+        c = data.get("counts") or {}
+        ctrl = data.get("positive_control") or {}
+        subj = data.get("subject") or {}
+        inp = data.get("inputs") or {}
+        icounts = inp.get("counts") or {}
+        out.append(f"   сверка исполненного (§5): {data.get('overall') or _UNMEASURED} "
+                   f"(critical={_num(c, 'critical')} warn={_num(c, 'warn')} "
+                   f"info={_num(c, 'info')} unchecked={_num(c, 'unchecked')})")
+        if not ctrl.get("passed"):
+            failed = [x.get("name") for x in (ctrl.get("checks") or [])
+                      if not x.get("passed")]
+            out.append("   [НЕ ИЗМЕРЕНО] положительный контроль не пройден "
+                       f"({', '.join(filter(None, failed)) or 'причина не названа'}) "
+                       "— счёт по §5 не читать")
+        else:
+            out.append(f"   предмет: {subj.get('verdict') or _UNMEASURED} — "
+                       f"ходов книги {subj.get('moves')}, последний "
+                       f"{subj.get('last_move') or 'нет'}")
+            out.append(f"   вызовов сверки вне тестов {inp.get('sites_production')}: "
+                       f"с наблюдённым исходом {icounts.get('OBSERVED')}, "
+                       f"из своей же цели {icounts.get('DERIVED_FROM_TARGET')}, "
+                       f"не разобрано {icounts.get('UNCHECKED')}")
+        for f in (data.get("findings") or [])[:6]:
+            out.append(f"   [{(f.get('severity') or '').upper()}] {f.get('text')}"[:400])
+        out.append("   ADVISORY: ступени НЕ подаётся фактический исход этим "
+                   "замером — соединение стыка это money-path и решение владельца")
     elif name == "cio_policy_change_procedure.json":
         # §48 ТЗ CIO. Печатаются ДВА ответа порознь, потому что требование
         # владельца из двух половин: «не ослаблять молча» (что изменилось и в

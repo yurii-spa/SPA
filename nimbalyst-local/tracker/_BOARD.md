@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-07T17:48:03Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-07T19:53:55Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (5ba474202) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (2063c38ce) · у **4** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **920** · ждёт владельца: **22** · занято сессиями: **13**.
+> Всего карточек: **924** · ждёт владельца: **19** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -24,11 +24,8 @@
 - **Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз** · _high_  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md`
 - **Кнопка «Пауза» не ставит на паузу — она продаёт всю книгу; настоящей паузы у тебя нет**  ·  `owner-decision-knopka-pauza-ne-stavit-na-pauzu-ona-prod.md`
 - **Pendle сам назначает себе уровень риска по размеру пула — а в справочнике написано другое**  ·  `owner-decision-pendle-sam-naznachaet-sebe-uroven-riska.md`
-- **Подписывающие адаптеры делают четыре дела из твоих пяти в одном файле — чинить сейчас или поставить условием перехода на реальные деньги**  ·  `owner-decision-podpisyvayuschie-adaptery-delayut-chetyre.md`
-- **Решения о риске лежат в трёх папках, а список считается одним**  ·  `owner-decision-resheniya-o-riske-lezhat-v-treh-papkah-a.md`
 - **Сорок процентов книги стоят на рынке, который система выбирает заново каждое утро**  ·  `owner-decision-sorok-protsentov-knigi-stoyat-na-rynke-k.md`
 - **Советник по перекладке денег не сможет включиться НИКОГДА — 30 дней он молчал не потому, что рынок тихий** · _high_  ·  `owner-decision-sovetnik-po-perekladke-deneg-ne-smozhet.md`
-- **Сторож номеров решений читает одну папку из трёх — десять номеров заняты дважды**  ·  `owner-decision-storozh-nomerov-reshenii-chitaet-odnu-pa.md`
 - **Цена газа в решении о перекладке взята константой — живые показания сети в 316 раз дешевле**  ·  `owner-decision-tsena-gaza-v-reshenii-o-perekladke-vzyat.md`
 - **Уточнение по заметке: 1**  ·  `owner-decision-utochnenie-po-zametke-1.md`
 - **Уточнение по заметке: ADR-070.13: тревогу core-agent-down гасит agent_health**  ·  `owner-decision-utochnenie-po-zametke-adr-070-13-trevogu-2.md`
@@ -67,11 +64,8 @@
 - Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз  ·  `owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md` · 2026-08-29
 - Кнопка «Пауза» не ставит на паузу — она продаёт всю книгу; настоящей паузы у тебя нет  ·  `owner-decision-knopka-pauza-ne-stavit-na-pauzu-ona-prod.md` · 2026-09-07
 - Pendle сам назначает себе уровень риска по размеру пула — а в справочнике написано другое  ·  `owner-decision-pendle-sam-naznachaet-sebe-uroven-riska.md` · 2026-09-05
-- Подписывающие адаптеры делают четыре дела из твоих пяти в одном файле — чинить сейчас или поставить условием перехода на реальные деньги  ·  `owner-decision-podpisyvayuschie-adaptery-delayut-chetyre.md` · 2026-09-07
-- Решения о риске лежат в трёх папках, а список считается одним  ·  `owner-decision-resheniya-o-riske-lezhat-v-treh-papkah-a.md` · 2026-09-07
 - Сорок процентов книги стоят на рынке, который система выбирает заново каждое утро  ·  `owner-decision-sorok-protsentov-knigi-stoyat-na-rynke-k.md` · 2026-09-05
 - Советник по перекладке денег не сможет включиться НИКОГДА — 30 дней он молчал не потому, что рынок тихий  ·  `owner-decision-sovetnik-po-perekladke-deneg-ne-smozhet.md` · 2026-09-05
-- Сторож номеров решений читает одну папку из трёх — десять номеров заняты дважды  ·  `owner-decision-storozh-nomerov-reshenii-chitaet-odnu-pa.md` · 2026-09-07
 - Цена газа в решении о перекладке взята константой — живые показания сети в 316 раз дешевле  ·  `owner-decision-tsena-gaza-v-reshenii-o-perekladke-vzyat.md` · 2026-09-06
 - Уточнение по заметке: 1  ·  `owner-decision-utochnenie-po-zametke-1.md` · 2026-08-31
 - Уточнение по заметке: ADR-070.13: тревогу core-agent-down гасит agent_health  ·  `owner-decision-utochnenie-po-zametke-adr-070-13-trevogu-2.md` · 2026-08-31
@@ -222,6 +216,7 @@
 - Партия 2 карантина: кандидатов четыре, и по ним у меня разные рекомендации  ·  `owner-decision-partiya-2-karantina-kandidatov-chetyre-i.md` · 2026-08-29
 - Переспрашиваю: судьба сторожа telegram_watcher — твой ответ 15.08 потерялся вместе с закрытой веткой  ·  `owner-decision-peresprashivayu-sudba-storozha-telegram.md` · 2026-08-21
 - Перезапустить сторожа реального времени, чтобы починка начала работать (одна команда)  ·  `owner-decision-perezapustit-storozha-realnogo-vremeni-c.md` · 2026-08-02
+- Подписывающие адаптеры делают четыре дела из твоих пяти в одном файле — чинить сейчас или поставить условием перехода на реальные деньги  ·  `owner-decision-podpisyvayuschie-adaptery-delayut-chetyre.md` · 2026-09-07
 - Поиск новых протоколов не идёт: программу, которая его делает, никто не запускает  ·  `owner-decision-poisk-novyh-protokolov-ne-idet-programmu.md` · 2026-08-18
 - После страховки деньги остаются сиротами: 10 % капитала ($10 000) лежат в кэше, потому что освободившийся бюджет никто не перекладывает  ·  `owner-decision-posle-strahovki-dengi-ostayutsya-sirotam.md` · 2026-08-07
 - Правило «Sky/sUSDS = 0 %» отменено твоим же решением, но написано как действующее — и уже породило ложную тревогу  ·  `owner-decision-pravilo-sky-susds-0-otmeneno-tvoim-zhe-r.md` · 2026-08-17
@@ -234,6 +229,7 @@
 - Решение ADR-070 п.6 исполнить нельзя: «один вольт — один риск» упирается в тир morpho_steakhouse (40% → 20%)  ·  `owner-decision-reshenie-adr-070-p-6-ispolnit-nelzya-odi.md` · 2026-08-10
 - Решение ADR-104 записано, но до машины не доехало: CIO обязан смотреть раз в 5 минут, а смотрит раз в сутки  ·  `owner-decision-reshenie-adr-104-zapisano-no-do-mashiny.md` · 2026-08-21
 - Решение по алерту: ⚠️ SPA 7-Day Checkpoint FAILED: 1 check(s)  ·  `owner-decision-reshenie-po-alertu-spa-7-day-checkpoint.md` · 2026-08-08
+- Решения о риске лежат в трёх папках, а список считается одним  ·  `owner-decision-resheniya-o-riske-lezhat-v-treh-papkah-a.md` · 2026-09-07
 - Решить судьбу 9 «зависших» агентов — 10 минут, и конституция станет полной  ·  `owner-decision-reshit-sudbu-9-zavisshih-agentov-10-minu.md` · 2026-08-06
 - Сайт: автономная правка задела owner-gated область — нужно решение  ·  `owner-decision-sait-avtonomnaya-pravka-zadela-owner-gat-2.md` · 2026-08-08
 - Сайт: автономная правка задела owner-gated область — нужно решение  ·  `owner-decision-sait-avtonomnaya-pravka-zadela-owner-gat-3.md` · 2026-08-08
@@ -249,6 +245,7 @@
 - Сторож базисной сделки ожил и хочет слать тебе «отличная возможность» — включаем эти сообщения или нет  ·  `owner-decision-storozh-bazisnoi-sdelki-ozhil-i-hochet-s.md` · 2026-08-01
 - Сторож чисел сайта краснеет ~10 раз в день на нашей же автоматике — разрешить ему молчать там, где он всё равно ничего не измеряет?  ·  `owner-decision-storozh-chisel-saita-krasneet-10-raz-v-den.md` · 2026-08-19
 - Сторож голосований следит за чужими протоколами, а за нашими — нет: выбери, добавлять источники или убрать лишние  ·  `owner-decision-storozh-golosovanii-sledit-za-chuzhimi-p.md` · 2026-08-01
+- Сторож номеров решений читает одну папку из трёх — десять номеров заняты дважды  ·  `owner-decision-storozh-nomerov-reshenii-chitaet-odnu-pa.md` · 2026-09-07
 - Сторож правил не видит стоп-кран — смотрит в файл, которого нет (выбери, как чинить)  ·  `owner-decision-storozh-pravil-ne-vidit-stop-kran-smotri.md` · 2026-07-29
 - Сторож пропущенного цикла молчит до 10:00 UTC, хотя цикл стартует в 06:00 UTC — опустить порог?  ·  `owner-decision-storozh-propuschennogo-tsikla-molchit-do.md` · 2026-07-30
 - Сторож просадки решает, уже зная итог дня — наши числа о его пользе завышены  ·  `owner-decision-storozh-prosadki-reshaet-uzhe-znaya-itog.md` · 2026-09-02
@@ -298,7 +295,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (464)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (468)
 
 ### · needs-owner
 - Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md` · 2026-08-29
@@ -690,8 +687,9 @@
 - Экономика хода на ИЗМЕРЕННОМ газе (дизайн готов, кода нет) — money-path, отдельный ADR  ·  `inbox-ekonomika-khoda-na-izmerennom-gaze-dizayn.md` · 2026-09-02
 - Флот теряет 29 агентов при переустановке — plist есть, в установщике нет  ·  `inbox-flot-teryaet-29-agentov-pri-pereustanovk.md` · 2026-08-26
 - Гейт перед установкой агента КОМПИЛИРУЕТ скрипт вместо импорта — и сказал «PASSED» про агента, который умирает при каждом запуске  ·  `inbox-geit-pered-ustanovkoi-agenta-kompiliruet.md` · 2026-08-27
+- Go-live: условием перехода — разнесение подписывающих адаптеров (решение владельца, вариант 2)  ·  `inbox-go-live-usloviem-perehoda-raznesenie-pod.md` · 2026-09-07
 - Голый ответ владельца («1», «2») при вопросе БЕЗ вариантов молча превращается в задачу — решение не применяется  ·  `inbox-golyi-otvet-vladeltsa-1-2-pri-voprose-be.md` · 2026-08-22
-- Храповик дат КРАСНЫЙ на origin/main: у двух файлов маркер не в той форме  ·  `inbox-hrapovik-dat-krasnyi-na-origin-main-u-dv.md` · 2026-09-07
+- Пометка FROZEN-DATE-OK ВНЕ комментария не читается никем и молчит — второй файл храповика  ·  `inbox-hrapovik-dat-krasnyi-na-origin-main-u-dv.md` · 2026-09-07
 - Храповик дат КРАСНЫЙ на origin/main: у test_decision_reproducibility.py нет пометки (причина injected-clock была бы ложной)  ·  `inbox-hrapovik-dat-krasnyi-na-origin-main-u-te.md` · 2026-09-06
 - Храповик литеральных дат КРАСЕН на origin/main: два файла вошли в класс, база расти не может  ·  `inbox-hrapovik-literalnyh-dat-krasen-na-origin.md` · 2026-09-07
 - Храповик литеральных дат ловит класс ТОЛЬКО после пуша — три экземпляра, каждый чинила следующая сессия  ·  `inbox-hrapovik-literalnyh-dat-lovit-klass-tolk.md` · 2026-08-28
@@ -720,6 +718,7 @@
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
 - Перемерить записи #35–#76 после починки курса (вторая половина варианта 1, ADR-139)  ·  `inbox-peremerit-zapisi-35-76-posle-pochinki-ku.md` · 2026-08-26
 - Перепись 18 статических адаптеров: где литерал, где живой пул и сколько там доходности  ·  `inbox-perepis-18-staticheskih-adapterov.md` · 2026-08-29
+- Перепись сирот считает ПРОЗУ в manifest.json проводкой — упоминание в notes выводит модуль из переписи  ·  `inbox-perepis-sirot-schitaet-prozu-v-manifest.md` · 2026-09-07
 - Перепись закончена: опрошены все 36 адаптеров своими фидами — доступная доходность из нашего набора исчерпана, кроме трёх статических меток  ·  `inbox-perepis-zakonchena-oprosheny-vse-36-adap.md` · 2026-08-29
 - Первичный источник fluid_usdc МЁРТВ: оба endpoint'а Fluid отвечают 404, а докстринг обещает слой «кто первый»  ·  `inbox-pervichnyi-istochnik-fluid-usdc-mertv-ob.md` · 2026-09-06
 - Починить писателей живого data/ по карте замера — класс обнесён храповиком, но не закрыт  ·  `inbox-pochinit-pisatelei-zhivogo-data-po-karte.md` · 2026-08-23
@@ -735,6 +734,7 @@
 - Protection Lab фазы 6–8: AI-генератор параметров, перебор adversarial-комбинаций, страница сайта (owner-gated)  ·  `inbox-protection-lab-fazy-6-8-ai-generator-par.md` · 2026-08-22
 - Рассыльщик открытых вопросов наследует ту же слепоту: закрытый на origin вопрос может уехать владельцу повторно  ·  `inbox-rassylschik-otkrytyh-voprosov-nasleduet.md` · 2026-09-03
 - Разобрать 52 карточки с ветки work-status-check, потом удалить ветку (решение владельца 20.08, вариант 1)  ·  `inbox-razobrat-52-kartochki-s-vetki-work-statu.md` · 2026-08-20
+- Реестр решений: дописать указатели на 78 ADR из других папок (решение владельца, вариант А)  ·  `inbox-reestr-reshenii-dopisat-ukazateli-na-78.md` · 2026-09-07
 - scripts/system_health_check.py заменён монитором два месяца назад, но остался в дереве  ·  `inbox-scripts-system-health-check-py-zamenen-m.md` · 2026-08-25
 - Семь скриптов, вскрытых строгим сканером: разобрать поштучно (подключить / списать / вывести класс правилом)  ·  `inbox-sem-skriptov-vskrytyh-strogim-skanerom-r.md` · 2026-08-16
 - Сессия теряет доступ на ЧТЕНИЕ прод-дерева, а запись продолжает работать — второй случай из двух аудитов  ·  `inbox-sessiya-teryaet-dostup-na-chtenie-prod-de.md` · 2026-08-26
@@ -754,6 +754,7 @@
 - §6.4 закрывает ту самую карточку, которую вердикт истории велел взять в работу: 12 из 34 закрытий 31.08  ·  `inbox-sobytiinyi-inteik-proshel-po-staromu-bek.md` · 2026-09-03
 - Спор об ответе владельца НЕ разрешается уборкой: старую сторону держат чужие живые деревья, а у сторожа нет слова «вытеснено ПОЗЖЕ»  ·  `inbox-spor-ob-otvete-vladeltsa-ne-razreshaetsy.md` · 2026-08-31
 - Сторож читает регистр вытеснения только на стороне origin — второе нажатие после доставки снова зовёт человека  ·  `inbox-storozh-chitaet-registr-vytesneniya-tolk.md` · 2026-08-30
+- Сторож номеров ADR: читать все три папки (решение владельца, вариант 1)  ·  `inbox-storozh-nomerov-adr-chitat-vse-tri-papki.md` · 2026-09-07
 - Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md` · 2026-08-30 · 🔒 `cycle-84821`
 - Сторож параллельных прогонов кричит «СТОЛКНОВЕНИЕ» на ОДИН правильный прогон: обёртка и её же дочерний pytest считаются двумя  ·  `inbox-storozh-parallelnyh-progonov-krichit-sto.md` · 2026-08-30
 - Сторож вопросов владельцу не измеряет, ЖИВ ЛИ ещё вопрос — и звал отправить команду, ставшую разрушительной  ·  `inbox-storozh-voprosov-vladeltsu-ne-izmeryaet.md` · 2026-08-29
