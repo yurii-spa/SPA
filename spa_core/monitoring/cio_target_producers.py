@@ -121,6 +121,7 @@ import ast
 import datetime as dt
 import json
 import os
+import re
 from typing import Any, Callable
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -185,6 +186,114 @@ def _iter_runtime_modules(root: str):
         if "/tests/" in rel or "/test_" in rel or rel.startswith("test_"):
             continue
         yield rel, path
+
+
+# ── достижимость сайта от точек входа флота ───────────────────────────────────
+#
+# Зачем отдельная проба. Происхождение нагрузки (`DECIDES`/`DESCRIBES`) меряется
+# по вызовам ВНУТРИ выражения, и на четырёх сайтах оно не установилось:
+# `_sample_positions` (демо-CLI), пустой список вызовов (литерал в теле),
+# `items` (сериализация собственного состояния), `compute_nav` (доказательство
+# NAV из уже посчитанной книги). Замер 07.09 назвал их вслух третьим исходом —
+# и это правильно, но перепись оставалась частичной, а от её полноты зависит
+# ответ на вопрос заказа «кто ЕЩЁ».
+#
+# Второй вопрос закрывает разрыв, НЕ угадывая происхождение: **исполняется ли
+# этот код в живой системе вообще.** Модуль, которого не запускает ни одна точка
+# входа флота и который не импортирует (транзитивно) ни один нетестовый модуль,
+# производителем цели не является — какой бы формы нагрузку он ни писал.
+#
+# 🪤 Ловушка, ради которой здесь третий исход. Ответ «недостижим» ЗАКРЫВАЕТ
+# находку, поэтому проба, сломавшаяся молча, объявила бы недостижимым ВСЁ — то
+# есть изготовила бы тишину. Поэтому: (1) не разобралась ни одна точка входа ⇒
+# достижимость НЕ ИЗМЕРЕНА и сайты остаются `UNKNOWN`, громко; (2) обязателен
+# положительный контроль — объявленные производители, про которых мы знаем, что
+# они живые, ОБЯЗАНЫ попасть в достижимые; не попали ⇒ проба неисправна, и её
+# вердикт не применяется вовсе.
+_OFFLINE = "OFFLINE"
+
+
+def _module_dotted(rel: str) -> str:
+    """`spa_core/a/b.py` → `spa_core.a.b`."""
+    return rel[:-3].replace("/", ".") if rel.endswith(".py") else rel.replace("/", ".")
+
+
+def _fleet_entry_modules(root: str) -> set[str]:
+    """Модули, которые ЗАПУСКАЮТ обёртки флота (`scripts/agent_*.sh`).
+
+    Читается то, что обёртка передаёт запускателю, а не список из головы:
+    launchd зовёт обёртку, обёртка называет цель. Форма `spa_core.<путь>` —
+    модульная цель `python3 -m`.
+    """
+    import pathlib
+    out: set[str] = set()
+    for sh in sorted((pathlib.Path(root) / "scripts").glob("agent_*.sh")):
+        try:
+            text = sh.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for m in re.findall(r"spa_core\.[A-Za-z_0-9.]+", text):
+            out.add(m.rstrip("."))
+        # Обёртка бывает ДВУХ форм, и вторую первая редакция пробы не читала:
+        # цель-СКРИПТ (`scripts/foo.py`). Положительный контроль поймал это
+        # сразу — без скриптовых корней недостижимыми оказывались `allocator` и
+        # `portfolio_rebalancer`, то есть ГЛАВНЫЕ производители цели: дневной
+        # цикл заходит в них через скрипт, а не через `python3 -m`.
+        for sc in re.findall(r"scripts/([A-Za-z_0-9]+)\.py", text):
+            out.add(f"scripts.{sc}")
+    return {m for m in out if m != "spa_core"}
+
+
+def _import_graph(root: str) -> dict[str, set[str]]:
+    """Кто кого импортирует, по РАЗБОРУ ДЕРЕВА (тесты исключены тем же фильтром)."""
+    graph: dict[str, set[str]] = {}
+    for rel, path in _iter_runtime_modules(root):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except (OSError, SyntaxError, UnicodeDecodeError):
+            continue
+        deps: set[str] = set()
+        for n in ast.walk(tree):
+            if isinstance(n, ast.Import):
+                deps.update(a.name for a in n.names)
+            elif isinstance(n, ast.ImportFrom) and n.module:
+                deps.add(n.module)
+                deps.update(f"{n.module}.{a.name}" for a in n.names)
+        graph[_module_dotted(rel)] = deps
+    return graph
+
+
+def _live_reachable(root: str) -> tuple[set[str] | None, str]:
+    """Модули, достижимые от точек входа флота. `None` ⇒ НЕ ИЗМЕРЕНО (с причиной).
+
+    Достижимость считается по импортам от каждой точки входа обёрток. Сам факт
+    «модуль есть в дереве» достижимостью не является — именно на этом ловится
+    демо-CLI, который никто не запускает.
+    """
+    entries = _fleet_entry_modules(root)
+    if not entries:
+        return None, ("ни одна обёртка флота не разобрана — достижимость "
+                      "мерить нечем")
+    graph = _import_graph(root)
+    if not graph:
+        return None, "ни один модуль рантайма не разобран"
+    known = set(graph)
+    reach: set[str] = set()
+    stack = [e for e in entries]
+    while stack:
+        cur = stack.pop()
+        if cur in reach:
+            continue
+        reach.add(cur)
+        for dep in graph.get(cur, ()):
+            # Импорт `from pkg.mod import name` даёт и `pkg.mod.name`; в графе
+            # живёт только модуль, поэтому берётся самый длинный известный префикс.
+            cand = dep
+            while cand and cand not in known:
+                cand = cand.rpartition(".")[0]
+            if cand and cand not in reach:
+                stack.append(cand)
+    return reach, ""
 
 
 def _string_constants(tree: ast.AST) -> set[str]:
@@ -337,6 +446,21 @@ def _enumerate_producers(root: str) -> dict:
     "parse_failures": [...], "complete": bool, "reason": str}``.
     """
     declared_modules = {mod for _, mod, _ in DECLARED_BOOKS}
+
+    # Достижимость — ВТОРОЙ вопрос к неразрешённому сайту (см. блок выше).
+    # Положительный контроль обязателен: объявленные производители заведомо
+    # живые, и если проба их не видит — она неисправна, и её вердикт не
+    # применяется ВОВСЕ (иначе «недостижим» стало бы механизмом тишины).
+    reachable, reach_unmeasured = _live_reachable(root)
+    if reachable is not None:
+        blind = sorted(_module_dotted(m) for m in declared_modules
+                       if _module_dotted(m) not in reachable)
+        if blind:
+            reachable, reach_unmeasured = None, (
+                "положительный контроль достижимости не пройден: объявленные "
+                "производители не видны пробе (" + ", ".join(blind[:4]) + ") — "
+                "вердикт «недостижим» не применяется")
+
     seen_writes: dict[str, list[dict]] = {}
     undeclared: list[dict] = []
     unresolved: list[dict] = []
@@ -365,7 +489,19 @@ def _enumerate_producers(root: str) -> dict:
             if w["provenance"] == "DECIDES":
                 undeclared.append(w)
             elif w["provenance"] == "UNKNOWN":
-                unresolved.append(w)
+                if (reachable is not None
+                        and _module_dotted(rel) not in reachable):
+                    # Происхождение нагрузки так и не установлено — но код,
+                    # которого не исполняет никто, цель не производит. Это
+                    # ИЗМЕРЕНИЕ, а не смягчение: станет достижимым — снова
+                    # станет громким.
+                    # `resolved` НЕ трогается: он отвечает на другой вопрос —
+                    # удалось ли назвать артефакт, — и подмена одного ответа
+                    # другим и есть та ошибка, которую этот модуль ловит.
+                    w["provenance"] = _OFFLINE
+                    w["origin"] = ["не достижим ни от одной точки входа флота"]
+                else:
+                    unresolved.append(w)
 
     # Обратная сторона: объявленный производитель, у которого не нашлось НИ
     # сайта записи книги, НИ вызова, решающего её состав. Это не «всё хорошо» —

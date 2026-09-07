@@ -367,3 +367,160 @@ class TestReportShape(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+class TestLiveReachability(unittest.TestCase):
+    """Дефект 6 (цикл #512): «происхождение не установлено» ≠ «производитель».
+
+    Замер #511 оставил ЧЕТЫРЕ сайта в третьем исходе `UNKNOWN`, и перепись
+    честно называла себя частичной. Разбор #512 показал, что все четыре —
+    демо-CLI и доказательство NAV, которых не запускает ни одна точка входа
+    флота. Второй вопрос («исполняется ли этот код вообще») закрывает разрыв,
+    НЕ угадывая происхождение.
+
+    Опаснее самой находки здесь механика ответа: «недостижим» ЗАКРЫВАЕТ строку,
+    поэтому сломавшаяся проба объявила бы недостижимым ВСЁ и изготовила тишину.
+    Ради этого — положительный контроль и третий исход, и оба проверяются ниже.
+    """
+
+    def _tree(self, wrappers: dict[str, str], modules: dict[str, str]) -> str:
+        """Крошечное дерево: обёртки флота + модули рантайма."""
+        root = tempfile.mkdtemp(prefix="reach_")
+        os.makedirs(os.path.join(root, "scripts"), exist_ok=True)
+        for name, body in wrappers.items():
+            with open(os.path.join(root, "scripts", name), "w",
+                      encoding="utf-8") as fh:
+                fh.write(body)
+        for rel, body in modules.items():
+            full = os.path.join(root, rel)
+            os.makedirs(os.path.dirname(full), exist_ok=True)
+            with open(full, "w", encoding="utf-8") as fh:
+                fh.write(body)
+        return root
+
+    def test_module_run_by_a_wrapper_is_reachable(self):
+        """Положительный контроль пробы: живой модуль обязан быть достижим."""
+        root = self._tree(
+            {"agent_x.sh": "exec bash agent_template.sh x spa_core.live.entry --run\n"},
+            {"spa_core/live/entry.py": "import spa_core.live.helper\n",
+             "spa_core/live/helper.py": "x = 1\n"})
+        reach, why = mod._live_reachable(root)
+        self.assertIsNotNone(reach, why)
+        self.assertIn("spa_core.live.entry", reach)
+        self.assertIn("spa_core.live.helper", reach,
+                      "достижимость обязана идти ПО ИМПОРТАМ, а не по одному корню")
+
+    def test_script_target_wrapper_is_a_root_too(self):
+        """Регрессия дефекта САМОЙ этой правки (цикл #512).
+
+        Первая редакция читала у обёртки только модульную цель `spa_core.*` и
+        пропускала цель-СКРИПТ. Из-за этого недостижимыми оказывались
+        `allocator` и `portfolio_rebalancer` — ГЛАВНЫЕ производители цели, —
+        и положительный контроль правильно запретил применять вердикт.
+        Тест держит вторую форму обёртки.
+        """
+        root = self._tree(
+            {"agent_y.sh": "exec python3 /abs/scripts/daily_cycle.py --run\n"},
+            {"scripts/daily_cycle.py": "import spa_core.alloc.core\n",
+             "spa_core/alloc/core.py": "y = 1\n"})
+        reach, why = mod._live_reachable(root)
+        self.assertIsNotNone(reach, why)
+        self.assertIn("spa_core.alloc.core", reach,
+                      "цель-скрипт обёртки обязана быть корнем достижимости")
+
+    def test_module_nobody_runs_is_not_reachable(self):
+        """Обратная сторона: модуль без единого запускающего — недостижим."""
+        root = self._tree(
+            {"agent_x.sh": "exec bash agent_template.sh x spa_core.live.entry --run\n"},
+            {"spa_core/live/entry.py": "z = 1\n",
+             "spa_core/analytics/demo_cli.py": "w = 1\n"})
+        reach, why = mod._live_reachable(root)
+        self.assertIsNotNone(reach, why)
+        self.assertNotIn("spa_core.analytics.demo_cli", reach)
+
+    def test_no_wrapper_parsed_is_the_third_outcome_not_silence(self):
+        """Ни одной обёртки ⇒ НЕ ИЗМЕРЕНО с причиной, а не «все недостижимы».
+
+        Без этой ветки поломка пробы выглядела бы как полная перепись — то есть
+        сторож замолчал бы ровно от того дефекта, против которого написан.
+        """
+        root = self._tree({}, {"spa_core/live/entry.py": "q = 1\n"})
+        reach, why = mod._live_reachable(root)
+        self.assertIsNone(reach, "пустой набор корней обязан давать НЕ ИЗМЕРЕНО")
+        self.assertTrue(why.strip(), "третий исход обязан нести причину")
+
+
+class TestReachabilityIsGuardedByItsControl(unittest.TestCase):
+    """Вердикт «недостижим» не применяется, если проба не видит живых."""
+
+    def test_declared_producers_are_reachable_in_the_real_tree(self):
+        """Настоящее дерево: все объявленные производители обязаны быть видны.
+
+        Это тот самый контроль, который поймал пропуск скриптовых корней. Он
+        меряет НАСТОЯЩЕЕ дерево — на синтетическом он не поймал бы ничего.
+        """
+        root = os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(mod.__file__))))
+        reach, why = mod._live_reachable(root)
+        self.assertIsNotNone(reach, f"достижимость не измерена: {why}")
+        blind = [mod._module_dotted(m) for _, m, _ in mod.DECLARED_BOOKS
+                 if mod._module_dotted(m) not in reach]
+        self.assertEqual(blind, [], f"проба не видит живых производителей: {blind}")
+
+    def test_unreachable_unknown_site_becomes_offline_not_unknown(self):
+        """Недостижимый сайт с неустановленным происхождением ⇒ OFFLINE."""
+        root = os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(mod.__file__))))
+        enum = mod._enumerate_producers(root)
+        still_unknown = [w for w in enum["unresolved"]
+                         if w.get("provenance") == "UNKNOWN"]
+        self.assertEqual(
+            still_unknown, [],
+            "сайты, которых не исполняет никто, обязаны получать измеренный "
+            f"исход, а не оставаться в третьем: {still_unknown}")
+
+    def test_reachable_unknown_site_stays_loud(self):
+        """Достижимый сайт с неустановленным происхождением ОСТАЁТСЯ громким.
+
+        Иначе новая ветка была бы не измерением, а глушителем: она обязана
+        закрывать только то, чего никто не исполняет.
+        """
+        self.assertIn("_OFFLINE", dir(mod))
+        src = open(mod.__file__, encoding="utf-8").read()
+        self.assertIn("and _module_dotted(rel) not in reachable", src,
+                      "исход OFFLINE обязан быть обусловлен НЕдостижимостью")
+
+    def test_control_refuses_the_verdict_when_a_live_producer_is_invisible(self):
+        """ПРОВОДКА самого контроля: слеп к живому ⇒ вердикт не применяется.
+
+        Эта ветка на здоровом дереве не срабатывает НИКОГДА, поэтому снятие
+        контроля не красило ни один тест (мутация #4 цикла #512 прошла зелёной)
+        — ровно класс «сторож не проверен, потому что состояние по умолчанию
+        делает его лишним». Здесь проба заставлена ослепнуть на объявленном
+        производителе, и от контроля требуется отказать в закрытии строк.
+        """
+        root = os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(mod.__file__))))
+        full, why = mod._live_reachable(root)
+        self.assertIsNotNone(full, why)
+        blinded = set(full) - {mod._module_dotted(mod.DECLARED_BOOKS[0][1])}
+
+        original = mod._live_reachable
+        mod._live_reachable = lambda _root: (blinded, "")
+        try:
+            enum = mod._enumerate_producers(root)
+        finally:
+            mod._live_reachable = original
+
+        offline = [w for ws in enum.values() if isinstance(ws, list) for w in ws
+                   if isinstance(w, dict) and w.get("provenance") == mod._OFFLINE]
+        self.assertEqual(
+            offline, [],
+            "контроль обязан ЗАПРЕТИТЬ вердикт «недостижим», когда проба не "
+            f"видит живого производителя, а он закрыл строки: {offline}")
+        still_unknown = [w for w in enum["unresolved"]
+                         if w.get("provenance") == "UNKNOWN"]
+        self.assertTrue(
+            still_unknown,
+            "при неисправной пробе сайты обязаны ОСТАТЬСЯ в третьем исходе, "
+            "а не тихо исчезнуть")
