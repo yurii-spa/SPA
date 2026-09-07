@@ -57,6 +57,9 @@ _UNMEASURED = "НЕ ИЗМЕРЕНО"
 # печатать его и тогда, когда производитель из этого дерева не импортируется.
 _PRESENT, _CONFLATED, _ABSENT = "PRESENT", "CONFLATED", "ABSENT"
 _UNCHECKED_KEY = "UNCHECKED"
+# Исходы §41 (`cio_auto_execution_limits`). `_ABSENT` и `_UNCHECKED_KEY` общие с
+# §42 намеренно: одно и то же слово в двух отчётах обязано значить одно и то же.
+_BINDING, _LITERAL, _DECLARED_INERT = "BINDING", "LITERAL", "DECLARED_INERT"
 
 # ЧТО каждая именованная ветка читает у производителя — объявлено ДАННЫМИ, а не
 # спрятано в теле ветки, и сверяется с настоящим артефактом на каждом прогоне.
@@ -195,6 +198,19 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                       "owner_channel", "controls",
                                       "decision_layer_under_door",
                                       "separability", "findings", "unchecked"),
+    # §41 ТЗ CIO «Auto-execution limits». `tally` рядом с вердиктом по той же
+    # причине, что у §42: вопрос владельца — не «сколько находок», а «сколько
+    # из ДВЕНАДЦАТИ названных им ограничений реально стои́т на пути решения».
+    # `control` обязателен: без пройденного контроля «нет 6 из 12» означает не
+    # нехватку лимитов, а неисправность измерителя. `surfaces` объявлены рядом
+    # НАМЕРЕННО — ограничение может связывать на одной поверхности решения и
+    # молчать на другой, и отчёт, не назвавший поверхность, отвечает верно на
+    # не тот вопрос.
+    "cio_auto_execution_limits.json": ("overall", "counts.critical", "counts.warn",
+                                       "counts.info", "counts.unchecked",
+                                       "limits_total", "tally", "control",
+                                       "surfaces", "declared_policy_fields",
+                                       "limits", "findings", "unchecked"),
     "evidence_staleness.json": ("overall", "action", "reason", "counts.fresh",
                                 "counts.soft_stale", "counts.hard_stale",
                                 "counts.unknown_age", "counts.unchecked",
@@ -255,6 +271,7 @@ _PRODUCER: dict[str, str] = {
     "cio_failure_modes.json": "spa_core/monitoring/cio_failure_modes.py",
     "cio_explainability.json": "spa_core/monitoring/cio_explainability.py",
     "cio_kill_switch_controls.json": "spa_core/monitoring/cio_kill_switch_controls.py",
+    "cio_auto_execution_limits.json": "spa_core/monitoring/cio_auto_execution_limits.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1248,6 +1265,45 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         out.append("   ADVISORY: ни один орган остановки этим замером не "
                    "строится — дать владельцу ручку, меняющую движение денег, "
                    "это решение владельца")
+    elif name == "cio_auto_execution_limits.json":
+        # §41 ТЗ CIO «Auto-execution limits». Печатаем СОСТАВ ограничений и
+        # ПОВЕРХНОСТЬ, на которой каждое связывает, а не число находок: «нет 6
+        # из 12, у 2 порог зашит в коде» и «12 находок» читаются совершенно
+        # по-разному. Отдельной строкой — полусвязанные: ограничение, которое
+        # работает у того, кто ПРЕДЛАГАЕТ, и молчит у того, кто ДОПУСКАЕТ, в
+        # сводке «есть/нет» неотличимо от полностью работающего.
+        c = data.get("counts") or {}
+        t = data.get("tally") or {}
+        ctrl = data.get("control") or {}
+        out.append(f"   ограничения auto-execution: "
+                   f"{data.get('overall') or _UNMEASURED} "
+                   f"(critical={_num(c, 'critical')} warn={_num(c, 'warn')} "
+                   f"info={_num(c, 'info')} unchecked={_num(c, 'unchecked')})")
+        if not ctrl.get("passed"):
+            out.append(f"   [НЕ ИЗМЕРЕНО] положительный контроль не пройден — "
+                       f"{ctrl.get('reason') or 'причина не названа'}; счёт по "
+                       f"ограничениям не читать")
+        else:
+            out.append(f"   из {data.get('limits_total')} названных владельцем: "
+                       f"связывают с ручкой владельца {t.get(_BINDING)} · порог "
+                       f"зашит в коде {t.get(_LITERAL)} · объявлены, но не "
+                       f"спрашиваются {t.get(_DECLARED_INERT)} · отсутствуют "
+                       f"{t.get(_ABSENT)} · не измерено {t.get(_UNCHECKED_KEY)}")
+            for lim in (data.get("limits") or []):
+                if lim.get("outcome") in (_DECLARED_INERT, _ABSENT, _LITERAL):
+                    out.append(f"   [{lim['outcome']}] «{lim.get('owner_wording')}» "
+                               f"— {lim.get('detail')}")
+                for gap in (lim.get("gaps") or []):
+                    out.append(f"   [ПОЛОВИНА] «{lim.get('owner_wording')}» на "
+                               f"`{gap.get('surface')}`: {gap.get('gap')}")
+        for f in (data.get("findings") or []):
+            if f.get("severity") == "CRITICAL":
+                out.append(f"   [{f['severity']}] {f.get('message')}")
+        for u in (data.get("unchecked") or [])[:6]:
+            out.append(f"   [НЕ ИЗМЕРЕНО] {u}")
+        out.append("   ADVISORY: ни один порог этим замером не меняется и ни "
+                   "одно недостающее ограничение не строится — это money-path "
+                   "и решение владельца")
     elif name == "decision_audit_trail.json":
         # §43 ТЗ CIO «Audit trail». Печатаем ДЕВЯТЬ полей владельца поимённо, а
         # не одно число находок: вопрос ТЗ — «через месяц ответить ЧЕРЕЗ ДАННЫЕ»,

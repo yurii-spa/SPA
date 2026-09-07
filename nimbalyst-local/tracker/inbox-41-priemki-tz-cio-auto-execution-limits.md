@@ -2,9 +2,13 @@
 trackerStatus:
   type: inbox
 title: "§41 приёмки ТЗ CIO (auto-execution limits): замеры сделаны, ловушка названа — мерить обе поверхности решения, не только гейт"
-status: new
+status: done
 source: nimbalyst
 created: 2026-09-07
+claimed_by: cycle-22542
+claimed_at: 2026-09-07T02:12:01Z
+status_trail:
+  - "2026-09-07T02:39:39.271089+00:00 new -> done · queue.set_status · cycle-22542"
 ---
 
 ## Что это
@@ -94,3 +98,58 @@ policy-configurable». Их надо мерить по отдельности.
 
 **Money-path не трогать:** ни один порог не менять, недостающее ограничение не
 строить — это решение владельца.
+
+---
+
+## ИСПОЛНЕНО — цикл #510 (2026-09-07)
+
+Замер §41 построен по заказу выше. Ловушка из этой карточки подтвердилась и
+оказалась НЕ единственной — вторая нашлась уже в самой пробе (см. ниже).
+
+**Доставлено:**
+
+- `spa_core/monitoring/cio_auto_execution_limits.py` — замер 12 ограничений на
+  ТРЁХ поверхностях решения (`allocator` предлагает · `economics` судит цену
+  хода · `gate` допускает), две оси (величина / порог), пять исходов
+  (`BINDING` · `LITERAL` · `DECLARED_INERT` · `ABSENT` · `UNCHECKED`);
+- `spa_core/tests/test_cio_auto_execution_limits.py` — 29 проверок;
+- `architecture/manifest.json` — ОБЕ записи (`artifacts[]` + `produces[]`);
+- `scripts/consume_office_reports.py` — именная ветка шага 0-офис
+  (`_READ_SCHEMA` + `_PRODUCER` + печать);
+- `spa_core/monitoring/findings_bridge.py` — вызов из моста;
+- **ADR-250** — решение и полный разбор.
+
+**Результат: 4 · 2 · 0 · 6.**
+
+| исход | сколько | какие |
+|---|---|---|
+| `BINDING` (есть + ручка владельца) | 4 | max % per rebalance · allowed tiers · allowed chains · min expected net gain |
+| `LITERAL` (есть, порог в коде) | 2 | allowed protocols · minimum confidence |
+| `DECLARED_INERT` | 0 | — |
+| `ABSENT` | 6 | max trade amount · max daily turnover · allowed vaults · allowed assets · minimum persistence · maximum acceptable risk delta |
+
+**Главное — не счёт, а ПОЛУСВЯЗАННЫЕ (ровно предмет этой карточки):** у гейта
+потолок тира стоит НА ПРОТОКОЛ, а не на тир (T3 суммарно 25 % = 15 % + 10 % на
+два пула проходит с нулём нарушений); незнакомый тир `T9` не отвергается, а
+молча получает потолок T2 = 20 %; сеть у гейта не судится вовсе. Все три
+ограничения держатся тем, что цель приходит от НАШЕГО аллокатора.
+
+**Поправка к заготовке этой карточки.** Здесь было сказано, что ось
+policy-configurable не достаёт до `min_hold_days`, `act_cooldown_days`,
+`reversal_*` — «нужна СВОЯ сцена на каждый». Оказалось достаточно ОДНОЙ сцены,
+если подать `position_age_days` и `days_since_last_act` явно и с запасом: на ней
+связывают СЕМЬ порогов `TriggerParams`, а не пять. Не проверены на ней остались
+`reversal_escalation` / `reversal_window_days` / `below_median_cap_factor`.
+
+**Вторая ловушка, которую заготовка не предвидела** (и которая опаснее первой,
+потому что тише): проба «происхождение потолка» при неразобранном источнике
+возвращала пустой ответ, и `allowed tiers` с `allowed chains` МОЛЧА съезжали с
+`BINDING` на `LITERAL` — отчёт объявил бы «порог зашит в коде» ровно про те
+потолки, которые читаются из `RiskConfig`. Fail-OPEN в сторону ЛОЖНОЙ находки.
+Поймано прогоном с корнем, где лежит только `data/` (мост зовёт
+`run(root=args.root)`, и такой корень возможен). Теперь это названная причина
+отказа всего отчёта.
+
+**Money-path не тронут:** ни один порог не изменён, ни одно недостающее
+ограничение не построено. Три вопроса владельцу — карточка
+`owner-decision-avtotorgovlya-iz-12-tvoih-ogranichitelei`.

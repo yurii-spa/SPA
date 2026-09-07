@@ -57,6 +57,7 @@ PRODUCES = (
     "data/cio_failure_modes.json",
     "data/cio_explainability.json",
     "data/cio_kill_switch_controls.json",
+    "data/cio_auto_execution_limits.json",
     "data/evidence_staleness.json",
     "data/apy_composition.json",
     "data/findings_bridge_report.json",
@@ -710,6 +711,29 @@ def main(argv=None) -> int:
                   f"{(krep.get('separability') or {}).get('verdict')})")
     except Exception as e:  # noqa: BLE001 — замер §42 не смеет валить мост
         print(f"cio_kill_switch_controls: пропущено ({e})")
+    # §41 ТЗ CIO «Auto-execution limits»: какие из двенадцати названных
+    # владельцем ограничений реально стоя́т на пути решения и на какой из трёх
+    # поверхностей (аллокатор предлагает · экономика судит цену хода · гейт
+    # допускает) каждое связывает. Мост находок его НЕ читает по той же причине,
+    # что и соседей выше: поставить auto-execution недостающий лимит — money-path
+    # и решение владельца, а не строка автокарточки. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import cio_auto_execution_limits
+        lrep = cio_auto_execution_limits.run(root=args.root)
+        t = lrep.get("tally") or {}
+        if not lrep["control"]["passed"]:
+            print(f"cio_auto_execution_limits: {lrep['overall']} "
+                  f"(положительный контроль не пройден — счёт не читать)")
+        else:
+            print(f"cio_auto_execution_limits: {lrep['overall']} "
+                  f"(связывают с ручкой владельца {t.get(cio_auto_execution_limits.BINDING)}"
+                  f"/{lrep['limits_total']}, "
+                  f"порог в коде {t.get(cio_auto_execution_limits.LITERAL)}, "
+                  f"объявлены но не спрашиваются "
+                  f"{t.get(cio_auto_execution_limits.DECLARED_INERT)}, "
+                  f"нет {t.get(cio_auto_execution_limits.ABSENT)})")
+    except Exception as e:  # noqa: BLE001 — замер §41 не смеет валить мост
+        print(f"cio_auto_execution_limits: пропущено ({e})")
     try:
         from spa_core.monitoring import capital_evidence_coverage
         cec = capital_evidence_coverage.run(root=args.root)
