@@ -253,6 +253,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                          "counts.unchecked", "positive_control",
                                          "subject", "stage", "inputs", "content",
                                          "findings"),
+    # Заказ #517: существует ли НЕЗАВИСИМОЕ наблюдение исхода книги. `verdict`
+    # объявлен рядом со счётчиками намеренно: «независимых 0» и «кандидатов 0» —
+    # РАЗНЫЕ состояния, и без списка кандидатов первое читалось бы как «в дереве
+    # ничего нет», что измеренно неверно.
+    "cio_outcome_independence.json": ("overall", "counts.critical", "counts.warn",
+                                      "counts.info", "counts.unchecked",
+                                      "positive_control", "verdict", "book",
+                                      "identity", "candidates",
+                                      "per_candidate_verdict", "findings"),
     "cio_policy_change_procedure.json": ("overall", "counts.critical",
                                          "counts.warn", "counts.info",
                                          "counts.unchecked", "positive_control",
@@ -325,6 +334,7 @@ _PRODUCER: dict[str, str] = {
     "cio_component_map.json": "spa_core/monitoring/cio_component_map.py",
     "cio_policy_change_procedure.json": "spa_core/monitoring/cio_policy_change_procedure.py",
     "cio_post_trade_verification.json": "spa_core/monitoring/cio_post_trade_verification.py",
+    "cio_outcome_independence.json": "spa_core/monitoring/cio_outcome_independence.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1431,6 +1441,30 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         out.append("   ADVISORY: разорванный стык этим замером НЕ соединяется и "
                    "ни одна ступень не переносится — это money-path и решение "
                    "владельца")
+    elif name == "cio_outcome_independence.json":
+        # Заказ #517. Печатается СНАЧАЛА вердикт, потом ПОЧЕМУ: ответ «не
+        # существует» верен, но его обоснование и есть содержание — оно говорит
+        # владельцу, что ступень нельзя оживить правкой кода.
+        c = data.get("counts") or {}
+        ctrl = data.get("positive_control") or {}
+        cands = data.get("candidates") or []
+        per = data.get("per_candidate_verdict") or []
+        ident = data.get("identity") or {}
+        out.append(f"   независимое наблюдение исхода книги: "
+                   f"{data.get('verdict') or _UNMEASURED} "
+                   f"(critical={_num(c, 'critical')} warn={_num(c, 'warn')} "
+                   f"unchecked={_num(c, 'unchecked')})")
+        if not ctrl.get("passed"):
+            out.append("   [НЕ ИЗМЕРЕНО] положительный контроль не прошёл — "
+                       "вердикту ниже верить нельзя")
+        indep = sum(1 for v in per if v.get("independent"))
+        out.append(f"   кандидатов {len(cands)}, независимых {indep}; личность "
+                   f"нашего счёта задана: {'да' if ident.get('configured') else 'НЕТ'}")
+        for f in (data.get("findings") or [])[:6]:
+            out.append(f"   [{(f.get('severity') or '').upper()}] {f.get('text')}"[:400])
+        out.append("   ADVISORY: ничего не соединено; оживить сверку нельзя правкой "
+                   "кода — нужны наблюдатель вне `spa_core/execution/` и реальный "
+                   "капитал на цепи, оба решения владельца")
     elif name == "cio_post_trade_verification.json":
         # §5 ТЗ CIO, ступень `post-trade verification`. Печатаются ТРИ ответа
         # порознь, потому что они и есть три разных вопроса: есть ли предмет ·
