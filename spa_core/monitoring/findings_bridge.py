@@ -734,6 +734,27 @@ def main(argv=None) -> int:
                   f"нет {t.get(cio_auto_execution_limits.ABSENT)})")
     except Exception as e:  # noqa: BLE001 — замер §41 не смеет валить мост
         print(f"cio_auto_execution_limits: пропущено ({e})")
+    # Остаток ADR-250: КТО ЕЩЁ производит цель, кроме StrategyAllocator, и
+    # стоя́т ли у каждого производителя три ограничения владельца (суммарный
+    # потолок тира · незнакомый тир · сеть). Мост находок его НЕ читает по той
+    # же причине, что и соседей выше: достроить недостающее ограничение —
+    # money-path и решение владельца, а не строка автокарточки. Потребитель —
+    # шаг 0-офис.
+    try:
+        from spa_core.monitoring import cio_target_producers
+        prep = cio_target_producers.run(root=args.root)
+        if not prep["control"]["passed"]:
+            print(f"cio_target_producers: {prep['overall']} "
+                  f"(положительный контроль не пройден — счёт не читать)")
+        else:
+            silent = {r["producer"] for r in prep["matrix"]
+                      if r["outcome"] == cio_target_producers.SILENT}
+            print(f"cio_target_producers: {prep['overall']} "
+                  f"(производителей цели {len(prep['producers'])}, "
+                  f"принимают нарушающую цель хотя бы по одному ограничению "
+                  f"{len(silent)})")
+    except Exception as e:  # noqa: BLE001 — замер не смеет валить мост
+        print(f"cio_target_producers: пропущено ({e})")
     try:
         from spa_core.monitoring import capital_evidence_coverage
         cec = capital_evidence_coverage.run(root=args.root)

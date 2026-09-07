@@ -211,6 +211,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                        "limits_total", "tally", "control",
                                        "surfaces", "declared_policy_fields",
                                        "limits", "findings", "unchecked"),
+    # Остаток ADR-250: КТО ЕЩЁ производит цель. `control` в схеме обязателен —
+    # без пройденного контроля «принял нарушающую цель» означает не отсутствие
+    # ограничения, а неисправность пробы. `live_books` объявлены рядом с
+    # вердиктом намеренно: они отвечают на вопрос, теория это или сегодняшнее
+    # состояние, и без них отчёт читается как рассуждение о коде.
+    "cio_target_producers.json": ("overall", "counts.critical", "counts.warn",
+                                  "counts.info", "counts.unchecked", "control",
+                                  "enumeration", "producers", "live_books",
+                                  "matrix", "findings", "unchecked"),
     "evidence_staleness.json": ("overall", "action", "reason", "counts.fresh",
                                 "counts.soft_stale", "counts.hard_stale",
                                 "counts.unknown_age", "counts.unchecked",
@@ -272,6 +281,7 @@ _PRODUCER: dict[str, str] = {
     "cio_explainability.json": "spa_core/monitoring/cio_explainability.py",
     "cio_kill_switch_controls.json": "spa_core/monitoring/cio_kill_switch_controls.py",
     "cio_auto_execution_limits.json": "spa_core/monitoring/cio_auto_execution_limits.py",
+    "cio_target_producers.json": "spa_core/monitoring/cio_target_producers.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1304,6 +1314,51 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         out.append("   ADVISORY: ни один порог этим замером не меняется и ни "
                    "одно недостающее ограничение не строится — это money-path "
                    "и решение владельца")
+    elif name == "cio_target_producers.json":
+        # Остаток ADR-250. Печатаем ПОИМЁННО производителей, у которых
+        # ограничение не стои́т, и СОСТАВ живых книг — а не число находок:
+        # «у двух производителей из пяти не стои́т ни одно из трёх» и «6 находок»
+        # читаются совершенно по-разному. Живые книги идут отдельной строкой
+        # потому, что именно они отличают теорию от сегодняшнего состояния.
+        c = data.get("counts") or {}
+        ctrl = data.get("control") or {}
+        out.append(f"   производители цели: {data.get('overall') or _UNMEASURED} "
+                   f"(critical={_num(c, 'critical')} warn={_num(c, 'warn')} "
+                   f"info={_num(c, 'info')} unchecked={_num(c, 'unchecked')})")
+        if not ctrl.get("passed"):
+            out.append(f"   [НЕ ИЗМЕРЕНО] положительный контроль не пройден — "
+                       f"{ctrl.get('reason') or 'причина не названа'}; счёт по "
+                       f"производителям не читать")
+        else:
+            silent: dict = {}
+            for row in (data.get("matrix") or []):
+                if row.get("outcome") == "SILENT":
+                    silent.setdefault(row["producer"], []).append(
+                        row.get("owner_wording"))
+            out.append(f"   производителей цели {len(data.get('producers') or [])}; "
+                       f"принимают нарушающую цель хотя бы по одному "
+                       f"ограничению владельца: {len(silent)}")
+            for producer, wordings in sorted(silent.items()):
+                out.append(f"   [SILENT] {producer} — не стои́т: "
+                           + "; ".join(f"«{w}»" for w in wordings))
+        for book in (data.get("live_books") or []):
+            if book.get("unchecked"):
+                out.append(f"   [НЕ ИЗМЕРЕНО] книга {book.get('artifact')}: "
+                           f"{book['unchecked']}")
+            elif book.get("over_declared_cap"):
+                out.append(f"   [СОСТОЯНИЕ] книга {book.get('artifact')} держит "
+                           f"СЕГОДНЯ {book.get('t3_share'):.1%} в T3 при "
+                           f"объявленном потолке "
+                           f"{book.get('t3_declared_cap'):.0%} — разрыв не "
+                           f"теоретический")
+        for f in (data.get("findings") or []):
+            if f.get("severity") == "CRITICAL":
+                out.append(f"   [{f['severity']}] {f.get('message')}")
+        for u in (data.get("unchecked") or [])[:6]:
+            out.append(f"   [НЕ ИЗМЕРЕНО] {u}")
+        out.append("   ADVISORY: недостающее ограничение этим замером НЕ "
+                   "строится и ни один порог не меняется — это money-path и "
+                   "решение владельца")
     elif name == "decision_audit_trail.json":
         # §43 ТЗ CIO «Audit trail». Печатаем ДЕВЯТЬ полей владельца поимённо, а
         # не одно число находок: вопрос ТЗ — «через месяц ответить ЧЕРЕЗ ДАННЫЕ»,
