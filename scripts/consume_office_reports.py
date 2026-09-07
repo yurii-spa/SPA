@@ -220,6 +220,19 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                   "counts.info", "counts.unchecked", "control",
                                   "enumeration", "producers", "live_books",
                                   "matrix", "findings", "unchecked"),
+    # §45 «Architecture constraints». `control` в схеме обязателен по той же
+    # причине, что у соседей: без пройденного контроля «концентрации нет»
+    # означает не разделение слоёв, а слепую пробу. `llm` объявлен рядом
+    # НАМЕРЕННО — достижимость двери и слепота её сторожа отвечают на РАЗНЫЕ
+    # вопросы, и отчёт, назвавший только первое, читается как приговор там, где
+    # владелец LLM прямо разрешает (explanation layer).
+    "cio_architecture_constraints.json": ("overall", "counts.critical",
+                                          "counts.warn", "counts.info",
+                                          "counts.unchecked", "control",
+                                          "responsibilities_declared",
+                                          "layers_declared", "concentration",
+                                          "llm", "modules_parsed",
+                                          "findings", "unchecked"),
     "evidence_staleness.json": ("overall", "action", "reason", "counts.fresh",
                                 "counts.soft_stale", "counts.hard_stale",
                                 "counts.unknown_age", "counts.unchecked",
@@ -282,6 +295,7 @@ _PRODUCER: dict[str, str] = {
     "cio_kill_switch_controls.json": "spa_core/monitoring/cio_kill_switch_controls.py",
     "cio_auto_execution_limits.json": "spa_core/monitoring/cio_auto_execution_limits.py",
     "cio_target_producers.json": "spa_core/monitoring/cio_target_producers.py",
+    "cio_architecture_constraints.json": "spa_core/monitoring/cio_architecture_constraints.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1359,6 +1373,61 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         out.append("   ADVISORY: недостающее ограничение этим замером НЕ "
                    "строится и ни один порог не меняется — это money-path и "
                    "решение владельца")
+    elif name == "cio_architecture_constraints.json":
+        # §45 ТЗ CIO. Печатаем ДВА ответа порознь — концентрацию и LLM, — потому
+        # что владелец назвал их в одном пункте, а нарушаются они независимо.
+        # Достижимость LLM печатается ВМЕСТЕ с каналом: путь через уведомление
+        # владельца это explanation layer, который владелец разрешает, и строка
+        # без канала читалась бы как нарушение там, где его нет.
+        c = data.get("counts") or {}
+        ctrl = data.get("control") or {}
+        out.append(f"   разделение слоёв (§45): {data.get('overall') or _UNMEASURED} "
+                   f"(critical={_num(c, 'critical')} warn={_num(c, 'warn')} "
+                   f"info={_num(c, 'info')} unchecked={_num(c, 'unchecked')})")
+        if not ctrl.get("passed"):
+            out.append(f"   [НЕ ИЗМЕРЕНО] положительный контроль не пройден — "
+                       f"{ctrl.get('reason') or 'причина не названа'}; счёт по "
+                       f"§45 не читать")
+        else:
+            conc = data.get("concentration") or {}
+            out.append(f"   концентрация: максимум {conc.get('max')} из "
+                       f"{conc.get('of')} ответственностей в ОДНОМ модуле; "
+                       f"совмещают чтение рынка и подпись "
+                       f"{len(conc.get('market_and_sign') or [])}")
+            for row in (conc.get("modules") or []):
+                if (row.get("count") or 0) >= 4:
+                    out.append(f"   [МОНОЛИТ] {row.get('module')} "
+                               f"({row.get('layer') or '—'}): "
+                               + ", ".join(row.get("responsibilities") or []))
+            llm = data.get("llm") or {}
+            doors = llm.get("doors") or []
+            out.append(f"   дверей к LLM в дереве: {len(doors)} — "
+                       + (", ".join(f"{d['module']} [{d['kind']}]" for d in doors)
+                          or "ни одной"))
+            if not llm.get("reach_measured"):
+                out.append(f"   [НЕ ИЗМЕРЕНО] достижимость двери LLM: "
+                           f"{llm.get('reach_reason')}")
+            else:
+                for layer, row in (llm.get("by_layer") or {}).items():
+                    hits = row.get("modules_reaching") or 0
+                    if not hits:
+                        continue
+                    channel = ("через канал объяснения владельцу"
+                               if row.get("through_explanation_channel")
+                               else "НЕ через канал объяснения")
+                    out.append(f"   · {layer}: достижим у {hits} модул(я/ей), "
+                               f"{channel}")
+            guard = llm.get("guard") or {}
+            if not guard.get("measured"):
+                out.append(f"   [НЕ ИЗМЕРЕНО] слепота сторожа инварианта #3: "
+                           f"{guard.get('reason')}")
+        for f in (data.get("findings") or []):
+            if f.get("severity") == "CRITICAL":
+                out.append(f"   [{f['severity']}] {f.get('message')}")
+        for u in (data.get("unchecked") or [])[:6]:
+            out.append(f"   [НЕ ИЗМЕРЕНО] {u}")
+        out.append("   ADVISORY: ответственности этим замером НЕ разносятся и "
+                   "сторож НЕ расширяется — это money-path и решение владельца")
     elif name == "decision_audit_trail.json":
         # §43 ТЗ CIO «Audit trail». Печатаем ДЕВЯТЬ полей владельца поимённо, а
         # не одно число находок: вопрос ТЗ — «через месяц ответить ЧЕРЕЗ ДАННЫЕ»,

@@ -58,6 +58,13 @@ PRODUCES = (
     "data/cio_explainability.json",
     "data/cio_kill_switch_controls.json",
     "data/cio_auto_execution_limits.json",
+    # Объявлены здесь ПОСЛЕ находки сторожа архитектуры 07.09: манифест знал
+    # продукт, которого не было в объявлении точки входа (#512 внёс запись
+    # манифеста и пропустил эту строку). Артефакт без объявленного
+    # производителя не проверяется вовсе — паритет манифест↔код и есть предмет
+    # проверки `architecture_conformance`.
+    "data/cio_target_producers.json",
+    "data/cio_architecture_constraints.json",
     "data/evidence_staleness.json",
     "data/apy_composition.json",
     "data/findings_bridge_report.json",
@@ -755,6 +762,28 @@ def main(argv=None) -> int:
                   f"{len(silent)})")
     except Exception as e:  # noqa: BLE001 — замер не смеет валить мост
         print(f"cio_target_producers: пропущено ({e})")
+    # §45 ТЗ CIO «Architecture constraints»: не совмещены ли в ОДНОМ модуле
+    # пять названных владельцем ответственностей (рынок · APY · gas · risk
+    # decision · подпись) и не стал ли LLM финансовым control layer. Мост
+    # находок его НЕ читает по той же причине, что и соседей выше: разнести
+    # ответственности живых адаптеров исполнения и расширить сторожа
+    # инварианта #3 — money-path и решение владельца, а не строка
+    # автокарточки. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import cio_architecture_constraints
+        arep = cio_architecture_constraints.run(root=args.root)
+        if not arep["control"]["passed"]:
+            print(f"cio_architecture_constraints: {arep['overall']} "
+                  f"(положительный контроль не пройден — счёт не читать)")
+        else:
+            conc = arep["concentration"]
+            print(f"cio_architecture_constraints: {arep['overall']} "
+                  f"(максимум ответственностей в одном модуле {conc['max']}"
+                  f"/{conc['of']}, совмещают рынок и подпись "
+                  f"{len(conc['market_and_sign'])}, дверей к LLM "
+                  f"{len(arep['llm']['doors'])})")
+    except Exception as e:  # noqa: BLE001 — замер §45 не смеет валить мост
+        print(f"cio_architecture_constraints: пропущено ({e})")
     try:
         from spa_core.monitoring import capital_evidence_coverage
         cec = capital_evidence_coverage.run(root=args.root)
