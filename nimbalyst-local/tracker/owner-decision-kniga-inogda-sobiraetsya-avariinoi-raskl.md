@@ -2,9 +2,17 @@
 trackerStatus:
   type: owner-decision
 title: Книга иногда собирается аварийной раскладкой — и уносит с собой числа от отвергнутой
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-09-08
+owner_choice: 1
+owner_answered_at: 2026-09-08T14:29:23.842828+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
+owner_answer_kind: option
+status_trail:
+  - "2026-09-08T14:29:23.843529+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-09-08T17:35:32.271168+00:00 owner-done -> ingested · queue.set_status · cycle-97605"
 ---
 
 ## Что случилось и почему это важно
@@ -59,3 +67,11 @@ created: 2026-09-08
 стороны (нормальный день / аварийный день) и покажет прогон. Замер
 `cio_substitution_census` останется в ежедневной сводке и будет краснеть, если
 такое повторится в другом месте.
+
+---
+
+## Решение владельца
+
+**Вариант 1** — пометить
+
+_Ответ владельца получен 2026-09-08T14:29:23.842828+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._

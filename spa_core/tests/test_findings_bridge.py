@@ -243,9 +243,8 @@ class Bridge(unittest.TestCase):
         self.td.cleanup()
 
     def put_conformance(self, findings):
-        with open(os.path.join(self.root, "data", "architecture_conformance.json"),
-                  "w", encoding="utf-8") as f:
-            json.dump({"generated_at": NOW.isoformat(), "findings": findings}, f)
+        self._conf_findings = list(findings)
+        self._stamp_conformance(NOW)
         with open(os.path.join(self.root, "data", "house_view_gap.json"),
                   "w", encoding="utf-8") as f:
             json.dump({"gaps": []}, f)
@@ -253,7 +252,26 @@ class Bridge(unittest.TestCase):
                   "w", encoding="utf-8") as f:
             json.dump({"findings": []}, f)
 
+    def _stamp_conformance(self, at):
+        with open(os.path.join(self.root, "data", "architecture_conformance.json"),
+                  "w", encoding="utf-8") as f:
+            json.dump({"generated_at": at.isoformat(),
+                       "findings": self._conf_findings}, f)
+
     def run_bridge(self, at=NOW):
+        # ФИКСТУРА ИЗМЕНЕНА ОСОЗНАННО (инв. #16; ADR-266, журнал W37). Ни одно
+        # утверждение тестов не тронуто — изменилось только то, ЧТО фикстура
+        # изображает. Она ставила `generated_at` НЕПОДВИЖНО и двигала лишь часы
+        # моста, то есть изображала «сторож замерил ОДИН раз, а мост прочитал
+        # файл дважды». Тесты же говорят о гистерезисе — «находка ПЕРЕЖИЛА
+        # повторную проверку», — и до ADR-266 эти два смысла совпадали, потому
+        # что мост считал наблюдением свой прогон. Теперь наблюдение — ЗАМЕР,
+        # и фикстура обязана двигать замер вместе с часами: каждый прогон здесь
+        # отстоит на 6ч, ровно на такт `architecture_conformance`
+        # (interval:21600s), так что «прогон» и «замер» тут и правда одно и то
+        # же событие. Подмена смысла осталась бы невидимой: тесты продолжали бы
+        # проходить, проверяя не то, что написано в их заголовках.
+        self._stamp_conformance(at)
         return fb.run_bridge(self.root, now=at, create=self.q.create,
                              close=self.q._close, notify=self.q.notify,
                              retract=self.q.retract)

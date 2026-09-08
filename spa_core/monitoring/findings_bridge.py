@@ -305,19 +305,23 @@ def collect_findings(root: str = REPO_ROOT) -> tuple[list[dict], list[str]]:
     conf_rel = os.path.join("data", "architecture_conformance.json")
     try:
         conf = json.load(open(os.path.join(root, conf_rel)))
+        stamp = conf.get("generated_at")
         for f in (conf.get("findings") or []):
             findings.append({"key": f["key"], "severity": f["severity"],
-                             "message": f["message"], "source": "architecture_conformance"})
+                             "message": f["message"], "source": "architecture_conformance",
+                             "measured_at": stamp})
     except Exception:
         unread.append(conf_rel)
 
     gap_rel = os.path.join("data", "house_view_gap.json")
     try:
         gap = json.load(open(os.path.join(root, gap_rel)))
+        stamp = gap.get("generated_at")
         for g in (gap.get("gaps") or []):
             if g.get("severity") in ("WARN", "CRITICAL"):
                 findings.append({"key": g["key"], "severity": g["severity"],
-                                 "message": g["message"], "source": "house_view_gap"})
+                                 "message": g["message"], "source": "house_view_gap",
+                                 "measured_at": stamp})
     except Exception:
         unread.append(gap_rel)
 
@@ -326,10 +330,12 @@ def collect_findings(root: str = REPO_ROOT) -> tuple[list[dict], list[str]]:
     retro_rel = os.path.join("data", "loop_retro.json")
     try:
         retro = json.load(open(os.path.join(root, retro_rel)))
+        stamp = retro.get("generated_at")
         for f in (retro.get("findings") or []):
             if f.get("severity") in ("WARN", "CRITICAL"):
                 findings.append({"key": f["key"], "severity": f["severity"],
-                                 "message": f["message"], "source": "loop_retro"})
+                                 "message": f["message"], "source": "loop_retro",
+                                 "measured_at": stamp})
     except Exception:
         unread.append(retro_rel)
 
@@ -617,6 +623,13 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
     created_today = int(daily.get(today, 0))
 
     created, deferred, closed, waiting, escalated = [], [], [], [], []
+    # Находка, встреченная повторно в ТОМ ЖЕ замере (ADR-266): счётчик наблюдений
+    # не растёт. Список существует затем, чтобы «не засчитано» не стало тишиной.
+    resighted: list[str] = []
+    # Источник без `generated_at`: замер не опознан, наблюдение засчитано по
+    # старому правилу. Названо вслух — подмена «не измерено» на «измерено»
+    # обязана быть видимой.
+    unidentified: list[str] = []
     closing: list[dict] = []
     withdrawn: list[dict] = []
 
@@ -632,8 +645,46 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
             # провал петли, найден при построении loop_health (Фаза 4).
             entry.update(status="observed", seen_count=0, card=None,
                          first_seen=now.isoformat(),
+                         # Рецидив начинает счёт заново — вместе с ним обнуляется
+                         # и опознанный замер, иначе первое наблюдение рецидива
+                         # совпало бы с последним замером ДО закрытия и не было
+                         # бы засчитано (ADR-266).
+                         last_measured_at=None,
                          recurrences=int(entry.get("recurrences", 0)) + 1)
-        entry["seen_count"] = int(entry.get("seen_count", 0)) + 1
+        # НАБЛЮДЕНИЕ — это ЗАМЕР, а не прогон моста (ADR-266).
+        #
+        # `REQUIRED_SIGHTINGS = 2` написан затем, чтобы карточка рождалась лишь
+        # у находки, ПЕРЕЖИВШЕЙ повторный замер. Считался же он прогонами моста,
+        # а мост читает ФАЙЛ отчёта — и один и тот же замер попадал в счётчик
+        # столько раз, сколько раз мост успевал прочитать этот файл.
+        #
+        # Замер конституции: `architecture_conformance` ходит раз в 6ч
+        # (interval:21600s), мост — из `decision_loop` (те же 6ч) И из дневного
+        # цикла (08:00), то есть ~5 прогонов моста на 4 замера в сутки. Значит
+        # ДВА прогона моста регулярно приходятся на ОДИН замер, и порог из двух
+        # наблюдений преодолевался без единого повторного измерения. Гистерезис,
+        # рождённый защищать от мигающей находки, защищал от неё не всегда.
+        #
+        # Класс тот же, что нашла перепись вердикт-данных у B3:no_consumption:
+        # «ещё не переспрошено» выдавалось за «подтверждено». Разница в том, что
+        # у сторожа третий исход был НЕДОСТИЖИМ по построению, а здесь он есть —
+        # просто его не спрашивали. Поэтому чинится ПОТРЕБИТЕЛЬ: сторож меряет
+        # верно, а слово в решение превращается тут.
+        #
+        # Замер не опознан (у источника нет `generated_at`) ⇒ считаем, как
+        # прежде, и НАЗЫВАЕМ это вслух. Здесь fail-CLOSED — именно так: не
+        # засчитать нельзя, иначе находка без часов не родит карточку НИКОГДА
+        # («irreversible UNCHECKED starves the queue»); молчать о подмене —
+        # тоже нельзя.
+        stamp = f.get("measured_at")
+        if stamp is None:
+            unidentified.append(key)
+            entry["seen_count"] = int(entry.get("seen_count", 0)) + 1
+        elif entry.get("last_measured_at") != stamp:
+            entry["seen_count"] = int(entry.get("seen_count", 0)) + 1
+            entry["last_measured_at"] = stamp
+        else:
+            resighted.append(key)
         entry["last_seen"] = now.isoformat()
         # Находка на месте ⇒ счётчик отсутствий обнуляется: закрытия требует
         # РЯД молчаливых прогонов подряд, а не их сумма за всю историю.
@@ -715,6 +766,12 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
               # неотличимо от «мост ждёт подтверждения» — та же болезнь, что
               # лечится в rate-limit'е словом deferred.
               "closing_hysteresis": closing,
+              # Находки, встреченные повторно в ТОМ ЖЕ замере, и находки, чей
+              # замер опознать нечем (ADR-266). Оба списка — про то, ЧЕМ
+              # измерен гистерезис; без них «наблюдений два» неотличимо от
+              # «замеров два», а это и была починенная подмена.
+              "resighted_same_measurement": resighted,
+              "measurement_unidentified": unidentified,
               "sources_unread": unread, "reconciled_from_tracker": reconciled,
               "open_cards": sum(1 for e in st_findings.values() if e.get("status") == "carded"),
               "rate_limit": {"max_per_day": MAX_CARDS_PER_DAY, "used_today": created_today}}
