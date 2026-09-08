@@ -357,6 +357,15 @@ _PRODUCER: dict[str, str] = {
     # «неприменима»: разбирает встроенный питон (`_embedded_python`), а не
     # ищет имя ключа подстрокой по shell-тексту.
     "code_sync_status.json": "scripts/code_sync_from_origin.sh",
+    # Внесён циклом #528 по замеру, а не по симметрии: ПЯТЬ красных печатей
+    # шага («в отчёте нет блока origin_queue / branch_queue / accepted /
+    # closed_on_origin_open_here / channel_buttons») спрашивали о судьбе блока,
+    # а спросить было НЕ У КОГО — производителя артефакта здесь не значилось,
+    # и третий исход («допишет сам») был недостижим ПО ПОСТРОЕНИЮ. Все пять
+    # ключей — литералы этого модуля (сверено, по одному вхождению на ключ).
+    # На `_schema_drift` строка не влияет: у артефакта нет объявления в
+    # `_READ_SCHEMA`, и сверка схемы выходит раньше.
+    "owner_decision_pending.json": "spa_core/monitoring/owner_decision_pending.py",
 }
 
 
@@ -538,6 +547,17 @@ def _drift_is_a_finding(name: str, *, root: str, art_ts, now) -> tuple[bool, str
                   f"Прогнать сторожа руками.")
 
 
+def _finding_mark(is_finding: bool) -> str:
+    """Значок красной строки — ОДИН дом на весь шаг.
+
+    Значок и есть то, по чему читатель отличает «действовать» от «к сведению»
+    (подпись шага: «Красные строки выше = действовать (карточки)»). Второй его
+    копии не заводится намеренно: разойтись две копии могут молча, и цену этого
+    #527 уже заплатил внутри одной функции (см. `_drift_words`).
+    """
+    return "⚠️" if is_finding else "⏳"
+
+
 def _drift_words(is_finding: bool) -> tuple[str, str]:
     """Значок и слова классификации — ОДНО следствие одного вердикта.
 
@@ -550,8 +570,90 @@ def _drift_words(is_finding: bool) -> tuple[str, str]:
     то есть тише красной строки и потому опаснее.
     """
     if is_finding:
-        return "⚠️", "Это находка (карточка), а не деталь:"
-    return "⏳", f"{_NOT_DUE} — это НЕ находка, карточка НЕ нужна:"
+        return _finding_mark(True), "Это находка (карточка), а не деталь:"
+    return _finding_mark(False), f"{_NOT_DUE} — это НЕ находка, карточка НЕ нужна:"
+
+
+def _block_absent_is_a_finding(name: str, key: str, *, root: str,
+                               art_ts, now) -> tuple[bool, str]:
+    """Блока нет в отчёте — это находка или производитель ещё не отработал?
+
+    ЧЕТВЁРТЫЙ случай урока #519 подряд, и на этот раз спрошенный обо ВСЁМ
+    классе сразу, а не о поводе (заказ цикла #527). Форму контроля ставили
+    ADR-261 (файла нет на диске), ADR-262 (второй читатель того же) и ADR-264
+    (предмет сменился) — каждый раз ровно там, где нашлось. Перепись красных
+    печатей шага 0-офис (49 штук) показала, что тем же свойством обладают ещё
+    **тринадцать**: «в отчёте нет блока X (отчёт старого образца)». Ни одна из
+    тринадцати не спрашивала производителя ни о чём — все печатали `⚠️`
+    безусловно, и пять из них при этом ПРОТИВОРЕЧИЛИ соседней строке того же
+    прогона (`_schema_drift` объявляет тот же ключ и отвечает о нём иначе).
+
+    Утверждение «блока нет, значит про это НЕ ИЗМЕРЕНО ничего» верно всегда и
+    остаётся. Вопрос здесь другой: обязан ли читатель ДЕЙСТВОВАТЬ.
+
+    Четыре исхода, и различающий признак ОБЪЯВЛЕН, а не выведен:
+
+    * ключа нет в исходнике производителя (`_PRODUCER` + разбор AST) ⇒
+      **находка**: сколько бы производитель ни отработал, блок не появится —
+      выжимка читает поле, которого никто не пишет;
+    * ключ производитель пишет, а его такт (`artifacts[].producer` +
+      `agents[].schedule` конституции) ещё НЕ прошёл ⇒ **не находка**:
+      следующий прогон допишет блок сам. Исход не вечен — он закрывается
+      прогоном производителя, без правки кода и без записи в базу;
+    * ключ пишет, а такт ПРОШЁЛ ⇒ **находка**: производитель просрочил, сам
+      он блок уже не допишет;
+    * производитель не объявлен / исходник не разобран / такта нет / отчёт
+      нечем датировать ⇒ **находка** с названной причиной (fail-CLOSED,
+      инвариант 2). Молчание здесь было бы fail-OPEN — тише красной строки и
+      потому опаснее.
+
+    Второй копии понятия «такт производителя» не заводится: ответ на вопрос
+    «отработал ли он» берётся у `_drift_is_a_finding` (ADR-264), который берёт
+    его у `architecture_conformance.producer_tick_hours`.
+    """
+    rel = _PRODUCER.get(name)
+    if rel is None:
+        return True, (f"производитель артефакта не объявлен в `_PRODUCER` — "
+                      f"допишет ли он блок сам, сказать НЕЧЕМ.")
+    keys = _source_keys(os.path.join(root, rel))
+    if keys is None:
+        return True, (f"исходник производителя {rel} не прочитан/не разобран — "
+                      f"пишет ли он этот ключ вообще, сказать НЕЧЕМ.")
+    leaf = key.split(".")[-1]
+    if leaf not in keys:
+        return True, (f"производитель {rel} этот ключ НЕ ПИШЕТ (в исходнике его "
+                      f"нет) — сколько бы он ни отработал, блок не появится: "
+                      f"выжимка читает поле, которого никто не пишет.")
+    # Отчёт МОЛОЖЕ кода ⇒ производитель уже отработал с этим кодом и блока не
+    # написал; следующий такт его тоже не напишет, и ждать нечего. Форма —
+    # ветка 3 ADR-261 («бегун отработал ПОСЛЕ прихода кода»), перенесённая
+    # сюда, а не выдуманная заново. Без неё две строки ОДНОГО прогона
+    # противоречили бы друг другу: `_schema_drift` называл бы это
+    # расхождением, а строка ниже обещала бы, что «допишется само».
+    src_ts = _mtime(os.path.join(root, rel))
+    if art_ts is not None and src_ts is not None and art_ts >= src_ts:
+        return True, (f"производитель {rel} ключ пишет (правлен "
+                      f"{src_ts:%Y-%m-%d %H:%M}Z), а отчёт произведён ПОЗЖЕ "
+                      f"({art_ts:%Y-%m-%d %H:%M}Z) и блока не несёт — значит "
+                      f"производитель уже отработал с этим кодом и не написал "
+                      f"его; следующий такт не изменит ничего.")
+    is_finding, why = _drift_is_a_finding(name, root=root, art_ts=art_ts, now=now)
+    if is_finding:
+        return True, f"производитель {rel} ключ пишет, но {why}"
+    return False, f"производитель {rel} ключ пишет; {why}"
+
+
+def _absent_block(name: str, data, key: str, *, root: str | None,
+                  now) -> tuple[str, str]:
+    """Значок и хвост-причина строки «в отчёте нет блока <key>».
+
+    ОДНО следствие одного вердикта (урок #527): значок берётся из
+    `_finding_mark`, слова — из той же пары, и разойтись им негде.
+    """
+    is_finding, why = _block_absent_is_a_finding(
+        name, key, root=root or REPO_ROOT,
+        art_ts=_parse_ts(_produced_at(name, data)), now=now)
+    return _finding_mark(is_finding), why
 
 
 def _subject_drift(name: str, data, *, root: str | None = None,
@@ -755,6 +857,14 @@ def _read_text(path: str) -> str:
         return fh.read()
 
 
+def _mtime(path: str):
+    """Время правки файла в UTC — или None, если спросить нечем (fail-CLOSED)."""
+    try:
+        return dt.datetime.fromtimestamp(os.path.getmtime(path), dt.timezone.utc)
+    except OSError:
+        return None
+
+
 def _schema_drift(name: str, data, *, root: str | None = None) -> list[str]:
     """Поля, которые ветка читает, а производитель не пишет — вслух.
 
@@ -776,11 +886,7 @@ def _schema_drift(name: str, data, *, root: str | None = None) -> list[str]:
     rel = _PRODUCER.get(name)
     src = os.path.join(root, rel) if rel else None
     keys = _source_keys(src) if src else None
-    try:
-        mtime = dt.datetime.fromtimestamp(os.path.getmtime(src), dt.timezone.utc) \
-            if src else None
-    except OSError:
-        mtime = None
+    mtime = _mtime(src) if src else None
     art_ts = _parse_ts(_produced_at(name, data))
 
     if rel is None:
@@ -792,7 +898,8 @@ def _schema_drift(name: str, data, *, root: str | None = None) -> list[str]:
     else:
         why = None
 
-    drift: list[str] = []
+    never: list[str] = []
+    newer: list[str] = []
     old: list[str] = []
     unmeasured: list[str] = []
     for p in missing:
@@ -800,16 +907,15 @@ def _schema_drift(name: str, data, *, root: str | None = None) -> list[str]:
         if why is not None:
             unmeasured.append(p)
         elif leaf not in keys:
-            drift.append(p)
+            never.append(p)
         elif art_ts is None:
             unmeasured.append(p)
         elif art_ts < mtime:
             old.append(p)
         else:
-            drift.append(p)
+            newer.append(p)
 
-    lines: list[str] = []
-    if drift:
+    def _bits() -> str:
         bits = []
         if rel:
             bits.append(f"производитель {rel}")
@@ -817,10 +923,28 @@ def _schema_drift(name: str, data, *, root: str | None = None) -> list[str]:
             bits.append(f"правлен {mtime:%Y-%m-%d %H:%M}Z")
         if art_ts is not None:
             bits.append(f"отчёт {art_ts:%Y-%m-%d %H:%M}Z")
-        tail = f" ({' · '.join(bits)})" if bits else ""
+        return f" ({' · '.join(bits)})" if bits else ""
+
+    lines: list[str] = []
+    # ДВЕ разные причины расхождения — ДВА разных текста (цикл #528). Прежняя
+    # редакция сливала их в один список и печатала обоим одну фразу
+    # «производитель не пишет X». Для второй причины эта фраза — прямая
+    # НЕПРАВДА, и неправда, которую тот же код только что измерил: ветка `else`
+    # достижима ровно тогда, когда `leaf in keys`, то есть когда производитель
+    # ключ ПИШЕТ. Замер 08.09 на живом `loop_retro.json` (ключ снят из копии
+    # отчёта): строка обвиняла производителя в том, чего он не делал, при
+    # литерале `"outcomes_completeness"` в его же исходнике на строке 272.
+    # Тот же класс, что урок #527 (значок и слова из двух источников), только
+    # здесь разошлись измеренная причина и названная.
+    if never:
         lines.append("   ⚠️ СХЕМА РАЗОШЛАСЬ: производитель не пишет "
-                     + ", ".join(drift) + tail
+                     + ", ".join(never) + _bits()
                      + " — выжимка ниже читает НЕ ТОТ файл. Это находка (карточка), а не деталь.")
+    if newer:
+        lines.append("   ⚠️ СХЕМА РАЗОШЛАСЬ: производитель ПИШЕТ "
+                     + ", ".join(newer) + _bits()
+                     + ", но отчёт произведён ПОЗЖЕ его правки и этих полей не несёт —"
+                     + " старым образцом это не объясняется. Это находка (карточка), а не деталь.")
     if old:
         lines.append("   ℹ️ отчёт СТАРОГО ОБРАЗЦА (не находка): " + ", ".join(old)
                      + f" — производитель {rel} их пишет (правлен "
@@ -2033,8 +2157,9 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             # недоставленных карточках, и потеря исчезнет из поля зрения.
             debt = d.get("debt")
             if debt is None:
-                out.append("   ⚠️ долг доставки НЕ ИЗМЕРЕН: в квитанции нет блока debt "
-                           "(отчёт старого образца — до ADR-081)")
+                mark, why = _absent_block(name, data, "debt", root=root, now=now)
+                out.append(f"   {mark} долг доставки НЕ ИЗМЕРЕН: в квитанции нет блока "
+                           f"debt (ADR-081) — {why}")
             elif debt.get("unmeasured"):
                 out.append(f"   ⚠️ долг доставки НЕ ИЗМЕРЕН: {debt['unmeasured']}")
             elif debt.get("count"):
@@ -2050,15 +2175,19 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                 for dr in (debt.get("dropped") or [])[:5]:
                     out.append(f"   ⚠️ снято с долга: {dr.get('path')} — {dr.get('reason')}")
         else:
-            out.append("   ⚠️ доставка карточек НЕ ИЗМЕРЕНА: в отчёте нет блока delivery")
+            mark, why = _absent_block(name, data, "delivery", root=root, now=now)
+            out.append(f"   {mark} доставка карточек НЕ ИЗМЕРЕНА: в отчёте нет блока "
+                       f"delivery — {why}")
         # Доставка СЛЕДА решения владельца (ADR-086) — отдельный вопрос от доставки
         # карточек: мост везёт то, что создал сам, а ответ владельца пишет БОТ, и
         # мост его не создавал никогда. Замер #247: 2 из 9 ответов не были в git
         # ни минуты (с 08.08). Молчание здесь читалось бы как «след на origin».
         oad = data.get("owner_answer_delivery")
         if oad is None:
-            out.append("   ⚠️ след решения владельца НЕ ИЗМЕРЕН: в отчёте нет блока "
-                       "owner_answer_delivery (отчёт старого образца — до ADR-086)")
+            mark, why = _absent_block(name, data, "owner_answer_delivery",
+                                      root=root, now=now)
+            out.append(f"   {mark} след решения владельца НЕ ИЗМЕРЕН: в отчёте нет "
+                       f"блока owner_answer_delivery (ADR-086) — {why}")
         else:
             ost = oad.get("status")
             if ost == "DELIVERED":
@@ -2106,7 +2235,9 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # артефакт числился прочитанным, а прочитанного в нём не было ничего.
         fnd = data.get("findings")
         if not isinstance(fnd, list):
-            out.append(f"   ⚠️ находки ретро {_UNMEASURED}: в отчёте нет списка findings")
+            mark, why = _absent_block(name, data, "findings", root=root, now=now)
+            out.append(f"   {mark} находки ретро {_UNMEASURED}: в отчёте нет списка "
+                       f"findings — {why}")
         else:
             out.append(f"   находок ретро: {len(fnd)}")
             for f in fnd[:5]:
@@ -2120,8 +2251,10 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # того же файла живёт в architecture_conformance и отвечает на свой вопрос.
         comp = data.get("outcomes_completeness")
         if not isinstance(comp, dict):
-            out.append(f"   ⚠️ полнота архива исходов {_UNMEASURED}: в отчёте нет "
-                       "блока outcomes_completeness (отчёт старого образца)")
+            mark, why = _absent_block(name, data, "outcomes_completeness",
+                                      root=root, now=now)
+            out.append(f"   {mark} полнота архива исходов {_UNMEASURED}: в отчёте нет "
+                       f"блока outcomes_completeness — {why}")
         elif not comp.get("measured"):
             out.append(f"   ⚠️ полнота архива исходов {_UNMEASURED}: {comp.get('reason')}")
         elif comp.get("missing_days"):
@@ -2153,8 +2286,9 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         #     написал автор.
         fate = data.get("cards_fate")
         if not isinstance(fate, dict):
-            out.append(f"   ⚠️ судьба карточек петли {_UNMEASURED}: в отчёте нет "
-                       "блока cards_fate (отчёт старого образца)")
+            mark, why = _absent_block(name, data, "cards_fate", root=root, now=now)
+            out.append(f"   {mark} судьба карточек петли {_UNMEASURED}: в отчёте нет "
+                       f"блока cards_fate — {why}")
         else:
             out.append(f"   петля ADR-066: открытых карточек {_num(data, 'open_cards')} · "
                        f"не взято {_num(fate, 'new')} · в работе {_num(fate, 'in_progress')} · "
@@ -2185,7 +2319,9 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                            f"НЕ «лежит» и НЕ «закрыта»{tail}")
         rec = data.get("recurrences_total")
         if rec is None:
-            out.append(f"   ⚠️ рецидивы {_UNMEASURED}: в отчёте нет recurrences_total")
+            mark, why = _absent_block(name, data, "recurrences_total", root=root, now=now)
+            out.append(f"   {mark} рецидивы {_UNMEASURED}: в отчёте нет "
+                       f"recurrences_total — {why}")
         elif rec:
             # Настоящее время — только для живых. Замер 29.08: из 4 рецидивов 2
             # закрыты и молчат с 25–26.08, а строка кричала о всех четырёх как о
@@ -2195,8 +2331,10 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             if not isinstance(live, dict):
                 out.append(f"   🔴 РЕЦИДИВ: {rec} находк(а/и) ВЕРНУЛИСЬ после закрытия — "
                            "по производителю это системная причина, а не случайность")
-                out.append(f"      ⚠️ живой рецидив от исторического {_UNMEASURED}: "
-                           "в отчёте нет recurrence_liveness (отчёт старого образца)")
+                mark, why = _absent_block(name, data, "recurrence_liveness",
+                                          root=root, now=now)
+                out.append(f"      {mark} живой рецидив от исторического {_UNMEASURED}: "
+                           f"в отчёте нет recurrence_liveness — {why}")
             elif live.get("live"):
                 hist = (f" · ещё {live['historical']} исторических (закрыты и молчат "
                         f"с {str(live.get('historical_last_seen') or '')[:10]})"
@@ -2217,9 +2355,12 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             by_class = data.get("recurrences_by_class")
             recurring = data.get("recurring_findings")
             if not isinstance(by_class, dict) or not isinstance(recurring, list):
-                out.append(f"      ⚠️ ЧТО именно вернулось {_UNMEASURED}: в отчёте нет "
-                           "recurring_findings/recurrences_by_class (отчёт старого "
-                           "образца) — действовать по этой строке нечем")
+                absent = ("recurrences_by_class" if not isinstance(by_class, dict)
+                          else "recurring_findings")
+                mark, why = _absent_block(name, data, absent, root=root, now=now)
+                out.append(f"      {mark} ЧТО именно вернулось {_UNMEASURED}: в отчёте "
+                           f"нет recurring_findings/recurrences_by_class — "
+                           f"действовать по этой строке нечем; {why}")
             else:
                 if len(by_class) == 1:
                     cls, n = next(iter(by_class.items()))
@@ -2241,7 +2382,9 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                            ("latency_card_to_close", "карточка→закрытие")):
             lat = data.get(key)
             if not isinstance(lat, dict):
-                out.append(f"   ⚠️ латентность {label} {_UNMEASURED}: в отчёте нет {key}")
+                mark, why = _absent_block(name, data, key, root=root, now=now)
+                out.append(f"   {mark} латентность {label} {_UNMEASURED}: в отчёте нет "
+                           f"{key} — {why}")
             elif not lat.get("n"):
                 out.append(f"   латентность {label}: измерять нечего (n=0)")
             else:
@@ -2295,8 +2438,9 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # 17.08 ровно так и потерялся `own-34` (needs-owner на origin, файла в проде нет).
         gap = data.get("origin_queue")
         if not isinstance(gap, dict):
-            out.append("   ⚠️ полнота очереди НЕ ИЗМЕРЕНА: в отчёте нет блока "
-                       "origin_queue (отчёт старого образца)")
+            mark, why = _absent_block(name, data, "origin_queue", root=root, now=now)
+            out.append(f"   {mark} полнота очереди НЕ ИЗМЕРЕНА: в отчёте нет блока "
+                       f"origin_queue — {why}")
         elif not gap.get("measured"):
             out.append(f"   ⚠️ полнота очереди НЕ ИЗМЕРЕНА: {gap.get('reason')}")
         elif gap.get("count"):
@@ -2323,8 +2467,9 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # читалась как утверждение о полноте, замера под которым не было.
         bgap = data.get("branch_queue")
         if not isinstance(bgap, dict):
-            out.append("   ⚠️ вопросы на ВЕТКАХ НЕ ИЗМЕРЕНЫ: в отчёте нет блока "
-                       "branch_queue (отчёт старого образца)")
+            mark, why = _absent_block(name, data, "branch_queue", root=root, now=now)
+            out.append(f"   {mark} вопросы на ВЕТКАХ НЕ ИЗМЕРЕНЫ: в отчёте нет блока "
+                       f"branch_queue — {why}")
         elif not bgap.get("measured"):
             out.append(f"   ⚠️ вопросы на ВЕТКАХ НЕ ИЗМЕРЕНЫ: {bgap.get('reason')}")
         else:
@@ -2382,8 +2527,9 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # Блока нет вовсе ⇒ говорим «НЕ ИЗМЕРЕНО»: отчёт старого образца не имеет
         # права выглядеть как «принятых поручений нет».
         if "accepted" not in data:
-            out.append("   ⚠️ принятые поручения НЕ ИЗМЕРЕНЫ: в отчёте нет блока "
-                       "accepted (отчёт старого образца)")
+            mark, why = _absent_block(name, data, "accepted", root=root, now=now)
+            out.append(f"   {mark} принятые поручения НЕ ИЗМЕРЕНЫ: в отчёте нет блока "
+                       f"accepted — {why}")
         else:
             accepted = data.get("accepted")
             accepted = accepted if isinstance(accepted, list) else []
@@ -2401,8 +2547,10 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # которого строка заведена (шаг 0-офис 2.6 ч заказывал сделанную работу).
         drift_here = data.get("closed_on_origin_open_here")
         if not isinstance(drift_here, dict):
-            out.append("   ⚠️ закрытые на origin, открытые здесь, НЕ ИЗМЕРЕНЫ: в отчёте "
-                       "нет блока closed_on_origin_open_here (отчёт старого образца)")
+            mark, why = _absent_block(name, data, "closed_on_origin_open_here",
+                                      root=root, now=now)
+            out.append(f"   {mark} закрытые на origin, открытые здесь, НЕ ИЗМЕРЕНЫ: в "
+                       f"отчёте нет блока closed_on_origin_open_here — {why}")
         elif not drift_here.get("measured"):
             out.append("   ⚠️ закрыты ли на origin открытые здесь карточки — НЕ ИЗМЕРЕНО: "
                        f"{drift_here.get('reason', 'причина не названа')}")
@@ -2431,8 +2579,9 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # «кнопки в порядке», а до цикла #229 он был неизмерим по построению.
         ch = data.get("channel_buttons")
         if not isinstance(ch, dict):
-            out.append("   ⚠️ кнопки в канале НЕ ИЗМЕРЕНЫ: в отчёте нет блока "
-                       "channel_buttons (отчёт старого образца)")
+            mark, why = _absent_block(name, data, "channel_buttons", root=root, now=now)
+            out.append(f"   {mark} кнопки в канале НЕ ИЗМЕРЕНЫ: в отчёте нет блока "
+                       f"channel_buttons — {why}")
         elif not ch.get("measured"):
             out.append(f"   ⚠️ кнопки в канале НЕ ИЗМЕРЕНЫ: {ch.get('reason')}")
         else:
