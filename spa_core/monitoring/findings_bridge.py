@@ -68,6 +68,12 @@ PRODUCES = (
     "data/cio_component_map.json",
     "data/cio_policy_change_procedure.json",
     "data/cio_post_trade_verification.json",
+    # Объявлено ВМЕСТЕ с вызовом (цикл #522, ADR-259). ADR-257 внёс этот
+    # артефакт в манифест и в читателя шага 0-офис, но производящего вызова
+    # не было ни одного: измеритель существовал, тесты были зелёными, а файл
+    # не появился ни разу. Строка объявления без вызова ниже — ровно тот
+    # дефект, ради которого написан `test_declared_producer_is_reachable.py`.
+    "data/cio_outcome_independence.json",
     "data/evidence_staleness.json",
     "data/apy_composition.json",
     "data/findings_bridge_report.json",
@@ -845,6 +851,27 @@ def main(argv=None) -> int:
                   f"critical={ptv['counts']['critical']})")
     except Exception as e:  # noqa: BLE001 — замер §5 не смеет валить мост
         print(f"cio_post_trade_verification: пропущено ({e})")
+    # §5 ТЗ CIO, продолжение ступени сверки: существует ли НЕЗАВИСИМОЕ
+    # наблюдение исхода книги (ADR-257). Вопрос отдельный от предыдущего: тот
+    # меряет, подают ли сверке наблюдённый исход, этот — есть ли на свете чем
+    # его наблюдать. Мост находок артефакт НЕ читает: соединение наблюдателя с
+    # книгой требует ДВУХ решений владельца (наблюдатель вне `execution/` и
+    # реальный капитал на цепи). Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import cio_outcome_independence
+        oid = cio_outcome_independence.run(root=args.root)
+        if not oid["positive_control"]["passed"]:
+            print("cio_outcome_independence: "
+                  f"{oid['overall']} (положительный контроль не пройден — "
+                  "счёт не читать)")
+        else:
+            print(f"cio_outcome_independence: {oid['overall']} "
+                  f"(вердикт {oid['verdict']}, кандидатов "
+                  f"{len(oid['candidates'])}, независимых "
+                  f"{sum(1 for v in oid['per_candidate_verdict'] if v['independent'])}, "
+                  f"critical={oid['counts']['critical']})")
+    except Exception as e:  # noqa: BLE001 — замер §5 не смеет валить мост
+        print(f"cio_outcome_independence: пропущено ({e})")
     try:
         from spa_core.monitoring import capital_evidence_coverage
         cec = capital_evidence_coverage.run(root=args.root)
