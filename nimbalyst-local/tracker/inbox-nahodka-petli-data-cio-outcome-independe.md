@@ -2,10 +2,12 @@
 trackerStatus:
   type: inbox
 title: "Находка петли: data/cio_outcome_independence.json: активный артефакт отсутствует на д"
-status: new
+status: done
 source: nimbalyst
 created: 2026-09-08
 finding_key: "B2:missing:data/cio_outcome_independence.json"
+status_trail:
+  - "2026-09-08T19:10:32.969737+00:00 new -> done · queue.set_status"
 ---
 
 Находка петли ADR-066 (architecture_conformance, WARN, подтверждена 2 прогонами подряд):
