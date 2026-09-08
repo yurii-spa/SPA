@@ -2110,7 +2110,7 @@
    "program": "agent_site_freshness.sh",
    "layer": "product",
    "role": "monitoring",
-   "intent": "designed",
+   "intent": "active",
    "produces": [
     {
      "artifact": "data/site_freshness_report.json",
@@ -2130,7 +2130,7 @@
     "ADR-YL-011"
    ],
    "curation": "complete",
-   "notes": "ADR-085 (решение владельца 14.08, вариант 1). intent=designed СОЗНАТЕЛЬНО: код доставлен, агент ещё НЕ загружен — launchctl это решение владельца (карточка owner-decision-vklyuchit-novogo-storozha-saita-na-make). ПРИ ЗАГРУЗКЕ перевести intent в active ТЕМ ЖЕ шагом, иначе сторож даст CRITICAL «активация мимо ADR» на верное действие владельца. produces начнёт наполняться только после загрузки.",
+   "notes": "ADR-085 (решение владельца 14.08, вариант 1). intent=designed СОЗНАТЕЛЬНО: код доставлен, агент ещё НЕ загружен — launchctl это решение владельца (карточка owner-decision-vklyuchit-novogo-storozha-saita-na-make). ПРИ ЗАГРУЗКЕ перевести intent в active ТЕМ ЖЕ шагом, иначе сторож даст CRITICAL «активация мимо ADR» на верное действие владельца. produces начнёт наполняться только после загрузки. · 2026-09-09 00:30: intent→active тем же заходом, что launchctl bootstrap (карточка agent-vklyuchit-site-freshness-posle-adr-098; разрешение владельца 2026-08-19, ADR-085/ADR-098).",
    "passport": {
     "goal": "Site Custodian block 2+3 (ADR-YL-011): the INDEPENDENT checker.",
     "quality_metric": "data/site_freshness_report.json свежее 13 ч",
