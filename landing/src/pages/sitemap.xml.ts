@@ -65,6 +65,7 @@ export async function GET() {
   // Real files (.xml) and the root stay as-is.
   const canonical = (p: string): string => {
     if (p === '/' || p.endsWith('.xml') || p.endsWith('/')) return p;
+    if (p.startsWith('/btc-engine/')) return p; // static HTML files: the clean no-slash form is the 200, the slash form 308s back
     return `${p}/`;
   };
 
