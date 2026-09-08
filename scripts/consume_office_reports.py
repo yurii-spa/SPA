@@ -262,6 +262,13 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                       "positive_control", "verdict", "book",
                                       "identity", "candidates",
                                       "per_candidate_verdict", "findings"),
+    # Заказ #518/#519: доходит ли подставленное число до решения о капитале.
+    # `measurement.census` объявлен рядом с находками намеренно — население и
+    # достижимость это РАЗНЫЕ ответы, и отчёт, назвавший только первое, отвечает
+    # верно не на тот вопрос (ловушка 3 заказа).
+    "cio_substitution_census.json": ("overall", "counts.critical", "counts.warn",
+                                     "counts.info", "counts.unchecked",
+                                     "positive_control", "measurement", "findings"),
     "cio_policy_change_procedure.json": ("overall", "counts.critical",
                                          "counts.warn", "counts.info",
                                          "counts.unchecked", "positive_control",
@@ -335,6 +342,7 @@ _PRODUCER: dict[str, str] = {
     "cio_policy_change_procedure.json": "spa_core/monitoring/cio_policy_change_procedure.py",
     "cio_post_trade_verification.json": "spa_core/monitoring/cio_post_trade_verification.py",
     "cio_outcome_independence.json": "spa_core/monitoring/cio_outcome_independence.py",
+    "cio_substitution_census.json": "spa_core/monitoring/cio_substitution_census.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1465,6 +1473,37 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         out.append("   ADVISORY: ничего не соединено; оживить сверку нельзя правкой "
                    "кода — нужны наблюдатель вне `spa_core/execution/` и реальный "
                    "капитал на цепи, оба решения владельца")
+    elif name == "cio_substitution_census.json":
+        # Заказ #518/#519. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ
+        # (и прямо сказано, что оно не ответ), затем ДОСТИЖИМОСТЬ двумя
+        # каналами, и только потом находки. Владелец, увидев одно население,
+        # прочёл бы «в дереве 513 дефектов», чего замер не утверждает.
+        c = data.get("counts") or {}
+        ctrl = data.get("positive_control") or {}
+        meas = data.get("measurement") or {}
+        cen = meas.get("census") or {}
+        clo = meas.get("closure") or {}
+        reach = meas.get("reachable") or {}
+        out.append(f"   подстановка вместо отказа: {data.get('overall') or _UNMEASURED} "
+                   f"(critical={_num(c, 'critical')} warn={_num(c, 'warn')} "
+                   f"unchecked={_num(c, 'unchecked')})")
+        if not ctrl.get("passed"):
+            out.append("   [НЕ ИЗМЕРЕНО] положительный контроль не прошёл — "
+                       "числам ниже верить нельзя")
+        out.append(f"   перепись: {cen.get('substitutions', _UNMEASURED)} подстановок "
+                   f"в {cen.get('files', _UNMEASURED)} файлах, констант с объявляющим "
+                   f"именем {cen.get('constants', _UNMEASURED)} — это НАСЕЛЕНИЕ, не находка")
+        out.append(f"   достижимо от решения: {len(reach.get('substitutions') or [])} "
+                   f"подстанов(ка/ки/ок) и {len(reach.get('constants') or [])} констант(а/ы) "
+                   f"(замыкание {clo.get('import_modules', _UNMEASURED)} импортом + "
+                   f"{clo.get('artifact_modules', _UNMEASURED)} артефактом)")
+        for f in (data.get("findings") or []):
+            sev = (f.get("severity") or "").upper()
+            if sev in ("CRITICAL", "UNCHECKED"):
+                out.append(f"   [{sev}] {f.get('text')}"[:400])
+        out.append("   ADVISORY: ни одна подстановка этим замером НЕ удалена и ни один "
+                   "вызов не изменён — правка любого найденного места это money-path "
+                   "и решение владельца")
     elif name == "cio_post_trade_verification.json":
         # §5 ТЗ CIO, ступень `post-trade verification`. Печатаются ТРИ ответа
         # порознь, потому что они и есть три разных вопроса: есть ли предмет ·

@@ -74,6 +74,13 @@ PRODUCES = (
     # не появился ни разу. Строка объявления без вызова ниже — ровно тот
     # дефект, ради которого написан `test_declared_producer_is_reachable.py`.
     "data/cio_outcome_independence.json",
+    # Объявлено ВМЕСТЕ с вызовом (цикл #523). Работа #520/#521 пришла из
+    # осиротевшего дерева с записью манифеста и именным разделом шага 0-офис —
+    # и БЕЗ производящего вызова, то есть ровно в форме ADR-259. Сторож
+    # `test_declared_producer_is_reachable.py`, доставленный циклом #522
+    # НАКАНУНЕ, покраснел на ней на первом же прогоне: положительный контроль
+    # сработал в поле через один цикл после написания.
+    "data/cio_substitution_census.json",
     "data/evidence_staleness.json",
     "data/apy_composition.json",
     "data/findings_bridge_report.json",
@@ -872,6 +879,29 @@ def main(argv=None) -> int:
                   f"critical={oid['counts']['critical']})")
     except Exception as e:  # noqa: BLE001 — замер §5 не смеет валить мост
         print(f"cio_outcome_independence: пропущено ({e})")
+    # Заказ циклов #518/#519 (ADR-258): где ещё функция, не сумевшая получить
+    # вход, возвращает ПРАВДОПОДОБНОЕ число вместо отказа, и доходит ли хоть
+    # одно такое число до решения о капитале. Мост находок артефакт НЕ читает:
+    # правка любого найденного места — money-path и решение владельца.
+    # Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import cio_substitution_census
+        sub = cio_substitution_census.run(root=args.root)
+        if not sub["positive_control"]["passed"]:
+            print("cio_substitution_census: "
+                  f"{sub['overall']} (положительный контроль не пройден — "
+                  "счёт не читать)")
+        else:
+            cen = (sub.get("measurement") or {}).get("census") or {}
+            reach = (sub.get("measurement") or {}).get("reachable") or {}
+            print(f"cio_substitution_census: {sub['overall']} "
+                  f"(перепись {cen.get('substitutions')} подстановок в "
+                  f"{cen.get('files')} файлах — НАСЕЛЕНИЕ; достижимо от решения "
+                  f"{len(reach.get('substitutions') or [])} подстановок и "
+                  f"{len(reach.get('constants') or [])} констант, "
+                  f"critical={sub['counts']['critical']})")
+    except Exception as e:  # noqa: BLE001 — замер заказа не смеет валить мост
+        print(f"cio_substitution_census: пропущено ({e})")
     try:
         from spa_core.monitoring import capital_evidence_coverage
         cec = capital_evidence_coverage.run(root=args.root)
