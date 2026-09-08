@@ -2500,65 +2500,47 @@ def _absent_verdict(rel: str, *, root: str, data_dir: str | None,
        производителя не найден) ⇒ прежнее поведение, **находка**. Молчать здесь
        нельзя: «не смог измерить» не есть «всё хорошо».
 
+    ПОПРАВКА ЦИКЛА #525 — решение вынесено в
+    `spa_core/monitoring/artifact_absence.py`, ОДНО на обоих читателей вопроса.
+    Здесь остаётся только огранка в строки офиса. Перенос был не копированием:
+    он замерил прежнюю реализацию и нашёл в ней две дыры, обе — от приёма
+    «вывести вместо того, чтобы спросить объявление»:
+
+    * **имя ступени выводилось** из имени файла модуля, а мост её ОБЪЯВЛЯЕТ.
+      Для `data/evidence_staleness.json` эти имена разные (`evidence_staleness`
+      против `evidence_staleness_monitor`), и ветка 1 не срабатывала НИКОГДА:
+      реально провалившаяся перепись с записанной причиной уходила в ветку дат
+      и при недавно правленом модуле объявлялась «ещё не производился» —
+      **fail-OPEN**, направление опаснее ложной находки. То же у `outcomes`;
+    * **бегун подставлялся чужой:** отчёт МОСТА сравнивался с датой модуля для
+      любого артефакта карты, включая пять, которых мост не запускает вовсе
+      (`architecture_conformance.json`, `chief_investment.json`, `_health.json`,
+      `code_sync_status.json`, `rebalance_trigger.json`). Теперь такой артефакт
+      получает честное `НЕ ИЗМЕРЕНО` и остаётся находкой.
+
     Возвращает `(находка?, строки)`.
     """
-    name = os.path.basename(rel)
-    producer = _PRODUCER.get(name)
+    from spa_core.monitoring import artifact_absence as _aa
+
+    v = _aa.verdict(rel, root=root, data_dir=data_dir, now=now)
     plain = ["   файла нет на диске"]
-    if not producer:
-        return True, plain + [
-            f"   производитель {_UNMEASURED}: {name} нет в карте производителей — "
-            f"«отработал ли он» спросить нечем"]
-    stage = os.path.splitext(os.path.basename(producer))[0]
-    prod_full = os.path.join(root, producer)
-    if not os.path.exists(prod_full):
-        return True, plain + [
-            f"   и производителя {producer} в этом дереве тоже нет — "
-            f"артефакт объявлен, а писать его нечем"]
 
-    runner = _resolve(os.path.join("data", _RUNNER_REPORT), root=root,
-                      data_dir=data_dir)
-    try:
-        report = json.load(open(runner))
-    except Exception as e:  # noqa: BLE001
-        return True, plain + [
-            f"   отчёт бегуна не прочитан ({type(e).__name__}) ⇒ «пробовал ли он» "
-            f"{_UNMEASURED}; строка остаётся находкой, а не тишиной"]
-
-    censuses = report.get("censuses") or {}
-    attempted = set(censuses.get("attempted") or [])
-    skipped = censuses.get("skipped") or {}
-    if stage in attempted:
-        why = skipped.get(stage)
-        tail = ([f"   причина пропуска (записана бегуном): {why}"] if why else
-                [f"   бегун ступень звал и о пропуске НЕ сообщил — файла всё "
-                 f"равно нет"])
-        return True, plain + [
-            f"   производитель {producer} назван в составе ступени бегуна "
-            f"({_RUNNER_REPORT})"] + tail
-
-    ran = _parse_ts(report.get("generated_at"))
-    born = dt.datetime.fromtimestamp(os.path.getmtime(prod_full),
-                                     dt.timezone.utc)
-    if ran is None:
-        return True, plain + [
-            f"   у отчёта бегуна нет собственного времени ⇒ «успел ли он увидеть "
-            f"{producer}» {_UNMEASURED}; строка остаётся находкой"]
-    if ran < born:
-        age = (now - born).total_seconds() / 3600.0
+    if v.kind == _aa.NOT_YET:
         return False, [
             f"   ⏳ ЕЩЁ НЕ ПРОИЗВОДИЛСЯ (это НЕ находка): производитель "
-            f"{producer} лежит в дереве {age:.1f}ч, а его бегун "
+            f"{v.module} лежит в дереве {v.module_age_h:.1f}ч, а его бегун "
             f"({_RUNNER_REPORT}) последний раз отработал "
-            f"{report.get('generated_at')} — ДО его прихода.",
+            f"{v.runner_ran_at} — ДО его прихода.",
             f"   Ответ будет на следующем прогоне бегуна. Если и тогда файла "
             f"не появится, строка станет находкой сама.",
         ]
-    return True, plain + [
-        f"   производитель {producer} в дереве есть, бегун отработал ПОСЛЕ его "
-        f"прихода ({report.get('generated_at')}) и ступень "
-        f"{stage!r} не назвал — объявленный артефакт без производящего вызова "
-        f"(форма ADR-259)"]
+    if v.kind == _aa.ATTEMPTED_AND_ABSENT:
+        tail = ([f"   причина пропуска (записана бегуном): {v.skip_reason}"]
+                if v.skip_reason else
+                [f"   бегун ступень звал и о пропуске НЕ сообщил — файла всё "
+                 f"равно нет"])
+        return True, plain + [f"   {v.reason}"] + tail
+    return True, plain + [f"   {v.reason}"]
 
 
 def _office_absent_wholesale(targets: list[str], *, root: str,

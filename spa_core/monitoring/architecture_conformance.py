@@ -577,7 +577,18 @@ def run_checks(manifest: dict,
                contract_audit: dict | None = _NOT_REQUESTED,
                manifest_parity: dict | None = _NOT_REQUESTED,
                freshness_parity: dict | None = _NOT_REQUESTED,
-               prev_contract_labels: list[str] | None = None) -> dict:
+               prev_contract_labels: list[str] | None = None,
+               absence_of=None) -> dict:
+    # Проба «почему артефакта нет» — ВХОД, а не окружение
+    # (`.claude/rules/deployment.md`: у двери к ОС обязан быть параметр, иначе
+    # сцена судит о живой машине). По умолчанию — настоящая.
+    if absence_of is None:
+        from spa_core.monitoring.artifact_absence import verdict as _av
+
+        def _real_absence(path, *, now):
+            return _av(path, root=REPO_ROOT, now=now)
+
+        absence_of = _real_absence
     findings: list[dict] = []
     unchecked: list[dict] = []
     agents = manifest.get("agents", [])
@@ -621,6 +632,7 @@ def run_checks(manifest: dict,
     # B2 — свежесть активных артефактов + выполнимость самого SLO
     slo_budgets: list[dict] = []
     slo_unassigned: list[dict] = []
+    b2_not_yet: list[dict] = []
     for art in manifest.get("artifacts", []):
         if art.get("status") != "active":
             continue
@@ -692,9 +704,35 @@ def run_checks(manifest: dict,
 
         ts = ts_of(path)
         if ts is None:
+            # «Файла нет» ≠ «производитель отработал и файла не оставил»
+            # (цикл #525). Различает ОБЪЯВЛЕНИЕ переписи, а не дата файла:
+            # `spa_core/monitoring/artifact_absence.py` — один вердикт на обоих
+            # читателей вопроса. До #525 эта строка печаталась БЕЗУСЛОВНО, и
+            # живой прогон 2026-09-08 10:17Z объявил находкой исправный
+            # `data/cio_substitution_census.json`, чей бегун (такт 6 ч) просто
+            # ещё не отрабатывал с новым кодом. Соседний ключ того же вида уже
+            # доехал до карточки владельцу.
+            #
+            # Ничего не ослаблено: находкой остаются ВСЕ четыре двери незнания
+            # (артефакт не объявлен переписью, модуля нет в дереве, отчёт
+            # бегуна нечитаем, у отчёта нет своих часов). Не находка — ровно
+            # один исход, и он закрывается следующим прогоном бегуна САМ.
+            absence = absence_of(path, now=now)
+            if absence.not_yet:
+                b2_not_yet.append({
+                    "path": path, "stage": absence.stage,
+                    "module": absence.module,
+                    "module_age_h": absence.module_age_h,
+                    "runner_ran_at": absence.runner_ran_at,
+                    "reason": absence.reason,
+                })
+                continue
             findings.append(_finding(
                 f"B2:missing:{path}", "B2", "WARN", "strong",
-                f"{path}: активный артефакт отсутствует на диске"))
+                f"{path}: активный артефакт отсутствует на диске — "
+                f"{absence.reason}"
+                + (f"; причина пропуска (записана бегуном): "
+                   f"{absence.skip_reason}" if absence.skip_reason else "")))
             continue
         age_h = (now - ts).total_seconds() / 3600.0
         if budget and age_h > budget:
@@ -923,7 +961,13 @@ def run_checks(manifest: dict,
                    # проверки, а названный пробел в контракте (ADR-158).
                    # Счётчик существует затем, чтобы «ноль назначенных сроков»
                    # нельзя было прочитать как «все сроки на месте».
-                   "slo_unassigned": len(slo_unassigned)},
+                   "slo_unassigned": len(slo_unassigned),
+                   # Тот же принцип, что у `slo_unassigned`, и та же причина
+                   # (цикл #525): ОТДЕЛЬНОЕ слагаемое. Сложить его с `warn`
+                   # значило бы вернуть ложную находку, а с «всё чисто» —
+                   # объявить измеренным то, чего никто не мерил. При
+                   # `b2_not_yet == 0` строка итога побайтово прежняя.
+                   "b2_not_yet": len(b2_not_yet)},
         "fleet_size": (len(fleet) if fleet is not None else None),
         "manifest_agents": len(agents),
         "curation": curation,
@@ -947,6 +991,12 @@ def run_checks(manifest: dict,
         # Наблюдённый возраст лежит рядом СПЕЦИАЛЬНО: он и есть тот факт, по
         # которому две роли назначают срок.
         "slo_unassigned": slo_unassigned,
+        # Активные артефакты, которых нет на диске ПОТОМУ, что их производитель
+        # ещё не отрабатывал с пришедшим кодом (цикл #525). Не находка и не
+        # сбой проверки: состояние с выходом, закрываемое следующим прогоном
+        # бегуна САМО. Список существует затем, чтобы «не находка» не стала
+        # «тишиной»: молчащий третий исход неотличим от чистого.
+        "b2_not_yet": b2_not_yet,
         "consumption_budgets": consumption_budgets,
         "findings": kept,
         "aged": aged,
@@ -1016,6 +1066,20 @@ def main(argv=None) -> int:
     from spa_core.utils.atomic import atomic_save
     atomic_save(report, args.report)
 
+    _print_report(report, curation, contracts)
+    return 0 if args.exit_zero else report["exit_code"]
+
+
+def _print_report(report: dict, curation: dict, contracts: dict | None = None) -> None:
+    """Печать отчёта — ОТДЕЛЬНОЙ функцией, чтобы её можно было ИЗМЕРИТЬ.
+
+    До цикла #525 весь вывод жил внутри `main()`, и вопрос «звучит ли исход
+    вслух» можно было задать только полным прогоном против живого дерева —
+    то есть на практике не задавали. Блок в JSON, который не печатается, есть
+    тот же немой исход этажом выше (урок #426); у самого́ сторожа этой проверки
+    не было ни одной.
+    """
+    contracts = contracts or {}
     c = report["counts"]
     print(f"architecture_conformance: {report['overall']} — critical={c['critical']} "
           f"warn={c['warn']} aged={c['aged']} unchecked={c['unchecked']} "
@@ -1046,9 +1110,17 @@ def main(argv=None) -> int:
         print(f"  [СРОК НЕ НАЗНАЧЕН] {u['path']} (производитель "
               f"{u['producer']}): свежесть НЕ ИЗМЕРЕНА, {age} — срок обязаны "
               f"назначить две роли (ADR-158)")
+    # Третий исход ЗВУЧИТ. Блок в JSON, который не печатается, — тот же немой
+    # исход этажом выше (урок #426), а здесь он к тому же объясняет, почему
+    # артефакта нет и когда ответ придёт сам.
+    for u in report.get("b2_not_yet") or []:
+        print(f"  [⏳ ЕЩЁ НЕ ПРОИЗВОДИЛСЯ] {u['path']}: {u['reason']} "
+              f"(модуль в дереве {u['module_age_h']}ч, бегун отработал "
+              f"{u['runner_ran_at']}) — это НЕ находка; ответ будет на "
+              f"следующем прогоне бегуна, и если файла не появится, строка "
+              f"станет находкой сама")
     for f in report["findings"][:30]:
         print(f"  [{f['severity']}] {f['message']}")
-    return 0 if args.exit_zero else report["exit_code"]
 
 
 if __name__ == "__main__":

@@ -153,6 +153,110 @@ CENSUS_STAGE: tuple[str, ...] = (
     "loop_health",
 )
 
+#: ЧТО каждая перепись производит и ЧЕМ она написана — ОБЪЯВЛЕНО (ADR-158),
+#: а не выведено из имени.
+#:
+#: Зачем отдельно от `CENSUS_STAGE` (замер цикла #525). ADR-261 научил ОДНОГО
+#: читателя различать «бегун отработал и файла не оставил» от «бегун ещё не
+#: отрабатывал», и ступень для этого ВЫВОДИЛ: `basename(модуль)` без
+#: расширения. Для двух переписей из двадцати пяти выведенное имя не совпадает
+#: с объявленным — `evidence_staleness` живёт в `evidence_staleness_monitor.py`,
+#: `outcomes` в `outcomes_archive.py`, — и ветка «названа бегуном ⇒ находка» для
+#: них не срабатывала НИКОГДА, по построению. Провалившаяся перепись с
+#: записанной причиной проваливалась в ветку дат и при недавно правленом модуле
+#: объявлялась «ещё не производился»: **fail-OPEN**, направление опаснее ложной
+#: находки.
+#:
+#: Второе: артефакт → ступень нужен читателю, который ходит не по карте офиса, а
+#: по `architecture/manifest.json` (сторож `architecture_conformance`). Без
+#: объявления он либо не может спросить вовсе, либо подставляет ЧУЖОГО бегуна.
+#:
+#: Держат состав два храповика (`test_artifact_absence_shared_verdict.py`):
+#: ключи обязаны совпадать с `CENSUS_STAGE` (а тот сверяется с телом `main()`
+#: разбором AST), каждый `module` обязан существовать в дереве, каждый
+#: `artifact` — быть объявлен в манифесте активным с производителем
+#: `com.spa.decision_loop`. Три независимых объявления сверяются друг с другом;
+#: ручной список отказывает ровно тогда, когда кто-то забыл.
+CENSUS_PRODUCT: dict[str, dict[str, str]] = {
+    "adapter_feed_divergence": {
+        "module": "spa_core/monitoring/adapter_feed_divergence.py",
+        "artifact": "data/adapter_feed_divergence.json"},
+    "decision_reproducibility": {
+        "module": "spa_core/monitoring/decision_reproducibility.py",
+        "artifact": "data/decision_reproducibility.json"},
+    "marginal_apy_at_size": {
+        "module": "spa_core/monitoring/marginal_apy_at_size.py",
+        "artifact": "data/marginal_apy_at_size.json"},
+    "rebalance_cost_evidence": {
+        "module": "spa_core/monitoring/rebalance_cost_evidence.py",
+        "artifact": "data/rebalance_cost_evidence.json"},
+    "apy_forecast_accuracy": {
+        "module": "spa_core/monitoring/apy_forecast_accuracy.py",
+        "artifact": "data/apy_forecast_accuracy.json"},
+    "cio_shadow_replay": {
+        "module": "spa_core/monitoring/cio_shadow_replay.py",
+        "artifact": "data/cio_shadow_replay.json"},
+    "decision_audit_trail": {
+        "module": "spa_core/monitoring/decision_audit_trail.py",
+        "artifact": "data/decision_audit_trail.json"},
+    "cio_failure_modes": {
+        "module": "spa_core/monitoring/cio_failure_modes.py",
+        "artifact": "data/cio_failure_modes.json"},
+    "cio_explainability": {
+        "module": "spa_core/monitoring/cio_explainability.py",
+        "artifact": "data/cio_explainability.json"},
+    "cio_kill_switch_controls": {
+        "module": "spa_core/monitoring/cio_kill_switch_controls.py",
+        "artifact": "data/cio_kill_switch_controls.json"},
+    "cio_auto_execution_limits": {
+        "module": "spa_core/monitoring/cio_auto_execution_limits.py",
+        "artifact": "data/cio_auto_execution_limits.json"},
+    "cio_target_producers": {
+        "module": "spa_core/monitoring/cio_target_producers.py",
+        "artifact": "data/cio_target_producers.json"},
+    "cio_architecture_constraints": {
+        "module": "spa_core/monitoring/cio_architecture_constraints.py",
+        "artifact": "data/cio_architecture_constraints.json"},
+    "cio_component_map": {
+        "module": "spa_core/monitoring/cio_component_map.py",
+        "artifact": "data/cio_component_map.json"},
+    "cio_policy_change_procedure": {
+        "module": "spa_core/monitoring/cio_policy_change_procedure.py",
+        "artifact": "data/cio_policy_change_procedure.json"},
+    "cio_post_trade_verification": {
+        "module": "spa_core/monitoring/cio_post_trade_verification.py",
+        "artifact": "data/cio_post_trade_verification.json"},
+    "cio_outcome_independence": {
+        "module": "spa_core/monitoring/cio_outcome_independence.py",
+        "artifact": "data/cio_outcome_independence.json"},
+    "cio_substitution_census": {
+        "module": "spa_core/monitoring/cio_substitution_census.py",
+        "artifact": "data/cio_substitution_census.json"},
+    "capital_evidence_coverage": {
+        "module": "spa_core/monitoring/capital_evidence_coverage.py",
+        "artifact": "data/capital_evidence_coverage.json"},
+    "apy_composition": {
+        "module": "spa_core/monitoring/apy_composition.py",
+        "artifact": "data/apy_composition.json"},
+    "pool_identity_collision": {
+        "module": "spa_core/monitoring/pool_identity_collision.py",
+        "artifact": "data/pool_identity_collision.json"},
+    # Объявленное имя ступени и имя файла модуля РАЗНЫЕ — ровно тот случай,
+    # ради которого эта карта заведена (см. комментарий выше).
+    "evidence_staleness": {
+        "module": "spa_core/monitoring/evidence_staleness_monitor.py",
+        "artifact": "data/evidence_staleness.json"},
+    "outcomes": {
+        "module": "spa_core/monitoring/outcomes_archive.py",
+        "artifact": "data/investment_os/outcomes.jsonl"},
+    "loop_retro": {
+        "module": "spa_core/monitoring/loop_retro.py",
+        "artifact": "data/loop_retro.json"},
+    "loop_health": {
+        "module": "spa_core/monitoring/loop_health.py",
+        "artifact": "data/loop_health.json"},
+}
+
 #: ПРЕДМЕТ вердикта моста об отказе доставки — не карточки, а РЕШАТЕЛЬ: именно
 #: `card_delivery` решает «переносим правку на origin» или «перенести нечем,
 #: сделайте руками». Карточки — живое состояние, их в провенанс объявлять
