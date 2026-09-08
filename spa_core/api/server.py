@@ -161,6 +161,7 @@ from spa_core.api.routers import (  # noqa: E402
     agents,
     aggressive_lab,
     analytics,
+    btc_engine,
     cmo,
     cockpit,
     competitive_watch,
@@ -194,6 +195,7 @@ PRODUCES = (
 )
 
 app.include_router(misc.router)
+app.include_router(btc_engine.router)  # BTC Signal Engine read-API (earn-defi D-52, 2026-09-08)
 app.include_router(agents.router)
 app.include_router(analytics.router)
 app.include_router(interest.router)
