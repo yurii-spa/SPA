@@ -2,13 +2,16 @@
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import snap from '../data/track_snapshot.json';  // single-source the gate count (no hardcoded drift)
+import { goLiveLabel } from '../lib/golive_label.js';
 
-// Canonical GoLive figures — mirror of data/golive_status.json (passed/total).
-// Live source: /api/v1/golive (pass_count/total). Keep in sync; do not hardcode a
-// separate percentage — derive the bar from these two so it never drifts.
-const goLivePass = 27;
-const goLiveTotal = 29;
-const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
+// Canonical GoLive figures — read from the committed snapshot (data/golive_status.json →
+// track_snapshot.json), the same source /status and /due-diligence use. They USED to be typed
+// here as 27/29 and drifted (the live gate has read 29/29 for weeks). Live source: /api/v1/golive.
+const goLivePass = snap.gates_passed != null ? snap.gates_passed : '—';
+const goLiveTotal = snap.gates_total != null ? snap.gates_total : '—';
+const goLivePct = (snap.gates_passed != null && snap.gates_total != null) ? Math.round((Number(snap.gates_passed) / Number(snap.gates_total)) * 100) : 0;
+// Go-live wording — ONE honest source (src/lib/golive_label.js); no "July 2026" literal.
+const goLive = goLiveLabel(snap);
 ---
 
 <Layout
@@ -366,7 +369,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
         <div class="space-y-2 text-sm text-white/55">
           <p data-ru="29 критериев должны пройти перед запуском в live.">29 criteria must pass before live deployment.</p>
           <p data-ru="Непройденные критерии видны в Дашборде → вкладка GoLiveChecker.">Failing criteria visible in Dashboard → GoLiveChecker tab.</p>
-          <p><span data-ru="Цель go-live:">Go-live target:</span> <span class="text-white/60 font-mono">July 2026</span></p>
+          <p><span data-ru="Go-live:">Go-live:</span> <span class="text-white/60 font-mono" data-ru={goLive.shortRu}>{goLive.shortEn}</span></p>
         </div>
       </div>
     </section>

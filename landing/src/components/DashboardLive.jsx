@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, Component } from 'react';
 import { TONES } from './ui/tokens.js';
+import { goLiveLabel } from '../lib/golive_label.js';
 
 /*
  * DashboardLive — the COMMAND CENTER for earn-defi.com.
@@ -37,7 +38,7 @@ const POLL_MS = 15_000;
 const FETCH_TIMEOUT_MS = 8_000;
 const DAYS_NEEDED = 30;
 const GATES_TOTAL_FALLBACK = 29;
-const GOLIVE_TARGET_FALLBACK = '2026-07-21'; // plan date, labeled as such
+const GOLIVE_TARGET_FALLBACK = '2026-07-21'; // the gate's calendar ETA (anchor + 29 d) — judged by goLiveLabel(): shown only while still ahead of today
 const RWA_FLOOR_FALLBACK = 3.4; // structural benchmark, labeled
 const NA = '—';
 
@@ -826,7 +827,14 @@ export default function DashboardLive({ initialFacts = null }) {
   /* ── derived overview values ── */
   const f = facts || {};
   const days = f.real_track_days ?? f.track_days ?? null;
-  const target = f.go_live_target ?? (phase === 'offline' ? GOLIVE_TARGET_FALLBACK : null);
+  // Go-live wording — ONE honest source (src/lib/golive_label.js). The API's go_live_target is the
+  // gate's calendar ETA (anchor + 29 d = 2026-07-21) and it has passed; it is shown only while still
+  // ahead of TODAY, otherwise "decision pending — gate passed, date not set". Never "0 days remaining".
+  const goLive = goLiveLabel(
+    { go_live_target: f.go_live_target ?? (phase === 'offline' ? GOLIVE_TARGET_FALLBACK : null), real_track_days: days, days_needed: DAYS_NEEDED },
+    new Date().toISOString().slice(0, 10),
+  );
+  const target = goLive.dateSet ? goLive.target : null;
   const anchor = f.evidenced_anchor ?? null;
   const gatesPass = f.golive_passed ?? null;
   const gatesTotal = f.golive_total ?? GATES_TOTAL_FALLBACK;
@@ -987,13 +995,13 @@ export default function DashboardLive({ initialFacts = null }) {
                   <div style={{ ...card, padding: '10px 12px', background: 'var(--bg-base)' }}>
                     <p style={{ ...mono, fontSize: '.625rem', textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-faint)', marginBottom: 4 }}>{tr('target')}</p>
                     <p style={{ ...mono, fontSize: '.8125rem', color: 'var(--data-teal)' }}>
-                      {target ?? NA}
-                      {targetDaysLeft != null && <span style={{ color: 'var(--text-muted)' }}> · {targetDaysLeft} {tr('daysLeft')}</span>}
+                      {target ?? (lang === 'ru' ? goLive.shortRu : goLive.shortEn)}
+                      {target != null && targetDaysLeft != null && <span style={{ color: 'var(--text-muted)' }}> · {targetDaysLeft} {tr('daysLeft')}</span>}
                     </p>
                   </div>
                   <div style={{ ...card, padding: '10px 12px', background: 'var(--bg-base)' }}>
                     <p style={{ ...mono, fontSize: '.625rem', textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-faint)', marginBottom: 4 }}>{lang === 'ru' ? 'Осталось' : 'Remaining'}</p>
-                    <p style={{ ...mono, fontSize: '.8125rem', color: 'var(--text-secondary)' }}>{remaining == null ? NA : `${remaining} ${tr('ofNeeded')}`}</p>
+                    <p style={{ ...mono, fontSize: '.8125rem', color: 'var(--text-secondary)' }}>{remaining == null ? NA : (remaining === 0 ? (lang === 'ru' ? 'порог пройден' : 'gate passed') : `${remaining} ${tr('ofNeeded')}`)}</p>
                   </div>
                 </div>
               </div>

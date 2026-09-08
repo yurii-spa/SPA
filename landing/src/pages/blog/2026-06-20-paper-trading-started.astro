@@ -1,6 +1,13 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import Disclaimer from '../../components/Disclaimer.astro';
+import snap from '../../data/track_snapshot.json';
+import { goLiveLabel, gateClosedOn } from '../../lib/golive_label.js';
+// Dated update (2026-09-08) — measured from the committed snapshot. The post body is left as
+// written on 2026-06-20: its ETAs ("~July 2026") are historical statements, not current claims,
+// and the note below says so next to the measured state.
+const goLive = goLiveLabel(snap);
+const gateClosed = gateClosedOn(snap);
 const post = {
   title: "Paper Trading Phase Started",
   titleRu: "Начало фазы бумажной торговли",
@@ -118,6 +125,14 @@ const post = {
             </div>
           ))}
         </div>
+      </section>
+
+      <!-- Update 2026-09-08 — the ETAs above are left as written on 2026-06-20; this note carries the measured state -->
+      <section>
+        <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Обновление · 2026-09-08">Update · 2026-09-08</p>
+        <p class="text-sm text-white/50 leading-relaxed" data-ru={`Оценки выше оставлены так, как были написаны 20 июня 2026. Замер по снимку от ${snap.as_of}: ${snap.real_track_days}/${snap.days_needed} подтверждённых дней (${snap.days_needed}-й день зафиксирован ${gateClosed ?? '—'}), GoLiveChecker ${snap.gates_passed}/${snap.gates_total}. ${goLive.ru}.`}>
+          The estimates above are left as written on June 20, 2026. Measured from the snapshot as of {snap.as_of}: {snap.real_track_days}/{snap.days_needed} evidenced days (day {snap.days_needed} was logged on {gateClosed ?? '—'}), GoLiveChecker {snap.gates_passed}/{snap.gates_total}. {goLive.en}.
+        </p>
       </section>
 
     </article>

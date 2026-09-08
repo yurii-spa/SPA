@@ -1,6 +1,11 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
+import snap from '../data/track_snapshot.json';
+import { goLiveLabel } from '../lib/golive_label.js';
+// Go-live wording — ONE honest source (src/lib/golive_label.js); the old "~July 2026" literal was
+// the gate's calendar ETA (anchor + 29 d), not a decision. Fee terms below are untouched.
+const goLive = goLiveLabel(snap);
 ---
 
 <Layout
@@ -132,7 +137,7 @@ import Disclaimer from '../components/Disclaimer.astro';
         <span class="text-warn flex-shrink-0 mt-0.5">&#9888;</span>
         <div>
           <p class="text-sm text-white/60 leading-relaxed mb-2">
-            <span data-ru="В период бумажной торговли (примерно до июля 2026)">During the paper trading period (through ~July 2026),</span> <strong class="text-white/80" data-ru="комиссии не взимаются">no fees are charged</strong>.
+            <span data-ru={`В период бумажной торговли (${goLive.ru})`}>During the paper trading period ({goLive.en}),</span> <strong class="text-white/80" data-ru="комиссии не взимаются">no fees are charged</strong>.
             <span data-ru="Структура комиссий применяется только с даты go-live — и сначала только к собственному капиталу.">Fee structure applies from go-live date only — and only to own capital first.</span>
           </p>
           <p class="text-xs text-white/35" data-ru="Бумажная торговля использует виртуальные $100,000 USDC — реального капитала нет, комиссии не начисляются.">
@@ -149,8 +154,8 @@ import Disclaimer from '../components/Disclaimer.astro';
 
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Когда начинаются комиссии?">When do fees start?</h4>
-          <p class="text-sm text-white/55 leading-relaxed" data-ru="С даты go-live (ориентир ~июль 2026, зависит от GoLiveChecker). В период бумажной торговли комиссии не взимаются.">
-            From the go-live date (~July 2026 target, contingent on GoLiveChecker). No fees during paper
+          <p class="text-sm text-white/55 leading-relaxed" data-ru={`С даты go-live (${goLive.ru}; зависит от GoLiveChecker и решения владельца). В период бумажной торговли комиссии не взимаются.`}>
+            From the go-live date ({goLive.en}; contingent on GoLiveChecker and Owner review). No fees during paper
             trading period.
           </p>
         </div>

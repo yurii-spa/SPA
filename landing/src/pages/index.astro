@@ -155,13 +155,14 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
         </div>
         <a href="/refusals" data-track="m4_refusals" style="text-align:center;padding:14px;border-radius:10px;background:var(--bg-surface);border:1px solid var(--border);text-decoration:none;display:block">
           <!-- M6 (redesign): live refusal-count badge — the moat as a real number from
-               /api/rates-desk/decisions counts.REFUSAL. Static fallback = current count. -->
-          <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:#eab308"><span id="m4-refusals">20</span></div>
+               /api/rates-desk/decisions counts.REFUSAL. Static fallback = an honest em-dash, never a
+               baked count (a baked "20" stood here while the live counter read 0). -->
+          <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:#eab308"><span id="m4-refusals">—</span></div>
           <div style="font-size:11px;color:var(--text-muted)" data-ru="отказов · все опубликованы →">refusals · all published →</div>
         </a>
         <div style="text-align:center;padding:14px;border-radius:10px;background:var(--bg-surface);border:1px solid var(--border)">
           <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:var(--text-primary)" data-ru="Некастод.">Non-custodial</div>
-          <div style="font-size:11px;color:var(--text-muted)" data-ru="45 автономных мониторов 24/7">45 autonomous monitors 24/7</div>
+          <div style="font-size:11px;color:var(--text-muted)" data-ru="автономный мониторинг 24/7">autonomous monitors 24/7</div>
         </div>
       </div>
     </div>

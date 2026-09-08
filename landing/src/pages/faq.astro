@@ -1,6 +1,16 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
+import snap from '../data/track_snapshot.json';
+import { goLiveLabel } from '../lib/golive_label.js';
+// Launch answer — measured values from the committed snapshot + the ONE honest go-live wording
+// (src/lib/golive_label.js). The old answer said "still accumulating the 30 days … go live around
+// 2026-07-21" while the snapshot read 77/30 evidenced days.
+const goLive = goLiveLabel(snap);
+const trackDays = snap.real_track_days != null ? snap.real_track_days : '—';
+const trackNeeded = snap.days_needed != null ? snap.days_needed : 30;
+const trackAnchor = snap.evidenced_anchor ?? '—';
+const gatesTxt = (snap.gates_passed != null && snap.gates_total != null) ? `${snap.gates_passed}/${snap.gates_total}` : '—';
 const faqs = [
   {
     id: 'faq-what-is-spa',
@@ -86,8 +96,8 @@ const faqs = [
     id: 'faq-launch',
     q: 'When is the launch?',
     qRu: 'Когда запуск?',
-    a: 'We are going through Paper Trading — a 30-day evidence-gathering period with $100,000 USDC of virtual capital. We audited our own track and reset it: only days backed by a real daily-cycle log count, anchored at 2026-06-22 (the earlier flat-rate backfill does not count). We are still accumulating the 30 evidenced days. After passing the GoLiveChecker (29 criteria), 30 days of gap_monitor continuity, and a manual Owner review, we plan to go live around 2026-07-21. See /track-record and /status for the live per-day count.',
-    aRu: 'Мы проходим Paper Trading — 30-дневный период накопления доказательств с виртуальным капиталом $100,000 USDC. Мы провели аудит собственного трека и сбросили его: засчитываются только дни с реальным логом ежедневного цикла, якорь 2026-06-22 (ранний бэкфилл по фиксированной ставке не считается). Мы всё ещё накапливаем 30 подтверждённых дней. После прохождения GoLiveChecker (29 критериев), непрерывности gap_monitor 30 дней и ручного review Owner — планируем live запуск ориентировочно 2026-07-21. Живой счёт по дням — на /track-record и /status.',
+    a: `SPA is in Paper Trading — a ${trackNeeded}-day evidence-gathering period with $100,000 USDC of virtual capital. We audited our own track and reset it: only days backed by a real daily-cycle log count, anchored at ${trackAnchor} (the earlier flat-rate backfill does not count). The track now stands at ${trackDays}/${trackNeeded} evidenced days and the GoLiveChecker passes ${gatesTxt} criteria. ${goLive.en} — going live also requires a manual Owner review. See /track-record and /status for the live per-day count.`,
+    aRu: `SPA проходит Paper Trading — ${trackNeeded}-дневный период накопления доказательств с виртуальным капиталом $100,000 USDC. Мы провели аудит собственного трека и сбросили его: засчитываются только дни с реальным логом ежедневного цикла, якорь ${trackAnchor} (ранний бэкфилл по фиксированной ставке не считается). Сейчас трек — ${trackDays}/${trackNeeded} подтверждённых дней, GoLiveChecker проходит ${gatesTxt} критериев. ${goLive.ru} — для запуска также нужен ручной review владельца. Живой счёт по дням — на /track-record и /status.`,
     label: 'Launch',
     labelRu: 'Запуск',
     labelColor: 'text-warn',
@@ -119,7 +129,7 @@ const faqJsonLd = JSON.stringify({
 ---
 
 <Layout
-  title="FAQ — Часто задаваемые вопросы | SPA earn-defi.com"
+  title="FAQ — Frequently Asked Questions | SPA earn-defi.com"
   description="Ответы на вопросы об SPA: условия участия, ожидаемая доходность, вывод средств, CPA методология, безопасность средств и процесс подачи заявки."
   canonical="https://earn-defi.com/faq"
 >

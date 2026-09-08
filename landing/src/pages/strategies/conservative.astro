@@ -2,9 +2,14 @@
 import Layout from '../../layouts/Layout.astro';
 import Disclaimer from '../../components/Disclaimer.astro';
 import strategies from '../../data/strategy_config.json';
+import snap from '../../data/track_snapshot.json';
+import { goLiveLabel } from '../../lib/golive_label.js';
 
 const preserve = strategies.strategies.find(s => s.id === 'preserve')!;
 const global = strategies.global;
+// Go-live wording — ONE honest source (src/lib/golive_label.js); strategy_config.global.go_live_target
+// was a stale calendar ETA ("July 21, 2026") and is no longer read.
+const goLive = goLiveLabel(snap);
 ---
 
 <Layout
@@ -76,7 +81,7 @@ const global = strategies.global;
         </div>
         <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
           <div class="text-xs text-white/50 mb-1" data-ru="Цель запуска">Go-Live Target</div>
-          <div class="text-white font-semibold">{global.go_live_target}</div>
+          <div class="text-white font-semibold" data-ru={goLive.shortRu}>{goLive.shortEn}</div>
         </div>
       </div>
     </section>

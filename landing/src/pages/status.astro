@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import snap from '../data/track_snapshot.json';
+import { goLiveLabel, gateClosedOn } from '../lib/golive_label.js';
 
 // Shows current system status: GoLive score, paper trading progress.
 // SSR values are the last committed evidenced SNAPSHOT (data/golive_status.json +
@@ -15,23 +16,39 @@ const goLiveTotal = snap.gates_total != null ? snap.gates_total : '—';
 const goLiveReadinessPct = Math.round((goLiveChecks / goLiveTotal) * 100);
 const evidenceDays = snap.real_track_days != null ? snap.real_track_days : '—';  // evidenced days — ONE source, no hardcode (FIX-2)
 const evidenceTarget = snap.days_needed != null ? snap.days_needed : '—';    // 30 honest days required (ADR-002)
-const goLiveTarget = snap.go_live_target ?? "2026-07-21";
+// Go-live wording — ONE honest source (src/lib/golive_label.js). snap.go_live_target is the gate's
+// calendar ETA (anchor + 29 d = 2026-07-21) and it has passed; a date is shown only while it is
+// still ahead of snap.as_of, otherwise "decision pending — gate passed, date not set". No literal.
+const goLive = goLiveLabel(snap);
 const trackStart = snap.evidenced_anchor ?? "2026-06-22";  // evidence anchor (NOT backfilled 06-10)
+const trackGatePassed = goLive.gatePassed;
+const gatesKnown = snap.gates_passed != null && snap.gates_total != null;
+const gatesAllPass = gatesKnown && Number(snap.gates_passed) >= Number(snap.gates_total);
+const gateClosed = gateClosedOn(snap);  // date the 30th evidenced day was logged (from the snapshot's own bars)
 
-// Canonical blockers from data/golive_status.json (2 time-gated: same 30-day track wait).
-// Derived from the snapshot day-count so they never drift from the metric cards; the
-// client-side live fetch updates the cards, and these strings track the same snapshot.
-const blockers = [
-  `min_track_days_30 — ${evidenceDays}/${evidenceTarget} evidenced track days (time-gated, target ${goLiveTarget})`,
-  `gap_monitor_30d — ${evidenceDays}/${evidenceTarget} evidenced track days, continuity (time-gated, target ${goLiveTarget})`
+// Blockers — derived from the SAME snapshot the 29/29 card reads (data/golive_status.json →
+// track_snapshot.json), never a hand-typed list (the old literal said "2 blockers remaining" at
+// 77/30 evidenced days while golive_status.blockers was []). The only blockers this page has ever
+// carried are the two time-gated ones: open while the evidenced day-count is below the target,
+// moved to the "passed" history once it is reached. Any other failing criterion is named by count.
+const timeGated = [
+  { name: 'min_track_days_30', en: 'evidenced track days', ru: 'подтверждённых дней трека' },
+  { name: 'gap_monitor_30d', en: 'evidenced track days, continuity', ru: 'подтверждённых дней трека, непрерывность' },
 ];
+const blockers = [
+  ...(trackGatePassed ? [] : timeGated.map(t => `${t.name} — ${evidenceDays}/${evidenceTarget} ${t.en} (time-gated)`)),
+  ...((gatesKnown && !gatesAllPass) ? [`${Number(snap.gates_total) - Number(snap.gates_passed)} GoLiveChecker criteria not passing — see /dashboard → GoLiveChecker`] : []),
+];
+const passedHistory = trackGatePassed ? timeGated.map(t => ({ ...t, detail: `${evidenceDays}/${evidenceTarget}` })) : [];
 const blockerCount = blockers.length;
+const blockersEn = (n) => n === 0 ? 'no open blockers' : `${n} blocker${n === 1 ? '' : 's'} remaining`;
+const blockersRu = (n) => n === 0 ? 'открытых блокеров нет' : `осталось ${n} ${n === 1 ? 'блокер' : (n < 5 ? 'блокера' : 'блокеров')}`;
 
 type CheckStatus = "pass" | "warn" | "fail";
 
 const checks: { label: string; labelRu: string; status: CheckStatus; detail: string }[] = [
-  { label: "GoLive Criteria", labelRu: "Критерии GoLive", status: "warn", detail: `${goLiveChecks}/${goLiveTotal} checks pass — 2 time-gated (30-day track)` },
-  { label: "Paper Track Record", labelRu: "Track record бумажной торговли", status: "warn", detail: `${evidenceDays}/${evidenceTarget} evidenced days · anchor ${trackStart} (target: ${goLiveTarget})` },
+  { label: "GoLive Criteria", labelRu: "Критерии GoLive", status: gatesAllPass ? "pass" : "warn", detail: `${goLiveChecks}/${goLiveTotal} checks pass — ${blockersEn(blockerCount)}` },
+  { label: "Paper Track Record", labelRu: "Track record бумажной торговли", status: trackGatePassed ? "pass" : "warn", detail: trackGatePassed ? `${evidenceDays}/${evidenceTarget} evidenced days · anchor ${trackStart} · ${evidenceTarget}-day gate passed${gateClosed ? ' on ' + gateClosed : ''}` : `${evidenceDays}/${evidenceTarget} evidenced days · anchor ${trackStart} (${goLive.en})` },
   { label: "Daily Cycle (launchd)", labelRu: "Ежедневный цикл (launchd)", status: "pass", detail: "com.spa.daily_cycle running at 06:00 UTC" },
   { label: "HTTP API", labelRu: "HTTP API", status: "pass", detail: "com.spa.apiserver on port 8765 (FastAPI, api.earn-defi.com)" },
   { label: "Cloudflare Tunnel", labelRu: "Cloudflare Tunnel", status: "pass", detail: "com.spa.cloudflared active" },
@@ -73,8 +90,8 @@ const statusBg: Record<CheckStatus, string> = {
           <div>
             <h1 class="text-2xl font-bold text-warn mb-2" data-ru="В ПРОЦЕССЕ — фаза бумажной торговли">IN PROGRESS — Paper Trading Phase</h1>
             <p class="text-white/60 leading-relaxed">
-              <span data-ru="SPA сейчас работает в проверяемом режиме бумажной торговли с виртуальным капиталом $100,000 USDC. Перевод на реальный капитал (go-live) запланирован на">SPA is currently in verified paper trading mode with virtual capital of $100,000 USDC.
-              Go-live transfer to real capital is planned for</span> <strong class="text-white">{goLiveTarget}</strong> <span data-ru="после 30 честных дней трека и ручного review Owner.">after 30 honest tracking days and manual Owner review.</span>
+              <span data-ru="SPA сейчас работает в проверяемом режиме бумажной торговли с виртуальным капиталом $100,000 USDC. Перевод на реальный капитал:">SPA is currently in verified paper trading mode with virtual capital of $100,000 USDC.
+              Go-live transfer to real capital:</span> <strong class="text-white" data-ru={goLive.ru}>{goLive.en}</strong> <span data-ru="— после ручного review владельца.">— after a manual Owner review.</span>
             </p>
           </div>
         </div>
@@ -98,7 +115,7 @@ const statusBg: Record<CheckStatus, string> = {
               style={`width: ${goLiveReadinessPct}%`}
             ></div>
           </div>
-          <p class="text-white/50 text-sm"><span id="st-gates-pct">{goLiveReadinessPct}</span><span data-ru={`% критериев пройдено — осталось ${blockerCount} блокера`}>% criteria pass — {blockerCount} blockers remaining</span></p>
+          <p class="text-white/50 text-sm"><span id="st-gates-pct">{goLiveReadinessPct}</span><span data-ru={`% критериев пройдено — ${blockersRu(blockerCount)}`}>% criteria pass — {blockersEn(blockerCount)}</span></p>
         </div>
 
         <!-- Paper Track Record -->
@@ -121,8 +138,8 @@ const statusBg: Record<CheckStatus, string> = {
 
       </div>
 
-      <!-- Blockers -->
-      {blockers.length > 0 && (
+      <!-- Blockers — from the snapshot (see frontmatter), never a hand-typed list -->
+      {blockers.length > 0 ? (
         <div class="rounded-xl border border-danger-border bg-danger-bg p-6">
           <h2 class="text-danger font-semibold text-lg mb-4" data-ru="⛔ Активные блокеры">⛔ Active Blockers</h2>
           <ul class="space-y-2">
@@ -133,6 +150,20 @@ const statusBg: Record<CheckStatus, string> = {
               </li>
             ))}
           </ul>
+        </div>
+      ) : (
+        <div class="rounded-xl border border-ok-border bg-ok-bg p-6">
+          <h2 class="text-ok font-semibold text-lg mb-4" data-ru="✅ Активных блокеров нет">✅ Active blockers: none</h2>
+          {passedHistory.length > 0 && (
+            <ul class="space-y-2">
+              {passedHistory.map(t => (
+                <li class="flex items-start gap-3 text-white/70 text-sm">
+                  <span class="text-ok mt-0.5 shrink-0">•</span>
+                  <code class="font-mono text-ok text-xs bg-white/5 px-2 py-1 rounded">{t.name} — {t.detail} <span data-ru={t.ru}>{t.en}</span> · <span data-ru="пройден">passed</span></code>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
@@ -169,18 +200,18 @@ const statusBg: Record<CheckStatus, string> = {
               <div class="text-white/70 text-sm mt-0.5" data-ru="Трек сброшен и заякорен на первом дне с реальным логом цикла. Ранний бэкфилл по фиксированной ставке не засчитывается.">Track reset, anchored to the first day with a real cycle log. Earlier flat-rate backfill is not counted.</div>
             </div>
             <div class="relative">
-              <div class="absolute -left-6 top-1 w-3 h-3 rounded-full bg-warn ring-2 ring-warn-border"></div>
-              <div class="text-warn text-sm font-semibold">2026-07-21 <span data-ru="(ориентировочно)">(estimated)</span></div>
-              <div class="text-white/70 text-sm mt-0.5" data-ru="30 подтверждённых дней завершены — критерии GoLive полностью выполнены">30 evidenced days complete — GoLive criteria fully satisfied</div>
+              <div class={`absolute -left-6 top-1 w-3 h-3 rounded-full ${trackGatePassed ? 'bg-ok ring-2 ring-ok-border' : 'bg-warn ring-2 ring-warn-border'}`}></div>
+              <div class={`${trackGatePassed ? 'text-ok' : 'text-warn'} text-sm font-semibold`}>{trackGatePassed ? (gateClosed ?? '—') : '—'} <span data-ru={trackGatePassed ? '(факт)' : '(ожидается)'}>{trackGatePassed ? '(reached)' : '(pending)'}</span></div>
+              <div class="text-white/70 text-sm mt-0.5" data-ru={`${evidenceTarget} подтверждённых дней завершены — временной порог (min_track_days_30 / gap_monitor_30d) выполнен`}>{evidenceTarget} evidenced days complete — the time gate (min_track_days_30 / gap_monitor_30d) satisfied</div>
             </div>
             <div class="relative">
               <div class="absolute -left-6 top-1 w-3 h-3 rounded-full bg-blue-400 ring-2 ring-blue-400/30"></div>
-              <div class="text-blue-400 text-sm font-semibold">~2026-07-21</div>
-              <div class="text-white/70 text-sm mt-0.5" data-ru="Ручной review Owner + проверка непрерывности gap_monitor за 30 дней (ADR-002)">Manual Owner review + gap_monitor 30-day continuity check (ADR-002)</div>
+              <div class="text-blue-400 text-sm font-semibold" data-ru="ожидается">pending</div>
+              <div class="text-white/70 text-sm mt-0.5" data-ru="Ручной review владельца (ADR-002) — решение владельца, не календарная дата">Manual Owner review (ADR-002) — an owner decision, not a calendar item</div>
             </div>
             <div class="relative">
               <div class="absolute -left-6 top-1 w-3 h-3 rounded-full bg-white/20 ring-2 ring-white/10"></div>
-              <div class="text-white/55 text-sm font-semibold">2026-07-21 <span data-ru="(цель)">(target)</span></div>
+              <div class="text-white/55 text-sm font-semibold" data-ru={goLive.shortRu}>{goLive.shortEn}</div>
               <div class="text-white/55 text-sm mt-0.5" data-ru="Go-live: ввод реального капитала после подтверждённого верифицированного трека в 30 дней">Go-live: real capital deployment after confirmed 30-day verified track</div>
             </div>
           </div>

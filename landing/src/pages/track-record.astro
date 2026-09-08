@@ -3,6 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import Tier1ProofPanel from '../components/Tier1ProofPanel.jsx';
 import snap from '../data/track_snapshot.json';
+import { goLiveLabel } from '../lib/golive_label.js';
 
 // Honest, build-time static fallback (last evidenced snapshot). Live values
 // override these client-side from api.earn-defi.com; this keeps the page honest
@@ -11,7 +12,11 @@ import snap from '../data/track_snapshot.json';
 // ONE source (FIX-2), NO hardcoded fallback — a missing field shows an honest em-dash, not a stale literal.
 const realDays = snap.real_track_days != null ? snap.real_track_days : '—';
 const daysNeeded = snap.days_needed != null ? snap.days_needed : '—';
-const goLiveTarget = snap.go_live_target || '—';
+// Go-live wording — ONE honest source (src/lib/golive_label.js): snap.go_live_target is the gate's
+// calendar ETA (anchor + 29 d) and it has passed; a date is shown only while still ahead of
+// snap.as_of, otherwise "decision pending — gate passed, date not set".
+const goLive = goLiveLabel(snap);
+const goLiveTarget = goLive.shortEn;
 const anchor = snap.evidenced_anchor || '—';
 const gatesPassed = snap.gates_passed != null ? snap.gates_passed : '—';
 const gatesTotal = snap.gates_total != null ? snap.gates_total : '—';
@@ -89,8 +94,8 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
             <p class="text-sm font-mono text-data-teal"><span id="tr-reset-days">{realDays}</span> / {daysNeeded} <span class="text-white/50" data-ru="дней">days</span></p>
           </div>
           <div class="rounded-lg border border-border bg-bg-surface px-4 py-3">
-            <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-1" data-ru="Цель go-live">Go-live target</p>
-            <p class="text-sm font-mono text-white/80" id="tr-reset-target">{goLiveTarget}</p>
+            <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-1">Go-live</p>
+            <p class="text-sm font-mono text-white/80" id="tr-reset-target" data-ru={goLive.shortRu}>{goLiveTarget}</p>
           </div>
         </div>
         <p class="text-xs text-white/50 mt-4 leading-relaxed" data-ru="Бумажный/исследовательский трек на виртуальном портфеле $100k. Не инвестиционный совет, не прогноз. Метки источника на каждом баре ниже — видно, какие дни реальные.">
@@ -310,7 +315,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           <div class="h-2 bg-white/10 rounded-full overflow-hidden mb-2">
             <div class="h-full bg-data-teal rounded-full transition-all" id="tr-days-bar" style={`width:${Math.round((realDays / daysNeeded) * 100)}%`}></div>
           </div>
-          <p class="text-white/50 text-sm"><span data-ru="Якорь подтверждения">Evidence anchor</span> {anchor} <span data-ru="· цель go-live">· go-live target</span> <span id="tr-days-target">{goLiveTarget}</span></p>
+          <p class="text-white/50 text-sm"><span data-ru="Якорь подтверждения">Evidence anchor</span> {anchor} <span data-ru="· go-live:">· go-live:</span> <span id="tr-days-target" data-ru={goLive.shortRu}>{goLiveTarget}</span></p>
         </div>
       </div>
     </section>
@@ -479,7 +484,17 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
               if((c.name === 'min_track_days_30' || c.name === 'gap_monitor_30d') && c.target_date){ tgt = c.target_date; break; }
             }
           }
-          if(tgt){ setText('tr-reset-target', tgt); setText('tr-days-target', tgt); }
+          // The gate's target_date is a calendar ETA (anchor + 29 d). Show it only while it is still
+          // ahead of today; a passed ETA is not a date (go-live is an owner decision) — the SSR
+          // "decision pending — gate passed, date not set" wording stands. Same rule as
+          // src/lib/golive_label.js (inline scripts cannot import it).
+          var today = new Date().toISOString().slice(0, 10);
+          if(tgt && tgt > today){
+            ['tr-reset-target', 'tr-days-target'].forEach(function(id){
+              var el = document.getElementById(id);
+              if(el){ el.textContent = tgt; el.removeAttribute('data-ru'); }
+            });
+          }
           if(d.evidenced_anchor){ setText('tr-reset-anchor', d.evidenced_anchor); }
         }).catch(function(){});
       }

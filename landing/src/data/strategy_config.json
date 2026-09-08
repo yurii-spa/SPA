@@ -109,7 +109,8 @@
     }
   ],
   "global": {
-    "go_live_target": "July 21, 2026",
+    "go_live_target": null,
+    "_go_live_note": "No owner-set go-live date (2026-09-08). Public wording comes from landing/src/lib/golive_label.js over track_snapshot.json; 'July 21, 2026' was the gate's calendar ETA (anchor + 29 d), not a decision.",
     "paper_trading_start": "June 22, 2026",
     "withdrawal_terms": "No lock-up. Standard processing T+1. Large withdrawals up to 5 business days.",
     "apy_disclaimer": "APY figures are variable and not guaranteed. Past paper performance does not guarantee future results. Possible loss of capital.",
