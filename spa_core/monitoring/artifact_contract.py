@@ -18,13 +18,26 @@
 Читается РАЗБОРОМ, а не импортом: импорт исполняет модуль (побочные эффекты, сеть, запись
 файлов), и сторож, чтобы посмотреть на агента, запускал бы его.
 
-Сверка даёт ТРИ исхода, а не два (иначе сторож врёт про целую семью):
+Сверка даёт ЧЕТЫРЕ исхода, а не два (иначе сторож врёт про целую семью):
 
-* ``confirmed``  — объявлено И запись видна в коде: контракт подтверждён независимо;
+* ``confirmed``  — объявлено И запись видна у ВСЕХ объявленных продуктов;
+* ``partial``    — запись видна у ЧАСТИ продуктов, про остальные не измерено ничего.
+  Отдельный исход с 08.09: до него хватало ОДНОЙ видимой записи, чтобы назвать
+  `confirmed` объявление из двадцати семи строк;
 * ``unmeasured`` — объявлено, но записи не видно НИГДЕ в замыкании. Это НЕ нарушение:
   так выглядит harness-семья, где имя собирается на лету. «Не измерено» ≠ «не пишет»;
 * ``contradiction`` — видна запись артефакта, который агент НЕ объявил. Вот это дефект:
   либо объявление отстало, либо агент пишет мимо контракта.
+
+**Предел, который надо знать читателю: вердикт этого модуля — про ОБЪЯВЛЕНИЕ и про
+собственный модуль агента.** Вопрос «а есть ли на свете вызов, который продукт
+вычисляет» задаёт другой прибор (`spa_core/tests/_orphan_producer.py`, ADR-259), и
+население у него другое — активные записи `architecture/manifest.json:artifacts[]`.
+Замер 08.09 по этому дереву: из 81 объявления без видимой собственной записи сосед
+отвечает `REACHABLE` на 30, честно `UNMEASURED` на 14, а 37 лежат ВНЕ его населения
+(72 продукта объявлены паспортом агента и отсутствуют в `artifacts[]` — у них нет ни
+SLO, ни проверки B2, ни вердикта о производящем вызове). Разрыв двух населений здесь
+НЕ закрывается: он назван числом и вынесен вопросом (ADR-263).
 
 LLM_FORBIDDEN. Только stdlib.
 """
@@ -56,6 +69,10 @@ DECLARED_NONE = "declared_none"
 UNMEASURED = "unmeasured"
 CONTRADICTION = "contradiction"
 UNDECLARED = "undeclared"
+#: Объявлено несколько продуктов, а запись видна НЕ У ВСЕХ. Отдельный исход, потому что
+#: до 08.09 такой агент назывался `confirmed` — одной видимой записи хватало, чтобы
+#: подтвердить объявление из двадцати семи строк (замер ниже, в шапке `check_agent`).
+PARTIAL = "partial"
 
 
 def declared_produces(py_file: str | Path) -> tuple[str, ...] | None:
@@ -157,12 +174,41 @@ def check_agent(label: str, module: str, repo: Path) -> dict:
         return {"label": label, "module": module, "verdict": CONTRADICTION,
                 "declared": list(decl), "undeclared_writes": extra,
                 "note": "собственный модуль агента пишет артефакт, которого нет в объявлении"}
-    if decl_base & written:
+    # ВЕРДИКТ ПО КАЖДОМУ ПРОДУКТУ, а не по агенту целиком. До 08.09 здесь стояло
+    # `if decl_base & written: CONFIRMED` — ОДНОЙ видимой записи хватало, чтобы
+    # подтвердить объявление любой длины, и про остальные продукты не говорилось
+    # ничего. Замер на этом дереве: у 34 агентов с вердиктом `confirmed` объявлено
+    # 85 продуктов, а запись видна у 45; у `com.spa.decision_loop` — 1 из 27, у
+    # `com.spa.daily_cycle` — 3 из 10. Слово было зелёное, покрытие — половинное.
+    #
+    # Почему это не придирка, а решение: `card_acceptance` берёт ЭТОТ вердикт
+    # машинным критерием приёмки карточки (`artifact_contract_confirmed:<label>`),
+    # и живая карточка `inbox-dnevnoi-tsikl-pishet-chetyre-artefakta-mimo-kontrakta`
+    # 08.09 числилась ВЫПОЛНЕННОЙ по свидетельству о трёх продуктах из десяти —
+    # причём среди семи неизмеренных `data/equity_curve_daily.json` и
+    # `data/current_positions.json`.
+    #
+    # Исход РАЗДЕЛЁН, а не ослаблен: `confirmed` теперь значит «видно ВСЁ
+    # объявленное», `partial` — «видно часть, про остальное не измерено ничего».
+    # При полном покрытии ответ прежний слово в слово, поэтому счётчик `partial`
+    # равен нулю на здоровом дереве и растёт только там, где раньше молчали.
+    seen = [d for d in decl if d.split("/")[-1] in written]
+    unseen = [d for d in decl if d.split("/")[-1] not in written]
+    coverage = {"declared": len(decl), "confirmed": seen, "unmeasured": unseen}
+    if seen and not unseen:
         return {"label": label, "module": module, "verdict": CONFIRMED,
                 "declared": list(decl), "internal_writes": sorted(internal),
+                "coverage": coverage,
                 "note": "объявление подтверждено записью, видной в коде"}
+    if seen:
+        return {"label": label, "module": module, "verdict": PARTIAL,
+                "declared": list(decl), "internal_writes": sorted(internal),
+                "coverage": coverage,
+                "note": f"запись видна у {len(seen)} из {len(decl)} объявленных "
+                        f"продуктов; про остальные {len(unseen)} не измерено НИЧЕГО — "
+                        f"это не подтверждение контракта, а его часть"}
     return {"label": label, "module": module, "verdict": UNMEASURED,
-            "declared": list(decl),
+            "declared": list(decl), "coverage": coverage,
             "note": "записи не видно в коде (имя может собираться на лету) — "
                     "НЕ измерено, а не «не пишет»"}
 
@@ -222,12 +268,22 @@ def main() -> int:
         print(_json.dumps(r, ensure_ascii=False, indent=2))
         return 0
     print(f"агентов с читаемой точкой входа: {r['total']}")
-    for k in (CONFIRMED, DECLARED_NONE, UNMEASURED, CONTRADICTION, UNDECLARED):
+    for k in (CONFIRMED, PARTIAL, DECLARED_NONE, UNMEASURED, CONTRADICTION, UNDECLARED):
         print(f"  {k:14} {r['counts'].get(k, 0)}")
     for row in r["rows"]:
         if row["verdict"] == CONTRADICTION:
             print(f"\n  ПРОТИВОРЕЧИЕ {row['label']}: пишет {row['undeclared_writes']}, "
                   f"объявлено {row['declared']}")
+    # Покрытие называется ВСЛУХ и поимённо: счётчик `partial` говорит, сколько
+    # агентов подтверждены не полностью, но не говорит, ЧТО именно не измерено, —
+    # а решение принимают по конкретному продукту.
+    for row in r["rows"]:
+        if row["verdict"] != PARTIAL:
+            continue
+        cov = row.get("coverage") or {}
+        print(f"\n  ЧАСТИЧНО {row['label']}: подтверждено "
+              f"{len(cov.get('confirmed') or [])} из {cov.get('declared')}; "
+              f"НЕ измерено: {', '.join(cov.get('unmeasured') or []) or '—'}")
     return 0
 
 

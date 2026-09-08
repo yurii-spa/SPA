@@ -264,5 +264,199 @@ class TestBasenameComparisonIsNamedNotHidden(unittest.TestCase):
                              "совпадение базового имени не обязано давать противоречие")
 
 
+class TestVerdictIsPerArtifactNotPerAgent(unittest.TestCase):
+    """Одной видимой записи НЕ хватает, чтобы подтвердить объявление из многих строк.
+
+    Каждая сцена ниже — замер 08.09 по живому дереву (`origin/main` 3934fe7f5), а не
+    выдуманный случай:
+
+    * `com.spa.decision_loop` объявляет 27 продуктов, запись видна у ОДНОГО — и до
+      этой правки агент назывался `confirmed`. Тот же перекос #522 замерил как «1 из 25»;
+    * `com.spa.daily_cycle` — 3 из 10, и среди семи неизмеренных
+      `data/equity_curve_daily.json` (живой трек) и `data/current_positions.json`;
+    * по флоту: у 34 агентов с вердиктом `confirmed` объявлено 85 продуктов, а запись
+      видна у 45. Зелёное слово покрывало 40 продуктов, про которые не измерено ничего.
+
+    Обратная сторона проверяется тоже: при ПОЛНОМ покрытии ответ обязан остаться
+    прежним слово в слово, иначе исход не разделён, а подменён.
+    """
+
+    def _agent(self, td, src):
+        root = Path(td)
+        (root / "pkg").mkdir(exist_ok=True)
+        (root / "pkg" / "__init__.py").write_text("", encoding="utf-8")
+        (root / "pkg" / "a.py").write_text(src, encoding="utf-8")
+        return root
+
+    def test_one_visible_write_does_not_confirm_ten_declarations(self):
+        """Форма `com.spa.daily_cycle`: объявлено 10, видно 3."""
+        decl = ", ".join(f'"data/x{i}.json"' for i in range(10))
+        with tempfile.TemporaryDirectory() as td:
+            root = self._agent(td, f"PRODUCES = ({decl})\n"
+                                   'atomic_save(d, "data/x0.json")\n'
+                                   'atomic_save(d, "data/x1.json")\n'
+                                   'atomic_save(d, "data/x2.json")\n')
+            r = ac.check_agent("a", "pkg.a", root)
+            self.assertEqual(r["verdict"], ac.PARTIAL)
+            self.assertNotEqual(r["verdict"], ac.CONFIRMED,
+                                "три видимые записи из десяти — это не подтверждение контракта")
+            self.assertEqual(r["coverage"]["declared"], 10)
+            self.assertEqual(len(r["coverage"]["confirmed"]), 3)
+            self.assertEqual(len(r["coverage"]["unmeasured"]), 7)
+
+    def test_full_coverage_is_still_confirmed(self):
+        """Обратная половина: разделение исхода не смеет красить исправное."""
+        with tempfile.TemporaryDirectory() as td:
+            root = self._agent(td, 'PRODUCES = ("data/x.json", "data/y.json")\n'
+                                   'atomic_save(d, "data/x.json")\n'
+                                   'atomic_save(d, "data/y.json")\n')
+            r = ac.check_agent("a", "pkg.a", root)
+            self.assertEqual(r["verdict"], ac.CONFIRMED)
+            self.assertEqual(r["coverage"]["unmeasured"], [])
+
+    def test_coverage_names_each_unmeasured_product(self):
+        """Счётчик не говорит, ЧТО не измерено, — а решение принимают по продукту."""
+        with tempfile.TemporaryDirectory() as td:
+            root = self._agent(td, 'PRODUCES = ("data/seen.json", "data/track.json")\n'
+                                   'atomic_save(d, "data/seen.json")\n')
+            r = ac.check_agent("a", "pkg.a", root)
+            self.assertEqual(r["coverage"]["confirmed"], ["data/seen.json"])
+            self.assertEqual(r["coverage"]["unmeasured"], ["data/track.json"])
+
+    def test_nothing_visible_is_still_unmeasured_not_partial(self):
+        """`partial` — про ЧАСТЬ. Ноль видимых записей это по-прежнему «не измерено»."""
+        with tempfile.TemporaryDirectory() as td:
+            root = self._agent(td, 'PRODUCES = ("data/x.json", "data/y.json")\n'
+                                   'def emit(self):\n'
+                                   '    atomic_save(d, str(self.dir / f"{self.key}.json"))\n')
+            r = ac.check_agent("a", "pkg.a", root)
+            self.assertEqual(r["verdict"], ac.UNMEASURED)
+
+    def test_contradiction_still_wins_over_partial(self):
+        """Дефект важнее неполноты: запись мимо контракта остаётся находкой."""
+        with tempfile.TemporaryDirectory() as td:
+            root = self._agent(td, 'PRODUCES = ("data/x.json", "data/y.json")\n'
+                                   'atomic_save(d, "data/x.json")\n'
+                                   'atomic_save(z, "data/surprise.json")\n')
+            r = ac.check_agent("a", "pkg.a", root)
+            self.assertEqual(r["verdict"], ac.CONTRADICTION)
+
+    def test_partial_is_not_a_finding_for_the_watchdog(self):
+        """B7 берёт находкой ТОЛЬКО противоречие — новый исход не смеет стать потоком.
+
+        Условие подключения B7 было названо вслух в его собственной шапке: сигнал
+        такого объёма стал бы потоком находок владельцу. `partial` сегодня шесть.
+        """
+        self.assertNotEqual(ac.PARTIAL, ac.CONTRADICTION)
+
+
+class TestAcceptanceProbeStopsOverclaiming(unittest.TestCase):
+    """Проба приёмки карточки — место, где неполный вердикт становится РЕШЕНИЕМ.
+
+    Замер 08.09: карточка `inbox-dnevnoi-tsikl-pishet-chetyre-artefakta-mimo-kontrakta`
+    несёт `acceptance_probe: artifact_contract_confirmed:com.spa.daily_cycle`, и проба
+    отвечала ВЫПОЛНЕНО по свидетельству о трёх продуктах из десяти.
+    """
+
+    def _row(self, verdict, cov=None):
+        row = {"label": "com.spa.x", "verdict": verdict}
+        if cov is not None:
+            row["coverage"] = cov
+        return {"rows": [row]}
+
+    def _run(self, audit):
+        from spa_core.monitoring import artifact_contract as m
+        from spa_core.monitoring import card_acceptance as ca
+        real = m.audit_fleet
+        m.audit_fleet = lambda *a, **k: audit
+        try:
+            return ca.run_probe("artifact_contract_confirmed:com.spa.x")
+        finally:
+            m.audit_fleet = real
+
+    def test_partial_is_unmeasured_not_satisfied(self):
+        from spa_core.monitoring import card_acceptance as ca
+        v, detail = self._run(self._row(ac.PARTIAL, {
+            "declared": 10, "confirmed": ["data/a.json"],
+            "unmeasured": ["data/equity_curve_daily.json"]}))
+        self.assertEqual(v, ca.UNMEASURED)
+        self.assertNotEqual(v, ca.SATISFIED, "три продукта из десяти — не выполненный критерий")
+        self.assertIn("equity_curve_daily", detail,
+                      "неизмеренный продукт обязан быть НАЗВАН, а не сосчитан")
+
+    def test_partial_is_not_reported_as_failure_either(self):
+        """«Не выполнено» было бы такой же неправдой: про эти продукты не измерено НИЧЕГО."""
+        from spa_core.monitoring import card_acceptance as ca
+        v, _ = self._run(self._row(ac.PARTIAL, {
+            "declared": 2, "confirmed": ["data/a.json"], "unmeasured": ["data/b.json"]}))
+        self.assertNotEqual(v, ca.NOT_SATISFIED)
+
+    def test_full_coverage_still_satisfies(self):
+        from spa_core.monitoring import card_acceptance as ca
+        v, _ = self._run(self._row(ac.CONFIRMED))
+        self.assertEqual(v, ca.SATISFIED)
+
+    def test_contradiction_still_fails(self):
+        from spa_core.monitoring import card_acceptance as ca
+        v, _ = self._run(self._row(ac.CONTRADICTION))
+        self.assertEqual(v, ca.NOT_SATISFIED)
+
+
+class TestPartialIsSaidAloud(unittest.TestCase):
+    """Третий исход, который не звучит, — тот же молчащий канал (ADR-261).
+
+    Найдено СВОЕЙ батареей: мутация «снять печать `ЧАСТИЧНО`» ВЫЖИЛА — счётчик
+    `partial` в сводке был, а поимённой строки не проверял никто. Ровно тот приём,
+    ради которого #525 вынес печать сторожа в `_print_report`: «звучит ли исход
+    вслух» обязано быть ИЗМЕРИМО, иначе третий исход существует только в JSON.
+    """
+
+    def _audit(self):
+        return {"total": 2, "counts": {ac.PARTIAL: 1, ac.CONFIRMED: 1},
+                "rows": [
+                    {"label": "com.spa.x", "module": "pkg.x", "verdict": ac.PARTIAL,
+                     "declared": ["data/a.json", "data/b.json"],
+                     "coverage": {"declared": 2, "confirmed": ["data/a.json"],
+                                  "unmeasured": ["data/b.json"]}},
+                    {"label": "com.spa.y", "module": "pkg.y", "verdict": ac.CONFIRMED,
+                     "declared": ["data/c.json"],
+                     "coverage": {"declared": 1, "confirmed": ["data/c.json"],
+                                  "unmeasured": []}}]}
+
+    def _out(self):
+        import contextlib, io, sys as _s
+        real = ac.audit_fleet
+        ac.audit_fleet = lambda *a, **k: self._audit()
+        argv = _s.argv
+        _s.argv = ["artifact_contract"]
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                ac.main()
+        finally:
+            ac.audit_fleet = real
+            _s.argv = argv
+        return buf.getvalue()
+
+    def test_partial_agent_is_named_not_only_counted(self):
+        out = self._out()
+        self.assertIn("ЧАСТИЧНО", out, "исход есть в счётчике и молчит в выводе")
+        self.assertIn("com.spa.x", out)
+
+    def test_the_unmeasured_product_is_named_in_the_output(self):
+        """Счётчик не говорит, ЧТО не измерено, — а решение принимают по продукту."""
+        out = self._out()
+        self.assertIn("data/b.json", out)
+
+    def test_confirmed_agent_is_not_announced_as_partial(self):
+        """Обратный контроль: строка не печатается для всех подряд."""
+        out = self._out()
+        self.assertNotIn("ЧАСТИЧНО com.spa.y", out)
+
+    def test_partial_appears_in_the_counter_block_too(self):
+        out = self._out()
+        self.assertRegex(out, r"partial\s+1")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -103,7 +103,17 @@ def _probe_contract_manifest_parity(arg: str | None) -> tuple[str, str]:
 
 
 def _probe_artifact_contract(arg: str | None) -> tuple[str, str]:
-    """Критерий: у агента `arg` сверка контракта даёт `confirmed`."""
+    """Критерий: у агента `arg` сверка контракта подтверждена ПО ВСЕМ продуктам.
+
+    ЧАСТИЧНОЕ покрытие — `unmeasured`, а не «выполнено» и не «не выполнено».
+    Замер 08.09: `com.spa.daily_cycle` объявляет 10 продуктов, запись видна у 3 —
+    и до этой правки проба отвечала ВЫПОЛНЕНО, потому что вердикт сверки был на
+    агента, а не на артефакт. Карточка `inbox-dnevnoi-tsikl-pishet-chetyre-
+    artefakta-mimo-kontrakta` числилась принятой по свидетельству о трёх продуктах
+    из десяти, а среди семи неизмеренных — `data/equity_curve_daily.json`.
+    «Не выполнено» здесь было бы такой же неправдой: про эти семь не измерено
+    НИЧЕГО, и сказать надо именно это.
+    """
     if not arg:
         return UNMEASURED, "пробе нужен агент (acceptance_probe: artifact_contract_confirmed:<label>)"
     from spa_core.monitoring import artifact_contract as m
@@ -111,7 +121,16 @@ def _probe_artifact_contract(arg: str | None) -> tuple[str, str]:
     for row in rows:
         if row.get("label") == arg:
             v = row.get("verdict")
-            return (SATISFIED if v == m.CONFIRMED else NOT_SATISFIED), f"{arg}: {v}"
+            if v == m.CONFIRMED:
+                return SATISFIED, f"{arg}: {v}"
+            if v == m.PARTIAL:
+                cov = row.get("coverage") or {}
+                unseen = cov.get("unmeasured") or []
+                return UNMEASURED, (
+                    f"{arg}: {v} — подтверждено {len(cov.get('confirmed') or [])} "
+                    f"из {cov.get('declared')} объявленных продуктов; про "
+                    f"{len(unseen)} не измерено ничего ({', '.join(unseen) or '—'})")
+            return NOT_SATISFIED, f"{arg}: {v}"
     return UNMEASURED, f"агента {arg} нет среди сверенных ({len(rows)}) — предмет не измерен"
 
 
