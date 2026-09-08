@@ -89,9 +89,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                       "counts.aged", "counts.unchecked", "findings"),
     "house_view_gap.json": ("gaps", "unchecked", "counts.warn", "counts.info",
                             "counts.unchecked"),
+    # `censuses` (#524) читает НЕ выжимка этого артефакта, а вердикт об
+    # ОТСУТСТВИИ соседнего (`_absent_verdict`): состав ступени переписей — это
+    # ответ на вопрос «а бегун вообще пробовал?». Объявлен здесь по общему
+    # правилу — чтение, не объявленное схемой, и есть тот класс, ради которого
+    # схема заведена. Сегодня он даст «отчёт СТАРОГО ОБРАЗЦА (не находка)», и
+    # это правильный ответ: производитель ключ пишет, отчёт произведён раньше.
     "findings_bridge_report.json": ("created", "closed", "deferred", "waiting_hysteresis",
                                     "escalated", "sources_unread", "open_cards", "delivery",
-                                    "owner_answer_delivery"),
+                                    "owner_answer_delivery", "censuses"),
     "loop_retro.json": ("findings", "outcomes_completeness"),
     # ADR-240. `should_rebalance` объявлен НАМЕРЕННО рядом с `verdict` и
     # `unmeasured`: до цикла #500 файл нёс ТОЛЬКО первое поле, и `false` в нём
@@ -2451,6 +2457,110 @@ def _main_worktree(root: str) -> str | None:
         return None
 
 
+#: Кто ЗАПУСКАЕТ производителя. Отличается от `_PRODUCER` (кто пишет файл):
+#: два десятка переписей не имеют своего launchd-агента — их ступенью прогоняет
+#: мост находок, и вопрос «отработал ли производитель» адресуется именно ему.
+#: Артефакт бегуна назван здесь, чтобы у вопроса был ОДИН ответ данными.
+_RUNNER_REPORT = "findings_bridge_report.json"
+
+
+def _absent_verdict(rel: str, *, root: str, data_dir: str | None,
+                    now: dt.datetime) -> tuple[bool, list[str]]:
+    """Артефакта нет на диске — это находка или производитель ещё не отработал?
+
+    Два состояния, до #524 неразличимые и печатавшиеся ОДНИМ текстом
+    «❌ НЕ ПРОЧИТАН · файла нет на диске» под подписью «красные строки выше =
+    действовать (карточки)»:
+
+    * производитель отработал и файла не оставил — **находка**;
+    * производитель приехал в дерево ПОСЛЕ последнего прогона своего бегуна —
+      исправный контур, ответ будет на следующем прогоне.
+
+    Живой замер 2026-09-08 (цикл #524): `cio_substitution_census.py` доставлен
+    пушем в 07:42 и лёг в прод-дерево синком в 09:51; `com.spa.decision_loop`,
+    который его зовёт, последний раз отработал в **07:05:59Z**. Обязательный шаг
+    напечатал находку об исправном модуле — в песочнице он отрабатывает,
+    `positive_control.passed` истинно. Тот же класс, что #248: там его закрыли
+    для ПОЛЕЙ схемы («артефакт, произведённый ДО доставки ключа, не может его
+    содержать»), а для самого СУЩЕСТВОВАНИЯ артефакта — нет.
+
+    Различающий признак — **объявленный**, а не выведенный: мост записывает
+    состав ступени переписей в `censuses.attempted` своего отчёта
+    (`findings_bridge.CENSUS_STAGE`). Дата файла нужна только там, где
+    объявления ещё нет, и ровно затем, чтобы третий исход не стал вечным:
+
+    1. перепись НАЗВАНА в `attempted`, артефакта нет ⇒ **находка** (и причина,
+       если бегун её записал в `censuses.skipped`);
+    2. не названа, а отчёт бегуна СТАРШЕ производителя в дереве ⇒ «ЕЩЁ НЕ
+       ПРОИЗВОДИЛСЯ» — третий исход, закрываемый следующим прогоном;
+    3. не названа, а отчёт бегуна МОЛОЖЕ производителя ⇒ **находка**: код в
+       дереве лежит, бегун после его прихода отработал и ступени не позвал —
+       ровно форма ADR-259 (объявленный артефакт без производящего вызова);
+    4. бегуна спросить нечем (нет отчёта, нет производителя в карте, файл
+       производителя не найден) ⇒ прежнее поведение, **находка**. Молчать здесь
+       нельзя: «не смог измерить» не есть «всё хорошо».
+
+    Возвращает `(находка?, строки)`.
+    """
+    name = os.path.basename(rel)
+    producer = _PRODUCER.get(name)
+    plain = ["   файла нет на диске"]
+    if not producer:
+        return True, plain + [
+            f"   производитель {_UNMEASURED}: {name} нет в карте производителей — "
+            f"«отработал ли он» спросить нечем"]
+    stage = os.path.splitext(os.path.basename(producer))[0]
+    prod_full = os.path.join(root, producer)
+    if not os.path.exists(prod_full):
+        return True, plain + [
+            f"   и производителя {producer} в этом дереве тоже нет — "
+            f"артефакт объявлен, а писать его нечем"]
+
+    runner = _resolve(os.path.join("data", _RUNNER_REPORT), root=root,
+                      data_dir=data_dir)
+    try:
+        report = json.load(open(runner))
+    except Exception as e:  # noqa: BLE001
+        return True, plain + [
+            f"   отчёт бегуна не прочитан ({type(e).__name__}) ⇒ «пробовал ли он» "
+            f"{_UNMEASURED}; строка остаётся находкой, а не тишиной"]
+
+    censuses = report.get("censuses") or {}
+    attempted = set(censuses.get("attempted") or [])
+    skipped = censuses.get("skipped") or {}
+    if stage in attempted:
+        why = skipped.get(stage)
+        tail = ([f"   причина пропуска (записана бегуном): {why}"] if why else
+                [f"   бегун ступень звал и о пропуске НЕ сообщил — файла всё "
+                 f"равно нет"])
+        return True, plain + [
+            f"   производитель {producer} назван в составе ступени бегуна "
+            f"({_RUNNER_REPORT})"] + tail
+
+    ran = _parse_ts(report.get("generated_at"))
+    born = dt.datetime.fromtimestamp(os.path.getmtime(prod_full),
+                                     dt.timezone.utc)
+    if ran is None:
+        return True, plain + [
+            f"   у отчёта бегуна нет собственного времени ⇒ «успел ли он увидеть "
+            f"{producer}» {_UNMEASURED}; строка остаётся находкой"]
+    if ran < born:
+        age = (now - born).total_seconds() / 3600.0
+        return False, [
+            f"   ⏳ ЕЩЁ НЕ ПРОИЗВОДИЛСЯ (это НЕ находка): производитель "
+            f"{producer} лежит в дереве {age:.1f}ч, а его бегун "
+            f"({_RUNNER_REPORT}) последний раз отработал "
+            f"{report.get('generated_at')} — ДО его прихода.",
+            f"   Ответ будет на следующем прогоне бегуна. Если и тогда файла "
+            f"не появится, строка станет находкой сама.",
+        ]
+    return True, plain + [
+        f"   производитель {producer} в дереве есть, бегун отработал ПОСЛЕ его "
+        f"прихода ({report.get('generated_at')}) и ступень "
+        f"{stage!r} не назвал — объявленный артефакт без производящего вызова "
+        f"(форма ADR-259)"]
+
+
 def _office_absent_wholesale(targets: list[str], *, root: str,
                              data_dir: str | None) -> list[str] | None:
     """НИ ОДНОГО артефакта офиса в этом дереве — это ОДНА находка, а не двадцать.
@@ -2583,12 +2693,19 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
         return 3
 
     consumed = failed = hollow = 0
+    not_yet = 0
     for rel in sorted(targets):
         full = _resolve(rel, root=args.root, data_dir=data_dir)
         lines: list[str]
         ok = False
+        pending = False
         if not os.path.exists(full):
-            lines = ["   файла нет на диске"]
+            # Пропажа соседа при живых соседях — НЕ автоматически находка
+            # (#524). Различает `_absent_verdict`, и различает объявлением
+            # бегуна, а не догадкой.
+            is_finding, lines = _absent_verdict(rel, root=args.root,
+                                                data_dir=data_dir, now=now)
+            pending = not is_finding
         elif rel.endswith(".json"):
             try:
                 lines = _summarize_json(rel, json.load(open(full)), now=now,
@@ -2611,6 +2728,12 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
                 rel, args.consumer, root=receipt_root)
             mark = "✅" if receipted else "⚠️ (ресит НЕ записан)"
             consumed += 1
+        elif pending:
+            # Третий исход, и он ОТДЕЛЬНОЕ слагаемое итога: складывать его с
+            # «прочитано» значило бы объявить измеренным то, чего никто не
+            # мерил, а с «не прочитано» — вернуть ту самую ложную находку.
+            mark = "⏳ ЕЩЁ НЕ ПРОИЗВОДИЛСЯ"
+            not_yet += 1
         else:
             mark = "❌ НЕ ПРОЧИТАН"
             failed += 1
@@ -2661,7 +2784,13 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
     hollow_clause = (f", ⚠️ ВХОЛОСТУЮ {hollow} (разобрать нечем, ресит не "
                      f"записан — артефакт объявлен читаемым, а прочитано "
                      f"ничего)" if hollow else "")
-    print(f"— итог: прочитано {consumed}{hollow_clause}, не прочитано {failed}. "
+    # Ровно та же осторожность, что и с «вхолостую»: клауза ДОПИСЫВАЕТСЯ, в
+    # здоровом состоянии (not_yet=0) итоговая строка побайтово прежняя.
+    pending_clause = (f", ⏳ ЕЩЁ НЕ ПРОИЗВОДИЛСЯ {not_yet} (производитель в "
+                      f"дереве новее последнего прогона своего бегуна — это НЕ "
+                      f"находка и НЕ прочитанное)" if not_yet else "")
+    print(f"— итог: прочитано {consumed}{hollow_clause}{pending_clause}, "
+          f"не прочитано {failed}. "
           f"Красные строки выше = действовать (карточки), это не декорация. —")
     return 0
 

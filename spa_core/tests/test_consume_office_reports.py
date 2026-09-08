@@ -360,8 +360,14 @@ def test_old_sample_report_is_not_called_schema_drift(tmp_path) -> None:
     как «СХЕМА РАЗОШЛАСЬ … Это находка (карточка)», и следующая сессия честно
     заводила карточку на исправное состояние.
     """
+    # `censuses` приписан к телу подставного производителя циклом #524 вместе
+    # с самим ключом: снимок прода от 15.08 его не содержит по той же причине,
+    # что и `owner_answer_delivery`, — кода тогда не существовало. Сцена от
+    # этого не слабеет и не меняет предмет: утверждения ниже те же, а обратный
+    # контроль «производитель ключа НЕ пишет ⇒ находка» стоит соседним тестом.
     src = _tree_with_producer(
-        tmp_path, 'REPORT = {"owner_answer_delivery": {}}\n',
+        tmp_path,
+        'REPORT = {"owner_answer_delivery": {}, "censuses": {}}\n',
         rel="spa_core/monitoring/findings_bridge.py")
     _stamp(src, "2026-08-15T16:06:00+00:00")
 

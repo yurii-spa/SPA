@@ -100,6 +100,59 @@ INTERNAL_WRITES = (
 STATE_REL = os.path.join("data", "findings_bridge_state.json")
 REPORT_REL = os.path.join("data", "findings_bridge_report.json")
 
+#: Состав ступени переписей — то, что мост пробует ДО собственной работы.
+#:
+#: Зачем это в отчёте (цикл #524). Каждая перепись обёрнута своим
+#: `try/except → print("… пропущено")`, и это верно: замер §-приёмки не смеет
+#: валить мост. Но печать уходит в `/tmp/spa_decision_loop.log`, то есть
+#: провалившаяся перепись видна ТОЛЬКО тому, кто откроет лог живого агента, —
+#: сторож говорит в канал, который никто не читает. Наружу от неё остаётся
+#: единственный след: артефакта нет на диске. А «нет на диске» шаг 0-офис до
+#: #524 печатал как находку БЕЗУСЛОВНО — тем же текстом, каким описывается
+#: контур, где производитель просто ещё ни разу не отработал с новым кодом.
+#: Живой замер 2026-09-08: `cio_substitution_census.py` приехал в дерево в
+#: 09:51, `com.spa.decision_loop` последний раз отработал в 07:05:59Z —
+#: обязательный шаг напечатал «❌ НЕ ПРОЧИТАН» об ИСПРАВНОМ модуле (в
+#: песочнице `run(write=False)` отрабатывает, `positive_control.passed`).
+#: Это тот же класс, что #248 (там его закрыли для ПОЛЕЙ схемы, а для самого
+#: СУЩЕСТВОВАНИЯ артефакта — нет).
+#:
+#: Поэтому мост теперь ОБЪЯВЛЯЕТ состав ступени и ЗАПИСЫВАЕТ причину каждого
+#: пропуска в свой отчёт. Читателю (шаг 0-офис) это даёт прямой ответ на
+#: вопрос «а бегун вообще пробовал?» — вместо вывода из даты файла.
+#:
+#: Список ОБЪЯВЛЕН, а не выведен (ADR-158): состав ступени — контракт, и
+#: сверяется он с телом `main()` разбором AST
+#: (`test_office_absent_artifact_producer_aware.py`), поэтому новая перепись,
+#: добавленная мимо этого списка, краснеет, а не молчит.
+CENSUS_STAGE: tuple[str, ...] = (
+    "adapter_feed_divergence",
+    "decision_reproducibility",
+    "marginal_apy_at_size",
+    "rebalance_cost_evidence",
+    "apy_forecast_accuracy",
+    "cio_shadow_replay",
+    "decision_audit_trail",
+    "cio_failure_modes",
+    "cio_explainability",
+    "cio_kill_switch_controls",
+    "cio_auto_execution_limits",
+    "cio_target_producers",
+    "cio_architecture_constraints",
+    "cio_component_map",
+    "cio_policy_change_procedure",
+    "cio_post_trade_verification",
+    "cio_outcome_independence",
+    "cio_substitution_census",
+    "capital_evidence_coverage",
+    "apy_composition",
+    "pool_identity_collision",
+    "evidence_staleness",
+    "outcomes",
+    "loop_retro",
+    "loop_health",
+)
+
 #: ПРЕДМЕТ вердикта моста об отказе доставки — не карточки, а РЕШАТЕЛЬ: именно
 #: `card_delivery` решает «переносим правку на origin» или «перенести нечем,
 #: сделайте руками». Карточки — живое состояние, их в провенанс объявлять
@@ -432,9 +485,23 @@ def _deliver_owner_answers(root: str, now: dt.datetime, run_answers=None) -> dic
                 "generated_at": now.isoformat()}
 
 
+def census_skipped(record: dict, name: str, exc: BaseException) -> None:
+    """Пропуск переписи — ЗАПИСЬ в отчёт, а не только строка в /tmp-логе.
+
+    До #524 у провалившейся переписи был ровно один след наружу: отсутствие
+    её артефакта на диске. Причина оставалась в логе живого агента, который
+    читает лишь тот, кто уже знает, что смотреть. Теперь причина едет в
+    `findings_bridge_report.json`, и «производитель пробовал и не смог»
+    перестаёт быть неотличимым от «производитель ещё не пробовал».
+    """
+    record[name] = f"{type(exc).__name__}: {exc}"
+    print(f"{name}: пропущено ({exc})")
+
+
 def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
                create=create_card, close=close_card, notify=notify_card,
-               deliver=None, retract=retract_card, deliver_answers=None) -> dict:
+               deliver=None, retract=retract_card, deliver_answers=None,
+               censuses: dict | None = None) -> dict:
     now = now or dt.datetime.now(dt.timezone.utc)
     today = now.date().isoformat()
     state = _load_state(root)
@@ -547,6 +614,13 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
               "sources_unread": unread, "reconciled_from_tracker": reconciled,
               "open_cards": sum(1 for e in st_findings.values() if e.get("status") == "carded"),
               "rate_limit": {"max_per_day": MAX_CARDS_PER_DAY, "used_today": created_today}}
+    # Ключ пишется ТОЛЬКО когда ступень переписей действительно шла (её
+    # ведёт `main()`, а не `run_bridge`). Прямой вызов моста — из теста
+    # или из чужого кода — ступени не выполняет, и объявлять «пробовали
+    # все 25» было бы претензией без замера. Отсутствие ключа читатель
+    # понимает как «этот отчёт про состав ступени не свидетельствует».
+    if censuses is not None:
+        report["censuses"] = censuses
 
     from spa_core.utils.atomic import atomic_save
     atomic_save(state, os.path.join(root, STATE_REL))
@@ -569,6 +643,11 @@ def main(argv=None) -> int:
     if not args.run:
         ap.print_help()
         return 0
+    # Ступень переписей. Что она пробовала и на чём споткнулась — едет в
+    # отчёт моста (`censuses`), потому что снаружи у пропуска нет иного
+    # следа, кроме отсутствующего артефакта, а его шаг 0-офис до #524
+    # читал как находку безусловно.
+    _skipped: dict[str, str] = {}
     if not args.skip_gap:
         from spa_core.monitoring import house_view_gap
         house_view_gap.run(root=args.root)
@@ -587,7 +666,7 @@ def main(argv=None) -> int:
               f"unchecked={afd['counts']['unchecked']}), "
               f"протоколов сверено {len(afd['compared_protocols'])}")
     except Exception as e:  # noqa: BLE001 — сверка фидов не смеет валить мост
-        print(f"adapter_feed_divergence: пропущено ({e})")
+        census_skipped(_skipped, "adapter_feed_divergence", e)
     # Приёмка §5 ТЗ «Portfolio CIO» (ADR-226): доля КАПИТАЛА, ранжированного по
     # наблюдённым числам. Считается ЗДЕСЬ по той же причине, что и сверка фидов:
     # вопрос родствен («сходится ли то, чем мы объясняем книгу, с самой книгой»),
@@ -614,7 +693,7 @@ def main(argv=None) -> int:
               f"(critical={rep['counts']['critical']} warn={rep['counts']['warn']} "
               f"unchecked={rep['counts']['unchecked']}), прогонов {rep['runs']}")
     except Exception as e:  # noqa: BLE001 — замер воспроизводимости не смеет валить мост
-        print(f"decision_reproducibility: пропущено ({e})")
+        census_skipped(_skipped, "decision_reproducibility", e)
     # §12/§49 ТЗ CIO: влияет ли НАШ размер на ставку, по которой нас ранжируют.
     # Мост находок его НЕ читает — по той же причине, что и соседа выше: линейность
     # целевой функции это разбор архитектуры и решение владельца (money-path), а не
@@ -626,7 +705,7 @@ def main(argv=None) -> int:
               f"(critical={mrep['counts']['critical']} warn={mrep['counts']['warn']} "
               f"unchecked={mrep['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — замер маржинальности не смеет валить мост
-        print(f"marginal_apy_at_size: пропущено ({e})")
+        census_skipped(_skipped, "marginal_apy_at_size", e)
     # §49 ТЗ CIO «Costs»: газ/комиссии/проскальзывание в решении о перекладке.
     # Мост находок его НЕ читает — по той же причине, что и два соседа выше:
     # подстановка наблюдённого газа в `_move_cost_usd` меняет гейт, решающий о
@@ -639,7 +718,7 @@ def main(argv=None) -> int:
               f"(critical={crep['counts']['critical']} warn={crep['counts']['warn']} "
               f"unchecked={crep['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — замер стоимости не смеет валить мост
-        print(f"rebalance_cost_evidence: пропущено ({e})")
+        census_skipped(_skipped, "rebalance_cost_evidence", e)
     # §49 ТЗ CIO «Forecast accuracy»: ошибка прогноза APY и break-even. Мост
     # находок его НЕ читает по той же причине, что и трёх соседей выше:
     # подстройка прогноза меняет гейты `gain_above_band` и
@@ -652,7 +731,7 @@ def main(argv=None) -> int:
               f"(critical={frep['counts']['critical']} warn={frep['counts']['warn']} "
               f"unchecked={frep['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — замер прогноза не смеет валить мост
-        print(f"apy_forecast_accuracy: пропущено ({e})")
+        census_skipped(_skipped, "apy_forecast_accuracy", e)
     # §38 ТЗ CIO «Historical replay»: прогон Current Strategy против CIO-тени по
     # девяти метрикам. Мост находок его НЕ читает по той же причине, что и
     # четырёх соседей выше: единственное действие по итогам прогона — тронуть
@@ -665,7 +744,7 @@ def main(argv=None) -> int:
               f"(critical={rrep['counts']['critical']} warn={rrep['counts']['warn']} "
               f"unchecked={rrep['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — исторический прогон не смеет валить мост
-        print(f"cio_shadow_replay: пропущено ({e})")
+        census_skipped(_skipped, "cio_shadow_replay", e)
     # §43 ТЗ CIO «Audit trail»: отвечают ли ДАННЫЕ на вопрос о прошлой перекладке
     # («почему 13 августа переложили $12 000»), или на него отвечает только память
     # сессии. Мост находок его НЕ читает по той же причине, что и пять соседей
@@ -678,7 +757,7 @@ def main(argv=None) -> int:
               f"(critical={arep['counts']['critical']} warn={arep['counts']['warn']} "
               f"unchecked={arep['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — сверка трейла не смеет валить мост
-        print(f"decision_audit_trail: пропущено ({e})")
+        census_skipped(_skipped, "decision_audit_trail", e)
     # §47 ТЗ CIO «Failure modes»: отказывает ли путь решения на десяти
     # названных владельцем деградациях входа. Мост находок его НЕ читает по той
     # же причине, что и шесть соседей выше: построить недостающую дверь значит
@@ -693,7 +772,7 @@ def main(argv=None) -> int:
               f"частично {t['PARTIAL']}, не отказывает {t['PROCEEDS']}, "
               f"не измерено {t['UNCHECKED']})")
     except Exception as e:  # noqa: BLE001 — замер §47 не смеет валить мост
-        print(f"cio_failure_modes: пропущено ({e})")
+        census_skipped(_skipped, "cio_failure_modes", e)
     # §44 ТЗ CIO «Explainability»: из чего состоит объяснение, которое система
     # даёт владельцу о своём решении. Мост находок его НЕ читает по той же
     # причине, что и соседи выше: дописать факт во фразу значит изменить то,
@@ -712,7 +791,7 @@ def main(argv=None) -> int:
                   f"измерено но молчим {t.get('SILENT')}, "
                   f"не считает никто {t.get('ABSENT')})")
     except Exception as e:  # noqa: BLE001 — замер §44 не смеет валить мост
-        print(f"cio_explainability: пропущено ({e})")
+        census_skipped(_skipped, "cio_explainability", e)
     # §42 ТЗ CIO «Kill switch»: сколько из трёх названных владельцем органов
     # остановки у него есть, что каждый делает с книгой и переживают ли
     # наблюдение с отчётом нажатие. Мост находок его НЕ читает по той же
@@ -733,7 +812,7 @@ def main(argv=None) -> int:
                   f"нет {t.get('ABSENT')}; отделимость "
                   f"{(krep.get('separability') or {}).get('verdict')})")
     except Exception as e:  # noqa: BLE001 — замер §42 не смеет валить мост
-        print(f"cio_kill_switch_controls: пропущено ({e})")
+        census_skipped(_skipped, "cio_kill_switch_controls", e)
     # §41 ТЗ CIO «Auto-execution limits»: какие из двенадцати названных
     # владельцем ограничений реально стоя́т на пути решения и на какой из трёх
     # поверхностей (аллокатор предлагает · экономика судит цену хода · гейт
@@ -756,7 +835,7 @@ def main(argv=None) -> int:
                   f"{t.get(cio_auto_execution_limits.DECLARED_INERT)}, "
                   f"нет {t.get(cio_auto_execution_limits.ABSENT)})")
     except Exception as e:  # noqa: BLE001 — замер §41 не смеет валить мост
-        print(f"cio_auto_execution_limits: пропущено ({e})")
+        census_skipped(_skipped, "cio_auto_execution_limits", e)
     # Остаток ADR-250: КТО ЕЩЁ производит цель, кроме StrategyAllocator, и
     # стоя́т ли у каждого производителя три ограничения владельца (суммарный
     # потолок тира · незнакомый тир · сеть). Мост находок его НЕ читает по той
@@ -777,7 +856,7 @@ def main(argv=None) -> int:
                   f"принимают нарушающую цель хотя бы по одному ограничению "
                   f"{len(silent)})")
     except Exception as e:  # noqa: BLE001 — замер не смеет валить мост
-        print(f"cio_target_producers: пропущено ({e})")
+        census_skipped(_skipped, "cio_target_producers", e)
     # §45 ТЗ CIO «Architecture constraints»: не совмещены ли в ОДНОМ модуле
     # пять названных владельцем ответственностей (рынок · APY · gas · risk
     # decision · подпись) и не стал ли LLM финансовым control layer. Мост
@@ -799,7 +878,7 @@ def main(argv=None) -> int:
                   f"{len(conc['market_and_sign'])}, дверей к LLM "
                   f"{len(arep['llm']['doors'])})")
     except Exception as e:  # noqa: BLE001 — замер §45 не смеет валить мост
-        print(f"cio_architecture_constraints: пропущено ({e})")
+        census_skipped(_skipped, "cio_architecture_constraints", e)
     # §46 ТЗ CIO «Минимальный proposed component map»: у каких из ДЕСЯТИ
     # названных владельцем ступеней есть эквивалент в дереве и НЕСЁТ ли цепь
     # ход через него. Мост находок его НЕ читает: соединить разорванный стык
@@ -818,7 +897,7 @@ def main(argv=None) -> int:
                   f"стыков несут ход {cmap['edges_wired']}/{cmap['edges_total']}, "
                   f"critical={cmap['counts']['critical']})")
     except Exception as e:  # noqa: BLE001 — замер §46 не смеет валить мост
-        print(f"cio_component_map: пропущено ({e})")
+        census_skipped(_skipped, "cio_component_map", e)
     # §48 ТЗ CIO «Изменения Risk Policy»: не ослаблена ли политика МОЛЧА и
     # находят ли решение, которым правку объясняют. Мост находок его НЕ читает:
     # и правка порога, и перенос дома решений — не автоматическое действие.
@@ -836,7 +915,7 @@ def main(argv=None) -> int:
                   f"не менялось {pcp['knobs_unchanged']} из {pcp['knobs_total']}, "
                   f"critical={pcp['counts']['critical']})")
     except Exception as e:  # noqa: BLE001 — замер §48 не смеет валить мост
-        print(f"cio_policy_change_procedure: пропущено ({e})")
+        census_skipped(_skipped, "cio_policy_change_procedure", e)
     # §5 ТЗ CIO, ступень `post-trade verification`: есть ли предмет сверки и
     # подают ли ей наблюдённый исход. Мост находок его НЕ читает: подать
     # ступени фактическую книгу значит изменить путь решения о капитале —
@@ -857,7 +936,7 @@ def main(argv=None) -> int:
                   f"{ptv['inputs']['counts']['OBSERVED']}, "
                   f"critical={ptv['counts']['critical']})")
     except Exception as e:  # noqa: BLE001 — замер §5 не смеет валить мост
-        print(f"cio_post_trade_verification: пропущено ({e})")
+        census_skipped(_skipped, "cio_post_trade_verification", e)
     # §5 ТЗ CIO, продолжение ступени сверки: существует ли НЕЗАВИСИМОЕ
     # наблюдение исхода книги (ADR-257). Вопрос отдельный от предыдущего: тот
     # меряет, подают ли сверке наблюдённый исход, этот — есть ли на свете чем
@@ -878,7 +957,7 @@ def main(argv=None) -> int:
                   f"{sum(1 for v in oid['per_candidate_verdict'] if v['independent'])}, "
                   f"critical={oid['counts']['critical']})")
     except Exception as e:  # noqa: BLE001 — замер §5 не смеет валить мост
-        print(f"cio_outcome_independence: пропущено ({e})")
+        census_skipped(_skipped, "cio_outcome_independence", e)
     # Заказ циклов #518/#519 (ADR-258): где ещё функция, не сумевшая получить
     # вход, возвращает ПРАВДОПОДОБНОЕ число вместо отказа, и доходит ли хоть
     # одно такое число до решения о капитале. Мост находок артефакт НЕ читает:
@@ -901,7 +980,7 @@ def main(argv=None) -> int:
                   f"{len(reach.get('constants') or [])} констант, "
                   f"critical={sub['counts']['critical']})")
     except Exception as e:  # noqa: BLE001 — замер заказа не смеет валить мост
-        print(f"cio_substitution_census: пропущено ({e})")
+        census_skipped(_skipped, "cio_substitution_census", e)
     try:
         from spa_core.monitoring import capital_evidence_coverage
         cec = capital_evidence_coverage.run(root=args.root)
@@ -915,7 +994,7 @@ def main(argv=None) -> int:
               f"книг померено {len(agg.get('books_measured') or [])}"
               f"/{len(agg.get('books_declared') or [])})")
     except Exception as e:  # noqa: BLE001 — приёмка не смеет валить мост
-        print(f"capital_evidence_coverage: пропущено ({e})")
+        census_skipped(_skipped, "capital_evidence_coverage", e)
     # Состав ставки (ADR-230): доход операции или раздача токена. Считается тем же
     # прогоном и по той же причине, что сверка фидов: вопрос родствен («чем именно
     # платит пул, число которого ранжирует капитал»), стоит миллисекунды, а новый
@@ -931,7 +1010,7 @@ def main(argv=None) -> int:
               f"unchecked={apyc['counts']['unchecked']}), "
               f"ключей с наблюдением {len(apyc['observed_adapters'])}")
     except Exception as e:  # noqa: BLE001 — состав ставки не смеет валить мост
-        print(f"apy_composition: пропущено ({e})")
+        census_skipped(_skipped, "apy_composition", e)
     # Тождество пулов (гэп G1): считается тем же прогоном и по той же причине —
     # вопрос родствен сверке фидов, стоит миллисекунды, новый агент означал бы
     # деплой. Сторож только НАЗЫВАЕТ: снятие ключа с финансирования и правка
@@ -944,7 +1023,7 @@ def main(argv=None) -> int:
               f"unchecked={pic['counts']['unchecked']}), "
               f"ключей сверено {len(pic['keys_compared'])}")
     except Exception as e:  # noqa: BLE001 — сверка тождества не смеет валить мост
-        print(f"pool_identity_collision: пропущено ({e})")
+        census_skipped(_skipped, "pool_identity_collision", e)
     # Устаревание наблюдения (ADR-167): считается тем же прогоном и по той же
     # причине — вопрос родствен сверке фидов, стоит миллисекунды, новый агент
     # означал бы деплой. До #494 канал `governance/evidence_staleness.py` НИКТО
@@ -961,7 +1040,7 @@ def main(argv=None) -> int:
               f"свежих {c['fresh']} мягких {c['soft_stale']} жёстких {c['hard_stale']} "
               f"без часов {c['unknown_age']}; без наблюдения ${ev['usd']['unknown_age']:,.0f}")
     except Exception as e:  # noqa: BLE001 — лестница устаревания не смеет валить мост
-        print(f"evidence_staleness: пропущено ({e})")
+        census_skipped(_skipped, "evidence_staleness", e)
     # Цикл 3 ADR-067: правая половина hit-rate — строка исхода за сегодня
     # (идемпотентно по дате; 4 шанса в день догнать evidenced-бар).
     try:
@@ -969,7 +1048,7 @@ def main(argv=None) -> int:
         oc = append_daily_outcome(root=args.root)
         print(f"outcomes: {'записан ' + oc['date'] if oc['appended'] else oc['reason']}")
     except Exception as e:  # noqa: BLE001 — архив исходов не смеет валить мост
-        print(f"outcomes: пропущено ({e})")
+        census_skipped(_skipped, "outcomes", e)
     # Фаза 4: ретро — раз в неделю, самозапуск внутри 6ч-агента (без нового
     # launchd-агента); loop_health — каждый прогон (дёшево).
     try:
@@ -990,13 +1069,15 @@ def main(argv=None) -> int:
             print(f"loop_retro: кандидатов={len(rr['candidates'])} "
                   f"findings={len(rr['findings'])} unchecked={len(rr['unchecked'])}")
     except Exception as e:  # noqa: BLE001 — ретро не смеет валить мост
-        print(f"loop_retro: пропущено ({e})")
-    r = run_bridge(root=args.root)
+        census_skipped(_skipped, "loop_retro", e)
+    r = run_bridge(root=args.root,
+                   censuses={"attempted": list(CENSUS_STAGE),
+                             "skipped": _skipped})
     try:
         from spa_core.monitoring import loop_health
         loop_health.run(root=args.root)
     except Exception as e:  # noqa: BLE001
-        print(f"loop_health: пропущено ({e})")
+        census_skipped(_skipped, "loop_health", e)
     print(f"findings_bridge: created={len(r['created'])} closed={len(r['closed'])} "
           f"deferred={len(r['deferred'])} waiting={len(r['waiting_hysteresis'])} "
           f"closing={len(r.get('closing_hysteresis') or [])} "
