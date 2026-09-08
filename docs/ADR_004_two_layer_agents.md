@@ -27,7 +27,7 @@ qualitative analysis, and execution/risk agents that must be fully deterministic
 
 | Agent | Role | LLM? |
 |---|---|---|
-| **Architect** | Roadmap management, sprint planning, idea review, ADR drafts, weekly status | ✅ Claude Sonnet 4.6 |
+| **Architect** | Roadmap management, sprint planning, idea review, ADR drafts, weekly status | ⛔ не развёрнут (замер 2026-09-08: нет plist/обёртки/лога/артефактов; код `spa_core/dev_agents/architect.py` + мёртвый дубль `spa_core/agents/architect_agent.py`) |
 | **Tester** | pytest execution, result parsing, Telegram report | ❌ Deterministic only |
 
 ### Layer 2 — Product Agents (`spa_core/agents/`, `spa_core/paper_trading/`, `spa_core/execution/`)
