@@ -1,0 +1,22 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Paper track · earn-defi</title><style>
+body{font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;line-height:1.5;color:#222;background:#fff}
+nav a{margin-right:1rem}table{border-collapse:collapse;margin:1rem 0}td,th{border:1px solid #ddd;padding:.35rem .6rem;text-align:left;font-size:.95em}
+code{background:#f4f4f4;padding:.1em .3em;border-radius:3px;font-size:.9em}.ok{color:#187a2b}.bad{color:#b00020}.muted{color:#666}
+.badge{display:inline-block;padding:.1em .5em;border:1px solid #999;border-radius:1em;font-size:.8em;margin-left:.4em}
+pre{background:#f7f7f7;padding:.7rem;overflow-x:auto}h1,h2,h3{line-height:1.2}
+</style></head><body><nav><a href="/btc-engine/index.html">Methodology</a><a href="/btc-engine/signals.html">Signal cards</a><a href="/btc-engine/track.html">Paper track</a><a href="/btc-engine/verify.html">Verify decisions</a><a href="/btc-engine/runway.html">Runway</a></nav><h1>Paper track</h1><p id="status" class="muted">Loading from https://api.earn-defi.com …</p><p><strong>What this is:</strong> a <em>paper</em> track — virtual execution at mid price with modelled costs. Not live money, not a backtest; the origin label comes from the data. Third-party signal values are not republished (source licenses); the regime, the target weight and the NAV are our own outputs.</p><div id="latest"></div><div id="shadow"></div><table id="nav"></table><h2>Decisions</h2><p class="muted">Regime and target weight per day are in the revealed commit-reveal packages on the Verify page.</p><script>(async () => { try {const t = await load('track'); const l = t.latest; if (!l) { fail('no NAV rows'); return; }q('#status').textContent = 'Origin: ' + t.origin + ' · started ' + t.start_date + ' · ' + t.days + ' days · config v' + (t.config_versions_used || []).join(', v') + ' · chain head ' + (t.chain_head || '').slice(0, 16);q('#latest').innerHTML = '<p>Latest ' + esc(l.date) + ': NAV <strong>' + num(l.nav_usdt) + ' USDT</strong> · cumulative ' + pct(l.cum_return) + ' · drawdown ' + pct(l.drawdown) + ' (max ' + pct(l.max_drawdown) + ') · BTC weight ' + Number(l.btc_weight).toFixed(4) + ' · day ' + l.day_index + '</p>';let h = '<tr><th>date</th><th>NAV (USDT)</th><th>drawdown</th><th>BTC weight</th><th>origin</th><th>backfilled</th></tr>';for (const r of (t.series || []).slice(-60).reverse()) h += '<tr><td>' + esc(r.date) + '</td><td>' + num(r.nav_usdt) + '</td><td>' + pct(r.drawdown) + '</td><td>' + Number(r.btc_weight).toFixed(4) + '</td><td>' + esc(t.origin) + '</td><td>' + (r.backfilled ? 'yes' : '') + '</td></tr>';q('#nav').innerHTML = h;try { const s = await load('shadow'); if (s && s.shadow) q('#shadow').innerHTML = '<h2>Shadow candidate (not trading)</h2><p>Config v' + esc(s.config_version) + ' runs in parallel on the same inputs; it holds no position. ' + esc(s.date) + ': shadow NAV ' + num(s.shadow.nav_usdt) + ' (' + Number(s.gap_pct).toFixed(2) + '%% vs paper), regime ' + esc(s.shadow.regime) + ', weight ' + Number(s.shadow.weight).toFixed(2) + '. Origin label: <em>shadow</em>.</p>'; } catch (e) {}} catch (e) { fail(e.message); } })();</script>
+<script>
+const API = "https://api.earn-defi.com";
+const q = (s) => document.querySelector(s);
+const pct = (x, d = 2) => (x === null || x === undefined) ? "n/a" : ((x * 100).toFixed(d) + "%").replace(/^(-?)/, (m) => m || "+");
+const num = (x, d = 2) => (x === null || x === undefined) ? "n/a" : Number(x).toLocaleString("en-US", {minimumFractionDigits: d, maximumFractionDigits: d});
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+async function load(name) {
+  const r = await fetch(API + "/api/btc-engine/" + name + ".json", {cache: "no-store"});
+  if (!r.ok) throw new Error(name + ": HTTP " + r.status);
+  const j = await r.json();
+  if (j && j.status === "no_data") throw new Error(name + ": no data on the server yet");
+  return j;
+}
+function fail(msg) { const e = q("#status"); e.textContent = "Data unavailable: " + msg + " — nothing is shown rather than a stale copy."; e.className = "bad"; }
+</script><hr><p class="muted">Generated 2026-09-08T07:15:49Z from hash-chained records. Research paper track — not an offer, not investment advice. Commercial terms only after go-live and legal review.</p></body></html>

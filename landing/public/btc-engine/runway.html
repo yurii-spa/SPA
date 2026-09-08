@@ -1,0 +1,22 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Runway · earn-defi</title><style>
+body{font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;line-height:1.5;color:#222;background:#fff}
+nav a{margin-right:1rem}table{border-collapse:collapse;margin:1rem 0}td,th{border:1px solid #ddd;padding:.35rem .6rem;text-align:left;font-size:.95em}
+code{background:#f4f4f4;padding:.1em .3em;border-radius:3px;font-size:.9em}.ok{color:#187a2b}.bad{color:#b00020}.muted{color:#666}
+.badge{display:inline-block;padding:.1em .5em;border:1px solid #999;border-radius:1em;font-size:.8em;margin-left:.4em}
+pre{background:#f7f7f7;padding:.7rem;overflow-x:auto}h1,h2,h3{line-height:1.2}
+</style></head><body><nav><a href="/btc-engine/index.html">Methodology</a><a href="/btc-engine/signals.html">Signal cards</a><a href="/btc-engine/track.html">Paper track</a><a href="/btc-engine/verify.html">Verify decisions</a><a href="/btc-engine/runway.html">Runway</a></nav><h1>Runway report</h1><p id="status" class="muted">Loading from https://api.earn-defi.com …</p><p>For every engine: time or loss to a critical state under a named stress. Engines not yet live run on template parameters.</p><table id="rw"></table><script>(async () => { try { const r = await load('runway'); if (!r.report) { fail('no runway report yet'); return; }q('#status').textContent = 'Report ' + r.date + ' · status ' + r.status;let h = '<tr><th>scenario</th><th>engine</th><th>question</th><th>answer</th><th>status</th></tr>';for (const s of r.report.scenarios) h += '<tr><td>' + esc(s.id) + '</td><td>' + esc(s.engine) + (s.active ? '' : ' <span class=badge>template</span>') + '</td><td>' + esc(s.question) + '</td><td>' + esc(s.answer) + '</td><td class="' + (String(s.status).startsWith('BREACH') ? 'bad' : 'ok') + '">' + esc(s.status) + '</td></tr>';q('#rw').innerHTML = h; } catch (e) { fail(e.message); } })();</script>
+<script>
+const API = "https://api.earn-defi.com";
+const q = (s) => document.querySelector(s);
+const pct = (x, d = 2) => (x === null || x === undefined) ? "n/a" : ((x * 100).toFixed(d) + "%").replace(/^(-?)/, (m) => m || "+");
+const num = (x, d = 2) => (x === null || x === undefined) ? "n/a" : Number(x).toLocaleString("en-US", {minimumFractionDigits: d, maximumFractionDigits: d});
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+async function load(name) {
+  const r = await fetch(API + "/api/btc-engine/" + name + ".json", {cache: "no-store"});
+  if (!r.ok) throw new Error(name + ": HTTP " + r.status);
+  const j = await r.json();
+  if (j && j.status === "no_data") throw new Error(name + ": no data on the server yet");
+  return j;
+}
+function fail(msg) { const e = q("#status"); e.textContent = "Data unavailable: " + msg + " — nothing is shown rather than a stale copy."; e.className = "bad"; }
+</script><hr><p class="muted">Generated 2026-09-08T07:15:49Z from hash-chained records. Research paper track — not an offer, not investment advice. Commercial terms only after go-live and legal review.</p></body></html>
