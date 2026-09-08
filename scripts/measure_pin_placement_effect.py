@@ -306,6 +306,25 @@ def pins_invisible_to_the_gate(data_dir: Path) -> dict:
 
     Два файла, никаких прогонов и сети. Третий исход обязателен: файл не
     прочитан ⇒ ``unmeasured`` с причиной, а не пустой список «всё в порядке».
+
+    **Невидимость — симптом, и причин у неё ДВЕ (замер #532).** Прежняя
+    редакция отдавала один плоский список, и читатель делал из него ровно один
+    вывод: «дописать эти ключи в ``POLLED_ADAPTERS``». Для части списка такой
+    ремонт невозможен по построению — у ключа нет класса адаптера вовсе
+    (``sky_susds``, ``ondo_usdy``), опрашивать нечего, и «починка» проводкой
+    закончилась бы либо падением оркестратора, либо константой под маркой
+    ``live`` — тем, что ADR-053 запрещает прямым текстом. Поэтому список
+    разделён:
+
+    * ``no_adapter``  — ключа нет в ``ADAPTER_REGISTRY``; проводка НЕ поможет,
+      нужен адаптер (или снятие пина). ``sky_susds`` здесь особенно дорог:
+      ADR-065 поднял его WL/0 → **T1**, то есть протокол числится первым тиром,
+      а профинансирован быть не может ничем.
+    * ``not_polled`` — класс есть, но оркестратор его не спрашивает; вопрос
+      проводки, и он money-path (решает владелец).
+
+    Разделение читает ТОЛЬКО имена из реестра — адаптеры не создаются, сеть не
+    трогается, контракт «два файла» цел.
     """
     import spa_core.monitoring.adapter_status_generator as gen
 
@@ -328,11 +347,39 @@ def pins_invisible_to_the_gate(data_dir: Path) -> dict:
                               "факты", "checked": 0, "invisible": []}
 
     pinned = sorted(gen._POOL_ID_LOOKUP)
+    invisible = [k for k in pinned if k not in polled]
+
+    # Причина невидимости. Читаются ТОЛЬКО имена — ни один адаптер не строится
+    # (конструктор настоящего адаптера уходит в `data/` своего дерева, и замер
+    # начал бы писать в живое состояние).
+    try:
+        from spa_core.adapters import ADAPTER_REGISTRY
+
+        have_class = {
+            str(item[0])
+            for item in ADAPTER_REGISTRY
+            if isinstance(item, (list, tuple)) and item
+        }
+    except Exception as exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
+        # Третий исход, а не «причин нет»: без реестра классов вопрос «чинится
+        # ли это проводкой» НЕ ИЗМЕРЕН, и выдать пустые вёдра значило бы
+        # ответить «все чинятся проводкой» — ровно та ошибка, против которой
+        # разделение и написано.
+        return {
+            "unmeasured": f"реестр адаптеров не прочитан: "
+                          f"{type(exc).__name__}: {exc}",
+            "checked": len(pinned),
+            "polled": len(polled),
+            "invisible": invisible,
+        }
+
     return {
         "unmeasured": None,
         "checked": len(pinned),
         "polled": len(polled),
-        "invisible": [k for k in pinned if k not in polled],
+        "invisible": invisible,
+        "no_adapter": [k for k in invisible if k not in have_class],
+        "not_polled": [k for k in invisible if k in have_class],
     }
 
 
@@ -345,13 +392,37 @@ def gate_visibility_report_lines(result: dict) -> list[str]:
     if not invisible:
         return [head, f"   ✅ все {result['checked']} запинённых ключа есть в снимке "
                       f"оркестратора — пин способен повлиять на финансирование"]
-    return [head, (
+    lines = [head, (
         f"   ⚠️ {len(invisible)} из {result['checked']} запинённых ключей НЕТ в снимке "
         f"оркестратора ({result['polled']} опрашиваемых): гейт отклонит их как "
         f"`TVL unverified (missing)` при любом пине — "
         + ", ".join(invisible)
     ), "      пин задаёт СМЫСЛ ключа для аллокатора, но финансирование решает "
        "снимок оркестратора; это разные производители"]
+
+    # Причина ДОПИСЫВАЕТСЯ (как `hollow_clause` в шаге 0-офис): строки выше
+    # побайтово прежние, соседние тесты сверяют их подстрокой. Без разделения
+    # список читается как «дописать всё это в POLLED_ADAPTERS», а для ведра
+    # `no_adapter` такой ремонт невозможен по построению.
+    no_adapter = result.get("no_adapter")
+    not_polled = result.get("not_polled")
+    if no_adapter is None or not_polled is None:
+        lines.append("      [НЕ ИЗМЕРЕНО] причина невидимости не разобрана — "
+                     "чинится ли это проводкой, НЕ измерено")
+        return lines
+    if not_polled:
+        lines.append(
+            f"      • класс адаптера ЕСТЬ, оркестратор не спрашивает ({len(not_polled)}): "
+            + ", ".join(not_polled)
+            + " — вопрос проводки POLLED_ADAPTERS, money-path (решает владелец)"
+        )
+    if no_adapter:
+        lines.append(
+            f"      • адаптера НЕТ вовсе ({len(no_adapter)}): " + ", ".join(no_adapter)
+            + " — проводка НЕ поможет: опрашивать нечего, а константа под маркой "
+              "`live` запрещена ADR-053"
+        )
+    return lines
 
 
 def _render(out: dict) -> str:

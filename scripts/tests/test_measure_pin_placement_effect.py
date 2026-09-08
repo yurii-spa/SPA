@@ -243,6 +243,119 @@ class TestGateVisibilityIsWiredAtBirth(unittest.TestCase):
         self.assertIn("spark_susds", gen._POOL_ID_LOOKUP)
 
 
+class TestInvisibilityIsDecomposedByCause(unittest.TestCase):
+    """Невидимость пина — СИМПТОМ, и причин у неё две (замер #532, приказ CIO G1).
+
+    Разобранная авария: шаг 0-офис отдавал один плоский список из 13 ключей,
+    и единственный вывод, который из него следовал, — «дописать их в
+    ``POLLED_ADAPTERS``». Для двух ключей такой ремонт невозможен ПО
+    ПОСТРОЕНИЮ: у них нет класса адаптера вовсе, опрашивать нечего. Один из
+    них — ``sky_susds``, поднятый ADR-065 в **T1**: протокол числится первым
+    тиром и не может быть профинансирован ничем, а плоский список это прятал.
+
+    Ошибочная «починка» по плоскому списку кончилась бы либо падением
+    оркестратора на несуществующем классе, либо константой, проштампованной
+    как ``live``, — прямой запрет ADR-053 («Never stamp `live` on a constant»).
+    """
+
+    def _snapshot(self, tmp, protocols):
+        (tmp / "adapter_orchestrator_status.json").write_text(
+            json.dumps({"adapters": [{"protocol": p} for p in protocols]}),
+            encoding="utf-8",
+        )
+
+    def test_the_2026_09_08_finding_is_reproduced(self):
+        """Положительный контроль на НАСТОЯЩЕМ реестре: `sky_susds` запинён,
+        адаптера у него нет, и он обязан попасть в ведро `no_adapter`, а не в
+        «дописать в проводку»."""
+        import spa_core.monitoring.adapter_status_generator as gen
+        from spa_core.adapters import ADAPTER_REGISTRY
+
+        have_class = {
+            str(i[0]) for i in ADAPTER_REGISTRY if isinstance(i, (list, tuple)) and i
+        }
+        self.assertIn("sky_susds", gen._POOL_ID_LOOKUP, "пин пропал — авария не та")
+        self.assertNotIn("sky_susds", have_class, "адаптер появился — перемерить")
+
+        tmp = Path(self.enterContext(_tmpdir()))
+        self._snapshot(tmp, ["aave_v3", "maple"])
+        out = mppe.pins_invisible_to_the_gate(tmp)
+
+        self.assertIn("sky_susds", out["no_adapter"])
+        self.assertNotIn("sky_susds", out["not_polled"])
+        line = " ".join(mppe.gate_visibility_report_lines(out))
+        self.assertIn("адаптера НЕТ вовсе", line)
+        self.assertIn("sky_susds", line)
+
+    def test_a_key_with_a_class_is_offered_as_a_wiring_fix(self):
+        """Обратный контроль: ключ, у которого класс ЕСТЬ, обязан попасть в
+        `not_polled`. Без этой стороны сторож зеленел бы, свалив всё в одно
+        ведро `no_adapter`."""
+        import spa_core.monitoring.adapter_status_generator as gen
+
+        self.assertIn("spark_susds", gen._POOL_ID_LOOKUP)
+        tmp = Path(self.enterContext(_tmpdir()))
+        self._snapshot(tmp, ["aave_v3", "maple"])
+        out = mppe.pins_invisible_to_the_gate(tmp)
+
+        self.assertIn("spark_susds", out["not_polled"])
+        self.assertNotIn("spark_susds", out["no_adapter"])
+        self.assertIn("класс адаптера ЕСТЬ",
+                      " ".join(mppe.gate_visibility_report_lines(out)))
+
+    def test_buckets_partition_the_invisible_list(self):
+        """Вёдра обязаны РАЗДЕЛЯТЬ список, а не пересказывать его часть:
+        потерянный ключ — молчаливый пропуск ровно того класса, ради которого
+        разделение и введено."""
+        tmp = Path(self.enterContext(_tmpdir()))
+        self._snapshot(tmp, ["aave_v3", "maple"])
+        out = mppe.pins_invisible_to_the_gate(tmp)
+
+        self.assertEqual(
+            sorted(out["no_adapter"] + out["not_polled"]),
+            sorted(out["invisible"]),
+        )
+        self.assertEqual(
+            set(out["no_adapter"]) & set(out["not_polled"]), set(),
+            "ключ в обоих вёдрах — разделение не разделяет",
+        )
+
+    def test_unreadable_registry_is_unmeasured_not_all_wiring_fixable(self):
+        """Третий исход. Без реестра классов вопрос «чинится ли это проводкой»
+        НЕ ИЗМЕРЕН. Пустые вёдра прочитались бы как «ни один не требует
+        адаптера», то есть «все чинятся проводкой», — уверенный ответ, которого
+        никто не мерил (fail-OPEN тише красного, поэтому опаснее).
+        """
+        from unittest import mock
+
+        tmp = Path(self.enterContext(_tmpdir()))
+        self._snapshot(tmp, ["aave_v3", "maple"])
+        with mock.patch.dict(sys.modules, {"spa_core.adapters": None}):
+            out = mppe.pins_invisible_to_the_gate(tmp)
+
+        self.assertTrue(out["unmeasured"], "нечитаемый реестр объявлен разобранным")
+        self.assertIn("реестр адаптеров", out["unmeasured"])
+        self.assertNotIn("no_adapter", out)
+        self.assertNotIn("not_polled", out)
+        self.assertTrue(out["invisible"], "симптом обязан остаться названным")
+        line = " ".join(mppe.gate_visibility_report_lines(out))
+        self.assertIn("НЕ ИЗМЕРЕНО", line)
+
+    def test_healthy_state_says_nothing_about_causes(self):
+        """Сторож не звонит на верном состоянии: когда невидимых пинов нет,
+        строк про причину быть не должно вовсе."""
+        import spa_core.monitoring.adapter_status_generator as gen
+
+        tmp = Path(self.enterContext(_tmpdir()))
+        self._snapshot(tmp, list(gen._POOL_ID_LOOKUP))
+        out = mppe.pins_invisible_to_the_gate(tmp)
+        line = " ".join(mppe.gate_visibility_report_lines(out))
+
+        self.assertIn("✅", line)
+        self.assertNotIn("адаптера НЕТ вовсе", line)
+        self.assertNotIn("класс адаптера ЕСТЬ", line)
+
+
 def _tmpdir():
     import tempfile
 

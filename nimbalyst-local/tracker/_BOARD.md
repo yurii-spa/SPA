@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-08T20:37:06Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-08T20:42:09Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (82e20cda1).
+> Сверено с `origin/main` (1eb0a872e).
 >
-> Всего карточек: **941** · ждёт владельца: **23** · занято сессиями: **13**.
+> Всего карточек: **944** · ждёт владельца: **24** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -25,6 +25,7 @@
 - **Кнопка «Пауза» не ставит на паузу — она продаёт всю книгу; настоящей паузы у тебя нет**  ·  `owner-decision-knopka-pauza-ne-stavit-na-pauzu-ona-prod.md`
 - **Кто планирует развитие проекта: судьба «Архитектора» и живой план**  ·  `owner-decision-kto-planiruet-razvitie-proekta-sudba-arh.md`
 - **Pendle сам назначает себе уровень риска по размеру пула — а в справочнике написано другое**  ·  `owner-decision-pendle-sam-naznachaet-sebe-uroven-riska.md`
+- **Подключить к опросу два пула, которые отвечают живыми числами (Aave Arbitrum T1 $28 млн) — это прямой ответ на вопрос «почему 40 % в Aave под 2.7 %»**  ·  `owner-decision-podklyuchit-k-oprosu-dva-pula-kotorye-ot.md`
 - **Сайт: устаревшие и спорные утверждения — что менять**  ·  `owner-decision-sait-ustarevshie-i-spornye-utverzhdeniya.md`
 - **Шесть модулей выдумывают остаток на кошельке вместо отказа — чинить сейчас или записать условием go-live?**  ·  `owner-decision-shest-modulei-vydumyvayut-ostatok-na-kos.md`
 - **Сорок процентов книги стоят на рынке, который система выбирает заново каждое утро**  ·  `owner-decision-sorok-protsentov-knigi-stoyat-na-rynke-k.md`
@@ -52,7 +53,7 @@
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (246)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (247)
 
 ### · needs-owner
 - Cloudflare проверять не нужно — я измерил сам; остался один вопрос про локальный сервер  ·  `own-chto-dolzhen-pokazyvat-lokalnyi-server.md` · 2026-08-31
@@ -69,6 +70,7 @@
 - Кнопка «Пауза» не ставит на паузу — она продаёт всю книгу; настоящей паузы у тебя нет  ·  `owner-decision-knopka-pauza-ne-stavit-na-pauzu-ona-prod.md` · 2026-09-07
 - Кто планирует развитие проекта: судьба «Архитектора» и живой план  ·  `owner-decision-kto-planiruet-razvitie-proekta-sudba-arh.md` · 2026-09-08
 - Pendle сам назначает себе уровень риска по размеру пула — а в справочнике написано другое  ·  `owner-decision-pendle-sam-naznachaet-sebe-uroven-riska.md` · 2026-09-05
+- Подключить к опросу два пула, которые отвечают живыми числами (Aave Arbitrum T1 $28 млн) — это прямой ответ на вопрос «почему 40 % в Aave под 2.7 %»  ·  `owner-decision-podklyuchit-k-oprosu-dva-pula-kotorye-ot.md` · 2026-09-08
 - Сайт: устаревшие и спорные утверждения — что менять  ·  `owner-decision-sait-ustarevshie-i-spornye-utverzhdeniya.md` · 2026-09-08
 - Шесть модулей выдумывают остаток на кошельке вместо отказа — чинить сейчас или записать условием go-live?  ·  `owner-decision-shest-modulei-vydumyvayut-ostatok-na-kos.md` · 2026-09-07
 - Сорок процентов книги стоят на рынке, который система выбирает заново каждое утро  ·  `owner-decision-sorok-protsentov-knigi-stoyat-na-rynke-k.md` · 2026-09-05
@@ -304,7 +306,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (480)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (482)
 
 ### · needs-owner
 - Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md` · 2026-08-29
@@ -730,6 +732,7 @@
 - Остатки инжеста 21.08: гейт доказанности APY в аварийной книге и якорь архива исходов — сначала ЗАМЕР  ·  `inbox-ostatki-inzhesta-21-08-geit-dokazannosti.md` · 2026-08-21
 - Отбор лучших восьми протоколов не бережёт T1-якорь: два хороших кандидата вместе ухудшают книгу  ·  `inbox-otbor-luchshih-vosmi-protokolov-ne-berez.md` · 2026-08-29
 - ОТЛОЖЕНО · Looping Strategy «до +50%» — отдельный трек, вернуться после расчистки бэклога  ·  `inbox-otlozheno-looping-strategy-do-50-otdelny.md` · 2026-08-23
+- Оживить девять мёртвых фидов: адаптер есть, живое число не приходит, гейт верно отказывает статике (G1)  ·  `inbox-ozhivit-devyat-mertvyh-fidov-adapter-est.md` · 2026-09-08
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
 - Pendle: 22 модуля доходности отказывают только для него — локализовано поимённо, причина НЕ измерена (батарея оказалась инертной)  ·  `inbox-pendle-22-modulya-dohodnosti-otkazyvayut.md` · 2026-09-08
 - Перемерить записи #35–#76 после починки курса (вторая половина варианта 1, ADR-139)  ·  `inbox-peremerit-zapisi-35-76-posle-pochinki-ku.md` · 2026-08-26
@@ -779,6 +782,7 @@
 - Сторож вопросов владельцу не измеряет, ЖИВ ЛИ ещё вопрос — и звал отправить команду, ставшую разрушительной  ·  `inbox-storozh-voprosov-vladeltsu-ne-izmeryaet.md` · 2026-08-29
 - Строка Risk Gate дневного лимита убытка жила только в отключённом скрипте — в отчёт владельцу она не переехала  ·  `inbox-stroka-risk-gate-dnevnogo-limita-ubytka.md` · 2026-08-14
 - Сверка ответа владельца берёт в популяцию МЁРТВЫЕ worktree — отказ навсегда и не сказано, что расходятся живое и труп  ·  `inbox-sverka-otveta-vladeltsa-schitaet-mertvye-derevya.md` · 2026-09-01
+- T1-протокол sky_susds не может получить деньги ничем: ADR-065 поднял его в первый тир, а адаптера у него нет (G1)  ·  `inbox-t1-protokol-sky-susds-ne-mozhet-poluchit.md` · 2026-09-08
 - Табличка честности: дать ей дорогу на сайт (решение владельца 09.08)  ·  `inbox-tablichka-chestnosti-dat-ei-dorogu-na-sa.md` · 2026-08-08
 - Тест доставки карточек красный в ЛЮБОМ свежем worktree: он судит mtime файлов дерева, а не поведение  ·  `inbox-test-dostavki-kartochek-krasnyi-v-lyubom.md` · 2026-09-08
 - Тест паспортов краснеет на main оттого, что курацию ДОВЕЛИ: он требует, чтобы работа оставалась незаконченной (91 из 91)  ·  `inbox-test-pasportov-krasneet-na-main-ottogo-c.md` · 2026-08-30
