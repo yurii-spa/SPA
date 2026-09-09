@@ -248,3 +248,86 @@ def test_build_report_writes_atomic(fake_data):
 def test_module_has_llm_forbidden_marker():
     src = Path(ssot.__file__).read_text()
     assert "# LLM_FORBIDDEN" in src
+
+
+# ─── nav_reconciliation_ok vs the CURRENT book (card 2026-09-08, item 2) ───────────────
+
+
+def _seed_nav_case(tmp_path: Path, *, current_equity, proof: dict) -> Path:
+    (tmp_path / "paper_trading_status.json").write_text(
+        json.dumps({"current_equity": current_equity, "days_running": 91})
+    )
+    (tmp_path / "golive_status.json").write_text(json.dumps({"passed": 29, "total": 29}))
+    (tmp_path / "tier1_nav_proof.json").write_text(json.dumps(proof))
+    return tmp_path
+
+
+def test_nav_reconciled_against_an_older_book_reads_none_with_a_note(tmp_path):
+    """Live case 2026-09-08: proof written 06:30 (reported_equity 101,237.29, ok=True), book
+    rewritten by the 08:00 cycle (current_equity 101,251.32). The dashboard printed
+    «reconciled ✓» next to a number the proof never saw. Now: None (not False — the proof is
+    not wrong, it is about yesterday) + a note naming both numbers."""
+    d = _seed_nav_case(tmp_path, current_equity=101251.32, proof={
+        "computed_nav_usd": 101237.29, "reported_equity_usd": 101237.29,
+        "reconciliation_ok": True, "reconciliation_delta_usd": 0.0,
+    })
+    f = ssot.key_facts(data_dir=d)
+    assert f["nav_reconciliation_ok"] is None
+    assert f["nav_reconciliation_note"] == (
+        "nav_proof older than the current book (proof equity 101237.29 vs current 101251.32)"
+    )
+    # the NAV number itself is still served verbatim — only the tick is withdrawn
+    assert f["nav"] == 101237.29
+
+
+def test_nav_reconciled_against_the_current_book_keeps_the_proof_verdict(tmp_path):
+    """Same book (±1¢) → the proof's own flag passes through, no note."""
+    d = _seed_nav_case(tmp_path, current_equity=101251.32, proof={
+        "computed_nav_usd": 101251.32, "reported_equity_usd": 101251.32, "reconciliation_ok": True,
+    })
+    f = ssot.key_facts(data_dir=d)
+    assert f["nav_reconciliation_ok"] is True
+    assert f["nav_reconciliation_note"] is None
+    # a proof that reconciled the current book and FAILED stays False (never upgraded to None)
+    d2 = _seed_nav_case(tmp_path, current_equity=101251.32, proof={
+        "computed_nav_usd": 101300.00, "reported_equity_usd": 101251.32, "reconciliation_ok": False,
+    })
+    f2 = ssot.key_facts(data_dir=d2)
+    assert f2["nav_reconciliation_ok"] is False and f2["nav_reconciliation_note"] is None
+
+
+def test_nav_one_cent_boundary_is_the_tolerance(tmp_path):
+    """Exactly 1¢ apart → same book; 1.5¢ → older book."""
+    same = _seed_nav_case(tmp_path, current_equity=100000.01, proof={
+        "reported_equity_usd": 100000.00, "computed_nav_usd": 100000.00, "reconciliation_ok": True})
+    assert ssot.key_facts(data_dir=same)["nav_reconciliation_ok"] is True
+    older = _seed_nav_case(tmp_path, current_equity=100000.015, proof={
+        "reported_equity_usd": 100000.00, "computed_nav_usd": 100000.00, "reconciliation_ok": True})
+    assert ssot.key_facts(data_dir=older)["nav_reconciliation_ok"] is None
+
+
+def test_nav_proof_without_reported_equity_falls_back_to_computed_nav(tmp_path):
+    """Older proof shape (no reported_equity_usd, as in the dashboard-contract fixture): the
+    proof's own computed_nav_usd stands in for the book it reconciled. Matching book → passthrough;
+    a missing book on either side → passthrough too (staleness cannot be established, and
+    inventing it would be the mirror image of inventing a tick)."""
+    d = _seed_nav_case(tmp_path, current_equity=100190.22,
+                       proof={"computed_nav_usd": 100190.22, "reconciliation_ok": True})
+    f = ssot.key_facts(data_dir=d)
+    assert f["nav_reconciliation_ok"] is True and f["nav_reconciliation_note"] is None
+    # no current_equity at all → cannot compare → the proof's flag passes through, no note
+    (tmp_path / "paper_trading_status.json").write_text(json.dumps({"days_running": 91}))
+    f2 = ssot.key_facts(data_dir=tmp_path)
+    assert f2["nav_reconciliation_ok"] is True and f2["nav_reconciliation_note"] is None
+
+
+def test_key_facts_carries_go_live_state_verbatim(fake_data):
+    """golive_status.go_live_state rides through key_facts (null target ⇒ state says why)."""
+    (fake_data / "golive_status.json").write_text(json.dumps({
+        "ready": True, "passed": 29, "total": 29, "target_date": None,
+        "go_live_state": "gate_passed_owner_decision_pending",
+    }))
+    f = ssot.key_facts(data_dir=fake_data)
+    assert f["go_live_target"] is None
+    assert f["go_live_state"] == "gate_passed_owner_decision_pending"
+    assert "nav_reconciliation_note" in ssot.key_facts(data_dir=fake_data)

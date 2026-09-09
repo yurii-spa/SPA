@@ -89,6 +89,17 @@ PAPER_REAL_START = datetime(2026, 6, 10, tzinfo=timezone.utc).date()
 # never FAIL (a defect to fix).
 TIME_GATED_CRITERIA = frozenset({"min_track_days_30", "gap_monitor_30d"})
 
+# Go-live gate STATE (card «Производители устаревших чисел сайта», 2026-09-08).
+# ``target_date`` is a PROJECTION — anchor + (MIN_TRACK_DAYS - 1) — and it only answers a
+# question while the calendar is what we are waiting for. Once both time-gated criteria
+# pass the projection lies in the past: the gate kept emitting 2026-07-21 at 77/30 with
+# blockers == [] (measured 2026-09-08), and every consumer downstream (track_snapshot,
+# /api/v1/golive, /api/ssot/facts) served a past date as if it were an ETA. From that
+# moment the honest value is null plus a STATE, never a date.
+GO_LIVE_STATE_IN_PROGRESS = "gate_in_progress"                      # < 30 evidenced days
+GO_LIVE_STATE_BLOCKERS_OPEN = "time_gate_passed_blockers_open"      # ≥ 30 days, non-time blockers remain
+GO_LIVE_STATE_OWNER_PENDING = "gate_passed_owner_decision_pending"  # 29/29 — go-live is an OWNER decision
+
 ADAPTER_REGISTRY_FILENAME = "adapter_registry.json"
 BACKTEST_FILENAMES = ("backtest_results.json", "backtest_vs_paper.json")
 
@@ -114,9 +125,12 @@ class GoLiveResult:
     # Honest go-live anchor + target, derived from the first EVIDENCED track day.
     # ``evidenced_anchor`` = first day a real daily_cycle ran (2026-06-22 on the
     # live track); ``target_date`` = anchor + (MIN_TRACK_DAYS - 1) (2026-07-21).
-    # Both None until at least one evidenced day exists (fail-closed).
+    # Both None until at least one evidenced day exists (fail-closed). ``target_date``
+    # is ALSO None once the time gate has passed — a projection in the past is not an
+    # ETA; ``go_live_state`` then says where the gate actually stands.
     evidenced_anchor: str | None = None
     target_date: str | None = None
+    go_live_state: str | None = None
 
     def to_dict(self) -> dict:
         passed = sum(self.checks.values())
@@ -145,6 +159,7 @@ class GoLiveResult:
             # canonical value here instead of re-deriving or hardcoding it.
             "evidenced_anchor": self.evidenced_anchor,
             "target_date": self.target_date,
+            "go_live_state": self.go_live_state,
             "timestamp": self.timestamp,
             "source": "golive_checker",
             "version": "v6.0-29criteria",
@@ -1072,6 +1087,25 @@ class GoLiveChecker:
                 }
         return details
 
+    def _go_live_state(self, checks: dict[str, bool], blockers: list[str]) -> str:
+        """Where the gate stands, as a STATE rather than a calendar projection.
+
+        * ``gate_in_progress`` — a time-gated criterion still fails: the calendar is what
+          we wait for, so the projected ``target_date`` is meaningful and is kept.
+        * ``time_gate_passed_blockers_open`` — both time-gated criteria pass but some
+          other criterion fails (or a blocker line exists — fail-CLOSED on either).
+          The calendar answers nothing here: the remaining work is a defect, not days.
+        * ``gate_passed_owner_decision_pending`` — 29/29: the gate has nothing left to
+          say; go-live is now an owner decision (invariant #14 — the agent never
+          promotes it). No date is emitted because no mechanism produces one.
+        """
+        time_gate_passed = all(bool(checks.get(name)) for name in TIME_GATED_CRITERIA)
+        if not time_gate_passed:
+            return GO_LIVE_STATE_IN_PROGRESS
+        if blockers or not all(checks.values()):
+            return GO_LIVE_STATE_BLOCKERS_OPEN
+        return GO_LIVE_STATE_OWNER_PENDING
+
     def check(self, write: bool = True) -> GoLiveResult:
         """Run all 29 criteria and return a GoLiveResult.
 
@@ -1129,6 +1163,14 @@ class GoLiveChecker:
         eq_doc = _read_json(self.data_dir / EQUITY_FILENAME)
         eq_daily = eq_doc.get("daily") if isinstance(eq_doc, dict) else None
         anchor = self._evidenced_anchor(eq_daily)
+        go_live_state = self._go_live_state(checks, blockers)
+        # The projection is only honest while the calendar is still what we wait for.
+        # Past the time gate it would be a date in the past dressed as an ETA → null.
+        target_date = (
+            self._target_date_from_anchor(eq_daily)
+            if go_live_state == GO_LIVE_STATE_IN_PROGRESS
+            else None
+        )
         result = GoLiveResult(
             ready=ready,
             checks=checks,
@@ -1138,7 +1180,8 @@ class GoLiveChecker:
             details=details,
             real_track_days=self._real_track_days,
             evidenced_anchor=anchor.isoformat() if anchor is not None else None,
-            target_date=self._target_date_from_anchor(eq_daily),
+            target_date=target_date,
+            go_live_state=go_live_state,
         )
         if write:
             _atomic_write_json(self.data_dir / STATUS_OUT_FILENAME, result.to_dict())

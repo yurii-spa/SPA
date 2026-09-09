@@ -213,6 +213,17 @@ GOLDEN_ROUTES = {
     ("/api/investment-os/health", ("GET",)),
     ("/api/investment-os/quant", ("GET",)),
     ("/api/investment-os/market-structure", ("GET",)),
+    # Added 2026-09-08: BTC Signal Engine read-API (ADR-260, owner decision earn-defi D-52) —
+    # read-only pass-through of four JSON files from ~/Documents/earn-defi/site; no_data instead
+    # of fabrication; and the /api/live/books* pair delivered the same day by another cycle
+    # (measured on origin c589a1676 by this very test: routes ADDED/CHANGED = these seven).
+    ("/api/btc-engine", ("GET",)),
+    ("/api/btc-engine/track.json", ("GET",)),
+    ("/api/btc-engine/commitments.json", ("GET",)),
+    ("/api/btc-engine/runway.json", ("GET",)),
+    ("/api/btc-engine/shadow.json", ("GET",)),
+    ("/api/live/books", ("GET",)),
+    ("/api/live/books/brief", ("GET",)),
 }
 
 
@@ -278,7 +289,7 @@ def test_route_count_stable():
     surface (/api/underwriting/report + /proof + /full-chain), FLAG-GATED OFF by default
     (SPA_UNDERWRITING_PUBLISH).)
     """
-    assert len(_app_route_table()) == 144
+    assert len(_app_route_table()) == 151  # 144 → 151 on 2026-09-08 (+7 routes, see GOLDEN_ROUTES tail)
 
 
 def test_openapi_path_count_stable():
@@ -286,7 +297,8 @@ def test_openapi_path_count_stable():
     from fastapi.testclient import TestClient
     with TestClient(server.app) as c:
         paths = c.get("/openapi.json").json()["paths"]
-    assert len(paths) == 143  # HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
+    # 143 → 150 on 2026-09-08: +5 /api/btc-engine* (ADR-260) +2 /api/live/books* (same day, other cycle)
+    assert len(paths) == 150  # HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
 
 
 # ── Representative response-shape snapshot (one endpoint per tag group) ──────────

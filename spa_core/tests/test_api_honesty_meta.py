@@ -403,3 +403,79 @@ def test_health_public_apy_annualized_label(client):
     assert d["ytd_apy_pct"] == 3.6
     assert "annualized" in d["ytd_apy_pct_note"]
     assert d["apy_today_pct_annualized"] == 3.6
+
+
+# ── /api/strategy-lab/promotion → freshness (card 2026-09-08, item 3) ──────────────────
+# data/strategy_lab_promotion.json has no producer in the fleet (see the router's
+# PROMOTION_STALE_AFTER_DAYS note); the route must SAY so instead of serving a June verdict
+# as today's. Time is an input: timestamps are relative to the wall clock through `_hours_ago`,
+# and the helper is also exercised with an injected `now` so both sides are pinned.
+from datetime import datetime as _dt, timedelta as _td, timezone as _tz  # noqa: E402
+
+from spa_core.api.routers.strategy_lab import (  # noqa: E402
+    PROMOTION_STALE_AFTER_DAYS,
+    _promotion_freshness,
+)
+
+
+def _hours_ago(h: float) -> str:
+    return (_dt.now(_tz.utc) - _td(hours=h)).isoformat()
+
+
+def test_promotion_freshness_helper_with_injected_clock():
+    now = _dt(2026, 9, 8, 12, 0, tzinfo=_tz.utc)
+    # the live artifact: generated 2026-06-25T19:57:47Z, read 2026-09-08 → ~74.7 days, stale
+    f = _promotion_freshness("2026-06-25T19:57:47.360680+00:00", now=now)
+    assert f["stale"] is True
+    assert f["age_days"] == 74.7
+    assert f["stale_after_days"] == PROMOTION_STALE_AFTER_DAYS == 7.0
+    # inside the budget → fresh
+    assert _promotion_freshness("2026-09-06T12:00:00+00:00", now=now) == {
+        "age_days": 2.0, "stale": False, "stale_after_days": 7.0}
+    # exactly on the budget is still fresh; a hair over is stale
+    assert _promotion_freshness("2026-09-01T12:00:00+00:00", now=now)["stale"] is False
+    assert _promotion_freshness("2026-09-01T11:00:00+00:00", now=now)["stale"] is True
+    # 'Z' suffix and a naive timestamp both parse (UTC assumed for naive)
+    assert _promotion_freshness("2026-09-07T12:00:00Z", now=now)["age_days"] == 1.0
+    assert _promotion_freshness("2026-09-07T12:00:00", now=now)["age_days"] == 1.0
+    # fail-CLOSED: absent / garbage / non-string → stale, age unknown
+    for bad in (None, "", "not-a-date", 12345):
+        f = _promotion_freshness(bad, now=now)
+        assert f["stale"] is True and f["age_days"] is None, bad
+
+
+def test_strategy_lab_promotion_stamps_stale_when_generated_at_is_old(client):
+    c, data_dir = client
+    _write(data_dir, "strategy_lab_promotion.json", {
+        "generated_at": _hours_ago(75 * 24),
+        "model": "strategy_lab_promotion", "rwa_floor_pct": 3.37,
+        "n_sleeves": 1, "stage_counts": {"PAPER_CANDIDATE": 1},
+        "sleeves": [{"id": "engine_b", "stage": "PAPER_CANDIDATE"}],
+    })
+    d = c.get("/api/strategy-lab/promotion").json()
+    assert d["stale"] is True
+    assert 74.9 <= d["age_days"] <= 75.1
+    assert d["stale_after_days"] == 7.0
+    # everything the site already consumed is still there (additive keys only)
+    assert d["n_sleeves"] == 1 and d["sleeves"][0]["id"] == "engine_b"
+    _assert_backtest_meta(d["meta"])
+
+
+def test_strategy_lab_promotion_fresh_artifact_is_not_stale(client):
+    c, data_dir = client
+    _write(data_dir, "strategy_lab_promotion.json", {
+        "generated_at": _hours_ago(1), "model": "strategy_lab_promotion",
+        "n_sleeves": 0, "stage_counts": {}, "sleeves": [],
+    })
+    d = c.get("/api/strategy-lab/promotion").json()
+    assert d["stale"] is False
+    assert 0.0 <= d["age_days"] <= 0.1
+
+
+def test_strategy_lab_promotion_empty_payload_is_stale_by_construction(client):
+    """No file at all → the empty envelope must not read as current."""
+    c, _ = client
+    d = c.get("/api/strategy-lab/promotion").json()
+    assert d["generated_at"] is None
+    assert d["stale"] is True and d["age_days"] is None
+    assert d["stale_after_days"] == 7.0

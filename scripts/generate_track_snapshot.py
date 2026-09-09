@@ -134,6 +134,22 @@ def _sleeve_paper_track(state_path: Path) -> dict:
     }
 
 
+def _go_live_target(golive: dict):
+    """The gate's calendar target — VERBATIM, null included.
+
+    ``golive_checker`` emits ``target_date: null`` once the 30-day criteria pass (the
+    projection anchor+29d lies in the past and answers nothing; the state lives in
+    ``go_live_state``). The former ``or``-chain turned that null straight back into the
+    literal 2026-07-21 — the exact past date the site was taught to distrust (commit
+    82e20cda). A PRESENT key wins even when its value is None; no literal fallback at all
+    (this module's own contract: missing ⇒ None ⇒ "data unavailable", never a stale number).
+    """
+    for key in ("target_date", "go_live_target"):
+        if key in golive:
+            return golive[key]
+    return None
+
+
 def build_snapshot(golive_path: Path = GOLIVE, equity_path: Path = EQUITY, pts_path=None) -> dict:
     """Assemble the build-time static snapshot from the committed data files.
 
@@ -193,7 +209,8 @@ def build_snapshot(golive_path: Path = GOLIVE, equity_path: Path = EQUITY, pts_p
         # OVERSTATED/stale) and CLEARS it (on a passing re-check). Default False on first generation.
         "degraded": bool(_load(OUT).get("degraded", False)),
         "real_track_days": real_days,
-        "go_live_target": golive.get("target_date") or golive.get("go_live_target") or "2026-07-21",
+        "go_live_target": _go_live_target(golive),
+        "go_live_state": golive.get("go_live_state"),
         "evidenced_anchor": golive.get("evidenced_anchor") or "2026-06-22",
         "days_needed": int(golive.get("min_track_days", 30) or 30),
         "gates_passed": stable_passed,

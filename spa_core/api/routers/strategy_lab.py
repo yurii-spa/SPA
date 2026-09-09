@@ -6,6 +6,8 @@ are byte-identical to the monolith.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter
 
 from spa_core.api._shared import (
@@ -16,6 +18,43 @@ from spa_core.api._shared import (
 )
 
 router = APIRouter(tags=["strategy_lab"])
+
+# ── /api/strategy-lab/promotion freshness ──────────────────────────────────────────
+# data/strategy_lab_promotion.json has NO producer in the fleet: the only writer is
+# spa_core/strategy_lab/promotion.py:build_report(write=True), reached solely by hand
+# (`python3 -m spa_core.strategy_lab.promotion`); the one fleet caller
+# (captured_sleeves.py:359) passes write=False, no wrapper in scripts/ or launchd/ invokes
+# it, and no /tmp/spa_*.log has ever mentioned the file. Measured 2026-09-08: generated_at
+# 2026-06-25 (75 days), served VERBATIM with no age, so DashboardLive / /tournament /
+# /structural-desk / /system rendered a June verdict as today's. Neither
+# spa_core/api/_shared.py nor architecture/manifest.json declares an SLO for it (it is
+# not registered in artifact_freshness either), so the budget lives here: 7 days — the
+# rubric is a research verdict over a weekly-cadence backtest, not a daily feed.
+PROMOTION_STALE_AFTER_DAYS = 7.0
+
+
+def _promotion_freshness(generated_at, *, now: datetime | None = None) -> dict:
+    """``age_days`` + ``stale`` for the promotion artifact.
+
+    Fail-CLOSED: an absent / unparseable ``generated_at`` reads stale with ``age_days``
+    None — we cannot prove the artifact is current, so we never claim it is. ``now`` is
+    an input (default: wall clock) so a test can pin both sides.
+    """
+    ref = now if now is not None else datetime.now(timezone.utc)
+    age_days = None
+    if isinstance(generated_at, str) and generated_at:
+        try:
+            ts = datetime.fromisoformat(generated_at.replace("Z", "+00:00"))
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            age_days = (ref - ts).total_seconds() / 86400.0
+        except ValueError:
+            age_days = None
+    return {
+        "age_days": None if age_days is None else round(age_days, 1),
+        "stale": True if age_days is None else bool(age_days > PROMOTION_STALE_AFTER_DAYS),
+        "stale_after_days": PROMOTION_STALE_AFTER_DAYS,
+    }
 
 
 @router.get("/api/strategy-lab")
@@ -174,7 +213,9 @@ def get_strategy_lab_promotion():
     """Strategy-Lab promotion engine verdicts — data/strategy_lab_promotion.json.
 
     Carries a clearly-separated `rates_desk` section (REPORTING ONLY — IS_ADVISORY). Read-only,
-    graceful: served VERBATIM; empty payload (not an error) when the JSON is missing/corrupt.
+    graceful: served VERBATIM plus ADDITIVE freshness keys (`stale`, `age_days`,
+    `stale_after_days` — see _promotion_freshness); empty payload (not an error) when the
+    JSON is missing/corrupt, and that payload is stale by construction.
     """
     raw = read_state("strategy_lab_promotion.json", {})
     _promo_meta = backtest_meta(
@@ -195,8 +236,10 @@ def get_strategy_lab_promotion():
             "tournament_trustworthy": trust,
             "tournament_trust_reason": trust_reason,
             "meta": _promo_meta,
+            **_promotion_freshness(None),
         }
     raw.setdefault("meta", _promo_meta)
+    raw.update(_promotion_freshness(raw.get("generated_at")))
     raw["rates_desk"] = rates_desk
     # Surface the tournament-trust verdict on the promotion surface so the dashboard's
     # promotion-refusal panel can show "NOT TRUSTWORTHY" WITHOUT a separate fetch. Fail-CLOSED:

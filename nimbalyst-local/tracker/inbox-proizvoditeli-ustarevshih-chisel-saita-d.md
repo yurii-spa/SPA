@@ -5,6 +5,8 @@ title: "Производители устаревших чисел сайта: �
 status: backlog
 source: nimbalyst
 created: 2026-09-08
+claimed_by: pid20023
+claimed_at: 2026-09-08T21:15:05Z
 ---
 
 ## Что случилось и почему это важно

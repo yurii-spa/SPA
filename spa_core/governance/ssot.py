@@ -164,6 +164,49 @@ def read_canonical(
     return {}
 
 
+# ─── NAV proof vs the CURRENT book ───────────────────────────────────────────────
+
+# tier1_nav_proof.json is written at 06:30 by com.spa.mass_tournament — BEFORE the 08:00
+# daily cycle rewrites the book. Its ``reconciliation_ok`` is therefore a verdict on
+# YESTERDAY's equity, and the dashboard printed «reconciled ✓» next to a different number
+# (measured 2026-09-08: proof 101,237.29 vs current_equity 101,251.32). Tolerance is one
+# cent: the proof stores the equity it reconciled AGAINST (``reported_equity_usd``), so
+# "same book" means "same number", not "close enough".
+_NAV_BOOK_MATCH_TOL_USD = 0.01
+
+
+def _nav_reconciliation_vs_current_book(nav: dict, track: dict) -> tuple[Any, str | None]:
+    """(nav_reconciliation_ok, note) after checking the proof is about the CURRENT book.
+
+    * proof equity == current_equity (±1¢) → the proof's own flag passes through, no note.
+    * they differ → ``None`` (not False: the proof is not WRONG, it is about an older
+      book) plus a note naming both numbers, so a consumer can render "not reconciled
+      against the current book" instead of a tick.
+    * either side missing / non-numeric → pass through unchanged: we cannot establish
+      staleness, and inventing it would be the mirror image of inventing a tick.
+
+    ``reported_equity_usd`` is the equity the proof reconciled against
+    (spa_core/backtesting/tier1/nav_proof.py); older proofs without it fall back to
+    ``computed_nav_usd``, which a passing reconciliation keeps within $1 of it.
+    """
+    ok = nav.get("reconciliation_ok")
+    proof_equity = nav.get("reported_equity_usd")
+    if proof_equity is None:
+        proof_equity = nav.get("computed_nav_usd")
+    current = track.get("current_equity")
+    try:
+        proof_f = float(proof_equity)
+        current_f = float(current)
+    except (TypeError, ValueError):
+        return ok, None
+    if abs(proof_f - current_f) > _NAV_BOOK_MATCH_TOL_USD:
+        return None, (
+            "nav_proof older than the current book "
+            f"(proof equity {proof_f:.2f} vs current {current_f:.2f})"
+        )
+    return ok, None
+
+
 # ─── Public: key_facts (the numbers the site SHOULD show, verbatim) ─────────────
 
 
@@ -195,6 +238,8 @@ def key_facts(data_dir: str | os.PathLike | None = None) -> dict[str, Any]:
     if _real_track_days is None:
         _real_track_days = track.get("days_running")
 
+    nav_ok, nav_note = _nav_reconciliation_vs_current_book(nav, track)
+
     return {
         "ssot_version": SSOT_VERSION,
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -214,8 +259,13 @@ def key_facts(data_dir: str | os.PathLike | None = None) -> dict[str, Any]:
         # presentation surface mirrors the ONE value.
         "evidenced_anchor": golive.get("evidenced_anchor"),
         "go_live_target": golive.get("target_date"),
+        # null target once the time gate has passed; this says where the gate stands.
+        "go_live_state": golive.get("go_live_state"),
         "nav": nav.get("computed_nav_usd"),
-        "nav_reconciliation_ok": nav.get("reconciliation_ok"),
+        # None (not False) when the proof reconciled an OLDER book than current_equity;
+        # the note names both numbers. See _nav_reconciliation_vs_current_book.
+        "nav_reconciliation_ok": nav_ok,
+        "nav_reconciliation_note": nav_note,
     }
 
 

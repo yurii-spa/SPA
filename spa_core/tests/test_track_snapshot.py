@@ -55,3 +55,45 @@ def test_generated_snapshot_on_disk_is_valid():
     disk = json.loads((_ROOT / "landing" / "src" / "data" / "track_snapshot.json").read_text())
     for k in ("as_of", "real_track_days", "gates_passed", "gates_total", "paper_apy_pct", "nav_usd"):
         assert k in disk, f"committed snapshot missing {k}"
+
+
+def test_null_go_live_target_survives_verbatim(tmp_path):
+    """golive_checker emits target_date: null once the time gate has passed (card 2026-09-08).
+    The generator must pass that null through — NOT resurrect the literal 2026-07-21 via an
+    `or`-chain, and NOT stringify it to "None". go_live_state rides along verbatim."""
+    golive = _write(tmp_path, "golive.json", {"passed": 29, "total": 29, "evidenced_anchor": "2026-06-22",
+                                              "target_date": None, "real_track_days": 77,
+                                              "go_live_state": "gate_passed_owner_decision_pending"})
+    equity = _write(tmp_path, "equity.json", {"bars": [
+        {"date": "2026-06-22", "equity": 100000.0, "evidenced": True},
+        {"date": "2026-06-23", "equity": 100100.0, "evidenced": True},
+    ]})
+    pts = _write(tmp_path, "pts.json", {"current_equity": 100255.73})
+    snap = gen.build_snapshot(golive_path=golive, equity_path=equity, pts_path=pts)
+    assert "go_live_target" in snap
+    assert snap["go_live_target"] is None
+    assert snap["go_live_target"] != "None" and snap["go_live_target"] != "2026-07-21"
+    assert snap["go_live_state"] == "gate_passed_owner_decision_pending"
+    # and it serializes as JSON null, which is what landing/src/lib/golive_label.js tolerates
+    assert json.loads(json.dumps(snap))["go_live_target"] is None
+
+
+def test_absent_go_live_target_is_none_not_a_literal_date(tmp_path):
+    """No target key at all (empty golive) → None, per this module's own contract
+    ("missing ⇒ None ⇒ data unavailable"), never the hardcoded 2026-07-21."""
+    golive = _write(tmp_path, "g.json", {})
+    equity = _write(tmp_path, "e.json", {"bars": []})
+    pts = _write(tmp_path, "p.json", {})
+    snap = gen.build_snapshot(golive_path=golive, equity_path=equity, pts_path=pts)
+    assert snap["go_live_target"] is None
+    assert snap["go_live_state"] is None
+
+
+def test_in_progress_target_date_still_passes_through(tmp_path):
+    """While the gate is in progress the projected date is kept verbatim (no regression)."""
+    golive = _write(tmp_path, "golive.json", {"target_date": "2026-07-21", "go_live_state": "gate_in_progress"})
+    equity = _write(tmp_path, "equity.json", {"bars": []})
+    pts = _write(tmp_path, "pts.json", {})
+    snap = gen.build_snapshot(golive_path=golive, equity_path=equity, pts_path=pts)
+    assert snap["go_live_target"] == "2026-07-21"
+    assert snap["go_live_state"] == "gate_in_progress"

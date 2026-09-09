@@ -23,6 +23,9 @@ from pathlib import Path
 import pytest
 
 from spa_core.paper_trading.golive_checker import (
+    GO_LIVE_STATE_BLOCKERS_OPEN,
+    GO_LIVE_STATE_IN_PROGRESS,
+    GO_LIVE_STATE_OWNER_PENDING,
     GoLiveChecker,
     MIN_TRACK_DAYS,
     PAPER_REAL_START,
@@ -380,3 +383,72 @@ def test_full_fixture_is_ready_29_of_29(tmp_path):
     failing = [n for n, ok in res.checks.items() if not ok]
     assert failing == [], f"still failing: {failing}"
     assert res.ready is True
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 4. go_live_state — a projection in the past is not an ETA
+#    (card «Производители устаревших чисел сайта», 2026-09-08)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def test_time_gate_passed_29_of_29_emits_null_target_and_owner_pending_state(tmp_path):
+    """77/30 evidenced days, 29/29 → target_date is None (NOT anchor+29d, which lies in the past)
+    and go_live_state says the gate has nothing left to say: go-live is an owner decision.
+
+    Positive control for the live defect measured 2026-09-08: real_track_days=77, blockers=[],
+    target_date=2026-07-21 served as an ETA to track_snapshot / /api/v1/golive / /api/ssot/facts.
+    """
+    now = datetime(2026, 9, 8, 12, 0, tzinfo=timezone.utc)
+    dates = _consecutive(now - timedelta(days=77), 77)          # 77 honest days ending yesterday
+    res = _checker(tmp_path, now=now, **{"equity_curve_daily.json": _equity(dates)}).check(write=False)
+    assert res.real_track_days == 77
+    assert res.checks["min_track_days_30"] is True and res.checks["gap_monitor_30d"] is True
+    assert res.blockers == [] and res.ready is True
+    # The anchor is still reported (it is a historical fact) …
+    assert res.evidenced_anchor == dates[0]
+    # … but the calendar projection is gone: null, not a date in the past.
+    assert res.target_date is None
+    assert res.go_live_state == GO_LIVE_STATE_OWNER_PENDING == "gate_passed_owner_decision_pending"
+    d = res.to_dict()
+    assert d["target_date"] is None
+    assert d["go_live_state"] == "gate_passed_owner_decision_pending"
+    # No PENDING criterion carries a target either — both time-gated criteria are PASS.
+    for name in TIME_GATED_CRITERIA:
+        assert res.details[name]["status"] == "PASS"
+        assert "target_date" not in res.details[name]
+
+
+def test_time_gate_in_progress_keeps_a_future_projection_and_says_so(tmp_path):
+    """12/30 → the projected target is a date in the FUTURE relative to now, and the state is
+    gate_in_progress. Every other field is untouched (evidenced_anchor, details, blockers)."""
+    dates = _consecutive(datetime(2026, 6, 13, tzinfo=timezone.utc), 12)   # 06-13 … 06-24
+    res = _checker(tmp_path, now=NOW, **{"equity_curve_daily.json": _equity(dates)}).check(write=False)
+    assert res.real_track_days == 12
+    assert res.checks["min_track_days_30"] is False
+    assert res.go_live_state == GO_LIVE_STATE_IN_PROGRESS == "gate_in_progress"
+    assert res.target_date is not None
+    target = datetime.strptime(res.target_date, "%Y-%m-%d").date()
+    assert target > NOW.date(), f"projection must lie in the future while the gate is in progress: {target}"
+    assert target == (datetime(2026, 6, 13).date() + timedelta(days=MIN_TRACK_DAYS - 1))
+    assert res.evidenced_anchor == "2026-06-13"
+    d = res.to_dict()
+    assert d["target_date"] == res.target_date and d["go_live_state"] == "gate_in_progress"
+    for name in TIME_GATED_CRITERIA:
+        assert res.details[name]["status"] == "PENDING"
+        assert res.details[name]["target_date"] == res.target_date
+
+
+def test_time_gate_passed_with_an_open_defect_is_not_owner_pending(tmp_path):
+    """≥30 days but a NON-time criterion fails → the projection is still meaningless (null), and
+    the state must NOT claim "owner decision pending": that would be the same class of lie the
+    card is about — a label that reads as done while a defect blocker is open."""
+    now = datetime(2026, 9, 8, 12, 0, tzinfo=timezone.utc)
+    dates = _consecutive(now - timedelta(days=45), 45)
+    res = _checker(
+        tmp_path, now=now,
+        **{"equity_curve_daily.json": _equity(dates), "trades.json": None},   # trades_real → FAIL
+    ).check(write=False)
+    assert res.checks["min_track_days_30"] is True and res.checks["gap_monitor_30d"] is True
+    assert res.checks["trades_real"] is False and res.blockers
+    assert res.target_date is None
+    assert res.go_live_state == GO_LIVE_STATE_BLOCKERS_OPEN == "time_gate_passed_blockers_open"
+    assert res.to_dict()["go_live_state"] == "time_gate_passed_blockers_open"
