@@ -2,10 +2,16 @@
 trackerStatus:
   type: owner-decision
 title: "earn-defi: таблица режимов на истории НЕ бьёт «просто держать биткоин»"
-status: needs-owner
+status: ingested
 source: agent
 created: 2026-09-09
 tags: [earn-defi, backtest, adr-006, regime-table]
+owner_choice: 1
+owner_answered_at: 2026-09-09T15:02:07.266148+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
+status_trail:
+  - "2026-09-09T18:35:35.534028+00:00 needs-owner -> ingested · queue.set_status · cycle-80789"
 ---
 
 ## Что случилось и почему это важно
