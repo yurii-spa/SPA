@@ -193,3 +193,67 @@ def test_pre_anchor_bars_are_excluded_from_the_track_apy():
     rows = [{"date": "2026-05-21", "close_equity": 100000.0, "evidenced": False}] + _CHAIN_2026_09_08
     apy, src = mon.track_apy_from_chain(rows, "2026-06-22", 77)
     assert (apy, src) == (5.3177, "evidenced_chain")
+
+
+# ── ADR-296: пин сверяется с ЖИВОЙ страницей, а не с локальным исходником ────────────
+#
+# Замер 2026-09-09: сторож восемь часов подряд кричал VERIFIER_PIN_MISMATCH, а сайт и скрипт
+# были СОГЛАСОВАНЫ. Он сравнивал файл на origin (`d8c86008…`) с ПРОД-КОПИЕЙ
+# `landing/src/pages/verify.astro` (`f560aed8…`), которая устаревает по построению:
+# синхронизация кода не возит `landing/` никогда. Тот же класс, что ADR-270 — сравнивались
+# не те две вещи.
+
+LIVE_PIN = "d" * 64
+
+
+def test_the_2026_09_09_false_alarm_stays_silent():
+    """Живой скрипт и напечатанный на /verify/ пин совпадают ⇒ находки нет."""
+    r = mon.evaluate(snapshot=_snap(), home_html=_home(), track_html=_track(), api=_api(),
+                     sitemap_statuses=_urls(), verifier_sha=LIVE_PIN, pin_sha=LIVE_PIN, now=NOW)
+    assert "VERIFIER_PIN_MISMATCH" not in {f["code"] for f in r["fails"]}
+    assert r["pin_leg"] == "measured"
+
+
+def test_a_real_mismatch_still_fails():
+    """Положительный контроль: расхождение обязано краснеть, иначе проверка — украшение."""
+    r = mon.evaluate(snapshot=_snap(), home_html=_home(), track_html=_track(), api=_api(),
+                     sitemap_statuses=_urls(), verifier_sha=LIVE_PIN, pin_sha="b" * 64, now=NOW)
+    assert "VERIFIER_PIN_MISMATCH" in {f["code"] for f in r["fails"]}
+    assert r["pin_leg"] == "measured"
+
+
+def test_pin_absent_from_the_page_is_unmeasured_not_a_pass():
+    """Страница не отдала хеш — это ТРЕТИЙ исход с причиной, а не тихое «сошлось»."""
+    r = mon.evaluate(snapshot=_snap(), home_html=_home(), track_html=_track(), api=_api(),
+                     sitemap_statuses=_urls(), verifier_sha=LIVE_PIN, pin_sha=None, now=NOW)
+    assert "VERIFIER_PIN_MISMATCH" not in {f["code"] for f in r["fails"]}
+    assert r["pin_leg"] == "unmeasured:pin_not_found_on_live_page"
+
+
+def test_verifier_unreachable_is_unmeasured_with_its_own_reason():
+    r = mon.evaluate(snapshot=_snap(), home_html=_home(), track_html=_track(), api=_api(),
+                     sitemap_statuses=_urls(), verifier_sha=None, pin_sha=LIVE_PIN, now=NOW)
+    assert r["pin_leg"] == "unmeasured:verifier_unreachable"
+
+
+def test_the_collector_reads_the_pin_from_the_live_page_not_from_the_tree():
+    """Проводка меряется РАЗБОРОМ, а не поиском подстроки.
+
+    Без этого теста правка живёт только в комментарии: сама `evaluate` чиста, и вернуть
+    чтение прод-копии обратно можно было бы, не уронив ни один тест выше.
+
+    Мерятся СТРОКОВЫЕ ЛИТЕРАЛЫ КОДА (ast.Constant), а не текст файла: комментарии в AST не
+    попадают, поэтому объяснение «почему больше не читаем verify.astro» не срабатывает как
+    находка. Первая редакция этого теста искала подстроку и краснела на собственном
+    комментарии — та же ошибка, что она же ловит.
+    """
+    import ast
+    tree = ast.parse((_ROOT / "scripts" / "site_freshness_monitor.py").read_text(encoding="utf-8"))
+    literals = [n.value for n in ast.walk(tree)
+                if isinstance(n, ast.Constant) and isinstance(n.value, str)]
+    # докстринги — тоже Constant; отсекаем их по длине/переводам строк, а не по месту
+    code_lits = [v for v in literals if "\n" not in v and len(v) < 200]
+    assert not [v for v in code_lits if v.endswith("verify.astro")], \
+        "сборщик снова адресует локальный исходник страницы"
+    assert any("earn-defi.com/verify/" in v for v in code_lits), \
+        "сборщик не читает живую страницу /verify/"

@@ -236,9 +236,29 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
         if code not in (200, 308):   # 308 = trailing-slash canonicalization, expected
             fail("UNAVAILABLE", f"{url} -> HTTP {code}")
 
-    # 8. verifier pin
-    if verifier_sha and pin_sha and verifier_sha != pin_sha:
-        fail("VERIFIER_PIN_MISMATCH", f"live verify_spa.py {verifier_sha[:12]}… != pin {pin_sha[:12]}…")
+    # 8. verifier pin — сверяются ДВЕ ЖИВЫЕ величины: файл на origin, который посетитель
+    #    скачивает, и хеш, НАПЕЧАТАННЫЙ на живой странице /verify/, который он читает.
+    #
+    #    До 2026-09-09 второй операнд брался из ЛОКАЛЬНОГО `landing/src/pages/verify.astro`
+    #    рабочего дерева. В прод-дереве этот файл устаревает ПО ПОСТРОЕНИЮ: синхронизация
+    #    кода возит `spa_core/`, `scripts/`, `tests/`, `architecture/` и НИКОГДА `landing/`
+    #    (.claude/rules/deployment.md, п. 2). Замер 09.09: живой сайт и живой скрипт
+    #    согласованы на `d8c86008…`, а сторож восемь часов подряд кричал FAIL, потому что
+    #    читал прод-копию исходника со старым `f560aed8…`. Тот же класс, что ADR-270:
+    #    сравнивались не те две вещи.
+    #
+    #    Третий исход самостоятелен: страница недоступна или хеша на ней нет ⇒ «не измерено»
+    #    с названной причиной, а не тихий пропуск и не FAIL.
+    if not verifier_sha:
+        pin_leg = "unmeasured:verifier_unreachable"
+    elif not pin_sha:
+        pin_leg = "unmeasured:pin_not_found_on_live_page"
+    elif verifier_sha != pin_sha:
+        pin_leg = "measured"
+        fail("VERIFIER_PIN_MISMATCH",
+             f"origin verify_spa.py {verifier_sha[:12]}… != опубликованный на /verify/ пин {pin_sha[:12]}…")
+    else:
+        pin_leg = "measured"
 
     # ── kill-rule: degrade only when the SNAPSHOT ITSELF is overstated (its committed apy exceeds the live
     #    API) — that's the only case where degrading actually prevents a wrong number. A merely stale LIVE
@@ -265,6 +285,7 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
         "degrade_reason": ("SNAPSHOT_OVERSTATED" if snapshot_overstated else
                            "STALE_48H_TWO_RUNS" if degrade else None),
         "apy_leg": apy_leg,                          # measured | unmeasured (no like-for-like API apy)
+        "pin_leg": pin_leg,                          # measured | unmeasured:<причина> — пин сверялся или нет
         "api_apy_source": apih.get("apy_source"),
         "site_overstated": site_overstated,          # live site shows APY > API (may be deploy lag)
         "snapshot_overstated": snapshot_overstated,  # committed snapshot itself is overstated -> degrade
@@ -977,10 +998,12 @@ def run():
     for url in _sitemap_urls():
         code, _ = _get(url, timeout=12)
         sitemap_statuses[url] = code
-    # verifier pin
-    pin = None
-    m = re.search(r"VERIFIER_SHA256\s*=\s*'([0-9a-f]{64})'",
-                  (_ROOT / "landing" / "src" / "pages" / "verify.astro").read_text())
+    # verifier pin — с ЖИВОЙ страницы, той самой, которую читает посетитель.
+    # Локальный `landing/src/pages/verify.astro` для этого не годится: в прод-дереве он
+    # устаревает по построению (синхронизация кода не возит `landing/`), и сторож судил бы
+    # о сайте по файлу, которого посетитель никогда не видит.
+    _, verify_html = _get("https://earn-defi.com/verify/", timeout=20)
+    m = re.search(r"\b([0-9a-f]{64})\b", verify_html or "")
     pin = m.group(1) if m else None
     _, live_verifier = _get("https://raw.githubusercontent.com/yurii-spa/SPA/main/scripts/verify_spa.py")
     verifier_sha = hashlib.sha256(live_verifier.encode()).hexdigest() if live_verifier else None
