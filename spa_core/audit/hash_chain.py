@@ -23,9 +23,20 @@ Entry shape::
 Canonical JSON = json.dumps(..., sort_keys=True, separators=(',', ':')) so the
 hash is stable across processes and Python runs (deterministic).
 
-Stored as JSONL at data/audit_chain.jsonl (one entry per line). Appends are
-atomic: read-modify-write to a tmp file then os.replace over the destination,
-so a crash mid-write never leaves a torn line.
+Stored as JSONL at data/audit_chain.jsonl (one entry per line).
+
+**Appending is O(1) (ADR-273).** Until 2026-09-09 ``append()`` read the WHOLE ledger and
+rewrote the WHOLE file through a tmp + ``os.replace``. Correct, and quadratic: measured
+2026-09-09 the file was 18.9 MB / 22 738 entries at ~190 appends a day, i.e. **≈3.6 GB of
+writes per day** to record ~0.1 MB of new evidence, and the cost of one append grows with
+the length of the history it protects. Now an append reads only the chain HEAD (the last
+complete line) and appends one line with ``flush`` + ``fsync``.
+
+What that costs in exchange: a crash *between* the write and the fsync can leave a
+truncated LAST line. That is a crash artifact, not tampering, and it is never passed off
+as either — readers drop an unparseable FINAL line and report it as ``torn_tail`` (a named
+third outcome); an unparseable line anywhere else is still a hard error. ``rewrite_all()``
+keeps the old whole-file path for compaction and for repairing a torn tail.
 
 Deterministic. stdlib only. No LLM anywhere in the integrity path.
 """
@@ -33,6 +44,8 @@ Deterministic. stdlib only. No LLM anywhere in the integrity path.
 from __future__ import annotations
 
 import datetime
+import contextlib
+import fcntl
 import hashlib
 import json
 import os
@@ -83,18 +96,67 @@ def compute_entry_hash(seq: int, ts: str, event_type: str, payload: dict, prev_h
 # --------------------------------------------------------------------------- #
 # Disk I/O (atomic)
 # --------------------------------------------------------------------------- #
-def _read_all() -> list:
-    """Return every entry as a list of dicts; [] if the chain file is absent/empty."""
+def _read_all(*, with_torn: bool = False):
+    """Return every entry as a list of dicts; [] if the chain file is absent/empty.
+
+    A trailing line that does not parse is a TORN TAIL — the signature of a crash between
+    the append and its fsync (see the module docstring). It is dropped from the returned
+    entries and, with ``with_torn=True``, reported alongside them. It is NOT silently
+    swallowed anywhere a verdict is produced: ``verify_chain()`` names it. An unparseable
+    line in any other position raises, exactly as before — that is not a crash artifact.
+    """
     path = _chain_path()
     if not path.exists():
-        return []
-    entries = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        entries.append(json.loads(line))
-    return entries
+        return ([], False) if with_torn else []
+    lines = [ln.strip() for ln in path.read_text(encoding="utf-8").splitlines()]
+    lines = [ln for ln in lines if ln]
+    entries: list = []
+    torn = False
+    for idx, line in enumerate(lines):
+        try:
+            entries.append(json.loads(line))
+        except ValueError:
+            if idx == len(lines) - 1:
+                torn = True      # truncated final line: crash artifact, named not hidden
+                break
+            raise
+    return (entries, torn) if with_torn else entries
+
+
+def _read_head() -> Optional[dict]:
+    """The last COMPLETE entry of the chain, read without loading the whole file.
+
+    Reads a window from the end of the file and walks backwards to the last line that
+    parses. Only the tail can be torn, so at most one candidate is discarded; if the
+    window holds no complete line the window is grown (a single entry can be large).
+    """
+    path = _chain_path()
+    if not path.exists():
+        return None
+    size = path.stat().st_size
+    if size == 0:
+        return None
+    window = 64 * 1024
+    while True:
+        with path.open("rb") as f:
+            start = max(0, size - window)
+            f.seek(start)
+            chunk = f.read()
+        if start > 0:
+            # the first line of the window may be a fragment of an earlier entry
+            nl = chunk.find(b"\n")
+            chunk = chunk[nl + 1:] if nl >= 0 else b""
+        lines = [ln for ln in chunk.decode("utf-8", errors="replace").splitlines() if ln.strip()]
+        for line in reversed(lines):
+            try:
+                obj = json.loads(line)
+            except ValueError:
+                continue     # torn final line — try the one before it
+            if isinstance(obj, dict):
+                return obj
+        if start == 0:
+            return None
+        window *= 8
 
 
 def _atomic_write_all(entries: list) -> None:
@@ -122,6 +184,66 @@ def _atomic_write_all(entries: list) -> None:
         raise
 
 
+def _lock_path() -> Path:
+    return _chain_path().with_suffix(_chain_path().suffix + ".lock")
+
+
+@contextlib.contextmanager
+def _chain_lock():
+    """Serialise «прочитать голову → дописать строку» между процессами.
+
+    Нужен именно из-за перехода на O(1) (ADR-273) и НЕ является украшением. Прежний
+    путь (перечитать всё → переписать файл) при двух одновременных писателях терял одну
+    запись МОЛЧА: `os.replace` последнего затирал соседа. Теперь оба дописывания дошли бы
+    до файла, но оба взяли бы одну и ту же голову — и цепочка получила бы два `seq` с одним
+    номером, то есть `verify_chain` объявил бы её порванной. Флот здесь — 80 агентов, и
+    писателей у цепочки несколько (цикл, threat_reactor, rates_desk), так что это не
+    гипотеза.
+
+    Блокировка — на отдельном `.lock`-файле (сама цепочка остаётся простым JSONL, который
+    читает любой сторонний верификатор). `fcntl.flock` есть в stdlib на macOS и Linux;
+    если ОС её не даёт, дописывание идёт без неё — потеря сериализации названа в
+    исключении, а не выдана за успех.
+    """
+    lock = _lock_path()
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    fh = None
+    try:
+        fh = open(lock, "a+")
+        try:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+        except OSError:
+            pass          # ФС без flock (редкая сетевая): дописываем, но не молчим об этом
+        yield
+    finally:
+        if fh is not None:
+            try:
+                fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+            except OSError:
+                pass
+            fh.close()
+
+
+def _append_line(entry: dict) -> None:
+    """Append ONE canonical JSONL line and force it to disk (O(1) in chain length)."""
+    path = _chain_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    line = json.dumps(entry, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    with path.open("a", encoding="utf-8") as f:
+        f.write(line + "\n")
+        f.flush()
+        os.fsync(f.fileno())
+
+
+def rewrite_all(entries: list) -> None:
+    """Whole-file rewrite (compaction / repair of a torn tail). Kept deliberately.
+
+    Not used by ``append()`` any more (ADR-273); it is the only way to shorten or repair
+    the file, and a repair must be as atomic as the old append was.
+    """
+    _atomic_write_all(entries)
+
+
 # --------------------------------------------------------------------------- #
 # Public API
 # --------------------------------------------------------------------------- #
@@ -141,21 +263,27 @@ def append(event_type: str, payload: dict, ts: Optional[str] = None) -> dict:
     if payload is None:
         payload = {}
 
-    entries = _read_all()
-    seq = len(entries)
-    prev_hash = entries[-1]["entry_hash"] if entries else GENESIS_PREV
-    entry_hash = compute_entry_hash(seq, ts, event_type, payload, prev_hash)
+    # ADR-273: only the HEAD is read, and only one line is written. The previous
+    # implementation read and rewrote the whole ledger on every append. «Прочитать
+    # голову → дописать» обязано быть неделимым, иначе два писателя возьмут один seq.
+    with _chain_lock():
+        head_entry = _read_head()
+        if head_entry is None:
+            seq, prev_hash = 0, GENESIS_PREV
+        else:
+            seq = int(head_entry["seq"]) + 1
+            prev_hash = head_entry["entry_hash"]
+        entry_hash = compute_entry_hash(seq, ts, event_type, payload, prev_hash)
 
-    entry = {
-        "seq": seq,
-        "ts": ts,
-        "event_type": event_type,
-        "payload": payload,
-        "prev_hash": prev_hash,
-        "entry_hash": entry_hash,
-    }
-    entries.append(entry)
-    _atomic_write_all(entries)
+        entry = {
+            "seq": seq,
+            "ts": ts,
+            "event_type": event_type,
+            "payload": payload,
+            "prev_hash": prev_hash,
+            "entry_hash": entry_hash,
+        }
+        _append_line(entry)
     return entry
 
 
@@ -168,17 +296,21 @@ def verify_chain() -> dict:
 
     ``broken_at`` is the seq of the first entry that fails verification
     (wrong recomputed hash, broken prev-link, or out-of-order seq), else None.
-    An empty chain is valid.
+    An empty chain is valid. ``torn_tail`` is True when the FINAL line does not parse —
+    a crash between an append and its fsync (ADR-273); the verified prefix is still valid
+    and the fact is reported, never swallowed.
     """
-    entries = _read_all()
+    entries, torn = _read_all(with_torn=True)
     expected_prev = GENESIS_PREV
     for idx, e in enumerate(entries):
         # seq must be monotonic and match position.
         if e.get("seq") != idx:
-            return {"valid": False, "length": len(entries), "broken_at": idx}
+            return {"valid": False, "length": len(entries), "broken_at": idx,
+                    "torn_tail": torn}
         # prev_hash must link to the previous entry's entry_hash.
         if e.get("prev_hash") != expected_prev:
-            return {"valid": False, "length": len(entries), "broken_at": idx}
+            return {"valid": False, "length": len(entries), "broken_at": idx,
+                    "torn_tail": torn}
         # entry_hash must match a fresh recompute over the covered fields.
         recomputed = compute_entry_hash(
             e.get("seq"),
@@ -188,16 +320,20 @@ def verify_chain() -> dict:
             e.get("prev_hash"),
         )
         if recomputed != e.get("entry_hash"):
-            return {"valid": False, "length": len(entries), "broken_at": idx}
+            return {"valid": False, "length": len(entries), "broken_at": idx,
+                    "torn_tail": torn}
         expected_prev = e["entry_hash"]
-    return {"valid": True, "length": len(entries), "broken_at": None}
+    # A torn LAST line is a crash artifact, not tampering — the chain up to it verifies,
+    # and the fact is NAMED rather than hidden (repair: rewrite_all(_read_all())).
+    return {"valid": True, "length": len(entries), "broken_at": None, "torn_tail": torn}
 
 
 def tail(n: int = 20) -> list:
     """Return the last ``n`` entries (most recent last)."""
     if n <= 0:
         return []
-    return _read_all()[-n:]
+    entries: list = _read_all()
+    return entries[-n:]
 
 
 def head() -> Optional[dict]:
