@@ -317,6 +317,21 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                      "analytic_vs_measured",
                                      "not_measured_by_design",
                                      "unmeasured", "findings"),
+    # Заказ #539 (ADR-290). `criterion` и `readers` объявлены рядом с находками
+    # НАМЕРЕННО, и каждый закрывает свой способ соврать. Первый несёт ПРИЧИНУ
+    # отсечения, названную мутацией, вместе с её отрицательным контролем:
+    # отчёт, показавший одну щель без причины, читался бы как «журнал сломан»,
+    # тогда как писатель честно пишет книгу. Второй несёт НАПРАВЛЕНИЕ сдвига у
+    # каждого потребителя — без него «вердикт изменился» неотличимо от
+    # «потребитель сломается», а это ровно та подмена, на которой первая
+    # редакция прибора изготовила ложную находку про четверых.
+    # `not_measured_by_design` — то, что замер НЕ мерил (ставки прошлого для
+    # непрофинансированных ключей): без этой строки расширенный журнал читался
+    # бы как реконструкция истории, чем он не является.
+    "decision_journal_coverage.json": ("status", "writer", "determinism",
+                                       "ranked", "ranked_live", "gap",
+                                       "never_written", "criterion", "readers",
+                                       "not_measured_by_design", "findings"),
     "cio_policy_change_procedure.json": ("overall", "counts.critical",
                                          "counts.warn", "counts.info",
                                          "counts.unchecked", "positive_control",
@@ -395,6 +410,7 @@ _PRODUCER: dict[str, str] = {
     "target_stability.json": "spa_core/monitoring/target_stability.py",
     "ranking_tie_census.json": "spa_core/monitoring/ranking_tie_census.py",
     "ranking_tie_persistence.json": "spa_core/monitoring/ranking_tie_persistence.py",
+    "decision_journal_coverage.json": "spa_core/monitoring/decision_journal_coverage.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1807,6 +1823,14 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # что замер НЕ мерил. Последнее стои́т в отчёте намеренно: владелец,
         # увидев одни серии, прочёл бы молчание про пару как «она не ничья».
         from spa_core.monitoring.ranking_tie_persistence import format_report
+        out.extend(format_report(data))
+    elif name == "decision_journal_coverage.json":
+        # Заказ #539. Порядок строк — порядок вопроса: сперва ЩЕЛЬ («держит N,
+        # пишет M») и ПРИЧИНА отсечения, затем поимённо каждый потребитель с
+        # НАПРАВЛЕНИЕМ сдвига, и только потом находки. Направление стои́т в
+        # отчёте намеренно: владелец, увидев «вердикт изменился» без счётчика
+        # покрытия, прочёл бы цену потолка как поломку потребителя.
+        from spa_core.monitoring.decision_journal_coverage import format_report
         out.extend(format_report(data))
     elif name == "cio_substitution_census.json":
         # Заказ #518/#519. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ
