@@ -144,6 +144,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "cio_post_trade_verification",
     "cio_outcome_independence",
     "cio_substitution_census",
+    "shadow_blockade_attribution",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -232,6 +233,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "cio_substitution_census": {
         "module": "spa_core/monitoring/cio_substitution_census.py",
         "artifact": "data/cio_substitution_census.json"},
+    "shadow_blockade_attribution": {
+        "module": "spa_core/monitoring/shadow_blockade_attribution.py",
+        "artifact": "data/shadow_blockade_attribution.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -906,6 +910,19 @@ def main(argv=None) -> int:
               f"unchecked={rrep['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — исторический прогон не смеет валить мост
         census_skipped(_skipped, "cio_shadow_replay", e)
+    # Заказ G5 карточки CIO (ADR-271): чей вход СВЯЗЫВАЕТ названного блокера
+    # взвода — дырка владельца или собственное предложение тени. Мост находок
+    # его НЕ читает по той же причине, что и соседей выше: единственное действие
+    # по итогам — тронуть порог оборота или починить цель, то есть money-path и
+    # решение владельца, а не строка автокарточки. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import shadow_blockade_attribution
+        brep = shadow_blockade_attribution.run(root=args.root)
+        print(f"shadow_blockade_attribution: {brep['overall']} "
+              f"(critical={brep['counts']['critical']} "
+              f"unchecked={brep['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — атрибуция не смеет валить мост
+        census_skipped(_skipped, "shadow_blockade_attribution", e)
     # §43 ТЗ CIO «Audit trail»: отвечают ли ДАННЫЕ на вопрос о прошлой перекладке
     # («почему 13 августа переложили $12 000»), или на него отвечает только память
     # сессии. Мост находок его НЕ читает по той же причине, что и пять соседей

@@ -275,6 +275,14 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "cio_substitution_census.json": ("overall", "counts.critical", "counts.warn",
                                      "counts.info", "counts.unchecked",
                                      "positive_control", "measurement", "findings"),
+    # Заказ G5 (ADR-271). `gate_attribution` и `lookahead_control` объявлены
+    # рядом с находками намеренно: «какой гейт отказал» и «чей вход его
+    # связывает» — РАЗНЫЕ ответы, и отчёт, назвавший только первый, адресует
+    # владельца не к той ручке.
+    "shadow_blockade_attribution.json": ("status", "named_blockers",
+                                         "binding_cause", "material_days",
+                                         "gate_attribution", "target_instability",
+                                         "lookahead_control", "findings"),
     "cio_policy_change_procedure.json": ("overall", "counts.critical",
                                          "counts.warn", "counts.info",
                                          "counts.unchecked", "positive_control",
@@ -349,6 +357,7 @@ _PRODUCER: dict[str, str] = {
     "cio_post_trade_verification.json": "spa_core/monitoring/cio_post_trade_verification.py",
     "cio_outcome_independence.json": "spa_core/monitoring/cio_outcome_independence.py",
     "cio_substitution_census.json": "spa_core/monitoring/cio_substitution_census.py",
+    "shadow_blockade_attribution.json": "spa_core/monitoring/shadow_blockade_attribution.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1733,6 +1742,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         out.append("   ADVISORY: ничего не соединено; оживить сверку нельзя правкой "
                    "кода — нужны наблюдатель вне `spa_core/execution/` и реальный "
                    "капитал на цепи, оба решения владельца")
+    elif name == "shadow_blockade_attribution.json":
+        # Заказ G5 (ADR-271). Порядок строк — порядок вопроса: сперва КОГО
+        # назвала блокада, затем ЧЕЙ вход его связывает, и только потом причина
+        # выше по течению. Владелец, увидев одно имя гейта, пошёл бы крутить
+        # бюджет — ручку, которая на 11 из 21 дня не при чём.
+        from spa_core.monitoring.shadow_blockade_attribution import format_report
+        out.extend(format_report(data))
     elif name == "cio_substitution_census.json":
         # Заказ #518/#519. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ
         # (и прямо сказано, что оно не ответ), затем ДОСТИЖИМОСТЬ двумя

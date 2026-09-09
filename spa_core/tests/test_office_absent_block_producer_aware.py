@@ -73,9 +73,21 @@ LITERAL_MARK_ALLOWED = {
 
 # Печати класса, у которых сторож разобрать не удалось. Третий исход самой
 # ПЕРЕПИСИ: не выпадать молча, а называться. Тоже только уменьшается.
-UNRESOLVED_GUARD_ALLOWED = {
-    2386: "ключ латентности приходит из цикла (`for key, label in (...)`) — литералом не разбирается",
-    2387: "то же место, вторая строка пары",
+#
+# Ключ — ЛИЧНОСТЬ площадки (функция + текст печати), а НЕ номер строки. Номер —
+# координата, которая едет от любой вставки выше по файлу, и освобождение,
+# привязанное к ней, краснеет на здоровом коде по причине, не имеющей отношения
+# к предмету. Замер #534: проводка ADR-271 дописала в `consume_office_reports.py`
+# 16 строк выше по файлу, обе площадки уехали 2386→2402 и 2387→2403, и сторож
+# объявил дефектом ДВЕ печати, которых никто не трогал (текст обеих совпадает
+# дословно с контрольным деревом того же sha). Тот же класс, что литеральная
+# дата и литеральный pid — `.claude/rules/deployment.md`: якорем берётся то, что
+# ЯВЛЯЕТСЯ предметом, а не то, что рядом с ним лежало.
+UNRESOLVED_GUARD_ALLOWED: dict[tuple[str, str], str] = {
+    ("_summarize_json", "латентность : в отчёте нет —"):
+        "ключ латентности приходит из цикла (`for key, label in (...)`) — литералом не разбирается",
+    ("_summarize_json", "—"):
+        "то же место, вторая строка пары",
 }
 
 
@@ -307,11 +319,29 @@ class CensusRatchet(unittest.TestCase):
             "`_absent_block`, а не дописывать в базу: " + repr(offenders)))
 
     def test_every_unresolved_guard_is_named(self):
-        unnamed = [e.line for e in self.rows
-                   if e.guard_unresolved and e.line not in UNRESOLVED_GUARD_ALLOWED]
+        unresolved = [e for e in self.rows if e.guard_unresolved]
+        unnamed = [(e.func, e.line, e.text) for e in unresolved
+                   if (e.func, e.text) not in UNRESOLVED_GUARD_ALLOWED]
         self.assertEqual(unnamed, [], (
             "сторож формой говорит «блока нет», а какого — не разобрано, и "
             "причина не названа: " + repr(unnamed)))
+
+    def test_the_exemption_covers_no_MORE_sites_than_it_names(self):
+        """Обратный контроль к перевязке ключа (#534) — и он обязателен.
+
+        Личность площадки прочнее номера строки, но НЕ уникальна: вторая строка
+        пары — это «—», текст, который в этом файле ничего не стоит завести
+        повторно. Освобождение по (функция, текст) накрыло бы дубль МОЛЧА, и
+        сторож замолчал бы ровно от той правки, ради которой написан, — то есть
+        перевязка ключа без этой сцены была бы ослаблением, а не починкой.
+        Поэтому население класса считается поимённо.
+        """
+        unresolved = [e for e in self.rows if e.guard_unresolved]
+        self.assertEqual(
+            len(unresolved), len(UNRESOLVED_GUARD_ALLOWED),
+            "освобождённых площадок должно быть ровно столько, сколько названо; "
+            "лишняя — это НОВАЯ неразобранная печать, накрытая чужим текстом: "
+            + repr([(e.func, e.line, e.text) for e in unresolved]))
 
     def test_the_census_says_UNMEASURED_instead_of_going_quiet(self):
         """Третий исход самой переписи: не разобрал ⇒ громко."""
@@ -380,6 +410,61 @@ class CensusRatchet(unittest.TestCase):
             "        out.append('   ⚠️ нет блока alpha')\n")
         keys = sorted({e.absent_key for e in rows.values() if e.absent_key})
         self.assertEqual(keys, ["alpha"], rows)
+
+    # ── Контроли перевязки ключа освобождения (#534) ────────────────────
+    #
+    # Правка существующего теста допустима только с обоснованием и замером
+    # (инв. #16). Обоснование — выше, у самой базы; замер — эти три сцены:
+    # освобождение обязано остаться РОВНО таким же строгим, каким было, и
+    # отличаться только тем, что переживает вставку строк выше по файлу.
+
+    def _unresolved_of(self, body: str):
+        tmp = Path(__import__("tempfile").mkdtemp(prefix="c534_unres_"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        src = tmp / "subject.py"
+        src.write_text(body, encoding="utf-8")
+        return [e for e in census.self_clearing_sites(str(src))
+                if e.guard_unresolved]
+
+    #: Две площадки класса, отличающиеся ТОЛЬКО номером строки: во второй
+    #: копии добавлена строка выше. Именно эта разница красила сторожа до #534.
+    _TWICE_BOUND = ("def f(name, data, out):\n"
+                    "    d = data.get('alpha')\n"
+                    "    if not isinstance(d, dict):\n"
+                    "        out.append('   ⚠️ нет блока alpha')\n"
+                    "    d = data.get('beta')\n"
+                    "    if not isinstance(d, dict):\n"
+                    "        out.append('   ⚠️ нет блока beta')\n")
+
+    def test_the_identity_of_a_site_survives_an_insertion_above_it(self):
+        """Предмет находки #534: та же площадка, сдвинутая вставкой."""
+        before = self._unresolved_of(self._TWICE_BOUND)
+        after = self._unresolved_of("X = 1\n" + self._TWICE_BOUND)
+        self.assertTrue(before, "население пусто — сцена ничего не проверяет")
+        self.assertEqual([(e.func, e.text) for e in before],
+                         [(e.func, e.text) for e in after],
+                         "личность площадки обязана пережить вставку")
+        self.assertNotEqual([e.line for e in before], [e.line for e in after],
+                            "номера обязаны РАЗОЙТИСЬ — иначе сцена не про то, "
+                            "и старый ключ покраснел бы не от чего")
+
+    def test_a_NEW_unresolved_guard_is_still_caught(self):
+        """Ратчет не ослаблен: незнакомая площадка класса по-прежнему видна."""
+        rows = self._unresolved_of(self._TWICE_BOUND)
+        self.assertTrue(rows)
+        self.assertEqual(
+            [(e.func, e.text) for e in rows
+             if (e.func, e.text) in UNRESOLVED_GUARD_ALLOWED], [],
+            "выдуманная площадка не имеет права попасть под освобождение")
+
+    def test_the_allowlist_keys_match_the_live_producer_exactly(self):
+        """База не имеет права ссылаться на площадку, которой нет.
+
+        Прежний ключ-номер протухал МОЛЧА в обе стороны: строка уезжала — и
+        освобождение начинало накрывать соседа, оказавшегося на этом номере.
+        """
+        live = {(e.func, e.text) for e in self.rows if e.guard_unresolved}
+        self.assertEqual(set(UNRESOLVED_GUARD_ALLOWED), live)
 
     def test_gated_is_measured_by_call_form_not_by_variable_name(self):
         """Переименование переменной проводку не подделает."""
