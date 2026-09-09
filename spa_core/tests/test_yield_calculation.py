@@ -247,11 +247,18 @@ def test_last_trade_id_corrupted_entry(tmp_path):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-def test_yield_fallback_all_positions_when_one_live_adapter(tmp_path):
-    """P0-B1 core: with 1 live adapter, ALL positions must contribute yield.
+def test_only_the_observed_pool_accrues_when_one_adapter_is_live(tmp_path):
+    """С одним живым адаптером начисляет ТОЛЬКО он; остальные дают ноль и названы.
 
-    Old code: $1.096/day (only aave_v3 position).
-    Fixed:    ≈$9.26/day  (aave_v3 live + compound_v3 + morpho_steakhouse fallback).
+    ADR-298 РАЗВОРАЧИВАЕТ прежний контракт P0-B1 (инвариант #16 — изменение намеренное,
+    решение владельца ADR-286 §1). P0-B1 требовал, чтобы пул с fallback-ставкой ВСЁ РАВНО
+    начислял: иначе кривая выглядела неполной, потому что оркестратор покрывает шесть
+    адаптеров, а книга держит больше. Цена этого решения измерена 2026-09-09 на живой
+    книге: `pendle` под литералом 8.0 % давал 33.2 % всего дневного дохода. Владелец
+    выбрал честный НОЛЬ вместо правдоподобного числа.
+
+    Сценарий сохранён дословно — меняется ожидание: начисляет только НАБЛЮДЁННЫЙ пул, а
+    недобор НАЗЫВАЕТСЯ в баре (`unobservable_pools`, `yield_forgone_usd`), а не исчезает.
     """
     _write_registry(tmp_path, {
         "aave_v3":          {"fallback_apy": 0.04,  "tier": 1},
@@ -268,22 +275,17 @@ def test_yield_fallback_all_positions_when_one_live_adapter(tmp_path):
     # Only aave_v3 is live
     result = _run(tmp_path, orch_apy_map={"aave_v3": 4.0}, target_usd=target)
 
-    # With fix: all 3 pools yield
-    full_yield = (
-        10_000 * 4.0  / 100 / 365   # live aave_v3 (4.0% from orchestrator)
-        + 20_000 * 5.2 / 100 / 365  # fallback compound_v3 (0.052 → 5.2%)
-        + 30_000 * 6.5 / 100 / 365  # fallback morpho (0.065 → 6.5%)
-    )
-    # live-only yield would be just the aave_v3 portion
     live_only_yield = 10_000 * 4.0 / 100 / 365
+    forgone = 20_000 * 5.2 / 100 / 365 + 30_000 * 6.5 / 100 / 365
 
-    assert result.daily_yield_usd > live_only_yield * 2, (
-        f"Expected yield > 2× live-only (${live_only_yield:.4f}), "
-        f"got ${result.daily_yield_usd:.4f}"
-    )
-    assert math.isclose(result.daily_yield_usd, full_yield, rel_tol=0.05), (
-        f"Expected ≈${full_yield:.4f}, got ${result.daily_yield_usd:.4f}"
-    )
+    assert math.isclose(result.daily_yield_usd, live_only_yield, rel_tol=0.05), (
+        f"начислять должен только наблюдённый aave_v3 (${live_only_yield:.4f}), "
+        f"получено ${result.daily_yield_usd:.4f}")
+    bar = _load(tmp_path, "equity_curve_daily.json")["daily"][-1]
+    assert set(bar["unobservable_pools"]) == {"compound_v3", "morpho_steakhouse"}
+    assert math.isclose(bar["yield_forgone_usd"], forgone, rel_tol=0.05), (
+        "недобор обязан быть НАЗВАН числом, иначе падение доходности выглядит "
+        "ухудшением рынка")
 
 
 def test_yield_live_apy_beats_registry_fallback(tmp_path):
@@ -303,8 +305,22 @@ def test_yield_live_apy_beats_registry_fallback(tmp_path):
     assert result.daily_yield_usd > expected_with_fallback
 
 
-def test_yield_uses_live_apy_field_from_registry(tmp_path):
-    """P0-B1: registry live_apy field is preferred over fallback_apy within registry."""
+def test_registry_live_apy_field_is_still_not_an_observation(tmp_path):
+    """Поле `live_apy` в реестре — тоже НЕ наблюдение: имя поля не делает число живым.
+
+    ADR-298 РАЗВОРАЧИВАЕТ прежний контракт P0-B1 (инвариант #16 — изменение намеренное,
+    решение владельца ADR-286 §1). P0-B1 требовал, чтобы пул с fallback-ставкой ВСЁ РАВНО
+    начислял: иначе кривая выглядела неполной, потому что оркестратор покрывает шесть
+    адаптеров, а книга держит больше. Цена этого решения измерена 2026-09-09 на живой
+    книге: `pendle` под литералом 8.0 % давал 33.2 % всего дневного дохода. Владелец
+    выбрал честный НОЛЬ вместо правдоподобного числа.
+
+    Сценарий сохранён дословно — меняется ожидание: начисляет только НАБЛЮДЁННЫЙ пул, а
+    недобор НАЗЫВАЕТСЯ в баре (`unobservable_pools`, `yield_forgone_usd`), а не исчезает.
+    Именно этот случай самый коварный: поле называется `live_apy`, и до ADR-298 оно
+    начисляло наравне с настоящим фидом. Провенанс решает происхождение значения, а не
+    его подпись.
+    """
     _write_registry(tmp_path, {
         "compound_v3": {"live_apy": 0.06, "fallback_apy": 0.03, "tier": 1},
     })
@@ -312,11 +328,11 @@ def test_yield_uses_live_apy_field_from_registry(tmp_path):
     target = {"compound_v3": 10_000.0, "aave_v3": 10_000.0}
     result = _run(tmp_path, orch_apy_map={"aave_v3": 4.0}, target_usd=target)
 
-    # compound_v3 not live → registry fills in 6.0% (live_apy, not 3.0% fallback_apy)
-    compound_contribution = 10_000 * 6.0 / 100 / 365
+    # compound_v3 не в живом фиде ⇒ начисляет НОЛЬ, каким бы ни было имя поля реестра
     aave_contribution = 10_000 * 4.0 / 100 / 365
-    expected = compound_contribution + aave_contribution
-    assert math.isclose(result.daily_yield_usd, expected, rel_tol=0.05)
+    assert math.isclose(result.daily_yield_usd, aave_contribution, rel_tol=0.05)
+    bar = _load(tmp_path, "equity_curve_daily.json")["daily"][-1]
+    assert bar["unobservable_pools"] == ["compound_v3"]
 
 
 def test_yield_zero_live_adapters_skips_accrual(tmp_path):
@@ -392,9 +408,21 @@ def test_yield_full_positions_8x_better_than_one_live(tmp_path):
         for v in POOLS.values()
     )
 
-    assert result_fixed.daily_yield_usd > yield_live_only * 3, (
-        f"Expected >{3 * yield_live_only:.2f}, got {result_fixed.daily_yield_usd:.2f}"
-    )
+    # ADR-298 (инвариант #16): контракт развёрнут — см. заголовок
+    # test_only_the_observed_pool_accrues_when_one_adapter_is_live. Начисляет ровно
+    # наблюдённый пул; остальные три названы недобором, а не влиты в доход.
+    bar = _load(tmp_path, "equity_curve_daily.json")["daily"][-1]
+    # Ожидание берётся из ФАКТИЧЕСКОЙ позиции бара, а не из входного таргета: аллокатор
+    # в этом сценарии двигает книгу, и сверка с входом мерила бы его решение, а не
+    # начисление. (Первая редакция ждала $2.74 при позиции $23.7k и падала на $2.60.)
+    aave_usd = float(bar["positions"]["aave_v3"])
+    assert math.isclose(result_fixed.daily_yield_usd, aave_usd * 4.0 / 100 / 365,
+                        rel_tol=0.02), (
+        f"начислять должен только наблюдённый aave_v3 (${aave_usd:,.0f} под 4 %), "
+        f"получено {result_fixed.daily_yield_usd:.2f}")
+    assert result_fixed.daily_yield_usd < yield_live_only * 1.05
+    assert len(bar["unobservable_pools"]) == 3
+    assert bar["yield_forgone_usd"] > 0
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -529,12 +557,22 @@ def test_equity_curve_consistent_with_live_fallback_mix(tmp_path):
         )
         equities.append(r.current_equity)
 
-    assert equities[-1] > equities[0], (
-        f"Equity should grow from ${equities[0]:.2f} to ${equities[-1]:.2f}"
-    )
-    # Equity should never drop (no losses in this sim)
-    for i in range(1, len(equities)):
-        assert equities[i] >= equities[i - 1]
+    # ADR-298 (инвариант #16, решение владельца ADR-286 §1): «кривая никогда не падает»
+    # БОЛЬШЕ НЕ ИНВАРИАНТ, и это цель правки, а не её побочный эффект. Кривая, которой
+    # не с чего упасть, не может быть треком: теперь она платит за собственные ходы и не
+    # начисляет по ненаблюдаемым ставкам.
+    #
+    # Проверяется не «растёт/не растёт», а ТОЖДЕСТВО, из которого и то и другое следует:
+    # close = open + доход − издержка. Оно верно в обе стороны и переживёт любой рынок.
+    eq = _load(tmp_path, "equity_curve_daily.json")["daily"]
+    for i, bar in enumerate(eq):
+        assert bar["close_equity"] == pytest.approx(
+            bar["open_equity"] + bar["daily_yield_usd"] - bar["cost_usd"], abs=0.02), (
+            f"день {bar['date']}: кривая не сходится с собственными доходом и издержкой")
+    assert any(b["cost_usd"] > 0 for b in eq), (
+        "за пять циклов книга ни разу не заплатила за ход — издержки не проведены")
+    assert any(b["unobservable_pools"] for b in eq), (
+        "в чётные дни compound_v3 не наблюдается — он обязан попасть в недобор")
 
 
 def test_equity_curve_daily_written_with_yield(tmp_path):
@@ -609,3 +647,107 @@ def test_weighted_apy_reflects_all_positions(tmp_path):
     assert result.apy_today_pct > 2.0, (
         f"apy_today_pct={result.apy_today_pct:.4f}% should exceed live-only 2.0%"
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ADR-298 · провенанс решает ПРОИСХОЖДЕНИЕ значения, а не дорогу, которой оно пришло
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def _write_ranking(tmp_path: Path, rows: list[dict]) -> None:
+    """apy_ranking.json — единственный файл дерева, несущий провенанс ставки."""
+    (tmp_path / "apy_ranking.json").write_text(json.dumps({"by_apy": rows}), encoding="utf-8")
+
+
+def test_a_pool_observed_by_the_ranking_still_accrues(tmp_path):
+    """Пул вне оркестратора, но НАБЛЮДЁННЫЙ ранжированием, начисляет как обычно.
+
+    Замер, из-за которого этот тест существует: два прогона подряд на копии живой книги
+    дали РАЗНЫЙ состав ненаблюдаемого (только `pendle` против `pendle` + `compound_v3`) —
+    покрытие оркестратора меняется от минуты к минуте. Ставка `compound_v3` при этом в
+    ранжировании стои́т как `apy_source="live"`. Наказывать значение за дорогу, которой
+    оно пришло, значит занижать книгу СЛУЧАЙНЫМ образом.
+    """
+    _write_registry(tmp_path, {
+        "aave_v3":     {"fallback_apy": 0.04,  "tier": 1},
+        "compound_v3": {"fallback_apy": 0.052, "tier": 1},
+    })
+    _write_ranking(tmp_path, [
+        {"protocol": "compound_v3", "apy_pct": 5.2, "apy_source": "live",
+         "tvl_source": "live", "tvl_usd": 3_000_000_000.0},
+    ])
+    target = {"aave_v3": 40_000.0, "compound_v3": 30_000.0}
+    # Книга уже ДЕРЖИТ оба пула: пул без наблюдаемого TVL нового капитала не получает
+    # (ADR-053, fail-closed), и без предзаполнения он просто не попал бы в книгу — тест
+    # проверял бы отказ аллокатора, а не начисление.
+    _write_positions(tmp_path, dict(target))
+    result = _run(tmp_path, orch_apy_map={"aave_v3": 4.0}, target_usd=target)
+
+    bar = _load(tmp_path, "equity_curve_daily.json")["daily"][-1]
+    assert bar["unobservable_pools"] == [], (
+        "compound_v3 наблюдён ранжированием — он не ненаблюдаемый, "
+        f"получено {bar['unobservable_pools']}")
+    expected = (bar["positions"]["aave_v3"] * 4.0 + bar["positions"]["compound_v3"] * 5.2) / 100 / 365
+    assert math.isclose(result.daily_yield_usd, expected, rel_tol=0.02)
+
+
+def test_a_pool_the_ranking_calls_fallback_does_not_accrue(tmp_path):
+    """Тот же пул, но ранжирование говорит `fallback` ⇒ ноль. Положительный контроль.
+
+    Без этой половины первый тест доказывал бы только, что гейт можно обойти.
+    """
+    _write_registry(tmp_path, {
+        "aave_v3":     {"fallback_apy": 0.04,  "tier": 1},
+        "compound_v3": {"fallback_apy": 0.052, "tier": 1},
+    })
+    _write_ranking(tmp_path, [
+        {"protocol": "compound_v3", "apy_pct": 5.2, "apy_source": "fallback",
+         "tvl_source": "static", "tvl_usd": 0.0},
+    ])
+    target = {"aave_v3": 40_000.0, "compound_v3": 30_000.0}
+    # Книга уже ДЕРЖИТ оба пула: пул без наблюдаемого TVL нового капитала не получает
+    # (ADR-053, fail-closed), и без предзаполнения он просто не попал бы в книгу — тест
+    # проверял бы отказ аллокатора, а не начисление.
+    _write_positions(tmp_path, dict(target))
+    result = _run(tmp_path, orch_apy_map={"aave_v3": 4.0}, target_usd=target)
+
+    bar = _load(tmp_path, "equity_curve_daily.json")["daily"][-1]
+    assert bar["unobservable_pools"] == ["compound_v3"]
+    assert bar["yield_forgone_usd"] > 0
+    expected = bar["positions"]["aave_v3"] * 4.0 / 100 / 365
+    assert math.isclose(result.daily_yield_usd, expected, rel_tol=0.02)
+
+
+def test_no_ranking_file_is_fail_closed_not_fail_open(tmp_path):
+    """Нет файла провенанса ⇒ множество наблюдённых ПУСТО, и пул вне оркестратора не
+    начисляет. Отсутствие свидетельства — не свидетельство наблюдения."""
+    _write_registry(tmp_path, {
+        "aave_v3":     {"fallback_apy": 0.04,  "tier": 1},
+        "compound_v3": {"fallback_apy": 0.052, "tier": 1},
+    })
+    target = {"aave_v3": 40_000.0, "compound_v3": 30_000.0}
+    _write_positions(tmp_path, dict(target))   # см. пояснение выше (ADR-053)
+    _run(tmp_path, orch_apy_map={"aave_v3": 4.0}, target_usd=target)
+    bar = _load(tmp_path, "equity_curve_daily.json")["daily"][-1]
+    assert bar["unobservable_pools"] == ["compound_v3"]
+
+
+def test_the_bars_apy_is_the_rate_that_produced_its_own_yield(tmp_path):
+    """`apy_today` обязан воспроизводить доход СВОЕГО бара — иначе утренний отчёт врёт.
+
+    До ADR-298 поле несло ОЖИДАЕМУЮ взвешенную ставку. Пока начислялось всё подряд, они
+    совпадали; как только ненаблюдаемый пул стал давать ноль, расхождение стало
+    измеримым (замер на копии живой книги: ожидание 4.71 %, начислено 3.13 %).
+    """
+    _write_registry(tmp_path, {
+        "aave_v3":     {"fallback_apy": 0.04,  "tier": 1},
+        "compound_v3": {"fallback_apy": 0.052, "tier": 1},
+    })
+    target = {"aave_v3": 40_000.0, "compound_v3": 30_000.0}
+    _write_positions(tmp_path, dict(target))   # см. пояснение выше (ADR-053)
+    _run(tmp_path, orch_apy_map={"aave_v3": 4.0}, target_usd=target)
+    bar = _load(tmp_path, "equity_curve_daily.json")["daily"][-1]
+    assert bar["apy_today"] == pytest.approx(
+        bar["daily_yield_usd"] * 365 / bar["open_equity"] * 100, abs=1e-3)
+    assert bar["apy_expected_pct"] > bar["apy_today"], (
+        "ожидание обязано быть ВЫШЕ начисленного, пока в книге есть ненаблюдаемый пул")

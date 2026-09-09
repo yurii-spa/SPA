@@ -163,11 +163,20 @@ def test_idempotent_no_trade_when_allocation_unchanged(tmp_path):
 
 
 def test_equity_accrues_daily_yield(tmp_path):
+    # ADR-298 (инвариант #16 — изменение НАМЕРЕННОЕ, решение владельца ADR-286 §1):
+    # издержка перекладки теперь СПИСЫВАЕТСЯ в кривую. Первый цикл разворачивает
+    # $100k из кэша в пулы, и это стоит денег: до правки день закрывался ровно на
+    # начисленный доход, потому что за собственные ходы книга не платила НИКОГДА.
+    # Проверяется не новое число, а РАВЕНСТВО: close = open + доход − издержка,
+    # плюс положительный контроль «издержка > 0 на дне развёртывания».
     res = _run(tmp_path, APY, TARGET)
     # Expected: Σ pos * apy / 100 / 365.
     expected = sum(TARGET[p] * APY[p] / 100 / 365 for p in TARGET)
     assert res.daily_yield_usd == pytest.approx(expected, abs=1e-3)
-    assert res.current_equity == pytest.approx(100_000 + expected, abs=1e-2)
+    bar = _load(tmp_path, "equity_curve_daily.json")["daily"][-1]
+    assert bar["cost_usd"] > 0, "развёртывание $100k из кэша обязано стоить денег"
+    assert res.current_equity == pytest.approx(
+        100_000 + expected - bar["cost_usd"], abs=1e-2)
 
 
 def test_equity_curve_updated(tmp_path):
@@ -201,10 +210,15 @@ def test_current_positions_written(tmp_path):
     assert pos["deployed_usd"] == pytest.approx(74000.0, abs=1e-6)
     assert pos["cash_usd"] == pytest.approx(26000.0, abs=1e-6)
     assert pos["positions"]["morpho_blue"] == 20000.0
-    # NAV reconciliation: deployed + cash + accrued_yield == current_equity (proof-of-reserves).
-    assert pos["deployed_usd"] + pos["cash_usd"] + pos["accrued_yield_usd"] == pytest.approx(
-        pos["current_equity_usd"], abs=0.05
-    )
+    # Сведение NAV (proof-of-reserves). ADR-298 (инвариант #16): у тождества появилось
+    # ТРЕТЬЕ слагаемое — издержки перекладок. Прежняя форма верна только там, где ходы
+    # бесплатны; после списания издержек она обязана сломаться, иначе деньги за ход не
+    # ушли ниоткуда.
+    assert (pos["deployed_usd"] + pos["cash_usd"] + pos["accrued_yield_usd"]
+            - pos["costs_paid_usd"]) == pytest.approx(pos["current_equity_usd"], abs=0.05)
+    assert pos["costs_paid_usd"] > 0, "развёртывание книги обязано стоить денег"
+    assert pos["net_pnl_usd"] == pytest.approx(
+        pos["accrued_yield_usd"] - pos["costs_paid_usd"], abs=0.01)
 
 
 # ─── Ring buffers ─────────────────────────────────────────────────────────────
@@ -319,7 +333,19 @@ def test_same_day_rerun_does_not_double_accrue(tmp_path):
     )
     eq = _load(tmp_path, "equity_curve_daily.json")
     assert len(eq["daily"]) == 1  # still one bar for 2026-06-10
+    # ADR-298: повторный прогон того же дня ПЕРЕСЧИТЫВАЕТ доход (это ставка за сутки,
+    # второй прогон не добавляет вторых суток), а издержку НАКАПЛИВАЕТ: деньги за ход
+    # уже потрачены. Второй прогон книгу не двигает, поэтому добавляет ноль — и день
+    # закрывается ровно там же, где закрыл первый.
+    #
+    # Первая редакция этой правки теряла издержку первого прогона (кривая возвращалась
+    # к «бесплатной» и день закрывался на $63.70 выше, чем книга реально стоила) —
+    # ровно этот тест её и поймал.
     assert res2.current_equity == pytest.approx(res1.current_equity, abs=1e-6)
+    _bar = eq["daily"][-1]
+    assert _bar["cost_usd"] > 0, "издержка первого прогона обязана пережить пересчёт дня"
+    assert res2.current_equity == pytest.approx(
+        100_000 + res2.daily_yield_usd - _bar["cost_usd"], abs=1e-2)
 
 
 def test_two_days_compound(tmp_path):
@@ -409,8 +435,16 @@ def test_demo_curve_archived_and_real_curve_starts_at_capital(tmp_path):
     (tmp_path / "equity_curve_daily.json").write_text(json.dumps(demo))
     res = _run(tmp_path, APY, TARGET)
     # Real curve starts fresh from capital, not the demo's 98,815.79.
+    # ADR-298 (инвариант #16 — изменение НАМЕРЕННОЕ, решение владельца ADR-286 §1):
+    # издержка перекладки теперь СПИСЫВАЕТСЯ в кривую. Первый цикл разворачивает
+    # $100k из кэша в пулы, и это стоит денег: до правки день закрывался ровно на
+    # начисленный доход, потому что за собственные ходы книга не платила НИКОГДА.
+    # Проверяется не новое число, а РАВЕНСТВО: close = open + доход − издержка,
+    # плюс положительный контроль «издержка > 0 на дне развёртывания».
     expected_yield = sum(TARGET[p] * APY[p] / 100 / 365 for p in TARGET)
-    assert res.current_equity == pytest.approx(100_000 + expected_yield, abs=1e-2)
+    _bar = _load(tmp_path, "equity_curve_daily.json")["daily"][-1]
+    assert res.current_equity == pytest.approx(
+        100_000 + expected_yield - _bar["cost_usd"], abs=1e-2)
     eq = _load(tmp_path, "equity_curve_daily.json")
     assert eq["source"] == "cycle_runner"
     assert eq["is_demo"] is False

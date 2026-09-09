@@ -63,23 +63,55 @@ def _normalize_accrual_apy(pool: str, apy: object) -> "float | None":
 
 
 def _accrue_daily_yield(
-    positions: dict[str, float], apy_map: dict[str, float]
+    positions: dict[str, float], apy_map: dict[str, float],
+    unobservable: "frozenset[str] | set[str] | None" = None,
 ) -> float:
     """Sum one day of yield across positions: Σ pos_usd × apy% / 100 / 365.
 
     N3: every APY is run through ``_normalize_accrual_apy`` (fail-closed) before
     it can contribute to the daily yield, so an out-of-range value never lands
     in the equity curve.
+
+    ADR-298 (шаг 1 из трёх до go-live, решение владельца ADR-286 §1): пул, чья
+    ставка НЕ НАБЛЮДЕНА (пришла из fallback-файла, а не из живого фида),
+    начисляет **ноль**. Замер 2026-09-09 на живой книге: `pendle` держал $20 000
+    под литералом 8.0 % и давал 33.2 % всего дневного дохода — кривая трека на
+    треть состояла из числа, которого никто не видел.
+
+    Позиция при этом НЕ продаётся: удержание — не действие, а продажа — действие,
+    и на отсутствии наблюдения система держит, а не торгует (fail-CLOSED в обе
+    стороны). Ноль виден в баре (`unobservable_pools`, `yield_forgone_usd`), а не
+    растворяется в меньшем числе.
     """
+    unobservable = unobservable or frozenset()
     total = 0.0
     for pool, usd in positions.items():
         if not isinstance(usd, (int, float)) or isinstance(usd, bool):
             continue
+        if pool in unobservable:
+            continue        # ставка не наблюдена ⇒ дохода нет (ADR-298)
         apy = _normalize_accrual_apy(pool, apy_map.get(pool))
         if apy is None:
             continue
         total += float(usd) * apy / 100.0 / 365.0
     return total
+
+
+def _forgone_daily_yield(
+    positions: dict[str, float], apy_map: dict[str, float],
+    unobservable: "frozenset[str] | set[str] | None" = None,
+) -> float:
+    """Сколько дохода НЕ начислено из-за ненаблюдаемых ставок — для честной строки бара.
+
+    Считается той же формулой, что и сам доход: разница между «начислили бы по литералу»
+    и «начислили». Число печатается, чтобы падение кривой имело названную причину, а не
+    выглядело ухудшением рынка.
+    """
+    unobservable = unobservable or frozenset()
+    if not unobservable:
+        return 0.0
+    return (_accrue_daily_yield(positions, apy_map)
+            - _accrue_daily_yield(positions, apy_map, unobservable))
 
 
 def _rebuild_summary(daily: list[dict]) -> dict:
@@ -226,6 +258,9 @@ def _upsert_equity_point(
     apy_map: dict[str, float],
     run_ts: str,
     accrual_source: str = "live",
+    unobservable_pools: "frozenset[str] | set[str] | None" = None,
+    cost_usd: float = 0.0,
+    turnover_usd: float = 0.0,
 ) -> tuple[dict, float, float, float]:
     """Append or refresh today's daily bar, idempotently per UTC day.
 
@@ -237,12 +272,31 @@ def _upsert_equity_point(
     daily: list[dict] = list(equity_doc.get("daily") or [])
 
     # Drop a same-date trailing bar so we recompute it from the prior close.
+    #
+    # ADR-298: доход за день ПЕРЕСЧИТЫВАЕТСЯ (это ставка за сутки, второй прогон не
+    # добавляет вторых суток), а издержка и оборот НАКАПЛИВАЮТСЯ: деньги за ход уже
+    # потрачены, и повторный прогон без движения не имеет права их стереть. Замер:
+    # без этого второй прогон того же дня возвращал кривую к «бесплатной» и день
+    # закрывался на $63.70 выше, чем книга реально стоила.
+    _prior_cost = 0.0
+    _prior_turnover = 0.0
     if daily and daily[-1].get("date") == date:
+        _prior = daily[-1]
+        _prior_cost = float(_prior.get("cost_usd") or 0.0)
+        _prior_turnover = float(_prior.get("turnover_usd") or 0.0)
         daily = daily[:-1]
 
     prev_close = float(daily[-1]["close_equity"]) if daily else CAPITAL_USD
-    daily_yield = _accrue_daily_yield(positions, apy_map)
-    close_equity = round(prev_close + daily_yield, 6)
+    unobservable_pools = frozenset(unobservable_pools or ())
+    daily_yield = _accrue_daily_yield(positions, apy_map, unobservable_pools)
+    forgone = _forgone_daily_yield(positions, apy_map, unobservable_pools)
+    # ADR-298 (шаг 2, решение владельца ADR-286 §1): издержки перекладки списываются
+    # в трек. До этого оборот 2.7–5.3 капитала в неделю обходился книге в НОЛЬ, и
+    # кривая не могла упасть от собственных ходов. Оборот уже ограничен демпфером
+    # ADR-168; здесь он начинает СТОИТЬ.
+    cost_usd = max(0.0, float(cost_usd or 0.0)) + _prior_cost
+    turnover_usd = max(0.0, float(turnover_usd or 0.0)) + _prior_turnover
+    close_equity = round(prev_close + daily_yield - cost_usd, 6)
 
     daily_return_pct = (
         round((close_equity / prev_close - 1.0) * 100.0, 6) if prev_close else 0.0
@@ -273,8 +327,29 @@ def _upsert_equity_point(
         "drawdown_pct": drawdown_pct,
         # SPA-V409: flat fields requested for the real cycle track record.
         "equity": round(close_equity, 2),
-        "apy_today": round(apy_today_pct, 4),
+        # ADR-298: «APY за сегодня» — это ставка, которая ПРОИЗВЕЛА сегодняшний доход,
+        # а не ставка, которую книга ожидала получить. До правки поле несло
+        # ожидаемую взвешенную ставку, и они совпадали, потому что начислялось всё
+        # подряд. Теперь ненаблюдаемый пул даёт ноль, и расхождение измеримо: замер
+        # на копии живой книги 09.09 — ожидание 4.71 %, начислено 3.13 %.
+        # Утренний отчёт владельца читает именно `apy_today`; оставить там ожидание
+        # значило бы каждое утро называть ему число, которого книга не заработала.
+        "apy_today": round(
+            (daily_yield * 365.0 / prev_close * 100.0) if prev_close else 0.0, 4),
+        # Прежний смысл сохранён под своим именем: сколько книга ЗАРАБОТАЛА БЫ, если бы
+        # каждая её ставка наблюдалась. Разница двух полей и есть цена ненаблюдаемости.
+        "apy_expected_pct": round(apy_today_pct, 4),
         "daily_yield_usd": round(daily_yield, 4),
+        # ADR-298: издержка дня и оборот, её породивший — рядом с доходом, а не в
+        # отдельном отчёте: иначе «кривая упала» и «мы заплатили за ход» останутся
+        # двумя не связанными фактами.
+        "cost_usd": round(cost_usd, 4),
+        "turnover_usd": round(turnover_usd, 2),
+        "net_pnl_usd": round(daily_yield - cost_usd, 4),
+        # ADR-298: что НЕ начислено и почему — чтобы падение доходности имело
+        # названную причину, а не выглядело ухудшением рынка.
+        "unobservable_pools": sorted(unobservable_pools),
+        "yield_forgone_usd": round(forgone, 4),
         "positions": {p: round(v, 2) for p, v in positions.items()},
         # HONEST TRACK RESET (2026-06-26): a bar written by THIS running cycle is,
         # by construction, evidence that a real daily_cycle ran today. Label it as

@@ -196,10 +196,19 @@ def _assert_nav_conserves(ddir: Path, case_id: str) -> Decimal:
     persists) and checks, in exact ``Decimal`` arithmetic on the round-tripped
     JSON cents:
 
-        current_equity == deployed + cash + accrued_yield      (NAV identity)
-        deployed + cash == capital                             (no capital leak)
-        accrued_yield  == current_equity - capital             (accrual identity)
-        sum(positions) == deployed                             (book footing)
+        current_equity == deployed + cash + accrued_yield - costs_paid  (NAV identity)
+        deployed + cash == capital                                      (no capital leak)
+        net_pnl        == accrued_yield - costs_paid                    (P&L identity)
+        net_pnl        == current_equity - capital                      (accrual identity)
+        sum(positions) == deployed                                      (book footing)
+
+    ADR-298 (инвариант #16 — изменение НАМЕРЕННОЕ, решение владельца ADR-286 §1):
+    у тождества появилось ТРЕТЬЕ слагаемое — издержки перекладок. Прежняя форма
+    (`equity == deployed + cash + accrued`) верна только в мире, где ходы бесплатны;
+    после списания издержек она ОБЯЗАНА ломаться, иначе деньги за ход ушли ниоткуда.
+
+    Проверка не ослаблена: слагаемых стало БОЛЬШЕ, каждое сверяется отдельно, и
+    остаток по-прежнему обязан быть РОВНО нулём в точной десятичной арифметике.
 
     Returns the (zero) NAV residual for aggregate reporting.
     """
@@ -216,19 +225,25 @@ def _assert_nav_conserves(ddir: Path, case_id: str) -> Decimal:
     deployed = D("deployed_usd")
     cash = D("cash_usd")
     accrued = D("accrued_yield_usd")
+    costs = D("costs_paid_usd")          # ADR-298
+    net_pnl = D("net_pnl_usd")           # ADR-298
 
-    nav_residual = equity - (deployed + cash + accrued)
+    nav_residual = equity - (deployed + cash + accrued - costs)
     assert nav_residual == Decimal("0"), (
         f"[{case_id}] NAV NOT conserved: "
         f"equity {equity} != deployed {deployed} + cash {cash} + accrued {accrued} "
-        f"(residual {nav_residual})"
+        f"- costs {costs} (residual {nav_residual})"
     )
+    assert net_pnl == accrued - costs, (
+        f"[{case_id}] P&L identity broken: net {net_pnl} != accrued {accrued} - costs {costs}"
+    )
+    assert costs >= Decimal("0"), f"[{case_id}] отрицательная издержка: {costs}"
     assert deployed + cash == capital, (
         f"[{case_id}] capital leak: deployed {deployed} + cash {cash} != "
         f"capital {capital}"
     )
-    assert accrued == equity - capital, (
-        f"[{case_id}] accrual identity broken: accrued {accrued} != "
+    assert net_pnl == equity - capital, (
+        f"[{case_id}] accrual identity broken: net_pnl {net_pnl} != "
         f"equity {equity} - capital {capital}"
     )
 

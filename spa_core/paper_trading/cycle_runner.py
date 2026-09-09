@@ -2389,6 +2389,62 @@ def run_cycle(
         if (not live or any(p in _fallback_apy_pools for p in effective_positions))
         else "live"
     )
+    # ── ADR-298 (шаги 1–2 из трёх до go-live, решение владельца ADR-286 §1) ──────
+    # 1. Пул, чья ставка пришла из fallback-файла, а не из живого фида, начисляет НОЛЬ.
+    #    Замер 09.09: `pendle` под литералом 8.0 % давал 33.2 % дневного дохода книги.
+    #    Позиция не продаётся — удержание не действие, продажа действие.
+    # 2. Издержка сегодняшнего хода списывается в кривую. Числа берутся из ЕДИНСТВЕННОЙ
+    #    модели костов дерева (`rebalance_economics`), а сети — из того же реестра, что
+    #    читает теневой расчёт; нет реестра ⇒ «blended» внутри модели, и это её умолчание,
+    #    а не наше новое число.
+    # «Не пришло от оркестратора» ≠ «не наблюдалось». Оркестратор покрывает шесть
+    # адаптеров; остальные значения приходят из `adapter_status.json`, где провенанса
+    # НЕТ ВООБЩЕ — по этому файлу нельзя отличить наблюдение от константы. Провенанс в
+    # дереве несёт `apy_ranking.json` (его пишет apy_aggregator с полем `apy_source`,
+    # ADR-053/061/063) — тот же источник, на который переведены книги-рукава (ADR-294).
+    #
+    # Замер, из-за которого это важно: два прогона подряд на копии живой книги дали
+    # РАЗНЫЙ состав ненаблюдаемого (только `pendle` против `pendle` + `compound_v3`),
+    # потому что покрытие оркестратора меняется от минуты к минуте. Ставка `compound_v3`
+    # при этом в ранжировании стои́т как `apy_source="live"`: наблюдение было, просто
+    # пришло другой дорогой. Наказывать за дорогу — значит занижать книгу случайным
+    # образом.
+    _observed_by_ranking: set[str] = set()
+    try:
+        _rank = _read_json(ddir / "apy_ranking.json", {})
+        for _r in ((_rank or {}).get("by_apy") or []):
+            if isinstance(_r, dict) and str(_r.get("apy_source")) == "live" and _r.get("protocol"):
+                _observed_by_ranking.add(str(_r["protocol"]))
+    except Exception:  # noqa: BLE001 — нет ранжирования ⇒ множество пустое, fail-closed
+        _observed_by_ranking = set()
+    _unobservable = frozenset(
+        p for p in effective_positions
+        if p in _fallback_apy_pools and p not in _observed_by_ranking)
+    _cost_usd = 0.0
+    _turnover_usd = float(locals().get("move_usd") or 0.0)
+    try:
+        from spa_core.allocator.rebalance_economics import (
+            _move_cost_usd, _legs as _cost_legs, TriggerParams as _TriggerParams)
+        _chains: dict = {}
+        try:
+            _reg = _read_json(ddir / "adapter_registry.json", {})
+            for _n, _e in ((_reg or {}).get("adapters", {}) or {}).items():
+                if isinstance(_e, dict) and _e.get("chain"):
+                    _chains[str(_n)] = str(_e["chain"]).strip().lower()
+        except Exception:  # noqa: BLE001 — карта сетей опциональна, модель деградирует
+            _chains = {}
+        # Полоса пыли берётся из ТОЙ ЖЕ колонки порогов ADR-060 §3, что у теневого
+        # расчёта, а не назначается здесь: своё число на этой оси было бы четвёртым.
+        _tp = _TriggerParams.for_mode()
+        _legs, _t = _cost_legs(current_positions, effective_positions,
+                               capital_usd, _tp.min_leg_frac)
+        _turnover_usd = _t
+        _cost_usd = _move_cost_usd(_legs, _t, _chains) if _legs else 0.0
+    except Exception as _cost_exc:  # noqa: BLE001 — расчёт издержки не роняет цикл
+        log.warning("ADR-298: издержка хода не посчитана (%s) — день записан без неё",
+                    _cost_exc)
+        notes.append(f"cost_not_measured: {type(_cost_exc).__name__}")
+
     equity_doc, close_equity, daily_yield, daily_return_pct = _upsert_equity_point(
         equity_doc,
         date=today,
@@ -2397,6 +2453,9 @@ def run_cycle(
         apy_map=apy_map,
         run_ts=run_ts,
         accrual_source=_accrual_source,
+        unobservable_pools=_unobservable,
+        cost_usd=_cost_usd,
+        turnover_usd=_turnover_usd,
     )
 
     # ── Archive the accrual INPUTS (inbox «Целостность трека SPA», task 3) ──────────
@@ -2530,7 +2589,15 @@ def run_cycle(
         # yield lives in current_equity; expose it as an explicit component so that
         #   deployed + cash + accrued_yield == current_equity  (proof-of-reserves reconciles).
         _equity = float(getattr(result, "current_equity", 0.0) or 0.0) or capital_usd
-        _accrued_yield = round(_equity - capital_usd, 2)
+        # ADR-298: с тех пор как издержки списываются, `equity − capital` — это НЕТТО, а
+        # не «начисленный доход». Поле, названное `accrued_yield_usd`, обязано значить то,
+        # что написано: доход считается своим слагаемым, издержки — своим, и сумма сходится
+        # с кривой. Иначе потребитель прочтёт отрицательный «доход» и решит, что книга
+        # потеряла на рынке, хотя она заплатила за перекладку.
+        _costs_paid = round(sum(float(b.get("cost_usd") or 0.0)
+                                for b in (equity_doc.get("daily") or [])), 2)
+        _net_pnl = round(_equity - capital_usd, 2)
+        _accrued_yield = round(_net_pnl + _costs_paid, 2)
         # WS1.1: per-position APY provenance. Each deployed position carries
         # ``apy_source`` ("live" | "fallback_stale"), the apy_pct actually used,
         # and ``as_of`` — so a reviewer SEES which book lines ranked on live
@@ -2567,6 +2634,8 @@ def run_cycle(
                 "deployed_usd": round(deployed, 2),
                 "cash_usd": round(_cash_usd, 2),
                 "accrued_yield_usd": _accrued_yield,
+                "costs_paid_usd": _costs_paid,      # ADR-298
+                "net_pnl_usd": _net_pnl,            # ADR-298: = accrued − costs
                 "model_used": model_used,
                 "policy_compliant": bool(result.policy_approved),
                 "policy_version": "v1.0",
@@ -2582,6 +2651,8 @@ def run_cycle(
                     "deployed_usd": round(deployed, 2),
                     "cash_usd": round(_cash_usd, 2),
                     "accrued_yield_usd": _accrued_yield,
+                    "costs_paid_usd": _costs_paid,   # ADR-298
+                    "net_pnl_usd": _net_pnl,         # ADR-298
                     "protocol_count": len(effective_positions),
                     "t1_pct": _t1_pct,
                     "t2_pct": _t2_pct,

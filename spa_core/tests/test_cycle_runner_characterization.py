@@ -222,18 +222,33 @@ def _golden_snapshot(tmp_path, result) -> dict:
 # text whose wording/order depends on which optional advisory modules happen to
 # be importable in the test env, NOT on the behaviour the N12 move preserves.
 # Every other field is pinned exactly — a single drift fails the refactor.
+# ── Перепин 2026-09-09 (ADR-298, инвариант #16 — изменение НАМЕРЕННОЕ) ──────────
+# Решение владельца ADR-286 §1, шаг 2: издержка перекладки СПИСЫВАЕТСЯ в кривую.
+# Этот цикл разворачивает $65 000 из кэша в три пула, и по единственной модели костов
+# дерева это стоит **$56.50** (слиппедж $52.00 на односторонний оборот + газ на три
+# затронутые ноги). До правки день закрывался ровно на начисленный доход, потому что
+# за собственные ходы книга не платила НИКОГДА.
+#
+# Изменились РОВНО два производных числа — equity и доходность; все 24 остальных поля
+# золотого снимка совпали байт-в-байт, включая apy_today, daily_yield_usd и позиции.
+# Узость дифа и есть доказательство того, что перепин отражает решение владельца, а не
+# прячет посторонний дрейф.
+#
+#   close_equity  100007.04 → 99950.54   (−56.50, издержка хода)
+#   total_return   +0.007 % → −0.0495 %  (первый день книги закрывается в минус)
+#
 _GOLDEN = {
     "equity_bars": [
         {
             "accrual_source": "live",
             "apy_today": 2.57,
-            "close_equity": 100007.04,
-            "cumulative_return_pct": 0.007041,
+            "close_equity": 99950.54,
+            "cumulative_return_pct": -0.049459,
             "daily_return_pct": 0.0,
             "daily_yield_usd": 7.0411,
             "date": "2026-06-10",
             "drawdown_pct": 0.0,
-            "equity": 100007.04,
+            "equity": 99950.54,
             "evidenced": True,
             "open_equity": 100000.0,
             "positions": {
@@ -245,24 +260,24 @@ _GOLDEN = {
         }
     ],
     "equity_summary": {
-        "end_equity": 100007.04,
+        "end_equity": 99950.54,
         "first_real_date": "2026-06-10",
         "last_date": "2026-06-10",
         "max_drawdown_pct": 0.0,
         "num_days": 1,
         "real_days": 1,
-        "real_end_equity": 100007.04,
+        "real_end_equity": 99950.54,
         "real_max_drawdown_pct": 0.0,
         "real_start_equity": 100000.0,
-        "real_total_return_pct": 0.007,
+        "real_total_return_pct": -0.0495,
         "start_equity": 100000.0,
-        "total_return_pct": 0.007,
+        "total_return_pct": -0.0495,
     },
     "positions": {
         "accrued_yield_usd": 7.04,
         "capital_usd": 100000.0,
         "cash_usd": 35000.0,
-        "current_equity_usd": 100007.04,
+        "current_equity_usd": 99950.54,
         "deployed_usd": 65000.0,
         "is_demo": False,
         "policy_compliant": True,
@@ -274,12 +289,17 @@ _GOLDEN = {
         "source": "cycle_runner",
         "tuner_expected_apy": 3.9538,
         "validation_summary": {
+            # ADR-298: доход и издержки разведены по именам. accrued_yield_usd остаётся
+            # ВАЛОВЫМ доходом (то, что написано на поле), costs_paid_usd — накопленные
+            # издержки перекладок, net_pnl_usd — их разность и она сходится с кривой.
             "accrued_yield_usd": 7.04,
             "capital_usd": 100000.0,
             "cash_pct": 35.0,
             "cash_usd": 35000.0,
-            "current_equity_usd": 100007.04,
+            "costs_paid_usd": 56.5,
+            "current_equity_usd": 99950.54,
             "deployed_usd": 65000.0,
+            "net_pnl_usd": -49.46,
             "protocol_count": 3,
             "t1_pct": 50.0,
             "t2_pct": 15.0,
@@ -287,7 +307,7 @@ _GOLDEN = {
     },
     "result": {
         "apy_today_pct": 2.57,
-        "current_equity": 100007.04,
+        "current_equity": 99950.54,
         "daily_return_pct": 0.0,
         "daily_yield_usd": 7.0411,
         "date": "2026-06-10",
@@ -313,13 +333,13 @@ _GOLDEN = {
         "safety_check_reason": "",
         "status": "ok",
         "strategy_loop_active": False,
-        "total_return_pct": 0.007,
+        "total_return_pct": -0.0495,
         "trade_id": "T001",
         "traded": True,
     },
     "status": {
         "apy_today_pct": 2.57,
-        "current_equity": 100007.04,
+        "current_equity": 99950.54,
         "current_positions": {
             "aave_v3": 30000.0,
             "compound_v3": 20000.0,
@@ -339,7 +359,7 @@ _GOLDEN = {
         "safety_check_failed": False,
         "source": "cycle_runner",
         "strategy_loop_active": False,
-        "total_return_pct": 0.007,
+        "total_return_pct": -0.0495,
     },
     "trade": {
         "capital": 100000.0,
@@ -393,12 +413,18 @@ def test_characterization_full_cycle(tmp_path):
     assert snap["status"] == _GOLDEN["status"], "status doc drifted"
     assert snap["positions"] == _GOLDEN["positions"], "positions doc drifted"
 
-    # NAV reconciliation invariant (deployed + cash + accrued == equity).
+    # Сведение NAV. ADR-298 (инвариант #16): тождество получило ТРЕТЬЕ слагаемое —
+    # издержки. Прежняя форма (deployed + cash + accrued == equity) верна только в мире,
+    # где перекладки бесплатны; теперь она обязана СЛОМАТЬСЯ, иначе издержка не списана.
     po = snap["positions"]
     assert (
-        round(po["deployed_usd"] + po["cash_usd"] + po["accrued_yield_usd"], 2)
+        round(po["deployed_usd"] + po["cash_usd"] + po["accrued_yield_usd"]
+              - po["validation_summary"]["costs_paid_usd"], 2)
         == po["current_equity_usd"]
-    )
+    ), "NAV не сходится: развёрнуто + кэш + доход − издержки должно равняться equity"
+    # и положительный контроль на то, что издержка вообще ненулевая — иначе тождество
+    # выше проходило бы и в старом, бесплатном мире
+    assert po["validation_summary"]["costs_paid_usd"] > 0
 
 
 # ─── P4-5: lifted allocation-mutating gate stages (cycle_gates.py) ────────────
