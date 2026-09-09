@@ -301,6 +301,22 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                 "by_yardstick", "identity_census",
                                 "adjacent_pairs", "capital_moved_by_tie_flips_usd",
                                 "unmeasured", "findings"),
+    # Заказ #536. `coverage_independence` и `day_axis_control` объявлены рядом
+    # с находками НАМЕРЕННО. Первый — ЕДИНСТВЕННАЯ опора прибора: журнал несёт
+    # 4–6 ставок в день против 14 ранжируемых, и право реконструировать день
+    # держится на том, что счёт от покрытия не зависит; отчёт без него подавал
+    # бы серии как измеренные, не сказав, чем они обеспечены. Второй ловит
+    # прибор, повторивший снимок одного дня столько раз, сколько в журнале
+    # строк. `not_measured_by_design` — то, что замер НЕ мерил (соседство и ход
+    # капитала по дням): без этой строки молчание про пару читалось бы как
+    # «пара не ничья».
+    "ranking_tie_persistence.json": ("status", "quantum_pp",
+                                     "coverage_independence", "day_axis_control",
+                                     "journal_days", "journal_coverage",
+                                     "census_pairs", "pairs", "counts_by_class",
+                                     "analytic_vs_measured",
+                                     "not_measured_by_design",
+                                     "unmeasured", "findings"),
     "cio_policy_change_procedure.json": ("overall", "counts.critical",
                                          "counts.warn", "counts.info",
                                          "counts.unchecked", "positive_control",
@@ -378,6 +394,7 @@ _PRODUCER: dict[str, str] = {
     "shadow_blockade_attribution.json": "spa_core/monitoring/shadow_blockade_attribution.py",
     "target_stability.json": "spa_core/monitoring/target_stability.py",
     "ranking_tie_census.json": "spa_core/monitoring/ranking_tie_census.py",
+    "ranking_tie_persistence.json": "spa_core/monitoring/ranking_tie_persistence.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1782,6 +1799,14 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # идёт ниже кванта — так и вышло в первой редакции прибора), затем ДВА
         # ярлыка рядом, и только потом поимённые пары.
         from spa_core.monitoring.ranking_tie_census import format_report
+        out.extend(format_report(data))
+    elif name == "ranking_tie_persistence.json":
+        # Заказ #536. Порядок строк — порядок вопроса: сперва ОПОРА («покрытие
+        # журнала не меняет измеряемого») и КОНТРОЛЬ ОСИ ДНЕЙ, без которых
+        # «серия» не число, а украшение; затем сама серия; и только в конце —
+        # что замер НЕ мерил. Последнее стои́т в отчёте намеренно: владелец,
+        # увидев одни серии, прочёл бы молчание про пару как «она не ничья».
+        from spa_core.monitoring.ranking_tie_persistence import format_report
         out.extend(format_report(data))
     elif name == "cio_substitution_census.json":
         # Заказ #518/#519. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ

@@ -147,6 +147,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "shadow_blockade_attribution",
     "target_stability",
     "ranking_tie_census",
+    "ranking_tie_persistence",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -244,6 +245,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "ranking_tie_census": {
         "module": "spa_core/monitoring/ranking_tie_census.py",
         "artifact": "data/ranking_tie_census.json"},
+    "ranking_tie_persistence": {
+        "module": "spa_core/monitoring/ranking_tie_persistence.py",
+        "artifact": "data/ranking_tie_persistence.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -958,6 +962,21 @@ def main(argv=None) -> int:
               f"unchecked={rrep['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "ranking_tie_census", e)
+    # Заказ #536 по карточке CIO: ничья РАЗ В ТРИДЦАТЬ ДНЕЙ и ничья КАЖДЫЙ
+    # ДЕНЬ требуют разных решений владельца, а перепись #535 считает их на
+    # снимке ОДНОГО дня и в отчёте не различает. Мост находок его НЕ читает по
+    # той же причине, что и соседей: единственное действие по итогам — сменить
+    # форму целевой функции или ввести гистерезис порядка, то есть money-path и
+    # решение владельца, а не строка автокарточки. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import ranking_tie_persistence
+        prep = ranking_tie_persistence.run(root=args.root)
+        print(f"ranking_tie_persistence: {prep['overall']} "
+              f"(critical={prep['counts']['critical']} "
+              f"warn={prep['counts']['warn']} "
+              f"unchecked={prep['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "ranking_tie_persistence", e)
     # §43 ТЗ CIO «Audit trail»: отвечают ли ДАННЫЕ на вопрос о прошлой перекладке
     # («почему 13 августа переложили $12 000»), или на него отвечает только память
     # сессии. Мост находок его НЕ читает по той же причине, что и пять соседей
