@@ -664,12 +664,21 @@ class TestRunAllChecks(unittest.TestCase):
         существующее имя. Ослаблением было бы `assertLessEqual`/подмножество — тогда любая
         следующая проверка появилась бы молча, а именно этого тест и не должен допускать.
         Имя функции исправлено: «три ключа» перестало быть правдой ещё до этой правки.
+
+        Второе НАМЕРЕННОЕ изменение (инв. #16, запись в `docs/journal/2026-W37.md`,
+        ADR «проверяемость трека», 2026-09-09): `run_all_checks` получил две
+        СОВЕТУЮЩИЕ проверки — `artifact_integrity` (сторож `data_integrity`, до этого
+        ноль вызовов в рантайме) и `replay_from_inputs` (пересчёт кривой из архива
+        входов `data/cycle_inputs.jsonl`). Сравнение остаётся ТОЧНЫМ; в набор добавлены
+        два реально существующих имени. Обе проверки не участвуют в `overall`
+        (advisory), что закреплено `spa_core/tests/test_cycle_health_artifact_integrity.py`.
         """
         tmpdir = self._make_temp_data_dir()
         result = self.monitor.run_all_checks(data_dir=tmpdir)
         self.assertSetEqual(
             set(result["checks"].keys()),
-            {"cycle_gap", "equity_anomaly", "data_freshness", "evidence_vs_curve"},
+            {"cycle_gap", "equity_anomaly", "data_freshness", "evidence_vs_curve",
+             "artifact_integrity", "replay_from_inputs"},
         )
 
     # T48

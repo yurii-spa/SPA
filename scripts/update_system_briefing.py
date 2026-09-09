@@ -758,6 +758,36 @@ def build_git_index_lag_section() -> str:
     return "\n".join(lines) + "\n"
 
 
+def artifact_integrity_line(d: dict) -> str:
+    """One briefing line for ``checks.artifact_integrity`` — the Data Integrity Sentinel
+    (SPA-V430) that had no runtime caller until 2026-09-08. Renders the monitor's numbers,
+    recomputes nothing. An absent key is named (old monitor), never read as clean."""
+    checks = (d or {}).get("checks") if isinstance(d, dict) else None
+    if not isinstance(checks, dict) or "artifact_integrity" not in checks:
+        return "- сторож согласованности артефактов (SPA-V430): нет в снимке — монитор старой версии"
+    chk = checks.get("artifact_integrity") or {}
+    st = str(chk.get("status") or "UNCHECKED")
+    counts = chk.get("counts") or {}
+    tail = ", ".join(f"{k} {counts.get(k, 0)}" for k in ("ok", "warn", "fail", "skip")) if counts else "без счётчиков"
+    line = f"- сторож согласованности артефактов (SPA-V430): **{st}** — {tail}"
+    if chk.get("failing"):
+        line += f"; fail: {chk['failing']}"
+    if chk.get("warning"):
+        line += f"; warn: {chk['warning']}"
+    if chk.get("unmeasured"):
+        line += f"; не измерено: {chk['unmeasured']}"
+    return line
+
+
+def replay_line(d: dict) -> str:
+    """One line for ``checks.replay_from_inputs`` — «пересчитай сам» over the archived inputs."""
+    checks = (d or {}).get("checks") if isinstance(d, dict) else None
+    if not isinstance(checks, dict) or "replay_from_inputs" not in checks:
+        return "- пересчёт кривой из архива входов: нет в снимке — монитор старой версии"
+    chk = checks.get("replay_from_inputs") or {}
+    return f"- пересчёт кривой из архива входов: **{chk.get('status', 'UNCHECKED')}** — {chk.get('detail', '')}"
+
+
 def build_track_integrity_section() -> str:
     """Do the two records of the same money agree? (own-32)
 
@@ -765,7 +795,8 @@ def build_track_integrity_section() -> str:
     exists so the count cannot keep growing unread: between 2026-08-09 and
     2026-08-12 it went 16 → 18 with nobody looking.
     """
-    st = track_integrity_state(read_json("cycle_health.json"))
+    snap = read_json("cycle_health.json")
+    st = track_integrity_state(snap)
     state = st.get("state")
     lines = ["## 🧾 Track integrity (доказательная база vs кривая)",
              track_integrity_cell(st)]
@@ -775,6 +806,8 @@ def build_track_integrity_section() -> str:
             "\n_Источник — `data/cycle_health.json` → `checks.evidence_vs_curve` "
             "(пишет `com.spa.cycle_health`, каждые 300 с). Пустая строка здесь означала бы "
             "«сходится», поэтому её тут нет._")
+        lines.append(artifact_integrity_line(snap))  # независимый сторож: его строка не зависит от own-32
+        lines.append(replay_line(snap))
         return "\n".join(lines) + "\n"
 
     div = st.get("divergent_days")
@@ -793,6 +826,8 @@ def build_track_integrity_section() -> str:
         lines.append(
             "- ⚠️ числа выше — ПОСЛЕДНИЕ ИЗВЕСТНЫЕ, а не текущие: снимок протух "
             "(проверь `com.spa.cycle_health`).")
+    lines.append(artifact_integrity_line(snap))
+    lines.append(replay_line(snap))
     return "\n".join(lines) + "\n"
 
 

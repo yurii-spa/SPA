@@ -142,6 +142,9 @@ from spa_core.paper_trading.cycle_reporting import (  # noqa: F401 — re-export
 #: Сверяется с фактической записью — spa_core/monitoring/artifact_contract.py.
 PRODUCES = (
     "data/allocation_rationale.json",
+    # 08.09: архив входов начисления (inbox «Целостность трека SPA», задача 3) — без него
+    # кривая не пересчитывается из сохранённого (замер W37); срок годности 26 ч как у соседей.
+    "data/cycle_inputs.jsonl",
     "data/allocation_rationale_history.jsonl",
     "data/current_positions.json",
     "data/equity_curve_daily.json",
@@ -2347,6 +2350,28 @@ def run_cycle(
         run_ts=run_ts,
         accrual_source=_accrual_source,
     )
+
+    # ── Archive the accrual INPUTS (inbox «Целостность трека SPA», task 3) ──────────
+    # The bar can only be re-derived if the apy_map/positions the accrual USED are kept;
+    # measured 2026-09-08 they were not (journal W37). Side-car: never raises into the cycle.
+    try:
+        from spa_core.audit import cycle_inputs_archive as _cia
+        _bar_today: dict = next((b for b in (equity_doc.get("daily") or []) if b.get("date") == today), {})
+        _cia.append_record(
+            ddir,
+            _cia.build_record(
+                cycle_date=today, run_ts=run_ts,
+                open_equity=_bar_today.get("open_equity", prev_equity), close_equity=close_equity,
+                daily_yield_usd=daily_yield, apy_today_pct=weighted_apy, positions=effective_positions,
+                apy_map=apy_map, fallback_pools=[p for p in effective_positions if p in _fallback_apy_pools],
+                accrual_source=_accrual_source,
+                snapshot_id=str(locals().get("snapshot_id") or locals().get("_snapshot_id") or "") or None,
+            ),
+            ts=run_ts,
+        )
+    except Exception as _cia_exc:  # noqa: BLE001 — archive must never crash the cycle
+        log.warning("cycle_inputs archive failed (%s) — cycle continues", _cia_exc)
+        notes.append("cycle_inputs_archive_error: {}".format(type(_cia_exc).__name__))
 
     days = _days_running(today, paper_start_date)
     # LAW 1: a failed safety check is the most safety-critical signal — it takes

@@ -399,6 +399,65 @@ class CycleHealthMonitor:
                       else f"все {len(common)} общих дат сходятся",
         }
 
+    def check_artifact_integrity(self, data_dir: str = "data") -> dict[str, Any]:
+        """Data Integrity Sentinel (``spa_core.audit.data_integrity``, SPA-V430) — до 2026-09-08
+        существовал с тестами и НОЛЬ вызывающих в рантайме: класс ADR-259 «объявленный продукт,
+        который никто не вычисляет». Этот метод — его единственный производящий вызов
+        (inbox «Целостность трека SPA», задача 1; перенос практики из earn-defi).
+
+        Read-only и СОВЕТУЮЩИЙ, как ``evidence_vs_curve``: число видно в ``checks``, в общий
+        вердикт не входит (капитал виртуальный, деньги не двигает; у песочниц и тестов
+        входных файлов нет по построению). Третий исход: чек со статусом ``skip`` — это
+        «не измерено», а не «сходится»: набор, где что-то пропущено и ничего не упало,
+        отвечает UNCHECKED, не HEALTHY. Падение самого сторожа — тоже UNCHECKED, никогда
+        не исключение (монитор обязан дописать снимок).
+        """
+        try:
+            from spa_core.audit import data_integrity as _di
+            rep = _di.run_integrity_checks(data_dir=data_dir)
+        except Exception as exc:  # noqa: BLE001 — сторож не имеет права ронять монитор
+            return {"status": UNCHECKED, "advisory": True, "verdict": None,
+                    "detail": f"сторож согласованности не отработал: {type(exc).__name__}: {exc}"}
+        checks = [c for c in (rep.get("checks") or []) if isinstance(c, dict)]
+        by = lambda st: sorted(str(c.get("check")) for c in checks if c.get("status") == st)  # noqa: E731
+        failing, warning, skipped = by("fail"), by("warn"), by("skip")
+        counts = rep.get("counts") or {}
+        if not checks:
+            status, detail = UNCHECKED, "сторож не вернул ни одного чека" + (f" ({rep.get('error')})" if rep.get("error") else "")
+        elif failing or warning:
+            status = "WARNING"
+            detail = (f"артефакты трека несогласованы: fail {failing or '—'}, warn {warning or '—'}"
+                      + (f"; не измерено {skipped}" if skipped else ""))
+        elif skipped:
+            status, detail = UNCHECKED, f"часть чеков не измерена (нет входа): {skipped}; остальные сходятся"
+        else:
+            status, detail = "HEALTHY", f"все {len(checks)} чеков согласованности сходятся"
+        return {"status": status, "advisory": True, "verdict": rep.get("verdict"), "counts": counts,
+                "failing": failing, "warning": warning, "unmeasured": skipped,
+                "generated_at": rep.get("generated_at"), "detail": detail}
+
+    def check_replay_from_inputs(self, data_dir: str = "data") -> dict[str, Any]:
+        """Re-derive the equity bars from ``data/cycle_inputs.jsonl`` (inbox «Целостность трека SPA»,
+        задача 3) with the cycle's own accrual function. Advisory like the sentinel; third outcome
+        UNCHECKED while the archive is empty (it starts with the first cycle after delivery)."""
+        try:
+            from spa_core.audit import replay_equity as _re
+            rep = _re.replay(data_dir)
+        except Exception as exc:  # noqa: BLE001
+            return {"status": UNCHECKED, "advisory": True, "detail": f"replay не отработал: {type(exc).__name__}: {exc}"}
+        st = str(rep.get("status") or "")
+        status = {"PASS": "HEALTHY", "FAIL": "WARNING"}.get(st, UNCHECKED)
+        if st == "PASS":
+            detail = f"кривая пересчитана из архива входов: {rep['days']} дн. ({rep.get('first')}..{rep.get('last')}) сходятся до {rep.get('tolerance_usd')} $"
+        elif st == "FAIL":
+            bad = [d["date"] for d in rep.get("diffs", [])]
+            detail = f"пересчёт из архива расходится с кривой: {len(bad)} из {rep['days']} дн., худшее {rep.get('max_abs_diff_usd')} $ ({bad[:5]})"
+        else:
+            detail = str(rep.get("reason") or "не измерено")
+        return {"status": status, "advisory": True, "replay_status": st, "days": rep.get("days"),
+                "divergent_days": len(rep.get("diffs", [])), "max_abs_diff_usd": rep.get("max_abs_diff_usd"),
+                "reruns": rep.get("reruns"), "chain_ok": (rep.get("chain") or {}).get("ok"), "detail": detail}
+
     def run_all_checks(self, data_dir: str = "data") -> dict[str, Any]:
         """
         Run all three health checks and combine the results.
@@ -443,6 +502,8 @@ class CycleHealthMonitor:
             "equity_anomaly": equity_anomaly,
             "data_freshness": data_freshness,
             "evidence_vs_curve": self.check_evidence_matches_curve(data_dir),
+            "artifact_integrity": self.check_artifact_integrity(data_dir),
+            "replay_from_inputs": self.check_replay_from_inputs(data_dir),
         }
 
         # Collect the checks that could NOT be computed, with their reason.
@@ -453,8 +514,8 @@ class CycleHealthMonitor:
         # (тесты, песочницы) файла доказательной базы нет по построению, и его
         # отсутствие — не пробел в наблюдении, а другой предмет.
         for name, chk in checks.items():
-            if name == "evidence_vs_curve":
-                continue
+            if name in ("evidence_vs_curve", "artifact_integrity", "replay_from_inputs"):
+                continue  # советующие сигналы (own-32; сторож SPA-V430) — видны, но не судят цикл
             if chk.get("status") == UNCHECKED:
                 unchecked.append(
                     {"check": name, "reason": str(chk.get("detail") or "not measured")}
