@@ -62,7 +62,42 @@ def reconcile(dry_run: bool = False) -> dict:
     return {"days": len(days), "fixed": fixed, "dry_run": dry_run}
 
 
+_USAGE = """reconcile_paper_evidence — выровнять equity_value в data/paper_evidence.json
+по канонической кривой data/equity_curve_daily.json (решение владельца, ADR-128 §2).
+
+    python3 scripts/reconcile_paper_evidence.py --dry-run   # только показать, ЧТО изменится
+    python3 scripts/reconcile_paper_evidence.py --apply      # записать (пишет в data/)
+
+Безопасного умолчания нет намеренно: у скрипта, который правит запись о деньгах,
+режим обязан быть НАЗВАН явно. Ни один другой аргумент не принимается."""
+
+
+def _mode_from_argv(argv) -> str:
+    '''"dry" | "apply" | "usage" — режим ОБЪЯВЛЯЕТСЯ, не выводится (ADR-283).
+
+    До 2026-09-09 здесь стояло ``dry_run="--dry-run" in sys.argv``, то есть **любой**
+    аргумент, кроме этой точной строки, означал «пиши в data/». Замер того дня: запуск
+    с ``--help`` — попыткой прочитать справку — молча исправил 32 дня из 62 в живом
+    `paper_evidence.json`. Ущерба не было (правка совпала с решением владельца, поля
+    сохранены, расхождение стало нулём), но безопасный режим не имеет права зависеть от
+    того, набрал ли человек флаг ровно так, как ждёт `in sys.argv`.
+    '''
+    args = [a for a in argv[1:] if a.strip()]
+    if not args or any(a in ("-h", "--help", "help") for a in args):
+        return "usage"
+    if args == ["--dry-run"]:
+        return "dry"
+    if args == ["--apply"]:
+        return "apply"
+    return "usage"
+
+
 if __name__ == "__main__":
-    res = reconcile(dry_run="--dry-run" in sys.argv)
+    mode = _mode_from_argv(sys.argv)
+    if mode == "usage":
+        print(_USAGE)
+        # Незнакомый аргумент — это НЕ команда «применяй»: fail-CLOSED, ненулевой код.
+        sys.exit(0 if any(a in ("-h", "--help", "help") for a in sys.argv[1:]) or len(sys.argv) == 1 else 2)
+    res = reconcile(dry_run=(mode == "dry"))
     print(f"reconcile_paper_evidence: {res['fixed']}/{res['days']} day(s) corrected"
           f"{' (dry-run)' if res['dry_run'] else ''}")
