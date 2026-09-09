@@ -51,6 +51,33 @@ def _default_git_subjects(repo_root: Path, since_hours: int) -> Optional[list[st
         return None
 
 
+_OWNER_SETTINGS = _REPO_ROOT / "architecture" / "owner_settings.json"
+
+
+def _cost_per_cycle_raw(settings_path: Optional[Path] = None) -> str:
+    """Цена одного цикла как СТРОКА: окружение → настройка владельца → "" (не задана).
+
+    Цену знает только владелец (счёт за подписку), поэтому она приходит не из замера.
+    Порядок: `SPA_COST_PER_CYCLE_USD` в окружении (разовое переопределение) → поле
+    `cost_per_cycle_usd` в `architecture/owner_settings.json` (ответ владельца 09.09:
+    230 $/мес ÷ 102 измеренных цикла за 30 дней = 2.25) → пусто, и тогда стоимость
+    честно не оценивается. Каталог `architecture/` синхронизируется в прод, поэтому
+    настройка доходит до агентов флота; `data/` для этого не годится (он не возится).
+    """
+    env = os.environ.get("SPA_COST_PER_CYCLE_USD", "").strip()
+    if env:
+        return env
+    path = settings_path or _OWNER_SETTINGS
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    val = doc.get("cost_per_cycle_usd") if isinstance(doc, dict) else None
+    if isinstance(val, (int, float)) and not isinstance(val, bool):
+        return str(val)
+    return ""
+
+
 def _default_head_age_hours(repo_root: Path) -> Optional[float]:
     """Возраст САМОГО СВЕЖЕГО коммита дерева в часах. ``None`` — git не ответил.
 
@@ -136,7 +163,7 @@ def summary(
     out["commits"] = len(subjects)
     out["cycles"] = sum(1 for s in subjects if _CYCLE_RE.search(s))
 
-    raw_cost = os.environ.get("SPA_COST_PER_CYCLE_USD", "").strip()
+    raw_cost = _cost_per_cycle_raw()
     if raw_cost:
         try:
             per = float(raw_cost)
@@ -145,8 +172,8 @@ def summary(
         except ValueError:
             out["note"] = f"SPA_COST_PER_CYCLE_USD={raw_cost!r} не число — стоимость не оценена"
     else:
-        out["note"] = ("стоимость не оценена: задай SPA_COST_PER_CYCLE_USD "
-                       "(средняя цена одной headless-сессии, $)")
+        out["note"] = ("стоимость не оценена: задай `cost_per_cycle_usd` в "
+                       "architecture/owner_settings.json (или SPA_COST_PER_CYCLE_USD)")
     return out
 
 

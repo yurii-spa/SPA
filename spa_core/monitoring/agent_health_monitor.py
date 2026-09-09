@@ -67,6 +67,7 @@ PRODUCES = (
     "data/agent_health.json",
     "data/agent_registry.json",
     "data/owner_decision_pending.json",
+    "data/fleet_economics.json",
 )
 
 log = logging.getLogger("spa.monitoring.agent_health_monitor")
@@ -1710,6 +1711,29 @@ def _print_summary(report: dict) -> None:
         print("  telegram alert: SENT")
 
 
+# Дерево, по которому МЕРИТСЯ экономика цеха. Не прод-дерево: его git-индекс отстаёт по
+# построению (пуши идут на origin через API, ADR-152), и суточное окно там пусто ПО
+# ПОСТРОЕНИЮ — замер 09.09: HEAD прода на 255 ч старше окна, тогда как в зеркале за те же
+# сутки 44 коммита и 6 циклов. Модуль сам вернёт «не измерено» с причиной, если дерево
+# отстаёт (ADR-276), поэтому подстановка ложного нуля невозможна ни в каком случае.
+_ECONOMICS_TREE = Path.home() / "Documents" / "SPA_mirror"
+
+
+def _write_fleet_economics(data_dir: Path) -> None:
+    """Side-car: экономика цеха пишется тем же ежечасным агентом (карточка
+    `inbox-podklyuchit-ekonomiku-tseha-k-agent-health`, решение владельца о границе ADR-285).
+
+    Никогда не роняет монитор: пульс флота важнее строки о стоимости.
+    """
+    try:
+        from spa_core.monitoring import fleet_economics as _fe
+        tree = _ECONOMICS_TREE if _ECONOMICS_TREE.exists() else None
+        _fe.write_artifact(data_dir, repo_root=tree)
+    except Exception as exc:  # noqa: BLE001 — экономика не важнее работы цеха
+        log.warning("fleet_economics не записана (%s) — пульс флота не затронут",
+                    type(exc).__name__)
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -1729,6 +1753,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         launch_agents_dir=Path(args.launch_agents_dir),
     )
     report = monitor.run(send=send)
+    _write_fleet_economics(Path(args.data_dir))
     _print_summary(report)
     return 0  # always exit 0 (fail-safe daemon)
 

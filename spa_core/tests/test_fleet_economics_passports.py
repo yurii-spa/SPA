@@ -53,11 +53,21 @@ class TestFleetEconomics(unittest.TestCase):
         finally:
             os.environ.pop("SPA_COST_PER_CYCLE_USD", None)
 
-    def test_no_cost_env_named_honestly(self):
+    def test_no_cost_named_anywhere_is_named_honestly(self):
+        """НАМЕРЕННО ИЗМЕНЁННЫЙ ТЕСТ (инв. #16, ADR-285/286, журнал W37, 09.09): у цены
+        появился ВТОРОЙ намеренный источник — `architecture/owner_settings.json` (ответ
+        владельца). «Не оценена» по-прежнему доказывается, но гасить надо оба источника."""
         import os
+        import tempfile
         os.environ.pop("SPA_COST_PER_CYCLE_USD", None)
-        out = fe.summary(Path("/x"), subjects_fn=lambda r, h: [],
-                         head_age_fn=lambda r: self.FRESH)
+        with tempfile.TemporaryDirectory() as tmp:
+            saved = fe._OWNER_SETTINGS
+            fe._OWNER_SETTINGS = Path(tmp) / "absent.json"
+            try:
+                out = fe.summary(Path("/x"), subjects_fn=lambda r, h: [],
+                                 head_age_fn=lambda r: self.FRESH)
+            finally:
+                fe._OWNER_SETTINGS = saved
         self.assertIsNone(out["cost_estimate_usd"])
         self.assertIn("не оценена", out["note"])
 

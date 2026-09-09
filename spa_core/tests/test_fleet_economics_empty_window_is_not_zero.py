@@ -65,13 +65,22 @@ def test_a_stale_tree_that_did_commit_inside_the_window_is_still_measured():
     assert r["measured"] is True and r["cycles"] == 1
 
 
-def test_cost_stays_unestimated_without_the_owner_env(monkeypatch):
+def test_cost_stays_unestimated_when_the_owner_named_no_price(monkeypatch, tmp_path):
+    """НАМЕРЕННО ИЗМЕНЁННЫЙ ТЕСТ (инв. #16, ADR-285/286, журнал 2026-W37, 09.09).
+
+    Раньше единственным источником цены была переменная окружения, и «нет переменной»
+    означало «цены нет». С 09.09 у цены есть второй, НАМЕРЕННЫЙ источник — ответ владельца
+    в `architecture/owner_settings.json` (230 $/мес ÷ 102 измеренных цикла = 2.25 $), потому
+    что окружение до агентов флота не доходит, а этот каталог синхронизируется в прод.
+    Проверка не ослаблена: третий исход («цена не названа ⇒ не оценена») по-прежнему
+    доказывается — просто теперь надо погасить ОБА источника, а не один."""
     monkeypatch.delenv("SPA_COST_PER_CYCLE_USD", raising=False)
+    monkeypatch.setattr(fe, "_OWNER_SETTINGS", tmp_path / "no-settings.json")
     r = _s(["цикл #1"], 1.0)
     assert r["cost_estimate_usd"] is None and "стоимость не оценена" in r["note"]
 
 
 def test_cost_is_estimated_when_the_owner_set_the_price(monkeypatch):
-    monkeypatch.setenv("SPA_COST_PER_CYCLE_USD", "2.5")
+    monkeypatch.setenv("SPA_COST_PER_CYCLE_USD", "2.5")   # окружение имеет приоритет над файлом
     r = _s(["цикл #1", "цикл #2"], 1.0)
     assert r["cost_per_cycle_usd"] == 2.5 and r["cost_estimate_usd"] == 5.0

@@ -23,6 +23,10 @@
     {
      "artifact": "data/owner_decision_pending.json",
      "slo_hours": 3
+    },
+    {
+     "artifact": "data/fleet_economics.json",
+     "slo_hours": 3
     }
    ],
    "consumes": [],
@@ -3450,6 +3454,16 @@
    "slo_hours": 26,
    "status": "active",
    "notes": "09.09 (ADR-278, inbox «Целостность трека SPA», задача 4): публичный hash-chained трейл commit-reveal раскладки книги — хеш решения ложится ДО виртуального исполнения, пакет раскрывается следующим циклом; проверяется surface J в scripts/verify_spa.py и checks.book_commitments в cycle_health_monitor"
+  },
+  {
+   "path": "data/fleet_economics.json",
+   "producer": "com.spa.agent_health",
+   "consumers": [
+    "telegram_daily_digest"
+   ],
+   "slo_hours": 3,
+   "status": "active",
+   "notes": "09.09 (ADR-276 + ADR-285, карточка inbox-podklyuchit-ekonomiku-tseha-k-agent-health): экономика цеха — сколько циклов и коммитов за сутки и во что это обошлось по цене владельца (architecture/owner_settings.json: 230 $/мес ÷ 102 цикла = 2.25 $). Мерится по ЗЕРКАЛУ (индекс прод-дерева отстаёт по построению, суточное окно там пусто ПО ПОСТРОЕНИЮ); дерево отстаёт ⇒ measured=false с названной причиной, ложный ноль невозможен"
   }
  ],
  "designed_architectures": [
