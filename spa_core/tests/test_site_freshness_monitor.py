@@ -119,3 +119,77 @@ def test_parse_site_numbers():
     p = mon.parse_site_numbers(_home(days=12, apy="3.3", gates="27", asof="2026-07-03"))
     assert p["evidenced_days"] == 12 and p["paper_apy_pct"] == 3.3 and p["gates_passed"] == 27
     assert p["as_of"] == "2026-07-03"
+
+
+# ── 2026-09-08 false plaque: the apy legs must be LIKE-FOR-LIKE (owner decision 2026-07-15, вариант «а») ──
+# Replay of the real numbers that degraded the public site at 21:38Z: committed snapshot 5.3177 % (track-to-date),
+# facts.apy_today_pct 5.0586 % (one day), evidenced chain anchor 2026-06-22 → 2026-09-08 over 77 real days.
+_CHAIN_2026_09_08 = [
+    {"seq": 0, "date": "2026-06-22", "close_equity": 100150.66, "equity": 100150.66, "evidenced": True, "source": "cycle"},
+    {"seq": 40, "date": "2026-08-01", "close_equity": 100700.00, "equity": 100700.00, "evidenced": True, "source": "cycle"},
+    {"seq": 76, "date": "2026-09-08", "close_equity": 101251.32, "equity": 101251.32, "evidenced": True, "source": "cycle"},
+]
+_GOLIVE_2026_09_08 = {"passed": 29, "total": 29, "real_track_days": 77, "evidenced_anchor": "2026-06-22"}
+_FACTS_2026_09_08 = {"apy_today_pct": 5.0586, "current_equity": 101251.32, "real_track_days": 77}
+NOW_2026_09_08 = datetime.datetime(2026, 9, 8, 21, 38, tzinfo=datetime.timezone.utc)
+
+
+def test_api_headline_apy_is_the_track_apy_from_the_chain_not_apy_today():
+    h = mon.api_headline(_GOLIVE_2026_09_08, _FACTS_2026_09_08, _CHAIN_2026_09_08)
+    assert h["paper_apy_pct"] == 5.3177, h            # same formula as generate_track_snapshot.py
+    assert h["apy_today_pct"] == 5.0586               # the volatile number is kept, but NOT under paper_apy_pct
+    assert h["apy_source"] == "evidenced_chain"
+    assert h["last_bar"] == "2026-09-08" and h["evidenced_days"] == 77 and h["gates_passed"] == 29
+
+
+def test_snapshot_equal_to_the_chain_apy_is_not_overstated_and_not_degraded():
+    """Positive control of the 2026-09-08 false plaque: with like-for-like numbers the custodian is quiet."""
+    api = mon.api_headline(_GOLIVE_2026_09_08, _FACTS_2026_09_08, _CHAIN_2026_09_08)
+    r = mon.evaluate(snapshot=_snap(days=77, apy=5.3177, gates=29, asof="2026-09-08", equity=101251.32),
+                     home_html=_home(days=77, apy="5.3", gates="29", asof="2026-09-08"),
+                     track_html=_track(equity="101,251", apy="5.3", asof="2026-09-08"),
+                     api=api, sitemap_statuses=_urls(), verifier_sha=PIN, pin_sha=PIN, now=NOW_2026_09_08)
+    codes = {f["code"] for f in r["fails"]}
+    assert "OVERSTATED_METRIC" not in codes, r["fails"]
+    assert r["snapshot_overstated"] is False and r["degrade_triggered"] is False
+    assert r["apy_leg"] == "measured" and r["api_apy_source"] == "evidenced_chain"
+
+
+def test_snapshot_above_the_chain_apy_still_degrades():
+    """The guard is not weakened: a snapshot that overstates the LIKE-FOR-LIKE track apy still kills."""
+    api = mon.api_headline(_GOLIVE_2026_09_08, _FACTS_2026_09_08, _CHAIN_2026_09_08)
+    r = mon.evaluate(snapshot=_snap(days=77, apy=6.1, gates=29, asof="2026-09-08", equity=101251.32),
+                     home_html=_home(days=77, apy="6.1", gates="29", asof="2026-09-08"),
+                     track_html=_track(equity="101,251", apy="6.1", asof="2026-09-08"),
+                     api=api, sitemap_statuses=_urls(), verifier_sha=PIN, pin_sha=PIN, now=NOW_2026_09_08)
+    assert r["snapshot_overstated"] is True and r["degrade_triggered"] is True
+    assert r["degrade_reason"] == "SNAPSHOT_OVERSTATED"
+
+
+def test_missing_chain_makes_the_apy_legs_unmeasured_not_green():
+    """Third outcome: no chain ⇒ no like-for-like apy ⇒ the legs are NAMED unmeasured; nothing degrades on apy,
+    and the report does not pretend the comparison passed."""
+    api = mon.api_headline(_GOLIVE_2026_09_08, _FACTS_2026_09_08, None)
+    assert api["paper_apy_pct"] is None and api["apy_source"].startswith("unmeasured:")
+    r = mon.evaluate(snapshot=_snap(days=77, apy=9.9, gates=29, asof="2026-09-08", equity=101251.32),
+                     home_html=_home(days=77, apy="9.9", gates="29", asof="2026-09-08"),
+                     track_html=_track(equity="101,251", apy="9.9", asof="2026-09-08"),
+                     api=api, sitemap_statuses=_urls(), verifier_sha=PIN, pin_sha=PIN, now=NOW_2026_09_08)
+    assert r["apy_leg"] == "unmeasured" and r["degrade_triggered"] is False
+    assert not any(f["code"] == "OVERSTATED_METRIC" for f in r["fails"])
+
+
+def test_jsonl_chain_is_parsed_and_bad_lines_are_skipped():
+    body = "\n".join(['{"seq": 0, "date": "2026-06-22", "close_equity": 100150.66, "evidenced": true}',
+                      "not json", "",
+                      '{"seq": 1, "date": "2026-06-23", "close_equity": 100165.61, "evidenced": true}'])
+    rows = mon._parse_jsonl(body)
+    assert [r["seq"] for r in rows] == [0, 1]
+    apy, src = mon.track_apy_from_chain(rows, "2026-06-22", 1)
+    assert src == "evidenced_chain" and apy > 0
+
+
+def test_pre_anchor_bars_are_excluded_from_the_track_apy():
+    rows = [{"date": "2026-05-21", "close_equity": 100000.0, "evidenced": False}] + _CHAIN_2026_09_08
+    apy, src = mon.track_apy_from_chain(rows, "2026-06-22", 77)
+    assert (apy, src) == (5.3177, "evidenced_chain")

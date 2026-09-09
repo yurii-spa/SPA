@@ -96,21 +96,69 @@ def parse_site_numbers(html):
     }
 
 
+def _chain_rows(equity_chain):
+    """Rows of the evidenced equity chain, whatever wrapper the API used (list / {rows} / {data} / {daily})."""
+    if isinstance(equity_chain, list):
+        return [r for r in equity_chain if isinstance(r, dict)]
+    if isinstance(equity_chain, dict):
+        for key in ("rows", "data", "daily"):
+            v = equity_chain.get(key)
+            if isinstance(v, list):
+                return [r for r in v if isinstance(r, dict)]
+        inner = equity_chain.get("equity_curve_daily")
+        if isinstance(inner, dict) and isinstance(inner.get("daily"), list):
+            return [r for r in inner["daily"] if isinstance(r, dict)]
+    return []
+
+
+def track_apy_from_chain(rows, anchor, real_days):
+    """LIKE-FOR-LIKE track APY: the same formula ``generate_track_snapshot.py`` commits to the site
+    (compound-annualize anchor→latest evidenced equity over the real evidenced days).
+
+    Returns ``(apy_pct | None, source)``. ``source`` names WHY it is None — a third outcome, not a
+    silent zero (2026-09-08 lesson: the custodian degraded the public site because it compared this
+    stable track-to-date number with the VOLATILE single-day ``apy_today_pct``; 5.32 % > 5.06 %
+    was called «overstated» while the live chain reproduced 5.3177 % exactly)."""
+    ev = [r for r in rows if r.get("evidenced") is not False and r.get("date")]
+    if anchor:
+        ev = [r for r in ev if str(r.get("date")) >= str(anchor)]
+    if len(ev) < 2:
+        return None, "unmeasured:chain_has_fewer_than_2_evidenced_bars"
+    def _eq(r):
+        return _num(r.get("close_equity") if r.get("close_equity") is not None else r.get("equity"))
+    a, l = _eq(ev[0]), _eq(ev[-1])
+    days = _num(real_days) if real_days is not None else float(len(ev))
+    if not a or not l or a <= 0 or l <= 0:
+        return None, "unmeasured:chain_bars_have_no_equity"
+    if not days or days <= 0:
+        return None, "unmeasured:real_track_days_missing"
+    return round(((l / a) ** (365.0 / days) - 1.0) * 100.0, 4), "evidenced_chain"
+
+
 def api_headline(golive, facts, equity_chain):
-    """Best-effort authoritative headline from the live API (defensive field extraction)."""
+    """Best-effort authoritative headline from the live API (defensive field extraction).
+
+    ``paper_apy_pct`` is the LIKE-FOR-LIKE track APY derived from the evidenced chain (the number the
+    site commits), never the volatile ``apy_today_pct`` — that one is exposed separately as
+    ``apy_today_pct`` for the record. Owner decision 2026-07-15 (card owner-decision-20260715-212059-apy,
+    вариант «а»): an apy leg exists only when the comparison is like-for-like."""
     g = golive or {}
     f = facts or {}
+    rows = _chain_rows(equity_chain)
+    real_days = g.get("real_track_days") if g.get("real_track_days") is not None else g.get("track_days")
+    track_apy, apy_source = track_apy_from_chain(rows, g.get("evidenced_anchor"), real_days)
     out = {
-        "evidenced_days": _num(g.get("real_track_days") if g.get("real_track_days") is not None else g.get("track_days")),
+        "evidenced_days": _num(real_days),
         "gates_passed": _num(g.get("passed") if g.get("passed") is not None else g.get("risk_gates_passed")),
-        "paper_apy_pct": _num(f.get("apy_today_pct") if f.get("apy_today_pct") is not None else g.get("apy_today_pct")),
+        "paper_apy_pct": track_apy,
+        "apy_source": apy_source,
+        "apy_today_pct": _num(f.get("apy_today_pct") if f.get("apy_today_pct") is not None else g.get("apy_today_pct")),
         "end_equity": _num(f.get("current_equity") if f.get("current_equity") is not None else f.get("equity")),
         "last_bar": None,
     }
     # last evidenced bar date from the equity chain (freshness)
-    rows = equity_chain if isinstance(equity_chain, list) else (equity_chain or {}).get("rows") or (equity_chain or {}).get("data")
-    if isinstance(rows, list) and rows:
-        last = rows[-1] if isinstance(rows[-1], dict) else {}
+    if rows:
+        last = rows[-1]
         out["last_bar"] = last.get("date") or last.get("ts")
     return out
 
@@ -172,8 +220,11 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
     #    STALE_SNAPSHOT (as_of age). Re-enable an apy leg only when the API exposes a matching
     #    track-to-date apy (like-for-like comparison).
 
-    # 6. OVERSTATED_METRIC — the site must NEVER show an APY higher than the live API (critical)
+    # 6. OVERSTATED_METRIC — the site must NEVER show an APY higher than the live API (critical).
+    #    ``apih["paper_apy_pct"]`` is the like-for-like track APY from the evidenced chain (see
+    #    api_headline). No chain ⇒ the apy legs are NOT MEASURED (named in the report), not green.
     api_apy = apih.get("paper_apy_pct")
+    apy_leg = "measured" if api_apy is not None else "unmeasured"
     for name, s in (("home", site_home), ("track", site_track)):
         site_apy = s.get("paper_apy_pct")
         if site_apy is not None and api_apy is not None and site_apy > api_apy + APY_TOL_PP:
@@ -213,6 +264,8 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
         "degrade_triggered": degrade,
         "degrade_reason": ("SNAPSHOT_OVERSTATED" if snapshot_overstated else
                            "STALE_48H_TWO_RUNS" if degrade else None),
+        "apy_leg": apy_leg,                          # measured | unmeasured (no like-for-like API apy)
+        "api_apy_source": apih.get("apy_source"),
         "site_overstated": site_overstated,          # live site shows APY > API (may be deploy lag)
         "snapshot_overstated": snapshot_overstated,  # committed snapshot itself is overstated -> degrade
         "site_home": site_home,
@@ -240,6 +293,34 @@ def _get_json(url):
         return json.loads(body)
     except ValueError:
         return None
+
+
+def _parse_jsonl(body):
+    """Hash-chained rows come one JSON object per line (``/api/rates-desk/full-chain/equity_track``).
+    ``_get_json`` answered None on that body for months — so ``last_bar`` was always null and the
+    STALE_API leg never measured anything. Bad lines are skipped, not guessed."""
+    rows = []
+    for ln in (body or "").splitlines():
+        ln = ln.strip()
+        if not ln:
+            continue
+        try:
+            obj = json.loads(ln)
+        except ValueError:
+            continue
+        if isinstance(obj, dict):
+            rows.append(obj)
+    return rows
+
+
+def _get_chain(url):
+    _, body = _get(url)
+    if not body:
+        return None
+    try:
+        return json.loads(body)
+    except ValueError:
+        return _parse_jsonl(body) or None
 
 
 def _sitemap_urls():
@@ -890,7 +971,7 @@ def run():
     api = api_headline(
         _get_json(API + "/api/v1/golive"),
         _get_json(API + "/api/ssot/facts") or _get_json(API + "/api/live/portfolio"),
-        _get_json(API + "/api/rates-desk/full-chain/equity_track"),
+        _get_chain(API + "/api/rates-desk/full-chain/equity_track"),
     )
     sitemap_statuses = {}
     for url in _sitemap_urls():
