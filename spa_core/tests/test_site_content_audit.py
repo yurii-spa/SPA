@@ -49,12 +49,57 @@ def test_valid_link_and_anchor_pass(tmp_path):
     assert broken == []
 
 
-def test_sitemap_mismatch(tmp_path):
+def _endpoint(tmp, internal=("cockpit-kit",), extra=""):
+    """Minimal sitemap.xml.ts fixture: the endpoint IS the truth (see the module docstring)."""
+    routes = ", ".join(f"'{r}'" for r in internal)   # без ведущего слэша — форма живого эндпоинта
+    (tmp / "sitemap.xml.ts").write_text(
+        "const INTERNAL_ROUTES = new Set<string>([%s]);\n%s\nexport const GET = () => new Response('');\n" % (routes, extra))
+
+
+# НАМЕРЕННО ИЗМЕНЁННЫЕ ТЕСТЫ (инвариант #16, запись в docs/journal/2026-W37.md, 2026-09-09).
+# `check_sitemap_vs_pages(sitemap_path, pages)` СНЯТА вместе со своим предметом: она сверялась с
+# `landing/public/sitemap.xml`, а этот файл Astro перезаписывает на сборке эндпоинтом
+# `src/pages/sitemap.xml.ts`. Сверка с мёртвым файлом десять понедельников подряд рапортовала 28
+# несуществующих «missing» страниц — проверка отвечала на вопрос, которого никто не задавал.
+# Замена НЕ слабее: у эндпоинта проверяются четыре вещи вместо одной (реклама без файла, noindex в
+# выдаче, устаревшее исключение, неразбираемый эндпоинт = fail-CLOSED). Ниже — по тесту на каждую.
+def test_sitemap_noindex_page_is_advertised(tmp_path):
+    _mk(tmp_path, "index", "x")
+    _mk(tmp_path, "secret", '<Layout noindex={true}>y</Layout>')
+    _endpoint(tmp_path)
+    res = aud.check_sitemap_endpoint(tmp_path, public_dir=tmp_path / "public")
+    assert res["noindex_in_sitemap"] == ["secret"] and res["endpoint_unparseable"] is None
+
+
+def test_sitemap_stale_internal_route(tmp_path):
+    _mk(tmp_path, "index", "x")
+    _endpoint(tmp_path, internal=("gone-page",))
+    res = aud.check_sitemap_endpoint(tmp_path, public_dir=tmp_path / "public")
+    assert res["stale_internal_routes"] == ["gone-page"]
+
+
+def test_sitemap_static_page_advertised_without_file(tmp_path):
+    _mk(tmp_path, "index", "x")
+    _endpoint(tmp_path, extra="const STATIC = ['/btc-engine/track'];")
+    res = aud.check_sitemap_endpoint(tmp_path, public_dir=tmp_path / "public")
+    assert [d["route"] for d in res["sitemap_without_page"]] == ["/btc-engine/track"]
+
+
+def test_sitemap_endpoint_unparseable_is_a_finding_not_a_pass(tmp_path):
+    """Fail-CLOSED: no truth ⇒ finding. A missing endpoint must never read as «consistent»."""
+    _mk(tmp_path, "index", "x")
+    res = aud.check_sitemap_endpoint(tmp_path, public_dir=tmp_path / "public")
+    assert res["endpoint_unparseable"] and "no sitemap truth" in res["endpoint_unparseable"]
+
+
+def test_dead_public_sitemap_is_not_compared(tmp_path):
+    """The static file may say anything at all — it is overridden at build time and is NOT the truth."""
     _mk(tmp_path, "index", "x"); _mk(tmp_path, "orphan", "y")
-    sm = tmp_path / "sitemap.xml"
-    sm.write_text('<urlset><url><loc>https://earn-defi.com/</loc></url></urlset>')
-    res = aud.check_sitemap_vs_pages(sm, tmp_path)
-    assert "orphan" in res["missing_from_sitemap"]
+    _endpoint(tmp_path)
+    public = tmp_path / "public"; public.mkdir()
+    (public / "sitemap.xml").write_text('<urlset><url><loc>https://earn-defi.com/</loc></url></urlset>')
+    res = aud.check_sitemap_endpoint(tmp_path, public_dir=public)
+    assert res["missing_from_sitemap"] == [] and res["static_sitemap_present"] is True
 
 
 def test_narrative_cycle_time_wrong_flagged(tmp_path):
@@ -80,8 +125,27 @@ def test_narrative_apy_constants_collected(tmp_path):
 
 
 def test_audit_clean_fixture(tmp_path):
+    """`sitemap_path=` снят вместе с `check_sitemap_vs_pages` (см. блок выше): истина — эндпоинт."""
     _mk(tmp_path, "index", "welcome {snapDays}")
-    sm = tmp_path / "sitemap.xml"
-    sm.write_text('<urlset><url><loc>https://earn-defi.com/</loc></url></urlset>')
-    r = aud.audit(pages_dir=tmp_path, sitemap_path=sm, now=NOW, components_dir=None)
-    assert r["ok"] is True and r["n_fails"] == 0
+    _endpoint(tmp_path, internal=())
+    r = aud.audit(pages_dir=tmp_path, public_dir=tmp_path / "public", now=NOW, components_dir=None)
+    assert r["ok"] is True and r["n_fails"] == 0, r["fails"]
+
+
+def test_warn_finding_does_not_flip_the_exit_code(tmp_path):
+    """Положительный контроль правки 08.09: WARN виден в отчёте, но НЕ красит job (10/10 красных прогонов)."""
+    _mk(tmp_path, "index", "anchored 2026-01-01 forever")
+    _endpoint(tmp_path, internal=())
+    r = aud.audit(pages_dir=tmp_path, public_dir=tmp_path / "public", now=NOW, components_dir=None)
+    codes = {f["code"] for f in r["fails"]}
+    assert "STALE_HARDCODED_DATE" in codes
+    assert all(f["severity"] == aud.WARN for f in r["fails"]), r["fails"]
+    assert r["n_errors"] == 0 and aud.exit_code(r) == 0
+
+
+def test_error_finding_does_flip_the_exit_code(tmp_path):
+    """Обратная сторона того же контроля: ERROR обязан краснить — иначе это fail-OPEN."""
+    _mk(tmp_path, "index", '<a href="/nonexistent-page">x</a>')
+    _endpoint(tmp_path, internal=())
+    r = aud.audit(pages_dir=tmp_path, public_dir=tmp_path / "public", now=NOW, components_dir=None)
+    assert r["n_errors"] >= 1 and aud.exit_code(r) == 1
