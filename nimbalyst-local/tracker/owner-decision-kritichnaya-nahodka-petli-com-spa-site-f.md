@@ -6,6 +6,10 @@ status: needs-owner
 source: nimbalyst
 created: 2026-09-09
 finding_key: "B1:dead:com.spa.site_freshness"
+owner_choice: ack
+owner_answered_at: 2026-09-09T06:13:27.527093+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно

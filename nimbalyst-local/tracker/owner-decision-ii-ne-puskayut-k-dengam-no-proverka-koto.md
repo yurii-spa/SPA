@@ -4,6 +4,10 @@ trackerStatus:
 title: ИИ не пускают к деньгам — но проверка, которая это стережёт, слепа на нашу единственную дверь
 status: needs-owner
 created: 2026-09-07
+owner_choice: 1
+owner_answered_at: 2026-09-09T06:13:34.005745+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно

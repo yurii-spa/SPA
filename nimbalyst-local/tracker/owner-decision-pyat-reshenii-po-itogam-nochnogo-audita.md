@@ -6,6 +6,10 @@ status: needs-owner
 source: agent
 created: 2026-09-09
 tags: [index, night-audit, owner-decisions]
+owner_choice: 2
+owner_answered_at: 2026-09-09T06:12:54.808480+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно

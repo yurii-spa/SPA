@@ -5,6 +5,10 @@ title: "Утренние сообщения в Telegram: главное + под
 status: needs-owner
 source: nimbalyst
 created: 2026-09-08
+owner_choice: 1
+owner_answered_at: 2026-09-09T06:14:08.413666+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно
