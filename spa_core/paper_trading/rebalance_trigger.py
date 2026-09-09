@@ -721,13 +721,36 @@ def _read_json(base: Path, name: str):
         return None
 
 
-def _observed_apys(adapter_status) -> Dict[str, float]:
+def _observed_apys(adapter_status, *, tvl_floor_usd: float = 0.0,
+                   live_tvl_by_protocol: Optional[Dict[str, float]] = None,
+                   dropped: Optional[List[str]] = None) -> Dict[str, float]:
     """``{ключ: доходность}`` ТОЛЬКО по наблюдениям этого прогона (ADR-240).
 
     Литеральный ``fallback_apy`` сюда не попадает намеренно: RT-05 сравнивает
     книгу с тем, что МОЖНО купить по наблюдённому числу. Подставить литерал
     значило бы предложить перекладку по ставке, которую никто не видел, —
     ровно тот дефект, который считает `capital_evidence_coverage` (ADR-226).
+
+    **И «можно купить» — это ещё и пол по TVL (ADR-274).** Наблюдённой ставки мало:
+    пул ниже пола RiskPolicy гейт не пропустит НИКОГДА, поэтому предлагать книге
+    переложиться в него — не сигнал, а шум. Замер 2026-09-08: лучшим «доступным» был
+    `moonwell_base` 14.03 % при TVL $78 192 против пола $5 000 000, разрыв 8.97 пп ⇒
+    вердикт REBALANCE каждый день, и настоящий сигнал в нём было не различить.
+
+    **Живой TVL берётся у ОРКЕСТРАТОРА, а не из этого же файла**, и это не вкусовщина.
+    Замер 09.09: два артефакта ОДНОГО прогона расходятся о происхождении одного и того же
+    числа — `adapter_status.json` пишет у `aave_v3` `tvl_usd 12 000 000 000, tvl_source
+    "static"` (литерал), а снимок оркестратора у него же — `146 775 249, "live"`. Гейт
+    RiskPolicy по ADR-053 читает снимок ОРКЕСТРАТОРА, поэтому пол должен считаться по нему:
+    фильтр по локальному полю отбросил бы девять пулов, включая тот, что реально проходит,
+    и **спрятал бы настоящий сигнал** — отказ в неверную сторону.
+
+    ``live_tvl_by_protocol`` — ``{протокол: живой TVL}`` из снимка оркестратора. Протокола
+    там нет ⇒ живого TVL не измерял никто ⇒ пул не альтернатива (fail-CLOSED, ADR-053).
+    Карта не передана ⇒ пол НЕ применяется, и назвать это обязан вызывающий (третий исход).
+
+    ``dropped`` — если передан список, в него попадают имена, отброшенные полом, чтобы
+    вызывающий мог НАЗВАТЬ причину, а не молча показать более короткую вселенную.
     """
     out: Dict[str, float] = {}
     if not isinstance(adapter_status, dict):
@@ -735,13 +758,47 @@ def _observed_apys(adapter_status) -> Dict[str, float]:
     adapters = adapter_status.get("adapters")
     if not isinstance(adapters, dict):
         return out
+    floor = float(tvl_floor_usd or 0.0)
+    apply_floor = floor > 0 and isinstance(live_tvl_by_protocol, dict)
     for key, entry in adapters.items():
         if not isinstance(entry, dict) or not entry.get("live_apy_fresh"):
             continue
         val = entry.get("live_apy")
         if isinstance(val, bool) or not isinstance(val, (int, float)):
             continue
+        if apply_floor:
+            tvl = (live_tvl_by_protocol or {}).get(str(key))
+            if (not isinstance(tvl, (int, float)) or isinstance(tvl, bool)
+                    or float(tvl) < floor):
+                if dropped is not None:
+                    dropped.append(str(key))
+                continue
         out[str(key)] = float(val)
+    return out
+
+
+def _live_tvl_by_protocol(orchestrator_snapshot) -> Dict[str, float]:
+    """``{протокол: TVL}`` ТОЛЬКО там, где TVL наблюдался живым фидом (ADR-053).
+
+    Источник — снимок оркестратора, тот же, по которому решает гейт RiskPolicy.
+    Статический литерал сюда не попадает: на нём пол не верифицирован.
+    """
+    out: Dict[str, float] = {}
+    if not isinstance(orchestrator_snapshot, dict):
+        return out
+    rows = orchestrator_snapshot.get("adapters")
+    if isinstance(rows, dict):
+        rows = list(rows.values())
+    if not isinstance(rows, list):
+        return out
+    for r in rows:
+        if not isinstance(r, dict) or r.get("tvl_source") != "live":
+            continue
+        name, tvl = r.get("protocol"), r.get("tvl_usd")
+        if not isinstance(name, str):
+            continue
+        if isinstance(tvl, (int, float)) and not isinstance(tvl, bool):
+            out[name] = float(tvl)
     return out
 
 
@@ -848,14 +905,46 @@ def evaluate_from_state(data_dir: str = "data") -> dict:
         gaps["rt04"] = gap
 
     # ── вселенная доходностей ────────────────────────────────────────────
+    # ADR-274: вселенная = то, что гейт МОЖЕТ профинансировать, то есть наблюдённая
+    # ставка И живой TVL не ниже пола RiskPolicy. Без пола RT-05 сравнивал книгу с
+    # непроходимым пулом и требовал ребаланс ежедневно (замер 08.09, moonwell_base).
+    try:
+        from spa_core.risk.policy import RiskConfig as _RiskConfig
+        _tvl_floor = float(getattr(_RiskConfig(), "min_tvl_usd", 0.0) or 0.0)
+    except Exception as _exc:  # noqa: BLE001 — читатель не смеет валить цикл
+        _tvl_floor = 0.0
+        gaps["rt05"] = (f"пол по TVL не прочитан ({type(_exc).__name__}) — вселенная НЕ "
+                        f"отфильтрована, сравнение с непроходимым пулом возможно")
+    _live_tvl = _live_tvl_by_protocol(_read_json(base, "adapter_orchestrator_status.json"))
+    if _tvl_floor > 0 and not _live_tvl:
+        gaps["rt05"] = ("живой TVL не прочитан (`adapter_orchestrator_status.json` пуст или "
+                        f"без live-строк) — пол ${_tvl_floor:,.0f} применить нечем, в наборе "
+                        "может быть пул, который гейт не пропустит")
+    _dropped: List[str] = []
     available_apys = _extract_available_apys(
         _read_json(base, "adapter_snapshot.json") or {})
     if available_apys:
         inputs["apys"] = "adapter_snapshot.json"
+        # У этого снимка нет ни TVL, ни его источника — пол применить нечем, и это
+        # НАЗЫВАЕТСЯ, а не выдаётся за отфильтрованную вселенную.
+        if _tvl_floor > 0:
+            gaps["rt05"] = ("вселенная взята из `adapter_snapshot.json`, где нет TVL — "
+                            f"пол ${_tvl_floor:,.0f} применить нечем, в наборе может быть "
+                            "пул, который гейт не пропустит")
     else:
-        available_apys = _observed_apys(_read_json(base, "adapter_status.json"))
+        available_apys = _observed_apys(_read_json(base, "adapter_status.json"),
+                                        tvl_floor_usd=_tvl_floor,
+                                        live_tvl_by_protocol=_live_tvl or None,
+                                        dropped=_dropped)
         if available_apys:
-            inputs["apys"] = "adapter_status.json:live_apy(fresh)"
+            inputs["apys"] = (
+                "adapter_status.json:live_apy(fresh)+orchestrator:live_tvl>=floor"
+                if (_tvl_floor > 0 and _live_tvl) else "adapter_status.json:live_apy(fresh)")
+        if _dropped:
+            inputs["apys_dropped_below_floor"] = ", ".join(sorted(set(_dropped)))
+        if not available_apys and _dropped:
+            gaps["rt05"] = (f"ни один пул со наблюдённой ставкой не проходит пол по TVL "
+                            f"(${_tvl_floor:,.0f}); отброшены: {sorted(set(_dropped))}")
 
     # ── вердикт дневных лимитов (RT-03) ──────────────────────────────────
     daily_limits = _read_json(base, "risk_limits_check.json")

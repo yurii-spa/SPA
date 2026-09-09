@@ -153,14 +153,27 @@ class TestEvaluateFromState(unittest.TestCase):
         self.assertIn("should_rebalance", out)
         self.assertFalse(out["should_rebalance"])
 
-    def test_apy_spread_from_snapshot(self):
+    def test_apy_spread_from_a_tvl_less_snapshot_is_named_unmeasured(self):
+        """НАМЕРЕННО ИЗМЕНЁННЫЙ ТЕСТ (инв. #16, ADR-274, журнал 2026-W37, 09.09).
+
+        Прежде RT-05 срабатывал от `adapter_snapshot.json` — файла, в котором нет ни
+        TVL, ни его источника. Пол RiskPolicy применить к такой вселенной нечем, а
+        проверка, у которой не было входа, НЕ ИМЕЕТ ПРАВА срабатывать (то же правило,
+        по которому здесь молчит RT-02). Поэтому теперь исход — «не измерено» с
+        названной причиной, а не вердикт. Ослаблением было бы просто снять
+        утверждение: настоящее срабатывание RT-05 закреплено в
+        `test_rt05_universe_respects_the_tvl_floor.py` (проходимый пул, разрыв > 1.5 пп).
+        """
         self._w("paper_trading_status.json",
                 {"current_positions": {"aave_v3": 100000}, "apy_today_pct": 3.0})
         self._w("adapter_snapshot.json",
                 {"protocols": [{"name": "morpho", "apy": 8.0}]})
         out = evaluate_from_state(str(self.dir))
-        self.assertTrue(out["should_rebalance"])
-        self.assertIn("RT-05", out["triggered"])
+        rt05 = out["checks"]["rt05"]
+        self.assertFalse(rt05["triggered"])
+        self.assertFalse(rt05["measured"])
+        self.assertIn("пол", rt05["unmeasured_reason"])
+        self.assertIn("RT-05", out["unmeasured"])
 
     def test_drift_from_target_file(self):
         self._w("paper_trading_status.json",

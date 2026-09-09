@@ -269,6 +269,18 @@ class TestLivePathReadsRealArtifacts(unittest.TestCase):
             "moonwell_base": {"live_apy": 99.0, "live_apy_fresh": False,
                               "fallback_apy": 99.0},
         }})
+        # НАМЕРЕННОЕ дополнение фикстуры (инв. #16, ADR-274, журнал 2026-W37, 09.09):
+        # у прод-дерева есть ещё один артефакт того же прогона — снимок оркестратора,
+        # и вселенная RT-05 теперь обязана проходить пол RiskPolicy по ЕГО живому TVL
+        # (замер 08.09: лучшим «доступным» был пул с TVL $78 192 при поле $5M; замер 09.09:
+        # `adapter_status` зовёт TVL тех же пулов литералом, и фильтр по нему прятал бы
+        # сигнал). Это НЕ ослабление: контроль на литеральную СТАВКУ выше сохранён,
+        # а пол проверяется отдельным файлом `test_rt05_universe_respects_the_tvl_floor.py`.
+        self._w("adapter_orchestrator_status.json", {"adapters": [
+            {"protocol": "compound_v3", "tvl_usd": 500_000_000.0, "tvl_source": "live"},
+            {"protocol": "aave_v3", "tvl_usd": 146_000_000.0, "tvl_source": "live"},
+            {"protocol": "moonwell_base", "tvl_usd": 78_192.0, "tvl_source": "live"},
+        ]})
         self._w("trades.json", [{"ts": ts(hours_ago=24 * 6), "delta_abs": 17368.42}])
         self._w("market_regime.json", {"regime": "VOLATILE"})
 
