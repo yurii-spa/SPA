@@ -2,14 +2,21 @@
 // C6 (redesign spec 04) — the bridge page: "How we think about stablecoin yield (honestly)". The §2
 // reframe in long form. Every snapshot / report result that names an un-fixable gap (C5) links here.
 // No promised returns, no fabricated numbers — the honest thesis, stated plainly, with the canonical
-// ~3.3% realized floor vs the up-to-20% target (paper, tail shown). Bilingual.
+// the realized floor from the snapshot vs the up-to-20% target (paper, tail shown). Bilingual.
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import TrustBand from '../components/TrustBand.astro';
+import snapRR from '../data/track_snapshot.json';
+// ADR-292/286: фактическая ставка НИКОГДА не пишется руками — один источник, из снимка.
+import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR } from '../lib/realized_rate.js';
+const realizedEn = realizedPhraseRR(snapRR);
+const realizedRu = realizedPhraseRR(snapRR, true);
+const realizedNumEn = realizedLabelRR(snapRR);
+const realizedNumRu = realizedLabelRR(snapRR, true);
 ---
 <Layout
   title="How we think about stablecoin yield — honestly | earn-defi.com"
-  description="The honest way to think about stablecoin yield: every percent above the risk-free floor pays you for a risk. We measure that risk, publish what we refuse, and show the tail. ~3.3% realized on the live paper track; up-to-20% targets are research/paper, shown with their drawdowns. Not investment advice."
+  description="The honest way to think about stablecoin yield: every percent above the risk-free floor pays you for a risk. We measure that risk, publish what we refuse, and show the tail. {realizedNumEn} realized on the live paper track; up-to-20% targets are research/paper, shown with their drawdowns. Not investment advice."
 >
   <main class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-24">
     <p class="text-xs font-mono uppercase tracking-[0.12em] text-text-faint mb-4" data-ru="Честная рамка">The honest frame</p>
@@ -44,14 +51,14 @@ import TrustBand from '../components/TrustBand.astro';
 
     <section class="mb-10">
       <h2 class="text-xl font-semibold text-white mb-3" data-ru="3. Проверенный пол против показанного хвоста">3. The proven floor vs the shown tail</h2>
-      <p class="text-base text-slate-300 leading-relaxed mb-3" data-ru="Наш живой консервативный paper-трек даёт ~3,3% реализованных при 0,0% просадки — реально, подтверждено, проверяемо. Цели до ~20% существуют в исследовательских стратегиях — но это бумага, и мы ВСЕГДА показываем их хвост (одна книга теряла ~50% на обвале ETH). Мы не подаём бумагу как live и не обещаем доходность. Вы выбираете осознанно.">
-        Our live conservative paper track runs at ~3.3% realized with 0.0% drawdown — real, evidenced,
+      <p class="text-base text-slate-300 leading-relaxed mb-3" data-ru={`Наш живой консервативный paper-трек даёт ${realizedNumRu} реализованных при 0,0% просадки (начисление, издержки не списаны) — реально, подтверждено, проверяемо. Цели до ~20% существуют в исследовательских стратегиях — но это бумага, и мы ВСЕГДА показываем их хвост (одна книга теряла ~50% на обвале ETH). Мы не подаём бумагу как live и не обещаем доходность. Вы выбираете осознанно.`}>
+        Our live conservative paper track runs at {realizedNumEn} realized with 0.0% drawdown (accrual, no costs charged) — real, evidenced,
         checkable. Up-to-~20% targets exist in the research strategies — but that is paper, and we ALWAYS
         show the tail (one book lost ~50% through the ETH crash). We never present paper as live and never
         promise a return. You choose with your eyes open.
       </p>
       <div class="flex flex-wrap gap-3 mt-3">
-        <a href="/annual-contrast" data-track="htw_to_annual" class="text-sm text-accent-400 underline" data-ru="Хвост в цифрах: 15% против ~3,3% →">The tail in numbers: 15% vs ~3.3% →</a>
+        <a href="/annual-contrast" data-track="htw_to_annual" class="text-sm text-accent-400 underline" data-ru={`Хвост в цифрах: 15% против ${realizedNumRu} →`}>The tail in numbers: 15% vs {realizedNumEn} →</a>
         <a href="/packages" data-track="htw_to_packages" class="text-sm text-accent-400 underline" data-ru="Три честных тира →">The three honest tiers →</a>
       </div>
     </section>

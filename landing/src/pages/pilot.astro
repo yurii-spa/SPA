@@ -6,6 +6,13 @@
 // (each independently checkable via the linked verifier). This is NOT an offer or solicitation.
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
+import snapRR from '../data/track_snapshot.json';
+// ADR-292/286: фактическая ставка НИКОГДА не пишется руками — один источник, из снимка.
+import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR } from '../lib/realized_rate.js';
+const realizedEn = realizedPhraseRR(snapRR);
+const realizedRu = realizedPhraseRR(snapRR, true);
+const realizedNumEn = realizedLabelRR(snapRR);
+const realizedNumRu = realizedLabelRR(snapRR, true);
 ---
 
 <Layout
@@ -20,9 +27,9 @@ import Disclaimer from '../components/Disclaimer.astro';
         <span data-ru="Черновик для разговора — не оферта">Draft for a conversation — not an offer</span>
       </div>
       <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4" data-ru="Поговорите с тем, кто это построил">Talk to the person who built this</h1>
-      <p class="text-lg text-slate-300 leading-relaxed" data-ru="30 минут, без питча, без обязательств. Спросите что угодно: как деск меряет риск, почему отказывается от того, от чего отказывается, и как выглядит честный ~3,3% трек. Research-деск в paper-валидации — не оферта и не инвестсовет.">
+      <p class="text-lg text-slate-300 leading-relaxed" data-ru={`30 минут, без питча, без обязательств. Спросите что угодно: как деск меряет риск, почему отказывается от того, от чего отказывается, и как выглядит честный ${realizedNumRu} трек. Research-деск в paper-валидации — не оферта и не инвестсовет.`}>
         30 minutes, no pitch, no obligation. Ask anything — how the desk measures risk, why it refuses
-        what it refuses, and what an honest ~3.3% realized track actually looks like. A research desk in
+        what it refuses, and what an honest {realizedNumEn} realized track actually looks like. A research desk in
         paper validation — not an offer or investment advice.
       </p>
     </section>

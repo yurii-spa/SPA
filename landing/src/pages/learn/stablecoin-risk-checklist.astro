@@ -4,12 +4,16 @@
 // snapshot CTA mid+end, funnel links. No fabricated numbers, no promised returns. Bilingual.
 import Layout from '../../layouts/Layout.astro';
 import Disclaimer from '../../components/Disclaimer.astro';
+import snap from '../../data/track_snapshot.json';
+import { realizedApyLabel } from '../../lib/realized_rate.js';
+const rrEn = realizedApyLabel(snap);
+const rrRu = realizedApyLabel(snap, true);
 
 const checks = [
   { en: 'Do you actually hold the keys?', ru: 'Ключи реально у вас?', den: 'If it sits on an exchange, they control it, not you. Test a small withdrawal.', dru: 'Если на бирже — контролирует она, не вы. Проверьте вывод небольшой суммы.' },
   { en: 'Are you concentrated in one issuer?', ru: 'Не сконцентрированы ли в одном эмитенте?', den: 'One USDx being your whole balance is one break condition away from a bad day.', dru: 'Один USDx как весь баланс — это один сценарий поломки до плохого дня.' },
   { en: 'Do you know each stablecoin’s break condition?', ru: 'Знаете ли механизм поломки каждого стейбла?', den: 'Fiat-backed vs algo vs LST-collateralised fail in different ways. Know which you hold.', dru: 'Фиат / алго / LST-обеспеченные ломаются по-разному. Знайте, что держите.' },
-  { en: 'Are any of your stables idle at 0%?', ru: 'Есть ли простаивающие под 0%?', den: 'Idle money is a silent cost. Even a safe ~3.3% is real over a year.', dru: 'Простаивающие деньги — тихий убыток. Даже безопасные ~3,3% реальны за год.' },
+  { en: 'Are any of your stables idle at 0%?', ru: 'Есть ли простаивающие под 0%?', den: `Idle money is a silent cost. Even a safe ~${rrEn} is real over a year.`, dru: `Простаивающие деньги — тихий убыток. Даже безопасные ~${rrRu} реальны за год.` },
   { en: 'Have you checked your token approvals?', ru: 'Проверяли ли approvals (разрешения)?', den: 'Unlimited allowances are the most common drain vector. Revoke stale ones.', dru: 'Безлимитные разрешения — самый частый вектор слива. Отзовите старые.' },
   { en: 'Do you know your exit liquidity?', ru: 'Знаете ли ликвидность на выход?', den: 'A big position can move its own exit price. Book value ≠ exit value.', dru: 'Крупная позиция двигает свою же цену выхода. Балансовая ≠ выходная.' },
   { en: 'Are you being paid for a hidden tail?', ru: 'Не платят ли вам за скрытый хвост?', den: 'Yield far above ~3.4% is compensation for a risk. What is it?', dru: 'Доход сильно выше ~3,4% — компенсация за риск. За какой?' },

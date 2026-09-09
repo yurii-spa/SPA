@@ -3,6 +3,13 @@ import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import snap from '../data/track_snapshot.json';  // single-source the gate count (no hardcoded drift)
 import { goLiveLabel } from '../lib/golive_label.js';
+import snapRR from '../data/track_snapshot.json';
+// ADR-292/286: фактическая ставка НИКОГДА не пишется руками — один источник, из снимка.
+import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR } from '../lib/realized_rate.js';
+const realizedEn = realizedPhraseRR(snapRR);
+const realizedRu = realizedPhraseRR(snapRR, true);
+const realizedNumEn = realizedLabelRR(snapRR);
+const realizedNumRu = realizedLabelRR(snapRR, true);
 
 // Canonical GoLive figures — read from the committed snapshot (data/golive_status.json →
 // track_snapshot.json), the same source /status and /due-diligence use. They USED to be typed
@@ -161,9 +168,9 @@ const goLive = goLiveLabel(snap);
         ))}
       </div>
       <div class="mt-5 rounded-xl border border-border-strong bg-bg-surface p-5">
-        <p class="text-sm text-white/60 leading-relaxed" data-ru="Где SPA сейчас: наш evidenced paper-трек — это честный L3 («paper-tracked за N evidenced-дней»), а не L4+. Консервативная планка «~3.3% real» и Paper APY на /track-record — это L3-числа, помеченные «переменные · не гарантированы». Мы не называем бумагу «validated» или «live-tested»; повышение уровня — по одному за раз.">
+        <p class="text-sm text-white/60 leading-relaxed" data-ru={`Где SPA сейчас: наш evidenced paper-трек — это честный L3 («paper-tracked за N evidenced-дней»), а не L4+. Консервативная планка «${realizedNumRu} real» и Paper APY на /track-record — это L3-числа, помеченные «переменные · не гарантированы». Мы не называем бумагу «validated» или «live-tested»; повышение уровня — по одному за раз.`}>
           <strong class="text-white/85">Where SPA is now:</strong> our evidenced paper track is honest <strong class="text-accent-400">L3</strong>
-          ("paper-tracked over N evidenced days"), not L4+. The conservative "~3.3% real" baseline and the Paper APY on
+          ("paper-tracked over N evidenced days"), not L4+. The conservative "{realizedNumEn} real" baseline and the Paper APY on
           <a data-track="methodology_to_track_record" href="/track-record" class="text-accent-400 hover:underline">/track-record</a> are L3 numbers, labelled
           "variable · not guaranteed". We never call paper "validated" or "live-tested"; promotion is one level at a time.
         </p>

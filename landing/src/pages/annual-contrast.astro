@@ -2,19 +2,26 @@
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import AnnualContrast from '../components/AnnualContrast.jsx';
+import snapRR from '../data/track_snapshot.json';
+// ADR-292/286: фактическая ставка НИКОГДА не пишется руками — один источник, из снимка.
+import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR } from '../lib/realized_rate.js';
+const realizedEn = realizedPhraseRR(snapRR);
+const realizedRu = realizedPhraseRR(snapRR, true);
+const realizedNumEn = realizedLabelRR(snapRR);
+const realizedNumRu = realizedLabelRR(snapRR, true);
 
 /*
  * Annual Contrast — the owner's SHAREABLE sales one-pager.
  *
  * A clean page the owner can open in front of a prospect to SHOW "here is what chasing 15%
- * really costs — and here is our steady ~3.3% live paper book (near the ~3.4% RWA floor),
+ * really costs — and here is our steady live paper book at the realized rate (near the ~3.4% RWA floor),
  * walked through the same year." The two equity
  * curves, the aggressive book's drawdowns DATED + labelled by event, and the side-by-side
  * contrast table all render from the <AnnualContrast /> React island, which fetches
  * /api/aggressive-lab/annual-contrast (served VERBATIM, fail-CLOSED).
  *
  * HONESTY CONTRACT (mirrors the dashboard + the data contract):
- *   - The steady ~3.3% line is the desk's REAL conservative book (stable_apy_pct/source from the
+ *   - The steady realized-rate line is the desk's REAL conservative book (stable_apy_pct/source from the
  *     data) — an honest baseline, not a flattering fake. Its source is shown on the page.
  *   - A missing/offline contrast file → honest "unavailable", NEVER a fabricated chart.
  *   - Drawdown annotations carry their REAL dates+events; realized vs modeled are visually distinct.
@@ -29,8 +36,8 @@ import AnnualContrast from '../components/AnnualContrast.jsx';
 ---
 
 <Layout
-  title="The cost of chasing 15% — vs the desk's steady ~3.3% | earn-defi.com"
-  description="A full year, dated: the 10-15% aggressive strategies the desk REFUSES, shown with their real drawdowns labelled by event (the 2025-10 USDe unwind, the 2026-04 rsETH depeg), against the desk's REAL steady ~3.3% live paper book (near the ~3.4% RWA floor) conservative book over the same window. Paper / advisory / outside RiskPolicy — the strategies we refuse, shown with their real risk. Never live-allocated."
+  title="The cost of chasing 15% — vs the desk's steady {realizedNumEn} | earn-defi.com"
+  description="A full year, dated: the 10-15% aggressive strategies the desk REFUSES, shown with their real drawdowns labelled by event (the 2025-10 USDe unwind, the 2026-04 rsETH depeg), against the desk's REAL steady {realizedNumEn} live paper book (near the ~3.4% RWA floor) conservative book over the same window. Paper / advisory / outside RiskPolicy — the strategies we refuse, shown with their real risk. Never live-allocated."
   canonical="https://earn-defi.com/annual-contrast"
 >
   <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -44,8 +51,8 @@ import AnnualContrast from '../components/AnnualContrast.jsx';
       </div>
 
       <h1 class="text-4xl sm:text-5xl font-bold mb-4 leading-tight" style="color:var(--text-primary)"
-          data-ru="Сколько на самом деле стоит погоня за 15% — против стабильных ~3.3% деска">
-        What chasing 15% actually costs — vs the desk's steady ~3.3%
+          data-ru={`Сколько на самом деле стоит погоня за 15% — против стабильных ${realizedNumRu} деска`}>
+        What chasing 15% actually costs — vs the desk's steady {realizedNumEn}
       </h1>
 
       <p class="text-xl leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
@@ -95,12 +102,12 @@ import AnnualContrast from '../components/AnnualContrast.jsx';
       <p class="text-xs uppercase tracking-wider font-mono mb-3" style="color:var(--text-muted)"
          data-ru="Честный итог">The honest bottom line</p>
       <p class="text-base leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
-         data-ru="Каждая агрессивная книга заканчивает год выше — это и покупает хедлайн. Но путь оплачен датированными просадками: unwind USDe в 2025-10 и депег rsETH в 2026-04 проявляются на 15% стороне с реальными датами и реальной глубиной. Стабильная книга деска проходит тот же год с макс. просадкой ~0% — никакого датированного обрыва, нечего объяснять клиенту среди квартала. Вот в чём размен: можно гнаться за 15% и владеть его хвостом, или взять осознанные ~3,3% фактических (с начала трека, рядом с ~3,4% RWA-полом) и владеть своим сном. Мы запустим любой из них с открытыми глазами — эта страница для того, чтобы выбор был информированным.">
+         data-ru={`Каждая агрессивная книга заканчивает год выше — это и покупает хедлайн. Но путь оплачен датированными просадками: unwind USDe в 2025-10 и депег rsETH в 2026-04 проявляются на 15% стороне с реальными датами и реальной глубиной. Стабильная книга деска проходит тот же год с макс. просадкой ~0% — никакого датированного обрыва, нечего объяснять клиенту среди квартала. Вот в чём размен: можно гнаться за 15% и владеть его хвостом, или взять осознанные ${realizedNumRu} фактических (с начала трека, рядом с ~3,4% RWA-полом) и владеть своим сном. Мы запустим любой из них с открытыми глазами — эта страница для того, чтобы выбор был информированным.`}>
         Across every aggressive book, the year ends higher — that is what the headline buys. But the
         path is paid for in dated drawdowns: the 2025-10 USDe unwind and the 2026-04 rsETH depeg show
         up on the 15% side with real dates and real depths. The desk's steady book walks the same year
         with max-drawdown ~0% — no dated cliff, nothing to explain to a client mid-quarter. That is the
-        trade: you can chase 15% and own its tail, or take the deliberate ~3.3% realized (track-to-date, near the ~3.4% RWA floor) and own your sleep. We will
+        trade: you can chase 15% and own its tail, or take the deliberate {realizedNumEn} realized (track-to-date, near the ~3.4% RWA floor) and own your sleep. We will
         run either with eyes open — this page is so the choice is informed.
       </p>
     </section>

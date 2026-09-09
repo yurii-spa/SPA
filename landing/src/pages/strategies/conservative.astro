@@ -4,6 +4,13 @@ import Disclaimer from '../../components/Disclaimer.astro';
 import strategies from '../../data/strategy_config.json';
 import snap from '../../data/track_snapshot.json';
 import { goLiveLabel } from '../../lib/golive_label.js';
+import snapRR from '../../data/track_snapshot.json';
+// ADR-292/286: фактическая ставка НИКОГДА не пишется руками — один источник, из снимка.
+import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR } from '../../lib/realized_rate.js';
+const realizedEn = realizedPhraseRR(snapRR);
+const realizedRu = realizedPhraseRR(snapRR, true);
+const realizedNumEn = realizedLabelRR(snapRR);
+const realizedNumRu = realizedLabelRR(snapRR, true);
 
 const preserve = strategies.strategies.find(s => s.id === 'preserve')!;
 const global = strategies.global;
@@ -14,7 +21,7 @@ const goLive = goLiveLabel(snap);
 
 <Layout
   title="Conservative Strategy — Capital-Preservation DeFi Yield | SPA earn-defi.com"
-  description="Capital-preservation focused yield. Tier 1 protocols only, no leverage, no looping. Up to 6% target APY (variable, not guaranteed). The live, evidenced paper-tracked book (anchor June 22, 2026 · ~3.3% realized so far) — the tier the desk actually runs."
+  description="Capital-preservation focused yield. Tier 1 protocols only, no leverage, no looping. Up to 6% target APY (variable, not guaranteed). The live, evidenced paper-tracked book (anchor June 22, 2026 · {realizedNumEn} realized so far) — the tier the desk actually runs."
 >
 
   <!-- Nav -->
@@ -227,8 +234,8 @@ const goLive = goLiveLabel(snap);
           <span class="w-2 h-2 rounded-full bg-ok" aria-hidden="true"></span>
           <span class="text-sm text-ok font-medium" data-ru="Живой бумажный трек · подтверждён">Live paper track · evidenced</span>
         </div>
-        <p class="text-sm text-white/55 leading-relaxed" data-ru="Conservative — это подтверждённая бумажная книга, живой go-live трек (anchor 22 июня 2026, ~3.3% реализовано на текущий момент). Именно этот тир деск реально ведёт. Все показатели APY — переменные, не гарантированы.">
-          Conservative IS the evidenced paper-tracked book — the live go-live track (anchor June 22, 2026, ~3.3% realized so far). This is the tier the desk actually runs.
+        <p class="text-sm text-white/55 leading-relaxed" data-ru={`Conservative — это подтверждённая бумажная книга, живой go-live трек (anchor 22 июня 2026, ${realizedNumRu} реализовано на текущий момент). Именно этот тир деск реально ведёт. Все показатели APY — переменные, не гарантированы.`}>
+          Conservative IS the evidenced paper-tracked book — the live go-live track (anchor June 22, 2026, {realizedNumEn} realized so far). This is the tier the desk actually runs.
           All APY figures are variable, not guaranteed.
         </p>
       </div>
@@ -354,7 +361,7 @@ const goLive = goLiveLabel(snap);
 
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Когда начнётся бумажный трек?">When will paper tracking start?</h4>
-          <p class="text-sm text-white/55 leading-relaxed" data-ru="Conservative — это живая evidenced-книга (go-live трек, anchor 22.06.2026, ~3.3% реализовано). Именно её деск реально ведёт.">
+          <p class="text-sm text-white/55 leading-relaxed" data-ru={`Conservative — это живая evidenced-книга (go-live трек, anchor 22.06.2026, ${realizedNumRu} реализовано). Именно её деск реально ведёт.`}>
             Conservative is the live paper-tracked book — the go-live track. The 30-day evidenced track is accumulating toward go-live.
             The Balanced strategy is the current priority for paper track record validation.
           </p>

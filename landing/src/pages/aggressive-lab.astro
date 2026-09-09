@@ -2,6 +2,13 @@
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import AggressiveLabLive from '../components/AggressiveLabLive.jsx';
+import snapRR from '../data/track_snapshot.json';
+// ADR-292/286: фактическая ставка НИКОГДА не пишется руками — один источник, из снимка.
+import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR } from '../lib/realized_rate.js';
+const realizedEn = realizedPhraseRR(snapRR);
+const realizedRu = realizedPhraseRR(snapRR, true);
+const realizedNumEn = realizedLabelRR(snapRR);
+const realizedNumRu = realizedLabelRR(snapRR, true);
 
 /*
  * /aggressive-lab — the honest "N unstable aggressive strategies on a live paper test" board.
@@ -32,7 +39,7 @@ import AggressiveLabLive from '../components/AggressiveLabLive.jsx';
 
     <div class="mt-10">
       <a data-track="aggressive_lab_to_annual_contrast" href="/annual-contrast" class="text-sm underline" style="color:var(--accent-400)"
-         data-ru="Хвост в цифрах: 15% против реальных ~3.3% →">The tail in numbers: 15% vs the real ~3.3% →</a>
+         data-ru={`Хвост в цифрах: 15% против реальных ${realizedNumRu} →`}>The tail in numbers: 15% vs the real {realizedNumEn} →</a>
       <span class="mx-2" style="color:var(--text-faint)">·</span>
       <a data-track="aggressive_lab_to_packages" href="/packages" class="text-sm underline" style="color:var(--accent-400)"
          data-ru="Три тира →">The three tiers →</a>

@@ -36,6 +36,13 @@ const pkgApy = (k) => { const v = snap.packages && snap.packages[k] && snap.pack
 // tagged "(bt)", evidence-tagged on /packages) — a real measured value, never invented. JS still
 // overrides the data-fb="dd" cells live.
 import TIER_BANDS from '../lib/tier_bands.json';
+import snapRR from '../data/track_snapshot.json';
+// ADR-292/286: фактическая ставка НИКОГДА не пишется руками — один источник, из снимка.
+import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR } from '../lib/realized_rate.js';
+const realizedEn = realizedPhraseRR(snapRR);
+const realizedRu = realizedPhraseRR(snapRR, true);
+const realizedNumEn = realizedLabelRR(snapRR);
+const realizedNumRu = realizedLabelRR(snapRR, true);
 const pkgDD = (k) => {
   const v = snap.packages && snap.packages[k] && snap.packages[k].dd_pct;
   if (typeof v === 'number') return Number(v).toFixed(1) + '%';
@@ -68,9 +75,9 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
       {/* The closing sentence used to say "start with a free wallet check" — that check lived on
            checkup.earn-defi.com, which is no longer deployed. Every NUMBER in this line is unchanged
            (owner-gated); only the dead call-to-action was repointed at the live snapshot. */}
-      <p class="sub" data-ru="Цель — до ~20% годовых в наших исследовательских стратегиях (на бумаге, всегда с показанным риском — «хвостом»). На фундаменте живого деска, который уже доказал ~3,3% фактических при 0,0% просадки. Начните с бесплатного 60-секундного снимка безопасности.">
+      <p class="sub" data-ru={`Цель — до ~20% годовых в наших исследовательских стратегиях (на бумаге, всегда с показанным риском — «хвостом»). На фундаменте живого деска, который уже доказал ${realizedNumRu} фактических при 0,0% просадки (начисление, издержки не списаны). Начните с бесплатного 60-секундного снимка безопасности.`}>
         Target up to ~20%/yr in our research strategies — paper, always shown with the tail — built on a
-        live desk that already proves ~3.3% realized at 0.0% drawdown. Start with the free 60-second
+        live desk that already proves {realizedNumEn} realized at 0.0% drawdown (accrual, no costs charged). Start with the free 60-second
         safety snapshot.
       </p>
 
@@ -117,7 +124,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
         <div style="text-align:center;padding:18px 14px;border-radius:12px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.35)">
           <div style="font-size:13px;color:#34d399" data-ru="SPA Conservative">SPA Conservative</div>
           <div style="font-size:26px;font-weight:800;font-family:var(--font-mono);color:#34d399" data-ru="до ~6%">up to ~6%<small style="font-size:12px;font-weight:600" data-ru=" цель/год"> /yr target</small></div>
-          <div style="font-size:11px;color:var(--text-faint)" data-ru="~3,3% факт. на треке · проверяемо · 0,0% просадки · не гарантия">~3.3% realized to date · auditable · 0.0% drawdown · not a guarantee</div>
+          <div style="font-size:11px;color:var(--text-faint)" data-ru={`${realizedNumRu} факт. на треке · проверяемо · 0,0% просадки (начисление, издержки не списаны) · не гарантия`}>{realizedNumEn} realized to date · auditable · 0.0% drawdown (accrual, no costs charged) · not a guarantee</div>
         </div>
         <div style="text-align:center;padding:18px 14px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
           <div style="font-size:13px;color:var(--text-muted)" data-ru="Aggressive (исследование)">Aggressive (research)</div>
@@ -179,7 +186,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
         <div style="padding:18px;border-radius:12px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.35)">
           <div style="font-size:12px;color:#34d399" data-ru="На нашем реализованном треке">At our realized rate</div>
           <div style="font-size:28px;font-weight:800;font-family:var(--font-mono);color:#34d399">~$<span id="calc-real">1,650</span><small style="font-size:13px;font-weight:600">/yr</small></div>
-          <div style="font-size:11px;color:var(--text-faint)" data-ru="~3,3% фактической · 0,0% просадки">~3.3% realized · 0.0% drawdown</div>
+          <div style="font-size:11px;color:var(--text-faint)" data-ru={`${realizedNumRu} фактической · 0,0% просадки (начисление, издержки не списаны)`}>{realizedNumEn} realized · 0.0% drawdown (accrual, no costs charged)</div>
         </div>
         <div style="padding:18px;border-radius:12px;background:var(--bg-surface);border:1px dashed rgba(234,179,8,.5)">
           <div style="font-size:12px;color:#eab308" data-ru="Если цели исследования подтвердятся">If research targets validate</div>
@@ -275,7 +282,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
             <li><span class="k" data-ru="Макс. просадка">Max drawdown</span><span class="v" data-fb="dd" data-ru={pkgDDru('conservative')}>{pkgDD('conservative')}</span></li>
             <li><span class="k" data-ru="Состав">Tier mix</span><span class="v">T1</span></li>
           </ul>
-          <p class="tier-who" style="color:#34d399" data-ru="Реальная книга, которую деск ведёт сегодня — живой бумажный трек с 22 июня 2026, ~3.3% реализовано. Только пулы Уровня 1.">The real book the desk runs today — a live paper track since June 22, 2026, ~3.3% realized so far. Tier 1 pools only.</p>
+          <p class="tier-who" style="color:#34d399" data-ru={`Реальная книга, которую деск ведёт сегодня — живой бумажный трек с 22 июня 2026, ${realizedNumRu} реализовано. Только пулы Уровня 1.`}>The real book the desk runs today — a live paper track since June 22, 2026, {realizedNumEn} realized so far. Tier 1 pools only.</p>
           <a class="btn-card" href="/strategies/conservative" data-track="tier_view_conservative" data-ru="Подробнее →">View strategy details →</a>
         </div>
         <div class="tier-card t-core">
@@ -408,7 +415,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px">
         <a href="/packages" data-track="m11_usdc" style="display:block;text-decoration:none;padding:20px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
           <div style="font-size:16px;font-weight:800;color:var(--text-primary)" data-ru="Есть USDC / USDT?">Holding USDC / USDT?</div>
-          <div style="font-size:13px;color:var(--text-secondary);margin-top:6px" data-ru="Смотрите консервативный тир — ~3,3% фактических, проверяемо, 0,0% просадки →">See the conservative tier — ~3.3% realized, auditable, 0.0% drawdown →</div>
+          <div style="font-size:13px;color:var(--text-secondary);margin-top:6px" data-ru={`Смотрите консервативный тир — ${realizedNumRu} фактических, проверяемо, 0,0% просадки (начисление, издержки не списаны) →`}>See the conservative tier — {realizedNumEn} realized, auditable, 0.0% drawdown (accrual, no costs charged) →</div>
         </a>
         {/* 2026-08-20 (ADR-089 §5): these two cards pointed at /#analyze — the hero, which used to
              hold the paste-an-address widget of the checkup. The widget went with the service
