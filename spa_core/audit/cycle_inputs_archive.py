@@ -43,12 +43,12 @@ GENESIS = "0" * 64
 SCHEMA_VERSION = "1.0"
 
 
-def path_for(data_dir: str | os.PathLike) -> Path:
-    return Path(data_dir) / FILENAME
+def path_for(data_dir: str | os.PathLike, filename: str = FILENAME) -> Path:
+    return Path(data_dir) / filename
 
 
-def read_all(data_dir: str | os.PathLike) -> list[dict]:
-    p = path_for(data_dir)
+def read_all(data_dir: str | os.PathLike, filename: str = FILENAME) -> list[dict]:
+    p = path_for(data_dir, filename)
     if not p.is_file():
         return []
     out: list[dict] = []
@@ -116,24 +116,30 @@ def build_record(
     }
 
 
-def append_record(data_dir: str | os.PathLike, payload: dict, ts: str) -> dict:
-    """Append one chained entry and return it. Whole-file atomic rewrite (the file is ~1 row/day)."""
-    entries = read_all(data_dir)
+def append_record(data_dir: str | os.PathLike, payload: dict, ts: str,
+                  filename: str = FILENAME, event_type: str = EVENT_TYPE) -> dict:
+    """Append one chained entry and return it. Whole-file atomic rewrite (the file is ~1 row/day).
+
+    ``filename``/``event_type`` параметризованы (ADR-297): книги-рукава пишут СВОЙ архив тем же
+    механизмом, а не второй копией цепочки рядом. Умолчания — прежние, поэтому ни один
+    существующий вызывающий не меняется.
+    """
+    entries = read_all(data_dir, filename)
     good = [e for e in entries if "entry_hash" in e]
     seq = (good[-1]["seq"] + 1) if good else 0
     prev = good[-1]["entry_hash"] if good else GENESIS
-    entry = {"seq": seq, "ts": ts, "event_type": EVENT_TYPE, "payload": payload, "prev_hash": prev}
-    entry["entry_hash"] = compute_entry_hash(seq, ts, EVENT_TYPE, payload, prev)
+    entry = {"seq": seq, "ts": ts, "event_type": event_type, "payload": payload, "prev_hash": prev}
+    entry["entry_hash"] = compute_entry_hash(seq, ts, event_type, payload, prev)
     lines = [json.dumps(e, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
              for e in entries if "_corrupt" not in e]
     lines.append(json.dumps(entry, sort_keys=True, separators=(",", ":"), ensure_ascii=False))
-    _atomic_write_lines(path_for(data_dir), lines)
+    _atomic_write_lines(path_for(data_dir, filename), lines)
     return entry
 
 
-def verify(data_dir: str | os.PathLike) -> dict:
+def verify(data_dir: str | os.PathLike, filename: str = FILENAME) -> dict:
     """Recompute every hash in order. {ok, entries, broken_at, reason}."""
-    entries = read_all(data_dir)
+    entries = read_all(data_dir, filename)
     prev = GENESIS
     for i, e in enumerate(entries):
         if "_corrupt" in e:

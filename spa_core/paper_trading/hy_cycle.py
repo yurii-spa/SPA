@@ -287,6 +287,15 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
             state.get("positions") or [], cands, equity,
             today=today, allow_new=allow_new,
         )
+        # ADR-292 п.4: слепок входов для пересчёта. Снимается ДО начисления и переоценки —
+        # обе функции мутируют ноги (`stale`, `mark_price`), и архив, снятый после, доказывал бы
+        # исправность на уже изменённом входе.
+        import copy as _copy
+        _book_after_snapshot = _copy.deepcopy(book)
+        _marks_before = {p.get("protocol"): p.get("mark_price") for p in (book or [])
+                         if isinstance(p, dict) and p.get("mark_price") is not None}
+        _open_equity = equity
+        _prices = sleeve_book.observed_prices()
         dy, deployed = sleeve_book.accrue_book(book, cands)
         # ADR-292: издержки перекладки СПИСЫВАЮТСЯ. До этого кривая книги не могла
         # упасть ни в один день по построению — начисление всегда положительно, а
@@ -300,7 +309,7 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
         # ADR-292: переоценка позиций — шов с ТРЕТЬИМ исходом. Что не наблюдали, то
         # не переоценивается; доля покрытия пишется в строку истории числом, чтобы
         # «не измерено» нельзя было прочитать как «не двигалось».
-        _mtm = sleeve_book.mark_to_market(book, sleeve_book.observed_prices())
+        _mtm = sleeve_book.mark_to_market(book, _prices)
         equity += _mtm["pnl_usd"]
         if equity > peak:
             peak = equity
@@ -332,6 +341,26 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
             "cio_allowed_new": allow_new,
             "accrual_basis": sleeve_book.ACCRUAL_BASIS,
         })
+        # ADR-292 п.4: архив входов дня. Fail-open — доказательная обвязка не имеет права
+        # уронить цикл, который несёт трек; отказ при этом НЕ молчит (лог с причиной).
+        try:
+            from spa_core.audit import sleeve_inputs_archive as _sia
+            _sia.append_record(
+                _HY_DATA_PATH.parent, "balanced",
+                _sia.build_record(
+                    book="balanced", cycle_date=today, run_ts=now.isoformat() + "Z",
+                    open_equity=_open_equity, close_equity=equity,
+                    book_before=_legs_before, book_after=_book_after_snapshot,
+                    candidates=cands, chains=sleeve_book.chains_from_rows(rows),
+                    prices=_prices, marks_before=_marks_before,
+                    daily_yield_usd=dy, cost_usd=_cost["cost_usd"],
+                    mtm_pnl_usd=_mtm["pnl_usd"],
+                    accrual_basis=sleeve_book.ACCRUAL_BASIS, allow_new=allow_new),
+                now.isoformat() + "Z")
+        except Exception as _arch_exc:  # noqa: BLE001
+            import logging as _logging
+            _logging.getLogger("spa.balanced").warning(
+                "архив входов книги не записан (%s) — цикл продолжается", _arch_exc)
     else:
         # Тот же день уже записан — постуру берём из текущей развёрнутости книги.
         _dep = sum(float(p.get("notional_usd") or 0.0)

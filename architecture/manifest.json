@@ -1126,6 +1126,10 @@
     {
      "artifact": "data/hy_paper_trading.json",
      "slo_hours": 26.0
+    },
+    {
+     "artifact": "data/sleeve_inputs_balanced.jsonl",
+     "slo_hours": 26.0
     }
    ],
    "consumes": [],
@@ -1594,6 +1598,10 @@
    "produces": [
     {
      "artifact": "data/lp_paper_trading.json",
+     "slo_hours": 26.0
+    },
+    {
+     "artifact": "data/sleeve_inputs_aggressive.jsonl",
      "slo_hours": 26.0
     }
    ],
@@ -3506,6 +3514,26 @@
    "slo_hours": 3,
    "status": "active",
    "notes": "09.09 (ADR-276 + ADR-285, карточка inbox-podklyuchit-ekonomiku-tseha-k-agent-health): экономика цеха — сколько циклов и коммитов за сутки и во что это обошлось по цене владельца (architecture/owner_settings.json: 230 $/мес ÷ 102 цикла = 2.25 $). Мерится по ЗЕРКАЛУ (индекс прод-дерева отстаёт по построению, суточное окно там пусто ПО ПОСТРОЕНИЮ); дерево отстаёт ⇒ measured=false с названной причиной, ложный ноль невозможен"
+  },
+  {
+   "path": "data/sleeve_inputs_balanced.jsonl",
+   "producer": "com.spa.hy_cycle",
+   "consumers": [
+    "cycle_health_monitor"
+   ],
+   "slo_hours": 26,
+   "status": "active",
+   "notes": "09.09 (ADR-292 п.4): append-only hash-chained архив ВХОДОВ книги Balanced (книга до/после ребаланса, кандидаты с наблюдёнными ставками, карта сетей, цены, отметки) — без него день книги не пересчитывается из сохранённого; читает spa_core.audit.sleeve_replay через cycle_health_monitor"
+  },
+  {
+   "path": "data/sleeve_inputs_aggressive.jsonl",
+   "producer": "com.spa.lp_cycle",
+   "consumers": [
+    "cycle_health_monitor"
+   ],
+   "slo_hours": 26,
+   "status": "active",
+   "notes": "09.09 (ADR-292 п.4): то же для книги Aggressive. Отдельный файл и отдельный тип события: одна цепочка на две книги смешала бы их истории"
   }
  ],
  "designed_architectures": [

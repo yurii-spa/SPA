@@ -458,6 +458,37 @@ class CycleHealthMonitor:
                 "divergent_days": len(rep.get("diffs", [])), "max_abs_diff_usd": rep.get("max_abs_diff_usd"),
                 "reruns": rep.get("reruns"), "chain_ok": (rep.get("chain") or {}).get("ok"), "detail": detail}
 
+    def check_sleeve_replay(self, data_dir: str = "data") -> dict[str, Any]:
+        """Пересчёт дней книг Balanced/Aggressive из их архива входов (ADR-292 п.4).
+
+        Тот же приём и тот же третий исход, что у ``check_replay_from_inputs`` для
+        консервативной книги: пересчёт делают ТЕ ЖЕ функции, которыми считал цикл, а пустой
+        архив — «не измерено», а не «сходится». Советующий: в общий вердикт не входит, потому
+        что советательные книги капитал не двигают.
+        """
+        try:
+            from spa_core.audit import sleeve_replay as _sr
+            rep = _sr.replay_all(data_dir)
+        except Exception as exc:  # noqa: BLE001 — сторож не имеет права ронять монитор
+            return {"status": UNCHECKED, "advisory": True,
+                    "detail": f"пересчёт книг не отработал: {type(exc).__name__}: {exc}"}
+        st = str(rep.get("status") or "")
+        status = {"PASS": "HEALTHY", "FAIL": "WARNING"}.get(st, UNCHECKED)
+        parts = []
+        for book, r in (rep.get("books") or {}).items():
+            if r["status"] == "PASS":
+                parts.append(f"{book}: {r['days']} дн. сходятся до {r['tolerance_usd']} $")
+            elif r["status"] == "FAIL":
+                parts.append(f"{book}: расходятся {len(r['diffs'])} из {r['days']} дн., "
+                             f"худшее {r['max_abs_diff_usd']} $")
+            else:
+                parts.append(f"{book}: не измерено ({r.get('reason')})")
+        return {"status": status, "advisory": True, "replay_status": st,
+                "books": {b: {"status": r["status"], "days": r.get("days"),
+                              "max_abs_diff_usd": r.get("max_abs_diff_usd")}
+                          for b, r in (rep.get("books") or {}).items()},
+                "detail": "пересчёт советательных книг — " + "; ".join(parts)}
+
     def check_book_commitments(self, data_dir: str = "data", now: datetime | None = None) -> dict[str, Any]:
         """Commit-reveal of the book decision (inbox «Целостность трека SPA», задача 4;
         ``spa_core.audit.book_commitments``). Три вопроса, каждый со своим ответом:
@@ -563,6 +594,7 @@ class CycleHealthMonitor:
             "evidence_vs_curve": self.check_evidence_matches_curve(data_dir),
             "artifact_integrity": self.check_artifact_integrity(data_dir),
             "replay_from_inputs": self.check_replay_from_inputs(data_dir),
+            "sleeve_replay": self.check_sleeve_replay(data_dir),
             "book_commitments": self.check_book_commitments(data_dir),
         }
 
@@ -574,7 +606,8 @@ class CycleHealthMonitor:
         # (тесты, песочницы) файла доказательной базы нет по построению, и его
         # отсутствие — не пробел в наблюдении, а другой предмет.
         for name, chk in checks.items():
-            if name in ("evidence_vs_curve", "artifact_integrity", "replay_from_inputs", "book_commitments"):
+            if name in ("evidence_vs_curve", "artifact_integrity", "replay_from_inputs",
+                        "book_commitments", "sleeve_replay"):
                 continue  # советующие сигналы (own-32; сторож SPA-V430; commit-reveal) — видны, но не судят цикл
             if chk.get("status") == UNCHECKED:
                 unchecked.append(
