@@ -19,9 +19,27 @@ from spa_core.monitoring import fleet_economics as fe
 
 
 class TestFleetEconomics(unittest.TestCase):
+    """НАМЕРЕННО ИЗМЕНЁННЫЕ ТЕСТЫ (инв. #16, ADR-276, журнал 2026-W37, 09.09).
+
+    У `summary` появилась ВТОРАЯ дверь к ОС — возраст HEAD дерева (`head_age_fn`), без
+    которого пустое окно неотличимо от отстающего индекса (замер: в прод-дереве
+    `git log --since=24.hours` возвращает пустой список, а HEAD был на 255 часов старше
+    окна ⇒ модуль отчитался бы «0 циклов» с видом измеренного числа).
+
+    Эти тесты инъектировали ОДНУ дверь из двух и передавали несуществующий путь `/x`,
+    поэтому вторая проба уходила к настоящей ОС и возвращала «возраст неизвестен» —
+    ровно «половина инъекции» из `.claude/rules/deployment.md`. Ниже инъектируются ОБЕ.
+    Ослаблением было бы снять утверждения; они сохранены полностью, добавлен только
+    второй параметр, а сам новый третий исход закреплён отдельным файлом
+    `test_fleet_economics_empty_window_is_not_zero.py` (8 тестов).
+    """
+
+    FRESH = 0.5      # часов: дерево свежее окна ⇒ пустое окно означает настоящий ноль
+
     def test_counts_cycles_and_commits(self):
         subs = ["цикл #321: что-то", "guard(x): y", "Цикл #322: z", "chore: w"]
-        out = fe.summary(Path("/x"), subjects_fn=lambda r, h: subs)
+        out = fe.summary(Path("/x"), subjects_fn=lambda r, h: subs,
+                         head_age_fn=lambda r: self.FRESH)
         self.assertEqual(out["commits"], 4)
         self.assertEqual(out["cycles"], 2)
 
@@ -29,7 +47,8 @@ class TestFleetEconomics(unittest.TestCase):
         import os
         os.environ["SPA_COST_PER_CYCLE_USD"] = "1.5"
         try:
-            out = fe.summary(Path("/x"), subjects_fn=lambda r, h: ["цикл #1"] * 10)
+            out = fe.summary(Path("/x"), subjects_fn=lambda r, h: ["цикл #1"] * 10,
+                             head_age_fn=lambda r: self.FRESH)
             self.assertEqual(out["cost_estimate_usd"], 15.0)
         finally:
             os.environ.pop("SPA_COST_PER_CYCLE_USD", None)
@@ -37,19 +56,22 @@ class TestFleetEconomics(unittest.TestCase):
     def test_no_cost_env_named_honestly(self):
         import os
         os.environ.pop("SPA_COST_PER_CYCLE_USD", None)
-        out = fe.summary(Path("/x"), subjects_fn=lambda r, h: [])
+        out = fe.summary(Path("/x"), subjects_fn=lambda r, h: [],
+                         head_age_fn=lambda r: self.FRESH)
         self.assertIsNone(out["cost_estimate_usd"])
         self.assertIn("не оценена", out["note"])
 
     def test_git_unavailable_is_signal_not_zero(self):
-        out = fe.summary(Path("/x"), subjects_fn=lambda r, h: None)
+        out = fe.summary(Path("/x"), subjects_fn=lambda r, h: None,
+                         head_age_fn=lambda r: self.FRESH)
         self.assertIsNone(out["commits"])
         self.assertIn("не измерена", out["note"])
 
     def test_artifact_written_atomically(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = fe.write_artifact(Path(tmp), repo_root=Path("/x"),
-                                     subjects_fn=lambda r, h: ["цикл #1"])
+                                     subjects_fn=lambda r, h: ["цикл #1"],
+                                     head_age_fn=lambda r: self.FRESH)
             doc = json.loads(path.read_text())
             self.assertEqual(doc["cycles"], 1)
 

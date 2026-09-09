@@ -51,16 +51,49 @@ def _default_git_subjects(repo_root: Path, since_hours: int) -> Optional[list[st
         return None
 
 
+def _default_head_age_hours(repo_root: Path) -> Optional[float]:
+    """Возраст САМОГО СВЕЖЕГО коммита дерева в часах. ``None`` — git не ответил.
+
+    Нужен, чтобы отличить «за сутки коммитов не было» от «это дерево не умеет отвечать
+    на вопрос про сутки». Второе — не ноль, а отсутствие измерения (ADR-276).
+    """
+    try:
+        proc = subprocess.run(
+            ["git", "log", "-1", "--format=%ct"],
+            cwd=str(repo_root), capture_output=True, text=True, timeout=_GIT_TIMEOUT_S,
+        )
+        if proc.returncode != 0 or not proc.stdout.strip():
+            return None
+        import time as _time
+        return max(0.0, (_time.time() - float(proc.stdout.strip())) / 3600.0)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("fleet_economics: git log -1 failed: %s", exc)
+        return None
+
+
 def summary(
     repo_root: Optional[Path] = None,
     *,
     since_hours: int = 24,
     now: Optional[datetime] = None,
     subjects_fn: Callable[[Path, int], Optional[list[str]]] = _default_git_subjects,
+    head_age_fn: Callable[[Path], Optional[float]] = _default_head_age_hours,
 ) -> dict:
     """Сводка экономики за окно. Никогда не бросает.
 
-    ``subjects_fn`` инжектируется тестами (offline, без git).
+    ``subjects_fn`` и ``head_age_fn`` инжектируются тестами (offline, без git).
+
+    **Пустое окно ≠ ноль работы (ADR-276).** Этот модуль два месяца не был ни к чему
+    подключён, и подключить его «как есть» значило бы завести новый ЛОЖНЫЙ артефакт.
+    Замер 2026-09-09: в прод-дереве `git log --since=24.hours` возвращает **пустой список**
+    (не ошибку!), потому что пуши уходят на origin через API и локальный индекс отстаёт —
+    на момент замера HEAD прода был от 29.08, то есть на 11 суток. В зеркале за те же сутки
+    44 коммита, из них 6 циклов. Модуль отчитался бы «0 циклов, 0 коммитов» с видом
+    измеренного числа — ровно тот класс, который проект называет «не измерено, выданное
+    за ответ».
+
+    Поэтому: если самый свежий коммит дерева СТАРШЕ окна, окно пусто **по построению**, и
+    ответ — третий исход (`measured: False` + причина), а не нули.
     """
     root = Path(repo_root) if repo_root else _REPO_ROOT
     dt = now or datetime.now(timezone.utc)
@@ -72,12 +105,34 @@ def summary(
         "commits": None,
         "cost_per_cycle_usd": None,
         "cost_estimate_usd": None,
+        "measured": False,
+        "unmeasured_reason": None,
+        "repo_root": str(root),
+        "head_age_hours": None,
         "note": "",
     }
     subjects = subjects_fn(root, since_hours)
     if subjects is None:
+        out["unmeasured_reason"] = "git недоступен"
         out["note"] = "git недоступен — экономика не измерена (это сигнал, не ноль)"
         return out
+    age = head_age_fn(root)
+    out["head_age_hours"] = round(age, 2) if age is not None else None
+    if age is None:
+        out["unmeasured_reason"] = "возраст HEAD не определён — свежесть дерева неизвестна"
+        out["note"] = ("свежесть дерева не измерена: пустое окно нельзя отличить от "
+                       "отстающего индекса — экономика не измерена (это сигнал, не ноль)")
+        return out
+    if not subjects and age > since_hours:
+        out["unmeasured_reason"] = (
+            f"HEAD дерева старше окна ({age:.1f} ч > {since_hours} ч) — окно пусто ПО "
+            f"ПОСТРОЕНИЮ, а не потому что цех молчал")
+        out["note"] = (
+            f"экономика не измерена: {root} отстаёт (HEAD {age:.1f} ч), пуши уходят на "
+            f"origin через API. Мерить по дереву, которое следит за origin (зеркало), "
+            f"или по самому origin")
+        return out
+    out["measured"] = True
     out["commits"] = len(subjects)
     out["cycles"] = sum(1 for s in subjects if _CYCLE_RE.search(s))
 
