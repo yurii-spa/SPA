@@ -449,5 +449,51 @@ class ExistingBehaviourStillHoldsTests(unittest.TestCase):
             self.assertNotIn(banned, src)
 
 
+
+class ReadableMorningTests(unittest.TestCase):
+    """Аудит 08.09: ~2500 знаков, 8 буллетов по ~250, без строки-итога, без дедупа."""
+
+    def setUp(self):
+        self.m = _load_module()
+
+    def test_prompt_demands_a_one_sentence_summary_first_and_a_hard_budget(self):
+        prompt = self.m._PROMPT
+        self.assertIn("ИТОГ ОДНИМ ПРЕДЛОЖЕНИЕМ", prompt)
+        self.assertIn("ЧЕТЫРЁХ", prompt)          # ≤4 буллета
+        self.assertIn("1000 знаков", prompt)      # общий бюджет
+        self.assertIn("без номеров коммитов/циклов/карточек/ADR", prompt)
+        self.assertIn("<DATA>", prompt)           # данные всё ещё подставляются
+
+    def test_main_sends_with_dedup_so_a_double_fire_is_not_two_messages(self):
+        """``TelegramBot.send_message(..., dedup=True)`` — это пуш, не ответ на команду."""
+        seen: list[dict] = []
+
+        class Bot:
+            def __call__(self):
+                return self
+
+            def send_message(self, text, **kw):
+                seen.append(kw)
+                return {"ok": True, "result": {"message_id": 1}}
+
+        import types
+        fake_mod = types.ModuleType("spa_core.telegram.bot")
+        fake_mod.TelegramBot = Bot()
+        self.m.build_digest = lambda now=None: ("raw", "digest text")
+        saved = sys.modules.get("spa_core.telegram.bot")
+        sys.modules["spa_core.telegram.bot"] = fake_mod
+        try:
+            with mock.patch.object(sys, "argv", ["morning_work_digest.py"]):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    rc = self.m.main()
+        finally:
+            if saved is None:
+                sys.modules.pop("spa_core.telegram.bot", None)
+            else:
+                sys.modules["spa_core.telegram.bot"] = saved
+        self.assertEqual(rc, 0)
+        self.assertEqual(seen, [{"dedup": True}])
+
+
 if __name__ == "__main__":
     unittest.main()

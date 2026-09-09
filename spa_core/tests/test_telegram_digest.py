@@ -1,8 +1,10 @@
 """Tests for the consolidated daily/weekly digests (spa_core/telegram/reports).
 
 Covers:
-  * ONE daily message consolidates the day + the demoted digest-queue items
-    (no per-event spam — counts by event_key);
+  * the morning is TWO messages — a ≤900-char Russian headline, then the full
+    details — and the demoted digest-queue items are folded into the details
+    as a count + the most important bodies in words (no per-event spam);
+    (аудит 08.09: до этого — ровно одно сообщение с гистограммой event_key)
   * the date-stamp idempotency guard refuses a second send for the same UTC date;
   * drain_digest_queue empties the queue once consumed;
   * weekly idempotency per ISO week.
@@ -40,24 +42,47 @@ def _dt(day=15, h=8, m=10):
     return datetime(2026, 6, day, h, m, tzinfo=timezone.utc)
 
 
-# ── consolidation: ONE message folds in the queued events ────────────────────
-def test_daily_digest_consolidates_queue_into_one_message(tmp_path, sent_daily):
-    # Seed the digest queue with several demoted events (incl. dups).
-    for key in ["dashboard_watch", "dashboard_watch", "apy_spike", "tournament"]:
-        push_policy.enqueue_digest(key, key, "body", data_dir=str(tmp_path))
+# ── consolidation: the DETAILS message folds in the queued events ────────────
+def test_daily_digest_consolidates_queue_into_the_details_message(tmp_path, sent_daily):
+    # Seed the digest queue with several demoted events (incl. dups). Bodies are
+    # what the owner now sees (аудит 08.09: 15 of 62 bodies carried CRITICAL while
+    # the section listed only event_keys), so the fixture carries real bodies.
+    for key, body in [
+        ("dashboard_watch", "🖥️ <b>Dashboard Alert</b>\n━━━━\n🔴 System health CRITICAL (overall)\n\n📊 Portfolio: $1"),
+        ("dashboard_watch", "🖥️ <b>Dashboard Alert</b>\n━━━━\n🔴 System health CRITICAL (overall)\n\n📊 Portfolio: $1"),
+        ("apy_spike", "compound_v3 9.20% > 8.00%"),
+        ("tournament", "🏆 <b>SPA Tournament</b>\n\nDaily standings"),
+    ]:
+        push_policy.enqueue_digest(key, key, body, data_dir=str(tmp_path))
 
     res = daily_digest.run_daily_digest(
         "2026-06-15", data_dir=str(tmp_path), send=True, now=_dt()
     )
     assert res["sent"] is True
-    assert len(sent_daily) == 1  # EXACTLY one message
-    msg = sent_daily[0]
-    # The digest section summarises by event_key with counts (no N separate msgs).
-    assert "Today's digest" in msg
-    assert "dashboard_watch" in msg and "×2" in msg
-    assert "4 non-critical event" in msg
+    # Changed 08.09 (inv. #16, reason): the morning is now headline + details —
+    # EXACTLY two messages, in that order; the queue section lives in the details.
+    assert len(sent_daily) == 2
+    assert "Подробности — следующим сообщением" in sent_daily[0]
+    msg = sent_daily[1]
+    # The section counts events + CRITICAL bodies and names the bodies in WORDS
+    # (CRITICAL first, identical bodies collapsed ×N) — not the event_key histogram.
+    assert "События за сутки" in msg
+    assert "событий с прошлого отчёта: 4, из них с CRITICAL: 2" in msg
+    assert "System health CRITICAL (overall) ×2" in msg
+    assert "compound_v3 9.20% &gt; 8.00%" in msg  # body text is HTML-escaped (parse_mode=HTML)
+    assert "dashboard_watch" not in msg  # internal key is not what the owner reads
     # Queue drained after a real send.
     assert push_policy.drain_digest_queue(data_dir=str(tmp_path), clear=False) == []
+
+
+def test_digest_section_keeps_the_histogram_when_bodies_are_too_few(tmp_path):
+    """Fewer than 3 bodies ⇒ the event_key histogram is all that is known — keep it."""
+    for key in ["dashboard_watch", "dashboard_watch", "apy_spike"]:
+        push_policy.enqueue_digest(key, key, "", data_dir=str(tmp_path))
+    msg, _ = daily_digest.build_digest_message(
+        "2026-06-15", data_dir=str(tmp_path), drain=False
+    )
+    assert "dashboard_watch ×2" in msg and "apy_spike" in msg
 
 
 def test_daily_digest_idempotent_per_utc_date(tmp_path, sent_daily):
@@ -65,14 +90,14 @@ def test_daily_digest_idempotent_per_utc_date(tmp_path, sent_daily):
         "2026-06-15", data_dir=str(tmp_path), send=True, now=_dt()
     )
     assert first["sent"] is True
-    assert len(sent_daily) == 1
+    assert len(sent_daily) == 2  # 08.09: headline + details (was 1 — one message)
     # Second fire same day → SKIPPED (no double send).
     second = daily_digest.run_daily_digest(
         "2026-06-15", data_dir=str(tmp_path), send=True, now=_dt(h=8, m=12)
     )
     assert second["skipped"] is True
     assert second["sent"] is False
-    assert len(sent_daily) == 1  # still one
+    assert len(sent_daily) == 2  # still the one pair
 
 
 def test_daily_digest_force_overrides_guard(tmp_path, sent_daily):
@@ -80,7 +105,7 @@ def test_daily_digest_force_overrides_guard(tmp_path, sent_daily):
     daily_digest.run_daily_digest(
         "2026-06-15", data_dir=str(tmp_path), send=True, force=True, now=_dt()
     )
-    assert len(sent_daily) == 2
+    assert len(sent_daily) == 4  # 08.09: two pairs (was 2 — two single messages)
 
 
 def test_daily_check_does_not_drain_queue(tmp_path):
@@ -88,18 +113,18 @@ def test_daily_check_does_not_drain_queue(tmp_path):
     msg, _ = daily_digest.build_digest_message(
         "2026-06-15", data_dir=str(tmp_path), drain=False
     )
-    assert "Today's digest" in msg
+    assert "События за сутки" in msg  # 08.09: section header is Russian now
     # NOT drained.
     assert push_policy.drain_digest_queue(data_dir=str(tmp_path), clear=False)
 
 
-def test_daily_digest_no_queue_still_one_message(tmp_path, sent_daily):
+def test_daily_digest_no_queue_still_the_pair(tmp_path, sent_daily):
     res = daily_digest.run_daily_digest(
         "2026-06-15", data_dir=str(tmp_path), send=True, now=_dt()
     )
     assert res["sent"] is True
-    assert len(sent_daily) == 1
-    assert "Today's digest" not in sent_daily[0]  # no section when nothing queued
+    assert len(sent_daily) == 2  # 08.09: headline + details, nothing more
+    assert "События за сутки" not in sent_daily[1]  # no section when nothing queued
 
 
 def test_daily_digest_never_raises_on_corrupt_data(tmp_path, sent_daily):
@@ -107,9 +132,9 @@ def test_daily_digest_never_raises_on_corrupt_data(tmp_path, sent_daily):
     res = daily_digest.run_daily_digest(
         "2026-06-15", data_dir=str(tmp_path), send=True, now=_dt()
     )
-    # Degrades, still emits one message, never raises.
+    # Degrades, still emits the pair, never raises.
     assert res["error"] is None or res["sent"] is True
-    assert len(sent_daily) == 1
+    assert len(sent_daily) == 2  # 08.09: headline + details
 
 
 # ── weekly ───────────────────────────────────────────────────────────────────

@@ -238,3 +238,33 @@ def test_daily_message_survives_empty_data_dir(tmp_path):
     data = build_report_data("2026-08-31", data_dir=tmp_path, now=NOW)
     msg = format_daily_message(data)  # не падает; секция честно показывает недоступность
     assert "недоступно" in msg
+
+
+def test_advisory_books_annualized_rate_is_marked_paper(tmp_path):
+    """Аудит 08.09: «~11.4%/~13.9% год.» у Balanced/Aggressive читались как живая
+    доходность. Эти книги советующие (капитал не двигают, инвариант #9) —
+    ставка обязана нести пометку; у Conservative (сам трек) пометки нет."""
+    _seed_three_books(tmp_path)
+    data = build_report_data("2026-08-31", data_dir=tmp_path, now=NOW)
+    msg = format_daily_message(data)
+    by_line = {ln.strip().split(":")[0].lstrip("• "): ln for ln in msg.splitlines() if "год." in ln}
+    assert "Balanced" in by_line and "(paper, капитал не двигают)" in by_line["Balanced"]
+    assert "Aggressive" in by_line and "(paper, капитал не двигают)" in by_line["Aggressive"]
+    assert "Conservative" in by_line and "капитал не двигают" not in by_line["Conservative"]
+
+
+def test_no_expired_phase_literal_and_headers_are_russian(tmp_path):
+    """Строка «Phase 1: monitoring without capital → until 2026-07-12» истекла и
+    ничего не читала; шапки — русские (аудит 08.09). Числа не меняются."""
+    _seed_three_books(tmp_path)
+    (tmp_path / "golive_status.json").write_text(json.dumps({
+        "passed": 29, "total": 29, "real_track_days": 77, "evidenced_anchor": "2026-06-22",
+    }), encoding="utf-8")
+    data = build_report_data("2026-08-31", data_dir=tmp_path, now=NOW)
+    msg = format_daily_message(data)
+    assert "until 2026-07-12" not in msg
+    assert "Base Chain (наблюдение без капитала)" in msg
+    assert "подтверждённых дней 77 (с 2026-06-22)" in msg
+    assert "30-дневный трек набран ✅" in msg
+    for english in ("Portfolio:", "Positions:", "GoLive:", "Paper APY:"):
+        assert english not in msg, english

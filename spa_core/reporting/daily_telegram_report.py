@@ -276,7 +276,8 @@ def _collect_base_chain(adapter_doc: Any, data_dir: Path) -> dict:
     for adapter_id, info in live.items():
         if adapter_id not in known:
             rows.append({
-                "label": adapter_id,
+                # Имя для человека, если адаптер его объявил; иначе ключ как есть.
+                "label": str(info.get("display_name") or adapter_id),
                 "tier": f"T{info['tier']}" if isinstance(info.get("tier"), int) else info.get("tier", "?"),
                 "apy": _live_apy(info, 0.0),
                 "suspended": False,
@@ -366,6 +367,17 @@ def build_report_data(
     golive_blockers = golive_doc.get("blockers", [])
     if not isinstance(golive_blockers, list):
         golive_blockers = []
+    # Честный счётчик дней (аудит 08.09): «Day 91» считался по календарю от
+    # paper_start_date, «0 days to 30-day track» — от него же, а сам гейт
+    # go-live меряет ПОДТВЕРЖДЁННЫЕ дни от evidenced_anchor (77 с 2026-06-22).
+    # Три разных числа об одном треке в одном сообщении. Оба числа остаются,
+    # но подписываются тем, что они есть; отсутствие — «не измерено», не 0.
+    real_track_days = golive_doc.get("real_track_days")
+    if not isinstance(real_track_days, int):
+        real_track_days = None
+    evidenced_anchor = golive_doc.get("evidenced_anchor")
+    if not isinstance(evidenced_anchor, str):
+        evidenced_anchor = None
 
     cycles_today = status_doc.get("cycles_today")
     cycle_errors = status_doc.get("cycle_errors_today")
@@ -396,6 +408,11 @@ def build_report_data(
         "golive_total": golive_total,
         "golive_blockers": golive_blockers,
         "days_to_track_target": _days_to_track_target(day_number),
+        "real_track_days": real_track_days,
+        "evidenced_anchor": evidenced_anchor,
+        # До 30-дневного трека — от ПОДТВЕРЖДЁННЫХ дней (как считает gate),
+        # а не от календаря; None, когда gate не отработал.
+        "days_to_track_target_evidenced": _days_to_track_target(real_track_days),
         "cycles_today": cycles_today,
         "cycle_errors_today": cycle_errors,
         "last_cycle_status": last_cycle_status,
@@ -419,79 +436,80 @@ def _fmt_pct(value: Any) -> str:
     return f"{value:.2f}%" if isinstance(value, (int, float)) else "—"
 
 
-def format_daily_message(data: dict) -> str:
-    """Render the HTML Telegram message from :func:`build_report_data` output."""
-    lines: list[str] = []
+# Советательные книги: ведут paper-трек, но капитал не двигают (IS_ADVISORY,
+# инвариант #9). Их годовая ставка обязана быть подписана — иначе «~11.4% год.»
+# читается как живая доходность (аудит 08.09).
+_ADVISORY_BOOKS = frozenset({"balanced", "aggressive"})
+_ADVISORY_MARK = "(paper, капитал не двигают)"
 
+
+def _header_lines(data: dict) -> list[str]:
+    """Заголовок + честный счётчик дней: календарный И подтверждённый — подписаны оба."""
     day = data.get("day_number")
     date_str = data.get("date", "")
-    header_day = f"Day {day} " if isinstance(day, int) else ""
-    lines.append(f"📊 <b>SPA Daily Report</b> — {header_day}({date_str})")
-    lines.append("")
+    lines = [f"📊 <b>SPA — отчёт за день</b> ({_esc(date_str)})"]
+    cal = f"день {day} по календарю" if isinstance(day, int) else "день по календарю: не измерен"
+    real = data.get("real_track_days")
+    anchor = data.get("evidenced_anchor")
+    if isinstance(real, int):
+        since = f" (с {_esc(anchor)})" if anchor else ""
+        lines.append(f"🗓 {cal} · подтверждённых дней {real}{since}")
+    else:
+        lines.append(f"🗓 {cal} · подтверждённых дней: не измерено")
+    return lines
 
-    equity = data.get("equity_usd")
-    pnl = data.get("daily_pnl_usd")
-    lines.append(f"💰 Portfolio: {_fmt_money(equity)} ({_fmt_money(pnl, signed=True)} today)")
 
-    apy = data.get("apy_today_pct")
-    avg7 = data.get("apy_7day_avg_pct")
-    avg7_str = _fmt_pct(avg7)
-    lines.append(f"📈 Paper APY: {_fmt_pct(apy)} (7-day avg: {avg7_str})")
+def _books_lines(data: dict) -> list[str]:
+    """Три независимых пакета + общая картина (owner request 2026-08-31).
 
-    best = data.get("best_strategy")
-    if isinstance(best, dict):
-        sid = best.get("strategy_id", "?")
-        napy = best.get("net_apy")
-        lines.append(f"🏆 Best strategy today: {_esc(sid)} ({_fmt_pct(napy)} APY)")
-    lines.append("")
-
-    # Три независимых пакета + общая картина (owner request 2026-08-31).
-    # Числа те же, что на /admin/portfolio-summary; недоступная книга видна
-    # честно, а не выдуманным нулём и не молчаливым пропуском.
+    Числа те же, что на /admin/portfolio-summary; недоступная книга видна
+    честно, а не выдуманным нулём и не молчаливым пропуском.
+    """
     bs = data.get("books_summary")
-    if isinstance(bs, dict) and bs.get("books"):
-        lines.append("📚 <b>Пакеты (3 независимые книги)</b>")
-        for key in ("conservative", "balanced", "aggressive"):
-            b = bs["books"].get(key) or {}
-            label = b.get("label") or key.capitalize()
-            if not b.get("available"):
-                lines.append(f"  • {_esc(label)}: недоступно ({_esc(b.get('reason', '?'))})")
-                continue
-            ret = b.get("return_pct")
-            ret_str = f"{ret:+.2f}%" if isinstance(ret, (int, float)) else "—"
-            ann = b.get("annualized_apy_pct")
-            ann_str = f", ~{ann:.1f}% год." if isinstance(ann, (int, float)) else ""
-            lines.append(
-                f"  • {_esc(label)}: {_fmt_money(b.get('equity'))} ({ret_str}{ann_str})"
-            )
-        c = bs.get("combined") or {}
-        n_avail = c.get("books_available")
-        n_total = c.get("books_total")
-        comb_ret = c.get("combined_return_pct")
-        comb_str = f"{comb_ret:+.2f}%" if isinstance(comb_ret, (int, float)) else "—"
-        partial = (
-            f" — сумма ЧАСТИЧНАЯ ({n_avail} из {n_total} книг)"
-            if isinstance(n_avail, int) and isinstance(n_total, int) and n_avail < n_total
-            else ""
-        )
-        lines.append(
-            f"  Σ Всего: {_fmt_money(c.get('total_equity_usd'))} ({comb_str}){partial}"
-        )
-        lines.append("")
+    if not (isinstance(bs, dict) and bs.get("books")):
+        return []
+    lines = ["📚 <b>Пакеты (3 независимые книги)</b>"]
+    for key in ("conservative", "balanced", "aggressive"):
+        b = bs["books"].get(key) or {}
+        label = b.get("label") or key.capitalize()
+        if not b.get("available"):
+            lines.append(f"  • {_esc(label)}: недоступно ({_esc(b.get('reason', '?'))})")
+            continue
+        ret = b.get("return_pct")
+        ret_str = f"{ret:+.2f}%" if isinstance(ret, (int, float)) else "—"
+        ann = b.get("annualized_apy_pct")
+        mark = f" {_ADVISORY_MARK}" if key in _ADVISORY_BOOKS else ""
+        ann_str = f", ~{ann:.1f}% год.{mark}" if isinstance(ann, (int, float)) else ""
+        lines.append(f"  • {_esc(label)}: {_fmt_money(b.get('equity'))} ({ret_str}{ann_str})")
+    c = bs.get("combined") or {}
+    n_avail = c.get("books_available")
+    n_total = c.get("books_total")
+    comb_ret = c.get("combined_return_pct")
+    comb_str = f"{comb_ret:+.2f}%" if isinstance(comb_ret, (int, float)) else "—"
+    partial = (
+        f" — сумма ЧАСТИЧНАЯ ({n_avail} из {n_total} книг)"
+        if isinstance(n_avail, int) and isinstance(n_total, int) and n_avail < n_total
+        else ""
+    )
+    lines.append(f"  Σ Всего: {_fmt_money(c.get('total_equity_usd'))} ({comb_str}){partial}")
+    lines.append("")
+    return lines
 
-    # Positions block — sorted by USD descending, cash last.
+
+def _positions_lines(data: dict) -> list[str]:
+    """Позиции по убыванию суммы, кэш последним."""
     positions = data.get("positions") or {}
     meta = data.get("adapter_meta") or {}
+    equity = data.get("equity_usd")
     total = sum(v for v in positions.values() if isinstance(v, (int, float)))
     equity_base = equity if isinstance(equity, (int, float)) and equity > 0 else total
-    lines.append("📍 Positions:")
+    lines = ["📍 Позиции:"]
     ordered = sorted(
         ((k, v) for k, v in positions.items() if isinstance(v, (int, float)) and v > 0),
         key=lambda kv: kv[1],
         reverse=True,
     )
-    shown = ordered[:MAX_POSITION_LINES]
-    for key, val in shown:
+    for key, val in ordered[:MAX_POSITION_LINES]:
         m = meta.get(key, {})
         name = m.get("display_name", key)
         pct = (val / equity_base * 100) if equity_base else 0.0
@@ -502,72 +520,105 @@ def format_daily_message(data: dict) -> str:
     if rest:
         rest_usd = sum(v for _, v in rest)
         rest_pct = (rest_usd / equity_base * 100) if equity_base else 0.0
-        lines.append(f"  • +{len(rest)} more: ${rest_usd:,.0f} ({rest_pct:.1f}%)")
-    # Cash = equity not deployed into positions.
+        lines.append(f"  • +{len(rest)} ещё: ${rest_usd:,.0f} ({rest_pct:.1f}%)")
+    # Кэш = капитал, не разложенный по позициям.
     if isinstance(equity_base, (int, float)) and equity_base > 0:
         cash = equity_base - total
         if cash > 0.5:
-            cash_pct = cash / equity_base * 100
-            lines.append(f"  • Cash: ${cash:,.0f} ({cash_pct:.1f}%)")
+            lines.append(f"  • Кэш: ${cash:,.0f} ({cash / equity_base * 100:.1f}%)")
     lines.append("")
+    return lines
 
-    # GoLive
+
+def _golive_cycle_risk_lines(data: dict) -> list[str]:
+    lines: list[str] = []
     passed = data.get("golive_passed")
     gtotal = data.get("golive_total")
-    days_left = data.get("days_to_track_target")
     if isinstance(passed, int) and isinstance(gtotal, int):
-        track_note = ""
-        if isinstance(days_left, int):
-            check = " ✅" if days_left == 0 else ""
-            track_note = f" ({days_left} days to 30-day track{check})"
-        lines.append(f"🎯 GoLive: {passed}/{gtotal}{track_note}")
+        # Остаток до 30-дневного трека — от подтверждённых дней (как у gate);
+        # календарный остаток «0 days» врал при 77 подтверждённых.
+        left = data.get("days_to_track_target_evidenced")
+        if isinstance(left, int):
+            note = (" · 30-дневный трек набран ✅" if left == 0
+                    else f" · до 30-дневного трека {left} дн.")
+        else:
+            note = " · трек: не измерен"
+        lines.append(f"🎯 Готовность к go-live: {passed}/{gtotal}{note}")
 
-    # Cycle
     cycles = data.get("cycles_today")
     errors = data.get("cycle_errors_today")
     if isinstance(cycles, int):
         err_n = errors if isinstance(errors, int) else 0
-        lines.append(f"⚡ Cycle: ran {cycles}x today, {err_n} errors")
+        lines.append(f"⚡ Цикл: сегодня запусков {cycles}, ошибок {err_n}")
     elif data.get("last_cycle_status"):
-        lines.append(f"⚡ Cycle: last status {data['last_cycle_status']}")
+        lines.append(f"⚡ Цикл: последний статус {_esc(data['last_cycle_status'])}")
 
-    # Risk gate
     blocks = data.get("risk_blocks_today", 0)
     approved = data.get("risk_policy_approved")
     if blocks:
-        lines.append(f"🔒 Risk gate: {blocks} block event(s) today — see risk_policy_blocks.json")
+        lines.append(f"🔒 Риск-гейт: блокировок сегодня {blocks} (см. risk_policy_blocks.json)")
     elif approved is True:
-        lines.append("🔒 Risk gate: all positions within limits")
+        lines.append("🔒 Риск-гейт: все позиции в пределах лимитов")
+    return lines
 
-    # Base chain monitoring (ADR-025 Phase 1 — merged from daily_paper_report).
+
+def _base_chain_lines(data: dict) -> list[str]:
+    """Base Chain — наблюдение без капитала (ADR-025 Phase 1, merged from daily_paper_report)."""
     bc = data.get("base_chain")
-    if isinstance(bc, dict):
-        lines.append("")
-        lines.append("🔵 <b>Base Chain (ADR-025 Phase 1)</b>")
-        gas = bc.get("gas") or {}
-        if not gas.get("available"):
-            lines.append("  ⚪ Gas: unavailable")
-        elif gas.get("kill"):
-            lines.append(
-                f"  ⛔ Gas Kill-Switch ACTIVE! {gas.get('gwei', 0.0):.2f} Gwei "
-                f"× {gas.get('consecutive', 0)} days"
-            )
-        elif gas.get("consecutive", 0) > 0:
-            lines.append(
-                f"  ⚠️ Gas above threshold: {gas.get('gwei', 0.0):.2f} Gwei "
-                f"({gas.get('consecutive', 0)}/3 days)"
-            )
+    if not isinstance(bc, dict):
+        return []
+    lines = ["", "🔵 <b>Base Chain (наблюдение без капитала)</b>"]
+    gas = bc.get("gas") or {}
+    if not gas.get("available"):
+        lines.append("  ⚪ Газ: нет данных")
+    elif gas.get("kill"):
+        lines.append(f"  ⛔ Стоп-кран по газу ВКЛЮЧЁН: {gas.get('gwei', 0.0):.2f} Gwei "
+                     f"× {gas.get('consecutive', 0)} дн.")
+    elif gas.get("consecutive", 0) > 0:
+        lines.append(f"  ⚠️ Газ выше порога: {gas.get('gwei', 0.0):.2f} Gwei "
+                     f"({gas.get('consecutive', 0)}/3 дн.)")
+    else:
+        lines.append(f"  ✅ Газ: {gas.get('gwei', 0.0):.2f} Gwei (норма)")
+    for row in bc.get("adapters", []):
+        tier = f"уровень {_esc(row['tier'])}"
+        if row.get("suspended"):
+            lines.append(f"  🚫 {_esc(row['label'])} ({tier}): ПРИОСТАНОВЛЕН")
         else:
-            lines.append(f"  ✅ Gas: {gas.get('gwei', 0.0):.2f} Gwei (normal)")
-        for row in bc.get("adapters", []):
-            if row.get("suspended"):
-                lines.append(f"  🚫 {_esc(row['label'])} [{_esc(row['tier'])}]: SUSPENDED")
-            else:
-                lines.append(
-                    f"  📊 {_esc(row['label'])} [{_esc(row['tier'])}]: {row['apy']:.1f}% APY (monitoring)"
-                )
-        lines.append("  ℹ️ Phase 1: monitoring without capital → until 2026-07-12")
+            lines.append(f"  📊 {_esc(row['label'])} ({tier}): {row['apy']:.1f}% APY (наблюдение)")
+    # Строка «Phase 1 … until 2026-07-12» снята (аудит 08.09): срок истёк,
+    # литерал не читал ни одного файла и обещал то, чего никто не мерил.
+    return lines
 
+
+def format_daily_message(data: dict) -> str:
+    """Render the HTML Telegram message from :func:`build_report_data` output.
+
+    Русские заголовки (аудит 08.09: английские шапки вперемешку с русским
+    хвостом владелец читать не может). Числа и их смысл не меняются — только
+    подпись, порядок и язык.
+    """
+    lines: list[str] = _header_lines(data)
+    lines.append("")
+
+    equity = data.get("equity_usd")
+    pnl = data.get("daily_pnl_usd")
+    lines.append(f"💰 Портфель: {_fmt_money(equity)} ({_fmt_money(pnl, signed=True)} за день)")
+    apy = data.get("apy_today_pct")
+    avg7 = data.get("apy_7day_avg_pct")
+    lines.append(f"📈 APY (paper): {_fmt_pct(apy)} (среднее за 7 дней: {_fmt_pct(avg7)})")
+
+    # Блок рендерится ТОЛЬКО когда турнир кого-то выбрал (`_best_strategy` даёт
+    # None при отказе всем / нулевых net_apy) — при пустых данных строки нет.
+    best = data.get("best_strategy")
+    if isinstance(best, dict):
+        sid = best.get("strategy_id", "?")
+        lines.append(f"🏆 Лучшая стратегия сегодня: {_esc(sid)} ({_fmt_pct(best.get('net_apy'))} APY)")
+    lines.append("")
+
+    lines.extend(_books_lines(data))
+    lines.extend(_positions_lines(data))
+    lines.extend(_golive_cycle_risk_lines(data))
+    lines.extend(_base_chain_lines(data))
     return "\n".join(lines)
 
 

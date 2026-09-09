@@ -101,20 +101,34 @@ class TestDigestFactoryAndStandard(unittest.TestCase):
 
     def test_standard_gaps_name_missing_blocks(self):
         from spa_core.telegram.reports.daily import _standard_gaps
-        gaps = _standard_gaps("📊 SPA Daily Report\n🏛 Офис: постура")
+        # 08.09 (инв. #16, причина): шапка отчёта теперь русская — маркер
+        # сводки «отчёт за день», а не «SPA Daily Report».
+        gaps = _standard_gaps("📊 SPA — отчёт за день\n🏛 Офис: постура")
         self.assertIn("3 трека (Cons/Bal/Agg)", gaps)
         self.assertIn("экономика цеха", gaps)
         self.assertNotIn("сводка портфеля", gaps)
 
-    def test_full_message_names_three_tracks_gap(self):
-        # Живой вопрос владельца 19.08 «а где три пакета?» — теперь отчёт
-        # обязан называть эту дыру сам, каждый день, пока она не закрыта.
+    def test_three_books_gap_is_no_longer_a_permanent_false_alarm(self):
+        # Живой вопрос владельца 19.08 «а где три пакета?». Прежняя редакция
+        # теста (инв. #16, причина замены) закрепляла строку «Стандарт отчёта:
+        # не хватает — 3 трека» в ТЕКСТЕ — а это была вечная ложная тревога
+        # (аудит 08.09): маркер «3 трека» не производил никто, блок рендерился
+        # как «Пакеты (3 независимые книги)». Теперь маркер совпадает с тем,
+        # что рендерится, самопроверка живёт в data, а в тексте строки нет.
         from spa_core.telegram.reports.daily import build_digest_message
         with tempfile.TemporaryDirectory() as tmp:
             msg, data = build_digest_message(data_dir=tmp, drain=False)
-            self.assertIn("Стандарт отчёта", msg)
-            self.assertIn("3 трека", msg)
+            self.assertIn("Пакеты (3 независимые книги)", msg)
+            self.assertNotIn("Стандарт отчёта", msg)
             self.assertIn("report_standard_gaps", data)
+            self.assertNotIn("3 трека (Cons/Bal/Agg)", data["report_standard_gaps"])
+
+    def test_a_really_missing_books_block_is_still_named_in_data(self):
+        # Положительный контроль: сторож не ослаблен — пропади блок, дыра
+        # названа в data["report_standard_gaps"] (её читают тесты и сторожа).
+        from spa_core.telegram.reports.daily import _standard_gaps
+        gaps = _standard_gaps("📊 SPA — отчёт за день\n🏛 Офис: постура GREEN")
+        self.assertIn("3 трека (Cons/Bal/Agg)", gaps)
 
 
 if __name__ == "__main__":

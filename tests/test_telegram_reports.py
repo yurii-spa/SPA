@@ -157,9 +157,11 @@ class TestDailyReport(unittest.TestCase):
     def test_message_has_header_and_money(self):
         data = daily.build_report_data("2026-06-17", data_dir=self.ddir)
         msg = daily.format_daily_message(data)
-        self.assertIn("SPA Daily Report", msg)
-        self.assertIn("Day 8", msg)
-        self.assertIn("Portfolio:", msg)
+        # 08.09 (inv. #16, reason): headers are Russian now — same fields, new
+        # wording: «SPA — отчёт за день», «день N по календарю», «Портфель:».
+        self.assertIn("SPA — отчёт за день", msg)
+        self.assertIn("день 8 по календарю", msg)
+        self.assertIn("Портфель:", msg)
 
     def test_message_lists_positions_with_display_names(self):
         data = daily.build_report_data("2026-06-17", data_dir=self.ddir)
@@ -170,18 +172,21 @@ class TestDailyReport(unittest.TestCase):
     def test_message_shows_golive_score(self):
         data = daily.build_report_data("2026-06-17", data_dir=self.ddir)
         msg = daily.format_daily_message(data)
-        self.assertIn("GoLive: 25/26", msg)
+        # 08.09 (inv. #16, reason): «GoLive:» → «Готовность к go-live:» (same numbers).
+        self.assertIn("Готовность к go-live: 25/26", msg)
 
     def test_risk_block_count_reflected(self):
         data = daily.build_report_data("2026-06-17", data_dir=self.ddir)
         self.assertEqual(data["risk_blocks_today"], 1)
         msg = daily.format_daily_message(data)
-        self.assertIn("block event", msg)
+        # 08.09 (inv. #16, reason): «N block event(s) today» → «блокировок сегодня N».
+        self.assertIn("блокировок сегодня 1", msg)
 
     def test_risk_gate_clear_when_no_blocks(self):
         data = daily.build_report_data("2026-06-16", data_dir=self.ddir)
         msg = daily.format_daily_message(data)
-        self.assertIn("within limits", msg)
+        # 08.09 (inv. #16, reason): «within limits» → «в пределах лимитов».
+        self.assertIn("в пределах лимитов", msg)
 
     def test_position_cap_collapses_remainder(self):
         # 12 positions → capped to MAX_POSITION_LINES + a "+N more" line.
@@ -193,14 +198,15 @@ class TestDailyReport(unittest.TestCase):
         _write(self.ddir, "equity_curve_daily.json", {"is_demo": False, "daily": [bar]})
         data = daily.build_report_data("2026-06-17", data_dir=self.ddir)
         msg = daily.format_daily_message(data)
-        self.assertIn("more:", msg)
+        # 08.09 (inv. #16, reason): «+N more:» → «+N ещё:» (Russian copy).
+        self.assertIn("+4 ещё:", msg)
 
     def test_missing_files_degrade_gracefully(self):
         empty = Path(tempfile.mkdtemp())
         data = daily.build_report_data("2026-06-17", data_dir=empty)
         msg = daily.format_daily_message(data)
         self.assertIsInstance(msg, str)
-        self.assertIn("SPA Daily Report", msg)
+        self.assertIn("SPA — отчёт за день", msg)  # 08.09: Russian header
 
     def test_corrupt_json_does_not_raise(self):
         (self.ddir / "equity_curve_daily.json").write_text("{not json", encoding="utf-8")
@@ -212,7 +218,7 @@ class TestDailyReport(unittest.TestCase):
             res = daily.run_daily_report("2026-06-17", data_dir=self.ddir, send=False)
             m.assert_not_called()
         self.assertFalse(res["sent"])
-        self.assertIn("SPA Daily Report", res["message"])
+        self.assertIn("SPA — отчёт за день", res["message"])  # 08.09: Russian header
 
     def test_run_sends_via_mocked_sender(self):
         with patch(_SENDER, return_value=True) as m:

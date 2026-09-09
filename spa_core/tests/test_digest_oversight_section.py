@@ -219,3 +219,30 @@ def test_missing_gas_file_says_so_out_loud(ddir):
 def test_gas_marker_is_required_in_the_report():
     # Маркер в _REQUIRED_BLOCKS: пропадёт строка — отчёт сам назовёт дыру.
     assert any(m == "Цена газа" for m, _ in D._REQUIRED_BLOCKS)
+
+
+# ── 08.09: утро — два сообщения; надзор обязан ДОЕХАТЬ в подробности ─────────
+# Строки надзора живут во втором (полном) сообщении; заголовок несёт только
+# НЕ-OK находки словами из `detail`. Разделение не имеет права потерять ни то,
+# ни другое.
+
+def test_oversight_lines_live_in_the_details_message(ddir):
+    # Дата отчёта не предмет теста (маркеры от неё не зависят) — не пинуем.
+    msg, data = D.build_digest_message(data_dir=ddir, drain=False)
+    for marker in ("Надзор аллокации", "Доказанность APY", "Скачки APY",
+                   "Гейт доказательств", "Цена газа"):
+        assert marker in msg, f"«{marker}» пропал из подробностей после разделения"
+    assert data["report_standard_gaps"] == [] or "надзор" not in " ".join(
+        data["report_standard_gaps"])
+
+
+def test_headline_carries_the_violation_in_words_not_only_its_code(ddir):
+    (ddir / "allocation_audit_daily.json").write_text(json.dumps({
+        "verdict": "VIOLATION", "counts": {"OK": 27, "VIOLATION": 1, "UNCHECKED": 0},
+        "findings": [{"rule_id": "ECON-10", "verdict": "VIOLATION", "subject": "compound_v3",
+                      "detail": "доходность 4.65 % ниже медианы 4.81 %, а доля 40.0% "
+                                "больше половины тир-потолка (20.0%)"}],
+    }), encoding="utf-8")
+    head = D.build_headline_message({}, ddir)
+    assert "доходность 4.65 % ниже медианы" in head
+    assert "(ECON-10, compound_v3)" in head  # код правила — в скобках, не вместо слов
