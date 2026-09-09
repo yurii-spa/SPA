@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent-task
 title: "Включить агента com.spa.site_freshness — код по ADR-098 доставлен, тело не загружено"
-status: backlog
+status: done
 source: cycle-319-ingest
 created: 2026-08-20
 priority: high
@@ -58,3 +58,15 @@ tags: [site-custodian, deploy, adr-098, adr-085, manifest, launchd]
 - снимать облачный прогон `.github/workflows/site_freshness.yml` — он остаётся вторым,
   независимым глазом (ADR-085);
 - трогать числа, тиры, legal на сайте — owner-gated, к этой задаче отношения не имеет.
+
+## Доставлено 2026-09-09 (ночная смена)
+
+Агент `com.spa.site_freshness` **загружен** на Маке через `scripts/check_agent_before_deploy.sh site_freshness`
+(гейт: manual run exit 0, канонический трек не тронут, bootstrap из постоянного пути; `launchctl list` → exit 0,
+`deployment_acceptance` OK, entrypoints 80 → 81). Интервал 6 ч, намерение в манифесте `active` (коммит 1f00fa86).
+
+**Почему гейт отказывал до этого.** Первый заход 08.09 в 21:38Z: песочный прогон вернул 1, потому что кастодиан
+поставил на сайт табличку `degraded`. Табличка оказалась **ложной** — он сравнивал трековый APY снимка (5.3177 %)
+с `apy_today_pct` одного дня из API (5.0586 %). Разобрано в ADR-270, сравнение переведено «как с как», код
+доставлен коммитом 656234500 и синхронизирован в прод; повторный прогон кастодиана — `ok: true, n_fails: 0`,
+табличка снята коммитом f6953ad6, после чего гейт прошёл с первого раза.
