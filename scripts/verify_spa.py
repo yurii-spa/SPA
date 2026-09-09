@@ -171,6 +171,22 @@ UNDERWRITING_ENVELOPE_KEYS = ("seq", "prev_hash", "entry_hash")
 # (3) sha256(canonical(payload.package)) == commitment_hash. Forging the package, back-dating a
 # commit, revealing without a commit, or committing twice for one date DIVERGES → precise broken_at.
 BOOK_COMMIT_EVENT_TYPES = ("book_commit", "book_reveal")
+
+# Типы событий, для которых у ЭТОГО верификатора есть рецепт проверки (ADR-282).
+# Хеш-журналов в проекте больше, чем поверхностей верификатора: `data/audit_chain.jsonl`
+# несёт `execution_reconciliation`, `data/cycle_inputs.jsonl` — `cycle_inputs`, и оба
+# устроены той же общей формой (`seq/ts/event_type/payload/prev_hash/entry_hash`).
+# Обобщающая ветка классификатора объявляла ЛЮБУЮ такую строку цепочкой решений и
+# проверяла её чужим рецептом. Замер 2026-09-09: `verify_spa.py data/audit_chain.jsonl`
+# печатал «✗ decision_log: chain broken at row 0 · VERDICT: FAILED» на цепочке из 22 810
+# записей, которая ВАЛИДНА по собственному верификатору (`hash_chain.verify_chain()`).
+# Публичный инструмент, которым сайт предлагает нас проверить, сообщал провал о честном
+# артефакте. Незнакомый тип события ⇒ файл НЕ РАСПОЗНАН и не проверяется — это третий
+# исход, он называется вслух и не выдаётся ни за успех, ни за поломку.
+VERIFIABLE_EVENT_TYPES = frozenset(
+    (EVENT_TYPE, EQUITY_TRACK_EVENT_TYPE, TOURNAMENT_EVENT_TYPE,
+     SLEEVE_EVENT_TYPE, UNDERWRITING_EVENT_TYPE) + BOOK_COMMIT_EVENT_TYPES
+)
 BOOK_COMMIT_GENESIS_PREV = "0" * 64
 BOOK_COMMIT_HASH_KEYS = ("seq", "ts", "event_type", "payload", "prev_hash")
 
@@ -1213,9 +1229,14 @@ def _sniff_jsonl_kind(p: Path) -> Optional[str]:
     if "entry_hash" in keys and ("underlying" in keys or "shape" in keys
                                  or "approved" in keys or row.get("kind") in ("ENTRY", "REFUSAL")):
         return "decision_log"
-    # generic entry_hash chain with no stronger signal → treat as the rates-desk decision chain.
+    # generic entry_hash chain with no stronger signal → the rates-desk decision chain, but ONLY
+    # when the row does not NAME a chain this verifier cannot verify (ADR-282). Otherwise the file
+    # is unrecognized: not verified, and said so — never judged by the wrong recipe.
     if "entry_hash" in keys:
-        return "decision_log"
+        et = row.get("event_type")
+        if et is None or et in VERIFIABLE_EVENT_TYPES:
+            return "decision_log"
+        return None
     return None
 
 
@@ -1282,6 +1303,11 @@ def _classify_file(p: Path, found: dict) -> None:
     kind = _sniff_jsonl_kind(p)
     if kind is None:
         kind = _classify_by_name(p)
+    if kind is None:
+        # ADR-282: «не распознан» — самостоятельный исход. Молча выбросить файл, который
+        # пользователь ЯВНО передал, значит ответить тишиной на заданный вопрос.
+        found.setdefault("unrecognized", []).append(p)
+        return
     _place(kind, p, found)
 
 
@@ -1393,14 +1419,16 @@ def _resolve_inputs(args_paths: List[str]) -> dict:
             # an explicit forward-series producer → record it for coverage enforcement.
             if name.endswith("_series.json") and p not in found["sleeve_producers"]:
                 found["sleeve_producers"].append(p)
-            # an explicit non-canonical .jsonl that content-sniff could not place → default to the
-            # rates-desk decision chain bucket (back-compat with the explicit-file usage).
-            elif (name.endswith(".jsonl")
-                  and _sniff_jsonl_kind(p) is None and _classify_by_name(p) is None
-                  and found["decision_log"] is None):
-                found["decision_log"] = p
+            # ADR-282: здесь стоял «default to the rates-desk decision chain bucket (back-compat
+            # with the explicit-file usage)» — и это ВТОРОЙ путь того же дефекта. Явно переданный
+            # `data/audit_chain.jsonl` (22 810 записей, event_type `execution_reconciliation`)
+            # попадал в поверхность [A] и проверялся её рецептом: печаталось «chain broken at
+            # row 0 · VERDICT: FAILED» про цепочку, ВАЛИДНУЮ по собственному верификатору.
+            # Совместимость сохранена там, где она настоящая: `decision_log.jsonl` узнаётся по
+            # имени, а строки с `entry_hash` и без чужого `event_type` — по содержимому.
+            # Всё остальное честнее НЕ проверить, чем проверить не тем рецептом.
             elif (name.endswith(".json") and not name.endswith(".jsonl")
-                  and found["exit_nav"] is None and not name.endswith("_series.json")):
+                    and found["exit_nav"] is None):
                 found["exit_nav"] = p
     return found
 
@@ -1560,7 +1588,10 @@ def run(paths: List[str], expect_head: Optional[str] = None,
                         report["errors"].append(
                             f"fundability: {res.get('error') or 'no checkable rows'}")
 
-    if not any(_has_any(v) for v in inputs.values()):
+    # ADR-282: `unrecognized` — это перечень НЕпроверенного, а не поверхность. Учитывать его
+    # здесь значило бы, что «передали файл, который мы не умеем читать» проходит как «есть что
+    # проверять», и отказ fail-CLOSED («нечего проверять») превратился бы в успех.
+    if not any(_has_any(v) for k, v in inputs.items() if k != "unrecognized"):
         # the proof-chain surfaces are absent. If --check-fundability was requested AND succeeded,
         # that is still a valid run (the fundability reproduction is itself a complete check); else fail.
         if not check_fundability:
@@ -1857,12 +1888,21 @@ def _print_human(report: dict) -> None:
     print("=" * 78)
     print(f"spec_version       : {report['spec_version']}")
     print(f"canonical_json_rule: {report['canonical_json_rule']}")
+    unrecognized = report["files"].pop("unrecognized", None) or []
     for k, v in report["files"].items():
         if isinstance(v, list):
             disp = (", ".join(v) if v else "(not supplied)")
         else:
             disp = (v or "(not supplied)")
         print(f"  {k:14s}: {disp}")
+    if unrecognized:
+        # ADR-282: явно переданный файл, для которого у верификатора НЕТ рецепта, называется.
+        # Тишина здесь означала бы ответ на заданный вопрос молчанием, а прежняя ветка
+        # «любая хеш-цепочка = цепочка решений» отвечала на него ЧУЖИМ рецептом и печатала
+        # FAILED про валидный артефакт.
+        print(f"  {'unrecognized':14s}: {', '.join(unrecognized)}")
+        print(f"  {'':14s}  ↑ НЕ проверено: у этого верификатора нет рецепта для такого журнала. "
+              f"Это не поломка и не успех — это отсутствие проверки.")
     print("-" * 78)
 
     dc = report["decision_chain"]
