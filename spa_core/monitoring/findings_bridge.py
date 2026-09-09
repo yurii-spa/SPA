@@ -145,6 +145,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "cio_outcome_independence",
     "cio_substitution_census",
     "shadow_blockade_attribution",
+    "target_stability",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -236,6 +237,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "shadow_blockade_attribution": {
         "module": "spa_core/monitoring/shadow_blockade_attribution.py",
         "artifact": "data/shadow_blockade_attribution.json"},
+    "target_stability": {
+        "module": "spa_core/monitoring/target_stability.py",
+        "artifact": "data/target_stability.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -923,6 +927,20 @@ def main(argv=None) -> int:
               f"unchecked={brep['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — атрибуция не смеет валить мост
         census_skipped(_skipped, "shadow_blockade_attribution", e)
+    # Заказ #534 по карточке CIO: ОТКУДА берётся неустойчивость цели, которую
+    # атрибуция выше назвала причиной блокады. Мост находок его НЕ читает по той
+    # же причине, что и соседей: единственное действие по итогам — сменить форму
+    # целевой функции (наливать по потолок победителю ничьи) или ввести
+    # гистерезис порядка, то есть money-path и решение владельца, а не строка
+    # автокарточки. Потребитель — обязательный шаг 0-офис.
+    try:
+        from spa_core.monitoring import target_stability
+        trep = target_stability.run(root=args.root)
+        print(f"target_stability: {trep['overall']} "
+              f"(critical={trep['counts']['critical']} "
+              f"unchecked={trep['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "target_stability", e)
     # §43 ТЗ CIO «Audit trail»: отвечают ли ДАННЫЕ на вопрос о прошлой перекладке
     # («почему 13 августа переложили $12 000»), или на него отвечает только память
     # сессии. Мост находок его НЕ читает по той же причине, что и пять соседей

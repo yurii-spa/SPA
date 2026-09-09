@@ -53,6 +53,16 @@ SUBJECTS = {
     # (ADR-167, 29.08), покрыт 22 тестами — и имел НОЛЬ вызовов вне них неделю.
     # Отсутствие ЗДЕСЬ и есть та тишина, которой класс живёт.
     "evidence_staleness_monitor": "data/evidence_staleness.json",
+    # ADR-271. Добавлен циклом #535 тем же порядком и по той же причине: прибор
+    # доставлен #534 со своими 19 тестами, записью в манифесте и именной веткой
+    # шага 0-офис — и при этом подмена его вызова в `findings_bridge.main`
+    # литералом НЕ красила ни одного теста набора (замер 09.09: 103 passed до,
+    # 103 passed после). Класс не «был закрыт» — он закрывается ровно на тех
+    # модулях, которые вписаны СЮДА, и пропуск соседа это ещё раз показал.
+    "shadow_blockade_attribution": "data/shadow_blockade_attribution.json",
+    # Заказ #534 (гэп G5→G6). Вписан ОДНОВРЕМЕННО с рождением прибора, а не
+    # следующим циклом: см. строку выше — цена пропуска измерена дважды.
+    "target_stability": "data/target_stability.json",
 }
 
 
@@ -123,6 +133,62 @@ class TestTheOfficeStepReadsThem(unittest.TestCase):
                 declared[rel].get("consumers") or [],
                 f"{rel} объявлен без потребителя orchestrator_protocol — обязательный "
                 f"шаг 0-офис его не откроет",
+            )
+
+    def test_manifest_declares_the_artifact_in_BOTH_places(self):
+        """Дом артефакта — ДВЕ записи: ``artifacts[]`` И ``produces[]`` паспорта.
+
+        Мерка выше видит только первую. Замер 09.09: снятие записи из
+        ``produces[]`` бегуна не покрасило НИ ОДНОГО теста набора (103 passed до
+        и после), тогда как снятие из ``artifacts[]`` покраснело сразу. Пропусти
+        вторую — и паспорт агента будет молча утверждать, что он этот артефакт
+        не производит, а SLO ему никто не назначит.
+        """
+        manifest = json.load(
+            open(os.path.join(REPO_ROOT, "architecture", "manifest.json"), encoding="utf-8")
+        )
+        by_artifact = {a["path"]: a.get("producer")
+                       for a in manifest.get("artifacts", [])}
+        passports = {ag.get("label"): {p.get("artifact")
+                                       for p in (ag.get("produces") or [])}
+                     for ag in manifest.get("agents", [])}
+        for rel in SUBJECTS.values():
+            producer = by_artifact.get(rel)
+            self.assertIsNotNone(
+                producer, f"{rel}: в artifacts[] не назван производитель")
+            self.assertIn(
+                producer, passports,
+                f"{rel}: производитель {producer} не объявлен в agents[]")
+            self.assertIn(
+                rel, passports[producer],
+                f"{rel} отсутствует в produces[] паспорта {producer} — вторая "
+                f"запись дома артефакта не сделана, и агент утверждает, что "
+                f"этого артефакта не производит",
+            )
+
+    def test_office_knows_who_produces_each_artifact(self):
+        """Пропавший артефакт обязан называть СВОЕГО производителя.
+
+        Само отсутствие артефакта уже fail-CLOSED и без этой карты (сторож
+        `test_office_absent_artifact_producer_aware`), поэтому потеря здесь
+        тише прочих: находка не исчезает, она теряет АДРЕС. Замер 09.09:
+        снятие строки карты не покрасило ни одного теста набора — то есть
+        сообщение «производитель в дереве новее последнего прогона бегуна»
+        (третий исход, который закрывается сам) выродилось бы в «файла нет на
+        диске», и здоровый контур снова читался бы как поломка.
+        """
+        mod = _load_office_reader()
+        for rel in SUBJECTS.values():
+            base = os.path.basename(rel)
+            self.assertIn(
+                base, mod._PRODUCER,
+                f"{base} нет в карте производителей шага 0-офис — пропав, он не "
+                f"сможет назвать, кто его пишет",
+            )
+            self.assertTrue(
+                os.path.exists(os.path.join(REPO_ROOT, mod._PRODUCER[base])),
+                f"{base}: карта называет производителя {mod._PRODUCER[base]}, "
+                f"которого нет в дереве",
             )
 
     def test_capital_coverage_has_a_named_branch_not_the_generic_fallback(self):
@@ -208,6 +274,36 @@ class TestTheOfficeStepReadsThem(unittest.TestCase):
         # Оба рода обязаны звучать РАЗНЫМИ словами: у них разная починка.
         self.assertIn("раздача токена", text)
         self.assertIn("крупнейший TVL", text)
+
+
+    def test_target_stability_has_a_named_branch_not_the_generic_fallback(self):
+        mod = _load_office_reader()
+        report = {
+            "generated_at": NOW.isoformat(),
+            "schema": "target-stability-v1",
+            "status": "CRITICAL",
+            "determinism": "reproduced",
+            "injection_doors": {"verdict": "provider_is_the_only_door", "note": ""},
+            "capital_usd": 100000.0,
+            "capital_on_noise_decided_usd": 14210.52,
+            "capital_on_noise_decided_frac": 0.1421,
+            "protocols": [],
+            "unmeasured": ["fluid_fusdc"],
+            "findings": [
+                "[CRITICAL] morpho_blue: цель держит $9,474 на марже 0.0001 pp",
+                "[НЕ ИЗМЕРЕНО] fluid_fusdc: маржа 0.6133 pp измерена, но "
+                "собственного хода ставки в журнале решений НЕТ",
+            ],
+        }
+        text = "\n".join(
+            mod._summarize_json("data/target_stability.json", report, now=NOW)
+        )
+        self.assertIn("устойчивость цели", text)
+        # Две опоры замера обязаны звучать: маржа без них — украшение.
+        self.assertIn("детерминизм производителя", text)
+        self.assertIn("ШУМ РЕШАЕТ", text)
+        # Третий исход обязан доезжать до читателя, а не тонуть в нулях.
+        self.assertIn("НЕ ИЗМЕРЕНО", text)
 
 
 if __name__ == "__main__":

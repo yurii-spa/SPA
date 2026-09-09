@@ -274,16 +274,50 @@ class LiveTree(unittest.TestCase):
         """
         from spa_core.tests.test_cio_acceptance_guards_are_wired import SUBJECTS
 
+        # Мутация обязана рвать ВСЕ пути до измерителя, а не один.
+        #
+        # Замер 09.09 (цикл #535), причина этой правки: у измерителя ДВЕ формы
+        # ввоза и ДВА места. Мост зовёт `from spa_core.monitoring import X`, а
+        # обязательный шаг 0-офис — `from spa_core.monitoring.X import
+        # format_report`. Снимая только первую, мутация оставляла второй путь
+        # живым, измеритель честно отвечал REACHABLE, и сцена краснела на
+        # ПРАВИЛЬНО подключённом сторо́же. Так вышло на `target_stability` и на
+        # соседе `shadow_blockade_attribution`: оба печатают отчёт своей
+        # функцией, а те четверо из прежнего списка форматируются в шаге
+        # 0-офис на месте — второй формы ввоза у них нет, и дефект спал.
+        #
+        # Это УСИЛЕНИЕ контроля, а не его ослабление (инв. #16): предмет
+        # прежний, оба конца проводки теперь рвутся, и сцена по-прежнему
+        # требует, чтобы КАЖДЫЙ артефакт ручного списка стал сиротой.
+        _FORM_BRIDGE = r"^\s+from spa_core\.monitoring import \w+$"
+        _FORM_OFFICE = r"^\s+from spa_core\.monitoring\.\w+ import [\w, ]+$"
+        _OFFICE = "scripts.consume_office_reports"
+
         bridge = REPO / "spa_core/monitoring/findings_bridge.py"
         src = bridge.read_text(encoding="utf-8")
-        mutated_src, n = re.subn(
-            r"^\s+from spa_core\.monitoring import \w+$", "    pass", src, flags=re.M)
+        mutated_src, n = re.subn(_FORM_BRIDGE, "    pass", src, flags=re.M)
         self.assertGreater(n, len(SUBJECTS), "ввозов измерителей меньше ручного списка — "
                                              "мутация мерила бы пустоту")
         with TemporaryDirectory() as d:
             mutated = Path(d) / "findings_bridge.py"
             mutated.write_text(mutated_src, encoding="utf-8")
-            srcs = [(n_, mutated if n_ == _BRIDGE else p) for n_, p in op.source_files(REPO)]
+            srcs = []
+            office_cut = 0
+            for n_, p_ in op.source_files(REPO):
+                if n_ == _BRIDGE:
+                    srcs.append((n_, mutated))
+                elif n_ == _OFFICE:
+                    cut, k = re.subn(_FORM_OFFICE, "        pass",
+                                     p_.read_text(encoding="utf-8"), flags=re.M)
+                    office_cut = k
+                    mo = Path(d) / "office_reader.py"
+                    mo.write_text(cut, encoding="utf-8")
+                    srcs.append((n_, mo))
+                else:
+                    srcs.append((n_, p_))
+            self.assertGreater(office_cut, 0,
+                               "в шаге 0-офис не найдено ни одного ввоза второй формы — "
+                               "мутация мерила бы пустоту вторым концом")
             r = op.measure(REPO, sources=srcs)
         found = {o["path"] for o in op.orphans(r)}
         missing = sorted(set(SUBJECTS.values()) - found)

@@ -283,6 +283,13 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                          "binding_cause", "material_days",
                                          "gate_attribution", "target_instability",
                                          "lookahead_control", "findings"),
+    # Заказ #534. `determinism` и `injection_doors` объявлены рядом с находками
+    # намеренно: замер маржи ничего не стои́т, если производитель недетерминирован
+    # или возмущение до него не доходит, — и молчать об этих двух опорах значило бы
+    # подать число как факт, не назвав, на чём оно держится.
+    "target_stability.json": ("status", "determinism", "injection_doors",
+                              "capital_on_noise_decided_usd", "protocols",
+                              "unmeasured", "findings"),
     "cio_policy_change_procedure.json": ("overall", "counts.critical",
                                          "counts.warn", "counts.info",
                                          "counts.unchecked", "positive_control",
@@ -358,6 +365,7 @@ _PRODUCER: dict[str, str] = {
     "cio_outcome_independence.json": "spa_core/monitoring/cio_outcome_independence.py",
     "cio_substitution_census.json": "spa_core/monitoring/cio_substitution_census.py",
     "shadow_blockade_attribution.json": "spa_core/monitoring/shadow_blockade_attribution.py",
+    "target_stability.json": "spa_core/monitoring/target_stability.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1748,6 +1756,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # выше по течению. Владелец, увидев одно имя гейта, пошёл бы крутить
         # бюджет — ручку, которая на 11 из 21 дня не при чём.
         from spa_core.monitoring.shadow_blockade_attribution import format_report
+        out.extend(format_report(data))
+    elif name == "target_stability.json":
+        # Заказ #534. Порядок строк — порядок вопроса: сперва ДЕТЕРМИНИЗМ
+        # производителя и полнота возмущения (без них маржа не число, а
+        # украшение), затем сколько КАПИТАЛА стои́т на марже меньше собственного
+        # хода ставки, и только потом поимённые строки.
+        from spa_core.monitoring.target_stability import format_report
         out.extend(format_report(data))
     elif name == "cio_substitution_census.json":
         # Заказ #518/#519. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ
