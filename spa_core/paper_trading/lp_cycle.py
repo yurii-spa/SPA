@@ -268,7 +268,9 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
     if today not in existing_dates:
         from spa_core.investment_os.directive import cio_allows_new_positions
         rows = sleeve_book.load_ranking_rows()
-        cands = sleeve_book.band_candidates(rows, sleeve_book.AGG_BAND_MIN)
+        # ADR-292: абсолютный порог 6 % снят — против НАБЛЮДЁННЫХ ставок он
+        # опустошал книгу целиком (см. sleeve_book.book_candidates).
+        cands = sleeve_book.book_candidates(rows)
         # CIO-директива (ADR-103): постура RED ⇒ новых позиций не открываем.
         allow_new = cio_allows_new_positions()
         book, opened, closed = sleeve_book.rebalance_book(
@@ -277,7 +279,20 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
             cap_pct=sleeve_book.AGG_PER_PROTOCOL_CAP_PCT,
         )
         dy, deployed = sleeve_book.accrue_book(book, cands)
-        equity += dy
+        # ADR-292: издержки перекладки СПИСЫВАЮТСЯ. До этого кривая книги не могла
+        # упасть ни в один день по построению — начисление всегда положительно, а
+        # за собственные ходы книга не платила. Числа берутся из единственной
+        # модели костов дерева (sleeve_book.book_move_cost).
+        _cost = sleeve_book.book_move_cost(_legs_before, book,
+                                           sleeve_book.chains_from_rows(rows))
+        equity += dy - _cost["cost_usd"]
+        state["costs_paid_usd"] = round(
+            float(state.get("costs_paid_usd") or 0.0) + _cost["cost_usd"], 6)
+        # ADR-292: переоценка позиций — шов с ТРЕТЬИМ исходом. Что не наблюдали, то
+        # не переоценивается; доля покрытия пишется в строку истории числом, чтобы
+        # «не измерено» нельзя было прочитать как «не двигалось».
+        _mtm = sleeve_book.mark_to_market(book, sleeve_book.observed_prices())
+        equity += _mtm["pnl_usd"]
         if equity > peak:
             peak = equity
         il_dd = compute_il_drawdown(equity, peak)
@@ -291,6 +306,12 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
             "il_drawdown_pct": il_dd,
             "apy_pct": sleeve_book.book_weighted_apy_pct(book),
             "daily_yield_usd": round(dy, 4),
+            "cost_usd": round(_cost["cost_usd"], 4),
+            "net_pnl_usd": round(dy - _cost["cost_usd"] + _mtm["pnl_usd"], 4),
+            "mtm_pnl_usd": round(_mtm["pnl_usd"], 4),
+            "mtm_coverage_pct": _mtm["coverage_pct"],
+            "mtm_unmarked": _mtm["unmarked"],
+            "turnover_usd": _cost["turnover_usd"],
             "positions_count": len(book),
             "deployed_usd": deployed,
             "opened": opened,

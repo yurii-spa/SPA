@@ -7,7 +7,9 @@
 это («начисление — не трек») и разрешил вернуть её «только в день, когда
 positions_count > 0 станет фактом». Этот модуль и делает его фактом: рукав держит
 ПОИМЕНОВАННЫЕ paper-позиции в живых протоколах из data/apy_ranking.json и
-начисляет доход КАЖДОЙ позиции по ЕЁ живому APY.
+начисляет доход КАЖДОЙ позиции по ЕЁ НАБЛЮДЁННОЙ ставке (ADR-292: строка
+ранжирования допускается, только если её apy_source/tvl_source == "live", а TVL
+проходит пол политики; ненаблюдаемая константа адаптера кандидатом не является).
 
 Правила (те же, что у всего paper-слоя):
   • Детерминизм: кандидаты сортируются по (−apy, protocol) — одинаковый вход даёт
@@ -53,7 +55,30 @@ AGG_BAND_MIN = 6.0          # тот же порог входа, что у Balan
 AGG_MAX_POSITIONS = 2       # концентрация: две самые доходные позиции
 AGG_PER_PROTOCOL_CAP_PCT = 60.0
 
-ACCRUAL_BASIS = "per_position_live_apy"
+# ── Наблюдаемость ставки (ADR-292, замер 2026-09-09) ─────────────────────────
+# До этой правки строка ранжирования принималась целиком: `_dedup_best` смотрел
+# только на `apy_pct` и не спрашивал, ОТКУДА он. В живом файле того дня восемь
+# строк из тридцати несли `apy_source="fallback"` — константу адаптера, которую
+# никто не наблюдал, — и все восемь стояли ВЫШЕ каждой наблюдённой ставки:
+#
+#   pendle_yt_susde 14.0 · ethena_susde 12.0 · aerodrome_usdc_lp 8.5 · pendle 8.0
+#   (лучшая НАБЛЮДЁННАЯ ставка того дня — moonwell_base 11.97, затем maple 4.96)
+#
+# Сортировка по (−apy) поэтому гарантированно набирала книгу из литералов: обе
+# книги были профинансированы на 100 % ненаблюдаемыми числами, а поле
+# ACCRUAL_BASIS называлось `per_position_live_apy` и утверждало обратное. Слово
+# «live» там значило «из файла ранжирования», а не «наблюдено» — претензия на
+# провенанс, которую никто не проверял.
+#
+# Теперь провенанс — условие допуска, а не украшение. Строка становится
+# кандидатом, только если ставку НАБЛЮДАЛИ (`apy_source == "live"`) и размер пула
+# тоже наблюдали и он проходит пол (`tvl_source == "live"`, `tvl_usd >= MIN_TVL_USD`).
+# Пол — тот же $5M, что у RiskPolicy v1.0: книга-рукав не смягчает границы политики.
+OBSERVABLE_APY_SOURCE = "live"
+OBSERVABLE_TVL_SOURCE = "live"
+MIN_TVL_USD = 5_000_000.0
+
+ACCRUAL_BASIS = "per_position_observed_apy"
 
 
 def load_ranking_rows(path: Optional[Path] = None) -> List[dict]:
@@ -108,10 +133,52 @@ def apy_provenance_from_rows(
     return apy_pct, apy_sources, tvl_sources, tvl_usd
 
 
+def observable_rows(rows: Optional[List[dict]]) -> Tuple[List[dict], List[dict]]:
+    """Разделить строки ранжирования на НАБЛЮДЁННЫЕ и отброшенные (с причиной).
+
+    Возвращает ``(kept, dropped)``; каждая запись ``dropped`` несёт ``protocol``,
+    ``apy_pct`` и ``reason`` — чтобы цикл мог записать в историю, ЧТО именно он не
+    взял и почему, а не молча показать пустую книгу.
+
+    Отсутствие поля — НЕ «наблюдено». Строка без ``apy_source`` отбрасывается с
+    причиной ``apy_source_missing``: молчание провенанса читается как отказ, иначе
+    старая фикстура или новый адаптер без поля тихо вернули бы прежнее поведение.
+    """
+    kept: List[dict] = []
+    dropped: List[dict] = []
+    for r in rows or []:
+        if not isinstance(r, dict):
+            continue
+        proto = str(r.get("protocol") or "").strip()
+        if not proto:
+            continue
+        rec = {"protocol": proto, "apy_pct": r.get("apy_pct")}
+        a_src = r.get("apy_source")
+        t_src = r.get("tvl_source")
+        tvl = r.get("tvl_usd")
+        if a_src is None:
+            dropped.append({**rec, "reason": "apy_source_missing"}); continue
+        if str(a_src) != OBSERVABLE_APY_SOURCE:
+            dropped.append({**rec, "reason": f"apy_source={a_src}"}); continue
+        if t_src is None:
+            dropped.append({**rec, "reason": "tvl_source_missing"}); continue
+        if str(t_src) != OBSERVABLE_TVL_SOURCE:
+            dropped.append({**rec, "reason": f"tvl_source={t_src}"}); continue
+        if not isinstance(tvl, (int, float)) or isinstance(tvl, bool):
+            dropped.append({**rec, "reason": "tvl_usd_missing"}); continue
+        if float(tvl) < MIN_TVL_USD:
+            dropped.append({**rec, "reason": f"tvl_below_floor:{float(tvl):.0f}"}); continue
+        kept.append(r)
+    return kept, dropped
+
+
 def _dedup_best(rows: List[dict]) -> List[dict]:
     """Один протокол — одна строка (лучший APY). Сортировка (−apy, name) = детерминизм."""
     best: dict[str, float] = {}
-    for r in rows:
+    # Провенанс — условие допуска (см. блок «Наблюдаемость ставки» выше): в набор
+    # кандидатов попадают только строки, у которых ставку и размер пула НАБЛЮДАЛИ.
+    observable, _dropped = observable_rows(rows)
+    for r in observable:
         name = str(r.get("protocol") or "").strip()
         apy = r.get("apy_pct")
         if not name or not isinstance(apy, (int, float)) or isinstance(apy, bool):
@@ -153,6 +220,30 @@ def band_candidates(rows: List[dict], min_apy: float,
     """
     return [c for c in _dedup_best(rows)
             if min_apy <= c["apy_pct"] <= max_apy]
+
+
+def book_candidates(rows: Optional[List[dict]]) -> List[dict]:
+    """Кандидаты книги рукава: ВСЕ наблюдённые имена, отсортированные по (−apy, name).
+
+    Почему здесь НЕТ абсолютного порога доходности (ADR-292, замер 2026-09-09).
+    ``HY_BAND_MIN``/``AGG_BAND_MIN`` = 6 % откалиброваны в мире, где полосу населяли
+    константы адаптеров: в живом файле того дня четыре верхние строки (14.0 / 12.0 /
+    8.5 / 8.0) несли ``apy_source="fallback"``. Как только провенанс стал условием
+    допуска, полоса ≥ 6 % опустела ЦЕЛИКОМ — лучшая наблюдённая ставка, проходящая
+    пол TVL, была 4.96 %. Книга с абсолютным порогом 6 % не открыла бы ни одной
+    позиции никогда, а книга, которая ничего не держит, — не тест, а отказ.
+
+    Поэтому «high-yield» здесь величина ОТНОСИТЕЛЬНАЯ: список отсортирован по
+    доходности, а сколько имён из его начала взять и с каким потолком — решает
+    профиль книги (``max_positions``/``cap_pct`` в ``rebalance_book``). Balanced
+    берёт четыре имени с потолком 40 %, Aggressive — два с потолком 60 %.
+
+    Порог не «ослаблен»: доступ к книге стал СТРОЖЕ (ненаблюдаемая ставка больше не
+    кандидат вовсе), а число, которое книга покажет, — теперь измеренное. Ожидаемое
+    следствие названо в ADR-292 ДО работы: обе книги дадут примерно столько же,
+    сколько консервативная, потому что 12 % и 20 % в наблюдаемой вселенной нет.
+    """
+    return _dedup_best(rows or [])
 
 
 def rebalance_book(positions: List[dict], candidates: List[dict], equity: float,
@@ -225,6 +316,187 @@ def accrue_book(positions: List[dict], candidates: List[dict]) -> Tuple[float, f
         p["stale"] = False
         total += notional * (min(float(apy), APY_CAP) / 100.0) / 365.0
     return round(total, 6), round(deployed, 2)
+
+
+# ── Издержки перекладок (ADR-292) ────────────────────────────────────────────
+# Кривая, которой не с чего упасть, не может быть треком. У книги-рукава ДВЕ
+# причины упасть: движение цены инструмента (переоценка) и издержки перекладки.
+# Вторая дешевле и честнее первой — она возникает от собственных действий книги,
+# и до сих пор не списывалась вовсе: `equity += dy`, и всё.
+#
+# Числа НЕ изобретаются: газ/слиппедж/мост берутся из ЕДИНСТВЕННОЙ модели костов
+# дерева (spa_core/backtesting/tier1/cost_model.py) — той же, которой пользуется
+# rebalance_economics для консервативной книги. Четвёртое число на этой оси
+# заводить запрещено (замер «в дереве ТРИ числа 8/15/96 на одной оси»).
+try:  # pragma: no cover — импорт-страж, книга обязана считаться и без модели
+    from spa_core.backtesting.tier1.cost_model import (
+        GAS_USD_PER_POSITION_CHANGE as _GAS_BY_CHAIN,
+        SLIPPAGE_BPS_STABLE as _SLIPPAGE_BPS,
+        BRIDGE_BPS as _BRIDGE_BPS,
+    )
+except Exception:  # noqa: BLE001
+    _GAS_BY_CHAIN = {"ethereum": 12.0, "mainnet": 12.0, "arbitrum": 0.25,
+                     "optimism": 0.25, "base": 0.15, "polygon": 0.05, "blended": 1.5}
+    _SLIPPAGE_BPS = 8.0
+    _BRIDGE_BPS = 5.0
+
+
+def chains_from_rows(rows: Optional[List[dict]]) -> dict:
+    """protocol → сеть из строк ранжирования (поле ``network``); нет поля ⇒ нет ключа.
+
+    Отсутствующая сеть НЕ подменяется «blended» здесь: подстановка — решение
+    потребителя (``book_move_cost``), и оно должно быть видно там, где считается газ.
+    """
+    out: dict = {}
+    for r in rows or []:
+        if not isinstance(r, dict):
+            continue
+        proto = str(r.get("protocol") or "").strip()
+        net = r.get("network")
+        if proto and net:
+            out[proto] = str(net).strip().lower()
+    return out
+
+
+def book_move_cost(before: Optional[List[dict]], after: Optional[List[dict]],
+                   chains: Optional[dict] = None) -> dict:
+    """Стоимость перехода книги ``before`` → ``after`` в долларах.
+
+    Оборот считается ОДНОСТОРОННЕ — ``max(куплено, продано)``: при обмене одной
+    позиции на другую это половина валового, а при развёртывании кэша (продажи нет
+    вовсе) — вся развёрнутая сумма. ``gross/2`` во втором случае занизил бы издержку
+    ровно на том движении, которое книга делает чаще всего.
+
+    Возвращает ``{"cost_usd", "turnover_usd", "gas_usd", "slippage_usd", "bridge_usd",
+    "touched": [...], "chains": [...]}``. Ничего не меняет во входных списках.
+    """
+    chains = chains or {}
+
+    def _flat(book):
+        out: dict = {}
+        for leg in book or []:
+            if not isinstance(leg, dict):
+                continue
+            proto = str(leg.get("protocol") or "").strip()
+            if not proto:
+                continue
+            out[proto] = out.get(proto, 0.0) + float(leg.get("notional_usd") or 0.0)
+        return out
+
+    b, a = _flat(before), _flat(after)
+    inc = dec = 0.0
+    touched: List[str] = []
+    for proto in sorted(set(b) | set(a)):
+        d = a.get(proto, 0.0) - b.get(proto, 0.0)
+        if abs(d) <= 1e-9:
+            continue
+        touched.append(proto)
+        if d > 0:
+            inc += d
+        else:
+            dec += -d
+    turnover = max(inc, dec)
+    gas = 0.0
+    seen_chains = set()
+    for proto in touched:
+        chain = chains.get(proto, "blended")
+        seen_chains.add(chain)
+        gas += float(_GAS_BY_CHAIN.get(chain, _GAS_BY_CHAIN.get("blended", 1.5)))
+    slippage = turnover * (_SLIPPAGE_BPS / 10_000.0)
+    bridge = turnover * (_BRIDGE_BPS / 10_000.0) if len(seen_chains) > 1 else 0.0
+    return {
+        "cost_usd": round(gas + slippage + bridge, 6),
+        "turnover_usd": round(turnover, 2),
+        "gas_usd": round(gas, 6),
+        "slippage_usd": round(slippage, 6),
+        "bridge_usd": round(bridge, 6),
+        "touched": touched,
+        "chains": sorted(seen_chains),
+    }
+
+
+# ── Переоценка позиций (ADR-292) ─────────────────────────────────────────────
+# Главное отличие этих книг от консервативной. Консервативная даёт стейблы в долг:
+# цена около единицы, меняются только проценты, поэтому её кривая по построению не
+# падает — отсюда её «0.0 % просадки», и это свойство модели, а не устойчивость.
+# Balanced и Aggressive держат инструменты, у которых цена ДВИЖЕТСЯ.
+#
+# Цену выдумывать нельзя. Поэтому переоценка здесь — ШОВ с третьим исходом: чего
+# не наблюдали, то не переоценивается и честно попадает в непокрытую долю книги.
+# Единственный живой источник цен в дереве на 2026-09-09 — монитор пега
+# (data/peg_history.json), и он покрывает три адаптера из тридцати. Покрытие
+# записывается числом в каждую строку истории, поэтому «переоценка не измерена»
+# видно в самом треке, а не только в этом комментарии.
+_PEG_HISTORY = _PROJECT_ROOT / "data" / "peg_history.json"
+
+
+def observed_prices(path: Optional[Path] = None) -> dict:
+    """protocol → наблюдённая цена из монитора пега. Нет файла/поля ⇒ ключа нет.
+
+    Ключ строки монитора — ``adapter_id``; он совпадает с именем протокола в
+    ранжировании не всегда, и несовпавшее имя просто остаётся непокрытым. Молча
+    сопоставлять «похожие» имена запрещено: ошибка сопоставления здесь означала бы
+    переоценку позиции по цене ЧУЖОГО инструмента.
+    """
+    p = path or _PEG_HISTORY
+    try:
+        d = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return {}
+    out: dict = {}
+    for st in ((d.get("latest") or {}).get("statuses") or []):
+        if not isinstance(st, dict):
+            continue
+        name = str(st.get("adapter_id") or "").strip()
+        price = st.get("current_price")
+        if name and isinstance(price, (int, float)) and not isinstance(price, bool) and price > 0:
+            out[name] = float(price)
+    return out
+
+
+def mark_to_market(positions: Optional[List[dict]], prices: Optional[dict]) -> dict:
+    """Переоценить книгу по наблюдённым ценам. МУТИРУЕТ ``mark_price`` у покрытых ног.
+
+    Возвращает ``{"pnl_usd", "covered_usd", "deployed_usd", "coverage_pct",
+    "marked": [...], "unmarked": [...]}``.
+
+    Первое наблюдение цены позиции даёт P&L 0 и запоминает отметку — движение
+    считается только между ДВУМЯ наблюдениями. Нулевое покрытие возвращает
+    ``coverage_pct = 0.0`` и ``pnl_usd = 0.0``: это «не измерено», а не «не двигалось»,
+    и различить их обязан потребитель — поле ``coverage_pct`` для того и есть.
+    """
+    prices = prices or {}
+    pnl = 0.0
+    covered = 0.0
+    deployed = 0.0
+    marked: List[str] = []
+    unmarked: List[str] = []
+    for p in positions or []:
+        if not isinstance(p, dict):
+            continue
+        notional = float(p.get("notional_usd") or 0.0)
+        if notional <= 0:
+            continue
+        deployed += notional
+        proto = str(p.get("protocol") or "").strip()
+        px = prices.get(proto)
+        if px is None:
+            unmarked.append(proto)
+            continue
+        covered += notional
+        marked.append(proto)
+        prev = p.get("mark_price")
+        if isinstance(prev, (int, float)) and not isinstance(prev, bool) and prev > 0:
+            pnl += notional * (float(px) / float(prev) - 1.0)
+        p["mark_price"] = float(px)
+    return {
+        "pnl_usd": round(pnl, 6),
+        "covered_usd": round(covered, 2),
+        "deployed_usd": round(deployed, 2),
+        "coverage_pct": round(100.0 * covered / deployed, 4) if deployed > 0 else 0.0,
+        "marked": sorted(marked),
+        "unmarked": sorted(unmarked),
+    }
 
 
 def book_weighted_apy_pct(positions: List[dict]) -> float:
