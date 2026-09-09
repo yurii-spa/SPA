@@ -332,6 +332,19 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                        "ranked", "ranked_live", "gap",
                                        "never_written", "criterion", "readers",
                                        "not_measured_by_design", "findings"),
+    # Заказ #540. `capability` объявлено В СХЕМЕ намеренно и рядом с `replay`:
+    # без него отрицательный ответ («ни один вердикт не перевернулся») читается
+    # как результат, тогда как он вакуумен, пока не показано, что переворот был
+    # ДОСТИЖИМ. `live_path` и `replay` — две поверхности с противоположными
+    # ответами, и обе обязаны быть на виду: одна названная вместо двух — верный
+    # ответ не на тот вопрос. `prior_claim` в схеме потому, что находка прибора
+    # есть ОПРОВЕРЖЕНИЕ уже доставленного утверждения, и молча пересматривать
+    # чужой вердикт нельзя.
+    "decision_record_verdict_sensitivity.json": ("status", "journal_rows",
+                                                 "live_path", "replay",
+                                                 "capability",
+                                                 "rate_spread_observed",
+                                                 "prior_claim", "findings"),
     "cio_policy_change_procedure.json": ("overall", "counts.critical",
                                          "counts.warn", "counts.info",
                                          "counts.unchecked", "positive_control",
@@ -411,6 +424,8 @@ _PRODUCER: dict[str, str] = {
     "ranking_tie_census.json": "spa_core/monitoring/ranking_tie_census.py",
     "ranking_tie_persistence.json": "spa_core/monitoring/ranking_tie_persistence.py",
     "decision_journal_coverage.json": "spa_core/monitoring/decision_journal_coverage.py",
+    "decision_record_verdict_sensitivity.json":
+        "spa_core/monitoring/decision_record_verdict_sensitivity.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1832,6 +1847,16 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # покрытия, прочёл бы цену потолка как поломку потребителя.
         from spa_core.monitoring.decision_journal_coverage import format_report
         out.extend(format_report(data))
+    elif name == "decision_record_verdict_sensitivity.json":
+        # Заказ #540. Порядок строк — порядок вопроса: сперва ДВЕ ПОВЕРХНОСТИ
+        # (живой путь вердикта и путь реплея), затем КОНТРОЛЬ СПОСОБНОСТИ, и
+        # только потом находки. Контроль стои́т ВЫШЕ находок намеренно: владелец,
+        # увидев «ни один вердикт не перевернулся» без него, прочёл бы вакуум
+        # как доказательство, что расширение записи безопасно.
+        from spa_core.monitoring.decision_record_verdict_sensitivity import (
+            format_report as _drvs_report,
+        )
+        out.extend(_drvs_report(data))
     elif name == "cio_substitution_census.json":
         # Заказ #518/#519. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ
         # (и прямо сказано, что оно не ответ), затем ДОСТИЖИМОСТЬ двумя

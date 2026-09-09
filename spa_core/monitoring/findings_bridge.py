@@ -106,6 +106,7 @@ PRODUCES = (
     "data/ranking_tie_census.json",
     "data/ranking_tie_persistence.json",
     "data/decision_journal_coverage.json",
+    "data/decision_record_verdict_sensitivity.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -167,6 +168,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "ranking_tie_census",
     "ranking_tie_persistence",
     "decision_journal_coverage",
+    "decision_record_verdict_sensitivity",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -270,6 +272,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "decision_journal_coverage": {
         "module": "spa_core/monitoring/decision_journal_coverage.py",
         "artifact": "data/decision_journal_coverage.json"},
+    "decision_record_verdict_sensitivity": {
+        "module": "spa_core/monitoring/decision_record_verdict_sensitivity.py",
+        "artifact": "data/decision_record_verdict_sensitivity.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -1016,6 +1021,22 @@ def main(argv=None) -> int:
               f"unchecked={drep['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "decision_journal_coverage", e)
+    # Заказ #540 по карточке CIO: расширение записи решения — это про ПРИБОРЫ
+    # или про САМО РЕШЕНИЕ? Прибор разводит две поверхности с противоположными
+    # ответами (живой путь вердикта — запись там ВЫХОД; путь реплея — вход) и
+    # обязан носить положительный контроль: отрицательный результат без
+    # доказанной способности перевернуть вердикт вакуумен. Мост находок его НЕ
+    # читает по той же причине, что и соседей: единственное действие по итогам —
+    # тронуть запись решения, то есть путь капитала. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import decision_record_verdict_sensitivity
+        vrep = decision_record_verdict_sensitivity.run(root=args.root)
+        print(f"decision_record_verdict_sensitivity: {vrep['overall']} "
+              f"(critical={vrep['counts']['critical']} "
+              f"warn={vrep['counts']['warn']} "
+              f"unchecked={vrep['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "decision_record_verdict_sensitivity", e)
     # §43 ТЗ CIO «Audit trail»: отвечают ли ДАННЫЕ на вопрос о прошлой перекладке
     # («почему 13 августа переложили $12 000»), или на него отвечает только память
     # сессии. Мост находок его НЕ читает по той же причине, что и пять соседей

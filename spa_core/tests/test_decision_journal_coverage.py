@@ -254,6 +254,19 @@ class ReaderPopulationRatchet(unittest.TestCase):
     #: этот список стал бы обычной глушилкой, ради которой храповик и написан.
     WRITER = "spa_core.paper_trading.allocation_rationale"
 
+    #: Второе исключение, добавлено циклом #541 (ADR-295) — и это НЕ ослабление
+    #: храповика, а применение его же правила. Совпадение по имени ключа роли не
+    #: различает: «читает `apy_evidenced_pct`» одинаково верно и про
+    #: ПОТРЕБИТЕЛЯ (его ответ платит за потолок журнала), и про ПЕРТУРБАТОРА,
+    #: который сам этот ключ в журнал и вписывает, чтобы построить контроль.
+    #: Спрашивать у второго «во что тебе обойдётся расширение» — вопрос не к
+    #: тому: расширение и есть его предмет, а прогон его внутри `probe_readers`
+    #: вложил бы замер сам в себя (17.7 с × 2 в дневном мосте, замер #541).
+    #: Исключение названо ПОИМЁННО и, как и WRITER выше, ДОКАЗЫВАЕТСЯ отдельным
+    #: тестом — поведением, а не списком: перестань модуль пертурбировать ключ,
+    #: и доказательство покраснеет.
+    PERTURBER = "spa_core.monitoring.decision_record_verdict_sensitivity"
+
     def _production_modules_touching_the_key(self):
         root = Path(__file__).resolve().parents[2]
         found = set()
@@ -278,12 +291,50 @@ class ReaderPopulationRatchet(unittest.TestCase):
         self.assertTrue(hasattr(allocation_rationale, "build_history_record"))
         self.assertTrue(hasattr(allocation_rationale, "append_rationale_history"))
 
+    def test_the_perturber_exclusion_really_perturbs(self):
+        """Исключение обязано БЫТЬ пертурбатором, а не просто числиться им.
+
+        Тот же порядок, что у ``test_the_only_exclusion_really_is_the_writer``:
+        имя в списке ничего не значит, пока не показано поведением. Здесь —
+        что модуль СТРОИТ журнал с изменённым ``apy_evidenced_pct`` (а не
+        читает готовый), и потому вопрос «во что тебе обойдётся расширение»
+        к нему не обращён.
+        """
+        import tempfile as _tf
+
+        from spa_core.monitoring import decision_record_verdict_sensitivity as drvs
+
+        self.assertTrue(hasattr(drvs, "capability_control"))
+        rates = {"a": 3.0, "b": 3.0}
+
+        def rec(i, cur, tgt, cost, turn):
+            return {"schema": "shadow-hist-v2",
+                    "cycle_date": (NOW + timedelta(days=i)).date().isoformat(),
+                    "verdict": "HOLD", "current_positions": cur,
+                    "target_positions": tgt, "apy_evidenced_pct": dict(rates),
+                    "capital_usd": 100_000.0, "cost_usd": cost,
+                    "turnover_usd": turn, "legs": [], "gates": {}}
+
+        rows = [rec(0, {"a": 50_000.0}, {"b": 50_000.0}, 10.0, 50_000.0)]
+        rows += [rec(i, {"b": 50_000.0}, {"b": 50_000.0}, 0.0, 0.0)
+                 for i in range(1, 9)]
+        with _tf.TemporaryDirectory() as td:
+            sandbox = Path(td)
+            drvs._write_journal(rows, sandbox / drvs.HISTORY_FILENAME)
+            base = drvs._replay(sandbox, rows, "base")
+            out = drvs.capability_control(sandbox, rows, base)
+            # Пертурбация состоялась: контроль перевернул вердикт, а сделать это
+            # он мог ТОЛЬКО вписав в журнал другие ставки по этому же ключу.
+            self.assertTrue(out["fired"], out)
+            self.assertEqual(out["outcome_after"], "miss")
+
     def test_the_population_is_not_empty(self):
         """Пустой замер зеленил бы храповик, ничего не измерив."""
         self.assertGreater(len(self._production_modules_touching_the_key()), 1)
 
     def test_every_production_reader_is_in_the_population(self):
-        declared = {r["module"] for r in djc.READERS} | {self.WRITER}
+        declared = {r["module"] for r in djc.READERS} | {self.WRITER,
+                                                         self.PERTURBER}
         missing = sorted(self._production_modules_touching_the_key() - declared)
         self.assertEqual(
             missing, [],

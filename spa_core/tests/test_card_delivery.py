@@ -381,11 +381,28 @@ class OfficeStepSeesTheBridge(unittest.TestCase):
         # ::test_missing_block_is_printed_as_unmeasured_not_silence`), поэтому
         # правка фикстуры ничего не гасит: она лишь перестаёт утверждать «тихо»
         # о документе, которого не пишет никто.
+        # ИЗМЕНЕНО НАМЕРЕННО ТРЕТИЙ РАЗ (цикл #541, ADR-295, инвариант #16 —
+        # обоснование здесь и в `docs/journal/2026-W37.md`), и ровно тем же
+        # правилом, что дважды выше: производитель `findings_bridge.py` пишет
+        # ещё один БЕЗУСЛОВНЫЙ ключ `censuses` (#524), а фикстура его не несла.
+        # До сих пор её спасал ТОЛЬКО порядок отметок времени: пока mtime
+        # производителя старше отчёта фикстуры, недостающее поле списывается на
+        # «старый образец». Любая правка `findings_bridge.py` кем угодно
+        # переворачивает этот порядок и красит тест — то есть вердикт зависел от
+        # МИНУТЫ, а не от поведения (класс «фиксированная отметка — бомба»,
+        # `.claude/rules/deployment.md`). Утверждение теста — «успешная доставка
+        # молчит», включая запрет ⚠️ — оставлено ДОСЛОВНО, не ослаблено ни на
+        # символ. Отчёт БЕЗ этого ключа по-прежнему обязан быть слышен, и это
+        # закреплено отдельно (`test_consume_office_reports.py`
+        # ::test_producer_without_the_key_is_still_a_finding), поэтому правка
+        # фикстуры ничего не гасит: она лишь перестаёт утверждать «тихо» о
+        # документе той формы, которой производитель уже не пишет.
         out = self.summarize({"generated_at": ts(hours_ago=0.1),
                               "owner_answer_delivery": {
                                   "status": "IDLE", "delivered": [],
                                   "already_on_origin": ["own-x.md"], "pending": [],
                                   "conflicts": [], "unmeasured": []},
+                              "censuses": {"attempted": [], "skipped": {}},
                               "created": [], "closed": [], "deferred": [],
                               "waiting_hysteresis": [], "escalated": [],
                               "sources_unread": [], "open_cards": 0,
