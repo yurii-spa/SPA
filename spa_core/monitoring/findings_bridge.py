@@ -88,6 +88,24 @@ PRODUCES = (
     "data/investment_os/outcomes.jsonl",
     "data/loop_health.json",
     "data/loop_retro.json",
+    # Объявлены ЗАМЕРОМ (цикл #540), а не по памяти: карточка
+    # `inbox-nahodka-petli-com-spa-decision-loop-kod` называла ТРИ артефакта,
+    # известных манифесту и неизвестных этому объявлению, — на день замера их
+    # было пять. Класс рос ПО ОДНОМУ ЗА ЦИКЛ: каждая новая перепись вносила
+    # запись манифеста и строку `CENSUS_PRODUCT`, но не эту, а сторож B7
+    # (`architecture_conformance`) читает именно её. `CENSUS_PRODUCT`
+    # объявлением НЕ является: он говорит, чем перепись написана, а не что
+    # агент обязуется произвести.
+    #
+    # У каждой строки ниже проверено ОБА условия, а не одно: в мосте есть
+    # производящий вызов `<модуль>.run(root=args.root)` И модуль пишет свой
+    # артефакт. Объявление без вызова — ровно дефект ADR-259, объявление без
+    # записи было бы его зеркалом.
+    "data/shadow_blockade_attribution.json",
+    "data/target_stability.json",
+    "data/ranking_tie_census.json",
+    "data/ranking_tie_persistence.json",
+    "data/decision_journal_coverage.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
