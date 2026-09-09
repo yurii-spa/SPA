@@ -21,7 +21,8 @@ Commands
   /agents     launchd agent health (✅/❌/⏸) + "What does each agent do?" button
   /alerts     top red_flags + peg status
   /why        explain likely reasons for each ❌ agent
-  /pause      arm the manual kill-switch
+  /pause      EMERGENCY STOP — arms the manual kill-switch (measured effect: ALL_CASH,
+              not a hold; the label was corrected to match, ADR-286 §3)
   /resume     clear the manual kill-switch
 
 Design
@@ -545,8 +546,14 @@ class TelegramBot:
                 {"text": "❓ Почему ❌?",     "callback_data": "/why"},
             ],
             [
-                {"text": "⏸ Пауза",          "callback_data": "/pause"},
-                {"text": "▶️ Возобновить",    "callback_data": "/resume"},
+                # ADR-286 §3 (решение владельца 09.09), шаг 1 — подпись приводится в
+                # соответствие с ИЗМЕРЕННЫМ действием. Замер cio_kill_switch_controls:
+                # эффект `/pause` — ALL_CASH (аварийная остановка), а не HOLD_ONLY;
+                # орган вердиктился CONFLATED — «владелец нажимает одно имя и получает
+                # другое последствие». Настоящая пауза («не открывать новое, книгу не
+                # ликвидировать») — шаг 2, money-path, отдельно через pre_cutover_gate.
+                {"text": "🛑 Аварийная остановка", "callback_data": "/pause"},
+                {"text": "▶️ Возобновить",         "callback_data": "/resume"},
             ],
         ]}
 
@@ -644,10 +651,13 @@ class TelegramBot:
             "/agents — статус агентов launchd\n"
             "/alerts — активные алерты и peg-мониторинг\n"
             "/why — почему агенты ❌ (диагностика)\n"
-            "/pause — kill-switch (поставить на паузу)\n"
-            "/resume — снять паузу\n"
+            "/pause — 🛑 аварийная остановка: снять экспозицию, уйти в кэш\n"
+            "/resume — снять аварийную остановку\n"
             "/menu — интерактивное меню\n"
-            "/help — этот список"
+            "/help — этот список\n\n"
+            "⚠️ Настоящей ПАУЗЫ («не открывать новое, книгу не ликвидировать») "
+            "пока нет: единственная остановка — аварийная, она продаёт книгу. "
+            "Пауза — отдельная работа по money-path (ADR-286 §3, шаг 2)."
         )
         self.send_message(text, chat_id, reply_markup=self._main_menu_keyboard())
 
@@ -959,7 +969,9 @@ class TelegramBot:
                 "set_at": datetime.now(timezone.utc).isoformat(),
             })
             self.send_message(
-                "⛔ <b>Kill-switch ARMED</b>\nЦикл поставлен на паузу (manual_telegram).",
+                "🛑 <b>АВАРИЙНАЯ ОСТАНОВКА</b>\n"
+                "Экспозиция снимается: книга уходит в кэш (manual_telegram).\n"
+                "Это НЕ пауза — позиции закрываются, а не удерживаются.",
                 chat_id, reply_markup=self._resume_keyboard())
         except Exception as exc:  # noqa: BLE001
             self.send_message("❌ Error arming kill-switch: {}".format(type(exc).__name__), chat_id)
@@ -973,7 +985,7 @@ class TelegramBot:
                 "reset_at": datetime.now(timezone.utc).isoformat(),
             })
             self.send_message(
-                "▶️ <b>Kill-switch CLEARED</b>\nЦикл возобновлён (manual_telegram_resume).",
+                "▶️ <b>Аварийная остановка снята</b>\nЦикл возобновлён (manual_telegram_resume).",
                 chat_id)
         except Exception as exc:  # noqa: BLE001
             self.send_message("❌ Error clearing kill-switch: {}".format(type(exc).__name__), chat_id)
