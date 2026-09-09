@@ -148,6 +148,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "target_stability",
     "ranking_tie_census",
     "ranking_tie_persistence",
+    "decision_journal_coverage",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -248,6 +249,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "ranking_tie_persistence": {
         "module": "spa_core/monitoring/ranking_tie_persistence.py",
         "artifact": "data/ranking_tie_persistence.json"},
+    "decision_journal_coverage": {
+        "module": "spa_core/monitoring/decision_journal_coverage.py",
+        "artifact": "data/decision_journal_coverage.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -977,6 +981,23 @@ def main(argv=None) -> int:
               f"unchecked={prep['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "ranking_tie_persistence", e)
+    # Заказ #539 по карточке CIO: журнал решений покрывает 4–6 ставок в день
+    # против ~19 ранжируемых живым снимком, и каждый вопрос о РЕЖИМЕ платит эту
+    # цену. Прибор мерит У ПИСАТЕЛЯ: что он держит, что пишет, каким признаком
+    # отсекает (проба мутацией, не чтением исходника) и во что расширение
+    # обошлось бы СЕМИ потребителям журнала. Мост находок его НЕ читает по той
+    # же причине, что и соседей: единственное действие по итогам — дописать поле
+    # в запись решения, то есть тронуть путь, по которому двигается капитал.
+    # Потребитель — обязательный шаг 0-офис.
+    try:
+        from spa_core.monitoring import decision_journal_coverage
+        drep = decision_journal_coverage.run(root=args.root)
+        print(f"decision_journal_coverage: {drep['overall']} "
+              f"(critical={drep['counts']['critical']} "
+              f"warn={drep['counts']['warn']} "
+              f"unchecked={drep['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "decision_journal_coverage", e)
     # §43 ТЗ CIO «Audit trail»: отвечают ли ДАННЫЕ на вопрос о прошлой перекладке
     # («почему 13 августа переложили $12 000»), или на него отвечает только память
     # сессии. Мост находок его НЕ читает по той же причине, что и пять соседей
