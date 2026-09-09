@@ -59,9 +59,20 @@ def _orch(tmp_path, rows: list, name: str = "orch.json"):
     return p
 
 
-def _live_rows(protocols, tier_by=None):
+def _live_rows(protocols, tier_by=None, apy=None):
+    """Строки снимка оркестратора.
+
+    НАМЕРЕННОЕ изменение фикстуры (инв. #16, ADR-272, запись в `docs/journal/2026-W37.md`):
+    с 09.09 ECON-10 меряет медиану ELIGIBLE-НАБОРА (как и говорит правило владельца
+    в `.claude/rules/risk-engine.md`), а не медиану книги, и берёт этот набор из снимка
+    оркестратора — живая ставка плюс живой TVL не ниже пола. Поэтому строки снимка теперь
+    несут `apy_pct` и `tvl_usd`; без них правило честно отвечает «не измерено», и это НЕ
+    ослабление: контроль на настоящее нарушение живёт в
+    `spa_core/tests/test_econ10_eligible_universe_median.py`."""
     tier_by = tier_by or _TIERS
-    return [{"protocol": p, "tier": tier_by.get(p, "T2"), "tvl_source": "live"}
+    apy = apy or {}
+    return [{"protocol": p, "tier": tier_by.get(p, "T2"), "tvl_source": "live",
+             "apy_pct": apy.get(p, 5.0), "tvl_usd": 150_000_000.0}
             for p in protocols]
 
 
@@ -167,9 +178,9 @@ def test_funded_but_class_blocked_protocol_is_a_violation(tmp_path, monkeypatch)
 def test_below_median_concentration_detected(tmp_path):
     """Доходность ниже медианы при доле выше половины тир-потолка (ECON-10)."""
     pos = {"alpha": 20_000.0, "beta": 15_000.0, "gamma": 10_000.0}
-    apy = {"alpha": 6.0, "beta": 3.0, "gamma": 5.0}     # медиана 5.0, beta ниже
+    apy = {"alpha": 6.0, "beta": 3.0, "gamma": 5.0}     # медиана eligible 5.0, beta ниже
     res = _auditor(_book(tmp_path, pos, apy=apy),
-                   _orch(tmp_path, _live_rows(pos))).audit(now=NOW)
+                   _orch(tmp_path, _live_rows(pos, apy=apy))).audit(now=NOW)
     bad = [f for f in _by_rule(res, "ECON-10") if f.verdict == VIOLATION]
     assert [f.subject for f in bad] == ["beta"]
 
@@ -179,7 +190,7 @@ def test_no_false_alarm_on_a_clean_book(tmp_path):
     pos = {"alpha": 30_000.0, "beta": 15_000.0, "gamma": 15_000.0}
     apy = {"alpha": 5.0, "beta": 5.0, "gamma": 5.0}
     res = _auditor(_book(tmp_path, pos, apy=apy),
-                   _orch(tmp_path, _live_rows(pos))).audit(now=NOW)
+                   _orch(tmp_path, _live_rows(pos, apy=apy))).audit(now=NOW)
     assert res.counts[VIOLATION] == 0, [f.detail for f in res.findings if f.verdict != OK]
     assert res.counts[UNCHECKED] == 0, [f.detail for f in res.findings if f.verdict == UNCHECKED]
     assert res.verdict == OK

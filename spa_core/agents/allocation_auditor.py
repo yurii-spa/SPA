@@ -339,6 +339,38 @@ class AllocationAuditor:
                 out.append(Finding("ADM-07/08", OK, proto, "TVL наблюдается живым фидом"))
         return out
 
+    def _eligible_universe_apy(self) -> tuple[dict, Optional[str]]:
+        """APY того, что МОЖНО держать вместо текущей позиции (ADR-272).
+
+        Правило владельца говорит «ниже медианы ELIGIBLE-набора», а не «ниже медианы
+        книги». Eligible = протокол в снимке оркестратора с ЖИВОЙ ставкой и ЖИВЫМ TVL
+        не ниже пола RiskPolicy (ADR-053: пол на литерале не верифицирован). Снимка
+        нет или в наборе меньше трёх пулов ⇒ третий исход у вызывающего, не подмена
+        медианой книги.
+        """
+        doc, err = _read_json(self.orchestrator_path)
+        if err or not isinstance(doc, dict):
+            return {}, err or f"{self.orchestrator_path}: снимок не отображение"
+        rows = doc.get("adapters")
+        if isinstance(rows, dict):
+            rows = list(rows.values())
+        if not isinstance(rows, list):
+            return {}, f"{self.orchestrator_path}: нет списка adapters"
+        floor = float(getattr(self.config, "min_tvl_usd", 0.0) or 0.0)
+        out: dict[str, float] = {}
+        for r in rows:
+            if not isinstance(r, dict) or not isinstance(r.get("protocol"), str):
+                continue
+            a, t = r.get("apy_pct"), r.get("tvl_usd")
+            if not isinstance(a, (int, float)) or isinstance(a, bool) or not math.isfinite(float(a)):
+                continue
+            if r.get("tvl_source") != "live":
+                continue
+            if not isinstance(t, (int, float)) or isinstance(t, bool) or float(t) < floor:
+                continue
+            out[r["protocol"]] = float(a)
+        return out, None
+
     def _check_below_median(self, usd: dict, apy: dict, capital: Optional[float],
                             tiers: dict) -> list[Finding]:
         if capital is None:
@@ -348,22 +380,33 @@ class AllocationAuditor:
             return [Finding("ECON-10", UNCHECKED, "книга",
                             f"доходность известна у {len(priced)} пулов из {len(usd)} — "
                             f"медиана по менее чем трём это шум, не сигнал")]
+        universe, uerr = self._eligible_universe_apy()
+        if uerr:
+            return [Finding("ECON-10", UNCHECKED, "книга",
+                            f"eligible-набор не измерен ({uerr}) — медиана книги отвечает "
+                            f"на ДРУГОЙ вопрос и подставлена не будет (ADR-272)")]
+        if len(universe) < 3:
+            return [Finding("ECON-10", UNCHECKED, "книга",
+                            f"в eligible-наборе {len(universe)} пул(ов) с живой ставкой и живым "
+                            f"TVL ≥ пола — медиана по менее чем трём это шум, не сигнал")]
         try:
             from spa_core.allocator.rebalance_economics import below_median_cap_violations
             caps = {p: self._cap_for(tiers.get(p)) or 0.0 for p in usd}
             rows = below_median_cap_violations(
                 positions=usd, apy_pct=apy, tier_caps=caps,
                 capital_usd=capital, evidenced=set(priced),
+                universe_apy_pct=universe,
             )
         except Exception as exc:  # noqa: BLE001
             return [Finding("ECON-10", UNCHECKED, "книга", f"проверка недоступна: {exc}")]
         if not rows:
             return [Finding("ECON-10", OK, "книга",
-                            "нет протокола с доходностью ниже медианы, занимающего "
-                            "больше половины своего тир-потолка")]
+                            f"нет протокола с доходностью ниже медианы eligible-набора "
+                            f"({len(universe)} пул(ов)), занимающего больше половины своего тир-потолка")]
         return [Finding(
             "ECON-10", VIOLATION, r["protocol"],
-            f"доходность {r['apy_pct']:.2f} % ниже медианы {r['median_apy_pct']:.2f} %, "
+            f"доходность {r['apy_pct']:.2f} % ниже медианы eligible-набора "
+            f"{r['median_apy_pct']:.2f} % ({r.get('median_n')} пул(ов)), "
             f"а доля {r['share']:.1%} больше половины тир-потолка ({r['allowed_share']:.1%})",
             observed=r["share"], limit=r["allowed_share"],
         ) for r in rows]

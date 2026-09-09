@@ -516,10 +516,24 @@ def write_shadow_rationale(
         # Caps resolved here when the caller did not supply them — otherwise the
         # below-median rule silently reports nothing and looks compliant.
         _caps = tier_caps or _resolve_tier_caps(list((current_positions or {}).keys()))
+        # ADR-272: медиана берётся по ELIGIBLE-НАБОРУ (что МОЖНО держать вместо позиции),
+        # как и говорит правило владельца, а не по книге. Eligible здесь = ставка наблюдается
+        # (`evidenced`), протокол не заблокирован и его живой TVL не ниже пола RiskPolicy —
+        # ровно те же три условия, которыми аллокатор решает, можно ли пул финансировать.
+        # Набора нет ⇒ параметр не передаётся, и функция честно помечает строки basis=funded_book.
+        _blocked = set(blocked_protocols or {})
+        _floor = float(_pol.get("min_tvl_usd") or 0.0)
+        _eligible_apy = {
+            _p: float(_v) for _p, _v in (apy_pct or {}).items()
+            if _p in evidenced and _p not in _blocked
+            and isinstance(_v, (int, float)) and not isinstance(_v, bool)
+            and float((tvl_magnitudes or {}).get(_p) or 0.0) >= _floor
+        } if tvl_known else {}
         below_median = below_median_cap_violations(
             positions=current_positions or {}, apy_pct=apy_pct or {},
             tier_caps=_caps, capital_usd=capital_usd,
-            evidenced=evidenced, factor=p.below_median_cap_factor)
+            evidenced=evidenced, factor=p.below_median_cap_factor,
+            universe_apy_pct=_eligible_apy or None)
 
         # ADR-055 запрещает МАКСИТЬ концентрацию на протоколе с доходностью ниже
         # медианы. Это утверждение о ходе, который делается, а не о книге, из
@@ -537,7 +551,8 @@ def write_shadow_rationale(
         below_median_target = below_median_cap_violations(
             positions=target_positions or {}, apy_pct=apy_pct or {},
             tier_caps=_caps_target, capital_usd=capital_usd,
-            evidenced=evidenced, factor=p.below_median_cap_factor)
+            evidenced=evidenced, factor=p.below_median_cap_factor,
+            universe_apy_pct=_eligible_apy or None)
         _introduced = sorted(
             {r.get("protocol") for r in below_median_target}
             - {r.get("protocol") for r in below_median})

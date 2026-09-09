@@ -792,16 +792,38 @@ def below_median_cap_violations(
     capital_usd: float,
     evidenced: set,
     factor: float = 0.5,
+    universe_apy_pct: Optional[Dict[str, float]] = None,
 ) -> List[dict]:
     """Protocols funded above ``factor × tier_cap`` while yielding below the median.
 
     Encodes the risk-engine rule "concentration follows yield/risk, not the inertia
     of an old target". Advisory here: it reports, it does not clamp.
+
+    **Which median (ADR-272).** The owner's rule says «ниже медианы ELIGIBLE-набора»
+    (`.claude/rules/risk-engine.md`), i.e. the median of what could be held INSTEAD —
+    the pools that pass floor and evidence. Until 2026-09-09 this function had no way
+    to know that set and used the median of the FUNDED BOOK, which is a different
+    question and answers it wrong in exactly the case the rule exists for: on
+    2026-09-08 `compound_v3` (40 % @ 4.65 %) was reported as a violation against the
+    book median 4.81 %, while the eligible median was 4.2907 % — every T1 alternative
+    was LOWER (3.61 · 3.60 · 2.82 · 2.77 · 2.32), so obeying the finding would have
+    cost 20.7 bps/y. Pass ``universe_apy_pct`` (protocol → live APY of the eligible
+    universe) and the median is the owner's; omit it and the old book basis is used,
+    but every row NAMES which basis produced it (``median_basis``), so a reader can
+    never mistake one question for the other.
     """
-    ranked = sorted(
-        apy_pct[p] for p in positions
-        if p in evidenced and float(positions.get(p, 0.0) or 0.0) > 0 and p in apy_pct
-    )
+    if universe_apy_pct:
+        ranked = sorted(
+            float(v) for v in universe_apy_pct.values()
+            if isinstance(v, (int, float)) and not isinstance(v, bool)
+        )
+        basis = "eligible_universe"
+    else:
+        ranked = sorted(
+            apy_pct[p] for p in positions
+            if p in evidenced and float(positions.get(p, 0.0) or 0.0) > 0 and p in apy_pct
+        )
+        basis = "funded_book"
     if len(ranked) < 3 or capital_usd <= 0:
         return []   # a median over fewer than three pools is noise, not a signal
     mid = len(ranked) // 2
@@ -820,6 +842,7 @@ def below_median_cap_violations(
             out.append({
                 "protocol": proto, "apy_pct": round(apy, 4),
                 "median_apy_pct": round(median, 4),
+                "median_basis": basis, "median_n": len(ranked),
                 "share": round(share, 6), "tier_cap": round(cap, 6),
                 "allowed_share": round(cap * factor, 6),
             })
