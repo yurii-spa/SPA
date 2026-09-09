@@ -345,6 +345,16 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                                  "capability",
                                                  "rate_spread_observed",
                                                  "prior_claim", "findings"),
+    # Заказ #541. `population` и `hit_rate_interval` в схеме обязательны: без
+    # них строка «hit_rate = 1.0» читается как свойство МИРА, а не как число,
+    # посчитанное на 43 % окна. `parity_control` — потому что при непройденном
+    # паритете все остальные числа недействительны, и молчать об этом нельзя.
+    "hit_rate_selection_bias.json": ("status", "journal_rows", "population",
+                                     "hit_rate_as_is", "hit_rate_interval",
+                                     "axis_a_horizon", "axis_b_cost",
+                                     "axis_c_selection", "combined",
+                                     "parity_control", "direction_is_uniform",
+                                     "findings"),
     "cio_policy_change_procedure.json": ("overall", "counts.critical",
                                          "counts.warn", "counts.info",
                                          "counts.unchecked", "positive_control",
@@ -426,6 +436,8 @@ _PRODUCER: dict[str, str] = {
     "decision_journal_coverage.json": "spa_core/monitoring/decision_journal_coverage.py",
     "decision_record_verdict_sensitivity.json":
         "spa_core/monitoring/decision_record_verdict_sensitivity.py",
+    "hit_rate_selection_bias.json":
+        "spa_core/monitoring/hit_rate_selection_bias.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1857,6 +1869,18 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _drvs_report,
         )
         out.extend(_drvs_report(data))
+    elif name == "hit_rate_selection_bias.json":
+        # Заказ #541. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (на
+        # каком подмножестве окна вообще посчитан hit_rate), затем ИНТЕРВАЛ и
+        # положение порога взвода в нём, затем ТРИ ОСИ со своими контролями, и
+        # только потом находки. Контроли стоят ВЫШЕ находок намеренно: владелец,
+        # увидев «ось A не двигает ни одного исхода» без доказанной способности
+        # перевернуть день, прочёл бы вакуум как доказательство отсутствия
+        # смещения.
+        from spa_core.monitoring.hit_rate_selection_bias import (
+            format_report as _hrsb_report,
+        )
+        out.extend(_hrsb_report(data))
     elif name == "cio_substitution_census.json":
         # Заказ #518/#519. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ
         # (и прямо сказано, что оно не ответ), затем ДОСТИЖИМОСТЬ двумя

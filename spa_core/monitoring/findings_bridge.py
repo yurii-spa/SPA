@@ -107,6 +107,7 @@ PRODUCES = (
     "data/ranking_tie_persistence.json",
     "data/decision_journal_coverage.json",
     "data/decision_record_verdict_sensitivity.json",
+    "data/hit_rate_selection_bias.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -169,6 +170,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "ranking_tie_persistence",
     "decision_journal_coverage",
     "decision_record_verdict_sensitivity",
+    "hit_rate_selection_bias",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -275,6 +277,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "decision_record_verdict_sensitivity": {
         "module": "spa_core/monitoring/decision_record_verdict_sensitivity.py",
         "artifact": "data/decision_record_verdict_sensitivity.json"},
+    "hit_rate_selection_bias": {
+        "module": "spa_core/monitoring/hit_rate_selection_bias.py",
+        "artifact": "data/hit_rate_selection_bias.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -1037,6 +1042,22 @@ def main(argv=None) -> int:
               f"unchecked={vrep['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "decision_record_verdict_sensitivity", e)
+    # Заказ #541 по карточке CIO: `hit_rate` — не приборная величина, а КРИТЕРИЙ
+    # ВЗВОДА (MIN_HIT_RATE, мандат владельца ADR-067). ADR-295 назвал следствие
+    # («hit_rate=1.0 посчитан на подмножестве дней, которое потолок дал оценить»),
+    # прибор меряет, СМЕЩЁН ли он систематически, и на трёх осях сразу. Мост
+    # находок его НЕ читает по той же причине, что и соседей: единственное
+    # действие по итогам — тронуть стоимость или сам критерий, то есть путь
+    # капитала и мандат владельца. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import hit_rate_selection_bias
+        hrep = hit_rate_selection_bias.run(root=args.root)
+        print(f"hit_rate_selection_bias: {hrep['overall']} "
+              f"(critical={hrep['counts']['critical']} "
+              f"warn={hrep['counts']['warn']} "
+              f"unchecked={hrep['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "hit_rate_selection_bias", e)
     # §43 ТЗ CIO «Audit trail»: отвечают ли ДАННЫЕ на вопрос о прошлой перекладке
     # («почему 13 августа переложили $12 000»), или на него отвечает только память
     # сессии. Мост находок его НЕ читает по той же причине, что и пять соседей
