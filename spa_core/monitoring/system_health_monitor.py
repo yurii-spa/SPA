@@ -1219,6 +1219,27 @@ class SystemHealthMonitor:
         re.IGNORECASE)
     _SECRET_SCAN_BYTES = 65536
 
+    # ── Публичные по построению формы (ADR-281) ─────────────────────────────────────
+    # Ветка «длинная непрозрачная строка» ловит ЛЮБОЙ прогон из 32+ символов, а этот
+    # проект сам пишет такие строки в карточки, ADR и журналы: адреса контрактов,
+    # хеши цепочки (`entry_hash`, `commitment_hash`), `pool_id` из DeFiLlama. Замер
+    # 2026-09-09: единственный CRITICAL утреннего отчёта — карточка владельца
+    # `owner-decision-chetyre-tysyachi-dollarov-edut-v-token-f.md`, и её единственное
+    # совпадение — публичный адрес контракта. Будучи единственным CRITICAL, он красил
+    # владельцу ВЕСЬ отчёт («КРИТИЧНО — сбой: целостность кода») и заслонял остальное —
+    # ровно тот эффект, про который предупреждает докстринг `_check_secrets` ниже.
+    #
+    # Поэтому такие формы вырезаются из текста ПЕРЕД поиском. Это не ослабление: у них
+    # нет свойства секрета — они публикуются нами же и проверяются третьей стороной.
+    # Настоящие ключи (PAT `ghp_…`, AWS `AKIA…`, PEM, присваивание `token: …`) сохраняют
+    # прежний вердикт, и на каждую форму стоит контроль в обе стороны.
+    _PUBLIC_BY_CONSTRUCTION_RE = re.compile(
+        r"0x[0-9a-fA-F]{40}\b"                                                  # адрес EVM
+        r"|0x[0-9a-fA-F]{64}\b"                                                  # хеш транзакции
+        r"|\b[0-9a-f]{64}\b"                                                     # sha256 (наши цепочки)
+        r"|\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b",    # UUID (pool_id)
+    )
+
     def _file_holds_secret_value(self, path: str) -> Optional[bool]:
         """Does the file actually CONTAIN something credential-shaped?
 
@@ -1234,7 +1255,11 @@ class SystemHealthMonitor:
             if os.path.isdir(full):
                 return None
             with open(full, "r", encoding="utf-8", errors="replace") as fh:
-                return bool(self._SECRET_VALUE_RE.search(fh.read(self._SECRET_SCAN_BYTES)))
+                text = fh.read(self._SECRET_SCAN_BYTES)
+            # ADR-281: публичные по построению строки не являются учётными данными.
+            # Вырезаются ДО поиска, а не после: иначе они же и дают совпадение.
+            text = self._PUBLIC_BY_CONSTRUCTION_RE.sub(" ", text)
+            return bool(self._SECRET_VALUE_RE.search(text))
         except Exception:  # noqa: BLE001 — unreadable ⇒ unknown, not clean
             return None
 
@@ -1253,6 +1278,14 @@ class SystemHealthMonitor:
         CONTENT is credential-shaped; a name-only match is reported as WARNING
         (visible, named, actionable) rather than silence or alarm. Unreadable
         files count as suspected, never as clean.
+
+        **Второй заход на тот же дефект (ADR-281, 2026-09-09).** Содержимое стало
+        доказательством, но «длинная непрозрачная строка» — не только ключ: этот
+        проект сам пишет в карточки и решения адреса контрактов, хеши своих цепочек и
+        `pool_id`. Единственный CRITICAL утреннего отчёта владельцу оказался публичным
+        адресом контракта в его же карточке — и, будучи единственным CRITICAL, красил
+        весь отчёт. Публичные по построению формы теперь вырезаются до поиска
+        (``_PUBLIC_BY_CONSTRUCTION_RE``); всё остальное судится как прежде.
         """
         confirmed, suspected = [], []
         for path in self._git_untracked:
