@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Целостность трека SPA: подключить сторож, пересчёт из сырых входов, commit-reveal книги (перенос из earn-defi)"
-status: backlog
+status: in-progress
 source: nimbalyst
 created: 2026-09-08
 ---
@@ -39,6 +39,18 @@ created: 2026-09-08
 
 **Задача 5 — закрыть «две записи о деньгах» (ЕСТЬ карточки, владелец).**
 Не дублировать: выполнить `agent-dve-zapisi-o-dengah-prichina-1/2` после ответа `own-32`. С задачей 3 появится критерий, какая запись верна (та, что сходится с пересчётом).
+
+## Доставка (2026-09-09, ночная смена)
+
+- **Задачи 1–3 — ДОСТАВЛЕНЫ на origin** коммитом `fdde53f40` (ADR-269): сторож `data_integrity` подключён к
+  `cycle_health_monitor` (`checks.artifact_integrity`, советующий), архив входов начисления
+  `data/cycle_inputs.jsonl` (hash-chain, пишет цикл после `_upsert_equity_point`, ошибка архива цикл не роняет),
+  пересчёт кривой `spa_core/audit/replay_equity.py` (`checks.replay_from_inputs`, третий исход UNCHECKED пока архив пуст).
+  Замер задачи 2 — в `docs/journal/2026-W37.md` (входов не хватало: `apy_map` момента начисления нигде не хранилась).
+  В прод синхронизировано `code_sync_from_origin.sh` 09.09 ~05:00, приёмка OK до и после. Первый живой архив — с цикла 09.09 08:00.
+- **Задача 4 (commit-reveal книги)** — код написан (`spa_core/audit/book_commitments.py`, 26 тестов, surface J в `verify_spa.py`),
+  ждёт полного прогона и пуша batch 2; до пуша карточка остаётся `in-progress`.
+- **Задача 5** — за владельцем (own-32 / карточки «две записи о деньгах»).
 
 ## Что НЕ трогать
 
