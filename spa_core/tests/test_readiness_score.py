@@ -463,10 +463,30 @@ class TestAppendCombinedHistory:
 # --------------------------------------------------------------------------
 
 class TestScheduleComponent:
-    """schedule day-counter: informational, NOT part of the operational mean."""
+    """schedule day-counter: informational, NOT part of the operational mean.
 
-    def test_record_shape_and_keys(self):
-        rec = rs._schedule_component()
+    НАМЕРЕННО ИЗМЕНЁННЫЕ ТЕСТЫ (инв. #16, ADR-277, журнал 2026-W37, 09.09).
+    Раньше срок задавался подменой КОНСТАНТЫ `rs.TARGET_DATE`. С ADR-277 срок берётся
+    из ответа гейта (`data/golive_status.json`), а константа осталась только fail-safe
+    на нечитаемый файл: `golive_checker` обнуляет `target_date`, как только временной
+    гейт пройден, и подстановка литерала (на 09.09 — 50 дней в прошлом) вернула бы
+    ту же ложь. Поэтому сценарии задаются ДАННЫМИ через `data_dir` — тем самым путём,
+    которым код ходит в проде. Утверждения сохранены полностью, добавлены два новых:
+    «даты нет ⇒ обратный отсчёт не о чем» и «файл не прочитан ⇒ fail-safe литерал».
+    """
+
+    @staticmethod
+    def _dd(tmp_path, target):
+        """data_dir с ответом гейта: `target` = строка · None (срока нет) · «нет файла»."""
+        import json as _json
+        if target != "__missing__":
+            (tmp_path / "golive_status.json").write_text(
+                _json.dumps({"target_date": target, "go_live_state": "gate_in_progress"}),
+                encoding="utf-8")
+        return tmp_path
+
+    def test_record_shape_and_keys(self, tmp_path):
+        rec = rs._schedule_component(self._dd(tmp_path, "2026-07-21"))
         for key in (
             "key", "label", "target_date", "days_to_golive",
             "contributes_to_overall", "scored", "status", "score",
@@ -474,13 +494,13 @@ class TestScheduleComponent:
             assert key in rec
         assert rec["key"] == "schedule"
         assert rec["label"] == "Days to go-live"
-        assert rec["target_date"] == rs.TARGET_DATE == "2026-07-21"
+        assert rec["target_date"] == "2026-07-21"
         assert rec["contributes_to_overall"] is False
         assert rec["scored"] is False
 
-    def test_days_to_golive_is_int_and_signed_per_formula(self):
+    def test_days_to_golive_is_int_and_signed_per_formula(self, tmp_path):
         from datetime import datetime, timezone
-        rec = rs._schedule_component()
+        rec = rs._schedule_component(self._dd(tmp_path, rs.TARGET_DATE))
         assert isinstance(rec["days_to_golive"], int)
         # The value must equal the signed formula (target - today). This is the real,
         # time-INVARIANT regression guard. It is deliberately NOT asserted to be > 0:
@@ -495,46 +515,54 @@ class TestScheduleComponent:
         expected = (target - datetime.now(timezone.utc).date()).days
         assert rec["days_to_golive"] == expected
 
-    def test_status_ok_when_far_out(self, monkeypatch):
-        monkeypatch.setattr(rs, "TARGET_DATE", "2099-01-01")
-        rec = rs._schedule_component()
+    def test_status_ok_when_far_out(self, tmp_path):
+        rec = rs._schedule_component(self._dd(tmp_path, "2099-01-01"))
         assert rec["days_to_golive"] > 14
         assert rec["status"] == "ok"
         assert rec["score"] == 100
 
-    def test_status_warn_in_final_stretch(self, monkeypatch):
+    def test_status_warn_in_final_stretch(self, tmp_path):
         from datetime import datetime, timezone, timedelta
         soon = (datetime.now(timezone.utc).date() + timedelta(days=7)).isoformat()
-        monkeypatch.setattr(rs, "TARGET_DATE", soon)
-        rec = rs._schedule_component()
+        rec = rs._schedule_component(self._dd(tmp_path, soon))
         assert 0 <= rec["days_to_golive"] <= 14
         assert rec["status"] == "warn"
         assert rec["score"] == 60
 
-    def test_status_warn_at_boundary_today(self, monkeypatch):
+    def test_status_warn_at_boundary_today(self, tmp_path):
         from datetime import datetime, timezone
         today = datetime.now(timezone.utc).date().isoformat()
-        monkeypatch.setattr(rs, "TARGET_DATE", today)
-        rec = rs._schedule_component()
+        rec = rs._schedule_component(self._dd(tmp_path, today))
         assert rec["days_to_golive"] == 0
         assert rec["status"] == "warn"
 
-    def test_status_degraded_when_overdue(self, monkeypatch):
+    def test_status_degraded_when_overdue(self, tmp_path):
         from datetime import datetime, timezone, timedelta
         past = (datetime.now(timezone.utc).date() - timedelta(days=3)).isoformat()
-        monkeypatch.setattr(rs, "TARGET_DATE", past)
-        rec = rs._schedule_component()
+        rec = rs._schedule_component(self._dd(tmp_path, past))
         assert rec["days_to_golive"] < 0
         assert rec["status"] == "degraded"
         assert rec["score"] == 0
 
-    def test_never_raises_on_broken_target_date(self, monkeypatch):
-        monkeypatch.setattr(rs, "TARGET_DATE", "not-a-date")
-        rec = rs._schedule_component()
+    def test_never_raises_on_broken_target_date(self, tmp_path):
+        rec = rs._schedule_component(self._dd(tmp_path, "not-a-date"))
         assert rec["status"] == "unknown"
         assert rec["score"] == 0
         assert rec["days_to_golive"] is None
         assert "error" in rec
+
+    def test_no_date_means_the_countdown_is_not_about_anything(self, tmp_path):
+        """ADR-277: гейт обнулил срок ⇒ отсчёта нет, и это НЕ «просрочено» и не литерал."""
+        rec = rs._schedule_component(self._dd(tmp_path, None))
+        assert rec["target_date"] is None
+        assert rec["days_to_golive"] is None
+        assert rec["status"] == "ok" and rec["scored"] is False
+        assert "срок не применяется" in rec["note"]
+
+    def test_an_unreadable_gate_file_falls_back_to_the_literal(self, tmp_path):
+        """Обратное направление: файла нет ⇒ мы правда не знаем ⇒ fail-safe литерал."""
+        rec = rs._schedule_component(self._dd(tmp_path, "__missing__"))
+        assert rec["target_date"] == rs.TARGET_DATE
 
     # ---- document-level integration ---------------------------------------
 
@@ -591,10 +619,15 @@ class TestScheduleComponent:
         sched = next(c for c in doc["components"] if c["key"] == "schedule")
         assert doc["days_to_golive"] == sched["days_to_golive"]
 
-    def test_top_level_days_to_golive_none_when_schedule_breaks(self, monkeypatch):
-        monkeypatch.setattr(rs, "TARGET_DATE", "garbage")
-        doc = rs.build_readiness_score_document()
+    def test_top_level_days_to_golive_none_when_schedule_breaks(self, tmp_path):
+        """Та же правка (ADR-277): сценарий задаётся ДАННЫМИ, а не подменой константы."""
+        doc = rs.build_readiness_score_document(self._dd(tmp_path, "garbage"))
         # build must not raise and days_to_golive falls back to None.
+        assert doc["days_to_golive"] is None
+
+    def test_top_level_days_to_golive_none_when_the_gate_emits_no_date(self, tmp_path):
+        """ADR-277: срока нет ⇒ верхний уровень тоже не показывает число."""
+        doc = rs.build_readiness_score_document(self._dd(tmp_path, None))
         assert doc["days_to_golive"] is None
 
 

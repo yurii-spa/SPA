@@ -301,12 +301,20 @@ def build_progress_report(data_dir: "str | os.PathLike | None" = None) -> dict:
         # Canonical go-live target = the evidenced-anchored target the go-live
         # checker derives (data/golive_status.json top-level target_date). Fall
         # back to the literal only when that file is missing/unset.
-        golive_doc = _read_json(ddir / "golive_status.json", {})
-        go_live_target = (
-            golive_doc.get("target_date")
-            if isinstance(golive_doc, dict) and golive_doc.get("target_date")
-            else GO_LIVE_TARGET_DATE
-        )
+        # ADR-277: НЕТ даты — это ОТВЕТ гейта, а не отсутствие входа. С ADR-269/карточки
+        # «Производители устаревших чисел сайта» `golive_checker` обнуляет `target_date`,
+        # как только временной гейт пройден: проекция «якорь + 29 дней» лежит в прошлом и
+        # перестаёт быть сроком. Подставить здесь литерал `2026-07-21` (50 дней назад на
+        # момент замера 09.09) значило бы перенести ту же ложь из одного места в три.
+        # Литерал остаётся ТОЛЬКО для случая «файл гейта не прочитан» — там мы правда
+        # ничего не знаем. Файл прочитан и даты нет ⇒ None + состояние гейта рядом.
+        golive_doc = _read_json(ddir / "golive_status.json", None)
+        if isinstance(golive_doc, dict):
+            go_live_target = golive_doc.get("target_date") or None
+            go_live_state = golive_doc.get("go_live_state")
+        else:
+            go_live_target = GO_LIVE_TARGET_DATE
+            go_live_state = None
 
         # Derive core counters
         paper_days = _count_real_paper_days(equity_doc)
@@ -333,6 +341,7 @@ def build_progress_report(data_dir: "str | os.PathLike | None" = None) -> dict:
             "current_equity": round(current_equity, 2),
             "apy_today_pct": round(apy_today_pct, 4),
             "go_live_target_date": go_live_target,
+            "go_live_state": go_live_state,
             "days_to_golive": days_to_golive,
             "milestones": milestones,
             "summary_verdict": summary_verdict,
@@ -346,7 +355,8 @@ def build_progress_report(data_dir: "str | os.PathLike | None" = None) -> dict:
             "paper_start_date": None,
             "current_equity": 0.0,
             "apy_today_pct": 0.0,
-            "go_live_target_date": GO_LIVE_TARGET_DATE,
+            "go_live_target_date": None,   # ADR-277: сломались — срок НЕ выдумываем
+            "go_live_state": None,
             "days_to_golive": 0,
             "milestones": [],
             "summary_verdict": "at_risk",

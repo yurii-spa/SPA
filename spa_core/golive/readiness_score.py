@@ -66,7 +66,24 @@ SCHEMA_VERSION = 1
 _SEVERITY: Dict[str, int] = {"ok": 0, "warn": 1, "degraded": 2, "unknown": 3}
 
 # Target go-live date (informational; surfaced for the dashboard countdown).
+#
+# ADR-277: это ЛИТЕРАЛ, и он годится только пока временной гейт не пройден. С 09.09
+# `golive_checker` обнуляет `target_date`, когда проекция уходит в прошлое; читать надо
+# ЕГО ответ, а собственный литерал держать лишь как fail-safe на нечитаемый файл.
 TARGET_DATE = "2026-07-21"
+
+
+def _target_date(data_dir: Optional[Path] = None) -> Optional[str]:
+    """Срок из ответа гейта: строка · ``None`` («срок не применяется») · литерал (файл не прочитан)."""
+    ddir = Path(data_dir) if data_dir else DEFAULT_DATA_DIR
+    try:
+        doc = json.loads((ddir / "golive_status.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return TARGET_DATE
+    if not isinstance(doc, dict):
+        return TARGET_DATE
+    tgt = doc.get("target_date")
+    return tgt if isinstance(tgt, str) and tgt else None
 
 # Default data dir: <repo>/data (spa_core/golive/ -> parents[2] == repo root).
 DEFAULT_DATA_DIR = Path(__file__).resolve().parents[2] / "data"
@@ -236,7 +253,7 @@ def _live_apy_component() -> Dict[str, Any]:
     return record
 
 
-def _schedule_component() -> Dict[str, Any]:
+def _schedule_component(data_dir: Optional[Path] = None) -> Dict[str, Any]:
     """schedule day-counter / countdown to the go-live ``TARGET_DATE``.
 
     INFORMATIONAL ONLY -- carries ``contributes_to_overall=False`` /
@@ -250,17 +267,26 @@ def _schedule_component() -> Dict[str, Any]:
     Never raises: any failure yields status="unknown", score=0 with an
     ``"error"`` note.
     """
+    _tgt = _target_date(data_dir)
     record: Dict[str, Any] = {
         "key": "schedule",
         "label": "Days to go-live",
         "score": 0,
         "status": "unknown",
-        "target_date": TARGET_DATE,
+        "target_date": _tgt,
         "contributes_to_overall": False,
         "scored": False,
     }
+    if _tgt is None:
+        # Гейт сказал «срока нет» (временной гейт пройден) — обратный отсчёт не о чем.
+        record["status"] = "ok"
+        record["scored"] = False
+        record["days_to_golive"] = None
+        record["note"] = ("срок не применяется: временной гейт пройден, дальше решение "
+                          "владельца (см. go_live_state)")
+        return record
     try:
-        target = datetime.strptime(TARGET_DATE, "%Y-%m-%d").date()
+        target = datetime.strptime(_tgt, "%Y-%m-%d").date()
         days = (target - datetime.now(timezone.utc).date()).days
         record["days_to_golive"] = days
         if days > 14:
@@ -281,7 +307,7 @@ def _schedule_component() -> Dict[str, Any]:
     return record
 
 
-def build_readiness_score_document() -> Dict[str, Any]:
+def build_readiness_score_document(data_dir: Optional[Path] = None) -> Dict[str, Any]:
     """Build the full consolidated readiness-score document. Never raises.
 
     The three operational components (feed_health, mev_coverage, live_apy) are
@@ -299,7 +325,7 @@ def build_readiness_score_document() -> Dict[str, Any]:
     ]
     for record in operational:
         record["contributes_to_overall"] = True
-    schedule = _schedule_component()
+    schedule = _schedule_component(data_dir)
     components = operational + [schedule]
 
     # overall_* are computed ONLY over components that contribute to overall

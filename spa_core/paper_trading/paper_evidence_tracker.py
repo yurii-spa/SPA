@@ -19,6 +19,7 @@ CLI:
 
 import json
 import sys
+from typing import Optional
 from datetime import date, timedelta
 from pathlib import Path
 from spa_core.utils.atomic import atomic_save
@@ -39,18 +40,22 @@ EVIDENCE_FILE = "data/paper_evidence.json"
 GOLIVE_STATUS_FILE = "data/golive_status.json"
 
 
-def _golive_target_iso() -> str:
-    """Honest go-live target ISO date = golive_status.target_date, else fallback.
+def _golive_target_iso() -> Optional[str]:
+    """Honest go-live target ISO date, or ``None`` when no date applies (ADR-277).
 
-    Single source of truth = the evidenced-anchored target surfaced by the
-    go-live checker. Fail-safe: any read error → the committed fallback literal.
+    Single source of truth = the evidenced-anchored target surfaced by the go-live
+    checker. **Пустое поле у прочитанного файла — это ОТВЕТ, а не отсутствие входа:**
+    `golive_checker` обнуляет `target_date`, как только временной гейт пройден (проекция
+    оказывается в прошлом и перестаёт быть сроком). Подставить литерал в этом случае
+    значило бы вернуть ту же дату из прошлого под видом срока — поэтому здесь ``None``.
+    Fail-safe литерал остаётся только для «файл не прочитан»: тогда мы правда не знаем.
     """
     try:
         with open(GOLIVE_STATUS_FILE) as f:
             doc = json.load(f)
-        tgt = doc.get("target_date") if isinstance(doc, dict) else None
-        if isinstance(tgt, str) and tgt:
-            return tgt
+        if isinstance(doc, dict):
+            tgt = doc.get("target_date")
+            return tgt if isinstance(tgt, str) and tgt else None
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         pass
     return GOLIVE_TARGET_DATE.isoformat()
@@ -252,13 +257,24 @@ class PaperEvidenceTracker:
         today = date.today()
         # Honest go-live target = evidenced-anchored value from golive_status
         # (single source of truth), falling back to the committed literal.
+        # ADR-277: `None` здесь означает «срока нет» (временной гейт пройден), и это
+        # НЕ повод подставить литерал 2026-07-21 — он был бы датой из прошлого под видом
+        # срока. Тогда и обратный отсчёт не о чем: `days_to_target` = None.
         golive_target_iso = _golive_target_iso()
-        try:
-            golive_target = date.fromisoformat(golive_target_iso)
-        except ValueError:
-            golive_target = GOLIVE_TARGET_DATE
-            golive_target_iso = GOLIVE_TARGET_DATE.isoformat()
-        days_to_target = (golive_target - today).days
+        golive_target: Optional[date]
+        if golive_target_iso is None:
+            golive_target = None
+        else:
+            try:
+                golive_target = date.fromisoformat(golive_target_iso)
+            except (TypeError, ValueError):
+                golive_target = GOLIVE_TARGET_DATE
+                golive_target_iso = GOLIVE_TARGET_DATE.isoformat()
+        days_to_target: Optional[int]
+        if golive_target is None:
+            days_to_target = None
+        else:
+            days_to_target = (golive_target - today).days
 
         checks = {
             "min_days": {
@@ -300,7 +316,9 @@ class PaperEvidenceTracker:
             "ready_date": ready_date.isoformat(),
             "golive_target": golive_target_iso,
             "days_to_golive": days_to_target,
-            "buffer_days": (golive_target - ready_date).days,
+            # ADR-277: срока нет ⇒ и запаса до него нет (а не «ноль дней запаса»).
+            "buffer_days": ((golive_target - ready_date).days
+                            if golive_target is not None else None),
             "ready_for_golive": all_pass,
             "checks_passed": passes,
             "checks_total": len(checks),
