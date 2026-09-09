@@ -146,6 +146,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "cio_substitution_census",
     "shadow_blockade_attribution",
     "target_stability",
+    "ranking_tie_census",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -240,6 +241,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "target_stability": {
         "module": "spa_core/monitoring/target_stability.py",
         "artifact": "data/target_stability.json"},
+    "ranking_tie_census": {
+        "module": "spa_core/monitoring/ranking_tie_census.py",
+        "artifact": "data/ranking_tie_census.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -941,6 +945,19 @@ def main(argv=None) -> int:
               f"unchecked={trep['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "target_stability", e)
+    # Заказ #535 по карточке CIO: СКОЛЬКО ЕЩЁ пар решают деньги ничьёй, помимо
+    # той одной, что назвал ADR-279. Мост находок его НЕ читает по той же
+    # причине, что и соседей: единственное действие по итогам — сменить форму
+    # целевой функции или ввести гистерезис порядка, то есть money-path и
+    # решение владельца, а не строка автокарточки. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import ranking_tie_census
+        rrep = ranking_tie_census.run(root=args.root)
+        print(f"ranking_tie_census: {rrep['overall']} "
+              f"(critical={rrep['counts']['critical']} "
+              f"unchecked={rrep['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "ranking_tie_census", e)
     # §43 ТЗ CIO «Audit trail»: отвечают ли ДАННЫЕ на вопрос о прошлой перекладке
     # («почему 13 августа переложили $12 000»), или на него отвечает только память
     # сессии. Мост находок его НЕ читает по той же причине, что и пять соседей

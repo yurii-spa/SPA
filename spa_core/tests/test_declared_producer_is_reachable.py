@@ -274,6 +274,10 @@ class LiveTree(unittest.TestCase):
         """
         from spa_core.tests.test_cio_acceptance_guards_are_wired import SUBJECTS
 
+        def _blank(m):
+            """Строка ввоза → `pass` С ТЕМ ЖЕ отступом (файл обязан разбираться)."""
+            return re.match(r"^\s*", m.group(0)).group(0) + "pass"
+
         # Мутация обязана рвать ВСЕ пути до измерителя, а не один.
         #
         # Замер 09.09 (цикл #535), причина этой правки: у измерителя ДВЕ формы
@@ -289,7 +293,21 @@ class LiveTree(unittest.TestCase):
         # Это УСИЛЕНИЕ контроля, а не его ослабление (инв. #16): предмет
         # прежний, оба конца проводки теперь рвутся, и сцена по-прежнему
         # требует, чтобы КАЖДЫЙ артефакт ручного списка стал сиротой.
-        _FORM_BRIDGE = r"^\s+from spa_core\.monitoring import \w+$"
+        #
+        # Замер 09.09 (цикл #536), причина ВТОРОЙ правки: мест ввоза не два, а
+        # СКОЛЬКО УГОДНО. Мутация рвала ровно два ФАЙЛА — мост и шаг 0-офис, —
+        # а измеритель может ввозиться и ТРЕТЬИМ: соседняя перепись
+        # `ranking_tie_census` переиспользует помощники `target_stability`
+        # (`find_margin`, `live_apy_map`, `observed_daily_moves`) вместо того,
+        # чтобы заводить их вторую копию, и одного этого ввоза хватало, чтобы
+        # `target_stability` остался REACHABLE под мутацией. Сцена краснела на
+        # ПРАВИЛЬНО подключённом сторо́же — тот же дефект, что чинил #535, но
+        # промахивался он не по ФОРМЕ, а по НАСЕЛЕНИЮ ФАЙЛОВ. Теперь обе формы
+        # рвутся во ВСЁМ дереве; форма ввоза допускает и псевдоним (`as ts`),
+        # иначе достаточно было бы переименовать импорт, чтобы обойти мутацию.
+        # Ограничение «строка с отступом» оставлено намеренно: ввоз на верхнем
+        # уровне модуля не заменить на `pass`, не сломав синтаксис.
+        _FORM_BRIDGE = r"^\s+from spa_core\.monitoring import \w+(?: as \w+)?$"
         _FORM_OFFICE = r"^\s+from spa_core\.monitoring\.\w+ import [\w, ]+$"
         _OFFICE = "scripts.consume_office_reports"
 
@@ -303,21 +321,34 @@ class LiveTree(unittest.TestCase):
             mutated.write_text(mutated_src, encoding="utf-8")
             srcs = []
             office_cut = 0
-            for n_, p_ in op.source_files(REPO):
+            elsewhere_cut = 0
+            for i_, (n_, p_) in enumerate(op.source_files(REPO)):
                 if n_ == _BRIDGE:
                     srcs.append((n_, mutated))
-                elif n_ == _OFFICE:
-                    cut, k = re.subn(_FORM_OFFICE, "        pass",
-                                     p_.read_text(encoding="utf-8"), flags=re.M)
-                    office_cut = k
-                    mo = Path(d) / "office_reader.py"
-                    mo.write_text(cut, encoding="utf-8")
-                    srcs.append((n_, mo))
-                else:
+                    continue
+                text = p_.read_text(encoding="utf-8")
+                # Отступ СОХРАНЯЕТСЯ: замена на литерал с чужим отступом ломает
+                # разбор файла, а неразобранный файл сторож считает НЕ сиротой —
+                # мутация тогда молча слабеет вместо того, чтобы усилиться
+                # (замер 09.09: три артефакта уходили из сирот именно так).
+                cut, k1 = re.subn(_FORM_OFFICE, _blank, text, flags=re.M)
+                cut, k2 = re.subn(_FORM_BRIDGE, _blank, cut, flags=re.M)
+                if not (k1 or k2):
                     srcs.append((n_, p_))
+                    continue
+                if n_ == _OFFICE:
+                    office_cut = k1
+                else:
+                    elsewhere_cut += k1 + k2
+                mo = Path(d) / f"cut_{i_}.py"
+                mo.write_text(cut, encoding="utf-8")
+                srcs.append((n_, mo))
             self.assertGreater(office_cut, 0,
                                "в шаге 0-офис не найдено ни одного ввоза второй формы — "
                                "мутация мерила бы пустоту вторым концом")
+            self.assertGreater(elsewhere_cut, 0,
+                               "вне моста и шага 0-офис не найдено ни одного ввоза "
+                               "измерителя — третий конец мутация мерила бы пустотой")
             r = op.measure(REPO, sources=srcs)
         found = {o["path"] for o in op.orphans(r)}
         missing = sorted(set(SUBJECTS.values()) - found)

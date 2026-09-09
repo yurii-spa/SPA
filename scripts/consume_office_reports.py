@@ -290,6 +290,17 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "target_stability.json": ("status", "determinism", "injection_doors",
                               "capital_on_noise_decided_usd", "protocols",
                               "unmeasured", "findings"),
+    # Заказ #535. `by_yardstick` и `identity_census` объявлены рядом с находками
+    # НАМЕРЕННО. Первый несёт ОБА ярлыка — букву заказа («разрыв в пределах
+    # маржи») и ярлык, на который она заменена; отчёт, назвавший один, читался
+    # бы как ответ на другой вопрос. Второй — ловушка заказа: тождество пула
+    # (ADR-227) и ничья ранжирования разные предметы, и слив их в одну строку
+    # закрыл бы вопрос ссылкой на чужую находку.
+    "ranking_tie_census.json": ("status", "quantum_pp", "tie_break",
+                                "universe_size", "pairs_examined",
+                                "by_yardstick", "identity_census",
+                                "adjacent_pairs", "capital_moved_by_tie_flips_usd",
+                                "unmeasured", "findings"),
     "cio_policy_change_procedure.json": ("overall", "counts.critical",
                                          "counts.warn", "counts.info",
                                          "counts.unchecked", "positive_control",
@@ -366,6 +377,7 @@ _PRODUCER: dict[str, str] = {
     "cio_substitution_census.json": "spa_core/monitoring/cio_substitution_census.py",
     "shadow_blockade_attribution.json": "spa_core/monitoring/shadow_blockade_attribution.py",
     "target_stability.json": "spa_core/monitoring/target_stability.py",
+    "ranking_tie_census.json": "spa_core/monitoring/ranking_tie_census.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1763,6 +1775,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # украшение), затем сколько КАПИТАЛА стои́т на марже меньше собственного
         # хода ставки, и только потом поимённые строки.
         from spa_core.monitoring.target_stability import format_report
+        out.extend(format_report(data))
+    elif name == "ranking_tie_census.json":
+        # Заказ #535. Порядок строк — порядок вопроса: сперва КВАНТ ранжируемой
+        # ставки и тай-брейк (перепись ничьих ничего не стои́т, если возмущение
+        # идёт ниже кванта — так и вышло в первой редакции прибора), затем ДВА
+        # ярлыка рядом, и только потом поимённые пары.
+        from spa_core.monitoring.ranking_tie_census import format_report
         out.extend(format_report(data))
     elif name == "cio_substitution_census.json":
         # Заказ #518/#519. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ
