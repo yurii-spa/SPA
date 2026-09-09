@@ -672,13 +672,17 @@ class TestRunAllChecks(unittest.TestCase):
         входов `data/cycle_inputs.jsonl`). Сравнение остаётся ТОЧНЫМ; в набор добавлены
         два реально существующих имени. Обе проверки не участвуют в `overall`
         (advisory), что закреплено `spa_core/tests/test_cycle_health_artifact_integrity.py`.
+
+        Третье НАМЕРЕННОЕ изменение (инв. #16, та же запись в журнале, ADR-278, 09.09):
+        добавлена седьмая — тоже СОВЕТУЮЩАЯ — проверка `book_commitments` (commit-reveal
+        раскладки книги, задача 4 той же карточки). Сравнение остаётся ТОЧНЫМ.
         """
         tmpdir = self._make_temp_data_dir()
         result = self.monitor.run_all_checks(data_dir=tmpdir)
         self.assertSetEqual(
             set(result["checks"].keys()),
             {"cycle_gap", "equity_anomaly", "data_freshness", "evidence_vs_curve",
-             "artifact_integrity", "replay_from_inputs"},
+             "artifact_integrity", "replay_from_inputs", "book_commitments"},
         )
 
     # T48

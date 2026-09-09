@@ -788,6 +788,16 @@ def replay_line(d: dict) -> str:
     return f"- пересчёт кривой из архива входов: **{chk.get('status', 'UNCHECKED')}** — {chk.get('detail', '')}"
 
 
+def book_commitments_line(d: dict) -> str:
+    """One line for ``checks.book_commitments`` — commit-reveal of the book decision (inbox
+    «Целостность трека SPA», task 4). Renders the monitor's verdict; an absent key is named."""
+    checks = (d or {}).get("checks") if isinstance(d, dict) else None
+    if not isinstance(checks, dict) or "book_commitments" not in checks:
+        return "- commit-reveal раскладки книги: нет в снимке — монитор старой версии"
+    chk = checks.get("book_commitments") or {}
+    return f"- commit-reveal раскладки книги: **{chk.get('status', 'UNCHECKED')}** — {chk.get('detail', '')}"
+
+
 def build_track_integrity_section() -> str:
     """Do the two records of the same money agree? (own-32)
 
@@ -808,6 +818,7 @@ def build_track_integrity_section() -> str:
             "«сходится», поэтому её тут нет._")
         lines.append(artifact_integrity_line(snap))  # независимый сторож: его строка не зависит от own-32
         lines.append(replay_line(snap))
+        lines.append(book_commitments_line(snap))
         return "\n".join(lines) + "\n"
 
     div = st.get("divergent_days")
@@ -828,6 +839,7 @@ def build_track_integrity_section() -> str:
             "(проверь `com.spa.cycle_health`).")
     lines.append(artifact_integrity_line(snap))
     lines.append(replay_line(snap))
+    lines.append(book_commitments_line(snap))
     return "\n".join(lines) + "\n"
 
 

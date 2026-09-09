@@ -458,6 +458,65 @@ class CycleHealthMonitor:
                 "divergent_days": len(rep.get("diffs", [])), "max_abs_diff_usd": rep.get("max_abs_diff_usd"),
                 "reruns": rep.get("reruns"), "chain_ok": (rep.get("chain") or {}).get("ok"), "detail": detail}
 
+    def check_book_commitments(self, data_dir: str = "data", now: datetime | None = None) -> dict[str, Any]:
+        """Commit-reveal of the book decision (inbox «Целостность трека SPA», задача 4;
+        ``spa_core.audit.book_commitments``). Три вопроса, каждый со своим ответом:
+
+          1. последний коммит датирован последним РЕШЕНИЕМ (последний бар
+             ``equity_curve_daily.json``)? — отставание значит, что цикл прошёл без коммита;
+          2. нет раскрытий, просроченных больше ``OVERDUE_AFTER_DAYS``? — коммит без раскрытия
+             это обещание, которого никто не проверил;
+          3. цепочка цела и каждое раскрытие сходится со своим коммитом (та же проверка, что
+             surface J у ``scripts/verify_spa.py``)?
+
+        Советующий, как соседи: в общий вердикт не входит. Третий исход: трейла нет ⇒ UNCHECKED
+        «не начат» (первый коммит ставит первый цикл после доставки), не HEALTHY; кривой нет ⇒
+        дата последнего решения не измерена ⇒ UNCHECKED с названной причиной. Время — вход
+        (``now``), по умолчанию стенные часы.
+        """
+        try:
+            from spa_core.audit import book_commitments as _bc
+            today = (now or datetime.now(timezone.utc)).strftime("%Y-%m-%d")
+            st = _bc.status(data_dir, today=today)
+        except Exception as exc:  # noqa: BLE001 — сторож не имеет права ронять монитор
+            return {"status": UNCHECKED, "advisory": True,
+                    "detail": f"сторож commit-reveal не отработал: {type(exc).__name__}: {exc}"}
+        chain = st.get("chain") or {}
+        numbers = {"commits": chain.get("commits"), "reveals": chain.get("reveals"),
+                   "verified_reveals": chain.get("verified_reveals"), "pending": len(st.get("pending") or []),
+                   "overdue": list(st.get("overdue") or []), "chain_ok": chain.get("ok"),
+                   "last_commit_date": st.get("last_commit_date"), "last_reveal_date": st.get("last_reveal_date")}
+        if not st.get("exists"):
+            return {"status": UNCHECKED, "advisory": True, **numbers,
+                    "detail": "трейл book_commitments.jsonl ещё не начат — первый коммит ставит первый цикл после доставки"}
+        last_bar: str | None = None
+        try:
+            doc = json.loads(Path(data_dir, "equity_curve_daily.json").read_text(encoding="utf-8"))
+            dates = [str(b.get("date")) for b in (doc.get("daily") or []) if isinstance(b, dict) and b.get("date")]
+            last_bar = max(dates) if dates else None
+        except Exception:  # noqa: BLE001 — нет кривой ⇒ дата решения не измерена, ниже названо вслух
+            last_bar = None
+        problems: list[str] = []
+        if not chain.get("ok"):
+            problems.append(f"цепочка порвана на seq {chain.get('broken_at')} ({chain.get('reason')})")
+        if st.get("overdue"):
+            problems.append(f"раскрытие просрочено (> {_bc.OVERDUE_AFTER_DAYS} дн.): {st['overdue']}")
+        if st.get("uncommitted_packages"):
+            problems.append(f"пакет без коммита в трейле: {st['uncommitted_packages']}")
+        lc = st.get("last_commit_date")
+        if last_bar and lc and str(lc) < last_bar:
+            problems.append(f"последний коммит {lc} старше последнего решения {last_bar} — цикл прошёл без коммита")
+        if problems:
+            return {"status": "WARNING", "advisory": True, **numbers, "last_decision_date": last_bar,
+                    "detail": "commit-reveal книги: " + "; ".join(problems)}
+        if last_bar is None:
+            return {"status": UNCHECKED, "advisory": True, **numbers, "last_decision_date": None,
+                    "detail": (f"дата последнего решения не измерена (нет equity_curve_daily.json); цепочка цела: "
+                               f"{numbers['commits']} коммитов, {numbers['verified_reveals']} раскрытий сходятся")}
+        return {"status": "HEALTHY", "advisory": True, **numbers, "last_decision_date": last_bar,
+                "detail": (f"коммит на последнее решение {last_bar}; {numbers['commits']} коммитов, "
+                           f"{numbers['verified_reveals']} раскрытий сходятся, ждут раскрытия {numbers['pending']}")}
+
     def run_all_checks(self, data_dir: str = "data") -> dict[str, Any]:
         """
         Run all three health checks and combine the results.
@@ -504,6 +563,7 @@ class CycleHealthMonitor:
             "evidence_vs_curve": self.check_evidence_matches_curve(data_dir),
             "artifact_integrity": self.check_artifact_integrity(data_dir),
             "replay_from_inputs": self.check_replay_from_inputs(data_dir),
+            "book_commitments": self.check_book_commitments(data_dir),
         }
 
         # Collect the checks that could NOT be computed, with their reason.
@@ -514,8 +574,8 @@ class CycleHealthMonitor:
         # (тесты, песочницы) файла доказательной базы нет по построению, и его
         # отсутствие — не пробел в наблюдении, а другой предмет.
         for name, chk in checks.items():
-            if name in ("evidence_vs_curve", "artifact_integrity", "replay_from_inputs"):
-                continue  # советующие сигналы (own-32; сторож SPA-V430) — видны, но не судят цикл
+            if name in ("evidence_vs_curve", "artifact_integrity", "replay_from_inputs", "book_commitments"):
+                continue  # советующие сигналы (own-32; сторож SPA-V430; commit-reveal) — видны, но не судят цикл
             if chk.get("status") == UNCHECKED:
                 unchecked.append(
                     {"check": name, "reason": str(chk.get("detail") or "not measured")}

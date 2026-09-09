@@ -16,12 +16,12 @@ for the reviewer-facing walkthrough.
 
 | Field | Value |
 |---|---|
-| **Version tag** | `verifier-v1.2` |
+| **Version tag** | `verifier-v1.3` |
 | **File** | `scripts/verify_spa.py` |
-| **SHA-256** | `f560aed8260bb324ef0a3a5f0001ea5c33777c389f32a8914f69c3aebe74d078` |
-| **Size** | 112630 bytes · 1984 lines |
+| **SHA-256** | `bedaa60b462dbbceca66a8d5bd49f4a06d2d2cff8e1347b7e6dd931c72e92351` |
+| **Size** | 122006 bytes · 2130 lines |
 | **Spec version** | PROOF_CHAIN_SPEC `1.0` |
-| **Scope** | decision chain (A) · exit-NAV proofs (B) · anchors (C) · equity track (D) · tournament ranking chain (E) · RWA-backstop NAV proof (F) · sleeve forward-series proofs (G) |
+| **Scope** | decision chain (A) · exit-NAV proofs (B) · anchors (C) · equity track (D) · tournament ranking chain (E) · RWA-backstop NAV proof (F) · sleeve forward-series proofs (G) · underwriting report chain (H) · swarm daily chains (I) · book commit-reveal trail (J) |
 
 ### Verify the verifier (one command)
 
@@ -30,14 +30,14 @@ On macOS / Linux, after downloading `verify_spa.py`:
 ```bash
 shasum -a 256 verify_spa.py
 # must print:
-# f560aed8260bb324ef0a3a5f0001ea5c33777c389f32a8914f69c3aebe74d078  verify_spa.py
+# bedaa60b462dbbceca66a8d5bd49f4a06d2d2cff8e1347b7e6dd931c72e92351  verify_spa.py
 ```
 
 or with the GNU coreutils tool:
 
 ```bash
 sha256sum verify_spa.py
-# f560aed8260bb324ef0a3a5f0001ea5c33777c389f32a8914f69c3aebe74d078  verify_spa.py
+# bedaa60b462dbbceca66a8d5bd49f4a06d2d2cff8e1347b7e6dd931c72e92351  verify_spa.py
 ```
 
 If the digest does not match this manifest **byte-for-byte**, you do not have the
@@ -115,7 +115,8 @@ distinct verifier byte-image gets its own version.
 
 | Version | SHA-256 | Date | Note |
 |---|---|---|---|
-| `verifier-v1.2` | `f560aed8260bb324ef0a3a5f0001ea5c33777c389f32a8914f69c3aebe74d078` | 2026-07-12 | Current pinned release (112630 bytes · 1984 lines). Re-pin after the verifier's `_print_human` NoneType fix (public DD verifier crashed on the swarm/underwriting block) + the `--replay` re-derivation mode (Q2-2); the v1.1 pin (`bbc4853a…`) no longer matched the shipped script. Surfaces A–G per PROOF_CHAIN_SPEC v1.0. |
+| `verifier-v1.3` | `bedaa60b462dbbceca66a8d5bd49f4a06d2d2cff8e1347b7e6dd931c72e92351` | 2026-09-08 | Current pinned release (122006 bytes · 2130 lines). Re-pin after surface **[J]** book commit-reveal trail (`book_commitments.jsonl`, PROOF_CHAIN_SPEC §6b (J), ADR-278): the daily book decision is hash-committed BEFORE its virtual execution and revealed one cycle later; the verifier re-hashes every revealed package to its earlier commit. The v1.2 pin (`f560aed8…`) no longer matched the shipped script. |
+| `verifier-v1.2` | `f560aed8260bb324ef0a3a5f0001ea5c33777c389f32a8914f69c3aebe74d078` | 2026-07-12 | Pinned release (112630 bytes · 1984 lines). Re-pin after the verifier's `_print_human` NoneType fix (public DD verifier crashed on the swarm/underwriting block) + the `--replay` re-derivation mode (Q2-2); the v1.1 pin (`bbc4853a…`) no longer matched the shipped script. Surfaces A–G per PROOF_CHAIN_SPEC v1.0. |
 | `verifier-v1.1` | `bbc4853a33b0e92c52dd8d408d6572f01b5184989ce291a00b2268a6acd67cbb` | 2026-06-28 | Pinned release (68526 bytes · 1207 lines). Verifies surfaces A–G — decision chain + exit-NAV + anchors + equity track + tournament ranking chain + RWA-backstop NAV proof + sleeve forward-series proofs — per PROOF_CHAIN_SPEC v1.0. Reproducible end-to-end from the live `/api/rates-desk/full-chain/*` download endpoints. |
 
 ---
@@ -127,6 +128,13 @@ distinct verifier byte-image gets its own version.
 
 ## Changelog
 
+- **verifier-v1.3** (2026-09-08) — re-pin after the verifier gained surface **[J]** (book commit-reveal
+  trail, `data/book_commitments.jsonl`): the daily BOOK decision is committed as `sha256(canonical(package))`
+  BEFORE the virtual execution and revealed one cycle later; the verifier walks the chain and re-hashes every
+  revealed package to its EARLIER commit (a forged package, a back-dated commit, a reveal without a commit or a
+  second commit for one date → precise `broken_at`). PROOF_CHAIN_SPEC §6b (J), ADR-278. The v1.2 pin
+  (`f560aed8…`) no longer matched the shipped `scripts/verify_spa.py`. New SHA-256 `bedaa60b462d…`.
+  **Owner action:** cut + push `git tag verifier-v1.3` over the commit carrying this manifest.
 - **verifier-v1.2** (2026-07-12) — re-pin after two script changes: (1) the `_print_human`
   `NoneType` fix (the public DD verifier crashed printing the swarm/underwriting block — a real
   bug in the reviewer-facing tool), and (2) the `--replay` mode that re-derives REFUSED/APPROVED

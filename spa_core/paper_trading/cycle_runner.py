@@ -145,6 +145,9 @@ PRODUCES = (
     # 08.09: архив входов начисления (inbox «Целостность трека SPA», задача 3) — без него
     # кривая не пересчитывается из сохранённого (замер W37); срок годности 26 ч как у соседей.
     "data/cycle_inputs.jsonl",
+    # 08.09: commit-reveal раскладки книги (та же карточка, задача 4) — публичный hash-chained
+    # трейл; хеш решения ложится ДО виртуального исполнения, пакет раскрывается следующим циклом.
+    "data/book_commitments.jsonl",
     "data/allocation_rationale_history.jsonl",
     "data/current_positions.json",
     "data/equity_curve_daily.json",
@@ -177,6 +180,9 @@ PRODUCES = (
 # ждёт; промолчать — оставить вечное противоречие. Верно — сказать вслух.
 INTERNAL_WRITES = (
     "data/equity_curve_daily.demo_backup.json",
+    # 08.09: ПРИВАТНЫЕ пакеты commit-reveal (соль + целевая раскладка) — состояние между
+    # циклами, публикуется только раскрытием в data/book_commitments.jsonl; продуктом не является.
+    "data/book_commit_packages.jsonl",
 )
 
 # ADR-025 — Base chain gas kill-switch monitor (fail-safe optional import)
@@ -1017,6 +1023,22 @@ def run_cycle(
         _correlation_id = _audit_begin(today, data_dir=str(ddir))
     except Exception as _audit_exc:
         log.warning("audit begin_cycle failed (%s) — cycle continues", _audit_exc)
+
+    # ── Commit-reveal of the book decision, part 1: REVEAL what is due (inbox «Целостность
+    # трека SPA», task 4). The package committed by an earlier cycle is published once
+    # REVEAL_DELAY_DAYS have elapsed; today's own commit happens AFTER the risk verdict below.
+    # Side-car like the cycle_inputs archive: never raises into the cycle; dry-run publishes
+    # nothing (a reveal is a public act, and a dry-run must leave no public trace).
+    if write:
+        try:
+            from spa_core.audit import book_commitments as _bc
+            _bc_revealed = _bc.reveal_due(ddir, today=today, ts=run_ts)
+            if _bc_revealed:
+                notes.append("book_reveal: {}".format(
+                    ", ".join(str((e.get("payload") or {}).get("cycle_date")) for e in _bc_revealed)))
+        except Exception as _bc_exc:  # noqa: BLE001 — the attestation layer must never crash the cycle
+            log.warning("book_commitments reveal failed (%s) — cycle continues", _bc_exc)
+            notes.append("book_reveal_error: {}".format(type(_bc_exc).__name__))
 
     # ── Step 0-pre (MP-1195): refresh adapter_status.json (v2 format) ────────
     # Regenerates adapter_status.json from adapter_registry.json + optional
@@ -2174,6 +2196,32 @@ def run_cycle(
     traded = ((not _safety_failed) and (not policy_blocked)
               and diff_usd > threshold_usd and _churn.allowed)
     trade_id: str | None = None
+
+    # ── Commit-reveal of the book decision, part 2: COMMIT (task 4) ────────────────
+    # Placed AFTER the risk verdict and every de-risk/posture gate (target_usd is the final
+    # compliant book) and BEFORE the virtual execution branches below: the hash of
+    # {cycle_date, snapshot_id, target_positions, action, decision_source, RiskPolicy v1.0, salt}
+    # goes on record before the trade is written and before the day's yield is known. The
+    # package itself stays private until the next cycle reveals it. Idempotent per date (a
+    # re-run does not re-commit); side-car — a failure is a note, never a crashed cycle.
+    if write:
+        try:
+            from spa_core.audit import book_commitments as _bc
+            _bc_entry = _bc.commit(
+                ddir,
+                cycle_date=today,
+                snapshot_id=(locals().get("_audit_ev2") or {}).get("snapshot_id"),
+                target_positions=target_usd,
+                decision_source=model_used,
+                action="rebalance" if traded else "hold",
+                ts=run_ts,
+            )
+            if _bc_entry is not None:
+                notes.append("book_commit: sha256 {}…".format(
+                    str(_bc_entry["payload"]["commitment_hash"])[:16]))
+        except Exception as _bc_exc2:  # noqa: BLE001 — the attestation layer must never crash the cycle
+            log.warning("book_commitments commit failed (%s) — cycle continues", _bc_exc2)
+            notes.append("book_commit_error: {}".format(type(_bc_exc2).__name__))
 
     if _safety_failed:
         # HOLD: keep prior positions verbatim, deploy nothing new. A loud alert

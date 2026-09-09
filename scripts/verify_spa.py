@@ -30,6 +30,9 @@ ONE exit code. The surfaces:
   (G) sleeve forward-series proofs — rates_desk/paper/*_series_proof.jsonl (WORKSTREAM 2, many files)
   (H) underwriting report chain   — underwriting/report_proof.jsonl (LANE C moat: the hash-anchored,
       publicly-verifiable underwriting artifact; per-section proof_hash + chained + refusal-consistency)
+  (J) book commit-reveal trail    — book_commitments.jsonl (the DAILY BOOK DECISION: a `book_commit`
+      row publishes only sha256(package) BEFORE the virtual execution; the next cycle's `book_reveal`
+      row carries the package, which must hash to the earlier commit — PROOF_CHAIN_SPEC §6b (J))
 
 (E)/(F)/(G) learn from the two flaws the rates-desk red-team caught: each proof covers the published
 OUTPUTS (rank/strategy/net_return/sharpe · tvl_weighted_nav/liq_nav_gap · equity/apy/book-counts),
@@ -157,6 +160,20 @@ UNDERWRITING_EVENT_TYPE = "underwriting_report_section"
 UNDERWRITING_GENESIS_PREV = "0" * 64
 UNDERWRITING_ENVELOPE_KEYS = ("seq", "prev_hash", "entry_hash")
 
+# (J) book commit-reveal trail — data/book_commitments.jsonl (inbox «Целостность трека SPA» task 4;
+# practice transferred from earn-defi). The DAILY BOOK DECISION is committed BEFORE its virtual
+# execution: a ``book_commit`` row carries ONLY sha256(canonical(package)); the NEXT cycle appends a
+# ``book_reveal`` row carrying the package itself. Rows have the generic hash-chain shape
+# (spa_core/audit/hash_chain recipe, reproduced inline): entry_hash = sha256(canonical({seq, ts,
+# event_type, payload, prev_hash})) with EVERY field taken VERBATIM from the row (unlike A/D/E/G,
+# event_type and payload are stored per row here). A reveal is valid only if (1) a commit for the
+# same cycle_date sits EARLIER in the chain, (2) both name the same commitment_hash, and
+# (3) sha256(canonical(payload.package)) == commitment_hash. Forging the package, back-dating a
+# commit, revealing without a commit, or committing twice for one date DIVERGES → precise broken_at.
+BOOK_COMMIT_EVENT_TYPES = ("book_commit", "book_reveal")
+BOOK_COMMIT_GENESIS_PREV = "0" * 64
+BOOK_COMMIT_HASH_KEYS = ("seq", "ts", "event_type", "payload", "prev_hash")
+
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
 # canonical JSON + the two published hash recipes (inlined per the spec — no shared lib)
@@ -273,6 +290,20 @@ def nav_proof_hash(row: dict) -> str:
     }
     blob = json.dumps(proof_obj, sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+def recompute_book_entry_hash(row: dict) -> str:
+    """(J) book commit-reveal — SHA-256 over canonical({seq, ts, event_type, payload, prev_hash}),
+    every field VERBATIM from the row (the generic hash-chain shape; nothing is stripped or fixed)."""
+    canonical = _canonical({k: row.get(k) for k in BOOK_COMMIT_HASH_KEYS})
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def book_package_hash(package: dict) -> str:
+    """(J) the commitment itself — SHA-256 over canonical(package). The package carries a random
+    salt, so the same decision on two days never hashes alike and the small target space cannot be
+    brute-forced from the published hash."""
+    return hashlib.sha256(_canonical(package).encode("utf-8")).hexdigest()
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -646,6 +677,86 @@ def verify_underwriting_chain(rows: List[dict]) -> dict:
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
 # (B) exit-NAV per-row proof hashes — PROOF_CHAIN_SPEC §6 (live + illustrative + portfolio)
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+# (J) book commit-reveal trail — chained + commit-before-reveal + package re-hash
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+def verify_book_commitments(rows: List[dict]) -> dict:
+    """Walk rows in seq order: (1) seq == idx, (2) prev_hash links (genesis '0'*64),
+    (3) recompute_book_entry_hash(row) == entry_hash, (4) event_type ∈ {book_commit, book_reveal},
+    (5) a commit carries a 64-hex commitment_hash and is the ONLY commit for its cycle_date,
+    (6) a reveal names a cycle_date committed EARLIER, the same commitment_hash, and a package
+    whose book_package_hash equals it. fail-CLOSED on any malformed row. Returns {valid, length,
+    broken_at, reason, head_hash, n_commits, n_reveals, n_verified_reveals, n_pending, first_date,
+    last_date}. Empty is vacuously valid (no decision committed yet → honest empty chain)."""
+    expected_prev = BOOK_COMMIT_GENESIS_PREV
+    head_hash: Optional[str] = None
+    commits: dict = {}
+    n = len(rows)
+    n_reveals = n_verified = 0
+    first_date: Optional[str] = None
+    last_date: Optional[str] = None
+
+    def _fail(idx: int, reason: str) -> dict:
+        return {"valid": False, "length": n, "broken_at": idx, "reason": reason, "head_hash": None,
+                "n_commits": len(commits), "n_reveals": n_reveals, "n_verified_reveals": n_verified,
+                "n_pending": None, "first_date": first_date, "last_date": last_date}
+
+    for idx, row in enumerate(rows):
+        if not isinstance(row, dict):
+            return _fail(idx, "malformed row (not an object)")
+        if row.get("seq") != idx:
+            return _fail(idx, "seq is not contiguous")
+        if row.get("prev_hash") != expected_prev:
+            return _fail(idx, "prev_hash does not link to the previous row")
+        et = row.get("event_type")
+        if et not in BOOK_COMMIT_EVENT_TYPES:
+            return _fail(idx, f"unknown event_type {et!r}")
+        try:
+            recomputed = recompute_book_entry_hash(row)
+        except Exception:  # noqa: BLE001 — malformed row → fail-CLOSED
+            return _fail(idx, "entry_hash could not be recomputed (malformed row)")
+        if recomputed != row.get("entry_hash"):
+            return _fail(idx, "entry_hash recompute mismatch (row altered)")
+        payload = row.get("payload")
+        if not isinstance(payload, dict):
+            return _fail(idx, "payload is not an object")
+        date = payload.get("cycle_date")
+        h = payload.get("commitment_hash")
+        if not isinstance(date, str) or not date:
+            return _fail(idx, "payload.cycle_date missing")
+        if not (isinstance(h, str) and len(h) == 64):
+            return _fail(idx, "payload.commitment_hash is not a 64-hex digest")
+        if et == "book_commit":
+            if date in commits:
+                return _fail(idx, f"second commit for {date} (a date is committed exactly once)")
+            commits[date] = h
+        else:
+            n_reveals += 1
+            if date not in commits:
+                return _fail(idx, f"reveal for {date} has no EARLIER commit in the chain")
+            if commits[date] != h:
+                return _fail(idx, f"reveal for {date} names a different commitment_hash than its commit")
+            pkg = payload.get("package")
+            if not isinstance(pkg, dict):
+                return _fail(idx, f"reveal for {date} carries no package object")
+            try:
+                if book_package_hash(pkg) != h:
+                    return _fail(idx, f"package for {date} does not hash to its commitment (forged/edited)")
+            except Exception:  # noqa: BLE001
+                return _fail(idx, f"package for {date} is not canonicalisable")
+            n_verified += 1
+        if first_date is None:
+            first_date = date
+        last_date = date
+        expected_prev = row["entry_hash"]
+        head_hash = row["entry_hash"]
+    revealed = {r["payload"]["cycle_date"] for r in rows if r.get("event_type") == "book_reveal"}
+    return {"valid": True, "length": n, "broken_at": None, "reason": None, "head_hash": head_hash,
+            "n_commits": len(commits), "n_reveals": n_reveals, "n_verified_reveals": n_verified,
+            "n_pending": len([d for d in commits if d not in revealed]),
+            "first_date": first_date, "last_date": last_date}
+
+
 def _proof_obj_from(row: dict) -> Tuple[Optional[dict], Optional[str]]:
     """Reconstruct the §6 hashed object {inputs, outputs, prev_hash} from a published schedule row.
     Returns (proof_obj, error_or_None). fail-CLOSED: any required field absent → error (the published
@@ -1053,6 +1164,7 @@ def _sniff_jsonl_kind(p: Path) -> Optional[str]:
       'equity_track'— has entry_hash + date + (open/close)_equity-ish     (D)
       'decision_log'— has entry_hash + a decision body (kind/underlying)   (A)
       'anchors'     — has head_hash + chain_length (no entry/proof body)   (C)
+      'book_commitments' — event_type ∈ {book_commit, book_reveal}       (J)
     Content beats filename: the row carries the surface's signature fields regardless of where it
     lives or what it is named."""
     try:
@@ -1069,6 +1181,11 @@ def _sniff_jsonl_kind(p: Path) -> Optional[str]:
     if not isinstance(row, dict):
         return None
     keys = set(row.keys())
+    # (J) book commit-reveal trail — the generic hash-chain shape with a fixed event_type
+    # vocabulary. Recognized FIRST: its rows carry entry_hash + payload and would otherwise fall
+    # into the generic decision-chain bucket and be verified with the wrong recipe.
+    if row.get("event_type") in BOOK_COMMIT_EVENT_TYPES:
+        return "book_commitments"
     # (H) underwriting report section — entry_hash chain carrying a section_id + its own proof_hash,
     # whose chain kind constant is the underwriting event type. Recognized BEFORE the generic
     # entry_hash buckets so a section row never mis-classifies as a decision/sleeve chain.
@@ -1119,6 +1236,8 @@ def _classify_by_name(p: Path) -> Optional[str]:
         return "anchors"
     if name.endswith("report_proof.jsonl"):
         return "underwriting"
+    if name.endswith("book_commitments.jsonl"):
+        return "book_commitments"
     return None
 
 
@@ -1133,7 +1252,7 @@ def _place(kind: Optional[str], p: Path, found: dict) -> None:
         return
     bucket = {"tournament": "tournament", "nav_proof": "nav_proof", "decision_log": "decision_log",
               "equity_track": "equity_track", "anchors": "anchors", "exit_nav": "exit_nav",
-              "underwriting": "underwriting"}.get(kind)
+              "underwriting": "underwriting", "book_commitments": "book_commitments"}.get(kind)
     if bucket and found.get(bucket) is None:
         found[bucket] = p
 
@@ -1227,7 +1346,7 @@ def _resolve_inputs(args_paths: List[str]) -> dict:
     found: dict = {
         "decision_log": None, "exit_nav": None, "anchors": None, "equity_track": None,
         "tournament": None, "nav_proof": None, "sleeve_proofs": [], "underwriting": None,
-        "swarm_proofs": [],
+        "swarm_proofs": [], "book_commitments": None,
         # producers that MUST carry a proof (FAIL#5). Recorded for coverage enforcement in run().
         "sleeve_producers": [],
     }
@@ -1236,7 +1355,7 @@ def _resolve_inputs(args_paths: List[str]) -> dict:
     # so a stray/misnamed file sitting at one of these names still lands in its TRUE bucket and cannot
     # displace the real surface. Sleeve proofs (*_series_proof.jsonl) are MANY files.
     _DISCOVER = ("decision_log.jsonl", "exit_nav.json", "anchors.jsonl", "equity_track.jsonl",
-                 "nav_proof.jsonl", "report_proof.jsonl")
+                 "nav_proof.jsonl", "report_proof.jsonl", "book_commitments.jsonl")
     for raw in args_paths:
         p = Path(raw)
         if p.is_dir():
@@ -1294,7 +1413,7 @@ def _resolve_inputs(args_paths: List[str]) -> dict:
 _SURFACE_LETTERS = {
     "A": "decision_log", "B": "exit_nav", "C": "anchors", "D": "equity_track",
     "E": "tournament", "F": "nav_proof", "G": "sleeve_proofs", "H": "underwriting",
-    "I": "swarm_proofs",
+    "I": "swarm_proofs", "J": "book_commitments",
 }
 
 
@@ -1409,6 +1528,7 @@ def run(paths: List[str], expect_head: Optional[str] = None,
         "sleeves": None,
         "underwriting": None,
         "swarm": None,
+        "book_commitments": None,
         "fundability": None,
         "errors": [],
         "ok": False,
@@ -1447,7 +1567,8 @@ def run(paths: List[str], expect_head: Optional[str] = None,
             report["errors"].append(
                 "no recognizable public files supplied (decision_log.jsonl / exit_nav.json / "
                 "anchors.jsonl / equity_track.jsonl / tournament/decision_log.jsonl / "
-                "rwa_backstop/nav_proof.jsonl / *_series_proof.jsonl / underwriting/report_proof.jsonl)")
+                "rwa_backstop/nav_proof.jsonl / *_series_proof.jsonl / underwriting/report_proof.jsonl / "
+                "book_commitments.jsonl)")
         report["ok"] = (len(report["errors"]) == 0)
         return report
 
@@ -1611,6 +1732,22 @@ def run(paths: List[str], expect_head: Optional[str] = None,
                     report["errors"].append(
                         f"underwriting: chain broken at section {res['broken_at']}")
 
+    # (J) book commit-reveal trail — the daily book decision, hash-published BEFORE execution and
+    # revealed one cycle later. A reveal must re-hash to its EARLIER commit; a forged package, a
+    # back-dated commit or a second commit for one date diverges → precise broken_at.
+    if inputs["book_commitments"]:
+        rows, err = _read_jsonl(inputs["book_commitments"])
+        if err is not None:
+            report["errors"].append(f"book_commitments: {err}")
+            report["book_commitments"] = {"valid": False, "broken_at": None, "reason": err,
+                                          "head_hash": None, "length": None}
+        else:
+            res = verify_book_commitments(rows)
+            report["book_commitments"] = res
+            if not res["valid"]:
+                report["errors"].append(
+                    f"book_commitments: chain broken at row {res['broken_at']} ({res.get('reason')})")
+
     # FAIL#5 — coverage enforcement: a present producer must carry a verified, non-empty proof.
     _enforce_coverage(inputs, report)
 
@@ -1633,7 +1770,7 @@ def run(paths: List[str], expect_head: Optional[str] = None,
             "C": bool(inputs["anchors"]), "D": bool(inputs["equity_track"]),
             "E": bool(inputs["tournament"]), "F": bool(inputs["nav_proof"]),
             "G": bool(inputs["sleeve_proofs"]), "H": bool(inputs["underwriting"]),
-            "I": bool(inputs["swarm_proofs"]),
+            "I": bool(inputs["swarm_proofs"]), "J": bool(inputs["book_commitments"]),
         }
         report["expected_surfaces"] = list(expect_surfaces)
         for letter in expect_surfaces:
@@ -1813,6 +1950,14 @@ def _print_human(report: dict) -> None:
             print(f"    {Path(c['file']).name:42s}: valid={c.get('valid')}  rows={c.get('rows')}  "
                   f"broken_at={c.get('broken_at')}  head={c.get('head_hash')}")
 
+    bc = report.get("book_commitments")
+    if bc is not None:
+        print(f"[J] book commitments: valid={bc.get('valid')}  rows={bc.get('length')}  "
+              f"commits={bc.get('n_commits')}  reveals_verified={bc.get('n_verified_reveals')}/"
+              f"{bc.get('n_reveals')}  pending={bc.get('n_pending')}  broken_at={bc.get('broken_at')}"
+              + (f"  reason={bc.get('reason')}" if bc.get("reason") else ""))
+        print(f"    head_hash      : {bc.get('head_hash')}  window={bc.get('first_date')}..{bc.get('last_date')}")
+
     fd = report.get("fundability")
     if fd is not None:
         print("-" * 78)
@@ -1912,7 +2057,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                          "digest. NOTE: this is the chain HEAD, NOT the verifier script's own SHA-256.")
     ap.add_argument("--expect-surfaces", default=None,
                     help="comma-separated surface letters (A=decision_log B=exit_nav C=anchors "
-                         "D=equity_track E=tournament F=nav_proof G=sleeve H=underwriting) that MUST "
+                         "D=equity_track E=tournament F=nav_proof G=sleeve H=underwriting "
+                         "I=swarm J=book_commitments) that MUST "
                          "be present; a missing one fails CLOSED (so a renamed/hidden surface can't "
                          "pass silently)")
     ap.add_argument("--json", action="store_true", help="emit the machine-readable verdict as JSON")

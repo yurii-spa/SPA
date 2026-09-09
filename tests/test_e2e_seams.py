@@ -261,8 +261,24 @@ def test_seam_golive_status_shape(sandbox):
     assert gl["passed"] <= gl["total"], (gl["passed"], gl["total"])
     assert gl["real_track_days"] >= 30, gl["real_track_days"]
     assert gl["evidenced_anchor"] == "2026-06-22"
-    # target = anchor + (30 - 1) days = 2026-07-21 (honest, fixed calendar date).
-    assert gl["target_date"] == "2026-07-21", gl["target_date"]
+    # НАМЕРЕННО ИЗМЕНЁННЫЙ ТЕСТ (инв. #16, ADR-277, журнал 2026-W37, 2026-09-09).
+    # Здесь стояло `assert gl["target_date"] == "2026-07-21"` — та самая проекция «якорь +
+    # 29 дней», которая перестаёт быть сроком, как только временной гейт пройден: при 77
+    # доказанных днях из 30 гейт печатал дату за 50 дней ДО сегодня, и каждый потребитель
+    # ниже по течению подавал её как ETA. Тест закреплял именно это поведение, поэтому он
+    # менялся вместе с ним. Проверка НЕ ослаблена — она стала проверкой КОНТРАКТА в обе
+    # стороны: либо гейт открыт и тогда дата равна проекции от якоря, либо гейт пройден и
+    # тогда даты нет, а состояние названо. «Ни то, ни другое» — красный.
+    assert "go_live_state" in gl, "гейт обязан называть своё состояние (ADR-277)"
+    if gl["target_date"] is None:
+        assert gl["go_live_state"] in (
+            "time_gate_passed_blockers_open", "gate_passed_owner_decision_pending",
+        ), gl["go_live_state"]
+        assert gl["real_track_days"] >= 30, (
+            "даты нет, а временной гейт НЕ пройден — это не третий исход, а потеря срока")
+    else:
+        assert gl["go_live_state"] == "gate_in_progress", gl["go_live_state"]
+        assert gl["target_date"] == "2026-07-21", gl["target_date"]
 
 
 # ═══════════════════════════════════════════════════════════════════════════

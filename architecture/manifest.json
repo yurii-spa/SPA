@@ -660,6 +660,10 @@
     {
      "artifact": "data/cycle_inputs.jsonl",
      "slo_hours": 26
+    },
+    {
+     "artifact": "data/book_commitments.jsonl",
+     "slo_hours": 26
     }
    ],
    "consumes": [],
@@ -2112,8 +2116,8 @@
   },
   {
    "label": "com.spa.site_freshness",
-   "plist_source": "repo:launchd/com.spa.site_freshness.plist",
-   "reboot_safe": false,
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
    "schedule": "interval:21600s",
    "program": "agent_site_freshness.sh",
    "layer": "product",
@@ -3407,6 +3411,17 @@
    "slo_hours": 26,
    "status": "active",
    "notes": "08.09 (inbox «Целостность трека SPA», задача 3): append-only hash-chained архив входов начисления (positions, apy_map, accrual_source, open/close бара) — без него кривая не пересчитывается из сохранённого (замер W37); читает spa_core.audit.replay_equity через cycle_health_monitor"
+  },
+  {
+   "path": "data/book_commitments.jsonl",
+   "producer": "com.spa.daily_cycle",
+   "consumers": [
+    "cycle_health_monitor",
+    "verify_spa"
+   ],
+   "slo_hours": 26,
+   "status": "active",
+   "notes": "09.09 (ADR-278, inbox «Целостность трека SPA», задача 4): публичный hash-chained трейл commit-reveal раскладки книги — хеш решения ложится ДО виртуального исполнения, пакет раскрывается следующим циклом; проверяется surface J в scripts/verify_spa.py и checks.book_commitments в cycle_health_monitor"
   }
  ],
  "designed_architectures": [

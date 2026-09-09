@@ -419,6 +419,58 @@ recompute. Verify exactly as §5.
 > `scripts/refresh_published_proof.py` regenerates ALL of them from their producers' latest data and
 > self-verifies the whole `data/` dir — so the published proofs never go stale relative to the data.
 
+### (J) Book commit-reveal trail — `data/book_commitments.jsonl`
+
+The **daily book decision** of the main paper book (not a desk) is committed BEFORE its virtual
+execution and revealed one cycle later (inbox «Целостность трека SPA», task 4; the practice is
+transferred from the owner's BTC engine, `earn-defi/earn_defi/commit_reveal.py`). Producer:
+`spa_core/audit/book_commitments.py`, called by the daily cycle right after the RiskPolicy verdict
+and every de-risk/posture gate, before the trade is written.
+
+**Package** (private until revealed):
+
+```
+{ "schema_version": "1.0", "cycle_date": "YYYY-MM-DD", "snapshot_id": "<audit_trail snapshot id or null>",
+  "target_positions": { "<pool>": <usd, rounded to cents>, … }, "action": "rebalance" | "hold",
+  "decision_source": "<allocator model name>", "risk_policy_version": "v1.0", "salt": "<64 hex = 32 random bytes>" }
+```
+
+`commitment_hash = sha256(canonical(package))` — the §2 rule, nothing else. The salt is why two
+identical decisions never share a hash and why the (small) target space cannot be brute-forced
+from the published digest; it also makes this layer **non-replayable by design** — it attests the
+engine, it is not the engine (the equity replay ignores it).
+
+**Rows** use the generic hash-chain shape (the same recipe as `data/audit_chain.jsonl`, §0), i.e.
+`event_type` and `payload` are STORED per row and every hashed field is taken **verbatim**:
+
+```
+entry_hash = sha256(canonical({ "seq": row.seq, "ts": row.ts, "event_type": row.event_type,
+                                "payload": row.payload, "prev_hash": row.prev_hash }))
+```
+
+Two event types:
+
+- `book_commit` — `payload = {cycle_date, commitment_hash, risk_policy_version, reveal_delay_days,
+  published}`. **Nothing else**: no positions, no salt, no snapshot id. `published` records where
+  the hash was sent (the morning Telegram digest; not a public channel until one exists).
+- `book_reveal` — `payload = {cycle_date, commitment_hash, commit_seq, package, published}`,
+  appended by the first cycle whose date is ≥ `cycle_date + reveal_delay_days` (1).
+
+**Verify** (surface **J** of `scripts/verify_spa.py`): walk the chain exactly as §5 (contiguous
+`seq`, `prev_hash` linkage from genesis `"0"*64`, `entry_hash` recompute), and additionally at
+each row: `event_type ∈ {book_commit, book_reveal}`; a commit carries a 64-hex
+`commitment_hash` and is the **only** commit for its `cycle_date`; a reveal names a `cycle_date`
+whose commit sits **earlier** in the chain, the **same** `commitment_hash`, and a `package` with
+`sha256(canonical(package)) == commitment_hash`. The first row failing any check is `broken_at`
+(with a `reason`). A forged or edited package, a back-dated commit, a reveal without a commit, or
+a second commit for one date all diverge. The verifier reports `n_commits`, `n_reveals`,
+`n_verified_reveals` and `n_pending` (committed, not yet revealed — normal for the latest day).
+
+What this proves and what it does not: the hash on record proves the allocation was **fixed
+before** the day's yield and the next decision were known, and that the revealed package is the
+one hashed. It does not prove the allocation was good — that is what the equity track (D) and the
+replay from archived inputs (ADR-268) are for.
+
 ---
 
 ## 7. Determinism & test anchor
