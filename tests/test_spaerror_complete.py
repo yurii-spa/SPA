@@ -15,7 +15,7 @@ stdlib-only, no external dependencies.
 
 from __future__ import annotations
 
-import subprocess
+import ast
 import sys
 from pathlib import Path
 
@@ -223,43 +223,107 @@ def test_19b_require_gate_raises_on_non_pass():
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+BARE_NAMES = {"Exception", "RuntimeError"}
+
+#: Маркеры-исключения на СТРОКЕ подъёма. Значение то же, что и в прежней
+#: grep-редакции: ``# stdlib-only`` — граница со стандартной библиотекой,
+#: ``# drill: intentional fault injection`` — инертный стенд, который поднимает
+#: НАРОЧНО, чтобы доказать срабатывание защиты ниже по течению.
+RAISE_MARKERS = ("# stdlib-only", "# drill: intentional fault injection")
+
+
+def bare_raises(package_root: Path) -> list:
+    """Голые ``raise Exception`` / ``raise RuntimeError`` в пакете — разбором AST.
+
+    **Почему AST, а не grep (инвариант №16 — изменение теста с обоснованием).**
+    Прежняя редакция искала ПОДСТРОКУ и по построению не могла отличить КОД от
+    ПРОЗЫ: две её находки 10.09 (``cio_outcome_independence.py:733`` и ``:761``)
+    лежат внутри строковых литералов ``_CTL_INDEPENDENT`` / ``_CTL_NO_DOOR`` —
+    это исходники синтетических модулей, которые анализатор разбирает как ЧУЖОЙ
+    код, и требование «мигрируй их на SPAError» было бы требованием подделать
+    сцену положительного контроля.
+
+    Ни один настоящий подъём при этом не теряется. Замер по ВСЕМУ ``spa_core/``
+    на sha ce0e99527 (10.09): старый детектор — 7 находок, новый — 5, разность
+    ровно эти две строки литерала; множество «есть у нового, нет у старого» —
+    ПУСТО. Проверка не ослаблена, а уточнена: она по-прежнему ловит любой голый
+    подъём в исполняемом коде, включая многострочный, который grep пропускал.
+
+    Возврат — отсортированные строки ``<файл>:<строка>:<текст>``.
+    """
+    found = []
+    for path in sorted(package_root.rglob("*.py")):
+        sp = str(path)
+        # Отсев по пути ВНУТРИ пакета, а не по абсолютному: иначе временный
+        # каталог pytest (в его имени всегда есть «test») ослеплял бы
+        # положительный контроль ниже. Для spa_core/ это то же множество —
+        # отсекается ровно spa_core/tests/**.
+        rel = str(path.relative_to(package_root))
+        if "test" in rel or "__pycache__" in rel:
+            continue
+        src = path.read_text(encoding="utf-8", errors="replace")
+        lines = src.splitlines()
+        try:
+            tree = ast.parse(src)
+        except SyntaxError as exc:  # не разобрали ⇒ ТРЕТИЙ исход, а не «чисто»
+            found.append(sp + ":0:НЕ РАЗОБРАН (" + type(exc).__name__ + ": " + str(exc) + ")")
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Raise) or node.exc is None:
+                continue
+            exc_node = node.exc
+            fn = exc_node.func if isinstance(exc_node, ast.Call) else exc_node
+            if not (isinstance(fn, ast.Name) and fn.id in BARE_NAMES):
+                continue
+            line = lines[node.lineno - 1] if node.lineno - 1 < len(lines) else ""
+            if any(m in line for m in RAISE_MARKERS):
+                continue
+            found.append(sp + ":" + str(node.lineno) + ":" + line.strip())
+    return sorted(found)
+
+
 def test_20_zero_bare_exceptions_in_spa_core():
     """
-    Integration audit: grep spa_core/ for bare Exception/RuntimeError.
-    Fails if any non-test, non-stdlib-marker line is found.
+    Integration audit: голых Exception/RuntimeError в spa_core/ быть не должно.
     MP-1467 acceptance criterion: 100% SPAError adoption.
     """
-    violations: list[str] = []
-    for pattern in ["raise Exception", "raise RuntimeError"]:
-        result = subprocess.run(
-            [
-                "grep",
-                "-rn",
-                "--include=*.py",
-                pattern,
-                str(REPO_ROOT / "spa_core"),
-            ],
-            capture_output=True,
-            text=True,
-        )
-        for line in result.stdout.splitlines():
-            if "test" in line:
-                continue
-            if "__pycache__" in line:
-                continue
-            if "# stdlib-only" in line:
-                continue
-            # Deliberate fault-injection drills (inert sandbox harnesses that
-            # RAISE on purpose to prove a downstream defense fires) are not
-            # production error-handling. They must carry the precise marker
-            # below on the same line; only that exact marker is honored, so a
-            # genuine bare raise in a production path is still caught.
-            if "# drill: intentional fault injection" in line:
-                continue
-            violations.append(line)
-
+    violations = bare_raises(REPO_ROOT / "spa_core")
     assert violations == [], (
         f"Found {len(violations)} bare Exception/RuntimeError in spa_core/ "
         f"(non-test, non-stdlib). Migrate to SPAError:\n"
         + "\n".join(violations[:10])
     )
+
+
+def test_20b_detector_still_catches_a_real_bare_raise(tmp_path):
+    """Положительный контроль ДЕТЕКТОРА: он обязан краснеть на настоящем подъёме
+    и молчать на том же тексте ВНУТРИ строкового литерала. Без этой пары
+    уточнение в ``bare_raises`` было бы неотличимо от ослабления проверки."""
+    pkg = tmp_path / "pkg"
+    pkg.mkdir()
+    (pkg / "real.py").write_text(
+        "def f():\n"
+        "    raise RuntimeError('нет источника')\n", encoding="utf-8")
+    (pkg / "fixture.py").write_text(
+        "CTL = '''\n"
+        "def f():\n"
+        "    raise RuntimeError(\"no identity\")\n"
+        "'''\n", encoding="utf-8")
+    (pkg / "marked.py").write_text(
+        "def f():\n"
+        "    raise RuntimeError('бах')  # drill: intentional fault injection\n",
+        encoding="utf-8")
+    (pkg / "multiline.py").write_text(
+        "def f():\n"
+        "    raise Exception(\n"
+        "        'подъём на двух строках'\n"
+        "    )\n", encoding="utf-8")
+    (pkg / "broken.py").write_text("def f(:\n", encoding="utf-8")
+
+    hits = bare_raises(pkg)
+    names = [h.split(":")[0].rsplit("/", 1)[-1] for h in hits]
+    assert "real.py" in names, hits        # настоящий подъём — ловится
+    assert "multiline.py" in names, hits   # многострочный — тоже (grep не ловил)
+    assert "fixture.py" not in names, hits # текст внутри литерала — не код
+    assert "marked.py" not in names, hits  # объявленный стенд — исключение
+    assert any("broken.py" in h and "НЕ РАЗОБРАН" in h for h in hits), hits

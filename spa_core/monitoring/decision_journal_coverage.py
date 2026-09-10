@@ -52,6 +52,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
+from spa_core.utils.errors import SPAError
+
 log = logging.getLogger("spa.monitoring.decision_journal_coverage")
 
 VERSION = "decision-journal-coverage-v1"
@@ -118,6 +120,14 @@ READERS: Tuple[dict, ...] = (
     {"module": "spa_core.monitoring.apy_forecast_accuracy", "probe": "run"},
     {"module": "spa_core.monitoring.outcomes_archive", "probe": "build_outcome_line"},
     {"module": "spa_core.monitoring.cio_explainability", "probe": "run"},
+    # Четыре потребителя, читавшие ключ, но НЕ измерявшиеся прибором (замер
+    # храповика `ReaderPopulationRatchet`, 10.09). У каждого свой `run(root,
+    # write=False)`; отказ или отсутствие счётчика покрытия у любого из них
+    # остаётся третьим исходом `unmeasured` с названной причиной, а не молчанием.
+    {"module": "spa_core.monitoring.arming_wall_order", "probe": "run"},
+    {"module": "spa_core.monitoring.g1_verdict_recoverability", "probe": "run"},
+    {"module": "spa_core.monitoring.journal_backfill_material", "probe": "run"},
+    {"module": "spa_core.monitoring.unevidenced_leg_causes", "probe": "run"},
 )
 
 
@@ -393,14 +403,16 @@ def _reader_probe(spec: dict, root: Path) -> Tuple[Optional[int], object]:
     if name == "observed_daily_moves":
         moves, err, rows = mod.observed_daily_moves(ddir)
         if err:
-            raise RuntimeError(err)
+            raise SPAError(err, code="PROBE_MOVES_UNREADABLE",
+                           details={"probe": name, "module": spec["module"]})
         # покрытие = сколько протоколов вообще получили ряд наблюдений
         return len(moves), {"protocols": sorted(moves), "rows": rows,
                             "n_moves": {k: len(v) for k, v in sorted(moves.items())}}
     if name == "journal_days":
         days, err = mod.journal_days(ddir)
         if err:
-            raise RuntimeError(err)
+            raise SPAError(err, code="PROBE_JOURNAL_DAYS_UNREADABLE",
+                           details={"probe": name, "module": spec["module"]})
         # покрытие = сколько пар (день, ключ) прибор вообще увидел
         pairs = sum(len(d["rates"]) for d in days)
         return pairs, {"days": len(days), "keys": [sorted(d["rates"]) for d in days]}
@@ -415,7 +427,9 @@ def _reader_probe(spec: dict, root: Path) -> Tuple[Optional[int], object]:
     if name == "build_outcome_line":
         rows, err = read_journal(ddir)
         if err or not rows:
-            raise RuntimeError(err or "журнал пуст")
+            raise SPAError(err or "журнал пуст",
+                           code="PROBE_JOURNAL_EMPTY",
+                           details={"probe": name, "module": spec["module"]})
         day = str(rows[-1].get("cycle_date"))
         line = mod.build_outcome_line(str(root), day)
         cov = len(line.get("apy_evidenced_pct") or {})
@@ -425,11 +439,15 @@ def _reader_probe(spec: dict, root: Path) -> Tuple[Optional[int], object]:
         doc = (mod.run(root=str(root), write=False) if is_expl
                else mod.run(str(root), write=False))
         if not isinstance(doc, dict):
-            raise RuntimeError(f"потребитель вернул {type(doc).__name__}, не отчёт")
+            raise SPAError(f"потребитель вернул {type(doc).__name__}, не отчёт",
+                           code="PROBE_CONSUMER_NOT_A_REPORT",
+                           details={"probe": name, "module": spec["module"],
+                                    "returned": type(doc).__name__})
         cov = _own_coverage(doc)
         return cov, {k: v for k, v in sorted(doc.items())
                      if k not in ("generated_at", "as_of", "now", "root")}
-    raise RuntimeError(f"проба `{name}` не описана")
+    raise SPAError(f"проба `{name}` не описана", code="PROBE_UNKNOWN",
+                   details={"probe": name})
 
 
 def _own_coverage(doc: dict) -> Optional[int]:
