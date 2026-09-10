@@ -116,6 +116,7 @@ PRODUCES = (
     "data/leg_provenance_split.json",
     "data/snapshot_minute_sensitivity.json",
     "data/decision_record_run_identity.json",
+    "data/day_replacement_verdict_loss.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -187,6 +188,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "leg_provenance_split",
     "snapshot_minute_sensitivity",
     "decision_record_run_identity",
+    "day_replacement_verdict_loss",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -320,6 +322,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "decision_record_run_identity": {
         "module": "spa_core/monitoring/decision_record_run_identity.py",
         "artifact": "data/decision_record_run_identity.json"},
+    "day_replacement_verdict_loss": {
+        "module": "spa_core/monitoring/day_replacement_verdict_loss.py",
+        "artifact": "data/day_replacement_verdict_loss.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -1171,6 +1176,20 @@ def main(argv=None) -> int:
               f"unchecked={_drri['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "decision_record_run_identity", e)
+    # Заказ #552 (ADR-316). Что теряет hit_rate от правила «одна строка в день».
+    # Мост находок артефакт НЕ читает по той же причине, что и у соседей выше:
+    # единственное действие по итогам — тронуть ПИСАТЕЛЯ журнала решений и его
+    # правило замены строки дня, то есть запись, по которой судят перекладки
+    # капитала, и критерий взвода MIN_HIT_RATE. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import day_replacement_verdict_loss
+        _drvl = day_replacement_verdict_loss.run(root=args.root)
+        print(f"day_replacement_verdict_loss: {_drvl['overall']} "
+              f"(critical={_drvl['counts']['critical']} "
+              f"warn={_drvl['counts']['warn']} "
+              f"unchecked={_drvl['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "day_replacement_verdict_loss", e)
     try:
         from spa_core.monitoring import arming_wall_order
         _awo = arming_wall_order.run(root=args.root)

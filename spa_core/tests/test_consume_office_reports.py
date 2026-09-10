@@ -1621,3 +1621,167 @@ def test_clean_report_gains_no_extra_words() -> None:
                 "compared_protocols": ["pendle"], "findings": [], "unchecked": []})
     assert "[НЕ ИЗМЕРЕНО]" not in out, out
     assert "ещё" not in out, out
+
+
+# ── 9. храповик ПОЛЕЙ: у объявленного читателя нельзя молча УКОРОТИТЬ схему ──
+#
+# Найдено батареей цикла #554 и записано как ИЗМЕРЕННЫЙ факт, а не как
+# подозрение. Мутация: из записи `_READ_SCHEMA` для одного артефакта убрано
+# ОДНО поле — `third_outcomes`, то есть главный отказ прибора. Прогон 231
+# файла-сторожа (9154 теста): вердикт не изменился, мутация ВЫЖИЛА.
+#
+# Причина — в форме соседнего храповика восемью разделами выше. Он спрашивает
+# `SCHEMA_BASELINE - set(MOD._READ_SCHEMA)`, то есть сверяет МНОЖЕСТВО ИМЁН;
+# значение записи (кортеж объявленных полей) в нём не участвует вовсе. Замер на
+# чистом `origin/main` ed0e0513a: записей в `_READ_SCHEMA` — 46, объявленных
+# полей в них — 472, под защитой храповика — 8 имён и НОЛЬ полей.
+#
+# Почему это не мелочь. Поле — единственное место, где живёт СМЫСЛ проверки:
+# `_summarize_json` печатает «СХЕМА РАЗОШЛАСЬ» ровно по списку объявленных
+# путей, и убрать путь = снять тревогу по нему. Правдоподобный сценарий тот же,
+# ради которого заведён храповик имён: производитель сменил форму, строка
+# `test_declared_schema_matches_the_live_producer[X]` покраснела, и «починка» —
+# укоротить кортеж. CI зелёный, артефакт по-прежнему числится проверяемым, а
+# отсутствие `third_outcomes` у прибора отказа читается как «потеряно ноль».
+# Инвариант #16 запрещает такое ослабление МОЛЧА — храповик делает его громким.
+#
+# База ТОЛЬКО РАСТЁТ по полям (как имена выше): новое поле добавлять свободно,
+# снимать существующее — осознанно, с обоснованием в теле изменения и записью
+# в `docs/journal/<неделя>.md`, и только потом опустить базу здесь.
+#
+# ГРАНИЦА НАЗВАНА ВСЛУХ: храповик судит ТОЛЬКО те записи, которые в
+# `_READ_SCHEMA` ещё есть. Снятие записи целиком — вопрос СОСЕДНЕГО храповика
+# (`SCHEMA_BASELINE`, 8 имён), и он намеренно не требует ветки от каждого
+# артефакта. Смешать два вопроса значило бы молча превратить базу полей в
+# запрет на удаление всех 46 записей — ровно тот запрет в лоб, про который
+# сосед объясняет, почему его тут нет.
+
+#: База СНЯТА С МОДУЛЯ замером, а не набрана по памяти (цикл #554, замер на
+#: доставляемом дереве: 47 записей, 481 объявленное поле). Отдельный файл — по
+#: той же причине, что у `frozen_date_baseline.json`: база такого размера в теле
+#: теста читалась бы как код и правилась бы как код.
+_FIELD_BASELINE_PATH = Path(__file__).parent / "office_schema_field_baseline.json"
+SCHEMA_FIELD_BASELINE: dict[str, frozenset[str]] = {
+    name: frozenset(fields)
+    for name, fields in json.loads(
+        _FIELD_BASELINE_PATH.read_text(encoding="utf-8")).items()
+}
+
+
+def _fields_lost_from_schema(schema: dict, baseline: dict) -> dict:
+    """Какие ОБЪЯВЛЕННЫЕ поля исчезли у записей, которые ещё существуют.
+
+    Вынесено функцией намеренно: положительный контроль ниже обязан уметь
+    показать храповик КРАСНЫМ, не трогая живой модуль. Проверка, никогда не
+    видевшая настоящей поломки, — украшение.
+    """
+    lost = {}
+    for name, fields in baseline.items():
+        if name not in schema:
+            continue  # снятие записи целиком судит СОСЕДНИЙ храповик, не этот
+        gone = sorted(fields - set(schema[name]))
+        if gone:
+            lost[name] = gone
+    return lost
+
+
+def test_declared_schema_fields_ratchet_never_shrinks() -> None:
+    """Укоротить кортеж полей = снять проверку по ним. Только осознанно."""
+    lost = _fields_lost_from_schema(MOD._READ_SCHEMA, SCHEMA_FIELD_BASELINE)
+    assert not lost, (
+        f"из `_READ_SCHEMA` пропали объявленные ПОЛЯ: {lost}. Вместе с каждым "
+        "пропала и тревога «СХЕМА РАЗОШЛАСЬ» по нему: `_summarize_json` сверяет "
+        "артефакт ровно по объявленному списку путей, и укороченный список "
+        "молча признаёт artefact полным. Если снятие намеренно — обосновать в "
+        "теле изменения и записать в `docs/journal/<неделя>.md` (инв. #16), "
+        "затем опустить базу здесь.")
+
+
+def test_the_field_ratchet_reddens_when_a_field_is_dropped() -> None:
+    """Положительный контроль: воспроизводит мутацию цикла #554 дословно.
+
+    Из записи убрано `third_outcomes` — главный отказ прибора заказа #552.
+    Не покрасней храповик здесь, он был бы украшением: ровно эта мутация
+    пережила 9154 теста до его появления.
+    """
+    crippled = dict(MOD._READ_SCHEMA)
+    crippled["day_replacement_verdict_loss.json"] = tuple(
+        f for f in crippled["day_replacement_verdict_loss.json"]
+        if f != "third_outcomes")
+    lost = _fields_lost_from_schema(crippled, SCHEMA_FIELD_BASELINE)
+    assert lost == {"day_replacement_verdict_loss.json": ["third_outcomes"]}, lost
+
+
+def test_the_field_ratchet_stays_silent_when_an_entry_is_removed_whole() -> None:
+    """Обратный контроль: граница с соседним храповиком СОБЛЮДЕНА.
+
+    Снятие записи целиком — не предмет этого храповика. Судил бы он и это,
+    база полей стала бы запретом на удаление всех 46 записей, которого сосед
+    намеренно не ставит.
+    """
+    without = {k: v for k, v in MOD._READ_SCHEMA.items()
+               if k != "day_replacement_verdict_loss.json"}
+    assert _fields_lost_from_schema(without, SCHEMA_FIELD_BASELINE) == {}
+
+
+def test_field_ratchet_baseline_is_not_stale() -> None:
+    """База — про ЭТОТ модуль, а не про его прошлое.
+
+    Имя в базе, которого в `_READ_SCHEMA` уже нет, храповик молча пропускает
+    (см. границу выше) — и поэтому обязано быть названо ЗДЕСЬ, иначе база
+    старела бы бесшумно. Отставшая база усыпляет так же надёжно, как её
+    отсутствие.
+    """
+    orphan = sorted(set(SCHEMA_FIELD_BASELINE) - set(MOD._READ_SCHEMA))
+    assert not orphan, (
+        f"в базе полей есть записи, которых в `_READ_SCHEMA` уже нет: {orphan} — "
+        "храповик стережёт поля артефакта, который больше не объявлен читателем")
+
+
+def test_every_baseline_field_is_really_declared_today() -> None:
+    """И вторая сторона: база не выдумана, а СНЯТА с модуля.
+
+    База, содержащая поле, которого в модуле нет, краснела бы навсегда;
+    измеренная база обязана совпадать с кодом в момент замера.
+    """
+    for name, fields in SCHEMA_FIELD_BASELINE.items():
+        assert name in MOD._READ_SCHEMA, name
+        assert fields <= set(MOD._READ_SCHEMA[name]), (
+            name, sorted(fields - set(MOD._READ_SCHEMA[name])))
+
+
+# ── 10. ветка отчёта прибора заказа #552 ДЕЙСТВИТЕЛЬНО зовётся ──────────────
+#
+# Вторая пережившая координата батареи #554: диспетчер `_summarize_json`
+# перестал звать форматтер прибора (`elif ... and False`), и не покраснело
+# ничто. Проводка «при рождении» была объявлена в четырёх местах, но ни одно
+# не проверялось ВЫЗОВОМ — а тест проводки, не делающий вызова, переживает
+# любое расплетение.
+
+def test_the_office_dispatches_to_the_instrument_of_order_552() -> None:
+    """Отчёт прибора доходит до читателя шага 0-офис, а не только существует."""
+    doc = {
+        "status": "CRITICAL", "journal_rows": 36,
+        "exposure": {"measured": True, "scored_days": 15, "on_single_run_days": 2,
+                     "on_multi_run_days": 5, "population_unmeasured_days": 8,
+                     "erased_runs_under_denominator": 61,
+                     "days_multi_run": ["2026-08-27"]},
+        "reconstruction_control": {"passed": True, "matched": 19, "mismatched": 0},
+        "subject_distinctness": {"substitution_admissible": False,
+                                 "compared": 19, "different": 18},
+        "input_movement": {"days_measured": 19, "days_input_moved": 10,
+                           "max_distinct_positions": 6,
+                           "days_survivor_state_not_majority": 8},
+        "days": [],
+        "findings": ["[CRITICAL] знаменатель предъявлен на 13 дн.",
+                     "[НЕ ИЗМЕРЕНО] вердикты стёртых прогонов НЕ ИЗМЕРЕНЫ"],
+        "third_outcomes": ["вердикты стёртых прогонов НЕ ИЗМЕРЕНЫ"],
+        "does_not_report": "каким был вердикт стёртого прогона",
+    }
+    out = _text(MOD._summarize_json("data/day_replacement_verdict_loss.json", doc))
+    # Три разных слоя отчёта: ЭКСПОЗИЦИЯ знаменателя, вердикт и главный отказ.
+    # Проверять один — значит пережить расплетение остальных.
+    assert "знаменатель 15 дн." in out, out
+    assert "[CRITICAL]" in out, out
+    assert "[НЕ ИЗМЕРЕНО]" in out, out
+    assert "СХЕМА РАЗОШЛАСЬ" not in out, out

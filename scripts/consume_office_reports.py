@@ -401,6 +401,17 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # поле, читался бы как «затёрто ноль».
     "decision_record_run_identity.json": ("status", "journal_rows", "population",
                                           "days", "findings", "does_not_report"),
+    # Заказ #552. `exposure` в схеме обязателен: ответ «что теряет hit_rate» без
+    # НАСЕЛЕНИЯ знаменателя выродится в лозунг. `reconstruction_control` — потому
+    # что слой движения входа стои́т на реконструкции книги, и артефакт, потерявший
+    # её контроль, читался бы как измеренный. `third_outcomes` — потому что главный
+    # отказ прибора («вердикты стёртых прогонов не измерены и неизмеримы») есть его
+    # ГЛАВНЫЙ результат, и запись без этого поля читалась бы как «потеряно ноль».
+    "day_replacement_verdict_loss.json": ("status", "journal_rows", "exposure",
+                                          "reconstruction_control",
+                                          "subject_distinctness", "days",
+                                          "findings", "third_outcomes",
+                                          "does_not_report"),
     # Заказ #544. `per_pair` в схеме обязателен по той же причине, что
     # `attribution` у соседа: ответ «чем закрываема дыра» без перечня пар
     # выродится в долю. `series_provenance_exposure` — потому что наличие
@@ -527,6 +538,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/snapshot_minute_sensitivity.py",
     "decision_record_run_identity.json":
         "spa_core/monitoring/decision_record_run_identity.py",
+    "day_replacement_verdict_loss.json":
+        "spa_core/monitoring/day_replacement_verdict_loss.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2025,6 +2038,17 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _drri_report,
         )
         out.extend(_drri_report(data))
+    elif name == "day_replacement_verdict_loss.json":
+        # Заказ #552. Порядок строк — порядок вопроса: сперва ЭКСПОЗИЦИЯ
+        # знаменателя hit_rate (на скольких прогонах стои́т каждый scored-день),
+        # и только потом движение входа. Экспозиция идёт ПЕРВОЙ намеренно:
+        # читатель, увидевший первой строкой «вход двигался на N днях», прочтёт
+        # это как замер всего журнала, — а носитель прогонов покрывает часть дней,
+        # и его молчание об остальных прибор называет третьим исходом, а не покоем.
+        from spa_core.monitoring.day_replacement_verdict_loss import (
+            format_report as _drvl_report,
+        )
+        out.extend(_drvl_report(data))
     elif name == "arming_wall_order.json":
         # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
         # стен с числами освобождённых дней, потом вердикт ветки, и только потом
