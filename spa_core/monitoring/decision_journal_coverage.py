@@ -128,6 +128,12 @@ READERS: Tuple[dict, ...] = (
     {"module": "spa_core.monitoring.g1_verdict_recoverability", "probe": "run"},
     {"module": "spa_core.monitoring.journal_backfill_material", "probe": "run"},
     {"module": "spa_core.monitoring.unevidenced_leg_causes", "probe": "run"},
+    # Пятый — доставлен циклом #549 (ADR-311) и в население не вписан, отчего
+    # храповик `ReaderPopulationRatchet` краснел на чистом origin/main 6e7eb58d5
+    # (замер цикла #550 контрольным прогоном по тому же sha). Это и есть работа
+    # храповика: новый потребитель ключа обязан попасть под замер стоимости
+    # починки журнала, иначе прибор ответит за население, которого уже нет.
+    {"module": "spa_core.monitoring.leg_provenance_split", "probe": "run"},
 )
 
 

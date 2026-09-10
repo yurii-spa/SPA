@@ -114,6 +114,7 @@ PRODUCES = (
     "data/arming_wall_order.json",
     "data/journal_population_backfill.json",
     "data/leg_provenance_split.json",
+    "data/snapshot_minute_sensitivity.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -183,6 +184,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "arming_wall_order",
     "journal_population_backfill",
     "leg_provenance_split",
+    "snapshot_minute_sensitivity",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -310,6 +312,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "leg_provenance_split": {
         "module": "spa_core/monitoring/leg_provenance_split.py",
         "artifact": "data/leg_provenance_split.json"},
+    "snapshot_minute_sensitivity": {
+        "module": "spa_core/monitoring/snapshot_minute_sensitivity.py",
+        "artifact": "data/snapshot_minute_sensitivity.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -1135,6 +1140,19 @@ def main(argv=None) -> int:
               f"unchecked={_lps['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "leg_provenance_split", e)
+    # Заказ #549 (ADR-312): решает ли МИНУТА снимка и где теряется наблюдённое
+    # значение. Мост находок его НЕ читает по той же причине, что и соседей:
+    # единственное действие по итогам — тронуть писателя журнала решений либо
+    # частоту опроса, то есть money-path. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import snapshot_minute_sensitivity
+        _sms = snapshot_minute_sensitivity.run(root=args.root)
+        print(f"snapshot_minute_sensitivity: {_sms['overall']} "
+              f"(critical={_sms['counts']['critical']} "
+              f"warn={_sms['counts']['warn']} "
+              f"unchecked={_sms['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "snapshot_minute_sensitivity", e)
     try:
         from spa_core.monitoring import arming_wall_order
         _awo = arming_wall_order.run(root=args.root)

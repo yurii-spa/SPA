@@ -383,6 +383,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                   "class_counts", "pairs", "by_leg",
                                   "wiring_source", "observation_source",
                                   "none_coerced_to_empty_control", "findings"),
+    # Заказ #549. `population` и `class_counts` обязательны по той же причине,
+    # что у соседа: ответ «минута решает» без населения выродится в лозунг.
+    # `movement` — потому что вердикт про вердикт стои́т на РАЗМАХЕ, и без него
+    # читателю нечем проверить claim. `sensitivity` отдельно от `movement`
+    # намеренно: «двинулось» и «двинулось БОЛЬШЕ МАРЖИ» — разные утверждения,
+    # и склеив их мы бы объявили любое мигание решающим цель.
+    "snapshot_minute_sensitivity.json": ("status", "journal_rows", "population",
+                                         "class_counts", "movement",
+                                         "sensitivity", "losses", "findings"),
     # Заказ #544. `per_pair` в схеме обязателен по той же причине, что
     # `attribution` у соседа: ответ «чем закрываема дыра» без перечня пар
     # выродится в долю. `series_provenance_exposure` — потому что наличие
@@ -505,6 +514,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/journal_population_backfill.py",
     "leg_provenance_split.json":
         "spa_core/monitoring/leg_provenance_split.py",
+    "snapshot_minute_sensitivity.json":
+        "spa_core/monitoring/snapshot_minute_sensitivity.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1980,6 +1991,17 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _lps_report,
         )
         out.extend(_lps_report(data))
+    elif name == "snapshot_minute_sensitivity.json":
+        # Заказ #549. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (сколько
+        # пар вообще имеют два снимка), потом мигание, и только потом вердикт про
+        # ЦЕЛЬ. Население идёт ПЕРВЫМ намеренно: читатель, увидевший «минута
+        # решает цель» первой строкой, прочтёт это как замер всего портфеля, —
+        # а носитель покрывает пять повторяющихся адаптеров, и его молчание об
+        # остальных прибор называет третьим исходом, а не нулём.
+        from spa_core.monitoring.snapshot_minute_sensitivity import (
+            format_report as _sms_report,
+        )
+        out.extend(_sms_report(data))
     elif name == "arming_wall_order.json":
         # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
         # стен с числами освобождённых дней, потом вердикт ветки, и только потом

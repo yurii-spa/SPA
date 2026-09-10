@@ -124,6 +124,7 @@ def build_history_record(
     target_positions: Dict[str, float],
     capital_usd: float,
     book_id: Optional[str] = None,
+    apy_as_of: Optional[Dict[str, str]] = None,
 ) -> dict:
     """One compact line of shadow track-record: enough to replay the verdict later.
 
@@ -193,6 +194,19 @@ def build_history_record(
         "apy_evidenced_pct": {p: float(apy_pct[p]) for p in universe
                               if p in evidenced and (apy_pct or {}).get(p) is not None},
         "apy_unevidenced": sorted(p for p in universe if p not in evidenced),
+        # ADR-312 (заказ CIO #549), АДДИТИВНО: КАКОЙ МОМЕНТ наблюдения несёт
+        # каждая ставка. Запись фотографирует ОДИН снимок дня, а снимок
+        # оркестратора перезаписывается каждым прогоном — поэтому до этого поля
+        # спросить «видела ли запись то же, что видел оркестратор» было НЕ У
+        # ЧЕГО: единственный носитель момента наблюдения стирался следующим
+        # прогоном. Замер 10.09: 14 из 15 пар «день × адаптер» с двумя и более
+        # снимками ставку внутри дня ДВИГАЛИ, на 6 парах размах превышал маржу,
+        # на которой стои́т цель. Значение уже лежало в `feed_coverage["as_of"]`
+        # — поле лишь делает его durable. Действует ВПЕРЁД: 36 написанных строк
+        # момента не несут, и потребитель это переживает (ключа нет ⇒ None).
+        "apy_as_of": {p: str(apy_as_of[p]) for p in universe
+                      if isinstance(apy_as_of, dict) and p in (apy_as_of or {})
+                      and apy_as_of[p] is not None},
         "book_apy_pp": dec.get("apy_now_pp"),
         "target_apy_pp": dec.get("apy_opt_pp"),
         "gain_pp": dec.get("gain_pp"),
@@ -409,6 +423,7 @@ def write_shadow_rationale(
     blocked_protocols: Optional[Dict[str, str]] = None,
     policy_refusals: Optional[List[dict]] = None,
     book_id: Optional[str] = None,
+    apy_as_of: Optional[Dict[str, str]] = None,
 ) -> dict:
     """Compute the shadow verdict and (optionally) persist it. Never raises.
 
@@ -674,6 +689,7 @@ def write_shadow_rationale(
                         target_positions=target_positions or {},
                         capital_usd=capital_usd,
                         book_id=_bid,
+                        apy_as_of=apy_as_of,
                     ),
                     Path(data_dir),
                     book_id=_bid,
