@@ -585,5 +585,19 @@
   "findings",
   "third_outcomes",
   "does_not_report"
+ ],
+ "audit_trail_rate_input_coverage.json": [
+  "status",
+  "journal_rows",
+  "carrier",
+  "run_axis",
+  "quantity",
+  "coverage",
+  "censoring",
+  "resolution",
+  "run_axis_join",
+  "findings",
+  "third_outcomes",
+  "does_not_report"
  ]
 }

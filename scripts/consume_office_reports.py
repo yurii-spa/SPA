@@ -428,6 +428,22 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                           "kind_control", "substitution_trap",
                                           "findings", "third_outcomes",
                                           "does_not_report"),
+    # Заказ #555. `run_axis` в схеме обязателен потому, что это единственное,
+    # что у трейла ЕСТЬ, и запись, потерявшая его, читалась бы как «носитель
+    # ни при чём». `quantity` — потому что это ОТВЕТ на заказ: величины в
+    # записи нет, и артефакт без этого поля выродился бы в долю покрытия по
+    # запасной поверхности. `censoring` и `resolution` — два запрета,
+    # НЕЗАВИСИМЫХ от покрытия: без них читатель решит, что дело в частоте
+    # опроса и чинится вперёд. `run_axis_join` — потому что предмет следующего
+    # заказа обязан быть виден, а не выведен. `third_outcomes` — главный
+    # результат: «не измерено» на N парах; запись без него читалась бы как
+    # «не двигалось нигде».
+    "audit_trail_rate_input_coverage.json": ("status", "journal_rows", "carrier",
+                                             "run_axis", "quantity", "coverage",
+                                             "censoring", "resolution",
+                                             "run_axis_join", "findings",
+                                             "third_outcomes",
+                                             "does_not_report"),
     # Заказ #544. `per_pair` в схеме обязателен по той же причине, что
     # `attribution` у соседа: ответ «чем закрываема дыра» без перечня пар
     # выродится в долю. `series_provenance_exposure` — потому что наличие
@@ -558,6 +574,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/day_replacement_verdict_loss.py",
     "intraday_rate_input_movement.json":
         "spa_core/monitoring/intraday_rate_input_movement.py",
+    "audit_trail_rate_input_coverage.json":
+        "spa_core/monitoring/audit_trail_rate_input_coverage.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2078,6 +2096,17 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _irim_report,
         )
         out.extend(_irim_report(data))
+    elif name == "audit_trail_rate_input_coverage.json":
+        # Заказ #555. Порядок строк — порядок вопроса: сперва ОСЬ ПРОГОНОВ (то,
+        # что у трейла есть и чего не хватило предыдущему кандидату), и СРАЗУ за
+        # ней ВЕЛИЧИНА. Порядок не косметика и закреплён тестом: читатель,
+        # увидевший «трейл касается 7 дней знаменателя» и не увидевший следующей
+        # строки, прочтёт это как «семь дней рассужены» — а рассужено ноль,
+        # потому что ставки запись не несёт вовсе.
+        from spa_core.monitoring.audit_trail_rate_input_coverage import (
+            format_report as _atric_report,
+        )
+        out.extend(_atric_report(data))
     elif name == "arming_wall_order.json":
         # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
         # стен с числами освобождённых дней, потом вердикт ветки, и только потом
