@@ -109,6 +109,7 @@ PRODUCES = (
     "data/decision_record_verdict_sensitivity.json",
     "data/hit_rate_selection_bias.json",
     "data/g1_verdict_recoverability.json",
+    "data/unevidenced_leg_causes.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -173,6 +174,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "decision_record_verdict_sensitivity",
     "hit_rate_selection_bias",
     "g1_verdict_recoverability",
+    "unevidenced_leg_causes",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -285,6 +287,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "g1_verdict_recoverability": {
         "module": "spa_core/monitoring/g1_verdict_recoverability.py",
         "artifact": "data/g1_verdict_recoverability.json"},
+    "unevidenced_leg_causes": {
+        "module": "spa_core/monitoring/unevidenced_leg_causes.py",
+        "artifact": "data/unevidenced_leg_causes.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -1078,6 +1083,20 @@ def main(argv=None) -> int:
               f"unchecked={grep_['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "g1_verdict_recoverability", e)
+    # Заказ #543 (ADR-300 поставил вопрос): ПОЧЕМУ у опрашиваемой ноги в
+    # конкретный день нет живой ставки. Мост находок его НЕ читает по той же
+    # причине, что и соседей: единственное действие по итогам — тронуть писателя
+    # журнала решений, то есть запись, по которой судят перекладки капитала.
+    # Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import unevidenced_leg_causes
+        _ulc = unevidenced_leg_causes.run(root=args.root)
+        print(f"unevidenced_leg_causes: {_ulc['overall']} "
+              f"(critical={_ulc['counts']['critical']} "
+              f"warn={_ulc['counts']['warn']} "
+              f"unchecked={_ulc['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "unevidenced_leg_causes", e)
     # §43 ТЗ CIO «Audit trail»: отвечают ли ДАННЫЕ на вопрос о прошлой перекладке
     # («почему 13 августа переложили $12 000»), или на него отвечает только память
     # сессии. Мост находок его НЕ читает по той же причине, что и пять соседей
