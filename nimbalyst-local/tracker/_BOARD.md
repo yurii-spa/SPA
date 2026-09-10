@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-10T03:00:09Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-10T03:32:29Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (f5ef8661c).
+> Сверено с `origin/main` (ca14bbf44).
 >
-> Всего карточек: **995** · ждёт владельца: **9** · занято сессиями: **14**.
+> Всего карточек: **996** · ждёт владельца: **9** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -813,7 +813,7 @@
 - Запись ЗА другую сессию уезжает с якорем ЖИВОГО процесса писателя — чужой ярлык читается как ACTIVE  ·  `inbox-zapis-za-druguyu-sessiyu-uezzhaet-s-yako.md` · 2026-08-26
 - Заслон от шторма считает попытки, а не доставки — вопрос владельцу можно запереть, ни разу не показав  ·  `inbox-zaslon-ot-shtorma-schitaet-popytki-a-ne.md` · 2026-08-26
 
-## 🤖 Agent Tasks (что делает агент)  (158)
+## 🤖 Agent Tasks (что делает агент)  (159)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -846,6 +846,7 @@
 - Карта агентов в проде устаревает навсегда: её некому пересобирать  ·  `agent-karta-agentov-v-prode-ustarevaet-navsegd.md` · 2026-09-09
 - Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз  ·  `agent-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md` · 2026-09-09
 - Кто планирует развитие проекта: судьба «Архитектора» и живой план  ·  `agent-kto-planiruet-razvitie-proekta-sudba-arh.md` · 2026-09-09
+- Метрика качества и slo_hours в манифесте расходятся у двух агентов  ·  `agent-manifest-metrika-i-slo-rashodyatsya.md` · 2026-09-10
 - Минимальный пакет передачи работы вместо голой карточки (ADR-154)  ·  `agent-minimalnyi-paket-peredachi.md` · 2026-08-27
 - morpho_steakhouse — 40 % книги — отсутствует в реестре риск-скоров, и три теста краснеют на main из-за этого  ·  `agent-morpho-steakhouse-bez-risk-score.md` · 2026-08-08
 - Мягкая ступень просадки (5–10 %) должна действовать в МИНУТАХ, а не на следующем суточном цикле (ADR-129)  ·  `agent-myagkii-tir-vnutri-dnya-v-minutah.md` · 2026-08-23

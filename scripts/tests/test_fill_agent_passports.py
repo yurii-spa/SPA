@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -113,6 +114,30 @@ class TestNeverInvents(unittest.TestCase):
         self.assertEqual(f.escalation_from_code(None, {"produces": []}), "")
 
 
+
+# ─── предикат «метрика опирается на реальный produces» ────────────────────────
+# Вынесен из теста НАРОЧНО: иначе положительный контроль пришлось бы ставить
+# мутацией живого манифеста, а её ловит соседний тест байт-идентичности — и
+# краснеет не то утверждение. Предикат отдельно ⇒ контроль бьёт точно в него.
+_METRIC_CLAIM_RE = re.compile(r"(\S+)\s+свежее\s+([\d.]+)\s*ч")
+
+
+def unproduced_claims(agent: dict) -> list[str]:
+    """Артефакты, обещанные метрикой, которых НЕТ в `produces` этого агента.
+
+    Судится артефакт, а не срок: срок, который разошёлся или не проставлен, —
+    несогласованность манифеста, другая находка и другой владелец.
+    Свободный текст метрики не разбирается вовсе (третий исход: не машинная форма).
+    """
+    metric = str((agent.get("passport") or {}).get("quality_metric") or "").strip()
+    claims = _METRIC_CLAIM_RE.findall(metric)
+    if not claims:
+        return []
+    produced = {str(e.get("artifact")) for e in (agent.get("produces") or [])
+                if isinstance(e, dict) and e.get("artifact")}
+    return [art for art, _slo in claims if art not in produced]
+
+
 class TestDoesNotOverwriteHumans(unittest.TestCase):
     """Авария 4: выведенное затирало написанное человеком."""
 
@@ -132,20 +157,64 @@ class TestRealManifestState(unittest.TestCase):
     """Замер на настоящем манифесте — чтобы прогресс был виден, а не заявлен."""
 
     def test_manifest_has_passports_and_reports_honestly(self):
+        """Каждая заполненная метрика качества ВЫВОДИТСЯ, а не написана от руки.
+
+        ИЗМЕНЕНО НАМЕРЕННО (инв. #16, обоснование здесь + запись в
+        `docs/journal/2026-W37.md`, карточка `agent-storozh-pasportov-krasneet-na-uspehe`).
+
+        Здесь стояло `assertGreater(with_goal, full)` — «частично заполненные обязаны
+        существовать». Замер 2026-09-10: `full = 93`, `with_goal = 93` на трёх коммитах
+        подряд. Условие означает «курация НЕ закончена», и как только она закончилась,
+        оно не выполнится никогда: сторож стал КРАСНЫМ НА УСПЕХЕ и с этого дня учил
+        читателя игнорировать красное.
+
+        Опасение теста верное и сохранено дословно — «кто-то дописал недостающее руками,
+        выдумав». Но оно про ПРОИСХОЖДЕНИЕ значения, а не про количество незаполненных.
+        Поэтому проверка переехала со СЧЁТА на ПОДТВЕРЖДАЕМОСТЬ. Мерится не «совпала ли
+        метрика с деривацией» — куратор вправе написать ЛУЧШЕ машины, и таких строк в
+        манифесте есть (у `tracker_status_sentinel` метрика говорит о покрытии переходов
+        статуса, что никакая деривация не выведет). Мерится другое: **метрика в МАШИННОЙ
+        ФОРМЕ обязана опираться на реальный `produces`**. Форма «`<артефакт>` свежее N ч»
+        — это утверждение о конкретном файле и сроке; если такого артефакта у агента нет
+        или срок другой, значит его дописали руками, выдумав.
+
+        Свободный текст НЕ судится — это третий исход, названный вслух: «не машинная
+        форма, механически не проверяется». Судить прозу мы не умеем, и делать вид, что
+        умеем, было бы тем же дефектом.
+        """
+        import importlib.util as _ilu
+        _spec = _ilu.spec_from_file_location("_fap_real", _REPO / "scripts" / "fill_agent_passports.py")
+        _fap = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_fap)
+
         data = json.loads((_REPO / "architecture" / "manifest.json").read_text(encoding="utf-8"))
         agents = data.get("agents", [])
         self.assertTrue(agents)
         full = sum(1 for a in agents
                    if all(str((a.get("passport") or {}).get(k) or "").strip()
                           for k in ("goal", "quality_metric", "escalation")))
-        with_goal = sum(1 for a in agents
-                        if str((a.get("passport") or {}).get("goal") or "").strip())
-        # Было 0/89. Полностью заполнить механически нельзя — метрику качества
-        # даёт только докурированный produces, и это работа куратора, не скрипта.
         self.assertGreater(full, 0, "паспортов не прибавилось")
-        self.assertGreater(with_goal, full,
-                           "частично заполненные обязаны существовать: "
-                           "иначе кто-то дописал недостающее руками, выдумав")
+
+        invented, unjudged = [], 0
+        for a in agents:
+            metric = str((a.get("passport") or {}).get("quality_metric") or "").strip()
+            if not metric:
+                continue
+            if not _METRIC_CLAIM_RE.search(metric):
+                unjudged += 1          # свободный текст куратора — не машинная форма
+                continue
+            # Судится АРТЕФАКТ, а не срок (см. `unproduced_claims` выше). Замер
+            # 2026-09-10: выдуманных артефактов НОЛЬ, расхождений срока ДВА
+            # (io_chief_investment 1 ч против 26 ч в метрике; telegram_milestone без
+            # slo_hours вовсе) — оба вынесены карточкой.
+            for art in unproduced_claims(a):
+                invented.append(
+                    f"{a.get('label')}: метрика обещает «{art}», "
+                    f"но такого артефакта нет в produces")
+        self.assertEqual(invented, [], "\n".join(invented))
+        # Третий исход назван числом, а не молчанием: сколько метрик механической
+        # проверке не поддаётся. Ноль здесь означал бы, что судить нечего.
+        self.assertGreater(full, unjudged,
+                           "все метрики оказались свободным текстом — проверка вырождена")
 
 
 class TestManifestFormatIsPreserved(unittest.TestCase):
@@ -441,3 +510,25 @@ class TestEntrypointNamedByPath(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestTheMetricClaimPredicate(unittest.TestCase):
+    """Положительный контроль самого предиката — без мутации живого манифеста."""
+
+    def test_a_claim_about_an_unproduced_artifact_is_caught(self):
+        a = {"label": "com.spa.x",
+             "produces": [{"artifact": "data/real.json", "slo_hours": 3}],
+             "passport": {"quality_metric": "data/vydumannyi.json свежее 3 ч"}}
+        self.assertEqual(unproduced_claims(a), ["data/vydumannyi.json"])
+
+    def test_a_claim_about_a_produced_artifact_passes_even_if_the_slo_differs(self):
+        """Расхождение СРОКА — не выдумка: это другая находка, у неё другой владелец."""
+        a = {"label": "com.spa.x",
+             "produces": [{"artifact": "data/real.json", "slo_hours": 1}],
+             "passport": {"quality_metric": "data/real.json свежее 26 ч"}}
+        self.assertEqual(unproduced_claims(a), [])
+
+    def test_free_text_is_not_judged(self):
+        a = {"label": "com.spa.x", "produces": [],
+             "passport": {"quality_metric": "каждый переход статуса покрыт записью журнала"}}
+        self.assertEqual(unproduced_claims(a), [])
