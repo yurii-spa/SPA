@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-10T01:37:15Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-10T03:00:09Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (294a62e0e) · статусов дочитано оттуда: **1** (копия в дереве — прежняя версия того же файла).
+> Сверено с `origin/main` (f5ef8661c).
 >
-> Всего карточек: **994** · ждёт владельца: **9** · занято сессиями: **14**.
+> Всего карточек: **995** · ждёт владельца: **9** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -813,7 +813,7 @@
 - Запись ЗА другую сессию уезжает с якорем ЖИВОГО процесса писателя — чужой ярлык читается как ACTIVE  ·  `inbox-zapis-za-druguyu-sessiyu-uezzhaet-s-yako.md` · 2026-08-26
 - Заслон от шторма считает попытки, а не доставки — вопрос владельцу можно запереть, ни разу не показав  ·  `inbox-zaslon-ot-shtorma-schitaet-popytki-a-ne.md` · 2026-08-26
 
-## 🤖 Agent Tasks (что делает агент)  (157)
+## 🤖 Agent Tasks (что делает агент)  (158)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -836,6 +836,7 @@
 - Долгоживущие агенты крутят код многонедельной давности — перезапустить (полномочие ADR-078)  ·  `agent-dolgozhivuschie-agenty-krutyat-staryi-kod.md` · 2026-08-09
 - Два артефакта одного цикла втрое расходятся в оценке потерь: 451 б.п. против 132 б.п.  ·  `agent-dva-artefakta-odnogo-tsikla-raskhodyatsya-vtroe.md` · 2026-08-08
 - Запрет на fluid_usdc объявлен и НЕ исполняется: там стоит 20 % книги  ·  `agent-dva-imeni-odin-kontrakt-20-deneg-stoyat.md` · 2026-09-09
+- Два имени — один контракт: потолок 20 % на протокол считает по ИМЕНИ и пропускает 40 % в один пул  ·  `agent-dva-imeni-odin-kontrakt-tozhdestvo-po-adresu.md` · 2026-09-10
 - Два пакета из трёх живут без потолка риска — и сегодня стоят вдвое и втрое выше нашего же лимита  ·  `agent-dva-paketa-iz-treh-zhivut-bez-potolka-ri.md` · 2026-09-09
 - Две записи о деньгах, причина 1: доказательная база на повторную дату молча возвращает СТАРУЮ строку  ·  `agent-dve-zapisi-o-dengah-prichina-1-semantika-povtornoi-zapisi.md` · 2026-08-23
 - Две записи о деньгах, причина 2: разрыв цепочки 10.06 и пересчёт июня (владелец разрешил переписывание)  ·  `agent-dve-zapisi-o-dengah-prichina-2-razryv-treka-10-06.md` · 2026-08-23

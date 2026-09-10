@@ -1014,11 +1014,57 @@ class StrategyAllocator:
                 len(evidence), attempts, required,
             )
 
+        # ADR-303: объявленный в реестре запрет читается ОБОИМИ путями загрузки.
+        # Замер: у `fluid_usdc` в `adapter_registry.json` стои́т `research_only: true`
+        # и `per_protocol_cap: 0.0`, а в книге лежит $20 000 — 20 % капитала. Правило
+        # не нарушал никто: проверка `research_only` стои́т в РЕЕСТРОВОЙ ветке ПОСЛЕ
+        # строки `if name in seen_protocols: continue`, а протокол приходит снимком
+        # оркестратора — и до проверки очередь не доходит НИКОГДА.
+        #
+        # Тот же урок, что ADR-061 записал в соседнем комментарии («Same gate, both
+        # paths»), но применённый тогда только к классовым флагам адаптера. Здесь он
+        # доводится до объявления в реестре: запрет, который читает одна ветка из двух,
+        # — это не запрет, а надпись.
+        _registry_declaration: dict = {}
+        try:
+            if self._registry_path.exists():
+                _registry_declaration = (json.loads(
+                    self._registry_path.read_text(encoding="utf-8")).get("adapters") or {})
+        except (OSError, ValueError) as _reg_exc:   # noqa: BLE001
+            log.warning("ADR-303: реестр не прочитан (%s) — объявленные запреты НЕ измерены",
+                        _reg_exc)
+            _registry_declaration = {}
+
+        def _declared_ban(protocol: str) -> str | None:
+            """Причина запрета из РЕЕСТРА, если он объявлен. None — запрета нет.
+
+            Нет записи о протоколе ⇒ None: отсутствие объявления не есть запрет
+            (иначе новый адаптер оказался бы забанен по построению).
+            """
+            e = _registry_declaration.get(protocol)
+            if not isinstance(e, dict):
+                return None
+            if e.get("research_only"):
+                return "registry_research_only"
+            cap = e.get("per_protocol_cap")
+            if isinstance(cap, (int, float)) and not isinstance(cap, bool) and cap <= 0.0:
+                return "registry_cap_zero"
+            return None
+
         def _fundable(protocol: str) -> bool:
-            """ADR-061 gate: class flags (D3/D4) + evidence (D1/D2). Fail-CLOSED."""
+            """ADR-061 gate: class flags (D3/D4) + evidence (D1/D2). Fail-CLOSED.
+
+            ADR-303: сюда же — запрет, ОБЪЯВЛЕННЫЙ в реестре. Гейт один на оба пути
+            загрузки, поэтому объявление действует независимо от того, каким путём
+            протокол попал в набор.
+            """
             allowed, reason = _adapter_class_gate(protocol)
             if not allowed:
                 self._blocked[protocol] = reason or "blocked"
+                return False
+            declared = _declared_ban(protocol)
+            if declared:
+                self._blocked[protocol] = declared
                 return False
             if self._evidence_gate_applied and protocol not in evidence:
                 # Rule (.claude/rules/risk-engine.md): a stale/unobserved feed
