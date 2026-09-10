@@ -372,6 +372,17 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                     "attribution", "class_counts", "per_day",
                                     "scenarios", "parity_control",
                                     "derivation_cross_check", "findings"),
+    # Заказ #546. `pairs` в схеме обязателен по той же причине, что `attribution`
+    # у соседа: ответ «проводка или значение» без перечня пар выродится в долю.
+    # `wiring_source`/`observation_source` — потому что оба ответа суть
+    # утверждения О НОСИТЕЛЕ (объявленная на origin дорога · ОДНОСТОРОННИЙ журнал
+    # расхождений), и артефакт без границ носителя читался бы как замер флота и
+    # как «фид молчал». `none_coerced_to_empty_control` — потому что без него
+    # третий исход неотличим от нуля.
+    "leg_provenance_split.json": ("status", "journal_rows", "population",
+                                  "class_counts", "pairs", "by_leg",
+                                  "wiring_source", "observation_source",
+                                  "none_coerced_to_empty_control", "findings"),
     # Заказ #544. `per_pair` в схеме обязателен по той же причине, что
     # `attribution` у соседа: ответ «чем закрываема дыра» без перечня пар
     # выродится в долю. `series_provenance_exposure` — потому что наличие
@@ -492,6 +503,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/arming_wall_order.py",
     "journal_population_backfill.json":
         "spa_core/monitoring/journal_population_backfill.py",
+    "leg_provenance_split.json":
+        "spa_core/monitoring/leg_provenance_split.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1956,6 +1969,17 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _ulc_report,
         )
         out.extend(_ulc_report(data))
+    elif name == "leg_provenance_split.json":
+        # Заказ #546. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ, потом
+        # ОБА НОСИТЕЛЯ вместе с их границами (история git — про объявленную
+        # дорогу; журнал расхождений — односторонний и с окном), и только потом
+        # классы и дни. Носители идут ПЕРЕД числами намеренно: читатель,
+        # увидевший «проводка не объясняет ничего» первой строкой, прочтёт это
+        # как замер того, что исполнял флот, — чего прибор не утверждает.
+        from spa_core.monitoring.leg_provenance_split import (
+            format_report as _lps_report,
+        )
+        out.extend(_lps_report(data))
     elif name == "arming_wall_order.json":
         # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
         # стен с числами освобождённых дней, потом вердикт ветки, и только потом

@@ -522,9 +522,18 @@ def _journal_records(report: dict, now: dt.datetime) -> list[dict]:
             "severity": f.get("severity"),
             "message": f.get("message"),
         }
+        # `live_side`/`live_apy` (и зеркальная пара литерала) добавлены циклом
+        # #549: без них строка несла сторону наблюдения ТОЛЬКО в прозе
+        # сообщения, и `leg_provenance_split` — потребитель этого журнала как
+        # ЕДИНСТВЕННОГО датированного носителя наблюдения прошлого — вынужден был
+        # опираться на род строки, а не на поле. Правка АДДИТИВНА и действует
+        # только вперёд: 56 строк, написанных до неё, сторону по-прежнему не
+        # несут, и потребитель обязан это переживать (он и переживает — род есть
+        # структурное поле с первого дня файла).
         for extra in ("delta_pp", "adapter_status_apy", "orchestrator_apy",
                       "adapter_status_tvl", "orchestrator_tvl",
-                      "adapter_status_tier", "orchestrator_tier"):
+                      "adapter_status_tier", "orchestrator_tier",
+                      "live_side", "live_apy", "literal_side", "literal_apy"):
             if extra in f:
                 rec[extra] = f[extra]
         out.append(rec)

@@ -113,6 +113,7 @@ PRODUCES = (
     "data/journal_backfill_material.json",
     "data/arming_wall_order.json",
     "data/journal_population_backfill.json",
+    "data/leg_provenance_split.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -181,6 +182,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "journal_backfill_material",
     "arming_wall_order",
     "journal_population_backfill",
+    "leg_provenance_split",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -305,6 +307,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "journal_population_backfill": {
         "module": "spa_core/monitoring/journal_population_backfill.py",
         "artifact": "data/journal_population_backfill.json"},
+    "leg_provenance_split": {
+        "module": "spa_core/monitoring/leg_provenance_split.py",
+        "artifact": "data/leg_provenance_split.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -1117,6 +1122,19 @@ def main(argv=None) -> int:
     # его НЕ читает по той же причине, что и соседей: единственное действие по
     # итогам — снять стену, то есть тронуть пороги оборота либо писателя журнала
     # решений, а это money-path и предмет №1 ADR-285. Потребитель — шаг 0-офис.
+    # Заказ #546 (ADR-306 поставил вопрос): проводка или значение — почему у
+    # ноги книги нет живой ставки. Мост находок его НЕ читает по той же причине,
+    # что и соседей: единственное действие по итогам — тронуть POLLED_ADAPTERS
+    # либо путь ставки к записи, то есть money-path. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import leg_provenance_split
+        _lps = leg_provenance_split.run(root=args.root)
+        print(f"leg_provenance_split: {_lps['overall']} "
+              f"(critical={_lps['counts']['critical']} "
+              f"warn={_lps['counts']['warn']} "
+              f"unchecked={_lps['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "leg_provenance_split", e)
     try:
         from spa_core.monitoring import arming_wall_order
         _awo = arming_wall_order.run(root=args.root)
