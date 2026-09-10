@@ -91,7 +91,21 @@ class NeverSeen(unittest.TestCase):
 
 
 class CriterionProbe(unittest.TestCase):
-    """Причина отсечения называется МУТАЦИЕЙ, и у мутации есть контроль."""
+    """Население записи называется МУТАЦИЕЙ, и у мутации есть контроль.
+
+    **Инвариант #16 — изменение намеренное, и вот основание.** До ADR-309
+    писатель брал ``current ∪ target``, и здесь стояли три теста в обратную
+    сторону: ``funded_set`` был НОРМОЙ, а «ключ попал в запись одной картой» —
+    падением контроля. ADR-309 (ответ владельца 2026-09-10, Вариант Б) сделал
+    карту ставок дверью ПО ЗАМЫСЛУ. Оставить прежние ожидания значило бы
+    получить сторожа, который краснеет на верной доставке каждый цикл, —
+    ровно тот класс, ради которого правило и написано.
+
+    Утверждения не ослаблены: их столько же, каждое проверяется положительным
+    контролем (узкий писатель обязан ронять новую пробу), и добавлена четвёртая
+    проба на границу расширения (``priced_live``), которой раньше не было
+    вовсе. Разбор — в ADR-309 и `docs/journal/2026-W37.md`.
+    """
 
     BASE = dict(
         apy_pct={"held": 3.0, "tgt": 4.0, "unfunded": 9.0},
@@ -101,12 +115,14 @@ class CriterionProbe(unittest.TestCase):
         capital_usd=100000.0,
     )
 
-    def test_real_writer_says_the_criterion_is_the_funded_set(self):
+    def test_real_writer_says_the_population_is_the_full_live_set(self):
         out = djc.probe_criterion(unfunded_live="unfunded", funded_live="held",
                                   **self.BASE)
-        self.assertEqual(out["verdict"], "funded_set")
-        self.assertEqual(out["probes"]["funding"]["verdict"], "binds")
-        self.assertEqual(out["probes"]["map_only_control"]["verdict"], "silent")
+        self.assertEqual(out["verdict"], "full_live_set")
+        self.assertEqual(out["probes"]["funding"]["verdict"], "does_not_bind")
+        self.assertEqual(out["probes"]["map_widens"]["verdict"], "widens")
+        self.assertEqual(out["probes"]["unpriced_live_stays_out"]["verdict"],
+                         "stays_out")
 
     def test_evidence_binds_inside_the_book_and_does_not_go_silent(self):
         """Снятый провенанс обязан уводить ключ в apy_unevidenced, а не в никуда."""
@@ -114,33 +130,100 @@ class CriterionProbe(unittest.TestCase):
                                   **self.BASE)
         self.assertEqual(out["probes"]["evidence"]["verdict"], "binds_inside_book")
 
-    def test_a_second_door_flips_the_control_and_invalidates_the_verdict(self):
-        """Положительный контроль на САМ контроль: писатель, берущий ключи из карты."""
-        def map_only_writer(doc, *, apy_pct, apy_sources, current_positions,
-                            target_positions, capital_usd, book_id=None):
-            return {"apy_evidenced_pct": dict(apy_pct), "apy_unevidenced": []}
+    def test_a_narrow_writer_is_caught_as_a_finding_not_as_normal(self):
+        """Положительный контроль: писатель ДО ADR-309 обязан ронять пробу.
+
+        Это тот же самый писатель, который раньше давал ``funded_set``. Теперь
+        он даёт ``still_funded_set`` — находку, а не норму. Отсюда видно, что
+        ожидание ПЕРЕВЁРНУТО, а не снято.
+        """
+        def book_only_writer(doc, *, apy_pct, apy_sources, current_positions,
+                             target_positions, capital_usd, book_id=None):
+            universe = sorted(set(current_positions) | set(target_positions))
+            ev = {p for p, s in apy_sources.items() if s == "live"}
+            return {
+                "apy_evidenced_pct": {p: apy_pct[p] for p in universe
+                                      if p in ev and apy_pct.get(p) is not None},
+                "apy_unevidenced": sorted(p for p in universe if p not in ev),
+            }
 
         out = djc.probe_criterion(unfunded_live="unfunded", funded_live="held",
-                                  build=map_only_writer, **self.BASE)
-        self.assertEqual(out["probes"]["map_only_control"]["verdict"], "SECOND_DOOR")
-        self.assertEqual(out["verdict"], "second_door_found")
+                                  build=book_only_writer, **self.BASE)
+        self.assertEqual(out["probes"]["map_widens"]["verdict"], "silent")
+        self.assertEqual(out["probes"]["funding"]["verdict"], "binds")
+        self.assertEqual(out["verdict"], "still_funded_set")
 
-    def test_a_writer_ignoring_the_book_is_not_called_funded_set(self):
-        def book_blind_writer(doc, *, apy_pct, apy_sources, current_positions,
-                              target_positions, capital_usd, book_id=None):
-            return {"apy_evidenced_pct": {"held": 3.0}, "apy_unevidenced": []}
+    def test_a_writer_admitting_a_rate_that_does_not_exist_is_caught(self):
+        """Контроль на границу расширения: ключ БЕЗ числа в население не входит."""
+        def unpriced_admitting_writer(doc, *, apy_pct, apy_sources,
+                                      current_positions, target_positions,
+                                      capital_usd, book_id=None):
+            ev = {p for p, s in apy_sources.items() if s == "live"}
+            return {"apy_evidenced_pct": {p: apy_pct.get(p) for p in ev},
+                    "apy_unevidenced": []}
 
         out = djc.probe_criterion(unfunded_live="unfunded", funded_live="held",
-                                  build=book_blind_writer, **self.BASE)
-        self.assertEqual(out["probes"]["funding"]["verdict"], "does_not_bind")
-        self.assertNotEqual(out["verdict"], "funded_set")
+                                  build=unpriced_admitting_writer, **self.BASE)
+        self.assertEqual(out["probes"]["unpriced_live_stays_out"]["verdict"],
+                         "UNPRICED_ADMITTED")
+        self.assertEqual(out["verdict"], "unpriced_admitted")
 
     def test_no_probe_material_is_unmeasured_not_a_conclusion(self):
         out = djc.probe_criterion(unfunded_live=None, funded_live=None, **self.BASE)
         self.assertEqual(out["verdict"], "unmeasured")
-        for name in ("funding", "evidence", "map_only_control"):
+        for name in ("funding", "evidence"):
             self.assertEqual(out["probes"][name]["verdict"], "unmeasured")
             self.assertTrue(out["probes"][name]["note"])
+
+    def test_a_taken_probe_name_is_unmeasured_not_a_verdict(self):
+        """Служебное имя пробы занято реальным ключом ⇒ мутация неотличима от факта."""
+        base = dict(self.BASE)
+        base["current_positions"] = dict(base["current_positions"])
+        base["current_positions"]["__probe_map_only__"] = 1.0
+        out = djc.probe_criterion(unfunded_live="unfunded", funded_live="held",
+                                  **base)
+        self.assertEqual(out["probes"]["map_widens"]["verdict"], "unmeasured")
+        self.assertEqual(out["probes"]["unpriced_live_stays_out"]["verdict"],
+                         "unmeasured")
+        self.assertEqual(out["verdict"], "unmeasured")
+
+
+class RecordUniverse(unittest.TestCase):
+    """Население строки читается С НЕЁ САМОЙ, а не выводится копией правила.
+
+    До ADR-309 здесь стояла вторая копия правила писателя
+    (``current_positions ∪ target_positions``). Пока писатель брал книгу, копия
+    совпадала с оригиналом и молчала; после расширения писателя она занижала бы
+    население каждой новой строки и записывала разницу в `dropped_by_funding` —
+    то есть докладывала бы отсечение, которого больше нет.
+    """
+
+    def test_the_population_is_what_the_record_itself_names(self):
+        rec = {"apy_evidenced_pct": {"a": 1.0, "b": 2.0},
+               "apy_unevidenced": ["c"],
+               "current_positions": {"a": 10.0}, "target_positions": {}}
+        self.assertEqual(djc.record_universe(rec), {"a", "b", "c"})
+
+    def test_a_wide_record_is_not_narrowed_back_to_the_book(self):
+        """Положительный контроль на саму правку: копия правила покраснеет."""
+        rec = {"apy_evidenced_pct": {"a": 1.0, "outside": 9.0},
+               "apy_unevidenced": [],
+               "current_positions": {"a": 10.0}, "target_positions": {}}
+        self.assertIn("outside", djc.record_universe(rec))
+
+    def test_a_pre_ADR_309_line_still_names_its_own_book(self):
+        """Строка старого писателя читается тем же правилом и не ломается."""
+        rec = {"apy_evidenced_pct": {"held": 3.0}, "apy_unevidenced": ["tgt"],
+               "current_positions": {"held": 10.0}, "target_positions": {"tgt": 5.0}}
+        self.assertEqual(djc.record_universe(rec), {"held", "tgt"})
+
+    def test_a_record_that_names_an_empty_population_is_an_answer(self):
+        """«Писатель сказал: пусто» ≠ «полей нет» — второе падает на позиции."""
+        named_empty = {"apy_evidenced_pct": {}, "apy_unevidenced": [],
+                       "current_positions": {"a": 1.0}, "target_positions": {}}
+        self.assertEqual(djc.record_universe(named_empty), set())
+        old_schema = {"current_positions": {"a": 1.0}, "target_positions": {}}
+        self.assertEqual(djc.record_universe(old_schema), {"a"})
 
 
 class WidenJournal(unittest.TestCase):
@@ -267,6 +350,45 @@ class ReaderPopulationRatchet(unittest.TestCase):
     #: и доказательство покраснеет.
     PERTURBER = "spa_core.monitoring.decision_record_verdict_sensitivity"
 
+    #: Третье исключение, добавлено циклом #548 (ADR-309) — по тому же
+    #: основанию, что PERTURBER, и с тем же доказательством поведением.
+    #: `journal_population_backfill` не ПЛАТИТ за потолок журнала, он его
+    #: закрывает: читает `apy_evidenced_pct` ровно затем, чтобы НЕ дописать
+    #: поверх живого значения, и сам пишет соседний ключ. Спрашивать у него
+    #: «во что тебе обойдётся расширение» — вопрос не к тому: расширение и
+    #: есть его предмет.
+    #:
+    #: **Это не гашение красного теста, и обстоятельство тут сильнее обычного.**
+    #: Храповик стоял красным четырьмя именами и был ПОЧИНЕН параллельной
+    #: сессией в тот же день (ADR-308, коммит 80890d18a: четыре потребителя
+    #: внесены в `READERS`). То есть на момент цикла #548 он ЗЕЛЁНЫЙ, и
+    #: единственное имя, способное его покраснить, — то, которое цикл #548 сам
+    #: и принёс. Внести свой модуль в `READERS` было бы неверно: `probe_readers`
+    #: спрашивает у потребителя «во что тебе обойдётся расширение», а
+    #: расширение — предмет этого модуля, и прогон вложил бы замер сам в себя
+    #: (то же основание, что у PERTURBER).
+    BACKFILLER = "spa_core.monitoring.journal_population_backfill"
+
+    def test_the_backfiller_exclusion_really_backfills(self):
+        """Исключение обязано БЫТЬ заполнителем, а не просто числиться им.
+
+        Тот же порядок, что у двух исключений выше: имя в списке ничего не
+        значит, пока не показано поведением. Здесь — что модуль СТРОИТ план
+        дописывания и кладёт значения в СВОЙ ключ, оставляя `apy_evidenced_pct`
+        нетронутым. Перестань он это делать — доказательство покраснеет.
+        """
+        from spa_core.monitoring import journal_population_backfill as jpb
+
+        line = {"cycle_date": "2026-08-12", "apy_evidenced_pct": {"held": 3.0},
+                "apy_unevidenced": []}
+        out = jpb.plan_for_pairs([line], {"outside": {"2026-08-12": 7.5}},
+                                 [{"forward_date": "2026-08-12",
+                                   "protocol": "outside"}])
+        self.assertEqual(out["plan"], {"2026-08-12": {"outside": 7.5}})
+        fresh = jpb.corrected_lines([line], out["plan"])
+        self.assertEqual(fresh[0]["apy_evidenced_pct"], {"held": 3.0})
+        self.assertEqual(fresh[0][jpb.KEY_VALUES], {"outside": 7.5})
+
     def _production_modules_touching_the_key(self):
         root = Path(__file__).resolve().parents[2]
         found = set()
@@ -334,7 +456,8 @@ class ReaderPopulationRatchet(unittest.TestCase):
 
     def test_every_production_reader_is_in_the_population(self):
         declared = {r["module"] for r in djc.READERS} | {self.WRITER,
-                                                         self.PERTURBER}
+                                                         self.PERTURBER,
+                                                         self.BACKFILLER}
         missing = sorted(self._production_modules_touching_the_key() - declared)
         self.assertEqual(
             missing, [],
@@ -403,7 +526,12 @@ class Measure(unittest.TestCase):
         self.assertEqual(doc["gap"]["written"], 2)
         self.assertEqual(doc["gap"]["dropped_by_funding"], ["away", "far"])
         self.assertEqual(doc["never_written"], ["away", "far"])
-        self.assertEqual(doc["criterion"]["verdict"], "funded_set")
+        # ADR-309: писатель, которого зовут пробы, теперь пишет весь живой набор
+        # дня — а СТРОКИ этого журнала написаны узким писателем до правки.
+        # Расхождение между `gap` (что в файле) и `criterion` (что писатель
+        # делает сегодня) — не дефект замера, а само смешанное население, и
+        # прибор обязан называть обе стороны, а не одну.
+        self.assertEqual(doc["criterion"]["verdict"], "full_live_set")
         # пустое население потребителей — это НЕ измеренный ноль
         self.assertEqual(doc["status"], djc.STATUS_UNMEASURED)
 

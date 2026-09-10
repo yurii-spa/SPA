@@ -164,7 +164,29 @@ def read_journal(data_dir: Path) -> Tuple[List[dict], str]:
 
 
 def record_universe(rec: dict) -> set:
-    """Население ОДНОЙ записи журнала — ровно то, что писатель звал ``universe``."""
+    """Население ОДНОЙ записи журнала — то, что НАЗЫВАЕТ сама запись.
+
+    Прежняя редакция считала его как ``current_positions ∪ target_positions``,
+    то есть держала ВТОРУЮ КОПИЮ правила писателя — ровно то, чего шапка этого
+    модуля обещает не делать. Пока писатель брал книгу, копия совпадала с
+    оригиналом и молчала; ADR-309 расширил писателя до всего живого набора дня,
+    и копия начала бы занижать население каждой новой строки, а разницу
+    записывать в `dropped_by_funding` — то есть докладывать отсечение, которого
+    больше нет.
+
+    Правило теперь одно и читается прямо со строки: население записи есть
+    объединение двух её собственных словарей — ставки с живым провенансом плюс
+    ноги, о которых писатель сказал «провенанса нет». Оно верно для обеих эпох
+    журнала: строка ДО ADR-309 называет ровно свою книгу, строка после —
+    весь живой набор. Позиции остаются запасным ответом для строк совсем старой
+    схемы, где обоих словарей нет вовсе; пустая строка так и остаётся пустой.
+    """
+    named = set((rec.get("apy_evidenced_pct") or {}).keys()) \
+        | set(rec.get("apy_unevidenced") or [])
+    if named:
+        return named
+    if "apy_evidenced_pct" in rec or "apy_unevidenced" in rec:
+        return named  # запись НАЗВАЛА пустое население — это ответ, а не пробел
     return set(rec.get("current_positions") or {}) | set(rec.get("target_positions") or {})
 
 
@@ -241,20 +263,37 @@ def probe_criterion(*, apy_pct: Dict[str, float], apy_sources: Dict[str, str],
                     unfunded_live: Optional[str],
                     funded_live: Optional[str],
                     build: Optional[Callable[..., dict]] = None) -> dict:
-    """Какое из трёх свойств ключа РЕАЛЬНО связывает — три пробы у писателя.
+    """Является ли население записи ПОЛНЫМ живым набором дня — четыре пробы у писателя.
 
     Зовётся НАСТОЯЩИЙ ``build_history_record``; своей копии правила отбора
     здесь нет. Мутируется КООРДИНАТА входа (позиция, провенанс, карта ставок),
     а не текст исходника.
 
-    * **funding** — непрофинансированный ключ с живым числом кладётся в цель.
-      Появился в записи ⇒ связывала профинансированность.
+    **Вопрос переставлен ADR-309 (ответ владельца 2026-09-10, Вариант Б), и
+    ожидания проб переставлены вместе с ним — намеренно, инвариант #16.** До
+    ADR-309 писатель брал ``current ∪ target``, и прибор спрашивал «ЧТО
+    отсекает запись»: тогда «ключ попал в запись одной картой ставок» был
+    ПАДЕНИЕМ контроля (дверей оказалось две, вывод о причине недействителен).
+    После ADR-309 карта ставок — дверь ПО ЗАМЫСЛУ: население записи есть весь
+    живой набор дня. Прежний контроль на неизменном коде писателя краснел бы
+    каждый цикл на ВЕРНОЙ доставке (класс «сторож звенит на нашей же поставке»),
+    поэтому утверждение не ослаблено, а ПЕРЕВЁРНУТО и расширено четвёртой
+    пробой:
+
+    * **map_widens** — ключ вне обеих книг, с живым провенансом и числом,
+      кладётся ТОЛЬКО в карту ставок. Обязан появиться в записи. Молчание ⇒
+      расширение ADR-309 до писателя не доехало (находка, а не норма).
+    * **funding** — тот же ключ БЕЗ единой мутации обязан уже лежать в записи:
+      профинансированность больше не связывает. Если он появляется лишь
+      после попадания в цель — писатель по-прежнему узкий.
     * **evidence** — у профинансированного ключа провенанс меняется с ``live``
-      на ``fallback_stale``. Уехал в ``apy_unevidenced`` ⇒ живость фида тоже
-      правило, но применяется ВНУТРИ книги и не молчит.
-    * **map_only** (контроль, обязан НЕ сработать) — ключ добавляется ТОЛЬКО в
-      карту ставок, мимо позиций. Появление означало бы, что дверей две, и
-      весь вывод о причине пришлось бы переписать.
+      на ``fallback_stale``. Уехал в ``apy_unevidenced`` ⇒ живость фида
+      остаётся правилом и НЕ молчит. Эта проба ADR-309 не тронул.
+    * **unpriced_live_stays_out** (контроль, обязан НЕ сработать) — ключ с
+      живым провенансом, но БЕЗ числа. Он не должен попасть НИ в
+      ``apy_evidenced_pct``, ни в ``apy_unevidenced``: расширение идёт ровно на
+      ``priced_live``, и ключ без значения не вправе войти в население ни одной
+      из двух дверей.
 
     Отсутствие пригодной пробы — третий исход (``unmeasured`` с причиной), а не
     тихо пропущенная строка.
@@ -278,11 +317,22 @@ def probe_criterion(*, apy_pct: Dict[str, float], apy_sources: Dict[str, str],
     out: dict = {"base_written_n": len(base_written), "probes": {}}
 
     # ── проба funding ──────────────────────────────────────────────────────
+    # После ADR-309 вопрос не «появится ли ключ, когда его профинансируют», а
+    # «лежит ли он там УЖЕ». Прежняя редакция сравнивала лишь членство ПОСЛЕ
+    # мутации и на расширенном писателе отвечала «binds» на ключ, который был в
+    # записи и до мутации, — верный ответ на вопрос, который больше не задают.
     if not unfunded_live:
         out["probes"]["funding"] = {
             "verdict": "unmeasured",
             "note": ("нет непрофинансированного ключа с живым числом — "
                      "пробе не на чем различить причину"),
+        }
+    elif unfunded_live in base_written:
+        out["probes"]["funding"] = {
+            "verdict": "does_not_bind",
+            "key": unfunded_live,
+            "note": ("непрофинансированный ключ лежит в записи БЕЗ единой "
+                     "мутации — профинансированность население не связывает"),
         }
     else:
         tgt = dict(target_positions)
@@ -291,7 +341,8 @@ def probe_criterion(*, apy_pct: Dict[str, float], apy_sources: Dict[str, str],
         out["probes"]["funding"] = {
             "verdict": "binds" if unfunded_live in got else "does_not_bind",
             "key": unfunded_live,
-            "note": ("ключ появился в записи, как только попал в цель"
+            "note": ("ключа не было в записи и он появился, как только попал в "
+                     "цель — писатель по-прежнему пишет книгу, а не живой набор"
                      if unfunded_live in got else
                      "ключ в цели, а в записи его нет — причина НЕ профинансированность"),
         }
@@ -318,35 +369,62 @@ def probe_criterion(*, apy_pct: Dict[str, float], apy_sources: Dict[str, str],
                      "провенанс на состав записи не влияет"),
         }
 
-    # ── контроль map_only (обязан НЕ сработать) ────────────────────────────
-    if not unfunded_live:
-        out["probes"]["map_only_control"] = {
+    # ── проба map_widens (ADR-309: карта ставок — дверь ПО ЗАМЫСЛУ) ─────────
+    _probe_key = "__probe_map_only__"
+    if _probe_key in (current_positions or {}) or _probe_key in (target_positions or {}):
+        out["probes"]["map_widens"] = {
             "verdict": "unmeasured",
-            "note": "нет ключа вне книги, которым можно проверить вторую дверь",
+            "note": "служебное имя пробы занято реальным ключом — мутация неотличима от факта",
         }
     else:
         rates = dict(apy_pct)
-        rates.setdefault(unfunded_live, 1.0)
-        got, _ = written_of(sources=apy_sources, target=target_positions, rates=rates)
-        out["probes"]["map_only_control"] = {
-            "verdict": "silent" if unfunded_live not in got else "SECOND_DOOR",
-            "key": unfunded_live,
-            "note": ("карта ставок сама по себе дверью не является — "
-                     "контроль сработал как должен" if unfunded_live not in got else
-                     "ключ попал в запись ОДНОЙ картой, мимо позиций: дверей две, "
-                     "вывод о причине недействителен"),
+        rates[_probe_key] = 1.0
+        src = dict(apy_sources)
+        src[_probe_key] = "live"
+        got, unev = written_of(sources=src, target=target_positions, rates=rates)
+        out["probes"]["map_widens"] = {
+            "verdict": "widens" if _probe_key in got else "silent",
+            "key": _probe_key,
+            "note": ("ключ вне обеих книг попал в запись одной картой ставок — "
+                     "расширение ADR-309 у писателя ЕСТЬ" if _probe_key in got else
+                     "ключ вне книг с живым числом в запись НЕ попал — расширение "
+                     "ADR-309 до писателя не доехало"),
         }
 
+        # ── контроль unpriced_live (обязан НЕ сработать) ────────────────────
+        # Тот же ключ, но БЕЗ числа: расширение идёт ровно на priced_live.
+        # Появление означало бы, что в население входит ставка, которой нет.
+        src_np = dict(apy_sources)
+        src_np[_probe_key] = "live"
+        got_np, unev_np = written_of(sources=src_np, target=target_positions,
+                                     rates=dict(apy_pct))
+        landed = _probe_key in got_np or _probe_key in unev_np
+        out["probes"]["unpriced_live_stays_out"] = {
+            "verdict": "stays_out" if not landed else "UNPRICED_ADMITTED",
+            "key": _probe_key,
+            "note": ("ключ с живым провенансом, но без числа, в население не вошёл — "
+                     "контроль сработал как должен" if not landed else
+                     "ключ БЕЗ ставки попал в население записи: расширение идёт не "
+                     "по priced_live, и запись несёт ставку, которой нет"),
+        }
+    out["probes"].setdefault("unpriced_live_stays_out", {
+        "verdict": "unmeasured",
+        "note": "проба map_widens не ставилась — контролю не на чем стоять",
+    })
+
     verdicts = {k: v.get("verdict") for k, v in out["probes"].items()}
-    if verdicts.get("map_only_control") == "SECOND_DOOR":
-        out["verdict"] = "second_door_found"
-    elif verdicts.get("funding") == "binds" and \
-            verdicts.get("map_only_control") == "silent":
-        out["verdict"] = "funded_set"
+    if verdicts.get("unpriced_live_stays_out") == "UNPRICED_ADMITTED":
+        out["verdict"] = "unpriced_admitted"
+    elif verdicts.get("map_widens") == "silent":
+        out["verdict"] = "still_funded_set"
     elif "unmeasured" in verdicts.values():
         out["verdict"] = "unmeasured"
+    elif verdicts.get("map_widens") == "widens" and \
+            verdicts.get("funding") == "does_not_bind" and \
+            verdicts.get("evidence") == "binds_inside_book":
+        out["verdict"] = "full_live_set"
     else:
-        out["verdict"] = "not_the_funded_set"
+        out["verdict"] = "partial"
     return out
 
 
@@ -686,34 +764,41 @@ def _judge(doc: dict) -> None:
     unmeasured = [r for r in readers if r.get("verdict") == VERDICT_UNMEASURED]
 
     frac = gap.get("written_frac_of_ranked_live")
-    if crit.get("verdict") == "funded_set":
+    if crit.get("verdict") == "full_live_set":
         doc["findings"].append(
-            "[ПОТОЛОК] население журнала решений — это КНИГА "
-            "(`current_positions ∪ target_positions`), а не ранжированный набор дня. "
-            f"Писатель держал {gap.get('ranked_live')} ставок с живым провенансом и "
-            f"записал {gap.get('written')}; отсечение сделал ОДИН признак — "
-            f"профинансированность ({gap.get('dropped_by_funding_n')} ключей), "
-            f"живость фида отсекла {gap.get('dropped_by_evidence_n')} и при этом НЕ молчала "
-            "(такой ключ уезжает в `apy_unevidenced`). Отбора «по порядку в цикле» нет: "
-            "контроль показал, что карта ставок сама по себе дверью не является")
+            "[ПИСАТЕЛЬ РАСШИРЕН] население записи — весь живой набор дня "
+            f"(ADR-309): проба положила ключ ОДНОЙ картой ставок, и он в записи "
+            f"появился; непрофинансированный ключ лежит там без единой мутации. "
+            f"Живой снимок писателя сейчас {crit.get('base_written_n')} ставок. "
+            "Живость фида отсекать не перестала и НЕ молчит (ключ без провенанса "
+            "уезжает в `apy_unevidenced`), а ключ с провенансом, но без числа, "
+            "в население не входит вовсе — контроль это подтвердил")
         doc["findings"].append(
-            "[ЦЕНА У ПИСАТЕЛЯ] полный набор лежит у писателя В РУКАХ в момент "
-            "отсечения: `apy_pct`/`apy_sources` приходят в `build_history_record` "
-            "целиком, и обрезает их одно выражение по `universe`. Со стороны "
-            "писателя расширение стоит одну строку — но «дёшево» решается НЕ здесь, "
-            "а у потребителей ниже")
-    elif crit.get("verdict") == "second_door_found":
+            "[СМЕШАННОЕ НАСЕЛЕНИЕ] строки журнала ДО ADR-309 писались узким "
+            f"писателем: сейчас в файле записано {gap.get('written')} ставок "
+            f"против {gap.get('ranked_live')} ранжируемых живым снимком. Пока "
+            "обратное заполнение не применено, любое сравнение дня с днём через "
+            "границу правки сравнивает не поведение, а ПЕРЕПИСЬ "
+            "(`journal_population_backfill.json` — что и чем закрываемо)")
+    elif crit.get("verdict") == "still_funded_set":
         doc["findings"].append(
-            "[КОНТРОЛЬ УПАЛ] ключ попал в запись ОДНОЙ картой ставок, мимо позиций — "
-            "дверей две, и вывод о причине отсечения недействителен")
+            "[НАХОДКА] расширение ADR-309 до писателя НЕ ДОЕХАЛО: ключ вне обеих "
+            "книг с живым провенансом и числом в запись не попал. Население "
+            "записи снова КНИГА, и всё, что считается на журнале, платит "
+            "прежнюю цену узкой переписи")
+    elif crit.get("verdict") == "unpriced_admitted":
+        doc["findings"].append(
+            "[НАХОДКА] в население записи вошёл ключ с живым провенансом, но БЕЗ "
+            "числа — расширение идёт не по `priced_live`, и запись несёт ставку, "
+            "которой нет")
     elif crit.get("verdict") == "unmeasured":
         doc["findings"].append(
-            "[НЕ ИЗМЕРЕНО] пробы отбора не на чем поставить — причина отсечения "
-            "названа НЕ БЫЛА (см. `criterion.probes`)")
+            "[НЕ ИЗМЕРЕНО] пробы населения не на чем поставить — состав записи "
+            "названа НЕ БЫЛ (см. `criterion.probes`)")
     else:
         doc["findings"].append(
-            "[НАХОДКА] отсечение делает НЕ профинансированность: проба положила "
-            "непрофинансированный ключ в цель, и он в записи не появился")
+            "[НАХОДКА] население записи не совпало ни с книгой, ни с живым "
+            "набором дня — разбирать по `criterion.probes` поимённо")
 
     if doc.get("never_written"):
         doc["findings"].append(

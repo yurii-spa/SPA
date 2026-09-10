@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -34,6 +35,21 @@ from spa_core.allocator.rebalance_economics import (
 from spa_core.utils.atomic import atomic_save, atomic_save_text
 
 log = logging.getLogger("spa.paper_trading.allocation_rationale")
+
+
+def _is_finite(x) -> bool:
+    """True только для конечного числа. ``None``, NaN, ``inf`` и строка — False.
+
+    Отдельный предикат, а не ``is not None``: ключ с живым провенансом и NaN
+    прошёл бы в запись как NaN, а `json.dump` пишет его литералом ``NaN``,
+    который не читает ни один строгий парсер. Пробы `bool` тоже нет по
+    построению — ``isinstance(True, int)`` истинно, а «ставка True» это не
+    ставка.
+    """
+    if isinstance(x, bool) or not isinstance(x, (int, float)):
+        return False
+    return math.isfinite(float(x))
+
 
 RATIONALE_FILENAME = "allocation_rationale.json"
 SHADOW_VERSION = "shadow-v1"
@@ -135,8 +151,26 @@ def build_history_record(
     dec = doc.get("decision_shadow") or {}
     params = doc.get("params") or {}
     cycle_date = doc.get("cycle_date")
-    universe = sorted(set(current_positions or {}) | set(target_positions or {}))
     evidenced = {p for p, s in (apy_sources or {}).items() if s == "live"}
+    # ADR-309 (ответ владельца 2026-09-10, Вариант Б): население записи — это
+    # ВСЕ живые ставки дня, а не только профинансированная книга. До этого дня
+    # `universe` был `current ∪ target`, и на замере 09.09 писатель держал 18
+    # ставок с живым провенансом, а записывал 6 (ADR-290/295/302).
+    #
+    # Расширение идёт РОВНО на `priced_live` — ключи, у которых есть и живой
+    # провенанс, и число, — и это НЕ вкусовщина:
+    #   · union только с `evidenced` не может увеличить `apy_unevidenced` (по
+    #     построению: добавленный ключ лежит в `evidenced`), поэтому население
+    #     `unevidenced_leg_causes` и атрибуции блокады не двигается вовсе;
+    #   · требование числа закрывает дыру, в которую ключ с живым провенансом,
+    #     но без значения, попал бы НИ в один из двух словарей — ни в
+    #     `apy_evidenced_pct` (там фильтр на `is not None`), ни в
+    #     `apy_unevidenced` (он в `evidenced`). Для ключей КНИГИ эта дыра как
+    #     была, так и осталась — правка её не трогает, чтобы не двигать
+    #     население там, где владелец ничего не заказывал.
+    priced_live = {p for p in evidenced if _is_finite((apy_pct or {}).get(p))}
+    universe = sorted(set(current_positions or {}) | set(target_positions or {})
+                      | priced_live)
     return {
         "schema": HISTORY_SCHEMA,
         "book_id": _normalize_book_id(book_id),

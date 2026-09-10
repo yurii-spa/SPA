@@ -2,13 +2,15 @@
 trackerStatus:
   type: owner-decision
 title: Записывать ли в дневное решение ВСЕ живые ставки дня, а не только те, что в портфеле
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-09-10
 owner_choice: Б
 owner_answered_at: 2026-09-10T06:26:38.834637+00:00
 owner_answer_via: telegram
 owner_answered_by: 258651137
+status_trail:
+  - "2026-09-10T07:43:53.783068+00:00 needs-owner -> ingested · queue.set_status · cycle-87209"
 ---
 
 ## Что случилось и почему это важно
@@ -116,3 +118,19 @@ kill-switch и потолки концентрации не трогаются �
 ADR-295 (цена у семи потребителей), ADR-302 (цена в днях), — кроме покрытия материала
 40/41 и пробы ряда 11/34, измеренных в цикле #545 прибором
 `spa_core/monitoring/journal_backfill_material.py`.*
+
+---
+
+## Решение владельца
+
+**Вариант Б** — Вариант А плюс задним числом дописать ставки в уже написанные дни.
+
+_Ответ владельца получен 2026-09-10T06:26:38.834637+00:00 (telegram). Карточку закрыл сам
+владелец, не агент (инвариант #14); агент перевёл её `needs-owner → ingested` после инжеста._
+
+**Исполнено циклом #548:**
+[ADR-309](../../docs/decisions/ADR-309-the-record-population-is-the-live-set-owner-answer-b.md).
+Писатель расширен (18 живых ставок вместо 6); обратное заполнение построено с ОТДЕЛЬНОЙ меткой
+пробы и **не применено** — дописанный ключ сегодня не читает ни один потребитель, и правило
+потребления уехало отдельной карточкой
+`owner-decision-schitat-li-dopisannye-zadnim-chislom-sta`.

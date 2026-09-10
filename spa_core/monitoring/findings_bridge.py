@@ -112,6 +112,7 @@ PRODUCES = (
     "data/unevidenced_leg_causes.json",
     "data/journal_backfill_material.json",
     "data/arming_wall_order.json",
+    "data/journal_population_backfill.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -179,6 +180,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "unevidenced_leg_causes",
     "journal_backfill_material",
     "arming_wall_order",
+    "journal_population_backfill",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -300,6 +302,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "arming_wall_order": {
         "module": "spa_core/monitoring/arming_wall_order.py",
         "artifact": "data/arming_wall_order.json"},
+    "journal_population_backfill": {
+        "module": "spa_core/monitoring/journal_population_backfill.py",
+        "artifact": "data/journal_population_backfill.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -1135,6 +1140,18 @@ def main(argv=None) -> int:
               f"unchecked={_jbm['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "journal_backfill_material", e)
+    # Ответ владельца «Вариант Б» (2026-09-10, ADR-309): что и чем закрываемо
+    # задним числом, поимённо и с числом. Прибор строит ПЛАН и ничего не пишет
+    # в журнал: применение — отдельная команда, и оно ждёт решения о правиле
+    # потребления дописанного (предмет №1 ADR-285). Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import journal_population_backfill
+        _jpb = journal_population_backfill.run(root=args.root)
+        print(f"journal_population_backfill: {_jpb['status']} "
+              f"(план={_jpb.get('values_planned')} значений на "
+              f"{len(_jpb.get('days_touched') or [])} дн.)")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "journal_population_backfill", e)
     # §43 ТЗ CIO «Audit trail»: отвечают ли ДАННЫЕ на вопрос о прошлой перекладке
     # («почему 13 августа переложили $12 000»), или на него отвечает только память
     # сессии. Мост находок его НЕ читает по той же причине, что и пять соседей

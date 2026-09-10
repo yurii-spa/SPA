@@ -390,6 +390,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                        "protocols_without_material",
                                        "series_provenance_exposure",
                                        "what_it_does_not_prove", "findings"),
+    # ADR-309 (ответ владельца «Вариант Б»). `grade` в схеме ОБЯЗАТЕЛЕН: без
+    # метки пробы артефакт читался бы как «ставки восстановлены», а условие
+    # владельца ровно в том, чтобы дописанное никогда не выдавалось за живое.
+    # `per_pair` обязателен по той же причине, что у соседа: отказ по паре —
+    # именованный исход, а не пропущенная строка.
+    "journal_population_backfill.json": ("status", "grade", "owner_answer",
+                                         "plan", "per_pair", "counts",
+                                         "values_planned", "days_touched",
+                                         "what_it_does_not_prove", "findings"),
     "cio_policy_change_procedure.json": ("overall", "counts.critical",
                                          "counts.warn", "counts.info",
                                          "counts.unchecked", "positive_control",
@@ -481,6 +490,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/journal_backfill_material.py",
     "arming_wall_order.json":
         "spa_core/monitoring/arming_wall_order.py",
+    "journal_population_backfill.json":
+        "spa_core/monitoring/journal_population_backfill.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1964,6 +1975,16 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _jbm_report,
         )
         out.extend(_jbm_report(data))
+    elif name == "journal_population_backfill.json":
+        # ADR-309. Порядок строк — порядок условия владельца: сперва ПЛАН с
+        # меткой пробы, потом именованные отказы, и только потом строка о том,
+        # что дописанное сегодня не читает никто. Метка идёт в ПЕРВОЙ строке
+        # намеренно: читатель, увидевший «39 значений дописано» без неё,
+        # прочтёт это как «ставки восстановлены», чего замер не утверждает.
+        from spa_core.monitoring.journal_population_backfill import (
+            format_report as _jpb_report,
+        )
+        out.extend(_jpb_report(data))
     elif name == "cio_substitution_census.json":
         # Заказ #518/#519. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ
         # (и прямо сказано, что оно не ответ), затем ДОСТИЖИМОСТЬ двумя

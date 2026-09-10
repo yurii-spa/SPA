@@ -108,22 +108,38 @@ def _read_json(path: Path):
     return json.loads(path.read_text())
 
 
-def series_dates(series: dict) -> Dict[str, set]:
-    """``{протокол: {дата, …}}`` — форма ряда разбирается ОДНИМ местом.
+def series_points(series: dict) -> Dict[str, Dict[str, float]]:
+    """``{протокол: {дата: значение}}`` — форма ряда разбирается ОДНИМ местом.
 
     Строка не той формы отбрасывается молча по протоколу, но протокол, у которого
-    не осталось НИ ОДНОЙ разобранной даты, остаётся с пустым множеством, а не
+    не осталось НИ ОДНОЙ разобранной даты, остаётся с пустым словарём, а не
     исчезает: «протокола нет в ряду» и «ряд по протоколу нечитаем» — разные
     ответы, и схлопывать их значило бы изготовить третий исход из второго.
+
+    Значение проходит тем же фильтром конечности, каким его пропускал накопитель;
+    точка с нечисловым значением датой НЕ становится — иначе «дата есть, а числа
+    нет» читалось бы как материал (ADR-309: обратное заполнение берёт ЗНАЧЕНИЕ,
+    а не отметку о том, что день упоминался).
     """
-    out: Dict[str, set] = {}
+    out: Dict[str, Dict[str, float]] = {}
     for name, rows in (series or {}).items():
-        dates = set()
+        pts: Dict[str, float] = {}
         for r in rows or []:
-            if isinstance(r, (list, tuple)) and r and isinstance(r[0], str):
-                dates.add(r[0])
-        out[str(name)] = dates
+            if isinstance(r, (list, tuple)) and len(r) >= 2 \
+                    and isinstance(r[0], str) and _is_finite(r[1]):
+                pts[r[0]] = float(r[1])
+        out[str(name)] = pts
     return out
+
+
+def series_dates(series: dict) -> Dict[str, set]:
+    """``{протокол: {дата, …}}`` — множество дат, выведенное из :func:`series_points`.
+
+    Отдельного разбора здесь НЕТ намеренно: две копии правила «что такое точка
+    ряда» разошлись бы молча, и одна из них назвала бы материалом то, что второй
+    не является.
+    """
+    return {name: set(pts) for name, pts in series_points(series).items()}
 
 
 def classify_pair(pair: dict, by_protocol: Dict[str, set]) -> str:
