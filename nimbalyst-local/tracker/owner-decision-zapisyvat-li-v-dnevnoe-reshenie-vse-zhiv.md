@@ -5,6 +5,10 @@ title: Записывать ли в дневное решение ВСЕ жив�
 status: needs-owner
 source: nimbalyst
 created: 2026-09-10
+owner_choice: Б
+owner_answered_at: 2026-09-10T06:26:38.834637+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно
