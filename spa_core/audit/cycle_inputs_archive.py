@@ -94,6 +94,8 @@ def build_record(
     accrual_source: str,
     snapshot_id: Optional[str] = None,
     risk_policy_version: str = "v1.0",
+    unobservable_pools: Optional[list] = None,
+    cost_usd: float = 0.0,
 ) -> dict:
     """The payload — only what the accrual needs to be re-derived, plus what the bar wrote."""
     return {
@@ -109,6 +111,12 @@ def build_record(
         "apy_map": {k: apy_map.get(k) for k in positions},
         "fallback_pools": sorted(fallback_pools),
         "accrual_source": accrual_source,
+        # ADR-307: пулы, ставку которых НЕ наблюдали (ADR-298 — они начисляют ноль), и
+        # издержка перекладки. Без них пересчёт не воспроизводит бар: он начислит по
+        # литералу и разойдётся ровно на недобор. Замер 2026-09-10 на живом треке —
+        # расхождение $4.3836, копейка в копейку `yield_forgone_usd` того дня.
+        "unobservable_pools": sorted(str(x) for x in (unobservable_pools or ())),
+        "cost_usd": round(float(cost_usd or 0.0), 6),
         "apy_today_pct": round(float(apy_today_pct), 6),
         "daily_yield_usd": round(float(daily_yield_usd), 6),
         "close_equity": round(float(close_equity), 4),

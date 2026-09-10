@@ -2489,6 +2489,8 @@ def run_cycle(
                 daily_yield_usd=daily_yield, apy_today_pct=_apy_accrued_pct, positions=effective_positions,
                 apy_map=apy_map, fallback_pools=[p for p in effective_positions if p in _fallback_apy_pools],
                 accrual_source=_accrual_source,
+                unobservable_pools=sorted(_unobservable),   # ADR-307
+                cost_usd=_cost_usd,                          # ADR-307
                 snapshot_id=str(locals().get("snapshot_id") or locals().get("_snapshot_id") or "") or None,
             ),
             ts=run_ts,

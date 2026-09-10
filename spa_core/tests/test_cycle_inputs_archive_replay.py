@@ -123,9 +123,35 @@ class TestCycleRunnerHook:
         assert seq.index("append_record") > seq.index("_upsert_equity_point")
 
     def test_hook_is_wrapped_so_it_cannot_crash_the_cycle(self):
-        i = self.SRC.index("_cia.append_record(")
-        block = self.SRC[self.SRC.rfind("try:", 0, i):i + 900]
-        assert "except Exception as _cia_exc" in block and "cycle continues" in block
+        """Вызов архива обязан стоять внутри try/except, который ЛОВИТ и продолжает.
+
+        ИЗМЕНЕНО НАМЕРЕННО (инв. #16, обоснование здесь + запись в
+        `docs/journal/2026-W37.md`, ADR-307). Проверка резала 900 символов ПОСЛЕ вызова и
+        искала в них подстроку. Окно — не свойство кода: две законные строки, добавленные
+        в вызов (ADR-307 передаёт в архив список ненаблюдаемых пулов и издержку),
+        вытолкнули «cycle continues» за границу, и тест покраснел на ВЕРНОЙ правке.
+
+        Утверждение сохранено дословно и меряется теперь РАЗБОРОМ: вызов обязан лежать в
+        `ast.Try`, чей обработчик ловит `Exception` и не поднимает заново. Это строже
+        прежнего (окно можно было обмануть соседним `try`) и не зависит от длины вызова.
+        """
+        import ast
+        tree = ast.parse(self.SRC)
+        found = False
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Try):
+                continue
+            body_src = ast.dump(ast.Module(body=node.body, type_ignores=[]))
+            if "append_record" not in body_src:
+                continue
+            for h in node.handlers:
+                catches = (h.type is None
+                           or (isinstance(h.type, ast.Name) and h.type.id == "Exception"))
+                reraises = any(isinstance(n, ast.Raise) for n in ast.walk(ast.Module(
+                    body=h.body, type_ignores=[])))
+                if catches and not reraises:
+                    found = True
+        assert found, "вызов архива не обёрнут в try/except, который ловит и продолжает"
 
     def test_artifact_is_declared_in_produces(self):
         from spa_core.paper_trading import cycle_runner
@@ -151,3 +177,70 @@ class TestMonitorAndBriefing:
         mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)  # type: ignore[union-attr]
         assert "нет в снимке" in mod.replay_line({"checks": {}})
         assert "**HEALTHY**" in mod.replay_line({"checks": {"replay_from_inputs": {"status": "HEALTHY", "detail": "3 дн."}}})
+
+
+# ── ADR-307: пересчёт видит ТО ЖЕ, что видело начисление ─────────────────────
+#
+# Замер на ЖИВОМ треке 2026-09-10: `replay_from_inputs` разошёлся ровно на $4.3836 —
+# копейка в копейку `yield_forgone_usd` того дня. Причина: архив не нёс список пулов,
+# ставку которых не наблюдали (ADR-298 — они начисляют ноль), и пересчёт послушно
+# начислял по литералу. Новое поле обязано доходить до потребителя, иначе он отвечает
+# на вопрос вчерашнего дня.
+
+def _seed_with_unobservable(tmp_path, *, unobservable, cost=0.0):
+    import json as _json
+    from spa_core.audit import cycle_inputs_archive as _cia
+    positions = {"aave_v3": 50_000.0, "pendle": 20_000.0}
+    apy_map = {"aave_v3": 4.0, "pendle": 8.0}
+    open_eq = 100_000.0
+    y = sum(v * apy_map[k] / 100 / 365 for k, v in positions.items()
+            if k not in unobservable)
+    close = open_eq + y - cost
+    _cia.append_record(tmp_path, _cia.build_record(
+        cycle_date="2026-09-10", run_ts="t", open_equity=open_eq, close_equity=close,
+        daily_yield_usd=y, apy_today_pct=y * 365 / open_eq * 100, positions=positions,
+        apy_map=apy_map, fallback_pools=list(unobservable), accrual_source="fallback",
+        unobservable_pools=list(unobservable), cost_usd=cost), ts="t")
+    (tmp_path / "equity_curve_daily.json").write_text(_json.dumps({"daily": [
+        {"date": "2026-09-10", "open_equity": open_eq, "close_equity": round(close, 6)}]}),
+        encoding="utf-8")
+    return y
+
+
+def test_replay_converges_when_a_pool_is_withheld(tmp_path):
+    """Пул с ненаблюдаемой ставкой не начисляет — и пересчёт это ЗНАЕТ."""
+    from spa_core.audit import replay_equity
+    _seed_with_unobservable(tmp_path, unobservable={"pendle"})
+    rep = replay_equity.replay(tmp_path)
+    assert rep["status"] == "PASS", rep
+
+
+def test_replay_converges_when_a_move_was_paid_for(tmp_path):
+    """Издержка перекладки тоже обязана доехать до пересчёта."""
+    from spa_core.audit import replay_equity
+    _seed_with_unobservable(tmp_path, unobservable=set(), cost=56.5)
+    assert replay_equity.replay(tmp_path)["status"] == "PASS"
+
+
+def test_a_record_without_the_new_fields_still_replays(tmp_path):
+    """Записи ДО ADR-298 полей не несут — и это ВЕРНОЕ описание тех дней.
+
+    Тогда начислялось всё подряд и ходы были бесплатны, поэтому пустое множество и
+    нулевая издержка не заглушка, а факт. Без этой половины правка сломала бы историю.
+    """
+    import json as _json
+    from spa_core.audit import cycle_inputs_archive as _cia
+    from spa_core.audit import replay_equity
+    positions = {"aave_v3": 50_000.0}
+    apy_map = {"aave_v3": 4.0}
+    y = 50_000.0 * 4.0 / 100 / 365
+    rec = _cia.build_record(cycle_date="2026-09-01", run_ts="t", open_equity=100_000.0,
+                            close_equity=100_000.0 + y, daily_yield_usd=y,
+                            apy_today_pct=y * 365 / 100_000.0 * 100, positions=positions,
+                            apy_map=apy_map, fallback_pools=[], accrual_source="live")
+    rec.pop("unobservable_pools"); rec.pop("cost_usd")      # запись старого образца
+    _cia.append_record(tmp_path, rec, ts="t")
+    (tmp_path / "equity_curve_daily.json").write_text(_json.dumps({"daily": [
+        {"date": "2026-09-01", "open_equity": 100_000.0, "close_equity": round(100_000.0 + y, 6)}]}),
+        encoding="utf-8")
+    assert replay_equity.replay(tmp_path)["status"] == "PASS"

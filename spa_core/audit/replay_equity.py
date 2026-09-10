@@ -60,8 +60,14 @@ def replay(data_dir: str | os.PathLike, tolerance_usd: float = TOLERANCE_USD) ->
     checked = 0
     for d in sorted(last_per_date):
         p = last_per_date[d]
-        y = _accrue_daily_yield(p.get("positions") or {}, p.get("apy_map") or {})
-        close = float(p["open_equity"]) + y
+        # ADR-307: пересчёт обязан видеть ТО ЖЕ, что видело начисление, — включая пулы,
+        # ставку которых не наблюдали, и списанную издержку. Записи ДО ADR-298 этих полей
+        # не несут, и для них множество пусто, а издержка ноль: тогда начислялось всё
+        # подряд и ходы были бесплатны, так что пустые значения — не заглушка, а верное
+        # описание того дня.
+        y = _accrue_daily_yield(p.get("positions") or {}, p.get("apy_map") or {},
+                                frozenset(p.get("unobservable_pools") or ()))
+        close = float(p["open_equity"]) + y - float(p.get("cost_usd") or 0.0)
         row: dict[str, Any] = {"date": d, "runs": runs[d], "rederived_close": round(close, 4), "archived_close": p.get("close_equity")}
         problems = []
         if abs(close - float(p.get("close_equity", 0.0))) > tolerance_usd:
