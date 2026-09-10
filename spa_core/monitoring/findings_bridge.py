@@ -108,6 +108,7 @@ PRODUCES = (
     "data/decision_journal_coverage.json",
     "data/decision_record_verdict_sensitivity.json",
     "data/hit_rate_selection_bias.json",
+    "data/g1_verdict_recoverability.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -171,6 +172,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "decision_journal_coverage",
     "decision_record_verdict_sensitivity",
     "hit_rate_selection_bias",
+    "g1_verdict_recoverability",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -280,6 +282,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "hit_rate_selection_bias": {
         "module": "spa_core/monitoring/hit_rate_selection_bias.py",
         "artifact": "data/hit_rate_selection_bias.json"},
+    "g1_verdict_recoverability": {
+        "module": "spa_core/monitoring/g1_verdict_recoverability.py",
+        "artifact": "data/g1_verdict_recoverability.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -1058,6 +1063,21 @@ def main(argv=None) -> int:
               f"unchecked={hrep['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "hit_rate_selection_bias", e)
+    # Заказ #541 (ADR-299 поставил вопрос): поднимет ли закрытие G1 хоть ОДИН
+    # день журнала. Единица ответа — ДНИ, а не добавленные ключи: заказ назвал
+    # подмену этих двух чисел заранее. Мост находок его НЕ читает по той же
+    # причине, что и соседей: единственное действие по итогам — тронуть
+    # POLLED_ADAPTERS, то есть путь капитала и решение владельца. Потребитель —
+    # шаг 0-офис.
+    try:
+        from spa_core.monitoring import g1_verdict_recoverability
+        grep_ = g1_verdict_recoverability.run(root=args.root)
+        print(f"g1_verdict_recoverability: {grep_['overall']} "
+              f"(critical={grep_['counts']['critical']} "
+              f"warn={grep_['counts']['warn']} "
+              f"unchecked={grep_['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "g1_verdict_recoverability", e)
     # §43 ТЗ CIO «Audit trail»: отвечают ли ДАННЫЕ на вопрос о прошлой перекладке
     # («почему 13 августа переложили $12 000»), или на него отвечает только память
     # сессии. Мост находок его НЕ читает по той же причине, что и пять соседей

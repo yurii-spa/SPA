@@ -355,6 +355,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                      "axis_c_selection", "combined",
                                      "parity_control", "direction_is_uniform",
                                      "findings"),
+    # Заказ #541. `population` и `scenarios` в схеме обязательны: без них строка
+    # «G1 поднял 0 дней» читается как «G1 не нужен», тогда как честное чтение —
+    # «блокируют ДРУГИЕ ноги, и вот они». `capability_control` — потому что ноль
+    # без доказанной способности дать не-ноль вакуум, а не ответ.
+    "g1_verdict_recoverability.json": ("status", "journal_rows", "population",
+                                       "grant_sets", "scenarios",
+                                       "blocking_legs", "parity_control",
+                                       "capability_control",
+                                       "derivation_cross_check", "findings"),
     "cio_policy_change_procedure.json": ("overall", "counts.critical",
                                          "counts.warn", "counts.info",
                                          "counts.unchecked", "positive_control",
@@ -438,6 +447,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/decision_record_verdict_sensitivity.py",
     "hit_rate_selection_bias.json":
         "spa_core/monitoring/hit_rate_selection_bias.py",
+    "g1_verdict_recoverability.json":
+        "spa_core/monitoring/g1_verdict_recoverability.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1881,6 +1892,17 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _hrsb_report,
         )
         out.extend(_hrsb_report(data))
+    elif name == "g1_verdict_recoverability.json":
+        # Заказ #541. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (сколько
+        # дней журнала вообще без вердикта и сколько из них восстановимы в
+        # принципе), затем ОТВЕТ В ДНЯХ по каждому чтению «G1 закрыт», затем
+        # блокирующие ноги с их классом, и только потом контроли и находки.
+        # Ключи печатаются рядом с днями намеренно: заказ прямо назвал подмену
+        # «сколько ключей добавится» вместо «сколько дней получат вердикт».
+        from spa_core.monitoring.g1_verdict_recoverability import (
+            format_report as _g1vr_report,
+        )
+        out.extend(_g1vr_report(data))
     elif name == "cio_substitution_census.json":
         # Заказ #518/#519. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ
         # (и прямо сказано, что оно не ответ), затем ДОСТИЖИМОСТЬ двумя
