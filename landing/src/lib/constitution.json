@@ -1,0 +1,19 @@
+{
+  "note": "Числа-РЕШЕНИЯ сайта. Источник — data/capital_config.json + governance/kill_switch.py; файл СГЕНЕРИРОВАН scripts/build_site_constitution.py, руками не править. Замеры (ставка, дни, NAV) живут в data/track_snapshot.json.",
+  "source": "data/capital_config.json",
+  "kill_switch": {
+    "soft_derisk_pct": 5.0,
+    "hard_kill_pct": 10.0,
+    "_source": "spa_core/governance/kill_switch.py (ADR-034/ADR-048)"
+  },
+  "start_capital_usd": 100000.0,
+  "currency": "USDC",
+  "min_cash_buffer_pct": 5.0,
+  "max_per_protocol_t1_pct": 40.0,
+  "max_per_protocol_t2_pct": 20.0,
+  "max_t2_total_pct": 50.0,
+  "tvl_floor_usd": 5000000,
+  "apy_floor_pct": 1.0,
+  "apy_ceiling_pct": 30.0,
+  "min_paper_days_before_live": 30
+}
