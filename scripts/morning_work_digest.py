@@ -205,6 +205,160 @@ def _gather_commits(day: str) -> tuple[str, list[str]]:
         return "", unread + [f"git: {exc}"]
 
 
+# ──────────────────────────────────────────────────────────────────────────
+# Четвёртый источник: статус автопроверки кода (GitHub Actions)
+# ──────────────────────────────────────────────────────────────────────────
+#: Задания, по которым владельцу докладывают «проверка кода зелёная/красная».
+#: Остальные (lint, proof-gate, owner-gate) сюда не входят: они меряют другое.
+CI_GATING_WORKFLOWS = ("SPA Tests", "SPA CI")
+
+_GH_REPO = "yurii-spa/SPA"
+_GH_API = "https://api.github.com"
+
+
+def _github_token() -> tuple[str, str]:
+    """Токен из Keychain (инвариант #7 — секрет не живёт в файле и не печатается).
+
+    Возврат ``(token, reason)``; при неудаче токен пустой, а причина ВЕРБАТИМ уезжает
+    в блок «прочитано не всё» — молчания здесь быть не должно.
+    """
+    for var in ("GITHUB_TOKEN", "GITHUB_PAT_SPA"):
+        val = os.environ.get(var)
+        if val:
+            return val.strip(), ""
+    try:
+        out = subprocess.run(
+            ["security", "find-generic-password", "-s", "GITHUB_PAT_SPA", "-w"],
+            capture_output=True, text=True, timeout=15,
+        )
+        if out.returncode == 0 and out.stdout.strip():
+            return out.stdout.strip(), ""
+        return "", f"Keychain GITHUB_PAT_SPA не отдал токен (exit {out.returncode})"
+    except (OSError, subprocess.SubprocessError) as exc:
+        return "", f"Keychain: {type(exc).__name__}: {exc}"
+
+
+def _gh_get(token: str, path: str) -> tuple[dict, str]:
+    """GET к GitHub API. Тело ошибки НЕ пересказывается — в нём бывает эхо заголовков."""
+    import urllib.error
+    import urllib.request
+
+    req = urllib.request.Request(_GH_API + path, headers={
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "spa-morning-digest",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read().decode("utf-8")), ""
+    except urllib.error.HTTPError as exc:
+        return {}, f"GitHub Actions API вернул HTTP {exc.code}"
+    except (urllib.error.URLError, OSError, ValueError, TimeoutError) as exc:
+        return {}, f"GitHub Actions API недоступен: {type(exc).__name__}"
+
+
+def _ci_gating_status(token: str) -> tuple[list[dict], str]:
+    """По КАЖДОМУ гейтящему заданию: последний завершённый прогон и последний зелёный.
+
+    Спрашивается адресно (``?status=success&per_page=1``), а не листанием общей ленты:
+    в этом репозитории сотня прогонов покрывает меньше половины суток, и «зелёных в
+    окне нет» означало бы «серия длиннее 0.4 суток» вместо настоящих четырнадцати.
+    """
+    doc, why = _gh_get(token, f"/repos/{_GH_REPO}/actions/workflows?per_page=100")
+    if why:
+        return [], why
+    ids = {w.get("name"): w.get("id") for w in (doc.get("workflows") or [])}
+    missing = [n for n in CI_GATING_WORKFLOWS if not ids.get(n)]
+    if missing:
+        return [], ("гейтящих заданий нет в списке воркфлоу: " + ", ".join(missing))
+
+    rows: list[dict] = []
+    for name in CI_GATING_WORKFLOWS:
+        wid = ids[name]
+        base = f"/repos/{_GH_REPO}/actions/workflows/{wid}/runs?branch=main"
+        latest, why = _gh_get(token, base + "&per_page=20")
+        if why:
+            return [], why
+        done = [r for r in (latest.get("workflow_runs") or []) if r.get("conclusion")]
+        green, why = _gh_get(token, base + "&status=success&per_page=1")
+        if why:
+            return [], why
+        g = (green.get("workflow_runs") or [None])[0]
+        rows.append({
+            "name": name,
+            "latest_conclusion": done[0]["conclusion"] if done else None,
+            "latest_created_at": done[0]["created_at"] if done else None,
+            "last_green_at": g["created_at"] if g else None,
+        })
+    return rows, ""
+
+
+def ci_status(now: datetime | None = None, *,
+              status_reader=None) -> tuple[str, list[str]]:
+    """«Красная ли автопроверка кода и сколько уже» — ЗАМЕРОМ, а не по прозе.
+
+    Причина существования (ADR-308, 10.09). У сводки было три источника — журнал,
+    координационный лог и коммиты, — и **ни в одном нет статуса Actions**. Модель,
+    которой велено писать «что изменилось», честно сочиняла его из прозы: 10.09
+    владельцу ушло «проверка кода красная **вторые** сутки», тогда как последний
+    зелёный прогон был **26.08** — четырнадцать суток. Утверждение звучало как
+    замер, не будучи им; лечится это не правкой промпта, а прибором.
+
+    Три исхода, третий обязателен: нет токена / API недоступен / у задания нет ни
+    одного завершённого прогона ⇒ ``("", [причина])`` — «НЕ измерено», а не
+    «зелено» и не молчание.
+
+    ``status_reader`` — точка инъекции для тестов: ``() -> (rows, reason)``.
+    """
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+
+    if status_reader is None:
+        token, why = _github_token()
+        if not token:
+            return "", [f"статус автопроверки кода НЕ измерен — {why}"]
+
+        def status_reader():  # noqa: E306 — замыкание вокруг добытого токена
+            return _ci_gating_status(token)
+
+    rows, why = status_reader()
+    if why:
+        return "", [f"статус автопроверки кода НЕ измерен — {why}"]
+    if not rows:
+        return "", ["статус автопроверки кода НЕ измерен — гейтящих заданий не найдено"]
+
+    unmeasured = [r["name"] for r in rows if not r.get("latest_conclusion")]
+    if unmeasured:
+        return "", ["статус автопроверки кода НЕ измерен — у задания(й) "
+                    + ", ".join(f"«{n}»" for n in unmeasured)
+                    + " нет ни одного завершённого прогона на main"]
+
+    red = [r for r in rows if r["latest_conclusion"] != "success"]
+    if not red:
+        return ("АВТОПРОВЕРКА КОДА: зелёная — последний прогон каждого гейтящего "
+                "задания успешен ("
+                + "; ".join(f"«{r['name']}» {r['latest_created_at']}" for r in rows)
+                + ").", [])
+
+    parts: list[str] = []
+    for r in red:
+        green_at = r.get("last_green_at")
+        if green_at:
+            since = _parse_log_ts(green_at)
+            if since is None:
+                parts.append(f"«{r['name']}» красное; дату зелёного прогона "
+                             f"{green_at} не разобрать — длина серии НЕ измерена")
+                continue
+            days = (now - since).total_seconds() / 86400.0
+            parts.append(f"«{r['name']}» красное {days:.1f} суток "
+                         f"(последний зелёный {green_at})")
+        else:
+            parts.append(f"«{r['name']}» красное; зелёных прогонов на main НЕТ "
+                         f"НИ ОДНОГО — длина серии НЕ измерена")
+    return "АВТОПРОВЕРКА КОДА: КРАСНАЯ. " + "; ".join(parts) + ".", []
+
+
 # Аудит 08.09: восемь буллетов по ~250 знаков (~2500 всего) без строки-итога владелец
 # не дочитывал. Теперь: ПЕРВАЯ строка — итог одним предложением, затем ≤4 буллета,
 # всё ≤1000 знаков, простой русский, без жаргона, идентификаторов и номеров.
@@ -218,11 +372,30 @@ _PROMPT = """Ты пишешь УТРЕННИЙ дайджест владель�
 без номеров коммитов/циклов/карточек/ADR и прочих идентификаторов — если без технического
 названия не обойтись, объясни словами, что это. Пиши, ЧТО это дало (ценность), а не как.
 Если данных мало — честно скажи «вчера было тихо». Обычный текст, без markdown-таблиц.
+НЕ ВЫДУМЫВАЙ ЧИСЕЛ. Сроки («вторые сутки», «десятый день»), проценты и счётчики бери
+ТОЛЬКО из данных ниже дословно; если числа в данных нет — не пиши его вовсе.
 
 Вот сырые данные за вчерашний день (журнал, лог изменений, коммиты) — переведи их для человека:
 
 <DATA>
 """
+
+
+def _ci_block(ci_text: str) -> str:
+    """Строка про автопроверку кода — ДЕТЕРМИНИРОВАННО, мимо модели (ADR-308).
+
+    Замер уезжает модели во входных данных, но её пересказ вердиктом не является:
+    10.09 она превратила четырнадцать суток красноты в «вторые». Число, на которое
+    смотрит владелец, печатается здесь и совпадает с прибором побайтно.
+    """
+    if not ci_text:
+        return ""
+    if not ci_text.startswith("АВТОПРОВЕРКА КОДА: КРАСНАЯ"):
+        # Зелёное состояние модель видит во входных данных и скажет сама; отдельная
+        # строка каждый день была бы шумом. Детерминированным печатается ровно то,
+        # что 10.09 было занижено, — длина красноты.
+        return ""
+    return "\n\n🔴 Автопроверка кода КРАСНАЯ. " + ci_text.split("КРАСНАЯ.", 1)[-1].strip()
 
 
 def _unread_block(unread: list[str]) -> str:
@@ -240,7 +413,8 @@ def build_digest(now: datetime | None = None) -> tuple[str, str]:
     journal, u_journal = _gather_journal(day)
     changes, u_changes = _gather_session_changes(start, end)
     commits, u_commits = _gather_commits(day)
-    unread = u_journal + u_changes + u_commits
+    ci_text, u_ci = ci_status()
+    unread = u_journal + u_changes + u_commits + u_ci
 
     raw = "\n\n".join(x for x in [
         ("ЖУРНАЛ:\n" + journal) if journal else "",
@@ -254,10 +428,12 @@ def build_digest(now: datetime | None = None) -> tuple[str, str]:
         if unread:
             txt = (f"☀️ Что сделано вчера ({day})\n\n"
                    "Не могу сказать, что было вчера: активности не найдено, но источники "
-                   "прочитаны не все — «тихо» это НЕ значит." + _unread_block(unread))
+                   "прочитаны не все — «тихо» это НЕ значит."
+                   + _ci_block(ci_text) + _unread_block(unread))
         else:
             txt = (f"☀️ Что сделано вчера ({day})\n\n"
-                   "Вчера было тихо — существенных изменений нет.")
+                   "Вчера было тихо — существенных изменений нет."
+                   + _ci_block(ci_text) + _unread_block(unread))
         return raw, txt
 
     # plain-language via headless `claude -p` — PURE TEXT SUMMARIZATION, no tools, so it
@@ -266,18 +442,20 @@ def build_digest(now: datetime | None = None) -> tuple[str, str]:
     # path. Deliberately NOT skip-permissions: nothing here should read files or run commands.
     try:
         proc = subprocess.run(
-            [_CLAUDE, "-p", _PROMPT.replace("<DATA>", raw[:12000])],
+            [_CLAUDE, "-p", _PROMPT.replace(
+                "<DATA>", (raw[:12000] + ("\n\n" + ci_text if ci_text else "")))],
             capture_output=True, text=True, timeout=_CLAUDE_TIMEOUT_S,
             env={**os.environ},
         )
         if proc.returncode == 0 and proc.stdout.strip():
-            return raw, proc.stdout.strip() + _unread_block(unread)
+            return raw, (proc.stdout.strip() + _ci_block(ci_text)
+                         + _unread_block(unread))
     except (OSError, subprocess.SubprocessError):
         pass
 
     # fallback: raw bullets, honest (never silent)
     fallback = (f"☀️ Что сделано вчера ({day}) — сырьём (авто-сводка недоступна):\n\n"
-                + raw[:2500] + _unread_block(unread))
+                + raw[:2500] + _ci_block(ci_text) + _unread_block(unread))
     return raw, fallback
 
 

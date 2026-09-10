@@ -46,6 +46,12 @@ def _load_module():
     return mod
 
 
+#: Объявление четвёртого источника для сцен, чей предмет — не он (ADR-308).
+#: ``new=`` даёт подменяемой функции ту же сигнатуру, что у настоящей.
+_CI_GREEN = {"new": lambda now=None: (
+    "АВТОПРОВЕРКА КОДА: зелёная — последний прогон каждого гейтящего задания успешен.", [])}
+
+
 def _text_and_unread(result):
     """Read a gatherer result under BOTH contracts (pre- and post-цикл #77).
 
@@ -255,8 +261,17 @@ class QuietDayHonestyTests(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
 
     def _digest(self, **git):
-        """build_digest with git answered by a stub — no network, no real repo."""
-        with mock.patch.object(self.m.subprocess, "run", side_effect=_git_run(**git)):
+        """build_digest with git answered by a stub — no network, no real repo.
+
+        Сцена ОБЯЗАНА объявлять все свои входы (ADR-308): у сводки появился четвёртый
+        источник — статус автопроверки кода, и он ходит в сеть. Не объявив его, эти
+        сцены измеряли бы доступность GitHub с машины, где идёт прогон, а не то, ради
+        чего написаны. Умолчание — «прочитан, зелено», то есть «все источники читаются»;
+        сцены, у которых предмет — сам этот источник, живут в
+        :class:`CiStatusIsMeasuredNotNarrated` и задают его явно.
+        """
+        with mock.patch.object(self.m.subprocess, "run", side_effect=_git_run(**git)), \
+             mock.patch.object(self.m, "ci_status", **_CI_GREEN):
             return self.m.build_digest(datetime(2026, 8, 1, 9, 0))
 
     def test_unreadable_sources_do_not_become_a_quiet_day(self):
@@ -400,7 +415,9 @@ class ExistingBehaviourStillHoldsTests(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
 
     def _digest(self, **git):
-        with mock.patch.object(self.m.subprocess, "run", side_effect=_git_run(**git)):
+        # см. пояснение к одноимённому помощнику выше (ADR-308)
+        with mock.patch.object(self.m.subprocess, "run", side_effect=_git_run(**git)), \
+             mock.patch.object(self.m, "ci_status", **_CI_GREEN):
             return self.m.build_digest(datetime(2026, 8, 1, 9, 0))
 
     def test_yesterday_bounds_is_the_previous_local_midnight_to_midnight(self):
@@ -493,6 +510,132 @@ class ReadableMorningTests(unittest.TestCase):
                 sys.modules["spa_core.telegram.bot"] = saved
         self.assertEqual(rc, 0)
         self.assertEqual(seen, [{"dedup": True}])
+
+
+class CiStatusIsMeasuredNotNarrated(unittest.TestCase):
+    """Статус автопроверки кода — четвёртый источник сводки (ADR-308, 10.09).
+
+    Авария: у сводки было три источника (журнал, координационный лог, коммиты), и ни
+    в одном нет статуса GitHub Actions. Модель сочинила его из прозы — владельцу ушло
+    «проверка кода красная **вторые** сутки» при последнем зелёном прогоне **26.08**,
+    то есть при четырнадцати. Прибора не было вовсе, поэтому лечится это прибором,
+    а не правкой промпта. Каждый тест ниже — сцена из этой аварии либо соседний исход,
+    которого у прибора обязано быть три.
+
+    Все тесты герметичны: сеть не трогается, ответ Actions инъектируется.
+    """
+
+    NOW = datetime(2026, 9, 10, 9, 0, tzinfo=timezone.utc)
+
+    def setUp(self):
+        self.m = _load_module()
+
+    def _rows(self, latest, green):
+        return [{"name": n, "latest_conclusion": latest,
+                 "latest_created_at": "2026-09-10T06:16:39Z", "last_green_at": green}
+                for n in self.m.CI_GATING_WORKFLOWS]
+
+    # ── исход 1: зелено ────────────────────────────────────────────────────
+    def test_green_is_reported_as_green(self):
+        text, unread = self.m.ci_status(
+            self.NOW, status_reader=lambda: (self._rows("success", "2026-09-10T06:16:39Z"), ""))
+        self.assertEqual(unread, [])
+        self.assertTrue(text.startswith("АВТОПРОВЕРКА КОДА: зелёная"), text)
+        # Замер уезжает модели во входных данных; отдельной строки в подвале у зелёного
+        # нет намеренно — ежедневное «зелёная» было бы шумом, а занижали красное.
+        self.assertEqual(self.m._ci_block(text), "")
+
+    # ── исход 2: красно, и ДЛИНА СЕРИИ — та самая, что сводка занизила ─────
+    def test_red_reports_the_real_streak_length_not_a_narrated_one(self):
+        text, unread = self.m.ci_status(
+            self.NOW,
+            status_reader=lambda: (self._rows("failure", "2026-08-26T22:25:03Z"), ""))
+        self.assertEqual(unread, [])
+        self.assertIn("КРАСНАЯ", text)
+        # 26.08 22:25Z → 10.09 09:00Z = 14.4 суток. Число печатается, а не пересказывается.
+        self.assertIn("14.4 суток", text)
+        self.assertIn("2026-08-26T22:25:03Z", text)
+        self.assertIn("14.4 суток", self.m._ci_block(text))
+
+    def test_footer_number_is_deterministic_and_does_not_pass_through_the_llm(self):
+        """Подвал собирается из ТЕКСТА ПРИБОРА, а не из вывода модели.
+
+        Положительный контроль на саму аварию: что бы модель ни написала, число в
+        подвале обязано остаться прибором. Проверяется тем, что ``_ci_block``
+        зависит ТОЛЬКО от своего аргумента.
+        """
+        text, _ = self.m.ci_status(
+            self.NOW,
+            status_reader=lambda: (self._rows("failure", "2026-08-26T22:25:03Z"), ""))
+        self.assertEqual(self.m._ci_block(text), self.m._ci_block(text))
+        self.assertIn("14.4 суток", self.m._ci_block(text))
+        # и НЕ содержит ничего, чего нет в замере
+        self.assertNotIn("вторые сутки", self.m._ci_block(text))
+
+    # ── исход 3: НЕ ИЗМЕРЕНО — четыре двери, и ни одна не зеленеет ─────────
+    def test_api_failure_is_a_third_outcome_not_a_green(self):
+        text, unread = self.m.ci_status(
+            self.NOW, status_reader=lambda: ([], "GitHub Actions API недоступен: URLError"))
+        self.assertEqual(text, "")
+        self.assertEqual(len(unread), 1)
+        self.assertIn("НЕ измерен", unread[0])
+        self.assertIn("URLError", unread[0])
+        self.assertEqual(self.m._ci_block(text), "")
+
+    def test_no_token_is_a_third_outcome(self):
+        with mock.patch.object(self.m, "_github_token",
+                               lambda: ("", "Keychain GITHUB_PAT_SPA не отдал токен (exit 44)")):
+            text, unread = self.m.ci_status(self.NOW)
+        self.assertEqual(text, "")
+        self.assertIn("НЕ измерен", unread[0])
+        self.assertIn("exit 44", unread[0])
+
+    def test_workflow_without_a_finished_run_is_unmeasured_not_green(self):
+        rows = self._rows("success", "2026-09-10T06:16:39Z")
+        rows[0]["latest_conclusion"] = None
+        text, unread = self.m.ci_status(self.NOW, status_reader=lambda: (rows, ""))
+        self.assertEqual(text, "")
+        self.assertIn("нет ни одного завершённого прогона", unread[0])
+
+    def test_never_green_says_so_instead_of_inventing_a_length(self):
+        text, unread = self.m.ci_status(
+            self.NOW, status_reader=lambda: (self._rows("failure", None), ""))
+        self.assertEqual(unread, [])
+        self.assertIn("НЕТ НИ ОДНОГО", text)
+        self.assertIn("НЕ измерена", text)
+
+    # ── проводка: источник действительно доходит до текста сводки ──────────
+    def test_the_block_reaches_the_digest_even_when_the_llm_is_unavailable(self):
+        m = self.m
+        with mock.patch.object(m, "_gather_journal", lambda day: ("- сделано", [])), \
+             mock.patch.object(m, "_gather_session_changes", lambda s, e: ("", [])), \
+             mock.patch.object(m, "_gather_commits", lambda day: ("", [])), \
+             mock.patch.object(m, "ci_status", lambda now=None: (
+                 "АВТОПРОВЕРКА КОДА: КРАСНАЯ. «SPA Tests» красное 14.4 суток "
+                 "(последний зелёный 2026-08-26T22:25:03Z).", [])), \
+             mock.patch.object(m.subprocess, "run",
+                               side_effect=OSError("claude отсутствует")):
+            _raw, human = m.build_digest(datetime(2026, 9, 10, 9, 0))
+        self.assertIn("🔴 Автопроверка кода КРАСНАЯ", human)
+        self.assertIn("14.4 суток", human)
+
+    def test_unmeasured_ci_reaches_the_unread_footer(self):
+        m = self.m
+        with mock.patch.object(m, "_gather_journal", lambda day: ("", [])), \
+             mock.patch.object(m, "_gather_session_changes", lambda s, e: ("", [])), \
+             mock.patch.object(m, "_gather_commits", lambda day: ("", [])), \
+             mock.patch.object(m, "ci_status", lambda now=None: (
+                 "", ["статус автопроверки кода НЕ измерен — Keychain молчит"])):
+            _raw, human = m.build_digest(datetime(2026, 9, 10, 9, 0))
+        # «тихо» объявлять нельзя: один источник не прочитан (fail-CLOSED, инв. #2)
+        self.assertNotIn("Вчера было тихо", human)
+        self.assertIn("Keychain молчит", human)
+
+    def test_gating_set_excludes_workflows_that_measure_something_else(self):
+        """Положительный контроль состава: lint/proof-gate зелены и при красных тестах,
+        и включить их значило бы докладывать владельцу не тот вопрос."""
+        self.assertEqual(set(self.m.CI_GATING_WORKFLOWS), {"SPA Tests", "SPA CI"})
+
 
 
 if __name__ == "__main__":
