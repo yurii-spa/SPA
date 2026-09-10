@@ -320,27 +320,95 @@ class TestAtticExclusionIsEarned(unittest.TestCase):
             "а просто каталог вне доставки — исключение перестаёт быть заработанным",
         )
 
+    #: Ссылки на надгробие, которые НЕ являются его вызовом. Каждая — с причиной;
+    #: «и так понятно» причиной не является (ADR-308: проверка, которую удовлетворяет
+    #: проза, не проверяет ничего — но и краснеющая на прозе не проверяет тоже).
+    TOMBSTONE_DATA_REFS = {
+        "attic/agents/QUARANTINE.json":
+            "реестр отложенных агентов лежит РЯДОМ с их plist'ами по построению; "
+            "установщик его ЧИТАЕТ как данные и обязан читать — иначе штатная "
+            "переустановка флота молча воскрешает карантин (замер 31.08, закреплено "
+            "spa_core/tests/test_installer_respects_quarantine.py)",
+    }
+
+    @staticmethod
+    def _code_only(text: str, suffix: str) -> str:
+        """Текст без комментариев: упоминание надгробия в ПРОЗЕ вызовом не является."""
+        out = []
+        for line in text.splitlines():
+            if suffix in (".sh", ".yml", ".yaml"):
+                # строка-комментарий целиком либо хвост после ` #`
+                stripped = line.lstrip()
+                if stripped.startswith("#"):
+                    continue
+                k = line.find(" #")
+                if k >= 0:
+                    line = line[:k]
+            out.append(line)
+        return "\n".join(out)
+
     def test_no_runtime_surface_calls_into_the_tombstone(self) -> None:
         """Проводка надгробия в исполняемую поверхность обязана краснить.
 
-        Именно это делает исключение измеренным: пока `attic/` не зовёт ни один plist,
-        ни один workflow и ни одна обёртка агента, его недоставляемость безвредна.
+        Именно это делает исключение измеренным: пока `attic/` не ИСПОЛНЯЕТ ни один
+        plist, ни один workflow и ни одна обёртка агента, его недоставляемость безвредна.
+
+        ИЗМЕНЁН НАМЕРЕННО 10.09 (инвариант №16), причина — проверка искала подстроку
+        «attic» в СЫРОМ тексте и потому краснела на двух вещах, которые вызовом не
+        являются: (1) слово в КОММЕНТАРИИ `code_sync_from_origin.sh:131` («генератор в
+        attic» — прозa о прошлом), (2) ЧТЕНИЕ данных `attic/agents/QUARANTINE.json`
+        установщиком — оно не воскрешает надгробие, а наоборот НЕ ДАЁТ воскреснуть
+        отложенным агентам, и закреплено собственным тестом с 31.08.
+
+        Проверка не ослаблена: исполнение чего-либо ИЗ `attic/` по-прежнему красное,
+        что закреплено положительным контролем ниже. Сужена только поверхность —
+        комментарии и один ПОИМЕННО названный файл данных с причиной.
         """
         surfaces: List[Path] = []
         for pattern in ("launchd/*.plist", ".github/workflows/*.yml", "scripts/*.sh"):
             surfaces += sorted(REPO_ROOT.glob(pattern))
         self.assertTrue(surfaces, "исполняемых поверхностей не найдено — измерение сломано")
-        callers = [
-            str(p.relative_to(REPO_ROOT))
-            for p in surfaces
-            if "attic" in p.read_text(encoding="utf-8", errors="replace")
-        ]
+        callers = []
+        for p in surfaces:
+            code = self._code_only(p.read_text(encoding="utf-8", errors="replace"), p.suffix)
+            for ref in self._attic_refs(code):
+                if ref not in self.TOMBSTONE_DATA_REFS:
+                    callers.append(f"{p.relative_to(REPO_ROOT)}: {ref}")
         self.assertEqual(
-            callers,
-            [],
+            sorted(callers), [],
             "исполняемая поверхность ссылается на attic/ — надгробие перестало быть "
-            f"надгробием, исключение сторожа больше не заработано: {callers}",
-        )
+            f"надгробием, исключение сторожа больше не заработано: {sorted(callers)}")
+
+    @staticmethod
+    def _attic_refs(code: str) -> set:
+        """Пути внутрь надгробия, встреченные в КОДЕ (без комментариев)."""
+        import re
+        return set(re.findall(r"attic/[A-Za-z0-9_./-]+", code)) or (
+            {"attic"} if "attic" in code else set())
+
+    def test_running_a_script_from_the_tombstone_would_be_caught(self) -> None:
+        """Положительный контроль: сужение выше не отменяет предмет проверки.
+
+        Без него «разрешили комментарии и один файл данных» неотличимо от
+        «разрешили всё»: сцена, которой сторож обязан краснеть, обязана существовать.
+        """
+        code = 'bash "$REPO/attic/agents/agent_morning_digest.sh"\n'
+        refs = self._attic_refs(self._code_only(code, ".sh"))
+        self.assertIn("attic/agents/agent_morning_digest.sh", refs)
+        self.assertNotIn("attic/agents/agent_morning_digest.sh", self.TOMBSTONE_DATA_REFS)
+
+    def test_a_comment_mentioning_the_tombstone_is_not_a_call(self) -> None:
+        """Обратная половина: прозa о надгробии не есть его вызов."""
+        code = "# генератор changelog переехал в attic\necho ok\n"
+        self.assertEqual(self._attic_refs(self._code_only(code, ".sh")), set())
+
+    def test_every_data_exemption_names_a_reason(self) -> None:
+        """Освобождение без причины — это освобождение «и так понятно»."""
+        for ref, why in self.TOMBSTONE_DATA_REFS.items():
+            self.assertTrue(ref.startswith("attic/"), ref)
+            self.assertGreater(len(why), 40, f"{ref}: причина не названа")
+            self.assertTrue((REPO_ROOT / ref).is_file(),
+                            f"{ref}: освобождение указывает в пустоту")
 
 
 # --------------------------------------------------------------------------------------
