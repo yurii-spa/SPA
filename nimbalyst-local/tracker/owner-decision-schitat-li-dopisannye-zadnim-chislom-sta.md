@@ -2,9 +2,17 @@
 trackerStatus:
   type: owner-decision
 title: Считать ли дописанные задним числом ставки наравне с живыми в проверке готовности
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-09-10
+owner_choice: 2
+owner_answered_at: 2026-09-10T10:27:00.197371+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
+owner_answer_kind: option
+status_trail:
+  - "2026-09-10T10:27:00.197603+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-09-10T12:09:20.717271+00:00 owner-done -> ingested · queue.set_status · cycle-26185"
 ---
 
 ## Что случилось и почему это важно
@@ -77,3 +85,11 @@ created: 2026-09-10
 [ADR-295](../../docs/decisions/ADR-295-decision-record-widening-does-not-move-the-verdict-but-moves-its-population.md).
 Решение об исполнении «Варианта Б» —
 [ADR-309](../../docs/decisions/ADR-309-the-record-population-is-the-live-set-owner-answer-b.md).*
+
+---
+
+## Решение владельца
+
+**Вариант 2** — считать и дописанные тоже
+
+_Ответ владельца получен 2026-09-10T10:27:00.197371+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._
