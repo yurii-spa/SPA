@@ -573,5 +573,17 @@
   "parity_control",
   "derivation_cross_check",
   "findings"
+ ],
+ "intraday_rate_input_movement.json": [
+  "status",
+  "journal_rows",
+  "carrier",
+  "coverage",
+  "movement_outside_denominator",
+  "kind_control",
+  "substitution_trap",
+  "findings",
+  "third_outcomes",
+  "does_not_report"
  ]
 }

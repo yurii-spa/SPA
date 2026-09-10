@@ -412,6 +412,22 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                           "subject_distinctness", "days",
                                           "findings", "third_outcomes",
                                           "does_not_report"),
+    # Заказ #554. `coverage` в схеме обязателен потому, что ПЕРВЫЙ результат
+    # заказа — что носитель РЕАЛЬНО покрывает; артефакт без него выродился бы в
+    # долю движения, снятую с чужого населения. `movement_outside_denominator`
+    # — потому что это население ДРУГОЕ, и запись, потерявшая эту оговорку,
+    # читалась бы как замер знаменателя. `kind_control` — потому что покрытие
+    # без совпадения РОДА величин не даёт права на подстановку, и наоборот.
+    # `substitution_trap` — потому что запрет на подстановку ряда по дням есть
+    # ЗАМЕР, и артефакт без него цитировал бы ADR вместо измерения.
+    # `third_outcomes` — главный результат прибора: «не измерено» на N парах;
+    # запись без этого поля читалась бы как «не двигалось нигде».
+    "intraday_rate_input_movement.json": ("status", "journal_rows", "carrier",
+                                          "coverage",
+                                          "movement_outside_denominator",
+                                          "kind_control", "substitution_trap",
+                                          "findings", "third_outcomes",
+                                          "does_not_report"),
     # Заказ #544. `per_pair` в схеме обязателен по той же причине, что
     # `attribution` у соседа: ответ «чем закрываема дыра» без перечня пар
     # выродится в долю. `series_provenance_exposure` — потому что наличие
@@ -540,6 +556,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/decision_record_run_identity.py",
     "day_replacement_verdict_loss.json":
         "spa_core/monitoring/day_replacement_verdict_loss.py",
+    "intraday_rate_input_movement.json":
+        "spa_core/monitoring/intraday_rate_input_movement.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2049,6 +2067,17 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _drvl_report,
         )
         out.extend(_drvl_report(data))
+    elif name == "intraday_rate_input_movement.json":
+        # Заказ #554. Порядок строк — порядок заказа дословно: сперва ПОКРЫТИЕ
+        # («что носитель реально покрывает»), и только потом движение ставки.
+        # Порядок не косметика: читатель, увидевший первой строкой «ставка
+        # двигалась на N парах», прочтёт это как замер знаменателя hit_rate —
+        # а население там ДРУГОЕ, и прибор говорит об этом раньше, чем называет
+        # долю.
+        from spa_core.monitoring.intraday_rate_input_movement import (
+            format_report as _irim_report,
+        )
+        out.extend(_irim_report(data))
     elif name == "arming_wall_order.json":
         # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
         # стен с числами освобождённых дней, потом вердикт ветки, и только потом

@@ -117,6 +117,7 @@ PRODUCES = (
     "data/snapshot_minute_sensitivity.json",
     "data/decision_record_run_identity.json",
     "data/day_replacement_verdict_loss.json",
+    "data/intraday_rate_input_movement.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -189,6 +190,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "snapshot_minute_sensitivity",
     "decision_record_run_identity",
     "day_replacement_verdict_loss",
+    "intraday_rate_input_movement",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -325,6 +327,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "day_replacement_verdict_loss": {
         "module": "spa_core/monitoring/day_replacement_verdict_loss.py",
         "artifact": "data/day_replacement_verdict_loss.json"},
+    "intraday_rate_input_movement": {
+        "module": "spa_core/monitoring/intraday_rate_input_movement.py",
+        "artifact": "data/intraday_rate_input_movement.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -1190,6 +1195,20 @@ def main(argv=None) -> int:
               f"unchecked={_drvl['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "day_replacement_verdict_loss", e)
+    # Заказ #554 (ADR-316). Двигался ли ВТОРОЙ вход тени — ставки — внутри дня.
+    # Мост находок артефакт НЕ читает по той же причине, что и у соседей выше:
+    # единственное действие по итогам — тронуть ЧАСТОТУ опроса ставок либо
+    # писателя носителя, то есть вход, по которому судят перекладки капитала.
+    # Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import intraday_rate_input_movement
+        _irim = intraday_rate_input_movement.run(root=args.root)
+        print(f"intraday_rate_input_movement: {_irim['overall']} "
+              f"(critical={_irim['counts']['critical']} "
+              f"warn={_irim['counts']['warn']} "
+              f"unchecked={_irim['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "intraday_rate_input_movement", e)
     try:
         from spa_core.monitoring import arming_wall_order
         _awo = arming_wall_order.run(root=args.root)
