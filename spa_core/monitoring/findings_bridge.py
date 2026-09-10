@@ -110,6 +110,7 @@ PRODUCES = (
     "data/hit_rate_selection_bias.json",
     "data/g1_verdict_recoverability.json",
     "data/unevidenced_leg_causes.json",
+    "data/journal_backfill_material.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -175,6 +176,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "hit_rate_selection_bias",
     "g1_verdict_recoverability",
     "unevidenced_leg_causes",
+    "journal_backfill_material",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -290,6 +292,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "unevidenced_leg_causes": {
         "module": "spa_core/monitoring/unevidenced_leg_causes.py",
         "artifact": "data/unevidenced_leg_causes.json"},
+    "journal_backfill_material": {
+        "module": "spa_core/monitoring/journal_backfill_material.py",
+        "artifact": "data/journal_backfill_material.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -1097,6 +1102,20 @@ def main(argv=None) -> int:
               f"unchecked={_ulc['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "unevidenced_leg_causes", e)
+    # Заказ #544 (ADR-302 поставил вопрос): чем ЗАКРЫВАЕМА дыра переписи задним
+    # числом и той ли это пробы. Мост находок его НЕ читает по той же причине,
+    # что и соседа выше: единственное действие по итогам — тронуть писателя
+    # журнала решений либо переписать уже написанные записи, то есть запись, по
+    # которой судят перекладки капитала. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import journal_backfill_material
+        _jbm = journal_backfill_material.run(root=args.root)
+        print(f"journal_backfill_material: {_jbm['overall']} "
+              f"(critical={_jbm['counts']['critical']} "
+              f"warn={_jbm['counts']['warn']} "
+              f"unchecked={_jbm['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "journal_backfill_material", e)
     # §43 ТЗ CIO «Audit trail»: отвечают ли ДАННЫЕ на вопрос о прошлой перекладке
     # («почему 13 августа переложили $12 000»), или на него отвечает только память
     # сессии. Мост находок его НЕ читает по той же причине, что и пять соседей

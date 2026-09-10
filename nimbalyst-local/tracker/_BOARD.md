@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-10T04:22:53Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-10T04:25:45Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (fdbe862fe).
+> Сверено с `origin/main` (97b27c915) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **997** · ждёт владельца: **10** · занято сессиями: **14**.
+> Всего карточек: **998** · ждёт владельца: **11** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -20,6 +20,7 @@
 - **Публичное число двух книг: считать трек с 22 июня (там были литералы) или с 10 сентября (там начались наблюдения)?**  ·  `owner-decision-otkuda-schitat-trek-dvuh-knig.md`
 - **Сайт: why-20-apy-means-tail-risk.astro и ещё 2 — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-why-20-apy-means-tail-risk-astro-i.md`
 - **Удалить оставшийся файл с токеном из папки проекта (одна команда)**  ·  `owner-decision-udalit-ostavshiisya-fail-s-tokenom.md`
+- **Записывать ли в дневное решение ВСЕ живые ставки дня, а не только те, что в портфеле**  ·  `owner-decision-zapisyvat-li-v-dnevnoe-reshenie-vse-zhiv.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
@@ -40,7 +41,7 @@
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (268)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (269)
 
 ### · needs-owner
 - Автоторговля, вопрос 2 из 3: нужен ли ДНЕВНОЙ лимит оборота вдобавок к недельному?  ·  `owner-decision-avtotorgovlya-dnevnoi-limit-oborota.md` · 2026-09-09
@@ -52,6 +53,7 @@
 - Публичное число двух книг: считать трек с 22 июня (там были литералы) или с 10 сентября (там начались наблюдения)?  ·  `owner-decision-otkuda-schitat-trek-dvuh-knig.md` · 2026-09-10
 - Сайт: why-20-apy-means-tail-risk.astro и ещё 2 — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-why-20-apy-means-tail-risk-astro-i.md` · 2026-09-09
 - Удалить оставшийся файл с токеном из папки проекта (одна команда)  ·  `owner-decision-udalit-ostavshiisya-fail-s-tokenom.md` · 2026-09-09
+- Записывать ли в дневное решение ВСЕ живые ставки дня, а не только те, что в портфеле  ·  `owner-decision-zapisyvat-li-v-dnevnoe-reshenie-vse-zhiv.md` · 2026-09-10
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15

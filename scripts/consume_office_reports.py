@@ -372,6 +372,16 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                     "attribution", "class_counts", "per_day",
                                     "scenarios", "parity_control",
                                     "derivation_cross_check", "findings"),
+    # Заказ #544. `per_pair` в схеме обязателен по той же причине, что
+    # `attribution` у соседа: ответ «чем закрываема дыра» без перечня пар
+    # выродится в долю. `series_provenance_exposure` — потому что наличие
+    # материала и его ПРОБА суть разные величины, и артефакт, несущий только
+    # первую, читался бы как «починка дешёвая».
+    "journal_backfill_material.json": ("status", "pairs_cut_by_transcription",
+                                       "material", "per_pair",
+                                       "protocols_without_material",
+                                       "series_provenance_exposure",
+                                       "what_it_does_not_prove", "findings"),
     "cio_policy_change_procedure.json": ("overall", "counts.critical",
                                          "counts.warn", "counts.info",
                                          "counts.unchecked", "positive_control",
@@ -459,6 +469,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/g1_verdict_recoverability.py",
     "unevidenced_leg_causes.json":
         "spa_core/monitoring/unevidenced_leg_causes.py",
+    "journal_backfill_material.json":
+        "spa_core/monitoring/journal_backfill_material.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1923,6 +1935,15 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _ulc_report,
         )
         out.extend(_ulc_report(data))
+    elif name == "journal_backfill_material.json":
+        # Заказ #544. Сперва НАЛИЧИЕ материала (по парам, поимённо), и только
+        # потом его ПРОБА. Порядок не косметика: владелец, увидевший «40 из 41»
+        # без следующей строки, прочёл бы «дыра закрывается задним числом» —
+        # чего замер не утверждает и прямо говорит в `what_it_does_not_prove`.
+        from spa_core.monitoring.journal_backfill_material import (
+            format_report as _jbm_report,
+        )
+        out.extend(_jbm_report(data))
     elif name == "cio_substitution_census.json":
         # Заказ #518/#519. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ
         # (и прямо сказано, что оно не ответ), затем ДОСТИЖИМОСТЬ двумя
