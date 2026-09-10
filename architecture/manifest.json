@@ -27,6 +27,10 @@
     {
      "artifact": "data/fleet_economics.json",
      "slo_hours": 3
+    },
+    {
+     "artifact": "data/orphaned_pytest.json",
+     "slo_hours": 2.0
     }
    ],
    "consumes": [],
@@ -3576,6 +3580,14 @@
    "slo_hours": 26,
    "status": "active",
    "notes": "09.09 (ADR-292 п.4): то же для книги Aggressive. Отдельный файл и отдельный тип события: одна цепочка на две книги смешала бы их истории"
+  },
+  {
+   "path": "data/orphaned_pytest.json",
+   "producer": "com.spa.agent_health",
+   "consumers": [],
+   "slo_hours": 2,
+   "status": "active",
+   "notes": "10.09: брошенные прогоны pytest НАЗЫВАЮТСЯ ежечасно вместе с пульсом флота (карточка owner-decision-broshennye-progony-testov…, восьмой случай подряд, все восемь найдены глазами). Монитор только называет — снятие прогона остаётся решением сессии; третий исход «заказчик не назван» отдельным списком"
   }
  ],
  "designed_architectures": [

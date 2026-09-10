@@ -1734,6 +1734,67 @@ def _write_fleet_economics(data_dir: Path) -> None:
                     type(exc).__name__)
 
 
+def _write_orphaned_pytest(data_dir: Path, report: Optional[dict] = None) -> None:
+    """Side-car: брошенные прогоны pytest НАЗЫВАЮТСЯ ежечасно, а не при следующей сессии.
+
+    Замер (карточка `owner-decision-broshennye-progony-testov…`, восьмой случай подряд):
+    прогон, заказанный умершей сессией, продолжает жечь ядро часами — этой ночью два
+    таких заняли по 96 % ядра больше часа, и найдены они были ГЛАЗАМИ. Проверка на них
+    написана и работает (`scripts/check_concurrent_pytest.py`), но запускается только
+    когда очередная сессия сама до неё дойдёт; между сессиями проходят часы.
+
+    Здесь она получает расписание — ежечасное, вместе с пульсом флота, — и НИЧЕГО НЕ
+    УБИВАЕТ. Это осознанно: монитор, который действует, перестаёт быть монитором
+    (`.claude/rules/deployment.md`: «проверка НЕ ИМЕЕТ ПРАВА запускать»; снятие прогона —
+    решение сессии, и сам инструмент печатает готовую команду, но не выполняет её).
+    Новый агент во флот при этом не добавляется: расписание берётся у существующего.
+
+    ``report`` — ВХОД (по умолчанию берётся у настоящей проверки). Инъекция нужна не
+    для удобства: без неё тест судит о том, сколько прогонов сейчас на ХОСТЕ, и один и
+    тот же sha даёт разный ответ на разных машинах. Мутация «третий исход схлопнут в
+    сирот» ровно поэтому и не ловилась.
+
+    Никогда не роняет монитор: пульс флота важнее строки о чужих прогонах.
+    """
+    try:
+        import importlib.util as _ilu
+        import sys as _sys
+        spec = _ilu.spec_from_file_location(
+            "_spa_check_concurrent_pytest",
+            _PROJECT_ROOT / "scripts" / "check_concurrent_pytest.py")
+        mod = _ilu.module_from_spec(spec)
+        # Регистрация в sys.modules ДО exec_module обязательна: модуль объявляет
+        # @dataclass, а `dataclasses` при разборе аннотаций смотрит
+        # `sys.modules[cls.__module__].__dict__`. Без регистрации там None и разбор
+        # падает AttributeError — на пустом месте и с сообщением не о том.
+        _sys.modules[spec.name] = mod
+        spec.loader.exec_module(mod)
+        rep = report if report is not None else mod.check(str(_PROJECT_ROOT))
+        orphans = rep.get("orphans") or []
+        payload = {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "status": rep.get("status"),
+            # Третий исход отдельным списком: «кому нужен прогон, НЕ ИЗМЕРЕНО» — это не
+            # сирота и не порядок; смешать их значит либо звать на помощь зря, либо
+            # промолчать о настоящей.
+            "orphans": [{"pid": o.get("pid"), "cwd": o.get("cwd"),
+                         "why": o.get("orphan_why")} for o in orphans],
+            "unmeasured": [{"pid": o.get("pid"), "cwd": o.get("cwd"),
+                            "why": o.get("orphan_why")}
+                           for o in (rep.get("orphan_unmeasured") or [])],
+            "note": ("сироты только НАЗЫВАЮТСЯ; снятие — решение сессии "
+                     "(kill -TERM <pid>), монитор не действует"),
+        }
+        from spa_core.utils.atomic import atomic_save as _atomic_save
+        _atomic_save(payload, str(data_dir / "orphaned_pytest.json"))
+        if orphans:
+            log.warning("осиротевших прогонов pytest: %d — %s",
+                        len(orphans), [o.get("pid") for o in orphans])
+    except Exception as exc:  # noqa: BLE001 — чужие прогоны не важнее пульса флота
+        log.warning("orphaned_pytest не записан (%s) — пульс флота не затронут",
+                    type(exc).__name__)
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -1754,6 +1815,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     report = monitor.run(send=send)
     _write_fleet_economics(Path(args.data_dir))
+    _write_orphaned_pytest(Path(args.data_dir))
     _print_summary(report)
     return 0  # always exit 0 (fail-safe daemon)
 
