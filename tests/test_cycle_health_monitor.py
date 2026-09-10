@@ -676,13 +676,20 @@ class TestRunAllChecks(unittest.TestCase):
         Третье НАМЕРЕННОЕ изменение (инв. #16, та же запись в журнале, ADR-278, 09.09):
         добавлена седьмая — тоже СОВЕТУЮЩАЯ — проверка `book_commitments` (commit-reveal
         раскладки книги, задача 4 той же карточки). Сравнение остаётся ТОЧНЫМ.
+        Четвёртое НАМЕРЕННОЕ изменение (инв. #16, запись в `docs/journal/2026-W37.md`,
+        ADR-297, 2026-09-09): добавлена восьмая — тоже СОВЕТУЮЩАЯ — проверка
+        `sleeve_replay` (пересчёт дней книг Balanced/Aggressive из их архива входов,
+        последний открытый пункт приёмки ADR-292). Сравнение остаётся ТОЧНЫМ; в набор
+        добавлено одно реально существующее имя. В `overall` проверка не участвует:
+        советательные книги капитал не двигают.
         """
         tmpdir = self._make_temp_data_dir()
         result = self.monitor.run_all_checks(data_dir=tmpdir)
         self.assertSetEqual(
             set(result["checks"].keys()),
             {"cycle_gap", "equity_anomaly", "data_freshness", "evidence_vs_curve",
-             "artifact_integrity", "replay_from_inputs", "book_commitments"},
+             "artifact_integrity", "replay_from_inputs", "book_commitments",
+             "sleeve_replay"},
         )
 
     # T48

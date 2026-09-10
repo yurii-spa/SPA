@@ -629,7 +629,18 @@ def test_equity_bar_flagged_live_when_all_positions_live(tmp_path):
 
 
 def test_weighted_apy_reflects_all_positions(tmp_path):
-    """apy_today_pct should reflect portfolio-wide APY (not just live-adapter APY)."""
+    """Ожидаемая ставка книги считается по ВСЕЙ книге; заработанная — только по наблюдённой части.
+
+    ADR-301 (инвариант #16): предмет теста переехал с `apy_today_pct` на `apy_expected_pct`.
+    Прежде это было одно поле: пока начислялось всё подряд, «сколько книга заработала» и
+    «сколько она дала бы, будь всё наблюдаемо» совпадали. С ADR-298 они разошлись, и один
+    прогон стал выдавать ДВА разных «APY за сегодня» — в баре одно, в результате другое,
+    причём второе уходило в `paper_evidence.json`, которым мы доказываем трек.
+
+    Утверждение теста сохранено дословно и проверяется у того поля, к которому относится;
+    рядом добавлена вторая половина — заработанное НИЖЕ ожидаемого, пока в книге есть
+    ненаблюдаемый пул.
+    """
     _write_registry(tmp_path, {
         "aave_v3":     {"fallback_apy": 0.04,  "tier": 1},
         "compound_v3": {"fallback_apy": 0.052, "tier": 1},
@@ -644,9 +655,11 @@ def test_weighted_apy_reflects_all_positions(tmp_path):
     # aave_v3: 50k * 4.0% = 2000; compound: 50k * 5.2% = 2600; total capital 100k
     # weighted = (2000 + 2600) / 100000 * 100 ≈ 4.6%
     # Without fix: only aave_v3 → (2000) / 100000 * 100 = 2.0%
-    assert result.apy_today_pct > 2.0, (
-        f"apy_today_pct={result.apy_today_pct:.4f}% should exceed live-only 2.0%"
-    )
+    assert result.apy_expected_pct > 2.0, (
+        f"apy_expected_pct={result.apy_expected_pct:.4f}% should exceed live-only 2.0%")
+    assert result.apy_today_pct < result.apy_expected_pct, (
+        "заработанное обязано быть НИЖЕ ожидаемого, пока compound_v3 не наблюдается: "
+        f"{result.apy_today_pct} vs {result.apy_expected_pct}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -751,3 +764,40 @@ def test_the_bars_apy_is_the_rate_that_produced_its_own_yield(tmp_path):
         bar["daily_yield_usd"] * 365 / bar["open_equity"] * 100, abs=1e-3)
     assert bar["apy_expected_pct"] > bar["apy_today"], (
         "ожидание обязано быть ВЫШЕ начисленного, пока в книге есть ненаблюдаемый пул")
+
+
+def test_one_run_gives_one_apy_for_today(tmp_path):
+    """Бар, результат цикла и файл доказательств несут ОДНО «APY за сегодня».
+
+    ADR-301. До правки один прогон выдавал два разных числа: бар — заработанное (ADR-298),
+    результат — ожидаемое. Второе уходило дальше бара: в `paper_evidence.json`, которым мы
+    доказываем трек, и в трекер вех. Доказательство обязано нести ЗАРАБОТАННОЕ.
+
+    Два артефакта одного прогона, спорящие между собой, — самая дешёвая улика; здесь она
+    закреплена тестом, чтобы спор не вернулся молча.
+    """
+    _write_registry(tmp_path, {
+        "aave_v3":     {"fallback_apy": 0.04,  "tier": 1},
+        "compound_v3": {"fallback_apy": 0.052, "tier": 1},
+    })
+    target = {"aave_v3": 40_000.0, "compound_v3": 30_000.0}
+    _write_positions(tmp_path, dict(target))
+    result = _run(tmp_path, orch_apy_map={"aave_v3": 4.0}, target_usd=target)
+
+    bar = _load(tmp_path, "equity_curve_daily.json")["daily"][-1]
+    assert result.apy_today_pct == pytest.approx(bar["apy_today"], abs=1e-3), (
+        f"бар говорит {bar['apy_today']}, результат — {result.apy_today_pct}")
+    assert result.apy_expected_pct == pytest.approx(bar["apy_expected_pct"], abs=1e-3)
+    # и предпосылка теста обеспечена: в книге ЕСТЬ ненаблюдаемый пул, иначе оба поля
+    # совпали бы сами собой и тест ничего не проверял бы
+    assert bar["unobservable_pools"], "предпосылка не обеспечена — нечему расходиться"
+    assert result.apy_today_pct < result.apy_expected_pct
+
+    ev = _load(tmp_path, "paper_evidence.json")
+    days = ev.get("days") or ev.get("daily") or []
+    if days:
+        last = days[-1] if isinstance(days, list) else list(days.values())[-1]
+        rec = last.get("apy_pct") if isinstance(last, dict) else None
+        if rec is not None:
+            assert rec == pytest.approx(result.apy_today_pct, abs=1e-3), (
+                "файл доказательств несёт не ту ставку, которую книга заработала")

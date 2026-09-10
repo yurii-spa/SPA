@@ -324,6 +324,9 @@ def build_report_data(
     equity_usd: float | None = None
     daily_pnl_usd: float | None = None
     apy_today: float | None = None
+    apy_expected: float | None = None
+    unobservable_pools: list[str] = []
+    yield_forgone_usd: float | None = None
     positions: dict[str, float] = {}
     if bar is not None:
         close = bar.get("close_equity", bar.get("equity"))
@@ -334,6 +337,18 @@ def build_report_data(
             daily_pnl_usd = float(close) - float(open_)
         if isinstance(bar.get("apy_today"), (int, float)):
             apy_today = float(bar["apy_today"])
+        # ADR-298/299: если часть книги стои́т под НЕнаблюдаемой ставкой, доход ниже
+        # ожидаемого — и владелец обязан прочитать ПРИЧИНУ там же, где цифру. Иначе
+        # он увидит падение APY и решит, что испортился рынок.
+        _unobs = bar.get("unobservable_pools")
+        if isinstance(_unobs, list) and _unobs:
+            unobservable_pools = [str(x) for x in _unobs]
+        _forgone = bar.get("yield_forgone_usd")
+        if isinstance(_forgone, (int, float)) and _forgone:
+            yield_forgone_usd = float(_forgone)
+        _exp = bar.get("apy_expected_pct")
+        if isinstance(_exp, (int, float)):
+            apy_expected = float(_exp)
         bar_pos = bar.get("positions")
         if isinstance(bar_pos, dict):
             positions = {
@@ -400,6 +415,9 @@ def build_report_data(
         "equity_usd": equity_usd,
         "daily_pnl_usd": daily_pnl_usd,
         "apy_today_pct": apy_today,
+        "apy_expected_pct": apy_expected,          # ADR-301
+        "unobservable_pools": unobservable_pools,  # ADR-298
+        "yield_forgone_usd": yield_forgone_usd,    # ADR-298
         "apy_7day_avg_pct": avg7,
         "best_strategy": best_strategy,
         "positions": positions,
@@ -500,6 +518,7 @@ def _positions_lines(data: dict) -> list[str]:
     """Позиции по убыванию суммы, кэш последним."""
     positions = data.get("positions") or {}
     meta = data.get("adapter_meta") or {}
+    unobservable = set(data.get("unobservable_pools") or ())   # ADR-298
     equity = data.get("equity_usd")
     total = sum(v for v in positions.values() if isinstance(v, (int, float)))
     equity_base = equity if isinstance(equity, (int, float)) and equity > 0 else total
@@ -515,6 +534,12 @@ def _positions_lines(data: dict) -> list[str]:
         pct = (val / equity_base * 100) if equity_base else 0.0
         apy_p = m.get("apy")
         apy_str = f" — {apy_p:.1f}% APY" if isinstance(apy_p, (int, float)) else ""
+        # ADR-298: ставка из реестра рядом с позицией, которая НЕ начисляет, — самая
+        # тихая неправда в отчёте: число стои́т, а денег с него нет. Помечаем прямо здесь.
+        if key in unobservable:
+            apy_str = (f" — {apy_p:.1f}% в справочнике, но НЕ наблюдается ⇒ начисляет 0"
+                       if isinstance(apy_p, (int, float))
+                       else " — ставка не наблюдается ⇒ начисляет 0")
         lines.append(f"  • {_esc(name)}: ${val:,.0f} ({pct:.1f}%){apy_str}")
     rest = ordered[MAX_POSITION_LINES:]
     if rest:
@@ -606,6 +631,20 @@ def format_daily_message(data: dict) -> str:
     apy = data.get("apy_today_pct")
     avg7 = data.get("apy_7day_avg_pct")
     lines.append(f"📈 APY (paper): {_fmt_pct(apy)} (среднее за 7 дней: {_fmt_pct(avg7)})")
+    # ADR-298/299: цифра ниже ожидаемой — рядом её причина. Строки нет, когда вся книга
+    # наблюдаема: молчание здесь означает «нечего объяснять», а не «не проверяли».
+    _unobs = data.get("unobservable_pools")
+    if isinstance(_unobs, list) and _unobs:
+        _exp = data.get("apy_expected_pct")
+        _forg = data.get("yield_forgone_usd")
+        _tail = ""
+        if isinstance(_exp, (int, float)):
+            _tail += f" · ожидание при полной наблюдаемости {_fmt_pct(_exp)}"
+        if isinstance(_forg, (int, float)):
+            _tail += f" · недобор {_fmt_money(_forg)}/день"
+        lines.append(
+            "   ↳ ставка не наблюдается у: " + ", ".join(_esc(x) for x in _unobs) +
+            _tail + " — эти позиции начисляют НОЛЬ (ADR-298), а не продаются")
 
     # Блок рендерится ТОЛЬКО когда турнир кого-то выбрал (`_best_strategy` даёт
     # None при отказе всем / нулевых net_apy) — при пустых данных строки нет.

@@ -35,6 +35,36 @@ def _isolate_module(monkeypatch, tmp_path):
     monkeypatch.setattr(m, "_HY_REGIME_LOG_PATH", tmp_path / "hy_regime_log.json")
 
 
+# ── ADR-294/298: тест больше НЕ судит ХОСТ через живой data/ ──────────────────
+# Замер 2026-09-10: `tests/test_hy_cycle.py` и `tests/test_lp_cycle.py` читали
+# НАСТОЯЩИЙ `data/apy_ranking.json` того дерева, в котором запущены. Пока кандидатом
+# была любая строка, это было незаметно: в каноне origin строк 27, книга набиралась,
+# и тест зеленел. С ADR-294 кандидатом становится только НАБЛЮДЁННАЯ строка, а в
+# замороженном каноне `apy_source="live"` нет НИ ОДНОЙ — книга пустела, постура
+# честно становилась WATCH, и тест краснел на ВЕРНОМ поведении.
+#
+# Это ровно тот класс, который правила называют «вердикт решает окружение»: один и тот
+# же sha давал разный ответ в боевом дереве и в worktree. Ранжирование инъектируется —
+# проверка от этого становится СТРОЖЕ, а не мягче: теперь она меряет цикл, а не то,
+# что успел записать хост.
+@pytest.fixture(autouse=True)
+def _inject_ranking(monkeypatch, tmp_path):
+    from spa_core.paper_trading import sleeve_book
+    rank = tmp_path / "apy_ranking.json"
+    rank.write_text(json.dumps({"by_apy": [
+        {"protocol": "maple", "apy_pct": 9.5, "apy_source": "live",
+         "tvl_source": "live", "tvl_usd": 2_000_000_000.0, "network": "ethereum"},
+        {"protocol": "fluid_fusdc", "apy_pct": 8.0, "apy_source": "live",
+         "tvl_source": "live", "tvl_usd": 150_000_000.0, "network": "ethereum"},
+        {"protocol": "susde", "apy_pct": 7.0, "apy_source": "live",
+         "tvl_source": "live", "tvl_usd": 1_300_000_000.0, "network": "ethereum"},
+        {"protocol": "morpho_steakhouse", "apy_pct": 6.5, "apy_source": "live",
+         "tvl_source": "live", "tvl_usd": 90_000_000.0, "network": "ethereum"},
+    ]}), encoding="utf-8")
+    monkeypatch.setattr(sleeve_book, "_APY_RANKING", rank)
+    monkeypatch.setattr(sleeve_book, "_PEG_HISTORY", tmp_path / "peg_history.json")
+
+
 @pytest.fixture
 def m():
     import spa_core.paper_trading.hy_cycle as mod
@@ -472,5 +502,14 @@ class TestReseed100kMigration:
         m.run_hy_cycle(dry_run=False)
 
         # миграция НЕ должна была обнулить книгу к $100k (только начисление сверху)
-        assert captured.get("equity") >= 123456.0
+        # ADR-294 (инвариант #16): предмет теста — «книгу НЕ переписали на 100k», а не
+        # «equity не уменьшилась». С тех пор как книга платит за развёртывание, второе
+        # утверждение ложно даже при полностью исправном поведении: замер — 123 355.45
+        # против 123 456.00, разница есть цена хода. Проверяем ровно то, ради чего тест
+        # написан, и отдельно называем допустимую просадку — цену одного хода.
+        assert captured.get("equity") != pytest.approx(100000.0), (
+            "книгу переписали на сид — это и есть повторное затирание")
+        assert captured.get("equity") > 123_000.0, (
+            "книга ушла ниже, чем стоит один ход — это уже не издержка")
+        assert captured.get("daily_history"), "история книги стёрта"
         assert captured.get("reseed_100k_done") is True

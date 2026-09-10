@@ -233,7 +233,7 @@ class CycleResult:
     current_equity: float
     daily_yield_usd: float
     daily_return_pct: float
-    apy_today_pct: float
+    apy_today_pct: float          # ADR-301: ЗАРАБОТАННАЯ ставка дня, не ожидаемая
     total_return_pct: float
     days_running: int
     model_used: str | None
@@ -258,6 +258,9 @@ class CycleResult:
     correlation_id: str = ""
     # MP-534: market regime snapshot for this cycle.
     market_regime: str = "UNKNOWN"
+    # ADR-301: сколько книга дала БЫ, будь каждая её ставка наблюдаемой. Стои́т рядом
+    # с `apy_today_pct` (заработанное) — разница двух полей и есть цена ненаблюдаемости.
+    apy_expected_pct: float = 0.0
     regime_t1_avg_apy: float = 0.0
 
     def to_dict(self) -> dict:
@@ -273,6 +276,7 @@ class CycleResult:
             "daily_yield_usd": self.daily_yield_usd,
             "daily_return_pct": self.daily_return_pct,
             "apy_today_pct": self.apy_today_pct,
+            "apy_expected_pct": self.apy_expected_pct,
             "total_return_pct": self.total_return_pct,
             "days_running": self.days_running,
             "model_used": self.model_used,
@@ -2458,6 +2462,19 @@ def run_cycle(
         turnover_usd=_turnover_usd,
     )
 
+    # ── ADR-301: «APY за сегодня» ОДИН на весь прогон ────────────────────────────
+    # ADR-298 сделал бар честным: его `apy_today` — ставка, ПРОИЗВЕДШАЯ доход бара.
+    # Но `CycleResult.apy_today_pct` остался ожидаемой взвешенной ставкой, и один
+    # прогон стал выдавать ДВА разных «APY за сегодня» (замер на копии живой книги:
+    # бар 3.13 %, результат 4.71 %). Хуже, что второе число уходит дальше бара: в
+    # `paper_evidence.json` — тот самый файл, которым мы доказываем трек, — и в
+    # трекер вех. Доказательство обязано нести ЗАРАБОТАННОЕ, а не ожидаемое.
+    _bar_now: dict = next((b for b in reversed(equity_doc.get("daily") or [])
+                           if b.get("date") == today), {})
+    _open_for_apy = float(_bar_now.get("open_equity") or 0.0)
+    _apy_accrued_pct = round(
+        (daily_yield * 365.0 / _open_for_apy * 100.0) if _open_for_apy else 0.0, 4)
+
     # ── Archive the accrual INPUTS (inbox «Целостность трека SPA», task 3) ──────────
     # The bar can only be re-derived if the apy_map/positions the accrual USED are kept;
     # measured 2026-09-08 they were not (journal W37). Side-car: never raises into the cycle.
@@ -2469,7 +2486,7 @@ def run_cycle(
             _cia.build_record(
                 cycle_date=today, run_ts=run_ts,
                 open_equity=_bar_today.get("open_equity", prev_equity), close_equity=close_equity,
-                daily_yield_usd=daily_yield, apy_today_pct=weighted_apy, positions=effective_positions,
+                daily_yield_usd=daily_yield, apy_today_pct=_apy_accrued_pct, positions=effective_positions,
                 apy_map=apy_map, fallback_pools=[p for p in effective_positions if p in _fallback_apy_pools],
                 accrual_source=_accrual_source,
                 snapshot_id=str(locals().get("snapshot_id") or locals().get("_snapshot_id") or "") or None,
@@ -2499,7 +2516,8 @@ def run_cycle(
         current_equity=round(close_equity, 2),
         daily_yield_usd=round(daily_yield, 4),
         daily_return_pct=daily_return_pct,
-        apy_today_pct=round(weighted_apy, 4),
+        apy_today_pct=_apy_accrued_pct,
+        apy_expected_pct=round(weighted_apy, 4),   # ADR-301
         total_return_pct=round((close_equity / capital_usd - 1.0) * 100.0, 4),
         days_running=days,
         model_used=model_used,

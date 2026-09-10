@@ -437,11 +437,14 @@ def _seed_scene(state_dir: Path, now: dt.datetime) -> None:
         "positions": {"aave_v3": 0.40 * _SCENE_CAPITAL_USD,
                       "pendle": 0.20 * _SCENE_CAPITAL_USD},
     }), encoding="utf-8")
+    # `evidence_level: "L5"` отсюда УБРАН (2026-09-10). Поле не читал никто — ни этот
+    # модуль, ни настоящий писатель кривой его не пишет вовсе, — а линтер дерева
+    # (`spa_core/tests/test_evidence_level_claims.py`) запрещает заявку L4+ где бы то ни
+    # было: L4 по канону означает исполнение РЕАЛЬНЫМ капиталом, которого не было ни разу.
+    # Два красных теста держались на украшении в синтетической сцене.
     (state_dir / "equity_curve_daily.json").write_text(json.dumps({"daily": [
-        {"date": "2026-01-01", "close_equity": _SCENE_CAPITAL_USD,
-         "evidence_level": "L5"},
-        {"date": "2026-01-02", "close_equity": _SCENE_CAPITAL_USD * 1.005,
-         "evidence_level": "L5"},
+        {"date": "2026-01-01", "close_equity": _SCENE_CAPITAL_USD},
+        {"date": "2026-01-02", "close_equity": _SCENE_CAPITAL_USD * 1.005},
     ]}), encoding="utf-8")
     (state_dir / "adapter_orchestrator_status.json").write_text(json.dumps({
         "adapters": [
