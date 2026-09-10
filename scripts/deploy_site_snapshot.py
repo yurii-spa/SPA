@@ -36,6 +36,12 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[1]
 _SNAP = _ROOT / "landing" / "src" / "data" / "track_snapshot.json"
 _GEN = _ROOT / "scripts" / "generate_track_snapshot.py"
+# Числа-РЕШЕНИЯ сайта (пороги, потолки, стартовый капитал) — ADR-315. Пересобираются
+# здесь же, потому что «одно место» является местом ровно до тех пор, пока его никто
+# не обгоняет: изменённый ADR правит `data/capital_config.json`, а страница обязана
+# увидеть новый порог тем же заходом, что и свежий замер.
+_CONST_GEN = _ROOT / "scripts" / "build_site_constitution.py"
+_CONST = _ROOT / "landing" / "src" / "lib" / "constitution.json"
 # ЕДИНСТВЕННЫЙ санкционированный путь для landing/** — обёртка с owner-гейтом и реситом
 # доставки. Прямой batch-пушер отсюда не вызывается: см. дефект 1 в шапке модуля.
 _PUSH = _ROOT / "scripts" / "safe_site_push.py"
@@ -99,8 +105,38 @@ def _origin_snapshot():
         return None
 
 
+def _differs_from_origin(path: Path) -> bool:
+    """Отличается ли файл от своей версии на origin/main. Не смогли спросить ⇒ True.
+
+    fail-OPEN здесь ВЕРНО и это осознанно: не узнав ответа, мы отправим файл, который
+    и так генерируется целиком; пушер сам откажет, если отправлять нечего. Обратное
+    (промолчать) означало бы тихо не доставить изменённый порог.
+    """
+    try:
+        rel = path.relative_to(_ROOT)
+        r = subprocess.run(["git", "-C", str(_ROOT), "fetch", "-q", "origin", "main"],
+                           capture_output=True, timeout=60)
+        r = subprocess.run(["git", "-C", str(_ROOT), "show", f"origin/main:{rel}"],
+                           capture_output=True, text=True, timeout=60)
+        if r.returncode != 0:
+            return True
+        return r.stdout != path.read_text(encoding="utf-8")
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return True
+
+
 def main() -> int:
     import json
+
+    # 0. конституция сайта из своего источника (ADR-315). Отказ здесь НЕ валит деплой
+    #    снимка: это разные числа с разной природой, и уронить свежий замер из-за
+    #    порога значило бы предпочесть устаревшее отсутствующему.
+    rc_const = subprocess.run([_PY, str(_CONST_GEN)], capture_output=True, text=True,
+                              timeout=120)
+    print(_both(rc_const))
+    if rc_const.returncode != 0:
+        print("deploy_site_snapshot: constitution build FAILED — снимок деплоим, "
+              "конституцию НЕ трогаем (прежняя копия остаётся)", file=sys.stderr)
 
     # 1. regenerate from the freshly-written committed data
     r = subprocess.run([_PY, str(_GEN)], capture_output=True, text=True, timeout=120)
@@ -127,8 +163,15 @@ def main() -> int:
         print("deploy_site_snapshot: snapshot changed after generation — refusing to overwrite blindly",
               file=sys.stderr)
         return 1
+    files = [str(_SNAP)]
+    # Конституция едет тем же коммитом ТОЛЬКО когда действительно отличается от
+    # origin: она меняется решением, а не сутками, и слать её каждый день значило бы
+    # объявлять изменением то, что не менялось.
+    if rc_const.returncode == 0 and _differs_from_origin(_CONST):
+        files.append(str(_CONST))
+        print("deploy_site_snapshot: constitution.json отличается от origin — едет тем же коммитом")
     p = subprocess.run(
-        [_PY, str(_PUSH), "--files", str(_SNAP), "--allow-overwrite",
+        [_PY, str(_PUSH), "--files", *files, "--allow-overwrite",
          "--message", "chore(site-custodian): auto-deploy fresh track_snapshot after daily cycle"],
         capture_output=True, text=True, timeout=180,
     )

@@ -20,6 +20,7 @@ minimum 5.0%», и 33.7 % капитала стояли без работы: д�
 """
 from __future__ import annotations
 
+import math
 import unittest
 
 from spa_core.risk.policy import PortfolioState, Position, RiskPolicy
@@ -33,6 +34,21 @@ LEGS = [
     ("morpho_blue_base", 6578.950000000001),
 ]
 CAPITAL = 100_000.0
+
+
+def _remainder(sum_fn) -> float:
+    """Остаток на последней ноге способом ГЕЙТА: `капитал − sum(предыдущие) − сумма`.
+
+    `sum_fn` — АЛГОРИТМ сложения, вынесенный во вход: от него и зависит, по какую
+    сторону порога ляжет результат, и оставлять его на усмотрение интерпретатора
+    значит отдать вердикт теста хосту.
+    """
+    prior: list[float] = []
+    last = 0.0
+    for _key, amount in LEGS:
+        last = CAPITAL - sum_fn(prior) - amount
+        prior.append(amount)
+    return last
 
 
 def _pos(key: str, amount: float) -> Position:
@@ -49,15 +65,42 @@ class TheRealIncidentOf29Aug(unittest.TestCase):
     """Положительный контроль: те же числа, тот же порядок, тот же способ счёта."""
 
     def test_the_gate_arithmetic_really_lands_below_the_threshold(self):
-        """Сначала докажем, что авария не выдумана: сырая арифметика гейта."""
-        prior: list[float] = []
-        last = None
-        for _key, amount in LEGS:
-            cash = CAPITAL - sum(prior)
-            last = cash - amount
-            prior.append(amount)
-        self.assertLess(last, 5000.0, "числа аварии не воспроизводятся — контроль пуст")
-        self.assertGreater(last, 4999.99, "это уже НАСТОЯЩЕЕ нарушение, а не шум")
+        """Сначала докажем, что авария не выдумана: сырая арифметика гейта.
+
+        ИЗМЕНЁН НАМЕРЕННО 10.09 (инвариант #16): вердикт контроля решала ВЕРСИЯ
+        ИНТЕРПРЕТАТОРА, а не предмет. В CPython 3.12 встроенный ``sum()`` над float
+        перешёл на компенсированное суммирование, и одна и та же строка
+        ``CAPITAL - sum(prior) - amount`` даёт
+
+            py3.13 (прод) ``4999.999999999996``  — авария воспроизводится,
+            py3.11 (CI)   ``5000.000000000011``  — не воспроизводится.
+
+        Матрица CI гоняет 3.11 и 3.12, поэтому контроль был красным на 3.11 по
+        причине, не имеющей отношения к аварии. Тот же класс, что литеральная дата
+        и литеральный pid: вход, приходящий из окружения, обязан быть назван явно.
+
+        Проверка не ослаблена, а усилена — теперь она называет и сам механизм.
+        ``math.fsum`` даёт ТОЧНУЮ сумму и одинакова на любой версии; именно её
+        воспроизводит ``sum()`` прода. Наивное последовательное сложение тех же
+        чисел ложится по ДРУГУЮ сторону порога — в этом и была суть спора 29.08.
+        """
+        def _naive(values) -> float:
+            total = 0.0
+            for v in values:
+                total += v
+            return total
+
+        exact = _remainder(math.fsum)
+        self.assertLess(exact, 5000.0, "числа аварии не воспроизводятся — контроль пуст")
+        self.assertGreater(exact, 4999.99, "это уже НАСТОЯЩЕЕ нарушение, а не шум")
+
+        naive = _remainder(_naive)
+        self.assertGreater(naive, 5000.0,
+                           "наивное сложение обязано лечь по ДРУГУЮ сторону порога — "
+                           "без этого спор 29.08 был бы невозможен")
+        self.assertLess(abs(naive - exact), 0.01,
+                        "два честных способа сложить одни деньги разошлись больше "
+                        "чем на цент — тогда спор уже не о последних битах")
 
     def test_no_leg_is_refused_for_the_cash_buffer(self):
         """Главное: ни одна нога не отвергается из-за буфера на этих числах."""

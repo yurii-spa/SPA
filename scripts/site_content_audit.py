@@ -391,6 +391,34 @@ def check_narrative_constants(pages_dir: Path, components_dir: Path | None = _CO
 
 
 # ── the audit ──────────────────────────────────────────────────────────────────────────────────────
+def check_number_provenance() -> dict:
+    """Числа сайта без происхождения (ADR-315, `.claude/rules/site-numbers.md`).
+
+    Делегирует `scripts/site_number_provenance.py`. Инструмент недоступен ⇒ ТРЕТИЙ
+    исход `unmeasured` с названной причиной, а не тихое «чисто»: соседняя делегация
+    в этом же файле (`check_redirect_shadowing`) глушит любое исключение через
+    `except Exception: pass`, и это ровно тот fail-OPEN, который здесь повторять нельзя.
+    """
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "snp", _ROOT / "scripts" / "site_number_provenance.py")
+        if spec is None or spec.loader is None:
+            return {"unmeasured": ["site_number_provenance.py не загружается"]}
+        snp = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(snp)
+        rep = snp.scan()
+        base, why = snp.load_baseline()
+        if why:
+            rep.setdefault("unmeasured", []).append(why)
+        v = snp.verdict(rep, base)
+        return {"unmeasured": v["unmeasured"], "new_undeclared": v["new_undeclared"],
+                "undeclared_total": v["undeclared_total"],
+                "baseline_total": v["baseline_total"], "counts": v["counts"]}
+    except Exception as exc:  # noqa: BLE001 — причина уезжает в отчёт словами
+        return {"unmeasured": [f"провенанс чисел НЕ измерен: {type(exc).__name__}: {exc}"]}
+
+
 def audit(pages_dir: Path = _PAGES, public_dir: Path | None = None, now: datetime.date | None = None,
           components_dir: Path | None = _COMPONENTS):
     now = now or datetime.datetime.now(datetime.timezone.utc).date()
@@ -418,6 +446,17 @@ def audit(pages_dir: Path = _PAGES, public_dir: Path | None = None, now: datetim
             fails.append({"code": "REDIRECT_SHADOWING", "severity": ERROR, "detail": "see check_redirect_shadowing output"})
     except Exception:
         pass
+    # 7. NUMBER_PROVENANCE (ADR-315) — откуда взялось каждое число. Отдельный вопрос
+    #    от METRIC_DIVERGENCE выше: шестнадцать СОГЛАСОВАННЫХ литералов расхождения не
+    #    дают и остаются литералами. Меряется ЖИВОЙ сайт, а не `pages_dir`: фикстура —
+    #    это сцена для соседних проверок, у неё нет ни базы храповика, ни провенанса,
+    #    и судить о доставленном сайте по ней нельзя. WARN, а не ERROR: понедельничный
+    #    workflow этого файла уже краснел 10 раз подряд, и сторож, всегда красный, —
+    #    сторож, которого не читают. Красное на КАЖДОМ пуше даёт CI-храповик.
+    prov = check_number_provenance()
+    if prov.get("unmeasured") or prov.get("new_undeclared"):
+        fails.append({"code": "NUMBER_PROVENANCE", "severity": WARN, "detail": prov})
+
     narr = check_narrative_constants(pages_dir, components_dir=components_dir)
     if narr["cycle_time_wrong"]:
         fails.append({"code": "NARRATIVE_CYCLE_TIME", "severity": ERROR, "detail": narr["cycle_time_wrong"]})

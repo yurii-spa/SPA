@@ -18,6 +18,7 @@
 """
 from __future__ import annotations
 
+import math
 import unittest
 
 from spa_core.paper_trading.risk_gate import redistribution_refusal_record as rec
@@ -88,13 +89,59 @@ class RoundingWouldEraseTheEvidence(unittest.TestCase):
             prior.append(float(v))
         self.assertEqual(repr(cash), r["raw_remaining_sequential"])
 
+    #: Сырые ноги, поданные продом 29.08 (запись ADR-072 REJECTED, без округления).
+    REAL = {"aave_v3": 22105.260000000006, "compound_v3": 37894.74,
+            "fluid_usdc": 9473.68, "maple": 18947.37,
+            "morpho_blue_base": 6578.950000000001}
+
+    @staticmethod
+    def _remainder(capital: float, target: dict, sum_fn) -> float:
+        """Остаток способом гейта; АЛГОРИТМ сложения — вход, а не свойство хоста."""
+        prior: list = []
+        cash = float(capital)
+        for _pool, usd in sorted(target.items(), key=lambda kv: (-kv[1], kv[0])):
+            cash = float(capital) - sum_fn(prior) - float(usd)
+            prior.append(float(usd))
+        return cash
+
     def test_the_record_reproduces_the_real_refusal_of_29_aug(self):
-        """Положительный контроль: на сырых числах прода запись обязана уйти НИЖЕ порога."""
-        real = {"aave_v3": 22105.260000000006, "compound_v3": 37894.74,
-                "fluid_usdc": 9473.68, "maple": 18947.37,
-                "morpho_blue_base": 6578.950000000001}
-        r = rec(real, 100000.0, {}, ["cash buffer"])
-        self.assertLess(float(r["raw_remaining_frac"]), 0.05)
+        """Положительный контроль: на сырых числах прода отказ обязан воспроизводиться.
+
+        ИЗМЕНЁН НАМЕРЕННО 10.09 (инвариант #16). Прежняя редакция читала
+        `raw_remaining_frac` из записи и требовала `< 0.05`. Запись считает
+        встроенным `sum()`, а в CPython 3.12 он перешёл на компенсированное
+        суммирование: на 3.13 (прод) доля выходит `0.049999999999999996` — авария
+        воспроизводится, на 3.11 (одна из версий матрицы CI) — `0.05000000000000011`,
+        не воспроизводится. Вердикт решала ВЕРСИЯ ИНТЕРПРЕТАТОРА, а не предмет.
+
+        Проверка усилена, а не ослаблена: алгоритм сложения теперь ВХОД, названы оба
+        способа, и показано, что они лежат по разные стороны порога — в этом и была
+        суть спора 29.08. Свойство самой ЗАПИСИ (воспроизводимость из неё же)
+        проверяет `test_the_refusal_can_be_recomputed_from_the_record_alone`.
+        """
+        def _naive(values) -> float:
+            total = 0.0
+            for v in values:
+                total += v
+            return total
+
+        cap = 100000.0
+        r = rec(self.REAL, cap, {}, ["cash buffer"])
+
+        exact = self._remainder(cap, self.REAL, math.fsum)
+        self.assertLess(exact / cap, 0.05, "числа аварии не воспроизводятся — контроль пуст")
+        self.assertGreater(exact / cap, 0.0499, "это уже НАСТОЯЩЕЕ нарушение, а не шум")
+
+        naive = self._remainder(cap, self.REAL, _naive)
+        self.assertGreater(naive / cap, 0.05,
+                           "наивное сложение обязано лечь по ДРУГУЮ сторону порога")
+        self.assertLess(abs(naive - exact), 0.01,
+                        "два способа сложить одни деньги разошлись больше чем на цент")
+
+        # запись обязана нести ОДИН из двух — тот, которым считает ЭТОТ интерпретатор
+        self.assertIn(repr(float(r["raw_remaining_frac"])),
+                      {repr(exact / cap), repr(naive / cap)},
+                      "запись не совпала ни с одним из двух честных способов счёта")
         self.assertEqual(r["remaining_cash_usd"], 5000.0,
                          "округлённое число обязано остаться читаемым для человека")
 
