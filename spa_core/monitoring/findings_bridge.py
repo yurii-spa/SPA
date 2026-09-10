@@ -115,6 +115,7 @@ PRODUCES = (
     "data/journal_population_backfill.json",
     "data/leg_provenance_split.json",
     "data/snapshot_minute_sensitivity.json",
+    "data/decision_record_run_identity.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -185,6 +186,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "journal_population_backfill",
     "leg_provenance_split",
     "snapshot_minute_sensitivity",
+    "decision_record_run_identity",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -315,6 +317,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "snapshot_minute_sensitivity": {
         "module": "spa_core/monitoring/snapshot_minute_sensitivity.py",
         "artifact": "data/snapshot_minute_sensitivity.json"},
+    "decision_record_run_identity": {
+        "module": "spa_core/monitoring/decision_record_run_identity.py",
+        "artifact": "data/decision_record_run_identity.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -1153,6 +1158,19 @@ def main(argv=None) -> int:
               f"unchecked={_sms['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "snapshot_minute_sensitivity", e)
+    # Заказ #550/#551 (ADR-314): сколько снимков в день видит запись решения и
+    # один ли это выбор. Мост находок его НЕ читает по той же причине, что и
+    # соседей: единственное действие по итогам — тронуть писателя журнала
+    # решений, то есть money-path. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import decision_record_run_identity
+        _drri = decision_record_run_identity.run(root=args.root)
+        print(f"decision_record_run_identity: {_drri['overall']} "
+              f"(critical={_drri['counts']['critical']} "
+              f"warn={_drri['counts']['warn']} "
+              f"unchecked={_drri['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "decision_record_run_identity", e)
     try:
         from spa_core.monitoring import arming_wall_order
         _awo = arming_wall_order.run(root=args.root)

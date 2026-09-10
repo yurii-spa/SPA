@@ -392,6 +392,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "snapshot_minute_sensitivity.json": ("status", "journal_rows", "population",
                                          "class_counts", "movement",
                                          "sensitivity", "losses", "findings"),
+    # Заказ #550/#551. `population` обязательно по той же причине, что у соседа:
+    # ответ «запись видит один снимок» без населения выродится в лозунг. `days`
+    # отдельно — потому что вердикт стои́т на ПОИМЁННОМ разборе дня (какой прогон
+    # опознан, каким он был по счёту), и артефакт без него нечем перепроверить.
+    # `does_not_report` в схеме обязателен намеренно: главный отказ прибора —
+    # «сколько теневых целей затёрто, НЕ ИЗМЕРЕНО» — и артефакт, потерявший это
+    # поле, читался бы как «затёрто ноль».
+    "decision_record_run_identity.json": ("status", "journal_rows", "population",
+                                          "days", "findings", "does_not_report"),
     # Заказ #544. `per_pair` в схеме обязателен по той же причине, что
     # `attribution` у соседа: ответ «чем закрываема дыра» без перечня пар
     # выродится в долю. `series_provenance_exposure` — потому что наличие
@@ -516,6 +525,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/leg_provenance_split.py",
     "snapshot_minute_sensitivity.json":
         "spa_core/monitoring/snapshot_minute_sensitivity.py",
+    "decision_record_run_identity.json":
+        "spa_core/monitoring/decision_record_run_identity.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2002,6 +2013,18 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _sms_report,
         )
         out.extend(_sms_report(data))
+    elif name == "decision_record_run_identity.json":
+        # Заказ #550/#551. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ
+        # (сколько дней вообще опознано по прогону), потом положение выжившего
+        # прогона и знак отметки, и только потом ответы. Население идёт ПЕРВЫМ
+        # намеренно: читатель, увидевший «в журнал не попало N прогонов» первой
+        # строкой, прочтёт это как замер всего журнала, — а носитель прогонов
+        # покрывает 19 дней из 36, и его молчание об остальных прибор называет
+        # третьим исходом, а не нулём.
+        from spa_core.monitoring.decision_record_run_identity import (
+            format_report as _drri_report,
+        )
+        out.extend(_drri_report(data))
     elif name == "arming_wall_order.json":
         # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
         # стен с числами освобождённых дней, потом вердикт ветки, и только потом
