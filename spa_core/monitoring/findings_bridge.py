@@ -111,6 +111,7 @@ PRODUCES = (
     "data/g1_verdict_recoverability.json",
     "data/unevidenced_leg_causes.json",
     "data/journal_backfill_material.json",
+    "data/arming_wall_order.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -177,6 +178,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "g1_verdict_recoverability",
     "unevidenced_leg_causes",
     "journal_backfill_material",
+    "arming_wall_order",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -295,6 +297,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "journal_backfill_material": {
         "module": "spa_core/monitoring/journal_backfill_material.py",
         "artifact": "data/journal_backfill_material.json"},
+    "arming_wall_order": {
+        "module": "spa_core/monitoring/arming_wall_order.py",
+        "artifact": "data/arming_wall_order.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -1102,6 +1107,20 @@ def main(argv=None) -> int:
               f"unchecked={_ulc['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "unevidenced_leg_causes", e)
+    # Заказ #545 (ADR-305 поставил вопрос): остаётся ли расширение записи на
+    # критическом пути к взводу — по ОБОИМ порядкам снятия стен. Мост находок
+    # его НЕ читает по той же причине, что и соседей: единственное действие по
+    # итогам — снять стену, то есть тронуть пороги оборота либо писателя журнала
+    # решений, а это money-path и предмет №1 ADR-285. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import arming_wall_order
+        _awo = arming_wall_order.run(root=args.root)
+        print(f"arming_wall_order: {_awo['overall']} "
+              f"(critical={_awo['counts']['critical']} "
+              f"warn={_awo['counts']['warn']} "
+              f"unchecked={_awo['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "arming_wall_order", e)
     # Заказ #544 (ADR-302 поставил вопрос): чем ЗАКРЫВАЕМА дыра переписи задним
     # числом и той ли это пробы. Мост находок его НЕ читает по той же причине,
     # что и соседа выше: единственное действие по итогам — тронуть писателя

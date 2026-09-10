@@ -377,6 +377,14 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # выродится в долю. `series_provenance_exposure` — потому что наличие
     # материала и его ПРОБА суть разные величины, и артефакт, несущий только
     # первую, читался бы как «починка дешёвая».
+    # Заказ #545. `orders` в схеме обязателен: заказ потребовал ОБА порядка
+    # снятия стен, и артефакт с одним отвечал бы на «что блокирует сегодня».
+    # `expansion_ceiling` — потому что «стена связывает» и «предложенное
+    # расширение её снимет» суть РАЗНЫЕ утверждения, и артефакт, несущий только
+    # первое, читался бы как приказ править писателя.
+    "arming_wall_order.json": ("status", "material_days", "orders",
+                               "branch_verdict", "expansion_ceiling",
+                               "what_it_does_not_prove", "findings"),
     "journal_backfill_material.json": ("status", "pairs_cut_by_transcription",
                                        "material", "per_pair",
                                        "protocols_without_material",
@@ -471,6 +479,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/unevidenced_leg_causes.py",
     "journal_backfill_material.json":
         "spa_core/monitoring/journal_backfill_material.py",
+    "arming_wall_order.json":
+        "spa_core/monitoring/arming_wall_order.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -1935,6 +1945,16 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _ulc_report,
         )
         out.extend(_ulc_report(data))
+    elif name == "arming_wall_order.json":
+        # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
+        # стен с числами освобождённых дней, потом вердикт ветки, и только потом
+        # потолок расширения. Потолок идёт ПОСЛЕ намеренно: читатель, увидевший
+        # «внутри потолка N пар» первой строкой, прочтёт это как «расширение
+        # починит» — чего замер не утверждает и прямо называет третьим исходом.
+        from spa_core.monitoring.arming_wall_order import (
+            format_report as _awo_report,
+        )
+        out.extend(_awo_report(data))
     elif name == "journal_backfill_material.json":
         # Заказ #544. Сперва НАЛИЧИЕ материала (по парам, поимённо), и только
         # потом его ПРОБА. Порядок не косметика: владелец, увидевший «40 из 41»
