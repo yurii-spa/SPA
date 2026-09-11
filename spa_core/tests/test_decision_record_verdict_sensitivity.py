@@ -246,6 +246,33 @@ class PriorClaimRecheckTest(unittest.TestCase):
         self.assertEqual(out["verdict"], "prior_claim_stands")
 
 
+class ADayWithoutNetIsNotTheClosestToAFlip(unittest.TestCase):
+    """ADR-344 (инвариант #17): день без `net_usd` — не день с нулевым net.
+
+    Контроль ставится на дне, чей исход БЛИЖЕ всего к перевороту (|net| → min), и
+    подстановка нуля сделала бы строку БЕЗ net самой близкой всегда. Замер правки:
+    ветка «нет net» недостижима, потому что отбор `scored` уже требует наличия
+    поля — поэтому подстановка снята, а НЕ заменена вторым отказом (недостижимый
+    отказ был бы украшением). Тест сторожит именно отбор.
+    """
+
+    def test_a_day_without_net_is_excluded_by_the_selection(self):
+        with TemporaryDirectory() as td:
+            base = {"per_verdict": [{"cycle_date": _day(0), "material": True,
+                                     "outcome": "hit"}]}
+            out = drvs.capability_control(Path(td), [], base)
+        self.assertFalse(out["fired"])
+        self.assertIn("оценённых существенных дней нет", out["note"])
+
+    def test_a_day_with_a_recorded_zero_net_is_kept(self):
+        """Обратная сторона: записанный ноль — измеренный исход, он годится."""
+        with TemporaryDirectory() as td:
+            base = {"per_verdict": [{"cycle_date": _day(0), "material": True,
+                                     "outcome": "hit", "net_usd": 0.0}]}
+            out = drvs.capability_control(Path(td), [], base)
+        self.assertNotIn("оценённых существенных дней нет", out.get("note", ""))
+
+
 class CapabilityControlTest(unittest.TestCase):
     """Контроль обязан РАБОТАТЬ на настоящем реплее, а не только в отчёте."""
 
