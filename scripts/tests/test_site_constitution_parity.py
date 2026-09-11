@@ -68,6 +68,36 @@ class Parity(unittest.TestCase):
         # две ступени, а не одна — именно это теряется, если взять число из конфига
         self.assertNotEqual(ladder["soft_derisk_pct"], ladder["hard_kill_pct"])
 
+    def test_the_chain_caps_come_from_the_allocator_not_a_copy(self):
+        """Потолки сети — из живого кода (ADR-345/ADR-025), а не переписаны в файл.
+
+        Их нет в `capital_config.json` вовсе, и страница академии печатала
+        «Base ≤ 20 %» литералом. Проверка сверяет записанное с КОНСТАНТАМИ класса:
+        разойдись они — на сайте будет число, которого в аллокаторе больше нет.
+        """
+        from spa_core.allocator.allocator import StrategyAllocator
+
+        doc, why = self.m.build()
+        self.assertEqual(why, "")
+        caps = doc["chain_caps"]
+        self.assertAlmostEqual(caps["base_chain_pct"],
+                               StrategyAllocator.BASE_CHAIN_CAP * 100.0, places=4)
+        self.assertAlmostEqual(caps["l2_total_pct"],
+                               StrategyAllocator.L2_TOTAL_CAP * 100.0, places=4)
+        self.assertAlmostEqual(caps["single_chain_pct"],
+                               StrategyAllocator.SINGLE_CHAIN_CAP * 100.0, places=4)
+        self.assertIn("allocator.py", caps["_source"])
+
+    def test_unreadable_chain_caps_refuse_the_whole_document(self):
+        """Неполная конституция хуже отсутствующей: страница напечатала бы «нет данных»
+        там, где порог ЕСТЬ, — поэтому отказ целиком, а не тихий пропуск поля."""
+        from unittest import mock
+
+        with mock.patch.object(self.m, "chain_caps", return_value=({}, "источник молчит")):
+            doc, why = self.m.build()
+        self.assertEqual(doc, {})
+        self.assertIn("источник молчит", why)
+
     def test_an_unreadable_source_refuses_instead_of_writing_a_stale_copy(self):
         with TemporaryDirectory() as td:
             doc, why = self.m.build(Path(td) / "нет.json")
