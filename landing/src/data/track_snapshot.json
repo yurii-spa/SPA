@@ -2,24 +2,24 @@
   "generated_from": "data/golive_status.json + data/equity_curve_daily.json + data/paper_trading_status.json",
   "generator": "scripts/generate_track_snapshot.py",
   "note": "Build-time static fallback for the public pages. Live values come from api.earn-defi.com and override these client-side; this is the last honest snapshot for offline / crawlers. real_track_days = EVIDENCED bars only. Missing value => 'data unavailable', never a stale number.",
-  "as_of": "2026-09-10",
-  "generated_at": "2026-09-10T08:00:51Z",
+  "as_of": "2026-09-11",
+  "generated_at": "2026-09-11T06:01:24Z",
   "degraded": false,
-  "real_track_days": 79,
+  "real_track_days": 80,
   "go_live_target": null,
   "go_live_state": "gate_passed_owner_decision_pending",
   "evidenced_anchor": "2026-06-22",
   "days_needed": 30,
   "gates_passed": 29,
   "gates_total": 29,
-  "end_equity": 101274.23,
-  "nav_usd": 101274.23,
-  "paper_apy_pct": 5.2897,
+  "end_equity": 101290.24,
+  "nav_usd": 101290.24,
+  "paper_apy_pct": 5.2978,
   "max_drawdown_pct": -0.0257,
-  "total_return_pct": 1.2742,
+  "total_return_pct": 1.2902,
   "packages": {
     "conservative": {
-      "apy_pct": 5.4,
+      "apy_pct": 3.7,
       "dd_pct": 0.0
     },
     "balanced": {
@@ -34,31 +34,31 @@
   "paper_tracks": {
     "conservative": {
       "status": "paper_test_running",
-      "days_with_positions": 79,
-      "days_funded": 79,
-      "apy_pct": 5.29,
+      "days_with_positions": 80,
+      "days_funded": 80,
+      "apy_pct": 5.3,
       "dd_pct": -0.0257,
-      "nav_usd": 101274.23,
+      "nav_usd": 101290.24,
       "positions_count": null,
       "evidence": "paper"
     },
     "balanced": {
       "status": "paper_test_running",
-      "days_with_positions": 18,
-      "days_funded": 18,
-      "apy_pct": 5.51,
-      "dd_pct": -0.2,
-      "nav_usd": 100294.16,
+      "days_with_positions": 19,
+      "days_funded": 19,
+      "apy_pct": 4.51,
+      "dd_pct": -0.24,
+      "nav_usd": 100259.0,
       "positions_count": 4,
       "evidence": "paper"
     },
     "aggressive": {
       "status": "paper_test_running",
-      "days_with_positions": 18,
-      "days_funded": 18,
-      "apy_pct": 9.67,
-      "dd_pct": -0.11,
-      "nav_usd": 100492.22,
+      "days_with_positions": 19,
+      "days_funded": 19,
+      "apy_pct": 8.92,
+      "dd_pct": -0.13,
+      "nav_usd": 100481.34,
       "positions_count": 2,
       "evidence": "paper"
     }
@@ -2939,6 +2939,37 @@
       "source": "cycle",
       "evidenced": true,
       "accrual_source": "fallback"
+    },
+    {
+      "date": "2026-09-11",
+      "open_equity": 101274.23,
+      "close_equity": 101290.24,
+      "high_equity": 101290.24,
+      "low_equity": 101274.23,
+      "snapshots": 1,
+      "daily_return_pct": 0.015805,
+      "cumulative_return_pct": 1.290236,
+      "drawdown_pct": 0.0,
+      "equity": 101290.24,
+      "apy_today": 5.7688,
+      "apy_expected_pct": 5.7688,
+      "daily_yield_usd": 16.0062,
+      "cost_usd": 0.0,
+      "turnover_usd": 0.0,
+      "net_pnl_usd": 16.0062,
+      "unobservable_pools": [],
+      "yield_forgone_usd": 0.0,
+      "positions": {
+        "pendle": 20000.0,
+        "fluid_usdc": 20000.0,
+        "compound_v3": 40000.0,
+        "aave_v3": 4736.84,
+        "maple": 5263.16,
+        "morpho_blue_base": 4736.84
+      },
+      "source": "cycle",
+      "evidenced": true,
+      "accrual_source": "live"
     }
   ]
 }
