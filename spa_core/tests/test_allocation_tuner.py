@@ -362,3 +362,44 @@ def test_run_allocation_tuner_writes_only_inside_given_dir(tmp_path):
 
     live_after = live_out.read_bytes() if live_out.exists() else None
     assert live_after == live_before, "живой data/tuner_suggestion.json не должен трогаться"
+
+
+def test_a_protocol_without_apy_is_refused_as_unmeasured():
+    """ADR-344 (инвариант #17): «ставки нет» ≠ «ставка ноль».
+
+    Отбор читал `float(a.get("apy", 0.0) or 0.0)`, и протокол БЕЗ ставки
+    отбрасывался как «измерен и ниже порога»: отказ по незнанию выглядел замером.
+    Отказ тот же (fail-CLOSED), но причина теперь названа отдельным списком.
+    """
+    t = _make_tuner()
+    data = list(_GOOD_ADAPTERS) + [{"id": "ghost", "tvl_usd": 50_000_000.0,
+                                    "tier": "T2", "chain": "ethereum"}]
+    out = t._eligible_adapters(data)
+    assert "ghost" not in [a["id"] for a in out]
+    assert "ghost" in t.refused_unmeasured
+
+
+def test_a_protocol_without_tvl_is_refused_as_unmeasured():
+    t = _make_tuner()
+    data = list(_GOOD_ADAPTERS) + [{"id": "ghost", "apy": 4.0, "tier": "T2",
+                                    "chain": "ethereum"}]
+    out = t._eligible_adapters(data)
+    assert "ghost" not in [a["id"] for a in out]
+    assert "ghost" in t.refused_unmeasured
+
+
+def test_a_measured_low_tvl_is_not_called_unmeasured():
+    """Обратная сторона: измеренный TVL ниже порога — ЗАМЕР, а не пробел."""
+    t = _make_tuner()
+    out = t._eligible_adapters(list(_ALL_ADAPTERS))
+    assert "morpho_blue" not in [a["id"] for a in out]
+    assert "morpho_blue" not in t.refused_unmeasured
+
+
+def test_a_measured_zero_apy_is_a_measurement():
+    t = _make_tuner()
+    data = list(_GOOD_ADAPTERS) + [{"id": "zero", "apy": 0.0,
+                                    "tvl_usd": 50_000_000.0, "tier": "T2",
+                                    "chain": "ethereum"}]
+    t._eligible_adapters(data)
+    assert "zero" not in t.refused_unmeasured
