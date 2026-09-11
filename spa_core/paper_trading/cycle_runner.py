@@ -2096,6 +2096,14 @@ def run_cycle(
         notes=notes,
     )
 
+    # ── Step 2e' (одно имя — один контракт): два ключа ОДНОГО пула не обходят
+    # потолок на протокол, который RiskPolicy считает по имени. Только УМЕНЬШАЕТ
+    # цель, как RTMR-поза выше; RiskPolicy v1.0 не тронут. Стоит ДО Step 2f, чтобы
+    # вердикт CIO судил уже итоговую цель. Карточка
+    # agent-dva-imeni-odin-kontrakt-20-deneg-stoyat, тождество доказано pool_id.
+    from spa_core.paper_trading.pool_alias_gate import apply_pool_alias_gate
+    target_usd = apply_pool_alias_gate(target_usd, capital_usd=capital_usd, notes=notes)
+
     # ── Step 2f (ADR-060 phase 0): yield-trigger SHADOW ──────────────────────
     # Records what the yield-improvement trigger WOULD decide about moving from the
     # held book to this cycle's target — gain over total capital, cost of the move,
