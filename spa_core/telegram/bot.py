@@ -60,6 +60,8 @@ except ImportError:  # pragma: no cover — non-POSIX; lock degrades to a no-op
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+from spa_core.utils.observation import observed, observed_number
 from spa_core.utils.atomic import atomic_save
 
 #: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
@@ -216,6 +218,16 @@ def _atomic_write_json(path: Path, obj: Any) -> None:
     atomic_save(obj, str(path))
 def _fmt_usd(value: float) -> str:
     return "${:,.2f}".format(float(value or 0.0))
+
+
+def _na_usd(value) -> str:
+    """Деньги для владельца. Нет числа — «н/д», а не «$0.00» (инвариант #17)."""
+    return _fmt_usd(value) if value is not None else "н/д"
+
+
+def _na_pct(value, digits: int = 2) -> str:
+    """Процент для владельца. Нет числа — «н/д», а не «0.00 %»."""
+    return f"{float(value):.{digits}f}%" if value is not None else "н/д"
 
 
 def _pct_sign(value: float) -> str:
@@ -669,12 +681,14 @@ class TelegramBot:
             st = _read_json(DATA_DIR / "paper_trading_status.json", {})
             ks = _read_json(KILL_SWITCH_FILE, {})
 
-            equity = float(st.get("current_equity", 0.0) or 0.0)
+            # Нет поля в снимке — владельцу пишется «н/д», а не ноль: ноль на
+            # экране неотличим от измеренного нуля (инвариант #17, ADR-344).
+            equity = observed_number(st, "current_equity")
             start_eq = 100000.0
-            pnl_usd = equity - start_eq
-            total_ret = float(st.get("total_return_pct", 0.0) or 0.0)
-            apy_today = float(st.get("apy_today_pct", 0.0) or 0.0)
-            daily_yield = float(st.get("daily_yield_usd", 0.0) or 0.0)
+            pnl_usd = None if equity is None else equity - start_eq
+            total_ret = observed_number(st, "total_return_pct")
+            apy_today = observed_number(st, "apy_today_pct")
+            daily_yield = observed_number(st, "daily_yield_usd")
             days = st.get("days_running", "?")
             last_cycle = str(st.get("last_cycle_ts", "?") or "?")[:16].replace("T", " ")
 
@@ -684,17 +698,19 @@ class TelegramBot:
             now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
             text = (
                 "📊 <b>SPA Status</b> · {now}\n\n"
-                "💰 Equity: {eq} ({sgn}{pnl} / {tsgn}{tot:.2f}%)\n"
-                "📈 APY Today: {apy:.2f}%\n"
+                "💰 Equity: {eq} ({sgn}{pnl} / {tsgn}{tot})\n"
+                "📈 APY Today: {apy}\n"
                 "💵 Daily Yield: {dy}\n"
                 "🗓 Trading Day: {days}/30\n\n"
                 "🔒 Kill-Switch: {ks}\n"
                 "🔄 Last Cycle: {lc}"
             ).format(
-                now=now_str, eq=_fmt_usd(equity),
-                sgn=_pct_sign(pnl_usd), pnl=_fmt_usd(abs(pnl_usd)),
-                tsgn=_pct_sign(total_ret), tot=total_ret,
-                apy=apy_today, dy=_fmt_usd(daily_yield), days=days,
+                now=now_str, eq=_na_usd(equity),
+                sgn="" if pnl_usd is None else _pct_sign(pnl_usd),
+                pnl=_na_usd(None if pnl_usd is None else abs(pnl_usd)),
+                tsgn="" if total_ret is None else _pct_sign(total_ret),
+                tot=_na_pct(total_ret),
+                apy=_na_pct(apy_today), dy=_na_usd(daily_yield), days=days,
                 ks=ks_line, lc=last_cycle,
             )
             self.send_message(text, chat_id, reply_markup=self._status_keyboard())
@@ -705,8 +721,10 @@ class TelegramBot:
         try:
             doc = _read_json(DATA_DIR / "current_positions.json", {})
             positions = doc.get("positions", {}) if isinstance(doc, dict) else {}
-            capital = float(doc.get("capital_usd", 100000.0) or 100000.0)
-            cash = float(doc.get("cash_usd", 0.0) or 0.0)
+            capital = observed_number(doc, "capital_usd")
+            if capital is None:
+                capital = 100000.0     # объявленный paper-капитал, см. ниже
+            cash = observed_number(doc, "cash_usd")
 
             if not positions:
                 self.send_message("📊 <b>Portfolio</b>\n\nНет открытых позиций.", chat_id)
@@ -718,7 +736,10 @@ class TelegramBot:
                 val = validate_positions(
                     positions=positions,
                     capital_usd=capital,
-                    cash_usd=cash,
+                    # Проверка политики требует ЧИСЛА: снимок без `cash_usd`
+                    # проверяется с нулём наличных (самая строгая сторона), и
+                    # владельцу это сказано строкой ниже.
+                    cash_usd=0.0 if cash is None else cash,
                 )
                 if not val.passed:
                     alert = "⚠️ <b>Портфель нарушает правила политики!</b>\n"
@@ -757,9 +778,13 @@ class TelegramBot:
                 lines.append("• {name} {tier}: {amt} ({pct:.1f}%)".format(
                     name=_proto_label(proto), tier=tier_badge,
                     amt=_fmt_usd(usd_f), pct=pct))
+            if cash is None:
+                lines.append("💵 Наличные: н/д — в снимке нет `cash_usd` "
+                             "(проверка политики считала по нулю)")
             if cash:
                 lines.append("• Cash: {amt} ({pct:.1f}%)".format(
-                    amt=_fmt_usd(cash), pct=cash / capital * 100.0 if capital else 0.0))
+                    amt=_na_usd(cash),
+                    pct=(cash / capital * 100.0) if (cash is not None and capital) else 0.0))
             lines.append("\n💰 Total: {}".format(_fmt_usd(capital)))
             self.send_message("\n".join(lines), chat_id)
         except Exception as exc:  # noqa: BLE001
@@ -768,24 +793,26 @@ class TelegramBot:
     def cmd_today(self, chat_id: str) -> None:
         try:
             st = _read_json(DATA_DIR / "paper_trading_status.json", {})
-            daily_ret = float(st.get("daily_return_pct", 0.0) or 0.0)
-            daily_yield = float(st.get("daily_yield_usd", 0.0) or 0.0)
-            apy_today = float(st.get("apy_today_pct", 0.0) or 0.0)
-            equity = float(st.get("current_equity", 0.0) or 0.0)
+            daily_ret = observed_number(st, "daily_return_pct")
+            daily_yield = observed_number(st, "daily_yield_usd")
+            apy_today = observed_number(st, "apy_today_pct")
+            equity = observed_number(st, "current_equity")
             last_trade = st.get("last_trade_id")
             trade_line = "0" if last_trade in (None, "", 0) else "1+ (last: {})".format(last_trade)
 
             text = (
                 "📈 <b>Today</b> · {date}\n\n"
-                "💵 P&amp;L: {sgn}{yld} ({rsgn}{ret:.3f}%)\n"
-                "📊 APY Today: {apy:.2f}%\n"
+                "💵 P&amp;L: {sgn}{yld} ({rsgn}{ret})\n"
+                "📊 APY Today: {apy}\n"
                 "💰 Equity: {eq}\n"
                 "🔁 Trades: {trades}"
             ).format(
                 date=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-                sgn=_pct_sign(daily_yield), yld=_fmt_usd(abs(daily_yield)),
-                rsgn=_pct_sign(daily_ret), ret=daily_ret,
-                apy=apy_today, eq=_fmt_usd(equity), trades=trade_line,
+                sgn="" if daily_yield is None else _pct_sign(daily_yield),
+                yld=_na_usd(None if daily_yield is None else abs(daily_yield)),
+                rsgn="" if daily_ret is None else _pct_sign(daily_ret),
+                ret=_na_pct(daily_ret, 3),
+                apy=_na_pct(apy_today), eq=_na_usd(equity), trades=trade_line,
             )
             self.send_message(text, chat_id)
         except Exception as exc:  # noqa: BLE001
@@ -802,12 +829,15 @@ class TelegramBot:
 
             window = daily[-7:]
 
-            def _eq(bar: Dict) -> float:
-                return float(bar.get("equity") or bar.get("close_equity") or 0.0)
+            def _eq(bar: Dict):
+                """Эквити бара. `None` — бар его НЕ НАЗЫВАЕТ (это не ноль)."""
+                value = observed_number(bar, "equity")
+                return value if value is not None else observed_number(bar, "close_equity")
 
             eq_from = _eq(window[0])
             eq_now = _eq(window[-1])
-            week_pct = ((eq_now / eq_from - 1.0) * 100.0) if eq_from else 0.0
+            week_pct = (((eq_now / eq_from - 1.0) * 100.0)
+                        if (eq_from and eq_now is not None) else None)
             profitable = sum(1 for b in window if float(b.get("daily_return_pct", 0.0)) > 0)
 
             best = max(window, key=lambda b: float(b.get("daily_return_pct", 0.0)))
@@ -820,13 +850,14 @@ class TelegramBot:
             text = (
                 "📅 <b>Week</b> · {df} → {dt}\n\n"
                 "💰 Equity: {ef} → {en}\n"
-                "📈 Return: {wsgn}{wk:.3f}%\n"
+                "📈 Return: {wsgn}{wk}\n"
                 "🏆 Best day: {bd} ({bsgn}{bp:.3f}%)\n"
                 "✅ Profitable: {prof}/{n} days"
             ).format(
                 df=date_from, dt=date_to,
-                ef=_fmt_usd(eq_from), en=_fmt_usd(eq_now),
-                wsgn=_pct_sign(week_pct), wk=week_pct,
+                ef=_na_usd(eq_from), en=_na_usd(eq_now),
+                wsgn="" if week_pct is None else _pct_sign(week_pct),
+                wk=_na_pct(week_pct, 3),
                 bd=best_date, bsgn=_pct_sign(best_pct), bp=best_pct,
                 prof=profitable, n=len(window),
             )
@@ -1119,8 +1150,12 @@ class TelegramBot:
             if isinstance(cq, dict):
                 callback_id = str(cq.get("id", ""))
                 data = str(cq.get("data", ""))
-                message = cq.get("message", {}) or {}
-                chat_id = str(message.get("chat", {}).get("id", "")) or self.chat_id
+                # Нажатие БЕЗ сообщения (Telegram так присылает старые кнопки):
+                # чат тогда берётся свой, и это уже сказано строкой ниже —
+                # подстановки «пустое сообщение = сообщение» здесь нет.
+                message = observed(cq, "message", kind=dict) or {}
+                chat_id = str((observed(message, "chat", kind=dict) or {})
+                              .get("id", "")) or self.chat_id
                 message_id = message.get("message_id")
                 # Legacy inline buttons (old keyboards) → keep old behaviour.
                 if data.startswith(self._LEGACY_CB_PREFIXES):
