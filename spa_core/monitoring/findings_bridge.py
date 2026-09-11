@@ -124,6 +124,7 @@ PRODUCES = (
     "data/census_consumer_census.json",
     "data/subject_population_census.json",
     "data/substring_structure_assertions.json",
+    "data/haystack_origin_census.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -203,6 +204,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "census_consumer_census",
     "subject_population_census",
     "substring_structure_assertions",
+    "haystack_origin_census",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -360,6 +362,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "substring_structure_assertions": {
         "module": "spa_core/monitoring/substring_structure_assertions.py",
         "artifact": "data/substring_structure_assertions.json"},
+    "haystack_origin_census": {
+        "module": "spa_core/monitoring/haystack_origin_census.py",
+        "artifact": "data/haystack_origin_census.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -1251,6 +1256,21 @@ def main(argv=None) -> int:
               f"unmeasured={_ssa['counts']['unmeasured']})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "substring_structure_assertions", e)
+    # Заказ #568 (ADR-343). Откуда пришло содержимое стога у тех сайтов, которые
+    # ADR-338 оставил ЗА своей границей: настоящий сосед под корнем дерева или
+    # байты, написанные самим тестом. Мост находок артефакт НЕ читает по той же
+    # причине, что и у соседа выше: единственное действие по итогам — расширить
+    # утверждение в ТЕСТЕ, то есть код проверки, а не капитал. Потребитель —
+    # шаг 0-офис.
+    try:
+        from spa_core.monitoring import haystack_origin_census
+        _hoc = haystack_origin_census.run(root=args.root)
+        print(f"haystack_origin_census: {_hoc['overall']} "
+              f"(repo={_hoc['counts']['repo_neighbour'] + _hoc['counts']['repo_copy']} "
+              f"self={_hoc['counts']['self_written']} "
+              f"unmeasured={_hoc['counts']['unmeasured']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "haystack_origin_census", e)
     # Заказ #552 (ADR-316). Что теряет hit_rate от правила «одна строка в день».
     # Мост находок артефакт НЕ читает по той же причине, что и у соседей выше:
     # единственное действие по итогам — тронуть ПИСАТЕЛЯ журнала решений и его
