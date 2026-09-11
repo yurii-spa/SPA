@@ -6,6 +6,8 @@ import Diagram from '../../components/academy/Diagram.astro';
 import Term from '../../components/academy/Term.astro';
 import PullQuote from '../../components/academy/PullQuote.astro';
 import KeyStat from '../../components/academy/KeyStat.astro';
+// site-numbers: пороги ниже рендерятся из конституции сайта (единственный источник чисел-решений, .claude/rules/site-numbers.md)
+import constitution from '../../lib/constitution.json';
 
 const questions = [
   {
@@ -131,8 +133,8 @@ APY, капитализация ежедневно    → ~$1105 (≈ +10.52%)
   </Callout>
 
   <Callout type="example">
-    Деск кодирует этот скепсис прямо в RiskPolicy: TVL пула должен быть ≥ $5M, APY должен лежать
-    в коридоре примерно 1%–30% (всё, что выше — отбрасывается как нереалистичное/токсичное),
+    Деск кодирует этот скепсис прямо в RiskPolicy: TVL пула должен быть ≥ ${Math.round(constitution.tvl_floor_usd / 1e6)}M, APY должен лежать
+    в коридоре примерно {constitution.apy_floor_pct}%–{constitution.apy_ceiling_pct}% (всё, что выше — отбрасывается как нереалистичное/токсичное),
     плюс лимиты концентрации и минимальный кэш-буфер. Живые APY/TVL тянутся из DeFiLlama с
     кэшем; ничего не берётся «на слово». Это автоматическая защита от красивых чисел.
   </Callout>
