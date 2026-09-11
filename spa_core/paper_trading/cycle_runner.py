@@ -1237,6 +1237,12 @@ def run_cycle(
         k: float(v)
         for k, v in (_read_json(ddir / POSITIONS_FILENAME, {}).get("positions", {}) or {}).items()
     }
+    # ADR-335: второе имя пула — под каноническим ключом ДО любого сравнения с целью
+    # (иначе фантомная перекладка «fluid_usdc → fluid_fusdc» с издержками). Каноническим
+    # может быть только ключ, под которым пул видит ДЕНЕЖНЫЙ путь — оркестратор
+    # опрашивает его как `fluid_fusdc` (урок отменённой ADR-331).
+    from spa_core.paper_trading.pool_alias_gate import canonicalize_positions
+    current_positions = canonicalize_positions(current_positions, notes)
 
     # ── ALLOC-001: validate current positions; trigger rebalancer on violations ──
     # Fail-safe: any exception here must never block the cycle (advisory gate).
@@ -1278,6 +1284,7 @@ def run_cycle(
                             _read_json(ddir / POSITIONS_FILENAME, {}).get("positions", {}) or {}
                         ).items()
                     }
+                    current_positions = canonicalize_positions(current_positions, notes)
                     notes.append("ALLOC-001: rebalancer succeeded — positions reloaded")
                     log.info("ALLOC-001: rebalancer applied new positions")
                 else:

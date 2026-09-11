@@ -132,7 +132,16 @@ POLLED_ADAPTERS: list[tuple[str, str, type]] = [
     # остальная книга; sUSDe — синтетический доллар (delta-neutral базис, депег
     # доминирует в риске), то есть НОВЫЙ класс риска. За 0.01 п.п. класс риска не
     # меняют. ethena_susde остаётся кандидатом следующего шага, отдельным замером.
-    ("fluid_usdc", "T2", FluidUSDCAdapter),
+    #
+    # ADR-335 (11.09): тот же пул Fluid (DeFiLlama 4438dabc), но под ОДНИМ ключом.
+    # До этого пул опрашивался здесь как `fluid_usdc`, а генератор статуса прибивал его
+    # как `fluid_fusdc` — один пул, два имени, два писателя: аллокатор хотел дать деньги
+    # `fluid_fusdc`, гейт его не знал и замораживал; реестр держит `fluid_usdc` под
+    # запретом `research_only` (исследовательский класс с литералом 5.5 %). Причина,
+    # по которой 29.08 взяли FluidUSDCAdapter, — FluidFUSDCAdapter отдавал литерал TVL
+    # $2 млрд; с ADR-335 он отдаёт живой TVL и пул из статуса. Число адаптеров в
+    # снимке не меняется (ALLOC-002, см. откат 08.08 ниже) — замена один на один.
+    ("fluid_fusdc", "T2", FluidFUSDCAdapter),
     # MP-201: Pendle PT stablecoin markets — T2/T3 dynamic tier, fixed-rate APY
     # via the Pendle V2 REST API. Declared T2 here as registry-level default.
     ("pendle", "T2", PendleAdapter),
