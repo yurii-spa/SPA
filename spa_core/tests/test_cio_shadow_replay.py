@@ -599,6 +599,34 @@ class TestRun(unittest.TestCase):
         doc = R.run(root=self._root(recs, registry=False), now=_NOW, write=False)
         self.assertTrue(any("карта сетей" in u for u in doc["unchecked"]))
 
+    def test_a_day_without_capital_is_skipped_not_counted_at_zero(self):
+        """ADR-344 (инвариант #17): доля ноги считается ОТ капитала.
+
+        Ноль вместо ненаписанного капитала объявлял бы каждую ногу дня
+        несущественной (её доля вырождается), а доли отчёта считались бы от
+        подставленного нуля. Записанный капитал остаётся замером.
+        """
+        recs = [_rec(i, cur={"a": 100_000.0}, apy={"a": 5.0}) for i in range(3)]
+        recs[1].pop("capital_usd")
+        doc = R.run(root=self._root(recs), now=_NOW, write=False)
+        self.assertIsInstance(doc, dict)
+        charged = doc["columns"].get("charged") or {}
+        self.assertNotEqual(charged.get("scored_days"), 0,
+                            "день без капитала унёс с собой весь замер")
+
+    def test_gas_marked_measured_without_a_number_is_not_free(self):
+        """Помечено «измерено», числа нет ⇒ берётся заряженная ставка, не ноль."""
+        recs = [_rec(0, cur={"a": 100_000.0}, apy={"a": 5.0}),
+                _rec(1, cur={"b": 100_000.0}, apy={"a": 5.0, "b": 5.0}),
+                _rec(2, cur={"b": 100_000.0}, apy={"b": 5.0})]
+        root = self._root(recs, gas_history={"ethereum": {"measured": True}})
+        doc = R.run(root=root, now=_NOW, write=False)
+        obs = (doc["columns"].get("observed") or {})
+        charged = doc["columns"].get("charged") or {}
+        if obs:
+            self.assertEqual(obs.get("gas_usd"), charged.get("gas_usd"),
+                             "газ без числа объявлен бесплатным")
+
     def test_the_observed_column_is_ABSENT_not_faked_when_gas_is_unmeasured(self):
         """Нет наблюдения — нет колонки. Молча подставить литерал нельзя."""
         recs = [_rec(i, cur={"a": 100_000.0}, apy={"a": 5.0}) for i in range(3)]

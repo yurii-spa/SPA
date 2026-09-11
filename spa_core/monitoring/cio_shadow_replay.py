@@ -100,6 +100,9 @@ import os
 from pathlib import Path
 from typing import Any, Callable
 
+from spa_core.utils.observation import observed as observed_field
+from spa_core.utils.observation import observed_number
+
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 REPORT_REL = "data/cio_shadow_replay.json"
 
@@ -179,7 +182,8 @@ def score_days(books: list[dict[str, float]], records: list[dict], *,
     out: list[float | None] = []
     unpriced: set[str] = set()
     for i in range(len(records) - 1):
-        gain, missing = day_gain(books[i], records[i + 1].get("apy_evidenced_pct") or {})
+        gain, missing = day_gain(
+            books[i], observed_field(records[i + 1], "apy_evidenced_pct", kind=dict) or {})
         if gain is None:
             unpriced.update(missing)
         out.append(gain)
@@ -198,7 +202,11 @@ def move_costs(books: list[dict[str, float]], records: list[dict], *,
     """
     out: list[dict] = []
     for i in range(1, len(records)):
-        capital = _num(records[i].get("capital_usd")) or 0.0
+        capital = observed_number(records[i], "capital_usd")
+        if capital is None or capital <= 0.0:
+            # Доля ноги считается ОТ КАПИТАЛА: ноль вместо ненаписанного капитала
+            # объявил бы каждую ногу несущественной (инвариант #17).
+            continue
         legs, turnover = legs_of(books[i - 1], books[i], capital, min_leg_frac)
         if not legs:
             continue
@@ -249,8 +257,8 @@ def arm_metrics(daily: list[float | None], moves: list[dict], records: list[dict
     max_conc_day = None
     risk_events = 0
     for i in common:
-        capital = _num(records[i].get("capital_usd")) or 0.0
-        if capital <= 0.0 or not books[i]:
+        capital = observed_number(records[i], "capital_usd")
+        if capital is None or capital <= 0.0 or not books[i]:
             continue
         share = max(books[i].values()) / capital
         if share > max_conc:
@@ -258,7 +266,9 @@ def arm_metrics(daily: list[float | None], moves: list[dict], records: list[dict
         if concentration_cap is not None and share > concentration_cap:
             risk_events += 1
 
-    capital0 = _num(records[common[0]].get("capital_usd")) or 0.0
+    # `None` — капитал первого дня НЕ записан; это не «капитал ноль», и доли
+    # ниже тогда не считаются вовсе (инвариант #17).
+    capital0 = observed_number(records[common[0]], "capital_usd")
     days = len(common)
     out = {
         "scored_days": days,
@@ -273,7 +283,7 @@ def arm_metrics(daily: list[float | None], moves: list[dict], records: list[dict
         "max_concentration_day": max_conc_day,
         "risk_events": (risk_events if concentration_cap is not None else None),
     }
-    if capital0 > 0.0:
+    if capital0 is not None and capital0 > 0.0:
         out["net_apy_pct"] = round(net / capital0 * 365.0 / days * 100.0, 4)
         out["gross_apy_pct"] = round(gross / capital0 * 365.0 / days * 100.0, 4)
         out["turnover_x_capital"] = round(turnover / capital0, 3)
@@ -301,7 +311,8 @@ def false_rebalances(moves: list[dict], records: list[dict], *,
         total = 0.0
         n = 0
         for frec in records[m["day_index"] + 1: m["day_index"] + 1 + horizon_days]:
-            gain, _ = day_gain(deltas, frec.get("apy_evidenced_pct") or {})
+            gain, _ = day_gain(
+            deltas, observed_field(frec, "apy_evidenced_pct", kind=dict) or {})
             if gain is None:
                 continue
             total += gain
@@ -345,10 +356,11 @@ def missed_opportunities(daily: dict[str, list[float | None]], moves_opt: list[d
             continue
         edge = opt - cur
         cost = cost_by_day.get(i, 0.0)
-        capital = _num(records[i].get("capital_usd")) or 0.0
+        capital = observed_number(records[i], "capital_usd")
         band_pp = band_pp_of(i)
         band_usd_per_day = ((band_pp / 100.0 * capital / 365.0)
-                            if (band_pp is not None and capital > 0.0) else 0.0)
+                            if (band_pp is not None and capital is not None
+                                and capital > 0.0) else 0.0)
         if edge - cost > band_usd_per_day:
             missed.append({
                 "cycle_date": records[i].get("cycle_date"),
@@ -465,9 +477,14 @@ def run(root: str | None = None, *, now: dt.datetime | None = None,
             chain, GAS_USD_PER_POSITION_CHANGE.get("blended", 0.0)))
 
     def observed_or_charged_gas(chain: str) -> float:
-        row = observed_gas.get(chain) or {}
+        row = observed_field(observed_gas, chain, kind=dict) or {}
         if row.get("measured"):
-            return float(row.get("usd_per_leg") or 0.0)
+            per_leg = observed_number(row, "usd_per_leg")
+            if per_leg is None:
+                # Помечено «измерено», а числа нет: объявлять газ бесплатным
+                # нельзя — берётся заряженная ставка, как при неизмеренном.
+                return charged_gas(chain)
+            return float(per_leg)
         return charged_gas(chain)
 
     # ── Прогон трёх рук ──────────────────────────────────────────────────────
@@ -627,8 +644,9 @@ def _findings(columns: dict[str, dict], comparison: dict, population: dict) -> l
                 "деньги, а не стоят их"),
         })
 
-    fr = (columns["charged"]["false_rebalances"] or {})
-    fr_obs = ((columns.get("observed") or {}).get("false_rebalances") or {})
+    fr = (observed_field(columns["charged"], "false_rebalances", kind=dict) or {})
+    fr_obs = (observed_field(observed_field(columns, "observed", kind=dict) or {},
+                             "false_rebalances", kind=dict) or {})
     if fr.get("checked") and fr.get("false"):
         tail = ""
         if fr_obs.get("checked"):
