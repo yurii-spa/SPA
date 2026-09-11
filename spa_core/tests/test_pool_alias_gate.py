@@ -46,7 +46,29 @@ class TheBypassIsClosed(unittest.TestCase):
         self.assertEqual((out["maple"], out["compound_v3"]), (18000.0, 40000.0))
 
 
+class Morpho(unittest.TestCase):
+    """Вторая пара того же класса (монитор pool_identity_collision, 11.09)."""
+
+    def test_two_morpho_keys_cannot_hold_forty_percent_of_one_vault(self):
+        out = g.apply_pool_alias_gate({"morpho_blue": 20000.0, "morpho_steakhouse": 20000.0},
+                                      capital_usd=CAP, notes=[])
+        self.assertLessEqual(out["morpho_blue"] + out["morpho_steakhouse"], 20000.0 + 0.01)
+
+    def test_the_key_the_owner_kept_is_trimmed_last(self):
+        """Решение владельца 18.08 (вариант B): morpho_blue оставить."""
+        out = g.apply_pool_alias_gate({"morpho_blue": 20000.0, "morpho_steakhouse": 20000.0},
+                                      capital_usd=CAP, notes=[])
+        self.assertEqual(out["morpho_blue"], 20000.0)
+        self.assertEqual(out["morpho_steakhouse"], 0.0)
+
+
 class WhatIsNotAViolation(unittest.TestCase):
+
+    def test_a_t3_pair_is_not_declared_because_the_tier_cap_already_holds_it(self):
+        """ethena_susde + susde — один пул, но T3 держит потолок ТИРА: дыры нет."""
+        members = {m for grp in g.POOL_ALIASES.values() for m in grp["trim_order"]}
+        self.assertFalse({"ethena_susde", "susde"} & members)
+
     """Обратная сторона: сторож, срезающий всё, — не сторож."""
 
     def test_one_name_within_the_cap_is_untouched(self):

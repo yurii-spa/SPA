@@ -49,7 +49,23 @@ POOL_ALIASES: Dict[str, Dict] = {
         "proof": ("11.09: adapter_status.fluid_fusdc.tvl_pool_id и живой запрос "
                   "fluid_usdc_adapter дают один pool_id DeFiLlama"),
     },
+    "931ea9be-5f4d-428e-beaf-205fc5b4e2b5": {
+        "protocol": "Morpho (одно хранилище под двумя ключами)",
+        "tier": "T2",
+        # Решение владельца 18.08 по карточке inbox-morpho-blue-i-morpho-steakhouse
+        # (вариант B): `morpho_blue` ОСТАВИТЬ и дать ему своё хранилище. Пока своего
+        # нет — это один пул, и срезается первым тот, кого владелец не оставлял.
+        "trim_order": ["morpho_steakhouse", "morpho_blue"],
+        "proof": ("11.09: монитор pool_identity_collision, род declared+observed — "
+                  "оба ключа ранжируются на одном pool_id; оба пригодны к финансированию"),
+    },
 }
+
+#: Пары одного пула в T3 сюда НЕ вносятся намеренно (ethena_susde + susde, 66985a81):
+#: у T3 нет потолка на протокол, их вместе держит потолок ТИРА (15 %, ADR-020), который
+#: считает оба ключа. Дыры «дважды по потолку» там нет — вносить значило бы выдумать её.
+#: Новую пару находит монитор `spa_core/monitoring/pool_identity_collision.py`
+#: (CRITICAL, если книга уже в пуле); этот файл — исполнение, тот — обнаружение.
 
 
 def _tier_cap(tier: str) -> float:
