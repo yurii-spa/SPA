@@ -84,7 +84,22 @@ CARD_TWO_DECISIONS = _HEAD + (
 #: Форма, которой разбор НЕ учили намеренно (буква с точкой без скобок, живая
 #: `agent-feeds-without-a-producer`). Сторож обязан назвать её сам — иначе он снова
 #: слеп ровно там, где слеп разбор.
+#: Инв. #16 — фикстура заменена намеренно (11.09). Прежде здесь стояла форма
+#: «- **А. Искать…**», и 05.09 ADR-234 ВЫУЧИЛ её разбору (`_OPTION_LETTERED_DOT_RE`):
+#: тест, утверждающий «разбор этой формы не знает», шесть дней краснел на ВЕРНОМ коде.
+#: Утверждение теста не тронуто — сменён только его предмет на форму, которой разбор
+#: по-прежнему не знает: буква с закрывающей скобкой без открывающей («А)»). Выученная
+#: форма закреплена отдельно (`test_the_form_this_test_used_to_hold_is_now_learned`).
+_UNKNOWN_LETTER_LIST = (
+    "- А) Искать источник дальше (собственный запрос к протоколу).\n"
+    "- Б) Честно признать «не поддерживаем» и вывести из реестра.\n"
+)
 CARD_UNKNOWN_LETTER_FORM = _HEAD + (
+    "По каждому фиду — выбрать одно из двух.\n\n"
+) + _UNKNOWN_LETTER_LIST + _TAIL
+
+#: Та форма, что стояла здесь до ADR-234, — теперь выученная.
+CARD_FORMERLY_UNKNOWN = _HEAD + (
     "По каждому фиду — выбрать одно из двух.\n\n"
     "- **А. Искать источник дальше** (собственный запрос к протоколу).\n"
     "- **Б. Честно признать «не поддерживаем»** и вывести из реестра.\n"
@@ -148,6 +163,17 @@ def test_the_guard_names_a_choice_written_in_a_form_the_parser_never_learned():
     """
     assert od.parse_options(CARD_UNKNOWN_LETTER_FORM) == []
     assert od.has_unparsed_options(CARD_UNKNOWN_LETTER_FORM) is True
+    # Сторож обязан увидеть САМ ПЕРЕЧЕНЬ, а не вводную «выбрать одно из двух»: та
+    # срабатывает своей альтернативой (`выбрать\s+од`) и сделала бы проверку истинной
+    # по построению, чем бы ни был перечень.
+    assert od.has_unparsed_options(_HEAD + _UNKNOWN_LETTER_LIST + _TAIL) is True
+
+
+def test_the_form_this_test_used_to_hold_is_now_learned():
+    """Замена фикстуры выше — следствие обучения разбора (ADR-234), а не произвол."""
+    opts = od.parse_options(CARD_FORMERLY_UNKNOWN)
+    assert [o.num.lower() for o in opts] == ["а", "б"]
+    assert od.has_unparsed_options(CARD_FORMERLY_UNKNOWN) is False
 
 
 def test_two_decisions_in_one_card_stay_buttonless_and_are_called_our_defect():
