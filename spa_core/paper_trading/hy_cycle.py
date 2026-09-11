@@ -294,7 +294,7 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
         from spa_core.paper_trading import cio_arming as _cio_arming
         book, opened, closed, _cio_note = _cio_arming.gate_sleeve_book(
             "balanced", _legs_before, book, opened, closed, rows, equity,
-            _HY_DATA_PATH.parent, today=today, run_ts=now.isoformat() + "Z")
+            _HY_DATA_PATH.parent, today=today, run_ts=now.isoformat() + "Z", now=now)
         import logging as _logging
         _logging.getLogger("spa.balanced").info("CIO ARMED (balanced): %s", _cio_note)
         # ADR-292 п.4: слепок входов для пересчёта. Снимается ДО начисления и переоценки —
@@ -417,6 +417,9 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
             trades=[],
             book_id="balanced",
             write=not dry_run,
+            # ADR-339: часы цикла, приведённые к aware-UTC (рукав живёт на наивном clock).
+            now=__import__("spa_core.paper_trading.cio_arming", fromlist=["_aware_utc"])._aware_utc(
+                now, now.isoformat() + "Z"),
         )
     except Exception as _shadow_exc:  # noqa: BLE001 — advisory only, never breaks the cycle
         import logging as _logging

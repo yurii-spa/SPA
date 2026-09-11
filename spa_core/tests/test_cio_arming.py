@@ -236,5 +236,21 @@ class SleeveBooks(unittest.TestCase):
             self.assertTrue(ok, f"{fn}: предложение rebalance_book не проходит гейт CIO ({bid})")
 
 
+class SleeveClock(unittest.TestCase):
+    """ADR-339: рукава живут на НАИВНОМ clock.utcnow(); CIO и демпфер — на aware-метках."""
+
+    def test_a_naive_clock_becomes_aware_utc(self):
+        from datetime import datetime, timezone
+        out = ca._aware_utc(datetime(2026, 9, 11, 6, 0), "")
+        self.assertEqual(out.tzinfo, timezone.utc)
+
+    def test_missing_clock_is_taken_from_run_ts(self):
+        out = ca._aware_utc(None, "2026-09-11T06:00:00Z")
+        self.assertEqual((out.year, out.hour, out.tzinfo is not None), (2026, 6, True))
+
+    def test_an_unparseable_run_ts_gives_no_clock_not_a_guess(self):
+        self.assertIsNone(ca._aware_utc(None, "мусор"))
+
+
 if __name__ == "__main__":
     unittest.main()

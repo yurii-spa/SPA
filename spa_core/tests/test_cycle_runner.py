@@ -148,11 +148,17 @@ def test_delta_abs_equals_real_dollars_moved(tmp_path, monkeypatch):
     # Establish positions == TARGET, then a real swap on the next cycle.
     _run(tmp_path, APY, TARGET)
     changed = {"aave_v3": 40000.0, "maple": 20000.0, "yearn_v3": 14000.0}
+    # ИЗМЕНЕНО НАМЕРЕННО (инв. №16, ADR-339): демпфер теперь судит по часам ЦИКЛА. Раньше
+    # он брал настенные часы, и перекладка «через 24 ч после размещения» в июне-2026
+    # выглядела для него ходом трёхмесячной давности — блокировать ему было нечего.
+    # По честным часам такой ход демпфер правильно держит (удержание 72 ч, недельный
+    # бюджет выбран размещением). Предмет этого теста — не частота, поэтому ход
+    # перенесён за пределы обоих окон: через 9 дней. Утверждения не тронуты.
     res = _run(
         tmp_path,
         APY,
         changed,
-        now=datetime(2026, 6, 11, 8, 0, tzinfo=timezone.utc),
+        now=datetime(2026, 6, 19, 8, 0, tzinfo=timezone.utc),
     )
     assert res.traded is True
     trades = _load(tmp_path, "trades.json")
@@ -417,11 +423,17 @@ def test_large_allocation_change_triggers_trade(tmp_path, monkeypatch):
     _cio_says(monkeypatch, "ACT")
     _run(tmp_path, APY, TARGET)
     changed = {"aave_v3": 40000.0, "maple": 20000.0, "yearn_v3": 14000.0}  # big swap
+    # ИЗМЕНЕНО НАМЕРЕННО (инв. №16, ADR-339): демпфер теперь судит по часам ЦИКЛА. Раньше
+    # он брал настенные часы, и перекладка «через 24 ч после размещения» в июне-2026
+    # выглядела для него ходом трёхмесячной давности — блокировать ему было нечего.
+    # По честным часам такой ход демпфер правильно держит (удержание 72 ч, недельный
+    # бюджет выбран размещением). Предмет этого теста — не частота, поэтому ход
+    # перенесён за пределы обоих окон: через 9 дней. Утверждения не тронуты.
     res = _run(
         tmp_path,
         APY,
         changed,
-        now=datetime(2026, 6, 11, 8, 0, tzinfo=timezone.utc),
+        now=datetime(2026, 6, 19, 8, 0, tzinfo=timezone.utc),
     )
     assert res.traded is True
     trades = _load(tmp_path, "trades.json")
@@ -639,3 +651,36 @@ def test_alloc002_compliant_book_passes_enforcer(tmp_path):
         + str([v.rule for v in check.violations])
     )
     assert len(pos) <= 8
+
+
+def test_the_damper_really_blocks_a_reshuffle_one_day_after_the_last_move(tmp_path, monkeypatch):
+    """ADR-339: ПЕРВЫЙ тест уровня цикла, где демпфер действительно блокирует.
+
+    До ADR-339 демпфер брал настенные часы, и в сценах, живущих в июне-2026, он не
+    блокировал НИКОГДА — защита от метания на уровне цикла не проверялась вовсе.
+    CIO здесь говорит «действовать», чтобы отказ был ТОЛЬКО демпфера.
+    """
+    _cio_says(monkeypatch, "ACT")
+    _run(tmp_path, APY, TARGET)
+    swap = {"aave_v3": 40000.0, "maple": 20000.0, "yearn_v3": 14000.0}
+    res = _run(tmp_path, APY, swap, now=datetime(2026, 6, 11, 8, 0, tzinfo=timezone.utc))
+    assert res.traded is False, "демпфер пропустил перекладку через сутки после хода"
+    assert any("churn_damper" in n for n in (res.notes or [])), res.notes
+    later = _run(tmp_path, APY, swap, now=datetime(2026, 6, 19, 8, 0, tzinfo=timezone.utc))
+    assert later.traded is True, "за пределами окон демпфер обязан пропустить"
+
+
+def test_the_cio_measures_the_last_move_on_the_cycle_clock(tmp_path):
+    """ADR-339: история CIO (кулдаун, возраст позиций) — по часам цикла, не по настенным.
+
+    Настенные часы в июне-2026 давали «последний ход 90+ дней назад», и ограничители
+    частоты CIO были так же пусты, как у демпфера.
+    """
+    import json as _json
+    _run(tmp_path, APY, TARGET)
+    swap = {"aave_v3": 40000.0, "maple": 20000.0, "yearn_v3": 14000.0}
+    _run(tmp_path, APY, swap, now=datetime(2026, 6, 11, 8, 0, tzinfo=timezone.utc))
+    doc = _json.loads((tmp_path / "allocation_rationale.json").read_text(encoding="utf-8"))
+    since = (doc.get("history") or {}).get("days_since_last_move")
+    assert since is not None and since < 2.0, f"CIO видит последний ход {since} дн назад"
+
