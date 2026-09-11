@@ -72,6 +72,21 @@ def _run(tmp_path, apy_map, target_usd, *, now=None, status="ok", **kw):
     )
 
 
+def _cio_says(monkeypatch, decision: str, reasons=()):
+    """Объявить вердикт CIO во входах сцены (ADR-324, взвод CIO 11.09).
+
+    С 11.09 перетасовку консервативной книги решает вердикт CIO. Сцены ниже,
+    предмет которых — УЧЁТ сделки (доллары хода, номер сделки) или само решение,
+    обязаны объявлять вердикт явно: иначе их вердикт решала бы экономика CIO на
+    синтетической фикстуре, где у целей нет наблюдённых ставок, — не их предмет.
+    Настоящая логика `cio_arming.trade_allowed` при этом ИСПОЛНЯЕТСЯ целиком
+    (исключения де-риска и размещения, проводка); подменяется только вердикт.
+    """
+    from spa_core.paper_trading import cio_arming
+    monkeypatch.setattr(cio_arming, "cio_verdict",
+                        lambda doc: (decision, list(reasons)))
+
+
 def _load(tmp_path, name):
     p = tmp_path / name
     return json.loads(p.read_text()) if p.exists() else None
@@ -125,7 +140,11 @@ def test_trade_records_delta_abs_not_none(tmp_path):
         "первый цикл разворачивает книгу из кэша: одна нога, оборот равен L1")
 
 
-def test_delta_abs_equals_real_dollars_moved(tmp_path):
+def test_delta_abs_equals_real_dollars_moved(tmp_path, monkeypatch):
+    # ИЗМЕНЁН НАМЕРЕННО 11.09 (инв. №16): предмет — учёт долларов хода, а не решение.
+    # С взводом CIO (ADR-324) перетасовку разрешает его вердикт; сцена объявляет его
+    # явно, все утверждения про delta_abs сохранены дословно.
+    _cio_says(monkeypatch, "ACT")
     # Establish positions == TARGET, then a real swap on the next cycle.
     _run(tmp_path, APY, TARGET)
     changed = {"aave_v3": 40000.0, "maple": 20000.0, "yearn_v3": 14000.0}
@@ -384,7 +403,18 @@ def test_small_allocation_drift_under_threshold_no_trade(tmp_path):
     assert res.traded is False
 
 
-def test_large_allocation_change_triggers_trade(tmp_path):
+def test_large_allocation_change_triggers_trade(tmp_path, monkeypatch):
+    """Крупная перетасовка проходит, когда CIO говорит «действовать».
+
+    ИЗМЕНЁН НАМЕРЕННО 11.09 (инв. №16), причина — решение владельца (ADR-324):
+    перетасовку консервативной книги решает вердикт CIO, а не одно лишь «ход больше
+    порога». Прежнее утверждение «крупный ход ⇒ сделка» больше не есть правило, и
+    сохранить его значило бы закрепить поведение, которое владелец отменил.
+    Проверка не ослаблена, а разведена на ДВЕ стороны: этот тест — «CIO: да ⇒
+    сделка», соседний — «CIO: нет ⇒ сделки нет». Без второго первый был бы
+    украшением: он прошёл бы и при снятой проводке вердикта.
+    """
+    _cio_says(monkeypatch, "ACT")
     _run(tmp_path, APY, TARGET)
     changed = {"aave_v3": 40000.0, "maple": 20000.0, "yearn_v3": 14000.0}  # big swap
     res = _run(
@@ -396,6 +426,28 @@ def test_large_allocation_change_triggers_trade(tmp_path):
     assert res.traded is True
     trades = _load(tmp_path, "trades.json")
     assert len(trades) == 2
+
+
+def test_large_reshuffle_is_held_when_cio_says_hold(tmp_path, monkeypatch):
+    """Обратная сторона: CIO сказал «держать» ⇒ та же перетасовка НЕ проходит."""
+    _cio_says(monkeypatch, "HOLD", ["payback_too_long:43.6d"])
+    first = _run(tmp_path, APY, TARGET)
+    assert first.traded is True, "первичное размещение не перетасовка — CIO его не судит"
+    changed = {"aave_v3": 40000.0, "maple": 20000.0, "yearn_v3": 14000.0}
+    res = _run(tmp_path, APY, changed,
+               now=datetime(2026, 6, 11, 8, 0, tzinfo=timezone.utc))
+    assert res.traded is False, "CIO сказал держать, а книга перетасована"
+    assert len(_load(tmp_path, "trades.json")) == 1
+    assert any("cio_armed: HOLD" in n for n in (res.notes or [])), res.notes
+
+
+def test_derisk_passes_even_when_cio_says_hold(tmp_path, monkeypatch):
+    """Стоп-кран не стоит в очереди за экономикой: сокращение проходит при «держать»."""
+    _cio_says(monkeypatch, "HOLD", ["cooldown_active"])
+    _run(tmp_path, APY, TARGET)
+    cut = {"aave_v3": 30000.0, "morpho_blue": 20000.0, "yearn_v3": 14000.0}
+    res = _run(tmp_path, APY, cut, now=datetime(2026, 6, 11, 8, 0, tzinfo=timezone.utc))
+    assert res.traded is True, "сокращение позиции задержано вердиктом CIO"
 
 
 # ─── Dry-run & summary integrity ──────────────────────────────────────────────

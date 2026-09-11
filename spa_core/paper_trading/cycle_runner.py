@@ -2106,13 +2106,17 @@ def run_cycle(
     # Placed AFTER every risk gate so the shadow reasons about the book that could
     # actually be adopted, not a raw pre-gate proposal. Fail-open: a reporting layer
     # must never be able to break the cycle that feeds the track.
+    # ADR-324 (взвод CIO, решение владельца 11.09): документ советника больше не
+    # выбрасывается — в книге, где CIO взведён, его вердикт решает перекладку на
+    # Step 3. None ⇒ вердикта нет ⇒ держать (fail-CLOSED, cio_arming.trade_allowed).
+    _cio_doc = None
     try:
         from spa_core.paper_trading.allocation_rationale import write_shadow_rationale
         # Y2 (ADR-055): the blocked map goes through WHOLE (protocol → reason) so
         # the cash attribution can price each blocked protocol's headroom, instead
         # of the old single pct-0 "named_not_quantified" binder.
         _blocked = getattr(alloc, "blocked_protocols", {}) or {}
-        write_shadow_rationale(
+        _cio_doc = write_shadow_rationale(
             data_dir=ddir,
             current_positions=current_positions,
             target_positions=target_usd,
@@ -2204,8 +2208,25 @@ def run_cycle(
     # LAW 1 (fail-safe): if a safety check could not be evaluated, suppress ALL
     # new deployment/rebalancing this cycle — hold current positions. This takes
     # priority over the normal trade decision and over policy_blocked.
+    # ── ADR-324: взвод CIO ─────────────────────────────────────────────────
+    # В книге, где CIO взведён, решение «двигать ли» принимает ЕГО вердикт вместо
+    # демпфера частоты: CIO несёт ту же колонку ADR-060 (удержание, кулдаун,
+    # бюджеты оборота) ПЛЮС экономику хода (окупаемость, полоса выигрыша) — строже,
+    # не мягче. Меняется только РЕШЕНИЕ: цель `target_usd` та же, RiskPolicy стоит
+    # выше и не тронут, де-риск проходит при любом вердикте, неизвестный вердикт ⇒
+    # держать. Не взведён ⇒ прежнее правило без изменений.
+    from spa_core.paper_trading import cio_arming as _cio_arming
+    _cio_ok, _cio_dec, _cio_why = _cio_arming.trade_allowed(
+        "conservative", _cio_doc, current_positions, target_usd,
+        damper_reason=_churn.reason)
+    if _cio_arming.is_armed("conservative"):
+        _move_allowed = _cio_ok
+        notes.append(f"cio_armed: {_cio_dec} — {_cio_why} (ADR-324)")
+        log.info("CIO ARMED: %s — %s", _cio_dec, _cio_why)
+    else:
+        _move_allowed = _churn.allowed
     traded = ((not _safety_failed) and (not policy_blocked)
-              and diff_usd > threshold_usd and _churn.allowed)
+              and diff_usd > threshold_usd and _move_allowed)
     trade_id: str | None = None
 
     # ── Commit-reveal of the book decision, part 2: COMMIT (task 4) ────────────────

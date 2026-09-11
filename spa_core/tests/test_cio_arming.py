@@ -1,0 +1,148 @@
+"""Взвод CIO (ADR-324, решение владельца 11.09): вердикт советника решает перекладку.
+
+Каждый тест — либо один из исходов решения, либо граница, которую взвод не смеет
+сдвинуть: де-риск не ждёт, неизвестный вердикт ⇒ держать, невзведённая книга живёт
+по прежнему правилу, параметры CIO не тронуты.
+"""
+from __future__ import annotations
+
+import ast
+import unittest
+from pathlib import Path
+
+from spa_core.paper_trading import cio_arming as ca
+
+ROOT = Path(__file__).resolve().parents[2]
+CUR = {"compound_v3": 40000.0, "fluid_usdc": 20000.0, "maple": 5000.0}
+UP = {"compound_v3": 25000.0, "fluid_usdc": 0.0, "maple": 20000.0, "euler_v2": 20000.0}
+CUT = {"compound_v3": 30000.0, "fluid_usdc": 0.0, "maple": 5000.0}
+
+
+def _doc(decision, reasons=()):
+    return {"decision_shadow": {"decision": decision, "reasons": list(reasons)}}
+
+
+class Outcomes(unittest.TestCase):
+    def test_act_moves_the_armed_book(self):
+        ok, dec, _ = ca.trade_allowed("conservative", _doc("ACT"), CUR, UP)
+        self.assertTrue(ok)
+        self.assertEqual(dec, ca.ACT)
+
+    def test_hold_keeps_the_armed_book_and_names_why(self):
+        ok, dec, why = ca.trade_allowed(
+            "conservative", _doc("HOLD", ["payback_too_long:43.6d"]), CUR, UP)
+        self.assertFalse(ok)
+        self.assertEqual(dec, ca.HOLD)
+        self.assertIn("payback_too_long", why)
+
+    def test_derisk_never_waits_for_the_verdict(self):
+        """Стоп-кран и реакция на просадку не могут стоять в очереди за экономикой."""
+        for doc in (_doc("HOLD", ["cooldown_active"]), None, {"error": "Boom"}):
+            ok, dec, _ = ca.trade_allowed("conservative", doc, CUR, CUT)
+            self.assertTrue(ok, doc)
+            self.assertEqual(dec, ca.DERISK)
+
+    def test_unknown_verdict_holds_fail_closed(self):
+        for doc in (None, {"error": "KeyError", "mode": "SHADOW"}, {},
+                    {"decision_shadow": {"decision": "MAYBE"}}, "мусор"):
+            ok, dec, why = ca.trade_allowed("conservative", doc, CUR, UP)
+            self.assertFalse(ok, doc)
+            self.assertEqual(dec, ca.HOLD)
+            self.assertIn("fail-CLOSED", why)
+
+    def test_an_unarmed_book_is_left_to_the_old_rule(self):
+        ok, dec, _ = ca.trade_allowed("not_a_book", _doc("HOLD"), CUR, UP)
+        self.assertTrue(ok)
+        self.assertEqual(dec, ca.UNARMED)
+
+
+class PlacementIsNotAReshuffle(unittest.TestCase):
+    """Замер 11.09: первая редакция взвода запрещала вложить в работу пустую книгу.
+
+    CIO судит одно — окупается ли ПЕРЕТАСОВКА. Размещение денег и де-риск не
+    перетасовка; для размещения простаивающего кэша это прямое решение владельца 30.08.
+    """
+
+    def test_initial_deployment_passes_under_hold(self):
+        from spa_core.governance.churn_damper import REASON_INITIAL
+        ok, _, why = ca.trade_allowed("conservative", _doc("HOLD", ["gain_below_band"]),
+                                      {}, UP, damper_reason=REASON_INITIAL)
+        self.assertTrue(ok, why)
+
+    def test_placing_idle_cash_passes_under_hold(self):
+        from spa_core.governance.churn_damper import REASON_PLACE_IDLE
+        ok, _, why = ca.trade_allowed("conservative", _doc("HOLD"), CUR, UP,
+                                      damper_reason=REASON_PLACE_IDLE)
+        self.assertTrue(ok, why)
+
+    def test_a_reshuffle_within_the_dampers_limits_still_needs_the_cio(self):
+        """«Демпфер пропустил» ≠ «CIO разрешил»: иначе взвод ничего бы не менял."""
+        from spa_core.governance.churn_damper import REASON_WITHIN_LIMITS
+        ok, dec, _ = ca.trade_allowed("conservative", _doc("HOLD"), CUR, UP,
+                                      damper_reason=REASON_WITHIN_LIMITS)
+        self.assertFalse(ok)
+        self.assertEqual(dec, ca.HOLD)
+
+    def test_a_damper_that_could_not_decide_does_not_open_the_gate(self):
+        """Демпфер при неизмеримом ходе пропускает (fail-open); CIO — нет (fail-CLOSED)."""
+        from spa_core.governance.churn_damper import REASON_UNMEASURABLE
+        ok, dec, _ = ca.trade_allowed("conservative", None, CUR, UP,
+                                      damper_reason=REASON_UNMEASURABLE)
+        self.assertFalse(ok)
+        self.assertEqual(dec, ca.HOLD)
+
+
+class TheArmingIsDeclaredHonestly(unittest.TestCase):
+    def test_every_armed_book_names_who_when_and_why(self):
+        self.assertTrue(ca.ARMED_BOOKS, "взвод объявлен пустым — проверки ниже ничего не значат")
+        for book, meta in ca.ARMED_BOOKS.items():
+            for key in ("armed_by", "armed_at", "source", "adr"):
+                self.assertTrue(meta.get(key), f"{book}: нет поля {key}")
+
+    def test_the_derisk_rule_is_the_dampers_function_not_a_copy(self):
+        """Второе определение «де-риска» однажды разошлось бы с первым молча."""
+        from spa_core.governance import churn_damper
+        self.assertIs(ca.is_pure_reduction, churn_damper.is_pure_reduction)
+
+
+class Wiring(unittest.TestCase):
+    """Проводка — формой вызова в AST, а не подстрокой: проза о проводке её не заменяет."""
+
+    def setUp(self):
+        self.src = (ROOT / "spa_core" / "paper_trading" / "cycle_runner.py").read_text(
+            encoding="utf-8")
+        self.tree = ast.parse(self.src)
+
+    def test_the_cycle_keeps_the_cio_document(self):
+        hits = [n for n in ast.walk(self.tree)
+                if isinstance(n, ast.Assign)
+                and any(isinstance(t, ast.Name) and t.id == "_cio_doc" for t in n.targets)
+                and isinstance(n.value, ast.Call)
+                and getattr(n.value.func, "id", None) == "write_shadow_rationale"]
+        self.assertTrue(hits, "вердикт CIO снова выбрасывается — взвод ничем не управляет")
+
+    def test_the_trade_decision_reads_the_armed_verdict(self):
+        calls = [n for n in ast.walk(self.tree)
+                 if isinstance(n, ast.Call)
+                 and isinstance(n.func, ast.Attribute) and n.func.attr == "trade_allowed"]
+        self.assertTrue(calls, "cycle_runner не спрашивает cio_arming.trade_allowed")
+        traded = [n for n in ast.walk(self.tree)
+                  if isinstance(n, ast.Assign)
+                  and any(isinstance(t, ast.Name) and t.id == "traded" for t in n.targets)]
+        self.assertTrue(traded)
+        names = {x.id for n in traded for x in ast.walk(n.value) if isinstance(x, ast.Name)}
+        self.assertIn("_move_allowed", names,
+                      "решение о перекладке не зависит от вердикта CIO")
+
+    def test_the_cio_parameters_were_not_touched(self):
+        """Прямое указание владельца: «мне не нужно настраивать параметры»."""
+        from spa_core.allocator.rebalance_economics import TriggerParams
+        p = TriggerParams()
+        self.assertEqual((p.min_gain_pp, p.max_payback_days, p.min_hold_days,
+                          p.act_cooldown_days, p.max_turnover_per_move,
+                          p.max_turnover_per_week),
+                         (0.5, 30.0, 3, 3, 0.15, 0.25))
+
+
+if __name__ == "__main__":
+    unittest.main()
