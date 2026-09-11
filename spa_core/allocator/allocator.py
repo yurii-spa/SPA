@@ -667,6 +667,24 @@ class AllocationResult:
         return asdict(self)
 
 
+def declared_ban(entry) -> "str | None":
+    """Запрет, ОБЪЯВЛЕННЫЙ записью реестра адаптеров. None — запрета нет.
+
+    ADR-303 ввёл его в гейт `_fundable()` консервативного аллокатора; ADR-330 вынес
+    правило сюда, чтобы кандидаты книг Balanced/Aggressive (`sleeve_book`) читали
+    ТУ ЖЕ функцию, а не её копию. Нет записи о протоколе ⇒ None: отсутствие
+    объявления не есть запрет (иначе новый адаптер оказался бы забанен по построению).
+    """
+    if not isinstance(entry, dict):
+        return None
+    if entry.get("research_only"):
+        return "registry_research_only"
+    cap = entry.get("per_protocol_cap")
+    if isinstance(cap, (int, float)) and not isinstance(cap, bool) and cap <= 0.0:
+        return "registry_cap_zero"
+    return None
+
+
 class StrategyAllocator:
     """Advisory-аллокатор целевых весов портфеля."""
 
@@ -1038,18 +1056,10 @@ class StrategyAllocator:
         def _declared_ban(protocol: str) -> str | None:
             """Причина запрета из РЕЕСТРА, если он объявлен. None — запрета нет.
 
-            Нет записи о протоколе ⇒ None: отсутствие объявления не есть запрет
-            (иначе новый адаптер оказался бы забанен по построению).
+            Правило — :func:`declared_ban`, ОДНО на все пути, читающие реестр
+            (здесь и в кандидатах книг-рукавов, ADR-330).
             """
-            e = _registry_declaration.get(protocol)
-            if not isinstance(e, dict):
-                return None
-            if e.get("research_only"):
-                return "registry_research_only"
-            cap = e.get("per_protocol_cap")
-            if isinstance(cap, (int, float)) and not isinstance(cap, bool) and cap <= 0.0:
-                return "registry_cap_zero"
-            return None
+            return declared_ban(_registry_declaration.get(protocol))
 
         def _fundable(protocol: str) -> bool:
             """ADR-061 gate: class flags (D3/D4) + evidence (D1/D2). Fail-CLOSED.

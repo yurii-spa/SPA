@@ -172,14 +172,43 @@ def observable_rows(rows: Optional[List[dict]]) -> Tuple[List[dict], List[dict]]
     return kept, dropped
 
 
-def _dedup_best(rows: List[dict]) -> List[dict]:
-    """Один протокол — одна строка (лучший APY). Сортировка (−apy, name) = детерминизм."""
+_ADAPTER_REGISTRY = _PROJECT_ROOT / "data" / "adapter_registry.json"
+
+
+def load_registry_declarations(path: Optional[Path] = None) -> Tuple[dict, str]:
+    """Объявления реестра адаптеров ``(adapters, причина-не-прочтения)``.
+
+    Нечитаемый реестр ⇒ ``({}, причина)``: запреты НЕ измерены — и запретом это НЕ
+    является (то же правило, что у аллокатора ADR-303: отсутствие объявления не есть
+    запрет, иначе новый адаптер был бы забанен по построению).
+    """
+    p = path or _ADAPTER_REGISTRY
+    try:
+        return (json.loads(p.read_text(encoding="utf-8")).get("adapters") or {}), ""
+    except (OSError, ValueError) as exc:
+        return {}, f"реестр адаптеров не прочитан: {type(exc).__name__}: {exc}"
+
+
+def _dedup_best(rows: List[dict], registry: Optional[dict] = None) -> List[dict]:
+    """Один протокол — одна строка (лучший APY). Сортировка (−apy, name) = детерминизм.
+
+    ADR-330: протокол, чей запрет ОБЪЯВЛЕН в реестре (`research_only` или потолок 0),
+    кандидатом не является. До этого запрет исполнял только консервативный аллокатор
+    (ADR-303), а кандидаты Balanced/Aggressive его не читали вовсе — замер 11.09:
+    `ondo_usdy` под запретом реестра стоял среди кандидатов книг-рукавов. Правило —
+    ТА ЖЕ функция `allocator.declared_ban`, не копия.
+    """
+    from spa_core.allocator.allocator import declared_ban
+    if registry is None:
+        registry, _why = load_registry_declarations()
     best: dict[str, float] = {}
     # Провенанс — условие допуска (см. блок «Наблюдаемость ставки» выше): в набор
     # кандидатов попадают только строки, у которых ставку и размер пула НАБЛЮДАЛИ.
     observable, _dropped = observable_rows(rows)
     for r in observable:
         name = str(r.get("protocol") or "").strip()
+        if declared_ban(registry.get(name)):
+            continue  # ADR-330: объявленный запрет реестра действует и здесь
         apy = r.get("apy_pct")
         if not name or not isinstance(apy, (int, float)) or isinstance(apy, bool):
             continue
