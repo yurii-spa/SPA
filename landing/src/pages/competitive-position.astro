@@ -1,6 +1,8 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
+// site-numbers: наш капитал рендерится из конституции; полоса рынка ($100K–$5M) и цель $10M — рамка тезиса, не наши ставки
+import constitution from '../lib/constitution.json';
 
 /*
  * Competitive Position (Workstream D / D3) — the white-space positioning, PUBLIC version.
@@ -124,7 +126,7 @@ const diffs = [
           </li>
           <li data-ru="Капитал бумажный — $0 реального капитала, виртуальный портфель $100k. Не инвестиционный совет.">
             <strong style="color:var(--text-primary)">The capital is paper</strong> — $0 real,
-            a virtual $100k book. Not investment advice.
+            a virtual ${Math.round(constitution.start_capital_usd / 1000)}k book. Not investment advice.
           </li>
         </ul>
       </div>

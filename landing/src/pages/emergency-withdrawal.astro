@@ -1,5 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
+// site-numbers: стартовый капитал — число-РЕШЕНИЕ из конституции сайта
+import constitution from '../lib/constitution.json';
 ---
 
 <Layout
@@ -32,7 +34,7 @@ import Layout from '../layouts/Layout.astro';
       <div class="rounded-xl border border-white/10 bg-white/[0.02] p-6 space-y-4 text-sm text-white/60 leading-relaxed">
         <p data-ru="SPA — это личный исследовательский проект бумажной торговли. Он работает с виртуальным портфелем в $100,000 USDC для оценки стратегий доходности DeFi. Все сделки симулируются.">
           SPA is a personal paper-trading research project. It runs on a virtual
-          $100,000 USDC portfolio to evaluate DeFi yield strategies. All trades are simulated.
+          ${constitution.start_capital_usd.toLocaleString('en-US')} {constitution.currency} portfolio to evaluate DeFi yield strategies. All trades are simulated.
         </p>
         <p data-ru="Внешними средствами не управляют. Депозиты не принимаются, капитал не хранится на хранении, и нет никакого процесса вывода средств.">
           No external funds are managed. No deposits are accepted, no capital is held in

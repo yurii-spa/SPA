@@ -1,5 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
+// site-numbers: стартовый капитал — число-РЕШЕНИЕ из конституции сайта
+import constitution from '../lib/constitution.json';
 ---
 
 <Layout
@@ -33,8 +35,8 @@ import Layout from '../layouts/Layout.astro';
 
       <section>
         <h2 class="text-white font-semibold text-base mb-2" data-ru="Раскрытие о бумажной торговле">Paper trading disclosure</h2>
-        <p data-ru="Все показатели результативности отражают симулированную торговлю на виртуальном портфеле $100,000 USDC; подтверждённый (evidenced) трек заякорен на 22 июня 2026 года. Бумажная доходность переменна, не является прогнозом и ничего не гарантирует. Симуляция не учитывает реальное проскальзывание, влияние на ликвидность и риск исполнения смарт-контрактов. Прошлые результаты не являются индикатором будущих.">
-          All performance figures reflect simulated trading on a virtual $100,000 USDC
+        <p data-ru="Все показатели результативности отражают симулированную торговлю на виртуальном портфеле $${constitution.start_capital_usd.toLocaleString('ru-RU')} USDC; подтверждённый (evidenced) трек заякорен на 22 июня 2026 года. Бумажная доходность переменна, не является прогнозом и ничего не гарантирует. Симуляция не учитывает реальное проскальзывание, влияние на ликвидность и риск исполнения смарт-контрактов. Прошлые результаты не являются индикатором будущих.">
+          All performance figures reflect simulated trading on a virtual ${constitution.start_capital_usd.toLocaleString('en-US')} {constitution.currency}
           portfolio; the evidenced track is anchored at June 22, 2026. Paper performance is variable, is not a forecast,
           and guarantees nothing. The simulation does not account for live slippage, liquidity
           impact, or smart-contract execution risk. Past performance is not indicative of future results.
