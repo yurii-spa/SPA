@@ -3,7 +3,7 @@
   "generator": "scripts/generate_track_snapshot.py",
   "note": "Build-time static fallback for the public pages. Live values come from api.earn-defi.com and override these client-side; this is the last honest snapshot for offline / crawlers. real_track_days = EVIDENCED bars only. Missing value => 'data unavailable', never a stale number.",
   "as_of": "2026-09-11",
-  "generated_at": "2026-09-11T20:56:10Z",
+  "generated_at": "2026-09-11T21:49:08Z",
   "degraded": false,
   "real_track_days": 80,
   "go_live_target": null,
@@ -12,11 +12,11 @@
   "days_needed": 30,
   "gates_passed": 29,
   "gates_total": 29,
-  "end_equity": 101283.03,
-  "nav_usd": 101283.03,
-  "paper_apy_pct": 5.2636,
-  "max_drawdown_pct": -0.0257,
-  "total_return_pct": 1.283,
+  "end_equity": 101235.53,
+  "nav_usd": 101235.53,
+  "paper_apy_pct": 5.0385,
+  "max_drawdown_pct": -0.0382,
+  "total_return_pct": 1.2355,
   "packages": {
     "conservative": {
       "apy_pct": 3.7,
@@ -36,9 +36,9 @@
       "status": "paper_test_running",
       "days_with_positions": 80,
       "days_funded": 80,
-      "apy_pct": 5.26,
-      "dd_pct": -0.0257,
-      "nav_usd": 101283.03,
+      "apy_pct": 5.04,
+      "dd_pct": -0.0382,
+      "nav_usd": 101235.53,
       "positions_count": null,
       "evidence": "paper"
     },
@@ -2943,35 +2943,32 @@
     {
       "date": "2026-09-11",
       "open_equity": 101274.23,
-      "close_equity": 101283.03,
-      "high_equity": 101283.03,
-      "low_equity": 101274.23,
+      "close_equity": 101235.53,
+      "high_equity": 101274.23,
+      "low_equity": 101235.53,
       "snapshots": 1,
-      "daily_return_pct": 0.00869,
-      "cumulative_return_pct": 1.28303,
-      "drawdown_pct": 0.0,
-      "equity": 101283.03,
-      "apy_today": 3.1718,
-      "apy_expected_pct": 4.7509,
-      "daily_yield_usd": 8.8005,
-      "cost_usd": 0.0,
-      "turnover_usd": 0.0,
-      "net_pnl_usd": 8.8005,
-      "unobservable_pools": [
-        "pendle"
-      ],
-      "yield_forgone_usd": 4.3836,
+      "daily_return_pct": -0.038218,
+      "cumulative_return_pct": 1.235525,
+      "drawdown_pct": -0.038218,
+      "equity": 101235.53,
+      "apy_today": 4.125,
+      "apy_expected_pct": 4.1246,
+      "daily_yield_usd": 11.4453,
+      "cost_usd": 50.15,
+      "turnover_usd": 20000.0,
+      "net_pnl_usd": -38.7047,
+      "unobservable_pools": [],
+      "yield_forgone_usd": 0.0,
       "positions": {
-        "pendle": 20000.0,
+        "maple": 20000.0,
         "fluid_fusdc": 20000.0,
+        "morpho_blue_base": 10000.0,
         "compound_v3": 40000.0,
-        "aave_v3": 4736.84,
-        "maple": 5263.16,
-        "morpho_blue_base": 4736.84
+        "aave_v3": 5000.0
       },
       "source": "cycle",
       "evidenced": true,
-      "accrual_source": "fallback"
+      "accrual_source": "live"
     }
   ]
 }
