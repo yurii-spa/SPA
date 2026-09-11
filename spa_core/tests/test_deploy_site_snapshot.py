@@ -100,24 +100,52 @@ class _DeployHarness(unittest.TestCase):
             rc = self.mod.main()
         return rc, "\n".join(printed)
 
-    @property
-    def push_cmd(self) -> list[str]:
-        """Команда доставки (второй подпроцесс). Пусто, если пуша не было."""
-        for c in self.calls:
-            if not str(c[1]).endswith("generate_track_snapshot.py"):
-                return c
-        return []
+    #: Подпроцессы, которые ЧИТАЮТ, а не доставляют: чтение состояния origin
+    #: (`git -C … fetch/show`, ADR-315 — «пушить ли конституцию вообще»).
+    #: Инв. #16 — уточнение МЕХАНИЗМА, а не утверждения (11.09): раньше доставкой
+    #: считался ЛЮБОЙ подпроцесс кроме генератора снимка, и с появлением git-чтений
+    #: тест стал называть доставкой `git -C`. Утверждение «landing/** уезжает только
+    #: через safe_site_push.py» не ослаблено, а усилено: ниже добавлена проверка,
+    #: что КАЖДЫЙ подпроцесс, не являющийся чтением или генератором, — это именно
+    #: санкционированная доставка (третий путь доставки покраснеет).
+    @staticmethod
+    def _is_read(cmd: list[str]) -> bool:
+        return bool(cmd) and Path(str(cmd[0])).name in ("git", "git.exe")
+
+    @staticmethod
+    def _is_generator(cmd: list[str]) -> bool:
+        return len(cmd) > 1 and str(cmd[1]).endswith("generate_track_snapshot.py")
 
     @property
-    def pushed_files(self) -> list[str]:
+    def delivery_calls(self) -> list[list[str]]:
+        return [c for c in self.calls
+                if not self._is_read(c) and not self._is_generator(c)]
+
+    @property
+    def push_cmd(self) -> list[str]:
+        """Команда доставки. Пусто, если пуша не было."""
+        calls = self.delivery_calls
+        return calls[0] if calls else []
+
+    @staticmethod
+    def _files_of(cmd: list[str]) -> list[str]:
         """Аргументы `--files` — до следующего флага (иначе в список попадёт --message)."""
-        cmd = self.push_cmd
+        if not cmd or "--files" not in cmd:
+            return []
         out = []
         for token in cmd[cmd.index("--files") + 1:]:
             if token.startswith("--"):
                 break
             out.append(token)
         return out
+
+    @property
+    def pushed_files(self) -> list[str]:
+        return self._files_of(self.push_cmd)
+
+    @property
+    def pushed_files_all(self) -> list[str]:
+        return [f for cmd in self.delivery_calls for f in self._files_of(cmd)]
 
 
 class TestSanctionedDeliveryPath(_DeployHarness):
@@ -133,6 +161,20 @@ class TestSanctionedDeliveryPath(_DeployHarness):
             f"а команда была: {self.push_cmd[1]}",
         )
 
+    def test_every_non_read_subprocess_is_the_sanctioned_delivery(self):
+        """Третий путь доставки покраснеет здесь, а не на сайте.
+
+        Механизм различения (чтение против доставки) сам проверяется: подпроцессы,
+        которые не читают origin и не генерируют снимок, обязаны быть вызовом
+        `safe_site_push.py` — и ни одного другого.
+        """
+        self._run_main()
+        for cmd in self.delivery_calls:
+            self.assertTrue(
+                str(cmd[1]).endswith("scripts/safe_site_push.py"),
+                f"подпроцесс, не являющийся чтением origin или генератором снимка, "
+                f"обязан быть санкционированной доставкой; был: {cmd}")
+
     def test_never_calls_the_batch_pusher_directly(self):
         """Прямой batch-пушер — это и обход owner-гейта, и отсутствие ресита доставки."""
         self._run_main()
@@ -141,10 +183,25 @@ class TestSanctionedDeliveryPath(_DeployHarness):
             "прямой вызов batch-пушера для landing/** запрещён протоколом §3.4",
         )
 
-    def test_pushes_only_the_snapshot(self):
-        """Один файл — иначе деплой сайта тянет за собой чужие изменения."""
+    def test_each_delivery_carries_exactly_one_generated_file(self):
+        """Инв. #16 — утверждение УТОЧНЕНО, а не ослаблено (11.09, ADR-315/344).
+
+        Прежняя редакция требовала `pushed_files == [снимок]`, то есть ОДНУ доставку
+        одного файла. ADR-315 добавил вторую — конституцию сайта (`constitution.json`),
+        и только когда она отличается от origin. Суть проверки та же и проверяется
+        строже: деплой не смеет тянуть ЧУЖИЕ изменения, поэтому КАЖДАЯ доставка везёт
+        РОВНО ОДИН файл, и все они — сгенерированные артефакты этого прогона.
+        """
         self._run_main()
-        self.assertEqual(self.pushed_files, [str(self.snap)])
+        self.assertTrue(self.delivery_calls, "доставки не было вовсе")
+        allowed = {str(self.snap), str(self.mod._CONST)}
+        for cmd in self.delivery_calls:
+            files = self._files_of(cmd)
+            self.assertEqual(len(files), 1, f"доставка везёт не один файл: {files}")
+            self.assertIn(files[0], allowed,
+                          "деплой сайта потянул файл, который он не генерировал")
+        self.assertIn(str(self.snap), self.pushed_files_all,
+                      "снимок трека не доставлен вовсе")
 
 
 class TestOverwriteIsDeclaredNotSilenced(_DeployHarness):
@@ -173,9 +230,16 @@ class TestOverwriteIsDeclaredNotSilenced(_DeployHarness):
         self.assertIn("changed after generation", out)
 
     def test_overwrite_flag_is_not_a_blanket_permission(self):
-        """Флаг сопровождает ровно один файл — тот, что пересобран в этом же прогоне."""
+        """Флаг сопровождает ровно один файл — тот, что пересобран в этом же прогоне.
+
+        Инв. #16: проверка распространена на КАЖДУЮ доставку прогона (их стало две,
+        ADR-315), потому что разрешение на перезапись одного артефакта не есть
+        разрешение везти их пачкой.
+        """
         self._run_main()
-        self.assertEqual(len(self.pushed_files), 1)
+        self.assertTrue(self.delivery_calls)
+        for cmd in self.delivery_calls:
+            self.assertEqual(len(self._files_of(cmd)), 1, cmd)
 
 
 class TestFailureReasonSurvives(_DeployHarness):
