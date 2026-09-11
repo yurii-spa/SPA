@@ -2,6 +2,10 @@
 // LiveStats.astro
 // Wrapper: the React island is loaded with client:visible so it doesn't block LCP
 // The static shell renders instantly; JS hydrates only when scrolled into view
+// site-numbers: стартовый капитал ниже — число-РЕШЕНИЕ и берётся из конституции сайта
+import constitution from '../lib/constitution.json';
+const capital = constitution.start_capital_usd.toLocaleString('en-US');
+const capitalRu = constitution.start_capital_usd.toLocaleString('ru-RU');
 ---
 
 <section id="live-stats" class="py-16 px-4 sm:px-6 lg:px-8 bg-bg-surface border-y border-white/5">
@@ -23,8 +27,8 @@
     <live-stats-widget></live-stats-widget>
 
     <!-- Disclaimer under stats -->
-    <p class="mt-6 text-xs text-white/25 text-center leading-relaxed max-w-2xl mx-auto" data-ru="Все данные отражают симулированную бумажную торговлю на виртуальном портфеле в $100,000 USDC. Прошлые результаты симуляции не гарантируют будущую доходность в реальной торговле.">
-      All data reflects simulated paper trading on a virtual $100,000 USDC portfolio.
+    <p class="mt-6 text-xs text-white/25 text-center leading-relaxed max-w-2xl mx-auto" data-ru={`Все данные отражают симулированную бумажную торговлю на виртуальном портфеле в $${capitalRu} ${constitution.currency}. Прошлые результаты симуляции не гарантируют будущую доходность в реальной торговле.`}>
+      All data reflects simulated paper trading on a virtual ${capital} {constitution.currency} portfolio.
       Past simulation performance does not guarantee future live performance.
     </p>
 
