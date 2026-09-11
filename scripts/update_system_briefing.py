@@ -686,17 +686,37 @@ def build_source_discovery_section() -> str:
                  "человека. Источник: `data/source_discovery.json` (ADR-142)._")
     return "\n".join(lines)
 
+def _live_knowledge_graph() -> "tuple[dict, str]":
+    """Граф базы знаний этого дерева — посчитанный сейчас. ({}, причина) при отказе."""
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "_bkg", os.path.join(PROJECT_ROOT, "scripts", "build_knowledge_graph.py"))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        rep = mod.build(PROJECT_ROOT)
+        return (rep, "") if isinstance(rep, dict) and rep.get("notes") else ({}, "пустой граф")
+    except Exception as exc:  # noqa: BLE001 — секция не имеет права уронить брифинг
+        return {}, f"{type(exc).__name__}: {exc}"[:200]
+
+
 def build_knowledge_graph_section() -> str:
     """Связность базы знаний (ADR-154).
 
     27.08 сессия трижды не нашла существующее и трижды сказала «этого нет» вместо
     «не знаю, где смотреть». Причина: к этим файлам не ведёт ни одной ссылки.
     Замер при введении: 17.9 % связности при 903 сиротах.
+
+    С 11.09 граф считается ЗДЕСЬ, на каждом прогоне (0.2 с), а не читается из
+    `data/knowledge_graph.json`. Файл писал только ручной запуск генератора, и
+    последний был 27.08: брифинг две недели печатал число 15-дневной давности без
+    указания возраста — устаревшее число, выглядящее текущим. Не посчиталось ⇒
+    «НЕ ИЗМЕРЕНО» с причиной, а не вчерашнее число.
     """
-    d = read_json("knowledge_graph.json")
+    d, why = _live_knowledge_graph()
     if not d:
-        return ("## 🕸 Связность знаний\n- **НЕ ИЗМЕРЕНО** — нет "
-                "`data/knowledge_graph.json` (`scripts/build_knowledge_graph.py`)\n")
+        return ("## 🕸 Связность знаний\n- **НЕ ИЗМЕРЕНО** — граф не посчитан "
+                f"(`scripts/build_knowledge_graph.py`: {why})\n")
     lines = ["## 🕸 Связность знаний",
              f"- связность: **{d.get('connectivity_pct')}%** "
              f"({d.get('linked')} из {d.get('notes')} заметок достижимы по ссылкам)",
@@ -713,6 +733,43 @@ def build_knowledge_graph_section() -> str:
     if hubs:
         lines.append(f"- главный концентратор: `{hubs[0].get('note')}` "
                      f"({hubs[0].get('out')} исходящих) — его устаревание рвёт доступ")
+    return "\n".join(lines) + "\n"
+
+
+def build_backlog_movement_section() -> str:
+    """Движется ли бэклог карточек — на одном источнике, и он назван (ADR-152).
+
+    Вопрос владельца 27.08. Тогда ответа не вышло: утро мерили локальным деревом,
+    вечер — origin, и числа были несравнимы. Считает `scripts/tracker_counts.py`
+    (единственный счётчик карточек, обязанный называть источник); обе точки — один
+    ref в два момента. Не посчиталось ⇒ «НЕ ИЗМЕРЕНО» с причиной.
+    """
+    head = "## 📇 Бэклог карточек"
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "_tracker_counts", os.path.join(PROJECT_ROOT, "scripts", "tracker_counts.py"))
+        tc = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(tc)
+        m = tc.movement(24)
+    except Exception as exc:  # noqa: BLE001 — секция не имеет права уронить брифинг
+        return f"{head}\n- **НЕ ИЗМЕРЕНО** — {type(exc).__name__}: {str(exc)[:160]}\n"
+    now = m["now"]
+    queue = now.get("new", 0) + now.get("backlog", 0)
+    lines = [head, f"- источник: `{m['source']}`",
+             f"- всего **{sum(now.values())}** · очередь (new+backlog) **{queue}** · "
+             f"в работе **{now.get('in-progress', 0)}** · done **{now.get('done', 0)}** · "
+             f"ждёт владельца **{now.get('needs-owner', 0)}**"]
+    before = m.get("before")
+    if before is None:
+        lines.append(f"- за {m['hours']} ч: **НЕ ИЗМЕРЕНО** — на ref нет коммита старше окна")
+    else:
+        def _d(k: str) -> str:
+            return f"{now.get(k, 0) - before.get(k, 0):+d}"
+        q_before = before.get("new", 0) + before.get("backlog", 0)
+        lines.append(f"- за {m['hours']} ч (от `{m['before_ref']}`): done **{_d('done')}** · "
+                     f"очередь **{queue - q_before:+d}** · новых карточек "
+                     f"**{sum(now.values()) - sum(before.values()):+d}**")
     return "\n".join(lines) + "\n"
 
 
@@ -1069,6 +1126,7 @@ def main() -> None:
         build_track_integrity_section() + "\n",
         build_git_index_lag_section() + "\n",
         build_knowledge_graph_section() + "\n",
+        build_backlog_movement_section() + "\n",
         build_source_discovery_section() + "\n",
         build_system_health_section() + "\n",
         build_resilience_section() + "\n",

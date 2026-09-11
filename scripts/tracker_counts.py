@@ -61,17 +61,65 @@ def counts_local() -> tuple[collections.Counter, dict]:
     return c, ids
 
 
+def _show_many(ref: str, paths: list[str]) -> dict[str, str]:
+    """Тексты многих файлов ref ОДНИМ процессом (`git cat-file --batch`).
+
+    Раньше каждая карточка читалась своим `git show`: ~1000 процессов, 14 с на
+    замер (11.09) — слишком дорого, чтобы брифинг (раз в 30 мин) спрашивал о
+    движении бэклога. Файл, которого на ref нет, возвращается пустой строкой.
+    """
+    if not paths:
+        return {}
+    r = subprocess.run(["git", "cat-file", "--batch"], cwd=ROOT, capture_output=True,
+                       input="".join(f"{ref}:{p}\n" for p in paths).encode("utf-8"),
+                       timeout=120)
+    if r.returncode != 0:
+        raise RuntimeError(f"git cat-file --batch: код {r.returncode}")
+    out, i, res = r.stdout, 0, {}
+    for p in paths:
+        nl = out.index(b"\n", i)
+        head = out[i:nl].decode("utf-8", "replace").split()
+        i = nl + 1
+        if len(head) < 3 or head[-1] == "missing":
+            res[p] = ""
+            continue
+        size = int(head[2])
+        res[p] = out[i:i + size].decode("utf-8", "replace")
+        i += size + 1
+    return res
+
+
 def counts_ref(ref: str) -> tuple[collections.Counter, dict]:
-    files = _git("ls-tree", "-r", "--name-only", ref, TRACKER + "/").split()
+    files = [f for f in _git("ls-tree", "-r", "--name-only", ref, TRACKER + "/").split()
+             if f.rsplit("/", 1)[-1].endswith(".md") and not f.rsplit("/", 1)[-1].startswith("_")]
+    texts = _show_many(ref, files)
     c, ids = collections.Counter(), collections.defaultdict(list)
     for f in files:
         name = f.rsplit("/", 1)[-1]
-        if not name.endswith(".md") or name.startswith("_"):
-            continue
-        st = _status_of(_git("show", f"{ref}:{f}"))
+        st = _status_of(texts.get(f, ""))
         c[st] += 1
         ids[st].append(name[:-3])
     return c, ids
+
+
+def movement(hours: int = 24, ref: str = "origin/main") -> dict:
+    """Сдвинулся ли бэклог за ``hours`` часов — на ОДНОМ источнике, и он назван.
+
+    Ровно вопрос владельца 27.08 («движется ли бэклог»), на который тогда ответить
+    не удалось: утренний замер был снят с локального дерева, вечерний — с origin,
+    и сравнивать их было нельзя (ADR-152). Здесь обе точки — один ref в два момента.
+    ``before`` — None, если на ref нет коммита старше окна (история короче).
+    """
+    tip = _git("rev-parse", "--short", ref)
+    if not tip:
+        raise RuntimeError(f"ref {ref} не найден")
+    tip_time = _git("log", "-1", "--format=%cI", ref)
+    now_c, _ = counts_ref(ref)
+    old_ref = _git("rev-list", "-1", f"--before={hours} hours ago", ref)
+    before = dict(counts_ref(old_ref)[0]) if old_ref else None
+    return {"source": f"{ref} @ {tip} (коммит {tip_time})", "hours": hours,
+            "now": dict(now_c), "before": before,
+            "before_ref": old_ref[:9] if old_ref else None}
 
 
 def source_note(local: bool) -> str:

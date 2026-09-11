@@ -193,6 +193,31 @@ class TestDeliveryPayloadIsNotACall(unittest.TestCase):
         (root / "scripts" / "deliver.sh").write_text(sh_body, encoding="utf-8")
         return root
 
+    def test_a_caller_at_the_repo_root_is_seen(self):
+        """11.09: инструменты доставки живут в КОРНЕ, и корень не читался вовсе.
+
+        `push_to_github.py` запускает сторож ADR-191 на каждой доставке с карточками
+        (`os.path.join(base, "scripts", "check_owner_choice_authorship.py")`), а скрипт
+        числился «доставленным и мёртвым». Корень читается НЕ рекурсивно.
+        """
+        from spa_core.tests._unwired import scripts_without_caller
+        root = self._root("#!/bin/bash\necho\n")
+        (root / "push_to_github.py").write_text(
+            'import os, subprocess, sys\n'
+            'guard = os.path.join(os.path.dirname(__file__), "scripts", "lonely_tool.py")\n'
+            'subprocess.run([sys.executable, guard])\n', encoding="utf-8")
+        self.assertNotIn("lonely_tool", scripts_without_caller(root))
+
+    def test_the_root_is_not_read_recursively(self):
+        """Корень — только верхний уровень: вложенный мусор (копии дерева) не проводка."""
+        from spa_core.tests._unwired import scripts_without_caller
+        root = self._root("#!/bin/bash\necho\n")
+        (root / "old_copy").mkdir()
+        (root / "old_copy" / "runner.py").write_text(
+            'import subprocess\nsubprocess.run(["python3", "scripts/lonely_tool.py"])\n',
+            encoding="utf-8")
+        self.assertIn("lonely_tool", scripts_without_caller(root))
+
     def test_a_push_payload_does_not_make_a_script_wired(self):
         """Отрицательный контроль аварии: имя в списке `--files` — не проводка.
 

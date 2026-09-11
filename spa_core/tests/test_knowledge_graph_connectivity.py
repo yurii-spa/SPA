@@ -95,16 +95,43 @@ class TestHonestEdges(unittest.TestCase):
 
 class TestBriefingSection(unittest.TestCase):
 
-    def test_missing_data_is_UNCHECKED_not_healthy(self):
-        """«Файла нет» ≠ «со связностью всё хорошо» (инвариант #17)."""
+    def _briefing(self):
         spec = importlib.util.spec_from_file_location(
             "briefing", str(_SCRIPT.parent / "update_system_briefing.py"))
         b = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(b)
+        return b
+
+    def test_missing_data_is_UNCHECKED_not_healthy(self):
+        """«Графа нет» ≠ «со связностью всё хорошо» (инвариант #17).
+
+        Инв. #16 — сменена ДВЕРЬ, через которую тест лишает секцию данных, а не его
+        утверждение (11.09): секция больше не читает `data/knowledge_graph.json`
+        (файл писал только ручной запуск, последний 27.08 — брифинг печатал
+        15-дневное число без возраста), а считает граф сама. Поэтому отказ
+        моделируется отказом ПОДСЧЁТА, и вывод обязан по-прежнему сказать «НЕ ИЗМЕРЕНО».
+        """
+        b = self._briefing()
         from unittest import mock
-        with mock.patch.object(b, "read_json", return_value={}):
+        with mock.patch.object(b, "_live_knowledge_graph", return_value=({}, "ошибка")):
             out = b.build_knowledge_graph_section()
         self.assertIn("НЕ ИЗМЕРЕНО", out)
+
+    def test_a_failing_generator_is_named_and_never_breaks_the_briefing(self):
+        """Секции вызываются без изоляции: исключение генератора уронило бы весь брифинг."""
+        b = self._briefing()
+        from unittest import mock
+        with mock.patch.object(b.os.path, "join", side_effect=OSError("диск")):
+            d, why = b._live_knowledge_graph()
+        self.assertEqual(d, {})
+        self.assertIn("OSError", why)
+
+    def test_the_section_counts_the_tree_now_not_a_stale_file(self):
+        """Живой подсчёт: число в секции — то, что генератор даёт на этом дереве сейчас."""
+        b = self._briefing()
+        live = _mod().build(str(_SCRIPT.parents[1]))
+        out = b.build_knowledge_graph_section()
+        self.assertIn(f"{live['linked']} из {live['notes']}", out)
 
 
 if __name__ == "__main__":

@@ -99,6 +99,18 @@ class TestTheRuleOnASyntheticRepo(unittest.TestCase):
         self.assertIn("measured", unwired_scripts(self.root))
 
 
+    def test_a_quarantine_record_counts_only_when_it_names_the_script(self):
+        """Синтетика: пустой реестр карантина не прощает никого."""
+        (self.root / "attic" / "agents").mkdir(parents=True)
+        (self.root / "attic" / "agents" / "QUARANTINE.json").write_text(
+            '{"quarantined": {"x": {"restore": "python3 scripts/alone.py restore x"}}}',
+            encoding="utf-8")
+        self.assertIn("alone", registry_recorded_scripts(self.root))
+        (self.root / "attic" / "agents" / "QUARANTINE.json").write_text(
+            '{"quarantined": {}}', encoding="utf-8")
+        self.assertNotIn("alone", registry_recorded_scripts(self.root))
+
+
 class TestTheRuleOnTheRealRepo(unittest.TestCase):
     """То же самое, но на настоящем дереве — синтетика не заменяет факта."""
 
@@ -132,6 +144,28 @@ class TestTheRuleOnTheRealRepo(unittest.TestCase):
                          pathlib.Path("docs") / "DYNAMIC_LEVERAGE_GUARDIAN.md")
         self.assertTrue((_unwired._ROOT / _unwired._RND_REGISTRY).exists(),
                         "реестр R&D исчез — правило судит по несуществующему файлу")
+
+    def test_the_product_registries_are_a_closed_list(self):
+        """ADR-342: второй реестр-продукт — карантин агентов; список закрыт.
+
+        Добавить сюда файл, чтобы погасить храповик, — ровно то, что сторож запрещает.
+        Каждый реестр обязан существовать: правило, судящее по несуществующему файлу,
+        молча перестало бы прощать — или, хуже, начало бы прощать не то.
+        """
+        self.assertEqual(_unwired._PRODUCT_REGISTRIES, (
+            pathlib.Path("docs") / "DYNAMIC_LEVERAGE_GUARDIAN.md",
+            pathlib.Path("attic") / "agents" / "QUARANTINE.json"))
+        for rel in _unwired._PRODUCT_REGISTRIES:
+            self.assertTrue((_unwired._ROOT / rel).exists(), f"реестр-продукт исчез: {rel}")
+
+    def test_the_quarantine_registry_excuses_only_its_own_instrument(self):
+        """Замер 11.09: реестр карантина называет ровно один скрипт — сам инструмент."""
+        text = (_unwired._ROOT / _unwired._QUARANTINE_REGISTRY).read_text(encoding="utf-8")
+        named = {m.stem for m in entrypoint_scripts()
+                 if _unwired.wiring_patterns(m.stem)["file"].search(text)
+                 or _unwired.wiring_patterns(m.stem)["module"].search(text)}
+        self.assertEqual(named, {"agent_quarantine"})
+        self.assertIn("agent_quarantine", registry_recorded_scripts())
 
     def test_entrypoints_are_still_found(self):
         """Общий предохранитель: пустой список входов сделал бы всё выше зелёным."""
