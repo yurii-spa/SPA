@@ -7,6 +7,8 @@ import LessonLayout from '../../components/academy/LessonLayout.astro';
 import Callout from '../../components/academy/Callout.astro';
 import Quiz from '../../components/academy/Quiz.astro';
 import KillSwitchLadder from '../../components/academy/KillSwitchLadder.jsx';
+// site-numbers: лестница стоп-крана рендерится из конституции (её источник — spa_core/governance/kill_switch.py); числовой пример ниже — учебный
+import constitution from '../../lib/constitution.json';
 
 const questions = [
   {
@@ -68,22 +70,22 @@ const questions = [
   <table>
     <thead><tr><th>Tier</th><th>Порог просадки</th><th>Эффект</th></tr></thead>
     <tbody>
-      <tr><td><strong>NONE</strong></td><td>&lt; 5%</td><td>Никаких действий</td></tr>
+      <tr><td><strong>NONE</strong></td><td>&lt; {constitution.kill_switch.soft_derisk_pct}%</td><td>Никаких действий</td></tr>
       <tr>
         <td><strong>SOFT_DERISK</strong></td>
-        <td>[5%, 10%)</td>
+        <td>[{constitution.kill_switch.soft_derisk_pct}%, {constitution.kill_switch.hard_kill_pct}%)</td>
         <td>De-risk: <strong>halt new / no INCREASE</strong> (hold + reduce OK), edge-triggered WARNING. <strong>НЕ ликвидирует.</strong></td>
       </tr>
       <tr>
         <td><strong>HARD_KILL</strong></td>
-        <td>≥ 10% (inclusive)</td>
+        <td>≥ {constitution.kill_switch.hard_kill_pct}% (inclusive)</td>
         <td>Полный kill → <strong>всё в кэш</strong> <code>{`{ cash: 1.0 }`}</code></td>
       </tr>
     </tbody>
   </table>
 
   <Callout type="key" titleRu="Ключевое">
-    Границы <strong>монотонные и полуоткрытые</strong>, верхняя — inclusive: ровно 5.0% → SOFT, ровно
+    Границы <strong>монотонные и полуоткрытые</strong>, верхняя — inclusive: ровно {constitution.kill_switch.soft_derisk_pct.toFixed(1)}% → SOFT, ровно
     10.0% → HARD. Это закрывает 0-ширину «дыры» между классификатором (<code>&gt;=</code>) и триггером
     (раньше был <code>&gt;</code>) — ADR-048 сделал <code>check_drawdown_trigger</code> тоже
     <code>&gt;=</code>.
@@ -109,7 +111,7 @@ const questions = [
   <h2>Поиграй: KillSwitchLadder</h2>
   <p>
     Двигай просадку и смотри, в какой tier попадаешь и какой эффект сработает. Обрати внимание на
-    точные границы 5.0% и 10.0%.
+    точные границы {constitution.kill_switch.soft_derisk_pct.toFixed(1)}% и {constitution.kill_switch.hard_kill_pct.toFixed(1)}%.
   </p>
 
   <KillSwitchLadder client:load />

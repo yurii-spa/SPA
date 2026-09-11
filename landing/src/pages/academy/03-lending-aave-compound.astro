@@ -3,6 +3,8 @@ import LessonLayout from '../../components/academy/LessonLayout.astro';
 import Quiz from '../../components/academy/Quiz.astro';
 import Callout from '../../components/academy/Callout.astro';
 import Diagram from '../../components/academy/Diagram.astro';
+// site-numbers: наш порог TVL рендерится из конституции; остальные числа урока — рыночные ставки и учебная арифметика загрузки пула
+import constitution from '../../lib/constitution.json';
 
 const questions = [
   {
@@ -155,7 +157,7 @@ const questions = [
 
   <Callout type="example">
     В дневном цикле деска оркестратор адаптеров (read-only) тянет живые supply APY и TVL из
-    этих протоколов через DeFiLlama, RiskPolicy проверяет лимиты (TVL ≥ $5M, cap на протокол,
+    этих протоколов через DeFiLlama, RiskPolicy проверяет лимиты (TVL ≥ ${Math.round(constitution.tvl_floor_usd / 1e6)}M, cap на протокол,
     минимальный кэш-буфер), и аллокатор раскладывает виртуальные USDC именно в эти кредитные
     пулы. Скромные ~4.5% supply APY с верхнего тира — это и есть «скучная, но честная» база
     портфеля.
