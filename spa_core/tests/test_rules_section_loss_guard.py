@@ -113,6 +113,64 @@ class IncidentBa66e1bd3(unittest.TestCase):
         self.assertIn("+94", msg)
 
 
+class TheConstitutionIsWatchedToo(unittest.TestCase):
+    """ADR-344: тот же класс повторился на `CLAUDE.md`, и сторож её не видел.
+
+    Положительный контроль — настоящая авария, побайтово из истории: `e1044b907`
+    (27.08.2026) принёс правку ADR-152 поверх УСТАРЕВШЕЙ копии конституции и унёс
+    **инвариант #17** («отсутствие наблюдения обязано быть отдельным значением»,
+    решение владельца ADR-129). Шестнадцать суток инвариант, который сторожит
+    храповик `test_absent_observation_ratchet`, не существовал в файле, который
+    сессии читают ПЕРВЫМ; за тот же срок класс вырос со 192 мест до 325.
+
+    Заголовки разделов при этом уцелели: пропал НУМЕРОВАННЫЙ ПУНКТ. Поэтому у
+    конституции своя единица смысла, и проверка по одним `##` молчала бы и тут.
+    """
+
+    BEFORE = "claude_md_before_e1044b907.md"
+    AFTER = "claude_md_after_e1044b907.md"
+
+    def test_fixtures_are_the_incident(self):
+        before, after = _fixture(self.BEFORE), _fixture(self.AFTER)
+        self.assertIn(b"17. **\xd0\x9e\xd1\x82\xd1\x81\xd1\x83\xd1\x82\xd1\x81\xd1\x82\xd0\xb2\xd0\xb8\xd0\xb5", before,
+                      "в фикстуре «до» нет инварианта #17 — это не та авария")
+        self.assertNotIn("Отсутствие наблюдения".encode(), after,
+                         "в фикстуре «после» инвариант цел — это не та авария")
+
+    def test_the_constitution_is_a_rules_doc(self):
+        self.assertTrue(pusher.is_rules_doc("CLAUDE.md"))
+        self.assertIs(pusher.rules_entry_pattern("CLAUDE.md"),
+                      pusher.CONSTITUTION_ENTRY_RE)
+        self.assertIs(pusher.rules_entry_pattern(RULE), pusher.RULES_SECTION_RE)
+
+    def test_the_incident_is_refused_and_names_the_invariant(self):
+        with self.assertRaises(pusher.RulesSectionLossRefused) as got:
+            pusher.guard_rules_section_loss("CLAUDE.md", _fixture(self.BEFORE),
+                                            _fixture(self.AFTER), "deadbeef")
+        self.assertIn("17. **Отсутствие наблюдения", str(got.exception))
+
+    def test_a_headings_only_measure_would_have_stayed_silent(self):
+        """Почему единица смысла у конституции СВОЯ, а не унаследованная.
+
+        Мера по одним `##` на этой же паре байт не видит потери — то есть сторож
+        разделов, применённый к конституции без правки, честно молчал бы.
+        """
+        lost, _ = pusher.classify_missing_entries(
+            _fixture(self.BEFORE), _fixture(self.AFTER), pusher.RULES_SECTION_RE)
+        self.assertEqual(lost, [], "мера по заголовкам уже видит потерю — контроль выродился")
+
+    def test_adding_an_invariant_is_not_a_loss(self):
+        """Обратный контроль: дописать пункт можно, сторож не мешает работе."""
+        before = _fixture(self.AFTER)
+        after = before.replace(b"\n### ", b"\n18. **\xd0\x9d\xd0\xbe\xd0\xb2\xd1\x8b\xd0\xb9 \xd0\xbf\xd1\x83\xd0\xbd\xd0\xba\xd1\x82**\n\n### ", 1)
+        self.assertEqual(pusher.guard_rules_section_loss(
+            "CLAUDE.md", before, after, "deadbeef"), "")
+
+    def test_an_unread_remote_constitution_is_refusal_not_silence(self):
+        with self.assertRaises(pusher.RulesSectionLossRefused):
+            pusher.guard_rules_section_loss("CLAUDE.md", None, _fixture(self.AFTER), "deadbeef")
+
+
 class Boundaries(unittest.TestCase):
     """Границы: где сторож обязан молчать и где обязан кричать."""
 

@@ -827,8 +827,21 @@ def is_append_only_doc(repo_path: str) -> bool:
 #: Файлы правил, которые сессия обязана прочитать ПЕРЕД работой в области.
 RULES_PREFIXES = (".claude/rules/",)
 
+#: Конституция проекта. Сторож #456 закрыл `.claude/rules/`, а её — нет, и класс
+#: повторился ровно на ней: `e1044b907` (27.08) принёс свою правку поверх УСТАРЕВШЕЙ
+#: копии и унёс ИНВАРИАНТ #17 («отсутствие наблюдения — отдельное значение», решение
+#: владельца ADR-129). Шестнадцать суток инвариант, который сторожит храповик, не
+#: существовал в файле, который сессии читают первым, — и за этот срок класс вырос
+#: со 192 мест до 325 (замер 11.09, ADR-344).
+CONSTITUTION_DOC = "CLAUDE.md"
+
 #: Единица смысла ПРАВИЛА — раздел. `#` не берём: это заголовок всего файла.
 RULES_SECTION_RE = re.compile(rb"^#{2,3}[ \t]+\S.*$", re.M)
+
+#: У конституции единиц ДВЕ: раздел и НУМЕРОВАННЫЙ ИНВАРИАНТ. Пропал именно инвариант —
+#: заголовки при этом уцелели, и сторож по одним разделам молчал бы и на ней.
+CONSTITUTION_ENTRY_RE = re.compile(
+    rb"^(?:#{2,3}[ \t]+\S.*|\d{1,2}\.[ \t]+\*\*.*)$", re.M)
 
 
 class RulesSectionLossRefused(DivergenceRefused):
@@ -836,9 +849,17 @@ class RulesSectionLossRefused(DivergenceRefused):
 
 
 def is_rules_doc(repo_path: str) -> bool:
-    """Файл правил (`.claude/rules/*.md`), у которого единица смысла — раздел."""
+    """Файл ПРАВИЛ: `.claude/rules/*.md` либо сама конституция `CLAUDE.md`."""
+    if repo_path == CONSTITUTION_DOC:
+        return True
     return (any(repo_path.startswith(p) for p in RULES_PREFIXES)
             and repo_path.endswith(".md"))
+
+
+def rules_entry_pattern(repo_path: str):
+    """Чем в этом файле правил опознаётся единица смысла (раздел / инвариант)."""
+    return (CONSTITUTION_ENTRY_RE if repo_path == CONSTITUTION_DOC
+            else RULES_SECTION_RE)
 
 
 def guard_rules_section_loss(repo_path: str, remote_bytes: Optional[bytes],
@@ -863,8 +884,8 @@ def guard_rules_section_loss(repo_path: str, remote_bytes: Optional[bytes],
             f"Что делать: повторить (Contents API не отдаёт содержимое файлов "
             f">1 МБ); осознанное сокращение — `--allow-overwrite`.")
 
-    lost, renamed = classify_missing_entries(remote_bytes, content_bytes,
-                                             RULES_SECTION_RE)
+    _pat = rules_entry_pattern(repo_path)
+    lost, renamed = classify_missing_entries(remote_bytes, content_bytes, _pat)
     if not lost:
         if renamed:
             pairs = ", ".join(f"{a.decode('utf-8', 'replace')} → "
@@ -874,8 +895,8 @@ def guard_rules_section_loss(repo_path: str, remote_bytes: Optional[bytes],
         return ""
 
     # Улики для человека: что пропало, что появилось взамен, куда поехал объём.
-    appeared = [h for h in entry_headers(content_bytes, RULES_SECTION_RE)
-                if h not in entry_headers(remote_bytes, RULES_SECTION_RE)]
+    appeared = [h for h in entry_headers(content_bytes, _pat)
+                if h not in entry_headers(remote_bytes, _pat)]
     delta = content_bytes.count(b"\n") - remote_bytes.count(b"\n")
     named = "\n".join(f"  ! {h.decode('utf-8', 'replace')}" for h in lost)
     new_named = ("\n".join(f"  + {h.decode('utf-8', 'replace')}" for h in appeared)
@@ -885,9 +906,11 @@ def guard_rules_section_loss(repo_path: str, remote_bytes: Optional[bytes],
         f"на remote (sha {remote_sha[:8]}):\n{named}\n"
         f"Появилось взамен:\n{new_named}\n"
         f"Объём файла: {delta:+d} строк(и) НЕТТО к remote.\n"
-        f"Так 30.08 `ba66e1bd3` унёс 104 строки `.claude/rules/deployment.md` — "
+        f"Так 30.08 `ba66e1bd3` унёс 104 строки `.claude/rules/deployment.md`, а "
+        f"27.08 `e1044b907` — инвариант #17 из `CLAUDE.md` (16 суток его не было) — "
         f"доставка принесла свой раздел поверх УСТАРЕВШЕЙ копии, и шесть дней "
-        f"правил не существовало. Пуш отменён (fail-CLOSED, инвариант #2).\n"
+        f"в обоих случаях доставка принесла своё поверх УСТАРЕВШЕЙ копии. "
+        f"Пуш отменён (fail-CLOSED, инвариант #2).\n"
         f"Что делать: перечитать файл со свежего origin, перенести свою правку "
         f"на него (дописывать ПОВЕРХ origin-версии, а не подменять своей копией) "
         f"и запушить снова. Если раздел убирается ОСОЗНАННО — `--allow-overwrite`, "
