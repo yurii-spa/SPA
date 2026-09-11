@@ -459,6 +459,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                   "forward_direction", "reverse_direction",
                                   "error_rate", "transfer_to_denominator",
                                   "findings", "does_not_report"),
+    # Заказ #557. `independence` в схеме обязателен: без него «16 наблюдений вне
+    # носителя» прочтётся как показание второго свидетеля, а свидетель, названный
+    # заказом, замером оказался ТЕМ ЖЕ. `run_axis` и `comparable_axis` обязаны
+    # стоять порознь: число наблюдений и число пригодных к сравнению — разные
+    # величины, и заказ прямо потребовал сказать это прежде, чем называть разницу.
+    "rate_observation_census.json": ("status", "independence", "run_axis",
+                                     "comparable_axis", "mechanism",
+                                     "outside_denominator", "counts",
+                                     "findings", "advisory"),
     # Заказ #544. `per_pair` в схеме обязателен по той же причине, что
     # `attribution` у соседа: ответ «чем закрываема дыра» без перечня пар
     # выродится в долю. `series_provenance_exposure` — потому что наличие
@@ -593,6 +602,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/audit_trail_rate_input_coverage.py",
     "run_axis_time_stitch.json":
         "spa_core/monitoring/run_axis_time_stitch.py",
+    "rate_observation_census.json":
+        "spa_core/monitoring/rate_observation_census.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2137,6 +2148,20 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _rats_report,
         )
         out.extend(_rats_report(data))
+    elif name == "rate_observation_census.json":
+        # Заказ #557. Порядок строк — порядок вопроса, и здесь он обязателен
+        # трижды. Сперва НЕЗАВИСИМОСТЬ источника: показание кандидата, который
+        # оказался тем же писателем, не есть второе показание. Затем ОТВЕТ про
+        # дни, которых носитель касается (третий исход заказа), и лишь потом —
+        # ПРИГОДНОСТЬ к сравнению ПЕРЕД любой разницей: десять наблюдений дня и
+        # ноль сравнимых пар совместимы, и читатель обязан узнать это раньше,
+        # чем увидит размах. Контроль на несвязанном населении идёт последним:
+        # «переписчик теряет прогоны» первой строкой прочлось бы как замер
+        # знаменателя. Порядок закреплён тестом.
+        from spa_core.monitoring.rate_observation_census import (
+            format_report as _roc_report,
+        )
+        out.extend(_roc_report(data))
     elif name == "arming_wall_order.json":
         # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
         # стен с числами освобождённых дней, потом вердикт ветки, и только потом

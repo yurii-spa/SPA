@@ -120,6 +120,7 @@ PRODUCES = (
     "data/intraday_rate_input_movement.json",
     "data/audit_trail_rate_input_coverage.json",
     "data/run_axis_time_stitch.json",
+    "data/rate_observation_census.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -195,6 +196,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "intraday_rate_input_movement",
     "audit_trail_rate_input_coverage",
     "run_axis_time_stitch",
+    "rate_observation_census",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -340,6 +342,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "run_axis_time_stitch": {
         "module": "spa_core/monitoring/run_axis_time_stitch.py",
         "artifact": "data/run_axis_time_stitch.json"},
+    "rate_observation_census": {
+        "module": "spa_core/monitoring/rate_observation_census.py",
+        "artifact": "data/rate_observation_census.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -1244,6 +1249,18 @@ def main(argv=None) -> int:
               f"unchecked={_rats['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "run_axis_time_stitch", e)
+    # Ровно та же причина, что у соседа выше: единственное действие по итогам —
+    # тронуть такт переписчика, `max_runs` кольцевого буфера или частоту опроса,
+    # то есть входы money-path. Мост артефакт НЕ читает; потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import rate_observation_census
+        _roc = rate_observation_census.run(root=args.root)
+        print(f"rate_observation_census: {_roc.get('overall')} "
+              f"(pairs={_roc['counts']['pairs']} "
+              f"judged={_roc['counts']['pairs_judged']} "
+              f"outside_carrier={_roc['counts']['runs_provable_outside_carrier']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "rate_observation_census", e)
     try:
         from spa_core.monitoring import arming_wall_order
         _awo = arming_wall_order.run(root=args.root)
