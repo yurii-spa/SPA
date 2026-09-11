@@ -830,10 +830,39 @@ def format_report(doc: dict) -> List[str]:
 
 
 def run(root: Optional[str] = None, *, write: bool = True,
-        now: Optional[datetime] = None) -> dict:
-    base = Path(root) if root else Path(
-        os.environ.get("SPA_DATA_DIR")
-        or Path(__file__).resolve().parents[2] / "data")
+        now: Optional[datetime] = None, data_dir: Optional[str] = None) -> dict:
+    """Форма, которую ждут ступень переписей `findings_bridge` и шаг 0-офис.
+
+    `root` — **КОРЕНЬ ДЕРЕВА**, как у всех соседних переписей ступени
+    (`arming_wall_order`, `run_axis_time_stitch`, `leg_provenance_split`,
+    `snapshot_minute_sensitivity`): каталог данных из него выводится как
+    `root / "data"`.
+
+    Прежняя редакция принимала `root` как САМ каталог данных, и от соседей это
+    отличалось молча. Мост зовёт `run(root=args.root)` корнем дерева — значит
+    перепись искала `equity_curve_daily.json` в корне репозитория, не находила
+    ничего и возвращала документ с `denominator_days: 0` и без ключа `pairs`;
+    на печати моста это давало `KeyError: 'pairs'`, ступень писала
+    `skipped`, артефакт не появлялся ни разу с доставки цикла #562, и шаг
+    0-офис честно докладывал «❌ НЕ ПРОЧИТАН».
+
+    **Падение здесь было ЛУЧШИМ из двух исходов.** Не печатай мост это поле —
+    `write=True` записал бы пустую перепись (`denominator_days: 0`) как ответ,
+    и «не измерено» стало бы неотличимо от «измерено, дыр нет». Красный ключ
+    громче тихого нуля; поэтому контракт чинится, а не обходится.
+
+    `data_dir` — явный каталог данных, когда корня дерева нет (CLI
+    `--data-dir`, тесты на временном каталоге). Два разных смысла разведены по
+    двум разным именам НАМЕРЕННО: один параметр, значащий у двух вызывающих
+    разное, и есть ровно этот дефект.
+    """
+    if data_dir is not None:
+        base = Path(data_dir)
+    elif root is not None:
+        base = Path(root) / "data"
+    else:
+        base = Path(os.environ.get("SPA_DATA_DIR")
+                    or Path(__file__).resolve().parents[2] / "data")
     doc = build(base, now=now)
     if write:
         from spa_core.utils.atomic import atomic_save
@@ -848,7 +877,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--no-write", action="store_true")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
-    doc = run(args.data_dir, write=not args.no_write)
+    doc = run(data_dir=args.data_dir, write=not args.no_write)
     if args.json:
         print(json.dumps(doc, ensure_ascii=False, indent=2))
         return 0

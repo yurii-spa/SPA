@@ -410,7 +410,12 @@ class StructuralInvariants(_Scene):
         original = mod.scored_days
         mod.scored_days = lambda _d: {D1}  # type: ignore[assignment]
         try:
-            mod.run(str(self.dir), write=False, now=ANCHOR)
+            # `data_dir=` НАМЕРЕННО: с циклом #564 `root` у этой переписи
+            # значит КОРЕНЬ ДЕРЕВА, как у всех соседок ступени, а сам каталог
+            # данных передаётся своим именем. Прежний позиционный вызов
+            # закреплял ровно то расхождение контрактов, из-за которого мост
+            # падал `KeyError: 'pairs'` (см. ADR-325 и тесты ниже).
+            mod.run(data_dir=str(self.dir), write=False, now=ANCHOR)
         finally:
             mod.scored_days = original  # type: ignore[assignment]
         self.assertEqual(sorted(p.name for p in self.dir.iterdir()), before)
@@ -550,6 +555,93 @@ class TruncationMustNotMisrouteTheRepair(_Scene):
                           saturated=True)
         self.assertEqual(rows[0]["klass"], mod.PAIR_JUDGED)
         self.assertEqual(rows[0]["range_pp"], 0.2)
+
+
+# ─── контракт `run(root=…)` — тот самый, на котором мост падал (замер #564) ────
+#
+# Ступень переписей `findings_bridge` зовёт КАЖДУЮ перепись одинаково:
+# `run(root=args.root)`, где `args.root` — корень дерева. Соседки
+# (`arming_wall_order`, `run_axis_time_stitch`, `leg_provenance_split`,
+# `snapshot_minute_sensitivity`) выводят каталог данных как `root / "data"`.
+# Эта перепись до #564 принимала `root` как САМ каталог данных — молча, и
+# разошлась с ними одна из всех. Цена расхождения измерена на живом дереве:
+# документ приходил с `denominator_days: 0` и БЕЗ ключа `pairs`, печать моста
+# падала `KeyError: 'pairs'`, ступень писала `skipped`, артефакта не было ни
+# разу с доставки #562, а шаг 0-офис честно докладывал «❌ НЕ ПРОЧИТАН».
+#
+# Падение было ЛУЧШИМ из двух исходов: не печатай мост это поле, `write=True`
+# записал бы ПУСТУЮ перепись как ответ.
+class RunContractMatchesTheCensusStage(unittest.TestCase):
+    """`root` значит корень дерева, `data_dir` — каталог данных. Порознь."""
+
+    def setUp(self) -> None:
+        self.tmp = TemporaryDirectory()
+        self.tree = Path(self.tmp.name)
+        (self.tree / "data").mkdir()
+        self.addCleanup(self.tmp.cleanup)
+
+    def _seed(self, data_dir: Path) -> None:
+        (data_dir / mod.RUNS_FILENAME).write_text(
+            json.dumps({"max_runs": 30, "runs": []}), encoding="utf-8")
+
+    def test_root_is_the_tree_root_and_data_is_read_from_its_data_dir(self):
+        """Положительный контроль аварии: зов моста обязан НАЙТИ каталог."""
+        self._seed(self.tree / "data")
+        doc = mod.run(root=str(self.tree), write=True, now=ANCHOR)
+        self.assertTrue((self.tree / "data" / mod.OUTPUT_FILENAME).exists(),
+                        "артефакт лёг не в `<корень>/data` — мост его не найдёт")
+        self.assertFalse((self.tree / mod.OUTPUT_FILENAME).exists(),
+                         "артефакт лёг в КОРЕНЬ дерева: ровно прежний дефект")
+
+    def test_the_unmeasured_document_still_reaches_the_office_step(self):
+        """Третий исход обязан ЛЕЧЬ туда, где его ищет читатель.
+
+        На дереве без входов документ выходит `UNMEASURED` — это честный
+        ответ, и он ценен: шаг 0-офис прочитает «не измерено, причина такая-то»
+        вместо «❌ НЕ ПРОЧИТАН, файла нет». До #564 он ложился в корень дерева,
+        и читатель не видел вообще ничего.
+
+        Оговорка, измеренная и НЕ починенная здесь: печать ступени берёт
+        `_roc['counts']['pairs']` жёстким индексом, а `UNMEASURED`-документ
+        этого ключа не несёт — мост на этом пути всё ещё запишет `skipped`.
+        Артефакту это больше не мешает (`run` пишет ДО печати), но класс
+        «жёсткий индекс в печати убивает третий исход производителя» живёт в
+        мосте **78 раз** и чинится не прицепом: карточка
+        `inbox-pechat-stupeni-perepisei-ubivaet-tretii`.
+        """
+        self._seed(self.tree / "data")
+        doc = mod.run(root=str(self.tree), write=True, now=ANCHOR)
+        self.assertEqual(doc.get("status"), mod.STATUS_UNMEASURED)
+        self.assertTrue((self.tree / "data" / mod.OUTPUT_FILENAME).exists(),
+                        "третий исход не доехал до читателя — он лёг не туда")
+
+    def test_an_explicit_data_dir_still_wins(self):
+        """CLI `--data-dir` и тесты на временном каталоге не сломаны."""
+        elsewhere = self.tree / "somewhere"
+        elsewhere.mkdir()
+        self._seed(elsewhere)
+        mod.run(data_dir=str(elsewhere), write=True, now=ANCHOR)
+        self.assertTrue((elsewhere / mod.OUTPUT_FILENAME).exists())
+        self.assertFalse((self.tree / "data" / mod.OUTPUT_FILENAME).exists())
+
+    def test_the_census_stage_calls_every_sibling_the_same_way(self):
+        """Контракт — общий, а не частный: он измеряется у СОСЕДОК.
+
+        Проверка формы, а не имени: перепись ступени обязана уметь принять
+        КОРЕНЬ ДЕРЕВА. Разойдись с ними снова хоть одна — падение здесь, а не
+        через сутки в `skipped` у моста.
+        """
+        from importlib import import_module
+
+        siblings = ("arming_wall_order", "run_axis_time_stitch",
+                    "leg_provenance_split", "snapshot_minute_sensitivity")
+        for name in siblings:
+            with self.subTest(sibling=name):
+                fn = getattr(import_module(f"spa_core.monitoring.{name}"), "run")
+                params = fn.__code__.co_varnames[:fn.__code__.co_argcount]
+                self.assertIn("root", params,
+                              f"{name}.run не принимает `root` — ступень зовёт "
+                              "именно так")
 
 
 if __name__ == "__main__":  # pragma: no cover

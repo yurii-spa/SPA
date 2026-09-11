@@ -2,17 +2,18 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-11T08:02:48Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-11T09:34:32Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (ad2648ecc).
+> Сверено с `origin/main` (4e9c01c89) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1012** · ждёт владельца: **9** · занято сессиями: **14**.
+> Всего карточек: **1016** · ждёт владельца: **10** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Автоторговля, вопрос 2 из 3: нужен ли ДНЕВНОЙ лимит оборота вдобавок к недельному?**  ·  `owner-decision-avtotorgovlya-dnevnoi-limit-oborota.md`
 - **Автоторговля, вопрос 3 из 3: что делать с незнакомым протоколом и незнакомым тиром?**  ·  `owner-decision-avtotorgovlya-neznakomyi-protokol-i-tir.md`
 - **Автоторговля, вопрос 1 из 3: ставить ли потолок на СУММУ одной сделки?**  ·  `owner-decision-avtotorgovlya-potolok-summy-odnoi-sdelki.md`
+- **CIO не взведётся НИКОГДА: чтобы доказать, что он окупается, нужен хоть один ход — а бюджет оборота запрещает их все**  ·  `owner-decision-cio-ne-vzvoditsya-nikogda-byudzhet-oborota.md`
 - **earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются**  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md`
 - **earn-defi: создать репозиторий на GitHub — у агента нет прав, работа лежит локально**  ·  `owner-decision-earn-defi-sozdat-repozitorii-na-github.md`
 - **Твой Obsidian показывает состояние проекта недельной давности — одна минута на починку**  ·  `owner-decision-obsidian-chitaet-sostoyanie-nedelnoi-davnosti.md`
@@ -39,12 +40,13 @@
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (270)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (271)
 
 ### · needs-owner
 - Автоторговля, вопрос 2 из 3: нужен ли ДНЕВНОЙ лимит оборота вдобавок к недельному?  ·  `owner-decision-avtotorgovlya-dnevnoi-limit-oborota.md` · 2026-09-09
 - Автоторговля, вопрос 3 из 3: что делать с незнакомым протоколом и незнакомым тиром?  ·  `owner-decision-avtotorgovlya-neznakomyi-protokol-i-tir.md` · 2026-09-09
 - Автоторговля, вопрос 1 из 3: ставить ли потолок на СУММУ одной сделки?  ·  `owner-decision-avtotorgovlya-potolok-summy-odnoi-sdelki.md` · 2026-09-09
+- CIO не взведётся НИКОГДА: чтобы доказать, что он окупается, нужен хоть один ход — а бюджет оборота запрещает их все  ·  `owner-decision-cio-ne-vzvoditsya-nikogda-byudzhet-oborota.md` · 2026-09-11
 - earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md` · 2026-09-09
 - earn-defi: создать репозиторий на GitHub — у агента нет прав, работа лежит локально  ·  `owner-decision-earn-defi-sozdat-repozitorii-na-github.md` · 2026-09-09
 - Твой Obsidian показывает состояние проекта недельной давности — одна минута на починку  ·  `owner-decision-obsidian-chitaet-sostoyanie-nedelnoi-davnosti.md` · 2026-09-09
@@ -315,7 +317,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (503)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (506)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -746,6 +748,7 @@
 - Находка петли: data/journal_population_backfill.json: активный артефакт отсутствует н  ·  `inbox-nahodka-petli-data-journal-population-ba.md` · 2026-09-11
 - Неприменённый ответ владельца «1» — адресат не назван  ·  `inbox-neprimenennyi-otvet-vladeltsa-1-adresat.md` · 2026-09-10
 - Обещанная перепроверка DNS checkup осталась без исполнителя: карточку закрыли, критерий не выполнен  ·  `inbox-obeschannaya-pereproverka-dns-checkup-os.md` · 2026-08-22
+- Объявить в _READ_SCHEMA чтения двух веток отчёта 0-офис (класс A, ADR-325)  ·  `inbox-obyavit-v-read-schema-chteniya-dvuh-veto.md` · 2026-09-11
 - «Очередь полна» верна ровно настолько, насколько свеж локальный ref: в проде origin/main отстал, и отставание не мерит никто  ·  `inbox-ochered-polna-verna-rovno-nastolko-nasko.md` · 2026-08-31
 - Один порог «40 %» меряется ДВУМЯ знаменателями — DL-03 и RiskPolicy спорят о крупнейшей позиции книги  ·  `inbox-odin-porog-40-meryaetsya-dvumya-znamenat.md` · 2026-09-06
 - Один спор — два вопроса владельцу за 9.5 часов: обе карточки живы, обе с кнопками (ADR-084)  ·  `inbox-odin-spor-dva-voprosa-vladeltsu-za-9-5-c.md` · 2026-08-30
@@ -757,6 +760,7 @@
 - Отбор лучших восьми протоколов не бережёт T1-якорь: два хороших кандидата вместе ухудшают книгу  ·  `inbox-otbor-luchshih-vosmi-protokolov-ne-berez.md` · 2026-08-29
 - ОТЛОЖЕНО · Looping Strategy «до +50%» — отдельный трек, вернуться после расчистки бэклога  ·  `inbox-otlozheno-looping-strategy-do-50-otdelny.md` · 2026-08-23
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
+- Печать ступени переписей убивает третий исход прибора: 78 жёстких индексов по counts  ·  `inbox-pechat-stupeni-perepisei-ubivaet-tretii.md` · 2026-09-11
 - Pendle: 22 модуля доходности отказывают только для него — локализовано поимённо, причина НЕ измерена (батарея оказалась инертной)  ·  `inbox-pendle-22-modulya-dohodnosti-otkazyvayut.md` · 2026-09-08
 - Перемерить записи #35–#76 после починки курса (вторая половина варианта 1, ADR-139)  ·  `inbox-peremerit-zapisi-35-76-posle-pochinki-ku.md` · 2026-08-26
 - Перепись 18 статических адаптеров: где литерал, где живой пул и сколько там доходности  ·  `inbox-perepis-18-staticheskih-adapterov.md` · 2026-08-29
@@ -817,6 +821,7 @@
 - Тест паспортов краснеет на main оттого, что курацию ДОВЕЛИ: он требует, чтобы работа оставалась незаконченной (91 из 91)  ·  `inbox-test-pasportov-krasneet-na-main-ottogo-c.md` · 2026-08-30
 - Три отправителя стоп-крана в обход канонической двери (найдено #313)  ·  `inbox-tri-otpravitelya-stop-krana-v-obhod-kano.md` · 2026-08-20
 - Цикл считает покрытие фидов 100% живым, а aave_arbitrum читает круглые константы из adapter_status.json  ·  `inbox-tsikl-schitaet-pokrytie-fidov-100-zhivym.md` · 2026-08-29
+- Убрать два пустых артефакта из корня прод-дерева после починки контракта переписей  ·  `inbox-ubrat-dva-pustyh-artefakta-iz-kornya-pro.md` · 2026-09-11
 - Вердикт деска по sUSDS стоит на СНЯТОЙ причине — а книга этот актив держит  ·  `inbox-verdikt-deska-po-susds-stoit-na-snyatoi.md` · 2026-08-25
 - Вердикт сторожа архитектуры относится к манифесту, которого больше нет — а 492 строки нового лежат в прод-дереве незакоммиченными  ·  `inbox-verdikt-storozha-arhitektury-otnositsya.md` · 2026-08-30
 - Ветка сверки по mtime срабатывает на свежем worktree всегда — у неё СВОЙ дефект, тактом не лечится (остаток ADR-264)  ·  `inbox-vetka-sverki-po-mtime-srabatyvaet-na-sve.md` · 2026-09-08

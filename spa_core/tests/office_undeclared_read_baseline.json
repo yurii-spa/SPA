@@ -1,0 +1,33 @@
+{
+  "measured_at_cycle": 564,
+  "measured_on": "origin/main 4e9c01c89",
+  "no_entry": [
+    "owner_decision_pending.json",
+    "shadow_trigger_evaluation.json"
+  ],
+  "undeclared_top": {
+    "_health.json": [
+      "house_view",
+      "status"
+    ],
+    "architecture_conformance.json": [
+      "mechanics_from_ref",
+      "slo_unassigned",
+      "unchecked"
+    ],
+    "findings_bridge_report.json": [
+      "closing_hysteresis"
+    ],
+    "loop_health.json": [
+      "cards_other_status",
+      "cards_unreadable",
+      "recurrence_liveness",
+      "recurrences_by_class",
+      "recurring_findings"
+    ],
+    "rebalance_trigger.json": [
+      "inputs"
+    ]
+  },
+  "nested_population_at_measurement": 169
+}

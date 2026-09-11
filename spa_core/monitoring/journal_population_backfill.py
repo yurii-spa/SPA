@@ -360,13 +360,38 @@ def format_report(doc: dict) -> List[str]:
 
 
 def run(root: Optional[str] = None, *, now: Optional[datetime] = None,
-        book_id: Optional[str] = None) -> dict:
-    """Померить и положить артефакт рядом с остальными — атомарно."""
+        book_id: Optional[str] = None, data_dir: Optional[str] = None) -> dict:
+    """Померить и положить артефакт рядом с остальными — атомарно.
+
+    `root` — **КОРЕНЬ ДЕРЕВА**, как у всех соседних переписей ступени
+    `findings_bridge`: каталог данных выводится как `root / "data"`.
+
+    Прежняя редакция принимала `root` как САМ каталог данных. Мост зовёт
+    `run(root=args.root)` корнем дерева, поэтому перепись читала пустоту и
+    клала `journal_population_backfill.json` **в корень репозитория**, а не в
+    `data/`. Исключения при этом не было ни одного: ступень докладывала успех,
+    артефакт не появлялся там, где его ищет шаг 0-офис, и тот честно печатал
+    «❌ НЕ ПРОЧИТАН … бегун ступень звал и о пропуске НЕ сообщил».
+
+    **Это fail-OPEN, и он тише красного.** У соседки с тем же дефектом
+    (`rate_observation_census`, ADR-325) печать моста спотыкалась о
+    `KeyError: 'pairs'`, и ступень хотя бы записывала `skipped` с причиной;
+    здесь не спотыкалось ничто. Замер 11.09 нашёл физическую улику: файл
+    лежал в корне рабочего дерева с отметкой того же часа.
+
+    `data_dir` — явный каталог данных (CLI `--data-dir`, тесты). Два смысла
+    разведены двумя именами: один параметр, значащий у двух вызывающих разное,
+    и есть ровно этот дефект.
+    """
     from spa_core.utils.atomic import atomic_save
 
-    base = Path(root) if root else Path(
-        os.environ.get("SPA_DATA_DIR")
-        or Path(__file__).resolve().parents[2] / "data")
+    if data_dir is not None:
+        base = Path(data_dir)
+    elif root is not None:
+        base = Path(root) / "data"
+    else:
+        base = Path(os.environ.get("SPA_DATA_DIR")
+                    or Path(__file__).resolve().parents[2] / "data")
     doc = measure(base, now=now, book_id=book_id)
     atomic_save(doc, str(base / OUTPUT_FILENAME))
     return doc
@@ -382,7 +407,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                     help="записать план в журнал (резерв снимается ДО правки)")
     args = ap.parse_args(argv)
 
-    doc = run(args.data_dir, book_id=args.book_id)
+    doc = run(data_dir=args.data_dir, book_id=args.book_id)
     for line in format_report(doc):
         print(line)
     if args.apply:
