@@ -1,14 +1,6 @@
 {
  "note": "Файлы без провенанса чисел. База может ТОЛЬКО уменьшаться (scripts/site_number_provenance.py, .claude/rules/site-numbers.md). Дописывать сюда файл, чтобы погасить падение, ЗАПРЕЩЕНО.",
  "files": [
-  "pages/academy/playground.astro",
-  "pages/academy/privacy.astro",
-  "pages/blog/2026-06-19-architecture-audit.astro",
-  "pages/board/methodology.astro",
-  "pages/competitive-position.astro",
-  "pages/disclaimer.astro",
-  "pages/emergency-withdrawal.astro",
-  "pages/learn/what-is-a-stablecoin-depeg.astro",
   "pages/learn/why-20-apy-means-tail-risk.astro",
   "pages/protection-lab.astro",
   "pages/research.astro",
