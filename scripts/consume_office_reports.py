@@ -472,6 +472,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # заказа, а не украшение отчёта.
     "census_consumer_census.json": ("status", "counts", "callees", "consumers",
                                     "stage_ratchet", "findings"),
+    # Заказ #565. `population` и `blindness` объявлены ОБА и намеренно: население
+    # — первый результат заказа, а слепота из него НЕ выводится («строит
+    # регуляркой» ≠ «слеп»). Объявить только одно значило бы оставить второе вне
+    # тревоги «СХЕМА РАЗОШЛАСЬ» — ровно дефект ADR-325. `other_forms` обязателен
+    # тоже: прочие способы получить население считаются ПОРОЗНЬ, и их пропажа из
+    # отчёта читалась бы как «их нет».
+    "subject_population_census.json": ("status", "counts", "population",
+                                       "blindness", "other_forms", "findings",
+                                       "advisory"),
     "rate_observation_census.json": ("status", "independence", "run_axis",
                                      "comparable_axis", "mechanism",
                                      "outside_denominator", "counts",
@@ -614,6 +623,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/rate_observation_census.py",
     "census_consumer_census.json":
         "spa_core/monitoring/census_consumer_census.py",
+    "subject_population_census.json":
+        "spa_core/monitoring/subject_population_census.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2184,6 +2195,16 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _ccc_report,
         )
         out.extend(_ccc_report(data))
+    elif name == "subject_population_census.json":
+        # Заказ #565. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (заказ
+        # потребовал его первым результатом), потом РОЛЬ (список субъектов
+        # против запрета — разные предметы), и лишь потом слепота. Слепота
+        # первой строкой прочлась бы как доля от всего набора, а она — доля от
+        # роли `coverage`. Порядок закреплён тестом.
+        from spa_core.monitoring.subject_population_census import (
+            format_report as _spc_report,
+        )
+        out.extend(_spc_report(data))
     elif name == "arming_wall_order.json":
         # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
         # стен с числами освобождённых дней, потом вердикт ветки, и только потом
