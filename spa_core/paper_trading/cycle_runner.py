@@ -2161,6 +2161,8 @@ def run_cycle(
             policy_refusals=list(_policy_refusals),
             trades=_read_json(ddir / TRADES_FILENAME, []),
             write=write,
+            # ADR-339: кулдаун и возраст позиций CIO — по часам цикла (см. демпфер ниже).
+            now=now_dt,
         )
     except Exception as _shadow_exc:  # noqa: BLE001 — advisory only
         log.warning("ADR-060 SHADOW skipped (%s) — cycle continues", _shadow_exc)
@@ -2209,8 +2211,12 @@ def run_cycle(
     # kill-switch и реакция на просадку обязаны проходить мгновенно. Ограничитель
     # не гейт безопасности: не смог решить ⇒ пропускает (замороженная книга хуже
     # одной лишней перекладки).
+    # ADR-339: по часам ЦИКЛА, а не по настенным. Без `now` демпфер брал
+    # datetime.now(): в проде это расхождение на секунды, а в сценах, живущих в
+    # июне-2026, последний ход был «три месяца назад» — демпфер не блокировал в них
+    # НИКОГДА, и защита от метания на уровне цикла не проверялась ни одним тестом.
     _churn = _churn_decide(
-        current_positions, target_usd, trades, capital_usd,
+        current_positions, target_usd, trades, capital_usd, now=now_dt,
     )
     echo_line = (
         f"[{datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}] "

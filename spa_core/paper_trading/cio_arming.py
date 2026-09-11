@@ -145,9 +145,22 @@ def trade_allowed(
     return False, HOLD, "CIO: держать — " + ("; ".join(reasons) or "причина не названа")
 
 
+def _aware_utc(now, run_ts: str):
+    """Часы цикла как aware-UTC. Рукава живут на наивном `clock.utcnow()`, а CIO и
+    демпфер сравнивают с aware-метками сделок: смешение упало бы TypeError, CIO вернул
+    бы документ-ошибку, и книга тихо замёрзла бы на fail-CLOSED (ADR-339)."""
+    from datetime import datetime, timezone
+    if now is None:
+        try:
+            now = datetime.fromisoformat(str(run_ts).replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    return now if now.tzinfo is not None else now.replace(tzinfo=timezone.utc)
+
+
 def gate_sleeve_book(book_id: str, legs_before: list, proposed: list, opened: list,
                      closed: list, rows: list, equity: float, data_dir, *,
-                     today: str, run_ts: str) -> Tuple[list, list, list, str]:
+                     today: str, run_ts: str, now=None) -> Tuple[list, list, list, str]:
     """Взвод CIO для книг Balanced / Aggressive (ADR-328).
 
     В этих книгах ход ПРЕДЛАГАЕТ `sleeve_book.rebalance_book`, и до взвода он же его
@@ -181,8 +194,9 @@ def gate_sleeve_book(book_id: str, legs_before: list, proposed: list, opened: li
             data_dir=data_dir, current_positions=flat_before, target_positions=flat_prop,
             apy_pct=apy_pct, apy_sources=apy_sources, tvl_sources=tvl_sources,
             tvl_usd=tvl_usd, capital_usd=equity, cycle_date=today, run_ts=run_ts,
-            trades=[], book_id=book_id, write=False)
-        damper_reason = _damper(flat_before, flat_prop, [], equity).reason
+            trades=[], book_id=book_id, write=False, now=_aware_utc(now, run_ts))
+        damper_reason = _damper(flat_before, flat_prop, [], equity,
+                                now=_aware_utc(now, run_ts)).reason
     except Exception as exc:  # noqa: BLE001 — вердикт не получен ⇒ держать (fail-CLOSED)
         return (_copy.deepcopy(list(legs_before)), [], [],
                 f"вердикт CIO не получен ({type(exc).__name__}) ⇒ держать (fail-CLOSED)")

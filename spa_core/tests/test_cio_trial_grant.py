@@ -181,5 +181,24 @@ def test_the_trial_lifts_the_damper_that_really_blocks(tmp_path, monkeypatch):
     assert _load(tmp_path, "trades.json")[-1].get(ct.MARK) == ct.TRIAL_GRANT["adr"]
 
 
+def test_the_grant_classifies_the_move_on_the_cycle_clock(tmp_path):
+    """Выжившая мутация №4 ADR-339: книгу опустошили продажей ВЧЕРА — по часам цикла
+    это ход после недавнего оборота, а не «первичное размещение». По настенным часам
+    (июнь-2026 в сцене = три месяца назад) демпфер назвал бы его первичным, и
+    разрешение ответило бы «не нужно» на то, что по сути перетасовка."""
+    from spa_core.paper_trading.allocation_rationale import write_shadow_rationale
+    now = datetime(2026, 6, 11, 8, 0, tzinfo=timezone.utc)
+    sold = [{"trade_id": "T001", "ts": "2026-06-10T08:00:00+00:00", "type": "rebalance",
+             "from_allocation": {"aave_v3": 40000.0}, "to_allocation": {},
+             "delta_abs": 40000.0}]
+    (tmp_path / "trades.json").write_text(json.dumps(sold), encoding="utf-8")
+    doc = write_shadow_rationale(
+        data_dir=tmp_path, current_positions={}, target_positions={"aave_v3": 40000.0},
+        apy_pct={"aave_v3": 4.0}, apy_sources={"aave_v3": "live"}, capital_usd=100000.0,
+        cycle_date="2026-06-11", run_ts=now.isoformat(), trades=sold, write=False, now=now)
+    note = str(doc.get("cio_trial") or "")
+    assert "initial_deployment" not in note, f"вчерашняя продажа прочитана как давняя: {note}"
+
+
 if __name__ == "__main__":
     unittest.main()

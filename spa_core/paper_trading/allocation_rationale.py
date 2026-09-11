@@ -537,7 +537,7 @@ def write_shadow_rationale(
         try:
             from spa_core.governance.churn_damper import decide as _damper_decide
             _damper_reason = _damper_decide(current_positions or {}, target_positions or {},
-                                            trades or [], capital_usd).reason
+                                            trades or [], capital_usd, now=now).reason
         except Exception:  # noqa: BLE001 — не классифицирован ⇒ разрешение решает само
             _damper_reason = None
         decision, _trial_note = apply_trial_grant(decision, p, book_id=_bid, data_dir=data_dir,
