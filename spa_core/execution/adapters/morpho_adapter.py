@@ -839,10 +839,17 @@ class MorphoAdapter:
             raw_assets = int((assets_hex[2:] if assets_hex.startswith("0x") else assets_hex) or "0", 16)
             decimals = self.TOKEN_DECIMALS[asset]
             return raw_assets / (10 ** decimals)
+        except ConfigError:
+            # Отказ ЛИЧНОСТИ поднят двумя строками выше и здесь же ловился, после чего
+            # возвращался мок — отказ существовал и был выброшен (ADR-257). Теперь он
+            # доезжает до вызывающего: «не измерено» обязано быть отличимо от баланса.
+            raise
         except Exception as exc:  # noqa: BLE001
-            log.warning("[FALLBACK] get_supply_balance %s/%s: %s — returning mock",
-                        asset, self.chain, exc)
-            return self._MOCK_BALANCES[asset]
+            # Живой вызов не состоялся ⇒ баланс НЕ ИЗМЕРЕН. Мок того же типа, что
+            # настоящее наблюдение, потребитель отличить не мог (инвариант #17).
+            raise SourceError(
+                f"get_supply_balance live call failed ({asset}/{self.chain}): {exc}"
+            ) from exc
 
     def get_position(
         self,
@@ -861,10 +868,20 @@ class MorphoAdapter:
             PositionInfo dataclass.
         """
         effective_chain = chain or self.chain
-        effective_wallet = wallet_address or os.environ.get("SPA_WALLET_ADDRESS", "0x0")
+        # ADR-257/ADR-345: подставленный «0x0» — это ЛИЧНОСТЬ, которой нет, поданная
+        # как личность. Позиция, снятая на такой адрес, выглядит наблюдением книги и
+        # им не является; сверка «намерение против результата», соединённая с ней,
+        # получила бы ЛОЖНОЕ свидетельство. В dry-run подстановка остаётся (симуляцию
+        # просит сам вызывающий), в живом режиме — отказ (инвариант #17, fail-CLOSED).
+        effective_wallet = wallet_address or os.environ.get("SPA_WALLET_ADDRESS") or ""
         vault = self.VAULTS.get(f"{asset}_{effective_chain}", "0x0")
 
+        if not self.dry_run and not effective_wallet:
+            raise ConfigError("SPA_WALLET_ADDRESS",
+                              "not set — live position is NOT measurable")
+
         if self.dry_run:
+            effective_wallet = effective_wallet or "0x0"
             return PositionInfo(
                 wallet_address=effective_wallet,
                 asset=asset,
@@ -875,12 +892,9 @@ class MorphoAdapter:
                 current_apy=self._MOCK_APYS.get(asset, 0.0),
             )
 
-        balance_tokens = self._MOCK_BALANCES.get(asset, 0.0)
-        try:
-            # Use get_supply_balance with wallet override via env (best effort)
-            balance_tokens = self.get_supply_balance(asset)
-        except Exception:  # noqa: BLE001
-            pass
+        # Прежде отказ `get_supply_balance` ГЛОТАЛСЯ, и позиция уезжала с мок-балансом:
+        # тот же класс «не измерено, выданное за ответ», только ступенью выше (ADR-345).
+        balance_tokens = self.get_supply_balance(asset)
 
         return PositionInfo(
             wallet_address=effective_wallet,

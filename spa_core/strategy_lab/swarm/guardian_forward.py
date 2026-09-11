@@ -47,6 +47,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Sequence
 
+from spa_core.utils.observation import observed, observed_number
+
 from spa_core.strategy_lab.aggressive_lab.guardian import stdev
 from spa_core.strategy_lab.swarm.common import (
     GENESIS_HASH,
@@ -398,7 +400,7 @@ def _systemic_sentinel(books: Dict[str, dict], agg_dir: Path) -> dict:
         # common "crash" that dominates every correlation (caught live 2026-07-11)
         r = [float(entries[i]["equity_usd"]) / float(entries[i - 1]["equity_usd"]) - 1.0
              for i in range(1, len(entries))
-             if float(entries[i - 1].get("equity_usd") or 0) > 0
+             if (observed_number(entries[i - 1], "equity_usd") or 0) > 0
              and entries[i].get("phase") == entries[i - 1].get("phase")]
         if len(r) >= 5:
             rets[name] = r

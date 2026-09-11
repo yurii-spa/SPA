@@ -91,6 +91,8 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+
+from spa_core.utils.observation import observed, observed_number
 import os
 import subprocess
 import sys
@@ -428,7 +430,7 @@ def _manifest_drift_problems() -> dict | None:
         m = gen.measure()  # тот же вердикт, что у CLI без флагов: пусто ⇔ rc 0
         return {"drift": group_drift_by_agent(m["problems"] + m["drift"]),
                 "unmeasurable": list(m.get("unmeasurable") or []),
-                "measured_from_ref": list(m.get("measured_from_ref") or [])}
+                "measured_from_ref": list(observed(m, "measured_from_ref", kind=list) or [])}
     except Exception as e:  # noqa: BLE001
         # Ключ БЕЗ текста исключения: путь/номер строки в ключе плодили бы новую
         # находку (и новую карточку) на каждый чих окружения.
@@ -848,7 +850,7 @@ def run_checks(manifest: dict,
     else:
         now_labels = sorted(r["label"] for r in (contract_audit.get("rows") or []))
         contracts_report["contract"] = {"total": contract_audit.get("total"),
-                                        "counts": dict(contract_audit.get("counts") or {}),
+                                        "counts": dict(observed(contract_audit, "counts", kind=dict) or {}),
                                         "labels": now_labels}
         # ВЫБЫВШИЕ ИЗ ПЕРЕПИСИ. Класс пойман 29.08 на самом важном агенте системы:
         # `run_daily_paper_cycle.sh` получил третий и четвёртый шаги, целей стало

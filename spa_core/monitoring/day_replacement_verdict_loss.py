@@ -95,6 +95,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from spa_core.utils.observation import observed, observed_number
+
 log = logging.getLogger(__name__)
 
 OUTPUT_FILENAME = "day_replacement_verdict_loss.json"
@@ -634,7 +636,7 @@ def format_report(doc: dict) -> List[str]:
     третьим исходом, а не покоем.
     """
     out: List[str] = []
-    exposure = doc.get("exposure") or {}
+    exposure = observed(doc, "exposure", kind=dict) or {}
     movement = doc.get("input_movement") or {}
     out.append(
         f"   что теряет hit_rate от «одной строки в день» (заказ #552): "

@@ -2648,11 +2648,17 @@ def card_still_asks(card_path: str | Path) -> bool:
     статус, файла нет, разбор упал — вопрос остаётся ОТКРЫТЫМ. Потерять вопрос владельца
     дороже, чем показать лишний: первое молча, второе он видит и может поправить.
     """
+    status = None
     try:
         from spa_core.owner_queue.queue import _OPEN_STATUSES, load_card
 
         status = (load_card(card_path).status or "").strip()
     except Exception:  # noqa: BLE001 — нечитаемая карточка НЕ закрывает вопрос
+        status = None
+    if status is None:
+        # Fail-safe НАЗВАН: карточку прочитать не удалось, вопрос считается
+        # открытым. Возврат стои́т вне обработчика, чтобы «не смогли прочесть»
+        # не выглядело измеренным статусом (инвариант #17).
         return True
     if not status:
         return True

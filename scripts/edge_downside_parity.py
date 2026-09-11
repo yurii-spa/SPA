@@ -333,9 +333,21 @@ def section0_controls(panel, axis) -> Dict[str, object]:
 
     # C2 — the loader in use is the CLEAN one, not the phase-blind one #16/#17 were computed on.
     print("\n C2. Phase-glue control — the OLD phase-blind loader must still fabricate its seam:")
-    art = ens.glue_artifact()
+    try:
+        art = ens.glue_artifact()
+    except Exception as exc:  # noqa: BLE001
+        # Живой панели нет (её каталог — runtime-only и в чистом чекауте отсутствует
+        # ПО ПОСТРОЕНИЮ). Правило §0 этого же модуля: «неизмеренный контроль — это
+        # ОТКАЗ, а не пропуск», поэтому здесь отказ с названной причиной, а не
+        # исключение, роняющее набор на машине без живых книг (инвариант #17).
+        art = {}
+        out["failures"].append(
+            f"C2: шов не измерен — живая панель недоступна ({type(exc).__name__}: {exc})")
+        print(f"     ПАНЕЛЬ НЕДОСТУПНА — отказ: {type(exc).__name__}: {exc}")
     worst = max(art.items(), key=lambda kv: abs(kv[1]["seam_ret"]), default=None)
-    if worst is None or abs(worst[1]["seam_ret"]) < 0.30:
+    if not art:
+        pass                      # причина уже записана выше — второй раз не пишем
+    elif worst is None or abs(worst[1]["seam_ret"]) < 0.30:
         out["failures"].append("C2: no seam artifact found — cannot show this loader is the clean one")
         print("     NO SEAM FOUND — refusing: the control cannot distinguish the two loaders")
     else:

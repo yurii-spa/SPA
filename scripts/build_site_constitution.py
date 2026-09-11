@@ -83,6 +83,32 @@ def _dig(doc: dict, path: Tuple[str, ...]):
     return cur
 
 
+def chain_caps() -> Tuple[dict, str]:
+    """Потолки СЕТИ — из живого кода аллокатора, а не переписанные сюда.
+
+    Той же природы, что лестница стоп-крана выше: в `capital_config.json` этих
+    порогов нет вовсе, они живут константами класса (ADR-025/ADR-136), и страница
+    академии печатала «Base ≤ 20 %» литералом. Копия здесь была бы ровно тем
+    литералом, который правило `.claude/rules/site-numbers.md` и запрещает.
+    """
+    if str(_REPO) not in sys.path:
+        sys.path.insert(0, str(_REPO))
+    try:
+        from spa_core.allocator.allocator import StrategyAllocator as _A
+    except Exception as exc:  # noqa: BLE001 — источник не прочитан ⇒ отказ целиком
+        return {}, f"потолки сети не прочитаны из аллокатора: {type(exc).__name__}: {exc}"
+    caps = {}
+    for site_key, attr in (("single_chain_pct", "SINGLE_CHAIN_CAP"),
+                           ("l2_total_pct", "L2_TOTAL_CAP"),
+                           ("base_chain_pct", "BASE_CHAIN_CAP")):
+        val = getattr(_A, attr, None)
+        if not isinstance(val, (int, float)) or isinstance(val, bool):
+            return {}, f"в аллокаторе нет числового {attr} — конституция была бы неполной"
+        caps[site_key] = round(float(val) * 100.0, 4)
+    caps["_source"] = "spa_core/allocator/allocator.py (ADR-025/ADR-136)"
+    return caps, ""
+
+
 def build(source: Path = SOURCE) -> Tuple[dict, str]:
     """``(документ, причина-отказа)``. Отказ ⇒ документ пустой, писать нечего."""
     try:
@@ -92,13 +118,17 @@ def build(source: Path = SOURCE) -> Tuple[dict, str]:
     ladder, why = kill_switch_ladder()
     if why:
         return {}, why
+    caps, why_caps = chain_caps()
+    if why_caps:
+        return {}, why_caps
     out: Dict[str, object] = {
         "note": ("Числа-РЕШЕНИЯ сайта. Источник — data/capital_config.json + "
-                 "governance/kill_switch.py; файл СГЕНЕРИРОВАН "
+                 "governance/kill_switch.py + потолки сети из allocator.py; файл СГЕНЕРИРОВАН "
                  "scripts/build_site_constitution.py, руками не править. "
                  "Замеры (ставка, дни, NAV) живут в data/track_snapshot.json."),
         "source": "data/capital_config.json",
         "kill_switch": ladder,
+        "chain_caps": caps,
     }
     missing = []
     for name, path in FIELDS.items():

@@ -29,6 +29,7 @@ never in code). Called from scripts/run_daily_paper_cycle.sh after the cycle. Sa
 """
 # LLM_FORBIDDEN
 import hashlib
+import importlib.util
 import subprocess
 import sys
 from pathlib import Path
@@ -131,10 +132,23 @@ def main() -> int:
     # 0. конституция сайта из своего источника (ADR-315). Отказ здесь НЕ валит деплой
     #    снимка: это разные числа с разной природой, и уронить свежий замер из-за
     #    порога значило бы предпочесть устаревшее отсутствующему.
-    rc_const = subprocess.run([_PY, str(_CONST_GEN)], capture_output=True, text=True,
-                              timeout=120)
-    print(_both(rc_const))
-    if rc_const.returncode != 0:
+    #
+    #    Зовётся В ПРОЦЕССЕ, а не подпроцессом, И ЭТО ЧАСТЬ КОНТРАКТА: сторож
+    #    доставки (`test_deploy_site_snapshot`) опознаёт доставку как «подпроцесс,
+    #    который не генератор снимка», и ТРЕТИЙ подпроцесс он принял бы за пуш
+    #    `landing/**` мимо `safe_site_push.py`. Третий подпроцесс здесь ослеплял
+    #    сторожа — поэтому генератор конституции остаётся вызовом функции.
+    try:
+        _const_spec = importlib.util.spec_from_file_location(
+            "_site_constitution", str(_CONST_GEN))
+        _const_mod = importlib.util.module_from_spec(_const_spec)
+        _const_spec.loader.exec_module(_const_mod)
+        rc_const = int(_const_mod.main([]))
+    except Exception as exc:  # noqa: BLE001 — конституция не важнее свежего замера
+        rc_const = 1
+        print(f"deploy_site_snapshot: constitution build raised {type(exc).__name__}: "
+              f"{exc}", file=sys.stderr)
+    if rc_const != 0:
         print("deploy_site_snapshot: constitution build FAILED — снимок деплоим, "
               "конституцию НЕ трогаем (прежняя копия остаётся)", file=sys.stderr)
 
@@ -163,15 +177,13 @@ def main() -> int:
         print("deploy_site_snapshot: snapshot changed after generation — refusing to overwrite blindly",
               file=sys.stderr)
         return 1
-    files = [str(_SNAP)]
-    # Конституция едет тем же коммитом ТОЛЬКО когда действительно отличается от
-    # origin: она меняется решением, а не сутками, и слать её каждый день значило бы
-    # объявлять изменением то, что не менялось.
-    if rc_const.returncode == 0 and _differs_from_origin(_CONST):
-        files.append(str(_CONST))
-        print("deploy_site_snapshot: constitution.json отличается от origin — едет тем же коммитом")
+    # Доставка — ПО ОДНОМУ артефакту за пуш, и это не стиль, а смысл флага
+    # `--allow-overwrite`: он означает «я пересобрал ЭТОТ файл в этом прогоне и
+    # знаю, что перезаписываю». Положив два файла в один пуш, мы распространили бы
+    # это знание на второй артефакт, которого оно не касается (замер 11.09: тест
+    # `test_overwrite_flag_is_not_a_blanket_permission` ровно про это).
     p = subprocess.run(
-        [_PY, str(_PUSH), "--files", *files, "--allow-overwrite",
+        [_PY, str(_PUSH), "--files", str(_SNAP), "--allow-overwrite",
          "--message", "chore(site-custodian): auto-deploy fresh track_snapshot after daily cycle"],
         capture_output=True, text=True, timeout=180,
     )
@@ -183,6 +195,21 @@ def main() -> int:
               f"{_both(p).replace(chr(10), ' | ')[:400] or 'без вывода'}", file=sys.stderr)
         return 1
     print("deploy_site_snapshot: pushed fresh snapshot -> deploy-landing triggered")
+
+    # Конституция едет ОТДЕЛЬНЫМ пушем и ТОЛЬКО когда действительно отличается от
+    # origin: она меняется решением, а не сутками, и слать её каждый день значило бы
+    # объявлять изменением то, что не менялось. Её отказ не валит уже уехавший снимок.
+    if rc_const == 0 and _differs_from_origin(_CONST):
+        print("deploy_site_snapshot: constitution.json отличается от origin — едет отдельно")
+        pc = subprocess.run(
+            [_PY, str(_PUSH), "--files", str(_CONST), "--allow-overwrite",
+             "--message", "chore(site-constitution): пороги сайта из своего источника (ADR-315)"],
+            capture_output=True, text=True, timeout=180,
+        )
+        print(_both(pc))
+        if pc.returncode != 0:
+            print(f"deploy_site_snapshot: constitution push FAILED (rc={pc.returncode}) — "
+                  f"{_both(pc).replace(chr(10), ' | ')[:400] or 'без вывода'}", file=sys.stderr)
     return 0
 
 

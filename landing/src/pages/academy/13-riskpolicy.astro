@@ -6,6 +6,8 @@
 import LessonLayout from '../../components/academy/LessonLayout.astro';
 import Callout from '../../components/academy/Callout.astro';
 import Quiz from '../../components/academy/Quiz.astro';
+// site-numbers: пороги таблицы рендерятся из конституции сайта
+import constitution from '../../lib/constitution.json';
 
 const questions = [
   {
@@ -69,14 +71,14 @@ const questions = [
   <table>
     <thead><tr><th>Параметр</th><th>Значение</th><th>Поле в коде</th></tr></thead>
     <tbody>
-      <tr><td>Concentration T1</td><td>≤ 40%</td><td><code>max_concentration_t1 = 0.40</code></td></tr>
-      <tr><td>Concentration T2</td><td>≤ 20%</td><td><code>max_concentration_t2 = 0.20</code></td></tr>
-      <tr><td>Single protocol</td><td>≤ 40%</td><td><code>max_single_protocol = 0.40</code></td></tr>
-      <tr><td>T2 суммарно</td><td>≤ 50%</td><td><code>max_total_t2_allocation = 0.50</code> (ADR-019)</td></tr>
-      <tr><td>Min cash buffer</td><td>≥ 5%</td><td><code>min_cash_pct = 0.05</code></td></tr>
-      <tr><td>Min TVL на пул</td><td>≥ $5M</td><td><code>min_tvl_usd = 5_000_000</code></td></tr>
-      <tr><td>APY-band (новый вход)</td><td>1% … 30%</td><td><code>min/max_apy_for_new_position</code></td></tr>
-      <tr><td>Base chain суммарно</td><td>≤ 20%</td><td><code>BASE_CHAIN_CAP = 0.20</code> (ADR-025)</td></tr>
+      <tr><td>Concentration T1</td><td>≤ {constitution.max_per_protocol_t1_pct}%</td><td><code>max_concentration_t1 = 0.40</code></td></tr>
+      <tr><td>Concentration T2</td><td>≤ {constitution.max_per_protocol_t2_pct}%</td><td><code>max_concentration_t2 = 0.20</code></td></tr>
+      <tr><td>Single protocol</td><td>≤ {constitution.max_per_protocol_t1_pct}%</td><td><code>max_single_protocol = 0.40</code></td></tr>
+      <tr><td>T2 суммарно</td><td>≤ {constitution.max_t2_total_pct}%</td><td><code>max_total_t2_allocation = 0.50</code> (ADR-019)</td></tr>
+      <tr><td>Min cash buffer</td><td>≥ {constitution.min_cash_buffer_pct}%</td><td><code>min_cash_pct = 0.05</code></td></tr>
+      <tr><td>Min TVL на пул</td><td>≥ ${Math.round(constitution.tvl_floor_usd / 1e6)}M</td><td><code>min_tvl_usd = 5_000_000</code></td></tr>
+      <tr><td>APY-band (новый вход)</td><td>{constitution.apy_floor_pct}% … {constitution.apy_ceiling_pct}%</td><td><code>min/max_apy_for_new_position</code></td></tr>
+      <tr><td>Base chain суммарно</td><td>≤ {constitution.chain_caps.base_chain_pct}%</td><td><code>BASE_CHAIN_CAP = 0.20</code> (ADR-025)</td></tr>
     </tbody>
   </table>
 

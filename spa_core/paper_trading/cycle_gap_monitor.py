@@ -442,9 +442,11 @@ def _compute_days_to_golive(now: datetime) -> int:
     """
     try:
         delta = _GOLIVE_DATE - now
-        return max(0, delta.days)
     except Exception:
-        return 0
+        # Ноль здесь читался бы как «go-live наступил»; отказ расчёта — это
+        # «не знаю», и вызывающий обязан НЕ печатать обратный отсчёт.
+        return None
+    return max(0, delta.days)
 
 
 # ─── Telegram delivery ────────────────────────────────────────────────────────

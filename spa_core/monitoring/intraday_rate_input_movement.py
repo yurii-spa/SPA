@@ -87,6 +87,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from spa_core.utils.observation import observed, observed_number
+
 log = logging.getLogger(__name__)
 
 VERSION = "intraday_rate_input_movement/v1"
@@ -617,7 +619,7 @@ def format_report(doc: dict) -> List[str]:
     другое, и прибор говорит об этом раньше, чем называет долю.
     """
     out: List[str] = []
-    coverage = doc.get("coverage") or {}
+    coverage = observed(doc, "coverage", kind=dict) or {}
     out.append(
         f"   двигался ли ВТОРОЙ вход тени — ставки (заказ #554): "
         f"{doc.get('status')} · дней журнала {doc.get('journal_rows')} · "

@@ -50,7 +50,7 @@ log = logging.getLogger("spa.maple_adapter")
 
 # ─── Dataclasses ──────────────────────────────────────────────────────────────
 
-from spa_core.utils.errors import SourceError, ValidationError
+from spa_core.utils.errors import ConfigError, SourceError, ValidationError
 
 @dataclass
 class TxRequest:
@@ -406,7 +406,14 @@ class MapleAdapter:
             return mock
         wallet = self._wallet_address()
         if not wallet:
-            return mock
+            # ADR-257/ADR-345: живой режим БЕЗ личности — это «не измерено», а не
+            # баланс. Прежде здесь возвращался мок: правдоподобное число того же
+            # типа, что настоящее наблюдение, и отличить одно от другого потребитель
+            # не мог ничем. Соединив с таким источником сверку «намерение против
+            # результата», мы получили бы ЛОЖНОЕ свидетельство вместо отсутствующего
+            # (инвариант #17 + fail-CLOSED). Мок остаётся ТОЛЬКО в dry-run, где его
+            # просит сам вызывающий.
+            raise ConfigError("SPA_WALLET_ADDRESS", "not set — live balance is NOT measurable")
         pool = self._pool_address(asset)
         try:
             shares = self._get_balance_of(pool, wallet)
@@ -415,8 +422,10 @@ class MapleAdapter:
             tokens_raw = self._get_convert_to_assets(pool, shares)
             return tokens_raw / 1e6
         except Exception as exc:
-            log.warning("[FALLBACK] get_supply_balance: %s", exc)
-            return mock
+            # Тот же класс, что и ветка личности выше: живой вызов НЕ СОСТОЯЛСЯ,
+            # и мок здесь — «не измерено», выданное за баланс. Отказ (fail-CLOSED):
+            # причина видна вызывающему, а не тонет в логе (ADR-345).
+            raise SourceError(f"get_supply_balance live call failed: {exc}") from exc
 
     def get_position(
         self, wallet_address: str, asset: str, chain: Optional[str] = None

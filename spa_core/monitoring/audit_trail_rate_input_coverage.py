@@ -114,6 +114,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
+from spa_core.utils.observation import observed, observed_number
+
 log = logging.getLogger(__name__)
 
 VERSION = "audit_trail_rate_input_coverage/v1"
@@ -793,7 +795,8 @@ def _findings(doc: dict, coverage: dict) -> List[str]:
             f"{cens['satisfying_own_refusal_predicate']} из них удовлетворяют "
             "предикату отказа, записанному в их же тексте"
             + (" — носитель ЦЕНЗУРИРОВАН" if cens.get("censored") else ""))
-        for entry in (cens.get("funded_legs_without_a_reported_rate") or []):
+        for entry in (observed(cens, "funded_legs_without_a_reported_rate",
+                           kind=list) or []):
             out.append(
                 f"[ЛОВУШКА] прогон {entry['snapshot_id']}: профинансированы, но "
                 f"ставки о них носитель молчит — {', '.join(entry['funded_without_rate'])}. "
@@ -840,7 +843,7 @@ def format_report(doc: dict) -> List[str]:
     следующей строки, прочтёт это как «семь дней рассужены».
     """
     out: List[str] = []
-    coverage = doc.get("coverage") or {}
+    coverage = observed(doc, "coverage", kind=dict) or {}
     out.append(
         f"   рассуживает ли audit_trail знаменатель (заказ #555): "
         f"{doc.get('status')} · дней журнала {doc.get('journal_rows')} · "

@@ -580,9 +580,25 @@ class RealTree(unittest.TestCase):
         self.assertGreater(len(self.doc["candidates"]), 0)
         self.assertTrue(any(c["external_door"] for c in self.doc["candidates"]))
 
-    def test_fabricating_sources_are_reported_critical(self):
+    def test_no_source_fabricates_a_balance_any_more(self):
+        """Инв. #16 — сторона утверждения ПЕРЕВЁРНУТА, потому что дефект УСТРАНЁН (ADR-345).
+
+        Прежняя редакция требовала находку `IDENTITY_ABSENT_FABRICATES` на ЖИВОМ
+        дереве: 6 функций возвращали правдоподобный мок там, где личности нет.
+        11.09 все шесть переведены на отказ, и требовать находку значило бы требовать
+        существования дефекта. Утверждение не снято, а перевёрнуто: подстановок быть
+        НЕ должно, и появление новой покраснит этот тест.
+
+        Сила самого детектора при этом не ослаблена — она доказывается отдельно,
+        на синтетической сцене (`DetectorStillSeesFabrication` ниже): прибор,
+        разучившийся видеть подстановку, тоже покраснеет.
+        """
+        fabricating = [c for c in self.doc["candidates"]
+                       for f in c["functions"] if f["absent_identity"] == "FABRICATES"]
+        self.assertEqual(fabricating, [],
+                         "источник снова подставляет число вместо отказа")
         codes = {f["code"] for f in self.doc["findings"] if f["severity"] == "critical"}
-        self.assertIn("IDENTITY_ABSENT_FABRICATES", codes)
+        self.assertNotIn("IDENTITY_ABSENT_FABRICATES", codes)
 
     def test_protocol_observers_are_measured_not_asserted(self):
         self.assertGreater(len(self.doc["control"]["protocol_observers"]), 0)
@@ -602,23 +618,99 @@ class RealTree(unittest.TestCase):
 class BehaviouralProof(unittest.TestCase):
     """Утверждение о РАНТАЙМЕ доказывается рантаймом, а не только разбором.
 
-    Разбор говорит «ветка возвращает mock». Настоящий вызов это подтверждает —
-    и показывает больше: morpho сам ПОДНИМАЕТ отказ («not set for live mode»),
-    ловит его и всё равно возвращает подставное число. Отказ существует, и он
-    выброшен.
+    До 11.09 здесь стоял противоположный факт: вызов БЕЗ личности возвращал
+    правдоподобное число (yearn — 2500.0), а morpho сам поднимал отказ, ловил его
+    и всё равно возвращал мок. ADR-345 перевёл обе двери на отказ; рантайм-проба
+    осталась рантайм-пробой — меняется её ожидание, а не способ доказательства
+    (инв. #16, причина здесь и в журнале).
     """
 
-    def test_balance_reader_fabricates_without_identity(self):
+    def _without_identity(self, call):
         import os as _os
         prev = _os.environ.pop("SPA_WALLET_ADDRESS", None)
         try:
-            from spa_core.execution.adapters.yearn_v3_adapter import YearnV3Adapter
-            v = YearnV3Adapter(chain="ethereum", dry_run=False).get_supply_balance("USDC")
-            self.assertIsInstance(v, float)
-            self.assertGreater(v, 0.0)   # число того же ТИПА, что настоящее наблюдение
+            return call()
         finally:
             if prev is not None:
                 _os.environ["SPA_WALLET_ADDRESS"] = prev
+
+    def test_balance_reader_refuses_without_identity(self):
+        from spa_core.utils.errors import ConfigError
+        from spa_core.execution.adapters.yearn_v3_adapter import YearnV3Adapter
+        adapter = YearnV3Adapter(chain="ethereum", dry_run=False)
+        with self.assertRaises(ConfigError):
+            self._without_identity(lambda: adapter.get_supply_balance("USDC"))
+
+    def test_morpho_no_longer_swallows_its_own_refusal(self):
+        from spa_core.utils.errors import ConfigError
+        from spa_core.execution.adapters.morpho_adapter import MorphoAdapter
+        adapter = MorphoAdapter(chain="ethereum", dry_run=False)
+        with self.assertRaises(ConfigError):
+            self._without_identity(lambda: adapter.get_supply_balance("USDC"))
+
+    def test_morpho_position_does_not_invent_the_identity(self):
+        """`0x0` как адрес по умолчанию — это личность, которой нет, поданная личностью."""
+        from spa_core.utils.errors import ConfigError
+        from spa_core.execution.adapters.morpho_adapter import MorphoAdapter
+        adapter = MorphoAdapter(chain="ethereum", dry_run=False)
+        with self.assertRaises(ConfigError):
+            self._without_identity(lambda: adapter.get_position(asset="USDC"))
+
+    def test_dry_run_still_simulates_because_the_caller_asked(self):
+        """Обратная сторона: симуляцию просит сам вызывающий, и она остаётся."""
+        from spa_core.execution.adapters.yearn_v3_adapter import YearnV3Adapter
+        v = self._without_identity(
+            lambda: YearnV3Adapter(chain="ethereum", dry_run=True).get_supply_balance("USDC"))
+        self.assertIsInstance(v, float)
+
+
+class DetectorStillSeesFabrication(unittest.TestCase):
+    """Прибор обязан ловить подстановку — иначе «подстановок нет» ничего не значит.
+
+    Живое дерево их больше не содержит, поэтому сила детектора доказывается
+    сценой: модуль, который при отсутствии личности ВОЗВРАЩАЕТ число.
+    """
+
+    SRC = (
+        "import os\n"
+        "def _wallet_address():\n"
+        "    return os.environ.get('SPA_WALLET_ADDRESS')\n"
+        "def get_supply_balance(asset):\n"
+        "    import urllib.request\n"
+        "    wallet = _wallet_address()\n"
+        "    if not wallet:\n"
+        "        return 2500.0\n"
+        "    return float(urllib.request.urlopen('http://x').read())\n"
+    )
+
+    def test_a_module_that_returns_a_mock_is_called_FABRICATES(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "spa_core" / "execution" / "adapters").mkdir(parents=True)
+            (root / "spa_core" / "execution" / "adapters" / "fake_adapter.py").write_text(
+                self.SRC, encoding="utf-8")
+            out = mod.measure_sources(root)
+        verdicts = [f.get("absent_identity")
+                    for c in out["candidates"] for f in c["functions"]]
+        self.assertIn("FABRICATES", verdicts,
+                      "детектор разучился видеть подстановку — тогда «подстановок нет» "
+                      "на живом дереве не значит ничего")
+
+    def test_the_same_scene_with_a_refusal_is_not_called_FABRICATES(self):
+        """Обратный контроль: отказ не должен читаться как подстановка."""
+        import tempfile
+        src = self.SRC.replace("        return 2500.0", "        raise RuntimeError('нет личности')")
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "spa_core" / "execution" / "adapters").mkdir(parents=True)
+            (root / "spa_core" / "execution" / "adapters" / "fake_adapter.py").write_text(
+                src, encoding="utf-8")
+            out = mod.measure_sources(root)
+        verdicts = [f.get("absent_identity")
+                    for c in out["candidates"] for f in c["functions"]]
+        self.assertNotIn("FABRICATES", verdicts)
+        self.assertIn("REFUSES", verdicts)
 
 
 if __name__ == "__main__":       # pragma: no cover

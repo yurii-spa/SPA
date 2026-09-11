@@ -486,9 +486,13 @@ class TelegramBot:
     def _read_offset(self) -> int:
         doc = _read_json(OFFSET_FILE, {})
         try:
-            return int(doc.get("offset", 0)) if isinstance(doc, dict) else 0
+            offset = int(doc.get("offset", 0)) if isinstance(doc, dict) else 0
         except (TypeError, ValueError):
-            return 0
+            # Смещение нечитаемо ⇒ начинаем с нуля, но это РЕШЕНИЕ, а не замер:
+            # оно названо в логе, иначе «файл испорчен» неотличимо от «файла нет».
+            log.warning("offset-файл нечитаем (%r) — читаем ленту с начала", doc)
+            offset = 0
+        return offset
 
     def _write_offset(self, offset: int) -> None:
         try:
@@ -1554,14 +1558,17 @@ class TelegramBot:
             if self._handle_card_query(stripped, chat_id):
                 return True
             self._classify_route(stripped, chat_id, source="telegram")
-            return True
         except Exception as exc:  # noqa: BLE001 — never crash the poll loop
             log.warning("_handle_inbox_intake failed: %s", exc)
             try:
                 self.send_message("⚠️ Не удалось обработать задание — попробуй ещё раз.", chat_id)
             except Exception:
                 pass
-            return True
+        # `True` здесь значит «обновление ПОГЛОЩЕНО этим обработчиком», а не
+        # «задание обработано успешно»: при отказе владельцу уже написано, и
+        # второй маршрут то же сообщение обрабатывать не должен. Возврат стои́т
+        # ВНЕ обработчика, чтобы это читалось формой (инвариант #17).
+        return True
 
     # ── Single-instance lock + startup settle (409-on-restart fix) ─────────
 
@@ -1685,10 +1692,13 @@ class TelegramBot:
             if fixed:
                 log.warning("дослал кнопки к %d решению(ям) владельца: %s",
                             len(fixed), ", ".join(fixed))
-            return len(fixed)
         except Exception as exc:  # noqa: BLE001 — починка не важнее работы бота
             log.warning("heal_buttonless_decisions failed: %s", exc)
-            return 0
+            # Починка НЕ состоялась: это не «починили ноль решений». Отказ
+            # назван в логе и возвращается отдельным значением (инвариант #17);
+            # вызывающие используют результат только для лога.
+            return -1
+        return len(fixed)
 
     def run_once(self) -> int:
         """Drain pending updates once, dispatch, return count processed."""

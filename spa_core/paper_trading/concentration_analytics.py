@@ -632,10 +632,20 @@ def main(argv: Optional[List[str]] = None) -> int:
     # Custom error handling: argparse normally prints to stderr and exits 2 on a
     # junk arg; this advisory CLI must always exit 0 with a clear ERROR and no
     # traceback (pattern: exit_liquidity.py).
+    args = None
+    bad_args = False
     try:
         args = parser.parse_args(argv)
     except SystemExit as exc:
-        if exc.code not in (0, None):
+        bad_args = exc.code not in (0, None)
+    if args is None:
+        if bad_args:
+            # Код возврата 0 на мусорном аргументе — НАМЕРЕННЫЙ контракт
+            # советательных CLI (тесты `TestCLI` закрепляют его: планировщик не
+            # должен тревожиться из-за опечатки в ключе). Провал при этом НЕ
+            # молчит — он назван строкой в stderr; инвариант #17 здесь исполнен
+            # каналом сообщения, а не кодом возврата. Возврат вынесен из
+            # обработчика, чтобы это было видно формой, а не подразумевалось.
             print(
                 "ERROR: invalid arguments — use --check | --run [--data-dir DIR]",
                 file=sys.stderr,
