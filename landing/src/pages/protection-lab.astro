@@ -8,6 +8,8 @@
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import LAB from '../data/protection_lab.json';
+// site-numbers: виртуальный капитал — из конституции; проценты в стилях и подписях реплея числами-претензиями не являются
+import constitution from '../lib/constitution.json';
 
 const S = LAB.summary;
 const LAB_JSON = JSON.stringify(LAB);
@@ -41,7 +43,7 @@ const fmtDd = (v) => '−' + v.toFixed(1) + '%';
       </h1>
       <p class="text-xl text-white/50 leading-relaxed max-w-2xl" data-ru="Мы не просим верить словам «управление риском». Вот крупнейшие катастрофы крипторынка — выберите любую и посмотрите, что произошло бы с виртуальными $100,000 под нашей защитой против пассивного держателя той же корзины. Включая случаи, где защита не помогла или помешала: это исследование, а не витрина.">
         We don't ask you to trust the words "risk management". Here are the largest catastrophes in
-        crypto history — pick any one and see what would have happened to a virtual $100,000 under our
+        crypto history — pick any one and see what would have happened to a virtual ${constitution.start_capital_usd.toLocaleString('en-US')} under our
         protection versus a passive holder of the same basket. Including the cases where protection
         failed or made things worse: this is research, not a showcase.
       </p>
@@ -54,7 +56,7 @@ const fmtDd = (v) => '−' + v.toFixed(1) + '%';
         <p class="text-sm text-white/70 leading-relaxed" data-ru={`Это детерминированный replay по историческим данным с источниками (сгенерировано ${LAB.generated}), а НЕ live-результаты, не прогноз и не инвест-совет. Портфель виртуальный ($100,000, paper). Решения в replay принимает настоящий risk-код системы; без заглядывания в будущее: решение дня T видит рынок конца дня T−1. Выход из замороженного протокола записывается как отказ исполнения, а не как защита. Допущения маппинга исторических площадок на сегодняшнюю корзину задокументированы в каждом сценарии публичного репозитория.`}>
           This is a deterministic replay over sourced historical data (generated {LAB.generated}) —
           <strong class="text-white/85">not</strong> live results, a forecast, or investment advice. The
-          portfolio is virtual ($100,000, paper). Replay decisions are made by the system's real risk
+          portfolio is virtual (${constitution.start_capital_usd.toLocaleString('en-US')}, paper). Replay decisions are made by the system's real risk
           code; no look-ahead: a day-T decision sees the market as of end of day T−1. An exit from a
           frozen venue is recorded as an <strong class="text-white/85">execution failure</strong>, not as
           protection. Mapping assumptions for historical venues are documented per scenario in the public repo.

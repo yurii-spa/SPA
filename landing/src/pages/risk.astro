@@ -1,5 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
+// site-numbers: пороги и стартовый капитал рендерятся из конституции сайта; числа сценариев ниже — учебные примеры срабатывания
+import constitution from '../lib/constitution.json';
 ---
 
 <Layout
@@ -68,7 +70,7 @@ import Layout from '../layouts/Layout.astro';
             <h3 class="text-sm font-semibold text-white" data-ru="Риск неплатёжеспособности протокола">Protocol Insolvency Risk</h3>
           </div>
           <p class="text-sm text-white/55 leading-relaxed mb-2" data-ru="Безнадёжный долг может социализировать убытки.">Bad debt can socialise losses.</p>
-          <p class="text-xs text-white/55"><span class="text-white/50" data-ru="Митигация:">Mitigation:</span> <span data-ru="лимиты на протокол (40% T1 / 20% T2), минимум TVL ($5M+).">Per-protocol caps (40% T1 / 20% T2), TVL floor ($5M+).</span></p>
+          <p class="text-xs text-white/55"><span class="text-white/50" data-ru="Митигация:">Mitigation:</span> <span data-ru={`лимиты на протокол (${constitution.max_per_protocol_t1_pct}% T1 / ${constitution.max_per_protocol_t2_pct}% T2), минимум TVL ($${Math.round(constitution.tvl_floor_usd / 1e6)}M+).`}>Per-protocol caps ({constitution.max_per_protocol_t1_pct}% T1 / {constitution.max_per_protocol_t2_pct}% T2), TVL floor (${Math.round(constitution.tvl_floor_usd / 1e6)}M+).</span></p>
         </div>
 
         <div class="rounded-xl border border-border-strong bg-bg-surface p-5">
@@ -234,7 +236,7 @@ import Layout from '../layouts/Layout.astro';
       <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Что означают цифры APY">What APY Figures Mean</h2>
       <div class="rounded-xl border border-warn-border bg-warn-bg p-6 text-sm text-white/55 leading-relaxed space-y-3">
         <p><span data-ru="Все значения APY на этом сайте">All APY figures on this site are</span> <strong class="text-white/70" data-ru="переменны и не являются гарантией будущей доходности">variable and not a guarantee of future returns</strong>.</p>
-        <p data-ru="Paper APY отражает симулированную производительность на виртуальных $100,000 USDC — не живую торговлю.">Paper APY reflects simulated performance on virtual $100,000 USDC &mdash; not live trading.</p>
+        <p data-ru={`Paper APY отражает симулированную производительность на виртуальных $${constitution.start_capital_usd.toLocaleString('ru-RU')} ${constitution.currency} — не живую торговлю.`}>Paper APY reflects simulated performance on virtual $100,000 USDC &mdash; not live trading.</p>
         <p data-ru="Прошлая paper-производительность не указывает на будущие live-результаты.">Past paper performance does not indicate future live results.</p>
         <p data-ru="Целевые профили APY (Conservative, Aggressive) — иллюстративные диапазоны на основе исторической доходности протоколов.">Target APY profiles (Conservative, Aggressive) are illustrative ranges based on historical protocol yields.</p>
         <p class="text-warn font-medium" data-ru="Возможна потеря капитала на этапе live-торговли.">Possible loss of capital in live trading phase.</p>
