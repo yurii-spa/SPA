@@ -113,7 +113,13 @@ class TestFluidInit(unittest.TestCase):
         self.assertAlmostEqual(self.adapter.T2_CAP_TOTAL, 0.50)
 
     def test_risk_score(self):
-        self.assertAlmostEqual(self.adapter.RISK_SCORE, 0.38)
+        # ИЗМЕНЕНО НАМЕРЕННО 11.09 (инв. №16, ADR-335): один пул — один риск. Этот пул
+        # опрашивался классом FluidUSDCAdapter с баллом 0.45; из двух баллов одного пула
+        # берётся строже. Проверка не ослаблена — балл стал ВЫШЕ (строже), не ниже.
+        self.assertAlmostEqual(self.adapter.RISK_SCORE, 0.45)
+        from spa_core.adapters.fluid_usdc_adapter import FluidUSDCAdapter
+        self.assertEqual(self.adapter.RISK_SCORE, FluidUSDCAdapter.RISK_SCORE,
+                         "два класса одного пула снова разошлись в оценке риска")
 
     def test_chain(self):
         self.assertEqual(self.adapter.CHAIN, "ethereum")

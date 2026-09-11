@@ -50,6 +50,23 @@ from spa_core.adapters.pendle_pt import PendleMarketData
 from spa_core.monitoring.adapter_status_generator import _lookup_pendle_pt
 from spa_core.orchestrator import adapter_orchestrator as orch
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _scene_declares_its_underlying_admissible(monkeypatch):
+    """ADR-332 (11.09): PendleAdapter допускает PT только на основные стейблы.
+
+    ИЗМЕНЕНО НАМЕРЕННО (инв. №16). Фикстуры этого файла строят рынки на apyUSD и sUSDe —
+    теперь недопустимых. Предмет этих тестов — тождество рынка Pendle с пулом DeFiLlama и измеренный тир, а не допустимость актива;
+    поэтому сцена ОБЪЯВЛЯЕТ свой актив допустимым, и ни одно утверждение не тронуто.
+    Само правило допустимости проверяется в test_pendle_admissible_underlyings.py.
+    """
+    from spa_core.adapters import pendle_adapter as _pa
+    monkeypatch.setattr(_pa, "ADMISSIBLE_UNDERLYINGS",
+                        _pa.ADMISSIBLE_UNDERLYINGS | {"APYUSD", "SUSDE", ""})
+
+
 # ── UUID из живой выгрузки 2026-09-06 ────────────────────────────────────────
 APYUSD_PT = "9fe33fd6-d3f3-4dbe-9187-7bff012e79f5"
 APYUSD_LP = "8dc83a62-a160-4bcf-ac7f-a1f812a317dc"

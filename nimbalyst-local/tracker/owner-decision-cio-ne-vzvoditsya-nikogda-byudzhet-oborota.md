@@ -2,9 +2,17 @@
 trackerStatus:
   type: owner-decision
 title: "CIO не взведётся НИКОГДА: чтобы доказать, что он окупается, нужен хоть один ход — а бюджет оборота запрещает их все"
-status: needs-owner
+status: ingested
 source: orchestrator
 created: 2026-09-11
+owner_choice: 1
+owner_answered_at: 2026-09-11T14:31:50.856148+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
+owner_answer_kind: option
+status_trail:
+  - "2026-09-11T14:31:50.856619+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-09-11T15:12:19.101571+00:00 owner-done -> ingested · queue.set_status · cycle-75862"
 ---
 
 ## Что случилось и почему это важно
@@ -69,3 +77,11 @@ created: 2026-09-11
 Вариант 1 или 2 → готовлю изменение отдельным ADR, прогоняю `pre_cutover_gate`, и взведение
 остаётся отдельным твоим шагом — этой карточкой оно НЕ выдаётся.
 Вариант 3 → записываю решение и снимаю вопрос о взведении с повестки.
+
+---
+
+## Решение владельца
+
+**Вариант 1** — Разрешить один разовый «пробный ход» сверх бюджета
+
+_Ответ владельца получен 2026-09-11T14:31:50.856148+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._

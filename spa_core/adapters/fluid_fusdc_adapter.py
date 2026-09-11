@@ -73,7 +73,10 @@ class FluidFUSDCAdapter(BaseAdapter):
     TIER = "T2"
     T2_CAP_TOTAL = 0.50    # ADR-019: T2 total cap 50% portfolio
     T2_CAP_SINGLE = 0.20   # max single T2 adapter cap 20%
-    RISK_SCORE = 0.38      # moderate: DEX/lending hybrid, newer protocol
+    # ADR-335: один пул — один риск. Тот же пул опрашивался классом FluidUSDCAdapter
+    # с баллом 0.45, и на нём 29.08 выбран fluid (против ethena 0.55). Из двух баллов
+    # одного пула берётся СТРОЖЕ — иначе замена ключа молча сдвинула бы ранжирование.
+    RISK_SCORE = 0.45      # moderate: DEX/lending hybrid, newer protocol (было 0.38)
 
     # SPA-V412: instant withdrawal from ERC-4626 vault (no lock)
     EXIT_LATENCY_HOURS = 0.0
@@ -151,17 +154,34 @@ class FluidFUSDCAdapter(BaseAdapter):
         return self.get_apy()
 
     def get_yield_info(self) -> YieldInfo:
-        """Возвращает нормализованный YieldInfo для оркестратора."""
+        """Возвращает нормализованный YieldInfo для оркестратора.
+
+        ADR-335: живой TVL и пул — когда производитель статуса их НАБЛЮДАЛ. Раньше
+        здесь уходил литерал ``TVL_USD`` ($2 млрд), хотя ``read_live_tvl_usd``
+        импортирован рядом и не использовался; из-за этого оркестратор опрашивал
+        этот пул ДРУГИМ классом под ДРУГИМ ключом (`fluid_usdc`), и один пул жил под
+        двумя именами у двух писателей (ADR-329/331). Живой TVL берётся только с
+        ``tvl_source == "live"`` — производитель ставит её лишь на прибитый пул, и
+        литерал живым не штампуется (ADR-053). Нет наблюдения ⇒ прежнее поведение:
+        литерал без метки источника, гейт его не засчитывает.
+        """
         _apy_pct = self.get_apy()
+        _tvl_live = read_live_tvl_usd(self.PROTOCOL, self._data_dir)
+        _pool = None
+        if _tvl_live is not None:
+            _blk = self._read_status_block() or {}
+            _pool = _blk.get("tvl_pool_id") or _blk.get("pool_id")
         return YieldInfo(
             protocol=self.PROTOCOL,
             asset=self.asset,
             # ADR-063: None пробрасывается как None (контракт YieldInfo SPA-V398).
             apy=(_apy_pct / 100.0) if _apy_pct is not None else None,   # BaseAdapter convention: decimal (0.065)
-            tvl_usd=float(self.TVL_USD),
+            tvl_usd=float(_tvl_live) if _tvl_live is not None else float(self.TVL_USD),
             tier=self.tier,
             risk_score=self.RISK_SCORE,
             exit_latency_hours=self.EXIT_LATENCY_HOURS,
+            tvl_source="live" if _tvl_live is not None else None,
+            pool_id=_pool,
         )
 
     # ── spike detection ──────────────────────────────────────────────────
