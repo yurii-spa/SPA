@@ -58,6 +58,8 @@ REPO = Path(__file__).resolve().parents[2]
 _OFFICE = REPO / "scripts" / "consume_office_reports.py"
 
 #: Единственный якорь времени всего файла.
+# FROZEN-DATE-OK: injected-clock — якорь NOW уходит параметром now= в verdict()/run();
+# стенных часов тест не спрашивает (маркер в докстринге храповик не считает — он ищет «#»).
 NOW = dt.datetime(2031, 1, 1, 12, 0, tzinfo=dt.timezone.utc)
 
 #: Настоящая пара живого замера #525 — сцена обязана быть тем случаем, на

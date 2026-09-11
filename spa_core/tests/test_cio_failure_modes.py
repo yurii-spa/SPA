@@ -22,6 +22,7 @@ from pathlib import Path
 
 from spa_core.monitoring import cio_failure_modes as M
 
+# FROZEN-DATE-OK: injected-clock — якорь _NOW уходит параметром now= в M.run().
 _NOW = dt.datetime(2026, 9, 6, 12, 0, tzinfo=dt.timezone.utc)
 
 

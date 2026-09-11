@@ -22,6 +22,8 @@ from tempfile import TemporaryDirectory
 
 from spa_core.monitoring import decision_record_run_identity as M
 
+# FROZEN-DATE-OK: injected-clock — ANCHOR передаётся в measure(now=)/run(now=), отметки
+# фикстур строятся от него же (маркер в докстринге храповик не считает — он ищет «#»).
 ANCHOR = datetime(2026, 9, 8, 6, 0, 0, tzinfo=timezone.utc)
 DAY = ANCHOR.date().isoformat()
 

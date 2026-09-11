@@ -14,6 +14,7 @@ from tempfile import TemporaryDirectory
 
 from spa_core.monitoring import journal_population_backfill as b
 
+# FROZEN-DATE-OK: injected-clock — якорь NOW уходит параметром now= в corrected_lines()/run().
 NOW = datetime(2026, 9, 10, 12, 0, tzinfo=timezone.utc)
 
 POINTS = {
