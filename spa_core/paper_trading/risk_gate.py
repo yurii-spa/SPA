@@ -243,6 +243,37 @@ def redistribution_refusal_record(target_usd: dict[str, float],
     }
 
 
+def registry_adapters(ddir: "Path | str") -> dict[str, dict]:
+    """Записи ``adapter_registry.json`` по ключу адаптера (только словари).
+
+    Вынесено из ``_apply_risk_policy_gate`` без изменения смысла, чтобы шаг
+    псевдонимов пула (`pool_alias_gate`) читал реестр ТОЙ ЖЕ функцией. Ошибку
+    чтения не глотает: вызывающий решает сам (гейт — логирует и идёт дальше).
+    """
+    _reg_doc = _read_json(Path(ddir) / "adapter_registry.json", {})
+    if isinstance(_reg_doc, dict):
+        _reg_adapters = _reg_doc.get("adapters", {})
+        if isinstance(_reg_adapters, dict):
+            return {k: v for k, v in _reg_adapters.items() if isinstance(v, dict)}
+    return {}
+
+
+def policy_tier(meta_entry: "dict | None", registry_entry: "dict | None") -> str:
+    """Тир, под которым RiskPolicy v1.0 судит ключ: мета оркестратора → реестр → T2.
+
+    Единственное место этого правила. Раньше оно жило строкой внутри гейта, а шаг
+    псевдонимов пула держал СВОЮ копию тира литералом — и расходился с политикой,
+    как только реестр называл другой тир (ADR-340).
+    """
+    m = meta_entry if isinstance(meta_entry, dict) else {}
+    tier = str(m.get("tier") or "T2").upper()
+    if isinstance(registry_entry, dict) and not m.get("tier") \
+            and registry_entry.get("tier") is not None:
+        _t = registry_entry["tier"]
+        tier = f"T{_t}".upper() if isinstance(_t, int) else str(_t).upper()
+    return tier
+
+
 def _apply_risk_policy_gate(
     target_usd: dict[str, float],
     capital_usd: float,
@@ -315,15 +346,7 @@ def _apply_risk_policy_gate(
         _reg_fallbacks: dict[str, dict] = {}
         if ddir is not None:
             try:
-                _reg_doc = _read_json(Path(ddir) / "adapter_registry.json", {})
-                if isinstance(_reg_doc, dict):
-                    _reg_adapters = _reg_doc.get("adapters", {})
-                    if isinstance(_reg_adapters, dict):
-                        _reg_fallbacks = {
-                            k: v
-                            for k, v in _reg_adapters.items()
-                            if isinstance(v, dict)
-                        }
+                _reg_fallbacks = registry_adapters(ddir)
             except Exception as _rfb_exc:
                 log.warning(
                     "MP-1180 registry fallback load failed (%s) — gate continues",
@@ -413,7 +436,7 @@ def _apply_risk_policy_gate(
             violations.append(f"{_p}: non-finite target amount refused (fail-closed)")
         for pool, usd in sorted(adjusted.items(), key=lambda kv: (-kv[1], kv[0])):
             m = meta.get(pool, {})
-            tier = str(m.get("tier") or "T2").upper()
+            tier = policy_tier(m, _reg_fallbacks.get(pool))
             # FAIL-CLOSED finiteness coercion (architect P5-1). The previous
             # `float(m.get("apy_pct") or 0.0)` was a NaN bypass: NaN is truthy so
             # `nan or 0.0` → nan, and that non-finite value then defeated EVERY
@@ -453,10 +476,7 @@ def _apply_risk_policy_gate(
                             pool,
                             apy,
                         )
-                # fill tier/chain from registry when meta was empty
-                if not m.get("tier") and _fb.get("tier") is not None:
-                    _t = _fb["tier"]
-                    tier = f"T{_t}".upper() if isinstance(_t, int) else str(_t).upper()
+                # fill chain from registry when meta was empty (tier — policy_tier above)
                 if chain.startswith("unknown:") and _fb.get("chain"):
                     chain = str(_fb["chain"])
             if pool in _tvl_frozen:

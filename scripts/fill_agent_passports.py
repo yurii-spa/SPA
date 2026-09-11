@@ -31,6 +31,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import importlib.util
 import json
 import re
@@ -566,12 +567,136 @@ def rights_from_shell(program: str | None) -> str:
     return "; ".join(parts)
 
 
+_EXEC = "spa_core.execution"
+
+
+#: `python -m spa_core.execution…` внутри строки команды (shell=True, обёртки-строки).
+_SHELL_M_EXEC = re.compile(r"(?:^|\s)-m\s+spa_core\.execution(?:\.\w+)*(?:\s|$)")
+
+
+def _is_exec(name: str) -> bool:
+    return name == _EXEC or name.startswith(_EXEC + ".")
+
+
+def _step_source_file(module: str) -> Path | None:
+    """Файл шага: модуль ИЛИ пакет (`__init__.py`). Раньше пакет не находился вовсе."""
+    f = _module_file(module)
+    if f is not None:
+        return f
+    pkg = REPO / module.replace(".", "/") / "__init__.py"
+    return pkg if pkg.is_file() else None
+
+
+def imports_execution(src: str, module: str) -> bool | None:
+    """Импортирует ли исходник шага execution — по AST, а не по подстроке текста.
+
+    Замер 11.09: `consume_office_reports.py` упоминал `spa_core/execution/` в строке
+    ПРОЗЫ, и подстрочная проверка объявила весь конвейер оркестратора «трогающим
+    execution». Импорт — это узел `import`/`from … import`/`import_module("…")`,
+    а не буквы в тексте. Относительный импорт разрешается от имени модуля.
+
+    Запуск ПРОЦЕССОМ — тоже «трогает», хотя импорта нет: `golive_freshness_cycle`
+    держит `[PY, "-m", "spa_core.execution.owner_blockers"]`, и чисто импортная мерка
+    соврала бы в обратную сторону. Запуск узнаётся по ФОРМЕ argv: в литерале списка или
+    кортежа за элементом ``"-m"`` стоит модуль execution, либо строка команды содержит
+    ``-m spa_core.execution…``, либо `runpy.run_module("…")`. Списки запретных доменов,
+    пути для чтения исходников и проза этой формы не имеют и не считаются.
+    None — исходник не разбирается: это третий исход, не «чисто» и не «трогает».
+    """
+    try:
+        tree = ast.parse(src)
+    except (SyntaxError, ValueError):
+        return None
+    parts = module.split(".")
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Import):
+            if any(_is_exec(a.name) for a in n.names):
+                return True
+        elif isinstance(n, ast.ImportFrom):
+            if n.level:
+                base = parts[:-n.level] if n.level <= len(parts) else []
+                mod = ".".join(base + ([n.module] if n.module else []))
+            else:
+                mod = n.module or ""
+            if _is_exec(mod):
+                return True
+            if any(_is_exec(f"{mod}.{a.name}") for a in n.names):
+                return True
+        elif isinstance(n, ast.Call) and n.args:
+            fn = n.func
+            name = fn.attr if isinstance(fn, ast.Attribute) else getattr(fn, "id", None)
+            arg = n.args[0]
+            if (name in ("import_module", "__import__", "run_module")
+                    and isinstance(arg, ast.Constant)
+                    and isinstance(arg.value, str) and _is_exec(arg.value)):
+                return True
+        elif isinstance(n, (ast.List, ast.Tuple)):
+            vals = [e.value if isinstance(e, ast.Constant) else None for e in n.elts]
+            for a, b in zip(vals, vals[1:]):
+                if a == "-m" and isinstance(b, str) and _is_exec(b):
+                    return True
+        elif isinstance(n, ast.Constant) and isinstance(n.value, str):
+            if _SHELL_M_EXEC.search(n.value):
+                return True
+    return False
+
+
+def _could_be_repo_code(module: str) -> bool:
+    """Мог ли ненайденный шаг быть кодом ЭТОГО репозитория (его верхний пакет у нас есть).
+
+    `uvicorn`, `http.server`, `pytest` — чужие программы; `site_freshness` в форме
+    `agent_template.sh <имя> <цель>` — метка, а не шаг. Ни то ни другое не «не прочитанный
+    шаг». А `scripts.spa_admin`, которого нет на диске, — прочитать не удалось: назвать.
+    """
+    top = module.split(".")[0]
+    return (REPO / top).is_dir() or (REPO / f"{top}.py").is_file()
+
+
+def execution_verdict(mods: list[str]) -> tuple[bool | None, list[str]]:
+    """(трогает?, почему не измерено) по ОБЪЕДИНЕНИЮ шагов конвейера.
+
+    True — хоть один шаг сам есть execution или импортирует/запускает его; False — все
+    шаги из репозитория разобраны, их хотя бы один, и ни один не трогает; None — чистых
+    разборов не хватило, и причина названа. «Ни одного прочитанного шага» — тоже None:
+    раньше такой конвейер (`uvicorn`, `tracker_status_sentinel` без распознанной цели)
+    объявлялся чистым, не прочитав ни строки — «не измерено», выданное за ответ.
+    """
+    unread: list[str] = []
+    read = 0
+    for m in mods:
+        if _is_exec(m):
+            return True, []
+        f = _step_source_file(m)
+        if f is None:
+            if _could_be_repo_code(m):
+                unread.append(m)
+            continue
+        try:
+            got = imports_execution(f.read_text(encoding="utf-8", errors="replace"), m)
+        except OSError:
+            got = None
+        if got is True:
+            return True, []
+        if got is None:
+            unread.append(m)
+        else:
+            read += 1
+    if unread:
+        return None, ["не разобраны шаги " + ", ".join(unread)]
+    if mods and read == 0:
+        return None, ["ни один шаг не прочитан из репозитория (" + ", ".join(mods) + ")"]
+    # Питоновских шагов нет вовсе — ответ ИЗМЕРЕН разбором обёртки: импортировать некому.
+    return False, []
+
+
 def limits_from_shell(program: str | None) -> str:
     """Ограничения конвейера — по ОБЪЕДИНЕНИЮ шагов, а не по одному из них.
 
     «Не импортирует execution» пишется только если execution не трогает НИ ОДИН шаг.
     Замер 30.08: `run_tier1_governance.sh` запускает `spa_core.execution.readiness_audit`
     — обёртка, о которой было бы написано «execution не трогает», врала бы.
+    С 11.09 «трогает» судится импортом (AST), а не подстрокой текста — упоминание в
+    прозе больше не делает конвейер money-path; неразобранный шаг назван, а не пропущен.
     """
     mods, ext = shell_targets(program)
     if not mods and not ext:
@@ -584,7 +709,7 @@ def limits_from_shell(program: str | None) -> str:
         except OSError:
             pass
     for m in mods:
-        mf = _module_file(m)
+        mf = _step_source_file(m)
         if mf:
             try:
                 srcs.append(mf.read_text(encoding="utf-8", errors="replace"))
@@ -592,10 +717,13 @@ def limits_from_shell(program: str | None) -> str:
                 pass
     blob = "\n".join(srcs)
     lims: list[str] = []
-    if "spa_core.execution" in blob or "spa_core/execution" in blob:
+    touches, unread = execution_verdict(mods)
+    if touches is True:
         lims.append("ТРОГАЕТ execution — money-path, требует отдельного внимания")
-    else:
+    elif touches is False:
         lims.append("ни один шаг не импортирует execution")
+    else:
+        lims.append("execution: НЕ ИЗМЕРЕНО — " + "; ".join(unread))
     if "LLM_FORBIDDEN" in blob or "LLM FORBIDDEN" in blob:
         lims.append("LLM запрещён")
     if not mods and ext:

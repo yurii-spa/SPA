@@ -13,6 +13,8 @@ import unittest
 
 from spa_core.paper_trading.allocation_rationale import build_history_record
 
+# FROZEN-DATE-OK: pass-through-label — build_history_record копирует cycle_date/generated_at
+# дословно и часов не спрашивает; «stale» ниже — имя ключа протокола, а не окно свежести.
 DOC = {"cycle_date": "2026-01-01", "generated_at": "2026-01-01T00:00:00+00:00",
        "decision_shadow": {}, "params": {}}
 

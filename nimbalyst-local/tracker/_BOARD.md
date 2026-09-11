@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-11T20:46:36Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-11T21:44:24Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (6d6c950c6).
+> Сверено с `origin/main` (b1d15bc8e).
 >
-> Всего карточек: **1022** · ждёт владельца: **9** · занято сессиями: **14**.
+> Всего карточек: **1023** · ждёт владельца: **9** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -317,7 +317,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (511)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (512)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -340,6 +340,7 @@
 - Размещение кэша связано в одном ходе с невыгодной перекладкой и ждёт вместе с ней  ·  `agent-razmeshenie-kesha-svyazano-s-nevygodnoi-perekladkoi.md` · 2026-08-31
 - Ответы владельца не доезжают до origin сами: 09.09 отвечено семь карточек, инжест догоняет по одной  ·  `agent-sem-otvetov-vladeltsa-ne-doehali-do-origin.md` · 2026-09-09
 - Сторож занятости ОТКЛЮЧЁН на самой горячей карточке системы: прод-копия стои́т `done`, и шаг 0b объявляет любой захват недействительным  ·  `agent-storozh-zanyatosti-otklyuchen-na-samoi-goryachei-kartochke.md` · 2026-09-09
+- Дневной цикл запускают 892 раза вместо 81 — гейт деплоя этого НЕ объясняет (замер 11.09)  ·  `inbox-dnevnoi-tsikl-zapuskayut-892-raza-vmesto.md` · 2026-09-11
 - L2-мониторы газа молча предъявляют fallback-константу как живое чтение  ·  `inbox-l2-gas-monitory-molcha-predyavlyayut-fallback.md` · 2026-08-30
 - Опознание снимка в snapshot_minute_sensitivity идёт по порядку отметок и отбрасывает собственный снимок прогона  ·  `inbox-opoznanie-snimka-v-snapshot-minute-sensi.md` · 2026-09-10
 - Подключить экономику цеха: артефакт есть в коде, но стоимость цикла не измерена ни разу  ·  `inbox-podklyuchit-ekonomiku-tseha-k-agent-health.md` · 2026-09-09

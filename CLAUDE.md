@@ -52,7 +52,7 @@ SPA — автономный DeFi yield-optimizer на стадии **paper trad
    - **идея** → `docs/ideas/<дата-slug>.md`.
    Устных договорённостей быть не должно. **Не записано — работа сессии НЕ считается завершённой.**
 5. **Path-специфичные правила** — читать перед работой в области:
-   [`.claude/rules/risk-engine.md`](.claude/rules/risk-engine.md) · [`.claude/rules/site-copy.md`](.claude/rules/site-copy.md) · [`.claude/rules/adapters.md`](.claude/rules/adapters.md) ·
+   [`.claude/rules/risk-engine.md`](.claude/rules/risk-engine.md) · [`.claude/rules/site-copy.md`](.claude/rules/site-copy.md) · [`.claude/rules/site-numbers.md`](.claude/rules/site-numbers.md) (откуда берётся каждое число сайта) · [`.claude/rules/adapters.md`](.claude/rules/adapters.md) ·
    [`.claude/rules/deployment.md`](.claude/rules/deployment.md) (любое изменение прод-дерева: acceptance до и после, каталогами
    целиком, права — часть доставки) · [`.claude/rules/design-docs.md`](.claude/rules/design-docs.md) (создание или
    существенная правка нумерованного `docs/NN_*.md`: обязательная строка статуса L1–L5 + владелец + приёмка).

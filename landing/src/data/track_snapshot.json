@@ -3,7 +3,7 @@
   "generator": "scripts/generate_track_snapshot.py",
   "note": "Build-time static fallback for the public pages. Live values come from api.earn-defi.com and override these client-side; this is the last honest snapshot for offline / crawlers. real_track_days = EVIDENCED bars only. Missing value => 'data unavailable', never a stale number.",
   "as_of": "2026-09-11",
-  "generated_at": "2026-09-11T06:01:24Z",
+  "generated_at": "2026-09-11T20:56:10Z",
   "degraded": false,
   "real_track_days": 80,
   "go_live_target": null,
@@ -12,11 +12,11 @@
   "days_needed": 30,
   "gates_passed": 29,
   "gates_total": 29,
-  "end_equity": 101290.24,
-  "nav_usd": 101290.24,
-  "paper_apy_pct": 5.2978,
+  "end_equity": 101283.03,
+  "nav_usd": 101283.03,
+  "paper_apy_pct": 5.2636,
   "max_drawdown_pct": -0.0257,
-  "total_return_pct": 1.2902,
+  "total_return_pct": 1.283,
   "packages": {
     "conservative": {
       "apy_pct": 3.7,
@@ -36,9 +36,9 @@
       "status": "paper_test_running",
       "days_with_positions": 80,
       "days_funded": 80,
-      "apy_pct": 5.3,
+      "apy_pct": 5.26,
       "dd_pct": -0.0257,
-      "nav_usd": 101290.24,
+      "nav_usd": 101283.03,
       "positions_count": null,
       "evidence": "paper"
     },
@@ -2943,25 +2943,27 @@
     {
       "date": "2026-09-11",
       "open_equity": 101274.23,
-      "close_equity": 101290.24,
-      "high_equity": 101290.24,
+      "close_equity": 101283.03,
+      "high_equity": 101283.03,
       "low_equity": 101274.23,
       "snapshots": 1,
-      "daily_return_pct": 0.015805,
-      "cumulative_return_pct": 1.290236,
+      "daily_return_pct": 0.00869,
+      "cumulative_return_pct": 1.28303,
       "drawdown_pct": 0.0,
-      "equity": 101290.24,
-      "apy_today": 5.7688,
-      "apy_expected_pct": 5.7688,
-      "daily_yield_usd": 16.0062,
+      "equity": 101283.03,
+      "apy_today": 3.1718,
+      "apy_expected_pct": 4.7509,
+      "daily_yield_usd": 8.8005,
       "cost_usd": 0.0,
       "turnover_usd": 0.0,
-      "net_pnl_usd": 16.0062,
-      "unobservable_pools": [],
-      "yield_forgone_usd": 0.0,
+      "net_pnl_usd": 8.8005,
+      "unobservable_pools": [
+        "pendle"
+      ],
+      "yield_forgone_usd": 4.3836,
       "positions": {
         "pendle": 20000.0,
-        "fluid_usdc": 20000.0,
+        "fluid_fusdc": 20000.0,
         "compound_v3": 40000.0,
         "aave_v3": 4736.84,
         "maple": 5263.16,
@@ -2969,7 +2971,7 @@
       },
       "source": "cycle",
       "evidenced": true,
-      "accrual_source": "live"
+      "accrual_source": "fallback"
     }
   ]
 }

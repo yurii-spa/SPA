@@ -38,6 +38,19 @@ _HAY_SUFFIXES = (".sh", ".plist", ".py", ".yml", ".yaml")
 #: Реестр R&D-идей: единственный документ, запись в котором считается проводкой.
 _RND_REGISTRY = pathlib.Path("docs") / "DYNAMIC_LEVERAGE_GUARDIAN.md"
 
+#: Реестр карантина агентов — продукт `scripts/agent_quarantine.py` (решение владельца
+#: 28.08: агента не удаляют, а откладывают; вернуть — одной командой). Инструмент
+#: запускают руками по решению о партии карантина, вызывающего по расписанию у него нет
+#: ПО УСТРОЙСТВУ — ровно как у R&D-замера. И доказательство того же рода: каждая запись
+#: реестра несёт готовую команду возврата `python3 scripts/agent_quarantine.py restore …`,
+#: то есть попасть в реестр можно только запуском инструмента (ADR-342, замер 11.09:
+#: реестр называет ровно один скрипт — сам инструмент).
+_QUARANTINE_REGISTRY = pathlib.Path("attic") / "agents" / "QUARANTINE.json"
+
+#: Закрытый список реестров-продуктов. Расширение — решение (ADR), а не правка строки:
+#: состав закреплён тестом `test_the_product_registries_are_a_closed_list`.
+_PRODUCT_REGISTRIES = (_RND_REGISTRY, _QUARANTINE_REGISTRY)
+
 #: XML-комментарий plist'а: `<!-- ... -->` (в plist'ах он многострочный).
 _XML_COMMENT = re.compile(r"<!--.*?-->", re.S)
 
@@ -459,7 +472,7 @@ def entrypoint_scripts(root: Optional[pathlib.Path] = None) -> List[pathlib.Path
 
 
 def registry_recorded_scripts(root: Optional[pathlib.Path] = None) -> Set[str]:
-    """Скрипты, чей ПРОДУКТ — запись в реестре R&D-идей.
+    """Скрипты, чей ПРОДУКТ — запись в реестре-продукте (R&D-идей или карантина).
 
     У исследовательского замера вызывающего нет и быть не должно: его запускают
     руками, а результат уезжает в `docs/DYNAMIC_LEVERAGE_GUARDIAN.md`. Реестр —
@@ -467,15 +480,18 @@ def registry_recorded_scripts(root: Optional[pathlib.Path] = None) -> Set[str]:
     файл `docs/`, включая журнал, проводкой НЕ считается).
     """
     base = pathlib.Path(root or _ROOT)
-    reg = base / _RND_REGISTRY
-    try:
-        text = reg.read_text(encoding="utf-8", errors="ignore")
-    except OSError:
+    texts = []
+    for rel in _PRODUCT_REGISTRIES:
+        try:
+            texts.append((base / rel).read_text(encoding="utf-8", errors="ignore"))
+        except OSError:
+            continue
+    if not texts:
         return set()
     out = set()
     for m in entrypoint_scripts(base):
         pats = wiring_patterns(m.stem)
-        if pats["file"].search(text) or pats["module"].search(text):
+        if any(pats["file"].search(t) or pats["module"].search(t) for t in texts):
             out.add(m.stem)
     return out
 
@@ -492,17 +508,20 @@ def scripts_without_caller(root: Optional[pathlib.Path] = None) -> List[str]:
     """
     base = pathlib.Path(root or _ROOT)
     hay = []
-    for d in _HAY_DIRS:
-        d_base = base / d
-        if not d_base.exists():
-            continue
-        for p in d_base.rglob("*"):
-            if p.is_file() and p.suffix in _HAY_SUFFIXES and "/tests/" not in str(p):
-                try:
-                    raw = p.read_text(encoding="utf-8", errors="ignore")
-                except OSError:
-                    continue
-                hay.append((p, code_without_comments(p, raw)))
+    candidates = [p for d in _HAY_DIRS if (base / d).exists() for p in (base / d).rglob("*")]
+    # Корень — НЕ рекурсивно: там живут инструменты доставки (`push_to_github.py`,
+    # `push_to_github_batch.py`, `auto_push.py`), которые зовут каждая сессия и
+    # `com.spa.autopush`. До 11.09 корень не читался вовсе, и сторож записи ответа
+    # владельца (`check_owner_choice_authorship`, ADR-191), который пушер запускает
+    # на КАЖДОЙ доставке с карточками, числился «доставленным и мёртвым».
+    candidates += sorted(base.glob("*"))
+    for p in candidates:
+        if p.is_file() and p.suffix in _HAY_SUFFIXES and "/tests/" not in str(p):
+            try:
+                raw = p.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            hay.append((p, code_without_comments(p, raw)))
     orphans = []
     for m in entrypoint_scripts(base):
         pats = wiring_patterns(m.stem)

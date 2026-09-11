@@ -79,6 +79,112 @@ class TheUnionOverStepsIsLoadBearing(unittest.TestCase):
             fap.REPO = real
 
 
+class ExecutionIsJudgedByStructureNotBySubstring(unittest.TestCase):
+    """11.09: «трогает execution» судится импортом и запуском, а не буквами в тексте.
+
+    Замер: `test_a_clean_pipeline_says_so` покраснел, потому что `consume_office_reports`
+    упомянул `spa_core/execution/` в строке ПРОЗЫ. По всему флоту подстрока давала шесть
+    ложных «ТРОГАЕТ» (докстринг цикла «Does NOT import spa_core/execution» — буквально
+    наоборот) — и одновременно `golive_freshness_cycle` ЗАПУСКАЕТ execution процессом без
+    импорта, так что чисто импортная мерка соврала бы в обратную сторону.
+    """
+
+    def _repo(self, step_src: str | None, launch: str = '"$PY" -m pkg.step'):
+        import tempfile
+        tmp = Path(tempfile.mkdtemp())
+        (tmp / "scripts").mkdir()
+        (tmp / "pkg").mkdir()
+        (tmp / "pkg" / "__init__.py").write_text("", encoding="utf-8")
+        if step_src is not None:
+            (tmp / "pkg" / "step.py").write_text(step_src, encoding="utf-8")
+        (tmp / "scripts" / "w.sh").write_text(f"#!/bin/bash\n{launch}\n", encoding="utf-8")
+        return tmp
+
+    def _limits(self, step_src, launch='"$PY" -m pkg.step'):
+        tmp = self._repo(step_src, launch)
+        real = fap.REPO
+        try:
+            fap.REPO = tmp
+            return fap.limits_from_shell("w.sh")
+        finally:
+            fap.REPO = real
+
+    def test_prose_about_execution_is_not_an_import(self):
+        lim = self._limits('"""Does NOT import ``spa_core/execution/``."""\n'
+                           'MSG = "нужен наблюдатель вне `spa_core/execution/`"\n')
+        self.assertIn("ни один шаг не импортирует execution", lim)
+
+    def test_a_list_of_forbidden_domains_is_not_an_import(self):
+        """Форма `rules_watchdog`: запретные домены — данные, а не использование."""
+        lim = self._limits('FORBIDDEN = ["spa_core.risk", "spa_core.execution"]\n'
+                           'DIRS = ["spa_core/execution"]\n')
+        self.assertIn("ни один шаг не импортирует execution", lim)
+
+    def test_launching_execution_as_a_process_touches_it(self):
+        lim = self._limits('import subprocess\nPY = "python3"\n'
+                           'subprocess.run([PY, "-m", "spa_core.execution.owner_blockers"])\n')
+        self.assertIn("ТРОГАЕТ execution", lim)
+
+    def test_a_shell_command_string_launching_execution_touches_it(self):
+        lim = self._limits('import os\nos.system("python3 -m spa_core.execution.readiness_audit --x")\n')
+        self.assertIn("ТРОГАЕТ execution", lim)
+
+    def test_import_module_and_from_import_touch_it(self):
+        for src in ('import importlib\nimportlib.import_module("spa_core.execution.engine")\n',
+                    "from spa_core import execution\n",
+                    "import spa_core.execution.wallet as w\n"):
+            with self.subTest(src=src):
+                self.assertIn("ТРОГАЕТ execution", self._limits(src))
+
+    def test_a_relative_import_is_resolved_from_the_module_name(self):
+        self.assertTrue(fap.imports_execution("from ..execution import engine\n",
+                                              "spa_core.monitoring.x"))
+        self.assertFalse(fap.imports_execution("from ..risk import policy\n",
+                                               "spa_core.monitoring.x"))
+
+    def test_an_unparseable_step_is_unmeasured_not_clean(self):
+        lim = self._limits("def broken(:\n")
+        self.assertIn("НЕ ИЗМЕРЕНО", lim)
+        self.assertNotIn("ни один шаг не импортирует execution", lim)
+
+    def test_a_missing_repo_step_is_named_not_skipped(self):
+        """Раньше ненайденный файл шага пропускался молча — и конвейер звался чистым."""
+        lim = self._limits(None)
+        self.assertIn("НЕ ИЗМЕРЕНО", lim)
+        self.assertIn("pkg.step", lim)
+
+    def test_a_missing_step_beside_a_clean_one_is_still_named(self):
+        """Батарея: сцена с ОДНИМ ненайденным шагом краснела и другой дорогой («ни одного
+        прочитанного»), и мутация «пропускать молча» выживала. Здесь рядом чистый шаг —
+        без названного пропуска конвейер снова звался бы чистым."""
+        lim = self._limits("X = 1\n", launch='"$PY" -m pkg.step\n"$PY" -m pkg.missing')
+        self.assertIn("НЕ ИЗМЕРЕНО", lim)
+        self.assertIn("pkg.missing", lim)
+
+    def test_a_package_step_is_read_through_its_init(self):
+        """Шаг-пакет (`-m pkg.sub`, код в `__init__.py`) раньше не находился вовсе."""
+        tmp = self._repo(None, launch='"$PY" -m pkg.sub')
+        (tmp / "pkg" / "sub").mkdir()
+        (tmp / "pkg" / "sub" / "__init__.py").write_text(
+            "from spa_core.execution.engine import go\n", encoding="utf-8")
+        real = fap.REPO
+        try:
+            fap.REPO = tmp
+            self.assertIn("ТРОГАЕТ execution", fap.limits_from_shell("w.sh"))
+        finally:
+            fap.REPO = real
+
+    def test_a_pipeline_with_no_step_read_is_unmeasured(self):
+        """`uvicorn` запускает чужую программу: ни одной строки нашего кода не прочитано."""
+        lim = self._limits(None, launch='"$PY" -m uvicorn app:app')
+        self.assertIn("НЕ ИЗМЕРЕНО", lim)
+        self.assertNotIn("ни один шаг не импортирует execution", lim)
+
+    def test_live_positive_control_the_freshness_cycle_launches_execution(self):
+        """Живой случай запуска без импорта — обязан остаться «ТРОГАЕТ»."""
+        self.assertIn("ТРОГАЕТ execution", fap.limits_from_shell("agent_golive_freshness.sh"))
+
+
 class ItRefusesToInventFromTemplates(unittest.TestCase):
     """Решение не идти глубже одного уровня — закреплено, а не подразумевается."""
 

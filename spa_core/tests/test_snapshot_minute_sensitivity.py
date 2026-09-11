@@ -21,6 +21,8 @@ from tempfile import TemporaryDirectory
 
 from spa_core.monitoring import snapshot_minute_sensitivity as sms
 
+# FROZEN-DATE-OK: injected-clock — measure(now=)/run(now=) получают NOW параметром
+# (маркер в докстринге храповик не считает — он ищет «#»).
 NOW = datetime(2026, 9, 10, 12, 0, 0, tzinfo=timezone.utc)
 
 

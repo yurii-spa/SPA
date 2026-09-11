@@ -2109,7 +2109,8 @@ def run_cycle(
     # вердикт CIO судил уже итоговую цель. Карточка
     # agent-dva-imeni-odin-kontrakt-20-deneg-stoyat, тождество доказано pool_id.
     from spa_core.paper_trading.pool_alias_gate import apply_pool_alias_gate
-    target_usd = apply_pool_alias_gate(target_usd, capital_usd=capital_usd, notes=notes)
+    target_usd = apply_pool_alias_gate(target_usd, capital_usd=capital_usd, notes=notes,
+                                       adapters=adapters, ddir=ddir)
 
     # ── Step 2f (ADR-060 phase 0): yield-trigger SHADOW ──────────────────────
     # Records what the yield-improvement trigger WOULD decide about moving from the

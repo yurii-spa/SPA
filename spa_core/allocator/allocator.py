@@ -667,7 +667,7 @@ class AllocationResult:
         return asdict(self)
 
 
-def declared_ban(entry) -> "str | None":
+def declared_ban(entry: object) -> "str | None":
     """Запрет, ОБЪЯВЛЕННЫЙ записью реестра адаптеров. None — запрета нет.
 
     ADR-303 ввёл его в гейт `_fundable()` консервативного аллокатора; ADR-330 вынес

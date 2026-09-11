@@ -105,3 +105,120 @@ class TestCountingItself(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BatchReadAndMovement(unittest.TestCase):
+    """11.09: чтение одним `git cat-file --batch` и движение бэклога на одном ref.
+
+    Сцена — настоящий git-репозиторий во временном каталоге: вопрос в том, что
+    отвечает git, и подмена git'а ответила бы на свой вопрос.
+    """
+
+    def _repo(self):
+        import subprocess
+        import tempfile
+        d = tempfile.TemporaryDirectory()
+        self.addCleanup(d.cleanup)
+        root = Path(d.name)
+        env = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
+               "GIT_COMMITTER_EMAIL": "t@t", "PATH": "/usr/bin:/bin:/usr/local/bin"}
+
+        def git(*a, when=None):
+            e = dict(env)
+            if when:
+                e["GIT_AUTHOR_DATE"] = e["GIT_COMMITTER_DATE"] = when
+            subprocess.run(["git", *a], cwd=root, env=e, check=True, capture_output=True)
+
+        git("init", "-q")
+        tr = root / "nimbalyst-local" / "tracker"
+        tr.mkdir(parents=True)
+        (tr / "a.md").write_text("---\nstatus: new\n---\n", encoding="utf-8")
+        (tr / "b.md").write_text("---\nstatus: backlog\n---\n", encoding="utf-8")
+        (tr / "_BOARD.md").write_text("status: done\n", encoding="utf-8")
+        git("add", "-A")
+        git("commit", "-qm", "old", when="2020-01-01T00:00:00+00:00")
+        (tr / "a.md").write_text("---\nstatus: done\n---\n", encoding="utf-8")
+        (tr / "c.md").write_text("нет статуса\n", encoding="utf-8")
+        git("add", "-A")
+        git("commit", "-qm", "new")
+        m = _mod()
+        m.ROOT = str(root)
+        return m
+
+    def test_the_batch_reads_what_git_show_reads(self):
+        m = self._repo()
+        c, ids = m.counts_ref("HEAD")
+        self.assertEqual(dict(c), {"done": 1, "backlog": 1, "нет-статуса": 1})
+        self.assertNotIn("_BOARD", sum(ids.values(), []), "индекс доски — не карточка")
+
+    def test_a_path_missing_on_the_ref_reads_as_empty(self):
+        m = self._repo()
+        got = m._show_many("HEAD", ["nimbalyst-local/tracker/a.md", "nimbalyst-local/tracker/zzz.md"])
+        self.assertIn("status: done", got["nimbalyst-local/tracker/a.md"])
+        self.assertEqual(got["nimbalyst-local/tracker/zzz.md"], "")
+
+    def test_movement_compares_one_ref_at_two_moments(self):
+        m = self._repo()
+        mv = m.movement(24, ref="HEAD")
+        self.assertEqual(mv["now"].get("done"), 1)
+        self.assertEqual(mv["before"], {"new": 1, "backlog": 1})
+        self.assertIn("HEAD @", mv["source"])
+
+    def test_history_shorter_than_the_window_is_None_not_zero(self):
+        """Нет точки «до» ⇒ None: ноль изобразил бы «бэклог не двигался»."""
+        m = self._repo()
+        import subprocess
+        subprocess.run(["git", "reset", "-q", "--hard", "HEAD~1"], cwd=m.ROOT, check=True)
+        self.assertIsNone(m.movement(24 * 365 * 20, ref="HEAD")["before"])
+
+
+class BriefingBacklogSection(unittest.TestCase):
+    """Секции брифинга вызываются без изоляции — отказ счётчика обязан остаться в секции."""
+
+    def _briefing(self):
+        spec = importlib.util.spec_from_file_location(
+            "_briefing_backlog", str(Path(__file__).resolve().parents[2] / "scripts"
+                                     / "update_system_briefing.py"))
+        b = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(b)
+        return b
+
+    def test_a_missing_counter_is_UNCHECKED_not_a_crash(self):
+        import tempfile
+        b = self._briefing()
+        with tempfile.TemporaryDirectory() as d:
+            b.PROJECT_ROOT = d
+            out = b.build_backlog_movement_section()
+        self.assertIn("НЕ ИЗМЕРЕНО", out)
+
+    def test_the_section_names_its_source(self):
+        b = self._briefing()
+        fake = {"source": "origin/main @ abc (коммит x)", "hours": 24,
+                "now": {"done": 5, "new": 2, "backlog": 1}, "before": {"done": 3, "new": 2},
+                "before_ref": "def"}
+        with mock.patch.object(importlib.util, "spec_from_file_location",
+                               wraps=importlib.util.spec_from_file_location):
+            import types
+            tc = types.SimpleNamespace(movement=lambda hours: fake)
+            real_mod = importlib.util.module_from_spec
+            with mock.patch.object(importlib.util, "module_from_spec",
+                                   side_effect=lambda spec: tc if spec.name == "_tracker_counts" else real_mod(spec)):
+                with mock.patch.object(type(importlib.util.spec_from_file_location(
+                        "x", __file__).loader), "exec_module", lambda self, m: None):
+                    out = b.build_backlog_movement_section()
+        self.assertIn("origin/main @ abc", out)
+        self.assertIn("done **+2**", out)
+        self.assertIn("очередь **+1**", out)
+
+    def test_no_point_before_the_window_is_UNCHECKED_not_zero(self):
+        b = self._briefing()
+        import types
+        fake = {"source": "s", "hours": 24, "now": {"done": 1}, "before": None, "before_ref": None}
+        real_mod = importlib.util.module_from_spec
+        with mock.patch.object(importlib.util, "module_from_spec",
+                               side_effect=lambda spec: types.SimpleNamespace(movement=lambda hours: fake)
+                               if spec.name == "_tracker_counts" else real_mod(spec)):
+            with mock.patch.object(type(importlib.util.spec_from_file_location(
+                    "x", __file__).loader), "exec_module", lambda self, m: None):
+                out = b.build_backlog_movement_section()
+        self.assertIn("за 24 ч: **НЕ ИЗМЕРЕНО**", out)
