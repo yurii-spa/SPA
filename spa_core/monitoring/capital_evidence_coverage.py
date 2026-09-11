@@ -160,6 +160,7 @@ import sys
 
 from spa_core.monitoring.architecture_conformance import REPO_ROOT, _parse_iso
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.observation import observed, observed_number
 
 REPORT_REL = os.path.join("data", "capital_evidence_coverage.json")
 LOG_REL = os.path.join("data", "capital_evidence_coverage_log.jsonl")
@@ -331,7 +332,7 @@ def measure(doc, *, now):
             "bucket": bucket,
             "apy_source": src,
         }
-        apy = _num((coverage.get("apy_used_pct") or {}).get(protocol))
+        apy = _num((observed(coverage, "apy_used_pct", kind=dict) or {}).get(protocol))
         if apy is not None:
             row["apy_used_pct"] = apy
         if why:
@@ -565,13 +566,21 @@ def _live_track_record(report: dict) -> dict:
         "present": report.get("book_generated_at") is not None or bool(report.get("by_protocol")),
         "deployed_usd": report.get("deployed_usd"),
         "coverage_pct": report.get("capital_coverage_pct"),
-        "usd": dict(report.get("usd") or {}),
+        # `None` — разбивки по родам НЕТ (книга не разложена); пустой словарь
+        # означал бы «разложена, и всюду ноль».
+        "usd": observed(report, "usd", kind=dict),
         "by_protocol": list(report.get("by_protocol") or []),
         "verdict": report.get("verdict"),
         "unchecked": list(report.get("unchecked") or []),
         "book_generated_at": report.get("book_generated_at"),
         "book_age_s": report.get("book_age_s"),
     }
+
+
+def _money(value) -> str:
+    """Сумма для человека. Нет числа — «н/д», а не «$0»: это разные сообщения."""
+    num = observed_number({"v": value}, "v")
+    return f"${num:,.0f}" if num is not None else "н/д"
 
 
 def aggregate_books(records) -> dict:
@@ -585,13 +594,18 @@ def aggregate_books(records) -> dict:
     buckets = {"evidenced": 0.0, "literal": 0.0, "unmeasured": 0.0}
     measured, unmeasured_books = [], []
     for rec in records:
-        if rec.get("deployed_usd") is None:
+        usd_split = observed(rec, "usd", kind=dict)
+        if rec.get("deployed_usd") is None or usd_split is None:
+            # Книга без развёрнутой суммы ИЛИ без разбивки по родам не сводима:
+            # прежде её деньги попадали в знаменатель `deployed`, а в числители
+            # родов — нули, и покрытие всех книг выходило заниженным «числом»
+            # вместо честного «эту книгу не померили» (инвариант #17).
             unmeasured_books.append(rec.get("book"))
             continue
         measured.append(rec.get("book"))
         deployed += float(rec["deployed_usd"])
         for k in buckets:
-            buckets[k] += float((rec.get("usd") or {}).get(k) or 0.0)
+            buckets[k] += observed_number(usd_split, k) or 0.0
     verdict = worst_verdict([r.get("verdict") for r in records])
     return {
         "books_declared": [b[0] for b in BOOKS],
@@ -908,17 +922,17 @@ def _lines(report: dict) -> list[str]:
     agg = report.get("all_books") or {}
     if agg:
         out.append(
-            f"  ВСЕ КНИГИ ({len(agg.get('books_measured') or [])} из"
-            f" {len(agg.get('books_declared') or [])} померены): покрытие"
+            f"  ВСЕ КНИГИ ({len(observed(agg, 'books_measured', kind=list) or [])} из"
+            f" {len(observed(agg, 'books_declared', kind=list) or [])} померены): покрытие"
             f" {agg.get('coverage_pct')}% — вердикт {agg.get('verdict')}"
         )
         for rec in report.get("books") or []:
-            usd = rec.get("usd") or {}
+            usd = observed(rec, "usd", kind=dict) or {}
             head = (f"  · {rec.get('book')}: {rec.get('coverage_pct')}%"
-                    f" из ${rec.get('deployed_usd') or 0:,.0f}"
-                    f" (наблюдением ${usd.get('evidenced') or 0:,.0f}"
-                    f" · литералом ${usd.get('literal') or 0:,.0f}"
-                    f" · НЕ ИЗМЕРЕНО ${usd.get('unmeasured') or 0:,.0f})"
+                    f" из {_money(rec.get('deployed_usd'))}"
+                    f" (наблюдением {_money(usd.get('evidenced'))}"
+                    f" · литералом {_money(usd.get('literal'))}"
+                    f" · НЕ ИЗМЕРЕНО {_money(usd.get('unmeasured'))})"
                     f" — {rec.get('verdict')}")
             out.append(head)
             for row in rec.get("by_protocol") or []:
@@ -927,13 +941,13 @@ def _lines(report: dict) -> list[str]:
                     out.append(f"      [{tag}] {row.get('message')}")
             for reason in rec.get("unchecked") or []:
                 out.append(f"      [НЕ ИЗМЕРЕНО] {reason}")
-    usd = report.get("usd") or {}
+    usd = observed(report, "usd", kind=dict) or {}
     if report.get("deployed_usd"):
         out.append(
             f"  развёрнуто ${report.get('deployed_usd'):,.0f}:"
-            f" наблюдением ${usd.get('evidenced') or 0:,.0f}"
-            f" · помеченным литералом ${usd.get('literal') or 0:,.0f}"
-            f" · НЕ ИЗМЕРЕНО ${usd.get('unmeasured') or 0:,.0f}"
+            f" наблюдением {_money(usd.get('evidenced'))}"
+            f" · помеченным литералом {_money(usd.get('literal'))}"
+            f" · НЕ ИЗМЕРЕНО {_money(usd.get('unmeasured'))}"
         )
     alp = report.get("adapters_live_pct")
     if alp is not None:

@@ -182,6 +182,39 @@ class TestTheTwinNumber(unittest.TestCase):
         self.assertIsNone(rep["divergence_pp"])
 
 
+class ABookWithoutItsSplitIsUnmeasuredNotZeroes(unittest.TestCase):
+    """ADR-344 (инвариант #17): книга без разбивки по родам не сводится нулями.
+
+    `aggregate_books` складывал `float((rec.get("usd") or {}).get(k) or 0.0)`:
+    книга, у которой разбивки нет, приносила свои деньги в ЗНАМЕНАТЕЛЬ
+    (`deployed`), а в числители родов — нули. Покрытие всех книг выходило
+    заниженным ЧИСЛОМ вместо честного «эту книгу не померили».
+    """
+
+    def test_a_record_without_usd_is_counted_unmeasured(self):
+        out = cec.aggregate_books([
+            {"book": "a", "deployed_usd": 100.0,
+             "usd": {"evidenced": 100.0, "literal": 0.0, "unmeasured": 0.0}},
+            {"book": "b", "deployed_usd": 100.0},
+        ])
+        self.assertEqual(out["books_measured"], ["a"])
+        self.assertIn("b", out["books_unmeasured"])
+        self.assertEqual(out["deployed_usd"], 100.0)
+
+    def test_a_recorded_zero_split_is_measured(self):
+        """Обратная сторона: разбивка ЕСТЬ и она нулевая — книга померена."""
+        out = cec.aggregate_books([
+            {"book": "a", "deployed_usd": 100.0,
+             "usd": {"evidenced": 0.0, "literal": 0.0, "unmeasured": 100.0}},
+        ])
+        self.assertEqual(out["books_measured"], ["a"])
+        self.assertEqual(out["books_unmeasured"], [])
+
+    def test_money_renders_absence_as_not_available(self):
+        self.assertEqual(cec._money(None), "н/д")
+        self.assertEqual(cec._money(0), "$0")
+
+
 class TestEmptyBookIsNotFullCoverage(unittest.TestCase):
     def test_all_cash_book_is_unchecked_not_100(self):
         """0 из 0 — не «полное покрытие». Иначе книга-всё-в-кэше (HARD_KILL)
