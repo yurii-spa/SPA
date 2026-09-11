@@ -40,6 +40,23 @@ from spa_core.adapters.pendle_adapter import (
 from spa_core.adapters.defillama_feed import DeFiLlamaFeed
 from spa_core.adapters.pendle_pt import PendleMarketData
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _scene_declares_its_underlying_admissible(monkeypatch):
+    """ADR-332 (11.09): PendleAdapter допускает PT только на основные стейблы.
+
+    ИЗМЕНЕНО НАМЕРЕННО (инв. №16). Фикстуры этого файла строят рынки на sUSDe —
+    теперь недопустимых. Предмет этих тестов — механика выборки, кэш и крайние случаи ставки, а не допустимость актива;
+    поэтому сцена ОБЪЯВЛЯЕТ свой актив допустимым, и ни одно утверждение не тронуто.
+    Само правило допустимости проверяется в test_pendle_admissible_underlyings.py.
+    """
+    from spa_core.adapters import pendle_adapter as _pa
+    monkeypatch.setattr(_pa, "ADMISSIBLE_UNDERLYINGS",
+                        _pa.ADMISSIBLE_UNDERLYINGS | {"SUSDE"})
+
+
 
 # ── Fixtures / helpers ────────────────────────────────────────────────────────
 

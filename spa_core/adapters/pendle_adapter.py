@@ -61,6 +61,21 @@ STABLECOIN_FILTER: frozenset[str] = frozenset(
 )
 
 # Tier thresholds (TVL in USD).
+#: ADR-332 (владелец 11.09: «бери делай все» на предложение агента). Базовые
+#: стейблкоины, PT которых допустим для консервативной книги. Прежний фильтр —
+#: подстрока «usd» в символе — пропускал ЛЮБОЙ стейбл, а выбор «максимальная ставка
+#: побеждает» по построению брал самый рискованный: 11.09 это был PT-apyUSD-5NOV2026,
+#: 14.05 %, пул $21 млн, в книге $20 000 = 20 % капитала под видом «pendle 8 %, T2».
+#: Высокая фиксированная ставка на малоизвестный стейбл — это цена хвостового риска,
+#: а не находка. Сравнение — ТОЧНОЕ по имени базового актива (без подстрок: «usd» в
+#: «apyUSD» и было дырой).
+ADMISSIBLE_UNDERLYINGS = frozenset({"USDC", "USDT", "DAI", "USDS", "SUSDS", "SDAI"})
+
+
+def is_admissible_underlying(asset) -> bool:
+    return str(asset or "").strip().upper() in ADMISSIBLE_UNDERLYINGS
+
+
 _TIER_T2_TVL = 100_000_000.0   # >= $100M → T2
 _TIER_T3_TVL = 20_000_000.0    # >= $20M  → T3
 
@@ -191,7 +206,17 @@ class PendleAdapter(BaseAdapter):
             if markets:
                 self._cache = markets
                 self._cache_ts = time.monotonic()
-            return list(self._cache)
+            # ADR-332: только PT на допустимые базовые стейблкоины — в ОДНОЙ точке,
+            # чтобы get_yield_info / get_markets / get_best_pt видели один набор.
+            # Отброшенные НАЗЫВАЮТСЯ в логе: пустой набор из-за фильтра и пустой
+            # набор из-за сети — разные исходы.
+            kept = [m for m in self._cache if is_admissible_underlying(m.underlying_asset)]
+            dropped = [f"{m.name}({m.underlying_asset}, {m.implied_apy:.2f}%)"
+                       for m in self._cache if not is_admissible_underlying(m.underlying_asset)]
+            if dropped:
+                logger.info("%s: ADR-332 отброшены PT на недопустимые стейблы: %s",
+                            self.PROTOCOL, ", ".join(dropped))
+            return kept
         except Exception as exc:  # noqa: BLE001
             logger.warning("%s: fetch_eligible raised %s — using cache", self.PROTOCOL, exc)
             return list(self._cache)
