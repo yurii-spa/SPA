@@ -189,6 +189,13 @@ class PortfolioState:
         t2_total = sum(p.amount_usd for p in self.positions if p.tier == "T2")
         return t2_total / self.total_capital_usd
 
+    def t3_allocation_pct(self) -> float:
+        """Суммарный процент T3 протоколов (ADR-337: для потолка `max_total_t3_allocation`)."""
+        if self.total_capital_usd == 0:
+            return 0.0
+        t3_total = sum(p.amount_usd for p in self.positions if p.tier == "T3")
+        return t3_total / self.total_capital_usd
+
     def chain_allocation_pct(self, chain: str) -> float:
         """Percent of portfolio deployed on a specific chain."""
         if self.total_capital_usd == 0:
@@ -497,6 +504,19 @@ class RiskPolicy:
                     f"limit {self.config.max_total_t2_allocation:.1%}"
                 )
 
+        # 8b. Лимит T3 совокупно (ADR-337). Порог `max_total_t3_allocation` (15 %, ADR-020)
+        #     был ОБЪЯВЛЕН в RiskConfig и не читался НИГДЕ: проверялся только T2. Замер
+        #     11.09 вызовом настоящего гейта — T3-позиция на 20 % одобрена («approaching T3
+        #     limit 20.0 %» — это потолок НА ПРОТОКОЛ), а общий потолок тира молчал.
+        #     Порог не изменён — он впервые исполняется.
+        if tier == "T3" and state.total_capital_usd > 0:
+            new_t3 = state.t3_allocation_pct() + (amount_usd / state.total_capital_usd)
+            if new_t3 > self.config.max_total_t3_allocation:
+                violations.append(
+                    f"Total T3 allocation {new_t3:.1%} would exceed "
+                    f"limit {self.config.max_total_t3_allocation:.1%}"
+                )
+
         # 9. Single-chain concentration limit
         if state.total_capital_usd > 0:
             new_chain_alloc = state.chain_allocation_pct(chain) + (amount_usd / state.total_capital_usd)
@@ -762,6 +782,15 @@ class RiskPolicy:
             violations.append(
                 f"Total T2 allocation {_t2_total:.1%} exceeds "
                 f"limit {self.config.max_total_t2_allocation:.1%}"
+            )
+
+        # T3 совокупно (блок 8b входной проверки, ADR-337). Как и T2, тир динамический —
+        # книга способна нарушить этот порог без сделки (Pendle меряет тир по TVL).
+        _t3_total = state.t3_allocation_pct()
+        if _t3_total > self.config.max_total_t3_allocation:
+            violations.append(
+                f"Total T3 allocation {_t3_total:.1%} exceeds "
+                f"limit {self.config.max_total_t3_allocation:.1%}"
             )
 
         # L2 суммарно (блок 10 входной проверки).
@@ -1068,7 +1097,13 @@ class RiskPolicy:
             remaining_t2 = self.config.max_total_t2_allocation - state.t2_allocation_pct()
             max_by_t2 = max(0.0, remaining_t2 * capital)
 
-        result = max(0.0, min(max_by_concentration, max_by_cash, max_by_t2))
+        # Ограничение T3 (ADR-337)
+        max_by_t3 = float("inf")
+        if tier == "T3":
+            remaining_t3 = self.config.max_total_t3_allocation - state.t3_allocation_pct()
+            max_by_t3 = max(0.0, remaining_t3 * capital)
+
+        result = max(0.0, min(max_by_concentration, max_by_cash, max_by_t2, max_by_t3))
         return round(result, 2)
 
     # ── Оси риска v2 (MP-208) ────────────────────────────────────────────────
