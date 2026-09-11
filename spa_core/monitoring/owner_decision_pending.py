@@ -678,7 +678,49 @@ def _scan_channel_buttons(ddir: Path, pushes=None) -> dict:
     except Exception as exc:  # noqa: BLE001 — сторож не роняет отчёт
         return {"measured": False, "reason": f"скан не выполнен: {exc}"}
     out["measured"] = True
+    out["window"] = _journal_window(doc, entries)
     return out
+
+
+def _journal_window(doc: object, entries: list) -> dict:
+    """Границы окна журнала канала: он кольцевой, и это меняет смысл «чисто».
+
+    Заказ #562 / ADR-323. Выше этот сторож fail-CLOSED по КАЖДОМУ отказу, который
+    автор себе представил: журнала нет, журнал не читается, скан упал — у всех
+    троих ``measured=False`` и причина словами. Не представлен был ровно один
+    отказ: журнал **на месте, читается и выглядит целым, а на деле срезан**.
+    ``alert_history.json`` есть кольцевой буфер (`max_entries`), и на день замера
+    он ПОЛОН — 500 из 500. ``measured=True`` при этом утверждалось про окно,
+    молча начинающееся с 2026-08-16.
+
+    Сам граничный день срезан с головы: его число записей есть нижняя граница, а
+    не счёт (ADR-322, тот же класс, другой носитель).
+
+    Не бросает никогда: измеритель окна не имеет права уронить сторожа, который
+    он всего лишь уточняет.
+    """
+    try:
+        from spa_core.monitoring.bounded_window_census import (
+            day_of, declared_cap, saturation)
+
+        cap = declared_cap(doc)
+        full = saturation(doc, entries)
+        days = sorted({d for d in (day_of(e) for e in entries) if d})
+        boundary = days[0] if days else None
+        return {
+            "measured": True,
+            "declared_cap_field": cap[0] if cap else None,
+            "declared_cap": cap[1] if cap else None,
+            "records": len(entries),
+            "saturated": full,
+            "boundary_day": boundary,
+            # Число записей граничного дня — НИЖНЯЯ ГРАНИЦА при полном буфере:
+            # вытеснение идёт с головы и умеет только убирать, не добавлять.
+            "boundary_day_records": sum(1 for e in entries if day_of(e) == boundary),
+            "boundary_day_records_is_floor": bool(full),
+        }
+    except Exception as exc:  # noqa: BLE001 — уточнение не роняет сторожа
+        return {"measured": False, "reason": f"окно не измерено: {exc}"}
 
 
 def _buttonless_reason(tracker_dir: Path, card_id: str, *,
