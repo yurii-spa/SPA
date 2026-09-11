@@ -44,6 +44,8 @@ from datetime import datetime, timezone, date, timedelta
 from pathlib import Path
 from typing import Any, Optional
 
+from spa_core.utils.observation import observed, observed_number
+
 log = logging.getLogger("spa.monitoring.system_health")
 
 # Allow direct-script invocation (python3 path/to/system_health_monitor.py) in
@@ -2233,7 +2235,7 @@ class SystemHealthMonitor:
 
     def _build_history(self, run_id, overall, counts, fingerprint, trend) -> list:
         prev = self._prev_cache or {}
-        hist = list(prev.get("history") or [])
+        hist = list(observed(prev, "history", kind=list) or [])
         hist.append({
             "run_id": run_id,
             "overall_status": overall,

@@ -107,6 +107,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
+from spa_core.utils.observation import observed, observed_number
+
 log = logging.getLogger(__name__)
 
 VERSION = "rate_observation_census/v1"
@@ -809,7 +811,7 @@ def format_report(doc: dict) -> List[str]:
     прочтёт это как замер всего знаменателя; строка про пригодность стои́т
     ПЕРЕД ней именно поэтому, и порядок закреплён тестом.
     """
-    counts = doc.get("counts") or {}
+    counts = observed(doc, "counts", kind=dict) or {}
     head = (f"   наблюдения вне носителя ставок (заказ #557): "
             f"{doc.get('status')} · знаменатель {counts.get('denominator_days')} дн. · "
             f"измерено независимым носителем {counts.get('days_measured_by_independent')} · "

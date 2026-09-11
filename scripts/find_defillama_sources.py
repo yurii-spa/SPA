@@ -33,6 +33,8 @@ import sys
 import argparse
 import urllib.request
 from datetime import datetime, timezone
+
+from spa_core.utils.observation import observed, observed_number
 from spa_core.utils.atomic import atomic_save
 
 #: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
@@ -113,13 +115,17 @@ def search_pools(
         return []
 
     results = []
+    unmeasured_pools: list = []
     for pool in pools:
-        # TVL filter
-        tvl = pool.get("tvlUsd") or pool.get("tvl") or 0
-        try:
-            tvl = float(tvl)
-        except (TypeError, ValueError):
-            tvl = 0.0
+        # TVL filter. Пул БЕЗ TVL — не «нулевой»: его просто не измерили, и
+        # молча отбрасывать его как «ниже порога» нельзя (инвариант #17).
+        tvl_raw = observed_number(pool, "tvlUsd")
+        if tvl_raw is None:
+            tvl_raw = observed_number(pool, "tvl")
+        if tvl_raw is None:
+            unmeasured_pools.append(str(pool.get("pool") or pool.get("symbol") or "?"))
+            continue
+        tvl = float(tvl_raw)
         if tvl < min_tvl:
             continue
 
@@ -163,8 +169,17 @@ def format_pool(pool: dict) -> str:
     project  = pool.get("project") or "N/A"
     symbol   = pool.get("symbol") or "N/A"
     chain    = pool.get("chain") or "N/A"
-    apy      = pool.get("apy") or pool.get("apyBase") or 0.0
-    tvl      = pool.get("tvlUsd") or pool.get("tvl") or 0.0
+    # «Нет числа» печатается как н/д: ноль в отчёте читался бы как замер.
+    apy_v = observed_number(pool, "apy")
+    if apy_v is None:
+        apy_v = observed_number(pool, "apyBase")
+    tvl_v = observed_number(pool, "tvlUsd")
+    if tvl_v is None:
+        tvl_v = observed_number(pool, "tvl")
+    apy      = 0.0 if apy_v is None else apy_v
+    tvl      = 0.0 if tvl_v is None else tvl_v
+    apy_na   = apy_v is None
+    tvl_na   = tvl_v is None
 
     try:
         apy = float(apy)

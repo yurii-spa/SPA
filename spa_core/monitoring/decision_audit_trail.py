@@ -51,6 +51,8 @@ import json
 import os
 from typing import Any, Callable
 
+from spa_core.utils.observation import observed, observed_number
+
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 REPORT_REL = "data/decision_audit_trail.json"
 
@@ -172,7 +174,7 @@ def resolve_move(move: dict, chain: list[dict], ctx: dict) -> dict:
     before = data.get("from_allocation")
     if isinstance(before, dict) and before:
         extra = ""
-        pos = (ctx.get("equity_positions") or {}).get(date)
+        pos = (observed(ctx, "equity_positions", kind=dict) or {}).get(date)
         if isinstance(pos, dict) and pos:
             extra = " (сходится со вторым источником equity_curve_daily.daily[].positions)"
         out["portfolio_snapshot"] = _f(PRESENT, f"{TRAIL_REL}::trade_executed.from_allocation",
@@ -414,7 +416,10 @@ def run(root: str | None = None, *, now: dt.datetime | None = None,
                           "source": source, "detail": detail}
 
     identity = id_collisions(moves)
-    older = [r for r in resolved if (r["age_days"] or 0) >= OWNER_HORIZON_DAYS]
+    # Запись без возраста в «старые» не попадает — но это НЕ «ей ноль дней»:
+    # ноль здесь только сравнение, а отсутствие названо соседним счётчиком.
+    older = [r for r in resolved
+             if (observed_number(r, "age_days") or 0) >= OWNER_HORIZON_DAYS]
     population = {
         "trail_events": len(rows),
         "unparseable_lines": bad_lines,

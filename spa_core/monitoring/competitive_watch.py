@@ -293,16 +293,20 @@ def _valid_date(value) -> bool:
     if not value or not isinstance(value, str):
         return False
     s = value.strip().replace("Z", "+00:00")
+    parsed = False
     try:
         datetime.fromisoformat(s)
-        return True
+        parsed = True
     except ValueError:
         # Accept bare YYYY-MM-DD too (fromisoformat handles it on 3.11+, but be safe).
         try:
             datetime.strptime(value.strip()[:10], "%Y-%m-%d")
-            return True
+            parsed = True
         except ValueError:
-            return False
+            parsed = False
+    # Успех возвращается ВНЕ обработчиков: «разобралось» — это замер, и форма
+    # чтения не должна путать его с «поймали исключение» (инвариант #17).
+    return parsed
 
 
 # ===========================================================================

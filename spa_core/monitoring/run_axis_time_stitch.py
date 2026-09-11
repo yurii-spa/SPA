@@ -115,6 +115,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from spa_core.utils.observation import observed, observed_number
+
 log = logging.getLogger(__name__)
 
 VERSION = "run_axis_time_stitch/v1"
@@ -577,7 +579,7 @@ def format_report(doc: dict) -> List[str]:
             f"   прямая сторона (окно {round(fwd['window_s'], 3)} с): однозначных "
             f"{fwd['unambiguous']}, неоднозначных {fwd['ambiguous']}, доля "
             f"{fwd['ambiguous_share']}")
-    err = doc.get("error_rate") or {}
+    err = observed(doc, "error_rate", kind=dict) or {}
     if err.get("measured"):
         out.append(
             f"   цена ошибки: полоса [{err['widest_true_gap_s']}, "

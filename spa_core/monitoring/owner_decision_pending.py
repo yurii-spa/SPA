@@ -172,6 +172,8 @@ import sys
 from pathlib import Path
 from typing import Any, Optional
 
+from spa_core.utils.observation import observed, observed_number
+
 from spa_core.governance.kill_switch import KILL_SWITCH_ACTIVE_FILENAME
 from spa_core.utils.atomic import atomic_save
 from spa_core.utils.live_paths import live_data_dir
@@ -954,7 +956,10 @@ def check_pending_owner_decisions(*,
             "answered_but_open": (last or {}).get("choice") is not None,
         })
 
-    pending.sort(key=lambda p: (p["age_h"] is None, -(p["age_h"] or 0.0)))
+    # Первый элемент ключа УЖЕ отделяет «возраста нет» — второй лишь упорядочивает
+    # внутри группы, и ноль там не утверждает ничего о возрасте.
+    pending.sort(key=lambda p: (observed_number(p, "age_h") is None,
+                                -(observed_number(p, "age_h") or 0.0)))
 
     delivered = [p for p in pending if p["delivered"]]
     undelivered = [p for p in pending if not p["delivered"]]

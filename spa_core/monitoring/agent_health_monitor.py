@@ -46,6 +46,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Dict, List, NamedTuple, Optional, Tuple
 
+from spa_core.utils.observation import observed, observed_number
+
 from spa_core.monitoring.agent_registry_refresh import refresh_if_stale
 from spa_core.monitoring.cycle_lock_watch import check_cycle_lock
 # Словарь исходов дневного цикла. Импорт безопасен: `cycle_exit` — чистый
@@ -1178,7 +1180,7 @@ def check_system(data_dir: Path, now: datetime,
                 issues.append(
                     "capital-efficiency LAZY: {:.0f}% deployable capital idle at 0%{} "
                     "(allocator left safe headroom unused)".format(
-                        (ce.get("deployable_now_pct") or 0) * 100,
+                        (observed_number(ce, "deployable_now_pct") or 0) * 100,
                         f" — ~{fb}bps/yr forgone" if fb else "",
                     )
                 )
@@ -1781,7 +1783,7 @@ def _write_orphaned_pytest(data_dir: Path, report: Optional[dict] = None) -> Non
                          "why": o.get("orphan_why")} for o in orphans],
             "unmeasured": [{"pid": o.get("pid"), "cwd": o.get("cwd"),
                             "why": o.get("orphan_why")}
-                           for o in (rep.get("orphan_unmeasured") or [])],
+                           for o in (observed(rep, "orphan_unmeasured", kind=list) or [])],
             "note": ("сироты только НАЗЫВАЮТСЯ; снятие — решение сессии "
                      "(kill -TERM <pid>), монитор не действует"),
         }

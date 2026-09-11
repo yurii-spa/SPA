@@ -96,6 +96,8 @@ import re
 from pathlib import Path
 from typing import Any, Optional
 
+from spa_core.utils.observation import observed, observed_number
+
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 REPORT_REL = "data/cio_explainability.json"
 
@@ -358,7 +360,7 @@ def _probe_cost(text: str, rec: dict, cost_evidence: Optional[dict]) -> dict:
     prov = ""
     if isinstance(cost_evidence, dict):
         charged = (cost_evidence.get("charged") or {}).get("total_usd")
-        obs = (cost_evidence.get("observed_gas") or {}).get("total_usd")
+        obs = (observed(cost_evidence, "observed_gas", kind=dict) or {}).get("total_usd")
         if isinstance(charged, (int, float)) and isinstance(obs, (int, float)):
             prov = (f" Провенанс (ADR-243): заряжено ${charged:,.2f} против "
                     f"наблюдённого газа ${obs:,.4f}")
@@ -474,7 +476,7 @@ def _probe_risk_within_limits(text: str, rec: dict,
 
 def _probe_recommendation(text: str, rec: dict) -> dict:
     legs = rec.get("legs") or []
-    values = [abs(float(l.get("delta_usd") or 0.0)) for l in legs
+    values = [abs(observed_number(l, "delta_usd") or 0.0) for l in legs
               if l.get("delta_usd")]
     if not values:
         return _fact("recommendation", UNCHECKED,

@@ -31,6 +31,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from spa_core.utils.observation import observed, observed_number
+
 from spa_core.strategy_lab.swarm.common import append_daily_proof, apy_pct, max_drawdown_pct
 from spa_core.strategy_lab.aggressive_lab.guardian import stdev
 from spa_core.utils.atomic import atomic_save
@@ -101,7 +103,7 @@ def _load_series_json(path: Path) -> Dict[str, float]:
     except (OSError, ValueError):
         return {}
     out: Dict[str, float] = {}
-    for row in (doc.get("series") or []) if isinstance(doc, dict) else []:
+    for row in (observed(doc, "series", kind=list) or []):
         if isinstance(row, dict) and isinstance(row.get("equity_usd"), (int, float)) and row.get("date"):
             out[str(row["date"])] = float(row["equity_usd"])
     return out

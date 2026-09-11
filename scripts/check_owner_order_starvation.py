@@ -59,6 +59,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from spa_core.utils.observation import observed, observed_number
+
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
@@ -229,7 +231,8 @@ def _claim_verdict(card_id: str, tracker_dir=None, announce_path=None) -> tuple[
             kwargs["log"] = Path(announce_path)
         report = mod.gather(card_id, **kwargs)
         verdict = str(report["verdict"])
-        why = "; ".join(str(u.get("reason") or "") for u in report.get("unmeasured") or [])
+        why = "; ".join(str(u.get("reason") or "")
+                        for u in (observed(report, "unmeasured", kind=list) or []))
         return verdict, why
     except Exception as exc:  # noqa: BLE001 — измеритель мог упасть как угодно
         return "unchecked", f"измеритель занятости не отработал: {exc.__class__.__name__}: {exc}"

@@ -106,6 +106,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Tuple
 
+from spa_core.utils.observation import observed, observed_number
+
 #: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
 #: Объявление, а не вывод из кода. Источники: запись, видимая в этом модуле,
 #: и авторская карта AGENT_OUTPUT_FILES в spa_core/monitoring/uptime_monitor.py.
@@ -634,8 +636,12 @@ def _fetch_snapshot_proposals(
             votes_for     = float(scores[0]) if len(scores) > 0 else 0.0
             votes_against = float(scores[1]) if len(scores) > 1 else 0.0
             quorum = float(p.get("quorum", 0) or 0)
-            total  = float(p.get("scores_total", 0) or 0)
-            quorum_met = (quorum == 0) or (total >= quorum)
+            # `None` — площадка не сообщила сумму голосов; ноль означал бы
+            # «голосов нет», и кворум «не собран» выводился бы из выдумки.
+            total_v = observed_number(p, "scores_total")
+            total = 0.0 if total_v is None else total_v
+            quorum_met = (((quorum == 0) or (total >= quorum))
+                          if total_v is not None else None)
             category = classify_category(title, body)
             severity = classify_severity(category, pstate)
             results.append(GovernanceProposal(
@@ -1145,7 +1151,7 @@ def _print_report(result: dict) -> None:
 
     # Coverage — the transport counters above say a source ANSWERED, not that
     # the protocols we hold were looked at.  Print the gap by name.
-    cov = result.get("coverage") or {}
+    cov = observed(result, "coverage", kind=dict) or {}
     if not cov.get("measured"):
         print(f"Coverage:         NOT MEASURED — {cov.get('reason', 'no reason recorded')}")
     else:
