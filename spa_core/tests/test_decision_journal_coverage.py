@@ -79,15 +79,33 @@ class SplitGap(unittest.TestCase):
 
 
 class NeverSeen(unittest.TestCase):
+    """Инв. #16 — форма ответа расширена намеренно (ADR-344): `never_seen` теперь
+    возвращает ПАРУ (ключи, молчавших строк). Прежняя проверка ключей цела дословно;
+    добавлено второе число, без которого «не встречался ни разу» на журнале старой
+    схемы верно ПО ПОСТРОЕНИЮ и неотличимо от находки о ключах (инвариант #17)."""
+
     def test_a_key_absent_from_every_day_is_named(self):
         rows = [_rec(1, current={"a": 1}, target={"a": 1}, evidenced={"a": 3.0}),
                 _rec(2, current={"a": 1}, target={"b": 1},
                      evidenced={"a": 3.0, "b": 4.0})]
-        self.assertEqual(djc.never_seen(rows, {"a", "b", "zz"}), ["zz"])
+        self.assertEqual(djc.never_seen(rows, {"a", "b", "zz"}), (["zz"], 0))
 
     def test_a_key_seen_once_is_not_named(self):
         rows = [_rec(1, current={"a": 1}, target={}, evidenced={"a": 3.0})]
-        self.assertEqual(djc.never_seen(rows, {"a"}), [])
+        self.assertEqual(djc.never_seen(rows, {"a"}), ([], 0))
+
+    def test_a_row_without_the_field_is_counted_as_silent_not_as_evidence(self):
+        """Строка старой схемы не свидетельствует — и это НАЗЫВАЕТСЯ числом."""
+        rows = [_rec(1, current={"a": 1}, target={"a": 1}, evidenced={"a": 3.0})]
+        del rows[0]["apy_evidenced_pct"]
+        keys, silent = djc.never_seen(rows, {"a"})
+        self.assertEqual((keys, silent), (["a"], 1),
+                         "молчание строки записано в свидетельство против ключа")
+
+    def test_an_empty_map_is_evidence_and_is_not_silence(self):
+        """Пустая карта — ОТВЕТ писателя («сегодня наблюдённых нет»), а не пробел."""
+        rows = [_rec(1, current={"a": 1}, target={"a": 1}, evidenced={})]
+        self.assertEqual(djc.never_seen(rows, {"a"}), (["a"], 0))
 
 
 class CriterionProbe(unittest.TestCase):
@@ -574,6 +592,73 @@ class Measure(unittest.TestCase):
             djc._reader_probe = orig
         self.assertEqual([r["verdict"] for r in doc["readers"]], [djc.VERDICT_PAYS])
         self.assertFalse(any(f.startswith("[CRITICAL]") for f in doc["findings"]))
+
+
+class AbsenceIsNamedNotZeroed(unittest.TestCase):
+    """ADR-344 (инвариант #17): чего в строке НЕТ, то не становится нулём.
+
+    Замер 11.09: в этом модуле было 10 мест класса «or-подстановка у писателя
+    артефакта». Ниже — сцены ровно на те из них, где подстановка МЕНЯЛА вердикт.
+    """
+
+    def setUp(self):
+        self.ddir = Path(tempfile.mkdtemp(prefix="spa_djc_absence_"))
+        self.addCleanup(shutil.rmtree, self.ddir, ignore_errors=True)
+
+    def _journal(self, rows):
+        (self.ddir / djc.HISTORY_FILENAME).write_text(
+            "\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+
+    def _ranked(self, keys):
+        return lambda sbx: lambda: ({k: 5.0 for k in keys}, {k: "live" for k in keys})
+
+    def test_a_last_row_without_the_field_makes_the_gap_unmeasured(self):
+        """Ноль записанных сказал бы «писатель не записал НИЧЕГО» — а нет ПОЛЯ."""
+        row = _rec(1, current={"a": 1}, target={"a": 1}, evidenced={"a": 3.0})
+        del row["apy_evidenced_pct"]
+        self._journal([row])
+        doc = djc.measure(self.ddir, now=NOW, ranked_producer_factory=self._ranked(["a"]))
+        self.assertEqual(doc["gap"].get("status"), "unmeasured")
+        self.assertIn("apy_evidenced_pct", doc["gap"].get("reason", ""))
+        self.assertTrue(any("[НЕ ИЗМЕРЕНО]" in f for f in doc["findings"]))
+        self.assertNotIn("written_frac_of_ranked_live", doc["gap"])
+
+    def test_an_empty_map_in_the_last_row_is_measured_zero_coverage(self):
+        """Обратная сторона: пустая карта — ОТВЕТ, и щель обязана считаться."""
+        self._journal([_rec(1, current={"a": 1}, target={"a": 1}, evidenced={})])
+        doc = djc.measure(self.ddir, now=NOW, ranked_producer_factory=self._ranked(["a"]))
+        self.assertNotEqual(doc["gap"].get("status"), "unmeasured")
+        self.assertEqual(doc["gap"].get("written"), 0)
+
+    def test_silent_rows_are_counted_beside_never_written(self):
+        """Молчит СТАРАЯ строка (день 1), последняя — говорит: щель мерится, молчание считается."""
+        silent = _rec(1, current={"a": 1}, target={"a": 1}, evidenced={"a": 3.0})
+        del silent["apy_evidenced_pct"]
+        row = _rec(2, current={"a": 1}, target={"a": 1}, evidenced={"a": 3.0})
+        self._journal([silent, row])
+        doc = djc.measure(self.ddir, now=NOW, ranked_producer_factory=self._ranked(["a"]))
+        self.assertEqual(doc["never_written_rows_silent"], 1)
+
+    def test_a_row_without_capital_names_the_substitution(self):
+        """Капитал ноль вырождает каждую долю — подмена обязана быть НАЗВАНА."""
+        from spa_core.paper_trading.engine import INITIAL_CAPITAL
+        doc = {"findings": []}
+        self.assertEqual(djc._capital_of({"capital_usd": 50_000.0}, doc), 50_000.0)
+        self.assertEqual(doc["findings"], [])
+        self.assertEqual(djc._capital_of({}, doc), float(INITIAL_CAPITAL))
+        self.assertTrue(any("[НЕ ИЗМЕРЕНО]" in f and "капитал" in f
+                            for f in doc["findings"]))
+
+    def test_a_record_without_any_population_field_is_a_probe_failure(self):
+        """Писатель обязан назвать население САМ: молчание — дефект, не пустая книга."""
+        from spa_core.utils.errors import SPAError
+        with self.assertRaises(SPAError) as got:
+            djc.probe_criterion(apy_pct={"a": 5.0}, apy_sources={"a": "live"},
+                                current_positions={"a": 1.0}, target_positions={"a": 1.0},
+                                capital_usd=100_000.0,
+                                unfunded_live=None, funded_live="a",
+                                build=lambda doc, **kw: {"cycle_date": "2026-01-01"})
+        self.assertEqual(got.exception.code, "PROBE_RECORD_WITHOUT_POPULATION")
 
 
 class RunAdapter(unittest.TestCase):
