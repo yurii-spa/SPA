@@ -225,7 +225,23 @@ class TestTheObserverIsNotPartOfItsOwnPopulation(unittest.TestCase):
 
     def test_the_census_screens_the_population_100_published(self):
         """If this reddens, the corpus moved and #103's numbers must be re-derived — which is
-        the point: the remainder is defined against a population, not in the abstract."""
+        the point: the remainder is defined against a population, not in the abstract.
+
+        RE-DERIVED 2026-09-11 (cycle `rnd-edge-105`), 34 -> 35 and RE-RUNS 5 -> 6, and the change
+        is DELIBERATE under invariant #16 — journal `docs/journal/2026-W37.md` carries it.
+        Registry entry #105 added `scripts/edge_downside_parity.py`, which splits TRAIN/TEST by
+        an INDEXED slice (`rets[b][:n_train]`, `rets[b][n_train:]`) and re-runs each scheme from
+        scratch on the half — so RE-RUNS is where the screen SHOULD put it, and the numbers were
+        re-derived by running `spd.section1_census` over the corpus, not adjusted until green.
+        The sibling test above anticipated exactly this case in writing ("a 35th module that
+        screens correctly"). Note what did NOT move: the 21-module remainder #103's verdict is
+        about is unchanged, so no published claim of #103 is disturbed by this edit — the new
+        module is a 35th member of the population, not a 22nd member of the remainder.
+
+        What this test must NEVER become is a number nudged to match whatever the corpus happens
+        to hold: a new module that screens into RE-RUNS is a new ADDRESS for the #103 order, and
+        re-deriving here without saying so would retire that address silently.
+        """
         import contextlib
         import io
 
@@ -234,10 +250,14 @@ class TestTheObserverIsNotPartOfItsOwnPopulation(unittest.TestCase):
         with bdc.corpus_without_self(SCRIPTS) as mirror:
             with contextlib.redirect_stdout(io.StringIO()):
                 census = spd.section1_census(Path(mirror))
-        self.assertEqual(census["population"], 34)
+        self.assertEqual(census["population"], 35)
         buckets = {k: len(v) for k, v in census["buckets"].items()}
         self.assertEqual(buckets["BOUNDARY USED, BUT NEVER AS A SLICE INDEX"], 21)
-        self.assertEqual(buckets["RE-RUNS ON THE SLICE"], 5)
+        self.assertEqual(buckets["RE-RUNS ON THE SLICE"], 6)
+        self.assertIn("edge_downside_parity.py",
+                      [Path(m).name for m in census["buckets"]["RE-RUNS ON THE SLICE"]],
+                      "the 35th module must be the one that was ADDED, not some other module "
+                      "that quietly changed bucket while the totals happened to add up")
 
 
 class TestDayExtentIsMeasuredNotAssumedFromTheFirstArgument(unittest.TestCase):
