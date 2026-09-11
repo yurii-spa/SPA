@@ -19,6 +19,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from spa_core.utils.observation import observed, observed_number
+
 from spa_core.utils.atomic import atomic_save
 from spa_core.utils import clock
 
@@ -352,10 +354,14 @@ class APYAggregator:
                 apy_pct_v2: float = (
                     float(observed_v2_pre)
                     if observed_v2_pre is not None
-                    else float(entry.get("apy") or entry.get("fallback_apy") or 0.0)
+                    else float(observed_number(entry, "apy")
+                               if observed_number(entry, "apy") is not None
+                               else (observed_number(entry, "fallback_apy") or 0.0))
                 )
                 chain_v2: str = str(entry.get("chain", "ethereum"))
-                tvl_v2: float = float(entry.get("tvl_usd", 0.0) or 0.0)
+                # TVL отсутствует ⇒ 0: пул с нулевым TVL не проходит пол RiskPolicy,
+                # то есть подстановка здесь ОТКАЗЫВАЕТ, а не разрешает. Названа явно.
+                tvl_v2: float = float(observed_number(entry, "tvl_usd") or 0.0)
                 updated_v2: str = str(entry.get("last_updated", generated_at))
                 apy_src_v2, observed_v2 = _apy_provenance(entry, apy_pct_v2)
                 if proto_key not in seen_protocols:

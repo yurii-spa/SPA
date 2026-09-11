@@ -75,6 +75,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
+from spa_core.utils.observation import observed
+
 log = logging.getLogger("spa.monitoring.snapshot_minute_sensitivity")
 
 VERSION = "snapshot-minute-sensitivity-v1"
@@ -318,12 +320,12 @@ def classify_losses(history: Sequence[dict],
             continue
         stamp = _record_stamp(rec)
         testimony, comparable, why = snapshot_testimony(snapshot, stamp)
-        for leg in rec.get("apy_unevidenced") or []:
+        for leg in observed(rec, "apy_unevidenced", kind=(list, tuple)) or []:
             if not isinstance(leg, str) or not leg:
                 continue
             snaps = index.get((day, leg)) or {}
             klass, detail = CLASS_NO_CARRIER, None
-            record_as_of = (rec.get("apy_as_of") or {}).get(leg)
+            record_as_of = (observed(rec, "apy_as_of", kind=dict) or {}).get(leg)
             if isinstance(record_as_of, str) and record_as_of.strip():
                 # Носитель, у которого вопроса о сопоставимости НЕТ ПО
                 # ПОСТРОЕНИЮ: момент наблюдения лежит в ТОЙ ЖЕ записи (ADR-312).

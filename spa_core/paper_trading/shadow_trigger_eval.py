@@ -35,6 +35,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from spa_core.utils.observation import observed
+
 from spa_core.paper_trading.allocation_rationale import (
     history_filename as _history_filename,
 )
@@ -210,7 +212,10 @@ def _evaluate_verdict(rec: dict, forward: List[dict],
     benefit = 0.0
     missing_all: set = set()
     for frec in fw:
-        gain, missing = _day_gain_usd(deltas, frec.get("apy_evidenced_pct") or {})
+        # Поля нет и карта пуста дают ОДИН исход: все ноги неоценены, и день
+        # уходит в UNCHECKED — вердикт не выносится ни в ту, ни в другую сторону.
+        gain, missing = _day_gain_usd(
+            deltas, observed(frec, "apy_evidenced_pct", kind=dict) or {})
         if gain is None:
             unchecked += 1
             missing_all.update(missing)

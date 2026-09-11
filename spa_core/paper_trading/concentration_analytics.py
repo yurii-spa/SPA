@@ -72,6 +72,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from spa_core.utils.observation import observed, observed_number
+
 # REUSE BY IMPORT — single source of truth for the position weight / tier / cash
 # math (MP-501). We do NOT recompute weights from raw positions here; we consume
 # build_exposure's share_pct (percent of full AUM) and by_tier directly.
@@ -274,8 +276,14 @@ def build_concentration(
             notes.append("no deployed protocols in exposure — honest empty result")
             return _empty_result(notes, is_demo=is_demo, available=False)
 
-        aum = _num(exposure.get("capital_usd")) or 0.0
-        deployed = _num(exposure.get("deployed_usd")) or 0.0
+        aum = observed_number(exposure, "capital_usd")
+        deployed = observed_number(exposure, "deployed_usd")
+        if aum is None or deployed is None:
+            # Каждая доля ниже считается ОТ этих двух чисел; ноль вместо любого
+            # из них даёт доли, которые выглядят посчитанными (инвариант #17).
+            notes.append("exposure without capital_usd/deployed_usd — shares are "
+                         "NOT measurable, honest empty result")
+            return _empty_result(notes, is_demo=is_demo, available=False)
         cash_pct = _num(exposure.get("cash_pct"))
         cash_share = (cash_pct / 100.0) if cash_pct is not None else 0.0
         cash_usd = round(aum * cash_share, 6) if aum > 0 else 0.0

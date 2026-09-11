@@ -105,6 +105,8 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from spa_core.utils.observation import observed, observed_number
+
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 REPORT_REL = "data/cio_kill_switch_controls.json"
 
@@ -405,7 +407,13 @@ def _decision_still_runs(door: dict, scene: dict) -> dict:
             ddir=state_dir, current_positions=dict(scene["held"]),
         )
     approved = bool(gate.get("approved")) and gate.get("error") is None
-    proposed = sum(float(v) for v in (gate.get("target_usd") or {}).values())
+    target_out = observed(gate, "target_usd", kind=dict)
+    if target_out is None:
+        # Ноль предложенного — это вердикт «гейт не пустил ни доллара»; на ответе
+        # БЕЗ цели он был бы подстановкой, а не замером (инвариант #17).
+        return {"approved": approved, "proposed_usd": None,
+                "unmeasured": "гейт не вернул target_usd"}
+    proposed = sum(float(v) for v in target_out.values())
     return {"approved": approved, "proposed_usd": round(proposed, 2)}
 
 

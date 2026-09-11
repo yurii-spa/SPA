@@ -17,6 +17,8 @@ from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+from spa_core.utils.observation import observed_number
 from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.tuner")
@@ -151,6 +153,9 @@ class AllocationTuner:
         #: ADR-136: протоколы, отброшенные из-за неопределимой сети. Пустой
         #: список = «проверено, таких нет»; заполняется в ``_eligible_adapters``.
         self.refused_no_chain: List[str] = []
+        #: Протоколы, отброшенные потому, что ставка или TVL НЕ ИЗМЕРЕНЫ (а не
+        #: потому, что измерены и не прошли порог). Разные причины — разные списки.
+        self.refused_unmeasured: List[str] = []
 
     # ── вспомогательные методы ─────────────────────────────────────────────
 
@@ -168,14 +173,28 @@ class AllocationTuner:
         result = []
         refused: List[str] = []
         passed_pre_chain = []
+        refused_unmeasured: List[str] = []
         for a in adapter_data:
-            tvl = float(a.get("tvl_usd", 0.0) or 0.0)
-            apy = float(a.get("apy", 0.0) or 0.0)
+            tvl = observed_number(a, "tvl_usd")
+            apy = observed_number(a, "apy")
+            if tvl is None or apy is None:
+                # Отсутствие ставки или TVL — НЕ ноль: ноль прошёл бы как
+                # «измерено и ниже порога», то есть отказ выглядел бы замером
+                # (инвариант #17, ADR-344). Отказ тот же (fail-CLOSED), но он
+                # НАЗЫВАЕТСЯ отдельно от настоящих «ниже порога».
+                refused_unmeasured.append(str(a.get("id", "?")))
+                continue
             if tvl < c.tvl_floor_usd:
                 continue
             if apy < c.apy_min or apy > c.apy_max:
                 continue
             passed_pre_chain.append(a)
+        self.refused_unmeasured = sorted(refused_unmeasured)
+        if refused_unmeasured:
+            log.warning(
+                "tuner: у %d протокол(ов) НЕ ИЗМЕРЕНЫ ставка или TVL — НЕ берутся "
+                "в раскладку (fail-CLOSED, инв. #17): %s",
+                len(refused_unmeasured), ", ".join(self.refused_unmeasured))
 
         # Сеть берётся из ТОГО ЖЕ реестра, что у гейта. Вызывающий может принести
         # её сам (``_load_adapter_data`` так и делает), но если не принёс — это
@@ -312,8 +331,10 @@ class AllocationTuner:
         self, weights: Dict[str, float], adapter_data: List[dict]
     ) -> float:
         """Вычисляет взвешенный средний APY (в %)."""
-        apy_map = {a["id"]: float(a.get("apy", 0.0) or 0.0) for a in adapter_data}
-        return sum(weights.get(pid, 0.0) * apy_map.get(pid, 0.0) for pid in weights)
+        # Протокол без ставки в средневзвешенную НЕ входит: ноль занизил бы её,
+        # выдав «доходность измерена и она нулевая» (инвариант #17).
+        apy_map = {a["id"]: observed_number(a, "apy") for a in adapter_data}
+        return sum(weights.get(pid, 0.0) * (apy_map.get(pid) or 0.0) for pid in weights)
 
     def _concentration_penalty(self, weights: Dict[str, float]) -> float:
         """Штраф за концентрацию (HHI-подобный)."""
@@ -427,7 +448,8 @@ class AllocationTuner:
             candidates.append(eq)
 
         # APY-пропорциональный
-        apy_map = {a["id"]: max(float(a.get("apy", 0.0) or 0.0), 0.0) for a in adapter_data}
+        apy_map = {a["id"]: max(observed_number(a, "apy") or 0.0, 0.0)
+                   for a in adapter_data}
         apy_total = sum(apy_map.values())
         if apy_total > _EPS:
             apy_w = {pid: apy_map[pid] / apy_total for pid in ids}
@@ -600,7 +622,7 @@ class AllocationTuner:
         w_apy = self._weighted_apy(best_weights, eligible)
 
         # Sharpe estimate: APY / std (упрощённая оценка через дисперсию весов)
-        apy_map = {a["id"]: float(a.get("apy", 0.0) or 0.0) for a in eligible}
+        apy_map = {a["id"]: observed_number(a, "apy") or 0.0 for a in eligible}
         variance = sum(
             best_weights.get(pid, 0.0) * ((apy_map.get(pid, 0.0) - w_apy) ** 2)
             for pid in apy_map
@@ -677,7 +699,7 @@ class AllocationTuner:
         Returns:
             {total_return_pct, daily_returns, annualized_pct, sharpe_estimate, days}
         """
-        apy_map = {a["id"]: float(a.get("apy", 0.0) or 0.0) for a in adapter_data}
+        apy_map = {a["id"]: observed_number(a, "apy") or 0.0 for a in adapter_data}
 
         # Дневная доходность каждого протокола
         daily_rates = {
@@ -738,6 +760,7 @@ def _load_adapter_data(data_dir: Optional[Path] = None) -> List[dict]:
         return []
 
     rows = []
+    unmeasured_rows: list = []
     for a in raw.get("adapters", []):
         status = a.get("status", "ok")
         if status not in ("ok", "partial"):
@@ -745,12 +768,25 @@ def _load_adapter_data(data_dir: Optional[Path] = None) -> List[dict]:
         protocol = a.get("protocol", "")
         if not protocol:
             continue
+        apy_pct = observed_number(a, "apy_pct")
+        tvl_usd = observed_number(a, "tvl_usd")
+        if apy_pct is None or tvl_usd is None:
+            # Снимок не назвал ставку или TVL: строка тюнеру не отдаётся вовсе —
+            # иначе ноль прошёл бы как измеренное значение ниже порога.
+            unmeasured_rows.append(protocol)
+            continue
         rows.append({
             "id": protocol,
-            "apy": float(a.get("apy_pct", 0.0) or 0.0),
-            "tvl_usd": float(a.get("tvl_usd", 0.0) or 0.0),
+            "apy": apy_pct,
+            "tvl_usd": tvl_usd,
             "tier": a.get("tier", "T2"),
         })
+
+    if unmeasured_rows:
+        log.warning(
+            "tuner: у %d протокол(ов) снимка НЕ ИЗМЕРЕНЫ ставка или TVL — строки "
+            "не отданы тюнеру (инв. #17): %s",
+            len(unmeasured_rows), ", ".join(sorted(unmeasured_rows)))
 
     # ADR-136: поле «сеть» приходит из ТОГО ЖЕ источника, что у гейта.
     # Снимок оркестратора сети не несёт вовсе — именно поэтому подборщик о

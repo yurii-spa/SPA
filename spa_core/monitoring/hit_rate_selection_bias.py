@@ -87,6 +87,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from spa_core.utils.observation import observed as observed_field
+
 log = logging.getLogger("spa.monitoring.hit_rate_selection_bias")
 
 VERSION = "hit-rate-selection-bias-v1"
@@ -141,11 +143,19 @@ def _recount(scored: List[dict], *, horizon_days: int,
     out: List[dict] = []
     for r in scored:
         chk = r.get("forward_days_checked") or 0
-        benefit = float(r.get("benefit_usd_over_checked_days") or 0.0)
+        benefit_raw = observed_field(r, "benefit_usd_over_checked_days", kind=(int, float))
+        cost_raw = observed_field(r, "cost_usd_used", kind=(int, float))
+        if benefit_raw is None or cost_raw is None:
+            # Ноль вместо ненаписанной выгоды занижает исход, ноль вместо
+            # ненаписанных издержек — завышает: у подстановок РАЗНЫЙ знак, и обе
+            # выглядели бы посчитанными. День без этих полей не оценивается вовсе
+            # (инвариант #17); его уход виден по длине выдачи.
+            continue
+        benefit = float(benefit_raw)
         if extrapolate and chk:
             benefit = benefit * horizon_days / chk
         benefit *= benefit_multiplier
-        cost = float(r.get("cost_usd_used") or 0.0) * cost_ratio
+        cost = float(cost_raw) * cost_ratio
         net = benefit - cost
         out.append({
             "cycle_date": r.get("cycle_date"),
@@ -192,7 +202,10 @@ def _cost_ratio_from_evidence(data_dir: Path) -> Tuple[Optional[float], dict]:
     except (OSError, ValueError) as e:  # noqa: BLE001
         prov["reason"] = f"артефакт стоимости нечитаем: {e}"
         return None, prov
-    observed = (doc.get("observed_gas") or {})
+    observed = observed_field(doc, "observed_gas", kind=dict)
+    if observed is None:
+        prov["reason"] = "в артефакте стоимости нет блока observed_gas"
+        return None, prov
     if not observed.get("measured"):
         prov["reason"] = ("газ не измерен производителем: "
                           f"{observed.get('reason') or 'причина не названа'}")
@@ -493,7 +506,7 @@ def format_report(doc: dict) -> List[str]:
     if par and not par.get("passed"):
         out.append("   [НЕ ИЗМЕРЕНО] контроль паритета не прошёл — "
                    "числам ниже верить нельзя")
-    iv = doc.get("hit_rate_interval") or {}
+    iv = observed_field(doc, "hit_rate_interval", kind=dict)
     if iv:
         out.append(f"   hit_rate: как есть {doc.get('hit_rate_as_is')} · "
                    f"интервал по защитимым поправкам [{iv.get('low')}, {iv.get('high')}] · "

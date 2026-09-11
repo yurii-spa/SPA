@@ -86,6 +86,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
+from spa_core.utils.observation import observed
+
 log = logging.getLogger("spa.monitoring.arming_wall_order")
 
 VERSION = "arming-wall-order-v1"
@@ -170,8 +172,15 @@ def pricing_profile(rec: dict, forward: Sequence[dict], horizon: int) -> dict:
     fw = list(forward)[:horizon]
 
     pairs: List[dict] = []
+    silent_rows = 0
     for frec in fw:
-        apy = frec.get("apy_evidenced_pct") or {}
+        apy = observed(frec, "apy_evidenced_pct", kind=dict)
+        if apy is None:
+            # Строка не называет оценённых ставок вовсе. Прежнее чтение считало
+            # ВСЕ ноги дня неоценёнными — то есть записывало молчание записи в
+            # улику против каждой (инвариант #17). Считается отдельно.
+            silent_rows += 1
+            continue
         for proto in sorted(deltas):
             if apy.get(proto) is not None:
                 continue
@@ -204,7 +213,11 @@ def pricing_profile(rec: dict, forward: Sequence[dict], horizon: int) -> dict:
         "forward_days_unchecked": row.get("forward_days_unchecked"),
         "counterfactual": row.get("counterfactual"),
         "scorable": checked > 0,
-        "unpriced_protocols": row.get("unpriced_protocols") or [],
+        # `None` — оценщик поля не дал (это НЕ «неоценённых нет»); пустой список —
+        # дал и он пуст. Склеивать их значило бы докладывать чистый день там, где
+        # о ногах не сказано ничего.
+        "unpriced_protocols": observed(row, "unpriced_protocols", kind=(list, tuple)),
+        "forward_rows_without_evidenced_field": silent_rows,
         "unpriced_pairs": pairs,
         "unpriced_pairs_total": len(pairs),
         "unpriced_pairs_within_expansion_ceiling": within_ceiling,
@@ -231,12 +244,22 @@ def pricing_profile(rec: dict, forward: Sequence[dict], horizon: int) -> dict:
     # наблюдаемый инвариант — «у неоценимого дня ключей `net_*` нет» — закрыт
     # тестом `test_unpriceable_day_carries_NO_net_at_all` при любом из двух.
     if checked > 0 and row.get("net_usd") is not None:
-        benefit = float(row.get("benefit_usd_over_checked_days") or 0.0)
-        cost = float(row.get("cost_usd_used") or 0.0)
-        per_day = benefit / checked
+        benefit = observed(row, "benefit_usd_over_checked_days", kind=(int, float))
+        cost = observed(row, "cost_usd_used", kind=(int, float))
         prof["net_usd_as_scored"] = row.get("net_usd")
-        prof["net_usd_if_full_horizon_at_same_rate"] = round(
-            per_day * horizon - cost, 2)
+        if benefit is None or cost is None:
+            # Ноль вместо отсутствующей выгоды занизил бы проекцию, а ноль вместо
+            # отсутствующих издержек — завысил: у обеих подстановок есть СВОЙ знак,
+            # и обе выглядели бы как посчитанное число (инвариант #17).
+            prof["net_usd_if_full_horizon_at_same_rate"] = None
+            prof["net_projection_unmeasured"] = (
+                "оценщик не дал "
+                + ", ".join(n for n, v in (("benefit_usd_over_checked_days", benefit),
+                                           ("cost_usd_used", cost)) if v is None))
+        else:
+            per_day = float(benefit) / checked
+            prof["net_usd_if_full_horizon_at_same_rate"] = round(
+                per_day * horizon - float(cost), 2)
         prof["net_sign_note"] = (
             "стоимость заряжена ПОЛНОСТЬЮ и однократно, выгода накоплена только "
             f"по {checked} оценённым дням из {horizon}; вторая величина — граница "

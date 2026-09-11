@@ -121,6 +121,40 @@ EXACT_TIE_RATES = {"a_anchor": 8.0, "b_holder": 4.0, "c_rival": 4.0}
 NOISY_HISTORY = {"b_holder": [4.0, 4.9, 4.1, 5.0], "c_rival": [4.0, 4.8, 4.2, 5.1]}
 
 
+class AKeyWithoutAScoreIsNotRankedAtZero(unittest.TestCase):
+    """ADR-344 (инвариант #17): счёта нет — значит порядок не определён.
+
+    `ranked_order` читал `breakdown[p].get("score") or 0.0` и ставил ключ без
+    счёта в конец так, будто счёт ИЗМЕРЕН и равен нулю; соседняя пара с ним
+    давала разрыв величиной в счёт соседа, а «точная ничья» двух таких ключей
+    была бы объявлена по двум подставленным нулям.
+    """
+
+    BD = {"a": {"score": 2.0, "risk_multiplier": 1.0},
+          "b": {"score": 1.0, "risk_multiplier": 1.0},
+          "c": {"risk_multiplier": 1.0}}
+
+    def test_an_unscored_key_is_left_out_of_the_order_and_named(self):
+        self.assertEqual(rtc.ranked_order(self.BD, ["a", "b", "c"]), ["a", "b"])
+        self.assertEqual(rtc.unscored_keys(self.BD, ["a", "b", "c"]), ["c"])
+
+    def test_a_recorded_zero_score_is_ranked(self):
+        bd = dict(self.BD, c={"score": 0.0, "risk_multiplier": 1.0})
+        self.assertEqual(rtc.ranked_order(bd, ["a", "b", "c"]), ["a", "b", "c"])
+        self.assertEqual(rtc.unscored_keys(bd, ["a", "b", "c"]), [])
+
+    def test_two_unscored_keys_are_not_an_exact_tie(self):
+        bd = {"a": {"risk_multiplier": 1.0}, "b": {"risk_multiplier": 1.0}}
+        out = rtc.verify_tie_break(bd, {"a": 10.0, "b": 0.0}, ["a", "b"])
+        self.assertEqual(out.get("verdict"), "unmeasured", out)
+
+    def test_two_recorded_equal_scores_still_are_a_tie(self):
+        bd = {"a": {"score": 1.0, "risk_multiplier": 1.0},
+              "b": {"score": 1.0, "risk_multiplier": 1.0}}
+        out = rtc.verify_tie_break(bd, {"a": 10.0, "b": 0.0}, ["a", "b"])
+        self.assertNotEqual(out.get("verdict"), "unmeasured", out)
+
+
 class ExactTieCarryingCapital(unittest.TestCase):
     """Ничья, на которой стоят деньги, обязана быть НАЗВАНА и посчитана."""
 

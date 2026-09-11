@@ -41,6 +41,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from spa_core.utils.observation import observed, observed_number
+
 from spa_core.reporting.daily_telegram_report import (
     _fmt_money,
     _fmt_pct,
@@ -298,7 +300,7 @@ def _build_oversight_section(ddir: Path) -> str:
     # 1. Аудитор аллокации (ADR-055 / allocation_auditor)
     try:
         raw = json.loads((ddir / "allocation_audit_daily.json").read_text(encoding="utf-8"))
-        counts = raw.get("counts") or {}
+        counts = observed(raw, "counts", kind=dict) or {}
         verdict = str(raw.get("verdict") or "?")
         # Ключи именно такие: `rule_id`/`verdict` (см. allocation_auditor).
         # Первая редакция читала `rule`/`status` и молча давала пустой хвост —
@@ -319,7 +321,7 @@ def _build_oversight_section(ddir: Path) -> str:
     # 2. Доказанность APY (ADR-061 / apy_evidencer)
     try:
         raw = json.loads((ddir / "apy_evidence.json").read_text(encoding="utf-8"))
-        counts = raw.get("counts") or {}
+        counts = observed(raw, "counts", kind=dict) or {}
         pct = raw.get("quotable_pct")
         pct_s = f"{float(pct):.0f}%" if isinstance(pct, (int, float)) else "не измерено"
         lines.append(
@@ -341,7 +343,8 @@ def _build_oversight_section(ddir: Path) -> str:
         # читала `target_allocation.json` — такого файла в проде нет вовсе, и
         # строка была бы вечно «не измерен», выглядя при этом рабочей.
         raw = json.loads((ddir / "current_positions.json").read_text(encoding="utf-8"))
-        cov = (raw.get("feed_coverage") or {}).get("evidence_coverage") or {}
+        cov = (observed(observed(raw, "feed_coverage", kind=dict) or {},
+                    "evidence_coverage", kind=dict) or {})
         if not cov:
             lines.append("🚦 Гейт доказательств: не измерен — это сигнал")
         elif cov.get("gate_applied"):
@@ -441,7 +444,7 @@ def _build_office_section(ddir: Path) -> tuple[str, list[str]]:
         conf_rel = "data/architecture_conformance.json"
         try:
             conf = json.loads((ddir / "architecture_conformance.json").read_text())
-            c = conf.get("counts") or {}
+            c = observed(conf, "counts", kind=dict) or {}
             lines.append(
                 f"🏗 Архитектура: <b>{_esc(conf.get('overall'))}</b> — "
                 f"critical {c.get('critical', '?')} · warn {c.get('warn', '?')} · "

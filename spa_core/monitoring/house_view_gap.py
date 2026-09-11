@@ -63,6 +63,8 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+
+from spa_core.utils.observation import observed, observed_number
 import os
 import sys
 
@@ -407,10 +409,16 @@ def compute_gaps(chief: dict | None,
     held: set[str] = set()
     cash_pct = None
     if positions:
-        held = {_norm(k) for k in (positions.get("positions") or {})}
-        cap = positions.get("capital_usd") or 0
-        if cap:
-            cash_pct = 100.0 * (positions.get("cash_usd") or 0) / cap
+        held = {_norm(k) for k in (observed(positions, "positions", kind=dict) or {})}
+        cap = observed_number(positions, "capital_usd")
+        cash_usd = observed_number(positions, "cash_usd")
+        if cap and cash_usd is not None:
+            cash_pct = 100.0 * cash_usd / cap
+        elif cap and cash_usd is None:
+            # Капитал есть, наличных нет в снимке: доля наличных НЕ ИЗМЕРЕНА.
+            # Ноль сказал бы «наличных нет» — это другое утверждение.
+            unchecked.append({"input": "current_positions.cash_usd",
+                              "reason": "поля нет — доля наличных не измерима"})
     else:
         unchecked.append({"input": "current_positions", "reason": "нет данных — гэпы по книге не измеримы"})
 

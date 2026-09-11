@@ -101,6 +101,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
+from spa_core.utils.observation import observed
+
 log = logging.getLogger("spa.monitoring.g1_verdict_recoverability")
 
 VERSION = "g1-verdict-recoverability-v1"
@@ -214,7 +216,8 @@ def _structural_recovers(deltas: Dict[str, float], forward: Sequence[dict],
     такого дня: ``_evaluate_verdict`` выносит вердикт при ``checked >= 1``.
     """
     for frec in list(forward)[:horizon]:
-        apy = frec.get("apy_evidenced_pct") or {}
+        # Поля нет и карта пуста: в обоих случаях оценённых ставок у дня нет.
+        apy = observed(frec, "apy_evidenced_pct", kind=dict) or {}
         missing = {p for p in deltas if apy.get(p) is None}
         if missing <= grant:
             return True
@@ -346,7 +349,8 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
         deltas = _deltas(by_date[dt])
         legs: Set[str] = set()
         for frec in forward_of[dt][:horizon]:
-            apy = frec.get("apy_evidenced_pct") or {}
+            # Поля нет и карта пуста: оценённых ставок у дня нет в обоих случаях.
+            apy = observed(frec, "apy_evidenced_pct", kind=dict) or {}
             legs |= {p for p in deltas if apy.get(p) is None}
         for leg in legs:
             blocking.setdefault(leg, []).append(dt)

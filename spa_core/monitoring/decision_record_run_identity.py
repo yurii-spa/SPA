@@ -72,6 +72,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
+from spa_core.utils.observation import observed
+
 log = logging.getLogger("spa.monitoring.decision_record_run_identity")
 
 VERSION = "decision-record-run-identity-v1"
@@ -385,7 +387,8 @@ def snapshot_orientation(snapshot: Optional[dict], record: dict) -> dict:
     if snapshot.get("generated_at", "")[:10] != str(record.get("cycle_date")):
         return {"verdict": "unmeasured_different_day"}
 
-    evidenced = record.get("apy_evidenced_pct") or {}
+    # Поля нет и карта пуста: населения наблюдённых ставок у записи нет.
+    evidenced = observed(record, "apy_evidenced_pct", kind=dict) or {}
     adapters = snapshot.get("adapters")
     same = differ = 0
     if isinstance(adapters, list):

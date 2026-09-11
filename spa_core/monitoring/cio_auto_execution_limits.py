@@ -34,11 +34,19 @@
 другой, и замер по одной из них даст ВЕРНЫЙ ответ на НЕ ТОТ вопрос.**
 
 Замер 07.09 (цикл #509, карточка `inbox-41-priemki-tz-cio-auto-execution-limits`):
-T3 суммарно 25 % проходит ``_apply_risk_policy_gate`` с НУЛЁМ нарушений, хотя
+T3 суммарно 25 % проходил ``_apply_risk_policy_gate`` с НУЛЁМ нарушений, хотя
 ``RiskConfig.max_total_t3_allocation = 0.15`` объявлено (ADR-020). Вывод
-«объявленное поле не связывает» был бы НЕВЕРЕН: поле читает аллокатор
-(``_enforce_t3_total_cap``). Потолок связывает у того, кто ПРЕДЛАГАЕТ, а не у
-того, кто ДОПУСКАЕТ. То же с сетями: гейт на смену ``chain`` не реагирует никак,
+«объявленное поле не связывает» был бы НЕВЕРЕН: поле читал аллокатор
+(``_enforce_t3_total_cap``). Потолок связывал у того, кто ПРЕДЛАГАЕТ, а не у
+того, кто ДОПУСКАЕТ.
+
+**11.09: эта щель ЗАКРЫТА (ADR-337)** — гейт применяет суммарный потолок T3 сам,
+и та же сцена теперь получает отказ. Ловушка от этого не исчезает: она про МЕТОД
+(мерить каждое ограничение на всех поверхностях), а не про конкретную щель, и
+пример выше остаётся историческим. Сторож, который об этом сказал, — тест
+``test_t3_total_cap_passes_the_gate_untouched``: он был написан как растяжка
+«если гейт начнёт применять потолок, узнать об этом здесь, а не из отчёта», и
+сработал ровно так. То же с сетями: гейт на смену ``chain`` не реагирует никак,
 а у аллокатора есть ``SINGLE_CHAIN_CAP`` / ``L2_TOTAL_CAP`` / ``BASE_CHAIN_CAP``
 (ADR-136).
 
@@ -124,6 +132,8 @@ import os
 import tempfile
 from pathlib import Path
 from typing import Any, Callable
+
+from spa_core.utils.observation import observed, observed_number
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 REPORT_REL = "data/cio_auto_execution_limits.json"
@@ -287,7 +297,11 @@ def _gate_verdict(target: dict[str, float], spec: list[dict], *,
             dict(target), capital_usd, _gate_adapters(spec),
             ddir=Path(tmp), current_positions=dict(held or {}),
         )
-    book = {k: round(float(v), 2) for k, v in sorted((res.get("target_usd") or {}).items())}
+    target_out = observed(res, "target_usd", kind=dict)
+    # Гейт без цели и гейт с ПУСТОЙ целью — разные ответы: первый ничего не сказал,
+    # второй сказал «ничего не финансируем». Отпечаток сцены обязан их различать.
+    book = ("НЕТ" if target_out is None
+            else {k: round(float(v), 2) for k, v in sorted(target_out.items())})
     return f"approved={bool(res.get('approved'))}|err={res.get('error') is not None}|book={book}"
 
 
@@ -665,11 +679,13 @@ def _probe_allowed_tiers(base: dict, fields: dict, origins: dict) -> list[dict]:
     v_gate_t3 = _gate_verdict(tgt_t3, spec_t3)
     recs.append(_rec("gate", "quantity", not v_gate_t3.startswith("approved=True"),
                      f"та же T3-сумма 25 % у ГЕЙТА: {v_gate_t3}",
-                     gap=("суммарный потолок тира — гейт применяет потолок НА "
-                          "ПРОТОКОЛ, а объявленный RiskConfig."
-                          "max_total_t3_allocation = 15 % читает только "
-                          "аллокатор: T3 суммарно 25 % проходит гейт с нулём "
-                          "нарушений")))
+                     gap=("суммарный потолок тира: ДО ADR-337 гейт применял "
+                          "потолок только НА ПРОТОКОЛ, а объявленный RiskConfig."
+                          "max_total_t3_allocation = 15 % читал лишь аллокатор — "
+                          "T3 суммарно 25 % проходил гейт с нулём нарушений. "
+                          "С 11.09 гейт применяет его сам; признак выше меряется "
+                          "ПРОГОНОМ, поэтому он говорит о сегодняшнем гейте, а не "
+                          "об этой строке")))
     recs.append(_rec("gate", "quantity", v_t9 != base["gate"],
                      f"неизвестный тир T9 у гейта: {v_t9}",
                      gap=("незнакомый тир не отвергается, а МОЛЧА получает "

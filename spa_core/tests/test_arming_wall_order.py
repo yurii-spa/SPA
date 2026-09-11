@@ -72,6 +72,8 @@ def _line(date: str, *, gates: dict, current: dict, target: dict,
     }
     if unevidenced is not None:
         rec["apy_unevidenced"] = list(unevidenced)
+    if apy is None:
+        rec.pop("apy_evidenced_pct")     # строка, молчащая о ставках (ADR-344)
     return rec
 
 
@@ -269,6 +271,45 @@ class ExpansionCeilingIsNotAPromise(unittest.TestCase):
             prof = doc["orders"][0]["profiles"][0]
             self.assertEqual(prof["unpriced_pairs_within_expansion_ceiling"], 1)
             self.assertEqual(prof["unpriced_pairs_beyond_expansion"], 1)
+
+
+class ASilentForwardRowIsNotAnUnpricedDay(unittest.TestCase):
+    """ADR-344 (инвариант #17): строка БЕЗ поля ставок не говорит о ногах ничего.
+
+    Прежнее чтение `frec.get("apy_evidenced_pct") or {}` объявляло НЕОЦЕНЁННЫМИ все
+    ноги такого дня — молчание записи шло уликой против каждой. Пустая карта при
+    этом остаётся ответом писателя и по-прежнему даёт неоценённые пары.
+    """
+
+    def _measure(self, forward_apy):
+        with TemporaryDirectory() as td:
+            d = Path(td)
+            _write(d, [
+                _line("2026-08-01", gates=_all_pass(week_turnover_ok=False,
+                                                    move_turnover_ok=False),
+                      current={"a": 50_000.0}, target={"b": 50_000.0}, apy={}),
+                _forward("2026-08-02", current={"a": 50_000.0}, target={"b": 50_000.0},
+                         apy=forward_apy),
+            ])
+            return awo.measure(d, now=FIXED_NOW)["orders"][0]["profiles"][0]
+
+    def test_a_silent_row_is_counted_apart_and_yields_no_pairs(self):
+        prof = self._measure(None)
+        self.assertEqual(prof["forward_rows_without_evidenced_field"], 1)
+        self.assertEqual(prof["unpriced_pairs_total"], 0,
+                         "молчание строки записано неоценёнными парами")
+
+    def test_an_empty_map_still_yields_unpriced_pairs(self):
+        prof = self._measure({})
+        self.assertEqual(prof["forward_rows_without_evidenced_field"], 0)
+        self.assertGreater(prof["unpriced_pairs_total"], 0)
+
+    def test_an_evaluator_without_the_unpriced_field_reports_null_not_empty(self):
+        """`None` ≠ `[]`: «оценщик не сказал» и «неоценённых нет» — разные ответы."""
+        row = {"verdict": "HOLD", "forward_days_checked": 0}
+        self.assertIsNone(awo.observed(row, "unpriced_protocols", kind=(list, tuple)))
+        self.assertEqual(awo.observed({"unpriced_protocols": []},
+                                      "unpriced_protocols", kind=(list, tuple)), [])
 
 
 class BranchClosureRule(unittest.TestCase):

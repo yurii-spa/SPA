@@ -124,6 +124,8 @@ import os
 import re
 from typing import Any, Callable
 
+from spa_core.utils.observation import observed, observed_number
+
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 REPORT_REL = "data/cio_target_producers.json"
 
@@ -625,7 +627,7 @@ def _reachable_names(root: str, producer: str) -> tuple[set[str], str]:
         path = os.path.join(root, "data", "apy_ranking.json")
         try:
             with open(path, "r", encoding="utf-8") as fh:
-                rows = json.load(fh).get("by_apy") or []
+                rows = observed(json.load(fh), "by_apy", kind=list) or []
         except (OSError, json.JSONDecodeError, ValueError) as exc:
             return set(), (f"вселенная рукава не прочитана "
                            f"({type(exc).__name__}: {exc}) — «нарушить нечем» "
@@ -870,8 +872,15 @@ def _live_books(root: str) -> list[dict]:
             entry["unchecked"] = f"{type(exc).__name__}: {exc}"
             out.append(entry)
             continue
-        equity = float(state.get("equity") or 0.0)
-        positions = [p for p in (state.get("positions") or []) if isinstance(p, dict)]
+        equity = observed_number(state, "equity")
+        positions = [p for p in (observed(state, "positions", kind=list) or [])
+                     if isinstance(p, dict)]
+        if equity is None:
+            # «Нет поля» и «equity ≤ 0» — разные причины отказа, и обе честные;
+            # склеивать их значило бы докладывать про книгу то, чего не читали.
+            entry["unchecked"] = "в снимке нет equity — доли не считаются"
+            out.append(entry)
+            continue
         if equity <= 0:
             entry["unchecked"] = "equity ≤ 0 — доли не считаются"
             out.append(entry)
@@ -880,7 +889,14 @@ def _live_books(root: str) -> list[dict]:
         rows = []
         for p in positions:
             name = str(p.get("protocol") or "")
-            usd = float(p.get("notional_usd") or 0.0)
+            usd_raw = observed_number(p, "notional_usd")
+            if usd_raw is None:
+                # Позиция без суммы не складывается в долю тира: ноль объявил бы
+                # её пустой, а она просто не названа (инвариант #17).
+                rows.append({"protocol": name, "usd": None,
+                             "unmeasured": "нет notional_usd"})
+                continue
+            usd = float(usd_raw)
             try:
                 tier = str(tier_of(name) or "").upper() or None
             except Exception:  # noqa: BLE001

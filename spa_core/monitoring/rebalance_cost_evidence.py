@@ -120,6 +120,8 @@ import math
 import os
 from typing import Any, Callable
 
+from spa_core.utils.observation import observed, observed_number
+
 from spa_core.utils.atomic import atomic_save
 
 # Компоненты стоимости берутся из ТОГО ЖЕ дома, из которого их берёт решение.
@@ -220,7 +222,7 @@ def observed_gas_usd_per_leg(gas_doc: dict, *, now: dt.datetime) -> dict:
                 "eth_usd": eth_usd, "chains": {}}
 
     out: dict[str, dict] = {}
-    for chain, rows in (gas_doc.get("history") or {}).items():
+    for chain, rows in (observed(gas_doc, "history", kind=dict) or {}).items():
         if not isinstance(rows, list):
             continue
         live = [r for r in rows
@@ -305,7 +307,15 @@ def modelled_slippage_usd(legs: list[dict], tvl: dict[str, float | None],
     unmeasured_usd = 0.0
     for leg in legs:
         proto = str(leg.get("protocol"))
-        amount = abs(_num(leg.get("delta_usd")) or 0.0)
+        delta = observed_number(leg, "delta_usd")
+        if delta is None:
+            # Нога без суммы перестановки: ноль сделал бы её бесплатной и увёл
+            # бы из «не измерено» в «измерено и ничего не стоит».
+            unmeasured_usd += 0.0
+            per_leg.append({"protocol": proto, "usd": None,
+                            "unmeasured": "нет delta_usd"})
+            continue
+        amount = abs(float(delta))
         pool_tvl = _num(tvl.get(proto))
         src = tvl_source.get(proto)
         if src != _LIVE or pool_tvl is None or pool_tvl <= 0:
@@ -417,7 +427,8 @@ def run(
 
     if verdict is not None:
         legs = [l for l in (verdict.get("legs") or []) if isinstance(l, dict)]
-        turnover = _num(verdict.get("turnover_usd")) or 0.0
+        # `None` — оборот НЕ записан; ноль означал бы «день ничего не двигал».
+        turnover = observed_number(verdict, "turnover_usd")
         payback_days = _num(verdict.get("payback_days"))
         raw_gates = verdict.get("gates")
         gates: dict = raw_gates if isinstance(raw_gates, dict) else {}
@@ -425,6 +436,11 @@ def run(
         if not legs:
             unchecked.append("в записанном вердикте нет ног — раскладывать нечего "
                              "(цикл не предлагал перекладки)")
+        elif turnover is None:
+            # Слиппедж и мост считаются ОТ оборота: ноль вместо ненаписанного
+            # объявил бы их нулевыми, то есть перекладку дешевле, чем она есть.
+            unchecked.append("в записанном вердикте нет `turnover_usd` — "
+                             "слиппедж и мост посчитать не от чего")
         else:
             charged = charged_components(legs, turnover, chains)
             if not charged["consistent"]:

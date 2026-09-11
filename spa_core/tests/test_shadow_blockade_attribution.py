@@ -72,6 +72,46 @@ def _trade(n: int, delta_abs: float) -> dict:
             "delta_abs": delta_abs}
 
 
+class ADayWithoutCapitalIsUnmeasuredNotOneDollar(unittest.TestCase):
+    """ADR-344 (инвариант #17): доли дня не считаются по подставленному капиталу.
+
+    Прежде строка без `capital_usd` считалась по ОДНОМУ ДОЛЛАРУ (`or 0.0) or 1.0`),
+    и каждая доля — оборот, метание, бюджет недели — выходила в сотни раз больше
+    настоящей, оставаясь на вид числом. То же с `turnover_usd`: «оборота нет» и
+    «оборот не записан» — разные вещи.
+    """
+
+    def _day(self, **over):
+        row = {"cycle_date": "2026-08-01", "verdict": "HOLD", "capital_usd": 100_000.0,
+               "turnover_usd": 1_000.0, "current_positions": {"a": 1.0},
+               "target_positions": {"a": 1.0},
+               "gates": {"has_legs": True, "cooldown_ok": True}}
+        row.update(over)
+        return row
+
+    def _measure(self, rows):
+        with tempfile.TemporaryDirectory() as td:
+            d = Path(td)
+            (d / "allocation_rationale_history.jsonl").write_text(
+                "\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+            return attribute(d, now=ANCHOR + timedelta(days=40), params=PARAMS)
+
+    def test_a_row_without_capital_is_counted_unmeasured(self):
+        row = self._day(); row.pop("capital_usd")
+        doc = self._measure([row])
+        self.assertIn("2026-08-01", doc.get("unmeasured_days", []))
+
+    def test_a_row_without_turnover_is_counted_unmeasured(self):
+        row = self._day(); row.pop("turnover_usd")
+        doc = self._measure([row])
+        self.assertIn("2026-08-01", doc.get("unmeasured_days", []))
+
+    def test_a_recorded_zero_turnover_is_a_measurement(self):
+        """Обратная сторона: записанный ноль — ответ, и день считается."""
+        doc = self._measure([self._day(turnover_usd=0.0)])
+        self.assertNotIn("2026-08-01", doc.get("unmeasured_days", []))
+
+
 class _Fixture:
     """Одноразовый data-каталог. `data/` рабочего дерева не трогается никогда."""
 

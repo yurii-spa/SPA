@@ -32,6 +32,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from spa_core.utils.observation import observed_number
+
 from spa_core.utils.atomic import atomic_save
 from spa_core.tuner.allocation_tuner import (
     AllocationTuner,
@@ -487,7 +489,9 @@ def rebalance_portfolio(
             live = bool(raw.get("live_data", False))
             return {
                 "apy_source": "live" if live else "fallback_stale",
-                "apy_pct": round(float(raw.get("apy_pct", 0.0) or 0.0), 4),
+                # `None` — ставка НЕ наблюдена; ноль сказал бы «наблюдена и нулевая».
+            "apy_pct": (None if observed_number(raw, "apy_pct") is None
+                        else round(observed_number(raw, "apy_pct"), 4)),
                 "as_of": raw.get("last_updated") or ts,
             }
         norm = _apy_by_id.get(p)
@@ -496,7 +500,8 @@ def rebalance_portfolio(
             # liveness/as_of are not → stamp conservatively as stale.
             return {
                 "apy_source": "fallback_stale",
-                "apy_pct": round(float(norm.get("apy", 0.0) or 0.0), 4),
+                "apy_pct": (None if observed_number(norm, "apy") is None
+                        else round(observed_number(norm, "apy"), 4)),
                 "as_of": ts,
             }
         # No feed at all (e.g. a hardcoded safe-fallback protocol) → honest fallback.
@@ -604,7 +609,10 @@ def check_current_positions(
 
     positions = doc.get("positions", {})
     cap = float(doc.get("capital_usd") or capital_usd)
-    cash = float(doc.get("cash_usd") or 0.0)
+    # Снимок без `cash_usd` проверяется с нулём наличных — САМАЯ СТРОГАЯ
+    # сторона (минимальный буфер), и подстановка названа здесь словами.
+    cash = observed_number(doc, "cash_usd")
+    cash = 0.0 if cash is None else cash
 
     return validate_positions(positions=positions, capital_usd=cap, cash_usd=cash)
 

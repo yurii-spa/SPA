@@ -102,6 +102,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
+from spa_core.utils.observation import observed
+
 log = logging.getLogger("spa.monitoring.target_stability")
 
 VERSION = "target-stability-v1"
@@ -200,7 +202,7 @@ def observed_daily_moves(data_dir: Path) -> Tuple[Dict[str, List[float]], str, i
                              str(r.get("generated_at") or "")))
     series: Dict[str, List[float]] = {}
     for r in rows:
-        for proto, val in (r.get("apy_evidenced_pct") or {}).items():
+        for proto, val in (observed(r, "apy_evidenced_pct", kind=dict) or {}).items():
             if isinstance(val, (int, float)) and not isinstance(val, bool):
                 series.setdefault(str(proto), []).append(float(val))
     moves = {p: [abs(s[i] - s[i - 1]) for i in range(1, len(s))]
@@ -664,7 +666,7 @@ def run(root: Optional[str] = None, *, now: Optional[datetime] = None,
         # «не измерено» считается ОТДЕЛЬНО: растворив его в нулях, мы сделали бы
         # молчание прибора неотличимым от чистого прогона.
         "unchecked": (1 if doc["status"] == STATUS_UNMEASURED else 0)
-                     + len(doc.get("unmeasured") or []),
+                     + len(observed(doc, "unmeasured", kind=list) or []),
     }
     if write:
         atomic_save(doc, str(data_dir / OUTPUT_FILENAME))

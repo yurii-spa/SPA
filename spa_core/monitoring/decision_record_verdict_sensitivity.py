@@ -60,6 +60,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from spa_core.utils.observation import observed, observed_number
+
 log = logging.getLogger("spa.monitoring.decision_record_verdict_sensitivity")
 
 VERSION = "decision-record-verdict-sensitivity-v1"
@@ -117,9 +119,10 @@ def decision_slice(doc: dict) -> dict:
     per_day = {str(r.get("cycle_date")): {"verdict": r.get("verdict"),
                                           "outcome": r.get("outcome"),
                                           "material": bool(r.get("material"))}
-               for r in (doc.get("per_verdict") or []) if r.get("cycle_date")}
+               for r in (observed(doc, "per_verdict", kind=list) or [])
+               if r.get("cycle_date")}
     return {
-        "counts": dict(doc.get("counts") or {}),
+        "counts": dict(observed(doc, "counts", kind=dict) or {}),
         "criteria": crit,
         "per_day": per_day,
         **{k: doc.get(k) for k in _DECISION_FIELDS},
@@ -326,7 +329,11 @@ def capability_control(sandbox: Path, rows: List[dict], base: dict,
         out.update(fired=False, note=("оценённых существенных дней нет — контроль "
                                       "ставить не на чем"))
         return out
-    day = min(scored, key=lambda r: abs(float(r.get("net_usd") or 0.0)))
+    # Подстановки здесь нет НАМЕРЕННО: отбор `scored` выше уже требует
+    # `net_usd is not None`, поэтому `or 0.0` был недостижим для отсутствия —
+    # а недостижимая ветка это украшение, а не третий исход (инвариант #17
+    # закрыт отбором, и тест на это стоит рядом).
+    day = min(scored, key=lambda r: abs(float(r["net_usd"])))
     date = str(day.get("cycle_date"))
     idx = {str(r.get("cycle_date")): i for i, r in enumerate(rows)}
     if date not in idx:
@@ -343,7 +350,7 @@ def capability_control(sandbox: Path, rows: List[dict], base: dict,
 
     perturbed = json.loads(json.dumps(rows, default=str))
     for j in forward:
-        m = dict(perturbed[j].get("apy_evidenced_pct") or {})
+        m = dict(observed(perturbed[j], "apy_evidenced_pct", kind=dict) or {})
         for p, d in deltas.items():
             m[p] = _CONTROL_RATE_PP if d > 0 else 0.0
         perturbed[j]["apy_evidenced_pct"] = m
@@ -352,9 +359,11 @@ def capability_control(sandbox: Path, rows: List[dict], base: dict,
                 if str(r.get("cycle_date")) == date), None)
 
     bought = sum(d for d in deltas.values() if d > 0)
-    cost = float(day.get("cost_usd_used") or 0.0)
-    advantage_pp = (cost * 365.0 * 100.0 / (bought * len(forward))
-                    if bought > 0 and forward else None)
+    cost = observed_number(day, "cost_usd_used")
+    # Ноль вместо ненаписанных издержек дал бы «хватило бы 0 pp преимущества» —
+    # то есть объявил бы переворот бесплатным.
+    advantage_pp = (float(cost) * 365.0 * 100.0 / (bought * len(forward))
+                    if cost is not None and bought > 0 and forward else None)
     out.update({
         "day": date,
         "outcome_before": day.get("outcome"),
@@ -386,7 +395,7 @@ def rate_spread(rows: List[dict]) -> dict:
     """
     lo = hi = None
     for r in rows:
-        for v in (r.get("apy_evidenced_pct") or {}).values():
+        for v in (observed(r, "apy_evidenced_pct", kind=dict) or {}).values():
             try:
                 x = float(v)
             except (TypeError, ValueError):
@@ -439,8 +448,8 @@ def prior_claim_recheck(sandbox: Path, rows: List[dict], widened: List[dict],
     out["prior_probe"] = {"coverage_base": b_cov, "coverage_wide": w_cov,
                           "snapshot_identical": same,
                           "verdict_it_would_give": "insensitive" if same else "moved"}
-    b_counts = base_slice.get("counts") or {}
-    w_counts = wide_slice.get("counts") or {}
+    b_counts = observed(base_slice, "counts", kind=dict) or {}
+    w_counts = observed(wide_slice, "counts", kind=dict) or {}
     out["measured_here"] = {
         "scored": [b_counts.get("scored"), w_counts.get("scored")],
         "unchecked": [b_counts.get("unchecked"), w_counts.get("unchecked")],
@@ -481,17 +490,25 @@ def _writer_inputs(rows: List[dict]) -> Tuple[Optional[dict], str]:
     if not rows:
         return None, "журнал пуст"
     last = rows[-1]
-    cur = {str(k): float(v) for k, v in (last.get("current_positions") or {}).items()}
-    tgt = {str(k): float(v) for k, v in (last.get("target_positions") or {}).items()}
-    rates = {str(k): float(v) for k, v in (last.get("apy_evidenced_pct") or {}).items()}
+    cur = {str(k): float(v)
+           for k, v in (observed(last, "current_positions", kind=dict) or {}).items()}
+    tgt = {str(k): float(v)
+           for k, v in (observed(last, "target_positions", kind=dict) or {}).items()}
+    rates = {str(k): float(v)
+             for k, v in (observed(last, "apy_evidenced_pct", kind=dict) or {}).items()}
     if not (cur or tgt) or not rates:
         return None, "в последней записи нет книги или нет ни одной ставки"
+    capital = observed_number(last, "capital_usd")
+    if capital is None or capital <= 0.0:
+        # Сцена с нулевым капиталом вырождает каждую долю гейта: он ответил бы
+        # о портфеле, которого нет.
+        return None, "в последней записи нет капитала — живую сцену собрать не из чего"
     return {
         "current_positions": cur,
         "target_positions": tgt,
         "apy_pct": rates,
         "apy_sources": {k: "live" for k in rates},
-        "capital_usd": float(last.get("capital_usd") or 0.0),
+        "capital_usd": float(capital),
         "cycle_date": str(last.get("cycle_date") or ""),
     }, ""
 
@@ -624,7 +641,7 @@ def _judge(doc: dict) -> None:
             f"изменилось» ниже вакуумно ({cap.get('note') or 'причина не названа'})")
         doc["status"] = STATUS_UNMEASURED
         return
-    spread = (doc.get("rate_spread_observed") or {}).get("spread_pp")
+    spread = (observed(doc, "rate_spread_observed", kind=dict) or {}).get("spread_pp")
     adv = cap.get("advantage_pp_to_flip")
     doc["findings"].append(
         f"[КОНТРОЛЬ] переворот вердикта ДОСТИЖИМ: день {cap.get('day')} "
@@ -656,10 +673,10 @@ def _judge(doc: dict) -> None:
         doc["findings"].append(
             f"[НЕ ИЗМЕРЕНО] живой путь вердикта не измерен: {live.get('note')}")
 
-    flipped = tr.get("flipped") or []
-    scored = tr.get("scored") or []
-    lost = tr.get("lost") or []
-    crit_changes = rep.get("criteria_status_changes") or []
+    flipped = observed(tr, "flipped", kind=list) or []
+    scored = observed(tr, "scored", kind=list) or []
+    lost = observed(tr, "lost", kind=list) or []
+    crit_changes = observed(rep, "criteria_status_changes", kind=list) or []
     if flipped or crit_changes or lost:
         doc["findings"].append(
             "[CRITICAL] на пути РЕПЛЕЯ расширение меняет решение: "
@@ -672,8 +689,8 @@ def _judge(doc: dict) -> None:
             "СТАТУС, `ready_to_arm` не изменился — при том что контроль выше "
             "показал: переворот достижим")
     if scored:
-        b = (rep.get("base") or {}).get("counts") or {}
-        w = (rep.get("wide") or {}).get("counts") or {}
+        b = observed(observed(rep, "base", kind=dict) or {}, "counts", kind=dict) or {}
+        w = observed(observed(rep, "wide", kind=dict) or {}, "counts", kind=dict) or {}
         doc["findings"].append(
             f"[ЦЕНА ПОТОЛКА] но НАСЕЛЕНИЕ, на котором решение посчитано, растёт: "
             f"оценённых дней {b.get('scored')}→{w.get('scored')}, без вердикта "
@@ -683,7 +700,7 @@ def _judge(doc: dict) -> None:
               "потолок дал оценить, — «не измерено» это, а не «HOLD был прав»")
 
     if prior.get("verdict") == "prior_claim_refuted":
-        m = prior.get("measured_here") or {}
+        m = observed(prior, "measured_here", kind=dict) or {}
         doc["findings"].append(
             "[CRITICAL] утверждение #540 об ЭТОМ потребителе не подтвердилось: "
             f"его проба и сейчас даёт `insensitive` (покрытие "
@@ -715,8 +732,8 @@ def format_report(doc: dict) -> List[str]:
                       if live.get("verdict_real") else ""))
     rep = doc.get("replay") or {}
     if rep:
-        b = (rep.get("base") or {}).get("counts") or {}
-        w = (rep.get("wide") or {}).get("counts") or {}
+        b = observed(observed(rep, "base", kind=dict) or {}, "counts", kind=dict) or {}
+        w = observed(observed(rep, "wide", kind=dict) or {}, "counts", kind=dict) or {}
         tr = rep.get("transitions") or {}
         out.append(f"   реплей: оценено {b.get('scored')}→{w.get('scored')} · "
                    f"без вердикта {b.get('unchecked')}→{w.get('unchecked')} · "

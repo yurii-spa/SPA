@@ -53,6 +53,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
 from spa_core.utils.errors import SPAError
+from spa_core.utils.observation import observed
 
 log = logging.getLogger("spa.monitoring.decision_journal_coverage")
 
@@ -228,13 +229,17 @@ def record_universe(rec: dict) -> set:
     весь живой набор. Позиции остаются запасным ответом для строк совсем старой
     схемы, где обоих словарей нет вовсе; пустая строка так и остаётся пустой.
     """
-    named = set((rec.get("apy_evidenced_pct") or {}).keys()) \
-        | set(rec.get("apy_unevidenced") or [])
-    if named:
-        return named
-    if "apy_evidenced_pct" in rec or "apy_unevidenced" in rec:
-        return named  # запись НАЗВАЛА пустое население — это ответ, а не пробел
-    return set(rec.get("current_positions") or {}) | set(rec.get("target_positions") or {})
+    evidenced = observed(rec, "apy_evidenced_pct", kind=dict)
+    unevidenced = observed(rec, "apy_unevidenced", kind=(list, tuple, set))
+    if evidenced is not None or unevidenced is not None:
+        # Строка СКАЗАЛА о населении — хоть что-то, хоть пусто. Пустое население
+        # тут ответ, а не пробел, и подменять его позициями нельзя.
+        return set(evidenced or {}) | set(unevidenced or ())
+    # Ни одного из двух словарей нет вовсе — строка совсем старой схемы: единственный
+    # оставшийся свидетель населения это её книга.
+    current = observed(rec, "current_positions", kind=dict)
+    target = observed(rec, "target_positions", kind=dict)
+    return set(current or {}) | set(target or {})
 
 
 def _default_ranked_producer(sandbox: Path) -> Callable[[], Tuple[Dict[str, float], Dict[str, str]]]:
@@ -288,16 +293,25 @@ def split_gap(ranked_live: set, universe: set, written: set) -> dict:
     }
 
 
-def never_seen(rows: List[dict], ranked_live: set) -> List[str]:
+def never_seen(rows: List[dict], ranked_live: set) -> Tuple[List[str], int]:
     """Живые ранжируемые ключи, не встречавшиеся в журнале НИ РАЗУ за всю историю.
 
     Это не «ставка нулевая» и не «пара не ничья» — это ОТСУТСТВИЕ ЗАМЕРА, и
     именно оно делает каждый вопрос о режиме дороже.
     """
     ever: set = set()
+    silent = 0
     for r in rows:
-        ever |= set((r.get("apy_evidenced_pct") or {}).keys())
-    return sorted(ranked_live - ever)
+        evidenced = observed(r, "apy_evidenced_pct", kind=dict)
+        if evidenced is None:
+            # Строка без поля не говорит «ключа не было» — она не говорит НИЧЕГО.
+            # Её молчание считается отдельно (инвариант #17): без этого счёта
+            # «не встречался ни разу» на журнале старой схемы был бы верен
+            # ПО ПОСТРОЕНИЮ, а выглядел бы находкой о ключах.
+            silent += 1
+            continue
+        ever |= set(evidenced.keys())
+    return sorted(ranked_live - ever), silent
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -356,8 +370,16 @@ def probe_criterion(*, apy_pct: Dict[str, float], apy_sources: Dict[str, str],
         rec = build(doc, apy_pct=rates, apy_sources=sources,
                     current_positions=current_positions, target_positions=target,
                     capital_usd=capital_usd)
-        return (set((rec.get("apy_evidenced_pct") or {}).keys()),
-                set(rec.get("apy_unevidenced") or []))
+        evidenced = observed(rec, "apy_evidenced_pct", kind=dict)
+        unevidenced = observed(rec, "apy_unevidenced", kind=(list, tuple, set))
+        if evidenced is None and unevidenced is None:
+            # Писатель обязан назвать население САМ. Молчание здесь — дефект
+            # писателя, а не пустая книга: подставить пустоту значило бы
+            # доложить «он ничего не записал» там, где он не записал ПОЛЕЙ.
+            raise SPAError("писатель не назвал население записи",
+                           code="PROBE_RECORD_WITHOUT_POPULATION",
+                           details={"keys": sorted(rec)})
+        return set(evidenced or {}), set(unevidenced or ())
 
     base_written, base_unev = written_of(sources=apy_sources, target=target_positions,
                                          rates=apy_pct)
@@ -495,7 +517,12 @@ def widen_journal(rows: List[dict], rates_pct: Dict[str, float],
     for r in rows:
         rec = json.loads(json.dumps(r))
         merged = dict(extra)
-        merged.update(rec.get("apy_evidenced_pct") or {})
+        evidenced = observed(rec, "apy_evidenced_pct", kind=dict)
+        if evidenced:
+            # Отсутствие поля и пустая карта дают здесь один результат ПО ДЕЛУ:
+            # расширенной копии добавлять нечего. Явная форма оставлена вместо
+            # `or {}`, чтобы это было решением, а не склейкой исходов.
+            merged.update(evidenced)
         rec["apy_evidenced_pct"] = merged
         out.append(rec)
     return out
@@ -557,7 +584,13 @@ def _reader_probe(spec: dict, root: Path) -> Tuple[Optional[int], object]:
                            details={"probe": name, "module": spec["module"]})
         day = str(rows[-1].get("cycle_date"))
         line = mod.build_outcome_line(str(root), day)
-        cov = len(line.get("apy_evidenced_pct") or {})
+        evidenced = observed(line, "apy_evidenced_pct", kind=dict)
+        if evidenced is None:
+            raise SPAError("потребитель не вернул поле наблюдённых ставок",
+                           code="PROBE_LINE_WITHOUT_EVIDENCED",
+                           details={"probe": name, "module": spec["module"],
+                                    "keys": sorted(line) if isinstance(line, dict) else []})
+        cov = len(evidenced)
         return cov, {k: line.get(k) for k in sorted(line) if k != "generated_at"}
     if name == "run":
         is_expl = spec["module"].endswith("cio_explainability")
@@ -768,26 +801,44 @@ def measure(data_dir: Path, *,
 
         last = rows[-1]
         universe = record_universe(last)
-        written = set((last.get("apy_evidenced_pct") or {}).keys())
+        last_evidenced = observed(last, "apy_evidenced_pct", kind=dict)
+        if last_evidenced is None:
+            # Последняя строка не называет наблюдённых ставок вовсе: щель
+            # «записано против ранжируемого» мерить нечем. Ноль записанных сказал бы
+            # «писатель не записал ничего» — а он не записал ПОЛЯ (инвариант #17).
+            doc["gap"] = {"status": "unmeasured",
+                          "reason": "в последней строке журнала нет apy_evidenced_pct",
+                          "journal_day": last.get("cycle_date")}
+            doc["findings"].append(
+                "[НЕ ИЗМЕРЕНО] последняя строка журнала не называет наблюдённых "
+                "ставок — щель «записано против ранжируемого» мерить не на чем")
+            _judge(doc)
+            return doc
+        written = set(last_evidenced.keys())
         gap = split_gap(ranked_live, universe, written)
         gap["journal_day"] = last.get("cycle_date")
         doc["gap"] = gap
-        doc["never_written"] = never_seen(rows, ranked_live)
+        never, silent_rows = never_seen(rows, ranked_live)
+        doc["never_written"] = never
+        # Сколько строк журнала о населении НЕ высказывались: без этого числа
+        # «не встречался ни разу» неотличимо от «спросить было не у кого».
+        doc["never_written_rows_silent"] = silent_rows
 
         # ── B: чем именно отсекает писатель ────────────────────────────────
         unfunded_live = next((k for k in sorted(ranked_live - universe)), None)
         funded_live = next((k for k in sorted(written)), None)
-        cur = {str(k): float(v) for k, v in (last.get("current_positions") or {}).items()}
-        tgt = {str(k): float(v) for k, v in (last.get("target_positions") or {}).items()}
+        cur = {str(k): float(v)
+               for k, v in (observed(last, "current_positions", kind=dict) or {}).items()}
+        tgt = {str(k): float(v)
+               for k, v in (observed(last, "target_positions", kind=dict) or {}).items()}
         src_for_probe = {k: "live" for k in written}
         src_for_probe.update({k: "live" for k in ranked_live})
         rates_for_probe = dict(ranked)
-        rates_for_probe.update({k: float(v) for k, v
-                                in (last.get("apy_evidenced_pct") or {}).items()})
+        rates_for_probe.update({k: float(v) for k, v in last_evidenced.items()})
         doc["criterion"] = probe_criterion(
             apy_pct=rates_for_probe, apy_sources=src_for_probe,
             current_positions=cur, target_positions=tgt,
-            capital_usd=float(last.get("capital_usd") or 0.0),
+            capital_usd=_capital_of(last, doc),
             unfunded_live=unfunded_live, funded_live=funded_live)
 
         # ── C: цена у потребителей ─────────────────────────────────────────
@@ -798,6 +849,26 @@ def measure(data_dir: Path, *,
 
     _judge(doc)
     return doc
+
+
+def _capital_of(rec: dict, doc: dict) -> float:
+    """Капитал строки. Его отсутствие НАЗЫВАЕТСЯ, а не заменяется нулём.
+
+    Ноль капитала — не «капитала нет в записи»: на нуле каждый порог доли
+    вырождается, и проба критерия ответила бы о выдуманном портфеле. Поэтому
+    запасом берётся объявленный paper-капитал, а подмена записывается находкой.
+    """
+    # Объявленный paper-капитал берётся из ЕДИНСТВЕННОГО места (одно имя — один
+    # объект), а не литералом рядом: иначе два числа разойдутся молча.
+    from spa_core.paper_trading.engine import INITIAL_CAPITAL
+
+    capital = observed(rec, "capital_usd", kind=(int, float))
+    if capital is None or float(capital) <= 0.0:
+        doc["findings"].append(
+            "[НЕ ИЗМЕРЕНО] в строке журнала нет капитала — проба критерия считает "
+            f"по объявленному paper-капиталу ${INITIAL_CAPITAL:,.0f}")
+        return float(INITIAL_CAPITAL)
+    return float(capital)
 
 
 def _judge(doc: dict) -> None:

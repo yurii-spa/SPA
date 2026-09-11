@@ -94,6 +94,8 @@ import tempfile
 from pathlib import Path
 from typing import Any, Callable
 
+from spa_core.utils.observation import observed
+
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 REPORT_REL = "data/cio_failure_modes.json"
 
@@ -195,7 +197,13 @@ def _gate_moves_capital(scene: dict, gate: dict) -> bool:
     """«Капитал бы двинулся» = гейт одобрил И не срезал ни одной ноги цели."""
     if not gate.get("approved") or gate.get("error") is not None:
         return False
-    got = gate.get("target_usd") or {}
+    got = observed(gate, "target_usd", kind=dict)
+    if got is None:
+        # Гейт одобрил, но цели не назвал: сказать «капитал бы двинулся» не на
+        # чем. Подстановка пустого словаря дала бы тот же False молча, а здесь
+        # различие записано словами (инвариант #17). На живом пути ветка
+        # недостижима: `error is not None` выше ловит сломанный гейт.
+        return False
     for proto, want in scene["target"].items():
         if abs(float(got.get(proto, 0.0)) - float(want)) > 0.01:
             return False
@@ -277,6 +285,16 @@ def _call_econ(scene: dict, params, *, apy: dict | None = None,
 
 
 # ─────────────────────────────────── пробы ──────────────────────────────────
+
+def _gate_target(gate: dict) -> "dict | None":
+    """Цель, которую вернул гейт. ``None`` — гейт её НЕ НАЗВАЛ.
+
+    Ноль свежего капитала — вердикт пробы «гейт не пустил». Подставив ноль там,
+    где гейт вовсе не назвал цели, проба доложила бы УСПЕШНЫЙ блок по сломанному
+    ответу — самое опасное направление ошибки (инвариант #17).
+    """
+    return observed(gate, "target_usd", kind=dict)
+
 
 def _probe(key: str, verbatim: str, door: str, outcome: str, *,
            healthy: str = "", degraded: str = "", detail: str = "",
@@ -460,7 +478,11 @@ def _probe_missing_liquidity(ctx: dict) -> dict:
             r["tvl_source"] = "static"
     gate = _call_gate(scene, rows)
     moved = _gate_moves_capital(scene, gate)
-    got = float((gate.get("target_usd") or {}).get("pendle", 0.0))
+    target = _gate_target(gate)
+    if target is None:
+        return _probe("missing_liquidity", "missing liquidity", _DOOR_GATE, UNCHECKED,
+                      reason="гейт не вернул target_usd — свежий капитал мерить нечем")
+    got = float(target.get("pendle", 0.0))
     detail = (f"свежий капитал снят: цель ${scene['target']['pendle']:,.0f} → "
               f"${got:,.0f} (удержано ${scene['held']['pendle']:,.0f}); "
               f"заморожено {gate.get('tvl_unverified')}")
@@ -557,15 +579,21 @@ def _probe_unknown_protocol(ctx: dict) -> dict:
     ghost_target.pop("pendle")
     ghost_target["protocol_nobody_declared"] = scene["target"]["pendle"]
     absent = _call_gate(scene, scene["adapters"], target=ghost_target)
-    got_ghost = float((absent.get("target_usd") or {}).get(
-        "protocol_nobody_declared", 0.0))
+    ghost_target_got = _gate_target(absent)
+    if ghost_target_got is None:
+        return _probe("unknown_protocol", "unknown protocol", _DOOR_GATE, UNCHECKED,
+                      reason="гейт не вернул target_usd на сцене с неизвестным именем")
+    got_ghost = float(ghost_target_got.get("protocol_nobody_declared", 0.0))
     # (б) имя В снимке есть и TVL живой — но никакого другого признака знания нет
     known_row = [dict(r) for r in scene["adapters"]]
     known_row.append(_row("protocol_nobody_declared", 9.0,
                           ctx["caps"]["tvl_floor_usd"] * 16.0, "T2"))
     present = _call_gate(scene, known_row, target=ghost_target)
-    got_present = float((present.get("target_usd") or {}).get(
-        "protocol_nobody_declared", 0.0))
+    present_target = _gate_target(present)
+    if present_target is None:
+        return _probe("unknown_protocol", "unknown protocol", _DOOR_GATE, UNCHECKED,
+                      reason="гейт не вернул target_usd на сцене с живым TVL")
+    got_present = float(present_target.get("protocol_nobody_declared", 0.0))
     detail = (f"имени нет в снимке: свежий капитал ${got_ghost:,.0f} "
               f"(заморожено {absent.get('tvl_unverified')}); "
               f"имя в снимке с живым TVL: свежий капитал ${got_present:,.0f}")
