@@ -2219,14 +2219,22 @@ def run_cycle(
     _cio_ok, _cio_dec, _cio_why = _cio_arming.trade_allowed(
         "conservative", _cio_doc, current_positions, target_usd,
         damper_reason=_churn.reason)
+    # Эшелонирование, а не замена: во взведённой книге перетасовку пропускают
+    # только ОБА — демпфер и CIO. Они несут одну колонку ADR-060, но считают её
+    # по-разному (демпфер — по часам с последней сделки, CIO — по возрасту позиций
+    # и экономике хода), и вторая независимая реализация на денежном пути —
+    # защита, а не дубль. Размещение кэша и де-риск это не ослабляет: демпфер
+    # пропускает их сам, CIO — по той же классификации (NOT_A_RESHUFFLE).
+    # Замер 11.09: первая редакция ставила сюда один вердикт CIO и молча выводила
+    # вердикт демпфера из решения — покраснел test_churn_damper_is_wired.
     if _cio_arming.is_armed("conservative"):
-        _move_allowed = _cio_ok
+        _cio_gate_ok = _cio_ok
         notes.append(f"cio_armed: {_cio_dec} — {_cio_why} (ADR-324)")
         log.info("CIO ARMED: %s — %s", _cio_dec, _cio_why)
     else:
-        _move_allowed = _churn.allowed
+        _cio_gate_ok = True
     traded = ((not _safety_failed) and (not policy_blocked)
-              and diff_usd > threshold_usd and _move_allowed)
+              and diff_usd > threshold_usd and _churn.allowed and _cio_gate_ok)
     trade_id: str | None = None
 
     # ── Commit-reveal of the book decision, part 2: COMMIT (task 4) ────────────────

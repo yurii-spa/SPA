@@ -131,8 +131,11 @@ class Wiring(unittest.TestCase):
                   and any(isinstance(t, ast.Name) and t.id == "traded" for t in n.targets)]
         self.assertTrue(traded)
         names = {x.id for n in traded for x in ast.walk(n.value) if isinstance(x, ast.Name)}
-        self.assertIn("_move_allowed", names,
+        self.assertIn("_cio_gate_ok", names,
                       "решение о перекладке не зависит от вердикта CIO")
+        # эшелон: вердикт демпфера обязан остаться в том же решении рядом с CIO
+        seg = "".join(ast.get_source_segment(self.src, n.value) or "" for n in traded)
+        self.assertIn("_churn.allowed", seg, "взвод CIO вывел демпфер из решения")
 
     def test_the_cio_parameters_were_not_touched(self):
         """Прямое указание владельца: «мне не нужно настраивать параметры»."""
@@ -142,6 +145,95 @@ class Wiring(unittest.TestCase):
                           p.act_cooldown_days, p.max_turnover_per_move,
                           p.max_turnover_per_week),
                          (0.5, 30.0, 3, 3, 0.15, 0.25))
+
+
+class SleeveBooks(unittest.TestCase):
+    """ADR-328: Balanced и Aggressive — ход, ПРЕДЛОЖЕННЫЙ rebalance_book, принимается
+    только с разрешения CIO; до взвода книга двигалась каждый цикл без суждения."""
+
+    BEFORE = [{"protocol": "aave_v3", "notional_usd": 60000.0, "mark_price": 1.0},
+              {"protocol": "maple", "notional_usd": 30000.0}]
+    SHUFFLE = [{"protocol": "aave_v3", "notional_usd": 30000.0},
+               {"protocol": "morpho_blue", "notional_usd": 60000.0}]
+    CUT = [{"protocol": "aave_v3", "notional_usd": 40000.0},
+           {"protocol": "maple", "notional_usd": 30000.0}]
+
+    def _gate(self, book_id, before, proposed, verdict=None, err=None):
+        import types
+        from unittest import mock
+        ret = ({"error": err} if err else
+               {"decision_shadow": {"decision": verdict or "HOLD", "reasons": ["x"]}})
+        fake_ar = types.SimpleNamespace(write_shadow_rationale=lambda **kw: ret)
+        with mock.patch.dict("sys.modules",
+                             {"spa_core.paper_trading.allocation_rationale": fake_ar}):
+            return ca.gate_sleeve_book(book_id, before, proposed, ["o"], ["c"], [],
+                                       100000.0, "/nonexistent", today="2026-09-11",
+                                       run_ts="2026-09-11T06:00:00Z")
+
+    def test_both_sleeve_books_are_armed(self):
+        self.assertTrue(ca.is_armed("balanced"))
+        self.assertTrue(ca.is_armed("aggressive"))
+
+    def test_hold_keeps_the_book_exactly_and_opens_nothing(self):
+        book, opened, closed, note = self._gate("balanced", self.BEFORE, self.SHUFFLE, "HOLD")
+        self.assertEqual(book, self.BEFORE, "книга сдвинулась при вердикте «держать»")
+        self.assertIsNot(book, self.BEFORE, "вернули ТУ ЖЕ ссылку — начисление мутирует ноги")
+        self.assertEqual((opened, closed), ([], []))
+        self.assertIn("HOLD", note)
+
+    def test_act_takes_the_proposed_book(self):
+        book, opened, closed, _ = self._gate("aggressive", self.BEFORE, self.SHUFFLE, "ACT")
+        self.assertEqual(book, self.SHUFFLE)
+        self.assertEqual((opened, closed), (["o"], ["c"]))
+
+    def test_derisk_passes_under_hold(self):
+        book, *_ = self._gate("balanced", self.BEFORE, self.CUT, "HOLD")
+        self.assertEqual(book, self.CUT, "сокращение позиции задержано вердиктом CIO")
+
+    def test_initial_placement_of_an_empty_book_passes_under_hold(self):
+        book, *_ = self._gate("balanced", [], self.SHUFFLE, "HOLD")
+        self.assertEqual(book, self.SHUFFLE, "пустую книгу не дали вложить в работу")
+
+    def test_a_failed_verdict_holds(self):
+        book, opened, closed, note = self._gate("aggressive", self.BEFORE, self.SHUFFLE,
+                                                err="KeyError")
+        self.assertEqual(book, self.BEFORE)
+        self.assertIn("fail-CLOSED", note)
+
+    def test_an_exception_while_asking_the_cio_holds(self):
+        """Выжившая мутация №3 (11.09): документ-ошибка и НАСТОЯЩЕЕ исключение — разные
+        ветки. Без этого теста «упало ⇒ принять предложение» проходило зелёным."""
+        import types
+        from unittest import mock
+
+        def boom(**kw):
+            raise RuntimeError("советник недоступен")
+        fake_ar = types.SimpleNamespace(write_shadow_rationale=boom)
+        with mock.patch.dict("sys.modules",
+                             {"spa_core.paper_trading.allocation_rationale": fake_ar}):
+            book, opened, closed, note = ca.gate_sleeve_book(
+                "balanced", self.BEFORE, self.SHUFFLE, ["o"], ["c"], [], 100000.0,
+                "/nonexistent", today="2026-09-11", run_ts="2026-09-11T06:00:00Z")
+        self.assertEqual(book, self.BEFORE, "исключение при вердикте приняло предложение")
+        self.assertEqual((opened, closed), ([], []))
+        self.assertIn("fail-CLOSED", note)
+
+    def test_both_sleeve_cycles_route_the_proposal_through_the_gate(self):
+        """Проводка ФОРМОЙ вызова: результат гейта обязан перезаписать `book`."""
+        for fn, bid in (("hy_cycle.py", "balanced"), ("lp_cycle.py", "aggressive")):
+            tree = ast.parse((ROOT / "spa_core" / "paper_trading" / fn).read_text(encoding="utf-8"))
+            ok = False
+            for n in ast.walk(tree):
+                if (isinstance(n, ast.Assign) and isinstance(n.value, ast.Call)
+                        and isinstance(n.value.func, ast.Attribute)
+                        and n.value.func.attr == "gate_sleeve_book"):
+                    first = n.value.args[0] if n.value.args else None
+                    tgt = n.targets[0]
+                    names = [e.id for e in getattr(tgt, "elts", []) if isinstance(e, ast.Name)]
+                    if (isinstance(first, ast.Constant) and first.value == bid
+                            and names[:1] == ["book"]):
+                        ok = True
+            self.assertTrue(ok, f"{fn}: предложение rebalance_book не проходит гейт CIO ({bid})")
 
 
 if __name__ == "__main__":

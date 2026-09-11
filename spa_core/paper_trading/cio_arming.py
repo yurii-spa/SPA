@@ -64,12 +64,20 @@ NOT_A_RESHUFFLE = frozenset({REASON_DERISK, REASON_INITIAL, REASON_PLACE_IDLE})
 #: Книги, в которых вердикт CIO управляет перекладкой. Ключ — ``book_id`` тот же,
 #: что у `allocation_rationale` (`conservative` / `balanced` / `aggressive`).
 #: Снять взвод — удалить строку. Каждая запись несёт, КТО и КОГДА решил.
+_OWNER_ORDER = "чат 2026-09-11: «запусти его … на все пакеты и стратегии это его работа»"
+
 ARMED_BOOKS: Dict[str, Dict[str, str]] = {
     "conservative": {
-        "armed_by": "владелец",
-        "armed_at": "2026-09-11",
-        "source": "чат 2026-09-11: «запусти его … на все пакеты и стратегии»",
-        "adr": "ADR-324",
+        "armed_by": "владелец", "armed_at": "2026-09-11",
+        "source": _OWNER_ORDER, "adr": "ADR-324",
+    },
+    "balanced": {
+        "armed_by": "владелец", "armed_at": "2026-09-11",
+        "source": _OWNER_ORDER, "adr": "ADR-328",
+    },
+    "aggressive": {
+        "armed_by": "владелец", "armed_at": "2026-09-11",
+        "source": _OWNER_ORDER, "adr": "ADR-328",
     },
 }
 
@@ -135,3 +143,52 @@ def trade_allowed(
     if dec == ACT:
         return True, ACT, "CIO: перекладка окупается — разрешена"
     return False, HOLD, "CIO: держать — " + ("; ".join(reasons) or "причина не названа")
+
+
+def gate_sleeve_book(book_id: str, legs_before: list, proposed: list, opened: list,
+                     closed: list, rows: list, equity: float, data_dir, *,
+                     today: str, run_ts: str) -> Tuple[list, list, list, str]:
+    """Взвод CIO для книг Balanced / Aggressive (ADR-328).
+
+    В этих книгах ход ПРЕДЛАГАЕТ `sleeve_book.rebalance_book`, и до взвода он же его
+    и совершал — вердикт CIO записывался уже ПОСЛЕ, о свершившемся. Здесь вердикт
+    спрашивается ДО: предложенная книга принимается только если CIO разрешил
+    перетасовку (или ход вовсе не перетасовка — де-риск, первичное размещение,
+    вложение кэша). Иначе книга остаётся ровно той, что была, — ноги копируются
+    целиком, со всеми полями, и за удержание не платится ничего.
+
+    Возврат ``(книга, opened, closed, пояснение)``.
+
+    Честно названное ограничение: у этих книг нет журнала сделок в форме
+    `trades.json`, поэтому гейты CIO, читающие историю ходов (кулдаун, недельный
+    оборот, разворот), здесь не видят прошлого и не связывают. До взвода книги
+    двигались КАЖДЫЙ цикл без единого экономического гейта — со взводом каждую
+    перетасовку судят полоса выигрыша и окупаемость. Направление — строже, не мягче.
+    """
+    import copy as _copy
+
+    if not is_armed(book_id):
+        return proposed, opened, closed, "CIO не взведён для этой книги"
+    try:
+        from spa_core.paper_trading import sleeve_book as _sb
+        from spa_core.paper_trading.allocation_rationale import write_shadow_rationale
+        from spa_core.governance.churn_damper import decide as _damper
+
+        flat_before = _sb.collapse_legs_to_flat(legs_before)
+        flat_prop = _sb.collapse_legs_to_flat(proposed)
+        apy_pct, apy_sources, tvl_sources, tvl_usd = _sb.apy_provenance_from_rows(rows)
+        doc = write_shadow_rationale(
+            data_dir=data_dir, current_positions=flat_before, target_positions=flat_prop,
+            apy_pct=apy_pct, apy_sources=apy_sources, tvl_sources=tvl_sources,
+            tvl_usd=tvl_usd, capital_usd=equity, cycle_date=today, run_ts=run_ts,
+            trades=[], book_id=book_id, write=False)
+        damper_reason = _damper(flat_before, flat_prop, [], equity).reason
+    except Exception as exc:  # noqa: BLE001 — вердикт не получен ⇒ держать (fail-CLOSED)
+        return (_copy.deepcopy(list(legs_before)), [], [],
+                f"вердикт CIO не получен ({type(exc).__name__}) ⇒ держать (fail-CLOSED)")
+
+    ok, dec, why = trade_allowed(book_id, doc, flat_before, flat_prop,
+                                 damper_reason=damper_reason)
+    if ok:
+        return proposed, opened, closed, f"{dec} — {why}"
+    return _copy.deepcopy(list(legs_before)), [], [], f"{dec} — {why}"

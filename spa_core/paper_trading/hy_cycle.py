@@ -287,6 +287,16 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
             state.get("positions") or [], cands, equity,
             today=today, allow_new=allow_new,
         )
+        # ADR-328 (взвод CIO, решение владельца 11.09 «на все пакеты»): ход, который
+        # ПРЕДЛОЖИЛ rebalance_book, принимается только с разрешения CIO. Раньше книга
+        # двигалась здесь КАЖДЫЙ цикл, а вердикт писался уже после, о свершившемся.
+        # Де-риск и размещение кэша проходят без суждения; HOLD ⇒ книга остаётся той же.
+        from spa_core.paper_trading import cio_arming as _cio_arming
+        book, opened, closed, _cio_note = _cio_arming.gate_sleeve_book(
+            "balanced", _legs_before, book, opened, closed, rows, equity,
+            _HY_DATA_PATH.parent, today=today, run_ts=now.isoformat() + "Z")
+        import logging as _logging
+        _logging.getLogger("spa.balanced").info("CIO ARMED (balanced): %s", _cio_note)
         # ADR-292 п.4: слепок входов для пересчёта. Снимается ДО начисления и переоценки —
         # обе функции мутируют ноги (`stale`, `mark_price`), и архив, снятый после, доказывал бы
         # исправность на уже изменённом входе.
