@@ -29,6 +29,8 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+
+from spa_core.utils.observation import observed, observed_number
 import os
 import sys
 
@@ -99,8 +101,11 @@ def compute_estimate(positions_doc: dict | None,
                         "суточная проверка цикла остаётся страховкой"}
 
     # ── марк-дауны по живым peg-отклонениям ──────────────────────────────────
-    positions = positions_doc.get("positions") or {}
-    cash = float(positions_doc.get("cash_usd") or 0.0)
+    positions = observed(positions_doc, "positions", kind=dict) or {}
+    # Наличные отсутствуют ⇒ 0: эквити тогда СЧИТАЕТСЯ ПО ПОЗИЦИЯМ и выходит
+    # МЕНЬШЕ настоящей, то есть подстановка ошибается в сторону тревоги, а не
+    # спокойствия. Названа явно, чтобы это было решением (инвариант #17).
+    cash = observed_number(positions_doc, "cash_usd") or 0.0
     dev_by_adapter: dict[str, float] = {}
     for st in (peg_doc.get("statuses") or []):
         aid = st.get("adapter_id")

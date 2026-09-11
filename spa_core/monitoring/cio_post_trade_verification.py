@@ -77,6 +77,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from spa_core.utils.observation import observed, observed_number
+
 REPORT_REL = "data/cio_post_trade_verification.json"
 
 #: Ключ ступени в карте §46. Состав ступеней НЕ дублируется — берётся из
@@ -337,11 +339,15 @@ def measure_subject(root: Path) -> dict[str, Any]:
 
     stamps = sorted(d for d in (_parse_ts(t.get("ts")) for t in real) if d)
     gross = 0.0
+    trades_without_diff = 0
     for t in real:
-        try:
-            gross += abs(float(t.get("diff_usd") or 0.0))
-        except (TypeError, ValueError):
+        diff = observed_number(t, "diff_usd")
+        if diff is None:
+            # Сделка без суммы не «нулевая»: её просто не записали. Ноль занизил
+            # бы валовой оборот, по которому судят пост-трейд контроль.
+            trades_without_diff += 1
             continue
+        gross += abs(diff)
 
     return {
         "verdict": "SUBJECT_EXISTS" if real else "NO_SUBJECT",

@@ -98,6 +98,8 @@ import os
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from spa_core.utils.observation import observed, observed_number
+
 from spa_core.utils.atomic import atomic_save
 
 # Модель разбавления живёт в ОДНОМ месте (MP-911) — §3 ТЗ запрещает дублировать
@@ -369,7 +371,9 @@ def run(
     try:
         book_doc = read(book_path)
         positions = book_doc.get("positions")
-        capital = _num(book_doc.get("capital_usd")) or 0.0
+        capital = observed_number(book_doc, "capital_usd")
+        if capital is None:
+            raise ValueError("в книге нет capital_usd — доли размера не измеримы")
         if not isinstance(positions, dict):
             raise ValueError(f"positions имеет форму {type(positions).__name__}, ожидался dict")
     except Exception as exc:

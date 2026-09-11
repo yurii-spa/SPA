@@ -26,6 +26,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from spa_core.utils.observation import observed, observed_number
+
 from spa_core.allocator.rebalance_economics import (
     TriggerParams,
     attribute_cash,
@@ -584,7 +586,11 @@ def write_shadow_rationale(
         # ровно те же три условия, которыми аллокатор решает, можно ли пул финансировать.
         # Набора нет ⇒ параметр не передаётся, и функция честно помечает строки basis=funded_book.
         _blocked = set(blocked_protocols or {})
-        _floor = float(_pol.get("min_tvl_usd") or 0.0)
+        # Пол TVL берётся из политики. Ноль вместо ненайденного пола допустил бы
+        # В НАБОР ЛЮБОЙ пул (инвариант #17): отсутствие — это бесконечный пол,
+        # то есть отказ, а не разрешение (fail-CLOSED).
+        _floor_raw = observed_number(_pol, "min_tvl_usd")
+        _floor = float("inf") if _floor_raw is None else float(_floor_raw)
         _eligible_apy = {
             _p: float(_v) for _p, _v in (apy_pct or {}).items()
             if _p in evidenced and _p not in _blocked
