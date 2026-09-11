@@ -57,7 +57,8 @@ ANCHOR = "aave_v3"
 
 def _day(date: str, *, current: dict | None = None, target: dict | None = None,
          apys: dict | None = None, unevidenced: list | None = None,
-         drop_unevidenced_key: bool = False) -> dict:
+         drop_unevidenced_key: bool = False,
+         drop_evidenced_key: bool = False) -> dict:
     """Одна строка журнала решений в форме настоящего писателя."""
     row = {
         "cycle_date": date,
@@ -73,6 +74,8 @@ def _day(date: str, *, current: dict | None = None, target: dict | None = None,
     }
     if drop_unevidenced_key:
         row.pop("apy_unevidenced")
+    if drop_evidenced_key:
+        row.pop("apy_evidenced_pct")
     return row
 
 
@@ -143,6 +146,73 @@ class ClassificationReadsTheRecord(unittest.TestCase):
                     target={ANCHOR: 1.0, LEG: 1.0}, apys={ANCHOR: 4.0},
                     drop_unevidenced_key=True)
         self.assertEqual(ulc.classify_pair(frec, LEG), ulc.CLASS_UNATTRIBUTABLE)
+
+
+class ASilentRecordIsNotEvidenceAgainstEveryLeg(unittest.TestCase):
+    """ADR-344 (инвариант #17): строка БЕЗ поля оценённых ставок ничего не говорит.
+
+    Прежде `_missing_legs` читал `frec.get("apy_evidenced_pct") or {}` и на такой
+    строке объявлял НЕОЦЕНЁННЫМИ все ноги дня — то есть записывал молчание записи
+    в улику против каждой. Контроль паритета этого поймать не мог ПО ПОСТРОЕНИЮ:
+    он читает то же самое отсутствующее поле и сходится всегда.
+    """
+
+    def test_missing_legs_refuses_instead_of_naming_every_leg(self):
+        frec = _day("2026-08-02", current={ANCHOR: 1.0, LEG: 1.0},
+                    target={ANCHOR: 1.0, LEG: 1.0}, drop_evidenced_key=True)
+        self.assertIsNone(ulc._missing_legs({ANCHOR: 1.0, LEG: 1.0}, frec))
+
+    def test_an_empty_map_still_names_every_leg(self):
+        """Обратная сторона: пустая карта — ОТВЕТ писателя, и ноги действительно не оценены."""
+        frec = _day("2026-08-02", current={ANCHOR: 1.0, LEG: 1.0},
+                    target={ANCHOR: 1.0, LEG: 1.0}, apys={})
+        self.assertEqual(ulc._missing_legs({ANCHOR: 1.0, LEG: 1.0}, frec), [ANCHOR, LEG])
+
+    def test_such_pairs_land_in_the_unattributable_class_and_are_counted(self):
+        with TemporaryDirectory() as td:
+            ddir = Path(td)
+            rows = [_decision(), _day("2026-08-02", current={ANCHOR: 20_000.0, LEG: 10_000.0},
+                                      target={ANCHOR: 20_000.0, LEG: 10_000.0},
+                                      drop_evidenced_key=True)]
+            rows += _tail(3, 6)
+            _write(ddir, rows)
+            doc = ulc.measure(ddir, now=FIXED_NOW)
+        par = doc.get("parity_control") or {}
+        self.assertGreaterEqual(par.get("records_without_evidenced_field", 0), 1,
+                                "молчащая строка не названа числом")
+        self.assertTrue(par.get("passed"), "паритет не должен ломаться о молчание")
+        counts = doc.get("class_counts") or {}
+        self.assertGreaterEqual(counts.get(ulc.CLASS_UNATTRIBUTABLE, 0), 1)
+
+    def test_a_silent_record_never_counts_as_a_structural_recovery(self):
+        """Находка правки: пустое множество ног проходит `<= granted` ВСЕГДА.
+
+        `_structural_recovers` спрашивал «все ли неоценённые ноги выданы». На
+        строке без поля ставок прежнее чтение давало ПУСТОЕ множество, а пустое
+        подмножество любого множества истинно — прибор объявлял бы восстановление
+        вердикта по записи, которую не читал. Теперь такая строка пропускается.
+        """
+        frec = _day("2026-08-02", current={ANCHOR: 1.0, LEG: 1.0},
+                    target={ANCHOR: 1.0, LEG: 1.0}, drop_evidenced_key=True)
+        self.assertFalse(ulc._structural_recovers({ANCHOR: 1.0, LEG: 1.0},
+                                                  [frec], horizon=5, granted=set()))
+        spoken = _day("2026-08-02", current={ANCHOR: 1.0, LEG: 1.0},
+                      target={ANCHOR: 1.0, LEG: 1.0}, apys={})
+        self.assertTrue(ulc._structural_recovers(
+            {ANCHOR: 1.0, LEG: 1.0}, [spoken], horizon=5,
+            granted={("2026-08-02", ANCHOR), ("2026-08-02", LEG)}),
+            "выданная пара перестала засчитываться — контроль выродился")
+
+    def test_the_bound_counts_silent_rows_apart_from_unpriced(self):
+        """Доля «неоценённых ног» не считается по строкам, которые о них молчат."""
+        rows = [_day("2026-08-01", current={ANCHOR: 1.0, LEG: 1.0},
+                     target={ANCHOR: 1.0, LEG: 1.0}, apys={ANCHOR: 4.0}),
+                _day("2026-08-02", current={ANCHOR: 1.0, LEG: 1.0},
+                     target={ANCHOR: 1.0, LEG: 1.0}, drop_evidenced_key=True)]
+        bound = ulc._in_books_unpriced_census(rows)
+        self.assertEqual(bound["rows_without_evidenced_field"], 1)
+        self.assertEqual(bound["leg_days_in_books"], 2, "молчащая строка попала в знаменатель")
+        self.assertEqual(bound["leg_days_unpriced"], 1)
 
 
 class GrantIsPairWise(unittest.TestCase):

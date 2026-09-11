@@ -111,6 +111,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
+from spa_core.utils.observation import observed
+
 log = logging.getLogger("spa.monitoring.unevidenced_leg_causes")
 
 VERSION = "unevidenced-leg-causes-v1"
@@ -153,18 +155,26 @@ def classify_pair(frec: dict, protocol: str) -> str:
         # Схема без переписи неэвиденсных ключей: второй класс от третьего не
         # отличим. Третий исход, а не догадка в пользу более частого.
         return CLASS_UNATTRIBUTABLE
-    if protocol in set(frec.get("apy_unevidenced") or []):
+    # Ветка достижима только после проверки выше («поля нет» → unattributable),
+    # поэтому здесь отсутствие уже исключено, а пустой список — ОТВЕТ писателя.
+    if protocol in set(observed(frec, "apy_unevidenced", kind=(list, tuple, set)) or ()):
         return CLASS_NOT_LIVE
     return CLASS_LIVE_NULL
 
 
-def _missing_legs(deltas: Dict[str, float], frec: dict) -> List[str]:
+def _missing_legs(deltas: Dict[str, float], frec: dict) -> Optional[List[str]]:
     """Собственное прочтение правила оценки — вход контроля ПАРИТЕТА.
 
     Намеренно НЕ зовёт ``_day_gain_usd``: сверка своего прочтения с чужим и есть
     контроль. Позвав оценщика, прибор сверял бы его с самим собой.
     """
-    apy = frec.get("apy_evidenced_pct") or {}
+    apy = observed(frec, "apy_evidenced_pct", kind=dict)
+    if apy is None:
+        # Поля НЕТ вовсе: запись не говорит, какие ноги оценены, а какие нет.
+        # Вернуть «все не оценены» значило бы записать МОЛЧАНИЕ строки в улику
+        # против каждой ноги (инвариант #17) — и контроль паритета этого не
+        # поймал бы: он читает ТО ЖЕ отсутствующее поле и сошёлся бы всегда.
+        return None
     return sorted(p for p in deltas if apy.get(p) is None)
 
 
@@ -203,7 +213,13 @@ def _structural_recovers(deltas: Dict[str, float], forward: Sequence[dict],
     """
     for frec in list(forward)[:horizon]:
         date = str(frec.get("cycle_date"))
-        missing = {(date, p) for p in _missing_legs(deltas, frec)}
+        legs = _missing_legs(deltas, frec)
+        if legs is None:
+            # Строка молчит о ставках: какие её ноги выданы, сказать нельзя.
+            # Пустое множество прошло бы `<= granted` ВСЕГДА и объявило бы
+            # восстановление вердикта на записи, которую никто не читал.
+            continue
+        missing = {(date, p) for p in legs}
         if missing <= granted:
             return True
     return False
@@ -227,12 +243,16 @@ def _in_books_unpriced_census(records: Sequence[dict]) -> dict:
     журнале, не может держать много блокирующих дней. Опора НЕ участвует в
     атрибуции — она её проверяет со стороны.
     """
-    in_books = unpriced = 0
+    in_books = unpriced = silent_rows = 0
     unpriced_pairs: List[str] = []
     for rec in records:
-        universe = (set(rec.get("current_positions") or {})
-                    | set(rec.get("target_positions") or {}))
-        apy = rec.get("apy_evidenced_pct") or {}
+        universe = (set(observed(rec, "current_positions", kind=dict) or {})
+                    | set(observed(rec, "target_positions", kind=dict) or {}))
+        apy = observed(rec, "apy_evidenced_pct", kind=dict)
+        if apy is None:
+            # Строка молчит о ставках — её ноги не «неоценённые»: о них НЕ СКАЗАНО.
+            silent_rows += 1
+            continue
         for p in sorted(universe):
             in_books += 1
             if apy.get(p) is None:
@@ -243,6 +263,10 @@ def _in_books_unpriced_census(records: Sequence[dict]) -> dict:
         "leg_days_in_books": in_books,
         "leg_days_unpriced": unpriced,
         "unpriced_examples": unpriced_pairs,
+        # Строки, не назвавшие оценённых ставок вовсе: их ноги не входят ни в
+        # знаменатель, ни в числитель. Без этого числа доля считалась бы по
+        # населению, часть которого о себе не говорила (инвариант #17).
+        "rows_without_evidenced_field": silent_rows,
         "what_it_bounds": ("перебой эвиденса способен объяснить только пары ВНУТРИ "
                            "книг; на всём журнале их столько"),
     }
@@ -323,13 +347,24 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
     # ── атрибуция пар + контроль ПАРИТЕТА ─────────────────────────────────────
     pairs: List[dict] = []
     parity_mismatch: List[str] = []
+    silent_records: List[str] = []
     by_class: Dict[str, Set[Tuple[str, str]]] = {c: set() for c in ALL_CLASSES}
     for date in population:
         deltas = _deltas(by_date[date])
         for frec in forward_of[date][:horizon]:
             fdate = str(frec.get("cycle_date"))
             mine = _missing_legs(deltas, frec)
-            _gain, theirs = _day_gain_usd(deltas, frec.get("apy_evidenced_pct") or {})
+            if mine is None:
+                # Строка не называет оценённых ставок вовсе — пара не разводима.
+                # Тот же третий исход, что у записи без переписи неэвиденсных ключей.
+                silent_records.append(f"{date}→{fdate}")
+                for p in sorted(deltas):
+                    by_class[CLASS_UNATTRIBUTABLE].add((fdate, p))
+                    pairs.append({"decision_date": date, "forward_date": fdate,
+                                  "protocol": p, "class": CLASS_UNATTRIBUTABLE})
+                continue
+            _gain, theirs = _day_gain_usd(
+                deltas, observed(frec, "apy_evidenced_pct", kind=dict) or {})
             if sorted(theirs) != mine:
                 parity_mismatch.append(f"{date}→{fdate}")
                 continue
@@ -343,6 +378,11 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
         "passed": not parity_mismatch,
         "pairs_checked": len(pairs),
         "mismatches": parity_mismatch[:10],
+        # Строки без поля оценённых ставок в паритете не участвуют ПО ПОСТРОЕНИЮ:
+        # обе стороны сверки читают одно и то же отсутствующее поле. Их число
+        # названо отдельно, иначе «паритет сошёлся» звучало бы как «прочитано».
+        "records_without_evidenced_field": len(silent_records),
+        "silent_examples": silent_records[:10],
         "what_it_proves": ("моё прочтение правила оценки совпало с настоящим "
                            "_day_gain_usd на каждой паре; разойдись оно — "
                            "классифицировались бы не те ноги"),
@@ -524,7 +564,7 @@ def format_report(doc: dict) -> List[str]:
         out.append("   [НЕ ИЗМЕРЕНО] паритет с оценщиком не прошёл — "
                    "числам ниже верить нельзя")
         return out + [f"   {x}" for x in (doc.get("findings") or [])]
-    counts = doc.get("class_counts") or {}
+    counts = observed(doc, "class_counts", kind=dict)
     if counts:
         out.append("   классы блокирующих пар: "
                    + " · ".join(f"{c}={n}" for c, n in counts.items() if n))
