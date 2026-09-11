@@ -40,6 +40,28 @@ def _ctx():
     }
 
 
+class AGateWithoutATargetIsUNCHECKEDNotABlock(unittest.TestCase):
+    """ADR-344 (инвариант #17): ноль свежего капитала — вердикт, а не подстановка.
+
+    Пробы читали `(gate.get("target_usd") or {}).get(proto, 0.0)`. Если бы гейт
+    вернул ответ без цели вовсе, подстановка дала бы ноль — то есть проба
+    доложила бы УСПЕШНЫЙ блок по сломанному ответу. Направление ошибки худшее из
+    возможных, поэтому отсутствие цели теперь третий исход с названной причиной.
+    """
+
+    def test_a_target_less_gate_is_not_a_move(self):
+        self.assertFalse(M._gate_moves_capital({"target": {"a": 1.0}},
+                                               {"approved": True, "error": None}))
+
+    def test_the_reader_tells_absence_from_an_empty_target(self):
+        self.assertIsNone(M._gate_target({"approved": True}))
+        self.assertEqual(M._gate_target({"target_usd": {}}), {})
+
+    def test_an_empty_target_still_reads_as_zero_fresh_capital(self):
+        """Обратная сторона: гейт СКАЗАЛ «цели нет» — это ноль, и он измерен."""
+        self.assertEqual(float(M._gate_target({"target_usd": {}}).get("pendle", 0.0)), 0.0)
+
+
 class TestScenesArePositiveControls(unittest.TestCase):
     """Без здорового вердикта любая проба доказывает ноль."""
 

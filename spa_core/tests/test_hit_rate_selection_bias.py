@@ -77,6 +77,42 @@ def _window(days: int = 12, *, apy: float = 4.0, cost: float = 50.0,
             for d in range(1, days + 1)]
 
 
+class ARowWithoutBenefitOrCostIsNotScoredAsZero(unittest.TestCase):
+    """ADR-344 (инвариант #17): у подстановок выгоды и издержек РАЗНЫЕ знаки.
+
+    `_recount` читал `r.get("benefit_usd_over_checked_days") or 0.0` и
+    `r.get("cost_usd_used") or 0.0`. Ноль вместо ненаписанной выгоды занижает
+    исход дня, ноль вместо ненаписанных издержек — завышает; обе подстановки
+    выглядят посчитанным числом и попадают в hit_rate как «промах»/«попадание».
+    """
+
+    BASE = {"cycle_date": "2026-08-01", "verdict": "ACT",
+            "forward_days_checked": 3, "benefit_usd_over_checked_days": 30.0,
+            "cost_usd_used": 10.0}
+
+    def _recount(self, row):
+        return hrsb._recount([row], horizon_days=7, extrapolate=False, cost_ratio=1.0)
+
+    def test_a_complete_row_is_scored(self):
+        out = self._recount(dict(self.BASE))
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]["outcome"], "hit")
+
+    def test_a_row_without_benefit_is_dropped_not_scored_as_a_miss(self):
+        row = dict(self.BASE); row.pop("benefit_usd_over_checked_days")
+        self.assertEqual(self._recount(row), [])
+
+    def test_a_row_without_cost_is_dropped_not_scored_as_a_hit(self):
+        row = dict(self.BASE); row.pop("cost_usd_used")
+        self.assertEqual(self._recount(row), [])
+
+    def test_a_recorded_zero_is_scored(self):
+        """Обратная сторона: записанный ноль издержек — замер, и день считается."""
+        out = self._recount(dict(self.BASE, cost_usd_used=0.0))
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]["cost_usd"], 0.0)
+
+
 class ParityControl(unittest.TestCase):
     """Нулевое возмущение обязано воспроизвести настоящий `_evaluate_verdict`."""
 

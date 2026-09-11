@@ -94,6 +94,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from spa_core.utils.observation import observed, observed_number
+
 from spa_core.paper_trading.shadow_trigger_eval import (
     _ALL_GATES,
     arming_blockade,
@@ -178,7 +180,7 @@ def _parse_trade_ts(trade: dict) -> Optional[datetime]:
 
 
 def _live_turnover_at(trades: List[dict], when: datetime,
-                      *, bounded: bool = True) -> float:
+                      *, bounded: bool = True) -> Optional[float]:
     """Недельный оборот живой книги на момент ``when``.
 
     Правило окна берётся у ``_history_from_trades`` — ТЕМ ЖЕ кодом, которым его
@@ -207,7 +209,12 @@ def _live_turnover_at(trades: List[dict], when: datetime,
         t for t in trades
         if (ts := _parse_trade_ts(t)) is not None and ts <= when
     ]
-    return float(_history_from_trades(window, when).get("turnover_last_week_usd") or 0.0)
+    turnover = observed_number(_history_from_trades(window, when),
+                               "turnover_last_week_usd")
+    # `None` — счётчик оборота поля не дал; ноль оборота у него же означает
+    # «сделок в окне не было». Ниже по коду `live_usd is None` УЖЕ отдельная
+    # ветка причины, поэтому отсутствие доезжает до вердикта как отсутствие.
+    return turnover
 
 
 def _one_sided(prev: Dict[str, float], cur: Dict[str, float]) -> float:
@@ -318,9 +325,16 @@ def attribute(
 
     for rec in records:
         date = str(rec.get("cycle_date") or "")
-        capital = float(rec.get("capital_usd") or 0.0) or 1.0
+        capital = observed_number(rec, "capital_usd")
+        if capital is None or capital <= 0.0:
+            # Прежде здесь стояло `or 0.0) or 1.0`: строка без капитала считалась
+            # ПО ОДНОМУ ДОЛЛАРУ, и каждая доля дня — оборот, метание, бюджет —
+            # получалась в сотни раз больше настоящей, оставаясь на вид числом.
+            # День без капитала мерить нечем (инвариант #17).
+            unmeasured_days.append(date)
+            continue
         target = {str(k): float(v or 0.0)
-                  for k, v in (rec.get("target_positions") or {}).items()}
+                  for k, v in (observed(rec, "target_positions", kind=dict) or {}).items()}
         if prev_target is not None:
             churn.append(_one_sided(prev_target, target) / capital)
         prev_target = target
@@ -332,7 +346,12 @@ def attribute(
         if not state.get("has_legs", True):
             continue                      # тривиальный HOLD — решать было нечего
 
-        move_usd = float(rec.get("turnover_usd") or 0.0)
+        move_usd = observed_number(rec, "turnover_usd")
+        if move_usd is None:
+            # «Оборота нет» и «оборот не записан» — разные вещи: первое говорит,
+            # что день ничего не двигал, второе не говорит ничего.
+            unmeasured_days.append(date)
+            continue
         move_fracs.append(move_usd / capital)
         budget_usd = float(params.max_turnover_per_week) * capital
 
@@ -544,7 +563,7 @@ def run(root: Optional[str] = None, *, now: Optional[datetime] = None,
         # «не измерено» считается ОТДЕЛЬНО и не растворяется в нулях: иначе
         # молчание прибора стало бы неотличимо от чистого прогона.
         "unchecked": (1 if doc["status"] == STATUS_UNMEASURED else 0)
-                     + len(doc.get("unmeasured_days") or []),
+                     + len(observed(doc, "unmeasured_days", kind=list) or []),
     }
     if write:
         atomic_save(doc, str(data_dir / OUTPUT_FILENAME))
