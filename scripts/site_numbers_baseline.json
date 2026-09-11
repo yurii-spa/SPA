@@ -1,11 +1,6 @@
 {
  "note": "Файлы без провенанса чисел. База может ТОЛЬКО уменьшаться (scripts/site_number_provenance.py, .claude/rules/site-numbers.md). Дописывать сюда файл, чтобы погасить падение, ЗАПРЕЩЕНО.",
  "files": [
-  "pages/academy/16-three-layer-stack.astro",
-  "pages/academy/20-measurement-as-moat.astro",
-  "pages/academy/capstone.astro",
-  "pages/academy/index.astro",
-  "pages/academy/onboarding/index.astro",
   "pages/academy/playground.astro",
   "pages/academy/privacy.astro",
   "pages/blog/2026-06-19-architecture-audit.astro",
