@@ -489,6 +489,12 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "substring_structure_assertions.json": ("status", "counts", "population",
                                             "truncation", "haystack_kinds",
                                             "findings", "advisory"),
+    # Заказ #568. `name_sign_vs_measure` объявлен намеренно: им МЕРЯЕТСЯ
+    # названная заказом ловушка (признак-по-имени против замера), и пропажа
+    # этого ключа из отчёта означала бы, что ловушка снова только пересказана.
+    "haystack_origin_census.json": ("status", "counts", "split",
+                                    "name_sign_vs_measure", "findings",
+                                    "advisory"),
     "rate_observation_census.json": ("status", "independence", "run_axis",
                                      "comparable_axis", "mechanism",
                                      "outside_denominator", "counts",
@@ -635,6 +641,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/subject_population_census.py",
     "substring_structure_assertions.json":
         "spa_core/monitoring/substring_structure_assertions.py",
+    "haystack_origin_census.json":
+        "spa_core/monitoring/haystack_origin_census.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2225,6 +2233,15 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _ssa_report,
         )
         out.extend(_ssa_report(data))
+    elif name == "haystack_origin_census.json":
+        # Заказ #568. Порядок строк — порядок вопроса, и первая строка НЕ доля:
+        # сперва утверждение «путь не свернулся ≠ соседа нет в репозитории»
+        # (заказ потребовал сказать это ПРЕЖДЕ любой доли), затем разделение,
+        # и только потом ловушка признака-по-имени.
+        from spa_core.monitoring.haystack_origin_census import (
+            format_report as _hoc_report,
+        )
+        out.extend(_hoc_report(data))
     elif name == "arming_wall_order.json":
         # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
         # стен с числами освобождённых дней, потом вердикт ветки, и только потом
