@@ -112,6 +112,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
+from spa_core.utils.observation import observed, observed_number
+
 log = logging.getLogger("spa.monitoring.ranking_tie_census")
 
 VERSION = "ranking-tie-census-v1"
@@ -168,8 +170,19 @@ def ranked_order(breakdown: Dict[str, dict], universe: Sequence[str]) -> List[st
     при равенстве — имя. Что тай-брейк действительно алфавитный, здесь НЕ
     предполагается — это отдельный замер (:func:`verify_tie_break`).
     """
-    return sorted((p for p in universe if p in breakdown),
-                  key=lambda p: (-float(breakdown[p].get("score") or 0.0), p))
+    # Ключ БЕЗ счёта не упорядочивается: прежнее чтение давало ему ноль, то есть
+    # ставило его в конец так, будто счёт измерен и равен нулю (инвариант #17).
+    # Кого не удалось упорядочить, называет :func:`unscored_keys`.
+    scored = [(p, observed_number(breakdown.get(p) or {}, "score")) for p in universe
+              if p in breakdown]
+    return [p for p, sc in sorted(((p, sc) for p, sc in scored if sc is not None),
+                                  key=lambda ps: (-ps[1], ps[0]))]
+
+
+def unscored_keys(breakdown: Dict[str, dict], universe: Sequence[str]) -> List[str]:
+    """Ключи разбора, у которых счёта НЕТ: они не упорядочены и не сравнимы."""
+    return sorted(p for p in universe if p in breakdown
+                  and observed_number(breakdown.get(p) or {}, "score") is None)
 
 
 def verify_tie_break(breakdown: Dict[str, dict],
@@ -186,7 +199,11 @@ def verify_tie_break(breakdown: Dict[str, dict],
     for a, b in itertools.combinations(sorted(universe), 2):
         if a not in breakdown or b not in breakdown:
             continue
-        if float(breakdown[a].get("score") or 0.0) != float(breakdown[b].get("score") or 0.0):
+        sa = observed_number(breakdown.get(a) or {}, "score")
+        sb = observed_number(breakdown.get(b) or {}, "score")
+        if sa is None or sb is None:
+            continue          # без счёта «точная ничья» не наблюдаема
+        if sa != sb:
             continue
         ta, tb = float(target.get(a, 0.0)), float(target.get(b, 0.0))
         if (ta > 0.0) == (tb > 0.0):
@@ -221,7 +238,9 @@ def measure_quantum(produce_scores: Callable[[Dict[str, float]], Dict[str, dict]
     base = produce_scores(dict(provider))
     if probe not in base:
         return None, f"проба {probe!r} отсутствует в разборе производителя"
-    base_score = float(base[probe].get("score") or 0.0)
+    base_score = observed_number(base.get(probe) or {}, "score")
+    if base_score is None:
+        return None, f"у пробы {probe!r} нет счёта в разборе производителя"
     found: Optional[float] = None
     for step in _QUANTUM_GRID:
         prov = dict(provider)
@@ -232,7 +251,10 @@ def measure_quantum(produce_scores: Callable[[Dict[str, float]], Dict[str, dict]
             return None, f"прогон пробы не удался ({type(exc).__name__}: {exc})"
         if probe not in got:
             return None, f"проба {probe!r} исчезла из разбора при сдвиге {step} pp"
-        if float(got[probe].get("score") or 0.0) != base_score:
+        got_score = observed_number(got.get(probe) or {}, "score")
+        if got_score is None:
+            return None, f"счёт пробы {probe!r} исчез из разбора при сдвиге {step} pp"
+        if got_score != base_score:
             found = step
         else:
             break
@@ -439,6 +461,9 @@ def measure(data_dir: Path,
         doc["universe"] = list(order)
         doc["universe_size"] = len(order)
         doc["pairs_examined"] = len(order) * (len(order) - 1) // 2
+        # Ключи разбора БЕЗ счёта в порядок не попали вовсе: без этого числа
+        # «пар рассмотрено N» читалось бы как «рассмотрены все» (инвариант #17).
+        doc["keys_without_score"] = unscored_keys(base_breakdown, universe)
         doc["base_target_usd"] = {k: round(v, 2) for k, v in base_target.items() if v}
         doc["tie_break"] = verify_tie_break(base_breakdown, base_target, order)
         if doc["tie_break"]["verdict"] == "DIVERGED":
@@ -492,11 +517,18 @@ def measure(data_dir: Path,
             return _margin_memo[protocol]
 
         rows: List[dict] = []
+        pairs_without_score: List[str] = []
         for i in range(len(order) - 1):
             above, below = order[i], order[i + 1]
-            gap = (float(base_breakdown[above].get("score") or 0.0)
-                   - float(base_breakdown[below].get("score") or 0.0))
-            mult = float(base_breakdown[below].get("risk_multiplier") or 0.0)
+            score_above = observed_number(base_breakdown.get(above) or {}, "score")
+            score_below = observed_number(base_breakdown.get(below) or {}, "score")
+            mult_raw = observed_number(base_breakdown.get(below) or {}, "risk_multiplier")
+            if score_above is None or score_below is None:
+                # Разрыв со стороной без счёта равнялся бы счёту соседа.
+                pairs_without_score.append(f"{above}/{below}")
+                continue
+            gap = score_above - score_below
+            mult = 0.0 if mult_raw is None else float(mult_raw)
             row: dict = {
                 "above": above,
                 "below": below,
@@ -596,15 +628,22 @@ def measure(data_dir: Path,
         # сдвиг, двигающий ≥ material_frac капитала, поэтому признак меряется
         # прямо здесь и без второго прибора: перестановка дешевле маржи ⇔ она
         # НЕ двигает существенных денег.
+        if pairs_without_score:
+            doc["pairs_without_score"] = pairs_without_score
         within_margin = [r for r in rows if r.get("within_margin")]
+        # `capital_moved_usd is None` — денег НЕ ИЗМЕРЯЛИ; ноль — измерили и он ноль.
+        within_unmeasured = [r for r in within_margin
+                             if observed_number(r, "capital_moved_usd") is None]
         within_with_money = [r for r in within_margin
-                             if (r["capital_moved_usd"] or 0.0) >= threshold]
+                             if (observed_number(r, "capital_moved_usd") or 0.0) >= threshold]
         doc["by_yardstick"] = {
             "within_margin": {
                 "pairs": len(within_margin),
                 "pairs_with_capital": len(within_with_money),
                 "capital_moved_usd": round(
-                    sum(r["capital_moved_usd"] or 0.0 for r in within_margin), 2),
+                    sum(observed_number(r, "capital_moved_usd") or 0.0
+                        for r in within_margin), 2),
+                "pairs_capital_unmeasured": len(within_unmeasured),
                 "note": ("буква заказа #535. Маржа — НАИМЕНЬШИЙ сдвиг, двигающий "
                          "≥1 % капитала, поэтому перестановка, которая деньги "
                          "двигает, стои́т НЕ МЕНЬШЕ маржи по построению: признак "
@@ -748,7 +787,7 @@ def format_report(doc: dict) -> List[str]:
                    f"только один пул {len(ic.get('same_pool_only') or [])} · "
                    f"ни то ни другое {len(ic.get('neither') or [])} · "
                    f"тождество НЕ измерено "
-                   f"{len(ic.get('identity_unmeasured') or [])}")
+                   f"{len(observed(ic, 'identity_unmeasured', kind=list) or [])}")
     for line in (doc.get("findings") or [])[:6]:
         out.append(f"   {line}")
     extra = len(doc.get("findings") or []) - 6

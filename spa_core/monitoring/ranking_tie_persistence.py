@@ -111,6 +111,8 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
+from spa_core.utils.observation import observed, observed_number
+
 log = logging.getLogger("spa.monitoring.ranking_tie_persistence")
 
 VERSION = "ranking-tie-persistence-v1"
@@ -181,7 +183,10 @@ def journal_days(data_dir: Path) -> Tuple[List[dict], str]:
     out: List[dict] = []
     for r in rows:
         rates: Dict[str, float] = {}
-        for proto, val in (r.get("apy_evidenced_pct") or {}).items():
+        # Строка без поля и строка с пустой картой дают здесь один результат ПО
+        # ДЕЛУ (ставок этого дня нет ни в том, ни в другом случае), и это решение,
+        # а не склейка: день без ставок ниже не попадает в `out` вовсе.
+        for proto, val in (observed(r, "apy_evidenced_pct", kind=dict) or {}).items():
             if isinstance(val, (int, float)) and not isinstance(val, bool):
                 fv = float(val)
                 if fv == fv and abs(fv) != float("inf"):
@@ -296,12 +301,14 @@ def verify_coverage_independence(produce,
         checked = checked[-int(max_days):]
     worst_score = 0.0
     score_keys = 0
+    score_keys_unmeasured = 0
     flip_same = 0
     flip_diverged: List[str] = []
     for day in checked:
-        rates = dict(day.get("rates") or {})
-        if not rates:
-            continue
+        day_rates = observed(day, "rates", kind=dict)
+        if not day_rates:
+            continue          # нет ставок — нечего сверять (и поля нет, и пусто)
+        rates = dict(day_rates)
         try:
             _t, bd_a, _c = produce(dict(rates))
             prov_b = dict(live)
@@ -314,8 +321,14 @@ def verify_coverage_independence(produce,
                     "days_checked": 0, "max_score_delta": None,
                     "flips_identical": 0, "flips_diverged": []}
         for k in sorted(set(bd_a) & set(bd_b) & set(rates)):
-            sa = float((bd_a[k] or {}).get("score") or 0.0)
-            sb = float((bd_b[k] or {}).get("score") or 0.0)
+            sa = observed_number(bd_a.get(k) or {}, "score")
+            sb = observed_number(bd_b.get(k) or {}, "score")
+            if sa is None or sb is None:
+                # Ключ без оценки: разность «со стороной, которой нет» была бы
+                # равна самой оценке соседа и попала бы в худший сдвиг как
+                # настоящее расхождение (инвариант #17).
+                score_keys_unmeasured += 1
+                continue
             worst_score = max(worst_score, abs(sa - sb))
             score_keys += 1
         order_a = rtc.ranked_order(bd_a, [p for p in bd_a if p in rates])
@@ -338,8 +351,11 @@ def verify_coverage_independence(produce,
                 flip_same += 1
     if not score_keys:
         return {"verdict": "unmeasured",
-                "note": "ни одного ключа не удалось сравнить в двух режимах",
+                "note": ("ни одного ключа не удалось сравнить в двух режимах"
+                         + (f"; без оценки {score_keys_unmeasured}"
+                            if score_keys_unmeasured else "")),
                 "days_checked": len(checked), "max_score_delta": None,
+                "score_keys_unmeasured": score_keys_unmeasured,
                 "flips_identical": 0, "flips_diverged": []}
     ok = (worst_score == 0.0) and not flip_diverged
     return {
@@ -350,6 +366,10 @@ def verify_coverage_independence(produce,
                  f"{len(flip_diverged)}"),
         "days_checked": len(checked),
         "max_score_delta": worst_score,
+        # Ключи, у которых оценки не было: они не участвовали ни в худшем сдвиге,
+        # ни в знаменателе. Без этого числа «max |score_A−score_B| = 0» звучало бы
+        # как «сверено всё», хотя часть ключей сверить было нечем.
+        "score_keys_unmeasured": score_keys_unmeasured,
         "flips_identical": flip_same,
         "flips_diverged": flip_diverged[:10],
     }
@@ -455,8 +475,9 @@ def measure(data_dir: Path,
         live_order = rtc.ranked_order(base_breakdown, live_universe)
         doc["live_universe_size"] = len(live_order)
 
-        covered = sorted({k for d in days for k in (d.get("rates") or {})})
-        per_day = [len(d.get("rates") or {}) for d in days]
+        covered = sorted({k for d in days
+                          for k in (observed(d, "rates", kind=dict) or {})})
+        per_day = [len(observed(d, "rates", kind=dict) or {}) for d in days]
         doc["journal_coverage"] = {
             "keys": covered,
             "keys_total": len(covered),
@@ -512,13 +533,20 @@ def measure(data_dir: Path,
         # собственную единицу измерения, а не о качестве формулы.
         an_deltas: List[float] = []
         exact_ties = 0
+        pairs_without_score = 0
         for i in range(len(live_order) - 1):
             a, b = live_order[i], live_order[i + 1]
-            mult = float((base_breakdown[b] or {}).get("risk_multiplier") or 0.0)
-            if mult <= 0:
+            mult = observed_number(base_breakdown.get(b) or {}, "risk_multiplier")
+            if mult is None or mult <= 0:
                 continue
-            gap = (float((base_breakdown[a] or {}).get("score") or 0.0)
-                   - float((base_breakdown[b] or {}).get("score") or 0.0))
+            score_a = observed_number(base_breakdown.get(a) or {}, "score")
+            score_b = observed_number(base_breakdown.get(b) or {}, "score")
+            if score_a is None or score_b is None:
+                # Без оценки хотя бы одной стороны разрыв пары не существует;
+                # ноль вместо неё дал бы разрыв величиной в оценку соседа.
+                pairs_without_score += 1
+                continue
+            gap = score_a - score_b
             fl = rtc.smallest_flip(produce, live, live_order, a, b, quantum)
             if fl is None:
                 continue
@@ -530,6 +558,7 @@ def measure(data_dir: Path,
         doc["analytic_vs_measured"] = {
             "pairs": len(an_deltas),
             "exact_ties_excluded": exact_ties,
+            "pairs_without_score": pairs_without_score,
             "max_understatement_frac": (round(max(an_deltas), 4) if an_deltas else None),
             "note": ("аналитическая формула «разрыв/множитель» ЗАНИЖАЕТ стоимость "
                      "перестановки, то есть ошибается в сторону «ничьих больше, "
@@ -548,7 +577,7 @@ def measure(data_dir: Path,
         day_adjacent: set = set()
         day_orders: List[Tuple[str, Dict[str, float], List[str]]] = []
         for day in days:
-            rates = dict(day.get("rates") or {})
+            rates = dict(observed(day, "rates", kind=dict) or {})
             try:
                 _t, bd, _c = produce(dict(rates))
             except Exception as exc:  # noqa: BLE001 — день без прогона пропускаем громко
@@ -774,12 +803,12 @@ def format_report(doc: dict) -> List[str]:
     """
     out: List[str] = []
     status = doc.get("status", STATUS_UNMEASURED)
-    cov = doc.get("journal_coverage") or {}
+    cov = observed(doc, "journal_coverage", kind=dict) or {}
     out.append(f"   устойчивость ничьих (заказ CIO #536): {status} · дней "
                f"журнала {doc.get('journal_days', 0)} · пар "
                f"{len(doc.get('pairs') or [])} (из переписи "
                f"{len(doc.get('census_pairs') or [])})")
-    ci = doc.get("coverage_independence") or {}
+    ci = observed(doc, "coverage_independence", kind=dict) or {}
     q = doc.get("quantum_pp")
     out.append(f"   ОПОРА «покрытие журнала не меняет измеряемого»: "
                f"{ci.get('verdict', 'unmeasured')} — {ci.get('note', '')}")
@@ -790,14 +819,14 @@ def format_report(doc: dict) -> List[str]:
     dac = doc.get("day_axis_control") or {}
     out.append(f"   контроль оси дней: {dac.get('verdict', 'unmeasured')} "
                f"(вердикт меняется у {dac.get('pairs_varying', 0)} пар)")
-    cls = doc.get("counts_by_class") or {}
+    cls = observed(doc, "counts_by_class", kind=dict) or {}
     if cls:
         out.append(f"   классы пар: ничья ВСЕГДА {cls.get('always_a_tie', 0)} · "
                    f"иногда {cls.get('sometimes_a_tie', 0)} · никогда "
                    f"{cls.get('never_a_tie', 0)} · НЕ наблюдалась ни разу "
                    f"{cls.get('never_co_observed', 0)} · наблюдалась, но ярлык "
                    f"не применился {cls.get('co_observed_but_unmeasured', 0)}")
-    av = doc.get("analytic_vs_measured") or {}
+    av = observed(doc, "analytic_vs_measured", kind=dict) or {}
     if av.get("max_understatement_frac") is not None:
         out.append(f"   ярлык взят ИЗМЕРЕНИЕМ, не формулой: аналитический "
                    f"«разрыв/множитель» занижает стоимость перестановки до "
@@ -808,7 +837,7 @@ def format_report(doc: dict) -> List[str]:
     extra = len(doc.get("findings") or []) - 6
     if extra > 0:
         out.append(f"   … и ещё {extra} строк(и) — полный список в артефакте")
-    for line in (doc.get("not_measured_by_design") or []):
+    for line in (observed(doc, "not_measured_by_design", kind=list) or []):
         out.append(f"   [НЕ МЕРИТСЯ ПО ПОСТРОЕНИЮ] {line}")
     out.append("   ADVISORY: пороги RiskPolicy v1.0, потолки концентрации и форма "
                "целевой функции НЕ трогаются — починка ступеньки money-path и "

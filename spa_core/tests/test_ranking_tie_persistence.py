@@ -272,6 +272,38 @@ class TheSupportThatLicensesReconstructingADay(unittest.TestCase):
         self.assertEqual(ci["flips_diverged"], [])
 
 
+class AKeyWithoutAScoreIsNotAZeroScore(unittest.TestCase):
+    """ADR-344 (инвариант #17): разность со стороной, которой НЕТ, — не расхождение.
+
+    Опора прибора — «max |score_A − score_B| = 0». Читая `(bd[k] or {}).get("score")
+    or 0.0`, ключ без оценки давал разность, равную оценке соседа: либо ложное
+    расхождение (опора рушится на здоровом производителе), либо — при нуле с обеих
+    сторон — тихое согласие там, где сверять было нечего.
+    """
+
+    def _produce_without_scores(self, rates):
+        return (0.0, {k: {"risk_multiplier": 1.0} for k in rates}, {})
+
+    def test_keys_without_a_score_are_counted_not_compared(self):
+        out = rtp.verify_coverage_independence(
+            self._produce_without_scores, dict(LIVE_RATES),
+            [{"date": "2026-08-01", "rates": dict(LIVE_RATES)}], quantum=0.01)
+        self.assertEqual(out["verdict"], "unmeasured",
+                         "ключи без оценки прошли как сверенные")
+        self.assertGreater(out["score_keys_unmeasured"], 0)
+
+    def test_a_recorded_zero_score_is_compared(self):
+        """Обратная сторона: записанный ноль — оценка, и она сверяется."""
+        def produce(rates):
+            return (0.0, {k: {"risk_multiplier": 1.0, "score": 0.0} for k in rates}, {})
+
+        out = rtp.verify_coverage_independence(
+            produce, dict(LIVE_RATES),
+            [{"date": "2026-08-01", "rates": dict(LIVE_RATES)}], quantum=0.01)
+        self.assertEqual(out["score_keys_unmeasured"], 0)
+        self.assertEqual(out["max_score_delta"], 0.0)
+
+
 class SilenceIsNotAnAnswer(unittest.TestCase):
     """Молчание журнала о паре НЕ есть «пара не ничья»."""
 
