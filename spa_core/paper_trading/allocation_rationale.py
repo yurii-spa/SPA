@@ -529,6 +529,19 @@ def write_shadow_rationale(
             days_since_last_move=hist["days_since_last_move"],
             tvl_evidenced=tvl_evidenced or None,
         )
+        # ADR-336 (решение владельца ADR-334): разовое разрешение на пробный ход. HOLD,
+        # упёршийся ТОЛЬКО в ограничители частоты при прошедшей экономике, становится ACT
+        # с меткой — и именно так попадает в историю, которую оценивает
+        # `net_bps_if_followed`. Прочие вердикты не трогаются; причина — в документе.
+        from spa_core.paper_trading.cio_trial import apply_trial_grant
+        try:
+            from spa_core.governance.churn_damper import decide as _damper_decide
+            _damper_reason = _damper_decide(current_positions or {}, target_positions or {},
+                                            trades or [], capital_usd).reason
+        except Exception:  # noqa: BLE001 — не классифицирован ⇒ разрешение решает само
+            _damper_reason = None
+        decision, _trial_note = apply_trial_grant(decision, p, book_id=_bid, data_dir=data_dir,
+                                                  damper_reason=_damper_reason)
 
         # ── Y2 (ADR-055): deterministic attribution of every idle dollar ──
         # The universe the attribution reasons over = everything the allocator
@@ -622,6 +635,7 @@ def write_shadow_rationale(
             ),
             "capital_usd": capital_usd,
             "decision_shadow": decision.to_dict(),
+            "cio_trial": _trial_note,
             "cash": cash,
             "below_median_cap": below_median,
             # Книга ДО хода / книга, которую ход СОЗДАЁТ / что появилось именно

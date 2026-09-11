@@ -2248,8 +2248,15 @@ def run_cycle(
         log.info("CIO ARMED: %s — %s", _cio_dec, _cio_why)
     else:
         _cio_gate_ok = True
+    # ADR-336: пробный ход по разовому разрешению владельца снимает ограничитель частоты
+    # и у демпфера — это та же колонка ADR-060, вторая её реализация. Экономику хода,
+    # RiskPolicy, де-риск и порог размера хода он не трогает.
+    from spa_core.paper_trading.cio_trial import is_trial as _is_trial, MARK as _TRIAL_MARK, TRIAL_GRANT as _TRIAL_GRANT
+    _cio_trial = _cio_arming.is_armed("conservative") and _is_trial(_cio_doc)
+    if _cio_trial:
+        notes.append(f"cio_trial_grant: пробный ход по {_TRIAL_GRANT['adr']} — сняты ограничители частоты (ADR-336)")
     traded = ((not _safety_failed) and (not policy_blocked)
-              and diff_usd > threshold_usd and _churn.allowed and _cio_gate_ok)
+              and diff_usd > threshold_usd and (_churn.allowed or _cio_trial) and _cio_gate_ok)
     trade_id: str | None = None
 
     # ── Commit-reveal of the book decision, part 2: COMMIT (task 4) ────────────────
@@ -2325,6 +2332,8 @@ def run_cycle(
                 "strategy_loop_active": strategy_loop_active,
                 "capital": capital_usd,
                 "is_demo": False,
+                # ADR-336: признак расхода разового разрешения — сама сделка.
+                **({_TRIAL_MARK: _TRIAL_GRANT["adr"]} if _cio_trial else {}),
             }
         )
         trades = trades[-MAX_TRADES:]  # ring-buffer
