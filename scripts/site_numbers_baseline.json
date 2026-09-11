@@ -1,11 +1,6 @@
 {
- "note": "Файлы без провенанса чисел. База может ТОЛЬКО уменьшаться (scripts/site_number_provenance.py, .claude/rules/site-numbers.md). Дописывать сюда файл, чтобы погасить падение, ЗАПРЕЩЕНО.",
+ "note": "Файлы без провенанса чисел. База может ТОЛЬКО уменьшаться (scripts/site_number_provenance.py, .claude/rules/site-numbers.md). Дописывать сюда файл, чтобы погасить падение, ЗАПРЕЩЕНО. Остаток на 11.09: единственная страница — `why-20-apy-means-tail-risk.astro`; её правка УЖЕ лежит у владельца карточкой `owner-decision-sait-why-20-apy-means-tail-risk-astro-i` (число ~3,3 % фактических это предмет №2 владельца), поэтому агент её не трогает.",
  "files": [
-  "pages/learn/why-20-apy-means-tail-risk.astro",
-  "pages/protection-lab.astro",
-  "pages/research.astro",
-  "pages/risk-disclosure.astro",
-  "pages/risk.astro",
-  "pages/yield-lab.astro"
+  "pages/learn/why-20-apy-means-tail-risk.astro"
  ]
 }
