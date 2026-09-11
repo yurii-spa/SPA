@@ -95,6 +95,8 @@ import statistics
 from pathlib import Path
 from typing import Any, Callable
 
+from spa_core.utils.observation import observed
+
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 REPORT_REL = "data/apy_forecast_accuracy.json"
 
@@ -164,7 +166,9 @@ def score_verdict(rec: dict, forward: list[dict], *, horizon_days: int,
     realised_total = 0.0
     unpriced: set[str] = set()
     for frec in forward[:horizon_days]:
-        gain, missing = day_gain(deltas, frec.get("apy_evidenced_pct") or {})
+        # Поля нет и карта пуста дают ОДИН вердикт по делу: оценить нечего.
+        gain, missing = day_gain(
+            deltas, observed(frec, "apy_evidenced_pct", kind=dict) or {})
         if gain is None:
             unpriced.update(missing)
             continue

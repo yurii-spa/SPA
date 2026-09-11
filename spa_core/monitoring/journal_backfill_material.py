@@ -73,6 +73,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from spa_core.utils.observation import observed
+
 VERSION = "1.0"
 OUTPUT_FILENAME = "journal_backfill_material.json"
 
@@ -230,7 +232,19 @@ def measure(data_dir, *, now: Optional[datetime] = None,
     doc["pairs_cut_by_transcription"] = len(pairs)
 
     try:
-        series = (_read_json(data_dir / SERIES_FILENAME) or {}).get("series") or {}
+        series_doc = _read_json(data_dir / SERIES_FILENAME) or {}
+        series_raw = series_doc.get("series")
+        if series_raw is not None and not isinstance(series_raw, dict):
+            # Поле ЕСТЬ, но не того рода: это не «материала нет», а «прочитать
+            # не смогли» (инвариант #17) — третий исход с названной причиной.
+            findings.append(
+                f"[НЕ ИЗМЕРЕНО] ряд {SERIES_FILENAME} имеет форму "
+                f"{type(series_raw).__name__}, ожидался словарь — «материала нет» "
+                "из этого НЕ следует")
+            doc["status"] = STATUS_UNMEASURED
+            return doc
+        # Поля нет вовсе — ряда не существует, и материала действительно нет.
+        series = series_raw or {}
     except Exception as exc:  # noqa: BLE001
         findings.append(f"[НЕ ИЗМЕРЕНО] ряд {SERIES_FILENAME} не прочитан: {exc} — "
                         "«материала нет» из этого НЕ следует")

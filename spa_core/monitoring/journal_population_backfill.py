@@ -65,6 +65,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from spa_core.utils.observation import observed
+
 VERSION = "1.0"
 OUTPUT_FILENAME = "journal_population_backfill.json"
 
@@ -159,10 +161,10 @@ def plan_for_pairs(lines: List[dict], points: Dict[str, Dict[str, float]],
         rec = by_date.get(day)
         if rec is None:
             outcome, note = REFUSED_DAY_NOT_IN_JOURNAL, "строки за этот день в журнале нет"
-        elif proto in (rec.get("apy_evidenced_pct") or {}):
+        elif proto in (observed(rec, "apy_evidenced_pct", kind=dict) or {}):
             outcome, note = (REFUSED_ALREADY_EVIDENCED,
                              "ставка с живым провенансом уже в записи — дописывать нечего")
-        elif proto in (rec.get("apy_unevidenced") or []):
+        elif proto in (observed(rec, "apy_unevidenced", kind=(list, tuple)) or []):
             outcome, note = (REFUSED_WRITER_SAID_UNEVIDENCED,
                              "писатель в ТОТ день сам признал ногу без живого провенанса; "
                              "значение меньшей пробы не вправе перебить его суждение")

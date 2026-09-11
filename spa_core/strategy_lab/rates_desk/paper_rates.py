@@ -35,6 +35,8 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
+from spa_core.utils.observation import observed
+
 from spa_core.strategy_lab.rates_desk import feeds as rd_feeds
 from spa_core.strategy_lab.rates_desk import proof_chain
 from spa_core.strategy_lab.rates_desk.contracts import (
@@ -300,7 +302,7 @@ class RatesDeskPaperService:
         doc = atomic_load(str(self._series_path), default={"id": SLEEVE_ID, "series": []})
         if not isinstance(doc, dict):
             doc = {"id": SLEEVE_ID, "series": []}
-        series: List[dict] = doc.get("series") or []
+        series: List[dict] = observed(doc, "series", kind=list) or []
         if series and series[-1].get("date") == point["date"]:
             series = series[:-1]  # refresh today's point (idempotent per UTC day)
         series.append(point)
@@ -433,7 +435,7 @@ class RatesDeskPaperService:
         status() call still reports WHY the book looks the way it does). None if no tick yet."""
         doc = atomic_load(str(self._series_path), default=None)
         if isinstance(doc, dict):
-            series = doc.get("series") or []
+            series = observed(doc, "series", kind=list) or []
             if series and isinstance(series[-1], dict):
                 return series[-1].get("scan_diag")
         return None
