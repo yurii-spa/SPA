@@ -37,21 +37,22 @@ ADR-285), задание дословно: «исполнить объявлен
 # LLM_FORBIDDEN
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Dict, List
 
 #: pool_id → группа. ``trim_order`` — кого срезать первым: путь новых денег раньше
 #: удерживаемой замороженной позиции (ту нельзя продавать принудительно).
+#: Тира у группы НЕТ намеренно (ADR-340): тир ключа — тот, под которым его судит
+#: RiskPolicy (`risk_gate.policy_tier`), а не литерал рядом с группой.
 POOL_ALIASES: Dict[str, Dict] = {
     "4438dabc-7f0c-430b-8136-2722711ae663": {
         "protocol": "Fluid Lending USDC (ethereum)",
-        "tier": "T2",
         "trim_order": ["fluid_fusdc", "fluid_usdc"],
         "proof": ("11.09: adapter_status.fluid_fusdc.tvl_pool_id и живой запрос "
                   "fluid_usdc_adapter дают один pool_id DeFiLlama"),
     },
     "931ea9be-5f4d-428e-beaf-205fc5b4e2b5": {
         "protocol": "Morpho (одно хранилище под двумя ключами)",
-        "tier": "T2",
         # Решение владельца 18.08 по карточке inbox-morpho-blue-i-morpho-steakhouse
         # (вариант B): `morpho_blue` ОСТАВИТЬ и дать ему своё хранилище. Пока своего
         # нет — это один пул, и срезается первым тот, кого владелец не оставлял.
@@ -75,16 +76,49 @@ def _tier_cap(tier: str) -> float:
     return float(cfg.max_concentration_t1 if tier == "T1" else cfg.max_concentration_t2)
 
 
+def _group_tier(members: List[str], out: Dict[str, float], adapters: "list | None",
+                ddir: "Path | str | None") -> str:
+    """Тир группы = самый строгий из тиров ключей, на которых СТОЯТ деньги цели.
+
+    Тир каждого ключа — `risk_gate.policy_tier`, то есть ровно тот, под которым этот
+    ключ судит RiskPolicy v1.0 (мета оркестратора → реестр → T2). Своего тира у шага
+    нет: литерал рядом с группой расходился с политикой, как только реестр называл
+    другой тир, и шаг срезал то, что политика разрешала (ADR-340). Ключ без денег
+    тира не задаёт: он ничего не держит в пуле. Реестр не прочитался ⇒ его нет, и
+    тир падает к T2 — строже, а не мягче (fail-CLOSED).
+    """
+    from spa_core.paper_trading.risk_gate import policy_tier, registry_adapters
+    meta = {str(a["protocol"]): a for a in (adapters or [])
+            if isinstance(a, dict) and a.get("protocol")}
+    reg: Dict[str, dict] = {}
+    if ddir is not None:
+        try:
+            reg = registry_adapters(ddir)
+        except Exception:  # noqa: BLE001 — нет реестра ⇒ T2 по умолчанию, строже
+            reg = {}
+    tiers = [policy_tier(meta.get(m), reg.get(m)) for m in members
+             if float(out.get(m) or 0.0) > 0]
+    if not tiers:
+        return "T2"
+    return min(tiers, key=_tier_cap)
+
+
 def apply_pool_alias_gate(target_usd: Dict[str, float], *, capital_usd: float,
-                          notes: List[str]) -> Dict[str, float]:
-    """Срезать группы псевдонимов одного пула до потолка тира. Только уменьшает."""
+                          notes: List[str], adapters: "list | None" = None,
+                          ddir: "Path | str | None" = None) -> Dict[str, float]:
+    """Срезать группы псевдонимов одного пула до потолка тира. Только уменьшает.
+
+    ``adapters`` и ``ddir`` — те же, что цикл отдаёт гейту RiskPolicy: из них берётся
+    тир ключей (`_group_tier`). Без них тир — T2, умолчание самой политики.
+    """
     out = dict(target_usd or {})
     if capital_usd <= 0:
         return out
     for pool_id, g in POOL_ALIASES.items():
         members = [m for m in g["trim_order"] if m in out]
         total = sum(max(0.0, float(out.get(m) or 0.0)) for m in members)
-        cap_usd = _tier_cap(g["tier"]) * float(capital_usd)
+        tier = _group_tier(members, out, adapters, ddir)
+        cap_usd = _tier_cap(tier) * float(capital_usd)
         excess = total - cap_usd
         if excess <= 0.01:
             continue
@@ -101,7 +135,7 @@ def apply_pool_alias_gate(target_usd: Dict[str, float], *, capital_usd: float,
             trimmed.append(f"{m} −${cut:,.2f}")
         notes.append(
             f"pool_alias_gate: {g['protocol']} — ключи {members} это ОДИН пул {pool_id[:8]}…, "
-            f"сумма ${total:,.2f} > потолок {g['tier']} ${cap_usd:,.2f}; срезано: "
+            f"сумма ${total:,.2f} > потолок {tier} ${cap_usd:,.2f}; срезано: "
             f"{', '.join(trimmed)} (одно имя — один контракт)")
     return out
 
