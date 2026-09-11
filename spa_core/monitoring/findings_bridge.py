@@ -119,6 +119,7 @@ PRODUCES = (
     "data/day_replacement_verdict_loss.json",
     "data/intraday_rate_input_movement.json",
     "data/audit_trail_rate_input_coverage.json",
+    "data/run_axis_time_stitch.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -193,6 +194,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "day_replacement_verdict_loss",
     "intraday_rate_input_movement",
     "audit_trail_rate_input_coverage",
+    "run_axis_time_stitch",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -335,6 +337,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "audit_trail_rate_input_coverage": {
         "module": "spa_core/monitoring/audit_trail_rate_input_coverage.py",
         "artifact": "data/audit_trail_rate_input_coverage.json"},
+    "run_axis_time_stitch": {
+        "module": "spa_core/monitoring/run_axis_time_stitch.py",
+        "artifact": "data/run_axis_time_stitch.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -1227,6 +1232,18 @@ def main(argv=None) -> int:
               f"unchecked={_atric['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "audit_trail_rate_input_coverage", e)
+    # Мост артефакт НЕ читает по той же причине, что у соседа выше: единственное
+    # действие по итогам — тронуть ПИСАТЕЛЯ носителя ставок либо частоту опроса,
+    # то есть входы money-path. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import run_axis_time_stitch
+        _rats = run_axis_time_stitch.run(root=args.root)
+        print(f"run_axis_time_stitch: {_rats['overall']} "
+              f"(critical={_rats['counts']['critical']} "
+              f"warn={_rats['counts']['warn']} "
+              f"unchecked={_rats['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "run_axis_time_stitch", e)
     try:
         from spa_core.monitoring import arming_wall_order
         _awo = arming_wall_order.run(root=args.root)

@@ -599,5 +599,16 @@
   "findings",
   "third_outcomes",
   "does_not_report"
+ ],
+ "run_axis_time_stitch.json": [
+  "status",
+  "axis_candidates",
+  "what_the_stitch_cannot_remove",
+  "forward_direction",
+  "reverse_direction",
+  "error_rate",
+  "transfer_to_denominator",
+  "findings",
+  "does_not_report"
  ]
 }

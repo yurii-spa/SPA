@@ -444,6 +444,21 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                              "run_axis_join", "findings",
                                              "third_outcomes",
                                              "does_not_report"),
+    # Заказ #556. `axis_candidates` в схеме обязателен ПЕРВЫМ по существу: на
+    # нём стои́т всё остальное, и сам заказ промахнулся именно здесь — назвал ось
+    # числом, а число принадлежало другому полю записи.
+    # `what_the_stitch_cannot_remove` обязателен потому, что заказ потребовал
+    # сказать оговорку ПРЕЖДЕ доли: запись без неё читалась бы как ответ на
+    # вопрос о втором входе. `error_rate` — своя цена ошибки правила, включая
+    # `out_of_sample_runs`: запас, выведенный из тех же наблюдений, которые
+    # правило судит, есть свойство снимка. `transfer_to_denominator` — то, что
+    # сшивка РЕАЛЬНО покупает; без него «сшивка состоялась» прочтётся как
+    # «второй вход измерим».
+    "run_axis_time_stitch.json": ("status", "axis_candidates",
+                                  "what_the_stitch_cannot_remove",
+                                  "forward_direction", "reverse_direction",
+                                  "error_rate", "transfer_to_denominator",
+                                  "findings", "does_not_report"),
     # Заказ #544. `per_pair` в схеме обязателен по той же причине, что
     # `attribution` у соседа: ответ «чем закрываема дыра» без перечня пар
     # выродится в долю. `series_provenance_exposure` — потому что наличие
@@ -576,6 +591,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/intraday_rate_input_movement.py",
     "audit_trail_rate_input_coverage.json":
         "spa_core/monitoring/audit_trail_rate_input_coverage.py",
+    "run_axis_time_stitch.json":
+        "spa_core/monitoring/run_axis_time_stitch.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2107,6 +2124,19 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _atric_report,
         )
         out.extend(_atric_report(data))
+    elif name == "run_axis_time_stitch.json":
+        # Заказ #556. Порядок строк — порядок вопроса, и здесь он обязателен
+        # дважды. Сперва ОСЬ (какое поле ею выбрано замером): ось, названная
+        # числом, не названа вовсе, и без этой строки читатель не узнает, что
+        # правило состоятельно на одном поле записи и пусто на другом. Затем —
+        # ОГОВОРКА, и только потом ДОЛЯ: заказ прямо потребовал сказать, чего
+        # сшивка не снимает, прежде чем называть долю, иначе «11 из 11
+        # однозначных» прочтётся как «второй вход измерим», а переносит сшивка
+        # на знаменатель ноль дней. Порядок закреплён тестом.
+        from spa_core.monitoring.run_axis_time_stitch import (
+            format_report as _rats_report,
+        )
+        out.extend(_rats_report(data))
     elif name == "arming_wall_order.json":
         # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
         # стен с числами освобождённых дней, потом вердикт ветки, и только потом
