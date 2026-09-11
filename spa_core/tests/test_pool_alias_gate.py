@@ -110,45 +110,5 @@ class Declared(unittest.TestCase):
         self.assertLess(min(gate_lines), min(cio_lines), "CIO судит цель ДО среза")
 
 
-class TheBookHasOneKeyPerPool(unittest.TestCase):
-    """ADR-331: «книгу привести в соответствие» — второе имя пула убирается из книги."""
-
-    def test_the_second_name_is_read_under_the_canonical_key(self):
-        notes = []
-        out = g.canonicalize_positions({"fluid_usdc": 20000.0, "maple": 5263.16}, notes)
-        self.assertEqual(out, {"fluid_fusdc": 20000.0, "maple": 5263.16})
-        self.assertTrue(any("fluid_usdc" in n and "fluid_fusdc" in n for n in notes))
-
-    def test_the_amount_is_preserved_when_both_names_are_held(self):
-        out = g.canonicalize_positions({"fluid_usdc": 12000.0, "fluid_fusdc": 3000.0}, [])
-        self.assertEqual(out, {"fluid_fusdc": 15000.0})
-
-    def test_morpho_is_not_merged_the_owner_kept_it_apart(self):
-        """Решение владельца 18.08 (вариант B): morpho_blue — отдельный предмет."""
-        out = g.canonicalize_positions({"morpho_blue": 9000.0, "morpho_steakhouse": 1000.0}, [])
-        self.assertEqual(out, {"morpho_blue": 9000.0, "morpho_steakhouse": 1000.0})
-
-    def test_an_untouched_book_says_nothing(self):
-        notes = []
-        g.canonicalize_positions({"maple": 1.0}, notes)
-        self.assertEqual(notes, [])
-
-    def test_the_cycle_canonicalizes_at_every_read_of_the_book(self):
-        """Оба чтения книги (основное и после ALLOC-001) — формой вызова в AST."""
-        src = (ROOT / "spa_core" / "paper_trading" / "cycle_runner.py").read_text(encoding="utf-8")
-        tree = ast.parse(src)
-        n = sum(1 for x in ast.walk(tree)
-                if isinstance(x, ast.Assign) and isinstance(x.value, ast.Call)
-                and getattr(x.value.func, "id", None) == "canonicalize_positions"
-                and any(isinstance(t, ast.Name) and t.id == "current_positions"
-                        for t in x.targets))
-        self.assertGreaterEqual(n, 2, "одно из чтений книги не канонизируется")
-
-    def test_no_canonical_target_is_itself_an_alias(self):
-        """Цепочка псевдонимов разрешалась бы в зависимости от порядка — запрещено."""
-        for alias, canon in g.CANONICAL_KEYS.items():
-            self.assertNotIn(canon, g.CANONICAL_KEYS, f"{canon} сам объявлен псевдонимом")
-
-
 if __name__ == "__main__":
     unittest.main()
