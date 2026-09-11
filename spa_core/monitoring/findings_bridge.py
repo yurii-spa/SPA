@@ -121,6 +121,7 @@ PRODUCES = (
     "data/audit_trail_rate_input_coverage.json",
     "data/run_axis_time_stitch.json",
     "data/rate_observation_census.json",
+    "data/census_consumer_census.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -197,6 +198,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "audit_trail_rate_input_coverage",
     "run_axis_time_stitch",
     "rate_observation_census",
+    "census_consumer_census",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -345,6 +347,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "rate_observation_census": {
         "module": "spa_core/monitoring/rate_observation_census.py",
         "artifact": "data/rate_observation_census.json"},
+    "census_consumer_census": {
+        "module": "spa_core/monitoring/census_consumer_census.py",
+        "artifact": "data/census_consumer_census.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -1196,6 +1201,19 @@ def main(argv=None) -> int:
               f"unchecked={_drri['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "decision_record_run_identity", e)
+    # Заказ #564 (ADR-327). Сколько ПОТРЕБИТЕЛЕЙ у переписей этой самой ступени
+    # и согласны ли они, что значит `root`. Мост находок артефакт НЕ читает:
+    # действие по итогам — правка формы зова у сторожа контракта, то есть кода
+    # проверки, а не капитала. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import census_consumer_census
+        _ccc = census_consumer_census.run(root=args.root)
+        print(f"census_consumer_census: {_ccc['overall']} "
+              f"(critical={_ccc['counts']['critical']} "
+              f"warn={_ccc['counts']['warn']} "
+              f"unchecked={_ccc['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "census_consumer_census", e)
     # Заказ #552 (ADR-316). Что теряет hit_rate от правила «одна строка в день».
     # Мост находок артефакт НЕ читает по той же причине, что и у соседей выше:
     # единственное действие по итогам — тронуть ПИСАТЕЛЯ журнала решений и его
