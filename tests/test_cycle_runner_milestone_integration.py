@@ -15,6 +15,7 @@ Verifies:
 
 Total: 11 tests
 """
+import ast
 import importlib
 import json
 import re
@@ -240,8 +241,23 @@ class TestCycleRunnerIntegration:
             / "spa_core" / "paper_trading" / "cycle_reporting.py"
         )
         source = reporting_path.read_text(encoding="utf-8")
-        assert "_record_apy_milestone(result=result" in source, (
-            "вызов записи вехи MP-512 пропал из дневного цикла"
+        # Заказ #567 / ADR-338. Прежняя редакция утверждала СТРУКТУРУ зова
+        # ПОДСТРОКОЙ её текста (`"_record_apy_milestone(result=result"`), и
+        # подстрока по построению не знает, что стои́т ЗА ней: удаление
+        # аргумента `today=today` оставляло проверку ЗЕЛЁНОЙ — замерено
+        # возмущением соседа. Проверка РАСШИРЕНА (не ослаблена): прежняя
+        # претензия о существовании зова цела, к ней добавлена претензия об
+        # аргументах, и судит она о структуре, а не о её тексте.
+        calls = [
+            node for node in ast.walk(ast.parse(source))
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_record_apy_milestone"
+        ]
+        assert calls, "вызов записи вехи MP-512 пропал из дневного цикла"
+        passed = {kw.arg for kw in calls[0].keywords}
+        assert {"result", "today"} <= passed, (
+            f"зов вехи MP-512 потерял аргументы: передано {sorted(passed)}"
         )
 
 

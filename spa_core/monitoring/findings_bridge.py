@@ -123,6 +123,7 @@ PRODUCES = (
     "data/rate_observation_census.json",
     "data/census_consumer_census.json",
     "data/subject_population_census.json",
+    "data/substring_structure_assertions.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -201,6 +202,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "rate_observation_census",
     "census_consumer_census",
     "subject_population_census",
+    "substring_structure_assertions",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -355,6 +357,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "subject_population_census": {
         "module": "spa_core/monitoring/subject_population_census.py",
         "artifact": "data/subject_population_census.json"},
+    "substring_structure_assertions": {
+        "module": "spa_core/monitoring/substring_structure_assertions.py",
+        "artifact": "data/substring_structure_assertions.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -1233,6 +1238,19 @@ def main(argv=None) -> int:
               f"unchecked={_spc['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "subject_population_census", e)
+    # Заказ #567 (ADR-338). Утверждения, судящие о СТРУКТУРЕ соседа ПОДСТРОКОЙ
+    # её сериализованного вида. Мост находок артефакт НЕ читает: единственное
+    # действие по итогам — расширить утверждение в ТЕСТЕ, то есть код проверки,
+    # а не капитал. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import substring_structure_assertions
+        _ssa = substring_structure_assertions.run(root=args.root)
+        print(f"substring_structure_assertions: {_ssa['overall']} "
+              f"(population={_ssa['counts']['population']} "
+              f"truncating={_ssa['counts']['truncating']} "
+              f"unmeasured={_ssa['counts']['unmeasured']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "substring_structure_assertions", e)
     # Заказ #552 (ADR-316). Что теряет hit_rate от правила «одна строка в день».
     # Мост находок артефакт НЕ читает по той же причине, что и у соседей выше:
     # единственное действие по итогам — тронуть ПИСАТЕЛЯ журнала решений и его

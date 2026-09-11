@@ -481,6 +481,14 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "subject_population_census.json": ("status", "counts", "population",
                                        "blindness", "other_forms", "findings",
                                        "advisory"),
+    # Заказ #567. `population` — первый результат заказа; `truncation` — ответ
+    # на вторую его половину, и из населения он НЕ выводится (литерал, крывший
+    # структуру до конца, обрывом не является). `haystack_kinds` объявлен
+    # намеренно: им отделяется ловушка №1 («assertIn по списку ключей — не
+    # дефект»), и пропажа его из отчёта читалась бы как «такого рода нет».
+    "substring_structure_assertions.json": ("status", "counts", "population",
+                                            "truncation", "haystack_kinds",
+                                            "findings", "advisory"),
     "rate_observation_census.json": ("status", "independence", "run_axis",
                                      "comparable_axis", "mechanism",
                                      "outside_denominator", "counts",
@@ -625,6 +633,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/census_consumer_census.py",
     "subject_population_census.json":
         "spa_core/monitoring/subject_population_census.py",
+    "substring_structure_assertions.json":
+        "spa_core/monitoring/substring_structure_assertions.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2205,6 +2215,16 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _spc_report,
         )
         out.extend(_spc_report(data))
+    elif name == "substring_structure_assertions.json":
+        # Заказ #567. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (заказ
+        # потребовал его первым результатом), затем замер обрыва, и только потом
+        # граница замера. Граница идёт ПОСЛЕ намеренно: читатель, увидевший «ещё
+        # 91 утверждение» первой строкой, прочтёт это как население — чего замер
+        # не утверждает и прямо называет неизмеренным.
+        from spa_core.monitoring.substring_structure_assertions import (
+            format_report as _ssa_report,
+        )
+        out.extend(_ssa_report(data))
     elif name == "arming_wall_order.json":
         # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
         # стен с числами освобождённых дней, потом вердикт ветки, и только потом

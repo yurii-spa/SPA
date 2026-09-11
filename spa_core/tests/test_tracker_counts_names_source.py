@@ -19,6 +19,7 @@ origin никогда (пишется локально, merge затёр бы н
 """
 from __future__ import annotations
 
+import ast
 import importlib.util
 import unittest
 from pathlib import Path
@@ -63,8 +64,28 @@ class TestSourceIsAlwaysNamed(unittest.TestCase):
     def test_the_default_mode_is_origin_not_local(self):
         """Умолчание обязано быть истиной: ошибиться должно быть ТРУДНЕЕ, чем не ошибиться."""
         src = _SCRIPT.read_text(encoding="utf-8")
-        self.assertIn('ap.add_argument("--local"', src,
-                      "локальный режим обязан требовать ЯВНОГО флага")
+        # Заказ #567 / ADR-338. Прежняя редакция утверждала СТРУКТУРУ зова
+        # ПОДСТРОКОЙ её текста (`'ap.add_argument("--local"'`), а вся claim
+        # «требует ЯВНОГО флага» держится на `action="store_true"`, который
+        # лежит ЗА концом литерала: снятие его оставляло проверку ЗЕЛЁНОЙ —
+        # замерено возмущением соседа. Проверка РАСШИРЕНА, не ослаблена.
+        local = [
+            node for node in ast.walk(ast.parse(src))
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "add_argument"
+            and node.args
+            and isinstance(node.args[0], ast.Constant)
+            and node.args[0].value == "--local"
+        ]
+        self.assertEqual(len(local), 1,
+                         "локальный режим обязан объявляться ровно одним флагом")
+        action = {kw.arg: getattr(kw.value, "value", None)
+                  for kw in local[0].keywords}.get("action")
+        self.assertEqual(action, "store_true",
+                         "локальный режим обязан требовать ЯВНОГО флага: без "
+                         "store_true у --local появляется значение, и режим "
+                         "перестаёт быть явным")
         self.assertNotIn('ap.add_argument("--origin"', src,
                          "origin не может быть опциональным — это умолчание")
 
