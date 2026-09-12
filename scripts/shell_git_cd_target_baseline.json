@@ -1,0 +1,21 @@
+{
+  "_": "ЗАКАЗ #578 / ADR-356. Зовы git, чей каталог запуска НЕ ОПРЕДЕЛЁН: значение `cd`-аргумента приходит от ОКРУЖЕНИЯ, а не от файла и не от места копии. База может ТОЛЬКО УМЕНЬШАТЬСЯ. Дописывать сюда, чтобы погасить падение, ЗАПРЕЩЕНО (тот же порядок, что у frozen_date_baseline.json и site_numbers_baseline.json): чинить надо скрипт — вывести каталог из места самого скрипта (`$(cd \"$(dirname \"$0\")/..\" && pwd)`), как это уже сделано в scripts/git_push.sh.",
+  "_measured": "2026-09-12: из прод-дерева И из worktree предмет ОДИН И ТОТ ЖЕ (15 зовов, те же имена); от места замера зависит только деление приколоченных зовов на «корень» (33/0) и «другое дерево» (10/23).",
+  "undetermined": [
+    "scripts/DEPLOY.sh:50",
+    "scripts/DEPLOY.sh:51",
+    "scripts/DEPLOY.sh:52",
+    "scripts/DEPLOY.sh:53",
+    "scripts/DEPLOY.sh:55",
+    "scripts/code_sync_from_origin.sh:118",
+    "scripts/code_sync_from_origin.sh:146",
+    "scripts/code_sync_from_origin.sh:148",
+    "scripts/code_sync_from_origin.sh:176",
+    "scripts/code_sync_from_origin.sh:214",
+    "scripts/deploy_all.sh:32",
+    "scripts/deploy_all.sh:33",
+    "scripts/deploy_all.sh:34",
+    "scripts/deploy_all.sh:35",
+    "scripts/deploy_all.sh:37"
+  ]
+}

@@ -166,6 +166,18 @@ jobs:
           SPA_ENV: ci
           PYTHONHASHSEED: '0'
 
+      # --- КУДА ведёт доказанный `cd` (ADR-356) --------------------------------
+      # ADR-355 доказал, что `cd` исполняется, и ни разу не спросил, куда он
+      # ведёт. «Каталог задан» и «каталог тот самый» — разные утверждения.
+      # Предмет — зовы, чей каталог задаёт ОКРУЖЕНИЕ (`${VAR:-$HOME/...}`):
+      # у переменной есть умолчание, а каталог при этом НЕ известен. База
+      # заморожена и может только уменьшаться; дописывать в неё запрещено.
+      - name: shell git cd-target census (ADR-356)
+        run: python scripts/shell_git_cd_target_census.py --root . --baseline scripts/shell_git_cd_target_baseline.json
+        env:
+          SPA_ENV: ci
+          PYTHONHASHSEED: '0'
+
       # --- Pre-cutover readiness gate (ADVISORY, non-blocking) ----------------
       # Drives a cycle through EACH money-path failure mode against an ephemeral
       # SANDBOX and asserts every defense fires (HARD/SOFT kill, DL-01/DL-02,
