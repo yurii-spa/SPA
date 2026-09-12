@@ -155,6 +155,17 @@ jobs:
           SPA_ENV: ci
           PYTHONHASHSEED: '0'
 
+      # То же самое про SHELL-часть, названную ADR-354 вне замера (183 скрипта —
+      # AST их не разбирает, и это НЕ «у них чисто»). В shell каталог задаётся не
+      # параметром, а СОСТОЯНИЕМ, поэтому перепись идёт по ИСТОЧНИКУ каталога
+      # (сам · plist · обёртка · не задан ничем), а единица учёта — ЗОВ, не файл.
+      # Код 3 — находка, код 2 — «НЕ ИЗМЕРЕНО», и он тоже красный (инвариант #17).
+      - name: shell git cwd census (ADR-355)
+        run: python scripts/shell_git_cwd_census.py --root .
+        env:
+          SPA_ENV: ci
+          PYTHONHASHSEED: '0'
+
       # --- Pre-cutover readiness gate (ADVISORY, non-blocking) ----------------
       # Drives a cycle through EACH money-path failure mode against an ephemeral
       # SANDBOX and asserts every defense fires (HARD/SOFT kill, DL-01/DL-02,
