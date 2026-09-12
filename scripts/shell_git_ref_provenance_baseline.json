@@ -1,0 +1,15 @@
+{
+  "_why": "Предмет: зовы, ЧИТАЮЩИЕ remote-tracking ссылку, свежесть которой не доказана — значение не спрошено у сервера на этом пути, либо отказ спроса ничего не прекращает и зов идёт дальше на КЭШЕ неизмеренного возраста (ADR-361). База может только УМЕНЬШАТЬСЯ; дописывать, чтобы погасить падение, ЗАПРЕЩЕНО — тот же порядок, что у frozen_date_baseline.json и shell_git_cd_repo_identity_baseline.json.",
+  "_measured": "2026-09-12",
+  "_adr": "ADR-361",
+  "_note": "Ось ЛИЧНОСТИ удалённого (by_url / by_config) в базу НЕ входит намеренно: by_config есть обычная идиома git, и храповик на ней научил бы дописывать в базу. Она докладывается числом и поимённо в отчёте прибора.",
+  "subject": [
+    "scripts/agent_novel_edge_rnd.sh:58",
+    "scripts/git_autopush.sh:121",
+    "scripts/git_autopush.sh:128",
+    "scripts/git_autopush.sh:133",
+    "scripts/git_autopush.sh:136",
+    "scripts/git_autopush.sh:139",
+    "scripts/session_index_lag_warning.sh:19"
+  ]
+}
