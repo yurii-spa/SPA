@@ -266,14 +266,22 @@ def test_guard_never_fetches(  ):
 def test_activity_measurement_is_reused_not_copied():
     """Измерение «содержимое было на origin» переиспользовано из шага 0a, а не скопировано.
 
-    Сверяем с КАНОНИЧЕСКИМ модулем шага 0a (тем, что импортировал сам продукт), а не с
-    повторно загруженной копией: копия — другой объект по построению, и такой ассерт
-    краснел бы даже при честном переиспользовании.
+    Сверяем ПРОИСХОЖДЕНИЕ КОДА: функция обязана лежать в файле шага 0a.
+
+    Инв. #16 — сменён МЕХАНИЗМ сверки, не утверждение (12.09). Прежде тождество
+    проверялось оператором `is` против `sys.modules["check_undelivered_work"]`. В ПОЛНОМ
+    наборе тот же файл оказывается загружен ДВАЖДЫ под разными именами (соседние тесты
+    грузят его через `importlib.util.spec_from_file_location`), и тогда `is` ложен при
+    совершенно честном переиспользовании: объекты разные, реализация одна. Замер: в
+    одиночку тест зелёный, в полном прогоне красный — «assert <function …> is <function …>».
+    Утверждение осталось тем же и проверяется СИЛЬНЕЕ: функция обязана происходить из
+    канонического файла (её код лежит именно там), а в самом стороже второй реализации
+    нет. Копия в другом файле теперь краснеет, даже если объект случайно совпал.
     """
-    step0a = sys.modules["check_undelivered_work"]
-    assert Path(step0a.__file__).resolve() == (ROOT / "scripts" / "check_undelivered_work.py")
-    assert mem.origin_blob_history is step0a.origin_blob_history
-    assert mem._blob_sha is step0a._blob_sha
+    canonical = (ROOT / "scripts" / "check_undelivered_work.py").resolve()
+    for fn in (mem.origin_blob_history, mem._blob_sha):
+        assert Path(fn.__code__.co_filename).resolve() == canonical, (
+            f"{fn.__name__} происходит из {fn.__code__.co_filename}, а не из шага 0a")
     # и в самом сторожe нет второй реализации того же измерения
     src = (ROOT / "scripts" / "check_memory_in_git.py").read_text(encoding="utf-8")
     assert "def origin_blob_history" not in src and "def _blob_sha" not in src
