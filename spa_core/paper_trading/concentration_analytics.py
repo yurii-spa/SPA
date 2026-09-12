@@ -72,7 +72,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from spa_core.utils.observation import observed, observed_number
+from spa_core.utils.observation import observed_number
 
 # REUSE BY IMPORT — single source of truth for the position weight / tier / cash
 # math (MP-501). We do NOT recompute weights from raw positions here; we consume

@@ -26,7 +26,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from spa_core.utils.observation import observed, observed_number
+from spa_core.utils.observation import observed_number
 
 from spa_core.allocator.rebalance_economics import (
     TriggerParams,

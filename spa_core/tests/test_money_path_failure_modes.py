@@ -271,7 +271,28 @@ class TestReconciliationMismatch:
                                 ts="2026-06-28T00:00:00+00:00")
         assert report["matches_target"] is True
         assert report["nav_conserved"] is True
-        assert report["go_live_ready"] is True
+        # ИЗМЕНЕНО НАМЕРЕННО (ADR-349, инв. #16) — проверка УСИЛЕНА, не ослаблена.
+        # Здесь стояло `report["go_live_ready"] is True`, и это утверждение было
+        # НЕЗАРАБОТАННЫМ: обе стороны сверки происходят из нашего же намерения
+        # (`resulting` — из `dry_run_execute` нашего плана, `target` — копия
+        # `current`), расхождение недостижимо ПО ПОСТРОЕНИЮ, и `true` печаталось
+        # при НУЛЕ наблюдений книги. Тест закреплял ровно тот дефект, который
+        # ADR-255/257 назвали. Теперь закрепляются ТРИ исхода, а не один.
+        assert report["book_matched_intent"] is None, "не измерено — это не True и не False"
+        assert report["book_outcome_provenance"] == "self_dry_run_ledger"
+        assert report["go_live_ready"] is False
+        assert "не измерено" in report["go_live_ready_reason"]
+        # И обратная сторона: с ПОДАННЫМ наблюдением утверждение становится
+        # заработанным — иначе добавленный отказ был бы недостижим, то есть украшением.
+        earned = rec.round_trip(current=current, target=target, observed=dict(target),
+                                write=False, ts="2026-06-28T00:00:00+00:00")
+        assert earned["book_matched_intent"] is True
+        assert earned["go_live_ready"] is True
+        diverged = rec.round_trip(current=current, target=target,
+                                  observed={k: v * 0.5 for k, v in target.items()},
+                                  write=False, ts="2026-06-28T00:00:00+00:00")
+        assert diverged["book_matched_intent"] is False
+        assert diverged["go_live_ready"] is False
         # And it NEVER claims live execution.
         assert report["live_execution"] is False
 

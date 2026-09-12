@@ -399,6 +399,7 @@ def _atomic_write(doc: dict) -> None:
 def round_trip(
     current: Optional[dict] = None,
     target: Optional[dict] = None,
+    observed: Optional[dict] = None,
     write: bool = True,
     min_trade_usd: float = 10.0,
     ts: Optional[str] = None,
@@ -411,6 +412,10 @@ def round_trip(
         target: desired positions {protocol: usd}. Defaults to a COPY of
             ``current`` — a no-op rebalance that must reconcile perfectly
             (the baseline proof that the loop is sound).
+        observed: positions as OBSERVED from outside our own intent (an
+            independent record of the book). Supply it and the report's claim
+            about the BOOK is earned; omit it and that claim is NOT MEASURED —
+            never ``true``. See the provenance note below.
         write: persist the report to data/execution_reconciliation.json (atomic).
         min_trade_usd: dust floor for plan_trades.
         ts: ISO-8601 timestamp (supply in tests for determinism; defaults to UTC now).
@@ -428,6 +433,24 @@ def round_trip(
         target = dict(current)  # no-op baseline
     target = {p: float(v or 0.0) for p, v in (target or {}).items()}
 
+    # ── ПРОВЕНАНС ВТОРОЙ СТОРОНЫ (ADR-349; шаг 3 из трёх, ADR-286 §1) ──────────
+    # Сверка «намерение против результата» сравнивала величину С САМОЙ СОБОЙ:
+    # `resulting` приходит из `dry_run_execute` НАШЕГО же плана, а `target` по
+    # умолчанию есть копия `current`. Расхождение было недостижимо ПО ПОСТРОЕНИЮ,
+    # и `matches_target: true` не являлось свидетельством о книге — это арифметика,
+    # которая иначе выйти не может (замер ADR-255: 12 вызовов вне тестов, НИ ОДИН
+    # не подаёт наблюдённый исход). Отдельно от этого сама сверка РАБОЧАЯ — ей
+    # подают испорченную копию, и расхождение она ловит; подменять «сторожа
+    # никогда не спрашивают о книге» на «сторож сломан» было бы неверно.
+    #
+    # Поэтому здесь разведены два РАЗНЫХ утверждения, которые до сих пор носило
+    # одно слово: арифметика петли (самопроверка, честно истинна) и совпадение
+    # КНИГИ с намерением (утверждение о деньгах). Второе без независимой записи —
+    # третий исход «НЕ ИЗМЕРЕНО» (инв. #17), а не `true`.
+    book_observed = observed is not None
+    if book_observed:
+        observed = {p: float(v or 0.0) for p, v in (observed or {}).items()}
+
     nav_before = round(sum(current.values()), 6)
 
     trades = plan_trades(current, target, min_trade_usd=min_trade_usd)
@@ -440,6 +463,9 @@ def round_trip(
     # operator sees the expected real-world drag, while nav_conserved uses the
     # actual costs applied to the ledger (0.0 here — dry run does not burn gas).
     recon = reconcile(target, resulting, nav_before, costs_usd=0.0)
+    # Утверждение о КНИГЕ считается по НАБЛЮДЁННЫМ позициям, а не по нашему журналу.
+    book_recon = (reconcile(target, observed, nav_before, costs_usd=0.0)
+                  if book_observed else None)
 
     report = {
         "generated_at": ts,
@@ -457,9 +483,28 @@ def round_trip(
         "target_positions": dict(sorted(target.items())),
         "resulting_positions": resulting,
         "reconciliation": recon,
+        # СМЫСЛ НЕ ТРОНУТ: это по-прежнему арифметика петли (самопроверка). Имя и
+        # тип сохранены намеренно — поле читают соседи, и менять его значение молча
+        # значило бы ровно ту подмену, против которой написано всё остальное.
         "matches_target": recon["matches_target"],
         "nav_conserved": recon["nav_conserved"],
-        "go_live_ready": bool(recon["matches_target"] and recon["nav_conserved"]),
+        # Три исхода про КНИГУ: совпала · не совпала · НЕ ИЗМЕРЕНО (None).
+        "book_matched_intent": (book_recon["matches_target"] if book_observed else None),
+        "book_outcome_provenance": ("observed" if book_observed
+                                    else "self_dry_run_ledger"),
+        "book_matched_intent_reason": (
+            None if book_observed else
+            "независимой записи о книге не подано: вторая сторона сверки — наш же "
+            "виртуальный журнал, расхождение недостижимо по построению (ADR-255/257)"),
+        # ГОТОВНОСТЬ К LIVE ТРЕБУЕТ ЗАРАБОТАННОГО утверждения о книге. До ADR-349
+        # здесь стояло `matches_target and nav_conserved`, то есть арифметика
+        # самопроверки, и поле печатало `true` всегда — при нуле наблюдений.
+        "go_live_ready": bool(book_observed and book_recon["matches_target"]
+                              and recon["nav_conserved"]),
+        "go_live_ready_reason": (
+            None if book_observed else
+            "не измерено: независимого наблюдения книги не существует (ADR-257 — "
+            "личности счёта нет, 9 из 10 кандидатов за стеной инварианта #6)"),
     }
 
     # Best-effort tamper-evident audit record. Never let an audit failure break the
@@ -474,6 +519,8 @@ def round_trip(
                 "n_trades": report["n_trades"],
                 "matches_target": report["matches_target"],
                 "nav_conserved": report["nav_conserved"],
+                "book_matched_intent": report["book_matched_intent"],
+                "book_outcome_provenance": report["book_outcome_provenance"],
                 "nav_before_usd": report["nav_before_usd"],
                 "gross_traded_usd": report["gross_traded_usd"],
             },
