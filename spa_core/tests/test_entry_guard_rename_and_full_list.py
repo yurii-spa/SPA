@@ -172,8 +172,14 @@ class FullListAcrossAllFiles(unittest.TestCase):
     def _fail_on(self, paths, exc=None):
         exc = exc or (lambda p: pusher.EntryLossRefused(f"{p}: пуш стёр бы 1 запис(ь/и)"))
 
+        # `**_` намеренно (цикл #570, инв. #16: правлена СИГНАТУРА дубля, ни одно
+        # утверждение не тронуто). Жёсткий список именованных аргументов делал дубль
+        # ломким к РОСТУ сигнатуры настоящего стража: добавление `allow_name_loss`
+        # (ADR-345) уронило семь тестов этого файла `TypeError`-ом — то есть по
+        # причине, не имеющей отношения к проверяемому поведению. Тот же класс уже
+        # разбирался на дублях телеграм-бота (#317).
         def fake(pat, repo, branch, repo_path, abs_path, local_bytes, remote_sha,
-                 allow_overwrite=False):
+                 allow_overwrite=False, **_):
             if repo_path in paths:
                 raise exc(repo_path)
             return local_bytes, ""

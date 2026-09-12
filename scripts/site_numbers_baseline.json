@@ -1,30 +1,6 @@
 {
- "note": "Файлы без провенанса чисел. База может ТОЛЬКО уменьшаться (scripts/site_number_provenance.py, .claude/rules/site-numbers.md). Дописывать сюда файл, чтобы погасить падение, ЗАПРЕЩЕНО.",
+ "note": "Файлы без провенанса чисел. База может ТОЛЬКО уменьшаться (scripts/site_number_provenance.py, .claude/rules/site-numbers.md). Дописывать сюда файл, чтобы погасить падение, ЗАПРЕЩЕНО. Остаток на 11.09: единственная страница — `why-20-apy-means-tail-risk.astro`; её правка УЖЕ лежит у владельца карточкой `owner-decision-sait-why-20-apy-means-tail-risk-astro-i` (число ~3,3 % фактических это предмет №2 владельца), поэтому агент её не трогает.",
  "files": [
-  "components/LiveStats.astro",
-  "pages/academy/05-rwa-tbills-floor.astro",
-  "pages/academy/08-funding-basis-deltaneutral.astro",
-  "pages/academy/09-leverage-liquidations-points.astro",
-  "pages/academy/12-structural-haircut-veto.astro",
-  "pages/academy/15-edge-at-scale.astro",
-  "pages/academy/16-three-layer-stack.astro",
-  "pages/academy/20-measurement-as-moat.astro",
-  "pages/academy/capstone.astro",
-  "pages/academy/index.astro",
-  "pages/academy/onboarding/index.astro",
-  "pages/academy/playground.astro",
-  "pages/academy/privacy.astro",
-  "pages/blog/2026-06-19-architecture-audit.astro",
-  "pages/board/methodology.astro",
-  "pages/competitive-position.astro",
-  "pages/disclaimer.astro",
-  "pages/emergency-withdrawal.astro",
-  "pages/learn/what-is-a-stablecoin-depeg.astro",
-  "pages/learn/why-20-apy-means-tail-risk.astro",
-  "pages/protection-lab.astro",
-  "pages/research.astro",
-  "pages/risk-disclosure.astro",
-  "pages/risk.astro",
-  "pages/yield-lab.astro"
+  "pages/learn/why-20-apy-means-tail-risk.astro"
  ]
 }

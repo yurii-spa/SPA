@@ -15,6 +15,8 @@ import PortfolioBuilder from '../../components/academy/PortfolioBuilder.jsx';
 import DepegEventPlayer from '../../components/academy/DepegEventPlayer.jsx';
 import RefusalGateWalkthrough from '../../components/academy/RefusalGateWalkthrough.jsx';
 import RefusalTimeline from '../../components/academy/RefusalTimeline.jsx';
+// site-numbers: пороги гейта рендерятся из конституции; рыночные ~4,5 % и разбираемые «15 %» — чужие числа урока
+import constitution from '../../lib/constitution.json';
 
 const existing = [
   { id: '10-risk-taxonomy-abcd', ru: 'Классификатор риска A/B/C/D', sum: 'Отнеси каждый источник доходности к alpha / beta / risk-comp / incentive — мгновенная обратная связь.' },
@@ -49,7 +51,7 @@ const existing = [
         <h3 class="pg-sim-title">1 · Собери книгу под RiskPolicy</h3>
         <p class="pg-sim-intro">
           Добавляй протоколы и задавай аллокацию — гейт <code>policy.py</code> проверяет КАЖДЫЙ cap
-          вживую (T1≤40%, T2≤20%, T2-сумма≤50%, кэш≥5%, TVL≥$5M, APY 1–30%). Попробуй 50% в Aave →
+          вживую (T1≤{constitution.max_per_protocol_t1_pct}%, T2≤{constitution.max_per_protocol_t2_pct}%, T2-сумма≤{constitution.max_t2_total_pct}%, кэш≥{constitution.min_cash_buffer_pct}%, TVL≥${Math.round(constitution.tvl_floor_usd / 1e6)}M, APY {constitution.apy_floor_pct}–{constitution.apy_ceiling_pct}%). Попробуй 50% в Aave →
           увидишь REJECT. Поймёшь, почему живая книга сидит на ~4.5% в простых T1-кредиторах.
         </p>
         <PortfolioBuilder client:load />
