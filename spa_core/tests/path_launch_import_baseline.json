@@ -1,0 +1,17 @@
+{
+  "_why": "Скрипты, которые импортируют пакет репозитория на ВЕРХНЕМ УРОВНЕ модуля и при этом НЕ могут его импортировать, когда файл запускают ПО ПУТИ (launchd и обёртки флота зовут именно так: sys.path[0] = каталог scripts/, рабочий каталог в sys.path не попадает). База может ТОЛЬКО УМЕНЬШАТЬСЯ. Дописывать сюда файл, чтобы погасить падение, ЗАПРЕЩЕНО — тот же порядок, что у frozen_date_baseline.json и site_numbers_baseline.json.",
+  "_measured": "2026-09-12, цикл #571, ADR-347. Население: 88 скриптов с импортом пакета репо на верхнем уровне; не импортируются 10; не измерен 1 (scripts/archive/test_json_to_sqlite.py — падает на `import scripts`, а это ДРУГОЙ класс, и выдавать его за наш нельзя).",
+  "_live_exposure": "Из этих десяти обёрткой запускается ОДИН — scripts/find_defillama_sources.py, и его agent_source_discovery.sh компенсирует недостачу строкой `export PYTHONPATH` (замер 27.08, ADR-148). То есть свойство держится у ВЫЗЫВАЮЩЕГО, в одной точке вызова, а не у скрипта. Остальные девять обёртками не запускаются.",
+  "cannot_import_when_launched_by_path": [
+    "scripts/archive/db_migrate.py",
+    "scripts/archive/migrate_json_to_sqlite.py",
+    "scripts/archive/regenerate_rates_decision_log.py",
+    "scripts/build_dependency_map.py",
+    "scripts/find_defillama_sources.py",
+    "scripts/fund_api_server.py",
+    "scripts/generate_changelog.py",
+    "scripts/module_health_report.py",
+    "scripts/s11_backtest_90d.py",
+    "scripts/strategy_integration_test.py"
+  ]
+}

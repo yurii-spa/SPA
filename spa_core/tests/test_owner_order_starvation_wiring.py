@@ -40,6 +40,16 @@ def _sandbox(tmp_path: Path, guard_body: str | None) -> tuple[Path, Path]:
     (root / "scripts").mkdir(parents=True)
     prompt_file = tmp_path / "prompt.txt"
 
+    # Классификатор вердикта — НАСТОЯЩИЙ, не подставной: песочница подменяет сторожа, чтобы
+    # задать (код, вывод), а решение по этой паре обязан принимать доставляемый код.
+    # Без копии обёртка уходит в ветку «библиотеки нет» и печатает «НЕ ИЗМЕРЕНО» ВСЕГДА —
+    # и тогда три теста ниже зеленеют ВАКУУМНО: они ищут в промпте подстроку, которая есть
+    # и в эхо-выводе сторожа. Замерено при доставке ADR-347: без этих трёх строк
+    # `test_finding_reaches_the_prompt` проходит на обёртке, не классифицирующей ничего.
+    (root / "scripts" / "lib").mkdir(parents=True)
+    shutil.copy2(_REPO / "scripts" / "lib" / "starvation_verdict.sh",
+                 root / "scripts" / "lib" / "starvation_verdict.sh")
+
     fake_claude = tmp_path / "fake_claude.sh"
     fake_claude.write_text(
         "#!/bin/bash\n"
@@ -77,17 +87,31 @@ _FINDING = (
     "#!/usr/bin/env python3\n"
     "import sys\n"
     "print('\\U0001F6A8 ГОЛОДАЮЩИЙ ПРИКАЗ ВЛАДЕЛЬЦА: inbox-proba (проба цикла #391)')\n"
-    "sys.exit(1)\n"
+    # Находка — ТРОЙКА. Единица отдана интерпретатору: см. _CRASHED_REALLY ниже.
+    "sys.exit(3)\n"
 )
 _CLEAN = (
     "#!/usr/bin/env python3\n"
     "print('\\u2705 голодающих critical-приказов владельца (>24ч) не найдено')\n"
 )
-_BROKEN = (
+#: Поломка, ВЫДУМАННАЯ автором первой редакции теста: код 7. Оставлена намеренно — она
+#: проверяет ветку «любой прочий код», и она же — вещественное доказательство того, почему
+#: одного такого контроля мало: кода 7 у падающего python-скрипта не бывает НИКОГДА.
+_BROKEN_EXOTIC_CODE = (
     "#!/usr/bin/env python3\n"
     "import sys\n"
     "print('Traceback: сторож сам сломался', file=sys.stderr)\n"
     "sys.exit(7)\n"
+)
+#: Поломка, СЛУЧИВШАЯСЯ 12.09: сторож умер на собственном импорте `spa_core`, потому что
+#: бутстрап `sys.path` стоял НИЖЕ импорта, а обёртка зовёт файл ПО ПУТИ. Интерпретатор вышел
+#: с кодом 1 — тем самым, который до ADR-347 означал «НАХОДКА». Трассировка уехала в промпт
+#: цикла словами «возьми ЭТУ карточку первой».
+#: На прежней обёртке этот тест КРАСНЕЕТ: в промпте будет «НАХОДКА», а не «НЕ ИЗМЕРЕНО».
+_CRASHED_REALLY = (
+    "#!/usr/bin/env python3\n"
+    "from spa_core.utils.observation import observed  # noqa: F401\n"
+    "print('до этой строки дело не доходит')\n"
 )
 
 
@@ -107,6 +131,11 @@ def test_finding_reaches_the_prompt(tmp_path):
     assert "inbox-proba" in prompt, "имя голодающей карточки потеряно по дороге"
     assert prompt.index("ГОЛОДАЮЩИЙ") < prompt.index("Ты — оркестратор SPA"), (
         "находка стоит ПОСЛЕ протокола — шаг 0a-голод по определению идёт до шага 0a")
+    # Без этой строки тест зеленеет вакуумно: «ГОЛОДАЮЩИЙ ПРИКАЗ» попадает в промпт и через
+    # ветку «НЕ ИЗМЕРЕНО», которая просто повторяет вывод сторожа. Проверять надо ВЕРДИКТ.
+    assert "НЕ ИЗМЕРЕН" not in prompt.split("Ты — оркестратор")[0], (
+        "находка подана как «не измерено» — классификатор не отработал: "
+        + repr(prompt[:300]))
 
 
 def test_clean_verdict_does_not_pollute_the_prompt(tmp_path):
@@ -124,18 +153,75 @@ def test_clean_verdict_does_not_pollute_the_prompt(tmp_path):
 
 
 def test_broken_guard_is_not_measured_not_silence(tmp_path):
-    """Сторож упал ⇒ «НЕ ИЗМЕРЕНО» в промпте, а не тишина.
+    """Сторож упал экзотическим кодом ⇒ «НЕ ИЗМЕРЕНО» в промпте, а не тишина.
 
     Тишина читалась бы как «приказ владельца не голодает» — ровно тот fail-OPEN, из-за
     которого critical-приказ простоял четверо суток при 40+ прошедших циклах.
     """
-    wrapper, prompt_file = _sandbox(tmp_path, _BROKEN)
+    wrapper, prompt_file = _sandbox(tmp_path, _BROKEN_EXOTIC_CODE)
     proc = _run(wrapper, tmp_path)
     assert prompt_file.exists(), f"обёртка не дошла до Claude: rc={proc.returncode}\n{proc.stderr[-1500:]}"
     prompt = prompt_file.read_text()
     assert "НЕ ИЗМЕРЕН" in prompt, (
         f"падение сторожа прошло молча — промпт: {prompt[:300]!r}")
     assert "7" in prompt.split("Ты — оркестратор")[0], "код возврата сторожа не назван"
+
+
+def test_a_guard_that_dies_on_its_own_import_is_not_a_finding(tmp_path):
+    """Настоящая авария 12.09: крах сторожа предъявлен сессии как ЕГО ВЕРДИКТ.
+
+    Сторож умер на `import spa_core` и вышел с кодом 1 — кодом, который прежний контракт
+    считал НАХОДКОЙ. Обёртка вклеила трассировку в начало промпта словами «ШАГ 0a-ГОЛОД —
+    НАХОДКА, возьми ЭТУ карточку первой». Это ровно тот класс, ради которого написан
+    инвариант #17: три исхода — измерено · измерено и пусто · НЕ измерено — обязаны быть
+    различимы, а здесь «не измерено» было склеено с самым громким из измеренных.
+
+    Тест — положительный контроль: на обёртке до ADR-347 он КРАСНЕЕТ (проверено: в промпте
+    стоит «НАХОДКА»). Соседний `_BROKEN_EXOTIC_CODE` его НЕ заменяет — тот выходит кодом 7,
+    которого у падающего python-скрипта не бывает, поэтому он зеленел всё это время.
+    """
+    wrapper, prompt_file = _sandbox(tmp_path, _CRASHED_REALLY)
+    proc = _run(wrapper, tmp_path)
+    assert prompt_file.exists(), f"обёртка не дошла до Claude: rc={proc.returncode}\n{proc.stderr[-1500:]}"
+    prompt = prompt_file.read_text()
+    head = prompt.split("Ты — оркестратор")[0]
+    assert "НЕ ИЗМЕРЕН" in head, (
+        "крах сторожа не назван «не измерено» — промпт: " + repr(prompt[:300]))
+    assert "НАХОДКА" not in head, (
+        "крах сторожа предъявлен сессии как НАХОДКА — это авария 12.09 дословно. "
+        "Промпт: " + repr(prompt[:400]))
+    # Строго ModuleNotFoundError, а не «или Traceback»: мягкая форма зеленела бы и в том
+    # случае, если бы подставной сторож упал по какой-то ДРУГОЙ причине, и контроль
+    # перестал бы воспроизводить именно ту аварию, ради которой написан.
+    assert "ModuleNotFoundError" in head, (
+        "воспроизведена НЕ та авария (или причина потеряна по дороге): " + repr(head[:400]))
+
+
+def test_the_real_guard_reaches_a_verdict_when_launched_the_way_the_wrapper_launches_it(tmp_path):
+    """НАСТОЯЩИЙ сторож, запущенный ТОЧНО как его зовёт обёртка, доходит до вердикта.
+
+    Обёртка исполняет `"$PYTHON" "$STARVE_PY"` — файл ПО ПУТИ, а не модуль через `-m`.
+    Тогда `sys.path[0]` — каталог `scripts/`, и корень репозитория в пути не появляется
+    сам ни при каком рабочем каталоге. Именно это и убивало сторожа: бутстрап `sys.path`
+    стоял НИЖЕ `from spa_core.utils.observation import …`.
+
+    Тесты выше проверяют ВЕТКИ обёртки на подставных сторожах и об этом молчат по
+    построению — поэтому вопрос «а настоящий-то запускается?» задаётся здесь отдельно.
+    `PYTHONPATH` снимается намеренно: у обёртки его нет, и держать зелёный тест на
+    переменной окружения запускающего значило бы мерить не то.
+    """
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+    env["SPA_DATA_DIR"] = str(tmp_path / "data")  # живое data/ не трогаем
+    proc = subprocess.run(
+        [sys.executable, str(_GUARD), "--no-write", "--ref", ""],
+        cwd=str(tmp_path), env=env, capture_output=True, text=True, timeout=180)
+    assert proc.returncode != 1, (
+        "сторож НЕ ДОШЁЛ до вердикта при запуске по пути — ровно авария 12.09.\n"
+        f"stderr: {proc.stderr[-2000:]}")
+    assert proc.returncode in (0, 3), (
+        f"неожиданный код {proc.returncode}; stdout={proc.stdout[-800:]!r} "
+        f"stderr={proc.stderr[-800:]!r}")
+    assert "ГОЛОДА" in proc.stdout.upper() or "ГОЛОДАЮЩ" in proc.stdout, proc.stdout[:300]
 
 
 def test_missing_guard_in_a_stale_tree_is_also_not_measured(tmp_path):
