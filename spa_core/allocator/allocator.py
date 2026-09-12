@@ -33,9 +33,14 @@ from spa_core.utils.atomic import atomic_save
 # are always in sync with policy.py — no more hardcoded duplicates that drift.
 try:
     from spa_core.risk.policy import RiskConfig as _RiskConfig
+    from spa_core.risk.policy import tier_from_registry as _tier_from_registry
     _POLICY_CONFIG = _RiskConfig()
 except Exception:  # pragma: no cover — import guard for test isolation
     _POLICY_CONFIG = None  # type: ignore[assignment]
+    # Канон разбора тира недоступен ⇒ НЕ финансируем ничего из реестра
+    # (fail-CLOSED): «не смогли определить тир» не имеет права означать «T2».
+    def _tier_from_registry(_raw):  # type: ignore[misc]
+        return None
 
 log = logging.getLogger("spa.allocator")
 
@@ -557,8 +562,26 @@ def _adapter_class_gate(protocol: str) -> tuple[bool, str | None]:
     the back door. A first attempt did gate on it and
     ``test_live_apy_drives_ranking_not_the_stale_literal`` correctly caught it.
 
-    Adapters with no registry entry and no gate are allowed — absence of a class
-    is not, by itself, a disqualification (it is handled by the evidence gate).
+    **ИЗМЕНЕНО 12.09 (решение владельца, ADR-357 п. 3; исполнено ADR-359).** Здесь
+    стояло: «адаптеры без записи в реестре и без гейта ДОПУСКАЮТСЯ — отсутствие
+    класса само по себе не дисквалификация (этим занимается гейт свидетельств)».
+    Владелец решил иначе: **не знаем — не финансируем.**
+
+    Основание — замер ADR-250: незнакомое имя давало ``allowed=True``, потому что
+    отказ здесь идёт от ОБЪЯВЛЕННОГО КЛАССА адаптера, а у имени вне реестра класса
+    нет, и отказать ему было нечем. Вместе с потолком незнакомого тира это было
+    единственное место в системе, где сомнение трактовалось В ПОЛЬЗУ сделки.
+
+    «Этим занимается гейт свидетельств» — не опровергнуто, но и не является
+    ответом: тот гейт спрашивает про ЖИВЫЕ ставку и TVL, то есть про наблюдение,
+    а этот — про ДОПУСК. Совпадение их отказов на сегодняшних данных не делает
+    один из них лишним (ровно та подмена «верный ответ на не тот вопрос», против
+    которой написано правило четырёх сторожей).
+
+    Замер перед правкой: все 5 ключей живой консервативной книги есть в
+    ``ADAPTER_REGISTRY``, то есть отказ сегодня не обесточивает ни одной позиции.
+    Советательные книги этот гейт не проходят вовсе (у них свой путь), поэтому
+    ``pendle_yt_susde``/``aerodrome_usdc_lp`` вне реестра им не мешают.
     """
     try:
         from spa_core.adapters import ADAPTER_REGISTRY
@@ -1187,9 +1210,24 @@ class StrategyAllocator:
                     # pools came to hold 15 % of the book. Same gate, both paths.
                     if not _fundable(name):
                         continue
-                    # Registry stores tier as integer (1/2/3); treat tier≥3 as T2.
-                    tier_int = entry.get("tier", 2)
-                    tier_str = "T1" if tier_int == 1 else "T2"
+                    # ИЗМЕНЕНО 12.09 (ADR-359, решение владельца ADR-357 п. 3).
+                    # Здесь стояло «реестр хранит тир числом; тир ≥ 3 считаем T2»,
+                    # и это было неверно в ОБЕ стороны: четыре протокола с тиром 3
+                    # уходили в гейт как T2 (суммарный потолок T3 = 15 %, ADR-020/337,
+                    # не связывал по построению), а `sky_susds` хранит тир СТРОКОЙ
+                    # "T1" — сравнение `"T1" == 1` ложно, и протокол, поднятый
+                    # владельцем в первый тир (ADR-065, инв. #10), приходил вторым.
+                    # Разбор сведён в ОДНУ функцию: рядом жили три копии правила и
+                    # две спорили. Незнакомый тир ⇒ НЕ финансируем (а не «пусть будет
+                    # T2»): это было единственное место, где сомнение трактовалось
+                    # в пользу сделки.
+                    tier_str = _tier_from_registry(entry.get("tier"))
+                    if tier_str is None:
+                        log.warning(
+                            "ADR-357: %s — тир %r не распознан, протокол НЕ "
+                            "финансируется (не знаем — не финансируем)",
+                            name, entry.get("tier"))
+                        continue
                     tvl = float(entry.get("fallback_tvl_usd", _REGISTRY_FALLBACK_TVL_USD))
 
                     if name in evidence:

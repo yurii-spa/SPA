@@ -258,20 +258,31 @@ def registry_adapters(ddir: "Path | str") -> dict[str, dict]:
     return {}
 
 
-def policy_tier(meta_entry: "dict | None", registry_entry: "dict | None") -> str:
-    """Тир, под которым RiskPolicy v1.0 судит ключ: мета оркестратора → реестр → T2.
+def policy_tier(meta_entry: "dict | None", registry_entry: "dict | None") -> "str | None":
+    """Тир, под которым RiskPolicy v1.0 судит ключ: мета оркестратора → реестр.
 
     Единственное место этого правила. Раньше оно жило строкой внутри гейта, а шаг
     псевдонимов пула держал СВОЮ копию тира литералом — и расходился с политикой,
     как только реестр называл другой тир (ADR-340).
+
+    **ИЗМЕНЕНО 12.09 (ADR-359, решение владельца ADR-357 п. 3).** Здесь стояло
+    умолчание ``or "T2"``, то есть тир, которого нет или который мы не узнали,
+    молча получал лимиты второго тира и ФИНАНСИРОВАЛСЯ. Возвращается ``None`` —
+    «не знаем», и вызывающий обязан отказать: это было единственное место в
+    системе, где сомнение трактовалось в пользу сделки.
+
+    Разбор значения — общий канон ``risk.policy.tier_from_registry``: рядом жили
+    ЧЕТЫРЕ копии правила, и две из них считали T3 вторым тиром, а строку ``"T1"``
+    (так записан ``sky_susds``) — не первым.
     """
+    from spa_core.risk.policy import tier_from_registry
+
     m = meta_entry if isinstance(meta_entry, dict) else {}
-    tier = str(m.get("tier") or "T2").upper()
-    if isinstance(registry_entry, dict) and not m.get("tier") \
-            and registry_entry.get("tier") is not None:
-        _t = registry_entry["tier"]
-        tier = f"T{_t}".upper() if isinstance(_t, int) else str(_t).upper()
-    return tier
+    if m.get("tier") is not None:
+        return tier_from_registry(m.get("tier"))
+    if isinstance(registry_entry, dict) and registry_entry.get("tier") is not None:
+        return tier_from_registry(registry_entry.get("tier"))
+    return None
 
 
 def _apply_risk_policy_gate(
@@ -437,6 +448,15 @@ def _apply_risk_policy_gate(
         for pool, usd in sorted(adjusted.items(), key=lambda kv: (-kv[1], kv[0])):
             m = meta.get(pool, {})
             tier = policy_tier(m, _reg_fallbacks.get(pool))
+            if tier is None:
+                # Не знаем тир — не финансируем (решение владельца, ADR-357 п. 3).
+                # Отказ ИМЕННОЙ: читатель обязан отличить «тир неизвестен» от
+                # «нарушен потолок», иначе перепись отказов соврёт о причине.
+                violations.append(
+                    f"{pool}: tier unknown (нет ни в мете оркестратора, ни в "
+                    f"реестре, либо значение не распознано) — не знаем, не "
+                    f"финансируем (ADR-357)")
+                continue
             # FAIL-CLOSED finiteness coercion (architect P5-1). The previous
             # `float(m.get("apy_pct") or 0.0)` was a NaN bypass: NaN is truthy so
             # `nan or 0.0` → nan, and that non-finite value then defeated EVERY

@@ -117,18 +117,37 @@ class TestTheDefectItself(unittest.TestCase):
         self.assertGreater(degraded.gain_pp, healthy.gain_pp,
                            "деградация обязана УВЕЛИЧИВАТЬ выгоду хода")
 
-    def test_unknown_tier_gets_a_cap_instead_of_a_refusal(self):
+    def test_an_unknown_tier_is_now_refused(self):
+        """ИЗМЕНЕНО НАМЕРЕННО (ADR-359, инв. #16) — по прямому указанию автора теста.
+
+        Здесь стояло обратное утверждение и текст: «незнакомый тир сегодня НЕ
+        отказывает — если это починили, тест обязан покраснеть и вердикт модуля
+        обязан стать REFUSES». Починили: решение владельца 12.09 (ADR-357 п. 3),
+        `policy_tier` больше не подставляет T2 умолчанием. Утверждение поэтому
+        перевёрнуто, а СЦЕНА оставлена дословно — меняется вердикт, не предмет.
+
+        Проверяются ОБА носителя незнания: незнакомое слово и полностью
+        отсутствующее поле. Проверять только первый значило бы оставить дыру,
+        через которую эта же проба и падала (поле отсутствовало — капитал шёл).
+        """
         ctx = _ctx()
         scene = ctx["gate_scene"]
-        rows = [dict(r) for r in scene["adapters"]]
-        for r in rows:
-            if r["protocol"] == "pendle":
-                r["tier"] = "T_UNKNOWN_TIER"
-        gate = M._call_gate(scene, rows)
-        self.assertTrue(M._gate_moves_capital(scene, gate),
-                        "замер §47: незнакомый тир сегодня НЕ отказывает — "
-                        "если это починили, тест обязан покраснеть и вердикт "
-                        "модуля обязан стать REFUSES")
+        for label, mutate in (("незнакомое слово", lambda r: r.update(tier="T_UNKNOWN_TIER")),
+                              ("поля тира нет вовсе", lambda r: r.pop("tier", None))):
+            rows = [dict(r) for r in scene["adapters"]]
+            for r in rows:
+                if r["protocol"] == "pendle":
+                    mutate(r)
+            gate = M._call_gate(scene, rows)
+            self.assertFalse(M._gate_moves_capital(scene, gate),
+                             f"{label}: капитал всё ещё двигается — «не знаем» "
+                             f"снова трактуется в пользу сделки")
+
+        # Обратный контроль: со ЗНАКОМЫМ тиром сцена обязана двигать капитал,
+        # иначе отказ был бы истинным по построению и ничего не доказывал.
+        self.assertTrue(M._gate_moves_capital(scene, M._call_gate(scene, scene["adapters"])),
+                        "здоровая сцена перестала двигать капитал — отказ выше "
+                        "ничего не значит")
 
     def test_two_rows_about_one_pool_are_decided_by_ORDER(self):
         ctx = _ctx()

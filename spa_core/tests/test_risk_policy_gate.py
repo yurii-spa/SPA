@@ -564,3 +564,86 @@ def test_gate_finite_feed_no_regression():
     assert gate["approved"] is True
     assert gate["error"] is None
     assert gate["violations"] == []
+
+
+# ── Незнакомый тир: решение владельца 12.09 (ADR-357 п. 3, исполнено ADR-359) ──
+#
+# Сторожей здесь ДВА, и они закрывают друг друга: денежный гейт отказывает по
+# `policy_tier(...) is None`, а RiskPolicy — по `tier not in KNOWN_TIERS`. Батарея
+# мутаций 12.09 показала, что снятие ЛЮБОГО из них поодиночке вердикта не меняет —
+# то есть тесты, проверяющие только «капитал не двинулся», не различают сторожей
+# и пропустили бы тихое исчезновение одного из них.
+#
+# Поэтому каждый закреплён на СВОЕЙ поверхности и по СВОЕЙ примете: гейт — по
+# ИМЕННОЙ причине отказа, политика — прямым вызовом, канон разбора — как функция.
+
+
+def test_the_canonical_tier_parser_refuses_what_it_does_not_know():
+    """Канон один на четыре прежних копии; «не знаем» — это None, а не T2."""
+    from spa_core.risk.policy import tier_from_registry as T
+
+    assert (T(1), T(2), T(3)) == ("T1", "T2", "T3")
+    assert T("T1") == "T1", "sky_susds хранит тир СТРОКОЙ — прежний разбор этого не знал"
+    assert T("3") == "T3", "число строкой — тот же тир, а не неизвестность"
+    for unknown in (0, 9, None, True, "", "advisory", 2.5):
+        assert T(unknown) is None, f"{unknown!r} подставлен вместо отказа"
+
+
+def test_policy_tier_resolves_or_refuses_but_never_defaults():
+    """Разборщик тира: мета → реестр → «не знаем». Умолчания T2 больше нет."""
+    from spa_core.paper_trading.risk_gate import policy_tier
+
+    assert policy_tier({"tier": "T2"}, None) == "T2"
+    assert policy_tier({}, {"tier": 1}) == "T1"
+    assert policy_tier({}, {"tier": 3}) == "T3", "T3 больше не считается вторым тиром"
+    assert policy_tier({}, None) is None, "тира нет нигде — это НЕ повод дать T2"
+    assert policy_tier({"tier": "T_UNKNOWN"}, None) is None
+
+
+def test_the_money_gate_refuses_an_unknown_tier_BY_ITS_OWN_REASON(tmp_path):
+    """Гейт обязан назвать причину «tier unknown», а не просто отказать.
+
+    Проверка идёт по ИМЕННОЙ причине НАМЕРЕННО, и это не педантизм: сторожей
+    два, и если снять ветку гейта, отказ всё равно придёт — от RiskPolicy и с
+    другим текстом. Первая редакция этого теста звалась так же, а проверяла
+    РАЗБОРЩИК, и мутация «снять ветку гейта» её пережила: имя обещало одно, тело
+    проверяло другое (замер 12.09, батарея из четырёх мутаций).
+    """
+    from spa_core.paper_trading.risk_gate import _apply_risk_policy_gate
+
+    # Фикстура файла, а не своя: она объявляет `tvl_source="live"`, без которого
+    # гейт отказал бы РАНЬШЕ по полу TVL (ADR-053) и сцена нарушала бы чужое
+    # ограничение вместо своего.
+    adapters = [
+        _adapter("aave_v3", tier="T1", apy=4.0, tvl=2e8),
+        _adapter("pendle", tier="T_UNKNOWN_TIER", apy=8.0, tvl=2e8),
+    ]
+    out = _apply_risk_policy_gate(
+        {"aave_v3": 30_000.0, "pendle": 15_000.0}, 100_000.0, adapters,
+        ddir=tmp_path, current_positions={})
+    named = [v for v in (out.get("violations") or []) if "tier unknown" in str(v)]
+    assert named, (
+        "гейт отказал БЕЗ своей причины — снятие его ветки стало бы незаметным: "
+        f"violations={out.get('violations')}")
+    assert out.get("approved") is False, "книга с неизвестным тиром одобрена"
+    # `target_usd` — ЭХО запрошенной цели, а не одобренная раскладка: первая
+    # редакция утверждения искала там отсутствие ключа и была неверна о контракте.
+    # Двинулся бы капитал или нет, решает `approved`.
+
+
+def test_risk_policy_itself_refuses_an_unknown_tier():
+    """Второй сторож, прямым вызовом: он обязан стоять независимо от первого."""
+    from spa_core.risk.policy import RiskPolicy, PortfolioState, Position
+
+    pol = RiskPolicy()
+    state = PortfolioState(
+        total_capital_usd=100_000.0,
+        positions=[Position(protocol_key="aave_v3", tier="T1", asset="USDC",
+                            amount_usd=50_000.0, apy_at_open=4.0, current_apy=4.0)])
+    ok = pol.check_new_position(state, "pendle", "T2", 10_000.0, 8.0, 50_000_000.0)
+    assert ok.approved is True, "знакомый тир обязан проходить, иначе отказ ниже пуст"
+    for unknown in ("T9", "", "t1", None):
+        bad = pol.check_new_position(state, "pendle", unknown, 10_000.0, 8.0, 50_000_000.0)
+        assert bad.approved is False, f"тир {unknown!r} профинансирован"
+        assert any("Unknown tier" in v for v in bad.violations), \
+            f"отказ для {unknown!r} не назвал причиной тир"

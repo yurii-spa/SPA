@@ -167,10 +167,17 @@ def load_registry_apy(registry_path: Path) -> dict[str, dict]:
     for name, entry in (reg.get("adapters", {}) or {}).items():
         if not isinstance(entry, dict):
             continue
-        tier_int = entry.get("tier", 2)
+        # ИЗМЕНЕНО 12.09 (ADR-359): третья копия разбора тира, и она спорила с
+        # соседями — «всё, что не 1, это T2». Теперь канон один
+        # (`risk.policy.tier_from_registry`); незнакомый тир НЕ подменяется вторым,
+        # а исключает запись из вселенной сравнения.
+        from spa_core.risk.policy import tier_from_registry
+        tier_str = tier_from_registry(entry.get("tier"))
+        if tier_str is None:
+            continue
         fa = entry.get("fallback_apy")
         apy = round(float(fa) * 100.0, 4) if _finite(fa) and fa > 0 else None
-        out[name] = {"tier": "T1" if tier_int == 1 else "T2", "apy_pct": apy}
+        out[name] = {"tier": tier_str, "apy_pct": apy}
     return out
 
 
