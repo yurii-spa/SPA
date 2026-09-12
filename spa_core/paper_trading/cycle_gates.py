@@ -86,6 +86,11 @@ def apply_analytics_blocking_gate(
 
     Mutates ``target_usd`` and ``notes`` in place (byte-identical to the original
     inline block in ``run_cycle``).
+
+    Ловушка (замер 2026-09-11): этот гейт НЕ читает ``data/analytics_signals_blocking.json``
+    по имени — он импортирует ``run_tier_a`` напрямую. ``grep`` по имени файла на денежном
+    пути даёт ноль и врёт («Tier-A никто не читает»); искать по импорту ``signal_aggregator``.
+    Это и есть реакция на деградацию — автоматическая, без владельца и без CIO.
     """
     try:
         from spa_core.analytics.signal_aggregator import run_tier_a as _analytics_tier_a
