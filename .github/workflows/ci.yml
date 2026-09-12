@@ -140,6 +140,21 @@ jobs:
           SPA_ENV: ci
           PYTHONHASHSEED: '0'
 
+      # --- git path-coordinate census (ADR-354) --------------------------------
+      # git разбирает `<ревизия>:<путь>` ОТ КОРНЯ рабочей копии, а pathspec — ОТ
+      # ТЕКУЩЕГО КАТАЛОГА. Один зов может нести обе координаты, и тогда каталог
+      # запуска молча делает половину зова неверной (авария #574: перечисление
+      # предков возвращало ПУСТО, и ноль печатался как «посмотрели и не нашли»).
+      # Перепись мерит НАСЕЛЕНИЕ класса и слепоту НАБЛЮДЕНИЕМ — прогоняя каждую
+      # форму из корня и из подкаталога одной копии. Код 3 — находка, код 2 —
+      # «НЕ ИЗМЕРЕНО», и он тоже красный (инвариант #17). Единица оставлена
+      # CPython: крах прибора не смеет выглядеть его находкой (ADR-347).
+      - name: git path-coordinate census (ADR-354)
+        run: python scripts/git_path_coordinate_census.py --root .
+        env:
+          SPA_ENV: ci
+          PYTHONHASHSEED: '0'
+
       # --- Pre-cutover readiness gate (ADVISORY, non-blocking) ----------------
       # Drives a cycle through EACH money-path failure mode against an ephemeral
       # SANDBOX and asserts every defense fires (HARD/SOFT kill, DL-01/DL-02,
