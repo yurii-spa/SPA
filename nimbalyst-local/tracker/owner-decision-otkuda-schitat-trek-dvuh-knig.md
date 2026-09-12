@@ -2,9 +2,11 @@
 trackerStatus:
   type: owner-decision
 title: "Публичное число двух книг: считать трек с 22 июня (там были литералы) или с 10 сентября (там начались наблюдения)?"
-status: needs-owner
+status: ingested
 source: agent
 created: 2026-09-10
+status_trail:
+  - "2026-09-12T13:38:08.996381+00:00 needs-owner -> ingested · queue.set_status"
 ---
 
 ## Что случилось и почему это важно

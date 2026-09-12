@@ -2,22 +2,18 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-12T08:03:24Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-12T13:38:59Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (b90fad8d3).
+> Сверено с `origin/main` (765811a52) · у **4** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1026** · ждёт владельца: **11** · занято сессиями: **14**.
+> Всего карточек: **1027** · ждёт владельца: **7** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
-- **Автоторговля, вопрос 2 из 3: нужен ли ДНЕВНОЙ лимит оборота вдобавок к недельному?**  ·  `owner-decision-avtotorgovlya-dnevnoi-limit-oborota.md`
-- **Автоторговля, вопрос 3 из 3: что делать с незнакомым протоколом и незнакомым тиром?**  ·  `owner-decision-avtotorgovlya-neznakomyi-protokol-i-tir.md`
-- **Автоторговля, вопрос 1 из 3: ставить ли потолок на СУММУ одной сделки?**  ·  `owner-decision-avtotorgovlya-potolok-summy-odnoi-sdelki.md`
 - **earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются**  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md`
 - **earn-defi: создать репозиторий на GitHub — у агента нет прав, работа лежит локально**  ·  `owner-decision-earn-defi-sozdat-repozitorii-na-github.md`
 - **Критерий готовности C012 подтверждает автопуш наличием файла, который никто не запускает**  ·  `owner-decision-kriterii-gotovnosti-c012-podtverzhdaet-a.md`
 - **Твой Obsidian показывает состояние проекта недельной давности — одна минута на починку**  ·  `owner-decision-obsidian-chitaet-sostoyanie-nedelnoi-davnosti.md`
-- **Публичное число двух книг: считать трек с 22 июня (там были литералы) или с 10 сентября (там начались наблюдения)?**  ·  `owner-decision-otkuda-schitat-trek-dvuh-knig.md`
 - **Сайт: why-20-apy-means-tail-risk.astro и ещё 2 — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-why-20-apy-means-tail-risk-astro-i.md`
 - **Скрипт живого агента запускается только благодаря настройке в обёртке — чинить сам скрипт?** · _normal_  ·  `owner-decision-skript-zhivogo-agenta-zapuskaetsya-tolko.md`
 - **Удалить оставшийся файл с токеном из папки проекта (одна команда)**  ·  `owner-decision-udalit-ostavshiisya-fail-s-tokenom.md`
@@ -44,14 +40,10 @@
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (274)
 
 ### · needs-owner
-- Автоторговля, вопрос 2 из 3: нужен ли ДНЕВНОЙ лимит оборота вдобавок к недельному?  ·  `owner-decision-avtotorgovlya-dnevnoi-limit-oborota.md` · 2026-09-09
-- Автоторговля, вопрос 3 из 3: что делать с незнакомым протоколом и незнакомым тиром?  ·  `owner-decision-avtotorgovlya-neznakomyi-protokol-i-tir.md` · 2026-09-09
-- Автоторговля, вопрос 1 из 3: ставить ли потолок на СУММУ одной сделки?  ·  `owner-decision-avtotorgovlya-potolok-summy-odnoi-sdelki.md` · 2026-09-09
 - earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md` · 2026-09-09
 - earn-defi: создать репозиторий на GitHub — у агента нет прав, работа лежит локально  ·  `owner-decision-earn-defi-sozdat-repozitorii-na-github.md` · 2026-09-09
 - Критерий готовности C012 подтверждает автопуш наличием файла, который никто не запускает  ·  `owner-decision-kriterii-gotovnosti-c012-podtverzhdaet-a.md` · 2026-09-12
 - Твой Obsidian показывает состояние проекта недельной давности — одна минута на починку  ·  `owner-decision-obsidian-chitaet-sostoyanie-nedelnoi-davnosti.md` · 2026-09-09
-- Публичное число двух книг: считать трек с 22 июня (там были литералы) или с 10 сентября (там начались наблюдения)?  ·  `owner-decision-otkuda-schitat-trek-dvuh-knig.md` · 2026-09-10
 - Сайт: why-20-apy-means-tail-risk.astro и ещё 2 — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-why-20-apy-means-tail-risk-astro-i.md` · 2026-09-09
 - Скрипт живого агента запускается только благодаря настройке в обёртке — чинить сам скрипт?  ·  `owner-decision-skript-zhivogo-agenta-zapuskaetsya-tolko.md` · 2026-09-12
 - Удалить оставшийся файл с токеном из папки проекта (одна команда)  ·  `owner-decision-udalit-ostavshiisya-fail-s-tokenom.md` · 2026-09-09
@@ -136,7 +128,10 @@
 - Аварийная остановка ТЕРЯЕТСЯ при восстановлении из резерва (выбери, как убрать файлы состояния из git)  ·  `owner-decision-avariinaya-ostanovka-teryaetsya-pri-vosst.md` · 2026-08-18
 - Аварийный тормоз: осталось одно решение — что делать после срабатывания (кнопки теперь есть)  ·  `owner-decision-avariinyi-tormoz-ostalos-odno-reshenie-c.md` · 2026-08-19
 - ДУБЛЬ (отвечать не нужно) — Аварийный тормоз стоит с ночи — книга девять часов в кэше, снимать может только ты  ·  `owner-decision-avariinyi-tormoz-stoit-s-nochi-kniga-dev.md` · 2026-08-10
+- Автоторговля, вопрос 2 из 3: нужен ли ДНЕВНОЙ лимит оборота вдобавок к недельному?  ·  `owner-decision-avtotorgovlya-dnevnoi-limit-oborota.md` · 2026-09-09
 - Автоторговля: из 12 твоих ограничителей работают 4 — нужны три решения (потолок суммы, дневной оборот, незнакомый протокол)  ·  `owner-decision-avtotorgovlya-iz-12-tvoih-ogranichitelei.md` · 2026-09-07
+- Автоторговля, вопрос 3 из 3: что делать с незнакомым протоколом и незнакомым тиром?  ·  `owner-decision-avtotorgovlya-neznakomyi-protokol-i-tir.md` · 2026-09-09
+- Автоторговля, вопрос 1 из 3: ставить ли потолок на СУММУ одной сделки?  ·  `owner-decision-avtotorgovlya-potolok-summy-odnoi-sdelki.md` · 2026-09-09
 - Безопасность: admin-панель /admin без пароля — закрыть за Cloudflare Access  ·  `owner-decision-bezopasnost-admin-panel-admin-bez-paroly.md` · 2026-07-16
 - Брошенные прогоны тестов восьмой раз съедают процессор — разрешить поставить сторожа по расписанию?  ·  `owner-decision-broshennye-progony-testov-vosmoi-raz-sed.md` · 2026-09-04
 - Бумажный тест закончен — выбери, как двигаемся дальше (5 решений)  ·  `owner-decision-bumazhnyi-test-zakonchen-vyberi-kak-dvig.md` · 2026-07-29
@@ -221,6 +216,7 @@
 - Отчёт готовности говорит «ГОТОВЫ», хотя трек не добран (26/30) — публичный API противоречит сам себе  ·  `owner-decision-otchet-gotovnosti-govorit-gotovy-hotya-t.md` · 2026-07-17
 - Отчёт «эту карточку я НЕ беру» больше не считается захватом — подтверди или откати  ·  `owner-decision-otchet-o-zanyatosti-kartochki-bolshe-ne-sc.md` · 2026-08-01
 - СНЯТО ЗАМЕРОМ: ветку уже вернули без тебя — команду из этой карточки выполнять НЕЛЬЗЯ  ·  `owner-decision-otkat-vetki-1249-kommitov-2026-08-29.md` · 2026-08-29
+- Публичное число двух книг: считать трек с 22 июня (там были литералы) или с 10 сентября (там начались наблюдения)?  ·  `owner-decision-otkuda-schitat-trek-dvuh-knig.md` · 2026-09-10
 - Партия 2 карантина: кандидатов четыре, и по ним у меня разные рекомендации  ·  `owner-decision-partiya-2-karantina-kandidatov-chetyre-i.md` · 2026-08-29
 - Pendle сам назначает себе уровень риска по размеру пула — а в справочнике написано другое  ·  `owner-decision-pendle-sam-naznachaet-sebe-uroven-riska.md` · 2026-09-05
 - Переспрашиваю: судьба сторожа telegram_watcher — твой ответ 15.08 потерялся вместе с закрытой веткой  ·  `owner-decision-peresprashivayu-sudba-storozha-telegram.md` · 2026-08-21
@@ -321,7 +317,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (513)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (514)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -743,6 +739,7 @@
 - Исполнить Вариант 2 владельца: дописать 38 ставок и подключить их к hit_rate со СМЕШАННОЙ пробой  ·  `inbox-ispolnit-variant-2-vladeltsa-dopisat-38.md` · 2026-09-10
 - Карточка про сторожа ИИ лежит у владельца в СТАРОЙ бескнопочной редакции — переотправить после окна анти-шторма  ·  `inbox-kartochka-pro-storozha-ii-lezhit-u-vlade.md` · 2026-09-07
 - Карточку моста закрыли руками — живая находка осиротела: мост считает её открытой и новую не заведёт  ·  `inbox-kartochku-mosta-zakryli-rukami-zhivaya-n.md` · 2026-08-17
+- Каталог доставки берётся из окружения: 15 зовов git, включая checkout origin/main в прод-дерево  ·  `inbox-katalog-dostavki-beretsya-iz-okruzheniya.md` · 2026-09-12
 - Книги за прошлый день нет в архиве: дозапись исходов навсегда несёт null в позициях  ·  `inbox-knigi-za-proshlyi-den-net-v-arhive-dozap.md` · 2026-08-17
 - Консолидация четырёх стресс-движков + дрейф порога в stress_engine v1  ·  `inbox-konsolidatsiya-chetyreh-stress-dvizhkov.md` · 2026-08-22
 - Контрольное дерево приёмки объявить НЕЧЕМ: словарь объявлений файловый, а у контрольного дерева правок нет по определению  ·  `inbox-kontrolnoe-derevo-priemki-obyavit-nechem.md` · 2026-08-29

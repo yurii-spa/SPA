@@ -2,10 +2,12 @@
 trackerStatus:
   type: owner-decision
 title: "Автоторговля, вопрос 2 из 3: нужен ли ДНЕВНОЙ лимит оборота вдобавок к недельному?"
-status: needs-owner
+status: ingested
 source: agent
 created: 2026-09-09
 split_from: owner-decision-avtotorgovlya-iz-12-tvoih-ogranichitelei
+status_trail:
+  - "2026-09-12T13:38:06.699757+00:00 needs-owner -> ingested · queue.set_status"
 ---
 
 ## Что случилось и почему это важно

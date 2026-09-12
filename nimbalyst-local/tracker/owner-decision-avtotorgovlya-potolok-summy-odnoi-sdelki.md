@@ -2,10 +2,12 @@
 trackerStatus:
   type: owner-decision
 title: "Автоторговля, вопрос 1 из 3: ставить ли потолок на СУММУ одной сделки?"
-status: needs-owner
+status: ingested
 source: agent
 created: 2026-09-09
 split_from: owner-decision-avtotorgovlya-iz-12-tvoih-ogranichitelei
+status_trail:
+  - "2026-09-12T13:38:04.492733+00:00 needs-owner -> ingested · queue.set_status"
 ---
 
 ## Что случилось и почему это важно
