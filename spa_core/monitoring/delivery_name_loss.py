@@ -94,6 +94,7 @@ ADVISORY. Ни один тест не правится. Только stdlib.
 from __future__ import annotations
 
 import ast
+import re
 from typing import Optional
 
 #: Исходы разделения. Третий НИКОГДА не складывается с первыми двумя.
@@ -144,14 +145,49 @@ def _collection_entries(value: ast.AST) -> set:
     return out
 
 
-def significant_names(blob: Optional[bytes]) -> Optional[set]:
+
+#: Расширения, у которых значимые имена умеет доставать ОБОЛОЧЕЧНЫЙ разборщик.
+SHELL_SUFFIXES = (".sh", ".bash")
+
+#: Присваивание переменной оболочки в начале строки (с `export` или без).
+_SH_ASSIGN = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=", re.M)
+
+#: Определение функции оболочки: `name() {` либо `function name {`.
+_SH_FUNC = re.compile(r"^\s*(?:function\s+)?([A-Za-z_][A-Za-z0-9_-]*)\s*\(\)\s*\{|"
+                      r"^\s*function\s+([A-Za-z_][A-Za-z0-9_-]*)\s*\{", re.M)
+
+
+def _shell_names(text: str) -> set:
+    """Значимые имена скрипта оболочки: переменные и функции верхнего уровня.
+
+    Ограничение названо вслух: у оболочки нет разбора в stdlib, поэтому имена
+    достаются регулярками, и «не разобрано» здесь может возникнуть ТОЛЬКО от
+    нечитаемых байтов. Значит третий исход у оболочки уже, чем у Python, — и
+    выдавать эту меру за равную питоновской было бы неверно. Она ловит ровно тот
+    класс, ради которого расширена: имя, которое было на remote и исчезло в пушенной
+    копии (авария 12.09, второй случай за сутки — `STARVE_LIB` в обёртке цикла).
+    """
+    names = set(_SH_ASSIGN.findall(text))
+    for a, b in _SH_FUNC.findall(text):
+        names.add(a or b)
+    return {n for n in names if n}
+
+def significant_names(blob: Optional[bytes], path: str = "") -> Optional[set]:
     """Значимые имена файла — или ``None``, если файл не разобран.
 
     ``None`` здесь значит ровно «не измерено»: пустое множество означало бы «имён
     нет», и склеивать эти два исхода нельзя (инвариант #17).
+
+    Язык выбирается по ``path``. Без ``path`` — прежнее поведение (Python), чтобы
+    старые вызовы не поменяли смысл молча.
     """
     if blob is None:
         return None
+    if path.endswith(SHELL_SUFFIXES):
+        try:
+            return _shell_names(blob.decode("utf-8"))
+        except UnicodeDecodeError:
+            return None
     try:
         tree = ast.parse(blob.decode("utf-8", "replace"))
     except (SyntaxError, ValueError):
@@ -160,25 +196,25 @@ def significant_names(blob: Optional[bytes]) -> Optional[set]:
 
 
 def classify_loss(base: Optional[bytes], local: Optional[bytes],
-                  remote: Optional[bytes]) -> dict:
+                  remote: Optional[bytes], path: str = "") -> dict:
     """Что теряет пуш ``local`` поверх ``remote`` при базе ``base``.
 
     Возвращает словарь с тремя долями и НАЗВАННОЙ причиной, если мерить нечем.
     """
-    n_local, n_remote = significant_names(local), significant_names(remote)
+    n_local, n_remote = significant_names(local, path), significant_names(remote, path)
 
     if n_remote is None:
         return {"status": UNMEASURED, "reason": "версия на remote не прочитана или не разбирается",
                 DELETED_BY_AUTHOR: [], NEVER_SEEN_BY_AUTHOR: []}
     if n_local is None:
-        return {"status": UNMEASURED, "reason": "наша версия не разбирается как Python",
+        return {"status": UNMEASURED, "reason": "наша версия не разбирается",
                 DELETED_BY_AUTHOR: [], NEVER_SEEN_BY_AUTHOR: []}
 
     gone = n_remote - n_local
     if not gone:
         return {"status": "clean", "reason": "", DELETED_BY_AUTHOR: [], NEVER_SEEN_BY_AUTHOR: []}
 
-    n_base = significant_names(base)
+    n_base = significant_names(base, path)
     if n_base is None:
         # Имена ТЕРЯЮТСЯ, но сказать, видел ли их автор, нечем. Это не «чисто».
         return {"status": UNMEASURED,

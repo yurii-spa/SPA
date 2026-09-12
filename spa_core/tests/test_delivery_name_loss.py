@@ -20,6 +20,7 @@ import subprocess
 import unittest
 from pathlib import Path
 
+from spa_core.monitoring import delivery_name_loss as dnl
 from spa_core.monitoring.delivery_name_loss import (
     DELETED_BY_AUTHOR, NEVER_SEEN_BY_AUTHOR, UNMEASURED,
     classify_loss, refusal_text, significant_names)
@@ -362,3 +363,70 @@ class TheWiringLostOnTheTwelfthIsBack(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+class ShellWrappersAreCoveredToo(unittest.TestCase):
+    """ADR-351 — расширение стража на оболочку, воспроизведённое по настоящей аварии.
+
+    Страж смотрел ТОЛЬКО на ``.py``, и ровно поэтому пуш `5fb2ab5a` (мой) молча
+    откатил правку ADR-347 в `scripts/agent_orchestrator.sh`: имя `STARVE_LIB` было
+    на remote и исчезло в пушенной копии. Второй случай класса за сутки и первый —
+    в оболочке; питоновский страж, построенный утром против первого, на второй не
+    смотрел вовсе.
+
+    Сцены синтетические, но форма — дословно та: правка кладётся поверх копии,
+    взятой РАНЬШЕ, и уносит имя, которого автор не видел.
+    """
+
+    REMOTE = (
+        '#!/bin/bash\n'
+        'REPO_ROOT="/x"\n'
+        'STARVE_LIB="$REPO_ROOT/scripts/lib/starvation_verdict.sh"\n'
+        'STARVE_PY="$REPO_ROOT/scripts/check_owner_order_starvation.py"\n'
+        'ts() { date -u; }\n'
+    ).encode()
+    #: База автора — та же обёртка ДО появления `STARVE_LIB`.
+    STALE_BASE = (
+        '#!/bin/bash\n'
+        'REPO_ROOT="/x"\n'
+        'STARVE_PY="$REPO_ROOT/scripts/check_owner_order_starvation.py"\n'
+        'ts() { date -u; }\n'
+    ).encode()
+
+    def test_a_name_the_author_never_saw_is_a_refusal(self):
+        local = self.STALE_BASE + b'MY_STEP="added"\n'
+        v = dnl.classify_loss(self.STALE_BASE, local, self.REMOTE,
+                              path="scripts/agent_orchestrator.sh")
+        self.assertEqual(v["status"], dnl.NEVER_SEEN_BY_AUTHOR)
+        self.assertEqual(v[dnl.NEVER_SEEN_BY_AUTHOR], ["STARVE_LIB"])
+        self.assertIn("STARVE_LIB", dnl.refusal_text("scripts/agent_orchestrator.sh", v))
+
+    def test_a_name_the_author_did_see_is_named_but_not_a_refusal(self):
+        """Обратная сторона: осознанное удаление своего же имени отказом не является."""
+        local = self.REMOTE.replace(b'ts() { date -u; }\n', b'')
+        v = dnl.classify_loss(self.REMOTE, local, self.REMOTE,
+                              path="scripts/agent_orchestrator.sh")
+        self.assertEqual(v["status"], dnl.DELETED_BY_AUTHOR)
+        self.assertEqual(v[dnl.DELETED_BY_AUTHOR], ["ts"])
+        self.assertEqual(dnl.refusal_text("scripts/agent_orchestrator.sh", v), "")
+
+    def test_a_wrapper_that_loses_nothing_is_clean(self):
+        local = self.REMOTE + b'EXTRA="ok"\n'
+        v = dnl.classify_loss(self.REMOTE, local, self.REMOTE,
+                              path="scripts/agent_orchestrator.sh")
+        self.assertEqual(v["status"], "clean")
+
+    def test_shell_names_cover_both_assignment_and_function_forms(self):
+        names = dnl.significant_names(
+            b'A=1\nexport B=2\nc() { :; }\nfunction d { :; }\n# E=nope in a comment is still E\n',
+            path="x.sh")
+        self.assertLessEqual({"A", "B", "c", "d"}, names)
+
+    def test_undecodable_bytes_are_not_measured_rather_than_empty(self):
+        """Инв. #17: «не прочитано» и «имён нет» — разные исходы."""
+        self.assertIsNone(dnl.significant_names(b"\xff\xfe\x00binary", path="x.sh"))
+
+    def test_a_python_path_still_uses_the_python_reader(self):
+        """Расширение не имеет права поменять смысл прежних вызовов."""
+        self.assertEqual(dnl.significant_names(b"def f():\n    pass\n", path="x.py"), {"f"})
+        self.assertIsNone(dnl.significant_names(b"def f(:\n", path="x.py"))
