@@ -49,8 +49,13 @@ def test_pilot_column_matches_the_adr(field, expect):
 def test_both_columns_carry_the_same_accepted_policy_version():
     """paper vs pilot is a COLUMN choice, not a different accepted policy."""
     paper, pilot = TriggerParams.for_mode("paper"), TriggerParams.for_mode("pilot")
-    assert paper.version == pilot.version == "v1.0"
-    assert paper.version_date == pilot.version_date == "2026-08-02"  # ADR-060 header
+    # ИЗМЕНЕНО НАМЕРЕННО (ADR-357, инв. #16): предмет утверждения НЕ тронут —
+    # обе колонки по-прежнему обязаны нести ОДНУ принятую версию политики.
+    # Сменилось само число: ответ владельца 12.09 добавил в контракт две ручки
+    # (`max_trade_usd`, `max_turnover_per_day`), а контракт требует новой версии
+    # при любом изменении порогов — иначе версия не значила бы ничего.
+    assert paper.version == pilot.version == "v1.1"
+    assert paper.version_date == pilot.version_date == "2026-09-12"  # ADR-357 (см. выше)
 
 
 def test_mode_names_which_column_was_resolved():

@@ -123,10 +123,14 @@ GATE_PROVENANCE: Dict[str, str] = {
     "gain_above_band": OWN,
     "payback_within_horizon": OWN,
     "move_turnover_ok": OWN,
+    # Сумма хода в долларах — целиком СВОЁ предложение тени: история живой книги
+    # в неё не входит ни одним слагаемым (ADR-357).
+    "move_amount_ok": OWN,
     "target_fully_evidenced": OWN,
     "cooldown_ok": IMPORTED,      # days_since_last_act — из trades.json живой книги
     "min_hold_ok": IMPORTED,      # position_age_days — оттуда же
     "week_turnover_ok": MIXED,    # (оборот живой книги за неделю) + (свой ход)
+    "day_turnover_ok": MIXED,     # (оборот живой книги за сутки) + (свой ход), ADR-357
 }
 
 STATUS_OK = "OK"

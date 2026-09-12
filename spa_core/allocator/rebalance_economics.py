@@ -85,12 +85,37 @@ class TriggerParams:
     act_cooldown_days: int = 3           # at most one yield-driven move per window
     max_turnover_per_move: float = 0.15  # ≤15 % of capital in one move
     max_turnover_per_week: float = 0.25  # ≤25 % of capital per rolling week
+    # ── ДВЕ РУЧКИ ИЗ ОТВЕТА ВЛАДЕЛЬЦА 12.09 (ADR-357) ───────────────────────
+    # `max trade amount` и `max daily turnover` — пункты 1 и 3 из двенадцати
+    # ограничений §41 ТЗ CIO; ADR-250 измерил, что обоих НЕТ: та же доля капитала
+    # при сумме в сто раз большей проходила везде одинаково (нога $3 000 000
+    # допускалась ровно как $30 000), а входа «оборот за сегодня» у `evaluate`
+    # не было вовсе.
+    #
+    # Сумма НЕ смягчается в пилотной колонке намеренно: абсолютный потолок и есть
+    # защита ровно от того, что доля на реальном капитале означает совсем другие
+    # деньги. Смягчать его при переходе на живые деньги значило бы снять защиту
+    # там, где она впервые понадобилась.
+    #
+    # Значение ВЫВЕДЕНО замером, а не выбрано: $15 000 — это максимальный ход
+    # (15 %) при нынешнем капитале $100 000. То есть сегодня потолок НЕ связывает
+    # и бумажную книгу не ужесточает, а начинает связывать ровно тогда, когда
+    # капитал вырастет, — что и было предметом вопроса владельца («на реальном
+    # капитале 15 % — совсем другая сумма»). Первая редакция ставила $10 000 и
+    # молча урезала бумажный ход на треть: владелец такого не просил.
+    max_trade_usd: float = 15_000.0      # ≤$X of capital moved in one move
+    # Дневной бюджет ВЫВЕДЕН, а не выдуман: он равен ОДНОМУ ходу максимального
+    # размера в своей же колонке. Смысл ручки — не дать нескольким ходам сложиться
+    # в один день (недельный бюджет это разрешал: замер ADR-228 — за 30 дней
+    # теневой триггер не сказал ACT ни разу, `week_turnover_ok` отказал на 17 из 17
+    # существенных дней, бюджет исчерпывался ДО того, как триггер спрашивали).
+    max_turnover_per_day: float = 0.15   # ≤15 % of capital per calendar day
     min_leg_frac: float = 0.005          # dust legs (<0.5 % of capital) are skipped
     reversal_window_days: int = 14       # window in which a reversal is penalised
     reversal_escalation: float = 1.5     # gain threshold ×N when reversing
     below_median_cap_factor: float = 0.5  # below-median yield ⇒ ≤ half the tier cap
-    version: str = "v1.0"                # ADR-060 acceptance — bump on any threshold change
-    version_date: str = "2026-08-02"     # owner acceptance date (ADR-060 header)
+    version: str = "v1.1"                # v1.1 — ADR-357 добавил max_trade_usd и max_turnover_per_day
+    version_date: str = "2026-09-12"     # owner acceptance date (ADR-357)
     mode: str = "paper"                  # which ADR-060 §3 column this instance is
 
     @classmethod
@@ -120,6 +145,8 @@ class TriggerParams:
             act_cooldown_days=7,
             max_turnover_per_move=0.10,
             max_turnover_per_week=0.15,
+            max_trade_usd=15_000.0,        # абсолютная сумма НЕ смягчается режимом
+            max_turnover_per_day=0.10,     # тот же принцип: один ход максимального размера
             min_leg_frac=0.01,
             reversal_window_days=21,
             reversal_escalation=2.0,
@@ -247,6 +274,7 @@ def evaluate(
     days_since_last_act: Optional[float] = None,
     position_age_days: Optional[Dict[str, float]] = None,
     turnover_last_week_usd: float = 0.0,
+    turnover_today_usd: Optional[float] = None,
     last_move_legs: Optional[Dict[str, float]] = None,
     days_since_last_move: Optional[float] = None,
     tvl_evidenced: Optional[set] = None,
@@ -345,6 +373,18 @@ def evaluate(
         (turnover_last_week_usd + d.turnover_usd) / capital_usd
         <= p.max_turnover_per_week + _EPS
     )
+    move_amount_ok = d.turnover_usd <= p.max_trade_usd + _EPS
+    # `None` — это «не измерено», а НЕ «сегодня ничего не двигали» (инв. #17).
+    # Ноль по умолчанию открыл бы дневной бюджет любому вызывающему, который просто
+    # не знает про оборот, — то есть ручка владельца существовала бы только в
+    # докстринге. Сомнение трактуется ПРОТИВ сделки, как и везде в этом слое.
+    if turnover_today_usd is None:
+        day_budget_ok = False
+    else:
+        day_budget_ok = (
+            (float(turnover_today_usd) + d.turnover_usd) / capital_usd
+            <= p.max_turnover_per_day + _EPS
+        )
     gain_ok = d.gain_pp >= required - _EPS
     payback_ok = d.payback_days is not None and d.payback_days <= p.max_payback_days + _EPS
 
@@ -355,7 +395,9 @@ def evaluate(
         "cooldown_ok": bool(cooldown_ok),
         "min_hold_ok": bool(min_hold_ok),
         "move_turnover_ok": bool(move_budget_ok),
+        "move_amount_ok": bool(move_amount_ok),
         "week_turnover_ok": bool(week_budget_ok),
+        "day_turnover_ok": bool(day_budget_ok),
         "target_fully_evidenced": not unev_opt,
     }
 
@@ -371,8 +413,16 @@ def evaluate(
     if not move_budget_ok:
         d.reasons.append("move_turnover_over_budget:{:.1%}>{:.0%}".format(
             d.turnover_frac, p.max_turnover_per_move))
+    if not move_amount_ok:
+        d.reasons.append("move_amount_over_cap:${:,.0f}>${:,.0f}".format(
+            d.turnover_usd, p.max_trade_usd))
     if not week_budget_ok:
         d.reasons.append("week_turnover_over_budget")
+    if not day_budget_ok:
+        d.reasons.append("day_turnover_unmeasured" if turnover_today_usd is None
+                         else "day_turnover_over_budget:{:.1%}>{:.0%}".format(
+                             (float(turnover_today_usd) + d.turnover_usd) / capital_usd,
+                             p.max_turnover_per_day))
 
     d.decision = "ACT" if all(d.gates.values()) else "HOLD"
     if d.decision == "ACT":

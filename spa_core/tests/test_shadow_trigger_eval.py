@@ -216,7 +216,10 @@ def test_full_writer_stamps_the_history_line_with_the_investment_decision_fields
     lines = _lines(tmp_path / HISTORY_FILENAME)
     row = json.loads(lines[0])
     assert row["decision_id"] == "adr060-shadow-2026-08-02"
-    assert row["policy_version"] == "v1.0"
+    # ИЗМЕНЕНО НАМЕРЕННО (ADR-357, инв. #16): предмет не тронут — строка истории
+    # обязана НЕСТИ версию контракта. Сменилось число: ответ владельца 12.09
+    # добавил две ручки, контракт требует новой версии при изменении порогов.
+    assert row["policy_version"] == "v1.1"
     assert row["mode"] == "paper"
     assert "legs" in row and "gates" in row
 

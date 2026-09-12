@@ -126,12 +126,18 @@ def _cio_doc_with_trial(monkeypatch, fire: bool):
 def test_cycle_takes_one_trial_move_and_refuses_the_second(tmp_path, monkeypatch):
     _cio_doc_with_trial(monkeypatch, fire=True)
     _run(tmp_path, APY, TARGET)                                   # первичное размещение
-    swap = {"aave_v3": 40000.0, "maple": 20000.0, "yearn_v3": 14000.0}
+    # ИЗМЕНЕНО НАМЕРЕННО (ADR-357, инв. #16): сцена уменьшена с $20 000 до $14 000,
+    # предмет теста НЕ тронут. Ответ владельца 12.09 ввёл потолок СУММЫ одного хода
+    # ($15 000), и разрешение его не снимает и не должно: это потолок размера, а не
+    # частоты. Прежняя сцена двигала $20 000 и с тех пор нарушала ДВА ограничения
+    # сразу — своё (демпфер) и чужое (сумма), а сцена обязана нарушать ТОЛЬКО своё,
+    # иначе тест доказывает не то, ради чего написан.
+    swap = {"aave_v3": 40000.0, "morpho_blue": 6000.0, "maple": 14000.0, "yearn_v3": 14000.0}
     r2 = _run(tmp_path, APY, swap, now=datetime(2026, 6, 11, 8, 0, tzinfo=timezone.utc))
     assert r2.traded is True, "пробный ход не состоялся"
     trades = _load(tmp_path, "trades.json")
     assert trades[-1].get(ct.MARK) == ct.TRIAL_GRANT["adr"], "сделка не несёт признак расхода"
-    back = {"aave_v3": 40000.0, "morpho_blue": 20000.0, "yearn_v3": 14000.0}
+    back = {"aave_v3": 40000.0, "morpho_blue": 20000.0, "yearn_v3": 14000.0}  # обратный ход той же величины
     r3 = _run(tmp_path, APY, back, now=datetime(2026, 6, 12, 8, 0, tzinfo=timezone.utc))
     assert r3.traded is False, "второй ход прошёл по израсходованному разрешению"
     assert sum(1 for t in _load(tmp_path, "trades.json") if t.get(ct.MARK)) == 1
@@ -140,7 +146,13 @@ def test_cycle_takes_one_trial_move_and_refuses_the_second(tmp_path, monkeypatch
 def test_cycle_without_passing_economics_takes_no_trial(tmp_path, monkeypatch):
     _cio_doc_with_trial(monkeypatch, fire=False)
     _run(tmp_path, APY, TARGET)
-    swap = {"aave_v3": 40000.0, "maple": 20000.0, "yearn_v3": 14000.0}
+    # ИЗМЕНЕНО НАМЕРЕННО (ADR-357, инв. #16): сцена уменьшена с $20 000 до $14 000,
+    # предмет теста НЕ тронут. Ответ владельца 12.09 ввёл потолок СУММЫ одного хода
+    # ($15 000), и разрешение его не снимает и не должно: это потолок размера, а не
+    # частоты. Прежняя сцена двигала $20 000 и с тех пор нарушала ДВА ограничения
+    # сразу — своё (демпфер) и чужое (сумма), а сцена обязана нарушать ТОЛЬКО своё,
+    # иначе тест доказывает не то, ради чего написан.
+    swap = {"aave_v3": 40000.0, "morpho_blue": 6000.0, "maple": 14000.0, "yearn_v3": 14000.0}
     r2 = _run(tmp_path, APY, swap, now=datetime(2026, 6, 11, 8, 0, tzinfo=timezone.utc))
     assert r2.traded is False
     assert not any(t.get(ct.MARK) for t in _load(tmp_path, "trades.json"))
@@ -175,7 +187,13 @@ def test_the_trial_lifts_the_damper_that_really_blocks(tmp_path, monkeypatch):
     monkeypatch.setattr(cr, "_churn_decide", blocking)
     _cio_doc_with_trial(monkeypatch, fire=True)
     _run(tmp_path, APY, TARGET)
-    swap = {"aave_v3": 40000.0, "maple": 20000.0, "yearn_v3": 14000.0}
+    # ИЗМЕНЕНО НАМЕРЕННО (ADR-357, инв. #16): сцена уменьшена с $20 000 до $14 000,
+    # предмет теста НЕ тронут. Ответ владельца 12.09 ввёл потолок СУММЫ одного хода
+    # ($15 000), и разрешение его не снимает и не должно: это потолок размера, а не
+    # частоты. Прежняя сцена двигала $20 000 и с тех пор нарушала ДВА ограничения
+    # сразу — своё (демпфер) и чужое (сумма), а сцена обязана нарушать ТОЛЬКО своё,
+    # иначе тест доказывает не то, ради чего написан.
+    swap = {"aave_v3": 40000.0, "morpho_blue": 6000.0, "maple": 14000.0, "yearn_v3": 14000.0}
     r2 = _run(tmp_path, APY, swap, now=datetime(2026, 6, 11, 8, 0, tzinfo=timezone.utc))
     assert r2.traded is True, "демпфер удержал пробный ход — разрешение его не сняло"
     assert _load(tmp_path, "trades.json")[-1].get(ct.MARK) == ct.TRIAL_GRANT["adr"]

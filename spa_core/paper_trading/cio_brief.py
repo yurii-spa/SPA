@@ -40,7 +40,9 @@ GATE_LABELS: Dict[str, str] = {
     "cooldown_ok": "не в кулдауне",
     "min_hold_ok": "мин. срок удержания пройден",
     "move_turnover_ok": "оборот хода в бюджете",
+    "move_amount_ok": "сумма хода под потолком",
     "week_turnover_ok": "недельный оборот в бюджете",
+    "day_turnover_ok": "дневной оборот в бюджете",
     "target_fully_evidenced": "цель полностью доказана",
 }
 

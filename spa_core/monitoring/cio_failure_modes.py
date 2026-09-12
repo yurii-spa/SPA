@@ -280,6 +280,11 @@ def _call_econ(scene: dict, params, *, apy: dict | None = None,
         chains=dict(scene["chains"]),
         capital_usd=scene["capital_usd"],
         params=params,
+        # ИЗМЕРЕННЫЙ ноль, а не молчание (ADR-357): `None` у `turnover_today_usd`
+        # означает «сегодняшний оборот НЕ ИЗМЕРЕН» и по построению даёт HOLD.
+        # Сцены этого модуля — про ПРОПАЖУ СТАВКИ, и здоровая сцена обязана давать
+        # ACT, иначе переход ACT↔HOLD, на котором стоит весь замер, показать нечем.
+        turnover_today_usd=0.0,
         tvl_evidenced=set(scene["evidenced"]) if tvl_evidenced is None else tvl_evidenced,
     )
 

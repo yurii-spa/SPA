@@ -277,7 +277,14 @@ GATE_BY_REASON_PREFIX = {
     "cooldown_active": "cooldown_ok",
     "positions_below_min_hold": "min_hold_ok",
     "move_turnover_over_budget": "move_turnover_ok",
+    "move_amount_over_cap": "move_amount_ok",
     "week_turnover_over_budget": "week_turnover_ok",
+    "day_turnover_over_budget": "day_turnover_ok",
+    # Отдельная причина, а не вариант предыдущей: «дневной бюджет превышен» и
+    # «сколько ушло сегодня, НЕ ИЗМЕРЕНО» — разные факты для того, кто читает
+    # перепись отказов, и слить их значило бы записать отсутствие наблюдения
+    # в отказы по бюджету (инв. #17, ADR-357).
+    "day_turnover_unmeasured": "day_turnover_ok",
     "target_contains_unevidenced": "target_fully_evidenced",
 }
 #: Гейт, который не отказывает, а лишь ПОДНИМАЕТ планку (`required_gain_pp`), —

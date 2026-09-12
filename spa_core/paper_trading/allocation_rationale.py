@@ -348,24 +348,41 @@ def _parse_ts(value: object) -> Optional[datetime]:
 def _history_from_trades(trades: List[dict], now: datetime) -> dict:
     """Derive the anti-churn history the trigger needs from ``trades.json``.
 
-    Returns ``days_since_last_act`` / ``last_move_legs`` / ``turnover_last_week_usd``.
+    Returns ``days_since_last_act`` / ``last_move_legs`` / ``turnover_last_week_usd`` /
+    ``turnover_today_usd``.
     Unknown values stay ``None`` — the trigger then treats that gate as unconstrained,
     which is the honest reading in SHADOW (we are measuring, not restraining).
+
+    **Дневной оборот — исключение из этой строки, и оно намеренно** (ADR-357):
+    у него ``None`` означает «не измерено», и триггер при этом ОТКАЗЫВАЕТ, а не
+    считает бюджет свободным. Журнала нет ⇒ сказать, сколько ушло сегодня, нечем,
+    и ноль был бы выдумкой в пользу сделки.
     """
     out: dict = {"days_since_last_act": None, "days_since_last_move": None,
-                 "last_move_legs": None, "turnover_last_week_usd": 0.0}
+                 "last_move_legs": None, "turnover_last_week_usd": 0.0,
+                 "turnover_today_usd": None}
     rebalances = [t for t in (trades or []) if isinstance(t, dict)
                   and t.get("type") == "rebalance"]
     if not rebalances:
+        # Журнал прочитан и пуст — сегодня движений НЕ БЫЛО. Это измеренный ноль,
+        # а не отсутствие наблюдения: отличать их и есть инвариант #17.
+        out["turnover_today_usd"] = 0.0
         return out
 
     week_ago = now - timedelta(days=7)
+    day_ago = now - timedelta(days=1)
     turnover = 0.0
+    turnover_today = 0.0
     for t in rebalances:
         ts = _parse_ts(t.get("ts"))
-        if ts is not None and ts >= week_ago:
+        if ts is None:
+            continue
+        if ts >= week_ago:
             turnover += float(t.get("delta_abs") or 0.0)
+        if ts >= day_ago:
+            turnover_today += float(t.get("delta_abs") or 0.0)
     out["turnover_last_week_usd"] = round(turnover, 2)
+    out["turnover_today_usd"] = round(turnover_today, 2)
 
     last = rebalances[-1]
     ts = _parse_ts(last.get("ts"))
@@ -527,6 +544,7 @@ def write_shadow_rationale(
             days_since_last_act=hist["days_since_last_act"],
             position_age_days=ages,
             turnover_last_week_usd=hist["turnover_last_week_usd"],
+            turnover_today_usd=hist["turnover_today_usd"],
             last_move_legs=hist["last_move_legs"],
             days_since_last_move=hist["days_since_last_move"],
             tvl_evidenced=tvl_evidenced or None,

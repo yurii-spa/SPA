@@ -42,7 +42,7 @@ def _write(tmp_path: Path, **kw):
     # порог $5M — он проверяется в обе стороны в test_tvl_floor_one_definition.py.
     kw.setdefault("tvl_usd", {k: 1_000_000_000.0 for k in APY})
     kw.setdefault("capital_usd", 100_000.0)
-    kw.setdefault("cycle_date", "2026-08-02")
+    kw.setdefault("cycle_date", "2026-09-12")
     kw.setdefault("run_ts", NOW.isoformat())
     kw.setdefault("now", NOW)
     return write_shadow_rationale(data_dir=tmp_path, **kw)
@@ -62,8 +62,13 @@ def test_params_carry_the_investment_policy_contract_identity(tmp_path: Path) ->
     versioned mandate (ADR-060 §3), not a bare, unattributed number set."""
     doc = _write(tmp_path)
     params = doc["params"]
-    assert params["policy_version"] == "v1.0"
-    assert params["policy_version_date"] == "2026-08-02"
+    # ИЗМЕНЕНО НАМЕРЕННО (ADR-357, инв. #16): предмет утверждения НЕ тронут —
+    # обе колонки по-прежнему обязаны нести ОДНУ принятую версию политики.
+    # Сменилось само число: ответ владельца 12.09 добавил в контракт две ручки
+    # (`max_trade_usd`, `max_turnover_per_day`), а контракт требует новой версии
+    # при любом изменении порогов — иначе версия не значила бы ничего.
+    assert params["policy_version"] == "v1.1"
+    assert params["policy_version_date"] == "2026-09-12"
     assert params["mode"] == "paper"  # default column — no SPA_CAPITAL_MODE set here
 
 
@@ -261,7 +266,7 @@ def test_three_books_writing_the_same_cycle_date_do_not_collide(
     same-date writes to one ledger — idempotent replace means only the LAST
     one would survive, silently losing the other two books' verdicts."""
     for book_id in (None, "balanced", "aggressive"):
-        _write(tmp_path, book_id=book_id, cycle_date="2026-08-02")
+        _write(tmp_path, book_id=book_id, cycle_date="2026-09-12")
 
     conservative_lines = (tmp_path / HISTORY_FILENAME).read_text().splitlines()
     balanced_lines = (tmp_path / "allocation_rationale_history_balanced.jsonl").read_text().splitlines()
@@ -273,7 +278,7 @@ def test_three_books_writing_the_same_cycle_date_do_not_collide(
                                (aggressive_lines[0], "aggressive")):
         rec = json.loads(raw)
         assert rec["book_id"] == expected_book
-        assert rec["cycle_date"] == "2026-08-02"
+        assert rec["cycle_date"] == "2026-09-12"
 
 
 # FROZEN-DATE-OK: build_history_record is a pure dict transform — cycle_date/
@@ -282,7 +287,7 @@ def test_three_books_writing_the_same_cycle_date_do_not_collide(
 # already on record for this exact pattern in test_shadow_trigger_eval.py).
 def test_history_record_is_stamped_with_its_book_id() -> None:
     from spa_core.paper_trading.allocation_rationale import build_history_record
-    doc = {"cycle_date": "2026-08-02", "generated_at": "x",
+    doc = {"cycle_date": "2026-09-12", "generated_at": "x",
            "decision_shadow": {"decision": "HOLD"}}
     rec = build_history_record(
         doc, apy_pct=APY, apy_sources=SRC,
@@ -293,7 +298,7 @@ def test_history_record_is_stamped_with_its_book_id() -> None:
 
 def test_history_record_defaults_book_id_to_conservative() -> None:
     from spa_core.paper_trading.allocation_rationale import build_history_record
-    doc = {"cycle_date": "2026-08-02", "generated_at": "x",
+    doc = {"cycle_date": "2026-09-12", "generated_at": "x",
            "decision_shadow": {"decision": "HOLD"}}
     rec = build_history_record(
         doc, apy_pct=APY, apy_sources=SRC,

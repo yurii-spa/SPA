@@ -33,6 +33,14 @@ def _ev(current, target, **kw):
     kw.setdefault("evidenced", EV)
     kw.setdefault("chains", CHAINS)
     kw.setdefault("capital_usd", CAP)
+    # ИЗМЕНЕНО НАМЕРЕННО (ADR-357, инв. #16): ни одна сцена не ослаблена, добавлен
+    # ВХОД. `turnover_today_usd=None` означает «сегодняшний оборот НЕ ИЗМЕРЕН» и по
+    # построению даёт HOLD — иначе новая ручка владельца существовала бы только в
+    # докстринге. Сцены ниже — про ДРУГИЕ гейты, поэтому им подаётся измеренный
+    # ноль: «сегодня движений не было» это ответ, а не молчание. Ветка «не измерено»
+    # проверяется отдельно (`test_an_unmeasured_day_refuses_and_says_so`) — иначе
+    # умолчание здесь молча скрыло бы её от всего файла.
+    kw.setdefault("turnover_today_usd", 0.0)
     return evaluate(current_positions=current, target_positions=target, **kw)
 
 
@@ -264,3 +272,74 @@ def test_silent_idle_capital_is_still_an_alarm() -> None:
 def test_cash_at_the_buffer_needs_no_explanation() -> None:
     out = explain_cash(positions={"a": 95_000.0}, capital_usd=CAP, min_cash_frac=0.05)
     assert out["excess_pct"] == pytest.approx(0.0) and out["status"] == "explained"
+
+
+# ── Две ручки из ответа владельца 12.09 (ADR-357) ───────────────────────────
+# `max trade amount` и `max daily turnover` — пункты 1 и 3 из двенадцати §41 ТЗ CIO.
+# ADR-250 измерил, что обоих НЕТ: нога $3 000 000 допускалась ровно как $30 000,
+# а входа «оборот за сегодня» у `evaluate` не было вовсе.
+
+
+def test_a_move_above_the_dollar_cap_is_refused_by_amount_not_by_share() -> None:
+    """Суть ответа владельца: доля пропускает, сумма обязана остановить.
+
+    Сцена подобрана так, чтобы ДОЛЯ была в бюджете (иначе отказала бы соседняя
+    ручка и тест доказывал бы не то, ради чего написан).
+    """
+    d = _ev({"a": 60_000.0}, {"a": 60_000.0, "b": 15_000.0},
+            params=TriggerParams(max_trade_usd=9_000.0))
+    assert d.gates["move_turnover_ok"] is True, "доля обязана пройти, иначе сцена не про сумму"
+    assert d.gates["move_amount_ok"] is False
+    assert d.decision == "HOLD"
+    assert any("move_amount_over_cap" in r for r in d.reasons)
+
+
+def test_the_default_dollar_cap_does_not_tighten_the_paper_book() -> None:
+    """Контроль на САМО значение: $15 000 = максимальный ход при капитале $100 000.
+
+    Первая редакция ставила $10 000 и молча урезала бумажный ход на треть —
+    владелец такого не просил. Этот тест краснеет, если потолок опустят ниже
+    доли, не спросив.
+    """
+    p = TriggerParams()
+    assert p.max_trade_usd == pytest.approx(CAP * p.max_turnover_per_move)
+    d = _ev({"a": 60_000.0}, {"a": 60_000.0, "b": 15_000.0})
+    assert d.gates["move_amount_ok"] is True
+    assert d.decision == "ACT", d.reasons
+
+
+def test_the_dollar_cap_is_not_relaxed_on_real_money() -> None:
+    """Пилотная колонка мягче везде, КРОМЕ абсолютной суммы — в этом её смысл."""
+    paper, pilot = TriggerParams.for_mode("paper"), TriggerParams.for_mode("pilot")
+    assert pilot.max_turnover_per_move < paper.max_turnover_per_move
+    assert pilot.max_trade_usd == paper.max_trade_usd
+
+
+def test_a_day_that_already_spent_its_budget_refuses() -> None:
+    """Недельный бюджет разрешал истратить всю норму за день — дневной не разрешает."""
+    d = _ev({"a": 60_000.0}, {"a": 60_000.0, "b": 10_000.0}, turnover_today_usd=12_000.0)
+    assert d.gates["week_turnover_ok"] is True, "неделя обязана пройти, иначе сцена не про день"
+    assert d.gates["day_turnover_ok"] is False
+    assert d.decision == "HOLD"
+    assert any("day_turnover_over_budget" in r for r in d.reasons)
+
+
+def test_an_unmeasured_day_refuses_and_says_so() -> None:
+    """Инв. #17: «не измерено» — НЕ ноль, и причина у него СВОЯ.
+
+    Ноль по умолчанию открыл бы дневной бюджет любому вызывающему, который просто
+    не знает про оборот, — ручка владельца жила бы только в докстринге.
+    """
+    d = _ev({"a": 60_000.0}, {"a": 60_000.0, "b": 10_000.0}, turnover_today_usd=None)
+    assert d.gates["day_turnover_ok"] is False
+    assert d.decision == "HOLD"
+    assert any(r == "day_turnover_unmeasured" for r in d.reasons)
+    assert not any("day_turnover_over_budget" in r for r in d.reasons), \
+        "«не измерено» не имеет права записываться в отказы ПО БЮДЖЕТУ"
+
+
+def test_a_measured_zero_day_is_not_the_same_as_an_unmeasured_one() -> None:
+    """Обратная сторона предыдущего: измеренный ноль обязан ПРОПУСКАТЬ."""
+    d = _ev({"a": 60_000.0}, {"a": 60_000.0, "b": 10_000.0}, turnover_today_usd=0.0)
+    assert d.gates["day_turnover_ok"] is True
+    assert d.decision == "ACT", d.reasons

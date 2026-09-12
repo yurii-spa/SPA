@@ -350,6 +350,12 @@ def _econ_scene(**over: Any) -> dict:
         "days_since_last_act": 99.0,
         "position_age_days": {"aave_v3": 99.0, "pendle": 99.0},
         "turnover_last_week_usd": 0.0,
+        # ИЗМЕРЕННЫЙ ноль, а не молчание (ADR-357): у `turnover_today_usd`
+        # значение `None` означает «сегодняшний оборот НЕ ИЗМЕРЕН» и даёт HOLD.
+        # Сцена обязана назвать его явно — иначе здоровая сцена перестала бы
+        # давать ACT, и переход ACT↔HOLD, на котором стоит ВЕСЬ этот модуль,
+        # стало бы нечем показать.
+        "turnover_today_usd": 0.0,
         "tvl_evidenced": {"aave_v3", "pendle"},
     }
     scene.update(over)
@@ -526,10 +532,16 @@ def _probe_max_trade_amount(base: dict, fields: dict, origins: dict) -> list[dic
         _rec("economics", "quantity", econ_scaled != base["economics"],
              f"ход ×{k:g} (${0.10 * _SCENE_CAPITAL_USD * k:,.0f}) при той же "
              f"доле 10 %: {econ_scaled}"),
-        _rec("economics", "threshold", False,
-             "полей политики, выраженных в долларах и относящихся к РАЗМЕРУ "
-             f"СДЕЛКИ, не объявлено; всё, что в долларах вообще: {usd_fields} "
-             "(это порог TVL пула, а не сделки)"),
+        # ПЕРЕМЕРЕНО 12.09 (ADR-357): ручка появилась по ответу владельца, и здесь
+        # она проверяется ПОВЕДЕНИЕМ, а не именем поля. Совпадение по имени
+        # ошибается в обе стороны: `min_tvl_usd` тоже оканчивается на `_usd`, но
+        # это порог пула, а не сделки.
+        _rec("economics", "threshold", _dial_bites(max_trade_usd=1_000.0, base=base),
+             f"max_trade_usd {_trigger_params().max_trade_usd:,.0f} → 1 000: "
+             f"{base['economics']} → "
+             f"{_econ_verdict(_econ_scene(), _trigger_params(max_trade_usd=1_000.0))}; "
+             f"всё, что в долларах вообще: {usd_fields}",
+             "max_trade_usd", "TriggerParams"),
     ]
 
 
@@ -556,10 +568,13 @@ def _probe_pct_per_rebalance(base: dict, fields: dict, origins: dict) -> list[di
 def _probe_daily_turnover(base: dict, fields: dict, origins: dict) -> list[dict]:
     """Дневной оборот — и чем он у нас НЕ является.
 
-    Владелец назвал ДНЕВНОЕ окно. У ``evaluate`` вход про уже совершённый оборот
-    ровно один — ``turnover_last_week_usd``, и он недельный. Проба честно
-    показывает: сумма, уже прокрученная СЕГОДНЯ, не спрашивается ничем — вход,
-    в который её можно было бы подать, отсутствует.
+    Владелец назвал ДНЕВНОЕ окно. До ADR-357 вход про уже совершённый оборот был
+    ровно один — ``turnover_last_week_usd``, недельный, и сумма, прокрученная
+    СЕГОДНЯ, не спрашивалась ничем.
+
+    **ПЕРЕМЕРЕНО 12.09 (ADR-357):** владелец ответил «дневной лимит нужен», вход
+    и порог появились. Проба поэтому больше не утверждает отсутствие, а МЕРЯЕТ
+    обе оси — есть ли вход и связывает ли объявленный порог.
     """
     import inspect
     from spa_core.allocator.rebalance_economics import evaluate
@@ -567,18 +582,33 @@ def _probe_daily_turnover(base: dict, fields: dict, origins: dict) -> list[dict]
     daily_inputs = sorted(p for p in params if "day" in p or "daily" in p)
     turnover_inputs = sorted(p for p in params if "turnover" in p)
     week_dial = _econ_verdict(_econ_scene(), _trigger_params(max_turnover_per_week=0.01))
+    # Имя поля ищется по ОБЕИМ формам: у владельца окно «daily», у контракта —
+    # `max_turnover_per_day`. Искать только «daily» значило бы не найти собственную
+    # ручку (класс «классификация по имени ошибается в обе стороны»).
     daily_fields = sorted(n for n in fields["RiskConfig"] | fields["TriggerParams"]
-                          if "daily" in n and "turnover" in n)
+                          if ("daily" in n or "per_day" in n) and "turnover" in n)
+    # Вход меряется ПОВЕДЕНИЕМ: подаём оборот, уже съевший дневной бюджет, и
+    # смотрим, изменился ли вердикт. Наличие имени в сигнатуре — не то же самое,
+    # что «его кто-то читает».
+    spent_today = _econ_verdict(_econ_scene(turnover_today_usd=0.99 * _SCENE_CAPITAL_USD))
+    day_dial = _econ_verdict(_econ_scene(), _trigger_params(max_turnover_per_day=0.01))
     return [
-        _rec("economics", "quantity", False,
-             f"входа «оборот за СЕГОДНЯ» у evaluate нет: про оборот принимается "
-             f"{turnover_inputs}, про сутки — {daily_inputs} (это давность хода "
-             "и возраст позиций, а не сумма оборота за день)"),
-        _rec("economics", "threshold", bool(daily_fields),
-             f"поля политики про ДНЕВНОЙ оборот: {daily_fields or 'нет'}; "
-             f"ближайшее объявленное — max_turnover_per_week (НЕДЕЛЬНОЕ окно), "
-             f"и оно связывает: {base['economics']} → {week_dial}"),
+        _rec("economics", "quantity", spent_today != base["economics"],
+             f"оборот за СЕГОДНЯ 0 → 99 % капитала: {base['economics']} → "
+             f"{spent_today}; входы про оборот: {turnover_inputs}, про сутки: "
+             f"{daily_inputs}"),
+        _rec("economics", "threshold", day_dial != base["economics"],
+             f"max_turnover_per_day {_trigger_params().max_turnover_per_day} → 0.01: "
+             f"{base['economics']} → {day_dial}; поля политики про ДНЕВНОЙ оборот: "
+             f"{daily_fields or 'нет'}; недельное окно связывает отдельно: "
+             f"{base['economics']} → {week_dial}",
+             "max_turnover_per_day", "TriggerParams"),
     ]
+
+
+def _dial_bites(*, base: dict, **overrides: Any) -> bool:
+    """Связывает ли объявленный порог: меняется ли вердикт от его ужесточения."""
+    return _econ_verdict(_econ_scene(), _trigger_params(**overrides)) != base["economics"]
 
 
 def _probe_allowed_protocols(base: dict, fields: dict, origins: dict) -> list[dict]:
