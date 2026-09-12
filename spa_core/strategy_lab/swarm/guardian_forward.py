@@ -47,7 +47,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Sequence
 
-from spa_core.utils.observation import observed, observed_number
+from spa_core.utils.observation import observed_number
 
 from spa_core.strategy_lab.aggressive_lab.guardian import stdev
 from spa_core.strategy_lab.swarm.common import (

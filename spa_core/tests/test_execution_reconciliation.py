@@ -165,7 +165,13 @@ def test_round_trip_noop_reconciles_perfectly():
     assert r["n_trades"] == 0
     assert r["matches_target"] is True
     assert r["nav_conserved"] is True
-    assert r["go_live_ready"] is True
+    # ИЗМЕНЕНО НАМЕРЕННО (ADR-349, инв. #16) — усиление. `go_live_ready is True`
+    # на сверке величины С САМОЙ СОБОЙ было незаработанным утверждением о деньгах:
+    # `target` здесь — копия `current`, а `resulting` — наш же виртуальный журнал.
+    # Арифметика петли (`matches_target`) осталась ровно тем, чем была.
+    assert r["book_matched_intent"] is None
+    assert r["book_outcome_provenance"] == "self_dry_run_ledger"
+    assert r["go_live_ready"] is False
     assert r["resulting_positions"] == {"aave_v3": 1000.0, "maple": 500.0}
 
 

@@ -1168,7 +1168,13 @@ def guard_name_loss(pat: str, repo: str, branch: str, repo_path: str,
     причине: остановить живую доставку ради проверки, неприменимой к ней по
     построению, — это домен владельца, а не автономной правки.
     """
-    if not repo_path.endswith(".py"):
+    # ⚠️ РАСШИРЕНО 12.09 (ADR-351) на скрипты оболочки. Прежде здесь стоял только
+    # `.py`, и ровно поэтому мой же пуш 5fb2ab5a молча откатил правку ADR-347 в
+    # `scripts/agent_orchestrator.sh`: имя `STARVE_LIB` было на remote и исчезло в
+    # пушенной копии, а страж на `.sh` не смотрел вовсе. Второй случай класса за сутки
+    # и первый — в оболочке.
+    from spa_core.monitoring.delivery_name_loss import SHELL_SUFFIXES as _SH
+    if not (repo_path.endswith(".py") or repo_path.endswith(_SH)):
         return ""
     if remote_sha is None:
         return ""                       # файла на remote нет — терять нечего
