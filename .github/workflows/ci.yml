@@ -128,6 +128,18 @@ jobs:
           SPA_ENV: ci
           PYTHONHASHSEED: '0'
 
+      # --- Перепись дверей доставки (ADR-352) ---------------------------------
+      # Спрашивает ОДНО: не появилось ли двери, которая пишет в origin, не зовёт
+      # стража перезаписи И при этом кем-то запускается. Совпадение трёх осей —
+      # код 1. Дверь без запускающего находкой не является (пустой набор — замер,
+      # а не «мёртвая»), неразобранный файл — код 2 «НЕ ИЗМЕРЕНО», и он тоже
+      # красный: «не измерено» никогда не выдаётся за «чисто» (инвариант #17).
+      - name: Delivery-door census (ADR-352)
+        run: python scripts/push_door_census.py --root .
+        env:
+          SPA_ENV: ci
+          PYTHONHASHSEED: '0'
+
       # --- Pre-cutover readiness gate (ADVISORY, non-blocking) ----------------
       # Drives a cycle through EACH money-path failure mode against an ephemeral
       # SANDBOX and asserts every defense fires (HARD/SOFT kill, DL-01/DL-02,
