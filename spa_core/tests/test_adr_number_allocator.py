@@ -460,14 +460,21 @@ def test_pusher_declares_the_conscious_bypass():
 def test_git_helper_is_reused_not_copied():
     """Второй реализации одного измерения в этом репозитории быть не должно.
 
-    Сверяемся с модулем, который импортировал сам `adr_number` (`sys.modules`), а не с
-    загруженной заново копией: копия — другой объект ПО ПОСТРОЕНИЮ, и такой ассерт краснел
-    бы даже при честном переиспользовании. Та же оговорка стоит у соседнего
-    `test_memory_in_git.py`; здесь она была нарушена и тест это поймал.
+    Сверяется ПРОИСХОЖДЕНИЕ КОДА: `_git` обязан лежать в файле шага 0a.
+
+    Инв. #16 — сменён МЕХАНИЗМ сверки, не утверждение (12.09). Прежде тождество
+    проверялось оператором `is` против `sys.modules["check_undelivered_work"]`. В ПОЛНОМ
+    наборе тот же файл оказывается загружен ДВАЖДЫ под разными именами (соседние тесты
+    грузят его через `importlib.util.spec_from_file_location`), и тогда `is` ложен при
+    совершенно честном переиспользовании: объекты разные, реализация одна. Замер: в
+    одиночку тест зелёный, в полном прогоне красный — «assert <function …> is <function …>».
+    Утверждение осталось тем же и проверяется СИЛЬНЕЕ: функция обязана происходить из
+    канонического файла (её код лежит именно там), а в самом стороже второй реализации
+    нет. Копия в другом файле теперь краснеет, даже если объект случайно совпал.
     """
-    step0a = sys.modules["check_undelivered_work"]
-    assert Path(step0a.__file__).resolve() == (ROOT / "scripts" / "check_undelivered_work.py")
-    assert adr._git is step0a._git
+    canonical = (ROOT / "scripts" / "check_undelivered_work.py").resolve()
+    assert Path(adr._git.__code__.co_filename).resolve() == canonical, (
+        f"_git происходит из {adr._git.__code__.co_filename}, а не из шага 0a")
     src = (ROOT / "scripts" / "adr_number.py").read_text(encoding="utf-8")
     assert "def _git" not in src
 
