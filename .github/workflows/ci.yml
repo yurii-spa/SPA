@@ -178,6 +178,33 @@ jobs:
           SPA_ENV: ci
           PYTHONHASHSEED: '0'
 
+      # --- ТОТ ЛИ это репозиторий (ADR-360) ------------------------------------
+      # ADR-356 доказал, что каталог есть КОРЕНЬ рабочей копии, и на этом принял
+      # на веру, что это корень ТОГО САМОГО репозитория. Личность объявлена
+      # ЗАРАНЕЕ как ПЕРЕСЕЧЕНИЕ ИСТОРИЙ; `remote get-url origin` — конфиг, а
+      # корневой коммит — функция глубины клона, и оба отведены замером.
+      # Заводится здесь циклом #582: #579 оставил прибор без вызывающего
+      # НАМЕРЕННО, и цена этого решения измерена — `test_unwired_scripts_ratchet`
+      # покраснел на `shell_git_cd_repo_identity` и остался красным на main.
+      - name: shell git repo-identity census (ADR-360)
+        run: python scripts/shell_git_cd_repo_identity.py --root . --baseline scripts/shell_git_cd_repo_identity_baseline.json
+        env:
+          SPA_ENV: ci
+          PYTHONHASHSEED: '0'
+
+      # --- ССЫЛКА: кэш или вопрос к серверу (ADR-361) --------------------------
+      # Цепь 355/356/360 отвечала, ГДЕ исполняется зов, и ни разу — ЧТО означает
+      # ссылка, которую он называет. `origin/main` есть КЭШ последнего `fetch`:
+      # значение без возраста и без провенанса (замер по reflog прод-дерева —
+      # максимум 224.5 ч). Предмет базы — только ось СВЕЖЕСТИ: `fetch`, чей отказ
+      # ничего не прекращает, оставляет мутирующему зову кэш. База может только
+      # уменьшаться. Код 3 — предмет вырос, код 2 — «НЕ ИЗМЕРЕНО» (тоже красный).
+      - name: shell git ref provenance (ADR-361)
+        run: python scripts/shell_git_ref_provenance.py --root . --baseline scripts/shell_git_ref_provenance_baseline.json
+        env:
+          SPA_ENV: ci
+          PYTHONHASHSEED: '0'
+
       # --- Pre-cutover readiness gate (ADVISORY, non-blocking) ----------------
       # Drives a cycle through EACH money-path failure mode against an ephemeral
       # SANDBOX and asserts every defense fires (HARD/SOFT kill, DL-01/DL-02,
