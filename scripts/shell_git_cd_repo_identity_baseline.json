@@ -1,0 +1,33 @@
+{
+  "_why": "Предмет: зовы, чья ЛИЧНОСТЬ репозитория не гарантирована кодом (by_host + by_construction_hijackable + other_identity). База может только УМЕНЬШАТЬСЯ; дописывать, чтобы погасить падение, ЗАПРЕЩЕНО (ADR-360, тот же порядок, что frozen_date_baseline.json).",
+  "_measured": "2026-09-12",
+  "_adr": "ADR-360",
+  "subject": [
+    "scripts/agent_novel_edge_rnd.sh:55",
+    "scripts/agent_novel_edge_rnd.sh:58",
+    "scripts/git_autopush.sh:110",
+    "scripts/git_autopush.sh:117",
+    "scripts/git_autopush.sh:121",
+    "scripts/git_autopush.sh:127",
+    "scripts/git_autopush.sh:128",
+    "scripts/git_autopush.sh:131",
+    "scripts/git_autopush.sh:133",
+    "scripts/git_autopush.sh:136",
+    "scripts/git_autopush.sh:138",
+    "scripts/git_autopush.sh:139",
+    "scripts/git_autopush.sh:145",
+    "scripts/git_autopush.sh:149",
+    "scripts/git_autopush.sh:155",
+    "scripts/git_autopush.sh:156",
+    "scripts/git_autopush.sh:161",
+    "scripts/git_autopush.sh:172",
+    "scripts/git_autopush.sh:180",
+    "scripts/git_autopush.sh:186",
+    "scripts/git_autopush.sh:192",
+    "scripts/session_index_lag_warning.sh:18",
+    "scripts/session_index_lag_warning.sh:19",
+    "secure_git_push.sh:52",
+    "secure_git_push.sh:66",
+    "secure_git_push.sh:76"
+  ]
+}
