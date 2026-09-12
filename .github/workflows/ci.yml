@@ -205,6 +205,19 @@ jobs:
           SPA_ENV: ci
           PYTHONHASHSEED: '0'
 
+      # --- ТА ЖЕ ССЫЛКА, ДРУГАЯ ПОВЕРХНОСТЬ: python (ADR-362) ------------------
+      # Цепь 355…361 мерила ТОЛЬКО shell, и ADR-361 сказал это вслух. Между тем
+      # решение «что доставлено» принимают python-зовы: пушер, шаг 0a, очередь
+      # владельца, реестр номеров ADR. Ответ — 0 из 53, и мутирующих среди них
+      # НОЛЬ (в shell 6 из 12): цена стухшего кэша здесь неверное решение, а не
+      # переписанное дерево. Заводится ПРИ РОЖДЕНИИ: прибор без вызывающего
+      # краснит храповик мёртвых скриптов (цена этого измерена циклом #582).
+      - name: python git ref provenance (ADR-362)
+        run: python scripts/python_git_ref_provenance.py --root . --baseline scripts/python_git_ref_provenance_baseline.json
+        env:
+          SPA_ENV: ci
+          PYTHONHASHSEED: '0'
+
       # --- Pre-cutover readiness gate (ADVISORY, non-blocking) ----------------
       # Drives a cycle through EACH money-path failure mode against an ephemeral
       # SANDBOX and asserts every defense fires (HARD/SOFT kill, DL-01/DL-02,
