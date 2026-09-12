@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-11T23:27:46Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-12T00:00:18Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (7f3772d49).
+> Сверено с `origin/main` (78176f6d6) · у **1** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1020** · ждёт владельца: **9** · занято сессиями: **14**.
 
@@ -1033,7 +1033,6 @@
 - Одиннадцать сторожей с точкой входа, которых не зовёт никто — подключить или вывести  ·  `agent-odinnadtsat-storozhey-bez-vyzyvayushchego.md` · 2026-08-29
 - _OPTION_RE читает прозу «Вариант B восстанавливает…» как заголовок пункта — карточка теряет ВСЕ кнопки  ·  `agent-option-re-chitaet-prozu-variant-b-vossta.md` · 2026-09-05
 - Паспорта агентов заполнены из источников (0 → 18 полных, 63 с целью); остаток — работа куратора, а не скрипта  ·  `agent-pasporta-zapolneny-chastichno-ostalos-kuratoru.md` · 2026-08-20
-- Перевести 32 страницы на провенанс чисел (остаток храповика ADR-315)  ·  `agent-perevesti-32-stranitsy-na-provenans-chis.md` · 2026-09-10
 - Пять скриптов с точкой входа, которых никто не вызывает — держат CI красным  ·  `agent-pyat-chuzhih-skriptov-bez-vyzyvayuschego.md` · 2026-09-10
 - Линия время-рядов для 18 форкастеров (поток 3 own-27)  ·  `agent-relocate-forecasters-to-timeseries-lane.md` · 2026-08-04
 - Переселить 13 оптимизаторов в советники аллокатора (поток 1 own-27)  ·  `agent-relocate-optimizers-to-allocator-advisory.md` · 2026-08-04
@@ -1078,6 +1077,7 @@
 - Оживить живой TVL/фид morpho-семейства (own-29 вариант 1, дедлайн 2026-08-08)  ·  `agent-morpho-feed-revival.md` · 2026-08-05
 - НЕ ВОСПРОИЗВОДИТСЯ — два offsite-падения оказались разовыми, моё утверждение о порядке снято  ·  `agent-offsite-tests-order-dependent.md` · 2026-08-06
 - Относительный путь в объявлении навсегда лишает запись права быть оправданной — шаг 0a не знает, из какого дерева она сделана  ·  `agent-otnositelnyi-put-v-obyavlenii-teryaet-derevo.md` · 2026-08-24
+- Перевести 32 страницы на провенанс чисел (остаток храповика ADR-315)  ·  `agent-perevesti-32-stranitsy-na-provenans-chis.md` · 2026-09-10
 - Пути состояния вычисляются на ИМПОРТЕ — под изоляцией они прибиваются к песочнице ОДНОГО случайного теста  ·  `agent-puti-sostoyaniya-vychislyayutsya-na-impo.md` · 2026-08-27
 - ИСПРАВЛЕНО: ранжирование больше не считает протокол дважды  ·  `agent-rangirovanie-schitaet-protokol-dvazhdy.md` · 2026-08-29
 - У реестра агентов нет продюсера — он протух на 475 часов и никто не заметил  ·  `agent-registry-has-no-producer.md` · 2026-08-05
