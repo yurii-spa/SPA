@@ -2,10 +2,12 @@
 trackerStatus:
   type: inbox
 title: "Находка петли: data/journal_population_backfill.json: активный артефакт отсутствует н"
-status: new
+status: done
 source: nimbalyst
 created: 2026-09-11
 finding_key: "B2:missing:data/journal_population_backfill.json"
+status_trail:
+  - "2026-09-12T02:10:31.648701+00:00 new -> done · queue.set_status"
 ---
 
 Находка петли ADR-066 (architecture_conformance, WARN, подтверждена 2 прогонами подряд):
