@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-12T01:43:53Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-12T02:25:00Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (5fb2ab5ae).
+> Сверено с `origin/main` (efb08210f).
 >
 > Всего карточек: **1021** · ждёт владельца: **10** · занято сессиями: **14**.
 
@@ -474,6 +474,7 @@
 - Находка петли: data/investment_os/chief_investment.json: последний ресит старше SLO 1  ·  `inbox-nahodka-petli-data-investment-os-chief-i-2.md` · 2026-08-22
 - Находка петли: data/investment_os/chief_investment.json: возраст 19.1ч > SLO 1ч (клас  ·  `inbox-nahodka-petli-data-investment-os-chief-i.md` · 2026-08-22
 - Находка петли: data/investment_os/_health.json: последний ресит старше SLO 14ч — потр  ·  `inbox-nahodka-petli-data-investment-os-health.md` · 2026-08-12
+- Находка петли: data/journal_population_backfill.json: активный артефакт отсутствует н  ·  `inbox-nahodka-petli-data-journal-population-ba.md` · 2026-09-11
 - Находка петли: docs/SYSTEM_BRIEFING.md: последний ресит старше SLO 2ч — потребитель з  ·  `inbox-nahodka-petli-docs-system-briefing-md-po.md` · 2026-08-11
 - Находка петли: hit-rate аналитиков не вычислим: proof.jsonl хранит только хэши, содер  ·  `inbox-nahodka-petli-hit-rate-analitikov-ne-vyc.md` · 2026-08-05
 - Находка петли: манифест ↔ факты: com.spa.aggressive_lab: schedule 'interval:86400s' →  ·  `inbox-nahodka-petli-manifest-fakty-com-spa-agg.md` · 2026-09-02
@@ -749,7 +750,6 @@
 - Находка петли: com.spa.agent_health: код и манифест называют РАЗНЫЙ продукт (только в  ·  `inbox-nahodka-petli-com-spa-agent-health-kod-i.md` · 2026-09-10
 - Находка петли: com.spa.hy_cycle: код и манифест называют РАЗНЫЙ продукт (только в объ  ·  `inbox-nahodka-petli-com-spa-hy-cycle-kod-i-man.md` · 2026-09-10
 - Находка петли: com.spa.lp_cycle: код и манифест называют РАЗНЫЙ продукт (только в объ  ·  `inbox-nahodka-petli-com-spa-lp-cycle-kod-i-man.md` · 2026-09-10
-- Находка петли: data/journal_population_backfill.json: активный артефакт отсутствует н  ·  `inbox-nahodka-petli-data-journal-population-ba.md` · 2026-09-11
 - Неприменённый ответ владельца «1» — адресат не назван  ·  `inbox-neprimenennyi-otvet-vladeltsa-1-adresat.md` · 2026-09-10
 - Обещанная перепроверка DNS checkup осталась без исполнителя: карточку закрыли, критерий не выполнен  ·  `inbox-obeschannaya-pereproverka-dns-checkup-os.md` · 2026-08-22
 - Объявить в _READ_SCHEMA чтения двух веток отчёта 0-офис (класс A, ADR-325)  ·  `inbox-obyavit-v-read-schema-chteniya-dvuh-veto.md` · 2026-09-11
