@@ -1149,6 +1149,11 @@ class NameLossRefused(Exception):
     """Пуш унёс бы имя, которого НЕТ в базе автора: он его не удалял, он его не видел."""
 
 
+class StaleBaseRefused(Exception):
+    """База опровергнута замером: копия согласуется не с HEAD, а с его предком."""
+
+
+
 def guard_name_loss(pat: str, repo: str, branch: str, repo_path: str,
                     base_bytes: Optional[bytes],
                     local_bytes: bytes, remote_sha: Optional[str],
@@ -1211,11 +1216,43 @@ def guard_name_loss(pat: str, repo: str, branch: str, repo_path: str,
     return note
 
 
+def guard_stale_base(repo_path: str, abs_path, local_bytes: bytes,
+                     allow_stale_base: bool = False) -> str:
+    """Согласуется ли копия с HEAD — или с его ПРЕДКОМ (ADR-353).
+
+    Отвечает на вопрос, которого не задаёт `divergence_verdict`: он меряет, что
+    лежит в базе, и молча принимает, что копия из этой базы и пришла. Замер —
+    в :mod:`spa_core.monitoring.push_base_provenance`; здесь только решение.
+
+    `--allow-overwrite` этот отказ НЕ снимает намеренно, ровно по доводу
+    `guard_name_loss`: «я согласен перезаписать remote» и «я согласен отдать
+    строки, которых не видел» — разные согласия. Обвал `5fb2ab5a` произошёл
+    ИМЕННО потому, что общая лазейка была под рукой.
+    """
+    try:
+        from spa_core.monitoring.push_base_provenance import (
+            BASED_ON_OLDER, base_provenance, describe)
+    except Exception as e:  # noqa: BLE001 — страж не смеет валить доставку
+        return (f"⚠️  провенанс базы {repo_path} НЕ ИЗМЕРЕН: прибор не "
+                f"импортировался ({type(e).__name__}). Это не «чисто».")
+    result = base_provenance(Path(abs_path).parent, repo_path, local_bytes)
+    note = describe(result, repo_path)
+    if result["verdict"] == BASED_ON_OLDER and not allow_stale_base:
+        raise StaleBaseRefused(
+            f"{note}\nПуш отменён (fail-CLOSED, инвариант #2). Перечитай файл со "
+            f"свежего origin и перенеси на него свою правку — НЕ двигай HEAD, "
+            f"пока страж не замолчит: `git reset --mixed` меняет вердикт, не "
+            f"меняя копию. Осознанная отдача — `--allow-stale-base`; "
+            f"`--allow-overwrite` её НЕ снимает намеренно.")
+    return note
+
+
 def guard_overwrite(pat: str, repo: str, branch: str, repo_path: str, abs_path,
                     local_bytes: bytes, remote_sha: Optional[str],
                     allow_overwrite: bool = False,
                     strict_unmeasured: bool = False,
-                    allow_name_loss: bool = False) -> tuple:
+                    allow_name_loss: bool = False,
+                    allow_stale_base: bool = False) -> tuple:
     """``(content_to_push, note)``; :class:`DivergenceRefused` — если пушить нельзя.
 
     «Не измерено» по умолчанию НЕ блокирует — но и не выдаётся за «всё в порядке»:
@@ -1238,12 +1275,19 @@ def guard_overwrite(pat: str, repo: str, branch: str, repo_path: str, abs_path,
         # remote == база ⇒ содержимое remote у нас уже на руках, сеть не нужна.
         # Проверять всё равно надо: «чужого тут нет» не значит «своего не теряем»
         # (`f35ff96ed` уронил запись `STATE.md` ровно на этом пути).
-        # Потеря ИМЁН (#570) здесь невозможна ПО ПОСТРОЕНИЮ: база и есть remote,
-        # поэтому всё, чего нет в нашей копии, автор видел и убрал сам. Сети не
-        # трогаем и тут — вопрос закрыт формой состояния, а не замером.
+        # Потеря ИМЁН (#570) здесь объявлялась невозможной ПО ПОСТРОЕНИЮ: база и
+        # есть remote, поэтому всё, чего нет в нашей копии, автор видел и убрал
+        # сам. **Посылка опровергнута замером (#573).** «Автор видел» здесь —
+        # синоним «лежит в HEAD», а `git reset --mixed origin/main` двигает HEAD,
+        # НЕ трогая рабочее дерево: после него база говорит «origin», копия
+        # автора старше, и одна команда снимает ОБА стража сразу. Воспроизведено
+        # на настоящем репозитории: вердикт `safe`, нота ПУСТАЯ, строка чужой
+        # сессии стёрта молча (ADR-353; обвалы `6322d0d56` и `5fb2ab5a`).
         note = guard_content_loss(repo_path, verdict.get("base"), local_bytes,
                                   remote_sha, allow_overwrite=allow_overwrite)
-        return local_bytes, note
+        base_note = guard_stale_base(repo_path, abs_path, local_bytes,
+                                     allow_stale_base=allow_stale_base)
+        return local_bytes, ("\n".join(x for x in (note, base_note) if x))
 
     # Заказ #570 (ADR-346). Проверки потери СОДЕРЖИМОГО выше включены только для
     # документов (`is_rules_doc` / `is_append_only_doc`), поэтому о КОДЕ страж не
@@ -1321,7 +1365,8 @@ def guard_overwrite(pat: str, repo: str, branch: str, repo_path: str, abs_path,
 def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool = False,
               branch: str = "main", _stale_retries: int = 2,
               allow_overwrite: bool = False,
-              allow_name_loss: bool = False) -> dict:
+              allow_name_loss: bool = False,
+              allow_stale_base: bool = False) -> dict:
     """Пушит один файл через GitHub Contents API.
 
     409 stale-sha auto-retry: если параллельный писатель обновил файл между нашим
@@ -1373,11 +1418,14 @@ def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool 
     try:
         content_bytes, note = guard_overwrite(
             pat, repo, branch, repo_path, local, local_bytes, sha,
-            allow_overwrite=allow_overwrite, allow_name_loss=allow_name_loss)
+            allow_overwrite=allow_overwrite, allow_name_loss=allow_name_loss,
+            allow_stale_base=allow_stale_base)
     except DivergenceRefused as e:
         return {"ok": False, "error": str(e), "path": repo_path, "diverged": True}
     except NameLossRefused as e:
         return {"ok": False, "error": str(e), "path": repo_path, "name_loss": True}
+    except StaleBaseRefused as e:
+        return {"ok": False, "error": str(e), "path": repo_path, "stale_base": True}
     if note:
         print(f"  {note}")
     content_b64 = base64.b64encode(content_bytes).decode()
@@ -1420,7 +1468,9 @@ def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool 
             print(f"  Rate limit — ждём 60с...")
             time.sleep(60)
             return push_file(pat, local_path, message, repo, dry_run, branch,
-                             _stale_retries, allow_overwrite)
+                             _stale_retries, allow_overwrite,
+                             allow_name_loss=allow_name_loss,
+                             allow_stale_base=allow_stale_base)
         # 409 stale-sha: параллельный писатель сдвинул HEAD. Перечитываем свежий
         # remote sha и повторяем PUT (bounded). 422 тоже может означать рассинхрон
         # sha ("does not match") — обрабатываем так же.
@@ -1428,7 +1478,9 @@ def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool 
             print(f"  409 stale-sha — перечитываю remote sha и повторяю ({_stale_retries} осталось)...")
             time.sleep(0.5)
             return push_file(pat, local_path, message, repo, dry_run, branch,
-                             _stale_retries - 1, allow_overwrite)
+                             _stale_retries - 1, allow_overwrite,
+                             allow_name_loss=allow_name_loss,
+                             allow_stale_base=allow_stale_base)
         return {"ok": False, "error": f"HTTP {e.code}: {body[:300]}", "path": repo_path}
     except Exception as e:
         return {"ok": False, "error": str(e), "path": repo_path}
@@ -1671,7 +1723,8 @@ def split_unchanged(pat: str, repo: str, branch: str, files: list) -> tuple:
 
 def build_entries(pat: str, repo: str, branch: str, changed: list,
                   modes: dict, truncated: bool, allow_overwrite: bool = False,
-                  allow_name_loss: bool = False) -> list:
+                  allow_name_loss: bool = False,
+                  allow_stale_base: bool = False) -> list:
     """``changed`` → записи дерева, каждая через стража перезаписи.
 
     Отдельной функцией, потому что на ретрае «база сдвинулась» (HTTP 409/422)
@@ -1694,8 +1747,9 @@ def build_entries(pat: str, repo: str, branch: str, changed: list,
             content, note = guard_overwrite(pat, repo, branch, repo_path, abs_path,
                                             Path(abs_path).read_bytes(), remote_sha,
                                             allow_overwrite=allow_overwrite,
-                                            allow_name_loss=allow_name_loss)
-        except (DivergenceRefused, NameLossRefused) as e:
+                                            allow_name_loss=allow_name_loss,
+                                            allow_stale_base=allow_stale_base)
+        except (DivergenceRefused, NameLossRefused, StaleBaseRefused) as e:
             failures.append((repo_path, e))
             continue
         guarded.append((repo_path, abs_path, content, note))
@@ -1727,7 +1781,8 @@ def build_entries(pat: str, repo: str, branch: str, changed: list,
 
 def batch_push(pat: str, file_args: list, message: str, repo: str, branch: str,
                dry_run: bool = False, allow_overwrite: bool = False,
-               allow_name_loss: bool = False) -> dict:
+               allow_name_loss: bool = False,
+               allow_stale_base: bool = False) -> dict:
     """Собрать N файлов в ОДИН коммит через Git Data API.
 
     Порядок: разрешить пути (fail-CLOSED) → отсеять неизменённые → страж
@@ -1760,7 +1815,7 @@ def batch_push(pat: str, file_args: list, message: str, repo: str, branch: str,
     # Шаг 3: blobs (+ режим существующего файла сохраняется как есть,
     # + страж перезаписи: чужая правка не стирается молча)
     entries = build_entries(pat, repo, branch, changed, modes, truncated,
-                            allow_overwrite, allow_name_loss)
+                            allow_overwrite, allow_name_loss, allow_stale_base)
 
     # Шаг 4: tree
     new_tree_sha = create_tree(pat, repo, base_tree_sha, entries)
@@ -1789,8 +1844,14 @@ def batch_push(pat: str, file_args: list, message: str, repo: str, branch: str,
             # наши пути, и старые blob'ы стёрли бы его правку (страж внутри).
             fresh_changed = [(rp, ap, get_file_sha(pat, repo, rp, branch))
                              for rp, ap, _ in changed]
+            # Согласия автора обязаны пережить ПОВТОР. Прежде здесь ехал один
+            # `allow_overwrite`, а `allow_name_loss` молча возвращался к умолчанию —
+            # «половина инъекции» (#573). Направление было безопасным (страж
+            # становился строже, а не мягче), поэтому аварии отсюда не случилось;
+            # но путь этот — ровно тот, где рядом пишет параллельная сессия.
             entries = build_entries(pat, repo, branch, fresh_changed,
-                                    fresh_modes, fresh_truncated, allow_overwrite)
+                                    fresh_modes, fresh_truncated, allow_overwrite,
+                                    allow_name_loss, allow_stale_base)
             new_tree_sha = create_tree(pat, repo, fresh_base_tree, entries)
             new_commit_sha = create_commit(pat, repo, message, new_tree_sha, fresh_base_commit)
             print(f"  recommit {new_commit_sha[:8]} (parent {fresh_base_commit[:8]})")
@@ -1991,6 +2052,10 @@ def main():
                         help="ОСОЗНАННО потерять имя, которого НЕТ в базе рабочей копии "
                              "(то есть которое автор не удалял, а не видел). "
                              "`--allow-overwrite` этого не снимает — согласия разные")
+    parser.add_argument("--allow-stale-base", action="store_true",
+                        help="ОСОЗНАННО отдать строки, которых нет в копии, хотя замер говорит,\n"
+                             "что копия основана на ПРЕДКЕ HEAD, а не на HEAD. "
+                             "`--allow-overwrite` этого не снимает — согласия разные")
     parser.add_argument("--allow-toolchain-mismatch", action="store_true",
                         help="ОСОЗНАННО пушить инструментом, который разошёлся с копией в дереве "
                              "отправляемых файлов (по умолчанию такой пуш отклоняется)")
@@ -2006,6 +2071,8 @@ def main():
         os.environ.get("SPA_PUSH_ALLOW_OVERWRITE") == "1"
     allow_name_loss = bool(args.allow_name_loss) or \
         os.environ.get("SPA_PUSH_ALLOW_NAME_LOSS") == "1"
+    allow_stale_base = bool(args.allow_stale_base) or \
+        os.environ.get("SPA_PUSH_ALLOW_STALE_BASE") == "1"
     allow_toolchain = bool(args.allow_toolchain_mismatch) or \
         os.environ.get("SPA_PUSH_ALLOW_TOOLCHAIN_MISMATCH") == "1"
     allow_adr = bool(args.allow_adr_collision) or \
@@ -2113,7 +2180,8 @@ def main():
         try:
             result = batch_push(pat, all_files, message, args.repo, args.branch,
                                 allow_overwrite=allow_overwrite,
-                                allow_name_loss=allow_name_loss)
+                                allow_name_loss=allow_name_loss,
+                                allow_stale_base=allow_stale_base)
         except urllib.error.HTTPError as e:
             body = e.read().decode(errors="replace")
             print(f"\nFAIL HTTP {e.code}: {body[:500]}")
@@ -2143,7 +2211,8 @@ def main():
     results = []
     for f in all_files:
         r = push_file(pat, f, message, args.repo, dry_run=args.dry_run, branch=args.branch,
-                      allow_overwrite=allow_overwrite, allow_name_loss=allow_name_loss)
+                      allow_overwrite=allow_overwrite, allow_name_loss=allow_name_loss,
+                      allow_stale_base=allow_stale_base)
         results.append(r)
         if r.get("ok"):
             if r.get("dry_run"):
