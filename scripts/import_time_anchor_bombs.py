@@ -183,7 +183,8 @@ class _Shifted(_dt.datetime):
 
     @classmethod
     def utcnow(cls):
-        return _dt.datetime.utcnow() + _dt.timedelta(seconds=_LAG_S)
+        # Наивный UTC без deprecated utcnow(): та же форма, что spa_core.utils.clock.utcnow
+        return _dt.datetime.now(_dt.timezone.utc).replace(tzinfo=None) + _dt.timedelta(seconds=_LAG_S)
 
 
 def _shifted_time():
