@@ -21,6 +21,7 @@ Card frontmatter shape (see .nimbalyst/trackers/owner-decision.yaml)::
 from __future__ import annotations
 
 import logging
+import json
 import os
 import re
 from dataclasses import dataclass, field
@@ -134,6 +135,41 @@ _DEFAULT_STATUS = {"owner-decision": "needs-owner", "inbox": "new"}
 
 class OwnerDoneForbidden(RuntimeError):
     """Raised when code attempts to set a card to ``owner-done`` (owner-only)."""
+
+
+class AcceptanceCriterionMissing(RuntimeError):
+    """inbox-карточку берут в работу без машинного критерия приёмки (`.claude/rules/acceptance.md`)."""
+
+
+class AcceptanceCriterionLocked(RuntimeError):
+    """Пробу карточки В РАБОТЕ пытаются заменить: мерку выбирают ДО работы, не после."""
+
+
+#: Статусы ПРИЁМА: карточка ещё ничья, критерий обязан появиться при взятии в работу.
+INTAKE_STATUSES = frozenset({"new", "backlog"})
+#: Статусы, в которых карточка «в руках» сессии — её проба заморожена.
+IN_WORK_STATUSES = frozenset({"in-progress", "blocked"})
+#: База карточек без критерия на момент введения правила (13.09). Только уменьшается.
+INBOX_ACCEPTANCE_BASELINE = Path(__file__).resolve().parents[2] / "scripts" / "inbox_acceptance_baseline.json"
+
+
+def _inbox_acceptance_baseline() -> set[str] | None:
+    """Имена карточек, освобождённых от критерия по базе. `None` — база не прочиталась
+    (это НЕ «пусто»: отказать тогда нельзя никому, и вызывающий обязан сказать это вслух)."""
+    try:
+        return set(json.loads(INBOX_ACCEPTANCE_BASELINE.read_text(encoding="utf-8"))["files"])
+    except Exception:  # noqa: BLE001 — пропавшая база: не отказывать вслепую, но и не молчать
+        return None
+
+
+def has_acceptance_criterion(fm: dict) -> bool:
+    """Машинный критерий — `acceptance_probe:` (реестровая проба) либо `finding_key:` (карточку
+    родил мост; критерий — исчезновение находки, закрывает мост сам)."""
+    for key in ("acceptance_probe", "finding_key"):
+        val = fm.get(key)
+        if isinstance(val, str) and val.strip():
+            return True
+    return False
 
 
 @dataclass
@@ -390,8 +426,28 @@ def set_status(path: str | Path, new_status: str,
 
     # Статус ДО записи — половина ответа на вопрос «кто закрыл вопрос владельца»;
     # прочитать его после записи уже негде.
-    _old_status = _parse_frontmatter(fm_lines).get("status")
+    _fm = _parse_frontmatter(fm_lines)
+    _old_status = _fm.get("status")
     _old_status = str(_old_status).strip() if isinstance(_old_status, str) else None
+
+    # Правило приёмки (`.claude/rules/acceptance.md`, п. 1): inbox-карточка уходит из
+    # приёма (`new`/`backlog`) только с машинным критерием. Отказ здесь, а не в отчёте
+    # через сутки: мерку выбирают ДО работы, иначе «стало лучше» нечем поверить.
+    _tracker_type = (_fm.get("trackerStatus") or {}).get("type") if isinstance(_fm.get("trackerStatus"), dict) else None
+    if (_tracker_type == "inbox" and new_status not in INTAKE_STATUSES
+            and not has_acceptance_criterion(_fm)):
+        _base = _inbox_acceptance_baseline()
+        if _base is None:
+            import sys as _sys
+            print(f"WARNING: {INBOX_ACCEPTANCE_BASELINE} не прочиталась — освобождение по базе "
+                  f"НЕ ИЗМЕРЕНО, карточка {p.name} пропущена без проверки критерия", file=_sys.stderr)
+        elif p.name not in _base:
+            raise AcceptanceCriterionMissing(
+                f"{p.name}: inbox-карточку нельзя перевести в '{new_status}' без машинного критерия "
+                f"приёмки (.claude/rules/acceptance.md). ДО работы объявить пробу: "
+                f"python3 scripts/orchestrator_queue.py probe {p} <имя из card_acceptance.PROBES[:аргумент]>. "
+                f"Нет подходящей пробы — зарегистрировать новую с контролем в обе стороны. "
+                f"В базу scripts/inbox_acceptance_baseline.json НЕ дописывать: она только уменьшается.")
 
     lines = text.splitlines(keepends=True)
     # Locate frontmatter bounds in the raw (keepends) line list.
@@ -561,6 +617,19 @@ def set_acceptance_probe(path: str | Path, spec: str) -> str | None:
     """
     p = Path(path)
     text = p.read_text(encoding="utf-8")
+    # Правило приёмки, п. 2: у карточки В РАБОТЕ проба не заменяется. Поставить пробу
+    # карточке, у которой её не было (база 13.09), можно; сменить мерку после начала
+    # работы — нет: это и есть самосертификация.
+    _fm_lines, _ = _split_frontmatter(text)
+    _fm = _parse_frontmatter(_fm_lines) if _fm_lines else {}
+    _status = str(_fm.get("status") or "").strip()
+    _existing = _fm.get("acceptance_probe")
+    if _status in IN_WORK_STATUSES and isinstance(_existing, str) and _existing.strip() \
+            and _existing.strip() != spec.strip():
+        raise AcceptanceCriterionLocked(
+            f"{p.name}: карточка в работе ({_status}), её проба {_existing.strip()!r} заморожена "
+            f"(.claude/rules/acceptance.md, п. 2). Не подходит — вернуть карточку в `new`, назвать в "
+            f"теле почему, и только тогда объявить другую.")
     lines = text.splitlines(keepends=True)
     start = end = None
     seen = 0

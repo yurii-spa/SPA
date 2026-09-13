@@ -40,6 +40,8 @@ if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
 from spa_core.owner_queue.queue import (
+    AcceptanceCriterionLocked,
+    AcceptanceCriterionMissing,
     OwnerDoneForbidden,
     TRACKER_DIR,
     create_card,
@@ -726,7 +728,7 @@ def cmd_set_status(args) -> int:
             return refused
     try:
         set_status(args.path, args.status)
-    except OwnerDoneForbidden as exc:
+    except (OwnerDoneForbidden, AcceptanceCriterionMissing) as exc:
         print(f"REFUSED: {exc}", file=sys.stderr)
         return 2
     except Exception as exc:  # noqa: BLE001
@@ -848,6 +850,9 @@ def cmd_probe(args) -> int:
         return 1
     try:
         previous = set_acceptance_probe(path, args.probe.strip())
+    except AcceptanceCriterionLocked as exc:
+        print(f"REFUSED: {exc}", file=sys.stderr)
+        return 2
     except Exception as exc:  # noqa: BLE001
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1

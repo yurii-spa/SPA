@@ -2,9 +2,13 @@
 trackerStatus:
   type: inbox
 title: "Машинная приёмка обязательна: исходная проба тир-контура + запрет карточки без критерия (5 из 1021 сегодня)"
-status: new
+status: in-progress
 source: nimbalyst
 created: 2026-09-11
+acceptance_probe: tier_promotion_loop_closed
+status_trail:
+  - "2026-09-13T13:47:00.562006+00:00 new -> in-progress · queue.set_status"
+  - "2026-09-13T13:47:01.573815+00:00 in-progress -> in-progress · queue.set_status"
 ---
 
 ## Что найдено

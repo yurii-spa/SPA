@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-13T13:37:45Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-13T13:47:01Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (8e6c4c4ba) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (8ae5a4d99) · у **1** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1036** · ждёт владельца: **7** · занято сессиями: **14**.
 
@@ -324,6 +324,7 @@
 - CRITICAL сторожа фидов мигает: aave_v3 разошёлся на 1.69 пп в 01:14Z и сошёлся к 05:27Z — истории расхождений нет  ·  `inbox-critical-storozha-fidov-migaet-aave-v3-r.md` · 2026-08-27 · 🔒 `cycle-63347`
 - Храповик считает упоминание в докстринге за проводку — и это лишь одна из трёх слепот  ·  `inbox-hrapovik-schitaet-upominanie-v-dokstring.md` · 2026-08-14 · 🔒 `pid66130`
 - Храповик STATE.md снова красный на main: 164 строки при собственном пределе 150 — разовое сокращение классом не лечится  ·  `inbox-hrapovik-state-md-snova-krasnyi-na-main.md` · 2026-08-28
+- Машинная приёмка обязательна: исходная проба тир-контура + запрет карточки без критерия (5 из 1021 сегодня)  ·  `inbox-mashinnaya-priemka-obyazatelna-ishodnaya.md` · 2026-09-11
 - Полные прогоны мёртвой сессии продолжают жить и морят машину — третий случай за сутки, а сторож этого класса сам осиротел  ·  `inbox-polnye-progony-mertvoi-sessii-zhivut-i-morya.md` · 2026-08-28 · 🔒 `pid87687`
 - Порог свежести артефакта живёт в ДВУХ местах и они не пересекаются — расхождение никем не проверяется  ·  `inbox-porog-svezhesti-zhivet-v-dvuh-mestah.md` · 2026-08-28 · 🔒 `cycle-42991`
 - Пробный ход сверх бюджета оборота — реализовать решение владельца (вариант 1, ADR-334)  ·  `inbox-probnyi-hod-sverh-byudzheta-oborota.md` · 2026-09-11
@@ -750,7 +751,6 @@
 - Контрольное дерево приёмки объявить НЕЧЕМ: словарь объявлений файловый, а у контрольного дерева правок нет по определению  ·  `inbox-kontrolnoe-derevo-priemki-obyavit-nechem.md` · 2026-08-29
 - Шаг 0b даёт НЕОБРАТИМЫЙ `unchecked` на критическом приказе владельца: четыре записи журнала без pid не стареют никогда  ·  `inbox-kriticheskii-prikaz-vladeltsa-nelzya-vzy.md` · 2026-09-12
 - Крупнейшая позиция книги стоит на константе: у aave_v3 (Ethereum, 40%) TVL «не измерено», а пул в фиде есть  ·  `inbox-krupneishaya-pozitsiya-knigi-stoit-na-ko.md` · 2026-08-09
-- Машинная приёмка обязательна: исходная проба тир-контура + запрет карточки без критерия (5 из 1021 сегодня)  ·  `inbox-mashinnaya-priemka-obyazatelna-ishodnaya.md` · 2026-09-11
 - Модуль #39: третьей рукой обязана быть ПРИЧИННАЯ статика, иначе через 30 дней форвард снова не отличит тайминг от недовеса  ·  `inbox-modul-39-tretei-rukoi-obyazana-byt-prich.md` · 2026-08-09
 - Модуль bot_commands заменён, но жив: свой getUpdates-поллер и свои двери в чат  ·  `inbox-modul-bot-commands-zamenen-no-zhiv-svoi.md` · 2026-08-13
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
