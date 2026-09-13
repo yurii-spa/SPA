@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-13T14:54:14Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-13T15:50:58Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (c10ca0d70) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (0bd7f299f) · у **1** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1036** · ждёт владельца: **5** · занято сессиями: **14**.
 
@@ -322,7 +322,6 @@
 - CRITICAL сторожа фидов мигает: aave_v3 разошёлся на 1.69 пп в 01:14Z и сошёлся к 05:27Z — истории расхождений нет  ·  `inbox-critical-storozha-fidov-migaet-aave-v3-r.md` · 2026-08-27 · 🔒 `cycle-63347`
 - Храповик считает упоминание в докстринге за проводку — и это лишь одна из трёх слепот  ·  `inbox-hrapovik-schitaet-upominanie-v-dokstring.md` · 2026-08-14 · 🔒 `pid66130`
 - Храповик STATE.md снова красный на main: 164 строки при собственном пределе 150 — разовое сокращение классом не лечится  ·  `inbox-hrapovik-state-md-snova-krasnyi-na-main.md` · 2026-08-28
-- Машинная приёмка обязательна: исходная проба тир-контура + запрет карточки без критерия (5 из 1021 сегодня)  ·  `inbox-mashinnaya-priemka-obyazatelna-ishodnaya.md` · 2026-09-11
 - Полные прогоны мёртвой сессии продолжают жить и морят машину — третий случай за сутки, а сторож этого класса сам осиротел  ·  `inbox-polnye-progony-mertvoi-sessii-zhivut-i-morya.md` · 2026-08-28 · 🔒 `pid87687`
 - Порог свежести артефакта живёт в ДВУХ местах и они не пересекаются — расхождение никем не проверяется  ·  `inbox-porog-svezhesti-zhivet-v-dvuh-mestah.md` · 2026-08-28 · 🔒 `cycle-42991`
 - Пробный ход сверх бюджета оборота — реализовать решение владельца (вариант 1, ADR-334)  ·  `inbox-probnyi-hod-sverh-byudzheta-oborota.md` · 2026-09-11
@@ -448,6 +447,7 @@
 - Локальные сессии на Маке рассуждают по устаревшим docs/ — зеркало origin + SessionStart-хук  ·  `inbox-lokalnye-sessii-rassuzhdayut-po-ustarevshim-docs.md` · 2026-08-26
 - Мандат «3 трека параллельно» — поднять в top-приоритет. Порядок: шаг 1 (фикс пе…  ·  `inbox-mandat-3-treka-parallelno-podnyat-v-top.md` · 2026-08-19
 - Манифест архитектуры отстал от РЕАЛЬНОСТИ: три агента стали reboot-safe, тест красный на чистом origin  ·  `inbox-manifest-arhitektury-otstal-ot-realnosti.md` · 2026-08-06
+- Машинная приёмка обязательна: исходная проба тир-контура + запрет карточки без критерия (5 из 1021 сегодня)  ·  `inbox-mashinnaya-priemka-obyazatelna-ishodnaya.md` · 2026-09-11
 - Маячок бота объявляет ОДНУ способность, а решает за ДВЕ — найдено #194, не чинил  ·  `inbox-mayachok-obyavlyaet-odnu-sposobnost-gejtit-dve.md` · 2026-08-10
 - Мост доставки вечно должен пять карточек, которые origin закрыл РАНЬШЕ нас  ·  `inbox-most-dostavki-vechno-dolzhen-pyat-kartoc.md` · 2026-08-28
 - Мост находок может РОДИТЬ карточку на origin, но не может её ОБНОВИТЬ — закрытия не доезжают никогда  ·  `inbox-most-nahodok-mozhet-rodit-kartochku-na-o.md` · 2026-08-12
