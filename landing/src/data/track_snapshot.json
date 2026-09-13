@@ -3,7 +3,7 @@
   "generator": "scripts/generate_track_snapshot.py",
   "note": "Build-time static fallback for the public pages. Live values come from api.earn-defi.com and override these client-side; this is the last honest snapshot for offline / crawlers. real_track_days = EVIDENCED bars only. Missing value => 'data unavailable', never a stale number.",
   "as_of": "2026-09-13",
-  "generated_at": "2026-09-13T06:01:27Z",
+  "generated_at": "2026-09-13T13:46:57Z",
   "degraded": false,
   "real_track_days": 82,
   "go_live_target": null,
@@ -12,9 +12,9 @@
   "days_needed": 30,
   "gates_passed": 29,
   "gates_total": 29,
-  "end_equity": 101256.44,
-  "nav_usd": 101256.44,
-  "paper_apy_pct": 5.0092,
+  "end_equity": 101256.39,
+  "nav_usd": 101256.39,
+  "paper_apy_pct": 5.0089,
   "max_drawdown_pct": -0.0393,
   "total_return_pct": 1.2564,
   "packages": {
@@ -38,7 +38,7 @@
       "days_funded": 82,
       "apy_pct": 5.01,
       "dd_pct": -0.0393,
-      "nav_usd": 101256.44,
+      "nav_usd": 101256.39,
       "positions_count": null,
       "evidence": "paper"
     },
@@ -50,7 +50,8 @@
       "dd_pct": -0.31,
       "nav_usd": 100188.29,
       "positions_count": 4,
-      "evidence": "paper"
+      "evidence": "paper",
+      "observed_accrual_since": "2026-09-10"
     },
     "aggressive": {
       "status": "paper_test_running",
@@ -60,7 +61,8 @@
       "dd_pct": -0.15,
       "nav_usd": 100459.04,
       "positions_count": 2,
-      "evidence": "paper"
+      "evidence": "paper",
+      "observed_accrual_since": "2026-09-10"
     }
   },
   "bars": [
@@ -3003,20 +3005,20 @@
     {
       "date": "2026-09-13",
       "open_equity": 101245.55,
-      "close_equity": 101256.44,
-      "high_equity": 101256.44,
+      "close_equity": 101256.39,
+      "high_equity": 101256.39,
       "low_equity": 101245.55,
       "snapshots": 1,
-      "daily_return_pct": 0.010751,
-      "cumulative_return_pct": 1.256435,
-      "drawdown_pct": -0.017571,
-      "equity": 101256.44,
-      "apy_today": 3.9242,
-      "apy_expected_pct": 3.9242,
-      "daily_yield_usd": 10.885,
+      "daily_return_pct": 0.010708,
+      "cumulative_return_pct": 1.256391,
+      "drawdown_pct": -0.017615,
+      "equity": 101256.39,
+      "apy_today": 3.9083,
+      "apy_expected_pct": 3.9078,
+      "daily_yield_usd": 10.8409,
       "cost_usd": 0.0,
       "turnover_usd": 0.0,
-      "net_pnl_usd": 10.885,
+      "net_pnl_usd": 10.8409,
       "unobservable_pools": [],
       "yield_forgone_usd": 0.0,
       "positions": {
