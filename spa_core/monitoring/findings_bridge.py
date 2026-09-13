@@ -473,6 +473,52 @@ def collect_findings(root: str = REPO_ROOT) -> tuple[list[dict], list[str]]:
     except Exception:
         unread.append(retro_rel)
 
+    # Контур подъёма тира (11.09, docs/TIER_LIFECYCLE_AUDIT_2026-09-11.md §8–§9):
+    # у data/tier_curator_report.json не было НИ ОДНОГО читателя — PROMOTE_CANDIDATE
+    # писался и умирал. Четвёртый источник замыкает контур ДО решения: кандидат ⇒
+    # карточка агенту «собрать доказательства ADR-041, написать ADR». Ярлык тира по
+    # этому пути НЕ меняется (docs/tier_criteria.md §5) — только ADR, в T1 — владелец;
+    # поэтому severity всегда WARN (inbox), никогда CRITICAL (owner-decision): ADR-285
+    # не пускает к владельцу вопрос, у которого ещё нет собранных доказательств.
+    # Гистерезис моста (REQUIRED_SIGHTINGS замеров подряд) и есть «N дней подряд по
+    # критериям» из ADR-055; measured_at — замер куратора, не прогон моста (ADR-266).
+    curator_rel = os.path.join("data", "tier_curator_report.json")
+    try:
+        cur = json.load(open(os.path.join(root, curator_rel)))
+        stamp = cur.get("generated_at")
+        held = set((cur.get("summary") or {}).get("held_flagged") or [])
+        for proto, v in sorted((cur.get("verdicts") or {}).items()):
+            if not isinstance(v, dict):
+                continue
+            reasons = "; ".join(str(r) for r in (v.get("reasons") or [])) or "причины не названы"
+            if v.get("verdict") == "PROMOTE_CANDIDATE":
+                cur_t = v.get("current_tier") or "?"
+                tgt = v.get("target_tier") or "?"
+                gate = " Промоушен в T1 — только владелец, через ADR." if v.get("owner_gated") else ""
+                findings.append({
+                    "key": f"tier_promote:{proto}",
+                    "severity": "WARN",
+                    "message": (
+                        f"Кандидат на подъём {cur_t}→{tgt}: {proto} — {reasons}. "
+                        "ADR-041: ИЗМЕРЕНО куратором — живой TVL ≥ 5×floor, стабильность APY "
+                        "≥ 14 дн, Tier-A чист; НЕ ИЗМЕРЕНО — возраст майннета, аудиты, инциденты "
+                        "за 12 мес, латентность выхода, выживание в стрессе. Действие агента: "
+                        "собрать недостающие доказательства и написать ADR; ярлык тира меняет "
+                        "только ADR." + gate),
+                    "source": "tier_curator", "measured_at": stamp})
+            elif v.get("verdict") == "DEMOTE_SIGNAL" and proto in held:
+                findings.append({
+                    "key": f"tier_demote_held:{proto}",
+                    "severity": "WARN",
+                    "message": (
+                        f"Удерживаемый {proto} под DEMOTE_SIGNAL: {reasons}. Гейты уже не дают "
+                        "свежего капитала (Step 2c-pre / _fundable / RiskPolicy-ADR-053) — "
+                        "карточка о ВИДИМОСТИ, не о защите: проверить, почему исключён, и что "
+                        "позиция сокращается штатно (cap-at-held, без forced-sell)."),
+                    "source": "tier_curator", "measured_at": stamp})
+    except Exception:
+        unread.append(curator_rel)
+
     return findings, unread
 
 
