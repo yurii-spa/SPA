@@ -1,0 +1,215 @@
+{
+  "_note": "ВИТРИНА, а не источник: собрана из двух источников правды. Править руками запрещено — пересобирается scripts/build_site_numbers.py.",
+  "_generator": "scripts/build_site_numbers.py",
+  "_sources": {
+    "замер": "landing/src/data/track_snapshot.json",
+    "решение": "landing/src/lib/constitution.json"
+  },
+  "measured_at": "2026-09-13",
+  "published_at": "2026-09-13",
+  "cadence": "weekly",
+  "next_publication": "2026-09-20",
+  "rates_are_annualised": true,
+  "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1",
+  "headline": {
+    "apy": {
+      "value": 5.0092,
+      "unit": "%",
+      "kind": "замер",
+      "source": "landing/src/data/track_snapshot.json → paper_apy_pct",
+      "annualised": true,
+      "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1",
+      "evidence": "paper"
+    },
+    "drawdown": {
+      "value": -0.0393,
+      "unit": "%",
+      "kind": "замер",
+      "source": "landing/src/data/track_snapshot.json"
+    },
+    "nav": {
+      "value": 101256.44,
+      "unit": "USD",
+      "kind": "замер",
+      "source": "landing/src/data/track_snapshot.json"
+    },
+    "evidenced_days": {
+      "value": 82.0,
+      "unit": "дней",
+      "kind": "замер",
+      "source": "landing/src/data/track_snapshot.json"
+    },
+    "evidenced_anchor": "2026-06-22",
+    "gates": {
+      "passed": 29.0,
+      "total": 29.0,
+      "state": "gate_passed_owner_decision_pending"
+    }
+  },
+  "books": {
+    "conservative": {
+      "label": "Conservative",
+      "status": "paper_test_running",
+      "days": 82.0,
+      "apy": {
+        "value": 5.01,
+        "unit": "%",
+        "kind": "замер",
+        "source": "landing/src/data/track_snapshot.json → paper_tracks",
+        "annualised": true,
+        "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1",
+        "evidence": "paper"
+      },
+      "drawdown": {
+        "value": -0.0393,
+        "unit": "%",
+        "kind": "замер",
+        "source": "landing/src/data/track_snapshot.json → paper_tracks"
+      },
+      "nav": {
+        "value": 101256.44,
+        "unit": "USD",
+        "kind": "замер",
+        "source": "landing/src/data/track_snapshot.json → paper_tracks"
+      }
+    },
+    "balanced": {
+      "label": "Balanced",
+      "status": "paper_test_running",
+      "days": 21.0,
+      "apy": {
+        "value": 2.8,
+        "unit": "%",
+        "kind": "замер",
+        "source": "landing/src/data/track_snapshot.json → paper_tracks",
+        "annualised": true,
+        "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1",
+        "evidence": "paper"
+      },
+      "drawdown": {
+        "value": -0.31,
+        "unit": "%",
+        "kind": "замер",
+        "source": "landing/src/data/track_snapshot.json → paper_tracks"
+      },
+      "nav": {
+        "value": 100188.29,
+        "unit": "USD",
+        "kind": "замер",
+        "source": "landing/src/data/track_snapshot.json → paper_tracks"
+      }
+    },
+    "aggressive": {
+      "label": "Aggressive",
+      "status": "paper_test_running",
+      "days": 21.0,
+      "apy": {
+        "value": 7.62,
+        "unit": "%",
+        "kind": "замер",
+        "source": "landing/src/data/track_snapshot.json → paper_tracks",
+        "annualised": true,
+        "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1",
+        "evidence": "paper"
+      },
+      "drawdown": {
+        "value": -0.15,
+        "unit": "%",
+        "kind": "замер",
+        "source": "landing/src/data/track_snapshot.json → paper_tracks"
+      },
+      "nav": {
+        "value": 100459.04,
+        "unit": "USD",
+        "kind": "замер",
+        "source": "landing/src/data/track_snapshot.json → paper_tracks"
+      }
+    }
+  },
+  "thresholds": {
+    "kill_switch_soft": {
+      "value": 5.0,
+      "unit": "%",
+      "kind": "решение",
+      "source": "constitution.json → kill_switch (ADR-034/048)"
+    },
+    "kill_switch_hard": {
+      "value": 10.0,
+      "unit": "%",
+      "kind": "решение",
+      "source": "constitution.json → kill_switch (ADR-034/048)"
+    },
+    "start_capital": {
+      "value": 100000.0,
+      "unit": "USD",
+      "kind": "решение",
+      "source": "constitution.json"
+    },
+    "min_cash_buffer": {
+      "value": 5.0,
+      "unit": "%",
+      "kind": "решение",
+      "source": "constitution.json"
+    },
+    "max_per_protocol_t1": {
+      "value": 40.0,
+      "unit": "%",
+      "kind": "решение",
+      "source": "constitution.json"
+    },
+    "max_per_protocol_t2": {
+      "value": 20.0,
+      "unit": "%",
+      "kind": "решение",
+      "source": "constitution.json"
+    },
+    "max_t2_total": {
+      "value": 50.0,
+      "unit": "%",
+      "kind": "решение",
+      "source": "constitution.json"
+    },
+    "tvl_floor": {
+      "value": 5000000.0,
+      "unit": "USD",
+      "kind": "решение",
+      "source": "constitution.json"
+    },
+    "apy_floor": {
+      "value": 1.0,
+      "unit": "%",
+      "kind": "решение",
+      "source": "constitution.json"
+    },
+    "apy_ceiling": {
+      "value": 30.0,
+      "unit": "%",
+      "kind": "решение",
+      "source": "constitution.json"
+    },
+    "min_paper_days": {
+      "value": 30.0,
+      "unit": "дней",
+      "kind": "решение",
+      "source": "constitution.json"
+    },
+    "single_chain_cap": {
+      "value": 90.0,
+      "unit": "%",
+      "kind": "решение",
+      "source": "constitution.json → chain_caps (ADR-025/136)"
+    },
+    "l2_total_cap": {
+      "value": 50.0,
+      "unit": "%",
+      "kind": "решение",
+      "source": "constitution.json → chain_caps (ADR-025/136)"
+    },
+    "base_chain_cap": {
+      "value": 20.0,
+      "unit": "%",
+      "kind": "решение",
+      "source": "constitution.json → chain_caps (ADR-025/136)"
+    }
+  }
+}
