@@ -366,6 +366,14 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "unobserved_turnover_dependence.json": ("status", "population", "answer", "axis",
                                             "per_day", "cross_axis", "denominator",
                                             "what_it_does_not_prove", "findings"),
+    # Заказ #590/G7. `answer` и `per_day` — потому что ответ ПОИМЁННЫЙ: развилка
+    # приказа («наша строка кода или POLLED_ADAPTERS») решается не средней долей, а
+    # тем, у КАКОГО дня рычаг лежит у владельца. `twin_keys` обязателен: без него
+    # класс `key_mismatch` читается как догадка по виду имени, а он взят у двойной
+    # записи. `what_it_does_not_prove` — потому что три класса из четырёх ПОТОЛОК.
+    "unobserved_leg_remedy_class.json": ("status", "population", "answer", "per_day",
+                                         "twin_keys", "polled_adapters",
+                                         "what_it_does_not_prove", "findings"),
     "hit_rate_selection_bias.json": ("status", "journal_rows", "population",
                                      "hit_rate_as_is", "hit_rate_interval",
                                      "axis_a_horizon", "axis_b_cost",
@@ -630,6 +638,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/capital_observability_history.py",
     "unobserved_turnover_dependence.json":
         "spa_core/monitoring/unobserved_turnover_dependence.py",
+    "unobserved_leg_remedy_class.json":
+        "spa_core/monitoring/unobserved_leg_remedy_class.py",
     "g1_verdict_recoverability.json":
         "spa_core/monitoring/g1_verdict_recoverability.py",
     "unevidenced_leg_causes.json":
@@ -2136,6 +2146,16 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _utd_report,
         )
         out.extend(_utd_report(data))
+    elif name == "unobserved_leg_remedy_class.json":
+        # Заказ #590/G7. Порядок строк — порядок вопроса: сперва ОТВЕТ в долларах
+        # (сколько поднимает наш код, сколько не поднимает), сразу за ним СТАТУС
+        # ЧИСЛА, потому что складывать доказанное с потолком нельзя, и лишь потом
+        # рычаги и дни поимённо. Строка про близнецов идёт до находки: без неё
+        # `key_mismatch` читается как догадка по виду имени.
+        from spa_core.monitoring.unobserved_leg_remedy_class import (
+            format_report as _ulrc_report,
+        )
+        out.extend(_ulrc_report(data))
     elif name == "unevidenced_leg_causes.json":
         # Заказ #543. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (сколько
         # дней потеряли вердикт именно из-за неоценённой ноги), затем КЛАССЫ
