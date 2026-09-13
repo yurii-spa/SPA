@@ -15,6 +15,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from spa_core.tests._freshness import ts
+
 _SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "update_system_briefing.py"
 
 
@@ -46,7 +48,9 @@ class TierCuratorSectionWired(unittest.TestCase):
         self.assertIn("НЕ измерена", out)
 
     def test_candidate_is_listed_with_target_and_gate(self):
-        doc = {"generated_at": "2026-09-12T08:00:00+00:00",
+        # Относительная отметка (deployment.md, приём №2): дата не предмет теста —
+        # секция только печатает метку, свежесть по ней не судит.
+        doc = {"generated_at": ts(hours_ago=1),
                "verdicts": {"susde": {"verdict": "PROMOTE_CANDIDATE", "current_tier": "T3",
                                       "target_tier": "T2", "owner_gated": False},
                             "maple": {"verdict": "PROMOTE_CANDIDATE", "current_tier": "T2",
