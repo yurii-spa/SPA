@@ -374,6 +374,17 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "unobserved_leg_remedy_class.json": ("status", "population", "answer", "per_day",
                                          "twin_keys", "polled_adapters",
                                          "what_it_does_not_prove", "findings"),
+    # Заказ #591/G8. `answer` — потому что предмет ответа есть МОЩНОСТЬ знаменателя,
+    # и без неё строки сценариев читаются как четыре независимых числа. `scenarios`
+    # обязателен целиком: рычаги в ДНЯХ не складываются, и один сценарий без соседей
+    # назвал бы цену рычага, которой у него в одиночку нет. Контроли (`canonical_parity`,
+    # `capability_control`) — потому что знаменатель тут отбирается ЧУЖИМ правилом, и
+    # молчание о сверке с ним неотличимо от сверки, которая не велась.
+    "hit_rate_denominator_recovery.json": ("status", "population", "answer", "scenarios",
+                                           "canonical_parity", "capability_control",
+                                           "levers_are_not_additive",
+                                           "writer_verdict_sensitivity",
+                                           "what_it_does_not_prove", "findings"),
     "hit_rate_selection_bias.json": ("status", "journal_rows", "population",
                                      "hit_rate_as_is", "hit_rate_interval",
                                      "axis_a_horizon", "axis_b_cost",
@@ -640,6 +651,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/unobserved_turnover_dependence.py",
     "unobserved_leg_remedy_class.json":
         "spa_core/monitoring/unobserved_leg_remedy_class.py",
+    "hit_rate_denominator_recovery.json":
+        "spa_core/monitoring/hit_rate_denominator_recovery.py",
     "g1_verdict_recoverability.json":
         "spa_core/monitoring/g1_verdict_recoverability.py",
     "unevidenced_leg_causes.json":
@@ -2156,6 +2169,16 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _ulrc_report,
         )
         out.extend(_ulrc_report(data))
+    elif name == "hit_rate_denominator_recovery.json":
+        # Заказ #591/G8. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (сколько
+        # дней в знаменателе сегодня и сколько восстановимо в принципе), затем
+        # сценарии рычагов В ДНЯХ, и только потом контроли и находки. Сверка с
+        # каноническим знаменателем идёт ДО находок намеренно: число, отобранное не
+        # тем правилом, не становится правдой оттого, что красиво напечатано.
+        from spa_core.monitoring.hit_rate_denominator_recovery import (
+            format_report as _hrdr_report,
+        )
+        out.extend(_hrdr_report(data))
     elif name == "unevidenced_leg_causes.json":
         # Заказ #543. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (сколько
         # дней потеряли вердикт именно из-за неоценённой ноги), затем КЛАССЫ
