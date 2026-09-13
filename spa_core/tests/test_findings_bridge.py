@@ -605,7 +605,13 @@ class Bridge(unittest.TestCase):
     def test_unread_sources_are_loud_and_create_nothing(self):
         r = fb.run_bridge(self.root, now=NOW, create=self.q.create,
                           close=self.q._close, notify=self.q.notify)
-        self.assertEqual(len(r["sources_unread"]), 3)
+        # ИЗМЕНЕНО ОСОЗНАННО (инв. #16; журнал W37, 13.09): источников стало ЧЕТЫРЕ —
+        # добавлен data/tier_curator_report.json (контур подъёма тира; до этого у отчёта
+        # куратора не было ни одного читателя, docs/TIER_LIFECYCLE_AUDIT_2026-09-11.md §3.1).
+        # Утверждение теста не ослаблено: каждый нечитаемый источник по-прежнему ГРОМКО
+        # назван и ничего не рождает; изменилось только их число.
+        self.assertEqual(len(r["sources_unread"]), 4)
+        self.assertIn(os.path.join("data", "tier_curator_report.json"), r["sources_unread"])
         self.assertEqual(r["created"], [])
 
 
