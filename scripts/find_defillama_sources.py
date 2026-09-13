@@ -34,6 +34,20 @@ import argparse
 import urllib.request
 from datetime import datetime, timezone
 
+# КОРЕНЬ ПРОЕКТА — ДО первого импорта `spa_core` (решение владельца 13.09, ADR-366).
+#
+# launchd зовёт скрипт ПО ПУТИ, поэтому `sys.path[0]` у него — каталог `scripts/`, и
+# `cd` в корень этого не меняет. До сегодня скрипт работал ТОЛЬКО потому, что его
+# обёртка подставляла `export PYTHONPATH`: позови его откуда-нибудь ещё — из другого
+# агента, из CI, руками — и он умер бы на первой же строке импорта, молча и ровно
+# так, как ночью умер сторож очереди (ADR-347).
+#
+# Блок тот же, что в семидесяти семи других скриптах. `export PYTHONPATH` в обёртке
+# остаётся на месте и ничему не мешает — он просто перестаёт быть ЕДИНСТВЕННОЙ опорой.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
 from spa_core.utils.observation import observed, observed_number
 from spa_core.utils.atomic import atomic_save
 
