@@ -118,6 +118,7 @@ PRODUCES = (
     "data/snapshot_minute_sensitivity.json",
     "data/decision_record_run_identity.json",
     "data/day_replacement_verdict_loss.json",
+    "data/capital_observability_history.json",
     "data/intraday_rate_input_movement.json",
     "data/audit_trail_rate_input_coverage.json",
     "data/run_axis_time_stitch.json",
@@ -198,6 +199,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "snapshot_minute_sensitivity",
     "decision_record_run_identity",
     "day_replacement_verdict_loss",
+    "capital_observability_history",
     "intraday_rate_input_movement",
     "audit_trail_rate_input_coverage",
     "run_axis_time_stitch",
@@ -315,6 +317,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "hit_rate_selection_bias": {
         "module": "spa_core/monitoring/hit_rate_selection_bias.py",
         "artifact": "data/hit_rate_selection_bias.json"},
+    "capital_observability_history": {
+        "module": "spa_core/monitoring/capital_observability_history.py",
+        "artifact": "data/capital_observability_history.json"},
     "g1_verdict_recoverability": {
         "module": "spa_core/monitoring/g1_verdict_recoverability.py",
         "artifact": "data/g1_verdict_recoverability.json"},
@@ -1135,6 +1140,21 @@ def main(argv=None) -> int:
     # находок его НЕ читает по той же причине, что и соседей: единственное
     # действие по итогам — тронуть стоимость или сам критерий, то есть путь
     # капитала и мандат владельца. Потребитель — шаг 0-офис.
+    # Заказ #586 (в хвосте ADR-364). Сосед выше меряет ГРАНИЦУ критерия, этот —
+    # НАБЛЮДЁННОСТЬ ВХОДОВ по дням его знаменателя: приёмка G1 приказа CIO снята
+    # ADR-364 за ОДИН день, а `hit_rate` посчитан по многим. Мост находок его НЕ
+    # читает по той же причине, что и соседей: единственное действие по итогам —
+    # тронуть критерий или писателя журнала, то есть путь капитала и мандат
+    # владельца. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import capital_observability_history
+        crep = capital_observability_history.run(root=args.root)
+        print(f"capital_observability_history: {crep['overall']} "
+              f"(critical={crep['counts']['critical']} "
+              f"warn={crep['counts']['warn']} "
+              f"unchecked={crep['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "capital_observability_history", e)
     try:
         from spa_core.monitoring import hit_rate_selection_bias
         hrep = hit_rate_selection_bias.run(root=args.root)

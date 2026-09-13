@@ -349,6 +349,16 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # них строка «hit_rate = 1.0» читается как свойство МИРА, а не как число,
     # посчитанное на 43 % окна. `parity_control` — потому что при непройденном
     # паритете все остальные числа недействительны, и молчать об этом нельзя.
+    # Заказ #586. `answer` и `degraded_days` в схеме обязательны: без них артефакт
+    # выродится в одну долю, а заказ спрашивал ПОИМЁННО — на скольких днях
+    # знаменателя капитал стоял на наблюдённом и какие дни выпали. `tvl_axis` —
+    # потому что молчание про вторую ось читалось бы как «обе сошлись», ровно та
+    # подмена, которую ADR-364 нашёл у `feed_coverage.live_pct`.
+    "capital_observability_history.json": ("status", "journal_rows", "population",
+                                           "axis", "tvl_axis", "answer",
+                                           "denominator", "degraded_days",
+                                           "provenance_cross_check",
+                                           "what_it_does_not_prove", "findings"),
     "hit_rate_selection_bias.json": ("status", "journal_rows", "population",
                                      "hit_rate_as_is", "hit_rate_interval",
                                      "axis_a_horizon", "axis_b_cost",
@@ -609,6 +619,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/decision_record_verdict_sensitivity.py",
     "hit_rate_selection_bias.json":
         "spa_core/monitoring/hit_rate_selection_bias.py",
+    "capital_observability_history.json":
+        "spa_core/monitoring/capital_observability_history.py",
     "g1_verdict_recoverability.json":
         "spa_core/monitoring/g1_verdict_recoverability.py",
     "unevidenced_leg_causes.json":
@@ -2097,6 +2109,15 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _g1vr_report,
         )
         out.extend(_g1vr_report(data))
+    elif name == "capital_observability_history.json":
+        # Заказ #586. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ и ОСЬ
+        # (какая из двух вообще меряется), потом ответ по знаменателю, потом дни
+        # поимённо, и только потом вердикт. Ось идёт ВТОРОЙ строкой намеренно:
+        # читатель, увидевший «100 %» без неё, прочтёт это как обе оси сразу.
+        from spa_core.monitoring.capital_observability_history import (
+            format_report as _coh_report,
+        )
+        out.extend(_coh_report(data))
     elif name == "unevidenced_leg_causes.json":
         # Заказ #543. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (сколько
         # дней потеряли вердикт именно из-за неоценённой ноги), затем КЛАССЫ

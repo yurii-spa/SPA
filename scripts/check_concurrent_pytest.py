@@ -130,6 +130,8 @@ class PytestProc:
     ppid: int | None = None
     orphan: str | None = None       # ORPHAN / ATTENDED / UNMEASURED
     orphan_why: str | None = None
+    verdict: str | None = None      # READABLE / UNREADABLE / UNMEASURED
+    verdict_why: str | None = None
 
 
 def _run(cmd: list[str]) -> str | None:
@@ -188,6 +190,138 @@ def resolve_cwd(pid: int) -> str | None:
         if line.startswith("n"):
             return line[1:]
     return None
+
+
+#: Вердикт прогона ДОСТИЖИМ ли читателю. Ось отдельная от «кому он нужен».
+READABLE = "READABLE"
+UNREADABLE = "UNREADABLE"
+
+#: Типы дескриптора, по которым достижимость вердикта отсюда НЕ решается.
+#: Терминал и труба читаются процессом, которого мы не видим; объявить их
+#: «прочитаемыми» значило бы выдать незнание за ответ, а «непрочитаемыми» —
+#: послать сессию убивать живой прогон. Третий исход, а не догадка.
+_OPAQUE_FD_TYPES = frozenset({"CHR", "PIPE", "FIFO", "unix", "IPv4", "IPv6", "SOCK"})
+
+
+def _open_files(pid: int) -> list[dict] | None:
+    """Все дескрипторы процесса как список записей lsof, либо None — не прочитано.
+
+    **Поле доступа запрашивается ОТДЕЛЬНОЙ буквой `a`, и это не украшение.**
+    Первая редакция звала `lsof -Ftni` и читала режим из номера дескриптора —
+    а `-F` без `a` режим не печатает ВООБЩЕ (`f1`, не `f1u`). Режим выходил
+    пустым у каждой записи, поэтому ни `READABLE`, ни `UNREADABLE` не могли
+    возникнуть НИ ПРИ КАКИХ дескрипторах: вся ось молча вырождалась в «не
+    измерено». Тесты этого не видели, потому что подсовывали готовые записи
+    (`probe=`), то есть проверяли рассуждение, а не разбор. Нашлось живым
+    замером на pytest, пишущем в FIFO. Отсюда же и требование ниже: у разбора
+    обязан быть тест БЕЗ подмены, на настоящем `lsof` и настоящем процессе.
+    """
+    raw = _run(["lsof", "-a", "-p", str(pid), "-d", "0-255", "-Ftnia"])
+    if raw is None:
+        return None
+    out: list[dict] = []
+    cur: dict | None = None
+    for line in raw.splitlines():
+        tag, value = line[:1], line[1:]
+        if tag == "f":
+            if cur is not None:
+                out.append(cur)
+            cur = {"fd": value.strip(), "mode": "", "type": None,
+                   "path": None, "inode": None}
+        elif cur is None:
+            continue
+        elif tag == "a":
+            cur["mode"] = value.strip()
+        elif tag == "t":
+            cur["type"] = value
+        elif tag == "n":
+            cur["path"] = value
+        elif tag == "i":
+            try:
+                cur["inode"] = int(value)
+            except ValueError:
+                cur["inode"] = None
+    if cur is not None:
+        out.append(cur)
+    return out
+
+
+def _alive_on_disk(rec: dict) -> bool:
+    """Файл дескриптора всё ещё достижим ПО СВОЕМУ ПУТИ (а не только по имени)."""
+    if rec.get("type") != "REG" or not rec.get("path"):
+        return False
+    try:
+        st = os.stat(rec["path"])
+    except OSError:
+        return False
+    # Сверка по ИМЕНИ была бы тем же дефектом, против которого написана проверка:
+    # путь может пережить файл, если по нему создали новый.
+    return rec.get("inode") is None or st.st_ino == rec["inode"]
+
+
+def verdict_readable(pid: int, *, probe=None) -> tuple[str, str]:
+    """(READABLE|UNREADABLE|UNMEASURED, чем измерено) для ОДНОГО процесса.
+
+    **Вопрос другой, чем у** :func:`classify_orphan`, **и смешивать их нельзя.**
+    Тот отвечает «нужен ли прогон кому-нибудь», этот — «достанется ли его ответ
+    хоть кому-то».
+
+    **Почему нельзя смотреть на дескриптор 1 (замер цикла #587).** В этом
+    репозитории с ADR-360 живёт приём «`lsof -d 1` дал путь, `ls` — `No such
+    file` ⇒ вердикт не прочитает никто». Приём НЕВЕРЕН, и неверен он ровно для
+    pytest: при умолчательном `--capture=fd` pytest кладёт на дескриптор 1 свой
+    буфер захвата — временный файл, отвязанный СРАЗУ после создания, — а
+    настоящий stdout сохраняет дублем на другом дескрипторе. Контрольный опыт
+    13.09: прогон, запущенный `> /tmp/probe_named.log`, показывает на fd 1
+    отвязанный `…/T/tmpcr9inwe6`, а на fd 5 и 7 — живой `/tmp/probe_named.log`.
+    То есть признак «fd 1 отвязан» истинен у ЛЮБОГО захватывающего pytest и о
+    судьбе вердикта не говорит ничего. Замер по нему — верный ответ на свой
+    вопрос, прочитанный как ответ на нужный.
+
+    **Что меряется вместо этого.** Есть ли у процесса ХОТЬ ОДИН обычный файл,
+    открытый на запись и достижимый по своему пути, помимо буферов захвата
+    (их опознаём по общему inode с fd 1 и fd 2). Есть ⇒ ``READABLE``: писать
+    вердикту есть куда, и после смерти сессии он останется на диске. Обычные
+    файлы есть, но ВСЕ отвязаны ⇒ ``UNREADABLE``. Ни одного обычного файла
+    (терминал, труба) ⇒ ``UNMEASURED`` с названной причиной.
+
+    **Граница утверждения, названная вслух:** ``READABLE`` доказывает, что у
+    прогона есть долговечная цель записи, но НЕ доказывает, что найденный файл
+    и есть его stdout — снаружи процесса это не решается. Нужна уверенность —
+    запускать прогон в ИМЕНОВАННЫЙ файл и знать его путь заранее.
+    """
+    recs = (probe or _open_files)(pid)
+    if recs is None:
+        return UNMEASURED, ("дескрипторы не прочитаны (lsof недоступен) — достижимость "
+                            "вердикта не измерена")
+    by_fd = {r["fd"]: r for r in recs}
+    capture_inodes = {by_fd[f]["inode"] for f in ("1", "2")
+                      if f in by_fd and by_fd[f].get("inode") is not None}
+
+    regs = [r for r in recs if r.get("type") == "REG"]
+    if not regs:
+        kinds = sorted({r.get("type") or "?" for r in recs}) or ["?"]
+        return UNMEASURED, (f"обычных файлов среди дескрипторов нет (только {', '.join(kinds)}) — "
+                            f"читателя терминала или трубы отсюда не видно: это НЕ «прочитают» "
+                            f"и НЕ «не прочитают»")
+
+    durable = [r for r in regs
+               if r["mode"] in ("w", "u", "W")
+               and r.get("inode") not in capture_inodes
+               and _alive_on_disk(r)]
+    if durable:
+        names = ", ".join(sorted({r["path"] for r in durable})[:3])
+        return READABLE, (f"вердикту есть куда лечь: живой файл на запись — {names}. "
+                          f"(Это НЕ доказывает, что он и есть stdout: снаружи процесса это "
+                          f"не решается; дескриптор 1 у захватывающего pytest — его буфер)")
+
+    unlinked = [r["path"] for r in regs if r.get("mode") in ("w", "u", "W")
+                and not _alive_on_disk(r)]
+    if unlinked:
+        return UNREADABLE, (f"все обычные файлы на запись ОТВЯЗАНЫ ({len(unlinked)} шт., напр. "
+                            f"{unlinked[0]}) — писать вердикту некуда, его не прочитает никто")
+    return UNMEASURED, ("обычные файлы есть, но ни один не открыт на запись — куда ляжет "
+                        "вердикт, отсюда не видно")
 
 
 def _announce_log(owner):
@@ -301,6 +435,11 @@ def check(target_cwd: str, *, self_pid: int | None = None) -> dict:
             entries = None
     for p in procs:
         p.orphan, p.orphan_why = classify_orphan(p, owner=owner, entries=entries)
+        # Вторая ось. Считается ВСЕГДА и для КАЖДОГО процесса, а не только для
+        # сирот: прогон с живым заказчиком и удалённым логом — тоже работа в
+        # пустоту, и спрашивать о нём только после того, как первая ось скажет
+        # «сирота», значило бы сделать вторую ось следствием первой.
+        p.verdict, p.verdict_why = verdict_readable(p.pid)
 
     status = "collision" if same_cwd else "clear"
     return {
@@ -314,6 +453,10 @@ def check(target_cwd: str, *, self_pid: int | None = None) -> dict:
         # читателя и есть способ, которым находка становится необязательной.
         "orphans": [vars(p) for p in procs if p.orphan == ORPHAN],
         "orphan_unmeasured": [vars(p) for p in procs if p.orphan == UNMEASURED],
+        # Своим списком, как и сироты: фильтр на стороне читателя и есть способ,
+        # которым находка становится необязательной.
+        "verdict_unreadable": [vars(p) for p in procs if p.verdict == UNREADABLE],
+        "verdict_unmeasured": [vars(p) for p in procs if p.verdict == UNMEASURED],
     }
 
 
@@ -350,6 +493,17 @@ def _print_human(report: dict) -> None:
             print(f"      {p['orphan_why']}")
             print(f"      снять: kill -TERM {p['pid']}   (это решение сессии, инструмент не убивает)")
 
+    unreadable = report.get("verdict_unreadable") or []
+    if unreadable:
+        print(f"\n📄 ВЕРДИКТ НЕ ПРОЧИТАЕТ НИКТО: {len(unreadable)} — это ДРУГОЙ вопрос, "
+              f"чем «кому нужен прогон», и он не следствие первого:")
+        for p in unreadable:
+            print(f"   pid={p['pid']}  start={p['lstart']}  cwd={p['cwd']}")
+            print(f"      {p['verdict_why']}")
+            print(f"      заказчик при этом: {p['orphan']} — {p['orphan_why']}")
+            print(f"      снять: kill -TERM {p['pid']}   (это решение сессии, инструмент не убивает)")
+        print("   Свой прогон гнать в ИМЕНОВАННЫЙ файл — тогда его вердикт переживёт сессию.")
+
     unmeasured = report.get("orphan_unmeasured") or []
     if unmeasured:
         # Третий исход печатается ВСЛУХ по той же причине, по какой существует:
@@ -379,7 +533,11 @@ def main(argv: list[str] | None = None) -> int:
         # Столкновение перевешивает сироту: код 1 — про доверие к ТВОЕМУ числу,
         # код 3 — только про машину. Сироты при этом уже напечатаны выше.
         return 1
-    if report.get("orphans"):
+    if report.get("orphans") or report.get("verdict_unreadable"):
+        # Код 3 значит «прогон жжёт ядро, а его результат никому не достанется».
+        # К этому ведут ДВЕ дороги, и обе кончаются одинаково: заказчик мёртв
+        # либо вердикт недостижим. Молчать про вторую значило бы отвечать нулём
+        # там, где не измерено ничего.
         return 3
     return 0
 

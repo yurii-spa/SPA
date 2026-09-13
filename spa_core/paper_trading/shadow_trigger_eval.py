@@ -596,6 +596,28 @@ def evaluate_window(
     return doc
 
 
+def scored_days(data_dir: Path, **kwargs) -> Optional[set]:
+    """Дни, входящие в знаменатель ``hit_rate`` — ОДНО определение на всех читателей.
+
+    Знаменатель определяет этот модуль, поэтому и правило отбора живёт здесь, а не
+    переписывается у каждого потребителя: два определения спорили бы о том же дне, и
+    спор был бы молчаливым (обе стороны печатают число, ни одна — правило).
+
+    ``None`` = «не измерено»: любой отказ канонического расчёта возвращает именно его,
+    а НЕ пустое множество — пустое читалось бы как «оценённых дней нет».
+    """
+    try:
+        report = evaluate_window(Path(data_dir), write=False, **kwargs)
+    except Exception as exc:  # noqa: BLE001 — любой отказ = «не измерено»
+        log.warning("знаменатель hit_rate не измерен: %s", exc)
+        return None
+    rows = report.get("per_verdict")
+    if not isinstance(rows, list):
+        return None
+    return {str(r.get("cycle_date")) for r in rows
+            if not r.get("trivial") and r.get("outcome") in ("hit", "miss")}
+
+
 def format_blockade(blockade: Optional[dict]) -> List[str]:
     """Строки про достижимость взвода — общие для CLI и шага 0-офис.
 

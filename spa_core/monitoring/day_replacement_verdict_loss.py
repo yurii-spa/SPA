@@ -458,22 +458,14 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None) -> dict:
 def _scored_days(data_dir: Path) -> Optional[set]:
     """Дни, входящие в знаменатель ``hit_rate`` — у КАНОНИЧЕСКОГО производителя.
 
-    Список не выписывается сюда руками: знаменатель определяет
-    ``shadow_trigger_eval``, и спрашивать надо его. Не ответил ⇒ ``None``, то
-    есть «не измерено», а не пустое множество: пустое читалось бы как
-    «знаменатель пуст».
+    Правило отбора здесь НЕ повторяется: оно живёт у самого производителя
+    (``shadow_trigger_eval.scored_days``), и спрашивать надо его. Копия правила
+    была бы вторым определением знаменателя — спорить с ней было бы нечем, обе
+    стороны печатают число, а не правило. Не ответил ⇒ ``None``, то есть «не
+    измерено», а не пустое множество: пустое читалось бы как «знаменатель пуст».
     """
-    try:
-        from spa_core.paper_trading import shadow_trigger_eval as ste
-        report = ste.evaluate_window(data_dir, write=False)
-    except Exception as exc:  # noqa: BLE001 — любой отказ = «не измерено»
-        log.warning("знаменатель hit_rate не измерен: %s", exc)
-        return None
-    rows = report.get("per_verdict")
-    if not isinstance(rows, list):
-        return None
-    return {str(r.get("cycle_date")) for r in rows
-            if not r.get("trivial") and r.get("outcome") in ("hit", "miss")}
+    from spa_core.paper_trading import shadow_trigger_eval as ste
+    return ste.scored_days(data_dir)
 
 
 def _exposure(days: List[dict], scored_days: Optional[set]) -> dict:
