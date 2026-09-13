@@ -204,7 +204,13 @@ def test_inbox_card_is_not_touched_by_the_carry(tmp_path, capsys):
     d = tmp_path / drift.TRACKER_REL
     d.mkdir(parents=True)
     card = d / "inbox-x.md"
-    card.write_text("---\ntrackerStatus:\n  type: inbox\ntitle: t\nstatus: new\n---\n\nтело\n",
+    # ИЗМЕНЕНО 14.09 (ADR-375, инв. #16): предмет теста НЕ тронут — он про то, что
+    # перенос ответа владельца не оставляет следа на обычной задаче. Сменилась только
+    # СЦЕНА: с 13.09 inbox-карточка уходит из приёма лишь с машинным критерием
+    # (`.claude/rules/acceptance.md`), и прежняя сцена нарушала ЧУЖОЕ ограничение
+    # вместо своего — тест падал на отказе приёмки, ничего не сказав про перенос.
+    card.write_text("---\ntrackerStatus:\n  type: inbox\ntitle: t\nstatus: new\n"
+                    "finding_key: test-carry-scene\n---\n\nтело\n",
                     encoding="utf-8")
 
     rc = oq.main(["set-status", str(card), "ingested"])

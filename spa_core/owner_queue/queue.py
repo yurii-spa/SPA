@@ -391,7 +391,8 @@ def list_cards(
 
 
 def set_status(path: str | Path, new_status: str,
-               closed_by: str | None = None, evidence: str | None = None) -> None:
+               closed_by: str | None = None, evidence: str | None = None,
+               carried_to: str | Path | None = None) -> None:
     """Atomically rewrite the top-level ``status:`` in a card's frontmatter.
 
     Refuses ``owner-accepted`` outright: that status is the owner's own words, and an agent
@@ -434,8 +435,29 @@ def set_status(path: str | Path, new_status: str,
     # приёма (`new`/`backlog`) только с машинным критерием. Отказ здесь, а не в отчёте
     # через сутки: мерку выбирают ДО работы, иначе «стало лучше» нечем поверить.
     _tracker_type = (_fm.get("trackerStatus") or {}).get("type") if isinstance(_fm.get("trackerStatus"), dict) else None
+    # КАРТОЧКА-НОСИТЕЛЬ — не «взятие в работу» (ADR-375).
+    #
+    # Правило ниже написано про случай «карточку БЕРУТ В РАБОТУ без мерки». Приём
+    # заданий (`owner_queue.intake`) делает нечто иное: содержимое пришедшей карточки
+    # уезжает в другой предмет — идея в заметку `docs/ideas/`, вопрос в карточку
+    # владельцу, — а сама inbox-карточка гасится как отработавший НОСИТЕЛЬ. Работы
+    # тут не берут, и требовать у носителя критерий приёмки не к чему: его приёмка
+    # ровно одна — содержимое теперь лежит ВОТ ЗДЕСЬ.
+    #
+    # Поэтому освобождение не «флагом-доверием», а ЗАРАБОТАННОЕ: вызывающий обязан
+    # НАЗВАТЬ путь, куда уехало содержимое, и путь обязан СУЩЕСТВОВАТЬ. Имя без файла
+    # освобождения не даёт — иначе это был бы тот самый опт-аут, который учит
+    # отключать сторожа.
+    _carried_ok = False
+    if carried_to is not None:
+        _carried_ok = Path(carried_to).exists()
+        if not _carried_ok:
+            raise AcceptanceCriterionMissing(
+                f"{p.name}: объявлено `carried_to={carried_to}`, но такого файла нет — "
+                f"освобождение носителя ЗАРАБАТЫВАЕТСЯ существующим предметом, а не "
+                f"обещанием")
     if (_tracker_type == "inbox" and new_status not in INTAKE_STATUSES
-            and not has_acceptance_criterion(_fm)):
+            and not _carried_ok and not has_acceptance_criterion(_fm)):
         _base = _inbox_acceptance_baseline()
         if _base is None:
             import sys as _sys
