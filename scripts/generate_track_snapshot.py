@@ -92,7 +92,58 @@ def _tier_packages() -> dict:
     return out
 
 
-def _sleeve_paper_track(state_path: Path) -> dict:
+#: Журналы входов рукавов: по ним измеряется, С КАКОГО ДНЯ книга начисляется по
+#: НАБЛЮДЁННЫМ ставкам, а не по литералам (ADR-292/298).
+_SLEEVE_INPUTS = {
+    "balanced": "sleeve_inputs_balanced.jsonl",
+    "aggressive": "sleeve_inputs_aggressive.jsonl",
+}
+
+#: Признак наблюдённого начисления в журнале входов рукава.
+_OBSERVED_BASIS = "per_position_observed_apy"
+
+
+def _observed_accrual_since(book: str) -> "str | None":
+    """День, с которого книга начисляется по НАБЛЮДЁННЫМ ставкам, либо ``None``.
+
+    Зачем это на витрине (обязательство ADR-357 п. 4). Владелец решил оставить
+    публичный трек советательных книг с 23 августа. Решение его; вместе с ним идёт
+    требование инварианта #8: у Aggressive число почти целиком сложено из дней,
+    начисленных по ставкам, которых никто не наблюдал, и доля таких дней обязана
+    стоять РЯДОМ с числом.
+
+    Дата берётся ЗАМЕРОМ из журнала входов рукава, а не из прозы ADR: прозу никто
+    не пересчитывает, а литеральная дата в генераторе была бы ровно тем «числом,
+    которое перестаёт быть правдой молча», против которого написано правило чисел.
+
+    ``None`` — «не измерено»: журнала нет или в нём нет ни одной наблюдённой записи.
+    Витрина обязана отличать это от «литеральных дней не было».
+    """
+    path = ROOT / "data" / _SLEEVE_INPUTS.get(book, "")
+    if not path.is_file():
+        return None
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except ValueError:
+            continue
+        payload = rec.get("payload")
+        payload = payload if isinstance(payload, dict) else {}
+        if payload.get("accrual_basis") != _OBSERVED_BASIS:
+            continue
+        day = payload.get("cycle_date") or str(rec.get("ts") or "")[:10]
+        return day or None
+    return None
+
+
+def _sleeve_paper_track(state_path: Path, book: str = "") -> dict:
     """Paper-трек рукава (Balanced=hy, Aggressive=lp) для карточки тира — ЧЕСТНЫЙ.
 
     Правило владельца 2026-08-19 (карточка owner-decision-sbalansirovannyi-tir-…,
@@ -131,6 +182,9 @@ def _sleeve_paper_track(state_path: Path) -> dict:
         "nav_usd": round(float(st.get("equity") or 0.0), 2) or None,
         "positions_count": int(last.get("positions_count", 0) or 0),
         "evidence": "paper",                    # это paper-тест, не live (инв. #8)
+        # С какого дня начисление идёт по НАБЛЮДЁННЫМ ставкам (ADR-292/298).
+        # `None` = не измерено; витрина обязана отличать это от «литералов не было».
+        "observed_accrual_since": _observed_accrual_since(book) if book else None,
     }
 
 
@@ -236,8 +290,8 @@ def build_snapshot(golive_path: Path = GOLIVE, equity_path: Path = EQUITY, pts_p
                 "positions_count": None,   # главная книга ведёт позиции в своём снимке
                 "evidence": "paper",
             },
-            "balanced": _sleeve_paper_track(ROOT / "data" / "hy_paper_trading.json"),
-            "aggressive": _sleeve_paper_track(ROOT / "data" / "lp_paper_trading.json"),
+            "balanced": _sleeve_paper_track(ROOT / "data" / "hy_paper_trading.json", "balanced"),
+            "aggressive": _sleeve_paper_track(ROOT / "data" / "lp_paper_trading.json", "aggressive"),
         },
         "bars": bars,
     }
