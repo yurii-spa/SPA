@@ -448,6 +448,7 @@ def _probe_candidate_discovery_loop(arg: str | None, *, now: "datetime | None" =
     import hashlib
     import shutil
     import tempfile
+    from spa_core.adapter_sdk import discovery as d
     from spa_core.paper_trading import discovery_step as ds
 
     proto = DISCOVERY_PROBE_PROTO
@@ -516,7 +517,9 @@ def _probe_candidate_discovery_loop(arg: str | None, *, now: "datetime | None" =
         before = hashlib.sha256(open(reg_path, "rb").read()).hexdigest()
 
         def boom():
-            raise RuntimeError("проба: фид недоступен")
+            # Сторож SPAError (tests/test_spaerror_complete.py) не пускает голый RuntimeError в
+            # spa_core/: отказ фида — предмет сканера, и его собственная ошибка здесь уместнее.
+            raise d.DiscoveryError("проба: фид недоступен")
 
         res2 = ds.run_discovery_step(data, fetch_fn=boom, now_ts=now_ts + 86400)
         after = hashlib.sha256(open(reg_path, "rb").read()).hexdigest()
