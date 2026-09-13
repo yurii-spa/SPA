@@ -119,6 +119,7 @@ PRODUCES = (
     "data/decision_record_run_identity.json",
     "data/day_replacement_verdict_loss.json",
     "data/capital_observability_history.json",
+    "data/unobserved_turnover_dependence.json",
     "data/intraday_rate_input_movement.json",
     "data/audit_trail_rate_input_coverage.json",
     "data/run_axis_time_stitch.json",
@@ -200,6 +201,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "decision_record_run_identity",
     "day_replacement_verdict_loss",
     "capital_observability_history",
+    "unobserved_turnover_dependence",
     "intraday_rate_input_movement",
     "audit_trail_rate_input_coverage",
     "run_axis_time_stitch",
@@ -320,6 +322,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "capital_observability_history": {
         "module": "spa_core/monitoring/capital_observability_history.py",
         "artifact": "data/capital_observability_history.json"},
+    "unobserved_turnover_dependence": {
+        "module": "spa_core/monitoring/unobserved_turnover_dependence.py",
+        "artifact": "data/unobserved_turnover_dependence.json"},
     "g1_verdict_recoverability": {
         "module": "spa_core/monitoring/g1_verdict_recoverability.py",
         "artifact": "data/g1_verdict_recoverability.json"},

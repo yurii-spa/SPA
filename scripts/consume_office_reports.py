@@ -359,6 +359,13 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                            "denominator", "degraded_days",
                                            "provenance_cross_check",
                                            "what_it_does_not_prove", "findings"),
+    # Заказ #587/G6. `population` и `per_day` — потому что ответ ПОИМЁННЫЙ: заказ
+    # спрашивал не среднюю долю, а на КАКОМ дне ненаблюдённая нога несла весь ход,
+    # а на каком — округление. `cross_axis` обязателен: без него «8 отказов» рядом с
+    # «3 деградировавшими днями» соседа читается как ошибка одного из двух чисел.
+    "unobserved_turnover_dependence.json": ("status", "population", "answer", "axis",
+                                            "per_day", "cross_axis", "denominator",
+                                            "what_it_does_not_prove", "findings"),
     "hit_rate_selection_bias.json": ("status", "journal_rows", "population",
                                      "hit_rate_as_is", "hit_rate_interval",
                                      "axis_a_horizon", "axis_b_cost",
@@ -621,6 +628,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/hit_rate_selection_bias.py",
     "capital_observability_history.json":
         "spa_core/monitoring/capital_observability_history.py",
+    "unobserved_turnover_dependence.json":
+        "spa_core/monitoring/unobserved_turnover_dependence.py",
     "g1_verdict_recoverability.json":
         "spa_core/monitoring/g1_verdict_recoverability.py",
     "unevidenced_leg_causes.json":
@@ -2118,6 +2127,15 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _coh_report,
         )
         out.extend(_coh_report(data))
+    elif name == "unobserved_turnover_dependence.json":
+        # Заказ #587/G6. Порядок строк — порядок вопроса: население отказов, потом
+        # ОТВЕТ по всем дням, потом дни ПОИМЁННО с границами доли, и только потом
+        # вердикт соразмерности. Поимённость здесь не украшение: заказ просил
+        # различить два отказа, а средняя доля их снова склеила бы.
+        from spa_core.monitoring.unobserved_turnover_dependence import (
+            format_report as _utd_report,
+        )
+        out.extend(_utd_report(data))
     elif name == "unevidenced_leg_causes.json":
         # Заказ #543. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (сколько
         # дней потеряли вердикт именно из-за неоценённой ноги), затем КЛАССЫ
