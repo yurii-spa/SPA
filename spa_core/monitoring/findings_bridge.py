@@ -1259,6 +1259,57 @@ def main(argv=None) -> int:
               f"unchecked={_ulc['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "unevidenced_leg_causes", e)
+    # ЧЕТЫРЕ ПРИБОРА РЯДА G6→G9, объявленные в `CENSUS_STAGE` и ни разу отсюда
+    # НЕ ЗВАННЫЕ (замер цикла #595). Это не оговорка: имя в составе ступени и
+    # вызов в теле `main()` — РАЗНЫЕ утверждения, и до сих пор их связывал только
+    # обычай. Отсюда и авария, за которую заведена карточка
+    # `inbox-begun-perepisei-ne-soobschaet-chto-proiz`: артефакт G7 в проде
+    # отсутствовал, шаг 0-офис докладывал «НЕ ПРОЧИТАН», и прочли это как
+    # «бегун звал и промолчал». Бегун НЕ ЗВАЛ. Молчание ступени о неназванном
+    # приборе неотличимо от её исправной работы — ровно инвариант #17, только
+    # про вызов, а не про число. Красный `test_constant_matches_the_stage_
+    # actually_run_by_main` говорил об этом с самого появления G6; он и есть
+    # положительный контроль к этим четырём блокам.
+    # Заказ #587 (ADR-368): ЦЕНА слепоты входов в долларах оборота.
+    try:
+        from spa_core.monitoring import unobserved_turnover_dependence
+        _utd = unobserved_turnover_dependence.run(root=args.root)
+        print(f"unobserved_turnover_dependence: {_utd['overall']} "
+              f"(critical={_utd['counts']['critical']} "
+              f"warn={_utd['counts']['warn']} "
+              f"unchecked={_utd['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "unobserved_turnover_dependence", e)
+    # Заказ #590 (ADR-369, G7): КАКОЙ РЫЧАГ снимает эту слепоту и чей он.
+    try:
+        from spa_core.monitoring import unobserved_leg_remedy_class
+        _ulr = unobserved_leg_remedy_class.run(root=args.root)
+        print(f"unobserved_leg_remedy_class: {_ulr['overall']} "
+              f"(critical={_ulr['counts']['critical']} "
+              f"warn={_ulr['counts']['warn']} "
+              f"unchecked={_ulr['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "unobserved_leg_remedy_class", e)
+    # Заказ #591 (ADR-371, G8): сколько ДНЕЙ знаменателя вернул бы рычаг.
+    try:
+        from spa_core.monitoring import hit_rate_denominator_recovery
+        _hrd = hit_rate_denominator_recovery.run(root=args.root)
+        print(f"hit_rate_denominator_recovery: {_hrd['overall']} "
+              f"(critical={_hrd['counts']['critical']} "
+              f"warn={_hrd['counts']['warn']} "
+              f"unchecked={_hrd['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "hit_rate_denominator_recovery", e)
+    # Заказ #592 (ADR-375, G9): те же доллары под правилом ОДНОГО форвардного дня.
+    try:
+        from spa_core.monitoring import remedy_class_single_forward_day
+        _rcs = remedy_class_single_forward_day.run(root=args.root)
+        print(f"remedy_class_single_forward_day: {_rcs['overall']} "
+              f"(critical={_rcs['counts']['critical']} "
+              f"warn={_rcs['counts']['warn']} "
+              f"unchecked={_rcs['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "remedy_class_single_forward_day", e)
     # Заказ #545 (ADR-305 поставил вопрос): остаётся ли расширение записи на
     # критическом пути к взводу — по ОБОИМ порядкам снятия стен. Мост находок
     # его НЕ читает по той же причине, что и соседей: единственное действие по
