@@ -2,7 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 import Disclaimer from '../../components/Disclaimer.astro';
 import strategies from '../../data/strategy_config.json';
-import snap from '../../data/track_snapshot.json';
+import snap from '../../lib/snapshot_view.js';
 import { goLiveLabel } from '../../lib/golive_label.js';
 
 const core = strategies.strategies.find(s => s.id === 'core')!;

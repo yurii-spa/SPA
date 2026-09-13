@@ -2,7 +2,7 @@
 // Homepage — Direction C "Console" (spec §7-C). Canonical chrome (header, paper
 // strip, footer) comes from Layout; this page is just the Console body + sections.
 import Layout from '../layouts/Layout.astro';
-import snap from '../data/track_snapshot.json';
+import snap from '../lib/snapshot_view.js';
 // WalletCheck (the paste-an-address hero widget) is NOT imported any more: it cross-navigated to
 // checkup.earn-defi.com, and that service is gone — every route of the domain answers 404 (Railway
 // edge fallback, measured 2026-08-16). An entry form that leads to a 404 is worse than no form.
@@ -36,7 +36,7 @@ const pkgApy = (k) => { const v = snap.packages && snap.packages[k] && snap.pack
 // tagged "(bt)", evidence-tagged on /packages) — a real measured value, never invented. JS still
 // overrides the data-fb="dd" cells live.
 import TIER_BANDS from '../lib/tier_bands.json';
-import snapRR from '../data/track_snapshot.json';
+import snapRR from '../lib/snapshot_view.js';
 // ADR-292/286: фактическая ставка НИКОГДА не пишется руками — один источник, из снимка.
 import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR } from '../lib/realized_rate.js';
 const realizedEn = realizedPhraseRR(snapRR);

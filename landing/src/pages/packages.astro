@@ -2,7 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import TrustBand from '../components/TrustBand.astro';
-import snap from '../data/track_snapshot.json';
+import snap from '../lib/snapshot_view.js';
 // ВИТРИНА (ADR-365) — единственный адрес чисел. Снимок выше остаётся только для
 // полей, которые на витрину ещё не перенесены; новые числа берутся отсюда.
 import { book as shelfBook, value as shelfValue } from '../lib/site_numbers.js';

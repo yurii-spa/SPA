@@ -44,6 +44,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -154,6 +155,48 @@ def measure(ddir: str | None = None) -> dict:
     }
 
 
+#: Имя артефакта прогона. Прибор, не оставляющий следа, неотличим от прибора,
+#: который не запускался НИ РАЗУ — и это ровно тот класс, ради которого он написан.
+ARTIFACT = "book_second_record.json"
+
+
+def write_artifact(verdict: dict, ddir: "str | Path | None" = None) -> "Path | None":
+    """Оставить след прогона. Вернуть путь либо ``None``, если писать некуда.
+
+    **Зачем это есть (ADR-374).** Прибор был проведён в цикл СТРОКОЙ В ПРОМПТЕ и
+    ничего не писал. Значит на вопрос «запускался ли он сегодня» ответить было нечем:
+    молчание прибора выглядело в точности как его исправная работа. Проверять
+    ИСПОЛНЕНИЕ по промпту нельзя — промпт это намерение, а не факт.
+
+    Замер 13.09, честно: из журнала цикла исполнение шага промпта НЕ ВИДНО вовсе —
+    туда попадает итоговая сводка агента, а не его шаги. То есть прежде вывода
+    «шаги не исполняются» надо было бы завести наблюдение; артефакт и есть это
+    наблюдение. Пока его нет, верный ответ — «не измерено», а не «не работает».
+
+    Запись НЕ ломает замер: не смогли записать — прибор всё равно отвечает на свой
+    вопрос, и код возврата от этого не меняется. След — не цель, а свидетельство.
+    """
+    try:
+        d = data_dir(str(ddir) if ddir else None)
+    except NotMeasured:
+        return None
+    doc = dict(verdict)
+    doc["_note"] = ("След прогона `scripts/book_second_record.py`. Пишется КАЖДЫЙ раз, "
+                    "включая отказ: иначе «прибор молчал» и «прибор не запускался» "
+                    "неразличимы.")
+    doc["ran_at"] = datetime.now(timezone.utc).isoformat()
+    try:
+        from spa_core.utils.atomic import atomic_save
+        atomic_save(d / ARTIFACT, doc)
+    except Exception:  # noqa: BLE001 — запись следа не имеет права ронять замер
+        try:
+            (d / ARTIFACT).write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n",
+                                      encoding="utf-8")
+        except OSError:
+            return None
+    return d / ARTIFACT
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--data-dir", default=None, help="каталог данных (умолчание — SPA_DATA_DIR или data/)")
@@ -163,7 +206,12 @@ def main(argv: list[str] | None = None) -> int:
         r = measure(args.data_dir)
     except NotMeasured as exc:
         print(f"НЕ ИЗМЕРЕНО — {exc}")
+        # След пишется и у ОТКАЗА — иначе «не смогли измерить» выглядело бы как
+        # «не запускались», а это разные факты (инв. #17).
+        write_artifact({"status": "unmeasured", "reason": str(exc), "reconciles": None},
+                       args.data_dir)
         return 2
+    write_artifact({"status": "measured", **r}, args.data_dir)
     if args.json:
         print(json.dumps(r, ensure_ascii=False, indent=2))
     if r["reconciles"]:

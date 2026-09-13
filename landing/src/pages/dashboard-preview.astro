@@ -15,7 +15,7 @@
 // noindex: this preview must not appear in search results.
 import Layout from '../layouts/Layout.astro';
 import DashboardSPAApp from '../components/DashboardSPAApp.jsx';
-import snap from '../data/track_snapshot.json';
+import snap from '../lib/snapshot_view.js';
 
 // Build-time snapshot seed — live poll overrides immediately on hydration.
 const initialFacts = {

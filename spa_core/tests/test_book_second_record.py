@@ -200,3 +200,55 @@ class TheExitCodeSeparatesThreeOutcomes(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TheRunLeavesATrace(_Scene):
+    """ADR-374: прибор, не оставляющий следа, неотличим от незапускавшегося.
+
+    Прибор проведён в цикл СТРОКОЙ В ПРОМПТЕ. Промпт — намерение, а не факт:
+    по нему нельзя ответить, запускался ли шаг сегодня. Пока прибор ничего не
+    писал, его молчание выглядело в точности как исправная работа.
+
+    Честная оговорка, которую стоит держать рядом: из журнала цикла исполнение
+    шага НЕ ВИДНО вовсе (туда попадает итоговая сводка агента, а не его шаги),
+    поэтому вывод «шаги промпта не исполняются» был бы НЕ ИЗМЕРЕН. Артефакт и
+    есть то наблюдение, которого не хватало.
+    """
+
+    def test_a_measured_run_leaves_its_verdict(self):
+        self.write([_trade("T1", {}, {"a": 100.0}),
+                    _trade("T2", {"a": 85.0}, {"b": 85.0})],
+                   positions={"positions": {"b": 85.0}})
+        self.assertEqual(bsr.main(["--data-dir", str(self.d)]), 1)
+        doc = json.loads((self.d / bsr.ARTIFACT).read_text(encoding="utf-8"))
+        self.assertEqual(doc["status"], "measured")
+        self.assertIs(doc["reconciles"], False)
+        self.assertEqual([b["kind"] for b in doc["money_gaps"]], ["money_gap"])
+        self.assertTrue(doc["ran_at"], "без отметки времени след не отвечает «когда»")
+
+    def test_a_REFUSAL_also_leaves_a_trace(self):
+        """Инв. #17: «не смогли измерить» и «не запускались» — разные факты.
+
+        Если след пишется только у удачного замера, то отказ снова становится
+        неотличим от тишины — то есть ровно тем дефектом, который артефакт и
+        закрывает, только сдвинутым на шаг.
+        """
+        self.assertEqual(bsr.main(["--data-dir", str(self.d)]), 2)
+        doc = json.loads((self.d / bsr.ARTIFACT).read_text(encoding="utf-8"))
+        self.assertEqual(doc["status"], "unmeasured")
+        self.assertIn("trades.json", doc["reason"])
+        self.assertIsNone(doc["reconciles"])
+
+    def test_an_unwritable_trace_does_not_break_the_measurement(self):
+        """След — свидетельство, а не цель: он не имеет права ронять замер."""
+        self.assertIsNone(bsr.write_artifact({"status": "measured"}, "/nonexistent/spa/dd"))
+
+    def test_the_trace_answers_when_it_ran(self):
+        """Без отметки времени артефакт не отличает сегодняшний прогон от прошлогоднего."""
+        self.write([_trade("T1", {}, {"a": 1.0})])
+        bsr.main(["--data-dir", str(self.d)])
+        doc = json.loads((self.d / bsr.ARTIFACT).read_text(encoding="utf-8"))
+        from datetime import datetime, timezone
+        ran = datetime.fromisoformat(doc["ran_at"])
+        age = (datetime.now(timezone.utc) - ran).total_seconds()
+        self.assertLess(abs(age), 300, "отметка прогона не похожа на «только что»")

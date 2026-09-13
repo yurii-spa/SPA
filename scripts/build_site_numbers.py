@@ -162,6 +162,10 @@ def _book(track: dict, key: str, label: str, measured_at: object = None) -> dict
         "status": b.get("status"),
         "days": days,
         "evidence_split": _evidence_split(days, b.get("observed_accrual_since"), measured_at),
+        # Число позиций — не ставка и не порог, но страница его печатает; без него
+        # витрина не покрывает показатель, и страница печатала бы `undefined`
+        # (поймано дифференциалом собранного HTML, а не глазами).
+        "positions": _num(b.get("positions_count")),
         "apy": figure(b.get("apy_pct"), unit="%", kind=MEASUREMENT, annualised=True,
                       source="landing/src/data/track_snapshot.json → paper_tracks",
                       evidence=b.get("evidence"),
@@ -222,6 +226,39 @@ def build(*, published_at: "str | None" = None) -> dict:
             "gates": {"passed": _num(snap.get("gates_passed")),
                       "total": _num(snap.get("gates_total")),
                       "state": snap.get("go_live_state")},
+        },
+
+        # Остальное, что страницы показывают читателю. Без этих полей витрина
+        # покрывала семь показателей из пятнадцати, и страница выходила бы
+        # ПОЛОСАТОЙ — половина чисел недельные, половина дневные, и по виду не
+        # отличить. Такая страница хуже обоих чистых вариантов.
+        "track": {
+            "days_needed": figure(snap.get("days_needed"), unit="дней", kind=DECISION,
+                                  source="track_snapshot.json → days_needed (порог 30 дней, "
+                                         "ADR-002; в снимок приходит из гейта)"),
+            "end_equity": figure(snap.get("end_equity"), unit="USD", kind=MEASUREMENT,
+                                 source="track_snapshot.json → end_equity"),
+            "go_live_target": snap.get("go_live_target"),
+            "degraded": bool(snap.get("degraded")),
+            # Отметка генератора снимка — НЕ число и не показатель: она говорит,
+            # когда снят замер, и живёт рядом с `measured_at` как его источник.
+            "snapshot_generated_at": snap.get("generated_at"),
+        },
+
+        # Публикуемые ставки пакетов. Идут ВМЕСТЕ с просадкой по той же причине,
+        # что и у книг (инв. #8): доходность без хвоста читается как обещание.
+        "packages": {
+            name: {
+                "apy": figure((snap.get("packages") or {}).get(name, {}).get("apy_pct"),
+                              unit="%", kind=MEASUREMENT, annualised=True,
+                              source="track_snapshot.json → packages",
+                              unavailable_reason="ставка пакета не измерена — печатать "
+                                                 "«идёт paper-тест», не число"),
+                "drawdown": figure((snap.get("packages") or {}).get(name, {}).get("dd_pct"),
+                                   unit="%", kind=MEASUREMENT,
+                                   source="track_snapshot.json → packages"),
+            }
+            for name in ("conservative", "balanced", "aggressive")
         },
 
         "books": {

@@ -17,7 +17,7 @@
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import DashboardSPAApp from '../components/DashboardSPAApp.jsx';
-import snap from '../data/track_snapshot.json';
+import snap from '../lib/snapshot_view.js';
 
 // Build-time snapshot seed — the live poll overrides immediately on hydration. Shape matches what
 // DashboardSPAApp consumes for its KPI strip (and passes down to the DashboardLive island).
