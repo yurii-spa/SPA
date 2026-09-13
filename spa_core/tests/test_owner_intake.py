@@ -94,7 +94,11 @@ def test_partial_task_hint_in_card_body_and_telegram(tmp_path, monkeypatch):
     body = path.read_text(encoding="utf-8")
     assert _PARTIAL_RESP in body, "PARTIAL hint must be persisted in the card body for the full cycle"
     assert "похоже на уже существующее" in body.lower()
-    assert Q.load_card(path).status == "in-progress"          # task still created
+    # ИЗМЕНЕНО 14.09 (ADR-375, инв. #16): предмет утверждения тот же — «задача ВСЁ ЖЕ
+    # создана», — сменилось только ожидаемое состояние. С правилом машинной приёмки
+    # приём больше не берёт задачу в работу: он её ПРИНИМАЕТ, а мерку объявляет тот,
+    # кто возьмёт. `new` и значит «ещё ничья».
+    assert Q.load_card(path).status == "new"                  # task still created
     assert any(_PARTIAL_RESP in n for n in notes), "owner's Telegram reply must carry the hint"
 
 
@@ -316,7 +320,11 @@ def test_large_batch_collapses_into_one_summary(tmp_path, monkeypatch):
     assert "Задача 0" in notes[0], "в сводке должны быть видны первые заголовки"
     assert "Задача 11" not in notes[0], "сводка не должна выродиться в ту же ленту"
     assert len(res["processed"]) == 12, "сводка не должна отменять саму обработку"
-    assert all(Q.load_card(p).status == "in-progress" for p in paths)
+    # ИЗМЕНЕНО 14.09 (ADR-375, инв. #16): см. причину выше — приём оставляет задачу
+    # в `new`. Утверждение УСИЛЕНО: проверяется не только статус, но и что ни одна
+    # карточка не ушла из приёма молча (пустой список прошёл бы прежнюю проверку).
+    assert paths, "сцена без карточек — проверка была бы вакуумной"
+    assert all(Q.load_card(p).status == "new" for p in paths)
 
 
 def test_unclear_card_records_the_source_text_readably(tmp_path, monkeypatch):

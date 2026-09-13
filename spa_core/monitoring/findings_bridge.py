@@ -123,6 +123,7 @@ PRODUCES = (
     "data/unobserved_leg_remedy_class.json",
     "data/hit_rate_denominator_recovery.json",
     "data/remedy_class_single_forward_day.json",
+    "data/writer_universe_lever_floor.json",
     "data/intraday_rate_input_movement.json",
     "data/audit_trail_rate_input_coverage.json",
     "data/run_axis_time_stitch.json",
@@ -208,6 +209,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "unobserved_leg_remedy_class",
     "hit_rate_denominator_recovery",
     "remedy_class_single_forward_day",
+    "writer_universe_lever_floor",
     "intraday_rate_input_movement",
     "audit_trail_rate_input_coverage",
     "run_axis_time_stitch",
@@ -340,6 +342,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "remedy_class_single_forward_day": {
         "module": "spa_core/monitoring/remedy_class_single_forward_day.py",
         "artifact": "data/remedy_class_single_forward_day.json"},
+    "writer_universe_lever_floor": {
+        "module": "spa_core/monitoring/writer_universe_lever_floor.py",
+        "artifact": "data/writer_universe_lever_floor.json"},
     "g1_verdict_recoverability": {
         "module": "spa_core/monitoring/g1_verdict_recoverability.py",
         "artifact": "data/g1_verdict_recoverability.json"},
@@ -1310,6 +1315,17 @@ def main(argv=None) -> int:
               f"unchecked={_rcs['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "remedy_class_single_forward_day", e)
+    # Заказ #596 (ADR-378, G10): ПУСТ ли потолок самого дешёвого рычага —
+    # сколько его долларов подпёрто материалом в истории фидов.
+    try:
+        from spa_core.monitoring import writer_universe_lever_floor
+        _wuf = writer_universe_lever_floor.run(root=args.root)
+        print(f"writer_universe_lever_floor: {_wuf['overall']} "
+              f"(critical={_wuf['counts']['critical']} "
+              f"warn={_wuf['counts']['warn']} "
+              f"unchecked={_wuf['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "writer_universe_lever_floor", e)
     # Заказ #545 (ADR-305 поставил вопрос): остаётся ли расширение записи на
     # критическом пути к взводу — по ОБОИМ порядкам снятия стен. Мост находок
     # его НЕ читает по той же причине, что и соседей: единственное действие по

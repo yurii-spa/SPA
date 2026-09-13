@@ -137,7 +137,7 @@ def run_note_intake(now: datetime | None = None) -> dict:
                 icon = {"DONE": "✅", "IN_PROGRESS": "🔧", "REJECTED": "🚫"}.get(verdict, "ℹ️")
                 _queue_notice(f"{icon} {html.escape(resp_h or 'нашёл совпадение в памяти — дубль не создаю')}")
                 _journal_history(dt, card, verdict, resp_h)
-                set_status(card.path, "done", acceptance_exempt="intake route: duplicate")
+                set_status(card.path, "done")
                 processed.append(card.id)
                 continue
             if verdict == "PARTIAL" and resp_h:
@@ -174,14 +174,16 @@ def run_note_intake(now: datetime | None = None) -> dict:
                 ideas.mkdir(parents=True, exist_ok=True)
                 fpath = ideas / f"{dt.strftime('%Y-%m-%d')}-{_slug(card.title)}.md"
                 atomic_save_text(f"# {card.title}\n\n_Из Inbox {dt.strftime('%Y-%m-%d')} (source: {card.fields.get('source','')})._\n{partial_body}\n{body}\n", str(fpath))
-                set_status(card.path, "done", acceptance_exempt="intake route: idea")
+                # Носитель гасится, НАЗЫВАЯ предмет, куда уехало содержимое (ADR-375).
+                # Это и есть его приёмка: заметка существует — проверяемо.
+                set_status(card.path, "done", carried_to=fpath)
                 _queue_notice(f"💡 Записал как идею: <b>{html.escape(card.title)}</b>{partial_tg}")
             elif kind == "unclear":
                 q = resp or "Уточни: это вопрос или задача?"
                 # Дословный текст пишется маркером, ОБЪЯВЛЕННЫМ в history_check: по нему
                 # же следующий заход узнаёт точный повтор (цикл #446). Литерал здесь
                 # означал бы формат в двух местах — он бы разошёлся молча.
-                create_card(
+                _owner_card = create_card(
                     "owner-decision",
                     f"Уточнение по заметке: {card.title}",
                     body=(f"## Что случилось и почему это важно\nПришло сообщение, непонятно — вопрос это или задача.\n\n"
@@ -189,7 +191,11 @@ def run_note_intake(now: datetime | None = None) -> dict:
                           f"## Как понять, что готово\nТы уточнил.\n\n## Что будет после\nОбработаю по твоему ответу."),
                     status="needs-owner", source="intake",
                 )
-                set_status(card.path, "done", acceptance_exempt="intake route: unclear")
+                # Тот же порядок: носитель гасится, назвав карточку владельцу.
+                # `create_card` возвращает путь либо объект с `path` — берём оба вида,
+                # потому что сверять приходится СУЩЕСТВОВАНИЕМ, а не типом.
+                _target = getattr(_owner_card, "path", _owner_card)
+                set_status(card.path, "done", carried_to=_target)
                 _queue_notice(f"❓ Есть вопрос — смотри карточку: {html.escape(q)}{partial_tg}")
             else:  # task
                 # вписать критерий (полную декомпозицию делает обычный цикл), статус in-progress
@@ -200,9 +206,17 @@ def run_note_intake(now: datetime | None = None) -> dict:
                 if append:
                     txt = card.path.read_text(encoding="utf-8").rstrip() + append
                     atomic_save_text(txt, str(card.path))
-                # Освобождение НАЗВАНО и записано в карточку (правило приёмки): задание владельца
-                # ставится в очередь маршрутизатором, а пробу объявляет сессия, что его возьмёт.
-                set_status(card.path, "in-progress", acceptance_exempt="intake route: task")
+                # ИЗМЕНЕНО 14.09 (ADR-375): приём БОЛЬШЕ НЕ БЕРЁТ задачу в работу.
+                #
+                # Здесь стояло `set_status(card.path, "in-progress")`. С правилом машинной
+                # приёмки (`.claude/rules/acceptance.md`) это стало прямым нарушением: из
+                # приёма карточка уходит только с объявленной пробой, а приём пробы знать
+                # не может — задача пришла текстом от владельца минуту назад. Попытка
+                # отказывала, карточка молча оставалась `new`, и СЕМЬ тестов краснели.
+                #
+                # Правильный ответ не «освободить приём», а признать, что он и не берёт
+                # работу: он её ПРИНИМАЕТ. Карточка остаётся `new` — «ещё ничья», — и
+                # мерку объявляет тот, кто возьмёт её в работу. Ровно этого правило и хочет.
                 _queue_notice(f"📥 Создал задачу: <b>{html.escape(card.title)}</b>{partial_tg}")
             processed.append(card.id)
         except Exception as exc:  # noqa: BLE001 — карточка остаётся new → обычный цикл

@@ -21,12 +21,12 @@ inbox-карточек 511, без критерия — 462.
 
 Критерий в машинной форме — одно из двух полей frontmatter:
 `acceptance_probe: <имя из card_acceptance.PROBES>` либо `finding_key:` (карточку
-родил мост, и её критерий — исчезновение находки; закрывает мост сам). Третья форма —
-`acceptance_exempt: "<причина>"` — не критерий, а НАЗВАННОЕ освобождение: его ставит
-маршрутизатор приёма (`owner_queue/intake.py`) на карточки владельца, которые он сам
-двигает (идея → docs/ideas, неясное → карточка владельцу, задача → очередь). Освобождение
-видно в frontmatter и в следе статуса; делающая сессия обязана объявить пробу до первой
-правки (`.claude/rules/acceptance.md`).
+родил мост, и её критерий — исчезновение находки; закрывает мост сам). Карточка-НОСИТЕЛЬ
+приёма заданий (идея → `docs/ideas`, вопрос → карточка владельцу) гасится очередью с
+`carried_to=<существующий путь>` (ADR-377): это заработанное освобождение, не флаг, и в
+frontmatter оно следа не оставляет — сама карточка в `done` без критерия попадает в базу
+только если существовала на 13.09; новых таких носителей ratchet не ждёт, потому что приём
+с 14.09 задачу в работу не берёт (остаётся `new`).
 
 Только stdlib, оффлайн.
 """
@@ -41,10 +41,10 @@ _TRACKER = _REPO / "nimbalyst-local" / "tracker"
 _BASELINE = _REPO / "scripts" / "inbox_acceptance_baseline.json"
 
 _FM = re.compile(r"\A---\n(.*?)\n---", re.S)
-_CRITERION = re.compile(r"^(acceptance_probe|finding_key|acceptance_exempt):\s*\S", re.M)
+_CRITERION = re.compile(r"^(acceptance_probe|finding_key):\s*\S", re.M)
 _STATUS = re.compile(r"^status:\s*(\S+)", re.M)
 #: Статусы приёма: карточка ещё ничья, критерий обязан появиться при взятии в работу.
-INTAKE_STATUSES = frozenset({"new", "backlog", "ingested"})   # ingested — «ответ принят», не работа
+INTAKE_STATUSES = frozenset({"new", "backlog"})
 
 
 def _frontmatter(name: str) -> str:
@@ -123,6 +123,5 @@ def test_detector_accepts_both_criterion_forms_and_rejects_prose(tmp_path) -> No
     """Положительный контроль детектора в обе стороны."""
     assert _CRITERION.search("status: new\nacceptance_probe: tier_promotion_loop_closed\n")
     assert _CRITERION.search('status: new\nfinding_key: "tier_promote:x"\n')
-    assert _CRITERION.search('status: in-progress\nacceptance_exempt: "intake route: task"\n')
     assert not _CRITERION.search("status: new\ntitle: acceptance_probe в заголовке\n")
     assert not _CRITERION.search("status: new\nacceptance_probe:\n"), "пустое поле — не критерий"

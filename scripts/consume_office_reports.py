@@ -393,6 +393,14 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "remedy_class_single_forward_day.json": ("status", "population", "answer",
                                              "order_sensitivity", "per_day",
                                              "what_it_does_not_prove", "findings"),
+    # `answer` и `per_day` обязательны по той же причине, что у соседа: доля без
+    # поимённого перечня дней читателем не проверяема. `population` — потому что
+    # ответ делится на ТРИ, а не на два (материал · доказанная пустота · не
+    # измерено), и счёт исходов пары есть единственное место, где видно, не ушла
+    # ли часть предмета в третий исход молча (инв. #17).
+    "writer_universe_lever_floor.json": ("status", "population", "answer",
+                                         "series_window", "per_day",
+                                         "what_it_does_not_prove", "findings"),
     "hit_rate_selection_bias.json": ("status", "journal_rows", "population",
                                      "hit_rate_as_is", "hit_rate_interval",
                                      "axis_a_horizon", "axis_b_cost",
@@ -663,6 +671,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/hit_rate_denominator_recovery.py",
     "remedy_class_single_forward_day.json":
         "spa_core/monitoring/remedy_class_single_forward_day.py",
+    "writer_universe_lever_floor.json":
+        "spa_core/monitoring/writer_universe_lever_floor.py",
     "g1_verdict_recoverability.json":
         "spa_core/monitoring/g1_verdict_recoverability.py",
     "unevidenced_leg_causes.json":
@@ -2200,6 +2210,17 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _rcsfd_report,
         )
         out.extend(_rcsfd_report(data))
+    elif name == "writer_universe_lever_floor.json":
+        # Заказ #596/G10. Порядок строк — порядок вопроса: сперва ОТВЕТ в
+        # долларах (сколько подпёрто материалом, сколько доказанно нет), сразу за
+        # ним СТАТУС ЧИСЛА — потому что доказательство здесь одностороннее, и
+        # читатель, взявший первую долю за «поднято», переоценит починку ровно
+        # вдвое. Счёт исходов пары идёт ДО поимённых дней: он отвечает на вопрос
+        # «не ушло ли что-то в третий исход», а дни — уже на вопрос «где».
+        from spa_core.monitoring.writer_universe_lever_floor import (
+            format_report as _wulf_report,
+        )
+        out.extend(_wulf_report(data))
     elif name == "unevidenced_leg_causes.json":
         # Заказ #543. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (сколько
         # дней потеряли вердикт именно из-за неоценённой ноги), затем КЛАССЫ

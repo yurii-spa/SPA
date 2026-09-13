@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from spa_core.owner_queue import queue as q
@@ -86,23 +87,6 @@ class TakingIntoWork(unittest.TestCase):
             q.set_status(path, "in-progress")
         self.assertIn("НЕ ИЗМЕРЕНО", err.getvalue())
 
-    def test_named_exemption_is_stamped_into_the_card_and_lets_it_move(self):
-        """Маршрутизатор приёма (#55): освобождение НАЗВАНО и видно в самой карточке."""
-        path = _card(self.tmp, "inbox-golosovoe-zadanie")
-        q.set_status(path, "in-progress", acceptance_exempt="intake route: task")
-        text = open(path, encoding="utf-8").read()
-        self.assertIn("status: in-progress", text)
-        self.assertIn('acceptance_exempt: "intake route: task"', text)
-
-    def test_empty_exemption_is_not_an_exemption(self):
-        path = _card(self.tmp, "inbox-pustaya-prichina")
-        with self.assertRaises(q.AcceptanceCriterionMissing):
-            q.set_status(path, "in-progress", acceptance_exempt="   ")
-
-    def test_ingested_is_intake_not_work(self):
-        path = _card(self.tmp, "inbox-otvet-prinyat")
-        q.set_status(path, "ingested")
-
     def test_cli_refuses_with_exit_2(self):
         path = _card(self.tmp, "inbox-cli")
         r = subprocess.run([sys.executable, _CLI, "set-status", path, "in-progress"],
@@ -149,3 +133,54 @@ class ProbeIsFrozenInWork(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ACarrierIsRetiredNotTakenIntoWork(unittest.TestCase):
+    """ADR-375: приём гасит НОСИТЕЛЬ, назвав предмет, куда уехало содержимое.
+
+    Правило машинной приёмки написано про «карточку БЕРУТ В РАБОТУ без мерки». Приём
+    заданий делает другое: идея уезжает в заметку, вопрос — в карточку владельцу, а
+    сама inbox-карточка гасится как отработавший носитель. Требовать у носителя пробу
+    не к чему: его приёмка ровно одна — содержимое теперь лежит ВОТ ЗДЕСЬ.
+
+    **Освобождение обязано быть ЗАРАБОТАННЫМ, а не флагом-доверием.** Первая редакция
+    приняла бы `carried_to` по имени, без проверки, — и мутация, снявшая проверку
+    существования, ничего не покрасила: то есть отличить заработанное освобождение от
+    опт-аута было нечем. Эти два теста и есть та разница.
+    """
+
+    def _card(self, tmp: Path) -> Path:
+        p = tmp / "inbox-nositel.md"
+        p.write_text("---\ntrackerStatus:\n  type: inbox\ntitle: \"н\"\nstatus: new\n---\n\nтекст\n",
+                     encoding="utf-8")
+        return p
+
+    def test_a_named_but_MISSING_target_does_not_free_the_carrier(self):
+        """Имя без файла — обещание, а не приёмка."""
+        import tempfile
+        from spa_core.owner_queue.queue import set_status, AcceptanceCriterionMissing
+        with tempfile.TemporaryDirectory() as tmp:
+            card = self._card(Path(tmp))
+            with self.assertRaises(AcceptanceCriterionMissing) as ctx:
+                set_status(card, "done", carried_to=Path(tmp) / "ничего-нет.md")
+            self.assertIn("carried_to", str(ctx.exception))
+
+    def test_an_existing_target_frees_the_carrier(self):
+        """Обратная сторона: предмет существует — носитель гасится."""
+        import tempfile
+        from spa_core.owner_queue.queue import set_status, load_card
+        with tempfile.TemporaryDirectory() as tmp:
+            card = self._card(Path(tmp))
+            target = Path(tmp) / "docs-ideas-zametka.md"
+            target.write_text("# идея\n", encoding="utf-8")
+            set_status(card, "done", carried_to=target)
+            self.assertEqual(load_card(card).status, "done")
+
+    def test_without_carried_to_the_rule_still_refuses(self):
+        """Контроль на сам механизм: без носителя правило обязано работать как прежде."""
+        import tempfile
+        from spa_core.owner_queue.queue import set_status, AcceptanceCriterionMissing
+        with tempfile.TemporaryDirectory() as tmp:
+            card = self._card(Path(tmp))
+            with self.assertRaises(AcceptanceCriterionMissing):
+                set_status(card, "done")
